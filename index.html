@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SolarDoc Pro — Documentos Jurídicos para Energia Solar com IA</title>
+  <meta name="description" content="Gere contratos, procurações e propostas para sua empresa de energia solar em segundos com IA. Proteção jurídica e agilidade para o integrador." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Lexend:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --solar: #f59e0b;
+      --solar-light: #fbbf24;
+      --solar-dark: #d97706;
+      --bg: #0a0a0f;
+      --bg2: #111118;
+      --bg3: #16161f;
+      --border: rgba(255,255,255,0.08);
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --radius: 20px;
+      --pad-x: max(6vw, calc(50vw - 600px));
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    h1, h2, h3, .lexend-title { font-family: 'Lexend', sans-serif; }
+
+    /* ───── NAV ───── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px var(--pad-x);
+      background: rgba(10,10,15,0.8);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border-bottom: 1px solid var(--border);
+      transition: all .4s;
+    }
+    .logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .logo img { height: 112px; width: auto; transition: transform .3s; }
+    .logo:hover img { transform: scale(1.05); }
+
+    nav ul { list-style: none; display: flex; gap: 32px; }
+    nav ul a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: color .2s; }
+    nav ul a:hover { color: var(--solar); }
+
+    .nav-cta {
+      background: linear-gradient(135deg, var(--solar), var(--solar-dark));
+      color: #000; font-weight: 800;
+      padding: 10px 24px; border-radius: 12px; text-decoration: none;
+      font-size: 14px; transition: all .3s; white-space: nowrap;
+      box-shadow: 0 4px 15px rgba(245,158,11,.2);
+    }
+    .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(245,158,11,.4); }
+
+    /* ───── HERO ───── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 180px var(--pad-x) 80px;
+      position: relative; overflow: hidden;
+    }
+    .hero-glow {
+      position: absolute; top: -300px; left: 50%; transform: translateX(-50%);
+      width: 1000px; height: 1000px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(245,158,11,.15) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3);
+      color: var(--solar); padding: 8px 18px; border-radius: 999px;
+      font-size: 13px; font-weight: 700; margin-bottom: 32px;
+      position: relative; z-index: 1;
+      animation: revealDown .8s ease both;
+    }
+    .hero h1 {
+      font-size: clamp(38px, 7vw, 76px);
+      font-weight: 900; line-height: 1.1; letter-spacing: -3px;
+      max-width: 1000px; position: relative; z-index: 1;
+      animation: revealDown .9s ease both .1s;
+    }
+    .hero h1 em { 
+      font-style: normal;
+      background: linear-gradient(135deg, #f59e0b, #fde68a, #f59e0b);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 3s ease infinite;
+    }
+    .hero p {
+      font-size: clamp(17px, 2.2vw, 22px); color: var(--muted);
+      max-width: 720px; margin: 32px auto 0;
+      position: relative; z-index: 1;
+      animation: revealDown 1s ease both .2s;
+    }
+    .hero-btns {
+      display: flex; gap: 20px; margin-top: 48px; flex-wrap: wrap; justify-content: center;
+      position: relative; z-index: 1;
+      animation: revealDown 1.1s ease both .3s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #000; font-weight: 800; padding: 18px 48px;
+      border-radius: 14px; text-decoration: none; font-size: 17px;
+      transition: all .3s cubic-bezier(.16,1,.3,1); 
+      box-shadow: 0 12px 40px rgba(245,158,11,.3);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .btn-primary:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 20px 60px rgba(245,158,11,.5); }
+
+    .btn-outline {
+      border: 1.5px solid var(--border); color: var(--text);
+      padding: 18px 48px; border-radius: 14px; text-decoration: none;
+      font-size: 17px; font-weight: 600; transition: all .3s;
+      background: rgba(255,255,255,.04);
+      backdrop-filter: blur(10px);
+    }
+    .btn-outline:hover { border-color: rgba(245,158,11,.5); background: rgba(245,158,11,.08); transform: translateY(-2px); }
+
+    /* ───── TRUST BADGES ───── */
+    .trust-section {
+      padding: 40px 0 80px; text-align: center; overflow: hidden;
+      border-bottom: 1px solid var(--border); position: relative; z-index: 1;
+    }
+    .trust-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px; }
+    .trust-track { display: flex; gap: 64px; align-items: center; width: max-content; animation: scrollCards 30s linear infinite; }
+    .trust-logo { font-family: 'Lexend', sans-serif; font-size: 20px; font-weight: 800; color: #475569; display: flex; align-items: center; gap: 8px; }
+    .trust-logo span { color: #64748b; }
+    @keyframes scrollCards { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+    /* ───── THE PAIN (DORES) ───── */
+    .section { padding: 120px var(--pad-x); position: relative; }
+    .section-label {
+      font-size: 13px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 4px; color: var(--solar); margin-bottom: 20px; display: block;
+    }
+    .section-title {
+      font-size: clamp(32px, 5vw, 56px); font-weight: 800;
+      line-height: 1.15; letter-spacing: -2px; max-width: 800px; margin-bottom: 24px;
+    }
+    .section-desc { font-size: 20px; color: var(--muted); max-width: 650px; }
+    
+    .pain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 64px; }
+    .pain-card {
+      background: rgba(255, 59, 48, 0.05); border: 1px solid rgba(255, 59, 48, 0.15);
+      padding: 40px; border-radius: 20px; transition: transform .3s;
+    }
+    .pain-card:hover { transform: translateY(-4px); border-color: rgba(255, 59, 48, 0.3); }
+    .pain-icon { font-size: 32px; margin-bottom: 16px; }
+    .pain-title { font-size: 20px; color: #ff6b6b; font-weight: 800; margin-bottom: 12px; }
+    .pain-desc { color: var(--muted); font-size: 16px; line-height: 1.6; }
+
+    /* ───── APP PREVIEW ───── */
+    .app-preview-wrap { padding: 80px var(--pad-x) 120px; display: flex; justify-content: center; position: relative; }
+    .app-preview {
+      width: 100%; max-width: 1100px; background: #000; border: 1px solid var(--border);
+      border-radius: 24px; overflow: hidden;
+      box-shadow: 0 60px 150px rgba(0,0,0,.8), 0 0 0 1px rgba(245,158,11,.1);
+      transform: perspective(1000px) rotateX(2deg); transition: transform .6s cubic-bezier(.16,1,.3,1);
+    }
+    .app-preview:hover { transform: perspective(1000px) rotateX(0deg); }
+    .app-preview img { width: 100%; height: auto; display: block; }
+
+    /* ───── VS TABLE ───── */
+    .vs-section { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .vs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 64px; }
+    .vs-card { padding: 40px; border-radius: 24px; }
+    .vs-old { background: var(--bg); border: 1px solid var(--border); }
+    .vs-new { background: linear-gradient(135deg, rgba(245,158,11,.1), transparent); border: 1px solid rgba(245,158,11,.3); }
+    .vs-title { font-size: 24px; font-weight: 800; margin-bottom: 32px; display: flex; align-items: center; gap: 12px; }
+    .vs-old .vs-title { color: #94a3b8; }
+    .vs-new .vs-title { color: var(--solar); }
+    .vs-list { list-style: none; display: flex; flex-direction: column; gap: 20px; }
+    .vs-list li { display: flex; gap: 16px; font-size: 16px; color: var(--text); }
+    .vs-old .vs-list li::before { content: '✕'; color: #ef4444; font-weight: 800; }
+    .vs-new .vs-list li::before { content: '✓'; color: var(--solar); font-weight: 800; }
+
+    /* ───── FEATURES GRID ───── */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; margin-top: 80px; }
+    .feature-card { background: linear-gradient(135deg, var(--bg3), var(--bg2)); border: 1px solid var(--border); border-radius: 24px; padding: 40px; transition: all .4s; }
+    .feature-card:hover { border-color: rgba(245,158,11,.4); transform: translateY(-8px); box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 0 40px rgba(245,158,11,.08); }
+    .feature-icon { width: 64px; height: 64px; border-radius: 18px; background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.2); display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 28px; }
+    .feature-title { font-size: 22px; font-weight: 700; margin-bottom: 14px; }
+    .feature-desc { color: var(--muted); font-size: 15px; line-height: 1.8; }
+
+    /* ───── FAQ ───── */
+    .faq-grid { display: grid; gap: 16px; margin-top: 64px; max-width: 800px; }
+    .faq-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 16px; padding: 24px 32px; }
+    .faq-q { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+    .faq-q::before { content: 'Q.'; color: var(--solar); font-family: 'Lexend'; font-weight: 900; }
+    .faq-a { color: var(--muted); font-size: 16px; padding-left: 30px; line-height: 1.7; }
+
+    /* ───── DOCS SHOWCASE ───── */
+    .docs-showcase { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-top: 64px; }
+    .doc-showcase-card { 
+      background: var(--bg); border: 1px solid var(--border); border-radius: 20px; 
+      padding: 24px; text-align: center; transition: all .3s;
+    }
+    .doc-showcase-card:hover { transform: translateY(-8px); border-color: rgba(245,158,11,.4); box-shadow: 0 20px 40px rgba(245,158,11,.1); }
+    .doc-showcase-card img { width: 100%; height: auto; border-radius: 12px; margin-bottom: 20px; }
+    .doc-showcase-card h4 { font-size: 16px; font-weight: 700; color: var(--text); }
+
+    /* ───── MOBILE RESPONSIVITY ───── */
+    @media (max-width: 900px) {
+      .hero { padding-top: 160px; }
+      .section { padding: 80px 6vw; }
+      .vs-grid { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 600px) {
+      nav { padding: 12px 5vw; }
+      nav ul { display: none; }
+      .logo img { height: 96px; }
+      .btn-primary, .btn-outline { width: 100%; justify-content: center; padding: 16px 24px; }
+      .hero h1 { letter-spacing: -1px; }
+      .app-preview { transform: none; border-radius: 12px; }
+      .pain-card { padding: 24px; }
+      .vs-card { padding: 24px; }
+    }
+
+    /* ───── OFFER HIGHLIGHT ───── */
+    .offer-box { background: linear-gradient(135deg, rgba(245,158,11,.15), transparent); border: 1px solid rgba(245,158,11,.3); border-radius: 32px; padding: 64px 40px; text-align: center; margin-top: 40px; }
+    .offer-title { font-size: 32px; font-weight: 800; margin-bottom: 16px; }
+    .offer-pros { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; margin: 40px 0; color: var(--muted); }
+    .offer-pro { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+    .offer-pro i { color: var(--solar); font-style: normal; font-weight: 900; }
+
+    /* ───── ANIMATIONS ───── */
+    @keyframes revealDown { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shimmer { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    .reveal { opacity: 0; transform: translateY(40px); transition: all .8s cubic-bezier(.16,1,.3,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="logo">
+    <img src="logo-full.png" alt="SolarDoc Pro Logo">
+  </a>
+  <ul>
+    <li><a href="#solucao">A Solução</a></li>
+    <li><a href="#vantagens">Vantagens</a></li>
+    <li><a href="#faq">Dúvidas</a></li>
+  </ul>
+  <a href="http://localhost:3000/register" class="nav-cta">Começar Grátis →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-badge">⚡ Acelerando Centenas de Integradores no Brasil</div>
+  <h1>Não perca vendas pela <em>lentidão administrativa.</em></h1>
+  <p>Da proposta ideal para financiamento à procuração que a concessionária aprova na hora. O SolarDoc Pro gera todos os seus documentos em 2 minutos usando Inteligência Artificial.</p>
+  <div class="hero-btns">
+    <a href="http://localhost:3000/register" class="btn-primary">Criar conta grátis agora</a>
+    <a href="#solucao" class="btn-outline">Ver como funciona</a>
+  </div>
+</section>
+
+<!-- TRUST BADGES -->
+<div class="trust-section">
+  <div class="trust-label">Mais de 400 integradoras abandonaram o Word:</div>
+  <div style="overflow: hidden;">
+    <div class="trust-track">
+      <!-- Repeated for infinite scroll illusion -->
+      <div class="trust-logo">☀️ SUN<span>FORCE</span></div>
+      <div class="trust-logo">⚡ ECO<span>VOLT</span></div>
+      <div class="trust-logo">🌞 BRASIL<span>SOLAR</span></div>
+      <div class="trust-logo">🔌 MEGA<span>WATT</span></div>
+      <div class="trust-logo">☀️ SUN<span>FORCE</span></div>
+      <div class="trust-logo">⚡ ECO<span>VOLT</span></div>
+      <div class="trust-logo">🌞 BRASIL<span>SOLAR</span></div>
+      <div class="trust-logo">🔌 MEGA<span>WATT</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- THE PAIN -->
+<section class="section" id="dores">
+  <span class="section-label">O Gargalo Silencioso</span>
+  <h2 class="section-title">O que impede sua integradora de crescer rápido?</h2>
+  <div class="pain-grid">
+    <div class="pain-card reveal">
+      <div class="pain-icon">⏳</div>
+      <h3 class="pain-title">Vendas Esfriando</h3>
+      <p class="pain-desc">O cliente disse "sim", mas a proposta oficial demorou 1 hora para sair. Ele pensou melhor e foi fechar com a concorrência que respondeu na hora.</p>
+    </div>
+    <div class="pain-card reveal">
+      <div class="pain-icon">📑</div>
+      <h3 class="pain-title">Reprovação da Concessionária</h3>
+      <p class="pain-desc">Seu projeto empacou na Cemig, Enel ou CPFL porque a procuração estava com uma cláusula errada ou modelo desatualizado. Retrabalho e atraso na obra.</p>
+    </div>
+    <div class="pain-card reveal">
+      <div class="pain-icon">💸</div>
+      <h3 class="pain-title">Custo Jurídico Alto</h3>
+      <p class="pain-desc">Pagar advogado para redigir ou revisar cada novo contrato de venda, prestação de serviço ou adendo consome sua margem de lucro.</p>
+    </div>
+  </div>
+</section>
+
+<!-- THE SOLUTION (VS TABLE) -->
+<section class="section vs-section" id="solucao">
+  <div style="text-align: center;">
+    <span class="section-label">A Solução Definitiva</span>
+    <h2 class="section-title" style="margin: 0 auto">O velho e cansativo "Word" vs A agilidade do SolarDoc</h2>
+  </div>
+  
+  <div class="vs-grid">
+    <div class="vs-card vs-old reveal">
+      <h3 class="vs-title">Fazendo no Word/Excel</h3>
+      <ul class="vs-list">
+        <li>Cópia e cola constante (risco extremo de errar nome, CPF ou valor).</li>
+        <li>45+ minutos para preparar e revisar 1 pacote de documentos.</li>
+        <li>Modelos genéricos do Google que as concessionárias recusam.</li>
+        <li>Propostas "feias" que não transmitem confiança pro cliente.</li>
+        <li>Documentos perdidos em dezenas de pastas no computador.</li>
+      </ul>
+    </div>
+    <div class="vs-card vs-new reveal">
+      <h3 class="vs-title">Com o SolarDoc Pro ⚡</h3>
+      <ul class="vs-list">
+        <li>Inteligência Artificial injeta todos os dados corretos nos locais certos.</li>
+        <li><strong>2 minutos</strong> e todos os 5 documentos essenciais estão prontos.</li>
+        <li>IA jurídica treinada com regras da ANEEL e exigências das distribuidoras.</li>
+        <li>Propostas bancárias profissionais que facilitam a aprovação do crédito.</li>
+        <li>Tudo salvo em nuvem com organização por cliente e projeto.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- APP PREVIEW -->
+<div class="app-preview-wrap" style="margin-top: 100px;">
+  <div class="app-preview reveal">
+    <img src="screenshot.png" alt="Painel SolarDoc Pro">
+  </div>
+</div>
+
+<!-- CAPABILITIES -->
+<section class="section" id="vantagens">
+  <span class="section-label">Funcionalidades</span>
+  <h2 class="section-title">Construído de integrador para integrador</h2>
+  
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <div class="feature-icon">🤖</div>
+      <h3 class="feature-title">IA Jurídica Treinada</h3>
+      <p class="feature-desc">Não é um ChatGPT genérico. Nossa IA gera cláusulas específicas sobre sombreamento, prazo de homologação, responsabilidade de telhado e normas da distribuidora local.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🏦</div>
+      <h3 class="feature-title">Procurações à Prova de Falhas</h3>
+      <p class="feature-desc">As procurações são o maior motivo de pendência nos projetos. Geramos automaticamente modelos que dão amplos poderes perante à ANEEL e concessionárias locais.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">📋</div>
+      <h3 class="feature-title">Cadastro Rápido (PF/PJ)</h3>
+      <p class="feature-desc">Em vez de preencher contrato por contrato, cadastre o cliente uma vez. A plataforma replica os dados (CPF, Inversor, Painéis, Potência) para todos os PDFs com 1 clique.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section" id="faq">
+  <span class="section-label">Dúvidas Frequentes</span>
+  <h2 class="section-title">Tem alguma dúvida? Nós respondemos.</h2>
+  
+  <div class="faq-grid">
+    <div class="faq-item reveal">
+      <div class="faq-q">Os documentos servem para a concessionária do meu estado?</div>
+      <div class="faq-a">Sim. A Inteligência Artificial do SolarDoc Pro é desenhada para abranger as normativas gerais da ANEEL e os requisitos padrões vigentes em todas as principais distribuidoras (Cemig, Enel, CPFL, Equatorial, Neoenergia, etc).</div>
+    </div>
+    <div class="faq-item reveal">
+      <div class="faq-q">Os contratos gerados têm validade jurídica?</div>
+      <div class="faq-a">Com certeza. Todos os templates foram estruturados com base no Direito Civil focados em prestação de serviços de engenharia. E quando gerados via IA, a coerência jurídica é estritamente mantida.</div>
+    </div>
+    <div class="faq-item reveal">
+      <div class="faq-q">O plano gratuito pede cartão de crédito?</div>
+      <div class="faq-a">Não. Queremos que você experimente a velocidade da plataforma sem compromisso. Você tem direito a 3 documentos mensais 100% grátis com cadastro imediato.</div>
+    </div>
+    <div class="faq-item reveal">
+      <div class="faq-q">Como funciona a proposta para financiamento bancário?</div>
+      <div class="faq-a">Bancos como BV e Santander exigem padrão na documentação. Geramos uma proposta (Orçamento Formal) com o descritivo técnico exato exigido pelas financeiras para aprovar o crédito do seu cliente mais rápido.</div>
+    </div>
+  </div>
+</section>
+
+<!-- THE 5 DOCS SHOWCASE -->
+<section class="section" id="documentos" style="background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border)">
+  <div style="text-align: center">
+    <span class="section-label">O Arsenal Completo</span>
+    <h2 class="section-title" style="margin: 0 auto">Os 5 documentos cruciais do integrador, prontos em 2 minutos.</h2>
+  </div>
+  
+  <div class="docs-showcase">
+    <div class="doc-showcase-card reveal">
+      <img src="doc-compra-venda.png" alt="Contrato Compra e Venda">
+      <h4>Contrato Compra e Venda</h4>
+    </div>
+    <div class="doc-showcase-card reveal">
+      <img src="doc-procuracao.png" alt="Procuração">
+      <h4>Procuração para Concessionária</h4>
+    </div>
+    <div class="doc-showcase-card reveal">
+      <img src="doc-proposta.png" alt="Proposta de Banco">
+      <h4>Proposta de Banco</h4>
+    </div>
+    <div class="doc-showcase-card reveal">
+      <img src="doc-servico.png" alt="Contrato Serviço">
+      <h4>Contrato de Serviço</h4>
+    </div>
+    <div class="doc-showcase-card reveal">
+      <img src="doc-pj.png" alt="Contrato PJ Vendas">
+      <h4>Contrato PJ Vendas</h4>
+    </div>
+  </div>
+</section>
+
+<!-- THE OFFER CTA -->
+<section class="section" style="padding-top: 40px; padding-bottom: 120px;">
+  <div class="offer-box reveal">
+    <span class="section-label">Teste nossa velocidade hoje</span>
+    <h3 class="offer-title">Pronto para escalar suas vendas e reduzir a burocracia?</h3>
+    <p class="section-desc" style="margin: 0 auto">Crie sua conta. Cadastre seu primeiro cliente e gere um contrato perfeito em menos de 2 minutos.</p>
+    
+    <div class="offer-pros">
+      <div class="offer-pro"><i>✓</i> 3 Documentos Grátis hoje mesmo</div>
+      <div class="offer-pro"><i>✓</i> Todos os modelos liberados</div>
+      <div class="offer-pro"><i>✓</i> Sem catão de crédito</div>
+    </div>
+
+    <div style="margin-top: 48px">
+      <a href="http://localhost:3000/register" class="btn-primary" style="margin: 0 auto; max-width: 420px; font-size: 19px; padding: 22px 30px;">
+        ⚡ Acessar Plataforma Grátis Agora
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer style="padding: 80px var(--pad-x) 40px; border-top: 1px solid var(--border); background: var(--bg2)">
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 40px; margin-bottom: 60px">
+    <div style="max-width: 340px">
+      <img src="logo-full.png" alt="Logo" style="height: 144px; margin-bottom: 24px">
+      <p style="color: var(--muted); font-size: 14px">Acelerando a transição energética do Brasil através da desburocratização jurídica para integradores solares.</p>
+    </div>
+    <div style="display: flex; gap: 60px; padding-top: 24px;">
+      <div>
+        <h4 style="font-size: 14px; margin-bottom: 20px; color: var(--text);">Produto</h4>
+        <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 14px">
+          <li><a href="#dores" style="color: var(--muted); text-decoration: none">O Problema</a></li>
+          <li><a href="#solucao" style="color: var(--muted); text-decoration: none">Solução</a></li>
+          <li><a href="#faq" style="color: var(--muted); text-decoration: none">Dúvidas Frequentes</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div style="border-top: 1px solid var(--border); padding-top: 40px; text-align: center; color: var(--muted); font-size: 13px">
+    © 2025 SolarDoc Pro. Todos os direitos reservados para o mercado solar brasileiro.
+  </div>
+</footer>
+
+<script>
+  // Scroll reveal logic
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 80);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  reveals.forEach(el => observer.observe(el));
+
+  // Nav effect
+  window.addEventListener('scroll', () => {
+    const nav = document.querySelector('nav');
+    if (window.scrollY > 50) {
+      nav.style.padding = '12px var(--pad-x)';
+      nav.style.background = 'rgba(10,10,15,0.95)';
+    } else {
+      nav.style.padding = '16px var(--pad-x)';
+      nav.style.background = 'rgba(10,10,15,0.8)';
+    }
+  });
+</script>
+</body>
+</html>
+
