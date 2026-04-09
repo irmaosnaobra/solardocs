@@ -1,0 +1,224 @@
+/* ── Wrapper ───────────────────────────────────────────── */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Toolbar ───────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.clientLabel {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.clientLabel strong {
+  color: var(--color-text);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.savedBadge {
+  font-size: 13px;
+  color: var(--color-success, #22c55e);
+  font-weight: 500;
+}
+
+.pdfBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #1a1a2e;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.pdfBtn:hover {
+  opacity: 0.88;
+}
+
+/* ── Page wrapper (shadow + centering) ─────────────────── */
+.pageWrapper {
+  display: flex;
+  justify-content: center;
+  background: #e8e8e8;
+  border-radius: 8px;
+  padding: 32px 16px;
+  min-height: 600px;
+}
+
+/* ── A4 Page ───────────────────────────────────────────── */
+.page {
+  background: #ffffff;
+  color: #1a1a1a;
+  width: 794px;         /* A4 at 96dpi */
+  min-height: 1123px;   /* A4 height */
+  padding: 48px 64px;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Georgia', 'Times New Roman', Times, serif;
+  font-size: 11pt;
+  line-height: 1.7;
+  position: relative;
+}
+
+/* ── Company Header ────────────────────────────────────── */
+.companyHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.logo {
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.companyInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.companyName {
+  font-size: 13pt;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-family: Arial, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.companyDetail {
+  font-size: 8.5pt;
+  color: #555;
+  font-family: Arial, sans-serif;
+}
+
+.headerDivider {
+  border: none;
+  border-top: 2px solid #1a1a2e;
+  margin: 10px 0 28px 0;
+}
+
+/* ── Document body ─────────────────────────────────────── */
+.docBody {
+  flex: 1;
+}
+
+/* Title */
+.docTitle {
+  font-size: 13pt;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #1a1a2e;
+  margin: 0 0 20px 0;
+  line-height: 1.4;
+}
+
+/* Section headers */
+.sectionHeader {
+  font-size: 10.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #1a1a2e;
+  margin: 20px 0 8px 0;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Separator */
+.separator {
+  border: none;
+  border-top: 1px solid #ccc;
+  margin: 16px 0;
+}
+
+/* Body text */
+.bodyText {
+  margin: 0 0 6px 0;
+  text-align: justify;
+  hyphens: auto;
+  color: #222;
+}
+
+/* List items */
+.listItem {
+  margin: 4px 0 4px 20px;
+  text-align: justify;
+  color: #222;
+}
+
+/* Signature lines */
+.signatureLine {
+  font-family: Arial, sans-serif;
+  font-size: 9.5pt;
+  color: #333;
+  margin: 4px 0;
+  letter-spacing: 0.02em;
+}
+
+/* Spacer */
+.spacer {
+  height: 8px;
+}
+
+/* ── Footer ────────────────────────────────────────────── */
+.footer {
+  margin-top: 32px;
+  padding-top: 8px;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: Arial, sans-serif;
+  font-size: 8pt;
+  color: #888;
+}
+
+.pageNumber::after {
+  content: 'Pág. 1';
+}
+
+/* Print is handled via popup window — no @media print needed here */
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .page {
+    width: 100%;
+    min-height: auto;
+    padding: 28px 24px;
+  }
+
+  .pageWrapper {
+    padding: 16px 8px;
+  }
+}

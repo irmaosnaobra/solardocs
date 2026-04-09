@@ -1,0 +1,159 @@
+.container {
+  position: relative;
+}
+
+/* ── Selected card ───────────────────────── */
+.selectedCard {
+  padding: 12px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: 10px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cardNameRow {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.selectedName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.tipoBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
+.tipoPJ {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+}
+
+.tipoPF {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.changeBtn {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cardFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.cardField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cardField.wide {
+  grid-column: 1 / -1;
+}
+
+.cardFieldLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  opacity: 0.55;
+  margin-bottom: 1px;
+}
+
+.cardFieldValue {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  word-break: break-word;
+}
+
+/* ── Dropdown ────────────────────────────── */
+.dropdown {
+  position: relative;
+}
+
+.options {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.option:hover {
+  background: var(--color-surface-2);
+}
+
+.optionMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.optionName {
+  font-size: 14px;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.optionDoc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.noResults {
+  padding: 14px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}

@@ -1,0 +1,57 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.badge.free {
+  background: #334155;
+  color: #94A3B8;
+}
+
+.badge.pro {
+  background: rgba(245, 158, 11, 0.2);
+  color: #F59E0B;
+}
+
+.badge.ilimitado {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10B981;
+}
+
+.count {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.progressBar {
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progressFill.progressDanger {
+  background: var(--color-error);
+}
