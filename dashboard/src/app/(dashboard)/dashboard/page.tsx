@@ -234,7 +234,8 @@ export default function DashboardPage() {
                   {tipoData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Legend formatter={(v) => <span style={{ fontSize: 12, color: '#94a3b8' }}>{v}</span>} iconType="circle" iconSize={8} />
-                <Tooltip formatter={(v) => { const n = Number(v); return [`${n} doc${n !== 1 ? 's' : ''}`, '']; }} />
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                <Tooltip formatter={((v: any) => [`${Number(v ?? 0)} doc${Number(v) !== 1 ? 's' : ''}`, '']) as any} />
               </PieChart>
             </ResponsiveContainer>
           </div>
