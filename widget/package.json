@@ -1,0 +1,13 @@
+{
+  "name": "solardoc-widget",
+  "version": "1.0.0",
+  "description": "Widget embeddable do SolarDoc Pro",
+  "scripts": {
+    "build": "npx esbuild src/widget.js --bundle --minify --outfile=dist/widget.min.js",
+    "dev": "npx http-server . -p 8080 -c-1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.0",
+    "http-server": "^14.1.1"
+  }
+}

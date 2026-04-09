@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 15 npx ts-node-dev --respawn --transpile-only src/app.ts)",
+      "Bash(curl -s http://localhost:3001/)",
+      "Bash(npx tsc:*)",
+      "Bash(pkill -f \"ts-node-dev\")",
+      "Bash(pkill -f \"app.ts\")",
+      "Bash(npm run:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Read(//tmp/**)",
+      "Read(//mnt/c/Users/55349/Desktop/CLAUDE/api/**)",
+      "Read(//mnt/c/Users/55349/Desktop/CLAUDE/api/src/**)",
+      "Bash(node -e \"const z = require\\('zod'\\); console.log\\(z.version || z.ZodError?.name\\)\")",
+      "Bash(node -e \"const z = require\\('zod'\\); console.log\\(z.version || require\\('./node_modules/zod/package.json'\\).version\\)\")",
+      "Bash(node -e \"const { z } = require\\('zod'\\); const s = z.record\\(z.string\\(\\), z.unknown\\(\\)\\); console.log\\('ok'\\)\")",
+      "Bash(echo \"EXIT_CODE: $?\")",
+      "Bash(mkdir -p /mnt/c/Users/55349/Desktop/CLAUDE/widget/src /mnt/c/Users/55349/Desktop/CLAUDE/widget/dist)",
+      "Read(//mnt/c/Users/55349/Desktop/**)",
+      "Bash(npm install:*)",
+      "Bash(ls C:/Users/55349/Desktop/CLAUDE/api/.env*)",
+      "Bash(ls C:/Users/55349/Desktop/CLAUDE/dashboard/.env*)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(node:*)",
+      "Bash(start:*)",
+      "Bash(curl -s http://localhost:3001)",
+      "Bash(npx ts-node-dev:*)",
+      "Bash(curl:*)",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Stripe__create_product",
+      "mcp__claude_ai_Stripe__create_price",
+      "mcp__claude_ai_Stripe__create_payment_link",
+      "Bash(vercel --version)",
+      "Bash(railway --version)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
