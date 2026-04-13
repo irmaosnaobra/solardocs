@@ -1,0 +1,267 @@
+.page { max-width: 1200px; }
+.header { margin-bottom: 24px; }
+.title { font-size: 22px; font-weight: 700; color: var(--color-text); margin-bottom: 4px; }
+.subtitle { font-size: 14px; color: var(--color-text-muted); }
+.loading { color: var(--color-text-muted); font-size: 14px; padding: 40px 0; }
+
+/* ─── cards ─────────────────────────── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+.cardLabel { font-size: 12px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.cardValue { font-size: 32px; font-weight: 700; line-height: 1; }
+.cardSub   { font-size: 12px; color: var(--color-text-muted); margin-top: 4px; }
+
+/* ─── filtros / tabela ───────────────── */
+.filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.tableWrap { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.table thead tr { border-bottom: 1px solid var(--color-border); }
+.table th { padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.table td { padding: 11px 16px; border-bottom: 1px solid rgba(51,65,85,0.5); color: var(--color-text); }
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover td { background: var(--color-surface-2); }
+.rowNew td  { background: rgba(34,197,94,0.04); }
+.rowClickable { cursor: pointer; }
+.mutedCell  { color: var(--color-text-muted) !important; }
+.empty      { color: var(--color-text-muted); font-style: italic; text-align: center; padding: 32px !important; }
+
+/* ─── abas ───────────────────────────── */
+.tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--color-border); }
+.tab, .tabActive { padding: 8px 18px; border-radius: 8px 8px 0 0; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--color-text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
+.tabActive { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.tab:hover { color: var(--color-text); }
+
+/* ─── tags ───────────────────────────── */
+.planTag    { display: inline-block; padding: 2px 8px; border-radius: 4px; border: 1px solid; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+.sourceTag  { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(96,165,250,0.12); color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); white-space: nowrap; }
+.adminTag   { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.3); color: #818cf8; font-size: 10px; font-weight: 600; }
+.scrollTag  { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.25); }
+.emptyDash  { color: var(--color-text-muted); font-style: italic; }
+.ctaClickTag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+.metricBadge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; white-space: nowrap; }
+
+/* ─── pills seções ────────────────────── */
+.sectionPills { display: flex; flex-wrap: wrap; gap: 4px; }
+.sectionPill  { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(148,163,184,0.1); color: var(--color-text-muted); border: 1px solid rgba(148,163,184,0.2); }
+.sectionPillHighlight { background: rgba(251,146,60,0.12); color: #fb923c; border-color: rgba(251,146,60,0.3); }
+
+/* ─── linha expandida ─────────────────── */
+.expandedRow td { background: rgba(30,41,59,0.6) !important; border-bottom: 1px solid var(--color-border) !important; padding: 0 !important; }
+.expandedContent { padding: 14px 20px; }
+.expandedGrid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px 24px; font-size: 12px; }
+.expandedLabel { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-muted); margin-bottom: 2px; }
+.expandedVal   { color: var(--color-text); font-size: 12px; }
+.ctaClickList  { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ctaClickBadge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+
+/* ─── funil horizontal (barras) ──────── */
+.funnelCard, .sourcesCard { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+.funnelTitle { font-size: 13px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+.funnelSteps { display: flex; flex-direction: column; gap: 12px; }
+.funnelStep  { display: grid; grid-template-columns: 28px 1fr 140px; align-items: center; gap: 12px; }
+.funnelIcon  { font-size: 18px; text-align: center; }
+.funnelBar   { height: 10px; background: rgba(51,65,85,0.5); border-radius: 99px; overflow: hidden; }
+.funnelFill  { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a); border-radius: 99px; transition: width 0.5s ease; }
+.funnelMeta  { display: flex; align-items: center; gap: 10px; }
+.funnelValue { font-size: 15px; font-weight: 700; color: var(--color-text); min-width: 36px; }
+.funnelPct   { font-size: 12px; font-weight: 600; color: #22c55e; min-width: 42px; }
+.funnelPctInline { font-size: 11px; color: #22c55e; margin-left: 4px; }
+.funnelLabel { font-size: 12px; color: var(--color-text-muted); }
+
+/* ─── top CTAs ──────────────────────── */
+.ctaList { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.ctaItem { display: grid; grid-template-columns: 200px 1fr 48px; align-items: center; gap: 12px; }
+.ctaLabel { font-size: 12px; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctaBarWrap { height: 8px; background: rgba(51,65,85,0.5); border-radius: 99px; overflow: hidden; }
+.ctaBar     { height: 100%; background: linear-gradient(90deg,#a78bfa,#7c3aed); border-radius: 99px; transition: width 0.4s ease; }
+.ctaCount   { font-size: 12px; font-weight: 700; color: #a78bfa; text-align: right; }
+
+/* ─── divisor / label seção ─────────── */
+.sectionDivider { height: 1px; background: var(--color-border); margin: 32px 0; }
+.sectionLabel2  { font-size: 13px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+
+/* ─── bloco Meta Ads ─────────────────── */
+.metaBlock {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 22px 24px;
+  margin-bottom: 24px;
+}
+.metaBlockHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.metaBlockTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.metaFIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #1877f2;
+  color: white;
+  font-size: 16px;
+  font-weight: 900;
+  font-style: italic;
+}
+.metaSpinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(96,165,250,0.3);
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── period tabs ─────────────────────── */
+.periodTabs { display: flex; gap: 4px; }
+.periodBtn, .periodActive {
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  transition: all 0.15s;
+}
+.periodActive {
+  background: rgba(96,165,250,0.12);
+  color: #60a5fa;
+  border-color: rgba(96,165,250,0.3);
+}
+.periodBtn:hover { color: var(--color-text); }
+
+/* ─── callout setup ──────────────────── */
+.setupCallout {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: rgba(251,146,60,0.06);
+  border: 1px solid rgba(251,146,60,0.2);
+  border-radius: 10px;
+  padding: 16px 20px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.setupCallout strong { color: var(--color-text); display: block; margin-bottom: 4px; }
+.setupCallout code   { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; font-size: 12px; color: #fb923c; }
+
+/* ─── funil SVG (estilo UTMify) ────────── */
+.svgFunnelWrap { padding: 8px 0 4px; }
+
+.svgFunnelLabels {
+  display: flex;
+  margin-bottom: 6px;
+}
+.svgFunnelLabelCol {
+  flex: 1;
+  text-align: center;
+}
+.svgFunnelLabelText {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.svgFunnelSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+  min-height: 120px;
+}
+
+.svgFunnelValues {
+  display: flex;
+  margin-top: 10px;
+}
+.svgFunnelValueCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.svgFunnelCount {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.svgFunnelSub {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.svgFunnelConv {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.convHigh { background: rgba(34,197,94,0.12);  color: #22c55e; }
+.convMid  { background: rgba(251,146,60,0.12);  color: #fb923c; }
+.convLow  { background: rgba(239,68,68,0.12);   color: #f87171; }
+
+/* ─── grid métricas financeiras ────────── */
+.metaFinGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 0;
+}
+.metaFinCard {
+  background: rgba(15,23,42,0.6);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.metaFinLabel { font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px; }
+.metaFinValue { font-size: 18px; font-weight: 700; line-height: 1; }
+
+/* ─── responsivo ─────────────────────── */
+@media (max-width: 1100px) {
+  .metaFinGrid { grid-template-columns: repeat(4,1fr); }
+}
+@media (max-width: 900px) {
+  .funnelStep { grid-template-columns: 24px 1fr 110px; }
+  .expandedGrid { grid-template-columns: repeat(2,1fr); }
+  .metaFinGrid { grid-template-columns: repeat(3,1fr); }
+}
+@media (max-width: 768px) {
+  .cards { grid-template-columns: repeat(2,1fr); }
+  .ctaItem { grid-template-columns: 140px 1fr 40px; }
+  .metaFinGrid { grid-template-columns: repeat(2,1fr); }
+  .metaBlockHeader { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+@media (max-width: 480px) {
+  .cards { grid-template-columns: repeat(2,1fr); }
+  .filters { flex-direction: column; }
+  .filters .input-field { max-width: 100% !important; }
+  .expandedGrid { grid-template-columns: 1fr; }
+  .metaFinGrid { grid-template-columns: repeat(2,1fr); }
+}

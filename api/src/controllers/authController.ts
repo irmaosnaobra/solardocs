@@ -1,8 +1,31 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { signToken } from '../utils/jwt';
+import { sendMetaEvent } from '../utils/metaPixel';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+const PRICE_TO_PLAN: Record<string, { plano: string; limite: number }> = {
+  [process.env.STRIPE_PRICE_INICIANTE!]: { plano: 'iniciante', limite: 15 },
+  [process.env.STRIPE_PRICE_PRO!]:       { plano: 'pro',       limite: 35 },
+  [process.env.STRIPE_PRICE_VIP!]:       { plano: 'ilimitado', limite: 999999 },
+};
+
+async function detectStripePlan(email: string): Promise<{ plano: string; limite: number } | null> {
+  try {
+    const customers = await stripe.customers.list({ email, limit: 1 });
+    if (!customers.data.length) return null;
+    const subs = await stripe.subscriptions.list({ customer: customers.data[0].id, status: 'active', limit: 1 });
+    if (!subs.data.length) return null;
+    const priceId = subs.data[0].items.data[0]?.price?.id ?? '';
+    return PRICE_TO_PLAN[priceId] ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const registerSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -31,15 +54,30 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     const password_hash = await bcrypt.hash(body.password, 12);
 
+    // Verifica se o e-mail já possui assinatura ativa no Stripe (comprou antes de cadastrar)
+    const stripePlan = await detectStripePlan(body.email);
+    const plano           = stripePlan?.plano  ?? 'free';
+    const limite_documentos = stripePlan?.limite ?? 0;
+
+    const dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: user, error } = await supabase
       .from('users')
-      .insert({ email: body.email, password_hash, plano: 'free', limite_documentos: 3, documentos_usados: 0 })
+      .insert({ email: body.email, password_hash, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset })
       .select('id, email, plano, limite_documentos, documentos_usados, created_at')
       .single();
 
     if (error) throw error;
 
     const token = signToken(user.id);
+
+    // Meta CAPI — Lead (server-side, deduplica com pixel client)
+    sendMetaEvent('Lead', {
+      eventId:   req.headers['x-meta-event-id'] as string | undefined,
+      email:     body.email,
+      ip:        req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
     res.status(201).json({ token, user });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {

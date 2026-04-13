@@ -54,6 +54,51 @@
   font-weight: 500;
 }
 
-.link:hover {
-  text-decoration: underline;
+.link:hover { text-decoration: underline; }
+
+.successBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+
+.successIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #000;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.successTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #22c55e;
+  margin-bottom: 2px;
+}
+
+.successSub {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 24px 20px;
+    border-radius: 12px;
+  }
+
+  .title { font-size: 20px; }
 }
