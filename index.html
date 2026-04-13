@@ -499,13 +499,13 @@
     }
 
     .vs-old {
-      background: var(--bg);
-      border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.05), transparent);
+      border: 1px solid rgba(239, 68, 68, 0.2);
     }
 
     .vs-new {
-      background: linear-gradient(135deg, rgba(245, 158, 11, .1), transparent);
-      border: 1px solid rgba(245, 158, 11, .3);
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), transparent);
+      border: 1px solid rgba(34, 197, 94, 0.3);
     }
 
     .vs-title {
@@ -518,11 +518,11 @@
     }
 
     .vs-old .vs-title {
-      color: #94a3b8;
+      color: #ef4444;
     }
 
     .vs-new .vs-title {
-      color: var(--solar);
+      color: #22c55e;
     }
 
     .vs-list {
@@ -547,7 +547,7 @@
 
     .vs-new .vs-list li::before {
       content: '✓';
-      color: var(--solar);
+      color: #22c55e;
       font-weight: 800;
     }
 
@@ -603,7 +603,8 @@
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 24px;
-      margin-top: 64px;
+      margin: 64px auto 0;
+      max-width: 1000px;
     }
 
     .price-card {
@@ -773,6 +774,104 @@
       font-size: 16px;
       padding-left: 30px;
       line-height: 1.7;
+    }
+
+    /* ───── SOCIAL PROOF INSTAGRAM ───── */
+    .ig-section {
+      padding: 60px var(--pad-x) 100px;
+      background: var(--bg);
+    }
+    .ig-container {
+      max-width: 750px;
+      margin: 0 auto;
+      background: var(--bg2);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      padding: 40px 32px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    }
+    .ig-comment {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 32px;
+      position: relative;
+    }
+    .ig-comment.reply {
+      margin-left: 64px;
+      margin-top: -16px;
+    }
+    .ig-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 2px solid transparent;
+    }
+    .ig-avatar.pro {
+      border: 2px solid var(--solar);
+    }
+    .ig-content {
+      flex: 1;
+      padding-right: 48px;
+    }
+    .ig-user {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--text);
+      margin-right: 6px;
+    }
+    .ig-text {
+      font-size: 16px;
+      color: #f1f5f9;
+      line-height: 1.6;
+      display: inline;
+    }
+    .ig-meta {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 10px;
+      display: flex;
+      gap: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .ig-like {
+      position: absolute;
+      right: 0;
+      top: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #94a3b8;
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+    .ig-like .heart {
+      font-size: 20px;
+    }
+    .ig-like .count {
+      font-size: 12px;
+      margin-top: 2px;
+      font-weight: 600;
+    }
+    .ig-reply-line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: 64px;
+      margin-bottom: 24px;
+      margin-top: -16px;
+      font-size: 13px;
+      color: #94a3b8;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .ig-reply-line span.line {
+      width: 32px;
+      height: 1px;
+      background: #475569;
     }
 
     /* ───── DOCS SHOWCASE ───── */
@@ -973,7 +1072,7 @@
     <li><a href="#precos">Preços</a></li>
     <li><a href="#faq">Dúvidas</a></li>
   </ul>
-  <a href="https://solardocs-dashboard.vercel.app/register" class="nav-cta">Começar Grátis →</a>
+  <a href="#precos" class="nav-cta">Assinar o meu plano →</a>
   <button class="hamburger" id="menuBtn" aria-label="Abrir menu">
     <span></span><span></span><span></span>
   </button>
@@ -986,7 +1085,7 @@
   <a href="#solucao" onclick="document.getElementById('mobileMenu').classList.remove('open')">Solução</a>
   <a href="#precos" onclick="document.getElementById('mobileMenu').classList.remove('open')">Preços</a>
   <a href="#faq" onclick="document.getElementById('mobileMenu').classList.remove('open')">Dúvidas</a>
-  <a href="https://solardocs-dashboard.vercel.app/register" class="btn-primary" style="font-size:16px;padding:14px 32px">Começar Grátis →</a>
+  <a href="#precos" class="btn-primary" style="font-size:16px;padding:14px 32px" onclick="document.getElementById('mobileMenu').classList.remove('open')">Assinar o meu plano →</a>
 </div>
 
 <!-- 1, 2 e 3. HERO (Headline, Subheadline e Botão/Prev) -->
@@ -1036,10 +1135,35 @@
 </section>
 
 <!-- 5. QUEBRA DE CRENÇA -->
+<!-- 5. QUEBRA DE CRENÇA (COMPARAÇÃO ANTES / DEPOIS) -->
 <section class="section vs-section" id="crenca">
   <div style="text-align: center; max-width: 800px; margin: 0 auto;">
     <h2 class="section-title reveal">O problema não é você.</h2>
-    <p class="section-desc reveal" style="margin: 0 auto">É a falta de um sistema padronizado e profissional. Não dependa mais de dezenas de pastas e arquivos no Word.</p>
+    <p class="section-desc reveal" style="margin: 0 auto">É a falta de um sistema padronizado e profissional. Veja a diferença na prática:</p>
+  </div>
+  
+  <div class="vs-grid">
+    <div class="vs-card vs-old reveal">
+      <h3 class="vs-title">Sem a SolarDoc Pro ❌</h3>
+      <ul class="vs-list">
+        <li>Horas perdidas montando propostas e contratos no Word</li>
+        <li>Risco alto de erros de digitação nos dados do cliente</li>
+        <li>Dezenas de pastas espalhadas no computador</li>
+        <li>Cliente esperando muito tempo para assinar</li>
+        <li>Aparência amadora e sem padrão visual</li>
+      </ul>
+    </div>
+    
+    <div class="vs-card vs-new reveal">
+      <h3 class="vs-title">Com a SolarDoc Pro ✅</h3>
+      <ul class="vs-list">
+        <li>Qualquer documento ou contrato gerado em minutos</li>
+        <li>Processo confiável e à prova de erros humanos</li>
+        <li>Tudo salvo e organizado em segurança na nuvem</li>
+        <li>Envio imediato, aproveitando o momento de compra</li>
+        <li>Documentos premium padronizados com a sua Logo</li>
+      </ul>
+    </div>
   </div>
 </section>
 
@@ -1083,6 +1207,63 @@
   </div>
 </section>
 
+<!-- O ARSENAL COMPLETO / DOCUMENTOS (Adicionado conforme pedido) -->
+<section class="section" id="documentos" style="background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding-top: 100px; padding-bottom: 100px;">
+  <div style="text-align: center">
+    <span class="section-label">O Arsenal Completo</span>
+    <h2 class="section-title" style="margin: 0 auto">Gere automaticamente os documentos mais cobrados pelo mercado.</h2>
+  </div>
+  
+  <div class="docs-showcase">
+    <div class="doc-showcase-card reveal">
+      <img src="doc-compra-venda.png" alt="Contrato de Compra e Venda">
+      <h4>Contrato Compra e Venda</h4>
+    </div>
+    <div class="doc-showcase-card reveal">
+      <img src="doc-procuracao.png" alt="Procuração para Concessionária">
+      <h4>Procuração Homologação</h4>
+    </div>
+    <div class="doc-showcase-card reveal">
+      <img src="doc-proposta.png" alt="Proposta Pro para Banco">
+      <h4>Proposta de Financiamento</h4>
+    </div>
+    <div class="doc-showcase-card reveal">
+      <img src="doc-servico.png" alt="Contrato de Prestação de Serviço">
+      <h4>Contrato de Serviço</h4>
+    </div>
+    <div class="doc-showcase-card reveal">
+      <img src="doc-pj.png" alt="Contrato PJ Vendas">
+      <h4>Parceria Comercial PJ</h4>
+    </div>
+  </div>
+</section>
+
+<!-- SEGURANÇA E PROTEÇÃO -->
+<section class="section" id="seguranca" style="background: #0a0a0f; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding-top: 100px; padding-bottom: 100px;">
+  <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+    <div class="reveal" style="font-size: 48px; margin-bottom: 24px;">🛡️</div>
+    <h2 class="section-title reveal">Segurança de Dados e Validade Jurídica de Ponta a Ponta.</h2>
+    <p class="section-desc reveal" style="margin: 0 auto;">Na SolarDoc Pro, tratamos o fluxo de informações da sua integradora de energia com a máxima seriedade. Nossa infraestrutura foi desenhada para criar uma blindagem total e dar tranquilidade ao seu negócio.</p>
+  </div>
+
+  <div class="reveal" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px; max-width: 1100px; margin: 64px auto 0;">
+    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 40px 32px; border-radius: 20px; text-align: left; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+      <h3 style="font-size: 19px; font-weight: 800; margin-bottom: 16px; color: var(--text);">🔐 Criptografia Server-Side</h3>
+      <p style="color: var(--muted); font-size: 15px; line-height: 1.7;">Seus arquivos e os dados confidenciais de cada cliente base ficam armazenados com tecnologias rígidas de criptografia em nuvem. Sem riscos de perdas ou vazamentos.</p>
+    </div>
+    
+    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 40px 32px; border-radius: 20px; text-align: left; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+      <h3 style="font-size: 19px; font-weight: 800; margin-bottom: 16px; color: var(--text);">⚖️ Adequado à LGPD</h3>
+      <p style="color: var(--muted); font-size: 15px; line-height: 1.7;">Rigorosamente dentro das diretrizes da Lei Geral de Proteção de Dados (LGPD). Nossos modelos de contrato já possuem cláusulas protetivas pensadas para o cenário brasileiro.</p>
+    </div>
+    
+    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 40px 32px; border-radius: 20px; text-align: left; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+      <h3 style="font-size: 19px; font-weight: 800; margin-bottom: 16px; color: var(--text);">📝 Validação de Concessionárias</h3>
+      <p style="color: var(--muted); font-size: 15px; line-height: 1.7;">Procurações e formatos validados continuamente junto às grandes distribuidoras e bancos financiadores de energia solar. Assim, seu projeto nunca sofre atrasos por equívocos.</p>
+    </div>
+  </div>
+</section>
+
 <!-- 8. PROVA SOCIAL -->
 <div class="trust-section" style="padding-top:20px;">
   <div class="trust-label" style="color:var(--text); font-size:18px;">“Antes demorava 1h, hoje faço em 5 minutos”</div>
@@ -1100,13 +1281,127 @@
   </div>
 </div>
 
+<!-- COMMENTS (INSTAGRAM STYLE) -->
+<section class="ig-section">
+  <div style="text-align:center; margin-bottom: 48px;">
+    <h2 class="section-title reveal" style="font-size: 38px">O que dizem os integradores...</h2>
+    <p class="section-desc reveal" style="margin: 0 auto;">Quem já usa a plataforma mudou o jogo de vendas.</p>
+  </div>
+  
+  <div class="ig-container reveal">
+    <!-- Comment 1 -->
+    <div class="ig-comment">
+      <img src="https://randomuser.me/api/portraits/men/32.jpg" class="ig-avatar" alt="User">
+      <div class="ig-content">
+        <div><span class="ig-user">carlos.solartech</span><span class="ig-text">Cara, isso serve pra contrato PJ de parceria com vendedor? Tive a MAIOR dor de cabeça ontem com um cara que fez venda cruzada e o doc do word antigo tava furado 🤦‍♂️</span></div>
+        <div class="ig-meta"><span>2 d</span><span>Responder</span><span>Ver tradução</span></div>
+      </div>
+      <div class="ig-like"><div class="heart">♡</div><div class="count">24</div></div>
+    </div>
+    <!-- Reply 1 -->
+    <div class="ig-comment reply">
+      <img src="https://ui-avatars.com/api/?name=SD&background=f59e0b&color=000&bold=true" class="ig-avatar pro" alt="SolarDoc">
+      <div class="ig-content">
+        <div><span class="ig-user">solardoc.pro</span><span class="ig-text">Serve sim Carlos! Temos o modelo EXATO pra Parceiro Comercial PJ já estruturado. Acaba com essa dor de cabeça na hora hahaha tmj ⚡👊</span></div>
+        <div class="ig-meta"><span>1 d</span><span>Responder</span></div>
+      </div>
+      <div class="ig-like"><div class="heart" style="color:#ef4444;">♥️</div><div class="count">18</div></div>
+    </div>
+    
+    <!-- Comment 2 -->
+    <div class="ig-comment" style="margin-top: 48px;">
+      <img src="https://randomuser.me/api/portraits/men/65.jpg" class="ig-avatar" alt="User">
+      <div class="ig-content">
+        <div><span class="ig-user">marcelo_engenharia</span><span class="ig-text">Padrão dms! 👏 Fechei uma usina de 75kWp hj cedo e a aprovação na BV foi imediata pq a proposta tava impecável. O cliente até elogiou o layout na hr d assinar kk</span></div>
+        <div class="ig-meta"><span>5 h</span><span>Responder</span></div>
+      </div>
+      <div class="ig-like"><div class="heart" style="color:#ef4444;">♥️</div><div class="count">89</div></div>
+    </div>
+
+    <!-- View replies -->
+    <div class="ig-reply-line">
+      <span class="line"></span>
+      Ver respostas (3)
+    </div>
+    
+    <!-- Comment 3 -->
+    <div class="ig-comment" style="margin-top: 40px;">
+      <img src="https://randomuser.me/api/portraits/women/68.jpg" class="ig-avatar" alt="User">
+      <div class="ig-content">
+        <div><span class="ig-user">aline.smartenergy</span><span class="ig-text">Alguem me tira uma duvida rapida, serve pra homologar na Equatorial?</span></div>
+        <div class="ig-meta"><span>6 h</span><span>Responder</span></div>
+      </div>
+      <div class="ig-like"><div class="heart" style="color:#ef4444;">♥️</div><div class="count">41</div></div>
+    </div>
+    
+    <!-- Reply 3 -->
+    <div class="ig-comment reply">
+      <img src="https://ui-avatars.com/api/?name=SD&background=f59e0b&color=000&bold=true" class="ig-avatar pro" alt="SolarDoc">
+      <div class="ig-content">
+        <div><span class="ig-user">solardoc.pro</span><span class="ig-text">Serve e muito Aline! Nossas procurações já vêm no padrão que as distribuidoras exigem, reduz drasticamente o tempo de reprova no sistema deles. Pode ficar super tranquila 😁</span></div>
+        <div class="ig-meta"><span>4 h</span><span>Responder</span></div>
+      </div>
+      <div class="ig-like"><div class="heart">♡</div><div class="count">12</div></div>
+    </div>
+
+    <!-- Comment 4 -->
+    <div class="ig-comment" style="margin-top: 48px;">
+      <img src="https://randomuser.me/api/portraits/men/51.jpg" class="ig-avatar" alt="User">
+      <div class="ig-content">
+        <div><span class="ig-user">thiago_vendas</span><span class="ig-text">Antes eu perdia quase a manhã inteira no Word ajustando cláusula. Hoje mandei 3 propostas dps do almoço em 10 minutos kkkkkk o sistema é meio assustador de tão rápido e ja manda o link direto pro whats do cara</span></div>
+        <div class="ig-meta"><span>13 h</span><span>Responder</span></div>
+      </div>
+      <div class="ig-like"><div class="heart" style="color:#ef4444;">♥️</div><div class="count">210</div></div>
+    </div>
+    
+    <!-- Comment 5 -->
+    <div class="ig-comment" style="margin-top: 48px;">
+      <img src="https://randomuser.me/api/portraits/men/22.jpg" class="ig-avatar" alt="User">
+      <div class="ig-content">
+        <div><span class="ig-user">renato.integrador</span><span class="ig-text">Assinei o plano VIP ontem de noite. Pensa num negocio absurdo, só de poder lançar os dados ali 1x e a plataforma cuspir todos os modelos prontos com a minha logo me salvou umas 3h de digitação chata hj p crtz 🚀</span></div>
+        <div class="ig-meta"><span>4 d</span><span>Responder</span></div>
+      </div>
+      <div class="ig-like"><div class="heart" style="color:#ef4444;">♥️</div><div class="count">104</div></div>
+    </div>
+
+    <!-- Comment 6 -->
+    <div class="ig-comment" style="margin-top: 48px;">
+      <img src="https://randomuser.me/api/portraits/men/75.jpg" class="ig-avatar" alt="User">
+      <div class="ig-content">
+        <div><span class="ig-user">rodrigo_usinas</span><span class="ig-text">A parada de compartilhar o link do contrato pro cliente assinar na propria tela do celular é absurda. Mandei pra 2 hj, 1 ja retornou com assinatura ok mto mais prático</span></div>
+        <div class="ig-meta"><span>4 d</span><span>Responder</span></div>
+      </div>
+      <div class="ig-like"><div class="heart">♡</div><div class="count">9</div></div>
+    </div>
+
+    <!-- Comment 7 -->
+    <div class="ig-comment" style="margin-top: 48px;">
+      <img src="https://randomuser.me/api/portraits/women/44.jpg" class="ig-avatar" alt="User">
+      <div class="ig-content">
+        <div><span class="ig-user">fernanda_solar</span><span class="ig-text">Uma dúvida gente... vcs tem limite de documentos p/ quem assinar?</span></div>
+        <div class="ig-meta"><span>3 h</span><span>Responder</span></div>
+      </div>
+      <div class="ig-like"><div class="heart">♡</div><div class="count">2</div></div>
+    </div>
+    <!-- Reply 7 -->
+    <div class="ig-comment reply" style="margin-bottom: 0;">
+      <img src="https://ui-avatars.com/api/?name=SD&background=f59e0b&color=000&bold=true" class="ig-avatar pro" alt="SolarDoc">
+      <div class="ig-content">
+        <div><span class="ig-user">solardoc.pro</span><span class="ig-text">Oi Fernanda!! No plano PRO vc tem 35 documentos mês, mas quem assina o VIP tem TUDO ilimitado pra escalar as vendas sem se preocupar! 🚀</span></div>
+        <div class="ig-meta"><span>1 h</span><span>Responder</span></div>
+      </div>
+      <div class="ig-like"><div class="heart" style="color:#ef4444;">♥️</div><div class="count">7</div></div>
+    </div>
+  </div>
+</section>
+
 <!-- 9. OFERTA -->
 <section class="section" id="precos" style="background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
   <div style="text-align:center">
     <h2 class="section-title" style="margin: 0 auto">Acesso imediato à plataforma.<br>Gere seus primeiros documentos hoje.</h2>
   </div>
 
-  <div class="pricing-grid" style="grid-template-columns: repeat(3, 1fr); max-width: 1000px; margin: 64px auto 0;">
+  <div class="pricing-grid">
 
     <div class="price-card reveal">
       <div class="price-name">Iniciante</div>
@@ -1121,8 +1416,8 @@
         <li>Contratos com sua Logo</li>
         <li>Geração Imediata</li>
       </ul>
-      <a href="https://solardocs-dashboard.vercel.app/register" class="price-btn price-btn-outline">
-        Acessar Iniciante
+      <a href="https://buy.stripe.com/8x200i5ah5160Og2SLfrW04" class="price-btn price-btn-outline" target="_blank" rel="noopener noreferrer">
+        Assinar Iniciante →
       </a>
     </div>
 
@@ -1139,8 +1434,8 @@
         <li>Tudo do Iniciante</li>
         <li>Maior volume mensal</li>
       </ul>
-      <a href="https://buy.stripe.com/eVqcN45ahbpu68AgJBfrW03" class="price-btn price-btn-outline" target="_blank">
-        Acessar PRO
+      <a href="https://buy.stripe.com/eVqcN45ahbpu68AgJBfrW03" class="price-btn price-btn-outline" target="_blank" rel="noopener noreferrer">
+        Assinar PRO →
       </a>
     </div>
 
@@ -1156,15 +1451,27 @@
       <p class="price-desc">Acesso total para escalar vendas sem freio.</p>
       <ul class="price-features">
         <li>Documentos ilimitados</li>
-        <li>Participa de toda expansão da plataforma</li>
-        <li>Suporte Prioritário</li>
+        <li>Dashboard completo gerencial</li>
+        <li>Sugestão de novos documentos</li>
+        <li>Atendimento direto pelo WhatsApp</li>
+        <li>Participa de toda a expansão da plataforma</li>
       </ul>
-      <a href="https://buy.stripe.com/bJe7sK6el9hmgNe0KDfrW02" class="price-btn price-btn-solid" target="_blank">
-        Acessar VIP →
+      <a href="https://buy.stripe.com/bJe7sK6el9hmgNe0KDfrW02" class="price-btn price-btn-solid" target="_blank" rel="noopener noreferrer">
+        Assinar VIP →
       </a>
     </div>
 
   </div>
+
+  <!-- GARANTIA DE 7 DIAS -->
+  <div class="guarantee-box reveal" style="max-width: 850px; margin: 80px auto 32px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), transparent); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 24px; padding: 40px; display: flex; align-items: center; gap: 32px; box-shadow: 0 40px 80px rgba(0,0,0,0.5);">
+    <div style="font-size: 72px; flex-shrink: 0; filter: drop-shadow(0 0 20px rgba(34, 197, 94, 0.4));">🛡️</div>
+    <div style="flex: 1; text-align: left;">
+      <h3 style="font-size: 26px; font-weight: 800; color: #f8fafc; margin-bottom: 12px; letter-spacing: -0.5px;">Risco Zero: Garantia Incondicional de 7 Dias</h3>
+      <p style="color: #cbd5e1; font-size: 16px; line-height: 1.6; margin: 0;">Você pode assinar hoje, acessar o sistema e gerar quantos contratos quiser. Se dentro de 7 dias você não sentir que a plataforma facilitou a sua vida brutalmente, basta nos enviar uma única mensagem. <strong>Devolvemos 100% do seu dinheiro</strong> na hora. Sem letras miúdas ou ressentimentos.</p>
+    </div>
+  </div>
+
 </section>
 
 <!-- 10. FAQ -->
@@ -1201,8 +1508,8 @@
       <div class="faq-a">Sim. Eles seguem uma estrutura profissional pensada para proteger tanto a empresa quanto o cliente.</div>
     </div>
     <div class="faq-item reveal">
-      <div class="faq-q">Posso testar antes?</div>
-      <div class="faq-a">Sim. Crie sua conta gratuitamente e simule a plataforma antes de se comprometer com os planos pagos.</div>
+      <div class="faq-q">Posso mudar de plano depois?</div>
+      <div class="faq-a">Sim. A qualquer momento você pode fazer upgrade para um plano que comporte um maior volume de documentos conforme sua integradora cresce.</div>
     </div>
   </div>
 </section>
@@ -1270,24 +1577,97 @@
 </script>
 <script>
 (function() {
+  var API = 'https://solardocs-api-irmaosnaobra-aioros.vercel.app';
+
+  // ── Session ID ──────────────────────────────────────
+  var sid = sessionStorage.getItem('sd_sid');
+  if (!sid) {
+    sid = 'xxxxxxxx-xxxx'.replace(/x/g, function() {
+      return Math.floor(Math.random() * 16).toString(16);
+    });
+    sessionStorage.setItem('sd_sid', sid);
+  }
+
+  // ── Envia evento granular ───────────────────────────
+  function sendEvent(type, data) {
+    try {
+      fetch(API + '/tracking/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sid, event_type: type, event_data: data }),
+        keepalive: true,
+      }).catch(function(){});
+    } catch(e) {}
+  }
+
+  // ── Visita inicial ──────────────────────────────────
   try {
     var p = new URLSearchParams(window.location.search);
-    var payload = {
-      utm_source:   p.get('utm_source'),
-      utm_medium:   p.get('utm_medium'),
-      utm_campaign: p.get('utm_campaign'),
-      utm_content:  p.get('utm_content'),
-      utm_term:     p.get('utm_term'),
-      referrer:     document.referrer || null,
-      landing_url:  window.location.href,
-    };
-    fetch('https://solardocs-api-irmaosnaobra-aioros.vercel.app/tracking/visit', {
+    fetch(API + '/tracking/visit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        session_id:   sid,
+        utm_source:   p.get('utm_source'),
+        utm_medium:   p.get('utm_medium'),
+        utm_campaign: p.get('utm_campaign'),
+        utm_content:  p.get('utm_content'),
+        utm_term:     p.get('utm_term'),
+        referrer:     document.referrer || null,
+        landing_url:  window.location.href,
+      }),
       keepalive: true,
     }).catch(function(){});
   } catch(e) {}
+
+  // ── Scroll depth (25 / 50 / 75 / 100 %) ───────────
+  var reached = {};
+  window.addEventListener('scroll', function() {
+    var pct = Math.round(
+      (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100
+    );
+    [25, 50, 75, 100].forEach(function(d) {
+      if (!reached[d] && pct >= d) {
+        reached[d] = true;
+        sendEvent('scroll', { depth: d });
+      }
+    });
+  }, { passive: true });
+
+  // ── Visibilidade de seções ─────────────────────────
+  if (window.IntersectionObserver) {
+    var secObs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting) {
+          sendEvent('section', { section: e.target.id });
+          secObs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.3 });
+    ['problema','crenca','solucao','precos','faq'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) secObs.observe(el);
+    });
+  }
+
+  // ── Cliques nos CTAs ───────────────────────────────
+  document.addEventListener('click', function(e) {
+    var el = e.target && e.target.closest
+      ? e.target.closest('a[href*="stripe"], a[href="#precos"], a.nav-cta, .price-btn, .btn-primary')
+      : null;
+    if (el) {
+      sendEvent('cta_click', {
+        label: (el.textContent || '').trim().substring(0, 60),
+        href:  el.getAttribute('href') || null,
+      });
+    }
+  }, true);
+
+  // ── Tempo na página ────────────────────────────────
+  var t0 = Date.now();
+  window.addEventListener('beforeunload', function() {
+    sendEvent('time_on_page', { seconds: Math.round((Date.now() - t0) / 1000) });
+  });
 })();
 </script>
 </body>
