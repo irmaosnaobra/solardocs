@@ -163,6 +163,20 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
           {docTerceiroItems.map((item) => renderNavItem(item, !isAdmin && !hasCompany))}
         </div>
 
+        {(isVip || isAdmin) && (
+          <>
+            <div className={styles.navDivider}>
+              <span className={styles.navDividerLabel}>Analytics</span>
+            </div>
+            <div className={styles.navSection}>
+              <Link href="/funil" className={`${styles.navItem} ${pathname === '/funil' ? styles.navItemActive : ''}`}>
+                <span className={styles.navIcon}>📊</span>
+                <span>Funil de Conversão</span>
+              </Link>
+            </div>
+          </>
+        )}
+
         <div className={styles.navDivider}>
           <span className={styles.navDividerLabel}>Conta</span>
         </div>

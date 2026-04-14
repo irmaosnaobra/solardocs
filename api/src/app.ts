@@ -15,6 +15,7 @@ import adminRoutes from './routes/admin';
 import trackingRoutes from './routes/tracking';
 import cronRoutes from './routes/cron';
 import chatRoutes from './routes/chat';
+import quizRoutes from './routes/quiz';
 import pixelRoutes from './routes/pixel';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
@@ -61,6 +62,7 @@ app.use('/admin', adminRoutes);
 app.use('/tracking', trackingRoutes);
 app.use('/cron', cronRoutes);
 app.use('/chat', chatRoutes);
+app.use('/quiz', quizRoutes);
 app.use('/pixel', pixelRoutes);
 
 // Error handler global — nunca expõe stack trace em produção
