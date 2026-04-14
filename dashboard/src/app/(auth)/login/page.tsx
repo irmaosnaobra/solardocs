@@ -15,17 +15,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [installed, setInstalled] = useState(false);
-  const [platform, setPlatform] = useState<'ios' | 'android' | 'other' | null>(null);
+  const [platform, setPlatform] = useState<'ios-chrome' | 'ios-safari' | 'android' | 'other' | null>(null);
 
   useEffect(() => {
     const ua = navigator.userAgent;
     const isIos = /iphone|ipad|ipod/i.test(ua);
+    const isIosChrome = isIos && /CriOS/i.test(ua);
     const isAndroid = /android/i.test(ua);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
       || (navigator as any).standalone === true;
 
     if (isStandalone) { setInstalled(true); return; }
-    setPlatform(isIos ? 'ios' : isAndroid ? 'android' : 'other');
+    setPlatform(isIos ? (isIosChrome ? 'ios-chrome' : 'ios-safari') : isAndroid ? 'android' : 'other');
 
     if ((window as any).__pwaInstallPrompt) {
       setInstallPrompt((window as any).__pwaInstallPrompt);
@@ -131,9 +132,18 @@ export default function LoginPage() {
             Instale o SolarDoc Pro na tela inicial e acesse na hora — sem abrir navegador.
           </p>
 
-          {platform === 'ios' && (
+          {platform === 'ios-chrome' && (
             <div style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.8' }}>
-              <p style={{ margin: '0 0 4px', fontWeight: '600', color: '#cbd5e1' }}>Como instalar no iPhone:</p>
+              <p style={{ margin: '0 0 4px', fontWeight: '600', color: '#cbd5e1' }}>Como instalar no iPhone (Chrome):</p>
+              <p style={{ margin: 0 }}>1. Toque nos <span style={{ color: '#f59e0b', fontWeight: '600' }}>3 pontos (⋯)</span> no canto inferior direito</p>
+              <p style={{ margin: 0 }}>2. Toque em <span style={{ color: '#f59e0b', fontWeight: '600' }}>"Adicionar à tela de início"</span></p>
+              <p style={{ margin: 0 }}>3. Confirme tocando em <span style={{ color: '#f59e0b', fontWeight: '600' }}>"Adicionar"</span></p>
+            </div>
+          )}
+
+          {platform === 'ios-safari' && (
+            <div style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.8' }}>
+              <p style={{ margin: '0 0 4px', fontWeight: '600', color: '#cbd5e1' }}>Como instalar no iPhone (Safari):</p>
               <p style={{ margin: 0 }}>
                 1. Toque no ícone{' '}
                 <span style={{ color: '#f59e0b', fontWeight: '600' }}>
@@ -141,13 +151,9 @@ export default function LoginPage() {
                   <svg style={{ display: 'inline', verticalAlign: 'middle' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
                   </svg>
-                </span>{' '}
-                no Safari
+                </span>
               </p>
-              <p style={{ margin: 0 }}>
-                2. Toque em{' '}
-                <span style={{ color: '#f59e0b', fontWeight: '600' }}>"Adicionar à Tela de Início"</span>
-              </p>
+              <p style={{ margin: 0 }}>2. Toque em <span style={{ color: '#f59e0b', fontWeight: '600' }}>"Adicionar à Tela de Início"</span></p>
               <p style={{ margin: 0 }}>3. Confirme tocando em <span style={{ color: '#f59e0b', fontWeight: '600' }}>"Adicionar"</span></p>
             </div>
           )}
