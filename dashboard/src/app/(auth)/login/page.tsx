@@ -25,9 +25,15 @@ export default function LoginPage() {
     setIsIos(ios);
     setIsStandalone(standalone);
 
+    // Lê evento capturado globalmente antes do React montar
+    if ((window as any).__pwaInstallPrompt) {
+      setInstallPrompt((window as any).__pwaInstallPrompt);
+    }
+
     const handler = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e);
+      (window as any).__pwaInstallPrompt = e;
     };
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', () => setInstalled(true));

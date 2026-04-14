@@ -5,7 +5,6 @@ import '@/styles/globals.css';
 export const metadata: Metadata = {
   title: 'SolarDoc Pro',
   description: 'Documentação solar com IA',
-  manifest: '/manifest.json',
 };
 
 export const viewport: Viewport = {
@@ -22,9 +21,16 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
-        <Script id="register-sw" strategy="afterInteractive">{`
+        <Script id="pwa-setup" strategy="beforeInteractive">{`
+          window.__pwaInstallPrompt = null;
+          window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            window.__pwaInstallPrompt = e;
+          });
           if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
+            window.addEventListener('load', function() {
+              navigator.serviceWorker.register('/sw.js');
+            });
           }
         `}</Script>
         <Script id="meta-pixel" strategy="afterInteractive">{`
