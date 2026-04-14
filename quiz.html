@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Diagnóstico - SolarDoc Pro</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@700;800&display=swap" rel="stylesheet" />
+
+  <!-- Meta Pixel -->
+  <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '542698941724217'); 
+    fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1"/></noscript>
+
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #2563eb; 
+      --solar: #f59e0b; 
+      --border: #e2e8f0;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      height: 100svh;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-y: auto;
+      -ms-overflow-style: none; /* IE and Edge */
+      scrollbar-width: none; /* Firefox */
+    }
+    .container::-webkit-scrollbar {
+      display: none;
+    }
+
+    @media (min-width: 601px) {
+      .container {
+        height: 90vh;
+        border-radius: 24px;
+        box-shadow: 0 0 60px rgba(0,0,0,0.06);
+        border: 1px solid var(--border);
+      }
+    }
+
+    /* WELCOME VIEW */
+    .welcome-view {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 24px 40px;
+      flex: 1;
+      text-align: center;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .welcome-logo-card {
+      background: #ffffff;
+      padding: 24px 32px;
+      border-radius: 20px;
+      margin-bottom: 40px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.04);
+      width: 100%;
+      max-width: 260px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .welcome-logo-card img {
+      width: 100%;
+      max-width: 100px;
+      object-fit: contain;
+    }
+
+    .welcome-badge {
+      display: inline-flex;
+      align-items: center;
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 24px;
+    }
+
+    .welcome-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+
+    .welcome-desc {
+      font-size: 16px;
+      color: var(--muted);
+      line-height: 1.5;
+      padding: 0 12px;
+    }
+
+    .welcome-footer {
+      font-size: 13px;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    /* HEADER */
+    .header {
+      padding: 24px;
+      display: none; /* hidden initially */
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid transparent;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .logo img {
+      height: 48px;
+      object-fit: contain;
+    }
+
+    .step-counter {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    /* PROGRESS BAR */
+    .progress-wrap {
+      padding: 0 24px;
+      margin-bottom: 24px;
+      display: none; /* hidden initially */
+    }
+    
+    .progress-bg {
+      height: 6px;
+      background: #f1f5f9;
+      border-radius: 4px;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--solar));
+      border-radius: 4px;
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* VOLTAR */
+    .btn-voltar {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      margin: 0 24px 24px;
+      transition: color 0.2s;
+    }
+    .btn-voltar:hover { color: var(--text); }
+    .btn-voltar svg { width: 16px; height: 16px; }
+
+    /* QUIZ CONTENT */
+    .content {
+      padding: 0 24px 40px;
+      flex: 1;
+      display: none; /* hidden initially */
+      flex-direction: column;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .question-header {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 32px;
+    }
+
+    .q-number {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .q-text {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+      padding-top: 2px;
+    }
+
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .option {
+      background: #fdfdfd;
+      border: 2px solid #e2e8f0;
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.05), 0 2px 4px -2px rgba(37, 99, 235, 0.03);
+    }
+
+    .option:hover {
+      border-color: #bfdbfe;
+      background: #f8fafc;
+      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1), 0 2px 4px -2px rgba(37, 99, 235, 0.06);
+    }
+
+    .option:active {
+      transform: scale(0.98);
+    }
+
+    .option.selected {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+
+    .opt-letter {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #eff6ff;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    /* RESULTADO (DIAGNÓSTICO) */
+    .result-view {
+      display: none;
+      padding: 0 24px 40px;
+      flex: 1;
+      flex-direction: column;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .diag-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 24px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      margin-bottom: 32px;
+    }
+
+    .diag-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .diag-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--solar);
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+
+    .diag-desc {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    .score-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .score-txt {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .solution-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .sol-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #f8fafc;
+    }
+
+    .sol-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #eff6ff;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .sol-content h4 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 2px;
+      color: var(--text);
+    }
+
+    .sol-content p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .cta-btn {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      background: var(--solar);
+      color: white;
+      padding: 18px 24px;
+      border-radius: 16px;
+      font-size: 17px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 4px 15px rgba(245,158,11,0.3);
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .cta-btn:hover {
+      background: #d97706;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(245,158,11,0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- Welcome View -->
+    <div class="welcome-view" id="welcome-view">
+      <div class="welcome-logo-card">
+        <img src="logo-full-dark.png" onerror="this.src='logo-full.png'" alt="SolarDoc Pro">
+      </div>
+      
+      <div class="welcome-badge">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:6px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+        DIAGNÓSTICO EXCLUSIVO
+      </div>
+
+      <h1 class="welcome-title">Você fechou a venda. <span style="color: var(--primary);">E agora?</span></h1>
+      <p class="welcome-desc">Descubra como eliminar o pós-venda que enrola, o tempo perdido revisando erros da equipe e a dependência manual. Um único cadastro. Todos os documentos gerados na hora.</p>
+
+      <div style="flex:1;"></div>
+
+      <button class="cta-btn" id="btn-start" style="margin-bottom: 24px;">
+        Iniciar diagnóstico
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+      </button>
+
+      <div class="welcome-footer">Gratuito • 4 perguntas • Resultado imediato</div>
+    </div>
+
+    <!-- Quiz Header -->
+    <div class="header" id="header">
+      <div class="logo">
+        <img src="logo-full-dark.png" onerror="this.src='logo-full.png'" alt="SolarDoc Pro">
+      </div>
+      <div class="step-counter"><span id="curr-step">1</span> de <span id="tot-step">4</span></div>
+    </div>
+
+    <!-- Quiz Progress -->
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-bg">
+        <div class="progress-fill" id="progress-bar" style="width: 25%"></div>
+      </div>
+    </div>
+
+    <button class="btn-voltar" id="btn-back" style="display: none;">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+      Voltar
+    </button>
+
+    <!-- Quiz Wrapper -->
+    <div class="content" id="quiz-view">
+      <div class="question-header">
+        <div class="q-number" id="q-num">1</div>
+        <div class="q-text" id="q-text">Carregando pergunta...</div>
+      </div>
+      <div class="options" id="opts-container">
+        <!-- Opts injected here -->
+      </div>
+    </div>
+
+    <!-- Diagnostic Wrapper -->
+    <div class="result-view" id="result-view">
+      <div class="diag-card">
+        <div class="diag-label">SEU DIAGNÓSTICO</div>
+        <div class="diag-title" id="diag-title">Calculando...</div>
+        <div class="diag-desc" id="diag-desc"></div>
+        
+        <div class="score-wrap">
+          <div class="score-txt">
+            <span>Pontuação</span>
+            <span id="score-text">0/16</span>
+          </div>
+          <div class="progress-bg" style="height:8px;">
+            <div class="progress-fill" id="score-bar" style="width: 0%; background: linear-gradient(90deg, #3b82f6, #f59e0b);"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--muted); letter-spacing:1px; margin-bottom:16px; text-transform:uppercase; text-align:center;">
+        O QUE O SOLARDOC PRO RESOLVE
+      </div>
+
+      <div class="solution-list">
+        <div class="sol-card">
+          <div class="sol-icon">⚡</div>
+          <div class="sol-content">
+            <h4>Velocidade</h4>
+            <p>Os 5 documentos principais prontos em 2 minutos.</p>
+          </div>
+        </div>
+        <div class="sol-card">
+          <div class="sol-icon">🛡️</div>
+          <div class="sol-content">
+            <h4>Aprovação Garantida</h4>
+            <p>Procurações no padrão exigido pela Concessionária.</p>
+          </div>
+        </div>
+        <div class="sol-card">
+          <div class="sol-icon">🎯</div>
+          <div class="sol-content">
+            <h4>Segurança contra Erros</h4>
+            <p>100% livre de erros de digitação e dados trocados.</p>
+          </div>
+        </div>
+      </div>
+
+      <a id="cta-link" href="/" class="cta-btn">
+        Conheça a Plataforma Especializada
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+      </a>
+      
+      <p style="text-align:center; font-size:11px; color:var(--muted); margin-top:20px;">
+        O resultado baseia-se num diagnóstico para otimizar os fluxos da sua integradora solar.
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    const questions = [
+      {
+        q: "Quando você fecha uma venda, como você gera o contrato e a procuração?",
+        opts: [
+          { t: "Uso o Word e troco os dados manualmente", v: 1 },
+          { t: "Peço para o administrativo/advogado fazer", v: 2 },
+          { t: "Tenho uma planilha/sistema caseiro", v: 3 },
+          { t: "Já gero tudo automatizado em minutos", v: 4 }
+        ]
+      },
+      {
+        q: "Quanto tempo você ou sua equipe levam para montar e enviar a documentação final pro cliente?",
+        opts: [
+          { t: "Mais de 1 hora (preciso revisar tudo)", v: 1 },
+          { t: "Entre 30 a 60 minutos", v: 2 },
+          { t: "Entre 10 a 30 minutos", v: 3 },
+          { t: "Menos de 5 minutos", v: 4 }
+        ]
+      },
+      {
+        q: "Com que frequência seus projetos travam na Concessionária (Cemig, Enel, etc) por erro num documento?",
+        opts: [
+          { t: "Quase sempre, é uma dor de cabeça", v: 1 },
+          { t: "Às vezes, passamos aperto com retrabalho", v: 2 },
+          { t: "Raramente", v: 3 },
+          { t: "Nunca, minhas procurações são padronizadas", v: 4 }
+        ]
+      },
+      {
+        q: "Na hora de montar a documentação complementar (Proposta p/ Banco e Contrato de Serviço)...",
+        opts: [
+          { t: "Cada documento é um modelo diferente que preencho do zero", v: 1 },
+          { t: "Tenho modelos soltos numa pasta e vou copiando", v: 2 },
+          { t: "Já tenho pré-preenchido, mas dá trabalho organizar e revisar erro", v: 3 },
+          { t: "Bato um botão e saem todos do mesmo lugar sincronizados", v: 4 }
+        ]
+      }
+    ];
+
+    const letters = ['A', 'B', 'C', 'D'];
+    let curr = 0;
+    const answers = [];
+
+    const elWelcome = document.getElementById('welcome-view');
+    const elHeader = document.getElementById('header');
+    const elProgressWrap = document.getElementById('progress-wrap');
+    const elQuiz = document.getElementById('quiz-view');
+    const elResult = document.getElementById('result-view');
+    const elQNum = document.getElementById('q-num');
+    const elQText = document.getElementById('q-text');
+    const elOpts = document.getElementById('opts-container');
+    const elCurrStep = document.getElementById('curr-step');
+    const elTotStep = document.getElementById('tot-step');
+    const elProg = document.getElementById('progress-bar');
+    const elBack = document.getElementById('btn-back');
+    const btnStart = document.getElementById('btn-start');
+
+    elTotStep.textContent = questions.length;
+
+    // Preservar UTMs pro CTA
+    document.addEventListener("DOMContentLoaded", function() {
+      const p = new URLSearchParams(window.location.search);
+      const cta = document.getElementById('cta-link');
+      if (p.toString()) {
+        cta.href = "/index.html?" + p.toString();
+      } else {
+        cta.href = "/index.html";
+      }
+
+      // Pixel: Visualização de Conteúdo
+      if (typeof fbq !== 'undefined') {
+        fbq('track', 'ViewContent', { content_name: 'Diagnóstico Quiz' });
+      }
+      render();
+    });
+
+    btnStart.onclick = () => {
+      elWelcome.style.display = 'none';
+      elHeader.style.display = 'flex';
+      elProgressWrap.style.display = 'block';
+      elQuiz.style.display = 'flex';
+      render();
+      
+      if (typeof fbq !== 'undefined') {
+        fbq('trackCustom', 'QuizStarted');
+        fbq('track', 'SubmitApplication', { content_name: 'Início do Diagnóstico' });
+      }
+    };
+
+    function render() {
+      const q = questions[curr];
+      elQNum.textContent = curr + 1;
+      elQText.textContent = q.q;
+      elCurrStep.textContent = curr + 1;
+      
+      const pct = ((curr) / questions.length) * 100;
+      elProg.style.width = pct + '%';
+      
+      if (curr > 0) {
+        elBack.style.display = 'flex';
+      } else {
+        elBack.style.display = 'none';
+      }
+
+      elOpts.innerHTML = '';
+      q.opts.forEach((opt, idx) => {
+        const div = document.createElement('div');
+        div.className = 'option';
+        
+        if (answers[curr] === opt.v) {
+          div.classList.add('selected');
+        }
+
+        div.innerHTML = `
+          <div class="opt-letter">${letters[idx]}</div>
+          <div>${opt.t}</div>
+        `;
+        div.onclick = () => selectOption(opt.v, div);
+        elOpts.appendChild(div);
+      });
+      
+      elQuiz.style.animation = 'none';
+      void elQuiz.offsetWidth; 
+      elQuiz.style.animation = 'fadeIn 0.3s ease-out';
+    }
+
+    function selectOption(val, element) {
+      document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+      element.classList.add('selected');
+      
+      answers[curr] = val;
+      
+      if (typeof fbq !== 'undefined') {
+        fbq('trackCustom', 'QuizStep', { step: curr + 1, answer: val });
+      }
+
+      setTimeout(() => {
+        if (curr < questions.length - 1) {
+          curr++;
+          render();
+        } else {
+          showResult();
+        }
+      }, 300);
+    }
+
+    elBack.onclick = () => {
+      if (curr > 0) {
+        curr--;
+        render();
+      }
+    };
+
+    function showResult() {
+      elQuiz.style.display = 'none';
+      elBack.style.display = 'none';
+      elCurrStep.textContent = questions.length;
+      elProg.style.width = '100%';
+      elResult.style.display = 'flex';
+
+      const totalScore = answers.reduce((a, b) => a + b, 0);
+      const maxScore = questions.length * 4;
+      
+      let title = "";
+      let desc = "";
+
+      if (totalScore <= 8) {
+        title = "Processo Lento e Arriscado";
+        desc = "Sua documentação está custando tempo, vendas e gerando riscos contratuais altíssimos por erros humanos.";
+        document.getElementById('diag-title').style.color = "#ef4444"; // red
+      } else if (totalScore <= 13) {
+        title = "Funciona, mas com Atrito";
+        desc = "Seu processo existe, mas ainda depende muito de trabalho manual seu ou da equipe, o que não é escalável.";
+        document.getElementById('diag-title').style.color = "#f59e0b"; // amber
+      } else {
+        title = "Processo Ligeiro!";
+        desc = "Você tem a base certa, mas aposto que ainda gasta muito usando sistemas complexos ou terceiros. A IA vai baratear sua operação.";
+        document.getElementById('diag-title').style.color = "#10b981"; // green
+      }
+
+      document.getElementById('diag-title').textContent = title;
+      document.getElementById('diag-desc').textContent = desc;
+      document.getElementById('score-text').textContent = totalScore + '/' + maxScore;
+      
+      setTimeout(() => {
+        document.getElementById('score-bar').style.width = (totalScore / maxScore * 100) + '%';
+      }, 100);
+
+      if (typeof fbq !== 'undefined') {
+        fbq('trackCustom', 'QuizComplete', { score: totalScore, diagnostic: title });
+        fbq('track', 'Lead', { 
+          content_name: title,
+          value: totalScore,
+          currency: 'BRL'
+        });
+      }
+    }
+  </script>
+</body>
+</html>
