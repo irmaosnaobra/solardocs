@@ -1,29 +1,36 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Diagnóstico - SolarDoc Pro</title>
-  
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@700;800&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@700;800&display=swap"
+    rel="stylesheet" />
 
   <!-- Meta Pixel -->
   <script>
-    !function(f,b,e,v,n,t,s)
-    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
-    'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '542698941724217'); 
+    !function (f, b, e, v, n, t, s) {
+      if (f.fbq) return; n = f.fbq = function () {
+        n.callMethod ?
+        n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+      };
+      if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
+      n.queue = []; t = b.createElement(e); t.async = !0;
+      t.src = v; s = b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t, s)
+    }(window, document, 'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '542698941724217');
     fbq('track', 'PageView');
   </script>
-  <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1"/></noscript>
+  <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1" /></noscript>
 
   <style>
     :root {
@@ -31,8 +38,8 @@
       --surface: #ffffff;
       --text: #0f172a;
       --muted: #64748b;
-      --primary: #2563eb; 
-      --solar: #f59e0b; 
+      --primary: #2563eb;
+      --solar: #f59e0b;
       --border: #e2e8f0;
       --radius: 16px;
     }
@@ -44,7 +51,8 @@
       font-family: 'Inter', sans-serif;
     }
 
-    html, body {
+    html,
+    body {
       height: 100%;
       margin: 0;
       padding: 0;
@@ -69,9 +77,12 @@
       flex-direction: column;
       position: relative;
       overflow-y: auto;
-      -ms-overflow-style: none; /* IE and Edge */
-      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none;
+      /* IE and Edge */
+      scrollbar-width: none;
+      /* Firefox */
     }
+
     .container::-webkit-scrollbar {
       display: none;
     }
@@ -80,7 +91,7 @@
       .container {
         height: 90vh;
         border-radius: 24px;
-        box-shadow: 0 0 60px rgba(0,0,0,0.06);
+        box-shadow: 0 0 60px rgba(0, 0, 0, 0.06);
         border: 1px solid var(--border);
       }
     }
@@ -101,7 +112,7 @@
       padding: 24px 32px;
       border-radius: 20px;
       margin-bottom: 40px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.04);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
       width: 100%;
       max-width: 260px;
       display: flex;
@@ -152,7 +163,8 @@
     /* HEADER */
     .header {
       padding: 24px;
-      display: none; /* hidden initially */
+      display: none;
+      /* hidden initially */
       flex-direction: column;
       justify-content: center;
       align-items: center;
@@ -176,9 +188,10 @@
     .progress-wrap {
       padding: 0 24px;
       margin-bottom: 24px;
-      display: none; /* hidden initially */
+      display: none;
+      /* hidden initially */
     }
-    
+
     .progress-bg {
       height: 6px;
       background: #f1f5f9;
@@ -208,20 +221,35 @@
       margin: 0 24px 24px;
       transition: color 0.2s;
     }
-    .btn-voltar:hover { color: var(--text); }
-    .btn-voltar svg { width: 16px; height: 16px; }
+
+    .btn-voltar:hover {
+      color: var(--text);
+    }
+
+    .btn-voltar svg {
+      width: 16px;
+      height: 16px;
+    }
 
     /* QUIZ CONTENT */
     .content {
       padding: 0 24px 40px;
       flex: 1;
-      display: none; /* hidden initially */
+      display: none;
+      /* hidden initially */
       flex-direction: column;
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .question-header {
@@ -319,7 +347,7 @@
       border-radius: 20px;
       padding: 32px 24px;
       text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
       margin-bottom: 32px;
     }
 
@@ -416,7 +444,7 @@
       font-size: 17px;
       font-weight: 700;
       text-decoration: none;
-      box-shadow: 0 4px 15px rgba(245,158,11,0.3);
+      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
       transition: all 0.2s;
       cursor: pointer;
       border: none;
@@ -425,33 +453,41 @@
     .cta-btn:hover {
       background: #d97706;
       transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(245,158,11,0.4);
+      box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
     }
   </style>
 </head>
+
 <body>
 
   <div class="container">
-    
+
     <!-- Welcome View -->
     <div class="welcome-view" id="welcome-view">
       <div class="welcome-logo-card">
         <img src="logo-full-dark.png" onerror="this.src='logo-full.png'" alt="SolarDoc Pro">
       </div>
-      
+
       <div class="welcome-badge">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:6px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:6px;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+          </path>
+        </svg>
         DIAGNÓSTICO EXCLUSIVO
       </div>
 
       <h1 class="welcome-title">Você fechou a venda. <span style="color: var(--primary);">E agora?</span></h1>
-      <p class="welcome-desc">Descubra como eliminar o pós-venda que enrola, o tempo perdido revisando erros da equipe e a dependência manual. Um único cadastro. Todos os documentos gerados na hora.</p>
+      <p class="welcome-desc">Descubra como eliminar o pós-venda que enrola, o tempo perdido revisando erros da equipe e
+        a dependência manual. Um único cadastro. Todos os documentos gerados na hora.</p>
 
       <div style="flex:1;"></div>
 
       <button class="cta-btn" id="btn-start" style="margin-bottom: 24px;">
         Iniciar diagnóstico
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
       </button>
 
       <div class="welcome-footer">Gratuito • 4 perguntas • Resultado imediato</div>
@@ -473,7 +509,9 @@
     </div>
 
     <button class="btn-voltar" id="btn-back" style="display: none;">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+      </svg>
       Voltar
     </button>
 
@@ -494,19 +532,21 @@
         <div class="diag-label">SEU DIAGNÓSTICO</div>
         <div class="diag-title" id="diag-title">Calculando...</div>
         <div class="diag-desc" id="diag-desc"></div>
-        
+
         <div class="score-wrap">
           <div class="score-txt">
             <span>Pontuação</span>
             <span id="score-text">0/16</span>
           </div>
           <div class="progress-bg" style="height:8px;">
-            <div class="progress-fill" id="score-bar" style="width: 0%; background: linear-gradient(90deg, #3b82f6, #f59e0b);"></div>
+            <div class="progress-fill" id="score-bar"
+              style="width: 0%; background: linear-gradient(90deg, #3b82f6, #f59e0b);"></div>
           </div>
         </div>
       </div>
 
-      <div style="font-size:12px; font-weight:700; color:var(--muted); letter-spacing:1px; margin-bottom:16px; text-transform:uppercase; text-align:center;">
+      <div
+        style="font-size:12px; font-weight:700; color:var(--muted); letter-spacing:1px; margin-bottom:16px; text-transform:uppercase; text-align:center;">
         O QUE O SOLARDOC PRO RESOLVE
       </div>
 
@@ -534,11 +574,14 @@
         </div>
       </div>
 
-      <a id="cta-link" href="/" class="cta-btn">
+      <a id="cta-link" href="/" class="cta-btn" onclick="var e=genEID();px('track:InitiateCheckout',{content_name:'Quiz CTA',currency:'BRL'},e);px('QuizCTAClick',{},e);">
         Conheça a Plataforma Especializada
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+        </svg>
       </a>
-      
+
       <p style="text-align:center; font-size:11px; color:var(--muted); margin-top:20px;">
         O resultado baseia-se num diagnóstico para otimizar os fluxos da sua integradora solar.
       </p>
@@ -606,20 +649,42 @@
 
     elTotStep.textContent = questions.length;
 
-    // Preservar UTMs pro CTA
-    document.addEventListener("DOMContentLoaded", function() {
-      const p = new URLSearchParams(window.location.search);
-      const cta = document.getElementById('cta-link');
-      if (p.toString()) {
-        cta.href = "/index.html?" + p.toString();
+    // ── UTMs e Pixel helpers ──────────────────────────────
+    var _utms = (function() {
+      var p = new URLSearchParams(window.location.search);
+      return {
+        utm_source:   p.get('utm_source')   || undefined,
+        utm_medium:   p.get('utm_medium')   || undefined,
+        utm_campaign: p.get('utm_campaign') || undefined,
+        utm_content:  p.get('utm_content')  || undefined,
+        utm_term:     p.get('utm_term')     || undefined,
+      };
+    })();
+
+    function genEID() {
+      return 'quiz-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    }
+
+    function px(event, data, eventID) {
+      if (typeof fbq === 'undefined') return;
+      var payload = Object.assign({}, data, _utms);
+      var opts = eventID ? { eventID: eventID } : {};
+      if (event.startsWith('track:')) {
+        fbq('track', event.slice(6), payload, opts);
       } else {
-        cta.href = "/index.html";
+        fbq('trackCustom', event, payload, opts);
       }
+    }
+
+    // Preservar UTMs pro CTA
+    document.addEventListener("DOMContentLoaded", function () {
+      var p = new URLSearchParams(window.location.search);
+      var cta = document.getElementById('cta-link');
+      var base = 'https://solardocs-landing.vercel.app/';
+      cta.href = p.toString() ? base + '?' + p.toString() : base;
 
       // Pixel: Visualização de Conteúdo
-      if (typeof fbq !== 'undefined') {
-        fbq('track', 'ViewContent', { content_name: 'Diagnóstico Quiz' });
-      }
+      px('track:ViewContent', { content_name: 'Diagnóstico Quiz' }, genEID());
       render();
     });
 
@@ -629,11 +694,9 @@
       elProgressWrap.style.display = 'block';
       elQuiz.style.display = 'flex';
       render();
-      
-      if (typeof fbq !== 'undefined') {
-        fbq('trackCustom', 'QuizStarted');
-        fbq('track', 'SubmitApplication', { content_name: 'Início do Diagnóstico' });
-      }
+
+      px('QuizStarted', { content_name: 'Início do Diagnóstico' }, genEID());
+      px('track:SubmitApplication', { content_name: 'Início do Diagnóstico' }, genEID());
     };
 
     function render() {
@@ -641,10 +704,10 @@
       elQNum.textContent = curr + 1;
       elQText.textContent = q.q;
       elCurrStep.textContent = curr + 1;
-      
+
       const pct = ((curr) / questions.length) * 100;
       elProg.style.width = pct + '%';
-      
+
       if (curr > 0) {
         elBack.style.display = 'flex';
       } else {
@@ -655,7 +718,7 @@
       q.opts.forEach((opt, idx) => {
         const div = document.createElement('div');
         div.className = 'option';
-        
+
         if (answers[curr] === opt.v) {
           div.classList.add('selected');
         }
@@ -667,21 +730,19 @@
         div.onclick = () => selectOption(opt.v, div);
         elOpts.appendChild(div);
       });
-      
+
       elQuiz.style.animation = 'none';
-      void elQuiz.offsetWidth; 
+      void elQuiz.offsetWidth;
       elQuiz.style.animation = 'fadeIn 0.3s ease-out';
     }
 
     function selectOption(val, element) {
       document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
       element.classList.add('selected');
-      
+
       answers[curr] = val;
-      
-      if (typeof fbq !== 'undefined') {
-        fbq('trackCustom', 'QuizStep', { step: curr + 1, answer: val });
-      }
+
+      px('QuizStep', { step: curr + 1, answer: val });
 
       setTimeout(() => {
         if (curr < questions.length - 1) {
@@ -709,7 +770,7 @@
 
       const totalScore = answers.reduce((a, b) => a + b, 0);
       const maxScore = questions.length * 4;
-      
+
       let title = "";
       let desc = "";
 
@@ -730,20 +791,16 @@
       document.getElementById('diag-title').textContent = title;
       document.getElementById('diag-desc').textContent = desc;
       document.getElementById('score-text').textContent = totalScore + '/' + maxScore;
-      
+
       setTimeout(() => {
         document.getElementById('score-bar').style.width = (totalScore / maxScore * 100) + '%';
       }, 100);
 
-      if (typeof fbq !== 'undefined') {
-        fbq('trackCustom', 'QuizComplete', { score: totalScore, diagnostic: title });
-        fbq('track', 'Lead', { 
-          content_name: title,
-          value: totalScore,
-          currency: 'BRL'
-        });
-      }
+      var eid = genEID();
+      px('QuizComplete', { score: totalScore, diagnostic: title }, eid);
+      px('track:Lead', { content_name: title, value: totalScore, currency: 'BRL' }, eid);
     }
   </script>
 </body>
+
 </html>
