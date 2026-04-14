@@ -147,11 +147,20 @@ export default function DocumentPreview({
   }, []);
 
   const blocks = parseContent(content);
-  const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
 
   async function handleSave() {
     setSaving(true);
     try {
+      const pageEl = docRef.current?.querySelector(`.${styles.page}`) as HTMLElement | null;
+      let html_content: string | undefined;
+
+      if (pageEl) {
+        const s = styles;
+        const css = `* { box-sizing: border-box; margin: 0; padding: 0; } html, body { background: #fff; } body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.7; color: #1a1a1a; } .${s.page} { width: 100%; padding: 2cm; min-height: 297mm; display: flex; flex-direction: column; } .${s.companyHeader} { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; } .${s.logo} { height: 52px; width: auto; object-fit: contain; flex-shrink: 0; } .${s.companyInfo} { display: flex; flex-direction: column; gap: 2px; } .${s.companyName} { font-size: 12.5pt; font-weight: 700; color: #1a1a1a; font-family: Arial, sans-serif; } .${s.companyDetail} { font-size: 8.5pt; color: #555; font-family: Arial, sans-serif; } .${s.headerDivider} { border: none; border-top: 2px solid #1a1a2e; margin: 10px 0 24px 0; } .${s.docBody} { flex: 1; } .${s.docTitle} { font-size: 12.5pt; font-weight: 700; text-align: center; text-transform: uppercase; color: #1a1a2e; margin: 0 0 22px 0; } .${s.sectionHeader} { font-size: 10pt; font-weight: 700; text-transform: uppercase; color: #1a1a2e; margin: 18px 0 8px 0; padding-bottom: 3px; border-bottom: 1px solid #ccc; } .${s.separator} { border: none; border-top: 1px solid #ccc; margin: 14px 0; } .${s.bodyText} { margin: 0 0 7px 0; text-align: justify; color: #222; } .${s.listItem} { margin: 4px 0 4px 18px; text-align: justify; color: #222; } .${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9.5pt; color: #333; margin: 4px 0; } .${s.spacer} { height: 8px; } .${s.footer} { margin-top: 28px; padding-top: 8px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }`;
+        html_content = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>${clienteNome}</title><style>${css}</style></head><body>${pageEl.outerHTML}</body></html>`;
+      }
+
       await api.post('/documents/save', {
         tipo,
         ...(clienteId ? { cliente_id: clienteId } : {}),
@@ -160,6 +169,7 @@ export default function DocumentPreview({
         dados_json: dadosJson,
         content,
         modelo_usado: modeloUsado,
+        html_content,
       });
       setSaved(true);
     } finally {
@@ -171,24 +181,12 @@ export default function DocumentPreview({
     const pageEl = docRef.current?.querySelector(`.${styles.page}`) as HTMLElement | null;
     if (!pageEl) return;
 
-    // CSS Modules generate hashed class names — build CSS using the actual values
     const s = styles;
     const css = `
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: #fff; }
-body {
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 11pt;
-  line-height: 1.7;
-  color: #1a1a1a;
-}
-.${s.page} {
-  width: 100%;
-  padding: 2cm;
-  min-height: 297mm;
-  display: flex;
-  flex-direction: column;
-}
+body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.7; color: #1a1a1a; }
+.${s.page} { width: 100%; padding: 2cm; min-height: 297mm; display: flex; flex-direction: column; }
 .${s.companyHeader} { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
 .${s.logo} { height: 52px; width: auto; object-fit: contain; flex-shrink: 0; }
 .${s.companyInfo} { display: flex; flex-direction: column; gap: 2px; }
@@ -196,51 +194,20 @@ body {
 .${s.companyDetail} { font-size: 8.5pt; color: #555; font-family: Arial, sans-serif; }
 .${s.headerDivider} { border: none; border-top: 2px solid #1a1a2e; margin: 10px 0 24px 0; }
 .${s.docBody} { flex: 1; }
-.${s.docTitle} {
-  font-size: 12.5pt; font-weight: 700; text-align: center;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  color: #1a1a2e; margin: 0 0 22px 0; line-height: 1.4;
-}
-.${s.sectionHeader} {
-  font-size: 10pt; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.04em; color: #1a1a2e;
-  margin: 18px 0 8px 0; padding-bottom: 3px;
-  border-bottom: 1px solid #ccc;
-}
+.${s.docTitle} { font-size: 12.5pt; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 0.06em; color: #1a1a2e; margin: 0 0 22px 0; line-height: 1.4; }
+.${s.sectionHeader} { font-size: 10pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #1a1a2e; margin: 18px 0 8px 0; padding-bottom: 3px; border-bottom: 1px solid #ccc; }
 .${s.separator} { border: none; border-top: 1px solid #ccc; margin: 14px 0; }
 .${s.bodyText} { margin: 0 0 7px 0; text-align: justify; hyphens: auto; color: #222; }
 .${s.listItem} { margin: 4px 0 4px 18px; text-align: justify; color: #222; }
 .${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9.5pt; color: #333; margin: 4px 0; letter-spacing: 0.02em; }
 .${s.spacer} { height: 8px; }
-.${s.footer} {
-  margin-top: 28px; padding-top: 8px;
-  border-top: 1px solid #ddd;
-  display: flex; justify-content: space-between; align-items: center;
-  font-family: Arial, sans-serif; font-size: 8pt; color: #999;
-}
-@page {
-  size: A4 portrait;
-  margin: 2cm 2cm 2.5cm 2cm;
-  /* Suppress browser default headers/footers */
-  @top-left { content: ''; }
-  @top-center { content: ''; }
-  @top-right { content: ''; }
-  @bottom-left { content: ''; }
-  @bottom-right { content: ''; }
-  /* Custom page number */
-  @bottom-center {
-    content: "Página " counter(page) " de " counter(pages);
-    font-family: Arial, sans-serif;
-    font-size: 8pt;
-    color: #999;
-  }
-}
+.${s.footer} { margin-top: 28px; padding-top: 8px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }
+@page { size: A4 portrait; margin: 2cm 2cm 2.5cm 2cm; }
 @media print {
   html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
   .${s.page} { padding: 0 !important; min-height: auto !important; }
   .${s.footer} { display: none !important; }
-}
-    `.trim();
+}`.trim();
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -251,14 +218,22 @@ body {
 </head>
 <body>
   ${pageEl.outerHTML}
-  <script>window.onload = function(){ window.print(); window.onafterprint = function(){ window.close(); }; }<\/script>
+  <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>
 </body>
 </html>`;
 
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
+    // Usa blob URL em vez de window.open vazio — evita bloqueio de popup
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (!win) {
+      // Fallback: download direto como .html se popup bloqueado
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `documento-${clienteNome.replace(/\s+/g, '-').toLowerCase()}.html`;
+      a.click();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
   return (

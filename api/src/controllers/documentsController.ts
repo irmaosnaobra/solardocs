@@ -128,6 +128,20 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
   try {
     const body = saveSchema.parse(req.body);
 
+    // Upload HTML to Supabase Storage if provided
+    let arquivo_url: string | null = null;
+    const htmlContent = (req.body as any).html_content as string | undefined;
+    if (htmlContent) {
+      const fileName = `${req.userId}/${body.tipo}-${body.cliente_nome?.replace(/\s+/g, '-').toLowerCase() ?? 'doc'}-${Date.now()}.html`;
+      const { error: uploadError } = await supabase.storage
+        .from('documentos')
+        .upload(fileName, Buffer.from(htmlContent, 'utf-8'), { contentType: 'text/html; charset=utf-8', upsert: false });
+
+      if (!uploadError) {
+        arquivo_url = fileName;
+      }
+    }
+
     const { data, error } = await supabase
       .from('documents')
       .insert({
@@ -139,6 +153,7 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
         dados_json: body.dados_json || null,
         content: body.content,
         modelo_usado: body.modelo_usado || null,
+        arquivo_url,
         status: 'saved',
       })
       .select()
@@ -158,16 +173,77 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
 
 export async function listDocuments(req: Request, res: Response): Promise<void> {
   try {
+    const { data: user } = await supabase
+      .from('users')
+      .select('plano')
+      .eq('id', req.userId)
+      .single();
+
+    if (!user) { res.status(404).json({ error: 'Usuário não encontrado' }); return; }
+
+    // Iniciante: sem histórico
+    if (user.plano === 'free' || user.plano === 'iniciante') {
+      res.json({ documents: [], plano: user.plano, historico: false });
+      return;
+    }
+
     const tipo = req.query.tipo as string | undefined;
-    let query = supabase.from('documents').select('*').eq('user_id', req.userId).order('created_at', { ascending: false });
+    let query = supabase
+      .from('documents')
+      .select('id, tipo, cliente_nome, modelo_usado, arquivo_url, created_at')
+      .eq('user_id', req.userId)
+      .order('created_at', { ascending: false });
 
     if (tipo) query = query.eq('tipo', tipo);
 
+    // PRO: últimos 30 dias
+    if (user.plano === 'pro') {
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte('created_at', cutoff);
+    }
+
     const { data, error } = await query;
     if (error) throw error;
-    res.json({ documents: data });
+
+    // Gerar signed URLs para download
+    const docs = await Promise.all((data ?? []).map(async (doc) => {
+      let signed_url: string | null = null;
+      if (doc.arquivo_url) {
+        const { data: signed } = await supabase.storage
+          .from('documentos')
+          .createSignedUrl(doc.arquivo_url, 3600);
+        signed_url = signed?.signedUrl ?? null;
+      }
+      return { ...doc, signed_url };
+    }));
+
+    res.json({ documents: docs, plano: user.plano, historico: true });
   } catch (err) {
     console.error('listDocuments error:', err);
     res.status(500).json({ error: 'Erro ao listar documentos' });
   }
+}
+
+export async function cleanupProDocuments(): Promise<void> {
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: oldDocs } = await supabase
+    .from('documents')
+    .select('id, arquivo_url, user_id')
+    .lt('created_at', cutoff)
+    .in('user_id',
+      supabase.from('users').select('id').eq('plano', 'pro') as any
+    );
+
+  if (!oldDocs?.length) return;
+
+  // Deletar arquivos do Storage
+  const paths = oldDocs.filter(d => d.arquivo_url).map(d => d.arquivo_url as string);
+  if (paths.length) await supabase.storage.from('documentos').remove(paths);
+
+  // Deletar registros do banco
+  const ids = oldDocs.map(d => d.id);
+  await supabase.from('documents').delete().in('id', ids);
+
+  console.log(`Cleanup: ${ids.length} docs PRO removidos.`);
 }

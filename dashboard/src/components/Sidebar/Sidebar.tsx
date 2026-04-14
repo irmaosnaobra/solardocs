@@ -1,9 +1,11 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { removeToken } from '@/services/auth';
 import PlanBadge from '../PlanBadge/PlanBadge';
+import Logo from '../Logo/Logo';
 import styles from './Sidebar.module.css';
 
 interface User {
@@ -44,9 +46,19 @@ const docTerceiroItems: NavItem[] = [
 
 export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const isVip   = user.plano === 'ilimitado';
-  const isAdmin = !!user.is_admin;
+  const router   = useRouter();
+  const isVip    = user.plano === 'ilimitado';
+  const isAdmin  = !!user.is_admin;
+  const [open, setOpen] = useState(false);
+
+  // Fecha ao trocar de rota
+  useEffect(() => { setOpen(false); }, [pathname]);
+
+  // Trava scroll do body quando aberto
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
 
   function handleLogout() {
     removeToken();
@@ -67,7 +79,6 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
         </div>
       );
     }
-
     return (
       <Link
         key={item.href}
@@ -80,13 +91,18 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
     );
   }
 
-  return (
-    <aside className={styles.sidebar}>
+  const sidebarContent = (
+    <aside className={`${styles.sidebar} ${open ? styles.sidebarOpen : ''}`}>
       <div className={styles.logoWrap}>
-        <Link href={(isVip || isAdmin) ? '/dashboard' : '/empresa'} className={styles.logo}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="SolarDoc Pro" className={styles.logoImg} />
-        </Link>
+        {(isVip || isAdmin) ? (
+          <Link href="/dashboard" className={styles.logo}>
+            <Logo className={styles.logoImg} />
+          </Link>
+        ) : (
+          <button className={styles.logo} onClick={onUpgradeClick} title="Disponível no plano VIP">
+            <Logo className={styles.logoImg} />
+          </button>
+        )}
         {(isVip || isAdmin) && (
           <Link href="/dashboard" className={`${styles.dashboardLink} ${pathname === '/dashboard' ? styles.dashboardLinkActive : ''}`}>
             dashboard
@@ -95,21 +111,47 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
       </div>
 
       <nav className={styles.nav}>
+        {/* Admin — só visível para admins */}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className={`${styles.navItem} ${styles.navItemDashboard} ${pathname === '/admin' ? styles.navItemActive : ''}`}
+          >
+            <span className={styles.navIcon}>⚙️</span>
+            <span>Painel Admin</span>
+          </Link>
+        )}
+
+        {/* Dashboard — visível para todos, bloqueado para não-VIP */}
+        {(isVip || isAdmin) ? (
+          <Link
+            href="/dashboard"
+            className={`${styles.navItem} ${styles.navItemDashboard} ${pathname === '/dashboard' ? styles.navItemActive : ''}`}
+          >
+            <span className={styles.navIcon}>📊</span>
+            <span>Dashboard</span>
+          </Link>
+        ) : (
+          <button className={`${styles.navItem} ${styles.navItemDashboard} ${styles.navItemDashboardLocked}`} onClick={onUpgradeClick}>
+            <span className={styles.navIcon}>📊</span>
+            <span>Dashboard</span>
+            <span className={styles.vipTag}>VIP</span>
+          </button>
+        )}
+
         <div className={styles.navDivider}>
           <span className={`${styles.navDividerLabel} ${styles.navDividerLabelHighlight}`}>Cadastros</span>
         </div>
-
         <div className={styles.navSection}>
           {navItems.map((item) => {
-            const lockedByCompany = !isAdmin && !hasCompany && item.href !== '/empresa';
-            return renderNavItem(item, lockedByCompany);
+            const locked = !isAdmin && !hasCompany && item.href !== '/empresa';
+            return renderNavItem(item, locked);
           })}
         </div>
 
         <div className={styles.navDivider}>
           <span className={`${styles.navDividerLabel} ${styles.navDividerLabelHighlight}`}>Docs Clientes</span>
         </div>
-
         <div className={styles.navSection}>
           {docClienteItems.map((item) => renderNavItem(item, !isAdmin && !hasCompany))}
         </div>
@@ -117,16 +159,34 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
         <div className={styles.navDivider}>
           <span className={`${styles.navDividerLabel} ${styles.navDividerLabelHighlight}`}>Docs Terceiros</span>
         </div>
-
         <div className={styles.navSection}>
           {docTerceiroItems.map((item) => renderNavItem(item, !isAdmin && !hasCompany))}
         </div>
+
+        <div className={styles.navDivider}>
+          <span className={styles.navDividerLabel}>Conta</span>
+        </div>
+        <div className={styles.navSection}>
+          <Link
+            href="/historico"
+            className={`${styles.navItem} ${pathname === '/historico' ? styles.navItemActive : ''}`}
+          >
+            <span className={styles.navIcon}>🗂️</span>
+            <span>Meus Documentos</span>
+          </Link>
+          <Link
+            href="/sugestoes"
+            className={`${styles.navItem} ${pathname === '/sugestoes' ? styles.navItemActive : ''}`}
+          >
+            <span className={styles.navIcon}>💎</span>
+            <span>Sugestões VIP</span>
+          </Link>
+        </div>
+
       </nav>
 
       <div className={styles.footer}>
-        {isAdmin && (
-          <div className={styles.adminBadge}>⚙️ Administrador</div>
-        )}
+        {isAdmin && <div className={styles.adminBadge}>⚙️ Administrador</div>}
 
         <PlanBadge
           plano={user.plano}
@@ -140,17 +200,32 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
           </button>
         )}
 
-        <Link
-          href="/sugestoes"
-          className={`${styles.suggestBtn} ${pathname === '/sugestoes' ? styles.suggestBtnActive : ''}`}
-        >
-          💎 Sugestões VIP
-        </Link>
-
-        <button className={styles.logoutBtn} onClick={handleLogout}>
-          Sair
-        </button>
+        <button className={styles.logoutBtn} onClick={handleLogout}>Sair</button>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Barra superior mobile */}
+      <div className={styles.mobileHeader}>
+        <button className={styles.hamburger} onClick={() => setOpen(true)} aria-label="Abrir menu">
+          <span /><span /><span />
+        </button>
+        {(isVip || isAdmin) ? (
+          <Link href="/dashboard"><Logo className={styles.mobileLogoImg} /></Link>
+        ) : (
+          <button onClick={onUpgradeClick} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} title="Disponível no plano VIP">
+            <Logo className={styles.mobileLogoImg} />
+          </button>
+        )}
+        <div style={{ width: 30 }} />
+      </div>
+
+      {/* Overlay ao abrir */}
+      {open && <div className={styles.overlay} onClick={() => setOpen(false)} />}
+
+      {sidebarContent}
+    </>
   );
 }
