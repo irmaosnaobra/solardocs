@@ -1072,7 +1072,7 @@
     <li><a href="#precos">Preços</a></li>
     <li><a href="#faq">Dúvidas</a></li>
   </ul>
-  <a href="#precos" class="nav-cta">Assinar o meu plano →</a>
+  <a href="quiz.html" class="nav-cta">Fazer Diagnóstico Grátis</a>
   <button class="hamburger" id="menuBtn" aria-label="Abrir menu">
     <span></span><span></span><span></span>
   </button>
@@ -1085,7 +1085,7 @@
   <a href="#solucao" onclick="document.getElementById('mobileMenu').classList.remove('open')">Solução</a>
   <a href="#precos" onclick="document.getElementById('mobileMenu').classList.remove('open')">Preços</a>
   <a href="#faq" onclick="document.getElementById('mobileMenu').classList.remove('open')">Dúvidas</a>
-  <a href="#precos" class="btn-primary" style="font-size:16px;padding:14px 32px" onclick="document.getElementById('mobileMenu').classList.remove('open')">Assinar o meu plano →</a>
+  <a href="quiz.html" class="btn-primary" style="font-size:16px;padding:14px 32px" onclick="document.getElementById('mobileMenu').classList.remove('open')">Fazer Diagnóstico Grátis</a>
 </div>
 
 <!-- 1, 2 e 3. HERO (Headline, Subheadline e Botão/Prev) -->
@@ -1094,8 +1094,11 @@
   <h1>Pare de perder vendas e tempo com <em>contratos errados</em>, atrasos e documentos mal feitos</h1>
   <p>Gere contratos, propostas e documentos profissionais em minutos, padronizados com sua marca e sem depender de terceiros.</p>
   <div class="hero-btns">
-    <a href="#precos" class="btn-primary" style="font-size: 19px; padding: 22px 30px;">
-      QUERO GERAR MEUS DOCUMENTOS AGORA
+    <a href="quiz.html" class="btn-primary" style="font-size: 19px; padding: 22px 30px;">
+      QUERO DIAGNÓSTICO GRATUITO DA MINHA EMPRESA
+    </a>
+    <a href="#precos" class="btn-outline" style="font-size: 17px; padding: 22px 30px;">
+      Ver Planos
     </a>
   </div>
 
@@ -1807,152 +1810,4 @@
     document.getElementById('yt-speed-btn').textContent = speed + '×';
   }
 </script>
-
-<!-- ── CHAT WIDGET ─────────────────────────────────────────── -->
-<style>
-#sd-chat-btn {
-  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
-  width: 56px; height: 56px; border-radius: 50%;
-  background: #f59e0b; border: none; cursor: pointer;
-  box-shadow: 0 4px 20px rgba(245,158,11,0.5);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 24px; transition: transform 0.2s;
-}
-#sd-chat-btn:hover { transform: scale(1.08); }
-#sd-chat-box {
-  position: fixed; bottom: 90px; right: 24px; z-index: 9999;
-  width: 320px; max-height: 460px;
-  background: #0f172a; border: 1px solid #1e293b;
-  border-radius: 16px; overflow: hidden;
-  display: none; flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-}
-#sd-chat-box.open { display: flex; }
-#sd-chat-header {
-  background: #f59e0b; padding: 14px 16px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-#sd-chat-header span { font-weight: 700; font-size: 14px; color: #0f172a; }
-#sd-chat-close { background: none; border: none; cursor: pointer; font-size: 18px; color: #0f172a; line-height: 1; }
-#sd-chat-messages {
-  flex: 1; overflow-y: auto; padding: 14px; display: flex;
-  flex-direction: column; gap: 10px;
-}
-.sd-msg { max-width: 85%; font-size: 13px; line-height: 1.5; padding: 10px 12px; border-radius: 12px; }
-.sd-msg.bot { background: #1e293b; color: #e2e8f0; align-self: flex-start; border-bottom-left-radius: 4px; }
-.sd-msg.user { background: #f59e0b; color: #0f172a; font-weight: 600; align-self: flex-end; border-bottom-right-radius: 4px; }
-.sd-msg a { color: #f59e0b; font-weight: 700; }
-.sd-msg.bot a { color: #fbbf24; }
-#sd-chat-input-row {
-  display: flex; gap: 8px; padding: 12px;
-  border-top: 1px solid #1e293b;
-}
-#sd-chat-input {
-  flex: 1; background: #1e293b; border: none; border-radius: 8px;
-  padding: 10px 12px; color: #f8fafc; font-size: 13px; outline: none;
-}
-#sd-chat-input::placeholder { color: #64748b; }
-#sd-chat-send {
-  background: #f59e0b; border: none; border-radius: 8px;
-  padding: 10px 14px; color: #0f172a; font-weight: 700;
-  font-size: 13px; cursor: pointer;
-}
-#sd-chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
-@media (max-width: 400px) {
-  #sd-chat-box { width: calc(100vw - 32px); right: 16px; }
-}
-</style>
-
-<button id="sd-chat-btn" title="Fale com nossa assistente">💬</button>
-<div id="sd-chat-box">
-  <div id="sd-chat-header">
-    <span>🤖 Assistente SolarDoc</span>
-    <button id="sd-chat-close">✕</button>
-  </div>
-  <div id="sd-chat-messages">
-    <div class="sd-msg bot">Oi! Sou a assistente do SolarDoc Pro. Como posso ajudar? 😊</div>
-  </div>
-  <div id="sd-chat-input-row">
-    <input id="sd-chat-input" type="text" placeholder="Digite sua dúvida..." maxlength="300" />
-    <button id="sd-chat-send">➤</button>
-  </div>
-</div>
-
-<script>
-(function() {
-  var API_CHAT = 'https://solardocs-api-irmaosnaobra-aioros.vercel.app/chat';
-  var WA = 'https://wa.me/5534991360223';
-  var history = [];
-  var open = false;
-
-  var btn = document.getElementById('sd-chat-btn');
-  var box = document.getElementById('sd-chat-box');
-  var closeBtn = document.getElementById('sd-chat-close');
-  var messages = document.getElementById('sd-chat-messages');
-  var input = document.getElementById('sd-chat-input');
-  var send = document.getElementById('sd-chat-send');
-
-  btn.addEventListener('click', function() {
-    open = !open;
-    box.classList.toggle('open', open);
-    btn.textContent = open ? '✕' : '💬';
-    if (open) setTimeout(function() { input.focus(); }, 100);
-  });
-
-  closeBtn.addEventListener('click', function() {
-    open = false;
-    box.classList.remove('open');
-    btn.textContent = '💬';
-  });
-
-  input.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
-  });
-  send.addEventListener('click', sendMsg);
-
-  function addMsg(text, role) {
-    var div = document.createElement('div');
-    div.className = 'sd-msg ' + role;
-    div.innerHTML = text.replace(/\bhttps:\/\/wa\.me\/\S+/g, function(url) {
-      return '<a href="' + url + '" target="_blank">💬 Falar no WhatsApp</a>';
-    });
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
-    return div;
-  }
-
-  function sendMsg() {
-    var msg = input.value.trim();
-    if (!msg) return;
-    input.value = '';
-    send.disabled = true;
-
-    addMsg(msg, 'user');
-
-    var typing = addMsg('...', 'bot');
-    typing.style.opacity = '0.5';
-
-    fetch(API_CHAT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, history: history })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      typing.remove();
-      var reply = data.reply || 'Desculpe, tente novamente.';
-      addMsg(reply, 'bot');
-      history.push({ role: 'user', content: msg });
-      history.push({ role: 'assistant', content: reply });
-      if (history.length > 12) history = history.slice(-12);
-    })
-    .catch(function() {
-      typing.remove();
-      addMsg('Ocorreu um erro. <a href="' + WA + '" target="_blank">💬 Falar no WhatsApp</a>', 'bot');
-    })
-    .finally(function() { send.disabled = false; input.focus(); });
-  }
-})();
-</script>
 </body>
-</html>
