@@ -95,6 +95,12 @@ export default function LoginPage() {
         <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', marginTop: '8px' }}>
           {loading ? 'Entrando...' : 'Entrar'}
         </button>
+
+        <div style={{ textAlign: 'right', marginTop: '4px' }}>
+          <Link href="/esqueci-senha" style={{ fontSize: '13px', color: '#f59e0b', textDecoration: 'none' }}>
+            Esqueci minha senha
+          </Link>
+        </div>
       </form>
 
       <p className={styles.footer}>

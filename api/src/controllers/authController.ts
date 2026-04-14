@@ -1,16 +1,18 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { z } from 'zod';
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { signToken } from '../utils/jwt';
 import { sendMetaEvent } from '../utils/metaPixel';
+import { sendPasswordResetEmail } from '../utils/mailer';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const PRICE_TO_PLAN: Record<string, { plano: string; limite: number }> = {
-  [process.env.STRIPE_PRICE_INICIANTE!]: { plano: 'iniciante', limite: 15 },
-  [process.env.STRIPE_PRICE_PRO!]:       { plano: 'pro',       limite: 35 },
+  [process.env.STRIPE_PRICE_INICIANTE!]: { plano: 'iniciante', limite: 30 },
+  [process.env.STRIPE_PRICE_PRO!]:       { plano: 'pro',       limite: 90 },
   [process.env.STRIPE_PRICE_VIP!]:       { plano: 'ilimitado', limite: 999999 },
 };
 
@@ -119,6 +121,68 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
     console.error('Login error:', err);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+}
+
+export async function forgotPassword(req: Request, res: Response): Promise<void> {
+  try {
+    const { email } = req.body as { email: string };
+    if (!email) { res.status(400).json({ error: 'Email obrigatório' }); return; }
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    // Resposta genérica para não revelar se o email existe
+    if (!user) { res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções.' }); return; }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
+
+    await supabase
+      .from('users')
+      .update({ reset_token: token, reset_token_expires: expires })
+      .eq('id', user.id);
+
+    const resetUrl = `${process.env.DASHBOARD_URL}/redefinir-senha?token=${token}`;
+    await sendPasswordResetEmail(email, resetUrl);
+
+    res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções.' });
+  } catch (err) {
+    console.error('ForgotPassword error:', err);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+}
+
+export async function resetPassword(req: Request, res: Response): Promise<void> {
+  try {
+    const { token, password } = req.body as { token: string; password: string };
+    if (!token || !password) { res.status(400).json({ error: 'Token e senha são obrigatórios' }); return; }
+    if (password.length < 6) { res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres' }); return; }
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, reset_token_expires')
+      .eq('reset_token', token)
+      .single();
+
+    if (!user) { res.status(400).json({ error: 'Link inválido ou expirado' }); return; }
+    if (new Date(user.reset_token_expires) < new Date()) {
+      res.status(400).json({ error: 'Link expirado. Solicite um novo.' }); return;
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+    await supabase
+      .from('users')
+      .update({ password_hash, reset_token: null, reset_token_expires: null })
+      .eq('id', user.id);
+
+    res.json({ message: 'Senha redefinida com sucesso!' });
+  } catch (err) {
+    console.error('ResetPassword error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 }

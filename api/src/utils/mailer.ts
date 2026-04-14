@@ -10,6 +10,33 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+export async function sendPasswordResetEmail(email: string, resetUrl: string) {
+  await transporter.sendMail({
+    from: `"SolarDoc Pro" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject: 'Redefinição de senha — SolarDoc Pro',
+    html: `
+      <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; background: #0f172a; border-radius: 16px; overflow: hidden;">
+        <div style="background: #f59e0b; padding: 24px 32px;">
+          <h1 style="margin: 0; color: #0f172a; font-size: 20px; font-weight: 800;">SolarDoc Pro</h1>
+        </div>
+        <div style="padding: 32px;">
+          <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 12px;">Redefinição de senha</h2>
+          <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 28px;">
+            Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha. O link expira em <strong style="color: #f8fafc;">1 hora</strong>.
+          </p>
+          <a href="${resetUrl}" style="display: inline-block; background: #f59e0b; color: #0f172a; font-weight: 700; font-size: 15px; padding: 14px 32px; border-radius: 10px; text-decoration: none;">
+            Redefinir minha senha
+          </a>
+          <p style="color: #475569; font-size: 12px; margin: 28px 0 0; line-height: 1.6;">
+            Se você não solicitou a redefinição, ignore este email. Sua senha permanece a mesma.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 interface SuggestionEmailOptions {
   titulo: string;
   descricao: string;
