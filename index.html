@@ -1089,7 +1089,7 @@
 </div>
 
 <!-- 1, 2 e 3. HERO (Headline, Subheadline e Botão/Prev) -->
-<section class="hero">
+<section class="hero" style="padding-bottom: 60px;">
   <div class="hero-glow"></div>
   <h1>Pare de perder vendas e tempo com <em>contratos errados</em>, atrasos e documentos mal feitos</h1>
   <p>Gere contratos, propostas e documentos profissionais em minutos, padronizados com sua marca e sem depender de terceiros.</p>
@@ -1098,16 +1098,72 @@
       QUERO GERAR MEUS DOCUMENTOS AGORA
     </a>
   </div>
+
+  <!-- VÍDEO NO HERO -->
+  <div style="margin-top: 60px; display:flex; flex-direction:column; align-items:center; gap:20px; position:relative; z-index:1;">
+
+    <!-- Botão Ativar Som -->
+    <button id="yt-unmute-btn" onclick="ytUnmute()" style="
+      background: linear-gradient(135deg,#f59e0b,#d97706);
+      color:#000; font-size:15px; font-weight:800;
+      border:none; padding: 12px 28px;
+      border-radius:999px; cursor:pointer;
+      box-shadow: 0 8px 30px rgba(245,158,11,.4);
+      animation: pulse 2s ease infinite;
+      display:flex; align-items:center; gap:8px;
+    ">🔊 Clique para ativar o som</button>
+
+    <!-- Moldura celular -->
+    <div style="
+      position: relative;
+      width: 300px;
+      background: #1a1a2e;
+      border-radius: 44px;
+      padding: 14px 12px;
+      box-shadow: 0 0 0 2px #333, 0 40px 100px rgba(245,158,11,.3), 0 60px 140px rgba(0,0,0,.8);
+    ">
+      <div style="width:60px; height:6px; background:#333; border-radius:3px; margin: 0 auto 12px;"></div>
+
+      <div id="yt-phone-wrap" style="border-radius:32px; overflow:hidden; aspect-ratio:9/16; background:#000; position:relative;">
+        <div id="yt-player" style="width:100%;height:100%;"></div>
+        <div id="yt-overlay" style="position:absolute;inset:0;z-index:10;cursor:pointer;" onclick="ytTogglePlay()"></div>
+
+        <div id="yt-controls" style="
+          position:absolute;bottom:0;left:0;right:0;z-index:20;
+          padding: 24px 14px 14px;
+          background: linear-gradient(transparent, rgba(0,0,0,.75));
+          border-radius: 0 0 32px 32px;
+        ">
+          <div id="yt-progress-bg" style="
+            width:100%; height:4px; background:rgba(255,255,255,.2);
+            border-radius:2px; cursor:pointer; margin-bottom:10px;
+          " onclick="ytSeek(event)">
+            <div id="yt-progress-fill" style="
+              height:100%; width:0%; background: linear-gradient(90deg,#f59e0b,#fde68a);
+              border-radius:2px; transition:width .2s linear; pointer-events:none;
+            "></div>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span id="yt-time" style="font-size:11px; color:rgba(255,255,255,.7); font-weight:600; letter-spacing:.5px;">0:00</span>
+            <button id="yt-speed-btn" onclick="ytCycleSpeed()" style="
+              background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.2);
+              color:#fff; font-size:12px; font-weight:800;
+              padding: 4px 10px; border-radius:999px; cursor:pointer;
+              letter-spacing:.5px; backdrop-filter:blur(6px);
+            ">1×</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:80px; height:4px; background:#333; border-radius:2px; margin: 12px auto 0;"></div>
+    </div>
+  </div>
 </section>
 
-<!-- APP PREVIEW (3) -->
-<div class="app-preview-wrap" style="padding-top:0; margin-top:-60px;">
-  <div class="app-preview reveal">
-    <img src="screenshot.png" alt="Painel SolarDoc Pro">
-  </div>
-</div>
+
 
 <!-- 4. PROBLEMA -->
+
 <section class="section" id="problema">
   <h2 class="section-title">Você fecha a venda…<br> E aí começa o problema:</h2>
   
@@ -1419,6 +1475,7 @@
       <a href="https://buy.stripe.com/8x200i5ah5160Og2SLfrW04" class="price-btn price-btn-outline" target="_blank" rel="noopener noreferrer">
         Assinar Iniciante →
       </a>
+      <p style="font-size:11px;color:#f59e0b;text-align:center;margin-top:10px;opacity:0.85;">Indicado para quem fecha até 8 projetos/mês</p>
     </div>
 
     <div class="price-card reveal">
@@ -1430,13 +1487,14 @@
       </div>
       <p class="price-desc">A medida certa para a maioria dos integradores em expansão.</p>
       <ul class="price-features">
-        <li>Direito a 35 documentação normal</li>
+        <li>Direito a 90 documentos mensal</li>
         <li>Tudo do Iniciante</li>
         <li>Maior volume mensal</li>
       </ul>
       <a href="https://buy.stripe.com/eVqcN45ahbpu68AgJBfrW03" class="price-btn price-btn-outline" target="_blank" rel="noopener noreferrer">
         Assinar PRO →
       </a>
+      <p style="font-size:11px;color:#f59e0b;text-align:center;margin-top:10px;opacity:0.85;">Indicado para quem fecha até 20 projetos/mês</p>
     </div>
 
     <!-- VIP DESTAQUE -->
@@ -1459,6 +1517,7 @@
       <a href="https://buy.stripe.com/bJe7sK6el9hmgNe0KDfrW02" class="price-btn price-btn-solid" target="_blank" rel="noopener noreferrer">
         Assinar VIP →
       </a>
+      <p style="font-size:11px;color:#f59e0b;text-align:center;margin-top:10px;opacity:0.85;">Indicado para quem fecha +20 projetos/mês</p>
     </div>
 
   </div>
@@ -1669,6 +1728,78 @@
     sendEvent('time_on_page', { seconds: Math.round((Date.now() - t0) / 1000) });
   });
 })();
+</script>
+<!-- YouTube IFrame API (Custom Player) -->
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+  var ytPlayer, ytSpeeds = [1, 1.5, 2], ytSpeedIdx = 0, ytInterval;
+
+  function onYouTubeIframeAPIReady() {
+    ytPlayer = new YT.Player('yt-player', {
+      videoId: 'wWKzY21BKkE',
+      playerVars: {
+        autoplay: 1,
+        mute: 1,
+        controls: 0,
+        disablekb: 1,
+        rel: 0,
+        modestbranding: 1,
+        playsinline: 1,
+        iv_load_policy: 3,
+        fs: 0,
+        cc_load_policy: 0,
+      },
+      events: {
+        onReady: function(e) {
+          e.target.playVideo();
+          ytInterval = setInterval(ytUpdateProgress, 500);
+        }
+      }
+    });
+  }
+
+  function ytUnmute() {
+    if (!ytPlayer) return;
+    ytPlayer.unMute();
+    ytPlayer.setVolume(100);
+    var btn = document.getElementById('yt-unmute-btn');
+    if (btn) { btn.style.display = 'none'; }
+  }
+
+  function ytTogglePlay() {
+    if (!ytPlayer) return;
+    var s = ytPlayer.getPlayerState();
+    s === YT.PlayerState.PLAYING ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+  }
+
+  function ytUpdateProgress() {
+    if (!ytPlayer || !ytPlayer.getDuration) return;
+    var cur = ytPlayer.getCurrentTime() || 0;
+    var dur = ytPlayer.getDuration() || 1;
+    var pct = (cur / dur) * 100;
+    document.getElementById('yt-progress-fill').style.width = pct + '%';
+    document.getElementById('yt-time').textContent = ytFmt(cur) + ' / ' + ytFmt(dur);
+  }
+
+  function ytFmt(s) {
+    var m = Math.floor(s / 60);
+    var sec = Math.floor(s % 60);
+    return m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
+
+  function ytSeek(e) {
+    if (!ytPlayer) return;
+    var rect = e.currentTarget.getBoundingClientRect();
+    var pct = (e.clientX - rect.left) / rect.width;
+    ytPlayer.seekTo(pct * ytPlayer.getDuration(), true);
+  }
+
+  function ytCycleSpeed() {
+    ytSpeedIdx = (ytSpeedIdx + 1) % ytSpeeds.length;
+    var speed = ytSpeeds[ytSpeedIdx];
+    if (ytPlayer) ytPlayer.setPlaybackRate(speed);
+    document.getElementById('yt-speed-btn').textContent = speed + '×';
+  }
 </script>
 </body>
 </html>
