@@ -14,6 +14,8 @@ import paymentsRoutes from './routes/payments';
 import adminRoutes from './routes/admin';
 import trackingRoutes from './routes/tracking';
 import cronRoutes from './routes/cron';
+import chatRoutes from './routes/chat';
+import pixelRoutes from './routes/pixel';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
@@ -58,6 +60,8 @@ app.use('/payments', paymentsRoutes);
 app.use('/admin', adminRoutes);
 app.use('/tracking', trackingRoutes);
 app.use('/cron', cronRoutes);
+app.use('/chat', chatRoutes);
+app.use('/pixel', pixelRoutes);
 
 // Error handler global — nunca expõe stack trace em produção
 app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
