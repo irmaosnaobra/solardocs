@@ -8,7 +8,7 @@ interface Message {
   text: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL + '/chat';
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://solardocs-api-irmaosnaobra-aioros.vercel.app') + '/chat';
 const WA_URL = 'https://wa.me/5534991360223';
 
 export default function ChatWidget() {
