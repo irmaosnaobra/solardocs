@@ -26,11 +26,11 @@
       s.parentNode.insertBefore(t, s)
     }(window, document, 'script',
       'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '542698941724217');
+    fbq('init', '824905216831401');
     fbq('track', 'PageView');
   </script>
   <noscript><img height="1" width="1" style="display:none"
-      src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1" /></noscript>
+      src="https://www.facebook.com/tr?id=824905216831401&ev=PageView&noscript=1" /></noscript>
 
   <style>
     :root {
@@ -574,7 +574,7 @@
         </div>
       </div>
 
-      <a id="cta-link" href="/" class="cta-btn" onclick="var e=genEID();px('track:InitiateCheckout',{content_name:'Quiz CTA',currency:'BRL'},e);px('QuizCTAClick',{},e);">
+      <a id="cta-link" href="/" class="cta-btn" onclick="var e=genEID();px('track:InitiateCheckout',{content_name:'Quiz CTA',currency:'BRL'},e);px('QuizCTAClick',{},e);track('cta_click');">
         Conheça a Plataforma Especializada
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -649,6 +649,28 @@
 
     elTotStep.textContent = questions.length;
 
+    // ── CAPI Helper ──
+    async function sendCAPI(eventName, score, title) {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        await fetch('https://solardocs-landing.vercel.app/api/pixel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: eventName,
+            score: score,
+            pixel_id: '824905216831401',
+            city: 'Lead B2B - SolarDoc',
+            phone: 'Captado no Funil',
+            event_source_url: window.location.href,
+            fbp: document.cookie.split('; ').find(row => row.startsWith('_fbp='))?.split('=')[1],
+            fbc: urlParams.get('fbclid')
+          }),
+          keepalive: true
+        });
+      } catch (e) { console.error('CAPI Error:', e); }
+    }
+
     // ── UTMs e Pixel helpers ──────────────────────────────
     var _utms = (function() {
       var p = new URLSearchParams(window.location.search);
@@ -658,8 +680,22 @@
         utm_campaign: p.get('utm_campaign') || undefined,
         utm_content:  p.get('utm_content')  || undefined,
         utm_term:     p.get('utm_term')     || undefined,
+        fbclid:       p.get('fbclid')       || undefined,
       };
     })();
+
+    var _sid = (function() {
+      var s = sessionStorage.getItem('sd_quiz_sid');
+      if (!s) { s = 'q-' + Date.now() + '-' + Math.random().toString(36).slice(2,8); sessionStorage.setItem('sd_quiz_sid', s); }
+      return s;
+    })();
+
+    var _API = 'https://solardocs-api-irmaosnaobra-aioros.vercel.app';
+
+    function track(eventType, extra) {
+      var payload = Object.assign({ session_id: _sid, event_type: eventType }, _utms, extra || {});
+      fetch(_API + '/quiz/event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(function(){});
+    }
 
     function genEID() {
       return 'quiz-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
@@ -685,6 +721,8 @@
 
       // Pixel: Visualização de Conteúdo
       px('track:ViewContent', { content_name: 'Diagnóstico Quiz' }, genEID());
+      track('page_view');
+      track('view_content');
       render();
     });
 
@@ -697,6 +735,7 @@
 
       px('QuizStarted', { content_name: 'Início do Diagnóstico' }, genEID());
       px('track:SubmitApplication', { content_name: 'Início do Diagnóstico' }, genEID());
+      track('started');
     };
 
     function render() {
@@ -743,6 +782,7 @@
       answers[curr] = val;
 
       px('QuizStep', { step: curr + 1, answer: val });
+      track('step', { step: curr + 1, answer: val });
 
       setTimeout(() => {
         if (curr < questions.length - 1) {
@@ -799,6 +839,10 @@
       var eid = genEID();
       px('QuizComplete', { score: totalScore, diagnostic: title }, eid);
       px('track:Lead', { content_name: title, value: totalScore, currency: 'BRL' }, eid);
+      track('completed', { score: totalScore, diagnostic: title });
+      
+      // Envio via API de Conversões (Server-Side)
+      sendCAPI('Lead', totalScore, title);
     }
   </script>
 </body>
