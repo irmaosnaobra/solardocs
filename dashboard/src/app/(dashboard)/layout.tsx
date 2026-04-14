@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import UpgradeModal from '@/components/UpgradeModal/UpgradeModal';
-import ChatWidget from '@/components/ChatWidget/ChatWidget';
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
 import { isAuthenticated } from '@/services/auth';
 import api from '@/services/api';
@@ -91,7 +90,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} plano={user.plano} />}
-      <ChatWidget />
     </div>
   );
 }
