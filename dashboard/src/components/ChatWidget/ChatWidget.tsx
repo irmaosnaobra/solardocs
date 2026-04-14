@@ -66,6 +66,23 @@ export default function ChatWidget() {
         onClick={() => setOpen(o => !o)}
         title="Assistente SolarDoc"
         aria-label="Abrir chat"
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 99999,
+          width: '52px',
+          height: '52px',
+          borderRadius: '50%',
+          background: '#f59e0b',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '22px',
+          boxShadow: '0 4px 20px rgba(245,158,11,0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
         {open ? '✕' : '💬'}
       </button>
