@@ -10,6 +10,10 @@ import clientsRoutes from './routes/clients';
 import terceirosRoutes from './routes/terceiros';
 import documentsRoutes from './routes/documents';
 import suggestionsRoutes from './routes/suggestions';
+import paymentsRoutes from './routes/payments';
+import adminRoutes from './routes/admin';
+import trackingRoutes from './routes/tracking';
+import cronRoutes from './routes/cron';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
@@ -30,7 +34,9 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+// Webhook do Stripe precisa do body raw (antes do express.json)
+app.use('/payments/webhook', express.raw({ type: 'application/json' }));
+app.use(express.json({ limit: '5mb' }));
 
 // Rate limiting global
 app.use(globalLimiter);
@@ -48,6 +54,10 @@ app.use('/clients', clientsRoutes);
 app.use('/terceiros', terceirosRoutes);
 app.use('/documents', documentsRoutes);
 app.use('/suggestions', suggestionsRoutes);
+app.use('/payments', paymentsRoutes);
+app.use('/admin', adminRoutes);
+app.use('/tracking', trackingRoutes);
+app.use('/cron', cronRoutes);
 
 // Error handler global — nunca expõe stack trace em produção
 app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

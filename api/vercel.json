@@ -14,5 +14,15 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  }
+  },
+  "crons": [
+    {
+      "path": "/cron/cleanup-pro-docs",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/cron/monthly-reset",
+      "schedule": "0 3 * * *"
+    }
+  ]
 }
