@@ -385,10 +385,13 @@
         document.getElementById('loading-overlay').style.display = 'none';
         
         if (dist > 250) {
+          simTrack('rejected_region', { score });
           showRejection("região", "Ainda não atendemos sua região com instalação própria, mas acompanhe nossos projetos no Instagram!");
         } else if (score <= 14) {
+          simTrack('rejected_igreen', { score });
           showRejection("igreen", "Identificamos que seu perfil é perfeito para economia por assinatura, sem investimento!");
-        } else if (score <= 21) {
+        } else if (score <= 17) {
+          simTrack('rejected_profile', { score });
           showRejection("perfil", "Você está em fase de pesquisa! Siga-nos para aprender mais sobre o momento certo de investir.");
         } else {
           simTrack('qualified', { score });
