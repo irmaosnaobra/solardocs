@@ -1475,7 +1475,7 @@
         <li>Acesso completo à plataforma</li>
         <li>Sem cartão de crédito</li>
       </ul>
-      <a href="https://solardocs-dashboard.vercel.app/register" class="price-btn price-btn-outline" data-plan="free" onclick="sendEvent('plan_click',{plan:'free',plano:'Grátis',valor:0})">
+      <a href="https://solardocs-dashboard.vercel.app/register" class="price-btn price-btn-outline" data-plan="free">
         Começar Grátis →
       </a>
       <div style="margin-top: 15px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); color: #22c55e; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 999px; display: inline-block; margin-inline: auto;">
@@ -1496,7 +1496,7 @@
         <li>Contratos com sua Logo</li>
         <li>Geração Imediata</li>
       </ul>
-      <a href="https://buy.stripe.com/8x200i5ah5160Og2SLfrW04" class="price-btn price-btn-outline" target="_blank" rel="noopener noreferrer" data-plan="iniciante" onclick="sendEvent('plan_click',{plan:'iniciante',plano:'Iniciante',valor:27})">
+      <a href="https://buy.stripe.com/8x200i5ah5160Og2SLfrW04" class="price-btn price-btn-outline" target="_blank" rel="noopener noreferrer" data-plan="iniciante">
         Assinar Iniciante →
       </a>
       <div style="margin-top: 15px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--solar); color: var(--solar); font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 999px; display: inline-block; margin-inline: auto;">
@@ -1517,7 +1517,7 @@
         <li>Tudo do Iniciante</li>
         <li>Maior volume mensal</li>
       </ul>
-      <a href="https://buy.stripe.com/eVqcN45ahbpu68AgJBfrW03" class="price-btn price-btn-outline" target="_blank" rel="noopener noreferrer" data-plan="pro" onclick="sendEvent('plan_click',{plan:'pro',plano:'PRO',valor:47})">
+      <a href="https://buy.stripe.com/eVqcN45ahbpu68AgJBfrW03" class="price-btn price-btn-outline" target="_blank" rel="noopener noreferrer" data-plan="pro">
         Assinar PRO →
       </a>
       <div style="margin-top: 15px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--solar); color: var(--solar); font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 999px; display: inline-block; margin-inline: auto;">
@@ -1542,7 +1542,7 @@
         <li>Atendimento direto pelo WhatsApp</li>
         <li>Participa de toda a expansão da plataforma</li>
       </ul>
-      <a href="https://buy.stripe.com/bJe7sK6el9hmgNe0KDfrW02" class="price-btn price-btn-solid" target="_blank" rel="noopener noreferrer" data-plan="vip" onclick="sendEvent('plan_click',{plan:'vip',plano:'VIP',valor:97})">
+      <a href="https://buy.stripe.com/bJe7sK6el9hmgNe0KDfrW02" class="price-btn price-btn-solid" target="_blank" rel="noopener noreferrer" data-plan="vip">
         Assinar VIP →
       </a>
       <div style="margin-top: 15px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--solar); color: var(--solar); font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 999px; display: inline-block; margin-inline: auto;">
@@ -1749,6 +1749,17 @@
         label: (el.textContent || '').trim().substring(0, 60),
         href:  el.getAttribute('href') || null,
       });
+      // Se tem data-plan, registra evento específico de plano
+      var plan = el.getAttribute('data-plan');
+      if (plan) {
+        var planNames = { free: 'Grátis', iniciante: 'Iniciante', pro: 'PRO', vip: 'VIP' };
+        var planValues = { free: 0, iniciante: 27, pro: 47, vip: 97 };
+        sendEvent('plan_click', {
+          plan: plan,
+          plano: planNames[plan] || plan,
+          valor: planValues[plan] || 0,
+        });
+      }
     }
   }, true);
 
