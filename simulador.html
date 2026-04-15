@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Simulador de Economia Solar - Irmãos na Obra</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@700;800&display=swap" rel="stylesheet" />
+  
+  <!-- Meta Pixel Code -->
+  <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '446093469730871');
+    fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+    src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"
+  /></noscript>
+  <!-- End Meta Pixel Code -->
+
+  <style>
+    :root {
+      --bg: #020617;
+      --surface: #0f172a;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #3b82f6;
+      --solar: #f59e0b;
+      --solar-glow: rgba(245, 158, 11, 0.4);
+      --border: rgba(255, 255, 255, 0.08);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    
+    html, body { 
+      height: 100%; 
+      margin: 0; 
+      padding: 0; 
+      background-color: var(--bg);
+      overflow: hidden;
+    }
+    
+    body { 
+      color: var(--text); 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      -webkit-font-smoothing: antialiased; 
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      height: 100svh;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-y: auto;
+      scrollbar-width: none;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+    .container::-webkit-scrollbar { display: none; }
+
+    /* Grid de energia animado */
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: 
+        linear-gradient(rgba(245, 158, 11, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245, 158, 11, 0.03) 1px, transparent 1px);
+      background-size: 30px 30px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @media (min-width: 601px) {
+      .container { height: 90vh; border-radius: 24px; box-shadow: 0 0 60px rgba(0,0,0,0.2); border: 1px solid var(--border); }
+    }
+
+    /* VIEWS */
+    .view { display: none; flex-direction: column; padding: 40px 24px; flex: 1; animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; z-index: 10; }
+    .view.active { display: flex; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* WELCOME */
+    .welcome-view { text-align: center; justify-content: center; align-items: center; background: radial-gradient(circle at center, rgba(245, 158, 11, 0.08) 0%, transparent 70%); }
+    
+    .scanner-icon {
+      width: 80px; height: 80px; margin-bottom: 32px;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .scanner-icon svg { width: 48px; height: 48px; color: var(--solar); filter: drop-shadow(0 0 10px var(--solar-glow)); }
+    .scanner-icon::after {
+      content: ''; position: absolute; inset: -10px; border: 2px solid var(--solar); border-radius: 50%; opacity: 0.3; animation: ping 2s infinite;
+    }
+    @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+
+    .badge { display: inline-flex; background: rgba(245, 158, 11, 0.1); color: var(--solar); padding: 8px 16px; border-radius: 999px; font-size: 10px; font-weight: 800; margin-bottom: 24px; text-transform: uppercase; letter-spacing: 2px; border: 1px solid rgba(245, 158, 11, 0.2); }
+    .title { font-family: 'Lexend', sans-serif; font-size: 36px; font-weight: 800; line-height: 1.1; margin-bottom: 20px; letter-spacing: -1.5px; }
+    .title span { background: linear-gradient(135deg, #f59e0b, #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; }
+    .desc { font-size: 17px; color: var(--muted); margin-bottom: 40px; line-height: 1.6; max-width: 440px; }
+
+    /* QUIZ */
+    .header { padding: 32px 24px 16px; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 10; }
+    .progress-wrap { padding: 0 24px; margin-bottom: 40px; }
+    .progress-bg { height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 4px; overflow: hidden; width: 100%; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--solar), #fbbf24); transition: width 0.4s ease; }
+    
+    .q-wrap { margin-bottom: 32px; }
+    .q-num { font-size: 12px; font-weight: 800; color: var(--solar); margin-bottom: 12px; display: block; text-transform: uppercase; letter-spacing: 1px; }
+    .q-text { font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -0.5px; }
+    
+    .options { display: flex; flex-direction: column; gap: 12px; }
+    .option { 
+      padding: 18px 20px; 
+      background: rgba(255, 255, 255, 0.03); 
+      border: 1px solid var(--border); 
+      border-radius: var(--radius); 
+      cursor: pointer; 
+      font-weight: 500; 
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); 
+      display: flex; 
+      align-items: center; 
+      gap: 16px;
+      backdrop-filter: blur(5px);
+    }
+    .option:hover { border-color: rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.05); transform: translateX(4px); }
+    .option.selected { border-color: var(--solar); background: rgba(245, 158, 11, 0.1); }
+    
+    .opt-ball { width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; font-weight: 800; color: var(--muted); }
+    .option.selected .opt-ball { background: var(--solar); border-color: var(--solar); color: #000; }
+
+    /* FORM (STEP 8) */
+    .form-group { margin-bottom: 24px; }
+    .form-label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .form-input { width: 100%; padding: 18px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 16px; font-size: 16px; color: #fff; outline: none; transition: border-color 0.2s; }
+    .form-input:focus { border-color: var(--solar); background: rgba(255, 255, 255, 0.05); }
+
+    /* BUTTONS */
+    .btn-primary { 
+      background: linear-gradient(135deg, var(--solar), #d97706); 
+      color: #000; 
+      border: none; 
+      padding: 20px; 
+      border-radius: 16px; 
+      font-size: 18px; 
+      font-weight: 800; 
+      cursor: pointer; 
+      width: 100%; 
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      gap: 12px; 
+      text-decoration: none;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(245, 158, 11, 0.2);
+    }
+    .btn-primary::after {
+      content: ''; position: absolute; top: -100%; left: -100%; width: 50%; height: 300%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent); transform: rotate(35deg); animation: scan 3s infinite;
+    }
+    @keyframes scan { 0% { left: -100%; } 50% { left: 150%; } 100% { left: 150%; } }
+    .btn-primary:hover { transform: translateY(-4px); box-shadow: 0 15px 40px rgba(245, 158, 11, 0.4); }
+    .btn-primary:active { transform: scale(0.98); }
+
+    /* RESULT */
+    .result-view { text-align: center; }
+    .result-icon { font-size: 64px; margin-bottom: 24px; filter: drop-shadow(0 0 20px rgba(245, 158, 11, 0.2)); }
+    .result-title { font-family: 'Lexend', sans-serif; font-size: 32px; font-weight: 800; margin-bottom: 16px; color: var(--solar); }
+    .result-desc { font-size: 16px; color: var(--muted); line-height: 1.6; margin-bottom: 32px; }
+    
+    /* REJECTION CARDS */
+    .rejection-card { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 20px; padding: 24px; margin-bottom: 32px; text-align: left; }
+
+    /* LOADING OVERLAY */
+    #loading-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg);
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100; padding: 24px; text-align: center;
+    }
+    .spinner {
+      width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.05); border-top: 4px solid var(--solar);
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- LOADING OVERLAY -->
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <h3 style="font-family: 'Lexend', sans-serif; font-weight: 800; color: #fff;">Validando viabilidade...</h3>
+      <p style="font-size: 14px; color: var(--muted); margin-top: 8px;">Analisando dados técnicos e geográficos.</p>
+    </div>
+
+    <!-- QUIZ -->
+    <div class="view active" id="view-quiz" style="padding: 0;">
+      <div class="header">
+        <span style="font-weight: 800; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;">Simulador Solar</span>
+        <span style="font-size: 13px; color: var(--muted); font-weight: 700;" id="quiz-progress-text">1 de 8</span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bg">
+          <div class="progress-fill" id="quiz-progress-fill" style="width: 14.2%"></div>
+        </div>
+      </div>
+      <div style="padding: 0 24px 40px; flex: 1;">
+        <div class="q-wrap"><span class="q-num" id="current-q-num">Pergunta 01</span><h2 class="q-text" id="current-q-text">Carregando...</h2></div>
+        <div class="options" id="options-container"></div>
+      </div>
+    </div>
+
+    <!-- FORM (STEP 8) -->
+    <div class="view" id="view-form">
+      <h1 class="title">Quase <span>Lá</span>!</h1>
+      <p class="desc">Para processar sua simulação e liberar o resultado personalizado, informe seus dados.</p>
+      <div class="form-group"><label class="form-label">Nome</label><input type="text" class="form-input" id="input-name" placeholder="Seu nome completo" autocomplete="name"></div>
+      <div class="form-group"><label class="form-label">WhatsApp</label><input type="tel" class="form-input" id="input-phone" placeholder="(00) 00000-0000" maxlength="15"></div>
+      <div class="form-group" style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+        <div><label class="form-label">Cidade</label><input type="text" class="form-input" id="input-city" placeholder="Ex: Uberlândia"></div>
+        <div><label class="form-label">Estado</label><input type="text" class="form-input" id="input-state" placeholder="MG" maxlength="2"></div>
+      </div>
+      <button class="btn-primary" id="btn-submit-form" onclick="validateLocationAndProcess()">Ver Meu Resultado
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+      </button>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="view result-view" id="view-result">
+      <!-- QUALIFIED -->
+      <div id="result-qualified" style="display: none;">
+        <div class="result-icon">🚀</div>
+        <h1 class="result-title">Excelente Notícia!</h1>
+        <p class="result-desc">O seu perfil é **altamente qualificado** para a instalação. Você tem potencial para economizar milhares de reais por ano.</p>
+        <button class="btn-primary" id="btn-whatsapp" style="background: #25d366; color: #fff;">Falar com Consultor no WhatsApp</button>
+      </div>
+      
+      <!-- UNQUALIFIED -->
+      <div id="result-rejection" style="display: none;">
+        <div class="result-icon" id="rejection-icon">💡</div>
+        <h1 class="result-title" id="rejection-title">Análise de Perfil</h1>
+        
+        <div id="igreen-card" class="rejection-card" style="display: none; background: rgba(34, 197, 94, 0.05); border-color: rgba(34, 197, 94, 0.2);">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <span style="font-size: 24px;">🎉</span>
+            <span style="font-weight: 800; color: #22c55e; font-size: 14px; text-transform: uppercase;">Oferta para Cemig e Equatorial</span>
+          </div>
+          <p style="font-size: 14px; color: var(--muted); line-height: 1.5;">
+            Identificamos que você pode economizar **20% todos os meses** na sua conta de luz através da assinatura digital iGreen Energy. Sem obras e sem investimento.
+          </p>
+        </div>
+
+        <div id="instagram-card" class="rejection-card" style="display: none; padding: 0; overflow: hidden;">
+          <img src="https://i.postimg.cc/zfy2DJmf/Whats-App-Image-2026-04-14-at-02-31-28.jpg" style="width: 100%; height: 180px; object-fit: cover;" alt="Projeto Solar">
+          <div style="padding: 16px;">
+            <p style="font-size: 14px; font-weight: 600; line-height: 1.4;">Acompanhe como transformamos telhados em fontes de economia real.</p>
+          </div>
+        </div>
+
+        <p class="result-desc" id="rejection-desc"></p>
+        <a href="https://www.instagram.com/irmaosnaobra__" id="rejection-btn" target="_blank" class="btn-primary" style="background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: #fff;">
+          Seguir no Instagram
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Funil Tracking ─────────────────────────────────────────────
+    var _simAPI = 'https://solardocs-api-irmaosnaobra-aioros.vercel.app';
+    var _simSid = (function() {
+      var s = sessionStorage.getItem('sim_sid');
+      if (!s) { s = 'sim-' + Date.now() + '-' + Math.random().toString(36).slice(2,8); sessionStorage.setItem('sim_sid', s); }
+      return s;
+    })();
+    var _simUtms = (function() {
+      var p = new URLSearchParams(window.location.search);
+      return { utm_source: p.get('utm_source')||undefined, utm_medium: p.get('utm_medium')||undefined, utm_campaign: p.get('utm_campaign')||undefined, fbclid: p.get('fbclid')||undefined };
+    })();
+
+    function simTrack(eventType, extra) {
+      var payload = Object.assign({ session_id: _simSid, event_type: eventType, source: 'simulador' }, _simUtms, extra || {});
+      fetch(_simAPI + '/quiz/event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(function(){});
+    }
+    simTrack('page_view');
+
+    // ── Perguntas e Pontuação ──────────────────────────────────────
+    const questions = [
+      { q: "Qual o valor médio da sua conta de luz hoje?", opts: [{t:"Até R$ 200",v:0}, {t:"R$ 200 a R$ 500",v:2}, {t:"R$ 500 a R$ 1.500",v:3}, {t:"Acima de R$ 1.500",v:4}] },
+      { q: "O que te motivou a buscar energia solar agora?", opts: [{t:"Só curiosidade, estou pesquisando preços",v:0}, {t:"Quero me livrar dos aumentos da conta",v:2}, {t:"Quero valorizar meu imóvel e ter mais conforto",v:3}, {t:"Sei que é o melhor investimento disponível hoje",v:4}] },
+      { q: "Como é o consumo de energia lá em casa ou na empresa?", opts: [{t:"Básico — TV, geladeira e luzes",v:1}, {t:"Moderado — ar-condicionado às vezes",v:2}, {t:"Intenso — ar ligado sempre que precisar",v:3}, {t:"Pesado — ar o dia todo ou maquinário",v:4}] },
+      { q: "Onde você quer instalar as placas?", opts: [{t:"Apartamento (sem acesso ao telhado)",v:0}, {t:"Imóvel alugado ou cedido",v:1}, {t:"Casa própria",v:3}, {t:"Imóvel comercial ou empresa",v:4}] },
+      { q: "Como é o telhado ou a área disponível?", opts: [{t:"Não tenho espaço livre",v:0}, {t:"Tenho área no chão (terreno ou solo)",v:2}, {t:"Telhado comum (barro, cimento ou cerâmica)",v:3}, {t:"Telhado metálico, de zinco ou laje plana",v:4}] },
+      { q: "Quando você precisa que esse projeto fique pronto?", opts: [{t:"Sem pressa, daqui uns 2 meses",v:0}, {t:"Em torno de 1 mês",v:2}, {t:"Nos próximos 15 dias",v:4}, {t:"O mais rápido possível",v:4}] },
+      { q: "Como você pretende pagar pelo sistema?", opts: [{t:"Ainda não decidi como vou financiar",v:0}, {t:"Financiamento 100% — trocar a conta pela parcela",v:2}, {t:"Entrada + financiamento do restante",v:4}, {t:"À vista ou Pix",v:4}] },
+      { q: "Você sabe qual é o padrão de energia do seu imóvel?", opts: [{t:"Monofásico 110V",v:0}, {t:"Monofásico 220V",v:3}, {t:"Bifásico 220V",v:4}, {t:"Trifásico 220/380",v:4}] }
+    ];
+
+    let currentQ = 0;
+    let score = 0;
+    const answersData = [];
+    const UDI_COORD = { lat: -18.9113, lon: -48.2622 };
+    const DEST_WA = "5534998165040";
+
+    function nextView(viewId) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      const nextEl = document.getElementById(viewId);
+      if (nextEl) nextEl.classList.add('active');
+      if (viewId === 'view-quiz' && typeof fbq === 'function') fbq('track', 'ViewContent', { content_name: 'Simulador Solar B2C' });
+    }
+
+    function renderQuestion() {
+      const q = questions[currentQ];
+      document.getElementById('current-q-num').textContent = `Pergunta ${String(currentQ + 1).padStart(2, '0')}`;
+      document.getElementById('current-q-text').textContent = q.q;
+      document.getElementById('quiz-progress-fill').style.width = ((currentQ + 1) / questions.length * 100) + '%';
+      document.getElementById('quiz-progress-text').textContent = `${currentQ + 1} de ${questions.length}`;
+      const container = document.getElementById('options-container');
+      container.innerHTML = '';
+      
+      const letters = ['A', 'B', 'C', 'D'];
+      q.opts.forEach((opt, idx) => {
+        const div = document.createElement('div');
+        div.className = 'option';
+        div.innerHTML = `<div class="opt-ball">${letters[idx]}</div><span>${opt.t}</span>`;
+        div.onclick = () => {
+          div.classList.add('selected');
+          score += opt.v;
+          answersData[currentQ] = { q: q.q, a: opt.t };
+          simTrack('step', { step: currentQ + 1, answer: opt.t });
+          setTimeout(() => {
+            if (currentQ < questions.length - 1) { currentQ++; renderQuestion(); }
+            else { simTrack('form_view'); nextView('view-form'); }
+          }, 300);
+        };
+        container.appendChild(div);
+      });
+    }
+
+    async function validateLocationAndProcess() {
+      const userName = document.getElementById('input-name').value.trim();
+      const city = document.getElementById('input-city').value.trim();
+      const state = document.getElementById('input-state').value.trim().toUpperCase();
+      const userPhone = document.getElementById('input-phone').value.trim();
+      if (!userName || !city || !state || !userPhone) return alert('Preencha todos os campos.');
+
+      simTrack('form_submitted');
+      document.getElementById('loading-overlay').style.display = 'flex';
+
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ',' + state + ',Brasil')}&format=json&limit=1`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'IrmaosNaObraSimulator/1.0' } });
+        const data = await res.json();
+        
+        let dist = 999;
+        if (data.length) {
+          const lat2 = parseFloat(data[0].lat), lon2 = parseFloat(data[0].lon);
+          const R = 6371;
+          const dLat = (lat2 - UDI_COORD.lat) * Math.PI / 180;
+          const dLon = (lon2 - UDI_COORD.lon) * Math.PI / 180;
+          const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(UDI_COORD.lat * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+          dist = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        }
+
+        document.getElementById('loading-overlay').style.display = 'none';
+        
+        if (dist > 350) {
+          showRejection("região", "Ainda não atendemos sua região com instalação própria, mas acompanhe nossos projetos no Instagram!");
+        } else if (score <= 14) {
+          showRejection("igreen", "Identificamos que seu perfil é perfeito para economia por assinatura, sem investimento!");
+        } else if (score <= 21) {
+          showRejection("perfil", "Você está em fase de pesquisa! Siga-nos para aprender mais sobre o momento certo de investir.");
+        } else {
+          simTrack('qualified', { score });
+          showQualified(userName, city, state, userPhone);
+        }
+      } catch (e) {
+        document.getElementById('loading-overlay').style.display = 'none';
+        alert('Erro ao validar localização. Tente novamente.');
+      }
+    }
+
+    function showRejection(type, desc) {
+      nextView('view-result');
+      document.getElementById('result-qualified').style.display = 'none';
+      document.getElementById('result-rejection').style.display = 'block';
+      const btn = document.getElementById('rejection-btn');
+      const igCard = document.getElementById('igreen-card');
+      const instaCard = document.getElementById('instagram-card');
+      
+      igCard.style.display = (type === "igreen") ? "block" : "none";
+      instaCard.style.display = (type === "perfil") ? "block" : "none";
+      
+      if (type === "igreen") {
+        document.getElementById('rejection-title').textContent = "Sua Economia!";
+        btn.href = "https://digital.igreenenergy.com.br/?id=101108&sendcontract=true";
+        btn.textContent = "ATIVAR DESCONTO DIGITAL";
+        btn.style.background = "#22c55e";
+      } else {
+        document.getElementById('rejection-title').textContent = type === "região" ? "Fora de Alcance" : "Fase de Pesquisa";
+        btn.href = "https://www.instagram.com/irmaosnaobra__";
+        btn.textContent = "Seguir no Instagram";
+      }
+      document.getElementById('rejection-desc').textContent = desc;
+    }
+
+    function showQualified(userName, city, state, userPhone) {
+      nextView('view-result');
+      document.getElementById('result-rejection').style.display = 'none';
+      document.getElementById('result-qualified').style.display = 'block';
+      
+      const btnWa = document.getElementById('btn-whatsapp');
+      const status = score >= 26 ? "🚀 PERFIL ELITE" : "✅ QUALIFICADO";
+      const answersString = answersData.map((item, idx) => `${idx + 1}. ${item.q}\n   R: *${item.a}*`).join('\n\n');
+      
+      const msg = encodeURIComponent(
+        `Olá! Me chamo *${userName}* e finalizei o Simulador Solar Irmãos na Obra.\n\n` +
+        `🏆 *RESULTADO: ${status}* (${score}/32 pontos)\n` +
+        `📍 Local: ${city} - ${state}\n` +
+        `--- Resumo ---\n\n${answersString}\n\n` +
+        `Quero agendar uma consultoria gratuita.`
+      );
+      btnWa.onclick = () => window.open(`https://wa.me/${DEST_WA}?text=${msg}`, '_blank');
+    }
+
+    window.onload = () => {
+      simTrack('started');
+      renderQuestion();
+    };
+  </script>
+</body>
+</html>
