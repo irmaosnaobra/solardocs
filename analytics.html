@@ -10,26 +10,19 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #060b14;
-      --bg2:      #0d1520;
-      --surface:  #111927;
-      --surface2: #172031;
-      --border:   rgba(255,255,255,0.07);
-      --border2:  rgba(255,255,255,0.12);
-      --text:     #f0f4f8;
-      --muted:    #64748b;
-      --muted2:   #94a3b8;
-      --quiz:     #3b82f6;
-      --quiz-bg:  rgba(59,130,246,0.08);
-      --sim:      #f59e0b;
-      --sim-bg:   rgba(245,158,11,0.08);
-      --land:     #10b981;
-      --land-bg:  rgba(16,185,129,0.08);
-      --good:     #22c55e;
-      --ok:       #f59e0b;
-      --bad:      #ef4444;
-      --vip:      #f59e0b;
-      --r: 14px;
+      --bg:      #09101d;
+      --bg2:     #0e1726;
+      --surface: #131f30;
+      --border:  rgba(255,255,255,0.07);
+      --text:    #e8edf2;
+      --muted:   #64748b;
+      --sub:     #8899aa;
+      --accent:  #4f8ef7;
+      --accent2: rgba(79,142,247,0.12);
+      --bad:     #ef4444;
+      --bad2:    rgba(239,68,68,0.1);
+      --warn:    #f59e0b;
+      --r: 12px;
     }
 
     html { scroll-behavior: smooth; }
@@ -66,16 +59,16 @@
       letter-spacing: -0.5px;
       color: var(--text);
     }
-    .header-logo span { color: var(--sim); }
+    .header-logo span { color: var(--accent); }
 
-    .header-divider { width: 1px; height: 20px; background: var(--border2); }
+    .header-divider { width: 1px; height: 20px; background: var(--border); }
 
-    .header-title { font-size: 13px; font-weight: 600; color: var(--muted2); }
+    .header-title { font-size: 13px; font-weight: 600; color: var(--sub); }
 
     .live-dot {
       width: 7px; height: 7px; border-radius: 50%;
-      background: var(--good);
-      box-shadow: 0 0 6px var(--good);
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
       animation: pulse-dot 2s infinite;
       flex-shrink: 0;
     }
@@ -101,7 +94,7 @@
     .period-btn {
       background: var(--surface);
       border: 1px solid var(--border);
-      color: var(--muted2);
+      color: var(--sub);
       padding: 7px 14px;
       border-radius: 8px;
       font-size: 12px;
@@ -110,14 +103,14 @@
       transition: all 0.15s;
       font-family: inherit;
     }
-    .period-btn:hover { border-color: var(--border2); color: var(--text); }
-    .period-btn.active { background: var(--quiz); border-color: var(--quiz); color: #fff; }
+    .period-btn:hover { border-color: var(--border); color: var(--text); }
+    .period-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
     .refresh-btn {
       margin-left: auto;
       background: var(--surface);
       border: 1px solid var(--border);
-      color: var(--muted2);
+      color: var(--sub);
       padding: 7px 14px;
       border-radius: 8px;
       font-size: 12px;
@@ -135,9 +128,9 @@
       font-weight: 700;
       padding: 3px 8px;
       border-radius: 20px;
-      background: rgba(34,197,94,0.1);
-      color: var(--good);
-      border: 1px solid rgba(34,197,94,0.2);
+      background: var(--accent2);
+      color: var(--accent);
+      border: 1px solid rgba(79,142,247,0.2);
       letter-spacing: 0.3px;
     }
 
@@ -161,17 +154,17 @@
       overflow: hidden;
       transition: border-color 0.2s;
     }
-    .kpi-card:hover { border-color: var(--border2); }
+    .kpi-card:hover { border-color: var(--border); }
     .kpi-card::after {
       content: '';
       position: absolute;
       bottom: 0; left: 0; right: 0;
       height: 2px;
     }
-    .kpi-card.c-quiz::after  { background: var(--quiz); }
-    .kpi-card.c-sim::after   { background: var(--sim); }
-    .kpi-card.c-land::after  { background: var(--land); }
-    .kpi-card.c-good::after  { background: var(--good); }
+    .kpi-card.c-quiz::after  { background: var(--accent); }
+    .kpi-card.c-sim::after   { background: var(--accent); }
+    .kpi-card.c-land::after  { background: var(--accent); }
+    .kpi-card.c-good::after  { background: var(--accent); }
 
     .kpi-label {
       font-size: 10px; font-weight: 700; letter-spacing: 1px;
@@ -184,21 +177,21 @@
       font-size: 36px; font-weight: 900; line-height: 1;
       margin-bottom: 6px; letter-spacing: -1px;
     }
-    .kpi-card.c-quiz  .kpi-value { color: var(--quiz); }
-    .kpi-card.c-sim   .kpi-value { color: var(--sim); }
-    .kpi-card.c-land  .kpi-value { color: var(--land); }
-    .kpi-card.c-good  .kpi-value { color: var(--good); }
+    .kpi-card.c-quiz  .kpi-value { color: var(--accent); }
+    .kpi-card.c-sim   .kpi-value { color: var(--accent); }
+    .kpi-card.c-land  .kpi-value { color: var(--accent); }
+    .kpi-card.c-good  .kpi-value { color: var(--accent); }
 
-    .kpi-sub { font-size: 12px; color: var(--muted2); font-weight: 500; line-height: 1.4; }
+    .kpi-sub { font-size: 12px; color: var(--sub); font-weight: 500; line-height: 1.4; }
 
     .kpi-rate {
       position: absolute; top: 16px; right: 16px;
       font-size: 12px; font-weight: 800;
       padding: 3px 8px; border-radius: 20px;
     }
-    .kpi-rate.good { background: rgba(34,197,94,0.12); color: var(--good); }
-    .kpi-rate.ok   { background: rgba(245,158,11,0.12); color: var(--ok); }
-    .kpi-rate.bad  { background: rgba(239,68,68,0.12);  color: var(--bad); }
+    .kpi-rate.good { background: var(--accent2); color: var(--accent); }
+    .kpi-rate.ok   { background: rgba(79,142,247,0.08); color: var(--warn); }
+    .kpi-rate.bad  { background: var(--bad2); color: var(--bad); }
 
     /* ── SECTION LABELS ─────────────────────── */
     .section-label {
@@ -287,10 +280,10 @@
       font-size: 10px; font-weight: 700;
       padding: 1px 5px; border-radius: 4px;
     }
-    .step-pct-badge.good { background: rgba(34,197,94,0.12); color: #4ade80; }
-    .step-pct-badge.ok   { background: rgba(245,158,11,0.12); color: #fbbf24; }
+    .step-pct-badge.good { background: var(--accent2); color: var(--accent); }
+    .step-pct-badge.ok   { background: rgba(79,142,247,0.08); color: var(--warn); }
     .step-pct-badge.bad  { background: rgba(239,68,68,0.12);  color: #f87171; }
-    .step-pct-badge.top  { background: rgba(255,255,255,0.06); color: var(--muted2); }
+    .step-pct-badge.top  { background: rgba(255,255,255,0.06); color: var(--sub); }
 
     /* Drop indicator */
     .drop-row {
@@ -338,19 +331,19 @@
       text-align: center;
       border: 1px solid transparent;
     }
-    .result-chip.whats  { background: rgba(37,211,102,0.06); border-color: rgba(37,211,102,0.2); }
-    .result-chip.igreen { background: rgba(16,185,129,0.06); border-color: rgba(16,185,129,0.2); }
-    .result-chip.insta  { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.2); }
+    .result-chip.whats  { background: var(--accent2); border-color: rgba(79,142,247,0.2); }
+    .result-chip.igreen { background: var(--surface); border-color: var(--border); }
+    .result-chip.insta  { background: var(--surface); border-color: var(--border); }
 
     .result-chip-icon { font-size: 16px; margin-bottom: 4px; }
     .result-chip-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .result-chip.whats  .result-chip-label { color: #25d366; }
-    .result-chip.igreen .result-chip-label { color: #34d399; }
-    .result-chip.insta  .result-chip-label { color: #fbbf24; }
+    .result-chip.whats  .result-chip-label { color: var(--accent); }
+    .result-chip.igreen .result-chip-label { color: var(--sub); }
+    .result-chip.insta  .result-chip-label { color: var(--sub); }
     .result-chip-count { font-size: 22px; font-weight: 900; line-height: 1; }
-    .result-chip.whats  .result-chip-count { color: #25d366; }
-    .result-chip.igreen .result-chip-count { color: #34d399; }
-    .result-chip.insta  .result-chip-count { color: #fbbf24; }
+    .result-chip.whats  .result-chip-count { color: var(--accent); }
+    .result-chip.igreen .result-chip-count { color: var(--sub); }
+    .result-chip.insta  .result-chip-count { color: var(--sub); }
     .result-chip-score { font-size: 9px; color: var(--muted); margin-top: 2px; font-weight: 500; }
 
     /* ── PLAN BREAKDOWN ─────────────────────── */
@@ -390,7 +383,7 @@
       margin-bottom: 7px;
     }
     .cta-name {
-      font-size: 11px; font-weight: 500; color: var(--muted2);
+      font-size: 11px; font-weight: 500; color: var(--sub);
       flex: 1; min-width: 0;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
@@ -399,8 +392,8 @@
       background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden;
       flex-shrink: 0;
     }
-    .cta-bar-fill { height: 100%; border-radius: 2px; background: var(--land); }
-    .cta-count { font-size: 12px; font-weight: 800; color: var(--land); min-width: 22px; text-align: right; flex-shrink: 0; }
+    .cta-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+    .cta-count { font-size: 12px; font-weight: 800; color: var(--accent); min-width: 22px; text-align: right; flex-shrink: 0; }
 
     /* ── LOADING / ERROR ─────────────────────── */
     .loading-state {
@@ -411,7 +404,7 @@
     .spinner {
       width: 36px; height: 36px;
       border: 3px solid rgba(255,255,255,0.08);
-      border-top-color: var(--quiz);
+      border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 0.75s linear infinite;
     }
@@ -561,9 +554,9 @@
       return 'bad';
     }
     function rateColor(p) {
-      if (p===null) return 'var(--muted2)';
-      if (p>=70) return 'var(--good)';
-      if (p>=40) return 'var(--ok)';
+      if (p===null) return 'var(--sub)';
+      if (p>=70) return 'var(--accent)';
+      if (p>=40) return 'var(--warn)';
       return 'var(--bad)';
     }
 
@@ -598,7 +591,7 @@
           <div class="kpi-card ${c.cls}">
             ${r!==null ? `<div class="kpi-rate ${rClass}">${r}%</div>` : ''}
             <div class="kpi-label">
-              <span class="kpi-label-dot" style="background:${c.cls==='c-quiz'?'var(--quiz)':c.cls==='c-sim'?'var(--sim)':c.cls==='c-land'?'var(--land)':'var(--good)'}"></span>
+              <span class="kpi-label-dot" style="background:${c.cls==='c-quiz'?'var(--accent)':c.cls==='c-sim'?'var(--accent)':c.cls==='c-land'?'var(--accent)':'var(--accent)'}"></span>
               ${c.label}
             </div>
             <div class="kpi-value">${fmt(c.value)}</div>
@@ -650,7 +643,7 @@
         // Drop indicator
         if (i > 0 && prev !== null && step.count < prev && relPct !== null) {
           const dropPct = 100 - relPct;
-          const dropColor = dropPct >= 50 ? 'var(--bad)' : 'var(--ok)';
+          const dropColor = dropPct >= 50 ? 'var(--bad)' : 'var(--warn)';
           stepsHTML += `
             <div class="drop-row">
               <div class="drop-line-v" style="background:${dropColor}33;margin-left:9px;"></div>
@@ -732,7 +725,7 @@
       // Landing: plan breakdown
       if (info.name.includes('Landing') && info.planBreakdown && info.planBreakdown.length > 0) {
         const totalP = info.planBreakdown.reduce((s, c) => s + c.count, 0);
-        const planColors = { free:'#22c55e', iniciante:'#94a3b8', pro:'#3b82f6', vip:'#f59e0b' };
+        const planColors = { free:'var(--accent)', iniciante:'var(--sub)', pro:'var(--accent)', vip:'var(--accent)' };
         const planIcons  = { free:'🎁', iniciante:'🌱', pro:'⚡', vip:'👑' };
         const allPlans = [
           { plan:'free', plano:'Grátis', count:0 },
@@ -749,7 +742,7 @@
             <div class="plan-section-title">Cliques por plano → checkout</div>
             <div class="plan-grid">
               ${allPlans.map(p => {
-                const c = planColors[p.plan] || '#94a3b8';
+                const c = planColors[p.plan] || 'var(--sub)';
                 const ic = planIcons[p.plan] || '📦';
                 const pr = totalP > 0 ? Math.round(p.count/totalP*100) : 0;
                 return `<div class="plan-chip" style="background:${c}08;border-color:${c}25;">
@@ -827,9 +820,9 @@
 
         document.getElementById('funnels-container').innerHTML = `
           <div class="funnels-grid">
-            ${buildFunnelCard(data.landing,  'var(--land)', 'Landing Page SolarDoc · Página principal')}
-            ${buildFunnelCard(data.simulador,'var(--sim)',  'Simulador B2C · Irmãos na Obra · 8 perguntas · 250km de Uberlândia')}
-            ${buildFunnelCard(data.quiz,     'var(--quiz)', 'Quiz B2B · SolarDoc Pro · 4 perguntas · diagnóstico')}
+            ${buildFunnelCard(data.landing,  'var(--accent)', 'Landing Page SolarDoc · Página principal')}
+            ${buildFunnelCard(data.simulador,'var(--accent)',  'Simulador B2C · Irmãos na Obra · 8 perguntas · 250km de Uberlândia')}
+            ${buildFunnelCard(data.quiz,     'var(--accent)', 'Quiz B2B · SolarDoc Pro · 4 perguntas · diagnóstico')}
           </div>`;
 
         const now = new Date();
