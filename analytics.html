@@ -500,6 +500,26 @@
         infoBadge = `<span class="funnel-info-badge" style="background:rgba(59,130,246,0.12);color:#60a5fa;">4 perguntas &bull; B2B &bull; SolarDoc Pro</span>`;
       } else if (info.name.includes('Landing') || info.name.includes('landing')) {
         infoBadge = `<span class="funnel-info-badge" style="background:rgba(16,185,129,0.12);color:#34d399;">Página principal</span>`;
+
+        // CTA Breakdown
+        if (info.ctaBreakdown && info.ctaBreakdown.length > 0) {
+          const totalCta = info.ctaBreakdown.reduce((s, c) => s + c.count, 0);
+          scoreLegend = `
+            <div style="padding:12px 24px 16px;border-top:1px solid var(--border);">
+              <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">CTAs clicados</div>
+              ${info.ctaBreakdown.map(b => `
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${b.label}">${b.label}</div>
+                    <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:3px;overflow:hidden;">
+                      <div style="height:100%;width:${totalCta>0?Math.round(b.count/totalCta*100):0}%;background:#10b981;border-radius:2px;"></div>
+                    </div>
+                  </div>
+                  <div style="font-size:13px;font-weight:700;color:#34d399;flex-shrink:0;">${b.count}</div>
+                  <div style="font-size:10px;font-weight:600;color:var(--muted);flex-shrink:0;width:32px;text-align:right;">${totalCta>0?Math.round(b.count/totalCta*100):0}%</div>
+                </div>`).join('')}
+            </div>`;
+        }
       }
 
       let stepsHTML = '';
