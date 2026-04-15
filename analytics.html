@@ -1,632 +1,804 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Analytics — Funis de Campanha</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SolarDoc Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0f172a;
-      --surface: #1e293b;
-      --surface2: #273348;
-      --border: rgba(255,255,255,0.08);
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --quiz: #3b82f6;
-      --sim: #f59e0b;
-      --land: #10b981;
-      --danger: #ef4444;
-      --radius: 16px;
+      --bg:       #060b14;
+      --bg2:      #0d1520;
+      --surface:  #111927;
+      --surface2: #172031;
+      --border:   rgba(255,255,255,0.07);
+      --border2:  rgba(255,255,255,0.12);
+      --text:     #f0f4f8;
+      --muted:    #64748b;
+      --muted2:   #94a3b8;
+      --quiz:     #3b82f6;
+      --quiz-bg:  rgba(59,130,246,0.08);
+      --sim:      #f59e0b;
+      --sim-bg:   rgba(245,158,11,0.08);
+      --land:     #10b981;
+      --land-bg:  rgba(16,185,129,0.08);
+      --good:     #22c55e;
+      --ok:       #f59e0b;
+      --bad:      #ef4444;
+      --vip:      #f59e0b;
+      --r: 14px;
     }
+
+    html { scroll-behavior: smooth; }
 
     body {
       font-family: 'Inter', sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding: 24px 16px 48px;
       -webkit-font-smoothing: antialiased;
     }
 
-    .top-bar {
+    /* ── HEADER ─────────────────────────────── */
+    .header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 64px;
       display: flex;
-      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
     }
 
-    .top-bar h1 {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
 
-    .top-bar h1 span { color: var(--quiz); }
-
-    /* Relógio São Paulo */
-    .clock-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      line-height: 1.2;
-    }
-    .clock-time {
-      font-size: 22px;
-      font-weight: 800;
-      font-variant-numeric: tabular-nums;
+    .header-logo {
+      font-size: 15px;
+      font-weight: 900;
       letter-spacing: -0.5px;
       color: var(--text);
     }
-    .clock-date {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .clock-tag {
-      font-size: 10px;
-      color: var(--quiz);
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
+    .header-logo span { color: var(--sim); }
 
-    .controls {
+    .header-divider { width: 1px; height: 20px; background: var(--border2); }
+
+    .header-title { font-size: 13px; font-weight: 600; color: var(--muted2); }
+
+    .live-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--good);
+      box-shadow: 0 0 6px var(--good);
+      animation: pulse-dot 2s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .header-right { display: flex; align-items: center; gap: 12px; }
+
+    .clock-block { text-align: right; line-height: 1.2; }
+    .clock-time { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+    .clock-sub { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 1px; }
+
+    /* ── CONTROLS ───────────────────────────── */
+    .controls-bar {
+      padding: 16px 28px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
     }
 
     .period-btn {
       background: var(--surface);
       border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 8px 16px;
+      color: var(--muted2);
+      padding: 7px 14px;
       border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 12px;
+      font-weight: 700;
       cursor: pointer;
       transition: all 0.15s;
+      font-family: inherit;
     }
-    .period-btn:hover, .period-btn.active {
-      background: var(--quiz);
-      border-color: var(--quiz);
-      color: white;
-    }
+    .period-btn:hover { border-color: var(--border2); color: var(--text); }
+    .period-btn.active { background: var(--quiz); border-color: var(--quiz); color: #fff; }
 
     .refresh-btn {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.15s;
-    }
-    .refresh-btn:hover { background: var(--surface); }
-    .refresh-btn svg { width: 14px; height: 14px; }
-
-    /* SUMMARY CARDS */
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-      margin-bottom: 32px;
-    }
-
-    .summary-card {
+      margin-left: auto;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
+      color: var(--muted2);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .refresh-btn:hover { color: var(--text); }
+    .refresh-btn svg { width: 13px; height: 13px; }
+
+    .auto-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(34,197,94,0.1);
+      color: var(--good);
+      border: 1px solid rgba(34,197,94,0.2);
+      letter-spacing: 0.3px;
+    }
+
+    /* ── MAIN CONTENT ───────────────────────── */
+    .content { padding: 28px; max-width: 1600px; margin: 0 auto; }
+
+    /* ── KPI ROW ────────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 18px 20px;
       position: relative;
       overflow: hidden;
+      transition: border-color 0.2s;
     }
-    .summary-card::before {
+    .kpi-card:hover { border-color: var(--border2); }
+    .kpi-card::after {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
     }
-    .summary-card.quiz::before  { background: var(--quiz); }
-    .summary-card.sim::before   { background: var(--sim); }
-    .summary-card.land::before  { background: var(--land); }
+    .kpi-card.c-quiz::after  { background: var(--quiz); }
+    .kpi-card.c-sim::after   { background: var(--sim); }
+    .kpi-card.c-land::after  { background: var(--land); }
+    .kpi-card.c-good::after  { background: var(--good); }
 
-    .summary-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 8px;
+    .kpi-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
     }
-    .summary-value {
-      font-size: 32px;
-      font-weight: 800;
-      line-height: 1;
-      margin-bottom: 6px;
-    }
-    .summary-card.quiz  .summary-value { color: var(--quiz); }
-    .summary-card.sim   .summary-value { color: var(--sim); }
-    .summary-card.land  .summary-value { color: var(--land); }
+    .kpi-label-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 
-    .summary-sub {
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 500;
+    .kpi-value {
+      font-size: 36px; font-weight: 900; line-height: 1;
+      margin-bottom: 6px; letter-spacing: -1px;
+    }
+    .kpi-card.c-quiz  .kpi-value { color: var(--quiz); }
+    .kpi-card.c-sim   .kpi-value { color: var(--sim); }
+    .kpi-card.c-land  .kpi-value { color: var(--land); }
+    .kpi-card.c-good  .kpi-value { color: var(--good); }
+
+    .kpi-sub { font-size: 12px; color: var(--muted2); font-weight: 500; line-height: 1.4; }
+
+    .kpi-rate {
+      position: absolute; top: 16px; right: 16px;
+      font-size: 12px; font-weight: 800;
+      padding: 3px 8px; border-radius: 20px;
+    }
+    .kpi-rate.good { background: rgba(34,197,94,0.12); color: var(--good); }
+    .kpi-rate.ok   { background: rgba(245,158,11,0.12); color: var(--ok); }
+    .kpi-rate.bad  { background: rgba(239,68,68,0.12);  color: var(--bad); }
+
+    /* ── SECTION LABELS ─────────────────────── */
+    .section-label {
+      font-size: 10px; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 14px; display: flex; align-items: center; gap: 10px;
+    }
+    .section-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
     }
 
-    /* FUNNELS GRID */
+    /* ── FUNNELS GRID ───────────────────────── */
     .funnels-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
     }
 
     .funnel-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: var(--r);
       overflow: hidden;
+      display: flex; flex-direction: column;
     }
 
     .funnel-header {
-      padding: 20px 24px 16px;
+      padding: 18px 20px 14px;
       border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      display: flex; align-items: center; gap: 10px;
     }
 
-    .funnel-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
+    .funnel-color-bar {
+      width: 3px; height: 36px; border-radius: 3px; flex-shrink: 0;
     }
 
-    .funnel-name {
-      font-size: 15px;
-      font-weight: 700;
-      flex: 1;
+    .funnel-header-info { flex: 1; min-width: 0; }
+    .funnel-name { font-size: 14px; font-weight: 800; letter-spacing: -0.2px; }
+    .funnel-meta { font-size: 11px; color: var(--muted); margin-top: 2px; font-weight: 500; }
+
+    .funnel-conv-badge {
+      text-align: right; flex-shrink: 0;
+    }
+    .conv-value { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
+    .conv-label { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); }
+
+    /* ── FUNNEL STEPS ───────────────────────── */
+    .funnel-steps { padding: 12px 16px 16px; flex: 1; }
+
+    .step-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 8px; border-radius: 8px; cursor: default;
+      transition: background 0.12s;
+    }
+    .step-row:hover { background: rgba(255,255,255,0.025); }
+
+    .step-icon-wrap {
+      width: 26px; height: 26px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0;
+      background: rgba(255,255,255,0.04);
     }
 
-    .funnel-total-badge {
-      font-size: 12px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 20px;
-      background: rgba(255,255,255,0.06);
-      color: var(--muted);
-    }
+    .step-body { flex: 1; min-width: 0; }
 
-    .funnel-body {
-      padding: 16px 24px 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+    .step-name {
+      font-size: 12px; font-weight: 600; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.3;
     }
+    .step-name.bottleneck { color: var(--bad); }
 
-    .funnel-step {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      transition: background 0.15s;
-      position: relative;
+    .step-bar-track {
+      height: 3px; background: rgba(255,255,255,0.05);
+      border-radius: 2px; overflow: hidden; margin-top: 4px;
     }
-    .funnel-step:hover { background: rgba(255,255,255,0.03); }
-
-    .step-icon {
-      font-size: 16px;
-      width: 24px;
-      text-align: center;
-      flex-shrink: 0;
-    }
-
-    .step-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .step-label {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .step-bar-wrap {
-      margin-top: 5px;
-      height: 4px;
-      background: rgba(255,255,255,0.06);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .step-bar {
-      height: 100%;
-      border-radius: 2px;
-      transition: width 0.6s ease;
-    }
+    .step-bar-fill { height: 100%; border-radius: 2px; transition: width 0.7s cubic-bezier(.4,0,.2,1); }
 
     .step-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
+      display: flex; flex-direction: column; align-items: flex-end;
+      flex-shrink: 0; gap: 2px; min-width: 50px;
+    }
+    .step-count { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .step-pct-badge {
+      font-size: 10px; font-weight: 700;
+      padding: 1px 5px; border-radius: 4px;
+    }
+    .step-pct-badge.good { background: rgba(34,197,94,0.12); color: #4ade80; }
+    .step-pct-badge.ok   { background: rgba(245,158,11,0.12); color: #fbbf24; }
+    .step-pct-badge.bad  { background: rgba(239,68,68,0.12);  color: #f87171; }
+    .step-pct-badge.top  { background: rgba(255,255,255,0.06); color: var(--muted2); }
+
+    /* Drop indicator */
+    .drop-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 1px 8px 1px 34px;
+    }
+    .drop-line-v {
+      width: 1px; height: 10px; flex-shrink: 0;
+    }
+    .drop-text {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.2px;
+    }
+
+    /* Group divider */
+    .step-divider {
+      font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted);
+      padding: 10px 8px 4px; opacity: 0.5;
+    }
+
+    /* Bottleneck banner */
+    .bottleneck-banner {
+      margin: 8px 16px 0;
+      background: rgba(239,68,68,0.06);
+      border: 1px solid rgba(239,68,68,0.18);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .bottleneck-banner-icon { font-size: 14px; flex-shrink: 0; }
+    .bottleneck-banner-text { font-size: 11px; font-weight: 600; color: #fca5a5; line-height: 1.4; }
+
+    /* ── RESULT BREAKDOWN (simulador) ──────── */
+    .result-breakdown {
+      border-top: 1px solid var(--border);
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .result-chip {
+      border-radius: 10px;
+      padding: 10px 8px;
+      text-align: center;
+      border: 1px solid transparent;
+    }
+    .result-chip.whats  { background: rgba(37,211,102,0.06); border-color: rgba(37,211,102,0.2); }
+    .result-chip.igreen { background: rgba(16,185,129,0.06); border-color: rgba(16,185,129,0.2); }
+    .result-chip.insta  { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.2); }
+
+    .result-chip-icon { font-size: 16px; margin-bottom: 4px; }
+    .result-chip-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .result-chip.whats  .result-chip-label { color: #25d366; }
+    .result-chip.igreen .result-chip-label { color: #34d399; }
+    .result-chip.insta  .result-chip-label { color: #fbbf24; }
+    .result-chip-count { font-size: 22px; font-weight: 900; line-height: 1; }
+    .result-chip.whats  .result-chip-count { color: #25d366; }
+    .result-chip.igreen .result-chip-count { color: #34d399; }
+    .result-chip.insta  .result-chip-count { color: #fbbf24; }
+    .result-chip-score { font-size: 9px; color: var(--muted); margin-top: 2px; font-weight: 500; }
+
+    /* ── PLAN BREAKDOWN ─────────────────────── */
+    .plan-section {
+      border-top: 1px solid var(--border);
+      padding: 14px 16px;
+    }
+    .plan-section-title {
+      font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .plan-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    }
+    .plan-chip {
+      border-radius: 10px; padding: 10px 6px;
+      text-align: center; border: 1px solid transparent;
+    }
+    .plan-chip-icon { font-size: 15px; margin-bottom: 3px; }
+    .plan-chip-name { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+    .plan-chip-count { font-size: 20px; font-weight: 900; line-height: 1; }
+    .plan-chip-pct { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+    /* ── CTA BREAKDOWN ──────────────────────── */
+    .cta-section {
+      border-top: 1px solid var(--border);
+      padding: 14px 16px;
+    }
+    .cta-section-title {
+      font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .cta-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 7px;
+    }
+    .cta-name {
+      font-size: 11px; font-weight: 500; color: var(--muted2);
+      flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .cta-bar-track {
+      width: 80px; height: 4px;
+      background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden;
       flex-shrink: 0;
-      gap: 2px;
     }
+    .cta-bar-fill { height: 100%; border-radius: 2px; background: var(--land); }
+    .cta-count { font-size: 12px; font-weight: 800; color: var(--land); min-width: 22px; text-align: right; flex-shrink: 0; }
 
-    .step-count {
-      font-size: 14px;
-      font-weight: 700;
-    }
-
-    .step-pct {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 1px 6px;
-      border-radius: 4px;
-    }
-    .step-pct.good  { background: rgba(16,185,129,0.15); color: #34d399; }
-    .step-pct.ok    { background: rgba(245,158,11,0.15);  color: #fbbf24; }
-    .step-pct.bad   { background: rgba(239,68,68,0.15);   color: #f87171; }
-    .step-pct.neutral { background: rgba(255,255,255,0.06); color: var(--muted); }
-
-    .drop-arrow {
-      padding: 0 12px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .drop-line {
-      width: 1px;
-      height: 12px;
-      background: var(--border);
-      margin: 0 auto;
-    }
-    .drop-label {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--muted);
-      text-align: center;
-    }
-
-    /* EMPTY / LOADING */
+    /* ── LOADING / ERROR ─────────────────────── */
     .loading-state {
-      text-align: center;
-      padding: 60px 24px;
-      color: var(--muted);
-      font-size: 15px;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 80px 24px;
+      color: var(--muted); gap: 16px;
     }
-
     .spinner {
-      width: 32px; height: 32px;
-      border: 3px solid rgba(255,255,255,0.1);
+      width: 36px; height: 36px;
+      border: 3px solid rgba(255,255,255,0.08);
       border-top-color: var(--quiz);
       border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      margin: 0 auto 16px;
+      animation: spin 0.75s linear infinite;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; font-weight: 600; }
 
     .error-state {
-      text-align: center;
-      padding: 40px 24px;
-      color: var(--danger);
-      font-size: 14px;
+      text-align: center; padding: 48px 24px;
+      color: var(--bad); font-size: 14px; line-height: 1.6;
     }
 
-    /* DIVIDER (step separator) */
-    .group-divider {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--muted);
-      padding: 8px 12px 2px;
-      opacity: 0.6;
+    /* ── FOOTER ─────────────────────────────── */
+    .footer-bar {
+      text-align: center; font-size: 11px;
+      color: var(--muted); padding: 24px 28px 32px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
     }
+    .footer-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--muted); }
 
-    /* SCORE LEGEND (simulador) */
-    .score-legend {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      padding: 12px 24px 16px;
-      border-top: 1px solid var(--border);
-      margin-top: 4px;
-    }
-    .score-chip {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 700;
-    }
-    .score-chip.igreen  { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
-    .score-chip.insta   { background: rgba(245,158,11,0.12);  color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
-    .score-chip.whats   { background: rgba(37,211,102,0.12);  color: #25d366; border: 1px solid rgba(37,211,102,0.25); }
-    .score-chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .score-chip.igreen .score-chip-dot  { background: #34d399; }
-    .score-chip.insta  .score-chip-dot  { background: #fbbf24; }
-    .score-chip.whats  .score-chip-dot  { background: #25d366; }
-
-    /* INFO BADGES no header do funil */
-    .funnel-info-badge {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 999px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      opacity: 0.7;
-    }
-
-    .updated-at {
-      text-align: center;
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 24px;
-    }
-
-    @media (max-width: 640px) {
+    /* ── RESPONSIVE ─────────────────────────── */
+    @media (max-width: 768px) {
+      .content { padding: 16px; }
+      .header { padding: 0 16px; }
+      .controls-bar { padding: 12px 16px; }
       .funnels-grid { grid-template-columns: 1fr; }
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .clock-block { display: none; }
     }
   </style>
 </head>
 <body>
 
-  <div class="top-bar">
-    <div>
-      <h1>📊 Analytics — <span>Funis de Campanha</span></h1>
+  <!-- ── HEADER ─────────────────────────────────── -->
+  <header class="header">
+    <div class="header-left">
+      <div class="live-dot"></div>
+      <div class="header-logo">Solar<span>Doc</span></div>
+      <div class="header-divider"></div>
+      <div class="header-title">Analytics de Funis</div>
     </div>
-    <div class="clock-wrap" id="sp-clock">
-      <span class="clock-time" id="clock-time">--:--:--</span>
-      <span class="clock-date" id="clock-date"></span>
-      <span class="clock-tag">São Paulo • UTC-3</span>
+    <div class="header-right">
+      <div class="clock-block">
+        <div class="clock-time" id="clock-time">--:--:--</div>
+        <div class="clock-sub">São Paulo · UTC-3</div>
+      </div>
     </div>
-    <div class="controls">
-      <button class="period-btn active" onclick="loadRange('hoje',this)">Hoje</button>
-      <button class="period-btn" onclick="loadRange('ontem',this)">Ontem</button>
-      <button class="period-btn" onclick="loadRange(7,this)">7 dias</button>
-      <button class="period-btn" onclick="loadRange(15,this)">15 dias</button>
-      <button class="period-btn" onclick="loadRange(30,this)">30 dias</button>
-      <button class="refresh-btn" onclick="loadRange(currentPeriod)">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-        Atualizar
-      </button>
-    </div>
+  </header>
+
+  <!-- ── CONTROLS ────────────────────────────────── -->
+  <div class="controls-bar">
+    <button class="period-btn active" onclick="loadRange('hoje',this)">Hoje</button>
+    <button class="period-btn" onclick="loadRange('ontem',this)">Ontem</button>
+    <button class="period-btn" onclick="loadRange(7,this)">7 dias</button>
+    <button class="period-btn" onclick="loadRange(15,this)">15 dias</button>
+    <button class="period-btn" onclick="loadRange(30,this)">30 dias</button>
+    <button class="refresh-btn" onclick="loadRange(currentPeriod)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Atualizar
+    </button>
+    <span class="auto-badge" id="auto-badge">● Auto 60s</span>
   </div>
 
-  <div class="summary-grid" id="summary-grid">
-    <!-- preenchido via JS -->
-  </div>
+  <!-- ── MAIN ──────────────────────────────────── -->
+  <main class="content">
 
-  <div id="funnels-container">
-    <div class="loading-state">
-      <div class="spinner"></div>
-      Carregando dados...
+    <!-- KPI Row -->
+    <div class="kpi-row" id="kpi-row">
+      <div class="loading-state" style="grid-column:1/-1;padding:32px;">
+        <div class="spinner"></div>
+      </div>
     </div>
-  </div>
 
-  <div class="updated-at" id="updated-at"></div>
+    <!-- Funnels -->
+    <div class="section-label">Funis de conversão</div>
+    <div id="funnels-container">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <div class="loading-text">Carregando dados...</div>
+      </div>
+    </div>
+
+  </main>
+
+  <div class="footer-bar" id="footer-bar">
+    <span id="updated-text">—</span>
+    <div class="footer-dot"></div>
+    <span>SolarDoc Analytics</span>
+  </div>
 
   <script>
     const API = 'https://solardocs-api-irmaosnaobra-aioros.vercel.app';
     let currentPeriod = 'hoje';
+    let autoTimer = null;
 
-    // Retorna {from, to, label} para cada período
+    // ── Clock ──────────────────────────────────────
+    (function() {
+      const TZ = 'America/Sao_Paulo';
+      const fmt = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false });
+      const el = document.getElementById('clock-time');
+      function tick() { if(el) el.textContent = fmt.format(new Date()); }
+      tick(); setInterval(tick, 1000);
+    })();
+
+    // ── Auto refresh countdown ─────────────────────
+    let countdown = 60;
+    function startAutoRefresh() {
+      clearInterval(autoTimer);
+      countdown = 60;
+      autoTimer = setInterval(() => {
+        countdown--;
+        const badge = document.getElementById('auto-badge');
+        if (badge) badge.textContent = `● Auto ${countdown}s`;
+        if (countdown <= 0) {
+          loadRange(currentPeriod);
+          countdown = 60;
+        }
+      }, 1000);
+    }
+
+    // ── Period ranges ──────────────────────────────
     function periodRange(period) {
       const now = new Date();
-      const pad = n => String(n).padStart(2,'0');
-      const dateStr = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-
       if (period === 'hoje') {
-        const from = dateStr(now) + 'T00:00:00.000Z';
-        const to   = new Date(now.getTime() + 86400000).toISOString().slice(0,10) + 'T00:00:00.000Z';
-        // Ajusta para fuso local: início e fim do dia local em UTC
-        const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
-        const todayEnd   = new Date(now); todayEnd.setHours(23,59,59,999);
-        return { from: todayStart.toISOString(), to: todayEnd.toISOString(), label: 'Hoje' };
+        const s = new Date(now); s.setHours(0,0,0,0);
+        const e = new Date(now); e.setHours(23,59,59,999);
+        return { from: s.toISOString(), to: e.toISOString(), label: 'Hoje' };
       }
       if (period === 'ontem') {
-        const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-        const start = new Date(yesterday); start.setHours(0,0,0,0);
-        const end   = new Date(yesterday); end.setHours(23,59,59,999);
-        return { from: start.toISOString(), to: end.toISOString(), label: 'Ontem' };
+        const y = new Date(now); y.setDate(now.getDate()-1);
+        const s = new Date(y); s.setHours(0,0,0,0);
+        const e = new Date(y); e.setHours(23,59,59,999);
+        return { from: s.toISOString(), to: e.toISOString(), label: 'Ontem' };
       }
-      // Número de dias
       const days = Number(period);
-      const start = new Date(Date.now() - days * 86400000);
-      return { from: start.toISOString(), to: null, label: `${days} dias` };
+      return { from: new Date(Date.now() - days*86400000).toISOString(), to: null, label: `${days} dias` };
     }
 
-    function pct(a, b) {
-      if (!b || b === 0) return null;
-      return Math.round((a / b) * 100);
-    }
-
-    function pctClass(p) {
-      if (p === null) return 'neutral';
-      if (p >= 70) return 'good';
-      if (p >= 40) return 'ok';
+    function pct(a, b) { return (!b || b===0) ? null : Math.round((a/b)*100); }
+    function fmt(n) { return (n===null||n===undefined) ? '—' : n.toLocaleString('pt-BR'); }
+    function rateClass(p) {
+      if (p===null) return 'top';
+      if (p>=70) return 'good';
+      if (p>=40) return 'ok';
       return 'bad';
     }
-
-    function fmt(n) {
-      return n === null || n === undefined ? '—' : n.toLocaleString('pt-BR');
+    function rateColor(p) {
+      if (p===null) return 'var(--muted2)';
+      if (p>=70) return 'var(--good)';
+      if (p>=40) return 'var(--ok)';
+      return 'var(--bad)';
     }
 
-    function buildFunnelCard(info, colorVar) {
+    // ── KPI Row ────────────────────────────────────
+    function buildKPI(data) {
+      const qTop   = data.quiz.funnel[0]?.count || 0;
+      const qDone  = data.quiz.funnel.find(s => s.label.includes('Completou'))?.count || 0;
+      const qBuy   = data.quiz.funnel.find(s => s.label.includes('Comprou'))?.count || 0;
+
+      const sTop   = data.simulador.funnel[0]?.count || 0;
+      const sForm  = data.simulador.funnel.find(s => s.label.includes('Enviou'))?.count || 0;
+      const sQual  = data.simulador.funnel.find(s => s.label.includes('Qualificado'))?.count || 0;
+
+      const lTop   = data.landing.funnel[0]?.count || 0;
+      const lCta   = data.landing.funnel.find(s => s.label.includes('CTA'))?.count || 0;
+
+      const totalLeads = sQual + qDone;
+
+      const cards = [
+        { cls:'c-land',  icon:'🌐', label:'Landing — Visitas',      value: lTop,       sub: `${pct(lCta,lTop)||0}% clicaram no CTA`,        rate: pct(lCta,lTop) },
+        { cls:'c-sim',   icon:'⚡', label:'Simulador — Entradas',   value: sTop,       sub: `${pct(sForm,sTop)||0}% preencheram formulário`,  rate: pct(sForm,sTop) },
+        { cls:'c-sim',   icon:'🚀', label:'Simulador — Qualificados', value: sQual,    sub: `${pct(sQual,sForm)||0}% dos formulários → WhatsApp`, rate: pct(sQual,sForm) },
+        { cls:'c-quiz',  icon:'📋', label:'Quiz B2B — Entradas',    value: qTop,       sub: `${pct(qDone,qTop)||0}% completaram o diagnóstico`, rate: pct(qDone,qTop) },
+        { cls:'c-quiz',  icon:'💰', label:'Quiz B2B — Assinantes',  value: qBuy,       sub: `${pct(qBuy,qTop)||0}% dos visitantes compraram`,  rate: pct(qBuy,qTop) },
+        { cls:'c-good',  icon:'🎯', label:'Total Leads Gerados',    value: totalLeads, sub: 'Qualificados + diagnósticos completos',            rate: null },
+      ];
+
+      return cards.map(c => {
+        const r = c.rate;
+        const rClass = r===null ? '' : (r>=70?'good':r>=40?'ok':'bad');
+        return `
+          <div class="kpi-card ${c.cls}">
+            ${r!==null ? `<div class="kpi-rate ${rClass}">${r}%</div>` : ''}
+            <div class="kpi-label">
+              <span class="kpi-label-dot" style="background:${c.cls==='c-quiz'?'var(--quiz)':c.cls==='c-sim'?'var(--sim)':c.cls==='c-land'?'var(--land)':'var(--good)'}"></span>
+              ${c.label}
+            </div>
+            <div class="kpi-value">${fmt(c.value)}</div>
+            <div class="kpi-sub">${c.sub}</div>
+          </div>`;
+      }).join('');
+    }
+
+    // ── Funnel Card ────────────────────────────────
+    function buildFunnelCard(info, color, meta) {
       const funnel = info.funnel;
       const top = funnel[0]?.count || 0;
 
-      // Badge de info por tipo de funil
-      let infoBadge = '';
-      let scoreLegend = '';
-      if (info.name.includes('Simulador')) {
-        infoBadge = `<span class="funnel-info-badge" style="background:rgba(245,158,11,0.12);color:#fbbf24;">8 perguntas &bull; Máx 32 pts &bull; 250km de Uberlândia</span>`;
-        scoreLegend = `
-          <div class="score-legend">
-            <span class="score-chip igreen"><span class="score-chip-dot"></span>iGreen 0–14 pts</span>
-            <span class="score-chip insta"><span class="score-chip-dot"></span>Instagram 15–21 pts</span>
-            <span class="score-chip whats"><span class="score-chip-dot"></span>WhatsApp ≥22 pts</span>
-          </div>`;
-      } else if (info.name.includes('Quiz') || info.name.includes('quiz')) {
-        infoBadge = `<span class="funnel-info-badge" style="background:rgba(59,130,246,0.12);color:#60a5fa;">4 perguntas &bull; B2B &bull; SolarDoc Pro</span>`;
-      } else if (info.name.includes('Landing') || info.name.includes('landing')) {
-        infoBadge = `<span class="funnel-info-badge" style="background:rgba(16,185,129,0.12);color:#34d399;">Página principal</span>`;
-
-        // Plan Breakdown
-        if (info.planBreakdown && info.planBreakdown.length > 0) {
-          const totalPlans = info.planBreakdown.reduce((s, c) => s + c.count, 0);
-          const planColors = { free: '#22c55e', iniciante: '#94a3b8', pro: '#3b82f6', vip: '#f59e0b' };
-          const planIcons  = { free: '🎁', iniciante: '🌱', pro: '⚡', vip: '👑' };
-          scoreLegend += `
-            <div style="padding:12px 24px 4px;border-top:1px solid var(--border);">
-              <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Cliques por plano → checkout</div>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:12px;">
-                ${info.planBreakdown.map(p => {
-                  const color = planColors[p.plan] || '#94a3b8';
-                  const icon  = planIcons[p.plan]  || '📦';
-                  const pct   = totalPlans > 0 ? Math.round(p.count / totalPlans * 100) : 0;
-                  return `<div style="background:rgba(255,255,255,0.03);border:1px solid ${color}33;border-radius:10px;padding:10px 12px;text-align:center;">
-                    <div style="font-size:18px;margin-bottom:4px;">${icon}</div>
-                    <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.5px;">${p.plano}</div>
-                    <div style="font-size:22px;font-weight:800;color:${color};line-height:1.2;">${p.count}</div>
-                    <div style="font-size:10px;color:var(--muted);">${pct}%</div>
-                  </div>`;
-                }).join('')}
-              </div>
-            </div>`;
-        }
-
-        // CTA Breakdown
-        if (info.ctaBreakdown && info.ctaBreakdown.length > 0) {
-          const totalCta = info.ctaBreakdown.reduce((s, c) => s + c.count, 0);
-          scoreLegend = `
-            <div style="padding:12px 24px 16px;border-top:1px solid var(--border);">
-              <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">CTAs clicados</div>
-              ${info.ctaBreakdown.map(b => `
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${b.label}">${b.label}</div>
-                    <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:3px;overflow:hidden;">
-                      <div style="height:100%;width:${totalCta>0?Math.round(b.count/totalCta*100):0}%;background:#10b981;border-radius:2px;"></div>
-                    </div>
-                  </div>
-                  <div style="font-size:13px;font-weight:700;color:#34d399;flex-shrink:0;">${b.count}</div>
-                  <div style="font-size:10px;font-weight:600;color:var(--muted);flex-shrink:0;width:32px;text-align:right;">${totalCta>0?Math.round(b.count/totalCta*100):0}%</div>
-                </div>`).join('')}
-            </div>`;
+      // Find biggest drop (bottleneck)
+      let bottleneckIdx = -1;
+      let bottleneckDrop = 0;
+      for (let i = 1; i < funnel.length; i++) {
+        const prev = funnel[i-1].count;
+        const curr = funnel[i].count;
+        if (prev > 0 && curr < prev) {
+          const drop = prev - curr;
+          if (drop > bottleneckDrop) { bottleneckDrop = drop; bottleneckIdx = i; }
         }
       }
 
+      // Overall conversion rate (top → last meaningful)
+      const meaningful = funnel.filter(s => s.count > 0);
+      const last = meaningful[meaningful.length - 1];
+      const convRate = top > 0 && last ? pct(last.count, top) : 0;
+
+      // Steps HTML
       let stepsHTML = '';
       for (let i = 0; i < funnel.length; i++) {
         const step = funnel[i];
-        const prev = i > 0 ? funnel[i - 1].count : null;
+        const prev = i > 0 ? funnel[i-1].count : null;
         const relPct = prev !== null ? pct(step.count, prev) : null;
-        const absPct = top > 0 ? pct(step.count, top) : null;
-        const barWidth = absPct !== null ? absPct : 0;
+        const absPct = top > 0 ? pct(step.count, top) : 0;
+        const isBottleneck = i === bottleneckIdx;
+        const isTop = i === 0;
 
-        // Separadores de grupo para o simulador (8 perguntas + 1 started = índice 10 é o formulário)
-        if (info.name.includes('Simulador')) {
-          if (i === 9) stepsHTML += `<div class="group-divider">Formulário &amp; Resultado</div>`;
+        // Group dividers
+        if (info.name.includes('Simulador') && i === 9)
+          stepsHTML += `<div class="step-divider">▾ Formulário &amp; Resultado</div>`;
+
+        // Drop indicator
+        if (i > 0 && prev !== null && step.count < prev && relPct !== null) {
+          const dropPct = 100 - relPct;
+          const dropColor = dropPct >= 50 ? 'var(--bad)' : 'var(--ok)';
+          stepsHTML += `
+            <div class="drop-row">
+              <div class="drop-line-v" style="background:${dropColor}33;margin-left:9px;"></div>
+              <div class="drop-text" style="color:${dropColor}">↓ ${dropPct}% saíram aqui</div>
+              ${isBottleneck ? `<span style="font-size:9px;font-weight:800;background:rgba(239,68,68,0.12);color:var(--bad);padding:1px 6px;border-radius:4px;margin-left:4px;">GARGALO</span>` : ''}
+            </div>`;
         }
 
-        const dropInfo = (i > 0 && prev !== null && step.count < prev)
-          ? `<div class="drop-arrow"><div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-left:36px;"><div class="drop-line"></div><div class="drop-label" style="color:${step.count/prev<0.5?'#f87171':'#fbbf24'}">-${100-relPct}% saíram</div><div class="drop-line"></div></div></div>`
-          : '';
-
         stepsHTML += `
-          ${i > 0 ? dropInfo : ''}
-          <div class="funnel-step">
-            <div class="step-icon">${step.icon}</div>
-            <div class="step-info">
-              <div class="step-label" title="${step.label}">${step.label}</div>
-              <div class="step-bar-wrap">
-                <div class="step-bar" style="width:${barWidth}%;background:${colorVar}; opacity:${0.4+0.6*(barWidth/100)};"></div>
+          <div class="step-row">
+            <div class="step-icon-wrap">${step.icon}</div>
+            <div class="step-body">
+              <div class="step-name ${isBottleneck ? 'bottleneck' : ''}" title="${step.label}">${step.label}</div>
+              <div class="step-bar-track">
+                <div class="step-bar-fill" style="width:${absPct||0}%;background:${color};"></div>
               </div>
             </div>
             <div class="step-right">
-              <div class="step-count" style="color:${colorVar}">${fmt(step.count)}</div>
-              ${relPct !== null
-                ? `<div class="step-pct ${pctClass(relPct)}">${relPct}%</div>`
-                : `<div class="step-pct neutral">topo</div>`}
+              <div class="step-count" style="color:${isBottleneck?'var(--bad)':color}">${fmt(step.count)}</div>
+              <div class="step-pct-badge ${isTop?'top':rateClass(relPct)}">
+                ${isTop ? 'topo' : (relPct !== null ? relPct+'%' : '—')}
+              </div>
             </div>
           </div>`;
       }
 
-      // Calcula taxa de conversão geral (último step relevante vs topo)
-      const relevant = funnel.filter(s => s.count > 0);
-      const lastMeaningful = relevant[relevant.length - 1];
-      const overallPct = lastMeaningful && top > 0 ? pct(lastMeaningful.count, top) : 0;
+      // Bottleneck banner
+      let bottleneckBanner = '';
+      if (bottleneckIdx > -1) {
+        const bn = funnel[bottleneckIdx];
+        const bp = funnel[bottleneckIdx-1];
+        const bDrop = 100 - Math.round((bn.count/bp.count)*100);
+        bottleneckBanner = `
+          <div class="bottleneck-banner">
+            <div class="bottleneck-banner-icon">🚨</div>
+            <div class="bottleneck-banner-text">
+              <strong>Principal gargalo:</strong> "${bn.label}" — ${bDrop}% saem neste passo (${bp.count - bn.count} pessoas)
+            </div>
+          </div>`;
+      }
+
+      // Extras para cada tipo
+      let extras = '';
+
+      // Simulador: result breakdown
+      if (info.name.includes('Simulador')) {
+        const qual    = funnel.find(s => s.label === 'Qualificado')?.count || 0;
+        const igreen  = funnel.find(s => s.label.includes('iGreen'))?.count || 0;
+        const perfil  = funnel.find(s => s.label.includes('Perfil') || s.label.includes('Região'))?.count || 0;
+        // Combine region + profile as "Instagram"
+        const rejIgreen = funnel.find(s => s.label.includes('iGreen'))?.count || 0;
+        const rejRegiao = funnel.find(s => s.label.includes('Região'))?.count || 0;
+        const rejPerfil = funnel.find(s => s.label.includes('Perfil'))?.count || 0;
+        const totalRej = rejIgreen + rejRegiao + rejPerfil;
+
+        extras += `
+          <div class="result-breakdown">
+            <div class="result-chip whats">
+              <div class="result-chip-icon">💬</div>
+              <div class="result-chip-label">WhatsApp</div>
+              <div class="result-chip-count">${fmt(qual)}</div>
+              <div class="result-chip-score">score ≥18</div>
+            </div>
+            <div class="result-chip igreen">
+              <div class="result-chip-icon">🌿</div>
+              <div class="result-chip-label">iGreen</div>
+              <div class="result-chip-count">${fmt(rejIgreen)}</div>
+              <div class="result-chip-score">score 0–14</div>
+            </div>
+            <div class="result-chip insta">
+              <div class="result-chip-icon">📸</div>
+              <div class="result-chip-label">Instagram</div>
+              <div class="result-chip-count">${fmt(rejRegiao + rejPerfil)}</div>
+              <div class="result-chip-score">score 15–17 / fora</div>
+            </div>
+          </div>`;
+      }
+
+      // Landing: plan breakdown
+      if (info.name.includes('Landing') && info.planBreakdown && info.planBreakdown.length > 0) {
+        const totalP = info.planBreakdown.reduce((s, c) => s + c.count, 0);
+        const planColors = { free:'#22c55e', iniciante:'#94a3b8', pro:'#3b82f6', vip:'#f59e0b' };
+        const planIcons  = { free:'🎁', iniciante:'🌱', pro:'⚡', vip:'👑' };
+        const allPlans = [
+          { plan:'free', plano:'Grátis', count:0 },
+          { plan:'iniciante', plano:'Iniciante', count:0 },
+          { plan:'pro', plano:'PRO', count:0 },
+          { plan:'vip', plano:'VIP', count:0 },
+        ].map(p => {
+          const found = info.planBreakdown.find(b => b.plan === p.plan);
+          return { ...p, count: found ? found.count : 0 };
+        });
+
+        extras += `
+          <div class="plan-section">
+            <div class="plan-section-title">Cliques por plano → checkout</div>
+            <div class="plan-grid">
+              ${allPlans.map(p => {
+                const c = planColors[p.plan] || '#94a3b8';
+                const ic = planIcons[p.plan] || '📦';
+                const pr = totalP > 0 ? Math.round(p.count/totalP*100) : 0;
+                return `<div class="plan-chip" style="background:${c}08;border-color:${c}25;">
+                  <div class="plan-chip-icon">${ic}</div>
+                  <div class="plan-chip-name" style="color:${c}">${p.plano}</div>
+                  <div class="plan-chip-count" style="color:${c}">${p.count}</div>
+                  <div class="plan-chip-pct">${pr}%</div>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>`;
+      }
+
+      // Landing: CTA breakdown
+      if (info.name.includes('Landing') && info.ctaBreakdown && info.ctaBreakdown.length > 0) {
+        const topCta = info.ctaBreakdown[0].count;
+        extras += `
+          <div class="cta-section">
+            <div class="cta-section-title">Botões clicados</div>
+            ${info.ctaBreakdown.slice(0,8).map(b => `
+              <div class="cta-row">
+                <div class="cta-name" title="${b.label}">${b.label}</div>
+                <div class="cta-bar-track">
+                  <div class="cta-bar-fill" style="width:${topCta>0?Math.round(b.count/topCta*100):0}%"></div>
+                </div>
+                <div class="cta-count">${b.count}</div>
+              </div>`).join('')}
+          </div>`;
+      }
 
       return `
         <div class="funnel-card">
           <div class="funnel-header">
-            <div class="funnel-dot" style="background:${colorVar}"></div>
-            <div class="funnel-name">${info.name}</div>
-            ${infoBadge}
-            <div class="funnel-total-badge">${fmt(top)} entradas</div>
+            <div class="funnel-color-bar" style="background:${color}"></div>
+            <div class="funnel-header-info">
+              <div class="funnel-name">${info.name}</div>
+              <div class="funnel-meta">${meta}</div>
+            </div>
+            <div class="funnel-conv-badge">
+              <div class="conv-value" style="color:${color}">${fmt(top)}</div>
+              <div class="conv-label">entradas</div>
+            </div>
           </div>
-          <div class="funnel-body">${stepsHTML}</div>
-          ${scoreLegend}
+          ${bottleneckBanner}
+          <div class="funnel-steps">${stepsHTML}</div>
+          ${extras}
         </div>`;
     }
 
-    function buildSummary(data) {
-      const qTop = data.quiz.funnel[0]?.count || 0;
-      const qConv = data.quiz.funnel.find(s => s.label.includes('Comprou'))?.count || 0;
-      const sTop = data.simulador.funnel[0]?.count || 0;
-      const sConv = data.simulador.funnel.find(s => s.label.includes('Qualificado'))?.count || 0;
-      const lTop = data.landing.funnel[0]?.count || 0;
-      const lCta = data.landing.funnel.find(s => s.label.includes('CTA'))?.count || 0;
-
-      const cards = [
-        { cls:'quiz',  label:'Quiz B2B — Entradas',    value: qTop, sub: `${pct(qConv,qTop)||0}% chegaram a comprar` },
-        { cls:'quiz',  label:'Quiz B2B — Compraram',   value: qConv, sub: 'assinantes no período' },
-        { cls:'sim',   label:'Simulador — Entradas',   value: sTop, sub: `${pct(sConv,sTop)||0}% qualificados (score ≥22)` },
-        { cls:'sim',   label:'Simulador — Qualificados', value: sConv, sub: 'leads quentes → WhatsApp' },
-        { cls:'land',  label:'Landing — Visitas',      value: lTop, sub: `${pct(lCta,lTop)||0}% clicaram no CTA` },
-        { cls:'land',  label:'Landing — CTA Clicks',   value: lCta, sub: 'cliques para checkout' },
-      ];
-
-      return cards.map(c => `
-        <div class="summary-card ${c.cls}">
-          <div class="summary-label">${c.label}</div>
-          <div class="summary-value">${fmt(c.value)}</div>
-          <div class="summary-sub">${c.sub}</div>
-        </div>`).join('');
-    }
-
+    // ── Load ───────────────────────────────────────
     async function loadRange(period, btn) {
       currentPeriod = period;
+      startAutoRefresh();
 
       if (btn) {
         document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
@@ -634,13 +806,10 @@
       }
 
       const range = periodRange(period);
+      const loadHTML = `<div class="loading-state"><div class="spinner"></div><div class="loading-text">Carregando — ${range.label}...</div></div>`;
 
-      document.getElementById('funnels-container').innerHTML = `
-        <div class="loading-state">
-          <div class="spinner"></div>
-          Carregando dados — ${range.label}...
-        </div>`;
-      document.getElementById('summary-grid').innerHTML = '';
+      document.getElementById('kpi-row').innerHTML = `<div style="grid-column:1/-1">${loadHTML}</div>`;
+      document.getElementById('funnels-container').innerHTML = loadHTML;
 
       try {
         let url = `${API}/quiz/summary?from=${encodeURIComponent(range.from)}`;
@@ -650,54 +819,28 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
-        document.getElementById('summary-grid').innerHTML = buildSummary(data);
+        document.getElementById('kpi-row').innerHTML = buildKPI(data);
 
         document.getElementById('funnels-container').innerHTML = `
           <div class="funnels-grid">
-            ${buildFunnelCard(data.quiz, 'var(--quiz)')}
-            ${buildFunnelCard(data.simulador, 'var(--sim)')}
-            ${buildFunnelCard(data.landing, 'var(--land)')}
+            ${buildFunnelCard(data.landing,  'var(--land)', 'Landing Page SolarDoc · Página principal')}
+            ${buildFunnelCard(data.simulador,'var(--sim)',  'Simulador B2C · Irmãos na Obra · 8 perguntas · 250km de Uberlândia')}
+            ${buildFunnelCard(data.quiz,     'var(--quiz)', 'Quiz B2B · SolarDoc Pro · 4 perguntas · diagnóstico')}
           </div>`;
 
         const now = new Date();
-        document.getElementById('updated-at').textContent =
-          `Atualizado em ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})} · ${range.label}`;
+        const fmt2 = new Intl.DateTimeFormat('pt-BR', { timeZone:'America/Sao_Paulo', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+        document.getElementById('updated-text').textContent =
+          `Atualizado às ${fmt2.format(now)} · ${range.label}`;
 
-      } catch (e) {
-        document.getElementById('funnels-container').innerHTML = `
-          <div class="error-state">
-            ⚠️ Erro ao carregar dados: ${e.message}<br>
-            <small>Verifique se a API está online e o CORS configurado.</small>
-          </div>`;
+      } catch(e) {
+        const errHTML = `<div class="error-state">⚠️ Erro ao carregar: ${e.message}<br><small style="color:var(--muted)">Verifique a API.</small></div>`;
+        document.getElementById('kpi-row').innerHTML = `<div style="grid-column:1/-1">${errHTML}</div>`;
+        document.getElementById('funnels-container').innerHTML = errHTML;
       }
     }
 
     loadRange('hoje');
-  </script>
-
-  <script>
-    /* ── Relógio São Paulo (UTC-3) ── */
-    (function() {
-      var TZ = 'America/Sao_Paulo';
-      var timeFmt = new Intl.DateTimeFormat('pt-BR', {
-        timeZone: TZ,
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false
-      });
-      var dateFmt = new Intl.DateTimeFormat('pt-BR', {
-        timeZone: TZ,
-        weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
-      });
-      var elTime = document.getElementById('clock-time');
-      var elDate = document.getElementById('clock-date');
-      function tick() {
-        var now = new Date();
-        elTime.textContent = timeFmt.format(now);
-        elDate.textContent = dateFmt.format(now);
-      }
-      tick();
-      setInterval(tick, 1000);
-    })();
   </script>
 </body>
 </html>
