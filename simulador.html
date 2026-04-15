@@ -234,10 +234,7 @@
       <h1 class="title">Quase <span>Lá</span>!</h1>
       <p class="desc">Informe seus dados para liberar o resultado personalizado.</p>
       <div class="form-group"><label class="form-label">Nome</label><input type="text" class="form-input" id="input-name" placeholder="Seu nome completo" autocomplete="name"></div>
-      <div class="form-group" style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
-        <div><label class="form-label">Cidade</label><input type="text" class="form-input" id="input-city" placeholder="Ex: Uberlândia"></div>
-        <div><label class="form-label">Estado</label><input type="text" class="form-input" id="input-state" placeholder="MG" maxlength="2"></div>
-      </div>
+      <div class="form-group"><label class="form-label">Cidade</label><input type="text" class="form-input" id="input-city" placeholder="Ex: Uberlândia"></div>
       <button class="btn-primary" id="btn-submit-form" onclick="validateLocationAndProcess()">Ver Meu Resultado
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
       </button>
@@ -359,14 +356,13 @@
     async function validateLocationAndProcess() {
       const userName = document.getElementById('input-name').value.trim();
       const city = document.getElementById('input-city').value.trim();
-      const state = document.getElementById('input-state').value.trim().toUpperCase();
-      if (!userName || !city || !state) return alert('Preencha todos os campos.');
+      if (!userName || !city) return alert('Preencha seu nome e cidade.');
 
       simTrack('form_submitted');
       document.getElementById('loading-overlay').style.display = 'flex';
 
       try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ',' + state + ',Brasil')}&format=json&limit=1`;
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ',Brasil')}&format=json&limit=1`;
         const res = await fetch(url, { headers: { 'User-Agent': 'IrmaosNaObraSimulator/1.0' } });
         const data = await res.json();
         
@@ -393,7 +389,7 @@
           showRejection("perfil", "Você está em fase de pesquisa! Siga-nos para aprender mais sobre o momento certo de investir.");
         } else {
           simTrack('qualified', { score });
-          showQualified(userName, city, state);
+          showQualified(userName, city);
         }
       } catch (e) {
         document.getElementById('loading-overlay').style.display = 'none';
@@ -425,7 +421,7 @@
       document.getElementById('rejection-desc').textContent = desc;
     }
 
-    function showQualified(userName, city, state) {
+    function showQualified(userName, city) {
       nextView('view-result');
       document.getElementById('result-rejection').style.display = 'none';
       document.getElementById('result-qualified').style.display = 'block';
@@ -437,7 +433,7 @@
       const msg = encodeURIComponent(
         `Olá! Me chamo *${userName}* e finalizei o Simulador Solar Irmãos na Obra.\n\n` +
         `🏆 *RESULTADO: ${status}* (${score}/32 pontos)\n` +
-        `📍 Local: ${city} - ${state}\n` +
+        `📍 Local: ${city}\n` +
         `--- Resumo ---\n\n${answersString}\n\n` +
         `Quero agendar uma consultoria gratuita.`
       );
