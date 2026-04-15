@@ -587,7 +587,7 @@
         { cls:'c-sim',   icon:'⚡', label:'Simulador — Entradas',   value: sTop,       sub: `${pct(sForm,sTop)||0}% preencheram formulário`,  rate: pct(sForm,sTop) },
         { cls:'c-sim',   icon:'🚀', label:'Simulador — Qualificados', value: sQual,    sub: `${pct(sQual,sForm)||0}% dos formulários → WhatsApp`, rate: pct(sQual,sForm) },
         { cls:'c-quiz',  icon:'📋', label:'Quiz B2B — Entradas',    value: qTop,       sub: `${pct(qDone,qTop)||0}% completaram o diagnóstico`, rate: pct(qDone,qTop) },
-        { cls:'c-quiz',  icon:'🔗', label:'Quiz B2B — Clicou para LP', value: qCta,     sub: `${pct(qCta,qDone)||0}% dos diagnósticos → LP`,    rate: pct(qCta,qDone) },
+        { cls:'c-quiz',  icon:'🔗', label:'Quiz B2B — Clicou para LP', value: qCta,     sub: `${pct(qCta,qTop)||0}% dos visitantes → LP`,       rate: pct(qCta,qTop) },
         { cls:'c-good',  icon:'🎯', label:'Total Leads Gerados',    value: totalLeads, sub: 'Qualificados + diagnósticos completos',            rate: null },
       ];
 
