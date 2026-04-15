@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analytics — Funis de Campanha</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #273348;
+      --border: rgba(255,255,255,0.08);
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --quiz: #3b82f6;
+      --sim: #f59e0b;
+      --land: #10b981;
+      --danger: #ef4444;
+      --radius: 16px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .top-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .top-bar h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .top-bar h1 span { color: var(--quiz); }
+
+    /* Relógio São Paulo */
+    .clock-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      line-height: 1.2;
+    }
+    .clock-time {
+      font-size: 22px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+    .clock-date {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .clock-tag {
+      font-size: 10px;
+      color: var(--quiz);
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .period-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .period-btn:hover, .period-btn.active {
+      background: var(--quiz);
+      border-color: var(--quiz);
+      color: white;
+    }
+
+    .refresh-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .refresh-btn:hover { background: var(--surface); }
+    .refresh-btn svg { width: 14px; height: 14px; }
+
+    /* SUMMARY CARDS */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .summary-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .summary-card.quiz::before  { background: var(--quiz); }
+    .summary-card.sim::before   { background: var(--sim); }
+    .summary-card.land::before  { background: var(--land); }
+
+    .summary-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .summary-value {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .summary-card.quiz  .summary-value { color: var(--quiz); }
+    .summary-card.sim   .summary-value { color: var(--sim); }
+    .summary-card.land  .summary-value { color: var(--land); }
+
+    .summary-sub {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    /* FUNNELS GRID */
+    .funnels-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .funnel-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .funnel-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .funnel-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .funnel-name {
+      font-size: 15px;
+      font-weight: 700;
+      flex: 1;
+    }
+
+    .funnel-total-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.06);
+      color: var(--muted);
+    }
+
+    .funnel-body {
+      padding: 16px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .funnel-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      transition: background 0.15s;
+      position: relative;
+    }
+    .funnel-step:hover { background: rgba(255,255,255,0.03); }
+
+    .step-icon {
+      font-size: 16px;
+      width: 24px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .step-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .step-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .step-bar-wrap {
+      margin-top: 5px;
+      height: 4px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .step-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.6s ease;
+    }
+
+    .step-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      flex-shrink: 0;
+      gap: 2px;
+    }
+
+    .step-count {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .step-pct {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .step-pct.good  { background: rgba(16,185,129,0.15); color: #34d399; }
+    .step-pct.ok    { background: rgba(245,158,11,0.15);  color: #fbbf24; }
+    .step-pct.bad   { background: rgba(239,68,68,0.15);   color: #f87171; }
+    .step-pct.neutral { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+    .drop-arrow {
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .drop-line {
+      width: 1px;
+      height: 12px;
+      background: var(--border);
+      margin: 0 auto;
+    }
+    .drop-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* EMPTY / LOADING */
+    .loading-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--quiz);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-state {
+      text-align: center;
+      padding: 40px 24px;
+      color: var(--danger);
+      font-size: 14px;
+    }
+
+    /* DIVIDER (step separator) */
+    .group-divider {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 8px 12px 2px;
+      opacity: 0.6;
+    }
+
+    /* SCORE LEGEND (simulador) */
+    .score-legend {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 12px 24px 16px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+    .score-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .score-chip.igreen  { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
+    .score-chip.insta   { background: rgba(245,158,11,0.12);  color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+    .score-chip.whats   { background: rgba(37,211,102,0.12);  color: #25d366; border: 1px solid rgba(37,211,102,0.25); }
+    .score-chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .score-chip.igreen .score-chip-dot  { background: #34d399; }
+    .score-chip.insta  .score-chip-dot  { background: #fbbf24; }
+    .score-chip.whats  .score-chip-dot  { background: #25d366; }
+
+    /* INFO BADGES no header do funil */
+    .funnel-info-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .updated-at {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 24px;
+    }
+
+    @media (max-width: 640px) {
+      .funnels-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div>
+      <h1>📊 Analytics — <span>Funis de Campanha</span></h1>
+    </div>
+    <div class="clock-wrap" id="sp-clock">
+      <span class="clock-time" id="clock-time">--:--:--</span>
+      <span class="clock-date" id="clock-date"></span>
+      <span class="clock-tag">São Paulo • UTC-3</span>
+    </div>
+    <div class="controls">
+      <button class="period-btn active" onclick="loadRange('hoje',this)">Hoje</button>
+      <button class="period-btn" onclick="loadRange('ontem',this)">Ontem</button>
+      <button class="period-btn" onclick="loadRange(7,this)">7 dias</button>
+      <button class="period-btn" onclick="loadRange(15,this)">15 dias</button>
+      <button class="period-btn" onclick="loadRange(30,this)">30 dias</button>
+      <button class="refresh-btn" onclick="loadRange(currentPeriod)">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Atualizar
+      </button>
+    </div>
+  </div>
+
+  <div class="summary-grid" id="summary-grid">
+    <!-- preenchido via JS -->
+  </div>
+
+  <div id="funnels-container">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      Carregando dados...
+    </div>
+  </div>
+
+  <div class="updated-at" id="updated-at"></div>
+
+  <script>
+    const API = 'https://solardocs-api-irmaosnaobra-aioros.vercel.app';
+    let currentPeriod = 'hoje';
+
+    // Retorna {from, to, label} para cada período
+    function periodRange(period) {
+      const now = new Date();
+      const pad = n => String(n).padStart(2,'0');
+      const dateStr = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+      if (period === 'hoje') {
+        const from = dateStr(now) + 'T00:00:00.000Z';
+        const to   = new Date(now.getTime() + 86400000).toISOString().slice(0,10) + 'T00:00:00.000Z';
+        // Ajusta para fuso local: início e fim do dia local em UTC
+        const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+        const todayEnd   = new Date(now); todayEnd.setHours(23,59,59,999);
+        return { from: todayStart.toISOString(), to: todayEnd.toISOString(), label: 'Hoje' };
+      }
+      if (period === 'ontem') {
+        const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+        const start = new Date(yesterday); start.setHours(0,0,0,0);
+        const end   = new Date(yesterday); end.setHours(23,59,59,999);
+        return { from: start.toISOString(), to: end.toISOString(), label: 'Ontem' };
+      }
+      // Número de dias
+      const days = Number(period);
+      const start = new Date(Date.now() - days * 86400000);
+      return { from: start.toISOString(), to: null, label: `${days} dias` };
+    }
+
+    function pct(a, b) {
+      if (!b || b === 0) return null;
+      return Math.round((a / b) * 100);
+    }
+
+    function pctClass(p) {
+      if (p === null) return 'neutral';
+      if (p >= 70) return 'good';
+      if (p >= 40) return 'ok';
+      return 'bad';
+    }
+
+    function fmt(n) {
+      return n === null || n === undefined ? '—' : n.toLocaleString('pt-BR');
+    }
+
+    function buildFunnelCard(info, colorVar) {
+      const funnel = info.funnel;
+      const top = funnel[0]?.count || 0;
+
+      // Badge de info por tipo de funil
+      let infoBadge = '';
+      let scoreLegend = '';
+      if (info.name.includes('Simulador')) {
+        infoBadge = `<span class="funnel-info-badge" style="background:rgba(245,158,11,0.12);color:#fbbf24;">8 perguntas &bull; Máx 32 pts &bull; 250km de Uberlândia</span>`;
+        scoreLegend = `
+          <div class="score-legend">
+            <span class="score-chip igreen"><span class="score-chip-dot"></span>iGreen 0–14 pts</span>
+            <span class="score-chip insta"><span class="score-chip-dot"></span>Instagram 15–21 pts</span>
+            <span class="score-chip whats"><span class="score-chip-dot"></span>WhatsApp ≥22 pts</span>
+          </div>`;
+      } else if (info.name.includes('Quiz') || info.name.includes('quiz')) {
+        infoBadge = `<span class="funnel-info-badge" style="background:rgba(59,130,246,0.12);color:#60a5fa;">4 perguntas &bull; B2B &bull; SolarDoc Pro</span>`;
+      } else if (info.name.includes('Landing') || info.name.includes('landing')) {
+        infoBadge = `<span class="funnel-info-badge" style="background:rgba(16,185,129,0.12);color:#34d399;">Página principal</span>`;
+      }
+
+      let stepsHTML = '';
+      for (let i = 0; i < funnel.length; i++) {
+        const step = funnel[i];
+        const prev = i > 0 ? funnel[i - 1].count : null;
+        const relPct = prev !== null ? pct(step.count, prev) : null;
+        const absPct = top > 0 ? pct(step.count, top) : null;
+        const barWidth = absPct !== null ? absPct : 0;
+
+        // Separadores de grupo para o simulador (8 perguntas + 1 started = índice 10 é o formulário)
+        if (info.name.includes('Simulador')) {
+          if (i === 9) stepsHTML += `<div class="group-divider">Formulário &amp; Resultado</div>`;
+        }
+
+        const dropInfo = (i > 0 && prev !== null && step.count < prev)
+          ? `<div class="drop-arrow"><div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-left:36px;"><div class="drop-line"></div><div class="drop-label" style="color:${step.count/prev<0.5?'#f87171':'#fbbf24'}">-${100-relPct}% saíram</div><div class="drop-line"></div></div></div>`
+          : '';
+
+        stepsHTML += `
+          ${i > 0 ? dropInfo : ''}
+          <div class="funnel-step">
+            <div class="step-icon">${step.icon}</div>
+            <div class="step-info">
+              <div class="step-label" title="${step.label}">${step.label}</div>
+              <div class="step-bar-wrap">
+                <div class="step-bar" style="width:${barWidth}%;background:${colorVar}; opacity:${0.4+0.6*(barWidth/100)};"></div>
+              </div>
+            </div>
+            <div class="step-right">
+              <div class="step-count" style="color:${colorVar}">${fmt(step.count)}</div>
+              ${relPct !== null
+                ? `<div class="step-pct ${pctClass(relPct)}">${relPct}%</div>`
+                : `<div class="step-pct neutral">topo</div>`}
+            </div>
+          </div>`;
+      }
+
+      // Calcula taxa de conversão geral (último step relevante vs topo)
+      const relevant = funnel.filter(s => s.count > 0);
+      const lastMeaningful = relevant[relevant.length - 1];
+      const overallPct = lastMeaningful && top > 0 ? pct(lastMeaningful.count, top) : 0;
+
+      return `
+        <div class="funnel-card">
+          <div class="funnel-header">
+            <div class="funnel-dot" style="background:${colorVar}"></div>
+            <div class="funnel-name">${info.name}</div>
+            ${infoBadge}
+            <div class="funnel-total-badge">${fmt(top)} entradas</div>
+          </div>
+          <div class="funnel-body">${stepsHTML}</div>
+          ${scoreLegend}
+        </div>`;
+    }
+
+    function buildSummary(data) {
+      const qTop = data.quiz.funnel[0]?.count || 0;
+      const qConv = data.quiz.funnel.find(s => s.label.includes('Comprou'))?.count || 0;
+      const sTop = data.simulador.funnel[0]?.count || 0;
+      const sConv = data.simulador.funnel.find(s => s.label.includes('Qualificado'))?.count || 0;
+      const lTop = data.landing.funnel[0]?.count || 0;
+      const lCta = data.landing.funnel.find(s => s.label.includes('CTA'))?.count || 0;
+
+      const cards = [
+        { cls:'quiz',  label:'Quiz B2B — Entradas',    value: qTop, sub: `${pct(qConv,qTop)||0}% chegaram a comprar` },
+        { cls:'quiz',  label:'Quiz B2B — Compraram',   value: qConv, sub: 'assinantes no período' },
+        { cls:'sim',   label:'Simulador — Entradas',   value: sTop, sub: `${pct(sConv,sTop)||0}% qualificados (score ≥22)` },
+        { cls:'sim',   label:'Simulador — Qualificados', value: sConv, sub: 'leads quentes → WhatsApp' },
+        { cls:'land',  label:'Landing — Visitas',      value: lTop, sub: `${pct(lCta,lTop)||0}% clicaram no CTA` },
+        { cls:'land',  label:'Landing — CTA Clicks',   value: lCta, sub: 'cliques para checkout' },
+      ];
+
+      return cards.map(c => `
+        <div class="summary-card ${c.cls}">
+          <div class="summary-label">${c.label}</div>
+          <div class="summary-value">${fmt(c.value)}</div>
+          <div class="summary-sub">${c.sub}</div>
+        </div>`).join('');
+    }
+
+    async function loadRange(period, btn) {
+      currentPeriod = period;
+
+      if (btn) {
+        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      }
+
+      const range = periodRange(period);
+
+      document.getElementById('funnels-container').innerHTML = `
+        <div class="loading-state">
+          <div class="spinner"></div>
+          Carregando dados — ${range.label}...
+        </div>`;
+      document.getElementById('summary-grid').innerHTML = '';
+
+      try {
+        let url = `${API}/quiz/summary?from=${encodeURIComponent(range.from)}`;
+        if (range.to) url += `&to=${encodeURIComponent(range.to)}`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        document.getElementById('summary-grid').innerHTML = buildSummary(data);
+
+        document.getElementById('funnels-container').innerHTML = `
+          <div class="funnels-grid">
+            ${buildFunnelCard(data.quiz, 'var(--quiz)')}
+            ${buildFunnelCard(data.simulador, 'var(--sim)')}
+            ${buildFunnelCard(data.landing, 'var(--land)')}
+          </div>`;
+
+        const now = new Date();
+        document.getElementById('updated-at').textContent =
+          `Atualizado em ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})} · ${range.label}`;
+
+      } catch (e) {
+        document.getElementById('funnels-container').innerHTML = `
+          <div class="error-state">
+            ⚠️ Erro ao carregar dados: ${e.message}<br>
+            <small>Verifique se a API está online e o CORS configurado.</small>
+          </div>`;
+      }
+    }
+
+    loadRange('hoje');
+  </script>
+
+  <script>
+    /* ── Relógio São Paulo (UTC-3) ── */
+    (function() {
+      var TZ = 'America/Sao_Paulo';
+      var timeFmt = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: TZ,
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+      });
+      var dateFmt = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: TZ,
+        weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
+      });
+      var elTime = document.getElementById('clock-time');
+      var elDate = document.getElementById('clock-date');
+      function tick() {
+        var now = new Date();
+        elTime.textContent = timeFmt.format(now);
+        elDate.textContent = dateFmt.format(now);
+      }
+      tick();
+      setInterval(tick, 1000);
+    })();
+  </script>
+</body>
+</html>
