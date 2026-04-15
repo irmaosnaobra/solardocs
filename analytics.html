@@ -642,6 +642,10 @@
         // Group dividers
         if (info.name.includes('Simulador') && i === 9)
           stepsHTML += `<div class="step-divider">▾ Formulário &amp; Resultado</div>`;
+        if (info.name.includes('Landing') && i === 10)
+          stepsHTML += `<div class="step-divider">▾ Planos clicados</div>`;
+        if (info.name.includes('Landing') && i === 14)
+          stepsHTML += `<div class="step-divider">▾ Conversão</div>`;
 
         // Drop indicator
         if (i > 0 && prev !== null && step.count < prev && relPct !== null) {
