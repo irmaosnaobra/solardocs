@@ -501,6 +501,30 @@
       } else if (info.name.includes('Landing') || info.name.includes('landing')) {
         infoBadge = `<span class="funnel-info-badge" style="background:rgba(16,185,129,0.12);color:#34d399;">Página principal</span>`;
 
+        // Plan Breakdown
+        if (info.planBreakdown && info.planBreakdown.length > 0) {
+          const totalPlans = info.planBreakdown.reduce((s, c) => s + c.count, 0);
+          const planColors = { free: '#22c55e', iniciante: '#94a3b8', pro: '#3b82f6', vip: '#f59e0b' };
+          const planIcons  = { free: '🎁', iniciante: '🌱', pro: '⚡', vip: '👑' };
+          scoreLegend += `
+            <div style="padding:12px 24px 4px;border-top:1px solid var(--border);">
+              <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Cliques por plano → checkout</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:12px;">
+                ${info.planBreakdown.map(p => {
+                  const color = planColors[p.plan] || '#94a3b8';
+                  const icon  = planIcons[p.plan]  || '📦';
+                  const pct   = totalPlans > 0 ? Math.round(p.count / totalPlans * 100) : 0;
+                  return `<div style="background:rgba(255,255,255,0.03);border:1px solid ${color}33;border-radius:10px;padding:10px 12px;text-align:center;">
+                    <div style="font-size:18px;margin-bottom:4px;">${icon}</div>
+                    <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.5px;">${p.plano}</div>
+                    <div style="font-size:22px;font-weight:800;color:${color};line-height:1.2;">${p.count}</div>
+                    <div style="font-size:10px;color:var(--muted);">${pct}%</div>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>`;
+        }
+
         // CTA Breakdown
         if (info.ctaBreakdown && info.ctaBreakdown.length > 0) {
           const totalCta = info.ctaBreakdown.reduce((s, c) => s + c.count, 0);
