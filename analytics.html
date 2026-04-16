@@ -17,11 +17,14 @@
       --text:    #e8edf2;
       --muted:   #64748b;
       --sub:     #8899aa;
-      --accent:  #4f8ef7;
-      --accent2: rgba(79,142,247,0.12);
+      --blue:    #4f8ef7;
+      --blue2:   rgba(79,142,247,0.1);
+      --green:   #10b981;
+      --green2:  rgba(16,185,129,0.1);
+      --amber:   #f59e0b;
+      --amber2:  rgba(245,158,11,0.1);
       --bad:     #ef4444;
       --bad2:    rgba(239,68,68,0.1);
-      --warn:    #f59e0b;
       --r: 12px;
     }
 
@@ -59,7 +62,7 @@
       letter-spacing: -0.5px;
       color: var(--text);
     }
-    .header-logo span { color: var(--accent); }
+    .header-logo span { color: var(--amber); }
 
     .header-divider { width: 1px; height: 20px; background: var(--border); }
 
@@ -67,8 +70,8 @@
 
     .live-dot {
       width: 7px; height: 7px; border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 6px var(--accent);
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
       animation: pulse-dot 2s infinite;
       flex-shrink: 0;
     }
@@ -104,7 +107,7 @@
       font-family: inherit;
     }
     .period-btn:hover { border-color: var(--border); color: var(--text); }
-    .period-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .period-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
 
     .refresh-btn {
       margin-left: auto;
@@ -129,7 +132,7 @@
       padding: 3px 8px;
       border-radius: 20px;
       background: var(--accent2);
-      color: var(--accent);
+      color: var(--blue);
       border: 1px solid rgba(79,142,247,0.2);
       letter-spacing: 0.3px;
     }
@@ -161,10 +164,10 @@
       bottom: 0; left: 0; right: 0;
       height: 2px;
     }
-    .kpi-card.c-quiz::after  { background: var(--accent); }
-    .kpi-card.c-sim::after   { background: var(--accent); }
-    .kpi-card.c-land::after  { background: var(--accent); }
-    .kpi-card.c-good::after  { background: var(--accent); }
+    .kpi-card.c-quiz::after  { background: var(--blue); }
+    .kpi-card.c-sim::after   { background: var(--amber); }
+    .kpi-card.c-land::after  { background: var(--green); }
+    .kpi-card.c-good::after  { background: var(--blue); }
 
     .kpi-label {
       font-size: 10px; font-weight: 700; letter-spacing: 1px;
@@ -177,10 +180,10 @@
       font-size: 36px; font-weight: 900; line-height: 1;
       margin-bottom: 6px; letter-spacing: -1px;
     }
-    .kpi-card.c-quiz  .kpi-value { color: var(--accent); }
-    .kpi-card.c-sim   .kpi-value { color: var(--accent); }
-    .kpi-card.c-land  .kpi-value { color: var(--accent); }
-    .kpi-card.c-good  .kpi-value { color: var(--accent); }
+    .kpi-card.c-quiz  .kpi-value { color: var(--blue); }
+    .kpi-card.c-sim   .kpi-value { color: var(--amber); }
+    .kpi-card.c-land  .kpi-value { color: var(--green); }
+    .kpi-card.c-good  .kpi-value { color: var(--blue); }
 
     .kpi-sub { font-size: 12px; color: var(--sub); font-weight: 500; line-height: 1.4; }
 
@@ -189,8 +192,8 @@
       font-size: 12px; font-weight: 800;
       padding: 3px 8px; border-radius: 20px;
     }
-    .kpi-rate.good { background: var(--accent2); color: var(--accent); }
-    .kpi-rate.ok   { background: rgba(79,142,247,0.08); color: var(--warn); }
+    .kpi-rate.good { background: var(--blue2); color: var(--blue); }
+    .kpi-rate.ok   { background: var(--amber2); color: var(--amber); }
     .kpi-rate.bad  { background: var(--bad2); color: var(--bad); }
 
     /* ── SECTION LABELS ─────────────────────── */
@@ -280,8 +283,8 @@
       font-size: 10px; font-weight: 700;
       padding: 1px 5px; border-radius: 4px;
     }
-    .step-pct-badge.good { background: var(--accent2); color: var(--accent); }
-    .step-pct-badge.ok   { background: rgba(79,142,247,0.08); color: var(--warn); }
+    .step-pct-badge.good { background: var(--blue2); color: var(--blue); }
+    .step-pct-badge.ok   { background: var(--amber2); color: var(--amber); }
     .step-pct-badge.bad  { background: rgba(239,68,68,0.12);  color: #f87171; }
     .step-pct-badge.top  { background: rgba(255,255,255,0.06); color: var(--sub); }
 
@@ -331,17 +334,17 @@
       text-align: center;
       border: 1px solid transparent;
     }
-    .result-chip.whats  { background: var(--accent2); border-color: rgba(79,142,247,0.2); }
+    .result-chip.whats  { background: var(--blue2); border-color: rgba(79,142,247,0.2); }
     .result-chip.igreen { background: var(--surface); border-color: var(--border); }
     .result-chip.insta  { background: var(--surface); border-color: var(--border); }
 
     .result-chip-icon { font-size: 16px; margin-bottom: 4px; }
     .result-chip-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .result-chip.whats  .result-chip-label { color: var(--accent); }
+    .result-chip.whats  .result-chip-label { color: var(--blue); }
     .result-chip.igreen .result-chip-label { color: var(--sub); }
     .result-chip.insta  .result-chip-label { color: var(--sub); }
     .result-chip-count { font-size: 22px; font-weight: 900; line-height: 1; }
-    .result-chip.whats  .result-chip-count { color: var(--accent); }
+    .result-chip.whats  .result-chip-count { color: var(--blue); }
     .result-chip.igreen .result-chip-count { color: var(--sub); }
     .result-chip.insta  .result-chip-count { color: var(--sub); }
     .result-chip-score { font-size: 9px; color: var(--muted); margin-top: 2px; font-weight: 500; }
@@ -392,8 +395,8 @@
       background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden;
       flex-shrink: 0;
     }
-    .cta-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
-    .cta-count { font-size: 12px; font-weight: 800; color: var(--accent); min-width: 22px; text-align: right; flex-shrink: 0; }
+    .cta-bar-fill { height: 100%; border-radius: 2px; background: var(--green); }
+    .cta-count { font-size: 12px; font-weight: 800; color: var(--green); min-width: 22px; text-align: right; flex-shrink: 0; }
 
     /* ── LOADING / ERROR ─────────────────────── */
     .loading-state {
@@ -404,7 +407,7 @@
     .spinner {
       width: 36px; height: 36px;
       border: 3px solid rgba(255,255,255,0.08);
-      border-top-color: var(--accent);
+      border-top-color: var(--blue);
       border-radius: 50%;
       animation: spin 0.75s linear infinite;
     }
@@ -555,8 +558,8 @@
     }
     function rateColor(p) {
       if (p===null) return 'var(--sub)';
-      if (p>=70) return 'var(--accent)';
-      if (p>=40) return 'var(--warn)';
+      if (p>=70) return 'var(--blue)';
+      if (p>=40) return 'var(--amber)';
       return 'var(--bad)';
     }
 
@@ -591,7 +594,7 @@
           <div class="kpi-card ${c.cls}">
             ${r!==null ? `<div class="kpi-rate ${rClass}">${r}%</div>` : ''}
             <div class="kpi-label">
-              <span class="kpi-label-dot" style="background:${c.cls==='c-quiz'?'var(--accent)':c.cls==='c-sim'?'var(--accent)':c.cls==='c-land'?'var(--accent)':'var(--accent)'}"></span>
+              <span class="kpi-label-dot" style="background:${c.cls==='c-quiz'?'var(--blue)':c.cls==='c-sim'?'var(--amber)':c.cls==='c-land'?'var(--green)':'var(--blue)'}"></span>
               ${c.label}
             </div>
             <div class="kpi-value">${fmt(c.value)}</div>
@@ -643,7 +646,7 @@
         // Drop indicator
         if (i > 0 && prev !== null && step.count < prev && relPct !== null) {
           const dropPct = 100 - relPct;
-          const dropColor = dropPct >= 50 ? 'var(--bad)' : 'var(--warn)';
+          const dropColor = dropPct >= 50 ? 'var(--bad)' : 'var(--amber)';
           stepsHTML += `
             <div class="drop-row">
               <div class="drop-line-v" style="background:${dropColor}33;margin-left:9px;"></div>
@@ -725,7 +728,7 @@
       // Landing: plan breakdown
       if (info.name.includes('Landing') && info.planBreakdown && info.planBreakdown.length > 0) {
         const totalP = info.planBreakdown.reduce((s, c) => s + c.count, 0);
-        const planColors = { free:'var(--accent)', iniciante:'var(--sub)', pro:'var(--accent)', vip:'var(--accent)' };
+        const planColors = { free:'var(--green)', iniciante:'var(--sub)', pro:'var(--blue)', vip:'var(--amber)' };
         const planIcons  = { free:'🎁', iniciante:'🌱', pro:'⚡', vip:'👑' };
         const allPlans = [
           { plan:'free', plano:'Grátis', count:0 },
@@ -820,9 +823,9 @@
 
         document.getElementById('funnels-container').innerHTML = `
           <div class="funnels-grid">
-            ${buildFunnelCard(data.landing,  'var(--accent)', 'Landing Page SolarDoc · Página principal')}
-            ${buildFunnelCard(data.simulador,'var(--accent)',  'Simulador B2C · Irmãos na Obra · 8 perguntas · 250km de Uberlândia')}
-            ${buildFunnelCard(data.quiz,     'var(--accent)', 'Quiz B2B · SolarDoc Pro · 4 perguntas · diagnóstico')}
+            ${buildFunnelCard(data.landing,  'var(--green)', 'Landing Page SolarDoc · Página principal')}
+            ${buildFunnelCard(data.simulador,'var(--amber)',  'Simulador B2C · Irmãos na Obra · 8 perguntas · 250km de Uberlândia')}
+            ${buildFunnelCard(data.quiz,     'var(--blue)', 'Quiz B2B · SolarDoc Pro · 4 perguntas · diagnóstico')}
           </div>`;
 
         const now = new Date();
