@@ -191,7 +191,7 @@ export default function AdminPage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [search, setSearch]             = useState('');
   const [filterPlano, setFilterPlano]   = useState('todos');
-  const [filterPeriodo, setFilterPeriodo] = useState<'mes'|'mes-passado'|'maximo'|'custom'>('maximo');
+  const [filterPeriodo, setFilterPeriodo] = useState<'hoje'|'ontem'|'7dias'|'mes'|'custom'|null>(null);
   const [customFrom, setCustomFrom]     = useState('');
   const [customTo, setCustomTo]         = useState('');
   const [resetting, setResetting]       = useState(false);
@@ -234,15 +234,20 @@ export default function AdminPage() {
     const okSearch = search==='' || u.email.toLowerCase().includes(search.toLowerCase()) || (u.empresa_nome??'').toLowerCase().includes(search.toLowerCase());
     const okPlano  = filterPlano==='todos' || u.plano===filterPlano;
     let okPeriodo  = true;
-    if (filterPeriodo !== 'maximo') {
+    if (filterPeriodo !== null) {
       const now = nowBrasilia();
       const d   = toBrasilia(u.created_at);
-      if (filterPeriodo === 'mes') {
+      if (filterPeriodo === 'hoje') {
+        okPeriodo = d.getUTCFullYear()===now.getUTCFullYear() && d.getUTCMonth()===now.getUTCMonth() && d.getUTCDate()===now.getUTCDate();
+      } else if (filterPeriodo === 'ontem') {
+        const ontem = new Date(now); ontem.setUTCDate(ontem.getUTCDate()-1);
+        okPeriodo = d.getUTCFullYear()===ontem.getUTCFullYear() && d.getUTCMonth()===ontem.getUTCMonth() && d.getUTCDate()===ontem.getUTCDate();
+      } else if (filterPeriodo === '7dias') {
+        const sete = new Date(now); sete.setUTCDate(sete.getUTCDate()-6);
+        sete.setUTCHours(0,0,0,0);
+        okPeriodo = d >= sete;
+      } else if (filterPeriodo === 'mes') {
         okPeriodo = d.getUTCFullYear()===now.getUTCFullYear() && d.getUTCMonth()===now.getUTCMonth();
-      } else if (filterPeriodo === 'mes-passado') {
-        const py = now.getUTCMonth()===0 ? now.getUTCFullYear()-1 : now.getUTCFullYear();
-        const pm = now.getUTCMonth()===0 ? 11 : now.getUTCMonth()-1;
-        okPeriodo = d.getUTCFullYear()===py && d.getUTCMonth()===pm;
       } else if (filterPeriodo === 'custom') {
         const from = customFrom ? new Date(customFrom+'T03:00:00Z') : null;
         const to   = customTo   ? new Date(customTo  +'T02:59:59Z') : null;
@@ -351,11 +356,11 @@ export default function AdminPage() {
           </div>
           <div className={styles.filters} style={{marginTop:8,alignItems:'center'}}>
             <div className={styles.periodTabs}>
-              {([['mes','Mês atual'],['mes-passado','Mês passado'],['maximo','Máximo'],['custom','Personalizado']] as const).map(([v,l])=>(
-                <button key={v} className={filterPeriodo===v?styles.periodActive:styles.periodBtn} onClick={()=>setFilterPeriodo(v)}>{l}</button>
+              {([['hoje','Hoje'],['ontem','Ontem'],['7dias','7 dias'],['mes','Esse mês'],['custom','Período']] as const).map(([v,l])=>(
+                <button key={v} className={filterPeriodo===v?styles.periodActive:styles.periodBtn} onClick={()=>setFilterPeriodo(filterPeriodo===v?null:v)}>{l}</button>
               ))}
             </div>
-            {filterPeriodo==='custom' && (
+            {filterPeriodo==='custom'&&(
               <>
                 <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)} className="input-field" style={{maxWidth:150}} />
                 <span style={{color:'var(--color-text-muted)',fontSize:13}}>até</span>
