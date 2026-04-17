@@ -76,12 +76,20 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
 
     if (error) throw error;
 
-    // Meta CAPI — CompleteRegistration (cadastro da empresa = onboarding concluído)
+    // Registra dia do followup em que o usuário converteu (se estava na sequência)
     const { data: user } = await supabase
       .from('users')
-      .select('email')
+      .select('email, created_at, followup_day_recovered')
       .eq('id', req.userId)
       .single();
+
+    if (user && !user.followup_day_recovered) {
+      const diffMs = Date.now() - new Date(user.created_at).getTime();
+      const day = Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1;
+      if (day >= 1 && day <= 7) {
+        await supabase.from('users').update({ followup_day_recovered: day }).eq('id', req.userId);
+      }
+    }
 
     sendMetaEvent('CompleteRegistration', {
       eventId:   req.headers['x-meta-event-id'] as string | undefined,

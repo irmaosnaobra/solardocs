@@ -11,6 +11,7 @@ interface UserRow {
   created_at: string; is_admin: boolean;
   whatsapp: string | null;
   empresa_nome: string | null; empresa_cnpj: string | null; empresa_whatsapp: string | null;
+  followup_day_recovered: number | null;
 }
 interface SessionRow {
   session_id: string | null; created_at: string;
@@ -370,7 +371,11 @@ export default function AdminPage() {
                 {filteredUsers.length===0&&<tr><td colSpan={6} className={styles.empty}>Nenhum usuário encontrado</td></tr>}
                 {filteredUsers.map(u=>(
                   <tr key={u.id} className={isToday(u.created_at)?styles.rowNew:''}>
-                    <td>{u.email}{u.is_admin&&<span className={styles.adminTag}>admin</span>}</td>
+                    <td>
+                      {u.email}
+                      {u.is_admin&&<span className={styles.adminTag}>admin</span>}
+                      {u.followup_day_recovered&&<span className={styles.followupTag}>Recuperado followup {u.followup_day_recovered}</span>}
+                    </td>
                     <td className={styles.mutedCell}>{u.empresa_nome??<span className={styles.emptyDash}>—</span>}</td>
                     <td className={styles.mutedCell}>{(() => {
                       const wpp = u.empresa_whatsapp || u.whatsapp;
