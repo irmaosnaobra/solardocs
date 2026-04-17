@@ -6,7 +6,8 @@ import { runFollowupCnpj } from '../services/followupService';
 const router = Router();
 
 function verifyCronSecret(req: Request, res: Response): boolean {
-  const secret = req.headers['x-cron-secret'];
+  const auth   = req.headers['authorization'] ?? '';
+  const secret = auth.replace('Bearer ', '').trim();
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     res.status(401).json({ error: 'Unauthorized' });
     return false;
