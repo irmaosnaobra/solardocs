@@ -88,3 +88,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 480px) {
+  .modeBtn {
+    padding: 12px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .modeIcon { font-size: 18px; }
+  .modeLabel { font-size: 13px; }
+  .modeDesc { display: none; }
+}

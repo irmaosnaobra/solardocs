@@ -87,15 +87,24 @@ export async function updateClient(req: Request, res: Response): Promise<void> {
 export async function deleteClient(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('clients')
       .delete()
       .eq('id', id)
-      .eq('user_id', req.userId);
+      .eq('user_id', req.userId)
+      .select('id');
 
     if (error) throw error;
+    if (!data || data.length === 0) {
+      res.status(404).json({ error: 'Cliente não encontrado' });
+      return;
+    }
     res.status(204).send();
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.code === '23503') {
+      res.status(409).json({ error: 'Este cliente possui documentos vinculados. Exclua os documentos primeiro.' });
+      return;
+    }
     console.error('DeleteClient error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }

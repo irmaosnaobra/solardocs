@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/services/api';
 import styles from './funil.module.css';
 
@@ -17,12 +18,28 @@ const DAYS_OPTIONS = [
 ];
 
 export default function FunilPage() {
+  const router = useRouter();
   const [funnel, setFunnel] = useState<FunnelStep[]>([]);
   const [days, setDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const [totalSessions, setTotalSessions] = useState(0);
+  const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
+    // Verificar se o usuário é admin antes de carregar o funil
+    api.get('/auth/me')
+      .then(({ data }) => {
+        if (!data?.is_admin) {
+          router.replace('/dashboard');
+          return;
+        }
+        setAuthorized(true);
+      })
+      .catch(() => router.replace('/login'));
+  }, [router]);
+
+  useEffect(() => {
+    if (!authorized) return;
     setLoading(true);
     api.get(`/quiz/funnel?days=${days}`)
       .then(({ data }) => {
@@ -30,10 +47,12 @@ export default function FunilPage() {
         setTotalSessions(data.total_sessions ?? 0);
       })
       .finally(() => setLoading(false));
-  }, [days]);
+  }, [days, authorized]);
 
   const maxCount = Math.max(...funnel.map(s => s.count), 1);
   const top = funnel[0]?.count || 1;
+
+  if (!authorized) return null;
 
   return (
     <div className={styles.page}>

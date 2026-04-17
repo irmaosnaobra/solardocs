@@ -16,6 +16,7 @@ interface Company {
   tecnico_nome?: string;
   tecnico_cpf?: string;
   tecnico_rg?: string;
+  tecnico_crt_cft?: string;
   tecnico_nacionalidade?: string;
   tecnico_estado_civil?: string;
   tecnico_endereco?: string;
@@ -82,8 +83,8 @@ function contratoSolarM1(
   f: Record<string, unknown>
 ): string {
   const today = dateBR();
-  const foro = str(f.foro_cidade);
-  const cidade = company.cidade || foro;
+  const foro = company.cidade || str(f.foro_cidade) || str(client.cidade) || '___';
+  const cidade = foro;
   const endInst = str(f.endereco_instalacao) !== '___' ? str(f.endereco_instalacao) : (client.endereco || '___');
 
   const isPJClient = (client as { tipo?: string }).tipo === 'PJ';
@@ -318,8 +319,8 @@ function contratoSolarM2(
   f: Record<string, unknown>
 ): string {
   const today = dateBR();
-  const foro = str(f.foro_cidade);
-  const cidade = company.cidade || foro;
+  const foro = company.cidade || str(f.foro_cidade) || str(client.cidade) || '___';
+  const cidade = foro;
   const endInst = str(f.endereco_instalacao) !== '___' ? str(f.endereco_instalacao) : (client.endereco || '___');
 
   const isPJClient = (client as { tipo?: string }).tipo === 'PJ';
@@ -467,61 +468,79 @@ function procuracaoM1(
   f: Record<string, unknown>
 ): string {
   const today = dateBR();
-  const cidade = str(f.foro_cidade || client.cidade);
+  const cidade = str(f.foro_cidade || (client as any).cidade || company.cidade || '___');
+  const concessionaria = str(f.concessionaria);
+  const uc = str(f.uc);
 
-  // Build engineer qualification
-  const engParts: string[] = [];
+  // Qualificação do engenheiro
+  let engQualif = '';
   if (company.engenheiro_nome) {
-    let qualif = company.engenheiro_nome.toUpperCase();
-    if (company.engenheiro_nacionalidade) qualif += `, ${company.engenheiro_nacionalidade}`;
-    if (company.engenheiro_estado_civil) qualif += `, ${company.engenheiro_estado_civil}`;
-    if (company.engenheiro_profissao) qualif += `, ${company.engenheiro_profissao}`;
-    if (company.engenheiro_crea) qualif += `, inscrito no ${company.engenheiro_crea}`;
-    if (company.engenheiro_cpf) qualif += ` e CPF sob o nº ${company.engenheiro_cpf}`;
-    if (company.engenheiro_rg) qualif += `, RG n° ${company.engenheiro_rg}`;
-    if (company.engenheiro_endereco) qualif += `, residente e domiciliado na ${company.engenheiro_endereco}`;
-    engParts.push(qualif + ';');
+    let q = company.engenheiro_nome.toUpperCase();
+    if (company.engenheiro_profissao) q += `, ${company.engenheiro_profissao}`;
+    if (company.engenheiro_nacionalidade) q += `, ${company.engenheiro_nacionalidade}`;
+    if (company.engenheiro_estado_civil) q += `, ${company.engenheiro_estado_civil}`;
+    if (company.engenheiro_crea) q += `, inscrito(a) no ${company.engenheiro_crea}`;
+    if (company.engenheiro_cpf) q += `, CPF nº ${company.engenheiro_cpf}`;
+    if (company.engenheiro_rg) q += `, RG nº ${company.engenheiro_rg}`;
+    if (company.engenheiro_endereco) q += `, residente e domiciliado(a) na ${company.engenheiro_endereco}`;
+    engQualif = q;
   }
 
-  // Build technician qualification
-  const tecParts: string[] = [];
+  // Qualificação do técnico
+  let tecQualif = '';
   if (company.tecnico_nome) {
-    let qualif = company.tecnico_nome.toUpperCase();
-    if (company.tecnico_nacionalidade) qualif += `, ${company.tecnico_nacionalidade}`;
-    if (company.tecnico_estado_civil) qualif += `, ${company.tecnico_estado_civil}`;
-    if (company.tecnico_cpf) qualif += `, inscrito(a) no CPF sob nº ${company.tecnico_cpf}`;
-    if (company.tecnico_rg) qualif += `, RG n° ${company.tecnico_rg}`;
-    if (company.tecnico_endereco) qualif += `, residente e domiciliado(a) na ${company.tecnico_endereco}`;
-    tecParts.push(qualif);
+    let q = company.tecnico_nome.toUpperCase();
+    if (company.tecnico_nacionalidade) q += `, ${company.tecnico_nacionalidade}`;
+    if (company.tecnico_estado_civil) q += `, ${company.tecnico_estado_civil}`;
+    if ((company as any).tecnico_crt_cft) q += `, ${(company as any).tecnico_crt_cft}`;
+    if (company.tecnico_cpf) q += `, CPF nº ${company.tecnico_cpf}`;
+    if (company.tecnico_rg) q += `, RG nº ${company.tecnico_rg}`;
+    if (company.tecnico_endereco) q += `, residente e domiciliado(a) na ${company.tecnico_endereco}`;
+    tecQualif = q;
   }
 
-  const procuradores = [...engParts, ...tecParts].join('\n\n') || '___';
+  const temEng = !!engQualif;
+  const temTec = !!tecQualif;
+  const plural = temEng && temTec;
+
+  let outorgadosBloco = '';
+  if (plural) {
+    outorgadosBloco = `1º OUTORGADO: ${engQualif};\n\n2º OUTORGADO: ${tecQualif};`;
+  } else if (temEng) {
+    outorgadosBloco = `OUTORGADO: ${engQualif};`;
+  } else if (temTec) {
+    outorgadosBloco = `OUTORGADO: ${tecQualif};`;
+  } else {
+    outorgadosBloco = 'OUTORGADO: ___';
+  }
+
+  const verboProcurador = plural ? 'seus bastantes procuradores' : 'seu(ua) bastante procurador(a)';
+  const verboOutorgados = plural ? 'os outorgados representem' : 'o(a) outorgado(a) represente';
 
   return `PROCURAÇÃO
 
-Pelo presente instrumento de procuração,
+Pelo presente instrumento particular de procuração,
 
-Nome: ${client.nome}
-CPF: ${client.cpf_cnpj || '___'}
+OUTORGANTE: ${client.nome}
+CPF/CNPJ: ${client.cpf_cnpj || '___'}
 Endereço: ${client.endereco || '___'}${client.cep ? `\nCEP: ${client.cep}` : ''}
-UC: ${str(f.uc)}
-Concessionária: ${str(f.concessionaria)}
+Unidade Consumidora (UC): ${uc}
+Concessionária: ${concessionaria}
 
-nomeia e constitui como bastante procuradores:
+nomeia e constitui como ${verboProcurador}:
 
-${procuradores}
+${outorgadosBloco}
 
-a fim de conferir amplos, gerais e ilimitados poderes para que os outorgados os represente, especialmente à distribuidora mencionada acima a fim de representa-lo em todos os assuntos com à Concessionária, como: apresentação de projetos, análise de carga, troca de titularidade, atualização cadastral, assinatura de contratos e relacionamentos operacionais.
+conferindo-lhe(s) amplos poderes para que ${verboOutorgados} perante a concessionária ${concessionaria}, em todos os assuntos relativos à UC nº ${uc}, incluindo: apresentação e protocolo de projetos técnicos, análise de carga, troca de titularidade, atualização cadastral, assinatura de contratos de conexão e quaisquer outros atos necessários à homologação e operação do sistema fotovoltaico.
 
 ${cidade}, ${today}
 
 
 
 
-
-
 ________________________________
-ASSINATURA
+${client.nome}
+OUTORGANTE
 `;
 }
 
@@ -534,48 +553,67 @@ function procuracaoM2(
   f: Record<string, unknown>
 ): string {
   const today = dateBR();
-  const cidade = str(f.foro_cidade || client.cidade);
+  const cidade = str(f.foro_cidade || (client as any).cidade || company.cidade || '___');
   const concessionaria = str(f.concessionaria);
   const uc = str(f.uc);
 
-  // Build engineer qualification
-  const engParts: string[] = [];
+  // Qualificação do engenheiro
+  let engQualif = '';
   if (company.engenheiro_nome) {
-    let qualif = company.engenheiro_nome.toUpperCase();
-    if (company.engenheiro_nacionalidade) qualif += `, ${company.engenheiro_nacionalidade}`;
-    if (company.engenheiro_estado_civil) qualif += `, ${company.engenheiro_estado_civil}`;
-    if (company.engenheiro_profissao) qualif += `, ${company.engenheiro_profissao}`;
-    if (company.engenheiro_crea) qualif += `, inscrito no ${company.engenheiro_crea}`;
-    if (company.engenheiro_cpf) qualif += ` e CPF sob o nº ${company.engenheiro_cpf}`;
-    if (company.engenheiro_rg) qualif += `, RG n° ${company.engenheiro_rg}`;
-    if (company.engenheiro_endereco) qualif += `, residente e domiciliado na ${company.engenheiro_endereco}`;
-    engParts.push(qualif + ';');
+    let q = company.engenheiro_nome.toUpperCase();
+    if (company.engenheiro_profissao) q += `, ${company.engenheiro_profissao}`;
+    if (company.engenheiro_nacionalidade) q += `, ${company.engenheiro_nacionalidade}`;
+    if (company.engenheiro_estado_civil) q += `, ${company.engenheiro_estado_civil}`;
+    if (company.engenheiro_crea) q += `, inscrito(a) no ${company.engenheiro_crea}`;
+    if (company.engenheiro_cpf) q += `, CPF nº ${company.engenheiro_cpf}`;
+    if (company.engenheiro_rg) q += `, RG nº ${company.engenheiro_rg}`;
+    if (company.engenheiro_endereco) q += `, residente e domiciliado(a) na ${company.engenheiro_endereco}`;
+    engQualif = q;
   }
 
-  const tecParts: string[] = [];
+  // Qualificação do técnico
+  let tecQualif = '';
   if (company.tecnico_nome) {
-    let qualif = company.tecnico_nome.toUpperCase();
-    if (company.tecnico_nacionalidade) qualif += `, ${company.tecnico_nacionalidade}`;
-    if (company.tecnico_estado_civil) qualif += `, ${company.tecnico_estado_civil}`;
-    if (company.tecnico_cpf) qualif += `, inscrito(a) no CPF sob nº ${company.tecnico_cpf}`;
-    if (company.tecnico_rg) qualif += `, RG n° ${company.tecnico_rg}`;
-    if (company.tecnico_endereco) qualif += `, residente e domiciliado(a) na ${company.tecnico_endereco}`;
-    tecParts.push(qualif + ';');
+    let q = company.tecnico_nome.toUpperCase();
+    if (company.tecnico_nacionalidade) q += `, ${company.tecnico_nacionalidade}`;
+    if (company.tecnico_estado_civil) q += `, ${company.tecnico_estado_civil}`;
+    if ((company as any).tecnico_crt_cft) q += `, ${(company as any).tecnico_crt_cft}`;
+    if (company.tecnico_cpf) q += `, CPF nº ${company.tecnico_cpf}`;
+    if (company.tecnico_rg) q += `, RG nº ${company.tecnico_rg}`;
+    if (company.tecnico_endereco) q += `, residente e domiciliado(a) na ${company.tecnico_endereco}`;
+    tecQualif = q;
   }
 
-  const procuradores = [...engParts, ...tecParts].join('\n\n') || '___';
+  const temEng = !!engQualif;
+  const temTec = !!tecQualif;
+  const plural = temEng && temTec;
+
+  let outorgadosBloco = '';
+  if (plural) {
+    outorgadosBloco = `1º OUTORGADO: ${engQualif};\n\n2º OUTORGADO: ${tecQualif};`;
+  } else if (temEng) {
+    outorgadosBloco = `OUTORGADO: ${engQualif};`;
+  } else if (temTec) {
+    outorgadosBloco = `OUTORGADO: ${tecQualif};`;
+  } else {
+    outorgadosBloco = 'OUTORGADO: ___';
+  }
+
+  const tituloProcurador = plural ? 'seus legítimos procuradores' : 'seu(ua) legítimo(a) procurador(a)';
+  const pronomeOutorgados = plural ? 'lhes' : 'lhe';
+  const verboCriterio = plural ? 'dos procuradores' : 'do(a) procurador(a)';
 
   return `INSTRUMENTO PARTICULAR DE PROCURAÇÃO
 
-SAIBAM todos quantos este instrumento de procuração virem que, na data abaixo indicada,
+SAIBAM todos quantos este instrumento virem que, na data abaixo indicada,
 
 OUTORGANTE: ${client.nome}, inscrito(a) no CPF/CNPJ sob o nº ${client.cpf_cnpj || '___'}, residente e domiciliado(a) à ${client.endereco || '___'}${client.cep ? `, CEP ${client.cep}` : ''}, doravante denominado(a) simplesmente OUTORGANTE,
 
-pelo presente instrumento e na melhor forma de direito, nomeia e constitui como seu(ua) legítimo(a) procurador(a):
+pelo presente instrumento particular e na melhor forma de direito, nomeia e constitui como ${tituloProcurador}:
 
-${procuradores}
+${outorgadosBloco}
 
-conferindo-lhe(s) os seguintes poderes especiais:
+conferindo-${pronomeOutorgados} os seguintes poderes especiais:
 
    a) Representar o(a) OUTORGANTE junto à concessionária de energia elétrica ${concessionaria}, em todos os assuntos relacionados à Unidade Consumidora de nº ${uc};
 
@@ -583,9 +621,9 @@ conferindo-lhe(s) os seguintes poderes especiais:
 
    c) Solicitar análise de carga, troca de titularidade, atualização cadastral e quaisquer serviços técnicos junto à ${concessionaria};
 
-   d) Receber notificações, intimações e quaisquer comunicados em nome do(a) OUTORGANTE junto aos órgãos acima mencionados;
+   d) Receber notificações, intimações e quaisquer comunicados em nome do(a) OUTORGANTE;
 
-   e) Substabelecer este mandato, no todo ou em parte, com ou sem reserva de iguais poderes, a critério do(a) procurador(a).
+   e) Substabelecer este mandato, no todo ou em parte, com ou sem reserva de iguais poderes, a critério ${verboCriterio}.
 
 Esta procuração terá validade de 1 (um) ano a contar da data de sua assinatura, salvo revogação expressa anterior.
 
@@ -596,13 +634,11 @@ ${cidade}, ${today}
 
 
 
-
-
 ________________________________
-ASSINATURA
+${client.nome}
+OUTORGANTE — CPF/CNPJ: ${client.cpf_cnpj || '___'}
 `;
 }
-
 // ════════════════════════════════════════════════════════════
 // PROPOSTA DE BANCO — MODELO 1  (formato Documento2.pdf)
 // ════════════════════════════════════════════════════════════
@@ -2157,7 +2193,7 @@ CPF:                                    CPF:
 // Helpers
 // ════════════════════════════════════════════════════════════
 function dateBR(): string {
-  return new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  return new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
 }
 
 function str(v: unknown): string {

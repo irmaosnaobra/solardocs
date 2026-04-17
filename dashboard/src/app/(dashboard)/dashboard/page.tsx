@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import api from '@/services/api';
 import styles from './home.module.css';
+import { toBrasilia, fmtDateBR } from '@/utils/brasilia';
 
 interface User {
   email: string;
@@ -200,7 +201,7 @@ export default function DashboardPage() {
           icon="🗓️"
           value={diasAtivo}
           label="Dias na plataforma"
-          sub={`Desde ${new Date(user.created_at).toLocaleDateString('pt-BR')}`}
+          sub={`Desde ${fmtDateBR(user.created_at)}`}
         />
         {tipoMaisUsado && (
           <StatCard
@@ -272,7 +273,7 @@ export default function DashboardPage() {
                   <span>{TIPO_LABEL[doc.tipo] ?? doc.tipo}</span>
                 </div>
                 <span className={styles.histCliente}>{doc.cliente_nome ?? '—'}</span>
-                <span className={styles.histDate}>{new Date(doc.created_at).toLocaleDateString('pt-BR')}</span>
+                <span className={styles.histDate}>{fmtDateBR(doc.created_at)}</span>
               </div>
             ))}
           </div>

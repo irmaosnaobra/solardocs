@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash     TEXT NOT NULL,
   plano             VARCHAR(20) NOT NULL DEFAULT 'free',
   documentos_usados INTEGER NOT NULL DEFAULT 0,
-  limite_documentos INTEGER NOT NULL DEFAULT 1,
+  limite_documentos INTEGER NOT NULL DEFAULT 10,
   data_reset        TIMESTAMP,
   created_at        TIMESTAMP DEFAULT NOW()
 );
@@ -42,6 +42,12 @@ CREATE TABLE IF NOT EXISTS documents (
   status       VARCHAR(20) DEFAULT 'draft',
   created_at   TIMESTAMP DEFAULT NOW()
 );
+
+-- Colunas Autentique (assinatura digital)
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS arquivo_url        TEXT;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS autentique_doc_id  TEXT;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS assinatura_status  VARCHAR(20) DEFAULT 'nenhuma';
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS assinado_em        TIMESTAMP;
 
 -- Tabela suggestions (fórum VIP)
 CREATE TABLE IF NOT EXISTS suggestions (

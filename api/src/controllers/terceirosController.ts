@@ -79,12 +79,17 @@ export async function updateTerceiro(req: Request, res: Response): Promise<void>
 export async function deleteTerceiro(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('terceiros')
       .delete()
       .eq('id', id)
-      .eq('user_id', req.userId);
+      .eq('user_id', req.userId)
+      .select('id');
     if (error) throw error;
+    if (!data || data.length === 0) {
+      res.status(404).json({ error: 'Terceiro não encontrado' });
+      return;
+    }
     res.status(204).send();
   } catch (err) {
     console.error('DeleteTerceiro error:', err);

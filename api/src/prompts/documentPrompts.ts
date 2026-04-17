@@ -21,6 +21,7 @@ export function getPrompt(
     day: '2-digit',
     month: 'long',
     year: 'numeric',
+    timeZone: 'America/Sao_Paulo',
   });
 
   switch (type) {

@@ -1,6 +1,4 @@
-.page {
-  max-width: 900px;
-}
+.page { max-width: 900px; }
 
 .header {
   display: flex;
@@ -17,20 +15,11 @@
   margin-bottom: 4px;
 }
 
-.subtitle {
-  font-size: 14px;
-  color: var(--color-text-muted);
-}
+.subtitle { font-size: 14px; color: var(--color-text-muted); }
 
-.searchBar {
-  margin-bottom: 16px;
-  max-width: 320px;
-}
+.searchBar { margin-bottom: 16px; }
 
-.empty {
-  color: var(--color-text-muted);
-  font-size: 14px;
-}
+.empty { color: var(--color-text-muted); font-size: 14px; }
 
 .emptyState {
   display: flex;
@@ -42,20 +31,19 @@
   font-size: 14px;
 }
 
-.emptyIcon {
-  font-size: 40px;
-}
+.emptyIcon { font-size: 40px; }
 
 .tableWrapper {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 480px;
 }
 
 .table th {
@@ -68,6 +56,7 @@
   letter-spacing: 0.5px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-2);
+  white-space: nowrap;
 }
 
 .table td {
@@ -77,17 +66,10 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.table tr:last-child td {
-  border-bottom: none;
-}
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: var(--color-surface-2); }
 
-.table tr:hover td {
-  background: var(--color-surface-2);
-}
-
-.clientName {
-  font-weight: 500;
-}
+.clientName { font-weight: 500; }
 
 .tipoBadge {
   font-size: 11px;
@@ -95,38 +77,30 @@
   padding: 2px 8px;
   border-radius: 4px;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
-.tipoPJ {
-  background: rgba(99, 102, 241, 0.12);
-  color: #818cf8;
-}
-
-.tipoPF {
-  background: rgba(34, 197, 94, 0.12);
-  color: #4ade80;
-}
+.tipoPJ { background: rgba(99, 102, 241, 0.12); color: #818cf8; }
+.tipoPF { background: rgba(34, 197, 94, 0.12); color: #4ade80; }
 
 .endereco {
   color: var(--color-text-muted) !important;
-  max-width: 200px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-}
+.actions { display: flex; gap: 8px; }
 
 .editBtn, .deleteBtn {
-  padding: 5px 12px;
+  padding: 6px 14px;
   border-radius: 6px;
   font-size: 13px;
   border: 1px solid;
   cursor: pointer;
   transition: background 0.15s;
+  white-space: nowrap;
 }
 
 .editBtn {
@@ -135,10 +109,7 @@
   color: var(--color-text-muted);
 }
 
-.editBtn:hover {
-  background: var(--color-surface-2);
-  color: var(--color-text);
-}
+.editBtn:hover { background: var(--color-surface-2); color: var(--color-text); }
 
 .deleteBtn {
   background: transparent;
@@ -146,11 +117,86 @@
   color: var(--color-error);
 }
 
-.deleteBtn:hover {
-  background: rgba(239, 68, 68, 0.1);
+.deleteBtn:hover { background: rgba(239, 68, 68, 0.1); }
+.deleteBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .header > *:last-child {
+    align-self: flex-start;
+  }
+
+  .title { font-size: 18px; }
 }
 
-.deleteBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* ── Mobile: mostrar cards, esconder tabela ── */
+.cardList { display: none; }
+
+@media (max-width: 640px) {
+  .tableWrapper { display: none; }
+  .cardList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .cardTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .cardName {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cardDetail {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  .cardActions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .cardActions .editBtn,
+  .cardActions .deleteBtn {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    font-size: 14px;
+  }
+
+  .cardActions .editBtn {
+    background: var(--color-surface-2);
+    border-color: var(--color-border);
+    color: var(--color-text);
+  }
 }

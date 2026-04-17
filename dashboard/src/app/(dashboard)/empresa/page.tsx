@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '@/services/api';
 import styles from './empresa.module.css';
 
@@ -22,18 +22,19 @@ interface Company {
   tecnico_nome?: string;
   tecnico_cpf?: string;
   tecnico_rg?: string;
+  tecnico_crt_cft?: string;
   tecnico_nacionalidade?: string;
   tecnico_estado_civil?: string;
   tecnico_endereco?: string;
 }
 
 const emptyForm = {
-  nome: '', cnpj: '', endereco: '', logo_base64: '', socio_adm: '',
+  nome: '', cnpj: '', endereco: '', cidade: '', logo_base64: '', socio_adm: '', whatsapp: '',
   engenheiro_nome: '', engenheiro_cpf: '', engenheiro_crea: '',
   engenheiro_rg: '', engenheiro_nacionalidade: '', engenheiro_estado_civil: '', engenheiro_profissao: '',
   engenheiro_endereco: '',
   tecnico_nome: '', tecnico_cpf: '',
-  tecnico_rg: '', tecnico_nacionalidade: '', tecnico_estado_civil: '',
+  tecnico_rg: '', tecnico_crt_cft: '', tecnico_nacionalidade: '', tecnico_estado_civil: '',
   tecnico_endereco: '',
 };
 
@@ -88,6 +89,8 @@ export default function EmpresaPage() {
 
   const [cnpjStatus, setCnpjStatus] = useState<CnpjStatus>('idle');
   const [cnpjError, setCnpjError] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const [logoError, setLogoError] = useState('');
   // CNPJ que já foi validado nesta sessão de edição
   const validatedCnpjRef = useRef('');
 
@@ -97,14 +100,15 @@ export default function EmpresaPage() {
         const c = data.company;
         setCompany(c);
         setForm({
-          nome: c.nome || '', cnpj: c.cnpj || '', endereco: c.endereco || '',
-          logo_base64: c.logo_base64 || '', socio_adm: c.socio_adm || '',
+          nome: c.nome || '', cnpj: c.cnpj || '', endereco: c.endereco || '', cidade: c.cidade || '',
+          logo_base64: c.logo_base64 || '', socio_adm: c.socio_adm || '', whatsapp: c.whatsapp || '',
           engenheiro_nome: c.engenheiro_nome || '', engenheiro_cpf: c.engenheiro_cpf || '',
           engenheiro_crea: c.engenheiro_crea || '', engenheiro_rg: c.engenheiro_rg || '',
           engenheiro_nacionalidade: c.engenheiro_nacionalidade || '', engenheiro_estado_civil: c.engenheiro_estado_civil || '',
           engenheiro_profissao: c.engenheiro_profissao || '', engenheiro_endereco: c.engenheiro_endereco || '',
           tecnico_nome: c.tecnico_nome || '', tecnico_cpf: c.tecnico_cpf || '',
-          tecnico_rg: c.tecnico_rg || '', tecnico_nacionalidade: c.tecnico_nacionalidade || '',
+          tecnico_rg: c.tecnico_rg || '', tecnico_crt_cft: c.tecnico_crt_cft || '',
+          tecnico_nacionalidade: c.tecnico_nacionalidade || '',
           tecnico_estado_civil: c.tecnico_estado_civil || '', tecnico_endereco: c.tecnico_endereco || '',
         });
         // CNPJ já salvo é considerado válido
@@ -170,6 +174,27 @@ export default function EmpresaPage() {
     }
   }
 
+  const handleLogoFile = useCallback((file: File | undefined) => {
+    if (!file) return;
+    setLogoError('');
+
+    if (!file.type.startsWith('image/')) {
+      setLogoError('Arquivo inválido. Envie uma imagem (JPG, PNG, etc).');
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setLogoError(`Imagem muito grande (${(file.size / 1024).toFixed(0)} KB). Use uma imagem menor que 1 MB.`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      set('logo_base64', ev.target?.result as string);
+      setLogoError('');
+    };
+    reader.onerror = () => setLogoError('Erro ao ler o arquivo. Tente novamente.');
+    reader.readAsDataURL(file);
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -181,12 +206,22 @@ export default function EmpresaPage() {
     setSaving(true);
     setMessage(null);
     try {
-      const method = company ? 'put' : 'post';
-      const { data } = await api[method]('/company', form);
+      const isNew = !company;
+      const eventId = `creg-${Date.now()}`;
+      const method = isNew ? 'post' : 'put';
+      const { data } = await api[method]('/company', form, {
+        headers: isNew ? { 'x-meta-event-id': eventId } : {},
+      });
       setCompany(data.company);
       setEditing(false);
       setMessage({ type: 'success', text: 'Empresa salva com sucesso!' });
       setTimeout(() => setMessage(null), 3000);
+
+      // Meta pixel client-side — apenas no primeiro cadastro (dedup com CAPI via eventId)
+      if (isNew && typeof window !== 'undefined' && (window as any).fbq) {
+        (window as any).fbq('track', 'CompleteRegistration', {}, { eventID: eventId });
+      }
+
       // Notifica o layout para desbloquear a sidebar
       window.dispatchEvent(new CustomEvent('company-saved'));
     } catch (err: unknown) {
@@ -229,7 +264,9 @@ export default function EmpresaPage() {
               <InfoRow label="Razão Social" value={company.nome} />
               <InfoRow label="CNPJ" value={company.cnpj} />
               <InfoRow label="Endereço Completo" value={company.endereco} />
+              <InfoRow label="Cidade (Foro)" value={(company as any).cidade} />
               <InfoRow label="Sócio Administrador" value={company.socio_adm} />
+              <InfoRow label="WhatsApp do Responsável" value={(company as any).whatsapp} />
             </div>
           </section>
 
@@ -260,6 +297,7 @@ export default function EmpresaPage() {
                 <InfoRow label="Estado Civil" value={company.tecnico_estado_civil} />
                 <InfoRow label="CPF" value={company.tecnico_cpf} />
                 <InfoRow label="RG" value={company.tecnico_rg} />
+                <InfoRow label="CRT / CFT" value={company.tecnico_crt_cft} />
                 <InfoRow label="Endereço" value={company.tecnico_endereco} />
               </div>
             ) : (
@@ -313,69 +351,91 @@ export default function EmpresaPage() {
           <div className={styles.grid2}>
             <div className={styles.fieldFull}>
               <label className={styles.label}>Logo da empresa</label>
-              <div className={styles.logoUploadArea}>
-                {form.logo_base64 && (
-                  <img src={form.logo_base64} alt="Logo" className={styles.logoPreview} />
-                )}
-                <div className={styles.logoUploadActions}>
-                  <label className={styles.uploadBtn}>
-                    {form.logo_base64 ? 'Trocar logo' : '+ Fazer upload do logo'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        if (file.size > 500 * 1024) {
-                          alert('Arquivo muito grande. Use uma imagem menor que 500KB.');
-                          return;
-                        }
-                        const reader = new FileReader();
-                        reader.onload = (ev) => set('logo_base64', ev.target?.result as string);
-                        reader.readAsDataURL(file);
-                      }}
-                    />
-                  </label>
-                  {form.logo_base64 && (
-                    <button type="button" className={styles.removeLogo} onClick={() => set('logo_base64', '')}>
-                      Remover
-                    </button>
-                  )}
+
+              {logoError && (
+                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 8 }}>
+                  ⚠️ {logoError}
                 </div>
-                <span className={styles.logoHint}>
-                  PNG com fundo transparente · tamanho ideal <strong>400 × 150 px</strong> · máx. 500 KB
-                </span>
-                <span className={styles.logoHint}>
-                  <a
-                    href="https://www.iloveimg.com/resize-image#resize-options,width:400,height:150"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.logoHintLink}
-                  >
-                    ✦ Clique aqui para redimensionar sua logo gratuitamente
-                  </a>
-                  {' '}— ao abrir, confirme <strong>400 × 150 px</strong>, baixe e faça o upload acima.
-                </span>
-              </div>
+              )}
+
+              {form.logo_base64 ? (
+                <div className={styles.logoPreviewRow}>
+                  <img src={form.logo_base64} alt="Logo" className={styles.logoPreview} />
+                  <div className={styles.logoPreviewInfo}>
+                    <span className={styles.logoPreviewLabel}>Logo carregada com sucesso ✓</span>
+                    <div className={styles.logoPreviewActions}>
+                      <label className={styles.logoChangeBtn}>
+                        Trocar imagem
+                        <input type="file" accept="image/*" onChange={(e) => { handleLogoFile(e.target.files?.[0]); e.target.value = ''; }} />
+                      </label>
+                      <button type="button" className={styles.removeLogo} onClick={() => { set('logo_base64', ''); setLogoError(''); }}>
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <label
+                  className={`${styles.logoUploadZone} ${dragging ? styles.logoUploadZoneDrag : ''} ${logoError ? styles.logoUploadZoneError : ''}`}
+                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragging(false); handleLogoFile(e.dataTransfer.files?.[0]); }}
+                >
+                  <input type="file" accept="image/*" onChange={(e) => { handleLogoFile(e.target.files?.[0]); e.target.value = ''; }} />
+                  <span className={styles.logoUploadIcon}>{logoError ? '❌' : '🖼️'}</span>
+                  <span className={styles.logoUploadTitle}>{logoError ? 'Tente enviar outra imagem' : 'Clique aqui para adicionar a logo da sua empresa'}</span>
+                  <span className={styles.logoUploadSub}>ou arraste a imagem para cá</span>
+                  <span className={styles.logoUploadBtn}>📁 Escolher arquivo</span>
+                  <span className={styles.logoUploadSub}>Aceita JPG, PNG ou qualquer imagem · máx. 1 MB</span>
+                </label>
+              )}
+
+              <span className={styles.logoHint}>
+                Dica: PNG com fundo transparente fica mais bonito nos documentos. Tamanho ideal: <strong>150 × 100 px</strong>.{' '}
+                <a
+                  href="https://www.iloveimg.com/resize-image#resize-options,pixels"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.logoHintLink}
+                >
+                  Redimensionar gratuitamente (150×100 px) →
+                </a>
+              </span>
             </div>
 
             <div className={styles.field}>
               <label className={styles.label}>CNPJ *</label>
-              <input
-                type="text"
-                value={form.cnpj}
-                onChange={e => handleCnpjChange(e.target.value)}
-                onBlur={handleCnpjBlur}
-                placeholder="00.000.000/0000-00"
-                className="input-field"
-                required
-                maxLength={18}
-              />
-              {cnpjHint && (
-                <span style={{ fontSize: 12, color: cnpjHint.color, marginTop: 4, display: 'block' }}>
-                  {cnpjHint.text}
-                </span>
+              {company?.cnpj ? (
+                <>
+                  <input
+                    type="text"
+                    value={form.cnpj}
+                    className="input-field"
+                    disabled
+                    style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                  />
+                  <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                    🔒 O CNPJ não pode ser alterado. Entre em contato com o suporte se necessário.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={form.cnpj}
+                    onChange={e => handleCnpjChange(e.target.value)}
+                    onBlur={handleCnpjBlur}
+                    placeholder="00.000.000/0000-00"
+                    className="input-field"
+                    required
+                    maxLength={18}
+                  />
+                  {cnpjHint && (
+                    <span style={{ fontSize: 12, color: cnpjHint.color, marginTop: 4, display: 'block' }}>
+                      {cnpjHint.text}
+                    </span>
+                  )}
+                </>
               )}
             </div>
 
@@ -390,10 +450,22 @@ export default function EmpresaPage() {
               <input type="text" value={form.socio_adm} onChange={e => set('socio_adm', e.target.value)}
                 placeholder="Nome do sócio administrador" className="input-field" />
             </div>
-            <div className={styles.fieldFull}>
+            <div className={styles.field}>
+              <label className={styles.label}>WhatsApp do Responsável *</label>
+              <input type="tel" value={form.whatsapp} onChange={e => set('whatsapp', e.target.value)}
+                placeholder="Ex: (34) 99999-0000" className="input-field" required />
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>Usado para contato e suporte</span>
+            </div>
+            <div className={styles.field}>
               <label className={styles.label}>Endereço Completo</label>
               <input type="text" value={form.endereco} onChange={e => set('endereco', e.target.value)}
-                placeholder="Rua, número, bairro, cidade — UF, CEP" className="input-field" />
+                placeholder="Rua, número, bairro — UF, CEP" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Cidade (Foro)</label>
+              <input type="text" value={form.cidade} onChange={e => set('cidade', e.target.value)}
+                placeholder="Ex: Uberlândia" className="input-field" />
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>Usada como foro em contratos</span>
             </div>
           </div>
         </section>
@@ -471,6 +543,11 @@ export default function EmpresaPage() {
               <label className={styles.label}>RG</label>
               <input type="text" value={form.tecnico_rg} onChange={e => set('tecnico_rg', e.target.value)}
                 placeholder="Ex: 2.456.789" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>CRT / CFT</label>
+              <input type="text" value={form.tecnico_crt_cft} onChange={e => set('tecnico_crt_cft', e.target.value)}
+                placeholder="Ex: CRT-MG 0001234" className="input-field" />
             </div>
             <div className={styles.fieldFull}>
               <label className={styles.label}>Endereço</label>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
 import styles from './historico.module.css';
+import { fmtDateBR } from '@/utils/brasilia';
 
 interface Doc {
   id: string;
@@ -14,10 +15,12 @@ interface Doc {
 }
 
 const TIPO_LABEL: Record<string, string> = {
-  contratoSolar: 'Contrato Solar',
-  proposta: 'Proposta',
-  procuracao: 'Procuração',
+  contratoSolar:    'Contrato Solar',
+  proposta:         'Proposta',
+  procuracao:       'Procuração',
   prestacaoServico: 'Prestação de Serviço',
+  contratoPJ:       'Contrato PJ',
+  propostaBanco:    'Proposta Bancária',
 };
 
 export default function HistoricoPage() {
@@ -25,6 +28,7 @@ export default function HistoricoPage() {
   const [loading, setLoading] = useState(true);
   const [historico, setHistorico] = useState(false);
   const [plano, setPlano] = useState('');
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
     api.get('/documents/list').then(({ data }) => {
@@ -34,16 +38,29 @@ export default function HistoricoPage() {
     }).finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return <div className={styles.page}><p className={styles.empty}>Carregando...</p></div>;
+  async function handleDownloadPdf(doc: Doc) {
+    setDownloading(doc.id);
+    try {
+      const res = await api.get(`/documents/${doc.id}/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${doc.tipo}-${doc.cliente_nome.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Erro ao gerar PDF. Tente novamente.');
+    } finally {
+      setDownloading(null);
+    }
   }
+
+  if (loading) return <div className={styles.page}><p className={styles.empty}>Carregando...</p></div>;
 
   if (!historico) {
     return (
       <div className={styles.page}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>Histórico de Documentos</h1>
-        </div>
+        <div className={styles.header}><h1 className={styles.title}>Meus Documentos</h1></div>
         <div className={styles.locked}>
           <div className={styles.lockedIcon}>🔒</div>
           <h2 className={styles.lockedTitle}>Disponível a partir do plano PRO</h2>
@@ -60,14 +77,14 @@ export default function HistoricoPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Histórico de Documentos</h1>
+        <h1 className={styles.title}>Meus Documentos</h1>
         <p className={styles.subtitle}>
-          {plano === 'pro' ? 'Últimos 30 dias' : 'Histórico completo'}
+          {plano === 'pro' ? 'Últimos 30 dias' : plano === 'free' ? 'Período de teste' : 'Histórico completo'}
         </p>
       </div>
 
       {docs.length === 0 ? (
-        <p className={styles.empty}>Nenhum documento salvo ainda. Gere e clique em "Salvar" após criar um documento.</p>
+        <p className={styles.empty}>Nenhum documento gerado ainda. Os documentos são salvos automaticamente após a geração.</p>
       ) : (
         <div className={styles.list}>
           {docs.map((doc) => (
@@ -75,22 +92,19 @@ export default function HistoricoPage() {
               <div className={styles.cardInfo}>
                 <span className={styles.docTipo}>{TIPO_LABEL[doc.tipo] ?? doc.tipo}</span>
                 <span className={styles.docCliente}>{doc.cliente_nome}</span>
-                <span className={styles.docData}>
-                  {new Date(doc.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </span>
+                <span className={styles.docData}>{fmtDateBR(doc.created_at)}</span>
               </div>
               <div className={styles.cardActions}>
                 {doc.signed_url ? (
-                  <a
-                    href={doc.signed_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
                     className={styles.downloadBtn}
+                    onClick={() => handleDownloadPdf(doc)}
+                    disabled={downloading === doc.id}
                   >
-                    ⬇ Baixar
-                  </a>
+                    {downloading === doc.id ? '⏳ Gerando...' : '⬇ Baixar PDF'}
+                  </button>
                 ) : (
-                  <span className={styles.noFile}>Sem arquivo</span>
+                  <span className={styles.noFile}>Processando...</span>
                 )}
               </div>
             </div>

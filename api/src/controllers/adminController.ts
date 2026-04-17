@@ -7,7 +7,7 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('id, email, plano, documentos_usados, limite_documentos, created_at, is_admin')
+      .select('id, email, plano, documentos_usados, limite_documentos, created_at, is_admin, whatsapp')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -209,11 +209,25 @@ export async function getAnalytics(req: Request, res: Response): Promise<void> {
     // Hoje
     const todayVisits = sessions.filter(s => isToday(s.created_at)).length;
 
+    // Funil de conversão da plataforma (Lead → CompleteRegistration → Purchase)
+    const [usersRes, companiesRes, paidRes] = await Promise.all([
+      supabase.from('users').select('id', { count: 'exact', head: true }),
+      supabase.from('company').select('id', { count: 'exact', head: true }),
+      supabase.from('users').select('id', { count: 'exact', head: true }).neq('plano', 'free'),
+    ]);
+
+    const conversion = {
+      cadastros:    usersRes.count    ?? 0,
+      empresas:     companiesRes.count ?? 0,
+      assinantes:   paidRes.count     ?? 0,
+    };
+
     res.json({
       total: totalVisits,
       today: todayVisits,
       avg_time: avgTime,
       funnel: { visits: totalVisits, scroll_50: scroll50, saw_precos: sawPrecos, cta_clicks: ctaTotal },
+      conversion,
       sources,
       top_ctas: topCtas,
       sessions,

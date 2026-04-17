@@ -132,8 +132,13 @@
   padding: 40px 0;
 }
 
+@media (max-width: 768px) {
+  .page { padding: 0; }
+  .title { font-size: 20px; }
+}
+
 @media (max-width: 600px) {
-  .page { padding: 20px 16px; }
   .card { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .downloadBtn { width: 100%; text-align: center; }
+  .downloadBtn { width: 100%; text-align: center; display: block; }
+  .locked { padding: 40px 20px; }
 }

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { supabase } from '../utils/supabase';
+import { sendMetaEvent } from '../utils/metaPixel';
 
 const companySchema = z.object({
   nome: z.string().min(1, 'Razão Social obrigatória'),
@@ -16,6 +17,7 @@ const companySchema = z.object({
            calc(c, [6,5,4,3,2,9,8,7,6,5,4,3,2]) === parseInt(c[13]);
   }, 'CNPJ inválido'),
   endereco: z.string().optional(),
+  cidade: z.string().optional(),
   logo_base64: z.string().optional(),
   socio_adm: z.string().optional(),
   engenheiro_nome: z.string().optional(),
@@ -29,9 +31,11 @@ const companySchema = z.object({
   tecnico_nome: z.string().optional(),
   tecnico_cpf: z.string().optional(),
   tecnico_rg: z.string().optional(),
+  tecnico_crt_cft: z.string().optional(),
   tecnico_nacionalidade: z.string().optional(),
   tecnico_estado_civil: z.string().optional(),
   tecnico_endereco: z.string().optional(),
+  whatsapp: z.string().optional(),
 });
 
 export async function getCompany(req: Request, res: Response): Promise<void> {
@@ -71,10 +75,30 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
       .single();
 
     if (error) throw error;
+
+    // Meta CAPI — CompleteRegistration (cadastro da empresa = onboarding concluído)
+    const { data: user } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', req.userId)
+      .single();
+
+    sendMetaEvent('CompleteRegistration', {
+      eventId:   req.headers['x-meta-event-id'] as string | undefined,
+      email:     user?.email,
+      ip:        req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
     res.status(201).json({ company: data });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.issues[0].message });
+      return;
+    }
+    const pgErr = err as { code?: string };
+    if (pgErr?.code === '23505') {
+      res.status(409).json({ error: 'Este CNPJ já está cadastrado em outra conta. Use o email original ou entre em contato com o suporte.' });
       return;
     }
     console.error('CreateCompany error:', err);
@@ -85,6 +109,23 @@ export async function createCompany(req: Request, res: Response): Promise<void> 
 export async function updateCompany(req: Request, res: Response): Promise<void> {
   try {
     const body = companySchema.partial().parse(req.body);
+
+    // Busca empresa existente para proteger o CNPJ
+    const { data: existing } = await supabase
+      .from('company')
+      .select('cnpj')
+      .eq('user_id', req.userId)
+      .single();
+
+    // Se já há um CNPJ cadastrado, não permite alteração
+    if (existing?.cnpj && body.cnpj) {
+      const existingDigits = existing.cnpj.replace(/\D/g, '');
+      const newDigits      = body.cnpj.replace(/\D/g, '');
+      if (existingDigits !== newDigits) {
+        res.status(403).json({ error: 'O CNPJ não pode ser alterado após o cadastro. Entre em contato com o suporte.' });
+        return;
+      }
+    }
 
     const { data, error } = await supabase
       .from('company')

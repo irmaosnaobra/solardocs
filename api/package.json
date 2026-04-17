@@ -14,6 +14,7 @@
   "type": "commonjs",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
+    "@sparticuz/chromium-min": "^147.0.0",
     "@supabase/supabase-js": "^2.102.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -25,6 +26,8 @@
     "nodemailer": "^8.0.5",
     "openai": "^6.33.0",
     "pg": "^8.20.0",
+    "puppeteer-core": "^24.41.0",
+    "stripe": "^22.0.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -8,9 +8,7 @@
 }
 
 /* ── SAUDAÇÃO ── */
-.greeting {
-  margin-bottom: 24px;
-}
+.greeting { margin-bottom: 24px; }
 
 .greetingTitle {
   font-size: 22px;
@@ -57,10 +55,7 @@
   background: rgba(245, 158, 11, 0.04);
 }
 
-.statIcon {
-  font-size: 20px;
-  margin-bottom: 6px;
-}
+.statIcon { font-size: 20px; margin-bottom: 6px; }
 
 .statValue {
   font-size: 30px;
@@ -96,9 +91,7 @@
   transition: width 0.5s ease;
 }
 
-.statBarDanger {
-  background: #ef4444;
-}
+.statBarDanger { background: #ef4444; }
 
 /* ── GRÁFICOS ── */
 .chartsRow {
@@ -124,13 +117,6 @@
   margin-bottom: 14px;
 }
 
-.emptyChart {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  text-align: center;
-  padding: 40px 0;
-}
-
 /* ── TOOLTIP ── */
 .tooltip {
   background: var(--color-surface);
@@ -139,22 +125,11 @@
   padding: 8px 12px;
 }
 
-.tooltipLabel {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin-bottom: 2px;
-}
-
-.tooltipValue {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text);
-}
+.tooltipLabel { font-size: 12px; color: var(--color-text-muted); margin-bottom: 2px; }
+.tooltipValue { font-size: 14px; font-weight: 600; color: var(--color-text); }
 
 /* ── SECTION ── */
-.section {
-  margin-bottom: 24px;
-}
+.section { margin-bottom: 24px; }
 
 .sectionTitle {
   font-size: 11.5px;
@@ -190,9 +165,7 @@
   background: rgba(245, 158, 11, 0.04);
 }
 
-.quickIcon {
-  font-size: 22px;
-}
+.quickIcon { font-size: 22px; }
 
 .quickLabel {
   font-size: 11px;
@@ -230,13 +203,8 @@
   align-items: center;
 }
 
-.histRow:last-child {
-  border-bottom: none;
-}
-
-.histRow:hover {
-  background: var(--color-surface-2);
-}
+.histRow:last-child { border-bottom: none; }
+.histRow:hover { background: var(--color-surface-2); }
 
 .histTipo {
   display: flex;
@@ -247,16 +215,8 @@
   font-weight: 500;
 }
 
-.histCliente {
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-
-.histDate {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  text-align: right;
-}
+.histCliente { font-size: 13px; color: var(--color-text-muted); }
+.histDate { font-size: 12px; color: var(--color-text-muted); text-align: right; }
 
 /* ── EMPTY ── */
 .emptyState {
@@ -270,6 +230,45 @@
   text-align: center;
 }
 
-.emptyIcon {
-  font-size: 40px;
+.emptyIcon { font-size: 40px; }
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .statValue { font-size: 24px; }
+
+  .chartsRow {
+    grid-template-columns: 1fr;
+  }
+
+  .quickGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .quickCard { padding: 14px 8px; }
+
+  .histHeader {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .histHeader span:nth-child(2) { display: none; }
+
+  .histRow {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .histCliente { display: none; }
+
+  .histDate { font-size: 11px; }
+}
+
+@media (max-width: 400px) {
+  .statsGrid { grid-template-columns: 1fr 1fr; }
+  .statValue { font-size: 22px; }
+  .quickGrid { grid-template-columns: repeat(2, 1fr); }
 }

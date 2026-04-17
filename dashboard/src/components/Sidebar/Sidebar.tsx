@@ -21,10 +21,13 @@ interface SidebarProps {
   onUpgradeClick: () => void;
 }
 
+const STRIPE_VIP = 'https://buy.stripe.com/bJe7sK6el9hmgNe0KDfrW02';
+
 interface NavItem {
   href: string;
   icon: string;
   label: string;
+  vipOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -43,6 +46,23 @@ const docTerceiroItems: NavItem[] = [
   { href: '/documentos/prestacao-servico', icon: '🔧', label: 'Prestação de Serviço' },
   { href: '/documentos/contrato-pj',       icon: '🤝', label: 'Contrato PJ Vendas' },
 ];
+
+function useBrasiliaTime() {
+  const [time, setTime] = useState('');
+  useEffect(() => {
+    function tick() {
+      const d = new Date(Date.now() - 3 * 3600 * 1000);
+      const hh = String(d.getUTCHours()).padStart(2, '0');
+      const mm = String(d.getUTCMinutes()).padStart(2, '0');
+      const ss = String(d.getUTCSeconds()).padStart(2, '0');
+      setTime(`${hh}:${mm}:${ss}`);
+    }
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return time;
+}
 
 export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarProps) {
   const pathname = usePathname();
@@ -79,6 +99,24 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
         </div>
       );
     }
+
+    // Item VIP — não-VIP vai direto para checkout
+    if (item.vipOnly && !isVip && !isAdmin) {
+      return (
+        <a
+          key={item.href}
+          href={STRIPE_VIP}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.navItem}
+        >
+          <span className={styles.navIcon}>{item.icon}</span>
+          <span>{item.label}</span>
+          <span className={styles.vipTag}>VIP</span>
+        </a>
+      );
+    }
+
     return (
       <Link
         key={item.href}
@@ -87,6 +125,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
       >
         <span className={styles.navIcon}>{item.icon}</span>
         <span>{item.label}</span>
+        {item.vipOnly && (isVip || isAdmin) && <span className={styles.vipTag}>VIP</span>}
       </Link>
     );
   }
@@ -122,7 +161,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
           </Link>
         )}
 
-        {/* Dashboard — visível para todos, bloqueado para não-VIP */}
+        {/* Dashboard — VIP e Admin */}
         {(isVip || isAdmin) ? (
           <Link
             href="/dashboard"
@@ -130,13 +169,19 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
           >
             <span className={styles.navIcon}>📊</span>
             <span>Dashboard</span>
+            <span className={styles.vipTag}>VIP</span>
           </Link>
         ) : (
-          <button className={`${styles.navItem} ${styles.navItemDashboard} ${styles.navItemDashboardLocked}`} onClick={onUpgradeClick}>
+          <a
+            href={STRIPE_VIP}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${styles.navItem} ${styles.navItemDashboard}`}
+          >
             <span className={styles.navIcon}>📊</span>
             <span>Dashboard</span>
             <span className={styles.vipTag}>VIP</span>
-          </button>
+          </a>
         )}
 
         <div className={styles.navDivider}>
@@ -163,38 +208,13 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
           {docTerceiroItems.map((item) => renderNavItem(item, !isAdmin && !hasCompany))}
         </div>
 
-        {(isVip || isAdmin) && (
-          <>
-            <div className={styles.navDivider}>
-              <span className={styles.navDividerLabel}>Analytics</span>
-            </div>
-            <div className={styles.navSection}>
-              <Link href="/funil" className={`${styles.navItem} ${pathname === '/funil' ? styles.navItemActive : ''}`}>
-                <span className={styles.navIcon}>📊</span>
-                <span>Funil de Conversão</span>
-              </Link>
-            </div>
-          </>
-        )}
 
         <div className={styles.navDivider}>
           <span className={styles.navDividerLabel}>Conta</span>
         </div>
         <div className={styles.navSection}>
-          <Link
-            href="/historico"
-            className={`${styles.navItem} ${pathname === '/historico' ? styles.navItemActive : ''}`}
-          >
-            <span className={styles.navIcon}>🗂️</span>
-            <span>Meus Documentos</span>
-          </Link>
-          <Link
-            href="/sugestoes"
-            className={`${styles.navItem} ${pathname === '/sugestoes' ? styles.navItemActive : ''}`}
-          >
-            <span className={styles.navIcon}>💎</span>
-            <span>Sugestões VIP</span>
-          </Link>
+          {renderNavItem({ href: '/historico', icon: '🗂️', label: 'Meus Documentos', vipOnly: true }, false)}
+          {renderNavItem({ href: '/sugestoes', icon: '💎', label: 'Sugestões VIP', vipOnly: true }, false)}
         </div>
 
       </nav>

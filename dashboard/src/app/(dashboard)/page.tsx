@@ -184,7 +184,7 @@ export default function HomePage() {
         />
         <StatCard icon="👥" value={clientesCount} label="Clientes cadastrados" href="/clientes" />
         <StatCard icon="🤝" value={terceirosCount} label="Terceiros cadastrados" href="/terceiros" />
-        <StatCard icon="🗓️" value={diasAtivo} label="Dias na plataforma" sub={`Desde ${new Date(user.created_at).toLocaleDateString('pt-BR')}`} />
+        <StatCard icon="🗓️" value={diasAtivo} label="Dias na plataforma" sub={`Desde ${new Date(user.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`} />
         {tipoMaisUsado && (
           <StatCard
             icon={Object.entries(TIPO_LABEL).find(([, v]) => v === tipoMaisUsado.name)?.[0] ? TIPO_ICON[Object.entries(TIPO_LABEL).find(([, v]) => v === tipoMaisUsado.name)![0]] : '📄'}
@@ -276,7 +276,7 @@ export default function HomePage() {
                   <span>{TIPO_LABEL[doc.tipo] ?? doc.tipo}</span>
                 </div>
                 <span className={styles.histCliente}>{doc.cliente_nome ?? '—'}</span>
-                <span className={styles.histDate}>{new Date(doc.created_at).toLocaleDateString('pt-BR')}</span>
+                <span className={styles.histDate}>{new Date(doc.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
               </div>
             ))}
           </div>

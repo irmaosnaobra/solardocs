@@ -273,3 +273,47 @@
 .emptyIcon {
   font-size: 40px;
 }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .chartsRow {
+    grid-template-columns: 1fr;
+  }
+
+  .quickGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .histHeader,
+  .histRow {
+    grid-template-columns: 2fr 1fr;
+  }
+
+  /* Esconder coluna de cliente no mobile */
+  .histCliente {
+    display: none;
+  }
+
+  .histHeader > *:nth-child(2),
+  .histRow > *:nth-child(2) {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .quickGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .greetingTitle {
+    font-size: 18px;
+  }
+}

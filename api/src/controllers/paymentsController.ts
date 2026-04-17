@@ -5,10 +5,19 @@ import { sendMetaEvent } from '../utils/metaPixel';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number }> = {
-  iniciante: { priceId: process.env.STRIPE_PRICE_INICIANTE!, plano: 'iniciante', limite: 15 },
-  pro:       { priceId: process.env.STRIPE_PRICE_PRO!,       plano: 'pro',       limite: 35 },
-  ilimitado: { priceId: process.env.STRIPE_PRICE_VIP!,       plano: 'ilimitado', limite: 999999 },
+const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number; descricao: string }> = {
+  pro: {
+    priceId: process.env.STRIPE_PRICE_PRO!,
+    plano: 'pro',
+    limite: 90,
+    descricao: '📄 90 documentos por mês  •  Indicado para até 20 vendas mensais  •  Tudo do Iniciante  •  Histórico completo de documentos  •  Suporte prioritário',
+  },
+  ilimitado: {
+    priceId: process.env.STRIPE_PRICE_VIP!,
+    plano: 'ilimitado',
+    limite: 999999,
+    descricao: '📄 Documentos ilimitados  •  Indicado para +20 vendas mensais  •  Dashboard completo  •  Acesso a toda expansão da plataforma  •  Suporte prioritário',
+  },
 };
 
 // mapa invertido price_id → plano (para o webhook)
@@ -33,6 +42,15 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     .eq('id', req.userId)
     .single();
 
+  // Atualiza a descrição do produto no Stripe para refletir os valores corretos
+  try {
+    const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
+    const product = price.product as Stripe.Product;
+    if (product?.id) {
+      await stripe.products.update(product.id, { description: planInfo.descricao });
+    }
+  } catch { /* silencioso — não bloqueia o checkout */ }
+
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
@@ -41,6 +59,9 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     metadata: { userId: req.userId! },
     success_url: `${process.env.DASHBOARD_URL}/planos?sucesso=1&sid={CHECKOUT_SESSION_ID}`,
     cancel_url:  `${process.env.DASHBOARD_URL}/planos?cancelado=1`,
+    custom_text: {
+      submit: { message: planInfo.descricao },
+    },
   });
 
   res.json({ url: session.url });
@@ -88,7 +109,6 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     const userId  = session.metadata?.userId;
     const email   = session.customer_email ?? (session.customer_details as any)?.email;
 
-    // Buscar o price_id da subscription criada
     let priceId = '';
     if (session.subscription) {
       const sub = await stripe.subscriptions.retrieve(session.subscription as string);
@@ -100,26 +120,22 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
       const { plano, limite } = planInfo;
 
       if (userId) {
-        // Fluxo plataforma: usuário logado iniciou o checkout
         await supabase
           .from('users')
           .update({ plano, limite_documentos: limite, documentos_usados: 0 })
           .eq('id', userId);
       } else if (email) {
-        // Fluxo landing page: compra direta pelo link Stripe — ativa pelo e-mail
         await supabase
           .from('users')
           .update({ plano, limite_documentos: limite, documentos_usados: 0 })
           .eq('email', email);
       }
 
-      // Meta CAPI — Purchase (server-side, deduplica com pixel client via session.id)
       const valorMap: Record<string, number> = { iniciante: 27, pro: 47, ilimitado: 97 };
-      const valor = valorMap[plano] ?? 0;
       sendMetaEvent('Purchase', {
         eventId:    session.id,
         email:      email ?? undefined,
-        customData: { value: valor, currency: 'BRL', content_name: plano.toUpperCase() },
+        customData: { value: valorMap[plano] ?? 0, currency: 'BRL', content_name: plano.toUpperCase() },
       });
     }
   }

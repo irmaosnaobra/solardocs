@@ -8,8 +8,10 @@
   position: fixed;
   left: 0;
   top: 0;
-  z-index: 100;
-  overflow: hidden;
+  z-index: 200;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  transition: transform 0.3s ease;
 }
 
 .logoWrap {
@@ -17,43 +19,52 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 14px 16px 10px;
+  gap: 4px;
 }
 
 .logo {
-  overflow: hidden;
-  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .dashboardLink {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: lowercase;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
   color: #ef4444;
-  opacity: 0.7;
-  padding: 0 0 5px;
-  margin-top: -33px;
-  transition: opacity 0.15s;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  padding: 4px 12px;
+  transition: all 0.15s;
 }
 
 .dashboardLink:hover {
-  opacity: 1;
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.6);
 }
-
 .dashboardLinkActive {
-  opacity: 1;
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
 }
 
 .logoImg {
   display: block;
-  width: 260px;
-  margin: -36px -20px -28px -20px;
-  mix-blend-mode: screen;
+  width: 130px;
+  height: auto;
 }
 
 .nav {
   flex: 1;
+  min-height: 0;
   padding: 8px 8px;
   display: flex;
   flex-direction: column;
@@ -61,6 +72,7 @@
   overflow-y: auto;
   overflow-x: hidden;
 }
+
 
 .navSection {
   display: flex;
@@ -72,7 +84,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 5px 10px;
+  padding: 6px 10px;
   border-radius: 8px;
   font-size: 13.5px;
   color: var(--color-text-muted);
@@ -93,7 +105,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 5px 10px;
+  padding: 6px 10px;
   border-radius: 8px;
   font-size: 13.5px;
   color: var(--color-text-muted);
@@ -106,6 +118,27 @@
   font-size: 11px;
   margin-left: auto;
   flex-shrink: 0;
+}
+
+.navItemDashboard {
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  background: rgba(245, 158, 11, 0.04);
+  width: 100%;
+  text-align: left;
+}
+
+.navItemDashboardLocked {
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.navItemDashboardLocked:hover {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-primary);
+  opacity: 1;
 }
 
 .navItemVip {
@@ -149,6 +182,7 @@
 }
 
 .footer {
+  flex-shrink: 0;
   padding: 16px;
   border-top: 1px solid var(--color-border);
   display: flex;
@@ -181,9 +215,7 @@
   transition: background 0.2s;
 }
 
-.upgradeBtn:hover {
-  background: rgba(245, 158, 11, 0.2);
-}
+.upgradeBtn:hover { background: rgba(245, 158, 11, 0.2); }
 
 .suggestBtn {
   width: 100%;
@@ -207,6 +239,32 @@
   border-color: rgba(99, 102, 241, 0.5);
 }
 
+.navSairDivider {
+  margin: 8px 10px 4px;
+  border-top: 1px solid var(--color-border);
+}
+
+.navItemSair {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin-top: 2px;
+}
+
+.navItemSair:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+}
+
 .logoutBtn {
   width: 100%;
   padding: 9px;
@@ -219,7 +277,137 @@
   transition: background 0.2s, color 0.2s;
 }
 
+.clock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.18);
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+.clockIcon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.clockTime {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #22c55e;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+
+.clockLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(34, 197, 94, 0.55);
+}
+
 .logoutBtn:hover {
   background: var(--color-surface-2);
   color: var(--color-text);
+}
+
+/* ── MOBILE HEADER (hamburger) ── */
+.mobileHeader {
+  display: none;
+}
+
+.hamburger {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--color-text);
+  border-radius: 2px;
+  transition: all 0.25s;
+}
+
+.overlay {
+  display: none;
+}
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    width: 280px;
+    height: 100dvh;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .logoWrap {
+    flex-shrink: 0;
+  }
+
+  .nav {
+    flex: 1 1 0px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .nav::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+  }
+
+  .footer {
+    flex-shrink: 0;
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+
+  .mobileHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 16px;
+    z-index: 100;
+  }
+
+  .mobileLogoImg {
+    height: 28px;
+    width: auto;
+  }
+
+  .overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 150;
+  }
 }

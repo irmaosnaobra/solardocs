@@ -157,3 +157,9 @@
   color: var(--color-text-muted);
   text-align: center;
 }
+
+@media (max-width: 480px) {
+  .cardFields {
+    grid-template-columns: 1fr;
+  }
+}

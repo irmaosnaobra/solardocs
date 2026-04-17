@@ -54,6 +54,13 @@
   font-weight: 500;
 }
 
-.link:hover {
-  text-decoration: underline;
+.link:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .card {
+    padding: 24px 20px;
+    border-radius: 12px;
+  }
+
+  .title { font-size: 20px; }
 }

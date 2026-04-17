@@ -8,19 +8,11 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
 import modeStyles from './mode.module.css';
 
-interface Client {
-  id: string;
-  nome: string;
-  cpf_cnpj?: string;
-  endereco?: string;
-  cep?: string;
-  cidade?: string;
-}
-
 interface GeneratedDoc {
   content: string;
   modelo_usado: string;
   cliente_nome: string;
+  doc_id: string | null;
 }
 
 const initialFields = {
@@ -38,8 +30,6 @@ const initialFields = {
   garantia_modulos_anos: '',
   garantia_inversor_anos: '',
   garantia_instalacao_anos: '',
-  endereco_instalacao: '',
-  foro_cidade: '',
 };
 
 type Mode = 'm1' | 'm2' | 'ai';
@@ -54,7 +44,6 @@ export default function ContratoSolarPage() {
   const { user, openUpgrade } = useDashboard();
   const [mode, setMode] = useState<Mode>('m1');
   const [clienteId, setClienteId] = useState('');
-  const [cliente, setCliente] = useState<Client | null>(null);
   const [fields, setFields] = useState(initialFields);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
@@ -108,6 +97,8 @@ export default function ContratoSolarPage() {
           clienteNome={generated.cliente_nome}
           dadosJson={fields}
           modeloUsado={generated.modelo_usado}
+          docId={generated.doc_id}
+          userPlano={user?.plano}
           onNewGeneration={() => setGenerated(null)}
         />
       </div>
@@ -140,17 +131,7 @@ export default function ContratoSolarPage() {
       <form onSubmit={handleGenerate} className={styles.form}>
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Cliente</h2>
-          <ClientSelector value={clienteId} onChange={(id, c) => {
-            setClienteId(id);
-            setCliente(c);
-            if (c) {
-              setFields(f => ({
-                ...f,
-                ...(c.cidade && !f.foro_cidade ? { foro_cidade: c.cidade } : {}),
-                ...(c.endereco && !f.endereco_instalacao ? { endereco_instalacao: c.endereco } : {}),
-              }));
-            }
-          }} />
+          <ClientSelector value={clienteId} onChange={(id) => setClienteId(id)} />
         </div>
 
         <div className={styles.section}>
@@ -230,20 +211,6 @@ export default function ContratoSolarPage() {
             <div className={styles.field}>
               <label className={styles.label}>Instalação *</label>
               <input type="number" value={fields.garantia_instalacao_anos} onChange={e => setFields({...fields, garantia_instalacao_anos: e.target.value})} placeholder="2" className="input-field" required />
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.section}>
-          <h2 className={styles.sectionTitle}>Localização</h2>
-          <div className={styles.grid2}>
-            <div className={styles.field}>
-              <label className={styles.label}>Endereço de Instalação *</label>
-              <input type="text" value={fields.endereco_instalacao} onChange={e => setFields({...fields, endereco_instalacao: e.target.value})} placeholder="Rua, nº, bairro, cidade - UF" className="input-field" required />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Foro (cidade) *</label>
-              <input type="text" value={fields.foro_cidade} onChange={e => setFields({...fields, foro_cidade: e.target.value})} placeholder="Ex: Uberlândia" className="input-field" required />
             </div>
           </div>
         </div>

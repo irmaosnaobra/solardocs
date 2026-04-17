@@ -22,6 +22,11 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+    if (error.response?.status === 403 && error.response?.data?.error === 'LIMIT_REACHED') {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('limit-reached'));
+      }
+    }
     return Promise.reject(error);
   }
 );

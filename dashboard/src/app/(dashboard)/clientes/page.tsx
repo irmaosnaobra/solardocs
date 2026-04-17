@@ -30,6 +30,7 @@ export default function ClientesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchClients = useCallback(async (searchTerm?: string) => {
     try {
@@ -51,9 +52,13 @@ export default function ClientesPage() {
   async function handleDelete(id: string) {
     if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
     setDeletingId(id);
+    setDeleteError(null);
     try {
       await api.delete(`/clients/${id}`);
       setClients(prev => prev.filter(c => c.id !== id));
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } };
+      setDeleteError(e.response?.data?.error || 'Erro ao excluir cliente');
     } finally {
       setDeletingId(null);
     }
@@ -74,12 +79,19 @@ export default function ClientesPage() {
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>Clientes</h1>
-          <p className={styles.subtitle}>{clients.length} cliente(s) cadastrado(s)</p>
+          <p className={styles.subtitle}>{clients.length} {clients.length === 1 ? 'cliente cadastrado' : 'clientes cadastrados'}</p>
         </div>
         <button className="btn-primary" onClick={() => { setEditingClient(null); setShowModal(true); }}>
           + Novo Cliente
         </button>
       </div>
+
+      {deleteError && (
+        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 14 }}>
+          ⚠️ {deleteError}
+          <button onClick={() => setDeleteError(null)} style={{ float: 'right', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
 
       <div className={styles.searchBar}>
         <input
@@ -104,8 +116,9 @@ export default function ClientesPage() {
           )}
         </div>
       ) : (
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
+        <>
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
             <thead>
               <tr>
                 <th>Nome</th>
@@ -147,6 +160,38 @@ export default function ClientesPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile cards */}
+        <div className={styles.cardList}>
+          {clients.map(client => (
+            <div key={client.id} className={styles.card}>
+              <div className={styles.cardTop}>
+                <span className={styles.cardName}>{client.nome}</span>
+                <span className={`${styles.tipoBadge} ${client.tipo === 'PJ' ? styles.tipoPJ : styles.tipoPF}`}>
+                  {client.tipo || 'PF'}
+                </span>
+              </div>
+              {client.cpf_cnpj && <p className={styles.cardDetail}>📋 {client.cpf_cnpj}</p>}
+              {(client.cidade || client.uf) && (
+                <p className={styles.cardDetail}>📍 {client.cidade}{client.uf ? `/${client.uf}` : ''}</p>
+              )}
+              {client.concessionaria && <p className={styles.cardDetail}>⚡ {client.concessionaria}</p>}
+              <div className={styles.cardActions}>
+                <button className={styles.editBtn} onClick={() => { setEditingClient(client); setShowModal(true); }}>
+                  ✏️ Editar
+                </button>
+                <button
+                  className={styles.deleteBtn}
+                  onClick={() => handleDelete(client.id)}
+                  disabled={deletingId === client.id}
+                >
+                  {deletingId === client.id ? '...' : '🗑 Excluir'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
       )}
 
       {showModal && (

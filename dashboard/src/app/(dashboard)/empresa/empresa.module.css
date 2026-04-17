@@ -132,53 +132,138 @@
 }
 
 .logoPreview {
-  height: 52px;
+  max-height: 80px;
+  max-width: 100%;
   width: auto;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid var(--color-border);
-  padding: 4px;
+  padding: 6px 10px;
   background: #fff;
 }
 
-.logoUploadArea {
+.logoUploadZone {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px;
-  border: 2px dashed var(--color-border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
-}
-
-.logoUploadActions {
-  display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 24px;
+  border: 2px dashed var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: center;
 }
 
-.uploadBtn {
+.logoUploadZone:hover,
+.logoUploadZoneDrag {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+}
+
+.logoUploadZoneError {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.logoUploadZone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.logoUploadIcon {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.logoUploadTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.logoUploadSub {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.logoUploadBtn {
   display: inline-flex;
   align-items: center;
-  padding: 7px 14px;
+  gap: 6px;
+  padding: 9px 20px;
   background: var(--color-primary);
   color: #fff;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s;
+  pointer-events: none;
 }
 
-.uploadBtn:hover {
-  opacity: 0.88;
+.logoPreviewRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
 }
+
+.logoPreviewInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.logoPreviewLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.logoPreviewActions {
+  display: flex;
+  gap: 8px;
+}
+
+.logoChangeBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  position: relative;
+}
+
+.logoChangeBtn input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.logoChangeBtn:hover { opacity: 0.88; }
 
 .removeLogo {
   background: none;
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
-  padding: 7px 12px;
+  padding: 6px 12px;
   border-radius: 8px;
   font-size: 12px;
   cursor: pointer;
@@ -188,6 +273,7 @@
   font-size: 11px;
   color: var(--color-text-muted);
   line-height: 1.5;
+  margin-top: 6px;
 }
 
 .logoHint strong {
@@ -213,11 +299,26 @@
 }
 
 @media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
   .infoGrid,
   .grid2 {
     grid-template-columns: 1fr;
   }
+
   .fieldFull {
     grid-column: 1;
+  }
+
+  .saveBar {
+    flex-direction: column;
+  }
+
+  .saveBar button {
+    width: 100%;
   }
 }

@@ -9,18 +9,32 @@
 }
 
 .brand {
-  overflow: hidden;
-  margin-bottom: 12px;
+  margin-bottom: 28px;
 }
 
 .brandLogo {
   display: block;
-  width: 440px;
-  margin: -60px -52px -108px -52px;
-  mix-blend-mode: screen;
+  width: 180px;
+  height: auto;
 }
 
 .content {
   width: 100%;
   max-width: 400px;
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 16px;
+    justify-content: flex-start;
+    padding-top: 40px;
+  }
+
+  .brandLogo {
+    width: 140px;
+  }
+
+  .content {
+    max-width: 100%;
+  }
 }

@@ -99,17 +99,37 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     let content: string;
     let modeloUsado: string;
 
+    await checkLimit(req.userId);
+
     if (body.useTemplate) {
       content = generateFromTemplate(body.tipo, company, entity, body.fields, body.modeloNumero);
       modeloUsado = `modelo-${body.modeloNumero}`;
     } else {
-      await checkLimit(req.userId);
-      content = await generateDocumentWithAI(body.tipo, company, entity, body.fields);
-      await incrementUsed(req.userId);
+      content = await generateDocumentWithAI(body.tipo, company, entity as any, body.fields);
       modeloUsado = process.env.OPENAI_API_KEY ? 'gpt-4o' : 'claude-opus-4-6';
     }
 
-    res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome });
+    await incrementUsed(req.userId);
+
+    // Save record immediately so it always appears in history
+    const { data: saved } = await supabase
+      .from('documents')
+      .insert({
+        user_id:     req.userId,
+        tipo:        body.tipo,
+        cliente_id:  body.cliente_id  || null,
+        terceiro_id: body.terceiro_id || null,
+        cliente_nome: entityNome,
+        dados_json:  body.fields,
+        content,
+        modelo_usado: modeloUsado,
+        arquivo_url: null,
+        status: 'saved',
+      })
+      .select('id')
+      .single();
+
+    res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: saved?.id ?? null });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.issues[0].message });
@@ -124,6 +144,11 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
   }
 }
 
+function injectPrint(html: string): string {
+  const script = `<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>`;
+  return html.includes('window.print') ? html : html.replace('</body>', script + '</body>');
+}
+
 export async function saveDocument(req: Request, res: Response): Promise<void> {
   try {
     const body = saveSchema.parse(req.body);
@@ -135,7 +160,7 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
       const fileName = `${req.userId}/${body.tipo}-${body.cliente_nome?.replace(/\s+/g, '-').toLowerCase() ?? 'doc'}-${Date.now()}.html`;
       const { error: uploadError } = await supabase.storage
         .from('documentos')
-        .upload(fileName, Buffer.from(htmlContent, 'utf-8'), { contentType: 'text/html; charset=utf-8', upsert: false });
+        .upload(fileName, Buffer.from(injectPrint(htmlContent), 'utf-8'), { contentType: 'text/html; charset=utf-8', upsert: false });
 
       if (!uploadError) {
         arquivo_url = fileName;
@@ -171,6 +196,48 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
   }
 }
 
+export async function updateDocumentFile(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const htmlContent = req.body.html_content as string | undefined;
+    const newContent  = req.body.content    as string | undefined;
+
+    // Verify ownership
+    const { data: doc } = await supabase
+      .from('documents')
+      .select('id, user_id, arquivo_url')
+      .eq('id', id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (!doc) { res.status(404).json({ error: 'Documento não encontrado' }); return; }
+
+    const updates: Record<string, unknown> = {};
+    if (newContent) updates.content = newContent;
+
+    if (htmlContent) {
+      // Remove old file if exists
+      if (doc.arquivo_url) {
+        await supabase.storage.from('documentos').remove([doc.arquivo_url]);
+      }
+      const fileName = `${req.userId}/${id}-${Date.now()}.html`;
+      const { error: uploadError } = await supabase.storage
+        .from('documentos')
+        .upload(fileName, Buffer.from(injectPrint(htmlContent), 'utf-8'), { contentType: 'text/html; charset=utf-8', upsert: false });
+      if (!uploadError) updates.arquivo_url = fileName;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await supabase.from('documents').update(updates).eq('id', id);
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('updateDocumentFile error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar documento' });
+  }
+}
+
 export async function listDocuments(req: Request, res: Response): Promise<void> {
   try {
     const { data: user } = await supabase
@@ -181,7 +248,7 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
 
     if (!user) { res.status(404).json({ error: 'Usuário não encontrado' }); return; }
 
-    // Iniciante: sem histórico
+    // Iniciante e free: sem histórico completo
     if (user.plano === 'free' || user.plano === 'iniciante') {
       res.json({ documents: [], plano: user.plano, historico: false });
       return;

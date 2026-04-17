@@ -8,7 +8,7 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
 import modeStyles from '../contrato-solar/mode.module.css';
 
-interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; }
+interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
 const initialFields = {
   percentual_comissao: '',
@@ -79,6 +79,8 @@ export default function ContratoPJPage() {
         clienteNome={generated.cliente_nome}
         dadosJson={fields}
         modeloUsado={generated.modelo_usado}
+        docId={generated.doc_id}
+        userPlano={user?.plano}
         onNewGeneration={() => setGenerated(null)}
       />
     </div>

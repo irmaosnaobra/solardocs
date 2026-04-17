@@ -21,17 +21,26 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
-        <Script id="pwa-setup" strategy="beforeInteractive">{`
-          window.__pwaInstallPrompt = null;
-          window.addEventListener('beforeinstallprompt', function(e) {
-            e.preventDefault();
-            window.__pwaInstallPrompt = e;
-          });
-          if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js');
+        {/* Preconnect para Google Fonts — não bloqueia render em Android antigo */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        />
+        <Script id="pwa-setup" strategy="afterInteractive">{`
+          try {
+            window.__pwaInstallPrompt = null;
+            window.addEventListener('beforeinstallprompt', function(e) {
+              e.preventDefault();
+              window.__pwaInstallPrompt = e;
             });
-          }
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                try { navigator.serviceWorker.register('/sw.js'); } catch(e) {}
+              });
+            }
+          } catch(e) {}
         `}</Script>
         <Script id="meta-pixel" strategy="afterInteractive">{`
           !function(f,b,e,v,n,t,s)

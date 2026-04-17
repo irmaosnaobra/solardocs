@@ -21,6 +21,7 @@ function RegisterForm() {
   const [email, setEmail]                   = useState('');
   const [password, setPassword]             = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [whatsapp, setWhatsapp]             = useState('');
   const [error, setError]                   = useState('');
   const [loading, setLoading]               = useState(false);
   const [planFromStripe, setPlanFromStripe] = useState<string | null>(null);
@@ -46,7 +47,7 @@ function RegisterForm() {
     setLoading(true);
     try {
       const eventId = crypto.randomUUID();
-      const { data } = await api.post('/auth/register', { email, password }, {
+      const { data } = await api.post('/auth/register', { email, password, whatsapp: whatsapp || undefined }, {
         headers: { 'X-Meta-Event-Id': eventId },
       });
       setToken(data.token);
@@ -122,6 +123,17 @@ function RegisterForm() {
             placeholder="••••••••"
             className="input-field"
             required
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>WhatsApp <span style={{fontWeight:400,color:'var(--color-text-muted)'}}>— para suporte e novidades</span></label>
+          <input
+            type="tel"
+            value={whatsapp}
+            onChange={e => setWhatsapp(e.target.value)}
+            placeholder="(11) 99999-0000"
+            className="input-field"
           />
         </div>
 

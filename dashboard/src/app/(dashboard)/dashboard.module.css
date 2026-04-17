@@ -13,11 +13,14 @@
 }
 
 @media print {
-  .layout {
-    display: block;
-  }
+  .layout { display: block; }
+  .main { margin-left: 0; padding: 0; }
+}
+
+@media (max-width: 768px) {
   .main {
     margin-left: 0;
-    padding: 0;
+    padding: 16px;
+    padding-top: 72px; /* espaço para a barra superior fixa */
   }
 }

@@ -9,6 +9,7 @@ interface UserRow {
   id: string; email: string; plano: string;
   documentos_usados: number; limite_documentos: number;
   created_at: string; is_admin: boolean;
+  whatsapp: string | null;
   empresa_nome: string | null; empresa_cnpj: string | null; empresa_whatsapp: string | null;
 }
 interface SessionRow {
@@ -26,6 +27,7 @@ interface CtaRow    { label: string; count: number; }
 interface Analytics {
   total: number; today: number; avg_time: number | null;
   funnel: { visits: number; scroll_50: number; saw_precos: number; cta_clicks: number };
+  conversion: { cadastros: number; empresas: number; assinantes: number };
   sources: SourceRow[]; top_ctas: CtaRow[]; sessions: SessionRow[];
 }
 interface MetaAdsetRow {
@@ -45,13 +47,26 @@ interface MetaFunnelData {
 }
 
 /* ─── helpers ────────────────────────────────────────────────── */
-const TZ = 'America/Sao_Paulo';
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: TZ });
-}
+import { toBrasilia, nowBrasilia, fmtDateTimeBR, fmtDateBR, daysDiffBR } from '@/utils/brasilia';
+
+function fmt(d: string) { return fmtDateTimeBR(d); }
 function isToday(d: string) {
-  const opts: Intl.DateTimeFormatOptions = { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit' };
-  return new Date(d).toLocaleDateString('pt-BR', opts) === new Date().toLocaleDateString('pt-BR', opts);
+  const a = toBrasilia(d), b = nowBrasilia();
+  return a.getUTCFullYear()===b.getUTCFullYear() && a.getUTCMonth()===b.getUTCMonth() && a.getUTCDate()===b.getUTCDate();
+}
+function relDate(d: string) {
+  const diff = daysDiffBR(d);
+  const s    = toBrasilia(d);
+  const hh   = String(s.getUTCHours()).padStart(2,'0');
+  const mm   = String(s.getUTCMinutes()).padStart(2,'0');
+  const time = `${hh}:${mm}`;
+  const date = fmtDateBR(d);
+  let label: string; let color: string;
+  if (diff === 0)      { label = 'HOJE';         color = '#22c55e'; }
+  else if (diff === 1) { label = 'ONTEM';        color = '#60a5fa'; }
+  else if (diff <= 7)  { label = `${diff} DIAS`; color = '#f59e0b'; }
+  else                 { label = date;            color = 'var(--color-text-muted)'; }
+  return { label, color, time, showTime: diff <= 7 };
 }
 function srcLabel(s: SessionRow) {
   if (s.utm_source) return s.utm_source;
@@ -175,6 +190,9 @@ export default function AdminPage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [search, setSearch]             = useState('');
   const [filterPlano, setFilterPlano]   = useState('todos');
+  const [filterPeriodo, setFilterPeriodo] = useState<'mes'|'mes-passado'|'maximo'|'custom'>('maximo');
+  const [customFrom, setCustomFrom]     = useState('');
+  const [customTo, setCustomTo]         = useState('');
   const [resetting, setResetting]       = useState(false);
   const [resetMsg, setResetMsg]         = useState('');
 
@@ -212,8 +230,26 @@ export default function AdminPage() {
   }
 
   const filteredUsers = users.filter(u => {
-    const ok = search==='' || u.email.toLowerCase().includes(search.toLowerCase()) || (u.empresa_nome??'').toLowerCase().includes(search.toLowerCase());
-    return ok && (filterPlano==='todos' || u.plano===filterPlano);
+    const okSearch = search==='' || u.email.toLowerCase().includes(search.toLowerCase()) || (u.empresa_nome??'').toLowerCase().includes(search.toLowerCase());
+    const okPlano  = filterPlano==='todos' || u.plano===filterPlano;
+    let okPeriodo  = true;
+    if (filterPeriodo !== 'maximo') {
+      const now = nowBrasilia();
+      const d   = toBrasilia(u.created_at);
+      if (filterPeriodo === 'mes') {
+        okPeriodo = d.getUTCFullYear()===now.getUTCFullYear() && d.getUTCMonth()===now.getUTCMonth();
+      } else if (filterPeriodo === 'mes-passado') {
+        const py = now.getUTCMonth()===0 ? now.getUTCFullYear()-1 : now.getUTCFullYear();
+        const pm = now.getUTCMonth()===0 ? 11 : now.getUTCMonth()-1;
+        okPeriodo = d.getUTCFullYear()===py && d.getUTCMonth()===pm;
+      } else if (filterPeriodo === 'custom') {
+        const from = customFrom ? new Date(customFrom+'T03:00:00Z') : null;
+        const to   = customTo   ? new Date(customTo  +'T02:59:59Z') : null;
+        if (from) okPeriodo = okPeriodo && d >= from;
+        if (to)   okPeriodo = okPeriodo && d <= to;
+      }
+    }
+    return okSearch && okPlano && okPeriodo;
   });
 
   const totalHoje = users.filter(u=>isToday(u.created_at)).length;
@@ -312,6 +348,21 @@ export default function AdminPage() {
               <option value="free">FREE</option><option value="pro">PRO</option><option value="ilimitado">VIP</option>
             </select>
           </div>
+          <div className={styles.filters} style={{marginTop:8,alignItems:'center'}}>
+            <div className={styles.periodTabs}>
+              {([['mes','Mês atual'],['mes-passado','Mês passado'],['maximo','Máximo'],['custom','Personalizado']] as const).map(([v,l])=>(
+                <button key={v} className={filterPeriodo===v?styles.periodActive:styles.periodBtn} onClick={()=>setFilterPeriodo(v)}>{l}</button>
+              ))}
+            </div>
+            {filterPeriodo==='custom' && (
+              <>
+                <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)} className="input-field" style={{maxWidth:150}} />
+                <span style={{color:'var(--color-text-muted)',fontSize:13}}>até</span>
+                <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)} className="input-field" style={{maxWidth:150}} />
+              </>
+            )}
+            <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{filteredUsers.length} resultado{filteredUsers.length!==1?'s':''}</span>
+          </div>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead><tr><th>Email</th><th>Empresa</th><th>WhatsApp</th><th>Plano</th><th>Docs</th><th>Cadastro</th></tr></thead>
@@ -321,10 +372,13 @@ export default function AdminPage() {
                   <tr key={u.id} className={isToday(u.created_at)?styles.rowNew:''}>
                     <td>{u.email}{u.is_admin&&<span className={styles.adminTag}>admin</span>}</td>
                     <td className={styles.mutedCell}>{u.empresa_nome??<span className={styles.emptyDash}>—</span>}</td>
-                    <td className={styles.mutedCell}>{u.empresa_whatsapp?<a href={`https://wa.me/55${u.empresa_whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" style={{color:'#22c55e',textDecoration:'none'}}>📲 {u.empresa_whatsapp}</a>:<span className={styles.emptyDash}>—</span>}</td>
+                    <td className={styles.mutedCell}>{(() => {
+                      const wpp = u.empresa_whatsapp || u.whatsapp;
+                      return wpp ? <a href={`https://wa.me/55${wpp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" style={{color:'#22c55e',textDecoration:'none'}}>📲 {wpp}</a> : <span className={styles.emptyDash}>—</span>;
+                    })()}</td>
                     <td><span className={styles.planTag} style={{background:PLANO_COLOR[u.plano]+'22',color:PLANO_COLOR[u.plano],borderColor:PLANO_COLOR[u.plano]+'55'}}>{PLANO_LABEL[u.plano]??u.plano}</span></td>
                     <td className={styles.mutedCell}>{u.documentos_usados}/{u.limite_documentos===999999?'∞':u.limite_documentos}</td>
-                    <td className={styles.mutedCell}>{fmt(u.created_at)}</td>
+                    <td>{(() => { const r = relDate(u.created_at); return <div style={{display:'flex',flexDirection:'column',gap:2}}><span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>{r.showTime&&<span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}</div>; })()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -457,6 +511,54 @@ export default function AdminPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {analytics?.conversion && (
+                <div className={styles.funnelCard} style={{marginTop:16}}>
+                  <div className={styles.funnelTitle}>Funil de Conversão — Plataforma</div>
+                  <div className={styles.funnelSteps}>
+                    {(() => {
+                      const cv = analytics.conversion;
+                      const base = Math.max(fn?.cta_clicks ?? 0, cv.cadastros, 1);
+                      const steps = [
+                        { label: 'Clicaram no CTA',          icon: '🖱️', value: fn?.cta_clicks ?? 0,  color: '#60a5fa' },
+                        { label: 'Cadastraram (Lead)',         icon: '✍️', value: cv.cadastros,         color: '#a78bfa' },
+                        { label: 'Concluíram inscrição',       icon: '🏢', value: cv.empresas,          color: '#34d399' },
+                        { label: 'Assinaram (Purchase)',       icon: '💳', value: cv.assinantes,        color: '#fbbf24' },
+                      ];
+                      return steps.map((s, i) => (
+                        <div key={i} className={styles.funnelStep}>
+                          <div className={styles.funnelIcon}>{s.icon}</div>
+                          <div className={styles.funnelBar}>
+                            <div className={styles.funnelFill} style={{ width: `${Math.round(s.value / base * 100)}%`, background: s.color }} />
+                          </div>
+                          <div className={styles.funnelMeta}>
+                            <span className={styles.funnelValue} style={{color: s.color}}>{s.value}</span>
+                            <span className={styles.funnelPct}>{Math.round(s.value / base * 100)}%</span>
+                            <span className={styles.funnelLabel}>{s.label}</span>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                  <div style={{display:'flex',gap:16,marginTop:14,paddingTop:12,borderTop:'1px solid var(--color-border)',flexWrap:'wrap'}}>
+                    {analytics.conversion.cadastros > 0 && (
+                      <span style={{fontSize:12,color:'var(--color-text-muted)'}}>
+                        Taxa CTA→Cadastro: <strong style={{color:'#a78bfa'}}>{pct(analytics.conversion.cadastros, fn?.cta_clicks ?? 0)}</strong>
+                      </span>
+                    )}
+                    {analytics.conversion.cadastros > 0 && (
+                      <span style={{fontSize:12,color:'var(--color-text-muted)'}}>
+                        Taxa Cadastro→Empresa: <strong style={{color:'#34d399'}}>{pct(analytics.conversion.empresas, analytics.conversion.cadastros)}</strong>
+                      </span>
+                    )}
+                    {analytics.conversion.empresas > 0 && (
+                      <span style={{fontSize:12,color:'var(--color-text-muted)'}}>
+                        Taxa Empresa→Assinante: <strong style={{color:'#fbbf24'}}>{pct(analytics.conversion.assinantes, analytics.conversion.empresas)}</strong>
+                      </span>
+                    )}
                   </div>
                 </div>
               )}

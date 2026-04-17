@@ -1,159 +1,233 @@
+.banner {
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-bottom: 32px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
 .container {
   padding: 40px;
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
   min-height: calc(100vh - 100px);
 }
 
 .header {
   text-align: center;
-  margin-bottom: 60px;
+  margin-bottom: 52px;
 }
 
 .title {
-  font-size: 2.5rem;
+  font-size: 2.2rem;
   font-weight: 800;
-  margin-bottom: 12px;
-  background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary-dark));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  margin-bottom: 10px;
+  color: var(--color-text);
 }
 
 .subtitle {
   color: var(--color-text-muted);
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 30px;
-  align-items: flex-start;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: stretch;
 }
 
+/* ── PRO — azul-índigo com toque de ciano ── */
 .card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  padding: 40px;
+  border-radius: 22px;
+  padding: 40px 36px;
   position: relative;
-  transition: all 0.3s ease;
-  height: 100%;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
   display: flex;
   flex-direction: column;
+  background: linear-gradient(145deg, #0f172a 0%, #0d1f3c 50%, #0a1628 100%);
+  border: 1px solid rgba(99, 179, 237, 0.25);
+  box-shadow: 0 4px 24px rgba(99, 179, 237, 0.08);
 }
 
 .card:hover {
-  transform: translateY(-5px);
-  border-color: var(--color-primary);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(99, 179, 237, 0.15);
 }
 
+/* ── VIP — dourado destacado ── */
 .destaque {
-  border: 2px solid var(--color-primary);
-  box-shadow: 0 10px 40px rgba(245, 158, 11, 0.1);
+  background: linear-gradient(145deg, #1a1200 0%, #2d1f00 45%, #1a1200 100%);
+  border: 1.5px solid rgba(251, 191, 36, 0.5);
+  box-shadow: 0 4px 28px rgba(251, 191, 36, 0.15);
+}
+
+.destaque:hover {
+  box-shadow: 0 16px 44px rgba(251, 191, 36, 0.28);
 }
 
 .badge {
   position: absolute;
-  top: -12px;
+  top: -13px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--color-primary);
-  color: #000;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  color: #0f172a;
   font-weight: 800;
-  font-size: 0.8rem;
-  padding: 4px 16px;
+  font-size: 0.75rem;
+  padding: 4px 18px;
   border-radius: 99px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
+  white-space: nowrap;
 }
 
+/* ── Nome do plano ── */
 .planoNome {
-  font-size: 1rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: var(--color-text-muted);
-  margin-bottom: 20px;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 2.5px;
+  margin-bottom: 16px;
+  color: #63b3ed;
 }
 
+.destaque .planoNome {
+  color: #fbbf24;
+}
+
+/* ── Preço ── */
 .precoContainer {
   display: flex;
   align-items: baseline;
   gap: 4px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .moeda {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 600;
+  color: #e2e8f0;
 }
 
 .valor {
-  font-size: 3.5rem;
-  font-weight: 800;
-  letter-spacing: -2px;
+  font-size: 4rem;
+  font-weight: 900;
+  letter-spacing: -3px;
+  color: #fff;
+  line-height: 1;
 }
 
 .periodo {
-  color: var(--color-text-muted);
-  font-size: 1rem;
-}
-
-.descricao {
-  color: var(--color-text-muted);
-  margin-bottom: 30px;
+  color: #94a3b8;
   font-size: 0.95rem;
-  line-height: 1.5;
 }
 
+/* ── Tag "Indicado para" ── */
+.indicado {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #63b3ed;
+  background: rgba(99, 179, 237, 0.1);
+  border: 1px solid rgba(99, 179, 237, 0.25);
+  border-radius: 8px;
+  padding: 9px 14px;
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.destaque .indicado {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+/* ── Recursos ── */
 .recursos {
   list-style: none;
   padding: 0;
-  margin: 0 0 40px 0;
+  margin: 0 0 36px 0;
   flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .recursos li {
-  margin-bottom: 12px;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
+  color: #cbd5e1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
+  line-height: 1.4;
 }
 
 .recursos li span {
-  color: var(--color-primary);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #63b3ed;
 }
 
+.destaque .recursos li span {
+  color: #fbbf24;
+}
+
+/* ── Botões ── */
 .ctaBtn {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-  color: #000;
+  background: transparent;
+  color: #63b3ed;
   font-weight: 800;
-  font-size: 1.1rem;
-  padding: 16px;
+  font-size: 1rem;
+  padding: 15px;
   border-radius: 12px;
-  text-decoration: none;
   text-align: center;
   transition: all 0.2s;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+  border: 2px solid #63b3ed;
+  cursor: pointer;
+  width: 100%;
+  letter-spacing: 0.3px;
 }
 
-.ctaBtn:hover {
+.ctaBtn:hover:not(:disabled) {
+  background: #63b3ed;
+  color: #0f172a;
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.45);
-  background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
+  box-shadow: 0 8px 24px rgba(99, 179, 237, 0.3);
+}
+
+.ctaBtnVip {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  color: #0f172a;
+  font-weight: 900;
+  font-size: 1.05rem;
+  padding: 15px;
+  border-radius: 12px;
+  text-align: center;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.45);
+  letter-spacing: 0.3px;
+}
+
+.ctaBtnVip:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fbbf24, #fcd34d);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(245, 158, 11, 0.6);
 }
 
 .ctaBtnDisabled {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  color: #475569;
   font-weight: 700;
-  border: 1px solid var(--border-color);
-  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 15px;
   border-radius: 12px;
   cursor: not-allowed;
+  width: 100%;
 }
 
 @media (max-width: 768px) {
@@ -161,9 +235,12 @@
     padding: 20px;
   }
   .title {
-    font-size: 2rem;
+    font-size: 1.7rem;
   }
   .grid {
     grid-template-columns: 1fr;
+  }
+  .valor {
+    font-size: 3.2rem;
   }
 }

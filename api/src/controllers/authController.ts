@@ -11,9 +11,8 @@ import { sendPasswordResetEmail } from '../utils/mailer';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const PRICE_TO_PLAN: Record<string, { plano: string; limite: number }> = {
-  [process.env.STRIPE_PRICE_INICIANTE!]: { plano: 'iniciante', limite: 30 },
-  [process.env.STRIPE_PRICE_PRO!]:       { plano: 'pro',       limite: 90 },
-  [process.env.STRIPE_PRICE_VIP!]:       { plano: 'ilimitado', limite: 999999 },
+  [process.env.STRIPE_PRICE_PRO!]: { plano: 'pro',       limite: 90 },
+  [process.env.STRIPE_PRICE_VIP!]: { plano: 'ilimitado', limite: 999999 },
 };
 
 async function detectStripePlan(email: string): Promise<{ plano: string; limite: number } | null> {
@@ -30,8 +29,9 @@ async function detectStripePlan(email: string): Promise<{ plano: string; limite:
 }
 
 const registerSchema = z.object({
-  email: z.string().email('Email inválido'),
+  email:    z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  whatsapp: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -58,13 +58,13 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     // Verifica se o e-mail já possui assinatura ativa no Stripe (comprou antes de cadastrar)
     const stripePlan = await detectStripePlan(body.email);
-    const plano           = stripePlan?.plano  ?? 'free';
-    const limite_documentos = stripePlan?.limite ?? 0;
+    const plano             = stripePlan?.plano  ?? 'free';
+    const limite_documentos = stripePlan?.limite ?? 10;
 
     const dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: user, error } = await supabase
       .from('users')
-      .insert({ email: body.email, password_hash, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset })
+      .insert({ email: body.email, password_hash, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null })
       .select('id, email, plano, limite_documentos, documentos_usados, created_at')
       .single();
 
