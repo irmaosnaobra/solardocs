@@ -12,6 +12,7 @@ interface UserRow {
   whatsapp: string | null;
   empresa_nome: string | null; empresa_cnpj: string | null; empresa_whatsapp: string | null;
   followup_day_recovered: number | null;
+  followup_started_at: string | null;
 }
 interface SessionRow {
   session_id: string | null; created_at: string;
@@ -375,15 +376,14 @@ export default function AdminPage() {
               <tbody>
                 {filteredUsers.length===0&&<tr><td colSpan={8} className={styles.empty}>Nenhum usuário encontrado</td></tr>}
                 {filteredUsers.map(u=>{
-                  const FOLLOWUP_START = new Date('2026-04-17T00:00:00-03:00');
-                  const registeredAt   = new Date(u.created_at);
-                  const isInSystem     = registeredAt >= FOLLOWUP_START;
-                  const diffDays       = Math.floor((Date.now() - registeredAt.getTime()) / 86400000);
-                  const followupDay    = diffDays + 1;
-                  const inSequence     = isInSystem && !u.empresa_cnpj && followupDay >= 1 && followupDay <= 7;
-                  const expired        = isInSystem && !u.empresa_cnpj && followupDay > 7;
-                  const converted      = isInSystem && !!u.empresa_cnpj && diffDays <= 7;
-                  const convDay        = u.followup_day_recovered ?? (converted ? followupDay : null);
+                  const baseDate    = u.followup_started_at ? new Date(u.followup_started_at) : null;
+                  const isInSystem  = !!baseDate;
+                  const diffDays    = baseDate ? Math.floor((Date.now() - baseDate.getTime()) / 86400000) : 0;
+                  const followupDay = diffDays + 1;
+                  const inSequence  = isInSystem && !u.empresa_cnpj && followupDay >= 1 && followupDay <= 7;
+                  const expired     = isInSystem && !u.empresa_cnpj && followupDay > 7;
+                  const converted   = isInSystem && !!u.empresa_cnpj;
+                  const convDay     = u.followup_day_recovered ?? (converted ? followupDay : null);
                   return (
                   <tr key={u.id} className={isToday(u.created_at)?styles.rowNew:''}>
                     <td>
