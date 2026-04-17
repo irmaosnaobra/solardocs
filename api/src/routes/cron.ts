@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
+import { runFollowupCnpj } from '../services/followupService';
 
 const router = Router();
 
@@ -33,6 +34,18 @@ router.get('/monthly-reset', async (req: Request, res: Response) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Cron monthly reset error:', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Roda todo dia às 9h — follow-up para usuários sem CNPJ (dias 1 a 7)
+router.get('/followup-cnpj', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runFollowupCnpj();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('Cron followup error:', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
