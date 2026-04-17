@@ -29,8 +29,12 @@ export async function runFollowupCnpj(): Promise<{ sent: number }> {
     const day = Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1;
 
     if (day >= 1 && day <= 7) {
-      await sendFollowupEmail(user.email, day);
-      sent++;
+      try {
+        await sendFollowupEmail(user.email, day);
+        sent++;
+      } catch (err) {
+        console.error(`Followup email failed for ${user.email} day ${day}:`, err);
+      }
     }
   }
 
