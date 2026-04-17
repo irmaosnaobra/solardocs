@@ -20,9 +20,11 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
 
     const result = users?.map(u => ({
       ...u,
-      empresa_nome:     companyMap.get(u.id)?.nome      ?? null,
-      empresa_cnpj:     companyMap.get(u.id)?.cnpj      ?? null,
-      empresa_whatsapp: companyMap.get(u.id)?.whatsapp  ?? null,
+      empresa_nome:          companyMap.get(u.id)?.nome     ?? null,
+      empresa_cnpj:          companyMap.get(u.id)?.cnpj     ?? null,
+      empresa_whatsapp:      companyMap.get(u.id)?.whatsapp ?? null,
+      followup_started_at:   (u as any).followup_started_at   ?? null,
+      followup_day_recovered:(u as any).followup_day_recovered ?? null,
     }));
 
     res.json({ users: result });

@@ -376,9 +376,10 @@ export default function AdminPage() {
               <tbody>
                 {filteredUsers.length===0&&<tr><td colSpan={8} className={styles.empty}>Nenhum usuário encontrado</td></tr>}
                 {filteredUsers.map(u=>{
-                  const baseDate    = u.followup_started_at ? new Date(u.followup_started_at.replace(' ', 'T')) : null;
-                  const isInSystem  = !!baseDate;
-                  const diffDays    = baseDate ? Math.floor((Date.now() - baseDate.getTime()) / 86400000) : 0;
+                  const fsRaw       = u.followup_started_at;
+                  const isInSystem  = !!fsRaw;
+                  const baseMs      = fsRaw ? new Date(fsRaw.replace(' ','T')+'Z').getTime() : 0;
+                  const diffDays    = isInSystem ? Math.floor((Date.now() - baseMs) / 86400000) : 0;
                   const followupDay = diffDays + 1;
                   const inSequence  = isInSystem && !u.empresa_cnpj && followupDay >= 1 && followupDay <= 7;
                   const expired     = isInSystem && !u.empresa_cnpj && followupDay > 7;
