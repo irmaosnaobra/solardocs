@@ -7,7 +7,7 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('id, email, plano, documentos_usados, limite_documentos, created_at, is_admin, whatsapp, followup_day_recovered')
+      .select('id, email, plano, documentos_usados, limite_documentos, created_at, is_admin, whatsapp')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
