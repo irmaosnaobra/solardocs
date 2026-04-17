@@ -371,15 +371,21 @@ export default function AdminPage() {
           </div>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
-              <thead><tr><th>Email</th><th>Empresa</th><th>WhatsApp</th><th>Plano</th><th>Docs</th><th>Cadastro</th></tr></thead>
+              <thead><tr><th>Email</th><th>Empresa</th><th>WhatsApp</th><th>Plano</th><th>Docs</th><th>Cadastro</th><th>Followup</th><th>Resultado Followup</th></tr></thead>
               <tbody>
-                {filteredUsers.length===0&&<tr><td colSpan={6} className={styles.empty}>Nenhum usuário encontrado</td></tr>}
-                {filteredUsers.map(u=>(
+                {filteredUsers.length===0&&<tr><td colSpan={8} className={styles.empty}>Nenhum usuário encontrado</td></tr>}
+                {filteredUsers.map(u=>{
+                  const diffDays = Math.floor((Date.now() - new Date(u.created_at).getTime()) / 86400000);
+                  const followupDay = diffDays + 1;
+                  const inSequence  = !u.empresa_cnpj && followupDay >= 1 && followupDay <= 7;
+                  const expired     = !u.empresa_cnpj && followupDay > 7;
+                  const converted   = !!u.empresa_cnpj && diffDays <= 7;
+                  const convDay     = u.followup_day_recovered ?? (converted ? followupDay : null);
+                  return (
                   <tr key={u.id} className={isToday(u.created_at)?styles.rowNew:''}>
                     <td>
                       {u.email}
                       {u.is_admin&&<span className={styles.adminTag}>admin</span>}
-                      {u.followup_day_recovered&&<span className={styles.followupTag}>Recuperado followup {u.followup_day_recovered}</span>}
                     </td>
                     <td className={styles.mutedCell}>{u.empresa_nome??<span className={styles.emptyDash}>—</span>}</td>
                     <td className={styles.mutedCell}>{(() => {
@@ -389,8 +395,23 @@ export default function AdminPage() {
                     <td><span className={styles.planTag} style={{background:PLANO_COLOR[u.plano]+'22',color:PLANO_COLOR[u.plano],borderColor:PLANO_COLOR[u.plano]+'55'}}>{PLANO_LABEL[u.plano]??u.plano}</span></td>
                     <td className={styles.mutedCell}>{u.documentos_usados}/{u.limite_documentos===999999?'∞':u.limite_documentos}</td>
                     <td>{(() => { const r = relDate(u.created_at); return <div style={{display:'flex',flexDirection:'column',gap:2}}><span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>{r.showTime&&<span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}</div>; })()}</td>
+                    <td style={{textAlign:'center'}}>
+                      {inSequence
+                        ? <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:'rgba(245,158,11,0.12)',border:'1px solid rgba(245,158,11,0.35)',color:'#f59e0b',fontWeight:700,fontSize:12}}>{String(followupDay).padStart(2,'0')}</span>
+                        : <span className={styles.emptyDash}>—</span>
+                      }
+                    </td>
+                    <td style={{textAlign:'center'}}>
+                      {converted
+                        ? <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.3)',color:'#22c55e',fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>Sucesso followup {String(convDay??followupDay).padStart(2,'0')}</span>
+                        : expired
+                          ? <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.25)',color:'#f87171',fontWeight:600,fontSize:11,whiteSpace:'nowrap'}}>Sem sucesso</span>
+                          : <span className={styles.emptyDash}>—</span>
+                      }
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
