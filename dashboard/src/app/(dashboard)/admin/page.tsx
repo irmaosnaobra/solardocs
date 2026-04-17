@@ -191,7 +191,7 @@ export default function AdminPage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [search, setSearch]             = useState('');
   const [filterPlano, setFilterPlano]   = useState('todos');
-  const [filterPeriodo, setFilterPeriodo] = useState<'hoje'|'ontem'|'7dias'|'mes'|'custom'|null>(null);
+  const [filterPeriodo, setFilterPeriodo] = useState<'hoje'|'ontem'|'7dias'|'mes'|'custom'|'maximo'>('maximo');
   const [customFrom, setCustomFrom]     = useState('');
   const [customTo, setCustomTo]         = useState('');
   const [resetting, setResetting]       = useState(false);
@@ -234,7 +234,7 @@ export default function AdminPage() {
     const okSearch = search==='' || u.email.toLowerCase().includes(search.toLowerCase()) || (u.empresa_nome??'').toLowerCase().includes(search.toLowerCase());
     const okPlano  = filterPlano==='todos' || u.plano===filterPlano;
     let okPeriodo  = true;
-    if (filterPeriodo !== null) {
+    if (filterPeriodo !== 'maximo') {
       const now = nowBrasilia();
       const d   = toBrasilia(u.created_at);
       if (filterPeriodo === 'hoje') {
@@ -356,8 +356,8 @@ export default function AdminPage() {
           </div>
           <div className={styles.filters} style={{marginTop:8,alignItems:'center'}}>
             <div className={styles.periodTabs}>
-              {([['hoje','Hoje'],['ontem','Ontem'],['7dias','7 dias'],['mes','Esse mês'],['custom','Período']] as const).map(([v,l])=>(
-                <button key={v} className={filterPeriodo===v?styles.periodActive:styles.periodBtn} onClick={()=>setFilterPeriodo(filterPeriodo===v?null:v)}>{l}</button>
+              {([['hoje','Hoje'],['ontem','Ontem'],['7dias','7 dias'],['mes','Esse mês'],['custom','Período'],['maximo','Máximo']] as const).map(([v,l])=>(
+                <button key={v} className={filterPeriodo===v?styles.periodActive:styles.periodBtn} onClick={()=>setFilterPeriodo(v)}>{l}</button>
               ))}
             </div>
             {filterPeriodo==='custom'&&(
