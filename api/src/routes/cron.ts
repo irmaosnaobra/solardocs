@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
-import { runFollowupCnpj } from '../services/followupService';
+import { runFollowupCnpj, blastFollowupDay1 } from '../services/followupService';
 
 const router = Router();
 
@@ -47,6 +47,18 @@ router.get('/followup-cnpj', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error('Cron followup error:', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// One-shot — manda email dia 1 para TODOS sem CNPJ
+router.get('/followup-blast-day1', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await blastFollowupDay1();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('Cron blast error:', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });

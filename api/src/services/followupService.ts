@@ -40,3 +40,26 @@ export async function runFollowupCnpj(): Promise<{ sent: number }> {
 
   return { sent };
 }
+
+export async function blastFollowupDay1(): Promise<{ sent: number }> {
+  const { data: usersWithCompany } = await supabase.from('company').select('user_id');
+  const excludedIds = (usersWithCompany ?? []).map((c: any) => c.user_id).filter(Boolean);
+
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, email')
+    .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)');
+
+  if (!users || users.length === 0) return { sent: 0 };
+
+  let sent = 0;
+  for (const user of users) {
+    try {
+      await sendFollowupEmail(user.email, 1);
+      sent++;
+    } catch (err) {
+      console.error(`Blast email failed for ${user.email}:`, err);
+    }
+  }
+  return { sent };
+}
