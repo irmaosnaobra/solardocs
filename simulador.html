@@ -233,8 +233,45 @@
     <div class="view" id="view-form">
       <h1 class="title">Quase <span>Lá</span>!</h1>
       <p class="desc">Informe seus dados para liberar o resultado personalizado.</p>
-      <div class="form-group"><label class="form-label">Nome</label><input type="text" class="form-input" id="input-name" placeholder="Seu nome completo" autocomplete="name"></div>
-      <div class="form-group"><label class="form-label">Cidade</label><input type="text" class="form-input" id="input-city" placeholder="Ex: Uberlândia"></div>
+      <div class="form-group"><label class="form-label">Nome</label><input type="text" class="form-input" id="input-name" placeholder="Seu primeiro nome" autocomplete="given-name"></div>
+      
+      <div class="form-group"><label class="form-label">Estado (UF)</label>
+        <select class="form-input" id="input-state" style="appearance: none; cursor: pointer;" onchange="loadCities(this.value)">
+          <option value="" disabled selected>Selecione seu Estado...</option>
+          <option value="AC">Acre</option>
+          <option value="AL">Alagoas</option>
+          <option value="AP">Amapá</option>
+          <option value="AM">Amazonas</option>
+          <option value="BA">Bahia</option>
+          <option value="CE">Ceará</option>
+          <option value="DF">Distrito Federal</option>
+          <option value="ES">Espírito Santo</option>
+          <option value="GO">Goiás</option>
+          <option value="MA">Maranhão</option>
+          <option value="MT">Mato Grosso</option>
+          <option value="MS">Mato Grosso do Sul</option>
+          <option value="MG">Minas Gerais</option>
+          <option value="PA">Pará</option>
+          <option value="PB">Paraíba</option>
+          <option value="PR">Paraná</option>
+          <option value="PE">Pernambuco</option>
+          <option value="PI">Piauí</option>
+          <option value="RJ">Rio de Janeiro</option>
+          <option value="RN">Rio Grande do Norte</option>
+          <option value="RS">Rio Grande do Sul</option>
+          <option value="RO">Rondônia</option>
+          <option value="RR">Roraima</option>
+          <option value="SC">Santa Catarina</option>
+          <option value="SP">São Paulo</option>
+          <option value="SE">Sergipe</option>
+          <option value="TO">Tocantins</option>
+        </select>
+      </div>
+
+      <div class="form-group"><label class="form-label">Cidade</label>
+        <input type="text" class="form-input" id="input-city" list="city-list" placeholder="Escolha o estado primeiro..." disabled autocomplete="off">
+        <datalist id="city-list"></datalist>
+      </div>
       <button class="btn-primary" id="btn-submit-form" onclick="validateLocationAndProcess()">Ver Meu Resultado
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
       </button>
@@ -258,23 +295,16 @@
         <div id="igreen-card" class="rejection-card" style="display: none; background: rgba(34, 197, 94, 0.05); border-color: rgba(34, 197, 94, 0.2);">
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <span style="font-size: 24px;">🎉</span>
-            <span style="font-weight: 800; color: #22c55e; font-size: 14px; text-transform: uppercase;">Oferta para Cemig e Equatorial</span>
+            <span style="font-weight: 800; color: #22c55e; font-size: 14px; text-transform: uppercase;">Acesso à Recompensa Digital</span>
           </div>
           <p style="font-size: 14px; color: var(--muted); line-height: 1.5;">
-            Identificamos que você pode economizar **20% todos os meses** na sua conta de luz através da assinatura digital iGreen Energy. Sem obras e sem investimento.
+            Ativamos a opção de você ter um desconto real e mensal operado na sua distribuidora de energia através de uma assinatura digital. <strong>Nenhuma placa no telhado, nenhum investimento inicial e sem multa de fidelidade.</strong>
           </p>
         </div>
 
-        <div id="instagram-card" class="rejection-card" style="display: none; padding: 0; overflow: hidden;">
-          <img src="https://i.postimg.cc/zfy2DJmf/Whats-App-Image-2026-04-14-at-02-31-28.jpg" style="width: 100%; height: 180px; object-fit: cover;" alt="Projeto Solar">
-          <div style="padding: 16px;">
-            <p style="font-size: 14px; font-weight: 600; line-height: 1.4;">Acompanhe como transformamos telhados em fontes de economia real.</p>
-          </div>
-        </div>
-
         <p class="result-desc" id="rejection-desc"></p>
-        <a href="https://www.instagram.com/irmaosnaobra__" id="rejection-btn" target="_blank" class="btn-primary" style="background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: #fff;">
-          Seguir no Instagram
+        <a href="igreen.html" id="rejection-btn" class="btn-primary" style="background: #22c55e; color: #fff; box-shadow: 0 10px 30px rgba(34, 197, 94, 0.4);">
+          VER COMO LIBERAR RECOMPENSA
         </a>
       </div>
     </div>
@@ -353,16 +383,50 @@
       });
     }
 
+    async function loadCities(uf) {
+      const cityInput = document.getElementById('input-city');
+      const dataList = document.getElementById('city-list');
+      cityInput.value = '';
+      dataList.innerHTML = '';
+      
+      if (!uf) {
+        cityInput.disabled = true;
+        cityInput.placeholder = "Escolha o estado primeiro...";
+        return;
+      }
+      
+      cityInput.disabled = true;
+      cityInput.placeholder = "Carregando cidades...";
+      
+      try {
+        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`);
+        const data = await res.json();
+        
+        data.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.nome;
+          dataList.appendChild(opt);
+        });
+        
+        cityInput.disabled = false;
+        cityInput.placeholder = "Digite para filtrar...";
+      } catch(e) {
+        cityInput.disabled = false;
+        cityInput.placeholder = "Digite o nome da cidade";
+      }
+    }
+
     async function validateLocationAndProcess() {
       const userName = document.getElementById('input-name').value.trim();
       const city = document.getElementById('input-city').value.trim();
-      if (!userName || !city) return alert('Preencha seu nome e cidade.');
+      const state = document.getElementById('input-state').value.trim();
+      if (!userName || !city || !state) return alert('Preencha seu nome, cidade e estado.');
 
-      simTrack('form_submitted');
+      simTrack('form_submitted', { answer: JSON.stringify({ name: userName, city: city, state: state }) });
       document.getElementById('loading-overlay').style.display = 'flex';
 
       try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ',Brasil')}&format=json&limit=1`;
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ',' + state + ',Brasil')}&format=json&limit=1`;
         const res = await fetch(url, { headers: { 'User-Agent': 'IrmaosNaObraSimulator/1.0' } });
         const data = await res.json();
         
@@ -379,14 +443,14 @@
         document.getElementById('loading-overlay').style.display = 'none';
         
         if (dist > 250) {
-          simTrack('rejected_region', { score });
-          showRejection("região", "Ainda não atendemos sua região com instalação própria, mas acompanhe nossos projetos no Instagram!");
+          simTrack('rejected_region', { score, answer: JSON.stringify({ name: userName, city: city, state: state }) });
+          showRejection("Fora da Área de Cobertura", "Embora sua região não se aplique à montagem de placas pela nossa equipe no momento, nós liberamos o formato de economia flexível e digital para sua cidade!");
         } else if (score <= 14) {
           simTrack('rejected_igreen', { score });
-          showRejection("igreen", "Identificamos que seu perfil é perfeito para economia por assinatura, sem investimento!");
+          showRejection("Economia Inteligente", "Seu perfil atual não beneficia a conta matemática de um projeto de placas solares. Mas como você gasta energia, liberamos os descontos direto na sua conta através do nosso parceiro oficial!");
         } else if (score <= 17) {
           simTrack('rejected_profile', { score });
-          showRejection("perfil", "Você está em fase de pesquisa! Siga-nos para aprender mais sobre o momento certo de investir.");
+          showRejection("Opção Zero Risco", "Notamos que você ainda está na fase de exploração de energia solar. Ao invés de um grande investimento em placas agora, nós acionamos a liberação de economia pela rede de sua concessionária (GD Compartilhada).");
         } else {
           simTrack('qualified', { score });
           showQualified(userName, city);
@@ -397,27 +461,15 @@
       }
     }
 
-    function showRejection(type, desc) {
+    function showRejection(title, desc) {
       nextView('view-result');
       document.getElementById('result-qualified').style.display = 'none';
       document.getElementById('result-rejection').style.display = 'block';
-      const btn = document.getElementById('rejection-btn');
+      
       const igCard = document.getElementById('igreen-card');
-      const instaCard = document.getElementById('instagram-card');
+      igCard.style.display = "block"; // Sempre mostra o card da iGreen para rejeitos
       
-      igCard.style.display = (type === "igreen") ? "block" : "none";
-      instaCard.style.display = (type === "perfil") ? "block" : "none";
-      
-      if (type === "igreen") {
-        document.getElementById('rejection-title').textContent = "Sua Economia!";
-        btn.href = "https://digital.igreenenergy.com.br/?id=101108&sendcontract=true";
-        btn.textContent = "ATIVAR DESCONTO DIGITAL";
-        btn.style.background = "#22c55e";
-      } else {
-        document.getElementById('rejection-title').textContent = type === "região" ? "Fora de Alcance" : "Fase de Pesquisa";
-        btn.href = "https://www.instagram.com/irmaosnaobra__";
-        btn.textContent = "Seguir no Instagram";
-      }
+      document.getElementById('rejection-title').textContent = title;
       document.getElementById('rejection-desc').textContent = desc;
     }
 
@@ -433,7 +485,7 @@
       const msg = encodeURIComponent(
         `Olá! Me chamo *${userName}* e finalizei o Simulador Solar Irmãos na Obra.\n\n` +
         `🏆 *RESULTADO: ${status}* (${score}/32 pontos)\n` +
-        `📍 Local: ${city}\n` +
+        `📍 Local: ${city} - ${state}\n` +
         `--- Resumo ---\n\n${answersString}\n\n` +
         `Quero agendar uma consultoria gratuita.`
       );

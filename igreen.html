@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desconto Digital - iGreen Energy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-base: #020617;
+            --surface: #0f172a;
+            --surface-glass: rgba(15, 23, 42, 0.7);
+            --primary: #22c55e;
+            --primary-glow: rgba(34, 197, 94, 0.4);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255,255,255,0.05);
+            --radius-lg: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Util Classes */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .text-gradient {
+            background: linear-gradient(135deg, #4ade80, #16a34a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .heading {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        /* Buttons Component */
+        .btn {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 32px;
+            border-radius: 100px;
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 16px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-green {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 10px 40px var(--primary-glow);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .btn-green:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 50px var(--primary-glow);
+            background: #4ade80;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transform: skewX(-20deg);
+            animation: shine 4s infinite;
+            z-index: -1;
+        }
+
+        @keyframes shine {
+            0% { left: -150%; }
+            50%, 100% { left: 150%; }
+        }
+
+        /* Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            background: var(--surface-glass);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            height: 36px;
+        }
+
+        .btn-outline {
+            padding: 10px 24px;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            background: rgba(34, 197, 94, 0.05);
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .btn-outline:hover { background: rgba(34, 197, 94, 0.1); color: #fff;}
+
+        /* Hero */
+        .hero {
+            padding: 100px 0 60px;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -20%; left: 50%;
+            transform: translateX(-50%);
+            width: 80vw; height: 80vw;
+            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 60%);
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .hero-title {
+            font-size: clamp(40px, 6vw, 68px);
+            line-height: 1.1;
+            margin-bottom: 24px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-desc {
+            font-size: 20px;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+
+        .checks {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-bottom: 48px;
+            flex-wrap: wrap;
+        }
+
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #fff;
+            background: var(--surface);
+            padding: 12px 20px;
+            border-radius: 100px;
+            border: 1px solid var(--border);
+        }
+
+        .check-item svg { width: 20px; height: 20px; color: var(--primary); }
+
+        /* VSL Section */
+        .vsl-section {
+            padding: 40px 0 100px;
+        }
+
+        .video-box {
+            max-width: 900px;
+            margin: 0 auto;
+            aspect-ratio: 16/9;
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .video-box::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url('https://voceigreen.com.br/wp-content/uploads/2025/04/distribuicao_min-1024x469.png') center/cover;
+            opacity: 0.1;
+        }
+
+        .play-btn {
+            width: 80px; height: 80px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            color: #000;
+            padding-left: 6px;
+            cursor: pointer;
+            box-shadow: 0 0 40px var(--primary-glow);
+            transition: transform 0.3s;
+            z-index: 2;
+        }
+        .play-btn:hover { transform: scale(1.1); }
+        .play-btn svg { width: 36px; height: 36px; }
+
+        /* Benefits Grid */
+        .features {
+            padding: 100px 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .f-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+            margin-top: 64px;
+        }
+
+        .f-card {
+            background: rgba(255,255,255,0.02);
+            padding: 40px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .f-card:hover {
+            border-color: rgba(34, 197, 94, 0.3);
+            background: rgba(34, 197, 94, 0.02);
+            transform: translateY(-5px);
+        }
+
+        .f-icon {
+            width: 56px; height: 56px;
+            border-radius: 16px;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--primary);
+            display: flex; justify-content: center; align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .f-icon svg { width: 28px; height: 28px; }
+
+        .f-card h3 { font-size: 22px; margin-bottom: 16px; font-weight: 700; }
+        .f-card p { color: var(--text-muted); font-size: 16px; }
+
+        /* App & Partners */
+        .app-sec {
+            padding: 120px 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .app-img { width: 100%; max-width: 500px; border-radius: 24px; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.5)); }
+
+        .partners {
+            display: flex; gap: 16px; flex-wrap: wrap; margin-top: 32px;
+        }
+
+        .partner {
+            background: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        @media (max-width: 900px) {
+            .app-sec { grid-template-columns: 1fr; text-align: center; }
+            .app-img { margin: 0 auto; }
+            .partners { justify-content: center; }
+            .checks { flex-direction: column; max-width: 300px; margin: 0 auto 40px; }
+        }
+
+        .text-center { text-align: center; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container header-content">
+            <img src="https://voceigreen.com.br/wp-content/uploads/2025/04/Logo-branca--1024x313.png" alt="iGreen Energy" class="logo">
+            <a href="https://digital.igreenenergy.com.br/?id=101108&sendcontract=true" class="btn btn-outline">CADASTRAR</a>
+        </div>
+    </header>
+
+    <section class="hero container">
+        <div class="hero-badge">PLANO 100% DIGITAL</div>
+        <h1 class="heading hero-title">Economize até 15% na conta de luz <span class="text-gradient">sem gastar R$1.</span></h1>
+        <p class="hero-desc">Energia limpa injetada direto na rede da sua concessionária. Você não gasta com instalação nem com taxas de fidelidade.</p>
+        
+        <div class="checks">
+            <div class="check-item">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                Sem Obra ou Instalação
+            </div>
+            <div class="check-item">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                Zero Custo de Adesão
+            </div>
+            <div class="check-item">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                Cancele Quando Quiser
+            </div>
+        </div>
+
+        <a href="#vsl" class="btn btn-green" onclick="document.getElementById('vsl').scrollIntoView(); return false;">
+            ENTENDA COMO FUNCIONA
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </a>
+    </section>
+
+    <!-- VSL Video Area -->
+    <section class="vsl-section container" id="vsl">
+        <h2 class="heading text-center" style="font-size: 32px; margin-bottom: 40px;">Veja como habilitar seu desconto em 2 minutos.</h2>
+        <div class="video-box">
+            <!-- 
+            // INSTRUÇÃO PARA O USUÁRIO:
+            // Troque a div .play-btn inteira por um <iframe> do YouTube, Vimeo ou Panda Video com seu VSL.
+            // Exemplo: <iframe src="URL_DO_VÍDEO" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
+            -->
+            <div class="play-btn">
+                <svg fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+            </div>
+            <p style="margin-top: 16px; font-weight: 600; color: #fff; z-index: 2;">Aperte o Play e descubra</p>
+        </div>
+        
+        <div class="text-center" style="margin-top: 40px;">
+            <a href="https://digital.igreenenergy.com.br/?id=101108&sendcontract=true" class="btn btn-green">
+                QUERO ATIVAR MEU DESCONTO
+            </a>
+        </div>
+    </section>
+
+    <!-- Benefícios -->
+    <section class="features">
+        <div class="container">
+            <div class="text-center">
+                <h2 class="heading" style="font-size: 40px; margin-bottom: 16px;">Os 3 Pilares da iGreen</h2>
+                <p style="color: var(--text-muted); font-size: 18px; max-width: 600px; margin: 0 auto;">Oferecemos uma virada de chave para a sua relação com energia. Seguro, claro e ambientalmente correto.</p>
+            </div>
+
+            <div class="f-grid">
+                <div class="f-card">
+                    <div class="f-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <h3>Economia Automática</h3>
+                    <p>Produzimos energia em nossas fazendas solares e injetamos na rede da sua concessionária. Você continua recebendo a mesma luz de antes, mas a fatura chega até 15% mais barata.</p>
+                </div>
+                <div class="f-card">
+                    <div class="f-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    </div>
+                    <h3>Risco Zero</h3>
+                    <p>Você não assume empréstimos, não assina termos de lealdade punitivos e não paga por instalação técnica no seu teto. Desistiu? Pause ou cancele no app sem letrias miúdas.</p>
+                </div>
+                <div class="f-card">
+                    <div class="f-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                    </div>
+                    <h3>Impacto Sustentável</h3>
+                    <p>Ao conectar seu CPF ou CNPJ ao nosso grid, você fomenta diretamente a Matriz Energética Limpa (Solar e Eólica), blindando a escassez das hidrelétricas do país.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- App & Clube de benefícios -->
+    <section class="container app-sec">
+        <div>
+            <h2 class="heading" style="font-size: 40px; margin-bottom: 24px;">Controle absoluto e Cashback todo mês.</h2>
+            <p style="font-size: 18px; color: var(--text-muted); margin-bottom: 32px;">Pelo **App iGreen Energy**, você monitora a sua fatura, o total economizado até aquele mês e indica conhecidos para o programa de pontuação.</p>
+            
+            <p style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--primary);">ACESSO IMEDIATO AO CLUBE DE VANTAGENS:</p>
+            <p style="font-size: 15px; color: var(--text-muted); margin-bottom: 20px;">Descontos expressivos em farmácias e lojas do Brasil inteiro.</p>
+            
+            <div class="partners">
+                <img src="https://voceigreen.com.br/wp-content/uploads/2025/04/burgerking.webp" class="partner" alt="Burger King">
+                <img src="https://voceigreen.com.br/wp-content/uploads/2025/04/drogasil.webp" class="partner" alt="Drogasil">
+                <img src="https://voceigreen.com.br/wp-content/uploads/2025/04/cinemark.webp" class="partner" alt="Cinemark">
+                <img src="https://voceigreen.com.br/wp-content/uploads/2025/04/petz.webp" class="partner" alt="Petz">
+                <img src="https://voceigreen.com.br/wp-content/uploads/2025/04/casasbahia.webp" class="partner" alt="Casas Bahia">
+            </div>
+
+            <br><br>
+            <a href="https://digital.igreenenergy.com.br/?id=101108&sendcontract=true" class="btn btn-green">CADASTRAR AGORA</a>
+        </div>
+        <div>
+            <img src="https://voceigreen.com.br/wp-content/uploads/2025/04/app_igreen_energy.png" class="app-img" alt="Aplicativo iGreen">
+        </div>
+    </section>
+
+    <footer style="background: var(--surface); padding: 40px; text-align: center; border-top: 1px solid var(--border);">
+        <img src="https://voceigreen.com.br/wp-content/uploads/2025/04/Logo-branca--1024x313.png" alt="iGreen" style="height: 30px; opacity: 0.5; margin-bottom: 24px;">
+        <p style="color: var(--text-muted); font-size: 14px;">Copyright © 2026. Parceiro Licenciado Independente.</p>
+    </footer>
+
+</body>
+</html>
