@@ -375,12 +375,15 @@ export default function AdminPage() {
               <tbody>
                 {filteredUsers.length===0&&<tr><td colSpan={8} className={styles.empty}>Nenhum usuário encontrado</td></tr>}
                 {filteredUsers.map(u=>{
-                  const diffDays = Math.floor((Date.now() - new Date(u.created_at).getTime()) / 86400000);
-                  const followupDay = diffDays + 1;
-                  const inSequence  = !u.empresa_cnpj && followupDay >= 1 && followupDay <= 7;
-                  const expired     = !u.empresa_cnpj && followupDay > 7;
-                  const converted   = !!u.empresa_cnpj && diffDays <= 7;
-                  const convDay     = u.followup_day_recovered ?? (converted ? followupDay : null);
+                  const FOLLOWUP_START = new Date('2026-04-17T00:00:00-03:00');
+                  const registeredAt   = new Date(u.created_at);
+                  const isInSystem     = registeredAt >= FOLLOWUP_START;
+                  const diffDays       = Math.floor((Date.now() - registeredAt.getTime()) / 86400000);
+                  const followupDay    = diffDays + 1;
+                  const inSequence     = isInSystem && !u.empresa_cnpj && followupDay >= 1 && followupDay <= 7;
+                  const expired        = isInSystem && !u.empresa_cnpj && followupDay > 7;
+                  const converted      = isInSystem && !!u.empresa_cnpj && diffDays <= 7;
+                  const convDay        = u.followup_day_recovered ?? (converted ? followupDay : null);
                   return (
                   <tr key={u.id} className={isToday(u.created_at)?styles.rowNew:''}>
                     <td>

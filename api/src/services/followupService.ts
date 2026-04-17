@@ -1,8 +1,10 @@
 import { supabase } from '../utils/supabase';
 import { sendFollowupEmail } from '../utils/mailer';
 
+// Apenas usuários cadastrados após o início do sistema de followup
+const FOLLOWUP_START = new Date('2026-04-17T00:00:00-03:00');
+
 export async function runFollowupCnpj(): Promise<{ sent: number }> {
-  // Busca usuários sem empresa cadastrada (sem CNPJ) nos últimos 7 dias
   const { data: usersWithCompany } = await supabase
     .from('company')
     .select('user_id');
@@ -13,7 +15,8 @@ export async function runFollowupCnpj(): Promise<{ sent: number }> {
     .from('users')
     .select('id, email, created_at')
     .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)')
-    .gte('created_at', new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString());
+    .gte('created_at', FOLLOWUP_START.toISOString())
+    .lte('created_at', new Date(Date.now() - 0).toISOString());
 
   if (!users || users.length === 0) return { sent: 0 };
 
