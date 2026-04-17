@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
-import { runFollowupCnpj, blastFollowupDay1 } from '../services/followupService';
+import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted } from '../services/followupService';
 
 const router = Router();
 
@@ -59,6 +59,18 @@ router.get('/followup-blast-day1', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error('Cron blast error:', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// One-shot — só carimba followup_started_at sem reenviar email
+router.get('/followup-stamp', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await stampFollowupStarted();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('Cron stamp error:', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });

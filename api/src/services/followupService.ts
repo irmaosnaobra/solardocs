@@ -46,6 +46,27 @@ export async function runFollowupCnpj(): Promise<{ sent: number }> {
   return { sent };
 }
 
+export async function stampFollowupStarted(): Promise<{ stamped: number }> {
+  const { data: usersWithCompany } = await supabase.from('company').select('user_id');
+  const excludedIds = (usersWithCompany ?? []).map((c: any) => c.user_id).filter(Boolean);
+
+  const { data: users } = await supabase
+    .from('users')
+    .select('id')
+    .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)')
+    .is('followup_started_at', null);
+
+  if (!users || users.length === 0) return { stamped: 0 };
+
+  const now = new Date().toISOString();
+  let stamped = 0;
+  for (const user of users) {
+    const { error } = await supabase.from('users').update({ followup_started_at: now }).eq('id', user.id);
+    if (!error) stamped++;
+  }
+  return { stamped };
+}
+
 export async function blastFollowupDay1(): Promise<{ sent: number }> {
   const { data: usersWithCompany } = await supabase.from('company').select('user_id');
   const excludedIds = (usersWithCompany ?? []).map((c: any) => c.user_id).filter(Boolean);
