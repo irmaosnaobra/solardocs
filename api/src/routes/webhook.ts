@@ -11,34 +11,29 @@ router.get('/whatsapp', (_req: Request, res: Response): void => {
 
 // Webhook Z-API — recebe mensagens do WhatsApp
 router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
+  // Responde IMEDIATAMENTE — sem nenhum processamento antes
+  res.sendStatus(200);
+
   try {
     const body = req.body;
 
-    // Ignora mensagens enviadas pelo próprio número
-    if (body.fromMe === true) { res.sendStatus(200); return; }
-    // Ignora grupos
-    if (body.isGroup === true) { res.sendStatus(200); return; }
+    // Loga TUDO que chegar — independente do conteúdo
+    await supabase.from('webhook_debug').insert({ payload: body ?? { raw: 'empty' } });
 
-    const phone      = body.phone || body.senderPhone;
-    const senderName = body.senderName || body.pushname || null;
-    const text       = body.message?.conversation
-      || body.message?.extendedTextMessage?.text
-      || body.message
-      || body.text;
+    if (body?.fromMe === true || body?.isGroup === true) return;
 
-    if (!phone || !text || typeof text !== 'string') { res.sendStatus(200); return; }
+    const phone      = body?.phone || body?.senderPhone;
+    const senderName = body?.senderName || body?.pushname || null;
+    const text       = body?.message?.conversation
+      || body?.message?.extendedTextMessage?.text
+      || (typeof body?.message === 'string' ? body.message : null)
+      || body?.text;
 
-    // Responde imediatamente — Z-API não pode esperar
-    res.sendStatus(200);
+    if (!phone || !text) return;
 
-    // Salva debug e processa após responder
-    await supabase.from('webhook_debug').insert({ payload: body }).catch(() => {});
-    await handleIncomingWhatsApp(phone, text, senderName).catch(err =>
-      console.error('WhatsApp agent error:', err)
-    );
+    await handleIncomingWhatsApp(String(phone), String(text), senderName);
   } catch (err) {
-    console.error('Webhook error:', err);
-    res.sendStatus(200);
+    await supabase.from('webhook_debug').insert({ payload: { error: String(err) } }).catch(() => {});
   }
 });
 
