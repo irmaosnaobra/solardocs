@@ -14,6 +14,10 @@ interface UserRow {
   followup_day_recovered: number | null;
   followup_started_at: string | null;
 }
+interface LeadRow {
+  id: string; name: string; whatsapp: string | null;
+  city: string; state: string; created_at: string; status: string;
+}
 interface SessionRow {
   session_id: string | null; created_at: string;
   utm_source: string | null; utm_medium: string | null;
@@ -186,7 +190,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'users'|'visits'>('users');
+  const [tab, setTab] = useState<'users'|'visits'|'visits_b2c'|'leads'>('users');
 
   const [users, setUsers]               = useState<UserRow[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -210,6 +214,11 @@ export default function AdminPage() {
   const [metaPeriod, setMetaPeriod]       = useState<'today'|'7d'|'30d'>('today');
   const [metaLoaded, setMetaLoaded]       = useState(false);
 
+  const [leads, setLeads]                 = useState<LeadRow[]>([]);
+  const [loadingLeads, setLoadingLeads]   = useState(false);
+  const [leadsLoaded, setLeadsLoaded]     = useState(false);
+  const [leadSearch, setLeadSearch]       = useState('');
+
   useEffect(() => {
     api.get('/admin/users').then(r => setUsers(r.data.users)).catch(()=>{}).finally(()=>setLoadingUsers(false));
   }, []);
@@ -224,8 +233,14 @@ export default function AdminPage() {
     api.get(`/admin/meta-funnel?period=${p}`).then(r=>{setMetaData(r.data);setMetaLoaded(true);}).catch(()=>{}).finally(()=>setLoadingMeta(false));
   }, []);
 
-  useEffect(() => { if (tab==='visits' && !analyticsLoaded) loadAnalytics(); }, [tab,analyticsLoaded,loadAnalytics]);
-  useEffect(() => { if (tab==='visits' && !metaLoaded) loadMeta(metaPeriod); }, [tab,metaLoaded,metaPeriod,loadMeta]);
+  const loadLeads = useCallback(() => {
+    setLoadingLeads(true);
+    api.get('/quiz/leads').then(r=>{setLeads(r.data.leads||[]); setLeadsLoaded(true);}).catch(()=>{}).finally(()=>setLoadingLeads(false));
+  }, []);
+
+  useEffect(() => { if ((tab==='visits' || tab==='visits_b2c') && !analyticsLoaded) loadAnalytics(); }, [tab,analyticsLoaded,loadAnalytics]);
+  useEffect(() => { if ((tab==='visits' || tab==='visits_b2c') && !metaLoaded) loadMeta(metaPeriod); }, [tab,metaLoaded,metaPeriod,loadMeta]);
+  useEffect(() => { if (tab==='leads' && !leadsLoaded) loadLeads(); }, [tab,leadsLoaded,loadLeads]);
 
   function changePeriod(p: 'today'|'7d'|'30d') {
     setMetaPeriod(p); setMetaLoaded(false); loadMeta(p);
@@ -264,11 +279,21 @@ export default function AdminPage() {
   const totalVip  = users.filter(u=>u.plano==='ilimitado').length;
   const totalFree = users.filter(u=>u.plano==='free').length;
 
-  const allSources      = Array.from(new Set((analytics?.sessions??[]).map(s=>srcLabel(s)))).sort();
-  const filteredSessions = (analytics?.sessions??[]).filter(s => {
+  const isB2C = (s: SessionRow) => (s.landing_url||'').toLowerCase().includes('simulador');
+
+  const rawSessions = (analytics?.sessions??[]);
+  const baseSessions = tab === 'visits_b2c' ? rawSessions.filter(isB2C) : rawSessions;
+
+  const allSources      = Array.from(new Set(baseSessions.map(s=>srcLabel(s)))).sort();
+  const filteredSessions = baseSessions.filter(s => {
     const src = srcLabel(s).toLowerCase();
     return (!filterSource||src===filterSource.toLowerCase()) &&
            (!visitSearch||src.includes(visitSearch.toLowerCase())||(s.utm_campaign??'').toLowerCase().includes(visitSearch.toLowerCase())||(s.ip??'').includes(visitSearch));
+  });
+
+  const filteredLeads = leads.filter(l => {
+    const term = leadSearch.toLowerCase();
+    return !leadSearch || l.name.toLowerCase().includes(term) || (l.whatsapp||'').includes(term) || l.city.toLowerCase().includes(term) || l.state.toLowerCase().includes(term);
   });
 
   if (loadingUsers) return <div className={styles.loading}>Carregando...</div>;
@@ -320,10 +345,15 @@ export default function AdminPage() {
             finally{setResetting(false);}
           }}>{resetting?'Executando...':'🔄 Reset Mensal'}</button>
         )}
-        {tab==='visits' && (
+        {(tab==='visits' || tab==='visits_b2c') && (
           <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
             onClick={()=>{loadAnalytics();setMetaLoaded(false);loadMeta(metaPeriod);}}>
             {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
+          </button>
+        )}
+        {tab==='leads' && (
+          <button className="btn-secondary" disabled={loadingLeads} onClick={loadLeads}>
+            {loadingLeads?'Atualizando...':'🔄 Atualizar'}
           </button>
         )}
       </div>
@@ -337,6 +367,8 @@ export default function AdminPage() {
       <div className={styles.tabs}>
         <button className={tab==='users'?styles.tabActive:styles.tab} onClick={()=>setTab('users')}>👥 Usuários</button>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 Acessos LP</button>
+        <button className={tab==='visits_b2c'?styles.tabActive:styles.tab} onClick={()=>setTab('visits_b2c')}>📊 Acessos B2C</button>
+        <button className={tab==='leads'?styles.tabActive:styles.tab} onClick={()=>setTab('leads')}>⚡ Leads Simulador</button>
       </div>
 
       {/* ═══ ABA USUÁRIOS ══════════════════════════════════════ */}
@@ -422,15 +454,15 @@ export default function AdminPage() {
         </>
       )}
 
-      {/* ═══ ABA ACESSOS LP ═════════════════════════════════════ */}
-      {tab==='visits' && (
+      {/* ═══ ABA ACESSOS LP e B2C ═════════════════════════════════════ */}
+      {(tab==='visits' || tab==='visits_b2c') && (
         <>
           {/* ── BLOCO META ADS ── */}
           <div className={styles.metaBlock}>
             <div className={styles.metaBlockHeader}>
               <div className={styles.metaBlockTitle}>
                 <span className={styles.metaFIcon}>f</span>
-                <span>Meta Ads</span>
+                <span>Meta Ads {tab === 'visits_b2c' ? '(Simulador B2C)' : ''}</span>
                 {loadingMeta && <span className={styles.metaSpinner} />}
               </div>
               <div className={styles.periodTabs}>
@@ -695,6 +727,59 @@ export default function AdminPage() {
           )}
         </>
       )}
+
+      {/* ═══ ABA LEADS SIMULADOR ═════════════════════════════════════ */}
+      {tab==='leads' && (
+        <>
+          <div className={styles.filters}>
+            <input type="text" placeholder="Buscar por nome, whatsapp ou cidade..." value={leadSearch} onChange={e=>setLeadSearch(e.target.value)} className="input-field" style={{maxWidth:320}}/>
+            <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{filteredLeads.length} lead{filteredLeads.length!==1?'s':''}</span>
+          </div>
+          
+          <div className={styles.tableWrap} style={{marginTop:16}}>
+            <table className={styles.table}>
+              <thead><tr><th>Data/Hora</th><th>Nome</th><th>WhatsApp</th><th>UF</th><th>Cidade</th><th>Status/Fase</th></tr></thead>
+              <tbody>
+                {loadingLeads && leads.length===0 && <tr><td colSpan={6} className={styles.empty}>Carregando leads...</td></tr>}
+                {!loadingLeads && filteredLeads.length===0 && <tr><td colSpan={6} className={styles.empty}>Nenhum lead encontrado</td></tr>}
+                {filteredLeads.map(l=>{
+                  let badge = l.status;
+                  let color = '#94a3b8';
+                  let bg = 'rgba(148,163,184,0.1)';
+                  
+                  if (l.status === 'qualified') { badge = 'Qualificado Oferta Direta'; color = '#34d399'; bg = 'rgba(52,211,153,0.12)'; }
+                  else if (l.status === 'rejected_igreen') { badge = 'Reprovado Tensão (iGreen)'; color = '#fb923c'; bg = 'rgba(251,146,60,0.12)'; }
+                  else if (l.status === 'rejected_region') { badge = 'Fora da Região (iGreen)'; color = '#f87171'; bg = 'rgba(248,113,113,0.12)'; }
+                  else if (l.status === 'rejected_profile') { badge = 'Perfil Baixo (iGreen)'; color = '#a78bfa'; bg = 'rgba(167,139,250,0.12)'; }
+                  else if (l.status === 'form_submitted') { badge = 'Cadastro Inicial'; color = '#60a5fa'; bg = 'rgba(96,165,250,0.12)'; }
+
+                  return (
+                    <tr key={l.id} className={isToday(l.created_at)?styles.rowNew:''}>
+                      <td className={styles.mutedCell}>{fmt(l.created_at)}</td>
+                      <td style={{fontWeight:500}}>{l.name}</td>
+                      <td>
+                        {l.whatsapp ? (
+                          <a href={`https://wa.me/55${l.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" style={{color:'#22c55e',textDecoration:'none',fontWeight:600,display:'inline-flex',alignItems:'center',gap:4}}>
+                            📲 {l.whatsapp}
+                          </a>
+                        ) : <span className={styles.emptyDash}>—</span>}
+                      </td>
+                      <td className={styles.mutedCell} style={{fontWeight:600}}>{l.state}</td>
+                      <td className={styles.mutedCell}>{l.city}</td>
+                      <td>
+                        <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:bg,color:color,fontSize:11,fontWeight:600}}>
+                          {badge}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
     </div>
   );
 }

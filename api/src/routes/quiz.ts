@@ -251,4 +251,44 @@ router.get('/summary', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// ── GET /quiz/leads — leads do simulador B2C ──────────────────────
+router.get('/leads', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { data: raw } = await supabase
+      .from('quiz_events')
+      .select('session_id, ip, created_at, event_type, answer')
+      .eq('source', 'simulador')
+      .not('answer', 'is', 'null')
+      .order('created_at', { ascending: false });
+
+    const events = raw ?? [];
+    const leadMap = new Map<string, any>();
+
+    for (const e of events) {
+      let ans;
+      try { ans = JSON.parse(e.answer); } catch { continue; }
+      if (!ans || !ans.name || !ans.city) continue;
+
+      const key = e.session_id || e.ip || `rnd-${Math.random()}`;
+      
+      if (!leadMap.has(key)) {
+        leadMap.set(key, {
+          id: key,
+          name: ans.name,
+          whatsapp: ans.whatsapp || null,
+          city: ans.city,
+          state: ans.state,
+          created_at: e.created_at,
+          status: e.event_type
+        });
+      }
+    }
+
+    res.json({ leads: Array.from(leadMap.values()) });
+  } catch (err) {
+    console.error('quiz/leads error:', err);
+    res.status(500).json({ error: 'Erro ao buscar leads do simulador' });
+  }
+});
+
 export default router;
