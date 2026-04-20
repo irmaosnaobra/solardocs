@@ -28,15 +28,14 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
 
     if (!phone || !text || typeof text !== 'string') { res.sendStatus(200); return; }
 
-    // Salva payload para debug
-    await supabase.from('webhook_debug').insert({ payload: body });
+    // Responde imediatamente — Z-API não pode esperar
+    res.sendStatus(200);
 
-    // Processa ANTES de responder — garante execução no serverless
+    // Salva debug e processa após responder
+    await supabase.from('webhook_debug').insert({ payload: body }).catch(() => {});
     await handleIncomingWhatsApp(phone, text, senderName).catch(err =>
       console.error('WhatsApp agent error:', err)
     );
-
-    res.sendStatus(200);
   } catch (err) {
     console.error('Webhook error:', err);
     res.sendStatus(200);
