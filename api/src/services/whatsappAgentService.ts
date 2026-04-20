@@ -18,7 +18,7 @@ function buildSystemPrompt(user: { email: string; plano: string; nome_empresa?: 
 • Empresa cadastrada: ${user.tem_cnpj ? `Sim (${user.nome_empresa || 'cadastrada'})` : 'NÃO — ainda não informou o CNPJ'}
 ${!user.tem_cnpj ? `• AÇÃO PRIORITÁRIA: incentive gentilmente a cadastrar a empresa em ${APP_URL}/login para começar a usar a plataforma` : ''}`;
 
-  return `Você é a Sol, agente especialista do SolarDoc Pro — plataforma de documentação para integradores de energia solar.
+  return `Você é a assistente da Irmãos na Obra, especialista no SolarDoc Pro — plataforma de documentação para integradores de energia solar.
 Você atende via WhatsApp e conhece cada detalhe do sistema.
 ${contexto}
 
@@ -101,9 +101,9 @@ async function saveHistory(
 export async function sendWelcomeWhatsApp(phone: string, email: string): Promise<void> {
   const cleanPhone = phone.replace(/\D/g, '');
 
-  const welcome = `☀️ *Bem-vindo ao SolarDoc Pro!*
+  const welcome = `☀️ *Bem-vindo ao SolarDoc Pro — Irmãos na Obra!*
 
-Sou a Sol, sua assistente especialista aqui na plataforma. Fui criada por integradores solares com 8 anos de mercado para resolver o problema que todo integrador conhece: burocracia consumindo tempo de venda.
+Sou a assistente da *Irmãos na Obra*, aqui para te ajudar na plataforma. Criada por integradores solares com 8 anos de mercado para acabar com a burocracia que consome seu tempo de venda.
 
 Com o SolarDoc Pro você gera em menos de 2 minutos:
 📄 Contrato de Instalação Solar
@@ -165,7 +165,7 @@ export async function handleIncomingWhatsApp(phone: string, text: string): Promi
   // Saudação automática na primeira mensagem
   let prependGreeting = '';
   if (isFirstMessage) {
-    prependGreeting = `Olá! Eu sou a Sol, sua assistente no SolarDoc Pro. `;
+    prependGreeting = `Olá! Sou a assistente da *Irmãos na Obra* no SolarDoc Pro. `;
   }
 
   const response = await anthropic.messages.create({
