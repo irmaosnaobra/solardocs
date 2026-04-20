@@ -459,12 +459,12 @@ export default function EmpresaPage() {
             <div className={styles.field}>
               <label className={styles.label}>Endereço Completo</label>
               <input type="text" value={form.endereco} onChange={e => set('endereco', e.target.value)}
-                placeholder="Rua, número, bairro — UF, CEP" className="input-field" />
+                placeholder="Ex: Rua das Flores, 123, Centro" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Cidade (Foro)</label>
               <input type="text" value={form.cidade} onChange={e => set('cidade', e.target.value)}
-                placeholder="Ex: Uberlândia" className="input-field" />
+                placeholder="Ex: Uberlândia/MG" className="input-field" />
               <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>Usada como foro em contratos</span>
             </div>
           </div>

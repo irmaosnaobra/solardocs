@@ -188,7 +188,7 @@ export default function ClientModal({ client, onClose, onSave }: ClientModalProp
               type="text"
               value={form.endereco}
               onChange={e => set('endereco', e.target.value)}
-              placeholder="Rua, número, bairro"
+              placeholder="Ex: Rua das Flores, 123, Centro"
               className="input-field"
             />
           </div>
@@ -201,7 +201,7 @@ export default function ClientModal({ client, onClose, onSave }: ClientModalProp
                 type="text"
                 value={form.cidade}
                 onChange={e => set('cidade', e.target.value)}
-                placeholder="Ex: Uberlândia"
+                placeholder="Ex: Uberlândia/MG"
                 className="input-field"
               />
             </div>

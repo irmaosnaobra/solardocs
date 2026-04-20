@@ -88,9 +88,8 @@ function contratoSolarM1(
   const endInst = str(f.endereco_instalacao) !== '___' ? str(f.endereco_instalacao) : (client.endereco || '___');
 
   const isPJClient = (client as { tipo?: string }).tipo === 'PJ';
-  const cidadeUfClient = [client.cidade, client.uf].filter(Boolean).join('/');
-  const endInstCompleto = cidadeUfClient ? `${endInst}, ${cidadeUfClient}` : endInst;
-  const enderecoCompletoClient = [client.endereco, cidadeUfClient].filter(Boolean).join(', ');
+  const endInstCompleto = enderecoCompleto(endInst, client.bairro, client.cidade, client.uf);
+  const enderecoCompletoClient = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
   const clienteQualif = isPJClient
     ? `${client.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${client.cpf_cnpj || '___'}, com sede em ${enderecoCompletoClient || '___'}`
     : `${client.nome}, pessoa física, inscrita no CPF sob o nº ${client.cpf_cnpj || '___'}, residente e domiciliada em ${enderecoCompletoClient || '___'}`;
@@ -100,7 +99,7 @@ SISTEMA DE ENERGIA SOLAR FOTOVOLTAICA
 
 Este contrato é celebrado entre:
 
-CONTRATADA: ${company.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${company.cnpj}, com sede em ${company.endereco || '___'}, doravante denominada simplesmente CONTRATADA.
+CONTRATADA: ${company.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${company.cnpj}, com sede em ${enderecoCompleto(company.endereco, undefined, company.cidade, company.uf)}, doravante denominada simplesmente CONTRATADA.
 
 CONTRATANTE: ${clienteQualif}, doravante denominado(a) simplesmente CONTRATANTE.
 
@@ -324,9 +323,8 @@ function contratoSolarM2(
   const endInst = str(f.endereco_instalacao) !== '___' ? str(f.endereco_instalacao) : (client.endereco || '___');
 
   const isPJClient = (client as { tipo?: string }).tipo === 'PJ';
-  const cidadeUfClient = [client.cidade, client.uf].filter(Boolean).join(' - ');
-  const endInstCompleto = cidadeUfClient ? `${endInst}, ${cidadeUfClient}` : endInst;
-  const enderecoCompletoClient = [client.endereco, cidadeUfClient].filter(Boolean).join(', ');
+  const endInstCompleto = enderecoCompleto(endInst, client.bairro, client.cidade, client.uf);
+  const enderecoCompletoClient = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
   const companyLocalizacao = [company.cidade, company.uf].filter(Boolean).join(' ');
   const clienteIdent = isPJClient
     ? `${client.nome}, CNPJ nº ${client.cpf_cnpj || '___'}, sediada em ${enderecoCompletoClient || '___'}`
@@ -523,7 +521,7 @@ Pelo presente instrumento particular de procuração,
 
 OUTORGANTE: ${client.nome}
 CPF/CNPJ: ${client.cpf_cnpj || '___'}
-Endereço: ${client.endereco || '___'}${client.cep ? `\nCEP: ${client.cep}` : ''}
+Endereço: ${enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf)}${client.cep ? `\nCEP: ${client.cep}` : ''}
 Unidade Consumidora (UC): ${uc}
 Concessionária: ${concessionaria}
 
@@ -607,7 +605,7 @@ function procuracaoM2(
 
 SAIBAM todos quantos este instrumento virem que, na data abaixo indicada,
 
-OUTORGANTE: ${client.nome}, inscrito(a) no CPF/CNPJ sob o nº ${client.cpf_cnpj || '___'}, residente e domiciliado(a) à ${client.endereco || '___'}${client.cep ? `, CEP ${client.cep}` : ''}, doravante denominado(a) simplesmente OUTORGANTE,
+OUTORGANTE: ${client.nome}, inscrito(a) no CPF/CNPJ sob o nº ${client.cpf_cnpj || '___'}, residente e domiciliado(a) à ${enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf)}${client.cep ? `, CEP ${client.cep}` : ''}, doravante denominado(a) simplesmente OUTORGANTE,
 
 pelo presente instrumento particular e na melhor forma de direito, nomeia e constitui como ${tituloProcurador}:
 
@@ -656,7 +654,7 @@ function propostaBancoM1(
   const valorMo = parseBRL(f.valor_mao_de_obra) || valorTotal * 0.3;
   const validadeDias = str(f.validade_dias || '30');
   const descSistema = str(f.descricao_sistema);
-  const clienteEndereco = client.endereco || '___';
+  const clienteEndereco = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
   const clienteCep = client.cep || '___';
   const clienteBairro = client.bairro || '___';
   const clienteCidade = client.cidade || '___';
@@ -664,7 +662,7 @@ function propostaBancoM1(
   const equipamentos = equipamentosTexto(f);
 
   return `${company.nome.toUpperCase()}
-CNPJ: ${company.cnpj}${company.endereco ? `\n${company.endereco}` : ''}
+CNPJ: ${company.cnpj}${company.endereco ? `\n${enderecoCompleto(company.endereco, undefined, company.cidade, company.uf)}` : ''}
 
 PROPOSTA DE BANCO
 
@@ -767,7 +765,7 @@ function propostaBancoM2(
   const validadeDias = str(f.validade_dias || '30');
   const descSistema = str(f.descricao_sistema);
   const equipamentos = equipamentosTexto(f);
-  const clienteEndereco = client.endereco || '___';
+  const clienteEndereco = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
   const clienteCep = client.cep || '___';
   const clienteBairro = client.bairro || '___';
   const clienteCidade = client.cidade || '___';
@@ -802,7 +800,7 @@ EMPRESA FORNECEDORA / INSTALADORA
 
 Razão Social:         ${company.nome.toUpperCase()}
 CNPJ:                 ${company.cnpj}
-Endereço:             ${company.endereco || '___'}
+Endereço:             ${enderecoCompleto(company.endereco, undefined, company.cidade, company.uf)}
 
 ──────────────────────────────────────────────────────────────
 
@@ -882,8 +880,8 @@ function contratoPjM1(
 
   const isPJ = client.tipo === 'PJ';
   const contratadoQualif = isPJ
-    ? `${client.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${client.cpf_cnpj || '___'}, com sede em ${client.endereco || '___'}, neste ato representada por ${client.representante_nome || '___'}, inscrito(a) no CPF sob o nº ${client.representante_cpf || '___'}`
-    : `${client.nome}, pessoa física, inscrita no CPF sob o nº ${client.cpf_cnpj || '___'}, residente e domiciliada em ${client.endereco || '___'}`;
+    ? `${client.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${client.cpf_cnpj || '___'}, com sede em ${enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf)}, neste ato representada por ${client.representante_nome || '___'}, inscrito(a) no CPF sob o nº ${client.representante_cpf || '___'}`
+    : `${client.nome}, pessoa física, inscrita no CPF sob o nº ${client.cpf_cnpj || '___'}, residente e domiciliada em ${enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf)}`;
   const signatario = isPJ ? client.representante_nome || client.nome : client.nome;
 
   return `CONTRATO DE PRESTAÇÃO DE SERVIÇOS COMERCIAIS
@@ -894,7 +892,7 @@ Pelo presente instrumento particular, as partes abaixo qualificadas celebram o p
 
 1. QUALIFICAÇÃO DAS PARTES
 
-CONTRATANTE: ${company.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${company.cnpj}, com sede em ${company.endereco || '___'}, doravante denominada simplesmente CONTRATANTE.
+CONTRATANTE: ${company.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${company.cnpj}, com sede em ${enderecoCompleto(company.endereco, undefined, company.cidade, company.uf)}, doravante denominada simplesmente CONTRATANTE.
 
 CONTRATADO(A): ${contratadoQualif}, doravante denominado(a) simplesmente CONTRATADO(A).
 
@@ -1252,7 +1250,7 @@ TERMO DE ENCERRAMENTO DE PRESTAÇÃO DE SERVIÇOS
 
 Pelo presente instrumento particular, as partes abaixo qualificadas formalizam o encerramento amigável da relação de prestação de serviços estabelecida entre si:
 
-EMPRESA: ${company.nome}, CNPJ ${company.cnpj}, ${company.endereco || '___'}, doravante denominada EMPRESA.
+EMPRESA: ${company.nome}, CNPJ ${company.cnpj}, ${enderecoCompleto(company.endereco, undefined, company.cidade, company.uf)}, doravante denominada EMPRESA.
 
 PRESTADOR(A): ${contratadoQualif}, doravante denominado(a) PRESTADOR(A).
 
@@ -1348,8 +1346,8 @@ function contratoPjM2(
 
   const isPJ = client.tipo === 'PJ';
   const contratadoQualif = isPJ
-    ? `${client.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${client.cpf_cnpj || '___'}, com sede em ${client.endereco || '___'}, neste ato representada por ${client.representante_nome || '___'}, inscrito(a) no CPF sob o nº ${client.representante_cpf || '___'}`
-    : `${client.nome}, pessoa física, inscrita no CPF sob o nº ${client.cpf_cnpj || '___'}, residente e domiciliada em ${client.endereco || '___'}`;
+    ? `${client.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${client.cpf_cnpj || '___'}, com sede em ${enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf)}, neste ato representada por ${client.representante_nome || '___'}, inscrito(a) no CPF sob o nº ${client.representante_cpf || '___'}`
+    : `${client.nome}, pessoa física, inscrita no CPF sob o nº ${client.cpf_cnpj || '___'}, residente e domiciliada em ${enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf)}`;
   const signatario = isPJ ? client.representante_nome || client.nome : client.nome;
 
   return `CONTRATO DE PRESTAÇÃO DE SERVIÇOS COMERCIAIS
@@ -1361,7 +1359,7 @@ Pelo presente instrumento particular, de um lado como CONTRATANTE e de outro com
 
 CLÁUSULA PRIMEIRA — DA QUALIFICAÇÃO DAS PARTES
 
-1.1. CONTRATANTE: ${company.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${company.cnpj}, com sede em ${company.endereco || '___'}, doravante denominada simplesmente CONTRATANTE.
+1.1. CONTRATANTE: ${company.nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${company.cnpj}, com sede em ${enderecoCompleto(company.endereco, undefined, company.cidade, company.uf)}, doravante denominada simplesmente CONTRATANTE.
 
 1.2. CONTRATADO(A): ${contratadoQualif}, doravante denominado(a) simplesmente CONTRATADO(A).
 
@@ -1771,7 +1769,7 @@ DECLARAÇÃO DE INEXISTÊNCIA DE VÍNCULO EMPREGATÍCIO E QUITAÇÃO GERAL
 
 Pelo presente instrumento particular, lavrado em conformidade com o ordenamento jurídico brasileiro, especialmente o Código Civil e os princípios da autonomia da vontade e da boa-fé objetiva, as partes abaixo qualificadas formalizam o encerramento amigável, consensual e definitivo da relação de prestação de serviços entre si estabelecida:
 
-EMPRESA: ${company.nome}, CNPJ ${company.cnpj}, ${company.endereco || '___'}, doravante denominada EMPRESA.
+EMPRESA: ${company.nome}, CNPJ ${company.cnpj}, ${enderecoCompleto(company.endereco, undefined, company.cidade, company.uf)}, doravante denominada EMPRESA.
 
 PRESTADOR(A): ${contratadoQualif}, doravante denominado(a) PRESTADOR(A).
 
@@ -1882,7 +1880,7 @@ function prestacaoServicoM1(
   const cidade = company.cidade || foro;
 
   // CONTRATADA = terceiro (client param)
-  const contratadaEndereco = client.endereco || '___';
+  const contratadaEndereco = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
   const contratadaDoc = client.cpf_cnpj || '___';
 
   // CLIENTE FINAL fields (pre-populated by controller)
@@ -1896,7 +1894,7 @@ function prestacaoServicoM1(
 
 Entre as partes:
 
-CONTRATANTE: ${company.nome}, inscrita no CNPJ sob o nº ${company.cnpj}, com sede em ${company.endereco || '___'}, doravante denominada CONTRATANTE;
+CONTRATANTE: ${company.nome}, inscrita no CNPJ sob o nº ${company.cnpj}, com sede em ${enderecoCompleto(company.endereco, undefined, company.cidade, company.uf)}, doravante denominada CONTRATANTE;
 
 e
 
@@ -2065,9 +2063,9 @@ Pelo presente instrumento particular, as partes abaixo qualificadas celebram o p
 
 CLÁUSULA PRIMEIRA — DAS PARTES
 
-CONTRATANTE: ${company.nome}, inscrita no CNPJ sob o nº ${company.cnpj}, com sede em ${company.endereco || '___'}${company.socio_adm ? `, representada por ${company.socio_adm}` : ''}, doravante denominada CONTRATANTE.
+CONTRATANTE: ${company.nome}, inscrita no CNPJ sob o nº ${company.cnpj}, com sede em ${enderecoCompleto(company.endereco, undefined, company.cidade, company.uf)}${company.socio_adm ? `, representada por ${company.socio_adm}` : ''}, doravante denominada CONTRATANTE.
 
-CONTRATADA: ${client.nome}, CPF/CNPJ ${contratadaDoc}, residente/sediada em ${client.endereco || '___'}, doravante denominada CONTRATADA.
+CONTRATADA: ${client.nome}, CPF/CNPJ ${contratadaDoc}, residente/sediada em ${enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf)}, doravante denominada CONTRATADA.
 
 CLIENTE FINAL: ${cfNome}${cfTelefone ? ` — Telefone: ${cfTelefone}` : ''}
 Endereço da instalação: ${cfEndereco}
@@ -2198,6 +2196,13 @@ function dateBR(): string {
 
 function str(v: unknown): string {
   return v != null ? String(v) : '___';
+}
+
+// Monta endereço no padrão: Logradouro, Bairro, Cidade/UF
+function enderecoCompleto(endereco?: string, bairro?: string, cidade?: string, uf?: string): string {
+  const cidadeUf = [cidade, uf].filter(Boolean).join('/');
+  const parts = [endereco, bairro, cidadeUf].map(p => (p || '').trim()).filter(Boolean);
+  return parts.join(', ') || '___';
 }
 
 function parseBRL(v: unknown): number {
