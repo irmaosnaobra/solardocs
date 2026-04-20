@@ -17,6 +17,7 @@ import cronRoutes from './routes/cron';
 import chatRoutes from './routes/chat';
 import quizRoutes from './routes/quiz';
 import pixelRoutes from './routes/pixel';
+import webhookRoutes from './routes/webhook';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
@@ -64,6 +65,7 @@ app.use('/cron', cronRoutes);
 app.use('/chat', chatRoutes);
 app.use('/quiz', quizRoutes);
 app.use('/pixel', pixelRoutes);
+app.use('/webhook', webhookRoutes);
 
 // Error handler global — nunca expõe stack trace em produção
 app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
