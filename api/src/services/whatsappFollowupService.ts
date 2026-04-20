@@ -37,7 +37,7 @@ async function sendWhatsApp(phone: string, message: string): Promise<void> {
   }
 }
 
-export async function runWhatsappFollowup(): Promise<{ sent: number; skipped: number; debug?: any }> {
+export async function runWhatsappFollowup(): Promise<{ sent: number; skipped: number; errors?: string[]; debug?: any }> {
   const { data: usersWithCompany } = await supabase.from('company').select('user_id');
   const excludedSet = new Set((usersWithCompany ?? []).map((c: any) => c.user_id).filter(Boolean));
 
@@ -62,6 +62,7 @@ export async function runWhatsappFollowup(): Promise<{ sent: number; skipped: nu
 
   const now = new Date();
   let sent = 0, skipped = 0;
+  const errors: string[] = [];
 
   for (const user of users) {
     if (!user.whatsapp) { skipped++; continue; }
@@ -77,10 +78,11 @@ export async function runWhatsappFollowup(): Promise<{ sent: number; skipped: nu
         await sendWhatsApp(user.whatsapp, messages[day]);
         sent++;
       } catch (err) {
-        console.error(`WhatsApp followup failed for user ${user.id} day ${day}:`, err);
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`${user.id} day${day}: ${msg}`);
       }
     }
   }
 
-  return { sent, skipped };
+  return { sent, skipped, errors: errors.length ? errors : undefined };
 }
