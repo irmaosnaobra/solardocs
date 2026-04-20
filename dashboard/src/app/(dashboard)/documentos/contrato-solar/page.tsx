@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ClientSelector from '@/components/ClientSelector/ClientSelector';
 import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
 import api from '@/services/api';
@@ -30,6 +30,7 @@ const initialFields = {
   garantia_modulos_anos: '',
   garantia_inversor_anos: '',
   garantia_instalacao_anos: '',
+  foro_cidade: '',
 };
 
 type Mode = 'm1' | 'm2' | 'ai';
@@ -48,6 +49,12 @@ export default function ContratoSolarPage() {
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get('/company').then(({ data }) => {
+      if (data.company?.cidade) setFields(f => ({ ...f, foro_cidade: f.foro_cidade || data.company.cidade }));
+    }).catch(() => {});
+  }, []);
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
@@ -212,6 +219,14 @@ export default function ContratoSolarPage() {
               <label className={styles.label}>Instalação *</label>
               <input type="number" value={fields.garantia_instalacao_anos} onChange={e => setFields({...fields, garantia_instalacao_anos: e.target.value})} placeholder="2" className="input-field" required />
             </div>
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Foro</h2>
+          <div className={styles.field}>
+            <label className={styles.label}>Comarca (cidade) *</label>
+            <input type="text" value={fields.foro_cidade} onChange={e => setFields({...fields, foro_cidade: e.target.value})} placeholder="Ex: Uberlândia" className="input-field" required />
           </div>
         </div>
 

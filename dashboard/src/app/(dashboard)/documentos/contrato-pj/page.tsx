@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import TerceiroSelector from '@/components/TerceiroSelector/TerceiroSelector';
 import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
 import api from '@/services/api';
@@ -31,6 +31,12 @@ export default function ContratoPJPage() {
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get('/company').then(({ data }) => {
+      if (data.company?.cidade) setFields(f => ({ ...f, foro_cidade: f.foro_cidade || data.company.cidade }));
+    }).catch(() => {});
+  }, []);
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();

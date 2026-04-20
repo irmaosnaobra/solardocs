@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import TerceiroSelector from '@/components/TerceiroSelector/TerceiroSelector';
 import ClientSelector from '@/components/ClientSelector/ClientSelector';
 import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
@@ -45,6 +45,12 @@ export default function PrestacaoServicoPage() {
   function setField(key: keyof typeof initialFields, value: string) {
     setFields(f => ({ ...f, [key]: value }));
   }
+
+  useEffect(() => {
+    api.get('/company').then(({ data }) => {
+      if (data.company?.cidade) setFields(f => ({ ...f, foro_cidade: f.foro_cidade || data.company.cidade }));
+    }).catch(() => {});
+  }, []);
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
