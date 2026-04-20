@@ -41,13 +41,19 @@ export async function runWhatsappFollowup(): Promise<{ sent: number; skipped: nu
   const { data: usersWithCompany } = await supabase.from('company').select('user_id');
   const excludedSet = new Set((usersWithCompany ?? []).map((c: any) => c.user_id).filter(Boolean));
 
-  const { data: allUsers } = await supabase
+  const { data: allUsers, error: qErr } = await supabase
     .from('users')
-    .select('id, whatsapp, followup_started_at')
-    .not('whatsapp', 'is', null)
-    .not('followup_started_at', 'is', null);
+    .select('id, whatsapp, followup_started_at');
 
-  const users = (allUsers ?? []).filter(u => !excludedSet.has(u.id));
+  console.log('allUsers count:', allUsers?.length, 'error:', qErr);
+
+  const users = (allUsers ?? []).filter(u => {
+    const hasWpp = !!u.whatsapp;
+    const hasFs  = !!(u as any).followup_started_at;
+    const notEx  = !excludedSet.has(u.id);
+    console.log(u.id, { hasWpp, hasFs, notEx, wpp: u.whatsapp, fs: (u as any).followup_started_at });
+    return hasWpp && hasFs && notEx;
+  });
 
   if (!users || users.length === 0) return { sent: 0, skipped: 0 };
 
