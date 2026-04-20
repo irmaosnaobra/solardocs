@@ -13,6 +13,11 @@ const MAX_HISTORY = 10;
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
+function fmtPhone(raw: string): string {
+  const d = raw.replace(/\D/g, '');
+  return d.startsWith('55') ? d : `55${d}`;
+}
+
 async function zapiPost(path: string, body: unknown): Promise<void> {
   if (!ZAPI_INSTANCE || !ZAPI_TOKEN || !ZAPI_CLIENT) return;
   try {
@@ -25,12 +30,12 @@ async function zapiPost(path: string, body: unknown): Promise<void> {
 }
 
 async function showTyping(phone: string, durationMs = 1500): Promise<void> {
-  await zapiPost('send-typing', { phone, duration: durationMs }).catch(() => {});
+  await zapiPost('send-typing', { phone: fmtPhone(phone), duration: durationMs }).catch(() => {});
   await sleep(durationMs);
 }
 
 async function sendWhatsApp(phone: string, message: string): Promise<void> {
-  await zapiPost('send-text', { phone, message });
+  await zapiPost('send-text', { phone: fmtPhone(phone), message });
 }
 
 // Envia múltiplas bolhas com "digitando..." entre elas
