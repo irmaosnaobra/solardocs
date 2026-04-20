@@ -197,7 +197,7 @@ Use linguagem jurídica formal e profissional.`;
             .join('\n')
         : String(fields.lista_equipamentos);
 
-      const valorTotal = Number(fields.valor_total);
+      const valorTotal = parseFloat(String(fields.valor_total ?? '').replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
       const valorEquipamentos = (valorTotal * 0.7).toFixed(2);
       const valorMaoDeObra = (valorTotal * 0.3).toFixed(2);
 

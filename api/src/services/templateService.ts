@@ -651,9 +651,9 @@ function propostaBancoM1(
   const banco = str(f.banco);
   const agencia = str(f.agencia);
   const conta = str(f.conta);
-  const valorTotal = parseFloat(String(f.valor_total).replace(',', '.')) || 0;
-  const valorEq = parseFloat(String(f.valor_equipamentos).replace(',', '.')) || valorTotal * 0.7;
-  const valorMo = parseFloat(String(f.valor_mao_de_obra).replace(',', '.')) || valorTotal * 0.3;
+  const valorTotal = parseBRL(f.valor_total);
+  const valorEq = parseBRL(f.valor_equipamentos) || valorTotal * 0.7;
+  const valorMo = parseBRL(f.valor_mao_de_obra) || valorTotal * 0.3;
   const validadeDias = str(f.validade_dias || '30');
   const descSistema = str(f.descricao_sistema);
   const clienteEndereco = client.endereco || '___';
@@ -761,9 +761,9 @@ function propostaBancoM2(
   const agencia = str(f.agencia);
   const conta = str(f.conta);
   const concessionaria = str(f.concessionaria);
-  const valorTotal = parseFloat(String(f.valor_total).replace(',', '.')) || 0;
-  const valorEq = parseFloat(String(f.valor_equipamentos).replace(',', '.')) || valorTotal * 0.7;
-  const valorMo = parseFloat(String(f.valor_mao_de_obra).replace(',', '.')) || valorTotal * 0.3;
+  const valorTotal = parseBRL(f.valor_total);
+  const valorEq = parseBRL(f.valor_equipamentos) || valorTotal * 0.7;
+  const valorMo = parseBRL(f.valor_mao_de_obra) || valorTotal * 0.3;
   const validadeDias = str(f.validade_dias || '30');
   const descSistema = str(f.descricao_sistema);
   const equipamentos = equipamentosTexto(f);
@@ -2200,15 +2200,19 @@ function str(v: unknown): string {
   return v != null ? String(v) : '___';
 }
 
+function parseBRL(v: unknown): number {
+  return parseFloat(String(v ?? '').replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+
 function curr(v: string): string {
-  const n = parseFloat(String(v).replace(',', '.'));
-  if (isNaN(n)) return v;
+  const n = parseBRL(v);
+  if (!n && String(v).trim() === '') return v;
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
 
 function extenso(v: unknown): string {
-  const n = parseFloat(String(v).replace(',', '.'));
-  if (isNaN(n)) return 'valor a ser definido';
+  const n = parseBRL(v);
+  if (!n) return 'valor a ser definido';
   const cents = Math.round((n - Math.floor(n)) * 100);
   const base = n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
   return `${base} reais${cents > 0 ? ` e ${cents} centavos` : ''}`;
