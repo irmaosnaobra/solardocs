@@ -46,7 +46,7 @@ export async function runWhatsappFollowup(): Promise<{ sent: number; skipped: nu
     .select('id, whatsapp, followup_started_at')
     .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)')
     .not('whatsapp', 'is', null)
-    .or(`followup_started_at.not.is.null,created_at.gte.${FOLLOWUP_START.toISOString()}`);
+    .not('followup_started_at', 'is', null);
 
   if (!users || users.length === 0) return { sent: 0, skipped: 0 };
 
