@@ -141,12 +141,14 @@ export async function sendWelcomeWhatsApp(phone: string, _email: string): Promis
 export async function handleIncomingWhatsApp(phone: string, text: string, senderName?: string | null): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
-  const { data: user } = await supabase
-    .from('users')
-    .select('id, email, plano')
-    .eq('whatsapp', cleanPhone)
-    .single();
+  // Tenta com e sem prefixo 55 (o banco pode ter qualquer formato)
+  const phoneVariants = [cleanPhone, cleanPhone.replace(/^55/, ''), `55${cleanPhone.replace(/^55/, '')}`];
 
+  let user: { id: string; email: string; plano: string } | null = null;
+  for (const variant of phoneVariants) {
+    const { data } = await supabase.from('users').select('id, email, plano').eq('whatsapp', variant).single();
+    if (data) { user = data; break; }
+  }
   if (!user) return;
 
   const { data: company } = await supabase
