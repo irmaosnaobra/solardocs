@@ -13,8 +13,9 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
     // Ignora grupos
     if (body.isGroup === true) { res.sendStatus(200); return; }
 
-    const phone = body.phone || body.senderPhone;
-    const text  = body.message?.conversation
+    const phone      = body.phone || body.senderPhone;
+    const senderName = body.senderName || body.pushname || null;
+    const text       = body.message?.conversation
       || body.message?.extendedTextMessage?.text
       || body.message
       || body.text;
@@ -25,7 +26,7 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
     res.sendStatus(200);
 
     // Processa em background
-    handleIncomingWhatsApp(phone, text).catch(err =>
+    handleIncomingWhatsApp(phone, text, senderName).catch(err =>
       console.error('WhatsApp agent error:', err)
     );
   } catch (err) {

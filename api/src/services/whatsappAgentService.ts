@@ -7,7 +7,7 @@ const ZAPI_TOKEN    = process.env.ZAPI_TOKEN;
 const ZAPI_CLIENT   = process.env.ZAPI_CLIENT_TOKEN;
 const APP_URL       = 'https://solardocs-dashboard.vercel.app';
 
-const MAX_HISTORY = 10;
+const MAX_HISTORY = 30; // ~30 trocas = contexto rico sem estourar tokens
 
 // ─── helpers de envio ────────────────────────────────────────────
 
@@ -51,60 +51,71 @@ async function sendHuman(phone: string, parts: string[]): Promise<void> {
 // ─── system prompt ───────────────────────────────────────────────
 
 function buildSystemPrompt(user: {
-  email: string; plano: string; nome_empresa?: string; tem_cnpj: boolean;
+  email: string; plano: string; nome_empresa?: string; tem_cnpj: boolean; nome?: string;
 }): string {
   const planoLabel: Record<string, string> = { free: 'Gratuito', pro: 'PRO', ilimitado: 'VIP' };
+  const nomeUsuario = user.nome ? user.nome.split(' ')[0] : null;
 
-  return `Você é a atendente digital da *Irmãos na Obra* no SolarDoc Pro. Atende via WhatsApp.
+  return `Você é a atendente digital da *Irmãos na Obra* no SolarDoc Pro. Atende via WhatsApp de forma humanizada.
 
-PERFIL DO USUÁRIO:
+━━ QUEM VOCÊ É ━━
+Não é um bot. É uma pessoa real chamada de assistente da Irmãos na Obra.
+Você TEM memória — lembra tudo que foi dito nessa conversa e usa isso naturalmente.
+Se o usuário mencionou algo antes, você referencia. Se perguntou algo, você lembra a resposta.
+Se ele disse o nome dele, você usa. Se falou de um problema, você acompanha a evolução.
+
+━━ PERFIL DO USUÁRIO ━━
+${nomeUsuario ? `- Nome: ${nomeUsuario}` : '- Nome: ainda não informado'}
 - Email: ${user.email}
 - Plano: ${planoLabel[user.plano] || user.plano}
-- Empresa cadastrada: ${user.tem_cnpj ? `Sim — ${user.nome_empresa || 'cadastrada'}` : 'NÃO (não informou o CNPJ ainda)'}
-${!user.tem_cnpj ? `- PRIORIDADE: incentivar cadastrar a empresa em ${APP_URL}/login` : ''}
+- Empresa: ${user.tem_cnpj ? `${user.nome_empresa || 'cadastrada'} ✅` : 'NÃO cadastrada ainda'}
+${!user.tem_cnpj ? `- MISSÃO: de forma natural e gentil, guiar para cadastrar a empresa em ${APP_URL}/login` : ''}
 
-COMO VOCÊ FALA:
-- Igual a uma pessoa real no WhatsApp — curto, direto, natural
-- Uma ideia por mensagem, no máximo 2 frases curtas
-- Use expressões como "Boa!", "Claro!", "Certo!", "Deixa eu te ajudar"
-- Emojis com naturalidade, sem exagero
-- Nunca mande textão — se precisar explicar algo longo, quebre em mensagens
-- Tom próximo, como colega de trabalho
+━━ COMO VOCÊ FALA ━━
+- Como uma pessoa real no WhatsApp — curto, direto, próximo
+- Uma ideia por bolha, máximo 2 frases
+- Use o nome do usuário quando souber
+- Expressões naturais: "Boa!", "Entendi!", "Claro!", "Deixa eu ver", "Que ótimo!"
+- Emojis com naturalidade (não exagera)
+- Nunca textão — quebra em bolhas
+- Se ele voltou depois de um tempo, retoma o contexto: "Oi! Voltou 😄 Conseguiu resolver aquilo?"
 
-FORMATO DE RESPOSTA — MUITO IMPORTANTE:
-Separe cada bolha de mensagem com o separador ||
-Exemplo: "Oi! Que bom falar com você 😊 || Você está no plano gratuito, que dá 10 documentos pra testar. || Posso te ajudar com alguma coisa?"
-Máximo 3 bolhas por resposta. Cada bolha: no máximo 2 frases curtas.
+━━ FORMATO — OBRIGATÓRIO ━━
+Separe cada bolha com ||
+Máximo 3 bolhas. Cada bolha: máximo 2 frases curtas.
+Exemplo: "Oi ${nomeUsuario || 'tudo bem'}! 😊 || Vi aqui que você ainda não cadastrou a empresa... || Quer que eu te mostre como é rápido?"
 
-PLATAFORMA:
-- Gera contratos, procurações, propostas bancárias, prestação de serviço, contrato PJ
+━━ PLATAFORMA ━━
+- Gera contratos solares, procurações, propostas bancárias, prestação de serviço, contrato PJ
 - Planos: Gratuito (10 docs), Iniciante R$27 (30 docs), PRO R$47 (90 docs), VIP R$97 (ilimitado)
-- Processo: cadastra empresa → cadastra cliente → escolhe documento → gera em 2 min
+- Processo: empresa → cliente → documento → gera em 2 min
 
-PROBLEMAS COMUNS:
-- Limite atingido: aguarda renovação ou faz upgrade
-- Sem empresa: cadastrar CNPJ em ${APP_URL}/login
-- PDF não abre: liberar popups no navegador
+━━ PROBLEMAS ━━
+- Limite atingido → upgrade ou aguarda renovação mensal
+- Sem empresa → CNPJ em ${APP_URL}/login
+- PDF não abre → liberar popups
 
-QUANDO ESCALAR: cobrança, bug grave ou pedido de humano → agenntaix@gmail.com`;
+━━ ESCALADA ━━
+Cobrança, bug grave ou pedido de humano → agenntaix@gmail.com`;
 }
 
 // ─── histórico ───────────────────────────────────────────────────
 
-async function getHistory(phone: string): Promise<{ role: 'user' | 'assistant'; content: string }[]> {
-  const { data } = await supabase.from('whatsapp_sessions').select('messages').eq('phone', phone).single();
-  return (data?.messages as any[]) || [];
+async function getSession(phone: string): Promise<{ messages: { role: 'user' | 'assistant'; content: string }[]; nome?: string }> {
+  const { data } = await supabase.from('whatsapp_sessions').select('messages, nome').eq('phone', phone).single();
+  return { messages: (data?.messages as any[]) || [], nome: data?.nome || undefined };
 }
 
-async function saveHistory(
+async function saveSession(
   phone: string,
   userId: string | null,
-  messages: { role: 'user' | 'assistant'; content: string }[]
+  messages: { role: 'user' | 'assistant'; content: string }[],
+  nome?: string | null,
 ): Promise<void> {
   const trimmed = messages.slice(-MAX_HISTORY * 2);
-  await supabase
-    .from('whatsapp_sessions')
-    .upsert({ phone, user_id: userId, messages: trimmed, updated_at: new Date().toISOString() }, { onConflict: 'phone' });
+  const payload: any = { phone, user_id: userId, messages: trimmed, updated_at: new Date().toISOString() };
+  if (nome) payload.nome = nome;
+  await supabase.from('whatsapp_sessions').upsert(payload, { onConflict: 'phone' });
 }
 
 // ─── boas-vindas ─────────────────────────────────────────────────
@@ -122,12 +133,12 @@ export async function sendWelcomeWhatsApp(phone: string, _email: string): Promis
   await sendHuman(cleanPhone, parts);
 
   const fullText = parts.join(' || ');
-  await saveHistory(cleanPhone, null, [{ role: 'assistant', content: fullText }]);
+  await saveSession(cleanPhone, null, [{ role: 'assistant', content: fullText }]);
 }
 
 // ─── resposta a mensagem recebida ────────────────────────────────
 
-export async function handleIncomingWhatsApp(phone: string, text: string): Promise<void> {
+export async function handleIncomingWhatsApp(phone: string, text: string, senderName?: string | null): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
   const { data: user } = await supabase
@@ -144,35 +155,37 @@ export async function handleIncomingWhatsApp(phone: string, text: string): Promi
     .eq('user_id', user.id)
     .single();
 
+  const session = await getSession(cleanPhone);
+  // Salva nome do remetente se ainda não tiver
+  const nome = session.nome || senderName || null;
+
   const userCtx = {
     email: user.email,
     plano: user.plano,
     nome_empresa: company?.nome,
     tem_cnpj: !!company,
+    nome: nome || undefined,
   };
 
-  const history = await getHistory(cleanPhone);
   const messages = [
-    ...history,
+    ...session.messages,
     { role: 'user' as const, content: text.trim() },
   ];
 
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 300,
+    max_tokens: 350,
     system: buildSystemPrompt(userCtx),
     messages,
   });
 
   const raw = (response.content[0] as { text: string }).text;
-
-  // Divide nas bolhas definidas pelo modelo
   const parts = raw.split('||').map(p => p.trim()).filter(Boolean);
 
   await sendHuman(cleanPhone, parts);
 
-  await saveHistory(cleanPhone, user.id, [
+  await saveSession(cleanPhone, user.id, [
     ...messages,
     { role: 'assistant', content: raw },
-  ]);
+  ], nome);
 }
