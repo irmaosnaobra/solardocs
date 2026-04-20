@@ -28,6 +28,10 @@
     {
       "path": "/cron/followup-cnpj",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/cron/followup-whatsapp",
+      "schedule": "0 13 * * *"
     }
   ]
 }

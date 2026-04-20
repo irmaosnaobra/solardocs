@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted } from '../services/followupService';
+import { runWhatsappFollowup } from '../services/whatsappFollowupService';
 
 const router = Router();
 
@@ -71,6 +72,18 @@ router.get('/followup-stamp', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error('Cron stamp error:', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Roda todo dia às 9h — follow-up WhatsApp para usuários sem CNPJ
+router.get('/followup-whatsapp', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runWhatsappFollowup();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('Cron WhatsApp followup error:', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
