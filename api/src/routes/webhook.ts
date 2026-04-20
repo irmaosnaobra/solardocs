@@ -4,6 +4,11 @@ import { supabase } from '../utils/supabase';
 
 const router = Router();
 
+// Healthcheck — confirma que o endpoint está acessível
+router.get('/whatsapp', (_req: Request, res: Response): void => {
+  res.json({ status: 'webhook online', ts: new Date().toISOString() });
+});
+
 // Webhook Z-API — recebe mensagens do WhatsApp
 router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -23,8 +28,8 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
 
     if (!phone || !text || typeof text !== 'string') { res.sendStatus(200); return; }
 
-    // Salva payload para debug
-    supabase.from('webhook_debug').insert({ payload: body }).then(() => {});
+    // Salva payload para debug (await para não ser cortado pelo serverless)
+    await supabase.from('webhook_debug').insert({ payload: body });
 
     // Responde ao Z-API imediatamente (evita timeout)
     res.sendStatus(200);
