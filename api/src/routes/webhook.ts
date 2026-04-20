@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { handleIncomingWhatsApp } from '../services/whatsappAgentService';
+import { supabase } from '../utils/supabase';
 
 const router = Router();
 
@@ -21,6 +22,9 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
       || body.text;
 
     if (!phone || !text || typeof text !== 'string') { res.sendStatus(200); return; }
+
+    // Salva payload para debug
+    supabase.from('webhook_debug').insert({ payload: body }).then(() => {});
 
     // Responde ao Z-API imediatamente (evita timeout)
     res.sendStatus(200);
