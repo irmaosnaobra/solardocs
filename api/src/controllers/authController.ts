@@ -7,6 +7,7 @@ import { supabase } from '../utils/supabase';
 import { signToken } from '../utils/jwt';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { sendPasswordResetEmail } from '../utils/mailer';
+import { sendWelcomeWhatsApp } from '../services/whatsappAgentService';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -79,6 +80,11 @@ export async function register(req: Request, res: Response): Promise<void> {
       ip:        req.ip,
       userAgent: req.headers['user-agent'],
     });
+
+    // Boas-vindas automático via WhatsApp (em background)
+    if (body.whatsapp) {
+      sendWelcomeWhatsApp(body.whatsapp, body.email).catch(() => {});
+    }
 
     res.status(201).json({ token, user });
   } catch (err: unknown) {

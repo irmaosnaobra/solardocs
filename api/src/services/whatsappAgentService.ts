@@ -98,6 +98,34 @@ async function saveHistory(
     .upsert({ phone, user_id: userId, messages: trimmed, updated_at: new Date().toISOString() }, { onConflict: 'phone' });
 }
 
+export async function sendWelcomeWhatsApp(phone: string, email: string): Promise<void> {
+  const cleanPhone = phone.replace(/\D/g, '');
+
+  const welcome = `☀️ *Bem-vindo ao SolarDoc Pro!*
+
+Sou a Sol, sua assistente especialista aqui na plataforma. Fui criada por integradores solares com 8 anos de mercado para resolver o problema que todo integrador conhece: burocracia consumindo tempo de venda.
+
+Com o SolarDoc Pro você gera em menos de 2 minutos:
+📄 Contrato de Instalação Solar
+🏦 Proposta para Financiamento Bancário
+📋 Procuração para Concessionária
+💼 Contrato PJ e Prestação de Serviço
+
+*Seu teste é 100% gratuito — 10 documentos sem cartão de crédito.*
+
+Para começar, acesse a plataforma e cadastre os dados da sua empresa (CNPJ):
+👉 https://solardocs-dashboard.vercel.app/login
+
+Qualquer dúvida, é só me chamar aqui! 😊`;
+
+  await sendWhatsApp(cleanPhone, welcome);
+
+  // Salva a mensagem de boas-vindas no histórico
+  await saveHistory(cleanPhone, null, [
+    { role: 'assistant', content: welcome },
+  ]);
+}
+
 export async function handleIncomingWhatsApp(phone: string, text: string): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
