@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { supabase } from '../utils/supabase';
 
 const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID;
@@ -24,11 +23,18 @@ function fmtPhone(raw: string): string {
 
 async function sendWhatsApp(phone: string, message: string): Promise<void> {
   if (!ZAPI_INSTANCE || !ZAPI_TOKEN || !ZAPI_CLIENT) throw new Error('Z-API não configurado');
-  await axios.post(
+  const res = await fetch(
     `https://api.z-api.io/instances/${ZAPI_INSTANCE}/token/${ZAPI_TOKEN}/send-text`,
-    { phone: fmtPhone(phone), message },
-    { headers: { 'Client-Token': ZAPI_CLIENT } }
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Client-Token': ZAPI_CLIENT },
+      body: JSON.stringify({ phone: fmtPhone(phone), message }),
+    }
   );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Z-API error ${res.status}: ${body}`);
+  }
 }
 
 export async function runWhatsappFollowup(): Promise<{ sent: number; skipped: number }> {
