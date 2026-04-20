@@ -15,15 +15,17 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 async function zapiPost(path: string, body: unknown): Promise<void> {
   if (!ZAPI_INSTANCE || !ZAPI_TOKEN || !ZAPI_CLIENT) return;
-  await fetch(`https://api.z-api.io/instances/${ZAPI_INSTANCE}/token/${ZAPI_TOKEN}/${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Client-Token': ZAPI_CLIENT },
-    body: JSON.stringify(body),
-  });
+  try {
+    await fetch(`https://api.z-api.io/instances/${ZAPI_INSTANCE}/token/${ZAPI_TOKEN}/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Client-Token': ZAPI_CLIENT },
+      body: JSON.stringify(body),
+    });
+  } catch { /* ignora erros de rede */ }
 }
 
-async function showTyping(phone: string, durationMs = 2000): Promise<void> {
-  await zapiPost('send-typing', { phone, duration: durationMs });
+async function showTyping(phone: string, durationMs = 1500): Promise<void> {
+  await zapiPost('send-typing', { phone, duration: durationMs }).catch(() => {});
   await sleep(durationMs);
 }
 
