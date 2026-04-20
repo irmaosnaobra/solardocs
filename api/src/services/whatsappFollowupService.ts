@@ -39,14 +39,15 @@ async function sendWhatsApp(phone: string, message: string): Promise<void> {
 
 export async function runWhatsappFollowup(): Promise<{ sent: number; skipped: number }> {
   const { data: usersWithCompany } = await supabase.from('company').select('user_id');
-  const excludedIds = (usersWithCompany ?? []).map((c: any) => c.user_id).filter(Boolean);
+  const excludedSet = new Set((usersWithCompany ?? []).map((c: any) => c.user_id).filter(Boolean));
 
-  const { data: users } = await supabase
+  const { data: allUsers } = await supabase
     .from('users')
     .select('id, whatsapp, followup_started_at')
-    .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)')
     .not('whatsapp', 'is', null)
     .not('followup_started_at', 'is', null);
+
+  const users = (allUsers ?? []).filter(u => !excludedSet.has(u.id));
 
   if (!users || users.length === 0) return { sent: 0, skipped: 0 };
 
