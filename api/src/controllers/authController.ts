@@ -81,9 +81,9 @@ export async function register(req: Request, res: Response): Promise<void> {
       userAgent: req.headers['user-agent'],
     });
 
-    // Boas-vindas automático via WhatsApp (em background)
+    // Boas-vindas automático via WhatsApp
     if (body.whatsapp) {
-      sendWelcomeWhatsApp(body.whatsapp, body.email).catch(() => {});
+      await sendWelcomeWhatsApp(body.whatsapp, body.email).catch(() => {});
     }
 
     res.status(201).json({ token, user });
