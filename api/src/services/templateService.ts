@@ -2264,8 +2264,7 @@ function equipamentosTexto(f: Record<string, unknown>): string {
   }
   return (f.lista_equipamentos as Array<{ item: string; quantidade: number; valor?: number }>)
     .map((e) => {
-      const valor = e.valor ? `  —  R$ ${fmtBRL(e.valor)} un.` : '';
-      return `${String(e.quantidade).padEnd(6)} ${e.item}${valor}`;
+      return `${String(e.quantidade).padEnd(6)} ${e.item}`;
     })
     .join('\n');
 }

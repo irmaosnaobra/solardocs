@@ -8,7 +8,7 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
 import modeStyles from '../contrato-solar/mode.module.css';
 
-interface Equipamento { item: string; quantidade: number; valor: number; }
+interface Equipamento { item: string; quantidade: number; }
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
 type Mode = 'm1' | 'm2' | 'ai';
@@ -32,8 +32,8 @@ const initialFields = {
   prazo_instalacao_dias: '30',
 };
 
-const initialModulo = { marca: '', potencia: '', quantidade: 1, valor: 0 };
-const initialInversor = { marca: '', potencia: '', quantidade: 1, valor: 0 };
+const initialModulo = { marca: '', potencia: '', quantidade: 1 };
+const initialInversor = { marca: '', potencia: '', quantidade: 1 };
 
 export default function PropostaBancariaPage() {
   const { user, openUpgrade } = useDashboard();
@@ -43,11 +43,11 @@ export default function PropostaBancariaPage() {
   const [modulo, setModulo] = useState(initialModulo);
   const [inversor, setInversor] = useState(initialInversor);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([
-    { item: 'Kit cabo fotovoltaico', quantidade: 1, valor: 0 },
-    { item: 'Kit estrutura telhado', quantidade: 1, valor: 0 },
-    { item: 'Kit material elétrico A.C', quantidade: 1, valor: 0 },
-    { item: 'Homologação do projeto de engenharia', quantidade: 1, valor: 0 },
-    { item: 'Montagem especializada', quantidade: 1, valor: 0 },
+    { item: 'Kit cabo fotovoltaico', quantidade: 1 },
+    { item: 'Kit estrutura telhado', quantidade: 1 },
+    { item: 'Kit material elétrico A.C', quantidade: 1 },
+    { item: 'Homologação do projeto de engenharia', quantidade: 1 },
+    { item: 'Montagem especializada', quantidade: 1 },
   ]);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
@@ -63,8 +63,8 @@ export default function PropostaBancariaPage() {
     const moduloItem = [modulo.marca, modulo.potencia].filter(Boolean).join(' ');
     const inversorItem = [inversor.marca, inversor.potencia].filter(Boolean).join(' ');
     return [
-      { item: `Módulos ${moduloItem || 'Fotovoltaicos'}`.trim(), quantidade: modulo.quantidade, valor: modulo.valor },
-      { item: `Micro Inversores ${inversorItem || ''}`.trim(), quantidade: inversor.quantidade, valor: inversor.valor },
+      { item: `Módulos ${moduloItem || 'Fotovoltaicos'}`.trim(), quantidade: modulo.quantidade },
+      { item: `Micro Inversores ${inversorItem || ''}`.trim(), quantidade: inversor.quantidade },
       ...equipamentos,
     ];
   }
@@ -225,16 +225,6 @@ export default function PropostaBancariaPage() {
               className="input-field"
               style={{ width: 140 }}
             />
-            <input
-              type="number"
-              value={modulo.valor || ''}
-              onChange={e => setModulo({ ...modulo, valor: Number(e.target.value) })}
-              placeholder="Valor unit."
-              className="input-field"
-              style={{ width: 120 }}
-              min={0}
-              step="0.01"
-            />
           </div>
 
           {/* Inversores */}
@@ -266,16 +256,6 @@ export default function PropostaBancariaPage() {
               className="input-field"
               style={{ width: 140 }}
             />
-            <input
-              type="number"
-              value={inversor.valor || ''}
-              onChange={e => setInversor({ ...inversor, valor: Number(e.target.value) })}
-              placeholder="Valor unit."
-              className="input-field"
-              style={{ width: 120 }}
-              min={0}
-              step="0.01"
-            />
           </div>
 
           {/* Demais itens */}
@@ -298,16 +278,6 @@ export default function PropostaBancariaPage() {
                   style={{ width: 70 }}
                   min={1}
                 />
-                <input
-                  type="number"
-                  value={eq.valor || ''}
-                  onChange={e => updateEquipamento(i, 'valor', Number(e.target.value))}
-                  placeholder="Valor unit."
-                  className="input-field"
-                  style={{ width: 120 }}
-                  min={0}
-                  step="0.01"
-                />
                 {equipamentos.length > 1 && (
                   <button
                     type="button"
@@ -322,7 +292,7 @@ export default function PropostaBancariaPage() {
             type="button"
             className={styles.addItemBtn}
             style={{ marginTop: 8 }}
-            onClick={() => setEquipamentos([...equipamentos, { item: '', quantidade: 1, valor: 0 }])}
+            onClick={() => setEquipamentos([...equipamentos, { item: '', quantidade: 1 }])}
           >
             + Adicionar item
           </button>
