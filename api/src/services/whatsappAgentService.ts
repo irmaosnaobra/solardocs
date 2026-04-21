@@ -137,8 +137,9 @@ export async function processMessageQueue(): Promise<{ processed: number }> {
       await supabase.from('message_queue').update({ processed: true }).eq('id', msg.id);
       processed++;
     } catch (err) {
-      console.error(`Queue processing error for ${msg.phone}:`, err);
-      await supabase.from('message_queue').update({ processed: true }).eq('id', msg.id);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Queue processing error for ${msg.phone}:`, errMsg);
+      await supabase.from('message_queue').update({ processed: true, sender_name: `ERR: ${errMsg.slice(0, 100)}` }).eq('id', msg.id);
     }
   }
   return { processed };
