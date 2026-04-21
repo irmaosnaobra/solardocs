@@ -32,23 +32,22 @@ const initialFields = {
   prazo_instalacao_dias: '30',
 };
 
-const initialModulo = { marca: '', potencia: '', quantidade: 1 };
-const initialInversor = { marca: '', potencia: '', quantidade: 1 };
+const initialEquipamentos: Equipamento[] = [
+  { item: 'Módulos Fotovoltaicos', quantidade: 1 },
+  { item: 'Micro Inversores', quantidade: 1 },
+  { item: 'Kit cabo fotovoltaico', quantidade: 1 },
+  { item: 'Kit estrutura telhado', quantidade: 1 },
+  { item: 'Kit material elétrico A.C', quantidade: 1 },
+  { item: 'Homologação do projeto de engenharia', quantidade: 1 },
+  { item: 'Montagem especializada', quantidade: 1 },
+];
 
 export default function PropostaBancariaPage() {
   const { user, openUpgrade } = useDashboard();
   const [mode, setMode] = useState<Mode>('m1');
   const [clienteId, setClienteId] = useState('');
   const [fields, setFields] = useState(initialFields);
-  const [modulo, setModulo] = useState(initialModulo);
-  const [inversor, setInversor] = useState(initialInversor);
-  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([
-    { item: 'Kit cabo fotovoltaico', quantidade: 1 },
-    { item: 'Kit estrutura telhado', quantidade: 1 },
-    { item: 'Kit material elétrico A.C', quantidade: 1 },
-    { item: 'Homologação do projeto de engenharia', quantidade: 1 },
-    { item: 'Montagem especializada', quantidade: 1 },
-  ]);
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>(initialEquipamentos);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
@@ -57,16 +56,6 @@ export default function PropostaBancariaPage() {
     const arr = [...equipamentos];
     arr[index] = { ...arr[index], [key]: value };
     setEquipamentos(arr);
-  }
-
-  function buildListaEquipamentos(): Equipamento[] {
-    const moduloItem = [modulo.marca, modulo.potencia].filter(Boolean).join(' ');
-    const inversorItem = [inversor.marca, inversor.potencia].filter(Boolean).join(' ');
-    return [
-      { item: `Módulos ${moduloItem || 'Fotovoltaicos'}`.trim(), quantidade: modulo.quantidade },
-      { item: `Micro Inversores ${inversorItem || ''}`.trim(), quantidade: inversor.quantidade },
-      ...equipamentos,
-    ];
   }
 
   async function handleGenerate(e: React.FormEvent) {
@@ -84,7 +73,7 @@ export default function PropostaBancariaPage() {
       const { data } = await api.post('/documents/generate', {
         tipo: 'propostaBanco',
         cliente_id: clienteId,
-        fields: { ...fields, lista_equipamentos: buildListaEquipamentos() },
+        fields: { ...fields, lista_equipamentos: equipamentos },
         useTemplate: mode !== 'ai',
         modeloNumero: mode === 'm2' ? 2 : 1,
       });
@@ -113,7 +102,7 @@ export default function PropostaBancariaPage() {
         tipo="propostaBanco"
         clienteId={clienteId}
         clienteNome={generated.cliente_nome}
-        dadosJson={{ ...fields, lista_equipamentos: buildListaEquipamentos() }}
+        dadosJson={{ ...fields, lista_equipamentos: equipamentos }}
         modeloUsado={generated.modelo_usado}
         docId={generated.doc_id}
         userPlano={user?.plano}
@@ -195,70 +184,6 @@ export default function PropostaBancariaPage() {
           </div>
 
           <label className={styles.label} style={{ marginBottom: 8, display: 'block' }}>Equipamentos *</label>
-
-          {/* Módulos */}
-          <div style={{ marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Módulos</span>
-          </div>
-          <div className={styles.equipmentRow} style={{ marginBottom: 10 }}>
-            <input
-              type="number"
-              value={modulo.quantidade}
-              onChange={e => setModulo({ ...modulo, quantidade: Number(e.target.value) })}
-              placeholder="Qtd"
-              className="input-field"
-              style={{ width: 70 }}
-              min={1}
-            />
-            <input
-              type="text"
-              value={modulo.marca}
-              onChange={e => setModulo({ ...modulo, marca: e.target.value })}
-              placeholder="Marca (Ex: Tsun, Jinko)"
-              className="input-field"
-            />
-            <input
-              type="text"
-              value={modulo.potencia}
-              onChange={e => setModulo({ ...modulo, potencia: e.target.value })}
-              placeholder="Potência (Ex: 600W)"
-              className="input-field"
-              style={{ width: 140 }}
-            />
-          </div>
-
-          {/* Inversores */}
-          <div style={{ marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inversores / Micro Inversores</span>
-          </div>
-          <div className={styles.equipmentRow} style={{ marginBottom: 10 }}>
-            <input
-              type="number"
-              value={inversor.quantidade}
-              onChange={e => setInversor({ ...inversor, quantidade: Number(e.target.value) })}
-              placeholder="Qtd"
-              className="input-field"
-              style={{ width: 70 }}
-              min={1}
-            />
-            <input
-              type="text"
-              value={inversor.marca}
-              onChange={e => setInversor({ ...inversor, marca: e.target.value })}
-              placeholder="Marca (Ex: SAJ, Growatt)"
-              className="input-field"
-            />
-            <input
-              type="text"
-              value={inversor.potencia}
-              onChange={e => setInversor({ ...inversor, potencia: e.target.value })}
-              placeholder="Potência (Ex: 2,25K)"
-              className="input-field"
-              style={{ width: 140 }}
-            />
-          </div>
-
-          {/* Demais itens */}
           <div className={styles.equipmentList}>
             {equipamentos.map((eq, i) => (
               <div key={i} className={styles.equipmentRow}>
