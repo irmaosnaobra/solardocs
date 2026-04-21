@@ -126,7 +126,7 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
     .select('*')
     .neq('processed', true)
     .order('created_at', { ascending: true })
-    .limit(20);
+    .limit(10);
 
   if (qErr || !messages || messages.length === 0) {
     return { processed: 0, debug: { error: qErr?.message, count: messages?.length ?? 0 } };
@@ -135,14 +135,22 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
   let processed = 0;
   const errors: string[] = [];
   for (const msg of messages) {
+    // Marca como processado ANTES — apenas o primeiro a fazer isso processa a mensagem
+    const { count } = await supabase
+      .from('message_queue')
+      .update({ processed: true })
+      .eq('id', msg.id)
+      .neq('processed', true)
+      .select('id', { count: 'exact', head: true });
+
+    if (!count) continue; // outro processo já pegou essa mensagem
+
     try {
       await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name);
-      const { error: upErr } = await supabase.from('message_queue').update({ processed: true }).eq('id', msg.id);
-      if (upErr) { errors.push(`update_err: ${upErr.message}`); } else { processed++; }
+      processed++;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      errors.push(`handle_err: ${errMsg}`);
-      await supabase.from('message_queue').update({ processed: true, sender_name: errMsg.slice(0, 100) }).eq('id', msg.id).then();
+      errors.push(errMsg.slice(0, 100));
     }
   }
   return { processed, debug: errors.length ? errors : undefined } as any;
