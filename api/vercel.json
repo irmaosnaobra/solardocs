@@ -40,10 +40,6 @@
     {
       "path": "/cron/inactive-engagement",
       "schedule": "0 13 * * *"
-    },
-    {
-      "path": "/cron/process-messages",
-      "schedule": "* * * * *"
     }
   ]
 }
