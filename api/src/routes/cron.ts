@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted } from '../services/followupService';
-import { runWhatsappFollowup } from '../services/whatsappFollowupService';
+import { runWhatsappFollowup, runInactiveEngagement } from '../services/whatsappFollowupService';
 import { processMessageQueue } from '../services/whatsappAgentService';
 
 const router = Router();
@@ -77,16 +77,31 @@ router.get('/followup-stamp', async (req: Request, res: Response) => {
   }
 });
 
-// Roda todo dia às 9h — follow-up WhatsApp para usuários sem CNPJ
-router.get('/followup-whatsapp', async (req: Request, res: Response) => {
+// 8h Brasília — followup manhã (sem CNPJ)
+router.get('/followup-whatsapp-morning', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const result = await runWhatsappFollowup();
+    const result = await runWhatsappFollowup('morning');
     res.json({ ok: true, ...result });
-  } catch (err) {
-    console.error('Cron WhatsApp followup error:', err);
-    res.status(500).json({ error: 'Cron failed' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Cron failed' }); }
+});
+
+// 17h Brasília — followup tarde (sem CNPJ)
+router.get('/followup-whatsapp-evening', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runWhatsappFollowup('evening');
+    res.json({ ok: true, ...result });
+  } catch (err) { res.status(500).json({ error: 'Cron failed' }); }
+});
+
+// 10h Brasília — engajamento usuários inativos 3+ dias
+router.get('/inactive-engagement', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runInactiveEngagement();
+    res.json({ ok: true, ...result });
+  } catch (err) { res.status(500).json({ error: 'Cron failed' }); }
 });
 
 // Roda a cada minuto — processa fila de mensagens WhatsApp
