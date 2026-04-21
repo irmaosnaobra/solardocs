@@ -120,6 +120,30 @@ async function saveSession(
 
 // ─── boas-vindas ─────────────────────────────────────────────────
 
+export async function processMessageQueue(): Promise<{ processed: number }> {
+  const { data: messages } = await supabase
+    .from('message_queue')
+    .select('*')
+    .eq('processed', false)
+    .order('created_at', { ascending: true })
+    .limit(20);
+
+  if (!messages || messages.length === 0) return { processed: 0 };
+
+  let processed = 0;
+  for (const msg of messages) {
+    try {
+      await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name);
+      await supabase.from('message_queue').update({ processed: true }).eq('id', msg.id);
+      processed++;
+    } catch (err) {
+      console.error(`Queue processing error for ${msg.phone}:`, err);
+      await supabase.from('message_queue').update({ processed: true }).eq('id', msg.id);
+    }
+  }
+  return { processed };
+}
+
 export async function sendWelcomeWhatsApp(phone: string, _email: string): Promise<void> {
   const cleanPhone = phone.replace(/\D/g, '');
 

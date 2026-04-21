@@ -3,6 +3,7 @@ import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted } from '../services/followupService';
 import { runWhatsappFollowup } from '../services/whatsappFollowupService';
+import { processMessageQueue } from '../services/whatsappAgentService';
 
 const router = Router();
 
@@ -84,6 +85,18 @@ router.get('/followup-whatsapp', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error('Cron WhatsApp followup error:', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Roda a cada minuto — processa fila de mensagens WhatsApp
+router.get('/process-messages', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await processMessageQueue();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('Cron process-messages error:', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });

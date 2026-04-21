@@ -11,30 +11,32 @@ router.get('/whatsapp', (_req: Request, res: Response): void => {
 
 // Webhook Z-API — recebe mensagens do WhatsApp
 router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
-  // Responde IMEDIATAMENTE — sem nenhum processamento antes
-  res.sendStatus(200);
-
   try {
-    const body = req.body;
+    const body = req.body ?? {};
 
-    // Loga TUDO que chegar — independente do conteúdo
-    await supabase.from('webhook_debug').insert({ payload: body ?? { raw: 'empty' } });
+    // Loga payload
+    await supabase.from('webhook_debug').insert({ payload: body });
 
-    if (body?.fromMe === true || body?.isGroup === true) return;
+    if (body.fromMe === true || body.isGroup === true) { res.sendStatus(200); return; }
 
-    const phone      = body?.phone || body?.senderPhone;
-    const senderName = body?.senderName || body?.pushname || null;
-    const text       = body?.message?.conversation
-      || body?.message?.extendedTextMessage?.text
-      || (typeof body?.message === 'string' ? body.message : null)
-      || body?.text;
+    const phone      = body.phone || body.senderPhone;
+    const senderName = body.senderName || body.pushname || null;
+    const text       = body.message?.conversation
+      || body.message?.extendedTextMessage?.text
+      || (typeof body.message === 'string' ? body.message : null)
+      || body.text;
 
-    if (!phone || !text) return;
-
-    await handleIncomingWhatsApp(String(phone), String(text), senderName);
+    if (phone && text) {
+      // Salva na fila ANTES de responder — garantido no serverless
+      await supabase.from('message_queue').insert({
+        phone: String(phone), text: String(text), sender_name: senderName
+      });
+    }
   } catch (err) {
     await supabase.from('webhook_debug').insert({ payload: { error: String(err) } }).catch(() => {});
   }
+
+  res.sendStatus(200);
 });
 
 export default router;
