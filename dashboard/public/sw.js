@@ -1,4 +1,4 @@
-const CACHE = 'solardoc-v1';
+const CACHE = 'solardoc-v2';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
@@ -20,6 +20,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  if (e.request.mode === 'navigate') return;
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request))
   );
