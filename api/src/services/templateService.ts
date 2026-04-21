@@ -656,9 +656,6 @@ function propostaBancoM1(
   const descSistema = str(f.descricao_sistema);
   const clienteEndereco = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
   const clienteCep = client.cep || '___';
-  const clienteBairro = client.bairro || '___';
-  const clienteCidade = client.cidade || '___';
-  const clienteUf = client.uf || '___';
   const equipamentos = equipamentosTexto(f);
 
   return `${company.nome.toUpperCase()}
@@ -671,15 +668,13 @@ BANCO: ${banco}
 AGÊNCIA: ${agencia}
 CONTA CORRENTE: ${conta}
 
-Conforme normativas FINAME/BNDES, encaminhamos a V.Sa. os documentos necessários para formalização da operação de crédito para aquisição de sistema fotovoltaico.
+Encaminhamos a V.Sa. os documentos necessários para formalização da operação de crédito para aquisição de sistema fotovoltaico.
 
 PARA APROVAÇÃO DO FATURAMENTO ORÇAMENTO COM OS SEGUINTES DADOS:
 
 • Nome do comprador, CPF, endereço;
-• Descrição completa do equipamento (quantidade, valor unitário/total, valor e % do IPI, Classificação fiscal, marca, modelo, ano, etc.);
+• Descrição completa do equipamento (quantidade, marca, modelo, ano, etc.);
 • Prazo de entrega;
-• Nº telefone da emitente, para posterior informação do nº do PAC;
-• Foram excluídos do preço total, os valores correspondentes a frete, seguro, etc.
 
 Autorizamos o acesso aos registros contábeis da mesma, assinada abaixo pelo seu representante legal.
 
@@ -709,7 +704,6 @@ CNPJ: ${company.cnpj}
 NOME: ${client.nome.toUpperCase()}
 CPF/CNPJ: ${client.cpf_cnpj || '___'}
 END. CORRESP: ${clienteEndereco}${clienteCep !== '___' ? `   CEP: ${clienteCep}` : ''}
-BAIRRO: ${clienteBairro !== '___' ? clienteBairro : '___'}   CIDADE: ${clienteCidade}   UF: ${clienteUf}
 
 Prezado(s) Senhor(s), atendendo solicitação de V.Sa., fornecemos características e preço público à vista do produto abaixo.
 
