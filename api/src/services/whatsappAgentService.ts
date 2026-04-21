@@ -124,7 +124,7 @@ export async function processMessageQueue(): Promise<{ processed: number }> {
   const { data: messages } = await supabase
     .from('message_queue')
     .select('*')
-    .eq('processed', false)
+    .neq('processed', true)
     .order('created_at', { ascending: true })
     .limit(20);
 
