@@ -12,8 +12,11 @@ router.get('/whatsapp', (_req: Request, res: Response): void => {
 // Webhook Z-API — recebe mensagens do WhatsApp
 router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
   try {
-    // Parseia body raw se vier como Buffer (content-type diferente de application/json)
+    // Parseia body em qualquer formato que vier do Z-API
     let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch { body = { raw: body }; }
+    }
     if (Buffer.isBuffer(body)) {
       try { body = JSON.parse(body.toString()); } catch { body = { raw: body.toString() }; }
     }
@@ -38,10 +41,10 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
       });
     }
   } catch (err) {
-    await supabase.from('webhook_debug').insert({ payload: { error: String(err) } }).catch(() => {});
+    await supabase.from('webhook_debug').insert({ payload: { error: String(err) } });
   }
 
-  res.sendStatus(200);
+  res.status(200).json({ status: 'ok' });
 });
 
 export default router;
