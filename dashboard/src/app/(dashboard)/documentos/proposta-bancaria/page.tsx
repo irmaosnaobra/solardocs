@@ -34,7 +34,7 @@ const initialEquipamentos: Equipamento[] = [
 ];
 
 export default function PropostaBancariaPage() {
-  const { } = useDashboard();
+  const { user } = useDashboard();
   const [clienteId, setClienteId] = useState('');
   const [fields, setFields] = useState(initialFields);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>(initialEquipamentos);
@@ -51,11 +51,6 @@ export default function PropostaBancariaPage() {
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
     if (!clienteId) { setError('Selecione um cliente'); return; }
-
-    if (mode === 'ai' && user?.plano === 'free') {
-      openUpgrade();
-      return;
-    }
 
     setError('');
     setGenerating(true);

@@ -10,7 +10,7 @@ import styles from '../documentos.module.css';
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
 export default function ProcuracaoPage() {
-  const { } = useDashboard();
+  const { user } = useDashboard();
   const [clienteId, setClienteId] = useState('');
   const [fields, setFields] = useState({
     uc: '',

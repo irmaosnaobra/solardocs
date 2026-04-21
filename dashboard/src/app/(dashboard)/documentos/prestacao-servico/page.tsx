@@ -24,7 +24,7 @@ const initialFields = {
 };
 
 export default function PrestacaoServicoPage() {
-  const { } = useDashboard();
+  const { user } = useDashboard();
   const [terceiroId, setTerceiroId] = useState('');
   const [clienteId, setClienteId] = useState('');
   const [fields, setFields] = useState(initialFields);

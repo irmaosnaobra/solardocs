@@ -15,7 +15,7 @@ const initialFields = {
 };
 
 export default function ContratoPJPage() {
-  const { } = useDashboard();
+  const { user } = useDashboard();
   const [terceiroId, setTerceiroId] = useState('');
   const [fields, setFields] = useState(initialFields);
   const [generating, setGenerating] = useState(false);
