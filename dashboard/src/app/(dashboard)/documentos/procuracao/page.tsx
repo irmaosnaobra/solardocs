@@ -6,21 +6,11 @@ import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
-import modeStyles from '../contrato-solar/mode.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
-type Mode = 'm1' | 'm2' | 'ai';
-
-const MODES: { id: Mode; icon: string; label: string; desc: string; badge?: string }[] = [
-  { id: 'm1', icon: '📄', label: 'Modelo 1', desc: 'Padrão · Formato direto' },
-  { id: 'm2', icon: '📋', label: 'Modelo 2', desc: 'Formal · Poderes especiais detalhados' },
-  { id: 'ai', icon: '✨', label: 'Gerar com IA', desc: 'Personalização inteligente dos poderes', badge: 'PRO' },
-];
-
 export default function ProcuracaoPage() {
-  const { user, openUpgrade } = useDashboard();
-  const [mode, setMode] = useState<Mode>('m1');
+  const { } = useDashboard();
   const [clienteId, setClienteId] = useState('');
   const [fields, setFields] = useState({
     uc: '',
@@ -41,11 +31,6 @@ export default function ProcuracaoPage() {
     e.preventDefault();
     if (!clienteId) { setError('Selecione um cliente'); return; }
 
-    if (mode === 'ai' && user?.plano === 'free') {
-      openUpgrade();
-      return;
-    }
-
     setError('');
     setGenerating(true);
     try {
@@ -53,8 +38,8 @@ export default function ProcuracaoPage() {
         tipo: 'procuracao',
         cliente_id: clienteId,
         fields,
-        useTemplate: mode !== 'ai',
-        modeloNumero: mode === 'm2' ? 2 : 1,
+        useTemplate: true,
+        modeloNumero: 1,
       });
       setGenerated(data);
     } catch (err: unknown) {
@@ -63,14 +48,6 @@ export default function ProcuracaoPage() {
     } finally {
       setGenerating(false);
     }
-  }
-
-  function handleModeSelect(mId: Mode) {
-    if (mId === 'ai' && user?.plano === 'free') {
-      openUpgrade();
-      return;
-    }
-    setMode(mId);
   }
 
   if (generated) return (
@@ -95,22 +72,6 @@ export default function ProcuracaoPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>📜 Procuração</h1>
         <p className={styles.subtitle}>Procuração para concessionária — assinada pelo cliente</p>
-      </div>
-
-      <div className={modeStyles.modeSelector}>
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            className={`${modeStyles.modeBtn} ${mode === m.id ? modeStyles.active : ''} ${m.badge ? modeStyles.hasBadge : ''}`}
-            onClick={() => handleModeSelect(m.id)}
-          >
-            {m.badge && <span className={modeStyles.modeBadge}>{m.badge}</span>}
-            <span className={modeStyles.modeIcon}>{m.icon}</span>
-            <span className={modeStyles.modeLabel}>{m.label}</span>
-            <span className={modeStyles.modeDesc}>{m.desc}</span>
-          </button>
-        ))}
       </div>
 
       <form onSubmit={handleGenerate} className={styles.form}>
@@ -149,8 +110,7 @@ export default function ProcuracaoPage() {
         </div>
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? '⏳ Gerando...' : 
-            mode === 'ai' ? '✨ Gerar com IA (PRO)' : `📄 Gerar ${mode === 'm2' ? 'Modelo 2' : 'Modelo 1'}`}
+          {generating ? '⏳ Gerando...' : '📄 Gerar Procuração'}
         </button>
       </form>
     </div>

@@ -7,7 +7,6 @@ import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
-import modeStyles from '../contrato-solar/mode.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
@@ -24,17 +23,8 @@ const initialFields = {
   endereco_instalacao: '',
 };
 
-type Mode = 'm1' | 'm2' | 'ai';
-
-const MODES: { id: Mode; icon: string; label: string; desc: string; badge?: string }[] = [
-  { id: 'm1', icon: '📄', label: 'Modelo 1', desc: 'Direto · 10 cláusulas objetivas' },
-  { id: 'm2', icon: '📋', label: 'Modelo 2', desc: 'Formal · Cláusulas detalhadas' },
-  { id: 'ai', icon: '✨', label: 'Gerar com IA', desc: 'Escopo técnico personalizado por IA', badge: 'PRO' },
-];
-
 export default function PrestacaoServicoPage() {
-  const { user, openUpgrade } = useDashboard();
-  const [mode, setMode] = useState<Mode>('m1');
+  const { } = useDashboard();
   const [terceiroId, setTerceiroId] = useState('');
   const [clienteId, setClienteId] = useState('');
   const [fields, setFields] = useState(initialFields);
@@ -57,11 +47,6 @@ export default function PrestacaoServicoPage() {
     if (!terceiroId) { setError('Selecione o terceiro (CONTRATADA)'); return; }
     if (!clienteId) { setError('Selecione o cliente final'); return; }
 
-    if (mode === 'ai' && user?.plano === 'free') {
-      openUpgrade();
-      return;
-    }
-
     setError('');
     setGenerating(true);
     try {
@@ -70,8 +55,8 @@ export default function PrestacaoServicoPage() {
         terceiro_id: terceiroId,
         cliente_id: clienteId,
         fields,
-        useTemplate: mode !== 'ai',
-        modeloNumero: mode === 'm2' ? 2 : 1,
+        useTemplate: true,
+        modeloNumero: 1,
       });
       setGenerated(data);
     } catch (err: unknown) {
@@ -80,14 +65,6 @@ export default function PrestacaoServicoPage() {
     } finally {
       setGenerating(false);
     }
-  }
-
-  function handleModeSelect(mId: Mode) {
-    if (mId === 'ai' && user?.plano === 'free') {
-      openUpgrade();
-      return;
-    }
-    setMode(mId);
   }
 
   if (generated) return (
@@ -113,22 +90,6 @@ export default function PrestacaoServicoPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>🔧 Prestação de Serviço</h1>
         <p className={styles.subtitle}>Contrato de montagem de sistema fotovoltaico</p>
-      </div>
-
-      <div className={modeStyles.modeSelector}>
-        {MODES.map(m => (
-          <button
-            key={m.id}
-            type="button"
-            className={`${modeStyles.modeBtn} ${mode === m.id ? modeStyles.active : ''} ${m.badge ? modeStyles.hasBadge : ''}`}
-            onClick={() => handleModeSelect(m.id)}
-          >
-            {m.badge && <span className={modeStyles.modeBadge}>{m.badge}</span>}
-            <span className={modeStyles.modeIcon}>{m.icon}</span>
-            <span className={modeStyles.modeLabel}>{m.label}</span>
-            <span className={modeStyles.modeDesc}>{m.desc}</span>
-          </button>
-        ))}
       </div>
 
       <form onSubmit={handleGenerate} className={styles.form}>
@@ -294,8 +255,7 @@ export default function PrestacaoServicoPage() {
           className={`btn-primary ${styles.generateBtn}`}
           disabled={generating || !terceiroId || !clienteId}
         >
-          {generating ? '⏳ Gerando...' : 
-            mode === 'ai' ? '✨ Gerar com IA (PRO)' : `📄 Gerar ${mode === 'm2' ? 'Modelo 2' : 'Modelo 1'}`}
+          {generating ? '⏳ Gerando...' : '📄 Gerar Prestação de Serviço'}
         </button>
       </form>
     </div>

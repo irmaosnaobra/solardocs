@@ -6,18 +6,9 @@ import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
-import modeStyles from '../contrato-solar/mode.module.css';
 
 interface Equipamento { item: string; quantidade: number; }
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
-
-type Mode = 'm1' | 'm2' | 'ai';
-
-const MODES: { id: Mode; icon: string; label: string; desc: string; badge?: string }[] = [
-  { id: 'm1', icon: '📄', label: 'Modelo 1', desc: 'Padrão · Seu formato atual' },
-  { id: 'm2', icon: '📋', label: 'Modelo 2', desc: 'Formal · Carta + declarações' },
-  { id: 'ai', icon: '✨', label: 'Gerar com IA', desc: 'Personalização técnica para o banco', badge: 'PRO' },
-];
 
 const initialFields = {
   banco: '',
@@ -43,8 +34,7 @@ const initialEquipamentos: Equipamento[] = [
 ];
 
 export default function PropostaBancariaPage() {
-  const { user, openUpgrade } = useDashboard();
-  const [mode, setMode] = useState<Mode>('m1');
+  const { } = useDashboard();
   const [clienteId, setClienteId] = useState('');
   const [fields, setFields] = useState(initialFields);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>(initialEquipamentos);
@@ -74,8 +64,8 @@ export default function PropostaBancariaPage() {
         tipo: 'propostaBanco',
         cliente_id: clienteId,
         fields: { ...fields, lista_equipamentos: equipamentos },
-        useTemplate: mode !== 'ai',
-        modeloNumero: mode === 'm2' ? 2 : 1,
+        useTemplate: true,
+        modeloNumero: 1,
       });
       setGenerated(data);
     } catch (err: unknown) {
@@ -84,14 +74,6 @@ export default function PropostaBancariaPage() {
     } finally {
       setGenerating(false);
     }
-  }
-
-  function handleModeSelect(mId: Mode) {
-    if (mId === 'ai' && user?.plano === 'free') {
-      openUpgrade();
-      return;
-    }
-    setMode(mId);
   }
 
   if (generated) return (
@@ -116,22 +98,6 @@ export default function PropostaBancariaPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>🏦 Proposta Bancária</h1>
         <p className={styles.subtitle}>Proposta técnica e comercial para financiamento</p>
-      </div>
-
-      <div className={modeStyles.modeSelector}>
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            className={`${modeStyles.modeBtn} ${mode === m.id ? modeStyles.active : ''} ${m.badge ? modeStyles.hasBadge : ''}`}
-            onClick={() => handleModeSelect(m.id)}
-          >
-            {m.badge && <span className={modeStyles.modeBadge}>{m.badge}</span>}
-            <span className={modeStyles.modeIcon}>{m.icon}</span>
-            <span className={modeStyles.modeLabel}>{m.label}</span>
-            <span className={modeStyles.modeDesc}>{m.desc}</span>
-          </button>
-        ))}
       </div>
 
       <form onSubmit={handleGenerate} className={styles.form}>
@@ -251,8 +217,7 @@ export default function PropostaBancariaPage() {
 
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? '⏳ Gerando...' :
-            mode === 'ai' ? '✨ Gerar com IA (PRO)' : `📄 Gerar ${mode === 'm2' ? 'Modelo 2' : 'Modelo 1'}`}
+          {generating ? '⏳ Gerando...' : '📄 Gerar Proposta Bancária'}
         </button>
       </form>
     </div>
