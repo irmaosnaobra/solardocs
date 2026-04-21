@@ -650,8 +650,8 @@ function propostaBancoM1(
   const agencia = str(f.agencia);
   const conta = str(f.conta);
   const valorTotal = parseBRL(f.valor_total);
-  const valorEq = parseBRL(f.valor_equipamentos) || valorTotal * 0.7;
-  const valorMo = parseBRL(f.valor_mao_de_obra) || valorTotal * 0.3;
+  const valorEq = parseBRL(f.valor_equipamentos) || valorTotal * 0.82;
+  const valorMo = parseBRL(f.valor_mao_de_obra) || valorTotal * 0.18;
   const validadeDias = str(f.validade_dias || '30');
   const descSistema = str(f.descricao_sistema);
   const clienteEndereco = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
@@ -754,8 +754,8 @@ function propostaBancoM2(
   const conta = str(f.conta);
   const concessionaria = str(f.concessionaria);
   const valorTotal = parseBRL(f.valor_total);
-  const valorEq = parseBRL(f.valor_equipamentos) || valorTotal * 0.7;
-  const valorMo = parseBRL(f.valor_mao_de_obra) || valorTotal * 0.3;
+  const valorEq = parseBRL(f.valor_equipamentos) || valorTotal * 0.82;
+  const valorMo = parseBRL(f.valor_mao_de_obra) || valorTotal * 0.18;
   const validadeDias = str(f.validade_dias || '30');
   const descSistema = str(f.descricao_sistema);
   const equipamentos = equipamentosTexto(f);

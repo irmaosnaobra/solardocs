@@ -202,11 +202,11 @@ export default function PropostaBancariaPage() {
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Valor Equipamentos (R$)</label>
-              <input type="text" value={fields.valor_equipamentos} onChange={e => setFields({...fields, valor_equipamentos: e.target.value})} placeholder="Vazio = 70% do total automático" className="input-field" />
+              <input type="text" value={fields.valor_equipamentos} onChange={e => setFields({...fields, valor_equipamentos: e.target.value})} placeholder="Vazio = 82% do total automático" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Valor Mão de Obra (R$)</label>
-              <input type="text" value={fields.valor_mao_de_obra} onChange={e => setFields({...fields, valor_mao_de_obra: e.target.value})} placeholder="Vazio = 30% do total automático" className="input-field" />
+              <input type="text" value={fields.valor_mao_de_obra} onChange={e => setFields({...fields, valor_mao_de_obra: e.target.value})} placeholder="Vazio = 18% do total automático" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Prazo de instalação (dias úteis)</label>
