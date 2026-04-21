@@ -12,7 +12,12 @@ router.get('/whatsapp', (_req: Request, res: Response): void => {
 // Webhook Z-API — recebe mensagens do WhatsApp
 router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
   try {
-    const body = req.body ?? {};
+    // Parseia body raw se vier como Buffer (content-type diferente de application/json)
+    let body = req.body;
+    if (Buffer.isBuffer(body)) {
+      try { body = JSON.parse(body.toString()); } catch { body = { raw: body.toString() }; }
+    }
+    body = body ?? {};
 
     // Loga payload
     await supabase.from('webhook_debug').insert({ payload: body });
