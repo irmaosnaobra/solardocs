@@ -18,6 +18,7 @@ import chatRoutes from './routes/chat';
 import quizRoutes from './routes/quiz';
 import pixelRoutes from './routes/pixel';
 import webhookRoutes from './routes/webhook';
+import mcpRoutes from './routes/mcp';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
@@ -69,6 +70,7 @@ app.use('/chat', chatRoutes);
 app.use('/quiz', quizRoutes);
 app.use('/pixel', pixelRoutes);
 app.use('/webhook', webhookRoutes);
+app.use('/mcp', mcpRoutes);
 
 // Error handler global — nunca expõe stack trace em produção
 app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
