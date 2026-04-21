@@ -165,8 +165,16 @@ export async function sendWelcomeWhatsApp(phone: string, _email: string): Promis
 export async function handleIncomingWhatsApp(phone: string, text: string, senderName?: string | null): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
-  // Tenta com e sem prefixo 55 (o banco pode ter qualquer formato)
-  const phoneVariants = [cleanPhone, cleanPhone.replace(/^55/, ''), `55${cleanPhone.replace(/^55/, '')}`];
+  // Normaliza número BR: Z-API às vezes omite o 9 do celular (553498364589 → 5534998364589)
+  const c55 = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+  const addNine = (p: string) => p.length === 12 && p.startsWith('55') ? p.slice(0, 4) + '9' + p.slice(4) : p;
+  const phoneVariants = [
+    cleanPhone,
+    cleanPhone.replace(/^55/, ''),
+    c55,
+    addNine(c55),
+    addNine(c55).replace(/^55/, ''),
+  ];
 
   let user: { id: string; email: string; plano: string } | null = null;
   for (const variant of phoneVariants) {
