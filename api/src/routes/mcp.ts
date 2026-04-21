@@ -2,17 +2,37 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 
 const router = Router();
-const STATIC_TOKEN = process.env.MCP_TOKEN || 'solardoc-mcp-token-2026';
+const BASE    = 'https://solardocs-api.vercel.app';
+const TOKEN   = process.env.MCP_TOKEN || 'solardoc-mcp-token-2026';
+const codes   = new Map<string, number>();
 
-function authMiddleware(req: Request, res: Response, next: () => void) {
-  const auth = req.headers['authorization'] || '';
-  const token = auth.replace('Bearer ', '').trim();
-  if (token !== STATIC_TOKEN) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-  next();
-}
+// ─── OAuth 2.0 Discovery ──────────────────────────────────────────
+router.get('/.well-known/oauth-authorization-server', (_req: Request, res: Response) => {
+  res.json({
+    issuer: `${BASE}/mcp`,
+    authorization_endpoint: `${BASE}/mcp/oauth/authorize`,
+    token_endpoint: `${BASE}/mcp/oauth/token`,
+    response_types_supported: ['code'],
+    grant_types_supported: ['authorization_code'],
+    code_challenge_methods_supported: ['S256', 'plain'],
+  });
+});
+
+router.get('/oauth/authorize', (req: Request, res: Response) => {
+  const { redirect_uri, state } = req.query as Record<string, string>;
+  const code = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  codes.set(code, Date.now() + 300000);
+  const params = new URLSearchParams({ code, state: state || '' });
+  res.redirect(`${redirect_uri}?${params}`);
+});
+
+router.post('/oauth/token', (req: Request, res: Response) => {
+  const { code } = req.body as Record<string, string>;
+  const exp = codes.get(code);
+  if (!exp || Date.now() > exp) { res.status(400).json({ error: 'invalid_grant' }); return; }
+  codes.delete(code);
+  res.json({ access_token: TOKEN, token_type: 'Bearer', expires_in: 31536000 });
+});
 
 const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID;
 const ZAPI_TOKEN    = process.env.ZAPI_TOKEN;
@@ -146,6 +166,8 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
 
 // ─── Endpoint MCP (JSON-RPC 2.0) ─────────────────────────────────
 router.post('/', async (req: Request, res: Response): Promise<void> => {
+  const auth = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+  if (auth && auth !== TOKEN) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const { jsonrpc, id, method, params } = req.body as any;
 
   res.setHeader('Content-Type', 'application/json');
