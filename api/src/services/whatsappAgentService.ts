@@ -136,14 +136,14 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
   const errors: string[] = [];
   for (const msg of messages) {
     // Marca como processado ANTES — apenas o primeiro a fazer isso processa a mensagem
-    const { count } = await supabase
+    const { data: claimed } = await supabase
       .from('message_queue')
       .update({ processed: true })
       .eq('id', msg.id)
-      .neq('processed', true)
-      .select('id', { count: 'exact', head: true });
+      .eq('processed', false)
+      .select('id');
 
-    if (!count) continue; // outro processo já pegou essa mensagem
+    if (!claimed || claimed.length === 0) continue; // outro processo já pegou
 
     try {
       await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name);
