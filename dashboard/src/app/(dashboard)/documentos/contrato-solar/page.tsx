@@ -35,10 +35,9 @@ const initialFields = {
 
 type Mode = 'm1' | 'm2' | 'ai';
 
-const MODES: { id: Mode; icon: string; label: string; desc: string; badge?: string }[] = [
+const MODES: { id: Mode; icon: string; label: string; desc: string }[] = [
   { id: 'm1', icon: '📄', label: 'Modelo 1', desc: 'Profissional · 15 seções · Linguagem clara e comercial' },
   { id: 'm2', icon: '📋', label: 'Modelo 2', desc: 'Formal · 15 cláusulas numeradas · Mais detalhado' },
-  { id: 'ai', icon: '✨', label: 'Gerar com IA', desc: 'Personalização total baseada no seu perfil e cliente', badge: 'PRO' },
 ];
 
 export default function ContratoSolarPage() {
@@ -60,11 +59,6 @@ export default function ContratoSolarPage() {
     e.preventDefault();
     if (!clienteId) { setError('Selecione um cliente'); return; }
 
-    if (mode === 'ai' && user?.plano === 'free') {
-      openUpgrade();
-      return;
-    }
-
     setError('');
     setGenerating(true);
 
@@ -73,7 +67,7 @@ export default function ContratoSolarPage() {
         tipo: 'contratoSolar',
         cliente_id: clienteId,
         fields,
-        useTemplate: mode !== 'ai',
+        useTemplate: true,
         modeloNumero: mode === 'm2' ? 2 : 1,
       });
       setGenerated(data);
@@ -86,10 +80,6 @@ export default function ContratoSolarPage() {
   }
 
   function handleModeSelect(mId: Mode) {
-    if (mId === 'ai' && user?.plano === 'free') {
-      openUpgrade();
-      return;
-    }
     setMode(mId);
   }
 
@@ -233,8 +223,7 @@ export default function ContratoSolarPage() {
         {error && <p className="error-message">{error}</p>}
 
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? '⏳ Gerando documento...' : 
-            mode === 'ai' ? '✨ Gerar com IA (PRO)' : `📄 Gerar ${mode === 'm2' ? 'Modelo 2' : 'Modelo 1'}`}
+          {generating ? '⏳ Gerando documento...' : `📄 Gerar ${mode === 'm2' ? 'Modelo 2' : 'Modelo 1'}`}
         </button>
       </form>
     </div>
