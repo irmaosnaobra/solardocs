@@ -133,18 +133,19 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
   }
 
   let processed = 0;
+  const errors: string[] = [];
   for (const msg of messages) {
     try {
       await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name);
-      await supabase.from('message_queue').update({ processed: true }).eq('id', msg.id);
-      processed++;
+      const { error: upErr } = await supabase.from('message_queue').update({ processed: true }).eq('id', msg.id);
+      if (upErr) { errors.push(`update_err: ${upErr.message}`); } else { processed++; }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error(`Queue processing error for ${msg.phone}:`, errMsg);
-      await supabase.from('message_queue').update({ processed: true, sender_name: `ERR: ${errMsg.slice(0, 100)}` }).eq('id', msg.id);
+      errors.push(`handle_err: ${errMsg}`);
+      await supabase.from('message_queue').update({ processed: true, sender_name: errMsg.slice(0, 100) }).eq('id', msg.id).then();
     }
   }
-  return { processed };
+  return { processed, debug: errors.length ? errors : undefined } as any;
 }
 
 export async function sendWelcomeWhatsApp(phone: string, _email: string): Promise<void> {
