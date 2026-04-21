@@ -120,15 +120,17 @@ async function saveSession(
 
 // ─── boas-vindas ─────────────────────────────────────────────────
 
-export async function processMessageQueue(): Promise<{ processed: number }> {
-  const { data: messages } = await supabase
+export async function processMessageQueue(): Promise<{ processed: number; debug?: any }> {
+  const { data: messages, error: qErr } = await supabase
     .from('message_queue')
     .select('*')
     .neq('processed', true)
     .order('created_at', { ascending: true })
     .limit(20);
 
-  if (!messages || messages.length === 0) return { processed: 0 };
+  if (qErr || !messages || messages.length === 0) {
+    return { processed: 0, debug: { error: qErr?.message, count: messages?.length ?? 0 } };
+  }
 
   let processed = 0;
   for (const msg of messages) {
