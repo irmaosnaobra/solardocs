@@ -2,6 +2,17 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 
 const router = Router();
+const STATIC_TOKEN = process.env.MCP_TOKEN || 'solardoc-mcp-token-2026';
+
+function authMiddleware(req: Request, res: Response, next: () => void) {
+  const auth = req.headers['authorization'] || '';
+  const token = auth.replace('Bearer ', '').trim();
+  if (token !== STATIC_TOKEN) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  next();
+}
 
 const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID;
 const ZAPI_TOKEN    = process.env.ZAPI_TOKEN;
@@ -134,7 +145,7 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
 }
 
 // ─── Endpoint MCP (JSON-RPC 2.0) ─────────────────────────────────
-router.post('/', async (req: Request, res: Response): Promise<void> => {
+router.post('/', authMiddleware as any, async (req: Request, res: Response): Promise<void> => {
   const { jsonrpc, id, method, params } = req.body as any;
 
   res.setHeader('Content-Type', 'application/json');
