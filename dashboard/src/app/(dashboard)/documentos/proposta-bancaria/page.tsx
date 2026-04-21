@@ -32,14 +32,17 @@ const initialFields = {
   prazo_instalacao_dias: '30',
 };
 
+const initialModulo = { marca: '', potencia: '', quantidade: 1, valor: 0 };
+const initialInversor = { marca: '', potencia: '', quantidade: 1, valor: 0 };
+
 export default function PropostaBancariaPage() {
   const { user, openUpgrade } = useDashboard();
   const [mode, setMode] = useState<Mode>('m1');
   const [clienteId, setClienteId] = useState('');
   const [fields, setFields] = useState(initialFields);
+  const [modulo, setModulo] = useState(initialModulo);
+  const [inversor, setInversor] = useState(initialInversor);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([
-    { item: 'Módulos Fotovoltaicos', quantidade: 1, valor: 0 },
-    { item: 'Inversor/Micro Inversores', quantidade: 1, valor: 0 },
     { item: 'Kit cabo fotovoltaico', quantidade: 1, valor: 0 },
     { item: 'Kit estrutura telhado', quantidade: 1, valor: 0 },
     { item: 'Kit material elétrico A.C', quantidade: 1, valor: 0 },
@@ -54,6 +57,16 @@ export default function PropostaBancariaPage() {
     const arr = [...equipamentos];
     arr[index] = { ...arr[index], [key]: value };
     setEquipamentos(arr);
+  }
+
+  function buildListaEquipamentos(): Equipamento[] {
+    const moduloItem = [modulo.marca, modulo.potencia].filter(Boolean).join(' ');
+    const inversorItem = [inversor.marca, inversor.potencia].filter(Boolean).join(' ');
+    return [
+      { item: `Módulos ${moduloItem || 'Fotovoltaicos'}`.trim(), quantidade: modulo.quantidade, valor: modulo.valor },
+      { item: `Micro Inversores ${inversorItem || ''}`.trim(), quantidade: inversor.quantidade, valor: inversor.valor },
+      ...equipamentos,
+    ];
   }
 
   async function handleGenerate(e: React.FormEvent) {
@@ -71,7 +84,7 @@ export default function PropostaBancariaPage() {
       const { data } = await api.post('/documents/generate', {
         tipo: 'propostaBanco',
         cliente_id: clienteId,
-        fields: { ...fields, lista_equipamentos: equipamentos },
+        fields: { ...fields, lista_equipamentos: buildListaEquipamentos() },
         useTemplate: mode !== 'ai',
         modeloNumero: mode === 'm2' ? 2 : 1,
       });
@@ -100,7 +113,7 @@ export default function PropostaBancariaPage() {
         tipo="propostaBanco"
         clienteId={clienteId}
         clienteNome={generated.cliente_nome}
-        dadosJson={{...fields, lista_equipamentos: equipamentos}}
+        dadosJson={{ ...fields, lista_equipamentos: buildListaEquipamentos() }}
         modeloUsado={generated.modelo_usado}
         docId={generated.doc_id}
         userPlano={user?.plano}
@@ -151,15 +164,15 @@ export default function PropostaBancariaPage() {
           <div className={styles.grid3}>
             <div className={styles.field}>
               <label className={styles.label}>Banco *</label>
-              <input type="text" value={fields.banco} onChange={e => setFields({...fields, banco: e.target.value})} placeholder="Ex: 756 SICOOB ARACOOP" className="input-field" required />
+              <input type="text" value={fields.banco} onChange={e => setFields({...fields, banco: e.target.value})} placeholder="Ex: Santander" className="input-field" required />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Agência *</label>
-              <input type="text" value={fields.agencia} onChange={e => setFields({...fields, agencia: e.target.value})} placeholder="Ex: 4264" className="input-field" required />
+              <input type="text" value={fields.agencia} onChange={e => setFields({...fields, agencia: e.target.value})} placeholder="Ex: 3342" className="input-field" required />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Conta Corrente *</label>
-              <input type="text" value={fields.conta} onChange={e => setFields({...fields, conta: e.target.value})} placeholder="Ex: 168882" className="input-field" required />
+              <input type="text" value={fields.conta} onChange={e => setFields({...fields, conta: e.target.value})} placeholder="Ex: 13009843-0" className="input-field" required />
             </div>
           </div>
           <div className={styles.field}>
@@ -175,61 +188,144 @@ export default function PropostaBancariaPage() {
             <textarea
               value={fields.descricao_sistema}
               onChange={e => setFields({...fields, descricao_sistema: e.target.value})}
-              placeholder="Ex: 2,8 kWp SISTEMA GERADOR DE ENERGIA SOLAR FOTOVOLTAICA"
+              placeholder="Ex: 12 kWp Sistema Gerador de Energia Fotovoltaica"
               className={styles.textarea}
               required
             />
           </div>
-          <div>
-            <label className={styles.label} style={{marginBottom: 8, display: 'block'}}>Equipamentos *</label>
-            <div className={styles.equipmentList}>
-              {equipamentos.map((eq, i) => (
-                <div key={i} className={styles.equipmentRow}>
-                  <input
-                    type="text"
-                    value={eq.item}
-                    onChange={e => updateEquipamento(i, 'item', e.target.value)}
-                    placeholder="Descrição do equipamento/serviço"
-                    className="input-field"
-                  />
-                  <input
-                    type="number"
-                    value={eq.quantidade}
-                    onChange={e => updateEquipamento(i, 'quantidade', Number(e.target.value))}
-                    placeholder="Qtd"
-                    className="input-field"
-                    style={{width: 70}}
-                    min={1}
-                  />
-                  <input
-                    type="number"
-                    value={eq.valor || ''}
-                    onChange={e => updateEquipamento(i, 'valor', Number(e.target.value))}
-                    placeholder="Valor (Ex: 950.00)"
-                    className="input-field"
-                    style={{width: 120}}
-                    min={0}
-                    step="0.01"
-                  />
-                  {equipamentos.length > 1 && (
-                    <button
-                      type="button"
-                      className={styles.removeBtn}
-                      onClick={() => setEquipamentos(equipamentos.filter((_, j) => j !== i))}
-                    >✕</button>
-                  )}
-                </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              className={styles.addItemBtn}
-              style={{marginTop: 8}}
-              onClick={() => setEquipamentos([...equipamentos, { item: '', quantidade: 1, valor: 0 }])}
-            >
-              + Adicionar equipamento
-            </button>
+
+          <label className={styles.label} style={{ marginBottom: 8, display: 'block' }}>Equipamentos *</label>
+
+          {/* Módulos */}
+          <div style={{ marginBottom: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Módulos</span>
           </div>
+          <div className={styles.equipmentRow} style={{ marginBottom: 10 }}>
+            <input
+              type="number"
+              value={modulo.quantidade}
+              onChange={e => setModulo({ ...modulo, quantidade: Number(e.target.value) })}
+              placeholder="Qtd"
+              className="input-field"
+              style={{ width: 70 }}
+              min={1}
+            />
+            <input
+              type="text"
+              value={modulo.marca}
+              onChange={e => setModulo({ ...modulo, marca: e.target.value })}
+              placeholder="Marca (Ex: Tsun, Jinko)"
+              className="input-field"
+            />
+            <input
+              type="text"
+              value={modulo.potencia}
+              onChange={e => setModulo({ ...modulo, potencia: e.target.value })}
+              placeholder="Potência (Ex: 600W)"
+              className="input-field"
+              style={{ width: 140 }}
+            />
+            <input
+              type="number"
+              value={modulo.valor || ''}
+              onChange={e => setModulo({ ...modulo, valor: Number(e.target.value) })}
+              placeholder="Valor unit."
+              className="input-field"
+              style={{ width: 120 }}
+              min={0}
+              step="0.01"
+            />
+          </div>
+
+          {/* Inversores */}
+          <div style={{ marginBottom: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inversores / Micro Inversores</span>
+          </div>
+          <div className={styles.equipmentRow} style={{ marginBottom: 10 }}>
+            <input
+              type="number"
+              value={inversor.quantidade}
+              onChange={e => setInversor({ ...inversor, quantidade: Number(e.target.value) })}
+              placeholder="Qtd"
+              className="input-field"
+              style={{ width: 70 }}
+              min={1}
+            />
+            <input
+              type="text"
+              value={inversor.marca}
+              onChange={e => setInversor({ ...inversor, marca: e.target.value })}
+              placeholder="Marca (Ex: SAJ, Growatt)"
+              className="input-field"
+            />
+            <input
+              type="text"
+              value={inversor.potencia}
+              onChange={e => setInversor({ ...inversor, potencia: e.target.value })}
+              placeholder="Potência (Ex: 2,25K)"
+              className="input-field"
+              style={{ width: 140 }}
+            />
+            <input
+              type="number"
+              value={inversor.valor || ''}
+              onChange={e => setInversor({ ...inversor, valor: Number(e.target.value) })}
+              placeholder="Valor unit."
+              className="input-field"
+              style={{ width: 120 }}
+              min={0}
+              step="0.01"
+            />
+          </div>
+
+          {/* Demais itens */}
+          <div className={styles.equipmentList}>
+            {equipamentos.map((eq, i) => (
+              <div key={i} className={styles.equipmentRow}>
+                <input
+                  type="text"
+                  value={eq.item}
+                  onChange={e => updateEquipamento(i, 'item', e.target.value)}
+                  placeholder="Descrição do item/serviço"
+                  className="input-field"
+                />
+                <input
+                  type="number"
+                  value={eq.quantidade}
+                  onChange={e => updateEquipamento(i, 'quantidade', Number(e.target.value))}
+                  placeholder="Qtd"
+                  className="input-field"
+                  style={{ width: 70 }}
+                  min={1}
+                />
+                <input
+                  type="number"
+                  value={eq.valor || ''}
+                  onChange={e => updateEquipamento(i, 'valor', Number(e.target.value))}
+                  placeholder="Valor unit."
+                  className="input-field"
+                  style={{ width: 120 }}
+                  min={0}
+                  step="0.01"
+                />
+                {equipamentos.length > 1 && (
+                  <button
+                    type="button"
+                    className={styles.removeBtn}
+                    onClick={() => setEquipamentos(equipamentos.filter((_, j) => j !== i))}
+                  >✕</button>
+                )}
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className={styles.addItemBtn}
+            style={{ marginTop: 8 }}
+            onClick={() => setEquipamentos([...equipamentos, { item: '', quantidade: 1, valor: 0 }])}
+          >
+            + Adicionar item
+          </button>
         </div>
 
         <div className={styles.section}>
@@ -260,11 +356,10 @@ export default function PropostaBancariaPage() {
 
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? '⏳ Gerando...' : 
+          {generating ? '⏳ Gerando...' :
             mode === 'ai' ? '✨ Gerar com IA (PRO)' : `📄 Gerar ${mode === 'm2' ? 'Modelo 2' : 'Modelo 1'}`}
         </button>
       </form>
     </div>
   );
 }
-
