@@ -145,7 +145,7 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
 }
 
 // ─── Endpoint MCP (JSON-RPC 2.0) ─────────────────────────────────
-router.post('/', authMiddleware as any, async (req: Request, res: Response): Promise<void> => {
+router.post('/', async (req: Request, res: Response): Promise<void> => {
   const { jsonrpc, id, method, params } = req.body as any;
 
   res.setHeader('Content-Type', 'application/json');
