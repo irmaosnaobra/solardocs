@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
+import { executePixelEvent } from '../controllers/pixelController';
 
 const router = Router();
 
@@ -32,6 +33,42 @@ router.post('/event', async (req: Request, res: Response): Promise<void> => {
       source:      source      ?? null,
       ip:          ip,
     });
+
+    // ── Automação: Marcar 'Sem Perfil' se for reprovado ────────────────
+    if (source === 'simulador' && event_type.startsWith('rejected_')) {
+      try {
+        await supabase.from('quiz_events').insert({
+          session_id,
+          event_type: 'admin_followup',
+          answer: JSON.stringify({ status: 'Sem Perfil', value: 0 }),
+          source: 'system'
+        });
+      } catch (e) {}
+    }
+
+    // ── Disparo automático de CAPI se for Lead Simulador ────────────────
+    if (source === 'simulador' && (event_type === 'form_submitted' || event_type === 'qualified')) {
+      try {
+        let phone = '';
+        let city = '';
+        if (answer) {
+          const parsed = typeof answer === 'string' ? JSON.parse(answer) : answer;
+          phone = parsed.whatsapp || '';
+          city = parsed.city || '';
+        }
+        
+        // Dispara CAPI de forma assíncrona (não trava a resposta)
+        executePixelEvent({
+          pixel_id: '446093469730871', // Pixel B2C
+          event_name: 'Lead',
+          phone,
+          city,
+          score: score || 0,
+          ip,
+          userAgent: req.headers['user-agent']
+        }).catch(e => console.error('Auto CAPI Error:', e));
+      } catch (e) {}
+    }
 
     res.json({ ok: true });
   } catch (err) {
@@ -100,8 +137,8 @@ router.get('/summary', async (req: Request, res: Response): Promise<void> => {
       since = new Date(Date.now() - days * 86400000).toISOString();
     }
 
-    function applyRange(q: ReturnType<typeof supabase.from>) {
-      const base = (q as any).gte('created_at', since);
+    function applyRange(q: any) {
+      const base = q.gte('created_at', since);
       return until ? base.lte('created_at', until) : base;
     }
 
@@ -113,16 +150,16 @@ router.get('/summary', async (req: Request, res: Response): Promise<void> => {
       .from('quiz_events')
       .select('session_id, ip, event_type, step, score, diagnostic, source')
       .or('source.is.null,source.eq.quiz');
-    const { data: quizRaw } = await applyRange(quizQuery) as any;
+    const { data: quizRaw } = await (applyRange(quizQuery) as any);
 
     const qev = quizRaw ?? [];
     const qByType = (type: string) => new Set(qev.filter((e: any) => e.event_type === type).map(dedupKey)).size;
     const qByStep = (step: number) => new Set(qev.filter((e: any) => e.event_type === 'step' && e.step === step).map(dedupKey)).size;
 
     // Busca compras no período
-    const { data: purchases } = await applyRange(
+    const { data: purchases } = await (applyRange(
       supabase.from('users').select('id').neq('plano', 'free')
-    ) as any;
+    ) as any);
 
     const quizFunnel = [
       { label: 'Entrou na página',          count: qByType('page_view'),    icon: '👁️' },
@@ -135,9 +172,9 @@ router.get('/summary', async (req: Request, res: Response): Promise<void> => {
     ];
 
     // ── Simulador B2C (source = 'simulador') ────────────────────────────
-    const { data: simRaw } = await applyRange(
+    const { data: simRaw } = await (applyRange(
       supabase.from('quiz_events').select('session_id, ip, event_type, step, diagnostic, score').eq('source', 'simulador')
-    ) as any;
+    ) as any);
 
     const sev = simRaw ?? [];
     const sByType = (type: string) => new Set(sev.filter((e: any) => e.event_type === type).map(dedupKey)).size;
@@ -162,13 +199,13 @@ router.get('/summary', async (req: Request, res: Response): Promise<void> => {
     ];
 
     // ── Landing Page (page_visits + lp_events) ──────────────────────────
-    const { data: visits } = await applyRange(
+    const { data: visits } = await (applyRange(
       supabase.from('page_visits').select('session_id, ip')
-    ) as any;
+    ) as any);
 
-    const { data: lpRaw } = await applyRange(
+    const { data: lpRaw } = await (applyRange(
       supabase.from('lp_events').select('session_id, event_type, event_data')
-    ) as any;
+    ) as any);
 
     // Visitantes únicos da landing: IP > session_id
     const uniqueVisitors = new Set((visits ?? []).map((v: any) => v.ip || v.session_id)).size;
@@ -197,15 +234,15 @@ router.get('/summary', async (req: Request, res: Response): Promise<void> => {
     const lpByPlan = (plan: string) => planMap[plan]?.count ?? 0;
 
     // Free cadastrado no período (freemium)
-    const { data: freeUsers } = await applyRange(
+    const { data: freeUsers } = await (applyRange(
       supabase.from('users').select('id').eq('plano', 'free')
-    ) as any;
+    ) as any);
     const totalFree = freeUsers?.length ?? 0;
 
     // Comprou (assinante pago cadastrado no período)
-    const { data: paidUsers } = await applyRange(
+    const { data: paidUsers } = await (applyRange(
       supabase.from('users').select('id').neq('plano', 'free')
-    ) as any;
+    ) as any);
     const totalPaid = paidUsers?.length ?? 0;
 
     const landingFunnel = [
@@ -251,40 +288,185 @@ router.get('/summary', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// ── POST /quiz/leads/status — atualizar status de acompanhamento ─────────
+router.post('/leads/status', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { session_id, status, value } = req.body;
+    if (!session_id || !status) {
+      res.status(400).json({ error: 'session_id e status obrigatórios' });
+      return;
+    }
+
+    const answerObj = { status, value: value || 0 };
+
+    await supabase.from('quiz_events').insert({
+      session_id,
+      event_type: 'admin_followup',
+      answer: JSON.stringify(answerObj),
+      source: 'admin'
+    });
+
+    // Se o status for "Fechado", dispara o evento de Purchase para o Meta CAPI
+    if (status === 'Fechado') {
+      try {
+        // Busca dados do lead para identificação no CAPI
+        const { data: initialEvents } = await supabase
+          .from('quiz_events')
+          .select('answer, ip, fbclid')
+          .eq('session_id', session_id)
+          .not('answer', 'is', null)
+          .order('created_at', { ascending: true });
+
+        let leadData: any = null;
+        let ip = null;
+        
+        if (initialEvents) {
+          for (const e of initialEvents) {
+            try {
+              const p = JSON.parse(e.answer);
+              if (p.name && p.whatsapp) {
+                leadData = p;
+                ip = e.ip;
+                break;
+              }
+            } catch {}
+          }
+        }
+
+        if (leadData) {
+          executePixelEvent({
+            pixel_id: '446093469730871', // Pixel B2C
+            event_name: 'Purchase',
+            phone: leadData.whatsapp,
+            city: leadData.city,
+            value: Number(value) || 0,
+            currency: 'BRL',
+            ip,
+            userAgent: req.headers['user-agent']
+          }).catch(e => console.error('Purchase CAPI Error:', e));
+        }
+      } catch (capiErr) {
+        console.error('Error triggering Purchase CAPI:', capiErr);
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('quiz/leads/status error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar status' });
+  }
+});
+
+// ── POST /quiz/leads/note — salvar anotação do SDR ──────────────────────
+router.post('/leads/note', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { session_id, note } = req.body;
+    if (!session_id) {
+      res.status(400).json({ error: 'session_id obrigatório' });
+      return;
+    }
+
+    await supabase.from('quiz_events').insert({
+      session_id,
+      event_type: 'admin_note',
+      answer: note || '',
+      source: 'admin'
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('quiz/leads/note error:', err);
+    res.status(500).json({ error: 'Erro ao salvar nota' });
+  }
+});
+
 // ── GET /quiz/leads — leads do simulador B2C ──────────────────────
 router.get('/leads', async (req: Request, res: Response): Promise<void> => {
   try {
     const { data: raw } = await supabase
       .from('quiz_events')
-      .select('session_id, ip, created_at, event_type, answer')
-      .eq('source', 'simulador')
-      .not('answer', 'is', 'null')
+      .select('session_id, ip, created_at, event_type, answer, score')
+      .or('source.eq.simulador,event_type.eq.admin_followup,event_type.eq.admin_note')
       .order('created_at', { ascending: false });
 
     const events = raw ?? [];
     const leadMap = new Map<string, any>();
 
     for (const e of events) {
-      let ans;
-      try { ans = JSON.parse(e.answer); } catch { continue; }
-      if (!ans || !ans.name || !ans.city) continue;
-
       const key = e.session_id || e.ip || `rnd-${Math.random()}`;
-      
       if (!leadMap.has(key)) {
-        leadMap.set(key, {
-          id: key,
-          name: ans.name,
-          whatsapp: ans.whatsapp || null,
-          city: ans.city,
-          state: ans.state,
-          created_at: e.created_at,
-          status: e.event_type
-        });
+        leadMap.set(key, { id: key, events: [] });
       }
+      leadMap.get(key).events.push(e);
     }
 
-    res.json({ leads: Array.from(leadMap.values()) });
+    const leads = [];
+
+    for (const [key, lc] of leadMap.entries()) {
+      let ans = null;
+      for (const e of lc.events) {
+        if (e.answer) {
+          try { 
+            const parsed = JSON.parse(e.answer); 
+            if (parsed && parsed.name && parsed.city) {
+              ans = parsed;
+              break;
+            }
+          } catch {}
+        }
+      }
+
+      if (!ans) continue;
+
+      let finalStatus = null;
+      let finalScore = null;
+      let createdAt = null;
+
+      for (const e of lc.events) {
+        if (e.event_type.startsWith('rejected_') || e.event_type === 'qualified' || e.event_type === 'form_submitted') {
+          if (!finalStatus) finalStatus = e.event_type;
+          if (!createdAt) createdAt = e.created_at;
+        }
+        if (e.score != null && finalScore == null) finalScore = e.score;
+      }
+
+      if (!finalStatus) finalStatus = 'form_submitted';
+
+      let followupStatus = 'Pendente';
+      let saleValue = 0;
+      let latestNote = '';
+      for (const e of lc.events) {
+        if (e.event_type === 'admin_followup' && followupStatus === 'Pendente') {
+          try {
+            const f = JSON.parse(e.answer);
+            followupStatus = f.status || e.answer;
+            saleValue = f.value || 0;
+          } catch {
+            followupStatus = e.answer;
+          }
+        }
+        if (e.event_type === 'admin_note' && !latestNote) {
+          latestNote = e.answer;
+        }
+        if (followupStatus !== 'Pendente' && latestNote) break;
+      }
+
+      leads.push({
+        id: key,
+        name: ans.name,
+        whatsapp: ans.whatsapp || null,
+        city: ans.city,
+        state: ans.state,
+        created_at: createdAt || lc.events[0].created_at,
+        status: finalStatus,
+        score: finalScore,
+        followup: followupStatus,
+        saleValue: saleValue,
+        note: latestNote,
+      });
+    }
+
+    res.json({ leads });
   } catch (err) {
     console.error('quiz/leads error:', err);
     res.status(500).json({ error: 'Erro ao buscar leads do simulador' });

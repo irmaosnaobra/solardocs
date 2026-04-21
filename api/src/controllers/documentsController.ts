@@ -102,7 +102,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     await checkLimit(req.userId);
 
     if (body.useTemplate) {
-      content = generateFromTemplate(body.tipo, company, entity, body.fields, body.modeloNumero);
+      content = generateFromTemplate(body.tipo, company, entity as any, body.fields, body.modeloNumero);
       modeloUsado = `modelo-${body.modeloNumero}`;
     } else {
       content = await generateDocumentWithAI(body.tipo, company, entity as any, body.fields);

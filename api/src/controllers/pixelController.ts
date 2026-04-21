@@ -15,22 +15,28 @@ function hashData(data: string): string {
   return crypto.createHash('sha256').update(data.trim().toLowerCase()).digest('hex');
 }
 
-export async function sendPixelEvent(req: Request, res: Response): Promise<void> {
-  try {
-    const { phone, city, score, event_name, fbc, fbp, event_source_url, pixel_id } = req.body;
+export async function executePixelEvent(params: {
+  phone?: string;
+  city?: string;
+  score?: number;
+  event_name?: string;
+  fbc?: string;
+  fbp?: string;
+  event_source_url?: string;
+  pixel_id?: string;
+  ip?: string | null;
+  userAgent?: string | null;
+  value?: number;
+  currency?: string;
+}): Promise<any> {
+    const { phone, city, score, event_name, fbc, fbp, event_source_url, pixel_id, ip, userAgent, value, currency } = params;
 
-    // Seleção dinâmica do Pixel e Token
     const activePixelId = pixel_id || DEFAULT_PIXEL_ID;
     const accessToken = PIXEL_CONFIGS[activePixelId];
 
     if (!accessToken) {
-      console.error('Configuração não encontrada para o Pixel:', activePixelId);
-      res.status(400).json({ error: 'Configuração de rastreamento inválida' });
-      return;
+      throw new Error(`Configuração não encontrada para o Pixel: ${activePixelId}`);
     }
-
-    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || null;
-    const userAgent = (req.headers['user-agent'] as string) || null;
 
     const eventData = {
       data: [
@@ -40,17 +46,17 @@ export async function sendPixelEvent(req: Request, res: Response): Promise<void>
           action_source: 'website',
           event_source_url: event_source_url || 'https://solardocs-landing.vercel.app/simulador.html',
           user_data: {
-            ph: [hashData(phone)],
+            ph: [hashData(phone || '')],
             ct: [hashData(city || '')],
-            client_ip_address: IP_WASH(ip),
-            client_user_agent: userAgent,
+            client_ip_address: IP_WASH(ip || null),
+            client_user_agent: userAgent || null,
             fbc: fbc || null,
             fbp: fbp || null,
           },
           custom_data: {
-            value: score,
-            currency: 'BRL',
-            content_name: event_name === 'Lead' ? 'Solar Lead Conversion' : 'Solar Site Interaction',
+            value: value || score,
+            currency: currency || 'BRL',
+            content_name: event_name === 'Lead' ? 'Solar Lead Conversion' : (event_name === 'Purchase' ? 'Solar Closed Sale' : 'Solar Site Interaction'),
           },
         },
       ],
@@ -64,36 +70,53 @@ export async function sendPixelEvent(req: Request, res: Response): Promise<void>
 
     const postData = JSON.stringify(eventData);
 
-    const options = {
-      hostname: 'graph.facebook.com',
-      port: 443,
-      path: `/v19.0/${activePixelId}/events?access_token=${accessToken}`,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': postData.length,
-      },
-    };
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'graph.facebook.com',
+        port: 443,
+        path: `/v19.0/${activePixelId}/events?access_token=${accessToken}`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': postData.length,
+        },
+      };
 
-    const fbReq = https.request(options, (fbRes) => {
-      let responseBody = '';
-      fbRes.on('data', (chunk) => { responseBody += chunk; });
-      fbRes.on('end', () => {
-        console.log('FB CAPI Response:', responseBody);
-        res.json({ ok: true, fb_response: JSON.parse(responseBody) });
+      const fbReq = https.request(options, (fbRes) => {
+        let responseBody = '';
+        fbRes.on('data', (chunk) => { responseBody += chunk; });
+        fbRes.on('end', () => {
+          try {
+            resolve(JSON.parse(responseBody));
+          } catch (e) {
+            resolve({ raw: responseBody });
+          }
+        });
       });
+
+      fbReq.on('error', (error) => {
+        reject(error);
+      });
+
+      fbReq.write(postData);
+      fbReq.end();
+    });
+}
+
+export async function sendPixelEvent(req: Request, res: Response): Promise<void> {
+  try {
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || null;
+    const userAgent = (req.headers['user-agent'] as string) || null;
+
+    const fb_response = await executePixelEvent({
+      ...req.body,
+      ip,
+      userAgent
     });
 
-    fbReq.on('error', (error) => {
-      console.error('FB CAPI Error:', error);
-      res.status(500).json({ error: 'Erro ao enviar para o Facebook' });
-    });
-
-    fbReq.write(postData);
-    fbReq.end();
-
-  } catch (error) {
+    res.json({ ok: true, fb_response });
+  } catch (error: any) {
     console.error('sendPixelEvent controller error:', error);
-    res.status(500).json({ error: 'Erro interno no processamento do evento' });
+    res.status(500).json({ error: error.message || 'Erro interno no processamento do evento' });
   }
 }

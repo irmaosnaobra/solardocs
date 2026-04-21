@@ -248,7 +248,7 @@ export default function PrestacaoServicoPage() {
                 type="text"
                 value={fields.valor_servico}
                 onChange={e => setField('valor_servico', e.target.value)}
-                placeholder="Ex: 3.500,00"
+                placeholder="Ex: 3500,00 (vírgula = decimal)"
                 className="input-field"
                 required
               />

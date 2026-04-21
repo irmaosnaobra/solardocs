@@ -209,7 +209,7 @@ interface SuggestionEmailOptions {
 }
 
 export async function sendSuggestionEmail(opts: SuggestionEmailOptions) {
-  const attachments: nodemailer.Attachment[] = [];
+  const attachments: any[] = [];
 
   if (opts.arquivoBase64 && opts.arquivoNome) {
     // arquivoBase64 vem como data URL: "data:<mime>;base64,<dados>"

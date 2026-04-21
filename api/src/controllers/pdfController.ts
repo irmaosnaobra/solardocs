@@ -32,7 +32,7 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
 
     browser = await puppeteer.launch({
       args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
+      defaultViewport: (chromium as any).defaultViewport,
       executablePath: await chromium.executablePath(CHROMIUM_URL),
       headless: true,
     });

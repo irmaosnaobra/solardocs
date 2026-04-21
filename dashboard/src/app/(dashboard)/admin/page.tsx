@@ -17,6 +17,7 @@ interface UserRow {
 interface LeadRow {
   id: string; name: string; whatsapp: string | null;
   city: string; state: string; created_at: string; status: string;
+  score: number | null; followup: string;
 }
 interface SessionRow {
   session_id: string | null; created_at: string;
@@ -190,7 +191,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'users'|'visits'|'visits_b2c'|'leads'>('users');
+  const [tab, setTab] = useState<'users'|'visits'|'leads'>('users');
 
   const [users, setUsers]               = useState<UserRow[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -201,6 +202,7 @@ export default function AdminPage() {
   const [customTo, setCustomTo]         = useState('');
   const [resetting, setResetting]       = useState(false);
   const [resetMsg, setResetMsg]         = useState('');
+  const [filterLeadStatus, setFilterLeadStatus] = useState('todos');
 
   const [analytics, setAnalytics]               = useState<Analytics|null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -238,12 +240,70 @@ export default function AdminPage() {
     api.get('/quiz/leads').then(r=>{setLeads(r.data.leads||[]); setLeadsLoaded(true);}).catch(()=>{}).finally(()=>setLoadingLeads(false));
   }, []);
 
-  useEffect(() => { if ((tab==='visits' || tab==='visits_b2c') && !analyticsLoaded) loadAnalytics(); }, [tab,analyticsLoaded,loadAnalytics]);
-  useEffect(() => { if ((tab==='visits' || tab==='visits_b2c') && !metaLoaded) loadMeta(metaPeriod); }, [tab,metaLoaded,metaPeriod,loadMeta]);
+  useEffect(() => { if (tab==='visits' && !analyticsLoaded) loadAnalytics(); }, [tab,analyticsLoaded,loadAnalytics]);
+  useEffect(() => { if (tab==='visits' && !metaLoaded) loadMeta(metaPeriod); }, [tab,metaLoaded,metaPeriod,loadMeta]);
   useEffect(() => { if (tab==='leads' && !leadsLoaded) loadLeads(); }, [tab,leadsLoaded,loadLeads]);
 
   function changePeriod(p: 'today'|'7d'|'30d') {
     setMetaPeriod(p); setMetaLoaded(false); loadMeta(p);
+  }
+
+  async function updateLeadFollowup(sessionId: string, newStatus: string) {
+    try {
+      const lead = leads.find(l => l.id === sessionId);
+      const saleValue = lead?.saleValue || 0;
+      
+      await api.post('/quiz/leads/status', { 
+        session_id: sessionId, 
+        status: newStatus,
+        value: saleValue
+      });
+      setLeads(prev => prev.map(l => l.id === sessionId ? { ...l, followup: newStatus } : l));
+    } catch (err) {
+      alert('Erro ao atualizar status de acompanhamento');
+      console.error(err);
+    }
+  }
+
+  async function updateLeadNote(sessionId: string, newNote: string) {
+    try {
+      await api.post('/quiz/leads/note', { session_id: sessionId, note: newNote });
+      setLeads(prev => prev.map(l => l.id === sessionId ? { ...l, note: newNote } : l));
+    } catch (err) {
+      console.error('Erro ao salvar nota:', err);
+    }
+  }
+
+  function handleExportLeads() {
+    if (!filteredLeads.length) return alert('Nenhum lead para exportar');
+    
+    // Header
+    const headers = ['Data','Nome','WhatsApp','Cidade','UF','Score','Status Funil','Acompanhamento','Notas'];
+    const rows = filteredLeads.map(l => [
+      fmt(l.created_at),
+      l.name,
+      l.whatsapp || '',
+      l.city,
+      l.state,
+      l.score || '0',
+      l.status,
+      l.followup || 'Pendente',
+      (l.note || '').replace(/\n/g, ' ')
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `leads_solar_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   const filteredUsers = users.filter(u => {
@@ -279,10 +339,7 @@ export default function AdminPage() {
   const totalVip  = users.filter(u=>u.plano==='ilimitado').length;
   const totalFree = users.filter(u=>u.plano==='free').length;
 
-  const isB2C = (s: SessionRow) => (s.landing_url||'').toLowerCase().includes('simulador');
-
-  const rawSessions = (analytics?.sessions??[]);
-  const baseSessions = tab === 'visits_b2c' ? rawSessions.filter(isB2C) : rawSessions;
+  const baseSessions = (analytics?.sessions??[]);
 
   const allSources      = Array.from(new Set(baseSessions.map(s=>srcLabel(s)))).sort();
   const filteredSessions = baseSessions.filter(s => {
@@ -293,8 +350,38 @@ export default function AdminPage() {
 
   const filteredLeads = leads.filter(l => {
     const term = leadSearch.toLowerCase();
-    return !leadSearch || l.name.toLowerCase().includes(term) || (l.whatsapp||'').includes(term) || l.city.toLowerCase().includes(term) || l.state.toLowerCase().includes(term);
+    const okSearch = !term || l.name.toLowerCase().includes(term) || (l.whatsapp||'').includes(term) || l.city.toLowerCase().includes(term) || l.state.toLowerCase().includes(term);
+    const okStatus = filterLeadStatus === 'todos' || l.status === filterLeadStatus;
+    
+    let okPeriodo = true;
+    if (filterPeriodo !== 'maximo') {
+      const now = nowBrasilia();
+      const d   = toBrasilia(l.created_at);
+      if (filterPeriodo === 'hoje') {
+        okPeriodo = d.getUTCFullYear()===now.getUTCFullYear() && d.getUTCMonth()===now.getUTCMonth() && d.getUTCDate()===now.getUTCDate();
+      } else if (filterPeriodo === 'ontem') {
+        const ontem = new Date(now); ontem.setUTCDate(ontem.getUTCDate()-1);
+        okPeriodo = d.getUTCFullYear()===ontem.getUTCFullYear() && d.getUTCMonth()===ontem.getUTCMonth() && d.getUTCDate()===ontem.getUTCDate();
+      } else if (filterPeriodo === '7dias') {
+        const sete = new Date(now); sete.setUTCDate(sete.getUTCDate()-6);
+        sete.setUTCHours(0,0,0,0);
+        okPeriodo = d >= sete;
+      } else if (filterPeriodo === 'mes') {
+        okPeriodo = d.getUTCFullYear()===now.getUTCFullYear() && d.getUTCMonth()===now.getUTCMonth();
+      } else if (filterPeriodo === 'custom') {
+        const from = customFrom ? new Date(customFrom+'T03:00:00Z') : null;
+        const to   = customTo   ? new Date(customTo  +'T02:59:59Z') : null;
+        if (from) okPeriodo = okPeriodo && d >= from;
+        if (to)   okPeriodo = okPeriodo && d <= to;
+      }
+    }
+    return okSearch && okStatus && okPeriodo;
   });
+
+  const totalLeadsHoje = leads.filter(l=>isToday(l.created_at)).length;
+  const totalLeadsQual = leads.filter(l=>l.status==='qualified').length;
+  const totalLeadsRep  = leads.filter(l=>l.status.startsWith('rejected')).length;
+  const totalLeadsIni  = leads.filter(l=>l.status==='form_submitted').length;
 
   if (loadingUsers) return <div className={styles.loading}>Carregando...</div>;
 
@@ -345,7 +432,7 @@ export default function AdminPage() {
             finally{setResetting(false);}
           }}>{resetting?'Executando...':'🔄 Reset Mensal'}</button>
         )}
-        {(tab==='visits' || tab==='visits_b2c') && (
+        {tab==='visits' && (
           <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
             onClick={()=>{loadAnalytics();setMetaLoaded(false);loadMeta(metaPeriod);}}>
             {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
@@ -365,10 +452,9 @@ export default function AdminPage() {
       )}
 
       <div className={styles.tabs}>
-        <button className={tab==='users'?styles.tabActive:styles.tab} onClick={()=>setTab('users')}>👥 Usuários</button>
+        <button className={tab==='users'?styles.tabActive:styles.tab} onClick={()=>setTab('users')}>👥 Usuários SolarDocs Pro</button>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 Acessos LP</button>
-        <button className={tab==='visits_b2c'?styles.tabActive:styles.tab} onClick={()=>setTab('visits_b2c')}>📊 Acessos B2C</button>
-        <button className={tab==='leads'?styles.tabActive:styles.tab} onClick={()=>setTab('leads')}>⚡ Leads Simulador</button>
+        <button className={tab==='leads'?styles.tabActive:styles.tab} onClick={()=>setTab('leads')}>⚡ Cadastros B2C</button>
       </div>
 
       {/* ═══ ABA USUÁRIOS ══════════════════════════════════════ */}
@@ -728,29 +814,65 @@ export default function AdminPage() {
         </>
       )}
 
-      {/* ═══ ABA LEADS SIMULADOR ═════════════════════════════════════ */}
+      {/* ═══ ABA CADASTROS B2C ═════════════════════════════════════ */}
       {tab==='leads' && (
         <>
+          <div className={styles.cards}>
+            <div className={styles.card}><div className={styles.cardLabel}>Novos hoje</div><div className={styles.cardValue} style={{color:'#22c55e'}}>{totalLeadsHoje}</div></div>
+            <div className={styles.card}><div className={styles.cardLabel}>Qualificados</div><div className={styles.cardValue} style={{color:'#34d399'}}>{totalLeadsQual}</div></div>
+            <div className={styles.card}><div className={styles.cardLabel}>Iniciais</div><div className={styles.cardValue} style={{color:'#60a5fa'}}>{totalLeadsIni}</div></div>
+            <div className={styles.card}><div className={styles.cardLabel}>Reprovados</div><div className={styles.cardValue} style={{color:'#f87171'}}>{totalLeadsRep}</div></div>
+          </div>
           <div className={styles.filters}>
             <input type="text" placeholder="Buscar por nome, whatsapp ou cidade..." value={leadSearch} onChange={e=>setLeadSearch(e.target.value)} className="input-field" style={{maxWidth:320}}/>
+            <select value={filterLeadStatus} onChange={e=>setFilterLeadStatus(e.target.value)} className="input-field" style={{maxWidth:200}}>
+              <option value="todos">Todos os status</option>
+              <option value="qualified">Qualificados (Oferta Direta)</option>
+              <option value="form_submitted">Cadastro Inicial</option>
+              <option value="rejected_igreen">Reprovado Tensão</option>
+              <option value="rejected_region">Fora da Região</option>
+              <option value="rejected_profile">Perfil Baixo</option>
+            </select>
+          </div>
+          <div className={styles.filters} style={{marginTop:8,alignItems:'center'}}>
+            <div className={styles.periodTabs}>
+              {([['hoje','Hoje'],['ontem','Ontem'],['7dias','7 dias'],['mes','Esse mês'],['custom','Período'],['maximo','Máximo']] as const).map(([v,l])=>(
+                <button key={v} className={filterPeriodo===v?styles.periodActive:styles.periodBtn} onClick={()=>setFilterPeriodo(v as any)}>{l}</button>
+              ))}
+            </div>
+            {filterPeriodo==='custom'&&(
+              <>
+                <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)} className="input-field" style={{maxWidth:150}} />
+                <span style={{color:'var(--color-text-muted)',fontSize:13}}>até</span>
+                <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)} className="input-field" style={{maxWidth:150}} />
+              </>
+            )}
             <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{filteredLeads.length} lead{filteredLeads.length!==1?'s':''}</span>
+            <button 
+              onClick={handleExportLeads}
+              className="btn-primary" 
+              style={{padding:'6px 12px', fontSize:12, borderRadius:6, marginLeft:12, background:'var(--color-text)', color:'var(--color-bg)'}}
+            >
+              📥 Exportar CSV
+            </button>
           </div>
           
           <div className={styles.tableWrap} style={{marginTop:16}}>
             <table className={styles.table}>
-              <thead><tr><th>Data/Hora</th><th>Nome</th><th>WhatsApp</th><th>UF</th><th>Cidade</th><th>Status/Fase</th></tr></thead>
+              <thead><tr><th>Data/Hora</th><th>Nome</th><th>WhatsApp</th><th>UF/Cidade</th><th>Nota</th><th>Destino</th><th>Status/Fase</th><th>Followup</th><th>Valor (R$)</th><th style={{minWidth:150}}>Anotações SDR</th></tr></thead>
               <tbody>
-                {loadingLeads && leads.length===0 && <tr><td colSpan={6} className={styles.empty}>Carregando leads...</td></tr>}
-                {!loadingLeads && filteredLeads.length===0 && <tr><td colSpan={6} className={styles.empty}>Nenhum lead encontrado</td></tr>}
+                {loadingLeads && leads.length===0 && <tr><td colSpan={9} className={styles.empty}>Carregando leads...</td></tr>}
+                {!loadingLeads && filteredLeads.length===0 && <tr><td colSpan={9} className={styles.empty}>Nenhum lead encontrado</td></tr>}
                 {filteredLeads.map(l=>{
                   let badge = l.status;
                   let color = '#94a3b8';
                   let bg = 'rgba(148,163,184,0.1)';
+                  let destino = '—';
                   
-                  if (l.status === 'qualified') { badge = 'Qualificado Oferta Direta'; color = '#34d399'; bg = 'rgba(52,211,153,0.12)'; }
-                  else if (l.status === 'rejected_igreen') { badge = 'Reprovado Tensão (iGreen)'; color = '#fb923c'; bg = 'rgba(251,146,60,0.12)'; }
-                  else if (l.status === 'rejected_region') { badge = 'Fora da Região (iGreen)'; color = '#f87171'; bg = 'rgba(248,113,113,0.12)'; }
-                  else if (l.status === 'rejected_profile') { badge = 'Perfil Baixo (iGreen)'; color = '#a78bfa'; bg = 'rgba(167,139,250,0.12)'; }
+                  if (l.status === 'qualified') { badge = 'Qualificado Oferta Direta'; color = '#34d399'; bg = 'rgba(52,211,153,0.12)'; destino = 'Irmãos na Obra'; }
+                  else if (l.status === 'rejected_igreen') { badge = 'Reprovado Tensão (iGreen)'; color = '#fb923c'; bg = 'rgba(251,146,60,0.12)'; destino = 'iGreen Energy'; }
+                  else if (l.status === 'rejected_region') { badge = 'Fora da Região (iGreen)'; color = '#f87171'; bg = 'rgba(248,113,113,0.12)'; destino = 'iGreen Energy'; }
+                  else if (l.status === 'rejected_profile') { badge = 'Perfil Baixo (iGreen)'; color = '#a78bfa'; bg = 'rgba(167,139,250,0.12)'; destino = 'iGreen Energy'; }
                   else if (l.status === 'form_submitted') { badge = 'Cadastro Inicial'; color = '#60a5fa'; bg = 'rgba(96,165,250,0.12)'; }
 
                   return (
@@ -764,12 +886,85 @@ export default function AdminPage() {
                           </a>
                         ) : <span className={styles.emptyDash}>—</span>}
                       </td>
-                      <td className={styles.mutedCell} style={{fontWeight:600}}>{l.state}</td>
-                      <td className={styles.mutedCell}>{l.city}</td>
+                      <td className={styles.mutedCell}>{l.city} - <span style={{fontWeight:600}}>{l.state}</span></td>
+                      <td style={{fontWeight:600}}>{l.score != null ? <span style={{color: l.score>=26?'#fbbf24':(l.score>=18?'#34d399':'#f87171')}}>{l.score} pts</span> : <span className={styles.emptyDash}>—</span>}</td>
+                      <td className={styles.mutedCell} style={{fontWeight: 600}}>{destino !== '—' ? destino : <span className={styles.emptyDash}>—</span>}</td>
                       <td>
                         <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:bg,color:color,fontSize:11,fontWeight:600}}>
                           {badge}
                         </span>
+                      </td>
+                      <td style={{textAlign:'center'}}>
+                        {destino !== '—' ? (
+                          <select 
+                            value={l.followup || 'Pendente'} 
+                            onChange={(e) => updateLeadFollowup(l.id, e.target.value)}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              border: '1px solid var(--border)',
+                              background: l.followup === 'Fechado' ? 'rgba(34,197,94,0.1)' : (l.followup === 'Perdido' || l.followup === 'Sem Perfil' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)'),
+                              color: l.followup === 'Fechado' ? '#22c55e' : (l.followup === 'Perdido' || l.followup === 'Sem Perfil' ? '#ef4444' : '#f59e0b'),
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            <option value="Pendente">Pendente</option>
+                            <option value="Em Contato">Em Contato</option>
+                            <option value="Agendado">Agendado</option>
+                            <option value="Fechado">Fechado</option>
+                            <option value="Sem Perfil">Sem Perfil</option>
+                            <option value="Perdido">Perdido</option>
+                          </select>
+                        ) : <span className={styles.emptyDash}>—</span>}
+                      </td>
+                      <td>
+                        <input 
+                          type="number"
+                          defaultValue={l.saleValue || 0}
+                          onBlur={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setLeads(prev => prev.map(item => item.id === l.id ? { ...item, saleValue: val } : item));
+                            // Se o status já for Fechado, atualiza no banco também para garantir que o valor seja persistido
+                            if (l.followup === 'Fechado') {
+                              api.post('/quiz/leads/status', { session_id: l.id, status: l.followup, value: val });
+                            }
+                          }}
+                          style={{
+                            width: '80px',
+                            padding: '4px',
+                            fontSize: '11px',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border)',
+                            background: 'transparent',
+                            color: 'var(--color-text)'
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <input 
+                          type="text" 
+                          defaultValue={l.note || ''} 
+                          onBlur={(e) => {
+                            if (e.target.value !== (l.note || '')) {
+                              updateLeadNote(l.id, e.target.value);
+                            }
+                          }}
+                          placeholder="Adicionar observação..."
+                          style={{
+                            width: '100%',
+                            background: 'transparent',
+                            border: 'none',
+                            borderBottom: '1px solid transparent',
+                            fontSize: '11px',
+                            color: 'var(--color-text)',
+                            padding: '4px 0',
+                            transition: 'all 0.2s'
+                          }}
+                          onFocus={(e) => e.target.style.borderBottom = '1px solid var(--color-primary)'}
+                        />
                       </td>
                     </tr>
                   );

@@ -170,7 +170,7 @@ export default function ContratoSolarPage() {
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Valor Total (R$) *</label>
-              <input type="text" value={fields.valor_total} onChange={e => setFields({...fields, valor_total: e.target.value})} placeholder="Ex: 15200,00" className="input-field" required />
+              <input type="text" value={fields.valor_total} onChange={e => setFields({...fields, valor_total: e.target.value})} placeholder="Ex: 27400,00 (vírgula = decimal)" className="input-field" required />
             </div>
           </div>
           <div className={styles.fieldFull}>

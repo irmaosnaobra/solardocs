@@ -45,7 +45,7 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
   // Atualiza a descrição do produto no Stripe para refletir os valores corretos
   try {
     const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
-    const product = price.product as Stripe.Product;
+    const product = price.product as any;
     if (product?.id) {
       await stripe.products.update(product.id, { description: planInfo.descricao });
     }
@@ -70,7 +70,7 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
 export async function getCheckoutInfo(req: Request, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const session = await stripe.checkout.sessions.retrieve(sessionId as any);
 
     if (session.payment_status !== 'paid') {
       res.status(400).json({ error: 'Pagamento não confirmado' });
@@ -96,7 +96,7 @@ export async function getCheckoutInfo(req: Request, res: Response): Promise<void
 export async function stripeWebhook(req: Request, res: Response): Promise<void> {
   const sig = req.headers['stripe-signature'] as string;
 
-  let event: Stripe.Event;
+  let event: any;
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch {
@@ -105,7 +105,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
   }
 
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
+    const session = event.data.object as any;
     const userId  = session.metadata?.userId;
     const email   = session.customer_email ?? (session.customer_details as any)?.email;
 
@@ -141,9 +141,9 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
   }
 
   if (event.type === 'customer.subscription.deleted') {
-    const sub    = event.data.object as Stripe.Subscription;
+    const sub    = event.data.object as any;
     const custId = sub.customer as string;
-    const customer = await stripe.customers.retrieve(custId) as Stripe.Customer;
+    const customer = await stripe.customers.retrieve(custId) as any;
     if (customer.email) {
       await supabase
         .from('users')
@@ -154,11 +154,11 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
 
   // Pagamento da renovação falhou — corta o acesso imediatamente
   if (event.type === 'invoice.payment_failed') {
-    const invoice  = event.data.object as Stripe.Invoice;
+    const invoice  = event.data.object as any;
     const custId   = invoice.customer as string;
     // Só age se for cobrança de renovação (não a primeira, que já tem checkout.session)
     if ((invoice as any).billing_reason === 'subscription_cycle') {
-      const customer = await stripe.customers.retrieve(custId) as Stripe.Customer;
+      const customer = await stripe.customers.retrieve(custId) as any;
       if (customer.email) {
         await supabase
           .from('users')
@@ -170,10 +170,10 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
 
   // Assinatura virou past_due ou unpaid (retentativas esgotadas) — garante corte
   if (event.type === 'customer.subscription.updated') {
-    const sub = event.data.object as Stripe.Subscription;
+    const sub = event.data.object as any;
     if (sub.status === 'past_due' || sub.status === 'unpaid') {
       const custId   = sub.customer as string;
-      const customer = await stripe.customers.retrieve(custId) as Stripe.Customer;
+      const customer = await stripe.customers.retrieve(custId) as any;
       if (customer.email) {
         await supabase
           .from('users')

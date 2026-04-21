@@ -37,7 +37,15 @@ export default function PropostaBancariaPage() {
   const [mode, setMode] = useState<Mode>('m1');
   const [clienteId, setClienteId] = useState('');
   const [fields, setFields] = useState(initialFields);
-  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([{ item: '', quantidade: 1, valor: 0 }]);
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([
+    { item: 'Módulos Fotovoltaicos', quantidade: 1, valor: 0 },
+    { item: 'Inversor/Micro Inversores', quantidade: 1, valor: 0 },
+    { item: 'Kit cabo fotovoltaico', quantidade: 1, valor: 0 },
+    { item: 'Kit estrutura telhado', quantidade: 1, valor: 0 },
+    { item: 'Kit material elétrico A.C', quantidade: 1, valor: 0 },
+    { item: 'Homologação do projeto de engenharia', quantidade: 1, valor: 0 },
+    { item: 'Montagem especializada', quantidade: 1, valor: 0 },
+  ]);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
@@ -197,7 +205,7 @@ export default function PropostaBancariaPage() {
                     type="number"
                     value={eq.valor || ''}
                     onChange={e => updateEquipamento(i, 'valor', Number(e.target.value))}
-                    placeholder="Valor unit."
+                    placeholder="Valor (Ex: 950.00)"
                     className="input-field"
                     style={{width: 120}}
                     min={0}
@@ -229,7 +237,7 @@ export default function PropostaBancariaPage() {
           <div className={styles.grid2}>
             <div className={styles.field}>
               <label className={styles.label}>Valor Total (R$) *</label>
-              <input type="text" value={fields.valor_total} onChange={e => setFields({...fields, valor_total: e.target.value})} placeholder="Ex: 7.280,00" className="input-field" required />
+              <input type="text" value={fields.valor_total} onChange={e => setFields({...fields, valor_total: e.target.value})} placeholder="Ex: 27400,00 (vírgula = decimal)" className="input-field" required />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Validade (dias) *</label>
@@ -237,11 +245,11 @@ export default function PropostaBancariaPage() {
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Valor Equipamentos (R$)</label>
-              <input type="text" value={fields.valor_equipamentos} onChange={e => setFields({...fields, valor_equipamentos: e.target.value})} placeholder="Deixe vazio para 70% automático" className="input-field" />
+              <input type="text" value={fields.valor_equipamentos} onChange={e => setFields({...fields, valor_equipamentos: e.target.value})} placeholder="Vazio = 70% do total automático" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Valor Mão de Obra (R$)</label>
-              <input type="text" value={fields.valor_mao_de_obra} onChange={e => setFields({...fields, valor_mao_de_obra: e.target.value})} placeholder="Deixe vazio para 30% automático" className="input-field" />
+              <input type="text" value={fields.valor_mao_de_obra} onChange={e => setFields({...fields, valor_mao_de_obra: e.target.value})} placeholder="Vazio = 30% do total automático" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Prazo de instalação (dias úteis)</label>

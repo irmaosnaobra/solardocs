@@ -720,9 +720,9 @@ ${equipamentos}
 
 NACIONAL, MERCADORIA OU BEM COM CONTEÚDO DE IMPORTAÇÃO SUPERIOR A 40% E INFERIOR OU IGUAL A 70%
 
-VALOR TOTAL: R$ ${curr(String(valorTotal.toFixed(2)))}
-VALOR EQUIPAMENTO: R$ ${curr(String(valorEq.toFixed(2)))}
-VALOR MÃO DE OBRA: R$ ${curr(String(valorMo.toFixed(2)))}
+VALOR TOTAL: R$ ${fmtBRL(valorTotal)}
+VALOR EQUIPAMENTO: R$ ${fmtBRL(valorEq)}
+VALOR MÃO DE OBRA: R$ ${fmtBRL(valorMo)}
 DATA DE EMISSÃO: ${today}
 VALIDADE DA PROPOSTA: ${validadeDias} dias
 
@@ -819,10 +819,10 @@ ${equipamentos}
 
 COMPOSIÇÃO DE VALORES
 
-   Equipamentos e materiais:         R$ ${curr(String(valorEq.toFixed(2)))}
-   Mão de obra e instalação:         R$ ${curr(String(valorMo.toFixed(2)))}
+   Equipamentos e materiais:         R$ ${fmtBRL(valorEq)}
+   Mão de obra e instalação:         R$ ${fmtBRL(valorMo)}
                                     ─────────────────────
-   VALOR TOTAL DO PROJETO:           R$ ${curr(String(valorTotal.toFixed(2)))}
+   VALOR TOTAL DO PROJETO:           R$ ${fmtBRL(valorTotal)}
 
 Data de emissão:      ${today}
 Validade da proposta: ${validadeDias} dias corridos
@@ -2209,6 +2209,10 @@ function parseBRL(v: unknown): number {
   return parseFloat(String(v ?? '').replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
 }
 
+function fmtBRL(n: number): string {
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function curr(v: string): string {
   const n = parseBRL(v);
   if (!n && String(v).trim() === '') return v;
@@ -2260,7 +2264,7 @@ function equipamentosTexto(f: Record<string, unknown>): string {
   }
   return (f.lista_equipamentos as Array<{ item: string; quantidade: number; valor?: number }>)
     .map((e) => {
-      const valor = e.valor ? `  —  R$ ${curr(String(e.valor))} un.` : '';
+      const valor = e.valor ? `  —  R$ ${fmtBRL(e.valor)} un.` : '';
       return `${String(e.quantidade).padEnd(6)} ${e.item}${valor}`;
     })
     .join('\n');
