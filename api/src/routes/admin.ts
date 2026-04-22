@@ -37,40 +37,73 @@ router.patch('/sdr-leads/:phone/estagio', async (req: Request, res: Response) =>
   } catch { res.status(500).json({ error: 'Erro ao atualizar' }); }
 });
 
-// ── CRM Plataforma (SolarDoc B2B) ────────────────────────────────
-const PLAT_ESTAGIOS = ['novo','ativo','interessado','negociando','perdido','cliente'];
-
+// ── CRM Plataforma — status dinâmico baseado em comportamento real ─
 router.get('/platform-crm', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase
-      .from('platform_crm').select('*').order('updated_at', { ascending: false });
-    if (error) throw error;
-    res.json({ leads: data ?? [] });
-  } catch { res.status(500).json({ error: 'Erro ao buscar leads plataforma' }); }
-});
+    const cutoff2d = new Date(Date.now() - 2 * 86400000).toISOString();
 
-router.post('/platform-crm', async (req: Request, res: Response) => {
-  try {
-    const { nome, email, phone, user_id, estagio, nota } = req.body;
-    const { data, error } = await supabase.from('platform_crm').insert({
-      nome, email, phone, user_id: user_id || null,
-      estagio: estagio || 'novo', nota: nota || null,
-    }).select().single();
-    if (error) throw error;
-    res.json({ lead: data });
-  } catch { res.status(500).json({ error: 'Erro ao criar lead' }); }
-});
+    // Todos os usuários
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, email, whatsapp, plano, documentos_usados, created_at')
+      .order('created_at', { ascending: false });
 
-router.patch('/platform-crm/:id/estagio', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { estagio, nota } = req.body;
-    if (!PLAT_ESTAGIOS.includes(estagio)) { res.status(400).json({ error: 'Estágio inválido' }); return; }
-    const upd: any = { estagio, updated_at: new Date().toISOString() };
-    if (nota !== undefined) upd.nota = nota;
-    await supabase.from('platform_crm').update(upd).eq('id', id);
-    res.json({ ok: true });
-  } catch { res.status(500).json({ error: 'Erro ao atualizar' }); }
+    if (!users?.length) { res.json({ columns: {} }); return; }
+
+    // Usuários COM empresa cadastrada
+    const { data: companies } = await supabase
+      .from('company')
+      .select('user_id, nome, cnpj');
+    const companySet = new Set((companies ?? []).map((c: any) => c.user_id));
+    const companyMap = Object.fromEntries((companies ?? []).map((c: any) => [c.user_id, c]));
+
+    // Usuários que geraram doc nos últimos 2 dias
+    const { data: recentDocs } = await supabase
+      .from('documents')
+      .select('user_id')
+      .gte('created_at', cutoff2d);
+    const recentSet = new Set((recentDocs ?? []).map((d: any) => d.user_id));
+
+    // Classifica cada usuário
+    const columns: Record<string, any[]> = {
+      sem_cnpj: [], desativado: [], ativo: [], pro: [], vip: [],
+    };
+
+    for (const u of users) {
+      const company = companyMap[u.id];
+      const hasCompany = companySet.has(u.id);
+      const recentActive = recentSet.has(u.id);
+
+      const card = {
+        id: u.id,
+        email: u.email,
+        whatsapp: u.whatsapp,
+        plano: u.plano,
+        empresa: company?.nome ?? null,
+        cnpj: company?.cnpj ?? null,
+        documentos_usados: u.documentos_usados,
+        created_at: u.created_at,
+        ativo_recente: recentActive,
+      };
+
+      if (u.plano === 'ilimitado') {
+        columns.vip.push(card);
+      } else if (u.plano === 'pro') {
+        columns.pro.push(card);
+      } else if (!hasCompany) {
+        columns.sem_cnpj.push(card);
+      } else if (recentActive) {
+        columns.ativo.push(card);
+      } else {
+        columns.desativado.push(card);
+      }
+    }
+
+    res.json({ columns });
+  } catch (err) {
+    console.error('platform-crm error:', err);
+    res.status(500).json({ error: 'Erro ao buscar plataforma CRM' });
+  }
 });
 
 export default router;

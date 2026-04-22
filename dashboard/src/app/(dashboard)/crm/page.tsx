@@ -11,8 +11,9 @@ interface SdrLead {
 }
 
 interface PlatLead {
-  id: string; nome: string | null; email: string | null; phone: string | null;
-  estagio: string; plano: string | null; nota: string | null; updated_at: string;
+  id: string; email: string; whatsapp: string | null; plano: string;
+  empresa: string | null; cnpj: string | null; documentos_usados: number;
+  created_at: string; ativo_recente: boolean;
 }
 
 // ── Configurações dos Kanbans ──────────────────────────────────────
@@ -27,12 +28,11 @@ const SDR_COLS = [
 ];
 
 const PLAT_COLS = [
-  { id: 'novo',        label: 'Novo',         emoji: '🆕', color: '#64748b', bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.3)' },
-  { id: 'ativo',       label: 'Ativo',        emoji: '⚡', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.3)' },
-  { id: 'interessado', label: 'Interessado',  emoji: '👀', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)' },
-  { id: 'negociando',  label: 'Negociando',   emoji: '🤝', color: '#f97316', bg: 'rgba(249,115,22,0.1)',  border: 'rgba(249,115,22,0.3)' },
-  { id: 'perdido',     label: 'Perdido',      emoji: '❌', color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)' },
-  { id: 'cliente',     label: 'Cliente',      emoji: '👑', color: '#22c55e', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.3)' },
+  { id: 'sem_cnpj',   label: 'Sem CNPJ',          emoji: '📋', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)' },
+  { id: 'desativado', label: 'Cadastro Desativado', emoji: '😴', color: '#64748b', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.3)' },
+  { id: 'ativo',      label: 'Cadastro Ativo',     emoji: '⚡', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)' },
+  { id: 'pro',        label: 'PRO',                emoji: '🚀', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.3)' },
+  { id: 'vip',        label: 'VIP',                emoji: '👑', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)' },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -110,39 +110,39 @@ function SdrCard({ lead, cols, onMove }: { lead: SdrLead; cols: typeof SDR_COLS;
 
 // ── Card Plataforma ────────────────────────────────────────────────
 
-function PlatCard({ lead, cols, onMove }: { lead: PlatLead; cols: typeof PLAT_COLS; onMove: (id: string, estagio: string) => void }) {
-  const col = cols.find(c => c.id === lead.estagio) ?? cols[0];
+function PlatCard({ lead, colId }: { lead: PlatLead; colId: string }) {
+  const col = PLAT_COLS.find(c => c.id === colId) ?? PLAT_COLS[0];
   return (
     <div style={{
       background: 'var(--color-surface)', border: `1px solid var(--color-border)`,
       borderLeft: `3px solid ${col.color}`, borderRadius: 10, padding: '12px 14px',
     }}>
-      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 4 }}>
-        {lead.nome || lead.email || 'Sem nome'}
+      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text)', marginBottom: 4, wordBreak: 'break-all' }}>
+        {lead.empresa || lead.email}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 6 }}>
-        {lead.email && <span>✉️ {lead.email}</span>}
-        {lead.plano && <span style={{ marginLeft: 8 }}>📦 {lead.plano}</span>}
-      </div>
-      {lead.nota && (
-        <p style={{ fontSize: 11, color: 'var(--color-text-muted)', fontStyle: 'italic', margin: '0 0 8px', lineHeight: 1.4 }}>
-          📝 {lead.nota.slice(0, 80)}{lead.nota.length > 80 ? '...' : ''}
-        </p>
+      {lead.empresa && (
+        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>
+          ✉️ {lead.email}
+        </div>
       )}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        {lead.phone && (
-          <a href={`https://wa.me/${lead.phone}`} target="_blank" rel="noopener noreferrer"
+      {lead.cnpj && (
+        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>
+          🏢 {lead.cnpj}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+        {lead.whatsapp && (
+          <a href={`https://wa.me/55${lead.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
             style={{ padding: '4px 10px', borderRadius: 6, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 11, textDecoration: 'none' }}>
             💬 WA
           </a>
         )}
-        <select value={lead.estagio} onChange={e => onMove(lead.id, e.target.value)}
-          style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: `1px solid ${col.border}`, background: col.bg, color: col.color, fontWeight: 700, cursor: 'pointer', flex: 1 }}>
-          {cols.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
-        </select>
+        <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+          📄 {lead.documentos_usados} docs
+        </span>
       </div>
       <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 6 }}>
-        {fmtDate(lead.updated_at)}
+        {lead.ativo_recente ? '🟢 Ativo agora' : '⚪ Sem doc recente'} · {fmtDate(lead.created_at)}
       </div>
     </div>
   );
@@ -153,17 +153,17 @@ function PlatCard({ lead, cols, onMove }: { lead: PlatLead; cols: typeof PLAT_CO
 export default function CrmPage() {
   const [tab, setTab] = useState<'sdr' | 'plataforma'>('sdr');
   const [sdrLeads, setSdrLeads] = useState<SdrLead[]>([]);
-  const [platLeads, setPlatLeads] = useState<PlatLead[]>([]);
+  const [platCols, setPlatCols] = useState<Record<string, PlatLead[]>>({});
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const [s, p] = await Promise.all([
       api.get('/admin/sdr-leads').catch(() => ({ data: { leads: [] } })),
-      api.get('/admin/platform-crm').catch(() => ({ data: { leads: [] } })),
+      api.get('/admin/platform-crm').catch(() => ({ data: { columns: {} } })),
     ]);
     setSdrLeads(s.data.leads);
-    setPlatLeads(p.data.leads);
+    setPlatCols(p.data.columns ?? {});
     setLoading(false);
   }, []);
 
@@ -174,13 +174,7 @@ export default function CrmPage() {
     setSdrLeads(prev => prev.map(l => l.phone === phone ? { ...l, estagio } : l));
   }
 
-  async function movePlat(id: string, estagio: string) {
-    await api.patch(`/admin/platform-crm/${id}/estagio`, { estagio });
-    setPlatLeads(prev => prev.map(l => l.id === id ? { ...l, estagio } : l));
-  }
-
-  const cols = tab === 'sdr' ? SDR_COLS : PLAT_COLS;
-  const leads = tab === 'sdr' ? sdrLeads : platLeads;
+  const totalPlat = Object.values(platCols).reduce((a, c) => a + c.length, 0);
 
   return (
     <div style={{ padding: '0 0 40px' }}>
@@ -199,7 +193,7 @@ export default function CrmPage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         {[
           { id: 'sdr', label: '☀️ SDR Solar', count: sdrLeads.length },
-          { id: 'plataforma', label: '💼 Plataforma SolarDoc', count: platLeads.length },
+          { id: 'plataforma', label: '💼 Plataforma SolarDoc', count: totalPlat },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
             style={{
@@ -216,25 +210,30 @@ export default function CrmPage() {
       {/* Kanban */}
       {loading ? (
         <p style={{ color: 'var(--color-text-muted)', padding: 40, textAlign: 'center' }}>Carregando...</p>
-      ) : (
+      ) : tab === 'sdr' ? (
         <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
-          {cols.map(col => {
-            const colLeads = leads.filter(l => l.estagio === col.id);
+          {SDR_COLS.map(col => {
+            const colLeads = sdrLeads.filter(l => l.estagio === col.id);
             return (
               <KanbanCol key={col.id} col={col} count={colLeads.length}>
-                {colLeads.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '20px 10px', color: 'var(--color-text-muted)', fontSize: 12 }}>
-                    Nenhum lead
-                  </div>
-                ) : tab === 'sdr' ? (
-                  (colLeads as SdrLead[]).map(l => (
-                    <SdrCard key={(l as SdrLead).phone} lead={l as SdrLead} cols={SDR_COLS} onMove={moveSdr} />
-                  ))
-                ) : (
-                  (colLeads as PlatLead[]).map(l => (
-                    <PlatCard key={(l as PlatLead).id} lead={l as PlatLead} cols={PLAT_COLS} onMove={movePlat} />
-                  ))
-                )}
+                {colLeads.length === 0
+                  ? <div style={{ textAlign: 'center', padding: '20px 10px', color: 'var(--color-text-muted)', fontSize: 12 }}>Nenhum lead</div>
+                  : colLeads.map(l => <SdrCard key={l.phone} lead={l} cols={SDR_COLS} onMove={moveSdr} />)
+                }
+              </KanbanCol>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
+          {PLAT_COLS.map(col => {
+            const colLeads = platCols[col.id] ?? [];
+            return (
+              <KanbanCol key={col.id} col={col} count={colLeads.length}>
+                {colLeads.length === 0
+                  ? <div style={{ textAlign: 'center', padding: '20px 10px', color: 'var(--color-text-muted)', fontSize: 12 }}>Nenhum usuário</div>
+                  : colLeads.map(l => <PlatCard key={l.id} lead={l} colId={col.id} />)
+                }
               </KanbanCol>
             );
           })}
