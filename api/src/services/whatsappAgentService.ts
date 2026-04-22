@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../utils/supabase';
+import { handleSdrLead } from './sdrAgentService';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID;
@@ -115,7 +116,7 @@ async function saveSession(
   const trimmed = messages.slice(-MAX_HISTORY * 2);
   const payload: any = { phone, user_id: userId, messages: trimmed, updated_at: new Date().toISOString() };
   if (nome) payload.nome = nome;
-  await supabase.from('whatsapp_sessions').upsert(payload, { onConflict: 'phone' });
+  await supabase.from('whatsapp_sessions').upsert(payload, { onConflict: 'phone,tipo' });
 }
 
 // ─── boas-vindas ─────────────────────────────────────────────────
@@ -193,7 +194,12 @@ export async function handleIncomingWhatsApp(phone: string, text: string, sender
     const { data } = await supabase.from('users').select('id, email, plano').eq('whatsapp', variant).single();
     if (data) { user = data; break; }
   }
-  if (!user) return;
+
+  // Número não cadastrado na plataforma → SDR agent (lead B2C)
+  if (!user) {
+    await handleSdrLead(cleanPhone, text, senderName);
+    return;
+  }
 
   const { data: company } = await supabase
     .from('company')
