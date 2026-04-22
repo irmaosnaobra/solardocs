@@ -46,8 +46,8 @@ router.post('/event', async (req: Request, res: Response): Promise<void> => {
       } catch (e) {}
     }
 
-    // ── Disparo automático de CAPI se for Lead Simulador ────────────────
-    if (source === 'simulador' && (event_type === 'form_submitted' || event_type === 'qualified')) {
+    // ── Disparo automático de CAPI — só no form_submitted (deduplica com fbq Lead do browser) ─
+    if (source === 'simulador' && event_type === 'form_submitted') {
       try {
         let phone = '';
         let city = '';
@@ -56,17 +56,38 @@ router.post('/event', async (req: Request, res: Response): Promise<void> => {
           phone = parsed.whatsapp || '';
           city = parsed.city || '';
         }
-        
-        // Dispara CAPI de forma assíncrona (não trava a resposta)
+        const eventBody = req.body as any;
         executePixelEvent({
-          pixel_id: '446093469730871', // Pixel B2C
+          pixel_id: '446093469730871',
           event_name: 'Lead',
           phone,
           city,
           score: score || 0,
           ip,
-          userAgent: req.headers['user-agent']
-        }).catch(e => console.error('Auto CAPI Error:', e));
+          userAgent: req.headers['user-agent'],
+          fbc: eventBody.fbc || eventBody.fbclid || undefined,
+          fbp: eventBody.fbp || undefined,
+          event_id: eventBody.event_id || undefined,
+          event_source_url: 'https://solardocs-landing.vercel.app/simulador',
+        }).catch(e => console.error('Auto CAPI Lead Error:', e));
+      } catch (e) {}
+    }
+
+    // ── CAPI InitiateCheckout quando qualificado ─────────────────────────
+    if (source === 'simulador' && event_type === 'qualified') {
+      try {
+        const eventBody = req.body as any;
+        executePixelEvent({
+          pixel_id: '446093469730871',
+          event_name: 'InitiateCheckout',
+          score: score || 0,
+          ip,
+          userAgent: req.headers['user-agent'],
+          fbc: eventBody.fbc || eventBody.fbclid || undefined,
+          fbp: eventBody.fbp || undefined,
+          event_id: eventBody.event_id || undefined,
+          event_source_url: 'https://solardocs-landing.vercel.app/simulador',
+        }).catch(e => console.error('Auto CAPI InitiateCheckout Error:', e));
       } catch (e) {}
     }
 

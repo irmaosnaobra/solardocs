@@ -28,8 +28,9 @@ export async function executePixelEvent(params: {
   userAgent?: string | null;
   value?: number;
   currency?: string;
+  event_id?: string;
 }): Promise<any> {
-    const { phone, city, score, event_name, fbc, fbp, event_source_url, pixel_id, ip, userAgent, value, currency } = params;
+    const { phone, city, score, event_name, fbc, fbp, event_source_url, pixel_id, ip, userAgent, value, currency, event_id } = params;
 
     const activePixelId = pixel_id || DEFAULT_PIXEL_ID;
     const accessToken = PIXEL_CONFIGS[activePixelId];
@@ -43,6 +44,7 @@ export async function executePixelEvent(params: {
         {
           event_name: event_name || 'Lead',
           event_time: Math.floor(Date.now() / 1000),
+          event_id: event_id || undefined,
           action_source: 'website',
           event_source_url: event_source_url || 'https://solardocs-landing.vercel.app/simulador.html',
           user_data: {
