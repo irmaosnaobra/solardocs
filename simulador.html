@@ -145,11 +145,19 @@
     .opt-ball { width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; font-weight: 800; color: var(--muted); }
     .option.selected .opt-ball { background: var(--solar); border-color: var(--solar); color: #000; }
 
+    /* ANIMATIONS FOR QUESTIONS */
+    .q-fade-in { animation: qFade 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes qFade {
+      from { opacity: 0; transform: translateY(20px); filter: blur(10px); }
+      to { opacity: 1; transform: translateY(0); filter: blur(0); }
+    }
+
     /* FORM (STEP 8) */
     .form-group { margin-bottom: 24px; }
     .form-label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
     .form-input { width: 100%; padding: 18px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 16px; font-size: 16px; color: #fff; outline: none; transition: border-color 0.2s; }
     .form-input:focus { border-color: var(--solar); background: rgba(255, 255, 255, 0.05); }
+    .form-input option { background-color: #0f172a; color: #fff; }
 
     /* BUTTONS */
     .btn-primary { 
@@ -223,7 +231,7 @@
           <div class="progress-fill" id="quiz-progress-fill" style="width: 14.2%"></div>
         </div>
       </div>
-      <div style="padding: 0 24px 40px; flex: 1;">
+      <div style="padding: 0 24px 40px; flex: 1;" id="quiz-content-area">
         <div class="q-wrap"><span class="q-num" id="current-q-num">Pergunta 01</span><h2 class="q-text" id="current-q-text">Carregando...</h2></div>
         <div class="options" id="options-container"></div>
       </div>
@@ -235,6 +243,8 @@
       <p class="desc">Informe seus dados para liberar o resultado personalizado.</p>
       <div class="form-group"><label class="form-label">Nome</label><input type="text" class="form-input" id="input-name" placeholder="Seu primeiro nome" autocomplete="given-name"></div>
       
+      <div class="form-group"><label class="form-label">WhatsApp</label><input type="tel" class="form-input" id="input-whatsapp" placeholder="(11) 99999-9999" maxlength="15" autocomplete="tel" oninput="this.value = this.value.replace(/\D/g, '').replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2');"></div>
+
       <div class="form-group"><label class="form-label">Estado (UF)</label>
         <select class="form-input" id="input-state" style="appearance: none; cursor: pointer;" onchange="loadCities(this.value)">
           <option value="" disabled selected>Selecione seu Estado...</option>
@@ -324,8 +334,22 @@
       return { utm_source: p.get('utm_source')||undefined, utm_medium: p.get('utm_medium')||undefined, utm_campaign: p.get('utm_campaign')||undefined, fbclid: p.get('fbclid')||undefined };
     })();
 
+    function _getCookie(name) {
+      var value = "; " + document.cookie;
+      var parts = value.split("; " + name + "=");
+      if (parts.length == 2) return parts.pop().split(";").shift();
+    }
+
     function simTrack(eventType, extra) {
-      var payload = Object.assign({ session_id: _simSid, event_type: eventType, source: 'simulador' }, _simUtms, extra || {});
+      var fbp = _getCookie('_fbp');
+      var fbc = _getCookie('_fbc') || _simUtms.fbclid;
+      var payload = Object.assign({ 
+        session_id: _simSid, 
+        event_type: eventType, 
+        source: 'simulador',
+        fbp: fbp,
+        fbc: fbc
+      }, _simUtms, extra || {});
       fetch(_simAPI + '/quiz/event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true }).catch(function(){});
     }
     simTrack('page_view');
@@ -357,6 +381,13 @@
 
     function renderQuestion() {
       const q = questions[currentQ];
+      
+      // Trigger animation
+      const area = document.getElementById('quiz-content-area');
+      area.classList.remove('q-fade-in');
+      void area.offsetWidth; // Force reflow
+      area.classList.add('q-fade-in');
+
       document.getElementById('current-q-num').textContent = `Pergunta ${String(currentQ + 1).padStart(2, '0')}`;
       document.getElementById('current-q-text').textContent = q.q;
       document.getElementById('quiz-progress-fill').style.width = ((currentQ + 1) / questions.length * 100) + '%';
@@ -418,11 +449,13 @@
 
     async function validateLocationAndProcess() {
       const userName = document.getElementById('input-name').value.trim();
+      const whatsapp = document.getElementById('input-whatsapp').value.trim();
       const city = document.getElementById('input-city').value.trim();
       const state = document.getElementById('input-state').value.trim();
-      if (!userName || !city || !state) return alert('Preencha seu nome, cidade e estado.');
+      if (!userName || !whatsapp || !city || !state) return alert('Preencha todos os campos obrigatórios.');
+      if (whatsapp.length < 14) return alert('Preencha um WhatsApp válido.');
 
-      simTrack('form_submitted', { answer: JSON.stringify({ name: userName, city: city, state: state }) });
+      simTrack('form_submitted', { answer: JSON.stringify({ name: userName, whatsapp: whatsapp, city: city, state: state }) });
       document.getElementById('loading-overlay').style.display = 'flex';
 
       try {
@@ -477,11 +510,11 @@
       nextView('view-result');
       document.getElementById('result-rejection').style.display = 'none';
       document.getElementById('result-qualified').style.display = 'block';
-      
+
       const btnWa = document.getElementById('btn-whatsapp');
       const status = score >= 26 ? "🚀 PERFIL ELITE" : "✅ QUALIFICADO";
       const answersString = answersData.map((item, idx) => `${idx + 1}. ${item.q}\n   R: *${item.a}*`).join('\n\n');
-      
+
       const msg = encodeURIComponent(
         `Olá! Me chamo *${userName}* e finalizei o Simulador Solar Irmãos na Obra.\n\n` +
         `🏆 *RESULTADO: ${status}* (${score}/32 pontos)\n` +
@@ -489,7 +522,12 @@
         `--- Resumo ---\n\n${answersString}\n\n` +
         `Quero agendar uma consultoria gratuita.`
       );
-      btnWa.onclick = () => window.open(`https://wa.me/${DEST_WA}?text=${msg}`, '_blank');
+      const waUrl = `https://wa.me/${DEST_WA}?text=${msg}`;
+
+      btnWa.textContent = '⏳ Abrindo WhatsApp...';
+      btnWa.onclick = () => { window.location.href = waUrl; };
+
+      setTimeout(() => { window.location.href = waUrl; }, 1500);
     }
 
     window.onload = () => {
