@@ -192,7 +192,6 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
   const [tab, setTab] = useState<'users'|'visits'>('users');
-  const [selectedUser, setSelectedUser] = useState<UserRow|null>(null);
 
   const [users, setUsers]               = useState<UserRow[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -319,241 +318,121 @@ export default function AdminPage() {
   ] : [];
 
   return (
-    <div className={tab==='users' ? styles.pageWa : styles.page}>
-      {/* ── TOP BAR apenas na aba Acessos ── */}
-      {tab==='visits' && (
-        <div className={styles.header} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-          <div>
-            <h1 className={styles.title}>📊 Acessos LP</h1>
-            <p className={styles.subtitle}>{users.length} usuários cadastrados</p>
-          </div>
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
-              onClick={()=>{loadAnalytics();setMetaLoaded(false);loadMeta();}}>
-              {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
-            </button>
-            <button className="btn-secondary" onClick={()=>setTab('users')}>👥 CRM</button>
-          </div>
+    <div className={styles.page}>
+      <div className={styles.header} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+        <div>
+          <h1 className={styles.title}>⚙️ Painel Admin</h1>
+          <p className={styles.subtitle}>{users.length} usuários cadastrados</p>
         </div>
-      )}
+        {tab==='users' && (
+          <button className="btn-secondary" disabled={resetting} onClick={async()=>{
+            if(!confirm('Resetar documentos de todos os usuários FREE/PRO com data vencida?'))return;
+            setResetting(true);setResetMsg('');
+            try{const r=await api.post('/admin/reset-monthly');setResetMsg(r.data.message);}
+            catch{setResetMsg('Erro ao executar reset');}
+            finally{setResetting(false);}
+          }}>{resetting?'Executando...':'🔄 Reset Mensal'}</button>
+        )}
+        {tab==='visits' && (
+          <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
+            onClick={()=>{loadAnalytics();setMetaLoaded(false);loadMeta();}}>
+            {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
+          </button>
+        )}
+      </div>
+
       {resetMsg && (
         <div style={{background:'rgba(34,197,94,0.1)',border:'1px solid #22c55e',color:'#22c55e',borderRadius:8,padding:'10px 16px',marginBottom:16,fontSize:13}}>
           ✓ {resetMsg}
         </div>
       )}
 
-      {/* ═══ CRM ESTILO WHATSAPP ══════════════════════════════════ */}
+      <div className={styles.tabs}>
+        <button className={tab==='users'?styles.tabActive:styles.tab} onClick={()=>setTab('users')}>👥 Usuários SolarDocs Pro</button>
+        <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 Acessos LP</button>
+      </div>
+
+      {/* ═══ ABA USUÁRIOS ══════════════════════════════════════ */}
       {tab==='users' && (
-        <div className={styles.waRoot}>
-
-          {/* ── SIDEBAR ── */}
-          <aside className={styles.waSidebar}>
-            {/* Header sidebar */}
-            <div className={styles.waHeader}>
-              <div className={styles.waHeaderLeft}>
-                <div className={styles.waAvatar} style={{background:'#128C7E',fontSize:16}}>☀️</div>
-                <div>
-                  <div className={styles.waHeaderName}>SolarDocs Pro</div>
-                  <div className={styles.waHeaderSub}>CRM de Usuários</div>
-                </div>
-              </div>
-              <div style={{display:'flex',gap:8}}>
-                <button className={styles.waIconBtn} title="Acessos LP" onClick={()=>setTab('visits')}>📊</button>
-                <button className={styles.waIconBtn} disabled={resetting} title="Reset Mensal" onClick={async()=>{
-                  if(!confirm('Resetar documentos de todos os usuários FREE/PRO com data vencida?'))return;
-                  setResetting(true);setResetMsg('');
-                  try{const r=await api.post('/admin/reset-monthly');setResetMsg(r.data.message);}
-                  catch{setResetMsg('Erro ao executar reset');}
-                  finally{setResetting(false);}
-                }}>🔄</button>
-              </div>
-            </div>
-
-            {/* Barra de busca */}
-            <div className={styles.waSearch}>
-              <span className={styles.waSearchIcon}>🔍</span>
-              <input
-                className={styles.waSearchInput}
-                placeholder="Pesquisar usuário..."
-                value={search}
-                onChange={e=>setSearch(e.target.value)}
-              />
-            </div>
-
-            {/* Filtros de plano */}
-            <div className={styles.waFilterTabs}>
-              {([['todos','Todos'],['free','FREE'],['pro','PRO'],['ilimitado','VIP']] as const).map(([v,l])=>(
-                <button key={v} className={filterPlano===v?styles.waFilterActive:styles.waFilterBtn} onClick={()=>setFilterPlano(v)}>{l}</button>
+        <>
+          <div className={styles.cards}>
+            <div className={styles.card}><div className={styles.cardLabel}>Cadastros (Período)</div><div className={styles.cardValue} style={{color:'#22c55e'}}>{totalPeriodo}</div></div>
+            <div className={styles.card}><div className={styles.cardLabel}>FREE</div><div className={styles.cardValue} style={{color:'#64748b'}}>{totalFree}</div></div>
+            <div className={styles.card}><div className={styles.cardLabel}>PRO</div><div className={styles.cardValue} style={{color:'#F59E0B'}}>{totalPro}</div></div>
+            <div className={styles.card}><div className={styles.cardLabel}>VIP</div><div className={styles.cardValue} style={{color:'#f97316'}}>{totalVip}</div></div>
+          </div>
+          <div className={styles.filters}>
+            <input type="text" placeholder="Buscar por email ou empresa..." value={search} onChange={e=>setSearch(e.target.value)} className="input-field" style={{maxWidth:320}}/>
+            <select value={filterPlano} onChange={e=>setFilterPlano(e.target.value)} className="input-field" style={{maxWidth:140}}>
+              <option value="todos">Todos os planos</option>
+              <option value="free">FREE</option><option value="pro">PRO</option><option value="ilimitado">VIP</option>
+            </select>
+          </div>
+          <div className={styles.filters} style={{marginTop:8,alignItems:'center'}}>
+            <div className={styles.periodTabs}>
+              {([['hoje','Hoje'],['ontem','Ontem'],['7dias','7 dias'],['mes','Esse mês'],['custom','Período'],['maximo','Máximo']] as const).map(([v,l])=>(
+                <button key={v} className={filterPeriodo===v?styles.periodActive:styles.periodBtn} onClick={()=>setFilterPeriodo(v)}>{l}</button>
               ))}
             </div>
-
-            {/* Lista de contatos */}
-            <div className={styles.waContactList}>
-              {filteredUsers.length===0 && (
-                <div className={styles.waEmpty}>Nenhum usuário encontrado</div>
-              )}
-              {filteredUsers.map(u=>{
-                const isNew = isToday(u.created_at);
-                const r = relDate(u.created_at);
-                const wpp = u.empresa_whatsapp || u.whatsapp;
-                const initials = (u.empresa_nome || u.email).slice(0,2).toUpperCase();
-                const planoColor = PLANO_COLOR[u.plano] || '#64748b';
-                const fsRaw = u.followup_started_at;
-                const isInSystem = !!fsRaw;
-                const baseMs = fsRaw ? new Date(fsRaw.replace(' ','T')+'Z').getTime() : 0;
-                const diffDays = isInSystem ? Math.floor((Date.now() - baseMs) / 86400000) : 0;
-                const followupDay = diffDays + 1;
-                const inSequence = isInSystem && !u.empresa_cnpj && followupDay >= 1 && followupDay <= 7;
-                const expired = isInSystem && !u.empresa_cnpj && followupDay > 7;
-                const converted = isInSystem && !!u.empresa_cnpj;
-                const isSelected = selectedUser?.id === u.id;
-                return (
-                  <div
-                    key={u.id}
-                    className={`${styles.waContact} ${isSelected?styles.waContactActive:''} ${isNew?styles.waContactNew:''}`}
-                    onClick={()=>setSelectedUser(isSelected?null:u)}
-                  >
-                    <div className={styles.waContactAvatar} style={{background:planoColor+'33',border:`2px solid ${planoColor}55`}}>
-                      <span style={{color:planoColor,fontWeight:800,fontSize:13}}>{initials}</span>
-                    </div>
-                    <div className={styles.waContactBody}>
-                      <div className={styles.waContactTop}>
-                        <span className={styles.waContactName}>{u.empresa_nome || u.email.split('@')[0]}</span>
-                        <span className={styles.waContactTime} style={{color:r.color}}>{r.label}</span>
-                      </div>
-                      <div className={styles.waContactPreview}>
-                        <span className={styles.waContactMsg}>
-                          {converted ? '✅ Convertido' : expired ? '❌ Sem retorno' : inSequence ? `📌 Followup dia ${followupDay}` : wpp ? `📲 ${wpp}` : u.email}
-                        </span>
-                        <span className={styles.waPlanBadge} style={{background:planoColor+'22',color:planoColor,borderColor:planoColor+'44'}}>{PLANO_LABEL[u.plano]??u.plano}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </aside>
-
-          {/* ── PAINEL DIREITO ── */}
-          <main className={styles.waMain}>
-            {!selectedUser ? (
-              <div className={styles.waEmpty2}>
-                <div className={styles.waEmptyIcon}>☀️</div>
-                <h2 className={styles.waEmptyTitle}>SolarDocs CRM</h2>
-                <p className={styles.waEmptySub}>Selecione um usuário para ver os detalhes,<br/>histórico de followup e acessar o WhatsApp.</p>
-                <div className={styles.waEmptyStats}>
-                  <div className={styles.waEmptyStat}><span className={styles.waEmptyStatNum} style={{color:'#22c55e'}}>{totalPeriodo}</span><span className={styles.waEmptyStatLabel}>Total</span></div>
-                  <div className={styles.waEmptyStat}><span className={styles.waEmptyStatNum} style={{color:'#64748b'}}>{totalFree}</span><span className={styles.waEmptyStatLabel}>FREE</span></div>
-                  <div className={styles.waEmptyStat}><span className={styles.waEmptyStatNum} style={{color:'#F59E0B'}}>{totalPro}</span><span className={styles.waEmptyStatLabel}>PRO</span></div>
-                  <div className={styles.waEmptyStat}><span className={styles.waEmptyStatNum} style={{color:'#f97316'}}>{totalVip}</span><span className={styles.waEmptyStatLabel}>VIP</span></div>
-                </div>
-              </div>
-            ) : (() => {
-              const u = selectedUser;
-              const wpp = u.empresa_whatsapp || u.whatsapp;
-              const planoColor = PLANO_COLOR[u.plano] || '#64748b';
-              const fsRaw = u.followup_started_at;
-              const isInSystem = !!fsRaw;
-              const baseMs = fsRaw ? new Date(fsRaw.replace(' ','T')+'Z').getTime() : 0;
-              const diffDays = isInSystem ? Math.floor((Date.now() - baseMs) / 86400000) : 0;
-              const followupDay = diffDays + 1;
-              const inSequence = isInSystem && !u.empresa_cnpj && followupDay >= 1 && followupDay <= 7;
-              const expired = isInSystem && !u.empresa_cnpj && followupDay > 7;
-              const converted = isInSystem && !!u.empresa_cnpj;
-              const convDay = u.followup_day_recovered ?? (converted ? followupDay : null);
-              const initials = (u.empresa_nome || u.email).slice(0,2).toUpperCase();
-              const r = relDate(u.created_at);
-              return (
-                <>
-                  {/* Top bar do chat */}
-                  <div className={styles.waChatHeader}>
-                    <div className={styles.waContactAvatar} style={{width:42,height:42,background:planoColor+'33',border:`2px solid ${planoColor}55`,fontSize:15}}>
-                      <span style={{color:planoColor,fontWeight:800}}>{initials}</span>
-                    </div>
-                    <div style={{flex:1}}>
-                      <div className={styles.waChatName}>{u.empresa_nome || u.email.split('@')[0]}</div>
-                      <div className={styles.waChatSub}>{u.email}</div>
-                    </div>
-                    {wpp && (
-                      <a href={`https://wa.me/55${wpp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className={styles.waWhatsAppBtn}>
-                        <span>💬</span> Abrir WhatsApp
-                      </a>
-                    )}
-                    <button className={styles.waIconBtn} onClick={()=>setSelectedUser(null)} title="Fechar">✕</button>
-                  </div>
-
-                  {/* Body do chat */}
-                  <div className={styles.waChatBody}>
-
-                    {/* Bubble: dados do usuário */}
-                    <div className={styles.waBubbleWrap}>
-                      <div className={styles.waBubble}>
-                        <div className={styles.waBubbleLabel}>📋 Dados do Usuário</div>
-                        <div className={styles.waBubbleGrid}>
-                          <div><span className={styles.waBubbleKey}>Email</span><span className={styles.waBubbleVal}>{u.email}</span></div>
-                          <div><span className={styles.waBubbleKey}>Plano</span><span style={{fontWeight:700,color:planoColor}}>{PLANO_LABEL[u.plano]??u.plano}</span></div>
-                          <div><span className={styles.waBubbleKey}>Documentos</span><span className={styles.waBubbleVal}>{u.documentos_usados}/{u.limite_documentos===999999?'∞':u.limite_documentos}</span></div>
-                          <div><span className={styles.waBubbleKey}>Cadastro</span><span className={styles.waBubbleVal} style={{color:r.color}}>{r.label} {r.showTime&&r.time}</span></div>
-                          {u.is_admin && <div><span className={styles.waBubbleKey}>Role</span><span style={{color:'#818cf8',fontWeight:700}}>Admin</span></div>}
-                        </div>
-                        <div className={styles.waBubbleTime}>{fmt(u.created_at)}</div>
-                      </div>
-                    </div>
-
-                    {/* Bubble: empresa */}
-                    {(u.empresa_nome || u.empresa_cnpj) && (
-                      <div className={styles.waBubbleWrap}>
-                        <div className={styles.waBubble}>
-                          <div className={styles.waBubbleLabel}>🏢 Empresa</div>
-                          <div className={styles.waBubbleGrid}>
-                            {u.empresa_nome && <div><span className={styles.waBubbleKey}>Nome</span><span className={styles.waBubbleVal}>{u.empresa_nome}</span></div>}
-                            {u.empresa_cnpj && <div><span className={styles.waBubbleKey}>CNPJ</span><span className={styles.waBubbleVal}>{u.empresa_cnpj}</span></div>}
-                            {u.empresa_whatsapp && <div><span className={styles.waBubbleKey}>WhatsApp empresa</span><span style={{color:'#22c55e',fontWeight:600}}>{u.empresa_whatsapp}</span></div>}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Bubble: followup */}
-                    <div className={styles.waBubbleWrap}>
-                      <div className={`${styles.waBubble} ${converted?styles.waBubbleSuccess:expired?styles.waBubbleDanger:inSequence?styles.waBubbleWarning:''}`}>
-                        <div className={styles.waBubbleLabel}>📌 Status Followup</div>
-                        {!isInSystem && <div className={styles.waBubbleVal} style={{color:'var(--color-text-muted)'}}>Nenhum followup iniciado</div>}
-                        {isInSystem && (
-                          <div className={styles.waBubbleGrid}>
-                            <div><span className={styles.waBubbleKey}>Iniciado em</span><span className={styles.waBubbleVal}>{fsRaw ? fmt(fsRaw.replace(' ','T')+'Z') : '—'}</span></div>
-                            <div><span className={styles.waBubbleKey}>Dia atual</span><span style={{fontWeight:700,fontSize:18,color: inSequence?'#f59e0b':converted?'#22c55e':'#f87171'}}>#{followupDay}</span></div>
-                            {converted && <div><span className={styles.waBubbleKey}>Resultado</span><span style={{color:'#22c55e',fontWeight:700}}>✅ Sucesso no dia {String(convDay??followupDay).padStart(2,'0')}</span></div>}
-                            {expired && !converted && <div><span className={styles.waBubbleKey}>Resultado</span><span style={{color:'#f87171',fontWeight:700}}>❌ Sem retorno após 7 dias</span></div>}
-                            {inSequence && <div><span className={styles.waBubbleKey}>Situação</span><span style={{color:'#f59e0b',fontWeight:700}}>⏳ Em andamento</span></div>}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Bubble: ações rápidas */}
-                    {wpp && (
-                      <div className={styles.waBubbleWrap} style={{alignItems:'center'}}>
-                        <div className={styles.waBubble} style={{background:'rgba(18,140,126,0.1)',border:'1px solid rgba(18,140,126,0.25)'}}>
-                          <div className={styles.waBubbleLabel}>⚡ Ações Rápidas</div>
-                          <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:8}}>
-                            <a href={`https://wa.me/55${wpp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className={styles.waActionBtn} style={{background:'#128C7E',color:'white'}}>
-                              💬 Enviar mensagem no WhatsApp
-                            </a>
-                            <a href={`https://wa.me/55${wpp.replace(/\D/g,'')}?text=Olá!%20Vi%20que%20você%20tem%20interesse%20no%20SolarDocs%20Pro.%20Posso%20te%20ajudar?`} target="_blank" rel="noopener noreferrer" className={styles.waActionBtn}>
-                              📝 Iniciar followup padrão
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                  </div>
-                </>
-              );
-            })()}
-          </main>
-        </div>
+            {filterPeriodo==='custom'&&(
+              <>
+                <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)} className="input-field" style={{maxWidth:150}} />
+                <span style={{color:'var(--color-text-muted)',fontSize:13}}>até</span>
+                <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)} className="input-field" style={{maxWidth:150}} />
+              </>
+            )}
+            <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{filteredUsers.length} resultado{filteredUsers.length!==1?'s':''}</span>
+          </div>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead><tr><th>Email</th><th>Empresa</th><th>WhatsApp</th><th>Plano</th><th>Docs</th><th>Cadastro</th><th>Followup</th><th>Resultado Followup</th></tr></thead>
+              <tbody>
+                {filteredUsers.length===0&&<tr><td colSpan={8} className={styles.empty}>Nenhum usuário encontrado</td></tr>}
+                {filteredUsers.map(u=>{
+                  const fsRaw       = u.followup_started_at;
+                  const isInSystem  = !!fsRaw;
+                  const baseMs      = fsRaw ? new Date(fsRaw.replace(' ','T')+'Z').getTime() : 0;
+                  const diffDays    = isInSystem ? Math.floor((Date.now() - baseMs) / 86400000) : 0;
+                  const followupDay = diffDays + 1;
+                  const inSequence  = isInSystem && !u.empresa_cnpj && followupDay >= 1 && followupDay <= 7;
+                  const expired     = isInSystem && !u.empresa_cnpj && followupDay > 7;
+                  const converted   = isInSystem && !!u.empresa_cnpj;
+                  const convDay     = u.followup_day_recovered ?? (converted ? followupDay : null);
+                  return (
+                  <tr key={u.id} className={isToday(u.created_at)?styles.rowNew:''}>
+                    <td>
+                      {u.email}
+                      {u.is_admin&&<span className={styles.adminTag}>admin</span>}
+                    </td>
+                    <td className={styles.mutedCell}>{u.empresa_nome??<span className={styles.emptyDash}>—</span>}</td>
+                    <td className={styles.mutedCell}>{(() => {
+                      const wpp = u.empresa_whatsapp || u.whatsapp;
+                      return wpp ? <a href={`https://wa.me/55${wpp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" style={{color:'#22c55e',textDecoration:'none'}}>📲 {wpp}</a> : <span className={styles.emptyDash}>—</span>;
+                    })()}</td>
+                    <td><span className={styles.planTag} style={{background:PLANO_COLOR[u.plano]+'22',color:PLANO_COLOR[u.plano],borderColor:PLANO_COLOR[u.plano]+'55'}}>{PLANO_LABEL[u.plano]??u.plano}</span></td>
+                    <td className={styles.mutedCell}>{u.documentos_usados}/{u.limite_documentos===999999?'∞':u.limite_documentos}</td>
+                    <td>{(() => { const r = relDate(u.created_at); return <div style={{display:'flex',flexDirection:'column',gap:2}}><span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>{r.showTime&&<span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}</div>; })()}</td>
+                    <td style={{textAlign:'center'}}>
+                      {inSequence
+                        ? <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:'rgba(245,158,11,0.12)',border:'1px solid rgba(245,158,11,0.35)',color:'#f59e0b',fontWeight:700,fontSize:12}}>{String(followupDay).padStart(2,'0')}</span>
+                        : <span className={styles.emptyDash}>—</span>
+                      }
+                    </td>
+                    <td style={{textAlign:'center'}}>
+                      {converted
+                        ? <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.3)',color:'#22c55e',fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>Sucesso followup {String(convDay??followupDay).padStart(2,'0')}</span>
+                        : expired
+                          ? <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.25)',color:'#f87171',fontWeight:600,fontSize:11,whiteSpace:'nowrap'}}>Sem sucesso</span>
+                          : <span className={styles.emptyDash}>—</span>
+                      }
+                    </td>
+                  </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* ═══ ABA ACESSOS LP ═════════════════════════════════════ */}

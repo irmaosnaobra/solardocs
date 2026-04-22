@@ -199,7 +199,7 @@ export async function handleIncomingWhatsApp(phone: string, text: string, sender
   if (!user) {
     // Gatilho: só inicia conversa nova se o lead mandar a frase exata do anúncio.
     // Se já existe sessão (conversa em andamento), continua normalmente.
-    const SDR_TRIGGER = 'olá! quero entender mais sobre energia solar!';
+    const SDR_TRIGGER = 'olá! tenho interesse e queria mais informações, por favor';
     const { data: existingSession } = await supabase
       .from('whatsapp_sessions')
       .select('id')
