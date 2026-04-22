@@ -270,10 +270,10 @@ export default function AdminPage() {
     return okSearch && okPlano && okPeriodo;
   });
 
-  const totalHoje = users.filter(u=>isToday(u.created_at)).length;
-  const totalPro  = users.filter(u=>u.plano==='pro').length;
-  const totalVip  = users.filter(u=>u.plano==='ilimitado').length;
-  const totalFree = users.filter(u=>u.plano==='free').length;
+  const totalPeriodo = filteredUsers.length;
+  const totalPro  = filteredUsers.filter(u=>u.plano==='pro').length;
+  const totalVip  = filteredUsers.filter(u=>u.plano==='ilimitado').length;
+  const totalFree = filteredUsers.filter(u=>u.plano==='free').length;
 
   const baseSessions = (analytics?.sessions??[]);
 
@@ -356,7 +356,7 @@ export default function AdminPage() {
       {tab==='users' && (
         <>
           <div className={styles.cards}>
-            <div className={styles.card}><div className={styles.cardLabel}>Novos hoje</div><div className={styles.cardValue} style={{color:'#22c55e'}}>{totalHoje}</div></div>
+            <div className={styles.card}><div className={styles.cardLabel}>Cadastros (Período)</div><div className={styles.cardValue} style={{color:'#22c55e'}}>{totalPeriodo}</div></div>
             <div className={styles.card}><div className={styles.cardLabel}>FREE</div><div className={styles.cardValue} style={{color:'#64748b'}}>{totalFree}</div></div>
             <div className={styles.card}><div className={styles.cardLabel}>PRO</div><div className={styles.cardValue} style={{color:'#F59E0B'}}>{totalPro}</div></div>
             <div className={styles.card}><div className={styles.cardLabel}>VIP</div><div className={styles.cardValue} style={{color:'#f97316'}}>{totalVip}</div></div>
