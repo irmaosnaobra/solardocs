@@ -212,28 +212,34 @@ export default function AdminPage() {
 
   const [metaData, setMetaData]           = useState<MetaFunnelData|null>(null);
   const [loadingMeta, setLoadingMeta]     = useState(false);
-  const [metaPeriod, setMetaPeriod]       = useState<'today'|'7d'|'30d'>('today');
+  const [visitPeriod, setVisitPeriod]     = useState<'hoje'|'ontem'|'3d'|'7dias'|'mes'|'maximo'>('7dias');
   const [metaLoaded, setMetaLoaded]       = useState(false);
 
   useEffect(() => {
     api.get('/admin/users').then(r => setUsers(r.data.users)).catch(()=>{}).finally(()=>setLoadingUsers(false));
   }, []);
 
-  const loadAnalytics = useCallback(() => {
+  const loadAnalytics = useCallback((p?: string) => {
     setLoadingAnalytics(true);
-    api.get('/admin/analytics?limit=300').then(r=>{setAnalytics(r.data);setAnalyticsLoaded(true);}).catch(()=>{}).finally(()=>setLoadingAnalytics(false));
-  }, []);
+    const qp = p || visitPeriod;
+    api.get(`/admin/analytics?limit=300&period=${qp}`).then(r=>{setAnalytics(r.data);setAnalyticsLoaded(true);}).catch(()=>{}).finally(()=>setLoadingAnalytics(false));
+  }, [visitPeriod]);
 
-  const loadMeta = useCallback((p: string) => {
+  const loadMeta = useCallback((p?: string) => {
     setLoadingMeta(true);
-    api.get(`/admin/meta-funnel?period=${p}`).then(r=>{setMetaData(r.data);setMetaLoaded(true);}).catch(()=>{}).finally(()=>setLoadingMeta(false));
-  }, []);
+    const qp = p || visitPeriod;
+    api.get(`/admin/meta-funnel?period=${qp}`).then(r=>{setMetaData(r.data);setMetaLoaded(true);}).catch(()=>{}).finally(()=>setLoadingMeta(false));
+  }, [visitPeriod]);
 
-  useEffect(() => { if (tab==='visits' && !analyticsLoaded) loadAnalytics(); }, [tab,analyticsLoaded,loadAnalytics]);
-  useEffect(() => { if (tab==='visits' && !metaLoaded) loadMeta(metaPeriod); }, [tab,metaLoaded,metaPeriod,loadMeta]);
+  useEffect(() => { if (tab==='visits' && !analyticsLoaded) loadAnalytics(visitPeriod); }, [tab,analyticsLoaded,loadAnalytics,visitPeriod]);
+  useEffect(() => { if (tab==='visits' && !metaLoaded) loadMeta(visitPeriod); }, [tab,metaLoaded,visitPeriod,loadMeta]);
 
-  function changePeriod(p: 'today'|'7d'|'30d') {
-    setMetaPeriod(p); setMetaLoaded(false); loadMeta(p);
+  function changeVisitPeriod(p: 'hoje'|'ontem'|'3d'|'7dias'|'mes'|'maximo') {
+    setVisitPeriod(p); 
+    setMetaLoaded(false); 
+    setAnalyticsLoaded(false); 
+    loadMeta(p); 
+    loadAnalytics(p);
   }
 
   const filteredUsers = users.filter(u => {
@@ -329,7 +335,7 @@ export default function AdminPage() {
         )}
         {tab==='visits' && (
           <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
-            onClick={()=>{loadAnalytics();setMetaLoaded(false);loadMeta(metaPeriod);}}>
+            onClick={()=>{loadAnalytics();setMetaLoaded(false);loadMeta();}}>
             {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
           </button>
         )}
@@ -429,24 +435,31 @@ export default function AdminPage() {
         </>
       )}
 
-      {/* ═══ ABA ACESSOS LP e B2C ═════════════════════════════════════ */}
-      {(tab==='visits' || tab==='visits_b2c') && (
+      {/* ═══ ABA ACESSOS LP ═════════════════════════════════════ */}
+      {tab === 'visits' && (
         <>
-          {/* ── BLOCO META ADS ── */}
+          <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
+            <div className={styles.periodTabs}>
+              {([['hoje','Hoje'],['ontem','Ontem'],['3d','3 dias'],['7dias','7 dias'],['mes','Esse mês'],['maximo','Máximo']] as const).map(([v,l])=>(
+                <button 
+                  key={v} 
+                  className={visitPeriod===v?styles.periodActive:styles.periodBtn} 
+                  onClick={()=>changeVisitPeriod(v as any)}
+                  disabled={loadingMeta || loadingAnalytics}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{baseSessions.length} registros no período</span>
+          </div>
+
           <div className={styles.metaBlock}>
             <div className={styles.metaBlockHeader}>
               <div className={styles.metaBlockTitle}>
                 <span className={styles.metaFIcon}>f</span>
-                <span>Meta Ads {tab === 'visits_b2c' ? '(Simulador B2C)' : ''}</span>
+                <span>Meta Ads (Campanhas B2B e Tração)</span>
                 {loadingMeta && <span className={styles.metaSpinner} />}
-              </div>
-              <div className={styles.periodTabs}>
-                {(['today','7d','30d'] as const).map(p=>(
-                  <button key={p} className={metaPeriod===p?styles.periodActive:styles.periodBtn}
-                    onClick={()=>changePeriod(p)} disabled={loadingMeta}>
-                    {p==='today'?'Hoje':p==='7d'?'7 dias':'30 dias'}
-                  </button>
-                ))}
               </div>
             </div>
 

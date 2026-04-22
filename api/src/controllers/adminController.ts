@@ -56,11 +56,22 @@ export async function getVisits(req: Request, res: Response): Promise<void> {
 export async function getAnalytics(req: Request, res: Response): Promise<void> {
   try {
     const limit = Math.min(Number(req.query.limit) || 300, 500);
+    const period = (req.query.period as string) || 'maximo';
+
+    const now = new Date();
+    let since: Date;
+    if (period === 'hoje')        { since = new Date(now); since.setHours(0,0,0,0); }
+    else if (period === 'ontem')  { since = new Date(now.getTime() - 86400000); since.setHours(0,0,0,0); }
+    else if (period === '3d')     { since = new Date(now.getTime() - 3 * 86400000); }
+    else if (period === '7dias')  { since = new Date(now.getTime() - 7 * 86400000); }
+    else if (period === 'mes')    { since = new Date(now.getFullYear(), now.getMonth(), 1); }
+    else                          { since = new Date(0); }
 
     // Busca visitas recentes
     const { data: visits, error: vErr } = await supabase
       .from('page_visits')
       .select('*')
+      .gte('created_at', since.toISOString())
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -249,17 +260,24 @@ export async function getMetaFunnel(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const period = (req.query.period as string) || 'today';
-  const metaPeriod: MetaPeriod =
-    period === '7d'  ? 'last_7d'  :
-    period === '30d' ? 'last_30d' : 'today';
+  const period = (req.query.period as string) || 'maximo';
+  
+  let metaPeriod: MetaPeriod = 'today';
+  if (period === 'hoje')   metaPeriod = 'today';
+  if (period === 'ontem')  metaPeriod = 'yesterday';
+  if (period === '3d')     metaPeriod = 'last_3d';
+  if (period === '7dias')  metaPeriod = 'last_7d';
+  if (period === 'mes')    metaPeriod = 'this_month';
+  if (period === 'maximo') metaPeriod = 'maximum';
 
-  // Janela de datas para filtrar a LP
   const now   = new Date();
   let since: Date;
-  if (period === '7d')       since = new Date(now.getTime() - 7  * 86400000);
-  else if (period === '30d') since = new Date(now.getTime() - 30 * 86400000);
-  else { since = new Date(now); since.setHours(0, 0, 0, 0); }
+  if (period === 'hoje')        { since = new Date(now); since.setHours(0, 0, 0, 0); }
+  else if (period === 'ontem')  { since = new Date(now.getTime() - 86400000); since.setHours(0, 0, 0, 0); }
+  else if (period === '3d')     { since = new Date(now.getTime() - 3 * 86400000); }
+  else if (period === '7dias')  { since = new Date(now.getTime() - 7 * 86400000); }
+  else if (period === 'mes')    { since = new Date(now.getFullYear(), now.getMonth(), 1); }
+  else                          { since = new Date(0); }
 
   try {
     // ── 1. Meta Ads insights ──────────────────────────────

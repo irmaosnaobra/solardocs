@@ -1,6 +1,6 @@
 const BASE = 'https://graph.facebook.com/v20.0';
 
-export type MetaPeriod = 'today' | 'last_7d' | 'last_30d';
+export type MetaPeriod = 'today' | 'yesterday' | 'last_3d' | 'last_7d' | 'this_month' | 'maximum';
 
 export interface MetaAdsetInsight {
   campaign_id:   string;
