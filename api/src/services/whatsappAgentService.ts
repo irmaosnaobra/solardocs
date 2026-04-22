@@ -114,7 +114,7 @@ async function saveSession(
   nome?: string | null,
 ): Promise<void> {
   const trimmed = messages.slice(-MAX_HISTORY * 2);
-  const payload: any = { phone, user_id: userId, messages: trimmed, updated_at: new Date().toISOString() };
+  const payload: any = { phone, user_id: userId, tipo: 'platform', messages: trimmed, updated_at: new Date().toISOString() };
   if (nome) payload.nome = nome;
   await supabase.from('whatsapp_sessions').upsert(payload, { onConflict: 'phone,tipo' });
 }
