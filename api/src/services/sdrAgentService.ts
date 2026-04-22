@@ -160,20 +160,25 @@ Contato humano: WhatsApp 5534991360223
 💬 10. FORMATO — OBRIGATÓRIO
 Separe cada bolha com ||
 Máximo 3 bolhas. Cada bolha: máximo 2 frases curtas.
-Exemplo: "Fala, João! 😊 || Vi que você se interessou em energia solar... || Me conta: de qual cidade você é?"`;
+Exemplo: "Fala, João! 😊 || Vi que você se interessou em energia solar... || Me conta: de qual cidade você é?"
+
+🌡️ 11. CLASSIFICAÇÃO DE TEMPERATURA — OBRIGATÓRIO
+Ao final de TODA resposta, adicione exatamente uma dessas tags (sem espaço, sem texto depois):
+[TEMP:frio] — Só curiosidade, sem engajamento real, sem dados compartilhados
+[TEMP:morno] — Compartilhou informações, está considerando, sem urgência definida
+[TEMP:quente] — Quer agendar, perguntou prazo/preço, alta intenção de compra`;
 
 // ─── sessão SDR ───────────────────────────────────────────────────
 
 interface SdrSession {
   messages: { role: 'user' | 'assistant'; content: string }[];
   nome?: string;
-  leadData?: Record<string, unknown>;
 }
 
 async function getSdrSession(phone: string): Promise<SdrSession> {
   const { data } = await supabase
     .from('whatsapp_sessions')
-    .select('messages, nome, lead_data')
+    .select('messages, nome')
     .eq('phone', phone)
     .eq('tipo', 'sdr')
     .single();
@@ -181,7 +186,6 @@ async function getSdrSession(phone: string): Promise<SdrSession> {
   return {
     messages: (data?.messages as any[]) || [],
     nome: data?.nome || undefined,
-    leadData: (data?.lead_data as Record<string, unknown>) || {},
   };
 }
 
@@ -198,10 +202,55 @@ async function saveSdrSession(
     updated_at: new Date().toISOString(),
   };
   if (nome) payload.nome = nome;
+  await supabase.from('whatsapp_sessions').upsert(payload, { onConflict: 'phone,tipo' });
+}
 
-  await supabase
-    .from('whatsapp_sessions')
-    .upsert(payload, { onConflict: 'phone,tipo' });
+// ─── CRM: salva/atualiza lead na tabela sdr_leads ─────────────────
+
+async function upsertCrmLead(params: {
+  phone: string;
+  nome?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  temperatura: 'frio' | 'morno' | 'quente';
+  ultimaMensagem: string;
+  totalMensagens: number;
+}): Promise<void> {
+  const { phone, nome, cidade, estado, temperatura, ultimaMensagem, totalMensagens } = params;
+  const payload: any = {
+    phone,
+    temperatura,
+    ultima_mensagem: ultimaMensagem.slice(0, 300),
+    total_mensagens: totalMensagens,
+    updated_at: new Date().toISOString(),
+  };
+  if (nome) payload.nome = nome;
+  if (cidade) payload.cidade = cidade;
+  if (estado) payload.estado = estado;
+
+  await supabase.from('sdr_leads').upsert(payload, { onConflict: 'phone' });
+}
+
+// ─── extrai temperatura do raw response ──────────────────────────
+
+function extractTemperature(raw: string): { text: string; temp: 'frio' | 'morno' | 'quente' } {
+  const match = raw.match(/\[TEMP:(frio|morno|quente)\]/i);
+  const temp = (match?.[1]?.toLowerCase() ?? 'frio') as 'frio' | 'morno' | 'quente';
+  const text = raw.replace(/\[TEMP:(frio|morno|quente)\]/gi, '').trim();
+  return { text, temp };
+}
+
+// ─── extrai nome e cidade do histórico ───────────────────────────
+
+function extractLeadInfo(messages: { role: string; content: string }[]): { nome?: string; cidade?: string; estado?: string } {
+  const fullText = messages.map(m => m.content).join(' ').toLowerCase();
+  // Heurística simples — o SDR extrai isso naturalmente na conversa
+  const cidadeMatch = fullText.match(/(?:sou de|moro em|cidade[:\s]+)([a-záéíóúâêôãõç\s-]{3,30})/i);
+  const estadoMatch = fullText.match(/\b([A-Z]{2})\b/);
+  return {
+    cidade: cidadeMatch?.[1]?.trim(),
+    estado: estadoMatch?.[1],
+  };
 }
 
 // ─── handler principal SDR ────────────────────────────────────────
@@ -222,25 +271,34 @@ export async function handleSdrLead(
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 500,
+    max_tokens: 600,
     system: SDR_SYSTEM_PROMPT,
     messages,
   });
 
   const raw = (response.content[0] as { text: string }).text;
-  const parts = raw.split('||').map(p => p.trim()).filter(Boolean);
+  const { text: cleanText, temp } = extractTemperature(raw);
+  const parts = cleanText.split('||').map(p => p.trim()).filter(Boolean);
 
   await sendHuman(cleanPhone, parts);
 
-  // Extrai nome da resposta se ainda não tiver
-  let updatedNome = nome;
-  if (!updatedNome && senderName) updatedNome = senderName;
+  const updatedNome = nome || senderName || null;
+  const leadInfo = extractLeadInfo(messages);
+  const allMessages = [...messages, { role: 'assistant' as const, content: cleanText }];
 
-  await saveSdrSession(
-    cleanPhone,
-    [...messages, { role: 'assistant', content: raw }],
-    updatedNome,
-  );
+  // Salva sessão e CRM em paralelo
+  await Promise.all([
+    saveSdrSession(cleanPhone, allMessages, updatedNome),
+    upsertCrmLead({
+      phone: cleanPhone,
+      nome: updatedNome,
+      cidade: leadInfo.cidade,
+      estado: leadInfo.estado,
+      temperatura: temp,
+      ultimaMensagem: text,
+      totalMensagens: allMessages.filter(m => m.role === 'user').length,
+    }),
+  ]);
 }
 
 // ─── mensagem inicial para lead do simulador ──────────────────────

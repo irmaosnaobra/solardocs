@@ -161,6 +161,17 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
           </Link>
         )}
 
+        {/* CRM SDR — só admins */}
+        {isAdmin && (
+          <Link
+            href="/crm"
+            className={`${styles.navItem} ${styles.navItemDashboard} ${pathname === '/crm' ? styles.navItemActive : ''}`}
+          >
+            <span className={styles.navIcon}>📋</span>
+            <span>CRM Leads</span>
+          </Link>
+        )}
+
         {/* Dashboard — VIP e Admin */}
         {(isVip || isAdmin) ? (
           <Link
