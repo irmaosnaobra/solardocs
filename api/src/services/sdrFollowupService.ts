@@ -117,13 +117,16 @@ export async function notificarAtendenteQuente(lead: any): Promise<void> {
 
   const resumo = await gerarResumoLead(lead.phone, nome);
 
+  const waLink = phone ? `https://wa.me/${phone}` : null;
+
   const msg =
     `🔥 *OPORTUNIDADE DE VENDA — LEAD QUENTE!*\n\n` +
     `👤 *${nome}*\n` +
-    `📍 ${cidade}\n` +
-    `📱 ${phone ? `https://wa.me/${phone}` : 'sem número'}\n\n` +
+    `📍 ${cidade}\n\n` +
     `📋 *Resumo do lead:*\n${resumo}\n\n` +
-    `👉 *Quem pegar primeiro, fecha!* Abra o WhatsApp e assuma agora. 🚀`;
+    `👉 *Quem pegar primeiro, fecha!*\n` +
+    (waLink ? `${waLink}\n` : '') +
+    `⬆️ Toque no link e assuma agora. 🚀`;
 
   await sendWA(GRUPO_VENDEDORES, msg);
 }
