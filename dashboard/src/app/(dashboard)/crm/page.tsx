@@ -13,7 +13,7 @@ interface SdrLead {
 interface PlatLead {
   id: string; email: string; whatsapp: string | null; plano: string;
   empresa: string | null; cnpj: string | null; documentos_usados: number;
-  created_at: string; ativo_recente: boolean;
+  created_at: string; ativo_recente: boolean; crm_estagio: string | null;
 }
 
 // ── Configurações dos Kanbans ──────────────────────────────────────
@@ -110,7 +110,11 @@ function SdrCard({ lead, cols, onMove }: { lead: SdrLead; cols: typeof SDR_COLS;
 
 // ── Card Plataforma ────────────────────────────────────────────────
 
-function PlatCard({ lead, colId }: { lead: PlatLead; colId: string }) {
+function PlatCard({ lead, colId, onMove, onParaSdr }: {
+  lead: PlatLead; colId: string;
+  onMove: (id: string, estagio: string) => void;
+  onParaSdr: (id: string) => void;
+}) {
   const col = PLAT_COLS.find(c => c.id === colId) ?? PLAT_COLS[0];
   return (
     <div style={{
@@ -120,29 +124,35 @@ function PlatCard({ lead, colId }: { lead: PlatLead; colId: string }) {
       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text)', marginBottom: 4, wordBreak: 'break-all' }}>
         {lead.empresa || lead.email}
       </div>
-      {lead.empresa && (
-        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>
-          ✉️ {lead.email}
-        </div>
-      )}
-      {lead.cnpj && (
-        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>
-          🏢 {lead.cnpj}
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+      {lead.empresa && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>✉️ {lead.email}</div>}
+      {lead.cnpj && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>🏢 {lead.cnpj}</div>}
+
+      {/* Mover coluna */}
+      <select value={colId} onChange={e => onMove(lead.id, e.target.value)}
+        style={{ width: '100%', fontSize: 11, padding: '4px 6px', borderRadius: 6, border: `1px solid ${col.border}`, background: col.bg, color: col.color, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}>
+        {PLAT_COLS.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+      </select>
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {lead.whatsapp && (
           <a href={`https://wa.me/55${lead.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
-            style={{ padding: '4px 10px', borderRadius: 6, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 11, textDecoration: 'none' }}>
+            style={{ padding: '4px 9px', borderRadius: 6, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 11, textDecoration: 'none' }}>
             💬 WA
           </a>
         )}
-        <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-          📄 {lead.documentos_usados} docs
+        {lead.whatsapp && (
+          <button onClick={() => onParaSdr(lead.id)}
+            style={{ padding: '4px 9px', borderRadius: 6, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+            ☀️ → SDR
+          </button>
+        )}
+        <span style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center' }}>
+          📄 {lead.documentos_usados}
         </span>
       </div>
+
       <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 6 }}>
-        {lead.ativo_recente ? '🟢 Ativo agora' : '⚪ Sem doc recente'} · {fmtDate(lead.created_at)}
+        {lead.crm_estagio ? '✏️ Manual' : '🔄 Auto'} · {lead.ativo_recente ? '🟢 Ativo' : '⚪ Inativo'}
       </div>
     </div>
   );
@@ -155,6 +165,7 @@ export default function CrmPage() {
   const [sdrLeads, setSdrLeads] = useState<SdrLead[]>([]);
   const [platCols, setPlatCols] = useState<Record<string, PlatLead[]>>({});
   const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState('');
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -174,6 +185,38 @@ export default function CrmPage() {
     setSdrLeads(prev => prev.map(l => l.phone === phone ? { ...l, estagio } : l));
   }
 
+  async function movePlat(id: string, estagio: string) {
+    await api.patch(`/admin/platform-crm/${id}/estagio`, { estagio });
+    setPlatCols(prev => {
+      const next = { ...prev };
+      let lead: PlatLead | undefined;
+      for (const col of Object.keys(next)) {
+        const idx = next[col].findIndex(l => l.id === id);
+        if (idx !== -1) { lead = { ...next[col][idx], crm_estagio: estagio }; next[col] = next[col].filter(l => l.id !== id); break; }
+      }
+      if (lead) (next[estagio] ??= []).unshift(lead);
+      return next;
+    });
+  }
+
+  async function paraSdr(id: string) {
+    await api.post(`/admin/platform-crm/${id}/para-sdr`);
+    alert('Lead enviado para o CRM SDR Solar ☀️');
+    fetchAll();
+  }
+
+  // Filtro de busca
+  const q = busca.toLowerCase();
+  const sdrFiltrados = busca
+    ? sdrLeads.filter(l => [l.nome, l.phone, l.cidade].some(v => v?.toLowerCase().includes(q)))
+    : sdrLeads;
+
+  const platColsFiltradas = busca
+    ? Object.fromEntries(Object.entries(platCols).map(([col, leads]) => [
+        col, leads.filter(l => [l.email, l.empresa, l.cnpj, l.whatsapp].some(v => v?.toLowerCase().includes(q)))
+      ]))
+    : platCols;
+
   const totalPlat = Object.values(platCols).reduce((a, c) => a + c.length, 0);
 
   return (
@@ -184,9 +227,16 @@ export default function CrmPage() {
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>📋 CRM</h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: 0 }}>Pipeline de vendas</p>
         </div>
-        <button onClick={fetchAll} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 13 }}>
-          🔄 Atualizar
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text" placeholder="🔍 Buscar por nome, email, telefone..." value={busca}
+            onChange={e => setBusca(e.target.value)}
+            style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: 13, width: 280 }}
+          />
+          <button onClick={fetchAll} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 13 }}>
+            🔄
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -213,7 +263,7 @@ export default function CrmPage() {
       ) : tab === 'sdr' ? (
         <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
           {SDR_COLS.map(col => {
-            const colLeads = sdrLeads.filter(l => l.estagio === col.id);
+            const colLeads = sdrFiltrados.filter(l => l.estagio === col.id);
             return (
               <KanbanCol key={col.id} col={col} count={colLeads.length}>
                 {colLeads.length === 0
@@ -227,12 +277,14 @@ export default function CrmPage() {
       ) : (
         <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
           {PLAT_COLS.map(col => {
-            const colLeads = platCols[col.id] ?? [];
+            const colLeads = platColsFiltradas[col.id] ?? [];
             return (
               <KanbanCol key={col.id} col={col} count={colLeads.length}>
                 {colLeads.length === 0
                   ? <div style={{ textAlign: 'center', padding: '20px 10px', color: 'var(--color-text-muted)', fontSize: 12 }}>Nenhum usuário</div>
-                  : colLeads.map(l => <PlatCard key={l.id} lead={l} colId={col.id} />)
+                  : colLeads.map(l => (
+                      <PlatCard key={l.id} lead={l} colId={col.id} onMove={movePlat} onParaSdr={paraSdr} />
+                    ))
                 }
               </KanbanCol>
             );
