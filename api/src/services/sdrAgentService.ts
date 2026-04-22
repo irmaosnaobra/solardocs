@@ -162,11 +162,13 @@ Separe cada bolha com ||
 Máximo 3 bolhas. Cada bolha: máximo 2 frases curtas.
 Exemplo: "Fala, João! 😊 || Vi que você se interessou em energia solar... || Me conta: de qual cidade você é?"
 
-🌡️ 11. CLASSIFICAÇÃO DE TEMPERATURA — OBRIGATÓRIO
+🌡️ 11. ESTÁGIO DO LEAD — OBRIGATÓRIO
 Ao final de TODA resposta, adicione exatamente uma dessas tags (sem espaço, sem texto depois):
-[TEMP:frio] — Só curiosidade, sem engajamento real, sem dados compartilhados
-[TEMP:morno] — Compartilhou informações, está considerando, sem urgência definida
-[TEMP:quente] — Quer agendar, perguntou prazo/preço, alta intenção de compra`;
+[ESTAGIO:novo] — Primeiro contato, ainda sem dados suficientes para classificar
+[ESTAGIO:frio] — Só curiosidade, sem engajamento real, sem dados compartilhados
+[ESTAGIO:morno] — Compartilhou informações, está considerando, sem urgência definida
+[ESTAGIO:quente] — Quer agendar, perguntou prazo/preço, alta intenção de compra
+[ESTAGIO:perdido] — Não responde há muito tempo, recusou claramente ou desistiu`;
 
 // ─── sessão SDR ───────────────────────────────────────────────────
 
@@ -207,19 +209,21 @@ async function saveSdrSession(
 
 // ─── CRM: salva/atualiza lead na tabela sdr_leads ─────────────────
 
+type Estagio = 'novo' | 'frio' | 'morno' | 'quente' | 'perdido' | 'fechamento';
+
 async function upsertCrmLead(params: {
   phone: string;
   nome?: string | null;
   cidade?: string | null;
   estado?: string | null;
-  temperatura: 'frio' | 'morno' | 'quente';
+  estagio: Estagio;
   ultimaMensagem: string;
   totalMensagens: number;
 }): Promise<void> {
-  const { phone, nome, cidade, estado, temperatura, ultimaMensagem, totalMensagens } = params;
+  const { phone, nome, cidade, estado, estagio, ultimaMensagem, totalMensagens } = params;
   const payload: any = {
     phone,
-    temperatura,
+    estagio,
     ultima_mensagem: ultimaMensagem.slice(0, 300),
     total_mensagens: totalMensagens,
     updated_at: new Date().toISOString(),
@@ -228,16 +232,22 @@ async function upsertCrmLead(params: {
   if (cidade) payload.cidade = cidade;
   if (estado) payload.estado = estado;
 
+  // Não sobrescreve fechamento nem perdido com estágio inferior
+  const { data: existing } = await supabase.from('sdr_leads').select('estagio').eq('phone', phone).single();
+  if (existing?.estagio === 'fechamento' || existing?.estagio === 'perdido') {
+    payload.estagio = existing.estagio;
+  }
+
   await supabase.from('sdr_leads').upsert(payload, { onConflict: 'phone' });
 }
 
-// ─── extrai temperatura do raw response ──────────────────────────
+// ─── extrai estágio do raw response ──────────────────────────────
 
-function extractTemperature(raw: string): { text: string; temp: 'frio' | 'morno' | 'quente' } {
-  const match = raw.match(/\[TEMP:(frio|morno|quente)\]/i);
-  const temp = (match?.[1]?.toLowerCase() ?? 'frio') as 'frio' | 'morno' | 'quente';
-  const text = raw.replace(/\[TEMP:(frio|morno|quente)\]/gi, '').trim();
-  return { text, temp };
+function extractEstagio(raw: string): { text: string; estagio: Estagio } {
+  const match = raw.match(/\[ESTAGIO:(novo|frio|morno|quente|perdido)\]/i);
+  const estagio = (match?.[1]?.toLowerCase() ?? 'novo') as Estagio;
+  const text = raw.replace(/\[ESTAGIO:(novo|frio|morno|quente|perdido|fechamento)\]/gi, '').trim();
+  return { text, estagio };
 }
 
 // ─── extrai nome e cidade do histórico ───────────────────────────
@@ -277,7 +287,7 @@ export async function handleSdrLead(
   });
 
   const raw = (response.content[0] as { text: string }).text;
-  const { text: cleanText, temp } = extractTemperature(raw);
+  const { text: cleanText, estagio } = extractEstagio(raw);
   const parts = cleanText.split('||').map(p => p.trim()).filter(Boolean);
 
   await sendHuman(cleanPhone, parts);
@@ -294,7 +304,7 @@ export async function handleSdrLead(
       nome: updatedNome,
       cidade: leadInfo.cidade,
       estado: leadInfo.estado,
-      temperatura: temp,
+      estagio,
       ultimaMensagem: text,
       totalMensagens: allMessages.filter(m => m.role === 'user').length,
     }),

@@ -15,39 +15,62 @@ router.get('/visits',         getVisits);
 router.get('/analytics',      getAnalytics);
 router.get('/meta-funnel',    getMetaFunnel);
 
-// ── CRM SDR Leads ─────────────────────────────────────────────────
+// ── CRM SDR Leads (Solar B2C) ─────────────────────────────────────
+const SDR_ESTAGIOS = ['novo','frio','morno','quente','perdido','fechamento'];
+
 router.get('/sdr-leads', async (req: Request, res: Response) => {
   try {
-    const temp = req.query.temperatura as string | undefined;
-    let query = supabase
-      .from('sdr_leads')
-      .select('*')
-      .order('updated_at', { ascending: false });
-
-    if (temp && ['frio','morno','quente'].includes(temp)) {
-      query = query.eq('temperatura', temp);
-    }
-
-    const { data, error } = await query;
+    const { data, error } = await supabase
+      .from('sdr_leads').select('*').order('updated_at', { ascending: false });
     if (error) throw error;
     res.json({ leads: data ?? [] });
-  } catch (err) {
-    res.status(500).json({ error: 'Erro ao buscar leads' });
-  }
+  } catch { res.status(500).json({ error: 'Erro ao buscar leads SDR' }); }
 });
 
-router.patch('/sdr-leads/:phone/temperatura', async (req: Request, res: Response) => {
+router.patch('/sdr-leads/:phone/estagio', async (req: Request, res: Response) => {
   try {
     const { phone } = req.params;
-    const { temperatura } = req.body;
-    if (!['frio','morno','quente'].includes(temperatura)) {
-      res.status(400).json({ error: 'Temperatura inválida' }); return;
-    }
-    await supabase.from('sdr_leads').update({ temperatura, updated_at: new Date().toISOString() }).eq('phone', phone);
+    const { estagio } = req.body;
+    if (!SDR_ESTAGIOS.includes(estagio)) { res.status(400).json({ error: 'Estágio inválido' }); return; }
+    await supabase.from('sdr_leads').update({ estagio, updated_at: new Date().toISOString() }).eq('phone', phone);
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Erro ao atualizar' });
-  }
+  } catch { res.status(500).json({ error: 'Erro ao atualizar' }); }
+});
+
+// ── CRM Plataforma (SolarDoc B2B) ────────────────────────────────
+const PLAT_ESTAGIOS = ['novo','ativo','interessado','negociando','perdido','cliente'];
+
+router.get('/platform-crm', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('platform_crm').select('*').order('updated_at', { ascending: false });
+    if (error) throw error;
+    res.json({ leads: data ?? [] });
+  } catch { res.status(500).json({ error: 'Erro ao buscar leads plataforma' }); }
+});
+
+router.post('/platform-crm', async (req: Request, res: Response) => {
+  try {
+    const { nome, email, phone, user_id, estagio, nota } = req.body;
+    const { data, error } = await supabase.from('platform_crm').insert({
+      nome, email, phone, user_id: user_id || null,
+      estagio: estagio || 'novo', nota: nota || null,
+    }).select().single();
+    if (error) throw error;
+    res.json({ lead: data });
+  } catch { res.status(500).json({ error: 'Erro ao criar lead' }); }
+});
+
+router.patch('/platform-crm/:id/estagio', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { estagio, nota } = req.body;
+    if (!PLAT_ESTAGIOS.includes(estagio)) { res.status(400).json({ error: 'Estágio inválido' }); return; }
+    const upd: any = { estagio, updated_at: new Date().toISOString() };
+    if (nota !== undefined) upd.nota = nota;
+    await supabase.from('platform_crm').update(upd).eq('id', id);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Erro ao atualizar' }); }
 });
 
 export default router;
