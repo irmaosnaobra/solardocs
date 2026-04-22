@@ -19,11 +19,11 @@
   "crons": [
     {
       "path": "/cron/cleanup-pro-docs",
-      "schedule": "0 3 * * *"
+      "schedule": "50 10 * * *"
     },
     {
       "path": "/cron/monthly-reset",
-      "schedule": "0 3 * * *"
+      "schedule": "50 10 * * *"
     },
     {
       "path": "/cron/followup-cnpj",
