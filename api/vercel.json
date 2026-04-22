@@ -40,6 +40,10 @@
     {
       "path": "/cron/inactive-engagement",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/cron/sdr-followup",
+      "schedule": "*/30 8-21 * * *"
     }
   ]
 }

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../utils/supabase';
+import { notificarAtendenteQuente } from './sdrFollowupService';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID;
@@ -232,13 +233,25 @@ async function upsertCrmLead(params: {
   if (cidade) payload.cidade = cidade;
   if (estado) payload.estado = estado;
 
-  // Não sobrescreve fechamento nem perdido com estágio inferior
-  const { data: existing } = await supabase.from('sdr_leads').select('estagio').eq('phone', phone).single();
-  if (existing?.estagio === 'fechamento' || existing?.estagio === 'perdido') {
+  // Não sobrescreve fechamento/perdido/quente com estágio inferior
+  const { data: existing } = await supabase.from('sdr_leads').select('estagio, contatos').eq('phone', phone).single();
+  const protegidos = ['fechamento', 'perdido', 'quente'];
+  if (existing?.estagio && protegidos.includes(existing.estagio)) {
     payload.estagio = existing.estagio;
   }
 
+  // Lead respondeu → para de aguardar e zera follow-up
+  payload.aguardando_resposta = false;
+  payload.ultimo_contato = new Date().toISOString();
+
+  // Se ficou Quente pela primeira vez → notifica atendente humano
+  const ficouQuente = payload.estagio === 'quente' && existing?.estagio !== 'quente';
+
   await supabase.from('sdr_leads').upsert(payload, { onConflict: 'phone' });
+
+  if (ficouQuente) {
+    notificarAtendenteQuente({ ...payload, nome, cidade, estado }).catch(() => {});
+  }
 }
 
 // ─── extrai estágio do raw response ──────────────────────────────
@@ -295,6 +308,14 @@ export async function handleSdrLead(
   const updatedNome = nome || senderName || null;
   const leadInfo = extractLeadInfo(messages);
   const allMessages = [...messages, { role: 'assistant' as const, content: cleanText }];
+
+  // Marca lead como aguardando resposta para ativar follow-up
+  await supabase.from('sdr_leads').upsert({
+    phone: cleanPhone,
+    aguardando_resposta: true,
+    ultimo_contato: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'phone' });
 
   // Salva sessão e CRM em paralelo
   await Promise.all([

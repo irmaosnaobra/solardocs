@@ -4,6 +4,7 @@ import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted } from '../services/followupService';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/whatsappFollowupService';
 import { processMessageQueue } from '../services/whatsappAgentService';
+import { runSdrFollowups } from '../services/sdrFollowupService';
 
 const router = Router();
 
@@ -112,6 +113,18 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error('Cron process-messages error:', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Roda a cada 30 min — follow-up SDR (10 tentativas antes de marcar Perdido)
+router.get('/sdr-followup', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runSdrFollowups();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('Cron sdr-followup error:', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
