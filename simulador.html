@@ -216,8 +216,8 @@
     <!-- LOADING OVERLAY -->
     <div id="loading-overlay">
       <div class="spinner"></div>
-      <h3 style="font-family: 'Lexend', sans-serif; font-weight: 800; color: #fff;">Validando viabilidade...</h3>
-      <p style="font-size: 14px; color: var(--muted); margin-top: 8px;">Analisando dados técnicos e geográficos.</p>
+      <h3 style="font-family: 'Lexend', sans-serif; font-weight: 800; color: #fff;">Abrindo WhatsApp...</h3>
+      <p style="font-size: 14px; color: var(--muted); margin-top: 8px;">Preparando seu atendimento personalizado.</p>
     </div>
 
     <!-- QUIZ -->
@@ -282,47 +282,17 @@
         <input type="text" class="form-input" id="input-city" list="city-list" placeholder="Escolha o estado primeiro..." disabled autocomplete="off">
         <datalist id="city-list"></datalist>
       </div>
-      <button class="btn-primary" id="btn-submit-form" onclick="validateLocationAndProcess()">Ver Meu Resultado
+      <button class="btn-primary" id="btn-submit-form" onclick="goToWhatsApp()" style="background: linear-gradient(135deg, #25d366, #128c4a);">
+        Falar com Consultor ☀️
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
       </button>
     </div>
 
-    <!-- RESULTS -->
-    <div class="view result-view" id="view-result">
-      <!-- QUALIFIED -->
-      <div id="result-qualified" style="display: none;">
-        <div class="result-icon">🚀</div>
-        <h1 class="result-title">Excelente Notícia!</h1>
-        <p class="result-desc">O seu perfil é **altamente qualificado** para a instalação. Você tem potencial para economizar milhares de reais por ano.</p>
-        <button class="btn-primary" id="btn-whatsapp" style="background: #25d366; color: #fff;">Falar com Consultor no WhatsApp</button>
-      </div>
-      
-      <!-- UNQUALIFIED -->
-      <div id="result-rejection" style="display: none;">
-        <div class="result-icon" id="rejection-icon">💡</div>
-        <h1 class="result-title" id="rejection-title">Análise de Perfil</h1>
-        
-        <div id="igreen-card" class="rejection-card" style="display: none; background: rgba(34, 197, 94, 0.05); border-color: rgba(34, 197, 94, 0.2);">
-          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-            <span style="font-size: 24px;">🎉</span>
-            <span style="font-weight: 800; color: #22c55e; font-size: 14px; text-transform: uppercase;">Acesso à Recompensa Digital</span>
-          </div>
-          <p style="font-size: 14px; color: var(--muted); line-height: 1.5;">
-            Ativamos a opção de você ter um desconto real e mensal operado na sua distribuidora de energia através de uma assinatura digital. <strong>Nenhuma placa no telhado, nenhum investimento inicial e sem multa de fidelidade.</strong>
-          </p>
-        </div>
-
-        <p class="result-desc" id="rejection-desc"></p>
-        <a href="igreen.html" id="rejection-btn" class="btn-primary" style="background: #22c55e; color: #fff; box-shadow: 0 10px 30px rgba(34, 197, 94, 0.4);">
-          VER COMO LIBERAR RECOMPENSA
-        </a>
-      </div>
-    </div>
 
   </div>
 
   <script>
-    // ── Funil Tracking ─────────────────────────────────────────────
+    // ── Tracking ───────────────────────────────────────────────────
     var _simAPI = 'https://solardocs-api-irmaosnaobra-aioros.vercel.app';
     var _simSid = (function() {
       var s = sessionStorage.getItem('sim_sid');
@@ -343,9 +313,9 @@
     function simTrack(eventType, extra) {
       var fbp = _getCookie('_fbp');
       var fbc = _getCookie('_fbc') || _simUtms.fbclid;
-      var payload = Object.assign({ 
-        session_id: _simSid, 
-        event_type: eventType, 
+      var payload = Object.assign({
+        session_id: _simSid,
+        event_type: eventType,
         source: 'simulador',
         fbp: fbp,
         fbc: fbc
@@ -354,57 +324,51 @@
     }
     simTrack('page_view');
 
-    // ── Perguntas e Pontuação ──────────────────────────────────────
+    // ── Perguntas ──────────────────────────────────────────────────
     const questions = [
-      { q: "Qual o valor médio da sua conta de luz hoje?", opts: [{t:"Até R$ 200",v:0}, {t:"R$ 200 a R$ 500",v:2}, {t:"R$ 500 a R$ 1.500",v:3}, {t:"Acima de R$ 1.500",v:4}] },
-      { q: "O que te motivou a buscar energia solar agora?", opts: [{t:"Só curiosidade, estou pesquisando preços",v:0}, {t:"Quero me livrar dos aumentos da conta",v:2}, {t:"Quero valorizar meu imóvel e ter mais conforto",v:3}, {t:"Sei que é o melhor investimento disponível hoje",v:4}] },
-      { q: "Como é o consumo de energia lá em casa ou na empresa?", opts: [{t:"Básico — TV, geladeira e luzes",v:1}, {t:"Moderado — ar-condicionado às vezes",v:2}, {t:"Intenso — ar ligado sempre que precisar",v:3}, {t:"Pesado — ar o dia todo ou maquinário",v:4}] },
-      { q: "Onde você quer instalar as placas?", opts: [{t:"Apartamento (sem acesso ao telhado)",v:0}, {t:"Imóvel alugado ou cedido",v:1}, {t:"Casa própria",v:3}, {t:"Imóvel comercial ou empresa",v:4}] },
-      { q: "Como é o telhado ou a área disponível?", opts: [{t:"Não tenho espaço livre",v:0}, {t:"Tenho área no chão (terreno ou solo)",v:2}, {t:"Telhado comum (barro, cimento ou cerâmica)",v:3}, {t:"Telhado metálico, de zinco ou laje plana",v:4}] },
-      { q: "Quando você precisa que esse projeto fique pronto?", opts: [{t:"Sem pressa, daqui uns 2 meses",v:0}, {t:"Em torno de 1 mês",v:2}, {t:"Nos próximos 15 dias",v:4}, {t:"O mais rápido possível",v:4}] },
-      { q: "Como você pretende pagar pelo sistema?", opts: [{t:"Ainda não decidi como vou financiar",v:0}, {t:"Financiamento 100% — trocar a conta pela parcela",v:2}, {t:"Entrada + financiamento do restante",v:4}, {t:"À vista ou Pix",v:4}] },
-      { q: "Você sabe qual é o padrão de energia do seu imóvel?", opts: [{t:"Monofásico 110V",v:0}, {t:"Monofásico 220V",v:3}, {t:"Bifásico 220V",v:4}, {t:"Trifásico 220/380",v:4}] }
+      { q: "Qual o valor médio da sua conta de luz hoje?", opts: ["Até R$ 200", "R$ 200 a R$ 500", "R$ 500 a R$ 1.500", "Acima de R$ 1.500"] },
+      { q: "O que te motivou a buscar energia solar agora?", opts: ["Só curiosidade, estou pesquisando preços", "Quero me livrar dos aumentos da conta", "Quero valorizar meu imóvel e ter mais conforto", "Sei que é o melhor investimento disponível hoje"] },
+      { q: "Como é o consumo de energia lá em casa ou na empresa?", opts: ["Básico — TV, geladeira e luzes", "Moderado — ar-condicionado às vezes", "Intenso — ar ligado sempre que precisar", "Pesado — ar o dia todo ou maquinário"] },
+      { q: "Onde você quer instalar as placas?", opts: ["Apartamento (sem acesso ao telhado)", "Imóvel alugado ou cedido", "Casa própria", "Imóvel comercial ou empresa"] },
+      { q: "Como é o telhado ou a área disponível?", opts: ["Não tenho espaço livre", "Tenho área no chão (terreno ou solo)", "Telhado comum (barro, cimento ou cerâmica)", "Telhado metálico, de zinco ou laje plana"] },
+      { q: "Quando você precisa que esse projeto fique pronto?", opts: ["Sem pressa, daqui uns 2 meses", "Em torno de 1 mês", "Nos próximos 15 dias", "O mais rápido possível"] },
+      { q: "Como você pretende pagar pelo sistema?", opts: ["Ainda não decidi como vou financiar", "Financiamento 100% — trocar a conta pela parcela", "Entrada + financiamento do restante", "À vista ou Pix"] },
+      { q: "Você sabe qual é o padrão de energia do seu imóvel?", opts: ["Monofásico 110V", "Monofásico 220V", "Bifásico 220V", "Trifásico 220/380"] }
     ];
 
     let currentQ = 0;
-    let score = 0;
     const answersData = [];
-    const UDI_COORD = { lat: -18.9113, lon: -48.2622 };
     const DEST_WA = "5534998165040";
 
     function nextView(viewId) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-      const nextEl = document.getElementById(viewId);
-      if (nextEl) nextEl.classList.add('active');
-      if (viewId === 'view-quiz' && typeof fbq === 'function') fbq('track', 'ViewContent', { content_name: 'Simulador Solar B2C' });
+      const el = document.getElementById(viewId);
+      if (el) el.classList.add('active');
     }
 
     function renderQuestion() {
       const q = questions[currentQ];
-      
-      // Trigger animation
       const area = document.getElementById('quiz-content-area');
       area.classList.remove('q-fade-in');
-      void area.offsetWidth; // Force reflow
+      void area.offsetWidth;
       area.classList.add('q-fade-in');
 
       document.getElementById('current-q-num').textContent = `Pergunta ${String(currentQ + 1).padStart(2, '0')}`;
       document.getElementById('current-q-text').textContent = q.q;
       document.getElementById('quiz-progress-fill').style.width = ((currentQ + 1) / questions.length * 100) + '%';
       document.getElementById('quiz-progress-text').textContent = `${currentQ + 1} de ${questions.length}`;
+
       const container = document.getElementById('options-container');
       container.innerHTML = '';
-      
       const letters = ['A', 'B', 'C', 'D'];
       q.opts.forEach((opt, idx) => {
         const div = document.createElement('div');
         div.className = 'option';
-        div.innerHTML = `<div class="opt-ball">${letters[idx]}</div><span>${opt.t}</span>`;
+        div.innerHTML = `<div class="opt-ball">${letters[idx]}</div><span>${opt}</span>`;
         div.onclick = () => {
           div.classList.add('selected');
-          score += opt.v;
-          answersData[currentQ] = { q: q.q, a: opt.t };
-          simTrack('step', { step: currentQ + 1, answer: opt.t });
+          answersData[currentQ] = { q: q.q, a: opt };
+          simTrack('step', { step: currentQ + 1, answer: opt });
           setTimeout(() => {
             if (currentQ < questions.length - 1) { currentQ++; renderQuestion(); }
             else { simTrack('form_view'); nextView('view-form'); }
@@ -419,35 +383,19 @@
       const dataList = document.getElementById('city-list');
       cityInput.value = '';
       dataList.innerHTML = '';
-      
-      if (!uf) {
-        cityInput.disabled = true;
-        cityInput.placeholder = "Escolha o estado primeiro...";
-        return;
-      }
-      
+      if (!uf) { cityInput.disabled = true; cityInput.placeholder = "Escolha o estado primeiro..."; return; }
       cityInput.disabled = true;
       cityInput.placeholder = "Carregando cidades...";
-      
       try {
         const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`);
         const data = await res.json();
-        
-        data.forEach(c => {
-          const opt = document.createElement('option');
-          opt.value = c.nome;
-          dataList.appendChild(opt);
-        });
-        
+        data.forEach(c => { const opt = document.createElement('option'); opt.value = c.nome; dataList.appendChild(opt); });
         cityInput.disabled = false;
         cityInput.placeholder = "Digite para filtrar...";
-      } catch(e) {
-        cityInput.disabled = false;
-        cityInput.placeholder = "Digite o nome da cidade";
-      }
+      } catch(e) { cityInput.disabled = false; cityInput.placeholder = "Digite o nome da cidade"; }
     }
 
-    async function validateLocationAndProcess() {
+    function goToWhatsApp() {
       const userName = document.getElementById('input-name').value.trim();
       const whatsapp = document.getElementById('input-whatsapp').value.trim();
       const city = document.getElementById('input-city').value.trim();
@@ -455,85 +403,28 @@
       if (!userName || !whatsapp || !city || !state) return alert('Preencha todos os campos obrigatórios.');
       if (whatsapp.length < 14) return alert('Preencha um WhatsApp válido.');
 
+      // Pixel
       const leadEventId = _simSid + '_lead';
-      // Pixel browser: Lead quando formulário é enviado
-      if (typeof fbq === 'function') fbq('track', 'Lead', { content_name: 'Simulador Solar B2C', currency: 'BRL', value: 0 }, { eventID: leadEventId });
-      simTrack('form_submitted', { answer: JSON.stringify({ name: userName, whatsapp: whatsapp, city: city, state: state }), event_id: leadEventId });
-      document.getElementById('loading-overlay').style.display = 'flex';
-
-      try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ',' + state + ',Brasil')}&format=json&limit=1`;
-        const res = await fetch(url, { headers: { 'User-Agent': 'IrmaosNaObraSimulator/1.0' } });
-        const data = await res.json();
-
-        let dist = 999;
-        if (data.length) {
-          const lat2 = parseFloat(data[0].lat), lon2 = parseFloat(data[0].lon);
-          const R = 6371;
-          const dLat = (lat2 - UDI_COORD.lat) * Math.PI / 180;
-          const dLon = (lon2 - UDI_COORD.lon) * Math.PI / 180;
-          const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(UDI_COORD.lat * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLon/2) * Math.sin(dLon/2);
-          dist = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-        }
-
-        document.getElementById('loading-overlay').style.display = 'none';
-
-        if (dist > 250) {
-          simTrack('rejected_region', { score, answer: JSON.stringify({ name: userName, city: city, state: state }) });
-          showRejection("Fora da Área de Cobertura", "Embora sua região não se aplique à montagem de placas pela nossa equipe no momento, nós liberamos o formato de economia flexível e digital para sua cidade!");
-        } else if (score <= 14) {
-          simTrack('rejected_igreen', { score });
-          showRejection("Economia Inteligente", "Seu perfil atual não beneficia a conta matemática de um projeto de placas solares. Mas como você gasta energia, liberamos os descontos direto na sua conta através do nosso parceiro oficial!");
-        } else if (score <= 17) {
-          simTrack('rejected_profile', { score });
-          showRejection("Opção Zero Risco", "Notamos que você ainda está na fase de exploração de energia solar. Ao invés de um grande investimento em placas agora, nós acionamos a liberação de economia pela rede de sua concessionária (GD Compartilhada).");
-        } else {
-          const qualEventId = _simSid + '_qualified';
-          // Pixel browser: InitiateCheckout quando qualificado
-          if (typeof fbq === 'function') fbq('track', 'InitiateCheckout', { content_name: 'Simulador Solar Qualificado', currency: 'BRL', value: 0 }, { eventID: qualEventId });
-          simTrack('qualified', { score, event_id: qualEventId });
-          showQualified(userName, city);
-        }
-      } catch (e) {
-        document.getElementById('loading-overlay').style.display = 'none';
-        alert('Erro ao validar localização. Tente novamente.');
+      if (typeof fbq === 'function') {
+        fbq('track', 'Lead', { content_name: 'Simulador Solar B2C', currency: 'BRL', value: 0 }, { eventID: leadEventId });
+        fbq('track', 'InitiateCheckout', { content_name: 'Simulador Solar Qualificado', currency: 'BRL', value: 0 }, { eventID: _simSid + '_checkout' });
       }
-    }
 
-    function showRejection(title, desc) {
-      nextView('view-result');
-      document.getElementById('result-qualified').style.display = 'none';
-      document.getElementById('result-rejection').style.display = 'block';
-      
-      const igCard = document.getElementById('igreen-card');
-      igCard.style.display = "block"; // Sempre mostra o card da iGreen para rejeitos
-      
-      document.getElementById('rejection-title').textContent = title;
-      document.getElementById('rejection-desc').textContent = desc;
-    }
+      // Tracking
+      simTrack('form_submitted', { answer: JSON.stringify({ name: userName, whatsapp, city, state }), event_id: leadEventId });
+      simTrack('qualified', { event_id: _simSid + '_checkout', answer: JSON.stringify({ name: userName, whatsapp, city, state }) });
 
-    function showQualified(userName, city) {
-      nextView('view-result');
-      document.getElementById('result-rejection').style.display = 'none';
-      document.getElementById('result-qualified').style.display = 'block';
-
-      const btnWa = document.getElementById('btn-whatsapp');
-      const status = score >= 26 ? "🚀 PERFIL ELITE" : "✅ QUALIFICADO";
-      const answersString = answersData.map((item, idx) => `${idx + 1}. ${item.q}\n   R: *${item.a}*`).join('\n\n');
-
+      // Monta mensagem com todas as respostas para o SDR
+      const answersStr = answersData.map((item, idx) => `${idx + 1}. ${item.q}\n   ➜ ${item.a}`).join('\n\n');
       const msg = encodeURIComponent(
-        `Olá! Me chamo *${userName}* e finalizei o Simulador Solar Irmãos na Obra.\n\n` +
-        `🏆 *RESULTADO: ${status}* (${score}/32 pontos)\n` +
-        `📍 Local: ${city} - ${state}\n` +
-        `--- Resumo ---\n\n${answersString}\n\n` +
-        `Quero agendar uma consultoria gratuita.`
+        `Olá! Me chamo *${userName}* e acabei de usar o Simulador Solar Irmãos na Obra.\n\n` +
+        `📍 *${city} - ${state}*\n\n` +
+        `📋 *Minhas respostas:*\n\n${answersStr}\n\n` +
+        `Quero saber mais! ☀️`
       );
-      const waUrl = `https://wa.me/${DEST_WA}?text=${msg}`;
 
-      btnWa.textContent = '⏳ Abrindo WhatsApp...';
-      btnWa.onclick = () => { window.location.href = waUrl; };
-
-      setTimeout(() => { window.location.href = waUrl; }, 1500);
+      document.getElementById('loading-overlay').style.display = 'flex';
+      setTimeout(() => { window.location.href = `https://wa.me/${DEST_WA}?text=${msg}`; }, 1200);
     }
 
     window.onload = () => {
