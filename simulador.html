@@ -455,14 +455,17 @@
       if (!userName || !whatsapp || !city || !state) return alert('Preencha todos os campos obrigatórios.');
       if (whatsapp.length < 14) return alert('Preencha um WhatsApp válido.');
 
-      simTrack('form_submitted', { answer: JSON.stringify({ name: userName, whatsapp: whatsapp, city: city, state: state }) });
+      const leadEventId = _simSid + '_lead';
+      // Pixel browser: Lead quando formulário é enviado
+      if (typeof fbq === 'function') fbq('track', 'Lead', { content_name: 'Simulador Solar B2C', currency: 'BRL', value: 0 }, { eventID: leadEventId });
+      simTrack('form_submitted', { answer: JSON.stringify({ name: userName, whatsapp: whatsapp, city: city, state: state }), event_id: leadEventId });
       document.getElementById('loading-overlay').style.display = 'flex';
 
       try {
         const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ',' + state + ',Brasil')}&format=json&limit=1`;
         const res = await fetch(url, { headers: { 'User-Agent': 'IrmaosNaObraSimulator/1.0' } });
         const data = await res.json();
-        
+
         let dist = 999;
         if (data.length) {
           const lat2 = parseFloat(data[0].lat), lon2 = parseFloat(data[0].lon);
@@ -474,7 +477,7 @@
         }
 
         document.getElementById('loading-overlay').style.display = 'none';
-        
+
         if (dist > 250) {
           simTrack('rejected_region', { score, answer: JSON.stringify({ name: userName, city: city, state: state }) });
           showRejection("Fora da Área de Cobertura", "Embora sua região não se aplique à montagem de placas pela nossa equipe no momento, nós liberamos o formato de economia flexível e digital para sua cidade!");
@@ -485,7 +488,10 @@
           simTrack('rejected_profile', { score });
           showRejection("Opção Zero Risco", "Notamos que você ainda está na fase de exploração de energia solar. Ao invés de um grande investimento em placas agora, nós acionamos a liberação de economia pela rede de sua concessionária (GD Compartilhada).");
         } else {
-          simTrack('qualified', { score });
+          const qualEventId = _simSid + '_qualified';
+          // Pixel browser: InitiateCheckout quando qualificado
+          if (typeof fbq === 'function') fbq('track', 'InitiateCheckout', { content_name: 'Simulador Solar Qualificado', currency: 'BRL', value: 0 }, { eventID: qualEventId });
+          simTrack('qualified', { score, event_id: qualEventId });
           showQualified(userName, city);
         }
       } catch (e) {
