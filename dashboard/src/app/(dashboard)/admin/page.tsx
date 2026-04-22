@@ -454,263 +454,36 @@ export default function AdminPage() {
             <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{baseSessions.length} registros no período</span>
           </div>
 
-          <div className={styles.metaBlock}>
-            <div className={styles.metaBlockHeader}>
-              <div className={styles.metaBlockTitle}>
-                <span className={styles.metaFIcon}>f</span>
-                <span>Meta Ads (Campanhas B2B e Tração)</span>
-                {loadingMeta && <span className={styles.metaSpinner} />}
-              </div>
-            </div>
-
-            {metaData?.available===false && (
-              <div className={styles.setupCallout}>
-                <span>⚙️</span>
-                <div>
-                  <strong>Configure o Meta Ads</strong>
-                  <p>Adicione <code>META_AD_ACCOUNT_ID</code> e <code>META_PIXEL_TOKEN</code> (com permissão <code>ads_read</code>) nas variáveis de ambiente da Vercel.</p>
-                </div>
-              </div>
-            )}
-
-            {metaData?.available && mt && lpf && funnelSteps.length > 0 && (
-              <>
-                {/* Funil SVG estilo UTMify */}
-                <div className={styles.funnelCard} style={{marginBottom:20}}>
-                  <div className={styles.funnelTitle}>Funil de Conversão (Meta Ads → LP)</div>
-                  <FunnelSVG steps={funnelSteps} />
-                </div>
-
-                {/* Grid de métricas financeiras */}
-                <div className={styles.metaFinGrid}>
-                  {metaFinCards.map(c=>(
-                    <div key={c.label} className={styles.metaFinCard}>
-                      <div className={styles.metaFinLabel}>{c.label}</div>
-                      <div className={styles.metaFinValue} style={{color:c.color}}>{c.value}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Por conjunto de anúncio */}
-                {(metaData.adsets??[]).length>0 && (
-                  <div className={styles.sourcesCard} style={{marginTop:20}}>
-                    <div className={styles.funnelTitle}>Por conjunto de anúncio</div>
-                    <div className={styles.tableWrap} style={{marginTop:12}}>
-                      <table className={styles.table}>
-                        <thead>
-                          <tr>
-                            <th>Conjunto / Campanha</th>
-                            <th>Gasto</th><th>Impr.</th><th>Cliques</th>
-                            <th>CTR</th><th>CPC</th>
-                            <th>Visitas LP</th><th>Viu Preços</th><th>CTA</th><th>Tempo</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(metaData.adsets??[]).map(a=>(
-                            <tr key={a.adset_id}>
-                              <td>
-                                <div style={{fontWeight:600,fontSize:12}}>{a.adset_name}</div>
-                                <div style={{fontSize:11,color:'var(--color-text-muted)'}}>{a.campaign_name}</div>
-                              </td>
-                              <td style={{color:'#f87171',fontWeight:600}}>{fmtBRL(a.spend)}</td>
-                              <td className={styles.mutedCell}>{fmtNum(a.impressions)}</td>
-                              <td className={styles.mutedCell}>{fmtNum(a.clicks)}</td>
-                              <td className={styles.mutedCell}>{a.ctr.toFixed(2)}%</td>
-                              <td className={styles.mutedCell}>{fmtBRL(a.cpc)}</td>
-                              <td><span className={styles.metricBadge} style={{background:'rgba(52,211,153,0.12)',color:'#34d399',borderColor:'rgba(52,211,153,0.25)'}}>{a.lp_visits}</span></td>
-                              <td><span className={styles.metricBadge} style={{background:'rgba(251,146,60,0.12)',color:'#fb923c',borderColor:'rgba(251,146,60,0.25)'}}>{a.saw_precos}{a.lp_visits>0&&<span className={styles.funnelPctInline}> {pct(a.saw_precos,a.lp_visits)}</span>}</span></td>
-                              <td><span className={styles.metricBadge} style={{background:'rgba(167,139,250,0.12)',color:'#a78bfa',borderColor:'rgba(167,139,250,0.25)'}}>{a.cta_clicks}{a.lp_visits>0&&<span className={styles.funnelPctInline}> {pct(a.cta_clicks,a.lp_visits)}</span>}</span></td>
-                              <td className={styles.mutedCell}>{fmtTime(a.avg_time)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          <div className={styles.sectionDivider}/>
-
-          {/* ── ANALYTICS GERAL ── */}
-          {loadingAnalytics && <div className={styles.loading}>Carregando...</div>}
-          {!loadingAnalytics && analytics && (
+          {loadingAnalytics ? (
+            <div className={styles.loading}>Carregando estatísticas...</div>
+          ) : (
             <>
-              <div className={styles.sectionLabel2}>Todos os canais</div>
-              <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)'}}>
-                <div className={styles.card}><div className={styles.cardLabel}>Total visitas</div><div className={styles.cardValue} style={{color:'#22c55e'}}>{analytics.total}</div></div>
-                <div className={styles.card}><div className={styles.cardLabel}>Hoje</div><div className={styles.cardValue} style={{color:'#60a5fa'}}>{analytics.today}</div></div>
-                <div className={styles.card}><div className={styles.cardLabel}>Clicaram CTA</div><div className={styles.cardValue} style={{color:'#a78bfa'}}>{fn?.cta_clicks??0}</div><div className={styles.cardSub}>{pct(fn?.cta_clicks??0,fn?.visits??0)} do total</div></div>
-                <div className={styles.card}><div className={styles.cardLabel}>Tempo médio</div><div className={styles.cardValue} style={{color:'#fb923c'}}>{fmtTime(analytics.avg_time)}</div></div>
-              </div>
+              {(() => {
+                const ctaGratis = baseSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('grátis'))).length;
+                const ctaPro    = baseSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('pro'))).length;
+                const ctaVip    = baseSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('vip'))).length;
 
-              {fn && fn.visits>0 && (
-                <div className={styles.funnelCard}>
-                  <div className={styles.funnelTitle}>Funil — todos os canais</div>
-                  <div className={styles.funnelSteps}>
-                    {[
-                      {label:'Visitas',icon:'👁️',value:fn.visits,pctVal:100},
-                      {label:'Scroll 50%',icon:'📜',value:fn.scroll_50,pctVal:Math.round(fn.scroll_50/fn.visits*100)},
-                      {label:'Viu Preços',icon:'💰',value:fn.saw_precos,pctVal:Math.round(fn.saw_precos/fn.visits*100)},
-                      {label:'Clicou CTA',icon:'🖱️',value:fn.cta_clicks,pctVal:Math.round(fn.cta_clicks/fn.visits*100)},
-                    ].map((step,i)=>(
-                      <div key={i} className={styles.funnelStep}>
-                        <div className={styles.funnelIcon}>{step.icon}</div>
-                        <div className={styles.funnelBar}><div className={styles.funnelFill} style={{width:`${step.pctVal}%`}}/></div>
-                        <div className={styles.funnelMeta}>
-                          <span className={styles.funnelValue}>{step.value}</span>
-                          <span className={styles.funnelPct}>{step.pctVal}%</span>
-                          <span className={styles.funnelLabel}>{step.label}</span>
-                        </div>
-                      </div>
-                    ))}
+                return (
+                  <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
+                    <div className={styles.card}>
+                      <div className={styles.cardLabel}>Acessaram a LP</div>
+                      <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{baseSessions.length}</div>
+                    </div>
+                    <div className={styles.card}>
+                      <div className={styles.cardLabel}>Clicaram Grátis</div>
+                      <div className={styles.cardValue} style={{color:'#22c55e'}}>{ctaGratis}</div>
+                    </div>
+                    <div className={styles.card}>
+                      <div className={styles.cardLabel}>Clicaram PRO</div>
+                      <div className={styles.cardValue} style={{color:'#F59E0B'}}>{ctaPro}</div>
+                    </div>
+                    <div className={styles.card}>
+                      <div className={styles.cardLabel}>Clicaram VIP</div>
+                      <div className={styles.cardValue} style={{color:'#f97316'}}>{ctaVip}</div>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {analytics?.conversion && (
-                <div className={styles.funnelCard} style={{marginTop:16}}>
-                  <div className={styles.funnelTitle}>Funil de Conversão — Plataforma</div>
-                  <div className={styles.funnelSteps}>
-                    {(() => {
-                      const cv = analytics.conversion;
-                      const base = Math.max(fn?.cta_clicks ?? 0, cv.cadastros, 1);
-                      const steps = [
-                        { label: 'Clicaram no CTA',          icon: '🖱️', value: fn?.cta_clicks ?? 0,  color: '#60a5fa' },
-                        { label: 'Cadastraram (Lead)',         icon: '✍️', value: cv.cadastros,         color: '#a78bfa' },
-                        { label: 'Concluíram inscrição',       icon: '🏢', value: cv.empresas,          color: '#34d399' },
-                        { label: 'Assinaram (Purchase)',       icon: '💳', value: cv.assinantes,        color: '#fbbf24' },
-                      ];
-                      return steps.map((s, i) => (
-                        <div key={i} className={styles.funnelStep}>
-                          <div className={styles.funnelIcon}>{s.icon}</div>
-                          <div className={styles.funnelBar}>
-                            <div className={styles.funnelFill} style={{ width: `${Math.round(s.value / base * 100)}%`, background: s.color }} />
-                          </div>
-                          <div className={styles.funnelMeta}>
-                            <span className={styles.funnelValue} style={{color: s.color}}>{s.value}</span>
-                            <span className={styles.funnelPct}>{Math.round(s.value / base * 100)}%</span>
-                            <span className={styles.funnelLabel}>{s.label}</span>
-                          </div>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                  <div style={{display:'flex',gap:16,marginTop:14,paddingTop:12,borderTop:'1px solid var(--color-border)',flexWrap:'wrap'}}>
-                    {analytics.conversion.cadastros > 0 && (
-                      <span style={{fontSize:12,color:'var(--color-text-muted)'}}>
-                        Taxa CTA→Cadastro: <strong style={{color:'#a78bfa'}}>{pct(analytics.conversion.cadastros, fn?.cta_clicks ?? 0)}</strong>
-                      </span>
-                    )}
-                    {analytics.conversion.cadastros > 0 && (
-                      <span style={{fontSize:12,color:'var(--color-text-muted)'}}>
-                        Taxa Cadastro→Empresa: <strong style={{color:'#34d399'}}>{pct(analytics.conversion.empresas, analytics.conversion.cadastros)}</strong>
-                      </span>
-                    )}
-                    {analytics.conversion.empresas > 0 && (
-                      <span style={{fontSize:12,color:'var(--color-text-muted)'}}>
-                        Taxa Empresa→Assinante: <strong style={{color:'#fbbf24'}}>{pct(analytics.conversion.assinantes, analytics.conversion.empresas)}</strong>
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {analytics.sources.length>0 && (
-                <div className={styles.sourcesCard}>
-                  <div className={styles.funnelTitle}>Por origem</div>
-                  <div className={styles.tableWrap} style={{marginTop:12}}>
-                    <table className={styles.table}>
-                      <thead><tr><th>Origem</th><th>Visitas</th><th>Scroll 50%</th><th>Viu Preços</th><th>CTA</th></tr></thead>
-                      <tbody>
-                        {analytics.sources.map(s=>(
-                          <tr key={s.source}>
-                            <td><span className={styles.sourceTag}>{s.source}</span></td>
-                            <td className={styles.mutedCell}>{s.visits}</td>
-                            <td className={styles.mutedCell}>{s.scroll_50} <span className={styles.funnelPctInline}>{pct(s.scroll_50,s.visits)}</span></td>
-                            <td className={styles.mutedCell}>{s.saw_precos} <span className={styles.funnelPctInline}>{pct(s.saw_precos,s.visits)}</span></td>
-                            <td className={styles.mutedCell}>{s.cta_clicks} <span className={styles.funnelPctInline}>{pct(s.cta_clicks,s.visits)}</span></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {analytics.top_ctas.length>0 && (
-                <div className={styles.sourcesCard}>
-                  <div className={styles.funnelTitle}>Botões mais clicados</div>
-                  <div className={styles.ctaList}>
-                    {analytics.top_ctas.map((c,i)=>(
-                      <div key={i} className={styles.ctaItem}>
-                        <span className={styles.ctaLabel}>{c.label}</span>
-                        <div className={styles.ctaBarWrap}><div className={styles.ctaBar} style={{width:`${Math.round(c.count/(analytics.top_ctas[0]?.count||1)*100)}%`}}/></div>
-                        <span className={styles.ctaCount}>{c.count}x</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className={styles.filters} style={{marginTop:24}}>
-                <input type="text" placeholder="Buscar campanha, criativo, IP..." value={visitSearch} onChange={e=>setVisitSearch(e.target.value)} className="input-field" style={{maxWidth:280}}/>
-                <select value={filterSource} onChange={e=>setFilterSource(e.target.value)} className="input-field" style={{maxWidth:180}}>
-                  <option value="">Todas as origens</option>
-                  {allSources.map(s=><option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead><tr><th>Data/Hora</th><th>Origem</th><th>Campanha</th><th>Disp.</th><th>Scroll</th><th>Seções</th><th>Tempo</th><th>CTA</th></tr></thead>
-                  <tbody>
-                    {filteredSessions.length===0&&<tr><td colSpan={8} className={styles.empty}>Nenhum acesso registrado</td></tr>}
-                    {filteredSessions.map((s,i)=>{
-                      const key = s.session_id??`no-sid-${i}`;
-                      const isExp = expandedSession===key;
-                      return (
-                        <React.Fragment key={key}>
-                          <tr className={`${isToday(s.created_at)?styles.rowNew:''} ${styles.rowClickable}`} onClick={()=>setExpandedSession(isExp?null:key)}>
-                            <td className={styles.mutedCell} style={{whiteSpace:'nowrap'}}>{fmt(s.created_at)}</td>
-                            <td><span className={styles.sourceTag}>{srcLabel(s)}</span></td>
-                            <td className={styles.mutedCell}>{s.utm_campaign??<span className={styles.emptyDash}>—</span>}</td>
-                            <td className={styles.mutedCell}>{deviceIcon(s.user_agent)}</td>
-                            <td>{s.max_scroll>0?<span className={styles.scrollTag}>{s.max_scroll}%</span>:<span className={styles.emptyDash}>—</span>}</td>
-                            <td>{s.sections_seen.length>0?<div className={styles.sectionPills}>{s.sections_seen.map(sec=><span key={sec} className={`${styles.sectionPill}${sec==='precos'?` ${styles.sectionPillHighlight}`:''}`}>{SECTION_LABEL[sec]??sec}</span>)}</div>:<span className={styles.emptyDash}>—</span>}</td>
-                            <td className={styles.mutedCell}>{fmtTime(s.time_on_page)}</td>
-                            <td>{s.cta_clicks.length>0?<span className={styles.ctaClickTag}>{s.cta_clicks.length} clique{s.cta_clicks.length>1?'s':''}</span>:<span className={styles.emptyDash}>—</span>}</td>
-                          </tr>
-                          {isExp&&(
-                            <tr className={styles.expandedRow}>
-                              <td colSpan={8}>
-                                <div className={styles.expandedContent}>
-                                  <div className={styles.expandedGrid}>
-                                    <div><span className={styles.expandedLabel}>Session ID</span><span className={styles.expandedVal}>{s.session_id??'—'}</span></div>
-                                    <div><span className={styles.expandedLabel}>IP</span><span className={styles.expandedVal}>{s.ip??'—'}</span></div>
-                                    <div><span className={styles.expandedLabel}>UTM Medium</span><span className={styles.expandedVal}>{s.utm_medium??'—'}</span></div>
-                                    <div><span className={styles.expandedLabel}>UTM Content</span><span className={styles.expandedVal}>{s.utm_content??'—'}</span></div>
-                                    <div><span className={styles.expandedLabel}>Referrer</span><span className={styles.expandedVal}>{s.referrer??'Acesso direto'}</span></div>
-                                    <div><span className={styles.expandedLabel}>URL</span><span className={styles.expandedVal} style={{wordBreak:'break-all'}}>{s.landing_url??'—'}</span></div>
-                                  </div>
-                                  {s.cta_clicks.length>0&&(
-                                    <div style={{marginTop:10}}>
-                                      <span className={styles.expandedLabel}>Botões clicados:</span>
-                                      <div className={styles.ctaClickList}>{s.cta_clicks.map((c,ci)=><span key={ci} className={styles.ctaClickBadge}>{c.label??'CTA'}</span>)}</div>
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                );
+              })()}
             </>
           )}
         </>
