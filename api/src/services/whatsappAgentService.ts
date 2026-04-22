@@ -197,6 +197,24 @@ export async function handleIncomingWhatsApp(phone: string, text: string, sender
 
   // Número não cadastrado na plataforma → SDR agent (lead B2C)
   if (!user) {
+    // Gatilho: só inicia conversa nova se o lead mandar a frase exata do anúncio.
+    // Se já existe sessão (conversa em andamento), continua normalmente.
+    const SDR_TRIGGER = 'olá! quero entender mais sobre energia solar!';
+    const { data: existingSession } = await supabase
+      .from('whatsapp_sessions')
+      .select('id')
+      .eq('phone', cleanPhone)
+      .eq('tipo', 'sdr')
+      .single();
+
+    const isTriggered = text.trim().toLowerCase().includes(SDR_TRIGGER);
+    const hasSession  = !!existingSession;
+
+    if (!isTriggered && !hasSession) {
+      // Mensagem aleatória de número desconhecido sem sessão → ignora silenciosamente
+      return;
+    }
+
     await handleSdrLead(cleanPhone, text, senderName);
     return;
   }
