@@ -1,0 +1,15 @@
+name: Hourly Master Cron
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Executa a cada hora no minuto zero
+  workflow_dispatch: # Permite disparar manualmente via GitHub
+
+jobs:
+  run-cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel API Master Cron
+        run: |
+          curl -X GET "https://solardocs-api.vercel.app/cron/master" \
+          -H "Authorization: Bearer solardocs_master_cron_2024"
