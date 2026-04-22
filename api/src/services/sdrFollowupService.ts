@@ -6,8 +6,8 @@ const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID;
 const ZAPI_TOKEN    = process.env.ZAPI_TOKEN;
 const ZAPI_CLIENT   = process.env.ZAPI_CLIENT_TOKEN;
 
-// Número do atendente humano que fecha as vendas
-const ATENDENTE_WA = process.env.ATENDENTE_WA || '5534991360223';
+// Grupo de vendedores para alertas de lead quente
+const GRUPO_VENDEDORES = process.env.GRUPO_VENDEDORES || '120363423844943015-group';
 
 const MAX_CONTATOS = 10;
 
@@ -77,16 +77,18 @@ function getTom(tentativa: number): string {
 export async function notificarAtendenteQuente(lead: any): Promise<void> {
   const nome = lead.nome || 'Lead sem nome';
   const cidade = lead.cidade ? `${lead.cidade}${lead.estado ? ` - ${lead.estado}` : ''}` : 'cidade não informada';
-  const wa = lead.phone ? `wa.me/${fmtPhone(lead.phone)}` : 'sem número';
+  const phone = lead.phone ? fmtPhone(lead.phone) : null;
 
   const msg =
-    `🔥 *LEAD QUENTE — HORA DE FECHAR!*\n\n` +
+    `🔥 *OPORTUNIDADE DE VENDA — LEAD QUENTE!*\n\n` +
     `👤 *${nome}*\n` +
     `📍 ${cidade}\n` +
-    `📱 https://${wa}\n\n` +
-    `A SDR identificou alta intenção de compra. Assuma a conversa agora e feche! 💪`;
+    `📱 ${phone ? `https://wa.me/${phone}` : 'sem número'}\n\n` +
+    `💬 *O que a SDR identificou:*\n` +
+    `O lead demonstrou alta intenção de compra. Está pronto para fechar.\n\n` +
+    `👉 *Quem pegar primeiro, fecha!* Abra o WhatsApp e assuma agora. 🚀`;
 
-  await sendWA(ATENDENTE_WA, msg);
+  await sendWA(GRUPO_VENDEDORES, msg);
 }
 
 // ─── Cron: processa follow-ups pendentes ─────────────────────────
