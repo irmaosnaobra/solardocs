@@ -74,18 +74,55 @@ function getTom(tentativa: number): string {
 
 // ─── Notifica atendente humano quando lead fica Quente ───────────
 
+async function gerarResumoLead(phone: string, nome: string): Promise<string> {
+  try {
+    const { data: session } = await supabase
+      .from('whatsapp_sessions')
+      .select('messages')
+      .eq('phone', phone)
+      .eq('tipo', 'sdr')
+      .single();
+
+    const msgs = (session?.messages as any[] ?? []).slice(-20);
+    if (!msgs.length) return 'Sem histórico de conversa disponível.';
+
+    const historico = msgs
+      .map((m: any) => `${m.role === 'user' ? '🧑 Lead' : '🤖 SDR'}: ${m.content}`)
+      .join('\n');
+
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 250,
+      messages: [{
+        role: 'user',
+        content: `Com base nessa conversa de vendas, escreva um resumo executivo BREVE e PROFISSIONAL do lead para um vendedor humano fechar a venda. Máximo 4 linhas. Inclua: perfil de consumo, interesse demonstrado, objeções se houver e próximo passo sugerido. Seja direto e objetivo.
+
+Conversa:
+${historico}
+
+Resumo:`
+      }]
+    });
+
+    return (response.content[0] as { text: string }).text.trim();
+  } catch {
+    return 'Lead com alta intenção de compra identificada pela SDR.';
+  }
+}
+
 export async function notificarAtendenteQuente(lead: any): Promise<void> {
   const nome = lead.nome || 'Lead sem nome';
   const cidade = lead.cidade ? `${lead.cidade}${lead.estado ? ` - ${lead.estado}` : ''}` : 'cidade não informada';
   const phone = lead.phone ? fmtPhone(lead.phone) : null;
+
+  const resumo = await gerarResumoLead(lead.phone, nome);
 
   const msg =
     `🔥 *OPORTUNIDADE DE VENDA — LEAD QUENTE!*\n\n` +
     `👤 *${nome}*\n` +
     `📍 ${cidade}\n` +
     `📱 ${phone ? `https://wa.me/${phone}` : 'sem número'}\n\n` +
-    `💬 *O que a SDR identificou:*\n` +
-    `O lead demonstrou alta intenção de compra. Está pronto para fechar.\n\n` +
+    `📋 *Resumo do lead:*\n${resumo}\n\n` +
     `👉 *Quem pegar primeiro, fecha!* Abra o WhatsApp e assuma agora. 🚀`;
 
   await sendWA(GRUPO_VENDEDORES, msg);
