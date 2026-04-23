@@ -189,7 +189,7 @@ export async function handleSdrLead(
   ];
 
   const response = await anthropic.messages.create({
-    model: 'claude-3-5-sonnet-20240620',
+    model: 'claude-sonnet-4-6',
     max_tokens: 600,
     system: SDR_SYSTEM_PROMPT,
     messages: messages.filter(m => m.content), // Garante que não manda mensagens vazias
