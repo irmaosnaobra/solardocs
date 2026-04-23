@@ -1,0 +1,4 @@
+[submodule "landing"]
+	path = landing
+	url = https://github.com/irmaosnaobra/solardocs.git
+	branch = master

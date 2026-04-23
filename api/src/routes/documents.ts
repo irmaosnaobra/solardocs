@@ -7,9 +7,14 @@ const router = Router();
 
 // Aceita token via query param para download direto no celular (sem await no cliente)
 function downloadAuth(req: Request, res: Response, next: NextFunction): void {
-  const tokenFromQuery = req.query.token as string | undefined;
-  if (tokenFromQuery && !req.headers.authorization) {
-    req.headers.authorization = `Bearer ${tokenFromQuery}`;
+  let token = req.query.token as string | undefined;
+  // Fallback: Vercel routing às vezes não popula req.query — lê do req.url diretamente
+  if (!token && req.url && req.url.includes('token=')) {
+    const m = req.url.match(/[?&]token=([^&]+)/);
+    if (m) token = decodeURIComponent(m[1]);
+  }
+  if (token && !req.headers.authorization) {
+    req.headers.authorization = `Bearer ${token}`;
   }
   authMiddleware(req, res, next);
 }
