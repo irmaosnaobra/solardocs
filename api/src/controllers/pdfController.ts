@@ -43,7 +43,8 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '0', bottom: '0', left: '0', right: '0' },
+      margin: { top: '2cm', bottom: '2.5cm', left: '2cm', right: '2cm' },
+      preferCSSPageSize: false,
     });
 
     const fileName = `${doc.tipo}-${(doc.cliente_nome ?? 'documento').replace(/\s+/g, '-').toLowerCase()}.pdf`;

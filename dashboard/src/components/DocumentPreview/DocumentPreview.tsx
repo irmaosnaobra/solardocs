@@ -111,7 +111,33 @@ export default function DocumentPreview({
 
   function buildHtml(pageEl: HTMLElement): string {
     const s = styles;
-    const css = `* { box-sizing: border-box; margin: 0; padding: 0; } html, body { background: #fff; } body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.7; color: #1a1a1a; } .${s.page} { width: 100%; padding: 2cm; min-height: 297mm; display: flex; flex-direction: column; } .${s.companyHeader} { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; } .${s.logo} { height: 52px; width: auto; object-fit: contain; flex-shrink: 0; } .${s.companyInfo} { display: flex; flex-direction: column; gap: 2px; } .${s.companyName} { font-size: 12.5pt; font-weight: 700; color: #1a1a1a; font-family: Arial, sans-serif; } .${s.companyDetail} { font-size: 8.5pt; color: #555; font-family: Arial, sans-serif; } .${s.headerDivider} { border: none; border-top: 2px solid #1a1a2e; margin: 10px 0 24px 0; } .${s.docBody} { flex: 1; } .${s.docTitle} { font-size: 12.5pt; font-weight: 700; text-align: center; text-transform: uppercase; color: #1a1a2e; margin: 0 0 22px 0; } .${s.sectionHeader} { font-size: 10pt; font-weight: 700; text-transform: uppercase; color: #1a1a2e; margin: 18px 0 8px 0; padding-bottom: 3px; border-bottom: 1px solid #ccc; } .${s.separator} { border: none; border-top: 1px solid #ccc; margin: 14px 0; } .${s.bodyText} { margin: 0 0 7px 0; text-align: justify; color: #222; } .${s.listItem} { margin: 4px 0 4px 18px; text-align: justify; color: #222; } .${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9.5pt; color: #333; margin: 4px 0; } .${s.spacer} { height: 8px; } .${s.footer} { margin-top: 28px; padding-top: 8px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }`;
+    const css = `
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #fff; }
+body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.7; color: #1a1a1a; }
+.${s.page} { width: 100%; padding: 2cm; min-height: 297mm; display: flex; flex-direction: column; }
+.${s.companyHeader} { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+.${s.logo} { height: 52px; width: auto; object-fit: contain; flex-shrink: 0; }
+.${s.companyInfo} { display: flex; flex-direction: column; gap: 2px; }
+.${s.companyName} { font-size: 12.5pt; font-weight: 700; color: #1a1a1a; font-family: Arial, sans-serif; }
+.${s.companyDetail} { font-size: 8.5pt; color: #555; font-family: Arial, sans-serif; }
+.${s.headerDivider} { border: none; border-top: 2px solid #1a1a2e; margin: 10px 0 24px 0; }
+.${s.docBody} { flex: 1; }
+.${s.docTitle} { font-size: 12.5pt; font-weight: 700; text-align: center; text-transform: uppercase; color: #1a1a2e; margin: 0 0 22px 0; }
+.${s.sectionHeader} { font-size: 10pt; font-weight: 700; text-transform: uppercase; color: #1a1a2e; margin: 18px 0 8px 0; padding-bottom: 3px; border-bottom: 1px solid #ccc; }
+.${s.separator} { border: none; border-top: 1px solid #ccc; margin: 14px 0; }
+.${s.bodyText} { margin: 0 0 7px 0; text-align: justify; color: #222; }
+.${s.listItem} { margin: 4px 0 4px 18px; text-align: justify; color: #222; }
+.${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9.5pt; color: #333; margin: 4px 0; }
+.${s.spacer} { height: 8px; }
+.${s.footer} { margin-top: 28px; padding-top: 8px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }
+@page { size: A4 portrait; margin: 2cm 2cm 2.5cm 2cm; }
+@media print {
+  html, body { background: #fff !important; }
+  .${s.page} { padding: 0 !important; min-height: auto !important; display: block !important; }
+  .${s.footer} { display: none !important; }
+  p, h1, h2, h3, .${s.bodyText}, .${s.sectionHeader}, .${s.signatureLine} { page-break-inside: avoid; }
+}`.trim();
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>${clienteNome}</title><style>${css}</style></head><body>${pageEl.outerHTML}</body></html>`;
   }
 

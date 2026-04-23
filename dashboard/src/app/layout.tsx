@@ -36,8 +36,8 @@ export default function RootLayout({
               window.__pwaInstallPrompt = e;
             });
             if ('serviceWorker' in navigator) {
-              window.addEventListener('load', function() {
-                try { navigator.serviceWorker.register('/sw.js'); } catch(e) {}
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                regs.forEach(function(r) { r.unregister(); });
               });
             }
           } catch(e) {}
