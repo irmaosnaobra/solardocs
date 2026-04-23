@@ -24,7 +24,10 @@ export async function zapiPost(path: string, body: unknown, retries = 2): Promis
         },
       );
       if (res.ok) return;
-    } catch { /* erro de rede — tenta novamente */ }
+      if (attempt === retries) console.error(`[zapi] falhou após ${retries + 1} tentativas — path=${path} status=${res.status}`);
+    } catch (err) {
+      if (attempt === retries) console.error(`[zapi] erro de rede após ${retries + 1} tentativas — path=${path}`, err);
+    }
     if (attempt < retries) await sleep(1000 * (attempt + 1)); // 1s, 2s
   }
 }
