@@ -1,16 +1,14 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "src/app.ts",
-      "use": "@vercel/node",
-      "config": { "maxLambdaSize": "50mb", "memory": 1024, "maxDuration": 30 }
+  "functions": {
+    "src/app.ts": {
+      "maxDuration": 30,
+      "memory": 1024
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "src/app.ts"
+      "source": "/(.*)",
+      "destination": "src/app.ts"
     }
   ],
   "crons": [
@@ -22,8 +20,5 @@
       "path": "/cron/process-messages",
       "schedule": "* * * * *"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
