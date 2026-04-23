@@ -1,14 +1,16 @@
 {
-  "functions": {
-    "src/app.ts": {
-      "maxDuration": 30,
-      "memory": 1024
-    }
-  },
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "src/app.ts"
+      "src": "src/app.ts",
+      "use": "@vercel/node",
+      "config": { "memory": 1024, "maxDuration": 30 }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/app.ts"
     }
   ],
   "crons": [
