@@ -212,7 +212,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
         const res = await fetch(`${apiBase}/documents/${docId}/pdf`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) throw new Error('Falha ao gerar PDF');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -220,14 +220,12 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
         a.download = `documento-${clienteNome.replace(/\s+/g, '-').toLowerCase()}.pdf`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 10000);
+        return;
       } catch {
-        // Fallback: abre direto no navegador com token na URL
-        window.open(`${apiBase}/documents/${docId}/pdf?token=${token}`, '_blank');
+        // Servidor falhou — gera PDF local via impressão do navegador
       }
-      return;
     }
 
-    // HTML ainda não foi salvo: fallback enquanto o upload automático termina
     handleDownloadPDFFallback();
   }
 

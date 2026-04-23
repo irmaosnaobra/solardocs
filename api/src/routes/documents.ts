@@ -5,15 +5,24 @@ import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-// Aceita token via query param para download direto no celular (sem await no cliente)
+// Aceita token via query param para download direto no celular
 function downloadAuth(req: Request, res: Response, next: NextFunction): void {
+  // 1. Header já presente (fetch com Authorization)
+  if (req.headers.authorization?.startsWith('Bearer ')) {
+    return authMiddleware(req, res, next);
+  }
+
+  // 2. req.query (Express parser)
   let token = req.query.token as string | undefined;
-  // Fallback: Vercel routing às vezes não popula req.query — lê do req.url diretamente
-  if (!token && req.url && req.url.includes('token=')) {
-    const m = req.url.match(/[?&]token=([^&]+)/);
+
+  // 3. req.url (path relativo ao router, mas inclui query string)
+  if (!token) {
+    const src = req.url || req.originalUrl || '';
+    const m = src.match(/[?&]token=([^&\s]+)/);
     if (m) token = decodeURIComponent(m[1]);
   }
-  if (token && !req.headers.authorization) {
+
+  if (token) {
     req.headers.authorization = `Bearer ${token}`;
   }
   authMiddleware(req, res, next);

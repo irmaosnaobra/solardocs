@@ -1,4 +1,4 @@
-const CACHE = 'solardoc-v2';
+const CACHE = 'solardoc-v4';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
