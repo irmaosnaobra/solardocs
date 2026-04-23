@@ -202,15 +202,28 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
-  function handleDownloadPDF() {
+  async function handleDownloadPDF() {
     if (!docId || saving) return;
 
     if (saved) {
-      // Download síncrono via URL direta — funciona no celular (sem await = gesture context preservado)
       const token = getToken();
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const url = `${apiBase}/documents/${docId}/pdf?token=${token}`;
-      window.open(url, '_blank');
+      try {
+        const res = await fetch(`${apiBase}/documents/${docId}/pdf`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Falha ao gerar PDF');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `documento-${clienteNome.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      } catch {
+        // Fallback: abre direto no navegador com token na URL
+        window.open(`${apiBase}/documents/${docId}/pdf?token=${token}`, '_blank');
+      }
       return;
     }
 
