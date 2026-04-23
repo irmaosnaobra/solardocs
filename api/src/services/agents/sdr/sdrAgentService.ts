@@ -1,8 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { supabase } from '../../utils/supabase';
-import { sendMetaEvent } from '../../utils/metaPixel';
+import { supabase } from '../../../utils/supabase';
+import { sendMetaEvent } from '../../../utils/metaPixel';
 import { fmtPhone, sendHuman } from '../zapiClient';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../utils/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -140,7 +140,7 @@ async function upsertCrmLead(params: {
 
 // ─── extrai estágio do raw response ──────────────────────────────
 
-function extractEstagio(raw: string): { text: string; estagio: Estagio } {
+export function extractEstagio(raw: string): { text: string; estagio: Estagio } {
   const match = raw.match(/\[ESTAGIO:(novo|frio|morno|quente|perdido)\]/i);
   const estagio = (match?.[1]?.toLowerCase() ?? 'novo') as Estagio;
   const text = raw.replace(/\[ESTAGIO:(novo|frio|morno|quente|perdido|fechamento)\]/gi, '').trim();
@@ -149,7 +149,7 @@ function extractEstagio(raw: string): { text: string; estagio: Estagio } {
 
 // ─── extrai informações do histórico ─────────────────────────────
 
-function extractLeadInfo(messages: { role: string; content: string }[]): {
+export function extractLeadInfo(messages: { role: string; content: string }[]): {
   nome?: string;
   cidade?: string;
   consumo?: string;

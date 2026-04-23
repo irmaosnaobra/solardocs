@@ -1,8 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { supabase } from '../../utils/supabase';
+import { supabase } from '../../../utils/supabase';
 import { handleSdrLead } from '../sdr/sdrAgentService';
 import { fmtPhone, sendHuman } from '../zapiClient';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../utils/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const APP_URL = 'https://solardocs-dashboard.vercel.app';

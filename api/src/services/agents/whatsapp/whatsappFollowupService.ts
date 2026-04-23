@@ -1,6 +1,6 @@
-import { supabase } from '../../utils/supabase';
+import { supabase } from '../../../utils/supabase';
 import { sendZAPI } from '../zapiClient';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../utils/logger';
 
 const APP_URL = 'https://solardocs-dashboard.vercel.app';
 

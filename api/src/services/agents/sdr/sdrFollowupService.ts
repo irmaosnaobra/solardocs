@@ -1,6 +1,6 @@
-import { supabase } from '../../utils/supabase';
+import { supabase } from '../../../utils/supabase';
 import { sendZAPI as sendWA } from '../zapiClient';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../utils/logger';
 
 const MAX_CONTATOS = 5;
 
