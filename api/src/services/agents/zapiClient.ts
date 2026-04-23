@@ -12,7 +12,10 @@ export function fmtPhone(raw: string): string {
 }
 
 export async function zapiPost(path: string, body: unknown, retries = 2): Promise<void> {
-  if (!ZAPI_INSTANCE || !ZAPI_TOKEN || !ZAPI_CLIENT) return;
+  if (!ZAPI_INSTANCE || !ZAPI_TOKEN || !ZAPI_CLIENT) {
+    throw new Error('[zapi] credenciais Z-API não configuradas (ZAPI_INSTANCE_ID, ZAPI_TOKEN ou ZAPI_CLIENT_TOKEN ausentes)');
+  }
+  let lastErr: Error | null = null;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(
@@ -24,12 +27,14 @@ export async function zapiPost(path: string, body: unknown, retries = 2): Promis
         },
       );
       if (res.ok) return;
-      if (attempt === retries) console.error(`[zapi] falhou após ${retries + 1} tentativas — path=${path} status=${res.status}`);
+      const txt = await res.text().catch(() => res.status.toString());
+      lastErr = new Error(`[zapi] HTTP ${res.status} — ${txt}`);
     } catch (err) {
-      if (attempt === retries) console.error(`[zapi] erro de rede após ${retries + 1} tentativas — path=${path}`, err);
+      lastErr = err instanceof Error ? err : new Error(String(err));
     }
-    if (attempt < retries) await sleep(1000 * (attempt + 1)); // 1s, 2s
+    if (attempt < retries) await sleep(1000 * (attempt + 1));
   }
+  throw lastErr ?? new Error('[zapi] falha desconhecida');
 }
 
 export async function showTyping(phone: string, durationMs = 1500): Promise<void> {

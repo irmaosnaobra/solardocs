@@ -4,8 +4,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Melhor compatibilidade com browsers/Android antigos
-  swcMinify: true,
   compiler: {
     removeConsole: false,
   },

@@ -18,6 +18,7 @@ function RegisterForm() {
   const params = useSearchParams();
   const sessionId = params.get('session');
 
+  const [nome, setNome]                     = useState('');
   const [email, setEmail]                   = useState('');
   const [password, setPassword]             = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -47,7 +48,7 @@ function RegisterForm() {
     setLoading(true);
     try {
       const eventId = crypto.randomUUID();
-      const { data } = await api.post('/auth/register', { email, password, whatsapp: whatsapp || undefined }, {
+      const { data } = await api.post('/auth/register', { email, password, nome: nome || undefined, whatsapp: whatsapp || undefined }, {
         headers: { 'X-Meta-Event-Id': eventId },
       });
       setToken(data.token);
@@ -89,6 +90,18 @@ function RegisterForm() {
       </p>
 
       <form onSubmit={handleSubmit} className={styles.form}>
+        <div className={styles.field}>
+          <label className={styles.label}>Nome</label>
+          <input
+            type="text"
+            value={nome}
+            onChange={e => setNome(e.target.value)}
+            placeholder="Seu nome"
+            className="input-field"
+            required
+          />
+        </div>
+
         <div className={styles.field}>
           <label className={styles.label}>Email</label>
           <input

@@ -32,6 +32,7 @@ async function detectStripePlan(email: string): Promise<{ plano: string; limite:
 const registerSchema = z.object({
   email:    z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  nome:     z.string().min(2, 'Nome obrigatório').optional(),
   whatsapp: z.string().optional(),
 });
 
@@ -65,8 +66,8 @@ export async function register(req: Request, res: Response): Promise<void> {
     const dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: user, error } = await supabase
       .from('users')
-      .insert({ email: body.email, password_hash, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null })
-      .select('id, email, plano, limite_documentos, documentos_usados, created_at')
+      .insert({ email: body.email, password_hash, nome: body.nome || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null })
+      .select('id, email, nome, plano, limite_documentos, documentos_usados, created_at')
       .single();
 
     if (error) throw error;
@@ -103,7 +104,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     const { data: user } = await supabase
       .from('users')
-      .select('id, email, password_hash, plano, limite_documentos, documentos_usados, data_reset, created_at')
+      .select('id, email, nome, password_hash, plano, limite_documentos, documentos_usados, data_reset, created_at')
       .eq('email', body.email)
       .single();
 
@@ -214,7 +215,7 @@ export async function getMe(req: Request, res: Response): Promise<void> {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin')
+      .select('id, email, nome, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin')
       .eq('id', req.userId)
       .single();
 

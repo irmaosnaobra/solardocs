@@ -35,7 +35,7 @@ const initialFields = {
 
 type Mode = 'm1' | 'm2' | 'ai';
 
-const MODES: { id: Mode; icon: string; label: string; desc: string }[] = [
+const MODES: { id: Mode; icon: string; label: string; desc: string; badge?: string }[] = [
   { id: 'm1', icon: '📄', label: 'Modelo 1', desc: 'Profissional · 15 seções · Linguagem clara e comercial' },
   { id: 'm2', icon: '📋', label: 'Modelo 2', desc: 'Formal · 15 cláusulas numeradas · Mais detalhado' },
 ];
