@@ -11,15 +11,22 @@ export function fmtPhone(raw: string): string {
   return d.startsWith('55') ? d : `55${d}`;
 }
 
-export async function zapiPost(path: string, body: unknown): Promise<void> {
+export async function zapiPost(path: string, body: unknown, retries = 2): Promise<void> {
   if (!ZAPI_INSTANCE || !ZAPI_TOKEN || !ZAPI_CLIENT) return;
-  try {
-    await fetch(`https://api.z-api.io/instances/${ZAPI_INSTANCE}/token/${ZAPI_TOKEN}/${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Client-Token': ZAPI_CLIENT },
-      body: JSON.stringify(body),
-    });
-  } catch { /* ignora erros de rede */ }
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(
+        `https://api.z-api.io/instances/${ZAPI_INSTANCE}/token/${ZAPI_TOKEN}/${path}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Client-Token': ZAPI_CLIENT },
+          body: JSON.stringify(body),
+        },
+      );
+      if (res.ok) return;
+    } catch { /* erro de rede — tenta novamente */ }
+    if (attempt < retries) await sleep(1000 * (attempt + 1)); // 1s, 2s
+  }
 }
 
 export async function showTyping(phone: string, durationMs = 1500): Promise<void> {

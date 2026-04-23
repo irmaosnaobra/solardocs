@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { ApiError } from '../utils/apiError';
 import { generateDocumentWithAI } from '../services/aiService';
-import { generateFromTemplate } from '../services/templateService';
+import { generateFromTemplate, type Client } from '../services/templateService';
 import { checkLimit, incrementUsed } from '../services/planService';
 
 const generateSchema = z.object({
@@ -102,10 +102,10 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     await checkLimit(req.userId);
 
     if (body.useTemplate) {
-      content = generateFromTemplate(body.tipo, company, entity as any, body.fields, body.modeloNumero);
+      content = generateFromTemplate(body.tipo, company, entity as unknown as Client, body.fields, body.modeloNumero);
       modeloUsado = `modelo-${body.modeloNumero}`;
     } else {
-      content = await generateDocumentWithAI(body.tipo, company, entity as any, body.fields);
+      content = await generateDocumentWithAI(body.tipo, company, entity as unknown as Client, body.fields);
       modeloUsado = process.env.OPENAI_API_KEY ? 'gpt-4o' : 'claude-opus-4-6';
     }
 
@@ -155,7 +155,7 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
 
     // Upload HTML to Supabase Storage if provided
     let arquivo_url: string | null = null;
-    const htmlContent = (req.body as any).html_content as string | undefined;
+    const htmlContent = typeof req.body.html_content === 'string' ? req.body.html_content : undefined;
     if (htmlContent) {
       const fileName = `${req.userId}/${body.tipo}-${body.cliente_nome?.replace(/\s+/g, '-').toLowerCase() ?? 'doc'}-${Date.now()}.html`;
       const { error: uploadError } = await supabase.storage
@@ -294,13 +294,15 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
 export async function cleanupProDocuments(): Promise<void> {
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
+  const { data: proUsers } = await supabase.from('users').select('id').eq('plano', 'pro');
+  const proIds = (proUsers ?? []).map(u => u.id);
+  if (!proIds.length) return;
+
   const { data: oldDocs } = await supabase
     .from('documents')
     .select('id, arquivo_url, user_id')
     .lt('created_at', cutoff)
-    .in('user_id',
-      supabase.from('users').select('id').eq('plano', 'pro') as any
-    );
+    .in('user_id', proIds);
 
   if (!oldDocs?.length) return;
 

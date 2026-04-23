@@ -3,6 +3,18 @@ import { supabase } from '../utils/supabase';
 import { runMonthlyReset } from '../services/planService';
 import { fetchAdsetInsights, sumTotals, type MetaPeriod } from '../services/metaAdsService';
 
+type UserRow = {
+  id: string;
+  email: string;
+  plano: string;
+  documentos_usados: number;
+  limite_documentos: number;
+  created_at: string;
+  is_admin: boolean;
+  whatsapp: string | null;
+  followup_started_at: string | null;
+};
+
 export async function getUsers(req: Request, res: Response): Promise<void> {
   try {
     const { data: users, error } = await supabase
@@ -18,13 +30,11 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
 
     const companyMap = new Map(companies?.map(c => [c.user_id, c]) ?? []);
 
-    const result = users?.map(u => ({
+    const result = (users as UserRow[] | null)?.map(u => ({
       ...u,
-      empresa_nome:          companyMap.get(u.id)?.nome     ?? null,
-      empresa_cnpj:          companyMap.get(u.id)?.cnpj     ?? null,
-      empresa_whatsapp:      companyMap.get(u.id)?.whatsapp ?? null,
-      followup_started_at:   (u as any).followup_started_at   ?? null,
-      followup_day_recovered:(u as any).followup_day_recovered ?? null,
+      empresa_nome:     companyMap.get(u.id)?.nome     ?? null,
+      empresa_cnpj:     companyMap.get(u.id)?.cnpj     ?? null,
+      empresa_whatsapp: companyMap.get(u.id)?.whatsapp ?? null,
     }));
 
     res.json({ users: result });

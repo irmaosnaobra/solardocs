@@ -22,7 +22,7 @@ interface Company {
   tecnico_endereco?: string;
 }
 
-interface Client {
+export interface Client {
   nome: string;
   nacionalidade?: string;
   cpf_cnpj?: string;
