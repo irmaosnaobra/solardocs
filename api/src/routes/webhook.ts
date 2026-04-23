@@ -26,11 +26,15 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
     
     const phone = body.phone || body.senderPhone;
     // Extração robusta de texto
-    const text = body.message?.conversation 
-      || body.message?.extendedTextMessage?.text 
+    const text = body.message?.conversation
+      || body.message?.extendedTextMessage?.text
       || (typeof body.text === 'object' ? body.text?.message || body.text?.conversation : body.text);
-    
-    if (phone && text && !body.fromMe && !body.isGroup) {
+
+    // Z-API envia fromMe/isGroup como string "true"/"false", não boolean
+    const fromMe  = body.fromMe  === true || body.fromMe  === 'true';
+    const isGroup = body.isGroup === true || body.isGroup === 'true';
+
+    if (phone && text && !fromMe && !isGroup) {
       // Processa imediatamente sem bloquear a resposta 200 para a Z-API
       handleIncomingWhatsApp(String(phone), String(text), body.senderName || body.pushname, tracking).catch(console.error);
     }
@@ -45,7 +49,7 @@ router.post('/zapi', async (req: Request, res: Response): Promise<void> => {
   try {
     let body = req.body;
     if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = { raw: body }; } }
-    
+
     const adData = body.externalAdReply || {};
     const tracking = {
       ctwa_clid: adData.ctwaClid || null,
@@ -53,13 +57,16 @@ router.post('/zapi', async (req: Request, res: Response): Promise<void> => {
     };
 
     await supabase.from('webhook_debug').insert({ payload: { ...body, ...tracking } });
-    
+
     const phone = body.phone || body.senderPhone;
-    const text = body.message?.conversation 
-      || body.message?.extendedTextMessage?.text 
+    const text = body.message?.conversation
+      || body.message?.extendedTextMessage?.text
       || (typeof body.text === 'object' ? body.text?.message || body.text?.conversation : body.text);
-    
-    if (phone && text && !body.fromMe && !body.isGroup) {
+
+    const fromMe  = body.fromMe  === true || body.fromMe  === 'true';
+    const isGroup = body.isGroup === true || body.isGroup === 'true';
+
+    if (phone && text && !fromMe && !isGroup) {
       handleIncomingWhatsApp(String(phone), String(text), body.senderName || body.pushname, tracking).catch(console.error);
     }
   } catch (err) {
