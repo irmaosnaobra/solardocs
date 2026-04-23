@@ -4,7 +4,8 @@ import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted } from '../services/followupService';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
-import { runSdrFollowups } from '../services/agents/sdr/sdrFollowupService';
+import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
+import { pollZapiMessages } from '../services/agents/sdr/sdrAgentService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -110,12 +111,19 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
   } catch (err) { res.status(500).json({ error: 'Cron failed' }); }
 });
 
-// Roda a cada minuto — processa fila de mensagens WhatsApp
+// Roda a cada minuto — processa fila + polling Z-API (fallback para quando webhook não dispara)
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const result = await processMessageQueue();
-    res.json({ ok: true, ...result });
+    const [queueResult, pollResult] = await Promise.allSettled([
+      processMessageQueue(),
+      pollZapiMessages(),
+    ]);
+    res.json({
+      ok: true,
+      queue: queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },
+      poll:  pollResult.status  === 'fulfilled' ? pollResult.value  : { error: String((pollResult as any).reason) },
+    });
   } catch (err) {
     logger.error('cron', 'process-messages falhou', err);
     res.status(500).json({ error: 'Cron failed' });

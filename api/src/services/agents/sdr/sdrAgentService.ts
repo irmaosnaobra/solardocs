@@ -228,6 +228,78 @@ export async function handleSdrLead(
   ]);
 }
 
+// ─── polling Z-API (fallback quando webhook não dispara) ──────────
+
+export async function pollZapiMessages(): Promise<{ processed: number }> {
+  const INSTANCE = process.env.ZAPI_INSTANCE_ID?.trim();
+  const TOKEN    = process.env.ZAPI_TOKEN?.trim();
+  const CLIENT   = process.env.ZAPI_CLIENT_TOKEN?.trim();
+  if (!INSTANCE || !TOKEN || !CLIENT) return { processed: 0 };
+
+  try {
+    const res = await fetch(
+      `https://api.z-api.io/instances/${INSTANCE}/token/${TOKEN}/chats?pageSize=30`,
+      { headers: { 'Client-Token': CLIENT } },
+    );
+    if (!res.ok) return { processed: 0 };
+
+    const data: any = await res.json();
+    const chats: any[] = Array.isArray(data) ? data : (data.value ?? data.chats ?? []);
+
+    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+    let processed = 0;
+
+    for (const chat of chats) {
+      if (chat.isGroup) continue;
+
+      const lastMsg = chat.lastMessage ?? chat.lastInteraction;
+      if (!lastMsg) continue;
+      if (lastMsg.fromMe === true || lastMsg.fromMe === 'true') continue;
+
+      // Z-API usa segundos ou milissegundos dependendo da versão
+      const raw = lastMsg.momment ?? lastMsg.timestamp ?? lastMsg.time ?? 0;
+      const msgTime = typeof raw === 'number'
+        ? (raw > 1e12 ? raw : raw * 1000)
+        : new Date(raw).getTime();
+
+      if (!msgTime || msgTime < fiveMinAgo) continue;
+
+      const phone = String(chat.phone ?? '').replace(/\D/g, '');
+      if (!phone) continue;
+
+      // Ignora se já processamos essa mensagem (sessão mais recente que a msg)
+      const { data: session } = await supabase
+        .from('whatsapp_sessions')
+        .select('updated_at')
+        .eq('phone', phone)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (session && new Date(session.updated_at).getTime() >= msgTime) continue;
+
+      const text = lastMsg.body ?? lastMsg.text?.message ?? lastMsg.text ?? '';
+      if (!text) continue;
+
+      // Só processa SDR leads — usuários da plataforma são atendidos por outro agente
+      const { data: platformUser } = await supabase
+        .from('users')
+        .select('id')
+        .or(`whatsapp.eq.${phone},whatsapp.eq.55${phone}`)
+        .maybeSingle();
+      if (platformUser) continue;
+
+      await handleSdrLead(phone, String(text), chat.name ?? lastMsg.senderName ?? null);
+      processed++;
+    }
+
+    return { processed };
+  } catch (err) {
+    logger.error('sdr', 'pollZapiMessages falhou', err);
+    return { processed: 0 };
+  }
+}
+
 // ─── mensagem inicial para lead do simulador ──────────────────────
 
 export async function initiateSdrConversation(
