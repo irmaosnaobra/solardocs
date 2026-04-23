@@ -147,7 +147,7 @@ function RegisterForm() {
 
       <p className={styles.footer}>
         Já tem conta?{' '}
-        <Link href="/login" className={styles.link}>Entrar</Link>
+        <Link href="/auth?mode=login" className={styles.link}>Entrar</Link>
       </p>
     </div>
   );

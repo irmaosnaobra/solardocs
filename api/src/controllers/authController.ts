@@ -7,7 +7,7 @@ import { supabase } from '../utils/supabase';
 import { signToken } from '../utils/jwt';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { sendPasswordResetEmail } from '../utils/mailer';
-import { sendWelcomeWhatsApp } from '../services/whatsappAgentService';
+import { sendWelcomeWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -148,13 +148,30 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
 
-    await supabase
+    console.log(`[ForgotPass] Gerando token para ${email}`);
+
+    const { error: updateErr } = await supabase
       .from('users')
       .update({ reset_token: token, reset_token_expires: expires })
       .eq('id', user.id);
 
-    const resetUrl = `${process.env.DASHBOARD_URL}/redefinir-senha?token=${token}`;
-    await sendPasswordResetEmail(email, resetUrl);
+    if (updateErr) {
+      console.error('[ForgotPass] Erro ao atualizar token no banco:', updateErr);
+      throw updateErr;
+    }
+
+    const dashboardUrl = process.env.DASHBOARD_URL || 'https://solardoc.pro';
+    const resetUrl = `${dashboardUrl}/auth?mode=redefinir&token=${token}`;
+    
+    console.log(`[ForgotPass] Enviando e-mail para ${email} com URL: ${resetUrl}`);
+
+    try {
+      await sendPasswordResetEmail(email, resetUrl);
+      console.log(`[ForgotPass] E-mail enviado com sucesso para ${email}`);
+    } catch (mailErr) {
+      console.error('[ForgotPass] Erro fatal ao enviar e-mail:', mailErr);
+      // Não rethrow para manter a resposta genérica, mas logamos o erro
+    }
 
     res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções.' });
   } catch (err) {

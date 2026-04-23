@@ -177,6 +177,9 @@ export default function ClientesPage() {
               )}
               {client.concessionaria && <p className={styles.cardDetail}>⚡ {client.concessionaria}</p>}
               <div className={styles.cardActions}>
+                <Link href="/documentos?tipo=proposta-bancaria" className={styles.generateBtn}>
+                  🏦 Banco
+                </Link>
                 <button className={styles.editBtn} onClick={() => { setEditingClient(client); setShowModal(true); }}>
                   ✏️ Editar
                 </button>
@@ -185,7 +188,7 @@ export default function ClientesPage() {
                   onClick={() => handleDelete(client.id)}
                   disabled={deletingId === client.id}
                 >
-                  {deletingId === client.id ? '...' : '🗑 Excluir'}
+                  {deletingId === client.id ? '...' : '🗑'}
                 </button>
               </div>
             </div>

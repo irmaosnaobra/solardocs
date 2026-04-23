@@ -199,4 +199,18 @@
     border-color: var(--color-border);
     color: var(--color-text);
   }
+
+  .generateBtn {
+    flex: 1.2;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: var(--color-primary);
+    padding: 10px 8px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+  }
 }

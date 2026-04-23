@@ -32,6 +32,18 @@ router.patch('/sdr-leads/:phone/estagio', async (req: Request, res: Response) =>
     const { phone } = req.params;
     const { estagio } = req.body;
     if (!SDR_ESTAGIOS.includes(estagio)) { res.status(400).json({ error: 'Estágio inválido' }); return; }
+    
+    // Se for fechamento, dispara Purchase no Meta
+    if (estagio === 'fechamento') {
+      const { data: lead } = await supabase.from('sdr_leads').select('ctwa_clid').eq('phone', phone).single();
+      if (lead?.ctwa_clid) {
+        const { sendMetaEvent } = await import('../utils/metaPixel');
+        await sendMetaEvent('Purchase', {
+          customData: { ctwa_clid: lead.ctwa_clid, value: 0, currency: 'BRL' } // O valor pode ser ajustado depois
+        }).catch(console.error);
+      }
+    }
+
     await supabase.from('sdr_leads').update({ estagio, updated_at: new Date().toISOString() }).eq('phone', phone);
     res.json({ ok: true });
   } catch { res.status(500).json({ error: 'Erro ao atualizar' }); }

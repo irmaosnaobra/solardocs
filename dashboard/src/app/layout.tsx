@@ -65,8 +65,8 @@ export default function RootLayout({
 
   // Só mostra se estiver em rota de dashboard (autenticado)
   function isInsideDashboard() {
-    return !window.location.pathname.startsWith('/login') &&
-           !window.location.pathname.startsWith('/register') &&
+    return !window.location.pathname.startsWith('/auth?mode=login') &&
+           !window.location.pathname.startsWith('/auth?mode=register') &&
            !window.location.pathname.startsWith('/esqueci') &&
            !window.location.pathname.startsWith('/redefinir');
   }

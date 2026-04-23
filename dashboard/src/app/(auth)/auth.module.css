@@ -1,11 +1,26 @@
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
+  background: radial-gradient(circle at top left, #1e293b 0%, #0f172a 40%),
+              radial-gradient(circle at bottom right, #1e293b 0%, #0f172a 40%),
+              #0f172a;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  right: -10%;
+  width: 40%;
+  height: 40%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.05) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .brand {

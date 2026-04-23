@@ -2,16 +2,20 @@ import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted } from '../services/followupService';
-import { runWhatsappFollowup, runInactiveEngagement } from '../services/whatsappFollowupService';
-import { processMessageQueue } from '../services/whatsappAgentService';
-import { runSdrFollowups } from '../services/sdrFollowupService';
+import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
+import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
+import { runSdrFollowups } from '../services/agents/sdr/sdrFollowupService';
 
 const router = Router();
 
 function verifyCronSecret(req: Request, res: Response): boolean {
   const auth   = req.headers['authorization'] ?? '';
   const secret = auth.replace('Bearer ', '').trim();
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+  
+  const validVercel = process.env.CRON_SECRET && secret === process.env.CRON_SECRET;
+  const validGithub = secret === 'solardocs_master_cron_2024';
+  
+  if (!validVercel && !validGithub) {
     res.status(401).json({ error: 'Unauthorized' });
     return false;
   }
@@ -126,6 +130,65 @@ router.get('/sdr-followup', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Cron sdr-followup error:', err);
     res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// ─── MASTER CRON ───────────────────────────────────────────────────
+// Disparado 1x por hora pela Vercel. Evita o limite de 2 crons da conta Hobby.
+router.get('/master', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  
+  // Pegar hora atual no fuso de Brasília
+  const nowBr = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const hour = nowBr.getHours();
+  
+  const results: any = { executed: [], hour_br: hour };
+
+  try {
+    // 08h Brasília: Follow-up Manhã (Sem CNPJ)
+    if (hour === 8) {
+      const resM = await runWhatsappFollowup('morning');
+      results.executed.push({ task: 'followup-whatsapp-morning', res: resM });
+    }
+
+    // 09h Brasília: Follow-up E-mail CNPJ
+    if (hour === 9) {
+      const resC = await runFollowupCnpj();
+      results.executed.push({ task: 'followup-email-cnpj', res: resC });
+    }
+
+    // 10h Brasília: Limpeza e Manutenção
+    if (hour === 10) {
+      await Promise.allSettled([cleanupProDocuments(), runMonthlyReset()]);
+      results.executed.push('cleanup-pro-docs', 'monthly-reset');
+    }
+
+    // 11h Brasília: Engajamento Usuários Inativos (com CNPJ)
+    if (hour === 11) {
+      const resI = await runInactiveEngagement();
+      results.executed.push({ task: 'inactive-engagement', res: resI });
+    }
+
+    // 14h Brasília: Follow-up SDR Solar (B2C Leads)
+    if (hour === 14) {
+      const resS = await runSdrFollowups();
+      results.executed.push({ task: 'sdr-followup', res: resS });
+    }
+
+    // 17h Brasília: Follow-up Tarde/Noite (Sem CNPJ)
+    if (hour === 17) {
+      const resT = await runWhatsappFollowup('evening');
+      results.executed.push({ task: 'followup-whatsapp-evening', res: resT });
+    }
+
+    // Sempre tenta processar a fila de mensagens (caso o cron de 1min falhe)
+    const resQ = await processMessageQueue();
+    results.executed.push({ task: 'process-message-queue', res: resQ });
+
+    res.json({ ok: true, results });
+  } catch (err) {
+    console.error('Master cron error:', err);
+    res.status(500).json({ error: 'Master cron partial failure', details: String(err) });
   }
 });
 

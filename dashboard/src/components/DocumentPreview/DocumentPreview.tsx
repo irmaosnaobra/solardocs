@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import styles from './DocumentPreview.module.css';
 import api from '@/services/api';
+import { getToken } from '@/services/auth';
 interface Company {
   nome: string;
   cnpj: string;
@@ -97,10 +98,9 @@ export default function DocumentPreview({
     });
   }, []);
 
-  // Upload HTML quando empresa carrega (apenas Pro/VIP com docId)
+  // Upload HTML quando empresa carrega (necessário para download via servidor em todos os planos)
   useEffect(() => {
     if (!company || !docId || uploadedRef.current) return;
-    if (userPlano === 'free') return;
     uploadedRef.current = true;
     uploadHtml(docId, displayContent);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,8 +134,7 @@ export default function DocumentPreview({
     setDisplayContent(editedContent);
     setEditMode(false);
     setSaved(false);
-    // Re-upload HTML with updated content
-    if (docId && userPlano !== 'free') {
+    if (docId) {
       uploadedRef.current = false;
       setTimeout(() => uploadHtml(docId, editedContent), 100);
     }
@@ -146,7 +145,7 @@ export default function DocumentPreview({
     setEditMode(false);
   }
 
-  function handleDownloadPDF() {
+  function handleDownloadPDFFallback() {
     const pageEl = docRef.current?.querySelector(`.${styles.page}`) as HTMLElement | null;
     if (!pageEl) return;
 
@@ -203,6 +202,22 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
+  function handleDownloadPDF() {
+    if (!docId || saving) return;
+
+    if (saved) {
+      // Download síncrono via URL direta — funciona no celular (sem await = gesture context preservado)
+      const token = getToken();
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const url = `${apiBase}/documents/${docId}/pdf?token=${token}`;
+      window.open(url, '_blank');
+      return;
+    }
+
+    // HTML ainda não foi salvo: fallback enquanto o upload automático termina
+    handleDownloadPDFFallback();
+  }
+
   return (
     <div className={styles.wrapper}>
 
@@ -253,8 +268,8 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
               >
                 ✏️ Editar
               </button>
-              <button className={styles.pdfBtn} onClick={handleDownloadPDF}>
-                ⬇ Baixar PDF
+              <button className={styles.pdfBtn} onClick={handleDownloadPDF} disabled={saving}>
+                {saving ? '⏳ Preparando...' : '⬇ Baixar PDF'}
               </button>
               <button className="btn-secondary" onClick={onNewGeneration}>
                 Novo documento

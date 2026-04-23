@@ -104,7 +104,7 @@ export default function LoginPage() {
         </button>
 
         <div style={{ textAlign: 'right', marginTop: '4px' }}>
-          <Link href="/esqueci-senha" style={{ fontSize: '13px', color: '#f59e0b', textDecoration: 'none' }}>
+          <Link href="/auth?mode=esqueci" style={{ fontSize: '13px', color: '#f59e0b', textDecoration: 'none' }}>
             Esqueci minha senha
           </Link>
         </div>
@@ -112,7 +112,7 @@ export default function LoginPage() {
 
       <p className={styles.footer}>
         Não tem conta?{' '}
-        <Link href="/register" className={styles.link}>
+        <Link href="/auth?mode=register" className={styles.link}>
           Criar conta
         </Link>
       </p>

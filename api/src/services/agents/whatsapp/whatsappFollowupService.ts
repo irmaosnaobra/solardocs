@@ -1,8 +1,8 @@
-import { supabase } from '../utils/supabase';
+import { supabase } from '../../utils/supabase';
 
-const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID;
-const ZAPI_TOKEN    = process.env.ZAPI_TOKEN;
-const ZAPI_CLIENT   = process.env.ZAPI_CLIENT_TOKEN;
+const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID?.trim();
+const ZAPI_TOKEN    = process.env.ZAPI_TOKEN?.trim();
+const ZAPI_CLIENT   = process.env.ZAPI_CLIENT_TOKEN?.trim();
 const APP_URL       = 'https://solardocs-dashboard.vercel.app';
 const FOLLOWUP_START = new Date('2026-04-17T00:00:00-03:00');
 

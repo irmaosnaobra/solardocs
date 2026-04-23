@@ -26,7 +26,7 @@ function RedefinirSenhaContent() {
     try {
       await api.post('/auth/reset-password', { token, password });
       setSuccess(true);
-      setTimeout(() => router.push('/login'), 3000);
+      setTimeout(() => router.push('/auth?mode=login'), 3000);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setError(e.response?.data?.error || 'Link inválido ou expirado.');
@@ -39,7 +39,7 @@ function RedefinirSenhaContent() {
     return (
       <div style={{ textAlign: 'center', padding: '32px' }}>
         <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>Link inválido.</p>
-        <Link href="/esqueci-senha" style={{ color: '#f59e0b', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
+        <Link href="/auth?mode=esqueci" style={{ color: '#f59e0b', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
           Solicitar novo link
         </Link>
       </div>

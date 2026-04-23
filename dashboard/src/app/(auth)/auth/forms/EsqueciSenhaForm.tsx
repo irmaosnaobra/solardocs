@@ -41,7 +41,7 @@ export default function EsqueciSenhaPage() {
           <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', lineHeight: '1.6', marginBottom: '24px' }}>
             Se o email estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a caixa de spam.
           </p>
-          <Link href="/login" style={{ color: '#f59e0b', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
+          <Link href="/auth?mode=login" style={{ color: '#f59e0b', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
             ← Voltar ao login
           </Link>
         </div>
@@ -78,7 +78,7 @@ export default function EsqueciSenhaPage() {
 
           <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '14px', color: 'var(--color-text-muted)' }}>
             Lembrou a senha?{' '}
-            <Link href="/login" style={{ color: '#f59e0b', fontWeight: '500', textDecoration: 'none' }}>
+            <Link href="/auth?mode=login" style={{ color: '#f59e0b', fontWeight: '500', textDecoration: 'none' }}>
               Entrar
             </Link>
           </p>

@@ -37,14 +37,14 @@ const navItems: NavItem[] = [
 ];
 
 const docClienteItems: NavItem[] = [
-  { href: '/documentos/contrato-solar',    icon: '☀️', label: 'Contrato Solar' },
-  { href: '/documentos/procuracao',        icon: '📜', label: 'Procuração' },
-  { href: '/documentos/proposta-bancaria', icon: '🏦', label: 'Proposta Bancária' },
+  { href: '/documentos?tipo=contrato-solar',    icon: '☀️', label: 'Contrato Solar' },
+  { href: '/documentos?tipo=procuracao',        icon: '📜', label: 'Procuração' },
+  { href: '/documentos?tipo=proposta-bancaria', icon: '🏦', label: 'Proposta Bancária' },
 ];
 
 const docTerceiroItems: NavItem[] = [
-  { href: '/documentos/prestacao-servico', icon: '🔧', label: 'Prestação de Serviço' },
-  { href: '/documentos/contrato-pj',       icon: '🤝', label: 'Contrato PJ Vendas' },
+  { href: '/documentos?tipo=prestacao-servico', icon: '🔧', label: 'Prestação de Serviço' },
+  { href: '/documentos?tipo=contrato-pj',       icon: '🤝', label: 'Contrato PJ Vendas' },
 ];
 
 function useBrasiliaTime() {
@@ -82,7 +82,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
 
   function handleLogout() {
     removeToken();
-    router.push('/login');
+    router.push('/auth?mode=login');
   }
 
   function renderNavItem(item: NavItem, lockedByCompany: boolean) {
@@ -225,7 +225,6 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
         </div>
         <div className={styles.navSection}>
           {renderNavItem({ href: '/historico', icon: '🗂️', label: 'Meus Documentos', vipOnly: true }, false)}
-          {renderNavItem({ href: '/sugestoes', icon: '💎', label: 'Sugestões VIP', vipOnly: true }, false)}
         </div>
 
       </nav>

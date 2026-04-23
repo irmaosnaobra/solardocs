@@ -19,7 +19,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       removeToken();
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.location.href = '/auth?mode=login';
       }
     }
     if (error.response?.status === 403 && error.response?.data?.error === 'LIMIT_REACHED') {

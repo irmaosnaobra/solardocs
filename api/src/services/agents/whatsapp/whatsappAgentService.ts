@@ -1,11 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { supabase } from '../utils/supabase';
-import { handleSdrLead } from './sdrAgentService';
+import { supabase } from '../../utils/supabase';
+import { handleSdrLead } from '../sdr/sdrAgentService';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID;
-const ZAPI_TOKEN    = process.env.ZAPI_TOKEN;
-const ZAPI_CLIENT   = process.env.ZAPI_CLIENT_TOKEN;
+const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID?.trim();
+const ZAPI_TOKEN    = process.env.ZAPI_TOKEN?.trim();
+const ZAPI_CLIENT   = process.env.ZAPI_CLIENT_TOKEN?.trim();
 const APP_URL       = 'https://solardocs-dashboard.vercel.app';
 
 const MAX_HISTORY = 30; // ~30 trocas = contexto rico sem estourar tokens
@@ -57,47 +57,21 @@ function buildSystemPrompt(user: {
   const planoLabel: Record<string, string> = { free: 'Gratuito', pro: 'PRO', ilimitado: 'VIP' };
   const nomeUsuario = user.nome ? user.nome.split(' ')[0] : null;
 
-  return `Você é a atendente digital da *Irmãos na Obra* no SolarDoc Pro. Atende via WhatsApp de forma humanizada.
-
-━━ QUEM VOCÊ É ━━
-Não é um bot. É uma pessoa real chamada de assistente da Irmãos na Obra.
-Você TEM memória — lembra tudo que foi dito nessa conversa e usa isso naturalmente.
-Se o usuário mencionou algo antes, você referencia. Se perguntou algo, você lembra a resposta.
-Se ele disse o nome dele, você usa. Se falou de um problema, você acompanha a evolução.
+  return `Você é a "Dani", consultora de sucesso do cliente do SolarDoc Pro. Sua missão é garantir que o integrador gaste menos de 2 minutos gerando documentos.
 
 ━━ PERFIL DO USUÁRIO ━━
-${nomeUsuario ? `- Nome: ${nomeUsuario}` : '- Nome: ainda não informado'}
+${nomeUsuario ? `- Nome: ${nomeUsuario}` : '- Nome: integrador'}
 - Email: ${user.email}
 - Plano: ${planoLabel[user.plano] || user.plano}
 - Empresa: ${user.tem_cnpj ? `${user.nome_empresa || 'cadastrada'} ✅` : 'NÃO cadastrada ainda'}
-${!user.tem_cnpj ? `- MISSÃO: de forma natural e gentil, guiar para cadastrar a empresa em ${APP_URL}/login` : ''}
 
-━━ COMO VOCÊ FALA ━━
-- Como uma pessoa real no WhatsApp — curto, direto, próximo
-- Uma ideia por bolha, máximo 2 frases
-- Use o nome do usuário quando souber
-- Expressões naturais: "Boa!", "Entendi!", "Claro!", "Deixa eu ver", "Que ótimo!"
-- Emojis com naturalidade (não exagera)
-- Nunca textão — quebra em bolhas
-- Se ele voltou depois de um tempo, retoma o contexto: "Oi! Voltou 😄 Conseguiu resolver aquilo?"
+━━ DIRETRIZES ━━
+- Se não tiver CNPJ, guie para ${APP_URL}/login de forma gentil.
+- Uma ideia por bolha, máximo 2 frases. Use || para separar.
+- Proporcione uma experiência de WhatsApp rápida e eficiente.
 
-━━ FORMATO — OBRIGATÓRIO ━━
-Separe cada bolha com ||
-Máximo 3 bolhas. Cada bolha: máximo 2 frases curtas.
-Exemplo: "Oi ${nomeUsuario || 'tudo bem'}! 😊 || Vi aqui que você ainda não cadastrou a empresa... || Quer que eu te mostre como é rápido?"
-
-━━ PLATAFORMA ━━
-- Gera contratos solares, procurações, propostas bancárias, prestação de serviço, contrato PJ
-- Planos: Gratuito (10 docs), Iniciante R$27 (30 docs), PRO R$47 (90 docs), VIP R$97 (ilimitado)
-- Processo: empresa → cliente → documento → gera em 2 min
-
-━━ PROBLEMAS ━━
-- Limite atingido → upgrade ou aguarda renovação mensal
-- Sem empresa → CNPJ em ${APP_URL}/login
-- PDF não abre → liberar popups
-
-━━ ESCALADA ━━
-Cobrança, bug grave ou pedido de humano → agenntaix@gmail.com`;
+━━ FORMATO ━━
+Máximo 3 bolhas separadas por ||.`;
 }
 
 // ─── histórico ───────────────────────────────────────────────────
@@ -174,8 +148,12 @@ export async function sendWelcomeWhatsApp(phone: string, _email: string): Promis
 }
 
 // ─── resposta a mensagem recebida ────────────────────────────────
-
-export async function handleIncomingWhatsApp(phone: string, text: string, senderName?: string | null): Promise<void> {
+export async function handleIncomingWhatsApp(
+  phone: string,
+  text: string,
+  senderName?: string | null,
+  tracking?: { ctwa_clid?: string | null }
+): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
   // Normaliza número BR: Z-API às vezes omite o 9 do celular (553498364589 → 5534998364589)
@@ -197,9 +175,7 @@ export async function handleIncomingWhatsApp(phone: string, text: string, sender
 
   // Número não cadastrado na plataforma → SDR agent (lead B2C)
   if (!user) {
-    // Gatilho: só inicia conversa nova se o lead mandar a frase exata do anúncio.
-    // Se já existe sessão (conversa em andamento), continua normalmente.
-    const SDR_TRIGGER = 'olá! tenho interesse e queria mais informações, por favor';
+    const SDR_TRIGGER = 'tenho interesse em energia solar';
     const { data: existingSession } = await supabase
       .from('whatsapp_sessions')
       .select('id')
@@ -207,15 +183,16 @@ export async function handleIncomingWhatsApp(phone: string, text: string, sender
       .eq('tipo', 'sdr')
       .single();
 
-    const isTriggered = text.trim().toLowerCase().includes(SDR_TRIGGER);
-    const hasSession  = !!existingSession;
+    const hasSession   = !!existingSession;
+    const isTriggered  = text.trim().toLowerCase().includes(SDR_TRIGGER);
+    const isFromAd     = !!tracking?.ctwa_clid; // lead clicou em anúncio Meta
 
-    if (!isTriggered && !hasSession) {
-      // Mensagem aleatória de número desconhecido sem sessão → ignora silenciosamente
+    if (!isTriggered && !hasSession && !isFromAd) {
+      // Mensagem aleatória de número desconhecido sem sessão nem anúncio → ignora
       return;
     }
 
-    await handleSdrLead(cleanPhone, text, senderName);
+    await handleSdrLead(cleanPhone, text, senderName, tracking);
     return;
   }
 
@@ -243,7 +220,7 @@ export async function handleIncomingWhatsApp(phone: string, text: string, sender
   ];
 
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-3-haiku-20240307',
     max_tokens: 350,
     system: buildSystemPrompt(userCtx),
     messages,

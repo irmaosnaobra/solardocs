@@ -176,7 +176,7 @@ function UpgradePage({ email }: { email: string }) {
 
       <p style={{ color: '#475569', fontSize: '0.78rem', marginTop: 28 }}>
         Já assinou?{' '}
-        <a href="/login" style={{ color: '#63b3ed', textDecoration: 'underline' }}>
+        <a href="/auth?mode=login" style={{ color: '#63b3ed', textDecoration: 'underline' }}>
           Entre novamente com o e-mail da compra
         </a>
       </p>
@@ -198,7 +198,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      router.push('/login');
+      router.push('/auth?mode=login');
       return;
     }
     api.get('/auth/me').then(({ data }) => {
@@ -209,7 +209,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         return;
       }
       fetchCompany();
-    }).catch(() => router.push('/login'));
+    }).catch(() => router.push('/auth?mode=login'));
 
     const handler = () => fetchCompany();
     window.addEventListener('company-saved', handler);

@@ -41,9 +41,9 @@ app.use(cors({
 }));
 // Webhook do Stripe precisa do body raw (antes do express.json)
 app.use('/payments/webhook', express.raw({ type: 'application/json' }));
-// Webhook WhatsApp — aceita JSON e form-encoded
+// Webhook WhatsApp — aceita JSON bruto ou texto
 app.use('/webhook', express.text({ type: '*/*' }));
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting global

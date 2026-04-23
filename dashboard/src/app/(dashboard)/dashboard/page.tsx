@@ -44,11 +44,11 @@ const TIPO_ICON: Record<string, string> = {
 };
 
 const TIPO_HREF: Record<string, string> = {
-  contratoSolar:    '/documentos/contrato-solar',
-  prestacaoServico: '/documentos/prestacao-servico',
-  procuracao:       '/documentos/procuracao',
-  contratoPJ:       '/documentos/contrato-pj',
-  propostaBanco:    '/documentos/proposta-bancaria',
+  contratoSolar:    '/documentos?tipo=contrato-solar',
+  prestacaoServico: '/documentos?tipo=prestacao-servico',
+  procuracao:       '/documentos?tipo=procuracao',
+  contratoPJ:       '/documentos?tipo=contrato-pj',
+  propostaBanco:    '/documentos?tipo=proposta-bancaria',
 };
 
 const PIE_COLORS = ['#f59e0b', '#6366f1', '#22c55e', '#ec4899', '#14b8a6'];
