@@ -1,10 +1,8 @@
 import { supabase } from '../../utils/supabase';
+import { sendZAPI } from '../zapiClient';
+import { logger } from '../../utils/logger';
 
-const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID?.trim();
-const ZAPI_TOKEN    = process.env.ZAPI_TOKEN?.trim();
-const ZAPI_CLIENT   = process.env.ZAPI_CLIENT_TOKEN?.trim();
-const APP_URL       = 'https://solardocs-dashboard.vercel.app';
-const FOLLOWUP_START = new Date('2026-04-17T00:00:00-03:00');
+const APP_URL = 'https://solardocs-dashboard.vercel.app';
 
 // ─── 14 mensagens: manhã e tarde por 7 dias ──────────────────────
 const MESSAGES: Record<string, string> = {
@@ -44,19 +42,6 @@ const INACTIVE_MESSAGES = [
   `Lembrete amigável: seus documentos estão prontos pra qualquer proposta ou contrato que aparecer. ⚡\n\nComo estão as vendas no setor?`,
 ];
 
-function fmtPhone(raw: string): string {
-  const d = raw.replace(/\D/g, '');
-  return d.startsWith('55') ? d : `55${d}`;
-}
-
-async function sendZAPI(phone: string, message: string): Promise<void> {
-  if (!ZAPI_INSTANCE || !ZAPI_TOKEN || !ZAPI_CLIENT) return;
-  await fetch(`https://api.z-api.io/instances/${ZAPI_INSTANCE}/token/${ZAPI_TOKEN}/send-text`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Client-Token': ZAPI_CLIENT },
-    body: JSON.stringify({ phone: fmtPhone(phone), message }),
-  });
-}
 
 // ─── followup sem CNPJ ────────────────────────────────────────────
 
@@ -100,7 +85,7 @@ export async function runWhatsappFollowup(period: 'morning' | 'evening'): Promis
       await supabase.from('users').update({ followup_last_sent_at: now.toISOString() }).eq('id', user.id);
       sent++;
     } catch (err) {
-      console.error(`WhatsApp followup error ${user.id}:`, err);
+      logger.error('whatsapp-followup', `Erro ao enviar followup para ${user.id}`, err);
     }
   }
 
@@ -153,7 +138,7 @@ export async function runInactiveEngagement(): Promise<{ sent: number }> {
       await supabase.from('users').update({ followup_last_sent_at: new Date().toISOString() }).eq('id', user.id);
       sent++;
     } catch (err) {
-      console.error(`Inactive engagement error ${user.id}:`, err);
+      logger.error('inactive-engagement', `Erro ao engajar usuário ${user.id}`, err);
     }
   }
   return { sent };
