@@ -5,6 +5,7 @@ import { ApiError } from '../utils/apiError';
 import { generateDocumentWithAI } from '../services/aiService';
 import { generateFromTemplate, type Client } from '../services/templateService';
 import { checkLimit, incrementUsed } from '../services/planService';
+import { logger } from '../utils/logger';
 
 const generateSchema = z.object({
   tipo: z.string().min(1),
@@ -139,7 +140,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       res.status(err.statusCode).json({ error: err.message });
       return;
     }
-    console.error('generateDocument error:', err);
+    logger.error('documents', 'generateDocument falhou', err);
     res.status(500).json({ error: 'Erro ao gerar documento' });
   }
 }
@@ -191,7 +192,7 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
       res.status(400).json({ error: err.issues[0].message });
       return;
     }
-    console.error('saveDocument error:', err);
+    logger.error('documents', 'saveDocument falhou', err);
     res.status(500).json({ error: 'Erro ao salvar documento' });
   }
 }
@@ -286,7 +287,7 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
 
     res.json({ documents: docs, plano: user.plano, historico: true });
   } catch (err) {
-    console.error('listDocuments error:', err);
+    logger.error('documents', 'listDocuments falhou', err);
     res.status(500).json({ error: 'Erro ao listar documentos' });
   }
 }
@@ -314,5 +315,5 @@ export async function cleanupProDocuments(): Promise<void> {
   const ids = oldDocs.map(d => d.id);
   await supabase.from('documents').delete().in('id', ids);
 
-  console.log(`Cleanup: ${ids.length} docs PRO removidos.`);
+  logger.info('documents', `cleanup: ${ids.length} docs PRO removidos`);
 }

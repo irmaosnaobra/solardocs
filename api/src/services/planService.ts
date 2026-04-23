@@ -1,5 +1,6 @@
 import { supabase } from '../utils/supabase';
 import { ApiError } from '../utils/apiError';
+import { logger } from '../utils/logger';
 
 export async function checkLimit(userId: string): Promise<void> {
   const { data: user } = await supabase
@@ -43,6 +44,6 @@ export async function runMonthlyReset(): Promise<void> {
     .not('data_reset', 'is', null)
     .select('id, email');
 
-  console.log(`Monthly reset executed for ${data?.length ?? 0} users`);
-  if (error) console.error('Monthly reset error:', error);
+  logger.info('plan', `monthly reset: ${data?.length ?? 0} usuários resetados`);
+  if (error) logger.error('plan', 'monthly reset falhou', error);
 }

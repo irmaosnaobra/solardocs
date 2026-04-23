@@ -5,6 +5,7 @@ import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted } from '../ser
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups } from '../services/agents/sdr/sdrFollowupService';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -29,7 +30,7 @@ router.get('/cleanup-pro-docs', async (req: Request, res: Response) => {
     await cleanupProDocuments();
     res.json({ ok: true });
   } catch (err) {
-    console.error('Cron cleanup error:', err);
+    logger.error('cron', 'cleanup-pro-docs falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
@@ -41,7 +42,7 @@ router.get('/monthly-reset', async (req: Request, res: Response) => {
     await runMonthlyReset();
     res.json({ ok: true });
   } catch (err) {
-    console.error('Cron monthly reset error:', err);
+    logger.error('cron', 'monthly-reset falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
@@ -53,7 +54,7 @@ router.get('/followup-cnpj', async (req: Request, res: Response) => {
     const result = await runFollowupCnpj();
     res.json({ ok: true, ...result });
   } catch (err) {
-    console.error('Cron followup error:', err);
+    logger.error('cron', 'followup-cnpj falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
@@ -65,7 +66,7 @@ router.get('/followup-blast-day1', async (req: Request, res: Response) => {
     const result = await blastFollowupDay1();
     res.json({ ok: true, ...result });
   } catch (err) {
-    console.error('Cron blast error:', err);
+    logger.error('cron', 'followup-blast-day1 falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
@@ -77,7 +78,7 @@ router.get('/followup-stamp', async (req: Request, res: Response) => {
     const result = await stampFollowupStarted();
     res.json({ ok: true, ...result });
   } catch (err) {
-    console.error('Cron stamp error:', err);
+    logger.error('cron', 'followup-stamp falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
@@ -116,7 +117,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     const result = await processMessageQueue();
     res.json({ ok: true, ...result });
   } catch (err) {
-    console.error('Cron process-messages error:', err);
+    logger.error('cron', 'process-messages falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
@@ -128,7 +129,7 @@ router.get('/sdr-followup', async (req: Request, res: Response) => {
     const result = await runSdrFollowups();
     res.json({ ok: true, ...result });
   } catch (err) {
-    console.error('Cron sdr-followup error:', err);
+    logger.error('cron', 'sdr-followup falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
@@ -187,7 +188,7 @@ router.get('/master', async (req: Request, res: Response) => {
 
     res.json({ ok: true, results });
   } catch (err) {
-    console.error('Master cron error:', err);
+    logger.error('cron', 'master cron falhou', err);
     res.status(500).json({ error: 'Master cron partial failure', details: String(err) });
   }
 });

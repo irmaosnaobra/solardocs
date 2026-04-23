@@ -63,7 +63,7 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
 
   for (const lead of leads as SdrLead[]) {
     const contatos = lead.contatos ?? 0;
-    const ultimoContato = new Date(lead.ultimo_contato || lead.updated_at);
+    const ultimoContato = new Date((lead.ultimo_contato ?? lead.updated_at) ?? 0);
     const minutos = (now.getTime() - ultimoContato.getTime()) / 60000;
     const intervaloNecessario = INTERVALOS_MIN[contatos] ?? 1440;
 
