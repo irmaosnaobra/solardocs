@@ -17,11 +17,9 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
   const adData = body.externalAdReply || {};
   const tracking = { ctwa_clid: adData.ctwaClid || null, _route: '/whatsapp' };
 
-  // Responde 200 imediatamente para a Z-API não ficar aguardando
-  res.status(200).send('ok');
-
   try {
-    await supabase.from('webhook_debug').insert({ payload: { ...body, ...tracking } });
+    const { error: dbErr } = await supabase.from('webhook_debug').insert({ payload: { ...body, ...tracking } });
+    if (dbErr) console.error('[webhook] supabase insert webhook_debug falhou:', dbErr);
 
     const phone = body.phone || body.senderPhone;
     const text = body.message?.conversation
@@ -38,6 +36,7 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
   } catch (err) {
     console.error('Webhook Error:', err);
   }
+  if (!res.headersSent) res.status(200).send('ok');
 });
 
 // Alias /zapi para redundância
@@ -48,11 +47,9 @@ router.post('/zapi', async (req: Request, res: Response): Promise<void> => {
   const adData = body.externalAdReply || {};
   const tracking = { ctwa_clid: adData.ctwaClid || null, _route: '/zapi' };
 
-  // Responde 200 imediatamente para a Z-API não ficar aguardando
-  res.status(200).send('ok');
-
   try {
-    await supabase.from('webhook_debug').insert({ payload: { ...body, ...tracking } });
+    const { error: dbErr } = await supabase.from('webhook_debug').insert({ payload: { ...body, ...tracking } });
+    if (dbErr) console.error('[webhook] supabase insert webhook_debug falhou:', dbErr);
 
     const phone = body.phone || body.senderPhone;
     const text = body.message?.conversation
@@ -69,6 +66,7 @@ router.post('/zapi', async (req: Request, res: Response): Promise<void> => {
   } catch (err) {
     console.error('Z-API Error:', err);
   }
+  if (!res.headersSent) res.status(200).send('ok');
 });
 
 export default router;
