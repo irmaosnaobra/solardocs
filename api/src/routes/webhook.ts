@@ -52,18 +52,24 @@ async function handleWebhook(body: any, route: '/whatsapp' | '/zapi', res: Respo
   }
 }
 
+function normalizeBody(raw: unknown): Record<string, any> {
+  if (raw == null) return {};
+  if (typeof raw === 'string') {
+    if (raw.trim() === '') return {};
+    try { return JSON.parse(raw); } catch { return { raw }; }
+  }
+  if (typeof raw === 'object') return raw as Record<string, any>;
+  return { raw };
+}
+
 // Webhook Z-API — recebe mensagens do WhatsApp
 router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
-  let body = req.body;
-  try { if (typeof body === 'string') body = JSON.parse(body); } catch { body = { raw: body }; }
-  await handleWebhook(body, '/whatsapp', res);
+  await handleWebhook(normalizeBody(req.body), '/whatsapp', res);
 });
 
 // Alias /zapi para redundância
 router.post('/zapi', async (req: Request, res: Response): Promise<void> => {
-  let body = req.body;
-  try { if (typeof body === 'string') body = JSON.parse(body); } catch { body = { raw: body }; }
-  await handleWebhook(body, '/zapi', res);
+  await handleWebhook(normalizeBody(req.body), '/zapi', res);
 });
 
 export default router;
