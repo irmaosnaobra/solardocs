@@ -402,20 +402,29 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
             <div className={styles.docBody}>
               {(() => {
                 const sigStart = blocks.findIndex(b => b.type === 'signatureLine');
-                const before = sigStart === -1 ? blocks : blocks.slice(0, sigStart);
-                const sig = sigStart === -1 ? [] : blocks.slice(sigStart);
+                if (sigStart === -1) {
+                  return blocks.map((block, i) => (
+                    <RenderBlock key={`b-${i}`} block={block} idx={i} />
+                  ));
+                }
+                // Puxa a última cláusula/seção junto da assinatura: busca o último
+                // sectionHeader antes da assinatura para que subam juntos se houver quebra.
+                let keepStart = sigStart;
+                for (let i = sigStart - 1; i >= 0; i--) {
+                  if (blocks[i].type === 'sectionHeader') { keepStart = i; break; }
+                }
+                const before = blocks.slice(0, keepStart);
+                const keep = blocks.slice(keepStart);
                 return (
                   <>
                     {before.map((block, i) => (
                       <RenderBlock key={`b-${i}`} block={block} idx={i} />
                     ))}
-                    {sig.length > 0 && (
-                      <div className={styles.signatureBlock}>
-                        {sig.map((block, i) => (
-                          <RenderBlock key={`s-${i}`} block={block} idx={i} />
-                        ))}
-                      </div>
-                    )}
+                    <div className={styles.signatureBlock}>
+                      {keep.map((block, i) => (
+                        <RenderBlock key={`s-${i}`} block={block} idx={i} />
+                      ))}
+                    </div>
                   </>
                 );
               })()}
