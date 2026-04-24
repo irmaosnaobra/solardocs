@@ -47,7 +47,13 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
       preferCSSPageSize: false,
     });
 
-    const fileName = `${doc.tipo}-${(doc.cliente_nome ?? 'documento').replace(/\s+/g, '-').toLowerCase()}.pdf`;
+    const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const tipoSlug = stripDiacritics(doc.tipo ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const clienteSlug = stripDiacritics(doc.cliente_nome ?? 'documento')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    const fileName = `${tipoSlug}_${clienteSlug}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(Buffer.from(pdf));

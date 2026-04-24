@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import styles from './DocumentPreview.module.css';
 import api from '@/services/api';
 import { getToken } from '@/services/auth';
+import { slugifyDocName } from '@/utils/docFilename';
 interface Company {
   nome: string;
   cnpj: string;
@@ -226,8 +227,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const win = window.open(url, '_blank');
-    const cleanTipo = tipo.toLowerCase().includes('contrato') ? 'contrato' : tipo;
-    const downloadName = `${cleanTipo}_${clienteNome.replace(/\s+/g, '_').toLowerCase()}`;
+    const downloadName = slugifyDocName(tipo, clienteNome);
     if (!win) {
       const a = document.createElement('a');
       a.href = url;
@@ -250,8 +250,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
-        const cleanTipo = tipo.toLowerCase().includes('contrato') ? 'contrato' : tipo;
-        const downloadName = `${cleanTipo}_${clienteNome.replace(/\s+/g, '_').toLowerCase()}`;
+        const downloadName = slugifyDocName(tipo, clienteNome);
         const a = document.createElement('a');
         a.href = url;
         a.download = `${downloadName}.pdf`;

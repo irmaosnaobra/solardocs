@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import api from '@/services/api';
 import styles from './historico.module.css';
 import { fmtDateBR } from '@/utils/brasilia';
+import { slugifyDocName } from '@/utils/docFilename';
 
 interface Doc {
   id: string;
@@ -45,7 +46,7 @@ export default function HistoricoPage() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${doc.tipo}-${doc.cliente_nome.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      a.download = `${slugifyDocName(doc.tipo, doc.cliente_nome)}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
