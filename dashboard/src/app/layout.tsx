@@ -65,10 +65,12 @@ export default function RootLayout({
 
   // Só mostra se estiver em rota de dashboard (autenticado)
   function isInsideDashboard() {
-    return !window.location.pathname.startsWith('/auth?mode=login') &&
-           !window.location.pathname.startsWith('/auth?mode=register') &&
-           !window.location.pathname.startsWith('/esqueci') &&
-           !window.location.pathname.startsWith('/redefinir');
+    var path = window.location.pathname;
+    return !path.startsWith('/auth') &&
+           !path.startsWith('/login') &&
+           !path.startsWith('/register') &&
+           !path.startsWith('/esqueci') &&
+           !path.startsWith('/redefinir');
   }
 
   if (!isInsideDashboard()) return;

@@ -24,7 +24,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
         <div style="padding:36px;">
           <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Olá! Percebemos que você criou sua conta mas ainda não informou o CNPJ da sua empresa.</p>
           <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Com o CNPJ cadastrado, você já pode gerar contratos, procurações, propostas bancárias e muito mais — tudo em menos de 2 minutos, sem retrabalho.</p>
-          <a href="${APP_URL}/login" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Completar meu cadastro agora</a>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Completar meu cadastro agora</a>
           <p style="color:#475569;font-size:13px;margin:32px 0 0;line-height:1.6;">Criado por integradores solares com mais de 8 anos de mercado. Sabemos exatamente o que você precisa.</p>
         </div>
       </div>`,
@@ -46,7 +46,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
             <li>Envia para assinatura digital direto da plataforma</li>
             <li>Mantém todo o histórico organizado em um só lugar</li>
           </ul>
-          <a href="${APP_URL}/login" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Ativar minha conta gratuitamente</a>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Ativar minha conta gratuitamente</a>
           <p style="color:#475569;font-size:13px;margin:32px 0 0;">Seu teste gratuito inclui 10 documentos sem precisar de cartão de crédito.</p>
         </div>
       </div>`,
@@ -63,7 +63,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
           <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">O SolarDoc Pro não foi criado por uma startup de tecnologia que nunca instalou um painel. Foi criado por <strong style="color:#f59e0b;">integradores solares com 8 anos de mercado</strong> que se cansaram de usar Word, PDF genérico e planilha para fechar negócio.</p>
           <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 20px;">Sabemos o que um contrato de sistema solar precisa ter. Sabemos o que os bancos exigem numa proposta. Sabemos o que a ANEEL pede numa procuração de acesso.</p>
           <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Por isso cada documento na plataforma já nasce correto, completo e profissional — você só preenche os dados.</p>
-          <a href="${APP_URL}/login" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Começar meu teste gratuito</a>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Começar meu teste gratuito</a>
         </div>
       </div>`,
   },
@@ -99,7 +99,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
               <div><p style="margin:0;color:#f8fafc;font-weight:700;font-size:14px;">Contrato de Prestação de Serviço</p><p style="margin:4px 0 0;color:#64748b;font-size:13px;">Para O&M, manutenção e monitoramento</p></div>
             </div>
           </div>
-          <a href="${APP_URL}/login" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;margin-top:8px;">Quero gerar meu primeiro documento</a>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;margin-top:8px;">Quero gerar meu primeiro documento</a>
         </div>
       </div>`,
   },
@@ -118,7 +118,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
             <p style="color:#f59e0b;font-weight:700;font-size:14px;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px;">O que você ganha de graça</p>
             <p style="color:#94a3b8;font-size:14px;line-height:2;margin:0;">✓ 10 documentos gerados por IA<br>✓ Histórico de todos os documentos<br>✓ Assinatura digital via Autentique<br>✓ Cadastro ilimitado de clientes</p>
           </div>
-          <a href="${APP_URL}/login" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Ativar meu teste gratuito</a>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Ativar meu teste gratuito</a>
         </div>
       </div>`,
   },
@@ -138,7 +138,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
             <p style="color:#e2e8f0;font-style:italic;font-size:15px;line-height:1.7;margin:0;">"A ferramenta foi feita por quem entende do setor. Os documentos já saem corretos, não preciso revisar nada."</p>
             <p style="color:#64748b;font-size:13px;margin:12px 0 0;">— Integrador solar, 8 anos de mercado</p>
           </div>
-          <a href="${APP_URL}/login" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Quero essa agilidade também</a>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Quero essa agilidade também</a>
         </div>
       </div>`,
   },
@@ -154,7 +154,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
           <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Essa é nossa última mensagem por agora. Sua conta foi criada há 7 dias e o CNPJ da empresa ainda não foi informado.</p>
           <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 20px;">O SolarDoc Pro foi construído ao longo de 8 anos de experiência real como integradores para resolver o problema que todo integrador enfrenta: <strong style="color:#f8fafc;">burocracia que consome tempo de venda.</strong></p>
           <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Seus 10 documentos gratuitos continuam disponíveis. Basta informar o CNPJ e começar.</p>
-          <a href="${APP_URL}/login" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:16px;padding:18px 40px;border-radius:10px;text-decoration:none;">Ativar agora — é grátis</a>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:16px;padding:18px 40px;border-radius:10px;text-decoration:none;">Ativar agora — é grátis</a>
           <p style="color:#334155;font-size:12px;margin:36px 0 0;line-height:1.6;">Não quer mais receber esses emails? Basta ignorar — só enviaremos comunicações importantes da sua conta a partir de agora.</p>
         </div>
       </div>`,
