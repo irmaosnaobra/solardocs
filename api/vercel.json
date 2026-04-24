@@ -1,26 +1,16 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "src/app.ts",
-      "use": "@vercel/node",
-      "config": { "memory": 1024, "maxDuration": 60 }
+  "functions": {
+    "api/index.ts": {
+      "memory": 1024,
+      "maxDuration": 60
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "src/app.ts"
-    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api" }
   ],
   "crons": [
-    {
-      "path": "/cron/master",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/cron/process-messages",
-      "schedule": "* * * * *"
-    }
+    { "path": "/cron/master", "schedule": "0 * * * *" },
+    { "path": "/cron/process-messages", "schedule": "* * * * *" }
   ]
 }
