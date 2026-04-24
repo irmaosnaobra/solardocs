@@ -351,9 +351,9 @@ Fica no escopo do CLIENTE deixar a área em condições para implantação da us
 2. PRAZOS E EXECUÇÃO
 
 A CONTRATADA deverá:
-- Submeter o projeto técnico em até ${str(f.prazo_projeto_dias)} dias após o cumprimento das obrigações pelo CLIENTE.
-- Aguardar aprovação de órgãos reguladores, o que deverá ocorrer em até ${str(f.prazo_aprovacao_dias)} dias, salvo pendências atribuídas ao CLIENTE ou terceiros.
-- Realizar a instalação completa em até ${str(f.prazo_instalacao_dias)} dias úteis após a aprovação, podendo haver extensão de prazo devido a fatores externos, como condições climáticas adversas ou exigências das concessionárias locais de energia.
+- Submeter o projeto técnico em até ${str(f.prazo_projeto_dias)} (${numExtenso(f.prazo_projeto_dias)}) dias após o cumprimento das obrigações pelo CLIENTE.
+- Aguardar aprovação de órgãos reguladores, o que deverá ocorrer em até ${str(f.prazo_aprovacao_dias)} (${numExtenso(f.prazo_aprovacao_dias)}) dias, salvo pendências atribuídas ao CLIENTE ou terceiros.
+- Realizar a instalação completa em até ${str(f.prazo_instalacao_dias)} (${numExtenso(f.prazo_instalacao_dias)}) dias úteis após a aprovação, podendo haver extensão de prazo devido a fatores externos, como condições climáticas adversas ou exigências das concessionárias locais de energia.
 
 Nota: Os prazos serão suspensos em caso de atrasos por responsabilidade do CLIENTE, dos fabricantes ou de órgãos reguladores. Em situações de força maior, os prazos serão reajustados de acordo com novo cronograma acordado entre as partes.
 
@@ -718,7 +718,7 @@ VALOR TOTAL: R$ ${fmtBRL(valorTotal)}
 VALOR EQUIPAMENTO: R$ ${fmtBRL(valorEq)}
 VALOR MÃO DE OBRA: R$ ${fmtBRL(valorMo)}
 DATA DE EMISSÃO: ${today}
-VALIDADE DA PROPOSTA: ${validadeDias} dias
+VALIDADE DA PROPOSTA: ${validadeDias} (${numExtenso(validadeDias)}) dias
 
 
 
@@ -819,7 +819,7 @@ COMPOSIÇÃO DE VALORES
    VALOR TOTAL DO PROJETO:           R$ ${fmtBRL(valorTotal)}
 
 Data de emissão:      ${today}
-Validade da proposta: ${validadeDias} dias corridos
+Validade da proposta: ${validadeDias} (${numExtenso(validadeDias)}) dias corridos
 
 ──────────────────────────────────────────────────────────────
 
@@ -831,7 +831,7 @@ Declaramos, para os devidos fins junto à ${banco}, que:
 
 2. Os equipamentos listados são novos, de primeira linha e acompanhados de nota fiscal e certificado de garantia do fabricante.
 
-3. O prazo estimado de instalação após liberação do crédito é de até ${str(f.prazo_instalacao_dias) || '30'} dias úteis.
+3. O prazo estimado de instalação após liberação do crédito é de até ${str(f.prazo_instalacao_dias) || '30'} (${numExtenso(f.prazo_instalacao_dias || '30')}) dias úteis.
 
 4. A empresa possui capacidade técnica e operacional para execução dos serviços descritos nesta proposta.
 
@@ -1941,7 +1941,7 @@ O pagamento está condicionado à execução completa e adequada dos serviços.
 
 3. PRAZO DE EXECUÇÃO
 
-Os serviços deverão ser executados no prazo de até ${str(f.prazo)} dias, contados a partir da liberação da obra pela CONTRATANTE.
+Os serviços deverão ser executados no prazo de até ${str(f.prazo)} (${numExtenso(f.prazo)}) dias, contados a partir da liberação da obra pela CONTRATANTE.
 
 O prazo poderá sofrer alterações em função de:
 
@@ -2094,7 +2094,7 @@ O atraso no pagamento sujeitará a CONTRATANTE à incidência de juros de 1% ao 
 
 CLÁUSULA QUARTA — DO PRAZO DE EXECUÇÃO
 
-Os serviços serão executados em até ${str(f.prazo)} dias corridos, contados da liberação da obra pela CONTRATANTE.
+Os serviços serão executados em até ${str(f.prazo)} (${numExtenso(f.prazo)}) dias corridos, contados da liberação da obra pela CONTRATANTE.
 
 Os prazos serão suspensos em caso de condições climáticas adversas, indisponibilidade do local ou fatores externos alheios à CONTRATADA, devidamente comprovados.
 
