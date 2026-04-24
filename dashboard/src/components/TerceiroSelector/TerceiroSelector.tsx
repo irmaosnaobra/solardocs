@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '@/services/api';
 import styles from './TerceiroSelector.module.css';
 
@@ -29,10 +29,22 @@ export default function TerceiroSelector({ value, onChange }: TerceiroSelectorPr
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Terceiro | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api.get('/terceiros').then(({ data }) => setTerceiros(data.terceiros));
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
 
   useEffect(() => {
     if (value && terceiros.length > 0 && !selected) {
@@ -60,7 +72,7 @@ export default function TerceiroSelector({ value, onChange }: TerceiroSelectorPr
   }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={containerRef}>
       {selected ? (
         <div className={styles.selectedCard}>
           <div className={styles.cardHeader}>

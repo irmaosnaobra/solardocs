@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '@/services/api';
 import styles from './ClientSelector.module.css';
 
@@ -32,10 +32,22 @@ export default function ClientSelector({ value, onChange }: ClientSelectorProps)
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Client | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api.get('/clients').then(({ data }) => setClients(data.clients));
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
 
   useEffect(() => {
     if (value && clients.length > 0 && !selected) {
@@ -62,7 +74,7 @@ export default function ClientSelector({ value, onChange }: ClientSelectorProps)
   }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={containerRef}>
       {selected ? (
         <div className={styles.selectedCard}>
           <div className={styles.cardHeader}>
