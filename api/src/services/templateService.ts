@@ -367,9 +367,9 @@ ${str(f.condicoes_pagamento)}
 
 4. GARANTIAS E MANUTENÇÃO
 
-Equipamentos: As garantias dos equipamentos são exclusivamente do fabricante, cobrindo ${str(f.garantia_modulos_anos)} anos para módulos fotovoltaicos, ${str(f.garantia_inversor_anos)} anos para o inversor, e prazos específicos para demais componentes conforme manual do fabricante.
+Equipamentos: As garantias dos equipamentos são exclusivamente do fabricante, cobrindo ${str(f.garantia_modulos_anos)} (${numExtenso(f.garantia_modulos_anos)}) anos para módulos fotovoltaicos, ${str(f.garantia_inversor_anos)} (${numExtenso(f.garantia_inversor_anos)}) anos para o inversor, e prazos específicos para demais componentes conforme manual do fabricante.
 
-Instalação: A garantia de instalação é de ${str(f.garantia_instalacao_anos)} anos, válida somente para defeitos de instalação devidamente constatados por laudo técnico.
+Instalação: A garantia de instalação é de ${str(f.garantia_instalacao_anos)} (${numExtenso(f.garantia_instalacao_anos)}) anos, válida somente para defeitos de instalação devidamente constatados por laudo técnico.
 
 Exclusões de Garantia: A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da CONTRATADA, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.
 
@@ -1930,7 +1930,7 @@ A montagem compreende:
 
 2. VALOR E CONDIÇÕES DE PAGAMENTO
 
-O valor total pelos serviços prestados será de R$ ${curr(str(f.valor_servico))}.
+O valor total pelos serviços prestados será de R$ ${curr(str(f.valor_servico))} (${extenso(f.valor_servico)}).
 
 O pagamento será realizado da seguinte forma:
 
@@ -2213,25 +2213,70 @@ function curr(v: string): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
 
-function extenso(v: unknown): string {
-  const n = parseBRL(v);
-  if (!n) return 'valor a ser definido';
-  const cents = Math.round((n - Math.floor(n)) * 100);
-  const base = n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-  return `${base} reais${cents > 0 ? ` e ${cents} centavos` : ''}`;
+const _UNIDADES = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove',
+  'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+const _DEZENAS = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+const _CENTENAS = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+
+function _abaixoMil(n: number): string {
+  if (n === 0) return '';
+  if (n === 100) return 'cem';
+  const c = Math.floor(n / 100);
+  const resto = n % 100;
+  const partes: string[] = [];
+  if (c > 0) partes.push(_CENTENAS[c]);
+  if (resto > 0) {
+    if (resto < 20) partes.push(_UNIDADES[resto]);
+    else {
+      const d = Math.floor(resto / 10);
+      const u = resto % 10;
+      partes.push(u === 0 ? _DEZENAS[d] : `${_DEZENAS[d]} e ${_UNIDADES[u]}`);
+    }
+  }
+  return partes.join(' e ');
 }
 
 function numExtenso(v: unknown): string {
-  const n = parseInt(String(v));
-  const m: Record<number, string> = {
-    1: 'um', 2: 'dois', 3: 'três', 4: 'quatro', 5: 'cinco', 6: 'seis', 7: 'sete',
-    8: 'oito', 9: 'nove', 10: 'dez', 11: 'onze', 12: 'doze', 13: 'treze',
-    14: 'quatorze', 15: 'quinze', 16: 'dezesseis', 17: 'dezessete', 18: 'dezoito',
-    19: 'dezenove', 20: 'vinte', 25: 'vinte e cinco', 30: 'trinta', 35: 'trinta e cinco',
-    40: 'quarenta', 45: 'quarenta e cinco', 50: 'cinquenta', 60: 'sessenta',
-    90: 'noventa', 120: 'cento e vinte',
-  };
-  return m[n] || String(n);
+  const raw = parseFloat(String(v ?? '').replace(',', '.'));
+  if (!Number.isFinite(raw) || raw < 0) return String(v ?? '');
+  const n = Math.floor(raw);
+  if (n === 0) return 'zero';
+  if (n < 1000) return _abaixoMil(n);
+
+  const milhoes = Math.floor(n / 1_000_000);
+  const milhares = Math.floor((n % 1_000_000) / 1000);
+  const resto = n % 1000;
+
+  const partes: string[] = [];
+  let lastCoef = 0;
+  if (milhoes > 0) {
+    partes.push(milhoes === 1 ? 'um milhão' : `${_abaixoMil(milhoes)} milhões`);
+    lastCoef = milhoes;
+  }
+  if (milhares > 0) {
+    partes.push(milhares === 1 ? 'mil' : `${_abaixoMil(milhares)} mil`);
+    lastCoef = milhares;
+  }
+  if (resto > 0) {
+    partes.push(_abaixoMil(resto));
+    lastCoef = resto;
+  }
+  if (partes.length === 1) return partes[0];
+  const useE = lastCoef < 100 || lastCoef % 100 === 0;
+  return useE
+    ? partes.slice(0, -1).join(' ') + ' e ' + partes[partes.length - 1]
+    : partes.join(' ');
+}
+
+function extenso(v: unknown): string {
+  const n = parseBRL(v);
+  if (!n) return 'valor a ser definido';
+  const reais = Math.floor(n);
+  const centavos = Math.round((n - reais) * 100);
+  const partes: string[] = [];
+  if (reais > 0) partes.push(`${numExtenso(reais)} ${reais === 1 ? 'real' : 'reais'}`);
+  if (centavos > 0) partes.push(`${numExtenso(centavos)} ${centavos === 1 ? 'centavo' : 'centavos'}`);
+  return partes.join(' e ');
 }
 
 function numExtensoDecimal(v: string): string {
