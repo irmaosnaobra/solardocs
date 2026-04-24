@@ -114,29 +114,32 @@ export default function DocumentPreview({
     const css = `
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: #fff; }
-body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.7; color: #1a1a1a; }
-.${s.page} { width: 100%; padding: 2cm; min-height: 297mm; display: flex; flex-direction: column; }
-.${s.companyHeader} { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
-.${s.logo} { height: 52px; width: auto; object-fit: contain; flex-shrink: 0; }
-.${s.companyInfo} { display: flex; flex-direction: column; gap: 2px; }
-.${s.companyName} { font-size: 12.5pt; font-weight: 700; color: #1a1a1a; font-family: Arial, sans-serif; }
-.${s.companyDetail} { font-size: 8.5pt; color: #555; font-family: Arial, sans-serif; }
-.${s.headerDivider} { border: none; border-top: 2px solid #1a1a2e; margin: 10px 0 24px 0; }
+body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.45; color: #1a1a1a; orphans: 3; widows: 3; }
+.${s.page} { width: 100%; padding: 1.5cm 2cm; min-height: 297mm; display: flex; flex-direction: column; }
+.${s.companyHeader} { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
+.${s.logo} { height: 48px; width: auto; object-fit: contain; flex-shrink: 0; }
+.${s.companyInfo} { display: flex; flex-direction: column; gap: 1px; }
+.${s.companyName} { font-size: 12pt; font-weight: 700; color: #1a1a1a; font-family: Arial, sans-serif; }
+.${s.companyDetail} { font-size: 8pt; color: #555; font-family: Arial, sans-serif; }
+.${s.headerDivider} { border: none; border-top: 2px solid #1a1a2e; margin: 8px 0 16px 0; }
 .${s.docBody} { flex: 1; }
-.${s.docTitle} { font-size: 12.5pt; font-weight: 700; text-align: center; text-transform: uppercase; color: #1a1a2e; margin: 0 0 22px 0; }
-.${s.sectionHeader} { font-size: 10pt; font-weight: 700; text-transform: uppercase; color: #1a1a2e; margin: 18px 0 8px 0; padding-bottom: 3px; border-bottom: 1px solid #ccc; }
-.${s.separator} { border: none; border-top: 1px solid #ccc; margin: 14px 0; }
-.${s.bodyText} { margin: 0 0 7px 0; text-align: justify; color: #222; }
-.${s.listItem} { margin: 4px 0 4px 18px; text-align: justify; color: #222; }
-.${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9.5pt; color: #333; margin: 4px 0; }
-.${s.spacer} { height: 8px; }
-.${s.footer} { margin-top: 28px; padding-top: 8px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }
-@page { size: A4 portrait; margin: 2cm 2cm 2.5cm 2cm; }
+.${s.docTitle} { font-size: 12pt; font-weight: 700; text-align: center; text-transform: uppercase; color: #1a1a2e; margin: 0 0 16px 0; page-break-after: avoid; break-after: avoid; }
+.${s.sectionHeader} { font-size: 9.5pt; font-weight: 700; text-transform: uppercase; color: #1a1a2e; margin: 12px 0 6px 0; padding-bottom: 2px; border-bottom: 1px solid #ccc; page-break-after: avoid; break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
+.${s.separator} { border: none; border-top: 1px solid #ccc; margin: 10px 0; }
+.${s.bodyText} { margin: 0 0 5px 0; text-align: justify; color: #222; }
+.${s.listItem} { margin: 3px 0 3px 18px; text-align: justify; color: #222; }
+.${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9pt; color: #333; margin: 3px 0; }
+.${s.signatureBlock} { page-break-inside: avoid; break-inside: avoid; margin-top: 12px; }
+.${s.spacer} { height: 6px; }
+.${s.footer} { margin-top: 20px; padding-top: 6px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }
+@page { size: A4 portrait; margin: 1.5cm 1.5cm 2cm 1.5cm; }
 @media print {
   html, body { background: #fff !important; }
   .${s.page} { padding: 0 !important; min-height: auto !important; display: block !important; }
   .${s.footer} { display: none !important; }
-  p, h1, h2, h3, .${s.bodyText}, .${s.sectionHeader}, .${s.signatureLine} { page-break-inside: avoid; }
+  .${s.signatureBlock} { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .${s.sectionHeader} { page-break-after: avoid !important; break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; }
+  .${s.bodyText}, .${s.listItem}, .${s.signatureLine} { page-break-inside: avoid; break-inside: avoid; }
 }`.trim();
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>${clienteNome}</title><style>${css}</style></head><body>${pageEl.outerHTML}</body></html>`;
   }
@@ -179,28 +182,32 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
     const css = `
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: #fff; }
-body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.7; color: #1a1a1a; }
-.${s.page} { width: 100%; padding: 2cm; min-height: 297mm; display: flex; flex-direction: column; }
-.${s.companyHeader} { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
-.${s.logo} { height: 52px; width: auto; object-fit: contain; flex-shrink: 0; }
-.${s.companyInfo} { display: flex; flex-direction: column; gap: 2px; }
-.${s.companyName} { font-size: 12.5pt; font-weight: 700; color: #1a1a1a; font-family: Arial, sans-serif; letter-spacing: 0.02em; }
-.${s.companyDetail} { font-size: 8.5pt; color: #555; font-family: Arial, sans-serif; }
-.${s.headerDivider} { border: none; border-top: 2px solid #1a1a2e; margin: 10px 0 24px 0; }
+body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.45; color: #1a1a1a; orphans: 3; widows: 3; }
+.${s.page} { width: 100%; padding: 1.5cm 2cm; min-height: 297mm; display: flex; flex-direction: column; }
+.${s.companyHeader} { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
+.${s.logo} { height: 48px; width: auto; object-fit: contain; flex-shrink: 0; }
+.${s.companyInfo} { display: flex; flex-direction: column; gap: 1px; }
+.${s.companyName} { font-size: 12pt; font-weight: 700; color: #1a1a1a; font-family: Arial, sans-serif; letter-spacing: 0.01em; }
+.${s.companyDetail} { font-size: 8pt; color: #555; font-family: Arial, sans-serif; }
+.${s.headerDivider} { border: none; border-top: 2px solid #1a1a2e; margin: 8px 0 16px 0; }
 .${s.docBody} { flex: 1; }
-.${s.docTitle} { font-size: 12.5pt; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 0.06em; color: #1a1a2e; margin: 0 0 22px 0; line-height: 1.4; }
-.${s.sectionHeader} { font-size: 10pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #1a1a2e; margin: 18px 0 8px 0; padding-bottom: 3px; border-bottom: 1px solid #ccc; }
-.${s.separator} { border: none; border-top: 1px solid #ccc; margin: 14px 0; }
-.${s.bodyText} { margin: 0 0 7px 0; text-align: justify; hyphens: auto; color: #222; }
-.${s.listItem} { margin: 4px 0 4px 18px; text-align: justify; color: #222; }
-.${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9.5pt; color: #333; margin: 4px 0; letter-spacing: 0.02em; }
-.${s.spacer} { height: 8px; }
-.${s.footer} { margin-top: 28px; padding-top: 8px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }
-@page { size: A4 portrait; margin: 2cm 2cm 2.5cm 2cm; }
+.${s.docTitle} { font-size: 12pt; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 0.04em; color: #1a1a2e; margin: 0 0 16px 0; line-height: 1.3; page-break-after: avoid; break-after: avoid; }
+.${s.sectionHeader} { font-size: 9.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1a1a2e; margin: 12px 0 6px 0; padding-bottom: 2px; border-bottom: 1px solid #ccc; page-break-after: avoid; break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
+.${s.separator} { border: none; border-top: 1px solid #ccc; margin: 10px 0; }
+.${s.bodyText} { margin: 0 0 5px 0; text-align: justify; hyphens: auto; color: #222; }
+.${s.listItem} { margin: 3px 0 3px 18px; text-align: justify; color: #222; }
+.${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9pt; color: #333; margin: 3px 0; letter-spacing: 0.01em; }
+.${s.signatureBlock} { page-break-inside: avoid; break-inside: avoid; margin-top: 12px; }
+.${s.spacer} { height: 6px; }
+.${s.footer} { margin-top: 20px; padding-top: 6px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }
+@page { size: A4 portrait; margin: 1.5cm 1.5cm 2cm 1.5cm; }
 @media print {
   html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
   .${s.page} { padding: 0 !important; min-height: auto !important; }
   .${s.footer} { display: none !important; }
+  .${s.signatureBlock} { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .${s.sectionHeader} { page-break-after: avoid !important; break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; }
+  .${s.bodyText}, .${s.listItem}, .${s.signatureLine} { page-break-inside: avoid; break-inside: avoid; }
 }`.trim();
 
     const html = `<!DOCTYPE html>
@@ -219,10 +226,12 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const win = window.open(url, '_blank');
+    const cleanTipo = tipo.toLowerCase().includes('contrato') ? 'contrato' : tipo;
+    const downloadName = `${cleanTipo}_${clienteNome.replace(/\s+/g, '_').toLowerCase()}`;
     if (!win) {
       const a = document.createElement('a');
       a.href = url;
-      a.download = `documento-${clienteNome.replace(/\s+/g, '-').toLowerCase()}.html`;
+      a.download = `${downloadName}.html`;
       a.click();
     }
     setTimeout(() => URL.revokeObjectURL(url), 10000);
@@ -241,9 +250,11 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
+        const cleanTipo = tipo.toLowerCase().includes('contrato') ? 'contrato' : tipo;
+        const downloadName = `${cleanTipo}_${clienteNome.replace(/\s+/g, '_').toLowerCase()}`;
         const a = document.createElement('a');
         a.href = url;
-        a.download = `documento-${clienteNome.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+        a.download = `${downloadName}.pdf`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 10000);
         return;
@@ -389,9 +400,25 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
 
             {/* Document body */}
             <div className={styles.docBody}>
-              {blocks.map((block, i) => (
-                <RenderBlock key={i} block={block} idx={i} />
-              ))}
+              {(() => {
+                const sigStart = blocks.findIndex(b => b.type === 'signatureLine');
+                const before = sigStart === -1 ? blocks : blocks.slice(0, sigStart);
+                const sig = sigStart === -1 ? [] : blocks.slice(sigStart);
+                return (
+                  <>
+                    {before.map((block, i) => (
+                      <RenderBlock key={`b-${i}`} block={block} idx={i} />
+                    ))}
+                    {sig.length > 0 && (
+                      <div className={styles.signatureBlock}>
+                        {sig.map((block, i) => (
+                          <RenderBlock key={`s-${i}`} block={block} idx={i} />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {/* Footer */}

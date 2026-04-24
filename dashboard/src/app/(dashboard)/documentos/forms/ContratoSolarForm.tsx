@@ -36,8 +36,8 @@ const initialFields = {
 type Mode = 'm1' | 'm2' | 'ai';
 
 const MODES: { id: Mode; icon: string; label: string; desc: string; badge?: string }[] = [
-  { id: 'm1', icon: '📄', label: 'Modelo 1', desc: 'Profissional · 15 seções · Linguagem clara e comercial' },
-  { id: 'm2', icon: '📋', label: 'Modelo 2', desc: 'Formal · 15 cláusulas numeradas · Mais detalhado' },
+  { id: 'm1', icon: '📄', label: 'Modelo 1', desc: 'Profissional · 15 seções · Ajustado para 8 páginas' },
+  { id: 'm2', icon: '📋', label: 'Modelo 2', desc: 'Formal · 10 cláusulas otimizadas · Ajustado para 4 páginas' },
 ];
 
 export default function ContratoSolarPage() {

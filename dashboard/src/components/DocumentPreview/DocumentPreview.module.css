@@ -191,6 +191,13 @@
   height: 8px;
 }
 
+/* Signature group — never split across pages */
+.signatureBlock {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  margin-top: 12px;
+}
+
 /* ── Footer ────────────────────────────────────────────── */
 .footer {
   margin-top: 32px;
