@@ -173,6 +173,187 @@ export async function sendFollowupEmail(email: string, day: number): Promise<voi
   });
 }
 
+const noContractsEmails: Array<{ subject: string; html: (nome: string | null) => string }> = [
+  {
+    subject: 'Sua conta SolarDoc Pro está parada — vamos voltar?',
+    html: (nome) => `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+        <div style="background:#f59e0b;padding:28px 36px;">
+          <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Faz uns dias que você não gera um documento</h1>
+        </div>
+        <div style="padding:36px;">
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">${nome ? `Oi ${nome.split(' ')[0]}!` : 'Olá!'} Sua empresa já está cadastrada e pronta para usar — só faltou abrir e gerar.</p>
+          <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Em menos de 2 minutos você sai com um contrato, procuração ou proposta bancária pronta para enviar ao cliente.</p>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Gerar um documento agora</a>
+        </div>
+      </div>`,
+  },
+  {
+    subject: 'Quantos contratos você poderia ter fechado essa semana?',
+    html: (nome) => `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+        <div style="background:#f59e0b;padding:28px 36px;">
+          <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Velocidade fecha venda</h1>
+        </div>
+        <div style="padding:36px;">
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">${nome ? `${nome.split(' ')[0]},` : 'Olha só:'} integrador que envia o contrato no mesmo dia da visita técnica fecha 3x mais que quem demora.</p>
+          <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Sua plataforma SolarDoc Pro está pronta — abre e em 2 minutos o cliente recebe o documento por WhatsApp.</p>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Abrir SolarDoc Pro</a>
+        </div>
+      </div>`,
+  },
+  {
+    subject: 'Ainda dá tempo de fechar mais nesse mês',
+    html: (nome) => `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+        <div style="background:#f59e0b;padding:28px 36px;">
+          <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">5 documentos que fecham venda</h1>
+        </div>
+        <div style="padding:36px;">
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">${nome ? `${nome.split(' ')[0]}, dá uma olhada` : 'Dá uma olhada'} no que você pode mandar pro seu cliente hoje:</p>
+          <ul style="color:#94a3b8;font-size:15px;line-height:2;margin:0 0 28px;padding-left:20px;">
+            <li>Contrato de instalação solar</li>
+            <li>Proposta bancária para financiamento</li>
+            <li>Procuração para distribuidora</li>
+            <li>Contrato PJ</li>
+            <li>Contrato de prestação de serviço (O&amp;M)</li>
+          </ul>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Gerar agora</a>
+        </div>
+      </div>`,
+  },
+  {
+    subject: 'Lembrete rápido: SolarDoc Pro tá te esperando',
+    html: (nome) => `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+        <div style="background:#f59e0b;padding:28px 36px;">
+          <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Tudo pronto, é só abrir</h1>
+        </div>
+        <div style="padding:36px;">
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">${nome ? `${nome.split(' ')[0]},` : 'Ei,'} sua empresa, seus clientes e seus templates estão todos salvos. É só logar e gerar o próximo documento.</p>
+          <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Cada dia parado é cliente que pode fechar com a concorrência.</p>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Entrar agora</a>
+        </div>
+      </div>`,
+  },
+  {
+    subject: 'Como tá indo a operação de documentos aí?',
+    html: (nome) => `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+        <div style="background:#f59e0b;padding:28px 36px;">
+          <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Quer ajuda pra automatizar mais?</h1>
+        </div>
+        <div style="padding:36px;">
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">${nome ? `${nome.split(' ')[0]},` : 'Olá,'} se tá perdendo tempo com algum tipo de documento que ainda não está na plataforma, responde esse email — a gente cria o template pra você.</p>
+          <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Enquanto isso, seu acesso continua ativo e seus 5 modelos prontos esperando.</p>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Voltar ao SolarDoc Pro</a>
+        </div>
+      </div>`,
+  },
+];
+
+export async function sendNoContractsReminderEmail(email: string, nome: string | null, variantIdx: number): Promise<void> {
+  const tpl = noContractsEmails[variantIdx % noContractsEmails.length];
+  await transporter.sendMail({
+    from: `"SolarDoc Pro" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject: tpl.subject,
+    html: tpl.html(nome),
+  });
+}
+
+// Variantes para a fase semanal (após 10 dias diários sem CNPJ).
+// Tom diferente da sequência inicial — não fala "última mensagem" e não promete
+// que vai parar, porque vai durar até 1 ano.
+const cnpjOngoingEmails: Array<{ subject: string; html: string }> = [
+  {
+    subject: 'Seu CNPJ ainda não foi cadastrado no SolarDoc Pro',
+    html: `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+        <div style="background:#f59e0b;padding:28px 36px;">
+          <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Sua conta segue ativa, só faltou o CNPJ</h1>
+        </div>
+        <div style="padding:36px;">
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Seus 10 documentos gratuitos continuam te esperando. Em 30 segundos você cadastra o CNPJ e libera tudo.</p>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Cadastrar meu CNPJ</a>
+        </div>
+      </div>`,
+  },
+  {
+    subject: 'Quanto tempo você ainda vai gastar fazendo contrato no Word?',
+    html: `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+        <div style="background:#f59e0b;padding:28px 36px;">
+          <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Cada semana sem automatizar é tempo perdido</h1>
+        </div>
+        <div style="padding:36px;">
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">3 a 5 horas por semana é o que integradores perdem em formatação manual. Em 1 ano isso vira ~200 horas — uma equipe inteira de meio expediente.</p>
+          <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Cadastra o CNPJ e libera os 10 docs grátis pra começar:</p>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Liberar acesso</a>
+        </div>
+      </div>`,
+  },
+  {
+    subject: 'Lembrete: 10 documentos gratuitos te esperando',
+    html: `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+        <div style="background:#f59e0b;padding:28px 36px;">
+          <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Sem cartão, sem prazo, sem pegadinha</h1>
+        </div>
+        <div style="padding:36px;">
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Os 10 documentos gratuitos não expiram. Você usa quando quiser — só precisa cadastrar o CNPJ uma vez.</p>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Ativar minha conta</a>
+        </div>
+      </div>`,
+  },
+  {
+    subject: 'Novidades no SolarDoc Pro — vale dar uma olhada',
+    html: `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+        <div style="background:#f59e0b;padding:28px 36px;">
+          <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">A plataforma evoluiu desde a última vez</h1>
+        </div>
+        <div style="padding:36px;">
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Templates novos, geração ainda mais rápida e assinatura digital integrada. Tudo isso libera com seu CNPJ.</p>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Conhecer as novidades</a>
+        </div>
+      </div>`,
+  },
+  {
+    subject: 'Seu concorrente já automatizou. E você?',
+    html: `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+        <div style="background:#f59e0b;padding:28px 36px;">
+          <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Velocidade fecha venda</h1>
+        </div>
+        <div style="padding:36px;">
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Quem responde a um pedido de orçamento em até 1h fecha 7x mais. SolarDoc Pro foi feito pra você ganhar essa janela.</p>
+          <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Cadastrar CNPJ agora</a>
+        </div>
+      </div>`,
+  },
+];
+
+export async function sendCnpjOngoingEmail(email: string, variantIdx: number): Promise<void> {
+  const tpl = cnpjOngoingEmails[variantIdx % cnpjOngoingEmails.length];
+  await transporter.sendMail({
+    from: `"SolarDoc Pro" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject: tpl.subject,
+    html: tpl.html,
+  });
+}
+
 export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   try {
     console.log(`[Mailer] Tentando enviar reset para ${email}...`);

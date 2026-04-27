@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
-import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted } from '../services/followupService';
+import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder } from '../services/followupService';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
@@ -142,63 +142,52 @@ router.get('/sdr-followup', async (req: Request, res: Response) => {
   }
 });
 
+// Roda a cada 3 dias por usuário — lembrete email para quem tem empresa mas
+// não gerou documento nos últimos 3 dias (até 1 ano após signup)
+router.get('/no-contracts-reminder', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runNoContractsEmailReminder();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'no-contracts-reminder falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // ─── MASTER CRON ───────────────────────────────────────────────────
-// Disparado 1x por hora pela Vercel. Evita o limite de 2 crons da conta Hobby.
+// Plano Hobby permite 1 cron/dia. Roda TODAS as tarefas diárias de uma só
+// vez. As funções fazem dedup interna (followup_email_last_sent_at,
+// contract_reminder_last_sent_at, followup_last_sent_at) então é seguro
+// disparar manualmente também.
 router.get('/master', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
-  
-  // Pegar hora atual no fuso de Brasília
-  const nowBr = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  const hour = nowBr.getHours();
-  
-  const results: any = { executed: [], hour_br: hour };
 
-  try {
-    // 08h Brasília: Follow-up Manhã (Sem CNPJ)
-    if (hour === 8) {
-      const resM = await runWhatsappFollowup('morning');
-      results.executed.push({ task: 'followup-whatsapp-morning', res: resM });
-    }
+  const tasks: Array<[string, () => Promise<any>]> = [
+    ['followup-email-cnpj',         () => runFollowupCnpj()],
+    ['no-contracts-reminder',       () => runNoContractsEmailReminder()],
+    ['followup-whatsapp-morning',   () => runWhatsappFollowup('morning')],
+    ['followup-whatsapp-evening',   () => runWhatsappFollowup('evening')],
+    ['inactive-engagement',         () => runInactiveEngagement()],
+    ['sdr-followup',                () => runSdrFollowups()],
+    ['cleanup-pro-docs',            () => cleanupProDocuments()],
+    ['monthly-reset',               () => runMonthlyReset()],
+    ['process-message-queue',       () => processMessageQueue()],
+  ];
 
-    // 09h Brasília: Follow-up E-mail CNPJ
-    if (hour === 9) {
-      const resC = await runFollowupCnpj();
-      results.executed.push({ task: 'followup-email-cnpj', res: resC });
-    }
+  const settled = await Promise.allSettled(tasks.map(([, fn]) => fn()));
+  const results = settled.map((r, i) => ({
+    task:   tasks[i][0],
+    status: r.status,
+    ...(r.status === 'fulfilled' ? { res: r.value } : { error: String(r.reason) }),
+  }));
 
-    // 10h Brasília: Limpeza e Manutenção
-    if (hour === 10) {
-      await Promise.allSettled([cleanupProDocuments(), runMonthlyReset()]);
-      results.executed.push('cleanup-pro-docs', 'monthly-reset');
-    }
-
-    // 11h Brasília: Engajamento Usuários Inativos (com CNPJ)
-    if (hour === 11) {
-      const resI = await runInactiveEngagement();
-      results.executed.push({ task: 'inactive-engagement', res: resI });
-    }
-
-    // 14h Brasília: Follow-up SDR Solar (B2C Leads)
-    if (hour === 14) {
-      const resS = await runSdrFollowups();
-      results.executed.push({ task: 'sdr-followup', res: resS });
-    }
-
-    // 17h Brasília: Follow-up Tarde/Noite (Sem CNPJ)
-    if (hour === 17) {
-      const resT = await runWhatsappFollowup('evening');
-      results.executed.push({ task: 'followup-whatsapp-evening', res: resT });
-    }
-
-    // Sempre tenta processar a fila de mensagens (caso o cron de 1min falhe)
-    const resQ = await processMessageQueue();
-    results.executed.push({ task: 'process-message-queue', res: resQ });
-
-    res.json({ ok: true, results });
-  } catch (err) {
-    logger.error('cron', 'master cron falhou', err);
-    res.status(500).json({ error: 'Master cron partial failure', details: String(err) });
+  const failed = results.filter(r => r.status === 'rejected');
+  if (failed.length) {
+    logger.error('cron', 'master cron parcial', { failed });
   }
+
+  res.json({ ok: true, results });
 });
 
 export default router;
