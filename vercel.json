@@ -1,9 +1,15 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "**/*",
-      "use": "@vercel/static"
-    }
+  "cleanUrls": true,
+  "redirects": [
+    { "source": "/Quiz", "destination": "/quiz", "permanent": false },
+    { "source": "/QUIZ", "destination": "/quiz", "permanent": false },
+    { "source": "/Simulador", "destination": "/simulador", "permanent": false },
+    { "source": "/Links", "destination": "/links", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/quiz", "destination": "/quiz.html" },
+    { "source": "/simulador", "destination": "/simulador.html" },
+    { "source": "/links", "destination": "/links.html" },
+    { "source": "/pixel", "destination": "https://solardocs-landing.vercel.app/api/pixel" }
   ]
 }

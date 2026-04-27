@@ -1072,7 +1072,7 @@
     <li><a href="#precos">Preços</a></li>
     <li><a href="#faq">Dúvidas</a></li>
   </ul>
-  <a href="#precos" class="nav-cta">Ver Planos</a>
+  <a href="https://solardocs-dashboard.vercel.app/register" class="nav-cta" data-plan="free">Comece grátis</a>
   <button class="hamburger" id="menuBtn" aria-label="Abrir menu">
     <span></span><span></span><span></span>
   </button>
@@ -1085,22 +1085,15 @@
   <a href="#solucao" onclick="document.getElementById('mobileMenu').classList.remove('open')">Solução</a>
   <a href="#precos" onclick="document.getElementById('mobileMenu').classList.remove('open')">Preços</a>
   <a href="#faq" onclick="document.getElementById('mobileMenu').classList.remove('open')">Dúvidas</a>
-  <a href="#precos" class="btn-primary" style="font-size:16px;padding:14px 32px" onclick="document.getElementById('mobileMenu').classList.remove('open')">Ver Planos</a>
+  <a href="https://solardocs-dashboard.vercel.app/register" class="btn-primary" data-plan="free" style="font-size:16px;padding:14px 32px" onclick="document.getElementById('mobileMenu').classList.remove('open')">Comece grátis</a>
 </div>
 
 <!-- 1, 2 e 3. HERO (Headline, Subheadline e Botão/Prev) -->
 <section class="hero" style="padding-bottom: 60px;">
   <div class="hero-glow"></div>
-  <h1>Pare de perder vendas e tempo com <em>contratos errados</em>, atrasos e documentos mal feitos</h1>
-  <p>Gere contratos, propostas e documentos profissionais em minutos, padronizados com sua marca e sem depender de terceiros.</p>
-  <div class="hero-btns">
-    <a href="quiz.html" class="btn-primary" style="font-size: 19px; padding: 22px 30px;">
-      QUERO DIAGNÓSTICO GRATUITO DA MINHA EMPRESA
-    </a>
-    <a href="https://solardocs-dashboard.vercel.app/register" class="btn-outline" style="font-size: 17px; padding: 22px 30px;">
-      Testar Grátis por 3 Dias
-    </a>
-  </div>
+  <h1>Contratos solares profissionais em <em>2 minutos</em>. Sem Word, sem revisão, sem perder venda.</h1>
+  <p>Contratos, procurações, propostas bancárias e parcerias PJ — gerados na plataforma feita por integradores solares com 8 anos de mercado. Comece grátis com 10 documentos, sem cartão.</p>
+
 
   <!-- VÍDEO NO HERO -->
   <div style="margin-top: 60px; display:flex; flex-direction:column; align-items:center; gap:20px; position:relative; z-index:1;">
@@ -1160,6 +1153,16 @@
 
       <div style="width:80px; height:4px; background:#333; border-radius:2px; margin: 12px auto 0;"></div>
     </div>
+  </div>
+
+  <!-- HERO CTA -->
+  <div class="hero-btns" style="margin-top: 56px;">
+    <a href="https://solardocs-dashboard.vercel.app/register" data-plan="free" class="btn-primary" style="font-size:18px; padding: 20px 44px;">
+      Quero gerar meu primeiro contrato grátis →
+    </a>
+  </div>
+  <div style="margin-top: 18px; color: #94a3b8; font-size: 13px; font-weight: 600; letter-spacing: .3px; position: relative; z-index: 1;">
+    10 documentos grátis · sem cartão · sem prazo
   </div>
 </section>
 
@@ -1229,8 +1232,8 @@
 <!-- 6. SOLUÇÃO & 7. BENEFÍCIOS -->
 <section class="section" id="solucao">
   <span class="section-label">A Solução</span>
-  <h2 class="section-title">Com a plataforma, você gera tudo pronto em poucos cliques:</h2>
-  <p class="section-desc">Contratos profissionais, propostas organizadas, documentos padronizados. Tudo com sua logo e os dados em segurança.</p>
+  <h2 class="section-title">Em 3 cliques, contrato pronto pra assinatura — com a sua logo.</h2>
+  <p class="section-desc">Você preenche os dados do cliente uma vez. A plataforma cuspe contrato, procuração, proposta bancária e contrato PJ formatados, padronizados e prontos pra enviar pelo WhatsApp.</p>
   
   <div class="features-grid">
     <div class="feature-card reveal">
@@ -1454,10 +1457,45 @@
   </div>
 </section>
 
-<!-- 9. OFERTA -->
+<!-- Moveremos esta seção para baixo -->
+
+<!-- 10. FAQ -->
+<section class="section" id="faq" style="border-top: 1px solid var(--border);">
+  <h2 class="section-title">Ainda com dúvidas?</h2>
+  
+  <div class="faq-grid" style="margin: 64px 0 0 0; max-width:100%;">
+    <div class="faq-item reveal">
+      <div class="faq-q">O SolarDoc Pro é para advogados ou integradores?</div>
+      <div class="faq-a">É uma plataforma feita por e para integradores. Simplificamos o jurídico para que você entregue documentos perfeitos e seguros sem precisar de conhecimentos técnicos em direito.</div>
+    </div>
+    <div class="faq-item reveal">
+      <div class="faq-q">Como a plataforma evita o constrangimento com meus clientes?</div>
+      <div class="faq-a">Erros em contratos ou propostas amadoras passam uma imagem de desorganização. Nossos modelos são padronizados e validados, garantindo que você entregue documentos com visual profissional e segurança jurídica em minutos.</div>
+    </div>
+    <div class="faq-item reveal">
+      <div class="faq-q">Quanto tempo eu levo para gerar um contrato?</div>
+      <div class="faq-a">Menos de 3 minutos. Basta preencher os dados do seu cliente e do projeto; a plataforma gera o arquivo pronto para assinatura, já com a sua logo e identidade visual.</div>
+    </div>
+    <div class="faq-item reveal">
+      <div class="faq-q">Os documentos são aceitos em bancos e concessionárias?</div>
+      <div class="faq-a">Sim! Nossas procurações, contratos de prestação de serviço e propostas seguem os padrões exigidos pelas principais instituições financeiras e concessionárias de energia do país (incluindo as regras da Lei 14.300).</div>
+    </div>
+    <div class="faq-item reveal">
+      <div class="faq-q">Posso realmente começar de graça?</div>
+      <div class="faq-a">Sim! Você pode criar sua conta agora e gerar seus primeiros 10 documentos de forma totalmente gratuita para sentir a agilidade na pele. Sem necessidade de cartão de crédito.</div>
+    </div>
+    <div class="faq-item reveal">
+      <div class="faq-q">O que acontece se as leis mudarem?</div>
+      <div class="faq-a">Nós cuidamos disso. Como somos focados 100% no setor solar, atualizamos nossos modelos sempre que há mudanças na legislação federal ou normas da ANEEL, para que você nunca fique desprotegido.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 9. OFERTA (Movida para depois do FAQ) -->
 <section class="section" id="precos" style="background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
   <div style="text-align:center">
-    <h2 class="section-title" style="margin: 0 auto">Acesso imediato à plataforma.<br>Gere seus primeiros documentos hoje.</h2>
+    <h2 class="section-title" style="margin: 0 auto">Comece grátis com 10 documentos.<br>Quando escalar, R$0,52 por contrato.</h2>
+    <p class="section-desc" style="margin: 24px auto 0; max-width: 640px;">Sua hora de Word vale mais do que isso. Sem fidelidade, cancela quando quiser e ainda tem 7 dias de garantia incondicional.</p>
   </div>
 
   <div class="pricing-grid">
@@ -1467,40 +1505,19 @@
       <div class="price-value">
         <span class="currency">R$</span>
         <span class="amount">0</span>
-        <span class="period">/3 dias</span>
+        <span class="period">/sempre</span>
       </div>
-      <p class="price-desc">Teste sem compromisso e sem cartão.</p>
+      <p class="price-desc">Teste sem compromisso e comece a faturar.</p>
       <ul class="price-features">
-        <li>3 documentos para experimentar</li>
-        <li>Acesso completo à plataforma</li>
-        <li>Sem cartão de crédito</li>
+        <li>10 documentos gratuitos</li>
+        <li>Acesso à plataforma e dashboards</li>
+        <li>Sem cobrança automática</li>
       </ul>
       <a href="https://solardocs-dashboard.vercel.app/register" class="price-btn price-btn-outline" data-plan="free">
-        Começar Grátis →
+        Criar Conta Grátis →
       </a>
       <div style="margin-top: 15px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); color: #22c55e; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 999px; display: inline-block; margin-inline: auto;">
-        Sem cartão · Acesso imediato
-      </div>
-    </div>
-
-    <div class="price-card reveal">
-      <div class="price-name">Iniciante</div>
-      <div class="price-value">
-        <span class="currency">R$</span>
-        <span class="amount">27</span>
-        <span class="period">/mês</span>
-      </div>
-      <p class="price-desc">Comece a se profissionalizar.</p>
-      <ul class="price-features">
-        <li>Direito a 30 documentos mensal</li>
-        <li>Contratos com sua Logo</li>
-        <li>Geração Imediata</li>
-      </ul>
-      <a href="https://buy.stripe.com/8x200i5ah5160Og2SLfrW04" class="price-btn price-btn-outline" target="_blank" rel="noopener noreferrer" data-plan="iniciante">
-        Assinar Iniciante →
-      </a>
-      <div style="margin-top: 15px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--solar); color: var(--solar); font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 999px; display: inline-block; margin-inline: auto;">
-        Indicado quem fecha até 8 projetos mês
+        Acesso imediato
       </div>
     </div>
 
@@ -1511,17 +1528,18 @@
         <span class="amount">47</span>
         <span class="period">/mês</span>
       </div>
-      <p class="price-desc">A medida certa para a maioria dos integradores em expansão.</p>
+      <p class="price-desc">Pra quem fecha até 20 projetos por mês e quer parar de perder tempo no Word.</p>
       <ul class="price-features">
         <li>Direito a 90 documentos mensal</li>
-        <li>Tudo do Iniciante</li>
+        <li>Contratos com sua Logo</li>
         <li>Maior volume mensal</li>
+        <li>Suporte por e-mail</li>
       </ul>
       <a href="https://buy.stripe.com/eVqcN45ahbpu68AgJBfrW03" class="price-btn price-btn-outline" target="_blank" rel="noopener noreferrer" data-plan="pro">
-        Assinar PRO →
+        Quero o PRO →
       </a>
       <div style="margin-top: 15px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--solar); color: var(--solar); font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 999px; display: inline-block; margin-inline: auto;">
-        Indicado quem fecha até 20 projetos mês
+        Indicado pra quem fecha até 20 projetos/mês
       </div>
     </div>
 
@@ -1534,7 +1552,7 @@
         <span class="amount">97</span>
         <span class="period">/mês</span>
       </div>
-      <p class="price-desc">Acesso total para escalar vendas sem freio.</p>
+      <p class="price-desc">Documentos sem limite + suporte direto no seu WhatsApp.</p>
       <ul class="price-features">
         <li>Documentos ilimitados</li>
         <li>Dashboard completo gerencial</li>
@@ -1543,10 +1561,10 @@
         <li>Participa de toda a expansão da plataforma</li>
       </ul>
       <a href="https://buy.stripe.com/bJe7sK6el9hmgNe0KDfrW02" class="price-btn price-btn-solid" target="_blank" rel="noopener noreferrer" data-plan="vip">
-        Assinar VIP →
+        Quero o VIP →
       </a>
       <div style="margin-top: 15px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--solar); color: var(--solar); font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 999px; display: inline-block; margin-inline: auto;">
-        Indicado quem fecha +20 projetos mês
+        Indicado pra quem fecha 20+ projetos/mês
       </div>
     </div>
 
@@ -1563,69 +1581,7 @@
 
 </section>
 
-<!-- 10. FAQ -->
-<section class="section" id="faq">
-  <h2 class="section-title">Ainda com dúvidas?</h2>
-  
-  <div class="faq-grid" style="margin: 64px 0 0 0; max-width:100%;">
-    <div class="faq-item reveal">
-      <div class="faq-q">Isso realmente evita erros?</div>
-      <div class="faq-a">Sim. Os documentos já seguem um padrão validado, reduzindo falhas comuns que acontecem quando feitos manualmente.</div>
-    </div>
-    <div class="faq-item reveal">
-      <div class="faq-q">Posso colocar minha logo e dados da empresa?</div>
-      <div class="faq-a">Sim. Tudo é personalizado com sua identidade, deixando seus documentos profissionais e padronizados.</div>
-    </div>
-    <div class="faq-item reveal">
-      <div class="faq-q">Preciso entender de contrato ou jurídico?</div>
-      <div class="faq-a">Não. A plataforma já entrega modelos prontos, estruturados e organizados.</div>
-    </div>
-    <div class="faq-item reveal">
-      <div class="faq-q">Funciona para qualquer integrador?</div>
-      <div class="faq-a">Sim. Desde quem está começando até empresas maiores que querem padronizar processos.</div>
-    </div>
-    <div class="faq-item reveal">
-      <div class="faq-q">Isso substitui um funcionário ou terceirizado?</div>
-      <div class="faq-a">Na prática, sim. Você deixa de depender de terceiros e ganha velocidade no processo.</div>
-    </div>
-    <div class="faq-item reveal">
-      <div class="faq-q">Em quanto tempo consigo gerar um documento?</div>
-      <div class="faq-a">Em poucos minutos. Muito mais rápido do que fazer manualmente.</div>
-    </div>
-    <div class="faq-item reveal">
-      <div class="faq-q">É seguro usar esses documentos?</div>
-      <div class="faq-a">Sim. Eles seguem uma estrutura profissional pensada para proteger tanto a empresa quanto o cliente.</div>
-    </div>
-    <div class="faq-item reveal">
-      <div class="faq-q">Posso mudar de plano depois?</div>
-      <div class="faq-a">Sim. A qualquer momento você pode fazer upgrade para um plano que comporte um maior volume de documentos conforme sua integradora cresce.</div>
-    </div>
-  </div>
-</section>
-
-<!-- 11. CTA FINAL -->
-<section class="section" style="padding-top: 40px; padding-bottom: 120px; text-align: center;">
-  <div class="offer-box reveal" style="max-width: 900px; margin: 0 auto; background: transparent; border:none; box-shadow:none;">
-    
-    <div style="margin-bottom: 24px; font-weight: 800; color: #ef4444; font-size:18px;">
-      ⚠️ Quanto mais você demora, mais tempo perde com retrabalho e vendas travadas
-    </div>
-
-    <h3 class="offer-title" style="font-size:28px;">
-      Você pode continuar perdendo tempo, cometendo erros e dependendo de terceiros…<br><br> Ou pode profissionalizar sua operação hoje.
-    </h3>
-
-    <div style="margin-top: 48px">
-      <a href="#precos" class="btn-primary" style="margin: 0 auto; max-width: 480px; font-size: 19px; padding: 22px 30px; display:inline-flex; justify-content:center;">
-        👉 COMEÇAR AGORA NA PLATAFORMA
-      </a>
-    </div>
-
-    <div style="margin-top: 24px; font-weight: 600; color: var(--muted); font-size:16px;">
-      Usado por integradores que querem crescer sem bagunça
-    </div>
-  </div>
-</section>
+<!-- CTA FINAL (Removido ou Mesclado com a Oferta acima) -->
 
 <footer style="padding: 60px var(--pad-x) 40px; border-top: 1px solid var(--border); background: var(--bg2); text-align:center;">
   <img src="logo-full.png" alt="Logo" style="height: 40px; margin-bottom: 24px">
@@ -1752,8 +1708,8 @@
       // Se tem data-plan, registra evento específico de plano
       var plan = el.getAttribute('data-plan');
       if (plan) {
-        var planNames = { free: 'Grátis', iniciante: 'Iniciante', pro: 'PRO', vip: 'VIP' };
-        var planValues = { free: 0, iniciante: 27, pro: 47, vip: 97 };
+        var planNames = { free: 'Grátis', pro: 'PRO', vip: 'VIP' };
+        var planValues = { free: 0, pro: 47, vip: 97 };
         sendEvent('plan_click', {
           plan: plan,
           plano: planNames[plan] || plan,
