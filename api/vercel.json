@@ -10,6 +10,6 @@
     { "source": "/(.*)", "destination": "/api" }
   ],
   "crons": [
-    { "path": "/cron/master", "schedule": "0 3 * * *" }
+    { "path": "/cron/master", "schedule": "30 12 * * *" }
   ]
 }
