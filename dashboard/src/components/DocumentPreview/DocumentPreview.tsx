@@ -145,9 +145,9 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>${clienteNome}</title><style>${css}</style></head><body>${pageEl.outerHTML}</body></html>`;
   }
 
-  async function uploadHtml(id: string, currentContent: string) {
+  async function uploadHtml(id: string, currentContent: string): Promise<boolean> {
     const pageEl = docRef.current?.querySelector(`.${styles.page}`) as HTMLElement | null;
-    if (!pageEl) return;
+    if (!pageEl) return false;
     setSaving(true);
     try {
       await api.patch(`/documents/${id}/file`, {
@@ -155,6 +155,9 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
         content: currentContent,
       });
       setSaved(true);
+      return true;
+    } catch {
+      return false;
     } finally {
       setSaving(false);
     }
@@ -175,94 +178,53 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
     setEditMode(false);
   }
 
-  function handleDownloadPDFFallback() {
-    const pageEl = docRef.current?.querySelector(`.${styles.page}`) as HTMLElement | null;
-    if (!pageEl) return;
-
-    const s = styles;
-    const css = `
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { background: #fff; }
-body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.45; color: #1a1a1a; orphans: 3; widows: 3; }
-.${s.page} { width: 100%; padding: 1.5cm 2cm; min-height: 297mm; display: flex; flex-direction: column; }
-.${s.companyHeader} { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
-.${s.logo} { height: 48px; width: auto; object-fit: contain; flex-shrink: 0; }
-.${s.companyInfo} { display: flex; flex-direction: column; gap: 1px; }
-.${s.companyName} { font-size: 12pt; font-weight: 700; color: #1a1a1a; font-family: Arial, sans-serif; letter-spacing: 0.01em; }
-.${s.companyDetail} { font-size: 8pt; color: #555; font-family: Arial, sans-serif; }
-.${s.headerDivider} { border: none; border-top: 2px solid #1a1a2e; margin: 8px 0 16px 0; }
-.${s.docBody} { flex: 1; }
-.${s.docTitle} { font-size: 12pt; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 0.04em; color: #1a1a2e; margin: 0 0 16px 0; line-height: 1.3; page-break-after: avoid; break-after: avoid; }
-.${s.sectionHeader} { font-size: 9.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1a1a2e; margin: 12px 0 6px 0; padding-bottom: 2px; border-bottom: 1px solid #ccc; page-break-after: avoid; break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
-.${s.separator} { border: none; border-top: 1px solid #ccc; margin: 10px 0; }
-.${s.bodyText} { margin: 0 0 5px 0; text-align: justify; hyphens: auto; color: #222; }
-.${s.listItem} { margin: 3px 0 3px 18px; text-align: justify; color: #222; }
-.${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9pt; color: #333; margin: 3px 0; letter-spacing: 0.01em; }
-.${s.signatureBlock} { page-break-inside: avoid; break-inside: avoid; margin-top: 12px; }
-.${s.spacer} { height: 6px; }
-.${s.footer} { margin-top: 20px; padding-top: 6px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }
-@page { size: A4 portrait; margin: 1.5cm 1.5cm 2cm 1.5cm; }
-@media print {
-  html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
-  .${s.page} { padding: 0 !important; min-height: auto !important; }
-  .${s.footer} { display: none !important; }
-  .${s.signatureBlock} { page-break-inside: avoid !important; break-inside: avoid !important; }
-  .${s.sectionHeader} { page-break-after: avoid !important; break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; }
-  .${s.bodyText}, .${s.listItem}, .${s.signatureLine} { page-break-inside: avoid; break-inside: avoid; }
-}`.trim();
-
-    const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8"/>
-  <title>Documento</title>
-  <style>${css}</style>
-</head>
-<body>
-  ${pageEl.outerHTML}
-  <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>
-</body>
-</html>`;
-
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank');
-    const downloadName = slugifyDocName(tipo, clienteNome);
-    if (!win) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${downloadName}.html`;
-      a.click();
-    }
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }
 
   async function handleDownloadPDF() {
     if (!docId || saving) return;
 
-    if (saved) {
-      const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      try {
-        const res = await fetch(`${apiBase}/documents/${docId}/pdf`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const downloadName = slugifyDocName(tipo, clienteNome);
+    // Garante que o HTML está no Storage antes de pedir o PDF — evita race
+    // condition em que o usuário clica antes do auto-upload completar.
+    if (!saved) {
+      const ok = await uploadHtml(docId, displayContent);
+      if (!ok) {
+        alert('Não conseguimos preparar o documento. Verifique sua conexão e tente novamente.');
+        return;
+      }
+    }
+
+    const token = getToken();
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    try {
+      const res = await fetch(`${apiBase}/documents/${docId}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const downloadName = slugifyDocName(tipo, clienteNome);
+
+      // iOS Safari ignora <a download> em blob URLs — abre o PDF em nova aba
+      // pra que o usuário use Compartilhar → Salvar em Arquivos.
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+      if (isIOS) {
+        const win = window.open(url, '_blank');
+        if (!win) {
+          // Popup bloqueado: navega na própria aba
+          window.location.href = url;
+        }
+      } else {
         const a = document.createElement('a');
         a.href = url;
         a.download = `${downloadName}.pdf`;
         a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-        return;
-      } catch {
-        // Servidor falhou — gera PDF local via impressão do navegador
       }
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      console.error('PDF download failed:', err);
+      alert('Não foi possível gerar o PDF agora. Tente novamente em alguns segundos.');
     }
-
-    handleDownloadPDFFallback();
   }
 
   return (
