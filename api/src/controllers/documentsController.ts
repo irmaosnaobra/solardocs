@@ -239,6 +239,38 @@ export async function updateDocumentFile(req: Request, res: Response): Promise<v
   }
 }
 
+export async function getDocumentHtmlUrl(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { data: doc } = await supabase
+      .from('documents')
+      .select('arquivo_url')
+      .eq('id', id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (!doc?.arquivo_url) {
+      res.status(404).json({ error: 'Documento não disponível ainda. Tente novamente em alguns segundos.' });
+      return;
+    }
+
+    const { data: signed } = await supabase.storage
+      .from('documentos')
+      .createSignedUrl(doc.arquivo_url, 600);
+
+    if (!signed?.signedUrl) {
+      res.status(500).json({ error: 'Erro ao gerar URL do documento' });
+      return;
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ url: signed.signedUrl });
+  } catch (err) {
+    logger.error('documents', 'getDocumentHtmlUrl falhou', err);
+    res.status(500).json({ error: 'Erro ao buscar documento' });
+  }
+}
+
 export async function listDocuments(req: Request, res: Response): Promise<void> {
   try {
     const { data: user } = await supabase

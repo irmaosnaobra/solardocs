@@ -195,35 +195,25 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
     const token = getToken();
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     try {
-      const res = await fetch(`${apiBase}/documents/${docId}/pdf`, {
+      // Pega a URL assinada do HTML salvo no Storage. O HTML já tem
+      // window.print() injetado no onload pelo backend (injectPrint), então
+      // navegadores desktop abrem o diálogo de impressão direto. No iOS o
+      // usuário usa Compartilhar → Imprimir → Salvar em Arquivos como PDF.
+      const res = await fetch(`${apiBase}/documents/${docId}/html-url?t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const downloadName = slugifyDocName(tipo, clienteNome);
+      const { url } = await res.json();
+      if (!url) throw new Error('URL inválida');
 
-      // iOS Safari ignora <a download> em blob URLs — abre o PDF em nova aba
-      // pra que o usuário use Compartilhar → Salvar em Arquivos.
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-      if (isIOS) {
-        const win = window.open(url, '_blank');
-        if (!win) {
-          // Popup bloqueado: navega na própria aba
-          window.location.href = url;
-        }
-      } else {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${downloadName}.pdf`;
-        a.click();
+      const win = window.open(url, '_blank');
+      if (!win) {
+        window.location.href = url;
       }
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (err) {
       console.error('PDF download failed:', err);
-      alert('Não foi possível gerar o PDF agora. Tente novamente em alguns segundos.');
+      alert('Não foi possível abrir o documento agora. Tente novamente em alguns segundos.');
     }
   }
 

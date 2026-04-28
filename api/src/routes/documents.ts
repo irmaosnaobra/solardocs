@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { generateDocument, saveDocument, updateDocumentFile, listDocuments } from '../controllers/documentsController';
+import { generateDocument, saveDocument, updateDocumentFile, listDocuments, getDocumentHtmlUrl } from '../controllers/documentsController';
 import { generatePdf } from '../controllers/pdfController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -33,5 +33,6 @@ router.post('/save', authMiddleware, saveDocument);
 router.patch('/:id/file', authMiddleware, updateDocumentFile);
 router.get('/list', authMiddleware, listDocuments);
 router.get('/:id/pdf', downloadAuth, generatePdf);
+router.get('/:id/html-url', authMiddleware, getDocumentHtmlUrl);
 
 export default router;
