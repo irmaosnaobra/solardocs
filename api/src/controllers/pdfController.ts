@@ -3,7 +3,9 @@ import { supabase } from '../utils/supabase';
 import chromium from '@sparticuz/chromium-min';
 import puppeteer from 'puppeteer-core';
 
-const CHROMIUM_URL = 'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar';
+// IMPORTANTE: a versão precisa BATER com @sparticuz/chromium-min do package.json.
+// Mismatch causa TargetCloseError ao tentar ler o PDF do navegador.
+const CHROMIUM_URL = 'https://github.com/Sparticuz/chromium/releases/download/v147.0.0/chromium-v147.0.0-pack.x64.tar';
 
 export async function generatePdf(req: Request, res: Response): Promise<void> {
   let browser;
