@@ -161,7 +161,7 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
       throw updateErr;
     }
 
-    const dashboardUrl = process.env.DASHBOARD_URL || 'https://solardoc.pro';
+    const dashboardUrl = process.env.DASHBOARD_URL || 'https://solardocs-dashboard.vercel.app';
     const resetUrl = `${dashboardUrl}/auth?mode=redefinir&token=${token}`;
     
     console.log(`[ForgotPass] Enviando e-mail para ${email} com URL: ${resetUrl}`);

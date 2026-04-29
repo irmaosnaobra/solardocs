@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://solardoc.pro';
+const APP_URL = process.env.DASHBOARD_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://solardocs-dashboard.vercel.app';
 
 const followupEmails: Record<number, { subject: string; html: string }> = {
   1: {
