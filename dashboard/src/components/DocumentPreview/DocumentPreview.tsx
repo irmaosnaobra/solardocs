@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import styles from './DocumentPreview.module.css';
 import api from '@/services/api';
-import { getToken } from '@/services/auth';
 import { slugifyDocName } from '@/utils/docFilename';
 interface Company {
   nome: string;
@@ -180,29 +179,109 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
 
 
   async function handleDownloadPDF() {
-    if (!docId || saving) return;
+    if (saving) return;
 
-    // Garante que o HTML está no Storage antes de pedir o PDF — evita race
-    // condition em que o usuário clica antes do auto-upload completar.
-    if (!saved) {
-      const ok = await uploadHtml(docId, displayContent);
-      if (!ok) {
-        alert('Não conseguimos preparar o documento. Verifique sua conexão e tente novamente.');
-        return;
+    const pageEl = docRef.current?.querySelector(`.${styles.page}`) as HTMLElement | null;
+    if (!pageEl) {
+      alert('Aguarde a página terminar de carregar e tente de novo.');
+      return;
+    }
+
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // No iOS, popups só funcionam DENTRO do clique (user gesture). A geração
+    // do PDF é async, então pré-abrimos uma aba vazia AGORA e navegamos pra
+    // ela depois quando o blob estiver pronto.
+    let popupRef: Window | null = null;
+    if (isIOS) {
+      popupRef = window.open('about:blank', '_blank');
+      if (popupRef) {
+        popupRef.document.write(
+          '<!DOCTYPE html><html><head><title>Gerando PDF</title>' +
+            '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+            '<style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:60px 24px;text-align:center;color:#333;background:#f5f5f5;margin:0;}h2{font-weight:500;margin:0 0 12px;}p{color:#666;margin:0;}.spin{display:inline-block;width:24px;height:24px;border:3px solid #ddd;border-top-color:#f59e0b;border-radius:50%;animation:s 0.8s linear infinite;margin-bottom:16px;}@keyframes s{to{transform:rotate(360deg)}}</style>' +
+            '</head><body><div class="spin"></div><h2>Gerando PDF...</h2><p>Aguarde alguns segundos.</p></body></html>'
+        );
+        popupRef.document.close();
       }
     }
 
-    const token = getToken();
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    // Endpoint do nosso backend serve o HTML com Content-Type correto
-    // (Supabase Storage às vezes manda text/plain e iOS mostra o fonte).
-    // Token na query porque é navegação direta, não fetch com header.
-    const url = `${apiBase}/documents/${docId}/html?token=${encodeURIComponent(token || '')}&t=${Date.now()}`;
+    setSaving(true);
 
-    const win = window.open(url, '_blank');
-    if (!win) {
-      // Popup bloqueado — abre na própria aba
-      window.location.href = url;
+    // Em mobile a `.page` é fluida (CSS @media). Forçamos A4 antes de capturar
+    // pra que o PDF saia com layout consistente.
+    const original = {
+      width: pageEl.style.width,
+      minHeight: pageEl.style.minHeight,
+      padding: pageEl.style.padding,
+    };
+    pageEl.style.width = '794px';
+    pageEl.style.minHeight = '1123px';
+    pageEl.style.padding = '48px 64px';
+
+    try {
+      // Aguarda reflow após mudança de layout
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+      const downloadName = slugifyDocName(tipo, clienteNome);
+
+      // Lazy import — economiza ~200KB no bundle inicial
+      const html2pdfMod = await import('html2pdf.js');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const html2pdf: any = (html2pdfMod as any).default || html2pdfMod;
+
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `${downloadName}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] },
+      };
+
+      if (isIOS) {
+        // iOS: gera blob e navega o popup pré-aberto. Safari renderiza o PDF
+        // inline, e o usuário usa o botão Compartilhar pra salvar em Arquivos.
+        const blob: Blob = await html2pdf().set(opt).from(pageEl).output('blob');
+        const url = URL.createObjectURL(blob);
+
+        if (popupRef && !popupRef.closed) {
+          popupRef.location.href = url;
+        } else {
+          // Popup foi bloqueado — fallback navegando a aba atual
+          window.location.href = url;
+        }
+        // Não revogamos o blob URL imediatamente — iOS precisa dele aberto
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } else {
+        // Desktop / Android Chrome: download direto
+        await html2pdf().set(opt).from(pageEl).save();
+      }
+    } catch (err) {
+      if (popupRef && !popupRef.closed) {
+        try {
+          popupRef.close();
+        } catch {
+          /* ignore */
+        }
+      }
+      console.error('PDF generation failed:', err);
+      const msg = err instanceof Error ? err.message : 'erro desconhecido';
+      alert(
+        `Não consegui gerar o PDF: ${msg}\n\nRecarregue a página e tente novamente.`
+      );
+    } finally {
+      pageEl.style.width = original.width;
+      pageEl.style.minHeight = original.minHeight;
+      pageEl.style.padding = original.padding;
+      setSaving(false);
     }
   }
 
