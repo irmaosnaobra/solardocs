@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 
 const router = Router();
-const BASE    = 'https://solardocs-api.vercel.app';
+const BASE    = process.env.API_URL || 'https://api.solardoc.app';
 const TOKEN   = process.env.MCP_TOKEN || 'solardoc-mcp-token-2026';
 const codes   = new Map<string, number>();
 
@@ -152,7 +152,7 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
 
     case 'responder_fila': {
       const res = await fetch(
-        `https://solardocs-api.vercel.app/cron/process-messages`,
+        `${BASE}/cron/process-messages`,
         { headers: { 'Authorization': `Bearer ${process.env.CRON_SECRET}` } }
       );
       const data = await res.json() as any;

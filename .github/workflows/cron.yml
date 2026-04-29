@@ -11,5 +11,5 @@ jobs:
     steps:
       - name: Trigger Vercel API Master Cron
         run: |
-          curl -X GET "https://solardocs-api.vercel.app/cron/master" \
+          curl -X GET "https://api.solardoc.app/cron/master" \
           -H "Authorization: Bearer solardocs_master_cron_2024"

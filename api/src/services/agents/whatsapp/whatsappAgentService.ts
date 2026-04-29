@@ -5,7 +5,7 @@ import { fmtPhone, sendHuman } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const APP_URL = 'https://solardocs-dashboard.vercel.app';
+const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
 
 const MAX_HISTORY = 30;
 

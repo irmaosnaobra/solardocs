@@ -2,7 +2,7 @@ import { supabase } from '../../../utils/supabase';
 import { sendZAPI } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 
-const APP_URL = 'https://solardocs-dashboard.vercel.app';
+const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
 
 function primeiroNome(nome: string | null | undefined): string {
   if (!nome) return '';

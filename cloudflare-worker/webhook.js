@@ -52,7 +52,7 @@ export default {
         });
 
         // Dispara processamento imediato (~5 segundos)
-        fetch('https://solardocs-api.vercel.app/cron/process-messages', {
+        fetch('https://api.solardoc.app/cron/process-messages', {
           headers: { 'Authorization': `Bearer ${env.CRON_SECRET}` }
         }).catch(() => {});
       }
