@@ -7,22 +7,26 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Idempotência: só envia se o último email foi há ≥ 23h
 const MIN_GAP_MS = 23 * 60 * 60 * 1000;
 
-type CnpjPhase = 'daily' | 'weekly' | 'done';
+// Cadência CNPJ: 9 emails ao longo de 180 dias (densidade no início, espaçamento depois)
+// Dias 1-7 usam followupEmails (templates 1-7); dias 60+ usam cnpjOngoingEmails
+const CNPJ_SCHEDULE: ReadonlyArray<{ day: number; kind: 'onboarding' | 'ongoing'; idx: number }> = [
+  { day: 1,   kind: 'onboarding', idx: 1 },
+  { day: 2,   kind: 'onboarding', idx: 2 },
+  { day: 4,   kind: 'onboarding', idx: 3 },
+  { day: 7,   kind: 'onboarding', idx: 4 },
+  { day: 14,  kind: 'onboarding', idx: 5 },
+  { day: 30,  kind: 'onboarding', idx: 6 },
+  { day: 60,  kind: 'onboarding', idx: 7 },
+  { day: 90,  kind: 'ongoing',    idx: 0 },
+  { day: 180, kind: 'ongoing',    idx: 1 },
+];
 
-function phaseForDay(day: number): CnpjPhase {
-  if (day < 1 || day > 365) return 'done';
-  if (day <= 10) return 'daily';
-  return ((day - 10) % 7) === 0 ? 'weekly' : 'done';
-}
+const CNPJ_HORIZON_DAYS = 180;
 
-// Para a fase diária (dia 1..10): cicla os 7 templates onboarding
-function dailyTemplateForDay(day: number): number {
-  return ((day - 1) % 7) + 1;
-}
-
-// Para a fase semanal: incrementa por envio (dia 17 = idx 0, dia 24 = idx 1, ...)
-function weeklyVariantIdx(day: number): number {
-  return Math.floor((day - 10) / 7) - 1;
+function scheduledForDay(day: number): { kind: 'onboarding' | 'ongoing'; idx: number } | null {
+  const entry = CNPJ_SCHEDULE.find(e => e.day === day);
+  if (!entry) return null;
+  return { kind: entry.kind, idx: entry.idx };
 }
 
 export async function runFollowupCnpj(): Promise<{ sent: number; skipped: number }> {
@@ -31,7 +35,7 @@ export async function runFollowupCnpj(): Promise<{ sent: number; skipped: number
 
   const { data: users } = await supabase
     .from('users')
-    .select('id, email, created_at, followup_started_at, followup_email_last_sent_at')
+    .select('id, email, created_at, followup_started_at, followup_email_last_sent_at, followup_abandoned, email_opt_out')
     .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)')
     .or(`followup_started_at.not.is.null,created_at.gte.${FOLLOWUP_START.toISOString()}`);
 
@@ -42,13 +46,19 @@ export async function runFollowupCnpj(): Promise<{ sent: number; skipped: number
   let skipped = 0;
 
   for (const user of users) {
+    if (user.email_opt_out) { skipped++; continue; }
+    if (user.followup_abandoned) { skipped++; continue; }
+
     const baseDate = user.followup_started_at
       ? new Date((user.followup_started_at as string).replace(' ', 'T') + 'Z')
       : new Date((user.created_at as string).replace(' ', 'T') + 'Z');
 
     const day = Math.floor((now.getTime() - baseDate.getTime()) / DAY_MS) + 1;
-    const phase = phaseForDay(day);
-    if (phase === 'done') { skipped++; continue; }
+
+    if (day < 1 || day > CNPJ_HORIZON_DAYS) { skipped++; continue; }
+
+    const scheduled = scheduledForDay(day);
+    if (!scheduled) { skipped++; continue; }
 
     if (user.followup_email_last_sent_at) {
       const last = new Date((user.followup_email_last_sent_at as string).replace(' ', 'T') + 'Z');
@@ -56,10 +66,10 @@ export async function runFollowupCnpj(): Promise<{ sent: number; skipped: number
     }
 
     try {
-      if (phase === 'daily') {
-        await sendFollowupEmail(user.email, dailyTemplateForDay(day));
+      if (scheduled.kind === 'onboarding') {
+        await sendFollowupEmail(user.email, user.id, scheduled.idx);
       } else {
-        await sendCnpjOngoingEmail(user.email, weeklyVariantIdx(day));
+        await sendCnpjOngoingEmail(user.email, user.id, scheduled.idx);
       }
       const updates: any = { followup_email_last_sent_at: now.toISOString() };
       if (day === 1 && !user.followup_started_at) updates.followup_started_at = now.toISOString();
@@ -100,7 +110,7 @@ export async function blastFollowupDay1(): Promise<{ sent: number }> {
 
   const { data: users } = await supabase
     .from('users')
-    .select('id, email')
+    .select('id, email, email_opt_out')
     .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)');
 
   if (!users || users.length === 0) return { sent: 0 };
@@ -108,8 +118,9 @@ export async function blastFollowupDay1(): Promise<{ sent: number }> {
   const now = new Date().toISOString();
   let sent = 0;
   for (const user of users) {
+    if (user.email_opt_out) continue;
     try {
-      await sendFollowupEmail(user.email, 1);
+      await sendFollowupEmail(user.email, user.id, 1);
       await supabase.from('users').update({
         followup_started_at: now,
         followup_email_last_sent_at: now,
@@ -122,11 +133,17 @@ export async function blastFollowupDay1(): Promise<{ sent: number }> {
   return { sent };
 }
 
-// ─── lembrete por email para usuários com empresa, sem documento há 3+ dias ─
-// Envia 1x a cada 3 dias por até 1 ano após criar a conta.
+// ─── lembrete por email para usuários com empresa, sem documento recente ─
+// Cadência decrescente: gap 7 → 14 → 30 → 60 → 90 dias.
+// Para após 5 reminders (contract_reminder_count >= 5).
 
-const REMINDER_GAP_MS = 3 * DAY_MS;
-const ONE_YEAR_MS = 365 * DAY_MS;
+const REMINDER_GAPS_DAYS = [7, 14, 30, 60, 90];
+const MAX_REMINDERS = REMINDER_GAPS_DAYS.length;
+const FIRST_REMINDER_AFTER_DAYS = 7; // só lembra se faz 7+ dias sem doc
+
+function reminderGapMs(count: number): number {
+  return REMINDER_GAPS_DAYS[Math.min(count, REMINDER_GAPS_DAYS.length - 1)] * DAY_MS;
+}
 
 export async function runNoContractsEmailReminder(): Promise<{ sent: number; skipped: number }> {
   const now = new Date();
@@ -137,12 +154,11 @@ export async function runNoContractsEmailReminder(): Promise<{ sent: number; ski
 
   const { data: candidates } = await supabase
     .from('users')
-    .select('id, email, nome, created_at, contract_reminder_last_sent_at')
+    .select('id, email, nome, created_at, contract_reminder_last_sent_at, contract_reminder_count, email_opt_out')
     .in('id', companyUserIds);
 
   if (!candidates || candidates.length === 0) return { sent: 0, skipped: 0 };
 
-  // Pega último documento por usuário em uma única query
   const { data: docs } = await supabase
     .from('documents')
     .select('user_id, created_at')
@@ -161,26 +177,25 @@ export async function runNoContractsEmailReminder(): Promise<{ sent: number; ski
 
   for (const u of candidates) {
     if (!u.email) { skipped++; continue; }
+    if (u.email_opt_out) { skipped++; continue; }
 
-    const created = new Date((u.created_at as string).replace(' ', 'T') + 'Z');
-    if (now.getTime() - created.getTime() > ONE_YEAR_MS) { skipped++; continue; }
+    const count = (u.contract_reminder_count as number | null) ?? 0;
+    if (count >= MAX_REMINDERS) { skipped++; continue; }
 
     const lastDoc = lastDocByUser.get(u.id);
-    if (lastDoc && now.getTime() - lastDoc.getTime() < REMINDER_GAP_MS) { skipped++; continue; }
+    const lastDocAgeMs = lastDoc ? now.getTime() - lastDoc.getTime() : Infinity;
+    if (lastDocAgeMs < FIRST_REMINDER_AFTER_DAYS * DAY_MS) { skipped++; continue; }
 
     if (u.contract_reminder_last_sent_at) {
       const lastReminder = new Date((u.contract_reminder_last_sent_at as string).replace(' ', 'T') + 'Z');
-      if (now.getTime() - lastReminder.getTime() < REMINDER_GAP_MS) { skipped++; continue; }
+      if (now.getTime() - lastReminder.getTime() < reminderGapMs(count)) { skipped++; continue; }
     }
 
-    // Variant cycling baseado em quantos dias desde a criação da conta
-    const daysSinceSignup = Math.floor((now.getTime() - created.getTime()) / DAY_MS);
-    const variantIdx = Math.floor(daysSinceSignup / 3);
-
     try {
-      await sendNoContractsReminderEmail(u.email, (u.nome as string | null) ?? null, variantIdx);
+      await sendNoContractsReminderEmail(u.email, u.id, (u.nome as string | null) ?? null, count);
       await supabase.from('users').update({
         contract_reminder_last_sent_at: now.toISOString(),
+        contract_reminder_count: count + 1,
       }).eq('id', u.id);
       sent++;
     } catch (err) {

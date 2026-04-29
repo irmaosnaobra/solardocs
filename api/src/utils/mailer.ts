@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { unsubToken } from '../controllers/unsubscribeController';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST?.trim() || 'smtp.gmail.com',
@@ -11,6 +12,32 @@ const transporter = nodemailer.createTransport({
 });
 
 const APP_URL = process.env.DASHBOARD_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://solardocs-dashboard.vercel.app';
+const API_URL = process.env.API_URL || 'https://solardocs-api.vercel.app';
+
+function unsubUrl(userId: string): string {
+  return `${API_URL}/unsubscribe?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
+}
+
+function unsubFooter(userId: string): string {
+  const url = unsubUrl(userId);
+  return `<div style="max-width:580px;margin:14px auto 0;padding:0 12px;font-family:'Segoe UI',Arial,sans-serif;color:#64748b;font-size:11px;text-align:center;line-height:1.6;">
+    <p style="margin:0 0 4px;">SolarDoc Pro — automacao de documentos para integradores solares</p>
+    <p style="margin:0;">Voce esta recebendo esse email porque criou uma conta na plataforma. <a href="${url}" style="color:#94a3b8;text-decoration:underline;">Descadastrar destes emails</a>.</p>
+  </div>`;
+}
+
+async function sendMarketingEmail(opts: { to: string; userId: string; subject: string; html: string }): Promise<void> {
+  await transporter.sendMail({
+    from: `"SolarDoc Pro" <${process.env.SMTP_USER}>`,
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html + unsubFooter(opts.userId),
+    headers: {
+      'List-Unsubscribe': `<${unsubUrl(opts.userId)}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    },
+  });
+}
 
 const followupEmails: Record<number, { subject: string; html: string }> = {
   1: {
@@ -161,16 +188,10 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
   },
 };
 
-export async function sendFollowupEmail(email: string, day: number): Promise<void> {
+export async function sendFollowupEmail(email: string, userId: string, day: number): Promise<void> {
   const template = followupEmails[day];
   if (!template) return;
-
-  await transporter.sendMail({
-    from: `"SolarDoc Pro" <${process.env.SMTP_USER}>`,
-    to: email,
-    subject: template.subject,
-    html: template.html,
-  });
+  await sendMarketingEmail({ to: email, userId, subject: template.subject, html: template.html });
 }
 
 const noContractsEmails: Array<{ subject: string; html: (nome: string | null) => string }> = [
@@ -257,14 +278,9 @@ const noContractsEmails: Array<{ subject: string; html: (nome: string | null) =>
   },
 ];
 
-export async function sendNoContractsReminderEmail(email: string, nome: string | null, variantIdx: number): Promise<void> {
+export async function sendNoContractsReminderEmail(email: string, userId: string, nome: string | null, variantIdx: number): Promise<void> {
   const tpl = noContractsEmails[variantIdx % noContractsEmails.length];
-  await transporter.sendMail({
-    from: `"SolarDoc Pro" <${process.env.SMTP_USER}>`,
-    to: email,
-    subject: tpl.subject,
-    html: tpl.html(nome),
-  });
+  await sendMarketingEmail({ to: email, userId, subject: tpl.subject, html: tpl.html(nome) });
 }
 
 // Variantes para a fase semanal (após 10 dias diários sem CNPJ).
@@ -344,14 +360,9 @@ const cnpjOngoingEmails: Array<{ subject: string; html: string }> = [
   },
 ];
 
-export async function sendCnpjOngoingEmail(email: string, variantIdx: number): Promise<void> {
+export async function sendCnpjOngoingEmail(email: string, userId: string, variantIdx: number): Promise<void> {
   const tpl = cnpjOngoingEmails[variantIdx % cnpjOngoingEmails.length];
-  await transporter.sendMail({
-    from: `"SolarDoc Pro" <${process.env.SMTP_USER}>`,
-    to: email,
-    subject: tpl.subject,
-    html: tpl.html,
-  });
+  await sendMarketingEmail({ to: email, userId, subject: tpl.subject, html: tpl.html });
 }
 
 export async function sendPasswordResetEmail(email: string, resetUrl: string) {
