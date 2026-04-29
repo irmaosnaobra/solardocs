@@ -84,20 +84,11 @@ router.get('/followup-stamp', async (req: Request, res: Response) => {
   }
 });
 
-// 8h Brasília — followup manhã (sem CNPJ)
-router.get('/followup-whatsapp-morning', async (req: Request, res: Response) => {
+// Lembrete WhatsApp dia-1 (1x apenas, ~20-48h apos signup, sem reply nem opt-out)
+router.get('/followup-whatsapp', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const result = await runWhatsappFollowup('morning');
-    res.json({ ok: true, ...result });
-  } catch (err) { res.status(500).json({ error: 'Cron failed' }); }
-});
-
-// 17h Brasília — followup tarde (sem CNPJ)
-router.get('/followup-whatsapp-evening', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runWhatsappFollowup('evening');
+    const result = await runWhatsappFollowup();
     res.json({ ok: true, ...result });
   } catch (err) { res.status(500).json({ error: 'Cron failed' }); }
 });
@@ -166,9 +157,8 @@ router.get('/master', async (req: Request, res: Response) => {
   const tasks: Array<[string, () => Promise<any>]> = [
     ['followup-email-cnpj',         () => runFollowupCnpj()],
     ['no-contracts-reminder',       () => runNoContractsEmailReminder()],
-    ['followup-whatsapp-morning',   () => runWhatsappFollowup('morning')],
-    ['followup-whatsapp-evening',   () => runWhatsappFollowup('evening')],
-    ['inactive-engagement',         () => runInactiveEngagement()],
+    ['followup-whatsapp-day1',      () => runWhatsappFollowup()],
+    ['inactive-engagement-day14',   () => runInactiveEngagement()],
     ['sdr-followup',                () => runSdrFollowups()],
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],

@@ -17,21 +17,22 @@ function buildSystemPrompt(user: {
   const planoLabel: Record<string, string> = { free: 'Gratuito', pro: 'PRO', ilimitado: 'VIP' };
   const nomeUsuario = user.nome ? user.nome.split(' ')[0] : null;
 
-  return `Você é a "Dani", consultora de sucesso do cliente do SolarDoc Pro. Sua missão é garantir que o integrador gaste menos de 2 minutos gerando documentos.
+  return `Você é a "Dani" da SolarDoc Pro. Tom de amiga prestativa, não vendedora. Tranquila. Sem pressão.
 
 ━━ PERFIL DO USUÁRIO ━━
 ${nomeUsuario ? `- Nome: ${nomeUsuario}` : '- Nome: integrador'}
-- Email: ${user.email}
 - Plano: ${planoLabel[user.plano] || user.plano}
-- Empresa: ${user.tem_cnpj ? `${user.nome_empresa || 'cadastrada'} ✅` : 'NÃO cadastrada ainda'}
+- Empresa: ${user.tem_cnpj ? `${user.nome_empresa || 'cadastrada'} ✅` : 'NÃO cadastrada'}
 
-━━ DIRETRIZES ━━
-- Se não tiver CNPJ, guie para ${APP_URL}/login de forma gentil.
-- Uma ideia por bolha, máximo 2 frases. Use || para separar.
-- Proporcione uma experiência de WhatsApp rápida e eficiente.
+━━ COMO RESPONDER ━━
+- Curto. 1-2 frases por mensagem. Sem emojis exagerados.
+- Não tente vender. Não pressione. Não repita CTA várias vezes.
+- Se a pessoa pediu ajuda concreta, ajude direto.
+- Se for conversa solta, responde curtinho e deixa quieto.
+- Só mencione ${APP_URL} se for relevante (e nunca mais que 1 vez na conversa).
 
 ━━ FORMATO ━━
-Máximo 3 bolhas separadas por ||.`;
+Máximo 2 bolhas separadas por ||. Frases curtas.`;
 }
 
 // ─── histórico ───────────────────────────────────────────────────
@@ -95,10 +96,8 @@ export async function sendWelcomeWhatsApp(phone: string, _email: string): Promis
   const cleanPhone = phone.replace(/\D/g, '');
 
   const parts = [
-    `☀️ Oi! Bem-vindo ao *SolarDoc Pro* — Irmãos na Obra!`,
-    `Sou sua assistente aqui na plataforma. Fui criada por integradores com 8 anos no setor solar pra acabar com a burocracia que toma seu tempo de venda 😄`,
-    `Com a gente você gera contratos, procurações e propostas bancárias em menos de 2 minutos. *Seu teste é grátis — 10 documentos sem cartão!*`,
-    `Pra começar, é só cadastrar o CNPJ da sua empresa aqui:\n👉 ${APP_URL}/login\n\nQualquer dúvida me chama!`,
+    `Oi! Sou a Dani, da SolarDoc Pro 🌞`,
+    `Tô aqui se você precisar de qualquer coisa — pra gerar documento, tirar dúvida ou se travar em algo. Sem pressa.`,
   ];
 
   await sendHuman(cleanPhone, parts);
@@ -106,6 +105,9 @@ export async function sendWelcomeWhatsApp(phone: string, _email: string): Promis
   const fullText = parts.join(' || ');
   await saveSession(cleanPhone, null, [{ role: 'assistant', content: fullText }]);
 }
+
+// Palavras que indicam vontade de parar de receber automação
+const OPT_OUT_PATTERNS = /\b(para|parar|stop|cancela|cancelar|sair|nao quero|não quero|nao manda|não manda|me deixe|me deixa|chega de mensagem|descadastr)\b/i;
 
 // ─── resposta a mensagem recebida ────────────────────────────────
 export async function handleIncomingWhatsApp(
@@ -153,6 +155,22 @@ export async function handleIncomingWhatsApp(
     }
 
     await handleSdrLead(cleanPhone, text, senderName, tracking);
+    return;
+  }
+
+  // Cliente respondeu — marca pra parar com automacao futura.
+  // (whatsapp_replied_at IS NOT NULL bloqueia runWhatsappFollowup e runInactiveEngagement)
+  await supabase.from('users').update({
+    whatsapp_replied_at: new Date().toISOString(),
+  }).eq('id', user.id);
+
+  // Detecta pedido explicito de parar com mensagens automaticas
+  if (OPT_OUT_PATTERNS.test(text)) {
+    await supabase.from('users').update({ whatsapp_opt_out: true }).eq('id', user.id);
+    await sendHuman(cleanPhone, [
+      'Anotado, parei de mandar mensagem automatica.',
+      'Se um dia precisar de algo, e so me chamar aqui.',
+    ]);
     return;
   }
 
