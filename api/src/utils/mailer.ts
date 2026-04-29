@@ -1,18 +1,13 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { unsubToken } from '../controllers/unsubscribeController';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST?.trim() || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT?.trim()) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER?.trim(),
-    pass: process.env.SMTP_PASS?.trim(),
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const APP_URL = process.env.DASHBOARD_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://solardocs-dashboard.vercel.app';
-const API_URL = process.env.API_URL || 'https://solardocs-api.vercel.app';
+const APP_URL = process.env.DASHBOARD_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://solardoc.app';
+const API_URL = process.env.API_URL || 'https://api.solardoc.app';
+
+const FROM_EMAIL = process.env.MAIL_FROM || 'SolarDoc Pro <equipe@solardoc.app>';
+const REPLY_TO = process.env.MAIL_REPLY_TO || 'aiorosgroup@gmail.com';
 
 function unsubUrl(userId: string): string {
   return `${API_URL}/unsubscribe?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
@@ -27,9 +22,10 @@ function unsubFooter(userId: string): string {
 }
 
 async function sendMarketingEmail(opts: { to: string; userId: string; subject: string; html: string }): Promise<void> {
-  await transporter.sendMail({
-    from: `"SolarDoc Pro" <${process.env.SMTP_USER}>`,
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
     to: opts.to,
+    replyTo: REPLY_TO,
     subject: opts.subject,
     html: opts.html + unsubFooter(opts.userId),
     headers: {
@@ -37,6 +33,7 @@ async function sendMarketingEmail(opts: { to: string; userId: string; subject: s
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     },
   });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
 
 const followupEmails: Record<number, { subject: string; html: string }> = {
@@ -368,9 +365,10 @@ export async function sendCnpjOngoingEmail(email: string, userId: string, varian
 export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   try {
     console.log(`[Mailer] Tentando enviar reset para ${email}...`);
-    const info = await transporter.sendMail({
-      from: `"SolarDoc Pro" <${process.env.SMTP_USER?.trim()}>`,
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
       to: email,
+      replyTo: REPLY_TO,
       subject: 'Redefinição de senha — SolarDoc Pro',
       html: `
         <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; background: #0f172a; border-radius: 16px; overflow: hidden;">
@@ -394,8 +392,9 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
         </div>
       `,
     });
-    console.log(`[Mailer] E-mail enviado! ID: ${info.messageId}`);
-    return info;
+    if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+    console.log(`[Mailer] E-mail enviado! ID: ${data?.id}`);
+    return data;
   } catch (err) {
     console.error('[Mailer] Erro crítico no envio:', err);
     throw err;
@@ -419,16 +418,15 @@ export async function sendSuggestionEmail(opts: SuggestionEmailOptions) {
     if (match) {
       attachments.push({
         filename: opts.arquivoNome,
-        content: match[2],
-        encoding: 'base64',
+        content: Buffer.from(match[2], 'base64'),
         contentType: match[1],
       });
     }
   }
 
-  await transporter.sendMail({
-    from: `"SolarDoc Pro" <${process.env.SMTP_USER}>`,
-    to: 'agenntaix@gmail.com',
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: 'aiorosgroup@gmail.com',
     replyTo: opts.userEmail,
     subject: `💎 Sugestão VIP: ${opts.titulo}`,
     html: `
@@ -457,4 +455,5 @@ ${opts.descricao}
     `,
     attachments,
   });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
