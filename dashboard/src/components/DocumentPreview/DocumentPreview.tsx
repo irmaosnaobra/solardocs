@@ -194,26 +194,15 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
 
     const token = getToken();
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    try {
-      // Pega a URL assinada do HTML salvo no Storage. O HTML já tem
-      // window.print() injetado no onload pelo backend (injectPrint), então
-      // navegadores desktop abrem o diálogo de impressão direto. No iOS o
-      // usuário usa Compartilhar → Imprimir → Salvar em Arquivos como PDF.
-      const res = await fetch(`${apiBase}/documents/${docId}/html-url?t=${Date.now()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const { url } = await res.json();
-      if (!url) throw new Error('URL inválida');
+    // Endpoint do nosso backend serve o HTML com Content-Type correto
+    // (Supabase Storage às vezes manda text/plain e iOS mostra o fonte).
+    // Token na query porque é navegação direta, não fetch com header.
+    const url = `${apiBase}/documents/${docId}/html?token=${encodeURIComponent(token || '')}&t=${Date.now()}`;
 
-      const win = window.open(url, '_blank');
-      if (!win) {
-        window.location.href = url;
-      }
-    } catch (err) {
-      console.error('PDF download failed:', err);
-      alert('Não foi possível abrir o documento agora. Tente novamente em alguns segundos.');
+    const win = window.open(url, '_blank');
+    if (!win) {
+      // Popup bloqueado — abre na própria aba
+      window.location.href = url;
     }
   }
 

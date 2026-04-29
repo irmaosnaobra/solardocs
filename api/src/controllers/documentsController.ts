@@ -239,7 +239,7 @@ export async function updateDocumentFile(req: Request, res: Response): Promise<v
   }
 }
 
-export async function getDocumentHtmlUrl(req: Request, res: Response): Promise<void> {
+export async function renderDocumentHtml(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
     const { data: doc } = await supabase
@@ -250,24 +250,32 @@ export async function getDocumentHtmlUrl(req: Request, res: Response): Promise<v
       .single();
 
     if (!doc?.arquivo_url) {
-      res.status(404).json({ error: 'Documento não disponível ainda. Tente novamente em alguns segundos.' });
+      res.status(404).type('text/html').send('<h1>Documento não disponível</h1><p>Tente novamente em alguns segundos.</p>');
       return;
     }
 
     const { data: signed } = await supabase.storage
       .from('documentos')
-      .createSignedUrl(doc.arquivo_url, 600);
+      .createSignedUrl(doc.arquivo_url, 60);
 
     if (!signed?.signedUrl) {
-      res.status(500).json({ error: 'Erro ao gerar URL do documento' });
+      res.status(500).type('text/html').send('<h1>Erro ao gerar URL do documento</h1>');
       return;
     }
 
-    res.setHeader('Cache-Control', 'no-store');
-    res.json({ url: signed.signedUrl });
+    // Buscamos o HTML do Storage e devolvemos com Content-Type correto.
+    // Storage do Supabase às vezes serve com text/plain — iOS então mostra
+    // o código fonte em vez de renderizar.
+    const storageRes = await fetch(signed.signedUrl);
+    const html = await storageRes.text();
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(html);
   } catch (err) {
-    logger.error('documents', 'getDocumentHtmlUrl falhou', err);
-    res.status(500).json({ error: 'Erro ao buscar documento' });
+    logger.error('documents', 'renderDocumentHtml falhou', err);
+    res.status(500).type('text/html').send('<h1>Erro ao buscar documento</h1>');
   }
 }
 
