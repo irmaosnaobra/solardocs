@@ -111,8 +111,11 @@ export async function sendWelcomeWhatsApp(phone: string, _email: string): Promis
   await saveSession(cleanPhone, null, [{ role: 'assistant', content: fullText }]);
 }
 
-// Palavras que indicam vontade de parar de receber automação
-const OPT_OUT_PATTERNS = /\b(para|parar|stop|cancela|cancelar|sair|nao quero|não quero|nao manda|não manda|me deixe|me deixa|chega de mensagem|descadastr)\b/i;
+// Frases que indicam vontade explicita de parar de receber automacao.
+// CUIDADO: nao usar palavras curtas ambiguas como "para" (preposicao) ou
+// "nao quero" sozinho — geram falso positivo em conversas normais.
+// Aqui exigimos frases completas com contexto inequivoco de opt-out.
+const OPT_OUT_PATTERNS = /\b(parar de mandar|para de mandar|para de me mandar|para de me chamar|chega de mensagem|chega dessas mensagens|nao manda mais|não manda mais|nao me manda mais|não me manda mais|nao quero mais (essas |receber|mensagem)|não quero mais (essas |receber|mensagem)|me descadastra|descadastrar|sai dessa lista|sair da lista|cancela (meu )?cadastro|cancelar (meu )?cadastro|stop)\b/i;
 
 export interface IncomingMedia {
   url: string;
