@@ -17,10 +17,13 @@
 //         depende do webhook funcionar. Se webhook continuar falhando, abrir
 //         ticket Z-API mencionando que /chat-messages nao funciona em MD.
 
+import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
 import { handleSdrLead } from './sdrAgentService';
 import { sendToGroup, type ZapiInstance } from '../zapiClient';
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const FRASE_PADRAO_ANUNCIO = 'Tenho interesse em energia solar!';
 
@@ -90,6 +93,161 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
   }
 
   return { processed, skipped, errors };
+}
+
+// ─── Revisão horária: Luma re-avalia contexto e reposiciona leads no funil ──
+//
+// Roda no /cron/process-messages a cada minuto, mas processa CADA lead apenas
+// 1x por hora (controle via ultima_revisao_luma). Limita a 5 leads por execução
+// pra não estourar custo de IA.
+//
+// REGRA DE PROMOÇÃO: só move pra CIMA no funil (frio → morno → quente). Nunca
+// rebaixa — pra evitar conflito com decisão manual humana via drag&drop.
+//
+// Quando promove: dispara card no grupo "🔄 Luma moveu Lead X de A → B"
+
+const HIERARQUIA_FUNIL = ['frio', 'novo', 'morno', 'quente'] as const;
+type EstagioFunil = typeof HIERARQUIA_FUNIL[number];
+
+function ehPromocao(de: string, para: string): boolean {
+  const iDe = HIERARQUIA_FUNIL.indexOf(de as EstagioFunil);
+  const iPara = HIERARQUIA_FUNIL.indexOf(para as EstagioFunil);
+  if (iDe === -1 || iPara === -1) return false;
+  return iPara > iDe;
+}
+
+function nomeEstagio(s: string): string {
+  return ({ novo: 'Novo', frio: 'Frio', morno: 'Morno', quente: 'Quente' } as Record<string,string>)[s] || s;
+}
+
+interface RevisaoIA {
+  estagio_sugerido: EstagioFunil;
+  motivo: string;
+}
+
+async function avaliarLeadComIA(lead: any, historico: string): Promise<RevisaoIA | null> {
+  try {
+    const r = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      system: `Você é a Luma, SDR sênior de energia solar da Irmãos na Obra. Avalia o estágio atual de um lead com base no contexto da conversa e SUGERE em qual estágio ele deveria estar:
+
+- "frio": conta de luz < R$200, sem capacidade financeira, recusou explicitamente, só curioso
+- "novo": ainda sem nome ou contato inicial sem qualificação
+- "morno": qualificou parcialmente — passou alguns dados (nome, consumo, telhado, etc) mas não fechou
+- "quente": qualificou COMPLETO + aceitou agendamento (canal + horário definidos)
+
+Saída em JSON puro, sem markdown:
+{ "estagio_sugerido": "frio|novo|morno|quente", "motivo": "1 frase curta com a razão" }`,
+      messages: [{
+        role: 'user',
+        content: `Lead: ${lead.nome || 'Sem nome'} · Cidade: ${lead.cidade || '—'}
+Estágio atual: ${lead.estagio}
+Agendamento: ${lead.canal_atendimento ? `${lead.canal_atendimento} ${lead.horario_atendimento}` : 'nenhum'}
+
+CONVERSA:
+${historico}`,
+      }],
+    });
+    const txt = (r.content[0] as { text: string }).text.trim();
+    const cleaned = txt.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    const parsed = JSON.parse(cleaned);
+    if (!HIERARQUIA_FUNIL.includes(parsed.estagio_sugerido)) return null;
+    return parsed;
+  } catch (err) {
+    logger.error('luma-revisao', 'erro avaliando lead', err);
+    return null;
+  }
+}
+
+export async function revisarLeadsLuma(): Promise<{ avaliados: number; promovidos: number }> {
+  const groupId = process.env.ZAPI_IO_GROUP_ID?.trim() || '120363424419098566-group';
+  const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  const { data: leads } = await supabase
+    .from('sdr_leads')
+    .select('phone, nome, cidade, estagio, canal_atendimento, horario_atendimento, instance, ultima_revisao_luma')
+    .eq('instance', 'io')
+    .not('estagio', 'in', '("fechamento","perdido")')
+    .or(`ultima_revisao_luma.is.null,ultima_revisao_luma.lt.${umaHoraAtras}`)
+    .order('ultima_revisao_luma', { ascending: true, nullsFirst: true })
+    .limit(5);
+
+  if (!leads?.length) return { avaliados: 0, promovidos: 0 };
+
+  let avaliados = 0;
+  let promovidos = 0;
+
+  for (const lead of leads) {
+    const { data: session } = await supabase
+      .from('whatsapp_sessions')
+      .select('messages')
+      .eq('phone', lead.phone)
+      .eq('tipo', 'sdr')
+      .single();
+
+    const messages = (session?.messages as any[]) || [];
+    const historico = messages.slice(-30).map((m: any) =>
+      `${m.role === 'user' ? 'Lead' : 'Luma'}: ${typeof m.content === 'string' ? m.content : '[mídia]'}`
+    ).join('\n');
+
+    if (!historico) {
+      // Sem histórico, só atualiza timestamp pra não ficar revisando vazio
+      await supabase.from('sdr_leads').update({
+        ultima_revisao_luma: new Date().toISOString(),
+      }).eq('phone', lead.phone);
+      continue;
+    }
+
+    const revisao = await avaliarLeadComIA(lead, historico);
+    avaliados++;
+
+    if (!revisao) {
+      await supabase.from('sdr_leads').update({
+        ultima_revisao_luma: new Date().toISOString(),
+      }).eq('phone', lead.phone);
+      continue;
+    }
+
+    const novoEstagio = revisao.estagio_sugerido;
+
+    // Só promove pra cima — nunca rebaixa (humano cuida disso via drag&drop)
+    if (novoEstagio !== lead.estagio && ehPromocao(lead.estagio, novoEstagio)) {
+      await supabase.from('sdr_leads').update({
+        estagio: novoEstagio,
+        ultima_revisao_luma: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('phone', lead.phone);
+
+      // Avisa no grupo
+      const linkWa = `https://wa.me/${lead.phone.replace(/\D/g, '')}`;
+      const card = [
+        `🔄 *LUMA MOVEU LEAD NO FUNIL*`,
+        ``,
+        `*${lead.nome || 'Sem nome'}*  →  ${linkWa}`,
+        `*${lead.cidade || '—'}*`,
+        ``,
+        `${nomeEstagio(lead.estagio)}  →  *${nomeEstagio(novoEstagio)}*`,
+        ``,
+        `💡 ${revisao.motivo}`,
+      ].join('\n');
+
+      try {
+        const inst: ZapiInstance = (lead.instance === 'io' ? 'io' : 'solardoc') as ZapiInstance;
+        await sendToGroup(groupId, card, inst);
+        promovidos++;
+      } catch (err) {
+        logger.error('luma-revisao', `falha ao avisar promocao de ${lead.phone}`, err);
+      }
+    } else {
+      // Mantém estágio mas atualiza timestamp
+      await supabase.from('sdr_leads').update({
+        ultima_revisao_luma: new Date().toISOString(),
+      }).eq('phone', lead.phone);
+    }
+  }
+
+  return { avaliados, promovidos };
 }
 
 // Lembrete pré-evento: dispara mensagem de alerta no grupo da equipe.

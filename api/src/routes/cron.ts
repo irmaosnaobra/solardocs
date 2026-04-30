@@ -6,7 +6,7 @@ import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/w
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
 import { pollZapiMessages } from '../services/agents/sdr/sdrAgentService';
-import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento } from '../services/agents/sdr/sdrIoPolling';
+import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma } from '../services/agents/sdr/sdrIoPolling';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -108,12 +108,13 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, pollIoResult, takeoverResult, lembretesResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, takeoverResult, lembretesResult, revisaoResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),
       processIoTakeoverEvents(),
       processarLembretesAgendamento(),
+      revisarLeadsLuma(),
     ]);
     res.json({
       ok: true,
@@ -122,6 +123,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       poll_io:   pollIoResult.status === 'fulfilled' ? pollIoResult.value : { error: String((pollIoResult as any).reason) },
       takeover:  takeoverResult.status === 'fulfilled' ? takeoverResult.value : { error: String((takeoverResult as any).reason) },
       lembretes: lembretesResult.status === 'fulfilled' ? lembretesResult.value : { error: String((lembretesResult as any).reason) },
+      revisao:   revisaoResult.status === 'fulfilled' ? revisaoResult.value : { error: String((revisaoResult as any).reason) },
     });
   } catch (err) {
     logger.error('cron', 'process-messages falhou', err);
