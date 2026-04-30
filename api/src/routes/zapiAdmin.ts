@@ -102,6 +102,16 @@ router.post('/io/setup', async (req: Request, res: Response): Promise<void> => {
   });
 });
 
+// Reinicia a instancia (sem perder QR / conexao)
+router.post('/io/restart', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const creds = getIOCreds();
+  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+
+  const r = await zapiGet(creds, 'restart');
+  res.json({ restart: r });
+});
+
 // Envia uma mensagem de teste pra confirmar outbound funcionando
 router.post('/io/test-send', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
