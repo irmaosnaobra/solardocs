@@ -20,6 +20,7 @@
 import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
 import { handleSdrLead } from './sdrAgentService';
+import { sendToGroup, type ZapiInstance } from '../zapiClient';
 
 const FRASE_PADRAO_ANUNCIO = 'Tenho interesse em energia solar!';
 
@@ -89,6 +90,87 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
   }
 
   return { processed, skipped, errors };
+}
+
+// Lembrete pré-evento: dispara mensagem de alerta no grupo da equipe.
+//  - Ligação/Meet: 2 minutos antes do horário
+//  - Vistoria: 20 minutos antes do horário (mais antecedência por logística)
+// Roda no /cron/process-messages a cada minuto. Usa janela de 90s pra cobrir
+// pequenos atrasos do cron sem disparar 2x (lembrete_enviado_at = dedup).
+export async function processarLembretesAgendamento(): Promise<{ enviados: number }> {
+  const groupId = process.env.ZAPI_IO_GROUP_ID?.trim() || '120363424419098566-group';
+  const now = Date.now();
+
+  // Pega todos os agendamentos cujo horário tá próximo e o lembrete ainda não foi enviado
+  const { data: leads } = await supabase
+    .from('sdr_leads')
+    .select('phone, nome, cidade, canal_atendimento, horario_atendimento, horario_iso, endereco_vistoria, instance')
+    .not('horario_iso', 'is', null)
+    .is('lembrete_enviado_at', null)
+    .in('canal_atendimento', ['ligacao', 'meet', 'vistoria']);
+
+  if (!leads?.length) return { enviados: 0 };
+
+  let enviados = 0;
+  for (const lead of leads) {
+    if (!lead.horario_iso || !lead.canal_atendimento) continue;
+    const eventoMs = new Date(lead.horario_iso).getTime();
+    if (isNaN(eventoMs)) continue;
+
+    const isVistoria = lead.canal_atendimento === 'vistoria';
+    const antecedenciaMs = isVistoria ? 20 * 60 * 1000 : 2 * 60 * 1000;
+    const inicio = eventoMs - antecedenciaMs;
+    // Janela de 90s — cobre cron com leve atraso. Não dispara se já passou do evento.
+    if (now < inicio || now > inicio + 90 * 1000) continue;
+    if (now > eventoMs) continue;
+
+    const linkWa = `https://wa.me/${lead.phone.replace(/\D/g, '')}`;
+    const minsRestantes = Math.max(1, Math.round((eventoMs - now) / 60000));
+
+    let card = '';
+    if (isVistoria) {
+      card = [
+        `🚨🚨 *ALERTA — VISTORIA EM ${minsRestantes} MIN* 🚨🚨`,
+        ``,
+        `*Cliente:* ${lead.nome || 'Sem nome'}`,
+        `*WhatsApp:* ${linkWa}`,
+        `*Cidade:* ${lead.cidade || '—'}`,
+        ``,
+        `📍 *ENDEREÇO*`,
+        `${lead.endereco_vistoria || '⚠️ ENDEREÇO NÃO INFORMADO — verificar com cliente'}`,
+        ``,
+        `🕐 Horário marcado: *${lead.horario_atendimento}*`,
+        `🚗 Saída recomendada: AGORA`,
+      ].join('\n');
+    } else {
+      const emoji = lead.canal_atendimento === 'meet' ? '🎥' : '📞';
+      const tipo = lead.canal_atendimento === 'meet' ? 'MEET (vídeo)' : 'LIGAÇÃO';
+      card = [
+        `⚠️⚠️ *LEMBRETE — ${tipo} EM ${minsRestantes} MIN* ⚠️⚠️`,
+        ``,
+        `*Cliente:* ${lead.nome || 'Sem nome'}`,
+        `${emoji} *Telefone:* ${lead.phone}`,
+        `🔗 ${linkWa}`,
+        ``,
+        `🕐 Horário marcado: *${lead.horario_atendimento}*`,
+        `🟢 PREPARAR PRA CONTATO AGORA`,
+      ].join('\n');
+    }
+
+    try {
+      const instance: ZapiInstance = (lead.instance === 'io' ? 'io' : 'solardoc') as ZapiInstance;
+      await sendToGroup(groupId, card, instance);
+      await supabase.from('sdr_leads').update({
+        lembrete_enviado_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('phone', lead.phone);
+      enviados++;
+    } catch (err) {
+      logger.error('lembrete-agendamento', `falha pro lead ${lead.phone}`, err);
+    }
+  }
+
+  return { enviados };
 }
 
 // Processa webhook_debug recente procurando mensagens enviadas pelo celular

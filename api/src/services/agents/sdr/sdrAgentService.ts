@@ -129,13 +129,27 @@ Exemplo vistoria:
   "Posso agendar pra hoje 16h ou amanhã 9h, qual fica melhor?"
 
 ETAPA 10 — REGISTRAR AGENDAMENTO + DESPEDIDA
-ASSIM QUE o cliente confirmar o canal E o horário específico, você DEVE:
-1. Chamar a tool **agendar_atendimento** com canal ('ligacao' | 'meet' | 'vistoria') e horario (texto exato escolhido).
-2. Após a tool retornar OK, manda mensagem de confirmação humana:
-   "Show, [Nome]. Anotado: [canal] [horário]. O consultor vai te chamar pontual. || Qualquer mudança me avisa por aqui. Até já!"
+
+ANTES de chamar a tool, você precisa dos seguintes dados confirmados:
+- canal (ligacao | meet | vistoria)
+- horario em texto natural (ex: "amanhã 14h")
+- horario_iso = mesmo horário em ISO 8601 BRT (ex: "2026-05-01T14:00:00-03:00") — VOCÊ converte mentalmente
+- SE canal=vistoria: endereço COMPLETO (rua, número, bairro, cidade)
+
+Se for VISTORIA, ANTES da tool faça uma pergunta extra pro cliente:
+  "Show. Pra agendar a vistoria, me passa o endereço completo pra eu mandar pro técnico? (rua, número, bairro)"
+
+ASSIM QUE tiver TUDO confirmado:
+1. Chame a tool **agendar_atendimento** com canal, horario, horario_iso e endereco (se vistoria).
+2. Após a tool retornar OK, mande:
+   - Ligação/Meet: "Show, [Nome]. Anotado: [canal] [horário]. O consultor vai te chamar pontual. || Qualquer mudança me avisa por aqui. Até já!"
+   - Vistoria: "Show, [Nome]. Anotado: vistoria [horário] em [endereço]. Nosso técnico vai pra aí. || Qualquer mudança me avisa por aqui. Até já!"
    → Marca [ESTAGIO:quente]
 
-REGRA: Não chame a tool antes do cliente confirmar AMBOS canal + horário. Se ainda tiver dúvida ou o cliente só escolheu canal sem horário, pergunte o horário primeiro.
+REGRAS:
+- NÃO chame a tool antes do cliente confirmar TODOS os dados acima.
+- Se vistoria e endereço ainda não foi dado, pergunte primeiro.
+- Se a tool retornar erro de endereço, pergunte o endereço de novo de forma direta.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # OBJEÇÕES — RESPOSTAS PRONTAS (volte pro fluxo depois)
@@ -445,25 +459,33 @@ export function extractLeadInfo(messages: { role: string; content: string }[]): 
 const LUMA_TOOLS: Anthropic.Tool[] = [
   {
     name: 'agendar_atendimento',
-    description: 'Registra o agendamento confirmado pelo cliente (canal escolhido + horário) e dispara um card de notificação no grupo da equipe. Chame esta tool APENAS depois que o cliente confirmar EXPLICITAMENTE o canal (ligação/meet/vistoria) E o horário específico (ex: "16h", "amanhã 9h"). Não chame antes.',
+    description: 'Registra o agendamento confirmado pelo cliente. Chame esta tool APENAS depois que o cliente confirmar EXPLICITAMENTE: canal (ligação/meet/vistoria), horário específico, E (se vistoria) endereço completo. Não chame antes.',
     input_schema: {
       type: 'object',
       properties: {
         canal: {
           type: 'string',
           enum: ['ligacao', 'meet', 'vistoria'],
-          description: 'Canal escolhido pelo cliente: ligacao = ligação telefônica, meet = reunião por vídeo Google Meet, vistoria = visita técnica presencial (apenas Uberlândia).',
+          description: 'Canal escolhido: ligacao = ligação telefônica, meet = vídeo Google Meet, vistoria = visita técnica presencial (apenas Uberlândia).',
         },
         horario: {
           type: 'string',
-          description: 'Horário confirmado em texto livre (ex: "hoje 16h", "amanhã 9h", "quinta 14h", "sexta 19h").',
+          description: 'Horário confirmado em texto natural pra mostrar no card (ex: "hoje 16h", "amanhã 9h", "quinta 14h").',
+        },
+        horario_iso: {
+          type: 'string',
+          description: 'MESMO horário acima convertido pra timestamp ISO 8601 com timezone de Brasília (UTC-3). Exemplo: se hoje for 2026-04-30 e cliente disse "amanhã 14h", retornar "2026-05-01T14:00:00-03:00". Se disse "hoje 16h" e agora é 30/04, retornar "2026-04-30T16:00:00-03:00". Use sempre o ano corrente.',
+        },
+        endereco: {
+          type: 'string',
+          description: 'OBRIGATÓRIO quando canal=vistoria. Endereço completo confirmado pelo cliente: rua, número, bairro, complemento se houver, cidade. Ex: "Rua das Flores 123, Bairro Centro, Uberlândia". Para ligação/meet, deixar vazio.',
         },
         observacoes: {
           type: 'string',
-          description: 'Notas extras do cliente que o consultor humano deve saber antes do contato (ex: "prefere falar depois das 18h", "tem urgência na decisão"). Opcional.',
+          description: 'Notas extras úteis pro consultor (ex: "prefere falar depois das 18h", "tem urgência"). Opcional.',
         },
       },
-      required: ['canal', 'horario'],
+      required: ['canal', 'horario', 'horario_iso'],
     },
   },
 ];
@@ -490,6 +512,8 @@ export async function criarCardAgendamento(
   horario: string,
   observacoes: string | undefined,
   instance: ZapiInstance,
+  horarioIso?: string,
+  endereco?: string,
 ): Promise<{ ok: boolean; reason?: string }> {
   // Default: grupo "Agendamento" da linha IO. Override via env ZAPI_IO_GROUP_ID.
   const groupId = process.env.ZAPI_IO_GROUP_ID?.trim() || '120363424419098566-group';
@@ -546,6 +570,7 @@ export async function criarCardAgendamento(
     `📋 *AGENDAMENTO*`,
     `• Canal: ${canalLabel(canal)}`,
     `• Horário: *${horario}*`,
+    canal === 'vistoria' && endereco ? `• Endereço: ${endereco}` : null,
     observacoes ? `• Observações: ${observacoes}` : null,
     ``,
     `⚡ *QUALIFICAÇÃO*`,
@@ -565,7 +590,7 @@ export async function criarCardAgendamento(
 
   try {
     await sendToGroup(groupId, card, instance);
-    await supabase.from('sdr_leads').update({
+    const update: any = {
       canal_atendimento: canal,
       horario_atendimento: horario,
       agendado_at: new Date().toISOString(),
@@ -573,7 +598,11 @@ export async function criarCardAgendamento(
       estagio: 'quente',
       aguardando_resposta: false,
       updated_at: new Date().toISOString(),
-    }).eq('phone', phone);
+      lembrete_enviado_at: null, // reset pra permitir lembrete novo
+    };
+    if (horarioIso) update.horario_iso = horarioIso;
+    if (endereco) update.endereco_vistoria = endereco;
+    await supabase.from('sdr_leads').update(update).eq('phone', phone);
     return { ok: true };
   } catch (err) {
     logger.error('luma-card', `falha ao enviar card pro grupo ${groupId}`, err);
@@ -658,16 +687,26 @@ export async function handleSdrLead(
         let result = '';
         if (block.name === 'agendar_atendimento') {
           const input = block.input as any;
-          const r = await criarCardAgendamento(
-            cleanPhone,
-            String(input.canal || ''),
-            String(input.horario || ''),
-            input.observacoes ? String(input.observacoes) : undefined,
-            instance,
-          );
-          result = r.ok
-            ? 'Agendamento registrado e card enviado pra equipe. Confirma pro cliente que o consultor vai entrar em contato no horário combinado.'
-            : `Falha ao enviar card (${r.reason || 'erro'}). Mesmo assim confirme o agendamento pro cliente — vou avisar a equipe manualmente.`;
+          const canal = String(input.canal || '');
+          const endereco = input.endereco ? String(input.endereco).trim() : undefined;
+
+          // Vistoria precisa de endereço — se vier vazio, devolve erro pra IA pedir
+          if (canal === 'vistoria' && (!endereco || endereco.length < 10)) {
+            result = 'ERRO: vistoria requer endereço completo (rua, número, bairro, cidade). Pergunte o endereço completo pro cliente antes de chamar a tool de novo.';
+          } else {
+            const r = await criarCardAgendamento(
+              cleanPhone,
+              canal,
+              String(input.horario || ''),
+              input.observacoes ? String(input.observacoes) : undefined,
+              instance,
+              input.horario_iso ? String(input.horario_iso) : undefined,
+              endereco,
+            );
+            result = r.ok
+              ? 'Agendamento registrado e card enviado pra equipe. Confirma pro cliente que o consultor vai entrar em contato no horário combinado.'
+              : `Falha ao enviar card (${r.reason || 'erro'}). Mesmo assim confirme o agendamento pro cliente — vou avisar a equipe manualmente.`;
+          }
         } else {
           result = 'tool desconhecida';
         }
