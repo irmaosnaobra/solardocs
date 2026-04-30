@@ -112,6 +112,16 @@ router.get('/io/chats', async (req: Request, res: Response): Promise<void> => {
   res.json(r);
 });
 
+// Debug: dump RAW de /chat-messages/{phone} pra entender estrutura da resposta
+router.get('/io/chat-messages/:phone', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const creds = getIOCreds();
+  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+
+  const r = await zapiGet(creds, `chat-messages/${req.params.phone}?amount=10`);
+  res.json(r);
+});
+
 // Faz polling manual: pega chats recentes, busca mensagens individuais via /chat-messages/{phone}
 // e dispara handleSdrLead pra mensagem inbound mais recente nao processada
 router.post('/io/poll', async (req: Request, res: Response): Promise<void> => {
