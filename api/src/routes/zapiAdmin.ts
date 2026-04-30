@@ -212,15 +212,21 @@ router.get('/io/try-paths/:phone', async (req: Request, res: Response): Promise<
   })) });
 });
 
-// Faz polling manual: pega chats recentes, busca mensagens individuais via /chat-messages/{phone}
-// e dispara handleSdrLead pra mensagem inbound mais recente nao processada
+// Polling de leads NOVOS na linha IO via /chats (Z-API webhook nao dispara em Multi Device).
+// Pra leads SEM sessao SDR existente, dispara handleSdrLead com texto fixo "Tenho interesse
+// em energia solar!" (todo lead de anuncio Meta chega com essa frase).
+// Pra continuacao do fluxo (etapas 2+), webhook eh o unico caminho — bug Z-API ainda em aberto.
 router.post('/io/poll', async (req: Request, res: Response): Promise<void> => {
-  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  // Aceita key via query OU header (pra cron interno usar)
+  const isAuthed = req.query.key === BOOTSTRAP_KEY || req.get('x-bootstrap-key') === BOOTSTRAP_KEY;
+  if (!isAuthed) { res.status(403).json({ error: 'forbidden' }); return; }
+
   const creds = getIOCreds();
   if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
 
-  const minutesBack = Number(req.query.minutes) || 30;
+  const minutesBack = Number(req.query.minutes) || 5;
   const cutoff = Date.now() - minutesBack * 60 * 1000;
+  const FRASE_PADRAO_ANUNCIO = 'Tenho interesse em energia solar!';
 
   const chatsRes = await zapiGet(creds, 'chats?pageSize=30');
   if (chatsRes.status !== 200) { res.json({ error: 'chats fetch failed', detail: chatsRes }); return; }
@@ -232,8 +238,7 @@ router.post('/io/poll', async (req: Request, res: Response): Promise<void> => {
 
   const processed: any[] = [];
   for (const chat of chats) {
-    if (chat.isGroup) continue;
-    if (chat.isGroup === 'true') continue;
+    if (chat.isGroup === true || chat.isGroup === 'true') continue;
     if (!chat.phone) continue;
 
     const rawT = chat.lastMessageTime ?? 0;
@@ -243,33 +248,19 @@ router.post('/io/poll', async (req: Request, res: Response): Promise<void> => {
     const phone = String(chat.phone).replace(/\D/g, '');
     if (!phone) continue;
 
-    // Busca mensagens recentes desse chat — Z-API retorna mais recente primeiro
-    const msgsRes = await zapiGet(creds, `chat-messages/${phone}?amount=10`);
-    const msgs: any[] = Array.isArray(msgsRes.body) ? msgsRes.body : [];
-
-    // Pega a mais recente que nao seja fromMe
-    const inbound = msgs.find((m: any) => m.fromMe === false || m.fromMe === 'false');
-    if (!inbound) { processed.push({ phone, name: chat.name, status: 'no inbound found' }); continue; }
-
-    const rawMsgT = inbound.momment ?? inbound.timestamp ?? inbound.time ?? 0;
-    const msgTime = typeof rawMsgT === 'number' ? (rawMsgT > 1e12 ? rawMsgT : rawMsgT * 1000) : Number(rawMsgT) || new Date(rawMsgT).getTime();
-    if (msgTime && msgTime < cutoff) { processed.push({ phone, status: 'inbound too old' }); continue; }
-
-    // Skip se ja processamos
+    // Skip se ja processamos esse phone (existe sessao SDR pra ele)
     const { data: session } = await supabase.from('whatsapp_sessions')
       .select('updated_at').eq('phone', phone).eq('tipo', 'sdr')
       .order('updated_at', { ascending: false }).limit(1).maybeSingle();
-    if (session && new Date(session.updated_at).getTime() >= (msgTime || 0)) {
-      processed.push({ phone, status: 'already processed' });
+    if (session) {
+      processed.push({ phone, name: chat.name, status: 'has session - waiting webhook for continuation' });
       continue;
     }
 
-    const text = inbound.text?.message ?? inbound.body ?? inbound.text ?? inbound.message?.conversation ?? '';
-    if (!text) { processed.push({ phone, status: 'no text', dump: inbound }); continue; }
-
+    // Lead NOVO sem sessao — assume frase padrao do anuncio Meta
     try {
-      await handleSdrLead(phone, String(text), chat.name ?? inbound.senderName ?? null, undefined, 'io');
-      processed.push({ phone, name: chat.name, text: String(text).slice(0, 80), status: 'processed' });
+      await handleSdrLead(phone, FRASE_PADRAO_ANUNCIO, chat.name ?? null, undefined, 'io');
+      processed.push({ phone, name: chat.name, status: 'NEW LEAD processed (assumed default text)' });
     } catch (err) {
       processed.push({ phone, status: 'error', error: err instanceof Error ? err.message : String(err) });
     }

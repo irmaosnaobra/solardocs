@@ -6,6 +6,7 @@ import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/w
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
 import { pollZapiMessages } from '../services/agents/sdr/sdrAgentService';
+import { pollZapiMessagesIO } from '../services/agents/sdr/sdrIoPolling';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -102,18 +103,21 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
   } catch (err) { res.status(500).json({ error: 'Cron failed' }); }
 });
 
-// Roda a cada minuto — processa fila + polling Z-API (fallback para quando webhook não dispara)
+// Roda a cada minuto — processa fila + polling Z-API SolarDoc + polling Z-API Irmaos na Obra
+// (Z-API webhook MD nao dispara consistentemente, polling eh fallback)
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
+      pollZapiMessagesIO(),
     ]);
     res.json({
       ok: true,
-      queue: queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },
-      poll:  pollResult.status  === 'fulfilled' ? pollResult.value  : { error: String((pollResult as any).reason) },
+      queue:   queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },
+      poll:    pollResult.status  === 'fulfilled' ? pollResult.value  : { error: String((pollResult as any).reason) },
+      poll_io: pollIoResult.status === 'fulfilled' ? pollIoResult.value : { error: String((pollIoResult as any).reason) },
     });
   } catch (err) {
     logger.error('cron', 'process-messages falhou', err);
