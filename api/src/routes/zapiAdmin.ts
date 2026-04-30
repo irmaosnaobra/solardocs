@@ -122,32 +122,57 @@ router.get('/io/chat-messages/:phone', async (req: Request, res: Response): Prom
   res.json(r);
 });
 
-// Diagnostico: testa varios paths conhecidos pra descobrir quais funcionam em Multi Device
+// Diagnostico: testa varios paths e metodos pra descobrir quais funcionam em Multi Device
 router.get('/io/try-paths/:phone', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
   const creds = getIOCreds();
   if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
   const phone = req.params.phone;
-  const paths = [
-    `messages?phone=${phone}&amount=10`,
-    `messages-history?phone=${phone}&amount=10`,
-    `chats/${phone}`,
-    `chats/${phone}/messages`,
-    `chat-messages-from-multidevice/${phone}?amount=10`,
-    `read-messages/${phone}`,
-    `last-messages?phone=${phone}`,
-    `metadata/${phone}`,
-    `chat-by-phone/${phone}`,
-    `queue`,
-    `queue/last-message`,
-    `messages-by-phone/${phone}`,
-  ];
-  const out: any[] = [];
-  for (const p of paths) {
-    const r = await zapiGet(creds, p);
-    out.push({ path: p, status: r.status, error: r.body?.error, has_array: Array.isArray(r.body), array_length: Array.isArray(r.body) ? r.body.length : null, sample: typeof r.body === 'string' ? r.body.slice(0, 100) : JSON.stringify(r.body).slice(0, 200) });
+
+  async function tryReq(method: string, path: string, body?: any): Promise<any> {
+    const url = `https://api.z-api.io/instances/${creds.id}/token/${creds.token}/${path}`;
+    const opts: any = {
+      method,
+      headers: { 'Client-Token': creds.client },
+    };
+    if (body) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    }
+    const r = await fetch(url, opts);
+    const t = await r.text();
+    let parsed: any = t;
+    try { parsed = JSON.parse(t); } catch {}
+    return { method, path, status: r.status, body: parsed };
   }
-  res.json({ tested: out });
+
+  const tests = [
+    () => tryReq('GET', `chats/${phone}`),
+    () => tryReq('GET', `chats/${phone}?withMessages=true`),
+    () => tryReq('GET', `chats/${phone}/messages?amount=10`),
+    () => tryReq('POST', `messages`, { phone, amount: 10 }),
+    () => tryReq('POST', `chat-messages`, { phone, amount: 10 }),
+    () => tryReq('POST', `messages-by-phone`, { phone, amount: 10 }),
+    () => tryReq('GET', `messages-by-phone/${phone}?amount=10`),
+    () => tryReq('GET', `chats/${phone}/last-messages`),
+    () => tryReq('GET', `chats/${phone}/messages/multi-device?amount=10`),
+    () => tryReq('GET', `messages-multi-device/${phone}?amount=10`),
+    () => tryReq('POST', `queue/last-message`, { phone, amount: 10 }),
+  ];
+
+  const results: any[] = [];
+  for (const t of tests) {
+    try { results.push(await t()); } catch (e) { results.push({ error: String(e) }); }
+  }
+
+  res.json({ tested: results.map(r => ({
+    method: r.method,
+    path: r.path,
+    status: r.status,
+    is_array: Array.isArray(r.body),
+    array_length: Array.isArray(r.body) ? r.body.length : null,
+    sample: typeof r.body === 'string' ? r.body.slice(0, 200) : JSON.stringify(r.body).slice(0, 400),
+  })) });
 });
 
 // Faz polling manual: pega chats recentes, busca mensagens individuais via /chat-messages/{phone}
