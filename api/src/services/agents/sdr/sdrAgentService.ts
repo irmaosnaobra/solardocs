@@ -112,10 +112,12 @@ Avisa que um consultor humano vai assumir + pergunta preferência:
 Pode escolher o número."
 
 # REGRAS DE AGENDAMENTO PRESENCIAL (item 3)
-- SE a cidade do lead for **Uberlândia** ou cidades vizinhas (Araguari, Uberaba, Patos de Minas, Ituiutaba, Monte Carmelo, Tupaciguara, Patrocínio, Coromandel, Iturama, Frutal, Capinópolis):
-  → Ofereça vistoria. O sistema vai mostrar opções de horário válidas (mesmo dia até 17h, ou seg-sáb seguinte, sem domingo nem feriado). VOCÊ VAI RECEBER as opções calculadas via {{HORARIOS_VISTORIA}} no histórico — use as 2 ou 3 primeiras opções e pergunta qual prefere.
+- SE a cidade for **Uberlândia/MG**:
+  → Ofereça vistoria presencial. O sistema injeta horários válidos no contexto (mesmo dia até 17h, ou seg-sáb seguinte, sem domingo nem feriado). Use 2 dessas opções.
   → Exemplo: "Posso agendar pra hoje 16h ou amanhã 9h, qual fica melhor?"
-- SE a cidade NÃO for da região, ofereça vídeo ou ligação. NUNCA recuse a vistoria explicitamente — apenas direcione: "Pra sua região o consultor faz por vídeo, fica mais rápido."
+- SE a cidade NÃO for Uberlândia:
+  → NÃO ofereça vistoria presencial. NUNCA diga "não atendemos" — apenas direcione: "Pra sua região o consultor vai te atender por vídeo ou ligação, fica mais rápido."
+  → Se o lead INSISTIR em vistoria mesmo fora de Uberlândia, responda: "Anotei aqui sua preferência por vistoria. O consultor vai validar a logística e te confirmar pessoalmente — pode ser?"
 
 ETAPA 10 — CONFIRMAÇÃO + DESPEDIDA
 Confirme tudo que ele escolheu (preferência + horário se aplicável):
@@ -204,16 +206,11 @@ const FERIADOS_BR_2027: Set<string> = new Set([
   '2027-11-15', '2027-11-20', '2027-12-25',
 ]);
 
-const CIDADES_REGIAO_UBERLANDIA = [
-  'uberlandia', 'uberlândia', 'araguari', 'uberaba', 'patos de minas',
-  'ituiutaba', 'monte carmelo', 'tupaciguara', 'patrocinio', 'patrocínio',
-  'coromandel', 'iturama', 'frutal', 'capinopolis', 'capinópolis',
-];
-
-function isUberlandiaRegion(cidade: string | null | undefined): boolean {
+// Vistoria presencial só em Uberlândia. Outras cidades: humano decide.
+function isUberlandiaCity(cidade: string | null | undefined): boolean {
   if (!cidade) return false;
-  const norm = cidade.toLowerCase().trim();
-  return CIDADES_REGIAO_UBERLANDIA.some(c => norm.includes(c));
+  const norm = cidade.toLowerCase().trim().replace(/[^a-z0-9 ]/g, '');
+  return norm === 'uberlandia' || norm.startsWith('uberlandia ') || norm.endsWith(' uberlandia') || norm.includes(' uberlandia ');
 }
 
 function isWorkingDay(d: Date): boolean {
@@ -424,9 +421,9 @@ export async function handleSdrLead(
   // de vistoria no system prompt pra Luma ofertar agendamento concreto
   const leadInfo = extractLeadInfo(messages);
   let systemPrompt = SDR_SYSTEM_PROMPT;
-  if (isUberlandiaRegion(leadInfo.cidade)) {
+  if (isUberlandiaCity(leadInfo.cidade)) {
     const horarios = gerarOpcoesVistoria();
-    systemPrompt += `\n\n# CONTEXTO DE AGENDAMENTO (lead na região Uberlândia)\nHorários de vistoria disponíveis hoje: ${horarios.join(' | ')}\nQuando chegar na ETAPA 9 e o cliente escolher visita, ofereça 2 dessas opções.`;
+    systemPrompt += `\n\n# CONTEXTO DE AGENDAMENTO (lead em Uberlândia)\nHorários de vistoria disponíveis: ${horarios.join(' | ')}\nNa ETAPA 9, se o cliente escolher visita técnica, ofereça 2 dessas opções.`;
   }
 
   const response = await anthropic.messages.create({

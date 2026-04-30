@@ -5,48 +5,67 @@ import { logger } from '../../../utils/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// Cadência de 10 dias em 6 toques. Após o 6º (D+10), marca como perdido.
-// Tom progressivo: lembrete suave → urgência → última chance.
+// Cadência de 10 dias em 7 toques. Cron passa por TODOS os leads diariamente
+// e decide se vale enviar — respeitando intervalo mínimo desde último toque.
+// Após o 7º (D+10), marca como perdido.
 //
-//  T1: ~2h depois         (resgate quente)
-//  T2: ~24h depois        (D+1, gentil)
-//  T3: ~48h depois        (D+2, valor)
-//  T4: ~96h depois        (D+4, prova social)
-//  T5: ~168h depois       (D+7, oportunidade)
-//  T6: ~240h depois       (D+10, última chance / encerra)
-const MAX_CONTATOS = 6;
-const INTERVALOS_MIN = [120, 1440, 2880, 5760, 10080, 14400];
+// Linha do tempo cumulativa (a partir da última msg da Luma):
+//  T1: 2h    — resgate quente, lembra onde parou
+//  T2: 1d    — gentil, valor concreto
+//  T3: 2d    — dor + simplificar
+//  T4: 3d    — prova social leve
+//  T5: 5d    — oportunidade
+//  T6: 7d    — última oferta com urgência amigável
+//  T7: 10d   — despedida respeitosa
+//
+// INTERVALOS_MIN[contatos] = quantos minutos PRECISAM ter passado desde o
+// último contato pra disparar o próximo. (Cumulativo é T_n - T_n-1.)
+const MAX_CONTATOS = 7;
+const INTERVALOS_MIN = [
+  120,    // T1: 2h após primeira resposta da Luma
+  1320,   // T2: +22h (= 1d cumulativo)
+  1440,   // T3: +24h (= 2d cumulativo)
+  1440,   // T4: +24h (= 3d cumulativo)
+  2880,   // T5: +48h (= 5d cumulativo)
+  2880,   // T6: +48h (= 7d cumulativo)
+  4320,   // T7: +72h (= 10d cumulativo)
+];
 
 const TONS_FOLLOWUP: { t: number; tom: string; objetivo: string }[] = [
   {
     t: 1,
-    tom: 'Resgate quente — leve, curto, sem pressão. Como se você tivesse esquecido de algo.',
-    objetivo: 'Reabrir conversa lembrando da etapa exata onde parou. Pergunta direta sobre o ponto que faltou.',
+    tom: 'Resgate quente, sem pressão. Como se você tivesse esquecido de algo. Curtinho.',
+    objetivo: 'Reabrir conversa retomando o ponto EXATO onde parou. Sem repetir pergunta — referência sutil ao último assunto.',
   },
   {
     t: 2,
-    tom: 'Gentil, com pitada de empatia (sei que a vida corre).',
-    objetivo: 'Mostrar valor concreto. Estimar economia simples baseada no consumo, se já souber.',
+    tom: 'Gentil, empatia genuína ("sei que a rotina corre"). Calorosa, não comercial.',
+    objetivo: 'Mostrar valor concreto baseado no que ele já te contou. Se mencionou consumo, estima economia simples ("R$X por mês na sua conta").',
   },
   {
     t: 3,
-    tom: 'Carismático, focado na dor que ele já mencionou (se mencionou).',
-    objetivo: 'Reforçar o benefício e oferecer simplificar — "te mando uma simulação rápida pra ver se faz sentido".',
+    tom: 'Carismático, foca na DOR específica que ele citou (conta alta, bandeira, independência, etc).',
+    objetivo: 'Reforça o benefício na linguagem da dor dele. Oferece simplificar ("posso te mandar uma simulação rápida em PDF, sem compromisso?").',
   },
   {
     t: 4,
-    tom: 'Prova social leve — sem inventar nomes, mas mencionando que outros clientes da região fecharam recentemente.',
-    objetivo: 'Despertar urgência social moderada e abrir caminho pra agendamento.',
+    tom: 'Prova social leve. Menciona genericamente que outros clientes fecharam recentemente. NUNCA invente nomes.',
+    objetivo: 'Acende interesse social. Convida pra dar o próximo passo concreto.',
   },
   {
     t: 5,
-    tom: 'Oportunidade — mencionar que a fila de instalação tá cheia, próximas vagas são em X semanas.',
-    objetivo: 'Senso de escassez sem pressão agressiva. Convida pra reservar agora.',
+    tom: 'Oportunidade — fila de instalação enchendo, próximas vagas só em X semanas.',
+    objetivo: 'Senso de escassez moderado, sem pressão agressiva. Convida pra reservar antes da fila fechar.',
   },
   {
     t: 6,
-    tom: 'Despedida respeitosa. Sem culpar. Diz que vai encerrar o cadastro mas deixa porta aberta.',
-    objetivo: 'Última mensagem. Honestidade que respeita o tempo dele. Marca como perdido depois.',
+    tom: 'Última oferta com urgência amigável. Direto, mas sem soar desespero.',
+    objetivo: 'Pergunta clara: ainda faz sentido ou pode encerrar? Dá poder de decisão pro lead.',
+  },
+  {
+    t: 7,
+    tom: 'Despedida respeitosa, sem culpar. Encerra cadastro mas deixa a porta aberta.',
+    objetivo: 'Última mensagem. Honestidade que respeita o tempo dele. ("Vou encerrar por aqui pra não te incomodar mais — quando quiser retomar é só me chamar"). Marca como perdido.',
   },
 ];
 
@@ -80,27 +99,34 @@ async function gerarFollowupContextual(lead: SdrLead, tentativa: number): Promis
     `${m.role === 'user' ? 'Lead' : 'Luma'}: ${typeof m.content === 'string' ? m.content : '[mídia]'}`
   ).join('\n');
 
-  const systemPrompt = `Você é a Luma, SDR da Irmãos na Obra. Vai mandar UMA mensagem de follow-up curta pra um lead que parou de responder. Tem que ser HUMANO — não use templates óbvios. Lembre do que ele já te disse.
+  const systemPrompt = `Você é a Luma, SDR sênior da Irmãos na Obra (energia solar, sede em Uberlândia/MG). Vai mandar UMA mensagem de follow-up curta pra um lead que parou de responder. Sua voz é a de uma pessoa real, calorosa e atenta. NUNCA use templates óbvios ou linguagem de "vendedor".
 
-CONTEXTO:
-- Nome do lead: ${nome}
+CONTEXTO DO LEAD:
+- Nome: ${nome}
 - Cidade: ${lead.cidade || 'não informada'}
-- Tentativa nº ${tentativa} de 6 (em janela de 10 dias)
-- Tom: ${tomConfig.tom}
-- Objetivo: ${tomConfig.objetivo}
+- Tentativa nº ${tentativa} de 7 (cadência de 10 dias)
+- Tom desta mensagem: ${tomConfig.tom}
+- Objetivo desta mensagem: ${tomConfig.objetivo}
 
-REGRAS:
-- 1-2 frases curtas. WhatsApp.
-- 0-1 emoji NO MÁXIMO.
-- Se ele já te deu o nome, USE.
-- Se ele já mencionou consumo/dor/cidade no histórico, REFERENCIE de forma natural (não copie frase dele).
-- Não pergunte coisa que ele já respondeu.
-- Não comece com "Oi [Nome]" se já é a 3ª+ tentativa — varia ("E aí ${nome}", "${nome}, voltei aqui", "Aqui de novo a Luma").
-- NUNCA seja insistente ou robótico.
-- NÃO use markdown nem listas. Texto puro.
-- Saída: APENAS o texto da mensagem, sem aspas, sem prefixo, sem [ESTAGIO].
+REGRAS DE HUMANIZAÇÃO (CRÍTICAS):
+- Antes de escrever, LEIA o histórico inteiro. Identifique:
+   • Em que etapa do fluxo a conversa parou (consumo? telhado? padrão? agendamento?)
+   • Qual a DOR principal dele (se já mencionou)
+   • Algum detalhe pessoal que ele revelou (família, obra, mudança de casa, etc)
+- ESCREVA referenciando 1 desses detalhes de forma orgânica — não como check de qualificação.
+- Tom de WhatsApp humano: pode ter pequenas imperfeições naturais ("vi aqui", "passei aqui rapidinho", "tava lembrando de você").
+- 1-2 frases curtas. Máximo 2 bolhas separadas por ||.
+- 0-1 emoji NO MÁXIMO. Idealmente nenhum.
+- VARIE o início. NUNCA "Oi [Nome]" duas vezes seguidas. Use ("E aí ${nome}", "${nome}, voltei aqui rapidinho", "Aqui de novo a Luma", "Tava pensando em você por aqui", "${nome}, posso te roubar 30s?").
+- NÃO repita pergunta que ele já respondeu.
+- NÃO mande "tudo bem?" sem contexto — vai parecer bot.
+- NÃO use frases de manual ("estou à disposição", "qualquer dúvida estou aqui", "não perca essa oportunidade").
+- Termine SEMPRE de um jeito que gere resposta natural (uma pergunta curta, não um sermão).
+- NUNCA insistente. Se ele não respondeu antes, talvez não queira agora — respeita.
+- NÃO use markdown. Texto puro.
+- Saída: APENAS o texto da mensagem (com || pra separar bolhas se for o caso). Sem aspas, sem prefixo, sem [ESTAGIO].
 
-HISTÓRICO RECENTE DA CONVERSA:
+HISTÓRICO COMPLETO DA CONVERSA (leia tudo antes de escrever):
 ${historico || '(sem histórico — lead novo que só recebeu boas-vindas)'}`;
 
   try {
@@ -121,7 +147,8 @@ ${historico || '(sem histórico — lead novo que só recebeu boas-vindas)'}`;
       3: `${nome}, sem pressão — só checando se ainda faz sentido a gente conversar.`,
       4: `${nome}, fechamos uns projetos por aí esses dias. Quer ver se cabe pra você?`,
       5: `${nome}, novembro tá com fila — se quiser garantir vaga ainda esse ano, é agora.`,
-      6: `${nome}, vou encerrar seu cadastro por aqui pra não te incomodar mais. Se um dia quiser retomar, é só me chamar. Abs!`,
+      6: `${nome}, posso fazer uma última pergunta? Ainda faz sentido pra você ou prefere que eu encerre por aqui?`,
+      7: `${nome}, vou encerrar seu cadastro pra não te incomodar mais. Se um dia quiser retomar, é só me chamar. Abs!`,
     };
     return fallback[tentativa] || `${nome}, ainda tem interesse em energia solar?`;
   }
