@@ -484,7 +484,7 @@ function canalLabel(canal: string): string {
   return canal;
 }
 
-async function criarCardAgendamento(
+export async function criarCardAgendamento(
   phone: string,
   canal: string,
   horario: string,
