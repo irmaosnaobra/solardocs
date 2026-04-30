@@ -102,6 +102,70 @@ router.post('/io/setup', async (req: Request, res: Response): Promise<void> => {
   });
 });
 
+// Lista chats recentes da linha IO (pra debug — ver se Z-API recebeu mensagem)
+router.get('/io/chats', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const creds = getIOCreds();
+  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+
+  const r = await zapiGet(creds, 'chats?pageSize=20');
+  res.json(r);
+});
+
+// Faz polling manual: pega chats recentes e dispara handleSdrLead pra cada mensagem nova nao processada
+router.post('/io/poll', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const creds = getIOCreds();
+  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+
+  const minutesBack = Number(req.query.minutes) || 30;
+  const cutoff = Date.now() - minutesBack * 60 * 1000;
+
+  const chatsRes = await zapiGet(creds, 'chats?pageSize=30');
+  if (chatsRes.status !== 200) { res.json({ error: 'chats fetch failed', detail: chatsRes }); return; }
+
+  const chats: any[] = Array.isArray(chatsRes.body) ? chatsRes.body : (chatsRes.body?.value ?? chatsRes.body?.chats ?? []);
+
+  const { handleSdrLead } = await import('../services/agents/sdr/sdrAgentService');
+  const { supabase } = await import('../utils/supabase');
+
+  const processed: any[] = [];
+  for (const chat of chats) {
+    if (chat.isGroup) continue;
+    const lastMsg = chat.lastMessage ?? chat.lastInteraction;
+    if (!lastMsg) continue;
+    if (lastMsg.fromMe === true || lastMsg.fromMe === 'true') continue;
+
+    const raw = lastMsg.momment ?? lastMsg.timestamp ?? lastMsg.time ?? 0;
+    const msgTime = typeof raw === 'number' ? (raw > 1e12 ? raw : raw * 1000) : new Date(raw).getTime();
+    if (!msgTime || msgTime < cutoff) continue;
+
+    const phone = String(chat.phone ?? '').replace(/\D/g, '');
+    if (!phone) continue;
+
+    // Skip se ja processamos (sessao mais recente que a msg)
+    const { data: session } = await supabase.from('whatsapp_sessions')
+      .select('updated_at').eq('phone', phone).eq('tipo', 'sdr')
+      .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+    if (session && new Date(session.updated_at).getTime() >= msgTime) {
+      processed.push({ phone, status: 'skipped (already processed)' });
+      continue;
+    }
+
+    const text = lastMsg.body ?? lastMsg.text?.message ?? lastMsg.text ?? '';
+    if (!text) { processed.push({ phone, status: 'no text' }); continue; }
+
+    try {
+      await handleSdrLead(phone, String(text), chat.name ?? lastMsg.senderName ?? null, undefined, 'io');
+      processed.push({ phone, text: String(text).slice(0, 80), status: 'processed' });
+    } catch (err) {
+      processed.push({ phone, status: 'error', error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  res.json({ minutes_back: minutesBack, total_chats: chats.length, processed });
+});
+
 // Reinicia a instancia (sem perder QR / conexao)
 router.post('/io/restart', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
