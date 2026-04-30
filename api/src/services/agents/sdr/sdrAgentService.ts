@@ -287,6 +287,24 @@ export async function handleSdrLead(
   instance: ZapiInstance = 'solardoc',
 ): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
+
+  // Respeita takeover humano — se um operador ja respondeu manualmente,
+  // a Luma fica em silencio. Apenas atualiza o registro e sai.
+  const { data: leadCheck } = await supabase
+    .from('sdr_leads')
+    .select('human_takeover')
+    .eq('phone', cleanPhone)
+    .maybeSingle();
+
+  if (leadCheck?.human_takeover) {
+    await supabase.from('sdr_leads').update({
+      ultima_mensagem: text.slice(0, 300),
+      ultimo_contato: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('phone', cleanPhone);
+    return;
+  }
+
   const session = await getSdrSession(cleanPhone);
   const nome = session.nome || senderName || null;
 

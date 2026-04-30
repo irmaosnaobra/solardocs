@@ -316,6 +316,32 @@ router.post('/io/match-solardoc-webhook', async (req: Request, res: Response): P
   });
 });
 
+// Configura webhook on-message-send da linha IO pra capturar takeover humano
+router.post('/io/setup-takeover-webhook', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const creds = getIOCreds();
+  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+  const apiUrl = process.env.API_URL || 'https://api.solardoc.app';
+  const webhookSent = `${apiUrl}/webhook/io-sent`;
+
+  // Tenta os 2 paths conhecidos pra atualizar webhook on-message-send
+  const r1 = await zapiPut(creds, 'update-webhook-message-send', { value: webhookSent });
+  const r2 = await zapiPut(creds, 'update-webhook-send', { value: webhookSent });
+
+  // Receba callback de mensagens enviadas por mim (a Z-API filtra fromApi internamente,
+  // mas precisamos receber notificacao das mensagens enviadas pelo celular)
+  const r3 = await zapiPut(creds, 'update-receive-callback-sent-by-me', { value: true });
+
+  const me = await zapiGet(creds, 'me');
+  res.json({
+    target_webhook_sent: webhookSent,
+    update_send: r1,
+    update_send_alt: r2,
+    enable_callback_sent_by_me: r3,
+    me,
+  });
+});
+
 // Reinicia a instancia (sem perder QR / conexao)
 router.post('/io/restart', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }

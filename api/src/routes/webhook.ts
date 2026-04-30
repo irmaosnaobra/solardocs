@@ -14,6 +14,10 @@ router.get('/io', (_req: Request, res: Response): void => {
   res.json({ status: 'webhook io online', instance: 'io', ts: new Date().toISOString() });
 });
 
+router.get('/io-sent', (_req: Request, res: Response): void => {
+  res.json({ status: 'webhook io-sent online', instance: 'io', ts: new Date().toISOString() });
+});
+
 // Extrai texto de payloads Z-API (formato antigo e novo)
 function extractText(body: any): string {
   return body.message?.conversation
@@ -75,6 +79,44 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
 // Alias /zapi para redundância
 router.post('/zapi', async (req: Request, res: Response): Promise<void> => {
   await handleWebhook(normalizeBody(req.body), '/zapi', res);
+});
+
+// Webhook on-message-send da linha Irmaos na Obra. Detecta quando humano
+// (Giovanna ou alguem da equipe) responde manualmente pelo celular — fromMe=true
+// E fromApi=false. Marca lead como human_takeover pra Luma ficar em silencio.
+router.post('/io-sent', async (req: Request, res: Response): Promise<void> => {
+  const body = normalizeBody(req.body);
+
+  if (!res.headersSent) res.status(200).send('ok');
+
+  try {
+    await supabase.from('webhook_debug').insert({
+      payload: { ...body, _route: '/io-sent', instance: 'io' },
+    });
+  } catch (err) {
+    console.error('[webhook:io-sent] webhook_debug insert falhou:', err);
+  }
+
+  // Filtros: nos importa apenas mensagens enviadas pelo celular (NAO via API)
+  const fromMe = body.fromMe === true || body.fromMe === 'true';
+  const fromApi = body.fromApi === true || body.fromApi === 'true';
+  if (!fromMe || fromApi) return;
+  if (body.isGroup === true || body.isGroup === 'true') return;
+
+  // O phone do destinatario eh quem recebeu a mensagem (lead)
+  const phone = String(body.phone || body.senderPhone || '').replace(/\D/g, '');
+  if (!phone) return;
+
+  try {
+    await supabase.from('sdr_leads').update({
+      human_takeover: true,
+      human_takeover_at: new Date().toISOString(),
+      aguardando_resposta: false,
+      updated_at: new Date().toISOString(),
+    }).eq('phone', phone);
+  } catch (err) {
+    console.error('[webhook:io-sent] update sdr_leads falhou:', err);
+  }
 });
 
 // Webhook da instância Irmãos na Obra (Luma SDR — energia solar B2C).
