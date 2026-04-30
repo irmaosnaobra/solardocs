@@ -37,30 +37,22 @@ async function zapiPut(creds: IOCreds, path: string, body: any): Promise<any> {
   catch { return { status: res.status, body: txt }; }
 }
 
-// Lista status da instancia IO + webhooks configurados
+// Lista status da instancia IO + webhooks configurados (via /me que tem todos os callback URLs)
 router.get('/io/status', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
 
   const creds = getIOCreds();
   if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
 
-  const [status, webhookReceive, webhookSend, webhookConn, webhookDisc] = await Promise.all([
+  const [status, me] = await Promise.all([
     zapiGet(creds, 'status'),
-    zapiGet(creds, 'webhook-by-events/on-message-received'),
-    zapiGet(creds, 'webhook-by-events/on-message-send'),
-    zapiGet(creds, 'webhook-by-events/on-connect'),
-    zapiGet(creds, 'webhook-by-events/on-disconnect'),
+    zapiGet(creds, 'me'),
   ]);
 
   res.json({
     instance_id: creds.id,
     status,
-    webhooks: {
-      on_message_received: webhookReceive,
-      on_message_send: webhookSend,
-      on_connect: webhookConn,
-      on_disconnect: webhookDisc,
-    },
+    me,
   });
 });
 
@@ -74,22 +66,39 @@ router.post('/io/setup', async (req: Request, res: Response): Promise<void> => {
   const apiUrl = process.env.API_URL || 'https://api.solardoc.app';
   const webhookUrl = `${apiUrl}/webhook/io`;
 
-  // PUT update-webhook-received — endpoint legado simples
-  const r1 = await zapiPut(creds, 'update-webhook-received', { value: webhookUrl });
-  // PUT webhook-by-events com all events false e on-message-received true (modelo novo)
-  const r2 = await zapiPut(creds, 'update-every-webhook', {
-    value: webhookUrl,
-    notifySentByMe: false,
-  });
+  // Lê estado antes
+  const before = await zapiGet(creds, 'me');
 
-  // Confirma que ficou salvo lendo de volta
-  const confirm = await zapiGet(creds, 'webhook-by-events/on-message-received');
+  // Tenta TODOS os endpoints conhecidos de update de webhook on-message-received
+  // (Z-API mudou path em algumas versoes — testamos mais de um)
+  const attempts: Array<{ path: string; body: any; method: 'PUT' | 'POST' }> = [
+    { path: 'update-webhook-received', body: { value: webhookUrl }, method: 'PUT' },
+    { path: 'update-webhook-received-delivery', body: { value: webhookUrl }, method: 'PUT' },
+    { path: 'update-every-webhooks', body: { value: webhookUrl, notifySentByMe: false }, method: 'PUT' },
+    { path: 'update-every-webhook', body: { value: webhookUrl, notifySentByMe: false }, method: 'PUT' },
+    { path: 'webhooks', body: { receivedCallbackUrl: webhookUrl }, method: 'PUT' },
+  ];
+
+  const results: any[] = [];
+  for (const a of attempts) {
+    const fn = a.method === 'PUT' ? zapiPut : (c: IOCreds, p: string, b: any) =>
+      fetch(`https://api.z-api.io/instances/${c.id}/token/${c.token}/${p}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Client-Token': c.client },
+        body: JSON.stringify(b),
+      }).then(async r => ({ status: r.status, body: await r.text().then(t => { try { return JSON.parse(t); } catch { return t; } }) }));
+    const r = await fn(creds, a.path, a.body);
+    results.push({ method: a.method, path: a.path, response: r });
+  }
+
+  // Le estado depois pra confirmar qual chamada persistiu
+  const after = await zapiGet(creds, 'me');
 
   res.json({
     target_webhook: webhookUrl,
-    update_webhook_received_response: r1,
-    update_every_webhook_response: r2,
-    final_state: confirm,
+    before_me: before,
+    attempts: results,
+    after_me: after,
   });
 });
 
