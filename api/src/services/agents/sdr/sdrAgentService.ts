@@ -405,7 +405,7 @@ async function saveSdrSession(
 
 // ─── CRM: salva/atualiza lead na tabela sdr_leads ─────────────────
 
-type Estagio = 'novo' | 'frio' | 'morno' | 'quente' | 'perdido' | 'fechamento';
+type Estagio = 'reativacao' | 'novo' | 'frio' | 'morno' | 'quente' | 'perdido' | 'fechamento';
 
 async function upsertCrmLead(params: {
   phone: string;

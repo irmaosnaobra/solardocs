@@ -68,6 +68,7 @@ interface Insights {
 // ── Configurações dos Kanbans ──────────────────────────────────────
 
 const SDR_COLS = [
+  { id: 'reativacao', label: 'Reativação', emoji: '⚡', color: '#a855f7', bg: 'rgba(168,85,247,0.1)',   border: 'rgba(168,85,247,0.3)' },
   { id: 'novo',       label: 'Novo',       emoji: '🆕', color: '#64748b', bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.3)' },
   { id: 'morno',      label: 'Morno',      emoji: '🟡', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',   border: 'rgba(245,158,11,0.3)' },
   { id: 'quente',     label: 'Quente',     emoji: '🔴', color: '#ef4444', bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.3)' },
@@ -639,6 +640,7 @@ export default function CrmPage() {
   const [filters, setFilters] = useState<FilterState>({ agendados: 'all', origem: 'all', takeover: 'all', consultor: 'all' });
   const [drawerLead, setDrawerLead] = useState<SdrLead | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const fetchAll = useCallback(async () => {
     const [s, p, m] = await Promise.all([
@@ -739,11 +741,19 @@ export default function CrmPage() {
           <input type="text" placeholder="🔍 Nome, telefone, cidade, tag..." value={busca}
             onChange={e => setBusca(e.target.value)}
             style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: 13, width: 280 }} />
+          {tab === 'solar' && (
+            <button onClick={() => setImportOpen(true)} title="Importar lista de leads pra reativação" style={{
+              padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(168,85,247,0.4)',
+              background: 'rgba(168,85,247,0.12)', color: '#a855f7', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+            }}>⚡ Importar</button>
+          )}
           <button onClick={fetchAll} title="Atualizar agora" style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 13 }}>
             🔄
           </button>
         </div>
       </div>
+
+      {importOpen && <ImportModal onClose={() => setImportOpen(false)} onImport={fetchAll} />}
 
       {/* Tabs — Solar e Plataforma SEPARADOS, sem misturar */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -875,6 +885,123 @@ export default function CrmPage() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Modal de import de leads pra reativação ────────────────────────
+
+function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () => void }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const parsed = useMemo(() => {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const leads: { nome: string; phone: string }[] = [];
+    const erros: string[] = [];
+    for (const line of lines) {
+      // Aceita formatos: "Nome, telefone" / "Nome - telefone" / "Nome\ttelefone" / "telefone Nome" / "telefone"
+      const sepMatch = line.match(/^(.+?)[\s,;\t-]+(\+?\d[\d\s().-]{8,})\s*$/) ||
+                       line.match(/^(\+?\d[\d\s().-]{8,})[\s,;\t-]+(.+)$/);
+      if (!sepMatch) {
+        const numMatch = line.match(/^\+?\d[\d\s().-]{8,}$/);
+        if (numMatch) { leads.push({ nome: '', phone: line }); continue; }
+        erros.push(line);
+        continue;
+      }
+      const a = sepMatch[1].trim();
+      const b = sepMatch[2].trim();
+      const aIsPhone = /^\+?\d[\d\s().-]+$/.test(a);
+      const phone = aIsPhone ? a : b;
+      const nome = aIsPhone ? b : a;
+      leads.push({ nome, phone: phone.replace(/\D/g, '') });
+    }
+    return { leads, erros };
+  }, [text]);
+
+  async function importar() {
+    if (parsed.leads.length === 0) return;
+    setBusy(true);
+    try {
+      const r = await api.post('/admin/sdr-leads/import', { leads: parsed.leads });
+      setResult(r.data);
+      onImport();
+    } catch (e: any) {
+      setResult({ error: e?.response?.data?.error || e.message });
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto',
+        background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 12, padding: 24,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 18, color: 'var(--color-text)' }}>⚡ Importar leads pra reativação</h2>
+          <button onClick={onClose} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer' }}>✕</button>
+        </div>
+
+        <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 12px' }}>
+          Cole a lista (1 lead por linha). A Luma vai chamar até <strong>50/dia</strong> em horário comercial (seg-sex 9h-20h). Quando responderem, viram &quot;Novo&quot; automático e seguem o fluxo normal.
+        </p>
+
+        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: 10, marginBottom: 10, fontSize: 11, color: 'var(--color-text-muted)' }}>
+          <strong>Formatos aceitos:</strong><br />
+          João Silva, 34999998888<br />
+          Maria Santos - 34988887777<br />
+          Pedro 34977776666<br />
+          34911223344
+        </div>
+
+        <textarea value={text} onChange={e => setText(e.target.value)}
+          placeholder="João Silva, 34999998888&#10;Maria Santos, 34988887777&#10;..."
+          rows={10}
+          style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'monospace', fontSize: 12, resize: 'vertical' }} />
+
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
+          {parsed.leads.length} leads válidos
+          {parsed.erros.length > 0 && (
+            <span style={{ color: '#ef4444' }}> · {parsed.erros.length} linhas inválidas</span>
+          )}
+        </div>
+
+        {parsed.erros.length > 0 && (
+          <details style={{ marginTop: 8, fontSize: 11 }}>
+            <summary style={{ cursor: 'pointer', color: '#ef4444' }}>Ver linhas inválidas</summary>
+            <ul style={{ marginTop: 4, paddingLeft: 16, color: 'var(--color-text-muted)' }}>
+              {parsed.erros.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
+              {parsed.erros.length > 10 && <li>... e mais {parsed.erros.length - 10}</li>}
+            </ul>
+          </details>
+        )}
+
+        {result && (
+          <div style={{
+            marginTop: 12, padding: 10, borderRadius: 8, fontSize: 12,
+            background: result.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
+            border: `1px solid ${result.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
+            color: result.error ? '#ef4444' : '#22c55e',
+          }}>
+            {result.error ? `Erro: ${result.error}` : (
+              <>
+                ✅ Importação concluída: <strong>{result.inseridos}</strong> novos
+                {result.duplicados > 0 && <> · <strong>{result.duplicados}</strong> já existiam</>}
+                {result.invalidos > 0 && <> · <strong>{result.invalidos}</strong> inválidos</>}
+              </>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 13 }}>Fechar</button>
+          <button onClick={importar} disabled={busy || parsed.leads.length === 0}
+            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#a855f7', color: '#fff', cursor: parsed.leads.length === 0 ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700, opacity: parsed.leads.length === 0 ? 0.5 : 1 }}>
+            {busy ? 'Importando...' : `Importar ${parsed.leads.length} leads`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -16,7 +16,7 @@ router.get('/analytics',      getAnalytics);
 router.get('/meta-funnel',    getMetaFunnel);
 
 // ── CRM SDR Leads (Solar B2C) ─────────────────────────────────────
-const SDR_ESTAGIOS = ['novo','frio','morno','quente','perdido','fechamento'];
+const SDR_ESTAGIOS = ['reativacao','novo','frio','morno','quente','perdido','fechamento'];
 
 router.get('/sdr-leads', async (req: Request, res: Response) => {
   try {
@@ -64,6 +64,66 @@ router.patch('/sdr-leads/:phone/takeover', async (req: Request, res: Response) =
     await supabase.from('sdr_leads').update(update).eq('phone', phone);
     res.json({ ok: true });
   } catch { res.status(500).json({ error: 'Erro ao atualizar takeover' }); }
+});
+
+// Importa lista em massa de leads pra reativação. Aceita lista de objetos
+// { nome, phone, cidade? }. Cria com estagio='reativacao', lead_origem='reativacao'.
+// Cron horário processa em horário comercial respeitando meta de 50/dia.
+router.post('/sdr-leads/import', async (req: Request, res: Response) => {
+  try {
+    const { leads } = (req.body as any) ?? {};
+    if (!Array.isArray(leads) || leads.length === 0) {
+      res.status(400).json({ error: 'leads deve ser array não-vazio' }); return;
+    }
+    const rows: any[] = [];
+    const ignored: any[] = [];
+    for (const l of leads) {
+      const phone = String(l.phone || '').replace(/\D/g, '');
+      const nome = String(l.nome || '').trim() || null;
+      const cidade = l.cidade ? String(l.cidade).trim() : null;
+      if (phone.length < 10 || phone.length > 13) {
+        ignored.push({ phone: l.phone, nome, motivo: 'phone inválido' });
+        continue;
+      }
+      // Normaliza pra formato BR com 55 prefixo
+      const normalized = phone.startsWith('55') ? phone : `55${phone}`;
+      rows.push({
+        phone: normalized,
+        nome,
+        cidade,
+        estagio: 'reativacao',
+        lead_origem: 'reativacao',
+        instance: 'io',
+        aguardando_resposta: false,
+        total_mensagens: 0,
+        contatos: 0,
+        reativacao_tentativas: 0,
+      });
+    }
+
+    // upsert — se phone já existe, NÃO sobrescreve estágio (preserva leads ativos)
+    const { data: existentes } = await supabase
+      .from('sdr_leads')
+      .select('phone, estagio')
+      .in('phone', rows.map(r => r.phone));
+    const existeSet = new Set((existentes || []).map((r: any) => r.phone));
+    const novos = rows.filter(r => !existeSet.has(r.phone));
+    const dups = rows.length - novos.length;
+
+    if (novos.length > 0) {
+      const { error } = await supabase.from('sdr_leads').insert(novos);
+      if (error) { res.status(500).json({ error: error.message }); return; }
+    }
+
+    res.json({
+      ok: true,
+      total_recebidos: leads.length,
+      inseridos: novos.length,
+      duplicados: dups,
+      invalidos: ignored.length,
+      ignored,
+    });
+  } catch (err) { res.status(500).json({ error: err instanceof Error ? err.message : String(err) }); }
 });
 
 // Atribui consultor responsável pelo lead

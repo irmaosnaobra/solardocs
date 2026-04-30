@@ -21,7 +21,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
 import { handleSdrLead } from './sdrAgentService';
-import { sendToGroup, type ZapiInstance } from '../zapiClient';
+import { sendToGroup, sendWhatsApp, type ZapiInstance } from '../zapiClient';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -93,6 +93,145 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
   }
 
   return { processed, skipped, errors };
+}
+
+// ─── Reativação em massa: leads importados que ainda não foram contactados ──
+//
+// Lista importada via POST /admin/sdr-leads/import vira leads com
+// estagio='reativacao' e lead_origem='reativacao'.
+//
+// Cron processa em horário comercial (seg-sex 9h-20h, sem feriado), com meta
+// de 50 leads/dia. Cron de 1min processa 1-2 leads por execução.
+//
+// Mensagem inicial é gerada via Claude pra ser personalizada e humanizada.
+// Quando o lead RESPONDE, handleSdrLead processa normalmente: a Luma faz a
+// qualificação e o estagio sai de 'reativacao' pra 'morno' (ou outro).
+
+const FERIADOS_BR_LUMA: Set<string> = new Set([
+  '2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21',
+  '2026-05-01','2026-06-04','2026-09-07','2026-10-12','2026-11-02',
+  '2026-11-15','2026-11-20','2026-12-25',
+  '2027-01-01','2027-02-08','2027-02-09','2027-03-26','2027-04-21',
+  '2027-05-01','2027-05-27','2027-09-07','2027-10-12','2027-11-02',
+  '2027-11-15','2027-11-20','2027-12-25',
+]);
+
+function emHorarioComercial(): boolean {
+  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const dia = brt.getUTCDay();
+  if (dia === 0 || dia === 6) return false; // sem domingo/sábado
+  const iso = brt.toISOString().slice(0, 10);
+  if (FERIADOS_BR_LUMA.has(iso)) return false;
+  const hora = brt.getUTCHours();
+  return hora >= 9 && hora < 20;
+}
+
+async function gerarMsgReativacao(lead: any): Promise<string> {
+  const nome = lead.nome ? lead.nome.split(' ')[0] : null;
+  try {
+    const r = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 250,
+      system: `Você é a Luma, SDR sênior de energia solar da Irmãos na Obra (sede Uberlândia/MG, 8 anos no setor). Está retomando contato com um lead frio que demonstrou interesse em energia solar tempos atrás. Escreva UMA mensagem inicial humanizada pra reativar.
+
+REGRAS:
+- 1-2 frases curtas. WhatsApp.
+- 0-1 emoji NO MÁXIMO. Idealmente nenhum.
+- Use o primeiro nome se tiver. Se não, evita "tudo bem".
+- Tom de retomada respeitosa, não agressiva. Como se você tivesse esquecido de retomar e agora voltou pra resgatar.
+- VARIE a abertura — não use sempre "Oi". Pode ser "Olá", "[Nome], voltei aqui", "Aqui é a Luma da Irmãos na Obra".
+- NÃO mencione tabela de preços ou cobre nada. Só reabre conversa.
+- Termine SEMPRE com uma pergunta curta que provoque resposta natural ("ainda faz sentido?", "bora retomar?", "quer ver as opções?").
+- NÃO use frases de manual ("estou à disposição", "qualquer dúvida").
+- Saída: APENAS o texto da mensagem, sem aspas.`,
+      messages: [{
+        role: 'user',
+        content: `Nome: ${nome || 'sem nome'} · Cidade: ${lead.cidade || 'não informada'}\n\nGere a mensagem de reativação.`,
+      }],
+    });
+    const txt = (r.content[0] as { text: string }).text.trim();
+    return txt.replace(/^["']|["']$/g, '');
+  } catch {
+    // Fallback estático
+    if (nome) return `Olá ${nome}, aqui é a Luma da Irmãos na Obra. Vi seu contato sobre energia solar e voltei pra te chamar — ainda faz sentido a gente conversar?`;
+    return `Olá, aqui é a Luma da Irmãos na Obra. Vi seu interesse em energia solar e voltei pra retomar — ainda faz sentido a gente conversar?`;
+  }
+}
+
+const META_REATIVACAO_DIA = 50;
+const REATIVACOES_POR_EXECUCAO = 2;
+
+export async function processarReativacao(): Promise<{ enviados: number; pulado_horario: boolean; meta_atingida: boolean }> {
+  if (!emHorarioComercial()) {
+    return { enviados: 0, pulado_horario: true, meta_atingida: false };
+  }
+
+  // Conta quantos foram reativados hoje (BRT)
+  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  brt.setUTCHours(0, 0, 0, 0);
+  const inicioHojeBR = new Date(brt.getTime() + 3 * 60 * 60 * 1000).toISOString();
+
+  const { count: feitosHoje } = await supabase
+    .from('sdr_leads')
+    .select('phone', { count: 'exact', head: true })
+    .gte('reativacao_enviada_at', inicioHojeBR);
+
+  if ((feitosHoje ?? 0) >= META_REATIVACAO_DIA) {
+    return { enviados: 0, pulado_horario: false, meta_atingida: true };
+  }
+
+  // Pega próximos da fila
+  const restantes = META_REATIVACAO_DIA - (feitosHoje ?? 0);
+  const limite = Math.min(REATIVACOES_POR_EXECUCAO, restantes);
+
+  const { data: leads } = await supabase
+    .from('sdr_leads')
+    .select('phone, nome, cidade, instance, reativacao_tentativas')
+    .eq('estagio', 'reativacao')
+    .eq('instance', 'io')
+    .is('reativacao_enviada_at', null)
+    .order('created_at', { ascending: true })
+    .limit(limite);
+
+  if (!leads?.length) return { enviados: 0, pulado_horario: false, meta_atingida: false };
+
+  let enviados = 0;
+  for (const lead of leads) {
+    try {
+      const msg = await gerarMsgReativacao(lead);
+      await sendWhatsApp(lead.phone, msg, 'io');
+
+      // Anexa no histórico (cria sessão pra Luma manter contexto quando lead responder)
+      const { data: session } = await supabase
+        .from('whatsapp_sessions')
+        .select('messages')
+        .eq('phone', lead.phone)
+        .eq('tipo', 'sdr')
+        .maybeSingle();
+      const oldMessages = (session?.messages as any[]) || [];
+      await supabase.from('whatsapp_sessions').upsert({
+        phone: lead.phone,
+        tipo: 'sdr',
+        nome: lead.nome,
+        messages: [...oldMessages, { role: 'assistant', content: msg }].slice(-80),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'phone,tipo' });
+
+      await supabase.from('sdr_leads').update({
+        reativacao_enviada_at: new Date().toISOString(),
+        reativacao_tentativas: (lead.reativacao_tentativas ?? 0) + 1,
+        ultimo_contato: new Date().toISOString(),
+        aguardando_resposta: true,
+        ultima_mensagem: msg.slice(0, 300),
+        updated_at: new Date().toISOString(),
+      }).eq('phone', lead.phone);
+      enviados++;
+    } catch (err) {
+      logger.error('reativacao', `falha pro lead ${lead.phone}`, err);
+    }
+  }
+
+  return { enviados, pulado_horario: false, meta_atingida: false };
 }
 
 // ─── Revisão horária: Luma re-avalia contexto e reposiciona leads no funil ──
