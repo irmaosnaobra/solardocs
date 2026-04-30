@@ -352,15 +352,24 @@ export async function handleSolarDocB2bLead(
   phone: string,
   text: string,
   senderName?: string | null,
-  tracking?: { ctwa_clid?: string | null }
+  tracking?: { ctwa_clid?: string | null },
+  imageSource?: { type: 'base64'; media_type: any; data: string } | null
 ): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
   const session = await getSession(cleanPhone);
   const nome = session.nome || senderName || null;
 
+  // Se tem imagem, content multimodal; senao texto puro
+  const userContent: any = imageSource
+    ? [
+        { type: 'image', source: imageSource },
+        { type: 'text', text: text.trim() || 'Cliente enviou esta imagem.' },
+      ]
+    : text.trim();
+
   const messages: any[] = [
     ...session.messages,
-    { role: 'user', content: text.trim() },
+    { role: 'user', content: userContent },
   ];
 
   // Loop de tool calling — Carla pode chamar tools antes de responder

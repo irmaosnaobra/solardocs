@@ -82,7 +82,12 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
     if (!claimed || claimed.length === 0) continue; // outro processo já pegou
 
     try {
-      await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name);
+      const media = msg.media_url ? {
+        url: msg.media_url as string,
+        type: msg.media_type as string,
+        mime: (msg.media_mime as string) || '',
+      } : undefined;
+      await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name, undefined, media);
       processed++;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -109,14 +114,40 @@ export async function sendWelcomeWhatsApp(phone: string, _email: string): Promis
 // Palavras que indicam vontade de parar de receber automação
 const OPT_OUT_PATTERNS = /\b(para|parar|stop|cancela|cancelar|sair|nao quero|não quero|nao manda|não manda|me deixe|me deixa|chega de mensagem|descadastr)\b/i;
 
+export interface IncomingMedia {
+  url: string;
+  type: string; // 'audio' | 'image' | 'video' | 'document'
+  mime: string;
+}
+
 // ─── resposta a mensagem recebida ────────────────────────────────
 export async function handleIncomingWhatsApp(
   phone: string,
   text: string,
   senderName?: string | null,
-  tracking?: { ctwa_clid?: string | null }
+  tracking?: { ctwa_clid?: string | null },
+  media?: IncomingMedia
 ): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
+
+  // Pre-processa midia: transcreve audio, prepara imagem pra Anthropic
+  let imageSource: { type: 'base64'; media_type: any; data: string } | null = null;
+  if (media) {
+    const { transcribeAudio, downloadImageAsAnthropicSource } = await import('../../../utils/mediaProcessor');
+    if (media.type === 'audio') {
+      const transcription = await transcribeAudio(media.url, media.mime);
+      if (transcription) {
+        text = transcription;
+      } else {
+        text = text || '[audio recebido — nao consegui transcrever, pode digitar?]';
+      }
+    } else if (media.type === 'image') {
+      imageSource = await downloadImageAsAnthropicSource(media.url, media.mime);
+      if (!text || text === '[imagem]') text = 'O cliente enviou esta imagem.';
+    } else if (media.type === 'video' || media.type === 'document') {
+      text = text + ` [cliente enviou ${media.type} — diga que voce nao analisa esse formato e peca pra ele descrever o problema por texto ou audio]`;
+    }
+  }
 
   // Normaliza número BR: Z-API às vezes omite o 9 do celular (553498364589 → 5534998364589)
   const c55 = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
@@ -166,7 +197,7 @@ export async function handleIncomingWhatsApp(
     // Roteamento: prioriza sessão existente, depois trigger, depois ad (B2B por default)
     if (b2bSession || isB2bTriggered) {
       const { handleSolarDocB2bLead } = await import('../sdr/sdrB2bAgentService');
-      await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking);
+      await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking, imageSource);
       return;
     }
     if (b2cSession || isB2cTriggered) {
@@ -177,7 +208,7 @@ export async function handleIncomingWhatsApp(
       // Anúncio Meta (ctwa_clid) sem trigger explícito → assume B2B SolarDoc
       // (porque é o produto que está rodando ads no momento)
       const { handleSolarDocB2bLead } = await import('../sdr/sdrB2bAgentService');
-      await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking);
+      await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking, imageSource);
       return;
     }
     // Mensagem aleatória de número desconhecido → ignora
@@ -218,9 +249,17 @@ export async function handleIncomingWhatsApp(
     nome: nome || undefined,
   };
 
-  const messages = [
+  // Se tem imagem, monta content multimodal; senao texto puro
+  const userContent: any = imageSource
+    ? [
+        { type: 'image', source: imageSource },
+        { type: 'text', text: text.trim() || 'Cliente enviou esta imagem.' },
+      ]
+    : text.trim();
+
+  const messages: any[] = [
     ...session.messages,
-    { role: 'user' as const, content: text.trim() },
+    { role: 'user', content: userContent },
   ];
 
   const response = await anthropic.messages.create({
