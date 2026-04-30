@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { handleIncomingWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
+import { handleSdrLead } from '../services/agents/sdr/sdrAgentService';
 import { supabase } from '../utils/supabase';
 
 const router = Router();
@@ -7,6 +8,10 @@ const router = Router();
 // Healthcheck — confirma que o endpoint está acessível
 router.get('/whatsapp', (_req: Request, res: Response): void => {
   res.json({ status: 'webhook online', ts: new Date().toISOString() });
+});
+
+router.get('/io', (_req: Request, res: Response): void => {
+  res.json({ status: 'webhook io online', instance: 'io', ts: new Date().toISOString() });
 });
 
 // Extrai texto de payloads Z-API (formato antigo e novo)
@@ -70,6 +75,35 @@ router.post('/whatsapp', async (req: Request, res: Response): Promise<void> => {
 // Alias /zapi para redundância
 router.post('/zapi', async (req: Request, res: Response): Promise<void> => {
   await handleWebhook(normalizeBody(req.body), '/zapi', res);
+});
+
+// Webhook da instância Irmãos na Obra (Luma SDR — energia solar B2C).
+// Toda mensagem nessa linha vai DIRETO pra Luma (sem trigger, sem checagem de user da plataforma).
+router.post('/io', async (req: Request, res: Response): Promise<void> => {
+  const body = normalizeBody(req.body);
+  const adData = body.externalAdReply || {};
+  const tracking = { ctwa_clid: adData.ctwaClid || null, _route: '/io' as const };
+
+  // Audit log
+  try {
+    await supabase.from('webhook_debug').insert({ payload: { ...body, ...tracking, instance: 'io' } });
+  } catch (err) {
+    console.error('[webhook:io] insert webhook_debug throw:', err);
+  }
+
+  // Resposta rápida (Z-API timeout ~3s)
+  if (!res.headersSent) res.status(200).send('ok');
+
+  // Filtros
+  if (isFromMe(body) || isFromGroup(body)) return;
+
+  const phone = body.phone || body.senderPhone;
+  const text = extractText(body);
+  if (!phone || !text) return;
+
+  // Processa em background — chama Luma direto na linha 'io'
+  handleSdrLead(String(phone), String(text), body.senderName || body.pushname, tracking, 'io')
+    .catch(err => console.error('[webhook:io] handleSdrLead falhou:', err));
 });
 
 export default router;

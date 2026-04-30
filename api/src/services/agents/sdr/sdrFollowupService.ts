@@ -1,5 +1,5 @@
 import { supabase } from '../../../utils/supabase';
-import { sendZAPI as sendWA } from '../zapiClient';
+import { sendZAPI as sendWA, type ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 
 const MAX_CONTATOS = 5;
@@ -17,6 +17,7 @@ interface SdrLead {
   ultimo_contato?: string;
   updated_at?: string;
   aguardando_resposta?: boolean;
+  instance?: ZapiInstance;
 }
 
 async function gerarFollowup(lead: SdrLead, tentativa: number): Promise<string> {
@@ -51,7 +52,7 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
 
   const { data: leads } = await supabase
     .from('sdr_leads')
-    .select('phone, nome, cidade, contatos, ultimo_contato, updated_at')
+    .select('phone, nome, cidade, contatos, ultimo_contato, updated_at, instance')
     .eq('aguardando_resposta', true)
     .not('estagio', 'in', '("perdido","fechamento","quente")')
     .lt('contatos', MAX_CONTATOS);
@@ -84,7 +85,9 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
 
     try {
       const msg = await gerarFollowup(lead, proximasTentativas);
-      await sendWA(lead.phone, msg);
+      // Envia pela mesma linha em que o lead foi atendido (default 'solardoc' pra leads antigos)
+      const instance: ZapiInstance = lead.instance === 'io' ? 'io' : 'solardoc';
+      await sendWA(lead.phone, msg, instance);
 
       await supabase.from('sdr_leads').update({
         contatos: proximasTentativas,

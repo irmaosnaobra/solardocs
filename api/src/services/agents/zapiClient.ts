@@ -1,6 +1,29 @@
-const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID?.trim();
-const ZAPI_TOKEN    = process.env.ZAPI_TOKEN?.trim();
-const ZAPI_CLIENT   = process.env.ZAPI_CLIENT_TOKEN?.trim();
+// Suporte a múltiplas instâncias Z-API.
+// 'solardoc' = linha B2B da SolarDoc (Carla + Dani)
+// 'io'       = linha B2C Irmãos na Obra (Luma — energia solar cliente final)
+export type ZapiInstance = 'solardoc' | 'io';
+
+interface ZapiCreds {
+  id?: string;
+  token?: string;
+  client?: string;
+}
+
+function getCreds(instance: ZapiInstance): ZapiCreds {
+  if (instance === 'io') {
+    return {
+      id: process.env.ZAPI_INSTANCE_ID_IO?.trim(),
+      token: process.env.ZAPI_TOKEN_IO?.trim(),
+      // Client-Token na Z-API é por CONTA (não por instância) — se IO for da mesma conta, usa o mesmo
+      client: (process.env.ZAPI_CLIENT_TOKEN_IO || process.env.ZAPI_CLIENT_TOKEN)?.trim(),
+    };
+  }
+  return {
+    id: process.env.ZAPI_INSTANCE_ID?.trim(),
+    token: process.env.ZAPI_TOKEN?.trim(),
+    client: process.env.ZAPI_CLIENT_TOKEN?.trim(),
+  };
+}
 
 export function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
@@ -11,50 +34,56 @@ export function fmtPhone(raw: string): string {
   return d.startsWith('55') ? d : `55${d}`;
 }
 
-export async function zapiPost(path: string, body: unknown, retries = 2): Promise<void> {
-  if (!ZAPI_INSTANCE || !ZAPI_TOKEN || !ZAPI_CLIENT) {
-    throw new Error('[zapi] credenciais Z-API não configuradas (ZAPI_INSTANCE_ID, ZAPI_TOKEN ou ZAPI_CLIENT_TOKEN ausentes)');
+export async function zapiPost(
+  path: string,
+  body: unknown,
+  retries = 2,
+  instance: ZapiInstance = 'solardoc',
+): Promise<void> {
+  const { id, token, client } = getCreds(instance);
+  if (!id || !token || !client) {
+    throw new Error(`[zapi:${instance}] credenciais Z-API ausentes (verifique ZAPI_INSTANCE_ID${instance === 'io' ? '_IO' : ''}, ZAPI_TOKEN${instance === 'io' ? '_IO' : ''}, ZAPI_CLIENT_TOKEN)`);
   }
   let lastErr: Error | null = null;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(
-        `https://api.z-api.io/instances/${ZAPI_INSTANCE}/token/${ZAPI_TOKEN}/${path}`,
+        `https://api.z-api.io/instances/${id}/token/${token}/${path}`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Client-Token': ZAPI_CLIENT },
+          headers: { 'Content-Type': 'application/json', 'Client-Token': client },
           body: JSON.stringify(body),
         },
       );
       if (res.ok) return;
       const txt = await res.text().catch(() => res.status.toString());
-      lastErr = new Error(`[zapi] HTTP ${res.status} — ${txt}`);
+      lastErr = new Error(`[zapi:${instance}] HTTP ${res.status} — ${txt}`);
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err));
     }
     if (attempt < retries) await sleep(1000 * (attempt + 1));
   }
-  throw lastErr ?? new Error('[zapi] falha desconhecida');
+  throw lastErr ?? new Error(`[zapi:${instance}] falha desconhecida`);
 }
 
-export async function showTyping(phone: string, durationMs = 1500): Promise<void> {
-  await zapiPost('send-typing', { phone: fmtPhone(phone), duration: durationMs }).catch(() => {});
+export async function showTyping(phone: string, durationMs = 1500, instance: ZapiInstance = 'solardoc'): Promise<void> {
+  await zapiPost('send-typing', { phone: fmtPhone(phone), duration: durationMs }, 2, instance).catch(() => {});
   await sleep(durationMs);
 }
 
-export async function sendWhatsApp(phone: string, message: string): Promise<void> {
-  await zapiPost('send-text', { phone: fmtPhone(phone), message });
+export async function sendWhatsApp(phone: string, message: string, instance: ZapiInstance = 'solardoc'): Promise<void> {
+  await zapiPost('send-text', { phone: fmtPhone(phone), message }, 2, instance);
 }
 
-export async function sendHuman(phone: string, parts: string[]): Promise<void> {
+export async function sendHuman(phone: string, parts: string[], instance: ZapiInstance = 'solardoc'): Promise<void> {
   for (const part of parts) {
     const typingMs = Math.min(Math.max(part.length * 40, 800), 2500);
-    await showTyping(phone, typingMs);
-    await sendWhatsApp(phone, part);
+    await showTyping(phone, typingMs, instance);
+    await sendWhatsApp(phone, part, instance);
     await sleep(300);
   }
 }
 
-export async function sendZAPI(phone: string, message: string): Promise<void> {
-  await zapiPost('send-text', { phone: fmtPhone(phone), message });
+export async function sendZAPI(phone: string, message: string, instance: ZapiInstance = 'solardoc'): Promise<void> {
+  await zapiPost('send-text', { phone: fmtPhone(phone), message }, 2, instance);
 }
