@@ -135,26 +135,44 @@ export async function handleIncomingWhatsApp(
     if (data) { user = data; break; }
   }
 
-  // Número não cadastrado na plataforma → SDR agent (lead B2C)
+  // Número não cadastrado na plataforma → roteia pra SDR B2B (Carla/SolarDoc)
+  // ou SDR B2C (Luma/Irmãos na Obra) com base em sinais
   if (!user) {
-    const SDR_TRIGGER = 'tenho interesse em energia solar';
-    const { data: existingSession } = await supabase
-      .from('whatsapp_sessions')
-      .select('id')
-      .eq('phone', cleanPhone)
-      .eq('tipo', 'sdr')
-      .single();
+    const lowerText = text.trim().toLowerCase();
 
-    const hasSession   = !!existingSession;
-    const isTriggered  = text.trim().toLowerCase().includes(SDR_TRIGGER);
-    const isFromAd     = !!tracking?.ctwa_clid; // lead clicou em anúncio Meta
+    // B2C signals (Irmãos na Obra)
+    const B2C_TRIGGER = 'tenho interesse em energia solar';
+    const isB2cTriggered = lowerText.includes(B2C_TRIGGER);
 
-    if (!isTriggered && !hasSession && !isFromAd) {
-      // Mensagem aleatória de número desconhecido sem sessão nem anúncio → ignora
+    // B2B signals (SolarDoc)
+    const B2B_TRIGGERS = ['sou empresario solar', 'sou empresário solar', 'quero a solardoc', 'integrador solar', 'quero conhecer a solardoc'];
+    const isB2bTriggered = B2B_TRIGGERS.some(t => lowerText.includes(t));
+    const isFromAd = !!tracking?.ctwa_clid;
+
+    // Sessões existentes
+    const { data: b2cSession } = await supabase
+      .from('whatsapp_sessions').select('id').eq('phone', cleanPhone).eq('tipo', 'sdr').single();
+    const { data: b2bSession } = await supabase
+      .from('whatsapp_sessions').select('id').eq('phone', cleanPhone).eq('tipo', 'sdr_b2b').single();
+
+    // Roteamento: prioriza sessão existente, depois trigger, depois ad (B2B por default)
+    if (b2bSession || isB2bTriggered) {
+      const { handleSolarDocB2bLead } = await import('../sdr/sdrB2bAgentService');
+      await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking);
       return;
     }
-
-    await handleSdrLead(cleanPhone, text, senderName, tracking);
+    if (b2cSession || isB2cTriggered) {
+      await handleSdrLead(cleanPhone, text, senderName, tracking);
+      return;
+    }
+    if (isFromAd) {
+      // Anúncio Meta (ctwa_clid) sem trigger explícito → assume B2B SolarDoc
+      // (porque é o produto que está rodando ads no momento)
+      const { handleSolarDocB2bLead } = await import('../sdr/sdrB2bAgentService');
+      await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking);
+      return;
+    }
+    // Mensagem aleatória de número desconhecido → ignora
     return;
   }
 
