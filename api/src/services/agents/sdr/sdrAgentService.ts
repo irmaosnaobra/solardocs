@@ -491,7 +491,8 @@ async function criarCardAgendamento(
   observacoes: string | undefined,
   instance: ZapiInstance,
 ): Promise<{ ok: boolean; reason?: string }> {
-  const groupId = process.env.ZAPI_IO_GROUP_ID?.trim() || '120363420421710389-group';
+  // Default: grupo "Agendamento" da linha IO. Override via env ZAPI_IO_GROUP_ID.
+  const groupId = process.env.ZAPI_IO_GROUP_ID?.trim() || '120363424419098566-group';
 
   // Busca contexto do lead
   const { data: lead } = await supabase
