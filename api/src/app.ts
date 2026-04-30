@@ -18,6 +18,7 @@ import chatRoutes from './routes/chat';
 import quizRoutes from './routes/quiz';
 import pixelRoutes from './routes/pixel';
 import webhookRoutes from './routes/webhook';
+import zapiAdminRoutes from './routes/zapiAdmin';
 import mcpRoutes from './routes/mcp';
 import unsubscribeRoutes from './routes/unsubscribe';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
@@ -71,6 +72,7 @@ app.use('/chat', chatRoutes);
 app.use('/quiz', quizRoutes);
 app.use('/pixel', pixelRoutes);
 app.use('/webhook', webhookRoutes);
+app.use('/zapi-admin', zapiAdminRoutes);
 app.use('/mcp', mcpRoutes);
 app.use('/unsubscribe', unsubscribeRoutes);
 
