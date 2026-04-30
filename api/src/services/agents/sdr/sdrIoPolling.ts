@@ -90,3 +90,57 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
 
   return { processed, skipped, errors };
 }
+
+// Processa webhook_debug recente procurando mensagens enviadas pelo celular
+// (fromMe=true, fromApi=false) na linha IO. Pra cada uma, marca o lead com
+// human_takeover=true — Luma vai ficar em silencio nessas conversas.
+export async function processIoTakeoverEvents(): Promise<{ takeovers: number }> {
+  const ioInstanceId = process.env.ZAPI_INSTANCE_ID_IO?.trim();
+  if (!ioInstanceId) return { takeovers: 0 };
+
+  // Janela de 10min — Cron roda 1x/min, com folga pra cobrir lentidao da queue
+  const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+  const { data: events } = await supabase
+    .from('webhook_debug')
+    .select('payload, created_at')
+    .gte('created_at', cutoff)
+    .filter('payload->>instanceId', 'eq', ioInstanceId)
+    .filter('payload->>fromMe', 'eq', 'true');
+
+  if (!events?.length) return { takeovers: 0 };
+
+  const phonesToTakeover = new Set<string>();
+  for (const ev of events) {
+    const p: any = ev.payload;
+    // fromApi=true → mensagem enviada pela nossa API (Luma) — NAO eh takeover
+    if (p.fromApi === true || p.fromApi === 'true') continue;
+    if (p.isGroup === true || p.isGroup === 'true') continue;
+    const phone = String(p.phone ?? '').replace(/\D/g, '');
+    if (!phone) continue;
+    phonesToTakeover.add(phone);
+  }
+
+  if (!phonesToTakeover.size) return { takeovers: 0 };
+
+  let takeovers = 0;
+  for (const phone of phonesToTakeover) {
+    // So marca se ainda nao tiver takeover (evita reset de timestamp)
+    const { data: lead } = await supabase
+      .from('sdr_leads')
+      .select('human_takeover')
+      .eq('phone', phone)
+      .maybeSingle();
+    if (lead && !lead.human_takeover) {
+      await supabase.from('sdr_leads').update({
+        human_takeover: true,
+        human_takeover_at: new Date().toISOString(),
+        aguardando_resposta: false,
+        updated_at: new Date().toISOString(),
+      }).eq('phone', phone);
+      takeovers++;
+    }
+  }
+
+  return { takeovers };
+}

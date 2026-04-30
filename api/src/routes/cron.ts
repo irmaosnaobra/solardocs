@@ -6,7 +6,7 @@ import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/w
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
 import { pollZapiMessages } from '../services/agents/sdr/sdrAgentService';
-import { pollZapiMessagesIO } from '../services/agents/sdr/sdrIoPolling';
+import { pollZapiMessagesIO, processIoTakeoverEvents } from '../services/agents/sdr/sdrIoPolling';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -108,16 +108,18 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, pollIoResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, takeoverResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),
+      processIoTakeoverEvents(),
     ]);
     res.json({
       ok: true,
-      queue:   queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },
-      poll:    pollResult.status  === 'fulfilled' ? pollResult.value  : { error: String((pollResult as any).reason) },
-      poll_io: pollIoResult.status === 'fulfilled' ? pollIoResult.value : { error: String((pollIoResult as any).reason) },
+      queue:    queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },
+      poll:     pollResult.status  === 'fulfilled' ? pollResult.value  : { error: String((pollResult as any).reason) },
+      poll_io:  pollIoResult.status === 'fulfilled' ? pollIoResult.value : { error: String((pollIoResult as any).reason) },
+      takeover: takeoverResult.status === 'fulfilled' ? takeoverResult.value : { error: String((takeoverResult as any).reason) },
     });
   } catch (err) {
     logger.error('cron', 'process-messages falhou', err);
