@@ -122,6 +122,42 @@ router.get('/io/chat-messages/:phone', async (req: Request, res: Response): Prom
   res.json(r);
 });
 
+// Tenta ativar varios flags que podem destravar webhook em Multi Device
+router.post('/io/force-enable', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const creds = getIOCreds();
+  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+  const c: IOCreds = creds;
+  const apiUrl = process.env.API_URL || 'https://api.solardoc.app';
+  const url = `${apiUrl}/webhook/io`;
+
+  async function tryPut(path: string, body: any): Promise<any> {
+    const r = await fetch(`https://api.z-api.io/instances/${c.id}/token/${c.token}/${path}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Client-Token': c.client },
+      body: JSON.stringify(body),
+    });
+    const t = await r.text();
+    let parsed: any = t;
+    try { parsed = JSON.parse(t); } catch {}
+    return { path, status: r.status, body: parsed };
+  }
+
+  const results = await Promise.all([
+    tryPut('update-webhook-received', { value: url, enabled: true }),
+    tryPut('update-webhook-received-delivery', { value: url, enabled: true }),
+    tryPut('update-receive-message-call-back', { value: url }),
+    tryPut('update-on-message-received', { value: url }),
+    tryPut('update-webhook', { value: url, event: 'on-message-received' }),
+    tryPut('update-receive-callback-sent-by-me', { value: false }),
+    tryPut('update-auto-read-message', { value: false }),
+    tryPut('update-webhook-message-status', { value: url }),
+  ]);
+
+  const me = await zapiGet(c, 'me');
+  res.json({ url, attempts: results, me });
+});
+
 // Diagnostico: testa varios paths e metodos pra descobrir quais funcionam em Multi Device
 router.get('/io/try-paths/:phone', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
