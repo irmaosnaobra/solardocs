@@ -204,7 +204,8 @@ export async function handleIncomingWhatsApp(
       return;
     }
     if (b2cSession || isB2cTriggered) {
-      await handleSdrLead(cleanPhone, text, senderName, tracking);
+      // Luma (B2C SDR) roda na linha IO — passa instance pra resposta sair da linha certa
+      await handleSdrLead(cleanPhone, text, senderName, tracking, 'io');
       return;
     }
     if (isFromAd) {
