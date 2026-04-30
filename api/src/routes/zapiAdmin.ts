@@ -127,13 +127,14 @@ router.get('/io/try-paths/:phone', async (req: Request, res: Response): Promise<
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
   const creds = getIOCreds();
   if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+  const c: IOCreds = creds;
   const phone = req.params.phone;
 
   async function tryReq(method: string, path: string, body?: any): Promise<any> {
-    const url = `https://api.z-api.io/instances/${creds.id}/token/${creds.token}/${path}`;
+    const url = `https://api.z-api.io/instances/${c.id}/token/${c.token}/${path}`;
     const opts: any = {
       method,
-      headers: { 'Client-Token': creds.client },
+      headers: { 'Client-Token': c.client },
     };
     if (body) {
       opts.headers['Content-Type'] = 'application/json';
