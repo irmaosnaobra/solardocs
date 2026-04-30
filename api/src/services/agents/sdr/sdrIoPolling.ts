@@ -101,19 +101,23 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
 // 1x por hora (controle via ultima_revisao_luma). Limita a 5 leads por execução
 // pra não estourar custo de IA.
 //
-// REGRA DE PROMOÇÃO: só move pra CIMA no funil (frio → morno → quente). Nunca
-// rebaixa — pra evitar conflito com decisão manual humana via drag&drop.
+// REPOSICIONA EM AMBAS DIREÇÕES: pode promover (frio→quente) E rebaixar
+// (quente→morno) baseado na evolução real da conversa.
 //
-// Quando promove: dispara card no grupo "🔄 Luma moveu Lead X de A → B"
+// Estados finais protegidos: fechamento e perdido nunca são revisados.
+//
+// Quando muda: dispara card no grupo "🔄 Luma reposicionou Lead X de A → B + motivo"
 
 const HIERARQUIA_FUNIL = ['frio', 'novo', 'morno', 'quente'] as const;
 type EstagioFunil = typeof HIERARQUIA_FUNIL[number];
 
-function ehPromocao(de: string, para: string): boolean {
+function direcaoMudanca(de: string, para: string): 'promocao' | 'rebaixamento' | 'lateral' | null {
   const iDe = HIERARQUIA_FUNIL.indexOf(de as EstagioFunil);
   const iPara = HIERARQUIA_FUNIL.indexOf(para as EstagioFunil);
-  if (iDe === -1 || iPara === -1) return false;
-  return iPara > iDe;
+  if (iDe === -1 || iPara === -1) return null;
+  if (iPara === iDe) return null;
+  if (iPara > iDe) return 'promocao';
+  return 'rebaixamento';
 }
 
 function nomeEstagio(s: string): string {
@@ -210,24 +214,25 @@ export async function revisarLeadsLuma(): Promise<{ avaliados: number; promovido
     }
 
     const novoEstagio = revisao.estagio_sugerido;
+    const direcao = direcaoMudanca(lead.estagio, novoEstagio);
 
-    // Só promove pra cima — nunca rebaixa (humano cuida disso via drag&drop)
-    if (novoEstagio !== lead.estagio && ehPromocao(lead.estagio, novoEstagio)) {
+    if (direcao) {
       await supabase.from('sdr_leads').update({
         estagio: novoEstagio,
         ultima_revisao_luma: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq('phone', lead.phone);
 
-      // Avisa no grupo
+      // Avisa no grupo — emoji difere se foi promoção ou rebaixamento
+      const seta = direcao === 'promocao' ? '🔺' : '🔻';
       const linkWa = `https://wa.me/${lead.phone.replace(/\D/g, '')}`;
       const card = [
-        `🔄 *LUMA MOVEU LEAD NO FUNIL*`,
+        `🔄 *LUMA REPOSICIONOU LEAD*`,
         ``,
         `*${lead.nome || 'Sem nome'}*  →  ${linkWa}`,
         `*${lead.cidade || '—'}*`,
         ``,
-        `${nomeEstagio(lead.estagio)}  →  *${nomeEstagio(novoEstagio)}*`,
+        `${seta} ${nomeEstagio(lead.estagio)}  →  *${nomeEstagio(novoEstagio)}*`,
         ``,
         `💡 ${revisao.motivo}`,
       ].join('\n');
@@ -237,7 +242,7 @@ export async function revisarLeadsLuma(): Promise<{ avaliados: number; promovido
         await sendToGroup(groupId, card, inst);
         promovidos++;
       } catch (err) {
-        logger.error('luma-revisao', `falha ao avisar promocao de ${lead.phone}`, err);
+        logger.error('luma-revisao', `falha ao avisar reposicionamento de ${lead.phone}`, err);
       }
     } else {
       // Mantém estágio mas atualiza timestamp
