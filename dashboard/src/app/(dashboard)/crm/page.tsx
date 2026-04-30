@@ -8,6 +8,9 @@ import api from '@/services/api';
 interface SdrLead {
   phone: string; nome: string | null; cidade: string | null; estado: string | null;
   estagio: string; ultima_mensagem: string | null; total_mensagens: number; updated_at: string;
+  instance?: string | null;
+  human_takeover?: boolean;
+  contatos?: number;
 }
 
 interface PlatLead {
@@ -73,22 +76,45 @@ function KanbanCol({ col, children, count }: { col: typeof SDR_COLS[0]; children
 
 // ── Card SDR ──────────────────────────────────────────────────────
 
-function SdrCard({ lead, cols, onMove }: { lead: SdrLead; cols: typeof SDR_COLS; onMove: (phone: string, estagio: string) => void }) {
+function SdrCard({ lead, cols, onMove, onToggleTakeover }: {
+  lead: SdrLead;
+  cols: typeof SDR_COLS;
+  onMove: (phone: string, estagio: string) => void;
+  onToggleTakeover: (phone: string, takeover: boolean) => void;
+}) {
   const col = cols.find(c => c.id === lead.estagio) ?? cols[0];
+  const isTakeover = !!lead.human_takeover;
+  const isIO = lead.instance === 'io';
   return (
     <div style={{
       background: 'var(--color-surface)', border: `1px solid var(--color-border)`,
       borderLeft: `3px solid ${col.color}`, borderRadius: 10, padding: '12px 14px',
     }}>
-      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 4 }}>
-        {lead.nome || 'Sem nome'}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)' }}>
+          {lead.nome || 'Sem nome'}
+        </span>
+        {isIO && (
+          <span title="Linha Irmãos na Obra" style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 6, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
+            ☀️ IO
+          </span>
+        )}
+        {isTakeover ? (
+          <span title="Humano assumiu — Luma em silêncio" style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 6, background: 'rgba(168,85,247,0.15)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' }}>
+            🤝 Humano
+          </span>
+        ) : (
+          <span title="Luma atendendo" style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 6, background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}>
+            🤖 Luma
+          </span>
+        )}
       </div>
       <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 6 }}>
-        {lead.cidade ? `📍 ${lead.cidade}${lead.estado ? ` - ${lead.estado}` : ''}` : fmtPhone(lead.phone)}
+        {lead.cidade ? `📍 ${lead.cidade}${lead.estado ? ` - ${lead.estado}` : ''} · ${fmtPhone(lead.phone)}` : fmtPhone(lead.phone)}
       </div>
       {lead.ultima_mensagem && (
         <p style={{ fontSize: 11, color: 'var(--color-text-muted)', fontStyle: 'italic', margin: '0 0 8px', lineHeight: 1.4 }}>
-          "{lead.ultima_mensagem.slice(0, 80)}{lead.ultima_mensagem.length > 80 ? '...' : ''}"
+          &quot;{lead.ultima_mensagem.slice(0, 80)}{lead.ultima_mensagem.length > 80 ? '...' : ''}&quot;
         </p>
       )}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -100,9 +126,20 @@ function SdrCard({ lead, cols, onMove }: { lead: SdrLead; cols: typeof SDR_COLS;
           style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: `1px solid ${col.border}`, background: col.bg, color: col.color, fontWeight: 700, cursor: 'pointer', flex: 1 }}>
           {cols.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
         </select>
+        <button
+          onClick={() => onToggleTakeover(lead.phone, !isTakeover)}
+          title={isTakeover ? 'Devolver pra Luma' : 'Assumir manualmente (silenciar Luma)'}
+          style={{
+            padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            border: '1px solid var(--color-border)',
+            background: isTakeover ? 'rgba(34,197,94,0.12)' : 'rgba(168,85,247,0.12)',
+            color: isTakeover ? '#22c55e' : '#a855f7',
+          }}>
+          {isTakeover ? '↩️ Luma' : '🙋 Eu'}
+        </button>
       </div>
       <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 6 }}>
-        💬 {lead.total_mensagens} msgs · {fmtDate(lead.updated_at)}
+        💬 {lead.total_mensagens} msgs{lead.contatos ? ` · 📤 ${lead.contatos} fup` : ''} · {fmtDate(lead.updated_at)}
       </div>
     </div>
   );
@@ -183,6 +220,11 @@ export default function CrmPage() {
   async function moveSdr(phone: string, estagio: string) {
     await api.patch(`/admin/sdr-leads/${phone}/estagio`, { estagio });
     setSdrLeads(prev => prev.map(l => l.phone === phone ? { ...l, estagio } : l));
+  }
+
+  async function toggleSdrTakeover(phone: string, takeover: boolean) {
+    await api.patch(`/admin/sdr-leads/${phone}/takeover`, { takeover });
+    setSdrLeads(prev => prev.map(l => l.phone === phone ? { ...l, human_takeover: takeover } : l));
   }
 
   async function movePlat(id: string, estagio: string) {
@@ -268,7 +310,7 @@ export default function CrmPage() {
               <KanbanCol key={col.id} col={col} count={colLeads.length}>
                 {colLeads.length === 0
                   ? <div style={{ textAlign: 'center', padding: '20px 10px', color: 'var(--color-text-muted)', fontSize: 12 }}>Nenhum lead</div>
-                  : colLeads.map(l => <SdrCard key={l.phone} lead={l} cols={SDR_COLS} onMove={moveSdr} />)
+                  : colLeads.map(l => <SdrCard key={l.phone} lead={l} cols={SDR_COLS} onMove={moveSdr} onToggleTakeover={toggleSdrTakeover} />)
                 }
               </KanbanCol>
             );
