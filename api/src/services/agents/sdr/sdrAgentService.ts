@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendMetaEvent } from '../../../utils/metaPixel';
-import { fmtPhone, sendHuman, type ZapiInstance } from '../zapiClient';
+import { fmtPhone, sendHuman, sendToGroup, type ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -128,10 +128,14 @@ Exemplo ligação/meet (chamada às 15h):
 Exemplo vistoria:
   "Posso agendar pra hoje 16h ou amanhã 9h, qual fica melhor?"
 
-ETAPA 10 — CONFIRMAÇÃO + DESPEDIDA
-Confirme tudo que ele escolheu (preferência + horário se aplicável):
-"Show, [Nome]. Anotado: [resumo]. O consultor vai te chamar aqui mesmo no WhatsApp em [horário]. Qualquer coisa que mudar de planos, é só me avisar. Até já!"
-→ Marca [ESTAGIO:quente]
+ETAPA 10 — REGISTRAR AGENDAMENTO + DESPEDIDA
+ASSIM QUE o cliente confirmar o canal E o horário específico, você DEVE:
+1. Chamar a tool **agendar_atendimento** com canal ('ligacao' | 'meet' | 'vistoria') e horario (texto exato escolhido).
+2. Após a tool retornar OK, manda mensagem de confirmação humana:
+   "Show, [Nome]. Anotado: [canal] [horário]. O consultor vai te chamar pontual. || Qualquer mudança me avisa por aqui. Até já!"
+   → Marca [ESTAGIO:quente]
+
+REGRA: Não chame a tool antes do cliente confirmar AMBOS canal + horário. Se ainda tiver dúvida ou o cliente só escolheu canal sem horário, pergunte o horário primeiro.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # OBJEÇÕES — RESPOSTAS PRONTAS (volte pro fluxo depois)
@@ -436,6 +440,146 @@ export function extractLeadInfo(messages: { role: string; content: string }[]): 
   };
 }
 
+// ─── Tool calling: agendamento + card pra grupo ───────────────────
+
+const LUMA_TOOLS: Anthropic.Tool[] = [
+  {
+    name: 'agendar_atendimento',
+    description: 'Registra o agendamento confirmado pelo cliente (canal escolhido + horário) e dispara um card de notificação no grupo da equipe. Chame esta tool APENAS depois que o cliente confirmar EXPLICITAMENTE o canal (ligação/meet/vistoria) E o horário específico (ex: "16h", "amanhã 9h"). Não chame antes.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        canal: {
+          type: 'string',
+          enum: ['ligacao', 'meet', 'vistoria'],
+          description: 'Canal escolhido pelo cliente: ligacao = ligação telefônica, meet = reunião por vídeo Google Meet, vistoria = visita técnica presencial (apenas Uberlândia).',
+        },
+        horario: {
+          type: 'string',
+          description: 'Horário confirmado em texto livre (ex: "hoje 16h", "amanhã 9h", "quinta 14h", "sexta 19h").',
+        },
+        observacoes: {
+          type: 'string',
+          description: 'Notas extras do cliente que o consultor humano deve saber antes do contato (ex: "prefere falar depois das 18h", "tem urgência na decisão"). Opcional.',
+        },
+      },
+      required: ['canal', 'horario'],
+    },
+  },
+];
+
+function fmtBR(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function canalLabel(canal: string): string {
+  if (canal === 'ligacao') return '📞 Ligação';
+  if (canal === 'meet') return '🎥 Meet (vídeo)';
+  if (canal === 'vistoria') return '🏠 Vistoria presencial';
+  return canal;
+}
+
+async function criarCardAgendamento(
+  phone: string,
+  canal: string,
+  horario: string,
+  observacoes: string | undefined,
+  instance: ZapiInstance,
+): Promise<{ ok: boolean; reason?: string }> {
+  const groupId = process.env.ZAPI_IO_GROUP_ID?.trim() || '120363420421710389-group';
+
+  // Busca contexto do lead
+  const { data: lead } = await supabase
+    .from('sdr_leads')
+    .select('phone, nome, cidade, estado, estagio, total_mensagens, ultima_mensagem, created_at, ctwa_clid')
+    .eq('phone', phone)
+    .single();
+
+  // Pega histórico pra extrair info estruturada
+  const { data: session } = await supabase
+    .from('whatsapp_sessions')
+    .select('messages, nome')
+    .eq('phone', phone)
+    .eq('tipo', 'sdr')
+    .single();
+
+  const messages = (session?.messages as any[]) || [];
+  const fullText = messages.map(m => typeof m.content === 'string' ? m.content : '').join(' ').toLowerCase();
+  const fullTextOriginal = messages.map(m => typeof m.content === 'string' ? m.content : '').join(' ');
+
+  // Extração best-effort de campos do histórico
+  const consumo = fullText.match(/r?\$?\s?(\d{2,5})\s?(reais|\/m[eê]s|por m[eê]s)?/i)?.[1] || '—';
+  const padraoMatch = fullText.match(/\b(monof[aá]sico|bif[aá]sico|trif[aá]sico)\b[^.]*?(110v?|220v?|380v?)?/i);
+  const padrao = padraoMatch ? padraoMatch[0].trim() : '—';
+  const telhadoMatch = fullText.match(/\b(cer[aâ]mico|fibrocimento|met[aá]lico|laje|colonial|romano|solo)\b/i);
+  const telhado = telhadoMatch ? telhadoMatch[0] : '—';
+
+  const aumentaConsumo = /aumentar|ar[\s-]?condicionado|piscina|carro el[eé]trico|forno|obra|mais gente/i.test(fullText) ? 'sim' : '—';
+  const casaPropria = /\b(casa pr[oó]pria|im[oó]vel pr[oó]prio|j[aá] [eé] minha)\b/i.test(fullText) ? 'própria'
+    : /\baluguel|alugada\b/i.test(fullText) ? 'alugada' : '—';
+
+  let pagamento = '—';
+  if (/\bfinanciamento\b|\bfinanciar\b|\bbanco\b/i.test(fullText)) pagamento = 'financiamento';
+  else if (/\bcart[aã]o\b/i.test(fullText)) pagamento = 'cartão de crédito';
+  else if (/\b(recurso pr[oó]prio|[aà] vista|dinheiro)\b/i.test(fullText)) pagamento = 'recurso próprio';
+
+  // Resumo dos últimos 6 turnos pra contexto humano
+  const ultimas = messages.slice(-12).map((m: any) => {
+    const c = typeof m.content === 'string' ? m.content : '[mídia]';
+    return `${m.role === 'user' ? '👤' : '🤖'} ${c.slice(0, 200)}`;
+  }).join('\n');
+
+  const linkWa = `https://wa.me/${phone.replace(/\D/g, '')}`;
+  const card = [
+    `🔔 *NOVO ATENDIMENTO AGENDADO*`,
+    ``,
+    `*Cliente:* ${lead?.nome || session?.nome || 'Sem nome'}`,
+    `*WhatsApp:* ${phone}  →  ${linkWa}`,
+    `*Cidade:* ${lead?.cidade || '—'}${lead?.estado ? ` / ${lead.estado}` : ''}`,
+    ``,
+    `📋 *AGENDAMENTO*`,
+    `• Canal: ${canalLabel(canal)}`,
+    `• Horário: *${horario}*`,
+    observacoes ? `• Observações: ${observacoes}` : null,
+    ``,
+    `⚡ *QUALIFICAÇÃO*`,
+    `• Conta de luz: R$ ${consumo}/mês`,
+    `• Padrão de entrada: ${padrao}`,
+    `• Telhado: ${telhado}`,
+    `• Pretende aumentar consumo: ${aumentaConsumo}`,
+    `• Casa: ${casaPropria}`,
+    `• Pagamento preferido: ${pagamento}`,
+    ``,
+    `💬 *ÚLTIMAS MENSAGENS*`,
+    ultimas || '(sem histórico)',
+    ``,
+    `📊 ${lead?.total_mensagens || 0} mensagens trocadas · lead criado em ${fmtBR(lead?.created_at)}`,
+    `🔗 CRM: https://solardoc.app/crm`,
+  ].filter(Boolean).join('\n');
+
+  try {
+    await sendToGroup(groupId, card, instance);
+    await supabase.from('sdr_leads').update({
+      canal_atendimento: canal,
+      horario_atendimento: horario,
+      agendado_at: new Date().toISOString(),
+      card_enviado_at: new Date().toISOString(),
+      estagio: 'quente',
+      aguardando_resposta: false,
+      updated_at: new Date().toISOString(),
+    }).eq('phone', phone);
+    return { ok: true };
+  } catch (err) {
+    logger.error('luma-card', `falha ao enviar card pro grupo ${groupId}`, err);
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 // ─── handler principal SDR ────────────────────────────────────────
 
 export async function handleSdrLead(
@@ -491,15 +635,57 @@ export async function handleSdrLead(
 
   systemPrompt += ctxAgendamento;
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 600,
-    system: systemPrompt,
-    messages: messages.filter(m => m.content), // Garante que não manda mensagens vazias
-  });
+  // Loop de tool calling — Luma pode chamar agendar_atendimento antes de responder
+  const workingMessages: any[] = [...messages];
+  let finalText = '';
 
-  const raw = (response.content[0] as { text: string }).text;
-  const { text: cleanText, estagio } = extractEstagio(raw);
+  for (let turn = 0; turn < 4; turn++) {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 700,
+      system: systemPrompt,
+      tools: LUMA_TOOLS,
+      messages: workingMessages.filter((m: any) => m.content),
+    });
+
+    if (response.stop_reason === 'tool_use') {
+      workingMessages.push({ role: 'assistant', content: response.content });
+
+      const toolResults: any[] = [];
+      for (const block of response.content) {
+        if (block.type !== 'tool_use') continue;
+        let result = '';
+        if (block.name === 'agendar_atendimento') {
+          const input = block.input as any;
+          const r = await criarCardAgendamento(
+            cleanPhone,
+            String(input.canal || ''),
+            String(input.horario || ''),
+            input.observacoes ? String(input.observacoes) : undefined,
+            instance,
+          );
+          result = r.ok
+            ? 'Agendamento registrado e card enviado pra equipe. Confirma pro cliente que o consultor vai entrar em contato no horário combinado.'
+            : `Falha ao enviar card (${r.reason || 'erro'}). Mesmo assim confirme o agendamento pro cliente — vou avisar a equipe manualmente.`;
+        } else {
+          result = 'tool desconhecida';
+        }
+        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
+      }
+      workingMessages.push({ role: 'user', content: toolResults });
+      continue;
+    }
+
+    const textBlock = response.content.find((b: any) => b.type === 'text') as any;
+    finalText = textBlock?.text || '';
+    break;
+  }
+
+  if (!finalText) {
+    finalText = 'Tive um probleminha aqui pra te responder, me dá 1 minuto. [ESTAGIO:morno]';
+  }
+
+  const { text: cleanText, estagio } = extractEstagio(finalText);
   const parts = cleanText.split('||').map(p => p.trim()).filter(Boolean);
 
   await sendHuman(cleanPhone, parts, instance);

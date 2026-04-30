@@ -87,3 +87,9 @@ export async function sendHuman(phone: string, parts: string[], instance: ZapiIn
 export async function sendZAPI(phone: string, message: string, instance: ZapiInstance = 'solardoc'): Promise<void> {
   await zapiPost('send-text', { phone: fmtPhone(phone), message }, 2, instance);
 }
+
+// Envia mensagem pra grupo Z-API. NÃO formata phone (já é ID de grupo no
+// formato "120363xxx-group" ou similar). A linha precisa ser membro do grupo.
+export async function sendToGroup(groupId: string, message: string, instance: ZapiInstance = 'solardoc'): Promise<void> {
+  await zapiPost('send-text', { phone: groupId, message }, 2, instance);
+}
