@@ -144,8 +144,16 @@ export async function handleIncomingWhatsApp(
     const B2C_TRIGGER = 'tenho interesse em energia solar';
     const isB2cTriggered = lowerText.includes(B2C_TRIGGER);
 
-    // B2B signals (SolarDoc)
-    const B2B_TRIGGERS = ['sou empresario solar', 'sou empresário solar', 'quero a solardoc', 'integrador solar', 'quero conhecer a solardoc'];
+    // B2B signals (SolarDoc) — inclui typos comuns ("soladoc") e variacoes
+    const B2B_TRIGGERS = [
+      'eu quero o solardoc', 'eu quero a solardoc',
+      'eu quero o soladoc',  'eu quero a soladoc',
+      'quero o solardoc',    'quero a solardoc',
+      'quero o soladoc',     'quero a soladoc',
+      'quero conhecer a solardoc', 'quero conhecer o solardoc',
+      'sou empresario solar', 'sou empresário solar',
+      'integrador solar',
+    ];
     const isB2bTriggered = B2B_TRIGGERS.some(t => lowerText.includes(t));
     const isFromAd = !!tracking?.ctwa_clid;
 
