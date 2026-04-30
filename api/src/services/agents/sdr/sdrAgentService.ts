@@ -111,13 +111,17 @@ Avisa que um consultor humano vai assumir + pergunta preferência:
 
 Pode escolher o número."
 
-# REGRAS DE AGENDAMENTO PRESENCIAL (item 3)
-- SE a cidade for **Uberlândia/MG**:
-  → Ofereça vistoria presencial. O sistema injeta horários válidos no contexto (mesmo dia até 17h, ou seg-sáb seguinte, sem domingo nem feriado). Use 2 dessas opções.
-  → Exemplo: "Posso agendar pra hoje 16h ou amanhã 9h, qual fica melhor?"
-- SE a cidade NÃO for Uberlândia:
-  → NÃO ofereça vistoria presencial. NUNCA diga "não atendemos" — apenas direcione: "Pra sua região o consultor vai te atender por vídeo ou ligação, fica mais rápido."
-  → Se o lead INSISTIR em vistoria mesmo fora de Uberlândia, responda: "Anotei aqui sua preferência por vistoria. O consultor vai validar a logística e te confirmar pessoalmente — pode ser?"
+# REGRAS DE AGENDAMENTO
+O sistema injeta no contexto os HORÁRIOS DISPONÍVEIS reais. Use sempre 2 dessas opções e pergunte qual fica melhor.
+
+- LIGAÇÃO ou MEET (vídeo): seg a sex, 9h às 20h. Disponível pra qualquer cidade.
+- VISTORIA PRESENCIAL: seg a sáb, 9h às 17h. APENAS pra Uberlândia/MG.
+
+- SE cidade = Uberlândia/MG: as 3 opções (ligação, meet, vistoria) estão disponíveis.
+- SE cidade ≠ Uberlândia: ofereça apenas ligação ou meet. NUNCA diga "não atendemos" — direcione natural: "Pra sua região o consultor te atende por ligação ou vídeo, fica mais prático."
+- SE o lead INSISTIR em vistoria fora de Uberlândia: "Anotei sua preferência. O consultor vai validar a logística com você pessoalmente — pode ser?"
+
+Exemplo de oferta: "Posso agendar pra hoje 16h ou amanhã 19h, qual fica melhor?"
 
 ETAPA 10 — CONFIRMAÇÃO + DESPEDIDA
 Confirme tudo que ele escolheu (preferência + horário se aplicável):
@@ -213,51 +217,70 @@ function isUberlandiaCity(cidade: string | null | undefined): boolean {
   return norm === 'uberlandia' || norm.startsWith('uberlandia ') || norm.endsWith(' uberlandia') || norm.includes(' uberlandia ');
 }
 
-function isWorkingDay(d: Date): boolean {
+// Vistoria roda seg-sáb (incluindo sábado), ligação/vídeo só seg-sex.
+// Sempre exclui domingo e feriado nacional.
+function isAvailableDay(d: Date, kind: 'vistoria' | 'remoto'): boolean {
   const dow = d.getDay();
-  if (dow === 0) return false; // domingo
+  if (dow === 0) return false; // domingo nunca
+  if (kind === 'remoto' && dow === 6) return false; // sábado só pra vistoria
   const iso = d.toISOString().slice(0, 10);
   if (FERIADOS_BR_2026.has(iso) || FERIADOS_BR_2027.has(iso)) return false;
   return true;
 }
 
-// Retorna até 3 opções de horário pra vistoria. Hoje até 17h ou próximo dia útil
-// (seg-sáb, sem feriado). Considera horário de Brasília (UTC-3).
-export function gerarOpcoesVistoria(now: Date = new Date()): string[] {
+// Janela de horário: vistoria 9h-17h, ligação/vídeo 9h-20h.
+function janelaHoraria(kind: 'vistoria' | 'remoto'): { abertura: number; fechamento: number } {
+  return kind === 'vistoria'
+    ? { abertura: 9, fechamento: 17 }
+    : { abertura: 9, fechamento: 20 };
+}
+
+const NOMES_DIA = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+
+function fmtData(d: Date, h: number): string {
+  const dia = d.getUTCDate().toString().padStart(2, '0');
+  const mes = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+  return `${NOMES_DIA[d.getUTCDay()]} ${dia}/${mes} às ${h}h`;
+}
+
+// Retorna até 3 opções de horário pra um tipo de atendimento.
+// kind='vistoria' → seg-sáb 9h-17h (Uberlândia presencial)
+// kind='remoto'   → seg-sex 9h-20h (ligação ou Google Meet)
+export function gerarOpcoes(kind: 'vistoria' | 'remoto', now: Date = new Date()): string[] {
+  const { abertura, fechamento } = janelaHoraria(kind);
   const opcoes: string[] = [];
 
-  // Convert pra horário de Brasília
+  // Hora de Brasília
   const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
   const hora = brt.getUTCHours();
-  const isHoje = hora < 17 && isWorkingDay(brt);
+  const isHoje = hora < fechamento && isAvailableDay(brt, kind);
 
-  const fmtData = (d: Date, h: number): string => {
-    const dia = d.getUTCDate().toString().padStart(2, '0');
-    const mes = (d.getUTCMonth() + 1).toString().padStart(2, '0');
-    const dow = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'][d.getUTCDay()];
-    return `${dow} ${dia}/${mes} às ${h}h`;
-  };
-
-  // Opção HOJE: se ainda for cedo e dia útil, propõe próxima janela razoável
   if (isHoje) {
-    const proximaHora = Math.max(hora + 2, 9); // mínimo 9h ou +2h
-    if (proximaHora <= 17) opcoes.push(`hoje às ${proximaHora}h`);
+    const proximaHora = Math.max(hora + 2, abertura);
+    if (proximaHora <= fechamento) opcoes.push(`hoje às ${proximaHora}h`);
   }
 
-  // Próximos 5 dias úteis
   const cursor = new Date(brt);
-  cursor.setUTCDate(cursor.getUTCDate() + 1); // amanhã
+  cursor.setUTCDate(cursor.getUTCDate() + 1);
   let count = 0;
-  while (opcoes.length < 3 && count < 7) {
-    if (isWorkingDay(cursor)) {
-      opcoes.push(fmtData(cursor, 9));
-      if (opcoes.length < 3) opcoes.push(fmtData(cursor, 14));
+  while (opcoes.length < 3 && count < 10) {
+    if (isAvailableDay(cursor, kind)) {
+      opcoes.push(fmtData(cursor, abertura));
+      if (opcoes.length < 3) {
+        const meio = kind === 'remoto' ? 19 : 14;
+        opcoes.push(fmtData(cursor, meio));
+      }
     }
     cursor.setUTCDate(cursor.getUTCDate() + 1);
     count++;
   }
 
   return opcoes.slice(0, 3);
+}
+
+// Compat com chamadas antigas
+export function gerarOpcoesVistoria(now: Date = new Date()): string[] {
+  return gerarOpcoes('vistoria', now);
 }
 
 
@@ -417,14 +440,18 @@ export async function handleSdrLead(
     { role: 'user' as const, content: text.trim() },
   ];
 
-  // Se o lead ja informou cidade da regiao Uberlandia, injeta opcoes de horario
-  // de vistoria no system prompt pra Luma ofertar agendamento concreto
+  // Injeta opções de horário no contexto pra Luma ofertar agendamento concreto.
+  // Vistoria só se cidade=Uberlândia. Ligação/vídeo sempre disponível.
   const leadInfo = extractLeadInfo(messages);
   let systemPrompt = SDR_SYSTEM_PROMPT;
+  const horariosRemoto = gerarOpcoes('remoto');
+  let ctxAgendamento = `\n\n# CONTEXTO DE AGENDAMENTO\nHorários disponíveis pra LIGAÇÃO ou MEET (seg-sex, 9h-20h, sem feriado):\n  ${horariosRemoto.join(' | ')}`;
   if (isUberlandiaCity(leadInfo.cidade)) {
-    const horarios = gerarOpcoesVistoria();
-    systemPrompt += `\n\n# CONTEXTO DE AGENDAMENTO (lead em Uberlândia)\nHorários de vistoria disponíveis: ${horarios.join(' | ')}\nNa ETAPA 9, se o cliente escolher visita técnica, ofereça 2 dessas opções.`;
+    const horariosVistoria = gerarOpcoes('vistoria');
+    ctxAgendamento += `\n\nHorários disponíveis pra VISTORIA PRESENCIAL (Uberlândia, seg-sáb, 9h-17h, sem feriado):\n  ${horariosVistoria.join(' | ')}`;
   }
+  ctxAgendamento += `\n\nNa ETAPA 9, ao oferecer agendamento, use 2 dessas opções conforme o canal escolhido pelo cliente.`;
+  systemPrompt += ctxAgendamento;
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
