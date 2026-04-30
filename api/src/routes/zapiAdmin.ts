@@ -122,6 +122,34 @@ router.get('/io/chat-messages/:phone', async (req: Request, res: Response): Prom
   res.json(r);
 });
 
+// Diagnostico: testa varios paths conhecidos pra descobrir quais funcionam em Multi Device
+router.get('/io/try-paths/:phone', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const creds = getIOCreds();
+  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+  const phone = req.params.phone;
+  const paths = [
+    `messages?phone=${phone}&amount=10`,
+    `messages-history?phone=${phone}&amount=10`,
+    `chats/${phone}`,
+    `chats/${phone}/messages`,
+    `chat-messages-from-multidevice/${phone}?amount=10`,
+    `read-messages/${phone}`,
+    `last-messages?phone=${phone}`,
+    `metadata/${phone}`,
+    `chat-by-phone/${phone}`,
+    `queue`,
+    `queue/last-message`,
+    `messages-by-phone/${phone}`,
+  ];
+  const out: any[] = [];
+  for (const p of paths) {
+    const r = await zapiGet(creds, p);
+    out.push({ path: p, status: r.status, error: r.body?.error, has_array: Array.isArray(r.body), array_length: Array.isArray(r.body) ? r.body.length : null, sample: typeof r.body === 'string' ? r.body.slice(0, 100) : JSON.stringify(r.body).slice(0, 200) });
+  }
+  res.json({ tested: out });
+});
+
 // Faz polling manual: pega chats recentes, busca mensagens individuais via /chat-messages/{phone}
 // e dispara handleSdrLead pra mensagem inbound mais recente nao processada
 router.post('/io/poll', async (req: Request, res: Response): Promise<void> => {
