@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import api from '@/services/api';
 
 // ── Tipos ─────────────────────────────────────────────────────────
@@ -891,17 +892,34 @@ export default function CrmPage() {
 
 // ── Modal de import de leads pra reativação ────────────────────────
 
+// Heurística pra achar coluna no Excel: case-insensitive, sem acento
+function colMatch(headers: string[], candidates: string[]): number {
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  const normHdrs = headers.map(norm);
+  for (const c of candidates) {
+    const cn = norm(c);
+    const idx = normHdrs.findIndex(h => h === cn || h.includes(cn));
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
 function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () => void }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [fileName, setFileName] = useState('');
+  const [fileLeads, setFileLeads] = useState<{ nome: string; phone: string; cidade?: string }[]>([]);
+  const [fileError, setFileError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Parser de texto livre (formato colado)
   const parsed = useMemo(() => {
+    if (fileLeads.length > 0) return { leads: fileLeads, erros: [] as string[] };
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     const leads: { nome: string; phone: string }[] = [];
     const erros: string[] = [];
     for (const line of lines) {
-      // Aceita formatos: "Nome, telefone" / "Nome - telefone" / "Nome\ttelefone" / "telefone Nome" / "telefone"
       const sepMatch = line.match(/^(.+?)[\s,;\t-]+(\+?\d[\d\s().-]{8,})\s*$/) ||
                        line.match(/^(\+?\d[\d\s().-]{8,})[\s,;\t-]+(.+)$/);
       if (!sepMatch) {
@@ -918,7 +936,64 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
       leads.push({ nome, phone: phone.replace(/\D/g, '') });
     }
     return { leads, erros };
-  }, [text]);
+  }, [text, fileLeads]);
+
+  async function processarArquivo(file: File) {
+    setFileError('');
+    setFileName(file.name);
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      // Lê como matriz (sem cabeçalho automático), pra detectar colunas
+      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (rows.length === 0) { setFileError('Planilha vazia'); return; }
+
+      // Detecta cabeçalho — primeira linha não-vazia que pareça texto
+      let headerIdx = 0;
+      for (let i = 0; i < Math.min(3, rows.length); i++) {
+        const r = rows[i].map(String);
+        const hasText = r.some(c => /[a-záé]/i.test(c) && !/^\d+$/.test(c));
+        if (hasText) { headerIdx = i; break; }
+      }
+      const headers: string[] = (rows[headerIdx] || []).map((c: any) => String(c ?? '').trim());
+
+      const idxNome = colMatch(headers, ['nome', 'name', 'cliente', 'lead', 'contato']);
+      const idxPhone = colMatch(headers, ['telefone', 'celular', 'whatsapp', 'whats', 'wpp', 'phone', 'tel', 'numero', 'número', 'fone']);
+      const idxCidade = colMatch(headers, ['cidade', 'city', 'municipio', 'município']);
+
+      if (idxPhone === -1) {
+        setFileError('Não encontrei coluna de telefone. Renomeia a coluna pra "Telefone", "Celular" ou "WhatsApp".');
+        return;
+      }
+
+      const leads: { nome: string; phone: string; cidade?: string }[] = [];
+      for (let i = headerIdx + 1; i < rows.length; i++) {
+        const row = rows[i] || [];
+        const phoneRaw = String(row[idxPhone] ?? '').replace(/\D/g, '');
+        if (phoneRaw.length < 10 || phoneRaw.length > 13) continue;
+        const nome = idxNome !== -1 ? String(row[idxNome] ?? '').trim() : '';
+        const cidade = idxCidade !== -1 ? String(row[idxCidade] ?? '').trim() : '';
+        leads.push({ nome, phone: phoneRaw, cidade: cidade || undefined });
+      }
+
+      if (leads.length === 0) {
+        setFileError('Nenhuma linha com telefone válido foi encontrada.');
+        return;
+      }
+      setFileLeads(leads);
+      setText('');
+    } catch (e: any) {
+      setFileError(`Erro lendo arquivo: ${e?.message || e}`);
+    }
+  }
+
+  function limparArquivo() {
+    setFileName('');
+    setFileLeads([]);
+    setFileError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
 
   async function importar() {
     if (parsed.leads.length === 0) return;
@@ -944,24 +1019,70 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
         </div>
 
         <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 12px' }}>
-          Cole a lista (1 lead por linha). A Luma vai chamar até <strong>50/dia</strong> em horário comercial (seg-sex 9h-20h). Quando responderem, viram &quot;Novo&quot; automático e seguem o fluxo normal.
+          Importe um Excel (.xlsx) ou cole a lista. A Luma chama até <strong>50/dia</strong> em horário comercial (seg-sex 9h-20h). Quando responderem, viram &quot;Novo&quot; automático.
         </p>
 
-        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: 10, marginBottom: 10, fontSize: 11, color: 'var(--color-text-muted)' }}>
-          <strong>Formatos aceitos:</strong><br />
-          João Silva, 34999998888<br />
-          Maria Santos - 34988887777<br />
-          Pedro 34977776666<br />
-          34911223344
+        {/* Upload Excel/CSV */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+            📊 Upload de planilha (Excel ou CSV)
+          </label>
+          {!fileName ? (
+            <label style={{
+              display: 'block', padding: 16, borderRadius: 8,
+              border: '2px dashed var(--color-border)', background: 'var(--color-surface)',
+              color: 'var(--color-text-muted)', textAlign: 'center', cursor: 'pointer', fontSize: 13,
+            }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                onChange={e => { const f = e.target.files?.[0]; if (f) processarArquivo(f); }}
+                style={{ display: 'none' }} />
+              📂 Clique pra selecionar arquivo (.xlsx, .xls, .csv)
+              <div style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>
+                Detecta colunas: Nome / Telefone / Cidade automaticamente
+              </div>
+            </label>
+          ) : (
+            <div style={{
+              padding: 10, borderRadius: 8,
+              background: fileError ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
+              border: `1px solid ${fileError ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div style={{ fontSize: 12 }}>
+                {fileError
+                  ? <span style={{ color: '#ef4444' }}>❌ {fileError}</span>
+                  : <span style={{ color: '#22c55e' }}>✅ <strong>{fileName}</strong> · {fileLeads.length} leads detectados</span>}
+              </div>
+              <button onClick={limparArquivo} style={{ padding: '2px 8px', borderRadius: 4, background: 'transparent', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 11 }}>✕</button>
+            </div>
+          )}
         </div>
 
-        <textarea value={text} onChange={e => setText(e.target.value)}
-          placeholder="João Silva, 34999998888&#10;Maria Santos, 34988887777&#10;..."
-          rows={10}
-          style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'monospace', fontSize: 12, resize: 'vertical' }} />
+        {/* Ou colar texto */}
+        {!fileName && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }}></div>
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>OU COLE TEXTO</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }}></div>
+            </div>
+
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: 10, marginBottom: 10, fontSize: 11, color: 'var(--color-text-muted)' }}>
+              <strong>Formatos aceitos:</strong> João Silva, 34999998888 · Maria Santos - 34988887777 · 34911223344
+            </div>
+
+            <textarea value={text} onChange={e => setText(e.target.value)}
+              placeholder="João Silva, 34999998888&#10;Maria Santos, 34988887777&#10;..."
+              rows={6}
+              style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'monospace', fontSize: 12, resize: 'vertical' }} />
+          </>
+        )}
 
         <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
-          {parsed.leads.length} leads válidos
+          <strong>{parsed.leads.length}</strong> leads válidos
           {parsed.erros.length > 0 && (
             <span style={{ color: '#ef4444' }}> · {parsed.erros.length} linhas inválidas</span>
           )}
