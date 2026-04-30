@@ -66,6 +66,23 @@ router.patch('/sdr-leads/:phone/takeover', async (req: Request, res: Response) =
   } catch { res.status(500).json({ error: 'Erro ao atualizar takeover' }); }
 });
 
+// Atribui consultor responsável pelo lead
+const CONSULTORES = ['diego', 'giovanna', 'nilce', 'thiago'];
+router.patch('/sdr-leads/:phone/consultor', async (req: Request, res: Response) => {
+  try {
+    const phone = String(req.params.phone || '');
+    const { consultor } = (req.body as any) ?? {};
+    if (consultor !== null && consultor !== '' && !CONSULTORES.includes(consultor)) {
+      res.status(400).json({ error: 'Consultor inválido' }); return;
+    }
+    await supabase.from('sdr_leads').update({
+      consultor: consultor || null,
+      updated_at: new Date().toISOString(),
+    }).eq('phone', phone);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Erro ao atribuir consultor' }); }
+});
+
 // Métricas do CRM — KPIs do topo da página
 router.get('/sdr-metrics', async (_req: Request, res: Response) => {
   try {
