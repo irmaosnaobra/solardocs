@@ -101,7 +101,12 @@ function fmtDate(iso: string) {
 
 function fmtPhone(p: string) {
   const d = (p || '').replace(/\D/g, '');
-  if (d.length >= 12) return `+${d.slice(0,2)} (${d.slice(2,4)}) ${d.slice(4,9)}-${d.slice(9,13)}`;
+  // Remove código país BR (55) se presente
+  const local = d.startsWith('55') && d.length >= 12 ? d.slice(2) : d;
+  // 11 dígitos (DDD + 9 + 8 dígitos): 34 99999-9999
+  if (local.length === 11) return `${local.slice(0,2)} ${local.slice(2,7)}-${local.slice(7,11)}`;
+  // 10 dígitos (DDD + 8 dígitos sem 9): 34 9999-9999
+  if (local.length === 10) return `${local.slice(0,2)} ${local.slice(2,6)}-${local.slice(6,10)}`;
   return p;
 }
 
