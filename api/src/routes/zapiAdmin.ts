@@ -340,16 +340,19 @@ router.post('/io/enable-sent-by-me', async (req: Request, res: Response): Promis
 });
 
 // Dispara um card de agendamento de exemplo pro grupo Z-API IO
-// Uso: POST /io/test-card?key=...&phone=558781743659&canal=ligacao&horario=amanha%2014h
+// Uso: POST /io/test-card?key=...&phone=...&canal=ligacao&horario=...&endereco=...&horario_iso=...
 router.post('/io/test-card', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
   const phone = String(req.query.phone || '').replace(/\D/g, '');
   const canal = String(req.query.canal || 'ligacao');
   const horario = String(req.query.horario || 'amanhã 14h');
+  const endereco = req.query.endereco ? String(req.query.endereco) : undefined;
+  const horarioIso = req.query.horario_iso ? String(req.query.horario_iso) : undefined;
+  const observacoes = req.query.observacoes ? String(req.query.observacoes) : undefined;
   if (!phone) { res.status(400).json({ error: 'phone obrigatorio' }); return; }
 
   const { criarCardAgendamento } = await import('../services/agents/sdr/sdrAgentService');
-  const r = await criarCardAgendamento(phone, canal, horario, undefined, 'io');
+  const r = await criarCardAgendamento(phone, canal, horario, observacoes, 'io', horarioIso, endereco);
   res.json(r);
 });
 
