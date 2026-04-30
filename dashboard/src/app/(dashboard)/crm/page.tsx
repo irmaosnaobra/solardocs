@@ -299,12 +299,6 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor }: {
         </div>
       )}
 
-      {lead.ultima_mensagem && (
-        <p style={{ fontSize: 11, color: 'var(--color-text-muted)', fontStyle: 'italic', margin: '0 0 8px', lineHeight: 1.4 }}>
-          &quot;{lead.ultima_mensagem.slice(0, 70)}{lead.ultima_mensagem.length > 70 ? '...' : ''}&quot;
-        </p>
-      )}
-
       <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }} onClick={e => e.stopPropagation()}>
         <a href={`https://wa.me/${lead.phone}`} target="_blank" rel="noopener noreferrer"
           style={{ padding: '3px 8px', borderRadius: 6, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 10, textDecoration: 'none' }}>💬</a>
