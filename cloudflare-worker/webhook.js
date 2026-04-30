@@ -1,7 +1,7 @@
 const SUPABASE_URL = 'https://qdpfwncyzuztibpujlbq.supabase.co';
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method !== 'POST') {
       return new Response(JSON.stringify({ status: 'webhook online' }), {
         headers: { 'Content-Type': 'application/json' }
@@ -52,10 +52,13 @@ export default {
         });
 
         // Dispara processamento imediato (~5 segundos)
-        // Usa secret hardcoded da GitHub Actions (cron.ts aceita ambos: env.CRON_SECRET e este)
-        fetch('https://api.solardoc.app/cron/process-messages', {
-          headers: { 'Authorization': `Bearer solardocs_master_cron_2024` }
-        }).catch(() => {});
+        // ctx.waitUntil mantem o Worker vivo ate a chamada terminar (sem isso
+        // o fetch e cancelado quando o Worker retorna)
+        ctx.waitUntil(
+          fetch('https://api.solardoc.app/cron/process-messages', {
+            headers: { 'Authorization': 'Bearer solardocs_master_cron_2024' }
+          }).catch(() => {})
+        );
       }
     } catch (err) {
       // silently continue
