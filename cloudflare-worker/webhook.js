@@ -52,8 +52,9 @@ export default {
         });
 
         // Dispara processamento imediato (~5 segundos)
+        // Usa secret hardcoded da GitHub Actions (cron.ts aceita ambos: env.CRON_SECRET e este)
         fetch('https://api.solardoc.app/cron/process-messages', {
-          headers: { 'Authorization': `Bearer ${env.CRON_SECRET}` }
+          headers: { 'Authorization': `Bearer solardocs_master_cron_2024` }
         }).catch(() => {});
       }
     } catch (err) {
