@@ -42,6 +42,12 @@ interface SdrLead {
   consultor?: string | null;
 }
 
+interface PlatLead {
+  id: string; email: string; whatsapp: string | null; plano: string;
+  empresa: string | null; cnpj: string | null; documentos_usados: number;
+  created_at: string; ativo_recente: boolean; crm_estagio: string | null;
+}
+
 interface Metrics {
   total: number;
   hoje: number;
@@ -75,6 +81,14 @@ const CONSULTORES = [
   { id: 'giovanna', nome: 'Giovanna', inicial: 'G', color: '#ec4899', bg: 'rgba(236,72,153,0.15)', border: 'rgba(236,72,153,0.4)' },
   { id: 'nilce',    nome: 'Nilce',    inicial: 'N', color: '#22c55e', bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)' },
   { id: 'thiago',   nome: 'Thiago',   inicial: 'T', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)' },
+];
+
+const PLAT_COLS = [
+  { id: 'sem_cnpj',   label: 'Sem CNPJ',           emoji: '📋', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)' },
+  { id: 'desativado', label: 'Cadastro Desativado', emoji: '😴', color: '#64748b', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.3)' },
+  { id: 'ativo',      label: 'Cadastro Ativo',      emoji: '⚡', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.3)' },
+  { id: 'pro',        label: 'PRO',                 emoji: '🚀', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)',  border: 'rgba(139,92,246,0.3)' },
+  { id: 'vip',        label: 'VIP',                 emoji: '👑', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)' },
 ];
 
 const POLL_INTERVAL_MS = 30_000;
@@ -617,7 +631,9 @@ interface FilterState {
 }
 
 export default function CrmPage() {
+  const [tab, setTab] = useState<'solar' | 'plataforma'>('solar');
   const [sdrLeads, setSdrLeads] = useState<SdrLead[]>([]);
+  const [platCols, setPlatCols] = useState<Record<string, PlatLead[]>>({});
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
@@ -626,12 +642,14 @@ export default function CrmPage() {
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
-    const [s, m] = await Promise.all([
+    const [s, p, m] = await Promise.all([
       api.get('/admin/sdr-leads').catch(() => ({ data: { leads: [] } })),
+      api.get('/admin/platform-crm').catch(() => ({ data: { columns: {} } })),
       api.get('/admin/sdr-metrics').catch(() => ({ data: null })),
     ]);
-    // CRM Solar foca apenas na linha IO. SolarDoc fica em outro número/CRM.
+    // CRM Solar foca apenas na linha IO. SolarDoc fica em tab separada.
     setSdrLeads((s.data.leads || []).filter((l: SdrLead) => l.instance === 'io'));
+    setPlatCols(p.data.columns ?? {});
     setMetrics(m.data);
     setLoading(false);
   }, []);
@@ -665,6 +683,26 @@ export default function CrmPage() {
     await api.patch(`/admin/sdr-leads/${phone}/consultor`, { consultor });
   }
 
+  async function movePlat(id: string, estagio: string) {
+    await api.patch(`/admin/platform-crm/${id}/estagio`, { estagio });
+    setPlatCols(prev => {
+      const next = { ...prev };
+      let lead: PlatLead | undefined;
+      for (const col of Object.keys(next)) {
+        const idx = next[col].findIndex(l => l.id === id);
+        if (idx !== -1) { lead = { ...next[col][idx], crm_estagio: estagio }; next[col] = next[col].filter(l => l.id !== id); break; }
+      }
+      if (lead) (next[estagio] ??= []).unshift(lead);
+      return next;
+    });
+  }
+
+  async function paraSdr(id: string) {
+    await api.post(`/admin/platform-crm/${id}/para-sdr`);
+    alert('Lead enviado para o CRM SDR Solar ☀️');
+    fetchAll();
+  }
+
   // Filtros + busca
   const sdrFiltrados = useMemo(() => {
     const q = busca.toLowerCase().trim();
@@ -683,14 +721,20 @@ export default function CrmPage() {
   }, [sdrLeads, busca, filters]);
 
   const algumFiltroAtivo = filters.agendados !== 'all' || filters.origem !== 'all' || filters.takeover !== 'all' || filters.consultor !== 'all';
+  const totalPlat = Object.values(platCols).reduce((a, c) => a + c.length, 0);
+  const q = busca.toLowerCase().trim();
 
   return (
     <div style={{ padding: '0 0 40px' }}>
       {/* Header */}
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>☀️ CRM Solar</h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: 0 }}>Pipeline Irmãos na Obra · Luma + 4 consultores · auto-atualiza 30s</p>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>📋 CRM</h1>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: 0 }}>
+            {tab === 'solar'
+              ? 'Pipeline Irmãos na Obra · Luma + 4 consultores · auto-atualiza 30s'
+              : 'Pipeline plataforma SolarDoc · linha separada'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input type="text" placeholder="🔍 Nome, telefone, cidade, tag..." value={busca}
@@ -702,81 +746,129 @@ export default function CrmPage() {
         </div>
       </div>
 
-      {/* Métricas */}
-      {metrics && (
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-          <MetricCard label="Hoje" value={metrics.hoje} color="var(--color-primary)" />
-          <MetricCard label="Semana" value={metrics.semana} />
-          <MetricCard label="Mês" value={metrics.mes} />
-          <MetricCard label="Total" value={metrics.total} />
-          <MetricCard label="Quentes" value={metrics.por_estagio.quente || 0} color="#ef4444" />
-          <MetricCard label="Fechamentos" value={metrics.por_estagio.fechamento || 0} color="#22c55e" />
-          <MetricCard label="Conversão" value={`${metrics.conversao_pct}%`} color="#22c55e" />
-          <MetricCard label="Em takeover" value={metrics.em_takeover} color="#a855f7" />
-          <MetricCard label="Agendados (24h)" value={metrics.agendados_24h.length} color="#f59e0b"
-            subtitle={metrics.agendados_24h.length > 0 ? `próximo: ${metrics.agendados_24h[0]?.nome || '—'}` : 'nenhum'} />
-        </div>
-      )}
-
-      {/* Filtros */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Filtros:</span>
-
-        <FilterChip label="Consultor" value={filters.consultor} options={[
-          { v: 'all', l: 'Todos' },
-          { v: 'sem', l: '👤 Sem consultor' },
-          ...CONSULTORES.map(c => ({ v: c.id, l: `${c.inicial} · ${c.nome}` })),
-        ]} onChange={v => setFilters(f => ({ ...f, consultor: v as any }))} />
-
-        <FilterChip label="Agendados" value={filters.agendados} options={[
-          { v: 'all', l: 'Todos' }, { v: 'sim', l: '📅 Agendados' }, { v: 'nao', l: 'Sem agendamento' },
-        ]} onChange={v => setFilters(f => ({ ...f, agendados: v as any }))} />
-
-        <FilterChip label="Origem" value={filters.origem} options={[
-          { v: 'all', l: 'Todas' }, { v: 'meta', l: '📢 Meta Ad' }, { v: 'organico', l: 'Orgânico' },
-        ]} onChange={v => setFilters(f => ({ ...f, origem: v as any }))} />
-
-        <FilterChip label="Atendimento" value={filters.takeover} options={[
-          { v: 'all', l: 'Todos' }, { v: 'luma', l: '🤖 Luma' }, { v: 'humano', l: '🤝 Humano' },
-        ]} onChange={v => setFilters(f => ({ ...f, takeover: v as any }))} />
-
-        {algumFiltroAtivo && (
-          <button onClick={() => setFilters({ agendados: 'all', origem: 'all', takeover: 'all', consultor: 'all' })} style={{
-            padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-            background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444',
-          }}>✕ Limpar</button>
-        )}
-        <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-          Mostrando {sdrFiltrados.length} de {sdrLeads.length}
-        </span>
+      {/* Tabs — Solar e Plataforma SEPARADOS, sem misturar */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {[
+          { id: 'solar' as const, label: '☀️ CRM Solar (IO)', count: sdrLeads.length },
+          { id: 'plataforma' as const, label: '💼 Plataforma SolarDoc', count: totalPlat },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            style={{
+              padding: '10px 20px', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              border: tab === t.id ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+              background: tab === t.id ? 'rgba(99,179,237,0.1)' : 'transparent',
+              color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            }}>
+            {t.label} <span style={{ opacity: 0.7, fontSize: 12 }}>({t.count})</span>
+          </button>
+        ))}
       </div>
 
-      {/* Kanban SDR — drag & drop ativo */}
-      {loading ? (
-        <p style={{ color: 'var(--color-text-muted)', padding: 40, textAlign: 'center' }}>Carregando...</p>
-      ) : (
+      {/* ☀️ TAB SOLAR */}
+      {tab === 'solar' && (
+        <>
+          {metrics && (
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+              <MetricCard label="Hoje" value={metrics.hoje} color="var(--color-primary)" />
+              <MetricCard label="Semana" value={metrics.semana} />
+              <MetricCard label="Mês" value={metrics.mes} />
+              <MetricCard label="Total" value={metrics.total} />
+              <MetricCard label="Quentes" value={metrics.por_estagio.quente || 0} color="#ef4444" />
+              <MetricCard label="Fechamentos" value={metrics.por_estagio.fechamento || 0} color="#22c55e" />
+              <MetricCard label="Conversão" value={`${metrics.conversao_pct}%`} color="#22c55e" />
+              <MetricCard label="Em takeover" value={metrics.em_takeover} color="#a855f7" />
+              <MetricCard label="Agendados (24h)" value={metrics.agendados_24h.length} color="#f59e0b"
+                subtitle={metrics.agendados_24h.length > 0 ? `próximo: ${metrics.agendados_24h[0]?.nome || '—'}` : 'nenhum'} />
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Filtros:</span>
+
+            <FilterChip label="Consultor" value={filters.consultor} options={[
+              { v: 'all', l: 'Todos' },
+              { v: 'sem', l: '👤 Sem consultor' },
+              ...CONSULTORES.map(c => ({ v: c.id, l: `${c.inicial} · ${c.nome}` })),
+            ]} onChange={v => setFilters(f => ({ ...f, consultor: v as any }))} />
+
+            <FilterChip label="Agendados" value={filters.agendados} options={[
+              { v: 'all', l: 'Todos' }, { v: 'sim', l: '📅 Agendados' }, { v: 'nao', l: 'Sem agendamento' },
+            ]} onChange={v => setFilters(f => ({ ...f, agendados: v as any }))} />
+
+            <FilterChip label="Origem" value={filters.origem} options={[
+              { v: 'all', l: 'Todas' }, { v: 'meta', l: '📢 Meta Ad' }, { v: 'organico', l: 'Orgânico' },
+            ]} onChange={v => setFilters(f => ({ ...f, origem: v as any }))} />
+
+            <FilterChip label="Atendimento" value={filters.takeover} options={[
+              { v: 'all', l: 'Todos' }, { v: 'luma', l: '🤖 Luma' }, { v: 'humano', l: '🤝 Humano' },
+            ]} onChange={v => setFilters(f => ({ ...f, takeover: v as any }))} />
+
+            {algumFiltroAtivo && (
+              <button onClick={() => setFilters({ agendados: 'all', origem: 'all', takeover: 'all', consultor: 'all' })} style={{
+                padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444',
+              }}>✕ Limpar</button>
+            )}
+            <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+              Mostrando {sdrFiltrados.length} de {sdrLeads.length}
+            </span>
+          </div>
+
+          {loading ? (
+            <p style={{ color: 'var(--color-text-muted)', padding: 40, textAlign: 'center' }}>Carregando...</p>
+          ) : (
+            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
+              {SDR_COLS.map(col => {
+                const colLeads = sdrFiltrados.filter(l => l.estagio === col.id);
+                return (
+                  <KanbanCol
+                    key={col.id} col={col} count={colLeads.length}
+                    isDragOver={dragOverCol === col.id}
+                    onDragEnter={() => setDragOverCol(col.id)}
+                    onDragLeave={() => setDragOverCol(null)}
+                    onDropPhone={(phone, estagio) => {
+                      setDragOverCol(null);
+                      const lead = sdrLeads.find(l => l.phone === phone);
+                      if (lead && lead.estagio !== estagio) moveSdr(phone, estagio);
+                    }}>
+                    {colLeads.length === 0
+                      ? <div style={{ textAlign: 'center', padding: '20px 10px', color: 'var(--color-text-muted)', fontSize: 12 }}>—</div>
+                      : colLeads.map(l => (
+                        <SdrCard key={l.phone} lead={l}
+                          onClick={() => setDrawerLead(l)}
+                          onMove={moveSdr}
+                          onToggleTakeover={toggleSdrTakeover}
+                          onSetConsultor={setConsultor} />
+                      ))
+                    }
+                  </KanbanCol>
+                );
+              })}
+            </div>
+          )}
+
+          <LeadDrawer
+            lead={drawerLead ? sdrLeads.find(l => l.phone === drawerLead.phone) || drawerLead : null}
+            onClose={() => setDrawerLead(null)}
+            onUpdate={fetchAll}
+            onSetConsultor={setConsultor}
+          />
+        </>
+      )}
+
+      {/* 💼 TAB PLATAFORMA SOLARDOC — separado do Solar */}
+      {tab === 'plataforma' && (
         <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
-          {SDR_COLS.map(col => {
-            const colLeads = sdrFiltrados.filter(l => l.estagio === col.id);
+          {PLAT_COLS.map(col => {
+            const colLeads = (platCols[col.id] ?? []).filter(l =>
+              !q || [l.email, l.empresa, l.cnpj, l.whatsapp].some(v => v?.toLowerCase().includes(q))
+            );
             return (
-              <KanbanCol
-                key={col.id} col={col} count={colLeads.length}
-                isDragOver={dragOverCol === col.id}
-                onDragEnter={() => setDragOverCol(col.id)}
-                onDragLeave={() => setDragOverCol(null)}
-                onDropPhone={(phone, estagio) => {
-                  setDragOverCol(null);
-                  const lead = sdrLeads.find(l => l.phone === phone);
-                  if (lead && lead.estagio !== estagio) moveSdr(phone, estagio);
-                }}>
+              <KanbanCol key={col.id} col={col} count={colLeads.length}>
                 {colLeads.length === 0
                   ? <div style={{ textAlign: 'center', padding: '20px 10px', color: 'var(--color-text-muted)', fontSize: 12 }}>—</div>
                   : colLeads.map(l => (
-                    <SdrCard key={l.phone} lead={l}
-                      onClick={() => setDrawerLead(l)}
-                      onMove={moveSdr}
-                      onToggleTakeover={toggleSdrTakeover}
-                      onSetConsultor={setConsultor} />
+                    <PlatCard key={l.id} lead={l} colId={col.id} onMove={movePlat} onParaSdr={paraSdr} />
                   ))
                 }
               </KanbanCol>
@@ -784,13 +876,49 @@ export default function CrmPage() {
           })}
         </div>
       )}
+    </div>
+  );
+}
 
-      <LeadDrawer
-        lead={drawerLead ? sdrLeads.find(l => l.phone === drawerLead.phone) || drawerLead : null}
-        onClose={() => setDrawerLead(null)}
-        onUpdate={fetchAll}
-        onSetConsultor={setConsultor}
-      />
+// ── Card Plataforma ────────────────────────────────────────────────
+
+function PlatCard({ lead, colId, onMove, onParaSdr }: {
+  lead: PlatLead; colId: string;
+  onMove: (id: string, estagio: string) => void;
+  onParaSdr: (id: string) => void;
+}) {
+  const col = PLAT_COLS.find(c => c.id === colId) ?? PLAT_COLS[0];
+  return (
+    <div style={{
+      background: 'var(--color-surface)', border: `1px solid var(--color-border)`,
+      borderLeft: `3px solid ${col.color}`, borderRadius: 10, padding: '12px 14px',
+    }}>
+      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text)', marginBottom: 4, wordBreak: 'break-all' }}>
+        {lead.empresa || lead.email}
+      </div>
+      {lead.empresa && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>✉️ {lead.email}</div>}
+      {lead.cnpj && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>🏢 {lead.cnpj}</div>}
+
+      <select value={colId} onChange={e => onMove(lead.id, e.target.value)}
+        style={{ width: '100%', fontSize: 11, padding: '4px 6px', borderRadius: 6, border: `1px solid ${col.border}`, background: col.bg, color: col.color, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}>
+        {PLAT_COLS.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+      </select>
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {lead.whatsapp && (
+          <a href={`https://wa.me/55${lead.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
+            style={{ padding: '4px 9px', borderRadius: 6, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 11, textDecoration: 'none' }}>💬 WA</a>
+        )}
+        {lead.whatsapp && (
+          <button onClick={() => onParaSdr(lead.id)}
+            style={{ padding: '4px 9px', borderRadius: 6, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>☀️ → SDR</button>
+        )}
+        <span style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center' }}>📄 {lead.documentos_usados}</span>
+      </div>
+
+      <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 6 }}>
+        {lead.crm_estagio ? '✏️ Manual' : '🔄 Auto'} · {lead.ativo_recente ? '🟢 Ativo' : '⚪ Inativo'}
+      </div>
     </div>
   );
 }
