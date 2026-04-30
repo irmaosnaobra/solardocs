@@ -269,6 +269,53 @@ router.post('/io/poll', async (req: Request, res: Response): Promise<void> => {
   res.json({ minutes_back: minutesBack, total_chats: chats.length, processed });
 });
 
+// Le webhook config da instancia SolarDocs (referencia funcional)
+router.get('/solardoc/me', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const id = process.env.ZAPI_INSTANCE_ID?.trim();
+  const token = process.env.ZAPI_TOKEN?.trim();
+  const client = process.env.ZAPI_CLIENT_TOKEN?.trim();
+  if (!id || !token || !client) { res.status(500).json({ error: 'creds solardoc ausentes' }); return; }
+  const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/me`, { headers: { 'Client-Token': client } });
+  const t = await r.text();
+  let parsed: any = t; try { parsed = JSON.parse(t); } catch {}
+  res.json({ status: r.status, body: parsed });
+});
+
+// Aponta webhook da linha IO pra MESMA URL da linha SolarDoc (pra usar a mesma rota que funciona)
+router.post('/io/match-solardoc-webhook', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const sdId = process.env.ZAPI_INSTANCE_ID?.trim();
+  const sdToken = process.env.ZAPI_TOKEN?.trim();
+  const client = process.env.ZAPI_CLIENT_TOKEN?.trim();
+  if (!sdId || !sdToken || !client) { res.status(500).json({ error: 'creds solardoc ausentes' }); return; }
+
+  // Le webhook URL atual da SolarDoc
+  const sdMe = await fetch(`https://api.z-api.io/instances/${sdId}/token/${sdToken}/me`, { headers: { 'Client-Token': client } });
+  const sdData: any = await sdMe.json();
+  const sdWebhook = sdData?.receivedCallbackUrl;
+  if (!sdWebhook) { res.status(500).json({ error: 'solardoc webhook nao encontrado', dump: sdData }); return; }
+
+  // Aponta linha IO pro mesmo URL
+  const ioCreds = getIOCreds();
+  if ('error' in ioCreds) { res.status(500).json({ error: ioCreds.error }); return; }
+
+  const update = await fetch(`https://api.z-api.io/instances/${ioCreds.id}/token/${ioCreds.token}/update-every-webhooks`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Client-Token': ioCreds.client },
+    body: JSON.stringify({ value: sdWebhook, notifySentByMe: false }),
+  });
+  const updateBody = await update.text();
+  let updateParsed: any = updateBody; try { updateParsed = JSON.parse(updateBody); } catch {}
+
+  const ioMe = await zapiGet(ioCreds, 'me');
+  res.json({
+    solardoc_webhook: sdWebhook,
+    update_response: { status: update.status, body: updateParsed },
+    io_me: ioMe,
+  });
+});
+
 // Reinicia a instancia (sem perder QR / conexao)
 router.post('/io/restart', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
