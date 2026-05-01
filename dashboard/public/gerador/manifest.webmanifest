@@ -1,0 +1,26 @@
+{
+  "name": "Gerador de Propostas — Irmãos na Obra",
+  "short_name": "Propostas",
+  "description": "Gerador de propostas comerciais de energia solar",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d2d5e",
+  "theme_color": "#0d2d5e",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
