@@ -62,6 +62,7 @@ interface Metrics {
   em_takeover: number;
   valor_vendido_mes: number;
   valor_vendido_ano: number;
+  meta_mes?: number;
 }
 
 interface Insights {
@@ -147,7 +148,13 @@ function canalLabel(c: string | null | undefined): string {
 
 // ── Componentes ────────────────────────────────────────────────────
 
-function MetricCard({ label, value, color, subtitle }: { label: string; value: string | number; color?: string; subtitle?: string }) {
+function MetricCard({ label, value, color, subtitle, progress, meta }: {
+  label: string; value: string | number; color?: string; subtitle?: string;
+  progress?: number; // 0-100
+  meta?: string; // texto da meta (ex: "Meta: R$ 220k")
+}) {
+  const pct = progress != null ? Math.max(0, Math.min(100, progress)) : null;
+  const barColor = pct == null ? color : (pct >= 100 ? '#22c55e' : pct >= 70 ? '#84cc16' : pct >= 40 ? '#f59e0b' : '#ef4444');
   return (
     <div style={{
       flex: '1 1 140px', minWidth: 140,
@@ -158,6 +165,23 @@ function MetricCard({ label, value, color, subtitle }: { label: string; value: s
       <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
       <div style={{ fontSize: 24, fontWeight: 800, color: color || 'var(--color-text)' }}>{value}</div>
       {subtitle && <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{subtitle}</div>}
+      {pct != null && (
+        <>
+          <div style={{
+            height: 6, borderRadius: 999, background: 'rgba(100,116,139,0.2)',
+            overflow: 'hidden', marginTop: 4,
+          }}>
+            <div style={{
+              width: `${pct}%`, height: '100%', background: barColor,
+              borderRadius: 999, transition: 'width 0.4s ease',
+            }} />
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--color-text-muted)', display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+            <span>{pct.toFixed(0)}%</span>
+            {meta && <span>{meta}</span>}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -884,7 +908,9 @@ export default function CrmPage() {
               <MetricCard label="Fechamentos" value={metrics.por_estagio.fechamento || 0} color="#22c55e" />
               <MetricCard label="Conversão" value={`${metrics.conversao_pct}%`} color="#22c55e" />
               <MetricCard label="💰 Vendido Mês" value={fmtMoney(metrics.valor_vendido_mes)} color="#22c55e"
-                subtitle={`R$ ${(metrics.valor_vendido_mes || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} />
+                subtitle={`R$ ${(metrics.valor_vendido_mes || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                progress={metrics.meta_mes ? (metrics.valor_vendido_mes / metrics.meta_mes) * 100 : undefined}
+                meta={metrics.meta_mes ? `Meta ${fmtMoney(metrics.meta_mes)}` : undefined} />
               <MetricCard label="💰 Vendido Ano" value={fmtMoney(metrics.valor_vendido_ano)} color="#f59e0b"
                 subtitle={`R$ ${(metrics.valor_vendido_ano || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} />
               <MetricCard label="Em takeover" value={metrics.em_takeover} color="#a855f7" />

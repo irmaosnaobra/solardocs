@@ -169,27 +169,29 @@ router.get('/sdr-metrics', async (_req: Request, res: Response) => {
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     const next24h = new Date(now.getTime() + 24*60*60*1000);
 
+    // CRM Solar foca apenas na linha 'io' (Irmãos na Obra)
     const [
       totalRes, hojeRes, mesRes,
       quenteRes, fechamentoRes, frioRes, perdidoRes,
       agendadosRes, takeoverRes,
       vendidoMesRes, vendidoAnoRes,
     ] = await Promise.all([
-      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }),
-      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).gte('created_at', startOfDay.toISOString()),
-      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).gte('created_at', startOfMonth.toISOString()),
-      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('estagio', 'quente'),
-      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('estagio', 'fechamento'),
-      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('estagio', 'frio'),
-      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('estagio', 'perdido'),
+      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io'),
+      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').gte('created_at', startOfDay.toISOString()),
+      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').gte('created_at', startOfMonth.toISOString()),
+      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').eq('estagio', 'quente'),
+      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').eq('estagio', 'fechamento'),
+      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').eq('estagio', 'frio'),
+      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').eq('estagio', 'perdido'),
       supabase.from('sdr_leads').select('phone, nome, horario_iso, canal_atendimento, horario_atendimento, cidade')
+        .eq('instance', 'io')
         .gte('horario_iso', now.toISOString()).lte('horario_iso', next24h.toISOString())
         .order('horario_iso', { ascending: true }),
-      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('human_takeover', true),
-      // Valor vendido acumulado MÊS: soma valor_venda dos leads fechados criados/fechados no mês
-      supabase.from('sdr_leads').select('valor_venda').eq('estagio', 'fechamento').not('valor_venda', 'is', null).gte('updated_at', startOfMonth.toISOString()),
-      // Valor vendido acumulado ANO: soma valor_venda dos leads fechados no ano
-      supabase.from('sdr_leads').select('valor_venda').eq('estagio', 'fechamento').not('valor_venda', 'is', null).gte('updated_at', startOfYear.toISOString()),
+      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').eq('human_takeover', true),
+      // Valor vendido acumulado MÊS (linha IO, fechados no mês corrente)
+      supabase.from('sdr_leads').select('valor_venda').eq('instance', 'io').eq('estagio', 'fechamento').not('valor_venda', 'is', null).gte('updated_at', startOfMonth.toISOString()),
+      // Valor vendido acumulado ANO (linha IO, fechados no ano corrente)
+      supabase.from('sdr_leads').select('valor_venda').eq('instance', 'io').eq('estagio', 'fechamento').not('valor_venda', 'is', null).gte('updated_at', startOfYear.toISOString()),
     ]);
 
     const total = totalRes.count ?? 0;
@@ -215,6 +217,7 @@ router.get('/sdr-metrics', async (_req: Request, res: Response) => {
       em_takeover: takeoverRes.count ?? 0,
       valor_vendido_mes: somaVendidoMes,
       valor_vendido_ano: somaVendidoAno,
+      meta_mes: 220000,
     });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao buscar métricas', detail: err instanceof Error ? err.message : String(err) });
