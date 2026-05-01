@@ -165,18 +165,18 @@ router.get('/sdr-metrics', async (_req: Request, res: Response) => {
   try {
     const now = new Date();
     const startOfDay = new Date(now); startOfDay.setHours(0,0,0,0);
-    const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - 7); startOfWeek.setHours(0,0,0,0);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
     const next24h = new Date(now.getTime() + 24*60*60*1000);
 
     const [
-      totalRes, hojeRes, semanaRes, mesRes,
+      totalRes, hojeRes, mesRes,
       quenteRes, fechamentoRes, frioRes, perdidoRes,
       agendadosRes, takeoverRes,
+      vendidoMesRes, vendidoAnoRes,
     ] = await Promise.all([
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }),
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).gte('created_at', startOfDay.toISOString()),
-      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).gte('created_at', startOfWeek.toISOString()),
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).gte('created_at', startOfMonth.toISOString()),
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('estagio', 'quente'),
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('estagio', 'fechamento'),
@@ -186,16 +186,23 @@ router.get('/sdr-metrics', async (_req: Request, res: Response) => {
         .gte('horario_iso', now.toISOString()).lte('horario_iso', next24h.toISOString())
         .order('horario_iso', { ascending: true }),
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('human_takeover', true),
+      // Valor vendido acumulado MÊS: soma valor_venda dos leads fechados criados/fechados no mês
+      supabase.from('sdr_leads').select('valor_venda').eq('estagio', 'fechamento').not('valor_venda', 'is', null).gte('updated_at', startOfMonth.toISOString()),
+      // Valor vendido acumulado ANO: soma valor_venda dos leads fechados no ano
+      supabase.from('sdr_leads').select('valor_venda').eq('estagio', 'fechamento').not('valor_venda', 'is', null).gte('updated_at', startOfYear.toISOString()),
     ]);
 
     const total = totalRes.count ?? 0;
     const fechados = fechamentoRes.count ?? 0;
     const conversao = total > 0 ? (fechados / total) * 100 : 0;
 
+    // Soma valor vendido acumulado
+    const somaVendidoMes = (vendidoMesRes.data ?? []).reduce((acc: number, r: any) => acc + (Number(r.valor_venda) || 0), 0);
+    const somaVendidoAno = (vendidoAnoRes.data ?? []).reduce((acc: number, r: any) => acc + (Number(r.valor_venda) || 0), 0);
+
     res.json({
       total,
       hoje: hojeRes.count ?? 0,
-      semana: semanaRes.count ?? 0,
       mes: mesRes.count ?? 0,
       por_estagio: {
         quente: quenteRes.count ?? 0,
@@ -206,6 +213,8 @@ router.get('/sdr-metrics', async (_req: Request, res: Response) => {
       conversao_pct: Number(conversao.toFixed(1)),
       agendados_24h: agendadosRes.data ?? [],
       em_takeover: takeoverRes.count ?? 0,
+      valor_vendido_mes: somaVendidoMes,
+      valor_vendido_ano: somaVendidoAno,
     });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao buscar métricas', detail: err instanceof Error ? err.message : String(err) });

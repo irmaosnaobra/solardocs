@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import api from '@/services/api';
+import './crm.css';
 
 // ── Tipos ─────────────────────────────────────────────────────────
 
@@ -54,12 +55,13 @@ interface PlatLead {
 interface Metrics {
   total: number;
   hoje: number;
-  semana: number;
   mes: number;
   por_estagio: Record<string, number>;
   conversao_pct: number;
   agendados_24h: any[];
   em_takeover: number;
+  valor_vendido_mes: number;
+  valor_vendido_ano: number;
 }
 
 interface Insights {
@@ -73,10 +75,10 @@ interface Insights {
 const SDR_COLS = [
   { id: 'reativacao', label: 'Reativação', emoji: '⚡', color: '#a855f7', bg: 'rgba(168,85,247,0.1)',   border: 'rgba(168,85,247,0.3)' },
   { id: 'novo',       label: 'Novo',       emoji: '🆕', color: '#64748b', bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.3)' },
+  { id: 'frio',       label: 'Frio',       emoji: '🔵', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.3)' },
   { id: 'morno',      label: 'Morno',      emoji: '🟡', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',   border: 'rgba(245,158,11,0.3)' },
   { id: 'quente',     label: 'Quente',     emoji: '🔴', color: '#ef4444', bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.3)' },
   { id: 'fechamento', label: 'Fechado',    emoji: '✅', color: '#22c55e', bg: 'rgba(34,197,94,0.1)',    border: 'rgba(34,197,94,0.3)' },
-  { id: 'frio',       label: 'Frio',       emoji: '🔵', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.3)' },
   { id: 'perdido',    label: 'Perdido',    emoji: '❌', color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)' },
 ];
 
@@ -112,6 +114,14 @@ function fmtPhone(p: string) {
   // 10 dígitos (DDD + 8 dígitos sem 9): 34 9999-9999
   if (local.length === 10) return `${local.slice(0,2)} ${local.slice(2,6)}-${local.slice(6,10)}`;
   return p;
+}
+
+function fmtMoney(v?: number | null): string {
+  if (v == null || isNaN(Number(v))) return 'R$ 0';
+  const n = Number(v);
+  if (n >= 1_000_000) return `R$ ${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `R$ ${(n / 1_000).toFixed(1)}k`;
+  return `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 function timeAgo(iso?: string | null): string {
@@ -467,7 +477,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
       display: 'flex', justifyContent: 'flex-end',
     }}>
-      <div onClick={e => e.stopPropagation()} style={{
+      <div className="crm-drawer" onClick={e => e.stopPropagation()} style={{
         width: '100%', maxWidth: 560, height: '100vh', overflowY: 'auto',
         background: 'var(--color-bg)', borderLeft: '1px solid var(--color-border)',
         padding: 24,
@@ -779,7 +789,7 @@ export default function CrmPage() {
   return (
     <div style={{ padding: '0 0 40px' }}>
       {/* Header */}
-      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div className="crm-header" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>📋 CRM</h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: 0 }}>
@@ -807,7 +817,7 @@ export default function CrmPage() {
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onImport={fetchAll} />}
 
       {/* Tabs — Solar e Plataforma SEPARADOS, sem misturar */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div className="crm-tabs" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         {[
           { id: 'solar' as const, label: '☀️ CRM Solar (IO)', count: sdrLeads.length },
           { id: 'plataforma' as const, label: '💼 Plataforma SolarDoc', count: totalPlat },
@@ -828,21 +838,24 @@ export default function CrmPage() {
       {tab === 'solar' && (
         <>
           {metrics && (
-            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div className="crm-metrics" style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
               <MetricCard label="Hoje" value={metrics.hoje} color="var(--color-primary)" />
-              <MetricCard label="Semana" value={metrics.semana} />
               <MetricCard label="Mês" value={metrics.mes} />
               <MetricCard label="Total" value={metrics.total} />
               <MetricCard label="Quentes" value={metrics.por_estagio.quente || 0} color="#ef4444" />
               <MetricCard label="Fechamentos" value={metrics.por_estagio.fechamento || 0} color="#22c55e" />
               <MetricCard label="Conversão" value={`${metrics.conversao_pct}%`} color="#22c55e" />
+              <MetricCard label="💰 Vendido Mês" value={fmtMoney(metrics.valor_vendido_mes)} color="#22c55e"
+                subtitle={`R$ ${(metrics.valor_vendido_mes || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} />
+              <MetricCard label="💰 Vendido Ano" value={fmtMoney(metrics.valor_vendido_ano)} color="#f59e0b"
+                subtitle={`R$ ${(metrics.valor_vendido_ano || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} />
               <MetricCard label="Em takeover" value={metrics.em_takeover} color="#a855f7" />
               <MetricCard label="Agendados (24h)" value={metrics.agendados_24h.length} color="#f59e0b"
                 subtitle={metrics.agendados_24h.length > 0 ? `próximo: ${metrics.agendados_24h[0]?.nome || '—'}` : 'nenhum'} />
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="crm-filters" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Filtros:</span>
 
             <FilterChip label="Consultor" value={filters.consultor} options={[
@@ -877,7 +890,7 @@ export default function CrmPage() {
           {loading ? (
             <p style={{ color: 'var(--color-text-muted)', padding: 40, textAlign: 'center' }}>Carregando...</p>
           ) : (
-            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
+            <div className="crm-kanban-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
               {SDR_COLS.map(col => {
                 let colLeads = sdrFiltrados.filter(l => l.estagio === col.id);
                 // Fechamento: ordena por codigo_contrato DESC (#0045 no topo, #0001 embaixo)
