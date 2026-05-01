@@ -41,6 +41,8 @@ interface SdrLead {
   qualif_aumento_consumo?: boolean | null;
 
   consultor?: string | null;
+  valor_venda?: number | null;
+  codigo_contrato?: string | null;
 }
 
 interface PlatLead {
@@ -158,7 +160,7 @@ function KanbanCol({ col, children, count, onDropPhone, isDragOver, onDragEnter,
   onDragLeave?: () => void;
 }) {
   return (
-    <div style={{ minWidth: 260, flex: '0 0 260px' }}
+    <div style={{ minWidth: 320, flex: '0 0 320px' }}
       onDragOver={(e) => { if (onDropPhone) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
       onDragEnter={(e) => { if (onDropPhone) { e.preventDefault(); onDragEnter?.(); } }}
       onDragLeave={onDragLeave}
@@ -282,6 +284,25 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor }: {
         </div>
       )}
 
+      {lead.estagio === 'fechamento' && (
+        <div style={{
+          background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.25)',
+          borderRadius: 6, padding: '6px 10px', marginBottom: 6,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6,
+        }}>
+          {lead.codigo_contrato && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#22c55e' }}>
+              {lead.codigo_contrato}
+            </span>
+          )}
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#22c55e', marginLeft: 'auto' }}>
+            {lead.valor_venda != null && lead.valor_venda > 0
+              ? `R$ ${Number(lead.valor_venda).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : 'sem valor'}
+          </span>
+        </div>
+      )}
+
       {qualif.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 6 }}>
           {qualif.map((q, i) => (
@@ -357,12 +378,14 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
   const [notas, setNotas] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [msgManual, setMsgManual] = useState('');
+  const [valorVenda, setValorVenda] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!lead) return;
     setNotas(lead.notas_internas || '');
     setTagsInput((lead.tags || []).join(', '));
+    setValorVenda(lead.valor_venda != null ? String(lead.valor_venda) : '');
     setInsights(null);
     api.get(`/admin/sdr-leads/${lead.phone}/history`)
       .then(r => setHistory(r.data.messages || []))
@@ -386,6 +409,16 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
     setBusy(true);
     await api.patch(`/admin/sdr-leads/${lead.phone}/notas`, { notas });
     setBusy(false);
+  }
+
+  async function salvarValorVenda() {
+    if (!lead) return;
+    setBusy(true);
+    const v = valorVenda.replace(/\./g, '').replace(',', '.');
+    const num = v === '' ? null : Number(v);
+    await api.patch(`/admin/sdr-leads/${lead.phone}/valor-venda`, { valor: num });
+    setBusy(false);
+    onUpdate();
   }
 
   async function salvarTags() {
@@ -513,6 +546,23 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
               }}>↻ Regenerar</button>
             </div>
           )}
+        </div>
+
+        {/* Valor da venda */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>💰 Valor da venda (R$)</label>
+          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+            <input type="text" value={valorVenda} onChange={e => setValorVenda(e.target.value)}
+              onBlur={salvarValorVenda}
+              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+              placeholder="Ex: 12990 ou 12990.00"
+              style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontSize: 13, fontWeight: 700 }} />
+            {lead.codigo_contrato && (
+              <span style={{ padding: '6px 10px', borderRadius: 6, background: 'rgba(34,197,94,0.1)', color: '#22c55e', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+                {lead.codigo_contrato}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Consultor */}
@@ -829,7 +879,13 @@ export default function CrmPage() {
           ) : (
             <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
               {SDR_COLS.map(col => {
-                const colLeads = sdrFiltrados.filter(l => l.estagio === col.id);
+                let colLeads = sdrFiltrados.filter(l => l.estagio === col.id);
+                // Fechamento: ordena por codigo_contrato DESC (#0045 no topo, #0001 embaixo)
+                if (col.id === 'fechamento') {
+                  colLeads = [...colLeads].sort((a, b) =>
+                    (b.codigo_contrato || '').localeCompare(a.codigo_contrato || '')
+                  );
+                }
                 return (
                   <KanbanCol
                     key={col.id} col={col} count={colLeads.length}

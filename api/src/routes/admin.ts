@@ -126,6 +126,23 @@ router.post('/sdr-leads/import', async (req: Request, res: Response) => {
   } catch (err) { res.status(500).json({ error: err instanceof Error ? err.message : String(err) }); }
 });
 
+// Atualiza valor da venda (pra fechados ou quando agendar)
+router.patch('/sdr-leads/:phone/valor-venda', async (req: Request, res: Response) => {
+  try {
+    const phone = String(req.params.phone || '');
+    const valorRaw = (req.body as any)?.valor;
+    const valor = valorRaw === null || valorRaw === '' ? null : Number(valorRaw);
+    if (valor !== null && (isNaN(valor) || valor < 0)) {
+      res.status(400).json({ error: 'valor inválido' }); return;
+    }
+    await supabase.from('sdr_leads').update({
+      valor_venda: valor,
+      updated_at: new Date().toISOString(),
+    }).eq('phone', phone);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Erro ao salvar valor' }); }
+});
+
 // Atribui consultor responsável pelo lead
 const CONSULTORES = ['diego', 'giovanna', 'nilce', 'thiago'];
 router.patch('/sdr-leads/:phone/consultor', async (req: Request, res: Response) => {
