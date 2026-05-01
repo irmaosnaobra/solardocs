@@ -6,7 +6,7 @@ import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/w
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
 import { pollZapiMessages } from '../services/agents/sdr/sdrAgentService';
-import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, cleanupPerdidosAntigos } from '../services/agents/sdr/sdrIoPolling';
+import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, cleanupPerdidosAntigos, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -108,7 +108,7 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, pollIoResult, takeoverResult, lembretesResult, revisaoResult, reativacaoResult, cleanupResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, takeoverResult, lembretesResult, revisaoResult, reativacaoResult, cleanupResult, relatorioResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),
@@ -117,6 +117,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       revisarLeadsLuma(),
       processarReativacao(),
       cleanupPerdidosAntigos(),
+      enviarRelatorioDiario(),
     ]);
     res.json({
       ok: true,
@@ -128,6 +129,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       revisao:    revisaoResult.status === 'fulfilled' ? revisaoResult.value : { error: String((revisaoResult as any).reason) },
       reativacao: reativacaoResult.status === 'fulfilled' ? reativacaoResult.value : { error: String((reativacaoResult as any).reason) },
       cleanup:    cleanupResult.status === 'fulfilled' ? cleanupResult.value : { error: String((cleanupResult as any).reason) },
+      relatorio:  relatorioResult.status === 'fulfilled' ? relatorioResult.value : { error: String((relatorioResult as any).reason) },
     });
   } catch (err) {
     logger.error('cron', 'process-messages falhou', err);

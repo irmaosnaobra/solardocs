@@ -95,6 +95,208 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
   return { processed, skipped, errors };
 }
 
+// ─── Relatório diário às 21h BRT — enviado no grupo ─────────────────
+//
+// Compila números do dia + acumulado do mês, compara com meta R$220k,
+// gera pontos positivos/negativos + dicas via Claude Haiku, manda no
+// grupo "Agendamento". Dedup via system_state (1x por dia).
+
+const META_MES = 220000;
+const RELATORIO_HORA_BRT = 21; // 21h Brasília
+const RELATORIO_KEY = 'ultimo_relatorio_diario_io';
+
+function fmtBR(n: number): string {
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function diasUteisRestantesMes(): number {
+  const agora = new Date(Date.now() - 3 * 60 * 60 * 1000); // BRT
+  const ano = agora.getUTCFullYear();
+  const mes = agora.getUTCMonth();
+  const ultimoDia = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
+  let count = 0;
+  for (let d = agora.getUTCDate() + 1; d <= ultimoDia; d++) {
+    const dt = new Date(Date.UTC(ano, mes, d));
+    const dow = dt.getUTCDay();
+    const iso = dt.toISOString().slice(0, 10);
+    if (dow === 0 || dow === 6) continue;
+    if (FERIADOS_BR_LUMA.has(iso)) continue;
+    count++;
+  }
+  return count;
+}
+
+export async function enviarRelatorioDiario(): Promise<{ enviado: boolean; motivo?: string }> {
+  // Só dispara entre 21:00 e 21:10 BRT pra dar margem se cron atrasar
+  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const hora = brt.getUTCHours();
+  const min = brt.getUTCMinutes();
+  if (hora !== RELATORIO_HORA_BRT || min > 10) {
+    return { enviado: false, motivo: 'fora da janela 21:00-21:10 BRT' };
+  }
+
+  // Dedup: já mandou hoje?
+  const hojeISO = brt.toISOString().slice(0, 10);
+  const { data: estado } = await supabase
+    .from('system_state').select('value').eq('key', RELATORIO_KEY).maybeSingle();
+  if (estado?.value && (estado.value as any).data === hojeISO) {
+    return { enviado: false, motivo: 'já enviado hoje' };
+  }
+
+  // Coleta números
+  const startOfDay = new Date(brt); startOfDay.setUTCHours(0, 0, 0, 0);
+  const startDayUTC = new Date(startOfDay.getTime() + 3 * 60 * 60 * 1000).toISOString();
+  const startOfMonth = new Date(Date.UTC(brt.getUTCFullYear(), brt.getUTCMonth(), 1)).toISOString();
+
+  const [
+    leadsHoje, agendadosHoje, fechadosHoje, reativacaoHoje,
+    fechadosMes, vendidoMes, totalLeads,
+    porEstagio, perdidosHoje, descartadosHoje,
+  ] = await Promise.all([
+    supabase.from('sdr_leads').select('phone', { count: 'exact', head: true })
+      .eq('instance', 'io').gte('created_at', startDayUTC),
+    supabase.from('sdr_leads').select('phone', { count: 'exact', head: true })
+      .eq('instance', 'io').gte('agendado_at', startDayUTC),
+    supabase.from('sdr_leads').select('phone, valor_venda, codigo_contrato, nome, consultor')
+      .eq('instance', 'io').eq('estagio', 'fechamento').gte('updated_at', startDayUTC),
+    supabase.from('sdr_leads').select('phone', { count: 'exact', head: true })
+      .eq('instance', 'io').gte('reativacao_enviada_at', startDayUTC),
+    supabase.from('sdr_leads').select('phone, valor_venda, consultor')
+      .eq('instance', 'io').eq('estagio', 'fechamento').gte('updated_at', startOfMonth),
+    supabase.from('sdr_leads').select('valor_venda')
+      .eq('instance', 'io').eq('estagio', 'fechamento').not('valor_venda', 'is', null).gte('updated_at', startOfMonth),
+    supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io'),
+    supabase.from('sdr_leads').select('estagio').eq('instance', 'io'),
+    supabase.from('sdr_leads').select('phone', { count: 'exact', head: true })
+      .eq('instance', 'io').eq('estagio', 'perdido').gte('updated_at', startDayUTC),
+    supabase.from('webhook_debug').select('id', { count: 'exact', head: true })
+      .gte('created_at', startDayUTC),
+  ]);
+
+  const somaMes = (vendidoMes.data ?? []).reduce((a: number, r: any) => a + (Number(r.valor_venda) || 0), 0);
+  const somaHoje = (fechadosHoje.data ?? []).reduce((a: number, r: any) => a + (Number(r.valor_venda) || 0), 0);
+  const pctMeta = (somaMes / META_MES) * 100;
+  const faltaMeta = Math.max(0, META_MES - somaMes);
+  const diasRest = diasUteisRestantesMes();
+  const ritmoNec = diasRest > 0 ? faltaMeta / diasRest : 0;
+
+  // Por estágio
+  const estagioMap: Record<string, number> = {};
+  for (const r of (porEstagio.data ?? [])) estagioMap[r.estagio] = (estagioMap[r.estagio] || 0) + 1;
+
+  // Por consultor (mês)
+  const consultorMes: Record<string, { count: number; valor: number }> = {};
+  for (const r of (fechadosMes.data ?? [])) {
+    const k = r.consultor || 'sem';
+    if (!consultorMes[k]) consultorMes[k] = { count: 0, valor: 0 };
+    consultorMes[k].count++;
+    consultorMes[k].valor += Number(r.valor_venda) || 0;
+  }
+
+  // Dicas via IA
+  let dicas = '';
+  try {
+    const r = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      system: `Você é coach de vendas da Irmãos na Obra. Recebe os números do dia e gera 2-3 dicas práticas e diretas pra equipe bater a meta. Tom: motivacional mas sem frescura, focado em ação concreta. Cada dica em 1 frase. Não use bullets repetidos, sem emoji excessivo.`,
+      messages: [{
+        role: 'user',
+        content: `META MÊS: R$ ${fmtBR(META_MES)} | VENDIDO: R$ ${fmtBR(somaMes)} (${pctMeta.toFixed(1)}%) | DIAS ÚTEIS RESTANTES: ${diasRest} | RITMO NECESSÁRIO/DIA: R$ ${fmtBR(ritmoNec)}
+
+HOJE: ${leadsHoje.count} leads novos · ${agendadosHoje.count} agendamentos · ${(fechadosHoje.data?.length || 0)} fechamentos (R$ ${fmtBR(somaHoje)}) · ${reativacaoHoje.count} reativações enviadas · ${perdidosHoje.count} perdidos
+
+PIPELINE: ${estagioMap.quente || 0} quente · ${estagioMap.morno || 0} morno · ${estagioMap.novo || 0} novo · ${estagioMap.reativacao || 0} reativação
+
+Gere 3 dicas práticas curtas pra a equipe (Diego, Giovanna, Nilce, Thiago) bater meta. Saída: linhas começando com • (bullet).`,
+      }],
+    });
+    dicas = (r.content[0] as { text: string }).text.trim();
+  } catch {
+    dicas = '• Foque nos leads quentes que estão aguardando agendamento\n• Reative quem tá em "morno" sem resposta há mais de 3 dias\n• Liga pra quem agendou mas ainda não fechou';
+  }
+
+  // Pontos positivos / negativos automáticos
+  const positivos: string[] = [];
+  const negativos: string[] = [];
+
+  if (somaHoje > 0) positivos.push(`R$ ${fmtBR(somaHoje)} fechado hoje (${fechadosHoje.data?.length} contrato${(fechadosHoje.data?.length || 0) > 1 ? 's' : ''})`);
+  if ((agendadosHoje.count || 0) >= 3) positivos.push(`${agendadosHoje.count} agendamentos novos — pipeline cheio`);
+  if (pctMeta >= 50) positivos.push(`${pctMeta.toFixed(0)}% da meta já cumprida`);
+  if (Object.keys(consultorMes).filter(k => k !== 'sem').length >= 3) positivos.push('Equipe inteira engajada (3+ consultores fechando)');
+
+  if (somaHoje === 0) negativos.push('NENHUM fechamento hoje — atenção redobrada amanhã');
+  if ((agendadosHoje.count || 0) === 0) negativos.push('Zero agendamentos novos hoje — preciso aquecer leads');
+  if ((estagioMap.quente || 0) > 5 && somaHoje === 0) negativos.push(`${estagioMap.quente} leads quentes sem fechar — onde tá o gargalo?`);
+  if (ritmoNec > somaHoje * 1.5 && diasRest > 0) negativos.push(`Ritmo necessário: R$ ${fmtBR(ritmoNec)}/dia útil pra bater meta`);
+  if (pctMeta < 30 && diasRest < 10) negativos.push(`⚠️ Apenas ${pctMeta.toFixed(0)}% da meta com ${diasRest} dias úteis restantes`);
+
+  if (positivos.length === 0) positivos.push('Dia neutro — vamo pra cima amanhã');
+  if (negativos.length === 0) negativos.push('Sem alertas — equipe rodando bem');
+
+  // Top consultor mês
+  const topConsultor = Object.entries(consultorMes)
+    .filter(([k]) => k !== 'sem')
+    .sort((a, b) => b[1].valor - a[1].valor)[0];
+
+  // Card final
+  const dataBR = brt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+  const card = [
+    `📊 *RELATÓRIO DIÁRIO — IRMÃOS NA OBRA*`,
+    `━━━━━━━━━━━━━━━━━━━━━━━`,
+    `📅 ${dataBR}`,
+    ``,
+    `🎯 *META DO MÊS*`,
+    `R$ ${fmtBR(somaMes)} / R$ ${fmtBR(META_MES)}  (${pctMeta.toFixed(1)}%)`,
+    diasRest > 0 ? `Faltam ${diasRest} dias úteis · ritmo necessário R$ ${fmtBR(ritmoNec)}/dia` : 'Último dia útil do mês',
+    ``,
+    `✅ *HOJE*`,
+    `• Leads novos: ${leadsHoje.count || 0}`,
+    `• Reativações enviadas: ${reativacaoHoje.count || 0}`,
+    `• Agendamentos: ${agendadosHoje.count || 0}`,
+    `• Fechamentos: ${fechadosHoje.data?.length || 0} (R$ ${fmtBR(somaHoje)})`,
+    `• Perdidos: ${perdidosHoje.count || 0}`,
+    ``,
+    `📈 *PIPELINE ATUAL*`,
+    `• 🔴 Quente: ${estagioMap.quente || 0}`,
+    `• 🟡 Morno: ${estagioMap.morno || 0}`,
+    `• 🆕 Novo: ${estagioMap.novo || 0}`,
+    `• ⚡ Reativação: ${estagioMap.reativacao || 0}`,
+    `• ✅ Fechado: ${estagioMap.fechamento || 0}`,
+    `Total: ${totalLeads.count || 0} leads`,
+    ``,
+    topConsultor ? `🏆 *TOP CONSULTOR DO MÊS*\n${topConsultor[0].toUpperCase()}: R$ ${fmtBR(topConsultor[1].valor)} (${topConsultor[1].count} contrato${topConsultor[1].count > 1 ? 's' : ''})` : '',
+    ``,
+    `🚀 *PONTOS POSITIVOS*`,
+    ...positivos.map(p => `• ${p}`),
+    ``,
+    `⚠️ *PONTOS DE ATENÇÃO*`,
+    ...negativos.map(n => `• ${n}`),
+    ``,
+    `💡 *DICAS DA LUMA PRA AMANHÃ*`,
+    dicas,
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━`,
+    `🔗 CRM completo: https://solardoc.app/crm`,
+  ].filter(s => s !== null && s !== undefined).join('\n');
+
+  // Envia pro grupo
+  const groupId = process.env.ZAPI_IO_GROUP_ID?.trim() || '120363424419098566-group';
+  try {
+    await sendToGroup(groupId, card, 'io');
+    // Marca como enviado
+    await supabase.from('system_state').upsert({
+      key: RELATORIO_KEY,
+      value: { data: hojeISO, enviado_at: new Date().toISOString() },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'key' });
+    return { enviado: true };
+  } catch (err) {
+    logger.error('relatorio-diario', 'falha ao enviar', err);
+    return { enviado: false, motivo: 'falha no envio' };
+  }
+}
+
 // ─── Auto-cleanup: deleta leads em "perdido" há mais de 45 dias ─────
 //
 // Lead vira "perdido" quando para de responder (após follow-ups esgotarem)
