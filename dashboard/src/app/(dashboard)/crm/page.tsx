@@ -892,7 +892,7 @@ export default function CrmPage() {
           {loading ? (
             <p style={{ color: 'var(--color-text-muted)', padding: 40, textAlign: 'center' }}>Carregando...</p>
           ) : (
-            <div className="crm-kanban-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
+            <div className="crm-kanban-scroll" style={{ display: 'flex', flexWrap: 'nowrap', gap: 12, paddingBottom: 16, alignItems: 'flex-start' }}>
               {SDR_COLS.map(col => {
                 let colLeads = sdrFiltrados.filter(l => l.estagio === col.id);
                 // Fechamento: ordena por codigo_contrato DESC (#0045 no topo, #0001 embaixo)

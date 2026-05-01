@@ -1,25 +1,44 @@
-/* Scrollbar horizontal sempre visível e estilizada no Kanban */
+/* Scrollbar horizontal SEMPRE visível e estilizada no Kanban */
 .crm-kanban-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-primary, #63b3ed) transparent;
+  overflow-x: scroll !important;
+  overflow-y: hidden;
+  flex-wrap: nowrap !important;
+  scrollbar-width: auto;
+  scrollbar-color: rgba(99, 179, 237, 0.7) rgba(100, 116, 139, 0.15);
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  /* Garante que o conteúdo NÃO encolha pra caber no parent */
+  width: 100%;
+  max-width: 100%;
+}
+.crm-kanban-scroll > * {
+  flex-shrink: 0 !important;
 }
 .crm-kanban-scroll::-webkit-scrollbar {
-  height: 12px;
+  height: 14px;
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
 }
 .crm-kanban-scroll::-webkit-scrollbar-track {
-  background: rgba(100, 116, 139, 0.08);
-  border-radius: 6px;
+  background: rgba(100, 116, 139, 0.15);
+  border-radius: 8px;
+  margin: 0 4px;
 }
 .crm-kanban-scroll::-webkit-scrollbar-thumb {
-  background: rgba(99, 179, 237, 0.5);
-  border-radius: 6px;
+  background: rgba(99, 179, 237, 0.7);
+  border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
+  min-width: 60px;
 }
 .crm-kanban-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 179, 237, 0.8);
+  background: rgba(99, 179, 237, 1);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+.crm-kanban-scroll::-webkit-scrollbar-thumb:active {
+  background: rgba(56, 161, 240, 1);
   background-clip: padding-box;
   border: 2px solid transparent;
 }
