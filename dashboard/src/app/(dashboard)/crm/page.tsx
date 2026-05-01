@@ -105,13 +105,15 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
 }
 
+// Phone pode vir com sufixo "#0042" pra leads de venda múltipla. Strip pra exibir.
+function stripPhoneSuffix(p: string): string {
+  return (p || '').split('#')[0];
+}
+
 function fmtPhone(p: string) {
-  const d = (p || '').replace(/\D/g, '');
-  // Remove código país BR (55) se presente
+  const d = stripPhoneSuffix(p).replace(/\D/g, '');
   const local = d.startsWith('55') && d.length >= 12 ? d.slice(2) : d;
-  // 11 dígitos (DDD + 9 + 8 dígitos): 34 99999-9999
   if (local.length === 11) return `${local.slice(0,2)} ${local.slice(2,7)}-${local.slice(7,11)}`;
-  // 10 dígitos (DDD + 8 dígitos sem 9): 34 9999-9999
   if (local.length === 10) return `${local.slice(0,2)} ${local.slice(2,6)}-${local.slice(6,10)}`;
   return p;
 }
@@ -338,7 +340,7 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor }: {
       )}
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }} onClick={e => e.stopPropagation()}>
-        <a href={`https://wa.me/${lead.phone}`} target="_blank" rel="noopener noreferrer"
+        <a href={`https://wa.me/${stripPhoneSuffix(lead.phone)}`} target="_blank" rel="noopener noreferrer"
           style={{ padding: '3px 8px', borderRadius: 6, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 10, textDecoration: 'none' }}>💬</a>
         <select value={lead.estagio} onChange={e => onMove(lead.phone, e.target.value)}
           style={{ fontSize: 10, padding: '2px 4px', borderRadius: 6, border: `1px solid ${col.border}`, background: col.bg, color: col.color, fontWeight: 700, cursor: 'pointer', flex: 1 }}>
