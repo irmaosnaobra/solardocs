@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import api from '@/services/api';
 import './crm.css';
@@ -711,7 +712,9 @@ interface FilterState {
 }
 
 export default function CrmPage() {
-  const [tab, setTab] = useState<'solar' | 'plataforma'>('solar');
+  const searchParams = useSearchParams();
+  const initialTab: 'solar' | 'plataforma' = searchParams.get('tab') === 'plataforma' ? 'plataforma' : 'solar';
+  const [tab, setTab] = useState<'solar' | 'plataforma'>(initialTab);
   const [sdrLeads, setSdrLeads] = useState<SdrLead[]>([]);
   const [platCols, setPlatCols] = useState<Record<string, PlatLead[]>>({});
   const [metrics, setMetrics] = useState<Metrics | null>(null);
