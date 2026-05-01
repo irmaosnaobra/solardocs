@@ -4,156 +4,294 @@
   50%      { opacity: 0.6; transform: scale(1.15); }
 }
 
-/* Scrollbars GRANDES pra fácil clique com mouse — horizontal Kanban */
-.crm-kanban-scroll {
-  overflow-x: scroll !important;
-  overflow-y: hidden;
-  flex-wrap: nowrap !important;
-  scrollbar-width: auto;
-  scrollbar-color: #f59e0b rgba(100, 116, 139, 0.25);
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  width: 100%;
-  max-width: 100%;
-  /* paddingBottom maior pra dar respiro pra scrollbar */
-  padding-bottom: 24px !important;
+/* ─────────────────────────────────────────────────────────────────
+   SHELL: o CRM ocupa exatamente a área visível abaixo do layout pai.
+   Layout pai (.main) tem padding 32px (desktop) e padding 16px + topbar
+   72px (mobile). Subtraímos pra zerar scroll vertical da página inteira.
+───────────────────────────────────────────────────────────────── */
+.crm-shell {
+  height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
 }
-.crm-kanban-scroll > * {
-  flex-shrink: 0 !important;
-}
-.crm-kanban-scroll::-webkit-scrollbar {
-  height: 22px;
-  -webkit-appearance: none;
-  appearance: none;
-  display: block;
-}
-.crm-kanban-scroll::-webkit-scrollbar-track {
-  background: rgba(100, 116, 139, 0.25);
-  border-radius: 12px;
-  margin: 0 4px;
-}
-.crm-kanban-scroll::-webkit-scrollbar-thumb {
-  background: #f59e0b;
-  border-radius: 12px;
-  border: 3px solid transparent;
-  background-clip: padding-box;
-  min-width: 80px;
-  cursor: grab;
-}
-.crm-kanban-scroll::-webkit-scrollbar-thumb:hover {
-  background: #d97706;
-  background-clip: padding-box;
-  border: 3px solid transparent;
-}
-.crm-kanban-scroll::-webkit-scrollbar-thumb:active {
-  background: #b45309;
-  background-clip: padding-box;
-  border: 3px solid transparent;
-  cursor: grabbing;
+@media (max-width: 768px) {
+  .crm-shell {
+    height: calc(100vh - 104px);
+    gap: 6px;
+  }
 }
 
-/* Scrollbar VERTICAL grande dentro de cada coluna do Kanban (.crm-col-body)
-   e dentro do drawer e do histórico de conversas */
-.crm-col-body,
+/* Linhas do header — flex-shrink:0 pra Kanban herdar todo flex:1 restante */
+.crm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+.crm-row-1 { min-height: 36px; }
+.crm-row-2 { min-height: 44px; }
+
+/* Título compacto */
+.crm-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
+}
+.crm-title h1 {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+.crm-title .crm-subtitle {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Métricas inline (pílulas pequenas) */
+.crm-metrics-inline {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245,158,11,0.6) transparent;
+}
+.crm-metrics-inline::-webkit-scrollbar { height: 4px; }
+.crm-metrics-inline::-webkit-scrollbar-thumb { background: rgba(245,158,11,0.6); border-radius: 4px; }
+
+.crm-metric-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.crm-metric-pill .crm-metric-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--color-text-muted);
+}
+.crm-metric-pill .crm-metric-value {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Tira de filtros 32px com selects pequenos */
+.crm-filters-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.crm-filters-strip::-webkit-scrollbar { height: 4px; }
+.crm-filters-strip::-webkit-scrollbar-thumb { background: rgba(99,179,237,0.5); border-radius: 4px; }
+
+.crm-filter-mini {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 28px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.crm-filter-mini.active {
+  border-color: var(--color-primary);
+  background: rgba(99,179,237,0.12);
+  color: var(--color-primary);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ÁREA DO KANBAN — flex:1 ocupa o resto da tela
+   Desktop: grid 7 colunas, mobile: flex horizontal com scroll-snap
+───────────────────────────────────────────────────────────────── */
+.crm-kanban-area {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  min-height: 0;
+  overflow: hidden;
+}
+.crm-kanban-area > .crm-kanban-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Header da coluna do Kanban */
+.crm-col-head {
+  padding: 6px 10px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Corpo da coluna — ÚNICO scroll vertical do Kanban */
+.crm-col-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #f59e0b rgba(100,116,139,0.2);
+}
+.crm-col-body::-webkit-scrollbar { width: 8px; }
+.crm-col-body::-webkit-scrollbar-track { background: rgba(100,116,139,0.15); border-radius: 6px; }
+.crm-col-body::-webkit-scrollbar-thumb {
+  background: #f59e0b;
+  border-radius: 6px;
+  min-height: 40px;
+}
+.crm-col-body::-webkit-scrollbar-thumb:hover { background: #d97706; }
+
+/* ─────────────────────────────────────────────────────────────────
+   TAB PLATAFORMA — mantém scroll horizontal com colunas largas
+───────────────────────────────────────────────────────────────── */
+.crm-plat-scroll {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: stretch;
+  min-height: 0;
+  padding-bottom: 8px;
+  scrollbar-width: auto;
+  scrollbar-color: #f59e0b rgba(100,116,139,0.25);
+}
+.crm-plat-scroll > .crm-kanban-col {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+}
+.crm-plat-scroll::-webkit-scrollbar { height: 14px; }
+.crm-plat-scroll::-webkit-scrollbar-track { background: rgba(100,116,139,0.2); border-radius: 8px; }
+.crm-plat-scroll::-webkit-scrollbar-thumb { background: #f59e0b; border-radius: 8px; min-width: 60px; }
+.crm-plat-scroll::-webkit-scrollbar-thumb:hover { background: #d97706; }
+
+/* Drawer e history mantêm a scrollbar visível pra clique fácil */
 .crm-drawer,
 .crm-history,
 .crm-drawer-overlay > div {
   scrollbar-width: auto;
-  scrollbar-color: #f59e0b rgba(100, 116, 139, 0.2);
+  scrollbar-color: #f59e0b rgba(100,116,139,0.2);
 }
-.crm-col-body::-webkit-scrollbar,
 .crm-drawer::-webkit-scrollbar,
-.crm-history::-webkit-scrollbar {
-  width: 16px;
-}
-.crm-col-body::-webkit-scrollbar-track,
+.crm-history::-webkit-scrollbar { width: 14px; }
 .crm-drawer::-webkit-scrollbar-track,
 .crm-history::-webkit-scrollbar-track {
-  background: rgba(100, 116, 139, 0.2);
-  border-radius: 10px;
+  background: rgba(100,116,139,0.2); border-radius: 8px;
 }
-.crm-col-body::-webkit-scrollbar-thumb,
 .crm-drawer::-webkit-scrollbar-thumb,
 .crm-history::-webkit-scrollbar-thumb {
-  background: #f59e0b;
-  border-radius: 10px;
-  border: 3px solid transparent;
-  background-clip: padding-box;
-  min-height: 60px;
+  background: #f59e0b; border-radius: 8px; min-height: 50px;
 }
-.crm-col-body::-webkit-scrollbar-thumb:hover,
 .crm-drawer::-webkit-scrollbar-thumb:hover,
-.crm-history::-webkit-scrollbar-thumb:hover {
-  background: #d97706;
-  background-clip: padding-box;
-  border: 3px solid transparent;
-}
+.crm-history::-webkit-scrollbar-thumb:hover { background: #d97706; }
 
-/* Responsividade — mobile (até 768px) */
+/* ─────────────────────────────────────────────────────────────────
+   MOBILE (≤768px) — Kanban swipe horizontal, header empilha
+───────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  /* Header empilha vertical */
-  .crm-header {
-    flex-direction: column !important;
-    align-items: stretch !important;
+  .crm-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
   }
-  .crm-header > div {
+  .crm-row > * {
     width: 100%;
   }
-  .crm-header input[type='text'] {
+  .crm-title {
+    justify-content: space-between;
+  }
+  .crm-row-1 input[type='text'] {
     width: 100% !important;
   }
 
-  /* Métricas: 2 por linha em vez de várias */
-  .crm-metrics {
-    gap: 6px !important;
-  }
-  .crm-metrics > div {
-    flex: 1 1 calc(50% - 4px) !important;
-    min-width: 0 !important;
-    padding: 10px 12px !important;
-  }
-  .crm-metrics > div > div:nth-child(2) {
-    font-size: 18px !important;
+  /* Métricas: scroll horizontal no mobile, mais respiro */
+  .crm-metrics-inline {
+    flex-wrap: nowrap;
   }
 
-  /* Tabs ocupam largura toda */
-  .crm-tabs button {
-    flex: 1;
-    padding: 10px 12px !important;
-    font-size: 13px !important;
+  /* Filtros: continua scroll horizontal */
+  .crm-filters-strip {
+    flex-wrap: nowrap;
   }
 
-  /* Filtros: chips maiores e mais espaçados */
-  .crm-filters {
-    gap: 8px !important;
+  /* Kanban vira swipe horizontal com snap */
+  .crm-kanban-area {
+    display: flex;
+    grid-template-columns: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #f59e0b rgba(100,116,139,0.25);
   }
-  .crm-filters .crm-filter-chip {
-    font-size: 13px !important;
-    padding: 12px 16px !important;
-    min-height: 44px !important;
-    flex: 1 1 calc(50% - 4px);
+  .crm-kanban-area::-webkit-scrollbar { height: 6px; }
+  .crm-kanban-area::-webkit-scrollbar-thumb { background: #f59e0b; border-radius: 4px; }
+  .crm-kanban-area > .crm-kanban-col {
+    flex: 0 0 85vw;
+    min-width: 85vw;
+    scroll-snap-align: start;
   }
 
-  /* Colunas do Kanban ficam mais estreitas */
-  .crm-kanban-scroll > div {
-    min-width: 280px !important;
-    flex-basis: 280px !important;
+  /* Plat tab: cada coluna ocupa 85vw também */
+  .crm-plat-scroll > .crm-kanban-col {
+    flex: 0 0 85vw;
   }
 
   /* Drawer ocupa tela toda */
   .crm-drawer {
     max-width: 100% !important;
     padding: 16px !important;
-  }
-}
-
-/* Telas pequenas (até 480px) */
-@media (max-width: 480px) {
-  .crm-metrics > div {
-    flex: 1 1 100% !important;
-  }
-  .crm-kanban-scroll > div {
-    min-width: 260px !important;
-    flex-basis: 260px !important;
   }
 }

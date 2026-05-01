@@ -148,45 +148,29 @@ function canalLabel(c: string | null | undefined): string {
 
 // ── Componentes ────────────────────────────────────────────────────
 
-function MetricCard({ label, value, color, subtitle, progress, meta }: {
-  label: string; value: string | number; color?: string; subtitle?: string;
-  progress?: number;
-  meta?: string;
+// Pílula compacta com label uppercase + valor inline (cabe na linha do header)
+function MetricPill({ label, value, color, progress, meta }: {
+  label: string; value: string | number; color?: string;
+  progress?: number; meta?: string;
 }) {
   const pct = progress != null ? Math.max(0, Math.min(100, progress)) : null;
   const barColor = pct == null ? color : (pct >= 100 ? '#22c55e' : pct >= 70 ? '#84cc16' : pct >= 40 ? '#f59e0b' : '#ef4444');
-  const valueLen = String(value).length;
-  const valueFontSize = valueLen > 7 ? 14 : 18;
   return (
-    <div style={{
-      flex: '1 1 0', minWidth: 95,
-      height: 84,
-      background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-      borderRadius: 8, padding: '8px 10px',
-      display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 2,
-      overflow: 'hidden',
-    }}>
-      <div style={{ fontSize: 9, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, lineHeight: 1.1, whiteSpace: 'nowrap' }}>{label}</div>
-      <div style={{ fontSize: valueFontSize, fontWeight: 800, color: color || 'var(--color-text)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
-      {subtitle && <div style={{ fontSize: 9, color: 'var(--color-text-muted)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{subtitle}</div>}
+    <span
+      className="crm-metric-pill"
+      title={meta ? `${label}: ${value} · ${meta}${pct != null ? ` (${pct.toFixed(0)}%)` : ''}` : undefined}
+    >
+      <span className="crm-metric-label">{label}</span>
+      <span className="crm-metric-value" style={{ color: color || 'var(--color-text)' }}>{value}</span>
       {pct != null && (
-        <div style={{ marginTop: 'auto' }}>
-          <div style={{
-            height: 3, borderRadius: 999, background: 'rgba(100,116,139,0.2)',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              width: `${pct}%`, height: '100%', background: barColor,
-              borderRadius: 999, transition: 'width 0.4s ease',
-            }} />
-          </div>
-          <div style={{ fontSize: 8, color: 'var(--color-text-muted)', display: 'flex', justifyContent: 'space-between', marginTop: 1 }}>
-            <span>{pct.toFixed(0)}%</span>
-            {meta && <span>{meta}</span>}
-          </div>
-        </div>
+        <span style={{
+          display: 'inline-block', width: 22, height: 4, borderRadius: 999,
+          background: 'rgba(100,116,139,0.25)', overflow: 'hidden', flexShrink: 0,
+        }}>
+          <span style={{ display: 'block', width: `${pct}%`, height: '100%', background: barColor }} />
+        </span>
       )}
-    </div>
+    </span>
   );
 }
 
@@ -200,7 +184,7 @@ function KanbanCol({ col, children, count, onDropPhone, isDragOver, onDragEnter,
   onDragLeave?: () => void;
 }) {
   return (
-    <div style={{ minWidth: 320, width: 320, flex: '0 0 320px', flexShrink: 0 }}
+    <div className="crm-kanban-col"
       onDragOver={(e) => { if (onDropPhone) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
       onDragEnter={(e) => { if (onDropPhone) { e.preventDefault(); onDragEnter?.(); } }}
       onDragLeave={onDragLeave}
@@ -211,23 +195,25 @@ function KanbanCol({ col, children, count, onDropPhone, isDragOver, onDragEnter,
         if (phone) onDropPhone(phone, col.id);
         onDragLeave?.();
       }}>
-      <div style={{
-        padding: '10px 14px', borderRadius: '10px 10px 0 0',
-        background: col.bg, border: `1px solid ${col.border}`, borderBottom: 'none',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      <div className="crm-col-head" style={{
+        background: col.bg,
+        border: `1px solid ${col.border}`,
+        borderBottom: 'none',
+        color: col.color,
       }}>
-        <span style={{ fontWeight: 800, fontSize: 13, color: col.color }}>{col.emoji} {col.label}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, background: col.bg, color: col.color, padding: '2px 8px', borderRadius: 999, border: `1px solid ${col.border}` }}>{count}</span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {col.emoji} {col.label}
+        </span>
+        <span style={{
+          fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999,
+          border: `1px solid ${col.border}`, color: col.color, flexShrink: 0,
+        }}>{count}</span>
       </div>
       <div className="crm-col-body" style={{
-        minHeight: 120, maxHeight: 'calc(100vh - 290px)',
-        border: `1px solid ${col.border}`, borderTop: 'none',
-        borderRadius: '0 0 10px 10px', padding: 8, display: 'flex', flexDirection: 'column', gap: 8,
+        border: `1px solid ${col.border}`,
         background: isDragOver ? 'rgba(99,179,237,0.08)' : 'rgba(255,255,255,0.01)',
-        transition: 'background 0.15s',
         boxShadow: isDragOver ? `inset 0 0 0 2px var(--color-primary)` : undefined,
-        overflowY: 'auto',
-        overflowX: 'hidden',
+        transition: 'background 0.15s',
       }}>
         {children}
       </div>
@@ -287,7 +273,7 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor }: {
       }}
       style={{
         background: 'var(--color-surface)', border: `1px solid var(--color-border)`,
-        borderLeft: `3px solid ${col.color}`, borderRadius: 10, padding: '12px 14px',
+        borderLeft: `3px solid ${col.color}`, borderRadius: 8, padding: '8px 10px',
         cursor: 'grab', transition: 'transform 0.1s',
         ...(agendamentoProximo && { boxShadow: '0 0 0 2px rgba(239,68,68,0.4)' }),
       }}
@@ -296,14 +282,14 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor }: {
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4, flexWrap: 'wrap' }}>
         {consultor && (
           <span title={`Consultor: ${consultor.nome}`} style={{
-            width: 18, height: 18, borderRadius: '50%',
+            width: 16, height: 16, borderRadius: '50%',
             background: consultor.bg, border: `1.5px solid ${consultor.border}`,
-            color: consultor.color, fontSize: 10, fontWeight: 800,
+            color: consultor.color, fontSize: 9, fontWeight: 800,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
           }}>{consultor.inicial}</span>
         )}
-        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
+        <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: '1 1 auto' }}>
           {lead.nome || 'Sem nome'}
         </span>
         {isIO && <Badge color="amber" title="Linha Irmãos na Obra">☀️ IO</Badge>}
@@ -742,42 +728,6 @@ export default function CrmPage() {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
-  const kanbanRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  // Atualiza estado dos botões de scroll
-  const updateScrollButtons = useCallback(() => {
-    const el = kanbanRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    updateScrollButtons();
-    const el = kanbanRef.current;
-    if (!el) return;
-    const onScroll = () => updateScrollButtons();
-    const onWheel = (e: WheelEvent) => {
-      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-        el.scrollLeft += e.deltaY;
-        e.preventDefault();
-      }
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    el.addEventListener('wheel', onWheel, { passive: false });
-    window.addEventListener('resize', updateScrollButtons);
-    return () => {
-      el.removeEventListener('scroll', onScroll);
-      el.removeEventListener('wheel', onWheel);
-      window.removeEventListener('resize', updateScrollButtons);
-    };
-  }, [updateScrollButtons, sdrLeads.length]);
-
-  function scrollKanban(dir: 'left' | 'right') {
-    kanbanRef.current?.scrollBy({ left: dir === 'left' ? -340 : 340, behavior: 'smooth' });
-  }
 
   const fetchAll = useCallback(async () => {
     const [s, p, m] = await Promise.all([
@@ -863,194 +813,173 @@ export default function CrmPage() {
   const q = busca.toLowerCase().trim();
 
   return (
-    <div style={{ padding: '0 0 40px' }}>
-      {/* Header */}
-      <div className="crm-header" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>📋 CRM</h1>
-            <ClockBadge now={now} />
-          </div>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: 0 }}>
-            {tab === 'solar'
-              ? 'Pipeline Irmãos na Obra · Luma + 4 consultores · auto-atualiza 30s'
-              : 'Pipeline plataforma SolarDoc · linha separada'}
-          </p>
+    <div className="crm-shell">
+      {/* ── LINHA 1: título · ClockBadge · busca · import · refresh ── */}
+      <div className="crm-row crm-row-1">
+        <div className="crm-title">
+          <h1>📋 CRM</h1>
+          <span className="crm-subtitle">
+            {tab === 'solar' ? 'Pipeline IO · Luma + 4' : 'Pipeline plataforma'}
+          </span>
+          <ClockBadge now={now} />
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input type="text" placeholder="🔍 Nome, telefone, cidade, tag..." value={busca}
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+          <input type="text" placeholder="🔍 Nome, telefone, cidade..." value={busca}
             onChange={e => setBusca(e.target.value)}
-            style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: 13, width: 280 }} />
+            style={{
+              padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)',
+              background: 'var(--color-bg)', color: 'var(--color-text)',
+              fontSize: 12, width: 220, height: 28,
+            }} />
           {tab === 'solar' && (
             <button onClick={() => setImportOpen(true)} title="Importar lista de leads pra reativação" style={{
-              padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(168,85,247,0.4)',
-              background: 'rgba(168,85,247,0.12)', color: '#a855f7', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+              padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(168,85,247,0.4)',
+              background: 'rgba(168,85,247,0.12)', color: '#a855f7',
+              cursor: 'pointer', fontSize: 12, fontWeight: 700, height: 28,
             }}>⚡ Importar</button>
           )}
-          <button onClick={fetchAll} title="Atualizar agora" style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 13 }}>
-            🔄
-          </button>
+          <button onClick={fetchAll} title="Atualizar agora" style={{
+            padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)',
+            background: 'transparent', color: 'var(--color-text-muted)',
+            cursor: 'pointer', fontSize: 12, height: 28,
+          }}>🔄</button>
         </div>
       </div>
 
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onImport={fetchAll} />}
 
-      {/* Tabs — Solar e Plataforma SEPARADOS, sem misturar */}
-      <div className="crm-tabs" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        {[
-          { id: 'solar' as const, label: '☀️ CRM Solar (IO)', count: sdrLeads.length },
-          { id: 'plataforma' as const, label: '💼 Plataforma SolarDoc', count: totalPlat },
-        ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{
-              padding: '10px 20px', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer',
-              border: tab === t.id ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-              background: tab === t.id ? 'rgba(99,179,237,0.1)' : 'transparent',
-              color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
-            }}>
-            {t.label} <span style={{ opacity: 0.7, fontSize: 12 }}>({t.count})</span>
-          </button>
-        ))}
+      {/* ── LINHA 2: tabs · métricas inline (pílulas) ── */}
+      <div className="crm-row crm-row-2">
+        <div className="crm-tabs" style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          {[
+            { id: 'solar' as const, label: '☀️ CRM Solar', count: sdrLeads.length },
+            { id: 'plataforma' as const, label: '💼 Plataforma', count: totalPlat },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{
+                padding: '5px 10px', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                border: tab === t.id ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
+                background: tab === t.id ? 'rgba(99,179,237,0.1)' : 'transparent',
+                color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                height: 32, whiteSpace: 'nowrap',
+              }}>
+              {t.label} <span style={{ opacity: 0.7, fontSize: 11 }}>({t.count})</span>
+            </button>
+          ))}
+        </div>
+
+        {tab === 'solar' && metrics && (
+          <div className="crm-metrics-inline">
+            <MetricPill label="Hoje" value={metrics.hoje} color="var(--color-primary)" />
+            <MetricPill label="Mês" value={metrics.mes} />
+            <MetricPill label="Total" value={metrics.total} />
+            <MetricPill label="Quentes" value={metrics.por_estagio.quente || 0} color="#ef4444" />
+            <MetricPill label="Fechados" value={metrics.por_estagio.fechamento || 0} color="#22c55e" />
+            <MetricPill label="Conv. Mês" value={`${metrics.conversao_pct}%`} color="#22c55e" />
+            <MetricPill label="💰 Mês" value={fmtMoney(metrics.valor_vendido_mes)} color="#22c55e"
+              progress={metrics.meta_mes ? (metrics.valor_vendido_mes / metrics.meta_mes) * 100 : undefined}
+              meta={metrics.meta_mes ? `Meta ${fmtMoney(metrics.meta_mes)}` : undefined} />
+            <MetricPill label="💰 Ano" value={fmtMoney(metrics.valor_vendido_ano)} color="#f59e0b" />
+            <MetricPill label="Takeover" value={metrics.em_takeover} color="#a855f7" />
+            <MetricPill label="Agend. 24h" value={metrics.agendados_24h.length} color="#f59e0b" />
+          </div>
+        )}
       </div>
 
-      {/* ☀️ TAB SOLAR */}
+      {/* ── LINHA 3: filtros (32px, só na tab Solar) ── */}
       {tab === 'solar' && (
-        <>
-          {metrics && (
-            <div className="crm-metrics" style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-              <MetricCard label="Hoje" value={metrics.hoje} color="var(--color-primary)" />
-              <MetricCard label="Mês" value={metrics.mes} />
-              <MetricCard label="Total" value={metrics.total} />
-              <MetricCard label="Quentes" value={metrics.por_estagio.quente || 0} color="#ef4444" />
-              <MetricCard label="Fechamentos" value={metrics.por_estagio.fechamento || 0} color="#22c55e" />
-              <MetricCard label="Conversão Mês" value={`${metrics.conversao_pct}%`} color="#22c55e" />
-              <MetricCard label="💰 Vendido Mês" value={fmtMoney(metrics.valor_vendido_mes)} color="#22c55e"
-                subtitle={`R$ ${(metrics.valor_vendido_mes || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-                progress={metrics.meta_mes ? (metrics.valor_vendido_mes / metrics.meta_mes) * 100 : undefined}
-                meta={metrics.meta_mes ? `Meta ${fmtMoney(metrics.meta_mes)}` : undefined} />
-              <MetricCard label="💰 Vendido Ano" value={fmtMoney(metrics.valor_vendido_ano)} color="#f59e0b"
-                subtitle={`R$ ${(metrics.valor_vendido_ano || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} />
-              <MetricCard label="Em takeover" value={metrics.em_takeover} color="#a855f7" />
-              <MetricCard label="Agendados (24h)" value={metrics.agendados_24h.length} color="#f59e0b"
-                subtitle={metrics.agendados_24h.length > 0 ? `próximo: ${metrics.agendados_24h[0]?.nome || '—'}` : 'nenhum'} />
-            </div>
+        <div className="crm-filters-strip">
+          <FilterChip label="Consultor" value={filters.consultor} options={[
+            { v: 'all', l: 'Todos' },
+            { v: 'sem', l: '👤 Sem' },
+            ...CONSULTORES.map(c => ({ v: c.id, l: `${c.inicial} · ${c.nome}` })),
+          ]} onChange={v => setFilters(f => ({ ...f, consultor: v as any }))} />
+
+          <FilterChip label="Agendados" value={filters.agendados} options={[
+            { v: 'all', l: 'Todos' }, { v: 'sim', l: '📅 Sim' }, { v: 'nao', l: 'Não' },
+          ]} onChange={v => setFilters(f => ({ ...f, agendados: v as any }))} />
+
+          <FilterChip label="Origem" value={filters.origem} options={[
+            { v: 'all', l: 'Todas' }, { v: 'meta', l: '📢 Meta' }, { v: 'organico', l: 'Orgânico' },
+          ]} onChange={v => setFilters(f => ({ ...f, origem: v as any }))} />
+
+          <FilterChip label="Atendimento" value={filters.takeover} options={[
+            { v: 'all', l: 'Todos' }, { v: 'luma', l: '🤖 Luma' }, { v: 'humano', l: '🤝 Humano' },
+          ]} onChange={v => setFilters(f => ({ ...f, takeover: v as any }))} />
+
+          {algumFiltroAtivo && (
+            <button onClick={() => setFilters({ agendados: 'all', origem: 'all', takeover: 'all', consultor: 'all' })}
+              title="Limpar filtros"
+              style={{
+                padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444',
+                height: 28, flexShrink: 0,
+              }}>✕</button>
           )}
-
-          <div className="crm-filters" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Filtros:</span>
-
-            <FilterChip label="Consultor" value={filters.consultor} options={[
-              { v: 'all', l: 'Todos' },
-              { v: 'sem', l: '👤 Sem consultor' },
-              ...CONSULTORES.map(c => ({ v: c.id, l: `${c.inicial} · ${c.nome}` })),
-            ]} onChange={v => setFilters(f => ({ ...f, consultor: v as any }))} />
-
-            <FilterChip label="Agendados" value={filters.agendados} options={[
-              { v: 'all', l: 'Todos' }, { v: 'sim', l: '📅 Agendados' }, { v: 'nao', l: 'Sem agendamento' },
-            ]} onChange={v => setFilters(f => ({ ...f, agendados: v as any }))} />
-
-            <FilterChip label="Origem" value={filters.origem} options={[
-              { v: 'all', l: 'Todas' }, { v: 'meta', l: '📢 Meta Ad' }, { v: 'organico', l: 'Orgânico' },
-            ]} onChange={v => setFilters(f => ({ ...f, origem: v as any }))} />
-
-            <FilterChip label="Atendimento" value={filters.takeover} options={[
-              { v: 'all', l: 'Todos' }, { v: 'luma', l: '🤖 Luma' }, { v: 'humano', l: '🤝 Humano' },
-            ]} onChange={v => setFilters(f => ({ ...f, takeover: v as any }))} />
-
-            {algumFiltroAtivo && (
-              <button onClick={() => setFilters({ agendados: 'all', origem: 'all', takeover: 'all', consultor: 'all' })} style={{
-                padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                background: 'rgba(239,68,68,0.1)', border: '2px solid rgba(239,68,68,0.4)', color: '#ef4444',
-                minHeight: 40,
-              }}>✕ Limpar filtros</button>
-            )}
-            <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-              Mostrando {sdrFiltrados.length} de {sdrLeads.length}
-            </span>
-          </div>
-
-          {loading ? (
-            <p style={{ color: 'var(--color-text-muted)', padding: 40, textAlign: 'center' }}>Carregando...</p>
-          ) : (
-          <div style={{ position: 'relative' }}>
-            {/* Botões de scroll lateral — sempre visíveis quando há mais conteúdo */}
-            {canScrollLeft && (
-              <button onClick={() => scrollKanban('left')} aria-label="Rolar pra esquerda" style={{
-                position: 'absolute', left: -8, top: 0, bottom: 16, zIndex: 5,
-                width: 36, border: '1px solid var(--color-border)', borderRadius: 8,
-                background: 'var(--color-surface)', color: 'var(--color-text)',
-                cursor: 'pointer', fontSize: 18, fontWeight: 700,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              }}>‹</button>
-            )}
-            {canScrollRight && (
-              <button onClick={() => scrollKanban('right')} aria-label="Rolar pra direita" style={{
-                position: 'absolute', right: -8, top: 0, bottom: 16, zIndex: 5,
-                width: 36, border: '1px solid var(--color-border)', borderRadius: 8,
-                background: 'var(--color-surface)', color: 'var(--color-text)',
-                cursor: 'pointer', fontSize: 18, fontWeight: 700,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              }}>›</button>
-            )}
-            <div ref={kanbanRef} className="crm-kanban-scroll" style={{
-              display: 'flex',
-              flexWrap: 'nowrap',
-              gap: 12,
-              paddingBottom: 16,
-              alignItems: 'flex-start',
-              overflowX: 'scroll',
-              overflowY: 'hidden',
-              width: '100%',
-              maxWidth: '100%',
-            }}>
-              {SDR_COLS.map(col => {
-                let colLeads = sdrFiltrados.filter(l => l.estagio === col.id);
-                // Fechamento: ordena por codigo_contrato DESC (#0045 no topo, #0001 embaixo)
-                if (col.id === 'fechamento') {
-                  colLeads = [...colLeads].sort((a, b) =>
-                    (b.codigo_contrato || '').localeCompare(a.codigo_contrato || '')
-                  );
-                }
-                return (
-                  <KanbanCol
-                    key={col.id} col={col} count={colLeads.length}
-                    isDragOver={dragOverCol === col.id}
-                    onDragEnter={() => setDragOverCol(col.id)}
-                    onDragLeave={() => setDragOverCol(null)}
-                    onDropPhone={(phone, estagio) => {
-                      setDragOverCol(null);
-                      const lead = sdrLeads.find(l => l.phone === phone);
-                      if (lead && lead.estagio !== estagio) moveSdr(phone, estagio);
-                    }}>
-                    {colLeads.length === 0
-                      ? <div style={{ textAlign: 'center', padding: '20px 10px', color: 'var(--color-text-muted)', fontSize: 12 }}>—</div>
-                      : colLeads.map(l => (
-                        <SdrCard key={l.phone} lead={l}
-                          onClick={() => setDrawerLead(l)}
-                          onMove={moveSdr}
-                          onToggleTakeover={toggleSdrTakeover}
-                          onSetConsultor={setConsultor} />
-                      ))
-                    }
-                  </KanbanCol>
-                );
-              })}
-            </div>
-          </div>
-          )}
-
-          <LeadDrawer
-            lead={drawerLead ? sdrLeads.find(l => l.phone === drawerLead.phone) || drawerLead : null}
-            onClose={() => setDrawerLead(null)}
-            onUpdate={fetchAll}
-            onSetConsultor={setConsultor}
-          />
-        </>
+          <span style={{
+            fontSize: 11, color: 'var(--color-text-muted)',
+            marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0,
+          }}>
+            {sdrFiltrados.length} de {sdrLeads.length}
+          </span>
+        </div>
       )}
 
-      {/* 💼 TAB PLATAFORMA SOLARDOC — separado do Solar */}
+      {/* ── ÁREA DO KANBAN: ocupa todo o flex:1 restante ── */}
+      {tab === 'solar' && (
+        loading ? (
+          <div style={{ flex: 1, padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+            Carregando...
+          </div>
+        ) : (
+          <div className="crm-kanban-area">
+            {SDR_COLS.map(col => {
+              let colLeads = sdrFiltrados.filter(l => l.estagio === col.id);
+              if (col.id === 'fechamento') {
+                colLeads = [...colLeads].sort((a, b) =>
+                  (b.codigo_contrato || '').localeCompare(a.codigo_contrato || '')
+                );
+              }
+              return (
+                <KanbanCol
+                  key={col.id} col={col} count={colLeads.length}
+                  isDragOver={dragOverCol === col.id}
+                  onDragEnter={() => setDragOverCol(col.id)}
+                  onDragLeave={() => setDragOverCol(null)}
+                  onDropPhone={(phone, estagio) => {
+                    setDragOverCol(null);
+                    const lead = sdrLeads.find(l => l.phone === phone);
+                    if (lead && lead.estagio !== estagio) moveSdr(phone, estagio);
+                  }}>
+                  {colLeads.length === 0
+                    ? <div style={{ textAlign: 'center', padding: '12px 8px', color: 'var(--color-text-muted)', fontSize: 11 }}>—</div>
+                    : colLeads.map(l => (
+                      <SdrCard key={l.phone} lead={l}
+                        onClick={() => setDrawerLead(l)}
+                        onMove={moveSdr}
+                        onToggleTakeover={toggleSdrTakeover}
+                        onSetConsultor={setConsultor} />
+                    ))
+                  }
+                </KanbanCol>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {tab === 'solar' && (
+        <LeadDrawer
+          lead={drawerLead ? sdrLeads.find(l => l.phone === drawerLead.phone) || drawerLead : null}
+          onClose={() => setDrawerLead(null)}
+          onUpdate={fetchAll}
+          onSetConsultor={setConsultor}
+        />
+      )}
+
+      {/* ── TAB PLATAFORMA: scroll horizontal próprio ── */}
       {tab === 'plataforma' && (
-        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
+        <div className="crm-plat-scroll">
           {PLAT_COLS.map(col => {
             const colLeads = (platCols[col.id] ?? []).filter(l =>
               !q || [l.email, l.empresa, l.cnpj, l.whatsapp].some(v => v?.toLowerCase().includes(q))
@@ -1091,21 +1020,23 @@ function ClockBadge({ now }: { now: Date }) {
   const isBusinessHour = dow > 0 && dow < 6 && horaBR >= 9 && horaBR < 20;
   return (
     <div style={{
-      display: 'inline-flex', alignItems: 'center', gap: 8,
+      display: 'inline-flex', alignItems: 'center', gap: 6,
       background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-      borderRadius: 8, padding: '6px 12px',
+      borderRadius: 6, padding: '3px 8px',
       fontFamily: 'monospace',
+      flexShrink: 0,
     }}>
       <span style={{
-        width: 8, height: 8, borderRadius: '50%',
+        width: 6, height: 6, borderRadius: '50%',
         background: isBusinessHour ? '#22c55e' : '#64748b',
-        boxShadow: isBusinessHour ? '0 0 8px rgba(34,197,94,0.6)' : 'none',
+        boxShadow: isBusinessHour ? '0 0 6px rgba(34,197,94,0.6)' : 'none',
         animation: isBusinessHour ? 'pulse 2s infinite' : 'none',
+        flexShrink: 0,
       }} />
-      <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 600 }}>
+      <span style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
         {diaSemana}, {dataStr}
       </span>
-      <span style={{ fontSize: 14, color: 'var(--color-text)', fontWeight: 800, letterSpacing: 0.5 }}>
+      <span style={{ fontSize: 11, color: 'var(--color-text)', fontWeight: 800, letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
         {horaStr}
       </span>
     </div>
@@ -1404,14 +1335,7 @@ function FilterChip({ label, value, options, onChange }: {
   return (
     <select value={value} onChange={e => onChange(e.target.value)}
       title={label}
-      className="crm-filter-chip"
-      style={{
-        padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-        border: `2px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
-        background: active ? 'rgba(99,179,237,0.12)' : 'var(--color-surface)',
-        color: active ? 'var(--color-primary)' : 'var(--color-text)',
-        minHeight: 40,
-      }}>
+      className={`crm-filter-mini${active ? ' active' : ''}`}>
       {options.map(o => <option key={o.v} value={o.v}>{label}: {o.l}</option>)}
     </select>
   );
