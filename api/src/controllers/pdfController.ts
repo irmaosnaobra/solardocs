@@ -14,23 +14,32 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
 
     const { data: doc } = await supabase
       .from('documents')
-      .select('id, arquivo_url, cliente_nome, tipo')
+      .select('id, arquivo_url, cliente_nome, tipo, content')
       .eq('id', id)
       .eq('user_id', req.userId)
       .single();
 
     if (!doc) { res.status(404).json({ error: 'Documento não encontrado' }); return; }
-    if (!doc.arquivo_url) { res.status(400).json({ error: 'Arquivo não disponível ainda' }); return; }
 
-    const { data: signed } = await supabase.storage
-      .from('documentos')
-      .createSignedUrl(doc.arquivo_url, 60);
-
-    if (!signed?.signedUrl) { res.status(500).json({ error: 'Erro ao obter URL do arquivo' }); return; }
-
-    // Baixa o HTML do Storage e injeta direto no Puppeteer
-    const htmlRes = await fetch(signed.signedUrl);
-    const htmlContent = await htmlRes.text();
+    // Fluxo preferido: HTML do Storage (VIP/admin têm upload automático).
+    // Fallback: usa o content da coluna (docs antigos sem arquivo_url).
+    let htmlContent = '';
+    if (doc.arquivo_url) {
+      const { data: signed } = await supabase.storage
+        .from('documentos')
+        .createSignedUrl(doc.arquivo_url, 60);
+      if (signed?.signedUrl) {
+        const htmlRes = await fetch(signed.signedUrl);
+        htmlContent = await htmlRes.text();
+      }
+    }
+    if (!htmlContent && doc.content) {
+      htmlContent = String(doc.content);
+    }
+    if (!htmlContent) {
+      res.status(400).json({ error: 'Arquivo não disponível — gere o documento novamente' });
+      return;
+    }
 
     browser = await puppeteer.launch({
       args: chromium.args,
