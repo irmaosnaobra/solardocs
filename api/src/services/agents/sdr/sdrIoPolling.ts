@@ -354,22 +354,55 @@ const FERIADOS_BR_LUMA: Set<string> = new Set([
   '2027-11-15','2027-11-20','2027-12-25',
 ]);
 
-function emHorarioComercial(): boolean {
+// Luma reativa em qualquer dia da semana (incluindo dom/sáb/feriado).
+// Bloqueia apenas fora da janela horária 9h-20h BRT (cliente dormindo / fim do expediente).
+function emHorarioOperacional(): boolean {
   const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
-  const dia = brt.getUTCDay();
-  if (dia === 0 || dia === 6) return false; // sem domingo/sábado
-  const iso = brt.toISOString().slice(0, 10);
-  if (FERIADOS_BR_LUMA.has(iso)) return false;
   const hora = brt.getUTCHours();
   return hora >= 9 && hora < 20;
 }
 
+// Meta dinâmica: dia "tranquilo" (dom/sáb/feriado) cliente tá em casa, dá pra
+// trabalhar mais pesado. Dia útil mantém ritmo normal.
+function metaReativacaoHoje(): number {
+  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const dow = brt.getUTCDay();
+  const iso = brt.toISOString().slice(0, 10);
+  const isDomingo = dow === 0;
+  const isSabado = dow === 6;
+  const isFeriado = FERIADOS_BR_LUMA.has(iso);
+  return (isDomingo || isSabado || isFeriado) ? 40 : 20;
+}
+
+// Pega últimas mensagens de reativação enviadas (últimos 7 dias) pra Luma EVITAR
+// repetir as mesmas frases. Diversidade = bater menos no mesmo padrão.
+async function ultimasReativacoesUsadas(): Promise<string[]> {
+  const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from('sdr_leads')
+    .select('ultima_mensagem')
+    .eq('estagio', 'reativacao')
+    .not('reativacao_enviada_at', 'is', null)
+    .gte('reativacao_enviada_at', seteDiasAtras)
+    .order('reativacao_enviada_at', { ascending: false })
+    .limit(15);
+  return (data ?? [])
+    .map((r: any) => String(r.ultima_mensagem || '').trim())
+    .filter(Boolean);
+}
+
 async function gerarMsgReativacao(lead: any): Promise<string> {
   const nome = lead.nome ? lead.nome.split(' ')[0] : null;
+  const recentes = await ultimasReativacoesUsadas();
+  const blocoRecentes = recentes.length
+    ? `\n\nMENSAGENS RECENTES JÁ USADAS (NÃO repita estas — varie palavras, abertura, e estrutura):\n${recentes.map((m, i) => `${i + 1}. "${m.slice(0, 200)}"`).join('\n')}`
+    : '';
+
   try {
     const r = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 250,
+      temperature: 1,  // criatividade alta — diversifica entre execuções
       system: `Você é a Luma, SDR sênior de energia solar da Irmãos na Obra (sede Uberlândia/MG, 8 anos no setor). Está retomando contato com um lead frio que demonstrou interesse em energia solar tempos atrás. Escreva UMA mensagem inicial humanizada pra reativar.
 
 REGRAS:
@@ -377,32 +410,46 @@ REGRAS:
 - 0-1 emoji NO MÁXIMO. Idealmente nenhum.
 - Use o primeiro nome se tiver. Se não, evita "tudo bem".
 - Tom de retomada respeitosa, não agressiva. Como se você tivesse esquecido de retomar e agora voltou pra resgatar.
-- VARIE a abertura — não use sempre "Oi". Pode ser "Olá", "[Nome], voltei aqui", "Aqui é a Luma da Irmãos na Obra".
+- VARIEDADE OBRIGATÓRIA. Cada lead vai receber UMA mensagem única — nunca a mesma de outro lead. Use estruturas diferentes:
+  * Abertura: "Olá", "Oi", "[Nome],", "Aqui é a Luma", "Voltei aqui", "Boa tarde", "Tem um minuto?"
+  * Conector: "vi seu interesse", "tava aqui revisando", "lembrei de você", "sobre nossa conversa"
+  * Pergunta: "ainda faz sentido?", "bora retomar?", "quer ver as opções?", "posso seguir?", "qual seu cenário hoje?"
 - NÃO mencione tabela de preços ou cobre nada. Só reabre conversa.
-- Termine SEMPRE com uma pergunta curta que provoque resposta natural ("ainda faz sentido?", "bora retomar?", "quer ver as opções?").
+- Termine SEMPRE com uma pergunta curta que provoque resposta natural.
 - NÃO use frases de manual ("estou à disposição", "qualquer dúvida").
-- Saída: APENAS o texto da mensagem, sem aspas.`,
+- Saída: APENAS o texto da mensagem, sem aspas, sem prefácio.${blocoRecentes}`,
       messages: [{
         role: 'user',
-        content: `Nome: ${nome || 'sem nome'} · Cidade: ${lead.cidade || 'não informada'}\n\nGere a mensagem de reativação.`,
+        content: `Nome: ${nome || 'sem nome'} · Cidade: ${lead.cidade || 'não informada'}\n\nGere a mensagem de reativação — DIFERENTE das que já foram usadas.`,
       }],
     });
     const txt = (r.content[0] as { text: string }).text.trim();
     return txt.replace(/^["']|["']$/g, '');
   } catch {
-    // Fallback estático
-    if (nome) return `Olá ${nome}, aqui é a Luma da Irmãos na Obra. Vi seu contato sobre energia solar e voltei pra te chamar — ainda faz sentido a gente conversar?`;
-    return `Olá, aqui é a Luma da Irmãos na Obra. Vi seu interesse em energia solar e voltei pra retomar — ainda faz sentido a gente conversar?`;
+    // Fallback estático com variação simples por hash do telefone
+    const variantes = nome ? [
+      `${nome}, aqui é a Luma da Irmãos na Obra. Voltei a olhar seu cadastro de energia solar — ainda faz sentido a gente conversar?`,
+      `Olá ${nome}, é a Luma. Sobre energia solar pra sua casa — quer retomar de onde a gente parou?`,
+      `Oi ${nome}! Aqui é a Luma da Irmãos na Obra. Tô revisando alguns contatos antigos — ainda tá no plano de instalar solar?`,
+      `${nome}, lembrei de você por conta da energia solar. Posso te chamar pra conversar agora ou prefere mais tarde?`,
+    ] : [
+      `Olá, aqui é a Luma da Irmãos na Obra. Vi seu interesse em energia solar e voltei pra retomar — ainda faz sentido a gente conversar?`,
+      `Oi, é a Luma! Tô retomando contatos sobre energia solar — quer ver as opções pra sua casa?`,
+      `Aqui é a Luma da Irmãos na Obra. Sobre o solar que você buscou — ainda tá interessado?`,
+    ];
+    const idx = Math.abs(lead.phone.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0)) % variantes.length;
+    return variantes[idx];
   }
 }
 
-const META_REATIVACAO_DIA = 20;
 const REATIVACOES_POR_EXECUCAO = 1;
 
-export async function processarReativacao(): Promise<{ enviados: number; pulado_horario: boolean; meta_atingida: boolean }> {
-  if (!emHorarioComercial()) {
-    return { enviados: 0, pulado_horario: true, meta_atingida: false };
+export async function processarReativacao(): Promise<{ enviados: number; pulado_horario: boolean; meta_atingida: boolean; meta: number }> {
+  if (!emHorarioOperacional()) {
+    return { enviados: 0, pulado_horario: true, meta_atingida: false, meta: 0 };
   }
+
+  const metaHoje = metaReativacaoHoje();
 
   // Conta quantos foram reativados hoje (BRT)
   const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
@@ -414,12 +461,12 @@ export async function processarReativacao(): Promise<{ enviados: number; pulado_
     .select('phone', { count: 'exact', head: true })
     .gte('reativacao_enviada_at', inicioHojeBR);
 
-  if ((feitosHoje ?? 0) >= META_REATIVACAO_DIA) {
-    return { enviados: 0, pulado_horario: false, meta_atingida: true };
+  if ((feitosHoje ?? 0) >= metaHoje) {
+    return { enviados: 0, pulado_horario: false, meta_atingida: true, meta: metaHoje };
   }
 
   // Pega próximos da fila
-  const restantes = META_REATIVACAO_DIA - (feitosHoje ?? 0);
+  const restantes = metaHoje - (feitosHoje ?? 0);
   const limite = Math.min(REATIVACOES_POR_EXECUCAO, restantes);
 
   const { data: leads } = await supabase
@@ -431,7 +478,7 @@ export async function processarReativacao(): Promise<{ enviados: number; pulado_
     .order('created_at', { ascending: true })
     .limit(limite);
 
-  if (!leads?.length) return { enviados: 0, pulado_horario: false, meta_atingida: false };
+  if (!leads?.length) return { enviados: 0, pulado_horario: false, meta_atingida: false, meta: metaHoje };
 
   let enviados = 0;
   for (const lead of leads) {
@@ -469,7 +516,7 @@ export async function processarReativacao(): Promise<{ enviados: number; pulado_
     }
   }
 
-  return { enviados, pulado_horario: false, meta_atingida: false };
+  return { enviados, pulado_horario: false, meta_atingida: false, meta: metaHoje };
 }
 
 // ─── Revisão horária: Luma re-avalia contexto e reposiciona leads no funil ──
