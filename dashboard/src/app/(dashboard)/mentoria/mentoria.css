@@ -1,0 +1,450 @@
+/* ── Wrapper geral da seção mentoria ────────────────────────────── */
+.mentoria-wrap {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 8px 0 60px;
+  color: var(--color-text);
+}
+
+.mentoria-back {
+  margin-bottom: 16px;
+}
+.mentoria-back a {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.mentoria-back a:hover { color: #FAC775; }
+
+/* ── Hero ────────────────────────────────────────────────────────── */
+.mentoria-hero {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.mentoria-hero-index {
+  margin-bottom: 28px;
+}
+
+.mentoria-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid;
+  margin-bottom: 16px;
+}
+
+.mentoria-headline {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.3;
+  margin: 0 0 12px;
+  color: var(--color-text);
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mentoria-destaque {
+  color: #FAC775;
+}
+
+.mentoria-sub {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+.mentoria-h2 {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0 0 14px;
+  text-align: center;
+}
+
+/* ── SPIN — 4 cards em grid 2x2 ──────────────────────────────────── */
+.mentoria-spin {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.mentoria-spin-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.mentoria-spin-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.mentoria-spin-texto {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text);
+  margin: 0;
+}
+
+/* ── DESIRE — bullets ───────────────────────────────────────────── */
+.mentoria-desire {
+  margin-bottom: 32px;
+}
+
+.mentoria-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mentoria-bullets li {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.mentoria-check {
+  flex-shrink: 0;
+  font-weight: 900;
+  font-size: 14px;
+  margin-top: 1px;
+}
+
+/* ── Combo: value stack ─────────────────────────────────────────── */
+.mentoria-stack {
+  background: rgba(250,199,117,0.04);
+  border: 1px solid rgba(250,199,117,0.25);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 32px;
+}
+
+.mentoria-stack-list {
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.mentoria-stack-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 0;
+  color: var(--color-text);
+}
+
+.mentoria-stack-dots {
+  flex: 1;
+  overflow: hidden;
+  color: var(--color-border);
+  white-space: nowrap;
+}
+
+.mentoria-stack-valor {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.mentoria-stack-total {
+  border-top: 1px dashed var(--color-border);
+  padding-top: 8px;
+  margin-top: 6px;
+}
+
+.mentoria-stack-paga {
+  font-size: 15px;
+}
+
+.mentoria-stack-economia {
+  color: #1D9E75;
+  margin-top: 2px;
+}
+
+/* ── ACTION — CTA principal ─────────────────────────────────────── */
+.mentoria-cta-block {
+  text-align: center;
+  border: 2px solid;
+  border-radius: 12px;
+  padding: 24px 20px;
+  margin-bottom: 24px;
+}
+
+.mentoria-precos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.mentoria-preco-ancora {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.mentoria-preco-final {
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.mentoria-preco-eco {
+  font-size: 11px;
+  color: #1D9E75;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mentoria-parcelamento {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 4px 0 16px;
+}
+
+/* CTA principal — sempre verde, é o link pro WhatsApp */
+.mentoria-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #1D9E75, #25d366);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  padding: 14px 28px;
+  border-radius: 10px;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  box-shadow: 0 6px 20px rgba(29,158,117,0.3);
+  transition: transform 0.15s, box-shadow 0.15s;
+  margin-bottom: 12px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.mentoria-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 26px rgba(29,158,117,0.45);
+}
+
+.mentoria-microcopy {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.mentoria-urgencia {
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ef4444;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: inline-block;
+}
+
+/* ── Cross-sell pro COMBO ───────────────────────────────────────── */
+.mentoria-cross {
+  margin-top: 16px;
+}
+
+.mentoria-cross-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, rgba(250,199,117,0.08), rgba(250,199,117,0.16));
+  border: 1px dashed rgba(250,199,117,0.5);
+  border-radius: 10px;
+  padding: 14px 18px;
+  flex-wrap: wrap;
+}
+
+.mentoria-cross-emoji {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.mentoria-cross-text {
+  flex: 1;
+  min-width: 200px;
+}
+
+.mentoria-cross-text strong {
+  font-size: 14px;
+  color: #FAC775;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.mentoria-cross-text p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.mentoria-cross-cta {
+  background: #FAC775;
+  color: #4a2d05;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.mentoria-cross-cta:hover { transform: translateY(-1px); }
+
+/* ── Catálogo (page.tsx index): grid 6 cards mini ───────────────── */
+.mentoria-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 1024px) {
+  .mentoria-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 640px) {
+  .mentoria-grid { grid-template-columns: repeat(2, 1fr); }
+  .mentoria-headline { font-size: 22px; }
+  .mentoria-spin { grid-template-columns: 1fr; }
+  .mentoria-cta { font-size: 14px; padding: 12px 18px; }
+  .mentoria-preco-final { font-size: 32px; }
+}
+
+.mentoria-card {
+  position: relative;
+  background: linear-gradient(180deg, #1a1a1a 0%, #141414 100%);
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  color: #fff;
+}
+
+.mentoria-card:hover {
+  border-color: var(--card-color);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
+.mentoria-card-featured {
+  border-color: #FAC775;
+  box-shadow: 0 0 0 2px rgba(250,199,117,0.15);
+}
+
+.mentoria-card-exclusive {
+  border-color: rgba(192,74,53,0.6);
+}
+
+.mentoria-card-tag {
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.mentoria-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.mentoria-card-nome {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.mentoria-card-preco {
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: auto;
+}
+
+/* ── Bloco de contato no rodapé do índice ───────────────────────── */
+.mentoria-contato {
+  text-align: center;
+  padding: 20px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.mentoria-contato p {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0 0 12px;
+}
+
+.mentoria-contato-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #1D9E75, #25d366);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  padding: 12px 22px;
+  border-radius: 8px;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(29,158,117,0.3);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.mentoria-contato-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(29,158,117,0.45);
+}
