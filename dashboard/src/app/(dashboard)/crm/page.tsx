@@ -731,6 +731,13 @@ export default function CrmPage() {
   const [drawerLead, setDrawerLead] = useState<SdrLead | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [now, setNow] = useState<Date>(new Date());
+
+  // Relógio em tempo real (atualiza a cada segundo)
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const kanbanRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -856,7 +863,10 @@ export default function CrmPage() {
       {/* Header */}
       <div className="crm-header" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>📋 CRM</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>📋 CRM</h1>
+            <ClockBadge now={now} />
+          </div>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: 0 }}>
             {tab === 'solar'
               ? 'Pipeline Irmãos na Obra · Luma + 4 consultores · auto-atualiza 30s'
@@ -1054,6 +1064,46 @@ export default function CrmPage() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Relógio em tempo real ──────────────────────────────────────────
+
+function ClockBadge({ now }: { now: Date }) {
+  const dataStr = now.toLocaleDateString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo',
+  });
+  const horaStr = now.toLocaleTimeString('pt-BR', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Sao_Paulo',
+  });
+  const diaSemana = now.toLocaleDateString('pt-BR', {
+    weekday: 'short', timeZone: 'America/Sao_Paulo',
+  }).replace('.', '');
+  // Indicador se está no horário comercial (Luma operando reativação)
+  const horaBR = parseInt(now.toLocaleTimeString('en-US', { hour: '2-digit', hour12: false, timeZone: 'America/Sao_Paulo' }), 10);
+  const dow = parseInt(now.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/Sao_Paulo' }) === 'Sun' ? '0' :
+    now.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/Sao_Paulo' }) === 'Sat' ? '6' : '1', 10);
+  const isBusinessHour = dow > 0 && dow < 6 && horaBR >= 9 && horaBR < 20;
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 8,
+      background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+      borderRadius: 8, padding: '6px 12px',
+      fontFamily: 'monospace',
+    }}>
+      <span style={{
+        width: 8, height: 8, borderRadius: '50%',
+        background: isBusinessHour ? '#22c55e' : '#64748b',
+        boxShadow: isBusinessHour ? '0 0 8px rgba(34,197,94,0.6)' : 'none',
+        animation: isBusinessHour ? 'pulse 2s infinite' : 'none',
+      }} />
+      <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 600 }}>
+        {diaSemana}, {dataStr}
+      </span>
+      <span style={{ fontSize: 14, color: 'var(--color-text)', fontWeight: 800, letterSpacing: 0.5 }}>
+        {horaStr}
+      </span>
     </div>
   );
 }
