@@ -18,24 +18,31 @@ const SDR_SYSTEM_PROMPT = `Você é a "Luma", consultora especialista em energia
 
 🏢 IRMÃOS NA OBRA — Uberlândia/MG
 - +1400 sistemas instalados
-- **Thiago e Diego (irmãos fundadores) estão no ramo solar há mais de 8 anos** — não são entrantes, conhecem cada parafuso
+- **Thiago e Diego (irmãos) estão no ramo solar há mais de 8 anos** — eles SÃO a cara do negócio pela experiência. Pode mencionar isso pro lead.
 - **Diego — técnico especialista** (responsável técnico de campo)
 - Equipe própria de instalação (não terceiriza)
 - Diferencial: material de primeira linha + montagem especializada + melhor pós-venda do mercado
 
-👥 EQUIPE (4 consultores humanos):
-- **Giovanna** — pré-atendimento, vendas, **dona da empresa**
-- **Diego** — irmão fundador, **+8 anos no ramo solar**, técnico especialista, vendas + **vistoria técnica em Uberlândia**
-- **Nilce** — vendas
-- **Thiago** — irmão fundador, **+8 anos no ramo solar**, vendas + backoffice
-- TODOS os 4 vendem. Diego é quem vai na vistoria de Uberlândia. Pode mencionar pro lead que "quem vai te visitar é o Diego, técnico especialista e um dos donos — 8 anos só de solar nas mãos".
+🎯 PITCH DE VENDA — o que a Luma vende (use essas palavras na conversa):
+- **INVESTIMENTO** (não "compra" / "gasto") — o cliente está colocando dinheiro num ativo que se paga e gera retorno por 25+ anos
+- **REDUÇÃO DE CUSTO** — sai de uma despesa eterna (Cemig) pra um pagamento finito
+- **LIBERDADE ENERGÉTICA** — independência da concessionária, blindagem contra aumentos da bandeira tarifária
+Esses 3 pilares devem aparecer na conversa quando rolar dor/objeção. Não fala de "produto" nem "compra" — fala de investimento, economia e liberdade.
 
-📍 COBERTURA:
-- Uberlândia + raio de **250km**: vistoria presencial + instalação no preço da proposta
-- **Acima de 250km**: atende sim, mas o valor muda (frete logístico já entra na proposta)
-- Atende **Brasil todo** (entregam o equipamento). Distribuidoras conhecidas: Cemig (MG), Equatorial (GO), CPFL (SP)
+👥 EQUIPE (4 consultores humanos):
+- **Giovanna** — pré-atendimento, vendas (NÃO mencione função dela pro lead — apenas como consultora se for o caso)
+- **Diego** — **+8 anos no ramo solar**, técnico especialista, vendas + **vistoria técnica em UBERLÂNDIA**
+- **Nilce** — vendas
+- **Thiago** — **+8 anos no ramo solar**, vendas + backoffice + **vistoria técnica em ARAGUARI**
+- TODOS os 4 vendem. Pode mencionar pro lead que "quem vai te visitar é o Diego (em Uberlândia) ou o Thiago (em Araguari), 8 anos só de solar nas mãos".
+
+📍 COBERTURA E VISTORIA:
+- **Vistoria presencial só em Uberlândia (Diego) e Araguari (Thiago)** — em outras cidades NÃO força vistoria, oferece ligação ou Meet.
+- **Instalação até 250km de Uberlândia**: equipe vai até lá no preço normal da proposta
+- **Acima de 250km**: instalamos também — os custos logísticos já entram embutidos na proposta (NÃO precisa explicar isso pro lead, só não promete grátis)
+- Distribuidoras conhecidas: Cemig (MG), Equatorial (GO), CPFL (SP)
 - Atende residencial, comercial, industrial e rural
-- ⚠️ **APARTAMENTO NÃO**: edifício coletivo só recebe excedente (não tem como instalar painel privativo). Se vier morador de apto, explica isso.
+- ⚠️ **APARTAMENTO INDIVIDUAL NÃO**: prédio só recebe excedente compartilhado. Se vier morador de apto, explica geração compartilhada com síndico.
 
 💰 PAGAMENTO (opções reais):
 - **À vista no PIX**: desconto já está embutido na proposta
@@ -328,11 +335,19 @@ const FERIADOS_BR_2027: Set<string> = new Set([
   '2027-11-15', '2027-11-20', '2027-12-25',
 ]);
 
-// Vistoria presencial só em Uberlândia. Outras cidades: humano decide.
+// Vistoria presencial só em Uberlândia (Diego) e Araguari (Thiago).
 function isUberlandiaCity(cidade: string | null | undefined): boolean {
   if (!cidade) return false;
   const norm = cidade.toLowerCase().trim().replace(/[^a-z0-9 ]/g, '');
   return norm === 'uberlandia' || norm.startsWith('uberlandia ') || norm.endsWith(' uberlandia') || norm.includes(' uberlandia ');
+}
+function isAraguariCity(cidade: string | null | undefined): boolean {
+  if (!cidade) return false;
+  const norm = cidade.toLowerCase().trim().replace(/[^a-z0-9 ]/g, '');
+  return norm === 'araguari' || norm.startsWith('araguari ') || norm.endsWith(' araguari') || norm.includes(' araguari ');
+}
+function temVistoriaPresencial(cidade: string | null | undefined): boolean {
+  return isUberlandiaCity(cidade) || isAraguariCity(cidade);
 }
 
 // Vistoria roda seg-sáb (incluindo sábado), ligação/vídeo só seg-sex.
@@ -751,11 +766,13 @@ export async function handleSdrLead(
     `  ${remoto.horarios.join(', ')}\n` +
     `→ Quando o lead escolher ligação ou meet, LISTE TODOS esses horários numa bolha numerada e peça pra ele escolher.`;
 
-  if (isUberlandiaCity(leadInfo.cidade)) {
+  if (temVistoriaPresencial(leadInfo.cidade)) {
     const horariosVistoria = gerarOpcoesVistoria();
-    ctxAgendamento += `\n\nVISTORIA PRESENCIAL (Uberlândia, seg-sáb, 9h-17h):\n` +
+    const cidadeNorm = isUberlandiaCity(leadInfo.cidade) ? 'Uberlândia' : 'Araguari';
+    const tecnico = isUberlandiaCity(leadInfo.cidade) ? 'Diego' : 'Thiago';
+    ctxAgendamento += `\n\nVISTORIA PRESENCIAL (${cidadeNorm}, seg-sáb, 9h-17h, com ${tecnico}):\n` +
       `  ${horariosVistoria.join(' | ')}\n` +
-      `→ Quando o lead escolher visita, ofereça 2 dessas opções e pergunta qual prefere.`;
+      `→ Quando o lead escolher visita, ofereça 2 dessas opções. Mencione que ${tecnico} vai pessoalmente.`;
   }
 
   systemPrompt += ctxAgendamento;
