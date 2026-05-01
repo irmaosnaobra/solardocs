@@ -168,9 +168,12 @@ router.patch('/sdr-leads/:phone/consultor', async (req: Request, res: Response) 
 router.get('/sdr-metrics', async (_req: Request, res: Response) => {
   try {
     const now = new Date();
-    const startOfDay = new Date(now); startOfDay.setHours(0,0,0,0);
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    // Calcula início de dia/mês/ano em horário de Brasília (UTC-3)
+    // 00:00 BRT = 03:00 UTC. Servidor Vercel roda em UTC.
+    const brtNow = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    const startOfDay = new Date(Date.UTC(brtNow.getUTCFullYear(), brtNow.getUTCMonth(), brtNow.getUTCDate(), 3, 0, 0));
+    const startOfMonth = new Date(Date.UTC(brtNow.getUTCFullYear(), brtNow.getUTCMonth(), 1, 3, 0, 0));
+    const startOfYear = new Date(Date.UTC(brtNow.getUTCFullYear(), 0, 1, 3, 0, 0));
     const next24h = new Date(now.getTime() + 24*60*60*1000);
 
     // CRM Solar foca apenas na linha 'io' (Irmãos na Obra)
