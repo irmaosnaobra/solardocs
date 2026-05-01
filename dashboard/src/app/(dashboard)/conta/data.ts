@@ -84,7 +84,8 @@ export const FEATURES_VIP: Record<string, FeatureVip> = {
     ],
     ctaVip: 'Mandar minha primeira ideia',
     ctaFree: 'Liberar fórum com VIP',
-    status: 'em_breve',
+    acessoUrl: '/sugestoes',
+    status: 'ativo',
   },
 
   'mao-de-obra': {
