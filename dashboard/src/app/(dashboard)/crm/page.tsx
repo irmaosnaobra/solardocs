@@ -150,33 +150,33 @@ function canalLabel(c: string | null | undefined): string {
 
 function MetricCard({ label, value, color, subtitle, progress, meta }: {
   label: string; value: string | number; color?: string; subtitle?: string;
-  progress?: number; // 0-100
-  meta?: string; // texto da meta (ex: "Meta: R$ 220k")
+  progress?: number;
+  meta?: string;
 }) {
   const pct = progress != null ? Math.max(0, Math.min(100, progress)) : null;
   const barColor = pct == null ? color : (pct >= 100 ? '#22c55e' : pct >= 70 ? '#84cc16' : pct >= 40 ? '#f59e0b' : '#ef4444');
   return (
     <div style={{
-      flex: '1 1 140px', minWidth: 140,
+      flex: '1 1 110px', minWidth: 110,
       background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-      borderRadius: 12, padding: '14px 16px',
-      display: 'flex', flexDirection: 'column', gap: 4,
+      borderRadius: 8, padding: '8px 12px',
+      display: 'flex', flexDirection: 'column', gap: 2,
     }}>
-      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: color || 'var(--color-text)' }}>{value}</div>
-      {subtitle && <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{subtitle}</div>}
+      <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, lineHeight: 1.2 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: color || 'var(--color-text)', lineHeight: 1.1 }}>{value}</div>
+      {subtitle && <div style={{ fontSize: 10, color: 'var(--color-text-muted)', lineHeight: 1.2 }}>{subtitle}</div>}
       {pct != null && (
         <>
           <div style={{
-            height: 6, borderRadius: 999, background: 'rgba(100,116,139,0.2)',
-            overflow: 'hidden', marginTop: 4,
+            height: 4, borderRadius: 999, background: 'rgba(100,116,139,0.2)',
+            overflow: 'hidden', marginTop: 3,
           }}>
             <div style={{
               width: `${pct}%`, height: '100%', background: barColor,
               borderRadius: 999, transition: 'width 0.4s ease',
             }} />
           </div>
-          <div style={{ fontSize: 10, color: 'var(--color-text-muted)', display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+          <div style={{ fontSize: 9, color: 'var(--color-text-muted)', display: 'flex', justifyContent: 'space-between', marginTop: 1 }}>
             <span>{pct.toFixed(0)}%</span>
             {meta && <span>{meta}</span>}
           </div>
@@ -903,7 +903,7 @@ export default function CrmPage() {
       {tab === 'solar' && (
         <>
           {metrics && (
-            <div className="crm-metrics" style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div className="crm-metrics" style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
               <MetricCard label="Hoje" value={metrics.hoje} color="var(--color-primary)" />
               <MetricCard label="Mês" value={metrics.mes} />
               <MetricCard label="Total" value={metrics.total} />
