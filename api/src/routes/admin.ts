@@ -179,7 +179,7 @@ router.get('/sdr-metrics', async (_req: Request, res: Response) => {
     // CRM Solar foca apenas na linha 'io' (Irmãos na Obra)
     const [
       totalRes, hojeRes, mesRes,
-      quenteRes, fechamentoRes, frioRes, perdidoRes,
+      quenteRes, fechamentoRes, fechamentoMesRes, frioRes, perdidoRes,
       agendadosRes, takeoverRes,
       vendidoMesRes, vendidoAnoRes,
     ] = await Promise.all([
@@ -188,6 +188,8 @@ router.get('/sdr-metrics', async (_req: Request, res: Response) => {
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').gte('created_at', startOfMonth.toISOString()),
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').eq('estagio', 'quente'),
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').eq('estagio', 'fechamento'),
+      // Fechamentos no mês corrente (updated_at = quando foi marcado fechamento)
+      supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').eq('estagio', 'fechamento').gte('updated_at', startOfMonth.toISOString()),
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').eq('estagio', 'frio'),
       supabase.from('sdr_leads').select('phone', { count: 'exact', head: true }).eq('instance', 'io').eq('estagio', 'perdido'),
       supabase.from('sdr_leads').select('phone, nome, horario_iso, canal_atendimento, horario_atendimento, cidade')
@@ -202,8 +204,9 @@ router.get('/sdr-metrics', async (_req: Request, res: Response) => {
     ]);
 
     const total = totalRes.count ?? 0;
-    const fechados = fechamentoRes.count ?? 0;
-    const conversao = total > 0 ? (fechados / total) * 100 : 0;
+    const fechadosMes = fechamentoMesRes.count ?? 0;
+    // Conversão mensal: fechamentos do mês / total do pipeline
+    const conversao = total > 0 ? (fechadosMes / total) * 100 : 0;
 
     // Soma valor vendido acumulado
     const somaVendidoMes = (vendidoMesRes.data ?? []).reduce((acc: number, r: any) => acc + (Number(r.valor_venda) || 0), 0);

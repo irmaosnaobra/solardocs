@@ -923,7 +923,7 @@ export default function CrmPage() {
               <MetricCard label="Total" value={metrics.total} />
               <MetricCard label="Quentes" value={metrics.por_estagio.quente || 0} color="#ef4444" />
               <MetricCard label="Fechamentos" value={metrics.por_estagio.fechamento || 0} color="#22c55e" />
-              <MetricCard label="Conversão" value={`${metrics.conversao_pct}%`} color="#22c55e" />
+              <MetricCard label="Conversão Mês" value={`${metrics.conversao_pct}%`} color="#22c55e" />
               <MetricCard label="💰 Vendido Mês" value={fmtMoney(metrics.valor_vendido_mes)} color="#22c55e"
                 subtitle={`R$ ${(metrics.valor_vendido_mes || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
                 progress={metrics.meta_mes ? (metrics.valor_vendido_mes / metrics.meta_mes) * 100 : undefined}
