@@ -704,6 +704,42 @@ export default function CrmPage() {
   const [drawerLead, setDrawerLead] = useState<SdrLead | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const kanbanRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Atualiza estado dos botões de scroll
+  const updateScrollButtons = useCallback(() => {
+    const el = kanbanRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    updateScrollButtons();
+    const el = kanbanRef.current;
+    if (!el) return;
+    const onScroll = () => updateScrollButtons();
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        el.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    el.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('resize', updateScrollButtons);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      el.removeEventListener('wheel', onWheel);
+      window.removeEventListener('resize', updateScrollButtons);
+    };
+  }, [updateScrollButtons, sdrLeads.length]);
+
+  function scrollKanban(dir: 'left' | 'right') {
+    kanbanRef.current?.scrollBy({ left: dir === 'left' ? -340 : 340, behavior: 'smooth' });
+  }
 
   const fetchAll = useCallback(async () => {
     const [s, p, m] = await Promise.all([
@@ -892,7 +928,27 @@ export default function CrmPage() {
           {loading ? (
             <p style={{ color: 'var(--color-text-muted)', padding: 40, textAlign: 'center' }}>Carregando...</p>
           ) : (
-            <div className="crm-kanban-scroll" style={{
+          <div style={{ position: 'relative' }}>
+            {/* Botões de scroll lateral — sempre visíveis quando há mais conteúdo */}
+            {canScrollLeft && (
+              <button onClick={() => scrollKanban('left')} aria-label="Rolar pra esquerda" style={{
+                position: 'absolute', left: -8, top: 0, bottom: 16, zIndex: 5,
+                width: 36, border: '1px solid var(--color-border)', borderRadius: 8,
+                background: 'var(--color-surface)', color: 'var(--color-text)',
+                cursor: 'pointer', fontSize: 18, fontWeight: 700,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              }}>‹</button>
+            )}
+            {canScrollRight && (
+              <button onClick={() => scrollKanban('right')} aria-label="Rolar pra direita" style={{
+                position: 'absolute', right: -8, top: 0, bottom: 16, zIndex: 5,
+                width: 36, border: '1px solid var(--color-border)', borderRadius: 8,
+                background: 'var(--color-surface)', color: 'var(--color-text)',
+                cursor: 'pointer', fontSize: 18, fontWeight: 700,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              }}>›</button>
+            )}
+            <div ref={kanbanRef} className="crm-kanban-scroll" style={{
               display: 'flex',
               flexWrap: 'nowrap',
               gap: 12,
@@ -936,6 +992,7 @@ export default function CrmPage() {
                 );
               })}
             </div>
+          </div>
           )}
 
           <LeadDrawer
