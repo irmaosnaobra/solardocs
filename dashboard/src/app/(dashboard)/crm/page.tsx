@@ -215,12 +215,15 @@ function KanbanCol({ col, children, count, onDropPhone, isDragOver, onDragEnter,
         <span style={{ fontWeight: 800, fontSize: 13, color: col.color }}>{col.emoji} {col.label}</span>
         <span style={{ fontSize: 12, fontWeight: 700, background: col.bg, color: col.color, padding: '2px 8px', borderRadius: 999, border: `1px solid ${col.border}` }}>{count}</span>
       </div>
-      <div style={{
-        minHeight: 120, border: `1px solid ${col.border}`, borderTop: 'none',
+      <div className="crm-col-body" style={{
+        minHeight: 120, maxHeight: 'calc(100vh - 360px)',
+        border: `1px solid ${col.border}`, borderTop: 'none',
         borderRadius: '0 0 10px 10px', padding: 8, display: 'flex', flexDirection: 'column', gap: 8,
         background: isDragOver ? 'rgba(99,179,237,0.08)' : 'rgba(255,255,255,0.01)',
         transition: 'background 0.15s',
         boxShadow: isDragOver ? `inset 0 0 0 2px var(--color-primary)` : undefined,
+        overflowY: 'auto',
+        overflowX: 'hidden',
       }}>
         {children}
       </div>
@@ -675,7 +678,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
         {/* Histórico */}
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>💬 Histórico ({history.length})</label>
-          <div style={{
+          <div className="crm-history" style={{
             background: 'var(--color-surface)', border: '1px solid var(--color-border)',
             borderRadius: 8, padding: 10, marginTop: 4, maxHeight: 320, overflowY: 'auto',
             display: 'flex', flexDirection: 'column', gap: 6,

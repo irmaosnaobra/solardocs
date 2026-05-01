@@ -1,46 +1,86 @@
-/* Scrollbar horizontal SEMPRE visível e estilizada no Kanban */
+/* Scrollbars GRANDES pra fácil clique com mouse — horizontal Kanban */
 .crm-kanban-scroll {
   overflow-x: scroll !important;
   overflow-y: hidden;
   flex-wrap: nowrap !important;
   scrollbar-width: auto;
-  scrollbar-color: rgba(99, 179, 237, 0.7) rgba(100, 116, 139, 0.15);
+  scrollbar-color: #f59e0b rgba(100, 116, 139, 0.25);
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  /* Garante que o conteúdo NÃO encolha pra caber no parent */
   width: 100%;
   max-width: 100%;
+  /* paddingBottom maior pra dar respiro pra scrollbar */
+  padding-bottom: 24px !important;
 }
 .crm-kanban-scroll > * {
   flex-shrink: 0 !important;
 }
 .crm-kanban-scroll::-webkit-scrollbar {
-  height: 14px;
+  height: 22px;
   -webkit-appearance: none;
   appearance: none;
   display: block;
 }
 .crm-kanban-scroll::-webkit-scrollbar-track {
-  background: rgba(100, 116, 139, 0.15);
-  border-radius: 8px;
+  background: rgba(100, 116, 139, 0.25);
+  border-radius: 12px;
   margin: 0 4px;
 }
 .crm-kanban-scroll::-webkit-scrollbar-thumb {
-  background: rgba(99, 179, 237, 0.7);
-  border-radius: 8px;
-  border: 2px solid transparent;
+  background: #f59e0b;
+  border-radius: 12px;
+  border: 3px solid transparent;
   background-clip: padding-box;
-  min-width: 60px;
+  min-width: 80px;
+  cursor: grab;
 }
 .crm-kanban-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 179, 237, 1);
+  background: #d97706;
   background-clip: padding-box;
-  border: 2px solid transparent;
+  border: 3px solid transparent;
 }
 .crm-kanban-scroll::-webkit-scrollbar-thumb:active {
-  background: rgba(56, 161, 240, 1);
+  background: #b45309;
   background-clip: padding-box;
-  border: 2px solid transparent;
+  border: 3px solid transparent;
+  cursor: grabbing;
+}
+
+/* Scrollbar VERTICAL grande dentro de cada coluna do Kanban (.crm-col-body)
+   e dentro do drawer e do histórico de conversas */
+.crm-col-body,
+.crm-drawer,
+.crm-history,
+.crm-drawer-overlay > div {
+  scrollbar-width: auto;
+  scrollbar-color: #f59e0b rgba(100, 116, 139, 0.2);
+}
+.crm-col-body::-webkit-scrollbar,
+.crm-drawer::-webkit-scrollbar,
+.crm-history::-webkit-scrollbar {
+  width: 16px;
+}
+.crm-col-body::-webkit-scrollbar-track,
+.crm-drawer::-webkit-scrollbar-track,
+.crm-history::-webkit-scrollbar-track {
+  background: rgba(100, 116, 139, 0.2);
+  border-radius: 10px;
+}
+.crm-col-body::-webkit-scrollbar-thumb,
+.crm-drawer::-webkit-scrollbar-thumb,
+.crm-history::-webkit-scrollbar-thumb {
+  background: #f59e0b;
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  min-height: 60px;
+}
+.crm-col-body::-webkit-scrollbar-thumb:hover,
+.crm-drawer::-webkit-scrollbar-thumb:hover,
+.crm-history::-webkit-scrollbar-thumb:hover {
+  background: #d97706;
+  background-clip: padding-box;
+  border: 3px solid transparent;
 }
 
 /* Responsividade — mobile (até 768px) */
