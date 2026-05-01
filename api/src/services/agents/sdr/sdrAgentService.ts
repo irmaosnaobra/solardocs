@@ -194,6 +194,25 @@ Antes de oferecer agendamento, AVALIE se este lead vale o tempo do consultor hum
 
 ⚠️ NUNCA descarte por DISTÂNCIA — quem descarta cliente é o vendedor humano. Mesmo lead a 800km de Uberlândia, se for 🟢 qualificado, agende ligação/meet. A logística da instalação não é seu problema — vendedor decide.
 
+⛔ DESCARTE DEFINITIVO (use a tool descartar_lead):
+Quando o lead disser EXPLICITAMENTE que NÃO TEM CHANCE NENHUMA, chame a tool descartar_lead — ela DELETA o lead do CRM na hora. NÃO marque [ESTAGIO:perdido] nesses casos, use a tool.
+
+Sinais claros de "0% chance" (chamar tool):
+- "Já fechei com outra empresa"
+- "Já tenho sistema solar instalado"
+- "Não tenho interesse nenhum, pode parar"
+- "Para de me mandar mensagem"
+- "Não me chame mais"
+- "Bloqueio mesmo"
+- "Vai parar de me incomodar"
+
+Sinais de "perdido normal" (marca [ESTAGIO:perdido], NÃO chama tool — fica no CRM por 45 dias):
+- Lead simplesmente parou de responder após follow-ups
+- "Vou pensar" repetido sem ação
+- Sumiu sem dar resposta clara
+
+Diferença chave: descarte = lead disse claramente "não". Perdido = lead simplesmente sumiu.
+
 🟡 SINAIS DE DUVIDA (faça MAIS 1 pergunta antes de decidir):
 - Conta entre R$200-300 + pagamento incerto → pergunta: "Pra fechar projeto na faixa do seu consumo, normalmente parcela fica em torno de R$X. Isso cabe no orçamento mensal?"
 - Casa alugada → pergunta: "Como vamos lidar com a parte do dono do imóvel? É algo que já conversaram?"
@@ -582,6 +601,20 @@ export function extractLeadInfo(messages: { role: string; content: string }[]): 
 
 const LUMA_TOOLS: Anthropic.Tool[] = [
   {
+    name: 'descartar_lead',
+    description: 'EXCLUI o lead permanentemente do CRM. Use APENAS quando o lead deixar EXPLICITAMENTE claro que tem 0% de chance: "fechei com outro", "já comprei sistema solar", "não tenho interesse nenhum", "não me chame mais", "tô bloqueando". NÃO use pra lead morno ou frio que pode voltar — esses só marca [ESTAGIO:frio] ou [ESTAGIO:perdido]. Esta tool faz DELETE definitivo: o lead some do CRM imediatamente.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        motivo: {
+          type: 'string',
+          description: 'Frase curta com a razão do descarte (ex: "fechou com concorrente", "já tem sistema instalado", "pediu pra parar de chamar"). Será logada.',
+        },
+      },
+      required: ['motivo'],
+    },
+  },
+  {
     name: 'agendar_atendimento',
     description: 'Registra o agendamento e dispara card pro grupo do consultor humano. Você é o filtro de qualidade — chame APENAS quando: (1) cliente confirmou canal + horário + endereço(se vistoria), E (2) você fez o diagnóstico da ETAPA 8.5 e concluiu que vale o tempo do consultor (consumo viável, capacidade de pagamento clara, intenção real). Lead frio (conta baixa, sem dinheiro, só curioso) = NÃO chame a tool. Cordialmente despeça e marca [ESTAGIO:frio].',
     input_schema: {
@@ -811,7 +844,18 @@ export async function handleSdrLead(
       for (const block of response.content) {
         if (block.type !== 'tool_use') continue;
         let result = '';
-        if (block.name === 'agendar_atendimento') {
+        if (block.name === 'descartar_lead') {
+          const input = block.input as any;
+          const motivo = String(input.motivo || 'sem motivo').slice(0, 200);
+          // Anexa msg de despedida no histórico ANTES de deletar (audit)
+          logger.info('luma-descartar', `lead ${cleanPhone} descartado: ${motivo}`);
+          // Deleta sessão e lead
+          await Promise.all([
+            supabase.from('whatsapp_sessions').delete().eq('phone', cleanPhone).eq('tipo', 'sdr'),
+            supabase.from('sdr_leads').delete().eq('phone', cleanPhone),
+          ]);
+          result = `Lead descartado permanentemente do CRM. Motivo logado: "${motivo}". Mande UMA despedida cordial curta (ex: "Tudo bem [Nome], fechado. Sucesso aí!") e encerra. NÃO marque [ESTAGIO] na resposta — o lead já foi excluído.`;
+        } else if (block.name === 'agendar_atendimento') {
           const input = block.input as any;
           const canal = String(input.canal || '');
           const endereco = input.endereco ? String(input.endereco).trim() : undefined;

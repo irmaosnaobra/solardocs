@@ -95,6 +95,42 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
   return { processed, skipped, errors };
 }
 
+// ─── Auto-cleanup: deleta leads em "perdido" há mais de 45 dias ─────
+//
+// Lead vira "perdido" quando para de responder (após follow-ups esgotarem)
+// ou a IA decide. Mantemos no CRM por 45 dias pra dar chance de retorno
+// orgânico. Após esse prazo, exclui pra manter o CRM limpo.
+//
+// Importante: Lead descartado EXPLICITAMENTE pela tool descartar_lead já
+// é DELETADO na hora — esta função só pega os "perdidos por silêncio".
+export async function cleanupPerdidosAntigos(): Promise<{ deleted: number }> {
+  const cutoff = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Busca primeiro pra log
+  const { data: aDeletar } = await supabase
+    .from('sdr_leads')
+    .select('phone, nome')
+    .eq('instance', 'io')
+    .eq('estagio', 'perdido')
+    .lt('updated_at', cutoff)
+    .limit(100);
+
+  if (!aDeletar?.length) return { deleted: 0 };
+
+  const phones = aDeletar.map(l => l.phone);
+
+  // Deleta sessões e leads
+  await supabase.from('whatsapp_sessions').delete().in('phone', phones).eq('tipo', 'sdr');
+  const { error } = await supabase.from('sdr_leads').delete().in('phone', phones);
+
+  if (error) {
+    logger.error('cleanup-perdidos', 'falha deletando perdidos', error);
+    return { deleted: 0 };
+  }
+
+  return { deleted: aDeletar.length };
+}
+
 // ─── Reativação em massa: leads importados que ainda não foram contactados ──
 //
 // Lista importada via POST /admin/sdr-leads/import vira leads com
