@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { handleIncomingWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { handleSdrLead } from '../services/agents/sdr/sdrAgentService';
 import { supabase } from '../utils/supabase';
+import { transcribeAudio, downloadImageAsAnthropicSource } from '../utils/mediaProcessor';
 
 const router = Router();
 
@@ -24,6 +25,24 @@ function extractText(body: any): string {
     || body.message?.extendedTextMessage?.text
     || (typeof body.text === 'object' ? body.text?.message || body.text?.conversation : body.text)
     || '';
+}
+
+// Detecta mídia no payload Z-API: audio, imagem, video ou documento.
+// Z-API usa campos diferentes pra cada tipo (audio.audioUrl, image.imageUrl, etc).
+function extractMedia(body: any): { url: string; type: 'audio' | 'image' | 'video' | 'document'; mime: string } | null {
+  if (body.audio?.audioUrl) {
+    return { url: body.audio.audioUrl, type: 'audio', mime: body.audio.mimeType || 'audio/ogg' };
+  }
+  if (body.image?.imageUrl) {
+    return { url: body.image.imageUrl, type: 'image', mime: body.image.mimeType || 'image/jpeg' };
+  }
+  if (body.video?.videoUrl) {
+    return { url: body.video.videoUrl, type: 'video', mime: body.video.mimeType || 'video/mp4' };
+  }
+  if (body.document?.documentUrl) {
+    return { url: body.document.documentUrl, type: 'document', mime: body.document.mimeType || 'application/pdf' };
+  }
+  return null;
 }
 
 function isFromMe(body: any): boolean {
@@ -141,11 +160,42 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
 
   const phone = body.phone || body.senderPhone;
   const text = extractText(body);
-  if (!phone || !text) return;
+  const media = extractMedia(body);
+  if (!phone) return;
+  if (!text && !media) return; // sem texto nem mídia = nada pra processar
 
-  // Processa em background — chama Luma direto na linha 'io'
-  handleSdrLead(String(phone), String(text), body.senderName || body.pushname, tracking, 'io')
-    .catch(err => console.error('[webhook:io] handleSdrLead falhou:', err));
+  // Processa em background — chama Luma direto na linha 'io'.
+  // Pra mídia: transcreve áudio (Whisper) ou baixa imagem como base64 (Anthropic vision).
+  (async () => {
+    try {
+      let finalText = String(text || '');
+      let imageSource: { type: 'base64'; media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'; data: string } | null = null;
+
+      if (media) {
+        if (media.type === 'audio') {
+          const transcription = await transcribeAudio(media.url, media.mime);
+          finalText = transcription || finalText || '[áudio recebido — não consegui transcrever, pode digitar?]';
+        } else if (media.type === 'image') {
+          imageSource = await downloadImageAsAnthropicSource(media.url, media.mime);
+          if (!finalText || finalText === '[imagem]') {
+            finalText = 'O cliente enviou esta imagem.';
+          }
+        } else if (media.type === 'video' || media.type === 'document') {
+          finalText = (finalText || '') +
+            ` [cliente enviou ${media.type} — diga educadamente que você só analisa texto, áudio e imagem; peça pra ele descrever ou tirar uma foto]`;
+        }
+      }
+
+      if (!finalText) return;
+      await handleSdrLead(
+        String(phone), finalText,
+        body.senderName || body.pushname,
+        tracking, 'io', imageSource,
+      );
+    } catch (err) {
+      console.error('[webhook:io] handleSdrLead falhou:', err);
+    }
+  })();
 });
 
 export default router;

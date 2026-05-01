@@ -840,6 +840,7 @@ export async function handleSdrLead(
   senderName?: string | null,
   tracking?: { ctwa_clid?: string | null },
   instance: ZapiInstance = 'solardoc',
+  imageSource?: { type: 'base64'; media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'; data: string } | null,
 ): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
@@ -863,9 +864,21 @@ export async function handleSdrLead(
   const session = await getSdrSession(cleanPhone);
   const nome = session.nome || senderName || null;
 
+  // Se veio imagem, manda multimodal pra Anthropic (texto + imagem) e
+  // persiste no histórico só uma nota "[imagem]" pra não inflar o JSON.
+  const userTextForHistory = imageSource
+    ? `${text.trim()} [imagem enviada pelo cliente]`
+    : text.trim();
+  const userContentForLLM: any = imageSource
+    ? [
+        { type: 'image', source: imageSource },
+        { type: 'text', text: text.trim() || 'O cliente enviou esta imagem. Analise o que mostra (conta de luz, padrão de entrada, telhado, etc) e responda.' },
+      ]
+    : text.trim();
+
   const messages = [
     ...session.messages,
-    { role: 'user' as const, content: text.trim() },
+    { role: 'user' as const, content: userContentForLLM },
   ];
 
   // Injeta opções de horário REAIS no contexto pra Luma ofertar agendamento concreto.
@@ -966,7 +979,13 @@ export async function handleSdrLead(
   await sendHuman(cleanPhone, parts, instance);
 
   const updatedNome = nome || senderName || null;
-  const allMessages = [...messages, { role: 'assistant' as const, content: cleanText }];
+  // Pra histórico: troca content multimodal (com base64) por nota textual pra economizar JSON
+  const messagesForHistory = messages.map((m: any) =>
+    m.role === 'user' && Array.isArray(m.content)
+      ? { role: 'user' as const, content: userTextForHistory }
+      : m
+  );
+  const allMessages = [...messagesForHistory, { role: 'assistant' as const, content: cleanText }];
 
   // Marca lead como aguardando resposta para ativar follow-up
   // instance grava em qual linha o lead foi atendido (pra follow-up usar a linha certa)
