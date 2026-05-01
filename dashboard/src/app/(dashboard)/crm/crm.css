@@ -1,3 +1,9 @@
+/* Pulse pro relógio em horário comercial */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(1.15); }
+}
+
 /* Scrollbars GRANDES pra fácil clique com mouse — horizontal Kanban */
 .crm-kanban-scroll {
   overflow-x: scroll !important;
