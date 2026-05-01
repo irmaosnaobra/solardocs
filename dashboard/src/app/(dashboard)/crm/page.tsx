@@ -155,25 +155,24 @@ function MetricCard({ label, value, color, subtitle, progress, meta }: {
 }) {
   const pct = progress != null ? Math.max(0, Math.min(100, progress)) : null;
   const barColor = pct == null ? color : (pct >= 100 ? '#22c55e' : pct >= 70 ? '#84cc16' : pct >= 40 ? '#f59e0b' : '#ef4444');
-  // Reduz fonte se valor for longo pra não quebrar em 2 linhas (ex: "R$ 256.6k")
   const valueLen = String(value).length;
-  const valueFontSize = valueLen > 7 ? 16 : 22;
+  const valueFontSize = valueLen > 7 ? 14 : 18;
   return (
     <div style={{
-      flex: '1 1 0', minWidth: 110,
-      height: 130,
+      flex: '1 1 0', minWidth: 95,
+      height: 84,
       background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-      borderRadius: 8, padding: '12px 14px',
-      display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 4,
+      borderRadius: 8, padding: '8px 10px',
+      display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 2,
       overflow: 'hidden',
     }}>
-      <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, lineHeight: 1.2, whiteSpace: 'nowrap' }}>{label}</div>
+      <div style={{ fontSize: 9, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, lineHeight: 1.1, whiteSpace: 'nowrap' }}>{label}</div>
       <div style={{ fontSize: valueFontSize, fontWeight: 800, color: color || 'var(--color-text)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
-      {subtitle && <div style={{ fontSize: 10, color: 'var(--color-text-muted)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{subtitle}</div>}
+      {subtitle && <div style={{ fontSize: 9, color: 'var(--color-text-muted)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{subtitle}</div>}
       {pct != null && (
         <div style={{ marginTop: 'auto' }}>
           <div style={{
-            height: 4, borderRadius: 999, background: 'rgba(100,116,139,0.2)',
+            height: 3, borderRadius: 999, background: 'rgba(100,116,139,0.2)',
             overflow: 'hidden',
           }}>
             <div style={{
@@ -181,7 +180,7 @@ function MetricCard({ label, value, color, subtitle, progress, meta }: {
               borderRadius: 999, transition: 'width 0.4s ease',
             }} />
           </div>
-          <div style={{ fontSize: 9, color: 'var(--color-text-muted)', display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+          <div style={{ fontSize: 8, color: 'var(--color-text-muted)', display: 'flex', justifyContent: 'space-between', marginTop: 1 }}>
             <span>{pct.toFixed(0)}%</span>
             {meta && <span>{meta}</span>}
           </div>
@@ -221,7 +220,7 @@ function KanbanCol({ col, children, count, onDropPhone, isDragOver, onDragEnter,
         <span style={{ fontSize: 12, fontWeight: 700, background: col.bg, color: col.color, padding: '2px 8px', borderRadius: 999, border: `1px solid ${col.border}` }}>{count}</span>
       </div>
       <div className="crm-col-body" style={{
-        minHeight: 120, maxHeight: 'calc(100vh - 360px)',
+        minHeight: 120, maxHeight: 'calc(100vh - 290px)',
         border: `1px solid ${col.border}`, borderTop: 'none',
         borderRadius: '0 0 10px 10px', padding: 8, display: 'flex', flexDirection: 'column', gap: 8,
         background: isDragOver ? 'rgba(99,179,237,0.08)' : 'rgba(255,255,255,0.01)',
