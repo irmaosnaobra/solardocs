@@ -22,59 +22,85 @@ interface SidebarProps {
 }
 
 const STRIPE_VIP = 'https://buy.stripe.com/bJe7sK6el9hmgNe0KDfrW02';
+const PLANILHA_MESTRE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvd79xaG3qQwyko6BegyUaZmvd0B1FmtkaN9Oafm3qmU5yY86T2qA0EP_CysGf6bpRjxCccMOiqLxp/pubhtml';
+const TRELLO_HOMOLOGACAO_URL = 'https://trello.com/invite/b/678a89a047242f02d443f8e0/ATTI3bb1a020220b7bd024f4812d12210e193C056740/engenheiro-guilherme';
+
+type Badge = 'admin' | 'vip' | 'ment' | null;
 
 interface NavItem {
   href: string;
   icon: string;
   label: string;
-  vipOnly?: boolean;
+  badge?: Badge;
+  external?: boolean;
+  count?: number;
+  requireCompany?: boolean;
 }
 
-const navItems: NavItem[] = [
+// ── Configuração das 5 seções ─────────────────────────────────────
+
+const adminItems: NavItem[] = [
+  { href: '/admin',                   icon: '⚙️', label: 'Painel Admin' },
+  { href: '/crm/solar-io',            icon: '⚡', label: 'CRM Solar', count: 749 },
+  { href: '/crm/solardoc',            icon: '📁', label: 'CRM SolarDoc', count: 58 },
+  { href: '/admin/gerador-propostas', icon: '📄', label: 'Gerador de Proposta' },
+  { href: PLANILHA_MESTRE_URL,        icon: '📊', label: 'Planilha Mestre',     external: true },
+  { href: TRELLO_HOMOLOGACAO_URL,     icon: '📌', label: 'Homologação',         external: true },
+];
+
+const cadastroItems: NavItem[] = [
+  { href: '/dashboard', icon: '📊', label: 'Dashboard', badge: 'vip' },
   { href: '/empresa',   icon: '🏢', label: 'Empresa' },
-  { href: '/clientes',  icon: '👥', label: 'Clientes' },
-  { href: '/terceiros', icon: '🤝', label: 'Terceiros' },
+  { href: '/clientes',  icon: '👥', label: 'Cliente',  requireCompany: true },
+  { href: '/terceiros', icon: '🤝', label: 'Terceiro', requireCompany: true },
 ];
 
-const docClienteItems: NavItem[] = [
-  { href: '/documentos?tipo=contrato-solar',    icon: '☀️', label: 'Contrato Solar' },
-  { href: '/documentos?tipo=procuracao',        icon: '📜', label: 'Procuração' },
-  { href: '/documentos?tipo=proposta-bancaria', icon: '🏦', label: 'Proposta Bancária' },
+const docsClienteItems: NavItem[] = [
+  { href: '/docs/proposta-banco', icon: '🏦', label: 'Proposta de Banco', requireCompany: true },
+  { href: '/docs/contrato-solar', icon: '📜', label: 'Contrato Solar',    requireCompany: true },
+  { href: '/docs/procuracao',     icon: '📋', label: 'Procuração',        requireCompany: true },
 ];
 
-const docTerceiroItems: NavItem[] = [
-  { href: '/documentos?tipo=prestacao-servico', icon: '🔧', label: 'Prestação de Serviço' },
-  { href: '/documentos?tipo=contrato-pj',       icon: '🤝', label: 'Contrato PJ Vendas' },
+const docsTerceiroItems: NavItem[] = [
+  { href: '/docs/prestacao-servico', icon: '🛠️', label: 'Prestação de Serviço', requireCompany: true },
+  { href: '/docs/contra-venda-pj',   icon: '💼', label: 'Contra Venda PJ',       requireCompany: true },
 ];
 
-function useBrasiliaTime() {
-  const [time, setTime] = useState('');
-  useEffect(() => {
-    function tick() {
-      const d = new Date(Date.now() - 3 * 3600 * 1000);
-      const hh = String(d.getUTCHours()).padStart(2, '0');
-      const mm = String(d.getUTCMinutes()).padStart(2, '0');
-      const ss = String(d.getUTCSeconds()).padStart(2, '0');
-      setTime(`${hh}:${mm}:${ss}`);
-    }
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-  return time;
+const contaItems: NavItem[] = [
+  { href: '/conta/documentos',                     icon: '💾', label: 'Documentos Salvos',       badge: 'vip' },
+  { href: '/conta/sugestoes',                      icon: '💡', label: 'Sugestão',                badge: 'vip' },
+  { href: '/conta/mao-de-obra',                    icon: '🔧', label: 'Cadastro de Mão de Obra', badge: 'vip' },
+  { href: '/mentoria/combo-financeiro-engenharia', icon: '⚡', label: 'COMBO Mestre + Trello',   badge: 'ment' },
+  { href: '/mentoria/planilha-mestre',             icon: '📊', label: 'Planilha Mestre',         badge: 'ment' },
+  { href: '/mentoria/trello-homologacao',          icon: '📌', label: 'Trello Homologação',      badge: 'ment' },
+  { href: '/mentoria/trafego',                     icon: '📣', label: 'Tráfego Pago',            badge: 'ment' },
+  { href: '/mentoria/gerador',                     icon: '📄', label: 'Gerador de Proposta',     badge: 'ment' },
+  { href: '/mentoria/parceiro-integrador',         icon: '🎯', label: 'Parceiro Integrador',     badge: 'ment' },
+];
+
+// ── Badges ──────────────────────────────────────────────────────────
+
+function BadgeAdmin() { return <span className={styles.badgeAdmin}>🔒 ADMIN</span>; }
+function BadgeVip()   { return <span className={styles.badgeVip}>★ VIP</span>; }
+function BadgeMent()  { return <span className={styles.badgeMent}>◆ MENT</span>; }
+
+function ItemBadge({ badge }: { badge?: Badge }) {
+  if (badge === 'vip') return <BadgeVip />;
+  if (badge === 'ment') return <BadgeMent />;
+  return null;
 }
+
+// ── Componente principal ────────────────────────────────────────────
 
 export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarProps) {
   const pathname = usePathname();
-  const router   = useRouter();
-  const isVip    = user.plano === 'ilimitado';
-  const isAdmin  = !!user.is_admin;
+  const router = useRouter();
+  const isVip = user.plano === 'ilimitado';
+  const isAdmin = !!user.is_admin;
   const [open, setOpen] = useState(false);
 
-  // Fecha ao trocar de rota
   useEffect(() => { setOpen(false); }, [pathname]);
 
-  // Trava scroll do body quando aberto
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -85,47 +111,52 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
     router.push('/auth?mode=login');
   }
 
-  function renderNavItem(item: NavItem, lockedByCompany: boolean) {
+  function renderItem(item: NavItem) {
+    const active = pathname === item.href;
+    const lockedByCompany = !isAdmin && !hasCompany && !!item.requireCompany;
+    const vipNotAllowed = item.badge === 'vip' && !isVip && !isAdmin;
+
     if (lockedByCompany) {
       return (
-        <div
-          key={item.href}
-          className={styles.navItemLocked}
-          title="Cadastre o CNPJ da sua empresa primeiro"
-        >
+        <div key={item.href} className={styles.navItemLocked} title="Cadastre o CNPJ da sua empresa primeiro">
           <span className={styles.navIcon}>{item.icon}</span>
-          <span>{item.label}</span>
+          <span className={styles.navLabel}>{item.label}</span>
           <span className={styles.lockIcon}>🔒</span>
         </div>
       );
     }
 
-    // Item VIP — não-VIP vai direto para checkout
-    if (item.vipOnly && !isVip && !isAdmin) {
+    if (item.external) {
       return (
-        <a
-          key={item.href}
-          href={STRIPE_VIP}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.navItem}
-        >
+        <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer"
+           className={styles.navItem}>
           <span className={styles.navIcon}>{item.icon}</span>
-          <span>{item.label}</span>
-          <span className={styles.vipTag}>VIP</span>
+          <span className={styles.navLabel}>{item.label}</span>
+          {item.count != null && <span className={styles.countBadge}>{item.count}</span>}
+          <span className={styles.externalIcon}>↗</span>
+        </a>
+      );
+    }
+
+    // Item VIP que o user não tem → leva pro Stripe (mantém UX existente)
+    if (vipNotAllowed) {
+      return (
+        <a key={item.href} href={STRIPE_VIP} target="_blank" rel="noopener noreferrer"
+           className={styles.navItem}>
+          <span className={styles.navIcon}>{item.icon}</span>
+          <span className={styles.navLabel}>{item.label}</span>
+          <BadgeVip />
         </a>
       );
     }
 
     return (
-      <Link
-        key={item.href}
-        href={item.href}
-        className={`${styles.navItem} ${pathname === item.href ? styles.navItemActive : ''}`}
-      >
+      <Link key={item.href} href={item.href}
+            className={`${styles.navItem} ${active ? styles.navItemActive : ''}`}>
         <span className={styles.navIcon}>{item.icon}</span>
-        <span>{item.label}</span>
-        {item.vipOnly && (isVip || isAdmin) && <span className={styles.vipTag}>VIP</span>}
+        <span className={styles.navLabel}>{item.label}</span>
+        {item.count != null && <span className={styles.countBadge}>{item.count}</span>}
+        <ItemBadge badge={item.badge} />
       </Link>
     );
   }
@@ -142,91 +173,53 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
             <Logo className={styles.logoImg} />
           </button>
         )}
-        {(isVip || isAdmin) && (
-          <Link href="/dashboard" className={`${styles.dashboardLink} ${pathname === '/dashboard' ? styles.dashboardLinkActive : ''}`}>
-            dashboard
-          </Link>
-        )}
       </div>
 
       <nav className={styles.nav}>
-        {/* Admin — só visível para admins */}
+        {/* ── Seção 1: Área Restrita (admin only) ── */}
         {isAdmin && (
-          <Link
-            href="/admin"
-            className={`${styles.navItem} ${styles.navItemDashboard} ${pathname === '/admin' ? styles.navItemActive : ''}`}
-          >
-            <span className={styles.navIcon}>⚙️</span>
-            <span>Painel Admin</span>
-          </Link>
+          <>
+            <div className={styles.navDivider}>
+              <span className={`${styles.navDividerLabel} ${styles.navDividerLabelAdmin}`}>Área Restrita</span>
+              <BadgeAdmin />
+            </div>
+            <div className={styles.navSection}>
+              {adminItems.map(renderItem)}
+            </div>
+          </>
         )}
 
-        {/* CRM SDR — só admins */}
-        {isAdmin && (
-          <Link
-            href="/crm"
-            className={`${styles.navItem} ${styles.navItemDashboard} ${pathname === '/crm' ? styles.navItemActive : ''}`}
-          >
-            <span className={styles.navIcon}>📋</span>
-            <span>CRM Leads</span>
-          </Link>
-        )}
-
-        {/* Dashboard — VIP e Admin */}
-        {(isVip || isAdmin) ? (
-          <Link
-            href="/dashboard"
-            className={`${styles.navItem} ${styles.navItemDashboard} ${pathname === '/dashboard' ? styles.navItemActive : ''}`}
-          >
-            <span className={styles.navIcon}>📊</span>
-            <span>Dashboard</span>
-            <span className={styles.vipTag}>VIP</span>
-          </Link>
-        ) : (
-          <a
-            href={STRIPE_VIP}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${styles.navItem} ${styles.navItemDashboard}`}
-          >
-            <span className={styles.navIcon}>📊</span>
-            <span>Dashboard</span>
-            <span className={styles.vipTag}>VIP</span>
-          </a>
-        )}
-
+        {/* ── Seção 2: Cadastro ── */}
         <div className={styles.navDivider}>
-          <span className={`${styles.navDividerLabel} ${styles.navDividerLabelHighlight}`}>Cadastros</span>
+          <span className={styles.navDividerLabel}>Cadastro</span>
         </div>
         <div className={styles.navSection}>
-          {navItems.map((item) => {
-            const locked = !isAdmin && !hasCompany && item.href !== '/empresa';
-            return renderNavItem(item, locked);
-          })}
+          {cadastroItems.map(renderItem)}
         </div>
 
+        {/* ── Seção 3: Docs Cliente ── */}
         <div className={styles.navDivider}>
-          <span className={`${styles.navDividerLabel} ${styles.navDividerLabelHighlight}`}>Docs Clientes</span>
+          <span className={styles.navDividerLabel}>Docs Cliente</span>
         </div>
         <div className={styles.navSection}>
-          {docClienteItems.map((item) => renderNavItem(item, !isAdmin && !hasCompany))}
+          {docsClienteItems.map(renderItem)}
         </div>
 
+        {/* ── Seção 4: Docs Terceiro ── */}
         <div className={styles.navDivider}>
-          <span className={`${styles.navDividerLabel} ${styles.navDividerLabelHighlight}`}>Docs Terceiros</span>
+          <span className={styles.navDividerLabel}>Docs Terceiro</span>
         </div>
         <div className={styles.navSection}>
-          {docTerceiroItems.map((item) => renderNavItem(item, !isAdmin && !hasCompany))}
+          {docsTerceiroItems.map(renderItem)}
         </div>
 
-
+        {/* ── Seção 5: Conta ── */}
         <div className={styles.navDivider}>
           <span className={styles.navDividerLabel}>Conta</span>
         </div>
         <div className={styles.navSection}>
-          {renderNavItem({ href: '/historico', icon: '🗂️', label: 'Meus Documentos', vipOnly: true }, false)}
+          {contaItems.map(renderItem)}
         </div>
-
       </nav>
 
       <div className={styles.footer}>
@@ -266,7 +259,6 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
         <div style={{ width: 30 }} />
       </div>
 
-      {/* Overlay ao abrir */}
       {open && <div className={styles.overlay} onClick={() => setOpen(false)} />}
 
       {sidebarContent}
