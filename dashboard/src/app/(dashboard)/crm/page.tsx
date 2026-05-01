@@ -942,9 +942,10 @@ export default function CrmPage() {
 
             {algumFiltroAtivo && (
               <button onClick={() => setFilters({ agendados: 'all', origem: 'all', takeover: 'all', consultor: 'all' })} style={{
-                padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444',
-              }}>✕ Limpar</button>
+                padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                background: 'rgba(239,68,68,0.1)', border: '2px solid rgba(239,68,68,0.4)', color: '#ef4444',
+                minHeight: 40,
+              }}>✕ Limpar filtros</button>
             )}
             <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
               Mostrando {sdrFiltrados.length} de {sdrLeads.length}
@@ -1346,11 +1347,13 @@ function FilterChip({ label, value, options, onChange }: {
   return (
     <select value={value} onChange={e => onChange(e.target.value)}
       title={label}
+      className="crm-filter-chip"
       style={{
-        padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-        border: `1px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
-        background: active ? 'rgba(99,179,237,0.1)' : 'var(--color-surface)',
-        color: active ? 'var(--color-primary)' : 'var(--color-text-muted)',
+        padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+        border: `2px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
+        background: active ? 'rgba(99,179,237,0.12)' : 'var(--color-surface)',
+        color: active ? 'var(--color-primary)' : 'var(--color-text)',
+        minHeight: 40,
       }}>
       {options.map(o => <option key={o.v} value={o.v}>{label}: {o.l}</option>)}
     </select>

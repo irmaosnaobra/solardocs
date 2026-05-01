@@ -77,12 +77,15 @@
     font-size: 13px !important;
   }
 
-  /* Filtros viram chips empilhados */
+  /* Filtros: chips maiores e mais espaçados */
   .crm-filters {
-    gap: 4px !important;
+    gap: 8px !important;
   }
-  .crm-filters select {
-    font-size: 11px !important;
+  .crm-filters .crm-filter-chip {
+    font-size: 13px !important;
+    padding: 12px 16px !important;
+    min-height: 44px !important;
+    flex: 1 1 calc(50% - 4px);
   }
 
   /* Colunas do Kanban ficam mais estreitas */
