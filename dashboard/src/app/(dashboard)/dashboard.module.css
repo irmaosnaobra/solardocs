@@ -6,11 +6,21 @@
 
 .main {
   flex: 1;
-  min-width: 0; /* permite overflow horizontal nos filhos (Kanban CRM) */
+  min-width: 0; /* CRÍTICO: permite overflow horizontal nos filhos (Kanban CRM) */
+  max-width: 100%;
   margin-left: var(--sidebar-width);
   padding: 32px;
   min-height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden; /* Bloqueia overflow do pai pra forçar scroll no filho .crm-kanban-scroll */
+}
+
+/* Em mobile, sidebar some, main ocupa tudo */
+@media (max-width: 768px) {
+  .main {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
 }
 
 @media print {

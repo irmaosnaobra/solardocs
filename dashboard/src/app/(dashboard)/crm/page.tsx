@@ -172,7 +172,7 @@ function KanbanCol({ col, children, count, onDropPhone, isDragOver, onDragEnter,
   onDragLeave?: () => void;
 }) {
   return (
-    <div style={{ minWidth: 320, flex: '0 0 320px' }}
+    <div style={{ minWidth: 320, width: 320, flex: '0 0 320px', flexShrink: 0 }}
       onDragOver={(e) => { if (onDropPhone) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
       onDragEnter={(e) => { if (onDropPhone) { e.preventDefault(); onDragEnter?.(); } }}
       onDragLeave={onDragLeave}
@@ -892,7 +892,17 @@ export default function CrmPage() {
           {loading ? (
             <p style={{ color: 'var(--color-text-muted)', padding: 40, textAlign: 'center' }}>Carregando...</p>
           ) : (
-            <div className="crm-kanban-scroll" style={{ display: 'flex', flexWrap: 'nowrap', gap: 12, paddingBottom: 16, alignItems: 'flex-start' }}>
+            <div className="crm-kanban-scroll" style={{
+              display: 'flex',
+              flexWrap: 'nowrap',
+              gap: 12,
+              paddingBottom: 16,
+              alignItems: 'flex-start',
+              overflowX: 'scroll',
+              overflowY: 'hidden',
+              width: '100%',
+              maxWidth: '100%',
+            }}>
               {SDR_COLS.map(col => {
                 let colLeads = sdrFiltrados.filter(l => l.estagio === col.id);
                 // Fechamento: ordena por codigo_contrato DESC (#0045 no topo, #0001 embaixo)
