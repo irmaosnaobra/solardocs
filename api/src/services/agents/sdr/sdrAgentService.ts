@@ -114,7 +114,7 @@ Todo lead chega com a frase pré-formatada do anúncio Meta: "Tenho interesse em
 NÃO ecoe a frase dele. Trate como um "oi" e abra natural.
 
 Modelo:
-"Oi! Aqui é a Luma, da Irmãos na Obra ☀️ || Vou te ajudar a montar um sistema que zera sua conta de luz. || Como posso te chamar?"
+"Oi! Aqui é a Luma, da Irmãos na Obra ☀️ || Vou te ajudar a montar um sistema que reduz sua conta praticamente à taxa mínima da concessionária. || Como posso te chamar?"
 
 ETAPA 2 — CONSUMO MENSAL
 "Prazer, [Nome]! Pra eu te ajudar direito, quanto vem hoje sua conta de luz por mês, em média? (valor em R$)"
@@ -284,6 +284,17 @@ REGRAS:
 - Se vistoria e endereço ainda não foi dado, pergunte primeiro.
 - Se a tool retornar erro de endereço, pergunte o endereço de novo de forma direta.
 
+⚠️ REGRA CRÍTICA — NUNCA QUEBRE:
+JAMAIS confirme um agendamento pro cliente (frase tipo "anotado", "marquei sua visita", "agendei pra você") SEM ANTES chamar a tool **agendar_atendimento**. Sem a tool, a equipe NÃO recebe o card no grupo e ninguém vai aparecer no horário. Se você esquecer de chamar a tool e só confirmar de boca, o cliente vai ficar esperando à toa.
+
+Sequência obrigatória SEMPRE:
+1. Coletou canal + horário (+ endereço se vistoria)
+2. CHAMA a tool agendar_atendimento
+3. Tool retornou OK → AÍ confirma pro cliente
+4. Tool retornou erro → NÃO confirma; reporta brevemente "Tive um problema técnico aqui, deixa eu reagendar com você" e tenta de novo
+
+Se a tool falhar 2x, peça pro cliente aguardar 1 minuto e diga que vai chamar um humano — NÃO invente um agendamento.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # OBJEÇÕES — RESPOSTAS PRONTAS (volte pro fluxo depois)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -318,8 +329,8 @@ OBJ "Demora pra instalar?"
 OBJ "Moro em apartamento, dá pra instalar?"
 → "Em apartamento individual não dá — o telhado é coletivo do condomínio. O que dá pra fazer é acordar com o síndico instalar pro condomínio inteiro receber crédito (geração compartilhada). Se for casa térrea ou cobertura própria, aí sim."
 
-OBJ "Continuo pagando alguma coisa?"
-→ "Só taxa mínima — R$30 a R$50/mês conforme padrão. Resto da conta zera."
+OBJ "Continuo pagando alguma coisa?" / "A conta vai pra zero?"
+→ "A conta NÃO zera completamente — todo cliente da concessionária paga a taxa mínima de disponibilidade obrigatória (R$30 a R$50/mês conforme padrão de entrada: monofásico, bifásico ou trifásico). O resto da conta sim — você gera tudo que consome. Mas esse mínimo continua sempre. Quem te promete 'conta zerada' tá te enganando."
 
 OBJ "E o roubo de painel?"
 → "Pouco comum — painel é grande e identificável. A gente instala parafuso antifurto. Seguro residencial cobre por R$8-15/mês."
@@ -751,26 +762,67 @@ export async function criarCardAgendamento(
     `🔗 CRM: https://solardoc.app/crm`,
   ].filter(Boolean).join('\n');
 
+  // PRIMEIRO persiste o agendamento — se o sendToGroup falhar, o lead AINDA fica
+  // marcado como quente no CRM e a equipe vê via dashboard. Card pendente pode
+  // ser reenviado pelo cron de retry (campo card_enviado_at = null).
+  const update: any = {
+    canal_atendimento: canal,
+    horario_atendimento: horario,
+    agendado_at: new Date().toISOString(),
+    card_enviado_at: null, // só marca quando o envio confirmar
+    card_payload: card,    // salva pro retry
+    card_group_id: groupId,
+    estagio: 'quente',
+    aguardando_resposta: false,
+    updated_at: new Date().toISOString(),
+    lembrete_enviado_at: null,
+  };
+  if (horarioIso) update.horario_iso = horarioIso;
+  if (endereco) update.endereco_vistoria = endereco;
+  await supabase.from('sdr_leads').update(update).eq('phone', phone);
+
   try {
     await sendToGroup(groupId, card, instance);
-    const update: any = {
-      canal_atendimento: canal,
-      horario_atendimento: horario,
-      agendado_at: new Date().toISOString(),
-      card_enviado_at: new Date().toISOString(),
-      estagio: 'quente',
-      aguardando_resposta: false,
-      updated_at: new Date().toISOString(),
-      lembrete_enviado_at: null, // reset pra permitir lembrete novo
-    };
-    if (horarioIso) update.horario_iso = horarioIso;
-    if (endereco) update.endereco_vistoria = endereco;
-    await supabase.from('sdr_leads').update(update).eq('phone', phone);
+    await supabase.from('sdr_leads')
+      .update({ card_enviado_at: new Date().toISOString() })
+      .eq('phone', phone);
     return { ok: true };
   } catch (err) {
     logger.error('luma-card', `falha ao enviar card pro grupo ${groupId}`, err);
+    // Lead já está marcado quente e card_payload salvo — retry vai pegar
     return { ok: false, reason: err instanceof Error ? err.message : String(err) };
   }
+}
+
+// Retry de cards de agendamento que ficaram pendentes (sendToGroup falhou).
+// Roda no cron — pega leads com card_payload mas sem card_enviado_at.
+export async function retryCardsPendentes(): Promise<{ retried: number; ok: number; failed: number }> {
+  const { data: pendentes } = await supabase
+    .from('sdr_leads')
+    .select('phone, card_payload, card_group_id, instance')
+    .is('card_enviado_at', null)
+    .not('card_payload', 'is', null)
+    .not('agendado_at', 'is', null)
+    .limit(20);
+
+  let ok = 0, failed = 0;
+  for (const lead of (pendentes || []) as any[]) {
+    if (!lead.card_payload || !lead.card_group_id) continue;
+    const inst: ZapiInstance = (lead.instance === 'io' ? 'io' : 'solardoc');
+    try {
+      await sendToGroup(lead.card_group_id, lead.card_payload, inst);
+      await supabase.from('sdr_leads')
+        .update({ card_enviado_at: new Date().toISOString() })
+        .eq('phone', lead.phone);
+      ok++;
+      logger.info('luma-card-retry', `card reenviado com sucesso pra ${lead.phone}`);
+    } catch (err) {
+      failed++;
+      logger.error('luma-card-retry', `retry falhou pra ${lead.phone}`, err);
+    }
+  }
+
+  return { retried: pendentes?.length || 0, ok, failed };
 }
 
 // ─── handler principal SDR ────────────────────────────────────────

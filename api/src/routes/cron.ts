@@ -5,7 +5,7 @@ import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContract
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
-import { pollZapiMessages } from '../services/agents/sdr/sdrAgentService';
+import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, cleanupPerdidosAntigos, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { logger } from '../utils/logger';
 
@@ -108,7 +108,7 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, pollIoResult, takeoverResult, lembretesResult, revisaoResult, reativacaoResult, cleanupResult, relatorioResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, takeoverResult, lembretesResult, revisaoResult, reativacaoResult, cleanupResult, relatorioResult, cardRetryResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),
@@ -118,6 +118,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       processarReativacao(),
       cleanupPerdidosAntigos(),
       enviarRelatorioDiario(),
+      retryCardsPendentes(),
     ]);
     res.json({
       ok: true,
@@ -130,6 +131,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       reativacao: reativacaoResult.status === 'fulfilled' ? reativacaoResult.value : { error: String((reativacaoResult as any).reason) },
       cleanup:    cleanupResult.status === 'fulfilled' ? cleanupResult.value : { error: String((cleanupResult as any).reason) },
       relatorio:  relatorioResult.status === 'fulfilled' ? relatorioResult.value : { error: String((relatorioResult as any).reason) },
+      card_retry: cardRetryResult.status === 'fulfilled' ? cardRetryResult.value : { error: String((cardRetryResult as any).reason) },
     });
   } catch (err) {
     logger.error('cron', 'process-messages falhou', err);
