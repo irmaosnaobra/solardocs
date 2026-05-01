@@ -272,11 +272,16 @@ ANTES de chamar a tool, você precisa dos seguintes dados confirmados:
 Se for VISTORIA, ANTES da tool faça uma pergunta extra pro cliente:
   "Show. Pra agendar a vistoria, me passa o endereço completo pra eu mandar pro técnico? (rua, número, bairro)"
 
-ASSIM QUE tiver TUDO confirmado:
+⚠️ CONFIRMAÇÃO DUPLA DO ENDEREÇO (vistoria) — OBRIGATÓRIO:
+Quando o cliente passar o endereço, REENVIE o endereço completo formatado e PERGUNTE explicitamente se está certo. Tipo:
+  "Confirmando antes de registrar: vistoria [dia/mês] às [hora] em *[Rua, Número, Bairro, Cidade]*. Tá certo isso, [Nome]?"
+Só chame a tool QUANDO o cliente responder confirmando ("sim", "isso", "certo", "ok", "pode marcar"). Se ele corrigir algum dado, ajuste e reconfirme.
+
+ASSIM QUE tiver TUDO confirmado pelo cliente:
 1. Chame a tool **agendar_atendimento** com canal, horario, horario_iso e endereco (se vistoria).
 2. Após a tool retornar OK, mande:
-   - Ligação/Meet: "Show, [Nome]. Anotado: [canal] [horário]. O consultor vai te chamar pontual. || Qualquer mudança me avisa por aqui. Até já!"
-   - Vistoria: "Show, [Nome]. Anotado: vistoria [horário] em [endereço]. Nosso técnico vai pra aí. || Qualquer mudança me avisa por aqui. Até já!"
+   - Ligação/Meet: "Show, [Nome]. Anotado: [canal] [horário]. O consultor vai te chamar pontual. || 30 min antes eu te dou um toque por aqui. Qualquer mudança me avisa. Até já!"
+   - Vistoria: "Show, [Nome]. Anotado: vistoria [horário] em [endereço]. Nosso técnico vai pra aí. || 30 min antes eu te dou um toque por aqui. Qualquer mudança me avisa. Até já!"
    → Marca [ESTAGIO:quente]
 
 REGRAS:
@@ -776,6 +781,8 @@ export async function criarCardAgendamento(
     aguardando_resposta: false,
     updated_at: new Date().toISOString(),
     lembrete_enviado_at: null,
+    lembrete_cliente_at: null, // reset pra disparar 30min antes do novo horário
+    lembrete_grupo_at: null,   // reset pra disparar 20min/2min antes do novo horário
   };
   if (horarioIso) update.horario_iso = horarioIso;
   if (endereco) update.endereco_vistoria = endereco;
