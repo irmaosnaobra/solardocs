@@ -396,8 +396,8 @@ REGRAS:
   }
 }
 
-const META_REATIVACAO_DIA = 50;
-const REATIVACOES_POR_EXECUCAO = 2;
+const META_REATIVACAO_DIA = 20;
+const REATIVACOES_POR_EXECUCAO = 1;
 
 export async function processarReativacao(): Promise<{ enviados: number; pulado_horario: boolean; meta_atingida: boolean }> {
   if (!emHorarioComercial()) {
