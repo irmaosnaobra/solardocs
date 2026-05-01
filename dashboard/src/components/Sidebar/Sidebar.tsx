@@ -56,14 +56,14 @@ const cadastroItems: NavItem[] = [
 ];
 
 const docsClienteItems: NavItem[] = [
-  { href: '/docs/proposta-banco', icon: '🏦', label: 'Proposta de Banco', requireCompany: true },
-  { href: '/docs/contrato-solar', icon: '📜', label: 'Contrato Solar',    requireCompany: true },
-  { href: '/docs/procuracao',     icon: '📋', label: 'Procuração',        requireCompany: true },
+  { href: '/documentos?tipo=proposta-bancaria', icon: '🏦', label: 'Proposta de Banco', requireCompany: true },
+  { href: '/documentos?tipo=contrato-solar',    icon: '📜', label: 'Contrato Solar',    requireCompany: true },
+  { href: '/documentos?tipo=procuracao',        icon: '📋', label: 'Procuração',        requireCompany: true },
 ];
 
 const docsTerceiroItems: NavItem[] = [
-  { href: '/docs/prestacao-servico', icon: '🛠️', label: 'Prestação de Serviço', requireCompany: true },
-  { href: '/docs/contra-venda-pj',   icon: '💼', label: 'Contra Venda PJ',       requireCompany: true },
+  { href: '/documentos?tipo=prestacao-servico', icon: '🛠️', label: 'Prestação de Serviço', requireCompany: true },
+  { href: '/documentos?tipo=contrato-pj',       icon: '💼', label: 'Contra Venda PJ',       requireCompany: true },
 ];
 
 const contaItems: NavItem[] = [
