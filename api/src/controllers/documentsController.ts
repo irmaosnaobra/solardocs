@@ -112,6 +112,29 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
 
     await incrementUsed(req.userId);
 
+    // VIPs e admins têm o HTML subido pra Storage automaticamente —
+    // garante que o doc fica acessível pra sempre via /historico.
+    const { data: userPlan } = await supabase
+      .from('users').select('plano, is_admin').eq('id', req.userId).single();
+    const isVip = userPlan?.is_admin || userPlan?.plano === 'ilimitado';
+
+    let arquivo_url: string | null = null;
+    if (isVip) {
+      const safeName = entityNome.replace(/\s+/g, '-').toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const fileName = `${req.userId}/${body.tipo}-${safeName || 'doc'}-${Date.now()}.html`;
+      const { error: uploadError } = await supabase.storage
+        .from('documentos')
+        .upload(fileName, Buffer.from(injectPrint(content), 'utf-8'), {
+          contentType: 'text/html; charset=utf-8',
+          upsert: false,
+        });
+      if (!uploadError) {
+        arquivo_url = fileName;
+      } else {
+        logger.error('documents', 'Storage upload falhou', uploadError);
+      }
+    }
+
     // Save record immediately so it always appears in history
     const { data: saved } = await supabase
       .from('documents')
@@ -124,7 +147,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
         dados_json:  body.fields,
         content,
         modelo_usado: modeloUsado,
-        arquivo_url: null,
+        arquivo_url,
         status: 'saved',
       })
       .select('id')
@@ -283,14 +306,16 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
   try {
     const { data: user } = await supabase
       .from('users')
-      .select('plano')
+      .select('plano, is_admin')
       .eq('id', req.userId)
       .single();
 
     if (!user) { res.status(404).json({ error: 'Usuário não encontrado' }); return; }
 
-    // Iniciante e free: sem histórico completo
-    if (user.plano === 'free' || user.plano === 'iniciante') {
+    const isVip = user.is_admin || user.plano === 'ilimitado';
+
+    // Iniciante e free (não-admin): sem histórico completo
+    if (!isVip && (user.plano === 'free' || user.plano === 'iniciante')) {
       res.json({ documents: [], plano: user.plano, historico: false });
       return;
     }
@@ -304,8 +329,8 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
 
     if (tipo) query = query.eq('tipo', tipo);
 
-    // PRO: últimos 30 dias
-    if (user.plano === 'pro') {
+    // PRO: últimos 30 dias (VIP e admin: tudo, sem cleanup)
+    if (!isVip && user.plano === 'pro') {
       const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       query = query.gte('created_at', cutoff);
     }

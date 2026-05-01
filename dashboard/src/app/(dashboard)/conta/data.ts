@@ -114,7 +114,8 @@ export const FEATURES_VIP: Record<string, FeatureVip> = {
     ],
     ctaVip: 'Cadastrar meu time',
     ctaFree: 'Entrar na rede com VIP',
-    status: 'em_breve',
+    acessoUrl: '/mao-de-obra',
+    status: 'ativo',
   },
 
 };
