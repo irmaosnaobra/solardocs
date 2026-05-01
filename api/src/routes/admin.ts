@@ -20,8 +20,12 @@ const SDR_ESTAGIOS = ['reativacao','novo','frio','morno','quente','perdido','fec
 
 router.get('/sdr-leads', async (req: Request, res: Response) => {
   try {
+    // Supabase REST tem default de 1000 rows. Subimos pra 5000 pra evitar
+    // que leads quentes/em-atendimento sumam quando ha muitos em reativacao.
     const { data, error } = await supabase
-      .from('sdr_leads').select('*').order('updated_at', { ascending: false });
+      .from('sdr_leads').select('*')
+      .order('updated_at', { ascending: false })
+      .limit(5000);
     if (error) throw error;
     res.json({ leads: data ?? [] });
   } catch { res.status(500).json({ error: 'Erro ao buscar leads SDR' }); }
