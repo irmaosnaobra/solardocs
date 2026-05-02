@@ -10,9 +10,9 @@
 //   - Consulta GET /chats da Z-API IO (esse endpoint funciona em Multi Device)
 //   - Pra cada chat com lastMessageTime nos ultimos N minutos:
 //       - Se NAO tem sessao SDR existente → eh um lead NOVO. Assume frase
-//         padrao do anuncio Meta ("Tenho interesse em energia solar!") e
-//         dispara handleSdrLead. Funciona porque 100% dos leads click-to-WhatsApp
-//         do anuncio chegam com essa frase pre-formatada.
+//         padrao do anuncio Meta ("Olá! Tenho interesse e queria mais informações,
+//         por favor.") e dispara handleSdrLead. Funciona porque 100% dos leads
+//         click-to-WhatsApp do anuncio chegam com essa frase pre-formatada.
 //       - Se TEM sessao SDR existente → pula. A continuacao do fluxo (etapa 2+)
 //         depende do webhook funcionar. Se webhook continuar falhando, abrir
 //         ticket Z-API mencionando que /chat-messages nao funciona em MD.
@@ -25,7 +25,7 @@ import { sendToGroup, sendWhatsApp, type ZapiInstance } from '../zapiClient';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const FRASE_PADRAO_ANUNCIO = 'Tenho interesse em energia solar!';
+const FRASE_PADRAO_ANUNCIO = 'Olá! Tenho interesse e queria mais informações, por favor.';
 
 export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped: number; errors: number }> {
   const id = process.env.ZAPI_INSTANCE_ID_IO?.trim();

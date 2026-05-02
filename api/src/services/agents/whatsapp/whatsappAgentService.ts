@@ -174,9 +174,12 @@ export async function handleIncomingWhatsApp(
   if (!user) {
     const lowerText = text.trim().toLowerCase();
 
-    // B2C signals (Irmãos na Obra)
-    const B2C_TRIGGER = 'tenho interesse em energia solar';
-    const isB2cTriggered = lowerText.includes(B2C_TRIGGER);
+    // B2C signals (Irmãos na Obra) — frases dos anúncios Meta de energia solar
+    const B2C_TRIGGERS = [
+      'olá! tenho interesse e queria mais informações, por favor.',
+      'tenho interesse em energia solar',
+    ];
+    const isB2cTriggered = B2C_TRIGGERS.some(t => lowerText.includes(t));
 
     // B2B signals (SolarDoc) — inclui typos comuns ("soladoc") e variacoes
     const B2B_TRIGGERS = [
