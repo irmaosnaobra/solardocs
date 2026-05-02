@@ -9,27 +9,34 @@ const CHROMIUM_URL = 'https://github.com/Sparticuz/chromium/releases/download/v1
 
 export async function generatePdf(req: Request, res: Response): Promise<void> {
   let browser;
+  let stage = 'init';
   try {
     const { id } = req.params;
 
-    const { data: doc } = await supabase
+    stage = 'fetch-doc';
+    const { data: doc, error: docErr } = await supabase
       .from('documents')
       .select('id, arquivo_url, cliente_nome, tipo, content')
       .eq('id', id)
       .eq('user_id', req.userId)
       .single();
 
+    if (docErr) { console.error('[pdf] supabase doc error:', docErr); }
     if (!doc) { res.status(404).json({ error: 'Documento não encontrado' }); return; }
 
     // Fluxo preferido: HTML do Storage (VIP/admin têm upload automático).
     // Fallback: usa o content da coluna (docs antigos sem arquivo_url).
     let htmlContent = '';
     if (doc.arquivo_url) {
-      const { data: signed } = await supabase.storage
+      stage = 'sign-storage';
+      const { data: signed, error: signErr } = await supabase.storage
         .from('documentos')
         .createSignedUrl(doc.arquivo_url, 60);
+      if (signErr) console.error('[pdf] sign error:', signErr);
       if (signed?.signedUrl) {
+        stage = 'fetch-html';
         const htmlRes = await fetch(signed.signedUrl);
+        if (!htmlRes.ok) console.error('[pdf] html fetch status:', htmlRes.status);
         htmlContent = await htmlRes.text();
       }
     }
@@ -41,16 +48,22 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    stage = 'chromium-resolve';
+    const execPath = await chromium.executablePath(CHROMIUM_URL);
+
+    stage = 'puppeteer-launch';
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: (chromium as any).defaultViewport,
-      executablePath: await chromium.executablePath(CHROMIUM_URL),
+      executablePath: execPath,
       headless: true,
     });
 
+    stage = 'set-content';
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
+    stage = 'render-pdf';
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
@@ -69,8 +82,9 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(Buffer.from(pdf));
   } catch (err) {
-    console.error('generatePdf error:', err);
-    res.status(500).json({ error: 'Erro ao gerar PDF' });
+    const e = err as Error;
+    console.error(`[pdf] FAILED at stage="${stage}" — ${e?.name}: ${e?.message}\n${e?.stack}`);
+    res.status(500).json({ error: 'Erro ao gerar PDF', stage, message: e?.message });
   } finally {
     if (browser) await browser.close();
   }
