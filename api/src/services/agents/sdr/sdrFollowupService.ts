@@ -160,6 +160,7 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
   const { data: leads } = await supabase
     .from('sdr_leads')
     .select('phone, nome, cidade, contatos, ultimo_contato, updated_at, instance, human_takeover')
+    .eq('tipo', 'b2c')
     .eq('aguardando_resposta', true)
     .eq('human_takeover', false)
     .not('estagio', 'in', '("perdido","fechamento","quente")')

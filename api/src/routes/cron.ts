@@ -5,6 +5,7 @@ import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContract
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
+import { runSdrB2bFollowups } from '../services/agents/sdr/sdrB2bFollowupService';
 import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, cleanupPerdidosAntigos, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { logger } from '../utils/logger';
@@ -151,6 +152,18 @@ router.get('/sdr-followup', async (req: Request, res: Response) => {
   }
 });
 
+// Follow-up B2B — Carla. Cadência mais espaçada (6 toques em 30d).
+router.get('/sdr-b2b-followup', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runSdrB2bFollowups();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'sdr-b2b-followup falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // Roda a cada 3 dias por usuário — lembrete email para quem tem empresa mas
 // não gerou documento nos últimos 3 dias (até 1 ano após signup)
 router.get('/no-contracts-reminder', async (req: Request, res: Response) => {
@@ -178,6 +191,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['followup-whatsapp-day1',      () => runWhatsappFollowup()],
     ['inactive-engagement-day14',   () => runInactiveEngagement()],
     ['sdr-followup',                () => runSdrFollowups()],
+    ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],
