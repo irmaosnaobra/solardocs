@@ -61,6 +61,11 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
 
     stage = 'set-content';
     const page = await browser.newPage();
+    // O HTML armazenado tem um <script> injetado que faz window.print() +
+    // window.close() no onload (UX de impressão direta no browser). Sem
+    // desabilitar JS, esse script fecha o tab antes do page.pdf() e gera
+    // "Target closed". PDF não precisa de JS — todos os estilos são inline.
+    await page.setJavaScriptEnabled(false);
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
     stage = 'render-pdf';
