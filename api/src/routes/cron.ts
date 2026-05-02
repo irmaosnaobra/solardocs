@@ -3,6 +3,7 @@ import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder } from '../services/followupService';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
+import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
 import { runSdrB2bFollowups } from '../services/agents/sdr/sdrB2bFollowupService';
@@ -164,6 +165,30 @@ router.get('/sdr-b2b-followup', async (req: Request, res: Response) => {
   }
 });
 
+// Carla — usuários da plataforma sem CNPJ. 3 toques em 30d (D+2, D+10, D+30).
+router.get('/carla-sem-cnpj', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runCarlaSemCnpjFollowup();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'carla-sem-cnpj falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Carla — usuários com CNPJ inativos 3+ dias. 5 toques em 60d (3, 7, 14, 30, 60).
+router.get('/carla-inativo', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runCarlaInativoFollowup();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'carla-inativo falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // Roda a cada 3 dias por usuário — lembrete email para quem tem empresa mas
 // não gerou documento nos últimos 3 dias (até 1 ano após signup)
 router.get('/no-contracts-reminder', async (req: Request, res: Response) => {
@@ -188,8 +213,8 @@ router.get('/master', async (req: Request, res: Response) => {
   const tasks: Array<[string, () => Promise<any>]> = [
     ['followup-email-cnpj',         () => runFollowupCnpj()],
     ['no-contracts-reminder',       () => runNoContractsEmailReminder()],
-    ['followup-whatsapp-day1',      () => runWhatsappFollowup()],
-    ['inactive-engagement-day14',   () => runInactiveEngagement()],
+    ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],
+    ['carla-inativo',                () => runCarlaInativoFollowup()],
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
