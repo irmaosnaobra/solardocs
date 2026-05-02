@@ -217,6 +217,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['carla-inativo',                () => runCarlaInativoFollowup()],
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
+    ['luma-reativacao',             () => processarReativacao()],
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],

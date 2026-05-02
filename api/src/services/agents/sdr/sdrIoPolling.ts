@@ -442,7 +442,11 @@ REGRAS:
   }
 }
 
-const REATIVACOES_POR_EXECUCAO = 1;
+// Quantas reativações tentar por chamada. Era 1 (gargalo: queue só drenava
+// quando Worker batia em /cron/process-messages, ~poucas vezes/dia). Subido
+// pra 40 = meta máxima (sábado/domingo/feriado). A própria função tem guard
+// pra parar ao atingir meta diária — então excesso é seguro.
+const REATIVACOES_POR_EXECUCAO = 40;
 
 export async function processarReativacao(): Promise<{ enviados: number; pulado_horario: boolean; meta_atingida: boolean; meta: number }> {
   if (!emHorarioOperacional()) {
