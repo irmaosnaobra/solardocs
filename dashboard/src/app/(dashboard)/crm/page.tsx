@@ -715,6 +715,14 @@ export default function CrmPage() {
   const searchParams = useSearchParams();
   const initialTab: 'solar' | 'plataforma' = searchParams.get('tab') === 'plataforma' ? 'plataforma' : 'solar';
   const [tab, setTab] = useState<'solar' | 'plataforma'>(initialTab);
+
+  // Sidebar agora navega entre Solar/Plataforma via /crm/solar-io e /crm/solardoc,
+  // que redirecionam pra /crm?tab=... — App Router reusa o componente, então
+  // sincronizamos o tab manualmente quando o query param muda.
+  useEffect(() => {
+    const next: 'solar' | 'plataforma' = searchParams.get('tab') === 'plataforma' ? 'plataforma' : 'solar';
+    setTab(prev => prev === next ? prev : next);
+  }, [searchParams]);
   const [sdrLeads, setSdrLeads] = useState<SdrLead[]>([]);
   const [platCols, setPlatCols] = useState<Record<string, PlatLead[]>>({});
   const [metrics, setMetrics] = useState<Metrics | null>(null);
@@ -851,26 +859,8 @@ export default function CrmPage() {
 
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onImport={fetchAll} />}
 
-      {/* ── LINHA 2: tabs · métricas inline (pílulas) ── */}
+      {/* ── LINHA 2: métricas inline (pílulas). Tabs removidos — sidebar já navega pra /crm?tab=... ── */}
       <div className="crm-row crm-row-2">
-        <div className="crm-tabs" style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-          {[
-            { id: 'solar' as const, label: '☀️ CRM Solar', count: sdrLeads.length },
-            { id: 'plataforma' as const, label: '💼 Plataforma', count: totalPlat },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              style={{
-                padding: '5px 10px', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer',
-                border: tab === t.id ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
-                background: tab === t.id ? 'rgba(99,179,237,0.1)' : 'transparent',
-                color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                height: 32, whiteSpace: 'nowrap',
-              }}>
-              {t.label} <span style={{ opacity: 0.7, fontSize: 11 }}>({t.count})</span>
-            </button>
-          ))}
-        </div>
-
         {tab === 'solar' && metrics && (
           <div className="crm-metrics-inline">
             <MetricPill label="Hoje" value={metrics.hoje} color="var(--color-primary)" />
