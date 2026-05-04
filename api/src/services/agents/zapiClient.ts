@@ -39,7 +39,7 @@ export async function zapiPost(
   body: unknown,
   retries = 2,
   instance: ZapiInstance = 'solardoc',
-): Promise<void> {
+): Promise<any> {
   const { id, token, client } = getCreds(instance);
   if (!id || !token || !client) {
     throw new Error(`[zapi:${instance}] credenciais Z-API ausentes (verifique ZAPI_INSTANCE_ID${instance === 'io' ? '_IO' : ''}, ZAPI_TOKEN${instance === 'io' ? '_IO' : ''}, ZAPI_CLIENT_TOKEN)`);
@@ -55,7 +55,11 @@ export async function zapiPost(
           body: JSON.stringify(body),
         },
       );
-      if (res.ok) return;
+      if (res.ok) {
+        const txt = await res.text().catch(() => '');
+        if (!txt) return null;
+        try { return JSON.parse(txt); } catch { return txt; }
+      }
       const txt = await res.text().catch(() => res.status.toString());
       lastErr = new Error(`[zapi:${instance}] HTTP ${res.status} — ${txt}`);
     } catch (err) {
@@ -64,6 +68,28 @@ export async function zapiPost(
     if (attempt < retries) await sleep(1000 * (attempt + 1));
   }
   throw lastErr ?? new Error(`[zapi:${instance}] falha desconhecida`);
+}
+
+// DELETE /messages?phone=X&messageId=Y&owner=true — usado pra apagar
+// um card antigo do grupo antes de mandar versão atualizada.
+export async function zapiDelete(
+  path: string,
+  query: Record<string, string>,
+  instance: ZapiInstance = 'solardoc',
+): Promise<void> {
+  const { id, token, client } = getCreds(instance);
+  if (!id || !token || !client) {
+    throw new Error(`[zapi:${instance}] credenciais Z-API ausentes`);
+  }
+  const qs = new URLSearchParams(query).toString();
+  const res = await fetch(
+    `https://api.z-api.io/instances/${id}/token/${token}/${path}?${qs}`,
+    { method: 'DELETE', headers: { 'Client-Token': client } },
+  );
+  if (!res.ok && res.status !== 204) {
+    const txt = await res.text().catch(() => res.status.toString());
+    throw new Error(`[zapi:${instance}] DELETE ${path} HTTP ${res.status} — ${txt}`);
+  }
 }
 
 export async function showTyping(phone: string, durationMs = 1500, instance: ZapiInstance = 'solardoc'): Promise<void> {
@@ -90,6 +116,25 @@ export async function sendZAPI(phone: string, message: string, instance: ZapiIns
 
 // Envia mensagem pra grupo Z-API. NÃO formata phone (já é ID de grupo no
 // formato "120363xxx-group" ou similar). A linha precisa ser membro do grupo.
-export async function sendToGroup(groupId: string, message: string, instance: ZapiInstance = 'solardoc'): Promise<void> {
-  await zapiPost('send-text', { phone: groupId, message }, 2, instance);
+// Retorna messageId pra permitir delete posterior (usado em cards atualizáveis).
+export async function sendToGroup(groupId: string, message: string, instance: ZapiInstance = 'solardoc'): Promise<{ messageId: string | null }> {
+  const r = await zapiPost('send-text', { phone: groupId, message }, 2, instance);
+  const messageId = r && typeof r === 'object'
+    ? (r.messageId || r.zaapId || r.id || null)
+    : null;
+  return { messageId: messageId ? String(messageId) : null };
+}
+
+// Apaga uma mensagem que NÓS enviamos pro grupo (ou pra um contato).
+// Usar antes de re-enviar um card atualizado pra evitar bagunça no grupo.
+export async function deleteGroupMessage(
+  groupId: string,
+  messageId: string,
+  instance: ZapiInstance = 'solardoc',
+): Promise<void> {
+  await zapiDelete('messages', {
+    phone: groupId,
+    messageId,
+    owner: 'true',
+  }, instance);
 }

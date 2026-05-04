@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendMetaEvent } from '../../../utils/metaPixel';
-import { fmtPhone, sendHuman, sendToGroup, type ZapiInstance } from '../zapiClient';
+import { fmtPhone, sendHuman, sendToGroup, deleteGroupMessage, sendWhatsApp, type ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -37,6 +37,24 @@ Esses 3 pilares devem aparecer na conversa quando rolar dor/objeção. Não fala
 - **Thiago** — **+8 anos no ramo solar**, vendas + backoffice + **vistoria técnica em ARAGUARI**
 - TODOS os 4 vendem. Pode mencionar pro lead que "quem vai te visitar é o Diego (em Uberlândia) ou o Thiago (em Araguari), 8 anos só de solar nas mãos".
 
+📞 ESCALAÇÃO INTERNA (USO INTERNO — NUNCA compartilhe esses números com o lead):
+Quando você bater dúvida REAL antes de responder o lead, chame a tool **chamar_consultor** (NÃO mande mensagem direta — a tool cuida do envio). Quem chamar:
+- **diego** — técnico/Uberlândia (34991360172)
+- **thiago** — backoffice/Araguari (34991360223) — default quando não sei quem
+- **nilce** — vendas (34991516846)
+- **giovanna** — pré-atendimento (34993396255)
+
+Quando USAR a tool:
+- Cliente pede algo fora do fluxo (exceção de pagamento, desconto não-padrão, condição estranha)
+- Situação ambígua que pode mudar resposta (ex: lead em região nova insistindo em visita)
+- Consultor já te deu comando antes e você precisa confirmar antes de agir
+Quando NÃO usar:
+- Dúvidas comuns do fluxo (já está tudo no prompt — não chama o consultor pra perguntar conta de luz)
+- Pra "avisar" o consultor sem decisão pendente
+- Quando você consegue responder bem com o que tem aqui
+
+Depois de chamar, AVISE o lead com algo curto tipo "deixa eu confirmar uma coisa rapidinho com a equipe e já te volto" — sem prometer prazo. Só retome quando o lead mandar próxima mensagem ou consultor te orientar.
+
 📍 COBERTURA E "VISITA" (ATENÇÃO — NOMENCLATURA):
 - "Vistoria" no nosso vocabulário NÃO é técnica — é **VISITA COMERCIAL pra FECHAR a venda no endereço do cliente**. Diego (em Uberlândia) e Thiago (em Araguari) vão pessoalmente pra fechar negócio na casa do lead.
 - **Visita pra fechar venda APENAS em Uberlândia (Diego) e Araguari (Thiago)**. Em outras cidades NÃO ofereça visita — oferece ligação ou Meet com o consultor.
@@ -52,7 +70,7 @@ Atende residencial, comercial, industrial e rural.
 ⚠️ **APARTAMENTO INDIVIDUAL NÃO**: prédio só recebe excedente compartilhado. Se vier morador de apto, explica geração compartilhada com síndico.
 
 💰 PAGAMENTO (opções reais):
-- **À vista no PIX**: desconto já está embutido na proposta
+- **À vista no PIX**: NUNCA diga "está embutido", "já está incluso" ou "o valor já contempla". A linha certa é: "Pra pagamento à vista a gente consegue trazer uma condição especial pra você — vou alinhar com nosso especialista e já te volto com a melhor proposta." Cliente à vista precisa sentir que está recebendo algo a mais — porque está.
 - **Cartão de crédito**: até **18x sem juros**
 - **Financiamento 84x**: taxa de **2,4% a.m.** — divide o sistema em 84 vezes e a parcela cabe no bolso de qualquer cliente
 - Indicamos PRIMEIRO o **banco onde o cliente já movimenta** (taxa costuma ser melhor pra quem é cliente). Se não rolar, temos financeira parceira com **120 dias de carência + 84x a 2,4% a.m.**
@@ -93,6 +111,25 @@ Atende residencial, comercial, industrial e rural.
 - Empatia primeiro: se reclamou da conta, valida ("conta tá pesada mesmo"). Se está com pressa, respeita ("vai rápido então").
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# RETOMADA — LEAD VOLTOU POSITIVO APÓS SILÊNCIO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Quando o lead reaparece DEPOIS de tempo sem responder (ou estava em [ESTAGIO:perdido]/reativacao) e responde algo positivo — "agora sim", "vamos lá", "manda info", "ainda tô interessado", "topo conversar", "pode me chamar", "vamos seguir", "agora dá" — RETOME natural, sem cobrança.
+
+NUNCA faça:
+- "Você sumiu / não respondia / fiquei sem notícia" — soa cobrança
+- Repetir literalmente a última pergunta de turnos atrás como se nada tivesse passado — soa robô travado
+- Recomeçar do "qual seu nome" se você JÁ tem o nome no histórico
+
+O QUE FAZER:
+1. RELEIA o histórico inteiro. Veja o que já foi coletado (nome, conta, cidade, padrão, telhado, dor, pagamento).
+2. Se a info ainda é fresca e útil, CONTINUE de onde parou — só reformulando o convite de forma nova.
+   Ex: "Que bom te ver por aqui de novo, [Nome]! Bora retomar então — você tinha me falado de uma conta de R$X em [cidade]. Ainda faz sentido pra esse cenário?"
+3. Se passou MUITO tempo OU a conversa anterior ficou no início (sem dados úteis), TRATE COMO LEAD NOVO: pergunte de novo as questões básicas, mas com naturalidade ("pra eu te ajudar direito hoje, me confirma seu consumo médio de luz?").
+4. Se o histórico era o agente reativando o lead (mensagens de reativação), considere que ESSA é a primeira interação real — comece do começo do fluxo do jeito mais leve possível.
+
+Não queremos robô: variedade, calor, leitura do contexto. Se o lead volta positivo, é vitória — celebra com ele e segue.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # REGRAS DE OURO (NÃO NEGOCIÁVEL)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 1. UMA pergunta por vez. Sem emendar.
@@ -104,6 +141,23 @@ Atende residencial, comercial, industrial e rural.
 7. Se não souber algo específico, "vou alinhar com o engenheiro e te volto".
 8. Se cliente disser número de cidade, anota e segue. NÃO use a cidade pra rejeitar.
 9. **CRITÉRIO DE AGENDAMENTO**: o tempo do consultor humano é caro. Só agende leads que REALMENTE compensam (ver ETAPA 8.5). Lead curioso, sem dinheiro ou sem urgência = você descarta com cordialidade, não desperdiça hora do humano. Você é o filtro. Se chamar a tool, é porque tem certeza que o lead vale.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# COORDENAÇÃO COM CONSULTOR HUMANO + GRUPO INTERNO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏸️ NÃO INTERROMPA O CONSULTOR
+Quando um consultor humano já está trocando mensagens com o cliente, FIQUE EM SILÊNCIO. Só volte a interagir após **20 MINUTOS COMPLETOS** sem nenhuma troca entre consultor e cliente. Mesmo após esses 20 min, releia TODO o contexto antes de decidir se vale enviar algo. Se a conversa fluiu bem ou foi encerrada naturalmente, NÃO INTERVENHA. Mensagens vazias tipo "tudo certo?", "alguma dúvida?", "ainda está aí?" são PROIBIDAS — só envie algo se agregar info nova.
+
+📇 CARD DE AGENDAMENTO NO GRUPO — UMA ÚNICA VEZ POR CLIENTE
+- O card de agendamento detalhado vai pro grupo interno APENAS UMA VEZ por cliente, via tool agendar_atendimento. Não tente forçar reenvio.
+- Se for necessário ATUALIZAR o card (reagendamento, info nova relevante), DELETE a mensagem anterior antes de enviar a versão nova. NUNCA empilhe dois cards do mesmo cliente.
+- NUNCA fique "lembrando" o consultor sobre o agendamento com mensagens repetitivas no grupo.
+
+🔗 LINK DO WHATSAPP DO CLIENTE — SEMPRE FUNCIONAL
+Todo card pro grupo precisa trazer o link clicável no formato EXATO:
+  https://wa.me/55[DDD][NÚMERO]
+Sem espaços, sem traços, sem parênteses no número. Esse link é prioridade — é por ele que o consultor entra em contato direto.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # ⚠️ ANTI-REPETIÇÃO — REGRA CRÍTICA
@@ -123,7 +177,7 @@ Sua marca é ser o melhor atendimento por IA do setor solar — humana, atenta, 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ETAPA 1 — BOAS-VINDAS + NOME
-Todo lead chega com a frase pré-formatada do anúncio Meta: "Tenho interesse em energia solar!"
+Todo lead chega com a frase pré-formatada do anúncio Meta: "Olá! Tenho interesse e queria mais informações, por favor."
 NÃO ecoe a frase dele. Trate como um "oi" e abra natural.
 
 Modelo:
@@ -172,7 +226,7 @@ ETAPA 6 — DOR / MOTIVO
 
 ETAPA 7 — PAGAMENTO
 "Pra te direcionar certo na proposta — como você pretende pagar?
-1. À vista no PIX (desconto já está embutido na proposta)
+1. À vista no PIX (condição especial — alinho com nosso especialista e te volto com a melhor proposta)
 2. Cartão de crédito (até 18x sem juros)
 3. Financiamento (primeiro tentamos no banco que você já movimenta — taxa melhor; senão financeira parceira com 120 dias de carência + 84x)
 4. Ainda não decidi, quero ver as opções
@@ -209,18 +263,24 @@ Antes de oferecer agendamento, AVALIE se este lead vale o tempo do consultor hum
 ⚠️ NUNCA descarte por DISTÂNCIA — quem descarta cliente é o vendedor humano. Mesmo lead a 800km de Uberlândia, se for 🟢 qualificado, agende ligação/meet. A logística da instalação não é seu problema — vendedor decide.
 
 ⛔ DESCARTE DEFINITIVO (use a tool descartar_lead):
-Quando o lead disser EXPLICITAMENTE que NÃO TEM CHANCE NENHUMA, chame a tool descartar_lead — ela DELETA o lead do CRM na hora. NÃO marque [ESTAGIO:perdido] nesses casos, use a tool.
+Quando o lead disser EXPLICITAMENTE que NÃO TEM CHANCE NENHUMA, chame a tool descartar_lead — ela EXCLUI o lead do CRM e notifica o grupo da equipe ([Nome] de [ESTÁGIO ANTERIOR] > EXCLUÍDO). NÃO marque [ESTAGIO:perdido] nesses casos, use a tool.
 
-Sinais claros de "0% chance" (chamar tool):
-- "Já fechei com outra empresa"
-- "Já tenho sistema solar instalado"
-- "Não tenho interesse nenhum, pode parar"
-- "Para de me mandar mensagem"
-- "Não me chame mais"
-- "Bloqueio mesmo"
-- "Vai parar de me incomodar"
+ENCERRAMENTO IMEDIATO (chamar tool na hora — sem reabrir conversa):
+- "Já fechei" / "Já fechei com outra empresa" / "Já comprei"
+- "Já coloquei" / "Já instalei" / "Já tenho sistema solar"
+- "Não quero mais" / "Não quero"
+- "Não tenho interesse nenhum"
+- "Para de me mandar mensagem" / "Não me chame mais"
+- "Bloqueio mesmo" / "Vai parar de me incomodar"
 
-Sinais de "perdido normal" (marca [ESTAGIO:perdido], NÃO chama tool — fica no CRM por 45 dias):
+Quando vier uma dessas frases:
+1. Chame descartar_lead com motivo curto (ex: "fechou com concorrente", "já tem sistema", "não quer mais").
+2. Mande UMA despedida humana e curta (ex: "Tudo certo, [Nome]. Sucesso aí ☀️"). NUNCA force venda quando o lead disse não.
+3. NÃO marque [ESTAGIO] — o lead já foi excluído.
+
+⚠️ Cuidado com falsos positivos: "não quero financiamento", "não quero parcelar agora", "não quero pagar mais que X" NÃO são descarte — é só preferência de pagamento. Descarta APENAS quando o "não quero" se refere claramente ao produto/conversa inteira.
+
+Sinais de "perdido normal" (marca [ESTAGIO:perdido], NÃO chama tool — fica no CRM):
 - Lead simplesmente parou de responder após follow-ups
 - "Vou pensar" repetido sem ação
 - Sumiu sem dar resposta clara
@@ -518,6 +578,69 @@ export function gerarOpcoesVistoria(now: Date = new Date()): string[] {
 }
 
 
+// ─── Dedup atômico de mensagens recebidas ────────────────────────
+//
+// Por que existe: webhook Z-API às vezes redispara a mesma mensagem (retry após
+// timeout), e o polling de fallback (cron 1min) compete com o webhook pra
+// processar leads NOVOS antes do webhook salvar a sessão. Resultado: cliente
+// recebia 2 boas-vindas idênticas. Esse dedup atômico garante que apenas o
+// PRIMEIRO chamador processe — segundos chamadores recebem false e são pulados.
+//
+// Chave: 'whk:<messageId>' pra webhook, 'poll:<phone>:<lastMessageTime>' pra
+// polling. Falha de unique violation (23505) = já processado, retorna false.
+
+export async function tryClaimMessage(
+  messageId: string,
+  phone: string | null,
+  source: 'webhook' | 'poll',
+): Promise<boolean> {
+  const { error } = await supabase.from('sdr_message_dedup').insert({
+    message_id: messageId,
+    phone,
+    source,
+  });
+  if (!error) return true;
+  if (error.code === '23505') return false; // já reivindicado por outro processo
+  // Erro inesperado (rede, RLS): loga mas DEIXA PROCESSAR — cliente sem resposta é pior que duplicada
+  logger.warn('dedup', `falha reivindicando ${messageId}: ${error.message}`);
+  return true;
+}
+
+// Checa se houve um claim recente do webhook pra esse phone — usado pelo polling
+// pra evitar processar mensagem que o webhook já está cuidando.
+export async function hasRecentWebhookClaim(phone: string, secondsAgo = 90): Promise<boolean> {
+  const cutoff = new Date(Date.now() - secondsAgo * 1000).toISOString();
+  const { data } = await supabase
+    .from('sdr_message_dedup')
+    .select('message_id')
+    .eq('phone', phone)
+    .eq('source', 'webhook')
+    .gte('processed_at', cutoff)
+    .limit(1)
+    .maybeSingle();
+  return !!data;
+}
+
+// ─── Horário de funcionamento da Luma ─────────────────────────────
+//
+// Luma trabalha fora do horário comercial (humanos cuidam 8h-17h dia útil):
+//   - Seg-Sex: 17:00 → 08:00 do dia seguinte
+//   - Sex 17:00 → Seg 08:00 (fim de semana inteiro)
+//   - Sáb e Dom: dia todo
+//
+// Fora desse horário (Seg-Sex 08:00-17:00) a Luma fica em silêncio — a mensagem
+// do lead é guardada no histórico mas não recebe resposta automática. Humano
+// responde manualmente pelo CRM.
+
+export function isLumaWorkingNow(d: Date = new Date()): boolean {
+  const brt = new Date(d.getTime() - 3 * 60 * 60 * 1000);
+  const day = brt.getUTCDay();   // 0=Dom, 1=Seg, ..., 6=Sáb
+  const hour = brt.getUTCHours();
+
+  if (day === 0 || day === 6) return true;        // sábado e domingo: sempre on
+  return hour < 8 || hour >= 17;                  // dia útil: só fora do comercial
+}
+
 // ─── sessão SDR ───────────────────────────────────────────────────
 
 interface SdrSession {
@@ -583,11 +706,14 @@ async function upsertCrmLead(params: {
   if (estado) payload.estado = estado;
   if (tracking?.ctwa_clid) payload.ctwa_clid = tracking.ctwa_clid;
 
-  // Não sobrescreve fechamento/perdido/quente com estágio inferior
+  // fechamento/quente são sempre protegidos. 'perdido' permite UPGRADE quando o
+  // lead reaparece e a Luma classifica como morno/quente — é a retomada positiva.
   const { data: existing } = await supabase.from('sdr_leads').select('estagio, ctwa_clid').eq('phone', phone).single();
-  const protegidos = ['fechamento', 'perdido', 'quente'];
-  if (existing?.estagio && protegidos.includes(existing.estagio)) {
+  const sempreProtegidos = ['fechamento', 'quente'];
+  if (existing?.estagio && sempreProtegidos.includes(existing.estagio)) {
     payload.estagio = existing.estagio;
+  } else if (existing?.estagio === 'perdido' && !['morno', 'quente'].includes(estagio)) {
+    payload.estagio = 'perdido';
   }
 
   // Se for NOVO lead, dispara evento CAPI
@@ -643,16 +769,39 @@ export function extractLeadInfo(messages: { role: string; content: string }[]): 
 const LUMA_TOOLS: Anthropic.Tool[] = [
   {
     name: 'descartar_lead',
-    description: 'EXCLUI o lead permanentemente do CRM. Use APENAS quando o lead deixar EXPLICITAMENTE claro que tem 0% de chance: "fechei com outro", "já comprei sistema solar", "não tenho interesse nenhum", "não me chame mais", "tô bloqueando". NÃO use pra lead morno ou frio que pode voltar — esses só marca [ESTAGIO:frio] ou [ESTAGIO:perdido]. Esta tool faz DELETE definitivo: o lead some do CRM imediatamente.',
+    description: 'EXCLUI o lead permanentemente do CRM e notifica o grupo da equipe ([Nome] de [ESTÁGIO ANTERIOR] > EXCLUÍDO). Use SEMPRE que o lead deixar EXPLICITAMENTE claro que não há chance: "já fechei", "já fechei com outro", "já coloquei", "já instalei", "já tenho sistema", "não quero mais", "não quero" (referente à conversa toda — não a uma preferência específica de pagamento), "não tenho interesse", "não me chame mais", "para de me mandar mensagem", "tô bloqueando". NÃO use pra lead morno/frio que sumiu — esses só marca [ESTAGIO:perdido]. Esta tool faz DELETE definitivo: o lead some do CRM imediatamente. Depois de chamar a tool, mande APENAS UMA despedida cordial curta.',
     input_schema: {
       type: 'object',
       properties: {
         motivo: {
           type: 'string',
-          description: 'Frase curta com a razão do descarte (ex: "fechou com concorrente", "já tem sistema instalado", "pediu pra parar de chamar"). Será logada.',
+          description: 'Frase curta com a razão do descarte (ex: "fechou com concorrente", "já tem sistema instalado", "não quer mais", "pediu pra parar de chamar"). Vai pro grupo da equipe e fica logada.',
         },
       },
       required: ['motivo'],
+    },
+  },
+  {
+    name: 'chamar_consultor',
+    description: 'Manda uma mensagem privada PRO CELULAR de um consultor humano (Diego, Thiago, Nilce ou Giovanna) quando você precisa de orientação real antes de responder o lead. Use APENAS quando: (1) o lead pediu algo fora do seu escopo (ex: questão técnica complexa, exceção de pagamento, situação ambígua), (2) você não tem como decidir sozinha sem perder qualidade, OU (3) o consultor te deu comando explícito antes e você precisa confirmar antes de agir. NÃO USE pra: dúvidas que você consegue resolver com o prompt, perguntas comuns do fluxo, ou pra "avisar" o consultor sem necessidade. Cada chamada interrompe o consultor — peça apenas quando faz diferença real. NÃO mostre nem mencione esse contato pro lead.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        consultor: {
+          type: 'string',
+          enum: ['diego', 'thiago', 'nilce', 'giovanna'],
+          description: 'Qual consultor chamar. Use Diego pra técnico/Uberlândia, Thiago pra backoffice/Araguari, Nilce pra vendas, Giovanna pra pré-atendimento. Quando dúvida, default = thiago.',
+        },
+        pergunta: {
+          type: 'string',
+          description: 'A pergunta ou pedido em UMA frase curta e direta (ex: "Cliente pediu desconto 10% à vista, posso oferecer?", "Lead em Goiânia insiste em vistoria — autorizo?").',
+        },
+        contexto_lead: {
+          type: 'string',
+          description: 'Identificação rápida do lead pra ele saber de quem se trata: nome + 1-2 fatos chave (ex: "Hugo, conta R$450, Uberlândia, casa própria"). Sem o telefone — ele acessa pelo CRM.',
+        },
+      },
+      required: ['consultor', 'pergunta', 'contexto_lead'],
     },
   },
   {
@@ -719,7 +868,7 @@ export async function criarCardAgendamento(
   // Busca contexto do lead
   const { data: lead } = await supabase
     .from('sdr_leads')
-    .select('phone, nome, cidade, estado, estagio, total_mensagens, ultima_mensagem, created_at, ctwa_clid')
+    .select('phone, nome, cidade, estado, estagio, total_mensagens, ultima_mensagem, created_at, ctwa_clid, card_message_id, observacoes_internas')
     .eq('phone', phone)
     .single();
 
@@ -757,7 +906,7 @@ export async function criarCardAgendamento(
     return `${m.role === 'user' ? '👤' : '🤖'} ${c.slice(0, 200)}`;
   }).join('\n');
 
-  const linkWa = `https://wa.me/${phone.replace(/\D/g, '')}`;
+  const linkWa = `https://wa.me/${fmtPhone(phone)}`;
   const card = [
     `🔔 *NOVO ATENDIMENTO AGENDADO*`,
     ``,
@@ -770,6 +919,7 @@ export async function criarCardAgendamento(
     `• Horário: *${horario}*`,
     canal === 'vistoria' && endereco ? `• Endereço: ${endereco}` : null,
     observacoes ? `• Observações: ${observacoes}` : null,
+    (lead as any)?.observacoes_internas ? `• Notas da equipe:\n${(lead as any).observacoes_internas}` : null,
     ``,
     `⚡ *QUALIFICAÇÃO*`,
     `• Conta de luz: R$ ${consumo}/mês`,
@@ -785,6 +935,11 @@ export async function criarCardAgendamento(
     `📊 ${lead?.total_mensagens || 0} mensagens trocadas · lead criado em ${fmtBR(lead?.created_at)}`,
     `🔗 CRM: https://solardoc.app/crm`,
   ].filter(Boolean).join('\n');
+
+  // Guarda o messageId do card anterior (se houver) pra deletar APÓS confirmar
+  // que o novo card chegou no grupo. Evita ficar dois cards do mesmo cliente
+  // empilhados quando há reagendamento ou atualização.
+  const oldCardMessageId: string | null = (lead as any)?.card_message_id ?? null;
 
   // PRIMEIRO persiste o agendamento — se o sendToGroup falhar, o lead AINDA fica
   // marcado como quente no CRM e a equipe vê via dashboard. Card pendente pode
@@ -808,10 +963,22 @@ export async function criarCardAgendamento(
   await supabase.from('sdr_leads').update(update).eq('phone', phone);
 
   try {
-    await sendToGroup(groupId, card, instance);
+    const sent = await sendToGroup(groupId, card, instance);
     await supabase.from('sdr_leads')
-      .update({ card_enviado_at: new Date().toISOString() })
+      .update({
+        card_enviado_at: new Date().toISOString(),
+        card_message_id: sent.messageId,
+      })
       .eq('phone', phone);
+
+    // Apaga o card antigo (best-effort — falha aqui não invalida o novo card).
+    if (oldCardMessageId && sent.messageId && oldCardMessageId !== sent.messageId) {
+      try {
+        await deleteGroupMessage(groupId, oldCardMessageId, instance);
+      } catch (delErr) {
+        logger.warn('luma-card', `falha apagando card antigo ${oldCardMessageId} no grupo`, delErr);
+      }
+    }
     return { ok: true };
   } catch (err) {
     logger.error('luma-card', `falha ao enviar card pro grupo ${groupId}`, err);
@@ -825,7 +992,7 @@ export async function criarCardAgendamento(
 export async function retryCardsPendentes(): Promise<{ retried: number; ok: number; failed: number }> {
   const { data: pendentes } = await supabase
     .from('sdr_leads')
-    .select('phone, card_payload, card_group_id, instance')
+    .select('phone, card_payload, card_group_id, instance, card_message_id')
     .is('card_enviado_at', null)
     .not('card_payload', 'is', null)
     .not('agendado_at', 'is', null)
@@ -835,13 +1002,26 @@ export async function retryCardsPendentes(): Promise<{ retried: number; ok: numb
   for (const lead of (pendentes || []) as any[]) {
     if (!lead.card_payload || !lead.card_group_id) continue;
     const inst: ZapiInstance = (lead.instance === 'io' ? 'io' : 'solardoc');
+    const oldMessageId: string | null = lead.card_message_id ?? null;
     try {
-      await sendToGroup(lead.card_group_id, lead.card_payload, inst);
+      const sent = await sendToGroup(lead.card_group_id, lead.card_payload, inst);
       await supabase.from('sdr_leads')
-        .update({ card_enviado_at: new Date().toISOString() })
+        .update({
+          card_enviado_at: new Date().toISOString(),
+          card_message_id: sent.messageId,
+        })
         .eq('phone', lead.phone);
       ok++;
       logger.info('luma-card-retry', `card reenviado com sucesso pra ${lead.phone}`);
+
+      // Apaga card antigo se houver (best-effort)
+      if (oldMessageId && sent.messageId && oldMessageId !== sent.messageId) {
+        try {
+          await deleteGroupMessage(lead.card_group_id, oldMessageId, inst);
+        } catch (delErr) {
+          logger.warn('luma-card-retry', `falha apagando card antigo ${oldMessageId}`, delErr);
+        }
+      }
     } catch (err) {
       failed++;
       logger.error('luma-card-retry', `retry falhou pra ${lead.phone}`, err);
@@ -877,6 +1057,32 @@ export async function handleSdrLead(
       ultimo_contato: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq('phone', cleanPhone);
+    return;
+  }
+
+  // Fora do horário de funcionamento da Luma (Seg-Sex 08h-17h BRT é hora de
+  // humano). Salva a mensagem no histórico e atualiza CRM, mas não responde.
+  if (!isLumaWorkingNow()) {
+    const sessionOff = await getSdrSession(cleanPhone);
+    const userMsg = imageSource
+      ? `${text.trim()} [imagem enviada pelo cliente]`
+      : text.trim();
+    await Promise.all([
+      saveSdrSession(
+        cleanPhone,
+        [...sessionOff.messages, { role: 'user' as const, content: userMsg }],
+        sessionOff.nome || senderName || null,
+      ),
+      supabase.from('sdr_leads').upsert({
+        phone: cleanPhone,
+        nome: sessionOff.nome || senderName || null,
+        ultima_mensagem: text.slice(0, 300),
+        ultimo_contato: new Date().toISOString(),
+        aguardando_resposta: false, // humano vai responder
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'phone' }),
+    ]);
+    logger.info('luma-off-hours', `mensagem de ${cleanPhone} guardada — Luma off (horário comercial humano)`);
     return;
   }
 
@@ -941,17 +1147,91 @@ export async function handleSdrLead(
       for (const block of response.content) {
         if (block.type !== 'tool_use') continue;
         let result = '';
-        if (block.name === 'descartar_lead') {
+        if (block.name === 'chamar_consultor') {
+          const input = block.input as any;
+          const consultor = String(input.consultor || '').toLowerCase();
+          const pergunta = String(input.pergunta || '').slice(0, 400);
+          const contextoLead = String(input.contexto_lead || '').slice(0, 200);
+          const telefones: Record<string, string> = {
+            diego: '34991360172',
+            thiago: '34991360223',
+            nilce: '34991516846',
+            giovanna: '34993396255',
+          };
+          const numero = telefones[consultor];
+          if (!numero) {
+            result = `ERRO: consultor "${consultor}" inválido. Use diego, thiago, nilce ou giovanna.`;
+          } else {
+            const linkLead = `https://wa.me/${fmtPhone(cleanPhone)}`;
+            const msg = [
+              `🆘 *Luma precisa de orientação*`,
+              ``,
+              `Lead: ${contextoLead || 'Sem contexto'}`,
+              `WhatsApp do lead: ${linkLead}`,
+              ``,
+              `*Pergunta:*`,
+              pergunta,
+              ``,
+              `_Me responde aqui que eu volto a falar com o cliente._`,
+            ].join('\n');
+            try {
+              await sendWhatsApp(numero, msg, instance);
+              logger.info('luma-chamar-consultor', `${consultor} acionado pelo lead ${cleanPhone}: ${pergunta.slice(0, 80)}`);
+              result = `Mensagem enviada pra ${consultor}. Avise o lead que vai consultar com a equipe rapidinho e volta a falar — sem dar prazo exato. Não fique repetindo "vou consultar"; espera a próxima mensagem do lead pra retomar.`;
+            } catch (err) {
+              logger.error('luma-chamar-consultor', `falha mandando pra ${consultor}`, err);
+              result = `Falha ao chamar ${consultor}. Tente responder o lead com o que você sabe ou diga que vai retornar em alguns minutos.`;
+            }
+          }
+        } else if (block.name === 'descartar_lead') {
           const input = block.input as any;
           const motivo = String(input.motivo || 'sem motivo').slice(0, 200);
-          // Anexa msg de despedida no histórico ANTES de deletar (audit)
-          logger.info('luma-descartar', `lead ${cleanPhone} descartado: ${motivo}`);
+
+          // Snapshot do lead ANTES de deletar — pra notificar o grupo com nome e estágio anterior
+          const { data: leadSnap } = await supabase
+            .from('sdr_leads')
+            .select('nome, estagio, cidade, total_mensagens')
+            .eq('phone', cleanPhone)
+            .maybeSingle();
+
+          const ESTAGIO_LABEL: Record<string, string> = {
+            reativacao: 'REATIVAÇÃO',
+            novo: 'NOVO',
+            frio: 'FRIO',
+            morno: 'MORNO',
+            quente: 'QUENTE',
+            perdido: 'PERDIDO',
+            fechamento: 'FECHAMENTO',
+          };
+          const estagioAnterior = ESTAGIO_LABEL[leadSnap?.estagio || ''] || 'SEM ESTÁGIO';
+          const nomeLead = leadSnap?.nome || senderName || 'Sem nome';
+          const linkWa = `https://wa.me/${fmtPhone(cleanPhone)}`;
+          const groupId = process.env.ZAPI_IO_GROUP_ID?.trim() || '120363424419098566-group';
+
+          const notif = [
+            `🗑️ *LEAD EXCLUÍDO DO CRM*`,
+            ``,
+            `*${nomeLead}* — ${estagioAnterior} > *EXCLUÍDO*`,
+            `WhatsApp: ${cleanPhone} → ${linkWa}`,
+            leadSnap?.cidade ? `Cidade: ${leadSnap.cidade}` : null,
+            ``,
+            `*Motivo:* ${motivo}`,
+            leadSnap?.total_mensagens ? `📊 ${leadSnap.total_mensagens} mensagens trocadas` : null,
+          ].filter(Boolean).join('\n');
+
+          try {
+            await sendToGroup(groupId, notif, instance);
+          } catch (notifErr) {
+            logger.warn('luma-descartar', `falha notificando grupo sobre exclusão de ${cleanPhone}`, notifErr);
+          }
+
+          logger.info('luma-descartar', `lead ${cleanPhone} (${estagioAnterior}) descartado: ${motivo}`);
           // Deleta sessão e lead
           await Promise.all([
             supabase.from('whatsapp_sessions').delete().eq('phone', cleanPhone).eq('tipo', 'sdr'),
             supabase.from('sdr_leads').delete().eq('phone', cleanPhone),
           ]);
-          result = `Lead descartado permanentemente do CRM. Motivo logado: "${motivo}". Mande UMA despedida cordial curta (ex: "Tudo bem [Nome], fechado. Sucesso aí!") e encerra. NÃO marque [ESTAGIO] na resposta — o lead já foi excluído.`;
+          result = `Lead descartado do CRM e equipe notificada no grupo (${estagioAnterior} > EXCLUÍDO). Motivo: "${motivo}". Mande UMA despedida cordial curta e humana (ex: "Tudo certo, ${nomeLead.split(' ')[0]}. Sucesso aí ☀️") e encerra. NÃO marque [ESTAGIO] — o lead já foi excluído.`;
         } else if (block.name === 'agendar_atendimento') {
           const input = block.input as any;
           const canal = String(input.canal || '');
@@ -1092,6 +1372,11 @@ export async function pollZapiMessages(): Promise<{ processed: number }> {
         .or(`whatsapp.eq.${phone},whatsapp.eq.55${phone}`)
         .maybeSingle();
       if (platformUser) continue;
+
+      // Dedup contra race entre webhook /whatsapp e este polling.
+      if (await hasRecentWebhookClaim(phone)) continue;
+      const msgIdRaw = lastMsg.messageId || lastMsg.zaapId || lastMsg.id || `${msgTime}`;
+      if (!(await tryClaimMessage(`poll:${phone}:${msgIdRaw}`, phone, 'poll'))) continue;
 
       await handleSdrLead(phone, String(text), chat.name ?? lastMsg.senderName ?? null);
       processed++;

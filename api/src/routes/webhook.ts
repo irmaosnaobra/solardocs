@@ -1,8 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { handleIncomingWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
-import { handleSdrLead } from '../services/agents/sdr/sdrAgentService';
+import { handleSdrLead, tryClaimMessage } from '../services/agents/sdr/sdrAgentService';
+import { handleGroupMessage } from '../services/agents/sdr/sdrGroupAgent';
 import { supabase } from '../utils/supabase';
 import { transcribeAudio, downloadImageAsAnthropicSource } from '../utils/mediaProcessor';
+
+// Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
+// primeiro disponível pra dedup atômico contra redelivery e race com polling.
+function extractMessageId(body: any): string | null {
+  const id = body.messageId || body.zaapId || body.id || body.message?.id || null;
+  return id ? String(id) : null;
+}
 
 const router = Router();
 
@@ -75,6 +83,16 @@ async function handleWebhook(body: any, route: '/whatsapp' | '/zapi', res: Respo
   const phone = body.phone || body.senderPhone;
   const text = extractText(body);
   if (phone && text && !isFromMe(body) && !isFromGroup(body)) {
+    // Dedup atômico contra redelivery do Z-API
+    const messageId = extractMessageId(body);
+    if (messageId) {
+      const phoneClean = String(phone).replace(/\D/g, '');
+      const claimed = await tryClaimMessage(`whk:${messageId}`, phoneClean, 'webhook');
+      if (!claimed) {
+        console.info(`[webhook${route}] mensagem ${messageId} já processada — pulando`);
+        return;
+      }
+    }
     handleIncomingWhatsApp(String(phone), String(text), body.senderName || body.pushname, tracking)
       .catch(err => console.error('[webhook] handleIncomingWhatsApp falhou:', err));
   }
@@ -155,14 +173,75 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
   // Resposta rápida (Z-API timeout ~3s)
   if (!res.headersSent) res.status(200).send('ok');
 
-  // Filtros
-  if (isFromMe(body) || isFromGroup(body)) return;
+  // ── ROTA GRUPO: mensagem do grupo IO (consultores comandando Luma) ──
+  // Aceita só o grupo configurado, ignora outras mensagens de grupo aleatórias.
+  // fromApi=true = enviada pela própria API (Luma respondendo a si mesma) → skip pra evitar loop.
+  const groupId = process.env.ZAPI_IO_GROUP_ID?.trim() || '120363424419098566-group';
+  if (isFromGroup(body)) {
+    const fromApi = body.fromApi === true || body.fromApi === 'true';
+    const isMine = isFromMe(body);
+    if (fromApi || isMine) return; // skip auto-resposta + mensagens da própria conta da Luma
+
+    const incomingGroupId = String(body.phone || body.chatId || body.groupId || '');
+    // Compara só os dígitos do JID — Z-API alterna entre "120363xxx-group", "120363xxx@g.us", etc.
+    const baseId = (s: string) => s.replace(/\D/g, '').slice(0, 20);
+    if (!baseId(incomingGroupId) || baseId(incomingGroupId) !== baseId(groupId)) return;
+
+    const text = extractText(body);
+    const media = extractMedia(body);
+    if (!text && !media) return;
+
+    (async () => {
+      try {
+        let finalText = String(text || '');
+        let imageSource: { type: 'base64'; media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'; data: string } | null = null;
+
+        if (media) {
+          if (media.type === 'audio') {
+            const transcription = await transcribeAudio(media.url, media.mime);
+            finalText = transcription || finalText;
+          } else if (media.type === 'image') {
+            imageSource = await downloadImageAsAnthropicSource(media.url, media.mime);
+            if (!finalText) finalText = '[imagem anexada]';
+          }
+        }
+
+        if (!finalText) return;
+
+        await handleGroupMessage({
+          groupId: incomingGroupId,
+          senderPhone: String(body.participantPhone || body.senderPhone || body.phone || ''),
+          senderName: body.senderName || body.pushname || null,
+          text: finalText,
+          imageSource,
+        });
+      } catch (err) {
+        console.error('[webhook:io] handleGroupMessage falhou:', err);
+      }
+    })();
+    return;
+  }
+
+  // ── ROTA LEAD (DM): conversa privada com cliente ──
+  if (isFromMe(body)) return;
 
   const phone = body.phone || body.senderPhone;
   const text = extractText(body);
   const media = extractMedia(body);
   if (!phone) return;
   if (!text && !media) return; // sem texto nem mídia = nada pra processar
+
+  // Dedup atômico — Z-API pode redisparar o mesmo webhook. Se já reivindicado
+  // por outro processo (webhook anterior ou polling), retorna sem reprocessar.
+  const messageId = extractMessageId(body);
+  if (messageId) {
+    const phoneClean = String(phone).replace(/\D/g, '');
+    const claimed = await tryClaimMessage(`whk:${messageId}`, phoneClean, 'webhook');
+    if (!claimed) {
+      console.info(`[webhook:io] mensagem ${messageId} já processada — pulando`);
+      return;
+    }
+  }
 
   // Processa em background — chama Luma direto na linha 'io'.
   // Pra mídia: transcreve áudio (Whisper) ou baixa imagem como base64 (Anthropic vision).

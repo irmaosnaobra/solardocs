@@ -20,7 +20,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
-import { handleSdrLead } from './sdrAgentService';
+import { handleSdrLead, tryClaimMessage, hasRecentWebhookClaim } from './sdrAgentService';
 import { sendToGroup, sendWhatsApp, type ZapiInstance } from '../zapiClient';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -78,6 +78,23 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
       .maybeSingle();
 
     if (session) {
+      skipped++;
+      continue;
+    }
+
+    // Skip se webhook acabou de reivindicar essa mensagem (race condition).
+    // Webhook leva 3-4s pra salvar a sessão; nesse meio tempo o polling enxergaria
+    // o lead como "novo" e duplicaria a boas-vindas. Janela de 90s cobre isso.
+    if (await hasRecentWebhookClaim(phone)) {
+      skipped++;
+      continue;
+    }
+
+    // Reivindica a mensagem atomicamente. Se outro tick do cron já reivindicou,
+    // pula. Chave usa lastTime pra que mensagens NOVAS do mesmo phone gerem
+    // claim diferente.
+    const synthId = `poll:${phone}:${lastTime}`;
+    if (!(await tryClaimMessage(synthId, phone, 'poll'))) {
       skipped++;
       continue;
     }
@@ -331,6 +348,21 @@ export async function cleanupPerdidosAntigos(): Promise<{ deleted: number }> {
   }
 
   return { deleted: aDeletar.length };
+}
+
+// Limpa entradas de dedup com mais de 7 dias — são inúteis depois desse prazo
+// e a tabela cresce indefinidamente sem isso.
+export async function cleanupMessageDedup(): Promise<{ deleted: number }> {
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { error, count } = await supabase
+    .from('sdr_message_dedup')
+    .delete({ count: 'exact' })
+    .lt('processed_at', cutoff);
+  if (error) {
+    logger.error('cleanup-dedup', 'falha limpando dedup', error);
+    return { deleted: 0 };
+  }
+  return { deleted: count ?? 0 };
 }
 
 // ─── Reativação em massa: leads importados que ainda não foram contactados ──
