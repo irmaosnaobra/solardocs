@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendZAPI as sendWA } from '../zapiClient';
 import { logger } from '../../../utils/logger';
+import { detectarRecusaNaUltimaMsg } from './detectarRecusa';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -169,6 +170,28 @@ export async function runSdrB2bFollowups(): Promise<{ enviados: number; perdidos
         aguardando_resposta: false,
         updated_at: now.toISOString(),
       }).eq('phone', lead.phone);
+      perdidos++;
+      continue;
+    }
+
+    // Detecção de recusa: se a última msg do lead foi um "não" explícito,
+    // marca perdido e NÃO envia follow-up.
+    const { data: sessionCheck } = await supabase
+      .from('whatsapp_sessions')
+      .select('messages')
+      .eq('phone', lead.phone)
+      .eq('tipo', 'sdr_b2b')
+      .maybeSingle();
+    const histMsgs = (sessionCheck?.messages as any[]) || [];
+    const recusa = detectarRecusaNaUltimaMsg(histMsgs);
+    if (recusa.recusou) {
+      await supabase.from('sdr_leads').update({
+        estagio: 'perdido',
+        aguardando_resposta: false,
+        ultima_mensagem: recusa.motivo ? `[recusou: ${recusa.motivo}]` : '[recusou]',
+        updated_at: now.toISOString(),
+      }).eq('phone', lead.phone);
+      logger.info('sdr-b2b-followup', `lead ${lead.phone} recusou (${recusa.motivo}) — perdido sem follow-up`);
       perdidos++;
       continue;
     }

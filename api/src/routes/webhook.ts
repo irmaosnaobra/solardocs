@@ -4,6 +4,7 @@ import { handleSdrLead, tryClaimMessage } from '../services/agents/sdr/sdrAgentS
 import { handleGroupMessage } from '../services/agents/sdr/sdrGroupAgent';
 import { supabase } from '../utils/supabase';
 import { transcribeAudio, downloadImageAsAnthropicSource } from '../utils/mediaProcessor';
+import { sendWhatsApp } from '../services/agents/zapiClient';
 
 // Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
 // primeiro disponível pra dedup atômico contra redelivery e race com polling.
@@ -253,7 +254,25 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
       if (media) {
         if (media.type === 'audio') {
           const transcription = await transcribeAudio(media.url, media.mime);
-          finalText = transcription || finalText || '[áudio recebido — não consegui transcrever, pode digitar?]';
+          if (transcription) {
+            finalText = transcription;
+          } else if (!finalText) {
+            // Whisper falhou e não há texto — responde curto pedindo pra digitar,
+            // sem invocar a Luma (evita reset de contexto / boas-vindas duplicada).
+            try {
+              const phoneClean = String(phone).replace(/\D/g, '');
+              const { data: leadRow } = await supabase
+                .from('sdr_leads').select('nome').eq('phone', phoneClean).maybeSingle();
+              const primeiroNome = leadRow?.nome ? String(leadRow.nome).trim().split(/\s+/)[0] : '';
+              const aviso = primeiroNome
+                ? `${primeiroNome}, tive um probleminha pra ouvir seu áudio. Pode digitar pra mim?`
+                : `Tive um probleminha pra ouvir seu áudio. Pode digitar pra mim?`;
+              await sendWhatsApp(phoneClean, aviso, 'io');
+            } catch (sendErr) {
+              console.error('[webhook:io] falha pedindo pra digitar', sendErr);
+            }
+            return;
+          }
         } else if (media.type === 'image') {
           imageSource = await downloadImageAsAnthropicSource(media.url, media.mime);
           if (!finalText || finalText === '[imagem]') {
