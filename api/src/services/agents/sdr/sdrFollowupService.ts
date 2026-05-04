@@ -2,6 +2,36 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendZAPI as sendWA, type ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
+import { isLumaWorkingNow } from './sdrAgentService';
+
+// Detecta na ÚLTIMA mensagem do lead se ele já recusou explicitamente.
+// Se sim, follow-up deve ser pulado e lead marcado como perdido.
+//
+// Regex propositalmente conservativas — preferimos falso negativo (manda
+// follow-up extra) a falso positivo (corta lead que ainda tava negociando).
+// Ex: "não quero financiamento" NÃO bate com /^não quero\s*(mais)?\s*\.?$/.
+function detectarRecusaNaUltimaMsg(
+  messages: Array<{ role: string; content: any }>,
+): { recusou: boolean; motivo?: string } {
+  const userMsgs = messages.filter(m => m.role === 'user');
+  const last = userMsgs[userMsgs.length - 1];
+  if (!last) return { recusou: false };
+  const t = (typeof last.content === 'string' ? last.content : '').toLowerCase().trim();
+  if (!t) return { recusou: false };
+
+  if (/^n[aã]o\s+tenho\s+(interesse|mais\s+interesse)/i.test(t)) return { recusou: true, motivo: 'sem interesse' };
+  if (/^n[aã]o\s+quero\s*(mais)?\s*[\.!]?\s*$/i.test(t)) return { recusou: true, motivo: 'não quer mais' };
+  if (/^n[aã]o\s+quero\s+comprar/i.test(t)) return { recusou: true, motivo: 'não quer comprar' };
+  if (/\bj[aá]\s+(comprei|fechei|instalei|coloquei)\b/i.test(t)) return { recusou: true, motivo: 'já fechou/instalou' };
+  if (/\bj[aá]\s+tenho\s+(sistema|painel|solar|placa)/i.test(t)) return { recusou: true, motivo: 'já tem sistema' };
+  if (/(para|pare|parar)\s+de\s+me\s+(mandar|chamar|enviar|incomodar)/i.test(t)) return { recusou: true, motivo: 'pediu pra parar' };
+  if (/n[aã]o\s+me\s+(chame|mande|incomode|envie|procure)\s+(mais)?/i.test(t)) return { recusou: true, motivo: 'opt-out' };
+  if (/^obrigado[\s,.!]+n[aã]o\b/i.test(t) || /^n[aã]o[,.\s]+obrigado/i.test(t)) return { recusou: true, motivo: 'cordial não' };
+  if (/^agora\s+n[aã]o\b/i.test(t) || /\bagora\s+n[aã]o[\s,.!]/i.test(t)) return { recusou: true, motivo: 'agora não' };
+  if (/^bloqueio/i.test(t) || /\bvou\s+bloquear\b/i.test(t)) return { recusou: true, motivo: 'bloqueio' };
+
+  return { recusou: false };
+}
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -140,22 +170,29 @@ ${historico || '(sem histórico — lead novo que só recebeu boas-vindas)'}`;
     return txt.replace(/^["']|["']$/g, '');
   } catch (err) {
     logger.error('sdr-followup', 'falha gerando follow-up via IA, usando fallback', err);
-    // Fallback estático caso IA falhe
+    // Fallback estático caso IA falhe — neutro, sem promessas (estimativa,
+    // fila, projetos fechados etc) que não temos como honrar se o lead pedir.
     const fallback: Record<number, string> = {
-      1: `${nome}, vi que paramos no meio. Ainda tem interesse em zerar a conta?`,
-      2: `${nome}, te separei aqui uma estimativa rápida. Posso compartilhar?`,
+      1: `${nome}, vi que paramos no meio aqui. Ainda faz sentido pra você?`,
+      2: `${nome}, voltei aqui rapidinho. Quer retomar a conversa de onde a gente parou?`,
       3: `${nome}, sem pressão — só checando se ainda faz sentido a gente conversar.`,
-      4: `${nome}, fechamos uns projetos por aí esses dias. Quer ver se cabe pra você?`,
-      5: `${nome}, novembro tá com fila — se quiser garantir vaga ainda esse ano, é agora.`,
+      4: `${nome}, tô por aqui se quiser tirar alguma dúvida. Posso seguir?`,
+      5: `${nome}, ainda dá pra retomar quando você quiser. Tá tudo bem por aí?`,
       6: `${nome}, posso fazer uma última pergunta? Ainda faz sentido pra você ou prefere que eu encerre por aqui?`,
-      7: `${nome}, vou encerrar seu cadastro pra não te incomodar mais. Se um dia quiser retomar, é só me chamar. Abs!`,
+      7: `${nome}, vou encerrar por aqui pra não te incomodar mais. Se um dia quiser retomar, é só me chamar. Abs!`,
     };
-    return fallback[tentativa] || `${nome}, ainda tem interesse em energia solar?`;
+    return fallback[tentativa] || `${nome}, ainda faz sentido a gente conversar sobre solar?`;
   }
 }
 
-export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: number }> {
+export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: number; pulado_horario?: boolean; pulado_recusa?: number }> {
   const now = new Date();
+
+  // Luma só envia outbound dentro do horário de funcionamento dela
+  // (Seg-Sex 08h-17h é período do humano; ela fica em silêncio).
+  if (!isLumaWorkingNow(now)) {
+    return { enviados: 0, perdidos: 0, pulado_horario: true };
+  }
 
   const { data: leads } = await supabase
     .from('sdr_leads')
@@ -170,6 +207,7 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
 
   let enviados = 0;
   let perdidos = 0;
+  let pulado_recusa = 0;
 
   for (const lead of leads as SdrLead[]) {
     const contatos = lead.contatos ?? 0;
@@ -188,6 +226,30 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
         aguardando_resposta: false,
         updated_at: now.toISOString(),
       }).eq('phone', lead.phone);
+      perdidos++;
+      continue;
+    }
+
+    // Detecção de recusa: lê histórico do lead. Se a última mensagem dele
+    // foi um "não" explícito, marca perdido e NÃO envia follow-up — mandar
+    // mais mensagem pra quem disse não é o pior erro do funnel.
+    const { data: sessionCheck } = await supabase
+      .from('whatsapp_sessions')
+      .select('messages')
+      .eq('phone', lead.phone)
+      .eq('tipo', 'sdr')
+      .maybeSingle();
+    const histMsgs = (sessionCheck?.messages as any[]) || [];
+    const recusa = detectarRecusaNaUltimaMsg(histMsgs);
+    if (recusa.recusou) {
+      await supabase.from('sdr_leads').update({
+        estagio: 'perdido',
+        aguardando_resposta: false,
+        ultima_mensagem: recusa.motivo ? `[recusou: ${recusa.motivo}]` : '[recusou]',
+        updated_at: now.toISOString(),
+      }).eq('phone', lead.phone);
+      logger.info('sdr-followup', `lead ${lead.phone} recusou (${recusa.motivo}) — marcado perdido, sem follow-up`);
+      pulado_recusa++;
       perdidos++;
       continue;
     }
@@ -251,5 +313,5 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
     }
   }
 
-  return { enviados, perdidos };
+  return { enviados, perdidos, pulado_recusa };
 }
