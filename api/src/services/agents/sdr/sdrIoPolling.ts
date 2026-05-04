@@ -386,24 +386,24 @@ const FERIADOS_BR_LUMA: Set<string> = new Set([
   '2027-11-15','2027-11-20','2027-12-25',
 ]);
 
-// Luma reativa em qualquer dia da semana (incluindo dom/sáb/feriado).
-// Bloqueia apenas fora da janela horária 9h-20h BRT (cliente dormindo / fim do expediente).
+// Janela de reativação: Seg-Qui das 19h às 20h BRT.
+// Por que: cliente em casa após expediente, bom horário pra reabrir conversa.
+// Sex-Dom ficam livres pra leads ativos / outros canais — sem outbound novo.
 function emHorarioOperacional(): boolean {
   const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
   const hora = brt.getUTCHours();
-  return hora >= 9 && hora < 20;
+  const dia = brt.getUTCDay(); // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb
+  if (dia < 1 || dia > 4) return false;
+  if (hora !== 19) return false;
+  // Skip feriado nacional mesmo se cair em dia útil
+  const iso = brt.toISOString().slice(0, 10);
+  if (FERIADOS_BR_LUMA.has(iso)) return false;
+  return true;
 }
 
-// Meta dinâmica: dia "tranquilo" (dom/sáb/feriado) cliente tá em casa, dá pra
-// trabalhar mais pesado. Dia útil mantém ritmo normal.
+// Meta diária fixa: 40 reativações distribuídas ao longo da janela 19-20h.
 function metaReativacaoHoje(): number {
-  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
-  const dow = brt.getUTCDay();
-  const iso = brt.toISOString().slice(0, 10);
-  const isDomingo = dow === 0;
-  const isSabado = dow === 6;
-  const isFeriado = FERIADOS_BR_LUMA.has(iso);
-  return (isDomingo || isSabado || isFeriado) ? 40 : 20;
+  return 40;
 }
 
 // Pega últimas mensagens de reativação enviadas (últimos 7 dias) pra Luma EVITAR
@@ -474,11 +474,10 @@ REGRAS:
   }
 }
 
-// Quantas reativações tentar por chamada. Era 1 (gargalo: queue só drenava
-// quando Worker batia em /cron/process-messages, ~poucas vezes/dia). Subido
-// pra 40 = meta máxima (sábado/domingo/feriado). A própria função tem guard
-// pra parar ao atingir meta diária — então excesso é seguro.
-const REATIVACOES_POR_EXECUCAO = 40;
+// 1 lead por execução. Cron roda a cada 1min na janela 19-20h (60 ticks),
+// suficiente pra cumprir meta de 40 sem rajada (parecer bot). Guard de meta
+// diária na função impede excesso.
+const REATIVACOES_POR_EXECUCAO = 1;
 
 export async function processarReativacao(): Promise<{ enviados: number; pulado_horario: boolean; meta_atingida: boolean; meta: number }> {
   if (!emHorarioOperacional()) {
