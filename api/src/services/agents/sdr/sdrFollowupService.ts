@@ -193,6 +193,33 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
     }
 
     try {
+      // Claim atômico: bumpa contatos via UPDATE com optimistic lock.
+      // Filtro `.eq('contatos', contatos)` garante que apenas o PRIMEIRO chamador
+      // que viu este valor consiga incrementar. Outros ticks recebem 0 linhas e pulam.
+      const isLast = proximasTentativas === MAX_CONTATOS;
+      const updatePayload: any = {
+        contatos: proximasTentativas,
+        ultimo_contato: now.toISOString(),
+        updated_at: now.toISOString(),
+      };
+      if (isLast) {
+        updatePayload.estagio = 'perdido';
+        updatePayload.aguardando_resposta = false;
+      }
+      const { data: claimed } = await supabase
+        .from('sdr_leads')
+        .update(updatePayload)
+        .eq('phone', lead.phone)
+        .eq('contatos', contatos)
+        .eq('aguardando_resposta', true)
+        .select('phone')
+        .maybeSingle();
+
+      if (!claimed) {
+        logger.info('sdr-followup', `lead ${lead.phone} já avançado por outro tick — pulando`);
+        continue;
+      }
+
       const msg = await gerarFollowupContextual(lead, proximasTentativas);
       const instance: ZapiInstance = lead.instance === 'io' ? 'io' : 'solardoc';
       await sendWA(lead.phone, msg, instance);
@@ -216,14 +243,6 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
       } catch (sessErr) {
         logger.error('sdr-followup', `erro salvando follow-up no historico de ${lead.phone}`, sessErr);
       }
-
-      const isLast = proximasTentativas === MAX_CONTATOS;
-      await supabase.from('sdr_leads').update({
-        contatos: proximasTentativas,
-        ultimo_contato: now.toISOString(),
-        updated_at: now.toISOString(),
-        ...(isLast ? { estagio: 'perdido', aguardando_resposta: false } : {}),
-      }).eq('phone', lead.phone);
 
       enviados++;
       if (isLast) perdidos++;

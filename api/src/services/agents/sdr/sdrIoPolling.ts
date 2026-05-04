@@ -519,6 +519,29 @@ export async function processarReativacao(): Promise<{ enviados: number; pulado_
   let enviados = 0;
   for (const lead of leads) {
     try {
+      // Claim atômico: marca reativacao_enviada_at via UPDATE condicional.
+      // Se outra execução do cron já reivindicou (reativacao_enviada_at não é mais NULL),
+      // o filtro retorna 0 linhas e este iter é pulado. Evita duplicar mensagens
+      // quando 2 ticks do cron rodam em paralelo (cada msg leva ~5s × 40 = 3-4min,
+      // maior que o intervalo de 1min do cron).
+      const nowIso = new Date().toISOString();
+      const { data: claimed } = await supabase
+        .from('sdr_leads')
+        .update({
+          reativacao_enviada_at: nowIso,
+          reativacao_tentativas: (lead.reativacao_tentativas ?? 0) + 1,
+        })
+        .eq('phone', lead.phone)
+        .eq('estagio', 'reativacao')
+        .is('reativacao_enviada_at', null)
+        .select('phone')
+        .maybeSingle();
+
+      if (!claimed) {
+        logger.info('reativacao', `lead ${lead.phone} já reivindicado por outro tick — pulando`);
+        continue;
+      }
+
       const msg = await gerarMsgReativacao(lead);
       await sendWhatsApp(lead.phone, msg, 'io');
 
@@ -535,16 +558,15 @@ export async function processarReativacao(): Promise<{ enviados: number; pulado_
         tipo: 'sdr',
         nome: lead.nome,
         messages: [...oldMessages, { role: 'assistant', content: msg }].slice(-80),
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
       }, { onConflict: 'phone,tipo' });
 
+      // Atualiza só os campos pós-envio. reativacao_enviada_at já foi setado no claim.
       await supabase.from('sdr_leads').update({
-        reativacao_enviada_at: new Date().toISOString(),
-        reativacao_tentativas: (lead.reativacao_tentativas ?? 0) + 1,
-        ultimo_contato: new Date().toISOString(),
+        ultimo_contato: nowIso,
         aguardando_resposta: true,
         ultima_mensagem: msg.slice(0, 300),
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
       }).eq('phone', lead.phone);
       enviados++;
     } catch (err) {
