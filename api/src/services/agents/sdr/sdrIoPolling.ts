@@ -20,7 +20,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
-import { handleSdrLead, tryClaimMessage, hasRecentWebhookClaim } from './sdrAgentService';
+import { handleSdrLead, tryClaimMessage, hasRecentWebhookClaim, isLumaWorkingNow } from './sdrAgentService';
 import { sendToGroup, sendWhatsApp, type ZapiInstance } from '../zapiClient';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -574,6 +574,167 @@ export async function processarReativacao(): Promise<{ enviados: number; pulado_
   }
 
   return { enviados, pulado_horario: false, meta_atingida: false, meta: metaHoje };
+}
+
+// ─── Nudge de 10min: "Fulano, ainda está aí?" ─────────────────────
+//
+// Quando a Luma faz uma pergunta e o lead some, manda um cutuque cordial após
+// 10min. Critério: aguardando_resposta=true, ultimo_contato entre 10-25min,
+// nudge_10min_at vazio OU < ultimo_contato (não nudgeou pra essa rodada).
+//
+// UPDATE atômico marca nudge_10min_at antes de enviar — se outro tick
+// reivindicar, esta iteração pula. Limita a 5 nudges por execução.
+
+const NUDGE_10MIN_LIMIT = 5;
+
+export async function processarNudge10min(): Promise<{ enviados: number; pulado_horario?: boolean }> {
+  if (!isLumaWorkingNow()) return { enviados: 0, pulado_horario: true };
+
+  const agora = new Date();
+  const limiteSup = new Date(agora.getTime() - 10 * 60 * 1000).toISOString(); // 10min atrás (mais novos que isso, espera)
+  const limiteInf = new Date(agora.getTime() - 25 * 60 * 1000).toISOString(); // 25min atrás (mais velhos, deixa pro fluxo de followup)
+
+  const { data: leads } = await supabase
+    .from('sdr_leads')
+    .select('phone, nome, ultimo_contato, nudge_10min_at, instance')
+    .eq('aguardando_resposta', true)
+    .eq('human_takeover', false)
+    .not('estagio', 'in', '("perdido","fechamento","frio")')
+    .gte('ultimo_contato', limiteInf)
+    .lte('ultimo_contato', limiteSup)
+    .limit(NUDGE_10MIN_LIMIT * 2); // pega o dobro pra cobrir leads que vão falhar no claim
+
+  if (!leads?.length) return { enviados: 0 };
+
+  let enviados = 0;
+  for (const lead of leads as any[]) {
+    if (enviados >= NUDGE_10MIN_LIMIT) break;
+
+    // Skip se já mandou nudge pra essa rodada (nudge_10min_at >= ultimo_contato)
+    if (lead.nudge_10min_at && lead.nudge_10min_at >= lead.ultimo_contato) continue;
+
+    // Claim atômico: só marca nudge_10min_at se ainda não foi nudgeado nessa rodada
+    const nowIso = agora.toISOString();
+    const { data: claimed } = await supabase
+      .from('sdr_leads')
+      .update({ nudge_10min_at: nowIso })
+      .eq('phone', lead.phone)
+      .or(`nudge_10min_at.is.null,nudge_10min_at.lt.${lead.ultimo_contato}`)
+      .select('phone')
+      .maybeSingle();
+
+    if (!claimed) continue;
+
+    const primeiroNome = (lead.nome || '').trim().split(/\s+/)[0] || null;
+    const msg = primeiroNome
+      ? `${primeiroNome}, ainda está aí?`
+      : `Ainda está aí?`;
+    const instance: ZapiInstance = lead.instance === 'io' ? 'io' : 'solardoc';
+
+    try {
+      await sendWhatsApp(lead.phone, msg, instance);
+
+      // Anexa no histórico
+      const { data: session } = await supabase
+        .from('whatsapp_sessions')
+        .select('messages')
+        .eq('phone', lead.phone)
+        .eq('tipo', 'sdr')
+        .maybeSingle();
+      const oldMessages = (session?.messages as any[]) || [];
+      await supabase.from('whatsapp_sessions').upsert({
+        phone: lead.phone,
+        tipo: 'sdr',
+        messages: [...oldMessages, { role: 'assistant', content: msg }].slice(-80),
+        updated_at: nowIso,
+      }, { onConflict: 'phone,tipo' });
+
+      enviados++;
+    } catch (err) {
+      logger.error('nudge-10min', `falha enviando pra ${lead.phone}`, err);
+    }
+  }
+
+  return { enviados };
+}
+
+// ─── Nudge de 18h: "Vamos continuar a negociação?" ────────────────
+//
+// Disparado uma vez ao dia entre 18:00 e 18:10 BRT pra leads que receberam
+// algo da Luma e ficaram em silêncio. Dedup por nudge_18h_at >= início do dia BRT.
+
+export async function processarNudge18h(): Promise<{ enviados: number; pulado_horario?: boolean }> {
+  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const hora = brt.getUTCHours();
+  const min = brt.getUTCMinutes();
+  if (hora !== 18 || min > 10) return { enviados: 0, pulado_horario: true };
+
+  // Início do dia BRT (em UTC)
+  const inicioDia = new Date(brt);
+  inicioDia.setUTCHours(0, 0, 0, 0);
+  const inicioDiaUTC = new Date(inicioDia.getTime() + 3 * 60 * 60 * 1000).toISOString();
+
+  // Lead precisa ter recebido algo nas últimas 24h e estar silencioso há >2h
+  const cutoffMin = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const cutoffMax = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: leads } = await supabase
+    .from('sdr_leads')
+    .select('phone, nome, ultimo_contato, nudge_18h_at, instance')
+    .eq('aguardando_resposta', true)
+    .eq('human_takeover', false)
+    .not('estagio', 'in', '("perdido","fechamento","frio","quente")')
+    .lte('ultimo_contato', cutoffMin)
+    .gte('ultimo_contato', cutoffMax)
+    .or(`nudge_18h_at.is.null,nudge_18h_at.lt.${inicioDiaUTC}`)
+    .limit(40);
+
+  if (!leads?.length) return { enviados: 0 };
+
+  let enviados = 0;
+  for (const lead of leads as any[]) {
+    const nowIso = new Date().toISOString();
+    // Claim atômico
+    const { data: claimed } = await supabase
+      .from('sdr_leads')
+      .update({ nudge_18h_at: nowIso })
+      .eq('phone', lead.phone)
+      .or(`nudge_18h_at.is.null,nudge_18h_at.lt.${inicioDiaUTC}`)
+      .select('phone')
+      .maybeSingle();
+
+    if (!claimed) continue;
+
+    const primeiroNome = (lead.nome || '').trim().split(/\s+/)[0] || null;
+    const msg = primeiroNome
+      ? `${primeiroNome}, vamos continuar a negociação?`
+      : `Vamos continuar a negociação?`;
+    const instance: ZapiInstance = lead.instance === 'io' ? 'io' : 'solardoc';
+
+    try {
+      await sendWhatsApp(lead.phone, msg, instance);
+
+      const { data: session } = await supabase
+        .from('whatsapp_sessions')
+        .select('messages')
+        .eq('phone', lead.phone)
+        .eq('tipo', 'sdr')
+        .maybeSingle();
+      const oldMessages = (session?.messages as any[]) || [];
+      await supabase.from('whatsapp_sessions').upsert({
+        phone: lead.phone,
+        tipo: 'sdr',
+        messages: [...oldMessages, { role: 'assistant', content: msg }].slice(-80),
+        updated_at: nowIso,
+      }, { onConflict: 'phone,tipo' });
+
+      enviados++;
+    } catch (err) {
+      logger.error('nudge-18h', `falha enviando pra ${lead.phone}`, err);
+    }
+  }
+
+  return { enviados };
 }
 
 // ─── Revisão horária: Luma re-avalia contexto e reposiciona leads no funil ──

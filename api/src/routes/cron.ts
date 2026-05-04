@@ -8,7 +8,7 @@ import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentSe
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
 import { runSdrB2bFollowups } from '../services/agents/sdr/sdrB2bFollowupService';
 import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
-import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
+import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -110,7 +110,7 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, pollIoResult, takeoverResult, lembretesResult, revisaoResult, reativacaoResult, cleanupResult, dedupCleanupResult, relatorioResult, cardRetryResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, takeoverResult, lembretesResult, revisaoResult, reativacaoResult, nudge10Result, nudge18Result, cleanupResult, dedupCleanupResult, relatorioResult, cardRetryResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),
@@ -118,6 +118,8 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       processarLembretesAgendamento(),
       revisarLeadsLuma(),
       processarReativacao(),
+      processarNudge10min(),
+      processarNudge18h(),
       cleanupPerdidosAntigos(),
       cleanupMessageDedup(),
       enviarRelatorioDiario(),
@@ -132,6 +134,8 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       lembretes:  lembretesResult.status === 'fulfilled' ? lembretesResult.value : { error: String((lembretesResult as any).reason) },
       revisao:    revisaoResult.status === 'fulfilled' ? revisaoResult.value : { error: String((revisaoResult as any).reason) },
       reativacao: reativacaoResult.status === 'fulfilled' ? reativacaoResult.value : { error: String((reativacaoResult as any).reason) },
+      nudge_10min: nudge10Result.status === 'fulfilled' ? nudge10Result.value : { error: String((nudge10Result as any).reason) },
+      nudge_18h:  nudge18Result.status === 'fulfilled' ? nudge18Result.value : { error: String((nudge18Result as any).reason) },
       cleanup:    cleanupResult.status === 'fulfilled' ? cleanupResult.value : { error: String((cleanupResult as any).reason) },
       dedup_cleanup: dedupCleanupResult.status === 'fulfilled' ? dedupCleanupResult.value : { error: String((dedupCleanupResult as any).reason) },
       relatorio:  relatorioResult.status === 'fulfilled' ? relatorioResult.value : { error: String((relatorioResult as any).reason) },

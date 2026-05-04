@@ -684,10 +684,12 @@ async function upsertCrmLead(params: {
     }).catch(console.error);
   }
 
-  // Lead respondeu → para de aguardar e zera follow-up
+  // Lead respondeu → para de aguardar e zera follow-up + nudges
   payload.aguardando_resposta = false;
   payload.ultimo_contato = new Date().toISOString();
-  payload.contatos = 0; // Zera contatos de follow-up ao responder
+  payload.contatos = 0;            // zera follow-up
+  payload.nudge_10min_at = null;   // libera nudge de 10min na próxima rodada
+  payload.nudge_18h_at = null;     // libera nudge de 18h se ele responder antes
 
   await supabase.from('sdr_leads').upsert(payload, { onConflict: 'phone' });
 }
