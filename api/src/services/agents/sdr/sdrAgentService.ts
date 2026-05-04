@@ -258,8 +258,24 @@ Diferença chave: descarte = lead disse claramente "não". Perdido = lead simple
 DESPEDIDA QUANDO DIAGNÓSTICO É FRIO:
 "[Nome], pelo seu cenário agora o solar não vai trazer retorno tão bom — [motivo curto, 1 frase]. Guarda meu contato e qualquer coisa que mudar me chama. Abraço!" → Marca [ESTAGIO:frio]. NUNCA chame agendar_atendimento.
 
-ETAPA 7 — TRANSIÇÃO HUMANA + AGENDAMENTO
-(Só chega aqui se passou o diagnóstico mental — não é apto individual e a conta justifica.)
+🔥 ATALHO QUENTE — passar pra humano AGORA (sem agendar horário)
+Quando o lead JÁ deu o consumo (ou outras infos relevantes) E demonstra que quer seguir agora, NÃO fique preso pedindo canal/horário. Chame a tool **passar_pra_humano_agora** na hora — ela marca quente e dispara card 🔥 imediato no grupo.
+
+Sinais que disparam isso:
+- "Pode me chamar" / "Me liga" / "Me chama"
+- "Quero ver as opções" / "Quero o orçamento" / "Quero saber valores"
+- "Vamos seguir" / "Vamos lá" / "Bora"
+- "Tô interessado" / "Quero fechar" / "Quero esse mês"
+- "Manda info" / "Manda proposta"
+
+Pré-condição mínima: o lead JÁ deu o consumo (ou pelo menos uma sinalização forte tipo cidade + interesse). Se ele só disse "oi" e nada mais, segue o fluxo normal das 6 perguntas.
+
+Após chamar a tool, mande UMA bolha curta humana:
+"Show, [Nome]. Vou pedir pro consultor te chamar agora pra alinhar tudo. ☀️"
+NÃO marque [ESTAGIO] — a tool já marca quente.
+
+ETAPA 7 — TRANSIÇÃO HUMANA + AGENDAMENTO COM HORÁRIO
+(Use quando o lead PEDIR horário específico ou quiser marcar dia/canal — caso contrário, prefira o ATALHO QUENTE acima.)
 Avisa que um consultor humano vai assumir + pergunta preferência:
 
 "[Nome], anotei tudo aqui. Vou te passar agora pro nosso consultor humano fazer o orçamento personalizado e fechar contigo. || Como você prefere o atendimento dele?
@@ -798,6 +814,20 @@ const LUMA_TOOLS: Anthropic.Tool[] = [
       required: ['canal', 'horario', 'horario_iso'],
     },
   },
+  {
+    name: 'passar_pra_humano_agora',
+    description: 'Marca o lead como QUENTE e dispara card 🔥 IMEDIATAMENTE no grupo da equipe — SEM precisar de horário/canal/endereço. Use quando o lead JÁ deu consumo (ou outros dados de qualificação) E demonstrou que quer seguir agora ("pode me chamar", "quero ver as opções", "vamos seguir", "manda info", "tô interessado", "quero orçamento", "me liga"). É pra leads quentes de oportunidade — não fica preso pedindo horário, joga pro humano fechar direto. Após chamar, mande UMA bolha curta tipo "Show, [Nome]. Vou pedir pro consultor te chamar agora pra alinhar tudo." Marca [ESTAGIO:quente].',
+    input_schema: {
+      type: 'object',
+      properties: {
+        motivo: {
+          type: 'string',
+          description: 'Frase curta dizendo POR QUÊ esse lead é quente AGORA (ex: "deu consumo R$450 e pediu pra ligar", "quer orçamento, casa em Uberlândia", "tem pressa, quer fechar esse mês"). Vai aparecer no card pro consultor saber a urgência.',
+        },
+      },
+      required: ['motivo'],
+    },
+  },
 ];
 
 function fmtBR(iso: string | null | undefined): string {
@@ -946,6 +976,104 @@ export async function criarCardAgendamento(
   } catch (err) {
     logger.error('luma-card', `falha ao enviar card pro grupo ${groupId}`, err);
     // Lead já está marcado quente e card_payload salvo — retry vai pegar
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// Card de "lead quente AGORA" — dispara no grupo sem horário/canal definidos.
+// Pra leads que já deram consumo + demonstraram urgência ("pode me chamar",
+// "quero orçamento"). Humano pega o lead direto e fecha sem agenda formal.
+export async function criarCardLeadQuente(
+  phone: string,
+  motivo: string,
+  instance: ZapiInstance,
+): Promise<{ ok: boolean; reason?: string }> {
+  const groupId = process.env.ZAPI_IO_GROUP_ID?.trim() || '120363424419098566-group';
+
+  const { data: lead } = await supabase
+    .from('sdr_leads')
+    .select('phone, nome, cidade, estado, estagio, total_mensagens, ultima_mensagem, created_at, ctwa_clid, card_message_id, observacoes_internas')
+    .eq('phone', phone)
+    .single();
+
+  const { data: session } = await supabase
+    .from('whatsapp_sessions')
+    .select('messages, nome')
+    .eq('phone', phone)
+    .eq('tipo', 'sdr')
+    .single();
+
+  const messages = (session?.messages as any[]) || [];
+  const fullText = messages.map(m => typeof m.content === 'string' ? m.content : '').join(' ').toLowerCase();
+
+  const consumo = fullText.match(/r?\$?\s?(\d{2,5})\s?(reais|\/m[eê]s|por m[eê]s)?/i)?.[1] || '—';
+  const padraoMatch = fullText.match(/\b(monof[aá]sico|bif[aá]sico|trif[aá]sico|110|220|380)\b/i);
+  const padrao = padraoMatch ? padraoMatch[0] : '—';
+  const telhadoMatch = fullText.match(/\b(cer[aâ]mico|fibrocimento|met[aá]lico|laje|colonial|romano|solo)\b/i);
+  const telhado = telhadoMatch ? telhadoMatch[0] : '—';
+  const aumentaConsumo = /aumentar|ar[\s-]?condicionado|piscina|carro el[eé]trico|forno|obra|mais gente/i.test(fullText) ? 'sim' : '—';
+
+  const ultimas = messages.slice(-10).map((m: any) => {
+    const c = typeof m.content === 'string' ? m.content : '[mídia]';
+    return `${m.role === 'user' ? '👤' : '🤖'} ${c.slice(0, 200)}`;
+  }).join('\n');
+
+  const linkWa = `https://wa.me/${fmtPhone(phone)}`;
+  const card = [
+    `🔥 *LEAD QUENTE — quer seguir AGORA*`,
+    ``,
+    `*Cliente:* ${lead?.nome || session?.nome || 'Sem nome'}`,
+    `*WhatsApp:* ${phone}  →  ${linkWa}`,
+    `*Cidade:* ${lead?.cidade || '—'}${lead?.estado ? ` / ${lead.estado}` : ''}`,
+    ``,
+    `📌 *MOTIVO:* ${motivo}`,
+    ``,
+    `⚡ *QUALIFICAÇÃO*`,
+    `• Conta de luz: R$ ${consumo}/mês`,
+    `• Voltagem/padrão: ${padrao}`,
+    `• Telhado: ${telhado}`,
+    `• Pretende aumentar consumo: ${aumentaConsumo}`,
+    (lead as any)?.observacoes_internas ? `• Notas internas:\n${(lead as any).observacoes_internas}` : null,
+    ``,
+    `💬 *ÚLTIMAS MENSAGENS*`,
+    ultimas || '(sem histórico)',
+    ``,
+    `📊 ${lead?.total_mensagens || 0} mensagens · lead criado em ${fmtBR(lead?.created_at)}`,
+    `🔗 CRM: https://solardoc.app/crm`,
+  ].filter(Boolean).join('\n');
+
+  const oldCardMessageId: string | null = (lead as any)?.card_message_id ?? null;
+
+  // Marca quente ANTES do envio — se sendToGroup falhar, retry pega via card_payload
+  await supabase.from('sdr_leads').update({
+    estagio: 'quente',
+    aguardando_resposta: false,
+    agendado_at: new Date().toISOString(),
+    canal_atendimento: 'imediato',
+    horario_atendimento: 'agora',
+    card_enviado_at: null,
+    card_payload: card,
+    card_group_id: groupId,
+    updated_at: new Date().toISOString(),
+  }).eq('phone', phone);
+
+  try {
+    const sent = await sendToGroup(groupId, card, instance);
+    await supabase.from('sdr_leads').update({
+      card_enviado_at: new Date().toISOString(),
+      card_message_id: sent.messageId,
+    }).eq('phone', phone);
+
+    if (oldCardMessageId && sent.messageId && oldCardMessageId !== sent.messageId) {
+      try {
+        await deleteGroupMessage(groupId, oldCardMessageId, instance);
+      } catch (delErr) {
+        logger.warn('luma-card-quente', `falha apagando card antigo ${oldCardMessageId}`, delErr);
+      }
+    }
+    return { ok: true };
+  } catch (err) {
+    logger.error('luma-card-quente', `falha ao enviar card pro grupo ${groupId}`, err);
     return { ok: false, reason: err instanceof Error ? err.message : String(err) };
   }
 }
@@ -1217,6 +1345,13 @@ export async function handleSdrLead(
               ? 'Agendamento registrado e card enviado pra equipe. Confirma pro cliente que o consultor vai entrar em contato no horário combinado.'
               : `Falha ao enviar card (${r.reason || 'erro'}). Mesmo assim confirme o agendamento pro cliente — vou avisar a equipe manualmente.`;
           }
+        } else if (block.name === 'passar_pra_humano_agora') {
+          const input = block.input as any;
+          const motivo = String(input.motivo || 'lead quente').slice(0, 200);
+          const r = await criarCardLeadQuente(cleanPhone, motivo, instance);
+          result = r.ok
+            ? 'Lead marcado como QUENTE e card 🔥 enviado pro grupo. Confirma pro cliente em UMA bolha curta que o consultor vai chamar agora pra alinhar tudo.'
+            : `Falha ao enviar card (${r.reason || 'erro'}). Mesmo assim avise o cliente que o consultor vai chamar — vou comunicar a equipe manualmente.`;
         } else {
           result = 'tool desconhecida';
         }
