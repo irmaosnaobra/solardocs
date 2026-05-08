@@ -24,7 +24,7 @@ export default function RootLayout({
         {/* Tema antes do paint — evita flash. Inline pra rodar 100% síncrono. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var m=localStorage.getItem('sd-theme')||'dark';var r=m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m;document.documentElement.dataset.theme=r;}catch(e){}`,
+            __html: `try{var m=localStorage.getItem('sd-theme')||'light';var r=m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m;document.documentElement.dataset.theme=r;}catch(e){}`,
           }}
         />
         {/* Preconnect para Google Fonts — não bloqueia render em Android antigo */}

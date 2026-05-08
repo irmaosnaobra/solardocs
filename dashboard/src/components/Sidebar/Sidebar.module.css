@@ -96,6 +96,13 @@
   color: var(--color-nav-text);
   text-decoration: none;
   transition: background 0.12s, color 0.12s;
+  /* Compatibilidade quando navItem é <button> (ex: theme picker) */
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .navItem:hover {

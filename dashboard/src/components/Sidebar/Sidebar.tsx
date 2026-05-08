@@ -15,6 +15,7 @@ import { removeToken } from '@/services/auth';
 import PlanBadge from '../PlanBadge/PlanBadge';
 import Logo from '../Logo/Logo';
 import ThemeToggle from '../ThemeToggle/ThemeToggle';
+import SidebarTheme from './SidebarTheme';
 import styles from './Sidebar.module.css';
 
 interface User {
@@ -189,6 +190,12 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
         <div className={styles.navSection}>
           {cadastroItems.map(renderItem)}
         </div>
+
+        {/* ── Seção: Tema ── */}
+        <div className={styles.navDivider}>
+          <span className={styles.navDividerLabel}>Tema</span>
+        </div>
+        <SidebarTheme />
 
         {/* ── Seção 3: Docs Cliente ── */}
         <div className={styles.navDivider}>
