@@ -52,12 +52,19 @@ export default function RootLayout({
                       keys.forEach(function(k){ caches.delete(k); });
                     });
                   }
-                  // 3. Reload sem loop quando JS dinâmico falha (chunk de deploy antigo sumiu)
+                  // 3. Quando JS dinâmico falha (chunk de deploy antigo sumiu),
+                  //    redireciona pra /limpar-cache que zera tudo e volta.
+                  //    Antes era só location.reload() — não era suficiente em casos
+                  //    onde o browser tinha HTML cacheado apontando pra chunk inexistente.
                   var SK = 'sd-chunk-reload';
                   function bust(){
                     if (sessionStorage.getItem(SK)) return;
                     sessionStorage.setItem(SK, '1');
-                    location.reload();
+                    if (location.pathname !== '/limpar-cache') {
+                      location.replace('/limpar-cache');
+                    } else {
+                      location.reload();
+                    }
                   }
                   window.addEventListener('error', function(e){
                     var msg = (e && (e.message || '')) + '';
