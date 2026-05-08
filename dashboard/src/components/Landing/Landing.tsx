@@ -129,8 +129,8 @@ export default function Landing() {
               depois do <strong>aperto de mão.</strong>
             </h1>
             <p className={styles.lead}>
-              SolarDoc é o app que <b>fecha sua venda solar</b>. Contrato, proposta e procuração em
-              minutos — com o cliente ali, na sua frente. Sem advogado. Sem Word. Sem terceirizar.
+              SolarDoc é o app que <b>fecha a sua venda solar</b>. Contrato, proposta e procuração em
+              minutos — com o cliente ali, na sua frente. Sem advogado. Sem Word. Sem terceiros.
             </p>
 
             <div className={styles.trustRow}>
@@ -147,8 +147,8 @@ export default function Landing() {
 
             <div className={styles.formCard} ref={formRef} id="cadastro">
               <span className={styles.formBadge}>✓ GRÁTIS — 10 DOCUMENTOS</span>
-              <div className={styles.formTitle}>Cadastre sua empresa em 30s</div>
-              <div className={styles.formSub}>Sem trial vencendo. Use quando precisar.</div>
+              <div className={styles.formTitle}>Cadastre sua empresa em 30 segundos</div>
+              <div className={styles.formSub}>Sem teste vencendo. Use quando precisar.</div>
 
               <form onSubmit={handleSubmit}>
                 <div className={styles.formGrid}>
@@ -180,7 +180,7 @@ export default function Landing() {
                     <input
                       type="password"
                       autoComplete="new-password"
-                      placeholder="Senha (6+)"
+                      placeholder="Mínimo 6 caracteres"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       required
@@ -254,7 +254,7 @@ export default function Landing() {
       <section className={styles.trustStrip}>
         <div className={styles.trustStripInner}>
           <div className={styles.trustStripLabel} data-reveal>
-            Procurações <b>aceitas em todas as concessionárias do Brasil</b>
+            Procurações <b>aceitas nas principais concessionárias do Brasil</b>
           </div>
           <div className={styles.trustStripList} data-reveal>
             <span className={styles.trustChip}><span className={styles.trustChipDot} /> CEMIG</span>
@@ -344,7 +344,7 @@ export default function Landing() {
               <div className={styles.diffIcon}>📱</div>
               <div className={styles.diffH}>Você no comando</div>
               <div className={styles.diffP}>
-                <b>O dono pode operar.</b> Cadastra cliente, gera o doc, manda no WhatsApp, cliente assina.
+                <b>O dono pode operar.</b> Cadastra o cliente, gera o documento, manda no WhatsApp, o cliente assina.
                 Não depende de escritório, não depende de terceiro. Sai perfeito.
               </div>
             </div>
@@ -371,7 +371,7 @@ export default function Landing() {
                 <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Sem cláusulas da concessionária</li>
                 <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> 2 dias por documento</li>
                 <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Sem assinatura digital</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Marca da empresa quebra</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Sua marca fica torta</li>
                 <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Não funciona no celular</li>
               </ul>
             </div>
@@ -384,7 +384,7 @@ export default function Landing() {
                 <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Tempo médio</li>
                 <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Tem assinatura digital</li>
                 <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Marca limitada</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Funciona ok no celular</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Funciona razoavelmente no celular</li>
               </ul>
             </div>
 
@@ -481,8 +481,8 @@ export default function Landing() {
 
             <div className={styles.testimonial} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.testimonialText}>
-                A procuração da CEMIG foi <b>aprovada na primeira</b>. Antes, eu refazia 3 vezes. Pra mim
-                já pagou o ano todo só nisso.
+                A procuração da CEMIG foi <b>aprovada de primeira</b>. Antes, eu refazia 3 vezes. Pra mim,
+                já se pagou o ano todo só nisso.
               </div>
               <div className={styles.testimonialAuthor}>
                 <div className={styles.authorAvatar}>C</div>
@@ -514,7 +514,7 @@ export default function Landing() {
       <section className={styles.posBlock}>
         <div className={styles.posBlockInner} data-reveal>
           <div className={styles.posCross}>
-            <s>Word</s> &nbsp;·&nbsp; <s>Drive</s> &nbsp;·&nbsp; <s>Plataforma cheia de feature que você nem usa</s>
+            <s>Word</s> &nbsp;·&nbsp; <s>Drive</s> &nbsp;·&nbsp; <s>Plataforma cheia de função que você nem usa</s>
           </div>
           <div className={styles.posMain}>
             SolarDoc é <strong>o documento que fecha a venda</strong>.<br />
@@ -562,7 +562,7 @@ export default function Landing() {
                 <li>90 documentos por mês</li>
                 <li>Logo em alta resolução</li>
                 <li>Suporte prioritário</li>
-                <li>Sem trial — paga quando quiser</li>
+                <li>Paga quando quiser, sem teste vencendo</li>
               </ul>
               <button onClick={scrollToForm} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
                 Quero o Pro
@@ -608,16 +608,16 @@ export default function Landing() {
             <details className={styles.faqItem} data-reveal>
               <summary>Os contratos têm validade jurídica?</summary>
               <div className={styles.faqAnswer}>
-                Sim. Os modelos seguem cláusulas técnicas validadas pra setor solar (geração, garantia,
-                inadimplência, titularidade). A <b>assinatura digital é juridicamente válida</b> no
-                Brasil via padrão Autentique.
+                Sim. Os modelos seguem cláusulas técnicas validadas pro setor solar (geração, garantia,
+                inadimplência, titularidade). A <b>assinatura digital tem validade jurídica</b> no
+                Brasil através do padrão Autentique.
               </div>
             </details>
 
             <details className={styles.faqItem} data-reveal>
               <summary>Funciona com qualquer concessionária?</summary>
               <div className={styles.faqAnswer}>
-                Sim. As procurações são genéricas o suficiente pra serem aceitas em concessionárias
+                Sim. As procurações são padronizadas pra serem aceitas pelas principais concessionárias —
                 como <b>CEMIG, CPFL, Enel, Light, Energisa, Equatorial</b> e outras.
               </div>
             </details>
@@ -665,7 +665,7 @@ export default function Landing() {
               Cadastrar minha empresa solar →
             </button>
             <div className={styles.finalCtaFoot}>
-              Continuou usando? A partir de R$ 27/mês. Cancela quando quiser.
+              Continuar usando depois? A partir de R$ 27/mês. Cancela quando quiser.
             </div>
           </div>
         </div>
