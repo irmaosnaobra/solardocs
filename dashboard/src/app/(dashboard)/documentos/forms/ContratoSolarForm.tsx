@@ -6,7 +6,6 @@ import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
-import modeStyles from './mode.module.css';
 
 interface GeneratedDoc {
   content: string;
@@ -33,16 +32,8 @@ const initialFields = {
   foro_cidade: '',
 };
 
-type Mode = 'm1' | 'm2' | 'ai';
-
-const MODES: { id: Mode; icon: string; label: string; desc: string; badge?: string }[] = [
-  { id: 'm1', icon: '📄', label: 'Modelo 1', desc: 'Profissional · 15 seções · Ajustado para 8 páginas' },
-  { id: 'm2', icon: '📋', label: 'Modelo 2', desc: 'Formal · 10 cláusulas otimizadas · Ajustado para 4 páginas' },
-];
-
 export default function ContratoSolarPage() {
-  const { user, openUpgrade } = useDashboard();
-  const [mode, setMode] = useState<Mode>('m1');
+  const { user } = useDashboard();
   const [clienteId, setClienteId] = useState('');
   const [fields, setFields] = useState(initialFields);
   const [generating, setGenerating] = useState(false);
@@ -68,7 +59,7 @@ export default function ContratoSolarPage() {
         cliente_id: clienteId,
         fields,
         useTemplate: true,
-        modeloNumero: mode === 'm2' ? 2 : 1,
+        modeloNumero: 2,
       });
       setGenerated(data);
     } catch (err: unknown) {
@@ -77,10 +68,6 @@ export default function ContratoSolarPage() {
     } finally {
       setGenerating(false);
     }
-  }
-
-  function handleModeSelect(mId: Mode) {
-    setMode(mId);
   }
 
   if (generated) {
@@ -107,22 +94,6 @@ export default function ContratoSolarPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>☀️ Contrato Solar</h1>
         <p className={styles.subtitle}>Contrato de instalação de sistema fotovoltaico</p>
-      </div>
-
-      <div className={modeStyles.modeSelector}>
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            className={`${modeStyles.modeBtn} ${mode === m.id ? modeStyles.active : ''} ${m.badge ? modeStyles.hasBadge : ''}`}
-            onClick={() => handleModeSelect(m.id)}
-          >
-            {m.badge && <span className={modeStyles.modeBadge}>{m.badge}</span>}
-            <span className={modeStyles.modeIcon}>{m.icon}</span>
-            <span className={modeStyles.modeLabel}>{m.label}</span>
-            <span className={modeStyles.modeDesc}>{m.desc}</span>
-          </button>
-        ))}
       </div>
 
       <form onSubmit={handleGenerate} className={styles.form}>
