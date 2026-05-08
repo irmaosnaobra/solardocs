@@ -3,6 +3,9 @@
   "env": {
     "NODE_ENV": "production"
   },
+  "rewrites": [
+    { "source": "/_api/:path*", "destination": "https://api.solardoc.app/:path*" }
+  ],
   "headers": [
     {
       "source": "/((?!_next/static|_next/image|favicon.ico|icons|images).*)",

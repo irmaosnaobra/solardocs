@@ -1,8 +1,13 @@
 import axios from 'axios';
 import { getToken, removeToken } from './auth';
 
+// Em produção: usa proxy interno /_api (mesma origem → sem CORS).
+// Em dev: usa a env var ou cai pra localhost:3001.
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  baseURL:
+    typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+      ? '/_api'
+      : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
 });
 
 api.interceptors.request.use((config) => {
