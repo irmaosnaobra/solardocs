@@ -13,7 +13,7 @@ const ALL_PLANS = [
   {
     key: 'pro',
     name: 'PRO',
-    amount: '47',
+    amount: '27',
     indicado: 'Indicado para até 20 vendas/mês',
     features: [
       '90 documentos por mês',
@@ -22,7 +22,7 @@ const ALL_PLANS = [
       'Contratos com a logomarca da sua empresa',
       'Histórico dos últimos 30 dias',
     ],
-    value: 47,
+    value: 27,
     btnClass: 'planBtnPro',
     featured: false,
     label: 'Assinar PRO →',
@@ -30,7 +30,7 @@ const ALL_PLANS = [
   {
     key: 'vip',
     name: 'VIP',
-    amount: '97',
+    amount: '67',
     indicado: 'Indicado para +20 vendas/mês',
     features: [
       'Documentos ilimitados — sem teto mensal',
@@ -44,7 +44,7 @@ const ALL_PLANS = [
       'Participa das decisões da plataforma',
       'Suporte prioritário direto no WhatsApp',
     ],
-    value: 97,
+    value: 67,
     btnClass: 'planBtnIlimitado',
     featured: true,
     label: 'Assinar VIP →',

@@ -7,15 +7,20 @@ import api from '@/services/api';
 import { setToken, setUser } from '@/services/auth';
 import styles from './login.module.css';
 
-export default function LoginPage() {
+type Platform = 'ios-chrome' | 'ios-safari' | 'android' | 'other' | null;
+
+export default function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+  // PWA install (mantido)
+  const [installPrompt, setInstallPrompt] = useState<{ prompt: () => void; userChoice: Promise<{ outcome: string }> } | null>(null);
   const [installed, setInstalled] = useState(false);
-  const [platform, setPlatform] = useState<'ios-chrome' | 'ios-safari' | 'android' | 'other' | null>(null);
+  const [platform, setPlatform] = useState<Platform>(null);
 
   useEffect(() => {
     const ua = navigator.userAgent;
@@ -23,18 +28,18 @@ export default function LoginPage() {
     const isIosChrome = isIos && /CriOS/i.test(ua);
     const isAndroid = /android/i.test(ua);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-      || (navigator as any).standalone === true;
+      || (navigator as unknown as { standalone?: boolean }).standalone === true;
 
     if (isStandalone) { setInstalled(true); return; }
     setPlatform(isIos ? (isIosChrome ? 'ios-chrome' : 'ios-safari') : isAndroid ? 'android' : 'other');
 
-    if ((window as any).__pwaInstallPrompt) {
-      setInstallPrompt((window as any).__pwaInstallPrompt);
-    }
+    const w = window as unknown as { __pwaInstallPrompt?: { prompt: () => void; userChoice: Promise<{ outcome: string }> } };
+    if (w.__pwaInstallPrompt) setInstallPrompt(w.__pwaInstallPrompt);
+
     const handler = (e: Event) => {
       e.preventDefault();
-      setInstallPrompt(e);
-      (window as any).__pwaInstallPrompt = e;
+      setInstallPrompt(e as unknown as { prompt: () => void; userChoice: Promise<{ outcome: string }> });
+      w.__pwaInstallPrompt = e as unknown as { prompt: () => void; userChoice: Promise<{ outcome: string }> };
     };
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', () => setInstalled(true));
@@ -60,8 +65,15 @@ export default function LoginPage() {
       setUser(data.user);
       router.push('/empresa');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setError(error.response?.data?.error || 'Erro ao fazer login');
+      const error = err as { response?: { status?: number; data?: { error?: string } } };
+      // Mensagem genérica por segurança (não dizer qual dos campos errou)
+      if (error.response?.status === 401 || error.response?.status === 400) {
+        setError('E-mail ou senha incorretos.');
+      } else if (!error.response) {
+        setError('Não conseguimos conectar. Tenta de novo em instantes.');
+      } else {
+        setError(error.response?.data?.error || 'Erro ao entrar. Tenta de novo.');
+      }
     } finally {
       setLoading(false);
     }
@@ -69,120 +81,122 @@ export default function LoginPage() {
 
   return (
     <div className={styles.card}>
-      <h1 className={styles.title}>Entrar</h1>
-      <p className={styles.subtitle}>Acesse sua conta SolarDoc Pro</p>
+      <div className={styles.tabs} role="tablist">
+        <Link href="/auth?mode=login" className={`${styles.tab} ${styles.tabActive}`} role="tab" aria-selected="true">
+          Entrar
+        </Link>
+        <Link href="/auth?mode=register" className={styles.tab} role="tab" aria-selected="false">
+          Cadastrar
+        </Link>
+      </div>
 
-      <form onSubmit={handleSubmit} className={styles.form}>
+      <h1 className={styles.title}>Bem-vindo de volta</h1>
+      <p className={styles.subtitle}>Acesse sua conta SolarDoc Pro.</p>
+
+      <form onSubmit={handleSubmit} className={styles.form} noValidate>
         <div className={styles.field}>
-          <label className={styles.label}>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="seu@email.com"
-            className="input-field"
-            required
-          />
+          <label className={styles.label} htmlFor="login-email">E-mail</label>
+          <div className={styles.inputGroup}>
+            <span className={styles.inputIcon} aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+            </span>
+            <input
+              id="login-email"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+              className={styles.input}
+              required
+            />
+          </div>
         </div>
 
         <div className={styles.field}>
-          <label className={styles.label}>Senha</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="input-field"
-            required
-          />
+          <label className={styles.label} htmlFor="login-password">Senha</label>
+          <div className={styles.inputGroup}>
+            <span className={styles.inputIcon} aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            </span>
+            <input
+              id="login-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Sua senha"
+              className={styles.input}
+              required
+            />
+            <button
+              type="button"
+              className={styles.inputToggle}
+              onClick={() => setShowPassword(s => !s)}
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              tabIndex={-1}
+            >
+              {showPassword ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              )}
+            </button>
+          </div>
         </div>
 
-        {error && <p className="error-message">{error}</p>}
-
-        <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', marginTop: '8px' }}>
-          {loading ? 'Entrando...' : 'Entrar'}
-        </button>
-
-        <div style={{ textAlign: 'right', marginTop: '4px' }}>
-          <Link href="/auth?mode=esqueci" style={{ fontSize: '13px', color: '#f59e0b', textDecoration: 'none' }}>
+        <div className={styles.actionRow}>
+          <Link href="/auth?mode=esqueci" className={styles.actionLink}>
             Esqueci minha senha
           </Link>
         </div>
+
+        {error && <div className={styles.formError} role="alert">{error}</div>}
+
+        <button type="submit" className={styles.submit} disabled={loading}>
+          {loading ? <><span className={styles.spinner} /> Entrando...</> : 'Entrar'}
+        </button>
       </form>
 
       <p className={styles.footer}>
         Não tem conta?{' '}
         <Link href="/auth?mode=register" className={styles.link}>
-          Criar conta
+          Cadastre-se grátis
         </Link>
       </p>
 
-      {platform && !installed && (
-        <div style={{
-          marginTop: '20px',
-          padding: '16px',
-          background: 'rgba(245,158,11,0.07)',
-          border: '1px solid rgba(245,158,11,0.25)',
-          borderRadius: '12px',
-        }}>
-          <p style={{ fontSize: '13px', fontWeight: '600', color: '#f59e0b', marginBottom: '4px' }}>
-            📲 Use como app no seu celular
-          </p>
-          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', lineHeight: '1.5' }}>
+      {platform && !installed && platform !== 'other' && (
+        <div className={styles.pwaHint}>
+          <div className={styles.pwaHintTitle}>📲 Use como app no seu celular</div>
+          <div className={styles.pwaHintText}>
             Instale o SolarDoc Pro na tela inicial e acesse na hora — sem abrir navegador.
-          </p>
-
+          </div>
           {platform === 'ios-chrome' && (
-            <div style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.8' }}>
-              <p style={{ margin: '0 0 4px', fontWeight: '600', color: '#cbd5e1' }}>Como instalar no iPhone (Chrome):</p>
-              <p style={{ margin: 0 }}>1. Toque nos <span style={{ color: '#f59e0b', fontWeight: '600' }}>3 pontos (⋯)</span> no canto inferior direito</p>
-              <p style={{ margin: 0 }}>2. Toque em <span style={{ color: '#f59e0b', fontWeight: '600' }}>"Adicionar à tela de início"</span></p>
-              <p style={{ margin: 0 }}>3. Confirme tocando em <span style={{ color: '#f59e0b', fontWeight: '600' }}>"Adicionar"</span></p>
+            <div className={styles.pwaHintText}>
+              <strong>iPhone (Chrome):</strong> 3 pontos (⋯) → "Adicionar à tela de início"
             </div>
           )}
-
           {platform === 'ios-safari' && (
-            <div style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.8' }}>
-              <p style={{ margin: '0 0 4px', fontWeight: '600', color: '#cbd5e1' }}>Como instalar no iPhone (Safari):</p>
-              <p style={{ margin: 0 }}>
-                1. Toque no ícone{' '}
-                <span style={{ color: '#f59e0b', fontWeight: '600' }}>
-                  Compartilhar{' '}
-                  <svg style={{ display: 'inline', verticalAlign: 'middle' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
-                  </svg>
-                </span>
-              </p>
-              <p style={{ margin: 0 }}>2. Toque em <span style={{ color: '#f59e0b', fontWeight: '600' }}>"Adicionar à Tela de Início"</span></p>
-              <p style={{ margin: 0 }}>3. Confirme tocando em <span style={{ color: '#f59e0b', fontWeight: '600' }}>"Adicionar"</span></p>
+            <div className={styles.pwaHintText}>
+              <strong>iPhone (Safari):</strong> ícone Compartilhar → "Adicionar à Tela de Início"
             </div>
           )}
-
           {platform === 'android' && installPrompt && (
-            <button
-              onClick={handleInstall}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: '8px', width: '100%', padding: '11px',
-                background: '#f59e0b', border: 'none', borderRadius: '8px',
-                color: '#0f172a', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
-              }}
-            >
+            <button onClick={handleInstall} className={styles.pwaHintBtn}>
               Instalar agora
             </button>
           )}
-
           {platform === 'android' && !installPrompt && (
-            <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.6', margin: 0 }}>
-              No Chrome: toque nos <span style={{ color: '#f59e0b', fontWeight: '600' }}>3 pontos (⋮)</span> e selecione{' '}
-              <span style={{ color: '#f59e0b', fontWeight: '600' }}>"Adicionar à tela inicial"</span>
-            </p>
+            <div className={styles.pwaHintText}>
+              <strong>Chrome:</strong> 3 pontos (⋮) → "Adicionar à tela inicial"
+            </div>
           )}
         </div>
       )}
 
       {installed && (
-        <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '13px', color: '#22c55e', fontWeight: '600' }}>
+        <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '13px', color: '#16a34a', fontWeight: 600 }}>
           ✅ App instalado!
         </p>
       )}

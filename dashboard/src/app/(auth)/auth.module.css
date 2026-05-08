@@ -1,55 +1,190 @@
+/* ====== Auth Layout — split-screen B2B ====== */
+
 .container {
   min-height: 100vh;
-  background: radial-gradient(circle at top left, #1e293b 0%, #0f172a 40%),
-              radial-gradient(circle at bottom right, #1e293b 0%, #0f172a 40%),
-              #0f172a;
+  display: grid;
+  grid-template-columns: 1fr;
+  background: #ffffff;
+  color: #0f172a;
+  font-family: var(--font-sans);
+}
+
+/* ----- LADO ESQUERDO: BRANDING (laranja) ----- */
+.brand {
+  display: none;
+  background:
+    radial-gradient(800px circle at 80% 20%, rgba(255, 255, 255, 0.18), transparent 50%),
+    linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
+  color: #ffffff;
+  padding: 56px 56px 48px;
+  position: relative;
+  overflow: hidden;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.brand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+  pointer-events: none;
+}
+.brandTop, .brandMid, .brandBottom { position: relative; z-index: 1; }
+.brandLogoWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px 18px 10px 14px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.brandLogoImg {
+  width: 36px;
+  height: auto;
+  display: block;
+}
+.brandLogoText {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: #0f172a;
+}
+.brandLogoText span { color: #f59e0b; }
+
+.brandHeadline {
+  font-size: clamp(28px, 3.4vw, 40px);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  margin-bottom: 16px;
+}
+.brandSub {
+  font-size: 16px;
+  line-height: 1.55;
+  color: #fff7ed;
+  max-width: 460px;
+}
+
+.brandList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 28px;
+  list-style: none;
+  padding: 0;
+}
+.brandList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.4;
+}
+.brandList li::before {
+  content: '✓';
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.brandFoot {
+  font-size: 13px;
+  color: #fef3c7;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* ----- LADO DIREITO: CONTEÚDO ----- */
+.content {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 32px 20px;
+  background: #ffffff;
+  color: #0f172a;
+  min-height: 100vh;
   position: relative;
-  overflow: hidden;
 }
 
-.container::before {
-  content: '';
-  position: absolute;
-  top: -10%;
-  right: -10%;
-  width: 40%;
-  height: 40%;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.05) 0%, transparent 70%);
-  pointer-events: none;
+/* Logo no topo (visível só em mobile) */
+.contentLogo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
 }
-
-.brand {
-  margin-bottom: 28px;
-}
-
-.brandLogo {
-  display: block;
-  width: 180px;
+.contentLogoImg {
+  width: 40px;
   height: auto;
 }
+.contentLogoText {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: #0f172a;
+}
+.contentLogoText span { color: #f59e0b; }
 
-.content {
+.contentInner {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
 }
 
-@media (max-width: 480px) {
-  .container {
-    padding: 16px;
-    justify-content: flex-start;
-    padding-top: 40px;
-  }
+/* ----- DESKTOP: split 50/50 ----- */
+@media (min-width: 980px) {
+  .container { grid-template-columns: 1fr 1fr; }
+  .brand { display: flex; }
+  .contentLogo { display: none; }
+  .content { padding: 48px; }
+}
 
-  .brandLogo {
-    width: 140px;
-  }
+/* ----- TABLET: split 40/60 ----- */
+@media (min-width: 1280px) {
+  .container { grid-template-columns: 0.85fr 1.15fr; }
+  .brand { padding: 64px 64px 56px; }
+}
 
-  .content {
-    max-width: 100%;
+/* ----- MOBILE: brand vira faixa superior compacta ----- */
+@media (max-width: 979px) {
+  .brand {
+    display: flex;
+    padding: 24px 20px;
+    min-height: 0;
   }
+  .brand .brandMid, .brand .brandBottom { display: none; }
+  .brandTop {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  .brandLogoWrap {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+  .brandLogoText { color: #ffffff; }
+  .brandLogoText span { color: #fef3c7; }
+}
+
+@media (max-width: 540px) {
+  .content { padding: 24px 16px 40px; }
+  .brand { padding: 20px 16px; }
+  .brandLogoImg { width: 32px; }
+  .brandLogoText { font-size: 16px; }
 }

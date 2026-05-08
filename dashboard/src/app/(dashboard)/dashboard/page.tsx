@@ -172,7 +172,7 @@ export default function DashboardPage() {
           rel="noopener noreferrer"
           style={{ background: 'var(--color-primary)', color: '#0F172A', fontWeight: 700, fontSize: 14, padding: '13px 28px', borderRadius: 10, textDecoration: 'none' }}
         >
-          ⚡ Assinar VIP — R$ 97/mês
+          ⚡ Assinar VIP — R$ 67/mês
         </a>
       </div>
     );

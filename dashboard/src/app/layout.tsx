@@ -111,7 +111,7 @@ export default function RootLayout({
         <Script id="chat-widget" strategy="afterInteractive">{`
 (function() {
   var API = 'https://solardocs-api-irmaosnaobra-aioros.vercel.app/chat';
-  var WA = 'https://wa.me/5534991360223';
+  var WA = 'https://wa.me/5534999437831';
   var history = [];
 
   // Só mostra se estiver em rota de dashboard (autenticado)

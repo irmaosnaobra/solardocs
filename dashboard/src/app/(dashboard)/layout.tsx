@@ -14,7 +14,7 @@ const PLANOS_DATA = [
   {
     key: 'pro',
     name: 'PRO',
-    amount: '47',
+    amount: '27',
     indicado: 'Indicado para até 20 vendas/mês',
     features: [
       '90 documentos por mês',
@@ -28,7 +28,7 @@ const PLANOS_DATA = [
   {
     key: 'ilimitado',
     name: 'VIP',
-    amount: '97',
+    amount: '67',
     indicado: 'Indicado para +20 vendas/mês',
     features: [
       'Documentos ilimitados — sem teto mensal',

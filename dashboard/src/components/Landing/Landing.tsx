@@ -556,7 +556,7 @@ export default function Landing() {
             <div className={`${styles.plan} ${styles.planFeatured}`} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.planTag}>Mais escolhido</div>
               <div className={styles.planName}>Pro</div>
-              <div className={styles.planPrice}>R$ 47<small>/mês</small></div>
+              <div className={styles.planPrice}>R$ 27<small>/mês</small></div>
               <div className={styles.planSub}>90 documentos por mês</div>
               <ul className={styles.planList}>
                 <li>Tudo do Free, e mais:</li>
@@ -572,7 +572,7 @@ export default function Landing() {
 
             <div className={styles.plan} data-reveal style={{ transitionDelay: '0.2s' }}>
               <div className={styles.planName}>VIP</div>
-              <div className={styles.planPrice}>R$ 97<small>/mês</small></div>
+              <div className={styles.planPrice}>R$ 67<small>/mês</small></div>
               <div className={styles.planSub}>Documentos ilimitados</div>
               <ul className={styles.planList}>
                 <li>Tudo do Pro, e mais:</li>
@@ -666,7 +666,7 @@ export default function Landing() {
               Cadastrar minha empresa solar →
             </button>
             <div className={styles.finalCtaFoot}>
-              Continuou usando? A partir de R$ 47/mês. Cancela quando quiser.
+              Continuou usando? A partir de R$ 27/mês. Cancela quando quiser.
             </div>
           </div>
         </div>
@@ -679,7 +679,7 @@ export default function Landing() {
             <strong>SolarDoc Pro</strong> · Documentação solar com IA · {new Date().getFullYear()}
           </div>
           <div className={styles.footerLinks}>
-            <a href="https://wa.me/5534991360223" target="_blank" rel="noopener noreferrer">Suporte WhatsApp</a>
+            <a href="https://wa.me/5534999437831" target="_blank" rel="noopener noreferrer">Suporte WhatsApp</a>
             <a href="/auth?mode=login">Entrar</a>
           </div>
         </div>

@@ -95,7 +95,7 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
           <>
             <div className="mentoria-precos">
               <span className="mentoria-preco-ancora">Plano Free</span>
-              <span className="mentoria-preco-final" style={{ color: corPrimary }}>R$ 97/mês</span>
+              <span className="mentoria-preco-final" style={{ color: corPrimary }}>R$ 67/mês</span>
               <span className="mentoria-preco-eco">VIP — todos os recursos</span>
             </div>
             <p className="mentoria-parcelamento">Cancele quando quiser · Sem fidelidade</p>
