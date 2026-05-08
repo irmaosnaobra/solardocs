@@ -1,7 +1,7 @@
 // Features inclusas no plano VIP — explicadas com AIDA + SPIN.
 // CTA condicional: free vê "Fazer upgrade pro VIP" / VIP vê "Acessar agora".
 
-export const STRIPE_VIP = 'https://buy.stripe.com/bJe7sK6el9hmgNe0KDfrW02';
+export const STRIPE_VIP = 'https://buy.stripe.com/dRm5kC9qxbpu1Sk50TfrW05';
 
 export interface FeatureVip {
   slug: string;
