@@ -78,7 +78,7 @@ export default function Landing() {
         window.fbq('track', 'Lead', {}, { eventID: eventId });
         window.fbq('track', 'CompleteRegistration', {}, { eventID: eventId });
       }
-      router.push('/empresa');
+      router.push('/dashboard');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setError(e.response?.data?.error || 'Erro ao criar conta. Tenta de novo.');
@@ -437,7 +437,7 @@ export default function Landing() {
             </div>
             <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.15s' }}>
               <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Contrato PJ</span>
+              <span className={styles.docName}>Contrato Vendedor</span>
             </div>
             <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.2s' }}>
               <span className={styles.docCheck}>✓</span>

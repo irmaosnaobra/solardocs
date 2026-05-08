@@ -18,7 +18,7 @@ const PLANOS_DATA = [
     indicado: 'Indicado para até 20 vendas/mês',
     features: [
       '90 documentos por mês',
-      'Contrato Solar, Prestação de Serviço, Procuração, Contrato PJ e Proposta Bancária',
+      'Contrato Solar, Prestação de Serviço, Procuração, Contrato Vendedor e Proposta Bancária',
       'Geração com IA + 2 modelos prontos',
       'Contratos com a logomarca da sua empresa',
       'Histórico dos últimos 30 dias',
@@ -245,9 +245,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (user.plano === 'free' && !hasCompany) {
-    router.push('/empresa');
-  }
+  // Antes: redirect compulsório pra /empresa quando free + sem empresa.
+  // Agora: deixa o lead navegar e explorar. Empresa é exigida só na hora de
+  // gerar o primeiro documento (gate específico em /documentos).
 
   const isFree = user.plano === 'free';
   const docsRestantes = isFree ? Math.max(0, user.limite_documentos - (user.documentos_usados ?? 0)) : null;

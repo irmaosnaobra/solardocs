@@ -67,7 +67,7 @@ function validaCnpjDigitos(cnpj: string): boolean {
   );
 }
 
-type CnpjStatus = 'idle' | 'checking' | 'valid' | 'invalid';
+type CnpjStatus = 'idle' | 'checking' | 'valid' | 'unverified' | 'invalid';
 
 function InfoRow({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
@@ -153,11 +153,20 @@ export default function EmpresaPage() {
     setCnpjStatus('checking');
     setCnpjError('');
 
+    // Timeout de 4s — se BrasilAPI demorar/falhar, aceita o CNPJ como
+    // 'unverified' (DV já validados acima) e segue o fluxo. Não bloqueia o lead.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`, { signal: ctrl.signal });
+      clearTimeout(timer);
+
       if (!res.ok) {
-        setCnpjStatus('invalid');
-        setCnpjError('CNPJ não encontrado na Receita Federal.');
+        // BrasilAPI não achou: pode ser empresa nova / dado defasado.
+        // Aceita mesmo assim — DV já bate, conferimos depois se precisar.
+        setCnpjStatus('unverified');
+        validatedCnpjRef.current = digits;
         return;
       }
       const data = await res.json();
@@ -169,8 +178,10 @@ export default function EmpresaPage() {
         set('nome', data.razao_social);
       }
     } catch {
-      setCnpjStatus('invalid');
-      setCnpjError('Não foi possível consultar o CNPJ. Verifique sua conexão.');
+      clearTimeout(timer);
+      // Timeout ou rede caiu: aceita unverified.
+      setCnpjStatus('unverified');
+      validatedCnpjRef.current = digits;
     }
   }
 
@@ -198,8 +209,10 @@ export default function EmpresaPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (cnpjStatus !== 'valid') {
-      setMessage({ type: 'error', text: 'Confirme um CNPJ válido antes de salvar.' });
+    // Aceita CNPJ confirmado pela Receita ('valid') OU validado pelos dígitos
+    // verificadores quando a BrasilAPI não responde ('unverified').
+    if (cnpjStatus !== 'valid' && cnpjStatus !== 'unverified') {
+      setMessage({ type: 'error', text: 'Informe um CNPJ válido antes de salvar.' });
       return;
     }
 
@@ -311,9 +324,10 @@ export default function EmpresaPage() {
 
   // ── CNPJ status helpers ────────────────────────────────────
   const cnpjHint =
-    cnpjStatus === 'checking' ? { color: 'var(--color-text-muted)', text: 'Consultando Receita Federal...' } :
-    cnpjStatus === 'valid'    ? { color: '#22c55e', text: '✓ CNPJ válido e encontrado na Receita Federal' } :
-    cnpjStatus === 'invalid'  ? { color: '#ef4444', text: `✗ ${cnpjError}` } :
+    cnpjStatus === 'checking'    ? { color: 'var(--color-text-muted)', text: 'Consultando Receita Federal...' } :
+    cnpjStatus === 'valid'       ? { color: '#22c55e', text: '✓ CNPJ válido e encontrado na Receita Federal' } :
+    cnpjStatus === 'unverified'  ? { color: '#f59e0b', text: '✓ CNPJ aceito (não conseguimos confirmar na Receita agora — pode prosseguir)' } :
+    cnpjStatus === 'invalid'     ? { color: '#ef4444', text: `✗ ${cnpjError}` } :
     null;
 
   // ── EDIT ─────────────────────────────────────────────────
@@ -333,14 +347,34 @@ export default function EmpresaPage() {
         <div style={{
           background: 'rgba(245,158,11,0.08)',
           border: '1px solid rgba(245,158,11,0.3)',
-          borderRadius: 8,
-          padding: '12px 16px',
+          borderRadius: 10,
+          padding: '14px 18px',
           marginBottom: 20,
-          fontSize: 13.5,
-          color: 'var(--color-text-muted)',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
         }}>
-          Cadastre o CNPJ da sua empresa para liberar o acesso ao sistema.
-          O CNPJ será verificado na Receita Federal automaticamente.
+          <div style={{ fontSize: 13.5, color: 'var(--color-text-muted)', flex: '1 1 320px', lineHeight: 1.5 }}>
+            <strong style={{ color: 'var(--color-text)' }}>Cadastre o CNPJ pra gerar documentos.</strong><br />
+            Você pode fazer isso agora ou deixar pra quando for criar seu primeiro contrato — fica do seu jeito.
+          </div>
+          <a
+            href="/dashboard"
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: 'var(--color-primary)',
+              textDecoration: 'none',
+              padding: '8px 14px',
+              border: '1px solid var(--color-primary)',
+              borderRadius: 8,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Pular por enquanto →
+          </a>
         </div>
       )}
 
