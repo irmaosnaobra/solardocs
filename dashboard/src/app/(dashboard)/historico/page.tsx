@@ -43,13 +43,39 @@ export default function HistoricoPage() {
     setDownloading(doc.id);
     try {
       const res = await api.get(`/documents/${doc.id}/pdf`, { responseType: 'blob' });
+      // Se o backend retornou JSON de erro com Content-Type: application/json,
+      // o axios entrega como Blob — extraímos o texto pra ler o erro real.
+      const ct = res.headers?.['content-type'] || '';
+      if (ct.includes('application/json')) {
+        const text = await (res.data as Blob).text();
+        try {
+          const j = JSON.parse(text) as { error?: string; stage?: string; message?: string };
+          alert(`Erro ao gerar PDF\nStage: ${j.stage || '?'}\n${j.message || j.error || 'sem detalhes'}`);
+        } catch {
+          alert('Erro ao gerar PDF. Resposta inesperada do servidor.');
+        }
+        return;
+      }
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
       a.download = `${slugifyDocName(doc.tipo, doc.cliente_nome)}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: Blob | { error?: string; stage?: string; message?: string } } };
+      const data = e.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const txt = await data.text();
+          const j = JSON.parse(txt);
+          alert(`Erro ao gerar PDF\nStage: ${j.stage || '?'}\n${j.message || j.error || 'sem detalhes'}`);
+          return;
+        } catch {}
+      } else if (data && typeof data === 'object') {
+        alert(`Erro ao gerar PDF\nStage: ${data.stage || '?'}\n${data.message || data.error || 'sem detalhes'}`);
+        return;
+      }
       alert('Erro ao gerar PDF. Tente novamente.');
     } finally {
       setDownloading(null);
