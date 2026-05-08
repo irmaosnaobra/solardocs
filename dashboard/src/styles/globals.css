@@ -12,8 +12,48 @@
   --color-success: #10B981;
   --color-error: #EF4444;
   --color-warning: #F59E0B;
+  --color-nav-hover: #252525;
+  --color-nav-active: #2a2a2a;
+  --color-nav-text: #ccc;
+  --color-nav-section-label: #666;
+
+  /* Paleta amber monocromática para gráficos (5 níveis) */
+  --chart-1: #F59E0B;
+  --chart-2: #FBBF24;
+  --chart-3: #FCD34D;
+  --chart-4: #FDE68A;
+  --chart-5: #FEF3C7;
+
+  /* Design tokens */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+
   --sidebar-width: 260px;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --color-bg: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F1F5F9;
+  --color-border: #E2E8F0;
+  --color-text: #0F172A;
+  --color-text-muted: #475569;
+  --color-nav-hover: #F1F5F9;
+  --color-nav-active: #FEF3C7;
+  --color-nav-text: #334155;
+  --color-nav-section-label: #94A3B8;
+  color-scheme: light;
 }
 
 *, *::before, *::after {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar/Sidebar';
+import TopBar from '@/components/TopBar/TopBar';
 import UpgradeModal from '@/components/UpgradeModal/UpgradeModal';
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
 import { isAuthenticated } from '@/services/auth';
@@ -224,8 +225,22 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (!user || !companyLoaded) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--color-text-muted)' }}>
-        Carregando...
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: 'var(--color-bg)',
+      }}>
+        <div style={{
+          width: 32,
+          height: 32,
+          border: '2.5px solid var(--color-border)',
+          borderTopColor: 'var(--color-primary)',
+          borderRadius: '50%',
+          animation: 'sd-spin 0.8s linear infinite',
+        }} />
+        <style>{`@keyframes sd-spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -247,6 +262,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     <div className={styles.layout}>
       <Sidebar user={user} hasCompany={hasCompany} onUpgradeClick={() => setShowUpgrade(true)} />
       <main className={styles.main}>
+        <TopBar userEmail={user.email} />
         {isFree && docsRestantes !== null && docsRestantes > 0 && (
           <div style={{
             background: docsRestantes <= 2 ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',

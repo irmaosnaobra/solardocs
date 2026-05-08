@@ -1,4 +1,5 @@
 import styles from './PlanBadge.module.css';
+import { formatPlanName } from '@/utils/plan';
 
 interface PlanBadgeProps {
   plano: string;
@@ -14,7 +15,7 @@ export default function PlanBadge({ plano, documentosUsados, limiteDocumentos }:
     <div className={styles.container}>
       <div className={styles.header}>
         <span className={`${styles.badge} ${styles[plano]}`}>
-          {plano.toUpperCase()}
+          {formatPlanName(plano).toUpperCase()}
         </span>
         <span className={styles.count}>
           {isIlimitado ? '∞ docs' : `${documentosUsados}/${limiteDocumentos} docs`}

@@ -5,9 +5,11 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 interface User {
   id: string;
   email: string;
+  nome?: string | null;
   plano: string;
   documentos_usados: number;
   limite_documentos: number;
+  is_admin?: boolean;
 }
 
 interface DashboardContextType {

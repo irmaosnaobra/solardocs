@@ -6,12 +6,20 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
+import {
+  FileText, CalendarDays, Users, Handshake, CalendarClock, Sun,
+  Wrench, ScrollText, Briefcase, Banknote, FileSignature,
+  type LucideIcon,
+} from 'lucide-react';
 import api from '@/services/api';
 import styles from './home.module.css';
 import { toBrasilia, fmtDateBR } from '@/utils/brasilia';
+import { formatPlanName, firstName } from '@/utils/plan';
+import Skeleton, { SkeletonStats } from '@/components/Skeleton/Skeleton';
 
 interface User {
   email: string;
+  nome?: string | null;
   plano: string;
   documentos_usados: number;
   limite_documentos: number;
@@ -35,12 +43,12 @@ const TIPO_LABEL: Record<string, string> = {
   propostaBanco:    'Proposta Bancária',
 };
 
-const TIPO_ICON: Record<string, string> = {
-  contratoSolar:    '☀️',
-  prestacaoServico: '🔧',
-  procuracao:       '📜',
-  contratoPJ:       '🤝',
-  propostaBanco:    '🏦',
+const TIPO_ICON: Record<string, LucideIcon> = {
+  contratoSolar:    FileSignature,
+  prestacaoServico: Wrench,
+  procuracao:       ScrollText,
+  contratoPJ:       Briefcase,
+  propostaBanco:    Banknote,
 };
 
 const TIPO_HREF: Record<string, string> = {
@@ -51,7 +59,7 @@ const TIPO_HREF: Record<string, string> = {
   propostaBanco:    '/documentos?tipo=proposta-bancaria',
 };
 
-const PIE_COLORS = ['#f59e0b', '#6366f1', '#22c55e', '#ec4899', '#14b8a6'];
+const PIE_COLORS = ['#F59E0B', '#FBBF24', '#FCD34D', '#FDE68A', '#FEF3C7'];
 const MONTH_NAMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 function getLastSixMonths() {
@@ -82,13 +90,13 @@ function buildTipoData(docs: Doc[]) {
   return Object.entries(counts).map(([name, value]) => ({ name, value }));
 }
 
-function StatCard({ icon, value, label, sub, href, barPercent, barDanger }: {
-  icon: string; value: string | number; label: string; sub?: string;
+function StatCard({ icon: Icon, value, label, sub, href, barPercent, barDanger }: {
+  icon: LucideIcon; value: string | number; label: string; sub?: string;
   href?: string; barPercent?: number; barDanger?: boolean;
 }) {
   const inner = (
     <div className={`${styles.statCard} ${href ? styles.statCardLink : ''}`}>
-      <div className={styles.statIcon}>{icon}</div>
+      <div className={styles.statIcon}><Icon size={20} strokeWidth={1.75} /></div>
       <div className={styles.statValue}>{value}</div>
       <div className={styles.statLabel}>{label}</div>
       {sub && <div className={styles.statSub}>{sub}</div>}
@@ -136,7 +144,17 @@ export default function DashboardPage() {
     }).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className={styles.loading}>Carregando...</div>;
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.greeting}>
+          <Skeleton width={180} height={24} />
+          <div style={{ marginTop: 6 }}><Skeleton width={260} height={13} /></div>
+        </div>
+        <SkeletonStats count={6} />
+      </div>
+    );
+  }
   if (!user) return null;
 
   if (user.plano !== 'ilimitado' && !user.is_admin) {
@@ -180,32 +198,34 @@ export default function DashboardPage() {
     <div className={styles.page}>
 
       <div className={styles.greeting}>
-        <h1 className={styles.greetingTitle}>Dashboard</h1>
-        <p className={styles.greetingEmail}>{user.email} · <span className={styles.planTag}>{user.plano.toUpperCase()}</span></p>
+        <h1 className={styles.greetingTitle}>Olá, {firstName(user.nome, user.email)}</h1>
+        <p className={styles.greetingEmail}>
+          {user.email} · <span className={styles.planTag}>{formatPlanName(user.plano)}</span>
+        </p>
       </div>
 
       {/* STATS */}
       <div className={styles.statsGrid}>
-        <StatCard icon="📄" value={docs.length} label="Documentos gerados" sub="Total histórico" />
+        <StatCard icon={FileText} value={docs.length} label="Documentos gerados" sub="Total histórico" />
         <StatCard
-          icon="📅"
+          icon={CalendarDays}
           value={isIlimitado ? docsMes : `${docsMes} / ${user.limite_documentos}`}
           label="Documentos este mês"
           sub={docsRestantes !== null ? `${docsRestantes} restante${docsRestantes !== 1 ? 's' : ''}` : 'Uso ilimitado'}
           barPercent={isIlimitado ? undefined : docPercent}
           barDanger={docPercent >= 90}
         />
-        <StatCard icon="👥" value={clientesCount} label="Clientes cadastrados" href="/clientes" />
-        <StatCard icon="🤝" value={terceirosCount} label="Terceiros cadastrados" href="/terceiros" />
+        <StatCard icon={Users} value={clientesCount} label="Clientes cadastrados" href="/clientes" />
+        <StatCard icon={Handshake} value={terceirosCount} label="Terceiros cadastrados" href="/terceiros" />
         <StatCard
-          icon="🗓️"
+          icon={CalendarClock}
           value={diasAtivo}
           label="Dias na plataforma"
           sub={`Desde ${fmtDateBR(user.created_at)}`}
         />
         {tipoMaisUsado && (
           <StatCard
-            icon={tipoMaisUsadoEntry ? TIPO_ICON[tipoMaisUsadoEntry[0]] : '📄'}
+            icon={tipoMaisUsadoEntry ? TIPO_ICON[tipoMaisUsadoEntry[0]] : FileText}
             value={tipoMaisUsado.value}
             label="Tipo mais gerado"
             sub={tipoMaisUsado.name}
@@ -247,12 +267,15 @@ export default function DashboardPage() {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Gerar novo documento</h2>
         <div className={styles.quickGrid}>
-          {Object.entries(TIPO_LABEL).map(([tipo, label]) => (
-            <Link key={tipo} href={TIPO_HREF[tipo]} className={styles.quickCard}>
-              <span className={styles.quickIcon}>{TIPO_ICON[tipo]}</span>
-              <span className={styles.quickLabel}>{label}</span>
-            </Link>
-          ))}
+          {Object.entries(TIPO_LABEL).map(([tipo, label]) => {
+            const Icon = TIPO_ICON[tipo] ?? FileText;
+            return (
+              <Link key={tipo} href={TIPO_HREF[tipo]} className={styles.quickCard}>
+                <span className={styles.quickIcon}><Icon size={22} strokeWidth={1.6} /></span>
+                <span className={styles.quickLabel}>{label}</span>
+              </Link>
+            );
+          })}
         </div>
       </div>
 
@@ -266,21 +289,24 @@ export default function DashboardPage() {
               <span>Cliente / Terceiro</span>
               <span>Data</span>
             </div>
-            {docs.slice(0, 10).map(doc => (
-              <div key={doc.id} className={styles.histRow}>
-                <div className={styles.histTipo}>
-                  <span>{TIPO_ICON[doc.tipo] ?? '📄'}</span>
-                  <span>{TIPO_LABEL[doc.tipo] ?? doc.tipo}</span>
+            {docs.slice(0, 10).map(doc => {
+              const Icon = TIPO_ICON[doc.tipo] ?? FileText;
+              return (
+                <div key={doc.id} className={styles.histRow}>
+                  <div className={styles.histTipo}>
+                    <Icon size={16} strokeWidth={1.7} />
+                    <span>{TIPO_LABEL[doc.tipo] ?? doc.tipo}</span>
+                  </div>
+                  <span className={styles.histCliente}>{doc.cliente_nome ?? '—'}</span>
+                  <span className={styles.histDate}>{fmtDateBR(doc.created_at)}</span>
                 </div>
-                <span className={styles.histCliente}>{doc.cliente_nome ?? '—'}</span>
-                <span className={styles.histDate}>{fmtDateBR(doc.created_at)}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (
         <div className={styles.emptyState}>
-          <span className={styles.emptyIcon}>🚀</span>
+          <Sun size={40} strokeWidth={1.4} />
           <p>Nenhum documento gerado ainda. Comece agora!</p>
         </div>
       )}

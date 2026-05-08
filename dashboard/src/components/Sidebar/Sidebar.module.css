@@ -40,6 +40,33 @@
   height: auto;
 }
 
+.userGreeting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin-top: 6px;
+  text-align: center;
+  width: 100%;
+}
+
+.userHello {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.userName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .nav {
   flex: 1;
   min-height: 0;
@@ -66,18 +93,18 @@
   padding: 7px 9px;
   border-radius: 6px;
   font-size: 12px;
-  color: #ccc;
+  color: var(--color-nav-text);
   text-decoration: none;
   transition: background 0.12s, color 0.12s;
 }
 
 .navItem:hover {
-  background: #252525;
-  color: #fff;
+  background: var(--color-nav-hover);
+  color: var(--color-text);
 }
 
 .navItemActive {
-  background: #2a2a2a;
+  background: var(--color-nav-active);
   color: #FAC775;
 }
 
@@ -88,23 +115,29 @@
   padding: 7px 9px;
   border-radius: 6px;
   font-size: 12px;
-  color: #ccc;
+  color: var(--color-nav-text);
   opacity: 0.45;
-  cursor: not-allowed;
   user-select: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
 }
 
-.lockIcon {
-  font-size: 11px;
-  margin-left: auto;
-  flex-shrink: 0;
+.navItemLocked:hover {
+  opacity: 0.7;
+  background: var(--color-nav-hover);
 }
 
 .navIcon {
-  font-size: 13px;
   width: 16px;
-  text-align: center;
+  height: 16px;
   flex-shrink: 0;
+  color: currentColor;
+  opacity: 0.85;
 }
 
 .navLabel {
@@ -145,7 +178,7 @@
 .navDividerLabel {
   font-size: 9px;
   font-weight: 700;
-  color: #666;
+  color: var(--color-nav-section-label);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }

@@ -55,7 +55,17 @@
   background: rgba(245, 158, 11, 0.04);
 }
 
-.statIcon { font-size: 20px; margin-bottom: 6px; }
+.statIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-primary);
+  margin-bottom: 8px;
+}
 
 .statValue {
   font-size: 30px;
@@ -165,7 +175,12 @@
   background: rgba(245, 158, 11, 0.04);
 }
 
-.quickIcon { font-size: 22px; }
+.quickIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+}
 
 .quickLabel {
   font-size: 11px;
@@ -209,10 +224,15 @@
 .histTipo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 13.5px;
   color: var(--color-text);
   font-weight: 500;
+}
+
+.histTipo svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
 }
 
 .histCliente { font-size: 13px; color: var(--color-text-muted); }
@@ -228,6 +248,11 @@
   color: var(--color-text-muted);
   font-size: 14px;
   text-align: center;
+}
+
+.emptyState svg {
+  color: var(--color-primary);
+  opacity: 0.7;
 }
 
 .emptyIcon { font-size: 40px; }

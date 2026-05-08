@@ -3,12 +3,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import {
+  Settings, Zap, FolderOpen, FileText, Sheet, Pin,
+  LayoutDashboard, Building2, Users, Handshake,
+  Banknote, ScrollText, FileSignature,
+  Wrench, Briefcase,
+  Save, Lightbulb, HardHat, GraduationCap,
+  type LucideIcon,
+} from 'lucide-react';
 import { removeToken } from '@/services/auth';
 import PlanBadge from '../PlanBadge/PlanBadge';
 import Logo from '../Logo/Logo';
+import ThemeToggle from '../ThemeToggle/ThemeToggle';
 import styles from './Sidebar.module.css';
 
 interface User {
+  email: string;
+  nome?: string | null;
   plano: string;
   documentos_usados: number;
   limite_documentos: number;
@@ -21,74 +32,54 @@ interface SidebarProps {
   onUpgradeClick: () => void;
 }
 
-const STRIPE_VIP = 'https://buy.stripe.com/bJe7sK6el9hmgNe0KDfrW02';
 const PLANILHA_MESTRE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvd79xaG3qQwyko6BegyUaZmvd0B1FmtkaN9Oafm3qmU5yY86T2qA0EP_CysGf6bpRjxCccMOiqLxp/pubhtml';
 const TRELLO_HOMOLOGACAO_URL = 'https://trello.com/invite/b/678a89a047242f02d443f8e0/ATTI3bb1a020220b7bd024f4812d12210e193C056740/engenheiro-guilherme';
 
-type Badge = 'admin' | 'vip' | 'ment' | null;
-
 interface NavItem {
   href: string;
-  icon: string;
+  icon: LucideIcon;
   label: string;
-  badge?: Badge;
   external?: boolean;
   count?: number;
   requireCompany?: boolean;
+  vipOnly?: boolean;
 }
 
 // ── Configuração das 5 seções ─────────────────────────────────────
 
 const adminItems: NavItem[] = [
-  { href: '/admin',                   icon: '⚙️', label: 'Painel Admin' },
-  { href: '/crm/solar-io',            icon: '⚡', label: 'CRM Solar', count: 749 },
-  { href: '/crm/solardoc',            icon: '📁', label: 'CRM SolarDoc', count: 58 },
-  { href: '/admin/gerador-propostas', icon: '📄', label: 'Gerador de Proposta' },
-  { href: PLANILHA_MESTRE_URL,        icon: '📊', label: 'Planilha Mestre',     external: true },
-  { href: TRELLO_HOMOLOGACAO_URL,     icon: '📌', label: 'Homologação',         external: true },
+  { href: '/admin',                   icon: Settings,   label: 'Painel Admin' },
+  { href: '/crm/solar-io',            icon: Zap,        label: 'CRM Solar', count: 749 },
+  { href: '/crm/solardoc',            icon: FolderOpen, label: 'CRM SolarDoc', count: 58 },
+  { href: '/admin/gerador-propostas', icon: FileText,   label: 'Gerador de Proposta' },
+  { href: PLANILHA_MESTRE_URL,        icon: Sheet,      label: 'Planilha Mestre',     external: true },
+  { href: TRELLO_HOMOLOGACAO_URL,     icon: Pin,        label: 'Homologação',         external: true },
 ];
 
 const cadastroItems: NavItem[] = [
-  { href: '/dashboard', icon: '📊', label: 'Dashboard', badge: 'vip' },
-  { href: '/empresa',   icon: '🏢', label: 'Empresa' },
-  { href: '/clientes',  icon: '👥', label: 'Cliente',  requireCompany: true },
-  { href: '/terceiros', icon: '🤝', label: 'Terceiro', requireCompany: true },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', vipOnly: true },
+  { href: '/empresa',   icon: Building2,       label: 'Empresa' },
+  { href: '/clientes',  icon: Users,           label: 'Clientes',  requireCompany: true },
+  { href: '/terceiros', icon: Handshake,       label: 'Terceiros', requireCompany: true },
 ];
 
 const docsClienteItems: NavItem[] = [
-  { href: '/documentos?tipo=proposta-bancaria', icon: '🏦', label: 'Proposta de Banco', requireCompany: true },
-  { href: '/documentos?tipo=contrato-solar',    icon: '📜', label: 'Contrato Solar',    requireCompany: true },
-  { href: '/documentos?tipo=procuracao',        icon: '📋', label: 'Procuração',        requireCompany: true },
+  { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,       label: 'Proposta de Banco', requireCompany: true },
+  { href: '/documentos?tipo=contrato-solar',    icon: FileSignature,  label: 'Contrato Solar',    requireCompany: true },
+  { href: '/documentos?tipo=procuracao',        icon: ScrollText,     label: 'Procuração',        requireCompany: true },
 ];
 
 const docsTerceiroItems: NavItem[] = [
-  { href: '/documentos?tipo=prestacao-servico', icon: '🛠️', label: 'Prestação de Serviço', requireCompany: true },
-  { href: '/documentos?tipo=contrato-pj',       icon: '💼', label: 'Contra Venda PJ',       requireCompany: true },
+  { href: '/documentos?tipo=prestacao-servico', icon: Wrench,    label: 'Prestação de Serviço', requireCompany: true },
+  { href: '/documentos?tipo=contrato-pj',       icon: Briefcase, label: 'Contra Venda PJ',       requireCompany: true },
 ];
 
 const contaItems: NavItem[] = [
-  { href: '/conta/documentos',                     icon: '💾', label: 'Documentos Salvos',       badge: 'vip' },
-  { href: '/conta/sugestoes',                      icon: '💡', label: 'Sugestão',                badge: 'vip' },
-  { href: '/conta/mao-de-obra',                    icon: '🔧', label: 'Cadastro de Mão de Obra', badge: 'vip' },
-  { href: '/mentoria/combo-financeiro-engenharia', icon: '⚡', label: 'COMBO Mestre + Trello',   badge: 'ment' },
-  { href: '/mentoria/planilha-mestre',             icon: '📊', label: 'Planilha Mestre',         badge: 'ment' },
-  { href: '/mentoria/trello-homologacao',          icon: '📌', label: 'Trello Homologação',      badge: 'ment' },
-  { href: '/mentoria/trafego',                     icon: '📣', label: 'Tráfego Pago',            badge: 'ment' },
-  { href: '/mentoria/gerador',                     icon: '📄', label: 'Gerador de Proposta',     badge: 'ment' },
-  { href: '/mentoria/parceiro-integrador',         icon: '🎯', label: 'Parceiro Integrador',     badge: 'ment' },
+  { href: '/conta/documentos',  icon: Save,           label: 'Documentos Salvos',       vipOnly: true },
+  { href: '/conta/sugestoes',   icon: Lightbulb,      label: 'Sugestões',               vipOnly: true },
+  { href: '/conta/mao-de-obra', icon: HardHat,        label: 'Cadastro de Mão de Obra', vipOnly: true },
+  { href: '/mentoria',          icon: GraduationCap,  label: 'Mentorias' },
 ];
-
-// ── Badges ──────────────────────────────────────────────────────────
-
-function BadgeAdmin() { return <span className={styles.badgeAdmin}>🔒 ADMIN</span>; }
-function BadgeVip()   { return <span className={styles.badgeVip}>★ VIP</span>; }
-function BadgeMent()  { return <span className={styles.badgeMent}>◆ MENT</span>; }
-
-function ItemBadge({ badge }: { badge?: Badge }) {
-  if (badge === 'vip') return <BadgeVip />;
-  if (badge === 'ment') return <BadgeMent />;
-  return null;
-}
 
 // ── Componente principal ────────────────────────────────────────────
 
@@ -114,15 +105,25 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
   function renderItem(item: NavItem) {
     const active = pathname === item.href;
     const lockedByCompany = !isAdmin && !hasCompany && !!item.requireCompany;
-    const vipNotAllowed = item.badge === 'vip' && !isVip && !isAdmin;
+    const lockedByPlan = !!item.vipOnly && !isVip && !isAdmin;
 
+    // Bloqueado por falta de empresa → cinza, sem badge
     if (lockedByCompany) {
       return (
         <div key={item.href} className={styles.navItemLocked} title="Cadastre o CNPJ da sua empresa primeiro">
-          <span className={styles.navIcon}>{item.icon}</span>
+          <item.icon className={styles.navIcon} size={16} strokeWidth={1.75} />
           <span className={styles.navLabel}>{item.label}</span>
-          <span className={styles.lockIcon}>🔒</span>
         </div>
+      );
+    }
+
+    // Bloqueado por plano → clique abre o modal contextual (sem badge no menu)
+    if (lockedByPlan) {
+      return (
+        <button key={item.href} className={styles.navItemLocked} onClick={onUpgradeClick} title="Disponível no plano VIP">
+          <item.icon className={styles.navIcon} size={16} strokeWidth={1.75} />
+          <span className={styles.navLabel}>{item.label}</span>
+        </button>
       );
     }
 
@@ -130,7 +131,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
       return (
         <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer"
            className={styles.navItem}>
-          <span className={styles.navIcon}>{item.icon}</span>
+          <item.icon className={styles.navIcon} size={16} strokeWidth={1.75} />
           <span className={styles.navLabel}>{item.label}</span>
           {item.count != null && <span className={styles.countBadge}>{item.count}</span>}
           <span className={styles.externalIcon}>↗</span>
@@ -138,25 +139,12 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
       );
     }
 
-    // Item VIP que o user não tem → leva pro Stripe (mantém UX existente)
-    if (vipNotAllowed) {
-      return (
-        <a key={item.href} href={STRIPE_VIP} target="_blank" rel="noopener noreferrer"
-           className={styles.navItem}>
-          <span className={styles.navIcon}>{item.icon}</span>
-          <span className={styles.navLabel}>{item.label}</span>
-          <BadgeVip />
-        </a>
-      );
-    }
-
     return (
       <Link key={item.href} href={item.href}
             className={`${styles.navItem} ${active ? styles.navItemActive : ''}`}>
-        <span className={styles.navIcon}>{item.icon}</span>
+        <item.icon className={styles.navIcon} size={16} strokeWidth={1.75} />
         <span className={styles.navLabel}>{item.label}</span>
         {item.count != null && <span className={styles.countBadge}>{item.count}</span>}
-        <ItemBadge badge={item.badge} />
       </Link>
     );
   }
@@ -173,6 +161,12 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
             <Logo className={styles.logoImg} />
           </button>
         )}
+        {(user.nome || user.email) && (
+          <div className={styles.userGreeting}>
+            <span className={styles.userHello}>Olá,</span>
+            <span className={styles.userName}>{user.nome || user.email.split('@')[0]}</span>
+          </div>
+        )}
       </div>
 
       <nav className={styles.nav}>
@@ -181,7 +175,6 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
           <>
             <div className={styles.navDivider}>
               <span className={`${styles.navDividerLabel} ${styles.navDividerLabelAdmin}`}>Área Restrita</span>
-              <BadgeAdmin />
             </div>
             <div className={styles.navSection}>
               {adminItems.map(renderItem)}
@@ -256,7 +249,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
             <Logo className={styles.mobileLogoImg} />
           </button>
         )}
-        <div style={{ width: 30 }} />
+        <ThemeToggle />
       </div>
 
       {open && <div className={styles.overlay} onClick={() => setOpen(false)} />}

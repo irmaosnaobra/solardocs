@@ -21,12 +21,68 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
+        {/* Tema antes do paint — evita flash. Inline pra rodar 100% síncrono. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var m=localStorage.getItem('sd-theme')||'dark';var r=m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m;document.documentElement.dataset.theme=r;}catch(e){}`,
+          }}
+        />
         {/* Preconnect para Google Fonts — não bloqueia render em Android antigo */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        />
+        {/* Cache-buster: garante que cliente nunca trave em chunk antigo após deploy */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                try {
+                  // 1. Mata service workers antigos
+                  if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(regs){
+                      regs.forEach(function(r){ r.unregister(); });
+                    });
+                  }
+                  // 2. Limpa Cache Storage API (chunks antigos do _next/static)
+                  if ('caches' in window) {
+                    caches.keys().then(function(keys){
+                      keys.forEach(function(k){ caches.delete(k); });
+                    });
+                  }
+                  // 3. Reload sem loop quando JS dinâmico falha (chunk de deploy antigo sumiu)
+                  var SK = 'sd-chunk-reload';
+                  function bust(){
+                    if (sessionStorage.getItem(SK)) return;
+                    sessionStorage.setItem(SK, '1');
+                    location.reload();
+                  }
+                  window.addEventListener('error', function(e){
+                    var msg = (e && (e.message || '')) + '';
+                    if (msg.indexOf('ChunkLoadError') !== -1 ||
+                        msg.indexOf('Loading chunk') !== -1 ||
+                        msg.indexOf('dynamically imported module') !== -1 ||
+                        msg.indexOf('Failed to fetch dynamically') !== -1) {
+                      bust();
+                    }
+                  });
+                  window.addEventListener('unhandledrejection', function(e){
+                    var msg = (e && e.reason && (e.reason.message || e.reason)) + '';
+                    if (msg.indexOf('ChunkLoadError') !== -1 ||
+                        msg.indexOf('Loading chunk') !== -1 ||
+                        msg.indexOf('dynamically imported module') !== -1 ||
+                        msg.indexOf('Failed to fetch dynamically') !== -1) {
+                      bust();
+                    }
+                  });
+                  // Reseta flag se a página carregou ok depois de N segundos
+                  setTimeout(function(){ sessionStorage.removeItem(SK); }, 8000);
+                } catch(e) {}
+              })();
+            `,
+          }}
         />
         <Script id="pwa-setup" strategy="afterInteractive">{`
           try {
@@ -35,11 +91,6 @@ export default function RootLayout({
               e.preventDefault();
               window.__pwaInstallPrompt = e;
             });
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function(regs) {
-                regs.forEach(function(r) { r.unregister(); });
-              });
-            }
           } catch(e) {}
         `}</Script>
         <Script id="meta-pixel" strategy="afterInteractive">{`
