@@ -77,12 +77,14 @@ export async function register(req: Request, res: Response): Promise<void> {
     // Cria empresa imediatamente se CNPJ veio do cadastro (fluxo simplificado).
     // Se não vier, fluxo continua: user cadastra empresa depois em /empresa.
     if (body.cnpj || body.empresa) {
-      await supabase.from('company').insert({
-        user_id: user.id,
-        nome: body.empresa || null,
-        cnpj: body.cnpj || null,
-        whatsapp: body.whatsapp || null,
-      }).then(() => {}).catch(() => {});
+      try {
+        await supabase.from('company').insert({
+          user_id: user.id,
+          nome: body.empresa || null,
+          cnpj: body.cnpj || null,
+          whatsapp: body.whatsapp || null,
+        });
+      } catch {}
     }
 
     const token = signToken(user.id);
