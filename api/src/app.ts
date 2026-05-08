@@ -27,14 +27,24 @@ import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 const app = express();
 
 app.use(helmet());
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+// Domínios de produção sempre permitidos (rede de segurança, independe de env var)
+const PRODUCTION_ORIGINS = [
+  'https://solardoc.app',
+  'https://www.solardoc.app',
+  'https://solardocs-dashboard.vercel.app',
+];
+const envOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
   .split(',')
-  .map((o) => o.trim());
+  .map((o) => o.trim())
+  .filter(Boolean);
+const allowedOrigins = Array.from(new Set([...PRODUCTION_ORIGINS, ...envOrigins]));
+// Aceita também previews da Vercel (solardocs-dashboard-*.vercel.app)
+const VERCEL_PREVIEW_RE = /^https:\/\/solardocs-dashboard-[a-z0-9-]+\.vercel\.app$/;
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permite requests sem origin (ex: curl, mobile) em desenvolvimento
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Permite requests sem origin (ex: curl, mobile, server-to-server)
+    if (!origin || allowedOrigins.includes(origin) || VERCEL_PREVIEW_RE.test(origin)) {
       callback(null, true);
     } else {
       callback(new Error(`CORS: origem não permitida — ${origin}`));
