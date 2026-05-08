@@ -125,8 +125,7 @@ export default function Landing() {
               Pra integrador solar com CNPJ
             </span>
             <h1 className={styles.h1}>
-              O documento que vem<br />
-              depois do <strong>aperto de mão.</strong>
+              O documento que vem depois do <strong>aperto de mão.</strong>
             </h1>
             <p className={styles.lead}>
               SolarDoc é o app que <b>fecha a sua venda solar</b>. Contrato, proposta e procuração em
@@ -192,7 +191,16 @@ export default function Landing() {
                   <span>{loading ? 'Criando sua conta...' : 'Começar grátis →'}</span>
                 </button>
 
-                {error && <div className={styles.formError}>{error}</div>}
+                {error && (
+                  <div className={styles.formError}>
+                    {error}
+                    {error.toLowerCase().includes('cadastrado') && (
+                      <a href={`/auth?mode=login${email ? `&email=${encodeURIComponent(email)}` : ''}`} className={styles.formErrorLink}>
+                        Entrar com essa conta →
+                      </a>
+                    )}
+                  </div>
+                )}
 
                 <div className={styles.formFoot}>
                   Próximo passo: cadastrar o <b>CNPJ</b> da sua empresa solar e gerar seu primeiro contrato.
