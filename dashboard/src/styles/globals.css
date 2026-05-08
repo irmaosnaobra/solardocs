@@ -43,16 +43,16 @@
 }
 
 :root[data-theme="light"] {
-  --color-bg: #F8FAFC;
+  --color-bg: #EEF2F7;
   --color-surface: #FFFFFF;
-  --color-surface-2: #F1F5F9;
-  --color-border: #E2E8F0;
+  --color-surface-2: #E2E8F0;
+  --color-border: #94A3B8;
   --color-text: #0F172A;
   --color-text-muted: #475569;
-  --color-nav-hover: #F1F5F9;
+  --color-nav-hover: #E2E8F0;
   --color-nav-active: #FEF3C7;
   --color-nav-text: #334155;
-  --color-nav-section-label: #94A3B8;
+  --color-nav-section-label: #64748B;
   color-scheme: light;
 }
 

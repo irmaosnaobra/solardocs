@@ -3,18 +3,20 @@
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 2px;
+  padding: 3px;
   gap: 2px;
+  height: 32px;
+  align-items: center;
 }
 
 .btn {
   background: transparent;
   border: none;
-  width: 32px;
-  height: 28px;
+  width: 30px;
+  height: 24px;
   padding: 0;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 5px;
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
   color: var(--color-text-muted);
@@ -32,6 +34,7 @@
 .active {
   background: var(--color-primary);
   color: #0F172A;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 .active:hover {
@@ -41,6 +44,6 @@
 
 .placeholder {
   display: inline-block;
-  width: 108px;
+  width: 102px;
   height: 32px;
 }
