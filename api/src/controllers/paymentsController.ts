@@ -3,17 +3,24 @@ import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { sendMetaEvent } from '../utils/metaPixel';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
+
+// Trim defensivo + fallback hardcoded — env vars no Vercel às vezes
+// vêm com \n no fim (paste com quebra de linha) e quebram o checkout.
+function envPrice(key: string, fallback: string): string {
+  const v = (process.env[key] || '').trim();
+  return v || fallback;
+}
 
 const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number; descricao: string }> = {
   pro: {
-    priceId: process.env.STRIPE_PRICE_PRO!,
+    priceId: envPrice('STRIPE_PRICE_PRO', 'price_1TKNtbCkkgzQ4IHeCr0mYSXn'),
     plano: 'pro',
     limite: 90,
     descricao: '📄 90 documentos por mês  •  Indicado para até 20 vendas mensais  •  Tudo do Iniciante  •  Histórico completo de documentos  •  Suporte prioritário',
   },
   ilimitado: {
-    priceId: process.env.STRIPE_PRICE_VIP!,
+    priceId: envPrice('STRIPE_PRICE_VIP', 'price_1TUh2yCkkgzQ4IHeZqy52Zu2'),
     plano: 'ilimitado',
     limite: 999999,
     descricao: '📄 Documentos ilimitados  •  Indicado para +20 vendas mensais  •  Dashboard completo  •  Acesso a toda expansão da plataforma  •  Suporte prioritário',

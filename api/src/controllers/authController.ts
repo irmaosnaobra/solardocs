@@ -9,11 +9,15 @@ import { sendMetaEvent } from '../utils/metaPixel';
 import { sendPasswordResetEmail } from '../utils/mailer';
 import { sendWelcomeWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
+
+// Trim defensivo + fallback — env vars do Vercel as vezes vêm com \n
+const PRICE_PRO = ((process.env.STRIPE_PRICE_PRO || '').trim()) || 'price_1TKNtbCkkgzQ4IHeCr0mYSXn';
+const PRICE_VIP = ((process.env.STRIPE_PRICE_VIP || '').trim()) || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2';
 
 const PRICE_TO_PLAN: Record<string, { plano: string; limite: number }> = {
-  [process.env.STRIPE_PRICE_PRO!]: { plano: 'pro',       limite: 90 },
-  [process.env.STRIPE_PRICE_VIP!]: { plano: 'ilimitado', limite: 999999 },
+  [PRICE_PRO]: { plano: 'pro',       limite: 90 },
+  [PRICE_VIP]: { plano: 'ilimitado', limite: 999999 },
 };
 
 async function detectStripePlan(email: string): Promise<{ plano: string; limite: number } | null> {
