@@ -15,7 +15,6 @@ import { removeToken } from '@/services/auth';
 import PlanBadge from '../PlanBadge/PlanBadge';
 import Logo from '../Logo/Logo';
 import ThemeToggle from '../ThemeToggle/ThemeToggle';
-import SidebarTheme from './SidebarTheme';
 import styles from './Sidebar.module.css';
 
 interface User {
@@ -72,7 +71,7 @@ const docsClienteItems: NavItem[] = [
 
 const docsTerceiroItems: NavItem[] = [
   { href: '/documentos?tipo=prestacao-servico', icon: Wrench,    label: 'Prestação de Serviço', requireCompany: true },
-  { href: '/documentos?tipo=contrato-pj',       icon: Briefcase, label: 'Contra Venda PJ',       requireCompany: true },
+  { href: '/documentos?tipo=contrato-pj',       icon: Briefcase, label: 'Contrato Vendedor',     requireCompany: true },
 ];
 
 const contaItems: NavItem[] = [
@@ -190,12 +189,6 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
         <div className={styles.navSection}>
           {cadastroItems.map(renderItem)}
         </div>
-
-        {/* ── Seção: Tema ── */}
-        <div className={styles.navDivider}>
-          <span className={styles.navDividerLabel}>Tema</span>
-        </div>
-        <SidebarTheme />
 
         {/* ── Seção 3: Docs Cliente ── */}
         <div className={styles.navDivider}>

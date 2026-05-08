@@ -17,7 +17,7 @@ const ALL_PLANS = [
     indicado: 'Indicado para até 20 vendas/mês',
     features: [
       '90 documentos por mês',
-      'Contrato Solar, Prestação de Serviço, Procuração, Contrato PJ e Proposta Bancária',
+      'Contrato Solar, Prestação de Serviço, Procuração, Contrato Vendedor e Proposta Bancária',
       'Geração com IA + 2 modelos prontos',
       'Contratos com a logomarca da sua empresa',
       'Histórico dos últimos 30 dias',

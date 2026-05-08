@@ -10,7 +10,9 @@ import styles from '../documentos.module.css';
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
 const initialFields = {
-  percentual_comissao: '',
+  percentual_comissao: '3',
+  adiantamento_quinzenal: '900,00',
+  meta_semanal: '2',
   foro_cidade: '',
 };
 
@@ -53,7 +55,7 @@ export default function ContratoPJPage() {
 
   if (generated) return (
     <div className={styles.page}>
-      <h1 className={styles.title}>🤝 Contrato PJ Vendas — Preview</h1>
+      <h1 className={styles.title}>🤝 Contrato Vendedor — Preview</h1>
       <DocumentPreview
         content={generated.content}
         tipo="contratoPJ"
@@ -72,8 +74,8 @@ export default function ContratoPJPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>🤝 Contrato PJ Vendas</h1>
-        <p className={styles.subtitle}>Pacote completo de documentos para representante comercial PJ</p>
+        <h1 className={styles.title}>🤝 Contrato Vendedor</h1>
+        <p className={styles.subtitle}>Representação comercial autônoma (PF ou PJ) — comissão por resultado + adiantamento quinzenal</p>
       </div>
 
       <form onSubmit={handleGenerate} className={styles.form}>
@@ -98,7 +100,30 @@ export default function ContratoPJPage() {
                 step="0.01"
                 value={fields.percentual_comissao}
                 onChange={e => setFields({ ...fields, percentual_comissao: e.target.value })}
-                placeholder="Ex: 5"
+                placeholder="3"
+                className="input-field"
+                required
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Adiantamento quinzenal (R$) *</label>
+              <input
+                type="text"
+                value={fields.adiantamento_quinzenal}
+                onChange={e => setFields({ ...fields, adiantamento_quinzenal: e.target.value })}
+                placeholder="900,00"
+                className="input-field"
+                required
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Meta semanal (vendas) *</label>
+              <input
+                type="number"
+                min="1"
+                value={fields.meta_semanal}
+                onChange={e => setFields({ ...fields, meta_semanal: e.target.value })}
+                placeholder="2"
                 className="input-field"
                 required
               />
@@ -116,7 +141,7 @@ export default function ContratoPJPage() {
             </div>
           </div>
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>
-            A garantia mínima de R$ 1.700,00 e todas as condições de pagamento são inseridas automaticamente nos documentos.
+            Pago nos dias 5 e 20 de cada mês. Suspende automático se ficar 30 dias sem venda.
           </p>
         </div>
 
@@ -126,7 +151,7 @@ export default function ContratoPJPage() {
           className={`btn-primary ${styles.generateBtn}`}
           disabled={generating || !terceiroId}
         >
-          {generating ? '⏳ Gerando...' : '📄 Gerar Contrato PJ'}
+          {generating ? '⏳ Gerando...' : '📄 Gerar Contrato Vendedor'}
         </button>
       </form>
     </div>
