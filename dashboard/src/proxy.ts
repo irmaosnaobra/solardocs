@@ -7,13 +7,16 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;
   const { pathname } = request.nextUrl;
 
-  const isPublicPath = PUBLIC_PATHS.some(path => pathname.startsWith(path));
+  const isHome = pathname === '/';
+  const isPublicPath = isHome || PUBLIC_PATHS.some(path => pathname.startsWith(path));
 
   if (!token && !isPublicPath) {
     return NextResponse.redirect(new URL('/auth?mode=login', request.url));
   }
 
-  if (token && isPublicPath) {
+  // Usuário logado tentando ver login/cadastro → manda pra dentro do app.
+  // A landing pública (/) NÃO entra nesse redirect — fica acessível mesmo logado.
+  if (token && pathname.startsWith('/auth')) {
     return NextResponse.redirect(new URL('/empresa', request.url));
   }
 
