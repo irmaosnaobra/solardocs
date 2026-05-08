@@ -32,12 +32,25 @@
 }
 
 /* ---------- BASE ---------- */
+/* Landing sempre em DARK — independente do tema do dashboard.
+   Override local dos tokens pra evitar fundo claro com texto claro
+   quando o user está com tema light no app. */
 .page {
+  --color-bg: #0F172A;
+  --color-surface: #1E293B;
+  --color-surface-2: #253347;
+  --color-border: #334155;
+  --color-text: #F1F5F9;
+  --color-text-muted: #cbd5e1;
+  --color-primary: #F59E0B;
+  --color-primary-hover: #D97706;
+
   min-height: 100vh;
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: #0F172A;
+  color: #F1F5F9;
   font-family: var(--font-sans);
   overflow-x: hidden;
+  color-scheme: dark;
 }
 
 .page :global([data-reveal]) {
@@ -77,6 +90,7 @@
   font-weight: 800;
   font-size: 17px;
   letter-spacing: -0.015em;
+  color: #F1F5F9;
 }
 .brandLogo {
   width: 36px;
@@ -310,7 +324,7 @@
 }
 .formSub {
   font-size: 13px;
-  color: var(--color-text-muted);
+  color: #cbd5e1;
   margin-bottom: 18px;
 }
 .formGrid {
@@ -383,12 +397,12 @@
 
 .formFoot {
   font-size: 11.5px;
-  color: var(--color-text-muted);
+  color: #cbd5e1;
   margin-top: 14px;
   text-align: center;
   line-height: 1.5;
 }
-.formFoot b { color: var(--color-text); }
+.formFoot b { color: #ffffff; font-weight: 700; }
 .formError {
   font-size: 13px;
   color: #f87171;
