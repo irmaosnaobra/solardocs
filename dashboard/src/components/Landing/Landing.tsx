@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/services/api';
 import { setToken, setUser } from '@/services/auth';
@@ -12,8 +12,36 @@ declare global {
   }
 }
 
+function useReveal() {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const els = document.querySelectorAll<HTMLElement>('[data-reveal]');
+    if (!els.length) return;
+
+    if (!('IntersectionObserver' in window)) {
+      els.forEach(el => el.setAttribute('data-visible', 'true'));
+      return;
+    }
+
+    const obs = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            (entry.target as HTMLElement).setAttribute('data-visible', 'true');
+            obs.unobserve(entry.target);
+          }
+        });
+      },
+      { rootMargin: '0px 0px -10% 0px', threshold: 0.1 }
+    );
+    els.forEach(el => obs.observe(el));
+    return () => obs.disconnect();
+  }, []);
+}
+
 export default function Landing() {
   const router = useRouter();
+  useReveal();
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -21,6 +49,7 @@ export default function Landing() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,8 +88,8 @@ export default function Landing() {
   }
 
   function scrollToForm() {
-    document.getElementById('cadastro-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => document.getElementById('input-nome')?.focus(), 400);
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => document.getElementById('input-nome')?.focus(), 500);
   }
 
   return (
@@ -81,9 +110,15 @@ export default function Landing() {
 
       {/* HERO */}
       <section className={styles.hero}>
-        <div className={styles.heroGlow} />
+        <div className={styles.aurora} aria-hidden>
+          <div className={`${styles.auroraBlob} ${styles.auroraBlob1}`} />
+          <div className={`${styles.auroraBlob} ${styles.auroraBlob2}`} />
+          <div className={`${styles.auroraBlob} ${styles.auroraBlob3}`} />
+        </div>
+        <div className={styles.gridPattern} aria-hidden />
+
         <div className={styles.heroInner}>
-          <div>
+          <div className={styles.heroLeft}>
             <span className={styles.eyebrow}>
               <span className={styles.eyebrowDot} />
               Pra integrador solar com CNPJ
@@ -99,7 +134,7 @@ export default function Landing() {
 
             <div className={styles.trustRow}>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> <b>10 documentos grátis</b>
+                <span className={styles.trustCheck}>✓</span> <b>10 docs grátis</b>
               </span>
               <span className={styles.trustItem}>
                 <span className={styles.trustCheck}>✓</span> Sem cartão
@@ -109,9 +144,9 @@ export default function Landing() {
               </span>
             </div>
 
-            <div className={styles.formCard} id="cadastro-form">
+            <div className={styles.formCard} ref={formRef}>
               <span className={styles.formBadge}>✓ GRÁTIS — 10 DOCUMENTOS</span>
-              <div className={styles.formTitle}>Cadastre sua empresa em 30 segundos</div>
+              <div className={styles.formTitle}>Cadastre sua empresa em 30s</div>
               <div className={styles.formSub}>Sem trial vencendo. Use quando precisar.</div>
 
               <form onSubmit={handleSubmit}>
@@ -153,7 +188,7 @@ export default function Landing() {
                 </div>
 
                 <button type="submit" className={styles.cta} disabled={loading}>
-                  {loading ? 'Criando sua conta...' : 'Começar grátis →'}
+                  <span>{loading ? 'Criando sua conta...' : 'Começar grátis →'}</span>
                 </button>
 
                 {error && <div className={styles.formError}>{error}</div>}
@@ -165,7 +200,7 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* MOCKUP DUPLO */}
+          {/* MOCKUP */}
           <div className={styles.heroVisual}>
             <div className={styles.phoneStack}>
               <div className={`${styles.phone} ${styles.phoneBack}`}>
@@ -217,24 +252,26 @@ export default function Landing() {
       {/* COMO FUNCIONA */}
       <section className={styles.how}>
         <div className={styles.howInner}>
-          <div className={styles.sectionLabel}>Como funciona</div>
-          <h2 className={styles.sectionTitle}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Como funciona</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
             Do <strong>aperto de mão</strong> ao contrato assinado<br />
             em 3 minutos.
           </h2>
-          <p className={styles.sectionSub}>
+          <p className={styles.sectionSub} data-reveal>
             Você não precisa instalar nada. Não precisa de advogado. Não precisa sair do telhado.
           </p>
 
           <div className={styles.howGrid}>
-            <div className={styles.howStep}>
+            <div className={styles.howStep} data-reveal>
               <div className={styles.howNum}>01</div>
               <div className={styles.howH}>Cadastra o cliente</div>
               <div className={styles.howP}>
                 Nome, CPF/CNPJ, endereço. Em 30 segundos. <b>No celular, ali na visita.</b>
               </div>
             </div>
-            <div className={styles.howStep}>
+            <div className={styles.howStep} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.howNum}>02</div>
               <div className={styles.howH}>IA gera o documento</div>
               <div className={styles.howP}>
@@ -242,7 +279,7 @@ export default function Landing() {
                 <b> a IA monta o documento</b> com cláusulas técnicas do setor.
               </div>
             </div>
-            <div className={styles.howStep}>
+            <div className={styles.howStep} data-reveal style={{ transitionDelay: '0.2s' }}>
               <div className={styles.howNum}>03</div>
               <div className={styles.howH}>Manda pra assinar</div>
               <div className={styles.howP}>
@@ -256,14 +293,16 @@ export default function Landing() {
       {/* DIFERENCIAIS */}
       <section className={styles.diffs}>
         <div className={styles.diffsInner}>
-          <div className={styles.sectionLabel}>Por que SolarDoc</div>
-          <h2 className={styles.sectionTitle}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Por que SolarDoc</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
             Não é planilha. Não é Word.<br />
             <strong>É o app que formaliza sua venda solar.</strong>
           </h2>
 
-          <div className={styles.diffsGrid}>
-            <div className={styles.diffCard}>
+          <div className={styles.diffsGrid} style={{ marginTop: 40 }}>
+            <div className={styles.diffCard} data-reveal>
               <div className={styles.diffIcon}>⚡</div>
               <div className={styles.diffH}>Contrato em 2 minutos</div>
               <div className={styles.diffP}>
@@ -272,7 +311,7 @@ export default function Landing() {
               </div>
             </div>
 
-            <div className={styles.diffCard}>
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.diffIcon}>🛡️</div>
               <div className={styles.diffH}>Juridicamente blindado</div>
               <div className={styles.diffP}>
@@ -281,7 +320,7 @@ export default function Landing() {
               </div>
             </div>
 
-            <div className={styles.diffCard}>
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.2s' }}>
               <div className={styles.diffIcon}>📱</div>
               <div className={styles.diffH}>Você no comando</div>
               <div className={styles.diffP}>
@@ -293,63 +332,52 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* COMPARATIVO */}
+      {/* COMPARATIVO em cards */}
       <section className={styles.compare}>
         <div className={styles.compareInner}>
-          <div className={styles.sectionLabel}>Por que sair do Word</div>
-          <h2 className={styles.sectionTitle}>
-            <strong>Olha a diferença</strong> de quem fecha 5 vendas/mês<br />
-            e de quem fecha 15.
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Por que sair do Word</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
+            Quem fecha 5 vendas/mês usa Word.<br />
+            <strong>Quem fecha 15 usa SolarDoc.</strong>
           </h2>
 
-          <div className={styles.compareTable}>
-            <div className={`${styles.compareRow} ${styles.compareRowHead}`}>
-              <div className={styles.compareCell}>Critério</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}>Word / Drive</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}>Plataforma genérica</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter} ${styles.compareLabelGold}`}>SolarDoc</div>
+          <div className={styles.compareGrid}>
+            <div className={styles.compareCol} data-reveal>
+              <div className={styles.compareTitle}>Word / Drive</div>
+              <ul className={styles.compareList}>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Sem foco em documento solar</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Sem cláusulas da concessionária</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> 2 dias por documento</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Sem assinatura digital</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Marca da empresa quebra</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Não funciona no celular</li>
+              </ul>
             </div>
 
-            <div className={styles.compareRow}>
-              <div className={`${styles.compareCell} ${styles.compareCriteria}`}>Foco em documento solar</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}><span className={styles.compareNo}>✕</span></div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}><span className={styles.compareNo}>✕</span></div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter} ${styles.compareBest}`}><span className={styles.compareYes}>✓</span></div>
+            <div className={styles.compareCol} data-reveal style={{ transitionDelay: '0.1s' }}>
+              <div className={styles.compareTitle}>Plataforma genérica</div>
+              <ul className={styles.compareList}>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Foca em tudo, não em solar</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Você adapta os modelos</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Tempo médio</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Tem assinatura digital</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Marca limitada</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Funciona ok no celular</li>
+              </ul>
             </div>
 
-            <div className={styles.compareRow}>
-              <div className={`${styles.compareCell} ${styles.compareCriteria}`}>Cláusulas da concessionária</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}><span className={styles.compareNo}>✕</span></div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}><span className={styles.compareNo}>✕</span></div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter} ${styles.compareBest}`}><span className={styles.compareYes}>✓</span></div>
-            </div>
-
-            <div className={styles.compareRow}>
-              <div className={`${styles.compareCell} ${styles.compareCriteria}`}>Pronto em 2 minutos</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}><span className={styles.compareNo}>✕</span></div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}>~</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter} ${styles.compareBest}`}><span className={styles.compareYes}>✓</span></div>
-            </div>
-
-            <div className={styles.compareRow}>
-              <div className={`${styles.compareCell} ${styles.compareCriteria}`}>Assinatura digital</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}><span className={styles.compareNo}>✕</span></div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}><span className={styles.compareYes}>✓</span></div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter} ${styles.compareBest}`}><span className={styles.compareYes}>✓</span></div>
-            </div>
-
-            <div className={styles.compareRow}>
-              <div className={`${styles.compareCell} ${styles.compareCriteria}`}>Sua marca / sua cor</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}>~</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}><span className={styles.compareNo}>✕</span></div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter} ${styles.compareBest}`}><span className={styles.compareYes}>✓</span></div>
-            </div>
-
-            <div className={styles.compareRow}>
-              <div className={`${styles.compareCell} ${styles.compareCriteria}`}>Funciona no celular</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}><span className={styles.compareNo}>✕</span></div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter}`}>~</div>
-              <div className={`${styles.compareCell} ${styles.compareCellCenter} ${styles.compareBest}`}><span className={styles.compareYes}>✓</span></div>
+            <div className={`${styles.compareCol} ${styles.compareColBest}`} data-reveal style={{ transitionDelay: '0.2s' }}>
+              <div className={styles.compareTitle}>SolarDoc</div>
+              <ul className={styles.compareList}>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> 100% focado em documento solar</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Cláusulas validadas das concessionárias</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Documento pronto em 2 minutos</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Assinatura digital com validade jurídica</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Sua marca, sua cor, seu padrão</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Feito pro celular do integrador</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -358,30 +386,32 @@ export default function Landing() {
       {/* DOCS */}
       <section className={styles.docs}>
         <div className={styles.docsInner}>
-          <div className={styles.sectionLabel}>5 documentos prontos</div>
-          <h2 className={styles.sectionTitle}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>5 documentos prontos</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
             Tudo o que sua empresa solar <strong>precisa pra fechar</strong>.<br />
             Nada do que não precisa.
           </h2>
 
-          <div className={styles.docsList}>
-            <div className={styles.docItem}>
+          <div className={styles.docsGrid}>
+            <div className={styles.docCard} data-reveal>
               <span className={styles.docCheck}>✓</span>
               <span className={styles.docName}>Contrato de Compra e Venda Solar</span>
             </div>
-            <div className={styles.docItem}>
+            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.05s' }}>
               <span className={styles.docCheck}>✓</span>
               <span className={styles.docName}>Procuração para Concessionária</span>
             </div>
-            <div className={styles.docItem}>
+            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.1s' }}>
               <span className={styles.docCheck}>✓</span>
               <span className={styles.docName}>Prestação de Serviço</span>
             </div>
-            <div className={styles.docItem}>
+            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.15s' }}>
               <span className={styles.docCheck}>✓</span>
               <span className={styles.docName}>Contrato PJ</span>
             </div>
-            <div className={styles.docItem}>
+            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.2s' }}>
               <span className={styles.docCheck}>✓</span>
               <span className={styles.docName}>Proposta para Financiamento Bancário</span>
             </div>
@@ -392,28 +422,29 @@ export default function Landing() {
       {/* PROVA SOCIAL */}
       <section className={styles.social}>
         <div className={styles.socialInner}>
-          <div className={styles.sectionLabel}>Prova de quem usa</div>
-          <h2 className={styles.sectionTitle}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Prova de quem usa</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
             Empresas solares que <strong>pararam de perder venda</strong>.
           </h2>
 
           <div className={styles.statsGrid}>
-            <div className={styles.stat}>
+            <div className={styles.stat} data-reveal>
               <div className={styles.statN}>2 min</div>
               <div className={styles.statL}>Tempo médio pra gerar um contrato</div>
             </div>
-            <div className={styles.stat}>
+            <div className={styles.stat} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.statN}>5</div>
               <div className={styles.statL}>Tipos de documento prontos</div>
             </div>
-            <div className={styles.stat}>
+            <div className={styles.stat} data-reveal style={{ transitionDelay: '0.2s' }}>
               <div className={styles.statN}>R$ 0</div>
-              <div className={styles.statL}>Pra cadastrar e gerar os 10 primeiros</div>
+              <div className={styles.statL}>Pra gerar os 10 primeiros</div>
             </div>
           </div>
 
-          <div className={styles.testimonial}>
-            <div className={styles.testimonialQuote}>"</div>
+          <div className={styles.testimonial} data-reveal>
             <div className={styles.testimonialText}>
               Em 30 dias, fechei <b>7 contratos a mais</b>. O cliente vê o PDF na hora, com a logo da
               minha empresa, e já confia. Saí do Word e não volto.
@@ -431,7 +462,7 @@ export default function Landing() {
 
       {/* POSITIONING */}
       <section className={styles.posBlock}>
-        <div className={styles.posBlockInner}>
+        <div className={styles.posBlockInner} data-reveal>
           <div className={styles.posCross}>
             <s>Word</s> &nbsp;·&nbsp; <s>Drive</s> &nbsp;·&nbsp; <s>Plataforma cheia de feature que você nem usa</s>
           </div>
@@ -445,17 +476,19 @@ export default function Landing() {
       {/* PLANS */}
       <section className={styles.plans}>
         <div className={styles.plansInner}>
-          <div className={styles.sectionLabel}>Planos</div>
-          <h2 className={styles.sectionTitle}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Planos</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
             <strong>Comece grátis.</strong> Continue se valer a pena.
           </h2>
-          <p className={styles.sectionSub}>
-            Você usa 10 documentos sem pagar nada. Quando precisar de mais, escolhe um plano. Sem trial,
-            sem cartão antecipado.
+          <p className={styles.sectionSub} data-reveal>
+            10 documentos sem pagar nada. Quando precisar de mais, escolhe o plano. Sem trial, sem
+            cartão antecipado.
           </p>
 
           <div className={styles.plansGrid}>
-            <div className={styles.plan}>
+            <div className={styles.plan} data-reveal>
               <div className={styles.planName}>Free</div>
               <div className={styles.planPrice}>R$ 0</div>
               <div className={styles.planSub}>10 documentos vitalícios</div>
@@ -469,7 +502,7 @@ export default function Landing() {
               <button onClick={scrollToForm} className={styles.planBtn}>Começar grátis</button>
             </div>
 
-            <div className={`${styles.plan} ${styles.planFeatured}`}>
+            <div className={`${styles.plan} ${styles.planFeatured}`} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.planTag}>Mais escolhido</div>
               <div className={styles.planName}>Pro</div>
               <div className={styles.planPrice}>R$ 47<small>/mês</small></div>
@@ -477,14 +510,16 @@ export default function Landing() {
               <ul className={styles.planList}>
                 <li>Tudo do Free, e mais:</li>
                 <li>90 documentos por mês</li>
-                <li>Logo da empresa em alta resolução</li>
+                <li>Logo em alta resolução</li>
                 <li>Suporte prioritário</li>
                 <li>Sem trial — paga quando quiser</li>
               </ul>
-              <button onClick={scrollToForm} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>Quero o Pro</button>
+              <button onClick={scrollToForm} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
+                Quero o Pro
+              </button>
             </div>
 
-            <div className={styles.plan}>
+            <div className={styles.plan} data-reveal style={{ transitionDelay: '0.2s' }}>
               <div className={styles.planName}>VIP</div>
               <div className={styles.planPrice}>R$ 97<small>/mês</small></div>
               <div className={styles.planSub}>Documentos ilimitados</div>
@@ -504,59 +539,61 @@ export default function Landing() {
       {/* FAQ */}
       <section className={styles.faq}>
         <div className={styles.faqInner}>
-          <div className={styles.sectionLabel}>Perguntas frequentes</div>
-          <h2 className={styles.sectionTitle}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Perguntas frequentes</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
             Tira a dúvida. Depois cadastra.
           </h2>
 
           <div className={styles.faqList}>
-            <details className={styles.faqItem}>
+            <details className={styles.faqItem} data-reveal>
               <summary>Preciso pagar pra começar?</summary>
               <div className={styles.faqAnswer}>
-                Não. Você cadastra a empresa solar com CNPJ e ganha 10 documentos vitalícios sem
+                Não. Você cadastra a empresa solar com CNPJ e ganha <b>10 documentos vitalícios</b> sem
                 cartão. Use quando precisar — não vence.
               </div>
             </details>
 
-            <details className={styles.faqItem}>
+            <details className={styles.faqItem} data-reveal>
               <summary>Os contratos têm validade jurídica?</summary>
               <div className={styles.faqAnswer}>
                 Sim. Os modelos seguem cláusulas técnicas validadas pra setor solar (geração, garantia,
-                inadimplência, titularidade). A assinatura digital é juridicamente válida no Brasil
-                via padrão Autentique.
+                inadimplência, titularidade). A <b>assinatura digital é juridicamente válida</b> no
+                Brasil via padrão Autentique.
               </div>
             </details>
 
-            <details className={styles.faqItem}>
+            <details className={styles.faqItem} data-reveal>
               <summary>Funciona com qualquer concessionária?</summary>
               <div className={styles.faqAnswer}>
                 Sim. As procurações são genéricas o suficiente pra serem aceitas em concessionárias
-                como CEMIG, CPFL, Enel, Light, Energisa, Equatorial e outras.
+                como <b>CEMIG, CPFL, Enel, Light, Energisa, Equatorial</b> e outras.
               </div>
             </details>
 
-            <details className={styles.faqItem}>
+            <details className={styles.faqItem} data-reveal>
               <summary>Posso usar com a marca da minha empresa?</summary>
               <div className={styles.faqAnswer}>
                 Sim. Você sobe a logo, define a cor da empresa e os documentos saem com a sua
-                identidade visual. A IA preenche, você não precisa formatar nada.
+                identidade visual. <b>A IA preenche, você não precisa formatar nada.</b>
               </div>
             </details>
 
-            <details className={styles.faqItem}>
+            <details className={styles.faqItem} data-reveal>
               <summary>Cancelo quando quiser?</summary>
               <div className={styles.faqAnswer}>
-                Sim. Sem multa, sem fidelidade, sem letra miúda. Você cancela direto na sua conta e
-                pronto.
+                Sim. <b>Sem multa, sem fidelidade, sem letra miúda.</b> Você cancela direto na sua conta
+                e pronto.
               </div>
             </details>
 
-            <details className={styles.faqItem}>
+            <details className={styles.faqItem} data-reveal>
               <summary>O dono mesmo consegue usar?</summary>
               <div className={styles.faqAnswer}>
                 Esse é exatamente o público pra quem foi feito. Você não precisa de funcionário,
                 advogado ou escritório — abre o app, cadastra o cliente, gera o documento e manda.
-                Sai perfeito.
+                <b> Sai perfeito.</b>
               </div>
             </details>
           </div>
@@ -566,18 +603,20 @@ export default function Landing() {
       {/* CTA FINAL */}
       <section className={styles.finalCta}>
         <div className={styles.finalCtaInner}>
-          <h2 className={styles.finalCtaTitle}>
+          <h2 className={styles.finalCtaTitle} data-reveal>
             Sua próxima venda solar fecha com<br />
             <strong>o cliente assinando no seu celular.</strong>
           </h2>
-          <p className={styles.finalCtaSub}>
+          <p className={styles.finalCtaSub} data-reveal>
             10 documentos grátis pra começar. Sem cartão. Sem pegadinha.
           </p>
-          <button className={styles.finalCtaBtn} onClick={scrollToForm}>
-            Cadastrar minha empresa solar →
-          </button>
-          <div className={styles.finalCtaFoot}>
-            Continuou usando? A partir de R$47/mês. Cancela quando quiser.
+          <div data-reveal>
+            <button className={styles.finalCtaBtn} onClick={scrollToForm}>
+              Cadastrar minha empresa solar →
+            </button>
+            <div className={styles.finalCtaFoot}>
+              Continuou usando? A partir de R$ 47/mês. Cancela quando quiser.
+            </div>
           </div>
         </div>
       </section>
