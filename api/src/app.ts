@@ -106,3 +106,4 @@ if (!process.env.VERCEL) {
 }
 
 export default app;
+// CORS fix deploy trigger 1778213086
