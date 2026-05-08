@@ -713,14 +713,14 @@ interface FilterState {
 
 export default function CrmPage() {
   const searchParams = useSearchParams();
-  const initialTab: 'solar' | 'plataforma' = searchParams.get('tab') === 'plataforma' ? 'plataforma' : 'solar';
+  const initialTab: 'solar' | 'plataforma' = searchParams.get('tab') === 'solar' ? 'solar' : 'plataforma';
   const [tab, setTab] = useState<'solar' | 'plataforma'>(initialTab);
 
   // Sidebar agora navega entre Solar/Plataforma via /crm/solar-io e /crm/solardoc,
   // que redirecionam pra /crm?tab=... — App Router reusa o componente, então
   // sincronizamos o tab manualmente quando o query param muda.
   useEffect(() => {
-    const next: 'solar' | 'plataforma' = searchParams.get('tab') === 'plataforma' ? 'plataforma' : 'solar';
+    const next: 'solar' | 'plataforma' = searchParams.get('tab') === 'solar' ? 'solar' : 'plataforma';
     setTab(prev => prev === next ? prev : next);
   }, [searchParams]);
   const [sdrLeads, setSdrLeads] = useState<SdrLead[]>([]);

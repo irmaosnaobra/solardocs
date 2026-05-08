@@ -49,7 +49,6 @@ interface NavItem {
 
 const adminItems: NavItem[] = [
   { href: '/admin',                   icon: Settings,   label: 'Painel Admin' },
-  { href: '/crm/solar-io',            icon: Zap,        label: 'CRM Solar', count: 749 },
   { href: '/crm/solardoc',            icon: FolderOpen, label: 'CRM SolarDoc', count: 58 },
   { href: '/admin/gerador-propostas', icon: FileText,   label: 'Gerador de Proposta' },
   { href: PLANILHA_MESTRE_URL,        icon: Sheet,      label: 'Planilha Mestre',     external: true },
