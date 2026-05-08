@@ -7,6 +7,7 @@ import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup } from '../services/ag
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
 import { runSdrB2bFollowups } from '../services/agents/sdr/sdrB2bFollowupService';
+import { runCarlaMorningBroadcast } from '../services/agents/sdr/sdrB2bMorningHook';
 import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { logger } from '../utils/logger';
@@ -223,6 +224,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['carla-inativo',                () => runCarlaInativoFollowup()],
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
+    ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],
     ['luma-reativacao',             () => processarReativacao()],
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],

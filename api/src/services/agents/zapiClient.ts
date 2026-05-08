@@ -101,12 +101,19 @@ export async function sendWhatsApp(phone: string, message: string, instance: Zap
   await zapiPost('send-text', { phone: fmtPhone(phone), message }, 2, instance);
 }
 
-export async function sendHuman(phone: string, parts: string[], instance: ZapiInstance = 'solardoc'): Promise<void> {
+export async function sendHuman(phone: string, parts: string[], instance: ZapiInstance = 'solardoc', opts?: { slow?: boolean }): Promise<void> {
+  // slow=true → simula leitura+digitação ~15s por bolha (B2B Carla, vendedora humana).
+  // Default: rápido (até 2.5s) — agentes de suporte/operacional.
+  const minMs = opts?.slow ? 8000  : 800;
+  const maxMs = opts?.slow ? 15000 : 2500;
+  const perChar = opts?.slow ? 80   : 40;
+  const gapMs = opts?.slow ? 1200 : 300;
+
   for (const part of parts) {
-    const typingMs = Math.min(Math.max(part.length * 40, 800), 2500);
+    const typingMs = Math.min(Math.max(part.length * perChar, minMs), maxMs);
     await showTyping(phone, typingMs, instance);
     await sendWhatsApp(phone, part, instance);
-    await sleep(300);
+    await sleep(gapMs);
   }
 }
 
