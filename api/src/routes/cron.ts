@@ -4,6 +4,7 @@ import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder } from '../services/followupService';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup } from '../services/agents/whatsapp/carlaPlatformFollowupService';
+import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
 import { runSdrB2bFollowups } from '../services/agents/sdr/sdrB2bFollowupService';
@@ -214,6 +215,20 @@ router.get('/no-contracts-reminder', async (req: Request, res: Response) => {
 // vez. As funções fazem dedup interna (followup_email_last_sent_at,
 // contract_reminder_last_sent_at, followup_last_sent_at) então é seguro
 // disparar manualmente também.
+// One-shot manual: dispara a pergunta-pílula pros users sem CNPJ que ainda
+// não receberam. Cada user só recebe UMA vez. Disparar via curl quando
+// quiser — não agendado pra evitar spam.
+router.get('/carla-pergunta-cnpj', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runCarlaCnpjKillerBroadcast();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'carla-pergunta-cnpj falhou', err);
+    res.status(500).json({ error: 'Cron failed', message: String(err) });
+  }
+});
+
 router.get('/master', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
 
