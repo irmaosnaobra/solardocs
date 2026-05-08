@@ -9,7 +9,7 @@
   min-width: 0; /* CRÍTICO: permite overflow horizontal nos filhos (Kanban CRM) */
   max-width: 100%;
   margin-left: var(--sidebar-width);
-  padding: 32px;
+  padding: 0 32px 32px;
   min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden; /* Bloqueia overflow do pai pra forçar scroll no filho .crm-kanban-scroll */
