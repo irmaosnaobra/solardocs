@@ -116,7 +116,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
             </div>
             <div style="background:#1e293b;border-radius:10px;padding:16px 20px;margin-bottom:10px;display:flex;align-items:center;">
               <span style="color:#f59e0b;font-size:20px;margin-right:14px;">💼</span>
-              <div><p style="margin:0;color:#f8fafc;font-weight:700;font-size:14px;">Contrato PJ (Pessoa Jurídica)</p><p style="margin:4px 0 0;color:#64748b;font-size:13px;">Para clientes empresa com CNPJ</p></div>
+              <div><p style="margin:0;color:#f8fafc;font-weight:700;font-size:14px;">Contrato Vendedor (PF/PJ)</p><p style="margin:4px 0 0;color:#64748b;font-size:13px;">Representação comercial autônoma — comissão + adiantamento</p></div>
             </div>
             <div style="background:#1e293b;border-radius:10px;padding:16px 20px;margin-bottom:10px;display:flex;align-items:center;">
               <span style="color:#f59e0b;font-size:20px;margin-right:14px;">🤝</span>
@@ -236,7 +236,7 @@ const noContractsEmails: Array<{ subject: string; html: (nome: string | null) =>
             <li>Contrato de instalação solar</li>
             <li>Proposta bancária para financiamento</li>
             <li>Procuração para distribuidora</li>
-            <li>Contrato PJ</li>
+            <li>Contrato Vendedor</li>
             <li>Contrato de prestação de serviço (O&amp;M)</li>
           </ul>
           <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Gerar agora</a>
