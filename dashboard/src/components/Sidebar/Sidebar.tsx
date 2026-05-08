@@ -57,7 +57,7 @@ const adminItems: NavItem[] = [
 ];
 
 const cadastroItems: NavItem[] = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', vipOnly: true },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/empresa',   icon: Building2,       label: 'Empresa' },
   { href: '/clientes',  icon: Users,           label: 'Clientes',  requireCompany: true },
   { href: '/terceiros', icon: Handshake,       label: 'Terceiros', requireCompany: true },

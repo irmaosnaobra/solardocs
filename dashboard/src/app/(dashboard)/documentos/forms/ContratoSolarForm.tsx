@@ -194,7 +194,7 @@ export default function ContratoSolarPage() {
         {error && <p className="error-message">{error}</p>}
 
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? '⏳ Gerando documento...' : `📄 Gerar ${mode === 'm2' ? 'Modelo 2' : 'Modelo 1'}`}
+          {generating ? '⏳ Gerando documento...' : '📄 Gerar Contrato'}
         </button>
       </form>
     </div>

@@ -22,7 +22,7 @@ const clientSchema = z.object({
 export async function listClients(req: Request, res: Response): Promise<void> {
   try {
     const search = req.query.search as string | undefined;
-    let query = supabase.from('clients').select('*').eq('user_id', req.userId).order('nome');
+    let query = supabase.from('clients').select('*').eq('user_id', req.userId).order('created_at', { ascending: false });
 
     if (search) query = query.ilike('nome', `%${search}%`);
 

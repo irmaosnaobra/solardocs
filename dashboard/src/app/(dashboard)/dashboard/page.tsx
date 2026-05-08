@@ -157,27 +157,6 @@ export default function DashboardPage() {
   }
   if (!user) return null;
 
-  if (user.plano !== 'ilimitado' && !user.is_admin) {
-    return (
-      <div style={{ maxWidth: 480, margin: '64px auto', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-        <div style={{ fontSize: 48 }}>📊</div>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-text)', margin: 0 }}>Dashboard exclusivo VIP</h2>
-        <p style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.7, margin: 0 }}>
-          Acompanhe seus números, gráficos de utilização e histórico completo de documentos gerados.
-          Disponível para assinantes do plano VIP.
-        </p>
-        <a
-          href="https://wa.me/5534988457399?text=Quero%20assinar%20o%20plano%20VIP%20do%20SolarDoc%20Pro"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ background: 'var(--color-primary)', color: '#0F172A', fontWeight: 700, fontSize: 14, padding: '13px 28px', borderRadius: 10, textDecoration: 'none' }}
-        >
-          ⚡ Assinar VIP — R$ 67/mês
-        </a>
-      </div>
-    );
-  }
-
   const isIlimitado  = user.plano === 'ilimitado';
   const docPercent   = isIlimitado ? 0 : Math.min((user.documentos_usados / user.limite_documentos) * 100, 100);
   const docsRestantes = isIlimitado ? null : user.limite_documentos - user.documentos_usados;

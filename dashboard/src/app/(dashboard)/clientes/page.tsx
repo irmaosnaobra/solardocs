@@ -22,6 +22,16 @@ interface Client {
   telefone2?: string;
   padrao?: string;
   tipo_telhado?: string;
+  created_at?: string;
+}
+
+type SortKey = 'created_at' | 'nome';
+type SortDir = 'asc' | 'desc';
+
+function fmtDate(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR');
 }
 
 export default function ClientesPage() {
@@ -32,6 +42,27 @@ export default function ClientesPage() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('created_at');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  function toggleSort(k: SortKey) {
+    if (sortKey === k) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(k);
+      setSortDir(k === 'created_at' ? 'desc' : 'asc');
+    }
+  }
+
+  const sortedClients = [...clients].sort((a, b) => {
+    let cmp = 0;
+    if (sortKey === 'created_at') {
+      cmp = (a.created_at || '').localeCompare(b.created_at || '');
+    } else {
+      cmp = (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
 
   const fetchClients = useCallback(async (searchTerm?: string) => {
     try {
@@ -122,16 +153,21 @@ export default function ClientesPage() {
             <table className={styles.table}>
             <thead>
               <tr>
-                <th>Nome</th>
+                <th onClick={() => toggleSort('nome')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Nome {sortKey === 'nome' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                </th>
                 <th>Tipo</th>
                 <th>CPF / CNPJ</th>
                 <th>Cidade / UF</th>
                 <th>Concessionária</th>
+                <th onClick={() => toggleSort('created_at')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  Cadastrado em {sortKey === 'created_at' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                </th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {clients.map(client => (
+              {sortedClients.map(client => (
                 <tr key={client.id}>
                   <td className={styles.clientName}>{client.nome}</td>
                   <td>
@@ -142,6 +178,7 @@ export default function ClientesPage() {
                   <td>{client.cpf_cnpj || '—'}</td>
                   <td>{client.cidade ? `${client.cidade}${client.uf ? `/${client.uf}` : ''}` : '—'}</td>
                   <td>{client.concessionaria || '—'}</td>
+                  <td>{fmtDate(client.created_at)}</td>
                   <td>
                     <div className={styles.actions}>
                       <button className={styles.editBtn} onClick={() => { setEditingClient(client); setShowModal(true); }}>
@@ -164,7 +201,7 @@ export default function ClientesPage() {
 
         {/* Mobile cards */}
         <div className={styles.cardList}>
-          {clients.map(client => (
+          {sortedClients.map(client => (
             <div key={client.id} className={styles.card}>
               <div className={styles.cardTop}>
                 <span className={styles.cardName}>{client.nome}</span>
