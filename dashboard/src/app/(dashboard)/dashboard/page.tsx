@@ -131,16 +131,19 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
+    // allSettled — uma API falhar não derruba a renderização inteira.
+    // Antes: Promise.all silenciava o dashboard se /terceiros, /clients ou
+    // /documents/list dessem 5xx — user ficava em null e render virava null.
+    Promise.allSettled([
       api.get('/auth/me'),
       api.get('/clients'),
       api.get('/terceiros'),
       api.get('/documents/list'),
     ]).then(([meRes, cliRes, tercRes, docsRes]) => {
-      setUser(meRes.data.user);
-      setClientesCount(cliRes.data.clients?.length ?? 0);
-      setTerceirosCount(tercRes.data.terceiros?.length ?? 0);
-      setDocs(docsRes.data.documents ?? []);
+      if (meRes.status === 'fulfilled') setUser(meRes.value.data.user);
+      if (cliRes.status === 'fulfilled') setClientesCount(cliRes.value.data.clients?.length ?? 0);
+      if (tercRes.status === 'fulfilled') setTerceirosCount(tercRes.value.data.terceiros?.length ?? 0);
+      if (docsRes.status === 'fulfilled') setDocs(docsRes.value.data.documents ?? []);
     }).finally(() => setLoading(false));
   }, []);
 
