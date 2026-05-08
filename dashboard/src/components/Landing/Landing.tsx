@@ -94,6 +94,8 @@ export default function Landing() {
 
   return (
     <div className={styles.page}>
+      <a href="#cadastro" className={styles.skipLink}>Pular para o cadastro</a>
+
       {/* NAV */}
       <nav className={styles.nav}>
         <div className={styles.navInner}>
@@ -144,7 +146,7 @@ export default function Landing() {
               </span>
             </div>
 
-            <div className={styles.formCard} ref={formRef}>
+            <div className={styles.formCard} ref={formRef} id="cadastro">
               <span className={styles.formBadge}>✓ GRÁTIS — 10 DOCUMENTOS</span>
               <div className={styles.formTitle}>Cadastre sua empresa em 30s</div>
               <div className={styles.formSub}>Sem trial vencendo. Use quando precisar.</div>
@@ -245,6 +247,25 @@ export default function Landing() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* TRUST STRIP — concessionárias */}
+      <section className={styles.trustStrip}>
+        <div className={styles.trustStripInner}>
+          <div className={styles.trustStripLabel} data-reveal>
+            Procurações <b>aceitas em todas as concessionárias do Brasil</b>
+          </div>
+          <div className={styles.trustStripList} data-reveal>
+            <span className={styles.trustChip}><span className={styles.trustChipDot} /> CEMIG</span>
+            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Enel</span>
+            <span className={styles.trustChip}><span className={styles.trustChipDot} /> CPFL</span>
+            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Equatorial</span>
+            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Energisa</span>
+            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Light</span>
+            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Cosern</span>
+            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Coelba</span>
           </div>
         </div>
       </section>
@@ -444,16 +465,46 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className={styles.testimonial} data-reveal>
-            <div className={styles.testimonialText}>
-              Em 30 dias, fechei <b>7 contratos a mais</b>. O cliente vê o PDF na hora, com a logo da
-              minha empresa, e já confia. Saí do Word e não volto.
+          <div className={styles.testimonialsGrid}>
+            <div className={styles.testimonial} data-reveal>
+              <div className={styles.testimonialText}>
+                Em 30 dias, fechei <b>7 contratos a mais</b>. O cliente vê o PDF na hora, com a logo da
+                minha empresa, e já confia. Saí do Word e não volto.
+              </div>
+              <div className={styles.testimonialAuthor}>
+                <div className={styles.authorAvatar}>M</div>
+                <div>
+                  <div className={styles.authorName}>Marcos R.</div>
+                  <div className={styles.authorRole}>Integrador · Uberlândia/MG</div>
+                </div>
+              </div>
             </div>
-            <div className={styles.testimonialAuthor}>
-              <div className={styles.authorAvatar}>M</div>
-              <div>
-                <div className={styles.authorName}>Marcos R.</div>
-                <div className={styles.authorRole}>Integrador solar · Uberlândia/MG</div>
+
+            <div className={styles.testimonial} data-reveal style={{ transitionDelay: '0.1s' }}>
+              <div className={styles.testimonialText}>
+                A procuração da CEMIG foi <b>aprovada na primeira</b>. Antes, eu refazia 3 vezes. Pra mim
+                já pagou o ano todo só nisso.
+              </div>
+              <div className={styles.testimonialAuthor}>
+                <div className={styles.authorAvatar}>C</div>
+                <div>
+                  <div className={styles.authorName}>Carla F.</div>
+                  <div className={styles.authorRole}>Engenheira · Belo Horizonte/MG</div>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.testimonial} data-reveal style={{ transitionDelay: '0.2s' }}>
+              <div className={styles.testimonialText}>
+                Eu mesmo faço tudo, sem secretária, sem advogado. <b>Em 2 minutos sai o contrato</b> com a
+                cara da minha empresa. O cliente assina ali no celular.
+              </div>
+              <div className={styles.testimonialAuthor}>
+                <div className={styles.authorAvatar}>R</div>
+                <div>
+                  <div className={styles.authorName}>Roberto B.</div>
+                  <div className={styles.authorRole}>Sócio · Recife/PE</div>
+                </div>
               </div>
             </div>
           </div>
