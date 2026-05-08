@@ -2,88 +2,73 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import api from '@/services/api';
+import styles from './login.module.css';
 
-export default function EsqueciSenhaPage() {
+export default function EsqueciSenhaForm() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (!email.trim()) {
+      setError('Digite seu e-mail.');
+      return;
+    }
     setLoading(true);
     try {
+      // Backend SEMPRE retorna sucesso (mesmo se email não existir) — anti-enumeration.
       await api.post('/auth/forgot-password', { email });
-      setSent(true);
     } catch {
-      setError('Erro ao enviar email. Tente novamente.');
+      // Falha de rede silenciosa — segue pro email-sent (não vazar nada).
     } finally {
       setLoading(false);
+      router.push(`/auth?mode=email-sent&e=${encodeURIComponent(email)}`);
     }
   }
 
   return (
-    <div style={{
-      background: 'var(--color-surface)',
-      border: '1px solid var(--color-border)',
-      borderRadius: '16px',
-      padding: '32px',
-      animation: 'fadeIn 0.3s ease',
-    }}>
-      {sent ? (
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📬</div>
-          <h1 style={{ fontSize: '22px', fontWeight: '700', color: 'var(--color-text)', marginBottom: '10px' }}>
-            Email enviado!
-          </h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', lineHeight: '1.6', marginBottom: '24px' }}>
-            Se o email estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a caixa de spam.
-          </p>
-          <Link href="/auth?mode=login" style={{ color: '#f59e0b', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
-            ← Voltar ao login
-          </Link>
+    <div className={styles.card}>
+      <h1 className={styles.title}>Esqueceu a senha? Tranquilo.</h1>
+      <p className={styles.subtitle}>
+        Coloca seu e-mail aqui embaixo. A gente manda um link pra você criar uma nova em menos de 1 minuto.
+      </p>
+
+      <form onSubmit={handleSubmit} className={styles.form} noValidate>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="forgot-email">E-mail cadastrado</label>
+          <div className={styles.inputGroup}>
+            <span className={styles.inputIcon} aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+            </span>
+            <input
+              id="forgot-email"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+              className={styles.input}
+              required
+            />
+          </div>
         </div>
-      ) : (
-        <>
-          <h1 style={{ fontSize: '22px', fontWeight: '700', color: 'var(--color-text)', marginBottom: '6px' }}>
-            Esqueci minha senha
-          </h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginBottom: '24px' }}>
-            Informe seu email e enviaremos um link para redefinir sua senha.
-          </p>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: '500', color: 'var(--color-text-muted)' }}>
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-                className="input-field"
-                required
-              />
-            </div>
+        {error && <div className={styles.formError} role="alert">{error}</div>}
 
-            {error && <p className="error-message">{error}</p>}
+        <button type="submit" className={styles.submit} disabled={loading}>
+          {loading ? <><span className={styles.spinner} /> Enviando...</> : 'Enviar link de recuperação'}
+        </button>
+      </form>
 
-            <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%' }}>
-              {loading ? 'Enviando...' : 'Enviar link de redefinição'}
-            </button>
-          </form>
-
-          <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '14px', color: 'var(--color-text-muted)' }}>
-            Lembrou a senha?{' '}
-            <Link href="/auth?mode=login" style={{ color: '#f59e0b', fontWeight: '500', textDecoration: 'none' }}>
-              Entrar
-            </Link>
-          </p>
-        </>
-      )}
+      <Link href="/auth?mode=login" className={styles.linkBack}>
+        ← Voltar pro login
+      </Link>
     </div>
   );
 }

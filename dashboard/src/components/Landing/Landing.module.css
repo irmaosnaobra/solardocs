@@ -79,16 +79,11 @@
   letter-spacing: -0.015em;
 }
 .brandLogo {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
+  display: block;
   border-radius: 9px;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  display: grid;
-  place-items: center;
-  color: #0f172a;
-  font-weight: 900;
-  font-size: 15px;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
 }
 .brandAccent { color: var(--color-primary); }
 .navRight {

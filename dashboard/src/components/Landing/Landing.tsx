@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import api from '@/services/api';
 import { setToken, setUser } from '@/services/auth';
@@ -100,7 +101,14 @@ export default function Landing() {
       <nav className={styles.nav}>
         <div className={styles.navInner}>
           <div className={styles.brand}>
-            <span className={styles.brandLogo}>S</span>
+            <Image
+              src="/logo.png"
+              alt="SolarDoc Pro"
+              width={36}
+              height={36}
+              priority
+              className={styles.brandLogo}
+            />
             <span>Solar<span className={styles.brandAccent}>Doc</span></span>
           </div>
           <div className={styles.navRight}>
