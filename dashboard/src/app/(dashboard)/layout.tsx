@@ -263,28 +263,30 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <Sidebar user={user} hasCompany={hasCompany} onUpgradeClick={() => setShowUpgrade(true)} />
       <main className={styles.main}>
         <TopBar userEmail={user.email} />
-        {isFree && docsRestantes !== null && docsRestantes > 0 && (
-          <div style={{
-            background: docsRestantes <= 2 ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',
-            border: `1px solid ${docsRestantes <= 2 ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`,
-            borderRadius: 10,
-            padding: '10px 16px',
-            marginBottom: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 8,
-          }}>
-            <span style={{ fontSize: 13, color: docsRestantes <= 2 ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
-              📄 Plano Gratuito — <strong>{docsRestantes} documento{docsRestantes !== 1 ? 's' : ''}</strong> restante{docsRestantes !== 1 ? 's' : ''} de 10.
-            </span>
-            <a href="/planos" style={{ fontSize: 12, fontWeight: 700, color: docsRestantes <= 2 ? '#ef4444' : '#f59e0b', textDecoration: 'underline', whiteSpace: 'nowrap' }}>
-              Ver planos →
-            </a>
-          </div>
-        )}
-        {children}
+        <div className={styles.content}>
+          {isFree && docsRestantes !== null && docsRestantes > 0 && (
+            <div style={{
+              background: docsRestantes <= 2 ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',
+              border: `1px solid ${docsRestantes <= 2 ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`,
+              borderRadius: 10,
+              padding: '10px 16px',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 8,
+            }}>
+              <span style={{ fontSize: 13, color: docsRestantes <= 2 ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
+                📄 Plano Gratuito — <strong>{docsRestantes} documento{docsRestantes !== 1 ? 's' : ''}</strong> restante{docsRestantes !== 1 ? 's' : ''} de 10.
+              </span>
+              <a href="/planos" style={{ fontSize: 12, fontWeight: 700, color: docsRestantes <= 2 ? '#ef4444' : '#f59e0b', textDecoration: 'underline', whiteSpace: 'nowrap' }}>
+                Ver planos →
+              </a>
+            </div>
+          )}
+          {children}
+        </div>
       </main>
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} plano={user.plano} />}
     </div>

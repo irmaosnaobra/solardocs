@@ -9,10 +9,15 @@
   min-width: 0; /* CRÍTICO: permite overflow horizontal nos filhos (Kanban CRM) */
   max-width: 100%;
   margin-left: var(--sidebar-width);
-  padding: 0 32px 32px;
+  padding: 0;
   min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden; /* Bloqueia overflow do pai pra forçar scroll no filho .crm-kanban-scroll */
+}
+
+/* Wrapper interno do conteúdo (depois do TopBar) — dá padding sem afetar o TopBar */
+.content {
+  padding: 24px 32px 32px;
 }
 
 /* Em mobile, sidebar some, main ocupa tudo */
@@ -31,7 +36,10 @@
 @media (max-width: 768px) {
   .main {
     margin-left: 0;
-    padding: 16px;
-    padding-top: 72px; /* espaço para a barra superior fixa */
+    padding: 0;
+    padding-top: 56px; /* espaço para a barra superior mobile fixa (56px height) */
+  }
+  .content {
+    padding: 16px 16px 32px;
   }
 }
