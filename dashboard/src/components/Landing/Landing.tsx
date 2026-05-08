@@ -465,47 +465,93 @@ export default function Landing() {
           </div>
 
           <div className={styles.testimonialsGrid}>
-            <div className={styles.testimonial} data-reveal>
-              <div className={styles.testimonialText}>
-                Em 30 dias, fechei <b>7 contratos a mais</b>. O cliente vê o PDF na hora, com a logo da
-                minha empresa, e já confia. Saí do Word e não volto.
-              </div>
-              <div className={styles.testimonialAuthor}>
-                <div className={styles.authorAvatar}>M</div>
-                <div>
-                  <div className={styles.authorName}>Marcos R.</div>
-                  <div className={styles.authorRole}>Integrador · Uberlândia/MG</div>
+            <article className={styles.igPost} data-reveal>
+              <header className={styles.igHeader}>
+                <div className={`${styles.igAvatar} ${styles.igAvatarA}`}>
+                  <span><span>M</span></span>
                 </div>
+                <div className={styles.igMeta}>
+                  <div className={styles.igName}>marcos.solar.uberlandia</div>
+                  <div className={styles.igTime}>2d · Uberlândia/MG</div>
+                </div>
+                <span className={styles.igDots} aria-hidden>•••</span>
+              </header>
+              <div className={styles.igBody}>
+                gente, só pra contar — fechei <b>7 contratos a mais em 30 dias</b> 🤝 o cliente vê
+                o PDF na hora com a logo da minha empresa e já confia. saí do Word e não volto mais 😎
               </div>
-            </div>
+              <div className={styles.igActions}>
+                <button className={`${styles.igAction} ${styles.igHeart}`} aria-label="curtir">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                </button>
+                <button className={styles.igAction} aria-label="comentar">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </button>
+                <button className={styles.igAction} aria-label="compartilhar">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+              <div className={styles.igLikes}>147 curtidas</div>
+            </article>
 
-            <div className={styles.testimonial} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.testimonialText}>
-                A procuração da CEMIG foi <b>aprovada de primeira</b>. Antes, eu refazia 3 vezes. Pra mim,
-                já se pagou o ano todo só nisso.
-              </div>
-              <div className={styles.testimonialAuthor}>
-                <div className={styles.authorAvatar}>C</div>
-                <div>
-                  <div className={styles.authorName}>Carla F.</div>
-                  <div className={styles.authorRole}>Engenheira · Belo Horizonte/MG</div>
+            <article className={styles.igPost} data-reveal style={{ transitionDelay: '0.1s' }}>
+              <header className={styles.igHeader}>
+                <div className={`${styles.igAvatar} ${styles.igAvatarB}`}>
+                  <span><span>C</span></span>
                 </div>
+                <div className={styles.igMeta}>
+                  <div className={styles.igName}>carla.eng.solar</div>
+                  <div className={styles.igTime}>5d · Belo Horizonte/MG</div>
+                </div>
+                <span className={styles.igDots} aria-hidden>•••</span>
+              </header>
+              <div className={styles.igBody}>
+                amooo demais 🥹 a procuração da CEMIG foi <b>aprovada de primeira</b>! antes
+                eu refazia 3 vezes, perdia uma semana toda. pra mim já se pagou o ano só nisso ✨
               </div>
-            </div>
+              <div className={styles.igActions}>
+                <button className={`${styles.igAction} ${styles.igHeart}`} aria-label="curtir">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                </button>
+                <button className={styles.igAction} aria-label="comentar">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </button>
+                <button className={styles.igAction} aria-label="compartilhar">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+              <div className={styles.igLikes}>89 curtidas</div>
+            </article>
 
-            <div className={styles.testimonial} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.testimonialText}>
-                Eu mesmo faço tudo, sem secretária, sem advogado. <b>Em 2 minutos sai o contrato</b> com a
-                cara da minha empresa. O cliente assina ali no celular.
-              </div>
-              <div className={styles.testimonialAuthor}>
-                <div className={styles.authorAvatar}>R</div>
-                <div>
-                  <div className={styles.authorName}>Roberto B.</div>
-                  <div className={styles.authorRole}>Sócio · Recife/PE</div>
+            <article className={styles.igPost} data-reveal style={{ transitionDelay: '0.2s' }}>
+              <header className={styles.igHeader}>
+                <div className={`${styles.igAvatar} ${styles.igAvatarC}`}>
+                  <span><span>R</span></span>
                 </div>
+                <div className={styles.igMeta}>
+                  <div className={styles.igName}>roberto.solar.recife</div>
+                  <div className={styles.igTime}>1sem · Recife/PE</div>
+                </div>
+                <span className={styles.igDots} aria-hidden>•••</span>
+              </header>
+              <div className={styles.igBody}>
+                rapaz, eu mesmo faço tudo aqui — sem secretária, sem advogado. <b>contrato sai em 2 minutos</b>
+                com a cara da minha empresa e o cliente assina ali no celular. quero ver alguém perder venda
+                desse jeito 🚀
               </div>
-            </div>
+              <div className={styles.igActions}>
+                <button className={`${styles.igAction} ${styles.igHeart}`} aria-label="curtir">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                </button>
+                <button className={styles.igAction} aria-label="comentar">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </button>
+                <button className={styles.igAction} aria-label="compartilhar">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+              <div className={styles.igLikes}>212 curtidas</div>
+            </article>
           </div>
         </div>
       </section>

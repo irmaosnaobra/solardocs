@@ -1002,52 +1002,153 @@
 .testimonialsGrid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 18px;
+  gap: 16px;
+  max-width: 720px;
+  margin: 0 auto;
 }
-@media (min-width: 760px) {
-  .testimonialsGrid { grid-template-columns: repeat(3, 1fr); gap: 22px; }
+@media (min-width: 880px) {
+  .testimonialsGrid { grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: none; }
 }
-.testimonial {
-  background: linear-gradient(135deg, var(--color-surface), rgba(245, 158, 11, 0.06));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  padding: 28px 26px;
-  position: relative;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.25);
+
+/* ----- IG-style post card ----- */
+.igPost {
+  background: #1e1e1e;
+  border: 1px solid #2a2a2a;
+  border-radius: 14px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
-.testimonial::before {
-  content: '"';
-  font-size: 70px;
-  line-height: 0.6;
-  color: var(--color-primary);
-  font-family: Georgia, serif;
-  position: absolute;
-  top: 18px;
-  left: 22px;
-  opacity: 0.35;
-}
-.testimonialText {
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--color-text);
-  font-weight: 500;
-  letter-spacing: -0.005em;
-  margin: 18px 0 18px;
-  padding-left: 4px;
-  position: relative;
-  z-index: 1;
-  flex: 1;
-}
-.testimonialText b { color: var(--color-primary); font-weight: 700; }
-.testimonialAuthor {
+
+.igHeader {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-left: 4px;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #2a2a2a;
+}
+.igAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  flex-shrink: 0;
   position: relative;
-  z-index: 1;
+  padding: 2px;
+  background: linear-gradient(135deg, #fcb045, #fd1d1d 50%, #833ab4);
+}
+.igAvatar > span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #1e1e1e;
+  border: 2px solid #1e1e1e;
+}
+.igAvatar > span > span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+}
+.igAvatarA > span > span { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+.igAvatarB > span > span { background: linear-gradient(135deg, #ec4899, #be185d); color: #fff; }
+.igAvatarC > span > span { background: linear-gradient(135deg, #3b82f6, #1e40af); color: #fff; }
+
+.igMeta { flex: 1; min-width: 0; line-height: 1.2; }
+.igName {
+  color: #fafafa;
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: -0.005em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.igName::after {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231d9bf0' d='m9 16.17l-3.88-3.88l-1.42 1.41L9 19L21 7l-1.41-1.41z'/%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%231d9bf0' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.igTime {
+  color: #a8a8a8;
+  font-size: 11.5px;
+  font-weight: 400;
+  margin-top: 1px;
+}
+.igDots {
+  color: #fafafa;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.igBody {
+  padding: 14px;
+  color: #fafafa;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+.igBody b {
+  color: #fafafa;
+  font-weight: 700;
+}
+
+.igActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 14px 8px;
+}
+.igAction {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  color: #fafafa;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.igAction:hover { opacity: 0.7; }
+.igAction:active { transform: scale(0.92); }
+.igHeart { color: #ed4956; }
+
+.igLikes {
+  padding: 0 14px 12px;
+  font-size: 13px;
+  color: #fafafa;
+  font-weight: 700;
+}
+
+@media (max-width: 540px) {
+  .igHeader { padding: 10px 12px; }
+  .igBody { padding: 12px; font-size: 13.5px; }
+  .igActions { padding: 4px 12px 6px; }
+  .igLikes { padding: 0 12px 10px; font-size: 12.5px; }
 }
 .authorAvatar {
   width: 44px;
