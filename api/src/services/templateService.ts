@@ -1350,9 +1350,11 @@ CPF:                                    CPF:
 // ════════════════════════════════════════════════════════════
 // VISTORIA CHECKLIST — checklist operacional pra visita técnica
 // ════════════════════════════════════════════════════════════
-// Imprimível em A4. Boxes vazios pro instalador marcar à mão na obra.
-// 7 etapas seguindo a ordem real da visita (~75min).
-// Form pede só: cliente, endereço, data, técnico responsável.
+// 2 modos:
+//  - "em_branco" (default): boxes vazios pro instalador marcar à mão na obra
+//  - "digital": vendedor preenche no celular, PDF sai com tudo marcado
+//
+// Form pede mínimo no modo em_branco. No digital, todos os checks expostos.
 function vistoriaM1(
   company: Company,
   client: Client,
@@ -1363,9 +1365,22 @@ function vistoriaM1(
     ? str(f.endereco_visita)
     : enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
   const tecnico = str(f.tecnico_nome);
+  const modoDigital = f.modo === 'digital';
 
-  // Caixa em quadrado sólido — renderiza bonito no PDF (font-family Inter cobre).
-  const BX = '☐';
+  // ☐ pra unchecked, ☒ pra checked. No modo "em_branco" sempre ☐.
+  const bx = (checked?: unknown): string =>
+    modoDigital && checked === true ? '☒' : '☐';
+
+  // No modo digital substitui linhas de preenchimento pelo valor; em branco mantém ___
+  const v = (val: unknown, placeholder = '_________'): string => {
+    if (!modoDigital) return placeholder;
+    const s = str(val);
+    return s === '___' ? placeholder : s;
+  };
+
+  // Helper pra opções com 1 selecionada (radio-like). value é o que veio do form,
+  // option é o que essa caixa específica representa.
+  const opt = (value: unknown, option: string): string => bx(value === option);
 
   return `VISTORIA TÉCNICA — CHECKLIST DE VISITA
 Sistema fotovoltaico
@@ -1380,44 +1395,45 @@ DATA: ${today}    TÉCNICO: ${tecnico || '___________________________'}
 
 1. CONSUMO
 
-  ${BX} Conta de luz coletada (foto)
-  Consumo médio: _________ kWh/mês
+  ${bx(f.consumo_conta_foto)} Conta de luz coletada (foto)
+  Consumo médio: ${v(f.consumo_kwh)} kWh/mês
 
 
 2. PADRÃO ELÉTRICO
 
-  Tipo:       ${BX} Monofásico   ${BX} Bifásico   ${BX} Trifásico
-  Disjuntor:  _______ A
+  Tipo:       ${opt(f.padrao_tipo, 'mono')} Monofásico   ${opt(f.padrao_tipo, 'bi')} Bifásico   ${opt(f.padrao_tipo, 'tri')} Trifásico
+  Disjuntor:  ${v(f.padrao_disjuntor, '_______')} A
 
-  ${BX} Padrão em bom estado
-  ${BX} Espaço para inversor próximo
-  ${BX} Foto do padrão
+  ${bx(f.padrao_estado_ok)} Padrão em bom estado
+  ${bx(f.padrao_espaco_inversor)} Espaço para inversor próximo
+  ${bx(f.padrao_foto)} Foto do padrão
 
 
 3. TELHADO
 
-  Tipo:        ${BX} Cerâmica   ${BX} Fibrocimento   ${BX} Metálica   ${BX} Laje
-  Área útil:   _________ m²
-  Orientação:  ${BX} N   ${BX} NE   ${BX} NO   ${BX} L   ${BX} O
+  Tipo:        ${opt(f.telhado_tipo, 'ceramica')} Cerâmica   ${opt(f.telhado_tipo, 'fibrocimento')} Fibrocimento   ${opt(f.telhado_tipo, 'metalica')} Metálica   ${opt(f.telhado_tipo, 'laje')} Laje
+  Área útil:   ${v(f.telhado_area)} m²
+  Orientação:  ${opt(f.telhado_orientacao, 'N')} N   ${opt(f.telhado_orientacao, 'NE')} NE   ${opt(f.telhado_orientacao, 'NO')} NO   ${opt(f.telhado_orientacao, 'L')} L   ${opt(f.telhado_orientacao, 'O')} O
 
-  ${BX} Sem sombreamento crítico
-  ${BX} Estrutura ok pra suportar painéis
-  ${BX} Foto do telhado
+  ${bx(f.telhado_sem_sombra)} Sem sombreamento crítico
+  ${bx(f.telhado_estrutura_ok)} Estrutura ok pra suportar painéis
+  ${bx(f.telhado_foto)} Foto do telhado
 
 
 4. DIMENSIONAMENTO PRELIMINAR
 
-  Potência sugerida: _________ kWp
-  Distância padrão → inversor: _________ m
+  Potência sugerida: ${v(f.dim_potencia)} kWp
+  Distância padrão → inversor: ${v(f.dim_distancia)} m
 
 
 5. CONCLUSÃO
 
-  ${BX} Viável   ${BX} Viável com ressalvas   ${BX} Não viável
+  ${opt(f.conclusao, 'viavel')} Viável   ${opt(f.conclusao, 'ressalvas')} Viável com ressalvas   ${opt(f.conclusao, 'nao_viavel')} Não viável
 
   Observações:
-  __________________________________________________________________________
-  __________________________________________________________________________
+  ${modoDigital && str(f.observacoes) !== '___'
+    ? String(f.observacoes).split('\n').map((l) => '  ' + l).join('\n')
+    : '__________________________________________________________________________\n  __________________________________________________________________________'}
 
 
 ────────────────────────────────────────────────────────────
