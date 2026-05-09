@@ -1395,7 +1395,6 @@ DATA: ${today}    TÉCNICO: ${tecnico || '___________________________'}
 
 1. CONSUMO
 
-  ${bx(f.consumo_conta_foto)} Conta de luz coletada (foto)
   Consumo médio: ${v(f.consumo_kwh)} kWh/mês
 
 
@@ -1406,7 +1405,6 @@ DATA: ${today}    TÉCNICO: ${tecnico || '___________________________'}
 
   ${bx(f.padrao_estado_ok)} Padrão em bom estado
   ${bx(f.padrao_espaco_inversor)} Espaço para inversor próximo
-  ${bx(f.padrao_foto)} Foto do padrão
 
 
 3. TELHADO
@@ -1417,7 +1415,6 @@ DATA: ${today}    TÉCNICO: ${tecnico || '___________________________'}
 
   ${bx(f.telhado_sem_sombra)} Sem sombreamento crítico
   ${bx(f.telhado_estrutura_ok)} Estrutura ok pra suportar painéis
-  ${bx(f.telhado_foto)} Foto do telhado
 
 
 4. DIMENSIONAMENTO PRELIMINAR
@@ -1426,14 +1423,24 @@ DATA: ${today}    TÉCNICO: ${tecnico || '___________________________'}
   Distância padrão → inversor: ${v(f.dim_distancia)} m
 
 
-5. CONCLUSÃO
+5. FOTOS & DOCUMENTOS COLETADOS
+
+  ${bx(f.foto_fachada)} Fachada do imóvel
+  ${bx(f.foto_padrao)} Padrão de entrada
+  ${bx(f.foto_disjuntor)} Disjuntor (close-up)
+  ${bx(f.foto_relogio)} Relógio / medidor
+  ${bx(f.foto_conta_luz)} Conta de luz
+  ${bx(f.foto_cnh)} CNH do cliente
+
+
+6. CONCLUSÃO
 
   ${opt(f.conclusao, 'viavel')} Viável   ${opt(f.conclusao, 'ressalvas')} Viável com ressalvas   ${opt(f.conclusao, 'nao_viavel')} Não viável
 
   Observações:
   ${modoDigital && str(f.observacoes) !== '___'
     ? String(f.observacoes).split('\n').map((l) => '  ' + l).join('\n')
-    : '__________________________________________________________________________\n  __________________________________________________________________________'}
+    : '__________________________________________________________________________\n  __________________________________________________________________________\n  __________________________________________________________________________\n  __________________________________________________________________________\n  __________________________________________________________________________\n  __________________________________________________________________________'}
 
 
 ────────────────────────────────────────────────────────────

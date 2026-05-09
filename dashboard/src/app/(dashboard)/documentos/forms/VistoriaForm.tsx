@@ -22,21 +22,25 @@ const initialFields = {
   tecnico_nome: '',
   modo: 'em_branco' as Modo,
   // modo digital — checks e valores. Ignorados se modo='em_branco'.
-  consumo_conta_foto: false,
   consumo_kwh: '',
   padrao_tipo: '' as '' | 'mono' | 'bi' | 'tri',
   padrao_disjuntor: '',
   padrao_estado_ok: false,
   padrao_espaco_inversor: false,
-  padrao_foto: false,
   telhado_tipo: '' as '' | 'ceramica' | 'fibrocimento' | 'metalica' | 'laje',
   telhado_area: '',
   telhado_orientacao: '' as '' | 'N' | 'NE' | 'NO' | 'L' | 'O',
   telhado_sem_sombra: false,
   telhado_estrutura_ok: false,
-  telhado_foto: false,
   dim_potencia: '',
   dim_distancia: '',
+  // fotos e documentos coletados
+  foto_fachada: false,
+  foto_padrao: false,
+  foto_disjuntor: false,
+  foto_relogio: false,
+  foto_conta_luz: false,
+  foto_cnh: false,
   conclusao: '' as '' | 'viavel' | 'ressalvas' | 'nao_viavel',
   observacoes: '',
 };
@@ -211,8 +215,7 @@ export default function VistoriaPage() {
           <>
             <div className={styles.section}>
               <h2 className={styles.sectionTitle}>1. Consumo</h2>
-              <CheckRow label="Conta de luz coletada (foto)" value={fields.consumo_conta_foto} onChange={v => setField('consumo_conta_foto', v)} />
-              <div className={styles.field} style={{ marginTop: 8 }}>
+              <div className={styles.field}>
                 <label className={styles.label}>Consumo médio (kWh/mês)</label>
                 <input type="text" inputMode="numeric" value={fields.consumo_kwh} onChange={e => setField('consumo_kwh', e.target.value)} placeholder="Ex: 450" className="input-field" />
               </div>
@@ -232,7 +235,6 @@ export default function VistoriaPage() {
               </div>
               <CheckRow label="Padrão em bom estado" value={fields.padrao_estado_ok} onChange={v => setField('padrao_estado_ok', v)} />
               <CheckRow label="Espaço para inversor próximo" value={fields.padrao_espaco_inversor} onChange={v => setField('padrao_espaco_inversor', v)} />
-              <CheckRow label="Foto do padrão" value={fields.padrao_foto} onChange={v => setField('padrao_foto', v)} />
             </div>
 
             <div className={styles.section}>
@@ -266,7 +268,6 @@ export default function VistoriaPage() {
               />
               <CheckRow label="Sem sombreamento crítico" value={fields.telhado_sem_sombra} onChange={v => setField('telhado_sem_sombra', v)} />
               <CheckRow label="Estrutura ok pra suportar painéis" value={fields.telhado_estrutura_ok} onChange={v => setField('telhado_estrutura_ok', v)} />
-              <CheckRow label="Foto do telhado" value={fields.telhado_foto} onChange={v => setField('telhado_foto', v)} />
             </div>
 
             <div className={styles.section}>
@@ -284,7 +285,20 @@ export default function VistoriaPage() {
             </div>
 
             <div className={styles.section}>
-              <h2 className={styles.sectionTitle}>5. Conclusão</h2>
+              <h2 className={styles.sectionTitle}>5. Fotos & documentos coletados</h2>
+              <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 8 }}>
+                Marca o que você já tirou foto / coletou. Vai aparecer no PDF como evidência da vistoria.
+              </p>
+              <CheckRow label="Fachada do imóvel" value={fields.foto_fachada} onChange={v => setField('foto_fachada', v)} />
+              <CheckRow label="Padrão de entrada" value={fields.foto_padrao} onChange={v => setField('foto_padrao', v)} />
+              <CheckRow label="Disjuntor (close-up)" value={fields.foto_disjuntor} onChange={v => setField('foto_disjuntor', v)} />
+              <CheckRow label="Relógio / medidor" value={fields.foto_relogio} onChange={v => setField('foto_relogio', v)} />
+              <CheckRow label="Conta de luz" value={fields.foto_conta_luz} onChange={v => setField('foto_conta_luz', v)} />
+              <CheckRow label="CNH do cliente" value={fields.foto_cnh} onChange={v => setField('foto_cnh', v)} />
+            </div>
+
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>6. Conclusão</h2>
               <PickRow
                 label="Resultado"
                 value={fields.conclusao}
@@ -297,7 +311,7 @@ export default function VistoriaPage() {
               />
               <div className={styles.fieldFull} style={{ marginTop: 4 }}>
                 <label className={styles.label}>Observações</label>
-                <textarea value={fields.observacoes} onChange={e => setField('observacoes', e.target.value)} placeholder="Qualquer ressalva, recomendação ou detalhe importante" className={styles.textarea} rows={3} />
+                <textarea value={fields.observacoes} onChange={e => setField('observacoes', e.target.value)} placeholder="Qualquer ressalva, recomendação, detalhe importante, próximos passos…" className={styles.textarea} rows={8} />
               </div>
             </div>
           </>
