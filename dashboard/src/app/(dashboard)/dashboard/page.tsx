@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import {
   FileText, CalendarDays, Users, Handshake, CalendarClock, Sun,
-  Wrench, ScrollText, Briefcase, Banknote, FileSignature,
+  Wrench, ScrollText, Briefcase, Banknote, FileSignature, ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react';
 import api from '@/services/api';
@@ -41,6 +41,7 @@ const TIPO_LABEL: Record<string, string> = {
   procuracao:       'Procuração',
   contratoPJ:       'Contrato Vendedor',
   propostaBanco:    'Proposta Bancária',
+  vistoria:         'Vistoria CheckList',
 };
 
 const TIPO_ICON: Record<string, LucideIcon> = {
@@ -49,6 +50,7 @@ const TIPO_ICON: Record<string, LucideIcon> = {
   procuracao:       ScrollText,
   contratoPJ:       Briefcase,
   propostaBanco:    Banknote,
+  vistoria:         ClipboardCheck,
 };
 
 const TIPO_HREF: Record<string, string> = {
@@ -57,6 +59,7 @@ const TIPO_HREF: Record<string, string> = {
   procuracao:       '/documentos?tipo=procuracao',
   contratoPJ:       '/documentos?tipo=contrato-pj',
   propostaBanco:    '/documentos?tipo=proposta-bancaria',
+  vistoria:         '/documentos?tipo=vistoria',
 };
 
 const PIE_COLORS = ['#F59E0B', '#FBBF24', '#FCD34D', '#FDE68A', '#FEF3C7'];

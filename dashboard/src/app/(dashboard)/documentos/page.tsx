@@ -8,6 +8,7 @@ import ProcuracaoForm from './forms/ProcuracaoForm';
 import PropostaBancariaForm from './forms/PropostaBancariaForm';
 import PrestacaoServicoForm from './forms/PrestacaoServicoForm';
 import ContratoPjForm from './forms/ContratoPjForm';
+import VistoriaForm from './forms/VistoriaForm';
 
 interface CompanyGate {
   loaded: boolean;
@@ -104,6 +105,7 @@ function DocumentosContent() {
       case 'proposta-bancaria':  return <PropostaBancariaForm />;
       case 'prestacao-servico':  return <PrestacaoServicoForm />;
       case 'contrato-pj':        return <ContratoPjForm />;
+      case 'vistoria':           return <VistoriaForm />;
       default: return null;
     }
   })();
@@ -120,6 +122,7 @@ function DocumentosContent() {
           margin: '0 auto',
         }}>
           {[
+            { id: 'vistoria',           icon: '📋', label: 'Vistoria CheckList' },
             { id: 'contrato-solar',     icon: '☀️', label: 'Contrato Solar' },
             { id: 'procuracao',         icon: '📜', label: 'Procuração' },
             { id: 'proposta-bancaria',  icon: '🏦', label: 'Proposta Bancária' },

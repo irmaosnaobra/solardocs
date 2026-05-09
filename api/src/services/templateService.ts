@@ -69,6 +69,8 @@ export function generateFromTemplate(
       return modelo === 1
         ? prestacaoServicoM1(company, client, fields)
         : prestacaoServicoM2(company, client, fields);
+    case 'vistoria':
+      return vistoriaM1(company, client, fields);
     default:
       throw new Error(`Modelo estático não disponível para: ${type}. Use a geração por IA.`);
   }
@@ -1342,6 +1344,133 @@ Testemunhas:
 ________________________________        ________________________________
 Nome:                                   Nome:
 CPF:                                    CPF:
+`;
+}
+
+// ════════════════════════════════════════════════════════════
+// VISTORIA CHECKLIST — checklist operacional pra visita técnica
+// ════════════════════════════════════════════════════════════
+// Imprimível em A4. Boxes vazios pro instalador marcar à mão na obra.
+// 7 etapas seguindo a ordem real da visita (~75min).
+// Form pede só: cliente, endereço, data, técnico responsável.
+function vistoriaM1(
+  company: Company,
+  client: Client,
+  f: Record<string, unknown>
+): string {
+  const today = str(f.data_visita) !== '___' ? str(f.data_visita) : dateBR();
+  const endereco = str(f.endereco_visita) !== '___'
+    ? str(f.endereco_visita)
+    : enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
+  const tecnico = str(f.tecnico_nome);
+
+  // Caixa em quadrado sólido — renderiza bonito no PDF (font-family Inter cobre).
+  const BX = '☐';
+
+  return `VISTORIA TÉCNICA — CHECKLIST DE VISITA
+Sistema fotovoltaico — Energia solar
+
+EMPRESA: ${company.nome}    CNPJ: ${company.cnpj}
+CLIENTE: ${client.nome}    ${client.cpf_cnpj ? `CPF/CNPJ: ${client.cpf_cnpj}` : ''}
+LOCAL DA VISITA: ${endereco}
+DATA: ${today}    TÉCNICO RESPONSÁVEL: ${tecnico || '___________________________'}
+
+────────────────────────────────────────────────────────────
+
+1. CHEGADA E IDENTIFICAÇÃO    (~5 min)
+
+  ${BX} Identidade e endereço do cliente confirmados
+  ${BX} Credencial / contrato de visita apresentado
+  ${BX} Etapas da visita explicadas ao cliente
+  ${BX} Foto: fachada do imóvel
+
+
+2. ANÁLISE DE CONSUMO    (~10 min)
+
+  ${BX} Última conta de luz coletada (foto/anexo)
+  ${BX} Histórico de 12 meses verificado
+  ${BX} Padrão de uso:  ${BX} Diurno   ${BX} Noturno   ${BX} Misto
+  ${BX} Cargas pesadas listadas (chuveiro / AC / piscina / carro elétrico)
+  ${BX} Crescimento futuro previsto:  ${BX} Sim   ${BX} Não
+
+  Consumo médio mensal: _____________ kWh
+  Observações: _________________________________________________________
+
+
+3. PADRÃO ELÉTRICO    (~15 min)
+
+  Tipo:           ${BX} Monofásico   ${BX} Bifásico   ${BX} Trifásico
+  Disjuntor:      _______ A
+  Estado:         ${BX} Bom   ${BX} Regular   ${BX} Precisa reforma
+
+  ${BX} Lacre da concessionária íntegro
+  ${BX} Aterramento existente e adequado
+  ${BX} Espaço para inversor (próximo ao padrão, ventilado)
+  ${BX} DPS / proteção contra surtos
+  ${BX} Foto: padrão de entrada (geral + lacre)
+
+
+4. ANÁLISE DO TELHADO    (~20 min)
+
+  ${BX} Subida segura validada (escada, EPI)
+
+  Tipo de telha:  ${BX} Cerâmica  ${BX} Fibrocimento  ${BX} Metálica  ${BX} Laje  ${BX} Outro: _______
+  Estado:         ${BX} Novo  ${BX} Bom  ${BX} Regular  ${BX} Precisa reforço
+  Área útil:      _________ m²
+  Inclinação:     _________ °
+  Orientação:     ${BX} N   ${BX} NE   ${BX} NO   ${BX} L   ${BX} O
+  Sombreamento:   ${BX} Sem   ${BX} Manhã   ${BX} Tarde   ${BX} Total
+
+  Causa do sombreamento (se houver): _____________________________________
+  ${BX} Estrutura suporta peso (laje/madeira/metálica avaliada)
+  ${BX} Foto: telhado completo + detalhes
+
+
+5. DIMENSIONAMENTO PRELIMINAR    (~10 min)
+
+  Potência sugerida:                _________ kWp
+  Quantidade de módulos:            _____ × _______ Wp
+  Inversor:                         _________ kW    Modelo: _______________
+  Distância módulos → inversor:     _________ m
+  Distância inversor → padrão:      _________ m
+  ${BX} Arranjo em string viável (esboço no verso)
+
+
+6. HOMOLOGAÇÃO / DISTRIBUIDORA    (~5 min)
+
+  Distribuidora: _______________________________________
+  Nº instalação na concessionária: _________________________
+
+  Documentos cliente coletados:
+  ${BX} RG    ${BX} CPF    ${BX} Comprovante de residência    ${BX} Conta de luz
+
+  ${BX} Procuração assinada (gerar no app)
+  ${BX} Cliente ciente do prazo de homologação (~30-45 dias)
+
+
+7. CONCLUSÃO E PRÓXIMOS PASSOS    (~10 min)
+
+  Conclusão:  ${BX} Viável   ${BX} Viável com ressalvas   ${BX} Não viável
+
+  Ressalvas / observações:
+  __________________________________________________________________________
+  __________________________________________________________________________
+  __________________________________________________________________________
+
+  Proposta a ser enviada em ______ dias.
+  Cliente concorda com prosseguimento:  ${BX} Sim   ${BX} Não
+
+────────────────────────────────────────────────────────────
+
+
+
+_______________________________________            _______________________________________
+TÉCNICO RESPONSÁVEL                                CLIENTE
+${tecnico || ''}                                   ${client.nome}
+${company.nome}                                    Data: ${today}
+
+
+Documento gerado por SolarDoc Pro — solardoc.app
 `;
 }
 
