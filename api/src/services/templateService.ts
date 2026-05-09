@@ -1368,109 +1368,68 @@ function vistoriaM1(
   const BX = '☐';
 
   return `VISTORIA TÉCNICA — CHECKLIST DE VISITA
-Sistema fotovoltaico — Energia solar
+Sistema fotovoltaico
 
 EMPRESA: ${company.nome}    CNPJ: ${company.cnpj}
-CLIENTE: ${client.nome}    ${client.cpf_cnpj ? `CPF/CNPJ: ${client.cpf_cnpj}` : ''}
-LOCAL DA VISITA: ${endereco}
-DATA: ${today}    TÉCNICO RESPONSÁVEL: ${tecnico || '___________________________'}
+CLIENTE: ${client.nome}${client.cpf_cnpj ? `    CPF/CNPJ: ${client.cpf_cnpj}` : ''}
+LOCAL: ${endereco}
+DATA: ${today}    TÉCNICO: ${tecnico || '___________________________'}
 
 ────────────────────────────────────────────────────────────
 
-1. CHEGADA E IDENTIFICAÇÃO    (~5 min)
 
-  ${BX} Identidade e endereço do cliente confirmados
-  ${BX} Credencial / contrato de visita apresentado
-  ${BX} Etapas da visita explicadas ao cliente
-  ${BX} Foto: fachada do imóvel
+1. CONSUMO
 
-
-2. ANÁLISE DE CONSUMO    (~10 min)
-
-  ${BX} Última conta de luz coletada (foto/anexo)
-  ${BX} Histórico de 12 meses verificado
-  ${BX} Padrão de uso:  ${BX} Diurno   ${BX} Noturno   ${BX} Misto
-  ${BX} Cargas pesadas listadas (chuveiro / AC / piscina / carro elétrico)
-  ${BX} Crescimento futuro previsto:  ${BX} Sim   ${BX} Não
-
-  Consumo médio mensal: _____________ kWh
-  Observações: _________________________________________________________
+  ${BX} Conta de luz coletada (foto)
+  Consumo médio: _________ kWh/mês
 
 
-3. PADRÃO ELÉTRICO    (~15 min)
+2. PADRÃO ELÉTRICO
 
-  Tipo:           ${BX} Monofásico   ${BX} Bifásico   ${BX} Trifásico
-  Disjuntor:      _______ A
-  Estado:         ${BX} Bom   ${BX} Regular   ${BX} Precisa reforma
+  Tipo:       ${BX} Monofásico   ${BX} Bifásico   ${BX} Trifásico
+  Disjuntor:  _______ A
 
-  ${BX} Lacre da concessionária íntegro
-  ${BX} Aterramento existente e adequado
-  ${BX} Espaço para inversor (próximo ao padrão, ventilado)
-  ${BX} DPS / proteção contra surtos
-  ${BX} Foto: padrão de entrada (geral + lacre)
+  ${BX} Padrão em bom estado
+  ${BX} Espaço para inversor próximo
+  ${BX} Foto do padrão
 
 
-4. ANÁLISE DO TELHADO    (~20 min)
+3. TELHADO
 
-  ${BX} Subida segura validada (escada, EPI)
+  Tipo:        ${BX} Cerâmica   ${BX} Fibrocimento   ${BX} Metálica   ${BX} Laje
+  Área útil:   _________ m²
+  Orientação:  ${BX} N   ${BX} NE   ${BX} NO   ${BX} L   ${BX} O
 
-  Tipo de telha:  ${BX} Cerâmica  ${BX} Fibrocimento  ${BX} Metálica  ${BX} Laje  ${BX} Outro: _______
-  Estado:         ${BX} Novo  ${BX} Bom  ${BX} Regular  ${BX} Precisa reforço
-  Área útil:      _________ m²
-  Inclinação:     _________ °
-  Orientação:     ${BX} N   ${BX} NE   ${BX} NO   ${BX} L   ${BX} O
-  Sombreamento:   ${BX} Sem   ${BX} Manhã   ${BX} Tarde   ${BX} Total
-
-  Causa do sombreamento (se houver): _____________________________________
-  ${BX} Estrutura suporta peso (laje/madeira/metálica avaliada)
-  ${BX} Foto: telhado completo + detalhes
+  ${BX} Sem sombreamento crítico
+  ${BX} Estrutura ok pra suportar painéis
+  ${BX} Foto do telhado
 
 
-5. DIMENSIONAMENTO PRELIMINAR    (~10 min)
+4. DIMENSIONAMENTO PRELIMINAR
 
-  Potência sugerida:                _________ kWp
-  Quantidade de módulos:            _____ × _______ Wp
-  Inversor:                         _________ kW    Modelo: _______________
-  Distância módulos → inversor:     _________ m
-  Distância inversor → padrão:      _________ m
-  ${BX} Arranjo em string viável (esboço no verso)
+  Potência sugerida: _________ kWp
+  Distância padrão → inversor: _________ m
 
 
-6. HOMOLOGAÇÃO / DISTRIBUIDORA    (~5 min)
+5. CONCLUSÃO
 
-  Distribuidora: _______________________________________
-  Nº instalação na concessionária: _________________________
+  ${BX} Viável   ${BX} Viável com ressalvas   ${BX} Não viável
 
-  Documentos cliente coletados:
-  ${BX} RG    ${BX} CPF    ${BX} Comprovante de residência    ${BX} Conta de luz
-
-  ${BX} Procuração assinada (gerar no app)
-  ${BX} Cliente ciente do prazo de homologação (~30-45 dias)
-
-
-7. CONCLUSÃO E PRÓXIMOS PASSOS    (~10 min)
-
-  Conclusão:  ${BX} Viável   ${BX} Viável com ressalvas   ${BX} Não viável
-
-  Ressalvas / observações:
-  __________________________________________________________________________
+  Observações:
   __________________________________________________________________________
   __________________________________________________________________________
 
-  Proposta a ser enviada em ______ dias.
-  Cliente concorda com prosseguimento:  ${BX} Sim   ${BX} Não
 
 ────────────────────────────────────────────────────────────
 
 
 
 _______________________________________            _______________________________________
-TÉCNICO RESPONSÁVEL                                CLIENTE
+TÉCNICO                                            CLIENTE
 ${tecnico || ''}                                   ${client.nome}
-${company.nome}                                    Data: ${today}
 
 
-Documento gerado por SolarDoc Pro — solardoc.app
+Gerado por SolarDoc Pro — solardoc.app
 `;
 }
 
