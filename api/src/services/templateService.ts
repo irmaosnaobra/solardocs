@@ -1,3 +1,5 @@
+import { getRef, geracaoMensal, calcPayback, MESES_ABREV } from './propostaSolarData';
+
 interface Company {
   nome: string;
   cnpj: string;
@@ -71,6 +73,8 @@ export function generateFromTemplate(
         : prestacaoServicoM2(company, client, fields);
     case 'vistoria':
       return vistoriaM1(company, client, fields);
+    case 'propostaSolar':
+      return propostaSolarM1(company, client, fields);
     default:
       throw new Error(`Modelo estático não disponível para: ${type}. Use a geração por IA.`);
   }
@@ -1454,6 +1458,310 @@ ${tecnico || ''}                                   ${client.nome}
 
 Gerado por SolarDoc Pro — solardoc.app
 `;
+}
+
+// ════════════════════════════════════════════════════════════
+// PROPOSTA SOLAR — landing page rica pra cliente final
+// ════════════════════════════════════════════════════════════
+// Retorna HTML completo (não plain text). Renderizado como iframe na
+// preview, perfeito em PDF via puppeteer, imprimível em A4 com cores
+// vibrantes. SVG inline pro gráfico de geração mensal (zero JS).
+//
+// Paleta de cor escolhível pelo vendedor (5 opções pré-definidas).
+// Logo da empresa puxada do cadastro (logo_base64).
+
+interface Palette { c1: string; c2: string; c3: string; nome: string; }
+const PALETTES: Record<string, Palette> = {
+  solar:    { c1: '#F59E0B', c2: '#FBBF24', c3: '#FFFBEB', nome: 'Solar' },
+  oceano:   { c1: '#0EA5E9', c2: '#38BDF8', c3: '#F0F9FF', nome: 'Oceano' },
+  floresta: { c1: '#10B981', c2: '#34D399', c3: '#ECFDF5', nome: 'Floresta' },
+  royal:    { c1: '#8B5CF6', c2: '#A78BFA', c3: '#F5F3FF', nome: 'Royal' },
+  carbono:  { c1: '#1F2937', c2: '#F59E0B', c3: '#FAFAF9', nome: 'Carbono' },
+};
+
+function pBRL(n: number): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+}
+
+function pNum(n: number): string {
+  return new Intl.NumberFormat('pt-BR').format(Math.round(n));
+}
+
+function pEsc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] || c);
+}
+
+function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>): string {
+  // Inputs do form
+  const palette = PALETTES[String(f.paleta || 'solar')] || PALETTES.solar;
+  const vendedor = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome);
+  const cidade = str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade);
+  const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).toUpperCase();
+  const consumoKwh = parseFloat(String(f.consumo_kwh || '0')) || 0;
+  const kwp = parseFloat(String(f.kwp || '0')) || 0;
+  const qtdModulos = parseInt(String(f.qtd_modulos || '0'), 10) || 0;
+  const marcaModulo = String(f.marca_modulo || '');
+  const potenciaModulo = parseInt(String(f.potencia_modulo || '0'), 10) || 0;
+  const qtdInversores = parseInt(String(f.qtd_inversores || '1'), 10) || 1;
+  const marcaInversor = String(f.marca_inversor || '');
+  const potenciaInversor = parseFloat(String(f.potencia_inversor || '0')) || 0;
+  const investimento = parseFloat(String(f.investimento || '0').toString().replace(',', '.')) || 0;
+  const parcelas = parseInt(String(f.parcelas || '0'), 10) || 0;
+  const valorParcela = parcelas > 0 ? investimento / parcelas : 0;
+
+  // Cálculos solares
+  const ref = getRef(uf);
+  const mensal = geracaoMensal(kwp, uf);
+  const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
+  const mediaMensalGerada = Math.round(geracaoAnual / 12);
+  const economiaPercent = consumoKwh > 0 ? Math.min(100, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;
+  const payback = calcPayback(investimento, geracaoAnual, ref.tarifa, 0.06);
+  const paybackAnos = payback.paybackMeses > 0 ? (payback.paybackMeses / 12).toFixed(1).replace('.', ',') : '—';
+
+  // SVG bar chart 12 meses (puro SVG, sem JS)
+  const W = 600, H = 240, P = { top: 24, right: 16, bottom: 50, left: 48 };
+  const innerW = W - P.left - P.right;
+  const innerH = H - P.top - P.bottom;
+  const barCount = 12;
+  const barGap = 6;
+  const barW = (innerW - barGap * (barCount - 1)) / barCount;
+  const maxKwh = Math.max(...mensal, 1);
+  // Y axis ticks (4 níveis)
+  const yTicks = 4;
+  const yLabels = Array.from({ length: yTicks + 1 }, (_, i) => Math.round((maxKwh * i) / yTicks));
+  const yLines = yLabels.map((v, i) => {
+    const y = P.top + innerH - (innerH * i) / yTicks;
+    return `<line x1="${P.left}" y1="${y}" x2="${P.left + innerW}" y2="${y}" stroke="#E5E7EB" stroke-width="1"/>
+<text x="${P.left - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="#9CA3AF">${pNum(v)}</text>`;
+  }).join('\n');
+  const bars = mensal.map((kwh, i) => {
+    const x = P.left + i * (barW + barGap);
+    const h = (kwh / maxKwh) * innerH;
+    const y = P.top + innerH - h;
+    return `<g>
+  <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="url(#g1)"/>
+  <text x="${x + barW / 2}" y="${P.top + innerH + 16}" text-anchor="middle" font-size="11" fill="#6B7280">${MESES_ABREV[i]}</text>
+  <text x="${x + barW / 2}" y="${y - 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${palette.c1}">${pNum(kwh)}</text>
+</g>`;
+  }).join('\n');
+
+  // Logo da empresa: usa logo_base64 se tiver, senão texto
+  const empresaCompany = company as Company & { logo_base64?: string };
+  const logoHtml = empresaCompany.logo_base64
+    ? `<img src="${empresaCompany.logo_base64}" alt="${pEsc(company.nome)}" style="max-height: 56px; max-width: 220px; object-fit: contain;"/>`
+    : `<div style="font-size: 24px; font-weight: 800; letter-spacing: -1px;">${pEsc(company.nome)}</div>`;
+
+  const parcelasHtml = parcelas > 0
+    ? `<div class="invest-parcelas">ou <strong>${parcelas}× de ${pBRL(valorParcela)}</strong> no financiamento</div>`
+    : '';
+
+  const today = dateBR();
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Proposta Solar — ${pEsc(client.nome)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root { --c1: ${palette.c1}; --c2: ${palette.c2}; --c3: ${palette.c3}; --c-text: #1F2937; --c-muted: #6B7280; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color: var(--c-text); background: #F9FAFB; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.page { max-width: 794px; margin: 0 auto; background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+/* Topo com logo */
+.topbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #F3F4F6; }
+.topbar .meta { font-size: 12px; color: var(--c-muted); text-align: right; }
+/* Hero */
+.hero { background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%); color: white; padding: 56px 40px; text-align: center; position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%); pointer-events: none; }
+.hero h1 { font-size: 30px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; position: relative; }
+.hero .subtitle { font-size: 15px; opacity: 0.95; margin-bottom: 32px; position: relative; }
+.hero .economia { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.25); border-radius: 16px; padding: 22px 32px; display: inline-block; backdrop-filter: blur(10px); position: relative; }
+.hero .economia-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2.5px; opacity: 0.9; margin-bottom: 6px; font-weight: 600; }
+.hero .economia-value { font-size: 44px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+.hero .economia-period { font-size: 12px; opacity: 0.85; margin-top: 6px; }
+/* Stats grid */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 32px 40px; background: var(--c3); }
+.stat { background: white; border-radius: 12px; padding: 18px 12px; text-align: center; border-bottom: 3px solid var(--c1); }
+.stat-icon { font-size: 22px; margin-bottom: 6px; }
+.stat-value { font-size: 22px; font-weight: 800; color: var(--c1); line-height: 1.1; letter-spacing: -0.5px; }
+.stat-label { font-size: 10px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; font-weight: 600; }
+/* Section */
+.section { padding: 28px 40px; }
+.section + .section { border-top: 1px solid #F3F4F6; }
+.section h2 { font-size: 18px; font-weight: 700; margin-bottom: 14px; color: var(--c1); display: flex; align-items: center; gap: 8px; }
+/* Chart */
+.chart-wrap { background: white; padding: 4px 0; border-radius: 8px; overflow: hidden; }
+.chart-wrap svg { width: 100%; height: auto; display: block; }
+.chart-caption { text-align: center; color: var(--c-muted); font-size: 12px; margin-top: 6px; }
+.chart-caption strong { color: var(--c-text); }
+/* Specs */
+.specs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.spec { padding: 14px 16px; background: #F9FAFB; border-radius: 8px; border-left: 3px solid var(--c1); }
+.spec-label { font-size: 10px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+.spec-value { font-size: 14px; font-weight: 700; margin-top: 4px; color: var(--c-text); }
+/* Investment */
+.invest-box { background: linear-gradient(135deg, var(--c3) 0%, white 100%); padding: 28px 24px; border-radius: 16px; border: 2px solid var(--c1); text-align: center; }
+.invest-label { color: var(--c-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
+.invest-value { font-size: 38px; font-weight: 900; color: var(--c1); margin: 6px 0; line-height: 1; letter-spacing: -1px; }
+.invest-parcelas { color: var(--c-text); font-size: 14px; }
+.invest-parcelas strong { color: var(--c1); }
+/* Garantias destacadas */
+.garantias { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.garantia { background: var(--c3); padding: 16px 12px; border-radius: 10px; text-align: center; }
+.garantia-num { font-size: 24px; font-weight: 900; color: var(--c1); line-height: 1; }
+.garantia-label { font-size: 11px; color: var(--c-muted); margin-top: 4px; line-height: 1.3; }
+/* Footer */
+.footer { padding: 32px 40px 40px; text-align: center; border-top: 1px solid #F3F4F6; background: #FAFAFA; }
+.footer .vendedor-label { color: var(--c-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; font-weight: 600; }
+.footer .vendedor-nome { font-weight: 700; font-size: 16px; color: var(--c-text); }
+.footer .empresa-info { color: var(--c-muted); font-size: 12px; margin-top: 20px; }
+.footer .gerado { color: #9CA3AF; font-size: 10px; margin-top: 12px; }
+/* Print */
+@page { size: A4; margin: 0; }
+@media print {
+  html, body { background: white !important; }
+  body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .page { box-shadow: none !important; max-width: 100% !important; }
+  .section, .stats, .hero, .topbar, .footer { page-break-inside: avoid; }
+  .no-print { display: none !important; }
+}
+/* Mobile */
+@media (max-width: 640px) {
+  .topbar { padding: 12px 20px; flex-direction: column; gap: 8px; align-items: flex-start; }
+  .topbar .meta { text-align: left; }
+  .hero { padding: 40px 20px; }
+  .hero h1 { font-size: 22px; }
+  .hero .subtitle { font-size: 13px; margin-bottom: 24px; }
+  .hero .economia { padding: 18px 20px; display: block; }
+  .hero .economia-value { font-size: 32px; }
+  .stats { grid-template-columns: repeat(2, 1fr); padding: 20px; gap: 10px; }
+  .section { padding: 24px 20px; }
+  .specs, .garantias { grid-template-columns: 1fr 1fr; }
+  .invest-value { font-size: 28px; }
+  .footer { padding: 24px 20px 32px; }
+}
+@media (max-width: 400px) {
+  .stats { grid-template-columns: 1fr 1fr; }
+  .garantias { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    ${logoHtml}
+    <div class="meta">
+      Proposta nº ${Date.now().toString().slice(-6)}<br/>
+      ${today}
+    </div>
+  </div>
+
+  <div class="hero">
+    <h1>Olá, ${pEsc(client.nome)}!</h1>
+    <p class="subtitle">Sua proposta de energia solar pra economizar pelos próximos 25 anos</p>
+    <div class="economia">
+      <div class="economia-label">Economia em 25 anos</div>
+      <div class="economia-value">${pBRL(payback.acumulado25anos)}</div>
+      <div class="economia-period">Considerando inflação de 6% ao ano na tarifa</div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-value">${pNum(kwp).replace(',00','')} kWp</div>
+      <div class="stat-label">Sistema</div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon">☀️</div>
+      <div class="stat-value">${pNum(mediaMensalGerada)}</div>
+      <div class="stat-label">kWh/mês</div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon">📉</div>
+      <div class="stat-value">${economiaPercent}%</div>
+      <div class="stat-label">Da sua conta</div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon">📅</div>
+      <div class="stat-value">${paybackAnos}</div>
+      <div class="stat-label">Anos pra retorno</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>📊 Geração mensal estimada — ${pEsc(cidade)}/${uf}</h2>
+    <div class="chart-wrap">
+      <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${palette.c1}"/>
+            <stop offset="100%" stop-color="${palette.c2}"/>
+          </linearGradient>
+        </defs>
+        ${yLines}
+        ${bars}
+      </svg>
+    </div>
+    <div class="chart-caption">
+      Geração média anual: <strong>${pNum(geracaoAnual)} kWh</strong> · HSP da região: <strong>${ref.hsp.toFixed(1)} h/dia</strong>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🛠️ Equipamentos e instalação</h2>
+    <div class="specs">
+      <div class="spec">
+        <div class="spec-label">Módulos fotovoltaicos</div>
+        <div class="spec-value">${qtdModulos > 0 ? pNum(qtdModulos) : '—'} × ${pEsc(marcaModulo) || '—'} ${potenciaModulo > 0 ? potenciaModulo + 'W' : ''}</div>
+      </div>
+      <div class="spec">
+        <div class="spec-label">Inversor</div>
+        <div class="spec-value">${qtdInversores}× ${pEsc(marcaInversor) || '—'} ${potenciaInversor > 0 ? potenciaInversor + 'kW' : ''}</div>
+      </div>
+      <div class="spec">
+        <div class="spec-label">Localização</div>
+        <div class="spec-value">${pEsc(cidade) || '—'}/${uf}</div>
+      </div>
+      <div class="spec">
+        <div class="spec-label">Consumo médio do cliente</div>
+        <div class="spec-value">${consumoKwh > 0 ? pNum(consumoKwh) + ' kWh/mês' : '—'}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>💎 Investimento</h2>
+    <div class="invest-box">
+      <div class="invest-label">Valor total do sistema</div>
+      <div class="invest-value">${pBRL(investimento)}</div>
+      ${parcelasHtml}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🛡️ Garantias</h2>
+    <div class="garantias">
+      <div class="garantia"><div class="garantia-num">25</div><div class="garantia-label">anos<br/>painéis</div></div>
+      <div class="garantia"><div class="garantia-num">10</div><div class="garantia-label">anos<br/>inversor</div></div>
+      <div class="garantia"><div class="garantia-num">10</div><div class="garantia-label">anos<br/>estrutura</div></div>
+      <div class="garantia"><div class="garantia-num">1</div><div class="garantia-label">ano<br/>instalação</div></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    ${vendedor ? `<div class="vendedor-label">Vendedor responsável</div>
+    <div class="vendedor-nome">${pEsc(vendedor)}</div>` : ''}
+    <div class="empresa-info">${pEsc(company.nome)} · CNPJ ${company.cnpj}</div>
+    <div class="gerado">Proposta gerada por SolarDoc Pro · solardoc.app</div>
+  </div>
+</div>
+</body>
+</html>`;
 }
 
 // ════════════════════════════════════════════════════════════

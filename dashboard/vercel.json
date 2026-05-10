@@ -4,7 +4,8 @@
     "NODE_ENV": "production"
   },
   "rewrites": [
-    { "source": "/_api/:path*", "destination": "https://api.solardoc.app/:path*" }
+    { "source": "/_api/:path*", "destination": "https://api.solardoc.app/:path*" },
+    { "source": "/p/:id", "destination": "https://api.solardoc.app/p/:id" }
   ],
   "headers": [
     {

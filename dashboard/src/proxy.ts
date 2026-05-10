@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache'];
+const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;

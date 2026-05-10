@@ -23,6 +23,7 @@ const TIPO_LABEL: Record<string, string> = {
   contratoPJ:       'Contrato Vendedor',
   propostaBanco:    'Proposta Bancária',
   vistoria:         'Vistoria CheckList',
+  propostaSolar:    'Proposta Solar',
 };
 
 export default function HistoricoPage() {

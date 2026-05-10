@@ -22,6 +22,7 @@ import webhookRoutes from './routes/webhook';
 import zapiAdminRoutes from './routes/zapiAdmin';
 import mcpRoutes from './routes/mcp';
 import unsubscribeRoutes from './routes/unsubscribe';
+import publicPropostaRoutes from './routes/publicProposta';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
@@ -87,6 +88,7 @@ app.use('/webhook', webhookRoutes);
 app.use('/zapi-admin', zapiAdminRoutes);
 app.use('/mcp', mcpRoutes);
 app.use('/unsubscribe', unsubscribeRoutes);
+app.use('/p', publicPropostaRoutes);
 
 // Error handler global — nunca expõe stack trace em produção
 app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -7,7 +7,7 @@ import {
   Settings, Zap, FolderOpen, FileText, Sheet, Pin,
   LayoutDashboard, Building2, Users, Handshake,
   Banknote, ScrollText, FileSignature,
-  Wrench, Briefcase, ClipboardCheck,
+  Wrench, Briefcase, ClipboardCheck, Sparkles,
   Save, Lightbulb, HardHat, GraduationCap,
   type LucideIcon,
 } from 'lucide-react';
@@ -63,6 +63,7 @@ const cadastroItems: NavItem[] = [
 ];
 
 const docsClienteItems: NavItem[] = [
+  { href: '/documentos?tipo=proposta',          icon: Sparkles,       label: 'Proposta Solar',     requireCompany: true },
   { href: '/documentos?tipo=vistoria',          icon: ClipboardCheck, label: 'Vistoria CheckList', requireCompany: true },
   { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,       label: 'Proposta de Banco',  requireCompany: true },
   { href: '/documentos?tipo=contrato-solar',    icon: FileSignature,  label: 'Contrato Solar',     requireCompany: true },
