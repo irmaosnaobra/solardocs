@@ -1495,6 +1495,8 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   // Inputs do form
   const palette = PALETTES[String(f.paleta || 'solar')] || PALETTES.solar;
   const vendedor = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome);
+  const vendedorWhatsApp = (str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '');
+  const fotoTelhado = str(f.foto_telhado_b64) === '___' ? '' : String(f.foto_telhado_b64);
   const cidade = str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade);
   const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).toUpperCase();
   const consumoKwh = parseFloat(String(f.consumo_kwh || '0')) || 0;
@@ -1512,9 +1514,10 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   // 18× no cartão: investimento × 1,19 / 18, arredondado pra cima (sem centavos)
   const valor18x = investimento > 0 ? Math.ceil((investimento * 1.19) / 18) : 0;
 
-  // Cálculos solares
-  const ref = getRef(uf);
-  const mensal = geracaoMensal(kwp, uf);
+  // Cálculos solares — usa HSP da cidade se cadastrada (top 50 mercados),
+  // cai pro estado caso contrário.
+  const ref = getRef(uf, cidade);
+  const mensal = geracaoMensal(kwp, uf, cidade);
   const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
   const mediaMensalGerada = Math.round(geracaoAnual / 12);
   const economiaPercent = consumoKwh > 0 ? Math.min(100, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;
@@ -1630,6 +1633,17 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .invest-cartao-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9; font-weight: 700; }
 .invest-cartao-value { font-size: 26px; font-weight: 900; margin-top: 6px; line-height: 1; letter-spacing: -0.5px; }
 .invest-grid-single { grid-template-columns: 1fr; }
+/* Foto do telhado */
+.foto-wrap { border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.foto-wrap img { width: 100%; height: auto; display: block; }
+.foto-caption { text-align: center; color: var(--c-muted); font-size: 12px; margin-top: 8px; font-style: italic; }
+/* CTA — Quero fechar */
+.cta-box { background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%); color: white; padding: 32px 24px; text-align: center; border-radius: 16px; margin: 8px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+.cta-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.3px; }
+.cta-sub { font-size: 14px; opacity: 0.95; margin-bottom: 18px; }
+.cta-btn { display: inline-block; background: white; color: var(--c1); padding: 14px 32px; border-radius: 100px; font-weight: 800; font-size: 15px; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: transform 0.15s; }
+.cta-btn:hover { transform: translateY(-2px); }
+@media print { .cta-btn { background: white; color: var(--c1); border: 2px solid var(--c1); } .no-print-cta { display: none !important; } }
 /* Garantias destacadas */
 .garantias { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .garantia { background: var(--c3); padding: 16px 12px; border-radius: 10px; text-align: center; }
@@ -1642,13 +1656,22 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .footer .empresa-info { color: var(--c-muted); font-size: 12px; margin-top: 20px; }
 .footer .gerado { color: #9CA3AF; font-size: 10px; margin-top: 12px; }
 /* Print */
-@page { size: A4; margin: 0; }
+@page { size: A4; margin: 10mm; }
 @media print {
-  html, body { background: white !important; }
-  body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  .page { box-shadow: none !important; max-width: 100% !important; }
-  .section, .stats, .hero, .topbar, .footer { page-break-inside: avoid; }
+  html, body { background: white !important; font-size: 10.5pt; }
+  body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+  .page { box-shadow: none !important; max-width: 100% !important; margin: 0 !important; }
+  .topbar { padding: 8px 0 !important; }
+  .hero { padding: 28px 24px !important; }
+  .hero h1 { font-size: 22px !important; }
+  .hero .economia-value { font-size: 32px !important; }
+  .stats { padding: 16px 0 !important; gap: 8px !important; }
+  .stat { padding: 12px 8px !important; }
+  .section { padding: 16px 0 !important; page-break-inside: avoid; break-inside: avoid; }
+  .invest-box, .cta-box, .chart-wrap, .foto-wrap { page-break-inside: avoid; break-inside: avoid; }
+  .footer { padding: 16px 0 !important; }
   .no-print { display: none !important; }
+  .invest-cartao { border: 2px solid var(--c1) !important; }
 }
 /* Mobile */
 @media (max-width: 640px) {
@@ -1757,6 +1780,14 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     </div>
   </div>
 
+  ${fotoTelhado ? `<div class="section">
+    <h2>📷 Local da instalação</h2>
+    <div class="foto-wrap">
+      <img src="${fotoTelhado}" alt="Foto do telhado / local da instalação"/>
+    </div>
+    <div class="foto-caption">Vistoria realizada por ${pEsc(vendedor) || pEsc(company.nome)}</div>
+  </div>` : ''}
+
   <div class="section">
     <h2>💎 Investimento</h2>
     <div class="invest-box">
@@ -1778,6 +1809,16 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
       <div class="garantia"><div class="garantia-num">1</div><div class="garantia-label">ano<br/>instalação</div></div>
     </div>
   </div>
+
+  ${vendedorWhatsApp ? `<div class="section">
+    <div class="cta-box">
+      <div class="cta-title">Quer fechar essa proposta?</div>
+      <div class="cta-sub">Me chama no WhatsApp que a gente tira do papel agora 👇</div>
+      <a href="https://wa.me/55${vendedorWhatsApp.replace(/^55/, '')}?text=${encodeURIComponent(`Olá ${vendedor || ''}! Quero fechar a proposta de energia solar — ${client.nome}.`)}" class="cta-btn no-print-cta" target="_blank" rel="noopener noreferrer">
+        💬 Quero fechar — falar agora
+      </a>
+    </div>
+  </div>` : ''}
 
   <div class="footer">
     ${vendedor ? `<div class="vendedor-label">Vendedor responsável</div>

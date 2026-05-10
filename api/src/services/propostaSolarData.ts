@@ -64,9 +64,62 @@ const VARIACAO_MENSAL: Record<'norte' | 'sul', number[]> = {
 
 const ESTADOS_NORTE_NE = ['AC','AM','AP','PA','RO','RR','TO','AL','BA','CE','MA','PB','PE','PI','RN','SE','GO','DF','MT','MS'];
 
-export function getRef(uf: string): SolarRef {
+// HSP por cidade — top 50 mercados solares brasileiros.
+// Valores de irradiância média anual (kWh/m²/dia) baseados em mapas
+// CRESESB. Quando a cidade não está aqui, cai no HSP do estado.
+//
+// Chave normalizada: lowercase, sem acentos, sem caracteres especiais.
+const HSP_CIDADE: Record<string, number> = {
+  // SP
+  'sao paulo': 4.95, 'campinas': 5.25, 'ribeirao preto': 5.65, 'sao jose dos campos': 5.10,
+  'sorocaba': 5.20, 'santos': 4.85, 'sao bernardo do campo': 4.95, 'osasco': 4.95,
+  'guarulhos': 4.95, 'piracicaba': 5.30, 'bauru': 5.45, 'presidente prudente': 5.55,
+  // MG
+  'belo horizonte': 5.45, 'uberlandia': 5.65, 'uberaba': 5.70, 'juiz de fora': 5.20,
+  'contagem': 5.45, 'montes claros': 5.95, 'governador valadares': 5.55, 'ipatinga': 5.40,
+  // RJ
+  'rio de janeiro': 5.05, 'niteroi': 5.10, 'campos dos goytacazes': 5.25, 'petropolis': 4.95,
+  'nova iguacu': 5.05, 'duque de caxias': 5.05,
+  // ES
+  'vitoria': 5.30, 'vila velha': 5.30, 'serra': 5.30, 'cariacica': 5.30,
+  // BA
+  'salvador': 5.65, 'feira de santana': 5.75, 'vitoria da conquista': 5.85, 'juazeiro': 6.20,
+  'barreiras': 5.95, 'ilheus': 5.50,
+  // PE
+  'recife': 5.70, 'petrolina': 6.20, 'caruaru': 5.80, 'jaboatao dos guararapes': 5.70,
+  // CE
+  'fortaleza': 5.90, 'sobral': 6.10, 'juazeiro do norte': 6.10,
+  // PB / RN / AL / SE / MA / PI
+  'joao pessoa': 5.85, 'campina grande': 5.85, 'natal': 5.95, 'mossoro': 6.15,
+  'maceio': 5.65, 'aracaju': 5.55, 'sao luis': 5.55, 'teresina': 5.85,
+  // GO / DF / MT / MS
+  'goiania': 5.55, 'anapolis': 5.50, 'brasilia': 5.55, 'cuiaba': 5.55,
+  'campo grande': 5.40, 'dourados': 5.30,
+  // PR / SC / RS
+  'curitiba': 4.65, 'londrina': 5.15, 'maringa': 5.20, 'cascavel': 5.05,
+  'florianopolis': 4.55, 'joinville': 4.45, 'blumenau': 4.45, 'chapeco': 4.85,
+  'porto alegre': 4.75, 'caxias do sul': 4.80, 'pelotas': 4.65, 'santa maria': 4.85,
+  // Norte
+  'manaus': 4.55, 'belem': 4.85, 'palmas': 5.50, 'porto velho': 4.75,
+  'rio branco': 4.65, 'macapa': 4.65, 'boa vista': 4.75,
+};
+
+function normalizeCidade(cidade: string): string {
+  return (cidade || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // remove acentos
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+export function getRef(uf: string, cidade?: string): SolarRef {
   const u = (uf || '').trim().toUpperCase();
-  return HSP_TARIFA_BR[u] || { hsp: 5.2, tarifa: 0.95 };
+  const stateRef = HSP_TARIFA_BR[u] || { hsp: 5.2, tarifa: 0.95 };
+  if (!cidade) return stateRef;
+  const cityHsp = HSP_CIDADE[normalizeCidade(cidade)];
+  return cityHsp ? { hsp: cityHsp, tarifa: stateRef.tarifa } : stateRef;
 }
 
 export function variacaoMensal(uf: string): number[] {
@@ -79,11 +132,10 @@ export const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set
 // Calcula geração mensal (kWh/mês) por mês, baseado em kWp + UF.
 // Fórmula: kWh = kWp * HSP * dias * eficiência_sistema * variacao_mensal
 // Eficiência típica de sistema (perdas inversor + cabeamento + sujeira): 80%
-export function geracaoMensal(kwp: number, uf: string): number[] {
-  const ref = getRef(uf);
+export function geracaoMensal(kwp: number, uf: string, cidade?: string): number[] {
+  const ref = getRef(uf, cidade);
   const variacao = variacaoMensal(uf);
   const efic = 0.80;
-  const diasMes = 30.4;
   const baseAnual = kwp * ref.hsp * 365 * efic; // kWh/ano
   const mediaMensal = baseAnual / 12;
   return variacao.map((v) => Math.round(mediaMensal * v));

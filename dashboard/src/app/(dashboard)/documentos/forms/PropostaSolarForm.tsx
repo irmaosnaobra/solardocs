@@ -8,6 +8,32 @@ import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
+// Comprime imagem pra max 1200px largura, JPEG 0.82.
+// Foto de celular típica (3-5MB) cai pra ~120-180kb.
+async function compressImage(file: File, maxW = 1200, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const ratio = img.width > maxW ? maxW / img.width : 1;
+        const w = Math.round(img.width * ratio);
+        const h = Math.round(img.height * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('canvas')); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('img load'));
+      img.src = String(e.target?.result || '');
+    };
+    reader.onerror = () => reject(new Error('reader'));
+    reader.readAsDataURL(file);
+  });
+}
+
 const PALETAS = [
   { id: 'solar',    nome: 'Solar',    c1: '#F59E0B', c2: '#FBBF24' },
   { id: 'oceano',   nome: 'Oceano',   c1: '#0EA5E9', c2: '#38BDF8' },
@@ -19,6 +45,7 @@ const PALETAS = [
 const initialFields = {
   paleta: 'solar' as typeof PALETAS[number]['id'],
   vendedor_nome: '',
+  vendedor_whatsapp: '',
   cidade: '',
   uf: '',
   consumo_kwh: '',
@@ -30,6 +57,7 @@ const initialFields = {
   potencia_inversor: '',
   investimento: '',
   preco_avista: '',
+  foto_telhado_b64: '', // dataURL JPEG comprimido
 };
 
 export default function PropostaSolarPage() {
@@ -230,6 +258,10 @@ export default function PropostaSolarPage() {
               <input type="text" value={fields.vendedor_nome} onChange={e => setField('vendedor_nome', e.target.value)} placeholder="Nome completo" className="input-field" required />
             </div>
             <div className={styles.field}>
+              <label className={styles.label}>WhatsApp do vendedor *</label>
+              <input type="tel" value={fields.vendedor_whatsapp} onChange={e => setField('vendedor_whatsapp', e.target.value)} placeholder="Ex: 34999999999 (com DDD)" className="input-field" required />
+            </div>
+            <div className={styles.field}>
               <label className={styles.label}>Cidade *</label>
               <input type="text" value={fields.cidade} onChange={e => setField('cidade', e.target.value)} placeholder="Ex: Uberlândia" className="input-field" required />
             </div>
@@ -291,6 +323,61 @@ export default function PropostaSolarPage() {
               <input type="text" inputMode="decimal" value={fields.potencia_inversor} onChange={e => setField('potencia_inversor', e.target.value)} placeholder="Ex: 5" className="input-field" required />
             </div>
           </div>
+        </div>
+
+        {/* FOTO DO TELHADO */}
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Foto do telhado (opcional)</h2>
+          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 10 }}>
+            Adiciona credibilidade — cliente vê que você esteve lá. Comprime automático.
+          </p>
+          {fields.foto_telhado_b64 ? (
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <img
+                src={fields.foto_telhado_b64}
+                alt="Foto do telhado"
+                style={{ width: 180, height: 120, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--color-border)' }}
+              />
+              <button
+                type="button"
+                onClick={() => setField('foto_telhado_b64', '')}
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #EF4444', background: 'transparent', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}
+              >
+                🗑️ Remover foto
+              </button>
+            </div>
+          ) : (
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '32px 20px',
+              border: '2px dashed var(--color-border)',
+              borderRadius: 12,
+              cursor: 'pointer',
+              color: 'var(--color-text-muted)',
+              fontSize: 14,
+            }}>
+              📷 Tirar foto / escolher do dispositivo
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const b64 = await compressImage(file);
+                    setField('foto_telhado_b64', b64);
+                  } catch {
+                    alert('Erro ao processar imagem. Tente outra.');
+                  }
+                }}
+              />
+            </label>
+          )}
         </div>
 
         {/* INVESTIMENTO */}
