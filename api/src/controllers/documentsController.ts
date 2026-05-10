@@ -54,8 +54,8 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       .eq('user_id', req.userId)
       .single();
 
-    if (!company) {
-      throw new ApiError(400, 'Cadastre sua empresa antes de gerar documentos');
+    if (!company || !company.cnpj) {
+      throw new ApiError(400, 'Cadastre sua empresa (CNPJ obrigatório) antes de gerar documentos');
     }
 
     // Fetch client or terceiro and map to unified entity
