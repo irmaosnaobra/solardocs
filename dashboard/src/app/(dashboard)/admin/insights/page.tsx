@@ -2,6 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  PieChart, Pie, Cell, Legend,
+} from 'recharts';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 
@@ -17,6 +21,16 @@ interface PlanilhaKpis {
   topOrigem: KpiNum;
   liberadosCemig: KpiNum;
   ultimasVendas: { codigo: string; nome: string; valor: string; data: string }[];
+  faturamentoMensal: { mes: string; faturamento: number; vendas: number }[];
+  vendasPorConsultor: { nome: string; qtd: number; faturamento: number }[];
+  vendasPorOrigem: { origem: string; qtd: number }[];
+  vendasPorConcessionaria: { concessionaria: string; qtd: number }[];
+}
+
+const PIE_COLORS = ['#F59E0B', '#FBBF24', '#FCD34D', '#FDE68A', '#FEF3C7', '#10B981', '#0EA5E9'];
+
+function fmtBRL(n: number): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
 }
 interface TrelloKpis {
   totalAtivo: KpiNum;
@@ -193,6 +207,83 @@ export default function InsightsPage() {
             <KpiCard k={data.planilha.liberadosCemig} />
           </div>
 
+          {/* GRÁFICOS PLANILHA */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+            gap: 16,
+            marginTop: 20,
+          }}>
+            {/* Faturamento mensal */}
+            <ChartCard title="Faturamento — últimos 6 meses">
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={data.planilha.faturamentoMensal} margin={{ top: 12, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    formatter={(v: number) => [fmtBRL(v), 'Faturamento']}
+                    contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }}
+                  />
+                  <Bar dataKey="faturamento" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* Vendas por consultor */}
+            <ChartCard title="Vendas por consultor">
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={data.planilha.vendasPorConsultor} layout="vertical" margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+                  <YAxis dataKey="nome" type="category" tick={{ fontSize: 11, fill: 'var(--color-text)' }} axisLine={false} tickLine={false} width={80} />
+                  <Tooltip
+                    formatter={(v: number) => [`${v} venda${v !== 1 ? 's' : ''}`, '']}
+                    contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }}
+                  />
+                  <Bar dataKey="qtd" fill="#0EA5E9" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* Origem dos leads (pie) */}
+            <ChartCard title="Origem dos leads">
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
+                  <Pie
+                    data={data.planilha.vendasPorOrigem}
+                    dataKey="qtd"
+                    nameKey="origem"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={75}
+                    label={(e: { origem: string; qtd: number }) => `${e.origem} (${e.qtd})`}
+                    labelLine={false}
+                    style={{ fontSize: 11 }}
+                  >
+                    {data.planilha.vendasPorOrigem.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* Concessionárias */}
+            <ChartCard title="Vendas por concessionária">
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={data.planilha.vendasPorConcessionaria} margin={{ top: 12, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="concessionaria" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="qtd" fill="#10B981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+
           {/* Últimas vendas */}
           {data.planilha.ultimasVendas.length > 0 && (
             <div style={{ marginTop: 20 }}>
@@ -264,6 +355,29 @@ export default function InsightsPage() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 12,
+      padding: 16,
+    }}>
+      <h3 style={{
+        fontSize: 12,
+        fontWeight: 700,
+        color: 'var(--color-text-muted)',
+        textTransform: 'uppercase',
+        letterSpacing: '1.5px',
+        marginBottom: 12,
+      }}>
+        {title}
+      </h3>
+      {children}
     </div>
   );
 }

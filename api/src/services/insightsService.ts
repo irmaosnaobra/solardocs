@@ -36,6 +36,11 @@ export interface PlanilhaKpis {
   topOrigem: KpiNum;
   liberadosCemig: KpiNum;
   ultimasVendas: { codigo: string; nome: string; valor: string; data: string }[];
+  // Series pra gráficos
+  faturamentoMensal: { mes: string; faturamento: number; vendas: number }[]; // últimos 6 meses
+  vendasPorConsultor: { nome: string; qtd: number; faturamento: number }[];
+  vendasPorOrigem: { origem: string; qtd: number }[];
+  vendasPorConcessionaria: { concessionaria: string; qtd: number }[];
 }
 
 export interface TrelloKpis {
@@ -112,8 +117,19 @@ async function fetchPlanilha(): Promise<PlanilhaKpis> {
   let totalCemig = 0;
 
   const consultorVendas: Record<string, number> = {};
+  const consultorFaturamento: Record<string, number> = {};
   const origemVendas: Record<string, number> = {};
+  const concessionariaVendas: Record<string, number> = {};
   const ultimas: { codigo: string; nome: string; valor: string; data: string }[] = [];
+
+  // Faturamento dos últimos 6 meses (incluindo o atual)
+  const MESES_NOMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const ultimos6 = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(anoAtual, mesAtual - (5 - i), 1);
+    return { ano: d.getFullYear(), mes: d.getMonth(), key: `${d.getFullYear()}-${d.getMonth()}` };
+  });
+  const faturamentoMensalMap = new Map<string, { faturamento: number; vendas: number }>();
+  ultimos6.forEach(m => faturamentoMensalMap.set(m.key, { faturamento: 0, vendas: 0 }));
 
   for (const row of data) {
     const valorNum = parseBR(row[iValor]);
@@ -132,17 +148,35 @@ async function fetchPlanilha(): Promise<PlanilhaKpis> {
     }
 
     const consultor = (row[iConsultor] || '').trim();
-    if (consultor) consultorVendas[consultor] = (consultorVendas[consultor] || 0) + 1;
+    if (consultor) {
+      consultorVendas[consultor] = (consultorVendas[consultor] || 0) + 1;
+      consultorFaturamento[consultor] = (consultorFaturamento[consultor] || 0) + valorNum;
+    }
 
     const origem = (row[iOrigem] || '').trim().split(' ')[0]; // 'Tráfego', 'Indicação', etc
     if (origem) origemVendas[origem] = (origemVendas[origem] || 0) + 1;
 
-    const concessionaria = (row[iConcessionaria] || '').toLowerCase();
-    if (concessionaria.includes('cemig')) {
+    const concessionariaRaw = (row[iConcessionaria] || '').trim();
+    if (concessionariaRaw) {
+      concessionariaVendas[concessionariaRaw] = (concessionariaVendas[concessionariaRaw] || 0) + 1;
+    }
+    if (concessionariaRaw.toLowerCase().includes('cemig')) {
       totalCemig++;
       const lib = (row[iLiberacao] || '').trim();
-      // Liberado se tem data preenchida (formato dd/mm/yyyy)
       if (/^\d{2}\/\d{2}\/\d{4}$/.test(lib)) liberadosCemig++;
+    }
+
+    // Faturamento mensal — agrupar pela DATA FINAL INSTALAÇÃO
+    const dataInst = (row[iDataFim] || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (dataInst) {
+      const mDate = parseInt(dataInst[2], 10) - 1;
+      const yDate = parseInt(dataInst[3], 10);
+      const key = `${yDate}-${mDate}`;
+      const entry = faturamentoMensalMap.get(key);
+      if (entry) {
+        entry.faturamento += valorNum;
+        entry.vendas++;
+      }
     }
 
     ultimas.push({
@@ -162,6 +196,25 @@ async function fetchPlanilha(): Promise<PlanilhaKpis> {
   // Pega as 5 últimas (por ordem do CSV — assume que está ordenado por data crescente)
   const ultimasVendas = ultimas.slice(-5).reverse();
 
+  // Séries pra gráficos
+  const faturamentoMensal = ultimos6.map(m => {
+    const e = faturamentoMensalMap.get(m.key)!;
+    return { mes: MESES_NOMES[m.mes], faturamento: Math.round(e.faturamento), vendas: e.vendas };
+  });
+
+  const vendasPorConsultor = Object.entries(consultorVendas)
+    .map(([nome, qtd]) => ({ nome, qtd, faturamento: Math.round(consultorFaturamento[nome] || 0) }))
+    .sort((a, b) => b.qtd - a.qtd);
+
+  const vendasPorOrigem = Object.entries(origemVendas)
+    .map(([origem, qtd]) => ({ origem, qtd }))
+    .sort((a, b) => b.qtd - a.qtd);
+
+  const vendasPorConcessionaria = Object.entries(concessionariaVendas)
+    .map(([concessionaria, qtd]) => ({ concessionaria, qtd }))
+    .sort((a, b) => b.qtd - a.qtd)
+    .slice(0, 8);
+
   return {
     faturamentoMes: { label: 'Faturamento do mês', value: fmtBRL(faturamentoMes), sub: `${vendasMes} venda${vendasMes !== 1 ? 's' : ''}` },
     faturamentoTotal: { label: 'Faturamento total', value: fmtBRL(faturamentoTotal), sub: `${data.length} vendas no histórico` },
@@ -173,6 +226,10 @@ async function fetchPlanilha(): Promise<PlanilhaKpis> {
     topOrigem: { label: 'Top origem dos leads', value: topOrigem.nome, sub: `${topOrigem.qtd} vendas` },
     liberadosCemig: { label: 'Liberados pela Cemig', value: `${liberadosCemig}/${totalCemig}`, sub: totalCemig > 0 ? `${Math.round((liberadosCemig / totalCemig) * 100)}% liberado` : '' },
     ultimasVendas,
+    faturamentoMensal,
+    vendasPorConsultor,
+    vendasPorOrigem,
+    vendasPorConcessionaria,
   };
 }
 
