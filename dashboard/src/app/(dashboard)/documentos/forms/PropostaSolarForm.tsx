@@ -22,7 +22,6 @@ const initialFields = {
   cidade: '',
   uf: '',
   consumo_kwh: '',
-  kwp: '',
   qtd_modulos: '',
   marca_modulo: '',
   potencia_modulo: '',
@@ -30,7 +29,7 @@ const initialFields = {
   marca_inversor: '',
   potencia_inversor: '',
   investimento: '',
-  parcelas: '60',
+  preco_avista: '',
 };
 
 export default function PropostaSolarPage() {
@@ -44,24 +43,31 @@ export default function PropostaSolarPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [copyMsg, setCopyMsg] = useState('');
 
-  // Auto-fill kWp baseado no consumo (estimativa: kWh/mês ÷ 130 = kWp)
+  // kWp deriva de qtd_modulos × potencia_modulo (verdade técnica: 10×620W = 6,2 kWp)
+  const kwpCalc = (() => {
+    const qtd = parseInt(fields.qtd_modulos, 10);
+    const pot = parseInt(fields.potencia_modulo, 10);
+    if (qtd > 0 && pot > 0) return ((qtd * pot) / 1000);
+    return 0;
+  })();
+
+  // Sugere qtd_modulos baseado no consumo (estimativa: kWh/mês ÷ 130 = kWp; depois divide pela W do módulo)
   useEffect(() => {
     const kwh = parseFloat(fields.consumo_kwh);
-    if (kwh && !fields.kwp) {
-      const est = (kwh / 130).toFixed(2);
-      setFields(f => ({ ...f, kwp: est }));
-    }
-  }, [fields.consumo_kwh, fields.kwp]);
-
-  // Auto-fill qtd_modulos baseado em kwp + potencia_modulo
-  useEffect(() => {
-    const kwp = parseFloat(fields.kwp);
     const potMod = parseInt(fields.potencia_modulo, 10);
-    if (kwp && potMod && !fields.qtd_modulos) {
-      const qtd = Math.ceil((kwp * 1000) / potMod);
+    if (kwh && potMod && !fields.qtd_modulos) {
+      const kwpEst = kwh / 130;
+      const qtd = Math.ceil((kwpEst * 1000) / potMod);
       setFields(f => ({ ...f, qtd_modulos: String(qtd) }));
     }
-  }, [fields.kwp, fields.potencia_modulo, fields.qtd_modulos]);
+  }, [fields.consumo_kwh, fields.potencia_modulo, fields.qtd_modulos]);
+
+  // Cálculo do 18× no cartão: investimento × 1,19 / 18, arredondado pra cima (sem centavos)
+  const valor18x = (() => {
+    const inv = parseFloat(String(fields.investimento).replace(',', '.'));
+    if (!inv || inv <= 0) return 0;
+    return Math.ceil((inv * 1.19) / 18);
+  })();
 
   function setField<K extends keyof typeof fields>(k: K, v: (typeof fields)[K]) {
     setFields(f => ({ ...f, [k]: v }));
@@ -70,7 +76,8 @@ export default function PropostaSolarPage() {
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
     if (!clienteId) { setError('Selecione um cliente'); return; }
-    if (!fields.kwp || !fields.investimento) { setError('Potência (kWp) e investimento são obrigatórios'); return; }
+    if (!kwpCalc) { setError('Quantidade de módulos × potência por módulo precisam estar preenchidos'); return; }
+    if (!fields.investimento) { setError('Valor do investimento é obrigatório'); return; }
 
     setError('');
     setGenerating(true);
@@ -242,20 +249,34 @@ export default function PropostaSolarPage() {
           <h2 className={styles.sectionTitle}>Sistema fotovoltaico</h2>
           <div className={styles.grid2}>
             <div className={styles.field}>
-              <label className={styles.label}>Potência total (kWp) *</label>
-              <input type="text" inputMode="decimal" value={fields.kwp} onChange={e => setField('kwp', e.target.value)} placeholder="Ex: 5.5" className="input-field" required />
+              <label className={styles.label}>Quantidade de módulos *</label>
+              <input type="text" inputMode="numeric" value={fields.qtd_modulos} onChange={e => setField('qtd_modulos', e.target.value)} placeholder="Ex: 10" className="input-field" required />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Quantidade de módulos *</label>
-              <input type="text" inputMode="numeric" value={fields.qtd_modulos} onChange={e => setField('qtd_modulos', e.target.value)} placeholder="Ex: 12" className="input-field" required />
+              <label className={styles.label}>Potência por módulo (W) *</label>
+              <input type="text" inputMode="numeric" value={fields.potencia_modulo} onChange={e => setField('potencia_modulo', e.target.value)} placeholder="Ex: 620" className="input-field" required />
+            </div>
+            <div className={styles.fieldFull}>
+              <div style={{
+                background: 'rgba(245,158,11,0.08)',
+                border: '1px dashed rgba(245,158,11,0.4)',
+                borderRadius: 10,
+                padding: '12px 16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                  ⚡ Potência calculada (qtd × W ÷ 1000)
+                </span>
+                <strong style={{ fontSize: 18, color: 'var(--color-primary)' }}>
+                  {kwpCalc > 0 ? kwpCalc.toFixed(2).replace('.', ',') + ' kWp' : '—'}
+                </strong>
+              </div>
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Marca dos módulos *</label>
               <input type="text" value={fields.marca_modulo} onChange={e => setField('marca_modulo', e.target.value)} placeholder="Ex: Canadian Solar" className="input-field" required />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Potência por módulo (W) *</label>
-              <input type="text" inputMode="numeric" value={fields.potencia_modulo} onChange={e => setField('potencia_modulo', e.target.value)} placeholder="Ex: 550" className="input-field" required />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Quantidade de inversores</label>
@@ -277,16 +298,35 @@ export default function PropostaSolarPage() {
           <h2 className={styles.sectionTitle}>Investimento</h2>
           <div className={styles.grid2}>
             <div className={styles.field}>
-              <label className={styles.label}>Valor total (R$) *</label>
-              <input type="text" inputMode="decimal" value={fields.investimento} onChange={e => setField('investimento', e.target.value)} placeholder="Ex: 28000" className="input-field" required />
+              <label className={styles.label}>Preço do projeto (R$) *</label>
+              <input type="text" inputMode="decimal" value={fields.investimento} onChange={e => setField('investimento', e.target.value)} placeholder="Ex: 22000" className="input-field" required />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Parcelas (financiamento)</label>
-              <input type="text" inputMode="numeric" value={fields.parcelas} onChange={e => setField('parcelas', e.target.value)} placeholder="Ex: 60" className="input-field" />
+              <label className={styles.label}>Desconto especial à vista (R$)</label>
+              <input type="text" inputMode="decimal" value={fields.preco_avista} onChange={e => setField('preco_avista', e.target.value)} placeholder="Ex: 21300 (opcional)" className="input-field" />
             </div>
           </div>
+          {valor18x > 0 && (
+            <div style={{
+              marginTop: 12,
+              background: 'rgba(16,185,129,0.08)',
+              border: '1px dashed rgba(16,185,129,0.4)',
+              borderRadius: 10,
+              padding: '12px 16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                💳 Calculado automaticamente — 18× no cartão (×1,19)
+              </span>
+              <strong style={{ fontSize: 18, color: '#10B981' }}>
+                18× R$ {valor18x.toLocaleString('pt-BR')}
+              </strong>
+            </div>
+          )}
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>
-            A geração mensal e o payback (com inflação 6% a.a.) são calculados automaticamente baseado no kWp e UF.
+            A geração mensal e o payback (inflação 6% a.a.) são calculados automaticamente baseado no kWp e UF.
           </p>
         </div>
 

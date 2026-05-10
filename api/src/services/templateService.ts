@@ -1498,16 +1498,19 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const cidade = str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade);
   const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).toUpperCase();
   const consumoKwh = parseFloat(String(f.consumo_kwh || '0')) || 0;
-  const kwp = parseFloat(String(f.kwp || '0')) || 0;
   const qtdModulos = parseInt(String(f.qtd_modulos || '0'), 10) || 0;
   const marcaModulo = String(f.marca_modulo || '');
   const potenciaModulo = parseInt(String(f.potencia_modulo || '0'), 10) || 0;
+  // kWp deriva de qtd × W ÷ 1000 (verdade técnica: 10 placas × 620W = 6,2 kWp)
+  const kwp = (qtdModulos * potenciaModulo) / 1000;
   const qtdInversores = parseInt(String(f.qtd_inversores || '1'), 10) || 1;
   const marcaInversor = String(f.marca_inversor || '');
   const potenciaInversor = parseFloat(String(f.potencia_inversor || '0')) || 0;
   const investimento = parseFloat(String(f.investimento || '0').toString().replace(',', '.')) || 0;
-  const parcelas = parseInt(String(f.parcelas || '0'), 10) || 0;
-  const valorParcela = parcelas > 0 ? investimento / parcelas : 0;
+  const precoAvistaInput = parseFloat(String(f.preco_avista || '0').toString().replace(',', '.')) || 0;
+  const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
+  // 18× no cartão: investimento × 1,19 / 18, arredondado pra cima (sem centavos)
+  const valor18x = investimento > 0 ? Math.ceil((investimento * 1.19) / 18) : 0;
 
   // Cálculos solares
   const ref = getRef(uf);
@@ -1551,8 +1554,19 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     ? `<img src="${empresaCompany.logo_base64}" alt="${pEsc(company.nome)}" style="max-height: 56px; max-width: 220px; object-fit: contain;"/>`
     : `<div style="font-size: 24px; font-weight: 800; letter-spacing: -1px;">${pEsc(company.nome)}</div>`;
 
-  const parcelasHtml = parcelas > 0
-    ? `<div class="invest-parcelas">ou <strong>${parcelas}× de ${pBRL(valorParcela)}</strong> no financiamento</div>`
+  // Bloco de pagamento: à vista com desconto (se houver) e 18× no cartão em destaque
+  const avistaHtml = precoAvista > 0
+    ? `<div class="invest-avista">
+        <div class="invest-avista-label">🎯 Desconto especial à vista</div>
+        <div class="invest-avista-value">${pBRL(precoAvista)}</div>
+        <div class="invest-avista-economia">economia de ${pBRL(investimento - precoAvista)}</div>
+      </div>`
+    : '';
+  const cartaoHtml = valor18x > 0
+    ? `<div class="invest-cartao">
+        <div class="invest-cartao-label">💳 Parcelado no cartão</div>
+        <div class="invest-cartao-value">18× de ${pBRL(valor18x)}</div>
+      </div>`
     : '';
 
   const today = dateBR();
@@ -1607,8 +1621,15 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .invest-box { background: linear-gradient(135deg, var(--c3) 0%, white 100%); padding: 28px 24px; border-radius: 16px; border: 2px solid var(--c1); text-align: center; }
 .invest-label { color: var(--c-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
 .invest-value { font-size: 38px; font-weight: 900; color: var(--c1); margin: 6px 0; line-height: 1; letter-spacing: -1px; }
-.invest-parcelas { color: var(--c-text); font-size: 14px; }
-.invest-parcelas strong { color: var(--c1); }
+.invest-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+.invest-avista { background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02)); border: 2px solid #10B981; border-radius: 12px; padding: 16px; text-align: center; }
+.invest-avista-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #059669; font-weight: 700; }
+.invest-avista-value { font-size: 26px; font-weight: 900; color: #10B981; margin: 6px 0 2px; line-height: 1; letter-spacing: -0.5px; }
+.invest-avista-economia { font-size: 11px; color: #059669; font-weight: 600; }
+.invest-cartao { background: linear-gradient(135deg, var(--c1), var(--c2)); color: white; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.invest-cartao-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9; font-weight: 700; }
+.invest-cartao-value { font-size: 26px; font-weight: 900; margin-top: 6px; line-height: 1; letter-spacing: -0.5px; }
+.invest-grid-single { grid-template-columns: 1fr; }
 /* Garantias destacadas */
 .garantias { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .garantia { background: var(--c3); padding: 16px 12px; border-radius: 10px; text-align: center; }
@@ -1642,6 +1663,8 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   .section { padding: 24px 20px; }
   .specs, .garantias { grid-template-columns: 1fr 1fr; }
   .invest-value { font-size: 28px; }
+  .invest-grid { grid-template-columns: 1fr; }
+  .invest-avista-value, .invest-cartao-value { font-size: 22px; }
   .footer { padding: 24px 20px 32px; }
 }
 @media (max-width: 400px) {
@@ -1737,9 +1760,12 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   <div class="section">
     <h2>💎 Investimento</h2>
     <div class="invest-box">
-      <div class="invest-label">Valor total do sistema</div>
+      <div class="invest-label">Preço do projeto</div>
       <div class="invest-value">${pBRL(investimento)}</div>
-      ${parcelasHtml}
+      <div class="invest-grid${precoAvista > 0 ? '' : ' invest-grid-single'}">
+        ${avistaHtml}
+        ${cartaoHtml}
+      </div>
     </div>
   </div>
 
