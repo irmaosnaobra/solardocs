@@ -1504,6 +1504,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const vendedor = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome);
   const vendedorWhatsApp = (str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '');
   const fotoTelhado = str(f.foto_telhado_b64) === '___' ? '' : String(f.foto_telhado_b64);
+  const tipoTelhado = str(f.tipo_telhado) === '___' ? (client.tipo_telhado || '') : String(f.tipo_telhado);
   const cidade = str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade);
   const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).toUpperCase();
   const consumoKwh = parseFloat(String(f.consumo_kwh || '0')) || 0;
@@ -1791,6 +1792,10 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
         <div class="spec-label">Consumo médio do cliente</div>
         <div class="spec-value">${consumoKwh > 0 ? pNum(consumoKwh) + ' kWh/mês' : '—'}</div>
       </div>
+      ${tipoTelhado ? `<div class="spec">
+        <div class="spec-label">Tipo de instalação</div>
+        <div class="spec-value">${pEsc(tipoTelhado)}</div>
+      </div>` : ''}
     </div>
   </div>
 
