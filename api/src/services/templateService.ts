@@ -1505,8 +1505,8 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const vendedorWhatsApp = (str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '');
   const fotoTelhado = str(f.foto_telhado_b64) === '___' ? '' : String(f.foto_telhado_b64);
   const tipoTelhado = str(f.tipo_telhado) === '___' ? (client.tipo_telhado || '') : String(f.tipo_telhado);
-  const cidade = str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade);
-  const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).toUpperCase();
+  const cidade = (str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade)).trim();
+  const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).trim().toUpperCase();
   const consumoKwh = parseFloat(String(f.consumo_kwh || '0')) || 0;
   const qtdModulos = parseInt(String(f.qtd_modulos || '0'), 10) || 0;
   const marcaModulo = String(f.marca_modulo || '');
@@ -1568,14 +1568,14 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   // Bloco de pagamento: à vista com desconto (se houver) e 18× no cartão em destaque
   const avistaHtml = precoAvista > 0
     ? `<div class="invest-avista">
-        <div class="invest-avista-label">🎯 Desconto especial à vista</div>
+        <div class="invest-avista-label">Desconto à vista</div>
         <div class="invest-avista-value">${pBRL(precoAvista)}</div>
         <div class="invest-avista-economia">economia de ${pBRL(investimento - precoAvista)}</div>
       </div>`
     : '';
   const cartaoHtml = valor18x > 0
     ? `<div class="invest-cartao">
-        <div class="invest-cartao-label">💳 Parcelado no cartão</div>
+        <div class="invest-cartao-label">Parcelado no cartão</div>
         <div class="invest-cartao-value">18× de ${pBRL(valor18x)}</div>
       </div>`
     : '';
@@ -1653,12 +1653,11 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .foto-wrap img { width: 100%; height: auto; display: block; max-height: 420px; object-fit: cover; }
 .foto-caption { text-align: center; color: var(--c-muted); font-size: 12px; margin-top: 8px; font-style: italic; }
 /* CTA — Quero fechar */
-.cta-box { background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%); color: white; padding: 32px 24px; text-align: center; border-radius: 16px; margin: 8px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
-.cta-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.3px; }
-.cta-sub { font-size: 14px; opacity: 0.95; margin-bottom: 18px; }
-.cta-btn { display: inline-block; background: white; color: var(--c1); padding: 14px 32px; border-radius: 100px; font-weight: 800; font-size: 15px; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: transform 0.15s; }
-.cta-btn:hover { transform: translateY(-2px); }
-@media print { .cta-btn { background: white; color: var(--c1); border: 2px solid var(--c1); } .no-print-cta { display: none !important; } }
+.cta-box { background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%); color: white; padding: 28px 24px; text-align: center; border-radius: 16px; margin: 8px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+.cta-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.3px; }
+.cta-sub { font-size: 13px; opacity: 0.95; margin-bottom: 16px; }
+.cta-pill { display: inline-block; background: white; color: var(--c1); padding: 12px 28px; border-radius: 100px; font-weight: 800; font-size: 15px; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.cta-phone { display: block; margin-top: 10px; font-size: 16px; font-weight: 700; opacity: 0.95; letter-spacing: 0.3px; font-family: 'Inter', monospace; }
 /* Garantias destacadas */
 .garantias { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .garantia { background: var(--c3); padding: 16px 12px; border-radius: 10px; text-align: center; }
@@ -1671,22 +1670,41 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .footer .empresa-info { color: var(--c-muted); font-size: 12px; margin-top: 20px; }
 .footer .gerado { color: #9CA3AF; font-size: 10px; margin-top: 12px; }
 /* Print */
-@page { size: A4; margin: 10mm; }
+@page { size: A4; margin: 8mm; }
 @media print {
-  html, body { background: white !important; font-size: 10.5pt; }
+  html, body { background: white !important; font-size: 10pt; }
   body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
   .page { box-shadow: none !important; max-width: 100% !important; margin: 0 !important; }
-  .topbar { padding: 8px 0 !important; }
-  .hero { padding: 28px 24px !important; }
-  .hero h1 { font-size: 22px !important; }
-  .hero .economia-value { font-size: 32px !important; }
-  .stats { padding: 16px 0 !important; gap: 8px !important; }
-  .stat { padding: 12px 8px !important; }
-  .section { padding: 16px 0 !important; page-break-inside: avoid; break-inside: avoid; }
-  .invest-box, .cta-box, .chart-wrap, .foto-wrap { page-break-inside: avoid; break-inside: avoid; }
-  .footer { padding: 16px 0 !important; }
-  .no-print { display: none !important; }
+  .topbar { padding: 6px 0 8px !important; }
+  .hero { padding: 22px 20px !important; }
+  .hero h1 { font-size: 20px !important; margin-bottom: 4px !important; }
+  .hero .subtitle { font-size: 12px !important; margin-bottom: 18px !important; }
+  .hero .economia-value { font-size: 28px !important; }
+  .hero .economia { padding: 14px 22px !important; }
+  .stats { padding: 12px 0 !important; gap: 6px !important; }
+  .stat { padding: 10px 6px !important; }
+  .stat-value { font-size: 18px !important; }
+  .stat-label { font-size: 9px !important; }
+  .section { padding: 12px 0 !important; page-break-inside: avoid; break-inside: avoid; }
+  .section h2 { font-size: 15px !important; margin-bottom: 8px !important; }
+  .invest-box { padding: 16px 16px !important; }
+  .invest-value { font-size: 28px !important; margin: 2px 0 !important; }
+  .invest-grid { margin-top: 12px !important; gap: 8px !important; }
+  .invest-avista, .invest-cartao { padding: 12px !important; }
+  .invest-avista-value, .invest-cartao-value { font-size: 20px !important; }
   .invest-cartao { border: 2px solid var(--c1) !important; }
+  .cta-box { padding: 18px 16px !important; }
+  .cta-title { font-size: 17px !important; }
+  .cta-sub { font-size: 12px !important; margin-bottom: 10px !important; }
+  .cta-phone { font-size: 14px !important; margin-top: 6px !important; }
+  .garantia { padding: 12px 8px !important; }
+  .garantia-num { font-size: 20px !important; }
+  .garantia-label { font-size: 9px !important; }
+  .footer { padding: 12px 0 16px !important; }
+  .footer .empresa-info { margin-top: 12px !important; font-size: 10px !important; }
+  .footer .gerado { font-size: 9px !important; margin-top: 6px !important; }
+  .invest-box, .cta-box, .chart-wrap, .foto-wrap { page-break-inside: avoid; break-inside: avoid; }
+  .no-print { display: none !important; }
 }
 /* Mobile */
 @media (max-width: 640px) {
@@ -1722,7 +1740,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   </div>
 
   <div class="hero">
-    <h1>Olá, ${pEsc(client.nome)}!</h1>
+    <h1>Olá,&nbsp;${pEsc(client.nome.trim())}!</h1>
     <p class="subtitle">Sua proposta de energia solar pra economizar pelos próximos 25 anos</p>
     <div class="economia">
       <div class="economia-label">Economia em 25 anos</div>
@@ -1733,29 +1751,25 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 
   <div class="stats">
     <div class="stat">
-      <div class="stat-icon">⚡</div>
       <div class="stat-value">${pKwp(kwp)} kWp</div>
       <div class="stat-label">Sistema</div>
     </div>
     <div class="stat">
-      <div class="stat-icon">☀️</div>
       <div class="stat-value">${pNum(mediaMensalGerada)}</div>
       <div class="stat-label">kWh/mês</div>
     </div>
     <div class="stat">
-      <div class="stat-icon">📉</div>
       <div class="stat-value">${economiaPercent}%</div>
       <div class="stat-label">Da sua conta</div>
     </div>
     <div class="stat">
-      <div class="stat-icon">📅</div>
       <div class="stat-value">${paybackAnos}</div>
       <div class="stat-label">Anos pra retorno</div>
     </div>
   </div>
 
   <div class="section">
-    <h2>📊 Geração mensal estimada — ${pEsc(cidade)}/${uf}</h2>
+    <h2>Geração mensal estimada — ${pEsc(cidade)}/${uf}</h2>
     <div class="chart-wrap">
       <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -1774,7 +1788,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   </div>
 
   <div class="section">
-    <h2>🛠️ Equipamentos e instalação</h2>
+    <h2>Equipamentos e instalação</h2>
     <div class="specs">
       <div class="spec">
         <div class="spec-label">Módulos fotovoltaicos</div>
@@ -1800,7 +1814,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   </div>
 
   ${fotoTelhado ? `<div class="section">
-    <h2>📷 Local da instalação</h2>
+    <h2>Local da instalação</h2>
     <div class="foto-wrap">
       <img src="${fotoTelhado}" alt="Local da instalação"/>
     </div>
@@ -1808,7 +1822,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   </div>` : ''}
 
   <div class="section">
-    <h2>💎 Investimento</h2>
+    <h2>Investimento</h2>
     <div class="invest-box">
       <div class="invest-label">Preço do projeto</div>
       <div class="invest-value">${pBRL(investimento)}</div>
@@ -1820,7 +1834,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   </div>
 
   <div class="section">
-    <h2>🛡️ Garantias</h2>
+    <h2>Garantias</h2>
     <div class="garantias">
       <div class="garantia"><div class="garantia-num">25</div><div class="garantia-label">anos<br/>painéis</div></div>
       <div class="garantia"><div class="garantia-num">10</div><div class="garantia-label">anos<br/>inversor</div></div>
@@ -1829,15 +1843,22 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     </div>
   </div>
 
-  ${vendedorWhatsApp ? `<div class="section">
+  ${vendedorWhatsApp ? (() => {
+    const phoneClean = vendedorWhatsApp.replace(/^55/, '');
+    // Formato BR: (XX) XXXXX-XXXX
+    const phonePretty = phoneClean.length === 11
+      ? `(${phoneClean.slice(0,2)}) ${phoneClean.slice(2,7)}-${phoneClean.slice(7)}`
+      : phoneClean;
+    const waLink = `https://wa.me/55${phoneClean}?text=${encodeURIComponent(`Olá ${vendedor || ''}! Quero fechar a proposta — ${client.nome}.`)}`;
+    return `<div class="section">
     <div class="cta-box">
       <div class="cta-title">Quer fechar essa proposta?</div>
-      <div class="cta-sub">Me chama no WhatsApp que a gente tira do papel agora 👇</div>
-      <a href="https://wa.me/55${vendedorWhatsApp.replace(/^55/, '')}?text=${encodeURIComponent(`Olá ${vendedor || ''}! Quero fechar a proposta de energia solar — ${client.nome}.`)}" class="cta-btn no-print-cta" target="_blank" rel="noopener noreferrer">
-        💬 Quero fechar — falar agora
-      </a>
+      <div class="cta-sub">Me chama no WhatsApp que a gente tira do papel agora</div>
+      <a href="${waLink}" class="cta-pill" target="_blank" rel="noopener noreferrer">Quero fechar — WhatsApp</a>
+      <div class="cta-phone">${phonePretty}</div>
     </div>
-  </div>` : ''}
+  </div>`;
+  })() : ''}
 
   <div class="footer">
     ${vendedor ? `<div class="vendedor-label">Vendedor responsável</div>
