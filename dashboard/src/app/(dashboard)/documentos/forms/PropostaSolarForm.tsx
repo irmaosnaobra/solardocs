@@ -349,7 +349,7 @@ export default function PropostaSolarPage() {
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Foto do telhado (opcional)</h2>
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 10 }}>
-            Adiciona credibilidade — cliente vê que você esteve lá. Comprime automático.
+            Sem foto, a proposta usa uma imagem padrão profissional de sistema solar. Se enviar a foto real do telhado, ganha autoridade — cliente vê que você esteve lá.
           </p>
           {fields.foto_telhado_b64 ? (
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>

@@ -1635,8 +1635,15 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .invest-cartao-value { font-size: 26px; font-weight: 900; margin-top: 6px; line-height: 1; letter-spacing: -0.5px; }
 .invest-grid-single { grid-template-columns: 1fr; }
 /* Foto do telhado */
-.foto-wrap { border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
-.foto-wrap img { width: 100%; height: auto; display: block; }
+.foto-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+  background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 50%, #87CEEB 100%);
+  min-height: 280px;
+  position: relative;
+}
+.foto-wrap img { width: 100%; height: auto; display: block; max-height: 420px; object-fit: cover; }
 .foto-caption { text-align: center; color: var(--c-muted); font-size: 12px; margin-top: 8px; font-style: italic; }
 /* CTA — Quero fechar */
 .cta-box { background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%); color: white; padding: 32px 24px; text-align: center; border-radius: 16px; margin: 8px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
@@ -1781,13 +1788,15 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     </div>
   </div>
 
-  ${fotoTelhado ? `<div class="section">
-    <h2>📷 Local da instalação</h2>
+  <div class="section">
+    <h2>${fotoTelhado ? '📷 Local da instalação' : '☀️ Como vai ser seu sistema solar'}</h2>
     <div class="foto-wrap">
-      <img src="${fotoTelhado}" alt="Foto do telhado / local da instalação"/>
+      <img src="${fotoTelhado || 'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=1400&h=600&fit=crop&q=85&auto=format'}" alt="Sistema solar fotovoltaico"/>
     </div>
-    <div class="foto-caption">Vistoria realizada por ${pEsc(vendedor) || pEsc(company.nome)}</div>
-  </div>` : ''}
+    <div class="foto-caption">${fotoTelhado
+      ? (vendedor ? 'Vistoria realizada por ' + pEsc(vendedor) : 'Foto do local da instalação')
+      : 'Sistema fotovoltaico moderno — painéis de alta eficiência sobre o telhado'}</div>
+  </div>
 
   <div class="section">
     <h2>💎 Investimento</h2>
