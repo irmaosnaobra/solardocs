@@ -4,16 +4,21 @@ import { supabase } from '../utils/supabase';
 const router = Router();
 
 // GET /p/:id — serve a proposta solar publicamente (sem auth).
+// Aceita id em 2 formatos:
+//  - Código humano YYYYUUUUNNNN (12 dígitos, ex: 202600010001) — preferido
+//  - UUID (legado / fallback)
 // Pega o HTML do Storage e devolve com Content-Type correto.
 // Só funciona pra docs do tipo 'propostaSolar' — outros tipos ignorados.
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id || '');
+    const isCodigo = /^\d{12}$/.test(id);
 
+    const lookupCol = isCodigo ? 'codigo' : 'id';
     const { data: doc } = await supabase
       .from('documents')
       .select('id, tipo, arquivo_url, content')
-      .eq('id', id)
+      .eq(lookupCol, id)
       .maybeSingle();
 
     if (!doc || doc.tipo !== 'propostaSolar') {

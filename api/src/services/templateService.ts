@@ -1494,6 +1494,7 @@ function pEsc(s: string): string {
 function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>): string {
   // Inputs do form
   const palette = PALETTES[String(f.paleta || 'solar')] || PALETTES.solar;
+  const codigoProposta = str(f.codigo) === '___' ? '' : String(f.codigo);
   const vendedor = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome);
   const vendedorWhatsApp = (str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '');
   const fotoTelhado = str(f.foto_telhado_b64) === '___' ? '' : String(f.foto_telhado_b64);
@@ -1701,7 +1702,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   <div class="topbar">
     ${logoHtml}
     <div class="meta">
-      Proposta nº ${Date.now().toString().slice(-6)}<br/>
+      ${codigoProposta ? `Proposta <strong style="font-family: monospace; color: var(--c-text);">${pEsc(codigoProposta)}</strong>` : `Proposta nº ${Date.now().toString().slice(-6)}`}<br/>
       ${today}
     </div>
   </div>

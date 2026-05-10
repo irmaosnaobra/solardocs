@@ -102,6 +102,18 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
 
     await checkLimit(req.userId);
 
+    // Pra propostaSolar, gera o código ANTES do template pra injetar no HTML
+    // (assim o cabeçalho do PDF mostra "Proposta 202600010001")
+    let codigo: string | null = null;
+    if (body.tipo === 'propostaSolar' && req.userId) {
+      try {
+        codigo = await generateCodigoProposta(req.userId);
+        body.fields = { ...body.fields, codigo };
+      } catch (err) {
+        logger.error('documents', 'falha gerando codigo proposta — segue sem codigo', err);
+      }
+    }
+
     if (body.useTemplate) {
       content = generateFromTemplate(body.tipo, company, entity as unknown as Client, body.fields, body.modeloNumero);
       modeloUsado = `modelo-${body.modeloNumero}`;
@@ -136,6 +148,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     }
 
     // Save record immediately so it always appears in history
+    // (codigo já foi gerado antes do template, se for propostaSolar)
     const { data: saved } = await supabase
       .from('documents')
       .insert({
@@ -148,12 +161,13 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
         content,
         modelo_usado: modeloUsado,
         arquivo_url,
+        codigo,
         status: 'saved',
       })
       .select('id')
       .single();
 
-    res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: saved?.id ?? null });
+    res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: saved?.id ?? null, codigo });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.issues[0].message });
@@ -171,6 +185,49 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
 function injectPrint(html: string): string {
   const script = `<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>`;
   return html.includes('window.print') ? html : html.replace('</body>', script + '</body>');
+}
+
+// Atribui numero_seq ao user se ainda não tem (lazy, no 1º código gerado)
+async function ensureUserNumeroSeq(userId: string): Promise<number> {
+  const { data: u } = await supabase
+    .from('users')
+    .select('numero_seq')
+    .eq('id', userId)
+    .single();
+  if (u?.numero_seq && Number(u.numero_seq) > 0) return Number(u.numero_seq);
+
+  // Pega o maior numero_seq atual e incrementa. Pra ambiente single-tenant
+  // (1 deploy, 1 banco) é seguro. Em multi-tenant com escala, usar SEQUENCE.
+  const { data: max } = await supabase
+    .from('users')
+    .select('numero_seq')
+    .not('numero_seq', 'is', null)
+    .order('numero_seq', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const next = (Number(max?.numero_seq) || 0) + 1;
+  await supabase.from('users').update({ numero_seq: next }).eq('id', userId);
+  return next;
+}
+
+// Gera código YYYYUUUUNNNN
+async function generateCodigoProposta(userId: string): Promise<string> {
+  const numeroSeq = await ensureUserNumeroSeq(userId);
+  const ano = new Date().getFullYear();
+  const inicioAno = `${ano}-01-01`;
+
+  // Conta propostaSolar do user no ano corrente
+  const { count } = await supabase
+    .from('documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('tipo', 'propostaSolar')
+    .gte('created_at', inicioAno);
+
+  const propostaNum = (count || 0) + 1;
+  const pad4 = (n: number) => String(n).padStart(4, '0');
+  return `${ano}${pad4(numeroSeq)}${pad4(propostaNum)}`;
 }
 
 export async function saveDocument(req: Request, res: Response): Promise<void> {

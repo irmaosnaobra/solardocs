@@ -6,7 +6,7 @@ import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
 
-interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
+interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null }
 
 // Comprime imagem pra max 1200px largura, JPEG 0.82.
 // Foto de celular típica (3-5MB) cai pra ~120-180kb.
@@ -132,9 +132,12 @@ export default function PropostaSolarPage() {
     iframeRef.current.contentWindow.print();
   }
 
+  // Identificador público preferencial: codigo (YYYYUUUUNNNN), fallback pra UUID
+  const publicId = generated?.codigo || generated?.doc_id;
+
   function handleCopyLink() {
-    if (!generated?.doc_id) return;
-    const url = `${window.location.origin}/p/${generated.doc_id}`;
+    if (!publicId) return;
+    const url = `${window.location.origin}/p/${publicId}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopyMsg('Link copiado!');
       setTimeout(() => setCopyMsg(''), 2200);
@@ -142,8 +145,8 @@ export default function PropostaSolarPage() {
   }
 
   function handleWhatsApp() {
-    if (!generated?.doc_id) return;
-    const url = `${window.location.origin}/p/${generated.doc_id}`;
+    if (!publicId) return;
+    const url = `${window.location.origin}/p/${publicId}`;
     const texto = encodeURIComponent(
       `Olá ${clienteNome || 'cliente'}! Aqui está sua proposta de energia solar:\n\n${url}\n\nQualquer dúvida me chama 👋`
     );
@@ -157,7 +160,10 @@ export default function PropostaSolarPage() {
       const blobUrl = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = blobUrl;
-      a.download = `proposta-${(clienteNome || 'cliente').toLowerCase().replace(/\s+/g, '-')}.pdf`;
+      // Nome do arquivo: usa código se houver, senão cliente slug
+      a.download = generated.codigo
+        ? `${generated.codigo}.pdf`
+        : `proposta-${(clienteNome || 'cliente').toLowerCase().replace(/\s+/g, '-')}.pdf`;
       a.click();
       URL.revokeObjectURL(blobUrl);
     } catch {
@@ -171,6 +177,20 @@ export default function PropostaSolarPage() {
       <div className={styles.page}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
           <button type="button" onClick={() => setGenerated(null)} style={btn('ghost')}>← Nova proposta</button>
+          {generated.codigo && (
+            <span style={{
+              padding: '6px 12px',
+              borderRadius: 6,
+              background: 'rgba(245,158,11,0.1)',
+              border: '1px solid rgba(245,158,11,0.35)',
+              color: 'var(--color-primary)',
+              fontFamily: 'monospace',
+              fontSize: 13,
+              fontWeight: 700,
+            }}>
+              📄 {generated.codigo}
+            </span>
+          )}
           <div style={{ flex: 1 }} />
           <button type="button" onClick={handleWhatsApp} style={btn('whatsapp')}>💬 WhatsApp</button>
           <button type="button" onClick={handleCopyLink} style={btn('primary')}>🔗 Copiar link</button>
