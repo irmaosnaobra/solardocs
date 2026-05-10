@@ -65,6 +65,7 @@ const initialFields = {
 
 export default function PropostaSolarPage() {
   const { user } = useDashboard();
+  const [modoCliente, setModoCliente] = useState<'avulso' | 'cadastrado'>('avulso');
   const [clienteId, setClienteId] = useState('');
   const [clienteNome, setClienteNome] = useState('');
   const [fields, setFields] = useState(initialFields);
@@ -106,20 +107,26 @@ export default function PropostaSolarPage() {
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
-    if (!clienteId) { setError('Selecione um cliente'); return; }
+    if (modoCliente === 'cadastrado' && !clienteId) { setError('Selecione um cliente cadastrado'); return; }
+    if (modoCliente === 'avulso' && !clienteNome.trim()) { setError('Informe o nome do cliente'); return; }
     if (!kwpCalc) { setError('Quantidade de módulos × potência por módulo precisam estar preenchidos'); return; }
     if (!fields.investimento) { setError('Valor do investimento é obrigatório'); return; }
 
     setError('');
     setGenerating(true);
     try {
-      const { data } = await api.post('/documents/generate', {
+      const payload: Record<string, unknown> = {
         tipo: 'propostaSolar',
-        cliente_id: clienteId,
         fields,
         useTemplate: true,
         modeloNumero: 1,
-      });
+      };
+      if (modoCliente === 'cadastrado') {
+        payload.cliente_id = clienteId;
+      } else {
+        payload.cliente_nome_avulso = clienteNome.trim();
+      }
+      const { data } = await api.post('/documents/generate', payload);
       setGenerated(data);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
@@ -267,19 +274,60 @@ export default function PropostaSolarPage() {
         {/* CLIENTE + VENDEDOR */}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Cliente e vendedor</h2>
-          <ClientSelector value={clienteId} onChange={(id, c) => {
-            setClienteId(id);
-            setClienteNome(c?.nome || '');
-            if (c) {
-              if (c.cidade && !fields.cidade) setField('cidade', c.cidade);
-              if (c.uf && !fields.uf) setField('uf', c.uf);
-              const t = c.tipo_telhado;
-              if (t && !fields.tipo_telhado) {
-                const match = TIPOS_TELHADO.find(x => x.toLowerCase() === t.toLowerCase());
-                if (match) setField('tipo_telhado', match);
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button type="button" onClick={() => setModoCliente('avulso')} style={{
+              flex: 1, padding: '10px 14px', borderRadius: 8,
+              border: modoCliente === 'avulso' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+              background: modoCliente === 'avulso' ? 'rgba(245,158,11,0.08)' : 'var(--color-surface)',
+              color: 'var(--color-text)', cursor: 'pointer', fontSize: 13,
+              fontWeight: modoCliente === 'avulso' ? 700 : 500, textAlign: 'left',
+            }}>
+              ⚡ Rápido (só nome)
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 400, marginTop: 2 }}>
+                Em cima do telhado, gerar agora
+              </div>
+            </button>
+            <button type="button" onClick={() => setModoCliente('cadastrado')} style={{
+              flex: 1, padding: '10px 14px', borderRadius: 8,
+              border: modoCliente === 'cadastrado' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+              background: modoCliente === 'cadastrado' ? 'rgba(245,158,11,0.08)' : 'var(--color-surface)',
+              color: 'var(--color-text)', cursor: 'pointer', fontSize: 13,
+              fontWeight: modoCliente === 'cadastrado' ? 700 : 500, textAlign: 'left',
+            }}>
+              📇 Cliente cadastrado
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 400, marginTop: 2 }}>
+                Auto-preenche cidade, telhado, etc
+              </div>
+            </button>
+          </div>
+
+          {modoCliente === 'avulso' ? (
+            <div className={styles.field}>
+              <label className={styles.label}>Nome do cliente *</label>
+              <input
+                type="text"
+                value={clienteNome}
+                onChange={e => setClienteNome(e.target.value)}
+                placeholder="Ex: João da Silva"
+                className="input-field"
+                required
+              />
+            </div>
+          ) : (
+            <ClientSelector value={clienteId} onChange={(id, c) => {
+              setClienteId(id);
+              setClienteNome(c?.nome || '');
+              if (c) {
+                if (c.cidade && !fields.cidade) setField('cidade', c.cidade);
+                if (c.uf && !fields.uf) setField('uf', c.uf);
+                const t = c.tipo_telhado;
+                if (t && !fields.tipo_telhado) {
+                  const match = TIPOS_TELHADO.find(x => x.toLowerCase() === t.toLowerCase());
+                  if (match) setField('tipo_telhado', match);
+                }
               }
-            }
-          }} />
+            }} />
+          )}
           <div className={styles.grid2} style={{ marginTop: 12 }}>
             <div className={styles.field}>
               <label className={styles.label}>Vendedor responsável *</label>
@@ -474,7 +522,7 @@ export default function PropostaSolarPage() {
         </div>
 
         {error && <p className="error-message">{error}</p>}
-        <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
+        <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || (modoCliente === 'cadastrado' ? !clienteId : !clienteNome.trim())}>
           {generating ? '⏳ Gerando...' : '✨ Gerar Proposta'}
         </button>
       </form>

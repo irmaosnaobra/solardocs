@@ -11,10 +11,15 @@ const generateSchema = z.object({
   tipo: z.string().min(1),
   cliente_id: z.string().uuid().optional(),
   terceiro_id: z.string().uuid().optional(),
+  // Modo avulso: nome do cliente sem cadastro completo (vistoria + propostaSolar)
+  cliente_nome_avulso: z.string().min(2).optional(),
   fields: z.record(z.string(), z.unknown()),
   useTemplate: z.boolean().optional().default(false),
   modeloNumero: z.union([z.literal(1), z.literal(2)]).optional().default(1),
 });
+
+// Tipos que aceitam modo rapido (so nome do cliente, sem cadastro)
+const TIPOS_MODO_RAPIDO = ['vistoria', 'propostaSolar'];
 
 const saveSchema = z.object({
   tipo: z.string().min(1),
@@ -30,8 +35,13 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
   try {
     const body = generateSchema.parse(req.body);
 
-    if (!body.cliente_id && !body.terceiro_id) {
-      throw new ApiError(400, 'Informe cliente_id ou terceiro_id');
+    const aceitaAvulso = TIPOS_MODO_RAPIDO.includes(body.tipo);
+    const usandoAvulso = aceitaAvulso && !!body.cliente_nome_avulso && !body.cliente_id && !body.terceiro_id;
+
+    if (!body.cliente_id && !body.terceiro_id && !usandoAvulso) {
+      throw new ApiError(400, aceitaAvulso
+        ? 'Informe cliente_id, terceiro_id ou cliente_nome_avulso'
+        : 'Informe cliente_id ou terceiro_id');
     }
 
     if (body.tipo === 'prestacaoServico' && !body.terceiro_id) {
@@ -52,7 +62,11 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     let entity: Record<string, unknown>;
     let entityNome: string;
 
-    if (body.terceiro_id) {
+    if (usandoAvulso) {
+      // Cliente avulso: só nome, resto vazio. Template lida com campos faltantes.
+      entityNome = (body.cliente_nome_avulso || '').trim();
+      entity = { nome: entityNome };
+    } else if (body.terceiro_id) {
       const { data: terceiro } = await supabase
         .from('terceiros')
         .select('*')

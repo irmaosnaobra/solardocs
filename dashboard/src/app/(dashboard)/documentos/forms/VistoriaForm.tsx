@@ -47,28 +47,34 @@ const initialFields = {
 
 export default function VistoriaPage() {
   const { user } = useDashboard();
+  const [modoCliente, setModoCliente] = useState<'avulso' | 'cadastrado'>('avulso');
   const [clienteId, setClienteId] = useState('');
+  const [clienteNome, setClienteNome] = useState('');
   const [fields, setFields] = useState(initialFields);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
 
   const isDigital = fields.modo === 'digital';
+  const clienteOk = modoCliente === 'cadastrado' ? !!clienteId : !!clienteNome.trim();
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
-    if (!clienteId) { setError('Selecione um cliente'); return; }
+    if (modoCliente === 'cadastrado' && !clienteId) { setError('Selecione um cliente cadastrado'); return; }
+    if (modoCliente === 'avulso' && !clienteNome.trim()) { setError('Informe o nome do cliente'); return; }
 
     setError('');
     setGenerating(true);
     try {
-      const { data } = await api.post('/documents/generate', {
+      const payload: Record<string, unknown> = {
         tipo: 'vistoria',
-        cliente_id: clienteId,
         fields,
         useTemplate: true,
         modeloNumero: 1,
-      });
+      };
+      if (modoCliente === 'cadastrado') payload.cliente_id = clienteId;
+      else payload.cliente_nome_avulso = clienteNome.trim();
+      const { data } = await api.post('/documents/generate', payload);
       setGenerated(data);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
@@ -182,13 +188,54 @@ export default function VistoriaPage() {
         {/* CLIENTE */}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Cliente</h2>
-          <ClientSelector value={clienteId} onChange={(id, c) => {
-            setClienteId(id);
-            if (c && !fields.endereco_visita) {
-              const partes = [c.endereco, c.cidade, c.uf].filter(Boolean).join(', ');
-              if (partes) setField('endereco_visita', partes);
-            }
-          }} />
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button type="button" onClick={() => setModoCliente('avulso')} style={{
+              flex: 1, padding: '10px 14px', borderRadius: 8,
+              border: modoCliente === 'avulso' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+              background: modoCliente === 'avulso' ? 'rgba(245,158,11,0.08)' : 'var(--color-surface)',
+              color: 'var(--color-text)', cursor: 'pointer', fontSize: 13,
+              fontWeight: modoCliente === 'avulso' ? 700 : 500, textAlign: 'left',
+            }}>
+              ⚡ Rápido (só nome)
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 400, marginTop: 2 }}>
+                Em cima do telhado, gerar agora
+              </div>
+            </button>
+            <button type="button" onClick={() => setModoCliente('cadastrado')} style={{
+              flex: 1, padding: '10px 14px', borderRadius: 8,
+              border: modoCliente === 'cadastrado' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+              background: modoCliente === 'cadastrado' ? 'rgba(245,158,11,0.08)' : 'var(--color-surface)',
+              color: 'var(--color-text)', cursor: 'pointer', fontSize: 13,
+              fontWeight: modoCliente === 'cadastrado' ? 700 : 500, textAlign: 'left',
+            }}>
+              📇 Cliente cadastrado
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 400, marginTop: 2 }}>
+                Auto-preenche endereço da visita
+              </div>
+            </button>
+          </div>
+          {modoCliente === 'avulso' ? (
+            <div className={styles.field}>
+              <label className={styles.label}>Nome do cliente *</label>
+              <input
+                type="text"
+                value={clienteNome}
+                onChange={e => setClienteNome(e.target.value)}
+                placeholder="Ex: João da Silva"
+                className="input-field"
+                required
+              />
+            </div>
+          ) : (
+            <ClientSelector value={clienteId} onChange={(id, c) => {
+              setClienteId(id);
+              setClienteNome(c?.nome || '');
+              if (c && !fields.endereco_visita) {
+                const partes = [c.endereco, c.cidade, c.uf].filter(Boolean).join(', ');
+                if (partes) setField('endereco_visita', partes);
+              }
+            }} />
+          )}
         </div>
 
         {/* DADOS BÁSICOS */}
@@ -318,7 +365,7 @@ export default function VistoriaPage() {
         )}
 
         {error && <p className="error-message">{error}</p>}
-        <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
+        <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteOk}>
           {generating ? '⏳ Gerando...' : isDigital ? '📱 Gerar CheckList preenchido' : '🖨️ Gerar CheckList em branco'}
         </button>
       </form>
