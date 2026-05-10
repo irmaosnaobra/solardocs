@@ -5,6 +5,7 @@ import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContract
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
+import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
 import { runSdrB2bFollowups } from '../services/agents/sdr/sdrB2bFollowupService';
@@ -240,6 +241,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
     ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],
+    ['insights-prewarm',             () => getInsights(true)],
     ['luma-reativacao',             () => processarReativacao()],
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],

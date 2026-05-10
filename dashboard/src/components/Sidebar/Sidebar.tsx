@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Settings, Zap, FolderOpen, FileText, Sheet, Pin,
+  Settings, Zap, FolderOpen, FileText,
   LayoutDashboard, Building2, Users, Handshake,
   Banknote, ScrollText, FileSignature,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
@@ -32,9 +32,6 @@ interface SidebarProps {
   onUpgradeClick: () => void;
 }
 
-const PLANILHA_MESTRE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvd79xaG3qQwyko6BegyUaZmvd0B1FmtkaN9Oafm3qmU5yY86T2qA0EP_CysGf6bpRjxCccMOiqLxp/pubhtml';
-const TRELLO_HOMOLOGACAO_URL = 'https://trello.com/invite/b/678a89a047242f02d443f8e0/ATTI3bb1a020220b7bd024f4812d12210e193C056740/engenheiro-guilherme';
-
 interface NavItem {
   href: string;
   icon: LucideIcon;
@@ -51,8 +48,6 @@ const adminItems: NavItem[] = [
   { href: '/admin',                   icon: Settings,   label: 'Painel Admin' },
   { href: '/admin/insights',          icon: BarChart3,  label: 'Insights' },
   { href: '/crm/solardoc',            icon: FolderOpen, label: 'CRM SolarDoc', count: 58 },
-  { href: PLANILHA_MESTRE_URL,        icon: Sheet,      label: 'Planilha Mestre',     external: true },
-  { href: TRELLO_HOMOLOGACAO_URL,     icon: Pin,        label: 'Homologação',         external: true },
 ];
 
 const cadastroItems: NavItem[] = [

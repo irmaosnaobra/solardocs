@@ -14,7 +14,7 @@ const PLANILHA_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvd79
 const TRELLO_BOARD_ID = '678a89a047242f02d443f8e0';
 const TRELLO_API = `https://trello.com/1/boards/${TRELLO_BOARD_ID}?lists=open&cards=open&fields=name&list_fields=name&card_fields=name,idList,due,dateLastActivity`;
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1h
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h — atualiza 1x/dia (pre-warm pelo master cron das 9h)
 
 export interface Insights {
   generatedAt: string;
