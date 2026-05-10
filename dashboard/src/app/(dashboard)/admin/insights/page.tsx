@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/services/api';
+import { useDashboard } from '@/contexts/DashboardContext';
 
 interface KpiNum { label: string; value: string; sub?: string; }
 interface PlanilhaKpis {
@@ -77,10 +79,19 @@ function KpiCard({ k }: { k: KpiNum }) {
 }
 
 export default function InsightsPage() {
+  const router = useRouter();
+  const { user } = useDashboard();
   const [data, setData] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState('');
+
+  // Admin guard — bate na rota direta sem ser admin -> joga pro dashboard
+  useEffect(() => {
+    if (user && !user.is_admin) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
 
   const load = useCallback(async (force = false) => {
     setErr('');
@@ -98,7 +109,10 @@ export default function InsightsPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // Só carrega se for admin (evita request 403 enquanto redireciona)
+    if (user?.is_admin) load();
+  }, [load, user]);
 
   if (loading) return (
     <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
