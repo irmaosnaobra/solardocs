@@ -1487,8 +1487,33 @@ function pNum(n: number): string {
   return new Intl.NumberFormat('pt-BR').format(Math.round(n));
 }
 
+// Formato pra kWp: mostra decimais se não for inteiro (5 → "5", 9,6 → "9,6")
+function pKwp(n: number): string {
+  if (Math.abs(n - Math.round(n)) < 0.01) return String(Math.round(n));
+  return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',');
+}
+
 function pEsc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] || c);
+}
+
+// Imagens default por tipo de instalação
+const IMG_TELHADO = 'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=1400&h=600&fit=crop&q=85&auto=format';
+const IMG_SOLO = 'https://images.unsplash.com/photo-1466611653911-95081537e5b7?w=1400&h=600&fit=crop&q=85&auto=format';
+const IMG_CARPORT = 'https://images.unsplash.com/photo-1559302504-64aae6ca6b6d?w=1400&h=600&fit=crop&q=85&auto=format';
+
+const TIPOS_GROUND = ['Solo'];
+const TIPOS_CARPORT = ['Carport', 'Estrutura Metálica'];
+
+function imagemPorTipo(tipo: string): { url: string; titulo: string; legenda: string } {
+  const t = (tipo || '').trim();
+  if (TIPOS_GROUND.includes(t)) {
+    return { url: IMG_SOLO, titulo: '☀️ Como vai ficar sua usina solar', legenda: 'Sistema fotovoltaico de solo — estrutura metálica fixa, máxima eficiência por área' };
+  }
+  if (TIPOS_CARPORT.includes(t)) {
+    return { url: IMG_CARPORT, titulo: '☀️ Como vai ficar seu sistema solar', legenda: 'Sistema solar com estrutura metálica — gera energia e ainda cobre veículos' };
+  }
+  return { url: IMG_TELHADO, titulo: '☀️ Como vai ficar seu sistema solar', legenda: 'Sistema fotovoltaico moderno — painéis de alta eficiência sobre o telhado' };
 }
 
 function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>): string {
@@ -1498,6 +1523,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const vendedor = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome);
   const vendedorWhatsApp = (str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '');
   const fotoTelhado = str(f.foto_telhado_b64) === '___' ? '' : String(f.foto_telhado_b64);
+  const tipoTelhado = str(f.tipo_telhado) === '___' ? (client.tipo_telhado || '') : String(f.tipo_telhado);
   const cidade = str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade);
   const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).toUpperCase();
   const consumoKwh = parseFloat(String(f.consumo_kwh || '0')) || 0;
@@ -1727,7 +1753,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   <div class="stats">
     <div class="stat">
       <div class="stat-icon">⚡</div>
-      <div class="stat-value">${pNum(kwp).replace(',00','')} kWp</div>
+      <div class="stat-value">${pKwp(kwp)} kWp</div>
       <div class="stat-label">Sistema</div>
     </div>
     <div class="stat">
@@ -1788,15 +1814,22 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     </div>
   </div>
 
-  <div class="section">
-    <h2>${fotoTelhado ? '📷 Local da instalação' : '☀️ Como vai ser seu sistema solar'}</h2>
-    <div class="foto-wrap">
-      <img src="${fotoTelhado || 'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=1400&h=600&fit=crop&q=85&auto=format'}" alt="Sistema solar fotovoltaico"/>
-    </div>
-    <div class="foto-caption">${fotoTelhado
+  ${(() => {
+    const img = imagemPorTipo(tipoTelhado);
+    const usaCustom = !!fotoTelhado;
+    const titulo = usaCustom ? '📷 Local da instalação' : img.titulo;
+    const url = usaCustom ? fotoTelhado : img.url;
+    const legenda = usaCustom
       ? (vendedor ? 'Vistoria realizada por ' + pEsc(vendedor) : 'Foto do local da instalação')
-      : 'Sistema fotovoltaico moderno — painéis de alta eficiência sobre o telhado'}</div>
-  </div>
+      : img.legenda;
+    return `<div class="section">
+    <h2>${titulo}</h2>
+    <div class="foto-wrap">
+      <img src="${url}" alt="Sistema solar fotovoltaico"/>
+    </div>
+    <div class="foto-caption">${legenda}</div>
+  </div>`;
+  })()}
 
   <div class="section">
     <h2>💎 Investimento</h2>

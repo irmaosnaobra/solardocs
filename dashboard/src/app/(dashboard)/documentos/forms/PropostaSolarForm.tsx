@@ -42,6 +42,15 @@ const PALETAS = [
   { id: 'carbono',  nome: 'Carbono',  c1: '#1F2937', c2: '#F59E0B' },
 ] as const;
 
+const TIPOS_TELHADO = [
+  { v: 'Cerâmico', lbl: '🏠 Cerâmico' },
+  { v: 'Fibrocimento', lbl: '🏠 Fibrocimento' },
+  { v: 'Metálico', lbl: '🏠 Metálico' },
+  { v: 'Laje', lbl: '🏠 Laje' },
+  { v: 'Solo', lbl: '🌾 Solo' },
+  { v: 'Carport', lbl: '🚗 Carport' },
+] as const;
+
 const initialFields = {
   paleta: 'solar' as typeof PALETAS[number]['id'],
   vendedor_nome: '',
@@ -55,6 +64,7 @@ const initialFields = {
   qtd_inversores: '1',
   marca_inversor: '',
   potencia_inversor: '',
+  tipo_telhado: '' as '' | typeof TIPOS_TELHADO[number]['v'],
   investimento: '',
   preco_avista: '',
   foto_telhado_b64: '', // dataURL JPEG comprimido
@@ -270,6 +280,12 @@ export default function PropostaSolarPage() {
             if (c) {
               if (c.cidade && !fields.cidade) setField('cidade', c.cidade);
               if (c.uf && !fields.uf) setField('uf', c.uf);
+              // Auto-fill tipo_telhado se cliente tem e mapeia pra um dos nossos
+              const t = c.tipo_telhado;
+              if (t && !fields.tipo_telhado) {
+                const match = TIPOS_TELHADO.find(x => x.v.toLowerCase() === t.toLowerCase());
+                if (match) setField('tipo_telhado', match.v);
+              }
             }
           }} />
           <div className={styles.grid2} style={{ marginTop: 12 }}>
@@ -341,6 +357,33 @@ export default function PropostaSolarPage() {
             <div className={styles.field}>
               <label className={styles.label}>Potência do inversor (kW) *</label>
               <input type="text" inputMode="decimal" value={fields.potencia_inversor} onChange={e => setField('potencia_inversor', e.target.value)} placeholder="Ex: 5" className="input-field" required />
+            </div>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <label className={styles.label}>Tipo de instalação</label>
+            <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '4px 0 8px' }}>
+              Define a imagem padrão da proposta — telhado residencial, solo ou carport.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {TIPOS_TELHADO.map((t) => (
+                <button
+                  key={t.v}
+                  type="button"
+                  onClick={() => setField('tipo_telhado', fields.tipo_telhado === t.v ? '' : t.v)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: fields.tipo_telhado === t.v ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                    background: fields.tipo_telhado === t.v ? 'rgba(245,158,11,0.1)' : 'var(--color-surface)',
+                    color: 'var(--color-text)',
+                    fontSize: 13,
+                    fontWeight: fields.tipo_telhado === t.v ? 700 : 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t.lbl}
+                </button>
+              ))}
             </div>
           </div>
         </div>
