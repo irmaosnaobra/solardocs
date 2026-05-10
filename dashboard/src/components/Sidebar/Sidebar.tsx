@@ -7,7 +7,7 @@ import {
   Settings, Zap, FolderOpen, FileText, Sheet, Pin,
   LayoutDashboard, Building2, Users, Handshake,
   Banknote, ScrollText, FileSignature,
-  Wrench, Briefcase, ClipboardCheck, Sparkles,
+  Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
   Save, Lightbulb, HardHat, GraduationCap,
   type LucideIcon,
 } from 'lucide-react';
@@ -49,6 +49,7 @@ interface NavItem {
 
 const adminItems: NavItem[] = [
   { href: '/admin',                   icon: Settings,   label: 'Painel Admin' },
+  { href: '/admin/insights',          icon: BarChart3,  label: 'Insights' },
   { href: '/crm/solardoc',            icon: FolderOpen, label: 'CRM SolarDoc', count: 58 },
   { href: PLANILHA_MESTRE_URL,        icon: Sheet,      label: 'Planilha Mestre',     external: true },
   { href: TRELLO_HOMOLOGACAO_URL,     icon: Pin,        label: 'Homologação',         external: true },
