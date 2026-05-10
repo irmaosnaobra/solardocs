@@ -149,23 +149,40 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
 
     // Save record immediately so it always appears in history
     // (codigo já foi gerado antes do template, se for propostaSolar)
-    const { data: saved } = await supabase
+    const insertPayload: Record<string, unknown> = {
+      user_id:     req.userId,
+      tipo:        body.tipo,
+      cliente_id:  body.cliente_id  || null,
+      terceiro_id: body.terceiro_id || null,
+      cliente_nome: entityNome,
+      dados_json:  body.fields,
+      content,
+      modelo_usado: modeloUsado,
+      arquivo_url,
+      status: 'saved',
+    };
+    if (codigo) insertPayload.codigo = codigo;
+
+    const { data: saved, error: insertErr } = await supabase
       .from('documents')
-      .insert({
-        user_id:     req.userId,
-        tipo:        body.tipo,
-        cliente_id:  body.cliente_id  || null,
-        terceiro_id: body.terceiro_id || null,
-        cliente_nome: entityNome,
-        dados_json:  body.fields,
-        content,
-        modelo_usado: modeloUsado,
-        arquivo_url,
-        codigo,
-        status: 'saved',
-      })
+      .insert(insertPayload)
       .select('id')
       .single();
+
+    if (insertErr) {
+      logger.error('documents', 'INSERT documents falhou', insertErr);
+      // Se a coluna 'codigo' não existir (migration não aplicada), tenta sem ela
+      if (codigo && /codigo|column/i.test(insertErr.message || '')) {
+        delete insertPayload.codigo;
+        const retry = await supabase.from('documents').insert(insertPayload).select('id').single();
+        if (retry.data) {
+          res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: retry.data.id, codigo: null, warning: 'Migration codigo nao aplicada — proposta salva sem codigo' });
+          return;
+        }
+      }
+      res.status(500).json({ error: 'Falha ao salvar documento', detail: insertErr.message });
+      return;
+    }
 
     res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: saved?.id ?? null, codigo });
   } catch (err: unknown) {
