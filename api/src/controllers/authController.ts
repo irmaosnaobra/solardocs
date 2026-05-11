@@ -8,6 +8,7 @@ import { signToken } from '../utils/jwt';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { sendPasswordResetEmail } from '../utils/mailer';
 import { sendWelcomeWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
+import { sendWelcomeEmail } from '../utils/mailer';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -101,10 +102,11 @@ export async function register(req: Request, res: Response): Promise<void> {
       userAgent: req.headers['user-agent'],
     });
 
-    // Boas-vindas automático via WhatsApp
+    // Boas-vindas automático: WhatsApp (Dani) + email (Resend) — async, falha silenciosa
     if (body.whatsapp) {
-      await sendWelcomeWhatsApp(body.whatsapp, body.email).catch(() => {});
+      sendWelcomeWhatsApp(body.whatsapp, body.email, body.nome || null).catch(() => {});
     }
+    sendWelcomeEmail({ to: body.email, userId: user.id, nome: body.nome || null }).catch(() => {});
 
     res.status(201).json({ token, user });
   } catch (err: unknown) {

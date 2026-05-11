@@ -457,3 +457,84 @@ ${opts.descricao}
   });
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
+
+// ════════════════════════════════════════════════════════════
+// EMAIL DE BOAS-VINDAS — disparado após signup com sucesso
+// ════════════════════════════════════════════════════════════
+export async function sendWelcomeEmail(opts: { to: string; userId: string; nome: string | null }): Promise<void> {
+  const firstName = (opts.nome || '').trim().split(/\s+/)[0] || 'Olá';
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:32px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:28px;font-weight:900;line-height:1.15;letter-spacing:-0.5px;">Bem-vindo, ${firstName}! 🌞</h1>
+    <p style="margin:8px 0 0;color:#0f172a;font-size:15px;font-weight:600;opacity:0.85;">Seu acesso ao SolarDoc Pro já tá ativo.</p>
+  </div>
+
+  <div style="padding:32px 36px 24px;text-align:center;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.6;margin:0 0 22px;">Te enviamos o link de acesso pra você salvar — use no celular ou no PC, do jeito que preferir.</p>
+    <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:18px 44px;border-radius:12px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(245,158,11,0.4);">
+      🔓 ENTRAR NA PLATAFORMA
+    </a>
+    <p style="margin:14px 0 0;color:#64748b;font-size:13px;">solardoc.app/auth</p>
+  </div>
+
+  <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;"></div></div>
+
+  <div style="padding:28px 36px 16px;">
+    <p style="margin:0 0 4px;color:#fbbf24;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Instalar como app</p>
+    <h2 style="margin:0 0 22px;color:#f8fafc;font-size:20px;font-weight:800;line-height:1.3;">Em 1 toque vira ícone na tua tela</h2>
+  </div>
+
+  <div style="margin:0 24px 12px;background:#1e293b;border-radius:12px;padding:20px 22px;border-left:4px solid #f59e0b;">
+    <p style="margin:0 0 6px;color:#fbbf24;font-size:14px;font-weight:800;">📱 iPhone / iPad</p>
+    <p style="margin:0 0 8px;color:#e2e8f0;font-size:14px;line-height:1.6;">Abre o link no <strong style="color:#f8fafc;">Safari</strong> (não Chrome!):</p>
+    <ol style="margin:0;padding-left:20px;color:#cbd5e1;font-size:13px;line-height:1.7;">
+      <li>Toca no botão <strong>Compartilhar</strong> (quadrado com seta pra cima ↑)</li>
+      <li>Rola e escolhe <strong>"Adicionar à Tela de Início"</strong></li>
+      <li>Confirma. Ícone do SolarDoc aparece na sua home.</li>
+    </ol>
+  </div>
+
+  <div style="margin:0 24px 12px;background:#1e293b;border-radius:12px;padding:20px 22px;border-left:4px solid #10b981;">
+    <p style="margin:0 0 6px;color:#34d399;font-size:14px;font-weight:800;">📱 Android</p>
+    <p style="margin:0 0 8px;color:#e2e8f0;font-size:14px;line-height:1.6;">Abre o link no <strong style="color:#f8fafc;">Chrome</strong>:</p>
+    <ol style="margin:0;padding-left:20px;color:#cbd5e1;font-size:13px;line-height:1.7;">
+      <li>Toca nos <strong>3 pontinhos</strong> do menu</li>
+      <li>Escolhe <strong>"Instalar app"</strong> ou <strong>"Adicionar à tela inicial"</strong></li>
+      <li>Confirma. Pronto, app na home.</li>
+    </ol>
+  </div>
+
+  <div style="margin:0 24px 8px;background:#1e293b;border-radius:12px;padding:20px 22px;border-left:4px solid #0ea5e9;">
+    <p style="margin:0 0 6px;color:#38bdf8;font-size:14px;font-weight:800;">💻 Computador (Windows / Mac)</p>
+    <p style="margin:0 0 12px;color:#e2e8f0;font-size:14px;line-height:1.6;">Duas opções — escolhe a que preferir:</p>
+
+    <div style="background:#0f172a;border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <p style="margin:0 0 4px;color:#f8fafc;font-size:13px;font-weight:700;">⭐ Opção 1 — Favoritar (rápido)</p>
+      <p style="margin:0;color:#cbd5e1;font-size:13px;line-height:1.6;">No navegador, aperta <kbd style="background:#334155;color:#f8fafc;padding:2px 8px;border-radius:4px;font-family:monospace;font-size:12px;">Ctrl + D</kbd> <span style="color:#64748b;">(Cmd+D no Mac)</span> → renomeia pra "SolarDoc" → salva na <strong>Barra de Favoritos</strong>.</p>
+    </div>
+
+    <div style="background:#0f172a;border-radius:8px;padding:12px 14px;">
+      <p style="margin:0 0 4px;color:#f8fafc;font-size:13px;font-weight:700;">🚀 Opção 2 — Instalar como app (PWA)</p>
+      <p style="margin:0;color:#cbd5e1;font-size:13px;line-height:1.6;">No Chrome ou Edge, clica no ícone <strong>"+"</strong> na barra de endereço (ou Menu → "Instalar SolarDoc Pro"). Vira app de verdade — janela própria, atalho na área de trabalho.</p>
+    </div>
+  </div>
+
+  <div style="padding:24px 36px 28px;text-align:center;">
+    <p style="margin:0 0 6px;color:#94a3b8;font-size:14px;">Travou em algo? Chama a gente.</p>
+    <p style="margin:0;color:#f8fafc;font-size:15px;font-weight:700;">📞 (34) 99943-7831</p>
+    <p style="margin:18px 0 0;color:#475569;font-size:13px;">Bom uso! 🚀<br/><span style="color:#64748b;">Equipe SolarDoc Pro</span></p>
+  </div>
+
+</div>
+`;
+
+  await sendMarketingEmail({
+    to: opts.to,
+    userId: opts.userId,
+    subject: `🌞 Bem-vindo ao SolarDoc Pro, ${firstName} — seu acesso já tá ativo`,
+    html,
+  });
+}

@@ -97,18 +97,23 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
   return { processed, debug: errors.length ? errors : undefined } as any;
 }
 
-export async function sendWelcomeWhatsApp(phone: string, _email: string): Promise<void> {
+export async function sendWelcomeWhatsApp(phone: string, _email: string, nome?: string | null): Promise<void> {
   const cleanPhone = phone.replace(/\D/g, '');
+  const firstName = (nome || '').trim().split(/\s+/)[0];
+  const greeting = firstName ? `Oi ${firstName}!` : 'Oi!';
 
   const parts = [
-    `Oi! Sou a Dani, da SolarDoc Pro 🌞`,
-    `Tô aqui se você precisar de qualquer coisa — pra gerar documento, tirar dúvida ou se travar em algo. Sem pressa.`,
+    `${greeting} 🌞 Sou a Dani, da SolarDoc Pro.`,
+    `Tua conta tá pronta. Te mando o link de acesso pra você salvar:\n\n🔗 solardoc.app/auth`,
+    `Quer instalar como app no celular? Em 1 toque vira ícone na tua tela.\nTe mando o tutorial pra iPhone, Android e PC — em 2min tá tudo configurado.`,
+    `📱 *iPhone*: abre o link no Safari → botão *Compartilhar* (quadrado com seta) → *"Adicionar à Tela de Início"*\n\n📱 *Android*: abre no Chrome → *3 pontinhos* → *"Instalar app"* ou *"Adicionar à tela inicial"*\n\n💻 *PC*: abre no Chrome/Edge → *Ctrl+D* pra favoritar OU clica no ícone *"+"* na barra de endereço pra instalar como app`,
+    `Tô aqui se travar em algo. Bom uso! 🚀`,
   ];
 
   await sendHuman(cleanPhone, parts);
 
   const fullText = parts.join(' || ');
-  await saveSession(cleanPhone, null, [{ role: 'assistant', content: fullText }]);
+  await saveSession(cleanPhone, nome || null, [{ role: 'assistant', content: fullText }]);
 }
 
 // Frases que indicam vontade explicita de parar de receber automacao.
