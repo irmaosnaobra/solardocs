@@ -6,813 +6,14 @@
 <title>Gerador de Proposta Solar — Irmãos na Obra</title>
 <meta name="theme-color" content="#0d2d5e">
 <meta name="description" content="Gerador de propostas comerciais de energia solar — Irmãos na Obra">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="/gerador/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
+<link rel="apple-touch-icon" href="/gerador/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Propostas">
 <meta name="mobile-web-app-capable" content="yes">
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: Arial, sans-serif;
-    background: #f0f4f8;
-    color: #222;
-    padding: 16px;
-    min-height: 100vh;
-  }
-  .container { max-width: 900px; margin: 0 auto; }
-
-  /* HEADER */
-  .header {
-    background: #0d2d5e;
-    border-left: 5px solid #f5c518;
-    color: white;
-    padding: 22px 24px;
-    border-radius: 12px;
-    margin-bottom: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: relative;
-  }
-  .btn-hist {
-    position: absolute;
-    top: 12px;
-    right: 14px;
-    background: #f5c518;
-    color: #0d2d5e;
-    border: none;
-    padding: 7px 14px;
-    border-radius: 99px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .btn-hist:hover { opacity: .9; }
-  .btn-hist-voltar {
-    background: white;
-    color: #0d2d5e;
-    border: 2px solid #0d2d5e;
-    padding: 9px 16px;
-    border-radius: 8px;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 14px;
-  }
-  /* HISTÓRICO */
-  .historico-tabela-wrap { overflow-x: auto; }
-  .historico-tabela {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    min-width: 1100px;
-  }
-  .historico-tabela th {
-    background: #0d2d5e;
-    color: white;
-    padding: 10px 8px;
-    text-align: left;
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 10px;
-    letter-spacing: .3px;
-    white-space: nowrap;
-  }
-  .historico-tabela td {
-    padding: 10px 8px;
-    border-bottom: 1px solid #eef2f7;
-    white-space: nowrap;
-  }
-  .historico-tabela tr:hover td { background: #fafbfc; }
-  .historico-tabela .codigo {
-    font-weight: 700;
-    color: #0d2d5e;
-    font-family: monospace;
-  }
-  .historico-tabela .acoes-mini {
-    display: flex;
-    gap: 6px;
-  }
-  .historico-tabela .acoes-mini button {
-    background: #0d2d5e;
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 11px;
-    cursor: pointer;
-    font-family: inherit;
-    font-weight: 600;
-  }
-  .historico-tabela .acoes-mini button.copiar { background: #f5c518; color: #0d2d5e; }
-  .historico-vazio {
-    text-align: center;
-    padding: 40px 20px;
-    color: #888;
-  }
-  .historico-stats {
-    display: flex;
-    gap: 14px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-  }
-  .historico-stat {
-    background: #f8fafc;
-    padding: 10px 14px;
-    border-radius: 8px;
-    border-left: 3px solid #f5c518;
-    min-width: 130px;
-  }
-  .historico-stat .lbl {
-    font-size: 11px;
-    color: #777;
-    text-transform: uppercase;
-    font-weight: 600;
-  }
-  .historico-stat .val {
-    font-size: 18px;
-    font-weight: 700;
-    color: #0d2d5e;
-  }
-  .header h1 { font-size: 22px; font-weight: 700; }
-  .header .sun { font-size: 40px; }
-  .logo-img {
-    height: 90px;
-    width: auto;
-  }
-  .header-titulo { display: flex; align-items: center; gap: 14px; }
-  .prop-header-titulo { display: flex; align-items: center; gap: 14px; }
-
-  /* CARDS */
-  .card {
-    background: white;
-    border-radius: 12px;
-    padding: 22px;
-    margin-bottom: 16px;
-    box-shadow: 0 2px 8px rgba(13,45,94,.06);
-  }
-  .card h2 {
-    font-size: 16px;
-    color: #0d2d5e;
-    margin-bottom: 16px;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    border-bottom: 2px solid #f5c518;
-    padding-bottom: 8px;
-    display: inline-block;
-  }
-
-  /* FIELDS */
-  .fields {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-  .field { display: flex; flex-direction: column; }
-  .field.full { grid-column: 1 / -1; }
-  .field label {
-    font-size: 12px;
-    color: #555;
-    margin-bottom: 6px;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-  .field input, .field select {
-    padding: 11px 12px;
-    border: 1px solid #cfd8e3;
-    border-radius: 8px;
-    font-size: 15px;
-    font-family: inherit;
-    background: white;
-    color: #222;
-    outline: none;
-    transition: border-color .15s;
-  }
-  .field input:focus, .field select:focus {
-    border-color: #0d2d5e;
-  }
-
-  .dica {
-    margin-top: 12px;
-    font-size: 12px;
-    color: #666;
-    font-style: italic;
-  }
-
-  /* RODAPÉ CONSULTOR */
-  .consultor-info {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .consultor-avatar {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: #0d2d5e;
-    color: #f5c518;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-    flex-shrink: 0;
-  }
-  .consultor-nome {
-    font-size: 16px;
-    font-weight: 700;
-    color: #0d2d5e;
-  }
-  .consultor-tel {
-    color: #25D366;
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 600;
-    margin-top: 4px;
-    display: inline-block;
-  }
-  .consultor-tel:hover { text-decoration: underline; }
-
-  /* CHECKBOX DESCONTO */
-  .chk-desc {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #fff7d6;
-    border: 1px solid #f5c518;
-    padding: 12px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    color: #0d2d5e;
-    font-size: 14px;
-  }
-  .chk-desc input { width: 18px; height: 18px; cursor: pointer; }
-
-  /* TOGGLE BOTÕES */
-  .toggle-group {
-    display: flex;
-    gap: 8px;
-    margin: 8px 0 12px;
-    grid-column: 1 / -1;
-  }
-  .toggle-group button {
-    flex: 1;
-    padding: 10px;
-    border: 1px solid #cfd8e3;
-    background: white;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    color: #555;
-    font-family: inherit;
-    transition: all .15s;
-  }
-  .toggle-group button.ativo {
-    background: #0d2d5e;
-    color: white;
-    border-color: #0d2d5e;
-  }
-
-  /* BOTÃO PRINCIPAL */
-  .btn-principal {
-    background: #0d2d5e;
-    color: white;
-    border: none;
-    padding: 14px;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    width: 100%;
-    margin-top: 8px;
-    font-family: inherit;
-    transition: opacity .15s;
-  }
-  .btn-principal:hover { opacity: .92; }
-
-  /* ERRO */
-  .erro {
-    background: #fde2e2;
-    border: 1px solid #f5a3a3;
-    color: #8a1f1f;
-    padding: 12px 14px;
-    border-radius: 8px;
-    margin-bottom: 12px;
-    font-size: 14px;
-    display: none;
-  }
-  .erro.show { display: block; }
-
-  /* PROPOSTA — HEADER */
-  .prop-header {
-    background: #0d2d5e;
-    border-left: 5px solid #f5c518;
-    color: white;
-    padding: 22px 24px;
-    border-radius: 12px;
-    margin-bottom: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .prop-header h1 { font-size: 22px; }
-  .prop-header .sub {
-    font-size: 13px;
-    opacity: .85;
-    margin-top: 4px;
-  }
-  .prop-header .sun { font-size: 40px; }
-
-  /* CLIENTE */
-  .cliente-box {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .avatar {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: #f5c518;
-    color: #0d2d5e;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 20px;
-    flex-shrink: 0;
-  }
-  .cliente-info .nome {
-    font-size: 18px;
-    font-weight: 700;
-    color: #0d2d5e;
-  }
-  .cliente-info .meta {
-    font-size: 13px;
-    color: #666;
-    margin-top: 2px;
-  }
-
-  /* MÉTRICAS */
-  .spec-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-  }
-  .spec {
-    background: #f8fafc;
-    padding: 14px;
-    border-radius: 8px;
-    border-bottom: 3px solid #f5c518;
-    text-align: center;
-  }
-  .spec .label {
-    font-size: 11px;
-    color: #777;
-    text-transform: uppercase;
-    font-weight: 600;
-    letter-spacing: .5px;
-  }
-  .spec .valor {
-    font-size: 22px;
-    font-weight: 700;
-    color: #0d2d5e;
-    margin-top: 4px;
-  }
-  .spec .uni { font-size: 13px; color: #777; font-weight: 500; }
-
-  /* EQUIPAMENTOS */
-  .equip-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  .equip-item {
-    background: #f8fafc;
-    padding: 12px 14px;
-    border-radius: 8px;
-    font-size: 14px;
-  }
-  .equip-item strong {
-    display: block;
-    color: #0d2d5e;
-    font-size: 12px;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-
-  /* INCLUSO */
-  .inc-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  .inc {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 0;
-    font-size: 14px;
-  }
-  .check {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #f5c518;
-    color: #0d2d5e;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    flex-shrink: 0;
-    font-size: 13px;
-  }
-
-  /* LOCALIZAÇÃO */
-  .loc-link {
-    display: block;
-    background: #0d2d5e;
-    color: #f5c518;
-    border: 2px solid #f5c518;
-    text-align: center;
-    padding: 12px;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 15px;
-  }
-
-  /* GARANTIAS */
-  .gars {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-  }
-  .gar {
-    background: #f8fafc;
-    padding: 14px 10px;
-    border-radius: 8px;
-    border-top: 3px solid #f5c518;
-    text-align: center;
-  }
-  .gar .num {
-    font-size: 22px;
-    font-weight: 700;
-    color: #0d2d5e;
-  }
-  .gar .desc {
-    font-size: 12px;
-    color: #555;
-    margin-top: 4px;
-  }
-
-  /* RETORNO */
-  .retorno-linha {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #eef2f7;
-    font-size: 14px;
-  }
-  .retorno-linha:last-child { border-bottom: none; }
-  .retorno-linha .lbl { color: #555; }
-  .retorno-linha .val {
-    font-weight: 700;
-    color: #0d2d5e;
-  }
-  .pb-bar {
-    background: #eef2f7;
-    height: 10px;
-    border-radius: 99px;
-    margin-top: 12px;
-    overflow: hidden;
-  }
-  .pb-fill {
-    background: #0d2d5e;
-    height: 100%;
-    transition: width .4s;
-  }
-  .pb-legenda {
-    font-size: 11px;
-    color: #777;
-    margin-top: 6px;
-    text-align: right;
-  }
-
-  /* PREÇO */
-  .preco-box {
-    background: #0d2d5e;
-    color: white;
-    padding: 24px;
-    border-radius: 12px;
-    text-align: center;
-    border-bottom: 4px solid #f5c518;
-    margin-bottom: 16px;
-  }
-  .preco-box .lbl {
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    opacity: .85;
-  }
-  .preco-box .valor {
-    font-size: 38px;
-    font-weight: 800;
-    margin: 6px 0;
-    color: #f5c518;
-  }
-  .preco-box .obs {
-    font-size: 12px;
-    opacity: .8;
-  }
-  .cond-vista {
-    margin-top: 14px;
-    padding: 10px 14px;
-    background: rgba(245,197,24,.15);
-    border: 1px dashed #f5c518;
-    border-radius: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .cond-vista .cond-lbl {
-    color: #f5c518;
-    font-size: 13px;
-    font-weight: 600;
-  }
-  .cond-vista .cond-val {
-    color: white;
-    font-size: 20px;
-    font-weight: 700;
-  }
-
-  /* PARCELAS */
-  .parcelas {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-  }
-  .parcelas.parcelas-2 {
-    grid-template-columns: 1fr 1fr;
-  }
-  .parc.parc-destaque-amarelo {
-    background: #fff7d6;
-    border-color: #f5c518;
-  }
-  .parc.parc-destaque-amarelo .qt { color: #0d2d5e; }
-  .parc.parc-destaque-amarelo .vl { color: #0d2d5e; }
-  .parc.parc-destaque-amarelo .obs { color: #555; }
-  .parc {
-    background: #f8fafc;
-    padding: 16px 12px;
-    border-radius: 10px;
-    text-align: center;
-    position: relative;
-    border: 2px solid transparent;
-  }
-  .parc .qt {
-    font-size: 13px;
-    color: #555;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-  .parc .vl {
-    font-size: 18px;
-    font-weight: 700;
-    color: #0d2d5e;
-    margin-top: 4px;
-  }
-  .parc .obs {
-    font-size: 11px;
-    color: #777;
-    margin-top: 4px;
-  }
-  .parc.destaque {
-    background: #0d2d5e;
-    border-color: #f5c518;
-    color: white;
-  }
-  .parc.destaque .qt { color: #f5c518; }
-  .parc.destaque .vl { color: white; }
-  .parc.destaque .obs { color: rgba(255,255,255,.8); }
-  .badge {
-    position: absolute;
-    top: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #f5c518;
-    color: #0d2d5e;
-    padding: 3px 12px;
-    border-radius: 99px;
-    font-size: 10px;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  /* AÇÕES */
-  .acoes {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-top: 8px;
-  }
-  .acoes button {
-    padding: 14px;
-    border: none;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    color: white;
-    font-family: inherit;
-    transition: opacity .15s;
-  }
-  .acoes button:hover { opacity: .92; }
-  .btn-pdf { background: #0d2d5e; }
-  .btn-wpp { background: #25D366; }
-  .btn-link { background: #f5c518; color: #0d2d5e !important; }
-  .acoes.acoes-3 { grid-template-columns: 1fr 1fr 1fr; }
-  @media (max-width: 700px) {
-    .acoes.acoes-3 { grid-template-columns: 1fr; }
-  }
-  .exp-btn-wpp {
-    display: inline-block;
-    margin-top: 8px;
-    background: #25D366;
-    color: white !important;
-    padding: 12px 22px;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 15px;
-  }
-  .botoes-rodape {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 12px;
-  }
-  @media (max-width: 600px) {
-    .botoes-rodape { grid-template-columns: 1fr; }
-  }
-  .btn-nova {
-    background: white;
-    color: #0d2d5e;
-    border: 2px solid #0d2d5e;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    width: 100%;
-    font-family: inherit;
-  }
-  .btn-novo-cli {
-    background: #0d2d5e;
-    color: white;
-    border: 2px solid #0d2d5e;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    width: 100%;
-    font-family: inherit;
-  }
-  .btn-novo-cli:hover, .btn-nova:hover { opacity: .9; }
-
-  /* TOAST */
-  .toast {
-    position: fixed;
-    bottom: 1.5rem;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: #222;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 99px;
-    opacity: 0;
-    transition: all .3s;
-    z-index: 9999;
-    font-size: 14px;
-  }
-  .toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  /* MOBILE */
-  @media (max-width: 600px) {
-    body { padding: 10px; }
-    .fields, .spec-grid, .inc-grid, .gars, .equip-grid { grid-template-columns: 1fr; }
-    .parcelas { grid-template-columns: 1fr; }
-    .parc.destaque { order: -1; }
-    .acoes, .acoes.acoes-3 { grid-template-columns: 1fr; }
-    .header h1, .prop-header h1 { font-size: 17px; line-height: 1.3; }
-    .preco-box .valor { font-size: 26px; }
-    .logo-img { height: 52px; }
-
-    /* Header (tela 1) — empilha vertical, com botão histórico full width */
-    .header {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 10px;
-      padding: 18px;
-    }
-    .header .sun {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      font-size: 30px;
-    }
-    .header-titulo {
-      flex-direction: row;
-      align-items: center;
-      gap: 12px;
-      padding-right: 36px;
-    }
-    .btn-hist {
-      position: static;
-      width: 100%;
-      padding: 10px;
-      font-size: 14px;
-    }
-
-    /* Header da proposta — empilha vertical */
-    .prop-header {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 10px;
-      padding: 18px;
-      position: relative;
-    }
-    .prop-header .sun {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      font-size: 30px;
-    }
-    .prop-header-titulo {
-      gap: 12px;
-      padding-right: 36px;
-    }
-
-    /* Header de histórico — voltar full width abaixo */
-    .btn-hist-voltar {
-      width: 100%;
-      padding: 10px;
-    }
-
-    /* Cliente box: avatar + texto */
-    .cliente-box { gap: 10px; }
-    .avatar { width: 46px; height: 46px; font-size: 16px; }
-    .cliente-info .nome { font-size: 16px; }
-
-    /* Preço */
-    .preco-box { padding: 18px; }
-    .cond-vista { flex-direction: column; align-items: flex-start; }
-
-    /* Cards menos padding */
-    .card { padding: 16px; }
-
-    /* Histórico stats em cards menores */
-    .historico-stat { min-width: 100px; flex: 1; }
-    .historico-stat .val { font-size: 16px; }
-  }
-  @media (max-width: 380px) {
-    .header h1, .prop-header h1 { font-size: 15px; }
-    .header .sun, .prop-header .sun { font-size: 24px; }
-    .logo-img { height: 44px; }
-    .preco-box .valor { font-size: 22px; }
-  }
-
-  /* PRINT */
-  @media print {
-    body { background: white; padding: 0; }
-    #formSection, .acoes, .btn-nova { display: none !important; }
-    .card, .prop-header, .preco-box {
-      box-shadow: none;
-      page-break-inside: avoid;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .prop-header, .preco-box, .header, .parc.destaque {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-  }
-</style>
+<link rel="stylesheet" href="/gerador/style.css">
 </head>
 <body>
 
@@ -820,6 +21,10 @@
 
   <!-- ============= TELA 1: FORMULÁRIO ============= -->
   <div id="formSection">
+
+    <div id="edit-banner" class="edit-banner" style="display:none;">
+      ✏️ Editando proposta <strong id="edit-codigo"></strong> — o link continuará o mesmo após salvar.<a onclick="cancelarEdicao()">cancelar</a>
+    </div>
 
     <div class="header">
       <button class="btn-hist" onclick="abrirHistorico()">📋 Histórico</button>
@@ -855,6 +60,10 @@
         <div class="field">
           <label>Nome do cliente</label>
           <input type="text" id="f-nome" placeholder="Ex: Luiz">
+        </div>
+        <div class="field">
+          <label>Telefone *</label>
+          <input type="tel" id="f-telefone" placeholder="(34) 99999-9999" autocomplete="off" inputmode="tel">
         </div>
         <div class="field">
           <label>Cidade</label>
@@ -913,14 +122,31 @@
       <div class="fields">
         <div class="field full">
           <label>Linha de equipamento</label>
-          <select id="f-linha">
+          <select id="f-linha" onchange="onLinhaChange()">
             <option value="">Selecione...</option>
             <option value="MICRODEYE-TSUN600W">Micro Deye 2,25K + Tsun 600W</option>
             <option value="SAJ-3K">String SAJ 3K + Tsun 600W</option>
             <option value="SAJ-6K">String SAJ 6K + Tsun 600W</option>
             <option value="SUNGROW-5K">String Sungrow 5K + ZNShine 600W</option>
             <option value="SUNGROW-7.5K">String Sungrow 7,5K + ZNShine 600W</option>
+            <option value="MANUAL">✏️ Editar manualmente (equipamento fora da lista)</option>
           </select>
+        </div>
+
+        <div id="campo-manual" style="display:none;grid-column:1/-1;background:#fff8e1;border:1px solid #f5d76e;border-radius:8px;padding:12px 14px;margin-bottom:8px;">
+          <div style="font-size:12px;color:#7a4d00;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px;">⚙️ Equipamento manual — preencha tudo abaixo</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+            <div class="field"><label>Modelo do inversor *</label><input type="text" id="f-man-inv" placeholder="Ex: Growatt 5K"></div>
+            <div class="field"><label>Qtd de inversores *</label><input type="number" id="f-man-qtdinv" min="1" value="1"></div>
+            <div class="field"><label>Modelo do módulo *</label><input type="text" id="f-man-mod" placeholder="Ex: Canadian 580W"></div>
+            <div class="field"><label>Potência por módulo (W) *</label><input type="number" id="f-man-potmod" min="1" placeholder="Ex: 580"></div>
+            <div class="field"><label>Qtd de placas *</label><input type="number" id="f-man-placas" min="1" placeholder="Ex: 10"></div>
+            <div class="field"><label>Geração estimada (kWh/mês) *</label><input type="number" id="f-man-ger" min="1" placeholder="Ex: 750"></div>
+            <div class="field"><label>Preço à vista (R$) *</label><input type="number" id="f-man-pvista" min="0" step="0.01" placeholder="Ex: 18500"></div>
+            <div class="field"><label>Orçamento financiado (R$)</label><input type="number" id="f-man-porc" min="0" step="0.01" placeholder="auto = à vista × 1,05"></div>
+            <div class="field"><label>Garantia inversor (anos)</label><input type="number" id="f-man-gar" min="1" value="10"></div>
+          </div>
+          <div style="font-size:11px;color:#7a5800;margin-top:8px;">💡 O acréscimo automático por distância (≥250km) ainda se aplica em cima do preço à vista informado.</div>
         </div>
 
         <div class="field">
@@ -983,9 +209,15 @@
       </div>
     </div>
 
+    <div class="hero-economia">
+      <div class="hero-label">Economia em 25 anos</div>
+      <div class="hero-valor" id="hero-25"></div>
+      <div class="hero-period">Considerando inflação de 6% ao ano na tarifa</div>
+    </div>
+
     <div class="card">
       <h2>Sistema dimensionado</h2>
-      <div class="spec-grid">
+      <div class="spec-grid spec-grid-5">
         <div class="spec">
           <div class="label">Potência</div>
           <div class="valor" id="m-pot"></div>
@@ -1001,7 +233,23 @@
           <div class="valor" id="m-area"></div>
           <div class="uni">m²</div>
         </div>
+        <div class="spec" id="spec-conta" style="display:none;">
+          <div class="label">Da sua conta</div>
+          <div class="valor" id="m-conta"></div>
+          <div class="uni">coberta</div>
+        </div>
+        <div class="spec">
+          <div class="label">Retorno em</div>
+          <div class="valor" id="m-payback"></div>
+          <div class="uni">anos</div>
+        </div>
       </div>
+    </div>
+
+    <div class="card" id="card-grafico" style="display:none;">
+      <h2>Geração mensal estimada <span id="grafico-cidade-uf" style="font-weight:600;color:#6B7280;font-size:14px;"></span></h2>
+      <div class="chart-wrap" id="chart-wrap"></div>
+      <div class="chart-caption" id="chart-caption"></div>
     </div>
 
     <div class="card">
@@ -1162,16 +410,26 @@
         <h1>📋 Histórico de propostas</h1>
       </div>
       <button class="btn-hist-voltar" onclick="voltarDoHistorico()">← Voltar</button>
+      <button class="btn-hist-csv" onclick="exportarHistoricoCSV()" title="Baixar histórico como CSV">📥 Exportar CSV</button>
     </div>
 
     <div class="card">
-      <div class="historico-stats" id="historico-stats"></div>
+      <div class="historico-stats-wrap" id="historico-stats"></div>
+      <div class="grafico-mes" id="grafico-mes" style="display:none;"></div>
+      <div class="ranking-mes" id="ranking-mes" style="display:none;"></div>
+      <div class="historico-filtros" id="historico-filtros" style="display:none;">
+        <span class="lbl-filtro">Mostrar:</span>
+        <button class="filtro-btn ativo" data-filtro="todos" onclick="filtrarHistorico('todos')">Todos</button>
+        <button class="filtro-btn vend" data-filtro="vendidos" onclick="filtrarHistorico('vendidos')">✓ Vendidos</button>
+        <button class="filtro-btn pend" data-filtro="pendentes" onclick="filtrarHistorico('pendentes')">✗ Pendentes</button>
+      </div>
       <div class="historico-tabela-wrap">
         <table class="historico-tabela">
           <thead>
             <tr>
               <th>Código</th>
               <th>Criado</th>
+              <th>Telefone</th>
               <th>Cliente</th>
               <th>Consultor</th>
               <th>Cidade</th>
@@ -1186,114 +444,78 @@
               <th>Enviado</th>
               <th>Acessos</th>
               <th>Último acesso</th>
+              <th>Valor</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody id="historico-tbody">
-            <tr><td colspan="17" class="historico-vazio">Carregando...</td></tr>
+            <tr><td colspan="19" class="historico-vazio">Carregando...</td></tr>
           </tbody>
         </table>
+      </div>
+      <div id="historico-pag" class="historico-pag" style="display:none;">
+        <button id="hist-prev" onclick="historicoPagAnterior()">← Anterior</button>
+        <span id="hist-page-info">Página 1 de 1</span>
+        <button id="hist-next" onclick="historicoPagProxima()">Próxima →</button>
       </div>
     </div>
   </div>
 
 </div>
 
+<div id="modal-venda" class="modal-overlay" onclick="if(event.target===this) fecharModalVenda()">
+  <div class="modal-box">
+    <h3 id="venda-titulo">💰 Confirmar venda</h3>
+    <p>Cliente: <strong id="venda-cliente"></strong></p>
+    <div class="venda-ref">
+      <div>Orçamento financiado: <strong>R$ <span id="venda-ref-orc"></span></strong></div>
+      <div>Preço à vista: <strong>R$ <span id="venda-ref-vista"></span></strong></div>
+    </div>
+    <div class="field">
+      <label>Valor de fechamento (R$) *</label>
+      <input type="number" id="venda-valor" step="0.01" min="0" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label>Forma de pagamento</label>
+      <select id="venda-pagamento">
+        <option value="">--</option>
+        <option value="vista">À vista</option>
+        <option value="financiamento">Financiamento</option>
+        <option value="cartao">Cartão</option>
+        <option value="boleto">Boleto</option>
+        <option value="misto">Misto</option>
+        <option value="outros">Outros</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Observações</label>
+      <textarea id="venda-obs" placeholder="Detalhes da negociação, prazo, etc..."></textarea>
+    </div>
+    <div class="modal-acoes">
+      <button class="secondary" onclick="fecharModalVenda()">Cancelar</button>
+      <button class="danger" id="btn-desmarcar-venda" onclick="desmarcarVenda()" style="display:none;">Desmarcar venda</button>
+      <button class="success" onclick="confirmarVenda()">✓ Confirmar venda</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-duplicado" class="modal-overlay" onclick="if(event.target===this) fecharModalDuplicado()">
+  <div class="modal-box">
+    <h3>⚠️ Cliente já cadastrado</h3>
+    <p>Já existe proposta(s) com este telefone. Deseja editar uma das existentes ou criar uma nova mesmo assim?</p>
+    <div id="modal-existentes-list"></div>
+    <div class="modal-acoes">
+      <button class="secondary" onclick="fecharModalDuplicado()">Cancelar</button>
+      <button class="primary" onclick="continuarMesmoAssim()">Criar nova mesmo assim</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
+<script src="/gerador/solar-data.js"></script>
+<script src="/gerador/tabelas.js"></script>
 <script>
-// ============= DADOS =============
-const TABELAS = {
-
-"MICRODEYE-TSUN600W": {
-  inv: "Deye 2,25K", mod: "Tsun 600W", pot: 600,
-  rows: [
-    {n:3,  invs:1, g:255,  kwp:1.8,  descMax:5522.27,  pVista:5750,  pOrc:6037.50,  p18x:380.14},
-    {n:4,  invs:1, g:340,  kwp:2.4,  descMax:6336.33,  pVista:6600,  pOrc:6930.00,  p18x:436.33},
-    {n:5,  invs:2, g:425,  kwp:3.0,  descMax:8735.74,  pVista:9100,  pOrc:9555.00,  p18x:601.61},
-    {n:6,  invs:2, g:510,  kwp:3.6,  descMax:9549.54,  pVista:9950,  pOrc:10447.50, p18x:657.81},
-    {n:7,  invs:2, g:595,  kwp:4.2,  descMax:10363.34, pVista:10800, pOrc:11340.00, p18x:714.00},
-    {n:8,  invs:2, g:680,  kwp:4.8,  descMax:11177.14, pVista:11650, pOrc:12232.50, p18x:770.19},
-    {n:9,  invs:3, g:765,  kwp:5.4,  descMax:13576.81, pVista:14150, pOrc:14857.50, p18x:935.47},
-    {n:10, invs:3, g:850,  kwp:6.0,  descMax:14390.61, pVista:15000, pOrc:15750.00, p18x:991.67},
-    {n:11, invs:3, g:935,  kwp:6.6,  descMax:15204.41, pVista:15800, pOrc:16590.00, p18x:1044.56},
-    {n:12, invs:3, g:1020, kwp:7.2,  descMax:16018.21, pVista:16700, pOrc:17535.00, p18x:1100.75},
-    {n:13, invs:4, g:1105, kwp:7.8,  descMax:18417.88, pVista:19150, pOrc:20107.50, p18x:1266.03},
-    {n:14, invs:4, g:1190, kwp:8.4,  descMax:19231.68, pVista:20000, pOrc:21000.00, p18x:1322.22},
-    {n:15, invs:4, g:1275, kwp:9.0,  descMax:20045.48, pVista:20850, pOrc:21892.50, p18x:1378.42},
-    {n:16, invs:4, g:1360, kwp:9.6,  descMax:20859.28, pVista:21700, pOrc:22785.00, p18x:1434.61},
-    {n:17, invs:5, g:1445, kwp:10.2, descMax:23258.95, pVista:24200, pOrc:25410.00, p18x:1599.89},
-    {n:18, invs:5, g:1530, kwp:10.8, descMax:24072.75, pVista:25050, pOrc:26302.50, p18x:1656.08},
-    {n:19, invs:5, g:1615, kwp:11.4, descMax:24886.55, pVista:25900, pOrc:27195.00, p18x:1712.28},
-    {n:20, invs:5, g:1700, kwp:12.0, descMax:25700.35, pVista:26700, pOrc:28035.00, p18x:1765.42}
-  ]
-},
-
-"SAJ-3K": {
-  inv: "SAJ 3K", mod: "Tsun 600W", pot: 600,
-  rows: [
-    {n:4, invs:1, g:320, kwp:2.4, descMax:7116.20,  pVista:7400,  pOrc:7770.00,  p18x:489.22},
-    {n:5, invs:1, g:400, kwp:3.0, descMax:8125.00,  pVista:8450,  pOrc:8872.50,  p18x:558.64},
-    {n:6, invs:1, g:480, kwp:3.6, descMax:8977.80,  pVista:9350,  pOrc:9817.50,  p18x:618.14},
-    {n:7, invs:1, g:560, kwp:4.2, descMax:9830.60,  pVista:10250, pOrc:10762.50, p18x:677.64},
-    {n:8, invs:1, g:640, kwp:4.8, descMax:10683.40, pVista:11150, pOrc:11707.50, p18x:737.14}
-  ]
-},
-
-"SAJ-6K": {
-  inv: "SAJ 6K", mod: "Tsun 600W", pot: 600,
-  rows: [
-    {n:8,  invs:1, g:640,  kwp:4.8,  descMax:11453.00, pVista:11950, pOrc:12547.50, p18x:790.03},
-    {n:9,  invs:1, g:720,  kwp:5.4,  descMax:12493.00, pVista:13000, pOrc:13650.00, p18x:859.44},
-    {n:10, invs:1, g:800,  kwp:6.0,  descMax:13377.00, pVista:13950, pOrc:14647.50, p18x:922.25},
-    {n:11, invs:1, g:880,  kwp:6.6,  descMax:14261.00, pVista:14850, pOrc:15592.50, p18x:981.75},
-    {n:12, invs:1, g:960,  kwp:7.2,  descMax:15145.00, pVista:15750, pOrc:16537.50, p18x:1041.25},
-    {n:13, invs:1, g:1040, kwp:7.8,  descMax:16185.00, pVista:16850, pOrc:17692.50, p18x:1113.97},
-    {n:14, invs:1, g:1120, kwp:8.4,  descMax:17069.00, pVista:17750, pOrc:18637.50, p18x:1173.47},
-    {n:15, invs:1, g:1200, kwp:9.0,  descMax:17953.00, pVista:18700, pOrc:19635.00, p18x:1236.28},
-    {n:16, invs:1, g:1280, kwp:9.6,  descMax:18837.00, pVista:19600, pOrc:20580.00, p18x:1295.78},
-    {n:17, invs:1, g:1360, kwp:10.2, descMax:19877.00, pVista:20700, pOrc:21735.00, p18x:1368.50},
-    {n:18, invs:1, g:1440, kwp:10.8, descMax:20761.00, pVista:21600, pOrc:22680.00, p18x:1428.00},
-    {n:19, invs:1, g:1520, kwp:11.4, descMax:21645.00, pVista:22500, pOrc:23625.00, p18x:1487.50},
-    {n:20, invs:1, g:1600, kwp:12.0, descMax:22529.00, pVista:23450, pOrc:24622.50, p18x:1550.31}
-  ]
-},
-
-"SUNGROW-5K": {
-  inv: "Sungrow 5K", mod: "ZNShine 600W", pot: 600,
-  rows: [
-    {n:6,  invs:1, g:480,  kwp:3.6,  descMax:11662.30, pVista:12150, pOrc:12757.50, p18x:803.25},
-    {n:7,  invs:1, g:560,  kwp:4.2,  descMax:12569.70, pVista:13100, pOrc:13755.00, p18x:866.06},
-    {n:8,  invs:1, g:640,  kwp:4.8,  descMax:13520.00, pVista:14050, pOrc:14752.50, p18x:928.86},
-    {n:9,  invs:1, g:720,  kwp:5.4,  descMax:14595.10, pVista:15200, pOrc:15960.00, p18x:1004.89},
-    {n:10, invs:1, g:800,  kwp:6.0,  descMax:15503.80, pVista:16150, pOrc:16957.50, p18x:1067.69},
-    {n:11, invs:1, g:880,  kwp:6.6,  descMax:16429.40, pVista:17100, pOrc:17955.00, p18x:1130.50},
-    {n:12, invs:1, g:960,  kwp:7.2,  descMax:17407.00, pVista:18100, pOrc:19005.00, p18x:1196.61},
-    {n:13, invs:1, g:1040, kwp:7.8,  descMax:18811.00, pVista:19550, pOrc:20527.50, p18x:1292.47},
-    {n:14, invs:1, g:1120, kwp:8.4,  descMax:19718.40, pVista:20500, pOrc:21525.00, p18x:1355.28},
-    {n:15, invs:1, g:1200, kwp:9.0,  descMax:20633.60, pVista:21450, pOrc:22522.50, p18x:1418.08},
-    {n:16, invs:1, g:1280, kwp:9.6,  descMax:21594.30, pVista:22450, pOrc:23572.50, p18x:1484.19}
-  ]
-},
-
-"SUNGROW-7.5K": {
-  inv: "Sungrow 7,5K", mod: "ZNShine 600W", pot: 600,
-  rows: [
-    {n:15, invs:1, g:1200, kwp:9.0,  descMax:21842.60, pVista:22700, pOrc:23835.00, p18x:1500.72},
-    {n:16, invs:1, g:1280, kwp:9.6,  descMax:22802.00, pVista:23700, pOrc:24885.00, p18x:1566.83},
-    {n:17, invs:1, g:1360, kwp:10.2, descMax:23992.80, pVista:24950, pOrc:26197.50, p18x:1649.47},
-    {n:18, invs:1, g:1440, kwp:10.8, descMax:24953.50, pVista:25950, pOrc:27247.50, p18x:1715.58},
-    {n:19, invs:1, g:1520, kwp:11.4, descMax:25914.20, pVista:26950, pOrc:28297.50, p18x:1781.69},
-    {n:20, invs:1, g:1600, kwp:12.0, descMax:26874.90, pVista:27950, pOrc:29347.50, p18x:1847.81},
-    {n:21, invs:1, g:1680, kwp:12.6, descMax:28064.40, pVista:29200, pOrc:30660.00, p18x:1930.44},
-    {n:22, invs:1, g:1760, kwp:13.2, descMax:29025.10, pVista:30200, pOrc:31710.00, p18x:1996.56},
-    {n:23, invs:1, g:1840, kwp:13.8, descMax:29985.80, pVista:31150, pOrc:32707.50, p18x:2059.36},
-    {n:24, invs:1, g:1920, kwp:14.4, descMax:30946.50, pVista:32150, pOrc:33757.50, p18x:2125.47},
-    {n:25, invs:1, g:2000, kwp:15.0, descMax:32134.70, pVista:33400, pOrc:35070.00, p18x:2208.11}
-  ]
-}
-
-};
 
 // ============= SUPABASE =============
 const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
@@ -1331,13 +553,22 @@ async function supaRpc(fn, args) {
   return r.json();
 }
 
-async function salvarPropostaSupabase(d) {
+async function supaPatch(query, body) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, {
+    method: 'PATCH',
+    headers: { ...supaHeaders(), 'Prefer': 'return=representation' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function _propostaRowFromDados(d) {
   const cidade = (d.cidade || '').trim();
   const partes = cidade.split(',').map(s => s.trim()).filter(Boolean);
   const cidNome = partes[0] || null;
   const uf = partes[1] || null;
-
-  const row = {
+  return {
     dados: d,
     consultor_nome: d.consultor || null,
     cliente_nome: d.nome,
@@ -1351,13 +582,82 @@ async function salvarPropostaSupabase(d) {
     qtd_inversor: d.qtdInv,
     qtd_placas: d.item.n
   };
-  const arr = await supaInsert('propostas', row);
+}
+
+async function salvarPropostaSupabase(d) {
+  const arr = await supaInsert('propostas', _propostaRowFromDados(d));
   return arr[0].codigo;
+}
+
+async function atualizarPropostaSupabase(codigo, d) {
+  const result = await supaPatch(`propostas?codigo=eq.${encodeURIComponent(codigo)}`, _propostaRowFromDados(d));
+  if (!Array.isArray(result) || result.length === 0) {
+    throw new Error('Proposta não foi atualizada — código inexistente ou sem permissão');
+  }
+  return result;
 }
 
 // ============= ESTADO =============
 let modo = 'kwh';
 let dadosAtual = null;
+let editandoCodigo = null;
+let originalDataEmissao = null;
+let _bypassDuplicateCheck = false;
+
+function normalizeTelefone(t) {
+  return (t || '').replace(/\D/g, '');
+}
+
+async function checarTelefoneDuplicado(telefoneDigitos) {
+  if (!telefoneDigitos) return [];
+  try {
+    const q = `propostas?dados->>telefoneDigitos=eq.${encodeURIComponent(telefoneDigitos)}&select=codigo,cliente_nome,cliente_cidade,cliente_uf,created_at,dados&order=created_at.desc&limit=10`;
+    return await supaGet(q);
+  } catch (e) {
+    console.error('Erro ao checar duplicado:', e);
+    return [];
+  }
+}
+
+function abrirModalDuplicado(matches) {
+  const list = document.getElementById('modal-existentes-list');
+  list.innerHTML = matches.map(m => {
+    const cidUf = m.cliente_cidade ? `${escapeHtml(m.cliente_cidade)}${m.cliente_uf ? '/' + escapeHtml(m.cliente_uf) : ''}` : '';
+    return `
+      <div class="modal-existente">
+        <div class="info">
+          <div class="nome">${escapeHtml(m.cliente_nome) || '-'}${cidUf ? ' · ' + cidUf : ''}</div>
+          <div class="meta">Código <strong>${escapeHtml(m.codigo)}</strong> · ${formatDataBR(m.created_at)}</div>
+        </div>
+        <button onclick="editarPropostaDoModal('${escapeHtml(m.codigo)}')">✏️ Editar</button>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('modal-duplicado').classList.add('show');
+}
+
+function fecharModalDuplicado() {
+  document.getElementById('modal-duplicado').classList.remove('show');
+}
+
+function continuarMesmoAssim() {
+  fecharModalDuplicado();
+  _bypassDuplicateCheck = true;
+  gerar();
+}
+
+function editarPropostaDoModal(codigo) {
+  fecharModalDuplicado();
+  editarProposta(codigo);
+}
+
+function findLinhaKey(invName) {
+  if (!invName) return null;
+  for (const k in TABELAS) {
+    if (TABELAS[k].inv === invName) return k;
+  }
+  return null;
+}
 
 // ============= UTILS =============
 function fmt(n) {
@@ -1369,6 +669,13 @@ function fmt(n) {
 
 function fmtN(n) {
   return Math.round(n).toLocaleString('pt-BR');
+}
+
+function fmtRsCurto(v) {
+  v = Number(v) || 0;
+  if (v >= 1000000) return 'R$ ' + (v/1000000).toFixed(1).replace('.', ',') + 'M';
+  if (v >= 1000) return 'R$ ' + Math.round(v/1000) + 'k';
+  return 'R$ ' + Math.round(v);
 }
 
 function initials(nome) {
@@ -1542,11 +849,26 @@ function setModo(m) {
   document.getElementById('campo-qtd').style.display = m === 'placas' ? '' : 'none';
 }
 
+function onLinhaChange() {
+  const linha = document.getElementById('f-linha').value;
+  const isManual = linha === 'MANUAL';
+  document.getElementById('campo-manual').style.display = isManual ? '' : 'none';
+  // Esconde o restante quando manual (não faz sentido em manual)
+  const toggleGroup = document.querySelector('.toggle-group');
+  if (toggleGroup) toggleGroup.style.display = isManual ? 'none' : '';
+  document.getElementById('campo-consumo').style.display = isManual ? 'none' : (modo === 'kwh' ? '' : 'none');
+  document.getElementById('campo-qtd').style.display = isManual ? 'none' : (modo === 'placas' ? '' : 'none');
+  const chkDescParent = document.getElementById('f-descmax').closest('.field');
+  if (chkDescParent) chkDescParent.style.display = isManual ? 'none' : '';
+}
+
 // ============= GERAR =============
 async function gerar() {
   hideErro();
 
   const nome = document.getElementById('f-nome').value.trim();
+  const telefone = document.getElementById('f-telefone').value.trim();
+  const telefoneDigitos = normalizeTelefone(telefone);
   const cidadeNome = document.getElementById('f-cidade').value.trim();
   const uf = document.getElementById('f-uf').value;
   const cidade = [cidadeNome, uf].filter(Boolean).join(', ');
@@ -1568,23 +890,67 @@ async function gerar() {
 
   if (!consultor) return showErro('Selecione o consultor responsável.');
   if (!nome) return showErro('Informe o nome do cliente.');
+  if (!telefone) return showErro('Informe o telefone do cliente.');
+  if (telefoneDigitos.length < 10) return showErro('Telefone inválido. Inclua DDD + número (mínimo 10 dígitos).');
   if (!linha) return showErro('Selecione a linha de equipamento.');
+
+  // Trava de duplicado por telefone (não aplica em modo edição)
+  if (!editandoCodigo && !_bypassDuplicateCheck) {
+    const matches = await checarTelefoneDuplicado(telefoneDigitos);
+    if (matches && matches.length > 0) {
+      abrirModalDuplicado(matches);
+      return;
+    }
+  }
+  _bypassDuplicateCheck = false;
 
   salvarPrefs();
 
-  const tab = TABELAS[linha];
-  let item;
+  let tab, item;
+  let consumoKwhInput = null, qtdPlacasInput = null;
+  let manualInputs = null;
 
-  if (modo === 'kwh') {
-    const consumo = parseFloat(document.getElementById('f-consumo').value);
-    if (!consumo || consumo <= 0) return showErro('Informe o consumo mensal em kWh.');
-    item = tab.rows.find(r => r.g >= consumo) || tab.rows[tab.rows.length - 1];
+  if (linha === 'MANUAL') {
+    const invModelo = document.getElementById('f-man-inv').value.trim();
+    const qtdInvIn = parseInt(document.getElementById('f-man-qtdinv').value) || 1;
+    const modModelo = document.getElementById('f-man-mod').value.trim();
+    const potMod = parseFloat(document.getElementById('f-man-potmod').value) || 0;
+    const qtdPlacasMan = parseInt(document.getElementById('f-man-placas').value) || 0;
+    const geracaoMan = parseFloat(document.getElementById('f-man-ger').value) || 0;
+    const precoVistaIn = parseFloat(document.getElementById('f-man-pvista').value) || 0;
+    const precoOrcIn = parseFloat(document.getElementById('f-man-porc').value) || 0;
+    const garInvIn = (document.getElementById('f-man-gar').value || '').trim() || '10';
+
+    if (!invModelo) return showErro('Manual: informe o modelo do inversor.');
+    if (!modModelo) return showErro('Manual: informe o modelo do módulo.');
+    if (!potMod || potMod <= 0) return showErro('Manual: potência por módulo inválida.');
+    if (!qtdPlacasMan || qtdPlacasMan <= 0) return showErro('Manual: quantidade de placas inválida.');
+    if (!geracaoMan || geracaoMan <= 0) return showErro('Manual: geração estimada inválida.');
+    if (!precoVistaIn || precoVistaIn <= 0) return showErro('Manual: preço à vista inválido.');
+
+    const kwp = (qtdPlacasMan * potMod) / 1000;
+    const pOrc = precoOrcIn > 0 ? precoOrcIn : Math.ceil(precoVistaIn * 1.05 / 100) * 100;
+    tab = { inv: invModelo, mod: modModelo, pot: potMod };
+    item = {
+      n: qtdPlacasMan, g: geracaoMan, kwp, invs: qtdInvIn,
+      pVista: precoVistaIn, pOrc: pOrc, descMax: precoVistaIn
+    };
+    qtdPlacasInput = qtdPlacasMan;
+    manualInputs = { invModelo, qtdInv: qtdInvIn, modModelo, potMod, qtdPlacas: qtdPlacasMan, geracao: geracaoMan, precoVistaIn, precoOrcIn, garInvIn };
   } else {
-    const qtd = parseFloat(document.getElementById('f-qtd').value);
-    if (!qtd || qtd <= 0) return showErro('Informe a quantidade de placas.');
-    item = tab.rows.reduce((a, b) =>
-      Math.abs(b.n - qtd) < Math.abs(a.n - qtd) ? b : a
-    );
+    tab = TABELAS[linha];
+    if (!tab) return showErro('Linha de equipamento inválida.');
+    if (modo === 'kwh') {
+      consumoKwhInput = parseFloat(document.getElementById('f-consumo').value);
+      if (!consumoKwhInput || consumoKwhInput <= 0) return showErro('Informe o consumo mensal em kWh.');
+      item = tab.rows.find(r => r.g >= consumoKwhInput) || tab.rows[tab.rows.length - 1];
+    } else {
+      qtdPlacasInput = parseFloat(document.getElementById('f-qtd').value);
+      if (!qtdPlacasInput || qtdPlacasInput <= 0) return showErro('Informe a quantidade de placas.');
+      item = tab.rows.reduce((a, b) =>
+        Math.abs(b.n - qtdPlacasInput) < Math.abs(a.n - qtdPlacasInput) ? b : a
+      );
+    }
   }
 
   // Preços
@@ -1600,30 +966,69 @@ async function gerar() {
   const parc10x = precoVista * 1.11 / 10;
   const parc18x = precoVista * 1.19 / 18;
 
+  // Cálculo solar avançado por cidade/UF (HSP real + payback com inflação 6% a.a.)
+  const cidadeNomeCalc = document.getElementById('f-cidade').value.trim();
+  const ufCalc = document.getElementById('f-uf').value;
+  const refSolar = getRef(ufCalc, cidadeNomeCalc);
+  const mensalKwh = geracaoMensal(item.kwp, ufCalc, cidadeNomeCalc);
+  const geracaoAnualKwh = mensalKwh.reduce((a, b) => a + b, 0);
+  const mediaMensalGerada = Math.round(geracaoAnualKwh / 12);
+  const economiaPercent = consumoKwhInput > 0
+    ? Math.min(100, Math.round((mediaMensalGerada / consumoKwhInput) * 100))
+    : null;
+  const pb = calcPayback(precoVista, geracaoAnualKwh, tarifa);
+  const paybackAnos = pb.paybackAnos > 0 ? pb.paybackAnos.toFixed(1).replace('.', ',') : '—';
+
   // Cálculos
   const areaReal = (item.kwp * 1000 / tab.pot * 2.1).toFixed(1);
-  const economia = Math.max(Math.round(item.g * tarifa - taxaMin), 0);
-  const payback = (precoVista / Math.max(economia * 12, 1)).toFixed(1);
-  const economia25 = economia * 12 * 25;
-  const pbPct = Math.min(Math.round((parseFloat(payback) / 25) * 100), 100);
+  const economia = Math.max(Math.round(mediaMensalGerada * tarifa - taxaMin), 0);
+  const economia25 = pb.acumulado25anos;
+  const payback = paybackAnos;
+  const pbPct = Math.min(Math.round((pb.paybackAnos / 25) * 100), 100);
 
-  // Inversores (vem da própria tabela)
+  // Inversores (vem da própria tabela ou do manual)
   const isString = tab.inv.includes('SAJ') || tab.inv.includes('Sungrow');
   const qtdInv = item.invs;
-  const garInv = isString ? '10' : '15';
+  const garInv = manualInputs ? manualInputs.garInvIn : (isString ? '10' : '15');
 
   // Guardar para o WhatsApp / link
   dadosAtual = {
-    dataEmissao: new Date().toISOString(),
-    nome, cidade, distanciaKm, telhado, fase,
+    dataEmissao: editandoCodigo && originalDataEmissao ? originalDataEmissao : new Date().toISOString(),
+    nome, telefone, telefoneDigitos, cidade, distanciaKm, telhado, fase,
     item: { n: item.n, g: item.g, kwp: item.kwp, invs: item.invs },
     tab: { inv: tab.inv, mod: tab.mod, pot: tab.pot },
-    areaReal, economia, economia25, payback,
+    areaReal, economia, economia25, payback, pbPct,
+    mensalKwh, geracaoAnualKwh, mediaMensalGerada, economiaPercent,
+    hspRef: refSolar.hsp,
     qtdInv, garInv,
     precoVista, precoOrcamento, parc10x, parc18x, usarDescMax,
     acrescDist,
-    consultor
+    consultor,
+    linha,
+    modoEntrada: manualInputs ? 'manual' : modo,
+    consumoKwh: consumoKwhInput,
+    qtdPlacas: qtdPlacasInput,
+    manualInputs
   };
+
+  // Modo edição — atualiza a proposta existente em vez de criar nova
+  if (editandoCodigo) {
+    try {
+      showToast('⏳ Atualizando proposta...');
+      await atualizarPropostaSupabase(editandoCodigo, dadosAtual);
+      dadosAtual.codigo = editandoCodigo;
+      showToast(`✅ Proposta ${editandoCodigo} atualizada!`);
+      editandoCodigo = null;
+      originalDataEmissao = null;
+      const banner = document.getElementById('edit-banner');
+      if (banner) banner.style.display = 'none';
+      const btnGerar = document.querySelector('#formSection .btn-principal');
+      if (btnGerar) btnGerar.textContent = '⚡ Gerar proposta';
+    } catch (e) {
+      console.error(e);
+      return showErro('Erro ao atualizar proposta: ' + e.message);
+    }
+  }
 
   renderProposta(dadosAtual, false);
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1646,8 +1051,36 @@ function renderProposta(d, viaLink) {
   document.getElementById('cli-meta').textContent = metaPartes.join(' · ');
 
   document.getElementById('m-pot').textContent = d.item.kwp.toFixed(1);
-  document.getElementById('m-ger').textContent = fmtN(d.item.g);
+  // Prioriza mediaMensalGerada (HSP por cidade) se disponível; cai pro item.g (legado)
+  document.getElementById('m-ger').textContent = fmtN(d.mediaMensalGerada || d.item.g);
   document.getElementById('m-area').textContent = d.areaReal;
+  document.getElementById('m-payback').textContent = d.payback;
+
+  // % da conta coberta (só aparece se cliente informou consumo)
+  const specConta = document.getElementById('spec-conta');
+  if (d.economiaPercent != null) {
+    document.getElementById('m-conta').textContent = d.economiaPercent + '%';
+    specConta.style.display = '';
+  } else {
+    specConta.style.display = 'none';
+  }
+
+  // Hero — economia acumulada 25 anos com inflação
+  document.getElementById('hero-25').textContent = `R$ ${fmtN(d.economia25)}`;
+
+  // Gráfico SVG de geração mensal
+  const cardGraf = document.getElementById('card-grafico');
+  if (d.mensalKwh && d.mensalKwh.length === 12) {
+    document.getElementById('chart-wrap').innerHTML = renderGraficoMensalSVG(d.mensalKwh);
+    const cidadeUf = d.cidade || '';
+    document.getElementById('grafico-cidade-uf').textContent = cidadeUf ? `— ${cidadeUf}` : '';
+    document.getElementById('chart-caption').innerHTML =
+      `Geração média anual: <strong>${fmtN(d.geracaoAnualKwh)} kWh</strong>` +
+      (d.hspRef ? ` · HSP da região: <strong>${d.hspRef.toFixed(1)} h/dia</strong>` : '');
+    cardGraf.style.display = '';
+  } else {
+    cardGraf.style.display = 'none';
+  }
 
   document.getElementById('e-mod').textContent = `${d.item.n}x ${d.tab.mod}`;
   document.getElementById('e-inv').textContent = `${d.qtdInv}x ${d.tab.inv}`;
@@ -1658,7 +1091,9 @@ function renderProposta(d, viaLink) {
   document.getElementById('r-mensal').textContent = `~ R$ ${fmtN(d.economia)}/mês`;
   document.getElementById('r-25').textContent = `~ R$ ${fmtN(d.economia25)}`;
   document.getElementById('r-pb').textContent = `~ ${d.payback} anos`;
-  const pbPct = Math.min(Math.round((parseFloat(d.payback) / 25) * 100), 100);
+  // pbPct salvo direto em dadosAtual; legacy fallback caso proposta antiga venha sem ele
+  const pbPct = d.pbPct != null ? d.pbPct
+    : Math.min(Math.round((parseFloat(String(d.payback).replace(',', '.')) / 25) * 100), 100);
   document.getElementById('pb-fill').style.width = pbPct + '%';
   document.getElementById('pb-leg').textContent = `${d.payback} anos de payback em 25 anos de geração`;
 
@@ -1693,6 +1128,8 @@ function novaProposta() {
   if (window.location.search) {
     history.replaceState(null, '', window.location.pathname);
   }
+  // Sai do modo edição se estiver ativo
+  if (editandoCodigo) cancelarEdicao();
   document.getElementById('propostaSection').style.display = 'none';
   document.getElementById('formSection').style.display = '';
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1703,8 +1140,11 @@ function novoCliente() {
   if (window.location.search) {
     history.replaceState(null, '', window.location.pathname);
   }
+  // Sai do modo edição se estiver ativo
+  if (editandoCodigo) cancelarEdicao();
   // Limpa só os dados do cliente — mantém consultor, tarifa, taxa mínima
   document.getElementById('f-nome').value = '';
+  document.getElementById('f-telefone').value = '';
   document.getElementById('f-cidade').value = '';
   document.getElementById('f-uf').value = '';
   document.getElementById('f-distancia').value = '';
@@ -1716,6 +1156,15 @@ function novoCliente() {
   document.getElementById('f-consumo').value = '';
   document.getElementById('f-qtd').value = '';
   document.getElementById('f-descmax').checked = false;
+  ['f-man-inv','f-man-mod','f-man-potmod','f-man-placas','f-man-ger','f-man-pvista','f-man-porc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const qtdInvEl = document.getElementById('f-man-qtdinv');
+  if (qtdInvEl) qtdInvEl.value = 1;
+  const garEl = document.getElementById('f-man-gar');
+  if (garEl) garEl.value = 10;
+  onLinhaChange();
   hideErro();
   dadosAtual = null;
 
@@ -1862,6 +1311,334 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+const HISTORICO_PER_PAGE = 10;
+let historicoRows = [];
+let historicoPage = 1;
+let rankingMesAtivo = null;
+let filtroStatus = 'todos';
+
+function getRowsFiltradas() {
+  if (filtroStatus === 'vendidos') return historicoRows.filter(r => r.vendido);
+  if (filtroStatus === 'pendentes') return historicoRows.filter(r => !r.vendido);
+  return historicoRows;
+}
+
+function filtrarHistorico(status) {
+  filtroStatus = status;
+  historicoPage = 1;
+  document.querySelectorAll('.historico-filtros .filtro-btn').forEach(b => {
+    b.classList.toggle('ativo', b.dataset.filtro === status);
+  });
+  renderHistoricoTbody();
+}
+
+function nomeMes(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return `${meses[m-1]}/${String(y).slice(-2)}`;
+}
+
+function buildRankingPorMes(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    if (!r.created_at) continue;
+    const dt = new Date(r.created_at);
+    const ym = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}`;
+    if (!map.has(ym)) map.set(ym, { ym, rows: [] });
+    map.get(ym).rows.push(r);
+  }
+  return Array.from(map.values()).sort((a, b) => b.ym.localeCompare(a.ym));
+}
+
+function renderRanking(rows) {
+  const container = document.getElementById('ranking-mes');
+  if (!container) return;
+  const meses = buildRankingPorMes(rows);
+  if (meses.length === 0) { container.style.display = 'none'; return; }
+  container.style.display = '';
+
+  if (!rankingMesAtivo || !meses.find(m => m.ym === rankingMesAtivo)) {
+    rankingMesAtivo = meses[0].ym;
+  }
+  const mesAtual = meses.find(m => m.ym === rankingMesAtivo);
+
+  const consultoresMap = new Map();
+  for (const r of mesAtual.rows) {
+    const c = r.consultor_nome || '(sem consultor)';
+    if (!consultoresMap.has(c)) {
+      consultoresMap.set(c, { nome: c, qtd: 0, kwp: 0, acessos: 0, valor: 0, vendidos: 0, valorVendido: 0 });
+    }
+    const obj = consultoresMap.get(c);
+    obj.qtd++;
+    obj.kwp += Number(r.kwp || 0);
+    obj.acessos += Number(r.acessos || 0);
+    obj.valor += Number((r.dados && r.dados.precoVista) || 0);
+    if (r.vendido) {
+      obj.vendidos++;
+      obj.valorVendido += Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0));
+    }
+  }
+  const totalVendidosMes = mesAtual.rows.filter(r => r.vendido).length;
+  const rankPorVendas = totalVendidosMes > 0;
+  const ranking = Array.from(consultoresMap.values()).sort((a, b) =>
+    rankPorVendas
+      ? (b.vendidos - a.vendidos || b.valorVendido - a.valorVendido || b.qtd - a.qtd || b.kwp - a.kwp)
+      : (b.qtd - a.qtd || b.kwp - a.kwp)
+  );
+
+  const medalhas = { 1: '🥇', 2: '🥈', 3: '🥉' };
+  const top3 = ranking.slice(0, 3);
+  const resto = ranking.slice(3);
+
+  // Pódio: 2º à esquerda, 1º no centro, 3º à direita
+  let podioOrdem;
+  if (top3.length >= 3) {
+    podioOrdem = [
+      { ...top3[1], pos: 2 },
+      { ...top3[0], pos: 1 },
+      { ...top3[2], pos: 3 }
+    ];
+  } else {
+    podioOrdem = top3.map((c, i) => ({ ...c, pos: i + 1 }));
+  }
+
+  const totalMes = mesAtual.rows.length;
+  const totalKwpMes = mesAtual.rows.reduce((s, r) => s + Number(r.kwp || 0), 0);
+
+  const trioStyle = 'display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,0.08);';
+  const statRowStyle = 'display:flex;flex-direction:column;align-items:center;line-height:1.05;';
+
+  const podioHtml = ranking.length === 0
+    ? '<div class="ranking-vazio">Sem propostas neste mês.</div>'
+    : `
+    <div class="ranking-podio-grid cols-${podioOrdem.length}">
+      ${podioOrdem.map(c => {
+        const isP1 = c.pos === 1;
+        const corNum = isP1 ? '#5a3800' : '#0d2d5e';
+        const corLbl = isP1 ? '#7a5800' : '#777';
+        const corBig = isP1 ? '#7a4d00' : '#0d2d5e';
+        const tamBig = isP1 ? '26px' : '22px';
+        const numStyle = `font-size:13px;font-weight:800;color:${corNum};`;
+        const lblStyle = `font-size:8px;color:${corLbl};text-transform:uppercase;letter-spacing:0.3px;font-weight:700;margin-top:1px;`;
+        const bigStyle = `font-size:${tamBig};font-weight:900;color:${corBig};`;
+
+        const valorMostrar = rankPorVendas ? c.valorVendido : c.valor;
+        const valorLbl = rankPorVendas ? 'vendido' : 'em props';
+        return `
+        <div class="podio-card p${c.pos}">
+          ${c.pos === 1 ? '<div class="crown">👑</div>' : ''}
+          <div class="medalha">${medalhas[c.pos]}</div>
+          <div class="avatar">${escapeHtml(initials(c.nome))}</div>
+          <div class="nome" title="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}</div>
+          <div style="${trioStyle}">
+            <div style="${statRowStyle}">
+              <span style="${rankPorVendas ? bigStyle : numStyle}">${c.vendidos}</span>
+              <span style="${lblStyle}">venda${c.vendidos !== 1 ? 's' : ''}</span>
+            </div>
+            <div style="${statRowStyle}">
+              <span style="${!rankPorVendas ? bigStyle : numStyle}">${c.qtd}</span>
+              <span style="${lblStyle}">proposta${c.qtd !== 1 ? 's' : ''}</span>
+            </div>
+            <div style="${statRowStyle}">
+              <span style="${numStyle}">${fmtRsCurto(valorMostrar)}</span>
+              <span style="${lblStyle}">${valorLbl}</span>
+            </div>
+          </div>
+        </div>
+      `;}).join('')}
+    </div>
+  `;
+
+  const restoHtml = resto.length === 0 ? '' : `
+    <div class="ranking-resto">
+      ${resto.map((c, i) => {
+        const linha = rankPorVendas
+          ? `${c.vendidos} venda${c.vendidos !== 1 ? 's' : ''} de ${c.qtd} · ${c.kwp.toFixed(1)} kWp${c.valorVendido ? ' · R$ ' + fmt(c.valorVendido) + ' vendido' : ''}`
+          : `${c.qtd} proposta${c.qtd !== 1 ? 's' : ''} · ${c.kwp.toFixed(1)} kWp · ${c.acessos} abertura${c.acessos !== 1 ? 's' : ''}${c.valor ? ' · R$ ' + fmt(c.valor) : ''}`;
+        return `
+        <div class="ranking-row">
+          <div class="pos">${i + 4}º</div>
+          <div>
+            <div class="nome">${escapeHtml(c.nome)}</div>
+            <div class="stats">${linha}</div>
+          </div>
+        </div>
+      `;}).join('')}
+    </div>
+  `;
+
+  container.innerHTML = `
+    <h3>🏆 Ranking de propostas por mês</h3>
+    <div class="ranking-meses">
+      ${meses.map(m => `
+        <button class="ranking-mes-btn ${m.ym === rankingMesAtivo ? 'ativo' : ''}" onclick="selecionarMesRanking('${m.ym}')">
+          ${nomeMes(m.ym)}<span class="qtd">${m.rows.length}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div style="font-size:13px; color:#555; margin-bottom:6px;">
+      <strong>${nomeMes(mesAtual.ym)}</strong> · ${totalMes} proposta${totalMes !== 1 ? 's' : ''} · ${totalKwpMes.toFixed(1)} kWp totais
+      ${rankPorVendas ? '' : ' · <span style="color:#888;font-style:italic;">sem vendas marcadas — ranqueando por propostas geradas</span>'}
+    </div>
+    ${podioHtml}
+    ${restoHtml}
+  `;
+}
+
+function selecionarMesRanking(ym) {
+  rankingMesAtivo = ym;
+  renderRanking(historicoRows);
+}
+
+function renderGraficoMes(rows) {
+  const container = document.getElementById('grafico-mes');
+  if (!container) return;
+  const meses = buildRankingPorMes(rows);
+  if (meses.length === 0) { container.style.display = 'none'; return; }
+
+  // Container styling inline (robusto contra cache de CSS)
+  container.setAttribute('style', 'background:#f8f9fc;border:1px solid #e2e6ee;border-radius:10px;padding:14px 16px;margin-bottom:14px;display:block;');
+
+  // Mostrar até 12 meses mais recentes, em ordem cronológica (asc)
+  const top = meses.slice(0, 12).reverse();
+  const dadosMes = top.map(m => {
+    const total = m.rows.length;
+    const vendidos = m.rows.filter(r => r.vendido).length;
+    const conv = total > 0 ? Math.round((vendidos / total) * 100) : 0;
+    return { ym: m.ym, total, vendidos, conv };
+  });
+  const maxTotal = Math.max(1, ...dadosMes.map(d => d.total));
+
+  const barStyleProp = 'height:18px;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;color:#fff;font-size:11px;font-weight:700;min-width:28px;background:linear-gradient(90deg,#4a90e2 0%,#6aa9e8 100%);box-shadow:inset 0 -1px 0 rgba(0,0,0,0.1);';
+  const barStyleVend = 'height:18px;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;color:#fff;font-size:11px;font-weight:700;min-width:28px;background:linear-gradient(90deg,#2ecc71 0%,#4cd989 100%);box-shadow:inset 0 -1px 0 rgba(0,0,0,0.1);';
+  const barStyleEmpty = 'height:18px;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;color:#999;font-size:11px;font-weight:700;min-width:28px;background:#e8eaef;';
+
+  container.innerHTML = `
+    <div style="margin:0 0 12px 0;font-size:13px;color:#0d2d5e;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">📊 Evolução mensal</div>
+    <div style="display:flex;gap:14px;margin-bottom:10px;font-size:11px;color:#555;font-weight:600;">
+      <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#4a90e2;display:inline-block;"></span>Propostas</div>
+      <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#2ecc71;display:inline-block;"></span>Vendidos</div>
+      <div style="margin-left:auto;font-size:10px;color:#888;font-weight:500;">% = conversão do mês</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${dadosMes.map(d => {
+        const propPct = (d.total / maxTotal) * 100;
+        const vendPct = (d.vendidos / maxTotal) * 100;
+        const convCor = d.conv >= 30 ? '#2ecc71' : d.conv >= 15 ? '#f5a623' : '#999';
+        return `
+          <div style="display:grid;grid-template-columns:64px 1fr 56px;align-items:center;gap:10px;">
+            <div style="font-size:12px;color:#0d2d5e;font-weight:800;text-align:right;">${nomeMes(d.ym)}</div>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <div style="${barStyleProp}width:${Math.max(propPct, 6)}%;">${d.total}</div>
+              <div style="${d.vendidos > 0 ? barStyleVend : barStyleEmpty}width:${Math.max(vendPct, 6)}%;">${d.vendidos}</div>
+            </div>
+            <div style="font-size:13px;font-weight:800;color:${convCor};text-align:right;">${d.conv}%</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderHistoricoTbody() {
+  const tbody = document.getElementById('historico-tbody');
+  const pag = document.getElementById('historico-pag');
+  const rowsFiltradas = getRowsFiltradas();
+  const totalPages = Math.max(1, Math.ceil(rowsFiltradas.length / HISTORICO_PER_PAGE));
+  if (historicoPage > totalPages) historicoPage = totalPages;
+  if (historicoPage < 1) historicoPage = 1;
+
+  const start = (historicoPage - 1) * HISTORICO_PER_PAGE;
+  const pageRows = rowsFiltradas.slice(start, start + HISTORICO_PER_PAGE);
+
+  if (pageRows.length === 0 && historicoRows.length > 0) {
+    tbody.innerHTML = `<tr><td colspan="19" class="historico-vazio">Nenhuma proposta no filtro "${filtroStatus}".</td></tr>`;
+    if (pag) pag.style.display = 'none';
+    return;
+  }
+
+  tbody.innerHTML = pageRows.map(r => {
+    const l = r.enviado_link || 0;
+    const w = r.enviado_wpp || 0;
+    let enviadoCell;
+    if (l > 0 && w > 0) enviadoCell = `<span title="Link e WhatsApp">🔗${l} 📱${w}</span>`;
+    else if (l > 0) enviadoCell = `<span title="Apenas link">🔗 ${l}x</span>`;
+    else if (w > 0) enviadoCell = `<span title="Apenas WhatsApp">📱 ${w}x</span>`;
+    else enviadoCell = '<span style="color:#aaa">-</span>';
+
+    const precoVista = r.dados && r.dados.precoVista;
+    let valorCell;
+    if (r.vendido && r.valor_vendido != null) {
+      const diff = precoVista && Math.abs(r.valor_vendido - precoVista) > 0.01;
+      valorCell = `<strong style="color:#2ecc71">R$ ${fmt(r.valor_vendido)}</strong>` +
+        (diff ? `<br><small style="text-decoration:line-through;color:#aaa">R$ ${fmt(precoVista)}</small>` : '');
+    } else {
+      valorCell = precoVista ? `R$ ${fmt(precoVista)}` : '<span style="color:#aaa">-</span>';
+    }
+
+    const tel = r.dados && (r.dados.telefone || r.dados.telefoneDigitos);
+    const telCell = tel ? escapeHtml(tel) : '<span style="color:#aaa">-</span>';
+
+    return `
+    <tr>
+      <td class="codigo">${escapeHtml(r.codigo)}</td>
+      <td>${formatDataBR(r.created_at)}</td>
+      <td>${telCell}</td>
+      <td>${escapeHtml(r.cliente_nome) || '-'}</td>
+      <td>${escapeHtml(r.consultor_nome) || '-'}</td>
+      <td>${escapeHtml(r.cliente_cidade) || '-'}</td>
+      <td>${escapeHtml(r.cliente_uf) || '-'}</td>
+      <td>${r.kwp || '-'}</td>
+      <td>${r.geracao_kwh ? r.geracao_kwh + ' kWh' : '-'}</td>
+      <td>${r.qtd_placas || '-'}</td>
+      <td>${escapeHtml(r.inversor) || '-'}</td>
+      <td>${r.qtd_inversor || '-'}</td>
+      <td>${escapeHtml(r.telhado) || '-'}</td>
+      <td>${escapeHtml(r.fase) || '-'}</td>
+      <td>${enviadoCell}</td>
+      <td><strong>${r.acessos || 0}</strong></td>
+      <td>${r.ultimo_acesso ? formatDataBR(r.ultimo_acesso) : '<span style="color:#aaa">nunca</span>'}</td>
+      <td class="valor-cell">${valorCell}</td>
+      <td>
+        <div class="acoes-mini">
+          <button class="copiar" onclick="copiarLinkCodigo('${escapeHtml(r.codigo)}')">🔗</button>
+          <button class="editar" onclick="editarProposta('${escapeHtml(r.codigo)}')">✏️</button>
+          <button onclick="abrirProposta('${escapeHtml(r.codigo)}')">Abrir</button>
+          <button class="vendido-toggle ${r.vendido ? 'sold' : ''}" title="${r.vendido ? 'Vendido' + (r.valor_vendido != null ? ' por R$ ' + fmt(r.valor_vendido) : '') + (r.vendido_por ? ' (' + r.vendido_por.replace(/"/g, '') + ')' : '') + (r.vendido_em ? ' em ' + formatDataBR(r.vendido_em) : '') + ' — clicar pra editar' : 'Não vendido — clicar pra registrar venda'}" onclick="abrirModalVenda('${escapeHtml(r.codigo)}')">${r.vendido ? '✓' : '✗'}</button>
+        </div>
+      </td>
+    </tr>
+  `;}).join('');
+
+  if (pag) {
+    if (rowsFiltradas.length <= HISTORICO_PER_PAGE) {
+      pag.style.display = 'none';
+    } else {
+      pag.style.display = '';
+      document.getElementById('hist-page-info').textContent = `Página ${historicoPage} de ${totalPages} · ${rowsFiltradas.length} proposta${rowsFiltradas.length !== 1 ? 's' : ''}`;
+      document.getElementById('hist-prev').disabled = historicoPage <= 1;
+      document.getElementById('hist-next').disabled = historicoPage >= totalPages;
+    }
+  }
+}
+
+function historicoPagAnterior() {
+  if (historicoPage > 1) {
+    historicoPage--;
+    renderHistoricoTbody();
+    document.querySelector('.historico-tabela-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function historicoPagProxima() {
+  const totalPages = Math.ceil(getRowsFiltradas().length / HISTORICO_PER_PAGE);
+  if (historicoPage < totalPages) {
+    historicoPage++;
+    renderHistoricoTbody();
+    document.querySelector('.historico-tabela-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
 async function abrirHistorico() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('propostaSection').style.display = 'none';
@@ -1871,71 +1648,78 @@ async function abrirHistorico() {
 
   const tbody = document.getElementById('historico-tbody');
   const statsBox = document.getElementById('historico-stats');
-  tbody.innerHTML = '<tr><td colspan="17" class="historico-vazio">Carregando...</td></tr>';
+  const pag = document.getElementById('historico-pag');
+  const rk = document.getElementById('ranking-mes');
+  const gr = document.getElementById('grafico-mes');
+  const filtros = document.getElementById('historico-filtros');
+  tbody.innerHTML = '<tr><td colspan="19" class="historico-vazio">Carregando...</td></tr>';
   statsBox.innerHTML = '';
+  if (pag) pag.style.display = 'none';
+  if (rk) rk.style.display = 'none';
+  if (gr) gr.style.display = 'none';
+  if (filtros) filtros.style.display = 'none';
 
   try {
     const rows = await supaGet('propostas?select=*&order=created_at.desc&limit=500');
     if (!rows || rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="17" class="historico-vazio">Nenhuma proposta gerada ainda. Volte e gere a primeira!</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="19" class="historico-vazio">Nenhuma proposta gerada ainda. Volte e gere a primeira!</td></tr>';
       return;
     }
 
-    const totalAcessos = rows.reduce((s, r) => s + (r.acessos || 0), 0);
-    const totalLink = rows.reduce((s, r) => s + (r.enviado_link || 0), 0);
-    const totalWpp = rows.reduce((s, r) => s + (r.enviado_wpp || 0), 0);
-    const totalKwp = rows.reduce((s, r) => s + Number(r.kwp || 0), 0);
-    const consultoresUnicos = new Set(rows.map(r => r.consultor_nome).filter(Boolean)).size;
-    const clientesUnicos = new Set(rows.map(r => r.cliente_nome).filter(Boolean)).size;
+    const now = new Date();
+    const ymAtual = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}`;
+    const rowsMes = rows.filter(r => {
+      if (!r.created_at) return false;
+      const dt = new Date(r.created_at);
+      return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}` === ymAtual;
+    });
 
-    statsBox.innerHTML = `
-      <div class="historico-stat"><div class="lbl">Propostas</div><div class="val">${rows.length}</div></div>
-      <div class="historico-stat"><div class="lbl">Clientes</div><div class="val">${clientesUnicos}</div></div>
-      <div class="historico-stat"><div class="lbl">Consultores</div><div class="val">${consultoresUnicos}</div></div>
-      <div class="historico-stat"><div class="lbl">kWp totais</div><div class="val">${totalKwp.toFixed(1)}</div></div>
-      <div class="historico-stat"><div class="lbl">🔗 Links enviados</div><div class="val">${totalLink}</div></div>
-      <div class="historico-stat"><div class="lbl">📱 WhatsApp enviados</div><div class="val">${totalWpp}</div></div>
-      <div class="historico-stat"><div class="lbl">Aberturas pelo cliente</div><div class="val">${totalAcessos}</div></div>
-    `;
-
-    tbody.innerHTML = rows.map(r => {
-      const l = r.enviado_link || 0;
-      const w = r.enviado_wpp || 0;
-      let enviadoCell;
-      if (l > 0 && w > 0) enviadoCell = `<span title="Link e WhatsApp">🔗${l} 📱${w}</span>`;
-      else if (l > 0) enviadoCell = `<span title="Apenas link">🔗 ${l}x</span>`;
-      else if (w > 0) enviadoCell = `<span title="Apenas WhatsApp">📱 ${w}x</span>`;
-      else enviadoCell = '<span style="color:#aaa">-</span>';
-
+    const blocoStats = (titulo, rs) => {
+      const totalAcessos = rs.reduce((s, r) => s + (r.acessos || 0), 0);
+      const totalLink = rs.reduce((s, r) => s + (r.enviado_link || 0), 0);
+      const totalWpp = rs.reduce((s, r) => s + (r.enviado_wpp || 0), 0);
+      const totalKwp = rs.reduce((s, r) => s + Number(r.kwp || 0), 0);
+      const totalRs = rs.reduce((s, r) => s + Number((r.dados && r.dados.precoVista) || 0), 0);
+      const totalVendidos = rs.filter(r => r.vendido).length;
+      const valorVendido = rs.filter(r => r.vendido).reduce((s, r) => s + Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0)), 0);
+      const taxaConv = rs.length > 0 ? Math.round((totalVendidos / rs.length) * 100) : 0;
+      const ticketMedio = totalVendidos > 0 ? valorVendido / totalVendidos : 0;
+      const emNegociacao = totalRs - valorVendido;
+      const consultores = new Set(rs.map(r => r.consultor_nome).filter(Boolean)).size;
+      const clientes = new Set(rs.map(r => r.cliente_nome).filter(Boolean)).size;
       return `
-      <tr>
-        <td class="codigo">${escapeHtml(r.codigo)}</td>
-        <td>${formatDataBR(r.created_at)}</td>
-        <td>${escapeHtml(r.cliente_nome) || '-'}</td>
-        <td>${escapeHtml(r.consultor_nome) || '-'}</td>
-        <td>${escapeHtml(r.cliente_cidade) || '-'}</td>
-        <td>${escapeHtml(r.cliente_uf) || '-'}</td>
-        <td>${r.kwp || '-'}</td>
-        <td>${r.geracao_kwh ? r.geracao_kwh + ' kWh' : '-'}</td>
-        <td>${r.qtd_placas || '-'}</td>
-        <td>${escapeHtml(r.inversor) || '-'}</td>
-        <td>${r.qtd_inversor || '-'}</td>
-        <td>${escapeHtml(r.telhado) || '-'}</td>
-        <td>${escapeHtml(r.fase) || '-'}</td>
-        <td>${enviadoCell}</td>
-        <td><strong>${r.acessos || 0}</strong></td>
-        <td>${r.ultimo_acesso ? formatDataBR(r.ultimo_acesso) : '<span style="color:#aaa">nunca</span>'}</td>
-        <td>
-          <div class="acoes-mini">
-            <button class="copiar" onclick="copiarLinkCodigo('${escapeHtml(r.codigo)}')">🔗</button>
-            <button onclick="abrirProposta('${escapeHtml(r.codigo)}')">Abrir</button>
+        <div class="historico-secao">
+          <h4>${titulo}</h4>
+          <div class="historico-stats">
+            <div class="historico-stat"><div class="lbl">Propostas</div><div class="val">${rs.length}</div></div>
+            <div class="historico-stat"><div class="lbl">Clientes</div><div class="val">${clientes}</div></div>
+            <div class="historico-stat"><div class="lbl">Consultores</div><div class="val">${consultores}</div></div>
+            <div class="historico-stat"><div class="lbl">kWp totais</div><div class="val">${totalKwp.toFixed(1)}</div></div>
+            <div class="historico-stat"><div class="lbl">🔗 Links</div><div class="val">${totalLink}</div></div>
+            <div class="historico-stat"><div class="lbl">📱 WhatsApp</div><div class="val">${totalWpp}</div></div>
+            <div class="historico-stat"><div class="lbl">Aberturas</div><div class="val">${totalAcessos}</div></div>
+            <div class="historico-stat"><div class="lbl">💰 Total propostas</div><div class="val">R$ ${fmt(totalRs)}</div></div>
+            <div class="historico-stat destaque-vendido"><div class="lbl">🎯 Vendidos</div><div class="val">${totalVendidos}</div></div>
+            <div class="historico-stat destaque-conv"><div class="lbl">📈 Conversão</div><div class="val">${taxaConv}%</div></div>
+            <div class="historico-stat destaque-vendido"><div class="lbl">💵 R$ vendido</div><div class="val">R$ ${fmt(valorVendido)}</div></div>
+            <div class="historico-stat destaque-conv"><div class="lbl">🎟️ Ticket médio</div><div class="val">R$ ${fmt(ticketMedio)}</div></div>
+            <div class="historico-stat"><div class="lbl">⏳ Em negociação</div><div class="val">R$ ${fmt(emNegociacao)}</div></div>
           </div>
-        </td>
-      </tr>
-    `;}).join('');
+        </div>
+      `;
+    };
+
+    statsBox.innerHTML = blocoStats('📊 Geral', rows) + blocoStats(`📅 Este mês · ${nomeMes(ymAtual)}`, rowsMes);
+
+    historicoRows = rows;
+    historicoPage = 1;
+    if (filtros) filtros.style.display = '';
+    renderGraficoMes(rows);
+    renderRanking(rows);
+    renderHistoricoTbody();
   } catch (e) {
     console.error(e);
-    tbody.innerHTML = `<tr><td colspan="17" class="historico-vazio">Erro ao carregar: ${escapeHtml(e.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="19" class="historico-vazio">Erro ao carregar: ${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
@@ -1943,6 +1727,60 @@ function voltarDoHistorico() {
   document.getElementById('historicoSection').style.display = 'none';
   document.getElementById('formSection').style.display = '';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function exportarHistoricoCSV() {
+  if (!historicoRows || historicoRows.length === 0) {
+    showToast('Nenhuma proposta pra exportar');
+    return;
+  }
+  const rows = getRowsFiltradas();
+  const headers = [
+    'Código','Criado','Telefone','Cliente','Consultor','Cidade','UF',
+    'kWp','Geração (kWh)','Placas','Inversor','Qtd Inv','Telhado','Fase',
+    'Status','Orçamento (R$)','Valor vendido (R$)','Forma pgto','Vendido em','Vendido por','Obs venda',
+    'Aberturas','Último acesso','Links enviados','WhatsApp enviados'
+  ];
+  const escapeCsv = (v) => {
+    const s = (v == null ? '' : String(v));
+    if (/[",;\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+  const lines = [headers.join(';')];
+  for (const r of rows) {
+    const tel = (r.dados && (r.dados.telefone || r.dados.telefoneDigitos)) || '';
+    const valor = (r.dados && r.dados.precoVista) || 0;
+    const status = r.vendido ? 'Vendido' : 'Pendente';
+    lines.push([
+      r.codigo, formatDataBR(r.created_at), tel, r.cliente_nome || '', r.consultor_nome || '',
+      r.cliente_cidade || '', r.cliente_uf || '',
+      r.kwp || '', r.geracao_kwh || '', r.qtd_placas || '', r.inversor || '', r.qtd_inversor || '',
+      r.telhado || '', r.fase || '',
+      status,
+      valor ? Number(valor).toFixed(2).replace('.', ',') : '',
+      r.valor_vendido != null ? Number(r.valor_vendido).toFixed(2).replace('.', ',') : '',
+      r.forma_pagamento || '',
+      r.vendido_em ? formatDataBR(r.vendido_em) : '',
+      r.vendido_por || '',
+      r.obs_venda || '',
+      r.acessos || 0, r.ultimo_acesso ? formatDataBR(r.ultimo_acesso) : '',
+      r.enviado_link || 0, r.enviado_wpp || 0
+    ].map(escapeCsv).join(';'));
+  }
+  // BOM pra Excel reconhecer UTF-8
+  const csv = '﻿' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dt = new Date().toISOString().slice(0, 10);
+  const sufixo = filtroStatus === 'todos' ? '' : '_' + filtroStatus;
+  a.href = url;
+  a.download = `historico_propostas_${dt}${sufixo}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast(`📥 ${rows.length} proposta${rows.length !== 1 ? 's' : ''} exportada${rows.length !== 1 ? 's' : ''}`);
 }
 
 function copiarLinkCodigo(codigo) {
@@ -1959,6 +1797,249 @@ function copiarLinkCodigo(codigo) {
 
 function abrirProposta(codigo) {
   window.location.href = `${window.location.pathname}?p=${codigo}`;
+}
+
+function getConsultorAtual() {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    return (p.consultor || '').trim() || null;
+  } catch { return null; }
+}
+
+let _vendaCodigo = null;
+
+function abrirModalVenda(codigo) {
+  const r = historicoRows.find(x => x.codigo === codigo);
+  if (!r) return;
+  _vendaCodigo = codigo;
+
+  document.getElementById('venda-cliente').textContent = r.cliente_nome || '-';
+  document.getElementById('venda-titulo').textContent = r.vendido ? '✏️ Editar venda' : '💰 Confirmar venda';
+  const precoOrc = (r.dados && r.dados.precoOrcamento) || 0;
+  const precoVista = (r.dados && r.dados.precoVista) || 0;
+  document.getElementById('venda-ref-orc').textContent = fmt(precoOrc);
+  document.getElementById('venda-ref-vista').textContent = fmt(precoVista);
+
+  const valorDefault = r.valor_vendido != null ? r.valor_vendido : precoVista;
+  document.getElementById('venda-valor').value = Number(valorDefault).toFixed(2);
+  document.getElementById('venda-pagamento').value = r.forma_pagamento || '';
+  document.getElementById('venda-obs').value = r.obs_venda || '';
+
+  document.getElementById('btn-desmarcar-venda').style.display = r.vendido ? '' : 'none';
+  document.getElementById('modal-venda').classList.add('show');
+  setTimeout(() => document.getElementById('venda-valor').focus(), 50);
+}
+
+function fecharModalVenda() {
+  document.getElementById('modal-venda').classList.remove('show');
+  _vendaCodigo = null;
+}
+
+async function confirmarVenda() {
+  if (!_vendaCodigo) return;
+  const valor = parseFloat(document.getElementById('venda-valor').value);
+  if (!valor || valor <= 0) {
+    showToast('Informe um valor válido');
+    return;
+  }
+  const pagamento = document.getElementById('venda-pagamento').value || null;
+  const obs = (document.getElementById('venda-obs').value || '').trim() || null;
+  const consultor = getConsultorAtual();
+  const r = historicoRows.find(x => x.codigo === _vendaCodigo);
+  const jaEraVendido = r && r.vendido;
+
+  try {
+    const body = {
+      vendido: true,
+      vendido_em: jaEraVendido && r.vendido_em ? r.vendido_em : new Date().toISOString(),
+      vendido_por: jaEraVendido && r.vendido_por ? r.vendido_por : consultor,
+      valor_vendido: valor,
+      forma_pagamento: pagamento,
+      obs_venda: obs
+    };
+    const result = await supaPatch(`propostas?codigo=eq.${encodeURIComponent(_vendaCodigo)}`, body);
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error('Não persistiu — verificar permissões');
+    }
+    if (r) Object.assign(r, body);
+    fecharModalVenda();
+    renderHistoricoTbody();
+    renderRanking(historicoRows);
+    document.getElementById('historico-stats').innerHTML = '';
+    showToast(jaEraVendido ? `✅ Venda atualizada: R$ ${fmt(valor)}` : `🎉 Venda confirmada: R$ ${fmt(valor)}!`);
+    // Re-render stats
+    abrirHistoricoStats();
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Erro: ' + e.message);
+  }
+}
+
+async function desmarcarVenda() {
+  if (!_vendaCodigo) return;
+  if (!confirm('Tem certeza que quer desmarcar esta venda? Os dados de valor e forma de pagamento serão apagados.')) return;
+  try {
+    const body = {
+      vendido: false,
+      vendido_em: null,
+      vendido_por: null,
+      valor_vendido: null,
+      forma_pagamento: null,
+      obs_venda: null
+    };
+    const result = await supaPatch(`propostas?codigo=eq.${encodeURIComponent(_vendaCodigo)}`, body);
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error('Não persistiu');
+    }
+    const r = historicoRows.find(x => x.codigo === _vendaCodigo);
+    if (r) Object.assign(r, body);
+    fecharModalVenda();
+    renderHistoricoTbody();
+    renderRanking(historicoRows);
+    abrirHistoricoStats();
+    showToast('Venda desmarcada');
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Erro: ' + e.message);
+  }
+}
+
+// Re-renderiza só os stats (sem recarregar do banco)
+function abrirHistoricoStats() {
+  const statsBox = document.getElementById('historico-stats');
+  if (!statsBox || historicoRows.length === 0) return;
+  // Reusa a lógica do abrirHistorico extraindo o blocoStats
+  const now = new Date();
+  const ymAtual = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}`;
+  const rowsMes = historicoRows.filter(r => {
+    if (!r.created_at) return false;
+    const dt = new Date(r.created_at);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}` === ymAtual;
+  });
+  const blocoStats = (titulo, rs) => {
+    const totalAcessos = rs.reduce((s, r) => s + (r.acessos || 0), 0);
+    const totalLink = rs.reduce((s, r) => s + (r.enviado_link || 0), 0);
+    const totalWpp = rs.reduce((s, r) => s + (r.enviado_wpp || 0), 0);
+    const totalKwp = rs.reduce((s, r) => s + Number(r.kwp || 0), 0);
+    const totalRs = rs.reduce((s, r) => s + Number((r.dados && r.dados.precoVista) || 0), 0);
+    const totalVendidos = rs.filter(r => r.vendido).length;
+    const valorVendido = rs.filter(r => r.vendido).reduce((s, r) => s + Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0)), 0);
+    const taxaConv = rs.length > 0 ? Math.round((totalVendidos / rs.length) * 100) : 0;
+    const ticketMedio = totalVendidos > 0 ? valorVendido / totalVendidos : 0;
+    const emNegociacao = totalRs - valorVendido;
+    const consultores = new Set(rs.map(r => r.consultor_nome).filter(Boolean)).size;
+    const clientes = new Set(rs.map(r => r.cliente_nome).filter(Boolean)).size;
+    return `
+      <div class="historico-secao">
+        <h4>${titulo}</h4>
+        <div class="historico-stats">
+          <div class="historico-stat"><div class="lbl">Propostas</div><div class="val">${rs.length}</div></div>
+          <div class="historico-stat"><div class="lbl">Clientes</div><div class="val">${clientes}</div></div>
+          <div class="historico-stat"><div class="lbl">Consultores</div><div class="val">${consultores}</div></div>
+          <div class="historico-stat"><div class="lbl">kWp totais</div><div class="val">${totalKwp.toFixed(1)}</div></div>
+          <div class="historico-stat"><div class="lbl">🔗 Links</div><div class="val">${totalLink}</div></div>
+          <div class="historico-stat"><div class="lbl">📱 WhatsApp</div><div class="val">${totalWpp}</div></div>
+          <div class="historico-stat"><div class="lbl">Aberturas</div><div class="val">${totalAcessos}</div></div>
+          <div class="historico-stat"><div class="lbl">💰 Total propostas</div><div class="val">R$ ${fmt(totalRs)}</div></div>
+          <div class="historico-stat destaque-vendido"><div class="lbl">🎯 Vendidos</div><div class="val">${totalVendidos}</div></div>
+          <div class="historico-stat destaque-conv"><div class="lbl">📈 Conversão</div><div class="val">${taxaConv}%</div></div>
+          <div class="historico-stat destaque-vendido"><div class="lbl">💵 R$ vendido</div><div class="val">R$ ${fmt(valorVendido)}</div></div>
+          <div class="historico-stat destaque-conv"><div class="lbl">🎟️ Ticket médio</div><div class="val">R$ ${fmt(ticketMedio)}</div></div>
+          <div class="historico-stat"><div class="lbl">⏳ Em negociação</div><div class="val">R$ ${fmt(emNegociacao)}</div></div>
+        </div>
+      </div>
+    `;
+  };
+  statsBox.innerHTML = blocoStats('📊 Geral', historicoRows) + blocoStats(`📅 Este mês · ${nomeMes(ymAtual)}`, rowsMes);
+}
+
+async function editarProposta(codigo) {
+  try {
+    const arr = await supaGet(`propostas?codigo=eq.${encodeURIComponent(codigo)}&select=*&limit=1`);
+    if (!arr || arr.length === 0) { showToast('❌ Proposta não encontrada'); return; }
+    const row = arr[0];
+    const d = row.dados || {};
+
+    // Volta pro formulário
+    document.getElementById('historicoSection').style.display = 'none';
+    document.getElementById('propostaSection').style.display = 'none';
+    document.getElementById('expiradoSection').style.display = 'none';
+    document.getElementById('formSection').style.display = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Cliente
+    document.getElementById('f-nome').value = d.nome || '';
+    document.getElementById('f-telefone').value = d.telefone || '';
+    let cidNome = '', uf = '';
+    if (d.cidade) {
+      const partes = d.cidade.split(',').map(s => s.trim());
+      cidNome = partes[0] || '';
+      uf = partes[1] || '';
+    }
+    document.getElementById('f-cidade').value = cidNome;
+    document.getElementById('f-uf').value = uf;
+    document.getElementById('f-distancia').value = d.distanciaKm || '';
+    const distStatus = document.getElementById('dist-status');
+    if (distStatus) distStatus.textContent = '';
+    document.getElementById('f-telhado').value = d.telhado || '';
+    document.getElementById('f-fase').value = d.fase || '';
+    if (d.consultor) document.getElementById('f-consultor').value = d.consultor;
+
+    // Linha (deriva do inversor pra propostas legadas)
+    const linhaKey = d.linha || (d.tab ? findLinhaKey(d.tab.inv) : null);
+    if (linhaKey) document.getElementById('f-linha').value = linhaKey;
+    onLinhaChange();
+
+    if (d.linha === 'MANUAL' || d.modoEntrada === 'manual') {
+      const m = d.manualInputs || {};
+      document.getElementById('f-man-inv').value = m.invModelo || (d.tab && d.tab.inv) || '';
+      document.getElementById('f-man-qtdinv').value = m.qtdInv || (d.item && d.item.invs) || 1;
+      document.getElementById('f-man-mod').value = m.modModelo || (d.tab && d.tab.mod) || '';
+      document.getElementById('f-man-potmod').value = m.potMod || (d.tab && d.tab.pot) || '';
+      document.getElementById('f-man-placas').value = m.qtdPlacas || (d.item && d.item.n) || '';
+      document.getElementById('f-man-ger').value = m.geracao || (d.item && d.item.g) || '';
+      document.getElementById('f-man-pvista').value = m.precoVistaIn || (d.item && d.item.pVista) || '';
+      document.getElementById('f-man-porc').value = m.precoOrcIn || '';
+      document.getElementById('f-man-gar').value = m.garInvIn || d.garInv || '10';
+    } else if (d.modoEntrada === 'kwh' && d.consumoKwh) {
+      setModo('kwh');
+      document.getElementById('f-consumo').value = d.consumoKwh;
+      document.getElementById('f-qtd').value = '';
+    } else {
+      setModo('placas');
+      document.getElementById('f-qtd').value = (d.item && d.item.n) || d.qtdPlacas || '';
+      document.getElementById('f-consumo').value = '';
+    }
+
+    document.getElementById('f-descmax').checked = !!d.usarDescMax;
+
+    // Estado de edição
+    editandoCodigo = codigo;
+    originalDataEmissao = d.dataEmissao || row.created_at;
+    document.getElementById('edit-codigo').textContent = codigo;
+    document.getElementById('edit-banner').style.display = '';
+    const btnGerar = document.querySelector('#formSection .btn-principal');
+    if (btnGerar) btnGerar.textContent = '⚡ Atualizar proposta';
+
+    showToast(`✏️ Editando proposta ${codigo}`);
+    hideErro();
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Erro ao carregar proposta');
+  }
+}
+
+function cancelarEdicao() {
+  if (!editandoCodigo) return;
+  editandoCodigo = null;
+  originalDataEmissao = null;
+  const banner = document.getElementById('edit-banner');
+  if (banner) banner.style.display = 'none';
+  const btnGerar = document.querySelector('#formSection .btn-principal');
+  if (btnGerar) btnGerar.textContent = '⚡ Gerar proposta';
+  showToast('Edição cancelada');
 }
 
 // ============= PDF =============
@@ -2055,8 +2136,11 @@ function fallbackCopy(txt) {
 }
 
 // ============= PWA — Service Worker =============
-// SW desativado dentro do dashboard pra não conflitar com SW principal.
-// Quando rodando standalone, sw.js fica disponível em /gerador/sw.js mas não é registrado aqui.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    /* SW desabilitado dentro do dashboard */ window.__noSW = true; false && navigator.serviceWorker.register('/gerador/sw.js').catch(e => console.error('SW falhou:', e));
+  });
+}
 </script>
 
 </body>

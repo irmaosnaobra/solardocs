@@ -1,4 +1,4 @@
-de<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -6,9 +6,9 @@ de<!DOCTYPE html>
 <title>Gerador de Proposta Solar — Irmãos na Obra</title>
 <meta name="theme-color" content="#0d2d5e">
 <meta name="description" content="Gerador de propostas comerciais de energia solar — Irmãos na Obra">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Propostas">
@@ -508,79 +508,49 @@ de<!DOCTYPE html>
   .preco-box {
     background: #0d2d5e;
     color: white;
-    padding: 22px 18px 18px;
+    padding: 24px;
     border-radius: 12px;
     text-align: center;
     border-bottom: 4px solid #f5c518;
     margin-bottom: 16px;
   }
-  .preco-vista-block {
-    position: relative;
-    background: #ffd400;
-    border-radius: 10px;
-    padding: 22px 16px 16px;
-    margin: 8px 0 12px;
-    box-shadow: 0 6px 20px rgba(255,212,0,.45);
-  }
-  .vista-badge {
-    position: absolute;
-    top: -11px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #000;
-    color: #ffd400;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 1.2px;
-    padding: 5px 14px;
-    border-radius: 99px;
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0,0,0,.25);
-  }
-  .vista-lbl {
+  .preco-box .lbl {
     font-size: 13px;
-    font-weight: 700;
-    color: #000;
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 1px;
+    opacity: .85;
   }
-  .vista-val {
-    font-size: 44px;
-    font-weight: 900;
-    color: #000;
-    margin: 2px 0 6px;
-    line-height: 1.05;
-    letter-spacing: -.5px;
+  .preco-box .valor {
+    font-size: 38px;
+    font-weight: 800;
+    margin: 6px 0;
+    color: #f5c518;
   }
-  .vista-economia {
-    display: inline-block;
-    background: #000;
-    color: #ffd400;
+  .preco-box .obs {
     font-size: 12px;
-    font-weight: 700;
-    padding: 4px 12px;
-    border-radius: 99px;
-    margin-top: 2px;
+    opacity: .8;
   }
-  .preco-fin-block {
+  .cond-vista {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(245,197,24,.15);
+    border: 1px dashed #f5c518;
+    border-radius: 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4px 6px 2px;
     flex-wrap: wrap;
     gap: 6px;
   }
-  .fin-lbl {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    opacity: .75;
+  .cond-vista .cond-lbl {
+    color: #f5c518;
+    font-size: 13px;
+    font-weight: 600;
   }
-  .fin-val {
+  .cond-vista .cond-val {
+    color: white;
     font-size: 20px;
     font-weight: 700;
-    color: #fff;
-    opacity: .9;
   }
 
   /* PARCELAS */
@@ -746,8 +716,7 @@ de<!DOCTYPE html>
     .parc.destaque { order: -1; }
     .acoes, .acoes.acoes-3 { grid-template-columns: 1fr; }
     .header h1, .prop-header h1 { font-size: 17px; line-height: 1.3; }
-    .vista-val { font-size: 36px; }
-    .fin-val { font-size: 18px; }
+    .preco-box .valor { font-size: 26px; }
     .logo-img { height: 52px; }
 
     /* Header (tela 1) — empilha vertical, com botão histórico full width */
@@ -807,9 +776,8 @@ de<!DOCTYPE html>
     .cliente-info .nome { font-size: 16px; }
 
     /* Preço */
-    .preco-box { padding: 18px 14px 14px; }
-    .preco-vista-block { padding: 20px 12px 14px; }
-    .preco-fin-block { flex-direction: column; gap: 2px; padding-top: 6px; }
+    .preco-box { padding: 18px; }
+    .cond-vista { flex-direction: column; align-items: flex-start; }
 
     /* Cards menos padding */
     .card { padding: 16px; }
@@ -822,9 +790,7 @@ de<!DOCTYPE html>
     .header h1, .prop-header h1 { font-size: 15px; }
     .header .sun, .prop-header .sun { font-size: 24px; }
     .logo-img { height: 44px; }
-    .vista-val { font-size: 30px; }
-    .fin-val { font-size: 16px; }
-    .vista-economia { font-size: 11px; }
+    .preco-box .valor { font-size: 22px; }
   }
 
   /* PRINT */
@@ -891,8 +857,33 @@ de<!DOCTYPE html>
           <input type="text" id="f-nome" placeholder="Ex: Luiz">
         </div>
         <div class="field">
-          <label>Cidade / UF</label>
-          <input type="text" id="f-cidade" placeholder="Ex: Monte Carmelo, MG">
+          <label>Cidade</label>
+          <input type="text" id="f-cidade" placeholder="Ex: Belo Horizonte" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>UF</label>
+          <select id="f-uf">
+            <option value="">--</option>
+            <option value="AC">AC</option><option value="AL">AL</option>
+            <option value="AP">AP</option><option value="AM">AM</option>
+            <option value="BA">BA</option><option value="CE">CE</option>
+            <option value="DF">DF</option><option value="ES">ES</option>
+            <option value="GO">GO</option><option value="MA">MA</option>
+            <option value="MT">MT</option><option value="MS">MS</option>
+            <option value="MG">MG</option><option value="PA">PA</option>
+            <option value="PB">PB</option><option value="PR">PR</option>
+            <option value="PE">PE</option><option value="PI">PI</option>
+            <option value="RJ">RJ</option><option value="RN">RN</option>
+            <option value="RS">RS</option><option value="RO">RO</option>
+            <option value="RR">RR</option><option value="SC">SC</option>
+            <option value="SP">SP</option><option value="SE">SE</option>
+            <option value="TO">TO</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>Distância de Uberlândia/MG (km) <span style="opacity:.6;font-weight:normal;">— preenche automático</span></label>
+          <input type="number" id="f-distancia" placeholder="Auto via cidade/UF" min="0" step="1">
+          <small id="dist-status" style="display:block; margin-top:6px; font-size:13px; opacity:.8;"></small>
         </div>
         <div class="field">
           <label>Tipo de telhado</label>
@@ -1083,15 +1074,11 @@ de<!DOCTYPE html>
     </div>
 
     <div class="preco-box">
-      <div class="preco-vista-block">
-        <div class="vista-badge">💎 MELHOR OPÇÃO</div>
-        <div class="vista-lbl">Investimento à vista</div>
-        <div class="vista-val" id="p-vista"></div>
-        <div class="vista-economia" id="p-economia"></div>
-      </div>
-      <div class="preco-fin-block">
-        <span class="fin-lbl">ou Valor Financiado</span>
-        <span class="fin-val" id="p-total"></span>
+      <div class="lbl">Investimento (Valor Financiado)</div>
+      <div class="valor" id="p-total"></div>
+      <div class="cond-vista">
+        <span class="cond-lbl">💎 Condição especial à vista</span>
+        <span class="cond-val" id="p-vista"></span>
       </div>
     </div>
 
@@ -1433,6 +1420,119 @@ function carregarPrefs() {
 }
 window.addEventListener('DOMContentLoaded', carregarPrefs);
 
+// ============= DISTÂNCIA DE UBERLÂNDIA (auto) =============
+// Geocodifica via Nominatim (OSM) e calcula distância haversine + fator rodoviário.
+// Coordenadas de Uberlândia/MG centro:
+const UBERLANDIA = { lat: -18.9189, lng: -48.2773 };
+const ROAD_FACTOR = 1.20; // converte distância em linha reta para aproximação rodoviária
+const DIST_CACHE_KEY = 'irmaos-dist-cache-v1';
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function distCacheGet(cidade, uf) {
+  try {
+    const c = JSON.parse(localStorage.getItem(DIST_CACHE_KEY) || '{}');
+    return c[`${cidade.toLowerCase()}|${(uf||'').toLowerCase()}`];
+  } catch (e) { return undefined; }
+}
+function distCacheSet(cidade, uf, km) {
+  try {
+    const c = JSON.parse(localStorage.getItem(DIST_CACHE_KEY) || '{}');
+    c[`${cidade.toLowerCase()}|${(uf||'').toLowerCase()}`] = km;
+    localStorage.setItem(DIST_CACHE_KEY, JSON.stringify(c));
+  } catch (e) {}
+}
+
+async function geocodeCidade(cidade, uf) {
+  cidade = (cidade || '').trim();
+  uf = (uf || '').trim();
+  if (!cidade) return null;
+
+  const cached = distCacheGet(cidade, uf);
+  if (typeof cached === 'number') return cached;
+
+  const q = uf ? `${cidade}, ${uf}, Brasil` : `${cidade}, Brasil`;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`;
+
+  const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+  if (!res.ok) throw new Error('falha na busca');
+  const data = await res.json();
+  if (!data || !data.length) return null;
+
+  const km = Math.round(
+    haversineKm(UBERLANDIA.lat, UBERLANDIA.lng,
+                parseFloat(data[0].lat), parseFloat(data[0].lon)) * ROAD_FACTOR
+  );
+  distCacheSet(cidade, uf, km);
+  return km;
+}
+
+function acrescimoPorKm(km) {
+  if (!km || km <= 0) return 0;
+  if (km >= 350) return 750;
+  if (km >= 250) return 500;
+  return 0;
+}
+
+let rastreioPromise = null;
+async function rastrearDistancia({ silent = false } = {}) {
+  const cidade = document.getElementById('f-cidade').value.trim();
+  const uf = document.getElementById('f-uf').value;
+  const distInput = document.getElementById('f-distancia');
+  const status = document.getElementById('dist-status');
+
+  if (!cidade) { if (!silent) status.textContent = ''; return null; }
+
+  if (!silent) status.textContent = '🔍 Buscando distância…';
+  try {
+    const km = await geocodeCidade(cidade, uf);
+    if (km == null) {
+      if (!silent) status.textContent = '⚠️ Cidade não localizada. Preencha a distância manualmente.';
+      return null;
+    }
+    distInput.value = km;
+    const acresc = acrescimoPorKm(km);
+    if (acresc > 0) {
+      status.textContent = `📍 ~${km} km de Uberlândia · acréscimo de R$ ${acresc.toLocaleString('pt-BR')} aplicado automaticamente`;
+    } else {
+      status.textContent = `📍 ~${km} km de Uberlândia · sem acréscimo (abaixo de 250 km)`;
+    }
+    return km;
+  } catch (e) {
+    if (!silent) status.textContent = '⚠️ Erro na busca. Preencha a distância manualmente.';
+    return null;
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const cidadeEl = document.getElementById('f-cidade');
+  const ufEl = document.getElementById('f-uf');
+  const distEl = document.getElementById('f-distancia');
+
+  const trigger = () => {
+    // Se vendedor já digitou distância manualmente, não sobrescreve.
+    if (distEl.value && parseFloat(distEl.value) > 0) return;
+    rastreioPromise = rastrearDistancia();
+  };
+
+  cidadeEl.addEventListener('blur', trigger);
+  ufEl.addEventListener('change', trigger);
+
+  // Se vendedor limpa distância, libera para nova busca automática.
+  distEl.addEventListener('input', () => {
+    if (!distEl.value) document.getElementById('dist-status').textContent = '';
+  });
+});
+
 // ============= MODO =============
 function setModo(m) {
   modo = m;
@@ -1443,11 +1543,22 @@ function setModo(m) {
 }
 
 // ============= GERAR =============
-function gerar() {
+async function gerar() {
   hideErro();
 
   const nome = document.getElementById('f-nome').value.trim();
-  const cidade = document.getElementById('f-cidade').value.trim();
+  const cidadeNome = document.getElementById('f-cidade').value.trim();
+  const uf = document.getElementById('f-uf').value;
+  const cidade = [cidadeNome, uf].filter(Boolean).join(', ');
+
+  // Garante que a busca de distância (se em andamento) finalize antes de calcular preço.
+  if (rastreioPromise) { try { await rastreioPromise; } catch (e) {} rastreioPromise = null; }
+  // Se ainda não há distância e cidade está preenchida, tenta uma busca síncrona.
+  if (!document.getElementById('f-distancia').value && cidadeNome) {
+    try { await rastrearDistancia(); } catch (e) {}
+  }
+
+  const distanciaKm = parseFloat(document.getElementById('f-distancia').value) || 0;
   const telhado = document.getElementById('f-telhado').value;
   const fase = document.getElementById('f-fase').value;
   const linha = document.getElementById('f-linha').value;
@@ -1477,9 +1588,13 @@ function gerar() {
   }
 
   // Preços
+  // Acréscimo automático por distância de Uberlândia/MG:
+  //   >= 350 km → +R$ 750,00
+  //   >= 250 km → +R$ 500,00
+  const acrescDist = acrescimoPorKm(distanciaKm);
   const usarDescMax = document.getElementById('f-descmax').checked;
-  const precoVista = usarDescMax ? item.descMax : item.pVista;
-  const precoOrcamento = Math.ceil(item.pOrc / 100) * 100;
+  const precoVista = (usarDescMax ? item.descMax : item.pVista) + acrescDist;
+  const precoOrcamento = Math.ceil((item.pOrc + acrescDist) / 100) * 100;
 
   // Parcelas em cima do preço à vista
   const parc10x = precoVista * 1.11 / 10;
@@ -1500,12 +1615,13 @@ function gerar() {
   // Guardar para o WhatsApp / link
   dadosAtual = {
     dataEmissao: new Date().toISOString(),
-    nome, cidade, telhado, fase,
+    nome, cidade, distanciaKm, telhado, fase,
     item: { n: item.n, g: item.g, kwp: item.kwp, invs: item.invs },
     tab: { inv: tab.inv, mod: tab.mod, pot: tab.pot },
     areaReal, economia, economia25, payback,
     qtdInv, garInv,
     precoVista, precoOrcamento, parc10x, parc18x, usarDescMax,
+    acrescDist,
     consultor
   };
 
@@ -1548,14 +1664,6 @@ function renderProposta(d, viaLink) {
 
   document.getElementById('p-total').textContent = `R$ ${fmt(d.precoOrcamento)}`;
   document.getElementById('p-vista').textContent = `R$ ${fmt(d.precoVista)}`;
-  const economiaVista = Math.max(0, (d.precoOrcamento || 0) - (d.precoVista || 0));
-  const elEco = document.getElementById('p-economia');
-  if (economiaVista > 0) {
-    elEco.textContent = `Economize R$ ${fmt(economiaVista)} pagando à vista`;
-    elEco.style.display = '';
-  } else {
-    elEco.style.display = 'none';
-  }
 
   document.getElementById('parc-10').textContent = `R$ ${fmt(d.parc10x)}`;
   document.getElementById('parc-18').textContent = `R$ ${fmt(d.parc18x)}`;
@@ -1598,6 +1706,10 @@ function novoCliente() {
   // Limpa só os dados do cliente — mantém consultor, tarifa, taxa mínima
   document.getElementById('f-nome').value = '';
   document.getElementById('f-cidade').value = '';
+  document.getElementById('f-uf').value = '';
+  document.getElementById('f-distancia').value = '';
+  const distStatus = document.getElementById('dist-status');
+  if (distStatus) distStatus.textContent = '';
   document.getElementById('f-telhado').value = '';
   document.getElementById('f-fase').value = '';
   document.getElementById('f-linha').value = '';
@@ -1906,8 +2018,8 @@ ${linhasCli.join('\n')}
 • Payback estimado: ~${d.payback} anos
 
 ━━━━━━━━━━━━━━━━━━
-💎 *INVESTIMENTO À VISTA: R$ ${fmt(d.precoVista)}* ✨ (melhor opção)
-💰 _ou Valor Financiado: R$ ${fmt(d.precoOrcamento)}_
+💰 *Investimento (Valor Financiado): R$ ${fmt(d.precoOrcamento)}*
+💎 *Condição especial à vista: R$ ${fmt(d.precoVista)}*
 
 💳 *Formas de pagamento no cartão:*
 • 10x: R$ ${fmt(d.parc10x)}/mês
@@ -1943,11 +2055,8 @@ function fallbackCopy(txt) {
 }
 
 // ============= PWA — Service Worker =============
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(e => console.error('SW falhou:', e));
-  });
-}
+// SW desativado dentro do dashboard pra não conflitar com SW principal.
+// Quando rodando standalone, sw.js fica disponível em /gerador/sw.js mas não é registrado aqui.
 </script>
 
 </body>

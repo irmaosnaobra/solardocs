@@ -1,0 +1,146 @@
+// ============= DADOS SOLARES DE REFERÊNCIA =============
+// HSP = Horas de Sol Pleno (kWh/m²/dia médio anual)
+// Tarifa = R$/kWh residencial B1 (2026, base ANEEL)
+// Portado de api/src/services/propostaSolarData.ts
+
+const HSP_TARIFA_BR = {
+  AC:{hsp:4.6,tarifa:0.95}, AM:{hsp:4.5,tarifa:0.91}, AP:{hsp:4.6,tarifa:0.92},
+  PA:{hsp:4.8,tarifa:0.88}, RO:{hsp:4.7,tarifa:0.93}, RR:{hsp:4.7,tarifa:0.94},
+  TO:{hsp:5.4,tarifa:0.96},
+  AL:{hsp:5.7,tarifa:0.92}, BA:{hsp:5.6,tarifa:0.99}, CE:{hsp:5.9,tarifa:0.94},
+  MA:{hsp:5.6,tarifa:0.85}, PB:{hsp:5.8,tarifa:0.91}, PE:{hsp:5.7,tarifa:0.95},
+  PI:{hsp:5.8,tarifa:0.93}, RN:{hsp:5.8,tarifa:0.91}, SE:{hsp:5.6,tarifa:0.92},
+  DF:{hsp:5.5,tarifa:0.98}, GO:{hsp:5.5,tarifa:0.97}, MS:{hsp:5.3,tarifa:0.96},
+  MT:{hsp:5.4,tarifa:0.94},
+  ES:{hsp:5.3,tarifa:1.02}, MG:{hsp:5.4,tarifa:1.05}, RJ:{hsp:5.1,tarifa:1.06},
+  SP:{hsp:5.0,tarifa:0.92},
+  PR:{hsp:4.8,tarifa:0.89}, RS:{hsp:4.7,tarifa:0.95}, SC:{hsp:4.6,tarifa:0.85},
+};
+
+const HSP_CIDADE = {
+  'sao paulo':4.95,'campinas':5.25,'ribeirao preto':5.65,'sao jose dos campos':5.10,
+  'sorocaba':5.20,'santos':4.85,'sao bernardo do campo':4.95,'osasco':4.95,
+  'guarulhos':4.95,'piracicaba':5.30,'bauru':5.45,'presidente prudente':5.55,
+  'belo horizonte':5.45,'uberlandia':5.65,'uberaba':5.70,'juiz de fora':5.20,
+  'contagem':5.45,'montes claros':5.95,'governador valadares':5.55,'ipatinga':5.40,
+  'rio de janeiro':5.05,'niteroi':5.10,'campos dos goytacazes':5.25,'petropolis':4.95,
+  'nova iguacu':5.05,'duque de caxias':5.05,
+  'vitoria':5.30,'vila velha':5.30,'serra':5.30,'cariacica':5.30,
+  'salvador':5.65,'feira de santana':5.75,'vitoria da conquista':5.85,'juazeiro':6.20,
+  'barreiras':5.95,'ilheus':5.50,
+  'recife':5.70,'petrolina':6.20,'caruaru':5.80,'jaboatao dos guararapes':5.70,
+  'fortaleza':5.90,'sobral':6.10,'juazeiro do norte':6.10,
+  'joao pessoa':5.85,'campina grande':5.85,'natal':5.95,'mossoro':6.15,
+  'maceio':5.65,'aracaju':5.55,'sao luis':5.55,'teresina':5.85,
+  'goiania':5.55,'anapolis':5.50,'brasilia':5.55,'cuiaba':5.55,
+  'campo grande':5.40,'dourados':5.30,
+  'curitiba':4.65,'londrina':5.15,'maringa':5.20,'cascavel':5.05,
+  'florianopolis':4.55,'joinville':4.45,'blumenau':4.45,'chapeco':4.85,
+  'porto alegre':4.75,'caxias do sul':4.80,'pelotas':4.65,'santa maria':4.85,
+  'manaus':4.55,'belem':4.85,'palmas':5.50,'porto velho':4.75,
+  'rio branco':4.65,'macapa':4.65,'boa vista':4.75,
+};
+
+const VARIACAO_MENSAL = {
+  norte: [1.05,1.00,1.02,0.98,0.95,0.92,0.95,1.00,1.04,1.08,1.07,1.06],
+  sul:   [1.15,1.10,1.05,0.95,0.85,0.78,0.80,0.92,1.00,1.12,1.15,1.13],
+};
+
+const ESTADOS_NORTE_NE = ['AC','AM','AP','PA','RO','RR','TO','AL','BA','CE','MA','PB','PE','PI','RN','SE','GO','DF','MT','MS'];
+
+const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function normalizeCidade(c) {
+  return (c || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().trim().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ');
+}
+
+function getRef(uf, cidade) {
+  const u = (uf || '').trim().toUpperCase();
+  const stateRef = HSP_TARIFA_BR[u] || { hsp: 5.2, tarifa: 0.95 };
+  if (!cidade) return stateRef;
+  const cityHsp = HSP_CIDADE[normalizeCidade(cidade)];
+  return cityHsp ? { hsp: cityHsp, tarifa: stateRef.tarifa } : stateRef;
+}
+
+function variacaoMensal(uf) {
+  const u = (uf || '').trim().toUpperCase();
+  return ESTADOS_NORTE_NE.includes(u) ? VARIACAO_MENSAL.norte : VARIACAO_MENSAL.sul;
+}
+
+function geracaoMensal(kwp, uf, cidade) {
+  const ref = getRef(uf, cidade);
+  const variacao = variacaoMensal(uf);
+  const efic = 0.80;
+  const baseAnual = kwp * ref.hsp * 365 * efic;
+  const mediaMensal = baseAnual / 12;
+  return variacao.map(v => Math.round(mediaMensal * v));
+}
+
+function calcPayback(investimento, geracaoAnualKwh, tarifaInicial, inflacaoAA) {
+  if (inflacaoAA == null) inflacaoAA = 0.06;
+  let acumulado = 0;
+  let paybackMeses = 0;
+  let economiaAno1 = 0;
+  for (let ano = 1; ano <= 25; ano++) {
+    const tarifaAno = tarifaInicial * Math.pow(1 + inflacaoAA, ano - 1);
+    const economiaAno = geracaoAnualKwh * tarifaAno;
+    if (ano === 1) economiaAno1 = economiaAno;
+    if (paybackMeses === 0 && acumulado + economiaAno >= investimento) {
+      const restante = investimento - acumulado;
+      const mesesNoAno = Math.ceil((restante / economiaAno) * 12);
+      paybackMeses = (ano - 1) * 12 + mesesNoAno;
+    }
+    acumulado += economiaAno;
+  }
+  return {
+    paybackMeses: paybackMeses || 0,
+    paybackAnos: paybackMeses ? (paybackMeses / 12) : 0,
+    acumulado25anos: Math.round(acumulado),
+    economiaAno1: Math.round(economiaAno1),
+  };
+}
+
+function renderGraficoMensalSVG(mensal, opts) {
+  opts = opts || {};
+  const c1 = opts.c1 || '#0d2d5e';
+  const c2 = opts.c2 || '#4a90e2';
+  const W = 600, H = 240, P = { top: 24, right: 16, bottom: 50, left: 48 };
+  const innerW = W - P.left - P.right;
+  const innerH = H - P.top - P.bottom;
+  const barCount = 12;
+  const barGap = 6;
+  const barW = (innerW - barGap * (barCount - 1)) / barCount;
+  const maxKwh = Math.max.apply(null, mensal.concat([1]));
+  const yTicks = 4;
+  const fmtN = n => new Intl.NumberFormat('pt-BR').format(Math.round(n));
+
+  const yLines = Array.from({ length: yTicks + 1 }, (_, i) => {
+    const v = Math.round((maxKwh * i) / yTicks);
+    const y = P.top + innerH - (innerH * i) / yTicks;
+    return `<line x1="${P.left}" y1="${y}" x2="${P.left + innerW}" y2="${y}" stroke="#E5E7EB" stroke-width="1"/>` +
+           `<text x="${P.left - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="#9CA3AF">${fmtN(v)}</text>`;
+  }).join('');
+
+  const bars = mensal.map((kwh, i) => {
+    const x = P.left + i * (barW + barGap);
+    const h = (kwh / maxKwh) * innerH;
+    const y = P.top + innerH - h;
+    return `<g>` +
+      `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="url(#gradSolar)"/>` +
+      `<text x="${x + barW/2}" y="${P.top + innerH + 16}" text-anchor="middle" font-size="11" fill="#6B7280">${MESES_ABREV[i]}</text>` +
+      `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${c1}">${fmtN(kwh)}</text>` +
+    `</g>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="gradSolar" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${c1}"/>
+        <stop offset="100%" stop-color="${c2}"/>
+      </linearGradient>
+    </defs>
+    ${yLines}
+    ${bars}
+  </svg>`;
+}
