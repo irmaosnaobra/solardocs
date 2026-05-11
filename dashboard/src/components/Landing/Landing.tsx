@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/services/api';
 import { setToken, setUser } from '@/services/auth';
+import { useLpTracking } from '@/hooks/useLpTracking';
 import styles from './Landing.module.css';
 
 declare global {
@@ -42,6 +43,7 @@ function useReveal() {
 export default function Landing() {
   const router = useRouter();
   useReveal();
+  const { trackEvent } = useLpTracking();
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -50,6 +52,12 @@ export default function Landing() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
+
+  function scrollToFormFrom(plano: 'grátis' | 'pro' | 'vip') {
+    trackEvent('cta_click', { label: plano });
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => document.getElementById('input-nome')?.focus(), 500);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,10 +95,6 @@ export default function Landing() {
     }
   }
 
-  function scrollToForm() {
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => document.getElementById('input-nome')?.focus(), 500);
-  }
 
   return (
     <div className={styles.page}>
@@ -104,7 +108,7 @@ export default function Landing() {
           </div>
           <div className={styles.navRight}>
             <a href="/auth?mode=login" className={styles.navLink}>Entrar</a>
-            <button onClick={scrollToForm} className={styles.navCta}>Começar grátis</button>
+            <button onClick={() => scrollToFormFrom('grátis')} className={styles.navCta}>Começar grátis</button>
           </div>
         </div>
       </nav>
@@ -603,7 +607,7 @@ export default function Landing() {
                 <li>Assinatura digital</li>
                 <li>Suporte por WhatsApp</li>
               </ul>
-              <button onClick={scrollToForm} className={styles.planBtn}>Começar grátis</button>
+              <button onClick={() => scrollToFormFrom('grátis')} className={styles.planBtn}>Começar grátis</button>
             </div>
 
             <div className={`${styles.plan} ${styles.planFeatured}`} data-reveal style={{ transitionDelay: '0.1s' }}>
@@ -618,7 +622,7 @@ export default function Landing() {
                 <li>Suporte prioritário</li>
                 <li>Paga quando quiser, sem teste vencendo</li>
               </ul>
-              <button onClick={scrollToForm} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
+              <button onClick={() => scrollToFormFrom('pro')} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
                 Quero o Pro
               </button>
             </div>
@@ -634,7 +638,7 @@ export default function Landing() {
                 <li>Suporte VIP por WhatsApp</li>
                 <li>Acesso a novos documentos primeiro</li>
               </ul>
-              <button onClick={scrollToForm} className={styles.planBtn}>Começar grátis</button>
+              <button onClick={() => scrollToFormFrom('vip')} className={styles.planBtn}>Começar grátis</button>
             </div>
           </div>
         </div>
@@ -715,7 +719,7 @@ export default function Landing() {
             10 documentos grátis pra começar. Sem cartão. Sem pegadinha.
           </p>
           <div data-reveal>
-            <button className={styles.finalCtaBtn} onClick={scrollToForm}>
+            <button className={styles.finalCtaBtn} onClick={() => scrollToFormFrom('grátis')}>
               Cadastrar minha empresa solar →
             </button>
             <div className={styles.finalCtaFoot}>
