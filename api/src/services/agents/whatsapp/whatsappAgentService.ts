@@ -105,9 +105,7 @@ export async function sendWelcomeWhatsApp(phone: string, _email: string, nome?: 
   const parts = [
     `${greeting} 🌞 Sou a Dani, da SolarDoc Pro.`,
     `Tua conta tá pronta. Te mando o link de acesso pra você salvar:\n\n🔗 solardoc.app/auth`,
-    `Quer instalar como app no celular? Em 1 toque vira ícone na tua tela.\nTe mando o tutorial pra iPhone, Android e PC — em 2min tá tudo configurado.`,
-    `📱 *iPhone*: abre o link no Safari → botão *Compartilhar* (quadrado com seta) → *"Adicionar à Tela de Início"*\n\n📱 *Android*: abre no Chrome → *3 pontinhos* → *"Instalar app"* ou *"Adicionar à tela inicial"*\n\n💻 *PC*: abre no Chrome/Edge → *Ctrl+D* pra favoritar OU clica no ícone *"+"* na barra de endereço pra instalar como app`,
-    `Tô aqui se travar em algo. Bom uso! 🚀`,
+    `Quer instalar como app no celular? Em 1 toque vira ícone na tela:\n\n📱 *iPhone*: Safari → *Compartilhar* → *"Adicionar à Tela de Início"*\n\n📱 *Android*: Chrome → *3 pontinhos* → *"Instalar app"*\n\n💻 *PC*: *Ctrl+D* pra favoritar OU ícone *"+"* na barra pra instalar como app\n\nTô aqui se travar em algo. Bom uso! 🚀`,
   ];
 
   await sendHuman(cleanPhone, parts);
