@@ -37,6 +37,29 @@ async function zapiPut(creds: IOCreds, path: string, body: any): Promise<any> {
   catch { return { status: res.status, body: txt }; }
 }
 
+// Teste de envio real pela instancia SOLARDOC.
+// Uso: GET /zapi-admin/solardoc/test-send?key=BOOTSTRAP&phone=55XXYYYYYYYY
+// Manda 'Teste SolarDoc 🌞 — se voce recebeu isso, a Dani ta funcionando.'
+router.get('/solardoc/test-send', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const phone = String(req.query.phone || '').replace(/\D/g, '');
+  if (!phone) { res.status(400).json({ error: 'phone obrigatorio (ex: 5534999437831)' }); return; }
+  const id = process.env.ZAPI_INSTANCE_ID?.trim();
+  const token = process.env.ZAPI_TOKEN?.trim();
+  const client = process.env.ZAPI_CLIENT_TOKEN?.trim();
+  if (!id || !token || !client) { res.status(500).json({ error: 'env nao configurado' }); return; }
+
+  const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/send-text`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Client-Token': client },
+    body: JSON.stringify({ phone, message: 'Teste SolarDoc 🌞 — se voce recebeu isso, a Dani ta funcionando.' }),
+  });
+  const txt = await r.text();
+  let body: unknown;
+  try { body = JSON.parse(txt); } catch { body = txt; }
+  res.json({ http_status: r.status, body });
+});
+
 // Status da instancia SOLARDOC (usada pela Dani — boas-vindas + atendimento)
 router.get('/solardoc/status', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
