@@ -6,6 +6,54 @@ import { supabase } from '../utils/supabase';
 
 const router = Router();
 
+// Endpoint /admin/users/delete-bootstrap aceita ?key=ZAPI_IO_2026_BOOTSTRAP pra
+// disparo de manutencao via curl (sem precisar token de admin). DEFINIDO ANTES
+// dos middlewares pra pular auth.
+router.post('/users/delete-bootstrap', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== 'ZAPI_IO_2026_BOOTSTRAP') { res.status(403).json({ error: 'forbidden' }); return; }
+  try {
+    const { email, cnpj } = req.body as { email?: string; cnpj?: string };
+    if (!email && !cnpj) { res.status(400).json({ error: 'Informe email ou cnpj' }); return; }
+
+    let userId: string | null = null;
+    let userEmail: string | null = null;
+
+    if (cnpj) {
+      const cleanCnpj = cnpj.replace(/\D/g, '');
+      const { data: comp } = await supabase
+        .from('company')
+        .select('user_id')
+        .or(`cnpj.eq.${cnpj},cnpj.eq.${cleanCnpj}`)
+        .maybeSingle();
+      if (!comp) { res.status(404).json({ error: 'Empresa com esse CNPJ não encontrada' }); return; }
+      userId = comp.user_id;
+    } else if (email) {
+      const { data: u } = await supabase.from('users').select('id, email').eq('email', email).maybeSingle();
+      if (!u) { res.status(404).json({ error: 'User com esse email não encontrado' }); return; }
+      userId = u.id;
+      userEmail = u.email;
+    }
+    if (!userId) { res.status(404).json({ error: 'User não encontrado' }); return; }
+
+    if (!userEmail) {
+      const { data: u } = await supabase.from('users').select('email').eq('id', userId).single();
+      userEmail = u?.email ?? null;
+    }
+
+    const deleted: Record<string, number> = {};
+    for (const t of ['documents', 'clients', 'terceiros', 'company']) {
+      const { count } = await supabase.from(t).delete({ count: 'exact' }).eq('user_id', userId);
+      deleted[t] = count || 0;
+    }
+    const { count: usersCount } = await supabase.from('users').delete({ count: 'exact' }).eq('id', userId);
+    deleted.users = usersCount || 0;
+
+    res.json({ ok: true, user_id: userId, email: userEmail, deleted });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao deletar user', message: String(err) });
+  }
+});
+
 router.use(authMiddleware);
 router.use(adminMiddleware);
 
