@@ -27,6 +27,14 @@ export default function TerceirosPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing]     = useState<Terceiro | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  const totalPages = Math.max(1, Math.ceil(terceiros.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pagedTerceiros = terceiros.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+  useEffect(() => { setPage(0); }, [search]);
 
   const fetchTerceiros = useCallback(async (searchTerm?: string) => {
     try {
@@ -117,7 +125,7 @@ export default function TerceirosPage() {
                 </tr>
               </thead>
               <tbody>
-                {terceiros.map(t => (
+                {pagedTerceiros.map(t => (
                   <tr key={t.id}>
                     <td className={styles.nome}>{t.nome}</td>
                     <td>
@@ -150,7 +158,7 @@ export default function TerceirosPage() {
 
           {/* Mobile cards */}
           <div className={styles.cardList}>
-            {terceiros.map(t => (
+            {pagedTerceiros.map(t => (
               <div key={t.id} className={styles.card}>
                 <div className={styles.cardTop}>
                   <span className={styles.cardName}>{t.nome}</span>
@@ -178,6 +186,36 @@ export default function TerceirosPage() {
               </div>
             ))}
           </div>
+
+          {totalPages > 1 && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 20,
+              flexWrap: 'wrap',
+            }}>
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+                style={pgBtn(safePage === 0)}
+              >
+                ← Anterior
+              </button>
+              <span style={{ fontSize: 13, color: 'var(--color-text-muted)', padding: '0 8px' }}>
+                Página <strong style={{ color: 'var(--color-text)' }}>{safePage + 1}</strong> de {totalPages}
+                <span style={{ marginLeft: 8 }}>· {terceiros.length} no total</span>
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={safePage >= totalPages - 1}
+                style={pgBtn(safePage >= totalPages - 1)}
+              >
+                Próxima →
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -190,4 +228,18 @@ export default function TerceirosPage() {
       )}
     </div>
   );
+}
+
+function pgBtn(disabled: boolean): React.CSSProperties {
+  return {
+    padding: '8px 14px',
+    borderRadius: 8,
+    border: '1px solid var(--color-border)',
+    background: 'var(--color-surface)',
+    color: disabled ? 'var(--color-text-muted)' : 'var(--color-text)',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
+    opacity: disabled ? 0.5 : 1,
+  };
 }

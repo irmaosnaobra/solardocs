@@ -44,6 +44,8 @@ export default function ClientesPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
 
   function toggleSort(k: SortKey) {
     if (sortKey === k) {
@@ -63,6 +65,14 @@ export default function ClientesPage() {
     }
     return sortDir === 'asc' ? cmp : -cmp;
   });
+
+  // Paginação
+  const totalPages = Math.max(1, Math.ceil(sortedClients.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pagedClients = sortedClients.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+  // Reseta pra página 0 quando busca/sort muda
+  useEffect(() => { setPage(0); }, [search, sortKey, sortDir]);
 
   const fetchClients = useCallback(async (searchTerm?: string) => {
     try {
@@ -167,7 +177,7 @@ export default function ClientesPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedClients.map(client => (
+              {pagedClients.map(client => (
                 <tr key={client.id}>
                   <td className={styles.clientName}>{client.nome}</td>
                   <td>
@@ -201,7 +211,7 @@ export default function ClientesPage() {
 
         {/* Mobile cards */}
         <div className={styles.cardList}>
-          {sortedClients.map(client => (
+          {pagedClients.map(client => (
             <div key={client.id} className={styles.card}>
               <div className={styles.cardTop}>
                 <span className={styles.cardName}>{client.nome}</span>
@@ -232,6 +242,37 @@ export default function ClientesPage() {
             </div>
           ))}
         </div>
+
+        {/* Paginação */}
+        {totalPages > 1 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 20,
+            flexWrap: 'wrap',
+          }}>
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={safePage === 0}
+              style={paginationBtnStyle(safePage === 0)}
+            >
+              ← Anterior
+            </button>
+            <span style={{ fontSize: 13, color: 'var(--color-text-muted)', padding: '0 8px' }}>
+              Página <strong style={{ color: 'var(--color-text)' }}>{safePage + 1}</strong> de {totalPages}
+              <span style={{ marginLeft: 8 }}>· {sortedClients.length} no total</span>
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={safePage >= totalPages - 1}
+              style={paginationBtnStyle(safePage >= totalPages - 1)}
+            >
+              Próxima →
+            </button>
+          </div>
+        )}
         </>
       )}
 
@@ -244,4 +285,18 @@ export default function ClientesPage() {
       )}
     </div>
   );
+}
+
+function paginationBtnStyle(disabled: boolean): React.CSSProperties {
+  return {
+    padding: '8px 14px',
+    borderRadius: 8,
+    border: '1px solid var(--color-border)',
+    background: 'var(--color-surface)',
+    color: disabled ? 'var(--color-text-muted)' : 'var(--color-text)',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
+    opacity: disabled ? 0.5 : 1,
+  };
 }
