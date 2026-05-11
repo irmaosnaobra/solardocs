@@ -37,6 +37,25 @@ async function zapiPut(creds: IOCreds, path: string, body: any): Promise<any> {
   catch { return { status: res.status, body: txt }; }
 }
 
+// Status da instancia SOLARDOC (usada pela Dani — boas-vindas + atendimento)
+router.get('/solardoc/status', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const id = process.env.ZAPI_INSTANCE_ID?.trim();
+  const token = process.env.ZAPI_TOKEN?.trim();
+  const client = process.env.ZAPI_CLIENT_TOKEN?.trim();
+  if (!id || !token || !client) {
+    res.status(500).json({ error: 'ZAPI_INSTANCE_ID, ZAPI_TOKEN ou ZAPI_CLIENT_TOKEN nao configurado' });
+    return;
+  }
+  const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/status`, {
+    headers: { 'Client-Token': client },
+  });
+  const txt = await r.text();
+  let body: unknown;
+  try { body = JSON.parse(txt); } catch { body = txt; }
+  res.json({ instance_id: id, status: { status: r.status, body } });
+});
+
 // Lista status da instancia IO + webhooks configurados (via /me que tem todos os callback URLs)
 router.get('/io/status', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
