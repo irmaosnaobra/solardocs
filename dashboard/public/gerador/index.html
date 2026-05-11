@@ -62,8 +62,8 @@
           <input type="text" id="f-nome" placeholder="Ex: Luiz">
         </div>
         <div class="field">
-          <label>Telefone *</label>
-          <input type="tel" id="f-telefone" placeholder="(34) 99999-9999" autocomplete="off" inputmode="tel">
+          <label>WhatsApp *</label>
+          <input type="tel" id="f-telefone" placeholder="(34) 99999-9999" autocomplete="off" inputmode="tel" required>
         </div>
         <div class="field">
           <label>Cidade</label>
@@ -890,8 +890,8 @@ async function gerar() {
 
   if (!consultor) return showErro('Selecione o consultor responsável.');
   if (!nome) return showErro('Informe o nome do cliente.');
-  if (!telefone) return showErro('Informe o telefone do cliente.');
-  if (telefoneDigitos.length < 10) return showErro('Telefone inválido. Inclua DDD + número (mínimo 10 dígitos).');
+  if (!telefone) return showErro('Informe o WhatsApp do cliente. Campo obrigatório.');
+  if (telefoneDigitos.length < 11) return showErro('WhatsApp inválido. Inclua DDD + 9 + número (11 dígitos).');
   if (!linha) return showErro('Selecione a linha de equipamento.');
 
   // Trava de duplicado por telefone (não aplica em modo edição)
