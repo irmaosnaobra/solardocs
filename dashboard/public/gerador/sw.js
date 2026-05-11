@@ -1,11 +1,15 @@
-// Service Worker — cacheia o shell do app pra abrir offline
-const CACHE = 'gerador-propostas-v6';
+// Service Worker do gerador hospedado em /gerador/ (subpath do dashboard)
+// Scope limitado a /gerador/ pra não interferir no resto do app.
+const CACHE = 'gerador-propostas-v17';
 const PRECACHE = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/icon-192.png',
-  '/icon-512.png'
+  '/gerador/',
+  '/gerador/index.html',
+  '/gerador/style.css',
+  '/gerador/tabelas.js',
+  '/gerador/solar-data.js',
+  '/gerador/manifest.webmanifest',
+  '/gerador/icon-192.png',
+  '/gerador/icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -24,9 +28,12 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
+  // Só intercepta requests do /gerador/ (scope limitado)
+  const url = new URL(req.url);
+  if (!url.pathname.startsWith('/gerador/')) return;
+
   // Não cacheia chamadas Supabase (sempre online)
   if (req.url.includes('supabase.co')) return;
-  // Só GET
   if (req.method !== 'GET') return;
 
   // Network-first pro HTML (sempre pega versão fresca quando online)
@@ -38,7 +45,7 @@ self.addEventListener('fetch', (e) => {
           caches.open(CACHE).then(c => c.put(req, copy));
           return res;
         })
-        .catch(() => caches.match(req).then(r => r || caches.match('/index.html')))
+        .catch(() => caches.match(req).then(r => r || caches.match('/gerador/index.html')))
     );
     return;
   }

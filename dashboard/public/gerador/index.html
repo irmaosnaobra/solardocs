@@ -2138,7 +2138,7 @@ function fallbackCopy(txt) {
 // ============= PWA — Service Worker =============
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    /* SW desabilitado dentro do dashboard */ window.__noSW = true; false && navigator.serviceWorker.register('/gerador/sw.js').catch(e => console.error('SW falhou:', e));
+    navigator.serviceWorker.register('/gerador/sw.js', { scope: '/gerador/' }).catch(e => console.error('SW falhou:', e));
   });
 }
 </script>
