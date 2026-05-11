@@ -102,11 +102,16 @@ export async function register(req: Request, res: Response): Promise<void> {
       userAgent: req.headers['user-agent'],
     });
 
-    // Boas-vindas automático: WhatsApp (Dani) + email (Resend) — async, falha silenciosa
+    // Boas-vindas: WhatsApp (Dani 5 bolhas) + email (Resend).
+    // AWAIT é obrigatório em serverless — sem ele, a função encerra antes
+    // das bolhas terminarem (vimos: só a 1ª chegava). Resposta demora ~20s
+    // mas user só vê depois das mensagens enviadas (mais coerente).
+    const tasks: Promise<unknown>[] = [];
     if (body.whatsapp) {
-      sendWelcomeWhatsApp(body.whatsapp, body.email, body.nome || null).catch(() => {});
+      tasks.push(sendWelcomeWhatsApp(body.whatsapp, body.email, body.nome || null).catch(() => {}));
     }
-    sendWelcomeEmail({ to: body.email, userId: user.id, nome: body.nome || null }).catch(() => {});
+    tasks.push(sendWelcomeEmail({ to: body.email, userId: user.id, nome: body.nome || null }).catch(() => {}));
+    await Promise.allSettled(tasks);
 
     res.status(201).json({ token, user });
   } catch (err: unknown) {
