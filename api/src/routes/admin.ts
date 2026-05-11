@@ -15,6 +15,62 @@ router.get('/visits',         getVisits);
 router.get('/analytics',      getAnalytics);
 router.get('/meta-funnel',    getMetaFunnel);
 
+// Deletar user (cascade manual). Aceita { email } OU { cnpj } no body.
+// Apaga: documents, clients, terceiros, company, e o user.
+router.post('/users/delete', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, cnpj } = req.body as { email?: string; cnpj?: string };
+    if (!email && !cnpj) {
+      res.status(400).json({ error: 'Informe email ou cnpj' });
+      return;
+    }
+
+    let userId: string | null = null;
+    let userEmail: string | null = null;
+
+    if (cnpj) {
+      const cleanCnpj = cnpj.replace(/\D/g, '');
+      const { data: comp } = await supabase
+        .from('company')
+        .select('user_id')
+        .or(`cnpj.eq.${cnpj},cnpj.eq.${cleanCnpj}`)
+        .maybeSingle();
+      if (!comp) { res.status(404).json({ error: 'Empresa com esse CNPJ não encontrada' }); return; }
+      userId = comp.user_id;
+    } else if (email) {
+      const { data: u } = await supabase
+        .from('users')
+        .select('id, email')
+        .eq('email', email)
+        .maybeSingle();
+      if (!u) { res.status(404).json({ error: 'User com esse email não encontrado' }); return; }
+      userId = u.id;
+      userEmail = u.email;
+    }
+
+    if (!userId) { res.status(404).json({ error: 'User não encontrado' }); return; }
+
+    if (!userEmail) {
+      const { data: u } = await supabase.from('users').select('email').eq('id', userId).single();
+      userEmail = u?.email ?? null;
+    }
+
+    // Delete em ordem (FK constraints)
+    const deleted: Record<string, number> = {};
+    const tabelas = ['documents', 'clients', 'terceiros', 'company'];
+    for (const t of tabelas) {
+      const { count } = await supabase.from(t).delete({ count: 'exact' }).eq('user_id', userId);
+      deleted[t] = count || 0;
+    }
+    const { count: usersCount } = await supabase.from('users').delete({ count: 'exact' }).eq('id', userId);
+    deleted.users = usersCount || 0;
+
+    res.json({ ok: true, user_id: userId, email: userEmail, deleted });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao deletar user', message: String(err) });
+  }
+});
+
 // ── CRM SDR Leads (Solar B2C) ─────────────────────────────────────
 const SDR_ESTAGIOS = ['reativacao','novo','frio','morno','quente','perdido','fechamento'];
 
