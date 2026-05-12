@@ -702,14 +702,31 @@
   .test-card {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 30px 28px;
+    border-radius: 18px;
+    padding: 14px 14px 18px;
     flex-shrink: 0;
-    width: 380px;
+    width: 300px;
     display: flex;
     flex-direction: column;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
   }
-  .test-card blockquote { flex: 1; }
+  .test-shot {
+    display: block;
+    width: 100%;
+    height: 460px;
+    object-fit: cover;
+    object-position: top center;
+    border-radius: 12px;
+    background: #0d0d0d;
+  }
+  .test-caption {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 4px 0;
+  }
+  .test-caption .test-stars { margin: 0; font-size: 13px; letter-spacing: 0.16em; }
+  .test-caption .test-who { font-size: 13px; color: var(--text-muted); font-weight: 600; }
   .test-stars { color: var(--gold); font-size: 14px; letter-spacing: 0.18em; margin-bottom: 14px; }
   .test-card blockquote {
     font-family: 'Playfair Display', serif;
@@ -866,8 +883,8 @@
     .certs-inner { grid-template-columns: 1fr; gap: 28px; }
     .certs-logos { grid-template-columns: repeat(3, 1fr); }
     .projects-grid { grid-template-columns: 1fr; }
-    .test-card { width: 300px; padding: 24px 22px; }
-    .test-card blockquote { font-size: 15px; }
+    .test-card { width: 260px; }
+    .test-shot { height: 400px; }
     .areas-inner { grid-template-columns: 1fr; }
     .contact-grid { grid-template-columns: 1fr; gap: 40px; }
     .ft-grid { grid-template-columns: 1fr 1fr; gap: 36px 24px; }
@@ -1192,146 +1209,114 @@
       <div class="test-track">
 
         <div class="test-card">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Estou extremamente satisfeito com os resultados adquiridos com a instalação do meu sistema fotovoltaico. Mesmo nos dias de pouca incidência do sol, segue atendendo a minha demanda. Obrigado pela dedicação em todas as etapas, desde a negociação até a implantação. Super recomendo."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">M</div>
-            <div>
-              <div class="test-name">Márcio</div>
-              <div class="test-role">Cliente residencial</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd4.jpg" alt="Feedback Márcio no WhatsApp" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Márcio · cliente</span>
           </div>
         </div>
 
         <div class="test-card">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Comprei um kit de energia fotovoltaica, tive um excelente atendimento, tanto na instalação quanto no pós. Algo que merece parabenizá-los. Sempre dispostos a ajudar. Muito obrigado a toda equipe pela idoneidade de todos."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">H</div>
-            <div>
-              <div class="test-name">Huberth Rocha</div>
-              <div class="test-role">Cliente residencial</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd5.jpg" alt="Feedback Huberth Rocha no WhatsApp" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Huberth Rocha · cliente</span>
           </div>
         </div>
 
         <div class="test-card">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Deixo meu agradecimento à equipe Irmãos na Obra pelo profissionalismo e transparência. Tudo dentro do combinado. Suporte e atenção antes e depois do término. Sempre que puder estou indicando vocês pra meus amigos e familiares."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">C</div>
-            <div>
-              <div class="test-name">Cléber</div>
-              <div class="test-role">Cliente residencial</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd6.jpg" alt="Feedback Cléber no WhatsApp" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Cléber · cliente</span>
           </div>
         </div>
 
         <div class="test-card">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Fiquei muito satisfeita com o trabalho de vocês. Com certeza eu indicaria sim. Nota 10 por tudo. 100% satisfeita."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">S</div>
-            <div>
-              <div class="test-name">Sueli</div>
-              <div class="test-role">Cliente residencial · Uberlândia</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd3.jpg" alt="Feedback Sueli no WhatsApp" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Sueli · Uberlândia</span>
           </div>
         </div>
 
         <div class="test-card">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Estou satisfeito com a agilidade e com o comprometimento durante a instalação do kit solar. Me explicaram muito bem como funciona o sistema e está funcionando a todo vapor."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">D</div>
-            <div>
-              <div class="test-name">Denivan</div>
-              <div class="test-role">Cliente residencial</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd1.jpg" alt="Feedback Denivan no WhatsApp" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Denivan · cliente</span>
           </div>
         </div>
 
         <div class="test-card">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Foi top meu irmão, muito rápido, tanto o processo quanto a montagem. Gostei muito viu."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">A</div>
-            <div>
-              <div class="test-name">Andrigo</div>
-              <div class="test-role">Cliente residencial</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd7.jpg" alt="Feedback Andrigo no WhatsApp" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Andrigo · cliente</span>
+          </div>
+        </div>
+
+        <div class="test-card">
+          <img class="test-shot" src="/io/img/fedd2.jpg" alt="Feedback Sebastião no WhatsApp" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Sebastião · cliente</span>
           </div>
         </div>
 
         <div class="test-card" aria-hidden="true">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Estou extremamente satisfeito com os resultados adquiridos com a instalação do meu sistema fotovoltaico. Mesmo nos dias de pouca incidência do sol, segue atendendo a minha demanda. Obrigado pela dedicação em todas as etapas, desde a negociação até a implantação. Super recomendo."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">M</div>
-            <div>
-              <div class="test-name">Márcio</div>
-              <div class="test-role">Cliente residencial</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd4.jpg" alt="" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Márcio · cliente</span>
           </div>
         </div>
 
         <div class="test-card" aria-hidden="true">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Comprei um kit de energia fotovoltaica, tive um excelente atendimento, tanto na instalação quanto no pós. Algo que merece parabenizá-los. Sempre dispostos a ajudar. Muito obrigado a toda equipe pela idoneidade de todos."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">H</div>
-            <div>
-              <div class="test-name">Huberth Rocha</div>
-              <div class="test-role">Cliente residencial</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd5.jpg" alt="" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Huberth Rocha · cliente</span>
           </div>
         </div>
 
         <div class="test-card" aria-hidden="true">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Deixo meu agradecimento à equipe Irmãos na Obra pelo profissionalismo e transparência. Tudo dentro do combinado. Suporte e atenção antes e depois do término. Sempre que puder estou indicando vocês pra meus amigos e familiares."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">C</div>
-            <div>
-              <div class="test-name">Cléber</div>
-              <div class="test-role">Cliente residencial</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd6.jpg" alt="" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Cléber · cliente</span>
           </div>
         </div>
 
         <div class="test-card" aria-hidden="true">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Fiquei muito satisfeita com o trabalho de vocês. Com certeza eu indicaria sim. Nota 10 por tudo. 100% satisfeita."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">S</div>
-            <div>
-              <div class="test-name">Sueli</div>
-              <div class="test-role">Cliente residencial · Uberlândia</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd3.jpg" alt="" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Sueli · Uberlândia</span>
           </div>
         </div>
 
         <div class="test-card" aria-hidden="true">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Estou satisfeito com a agilidade e com o comprometimento durante a instalação do kit solar. Me explicaram muito bem como funciona o sistema e está funcionando a todo vapor."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">D</div>
-            <div>
-              <div class="test-name">Denivan</div>
-              <div class="test-role">Cliente residencial</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd1.jpg" alt="" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Denivan · cliente</span>
           </div>
         </div>
 
         <div class="test-card" aria-hidden="true">
-          <div class="test-stars">★ ★ ★ ★ ★</div>
-          <blockquote>"Foi top meu irmão, muito rápido, tanto o processo quanto a montagem. Gostei muito viu."</blockquote>
-          <div class="test-meta">
-            <div class="test-avatar">A</div>
-            <div>
-              <div class="test-name">Andrigo</div>
-              <div class="test-role">Cliente residencial</div>
-            </div>
+          <img class="test-shot" src="/io/img/fedd7.jpg" alt="" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Andrigo · cliente</span>
+          </div>
+        </div>
+
+        <div class="test-card" aria-hidden="true">
+          <img class="test-shot" src="/io/img/fedd2.jpg" alt="" loading="lazy" />
+          <div class="test-caption">
+            <span class="test-stars">★ ★ ★ ★ ★</span>
+            <span class="test-who">Sebastião · cliente</span>
           </div>
         </div>
 
