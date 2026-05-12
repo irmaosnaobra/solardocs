@@ -752,6 +752,38 @@
 
   /* ============ AREAS ============ */
   .areas-inner { display: grid; grid-template-columns: 1fr 1.5fr; gap: 60px; align-items: center; }
+  .areas-map {
+    position: relative;
+    background: linear-gradient(135deg, #fbf7ee 0%, #f4ede0 100%);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 22px 18px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  }
+  .areas-map svg { width: 100%; height: auto; display: block; }
+  .areas-map .map-state-outline { fill: rgba(13, 28, 60, 0.04); stroke: rgba(13, 28, 60, 0.18); stroke-width: 1.2; stroke-dasharray: 4 4; }
+  .areas-map .map-state-label { font-family: 'Inter', sans-serif; font-weight: 800; letter-spacing: 0.18em; fill: rgba(13, 28, 60, 0.12); font-size: 64px; }
+  .areas-map .map-pin { fill: var(--navy); }
+  .areas-map .map-pin.go { fill: var(--gold); }
+  .areas-map .map-pin.main { fill: var(--gold); }
+  .areas-map .map-pin-ring { fill: none; stroke: var(--gold); stroke-width: 2; opacity: 0; transform-origin: center; transform-box: fill-box; animation: pinPulse 2.4s ease-out infinite; }
+  @keyframes pinPulse {
+    0% { opacity: 0.6; transform: scale(0.6); }
+    100% { opacity: 0; transform: scale(2.6); }
+  }
+  .areas-map .map-pin-label { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; fill: var(--navy); }
+  .areas-map .map-pin-label.go { fill: #6b4d18; }
+  .areas-map .map-pin-label.main { font-size: 13px; font-weight: 800; }
+  .areas-map .map-legend {
+    display: flex; gap: 18px; justify-content: center; flex-wrap: wrap;
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text-muted); font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .areas-map .map-legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .areas-map .map-legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .areas-map .map-legend .dot.mg { background: var(--navy); }
+  .areas-map .map-legend .dot.go { background: var(--gold); }
   .areas-list { columns: 2; column-gap: 24px; }
   .areas-list .city {
     display: flex; align-items: center; gap: 10px;
@@ -1336,35 +1368,83 @@
       </p>
     </div>
 
-    <div class="areas-list">
-      <div class="city"><span class="pin">📍</span> Uberlândia <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Uberaba <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Araguari <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Ituiutaba <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Patos de Minas <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Patrocínio <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Monte Carmelo <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Araxá <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Frutal <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Coromandel <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Tupaciguara <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Iturama <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Prata <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Capinópolis <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Indianópolis <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Romaria <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
-      <div class="city"><span class="pin">📍</span> Itumbiara <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Catalão <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Caldas Novas <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Goiatuba <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Morrinhos <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Ipameri <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Goiandira <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Três Ranchos <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Cumari <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Ouvidor <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Anhanguera <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
-      <div class="city"><span class="pin">📍</span> Bom Jesus de Goiás <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+    <div class="areas-map" aria-label="Mapa do Triângulo Mineiro e Sul de Goiás com as 28 cidades atendidas">
+      <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="mapTitle">
+        <title id="mapTitle">Cidades atendidas pela Irmãos na Obra</title>
+
+        <path class="map-state-outline" d="M 30 30 L 770 30 L 770 220 Q 560 250 380 235 Q 240 220 90 250 Q 40 270 30 300 Z" />
+        <path class="map-state-outline" d="M 30 470 L 770 470 L 770 220 Q 560 250 380 235 Q 240 220 90 250 Q 40 270 30 300 Z" />
+        <text class="map-state-label" x="680" y="130" text-anchor="middle">GO</text>
+        <text class="map-state-label" x="680" y="440" text-anchor="middle">MG</text>
+
+        <!-- GO: Goiás (pins dourados) -->
+        <circle class="map-pin go" cx="246" cy="167" r="6" />
+        <text class="map-pin-label go" x="246" y="158" text-anchor="middle">Itumbiara</text>
+        <circle class="map-pin go" cx="474" cy="122" r="6" />
+        <text class="map-pin-label go" x="474" y="113" text-anchor="middle">Catalão</text>
+        <circle class="map-pin go" cx="352" cy="60" r="6" />
+        <text class="map-pin-label go" x="352" y="51" text-anchor="middle">Caldas Novas</text>
+        <circle class="map-pin go" cx="220" cy="95" r="6" />
+        <text class="map-pin-label go" x="220" y="86" text-anchor="middle">Goiatuba</text>
+        <circle class="map-pin go" cx="265" cy="60" r="6" />
+        <text class="map-pin-label go" x="265" y="51" text-anchor="middle">Morrinhos</text>
+        <circle class="map-pin go" cx="435" cy="60" r="6" />
+        <text class="map-pin-label go" x="435" y="51" text-anchor="middle">Ipameri</text>
+        <circle class="map-pin go" cx="440" cy="111" r="6" />
+        <text class="map-pin-label go" x="448" y="107" text-anchor="start">Goiandira</text>
+        <circle class="map-pin go" cx="503" cy="156" r="6" />
+        <text class="map-pin-label go" x="510" y="159" text-anchor="start">Três Ranchos</text>
+        <circle class="map-pin go" cx="435" cy="142" r="6" />
+        <text class="map-pin-label go" x="423" y="145" text-anchor="end">Cumari</text>
+        <circle class="map-pin go" cx="494" cy="135" r="6" />
+        <text class="map-pin-label go" x="502" y="131" text-anchor="start">Ouvidor</text>
+        <circle class="map-pin go" cx="426" cy="151" r="6" />
+        <text class="map-pin-label go" x="414" y="167" text-anchor="end">Anhanguera</text>
+        <circle class="map-pin go" cx="150" cy="131" r="6" />
+        <text class="map-pin-label go" x="150" y="122" text-anchor="middle">Bom Jesus de Goiás</text>
+
+        <!-- MG: Minas Gerais (pins navy) -->
+        <circle class="map-pin" cx="429" cy="210" r="6" />
+        <text class="map-pin-label" x="429" y="232" text-anchor="middle">Araguari</text>
+        <circle class="map-pin" cx="201" cy="268" r="6" />
+        <text class="map-pin-label" x="201" y="290" text-anchor="middle">Ituiutaba</text>
+        <circle class="map-pin" cx="732" cy="197" r="6" />
+        <text class="map-pin-label" x="722" y="219" text-anchor="end">Patos de Minas</text>
+        <circle class="map-pin" cx="645" cy="262" r="6" />
+        <text class="map-pin-label" x="645" y="284" text-anchor="middle">Patrocínio</text>
+        <circle class="map-pin" cx="555" cy="224" r="6" />
+        <text class="map-pin-label" x="555" y="246" text-anchor="middle">Monte Carmelo</text>
+        <circle class="map-pin" cx="654" cy="379" r="6" />
+        <text class="map-pin-label" x="654" y="401" text-anchor="middle">Araxá</text>
+        <circle class="map-pin" cx="294" cy="457" r="6" />
+        <text class="map-pin-label" x="294" y="478" text-anchor="middle">Frutal</text>
+        <circle class="map-pin" cx="607" cy="178" r="6" />
+        <text class="map-pin-label" x="607" y="200" text-anchor="middle">Coromandel</text>
+        <circle class="map-pin" cx="336" cy="200" r="6" />
+        <text class="map-pin-label" x="336" y="222" text-anchor="middle">Tupaciguara</text>
+        <circle class="map-pin" cx="67" cy="403" r="6" />
+        <text class="map-pin-label" x="77" y="407" text-anchor="start">Iturama</text>
+        <circle class="map-pin" cx="298" cy="329" r="6" />
+        <text class="map-pin-label" x="298" y="351" text-anchor="middle">Prata</text>
+        <circle class="map-pin" cx="181" cy="216" r="6" />
+        <text class="map-pin-label" x="181" y="238" text-anchor="middle">Capinópolis</text>
+        <circle class="map-pin" cx="478" cy="279" r="6" />
+        <text class="map-pin-label" x="478" y="301" text-anchor="middle">Indianópolis</text>
+        <circle class="map-pin" cx="543" cy="252" r="6" />
+        <text class="map-pin-label" x="543" y="244" text-anchor="middle">Romaria</text>
+        <circle class="map-pin" cx="476" cy="408" r="6" />
+        <text class="map-pin-label" x="476" y="430" text-anchor="middle">Uberaba</text>
+
+        <!-- Uberlândia: destacado -->
+        <circle class="map-pin-ring" cx="413" cy="259" r="11" />
+        <circle class="map-pin main" cx="413" cy="259" r="10" />
+        <circle cx="413" cy="259" r="4" fill="#fff" />
+        <text class="map-pin-label main" x="413" y="285" text-anchor="middle">Uberlândia</text>
+      </svg>
+      <div class="map-legend">
+        <span><span class="dot mg"></span> Minas Gerais · 16 cidades</span>
+        <span><span class="dot go"></span> Goiás · 12 cidades</span>
+      </div>
     </div>
   </div>
 </section>
