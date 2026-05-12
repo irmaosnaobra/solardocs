@@ -677,28 +677,48 @@
 
   /* ============ DEPOIMENTOS ============ */
   .testimonials { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-  .test-grid {
-    overflow: hidden;
-    position: relative;
-    mask-image: linear-gradient(to right, transparent 0, #000 80px, #000 calc(100% - 80px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 80px, #000 calc(100% - 80px), transparent 100%);
+  .test-grid { position: relative; }
+  .test-scroller {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    mask-image: linear-gradient(to right, transparent 0, #000 60px, #000 calc(100% - 60px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 60px, #000 calc(100% - 60px), transparent 100%);
   }
+  .test-scroller::-webkit-scrollbar { display: none; }
   .test-track {
     display: flex;
     flex-direction: row;
     gap: 24px;
     width: max-content;
-    animation: testScrollX 50s linear infinite;
-    will-change: transform;
+    padding: 4px 0;
   }
-  .test-grid:hover .test-track { animation-play-state: paused; }
-  @keyframes testScrollX {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(calc(-50% - 12px)); }
+  .test-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    color: var(--navy);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    padding: 0;
   }
-  @media (prefers-reduced-motion: reduce) {
-    .test-track { animation: none; }
-  }
+  .test-nav:hover { transform: translateY(-50%) scale(1.08); box-shadow: 0 12px 28px rgba(15,23,42,0.2); background: var(--navy); color: #fff; }
+  .test-nav:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+  .test-nav svg { width: 20px; height: 20px; }
+  .test-nav.prev { left: -10px; }
+  .test-nav.next { right: -10px; }
   .test-card {
     background: linear-gradient(180deg, #f7f5ef 0%, #ece4d2 100%);
     border: 1px solid var(--border);
@@ -1251,7 +1271,14 @@
     </div>
 
     <div class="test-grid" aria-label="Depoimentos de clientes">
-      <div class="test-track">
+      <button class="test-nav prev" type="button" aria-label="Depoimento anterior">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button class="test-nav next" type="button" aria-label="Próximo depoimento">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="test-scroller">
+        <div class="test-track">
 
         <div class="test-card">
           <div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd4.jpg" alt="Feedback Márcio no WhatsApp" loading="lazy" /></div>
@@ -1365,6 +1392,7 @@
           </div>
         </div>
 
+        </div>
       </div>
     </div>
   </div>
@@ -1581,6 +1609,42 @@
 </footer>
 
 <script>
+  // Carrossel de depoimentos: auto-scroll horizontal + setas
+  (() => {
+    const scroller = document.querySelector('.test-scroller');
+    const track = scroller && scroller.querySelector('.test-track');
+    const prev = document.querySelector('.test-nav.prev');
+    const next = document.querySelector('.test-nav.next');
+    if (!scroller || !track) return;
+
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let pausedUntil = 0;
+    let isPointerInside = false;
+
+    scroller.addEventListener('mouseenter', () => { isPointerInside = true; });
+    scroller.addEventListener('mouseleave', () => { isPointerInside = false; });
+    scroller.addEventListener('touchstart', () => { pausedUntil = Date.now() + 4000; }, { passive: true });
+
+    function tick() {
+      if (!prefersReduced && !isPointerInside && Date.now() > pausedUntil) {
+        scroller.scrollLeft += 0.5;
+        const half = track.scrollWidth / 2;
+        if (half > 0 && scroller.scrollLeft >= half) scroller.scrollLeft -= half;
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    function step(dir) {
+      pausedUntil = Date.now() + 4000;
+      const card = track.querySelector('.test-card');
+      const w = card ? card.getBoundingClientRect().width + 24 : 340;
+      scroller.scrollBy({ left: dir * w, behavior: 'smooth' });
+    }
+    if (prev) prev.addEventListener('click', () => step(-1));
+    if (next) next.addEventListener('click', () => step(1));
+  })();
+
   // Mask whatsapp
   const wa = document.querySelector('input[name="whatsapp"]');
   if (wa) {
