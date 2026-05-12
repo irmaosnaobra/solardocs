@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F2A52">
+<meta name="description" content="Irmãos na Obra Energia Solar — empresa especializada em instalação de sistemas fotovoltaicos em Uberlândia e região. Projetos residenciais, comerciais, rurais e industriais com 25 anos de garantia.">
+<meta property="og:title" content="Irmãos na Obra Energia Solar">
+<meta property="og:description" content="Energia solar com engenharia certificada em Uberlândia e região. Mais de 500 famílias atendidas.">
+<meta property="og:type" content="website">
+<title>Irmãos na Obra Energia Solar · Uberlândia/MG</title>
+<link rel="icon" type="image/png" href="/io/img/logoio.png">
+<link rel="shortcut icon" type="image/png" href="/io/img/logoio.png">
+<link rel="apple-touch-icon" href="/io/img/logoio.png">
+<meta property="og:image" content="/io/img/logoio.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0F2A52;
+    --navy-2: #1A3A6B;
+    --navy-3: #2B4A7A;
+    --gold: #C28A2C;
+    --gold-soft: #E6B860;
+    --bg: #FBFAF7;
+    --surface: #ffffff;
+    --border: #E5E2DC;
+    --text: #1A1F2E;
+    --text-muted: #5C6478;
+    --text-soft: #8B92A5;
+    --success: #1E7A4A;
+    --shadow-sm: 0 2px 6px rgba(15, 42, 82, 0.06);
+    --shadow-md: 0 8px 28px rgba(15, 42, 82, 0.10);
+    --shadow-lg: 0 24px 60px -16px rgba(15, 42, 82, 0.18);
+  }
+
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { display: block; max-width: 100%; }
+  a { color: inherit; text-decoration: none; }
+  .serif { font-family: 'Playfair Display', Georgia, serif; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+  .grid { display: grid; gap: 24px; }
+  .eyebrow {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 14px;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(32px, 4vw, 46px);
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+  .section-lead {
+    color: var(--text-muted);
+    font-size: 17px;
+    line-height: 1.6;
+    margin-top: 14px;
+    max-width: 640px;
+  }
+
+  /* ============ TOP BAR (utility info) ============ */
+  .topbar {
+    background: var(--navy);
+    color: rgba(255,255,255,0.85);
+    font-size: 13px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .topbar .container { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .topbar-left, .topbar-right { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+  .topbar a:hover { color: var(--gold-soft); }
+  .topbar svg { width: 14px; height: 14px; opacity: 0.8; vertical-align: -2px; margin-right: 6px; }
+
+  /* ============ NAV ============ */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: saturate(160%) blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 52px; height: 52px;
+    display: block;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(15, 42, 82, 0.18);
+    flex-shrink: 0;
+  }
+  .brand-text { line-height: 1.05; }
+  .brand-text .l1 { font-weight: 800; font-size: 16px; color: var(--navy); letter-spacing: -0.01em; }
+  .brand-text .l2 { font-size: 10px; letter-spacing: 0.22em; color: var(--gold); text-transform: uppercase; margin-top: 2px; }
+
+  .nav-menu { display: flex; gap: 28px; align-items: center; }
+  .nav-menu a {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    position: relative;
+    transition: color 0.2s;
+  }
+  .nav-menu a:hover { color: var(--gold); }
+  .nav-cta {
+    background: var(--navy);
+    color: #fff !important;
+    padding: 11px 22px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    transition: background 0.2s;
+  }
+  .nav-cta:hover { background: var(--navy-2) !important; }
+
+  /* ============ HERO ============ */
+  .hero {
+    position: relative;
+    padding: 80px 0 100px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle 800px at 80% -10%, rgba(194, 138, 44, 0.10), transparent),
+      linear-gradient(180deg, var(--bg) 0%, #F4F1EA 100%);
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(15, 42, 82, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 42, 82, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    opacity: 0.5;
+  }
+  .hero-inner { position: relative; display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 60px; align-items: center; }
+  .hero-trust-tag {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: rgba(15, 42, 82, 0.05);
+    border: 1px solid rgba(15, 42, 82, 0.12);
+    padding: 7px 16px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: 0.06em;
+    margin-bottom: 26px;
+  }
+  .hero-trust-tag .dot {
+    width: 8px; height: 8px;
+    background: var(--success);
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(30, 122, 74, 0.18);
+  }
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: clamp(40px, 5.4vw, 64px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--navy);
+    margin-bottom: 20px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--gold);
+    font-weight: 700;
+  }
+  .hero-lead {
+    font-size: 18px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    max-width: 520px;
+    margin-bottom: 32px;
+  }
+  .hero-ctas { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--navy);
+    color: #fff;
+    padding: 16px 28px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.15s, box-shadow 0.2s;
+    display: inline-flex; align-items: center; gap: 10px;
+    border: 0; cursor: pointer;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .btn-ghost {
+    color: var(--navy);
+    padding: 16px 22px;
+    font-weight: 700;
+    font-size: 15px;
+    display: inline-flex; align-items: center; gap: 8px;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .btn-ghost:hover { border-color: var(--gold); }
+
+  /* hero visual — cinematic scene */
+  .hero-visual {
+    position: relative;
+    aspect-ratio: 4/5;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    background:
+      radial-gradient(ellipse 90% 60% at 78% 22%, rgba(255, 200, 120, 0.45) 0%, transparent 55%),
+      radial-gradient(ellipse 100% 70% at 30% 10%, rgba(255, 170, 100, 0.18) 0%, transparent 60%),
+      linear-gradient(180deg, #2A4A7F 0%, #3F6FA8 22%, #6FA8D8 38%, #E8B898 56%, #C87852 68%, #6B3A1A 82%, #2A1A0E 100%);
+  }
+  .hv-sun {
+    position: absolute;
+    top: 14%; right: 18%;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #FFFBE5 0%, #FFD56B 40%, #FFA830 70%, rgba(255,168,48,0.05) 100%);
+    box-shadow:
+      0 0 60px 18px rgba(255, 213, 107, 0.55),
+      0 0 140px 35px rgba(255, 168, 48, 0.30);
+    z-index: 2;
+  }
+  /* sun rays */
+  .hv-sun::before {
+    content: '';
+    position: absolute;
+    inset: -40px;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg, rgba(255,213,107,0.18) 12deg, transparent 24deg,
+      transparent 36deg, rgba(255,213,107,0.18) 48deg, transparent 60deg,
+      transparent 72deg, rgba(255,213,107,0.18) 84deg, transparent 96deg,
+      transparent 108deg, rgba(255,213,107,0.18) 120deg, transparent 132deg,
+      transparent 144deg, rgba(255,213,107,0.18) 156deg, transparent 168deg,
+      transparent 180deg, rgba(255,213,107,0.18) 192deg, transparent 204deg,
+      transparent 216deg, rgba(255,213,107,0.18) 228deg, transparent 240deg,
+      transparent 252deg, rgba(255,213,107,0.18) 264deg, transparent 276deg,
+      transparent 288deg, rgba(255,213,107,0.18) 300deg, transparent 312deg,
+      transparent 324deg, rgba(255,213,107,0.18) 336deg, transparent 348deg
+    );
+    border-radius: 50%;
+    filter: blur(2px);
+  }
+
+  /* clouds */
+  .hv-clouds {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .hv-cloud {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.55);
+    border-radius: 100px;
+    filter: blur(3px);
+  }
+  .hv-cloud.c1 { top: 22%; left: 8%; width: 120px; height: 22px; }
+  .hv-cloud.c2 { top: 32%; left: 30%; width: 90px; height: 18px; opacity: 0.6; }
+  .hv-cloud.c3 { top: 18%; left: 48%; width: 70px; height: 16px; opacity: 0.45; }
+
+  /* horizon mountains silhouette */
+  .hv-mountains {
+    position: absolute;
+    left: 0; right: 0;
+    top: 48%;
+    height: 12%;
+    z-index: 2;
+    background:
+      linear-gradient(180deg, rgba(60, 30, 15, 0.55) 0%, rgba(80, 45, 25, 0.4) 100%);
+    clip-path: polygon(0% 100%, 8% 60%, 18% 80%, 28% 45%, 40% 70%, 52% 35%, 64% 65%, 78% 40%, 92% 70%, 100% 50%, 100% 100%);
+  }
+
+  /* roof with realistic tiles */
+  .hv-roof {
+    position: absolute;
+    bottom: 0; left: -10%; right: -10%;
+    height: 52%;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0, rgba(0,0,0,0.18) 1px, transparent 2px, transparent 14px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.10) 0, rgba(0,0,0,0.10) 1px, transparent 2px, transparent 28px),
+      linear-gradient(180deg, #B25530 0%, #8E3D1F 50%, #5F2810 100%);
+    clip-path: polygon(0% 100%, 0% 28%, 50% 0%, 100% 28%, 100% 100%);
+    z-index: 3;
+    box-shadow: inset 0 -40px 60px rgba(0,0,0,0.35);
+  }
+  /* chimney for realism */
+  .hv-chimney {
+    position: absolute;
+    bottom: 38%; left: 18%;
+    width: 36px; height: 80px;
+    background: linear-gradient(180deg, #6B3220 0%, #4A2210 100%);
+    border-radius: 3px 3px 0 0;
+    z-index: 4;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+  }
+  .hv-chimney::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -4px; right: -4px;
+    height: 10px;
+    background: #2C1810;
+    border-radius: 2px;
+  }
+
+  /* solar panels — bigger, more detail, 3 rows */
+  .hv-panels {
+    position: absolute;
+    bottom: 18%; left: 12%; right: 12%;
+    aspect-ratio: 2.2 / 1;
+    background:
+      /* highlight reflection top */
+      linear-gradient(180deg, rgba(120, 180, 230, 0.45) 0%, transparent 22%),
+      /* cells grid */
+      repeating-linear-gradient(90deg, transparent 0, transparent 32px, rgba(255,255,255,0.18) 32px, rgba(255,255,255,0.18) 34px),
+      repeating-linear-gradient(0deg, transparent 0, transparent 24px, rgba(255,255,255,0.14) 24px, rgba(255,255,255,0.14) 26px),
+      /* base */
+      linear-gradient(140deg, #0E2D5A 0%, #1B4A8A 35%, #2D6BB8 60%, #1B4A8A 80%, #0E2D5A 100%);
+    border: 5px solid #0A1A2E;
+    border-radius: 5px;
+    transform: perspective(900px) rotateX(40deg);
+    box-shadow:
+      0 40px 60px -10px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    z-index: 5;
+  }
+  /* panel frame between two arrays */
+  .hv-panels::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: -2px; bottom: -2px;
+    width: 4px;
+    background: #0A1A2E;
+    transform: translateX(-2px);
+  }
+
+  /* overlay card — proof badge */
+  .hv-overlay-card {
+    position: absolute;
+    bottom: 24px; left: 24px; right: 24px;
+    background: rgba(255,255,255,0.97);
+    backdrop-filter: blur(14px);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex; align-items: center; gap: 16px;
+    z-index: 10;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.6);
+  }
+  .hv-overlay-card .ic {
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+    color: var(--gold-soft);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .hv-overlay-card .ic svg { width: 22px; height: 22px; }
+  .hv-overlay-card .t { font-size: 14px; line-height: 1.3; color: var(--text-muted); }
+  .hv-overlay-card .t b { color: var(--navy); display: block; font-size: 16px; font-weight: 800; margin-bottom: 2px; }
+
+  /* ============ STATS BAR ============ */
+  .stats {
+    background: var(--navy);
+    color: #fff;
+    padding: 56px 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .stats::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; }
+  .stat { text-align: center; }
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: clamp(38px, 5vw, 56px);
+    color: var(--gold-soft);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .stat-num .plus { color: var(--gold); font-weight: 700; margin-left: 2px; }
+  .stat-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.78);
+    margin-top: 8px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ============ SECTION (generic spacing) ============ */
+  section.block { padding: 100px 0; }
+  .block-head { text-align: center; margin-bottom: 56px; }
+  .block-head .section-lead { margin: 14px auto 0; }
+
+  /* ============ SOBRE ============ */
+  .about-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: center; }
+  .about-photo {
+    aspect-ratio: 4/5;
+    border-radius: 18px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(194, 138, 44, 0.18) 0%, transparent 50%),
+      linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 60%, #081A38 100%);
+    position: relative;
+    box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px 32px;
+    color: #fff;
+  }
+  /* grid pattern overlay */
+  .about-photo::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  .about-medallion {
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    margin-bottom: 36px;
+  }
+  .about-medallion::before {
+    content: '';
+    position: absolute;
+    inset: -28px;
+    border: 1px dashed rgba(194, 138, 44, 0.4);
+    border-radius: 50%;
+  }
+  .about-medallion::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(194, 138, 44, 0.35) 0%, transparent 70%);
+    z-index: -1;
+    filter: blur(20px);
+  }
+  .about-medallion img {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.55);
+  }
+  .about-quote {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 22px;
+    line-height: 1.4;
+    color: rgba(255,255,255,0.92);
+    text-align: center;
+    position: relative;
+    max-width: 340px;
+    margin-bottom: 28px;
+  }
+  .about-quote::before, .about-quote::after {
+    content: '';
+    display: block;
+    width: 36px; height: 2px;
+    background: var(--gold);
+    margin: 18px auto;
+  }
+  .about-tag {
+    font-size: 11px;
+    color: var(--gold-soft);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    position: relative;
+  }
+  .about-text p { color: var(--text-muted); margin-bottom: 18px; font-size: 16px; }
+  .about-text p:first-of-type { font-size: 18px; color: var(--text); font-weight: 500; }
+  .about-pillars { margin-top: 32px; display: grid; gap: 18px; }
+  .pillar { display: flex; gap: 16px; align-items: flex-start; }
+  .pillar-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(194, 138, 44, 0.12);
+    color: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .pillar h4 { font-size: 15px; color: var(--navy); font-weight: 700; margin-bottom: 2px; }
+  .pillar p { font-size: 14px; color: var(--text-muted); margin: 0; }
+
+  /* ============ SERVIÇOS ============ */
+  .services { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .svc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+  .svc-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 26px;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    position: relative;
+  }
+  .svc-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--gold-soft);
+  }
+  .svc-icon {
+    width: 60px; height: 60px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+    color: var(--gold-soft);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 22px;
+    box-shadow: 0 6px 20px rgba(15, 42, 82, 0.18);
+  }
+  .svc-icon svg { width: 32px; height: 32px; display: block; }
+  .svc-card h3 { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--navy); margin-bottom: 8px; font-weight: 700; }
+  .svc-card p { font-size: 14px; color: var(--text-muted); line-height: 1.55; margin-bottom: 20px; }
+  .svc-tag { font-size: 11px; color: var(--gold); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+
+  /* ============ COMO FUNCIONA ============ */
+  .how-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; position: relative; }
+  .how-step { text-align: center; padding: 0 14px; }
+  .how-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 60px;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+  .how-step h4 { font-size: 17px; font-weight: 800; color: var(--navy); margin-bottom: 8px; letter-spacing: -0.01em; }
+  .how-step p { font-size: 14px; color: var(--text-muted); }
+
+  /* ============ CERTIFICATIONS ============ */
+  .certs {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 60px 0;
+  }
+  .certs-inner { display: grid; grid-template-columns: 1fr 2fr; gap: 50px; align-items: center; }
+  .certs-text h3 { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--navy); margin-bottom: 8px; }
+  .certs-text p { font-size: 14px; color: var(--text-muted); }
+  .certs-logos { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
+  .cert-logo {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 12px;
+    text-align: center;
+    color: var(--navy);
+    font-weight: 800;
+    font-size: 13px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .cert-logo:hover { border-color: var(--gold-soft); transform: translateY(-2px); }
+  .cert-logo .sub { display: block; font-size: 9px; font-weight: 600; color: var(--text-soft); letter-spacing: 0.1em; margin-top: 4px; text-transform: uppercase; }
+
+  /* ============ PROJETOS ============ */
+  .projects-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+  .proj-card {
+    background: var(--surface);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .proj-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+  .proj-img {
+    aspect-ratio: 16/10;
+    position: relative;
+    overflow: hidden;
+  }
+  .proj-img.r {
+    background:
+      linear-gradient(135deg, rgba(15, 42, 82, 0.3), transparent),
+      linear-gradient(180deg, #6CB4E8 0%, #1E3A5F 100%);
+  }
+  .proj-img.r::before {
+    content: ''; position: absolute;
+    bottom: -10%; left: 10%; right: 10%; height: 70%;
+    background: linear-gradient(180deg, #8B4A2F, #5A3220);
+    clip-path: polygon(0% 100%, 10% 30%, 50% 0%, 90% 30%, 100% 100%);
+  }
+  .proj-img.r::after {
+    content: ''; position: absolute;
+    bottom: 12%; left: 22%; right: 22%; height: 28%;
+    background:
+      repeating-linear-gradient(90deg, transparent 0, transparent 24px, rgba(255,255,255,0.18) 24px, rgba(255,255,255,0.18) 26px),
+      linear-gradient(135deg, #1a3a5f, #2d5a8e);
+    border: 3px solid #0F172A;
+    transform: perspective(900px) rotateX(35deg);
+  }
+  .proj-img.c {
+    background:
+      linear-gradient(135deg, rgba(15, 42, 82, 0.4), transparent),
+      linear-gradient(180deg, #87CEEB 0%, #4A8FCC 60%, #2C4A7A 100%);
+  }
+  .proj-img.c::before {
+    content: ''; position: absolute;
+    bottom: 0; left: 0; right: 0; height: 60%;
+    background: linear-gradient(180deg, #E5E2DC, #C8C2B8);
+  }
+  .proj-img.c::after {
+    content: ''; position: absolute;
+    bottom: 35%; left: 20%; right: 20%; height: 50%;
+    background:
+      repeating-linear-gradient(90deg, transparent 0, transparent 18px, rgba(255,255,255,0.25) 18px, rgba(255,255,255,0.25) 20px),
+      linear-gradient(135deg, #1a3a5f, #2d5a8e);
+    border: 3px solid #0F172A;
+  }
+  .proj-img.i {
+    background:
+      linear-gradient(135deg, rgba(15, 42, 82, 0.5), transparent),
+      linear-gradient(180deg, #6FB3DE 0%, #2C4A7A 100%);
+  }
+  .proj-img.i::before {
+    content: ''; position: absolute;
+    bottom: 0; left: 0; right: 0; height: 50%;
+    background: #7A7568;
+  }
+  .proj-img.i::after {
+    content: ''; position: absolute;
+    bottom: 38%; left: 8%; right: 8%; height: 25%;
+    background:
+      repeating-linear-gradient(90deg, transparent 0, transparent 14px, rgba(255,255,255,0.2) 14px, rgba(255,255,255,0.2) 16px),
+      linear-gradient(135deg, #1a3a5f, #2d5a8e);
+    border: 2px solid #0F172A;
+  }
+  .proj-tag {
+    position: absolute; top: 14px; left: 14px;
+    background: rgba(255,255,255,0.95);
+    color: var(--navy);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    padding: 5px 12px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    z-index: 2;
+  }
+  .proj-body { padding: 24px 24px 26px; }
+  .proj-body h4 { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--navy); margin-bottom: 6px; }
+  .proj-body p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+  .proj-stats { display: flex; gap: 22px; }
+  .proj-stat .v { font-size: 18px; font-weight: 800; color: var(--navy); line-height: 1; }
+  .proj-stat .l { font-size: 11px; color: var(--text-soft); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 4px; }
+
+  /* ============ DEPOIMENTOS ============ */
+  .testimonials { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .test-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    height: 560px;
+    overflow: hidden;
+    position: relative;
+    mask-image: linear-gradient(to bottom, transparent 0, #000 80px, #000 calc(100% - 80px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 80px, #000 calc(100% - 80px), transparent 100%);
+  }
+  .test-col { overflow: hidden; position: relative; }
+  .test-track {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    animation: testScroll 38s linear infinite;
+    will-change: transform;
+  }
+  .test-col.dir-down .test-track { animation-direction: reverse; }
+  .test-grid:hover .test-track { animation-play-state: paused; }
+  @keyframes testScroll {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(calc(-50% - 12px)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .test-track { animation: none; }
+  }
+  .test-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px 28px;
+    flex-shrink: 0;
+  }
+  .test-stars { color: var(--gold); font-size: 14px; letter-spacing: 0.18em; margin-bottom: 14px; }
+  .test-card blockquote {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 17px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 22px;
+    border: 0;
+  }
+  .test-meta { display: flex; align-items: center; gap: 12px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .test-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--navy), var(--navy-2));
+    color: var(--gold-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800;
+    font-size: 18px;
+  }
+  .test-name { font-size: 15px; font-weight: 700; color: var(--navy); line-height: 1.1; }
+  .test-role { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+  /* ============ AREAS ============ */
+  .areas-inner { display: grid; grid-template-columns: 1fr 1.5fr; gap: 60px; align-items: center; }
+  .areas-list { columns: 2; column-gap: 24px; }
+  .areas-list .city {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    break-inside: avoid;
+  }
+  .areas-list .city .pin {
+    width: 22px; height: 22px;
+    background: rgba(194, 138, 44, 0.12);
+    color: var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  /* ============ CONTATO ============ */
+  .contact {
+    background: var(--navy);
+    color: #fff;
+    padding: 100px 0;
+  }
+  .contact .section-title { color: #fff; }
+  .contact .section-lead { color: rgba(255,255,255,0.75); }
+  .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 48px; }
+  .contact-info { display: grid; gap: 26px; }
+  .contact-block { display: flex; gap: 18px; align-items: flex-start; }
+  .contact-block .ic {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--gold-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .contact-block h4 { font-size: 13px; color: rgba(255,255,255,0.6); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px; }
+  .contact-block .v { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.3; }
+  .contact-block .v a { color: #fff; transition: color 0.2s; }
+  .contact-block .v a:hover { color: var(--gold-soft); }
+
+  .contact-form {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 18px;
+    padding: 32px 28px;
+  }
+  .contact-form h3 { font-family: 'Playfair Display', serif; font-size: 24px; color: #fff; margin-bottom: 18px; }
+  .form-field { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .form-field input, .form-field select, .form-field textarea {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: #fff;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .form-field input::placeholder, .form-field textarea::placeholder { color: rgba(255,255,255,0.4); }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+    border-color: var(--gold);
+    background: rgba(255,255,255,0.08);
+  }
+  .form-field textarea { resize: vertical; min-height: 90px; }
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-submit {
+    background: linear-gradient(180deg, var(--gold-soft) 0%, var(--gold) 100%);
+    color: var(--navy);
+    border: 0;
+    padding: 16px 24px;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 15px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 6px;
+    letter-spacing: 0.02em;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  .form-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(194, 138, 44, 0.3); }
+
+  /* ============ FOOTER ============ */
+  footer.site-footer {
+    background: #081A38;
+    color: rgba(255,255,255,0.7);
+    padding: 60px 0 24px;
+    font-size: 14px;
+  }
+  .ft-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 50px; padding-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .ft-col h4 { color: var(--gold-soft); font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 18px; }
+  .ft-col p { color: rgba(255,255,255,0.65); line-height: 1.6; font-size: 13px; }
+  .ft-col ul { list-style: none; }
+  .ft-col ul li { margin-bottom: 10px; }
+  .ft-col ul a { color: rgba(255,255,255,0.7); font-size: 13px; transition: color 0.2s; }
+  .ft-col ul a:hover { color: var(--gold-soft); }
+  .ft-brand .brand-text .l1 { color: #fff; }
+  .ft-brand p { margin-top: 14px; }
+  .ft-bottom { padding-top: 20px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 12px; color: rgba(255,255,255,0.5); }
+  .ft-social { display: flex; gap: 10px; }
+  .ft-social a {
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    transition: background 0.2s;
+  }
+  .ft-social a:hover { background: rgba(255,255,255,0.12); color: var(--gold-soft); }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 980px) {
+    .nav-menu a:not(.nav-cta) { display: none; }
+    .hero { padding: 50px 0 60px; }
+    .hero-inner { grid-template-columns: 1fr; gap: 40px; }
+    .hero-visual { max-width: 480px; margin: 0 auto; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 36px 20px; }
+    section.block { padding: 70px 0; }
+    .about-inner { grid-template-columns: 1fr; gap: 40px; }
+    .about-photo { max-width: 480px; }
+    .svc-grid { grid-template-columns: repeat(2, 1fr); }
+    .how-grid { grid-template-columns: repeat(2, 1fr); gap: 36px 20px; }
+    .certs-inner { grid-template-columns: 1fr; gap: 28px; }
+    .certs-logos { grid-template-columns: repeat(3, 1fr); }
+    .projects-grid { grid-template-columns: 1fr; }
+    .test-grid {
+      grid-template-columns: 1fr;
+      height: auto;
+      overflow: visible;
+      mask-image: none;
+      -webkit-mask-image: none;
+    }
+    .test-col { overflow: visible; }
+    .test-track { animation: none; gap: 18px; }
+    .test-card.test-dupe { display: none; }
+    .areas-inner { grid-template-columns: 1fr; }
+    .contact-grid { grid-template-columns: 1fr; gap: 40px; }
+    .ft-grid { grid-template-columns: 1fr 1fr; gap: 36px 24px; }
+    .ft-bottom { justify-content: center; text-align: center; }
+  }
+  @media (max-width: 600px) {
+    .topbar .container { justify-content: center; font-size: 12px; gap: 10px; }
+    .topbar-left, .topbar-right { gap: 14px; justify-content: center; }
+    .hero h1 { font-size: 38px; }
+    .hero-lead { font-size: 16px; }
+    .svc-grid { grid-template-columns: 1fr; }
+    .how-grid { grid-template-columns: 1fr; }
+    .certs-logos { grid-template-columns: repeat(2, 1fr); }
+    .areas-list { columns: 1; }
+    .form-row-2 { grid-template-columns: 1fr; }
+    .ft-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ TOPBAR ============ -->
+<div class="topbar">
+  <div class="container">
+    <div class="topbar-left">
+      <a href="https://wa.me/5534998165040" target="_blank" rel="noopener">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.37 1.9.72 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0122 16.92z"/></svg>
+        (34) 99816-5040
+      </a>
+      <a href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor"/></svg>
+        @irmaosnaobra__
+      </a>
+    </div>
+    <div class="topbar-right">
+      <span>Seg–Sex: 8h–18h · Sáb: 9h–13h</span>
+      <span>Santa Mônica · Uberlândia/MG</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <div class="container nav-inner">
+    <a href="#" class="brand">
+      <img src="/io/img/logoio.png" alt="Irmãos na Obra Energia Solar" class="brand-mark">
+      <div class="brand-text">
+        <div class="l1">Irmãos na Obra</div>
+        <div class="l2">Energia Solar</div>
+      </div>
+    </a>
+    <div class="nav-menu">
+      <a href="#sobre">Sobre</a>
+      <a href="#servicos">Serviços</a>
+      <a href="#processo">Processo</a>
+      <a href="#areas">Áreas</a>
+      <a href="#contato">Contato</a>
+      <a href="https://wa.me/5534998165040?text=Ol%C3%A1!%20Gostaria%20de%20solicitar%20um%20or%C3%A7amento%20de%20energia%20solar." target="_blank" rel="noopener" class="nav-cta">Falar no WhatsApp</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="container hero-inner">
+    <div>
+      <div class="hero-trust-tag">
+        <span class="dot"></span>
+        ATENDEMOS UBERLÂNDIA E TODO O TRIÂNGULO MINEIRO
+      </div>
+      <h1>
+        Engenharia solar com <em>responsabilidade</em> técnica e financeira.
+      </h1>
+      <p class="hero-lead">
+        Projetamos, instalamos e homologamos sistemas fotovoltaicos para residências, comércios, indústrias e agronegócio. Trabalhamos com fabricantes Tier 1, garantia de 25 anos e equipe certificada.
+      </p>
+      <div class="hero-ctas">
+        <a href="https://wa.me/5534998165040?text=Ol%C3%A1!%20Gostaria%20de%20solicitar%20uma%20visita%20t%C3%A9cnica%20gratuita." target="_blank" rel="noopener" class="btn-primary">
+          Solicitar visita técnica
+          <span>→</span>
+        </a>
+        <a href="#servicos" class="btn-ghost">Ver nossos serviços</a>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="hv-clouds">
+        <div class="hv-cloud c1"></div>
+        <div class="hv-cloud c2"></div>
+        <div class="hv-cloud c3"></div>
+      </div>
+      <div class="hv-sun"></div>
+      <div class="hv-mountains"></div>
+      <div class="hv-roof"></div>
+      <div class="hv-chimney"></div>
+      <div class="hv-panels"></div>
+      <div class="hv-overlay-card">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="t">
+          <b>Mais de 1.200 projetos entregues</b>
+          em residências, comércios, indústrias e agronegócio
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ STATS ============ -->
+<section class="stats">
+  <div class="container stats-grid">
+    <div class="stat">
+      <div class="stat-num">1.200<span class="plus">+</span></div>
+      <div class="stat-label">PROJETOS ENTREGUES</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">95<span style="font-size:.55em">%</span></div>
+      <div class="stat-label">ECONOMIA NA CONTA</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">28<span class="plus">+</span></div>
+      <div class="stat-label">CIDADES ATENDIDAS</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">100<span style="font-size:.55em">%</span></div>
+      <div class="stat-label">HOMOLOGAÇÃO INCLUSA</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SOBRE ============ -->
+<section class="block" id="sobre">
+  <div class="container about-inner">
+    <div class="about-photo">
+      <div class="about-medallion">
+        <img src="/io/img/logoio.png" alt="Irmãos na Obra Energia Solar">
+      </div>
+      <div class="about-quote">Energia solar não é tecnologia. É liberdade financeira.</div>
+      <div class="about-tag">Diretoria · Irmãos na Obra</div>
+    </div>
+    <div class="about-text">
+      <div class="eyebrow">Quem somos</div>
+      <h2 class="section-title">Engenharia séria, atendimento de família.</h2>
+      <p>
+        A <b>Irmãos na Obra Energia Solar</b> é uma empresa de Uberlândia/MG que combina rigor técnico de engenharia com proximidade no atendimento. Já entregamos mais de <b>1.200 projetos</b> entre residências, comércios, indústrias e propriedades rurais em todo o Triângulo Mineiro.
+      </p>
+      <p>
+        Operamos com fabricantes certificados Tier 1, projetos com responsabilidade técnica de engenheiro eletricista e homologação direta junto à concessionária. Cada sistema entregue é monitorado nos primeiros 12 meses sem custo adicional.
+      </p>
+
+      <div class="about-pillars">
+        <div class="pillar">
+          <div class="pillar-icon">⚖</div>
+          <div>
+            <h4>Responsabilidade técnica</h4>
+            <p>Projeto e ART assinados por engenheiro eletricista CREA, conforme a NBR 16690 e PRODIST.</p>
+          </div>
+        </div>
+        <div class="pillar">
+          <div class="pillar-icon">🛡</div>
+          <div>
+            <h4>Garantia em contrato</h4>
+            <p>25 anos nos painéis fotovoltaicos, 10 anos no inversor e 2 anos na mão de obra.</p>
+          </div>
+        </div>
+        <div class="pillar">
+          <div class="pillar-icon">📈</div>
+          <div>
+            <h4>Performance auditada</h4>
+            <p>Monitoramento de geração em tempo real durante os 12 primeiros meses, sem custo.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SERVIÇOS ============ -->
+<section class="block services" id="servicos">
+  <div class="container">
+    <div class="block-head">
+      <div class="eyebrow">O que entregamos</div>
+      <h2 class="section-title">Soluções fotovoltaicas para cada perfil.</h2>
+      <p class="section-lead">
+        Atendemos residências, comércios, indústrias e propriedades rurais. Cada projeto é dimensionado individualmente, considerando consumo histórico, orientação solar do telhado, sombreamento e tarifa local.
+      </p>
+    </div>
+
+    <div class="svc-grid">
+      <div class="svc-card">
+        <div class="svc-icon">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 22L24 8l18 14v18a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V22z"/>
+            <path d="M14 26h20M14 32h20M14 38h20" stroke-width="1.5" opacity=".55"/>
+            <path d="M20 42v-8h8v8" stroke-width="1.8"/>
+            <path d="M6 22l36 0" opacity=".3"/>
+          </svg>
+        </div>
+        <h3>Residencial</h3>
+        <p>Sistemas de 3 a 12 kWp para casas e sobrados. Redução de até 95% na conta da CEMIG.</p>
+        <div class="svc-tag">A partir de R$ 16.500</div>
+      </div>
+      <div class="svc-card">
+        <div class="svc-icon">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="10" y="8" width="28" height="34" rx="2"/>
+            <path d="M16 16h4M24 16h4M32 16h0M16 22h4M24 22h4M32 22h0M16 28h4M24 28h4M32 28h0" stroke-width="2.5"/>
+            <path d="M20 42v-8h8v8" stroke-width="1.8"/>
+          </svg>
+        </div>
+        <h3>Comercial</h3>
+        <p>Lojas, escritórios e prestadores de serviço. Geração diurna casa com o pico de consumo.</p>
+        <div class="svc-tag">Sob projeto</div>
+      </div>
+      <div class="svc-card">
+        <div class="svc-icon">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 42V20l10 6V20l10 6V20l10 6v16z"/>
+            <path d="M6 42h36" stroke-width="2"/>
+            <rect x="12" y="30" width="3" height="6" fill="currentColor" opacity=".6"/>
+            <rect x="22" y="30" width="3" height="6" fill="currentColor" opacity=".6"/>
+            <rect x="32" y="30" width="3" height="6" fill="currentColor" opacity=".6"/>
+            <path d="M14 16l2-8 2 8" stroke-width="1.8" opacity=".5"/>
+            <path d="M22 12l2-6 2 6" stroke-width="1.8" opacity=".5"/>
+          </svg>
+        </div>
+        <h3>Industrial</h3>
+        <p>Sistemas acima de 75 kWp, geração compartilhada e remota. Modalidade do Grupo A.</p>
+        <div class="svc-tag">Sob projeto</div>
+      </div>
+      <div class="svc-card">
+        <div class="svc-icon">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="24" cy="14" r="6"/>
+            <path d="M24 14v28M14 28c0-2 2-4 4-4s4 2 4 4-2 4-4 4-4-2-4-4zM34 28c0 2-2 4-4 4s-4-2-4-4 2-4 4-4 4 2 4 4z"/>
+            <path d="M8 42h32" stroke-width="2"/>
+            <path d="M12 38l4-3 4 3M28 38l4-3 4 3" stroke-width="1.5" opacity=".55"/>
+          </svg>
+        </div>
+        <h3>Agro</h3>
+        <p>Fazendas, sítios e produtores rurais. Linha Pronaf Mais Alimentos para financiamento.</p>
+        <div class="svc-tag">Crédito rural</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMO FUNCIONA ============ -->
+<section class="block" id="processo">
+  <div class="container">
+    <div class="block-head">
+      <div class="eyebrow">Processo</div>
+      <h2 class="section-title">Da visita técnica à ativação.</h2>
+      <p class="section-lead">
+        Processo transparente, com prazos definidos em contrato. Sem surpresas e sem terceirização da homologação.
+      </p>
+    </div>
+
+    <div class="how-grid">
+      <div class="how-step">
+        <div class="how-num">01</div>
+        <h4>Visita técnica gratuita</h4>
+        <p>Engenheiro avalia telhado, padrão de entrada e consumo histórico. Sem compromisso.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">02</div>
+        <h4>Projeto e proposta</h4>
+        <p>Entregamos projeto assinado com ART, simulação de geração e payback real do seu caso.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">03</div>
+        <h4>Instalação certificada</h4>
+        <p>Equipe própria, com EPI completo e treinamento NR-35. Obra finalizada em 3 a 7 dias.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">04</div>
+        <h4>Homologação e ativação</h4>
+        <p>Documentação e homologação na CEMIG por nossa conta. Acompanhamento até a vistoria.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CERTIFICAÇÕES ============ -->
+<section class="certs">
+  <div class="container certs-inner">
+    <div class="certs-text">
+      <div class="eyebrow">Selos e parceiros</div>
+      <h3>Trabalhamos só com o que é certificado.</h3>
+      <p>Equipamentos com homologação INMETRO, painéis Tier 1, inversores com garantia internacional e empresa associada à ABGD.</p>
+    </div>
+    <div class="certs-logos">
+      <div class="cert-logo">CREA-MG<span class="sub">Engenharia</span></div>
+      <div class="cert-logo">INMETRO<span class="sub">Homologação</span></div>
+      <div class="cert-logo">ABGD<span class="sub">Associação</span></div>
+      <div class="cert-logo">ABNT<span class="sub">NBR 16690</span></div>
+      <div class="cert-logo">CEMIG<span class="sub">Parceira</span></div>
+      <div class="cert-logo">BYD<span class="sub">Painéis</span></div>
+      <div class="cert-logo">Canadian<span class="sub">Painéis</span></div>
+      <div class="cert-logo">Growatt<span class="sub">Inversor</span></div>
+      <div class="cert-logo">Fronius<span class="sub">Inversor</span></div>
+      <div class="cert-logo">Solis<span class="sub">Inversor</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DEPOIMENTOS ============ -->
+<section class="block testimonials">
+  <div class="container">
+    <div class="block-head">
+      <div class="eyebrow">O que dizem nossos clientes</div>
+      <h2 class="section-title">Confiança construída obra a obra.</h2>
+      <p class="section-lead">
+        Mensagens recebidas de clientes reais após a instalação. Todas as conversas estão arquivadas no nosso WhatsApp comercial.
+      </p>
+    </div>
+
+    <div class="test-grid" aria-label="Depoimentos de clientes">
+
+      <div class="test-col">
+        <div class="test-track">
+          <div class="test-card">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Estou extremamente satisfeito com os resultados adquiridos com a instalação do meu sistema fotovoltaico. Mesmo nos dias de pouca incidência do sol, segue atendendo a minha demanda. Obrigado pela dedicação em todas as etapas, desde a negociação até a implantação. Super recomendo."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">M</div>
+              <div>
+                <div class="test-name">Márcio</div>
+                <div class="test-role">Cliente residencial</div>
+              </div>
+            </div>
+          </div>
+          <div class="test-card">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Fiquei muito satisfeita com o trabalho de vocês. Com certeza eu indicaria sim. Nota 10 por tudo. 100% satisfeita."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">S</div>
+              <div>
+                <div class="test-name">Sueli</div>
+                <div class="test-role">Cliente residencial · Uberlândia</div>
+              </div>
+            </div>
+          </div>
+          <div class="test-card test-dupe" aria-hidden="true">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Estou extremamente satisfeito com os resultados adquiridos com a instalação do meu sistema fotovoltaico. Mesmo nos dias de pouca incidência do sol, segue atendendo a minha demanda. Obrigado pela dedicação em todas as etapas, desde a negociação até a implantação. Super recomendo."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">M</div>
+              <div>
+                <div class="test-name">Márcio</div>
+                <div class="test-role">Cliente residencial</div>
+              </div>
+            </div>
+          </div>
+          <div class="test-card test-dupe" aria-hidden="true">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Fiquei muito satisfeita com o trabalho de vocês. Com certeza eu indicaria sim. Nota 10 por tudo. 100% satisfeita."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">S</div>
+              <div>
+                <div class="test-name">Sueli</div>
+                <div class="test-role">Cliente residencial · Uberlândia</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="test-col dir-down">
+        <div class="test-track">
+          <div class="test-card">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Comprei um kit de energia fotovoltaica, tive um excelente atendimento, tanto na instalação quanto no pós. Algo que merece parabenizá-los. Sempre dispostos a ajudar. Muito obrigado a toda equipe pela idoneidade de todos."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">H</div>
+              <div>
+                <div class="test-name">Huberth Rocha</div>
+                <div class="test-role">Cliente residencial</div>
+              </div>
+            </div>
+          </div>
+          <div class="test-card">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Estou satisfeito com a agilidade e com o comprometimento durante a instalação do kit solar. Me explicaram muito bem como funciona o sistema e está funcionando a todo vapor."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">D</div>
+              <div>
+                <div class="test-name">Denivan</div>
+                <div class="test-role">Cliente residencial</div>
+              </div>
+            </div>
+          </div>
+          <div class="test-card test-dupe" aria-hidden="true">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Comprei um kit de energia fotovoltaica, tive um excelente atendimento, tanto na instalação quanto no pós. Algo que merece parabenizá-los. Sempre dispostos a ajudar. Muito obrigado a toda equipe pela idoneidade de todos."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">H</div>
+              <div>
+                <div class="test-name">Huberth Rocha</div>
+                <div class="test-role">Cliente residencial</div>
+              </div>
+            </div>
+          </div>
+          <div class="test-card test-dupe" aria-hidden="true">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Estou satisfeito com a agilidade e com o comprometimento durante a instalação do kit solar. Me explicaram muito bem como funciona o sistema e está funcionando a todo vapor."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">D</div>
+              <div>
+                <div class="test-name">Denivan</div>
+                <div class="test-role">Cliente residencial</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="test-col">
+        <div class="test-track">
+          <div class="test-card">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Deixo meu agradecimento à equipe Irmãos na Obra pelo profissionalismo e transparência. Tudo dentro do combinado. Suporte e atenção antes e depois do término. Sempre que puder estou indicando vocês pra meus amigos e familiares."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">C</div>
+              <div>
+                <div class="test-name">Cléber</div>
+                <div class="test-role">Cliente residencial</div>
+              </div>
+            </div>
+          </div>
+          <div class="test-card">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Foi top meu irmão, muito rápido, tanto o processo quanto a montagem. Gostei muito viu."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">A</div>
+              <div>
+                <div class="test-name">Andrigo</div>
+                <div class="test-role">Cliente residencial</div>
+              </div>
+            </div>
+          </div>
+          <div class="test-card test-dupe" aria-hidden="true">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Deixo meu agradecimento à equipe Irmãos na Obra pelo profissionalismo e transparência. Tudo dentro do combinado. Suporte e atenção antes e depois do término. Sempre que puder estou indicando vocês pra meus amigos e familiares."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">C</div>
+              <div>
+                <div class="test-name">Cléber</div>
+                <div class="test-role">Cliente residencial</div>
+              </div>
+            </div>
+          </div>
+          <div class="test-card test-dupe" aria-hidden="true">
+            <div class="test-stars">★ ★ ★ ★ ★</div>
+            <blockquote>"Foi top meu irmão, muito rápido, tanto o processo quanto a montagem. Gostei muito viu."</blockquote>
+            <div class="test-meta">
+              <div class="test-avatar">A</div>
+              <div>
+                <div class="test-name">Andrigo</div>
+                <div class="test-role">Cliente residencial</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ ÁREAS ATENDIDAS ============ -->
+<section class="block" id="areas">
+  <div class="container areas-inner">
+    <div>
+      <div class="eyebrow">Onde atendemos</div>
+      <h2 class="section-title">28 cidades no Triângulo Mineiro, Alto Paranaíba e Sul de Goiás.</h2>
+      <p class="section-lead">
+        Atuamos com equipe própria em todo o Triângulo Mineiro, Alto Paranaíba e Sul de Goiás (dentro de um raio de 250 km de Uberlândia). Para cidades fora da nossa área direta, podemos avaliar o projeto e indicar parceiros credenciados.
+      </p>
+    </div>
+
+    <div class="areas-list">
+      <div class="city"><span class="pin">📍</span> Uberlândia <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Uberaba <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Araguari <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Ituiutaba <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Patos de Minas <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Patrocínio <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Monte Carmelo <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Araxá <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Frutal <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Coromandel <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Tupaciguara <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Iturama <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Prata <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Capinópolis <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Indianópolis <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Romaria <span style="font-size:11px;color:var(--text-soft);margin-left:auto;letter-spacing:0.08em;">MG</span></div>
+      <div class="city"><span class="pin">📍</span> Itumbiara <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Catalão <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Caldas Novas <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Goiatuba <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Morrinhos <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Ipameri <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Goiandira <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Três Ranchos <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Cumari <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Ouvidor <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Anhanguera <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+      <div class="city"><span class="pin">📍</span> Bom Jesus de Goiás <span style="font-size:11px;color:var(--gold);margin-left:auto;letter-spacing:0.08em;font-weight:800;">GO</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTATO ============ -->
+<section class="contact" id="contato">
+  <div class="container">
+    <div class="block-head" style="text-align:left; margin-bottom:0;">
+      <div class="eyebrow" style="color:var(--gold-soft)">Vamos conversar</div>
+      <h2 class="section-title">Solicite uma visita técnica gratuita.</h2>
+      <p class="section-lead">
+        Um engenheiro irá até o seu imóvel para avaliar a viabilidade do projeto. Sem custo, sem compromisso.
+      </p>
+    </div>
+
+    <div class="contact-grid">
+      <div class="contact-info">
+        <div class="contact-block">
+          <div class="ic">💬</div>
+          <div>
+            <h4>WhatsApp</h4>
+            <div class="v">
+              <a href="https://wa.me/5534998165040" target="_blank" rel="noopener">(34) 99816-5040</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="contact-block">
+          <div class="ic">📍</div>
+          <div>
+            <h4>Endereço</h4>
+            <div class="v" style="font-size:15px; font-weight:600;">
+              Bairro Santa Mônica<br/>
+              Uberlândia/MG
+            </div>
+          </div>
+        </div>
+
+        <div class="contact-block">
+          <div class="ic">✉</div>
+          <div>
+            <h4>E-mail</h4>
+            <div class="v">
+              <a href="mailto:irmaosnaobrasolar@gmail.com">irmaosnaobrasolar@gmail.com</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="contact-block">
+          <div class="ic">📱</div>
+          <div>
+            <h4>Redes sociais</h4>
+            <div class="v" style="font-size:15px;">
+              <a href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener">@irmaosnaobra__</a><br/>
+              <a href="https://www.facebook.com/profile.php?id=61578755447927" target="_blank" rel="noopener" style="font-weight:500;">Facebook</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="contact-block">
+          <div class="ic">🕐</div>
+          <div>
+            <h4>Horário de atendimento</h4>
+            <div class="v" style="font-size:15px; font-weight:600;">
+              Segunda a sexta · 8h às 18h<br/>
+              Sábados · 9h às 13h
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <form class="contact-form" id="contactForm">
+        <h3>Envie sua solicitação</h3>
+        <div class="form-field">
+          <input type="text" name="nome" placeholder="Nome completo" required autocomplete="name">
+        </div>
+        <div class="form-row-2">
+          <div class="form-field">
+            <input type="tel" name="whatsapp" placeholder="WhatsApp" required autocomplete="tel">
+          </div>
+          <div class="form-field">
+            <input type="email" name="email" placeholder="E-mail" required autocomplete="email">
+          </div>
+        </div>
+        <div class="form-field">
+          <select name="tipo" required>
+            <option value="" disabled selected>Tipo de projeto</option>
+            <option value="residencial">Residencial</option>
+            <option value="comercial">Comercial</option>
+            <option value="industrial">Industrial</option>
+            <option value="rural">Rural</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <input type="text" name="cidade" placeholder="Cidade" required>
+        </div>
+        <div class="form-field">
+          <textarea name="msg" placeholder="Conte um pouco sobre o seu caso (consumo médio, observações)"></textarea>
+        </div>
+        <button type="submit" class="form-submit">SOLICITAR VISITA TÉCNICA →</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="ft-grid">
+      <div class="ft-col ft-brand">
+        <a href="#" class="brand">
+          <img src="/io/img/logoio.png" alt="Irmãos na Obra Energia Solar" class="brand-mark">
+          <div class="brand-text">
+            <div class="l1">Irmãos na Obra</div>
+            <div class="l2">Energia Solar</div>
+          </div>
+        </a>
+        <p>
+          Engenharia solar fotovoltaica em Uberlândia e região do Triângulo Mineiro. Projetos com responsabilidade técnica, instalação certificada e garantia de 25 anos.
+        </p>
+      </div>
+
+      <div class="ft-col">
+        <h4>Navegação</h4>
+        <ul>
+          <li><a href="#sobre">Sobre nós</a></li>
+          <li><a href="#servicos">Serviços</a></li>
+          <li><a href="#projetos">Projetos</a></li>
+          <li><a href="#areas">Áreas atendidas</a></li>
+          <li><a href="#contato">Contato</a></li>
+        </ul>
+      </div>
+
+      <div class="ft-col">
+        <h4>Contato</h4>
+        <ul>
+          <li><a href="https://wa.me/5534998165040" target="_blank" rel="noopener">WhatsApp (34) 99816-5040</a></li>
+          <li><a href="mailto:irmaosnaobrasolar@gmail.com">irmaosnaobrasolar@gmail.com</a></li>
+          <li>Bairro Santa Mônica</li>
+          <li>Uberlândia/MG</li>
+        </ul>
+      </div>
+
+      <div class="ft-col">
+        <h4>Redes sociais</h4>
+        <div class="ft-social">
+          <a href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener" aria-label="Instagram">📷</a>
+          <a href="https://www.facebook.com/profile.php?id=61578755447927" target="_blank" rel="noopener" aria-label="Facebook">f</a>
+          <a href="https://wa.me/5534998165040" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a>
+        </div>
+      </div>
+    </div>
+    <div class="ft-bottom">
+      <div>© 2026 Irmãos na Obra Energia Solar</div>
+      <div>Política de Privacidade · Termos</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Mask whatsapp
+  const wa = document.querySelector('input[name="whatsapp"]');
+  if (wa) {
+    wa.addEventListener('input', (e) => {
+      let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+      if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+      else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+      e.target.value = v;
+    });
+  }
+
+  // Submit
+  const form = document.getElementById('contactForm');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const data = Object.fromEntries(fd.entries());
+      const msg = encodeURIComponent(
+        `Olá! Vim do site institucional. Sou ${data.nome}, projeto ${data.tipo} em ${data.cidade}.` +
+        (data.msg ? `\n\n${data.msg}` : '')
+      );
+      window.location.href = `https://wa.me/5534998165040?text=${msg}`;
+    });
+  }
+</script>
+
+</body>
+</html>

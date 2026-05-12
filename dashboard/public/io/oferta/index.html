@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<title>Irmãos na Obra · Projeto Recomendado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+<!-- ============ META PIXEL (Funil B - B2C, ID 446093469730871) ============ -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '446093469730871');
+fbq('track', 'PageView');
+fbq('track', 'ViewContent', { content_name: 'LP_VSL_Solar' });
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></noscript>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #0a0a0a;
+    color: #fff;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+  body { overflow-x: hidden; }
+  .container { max-width: 480px; margin: 0 auto; padding: 0 20px; }
+
+  /* ===== HERO ===== */
+  .hero {
+    padding: 24px 0 8px;
+    text-align: center;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255,157,0,0.20) 0%, transparent 60%),
+      #0a0a0a;
+  }
+  .brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .brand-sun {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #ff9d00, #ff6b00);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 18px rgba(255,157,0,0.5);
+  }
+  .brand-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 0.08em;
+    color: #fff;
+    line-height: 1;
+  }
+  .brand-name span {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.32em;
+    color: #ff9d00;
+    margin-top: 2px;
+  }
+
+  .verified {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(34,197,94,0.12);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: #22c55e;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .verified::before { content: '✓'; font-size: 13px; }
+
+  .h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 38px;
+    line-height: 1.0;
+    letter-spacing: -0.005em;
+    margin-bottom: 6px;
+  }
+  .h1 .accent { color: #ff9d00; }
+  .lead {
+    font-size: 15px;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+  .lead b { color: #fff; }
+
+  /* ===== VSL VIDEO BOX ===== */
+  .vsl-wrap {
+    position: relative;
+    aspect-ratio: 9 / 16;
+    background: #000;
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 14px;
+    box-shadow: 0 25px 50px -10px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,157,0,0.25);
+  }
+  .vsl-wrap video, .vsl-wrap iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border: 0;
+  }
+  /* Placeholder VSL (replace with real video) */
+  .vsl-placeholder {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 50% 38%, rgba(255,157,0,0.25) 0%, transparent 60%),
+      linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 70%, #000 100%);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: #fff;
+    padding: 40px 24px;
+    text-align: center;
+  }
+  .vsl-play {
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    background: rgba(255,157,0,0.95);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 40px rgba(255,157,0,0.6);
+    margin-bottom: 16px;
+    cursor: pointer;
+  }
+  .vsl-play::before {
+    content: '';
+    width: 0; height: 0;
+    border-left: 24px solid #fff;
+    border-top: 16px solid transparent;
+    border-bottom: 16px solid transparent;
+    margin-left: 6px;
+  }
+  .vsl-headline {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 30px;
+    line-height: 1.0;
+    margin-bottom: 8px;
+    color: #fff;
+    text-shadow: 0 0 30px rgba(0,0,0,0.8);
+  }
+  .vsl-headline .accent { color: #ff9d00; }
+  .vsl-sub { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+  .vsl-duration {
+    position: absolute;
+    bottom: 16px; left: 16px;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ===== SCARCITY BAR ===== */
+  .scarcity {
+    background: linear-gradient(90deg, rgba(255,157,0,0.15), rgba(255,107,0,0.15));
+    border: 1px solid rgba(255,157,0,0.35);
+    color: #ff9d00;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: 0.04em;
+    margin-bottom: 18px;
+  }
+  .scarcity b { color: #fff; font-weight: 900; }
+
+  /* ===== BENEFITS ===== */
+  .benefits {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .ben-h {
+    font-size: 14px;
+    font-weight: 800;
+    color: #ff9d00;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  .ben-list { display: grid; gap: 10px; }
+  .ben {
+    display: flex; align-items: center; gap: 12px;
+    color: rgba(255,255,255,0.95);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .ben-check {
+    width: 24px; height: 24px;
+    background: rgba(34,197,94,0.15);
+    border: 1px solid rgba(34,197,94,0.4);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #22c55e;
+    font-size: 12px;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+
+  /* ===== PRICE CARD ===== */
+  .price-card {
+    background: linear-gradient(180deg, rgba(255,157,0,0.10) 0%, rgba(255,107,0,0.05) 100%);
+    border: 2px solid rgba(255,157,0,0.4);
+    border-radius: 18px;
+    padding: 22px 18px;
+    text-align: center;
+    margin-bottom: 18px;
+    box-shadow: 0 12px 40px rgba(255,157,0,0.15);
+  }
+  .price-tag {
+    display: inline-block;
+    background: #ff9d00;
+    color: #000;
+    font-size: 11px;
+    font-weight: 900;
+    padding: 5px 12px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+  }
+  .price-pre {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 4px;
+  }
+  .price-val {
+    font-family: 'Bebas Neue', sans-serif;
+    color: #ff9d00;
+    line-height: 0.9;
+    text-shadow: 0 0 30px rgba(255,157,0,0.4);
+  }
+  .price-val .currency { font-size: 32px; vertical-align: top; }
+  .price-val .num { font-size: 88px; }
+  .price-val .cents { font-size: 32px; vertical-align: top; }
+  .price-post {
+    font-size: 13px;
+    color: rgba(255,255,255,0.85);
+    font-weight: 700;
+    margin-top: 4px;
+    letter-spacing: 0.04em;
+  }
+  .price-foot {
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+    margin-top: 10px;
+  }
+
+  /* ===== FORM ===== */
+  .form-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 20px 18px;
+    margin-bottom: 20px;
+  }
+  .form-h {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .form-h .accent { color: #ff9d00; }
+  .form-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.65);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .form-row {
+    display: flex; flex-direction: column;
+    gap: 10px;
+  }
+  .form-row input, .form-row select {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    outline: none;
+  }
+  .form-row input::placeholder { color: rgba(255,255,255,0.4); }
+  .form-row input:focus, .form-row select:focus {
+    border-color: #ff9d00;
+    box-shadow: 0 0 0 3px rgba(255,157,0,0.2);
+  }
+  .form-cta {
+    background: linear-gradient(180deg, #ffb83a 0%, #ff9d00 60%, #d97706 100%);
+    color: #000;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    border: 0;
+    border-radius: 12px;
+    padding: 18px 20px;
+    font-weight: 900;
+    cursor: pointer;
+    margin-top: 6px;
+    box-shadow: 0 12px 30px rgba(255,157,0,0.4);
+    letter-spacing: 0.04em;
+    width: 100%;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .form-cta:active { transform: translateY(1px); }
+
+  /* ===== SOCIAL PROOF ===== */
+  .proof {
+    background: rgba(34,197,94,0.06);
+    border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .proof-stars { color: #fbbf24; font-size: 18px; letter-spacing: 0.1em; }
+  .proof-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 30px;
+    color: #fff;
+    margin-top: 4px;
+  }
+  .proof-num .accent { color: #22c55e; }
+  .proof-txt {
+    font-size: 12px;
+    color: rgba(255,255,255,0.7);
+    margin-top: 2px;
+  }
+
+  /* ===== FAQ ===== */
+  .faq { margin-bottom: 32px; }
+  .faq-h {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    text-align: center;
+    margin-bottom: 12px;
+    color: #fff;
+  }
+  details {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+  }
+  details summary {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    list-style: none;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  details summary::after {
+    content: '+';
+    color: #ff9d00;
+    font-size: 22px;
+    font-weight: 800;
+  }
+  details[open] summary::after { content: '−'; }
+  details p {
+    font-size: 13px;
+    color: rgba(255,255,255,0.72);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+
+  /* ===== FOOTER ===== */
+  footer {
+    padding: 24px 20px 40px;
+    text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  footer .ftr {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    line-height: 1.5;
+  }
+
+  /* ===== STICKY CTA BOTTOM ===== */
+  .sticky-cta {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255,157,0,0.3);
+    padding: 12px 16px;
+    z-index: 100;
+    display: none;
+  }
+  .sticky-cta button {
+    width: 100%;
+    background: linear-gradient(180deg, #ffb83a 0%, #ff9d00 60%, #d97706 100%);
+    color: #000;
+    border: 0;
+    border-radius: 12px;
+    padding: 14px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(255,157,0,0.4);
+  }
+
+  @media (max-width: 480px) {
+    .sticky-cta { display: block; }
+    body { padding-bottom: 80px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="brand">
+      <span class="brand-sun">☀</span>
+      <span class="brand-name">IRMÃOS NA OBRA<span>ENERGIA SOLAR</span></span>
+    </div>
+
+    <div class="verified">Projeto recomendado para você</div>
+
+    <h1 class="h1">
+      Sua simulação <span class="accent">está pronta</span>
+    </h1>
+    <p class="lead">
+      Assista o vídeo abaixo e veja como você pode <b>parar de pagar a CEMIG</b> com parcelas a partir de <b>R$ 299/mês</b>.
+    </p>
+  </section>
+
+  <!-- VSL VIDEO -->
+  <section>
+    <div class="vsl-wrap" id="vsl">
+      <!-- ▼▼▼ TROCAR PELO VÍDEO REAL DEPOIS ▼▼▼
+           Opção A (HTML5):
+              <video autoplay muted playsinline loop poster="poster.jpg">
+                <source src="/vsl-solar.mp4" type="video/mp4">
+              </video>
+
+           Opção B (YouTube embed, autoplay+mute):
+              <iframe src="https://www.youtube.com/embed/VIDEO_ID?autoplay=1&mute=1&playsinline=1&loop=1&controls=0"
+                      allow="autoplay" allowfullscreen></iframe>
+
+           Opção C (Vimeo): semelhante
+      ▲▲▲ ENQUANTO ISSO, PLACEHOLDER ABAIXO ▲▲▲ -->
+      <div class="vsl-placeholder">
+        <div class="vsl-play"></div>
+        <div class="vsl-headline">
+          REDUZIRAM<br/>
+          <span class="accent">OS PREÇOS</span>
+        </div>
+        <div class="vsl-sub">Veja por que agora é o momento certo</div>
+      </div>
+      <div class="vsl-duration">▶ 02:18</div>
+    </div>
+
+    <div class="scarcity">
+      ⚡ Restam <b>7 vagas</b> de instalação esta semana em Uberlândia
+    </div>
+  </section>
+
+  <!-- BENEFITS -->
+  <section class="benefits">
+    <div class="ben-h">O que está incluso</div>
+    <div class="ben-list">
+      <div class="ben"><span class="ben-check">✓</span> Kit solar dimensionado pra sua conta de luz</div>
+      <div class="ben"><span class="ben-check">✓</span> Instalação completa por equipe certificada</div>
+      <div class="ben"><span class="ben-check">✓</span> Homologação na CEMIG por nossa conta</div>
+      <div class="ben"><span class="ben-check">✓</span> Garantia de 25 anos nos painéis</div>
+      <div class="ben"><span class="ben-check">✓</span> Financiamento aprovado em até 24h</div>
+    </div>
+  </section>
+
+  <!-- PRICE CARD -->
+  <section class="price-card">
+    <div class="price-tag">OFERTA DESTA SEMANA</div>
+    <div class="price-pre">Sistema completo a partir de</div>
+    <div class="price-val">
+      <span class="currency">R$</span><span class="num">299</span><span class="cents">,00</span>
+    </div>
+    <div class="price-post">/MÊS · SEM ENTRADA · 60X</div>
+    <div class="price-foot">Aprovação sujeita a análise · Sistemas a partir de 4 kWp</div>
+  </section>
+
+  <!-- FORM -->
+  <section class="form-card" id="form">
+    <div class="form-h">FALE COM UM <span class="accent">ESPECIALISTA</span></div>
+    <p class="form-sub">Receba sua proposta detalhada no WhatsApp em até 30 minutos.</p>
+
+    <form id="leadForm" class="form-row">
+      <input type="text" name="nome" placeholder="Seu nome completo" autocomplete="name" required>
+      <input type="tel" name="whatsapp" placeholder="WhatsApp com DDD" autocomplete="tel" required maxlength="15">
+      <input type="email" name="email" placeholder="Seu e-mail" autocomplete="email" required>
+      <select name="conta" required>
+        <option value="" disabled selected>Sua conta de luz hoje</option>
+        <option value="<200">Menos de R$ 200</option>
+        <option value="200-500">Entre R$ 200 e R$ 500</option>
+        <option value="500-1000">Entre R$ 500 e R$ 1.000</option>
+        <option value="1000-1500">Entre R$ 1.000 e R$ 1.500</option>
+        <option value=">1500">Mais de R$ 1.500</option>
+      </select>
+      <button type="submit" class="form-cta">QUERO MINHA PROPOSTA →</button>
+    </form>
+  </section>
+
+  <!-- SOCIAL PROOF -->
+  <section class="proof">
+    <div class="proof-stars">★ ★ ★ ★ ★</div>
+    <div class="proof-num">+500 FAMÍLIAS</div>
+    <div class="proof-txt">já pararam de pagar conta cara em Uberlândia e região</div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq">
+    <div class="faq-h">Dúvidas frequentes</div>
+    <details>
+      <summary>Em quanto tempo a obra fica pronta?</summary>
+      <p>De 15 a 30 dias após a aprovação do projeto. Cuidamos da homologação na CEMIG, instalação e ativação.</p>
+    </details>
+    <details>
+      <summary>Preciso dar entrada?</summary>
+      <p>Não. Em parcelas a partir de R$ 299/mês, sem entrada, em até 60x. Aprovação sujeita a análise de crédito.</p>
+    </details>
+    <details>
+      <summary>Funciona em casa alugada ou apartamento?</summary>
+      <p>Casa alugada precisa de autorização do proprietário. Apartamento normalmente não tem como instalar — fale com nosso consultor pra avaliar.</p>
+    </details>
+    <details>
+      <summary>E se faltar luz?</summary>
+      <p>Você continua conectado à rede da CEMIG. O sistema solar reduz a fatura, não substitui a rede — então não fica sem energia.</p>
+    </details>
+  </section>
+
+  <footer>
+    <p class="ftr">
+      © Irmãos na Obra Energia Solar · CNPJ XX.XXX.XXX/0001-XX<br/>
+      Uberlândia/MG · contato@irmaosnaobra.com.br
+    </p>
+  </footer>
+
+</div>
+
+<div class="sticky-cta">
+  <button onclick="document.getElementById('form').scrollIntoView({behavior:'smooth'})">QUERO MINHA PROPOSTA →</button>
+</div>
+
+<script>
+  // Fire InitiateCheckout when user starts filling form
+  let initiatedCheckout = false;
+  document.getElementById('leadForm').addEventListener('focusin', () => {
+    if (!initiatedCheckout && typeof fbq !== 'undefined') {
+      fbq('track', 'InitiateCheckout');
+      initiatedCheckout = true;
+    }
+  });
+
+  // Mask whatsapp
+  const wa = document.querySelector('input[name="whatsapp"]');
+  wa.addEventListener('input', (e) => {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+    if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+    else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+    e.target.value = v;
+  });
+
+  // Submit
+  document.getElementById('leadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd.entries());
+
+    // Track Lead conversion
+    if (typeof fbq !== 'undefined') {
+      fbq('track', 'Lead', {
+        content_name: 'LP_VSL_Solar',
+        conta_luz: data.conta
+      });
+    }
+
+    // TODO: substituir pelo endpoint real
+    // await fetch('/api/lead', { method: 'POST', body: JSON.stringify(data), headers: {'Content-Type':'application/json'} });
+
+    // Redirect to WhatsApp pré-formatado (lead quente)
+    const msg = encodeURIComponent(`Olá! Acabei de preencher a simulação. Sou ${data.nome}. Conta de luz: ${data.conta}`);
+    window.location.href = `https://wa.me/5534999999999?text=${msg}`;
+  });
+</script>
+
+</body>
+</html>
