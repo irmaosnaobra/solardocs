@@ -191,7 +191,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'users'|'visits'>('users');
+  const [tab, setTab] = useState<'users'|'visits'|'io_visits'>('users');
 
   const [users, setUsers]               = useState<UserRow[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -339,6 +339,14 @@ export default function AdminPage() {
             {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
           </button>
         )}
+        {tab==='io_visits' && (
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <a href="/io" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{textDecoration:'none'}}>↗ Abrir Site /io</a>
+            <button className="btn-secondary" disabled={loadingAnalytics} onClick={()=>loadAnalytics()}>
+              {loadingAnalytics?'Atualizando...':'🔄 Atualizar'}
+            </button>
+          </div>
+        )}
       </div>
 
       {resetMsg && (
@@ -350,6 +358,7 @@ export default function AdminPage() {
       <div className={styles.tabs}>
         <button className={tab==='users'?styles.tabActive:styles.tab} onClick={()=>setTab('users')}>👥 Usuários SolarDocs Pro</button>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 Acessos LP</button>
+        <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ Acessos Site IO</button>
       </div>
 
       {/* ═══ ABA USUÁRIOS ══════════════════════════════════════ */}
@@ -435,15 +444,113 @@ export default function AdminPage() {
         </>
       )}
 
+      {/* ═══ ABA ACESSOS SITE IO ════════════════════════════════ */}
+      {tab === 'io_visits' && (() => {
+        const ioSessions = baseSessions.filter(s => (s.landing_url||'').includes('/io'));
+        const visits = ioSessions.length;
+        const scroll50 = ioSessions.filter(s => (s.max_scroll||0) >= 50).length;
+        const ctaWhats = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('whats'))).length;
+        const ctaHero = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('hero'))).length;
+        const formSubmit = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('contact_form'))).length;
+        const avgTime = ioSessions.reduce((a,s) => a + (s.time_on_page||0), 0) / Math.max(ioSessions.length, 1);
+
+        return (
+          <>
+            <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
+              <div className={styles.periodTabs}>
+                {([['hoje','Hoje'],['ontem','Ontem'],['3d','3 dias'],['7dias','7 dias'],['mes','Esse mês'],['maximo','Máximo']] as const).map(([v,l])=>(
+                  <button key={v} className={visitPeriod===v?styles.periodActive:styles.periodBtn} onClick={()=>changeVisitPeriod(v as any)} disabled={loadingAnalytics}>{l}</button>
+                ))}
+              </div>
+              <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{ioSessions.length} acessos no /io · {baseSessions.length} totais</span>
+            </div>
+
+            {loadingAnalytics ? (
+              <div className={styles.loading}>Carregando estatísticas...</div>
+            ) : ioSessions.length === 0 ? (
+              <div className={styles.loading} style={{textAlign:'center', padding:'48px 24px'}}>
+                <div style={{fontSize:48, marginBottom:12}}>🏗️</div>
+                <div style={{fontWeight:700, marginBottom:6}}>Sem acessos registrados ainda</div>
+                <div style={{fontSize:13, color:'var(--color-text-muted)'}}>Os dados aparecem aqui depois que alguém visita <code>/io</code>. O Meta Pixel também já está capturando, ver no <a href="https://business.facebook.com/events_manager2/list/pixel/446093469730871/overview" target="_blank" rel="noopener noreferrer" style={{color:'#22c55e'}}>Gerenciador de Eventos</a>.</div>
+              </div>
+            ) : (
+              <>
+                <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Acessos no /io</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{visits}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Scroll 50%+</div>
+                    <div className={styles.cardValue} style={{color:'#3b82f6'}}>{scroll50}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>CTA hero</div>
+                    <div className={styles.cardValue} style={{color:'#F59E0B'}}>{ctaHero}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Cliques WhatsApp</div>
+                    <div className={styles.cardValue} style={{color:'#22c55e'}}>{ctaWhats}</div>
+                  </div>
+                </div>
+
+                <div className={styles.cards} style={{gridTemplateColumns:'repeat(3,1fr)', marginTop: 12}}>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Form de contato (submit)</div>
+                    <div className={styles.cardValue} style={{color:'#a78bfa'}}>{formSubmit}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Tempo médio na página</div>
+                    <div className={styles.cardValue} style={{color:'#94a3b8'}}>{fmtTime(Math.round(avgTime))}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Taxa visita → WhatsApp</div>
+                    <div className={styles.cardValue} style={{color:'#34d399'}}>{pct(ctaWhats, visits)}</div>
+                  </div>
+                </div>
+
+                <div className={styles.tableWrap} style={{marginTop:24}}>
+                  <table className={styles.table}>
+                    <thead><tr><th>Quando</th><th>Origem</th><th>Dispositivo</th><th>Scroll</th><th>CTAs</th><th>Tempo</th></tr></thead>
+                    <tbody>
+                      {ioSessions.slice(0, 50).map((s, i) => {
+                        const r = relDate(s.created_at);
+                        return (
+                          <tr key={s.session_id || i}>
+                            <td>
+                              <div style={{display:'flex',flexDirection:'column',gap:2}}>
+                                <span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>
+                                {r.showTime&&<span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}
+                              </div>
+                            </td>
+                            <td className={styles.mutedCell}>{srcLabel(s)}{s.utm_campaign?<span style={{opacity:.6,marginLeft:6,fontSize:11}}>· {s.utm_campaign}</span>:null}</td>
+                            <td className={styles.mutedCell}>{deviceIcon(s.user_agent)}</td>
+                            <td className={styles.mutedCell}>{s.max_scroll ? `${s.max_scroll}%` : '—'}</td>
+                            <td className={styles.mutedCell}>{s.cta_clicks?.length ? s.cta_clicks.map(c => c.label).filter(Boolean).join(', ') : <span className={styles.emptyDash}>—</span>}</td>
+                            <td className={styles.mutedCell}>{fmtTime(s.time_on_page)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </>
+        );
+      })()}
+
       {/* ═══ ABA ACESSOS LP ═════════════════════════════════════ */}
-      {tab === 'visits' && (
+      {tab === 'visits' && (() => {
+        const lpSessions = baseSessions.filter(s => !(s.landing_url||'').includes('/io'));
+        return (
         <>
           <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
             <div className={styles.periodTabs}>
               {([['hoje','Hoje'],['ontem','Ontem'],['3d','3 dias'],['7dias','7 dias'],['mes','Esse mês'],['maximo','Máximo']] as const).map(([v,l])=>(
-                <button 
-                  key={v} 
-                  className={visitPeriod===v?styles.periodActive:styles.periodBtn} 
+                <button
+                  key={v}
+                  className={visitPeriod===v?styles.periodActive:styles.periodBtn}
                   onClick={()=>changeVisitPeriod(v as any)}
                   disabled={loadingMeta || loadingAnalytics}
                 >
@@ -451,7 +558,7 @@ export default function AdminPage() {
                 </button>
               ))}
             </div>
-            <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{baseSessions.length} registros no período</span>
+            <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{lpSessions.length} registros no período</span>
           </div>
 
           {loadingAnalytics ? (
@@ -459,15 +566,15 @@ export default function AdminPage() {
           ) : (
             <>
               {(() => {
-                const ctaGratis = baseSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('grátis'))).length;
-                const ctaPro    = baseSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('pro'))).length;
-                const ctaVip    = baseSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('vip'))).length;
+                const ctaGratis = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('grátis'))).length;
+                const ctaPro    = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('pro'))).length;
+                const ctaVip    = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('vip'))).length;
 
                 return (
                   <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
                     <div className={styles.card}>
                       <div className={styles.cardLabel}>Acessaram a LP</div>
-                      <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{baseSessions.length}</div>
+                      <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{lpSessions.length}</div>
                     </div>
                     <div className={styles.card}>
                       <div className={styles.cardLabel}>Clicaram Grátis</div>
@@ -487,7 +594,8 @@ export default function AdminPage() {
             </>
           )}
         </>
-      )}
+        );
+      })()}
 
     </div>
   );

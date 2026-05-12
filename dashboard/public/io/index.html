@@ -1969,6 +1969,87 @@
     if (next) next.addEventListener('click', () => step(1));
   })();
 
+  // Tracking SolarDoc — registra visita e eventos no mesmo backend da LP
+  (() => {
+    const KEY = 'io_sd_session';
+    const SENT = 'io_sd_visit_sent';
+    function uuid() {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0; const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    }
+    let sid = '';
+    try { sid = sessionStorage.getItem(KEY) || ''; if (!sid) { sid = uuid(); sessionStorage.setItem(KEY, sid); } } catch (_) { sid = uuid(); }
+
+    const url = (typeof window !== 'undefined' && window.location.hostname !== 'localhost') ? '/_api' : 'http://localhost:3001';
+    const params = new URLSearchParams(location.search);
+    const utms = {};
+    ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(k => {
+      const v = params.get(k); if (v) utms[k] = v;
+    });
+
+    function send(path, body) {
+      try {
+        fetch(url + path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          keepalive: true,
+        }).catch(() => {});
+      } catch (_) {}
+    }
+
+    try {
+      if (!sessionStorage.getItem(SENT)) {
+        send('/tracking/visit', {
+          session_id: sid,
+          landing_url: location.href,
+          referrer: document.referrer || null,
+          ...utms,
+        });
+        sessionStorage.setItem(SENT, '1');
+      }
+    } catch (_) {}
+
+    function evt(type, data) {
+      send('/tracking/event', { session_id: sid, event_type: type, event_data: data || null });
+    }
+
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href^="https://wa.me"], a[href^="https://api.whatsapp.com"]');
+      if (a) evt('cta_click', { label: 'whatsapp', source: a.dataset.source || 'io' });
+    }, true);
+    document.querySelectorAll('.btn-primary').forEach(b => {
+      b.addEventListener('click', () => evt('cta_click', { label: 'hero_cta_primary' }));
+    });
+    const cform = document.getElementById('contactForm');
+    if (cform) cform.addEventListener('submit', () => evt('cta_click', { label: 'contact_form_submit' }));
+
+    // Scroll milestones
+    let max = 0;
+    window.addEventListener('scroll', () => {
+      const h = document.documentElement;
+      const docH = h.scrollHeight - window.innerHeight;
+      if (docH <= 0) return;
+      const pct = Math.round(((window.scrollY || h.scrollTop) / docH) * 100);
+      [25, 50, 75, 100].forEach(m => { if (pct >= m && max < m) { max = m; evt('scroll', { depth: m }); } });
+    }, { passive: true });
+
+    // Time on page no unload
+    const start = Date.now();
+    window.addEventListener('beforeunload', () => {
+      const seconds = Math.round((Date.now() - start) / 1000);
+      if (seconds < 3) return;
+      try {
+        navigator.sendBeacon(url + '/tracking/event', new Blob([JSON.stringify({
+          session_id: sid, event_type: 'time_on_page', event_data: { seconds }
+        })], { type: 'application/json' }));
+      } catch (_) {}
+    });
+  })();
+
   // Meta Pixel — eventos de conversão
   (() => {
     const fire = (name, params = {}) => {
