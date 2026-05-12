@@ -584,6 +584,59 @@
   .cert-logo:hover { border-color: var(--gold-soft); transform: translateY(-2px); }
   .cert-logo .sub { display: block; font-size: 9px; font-weight: 600; color: var(--text-soft); letter-spacing: 0.1em; margin-top: 4px; text-transform: uppercase; }
 
+  /* ============ GALERIA DE OBRAS ============ */
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 200px;
+    gap: 14px;
+    grid-auto-flow: dense;
+  }
+  .gallery-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    cursor: pointer;
+    background: #0a0a0a;
+    margin: 0;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .gallery-item:hover { transform: translateY(-3px); box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18); }
+  .gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.7s ease;
+    display: block;
+  }
+  .gallery-item:hover img { transform: scale(1.08); }
+  .gallery-item.tall { grid-row: span 2; }
+  .gallery-item.wide { grid-column: span 2; }
+  .gallery-item.big { grid-row: span 2; grid-column: span 2; }
+  .gallery-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 55%, rgba(0,0,0,0.65) 100%);
+    display: flex; align-items: flex-end;
+    padding: 16px 18px;
+    color: #fff;
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 0.02em;
+    opacity: 0; transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  .gallery-item:hover .gallery-overlay { opacity: 1; }
+  .gallery-tag {
+    position: absolute; top: 12px; left: 12px;
+    background: rgba(13, 28, 60, 0.85);
+    color: #fff;
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 5px 10px; border-radius: 999px;
+    backdrop-filter: blur(6px);
+  }
+  .gallery-tag.gold { background: rgba(194, 138, 44, 0.95); }
+
   /* ============ PROJETOS ============ */
   .projects-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
   .proj-card {
@@ -948,6 +1001,10 @@
     .certs-inner { grid-template-columns: 1fr; gap: 28px; }
     .certs-logos { grid-template-columns: repeat(3, 1fr); }
     .projects-grid { grid-template-columns: 1fr; }
+    .gallery-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 160px; gap: 10px; }
+    .gallery-item.big { grid-row: span 2; grid-column: span 2; }
+    .gallery-item.wide { grid-column: span 2; grid-row: span 1; }
+    .gallery-item.tall { grid-row: span 2; grid-column: span 1; }
     .test-card { width: 280px; }
     .test-shot-frame { height: 460px; }
     .areas-inner { grid-template-columns: 1fr; }
@@ -1005,6 +1062,7 @@
       <a href="#sobre">Sobre</a>
       <a href="#servicos">Serviços</a>
       <a href="#processo">Processo</a>
+      <a href="#obras">Obras</a>
       <a href="#areas">Áreas</a>
       <a href="#contato">Contato</a>
       <a href="https://wa.me/5534998165040?text=Ol%C3%A1!%20Gostaria%20de%20solicitar%20um%20or%C3%A7amento%20de%20energia%20solar." target="_blank" rel="noopener" class="nav-cta">Falar no WhatsApp</a>
@@ -1232,6 +1290,84 @@
         <h4>Homologação e ativação</h4>
         <p>Documentação e homologação na CEMIG por nossa conta. Acompanhamento até a vistoria.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OBRAS ENTREGUES ============ -->
+<section class="block" id="obras">
+  <div class="container">
+    <div class="block-head">
+      <div class="eyebrow">Obras entregues</div>
+      <h2 class="section-title">Cada telhado conta uma história.</h2>
+      <p class="section-lead">
+        Instalações residenciais, rurais e comerciais executadas pela nossa equipe. Equipamentos certificados, acabamento limpo, documentação em ordem.
+      </p>
+    </div>
+
+    <div class="gallery-grid" aria-label="Galeria de obras realizadas">
+      <figure class="gallery-item big">
+        <img src="/io/mosaico/4.jpeg" alt="Instalação rural — vista aérea com drone" loading="lazy" />
+        <span class="gallery-tag gold">★ Destaque</span>
+        <figcaption class="gallery-overlay">Rural · vista aérea da instalação</figcaption>
+      </figure>
+
+      <figure class="gallery-item wide">
+        <img src="/io/mosaico/1.jpeg" alt="Painéis solares em telhado de cerâmica residencial" loading="lazy" />
+        <span class="gallery-tag">Residencial</span>
+        <figcaption class="gallery-overlay">Telhado cerâmico · misto de potências</figcaption>
+      </figure>
+
+      <figure class="gallery-item">
+        <img src="/io/mosaico/10.jpeg" alt="Reflexo do céu nos painéis solares" loading="lazy" />
+        <figcaption class="gallery-overlay">Painéis monocristalinos</figcaption>
+      </figure>
+
+      <figure class="gallery-item">
+        <img src="/io/mosaico/3.jpeg" alt="Painéis full-black em telhado cerâmico" loading="lazy" />
+        <span class="gallery-tag">Residencial</span>
+        <figcaption class="gallery-overlay">Painéis full-black · acabamento premium</figcaption>
+      </figure>
+
+      <figure class="gallery-item tall">
+        <img src="/io/mosaico/5.jpeg" alt="Painéis instalados em telhado inclinado" loading="lazy" />
+        <figcaption class="gallery-overlay">Estrutura inclinada · alta produção</figcaption>
+      </figure>
+
+      <figure class="gallery-item wide">
+        <img src="/io/mosaico/11.jpeg" alt="Painéis solares em telhado com vista urbana" loading="lazy" />
+        <span class="gallery-tag">Residencial</span>
+        <figcaption class="gallery-overlay">Vista urbana · 8 painéis</figcaption>
+      </figure>
+
+      <figure class="gallery-item">
+        <img src="/io/mosaico/7.jpeg" alt="Inversor SAJ instalado com proteção Clamper" loading="lazy" />
+        <span class="gallery-tag gold">Elétrica</span>
+        <figcaption class="gallery-overlay">Inversor SAJ + DPS Clamper</figcaption>
+      </figure>
+
+      <figure class="gallery-item">
+        <img src="/io/mosaico/8.jpeg" alt="Quadro elétrico com inversor solar" loading="lazy" />
+        <span class="gallery-tag gold">Elétrica</span>
+        <figcaption class="gallery-overlay">Quadro de proteção · padrão NBR</figcaption>
+      </figure>
+
+      <figure class="gallery-item wide">
+        <img src="/io/mosaico/9.jpeg" alt="Painéis em telhado residencial com vista panorâmica" loading="lazy" />
+        <span class="gallery-tag">Residencial</span>
+        <figcaption class="gallery-overlay">Sistema 4,4 kWp · zona urbana</figcaption>
+      </figure>
+
+      <figure class="gallery-item">
+        <img src="/io/mosaico/6.jpeg" alt="Painéis em telhado comercial plano" loading="lazy" />
+        <span class="gallery-tag">Comercial</span>
+        <figcaption class="gallery-overlay">Telhado plano · fixação estrutural</figcaption>
+      </figure>
+
+      <figure class="gallery-item">
+        <img src="/io/mosaico/2.jpeg" alt="Casa com sistema solar instalado, vista de rua" loading="lazy" />
+        <figcaption class="gallery-overlay">Fachada residencial</figcaption>
+      </figure>
     </div>
   </div>
 </section>
