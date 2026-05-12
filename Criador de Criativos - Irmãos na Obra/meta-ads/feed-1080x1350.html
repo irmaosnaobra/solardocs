@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Feed 1080x1350</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1350px; font-family: 'Inter', sans-serif; overflow: hidden; background: #f4ede0; }
+  .canvas { width: 1080px; height: 1350px; position: relative; background: #f4ede0; }
+
+  .top {
+    background: linear-gradient(135deg, #0b1832 0%, #142a52 100%);
+    padding: 50px 60px 40px;
+    position: relative;
+  }
+  .top::after {
+    content: '';
+    position: absolute; bottom: -1px; left: 0; right: 0;
+    height: 30px;
+    background: linear-gradient(180deg, transparent, #f4ede0);
+    pointer-events: none;
+  }
+  .brand-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+  .brand { display: flex; align-items: center; gap: 12px; color: #fff; }
+  .brand .mark {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #c28a2c, #e0a83a);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif; font-weight: 900; font-size: 24px; color: #0b1832;
+  }
+  .brand .name {
+    font-family: 'Playfair Display', serif; font-weight: 800; font-size: 20px;
+  }
+  .brand .name small { display: block; font-family: 'Inter'; font-weight: 600; font-size: 10px; letter-spacing: 0.22em; opacity: 0.85; margin-top: 3px; }
+  .badge { background: rgba(194, 138, 44, 0.18); border: 1px solid rgba(194, 138, 44, 0.5); color: #f5cf6e; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }
+
+  .hook {
+    color: #fff;
+    font-family: 'Playfair Display', serif;
+    font-weight: 800;
+    font-size: 70px;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+  }
+  .hook em { font-style: italic; color: #f5cf6e; }
+
+  .compare {
+    margin: 50px 60px 0;
+    display: grid; grid-template-columns: 1fr 60px 1fr; gap: 14px;
+    align-items: stretch;
+  }
+  .compare-card {
+    border-radius: 18px;
+    padding: 26px 24px;
+    text-align: center;
+    display: flex; flex-direction: column; gap: 8px;
+    border: 2px solid #e0d6c2;
+    background: #fff;
+  }
+  .compare-card.before { color: #8a3f3f; }
+  .compare-card.after { color: #265c2f; border-color: #99c4a6; background: #f0fbf3; }
+  .compare-card .tag { font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.75; }
+  .compare-card .val { font-family: 'Playfair Display', serif; font-weight: 900; font-size: 60px; line-height: 1; }
+  .compare-card .sub { font-size: 13px; font-weight: 600; opacity: 0.85; margin-top: 4px; }
+  .compare-card.before .val { text-decoration: line-through; }
+  .compare-arrow {
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif; font-weight: 800; font-size: 50px;
+    color: #c28a2c;
+  }
+
+  .photo {
+    margin: 36px 60px 0;
+    height: 380px; border-radius: 18px; overflow: hidden;
+    position: relative;
+    background: url('file:///c:/Users/55349/Desktop/CLAUDE/dashboard/public/io/mosaico/11.jpeg') center/cover;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+  }
+  .photo .overlay-text {
+    position: absolute; left: 22px; bottom: 22px; right: 22px;
+    color: #fff; text-shadow: 0 4px 14px rgba(0,0,0,0.7);
+    font-family: 'Playfair Display', serif; font-weight: 700;
+    font-size: 22px; line-height: 1.2;
+  }
+
+  .footer {
+    position: absolute; left: 60px; right: 60px; bottom: 50px;
+    display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  }
+  .footer-stats { display: flex; gap: 20px; }
+  .fs .n { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 26px; color: #0b1832; line-height: 1; }
+  .fs .n em { font-style: normal; color: #c28a2c; }
+  .fs .l { font-size: 10px; font-weight: 700; color: #5a5a5a; letter-spacing: 0.14em; text-transform: uppercase; margin-top: 4px; }
+  .cta {
+    background: #c28a2c; color: #fff;
+    font-weight: 900; font-size: 18px;
+    padding: 18px 24px;
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(194, 138, 44, 0.4);
+    letter-spacing: 0.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="top">
+      <div class="brand-row">
+        <div class="brand"><div class="mark">i</div><div class="name">Irmãos na Obra<small>ENERGIA SOLAR · UBERLÂNDIA</small></div></div>
+        <div class="badge">8 anos no mercado</div>
+      </div>
+      <div class="hook">Antes: R$ <em>487</em>/mês.<br/>Depois: R$ <em>38</em>.</div>
+    </div>
+
+    <div class="compare">
+      <div class="compare-card before">
+        <div class="tag">Antes</div>
+        <div class="val">R$ 487</div>
+        <div class="sub">conta da CEMIG por mês</div>
+      </div>
+      <div class="compare-arrow">›</div>
+      <div class="compare-card after">
+        <div class="tag">Depois</div>
+        <div class="val">R$ 38</div>
+        <div class="sub">só taxa mínima</div>
+      </div>
+    </div>
+
+    <div class="photo">
+      <div class="overlay-text">Sistema 4,4 kWp instalado em 1 dia — Uberlândia, 2026</div>
+    </div>
+
+    <div class="footer">
+      <div class="footer-stats">
+        <div class="fs"><div class="n">+<em>5.000</em></div><div class="l">famílias</div></div>
+        <div class="fs"><div class="n"><em>8</em> MWp</div><div class="l">instalados</div></div>
+      </div>
+      <div class="cta">Simulação grátis →</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -17,6 +17,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
+<!-- Meta Pixel -->
+<script>
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '446093469730871');
+  fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></noscript>
+<!-- /Meta Pixel -->
+
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -1958,6 +1967,70 @@
     }
     if (prev) prev.addEventListener('click', () => step(-1));
     if (next) next.addEventListener('click', () => step(1));
+  })();
+
+  // Meta Pixel — eventos de conversão
+  (() => {
+    const fire = (name, params = {}) => {
+      if (typeof window.fbq === 'function') {
+        try { window.fbq('track', name, params); } catch (_) {}
+      }
+    };
+
+    // Lead: qualquer clique em link WhatsApp
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href^="https://wa.me"], a[href^="https://api.whatsapp.com"], a[href^="whatsapp:"]');
+      if (a) fire('Lead', { content_name: 'whatsapp_click', source: a.dataset.source || 'unknown' });
+    }, true);
+
+    // InitiateCheckout: clique no CTA dourado do hero
+    document.querySelectorAll('.btn-primary').forEach((b) => {
+      b.addEventListener('click', () => fire('InitiateCheckout', { content_name: 'hero_cta' }));
+    });
+
+    // Contact: submit do form de contato
+    const form = document.getElementById('contactForm');
+    if (form) form.addEventListener('submit', () => fire('Contact', { content_name: 'contact_form' }));
+
+    // ViewContent: scroll passa de 50%
+    let fired50 = false;
+    window.addEventListener('scroll', () => {
+      if (fired50) return;
+      const h = document.documentElement;
+      const pct = (h.scrollTop + window.innerHeight) / h.scrollHeight;
+      if (pct >= 0.5) { fired50 = true; fire('ViewContent', { content_name: 'half_scroll' }); }
+    }, { passive: true });
+  })();
+
+  // UTM persistido + propagado pros links de WhatsApp
+  (() => {
+    const params = new URLSearchParams(location.search);
+    const utm = {};
+    ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','fbclid'].forEach(k => {
+      const v = params.get(k);
+      if (v) utm[k] = v;
+    });
+    // se nada veio na URL mas há cookie/storage, recupera
+    try {
+      if (Object.keys(utm).length) sessionStorage.setItem('io_utm', JSON.stringify(utm));
+      else {
+        const saved = sessionStorage.getItem('io_utm');
+        if (saved) Object.assign(utm, JSON.parse(saved));
+      }
+    } catch (_) {}
+    if (!Object.keys(utm).length) return;
+    document.querySelectorAll('a[href^="https://wa.me"], a[href^="https://api.whatsapp.com"]').forEach((a) => {
+      try {
+        const u = new URL(a.href);
+        // wa.me usa o texto no parâmetro `text`, então não dá pra anexar utm direto na URL
+        // adiciona referência no próprio texto do WhatsApp
+        const tag = ` [origem: ${utm.utm_source || 'meta'}${utm.utm_campaign ? '/' + utm.utm_campaign : ''}]`;
+        let text = u.searchParams.get('text') || 'Olá!';
+        if (!text.includes('[origem:')) text += tag;
+        u.searchParams.set('text', text);
+        a.href = u.toString();
+      } catch (_) {}
+    });
   })();
 
   // Lazy-load do Google Maps (só carrega o iframe ao clicar)

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,800;0,900;1,800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{width:1080px;height:1080px;font-family:'Inter',sans-serif;overflow:hidden}
+  .canvas{width:1080px;height:1080px;position:relative;background:linear-gradient(135deg,#7a1f1f 0%,#a83232 45%,#0b1832 100%)}
+
+  .alert{position:absolute;top:80px;left:60px;right:60px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(10px);border-radius:14px;padding:18px 24px;display:flex;align-items:center;gap:14px;color:#fff}
+  .alert .ic{width:38px;height:38px;border-radius:50%;background:#fff;color:#a83232;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;flex-shrink:0}
+  .alert .txt{font-size:18px;font-weight:700}
+  .alert .txt b{color:#ffd76a}
+
+  .head{position:absolute;top:280px;left:60px;right:60px;color:#fff;font-family:'Playfair Display';font-weight:800;font-size:96px;line-height:.98;letter-spacing:-.025em;text-shadow:0 6px 24px rgba(0,0,0,.4)}
+  .head em{font-style:italic;color:#ffd76a}
+
+  .stamp{position:absolute;top:660px;left:60px;display:flex;align-items:center;gap:22px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);padding:24px 28px;border-radius:18px;backdrop-filter:blur(10px)}
+  .stamp .big{font-family:'Playfair Display';font-weight:900;font-size:96px;color:#ffd76a;line-height:1}
+  .stamp .lbl{color:#fff;font-size:18px;font-weight:700;line-height:1.25}
+  .stamp .lbl small{display:block;font-size:13px;font-weight:600;opacity:.75;letter-spacing:.08em;text-transform:uppercase;margin-top:6px}
+
+  .brand{position:absolute;top:44px;right:44px;display:flex;align-items:center;gap:12px;color:#fff}
+  .mark{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#c28a2c,#e0a83a);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display';font-weight:900;font-size:24px;color:#0b1832}
+  .bname{font-family:'Playfair Display';font-weight:800;font-size:20px;line-height:1.1}
+  .bname small{display:block;font-family:'Inter';font-weight:700;font-size:10px;letter-spacing:.22em;opacity:.85;margin-top:3px}
+
+  .cta{position:absolute;bottom:50px;left:60px;right:60px;background:#ffd76a;color:#0b1832;font-weight:900;font-size:26px;padding:26px 32px;border-radius:16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 14px 36px rgba(255,215,106,.4)}
+  .cta .arr{background:#0b1832;color:#ffd76a;width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:26px}
+</style></head>
+<body>
+<div class="canvas">
+  <div class="alert">
+    <div class="ic">!</div>
+    <div class="txt">A CEMIG <b>já anunciou outro reajuste pra 2026.</b> E o próximo. E o próximo.</div>
+  </div>
+  <div class="brand"><div class="mark">i</div><div class="bname">Irmãos na Obra<small>ENERGIA SOLAR</small></div></div>
+
+  <div class="head">Trave o preço<br/>da sua energia.<br/><em>Por 25 anos.</em></div>
+
+  <div class="stamp">
+    <div class="big">25</div>
+    <div class="lbl">anos de garantia<br/><small>FABRICANTES TIER 1</small></div>
+  </div>
+
+  <div class="cta"><span>Quero travar minha conta</span><span class="arr">→</span></div>
+</div>
+</body></html>

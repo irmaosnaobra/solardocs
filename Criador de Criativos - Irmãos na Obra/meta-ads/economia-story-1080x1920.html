@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,800;0,900;1,800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{width:1080px;height:1920px;font-family:'Inter',sans-serif;overflow:hidden}
+  .canvas{width:1080px;height:1920px;position:relative;background:linear-gradient(180deg,#0b1832 0%,#142a52 60%,#0b1832 100%)}
+  .canvas::before{content:'';position:absolute;inset:0;background:url('file:///c:/Users/55349/Desktop/CLAUDE/dashboard/public/io/mosaico/10.jpeg') center/cover;opacity:.18}
+
+  .top{position:absolute;top:80px;left:60px;right:60px;display:flex;align-items:center;justify-content:space-between;color:#fff}
+  .brand{display:flex;align-items:center;gap:14px}
+  .mark{width:54px;height:54px;border-radius:14px;background:linear-gradient(135deg,#c28a2c,#e0a83a);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display';font-weight:900;font-size:30px;color:#0b1832}
+  .bname{font-family:'Playfair Display';font-weight:800;font-size:24px}
+  .bname small{display:block;font-family:'Inter';font-weight:700;font-size:12px;letter-spacing:.22em;opacity:.85;margin-top:4px}
+  .badge{background:#c28a2c;color:#0b1832;font-weight:900;font-size:13px;letter-spacing:.14em;text-transform:uppercase;padding:10px 16px;border-radius:999px}
+
+  .hook{position:absolute;top:280px;left:60px;right:60px;color:#fff;font-family:'Playfair Display';font-weight:800;font-size:96px;line-height:1;letter-spacing:-.02em}
+  .hook em{font-style:italic;color:#f5cf6e}
+
+  .calc{position:absolute;top:560px;left:60px;right:60px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:24px;padding:40px 36px;backdrop-filter:blur(20px)}
+  .row{display:flex;justify-content:space-between;align-items:baseline;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.1);color:#fff}
+  .row:last-child{border:0;padding-top:24px;margin-top:6px;border-top:2px solid #c28a2c}
+  .row .k{font-size:22px;font-weight:700;opacity:.85}
+  .row .v{font-family:'Playfair Display';font-weight:800;font-size:46px;color:#fff;letter-spacing:-.01em}
+  .row.total .k{color:#f5cf6e;font-size:24px}
+  .row.total .v{font-size:72px;color:#f5cf6e}
+
+  .legend{position:absolute;top:1300px;left:60px;right:60px;text-align:center;color:rgba(255,255,255,.7);font-size:18px;font-weight:600;line-height:1.4}
+  .legend b{color:#f5cf6e}
+
+  .cta-wrap{position:absolute;bottom:110px;left:60px;right:60px}
+  .cta{background:#c28a2c;color:#0b1832;font-weight:900;font-size:34px;padding:34px 40px;border-radius:22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 20px 50px rgba(194,138,44,.55)}
+  .cta .arr{background:#0b1832;color:#c28a2c;width:68px;height:68px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:34px}
+  .swipe{color:#fff;text-align:center;margin-top:20px;font-size:16px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;opacity:.7}
+</style></head>
+<body>
+<div class="canvas">
+  <div class="top">
+    <div class="brand"><div class="mark">i</div><div class="bname">Irmãos na Obra<small>ENERGIA SOLAR</small></div></div>
+    <div class="badge">Calculadora real</div>
+  </div>
+
+  <div class="hook">Em 10 anos,<br/>quanto a CEMIG<br/><em>te tira?</em></div>
+
+  <div class="calc">
+    <div class="row"><div class="k">Conta atual</div><div class="v">R$ 487/mês</div></div>
+    <div class="row"><div class="k">× 12 meses</div><div class="v">R$ 5.844/ano</div></div>
+    <div class="row"><div class="k">× 10 anos (sem reajuste)</div><div class="v">R$ 58.440</div></div>
+    <div class="row total"><div class="k">SEU PREJUÍZO</div><div class="v">~R$ 65 mil</div></div>
+  </div>
+
+  <div class="legend">Considerando reajuste médio da CEMIG. <b>Com solar, esse valor fica no seu bolso.</b></div>
+
+  <div class="cta-wrap">
+    <div class="cta"><span>Simular minha economia</span><span class="arr">→</span></div>
+    <div class="swipe">↑ arraste pra cima ↑</div>
+  </div>
+</div>
+</body></html>
