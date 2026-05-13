@@ -85,25 +85,34 @@
   .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:8px}
   .opts.tight{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
   .opt{
-    position:relative;border:1.5px solid var(--border);border-radius:14px;padding:14px 12px;cursor:pointer;
+    position:relative;border:1.5px solid var(--border);border-radius:14px;padding:16px 12px 14px;cursor:pointer;
     background:#fff;text-align:center;transition:all .15s ease;
-    display:flex;flex-direction:column;align-items:center;gap:6px;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
   }
   .opt input{position:absolute;opacity:0;inset:0;cursor:pointer}
-  .opt .icon{font-size:28px;line-height:1}
+  .opt .ic{
+    width:44px;height:44px;border-radius:12px;
+    background:#f5f1e6;color:#8a8a8a;
+    display:grid;place-items:center;
+    transition:all .15s ease;
+  }
+  .opt .ic svg{width:24px;height:24px}
   .opt .lbl{font-size:13px;font-weight:700;color:var(--text);line-height:1.2}
   .opt .sub{font-size:11px;font-weight:600;color:var(--text-soft);line-height:1.2}
-  .opt:hover{border-color:var(--gold-soft);background:rgba(194,138,44,.04)}
-  .opt:has(input:checked){border-color:var(--gold);background:rgba(194,138,44,.1);box-shadow:0 4px 14px rgba(194,138,44,.18)}
+  .opt:hover{border-color:var(--gold-soft)}
+  .opt:hover .ic{background:rgba(194,138,44,.12);color:var(--gold)}
+  .opt:has(input:checked){border-color:var(--gold);background:rgba(194,138,44,.06);box-shadow:0 4px 14px rgba(194,138,44,.18)}
+  .opt:has(input:checked) .ic{background:var(--gold);color:#fff}
   .opt:has(input:checked)::after{content:'✓';position:absolute;top:8px;right:10px;background:var(--gold);color:#fff;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:900}
-
-  /* SEGMENTED toggle (kwh / r$) */
-  .seg{display:inline-flex;background:#f1eee5;border-radius:12px;padding:4px;margin-bottom:14px}
-  .seg button{
-    border:0;background:transparent;padding:9px 18px;border-radius:9px;font-weight:700;font-size:13px;
-    color:var(--text-muted);cursor:pointer;font-family:inherit;letter-spacing:.02em;
+  .opt .num{
+    width:44px;height:44px;border-radius:12px;
+    background:#f5f1e6;color:#8a8a8a;
+    display:grid;place-items:center;
+    font-family:'Playfair Display';font-weight:800;font-size:24px;
+    transition:all .15s;
   }
-  .seg button.active{background:#fff;color:var(--navy);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+  .opt:hover .num{background:rgba(194,138,44,.12);color:var(--gold)}
+  .opt:has(input:checked) .num{background:var(--gold);color:#fff}
 
   /* ACTIONS */
   .actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:28px;padding-top:24px;border-top:1px solid var(--border)}
@@ -114,26 +123,81 @@
   .btn-ghost{background:transparent;color:var(--text-muted);padding:14px 16px}
   .btn-ghost:hover{color:var(--navy)}
 
+  /* R$ INPUT (step 3) */
+  .rs-input{
+    position:relative;display:flex;align-items:stretch;
+    border:1.5px solid var(--border);border-radius:14px;background:#fff;
+    overflow:hidden;transition:border-color .15s,box-shadow .15s;
+  }
+  .rs-input:focus-within{border-color:var(--gold);box-shadow:0 0 0 4px rgba(194,138,44,.14)}
+  .rs-input .rs-prefix,.rs-input .rs-suffix{
+    background:#fbf7ee;padding:18px 16px;font-weight:800;font-size:18px;color:var(--gold);
+    display:flex;align-items:center;
+  }
+  .rs-input .rs-prefix{border-right:1px solid var(--border)}
+  .rs-input .rs-suffix{border-left:1px solid var(--border);font-size:13px;color:var(--text-soft);font-weight:600}
+  .rs-input input{
+    flex:1;border:0;padding:18px 16px;background:transparent;
+    font-family:inherit;font-size:24px;font-weight:800;color:var(--text);
+    letter-spacing:-.01em;
+  }
+  .rs-input input:focus{outline:0}
+  .rs-input input.invalid{color:var(--red)}
+
   /* RESULT */
   .result-head{text-align:center;margin-bottom:24px}
   .result-head .eyebrow{background:rgba(22,163,74,.1);color:var(--green)}
   .result-head h1{font-size:38px}
   .result-head .lead{margin-top:8px}
 
-  .price-card{
-    background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 100%);
-    color:#fff;border-radius:20px;padding:32px 28px;text-align:center;
-    box-shadow:0 20px 50px rgba(15,42,82,.3);position:relative;overflow:hidden;
-    margin-bottom:24px;
+  /* PLANOS DUAIS (Comercial / Premium) */
+  .plans{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px}
+  .plan{
+    position:relative;border-radius:18px;padding:24px 22px;
+    background:#fff;border:1.5px solid var(--border);
+    box-shadow:var(--shadow-md);
+    display:flex;flex-direction:column;gap:12px;
   }
-  .price-card::before{content:'';position:absolute;top:-80px;right:-80px;width:240px;height:240px;background:radial-gradient(circle,rgba(194,138,44,.35),transparent 60%);filter:blur(40px)}
-  .price-card .label{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.85;margin-bottom:10px}
-  .price-card .from{font-size:14px;font-weight:600;opacity:.8}
-  .price-card .price{font-family:'Playfair Display';font-weight:800;font-size:64px;line-height:1;letter-spacing:-.02em;margin:4px 0 6px}
-  .price-card .price small{font-size:24px;font-weight:700;opacity:.8;margin-right:4px}
-  .price-card .price em{font-style:normal;color:var(--gold-pale)}
-  .price-card .price-sub{font-size:14px;font-weight:600;opacity:.8}
-  .price-card .price-sub b{color:var(--gold-pale)}
+  .plan.comercial{}
+  .plan.premium{
+    background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 100%);
+    color:#fff;border-color:transparent;
+    box-shadow:0 20px 50px rgba(15,42,82,.3);overflow:hidden;
+  }
+  .plan.premium::before{content:'';position:absolute;top:-80px;right:-80px;width:240px;height:240px;background:radial-gradient(circle,rgba(194,138,44,.35),transparent 60%);filter:blur(40px)}
+  .plan-tag{
+    position:absolute;top:-10px;left:18px;
+    background:#fff;border:1px solid var(--border);
+    padding:5px 11px;border-radius:999px;
+    font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  }
+  .plan.comercial .plan-tag{color:var(--green);background:#fff;border-color:#bbf7d0}
+  .plan.premium .plan-tag{background:var(--gold);color:#fff;border-color:var(--gold)}
+  .plan-name{font-family:'Playfair Display';font-weight:800;font-size:22px;letter-spacing:-.01em;color:var(--navy)}
+  .plan.premium .plan-name{color:#fff}
+  .plan-name span{display:block;font-family:'Plus Jakarta Sans';font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft);margin-top:3px;line-height:1.3}
+  .plan.premium .plan-name span{color:var(--gold-pale)}
+  .plan-price{margin:2px 0}
+  .plan-price .from{font-size:12px;font-weight:600;color:var(--text-soft)}
+  .plan.premium .plan-price .from{color:rgba(255,255,255,.7)}
+  .plan-price .val{font-family:'Playfair Display';font-weight:800;font-size:42px;line-height:1;letter-spacing:-.02em;color:var(--navy);position:relative;z-index:1}
+  .plan.premium .plan-price .val{color:#fff}
+  .plan-price .val small{font-size:18px;font-weight:700;margin-right:4px;opacity:.85}
+  .plan-specs{display:grid;gap:6px;font-size:13px;font-weight:600;color:var(--text-muted);position:relative;z-index:1}
+  .plan.premium .plan-specs{color:rgba(255,255,255,.85)}
+  .plan-specs .row{display:flex;justify-content:space-between;gap:8px}
+  .plan-specs .row b{color:var(--navy);font-weight:800}
+  .plan.premium .plan-specs .row b{color:var(--gold-pale)}
+  .plan-cta{
+    margin-top:6px;padding:13px 18px;border-radius:12px;
+    background:var(--gold);color:#fff;border:0;cursor:pointer;
+    font-family:inherit;font-weight:800;font-size:13.5px;letter-spacing:.02em;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    text-decoration:none;position:relative;z-index:1;
+    transition:all .15s;
+  }
+  .plan-cta:hover{background:#b07e25;transform:translateY(-1px)}
+  .plan.premium .plan-cta{background:var(--gold);box-shadow:0 8px 20px rgba(194,138,44,.4)}
 
   .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
   .stat{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 14px;text-align:center;box-shadow:var(--shadow-sm)}
@@ -160,6 +224,7 @@
   .eq-list{display:grid;gap:10px}
   .eq-item{display:flex;align-items:center;gap:14px;padding:12px 14px;background:#fbf7ee;border-radius:10px}
   .eq-item .ic{width:38px;height:38px;border-radius:10px;background:rgba(194,138,44,.18);color:var(--gold);display:grid;place-items:center;font-size:18px;flex-shrink:0}
+  .eq-item .ic svg{width:20px;height:20px}
   .eq-item .info{flex:1;min-width:0}
   .eq-item .info .n{font-size:14px;font-weight:700;color:var(--navy)}
   .eq-item .info .d{font-size:12px;color:var(--text-muted);font-weight:500;margin-top:2px}
@@ -197,8 +262,8 @@
     .card{padding:24px 20px}
     h1{font-size:28px}
     .result-head h1{font-size:30px}
-    .price-card .price{font-size:48px}
-    .price-card .price small{font-size:20px}
+    .plans{grid-template-columns:1fr}
+    .plan-price .val{font-size:36px}
     .stats-row{grid-template-columns:1fr}
     .field-row,.field-row.row-3{grid-template-columns:1fr}
     .result-ctas{grid-template-columns:1fr}
@@ -281,10 +346,18 @@
     <div class="field">
       <label>Tipo de imóvel <span class="req">*</span></label>
       <div class="opts">
-        <label class="opt"><input type="radio" name="tipo" value="residencial"><div class="icon">🏠</div><div class="lbl">Residencial</div><div class="sub">Casa / apartamento</div></label>
-        <label class="opt"><input type="radio" name="tipo" value="comercial"><div class="icon">🏢</div><div class="lbl">Comercial</div><div class="sub">Loja / escritório</div></label>
-        <label class="opt"><input type="radio" name="tipo" value="industrial"><div class="icon">🏭</div><div class="lbl">Industrial</div><div class="sub">Galpão / fábrica</div></label>
-        <label class="opt"><input type="radio" name="tipo" value="rural"><div class="icon">🌾</div><div class="lbl">Rural</div><div class="sub">Fazenda / sítio</div></label>
+        <label class="opt"><input type="radio" name="tipo" value="residencial">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></div>
+          <div class="lbl">Residencial</div><div class="sub">Casa / apartamento</div></label>
+        <label class="opt"><input type="radio" name="tipo" value="comercial">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><line x1="8" y1="7" x2="8" y2="7"/><line x1="12" y1="7" x2="12" y2="7"/><line x1="16" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="8" y2="15"/><line x1="12" y1="15" x2="12" y2="15"/><line x1="16" y1="15" x2="16" y2="15"/><path d="M10 21v-3h4v3"/></svg></div>
+          <div class="lbl">Comercial</div><div class="sub">Loja / escritório</div></label>
+        <label class="opt"><input type="radio" name="tipo" value="industrial">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l5 3V10l5 3V10l5 3v8z"/><path d="M3 21h18"/><line x1="8" y1="17" x2="8" y2="17"/><line x1="13" y1="17" x2="13" y2="17"/><line x1="18" y1="17" x2="18" y2="17"/></svg></div>
+          <div class="lbl">Industrial</div><div class="sub">Galpão / fábrica</div></label>
+        <label class="opt"><input type="radio" name="tipo" value="rural">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="M5 21q3-9 7-11"/><path d="M19 21q-3-9-7-11"/><path d="M3 21h18"/></svg></div>
+          <div class="lbl">Rural</div><div class="sub">Fazenda / sítio</div></label>
       </div>
       <div class="err-msg">Escolha o tipo de imóvel.</div>
     </div>
@@ -292,11 +365,21 @@
     <div class="field">
       <label>Tipo de telhado <span class="req">*</span></label>
       <div class="opts tight">
-        <label class="opt"><input type="radio" name="telhado" value="ceramico"><div class="icon">🧱</div><div class="lbl">Cerâmico</div></label>
-        <label class="opt"><input type="radio" name="telhado" value="eternit"><div class="icon">⬜</div><div class="lbl">Eternit</div></label>
-        <label class="opt"><input type="radio" name="telhado" value="cimento"><div class="icon">⬛</div><div class="lbl">Cimento</div></label>
-        <label class="opt"><input type="radio" name="telhado" value="metalico"><div class="icon">🔩</div><div class="lbl">Metálico</div></label>
-        <label class="opt"><input type="radio" name="telhado" value="solo"><div class="icon">🌱</div><div class="lbl">Solo</div></label>
+        <label class="opt"><input type="radio" name="telhado" value="ceramico">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18l5-12 5 12"/><path d="M12 18l5-12 5 12"/><path d="M2 18h20"/></svg></div>
+          <div class="lbl">Cerâmico</div></label>
+        <label class="opt"><input type="radio" name="telhado" value="eternit">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7q2-2 4 0t4 0 4 0 4 0 4 0"/><path d="M2 12q2-2 4 0t4 0 4 0 4 0 4 0"/><path d="M2 17q2-2 4 0t4 0 4 0 4 0 4 0"/></svg></div>
+          <div class="lbl">Eternit</div></label>
+        <label class="opt"><input type="radio" name="telhado" value="cimento">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="1"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="9" y1="7" x2="9" y2="17"/><line x1="15" y1="7" x2="15" y2="17"/></svg></div>
+          <div class="lbl">Cimento</div></label>
+        <label class="opt"><input type="radio" name="telhado" value="metalico">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="16" x2="21" y2="16"/><line x1="6" y1="4" x2="6" y2="20"/></svg></div>
+          <div class="lbl">Metálico</div></label>
+        <label class="opt"><input type="radio" name="telhado" value="solo">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l4-4 3 3 5-5 6 6"/><path d="M3 20h18"/><path d="M9 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg></div>
+          <div class="lbl">Solo</div></label>
       </div>
       <div class="err-msg">Escolha o tipo de telhado.</div>
     </div>
@@ -318,24 +401,24 @@
     <div class="field">
       <label>Padrão de energia <span class="req">*</span></label>
       <div class="opts">
-        <label class="opt"><input type="radio" name="padrao" value="mono110"><div class="lbl">Mono 110V</div><div class="sub">2 fios</div></label>
-        <label class="opt"><input type="radio" name="padrao" value="mono220"><div class="lbl">Mono 220V</div><div class="sub">2 fios</div></label>
-        <label class="opt"><input type="radio" name="padrao" value="bif220"><div class="lbl">Bifásico 220V</div><div class="sub">3 fios</div></label>
-        <label class="opt"><input type="radio" name="padrao" value="tri220"><div class="lbl">Trifásico</div><div class="sub">220V ou 380V</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="mono110"><div class="num">1</div><div class="lbl">Mono 110V</div><div class="sub">2 fios</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="mono220"><div class="num">1</div><div class="lbl">Mono 220V</div><div class="sub">2 fios</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="bif220"><div class="num">2</div><div class="lbl">Bifásico 220V</div><div class="sub">3 fios</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="tri220"><div class="num">3</div><div class="lbl">Trifásico</div><div class="sub">220V ou 380V</div></label>
       </div>
       <div class="err-msg">Escolha o padrão.</div>
     </div>
 
     <div class="field">
-      <label>Quanto você paga / consome por mês? <span class="req">*</span></label>
-      <div class="seg">
-        <button type="button" class="active" data-unit="rs">Conta em R$</button>
-        <button type="button" data-unit="kwh">Consumo em kWh</button>
+      <label>Quanto você paga de conta de luz por mês? <span class="req">*</span></label>
+      <div class="rs-input">
+        <span class="rs-prefix">R$</span>
+        <input type="text" id="f_consumo" placeholder="450" inputmode="numeric" />
+        <span class="rs-suffix">/mês</span>
       </div>
-      <input type="text" id="f_consumo" placeholder="Ex: 450" inputmode="numeric" />
-      <div class="err-msg">Informe um valor válido (mínimo R$ 100 ou 90 kWh).</div>
-      <div style="margin-top:8px;font-size:12px;color:var(--text-soft);font-weight:500">
-        💡 Pode olhar na conta da CEMIG ou estimar. Quanto mais real, melhor a simulação.
+      <div class="err-msg">Informe um valor válido (mínimo R$ 100).</div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text-soft);font-weight:500">
+        Pode olhar na conta da CEMIG ou estimar. Quanto mais real, melhor a simulação.
       </div>
     </div>
 
@@ -350,21 +433,46 @@
     <div class="result-head">
       <span class="eyebrow">✓ Estimativa pronta</span>
       <h1 id="r_hello">Pronto, <em>fulano!</em></h1>
-      <p class="lead">Aqui está o sistema ideal pra sua casa. <b>O menor preço entre todos os nossos fornecedores.</b></p>
+      <p class="lead">Você tem <b>2 opções</b> que atendem seu consumo. Escolha a que faz sentido pra você.</p>
     </div>
 
-    <div class="price-card">
-      <div class="label">Seu sistema solar</div>
-      <div class="from">A partir de</div>
-      <div class="price"><small>R$</small><em id="r_preco">—</em></div>
-      <div class="price-sub"><b id="r_kwp">— kWp</b> · <span id="r_paineis">— painéis</span></div>
+    <div class="plans">
+      <div class="plan comercial">
+        <span class="plan-tag">★ Mais escolhido</span>
+        <div class="plan-name">Comercial<span id="r_c_inv">—</span></div>
+        <div class="plan-price">
+          <div class="from">A partir de</div>
+          <div class="val"><small>R$</small><span id="r_c_preco">—</span></div>
+        </div>
+        <div class="plan-specs">
+          <div class="row"><span>Potência</span><b id="r_c_kwp">—</b></div>
+          <div class="row"><span>Painéis</span><b id="r_c_paineis">—</b></div>
+          <div class="row"><span>Geração média</span><b id="r_c_geracao">—</b></div>
+        </div>
+        <a href="#" id="r_c_whatsapp" class="plan-cta" target="_blank" rel="noopener" data-plan="comercial">
+          Quero a Comercial →
+        </a>
+      </div>
+
+      <div class="plan premium">
+        <span class="plan-tag">Upgrade</span>
+        <div class="plan-name" style="color:#fff">Premium<span id="r_p_inv">—</span></div>
+        <div class="plan-price">
+          <div class="from">A partir de</div>
+          <div class="val"><small>R$</small><span id="r_p_preco">—</span></div>
+        </div>
+        <div class="plan-specs">
+          <div class="row"><span>Potência</span><b id="r_p_kwp">—</b></div>
+          <div class="row"><span>Painéis</span><b id="r_p_paineis">—</b></div>
+          <div class="row"><span>Geração média</span><b id="r_p_geracao">—</b></div>
+        </div>
+        <a href="#" id="r_p_whatsapp" class="plan-cta" target="_blank" rel="noopener" data-plan="premium">
+          Quero a Premium →
+        </a>
+      </div>
     </div>
 
     <div class="stats-row">
-      <div class="stat">
-        <div class="n"><em id="r_geracao">—</em></div>
-        <div class="l">Geração média/mês<br/>(kWh)</div>
-      </div>
       <div class="stat">
         <div class="n">R$ <em id="r_economiaMes">—</em></div>
         <div class="l">Economia<br/>por mês</div>
@@ -372,6 +480,10 @@
       <div class="stat">
         <div class="n">R$ <em id="r_economia25">—</em></div>
         <div class="l">Total em<br/>25 anos</div>
+      </div>
+      <div class="stat">
+        <div class="n"><em>25</em> anos</div>
+        <div class="l">Garantia<br/>fabricantes Tier 1</div>
       </div>
     </div>
 
@@ -390,7 +502,7 @@
 
     <div class="result-ctas">
       <a href="#" id="r_whatsapp" class="cta-wa" target="_blank" rel="noopener">
-        <span class="icon">💬</span>
+        <span class="icon"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></span>
         Falar com especialista
       </a>
       <a href="/io" class="cta-exit">Sair</a>
@@ -405,16 +517,40 @@
 
 <script>
 // ════════════════════════════════════════════════════════════════
-// CIDADES atendidas (28 cidades · raio 250km de Uberlândia)
+// CIDADES atendidas — raio 250km de Uberlândia (Triângulo + Alto Paranaíba + Sul de Goiás)
 // ════════════════════════════════════════════════════════════════
 const CIDADES = [
+  // MG · Triângulo Mineiro
   ['Uberlândia','MG'],['Uberaba','MG'],['Araguari','MG'],['Ituiutaba','MG'],
+  ['Tupaciguara','MG'],['Indianópolis','MG'],['Monte Alegre de Minas','MG'],
+  ['Prata','MG'],['Capinópolis','MG'],['Centralina','MG'],['Canápolis','MG'],
+  ['Cachoeira Dourada','MG'],['Ipiaçu','MG'],['Gurinhatã','MG'],['Santa Vitória','MG'],
+  ['Campina Verde','MG'],['Carneirinho','MG'],['Iturama','MG'],['Limeira do Oeste','MG'],
+  ['União de Minas','MG'],['São Francisco de Sales','MG'],['Itapagipe','MG'],
+  ['Planura','MG'],['Conceição das Alagoas','MG'],['Campo Florido','MG'],
+  ['Veríssimo','MG'],['Conquista','MG'],['Sacramento','MG'],['Pedrinópolis','MG'],
+  ['Perdizes','MG'],['Pratinha','MG'],['Ibiá','MG'],['Tapira','MG'],['Santa Juliana','MG'],
+  ['Comendador Gomes','MG'],['Delta','MG'],['Água Comprida','MG'],['Fronteira','MG'],
+  ['Frutal','MG'],['Nova Ponte','MG'],['Cascalho Rico','MG'],['Cruzeiro da Fortaleza','MG'],
+  ['Estrela do Sul','MG'],['Grupiara','MG'],['Douradoquara','MG'],['Abadia dos Dourados','MG'],
+  ['Romaria','MG'],
+  // MG · Alto Paranaíba
   ['Patos de Minas','MG'],['Patrocínio','MG'],['Monte Carmelo','MG'],['Araxá','MG'],
-  ['Frutal','MG'],['Coromandel','MG'],['Tupaciguara','MG'],['Iturama','MG'],
-  ['Prata','MG'],['Capinópolis','MG'],['Indianópolis','MG'],['Romaria','MG'],
+  ['Coromandel','MG'],['Carmo do Paranaíba','MG'],['São Gotardo','MG'],['Lagoa Formosa','MG'],
+  ['Lagoa Grande','MG'],['Rio Paranaíba','MG'],['Tiros','MG'],['Matutina','MG'],
+  ['Presidente Olegário','MG'],['Serra do Salitre','MG'],['Guimarânia','MG'],['Vazante','MG'],
+  // GO · Sul de Goiás
   ['Itumbiara','GO'],['Catalão','GO'],['Caldas Novas','GO'],['Goiatuba','GO'],
   ['Morrinhos','GO'],['Ipameri','GO'],['Goiandira','GO'],['Três Ranchos','GO'],
-  ['Cumari','GO'],['Ouvidor','GO'],['Anhanguera','GO'],['Bom Jesus de Goiás','GO']
+  ['Cumari','GO'],['Ouvidor','GO'],['Anhanguera','GO'],['Bom Jesus de Goiás','GO'],
+  ['Davinópolis','GO'],['Buriti Alegre','GO'],['Panamá','GO'],['Marzagão','GO'],
+  ['Inaciolândia','GO'],['Corumbaíba','GO'],['Pires do Rio','GO'],['Urutaí','GO'],
+  ['Vicentinópolis','GO'],['Joviânia','GO'],['Aloândia','GO'],['Mairipotaba','GO'],
+  ['Edealina','GO'],['Edéia','GO'],['Indiara','GO'],['Cromínia','GO'],['Piracanjuba','GO'],
+  ['Pontalina','GO'],['Castelândia','GO'],
+  ['Santa Helena de Goiás','GO'],['Maurilândia','GO'],['Quirinópolis','GO'],
+  ['Gouvelândia','GO'],['Itarumã','GO'],['Aparecida do Rio Doce','GO'],
+  ['Itajá','GO'],['Cachoeira Dourada de Goiás','GO']
 ];
 const CIDADE_MAP = Object.fromEntries(CIDADES.map(([c,uf]) => [c.toLowerCase(), uf]));
 
@@ -473,6 +609,15 @@ const TABELAS = {
 ]}
 };
 
+// Categoria de cada série: 'comercial' (SAJ — inversor string básico) vs 'premium' (Sungrow + Deye microinversor)
+const CATEGORIA = {
+  'MICRODEYE-TSUN600W': 'premium',   // microinversor Deye — monitora cada painel
+  'SAJ-3K':              'comercial',
+  'SAJ-6K':              'comercial',
+  'SUNGROW-5K':          'premium',
+  'SUNGROW-7.5K':        'premium',
+};
+
 // Fator sazonal Triângulo Mineiro (12 meses)
 const SAZON = [1.10,0.97,0.99,0.94,0.88,0.82,0.88,1.04,1.10,1.12,1.06,1.00];
 
@@ -489,7 +634,7 @@ const state = {
   step: 1,
   nome: '', whats: '', cidade: '', estado: '',
   tipo: '', telhado: '', padrao: '',
-  consumoVal: 0, consumoUnit: 'rs', // 'rs' ou 'kwh'
+  consumoRs: 0, // valor da conta em R$/mês
 };
 
 // ════════════════════════════════════════════════════════════════
@@ -538,15 +683,6 @@ $('#f_cidade').addEventListener('input', (e) => {
   }
 });
 
-// Toggle segmented kWh / R$
-$$('.seg button').forEach(b => {
-  b.addEventListener('click', () => {
-    $$('.seg button').forEach(x => x.classList.remove('active'));
-    b.classList.add('active');
-    state.consumoUnit = b.dataset.unit;
-    $('#f_consumo').placeholder = b.dataset.unit === 'rs' ? 'Ex: 450' : 'Ex: 480';
-  });
-});
 
 // Validações de step
 function validateStep(step) {
@@ -573,11 +709,11 @@ function validateStep(step) {
   if (step === 3) {
     const padrao = document.querySelector('input[name=padrao]:checked');
     const val = parseInt($('#f_consumo').value.replace(/\D/g,''), 10);
-    const minOk = state.consumoUnit === 'rs' ? val >= 100 : val >= 90;
+    const minOk = val >= 100;
     setErrGroup('padrao', !padrao);
     setErr('#f_consumo', !val || !minOk);
     if (!padrao || !val || !minOk) ok = false;
-    if (ok) { state.padrao = padrao.value; state.consumoVal = val; }
+    if (ok) { state.padrao = padrao.value; state.consumoRs = val; }
   }
   return ok;
 }
@@ -623,7 +759,8 @@ $('#btnCalc').addEventListener('click', () => {
   const result = calcular();
   renderResult(result);
   goStep(4);
-  fbqTrack('Lead', { content_name: 'simulador_lead', value: result.preco, currency: 'BRL' });
+  const valor = result.comercial ? result.comercial.preco : 0;
+  fbqTrack('Lead', { content_name: 'simulador_lead', value: valor, currency: 'BRL' });
 
   // envia ao backend tracking (não-bloqueante)
   try {
@@ -632,7 +769,12 @@ $('#btnCalc').addEventListener('click', () => {
       body: JSON.stringify({
         session_id: getSessId(),
         event_type: 'simulator_lead',
-        event_data: { nome: state.nome, whats: state.whats, cidade: state.cidade, kwp: result.kwp, preco: result.preco }
+        event_data: {
+          nome: state.nome, whats: state.whats, cidade: state.cidade,
+          consumoRs: state.consumoRs,
+          comercial: result.comercial ? { kwp: result.comercial.kwp, preco: result.comercial.preco, inv: result.comercial.inv } : null,
+          premium:   result.premium   ? { kwp: result.premium.kwp,   preco: result.premium.preco,   inv: result.premium.inv }   : null,
+        }
       }),
       keepalive: true,
     }).catch(()=>{});
@@ -647,67 +789,98 @@ function getSessId() {
   } catch(_) { return 'anon'; }
 }
 
-function calcular() {
-  // 1. Consumo mensal em kWh
-  const consumoKwh = state.consumoUnit === 'rs' ? (state.consumoVal / TARIFA) : state.consumoVal;
-  const geracaoNecessaria = consumoKwh * 1.05; // 5% de margem
-
-  // 2. Buscar menor preço entre todas as tabelas que atendam
+// Busca dentro de uma categoria a opção MAIS BARATA que atenda a geração mínima.
+// Se categoria === null, busca em todas (qualquer marca).
+function buscarMelhor(geracaoMin, categoria) {
   let melhor = null;
   for (const [key, tab] of Object.entries(TABELAS)) {
+    if (categoria && CATEGORIA[key] !== categoria) continue;
     for (const r of tab.rows) {
-      if (r.g >= geracaoNecessaria) {
-        const candidato = { ...r, tabela: key, inv: tab.inv, mod: tab.mod, pot: tab.pot };
+      if (r.g >= geracaoMin) {
+        const candidato = { ...r, tabela: key, inv: tab.inv, mod: tab.mod, pot: tab.pot, categoria: CATEGORIA[key] };
         if (!melhor || candidato.descMax < melhor.descMax) melhor = candidato;
-        break; // primeira linha que atende dentro da tabela (menor opção)
+        break; // primeira linha que atende dentro de cada tabela (menor opção)
       }
     }
   }
-  // Fallback: se ninguém atende (consumo gigante), pega a maior opção
+  // Fallback: se nenhuma linha atende geração (consumo gigante), pega a maior opção da categoria
   if (!melhor) {
     for (const [key, tab] of Object.entries(TABELAS)) {
+      if (categoria && CATEGORIA[key] !== categoria) continue;
       const r = tab.rows[tab.rows.length - 1];
-      const candidato = { ...r, tabela: key, inv: tab.inv, mod: tab.mod, pot: tab.pot };
+      const candidato = { ...r, tabela: key, inv: tab.inv, mod: tab.mod, pot: tab.pot, categoria: CATEGORIA[key] };
       if (!melhor || candidato.descMax > melhor.descMax) melhor = candidato;
     }
   }
+  return melhor;
+}
 
-  // 3. Economia
-  // Economia mensal hoje = (consumo - taxa_min) * tarifa
+function calcular() {
+  // 1. Conta em R$ → consumo em kWh
+  const consumoKwh = state.consumoRs / TARIFA;
+  const geracaoNecessaria = consumoKwh * 1.05; // 5% de margem
+
+  // 2. Buscar a melhor opção COMERCIAL (SAJ) e PREMIUM (Sungrow/Deye)
+  const comercial = buscarMelhor(geracaoNecessaria, 'comercial');
+  const premium   = buscarMelhor(geracaoNecessaria, 'premium');
+
+  // 3. Economia (usa geração da comercial como base)
+  const base = comercial || premium;
   const econMes = Math.max(0, (consumoKwh - TAXA_MIN_KWH)) * TARIFA * DESCONTO_REAL;
   let econ25 = 0;
   for (let ano = 0; ano < 25; ano++) {
     econ25 += econMes * 12 * Math.pow(1 + INFLAC_TARIFA, ano);
   }
 
-  // 4. Geração mensal sazonal
-  const geracaoMensal = SAZON.map(f => Math.round(melhor.g * f));
+  // 4. Geração mensal sazonal (baseada na comercial)
+  const geracaoMensal = SAZON.map(f => Math.round((base ? base.g : 0) * f));
   const geracaoAno = geracaoMensal.reduce((a,b) => a+b, 0);
 
+  // Anexa preço pra cada opção
+  if (comercial) comercial.preco = comercial.descMax;
+  if (premium)   premium.preco   = premium.descMax;
+
   return {
-    ...melhor,
-    preco: melhor.descMax,
+    comercial, premium,
     consumoKwh: Math.round(consumoKwh),
-    geracaoMensal,
-    geracaoAno,
-    econMes,
-    econ25,
+    geracaoMensal, geracaoAno,
+    econMes, econ25,
   };
 }
 
 function renderResult(r) {
   $('#r_hello').innerHTML = `Pronto, <em>${state.nome.split(' ')[0]}!</em>`;
-  $('#r_preco').textContent = fmtBRL(r.preco);
-  $('#r_kwp').textContent = r.kwp.toFixed(1).replace('.', ',') + ' kWp';
-  $('#r_paineis').textContent = r.n + ' painéis ' + r.pot + 'W';
-  $('#r_geracao').textContent = fmtNum(r.g);
+
+  // === Plano Comercial ===
+  if (r.comercial) {
+    const c = r.comercial;
+    $('#r_c_preco').textContent = fmtBRL(c.preco);
+    $('#r_c_inv').textContent = c.inv;
+    $('#r_c_kwp').textContent = c.kwp.toFixed(1).replace('.', ',') + ' kWp';
+    $('#r_c_paineis').textContent = c.n + ' × ' + c.pot + 'W';
+    $('#r_c_geracao').textContent = fmtNum(c.g) + ' kWh/mês';
+    $('#r_c_whatsapp').href = buildWhatsapp(r, 'comercial');
+  }
+
+  // === Plano Premium ===
+  if (r.premium) {
+    const p = r.premium;
+    $('#r_p_preco').textContent = fmtBRL(p.preco);
+    $('#r_p_inv').textContent = p.inv;
+    $('#r_p_kwp').textContent = p.kwp.toFixed(1).replace('.', ',') + ' kWp';
+    $('#r_p_paineis').textContent = p.n + ' × ' + p.pot + 'W';
+    $('#r_p_geracao').textContent = fmtNum(p.g) + ' kWh/mês';
+    $('#r_p_whatsapp').href = buildWhatsapp(r, 'premium');
+  }
+
+  // Stats gerais
   $('#r_economiaMes').textContent = fmtBRL(r.econMes);
   $('#r_economia25').textContent = fmtBRL(r.econ25);
   $('#r_geracaoAno').textContent = fmtNum(r.geracaoAno);
 
-  // Chart
+  // Chart (baseado na geração da comercial)
   const meses = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
-  const maxG = Math.max(...r.geracaoMensal);
+  const maxG = Math.max(...r.geracaoMensal, 1);
   const chart = $('#r_chart');
   chart.innerHTML = '';
   r.geracaoMensal.forEach((g, i) => {
@@ -715,44 +888,60 @@ function renderResult(r) {
     chart.innerHTML += `<div class="bar"><div class="b" data-v="${g}" style="height:${h}px"></div><div class="m">${meses[i]}</div></div>`;
   });
 
-  // Equipamentos
+  // Equipamentos (descrição genérica — varia conforme plano escolhido)
   const eqs = $('#r_equipamentos');
+  const c = r.comercial || r.premium;
   const estruturaLbl = state.telhado === 'solo' ? 'Estrutura de solo (aterrada)' : `Estrutura ${state.telhado} para telhado`;
   const itens = [
-    { ic:'☀️', n: `${r.n} painéis solares ${r.mod}`, d: `${r.pot}W cada · Tier 1 · 25 anos de garantia` },
-    { ic:'⚡', n: `${r.invs} inversor${r.invs>1?'es':''} ${r.inv}`, d: `Garantia de fábrica · monitoramento via app` },
-    { ic:'🔧', n: estruturaLbl, d: `Fixação certificada · resistente a vento até 120 km/h` },
-    { ic:'🛡️', n: 'String box + proteção CC/CA', d: `DPS Clamper · disjuntores · cabos solares` },
-    { ic:'📋', n: 'Projeto + homologação CEMIG', d: 'Documentação técnica · troca de medidor · vistoria' },
-    { ic:'👷', n: 'Instalação completa', d: `Equipe própria · 1 a 3 dias úteis · limpeza final` },
+    { n: `${c.n} painéis solares de ${c.pot}W`, d: `Fabricantes Tier 1 · 25 anos de garantia de geração` },
+    { n: `Inversor (Comercial: ${r.comercial?r.comercial.inv:'—'} · Premium: ${r.premium?r.premium.inv:'—'})`, d: `Monitoramento via app · garantia de fábrica` },
+    { n: estruturaLbl, d: `Fixação certificada · resistente a vento até 120 km/h` },
+    { n: 'String box + proteção CC/CA', d: `DPS Clamper · disjuntores · cabos solares dedicados` },
+    { n: 'Projeto + homologação CEMIG', d: 'Documentação técnica · troca de medidor · vistoria' },
+    { n: 'Instalação completa', d: `Equipe própria · 1 a 3 dias úteis · limpeza final` },
   ];
   eqs.innerHTML = itens.map(i => `
     <div class="eq-item">
-      <div class="ic">${i.ic}</div>
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
       <div class="info"><div class="n">${i.n}</div><div class="d">${i.d}</div></div>
     </div>
   `).join('');
 
-  // WhatsApp link
+  // WhatsApp link geral (sem plano específico — atendente escolhe)
+  $('#r_whatsapp').href = buildWhatsapp(r, null);
+}
+
+function buildWhatsapp(r, planoEscolhido) {
   const phone = '5534998165040';
+  const c = r.comercial, p = r.premium;
+  const padraoLbl = {mono110:'Mono 110V',mono220:'Mono 220V',bif220:'Bifásico 220V',tri220:'Trifásico'}[state.padrao] || state.padrao;
+  const tipoLbl = state.tipo.charAt(0).toUpperCase() + state.tipo.slice(1);
+  const telhadoLbl = state.telhado.charAt(0).toUpperCase() + state.telhado.slice(1);
+
+  let opcao = '';
+  if (planoEscolhido === 'comercial' && c) {
+    opcao = `\n\n✅ *Opção que escolhi: COMERCIAL*\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · ${c.n} painéis\n• Inversor ${c.inv}\n• A partir de R$ ${fmtBRL(c.preco)}`;
+  } else if (planoEscolhido === 'premium' && p) {
+    opcao = `\n\n✅ *Opção que escolhi: PREMIUM*\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · ${p.n} painéis\n• Inversor ${p.inv}\n• A partir de R$ ${fmtBRL(p.preco)}`;
+  } else {
+    opcao = '';
+    if (c) opcao += `\n\n💼 *Opção COMERCIAL:* R$ ${fmtBRL(c.preco)}\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${c.inv}`;
+    if (p) opcao += `\n\n⭐ *Opção PREMIUM:* R$ ${fmtBRL(p.preco)}\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${p.inv}`;
+  }
+
   const msg = encodeURIComponent(
 `Olá! Acabei de simular meu projeto solar no site da Irmãos na Obra.
 
-📋 Meus dados:
+📋 *Meus dados:*
 • Nome: ${state.nome}
 • Cidade: ${state.cidade}/${state.estado}
-• Tipo: ${state.tipo} · ${state.telhado}
-• Padrão: ${state.padrao}
-• Conta atual: ${state.consumoUnit === 'rs' ? 'R$ ' : ''}${state.consumoVal}${state.consumoUnit === 'kwh' ? ' kWh' : '/mês'}
-
-⚡ Sistema simulado:
-• ${r.kwp.toFixed(1).replace('.',',')} kWp · ${r.n} painéis
-• Geração: ~${fmtNum(r.g)} kWh/mês
-• A partir de R$ ${fmtBRL(r.preco)}
+• Tipo: ${tipoLbl} · Telhado ${telhadoLbl}
+• Padrão: ${padraoLbl}
+• Conta atual: R$ ${state.consumoRs}/mês${opcao}
 
 Gostaria de agendar a visita técnica gratuita!`
   );
-  $('#r_whatsapp').href = `https://wa.me/${phone}?text=${msg}`;
+  return `https://wa.me/${phone}?text=${msg}`;
 }
 
 // Track inicial
