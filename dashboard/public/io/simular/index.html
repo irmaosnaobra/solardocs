@@ -161,7 +161,62 @@
   .result-head h1{font-size:38px}
   .result-head .lead{margin-top:8px}
 
-  /* PLANOS DUAIS (Comercial / Premium) */
+  /* HERO OFFER (1 card de destaque — sempre o mais barato) */
+  .hero-offer{
+    background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 100%);
+    color:#fff;border-radius:22px;padding:32px 28px;
+    box-shadow:0 28px 60px rgba(15,42,82,.35);
+    position:relative;overflow:hidden;margin-bottom:20px;
+  }
+  .hero-offer::before{content:'';position:absolute;top:-100px;right:-100px;width:300px;height:300px;background:radial-gradient(circle,rgba(194,138,44,.4),transparent 60%);filter:blur(50px);pointer-events:none}
+  .hero-offer::after{content:'';position:absolute;bottom:-120px;left:-80px;width:240px;height:240px;background:radial-gradient(circle,rgba(194,138,44,.25),transparent 60%);filter:blur(60px);pointer-events:none}
+  .hero-offer > *{position:relative;z-index:1}
+  .hero-offer-tag{
+    display:inline-block;background:var(--gold);color:var(--navy);
+    font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;
+    padding:6px 14px;border-radius:999px;margin-bottom:12px;
+  }
+  .hero-offer-inv{
+    font-family:'Playfair Display';font-weight:700;font-size:18px;
+    color:var(--gold-pale);letter-spacing:.01em;margin-bottom:14px;line-height:1.1;
+  }
+  .hero-offer-from{font-size:12px;font-weight:700;color:rgba(255,255,255,.7);letter-spacing:.08em;text-transform:uppercase}
+  .hero-offer-price{
+    font-family:'Playfair Display';font-weight:800;font-size:64px;line-height:1;
+    color:#fff;letter-spacing:-.02em;margin:4px 0 6px;
+  }
+  .hero-offer-price small{font-size:26px;font-weight:700;opacity:.85;margin-right:5px}
+  .hero-offer-price .x{font-size:20px;font-weight:600;opacity:.65;margin-left:8px;letter-spacing:0}
+  .hero-offer-sub{font-size:12px;color:rgba(255,255,255,.7);font-weight:600;letter-spacing:.02em;margin-bottom:18px;min-height:14px}
+  .hero-offer-specs{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+    padding:14px;border-radius:14px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+    backdrop-filter:blur(8px);margin-bottom:20px;
+  }
+  .hero-offer-specs .spec{text-align:center}
+  .hero-offer-specs .spec-v{font-family:'Playfair Display';font-weight:800;font-size:18px;color:#fff;line-height:1.1;letter-spacing:-.01em}
+  .hero-offer-specs .spec-l{margin-top:4px;font-size:10px;font-weight:700;color:rgba(255,255,255,.7);letter-spacing:.08em;text-transform:uppercase}
+  .hero-offer-cta{
+    display:flex;align-items:center;justify-content:center;gap:12px;
+    background:linear-gradient(135deg,#25d366 0%,#128c7e 100%);color:#fff;
+    padding:18px 22px;border-radius:14px;
+    font-family:inherit;font-weight:800;font-size:16px;letter-spacing:.01em;
+    text-decoration:none;text-align:center;
+    box-shadow:0 14px 36px rgba(37,211,102,.4),0 0 0 0 rgba(37,211,102,.55);
+    animation:waPulse 2.4s ease-out infinite;
+    transition:transform .15s;
+  }
+  .hero-offer-cta:hover{transform:translateY(-2px)}
+  .hero-offer-cta .ic{display:inline-flex;align-items:center;justify-content:center}
+  @keyframes waPulse{
+    0%{box-shadow:0 14px 36px rgba(37,211,102,.4),0 0 0 0 rgba(37,211,102,.55)}
+    70%{box-shadow:0 14px 36px rgba(37,211,102,.4),0 0 0 22px rgba(37,211,102,0)}
+    100%{box-shadow:0 14px 36px rgba(37,211,102,.4),0 0 0 0 rgba(37,211,102,0)}
+  }
+  .hero-offer-foot{margin-top:10px;text-align:center;font-size:11px;color:rgba(255,255,255,.6);font-weight:600;letter-spacing:.04em}
+
+  /* (legado) PLANOS DUAIS — mantido caso outro fluxo use */
   .plans{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px}
   .plan{
     position:relative;border-radius:18px;padding:24px 22px;
@@ -282,6 +337,9 @@
     .field{margin-bottom:9px}
     .plans{grid-template-columns:1fr}
     .plan-price .val{font-size:36px}
+    .hero-offer{padding:22px 20px;border-radius:18px}
+    .hero-offer-price{font-size:48px}
+    .hero-offer-price small{font-size:22px}
     .stats-row{grid-template-columns:1fr}
     .field-row,.field-row.row-3{grid-template-columns:1fr}
     .result-ctas{grid-template-columns:1fr}
@@ -464,45 +522,27 @@
     <div class="result-head">
       <span class="eyebrow">✓ Estimativa pronta</span>
       <h1 id="r_hello">Pronto, <em>fulano!</em></h1>
-      <p class="lead">Você tem <b>2 opções</b> que atendem seu consumo. Escolha a que faz sentido pra você.</p>
+      <p class="lead">Este é o sistema ideal pra você — <b>menor preço entre todos os fornecedores</b>.</p>
     </div>
 
-    <div class="plans">
-      <div class="plan comercial">
-        <span class="plan-tag">★ Mais escolhido</span>
-        <div class="plan-name">Comercial<span id="r_c_inv">—</span></div>
-        <div class="plan-price">
-          <div class="from" id="r_c_modeLabel">A partir de</div>
-          <div class="val"><small>R$</small><span id="r_c_preco">—</span><span class="x" id="r_c_x"></span></div>
-          <div class="plan-price-sub" id="r_c_modeSub"></div>
-        </div>
-        <div class="plan-specs">
-          <div class="row"><span>Potência</span><b id="r_c_kwp">—</b></div>
-          <div class="row"><span>Painéis</span><b id="r_c_paineis">—</b></div>
-          <div class="row"><span>Geração média</span><b id="r_c_geracao">—</b></div>
-        </div>
-        <a href="#" id="r_c_whatsapp" class="plan-cta" target="_blank" rel="noopener" data-plan="comercial">
-          Quero a Comercial →
-        </a>
+    <div class="hero-offer">
+      <div class="hero-offer-tag">★ Sua oferta · sistema completo</div>
+      <div class="hero-offer-inv" id="r_inv">—</div>
+      <div class="hero-offer-from" id="r_modeLabel">A partir de</div>
+      <div class="hero-offer-price">
+        <small>R$</small><span id="r_preco">—</span><span class="x" id="r_x"></span>
       </div>
-
-      <div class="plan premium">
-        <span class="plan-tag">Upgrade</span>
-        <div class="plan-name" style="color:#fff">Premium<span id="r_p_inv">—</span></div>
-        <div class="plan-price">
-          <div class="from" id="r_p_modeLabel">A partir de</div>
-          <div class="val"><small>R$</small><span id="r_p_preco">—</span><span class="x" id="r_p_x"></span></div>
-          <div class="plan-price-sub" id="r_p_modeSub"></div>
-        </div>
-        <div class="plan-specs">
-          <div class="row"><span>Potência</span><b id="r_p_kwp">—</b></div>
-          <div class="row"><span>Painéis</span><b id="r_p_paineis">—</b></div>
-          <div class="row"><span>Geração média</span><b id="r_p_geracao">—</b></div>
-        </div>
-        <a href="#" id="r_p_whatsapp" class="plan-cta" target="_blank" rel="noopener" data-plan="premium">
-          Quero a Premium →
-        </a>
+      <div class="hero-offer-sub" id="r_modeSub"></div>
+      <div class="hero-offer-specs">
+        <div class="spec"><div class="spec-v" id="r_kwp">—</div><div class="spec-l">Potência</div></div>
+        <div class="spec"><div class="spec-v" id="r_paineis">—</div><div class="spec-l">Painéis</div></div>
+        <div class="spec"><div class="spec-v" id="r_geracao">—</div><div class="spec-l">Geração/mês</div></div>
       </div>
+      <a href="#" id="r_hero_whatsapp" class="hero-offer-cta" target="_blank" rel="noopener">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></span>
+        <span>Garantir essa condição no WhatsApp</span>
+      </a>
+      <div class="hero-offer-foot">Responde em até 5min · sem custo · sem compromisso</div>
     </div>
 
     <div class="stats-row">
@@ -795,7 +835,7 @@ $('#btnCalc').addEventListener('click', () => {
   const result = calcular();
   renderResult(result);
   goStep(4);
-  const valor = result.comercial ? result.comercial.preco : 0;
+  const valor = result.oferta ? result.oferta.preco : 0;
   fbqTrack('Lead', { content_name: 'simulador_lead', value: valor, currency: 'BRL' });
 
   // envia ao backend tracking (não-bloqueante)
@@ -808,8 +848,7 @@ $('#btnCalc').addEventListener('click', () => {
         event_data: {
           nome: state.nome, whats: state.whats, cidade: state.cidade,
           consumoRs: state.consumoRs, pagamento: state.pagamento,
-          comercial: result.comercial ? { kwp: result.comercial.kwp, preco: result.comercial.preco, inv: getInvLabel(result.comercial) } : null,
-          premium:   result.premium   ? { kwp: result.premium.kwp,   preco: result.premium.preco,   inv: getInvLabel(result.premium) }   : null,
+          oferta: result.oferta ? { kwp: result.oferta.kwp, preco: result.oferta.preco, inv: getInvLabel(result.oferta) } : null,
         }
       }),
       keepalive: true,
@@ -834,8 +873,9 @@ $('#btnCalc').addEventListener('click', () => {
         padrao: state.padrao,
         pagamento: state.pagamento,
         consumo_rs: state.consumoRs,
-        comercial: result.comercial ? { kwp: result.comercial.kwp, preco: result.comercial.preco, inv: getInvLabel(result.comercial) } : null,
-        premium:   result.premium   ? { kwp: result.premium.kwp,   preco: result.premium.preco,   inv: getInvLabel(result.premium) }   : null,
+        // mantém o shape antigo da tabela io_leads (campos comercial_*) — usa a oferta única em ambos
+        comercial: result.oferta ? { kwp: result.oferta.kwp, preco: result.oferta.preco, inv: getInvLabel(result.oferta) } : null,
+        premium:   null,
         session_id: getSessId(),
         ...utm,
       }),
@@ -892,28 +932,24 @@ function calcular() {
   const consumoKwh = state.consumoRs / TARIFA;
   const geracaoNecessaria = consumoKwh * 1.05; // 5% de margem
 
-  // 2. Buscar a melhor opção COMERCIAL (SAJ) e PREMIUM (Sungrow/Deye)
-  const comercial = buscarMelhor(geracaoNecessaria, 'comercial');
-  const premium   = buscarMelhor(geracaoNecessaria, 'premium');
+  // 2. Buscar a opção mais barata global (qualquer categoria — sempre o menor preço)
+  const oferta = buscarMelhor(geracaoNecessaria, null);
 
-  // 3. Economia (usa geração da comercial como base)
-  const base = comercial || premium;
+  // 3. Economia
   const econMes = Math.max(0, (consumoKwh - TAXA_MIN_KWH)) * TARIFA * DESCONTO_REAL;
   let econ25 = 0;
   for (let ano = 0; ano < 25; ano++) {
     econ25 += econMes * 12 * Math.pow(1 + INFLAC_TARIFA, ano);
   }
 
-  // 4. Geração mensal sazonal (baseada na comercial)
-  const geracaoMensal = SAZON.map(f => Math.round((base ? base.g : 0) * f));
+  // 4. Geração mensal sazonal
+  const geracaoMensal = SAZON.map(f => Math.round((oferta ? oferta.g : 0) * f));
   const geracaoAno = geracaoMensal.reduce((a,b) => a+b, 0);
 
-  // Anexa preço pra cada opção
-  if (comercial) comercial.preco = comercial.descMax;
-  if (premium)   premium.preco   = premium.descMax;
+  if (oferta) oferta.preco = oferta.descMax;
 
   return {
-    comercial, premium,
+    oferta,
     consumoKwh: Math.round(consumoKwh),
     geracaoMensal, geracaoAno,
     econMes, econ25,
@@ -971,35 +1007,30 @@ function getPriceDisplay(plano) {
 function aplicaPrecoCard(prefixo, plano) {
   if (!plano) return;
   const d = getPriceDisplay(plano);
-  $(`#r_${prefixo}_modeLabel`).textContent = d.label;
-  $(`#r_${prefixo}_preco`).textContent = d.val;
-  $(`#r_${prefixo}_x`).textContent = d.x;
-  $(`#r_${prefixo}_modeSub`).textContent = d.sub;
+  // prefixo: 'c_' / 'p_' / '' — concatena com r_ pra montar o id
+  const sep = prefixo ? '_' : '';
+  const lblEl = $(`#r${sep}${prefixo}_modeLabel`);
+  const preEl = $(`#r${sep}${prefixo}_preco`);
+  const xEl   = $(`#r${sep}${prefixo}_x`);
+  const subEl = $(`#r${sep}${prefixo}_modeSub`);
+  if (lblEl) lblEl.textContent = d.label;
+  if (preEl) preEl.textContent = d.val;
+  if (xEl)   xEl.textContent   = d.x;
+  if (subEl) subEl.textContent = d.sub;
 }
 
 function renderResult(r) {
   $('#r_hello').innerHTML = `Pronto, <em>${state.nome.split(' ')[0]}!</em>`;
 
-  // === Plano Comercial ===
-  if (r.comercial) {
-    const c = r.comercial;
-    aplicaPrecoCard('c', c);
-    $('#r_c_inv').textContent = getInvLabel(c);
-    $('#r_c_kwp').textContent = c.kwp.toFixed(1).replace('.', ',') + ' kWp';
-    $('#r_c_paineis').textContent = c.n + ' × ' + c.pot + 'W';
-    $('#r_c_geracao').textContent = fmtNum(c.g) + ' kWh/mês';
-    $('#r_c_whatsapp').href = buildWhatsapp(r, 'comercial');
-  }
-
-  // === Plano Premium ===
-  if (r.premium) {
-    const p = r.premium;
-    aplicaPrecoCard('p', p);
-    $('#r_p_inv').textContent = getInvLabel(p);
-    $('#r_p_kwp').textContent = p.kwp.toFixed(1).replace('.', ',') + ' kWp';
-    $('#r_p_paineis').textContent = p.n + ' × ' + p.pot + 'W';
-    $('#r_p_geracao').textContent = fmtNum(p.g) + ' kWh/mês';
-    $('#r_p_whatsapp').href = buildWhatsapp(r, 'premium');
+  // Card único — sempre o mais barato
+  if (r.oferta) {
+    const o = r.oferta;
+    aplicaPrecoCard('', o);
+    $('#r_inv').textContent = `${o.n} painéis · Inversor ${getInvLabel(o)}`;
+    $('#r_kwp').textContent = o.kwp.toFixed(1).replace('.', ',') + ' kWp';
+    $('#r_paineis').textContent = `${o.n} × ${o.pot}W`;
+    $('#r_geracao').textContent = fmtNum(o.g) + ' kWh';
+    $('#r_hero_whatsapp').href = buildWhatsapp(r);
   }
 
   // Stats gerais
@@ -1017,18 +1048,18 @@ function renderResult(r) {
     chart.innerHTML += `<div class="bar"><div class="b" data-v="${g}" style="height:${h}px"></div><div class="m">${meses[i]}</div></div>`;
   });
 
-  // Equipamentos (descrição genérica — varia conforme plano escolhido)
+  // Equipamentos
   const eqs = $('#r_equipamentos');
-  const c = r.comercial || r.premium;
+  const c = r.oferta;
   const estruturaLbl = state.telhado === 'solo' ? 'Estrutura de solo (aterrada)' : `Estrutura ${state.telhado} para telhado`;
-  const itens = [
+  const itens = c ? [
     { n: `${c.n} painéis solares de ${c.pot}W`, d: `Fabricantes Tier 1 · 25 anos de garantia de geração` },
-    { n: `Inversor (Comercial: ${getInvLabel(r.comercial)} · Premium: ${getInvLabel(r.premium)})`, d: `Monitoramento via app · garantia de fábrica` },
+    { n: `Inversor ${getInvLabel(c)}`, d: `Monitoramento via app · garantia de fábrica` },
     { n: estruturaLbl, d: `Fixação certificada · resistente a vento até 120 km/h` },
     { n: 'String box + proteção CC/CA', d: `DPS Clamper · disjuntores · cabos solares dedicados` },
     { n: 'Projeto + homologação CEMIG', d: 'Documentação técnica · troca de medidor · vistoria' },
     { n: 'Instalação completa', d: `Equipe própria · 1 a 3 dias úteis · limpeza final` },
-  ];
+  ] : [];
   eqs.innerHTML = itens.map(i => `
     <div class="eq-item">
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
@@ -1037,12 +1068,12 @@ function renderResult(r) {
   `).join('');
 
   // WhatsApp link geral (sem plano específico — atendente escolhe)
-  $('#r_whatsapp').href = buildWhatsapp(r, null);
+  $('#r_whatsapp').href = buildWhatsapp(r);
 }
 
-function buildWhatsapp(r, planoEscolhido) {
+function buildWhatsapp(r) {
   const phone = '5534998165040';
-  const c = r.comercial, p = r.premium;
+  const o = r.oferta;
   const padraoLbl = {mono110:'Mono 110V',mono220:'Mono 220V',bif220:'Bifásico 220V',tri220:'Trifásico'}[state.padrao] || state.padrao;
   const pagLbl = {avista:'À vista',cartao:'Cartão de crédito',financiamento:'Financiamento'}[state.pagamento] || state.pagamento;
   const tipoLbl = state.tipo.charAt(0).toUpperCase() + state.tipo.slice(1);
@@ -1052,20 +1083,11 @@ function buildWhatsapp(r, planoEscolhido) {
     const d = getPriceDisplay(plano);
     if (d.mode === 'avista') return `R$ ${d.val} (à vista)`;
     if (d.mode === 'cartao') return `18× de R$ ${d.val} no cartão`;
-    if (d.mode === 'financiamento') return `84× de R$ ${d.val} financiado (sem entrada)`;
+    if (d.mode === 'financiamento') return `84× de R$ ${d.val} financiado (sem entrada · 120 dias pra 1ª parcela)`;
     return `R$ ${d.val}`;
   }
 
-  let opcao = '';
-  if (planoEscolhido === 'comercial' && c) {
-    opcao = `\n\n✅ *Opção que escolhi: COMERCIAL*\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · ${c.n} painéis\n• Inversor ${getInvLabel(c)}\n• ${precoTxt(c)}`;
-  } else if (planoEscolhido === 'premium' && p) {
-    opcao = `\n\n✅ *Opção que escolhi: PREMIUM*\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · ${p.n} painéis\n• Inversor ${getInvLabel(p)}\n• ${precoTxt(p)}`;
-  } else {
-    opcao = '';
-    if (c) opcao += `\n\n💼 *Opção COMERCIAL:* ${precoTxt(c)}\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${getInvLabel(c)}`;
-    if (p) opcao += `\n\n⭐ *Opção PREMIUM:* ${precoTxt(p)}\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${getInvLabel(p)}`;
-  }
+  const oferta = o ? `\n\n⚡ *Sistema simulado:*\n• ${o.kwp.toFixed(1).replace('.',',')} kWp · ${o.n} painéis ${o.pot}W\n• Inversor ${getInvLabel(o)}\n• Geração ~${fmtNum(o.g)} kWh/mês\n• ${precoTxt(o)}` : '';
 
   const msg = encodeURIComponent(
 `Olá! Acabei de simular meu projeto solar no site da Irmãos na Obra.
@@ -1076,9 +1098,9 @@ function buildWhatsapp(r, planoEscolhido) {
 • Tipo: ${tipoLbl} · Telhado ${telhadoLbl}
 • Padrão: ${padraoLbl}
 • Forma de pagamento: ${pagLbl}
-• Conta atual: R$ ${state.consumoRs}/mês${opcao}
+• Conta atual: R$ ${state.consumoRs}/mês${oferta}
 
-Gostaria de agendar a visita técnica gratuita!`
+Gostaria de garantir essa condição e agendar a visita técnica gratuita!`
   );
   return `https://wa.me/${phone}?text=${msg}`;
 }
