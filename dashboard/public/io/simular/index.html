@@ -890,14 +890,13 @@ function getPriceDisplay(plano) {
   const pv = plano.preco; // descMax = preço de venda
   if (state.pagamento === 'cartao') {
     // (preço de venda × 1,19) / 18 — 19% de acréscimo, em 18x
-    const total = pv * 1.19;
-    const parcela = total / 18;
+    const parcela = (pv * 1.19) / 18;
     return {
       mode: 'cartao',
       label: 'Parcelado em 18x',
       val: fmtBRL(parcela),
       x: '× 18',
-      sub: `Total no cartão: R$ ${fmtBRL(total)}`,
+      sub: '',
     };
   }
   if (state.pagamento === 'financiamento') {
@@ -908,7 +907,7 @@ function getPriceDisplay(plano) {
       label: 'Financiado · a partir de',
       val: fmtBRL(parcela),
       x: '× 84',
-      sub: `Sem entrada · juros 2,4% a.m.`,
+      sub: 'Sem entrada · 120 dias pra primeira parcela',
     };
   }
   // À vista (default)
