@@ -310,10 +310,17 @@
   .chart-head h3{font-family:'Playfair Display';font-weight:700;font-size:19px;color:var(--navy)}
   .chart-head .total{font-size:14px;color:var(--text-muted);font-weight:600}
   .chart-head .total b{color:var(--gold);font-weight:800}
-  .chart{display:flex;align-items:flex-end;gap:6px;height:160px;padding-bottom:24px;position:relative}
+  .chart{display:flex;align-items:flex-end;gap:6px;height:200px;padding-bottom:24px;position:relative}
   .chart::before{content:'';position:absolute;bottom:22px;left:0;right:0;height:1px;background:var(--border)}
   .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;height:100%}
-  .bar .b{width:100%;max-width:36px;background:linear-gradient(180deg,var(--gold-soft) 0%,var(--gold) 100%);border-radius:6px 6px 0 0;position:relative;transition:height .8s ease}
+  .bar .b{
+    width:100%;max-width:36px;
+    background:linear-gradient(180deg,var(--gold-soft) 0%,var(--gold) 100%);
+    border-radius:6px 6px 0 0;
+    position:relative;
+    min-height:24px;
+    box-shadow:inset 0 -2px 0 rgba(0,0,0,.08);
+  }
   .bar .b:hover::after{content:attr(data-v) ' kWh';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;margin-bottom:6px}
   .bar .m{font-size:10px;font-weight:700;color:var(--text-soft);text-transform:uppercase}
 
@@ -732,7 +739,7 @@ const CATEGORIA = {
 // Fator sazonal Triângulo Mineiro (12 meses) — soma = 12.00 (média anual = 1.0, preserva g da tabela)
 // JAN-FEV: alto (verão, sol forte), MAR-MAI: queda (outono), JUN-JUL: mínimo (inverno),
 // AGO-SET: recupera (seca, céu limpo), OUT: pico anual (primavera), NOV-DEZ: alto (verão início)
-const SAZON = [1.10,1.00,1.05,0.95,0.80,0.72,0.75,0.95,1.15,1.25,1.18,1.10];
+const SAZON = [1.12,0.98,1.05,0.92,0.78,0.65,0.70,0.95,1.20,1.30,1.22,1.13];
 
 // Constantes de cálculo
 const TARIFA = 0.92;        // R$/kWh CEMIG aproximado 2026
@@ -1106,9 +1113,12 @@ function renderChart(r) {
   const chart = $('#r_chart');
   if (!chart) return;
   chart.innerHTML = '';
+  // Mapeia altura entre 20% (mín) e 100% (máx) — range visual generoso
+  const altArea = 170; // altura útil (chart 200 - padding 24 - label 6)
   r.geracaoMensal.forEach((g, i) => {
-    const norm = (g - minG) / range;
-    const h = Math.round((0.32 + norm * 0.68) * 130);
+    const norm = (g - minG) / range;       // 0..1
+    const ratio = 0.20 + norm * 0.80;      // 0.20..1.00
+    const h = Math.round(ratio * altArea);
     chart.innerHTML += `<div class="bar"><div class="b" data-v="${g}" style="height:${h}px"></div><div class="m">${meses[i]}</div></div>`;
   });
   const totalEl = $('#r_geracaoAno');
