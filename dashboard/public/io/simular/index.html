@@ -720,10 +720,10 @@ const CATEGORIA = {
 const SAZON = [1.12,0.98,1.05,0.92,0.78,0.65,0.70,0.95,1.20,1.30,1.22,1.13];
 
 // Constantes de cálculo
-const TARIFA = 0.92;        // R$/kWh CEMIG aproximado 2026
-const TAXA_MIN_KWH = 30;    // taxa de disponibilidade (B1 monofásico)
-const INFLAC_TARIFA = 0.06; // 6% a.a. inflação tarifária
-const DESCONTO_REAL = 0.95; // economia real considerando bandeiras
+const TARIFA = 0.92;          // R$/kWh CEMIG (TUSD+TE sem todos impostos) — usada pra dimensionar kit
+const TARIFA_ECONOMIA = 1.20; // R$/kWh tarifa cheia (com PIS/COFINS/ICMS/CIP) — usada pra calcular economia real
+const TAXA_MIN_KWH = 30;      // taxa de disponibilidade (B1 monofásico)
+const INFLAC_TARIFA = 0.06;   // 6% a.a. inflação tarifária
 
 // ════════════════════════════════════════════════════════════════
 // STATE
@@ -1032,8 +1032,8 @@ function calcular() {
   // 2. Buscar a opção mais barata global (qualquer categoria — sempre o menor preço)
   const oferta = buscarMelhor(geracaoNecessaria, null);
 
-  // 3. Economia
-  const econMes = Math.max(0, (consumoKwh - TAXA_MIN_KWH)) * TARIFA * DESCONTO_REAL;
+  // 3. Economia real = quantidade de kWh × tarifa cheia (R$1,20)
+  const econMes = consumoKwh * TARIFA_ECONOMIA;
   let econ25 = 0;
   for (let ano = 0; ano < 25; ano++) {
     econ25 += econMes * 12 * Math.pow(1 + INFLAC_TARIFA, ano);
@@ -1061,10 +1061,23 @@ function calcular() {
 }
 
 // Renomeia inversor "SAJ 3K" → "Auxsol 3K" só no fluxo de financiamento (mesmo equipamento, marca de parceiro)
+// Usado SÓ pra envio ao backend/CRM — não exibido pro cliente
 function getInvLabel(plano) {
   if (!plano) return '—';
   if (state.pagamento === 'financiamento' && plano.tabela === 'SAJ-3K') return 'Auxsol 3K';
   return plano.inv;
+}
+
+// Display público — só quantidade + potência, sem marca (cliente que quiser detalhe chama no zap)
+function getInversorDisplay(o) {
+  if (!o) return '—';
+  const m = (o.inv || '').match(/(\d+(?:[,.]\d+)?)\s*K/i);
+  const potKw = m ? m[1].replace('.', ',') : '?';
+  const isMicro = (o.tabela || '').startsWith('MICRODEYE');
+  const qtd = o.invs || 1;
+  const lblSing = isMicro ? 'microinversor' : 'inversor';
+  const lblPlur = isMicro ? 'microinversores' : 'inversores';
+  return `${qtd} ${qtd > 1 ? lblPlur : lblSing} de ${potKw} kW`;
 }
 
 // Calcula PMT pelo método Price (juros compostos)
@@ -1133,7 +1146,7 @@ function aplicaOferta(r, o) {
   r.geracaoMensal = SAZON.map(f => Math.round(o.g * f));
   r.geracaoAno = r.geracaoMensal.reduce((a,b)=>a+b,0);
   aplicaPrecoCard('', o);
-  $('#r_inv').textContent = `${o.n} painéis · Inversor ${getInvLabel(o)}`;
+  $('#r_inv').textContent = `${o.n} painéis · ${getInversorDisplay(o)}`;
   $('#r_kwp').textContent = o.kwp.toFixed(1).replace('.', ',') + ' kWp';
   $('#r_paineis').textContent = `${o.n} × ${o.pot}W`;
   $('#r_geracao').textContent = fmtNum(o.g) + ' kWh';
@@ -1181,12 +1194,13 @@ function renderResult(r) {
   const c = r.oferta;
   const estruturaLbl = state.telhado === 'solo' ? 'Estrutura de solo (aterrada)' : `Estrutura ${state.telhado} para telhado`;
   const itens = c ? [
-    { n: `${c.n} painéis solares de ${c.pot}W`, d: `Fabricantes Tier 1 · 25 anos de garantia de geração` },
-    { n: `Inversor ${getInvLabel(c)}`, d: `Monitoramento via app · garantia de fábrica` },
+    { n: `${c.n} painéis solares de ${c.pot}W`, d: `25 anos de garantia de geração` },
+    { n: getInversorDisplay(c).replace(/^./, s => s.toUpperCase()), d: `Monitoramento via app · garantia de fábrica` },
     { n: estruturaLbl, d: `Fixação certificada · resistente a vento até 120 km/h` },
-    { n: 'String box + proteção CC/CA', d: `DPS Clamper · disjuntores · cabos solares dedicados` },
+    { n: 'String box + proteção CC/CA', d: `DPS · disjuntores · cabos solares dedicados` },
     { n: 'Projeto + homologação CEMIG', d: 'Documentação técnica · troca de medidor · vistoria' },
     { n: 'Instalação completa', d: `Equipe própria · 1 a 3 dias úteis · limpeza final` },
+    { n: '🏷️ Marcas e modelos · sob consulta', d: 'Quer saber a marca do inversor e dos painéis? Chame no WhatsApp (34) 99816-5040' },
   ] : [];
   eqs.innerHTML = itens.map(i => `
     <div class="eq-item">
@@ -1215,7 +1229,7 @@ function buildWhatsapp(r) {
     return `R$ ${d.val}`;
   }
 
-  const oferta = o ? `\n\n⚡ *Sistema simulado:*\n• ${o.kwp.toFixed(1).replace('.',',')} kWp · ${o.n} painéis ${o.pot}W\n• Inversor ${getInvLabel(o)}\n• Geração ~${fmtNum(o.g)} kWh/mês\n• ${precoTxt(o)}` : '';
+  const oferta = o ? `\n\n⚡ *Sistema simulado:*\n• ${o.kwp.toFixed(1).replace('.',',')} kWp · ${o.n} painéis de ${o.pot}W\n• ${getInversorDisplay(o)}\n• Geração ~${fmtNum(o.g)} kWh/mês\n• ${precoTxt(o)}` : '';
 
   const msg = encodeURIComponent(
 `Olá! Acabei de simular meu projeto solar no site da Irmãos na Obra.
