@@ -7,21 +7,18 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Idempotência: só envia se o último email foi há ≥ 23h
 const MIN_GAP_MS = 23 * 60 * 60 * 1000;
 
-// Cadência CNPJ: 9 emails ao longo de 180 dias (densidade no início, espaçamento depois)
-// Dias 1-7 usam followupEmails (templates 1-7); dias 60+ usam cnpjOngoingEmails
+// Cadência CNPJ (refatorada 2026-05-12): 5 emails ao longo de 30 dias.
+// Foco no Gerador de Proposta Personalizado. Disparada às 8h30 BRT.
+// Audiência: usuários sem CNPJ (não-ativos na plataforma).
 const CNPJ_SCHEDULE: ReadonlyArray<{ day: number; kind: 'onboarding' | 'ongoing'; idx: number }> = [
-  { day: 1,   kind: 'onboarding', idx: 1 },
-  { day: 2,   kind: 'onboarding', idx: 2 },
-  { day: 4,   kind: 'onboarding', idx: 3 },
-  { day: 7,   kind: 'onboarding', idx: 4 },
-  { day: 14,  kind: 'onboarding', idx: 5 },
-  { day: 30,  kind: 'onboarding', idx: 6 },
-  { day: 60,  kind: 'onboarding', idx: 7 },
-  { day: 90,  kind: 'ongoing',    idx: 0 },
-  { day: 180, kind: 'ongoing',    idx: 1 },
+  { day: 1,   kind: 'onboarding', idx: 1 },  // Hook: novidade Gerador de Proposta
+  { day: 5,   kind: 'onboarding', idx: 2 },  // Pain: R$ 200/mês em gerador, aqui vem incluso
+  { day: 12,  kind: 'onboarding', idx: 3 },  // Features: logo, cor, portfólio
+  { day: 20,  kind: 'onboarding', idx: 4 },  // Equipamentos: aberto a todos do mercado
+  { day: 30,  kind: 'onboarding', idx: 5 },  // Última: ativar gratuitamente
 ];
 
-const CNPJ_HORIZON_DAYS = 180;
+const CNPJ_HORIZON_DAYS = 30;
 
 function scheduledForDay(day: number): { kind: 'onboarding' | 'ongoing'; idx: number } | null {
   const entry = CNPJ_SCHEDULE.find(e => e.day === day);

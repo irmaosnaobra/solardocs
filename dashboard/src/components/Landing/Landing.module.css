@@ -560,6 +560,102 @@
   color: #60a5fa;
 }
 
+/* ---- HERO STAMP (carimbo gigante) ---- */
+.stamp {
+  position: relative;
+  width: 460px;
+  max-width: 100%;
+  padding: 36px 30px 30px;
+  border: 7px solid #F59E0B;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(245, 158, 11, 0.10), transparent 60%),
+    rgba(245, 158, 11, 0.04);
+  color: #FBBF24;
+  transform: rotate(-5deg);
+  box-shadow:
+    0 30px 80px rgba(245, 158, 11, 0.30),
+    0 60px 140px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  text-align: center;
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  animation: float 6s ease-in-out infinite;
+}
+.stamp::before {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border: 2px dashed rgba(245, 158, 11, 0.45);
+  border-radius: 11px;
+  pointer-events: none;
+}
+.stampStars {
+  font-size: 18px;
+  letter-spacing: 0.6em;
+  color: rgba(245, 158, 11, 0.75);
+  margin-bottom: 10px;
+}
+.stampHeadline {
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  margin: 4px 0 6px;
+  color: #F59E0B;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+.stampHeadlineAccent {
+  display: block;
+  font-size: 46px;
+  font-weight: 900;
+  line-height: 1.0;
+  margin-top: 6px;
+  background: linear-gradient(180deg, #FCD34D 0%, #F59E0B 60%, #D97706 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.stampDivider {
+  height: 2px;
+  width: 60%;
+  margin: 18px auto 14px;
+  background: linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.6) 50%, transparent 100%);
+}
+.stampList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #FBBF24;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.stampList li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  line-height: 1.3;
+}
+.stampCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  font-size: 13px;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
 @media (max-width: 980px) {
   .heroVisual {
     min-height: 0;
@@ -576,10 +672,34 @@
     transform: translateX(-50%) perspective(900px) rotateY(-8deg);
   }
   .phoneBack { display: none; }
+  .stamp {
+    width: 360px;
+    padding: 28px 22px 24px;
+  }
+  .stampHeadline { font-size: 26px; }
+  .stampHeadlineAccent { font-size: 36px; }
+  .stampList { font-size: 13px; }
 }
 @media (max-width: 540px) {
   .hero { padding: 40px 16px 48px; }
-  .heroVisual { display: none; }
+  .heroVisual {
+    display: flex;
+    min-height: 0;
+    margin-top: 24px;
+    margin-bottom: 8px;
+  }
+  .stamp {
+    width: 100%;
+    max-width: 340px;
+    padding: 22px 16px 20px;
+    transform: rotate(-4deg);
+  }
+  .stampStars { font-size: 14px; margin-bottom: 6px; }
+  .stampHeadline { font-size: 20px; }
+  .stampHeadlineAccent { font-size: 28px; }
+  .stampDivider { margin: 12px auto 10px; }
+  .stampList { font-size: 12px; gap: 6px; }
+  .stampCheck { width: 18px; height: 18px; font-size: 11px; }
   .formCard { padding: 22px 18px; }
 }
 @media (min-width: 980px) {

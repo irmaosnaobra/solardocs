@@ -810,7 +810,43 @@ $('#btnCalc').addEventListener('click', () => {
       keepalive: true,
     }).catch(()=>{});
   } catch(_){}
+
+  // Cria lead no CRM (não-bloqueante)
+  try {
+    const utm = (() => {
+      const sp = new URLSearchParams(location.search);
+      return { utm_source: sp.get('utm_source'), utm_campaign: sp.get('utm_campaign'), utm_content: sp.get('utm_content') };
+    })();
+    fetch('/_api/io-leads', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        nome: state.nome,
+        whatsapp: state.whats,
+        cidade: state.cidade,
+        estado: state.estado,
+        tipo: state.tipo,
+        telhado: state.telhado,
+        padrao: state.padrao,
+        pagamento: state.pagamento,
+        consumo_rs: state.consumoRs,
+        comercial: result.comercial ? { kwp: result.comercial.kwp, preco: result.comercial.preco, inv: getInvLabel(result.comercial) } : null,
+        premium:   result.premium   ? { kwp: result.premium.kwp,   preco: result.premium.preco,   inv: getInvLabel(result.premium) }   : null,
+        session_id: getSessId(),
+        ...utm,
+      }),
+      keepalive: true,
+    }).catch(()=>{});
+  } catch(_){}
 });
+
+// Quando o cliente clica em "Quero a Comercial / Quero a Premium" ou no WhatsApp geral,
+// marca o plano escolhido (best effort, sem id do lead — backend fica simples).
+document.addEventListener('click', (e) => {
+  const a = (e.target instanceof Element) ? e.target.closest('a[data-plan]') : null;
+  if (!a) return;
+  const plano = a.getAttribute('data-plan');
+  fbqTrack('Lead', { content_name: 'plano_' + plano });
+}, true);
 
 function getSessId() {
   try {

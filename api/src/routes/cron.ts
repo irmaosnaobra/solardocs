@@ -233,14 +233,18 @@ router.get('/carla-pergunta-cnpj', async (req: Request, res: Response) => {
 router.get('/master', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
 
+  // 2026-05-12: Email follow-up CNPJ REATIVADO em cadência reduzida
+  // (5 emails em 30d, foco no Gerador de Proposta, disparo 8h30 BRT).
+  // WhatsApp Carla continua pausado pra evitar novos bloqueios.
+  // Pra reativar restantes: descomentar linhas [PAUSED-FOLLOWUP].
   const tasks: Array<[string, () => Promise<any>]> = [
-    ['followup-email-cnpj',         () => runFollowupCnpj()],
-    ['no-contracts-reminder',       () => runNoContractsEmailReminder()],
-    ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],
-    ['carla-inativo',                () => runCarlaInativoFollowup()],
+    ['followup-email-cnpj',         () => runFollowupCnpj()],            // 5 emails/30d — gerador de proposta
+    // ['no-contracts-reminder',       () => runNoContractsEmailReminder()], // [PAUSED-FOLLOWUP] lembrete inativos por email
+    // ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // [PAUSED-FOLLOWUP] WhatsApp Carla — 3 toques 30d
+    // ['carla-inativo',                () => runCarlaInativoFollowup()],     // [PAUSED-FOLLOWUP] WhatsApp Carla — 5 toques 60d
+    // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [PAUSED-FOLLOWUP] broadcast matinal
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
-    ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],
     ['insights-prewarm',             () => getInsights(true)],
     ['luma-reativacao',             () => processarReativacao()],
     ['cleanup-pro-docs',            () => cleanupProDocuments()],

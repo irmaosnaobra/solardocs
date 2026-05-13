@@ -108,7 +108,7 @@ export default function Landing() {
           </div>
           <div className={styles.navRight}>
             <a href="/auth?mode=login" className={styles.navLink}>Entrar</a>
-            <button onClick={() => scrollToFormFrom('grátis')} className={styles.navCta}>Começar grátis</button>
+            <button onClick={() => scrollToFormFrom('grátis')} className={styles.navCta}>Quero o Gerador com a minha Marca</button>
           </div>
         </div>
       </nav>
@@ -192,7 +192,7 @@ export default function Landing() {
                 </div>
 
                 <button type="submit" className={styles.cta} disabled={loading}>
-                  <span>{loading ? 'Criando sua conta...' : 'Começar grátis →'}</span>
+                  <span>{loading ? 'Criando sua conta...' : 'Quero o Gerador com a minha Marca →'}</span>
                 </button>
 
                 {error && (
@@ -213,50 +213,25 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* MOCKUP */}
+          {/* CARIMBO GIGANTE — substitui o mockup do celular */}
           <div className={styles.heroVisual}>
-            <div className={styles.phoneStack}>
-              <div className={`${styles.phone} ${styles.phoneBack}`}>
-                <div className={styles.phoneScreen}>
-                  <div className={styles.phoneHead}>
-                    <div className={styles.phoneHeadTitle}>SolarDoc · Clientes</div>
-                    <div className={styles.phoneHeadName}>Sua Empresa Solar</div>
-                  </div>
-                  <div className={styles.phoneCard}>
-                    <h4>Padaria Real</h4>
-                    <p>Centro · 8 kWp</p>
-                    <span className={styles.phoneStatus}>✓ Contrato OK</span>
-                  </div>
-                  <div className={styles.phoneCard}>
-                    <h4>Faz. Sol Nascente</h4>
-                    <p>Rural · 32 kWp</p>
-                    <span className={`${styles.phoneStatus} ${styles.phoneStatusBlue}`}>Em análise</span>
-                  </div>
-                </div>
+            <div className={styles.stamp}>
+              <div className={styles.stampStars}>★ ★ ★</div>
+              <div className={styles.stampHeadline}>
+                Gerador de Proposta
+                <span className={styles.stampHeadlineAccent}>com a sua cara</span>
               </div>
-              <div className={`${styles.phone} ${styles.phoneFront}`}>
-                <div className={styles.phoneScreen}>
-                  <div className={styles.phoneHead}>
-                    <div className={styles.phoneHeadTitle}>SolarDoc · Documentos</div>
-                    <div className={styles.phoneHeadName}>Sua Empresa Solar</div>
-                  </div>
-                  <div className={styles.phoneCard}>
-                    <h4>Contrato Compra e Venda</h4>
-                    <p>Marcos Silva · 5,5 kWp · Hoje</p>
-                    <span className={styles.phoneStatus}>✓ Assinado pelo cliente</span>
-                  </div>
-                  <div className={styles.phoneCard}>
-                    <h4>Procuração — Concessionária</h4>
-                    <p>Faz. Sol Nascente · Aguardando</p>
-                    <span className={`${styles.phoneStatus} ${styles.phoneStatusBlue}`}>Enviado</span>
-                  </div>
-                  <div className={styles.phoneCard}>
-                    <h4>Proposta para Banco</h4>
-                    <p>Padaria Real · R$ 38.500</p>
-                    <span className={styles.phoneStatus}>✓ Pronto pra envio</span>
-                  </div>
-                </div>
-              </div>
+              <div className={styles.stampDivider} />
+              <ul className={styles.stampList}>
+                <li>
+                  <span className={styles.stampCheck}>✓</span>
+                  Sem burocracia
+                </li>
+                <li>
+                  <span className={styles.stampCheck}>✓</span>
+                  Aberto a todos os equipamentos do mercado
+                </li>
+              </ul>
             </div>
           </div>
         </div>
@@ -277,6 +252,59 @@ export default function Landing() {
             <span className={styles.trustChip}><span className={styles.trustChipDot} /> Light</span>
             <span className={styles.trustChip}><span className={styles.trustChipDot} /> Cosern</span>
             <span className={styles.trustChip}><span className={styles.trustChipDot} /> Coelba</span>
+          </div>
+        </div>
+      </section>
+
+      {/* GERADOR DE PROPOSTA — pain hook (logo após trust strip) */}
+      <section className={styles.diffs}>
+        <div className={styles.diffsInner}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Novidade · Gerador de Proposta Personalizado</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
+            Cansado de pagar <strong>caro</strong> em gerador de proposta?<br />
+            Tenha o seu — <strong>moderno, com a sua cara</strong>.
+          </h2>
+          <p className={styles.sectionSub} data-reveal>
+            Os geradores especializados cobram <b>R$ 100 a R$ 300 por mês</b> pra te entregar um modelo
+            engessado, igual ao do concorrente. Aqui você tem o <b>seu</b> gerador — sua marca, suas cores,
+            sua identidade — já incluso no plano.
+          </p>
+
+          <div className={styles.diffsGrid} style={{ marginTop: 40 }}>
+            <div className={styles.diffCard} data-reveal>
+              <div className={styles.diffIcon}>💸</div>
+              <div className={styles.diffH}>Sem mensalidade absurda</div>
+              <div className={styles.diffP}>
+                Pare de pagar <b>centenas de reais por mês</b> só pra ter "uma proposta bonita". No SolarDoc,
+                o gerador de proposta vem incluso a partir de <b>R$ 27/mês</b> — o resto fica como bônus.
+              </div>
+            </div>
+
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.1s' }}>
+              <div className={styles.diffIcon}>🎨</div>
+              <div className={styles.diffH}>Com a sua cara, não a dos outros</div>
+              <div className={styles.diffP}>
+                Logo, cor da empresa, foto do seu portfólio. O cliente recebe uma proposta <b>com a sua
+                identidade visual</b> — não um template genérico que metade do mercado já mandou pra ele.
+              </div>
+            </div>
+
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.2s' }}>
+              <div className={styles.diffIcon}>⚡</div>
+              <div className={styles.diffH}>Moderno e gerado em segundos</div>
+              <div className={styles.diffP}>
+                Você preenche kWp, consumo e valor — a IA monta uma proposta <b>visual e moderna</b>, pronta
+                pro WhatsApp do cliente. Sem PowerPoint. Sem ficar mexendo em PDF na unha.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: 40 }} data-reveal>
+            <button onClick={() => scrollToFormFrom('grátis')} className={styles.cta} style={{ maxWidth: 360 }}>
+              <span>Quero o Gerador com a minha Marca →</span>
+            </button>
           </div>
         </div>
       </section>
@@ -607,7 +635,7 @@ export default function Landing() {
                 <li>Assinatura digital</li>
                 <li>Suporte por WhatsApp</li>
               </ul>
-              <button onClick={() => scrollToFormFrom('grátis')} className={styles.planBtn}>Começar grátis</button>
+              <button onClick={() => scrollToFormFrom('grátis')} className={styles.planBtn}>Quero o Gerador com a minha Marca</button>
             </div>
 
             <div className={`${styles.plan} ${styles.planFeatured}`} data-reveal style={{ transitionDelay: '0.1s' }}>
@@ -623,7 +651,7 @@ export default function Landing() {
                 <li>Paga quando quiser, sem teste vencendo</li>
               </ul>
               <button onClick={() => scrollToFormFrom('pro')} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
-                Quero o Pro
+                Quero o Gerador com a minha Marca
               </button>
             </div>
 
@@ -638,7 +666,7 @@ export default function Landing() {
                 <li>Suporte VIP por WhatsApp</li>
                 <li>Acesso a novos documentos primeiro</li>
               </ul>
-              <button onClick={() => scrollToFormFrom('vip')} className={styles.planBtn}>Começar grátis</button>
+              <button onClick={() => scrollToFormFrom('vip')} className={styles.planBtn}>Quero o Gerador com a minha Marca</button>
             </div>
           </div>
         </div>
@@ -720,7 +748,7 @@ export default function Landing() {
           </p>
           <div data-reveal>
             <button className={styles.finalCtaBtn} onClick={() => scrollToFormFrom('grátis')}>
-              Cadastrar minha empresa solar →
+              Quero o Gerador com a minha Marca →
             </button>
             <div className={styles.finalCtaFoot}>
               Continuar usando depois? A partir de R$ 27/mês. Cancela quando quiser.

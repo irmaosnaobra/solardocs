@@ -48,6 +48,7 @@ const adminItems: NavItem[] = [
   { href: '/admin',                   icon: Settings,   label: 'Painel Admin' },
   { href: '/admin/insights',          icon: BarChart3,  label: 'Insights' },
   { href: '/crm/solardoc',            icon: FolderOpen, label: 'CRM SolarDoc', count: 58 },
+  { href: '/crm/io',                  icon: HardHat,    label: 'CRM Irmãos na Obra' },
 ];
 
 const cadastroItems: NavItem[] = [
