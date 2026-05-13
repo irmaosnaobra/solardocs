@@ -177,12 +177,15 @@
   .plan.premium .plan-name{color:#fff}
   .plan-name span{display:block;font-family:'Plus Jakarta Sans';font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft);margin-top:3px;line-height:1.3}
   .plan.premium .plan-name span{color:var(--gold-pale)}
-  .plan-price{margin:2px 0}
-  .plan-price .from{font-size:12px;font-weight:600;color:var(--text-soft)}
+  .plan-price{margin:2px 0;position:relative;z-index:1}
+  .plan-price .from{font-size:12px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:.08em}
   .plan.premium .plan-price .from{color:rgba(255,255,255,.7)}
-  .plan-price .val{font-family:'Playfair Display';font-weight:800;font-size:42px;line-height:1;letter-spacing:-.02em;color:var(--navy);position:relative;z-index:1}
+  .plan-price .val{font-family:'Playfair Display';font-weight:800;font-size:42px;line-height:1;letter-spacing:-.02em;color:var(--navy);margin-top:2px}
   .plan.premium .plan-price .val{color:#fff}
   .plan-price .val small{font-size:18px;font-weight:700;margin-right:4px;opacity:.85}
+  .plan-price .val .x{font-size:16px;font-weight:600;opacity:.6;margin-left:6px;letter-spacing:0}
+  .plan-price-sub{margin-top:6px;font-size:11.5px;color:var(--text-soft);font-weight:600;letter-spacing:.02em}
+  .plan.premium .plan-price-sub{color:rgba(255,255,255,.65)}
   .plan-specs{display:grid;gap:6px;font-size:13px;font-weight:600;color:var(--text-muted);position:relative;z-index:1}
   .plan.premium .plan-specs{color:rgba(255,255,255,.85)}
   .plan-specs .row{display:flex;justify-content:space-between;gap:8px}
@@ -457,8 +460,9 @@
         <span class="plan-tag">★ Mais escolhido</span>
         <div class="plan-name">Comercial<span id="r_c_inv">—</span></div>
         <div class="plan-price">
-          <div class="from">A partir de</div>
-          <div class="val"><small>R$</small><span id="r_c_preco">—</span></div>
+          <div class="from" id="r_c_modeLabel">A partir de</div>
+          <div class="val"><small>R$</small><span id="r_c_preco">—</span><span class="x" id="r_c_x"></span></div>
+          <div class="plan-price-sub" id="r_c_modeSub"></div>
         </div>
         <div class="plan-specs">
           <div class="row"><span>Potência</span><b id="r_c_kwp">—</b></div>
@@ -474,8 +478,9 @@
         <span class="plan-tag">Upgrade</span>
         <div class="plan-name" style="color:#fff">Premium<span id="r_p_inv">—</span></div>
         <div class="plan-price">
-          <div class="from">A partir de</div>
-          <div class="val"><small>R$</small><span id="r_p_preco">—</span></div>
+          <div class="from" id="r_p_modeLabel">A partir de</div>
+          <div class="val"><small>R$</small><span id="r_p_preco">—</span><span class="x" id="r_p_x"></span></div>
+          <div class="plan-price-sub" id="r_p_modeSub"></div>
         </div>
         <div class="plan-specs">
           <div class="row"><span>Potência</span><b id="r_p_kwp">—</b></div>
@@ -874,13 +879,64 @@ function getInvLabel(plano) {
   return plano.inv;
 }
 
+// Calcula PMT pelo método Price (juros compostos)
+function calcParcela(pv, taxa, n) {
+  const f = Math.pow(1 + taxa, n);
+  return pv * (taxa * f) / (f - 1);
+}
+
+// Retorna como exibir o preço de cada plano conforme a forma de pagamento escolhida
+function getPriceDisplay(plano) {
+  const pv = plano.preco; // descMax = preço de venda
+  if (state.pagamento === 'cartao') {
+    // (preço de venda × 1,19) / 18 — 19% de acréscimo, em 18x
+    const total = pv * 1.19;
+    const parcela = total / 18;
+    return {
+      mode: 'cartao',
+      label: 'Parcelado em 18x',
+      val: fmtBRL(parcela),
+      x: '× 18',
+      sub: `Total no cartão: R$ ${fmtBRL(total)}`,
+    };
+  }
+  if (state.pagamento === 'financiamento') {
+    // 84 parcelas, juros compostos 2,4% a.m.
+    const parcela = calcParcela(pv, 0.024, 84);
+    return {
+      mode: 'financiamento',
+      label: 'Financiado · a partir de',
+      val: fmtBRL(parcela),
+      x: '× 84',
+      sub: `Sem entrada · juros 2,4% a.m.`,
+    };
+  }
+  // À vista (default)
+  return {
+    mode: 'avista',
+    label: 'À vista · preço de venda',
+    val: fmtBRL(pv),
+    x: '',
+    sub: '',
+  };
+}
+
+function aplicaPrecoCard(prefixo, plano) {
+  if (!plano) return;
+  const d = getPriceDisplay(plano);
+  $(`#r_${prefixo}_modeLabel`).textContent = d.label;
+  $(`#r_${prefixo}_preco`).textContent = d.val;
+  $(`#r_${prefixo}_x`).textContent = d.x;
+  $(`#r_${prefixo}_modeSub`).textContent = d.sub;
+}
+
 function renderResult(r) {
   $('#r_hello').innerHTML = `Pronto, <em>${state.nome.split(' ')[0]}!</em>`;
 
   // === Plano Comercial ===
   if (r.comercial) {
     const c = r.comercial;
-    $('#r_c_preco').textContent = fmtBRL(c.preco);
+    aplicaPrecoCard('c', c);
     $('#r_c_inv').textContent = getInvLabel(c);
     $('#r_c_kwp').textContent = c.kwp.toFixed(1).replace('.', ',') + ' kWp';
     $('#r_c_paineis').textContent = c.n + ' × ' + c.pot + 'W';
@@ -891,7 +947,7 @@ function renderResult(r) {
   // === Plano Premium ===
   if (r.premium) {
     const p = r.premium;
-    $('#r_p_preco').textContent = fmtBRL(p.preco);
+    aplicaPrecoCard('p', p);
     $('#r_p_inv').textContent = getInvLabel(p);
     $('#r_p_kwp').textContent = p.kwp.toFixed(1).replace('.', ',') + ' kWp';
     $('#r_p_paineis').textContent = p.n + ' × ' + p.pot + 'W';
@@ -945,15 +1001,23 @@ function buildWhatsapp(r, planoEscolhido) {
   const tipoLbl = state.tipo.charAt(0).toUpperCase() + state.tipo.slice(1);
   const telhadoLbl = state.telhado.charAt(0).toUpperCase() + state.telhado.slice(1);
 
+  function precoTxt(plano) {
+    const d = getPriceDisplay(plano);
+    if (d.mode === 'avista') return `R$ ${d.val} (à vista)`;
+    if (d.mode === 'cartao') return `18× de R$ ${d.val} no cartão`;
+    if (d.mode === 'financiamento') return `84× de R$ ${d.val} financiado (sem entrada)`;
+    return `R$ ${d.val}`;
+  }
+
   let opcao = '';
   if (planoEscolhido === 'comercial' && c) {
-    opcao = `\n\n✅ *Opção que escolhi: COMERCIAL*\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · ${c.n} painéis\n• Inversor ${getInvLabel(c)}\n• A partir de R$ ${fmtBRL(c.preco)}`;
+    opcao = `\n\n✅ *Opção que escolhi: COMERCIAL*\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · ${c.n} painéis\n• Inversor ${getInvLabel(c)}\n• ${precoTxt(c)}`;
   } else if (planoEscolhido === 'premium' && p) {
-    opcao = `\n\n✅ *Opção que escolhi: PREMIUM*\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · ${p.n} painéis\n• Inversor ${getInvLabel(p)}\n• A partir de R$ ${fmtBRL(p.preco)}`;
+    opcao = `\n\n✅ *Opção que escolhi: PREMIUM*\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · ${p.n} painéis\n• Inversor ${getInvLabel(p)}\n• ${precoTxt(p)}`;
   } else {
     opcao = '';
-    if (c) opcao += `\n\n💼 *Opção COMERCIAL:* R$ ${fmtBRL(c.preco)}\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${getInvLabel(c)}`;
-    if (p) opcao += `\n\n⭐ *Opção PREMIUM:* R$ ${fmtBRL(p.preco)}\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${getInvLabel(p)}`;
+    if (c) opcao += `\n\n💼 *Opção COMERCIAL:* ${precoTxt(c)}\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${getInvLabel(c)}`;
+    if (p) opcao += `\n\n⭐ *Opção PREMIUM:* ${precoTxt(p)}\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${getInvLabel(p)}`;
   }
 
   const msg = encodeURIComponent(
