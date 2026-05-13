@@ -691,8 +691,10 @@ const CATEGORIA = {
   'SUNGROW-7.5K':        'premium',
 };
 
-// Fator sazonal Triângulo Mineiro (12 meses)
-const SAZON = [1.10,0.97,0.99,0.94,0.88,0.82,0.88,1.04,1.10,1.12,1.06,1.00];
+// Fator sazonal Triângulo Mineiro (12 meses) — soma = 12.00 (média anual = 1.0, preserva g da tabela)
+// JAN-FEV: alto (verão, sol forte), MAR-MAI: queda (outono), JUN-JUL: mínimo (inverno),
+// AGO-SET: recupera (seca, céu limpo), OUT: pico anual (primavera), NOV-DEZ: alto (verão início)
+const SAZON = [1.10,1.00,1.05,0.95,0.80,0.72,0.75,0.95,1.15,1.25,1.18,1.10];
 
 // Constantes de cálculo
 const TARIFA = 0.92;        // R$/kWh CEMIG aproximado 2026
@@ -1038,13 +1040,17 @@ function renderResult(r) {
   $('#r_economia25').textContent = fmtBRL(r.econ25);
   $('#r_geracaoAno').textContent = fmtNum(r.geracaoAno);
 
-  // Chart (baseado na geração da comercial)
+  // Chart — acentua diferença sazonal (min ~32% altura, max 100%)
   const meses = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
   const maxG = Math.max(...r.geracaoMensal, 1);
+  const minG = Math.min(...r.geracaoMensal, 1);
+  const range = Math.max(maxG - minG, 1);
   const chart = $('#r_chart');
   chart.innerHTML = '';
   r.geracaoMensal.forEach((g, i) => {
-    const h = Math.round((g / maxG) * 130);
+    // Normaliza pra 0..1 e remapeia pra 0.32..1.0 (32% min, 100% max)
+    const norm = (g - minG) / range;
+    const h = Math.round((0.32 + norm * 0.68) * 130);
     chart.innerHTML += `<div class="bar"><div class="b" data-v="${g}" style="height:${h}px"></div><div class="m">${meses[i]}</div></div>`;
   });
 
