@@ -56,6 +56,15 @@ export async function createIoLead(req: Request, res: Response): Promise<void> {
       res.status(500).json({ error: 'Erro ao salvar lead' });
       return;
     }
+
+    // Cora dispara welcome instantâneo se for horário comercial.
+    // Fire-and-forget — não bloqueia a resposta pro cliente.
+    if (data?.id) {
+      import('../services/agents/io/ioCrmAgent')
+        .then(({ sendWelcomeIfBusinessHours }) => sendWelcomeIfBusinessHours(data.id))
+        .catch(err => console.error('cora welcome dispatch failed:', err));
+    }
+
     res.json({ ok: true, id: data?.id });
   } catch (err) {
     console.error('createIoLead exception:', err);

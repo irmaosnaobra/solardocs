@@ -32,9 +32,14 @@ import { sendZAPI as sendWA } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 
 // ─── Configuração da cadência ───────────────────────────────────────
-// Disparar followup N apenas se passaram (CADENCIA_DIAS[N-1] dias) desde
-// o create_at OU desde o último followup enviado, o que for mais recente.
+// Boas-vindas imediatas (sem esperar dias) + 6 toques na cadência D+2 a D+20.
+// Welcome é detectada por followup_last_at IS NULL — sai no primeiro ciclo
+// de cron em horário comercial. Não incrementa followup_count (D+2 segue
+// contando a partir da hora do welcome).
 const CADENCIA_DIAS = [2, 3, 5, 8, 12, 20];
+
+const WELCOME_MSG = (nome: string): string =>
+  `Oi ${nome}, recebemos sua simulação aqui. Posso te ligar agora pra fechar os detalhes?`;
 
 const MENSAGENS = (nome: string): string[] => [
   `Oi ${nome}, vamos fechar?`,
@@ -168,6 +173,60 @@ async function gravarHistorico(leadId: string, fromStatus: string | null, toStat
   }
 }
 
+// ─── Welcome instantâneo: chamado pelo controller após criar io_lead ──
+//
+// Best-effort: se está em horário comercial, manda boas-vindas agora.
+// Senão, deixa pro cron pegar (vai sair 10h do próximo dia útil).
+// Idempotente — claim atômico via followup_last_at IS NULL.
+// Nunca lança exceção (rola fire-and-forget no controller).
+export async function sendWelcomeIfBusinessHours(leadId: string): Promise<{ sent: boolean; reason?: string }> {
+  try {
+    if (!isHorarioComercial()) {
+      return { sent: false, reason: 'fora_horario' };
+    }
+
+    const { data: lead } = await supabase
+      .from('io_leads')
+      .select('id, nome, whatsapp, status, followup_last_at, opt_out, followup_paused')
+      .eq('id', leadId)
+      .single();
+
+    if (!lead || lead.opt_out || lead.followup_paused) {
+      return { sent: false, reason: 'nao_elegivel' };
+    }
+    if (lead.followup_last_at) {
+      return { sent: false, reason: 'ja_enviado' };
+    }
+    if (!STATUS_ATIVOS.includes(lead.status)) {
+      return { sent: false, reason: 'status_inativo' };
+    }
+
+    const now = new Date();
+    const { data: claimed } = await supabase
+      .from('io_leads')
+      .update({
+        followup_last_at: now.toISOString(),
+        last_contact_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      })
+      .eq('id', leadId)
+      .is('followup_last_at', null)
+      .select('id')
+      .maybeSingle();
+
+    if (!claimed) return { sent: false, reason: 'race_condition' };
+
+    const nome = primeiroNome(lead.nome);
+    await sendWA(lead.whatsapp, WELCOME_MSG(nome), 'io');
+    await gravarHistorico(lead.id, null, lead.status, 'Cora · 👋 boas-vindas enviadas (instantâneo)');
+    logger.info('cora', `welcome instantâneo lead=${leadId} nome=${nome}`);
+    return { sent: true };
+  } catch (err) {
+    logger.error('cora', `welcome instantâneo falhou lead=${leadId}`, err);
+    return { sent: false, reason: 'erro' };
+  }
+}
+
 // ─── Inbound: chamado quando lead responde no zap ───────────────────
 //
 // Procura io_lead pelo telefone (com ou sem 55) e:
@@ -232,13 +291,14 @@ export async function processIoInboundForCrm(
 
 // ─── Cron: roda followups pendentes ─────────────────────────────────
 export async function runIoCrmFollowups(): Promise<{
+  welcomes: number;
   enviados: number;
   encerrados: number;
   pulado_horario?: boolean;
   erros: number;
 }> {
   if (!isHorarioComercial()) {
-    return { enviados: 0, encerrados: 0, pulado_horario: true, erros: 0 };
+    return { welcomes: 0, enviados: 0, encerrados: 0, pulado_horario: true, erros: 0 };
   }
 
   // Busca leads candidatos: status ativo, sem opt-out, sem pausa, ainda
@@ -253,22 +313,52 @@ export async function runIoCrmFollowups(): Promise<{
 
   if (error) {
     logger.error('cora', 'erro buscando leads', error);
-    return { enviados: 0, encerrados: 0, erros: 1 };
+    return { welcomes: 0, enviados: 0, encerrados: 0, erros: 1 };
   }
-  if (!leads?.length) return { enviados: 0, encerrados: 0, erros: 0 };
+  if (!leads?.length) return { welcomes: 0, enviados: 0, encerrados: 0, erros: 0 };
 
   const now = new Date();
+  let welcomes = 0;
   let enviados = 0;
   let encerrados = 0;
   let erros = 0;
 
   for (const lead of leads) {
     try {
+      const nome = primeiroNome(lead.nome);
+
+      // ─── BOAS-VINDAS — primeiro contato pra lead que acabou de entrar ──
+      // Detecta por followup_last_at IS NULL. Não incrementa count (D+2
+      // começa contando a partir do welcome).
+      if (!lead.followup_last_at) {
+        const { data: claimedW } = await supabase
+          .from('io_leads')
+          .update({
+            followup_last_at: now.toISOString(),
+            last_contact_at: now.toISOString(),
+            updated_at: now.toISOString(),
+          })
+          .eq('id', lead.id)
+          .is('followup_last_at', null)
+          .eq('followup_paused', false)
+          .select('id')
+          .maybeSingle();
+
+        if (!claimedW) continue;
+
+        await sendWA(lead.whatsapp, WELCOME_MSG(nome), 'io');
+        await gravarHistorico(lead.id, null, lead.status, 'Cora · 👋 boas-vindas enviadas');
+        welcomes++;
+        logger.info('cora', `welcome enviado lead=${lead.id} nome=${nome}`);
+        continue;
+      }
+
+      // ─── CADÊNCIA NORMAL (D+2 .. D+20) ────────────────────────────────
       const proximoIdx = lead.followup_count;       // 0..5
       const diasNecessarios = CADENCIA_DIAS[proximoIdx];
 
       // Marco zero do timer = última mensagem trocada (qualquer direção).
-      // Se ainda não houve nenhuma, conta a partir do created_at.
+      // Se já foi enviado welcome, conta a partir do followup_last_at.
       const marcoIso =
         lead.last_inbound_at ||
         lead.followup_last_at ||
@@ -296,7 +386,6 @@ export async function runIoCrmFollowups(): Promise<{
 
       if (!claimed) continue;
 
-      const nome = primeiroNome(lead.nome);
       const msg = MENSAGENS(nome)[proximoIdx];
 
       await sendWA(lead.whatsapp, msg, 'io');
@@ -316,9 +405,9 @@ export async function runIoCrmFollowups(): Promise<{
       logger.info('cora', `followup #${proximoIdx + 1} enviado lead=${lead.id} nome=${nome}`);
     } catch (err) {
       erros++;
-      logger.error('cora', `falha enviando followup lead=${lead.id}`, err);
+      logger.error('cora', `falha enviando lead=${lead.id}`, err);
     }
   }
 
-  return { enviados, encerrados, erros };
+  return { welcomes, enviados, encerrados, erros };
 }
