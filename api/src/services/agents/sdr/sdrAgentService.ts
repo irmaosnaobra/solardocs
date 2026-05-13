@@ -1139,6 +1139,18 @@ export async function handleSdrLead(
 ): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
+  // Hook IO CRM Agent — pra leads do simulador, marca inbound, pausa
+  // followup automático e classifica via keywords. Idempotente: se o
+  // phone não bate com nenhum io_lead, retorna sem fazer nada.
+  if (instance === 'io') {
+    try {
+      const { processIoInboundForCrm } = await import('../io/ioCrmAgent');
+      await processIoInboundForCrm(cleanPhone, text);
+    } catch (err) {
+      logger.error('sdr-agent', `io-crm hook falhou pra ${cleanPhone}`, err);
+    }
+  }
+
   // Respeita takeover humano — se um operador ja respondeu manualmente,
   // a Luma fica em silencio. Apenas atualiza o registro e sai.
   const { data: leadCheck } = await supabase

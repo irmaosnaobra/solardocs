@@ -12,6 +12,7 @@ import { runSdrB2bFollowups } from '../services/agents/sdr/sdrB2bFollowupService
 import { runCarlaMorningBroadcast } from '../services/agents/sdr/sdrB2bMorningHook';
 import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
+import { runIoCrmFollowups } from '../services/agents/io/ioCrmAgent';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -230,6 +231,18 @@ router.get('/carla-pergunta-cnpj', async (req: Request, res: Response) => {
   }
 });
 
+// Standalone — útil pra teste manual sem rodar o master inteiro
+router.get('/io-crm-followup', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runIoCrmFollowups();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'io-crm-followup falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 router.get('/master', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
 
@@ -245,6 +258,7 @@ router.get('/master', async (req: Request, res: Response) => {
     // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [PAUSED-FOLLOWUP] broadcast matinal
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
+    ['io-crm-followup',              () => runIoCrmFollowups()],
     ['insights-prewarm',             () => getInsights(true)],
     ['luma-reativacao',             () => processarReativacao()],
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
