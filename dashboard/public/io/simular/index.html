@@ -751,6 +751,58 @@ function fbqCustom(event, params) {
   if (typeof fbq === 'function') { try { fbq('trackCustom', event, params || {}); } catch(_){} }
 }
 
+// ════════════════════════════════════════════════════════════════
+// TRACKING BACKEND — visit, steps, cta, time (vai pra page_visits + lp_events)
+// ════════════════════════════════════════════════════════════════
+const _simSidEarly = (() => {
+  try {
+    let s = sessionStorage.getItem('io_sd_session');
+    if (!s) { s = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)); sessionStorage.setItem('io_sd_session', s); }
+    return s;
+  } catch(_) { return 'anon'; }
+})();
+const _simT0 = Date.now();
+function bkSend(path, payload) {
+  try {
+    fetch('/_api/tracking' + path, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload), keepalive: true,
+    }).catch(()=>{});
+  } catch(_){}
+}
+function bkEvt(type, data) {
+  bkSend('/event', { session_id: _simSidEarly, event_type: type, event_data: data || null });
+}
+// Visit (1× por aba)
+(() => {
+  const SENT = 'io_sim_visit_sent';
+  try {
+    if (sessionStorage.getItem(SENT)) return;
+    const sp = new URLSearchParams(location.search);
+    bkSend('/visit', {
+      session_id: _simSidEarly,
+      landing_url: location.href,
+      referrer: document.referrer || null,
+      utm_source: sp.get('utm_source'),
+      utm_medium: sp.get('utm_medium'),
+      utm_campaign: sp.get('utm_campaign'),
+      utm_content: sp.get('utm_content'),
+      utm_term: sp.get('utm_term'),
+    });
+    sessionStorage.setItem(SENT, '1');
+  } catch(_){}
+})();
+// Tempo na página ao sair
+window.addEventListener('pagehide', () => {
+  const s = Math.round((Date.now() - _simT0) / 1000);
+  if (s < 3) return;
+  try {
+    navigator.sendBeacon('/_api/tracking/event', new Blob([JSON.stringify({
+      session_id: _simSidEarly, event_type: 'time_on_page', event_data: { seconds: s }
+    })], { type: 'application/json' }));
+  } catch(_){}
+});
+
 // Funil por step — eventos distintos pro Meta Ads
 const STEP_EVENT = { 1: 'Sim_Entrou', 2: 'Sim_Step2', 3: 'Sim_Step3', 4: 'Sim_Step4_Resultado' };
 let _simConverted = false; // chegou ao step 4 (lead criado)
@@ -884,6 +936,7 @@ function goStep(n) {
   $('#progFill').style.width = (n * 25) + '%';
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (STEP_EVENT[n]) fbqCustom(STEP_EVENT[n], { step: n });
+  bkEvt('sim_step', { step: n });
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -960,7 +1013,9 @@ document.addEventListener('click', (e) => {
     : null;
   if (!a) return;
   _simWhatsClicked = true;
-  fbqCustom('Sim_WhatsApp', { step: state.step, plan: a.getAttribute('data-plan') || 'geral' });
+  const plan = a.getAttribute('data-plan') || 'geral';
+  fbqCustom('Sim_WhatsApp', { step: state.step, plan });
+  bkEvt('cta_click', { label: 'whatsapp_sim', plan, step: state.step });
 }, true);
 
 // Funil — saída sem completar (não chegou no resultado e não clicou WhatsApp)
@@ -968,6 +1023,7 @@ function fireSimExit() {
   if (_simExitFired || _simConverted || _simWhatsClicked) return;
   _simExitFired = true;
   fbqCustom('Sim_Saiu', { step: state.step });
+  bkEvt('sim_abandon', { step: state.step });
 }
 window.addEventListener('pagehide', fireSimExit);
 document.addEventListener('visibilitychange', () => {
@@ -1247,6 +1303,7 @@ Gostaria de garantir essa condição e agendar a visita técnica gratuita!`
 
 // Track inicial — entrada no funil
 fbqCustom('Sim_Entrou', { step: 1 });
+bkEvt('sim_step', { step: 1 });
 </script>
 </body>
 </html>

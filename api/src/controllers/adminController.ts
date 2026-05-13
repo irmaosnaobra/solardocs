@@ -133,8 +133,10 @@ export async function getAnalytics(req: Request, res: Response): Promise<void> {
       ip: string | null;
       max_scroll: number;
       sections_seen: string[];
-      cta_clicks: Array<{ label?: string; href?: string }>;
+      cta_clicks: Array<{ label?: string; href?: string; plan?: string; step?: number }>;
       time_on_page: number | null;
+      max_step: number;        // simulador: maior step alcançado (0 se não é simulador)
+      sim_abandon: boolean;    // simulador: disparou abandono
     };
 
     const sessions: SessionSummary[] = (visits ?? []).map(v => {
@@ -151,12 +153,19 @@ export async function getAnalytics(req: Request, res: Response): Promise<void> {
         .filter(Boolean);
 
       const ctaEvts = sevents.filter(e => e.event_type === 'cta_click');
-      const ctaClicks = ctaEvts.map(e => e.event_data as { label?: string; href?: string });
+      const ctaClicks = ctaEvts.map(e => e.event_data as { label?: string; href?: string; plan?: string; step?: number });
 
       const timeEvt = sevents.find(e => e.event_type === 'time_on_page');
       const timeOnPage = timeEvt
         ? Number((timeEvt.event_data as { seconds?: number })?.seconds ?? null)
         : null;
+
+      // Simulador — extrai max_step e sim_abandon
+      const stepEvts = sevents.filter(e => e.event_type === 'sim_step');
+      const maxStep = stepEvts.length > 0
+        ? Math.max(...stepEvts.map(e => Number((e.event_data as { step?: number })?.step ?? 0)))
+        : 0;
+      const simAbandon = sevents.some(e => e.event_type === 'sim_abandon');
 
       return {
         session_id:   v.session_id   ?? null,
@@ -174,6 +183,8 @@ export async function getAnalytics(req: Request, res: Response): Promise<void> {
         sections_seen: sectionsSeen,
         cta_clicks:   ctaClicks,
         time_on_page: isNaN(timeOnPage as number) ? null : timeOnPage,
+        max_step:     maxStep,
+        sim_abandon:  simAbandon,
       };
     });
 
