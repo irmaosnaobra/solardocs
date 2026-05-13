@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0F2A52">
+<meta name="description" content="Simule grátis seu projeto de energia solar. Receba estimativa, equipamentos e economia em 25 anos em menos de 1 minuto.">
+<title>Simulador Solar · Irmãos na Obra</title>
+<link rel="icon" type="image/png" href="/io/img/logoio.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+
+<!-- Meta Pixel -->
+<script>
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '446093469730871');
+  fbq('track', 'PageView');
+</script>
+
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --navy:#0F2A52; --navy-2:#1a3a6e; --gold:#c28a2c; --gold-soft:#e0a83a; --gold-pale:#f5cf6e;
+    --bg:#fbf7ee; --surface:#fff; --border:#e0d6c2;
+    --text:#1a1a1a; --text-muted:#5a5a5a; --text-soft:#8a8a8a;
+    --green:#16a34a; --red:#dc2626;
+    --shadow-sm:0 2px 8px rgba(15,23,42,0.06);
+    --shadow-md:0 8px 24px rgba(15,23,42,0.10);
+    --shadow-lg:0 18px 44px rgba(15,23,42,0.16);
+  }
+  html,body{min-height:100vh;background:var(--bg);font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);scroll-behavior:smooth}
+
+  /* TOPBAR */
+  .topbar{position:sticky;top:0;z-index:50;background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 14px rgba(15,42,82,.18)}
+  .brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}
+  .brand .mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--gold),var(--gold-soft));display:grid;place-items:center;font-family:'Playfair Display';font-weight:800;font-size:20px;color:var(--navy)}
+  .brand .name{font-family:'Playfair Display';font-weight:700;font-size:17px;line-height:1}
+  .brand .name small{display:block;font-family:'Plus Jakarta Sans';font-weight:600;font-size:9.5px;letter-spacing:.18em;opacity:.8;margin-top:3px}
+  .back-btn{color:#fff;text-decoration:none;font-size:13px;font-weight:600;opacity:.85;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;transition:background .2s}
+  .back-btn:hover{background:rgba(255,255,255,.08);opacity:1}
+
+  /* PROGRESS */
+  .progress-wrap{background:#fff;border-bottom:1px solid var(--border);padding:18px 24px}
+  .progress-inner{max-width:780px;margin:0 auto}
+  .progress-bar{height:6px;background:#eee;border-radius:999px;overflow:hidden;margin-bottom:10px}
+  .progress-bar .fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-soft));border-radius:999px;transition:width .35s ease}
+  .progress-steps{display:flex;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-soft)}
+  .progress-steps .s{display:flex;align-items:center;gap:6px}
+  .progress-steps .s.active{color:var(--navy)}
+  .progress-steps .s.done{color:var(--gold)}
+  .progress-steps .s .n{width:18px;height:18px;border-radius:50%;background:#eee;color:#999;display:grid;place-items:center;font-size:10px;font-weight:800}
+  .progress-steps .s.active .n{background:var(--navy);color:#fff}
+  .progress-steps .s.done .n{background:var(--gold);color:#fff}
+
+  /* CONTAINER */
+  .stage{max-width:780px;margin:0 auto;padding:32px 24px 80px}
+
+  /* STEP CARD */
+  .card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:36px 32px;box-shadow:var(--shadow-md);animation:slideIn .35s ease}
+  @keyframes slideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .step-head{margin-bottom:24px}
+  .eyebrow{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);background:rgba(194,138,44,.08);padding:6px 12px;border-radius:999px;margin-bottom:14px}
+  h1{font-family:'Playfair Display';font-weight:800;font-size:34px;line-height:1.1;color:var(--navy);letter-spacing:-.01em;margin-bottom:8px}
+  h1 em{font-style:italic;color:var(--gold)}
+  .lead{font-size:15px;color:var(--text-muted);font-weight:500;line-height:1.5}
+
+  /* FIELDS */
+  .field{margin-bottom:18px}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+  .field label .req{color:var(--red)}
+  .field input,.field select{
+    width:100%;padding:14px 16px;border:1.5px solid var(--border);border-radius:12px;background:#fff;
+    font-family:inherit;font-size:15px;color:var(--text);font-weight:500;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  .field input:focus,.field select:focus{outline:0;border-color:var(--gold);box-shadow:0 0 0 4px rgba(194,138,44,.14)}
+  .field input.invalid{border-color:var(--red)}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field-row.row-3{grid-template-columns:1fr 1fr 1fr}
+  .err-msg{margin-top:8px;font-size:12px;color:var(--red);font-weight:600;display:none}
+  .err-msg.show{display:block}
+
+  /* OPTION GROUP (radio cards) */
+  .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:8px}
+  .opts.tight{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
+  .opt{
+    position:relative;border:1.5px solid var(--border);border-radius:14px;padding:14px 12px;cursor:pointer;
+    background:#fff;text-align:center;transition:all .15s ease;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+  }
+  .opt input{position:absolute;opacity:0;inset:0;cursor:pointer}
+  .opt .icon{font-size:28px;line-height:1}
+  .opt .lbl{font-size:13px;font-weight:700;color:var(--text);line-height:1.2}
+  .opt .sub{font-size:11px;font-weight:600;color:var(--text-soft);line-height:1.2}
+  .opt:hover{border-color:var(--gold-soft);background:rgba(194,138,44,.04)}
+  .opt:has(input:checked){border-color:var(--gold);background:rgba(194,138,44,.1);box-shadow:0 4px 14px rgba(194,138,44,.18)}
+  .opt:has(input:checked)::after{content:'✓';position:absolute;top:8px;right:10px;background:var(--gold);color:#fff;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:900}
+
+  /* SEGMENTED toggle (kwh / r$) */
+  .seg{display:inline-flex;background:#f1eee5;border-radius:12px;padding:4px;margin-bottom:14px}
+  .seg button{
+    border:0;background:transparent;padding:9px 18px;border-radius:9px;font-weight:700;font-size:13px;
+    color:var(--text-muted);cursor:pointer;font-family:inherit;letter-spacing:.02em;
+  }
+  .seg button.active{background:#fff;color:var(--navy);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+
+  /* ACTIONS */
+  .actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:28px;padding-top:24px;border-top:1px solid var(--border)}
+  .btn{padding:14px 22px;border-radius:12px;font-weight:800;font-size:14.5px;letter-spacing:.02em;cursor:pointer;border:0;font-family:inherit;display:inline-flex;align-items:center;gap:8px;transition:all .15s}
+  .btn-primary{background:var(--gold);color:#fff;box-shadow:0 10px 24px rgba(194,138,44,.4)}
+  .btn-primary:hover{transform:translateY(-1px);background:#b07e25;box-shadow:0 14px 32px rgba(194,138,44,.5)}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .btn-ghost{background:transparent;color:var(--text-muted);padding:14px 16px}
+  .btn-ghost:hover{color:var(--navy)}
+
+  /* RESULT */
+  .result-head{text-align:center;margin-bottom:24px}
+  .result-head .eyebrow{background:rgba(22,163,74,.1);color:var(--green)}
+  .result-head h1{font-size:38px}
+  .result-head .lead{margin-top:8px}
+
+  .price-card{
+    background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 100%);
+    color:#fff;border-radius:20px;padding:32px 28px;text-align:center;
+    box-shadow:0 20px 50px rgba(15,42,82,.3);position:relative;overflow:hidden;
+    margin-bottom:24px;
+  }
+  .price-card::before{content:'';position:absolute;top:-80px;right:-80px;width:240px;height:240px;background:radial-gradient(circle,rgba(194,138,44,.35),transparent 60%);filter:blur(40px)}
+  .price-card .label{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.85;margin-bottom:10px}
+  .price-card .from{font-size:14px;font-weight:600;opacity:.8}
+  .price-card .price{font-family:'Playfair Display';font-weight:800;font-size:64px;line-height:1;letter-spacing:-.02em;margin:4px 0 6px}
+  .price-card .price small{font-size:24px;font-weight:700;opacity:.8;margin-right:4px}
+  .price-card .price em{font-style:normal;color:var(--gold-pale)}
+  .price-card .price-sub{font-size:14px;font-weight:600;opacity:.8}
+  .price-card .price-sub b{color:var(--gold-pale)}
+
+  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+  .stat{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 14px;text-align:center;box-shadow:var(--shadow-sm)}
+  .stat .n{font-family:'Playfair Display';font-weight:800;font-size:24px;color:var(--navy);line-height:1;letter-spacing:-.01em}
+  .stat .n em{font-style:normal;color:var(--gold)}
+  .stat .l{margin-top:6px;font-size:10.5px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.1em;line-height:1.3}
+
+  /* CHART */
+  .chart-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:20px;box-shadow:var(--shadow-sm)}
+  .chart-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px}
+  .chart-head h3{font-family:'Playfair Display';font-weight:700;font-size:19px;color:var(--navy)}
+  .chart-head .total{font-size:14px;color:var(--text-muted);font-weight:600}
+  .chart-head .total b{color:var(--gold);font-weight:800}
+  .chart{display:flex;align-items:flex-end;gap:6px;height:160px;padding-bottom:24px;position:relative}
+  .chart::before{content:'';position:absolute;bottom:22px;left:0;right:0;height:1px;background:var(--border)}
+  .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;height:100%}
+  .bar .b{width:100%;max-width:36px;background:linear-gradient(180deg,var(--gold-soft) 0%,var(--gold) 100%);border-radius:6px 6px 0 0;position:relative;transition:height .8s ease}
+  .bar .b:hover::after{content:attr(data-v) ' kWh';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;margin-bottom:6px}
+  .bar .m{font-size:10px;font-weight:700;color:var(--text-soft);text-transform:uppercase}
+
+  /* EQUIPAMENTOS */
+  .eq-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:24px;box-shadow:var(--shadow-sm)}
+  .eq-card h3{font-family:'Playfair Display';font-weight:700;font-size:19px;color:var(--navy);margin-bottom:14px}
+  .eq-list{display:grid;gap:10px}
+  .eq-item{display:flex;align-items:center;gap:14px;padding:12px 14px;background:#fbf7ee;border-radius:10px}
+  .eq-item .ic{width:38px;height:38px;border-radius:10px;background:rgba(194,138,44,.18);color:var(--gold);display:grid;place-items:center;font-size:18px;flex-shrink:0}
+  .eq-item .info{flex:1;min-width:0}
+  .eq-item .info .n{font-size:14px;font-weight:700;color:var(--navy)}
+  .eq-item .info .d{font-size:12px;color:var(--text-muted);font-weight:500;margin-top:2px}
+
+  /* CTAS RESULT */
+  .result-ctas{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:stretch}
+  .result-ctas .cta-wa{
+    background:linear-gradient(135deg,#25d366 0%,#128c7e 100%);color:#fff;
+    padding:20px 24px;border-radius:14px;text-align:center;text-decoration:none;
+    font-weight:800;font-size:16px;letter-spacing:.02em;
+    box-shadow:0 14px 36px rgba(37,211,102,.4);
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:all .15s;
+  }
+  .result-ctas .cta-wa:hover{transform:translateY(-2px);box-shadow:0 18px 44px rgba(37,211,102,.5)}
+  .result-ctas .cta-wa .icon{font-size:22px}
+  .result-ctas .cta-exit{
+    background:#f1eee5;color:var(--text-muted);
+    padding:20px 22px;border-radius:14px;text-decoration:none;
+    font-weight:700;font-size:14px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:all .15s;
+  }
+  .result-ctas .cta-exit:hover{background:#e8e3d4;color:var(--navy)}
+
+  .disclaimer{margin-top:24px;font-size:11.5px;color:var(--text-soft);text-align:center;line-height:1.5}
+
+  /* CITY HINT */
+  .city-hint{margin-top:8px;font-size:12px;font-weight:600;display:none;align-items:center;gap:6px}
+  .city-hint.ok{display:flex;color:var(--green)}
+  .city-hint.warn{display:flex;color:#b45309;background:#fef3c7;padding:10px 12px;border-radius:8px;border:1px solid #fde68a}
+
+  /* MOBILE */
+  @media (max-width:640px){
+    .card{padding:24px 20px}
+    h1{font-size:28px}
+    .result-head h1{font-size:30px}
+    .price-card .price{font-size:48px}
+    .price-card .price small{font-size:20px}
+    .stats-row{grid-template-columns:1fr}
+    .field-row,.field-row.row-3{grid-template-columns:1fr}
+    .result-ctas{grid-template-columns:1fr}
+    .chart{height:130px}
+    .opts{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="/io" class="brand">
+    <span class="mark">i</span>
+    <span class="name">Irmãos na Obra<small>ENERGIA SOLAR</small></span>
+  </a>
+  <a href="/io" class="back-btn">← Voltar</a>
+</header>
+
+<div class="progress-wrap">
+  <div class="progress-inner">
+    <div class="progress-bar"><div class="fill" id="progFill" style="width:25%"></div></div>
+    <div class="progress-steps">
+      <div class="s active" data-step="1"><span class="n">1</span> Você</div>
+      <div class="s" data-step="2"><span class="n">2</span> Imóvel</div>
+      <div class="s" data-step="3"><span class="n">3</span> Conta</div>
+      <div class="s" data-step="4"><span class="n">4</span> Resultado</div>
+    </div>
+  </div>
+</div>
+
+<main class="stage">
+
+  <!-- ============ STEP 1: IDENTIFICAÇÃO ============ -->
+  <section class="card step" data-step="1">
+    <div class="step-head">
+      <span class="eyebrow">Passo 1 de 3</span>
+      <h1>Bora calcular sua <em>economia.</em></h1>
+      <p class="lead">Em 1 minuto você vê o preço, os equipamentos e quanto economiza em 25 anos. Sem custo. Sem compromisso.</p>
+    </div>
+
+    <div class="field">
+      <label>Seu nome <span class="req">*</span></label>
+      <input type="text" id="f_nome" placeholder="Ex: João da Silva" autocomplete="name" />
+      <div class="err-msg">Preencha seu nome.</div>
+    </div>
+
+    <div class="field">
+      <label>WhatsApp <span class="req">*</span></label>
+      <input type="tel" id="f_whats" placeholder="(34) 99999-9999" autocomplete="tel" inputmode="numeric" />
+      <div class="err-msg">WhatsApp inválido.</div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Cidade <span class="req">*</span></label>
+        <input type="text" id="f_cidade" list="cidades" placeholder="Comece a digitar..." autocomplete="off" />
+        <datalist id="cidades"></datalist>
+        <div class="city-hint" id="cityHint"></div>
+      </div>
+      <div class="field">
+        <label>Estado</label>
+        <input type="text" id="f_estado" placeholder="MG / GO" readonly />
+      </div>
+    </div>
+
+    <div class="actions">
+      <span></span>
+      <button class="btn btn-primary" data-next="2">Próximo passo →</button>
+    </div>
+  </section>
+
+  <!-- ============ STEP 2: IMÓVEL ============ -->
+  <section class="card step" data-step="2" style="display:none">
+    <div class="step-head">
+      <span class="eyebrow">Passo 2 de 3</span>
+      <h1>Como é o seu <em>imóvel?</em></h1>
+      <p class="lead">A gente usa essa info pra calcular o melhor sistema, com a estrutura certa.</p>
+    </div>
+
+    <div class="field">
+      <label>Tipo de imóvel <span class="req">*</span></label>
+      <div class="opts">
+        <label class="opt"><input type="radio" name="tipo" value="residencial"><div class="icon">🏠</div><div class="lbl">Residencial</div><div class="sub">Casa / apartamento</div></label>
+        <label class="opt"><input type="radio" name="tipo" value="comercial"><div class="icon">🏢</div><div class="lbl">Comercial</div><div class="sub">Loja / escritório</div></label>
+        <label class="opt"><input type="radio" name="tipo" value="industrial"><div class="icon">🏭</div><div class="lbl">Industrial</div><div class="sub">Galpão / fábrica</div></label>
+        <label class="opt"><input type="radio" name="tipo" value="rural"><div class="icon">🌾</div><div class="lbl">Rural</div><div class="sub">Fazenda / sítio</div></label>
+      </div>
+      <div class="err-msg">Escolha o tipo de imóvel.</div>
+    </div>
+
+    <div class="field">
+      <label>Tipo de telhado <span class="req">*</span></label>
+      <div class="opts tight">
+        <label class="opt"><input type="radio" name="telhado" value="ceramico"><div class="icon">🧱</div><div class="lbl">Cerâmico</div></label>
+        <label class="opt"><input type="radio" name="telhado" value="eternit"><div class="icon">⬜</div><div class="lbl">Eternit</div></label>
+        <label class="opt"><input type="radio" name="telhado" value="cimento"><div class="icon">⬛</div><div class="lbl">Cimento</div></label>
+        <label class="opt"><input type="radio" name="telhado" value="metalico"><div class="icon">🔩</div><div class="lbl">Metálico</div></label>
+        <label class="opt"><input type="radio" name="telhado" value="solo"><div class="icon">🌱</div><div class="lbl">Solo</div></label>
+      </div>
+      <div class="err-msg">Escolha o tipo de telhado.</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" data-back="1">← Voltar</button>
+      <button class="btn btn-primary" data-next="3">Próximo passo →</button>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3: PADRÃO + CONTA ============ -->
+  <section class="card step" data-step="3" style="display:none">
+    <div class="step-head">
+      <span class="eyebrow">Passo 3 de 3</span>
+      <h1>E sua <em>conta de luz?</em></h1>
+      <p class="lead">Última pergunta. A gente já mostra o resultado.</p>
+    </div>
+
+    <div class="field">
+      <label>Padrão de energia <span class="req">*</span></label>
+      <div class="opts">
+        <label class="opt"><input type="radio" name="padrao" value="mono110"><div class="lbl">Mono 110V</div><div class="sub">2 fios</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="mono220"><div class="lbl">Mono 220V</div><div class="sub">2 fios</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="bif220"><div class="lbl">Bifásico 220V</div><div class="sub">3 fios</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="tri220"><div class="lbl">Trifásico</div><div class="sub">220V ou 380V</div></label>
+      </div>
+      <div class="err-msg">Escolha o padrão.</div>
+    </div>
+
+    <div class="field">
+      <label>Quanto você paga / consome por mês? <span class="req">*</span></label>
+      <div class="seg">
+        <button type="button" class="active" data-unit="rs">Conta em R$</button>
+        <button type="button" data-unit="kwh">Consumo em kWh</button>
+      </div>
+      <input type="text" id="f_consumo" placeholder="Ex: 450" inputmode="numeric" />
+      <div class="err-msg">Informe um valor válido (mínimo R$ 100 ou 90 kWh).</div>
+      <div style="margin-top:8px;font-size:12px;color:var(--text-soft);font-weight:500">
+        💡 Pode olhar na conta da CEMIG ou estimar. Quanto mais real, melhor a simulação.
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" data-back="2">← Voltar</button>
+      <button class="btn btn-primary" id="btnCalc">Ver minha estimativa →</button>
+    </div>
+  </section>
+
+  <!-- ============ STEP 4: RESULTADO ============ -->
+  <section class="card step" data-step="4" style="display:none">
+    <div class="result-head">
+      <span class="eyebrow">✓ Estimativa pronta</span>
+      <h1 id="r_hello">Pronto, <em>fulano!</em></h1>
+      <p class="lead">Aqui está o sistema ideal pra sua casa. <b>O menor preço entre todos os nossos fornecedores.</b></p>
+    </div>
+
+    <div class="price-card">
+      <div class="label">Seu sistema solar</div>
+      <div class="from">A partir de</div>
+      <div class="price"><small>R$</small><em id="r_preco">—</em></div>
+      <div class="price-sub"><b id="r_kwp">— kWp</b> · <span id="r_paineis">— painéis</span></div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat">
+        <div class="n"><em id="r_geracao">—</em></div>
+        <div class="l">Geração média/mês<br/>(kWh)</div>
+      </div>
+      <div class="stat">
+        <div class="n">R$ <em id="r_economiaMes">—</em></div>
+        <div class="l">Economia<br/>por mês</div>
+      </div>
+      <div class="stat">
+        <div class="n">R$ <em id="r_economia25">—</em></div>
+        <div class="l">Total em<br/>25 anos</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <h3>Geração mensal estimada</h3>
+        <div class="total">total ano: <b id="r_geracaoAno">—</b> kWh</div>
+      </div>
+      <div class="chart" id="r_chart"></div>
+    </div>
+
+    <div class="eq-card">
+      <h3>O que você recebe</h3>
+      <div class="eq-list" id="r_equipamentos"></div>
+    </div>
+
+    <div class="result-ctas">
+      <a href="#" id="r_whatsapp" class="cta-wa" target="_blank" rel="noopener">
+        <span class="icon">💬</span>
+        Falar com especialista
+      </a>
+      <a href="/io" class="cta-exit">Sair</a>
+    </div>
+
+    <div class="disclaimer">
+      *Valores estimados com base em equipamentos certificados Tier 1 e geração média do Triângulo Mineiro (HSP 5,2 h/dia). O orçamento final é confirmado após visita técnica gratuita.
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// CIDADES atendidas (28 cidades · raio 250km de Uberlândia)
+// ════════════════════════════════════════════════════════════════
+const CIDADES = [
+  ['Uberlândia','MG'],['Uberaba','MG'],['Araguari','MG'],['Ituiutaba','MG'],
+  ['Patos de Minas','MG'],['Patrocínio','MG'],['Monte Carmelo','MG'],['Araxá','MG'],
+  ['Frutal','MG'],['Coromandel','MG'],['Tupaciguara','MG'],['Iturama','MG'],
+  ['Prata','MG'],['Capinópolis','MG'],['Indianópolis','MG'],['Romaria','MG'],
+  ['Itumbiara','GO'],['Catalão','GO'],['Caldas Novas','GO'],['Goiatuba','GO'],
+  ['Morrinhos','GO'],['Ipameri','GO'],['Goiandira','GO'],['Três Ranchos','GO'],
+  ['Cumari','GO'],['Ouvidor','GO'],['Anhanguera','GO'],['Bom Jesus de Goiás','GO']
+];
+const CIDADE_MAP = Object.fromEntries(CIDADES.map(([c,uf]) => [c.toLowerCase(), uf]));
+
+// Popula datalist
+const dl = document.getElementById('cidades');
+CIDADES.forEach(([c,uf]) => {
+  const o = document.createElement('option');
+  o.value = c + ' / ' + uf;
+  dl.appendChild(o);
+});
+
+// ════════════════════════════════════════════════════════════════
+// TABELA DE PREÇOS (do gerador_propostas)
+// ════════════════════════════════════════════════════════════════
+const TABELAS = {
+"MICRODEYE-TSUN600W":{inv:"Deye 2,25K",mod:"Tsun 600W",pot:600,rows:[
+  {n:3,invs:1,g:255,kwp:1.8,descMax:5522.27},{n:4,invs:1,g:340,kwp:2.4,descMax:6336.33},
+  {n:5,invs:2,g:425,kwp:3.0,descMax:8735.74},{n:6,invs:2,g:510,kwp:3.6,descMax:9549.54},
+  {n:7,invs:2,g:595,kwp:4.2,descMax:10363.34},{n:8,invs:2,g:680,kwp:4.8,descMax:11177.14},
+  {n:9,invs:3,g:765,kwp:5.4,descMax:13576.81},{n:10,invs:3,g:850,kwp:6.0,descMax:14390.61},
+  {n:11,invs:3,g:935,kwp:6.6,descMax:15204.41},{n:12,invs:3,g:1020,kwp:7.2,descMax:16018.21},
+  {n:13,invs:4,g:1105,kwp:7.8,descMax:18417.88},{n:14,invs:4,g:1190,kwp:8.4,descMax:19231.68},
+  {n:15,invs:4,g:1275,kwp:9.0,descMax:20045.48},{n:16,invs:4,g:1360,kwp:9.6,descMax:20859.28},
+  {n:17,invs:5,g:1445,kwp:10.2,descMax:23258.95},{n:18,invs:5,g:1530,kwp:10.8,descMax:24072.75},
+  {n:19,invs:5,g:1615,kwp:11.4,descMax:24886.55},{n:20,invs:5,g:1700,kwp:12.0,descMax:25700.35}
+]},
+"SAJ-3K":{inv:"SAJ 3K",mod:"Tsun 600W",pot:600,rows:[
+  {n:4,invs:1,g:320,kwp:2.4,descMax:7116.20},{n:5,invs:1,g:400,kwp:3.0,descMax:8125.00},
+  {n:6,invs:1,g:480,kwp:3.6,descMax:8977.80},{n:7,invs:1,g:560,kwp:4.2,descMax:9830.60},
+  {n:8,invs:1,g:640,kwp:4.8,descMax:10683.40}
+]},
+"SAJ-6K":{inv:"SAJ 6K",mod:"Tsun 600W",pot:600,rows:[
+  {n:8,invs:1,g:640,kwp:4.8,descMax:11453.00},{n:9,invs:1,g:720,kwp:5.4,descMax:12493.00},
+  {n:10,invs:1,g:800,kwp:6.0,descMax:13377.00},{n:11,invs:1,g:880,kwp:6.6,descMax:14261.00},
+  {n:12,invs:1,g:960,kwp:7.2,descMax:15145.00},{n:13,invs:1,g:1040,kwp:7.8,descMax:16185.00},
+  {n:14,invs:1,g:1120,kwp:8.4,descMax:17069.00},{n:15,invs:1,g:1200,kwp:9.0,descMax:17953.00},
+  {n:16,invs:1,g:1280,kwp:9.6,descMax:18837.00},{n:17,invs:1,g:1360,kwp:10.2,descMax:19877.00},
+  {n:18,invs:1,g:1440,kwp:10.8,descMax:20761.00},{n:19,invs:1,g:1520,kwp:11.4,descMax:21645.00},
+  {n:20,invs:1,g:1600,kwp:12.0,descMax:22529.00}
+]},
+"SUNGROW-5K":{inv:"Sungrow 5K",mod:"ZNShine 600W",pot:600,rows:[
+  {n:6,invs:1,g:480,kwp:3.6,descMax:11662.30},{n:7,invs:1,g:560,kwp:4.2,descMax:12569.70},
+  {n:8,invs:1,g:640,kwp:4.8,descMax:13520.00},{n:9,invs:1,g:720,kwp:5.4,descMax:14595.10},
+  {n:10,invs:1,g:800,kwp:6.0,descMax:15503.80},{n:11,invs:1,g:880,kwp:6.6,descMax:16429.40},
+  {n:12,invs:1,g:960,kwp:7.2,descMax:17407.00},{n:13,invs:1,g:1040,kwp:7.8,descMax:18811.00},
+  {n:14,invs:1,g:1120,kwp:8.4,descMax:19718.40},{n:15,invs:1,g:1200,kwp:9.0,descMax:20633.60},
+  {n:16,invs:1,g:1280,kwp:9.6,descMax:21594.30}
+]},
+"SUNGROW-7.5K":{inv:"Sungrow 7,5K",mod:"ZNShine 600W",pot:600,rows:[
+  {n:15,invs:1,g:1200,kwp:9.0,descMax:21842.60},{n:16,invs:1,g:1280,kwp:9.6,descMax:22802.00},
+  {n:17,invs:1,g:1360,kwp:10.2,descMax:23992.80},{n:18,invs:1,g:1440,kwp:10.8,descMax:24953.50},
+  {n:19,invs:1,g:1520,kwp:11.4,descMax:25914.20},{n:20,invs:1,g:1600,kwp:12.0,descMax:26874.90},
+  {n:21,invs:1,g:1680,kwp:12.6,descMax:28064.40},{n:22,invs:1,g:1760,kwp:13.2,descMax:29025.10},
+  {n:23,invs:1,g:1840,kwp:13.8,descMax:29985.80},{n:24,invs:1,g:1920,kwp:14.4,descMax:30946.50},
+  {n:25,invs:1,g:2000,kwp:15.0,descMax:32134.70}
+]}
+};
+
+// Fator sazonal Triângulo Mineiro (12 meses)
+const SAZON = [1.10,0.97,0.99,0.94,0.88,0.82,0.88,1.04,1.10,1.12,1.06,1.00];
+
+// Constantes de cálculo
+const TARIFA = 0.92;        // R$/kWh CEMIG aproximado 2026
+const TAXA_MIN_KWH = 30;    // taxa de disponibilidade (B1 monofásico)
+const INFLAC_TARIFA = 0.06; // 6% a.a. inflação tarifária
+const DESCONTO_REAL = 0.95; // economia real considerando bandeiras
+
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+const state = {
+  step: 1,
+  nome: '', whats: '', cidade: '', estado: '',
+  tipo: '', telhado: '', padrao: '',
+  consumoVal: 0, consumoUnit: 'rs', // 'rs' ou 'kwh'
+};
+
+// ════════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════════
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+const fmtBRL = (n) => n.toLocaleString('pt-BR', {style:'currency',currency:'BRL',minimumFractionDigits:0,maximumFractionDigits:0}).replace('R$','').trim();
+const fmtNum = (n) => Math.round(n).toLocaleString('pt-BR');
+
+function fbqTrack(event, params) {
+  if (typeof fbq === 'function') { try { fbq('track', event, params || {}); } catch(_){} }
+}
+
+// Mask WhatsApp
+$('#f_whats').addEventListener('input', (e) => {
+  let v = e.target.value.replace(/\D/g,'').slice(0,11);
+  if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+  else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+  e.target.value = v;
+});
+
+// Mask Consumo (só dígitos)
+$('#f_consumo').addEventListener('input', (e) => {
+  e.target.value = e.target.value.replace(/\D/g,'').slice(0,7);
+});
+
+// Cidade autocomplete + valida + preenche UF
+$('#f_cidade').addEventListener('input', (e) => {
+  let raw = e.target.value;
+  let cidade = raw.split('/')[0].trim();
+  const hint = $('#cityHint');
+  const uf = CIDADE_MAP[cidade.toLowerCase()];
+  if (uf) {
+    $('#f_estado').value = uf;
+    hint.className = 'city-hint ok';
+    hint.innerHTML = `✓ Atendemos sua cidade — equipe própria em ${cidade}/${uf}`;
+    e.target.value = cidade + ' / ' + uf;
+  } else if (cidade.length >= 3) {
+    $('#f_estado').value = '';
+    hint.className = 'city-hint warn';
+    hint.innerHTML = `⚠ "${cidade}" pode estar fora do nosso raio direto. Continue mesmo assim que avaliamos.`;
+  } else {
+    hint.className = 'city-hint';
+    $('#f_estado').value = '';
+  }
+});
+
+// Toggle segmented kWh / R$
+$$('.seg button').forEach(b => {
+  b.addEventListener('click', () => {
+    $$('.seg button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    state.consumoUnit = b.dataset.unit;
+    $('#f_consumo').placeholder = b.dataset.unit === 'rs' ? 'Ex: 450' : 'Ex: 480';
+  });
+});
+
+// Validações de step
+function validateStep(step) {
+  let ok = true;
+  if (step === 1) {
+    const nome = $('#f_nome').value.trim();
+    const whats = $('#f_whats').value.replace(/\D/g,'');
+    const cid = $('#f_cidade').value.split('/')[0].trim();
+    setErr('#f_nome', nome.length < 2);
+    setErr('#f_whats', whats.length < 10);
+    setErr('#f_cidade', cid.length < 2);
+    if (nome.length < 2 || whats.length < 10 || cid.length < 2) ok = false;
+    if (ok) { state.nome = nome; state.whats = whats; state.cidade = cid; state.estado = $('#f_estado').value || '—'; }
+  }
+  if (step === 2) {
+    const tipo = document.querySelector('input[name=tipo]:checked');
+    const telhado = document.querySelector('input[name=telhado]:checked');
+    const tipoErr = !tipo, telErr = !telhado;
+    setErrGroup('tipo', tipoErr);
+    setErrGroup('telhado', telErr);
+    if (tipoErr || telErr) ok = false;
+    if (ok) { state.tipo = tipo.value; state.telhado = telhado.value; }
+  }
+  if (step === 3) {
+    const padrao = document.querySelector('input[name=padrao]:checked');
+    const val = parseInt($('#f_consumo').value.replace(/\D/g,''), 10);
+    const minOk = state.consumoUnit === 'rs' ? val >= 100 : val >= 90;
+    setErrGroup('padrao', !padrao);
+    setErr('#f_consumo', !val || !minOk);
+    if (!padrao || !val || !minOk) ok = false;
+    if (ok) { state.padrao = padrao.value; state.consumoVal = val; }
+  }
+  return ok;
+}
+function setErr(sel, isErr) {
+  const el = $(sel); if (!el) return;
+  el.classList.toggle('invalid', isErr);
+  const msg = el.parentElement.querySelector('.err-msg');
+  if (msg) msg.classList.toggle('show', isErr);
+}
+function setErrGroup(name, isErr) {
+  const field = document.querySelector(`input[name=${name}]`).closest('.field');
+  const msg = field.querySelector('.err-msg');
+  if (msg) msg.classList.toggle('show', isErr);
+}
+
+// Navegação
+$$('[data-next]').forEach(b => b.addEventListener('click', () => {
+  const cur = parseInt(b.closest('.step').dataset.step, 10);
+  if (validateStep(cur)) goStep(parseInt(b.dataset.next, 10));
+}));
+$$('[data-back]').forEach(b => b.addEventListener('click', () => {
+  goStep(parseInt(b.dataset.back, 10));
+}));
+
+function goStep(n) {
+  state.step = n;
+  $$('.step').forEach(s => { s.style.display = parseInt(s.dataset.step,10) === n ? 'block' : 'none'; });
+  $$('.progress-steps .s').forEach(s => {
+    const sn = parseInt(s.dataset.step,10);
+    s.classList.toggle('active', sn === n);
+    s.classList.toggle('done', sn < n);
+  });
+  $('#progFill').style.width = (n * 25) + '%';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  fbqTrack('ViewContent', { content_name: 'simulador_step_' + n });
+}
+
+// ════════════════════════════════════════════════════════════════
+// CÁLCULO PRINCIPAL
+// ════════════════════════════════════════════════════════════════
+$('#btnCalc').addEventListener('click', () => {
+  if (!validateStep(3)) return;
+  const result = calcular();
+  renderResult(result);
+  goStep(4);
+  fbqTrack('Lead', { content_name: 'simulador_lead', value: result.preco, currency: 'BRL' });
+
+  // envia ao backend tracking (não-bloqueante)
+  try {
+    fetch('/_api/tracking/event', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        session_id: getSessId(),
+        event_type: 'simulator_lead',
+        event_data: { nome: state.nome, whats: state.whats, cidade: state.cidade, kwp: result.kwp, preco: result.preco }
+      }),
+      keepalive: true,
+    }).catch(()=>{});
+  } catch(_){}
+});
+
+function getSessId() {
+  try {
+    let s = sessionStorage.getItem('io_sd_session');
+    if (!s) { s = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)); sessionStorage.setItem('io_sd_session', s); }
+    return s;
+  } catch(_) { return 'anon'; }
+}
+
+function calcular() {
+  // 1. Consumo mensal em kWh
+  const consumoKwh = state.consumoUnit === 'rs' ? (state.consumoVal / TARIFA) : state.consumoVal;
+  const geracaoNecessaria = consumoKwh * 1.05; // 5% de margem
+
+  // 2. Buscar menor preço entre todas as tabelas que atendam
+  let melhor = null;
+  for (const [key, tab] of Object.entries(TABELAS)) {
+    for (const r of tab.rows) {
+      if (r.g >= geracaoNecessaria) {
+        const candidato = { ...r, tabela: key, inv: tab.inv, mod: tab.mod, pot: tab.pot };
+        if (!melhor || candidato.descMax < melhor.descMax) melhor = candidato;
+        break; // primeira linha que atende dentro da tabela (menor opção)
+      }
+    }
+  }
+  // Fallback: se ninguém atende (consumo gigante), pega a maior opção
+  if (!melhor) {
+    for (const [key, tab] of Object.entries(TABELAS)) {
+      const r = tab.rows[tab.rows.length - 1];
+      const candidato = { ...r, tabela: key, inv: tab.inv, mod: tab.mod, pot: tab.pot };
+      if (!melhor || candidato.descMax > melhor.descMax) melhor = candidato;
+    }
+  }
+
+  // 3. Economia
+  // Economia mensal hoje = (consumo - taxa_min) * tarifa
+  const econMes = Math.max(0, (consumoKwh - TAXA_MIN_KWH)) * TARIFA * DESCONTO_REAL;
+  let econ25 = 0;
+  for (let ano = 0; ano < 25; ano++) {
+    econ25 += econMes * 12 * Math.pow(1 + INFLAC_TARIFA, ano);
+  }
+
+  // 4. Geração mensal sazonal
+  const geracaoMensal = SAZON.map(f => Math.round(melhor.g * f));
+  const geracaoAno = geracaoMensal.reduce((a,b) => a+b, 0);
+
+  return {
+    ...melhor,
+    preco: melhor.descMax,
+    consumoKwh: Math.round(consumoKwh),
+    geracaoMensal,
+    geracaoAno,
+    econMes,
+    econ25,
+  };
+}
+
+function renderResult(r) {
+  $('#r_hello').innerHTML = `Pronto, <em>${state.nome.split(' ')[0]}!</em>`;
+  $('#r_preco').textContent = fmtBRL(r.preco);
+  $('#r_kwp').textContent = r.kwp.toFixed(1).replace('.', ',') + ' kWp';
+  $('#r_paineis').textContent = r.n + ' painéis ' + r.pot + 'W';
+  $('#r_geracao').textContent = fmtNum(r.g);
+  $('#r_economiaMes').textContent = fmtBRL(r.econMes);
+  $('#r_economia25').textContent = fmtBRL(r.econ25);
+  $('#r_geracaoAno').textContent = fmtNum(r.geracaoAno);
+
+  // Chart
+  const meses = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+  const maxG = Math.max(...r.geracaoMensal);
+  const chart = $('#r_chart');
+  chart.innerHTML = '';
+  r.geracaoMensal.forEach((g, i) => {
+    const h = Math.round((g / maxG) * 130);
+    chart.innerHTML += `<div class="bar"><div class="b" data-v="${g}" style="height:${h}px"></div><div class="m">${meses[i]}</div></div>`;
+  });
+
+  // Equipamentos
+  const eqs = $('#r_equipamentos');
+  const estruturaLbl = state.telhado === 'solo' ? 'Estrutura de solo (aterrada)' : `Estrutura ${state.telhado} para telhado`;
+  const itens = [
+    { ic:'☀️', n: `${r.n} painéis solares ${r.mod}`, d: `${r.pot}W cada · Tier 1 · 25 anos de garantia` },
+    { ic:'⚡', n: `${r.invs} inversor${r.invs>1?'es':''} ${r.inv}`, d: `Garantia de fábrica · monitoramento via app` },
+    { ic:'🔧', n: estruturaLbl, d: `Fixação certificada · resistente a vento até 120 km/h` },
+    { ic:'🛡️', n: 'String box + proteção CC/CA', d: `DPS Clamper · disjuntores · cabos solares` },
+    { ic:'📋', n: 'Projeto + homologação CEMIG', d: 'Documentação técnica · troca de medidor · vistoria' },
+    { ic:'👷', n: 'Instalação completa', d: `Equipe própria · 1 a 3 dias úteis · limpeza final` },
+  ];
+  eqs.innerHTML = itens.map(i => `
+    <div class="eq-item">
+      <div class="ic">${i.ic}</div>
+      <div class="info"><div class="n">${i.n}</div><div class="d">${i.d}</div></div>
+    </div>
+  `).join('');
+
+  // WhatsApp link
+  const phone = '5534998165040';
+  const msg = encodeURIComponent(
+`Olá! Acabei de simular meu projeto solar no site da Irmãos na Obra.
+
+📋 Meus dados:
+• Nome: ${state.nome}
+• Cidade: ${state.cidade}/${state.estado}
+• Tipo: ${state.tipo} · ${state.telhado}
+• Padrão: ${state.padrao}
+• Conta atual: ${state.consumoUnit === 'rs' ? 'R$ ' : ''}${state.consumoVal}${state.consumoUnit === 'kwh' ? ' kWh' : '/mês'}
+
+⚡ Sistema simulado:
+• ${r.kwp.toFixed(1).replace('.',',')} kWp · ${r.n} painéis
+• Geração: ~${fmtNum(r.g)} kWh/mês
+• A partir de R$ ${fmtBRL(r.preco)}
+
+Gostaria de agendar a visita técnica gratuita!`
+  );
+  $('#r_whatsapp').href = `https://wa.me/${phone}?text=${msg}`;
+}
+
+// Track inicial
+fbqTrack('ViewContent', { content_name: 'simulador_step_1' });
+</script>
+</body>
+</html>
