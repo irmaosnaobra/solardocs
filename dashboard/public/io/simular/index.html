@@ -216,6 +216,36 @@
   }
   .hero-offer-foot{margin-top:10px;text-align:center;font-size:11px;color:rgba(255,255,255,.6);font-weight:600;letter-spacing:.04em}
 
+  /* Lista 3-25 painéis (clicável) */
+  .opcoes-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px 18px 14px;margin-bottom:18px;box-shadow:var(--shadow-sm)}
+  .opcoes-head h3{font-family:'Playfair Display';font-weight:700;font-size:18px;color:var(--navy);margin:0}
+  .opcoes-head p{font-size:12px;color:var(--text-muted);font-weight:500;margin:4px 0 14px}
+  .opcoes-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;padding-right:4px}
+  .opcoes-list::-webkit-scrollbar{width:6px}
+  .opcoes-list::-webkit-scrollbar-track{background:transparent}
+  .opcoes-list::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:3px}
+  .op-row{
+    display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:10px;
+    padding:10px 12px;border-radius:10px;cursor:pointer;
+    background:#fbf7ee;border:1.5px solid transparent;
+    transition:all .15s;font-family:inherit;width:100%;text-align:left;
+  }
+  .op-row:hover{border-color:var(--gold-soft);background:rgba(194,138,44,.08)}
+  .op-row.active{border-color:var(--gold);background:rgba(194,138,44,.14);box-shadow:0 4px 12px rgba(194,138,44,.18)}
+  .op-row .qty{
+    width:42px;height:42px;border-radius:10px;
+    background:var(--navy);color:#fff;
+    display:grid;place-items:center;
+    font-family:'Playfair Display';font-weight:800;font-size:18px;
+  }
+  .op-row.active .qty{background:var(--gold)}
+  .op-row .info{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .op-row .info .t{font-size:13px;font-weight:700;color:var(--navy);line-height:1.1}
+  .op-row .info .s{font-size:11px;color:var(--text-muted);font-weight:600;line-height:1.2}
+  .op-row .preco{font-family:'Playfair Display';font-weight:800;font-size:17px;color:var(--navy);text-align:right;line-height:1;letter-spacing:-.01em}
+  .op-row .preco small{display:block;font-family:'Plus Jakarta Sans';font-size:10px;color:var(--text-soft);font-weight:600;margin-top:3px;letter-spacing:.04em;text-transform:uppercase}
+  .op-row.active .preco{color:var(--gold)}
+
   /* (legado) PLANOS DUAIS — mantido caso outro fluxo use */
   .plans{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px}
   .plan{
@@ -545,6 +575,14 @@
       <div class="hero-offer-foot">Responde em até 5min · sem custo · sem compromisso</div>
     </div>
 
+    <div class="opcoes-card">
+      <div class="opcoes-head">
+        <h3>Quer um sistema maior ou menor?</h3>
+        <p>Toque numa opção pra ajustar. Sempre o menor preço do mercado.</p>
+      </div>
+      <div class="opcoes-list" id="r_opcoes"></div>
+    </div>
+
     <div class="stats-row">
       <div class="stat">
         <div class="n">R$ <em id="r_economiaMes">—</em></div>
@@ -640,45 +678,45 @@ CIDADES.forEach(([c,uf]) => {
 // ════════════════════════════════════════════════════════════════
 const TABELAS = {
 "MICRODEYE-TSUN600W":{inv:"Deye 2,25K",mod:"Tsun 600W",pot:600,rows:[
-  {n:3,invs:1,g:255,kwp:1.8,descMax:5522.27},{n:4,invs:1,g:340,kwp:2.4,descMax:6336.33},
-  {n:5,invs:2,g:425,kwp:3.0,descMax:8735.74},{n:6,invs:2,g:510,kwp:3.6,descMax:9549.54},
-  {n:7,invs:2,g:595,kwp:4.2,descMax:10363.34},{n:8,invs:2,g:680,kwp:4.8,descMax:11177.14},
-  {n:9,invs:3,g:765,kwp:5.4,descMax:13576.81},{n:10,invs:3,g:850,kwp:6.0,descMax:14390.61},
-  {n:11,invs:3,g:935,kwp:6.6,descMax:15204.41},{n:12,invs:3,g:1020,kwp:7.2,descMax:16018.21},
-  {n:13,invs:4,g:1105,kwp:7.8,descMax:18417.88},{n:14,invs:4,g:1190,kwp:8.4,descMax:19231.68},
-  {n:15,invs:4,g:1275,kwp:9.0,descMax:20045.48},{n:16,invs:4,g:1360,kwp:9.6,descMax:20859.28},
-  {n:17,invs:5,g:1445,kwp:10.2,descMax:23258.95},{n:18,invs:5,g:1530,kwp:10.8,descMax:24072.75},
-  {n:19,invs:5,g:1615,kwp:11.4,descMax:24886.55},{n:20,invs:5,g:1700,kwp:12.0,descMax:25700.35}
+  {n:3,invs:1,g:255,kwp:1.8,pOrc:6037.50},{n:4,invs:1,g:340,kwp:2.4,pOrc:6930.00},
+  {n:5,invs:2,g:425,kwp:3.0,pOrc:9555.00},{n:6,invs:2,g:510,kwp:3.6,pOrc:10447.50},
+  {n:7,invs:2,g:595,kwp:4.2,pOrc:11340.00},{n:8,invs:2,g:680,kwp:4.8,pOrc:12232.50},
+  {n:9,invs:3,g:765,kwp:5.4,pOrc:14857.50},{n:10,invs:3,g:850,kwp:6.0,pOrc:15750.00},
+  {n:11,invs:3,g:935,kwp:6.6,pOrc:16590.00},{n:12,invs:3,g:1020,kwp:7.2,pOrc:17535.00},
+  {n:13,invs:4,g:1105,kwp:7.8,pOrc:20107.50},{n:14,invs:4,g:1190,kwp:8.4,pOrc:21000.00},
+  {n:15,invs:4,g:1275,kwp:9.0,pOrc:21892.50},{n:16,invs:4,g:1360,kwp:9.6,pOrc:22785.00},
+  {n:17,invs:5,g:1445,kwp:10.2,pOrc:25410.00},{n:18,invs:5,g:1530,kwp:10.8,pOrc:26302.50},
+  {n:19,invs:5,g:1615,kwp:11.4,pOrc:27195.00},{n:20,invs:5,g:1700,kwp:12.0,pOrc:28035.00}
 ]},
 "SAJ-3K":{inv:"SAJ 3K",mod:"Tsun 600W",pot:600,rows:[
-  {n:4,invs:1,g:320,kwp:2.4,descMax:7116.20},{n:5,invs:1,g:400,kwp:3.0,descMax:8125.00},
-  {n:6,invs:1,g:480,kwp:3.6,descMax:8977.80},{n:7,invs:1,g:560,kwp:4.2,descMax:9830.60},
-  {n:8,invs:1,g:640,kwp:4.8,descMax:10683.40}
+  {n:4,invs:1,g:320,kwp:2.4,pOrc:7770.00},{n:5,invs:1,g:400,kwp:3.0,pOrc:8872.50},
+  {n:6,invs:1,g:480,kwp:3.6,pOrc:9817.50},{n:7,invs:1,g:560,kwp:4.2,pOrc:10762.50},
+  {n:8,invs:1,g:640,kwp:4.8,pOrc:11707.50}
 ]},
 "SAJ-6K":{inv:"SAJ 6K",mod:"Tsun 600W",pot:600,rows:[
-  {n:8,invs:1,g:640,kwp:4.8,descMax:11453.00},{n:9,invs:1,g:720,kwp:5.4,descMax:12493.00},
-  {n:10,invs:1,g:800,kwp:6.0,descMax:13377.00},{n:11,invs:1,g:880,kwp:6.6,descMax:14261.00},
-  {n:12,invs:1,g:960,kwp:7.2,descMax:15145.00},{n:13,invs:1,g:1040,kwp:7.8,descMax:16185.00},
-  {n:14,invs:1,g:1120,kwp:8.4,descMax:17069.00},{n:15,invs:1,g:1200,kwp:9.0,descMax:17953.00},
-  {n:16,invs:1,g:1280,kwp:9.6,descMax:18837.00},{n:17,invs:1,g:1360,kwp:10.2,descMax:19877.00},
-  {n:18,invs:1,g:1440,kwp:10.8,descMax:20761.00},{n:19,invs:1,g:1520,kwp:11.4,descMax:21645.00},
-  {n:20,invs:1,g:1600,kwp:12.0,descMax:22529.00}
+  {n:8,invs:1,g:640,kwp:4.8,pOrc:12547.50},{n:9,invs:1,g:720,kwp:5.4,pOrc:13650.00},
+  {n:10,invs:1,g:800,kwp:6.0,pOrc:14647.50},{n:11,invs:1,g:880,kwp:6.6,pOrc:15592.50},
+  {n:12,invs:1,g:960,kwp:7.2,pOrc:16537.50},{n:13,invs:1,g:1040,kwp:7.8,pOrc:17692.50},
+  {n:14,invs:1,g:1120,kwp:8.4,pOrc:18637.50},{n:15,invs:1,g:1200,kwp:9.0,pOrc:19635.00},
+  {n:16,invs:1,g:1280,kwp:9.6,pOrc:20580.00},{n:17,invs:1,g:1360,kwp:10.2,pOrc:21735.00},
+  {n:18,invs:1,g:1440,kwp:10.8,pOrc:22680.00},{n:19,invs:1,g:1520,kwp:11.4,pOrc:23625.00},
+  {n:20,invs:1,g:1600,kwp:12.0,pOrc:24622.50}
 ]},
 "SUNGROW-5K":{inv:"Sungrow 5K",mod:"ZNShine 600W",pot:600,rows:[
-  {n:6,invs:1,g:480,kwp:3.6,descMax:11662.30},{n:7,invs:1,g:560,kwp:4.2,descMax:12569.70},
-  {n:8,invs:1,g:640,kwp:4.8,descMax:13520.00},{n:9,invs:1,g:720,kwp:5.4,descMax:14595.10},
-  {n:10,invs:1,g:800,kwp:6.0,descMax:15503.80},{n:11,invs:1,g:880,kwp:6.6,descMax:16429.40},
-  {n:12,invs:1,g:960,kwp:7.2,descMax:17407.00},{n:13,invs:1,g:1040,kwp:7.8,descMax:18811.00},
-  {n:14,invs:1,g:1120,kwp:8.4,descMax:19718.40},{n:15,invs:1,g:1200,kwp:9.0,descMax:20633.60},
-  {n:16,invs:1,g:1280,kwp:9.6,descMax:21594.30}
+  {n:6,invs:1,g:480,kwp:3.6,pOrc:12757.50},{n:7,invs:1,g:560,kwp:4.2,pOrc:13755.00},
+  {n:8,invs:1,g:640,kwp:4.8,pOrc:14752.50},{n:9,invs:1,g:720,kwp:5.4,pOrc:15960.00},
+  {n:10,invs:1,g:800,kwp:6.0,pOrc:16957.50},{n:11,invs:1,g:880,kwp:6.6,pOrc:17955.00},
+  {n:12,invs:1,g:960,kwp:7.2,pOrc:19005.00},{n:13,invs:1,g:1040,kwp:7.8,pOrc:20527.50},
+  {n:14,invs:1,g:1120,kwp:8.4,pOrc:21525.00},{n:15,invs:1,g:1200,kwp:9.0,pOrc:22522.50},
+  {n:16,invs:1,g:1280,kwp:9.6,pOrc:23572.50}
 ]},
 "SUNGROW-7.5K":{inv:"Sungrow 7,5K",mod:"ZNShine 600W",pot:600,rows:[
-  {n:15,invs:1,g:1200,kwp:9.0,descMax:21842.60},{n:16,invs:1,g:1280,kwp:9.6,descMax:22802.00},
-  {n:17,invs:1,g:1360,kwp:10.2,descMax:23992.80},{n:18,invs:1,g:1440,kwp:10.8,descMax:24953.50},
-  {n:19,invs:1,g:1520,kwp:11.4,descMax:25914.20},{n:20,invs:1,g:1600,kwp:12.0,descMax:26874.90},
-  {n:21,invs:1,g:1680,kwp:12.6,descMax:28064.40},{n:22,invs:1,g:1760,kwp:13.2,descMax:29025.10},
-  {n:23,invs:1,g:1840,kwp:13.8,descMax:29985.80},{n:24,invs:1,g:1920,kwp:14.4,descMax:30946.50},
-  {n:25,invs:1,g:2000,kwp:15.0,descMax:32134.70}
+  {n:15,invs:1,g:1200,kwp:9.0,pOrc:23835.00},{n:16,invs:1,g:1280,kwp:9.6,pOrc:24885.00},
+  {n:17,invs:1,g:1360,kwp:10.2,pOrc:26197.50},{n:18,invs:1,g:1440,kwp:10.8,pOrc:27247.50},
+  {n:19,invs:1,g:1520,kwp:11.4,pOrc:28297.50},{n:20,invs:1,g:1600,kwp:12.0,pOrc:29347.50},
+  {n:21,invs:1,g:1680,kwp:12.6,pOrc:30660.00},{n:22,invs:1,g:1760,kwp:13.2,pOrc:31710.00},
+  {n:23,invs:1,g:1840,kwp:13.8,pOrc:32707.50},{n:24,invs:1,g:1920,kwp:14.4,pOrc:33757.50},
+  {n:25,invs:1,g:2000,kwp:15.0,pOrc:35070.00}
 ]}
 };
 
@@ -904,7 +942,7 @@ function getSessId() {
 }
 
 // Busca dentro de uma categoria a opção MAIS BARATA que atenda a geração mínima.
-// Se categoria === null, busca em todas (qualquer marca).
+// Se categoria === null, busca em todas (qualquer marca). Sempre usa pOrc.
 function buscarMelhor(geracaoMin, categoria) {
   let melhor = null;
   for (const [key, tab] of Object.entries(TABELAS)) {
@@ -912,21 +950,37 @@ function buscarMelhor(geracaoMin, categoria) {
     for (const r of tab.rows) {
       if (r.g >= geracaoMin) {
         const candidato = { ...r, tabela: key, inv: tab.inv, mod: tab.mod, pot: tab.pot, categoria: CATEGORIA[key] };
-        if (!melhor || candidato.descMax < melhor.descMax) melhor = candidato;
+        if (!melhor || candidato.pOrc < melhor.pOrc) melhor = candidato;
         break; // primeira linha que atende dentro de cada tabela (menor opção)
       }
     }
   }
-  // Fallback: se nenhuma linha atende geração (consumo gigante), pega a maior opção da categoria
+  // Fallback: se nenhuma linha atende geração (consumo gigante), pega a maior opção
   if (!melhor) {
     for (const [key, tab] of Object.entries(TABELAS)) {
       if (categoria && CATEGORIA[key] !== categoria) continue;
       const r = tab.rows[tab.rows.length - 1];
       const candidato = { ...r, tabela: key, inv: tab.inv, mod: tab.mod, pot: tab.pot, categoria: CATEGORIA[key] };
-      if (!melhor || candidato.descMax > melhor.descMax) melhor = candidato;
+      if (!melhor || candidato.pOrc > melhor.pOrc) melhor = candidato;
     }
   }
   return melhor;
+}
+
+// Pra cada n (qtd de painéis) entre 3 e 25, devolve a linha mais barata entre todas as marcas
+function buildOpcoes() {
+  const out = [];
+  for (let n = 3; n <= 25; n++) {
+    let melhor = null;
+    for (const [key, tab] of Object.entries(TABELAS)) {
+      const row = tab.rows.find(rr => rr.n === n);
+      if (!row) continue;
+      const cand = { ...row, tabela: key, inv: tab.inv, mod: tab.mod, pot: tab.pot };
+      if (!melhor || cand.pOrc < melhor.pOrc) melhor = cand;
+    }
+    if (melhor) out.push(melhor);
+  }
+  return out;
 }
 
 function calcular() {
@@ -948,10 +1002,11 @@ function calcular() {
   const geracaoMensal = SAZON.map(f => Math.round((oferta ? oferta.g : 0) * f));
   const geracaoAno = geracaoMensal.reduce((a,b) => a+b, 0);
 
-  if (oferta) oferta.preco = oferta.descMax;
+  if (oferta) oferta.preco = oferta.pOrc;
 
   return {
     oferta,
+    opcoes: buildOpcoes(),
     consumoKwh: Math.round(consumoKwh),
     geracaoMensal, geracaoAno,
     econMes, econ25,
@@ -973,7 +1028,7 @@ function calcParcela(pv, taxa, n) {
 
 // Retorna como exibir o preço de cada plano conforme a forma de pagamento escolhida
 function getPriceDisplay(plano) {
-  const pv = plano.preco; // descMax = preço de venda
+  const pv = plano.preco ?? plano.pOrc; // preço de orçamento
   if (state.pagamento === 'cartao') {
     // (preço de venda × 1,19) / 18 — 19% de acréscimo, em 18x
     const parcela = (pv * 1.19) / 18;
@@ -1021,38 +1076,83 @@ function aplicaPrecoCard(prefixo, plano) {
   if (subEl) subEl.textContent = d.sub;
 }
 
-function renderResult(r) {
-  $('#r_hello').innerHTML = `Pronto, <em>${state.nome.split(' ')[0]}!</em>`;
+let _ultimoResultado = null;
 
-  // Card único — sempre o mais barato
-  if (r.oferta) {
-    const o = r.oferta;
-    aplicaPrecoCard('', o);
-    $('#r_inv').textContent = `${o.n} painéis · Inversor ${getInvLabel(o)}`;
-    $('#r_kwp').textContent = o.kwp.toFixed(1).replace('.', ',') + ' kWp';
-    $('#r_paineis').textContent = `${o.n} × ${o.pot}W`;
-    $('#r_geracao').textContent = fmtNum(o.g) + ' kWh';
-    $('#r_hero_whatsapp').href = buildWhatsapp(r);
-  }
+function aplicaOferta(r, o) {
+  if (!o) return;
+  o.preco = o.pOrc;
+  r.oferta = o;
+  // Atualiza geração mensal pra refletir o sistema escolhido
+  r.geracaoMensal = SAZON.map(f => Math.round(o.g * f));
+  r.geracaoAno = r.geracaoMensal.reduce((a,b)=>a+b,0);
+  aplicaPrecoCard('', o);
+  $('#r_inv').textContent = `${o.n} painéis · Inversor ${getInvLabel(o)}`;
+  $('#r_kwp').textContent = o.kwp.toFixed(1).replace('.', ',') + ' kWp';
+  $('#r_paineis').textContent = `${o.n} × ${o.pot}W`;
+  $('#r_geracao').textContent = fmtNum(o.g) + ' kWh';
+  $('#r_hero_whatsapp').href = buildWhatsapp(r);
+  $('#r_whatsapp') && ($('#r_whatsapp').href = buildWhatsapp(r));
+  // Re-render chart com nova geração
+  renderChart(r);
+  // Marca opção ativa
+  document.querySelectorAll('.op-row').forEach(el => el.classList.toggle('active', el.dataset.n === String(o.n)));
+}
 
-  // Stats gerais
-  $('#r_economiaMes').textContent = fmtBRL(r.econMes);
-  $('#r_economia25').textContent = fmtBRL(r.econ25);
-  $('#r_geracaoAno').textContent = fmtNum(r.geracaoAno);
-
-  // Chart — acentua diferença sazonal (min ~32% altura, max 100%)
+function renderChart(r) {
   const meses = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
   const maxG = Math.max(...r.geracaoMensal, 1);
   const minG = Math.min(...r.geracaoMensal, 1);
   const range = Math.max(maxG - minG, 1);
   const chart = $('#r_chart');
+  if (!chart) return;
   chart.innerHTML = '';
   r.geracaoMensal.forEach((g, i) => {
-    // Normaliza pra 0..1 e remapeia pra 0.32..1.0 (32% min, 100% max)
     const norm = (g - minG) / range;
     const h = Math.round((0.32 + norm * 0.68) * 130);
     chart.innerHTML += `<div class="bar"><div class="b" data-v="${g}" style="height:${h}px"></div><div class="m">${meses[i]}</div></div>`;
   });
+  const totalEl = $('#r_geracaoAno');
+  if (totalEl) totalEl.textContent = fmtNum(r.geracaoAno);
+}
+
+function renderOpcoes(r) {
+  const list = $('#r_opcoes');
+  if (!list) return;
+  list.innerHTML = (r.opcoes || []).map(op => {
+    const d = getPriceDisplay({ ...op, preco: op.pOrc });
+    const valTxt = d.x ? `${d.val}${d.x}` : `R$ ${d.val}`;
+    const sublabel = d.x ? d.label.toLowerCase() : 'à vista';
+    return `
+      <button type="button" class="op-row" data-n="${op.n}">
+        <div class="qty">${op.n}</div>
+        <div class="info">
+          <div class="t">${op.kwp.toFixed(1).replace('.',',')} kWp · ${op.inv}</div>
+          <div class="s">~${fmtNum(op.g)} kWh/mês</div>
+        </div>
+        <div class="preco">${d.x ? '' : '<small style="font-size:9px">a partir de</small>'}${valTxt}<small>${sublabel}</small></div>
+      </button>
+    `;
+  }).join('');
+  list.querySelectorAll('.op-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const n = parseInt(btn.dataset.n || '0', 10);
+      const o = (r.opcoes || []).find(x => x.n === n);
+      if (o) aplicaOferta(r, { ...o });
+    });
+  });
+}
+
+function renderResult(r) {
+  _ultimoResultado = r;
+  $('#r_hello').innerHTML = `Pronto, <em>${state.nome.split(' ')[0]}!</em>`;
+
+  if (r.oferta) aplicaOferta(r, r.oferta);
+  renderOpcoes(r);
+
+  // Stats gerais
+  $('#r_economiaMes').textContent = fmtBRL(r.econMes);
+  $('#r_economia25').textContent = fmtBRL(r.econ25);
+  // (chart e r_geracaoAno foram atualizados em aplicaOferta → renderChart)
 
   // Equipamentos
   const eqs = $('#r_equipamentos');
