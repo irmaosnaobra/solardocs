@@ -1196,7 +1196,7 @@ function renderResult(r) {
     { n: getInversorDisplay(c).replace(/^./, s => s.toUpperCase()), d: `Monitoramento via app · garantia de fábrica` },
     { n: estruturaLbl, d: `Fixação certificada · resistente a vento até 120 km/h` },
     { n: 'Proteção CC/CA', d: `DPS · disjuntores · cabos solares dedicados` },
-    { n: 'Projeto + homologação CEMIG', d: 'Documentação técnica · troca de medidor · vistoria' },
+    { n: `Projeto + homologação ${state.estado === 'GO' ? 'Equatorial' : 'CEMIG'}`, d: 'Documentação técnica · troca de medidor · vistoria' },
     { n: 'Instalação completa', d: `Equipe própria · 1 a 3 dias úteis · limpeza final` },
     { n: '🏷️ Marcas e modelos · sob consulta', d: 'Quer saber a marca do inversor e dos painéis? Chame no WhatsApp (34) 99816-5040' },
   ] : [];
