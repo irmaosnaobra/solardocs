@@ -113,15 +113,17 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 // (Z-API webhook MD nao dispara consistentemente, polling eh fallback)
 //
 // LUMA DESLIGADA NA LINHA IO (34998165040) — Cora é a única agente nesse número.
-// Tarefas IO da Luma comentadas abaixo. Pra reativar: descomentar + ajustar
-// resultado do Promise.allSettled.
+// Polling IO permanece ATIVO porque é como Cora "escuta" mensagens inbound
+// (sem ele, ela nunca saberia que o lead clicou no botão WhatsApp do simulador).
+// O early-return em handleSdrLead garante que Luma não age, só Cora.
+// Tarefas Luma específicas (nudges, lembretes, reativação) seguem desligadas.
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, cleanupResult, dedupCleanupResult, cardRetryResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
-      // pollZapiMessagesIO(),         // [LUMA-IO-OFF] polling de novos leads na linha IO
+      pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
       // processIoTakeoverEvents(),    // [LUMA-IO-OFF] eventos de takeover humano IO
       // processarLembretesAgendamento(),// [LUMA-IO-OFF] lembretes de agendamento IO
       // revisarLeadsLuma(),            // [LUMA-IO-OFF] revisão de leads pela Luma IO
@@ -137,10 +139,11 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ok: true,
       queue:      queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },
       poll:       pollResult.status  === 'fulfilled' ? pollResult.value  : { error: String((pollResult as any).reason) },
+      poll_io:    pollIoResult.status === 'fulfilled' ? pollIoResult.value : { error: String((pollIoResult as any).reason) },
       cleanup:    cleanupResult.status === 'fulfilled' ? cleanupResult.value : { error: String((cleanupResult as any).reason) },
       dedup_cleanup: dedupCleanupResult.status === 'fulfilled' ? dedupCleanupResult.value : { error: String((dedupCleanupResult as any).reason) },
       card_retry: cardRetryResult.status === 'fulfilled' ? cardRetryResult.value : { error: String((cardRetryResult as any).reason) },
-      luma_io_off: 'Linha IO operada exclusivamente pela Cora',
+      luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
     logger.error('cron', 'process-messages falhou', err);

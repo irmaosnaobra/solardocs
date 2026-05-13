@@ -38,8 +38,18 @@ import { logger } from '../../../utils/logger';
 // contando a partir da hora do welcome).
 const CADENCIA_DIAS = [2, 3, 5, 8, 12, 20];
 
+// Welcome enviado pela Cora QUANDO o lead conclui o simulador (POST /io-leads).
+// Já avisa que recebemos a simulação e pergunta se pode ligar.
 const WELCOME_MSG = (nome: string): string =>
   `Oi ${nome}, recebemos sua simulação aqui. Posso te ligar agora pra fechar os detalhes?`;
+
+// Welcome enviado pela Cora QUANDO o lead manda primeira mensagem no zap
+// (clicou no botão WhatsApp do simulador, abriu o app, mandou). Sai com 15s
+// de delay pra parecer que humano notou e respondeu, não bot instantâneo.
+const WELCOME_INBOUND_MSG = (nome: string): string =>
+  `Oi ${nome}, um de nossos especialistas vai te atender, bem vindo aos Irmãos na Obra`;
+
+const WELCOME_INBOUND_DELAY_MS = 15_000;
 
 const MENSAGENS = (nome: string): string[] => [
   `Oi ${nome}, vamos fechar?`,
@@ -251,7 +261,7 @@ export async function processIoInboundForCrm(
 
   const { data: lead, error } = await supabase
     .from('io_leads')
-    .select('id, status, opt_out, nome')
+    .select('id, status, opt_out, nome, whatsapp, last_inbound_at')
     .or(candidatos.map(c => `whatsapp.eq.${c}`).join(','))
     .order('created_at', { ascending: false })
     .limit(1)
@@ -259,6 +269,10 @@ export async function processIoInboundForCrm(
 
   if (error || !lead) return { matched: false };
   if (lead.opt_out) return { matched: true };
+
+  // Detecta primeiro contato ANTES de atualizar last_inbound_at — vai
+  // disparar mensagem "um especialista vai te atender" com 15s de delay.
+  const isFirstInbound = !lead.last_inbound_at;
 
   const acao = classificarMensagem(message || '');
   const { status: novoStatus, nota } = statusFromAcao(acao);
@@ -286,6 +300,28 @@ export async function processIoInboundForCrm(
   }
 
   logger.info('cora', `inbound classificado lead=${lead.id} ação=${acao.tipo} status=${update.status ?? '(mantido)'}`);
+
+  // ─── Welcome do PRIMEIRO inbound (15s delay) ───────────────────────
+  // Só dispara se for a primeira mensagem que o lead manda no zap.
+  // Pula se opt_out (LGPD). Aguarda inline pra Vercel não matar o
+  // setTimeout antes do request acabar (serverless mata callbacks
+  // pendentes ao retornar).
+  if (isFirstInbound && acao.tipo !== 'opt_out') {
+    const nome = primeiroNome(lead.nome);
+    await new Promise<void>((resolve) => {
+      setTimeout(async () => {
+        try {
+          await sendWA(lead.whatsapp, WELCOME_INBOUND_MSG(nome), 'io');
+          await gravarHistorico(lead.id, lead.status, lead.status, 'Cora · 👋 boas-vindas WhatsApp ("especialista vai atender")');
+          logger.info('cora', `welcome inbound enviado lead=${lead.id} nome=${nome}`);
+        } catch (err) {
+          logger.error('cora', `falha enviando welcome inbound lead=${lead.id}`, err);
+        }
+        resolve();
+      }, WELCOME_INBOUND_DELAY_MS);
+    });
+  }
+
   return { matched: true, classificacao: acao, novoStatus: update.status as string | undefined };
 }
 
