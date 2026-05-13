@@ -575,7 +575,7 @@
       </div>
       <div class="stat">
         <div class="n"><em>25</em> anos</div>
-        <div class="l">Garantia<br/>fabricantes Tier 1</div>
+        <div class="l">Garantia<br/>de geração</div>
       </div>
     </div>
 
@@ -605,7 +605,7 @@
     </div>
 
     <div class="disclaimer">
-      *Valores estimados com base em equipamentos certificados Tier 1 e geração média do Triângulo Mineiro (HSP 5,2 h/dia). O orçamento final é confirmado após visita técnica gratuita.
+      *Valores estimados com base em equipamentos certificados e geração média do Triângulo Mineiro (HSP 5,2 h/dia). O orçamento final é confirmado após visita técnica gratuita.
     </div>
   </section>
 
@@ -1166,13 +1166,11 @@ function renderChart(r) {
   const chart = $('#r_chart');
   if (!chart) return;
   chart.innerHTML = '';
-  // Mapeia altura entre 20% (mín) e 100% (máx) — range visual generoso
-  const altArea = 170; // altura útil (chart 200 - padding 24 - label 6)
+  // Altura em % — escala sozinho no mobile (130px) e desktop (200px), sem clipping
   r.geracaoMensal.forEach((g, i) => {
     const norm = (g - minG) / range;       // 0..1
-    const ratio = 0.20 + norm * 0.80;      // 0.20..1.00
-    const h = Math.round(ratio * altArea);
-    chart.innerHTML += `<div class="bar"><div class="b" data-v="${g}" style="height:${h}px"></div><div class="m">${meses[i]}</div></div>`;
+    const pct = 22 + norm * 78;            // 22% a 100% — oscilação bem visível
+    chart.innerHTML += `<div class="bar"><div class="b" data-v="${g}" style="height:${pct.toFixed(1)}%"></div><div class="m">${meses[i]}</div></div>`;
   });
   const totalEl = $('#r_geracaoAno');
   if (totalEl) totalEl.textContent = fmtNum(r.geracaoAno);
