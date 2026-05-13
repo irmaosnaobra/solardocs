@@ -83,6 +83,18 @@ function fmtPadrao(p: string | null) {
   return ({ mono110: 'Mono 110V', mono220: 'Mono 220V', bif220: 'Bifásico 220V', tri220: 'Trifásico' } as any)[p || ''] || (p || '—');
 }
 
+function buildWaLink(lead: IoLead) {
+  const phone = lead.whatsapp.replace(/\D/g, '');
+  const primeiroNome = (lead.nome || '').trim().split(/\s+/)[0] || '';
+  const planoLinha = lead.comercial_preco
+    ? `\n\nVi aqui que sua simulação fechou em ${fmtBRL(lead.comercial_preco)} pro kit comercial. Quero te explicar como economiza na conta de luz e te mando a proposta detalhada agora.`
+    : '\n\nVi sua simulação aqui e quero te ajudar com a proposta de energia solar.';
+  const msg = encodeURIComponent(
+    `Olá ${primeiroNome}! Aqui é da Irmãos na Obra Energia Solar.${planoLinha}\n\nTem 2 minutinhos pra conversar?`
+  );
+  return `https://wa.me/55${phone}?text=${msg}`;
+}
+
 // ── Componente ─────────────────────────────────────────────────────
 export default function CrmIoPage() {
   const [leads, setLeads] = useState<IoLead[]>([]);
@@ -94,20 +106,42 @@ export default function CrmIoPage() {
   const [savingStatus, setSavingStatus] = useState(false);
   const [editingNotes, setEditingNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list');
+  const [copyHint, setCopyHint] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const { data } = await api.get('/io-leads');
       setLeads(data.leads || []);
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Auto-refresh a cada 45s pra pegar lead novo da campanha
+  useEffect(() => {
+    const id = setInterval(() => load(true), 45_000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  function openLead(id: string) {
+    setSelectedId(id);
+    if (typeof window !== 'undefined' && window.innerWidth < 980) {
+      setMobileView('detail');
+    }
+  }
+  function copyPhone(whats: string) {
+    try {
+      navigator.clipboard.writeText(fmtWhats(whats));
+      setCopyHint(true);
+      setTimeout(() => setCopyHint(false), 1400);
+    } catch {}
+  }
 
   const filtered = useMemo(() => {
     return leads.filter(l => {
@@ -172,7 +206,7 @@ export default function CrmIoPage() {
           <h1 className={styles.title}>🏗️ CRM Irmãos na Obra</h1>
           <p className={styles.subtitle}>{leads.length} leads no total · funil completo do simulador /io</p>
         </div>
-        <button className={styles.refresh} onClick={load} disabled={loading}>{loading ? 'Atualizando…' : '🔄 Atualizar'}</button>
+        <button className={styles.refresh} onClick={() => load()} disabled={loading}>{loading ? 'Atualizando…' : '🔄 Atualizar'}</button>
       </header>
 
       <div className={styles.statsRow}>
@@ -207,7 +241,7 @@ export default function CrmIoPage() {
         <span className={styles.resultCount}>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
       </div>
 
-      <div className={styles.layout}>
+      <div className={`${styles.layout} ${mobileView === 'detail' ? styles.layoutDetail : ''}`}>
         <div className={styles.listCol}>
           {loading ? (
             <div className={styles.empty}>Carregando leads...</div>
@@ -221,15 +255,31 @@ export default function CrmIoPage() {
             const st = STATUS_BY_ID[l.status] || STATUS_BY_ID.novo;
             const isSel = l.id === selectedId;
             return (
-              <button
+              <div
                 key={l.id}
+                role="button"
+                tabIndex={0}
                 className={`${styles.card} ${isSel ? styles.cardActive : ''}`}
-                onClick={() => setSelectedId(l.id)}
+                onClick={() => openLead(l.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLead(l.id); } }}
                 style={isSel ? { borderColor: st.color } : {}}
               >
                 <div className={styles.cardTop}>
                   <span className={styles.statusBadge} style={{ background: st.bg, color: st.color }}>{st.emoji} {st.label}</span>
-                  <span className={styles.timeAgo}>{fmtRel(l.created_at)}</span>
+                  <div className={styles.cardTopRight}>
+                    <span className={styles.timeAgo}>{fmtRel(l.created_at)}</span>
+                    <a
+                      href={buildWaLink(l)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.cardWa}
+                      onClick={(e) => e.stopPropagation()}
+                      title={`Abrir WhatsApp de ${l.nome.split(' ')[0]}`}
+                      aria-label={`Abrir WhatsApp de ${l.nome}`}
+                    >
+                      📲
+                    </a>
+                  </div>
                 </div>
                 <div className={styles.cardName}>{l.nome}</div>
                 <div className={styles.cardMeta}>
@@ -241,7 +291,7 @@ export default function CrmIoPage() {
                   {l.premium_preco != null && <span><b>P:</b> {fmtBRL(l.premium_preco)}</span>}
                   <span style={{ marginLeft: 'auto', opacity: .7 }}>{fmtPag(l.pagamento)}</span>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -254,14 +304,20 @@ export default function CrmIoPage() {
             </div>
           ) : (
             <div className={styles.detailCard}>
+              <button className={styles.backBtn} onClick={() => setMobileView('list')} aria-label="Voltar para lista">
+                ← Voltar pra lista
+              </button>
               <div className={styles.detailHead}>
                 <div>
                   <div className={styles.detailName}>{selected.nome}</div>
                   <div className={styles.detailContact}>
-                    <a href={`https://wa.me/55${selected.whatsapp}`} target="_blank" rel="noopener noreferrer" className={styles.waLink}>
+                    <a href={buildWaLink(selected)} target="_blank" rel="noopener noreferrer" className={styles.waLink}>
                       📲 {fmtWhats(selected.whatsapp)}
                     </a>
-                    <span> · {selected.cidade ? `${selected.cidade}/${selected.estado || ''}` : '—'}</span>
+                    <button className={styles.copyBtn} onClick={() => copyPhone(selected.whatsapp)} title="Copiar número">
+                      {copyHint ? '✓ copiado' : '📋'}
+                    </button>
+                    <span className={styles.contactCity}> · {selected.cidade ? `${selected.cidade}/${selected.estado || ''}` : '—'}</span>
                   </div>
                 </div>
                 <span className={styles.statusBadge} style={{ background: STATUS_BY_ID[selected.status].bg, color: STATUS_BY_ID[selected.status].color, fontSize: 14, padding: '6px 14px' }}>
@@ -352,6 +408,16 @@ export default function CrmIoPage() {
                 {selected.last_contact_at ? ` · Último contato ${fmtRel(selected.last_contact_at)}` : ''}
                 {selected.utm_source ? ` · origem: ${selected.utm_source}${selected.utm_campaign ? '/' + selected.utm_campaign : ''}` : ''}
               </div>
+
+              <a
+                className={styles.fabWa}
+                href={buildWaLink(selected)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Falar no WhatsApp"
+              >
+                <span>📲 Falar no WhatsApp</span>
+              </a>
             </div>
           )}
         </div>

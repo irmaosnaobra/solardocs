@@ -15,7 +15,7 @@
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
 
 <!-- Meta Pixel -->
 <script>
@@ -35,7 +35,7 @@
     --shadow-md:0 8px 24px rgba(15,23,42,0.10);
     --shadow-lg:0 18px 44px rgba(15,23,42,0.16);
   }
-  html,body{min-height:100vh;background:var(--bg);font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);scroll-behavior:smooth}
+  html,body{min-height:100vh;background:var(--bg);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--text);scroll-behavior:smooth;font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 
   /* TOPBAR */
   .topbar{position:sticky;top:0;z-index:50;background:var(--navy);color:#fff;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 14px rgba(15,42,82,.18)}
@@ -47,7 +47,7 @@
   }
   .brand .mark img{width:100%;height:100%;object-fit:contain;display:block}
   .brand .name{font-family:'Playfair Display';font-weight:700;font-size:16px;line-height:1}
-  .brand .name small{display:block;font-family:'Plus Jakarta Sans';font-weight:600;font-size:9px;letter-spacing:.2em;opacity:.85;margin-top:3px;color:var(--gold-pale)}
+  .brand .name small{display:block;font-family:inherit;font-weight:600;font-size:10px;letter-spacing:.2em;opacity:.85;margin-top:3px;color:var(--gold-pale)}
   .back-btn{color:#fff;text-decoration:none;font-size:13px;font-weight:600;opacity:.85;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;transition:background .2s}
   .back-btn:hover{background:rgba(255,255,255,.08);opacity:1}
 
@@ -72,44 +72,44 @@
   @keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   .step-head{margin-bottom:14px}
   .eyebrow{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);background:rgba(194,138,44,.08);padding:4px 10px;border-radius:999px;margin-bottom:8px}
-  h1{font-family:'Playfair Display';font-weight:800;font-size:24px;line-height:1.05;color:var(--navy);letter-spacing:-.01em;margin-bottom:4px}
+  h1{font-family:inherit;font-weight:800;font-size:26px;line-height:1.15;color:var(--navy);letter-spacing:-.015em;margin-bottom:6px}
   h1 em{font-style:italic;color:var(--gold)}
-  .lead{font-size:13px;color:var(--text-muted);font-weight:500;line-height:1.35}
+  .lead{font-size:14.5px;color:var(--text-muted);font-weight:500;line-height:1.45}
 
   /* FIELDS */
-  .field{margin-bottom:11px}
-  .field label{display:block;font-size:10.5px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+  .field{margin-bottom:13px}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
   .field label .req{color:var(--red)}
   .field input,.field select{
-    width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;background:#fff;
-    font-family:inherit;font-size:14px;color:var(--text);font-weight:500;
+    width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;background:#fff;
+    font-family:inherit;font-size:16px;color:var(--text);font-weight:500;line-height:1.3;
     transition:border-color .15s,box-shadow .15s;
   }
   .field input:focus,.field select:focus{outline:0;border-color:var(--gold);box-shadow:0 0 0 3px rgba(194,138,44,.14)}
   .field input.invalid{border-color:var(--red)}
   .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .field-row.row-3{grid-template-columns:1fr 1fr 1fr}
-  .err-msg{margin-top:5px;font-size:11px;color:var(--red);font-weight:600;display:none}
+  .err-msg{margin-top:6px;font-size:12.5px;color:var(--red);font-weight:600;display:none}
   .err-msg.show{display:block}
 
   /* OPTION GROUP (radio cards) */
-  .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:7px;margin-top:5px}
-  .opts.tight{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
+  .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:8px;margin-top:6px}
+  .opts.tight{grid-template-columns:repeat(auto-fit,minmax(102px,1fr))}
   .opt{
-    position:relative;border:1.5px solid var(--border);border-radius:11px;padding:10px 8px 9px;cursor:pointer;
+    position:relative;border:1.5px solid var(--border);border-radius:11px;padding:12px 8px 11px;cursor:pointer;
     background:#fff;text-align:center;transition:all .15s ease;
-    display:flex;flex-direction:column;align-items:center;gap:5px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
   }
   .opt input{position:absolute;opacity:0;inset:0;cursor:pointer}
   .opt .ic{
-    width:34px;height:34px;border-radius:9px;
+    width:38px;height:38px;border-radius:10px;
     background:#f5f1e6;color:#8a8a8a;
     display:grid;place-items:center;
     transition:all .15s ease;
   }
-  .opt .ic svg{width:19px;height:19px}
-  .opt .lbl{font-size:12px;font-weight:700;color:var(--text);line-height:1.15}
-  .opt .sub{font-size:10px;font-weight:600;color:var(--text-soft);line-height:1.15}
+  .opt .ic svg{width:21px;height:21px}
+  .opt .lbl{font-size:13.5px;font-weight:700;color:var(--text);line-height:1.2}
+  .opt .sub{font-size:11.5px;font-weight:600;color:var(--text-soft);line-height:1.2}
   .opt:hover{border-color:var(--gold-soft)}
   .opt:hover .ic{background:rgba(194,138,44,.12);color:var(--gold)}
   .opt:has(input:checked){border-color:var(--gold);background:rgba(194,138,44,.06);box-shadow:0 3px 10px rgba(194,138,44,.18)}
@@ -119,7 +119,7 @@
     width:34px;height:34px;border-radius:9px;
     background:#f5f1e6;color:#8a8a8a;
     display:grid;place-items:center;
-    font-family:'Playfair Display';font-weight:800;font-size:19px;
+    font-family:inherit;font-weight:800;font-size:18px;
     transition:all .15s;
   }
   .opt:hover .num{background:rgba(194,138,44,.12);color:var(--gold)}
@@ -127,7 +127,7 @@
 
   /* ACTIONS */
   .actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
-  .btn{padding:11px 18px;border-radius:10px;font-weight:800;font-size:13.5px;letter-spacing:.02em;cursor:pointer;border:0;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+  .btn{padding:13px 20px;border-radius:10px;font-weight:800;font-size:15px;letter-spacing:.01em;cursor:pointer;border:0;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
   .btn-primary{background:var(--gold);color:#fff;box-shadow:0 8px 20px rgba(194,138,44,.4)}
   .btn-primary:hover{transform:translateY(-1px);background:#b07e25;box-shadow:0 12px 28px rgba(194,138,44,.5)}
   .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
@@ -177,17 +177,17 @@
     padding:6px 14px;border-radius:999px;margin-bottom:12px;
   }
   .hero-offer-inv{
-    font-family:'Playfair Display';font-weight:700;font-size:18px;
-    color:var(--gold-pale);letter-spacing:.01em;margin-bottom:14px;line-height:1.1;
+    font-family:inherit;font-weight:700;font-size:18px;
+    color:var(--gold-pale);letter-spacing:.01em;margin-bottom:14px;line-height:1.2;
   }
-  .hero-offer-from{font-size:12px;font-weight:700;color:rgba(255,255,255,.7);letter-spacing:.08em;text-transform:uppercase}
+  .hero-offer-from{font-size:13px;font-weight:700;color:rgba(255,255,255,.78);letter-spacing:.08em;text-transform:uppercase}
   .hero-offer-price{
-    font-family:'Playfair Display';font-weight:800;font-size:64px;line-height:1;
-    color:#fff;letter-spacing:-.02em;margin:4px 0 6px;
+    font-family:inherit;font-weight:900;font-size:60px;line-height:1;
+    color:#fff;letter-spacing:-.025em;margin:4px 0 6px;
   }
   .hero-offer-price small{font-size:26px;font-weight:700;opacity:.85;margin-right:5px}
   .hero-offer-price .x{font-size:20px;font-weight:600;opacity:.65;margin-left:8px;letter-spacing:0}
-  .hero-offer-sub{font-size:12px;color:rgba(255,255,255,.7);font-weight:600;letter-spacing:.02em;margin-bottom:18px;min-height:14px}
+  .hero-offer-sub{font-size:13px;color:rgba(255,255,255,.78);font-weight:600;letter-spacing:.02em;margin-bottom:18px;min-height:14px}
   .hero-offer-specs{
     display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
     padding:14px;border-radius:14px;
@@ -195,7 +195,7 @@
     backdrop-filter:blur(8px);margin-bottom:20px;
   }
   .hero-offer-specs .spec{text-align:center}
-  .hero-offer-specs .spec-v{font-family:'Playfair Display';font-weight:800;font-size:18px;color:#fff;line-height:1.1;letter-spacing:-.01em}
+  .hero-offer-specs .spec-v{font-family:inherit;font-weight:800;font-size:18px;color:#fff;line-height:1.15;letter-spacing:-.01em}
   .hero-offer-specs .spec-l{margin-top:4px;font-size:10px;font-weight:700;color:rgba(255,255,255,.7);letter-spacing:.08em;text-transform:uppercase}
   .hero-offer-cta{
     display:flex;align-items:center;justify-content:center;gap:12px;
@@ -240,14 +240,14 @@
   }
   .plan.comercial .plan-tag{color:var(--green);background:#fff;border-color:#bbf7d0}
   .plan.premium .plan-tag{background:var(--gold);color:#fff;border-color:var(--gold)}
-  .plan-name{font-family:'Playfair Display';font-weight:800;font-size:22px;letter-spacing:-.01em;color:var(--navy)}
+  .plan-name{font-family:inherit;font-weight:800;font-size:22px;letter-spacing:-.015em;color:var(--navy)}
   .plan.premium .plan-name{color:#fff}
-  .plan-name span{display:block;font-family:'Plus Jakarta Sans';font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft);margin-top:3px;line-height:1.3}
+  .plan-name span{display:block;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft);margin-top:4px;line-height:1.3}
   .plan.premium .plan-name span{color:var(--gold-pale)}
   .plan-price{margin:2px 0;position:relative;z-index:1}
   .plan-price .from{font-size:12px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:.08em}
   .plan.premium .plan-price .from{color:rgba(255,255,255,.7)}
-  .plan-price .val{font-family:'Playfair Display';font-weight:800;font-size:42px;line-height:1;letter-spacing:-.02em;color:var(--navy);margin-top:2px}
+  .plan-price .val{font-family:inherit;font-weight:900;font-size:40px;line-height:1;letter-spacing:-.025em;color:var(--navy);margin-top:2px}
   .plan.premium .plan-price .val{color:#fff}
   .plan-price .val small{font-size:18px;font-weight:700;margin-right:4px;opacity:.85}
   .plan-price .val .x{font-size:16px;font-weight:600;opacity:.6;margin-left:6px;letter-spacing:0}
@@ -271,14 +271,14 @@
 
   .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
   .stat{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 14px;text-align:center;box-shadow:var(--shadow-sm)}
-  .stat .n{font-family:'Playfair Display';font-weight:800;font-size:24px;color:var(--navy);line-height:1;letter-spacing:-.01em}
+  .stat .n{font-family:inherit;font-weight:900;font-size:24px;color:var(--navy);line-height:1.05;letter-spacing:-.015em}
   .stat .n em{font-style:normal;color:var(--gold)}
   .stat .l{margin-top:6px;font-size:10.5px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.1em;line-height:1.3}
 
   /* CHART */
   .chart-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:20px;box-shadow:var(--shadow-sm)}
   .chart-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px}
-  .chart-head h3{font-family:'Playfair Display';font-weight:700;font-size:19px;color:var(--navy)}
+  .chart-head h3{font-family:inherit;font-weight:800;font-size:19px;color:var(--navy);letter-spacing:-.01em}
   .chart-head .total{font-size:14px;color:var(--text-muted);font-weight:600}
   .chart-head .total b{color:var(--gold);font-weight:800}
   .chart{display:flex;align-items:flex-end;gap:6px;height:200px;padding-bottom:24px;position:relative}
@@ -297,7 +297,7 @@
 
   /* EQUIPAMENTOS */
   .eq-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:24px;box-shadow:var(--shadow-sm)}
-  .eq-card h3{font-family:'Playfair Display';font-weight:700;font-size:19px;color:var(--navy);margin-bottom:14px}
+  .eq-card h3{font-family:inherit;font-weight:800;font-size:19px;color:var(--navy);margin-bottom:14px;letter-spacing:-.01em}
   .eq-list{display:grid;gap:10px}
   .eq-item{display:flex;align-items:center;gap:14px;padding:12px 14px;background:#fbf7ee;border-radius:10px}
   .eq-item .ic{width:38px;height:38px;border-radius:10px;background:rgba(194,138,44,.18);color:var(--gold);display:grid;place-items:center;font-size:18px;flex-shrink:0}
@@ -327,7 +327,13 @@
   }
   .result-ctas .cta-exit:hover{background:#e8e3d4;color:var(--navy)}
 
-  .disclaimer{margin-top:24px;font-size:11.5px;color:var(--text-soft);text-align:center;line-height:1.5}
+  .disclaimer{margin-top:14px;font-size:11.5px;color:var(--text-soft);text-align:center;line-height:1.5}
+  .disclaimer-warn{
+    margin-top:24px;padding:14px 18px;border-radius:12px;
+    background:#fef3c7;border:1.5px solid #fcd34d;color:#78350f;
+    font-size:14.5px;font-weight:600;line-height:1.4;text-align:center;
+  }
+  .disclaimer-warn strong{font-weight:800;color:#7c2d12}
 
   /* CITY HINT */
   .city-hint{margin-top:8px;font-size:12px;font-weight:600;display:none;align-items:center;gap:6px}
@@ -337,22 +343,27 @@
   /* MOBILE */
   @media (max-width:640px){
     .stage{padding:10px 12px 20px}
-    .card{padding:16px 16px}
-    h1{font-size:22px}
-    .result-head h1{font-size:24px}
+    .card{padding:18px 16px}
+    h1{font-size:23px;line-height:1.2}
+    .lead{font-size:14px;line-height:1.45}
+    .result-head h1{font-size:26px}
     .brand .name{font-size:14px}
-    .brand .name small{font-size:8.5px}
-    .field{margin-bottom:9px}
+    .brand .name small{font-size:9px}
+    .field{margin-bottom:11px}
+    .field label{font-size:12.5px}
+    .field input,.field select{font-size:16px;padding:13px 14px}
     .plans{grid-template-columns:1fr}
     .plan-price .val{font-size:36px}
     .hero-offer{padding:22px 20px;border-radius:18px}
-    .hero-offer-price{font-size:48px}
+    .hero-offer-price{font-size:50px}
     .hero-offer-price small{font-size:22px}
     .stats-row{grid-template-columns:1fr}
     .field-row,.field-row.row-3{grid-template-columns:1fr}
     .result-ctas{grid-template-columns:1fr}
     .chart{height:130px}
     .opts{grid-template-columns:repeat(2,1fr)}
+    .opt .lbl{font-size:14px}
+    .btn{font-size:15px;padding:14px 20px}
   }
 </style>
 </head>
@@ -455,9 +466,9 @@
         <label class="opt"><input type="radio" name="telhado" value="eternit">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7q2-2 4 0t4 0 4 0 4 0 4 0"/><path d="M2 12q2-2 4 0t4 0 4 0 4 0 4 0"/><path d="M2 17q2-2 4 0t4 0 4 0 4 0 4 0"/></svg></div>
           <div class="lbl">Eternit</div></label>
-        <label class="opt"><input type="radio" name="telhado" value="cimento">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="1"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="9" y1="7" x2="9" y2="17"/><line x1="15" y1="7" x2="15" y2="17"/></svg></div>
-          <div class="lbl">Cimento</div></label>
+        <label class="opt"><input type="radio" name="telhado" value="laje">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="6" rx="1"/><line x1="6" y1="15" x2="6" y2="20"/><line x1="18" y1="15" x2="18" y2="20"/></svg></div>
+          <div class="lbl">Laje</div></label>
         <label class="opt"><input type="radio" name="telhado" value="metalico">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="16" x2="21" y2="16"/><line x1="6" y1="4" x2="6" y2="20"/></svg></div>
           <div class="lbl">Metálico</div></label>
@@ -587,6 +598,10 @@
         Falar com especialista
       </a>
       <a href="/io" class="cta-exit">Sair</a>
+    </div>
+
+    <div class="disclaimer-warn">
+      ⚠️ <strong>Atenção:</strong> isso é apenas uma estimativa. Para fechar, converse com seu consultor!
     </div>
 
     <div class="disclaimer">
@@ -732,6 +747,15 @@ const fmtNum = (n) => Math.round(n).toLocaleString('pt-BR');
 function fbqTrack(event, params) {
   if (typeof fbq === 'function') { try { fbq('track', event, params || {}); } catch(_){} }
 }
+function fbqCustom(event, params) {
+  if (typeof fbq === 'function') { try { fbq('trackCustom', event, params || {}); } catch(_){} }
+}
+
+// Funil por step — eventos distintos pro Meta Ads
+const STEP_EVENT = { 1: 'Sim_Entrou', 2: 'Sim_Step2', 3: 'Sim_Step3', 4: 'Sim_Step4_Resultado' };
+let _simConverted = false; // chegou ao step 4 (lead criado)
+let _simWhatsClicked = false;
+let _simExitFired = false;
 
 // Mask WhatsApp
 $('#f_whats').addEventListener('input', (e) => {
@@ -859,7 +883,7 @@ function goStep(n) {
   });
   $('#progFill').style.width = (n * 25) + '%';
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  fbqTrack('ViewContent', { content_name: 'simulador_step_' + n });
+  if (STEP_EVENT[n]) fbqCustom(STEP_EVENT[n], { step: n });
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -872,6 +896,7 @@ $('#btnCalc').addEventListener('click', () => {
   goStep(4);
   const valor = result.oferta ? result.oferta.preco : 0;
   fbqTrack('Lead', { content_name: 'simulador_lead', value: valor, currency: 'BRL' });
+  _simConverted = true;
 
   // envia ao backend tracking (não-bloqueante)
   try {
@@ -927,6 +952,27 @@ document.addEventListener('click', (e) => {
   const plano = a.getAttribute('data-plan');
   fbqTrack('Lead', { content_name: 'plano_' + plano });
 }, true);
+
+// Funil — clique em qualquer link WhatsApp (com ou sem data-plan)
+document.addEventListener('click', (e) => {
+  const a = (e.target instanceof Element)
+    ? e.target.closest('a[href*="wa.me"], a[href*="api.whatsapp.com"], a[href^="whatsapp:"]')
+    : null;
+  if (!a) return;
+  _simWhatsClicked = true;
+  fbqCustom('Sim_WhatsApp', { step: state.step, plan: a.getAttribute('data-plan') || 'geral' });
+}, true);
+
+// Funil — saída sem completar (não chegou no resultado e não clicou WhatsApp)
+function fireSimExit() {
+  if (_simExitFired || _simConverted || _simWhatsClicked) return;
+  _simExitFired = true;
+  fbqCustom('Sim_Saiu', { step: state.step });
+}
+window.addEventListener('pagehide', fireSimExit);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') fireSimExit();
+});
 
 function getSessId() {
   try {
@@ -997,7 +1043,14 @@ function calcular() {
   const geracaoMensal = SAZON.map(f => Math.round((oferta ? oferta.g : 0) * f));
   const geracaoAno = geracaoMensal.reduce((a,b) => a+b, 0);
 
-  if (oferta) oferta.preco = oferta.pOrc;
+  // Surcharge por tipo de telhado (estrutura mais cara em laje e solo)
+  if (oferta) {
+    let surcharge = 0;
+    if (state.telhado === 'laje') surcharge = 200 * oferta.n;
+    else if (state.telhado === 'solo') surcharge = 350 * oferta.n;
+    oferta.preco = oferta.pOrc + surcharge;
+    oferta.surcharge = surcharge;
+  }
 
   return {
     oferta,
@@ -1180,8 +1233,8 @@ Gostaria de garantir essa condição e agendar a visita técnica gratuita!`
   return `https://wa.me/${phone}?text=${msg}`;
 }
 
-// Track inicial
-fbqTrack('ViewContent', { content_name: 'simulador_step_1' });
+// Track inicial — entrada no funil
+fbqCustom('Sim_Entrou', { step: 1 });
 </script>
 </body>
 </html>
