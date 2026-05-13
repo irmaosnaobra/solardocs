@@ -1139,16 +1139,18 @@ export async function handleSdrLead(
 ): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
-  // Hook IO CRM Agent — pra leads do simulador, marca inbound, pausa
-  // followup automático e classifica via keywords. Idempotente: se o
-  // phone não bate com nenhum io_lead, retorna sem fazer nada.
+  // ─── LINHA IO (34998165040) — só Cora opera, Luma desligada ──────
+  // Cora cuida só do CRM (classifica + move card). NÃO responde mensagens.
+  // Inbound pra essa linha NUNCA gera resposta automática — humanos
+  // atendem na conta WhatsApp Business / Z-API direto.
   if (instance === 'io') {
     try {
       const { processIoInboundForCrm } = await import('../io/ioCrmAgent');
       await processIoInboundForCrm(cleanPhone, text);
     } catch (err) {
-      logger.error('sdr-agent', `io-crm hook falhou pra ${cleanPhone}`, err);
+      logger.error('sdr-agent', `cora hook falhou pra ${cleanPhone}`, err);
     }
+    return;
   }
 
   // Respeita takeover humano — se um operador ja respondeu manualmente,

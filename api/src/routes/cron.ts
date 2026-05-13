@@ -111,39 +111,36 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 
 // Roda a cada minuto — processa fila + polling Z-API SolarDoc + polling Z-API Irmaos na Obra
 // (Z-API webhook MD nao dispara consistentemente, polling eh fallback)
+//
+// LUMA DESLIGADA NA LINHA IO (34998165040) — Cora é a única agente nesse número.
+// Tarefas IO da Luma comentadas abaixo. Pra reativar: descomentar + ajustar
+// resultado do Promise.allSettled.
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, pollIoResult, takeoverResult, lembretesResult, revisaoResult, reativacaoResult, nudge10Result, nudge18Result, cleanupResult, dedupCleanupResult, relatorioResult, cardRetryResult] = await Promise.allSettled([
+    const [queueResult, pollResult, cleanupResult, dedupCleanupResult, cardRetryResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
-      pollZapiMessagesIO(),
-      processIoTakeoverEvents(),
-      processarLembretesAgendamento(),
-      revisarLeadsLuma(),
-      processarReativacao(),
-      processarNudge10min(),
-      processarNudge18h(),
+      // pollZapiMessagesIO(),         // [LUMA-IO-OFF] polling de novos leads na linha IO
+      // processIoTakeoverEvents(),    // [LUMA-IO-OFF] eventos de takeover humano IO
+      // processarLembretesAgendamento(),// [LUMA-IO-OFF] lembretes de agendamento IO
+      // revisarLeadsLuma(),            // [LUMA-IO-OFF] revisão de leads pela Luma IO
+      // processarReativacao(),         // [LUMA-IO-OFF] reativação Luma IO
+      // processarNudge10min(),         // [LUMA-IO-OFF] nudge 10min IO
+      // processarNudge18h(),           // [LUMA-IO-OFF] nudge 18h IO
       cleanupPerdidosAntigos(),
       cleanupMessageDedup(),
-      enviarRelatorioDiario(),
+      // enviarRelatorioDiario(),       // [LUMA-IO-OFF] relatório diário IO
       retryCardsPendentes(),
     ]);
     res.json({
       ok: true,
       queue:      queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },
       poll:       pollResult.status  === 'fulfilled' ? pollResult.value  : { error: String((pollResult as any).reason) },
-      poll_io:    pollIoResult.status === 'fulfilled' ? pollIoResult.value : { error: String((pollIoResult as any).reason) },
-      takeover:   takeoverResult.status === 'fulfilled' ? takeoverResult.value : { error: String((takeoverResult as any).reason) },
-      lembretes:  lembretesResult.status === 'fulfilled' ? lembretesResult.value : { error: String((lembretesResult as any).reason) },
-      revisao:    revisaoResult.status === 'fulfilled' ? revisaoResult.value : { error: String((revisaoResult as any).reason) },
-      reativacao: reativacaoResult.status === 'fulfilled' ? reativacaoResult.value : { error: String((reativacaoResult as any).reason) },
-      nudge_10min: nudge10Result.status === 'fulfilled' ? nudge10Result.value : { error: String((nudge10Result as any).reason) },
-      nudge_18h:  nudge18Result.status === 'fulfilled' ? nudge18Result.value : { error: String((nudge18Result as any).reason) },
       cleanup:    cleanupResult.status === 'fulfilled' ? cleanupResult.value : { error: String((cleanupResult as any).reason) },
       dedup_cleanup: dedupCleanupResult.status === 'fulfilled' ? dedupCleanupResult.value : { error: String((dedupCleanupResult as any).reason) },
-      relatorio:  relatorioResult.status === 'fulfilled' ? relatorioResult.value : { error: String((relatorioResult as any).reason) },
       card_retry: cardRetryResult.status === 'fulfilled' ? cardRetryResult.value : { error: String((cardRetryResult as any).reason) },
+      luma_io_off: 'Linha IO operada exclusivamente pela Cora',
     });
   } catch (err) {
     logger.error('cron', 'process-messages falhou', err);
@@ -260,7 +257,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
     ['io-crm-followup',              () => runIoCrmFollowups()],
     ['insights-prewarm',             () => getInsights(true)],
-    ['luma-reativacao',             () => processarReativacao()],
+    // ['luma-reativacao',             () => processarReativacao()], // [LUMA-IO-OFF] linha IO é só da Cora
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],

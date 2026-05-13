@@ -1,5 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────
-// IO CRM AGENT — Gestora silenciosa do CRM Irmãos na Obra
+// CORA — Gestora silenciosa do CRM Irmãos na Obra
+// Linha Z-API: 34998165040 (instance='io')
+//
+// Cora é a ÚNICA agente operando nesse número. A Luma SDR está
+// desligada pra essa linha (ver sdrAgentService.ts:handleSdrLead
+// early-return e cron.ts comentários).
 //
 // O QUE FAZ:
 //   1) Roda no /cron/master (a cada hora) e dispara mensagem de followup
@@ -140,12 +145,12 @@ export function classificarMensagem(msg: string): ClassificacaoAcao {
 // Mapeia ação da classificação → status do CRM (8 colunas existentes)
 function statusFromAcao(acao: ClassificacaoAcao): { status: string | null; nota: string } {
   switch (acao.tipo) {
-    case 'em_negociacao':    return { status: 'quente',   nota: `🔥 keyword: ${acao.motivo}` };
-    case 'proposta_enviada': return { status: 'quente',   nota: `📋 analisando proposta: ${acao.motivo}` };
-    case 'pausado':          return { status: 'followup', nota: `⏳ pausa: ${acao.motivo}` };
-    case 'desistiu':         return { status: 'perdido',  nota: `❌ desistiu: ${acao.motivo}` };
-    case 'opt_out':          return { status: 'perdido',  nota: `🚫 opt-out: ${acao.motivo}` };
-    case 'em_conversa':      return { status: 'em_contato', nota: '💬 lead respondeu' };
+    case 'em_negociacao':    return { status: 'quente',     nota: `Cora · 🔥 keyword "${acao.motivo}"` };
+    case 'proposta_enviada': return { status: 'quente',     nota: `Cora · 📋 analisando proposta ("${acao.motivo}")` };
+    case 'pausado':          return { status: 'followup',   nota: `Cora · ⏳ pausa pedida ("${acao.motivo}")` };
+    case 'desistiu':         return { status: 'perdido',    nota: `Cora · ❌ desistiu ("${acao.motivo}")` };
+    case 'opt_out':          return { status: 'perdido',    nota: `Cora · 🚫 opt-out ("${acao.motivo}") — não contatar` };
+    case 'em_conversa':      return { status: 'em_contato', nota: 'Cora · 💬 lead respondeu' };
   }
 }
 
@@ -159,7 +164,7 @@ async function gravarHistorico(leadId: string, fromStatus: string | null, toStat
       note: nota,
     });
   } catch (err) {
-    logger.error('io-crm-agent', `falha gravando histórico do lead ${leadId}`, err);
+    logger.error('cora', `falha gravando histórico do lead ${leadId}`, err);
   }
 }
 
@@ -221,7 +226,7 @@ export async function processIoInboundForCrm(
     await gravarHistorico(lead.id, lead.status, novoStatus!, nota);
   }
 
-  logger.info('io-crm-agent', `inbound classificado lead=${lead.id} ação=${acao.tipo} status=${update.status ?? '(mantido)'}`);
+  logger.info('cora', `inbound classificado lead=${lead.id} ação=${acao.tipo} status=${update.status ?? '(mantido)'}`);
   return { matched: true, classificacao: acao, novoStatus: update.status as string | undefined };
 }
 
@@ -247,7 +252,7 @@ export async function runIoCrmFollowups(): Promise<{
     .lt('followup_count', CADENCIA_DIAS.length);
 
   if (error) {
-    logger.error('io-crm-agent', 'erro buscando leads', error);
+    logger.error('cora', 'erro buscando leads', error);
     return { enviados: 0, encerrados: 0, erros: 1 };
   }
   if (!leads?.length) return { enviados: 0, encerrados: 0, erros: 0 };
@@ -304,14 +309,14 @@ export async function runIoCrmFollowups(): Promise<{
           followup_paused: true,
           updated_at: now.toISOString(),
         }).eq('id', lead.id);
-        await gravarHistorico(lead.id, lead.status, 'perdido', '📊 cadência D+20 sem resposta — reativação 90d');
+        await gravarHistorico(lead.id, lead.status, 'perdido', 'Cora · 📊 cadência D+20 sem resposta — reativação 90d');
         encerrados++;
       }
 
-      logger.info('io-crm-agent', `followup #${proximoIdx + 1} enviado lead=${lead.id} nome=${nome}`);
+      logger.info('cora', `followup #${proximoIdx + 1} enviado lead=${lead.id} nome=${nome}`);
     } catch (err) {
       erros++;
-      logger.error('io-crm-agent', `falha enviando followup lead=${lead.id}`, err);
+      logger.error('cora', `falha enviando followup lead=${lead.id}`, err);
     }
   }
 

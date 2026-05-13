@@ -172,6 +172,7 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
     .eq('tipo', 'b2c')
     .eq('aguardando_resposta', true)
     .eq('human_takeover', false)
+    .neq('instance', 'io')   // Linha IO é só da Cora — Luma não envia followup pra esse número
     .not('estagio', 'in', '("perdido","fechamento","quente")')
     .lt('contatos', MAX_CONTATOS);
 
