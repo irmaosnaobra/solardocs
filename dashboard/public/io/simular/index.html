@@ -410,6 +410,22 @@
     </div>
 
     <div class="field">
+      <label>Como pretende investir? <span class="req">*</span></label>
+      <div class="opts">
+        <label class="opt"><input type="radio" name="pagamento" value="avista">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 10h.01M18 10h.01M6 14h.01M18 14h.01"/></svg></div>
+          <div class="lbl">À vista</div><div class="sub">Melhor desconto</div></label>
+        <label class="opt"><input type="radio" name="pagamento" value="cartao">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg></div>
+          <div class="lbl">Cartão</div><div class="sub">Parcele em até 18x</div></label>
+        <label class="opt"><input type="radio" name="pagamento" value="financiamento">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M3 10l9-6 9 6"/><line x1="3" y1="10" x2="3" y2="21"/><line x1="21" y1="10" x2="21" y2="21"/><line x1="7" y1="14" x2="7" y2="18"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="17" y1="14" x2="17" y2="18"/></svg></div>
+          <div class="lbl">Financiamento</div><div class="sub">Sem entrada · 60 meses</div></label>
+      </div>
+      <div class="err-msg">Escolha como pretende investir.</div>
+    </div>
+
+    <div class="field">
       <label>Quanto você paga de conta de luz por mês? <span class="req">*</span></label>
       <div class="rs-input">
         <span class="rs-prefix">R$</span>
@@ -634,7 +650,8 @@ const state = {
   step: 1,
   nome: '', whats: '', cidade: '', estado: '',
   tipo: '', telhado: '', padrao: '',
-  consumoRs: 0, // valor da conta em R$/mês
+  pagamento: '', // 'avista' | 'cartao' | 'financiamento'
+  consumoRs: 0,  // valor da conta em R$/mês
 };
 
 // ════════════════════════════════════════════════════════════════
@@ -708,12 +725,14 @@ function validateStep(step) {
   }
   if (step === 3) {
     const padrao = document.querySelector('input[name=padrao]:checked');
+    const pagamento = document.querySelector('input[name=pagamento]:checked');
     const val = parseInt($('#f_consumo').value.replace(/\D/g,''), 10);
     const minOk = val >= 100;
     setErrGroup('padrao', !padrao);
+    setErrGroup('pagamento', !pagamento);
     setErr('#f_consumo', !val || !minOk);
-    if (!padrao || !val || !minOk) ok = false;
-    if (ok) { state.padrao = padrao.value; state.consumoRs = val; }
+    if (!padrao || !pagamento || !val || !minOk) ok = false;
+    if (ok) { state.padrao = padrao.value; state.pagamento = pagamento.value; state.consumoRs = val; }
   }
   return ok;
 }
@@ -771,9 +790,9 @@ $('#btnCalc').addEventListener('click', () => {
         event_type: 'simulator_lead',
         event_data: {
           nome: state.nome, whats: state.whats, cidade: state.cidade,
-          consumoRs: state.consumoRs,
-          comercial: result.comercial ? { kwp: result.comercial.kwp, preco: result.comercial.preco, inv: result.comercial.inv } : null,
-          premium:   result.premium   ? { kwp: result.premium.kwp,   preco: result.premium.preco,   inv: result.premium.inv }   : null,
+          consumoRs: state.consumoRs, pagamento: state.pagamento,
+          comercial: result.comercial ? { kwp: result.comercial.kwp, preco: result.comercial.preco, inv: getInvLabel(result.comercial) } : null,
+          premium:   result.premium   ? { kwp: result.premium.kwp,   preco: result.premium.preco,   inv: getInvLabel(result.premium) }   : null,
         }
       }),
       keepalive: true,
@@ -848,6 +867,13 @@ function calcular() {
   };
 }
 
+// Renomeia inversor "SAJ 3K" → "Auxsol 3K" só no fluxo de financiamento (mesmo equipamento, marca de parceiro)
+function getInvLabel(plano) {
+  if (!plano) return '—';
+  if (state.pagamento === 'financiamento' && plano.tabela === 'SAJ-3K') return 'Auxsol 3K';
+  return plano.inv;
+}
+
 function renderResult(r) {
   $('#r_hello').innerHTML = `Pronto, <em>${state.nome.split(' ')[0]}!</em>`;
 
@@ -855,7 +881,7 @@ function renderResult(r) {
   if (r.comercial) {
     const c = r.comercial;
     $('#r_c_preco').textContent = fmtBRL(c.preco);
-    $('#r_c_inv').textContent = c.inv;
+    $('#r_c_inv').textContent = getInvLabel(c);
     $('#r_c_kwp').textContent = c.kwp.toFixed(1).replace('.', ',') + ' kWp';
     $('#r_c_paineis').textContent = c.n + ' × ' + c.pot + 'W';
     $('#r_c_geracao').textContent = fmtNum(c.g) + ' kWh/mês';
@@ -866,7 +892,7 @@ function renderResult(r) {
   if (r.premium) {
     const p = r.premium;
     $('#r_p_preco').textContent = fmtBRL(p.preco);
-    $('#r_p_inv').textContent = p.inv;
+    $('#r_p_inv').textContent = getInvLabel(p);
     $('#r_p_kwp').textContent = p.kwp.toFixed(1).replace('.', ',') + ' kWp';
     $('#r_p_paineis').textContent = p.n + ' × ' + p.pot + 'W';
     $('#r_p_geracao').textContent = fmtNum(p.g) + ' kWh/mês';
@@ -894,7 +920,7 @@ function renderResult(r) {
   const estruturaLbl = state.telhado === 'solo' ? 'Estrutura de solo (aterrada)' : `Estrutura ${state.telhado} para telhado`;
   const itens = [
     { n: `${c.n} painéis solares de ${c.pot}W`, d: `Fabricantes Tier 1 · 25 anos de garantia de geração` },
-    { n: `Inversor (Comercial: ${r.comercial?r.comercial.inv:'—'} · Premium: ${r.premium?r.premium.inv:'—'})`, d: `Monitoramento via app · garantia de fábrica` },
+    { n: `Inversor (Comercial: ${getInvLabel(r.comercial)} · Premium: ${getInvLabel(r.premium)})`, d: `Monitoramento via app · garantia de fábrica` },
     { n: estruturaLbl, d: `Fixação certificada · resistente a vento até 120 km/h` },
     { n: 'String box + proteção CC/CA', d: `DPS Clamper · disjuntores · cabos solares dedicados` },
     { n: 'Projeto + homologação CEMIG', d: 'Documentação técnica · troca de medidor · vistoria' },
@@ -915,18 +941,19 @@ function buildWhatsapp(r, planoEscolhido) {
   const phone = '5534998165040';
   const c = r.comercial, p = r.premium;
   const padraoLbl = {mono110:'Mono 110V',mono220:'Mono 220V',bif220:'Bifásico 220V',tri220:'Trifásico'}[state.padrao] || state.padrao;
+  const pagLbl = {avista:'À vista',cartao:'Cartão de crédito',financiamento:'Financiamento'}[state.pagamento] || state.pagamento;
   const tipoLbl = state.tipo.charAt(0).toUpperCase() + state.tipo.slice(1);
   const telhadoLbl = state.telhado.charAt(0).toUpperCase() + state.telhado.slice(1);
 
   let opcao = '';
   if (planoEscolhido === 'comercial' && c) {
-    opcao = `\n\n✅ *Opção que escolhi: COMERCIAL*\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · ${c.n} painéis\n• Inversor ${c.inv}\n• A partir de R$ ${fmtBRL(c.preco)}`;
+    opcao = `\n\n✅ *Opção que escolhi: COMERCIAL*\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · ${c.n} painéis\n• Inversor ${getInvLabel(c)}\n• A partir de R$ ${fmtBRL(c.preco)}`;
   } else if (planoEscolhido === 'premium' && p) {
-    opcao = `\n\n✅ *Opção que escolhi: PREMIUM*\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · ${p.n} painéis\n• Inversor ${p.inv}\n• A partir de R$ ${fmtBRL(p.preco)}`;
+    opcao = `\n\n✅ *Opção que escolhi: PREMIUM*\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · ${p.n} painéis\n• Inversor ${getInvLabel(p)}\n• A partir de R$ ${fmtBRL(p.preco)}`;
   } else {
     opcao = '';
-    if (c) opcao += `\n\n💼 *Opção COMERCIAL:* R$ ${fmtBRL(c.preco)}\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${c.inv}`;
-    if (p) opcao += `\n\n⭐ *Opção PREMIUM:* R$ ${fmtBRL(p.preco)}\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${p.inv}`;
+    if (c) opcao += `\n\n💼 *Opção COMERCIAL:* R$ ${fmtBRL(c.preco)}\n• ${c.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${getInvLabel(c)}`;
+    if (p) opcao += `\n\n⭐ *Opção PREMIUM:* R$ ${fmtBRL(p.preco)}\n• ${p.kwp.toFixed(1).replace('.',',')} kWp · Inversor ${getInvLabel(p)}`;
   }
 
   const msg = encodeURIComponent(
@@ -937,6 +964,7 @@ function buildWhatsapp(r, planoEscolhido) {
 • Cidade: ${state.cidade}/${state.estado}
 • Tipo: ${tipoLbl} · Telhado ${telhadoLbl}
 • Padrão: ${padraoLbl}
+• Forma de pagamento: ${pagLbl}
 • Conta atual: R$ ${state.consumoRs}/mês${opcao}
 
 Gostaria de agendar a visita técnica gratuita!`
