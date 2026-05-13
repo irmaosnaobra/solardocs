@@ -38,17 +38,23 @@
   html,body{min-height:100vh;background:var(--bg);font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);scroll-behavior:smooth}
 
   /* TOPBAR */
-  .topbar{position:sticky;top:0;z-index:50;background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 14px rgba(15,42,82,.18)}
-  .brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}
-  .brand .mark{width:40px;height:40px;border-radius:10px;background:#fff;display:grid;place-items:center;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-  .brand .mark img{width:100%;height:100%;object-fit:contain;display:block;padding:4px}
-  .brand .name{font-family:'Playfair Display';font-weight:700;font-size:17px;line-height:1}
-  .brand .name small{display:block;font-family:'Plus Jakarta Sans';font-weight:600;font-size:9.5px;letter-spacing:.18em;opacity:.8;margin-top:3px}
-  .back-btn{color:#fff;text-decoration:none;font-size:13px;font-weight:600;opacity:.85;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;transition:background .2s}
+  .topbar{position:sticky;top:0;z-index:50;background:var(--navy);color:#fff;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 14px rgba(15,42,82,.18)}
+  .brand{display:flex;align-items:center;gap:11px;color:#fff;text-decoration:none}
+  .brand .mark{
+    width:46px;height:46px;border-radius:12px;
+    background:linear-gradient(135deg,#fff 0%,#fbf7ee 100%);
+    display:grid;place-items:center;overflow:hidden;
+    box-shadow:0 4px 14px rgba(0,0,0,.25);
+    border:1.5px solid rgba(194,138,44,.55);
+  }
+  .brand .mark img{width:100%;height:100%;object-fit:contain;display:block;padding:1px}
+  .brand .name{font-family:'Playfair Display';font-weight:700;font-size:16px;line-height:1}
+  .brand .name small{display:block;font-family:'Plus Jakarta Sans';font-weight:600;font-size:9px;letter-spacing:.2em;opacity:.85;margin-top:3px;color:var(--gold-pale)}
+  .back-btn{color:#fff;text-decoration:none;font-size:13px;font-weight:600;opacity:.85;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;transition:background .2s}
   .back-btn:hover{background:rgba(255,255,255,.08);opacity:1}
 
   /* PROGRESS */
-  .progress-wrap{background:#fff;border-bottom:1px solid var(--border);padding:18px 24px}
+  .progress-wrap{background:#fff;border-bottom:1px solid var(--border);padding:12px 20px}
   .progress-inner{max-width:780px;margin:0 auto}
   .progress-bar{height:6px;background:#eee;border-radius:999px;overflow:hidden;margin-bottom:10px}
   .progress-bar .fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-soft));border-radius:999px;transition:width .35s ease}
@@ -61,73 +67,73 @@
   .progress-steps .s.done .n{background:var(--gold);color:#fff}
 
   /* CONTAINER */
-  .stage{max-width:780px;margin:0 auto;padding:32px 24px 80px}
+  .stage{max-width:760px;margin:0 auto;padding:14px 16px 28px}
 
   /* STEP CARD */
-  .card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:36px 32px;box-shadow:var(--shadow-md);animation:slideIn .35s ease}
-  @keyframes slideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-  .step-head{margin-bottom:24px}
-  .eyebrow{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);background:rgba(194,138,44,.08);padding:6px 12px;border-radius:999px;margin-bottom:14px}
-  h1{font-family:'Playfair Display';font-weight:800;font-size:34px;line-height:1.1;color:var(--navy);letter-spacing:-.01em;margin-bottom:8px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px 20px;box-shadow:var(--shadow-md);animation:slideIn .3s ease}
+  @keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .step-head{margin-bottom:14px}
+  .eyebrow{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);background:rgba(194,138,44,.08);padding:4px 10px;border-radius:999px;margin-bottom:8px}
+  h1{font-family:'Playfair Display';font-weight:800;font-size:24px;line-height:1.05;color:var(--navy);letter-spacing:-.01em;margin-bottom:4px}
   h1 em{font-style:italic;color:var(--gold)}
-  .lead{font-size:15px;color:var(--text-muted);font-weight:500;line-height:1.5}
+  .lead{font-size:13px;color:var(--text-muted);font-weight:500;line-height:1.35}
 
   /* FIELDS */
-  .field{margin-bottom:18px}
-  .field label{display:block;font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+  .field{margin-bottom:11px}
+  .field label{display:block;font-size:10.5px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
   .field label .req{color:var(--red)}
   .field input,.field select{
-    width:100%;padding:14px 16px;border:1.5px solid var(--border);border-radius:12px;background:#fff;
-    font-family:inherit;font-size:15px;color:var(--text);font-weight:500;
+    width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;background:#fff;
+    font-family:inherit;font-size:14px;color:var(--text);font-weight:500;
     transition:border-color .15s,box-shadow .15s;
   }
-  .field input:focus,.field select:focus{outline:0;border-color:var(--gold);box-shadow:0 0 0 4px rgba(194,138,44,.14)}
+  .field input:focus,.field select:focus{outline:0;border-color:var(--gold);box-shadow:0 0 0 3px rgba(194,138,44,.14)}
   .field input.invalid{border-color:var(--red)}
-  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .field-row.row-3{grid-template-columns:1fr 1fr 1fr}
-  .err-msg{margin-top:8px;font-size:12px;color:var(--red);font-weight:600;display:none}
+  .err-msg{margin-top:5px;font-size:11px;color:var(--red);font-weight:600;display:none}
   .err-msg.show{display:block}
 
   /* OPTION GROUP (radio cards) */
-  .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:8px}
-  .opts.tight{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
+  .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:7px;margin-top:5px}
+  .opts.tight{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
   .opt{
-    position:relative;border:1.5px solid var(--border);border-radius:14px;padding:16px 12px 14px;cursor:pointer;
+    position:relative;border:1.5px solid var(--border);border-radius:11px;padding:10px 8px 9px;cursor:pointer;
     background:#fff;text-align:center;transition:all .15s ease;
-    display:flex;flex-direction:column;align-items:center;gap:8px;
+    display:flex;flex-direction:column;align-items:center;gap:5px;
   }
   .opt input{position:absolute;opacity:0;inset:0;cursor:pointer}
   .opt .ic{
-    width:44px;height:44px;border-radius:12px;
+    width:34px;height:34px;border-radius:9px;
     background:#f5f1e6;color:#8a8a8a;
     display:grid;place-items:center;
     transition:all .15s ease;
   }
-  .opt .ic svg{width:24px;height:24px}
-  .opt .lbl{font-size:13px;font-weight:700;color:var(--text);line-height:1.2}
-  .opt .sub{font-size:11px;font-weight:600;color:var(--text-soft);line-height:1.2}
+  .opt .ic svg{width:19px;height:19px}
+  .opt .lbl{font-size:12px;font-weight:700;color:var(--text);line-height:1.15}
+  .opt .sub{font-size:10px;font-weight:600;color:var(--text-soft);line-height:1.15}
   .opt:hover{border-color:var(--gold-soft)}
   .opt:hover .ic{background:rgba(194,138,44,.12);color:var(--gold)}
-  .opt:has(input:checked){border-color:var(--gold);background:rgba(194,138,44,.06);box-shadow:0 4px 14px rgba(194,138,44,.18)}
+  .opt:has(input:checked){border-color:var(--gold);background:rgba(194,138,44,.06);box-shadow:0 3px 10px rgba(194,138,44,.18)}
   .opt:has(input:checked) .ic{background:var(--gold);color:#fff}
-  .opt:has(input:checked)::after{content:'✓';position:absolute;top:8px;right:10px;background:var(--gold);color:#fff;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:900}
+  .opt:has(input:checked)::after{content:'✓';position:absolute;top:5px;right:6px;background:var(--gold);color:#fff;width:15px;height:15px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:900}
   .opt .num{
-    width:44px;height:44px;border-radius:12px;
+    width:34px;height:34px;border-radius:9px;
     background:#f5f1e6;color:#8a8a8a;
     display:grid;place-items:center;
-    font-family:'Playfair Display';font-weight:800;font-size:24px;
+    font-family:'Playfair Display';font-weight:800;font-size:19px;
     transition:all .15s;
   }
   .opt:hover .num{background:rgba(194,138,44,.12);color:var(--gold)}
   .opt:has(input:checked) .num{background:var(--gold);color:#fff}
 
   /* ACTIONS */
-  .actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:28px;padding-top:24px;border-top:1px solid var(--border)}
-  .btn{padding:14px 22px;border-radius:12px;font-weight:800;font-size:14.5px;letter-spacing:.02em;cursor:pointer;border:0;font-family:inherit;display:inline-flex;align-items:center;gap:8px;transition:all .15s}
-  .btn-primary{background:var(--gold);color:#fff;box-shadow:0 10px 24px rgba(194,138,44,.4)}
-  .btn-primary:hover{transform:translateY(-1px);background:#b07e25;box-shadow:0 14px 32px rgba(194,138,44,.5)}
+  .actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+  .btn{padding:11px 18px;border-radius:10px;font-weight:800;font-size:13.5px;letter-spacing:.02em;cursor:pointer;border:0;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+  .btn-primary{background:var(--gold);color:#fff;box-shadow:0 8px 20px rgba(194,138,44,.4)}
+  .btn-primary:hover{transform:translateY(-1px);background:#b07e25;box-shadow:0 12px 28px rgba(194,138,44,.5)}
   .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
-  .btn-ghost{background:transparent;color:var(--text-muted);padding:14px 16px}
+  .btn-ghost{background:transparent;color:var(--text-muted);padding:11px 14px}
   .btn-ghost:hover{color:var(--navy)}
 
   /* R$ INPUT (step 3) */
@@ -138,14 +144,14 @@
   }
   .rs-input:focus-within{border-color:var(--gold);box-shadow:0 0 0 4px rgba(194,138,44,.14)}
   .rs-input .rs-prefix,.rs-input .rs-suffix{
-    background:#fbf7ee;padding:18px 16px;font-weight:800;font-size:18px;color:var(--gold);
+    background:#fbf7ee;padding:12px 13px;font-weight:800;font-size:15px;color:var(--gold);
     display:flex;align-items:center;
   }
   .rs-input .rs-prefix{border-right:1px solid var(--border)}
-  .rs-input .rs-suffix{border-left:1px solid var(--border);font-size:13px;color:var(--text-soft);font-weight:600}
+  .rs-input .rs-suffix{border-left:1px solid var(--border);font-size:12px;color:var(--text-soft);font-weight:600}
   .rs-input input{
-    flex:1;border:0;padding:18px 16px;background:transparent;
-    font-family:inherit;font-size:24px;font-weight:800;color:var(--text);
+    flex:1;border:0;padding:12px 13px;background:transparent;
+    font-family:inherit;font-size:20px;font-weight:800;color:var(--text);
     letter-spacing:-.01em;
   }
   .rs-input input:focus{outline:0}
@@ -269,9 +275,13 @@
 
   /* MOBILE */
   @media (max-width:640px){
-    .card{padding:24px 20px}
-    h1{font-size:28px}
-    .result-head h1{font-size:30px}
+    .stage{padding:10px 12px 20px}
+    .card{padding:16px 16px}
+    h1{font-size:22px}
+    .result-head h1{font-size:24px}
+    .brand .name{font-size:14px}
+    .brand .name small{font-size:8.5px}
+    .field{margin-bottom:9px}
     .plans{grid-template-columns:1fr}
     .plan-price .val{font-size:36px}
     .stats-row{grid-template-columns:1fr}
@@ -309,14 +319,14 @@
   <!-- ============ STEP 1: IDENTIFICAÇÃO ============ -->
   <section class="card step" data-step="1">
     <div class="step-head">
-      <span class="eyebrow">Passo 1 de 3</span>
-      <h1>Bora calcular sua <em>economia.</em></h1>
-      <p class="lead">Em 1 minuto você vê o preço, os equipamentos e quanto economiza em 25 anos. Sem custo. Sem compromisso.</p>
+      <span class="eyebrow">Passo 1 de 3 · 1 minuto</span>
+      <h1>Calcule sua <em>economia.</em></h1>
+      <p class="lead">Preço, equipamentos e economia em 25 anos.</p>
     </div>
 
     <div class="field">
-      <label>Seu nome <span class="req">*</span></label>
-      <input type="text" id="f_nome" placeholder="Ex: João da Silva" autocomplete="name" />
+      <label>Nome <span class="req">*</span></label>
+      <input type="text" id="f_nome" placeholder="Seu nome" autocomplete="name" />
       <div class="err-msg">Preencha seu nome.</div>
     </div>
 
@@ -329,13 +339,13 @@
     <div class="field-row">
       <div class="field">
         <label>Cidade <span class="req">*</span></label>
-        <input type="text" id="f_cidade" list="cidades" placeholder="Comece a digitar..." autocomplete="off" />
+        <input type="text" id="f_cidade" list="cidades" placeholder="Digite a cidade" autocomplete="off" />
         <datalist id="cidades"></datalist>
         <div class="city-hint" id="cityHint"></div>
       </div>
       <div class="field">
-        <label>Estado</label>
-        <input type="text" id="f_estado" placeholder="MG / GO" readonly />
+        <label>UF</label>
+        <input type="text" id="f_estado" placeholder="—" readonly />
       </div>
     </div>
 
@@ -349,8 +359,8 @@
   <section class="card step" data-step="2" style="display:none">
     <div class="step-head">
       <span class="eyebrow">Passo 2 de 3</span>
-      <h1>Como é o seu <em>imóvel?</em></h1>
-      <p class="lead">A gente usa essa info pra calcular o melhor sistema, com a estrutura certa.</p>
+      <h1>Sobre seu <em>imóvel.</em></h1>
+      <p class="lead">Pra escolher o sistema e a estrutura certa.</p>
     </div>
 
     <div class="field">
@@ -403,9 +413,9 @@
   <!-- ============ STEP 3: PADRÃO + CONTA ============ -->
   <section class="card step" data-step="3" style="display:none">
     <div class="step-head">
-      <span class="eyebrow">Passo 3 de 3</span>
-      <h1>E sua <em>conta de luz?</em></h1>
-      <p class="lead">Última pergunta. A gente já mostra o resultado.</p>
+      <span class="eyebrow">Passo 3 de 3 · última</span>
+      <h1>Sua <em>conta de luz.</em></h1>
+      <p class="lead">Próxima tela: estimativa pronta.</p>
     </div>
 
     <div class="field">
@@ -436,16 +446,13 @@
     </div>
 
     <div class="field">
-      <label>Quanto você paga de conta de luz por mês? <span class="req">*</span></label>
+      <label>Conta de luz por mês <span class="req">*</span></label>
       <div class="rs-input">
         <span class="rs-prefix">R$</span>
         <input type="text" id="f_consumo" placeholder="450" inputmode="numeric" />
         <span class="rs-suffix">/mês</span>
       </div>
-      <div class="err-msg">Informe um valor válido (mínimo R$ 100).</div>
-      <div style="margin-top:10px;font-size:12px;color:var(--text-soft);font-weight:500">
-        Pode olhar na conta da CEMIG ou estimar. Quanto mais real, melhor a simulação.
-      </div>
+      <div class="err-msg">Mínimo R$ 100.</div>
     </div>
 
     <div class="actions">
