@@ -775,11 +775,28 @@ function validateStep(step) {
     const nome = $('#f_nome').value.trim();
     const whats = $('#f_whats').value.replace(/\D/g,'');
     const cid = $('#f_cidade').value.split('/')[0].trim();
-    setErr('#f_nome', nome.length < 2);
-    setErr('#f_whats', whats.length < 10);
-    setErr('#f_cidade', cid.length < 2);
-    if (nome.length < 2 || whats.length < 10 || cid.length < 2) ok = false;
-    if (ok) { state.nome = nome; state.whats = whats; state.cidade = cid; state.estado = $('#f_estado').value || '—'; }
+    const uf = $('#f_estado').value;
+
+    // Nome: precisa ter ao menos nome + sobrenome (2 palavras de 2+ letras cada)
+    const nomeOk = /^[A-Za-zÀ-ÿ]{2,}\s+[A-Za-zÀ-ÿ]{2,}/.test(nome);
+    // WhatsApp: exatamente 11 dígitos, DDD válido (11-99), nono dígito é 9, sem 8 dígitos iguais
+    const ddd = parseInt(whats.slice(0, 2), 10);
+    const whatsOk = whats.length === 11
+      && ddd >= 11 && ddd <= 99
+      && whats[2] === '9'
+      && !/^(\d)\1{10}$/.test(whats);
+    // Cidade: tem que estar na lista atendida (uf preenchido = passou no autocomplete)
+    const cidadeOk = !!uf && CIDADE_MAP[cid.toLowerCase()] === uf;
+
+    setErr('#f_nome',   !nomeOk);
+    setErr('#f_whats',  !whatsOk);
+    setErr('#f_cidade', !cidadeOk);
+    setErrMsg('#f_nome',   'Informe nome e sobrenome.');
+    setErrMsg('#f_whats',  'WhatsApp inválido — (DDD) 9XXXX-XXXX, 11 dígitos.');
+    setErrMsg('#f_cidade', 'Escolha uma cidade da lista (atendemos no raio 250 km).');
+
+    if (!nomeOk || !whatsOk || !cidadeOk) ok = false;
+    if (ok) { state.nome = nome; state.whats = whats; state.cidade = cid; state.estado = uf; }
   }
   if (step === 2) {
     const tipo = document.querySelector('input[name=tipo]:checked');
@@ -806,8 +823,16 @@ function validateStep(step) {
 function setErr(sel, isErr) {
   const el = $(sel); if (!el) return;
   el.classList.toggle('invalid', isErr);
-  const msg = el.parentElement.querySelector('.err-msg');
+  // o input do consumo está dentro de .rs-input → sobe um nível extra
+  const wrap = el.closest('.field') || el.parentElement;
+  const msg = wrap.querySelector('.err-msg');
   if (msg) msg.classList.toggle('show', isErr);
+}
+function setErrMsg(sel, text) {
+  const el = $(sel); if (!el) return;
+  const wrap = el.closest('.field') || el.parentElement;
+  const msg = wrap.querySelector('.err-msg');
+  if (msg && text) msg.textContent = text;
 }
 function setErrGroup(name, isErr) {
   const field = document.querySelector(`input[name=${name}]`).closest('.field');
