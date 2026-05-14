@@ -1,6 +1,19 @@
 const SUPABASE_URL = 'https://qdpfwncyzuztibpujlbq.supabase.co';
+const API_BASE = 'https://api.solardoc.app';
+const CRON_SECRET = 'solardocs_master_cron_2024';
 
 export default {
+  // Cron trigger — Cora a cada 5 min em horário comercial.
+  // Schedule em wrangler.toml. A própria runIoCrmFollowups respeita a janela
+  // 10h-17h BRT seg-sex; aqui só batemos no endpoint.
+  async scheduled(_event, _env, ctx) {
+    ctx.waitUntil(
+      fetch(`${API_BASE}/cron/io-crm-followup`, {
+        headers: { 'Authorization': `Bearer ${CRON_SECRET}` }
+      }).catch(() => {})
+    );
+  },
+
   async fetch(request, env, ctx) {
     if (request.method !== 'POST') {
       return new Response(JSON.stringify({ status: 'webhook online' }), {
