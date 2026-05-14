@@ -437,7 +437,7 @@ export default function PropostaSolarPage() {
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Potência do inversor (kW) *</label>
-              <input type="text" inputMode="decimal" value={fields.potencia_inversor} onChange={e => setField('potencia_inversor', e.target.value)} placeholder="Ex: 5" className="input-field" required />
+              <input type="text" inputMode="decimal" value={fields.potencia_inversor} onChange={e => setField('potencia_inversor', e.target.value)} placeholder="Ex: 1,875 ou 5" className="input-field" required />
             </div>
             {dcAcWarning && (
               <div className={styles.fieldFull}>

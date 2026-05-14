@@ -1515,7 +1515,8 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const kwp = (qtdModulos * potenciaModulo) / 1000;
   const qtdInversores = parseInt(String(f.qtd_inversores || '1'), 10) || 1;
   const marcaInversor = String(f.marca_inversor || '');
-  const potenciaInversor = parseFloat(String(f.potencia_inversor || '0')) || 0;
+  // Aceita vírgula (1,875) ou ponto (1.875) — vendedor digita em pt-BR
+  const potenciaInversor = parseFloat(String(f.potencia_inversor || '0').replace(',', '.')) || 0;
   const investimento = parseFloat(String(f.investimento || '0').toString().replace(',', '.')) || 0;
   const precoAvistaInput = parseFloat(String(f.preco_avista || '0').toString().replace(',', '.')) || 0;
   const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
@@ -1913,11 +1914,11 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     <div class="specs">
       <div class="spec">
         <div class="spec-label">Módulos fotovoltaicos</div>
-        <div class="spec-value">${qtdModulos > 0 ? pNum(qtdModulos) : '—'} × ${pEsc(marcaModulo) || '—'} ${potenciaModulo > 0 ? potenciaModulo + 'W' : ''}</div>
+        <div class="spec-value">${qtdModulos > 0 ? pNum(qtdModulos) : '—'} × ${pEsc(marcaModulo) || '—'}${potenciaModulo > 0 ? ' ' + potenciaModulo + ' W' : ''}</div>
       </div>
       <div class="spec">
         <div class="spec-label">Inversor</div>
-        <div class="spec-value">${qtdInversores}× ${pEsc(marcaInversor) || '—'} ${potenciaInversor > 0 ? potenciaInversor + 'kW' : ''}</div>
+        <div class="spec-value">${qtdInversores}× ${pEsc(marcaInversor) || '—'}${potenciaInversor > 0 ? ' ' + potenciaInversor.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) + ' kW' : ''}</div>
       </div>
       <div class="spec">
         <div class="spec-label">Localização</div>
