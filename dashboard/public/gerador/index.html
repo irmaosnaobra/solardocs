@@ -350,6 +350,27 @@
       <div class="hero-period" id="hero-period">Considerando inflação de 6% ao ano na tarifa</div>
     </div>
 
+    <!-- Antes vs Depois: conta hoje × com solar -->
+    <div class="card" id="card-comparar" style="display:none;">
+      <h2>Sua conta de luz: antes vs depois</h2>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;">
+        <div style="background:linear-gradient(135deg,#FEF2F2,#FEE2E2);border:2px solid #FCA5A5;border-radius:12px;padding:18px 16px;text-align:center;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;color:#DC2626;">Hoje você paga</div>
+          <div style="font-size:28px;font-weight:900;color:#DC2626;margin:6px 0 2px;line-height:1;letter-spacing:-0.5px;" id="comp-antes"></div>
+          <div style="font-size:11px;color:#6B7280;">por mês na sua conta</div>
+        </div>
+        <div style="font-size:28px;color:#0d2d5e;font-weight:900;">→</div>
+        <div style="background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:2px solid #6EE7B7;border-radius:12px;padding:18px 16px;text-align:center;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;color:#059669;">Com energia solar</div>
+          <div style="font-size:28px;font-weight:900;color:#059669;margin:6px 0 2px;line-height:1;letter-spacing:-0.5px;" id="comp-depois"></div>
+          <div style="font-size:11px;color:#6B7280;">taxa mínima da concessionária</div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:14px;padding:12px 14px;background:#FFFBEA;border-radius:10px;font-size:14px;color:#0d2d5e;font-weight:700;">
+        💰 Economia de <span id="comp-econ"></span> todo mês — em <span id="comp-payback"></span> o sistema se paga sozinho
+      </div>
+    </div>
+
     <div class="card">
       <h2>Sistema dimensionado</h2>
       <div class="spec-grid spec-grid-5">
@@ -463,6 +484,30 @@
         <span class="cond-lbl">💎 Condição especial à vista</span>
         <span class="cond-val" id="p-vista"></span>
       </div>
+    </div>
+
+    <!-- Breakdown da economia ao longo dos anos -->
+    <div class="card" id="card-breakdown" style="display:none;">
+      <h2>Economia ao longo dos anos</h2>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+        <div style="background:#F9FAFB;padding:14px 10px;border-radius:10px;text-align:center;border-bottom:3px solid #f5c518;">
+          <div style="font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px;">em 1 ano</div>
+          <div style="font-size:16px;font-weight:800;color:#0d2d5e;line-height:1.1;letter-spacing:-0.3px;" id="bd-1"></div>
+        </div>
+        <div style="background:#F9FAFB;padding:14px 10px;border-radius:10px;text-align:center;border-bottom:3px solid #f5c518;">
+          <div style="font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px;">em 5 anos</div>
+          <div style="font-size:16px;font-weight:800;color:#0d2d5e;line-height:1.1;letter-spacing:-0.3px;" id="bd-5"></div>
+        </div>
+        <div style="background:#F9FAFB;padding:14px 10px;border-radius:10px;text-align:center;border-bottom:3px solid #f5c518;">
+          <div style="font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px;">em 10 anos</div>
+          <div style="font-size:16px;font-weight:800;color:#0d2d5e;line-height:1.1;letter-spacing:-0.3px;" id="bd-10"></div>
+        </div>
+        <div style="background:#F9FAFB;padding:14px 10px;border-radius:10px;text-align:center;border-bottom:3px solid #f5c518;">
+          <div style="font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px;">em 25 anos</div>
+          <div style="font-size:16px;font-weight:800;color:#0d2d5e;line-height:1.1;letter-spacing:-0.3px;" id="bd-25"></div>
+        </div>
+      </div>
+      <div style="text-align:center;color:#6B7280;font-size:11px;margin-top:10px;font-style:italic;" id="bd-nota"></div>
     </div>
 
     <div class="card">
@@ -1145,6 +1190,9 @@ async function gerar() {
     tab: { inv: tab.inv, mod: tab.mod, pot: tab.pot },
     areaReal, economia, economia25, payback, paybackTextoLong, pbPct,
     inflTarifa, inflTaxaMin,
+    tarifa, taxaMin,
+    contaHoje: Math.round(consumoModelo * tarifa),
+    breakdown25: modelo.breakdown,
     mensalKwh, geracaoAnualKwh, mediaMensalGerada, economiaPercent,
     hspRef: refSolar.hsp,
     qtdInv, garInv,
@@ -1220,6 +1268,37 @@ function renderProposta(d, viaLink) {
   const heroPeriod = document.getElementById('hero-period');
   if (heroPeriod) {
     heroPeriod.textContent = `Tarifa cresce ${inflTarifaTxt}% a.a. e taxa mínima ${inflTaxaMinTxt}% a.a. (médias históricas ANEEL)`;
+  }
+
+  // Antes vs Depois: só mostra se temos contaHoje + taxa mínima (legacy fallback)
+  const cardComparar = document.getElementById('card-comparar');
+  if (cardComparar) {
+    if (d.contaHoje > 0 && d.taxaMin > 0) {
+      document.getElementById('comp-antes').textContent  = 'R$ ' + fmtN(d.contaHoje);
+      document.getElementById('comp-depois').textContent = 'R$ ' + fmtN(d.taxaMin);
+      document.getElementById('comp-econ').textContent   = 'R$ ' + fmtN(d.economia);
+      document.getElementById('comp-payback').textContent = d.paybackTextoLong || (d.payback + ' anos');
+      cardComparar.style.display = '';
+    } else {
+      cardComparar.style.display = 'none';
+    }
+  }
+
+  // Breakdown 4 anos (1, 5, 10, 25) — só se temos a série calculada
+  const cardBd = document.getElementById('card-breakdown');
+  if (cardBd) {
+    if (d.breakdown25 && d.breakdown25.length === 4) {
+      document.getElementById('bd-1').textContent  = 'R$ ' + fmtN(d.breakdown25[0]);
+      document.getElementById('bd-5').textContent  = 'R$ ' + fmtN(d.breakdown25[1]);
+      document.getElementById('bd-10').textContent = 'R$ ' + fmtN(d.breakdown25[2]);
+      document.getElementById('bd-25').textContent = 'R$ ' + fmtN(d.breakdown25[3]);
+      const tarifaTxt = d.tarifa ? d.tarifa.toFixed(2).replace('.', ',') : '—';
+      document.getElementById('bd-nota').textContent =
+        `Tarifa atual ${tarifaTxt} R$/kWh · cresce ${inflTarifaTxt}% a.a. · taxa mínima cresce ${inflTaxaMinTxt}% a.a.`;
+      cardBd.style.display = '';
+    } else {
+      cardBd.style.display = 'none';
+    }
   }
 
   // Gráfico SVG de geração mensal
