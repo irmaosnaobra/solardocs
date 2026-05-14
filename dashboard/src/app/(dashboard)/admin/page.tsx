@@ -368,7 +368,7 @@ export default function AdminPage() {
 
       <div className={styles.tabs}>
         <button className={tab==='users'?styles.tabActive:styles.tab} onClick={()=>setTab('users')}>👥 Usuários SolarDocs Pro</button>
-        <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 Acessos LP</button>
+        <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 LP SolarDoc</button>
         <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ Acessos Site IO</button>
         <button className={tab==='sim_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('sim_visits')}>🧮 Acesso Simulador</button>
       </div>
@@ -458,13 +458,54 @@ export default function AdminPage() {
 
       {/* ═══ ABA ACESSOS SITE IO ════════════════════════════════ */}
       {tab === 'io_visits' && (() => {
-        const ioSessions = baseSessions.filter(s => (s.landing_url||'').includes('/io'));
-        const visits = ioSessions.length;
-        const scroll50 = ioSessions.filter(s => (s.max_scroll||0) >= 50).length;
-        const ctaWhats = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('whats'))).length;
-        const ctaHero = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('hero'))).length;
+        // Inclui /io, /io/oferta etc. — exclui /io/simular (tem aba própria).
+        const ioSessions = baseSessions.filter(s => {
+          const url = s.landing_url || '';
+          return url.includes('/io') && !url.includes('/io/simular');
+        });
+        const visits     = ioSessions.length;
+        const scroll50   = ioSessions.filter(s => (s.max_scroll||0) >= 50).length;
+        const ctaTotal   = ioSessions.filter(s => (s.cta_clicks?.length||0) > 0).length;
+        const ctaHero    = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('hero'))).length;
+        const ctaWhats   = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('whats'))).length;
         const formSubmit = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('contact_form'))).length;
-        const avgTime = ioSessions.reduce((a,s) => a + (s.time_on_page||0), 0) / Math.max(ioSessions.length, 1);
+        const avgTime    = ioSessions.reduce((a,s) => a + (s.time_on_page||0), 0) / Math.max(visits, 1);
+        const mobile     = ioSessions.filter(s => /Mobile|Android|iPhone|iPad/i.test(s.user_agent||'')).length;
+        const desktop    = visits - mobile;
+
+        // Funil IO: Acessou → Scroll 50% → CTA hero → Clicou WhatsApp
+        const ioFunnel: FunnelStep[] = [
+          { label: 'Acessou /io',     value: visits },
+          { label: 'Scroll 50%',      value: scroll50 },
+          { label: 'CTA Hero',        value: ctaHero },
+          { label: 'Clicou WhatsApp', value: ctaWhats },
+        ];
+
+        // Top origens
+        const srcMap = new Map<string, { visits: number; scroll: number; whats: number; cta: number }>();
+        ioSessions.forEach(s => {
+          const src = srcLabel(s);
+          const cur = srcMap.get(src) ?? { visits: 0, scroll: 0, whats: 0, cta: 0 };
+          cur.visits++;
+          if ((s.max_scroll||0) >= 50) cur.scroll++;
+          if (s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('whats'))) cur.whats++;
+          if ((s.cta_clicks?.length||0) > 0) cur.cta++;
+          srcMap.set(src, cur);
+        });
+        const sources = Array.from(srcMap.entries())
+          .map(([source, v]) => ({ source, ...v }))
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 8);
+
+        // Top campanhas UTM
+        const campMap = new Map<string, number>();
+        ioSessions.forEach(s => {
+          if (s.utm_campaign) campMap.set(s.utm_campaign, (campMap.get(s.utm_campaign) ?? 0) + 1);
+        });
+        const campaigns = Array.from(campMap.entries())
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6);
 
         return (
           <>
@@ -474,12 +515,12 @@ export default function AdminPage() {
                   <button key={v} className={visitPeriod===v?styles.periodActive:styles.periodBtn} onClick={()=>changeVisitPeriod(v as any)} disabled={loadingAnalytics}>{l}</button>
                 ))}
               </div>
-              <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{ioSessions.length} acessos no /io · {baseSessions.length} totais</span>
+              <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{visits} acessos no <code>/io</code> · {baseSessions.length} totais</span>
             </div>
 
             {loadingAnalytics ? (
               <div className={styles.loading}>Carregando estatísticas...</div>
-            ) : ioSessions.length === 0 ? (
+            ) : visits === 0 ? (
               <div className={styles.loading} style={{textAlign:'center', padding:'48px 24px'}}>
                 <div style={{fontSize:48, marginBottom:12}}>🏗️</div>
                 <div style={{fontWeight:700, marginBottom:6}}>Sem acessos registrados ainda</div>
@@ -487,59 +528,135 @@ export default function AdminPage() {
               </div>
             ) : (
               <>
-                <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
+                {/* Cards primários — conversão */}
+                <div className={styles.cards} style={{gridTemplateColumns:'repeat(5,1fr)', marginTop: 12}}>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>Acessos no /io</div>
                     <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{visits}</div>
                   </div>
                   <div className={styles.card}>
-                    <div className={styles.cardLabel}>Scroll 50%+</div>
-                    <div className={styles.cardValue} style={{color:'#3b82f6'}}>{scroll50}</div>
+                    <div className={styles.cardLabel}>Clicou alguma CTA ({pct(ctaTotal, visits)})</div>
+                    <div className={styles.cardValue} style={{color:'#3b82f6'}}>{ctaTotal}</div>
                   </div>
                   <div className={styles.card}>
-                    <div className={styles.cardLabel}>CTA hero</div>
+                    <div className={styles.cardLabel}>CTA Hero ({pct(ctaHero, visits)})</div>
                     <div className={styles.cardValue} style={{color:'#F59E0B'}}>{ctaHero}</div>
                   </div>
                   <div className={styles.card}>
-                    <div className={styles.cardLabel}>Cliques WhatsApp</div>
+                    <div className={styles.cardLabel}>Cliques WhatsApp ({pct(ctaWhats, visits)})</div>
                     <div className={styles.cardValue} style={{color:'#22c55e'}}>{ctaWhats}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Form contato</div>
+                    <div className={styles.cardValue} style={{color:'#a78bfa'}}>{formSubmit}</div>
                   </div>
                 </div>
 
-                <div className={styles.cards} style={{gridTemplateColumns:'repeat(3,1fr)', marginTop: 12}}>
+                {/* Cards secundários — engajamento */}
+                <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
                   <div className={styles.card}>
-                    <div className={styles.cardLabel}>Form de contato (submit)</div>
-                    <div className={styles.cardValue} style={{color:'#a78bfa'}}>{formSubmit}</div>
+                    <div className={styles.cardLabel}>Scroll 50%+ ({pct(scroll50, visits)})</div>
+                    <div className={styles.cardValue} style={{color:'#ec4899'}}>{scroll50}</div>
                   </div>
                   <div className={styles.card}>
-                    <div className={styles.cardLabel}>Tempo médio na página</div>
+                    <div className={styles.cardLabel}>⏱️ Tempo médio</div>
                     <div className={styles.cardValue} style={{color:'#94a3b8'}}>{fmtTime(Math.round(avgTime))}</div>
                   </div>
                   <div className={styles.card}>
-                    <div className={styles.cardLabel}>Taxa visita → WhatsApp</div>
-                    <div className={styles.cardValue} style={{color:'#34d399'}}>{pct(ctaWhats, visits)}</div>
+                    <div className={styles.cardLabel}>📱 Mobile</div>
+                    <div className={styles.cardValue} style={{color:'#60a5fa'}}>{mobile} ({pct(mobile, visits)})</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>🖥️ Desktop</div>
+                    <div className={styles.cardValue} style={{color:'#a78bfa'}}>{desktop} ({pct(desktop, visits)})</div>
                   </div>
                 </div>
 
+                {/* Funil SVG */}
+                <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
+                  <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>📉 Funil do /io</div>
+                  <FunnelSVG steps={ioFunnel} />
+                </div>
+
+                {/* Origens + Campanhas lado a lado */}
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
+                  <div className={styles.tableWrap}>
+                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Top origens</div>
+                    <table className={styles.table}>
+                      <thead><tr><th>Origem</th><th>Visitas</th><th>Scroll</th><th>CTA</th><th>WhatsApp</th></tr></thead>
+                      <tbody>
+                        {sources.map(s => (
+                          <tr key={s.source}>
+                            <td style={{fontWeight:600}}>{s.source}</td>
+                            <td className={styles.mutedCell}>{s.visits}</td>
+                            <td className={styles.mutedCell}>{s.scroll} ({pct(s.scroll, s.visits)})</td>
+                            <td className={styles.mutedCell}>{s.cta} ({pct(s.cta, s.visits)})</td>
+                            <td className={styles.mutedCell}>{s.whats} ({pct(s.whats, s.visits)})</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className={styles.tableWrap}>
+                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>📣 Top campanhas (UTM)</div>
+                    <table className={styles.table}>
+                      <thead><tr><th>Campanha</th><th>Visitas</th></tr></thead>
+                      <tbody>
+                        {campaigns.length === 0 ? (
+                          <tr><td colSpan={2} className={styles.mutedCell} style={{textAlign:'center',padding:'18px 8px'}}>Sem UTMs registradas</td></tr>
+                        ) : campaigns.map(c => (
+                          <tr key={c.name}>
+                            <td style={{fontWeight:600}}>{c.name}</td>
+                            <td className={styles.mutedCell}>{c.count}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Tabela de sessões */}
                 <div className={styles.tableWrap} style={{marginTop:24}}>
                   <table className={styles.table}>
-                    <thead><tr><th>Quando</th><th>Origem</th><th>Dispositivo</th><th>Scroll</th><th>CTAs</th><th>Tempo</th></tr></thead>
+                    <thead><tr>
+                      <th>Quando</th>
+                      <th>Origem</th>
+                      <th>Campanha</th>
+                      <th>Dispositivo</th>
+                      <th>Página</th>
+                      <th>Scroll</th>
+                      <th>Tempo</th>
+                      <th>CTAs</th>
+                    </tr></thead>
                     <tbody>
-                      {ioSessions.slice(0, 50).map((s, i) => {
+                      {ioSessions.slice(0, 80).map((s, i) => {
                         const r = relDate(s.created_at);
+                        const ctaLabels = (s.cta_clicks ?? []).map(c => c.label).filter(Boolean).join(', ');
+                        let pageLabel = '/io';
+                        try {
+                          if (s.landing_url) {
+                            const u = new URL(s.landing_url);
+                            pageLabel = u.pathname || '/io';
+                          }
+                        } catch {}
                         return (
                           <tr key={s.session_id || i}>
                             <td>
                               <div style={{display:'flex',flexDirection:'column',gap:2}}>
                                 <span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>
-                                {r.showTime&&<span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}
+                                {r.showTime && <span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}
                               </div>
                             </td>
-                            <td className={styles.mutedCell}>{srcLabel(s)}{s.utm_campaign?<span style={{opacity:.6,marginLeft:6,fontSize:11}}>· {s.utm_campaign}</span>:null}</td>
+                            <td className={styles.mutedCell}>{srcLabel(s)}</td>
+                            <td className={styles.mutedCell}>{s.utm_campaign || <span className={styles.emptyDash}>—</span>}</td>
                             <td className={styles.mutedCell}>{deviceIcon(s.user_agent)}</td>
+                            <td className={styles.mutedCell}><code style={{fontSize:11}}>{pageLabel}</code></td>
                             <td className={styles.mutedCell}>{s.max_scroll ? `${s.max_scroll}%` : '—'}</td>
-                            <td className={styles.mutedCell}>{s.cta_clicks?.length ? s.cta_clicks.map(c => c.label).filter(Boolean).join(', ') : <span className={styles.emptyDash}>—</span>}</td>
                             <td className={styles.mutedCell}>{fmtTime(s.time_on_page)}</td>
+                            <td className={styles.mutedCell} style={{maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}} title={ctaLabels || ''}>
+                              {ctaLabels || <span className={styles.emptyDash}>—</span>}
+                            </td>
                           </tr>
                         );
                       })}
@@ -552,9 +669,54 @@ export default function AdminPage() {
         );
       })()}
 
-      {/* ═══ ABA ACESSOS LP ═════════════════════════════════════ */}
+      {/* ═══ ABA LP SOLARDOC ════════════════════════════════════ */}
       {tab === 'visits' && (() => {
         const lpSessions = baseSessions.filter(s => !(s.landing_url||'').includes('/io'));
+        const visits     = lpSessions.length;
+        const scroll50   = lpSessions.filter(s => (s.max_scroll||0) >= 50).length;
+        const sawPrecos  = lpSessions.filter(s => s.sections_seen?.includes('precos')).length;
+        const ctaTotal   = lpSessions.filter(s => (s.cta_clicks?.length||0) > 0).length;
+        const ctaGratis  = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('grátis'))).length;
+        const ctaPro     = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('pro'))).length;
+        const ctaVip     = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('vip'))).length;
+        const avgTime    = lpSessions.reduce((a,s) => a + (s.time_on_page||0), 0) / Math.max(visits, 1);
+        const mobile     = lpSessions.filter(s => /Mobile|Android|iPhone|iPad/i.test(s.user_agent||'')).length;
+        const desktop    = visits - mobile;
+
+        // Funil LP: Acessou → Scroll 50% → Viu Preços → Clicou CTA → Cadastrou (conversão geral)
+        const lpFunnel: FunnelStep[] = [
+          { label: 'Acessou LP',  value: visits },
+          { label: 'Scroll 50%',  value: scroll50 },
+          { label: 'Viu Preços',  value: sawPrecos },
+          { label: 'Clicou CTA',  value: ctaTotal },
+        ];
+
+        // Top origens
+        const srcMap = new Map<string, { visits: number; scroll: number; precos: number; cta: number }>();
+        lpSessions.forEach(s => {
+          const src = srcLabel(s);
+          const cur = srcMap.get(src) ?? { visits: 0, scroll: 0, precos: 0, cta: 0 };
+          cur.visits++;
+          if ((s.max_scroll||0) >= 50) cur.scroll++;
+          if (s.sections_seen?.includes('precos')) cur.precos++;
+          if ((s.cta_clicks?.length||0) > 0) cur.cta++;
+          srcMap.set(src, cur);
+        });
+        const sources = Array.from(srcMap.entries())
+          .map(([source, v]) => ({ source, ...v }))
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 8);
+
+        // Top campanhas UTM
+        const campMap = new Map<string, number>();
+        lpSessions.forEach(s => {
+          if (s.utm_campaign) campMap.set(s.utm_campaign, (campMap.get(s.utm_campaign) ?? 0) + 1);
+        });
+        const campaigns = Array.from(campMap.entries())
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6);
+
         return (
         <>
           <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
@@ -570,39 +732,153 @@ export default function AdminPage() {
                 </button>
               ))}
             </div>
-            <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{lpSessions.length} registros no período</span>
+            <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{visits} acessos em <code>solardoc.app</code></span>
           </div>
 
           {loadingAnalytics ? (
             <div className={styles.loading}>Carregando estatísticas...</div>
+          ) : visits === 0 ? (
+            <div className={styles.loading} style={{textAlign:'center', padding:'48px 24px'}}>
+              <div style={{fontSize:48, marginBottom:12}}>📊</div>
+              <div style={{fontWeight:700, marginBottom:6}}>Sem acessos no período</div>
+              <div style={{fontSize:13, color:'var(--color-text-muted)'}}>Trocar o filtro acima ou aguardar novo tráfego em <code>solardoc.app</code>.</div>
+            </div>
           ) : (
             <>
-              {(() => {
-                const ctaGratis = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('grátis'))).length;
-                const ctaPro    = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('pro'))).length;
-                const ctaVip    = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('vip'))).length;
+              {/* Cards primários — funil de conversão */}
+              <div className={styles.cards} style={{gridTemplateColumns:'repeat(5,1fr)', marginTop: 12}}>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>Acessaram a LP</div>
+                  <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{visits}</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>Clicou alguma CTA ({pct(ctaTotal, visits)})</div>
+                  <div className={styles.cardValue} style={{color:'#3b82f6'}}>{ctaTotal}</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>Clicaram Grátis</div>
+                  <div className={styles.cardValue} style={{color:'#22c55e'}}>{ctaGratis}</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>Clicaram PRO</div>
+                  <div className={styles.cardValue} style={{color:'#F59E0B'}}>{ctaPro}</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>Clicaram VIP</div>
+                  <div className={styles.cardValue} style={{color:'#f97316'}}>{ctaVip}</div>
+                </div>
+              </div>
 
-                return (
-                  <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
-                    <div className={styles.card}>
-                      <div className={styles.cardLabel}>Acessaram a LP</div>
-                      <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{lpSessions.length}</div>
-                    </div>
-                    <div className={styles.card}>
-                      <div className={styles.cardLabel}>Clicaram Grátis</div>
-                      <div className={styles.cardValue} style={{color:'#22c55e'}}>{ctaGratis}</div>
-                    </div>
-                    <div className={styles.card}>
-                      <div className={styles.cardLabel}>Clicaram PRO</div>
-                      <div className={styles.cardValue} style={{color:'#F59E0B'}}>{ctaPro}</div>
-                    </div>
-                    <div className={styles.card}>
-                      <div className={styles.cardLabel}>Clicaram VIP</div>
-                      <div className={styles.cardValue} style={{color:'#f97316'}}>{ctaVip}</div>
-                    </div>
-                  </div>
-                );
-              })()}
+              {/* Cards secundários — engajamento */}
+              <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>Scroll 50%+ ({pct(scroll50, visits)})</div>
+                  <div className={styles.cardValue} style={{color:'#a78bfa'}}>{scroll50}</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>Viu seção Preços ({pct(sawPrecos, visits)})</div>
+                  <div className={styles.cardValue} style={{color:'#ec4899'}}>{sawPrecos}</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>📱 Mobile</div>
+                  <div className={styles.cardValue} style={{color:'#60a5fa'}}>{mobile} ({pct(mobile, visits)})</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>🖥️ Desktop</div>
+                  <div className={styles.cardValue} style={{color:'#a78bfa'}}>{desktop} ({pct(desktop, visits)})</div>
+                </div>
+              </div>
+
+              {/* Tempo médio em destaque */}
+              <div className={styles.cards} style={{gridTemplateColumns:'1fr', marginTop: 12}}>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>⏱️ Tempo médio na LP</div>
+                  <div className={styles.cardValue} style={{color:'#94a3b8'}}>{fmtTime(Math.round(avgTime))}</div>
+                </div>
+              </div>
+
+              {/* Funil SVG */}
+              <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
+                <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>📉 Funil da LP</div>
+                <FunnelSVG steps={lpFunnel} />
+              </div>
+
+              {/* Origens + Campanhas lado a lado */}
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
+                <div className={styles.tableWrap}>
+                  <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Top origens</div>
+                  <table className={styles.table}>
+                    <thead><tr><th>Origem</th><th>Visitas</th><th>Scroll</th><th>Preços</th><th>CTA</th></tr></thead>
+                    <tbody>
+                      {sources.map(s => (
+                        <tr key={s.source}>
+                          <td style={{fontWeight:600}}>{s.source}</td>
+                          <td className={styles.mutedCell}>{s.visits}</td>
+                          <td className={styles.mutedCell}>{s.scroll} ({pct(s.scroll, s.visits)})</td>
+                          <td className={styles.mutedCell}>{s.precos} ({pct(s.precos, s.visits)})</td>
+                          <td className={styles.mutedCell}>{s.cta} ({pct(s.cta, s.visits)})</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className={styles.tableWrap}>
+                  <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>📣 Top campanhas (UTM)</div>
+                  <table className={styles.table}>
+                    <thead><tr><th>Campanha</th><th>Visitas</th></tr></thead>
+                    <tbody>
+                      {campaigns.length === 0 ? (
+                        <tr><td colSpan={2} className={styles.mutedCell} style={{textAlign:'center',padding:'18px 8px'}}>Sem UTMs registradas</td></tr>
+                      ) : campaigns.map(c => (
+                        <tr key={c.name}>
+                          <td style={{fontWeight:600}}>{c.name}</td>
+                          <td className={styles.mutedCell}>{c.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Tabela de sessões */}
+              <div className={styles.tableWrap} style={{marginTop:24}}>
+                <table className={styles.table}>
+                  <thead><tr>
+                    <th>Quando</th>
+                    <th>Origem</th>
+                    <th>Campanha</th>
+                    <th>Dispositivo</th>
+                    <th>Scroll</th>
+                    <th>Tempo</th>
+                    <th>CTAs</th>
+                  </tr></thead>
+                  <tbody>
+                    {lpSessions.slice(0, 80).map((s, i) => {
+                      const r = relDate(s.created_at);
+                      const ctaLabels = (s.cta_clicks ?? []).map(c => c.label).filter(Boolean).join(', ');
+                      return (
+                        <tr key={s.session_id || i}>
+                          <td>
+                            <div style={{display:'flex',flexDirection:'column',gap:2}}>
+                              <span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>
+                              {r.showTime && <span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}
+                            </div>
+                          </td>
+                          <td className={styles.mutedCell}>{srcLabel(s)}</td>
+                          <td className={styles.mutedCell}>{s.utm_campaign || <span className={styles.emptyDash}>—</span>}</td>
+                          <td className={styles.mutedCell}>{deviceIcon(s.user_agent)}</td>
+                          <td className={styles.mutedCell}>{s.max_scroll ? `${s.max_scroll}%` : '—'}</td>
+                          <td className={styles.mutedCell}>{fmtTime(s.time_on_page)}</td>
+                          <td className={styles.mutedCell} style={{maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}} title={ctaLabels || ''}>
+                            {ctaLabels || <span className={styles.emptyDash}>—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </>

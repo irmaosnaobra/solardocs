@@ -559,7 +559,7 @@ export default function CrmIoPage() {
           Carregando leads...
         </div>
       ) : (
-        <div className="crm-kanban-area" style={{ gridTemplateColumns: 'repeat(8, minmax(0, 1fr))' }}>
+        <div className="crm-plat-scroll">
           {COLS.map(col => {
             const colLeads = leadsFiltrados.filter(l => l.status === col.id);
             return (
