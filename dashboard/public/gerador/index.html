@@ -17,6 +17,131 @@
 </head>
 <body>
 
+<!-- ============= LOGIN GATE ============= -->
+<div id="loginGate" style="display:none;position:fixed;inset:0;z-index:99999;background:#0d2d5e;align-items:center;justify-content:center;padding:24px;">
+  <form id="loginForm" onsubmit="return tryLogin(event)" style="background:#fff;border-radius:14px;padding:32px 28px;max-width:380px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,0.35);font-family:system-ui,-apple-system,sans-serif;">
+    <div style="text-align:center;margin-bottom:22px;">
+      <div style="font-size:34px;line-height:1;">⚡</div>
+      <h1 style="margin:8px 0 4px;color:#0d2d5e;font-size:20px;">Gerador de Propostas</h1>
+      <div style="color:#888;font-size:13px;">Irmãos na Obra Solar</div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:12px;color:#555;margin-bottom:4px;font-weight:600;">Usuário</label>
+      <input id="login-user" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="ex: thiago" style="width:100%;padding:11px 13px;border:1.5px solid #d8dee7;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:12px;color:#555;margin-bottom:4px;font-weight:600;">Senha</label>
+      <input id="login-pass" type="password" autocomplete="current-password" style="width:100%;padding:11px 13px;border:1.5px solid #d8dee7;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555;margin-bottom:18px;cursor:pointer;user-select:none;">
+      <input type="checkbox" id="login-keep" checked style="width:16px;height:16px;cursor:pointer;"> Manter conectado neste dispositivo
+    </label>
+    <button type="submit" style="width:100%;padding:12px;background:#0d2d5e;color:white;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.3px;">Entrar</button>
+    <div id="login-err" style="display:none;margin-top:12px;padding:10px;background:#fee;border:1px solid #fcc;border-radius:6px;color:#c33;font-size:13px;text-align:center;"></div>
+  </form>
+</div>
+
+<!-- ============= USER BADGE ============= -->
+<div id="user-badge" style="display:none;position:fixed;top:8px;right:12px;z-index:9998;background:rgba(13,45,94,0.92);color:white;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.15);font-family:system-ui,sans-serif;">
+  👤 <span class="user-name"></span>
+  <a onclick="fazerLogout()" style="margin-left:8px;cursor:pointer;opacity:0.75;text-decoration:underline;">sair</a>
+</div>
+
+<script>
+(function(){
+  const AUTH_KEY = 'irmaos-na-obra-auth-v1';
+  const PREFS_KEY_LOGIN = 'irmaos-na-obra-prefs-v1';
+  // SHA-256 de "123456"
+  const PW_123456 = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
+  const USERS = {
+    thiago:   { nome: 'Thiago',   hash: PW_123456 },
+    diego:    { nome: 'Diego',    hash: PW_123456 },
+    nilce:    { nome: 'Nilce',    hash: PW_123456 },
+    giovanna: { nome: 'Giovanna', hash: PW_123456 }
+  };
+
+  async function sha256(s) {
+    const buf = new TextEncoder().encode(s);
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+
+  function getAuth() {
+    try {
+      const raw = localStorage.getItem(AUTH_KEY) || sessionStorage.getItem(AUTH_KEY);
+      if (!raw) return null;
+      const a = JSON.parse(raw);
+      return a && a.user && USERS[a.user] ? a : null;
+    } catch { return null; }
+  }
+
+  function setAuth(user, persist) {
+    const v = JSON.stringify({ user, ts: Date.now() });
+    if (persist) { localStorage.setItem(AUTH_KEY, v); sessionStorage.removeItem(AUTH_KEY); }
+    else { sessionStorage.setItem(AUTH_KEY, v); localStorage.removeItem(AUTH_KEY); }
+  }
+
+  function clearAuth() {
+    localStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(AUTH_KEY);
+  }
+
+  function unlock(userKey) {
+    const nome = USERS[userKey].nome;
+    document.getElementById('loginGate').style.display = 'none';
+    try {
+      const raw = localStorage.getItem(PREFS_KEY_LOGIN);
+      const p = raw ? JSON.parse(raw) : {};
+      p.consultor = nome;
+      localStorage.setItem(PREFS_KEY_LOGIN, JSON.stringify(p));
+    } catch {}
+    const apply = () => {
+      const sel = document.getElementById('f-consultor');
+      if (sel) sel.value = nome;
+      const badge = document.getElementById('user-badge');
+      if (badge) {
+        badge.style.display = '';
+        badge.querySelector('.user-name').textContent = nome;
+      }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
+    else apply();
+  }
+
+  window.fazerLogout = function() {
+    if (!confirm('Sair desta conta?')) return;
+    clearAuth();
+    location.reload();
+  };
+
+  window.tryLogin = async function(e) {
+    e.preventDefault();
+    const u = (document.getElementById('login-user').value || '').trim().toLowerCase();
+    const p = document.getElementById('login-pass').value || '';
+    const keep = document.getElementById('login-keep').checked;
+    const errBox = document.getElementById('login-err');
+    errBox.style.display = 'none';
+    if (!USERS[u]) { errBox.textContent = 'Usuário não encontrado'; errBox.style.display = ''; return false; }
+    const ph = await sha256(p);
+    if (ph !== USERS[u].hash) { errBox.textContent = 'Senha incorreta'; errBox.style.display = ''; return false; }
+    setAuth(u, keep);
+    unlock(u);
+    return false;
+  };
+
+  const a = getAuth();
+  if (a) {
+    unlock(a.user);
+  } else {
+    const gate = document.getElementById('loginGate');
+    gate.style.display = 'flex';
+    const focusUser = () => { const el = document.getElementById('login-user'); if (el) el.focus(); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', focusUser);
+    else focusUser();
+  }
+})();
+</script>
+
 <div class="container">
 
   <!-- ============= TELA 1: FORMULÁRIO ============= -->
@@ -1340,12 +1465,20 @@ function nomeMes(ym) {
 
 function buildRankingPorMes(rows) {
   const map = new Map();
+  const ensure = (ym) => {
+    if (!map.has(ym)) map.set(ym, { ym, rows: [], vendasFechadas: [] });
+    return map.get(ym);
+  };
+  const ymOf = (iso) => {
+    const dt = new Date(iso);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}`;
+  };
   for (const r of rows) {
-    if (!r.created_at) continue;
-    const dt = new Date(r.created_at);
-    const ym = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}`;
-    if (!map.has(ym)) map.set(ym, { ym, rows: [] });
-    map.get(ym).rows.push(r);
+    if (r.created_at) ensure(ymOf(r.created_at)).rows.push(r);
+    if (r.vendido) {
+      const ymVenda = r.vendido_em ? ymOf(r.vendido_em) : (r.created_at ? ymOf(r.created_at) : null);
+      if (ymVenda) ensure(ymVenda).vendasFechadas.push(r);
+    }
   }
   return Array.from(map.values()).sort((a, b) => b.ym.localeCompare(a.ym));
 }
@@ -1363,22 +1496,25 @@ function renderRanking(rows) {
   const mesAtual = meses.find(m => m.ym === rankingMesAtivo);
 
   const consultoresMap = new Map();
-  for (const r of mesAtual.rows) {
-    const c = r.consultor_nome || '(sem consultor)';
+  const ensureConsultor = (c) => {
     if (!consultoresMap.has(c)) {
       consultoresMap.set(c, { nome: c, qtd: 0, kwp: 0, acessos: 0, valor: 0, vendidos: 0, valorVendido: 0 });
     }
-    const obj = consultoresMap.get(c);
+    return consultoresMap.get(c);
+  };
+  for (const r of mesAtual.rows) {
+    const obj = ensureConsultor(r.consultor_nome || '(sem consultor)');
     obj.qtd++;
     obj.kwp += Number(r.kwp || 0);
     obj.acessos += Number(r.acessos || 0);
     obj.valor += Number((r.dados && r.dados.precoVista) || 0);
-    if (r.vendido) {
-      obj.vendidos++;
-      obj.valorVendido += Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0));
-    }
   }
-  const totalVendidosMes = mesAtual.rows.filter(r => r.vendido).length;
+  for (const r of mesAtual.vendasFechadas) {
+    const obj = ensureConsultor(r.consultor_nome || '(sem consultor)');
+    obj.vendidos++;
+    obj.valorVendido += Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0));
+  }
+  const totalVendidosMes = mesAtual.vendasFechadas.length;
   const rankPorVendas = totalVendidosMes > 0;
   const ranking = Array.from(consultoresMap.values()).sort((a, b) =>
     rankPorVendas
@@ -1453,7 +1589,7 @@ function renderRanking(rows) {
     <div class="ranking-resto">
       ${resto.map((c, i) => {
         const linha = rankPorVendas
-          ? `${c.vendidos} venda${c.vendidos !== 1 ? 's' : ''} de ${c.qtd} · ${c.kwp.toFixed(1)} kWp${c.valorVendido ? ' · R$ ' + fmt(c.valorVendido) + ' vendido' : ''}`
+          ? `${c.vendidos} venda${c.vendidos !== 1 ? 's' : ''} · ${c.qtd} proposta${c.qtd !== 1 ? 's' : ''} · ${c.kwp.toFixed(1)} kWp${c.valorVendido ? ' · R$ ' + fmt(c.valorVendido) + ' vendido' : ''}`
           : `${c.qtd} proposta${c.qtd !== 1 ? 's' : ''} · ${c.kwp.toFixed(1)} kWp · ${c.acessos} abertura${c.acessos !== 1 ? 's' : ''}${c.valor ? ' · R$ ' + fmt(c.valor) : ''}`;
         return `
         <div class="ranking-row">
@@ -1503,7 +1639,7 @@ function renderGraficoMes(rows) {
   const top = meses.slice(0, 12).reverse();
   const dadosMes = top.map(m => {
     const total = m.rows.length;
-    const vendidos = m.rows.filter(r => r.vendido).length;
+    const vendidos = m.vendasFechadas.length;
     const conv = total > 0 ? Math.round((vendidos / total) * 100) : 0;
     return { ym: m.ym, total, vendidos, conv };
   });
