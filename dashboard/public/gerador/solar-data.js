@@ -12,7 +12,7 @@ const HSP_TARIFA_BR = {
   PI:{hsp:5.8,tarifa:0.93}, RN:{hsp:5.8,tarifa:0.91}, SE:{hsp:5.6,tarifa:0.92},
   DF:{hsp:5.5,tarifa:0.98}, GO:{hsp:5.5,tarifa:0.97}, MS:{hsp:5.3,tarifa:0.96},
   MT:{hsp:5.4,tarifa:0.94},
-  ES:{hsp:5.3,tarifa:1.02}, MG:{hsp:5.4,tarifa:1.05}, RJ:{hsp:5.1,tarifa:1.06},
+  ES:{hsp:5.3,tarifa:1.02}, MG:{hsp:5.4,tarifa:1.20}, RJ:{hsp:5.1,tarifa:1.06},
   SP:{hsp:5.0,tarifa:0.92},
   PR:{hsp:4.8,tarifa:0.89}, RS:{hsp:4.7,tarifa:0.95}, SC:{hsp:4.6,tarifa:0.85},
 };
@@ -99,6 +99,53 @@ function calcPayback(investimento, geracaoAnualKwh, tarifaInicial, inflacaoAA) {
     acumulado25anos: Math.round(acumulado),
     economiaAno1: Math.round(economiaAno1),
   };
+}
+
+// Modelo realista de economia/payback com inflação dual:
+// - "Sem solar" = consumo × tarifa × 12 (tarifa cresce inflTarifa a.a.)
+// - "Com solar" = taxa mínima × 12 (cresce inflTaxaMin a.a. — mais lenta)
+// Economia = diff entre as duas curvas. Mais honesto que geração × tarifa.
+function calcModeloRealista(consumoKwh, tarifa, taxaMin, investimento, inflTarifa, inflTaxaMin) {
+  if (inflTarifa == null) inflTarifa = 0.06;
+  if (inflTaxaMin == null) inflTaxaMin = 0.06;
+  let semAcum = 0, comAcum = 0;
+  const semSolarAcum = [], comSolarAcum = [];
+  let paybackMeses = 0;
+  for (let a = 1; a <= 25; a++) {
+    const ftar = Math.pow(1 + inflTarifa, a - 1);
+    const fmin = Math.pow(1 + inflTaxaMin, a - 1);
+    const semAno = consumoKwh * 12 * tarifa * ftar;
+    const comAno = taxaMin * 12 * fmin;
+    const ecoAno = semAno - comAno;
+    const ecoAcum = semAcum - comAcum;
+    if (paybackMeses === 0 && ecoAcum + ecoAno >= investimento && ecoAno > 0) {
+      const restante = investimento - ecoAcum;
+      paybackMeses = (a - 1) * 12 + Math.ceil((restante / ecoAno) * 12);
+    }
+    semAcum += semAno;
+    comAcum += comAno;
+    semSolarAcum.push(Math.round(semAcum));
+    comSolarAcum.push(Math.round(comAcum));
+  }
+  return {
+    semSolarAcum: semSolarAcum,
+    comSolarAcum: comSolarAcum,
+    economia25: Math.round(semAcum - comAcum),
+    paybackMeses: paybackMeses || 0,
+    paybackAnos: paybackMeses ? (paybackMeses / 12) : 0,
+    breakdown: [1, 5, 10, 25].map(function (a) { return semSolarAcum[a - 1] - comSolarAcum[a - 1]; }),
+    economiaMensal: Math.max(0, Math.round(consumoKwh * tarifa - taxaMin)),
+  };
+}
+
+// Formata meses como "X anos e Y meses" (mais natural que 1,8 anos)
+function paybackTexto(meses) {
+  if (!meses) return '—';
+  var anos = Math.floor(meses / 12);
+  var m = meses % 12;
+  if (anos === 0) return m + ' ' + (m === 1 ? 'mês' : 'meses');
+  if (m === 0) return anos + ' ' + (anos === 1 ? 'ano' : 'anos');
+  return anos + ' ' + (anos === 1 ? 'ano' : 'anos') + ' e ' + m + ' ' + (m === 1 ? 'mês' : 'meses');
 }
 
 function renderGraficoMensalSVG(mensal, opts) {

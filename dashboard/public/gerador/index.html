@@ -284,6 +284,14 @@
           <label>Taxa mínima / Fio B (R$)</label>
           <input type="number" id="f-taxamin" value="95" step="0.01">
         </div>
+        <div class="field">
+          <label>Inflação anual da tarifa (%)</label>
+          <input type="number" id="f-infl-tarifa" value="6" step="0.1" min="0">
+        </div>
+        <div class="field">
+          <label>Inflação da taxa mínima (%)</label>
+          <input type="number" id="f-infl-taxamin" value="6" step="0.1" min="0">
+        </div>
 
         <div class="toggle-group">
           <button id="btn-kwh" class="ativo" onclick="setModo('kwh')">Por consumo (kWh)</button>
@@ -339,7 +347,7 @@
     <div class="hero-economia">
       <div class="hero-label">Economia em 25 anos</div>
       <div class="hero-valor" id="hero-25"></div>
-      <div class="hero-period">Considerando inflação de 6% ao ano na tarifa</div>
+      <div class="hero-period" id="hero-period">Considerando inflação de 6% ao ano na tarifa</div>
     </div>
 
     <div class="card">
@@ -837,7 +845,9 @@ function salvarPrefs() {
     const prefs = {
       consultor: document.getElementById('f-consultor').value.trim(),
       tarifa: document.getElementById('f-tarifa').value,
-      taxaMin: document.getElementById('f-taxamin').value
+      taxaMin: document.getElementById('f-taxamin').value,
+      inflTarifa: document.getElementById('f-infl-tarifa').value,
+      inflTaxaMin: document.getElementById('f-infl-taxamin').value
     };
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
   } catch (e) {}
@@ -848,8 +858,10 @@ function carregarPrefs() {
     if (!raw) return;
     const p = JSON.parse(raw);
     if (p.consultor) document.getElementById('f-consultor').value = p.consultor;
-    if (p.tarifa)    document.getElementById('f-tarifa').value = p.tarifa;
-    if (p.taxaMin)   document.getElementById('f-taxamin').value = p.taxaMin;
+    if (p.tarifa)       document.getElementById('f-tarifa').value = p.tarifa;
+    if (p.taxaMin)      document.getElementById('f-taxamin').value = p.taxaMin;
+    if (p.inflTarifa)   document.getElementById('f-infl-tarifa').value = p.inflTarifa;
+    if (p.inflTaxaMin)  document.getElementById('f-infl-taxamin').value = p.inflTaxaMin;
   } catch (e) {}
 }
 window.addEventListener('DOMContentLoaded', carregarPrefs);
@@ -1013,6 +1025,10 @@ async function gerar() {
   const linha = document.getElementById('f-linha').value;
   const tarifa = parseFloat(document.getElementById('f-tarifa').value) || 1.09;
   const taxaMin = parseFloat(document.getElementById('f-taxamin').value) || 95;
+  const inflTarifaPct = parseFloat(document.getElementById('f-infl-tarifa').value);
+  const inflTaxaMinPct = parseFloat(document.getElementById('f-infl-taxamin').value);
+  const inflTarifa = (isNaN(inflTarifaPct) ? 6 : inflTarifaPct) / 100;
+  const inflTaxaMin = (isNaN(inflTaxaMinPct) ? 6 : inflTaxaMinPct) / 100;
   const consultor = document.getElementById('f-consultor').value.trim();
 
   if (!consultor) return showErro('Selecione o consultor responsável.');
@@ -1103,15 +1119,18 @@ async function gerar() {
   const economiaPercent = consumoKwhInput > 0
     ? Math.min(100, Math.round((mediaMensalGerada / consumoKwhInput) * 100))
     : null;
-  const pb = calcPayback(precoVista, geracaoAnualKwh, tarifa);
-  const paybackAnos = pb.paybackAnos > 0 ? pb.paybackAnos.toFixed(1).replace('.', ',') : '—';
+  // Modelo realista: usa consumo informado; modo qtdPlacas usa geração como proxy
+  const consumoModelo = consumoKwhInput > 0 ? consumoKwhInput : mediaMensalGerada;
+  const modelo = calcModeloRealista(consumoModelo, tarifa, taxaMin, precoVista, inflTarifa, inflTaxaMin);
+  const paybackAnos = modelo.paybackAnos > 0 ? modelo.paybackAnos.toFixed(1).replace('.', ',') : '—';
 
   // Cálculos
   const areaReal = (item.kwp * 1000 / tab.pot * 2.1).toFixed(1);
   const economia = Math.max(Math.round(mediaMensalGerada * tarifa - taxaMin), 0);
-  const economia25 = pb.acumulado25anos;
+  const economia25 = modelo.economia25;
   const payback = paybackAnos;
-  const pbPct = Math.min(Math.round((pb.paybackAnos / 25) * 100), 100);
+  const paybackTextoLong = paybackTexto(modelo.paybackMeses);
+  const pbPct = Math.min(Math.round((modelo.paybackAnos / 25) * 100), 100);
 
   // Inversores (vem da própria tabela ou do manual)
   const isString = tab.inv.includes('SAJ') || tab.inv.includes('Sungrow');
@@ -1124,7 +1143,8 @@ async function gerar() {
     nome, telefone, telefoneDigitos, cidade, distanciaKm, telhado, fase,
     item: { n: item.n, g: item.g, kwp: item.kwp, invs: item.invs },
     tab: { inv: tab.inv, mod: tab.mod, pot: tab.pot },
-    areaReal, economia, economia25, payback, pbPct,
+    areaReal, economia, economia25, payback, paybackTextoLong, pbPct,
+    inflTarifa, inflTaxaMin,
     mensalKwh, geracaoAnualKwh, mediaMensalGerada, economiaPercent,
     hspRef: refSolar.hsp,
     qtdInv, garInv,
@@ -1194,6 +1214,13 @@ function renderProposta(d, viaLink) {
 
   // Hero — economia acumulada 25 anos com inflação
   document.getElementById('hero-25').textContent = `R$ ${fmtN(d.economia25)}`;
+  // Texto do período reflete as inflações usadas no cálculo
+  const inflTarifaTxt = ((d.inflTarifa != null ? d.inflTarifa : 0.06) * 100).toFixed(0).replace('.', ',');
+  const inflTaxaMinTxt = ((d.inflTaxaMin != null ? d.inflTaxaMin : 0.06) * 100).toFixed(0).replace('.', ',');
+  const heroPeriod = document.getElementById('hero-period');
+  if (heroPeriod) {
+    heroPeriod.textContent = `Tarifa cresce ${inflTarifaTxt}% a.a. e taxa mínima ${inflTaxaMinTxt}% a.a. (médias históricas ANEEL)`;
+  }
 
   // Gráfico SVG de geração mensal
   const cardGraf = document.getElementById('card-grafico');
@@ -1209,20 +1236,21 @@ function renderProposta(d, viaLink) {
     cardGraf.style.display = 'none';
   }
 
-  document.getElementById('e-mod').textContent = `${d.item.n}x ${d.tab.mod}`;
-  document.getElementById('e-inv').textContent = `${d.qtdInv}x ${d.tab.inv}`;
-  document.getElementById('e-pot').textContent = `${d.tab.pot}W / módulo`;
+  document.getElementById('e-mod').textContent = `${d.item.n}× ${d.tab.mod}`;
+  document.getElementById('e-inv').textContent = `${d.qtdInv}× ${d.tab.inv}`;
+  document.getElementById('e-pot').textContent = `${d.tab.pot} W / módulo`;
 
   document.getElementById('g-inv').textContent = `${d.garInv} anos`;
 
   document.getElementById('r-mensal').textContent = `~ R$ ${fmtN(d.economia)}/mês`;
   document.getElementById('r-25').textContent = `~ R$ ${fmtN(d.economia25)}`;
-  document.getElementById('r-pb').textContent = `~ ${d.payback} anos`;
+  // Payback em texto natural ("3 anos e 1 mês"). Fallback pra "X anos" se proposta legacy.
+  document.getElementById('r-pb').textContent = d.paybackTextoLong || `~ ${d.payback} anos`;
   // pbPct salvo direto em dadosAtual; legacy fallback caso proposta antiga venha sem ele
   const pbPct = d.pbPct != null ? d.pbPct
     : Math.min(Math.round((parseFloat(String(d.payback).replace(',', '.')) / 25) * 100), 100);
   document.getElementById('pb-fill').style.width = pbPct + '%';
-  document.getElementById('pb-leg').textContent = `${d.payback} anos de payback em 25 anos de geração`;
+  document.getElementById('pb-leg').textContent = `${d.paybackTextoLong || (d.payback + ' anos')} de payback em 25 anos de geração`;
 
   document.getElementById('p-total').textContent = `R$ ${fmt(d.precoOrcamento)}`;
   document.getElementById('p-vista').textContent = `R$ ${fmt(d.precoVista)}`;
