@@ -38,6 +38,7 @@ const registerSchema = z.object({
   email:    z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   nome:     z.string().min(2, 'Nome obrigatório').optional(),
+  cargo:    z.string().optional(),
   whatsapp: z.string().optional(),
   cnpj:     z.string().optional(),
   empresa:  z.string().optional(),
@@ -73,7 +74,7 @@ export async function register(req: Request, res: Response): Promise<void> {
     const dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: user, error } = await supabase
       .from('users')
-      .insert({ email: body.email, password_hash, nome: body.nome || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null })
+      .insert({ email: body.email, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null })
       .select('id, email, nome, plano, limite_documentos, documentos_usados, created_at')
       .single();
 

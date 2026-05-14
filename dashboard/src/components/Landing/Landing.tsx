@@ -51,6 +51,9 @@ export default function Landing() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [cargo, setCargo] = useState('');
+  const [cnpj, setCnpj] = useState('');
   const formRef = useRef<HTMLDivElement>(null);
 
   // ===== Hero VSL (Vimeo) =====
@@ -156,16 +159,68 @@ export default function Landing() {
     setTimeout(() => document.getElementById('input-nome')?.focus(), 500);
   }
 
+  function formatCNPJ(value: string): string {
+    const v = value.replace(/\D/g, '').slice(0, 14);
+    return v
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  }
+
+  function isValidCNPJ(value: string): boolean {
+    const c = value.replace(/\D/g, '');
+    if (c.length !== 14) return false;
+    if (/^(\d)\1{13}$/.test(c)) return false;
+    const calcDigit = (slice: string, weights: number[]) => {
+      const sum = slice.split('').reduce((acc, d, i) => acc + Number(d) * weights[i], 0);
+      const rest = sum % 11;
+      return rest < 2 ? 0 : 11 - rest;
+    };
+    const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    const w2 = [6, ...w1];
+    if (calcDigit(c.slice(0, 12), w1) !== Number(c[12])) return false;
+    if (calcDigit(c.slice(0, 13), w2) !== Number(c[13])) return false;
+    return true;
+  }
+
+  function handleStep1(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!nome.trim() || nome.trim().length < 2) {
+      setError('Coloca seu nome pra continuar.');
+      return;
+    }
+    if (!cargo) {
+      setError('Escolhe seu cargo na empresa.');
+      return;
+    }
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'Lead', { content_name: 'hero_step1', cargo });
+    }
+    trackEvent('hero_step1_submit', { cargo });
+    setStep(2);
+    setTimeout(() => document.getElementById('input-email')?.focus(), 50);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
-    if (!nome.trim() || !email.trim() || !password) {
-      setError('Preencha nome, email e senha pra começar.');
+    if (!email.trim() || !password) {
+      setError('Preencha email e senha.');
       return;
     }
     if (password.length < 6) {
       setError('A senha precisa de pelo menos 6 caracteres.');
+      return;
+    }
+    if (!isValidCNPJ(cnpj)) {
+      setError('CNPJ inválido — confere os números.');
+      return;
+    }
+    if (!whatsapp.trim() || whatsapp.replace(/\D/g, '').length < 10) {
+      setError('WhatsApp obrigatório (com DDD).');
       return;
     }
 
@@ -174,19 +229,25 @@ export default function Landing() {
       const eventId = crypto.randomUUID();
       const { data } = await api.post(
         '/auth/register',
-        { email, password, nome, whatsapp: whatsapp || undefined },
+        {
+          email,
+          password,
+          nome,
+          cargo,
+          cnpj: cnpj.replace(/\D/g, ''),
+          whatsapp,
+        },
         { headers: { 'X-Meta-Event-Id': eventId } }
       );
       setToken(data.token);
       setUser(data.user);
       if (typeof window !== 'undefined' && window.fbq) {
-        window.fbq('track', 'Lead', {}, { eventID: eventId });
         window.fbq('track', 'CompleteRegistration', {}, { eventID: eventId });
       }
       router.push('/dashboard');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Erro ao criar conta. Tenta de novo.');
+      const ex = err as { response?: { data?: { error?: string } } };
+      setError(ex.response?.data?.error || 'Erro ao criar conta. Tenta de novo.');
     } finally {
       setLoading(false);
     }
@@ -233,6 +294,38 @@ export default function Landing() {
               minutos — com o cliente ali, na sua frente. Sem advogado. Sem Word. Sem terceiros.
             </p>
 
+            {/* HERO VSL — Vimeo 9:16 */}
+            <div className={styles.heroVslWrap}>
+              <div className={styles.vslFrame}>
+                <iframe
+                  ref={vslIframeRef}
+                  className={styles.vslIframe}
+                  src="https://player.vimeo.com/video/1192117573?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  title="SolarDoc Pro - demo"
+                />
+                <div className={styles.vslOverlay} onClick={vslTogglePlay} />
+                {vslShowUnmute && (
+                  <button type="button" className={styles.vslUnmute} onClick={vslUnmute}>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    </svg>
+                    Ativar som
+                  </button>
+                )}
+                <div className={styles.vslControls}>
+                  <div className={styles.vslProgress} onClick={vslSeek}>
+                    <div className={styles.vslProgressFill} style={{ width: `${vslProgress}%` }} />
+                  </div>
+                  <button type="button" className={styles.vslSpeed} onClick={vslCycleSpeed}>
+                    {vslSpeeds[vslSpeedIdx]}×
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className={styles.trustRow}>
               <span className={styles.trustItem}>
                 <span className={styles.trustCheck}>✓</span> <b>10 docs grátis</b>
@@ -246,99 +339,150 @@ export default function Landing() {
             </div>
 
             <div className={styles.formCard} ref={formRef} id="cadastro">
-              <span className={styles.formBadge}>✓ GRÁTIS — 10 DOCUMENTOS</span>
-              <div className={styles.formTitle}>Cadastre sua empresa em 30 segundos</div>
-              <div className={styles.formSub}>Sem teste vencendo. Use quando precisar.</div>
+              <span className={styles.formBadge}>
+                {step === 1 ? '✓ GRÁTIS — 10 DOCUMENTOS' : 'ETAPA 2 DE 2 · QUASE LÁ'}
+              </span>
+              <div className={styles.formTitle}>
+                {step === 1
+                  ? 'Comece em 30 segundos'
+                  : `Falta pouco${nome ? `, ${nome.split(' ')[0]}` : ''} — agora os dados da empresa`}
+              </div>
+              <div className={styles.formSub}>
+                {step === 1
+                  ? 'Diz quem você é. Sem teste vencendo. Use quando precisar.'
+                  : 'CNPJ válido + WhatsApp pro suporte. Email e senha pro acesso.'}
+              </div>
 
-              <form onSubmit={handleSubmit}>
-                <div className={styles.formGrid}>
-                  <input
-                    id="input-nome"
-                    type="text"
-                    autoComplete="name"
-                    placeholder="Seu nome"
-                    value={nome}
-                    onChange={e => setNome(e.target.value)}
-                    required
-                  />
-                  <input
-                    type="email"
-                    autoComplete="email"
-                    placeholder="Email da empresa"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                  />
-                  <div className={styles.row2}>
+              {step === 1 ? (
+                <form onSubmit={handleStep1}>
+                  <div className={styles.formGrid}>
                     <input
-                      type="tel"
-                      autoComplete="tel"
-                      placeholder="WhatsApp"
-                      value={whatsapp}
-                      onChange={e => setWhatsapp(e.target.value)}
+                      id="input-nome"
+                      type="text"
+                      autoComplete="name"
+                      placeholder="Seu nome"
+                      value={nome}
+                      onChange={e => setNome(e.target.value)}
+                      required
+                    />
+                    <select
+                      className={styles.formSelect}
+                      value={cargo}
+                      onChange={e => setCargo(e.target.value)}
+                      required
+                    >
+                      <option value="">Seu cargo na empresa</option>
+                      <option value="socio">Sócio / Dono</option>
+                      <option value="gestor">Gestor / Diretor</option>
+                      <option value="vendedor">Vendedor / Comercial</option>
+                      <option value="engenheiro">Engenheiro / Projetista</option>
+                      <option value="tecnico">Técnico / Instalador</option>
+                      <option value="outro">Outro</option>
+                    </select>
+                  </div>
+
+                  <button type="submit" className={styles.cta}>
+                    <span>Continuar →</span>
+                  </button>
+
+                  {error && <div className={styles.formError}>{error}</div>}
+
+                  <div className={styles.formFoot}>
+                    Próximo passo: CNPJ, email e WhatsApp pra liberar seu Gerador.
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleSubmit}>
+                  <div className={styles.formGrid}>
+                    <input
+                      id="input-email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="Email da empresa"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
                     />
                     <input
                       type="password"
                       autoComplete="new-password"
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Senha (mínimo 6 caracteres)"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       required
                     />
+                    <div className={styles.row2}>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        placeholder="CNPJ"
+                        value={cnpj}
+                        onChange={e => setCnpj(formatCNPJ(e.target.value))}
+                        maxLength={18}
+                        required
+                      />
+                      <input
+                        type="tel"
+                        autoComplete="tel"
+                        placeholder="WhatsApp"
+                        value={whatsapp}
+                        onChange={e => setWhatsapp(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <button type="submit" className={styles.cta} disabled={loading}>
-                  <span>{loading ? 'Criando sua conta...' : 'Quero o Gerador com a minha Marca →'}</span>
-                </button>
+                  <button type="submit" className={styles.cta} disabled={loading}>
+                    <span>{loading ? 'Criando sua conta...' : 'Criar conta e gerar meu primeiro contrato'}</span>
+                  </button>
 
-                {error && (
-                  <div className={styles.formError}>
-                    {error}
-                    {error.toLowerCase().includes('cadastrado') && (
-                      <a href={`/auth?mode=login${email ? `&email=${encodeURIComponent(email)}` : ''}`} className={styles.formErrorLink}>
-                        Entrar com essa conta →
-                      </a>
-                    )}
+                  <button
+                    type="button"
+                    className={styles.formBack}
+                    onClick={() => { setError(''); setStep(1); }}
+                  >
+                    ← voltar
+                  </button>
+
+                  {error && (
+                    <div className={styles.formError}>
+                      {error}
+                      {error.toLowerCase().includes('cadastrado') && (
+                        <a href={`/auth?mode=login${email ? `&email=${encodeURIComponent(email)}` : ''}`} className={styles.formErrorLink}>
+                          Entrar com essa conta →
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  <div className={styles.formFoot}>
+                    Pronto. Próximo passo: gerar seu primeiro contrato.
                   </div>
-                )}
-
-                <div className={styles.formFoot}>
-                  Próximo passo: cadastrar o <b>CNPJ</b> da sua empresa solar e gerar seu primeiro contrato.
-                </div>
-              </form>
+                </form>
+              )}
             </div>
           </div>
 
-          {/* HERO VSL — Vimeo 9:16 */}
+          {/* CARIMBO GIGANTE — substitui o mockup do celular */}
           <div className={styles.heroVisual}>
-            <div className={styles.vslFrame}>
-              <iframe
-                ref={vslIframeRef}
-                className={styles.vslIframe}
-                src="https://player.vimeo.com/video/1192117573?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1"
-                allow="autoplay; fullscreen; picture-in-picture"
-                referrerPolicy="strict-origin-when-cross-origin"
-                title="SolarDoc Pro - demo"
-              />
-              <div className={styles.vslOverlay} onClick={vslTogglePlay} />
-              {vslShowUnmute && (
-                <button type="button" className={styles.vslUnmute} onClick={vslUnmute}>
-                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                  </svg>
-                  Ativar som
-                </button>
-              )}
-              <div className={styles.vslControls}>
-                <div className={styles.vslProgress} onClick={vslSeek}>
-                  <div className={styles.vslProgressFill} style={{ width: `${vslProgress}%` }} />
-                </div>
-                <button type="button" className={styles.vslSpeed} onClick={vslCycleSpeed}>
-                  {vslSpeeds[vslSpeedIdx]}×
-                </button>
+            <div className={styles.stamp}>
+              <div className={styles.stampStars}>★ ★ ★</div>
+              <div className={styles.stampHeadline}>
+                Gerador de Proposta
+                <span className={styles.stampHeadlineAccent}>com a sua cara</span>
               </div>
+              <div className={styles.stampDivider} />
+              <ul className={styles.stampList}>
+                <li>
+                  <span className={styles.stampCheck}>✓</span>
+                  Sem burocracia
+                </li>
+                <li>
+                  <span className={styles.stampCheck}>✓</span>
+                  Aberto a todos os equipamentos do mercado
+                </li>
+              </ul>
             </div>
           </div>
         </div>

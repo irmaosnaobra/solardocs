@@ -356,6 +356,52 @@
   background: rgba(15, 23, 42, 0.95);
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
 }
+.formSelect {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 13px 14px;
+  color: #f1f5f9;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  padding-right: 40px;
+  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+.formSelect:focus {
+  border-color: var(--color-primary);
+  background-color: rgba(15, 23, 42, 0.95);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+.formSelect option {
+  background: #0f172a;
+  color: #f1f5f9;
+}
+.formBack {
+  display: block;
+  margin: 12px auto 0;
+  background: transparent;
+  border: 0;
+  color: #94a3b8;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+}
+.formBack:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.04);
+}
 .row2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1839,6 +1885,11 @@
 }
 
 /* ============ HERO VSL — Vimeo 9:16 ============ */
+.heroVslWrap {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0 28px;
+}
 .vslFrame {
   position: relative;
   width: 320px;
