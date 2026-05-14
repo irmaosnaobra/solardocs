@@ -119,12 +119,21 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     // Pra propostaSolar, gera o código ANTES do template pra injetar no HTML
     // (assim o cabeçalho do PDF mostra "Proposta 202600010001")
     let codigo: string | null = null;
+    let codigoCurto: string | null = null;
+    let empresaSlug: string | null = null;
     if (body.tipo === 'propostaSolar' && req.userId) {
       try {
         codigo = await generateCodigoProposta(req.userId);
         body.fields = { ...body.fields, codigo };
       } catch (err) {
         logger.error('documents', 'falha gerando codigo proposta — segue sem codigo', err);
+      }
+      try {
+        const slugAndCurto = await ensureEmpresaSlugAndCodigoCurto(req.userId, company.id);
+        empresaSlug = slugAndCurto.slug;
+        codigoCurto = slugAndCurto.codigoCurto;
+      } catch (err) {
+        logger.error('documents', 'falha gerando slug/codigo_curto — segue só com codigo legacy', err);
       }
     }
 
@@ -176,6 +185,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       status: 'saved',
     };
     if (codigo) insertPayload.codigo = codigo;
+    if (codigoCurto) insertPayload.codigo_curto = codigoCurto;
 
     const { data: saved, error: insertErr } = await supabase
       .from('documents')
@@ -185,12 +195,13 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
 
     if (insertErr) {
       logger.error('documents', 'INSERT documents falhou', insertErr);
-      // Se a coluna 'codigo' não existir (migration não aplicada), tenta sem ela
-      if (codigo && /codigo|column/i.test(insertErr.message || '')) {
+      // Se colunas 'codigo'/'codigo_curto' não existirem (migration não aplicada), tenta sem elas
+      if ((codigo || codigoCurto) && /codigo|column/i.test(insertErr.message || '')) {
         delete insertPayload.codigo;
+        delete insertPayload.codigo_curto;
         const retry = await supabase.from('documents').insert(insertPayload).select('id').single();
         if (retry.data) {
-          res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: retry.data.id, codigo: null, warning: 'Migration codigo nao aplicada — proposta salva sem codigo' });
+          res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: retry.data.id, codigo: null, codigo_curto: null, empresa_slug: null, warning: 'Migration codigo nao aplicada — proposta salva sem codigo' });
           return;
         }
       }
@@ -198,7 +209,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       return;
     }
 
-    res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: saved?.id ?? null, codigo });
+    res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: saved?.id ?? null, codigo, codigo_curto: codigoCurto, empresa_slug: empresaSlug });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.issues[0].message });
@@ -259,6 +270,66 @@ async function generateCodigoProposta(userId: string): Promise<string> {
   const propostaNum = (count || 0) + 1;
   const pad4 = (n: number) => String(n).padStart(4, '0');
   return `${ano}${pad4(numeroSeq)}${pad4(propostaNum)}`;
+}
+
+// Deriva slug do nome da empresa: lowercase + sem acentos + alnum.
+// Ex: "Irmãos na Obra" → "irmaosnaobra"
+function slugifyEmpresa(nome: string): string {
+  return String(nome || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 30);
+}
+
+// Garante que a empresa tenha slug + gera codigo_curto YYYYNNNN escopo empresa-ano.
+// Slug atribuído lazy (1ª proposta gerada). Colisão = sufixo numérico.
+async function ensureEmpresaSlugAndCodigoCurto(
+  userId: string,
+  companyId: string,
+): Promise<{ slug: string; codigoCurto: string }> {
+  const { data: comp } = await supabase
+    .from('company')
+    .select('id, nome, slug')
+    .eq('id', companyId)
+    .single();
+
+  if (!comp) throw new Error('company não encontrada');
+
+  let slug = comp.slug as string | null;
+  if (!slug) {
+    const base = slugifyEmpresa(comp.nome) || 'empresa';
+    // Tenta base, base2, base3... até achar livre
+    slug = base;
+    for (let n = 2; n <= 50; n++) {
+      const { data: dup } = await supabase
+        .from('company')
+        .select('id')
+        .eq('slug', slug)
+        .maybeSingle();
+      if (!dup) break;
+      slug = `${base}${n}`;
+    }
+    await supabase.from('company').update({ slug }).eq('id', companyId);
+  }
+
+  const ano = new Date().getFullYear();
+  const inicioAno = `${ano}-01-01`;
+
+  // Conta propostaSolar de TODA a empresa no ano (todos os users dessa empresa).
+  // Como company.user_id é 1:1 com user atual (current model), basta filtrar por user_id.
+  // Quando suportar multi-user-por-empresa, trocar pra JOIN via company_id.
+  const { count } = await supabase
+    .from('documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('tipo', 'propostaSolar')
+    .gte('created_at', inicioAno);
+
+  const seq = (count || 0) + 1;
+  const codigoCurto = `${ano}${String(seq).padStart(4, '0')}`;
+  return { slug, codigoCurto };
 }
 
 export async function saveDocument(req: Request, res: Response): Promise<void> {

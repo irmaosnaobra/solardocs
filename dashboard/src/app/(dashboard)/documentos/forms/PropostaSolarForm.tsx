@@ -6,7 +6,7 @@ import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
 
-interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null }
+interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null }
 
 // Comprime imagem pra max 1200px largura, JPEG 0.82.
 // Foto de celular típica (3-5MB) cai pra ~120-180kb.
@@ -175,8 +175,13 @@ export default function PropostaSolarPage() {
     iframeRef.current.contentWindow.print();
   }
 
-  // Identificador público preferencial: codigo (YYYYUUUUNNNN), fallback pra UUID
-  const publicId = generated?.codigo || generated?.doc_id;
+  // Identificador público preferencial:
+  //  1. slug.codigo_curto (irmaosnaobra.20260001) — novo padrão, mais bonito
+  //  2. codigo de 12-dig (YYYYUUUUNNNN) — legacy
+  //  3. UUID — fallback
+  const publicId = (generated?.empresa_slug && generated?.codigo_curto)
+    ? `${generated.empresa_slug}.${generated.codigo_curto}`
+    : (generated?.codigo || generated?.doc_id);
 
   function handleCopyLink() {
     if (!publicId) return;
@@ -203,10 +208,13 @@ export default function PropostaSolarPage() {
       const blobUrl = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = blobUrl;
-      // Nome do arquivo: usa código se houver, senão cliente slug
-      a.download = generated.codigo
-        ? `${generated.codigo}.pdf`
-        : `proposta-${(clienteNome || 'cliente').toLowerCase().replace(/\s+/g, '-')}.pdf`;
+      // Nome do arquivo: prefere slug.curto, depois codigo de 12-dig, depois cliente
+      const baseName = (generated.empresa_slug && generated.codigo_curto)
+        ? `${generated.empresa_slug}-${generated.codigo_curto}`
+        : generated.codigo
+        ? generated.codigo
+        : `proposta-${(clienteNome || 'cliente').toLowerCase().replace(/\s+/g, '-')}`;
+      a.download = `${baseName}.pdf`;
       a.click();
       URL.revokeObjectURL(blobUrl);
     } catch {
@@ -220,7 +228,7 @@ export default function PropostaSolarPage() {
       <div className={styles.page}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
           <button type="button" onClick={() => setGenerated(null)} style={btn('ghost')}>← Nova proposta</button>
-          {generated.codigo && (
+          {publicId && (
             <span style={{
               padding: '6px 12px',
               borderRadius: 6,
@@ -231,7 +239,7 @@ export default function PropostaSolarPage() {
               fontSize: 13,
               fontWeight: 700,
             }}>
-              📄 {generated.codigo}
+              📄 {publicId}
             </span>
           )}
           <div style={{ flex: 1 }} />

@@ -4,22 +4,48 @@ import { supabase } from '../utils/supabase';
 const router = Router();
 
 // GET /p/:id — serve a proposta solar publicamente (sem auth).
-// Aceita id em 2 formatos:
-//  - Código humano YYYYUUUUNNNN (12 dígitos, ex: 202600010001) — preferido
-//  - UUID (legado / fallback)
+// Aceita id em 3 formatos:
+//  - {slug}.{YYYYNNNN} — novo padrão, ex: irmaosnaobra.20260001 (preferido)
+//  - Código humano YYYYUUUUNNNN (12 dígitos, ex: 202600010001) — legado
+//  - UUID — legado / fallback
 // Pega o HTML do Storage e devolve com Content-Type correto.
 // Só funciona pra docs do tipo 'propostaSolar' — outros tipos ignorados.
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id || '');
-    const isCodigo = /^\d{12}$/.test(id);
 
-    const lookupCol = isCodigo ? 'codigo' : 'id';
-    const { data: doc } = await supabase
-      .from('documents')
-      .select('id, tipo, arquivo_url, content')
-      .eq(lookupCol, id)
-      .maybeSingle();
+    type DocRow = { id: string; tipo: string; arquivo_url: string | null; content: string | null };
+    let doc: DocRow | null = null;
+
+    // Formato 1: slug.codigo_curto (ex: irmaosnaobra.20260001)
+    const slugCurtoMatch = id.match(/^([a-z0-9]+)\.(\d{8})$/);
+    if (slugCurtoMatch) {
+      const [, slug, codigoCurto] = slugCurtoMatch;
+      const { data: comp } = await supabase
+        .from('company')
+        .select('user_id')
+        .eq('slug', slug)
+        .maybeSingle();
+      if (comp?.user_id) {
+        const { data: d } = await supabase
+          .from('documents')
+          .select('id, tipo, arquivo_url, content')
+          .eq('user_id', comp.user_id)
+          .eq('codigo_curto', codigoCurto)
+          .maybeSingle();
+        doc = (d ?? null) as DocRow | null;
+      }
+    } else {
+      // Formato 2: 12-dígitos legacy. Formato 3: UUID.
+      const isCodigo = /^\d{12}$/.test(id);
+      const lookupCol = isCodigo ? 'codigo' : 'id';
+      const { data: d } = await supabase
+        .from('documents')
+        .select('id, tipo, arquivo_url, content')
+        .eq(lookupCol, id)
+        .maybeSingle();
+      doc = (d ?? null) as DocRow | null;
+    }
 
     if (!doc || doc.tipo !== 'propostaSolar') {
       res.status(404).type('text/html').send(`<!DOCTYPE html>
