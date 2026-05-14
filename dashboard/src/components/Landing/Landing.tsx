@@ -222,7 +222,7 @@ export default function Landing() {
               <iframe
                 ref={vslIframeRef}
                 className={styles.vslIframe}
-                src="https://player.vimeo.com/video/1192117573?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1"
+                src="https://player.vimeo.com/video/1192132509?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1"
                 allow="autoplay; fullscreen; picture-in-picture"
                 referrerPolicy="strict-origin-when-cross-origin"
                 title="SolarDoc Pro - demo"
