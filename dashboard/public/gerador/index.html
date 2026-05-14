@@ -281,10 +281,6 @@
           <input type="number" id="f-tarifa" value="1.09" step="0.01">
         </div>
         <div class="field">
-          <label>Taxa mínima / Fio B (R$)</label>
-          <input type="number" id="f-taxamin" value="95" step="0.01">
-        </div>
-        <div class="field">
           <label>Inflação anual da tarifa (%)</label>
           <input type="number" id="f-infl-tarifa" value="6" step="0.1" min="0">
         </div>
@@ -292,6 +288,7 @@
           <label>Inflação da taxa mínima (%)</label>
           <input type="number" id="f-infl-taxamin" value="6" step="0.1" min="0">
         </div>
+        <input type="hidden" id="f-taxamin" value="95">
 
         <div class="toggle-group">
           <button id="btn-kwh" class="ativo" onclick="setModo('kwh')">Por consumo (kWh)</button>
