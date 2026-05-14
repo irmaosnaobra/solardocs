@@ -2,8 +2,8 @@ name = "zapi-webhook"
 main = "webhook.js"
 compatibility_date = "2024-01-01"
 
-# Cora — dispara /cron/io-crm-followup a cada 5 min em horário comercial BRT.
-# 10h-17h BRT = 13h-20h UTC, seg-sex. A Cora respeita horário comercial por
-# dentro, então rodar fora seria só overhead.
+# Cora — vigilante 24/7, a cada 20 min. O CRM /io é responsabilidade dela.
+# Cada tick: vigilância de cards (envelhecimento + reativação) + tentativa
+# de envios (welcome + cadência, que respeitam horário comercial por dentro).
 [triggers]
-crons = ["*/5 13-19 * * 1-5"]
+crons = ["*/20 * * * *"]

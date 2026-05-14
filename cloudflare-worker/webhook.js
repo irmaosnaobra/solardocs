@@ -3,12 +3,12 @@ const API_BASE = 'https://api.solardoc.app';
 const CRON_SECRET = 'solardocs_master_cron_2024';
 
 export default {
-  // Cron trigger — Cora a cada 5 min em horário comercial.
-  // Schedule em wrangler.toml. A própria runIoCrmFollowups respeita a janela
-  // 10h-17h BRT seg-sex; aqui só batemos no endpoint.
+  // Cron trigger — Cora vigilante 24/7 a cada 20 min.
+  // /cron/io-cora-tick = vigilância (envelhecimento de cards) + envios em
+  // horário comercial. Schedule em wrangler.toml.
   async scheduled(_event, _env, ctx) {
     ctx.waitUntil(
-      fetch(`${API_BASE}/cron/io-crm-followup`, {
+      fetch(`${API_BASE}/cron/io-cora-tick`, {
         headers: { 'Authorization': `Bearer ${CRON_SECRET}` }
       }).catch(() => {})
     );

@@ -325,6 +325,131 @@ export async function processIoInboundForCrm(
   return { matched: true, classificacao: acao, novoStatus: update.status as string | undefined };
 }
 
+// ─── Vigilância 24/7: envelhecimento e reativação de cards ──────────
+//
+// Roda a qualquer hora (não depende de horário comercial). Move cards
+// automaticamente baseado em inatividade. NÃO envia mensagem — só
+// reposiciona no Kanban. Envios continuam pela cadência em runIoCrmFollowups.
+//
+// Regras:
+//   - quente sem inbound há > 14d → morno (esfriou)
+//   - morno  sem inbound há > 21d → frio  (esfriou mais)
+//   - followup pausado há > 30d   → em_contato (retoma cadência)
+//
+// 'novo', 'em_contato' e 'frio' ficam intocados — a cadência D+2..D+20
+// já cuida desses. 'vendido' e 'perdido' são finais (decisão humana).
+
+const VIGILANCIA_REGRAS: Array<{
+  de: string;
+  para: string;
+  diasInativo: number;
+  nota: string;
+}> = [
+  { de: 'quente', para: 'morno', diasInativo: 14, nota: 'Cora · 🔄 esfriou após 14d sem interação' },
+  { de: 'morno',  para: 'frio',  diasInativo: 21, nota: 'Cora · 🧊 esfriou após 21d sem interação' },
+];
+
+export async function runCoraSurveillance(): Promise<{
+  envelhecidos: number;
+  reativados: number;
+  erros: number;
+}> {
+  let envelhecidos = 0;
+  let reativados = 0;
+  let erros = 0;
+  const nowMs = Date.now();
+
+  for (const regra of VIGILANCIA_REGRAS) {
+    const { data: leads, error } = await supabase
+      .from('io_leads')
+      .select('id, status, last_inbound_at, last_contact_at, created_at')
+      .eq('status', regra.de)
+      .eq('opt_out', false);
+
+    if (error) { erros++; logger.error('cora', `vigilância erro buscando ${regra.de}`, error); continue; }
+
+    for (const lead of leads || []) {
+      const marco = lead.last_inbound_at || lead.last_contact_at || lead.created_at;
+      const dias = Math.floor((nowMs - new Date(marco).getTime()) / 86400000);
+      if (dias < regra.diasInativo) continue;
+
+      try {
+        const { data: claimed } = await supabase
+          .from('io_leads')
+          .update({ status: regra.para, updated_at: new Date(nowMs).toISOString() })
+          .eq('id', lead.id)
+          .eq('status', regra.de)
+          .select('id')
+          .maybeSingle();
+
+        if (claimed) {
+          await gravarHistorico(lead.id, regra.de, regra.para, regra.nota);
+          envelhecidos++;
+          logger.info('cora', `vigilância ${regra.de}→${regra.para} lead=${lead.id} dias=${dias}`);
+        }
+      } catch (err) {
+        erros++;
+        logger.error('cora', `vigilância falhou lead=${lead.id}`, err);
+      }
+    }
+  }
+
+  // Reativa followups pausados há > 30 dias (ex: "me chama mês que vem")
+  const trintaDiasAtras = new Date(nowMs - 30 * 86400000).toISOString();
+  const { data: pausados, error: errPausados } = await supabase
+    .from('io_leads')
+    .select('id, status, updated_at')
+    .eq('status', 'followup')
+    .eq('followup_paused', true)
+    .eq('opt_out', false)
+    .lt('updated_at', trintaDiasAtras);
+
+  if (errPausados) {
+    erros++;
+    logger.error('cora', 'vigilância erro buscando pausados', errPausados);
+  } else {
+    for (const lead of pausados || []) {
+      try {
+        const { data: claimed } = await supabase
+          .from('io_leads')
+          .update({
+            status: 'em_contato',
+            followup_paused: false,
+            updated_at: new Date(nowMs).toISOString(),
+          })
+          .eq('id', lead.id)
+          .eq('status', 'followup')
+          .eq('followup_paused', true)
+          .select('id')
+          .maybeSingle();
+
+        if (claimed) {
+          await gravarHistorico(lead.id, 'followup', 'em_contato', 'Cora · ⏰ retomar contato após 30d de pausa');
+          reativados++;
+          logger.info('cora', `vigilância reativou lead=${lead.id}`);
+        }
+      } catch (err) {
+        erros++;
+        logger.error('cora', `vigilância reativação falhou lead=${lead.id}`, err);
+      }
+    }
+  }
+
+  return { envelhecidos, reativados, erros };
+}
+
+// Tick unificado — chamado a cada 20 min pelo cron Cloudflare 24/7.
+// Vigilância roda sempre. Envios (welcome + cadência) só em horário comercial,
+// guardados internamente por runIoCrmFollowups.
+export async function runCoraTick(): Promise<{
+  vigilancia: { envelhecidos: number; reativados: number; erros: number };
+  envios: { welcomes: number; enviados: number; encerrados: number; pulado_horario?: boolean; erros: number };
+}> {
+  const vigilancia = await runCoraSurveillance();
+  const envios = await runIoCrmFollowups();
+  return { vigilancia, envios };
+}
+
 // ─── Cron: roda followups pendentes ─────────────────────────────────
 export async function runIoCrmFollowups(): Promise<{
   welcomes: number;
