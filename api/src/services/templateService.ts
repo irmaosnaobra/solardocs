@@ -1536,11 +1536,9 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
   const garEstrutura = parseInt(String(f.garantia_estrutura || '10'), 10) || 10;
   const garInstalacao = parseInt(String(f.garantia_instalacao || '1'), 10) || 1;
-  const inflacaoPct = parseFloat(String(f.inflacao_aa || '7').toString().replace(',', '.')) || 7;
+  const inflacaoPct = parseFloat(String(f.inflacao_aa || '6').toString().replace(',', '.')) || 6;
   const inflacao = inflacaoPct / 100;
-  // Taxa mínima cresce mais devagar que a tarifa de energia (é parcela fixa
-  // menos exposta ao mercado de geração). Default 4% — vendedor pode ajustar.
-  const inflacaoTaxaMinPct = parseFloat(String(f.taxa_minima_inflacao_aa || '4').toString().replace(',', '.')) || 4;
+  const inflacaoTaxaMinPct = parseFloat(String(f.taxa_minima_inflacao_aa || '6').toString().replace(',', '.')) || 6;
   const inflacaoTaxaMin = inflacaoTaxaMinPct / 100;
 
   // Cálculos solares — usa HSP da cidade se cadastrada (top 50 mercados),

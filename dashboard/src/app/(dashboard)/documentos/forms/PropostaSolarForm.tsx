@@ -70,8 +70,8 @@ const initialFields = {
   garantia_inversor: '10',
   garantia_estrutura: '10',
   garantia_instalacao: '1',
-  inflacao_aa: '7',
-  taxa_minima_inflacao_aa: '4',
+  inflacao_aa: '6',
+  taxa_minima_inflacao_aa: '6',
 };
 
 export default function PropostaSolarPage() {
@@ -633,11 +633,11 @@ export default function PropostaSolarPage() {
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Inflação anual da tarifa (%)</label>
-              <input type="text" inputMode="decimal" value={fields.inflacao_aa} onChange={e => setField('inflacao_aa', e.target.value)} placeholder="7" className="input-field" />
+              <input type="text" inputMode="decimal" value={fields.inflacao_aa} onChange={e => setField('inflacao_aa', e.target.value)} placeholder="6" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Inflação da taxa mínima (%)</label>
-              <input type="text" inputMode="decimal" value={fields.taxa_minima_inflacao_aa} onChange={e => setField('taxa_minima_inflacao_aa', e.target.value)} placeholder="4" className="input-field" />
+              <input type="text" inputMode="decimal" value={fields.taxa_minima_inflacao_aa} onChange={e => setField('taxa_minima_inflacao_aa', e.target.value)} placeholder="6" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Prazo de instalação (dias úteis)</label>
