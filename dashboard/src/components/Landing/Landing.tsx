@@ -155,8 +155,7 @@ export default function Landing() {
 
   function scrollToFormFrom(plano: 'grátis' | 'pro' | 'vip') {
     trackEvent('cta_click', { label: plano });
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => document.getElementById('input-nome')?.focus(), 500);
+    router.push('/auth?mode=register');
   }
 
   function formatCNPJ(value: string): string {
