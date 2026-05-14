@@ -61,6 +61,14 @@ const initialFields = {
   investimento: '',
   preco_avista: '',
   foto_telhado_b64: '', // dataURL JPEG comprimido
+  // Campos editáveis (defaults aplicados no servidor se vierem vazios)
+  taxa_minima: '90',
+  prazo_instalacao_dias: '45',
+  garantia_paineis: '25',
+  garantia_inversor: '10',
+  garantia_estrutura: '10',
+  garantia_instalacao: '1',
+  inflacao_aa: '6',
 };
 
 export default function PropostaSolarPage() {
@@ -83,12 +91,14 @@ export default function PropostaSolarPage() {
     return 0;
   })();
 
-  // Sugere qtd_modulos baseado no consumo (estimativa: kWh/mês ÷ 130 = kWp; depois divide pela W do módulo)
+  // Sugere qtd_modulos baseado no consumo (estimativa: kWh/mês ÷ 115 = kWp).
+  // Divisor 115 gera ~10% de oversize pra cobrir degradação dos painéis (~0,5% a.a.)
+  // — sem isso, no ano 2-3 o sistema já fica deficitário.
   useEffect(() => {
     const kwh = parseFloat(fields.consumo_kwh);
     const potMod = parseInt(fields.potencia_modulo, 10);
     if (kwh && potMod && !fields.qtd_modulos) {
-      const kwpEst = kwh / 130;
+      const kwpEst = kwh / 115;
       const qtd = Math.ceil((kwpEst * 1000) / potMod);
       setFields(f => ({ ...f, qtd_modulos: String(qtd) }));
     }
@@ -99,6 +109,29 @@ export default function PropostaSolarPage() {
     const inv = parseFloat(String(fields.investimento).replace(',', '.'));
     if (!inv || inv <= 0) return 0;
     return Math.ceil((inv * 1.19) / 18);
+  })();
+  // Cálculo do 84× financiamento: PMT a 2,4% a.m., fórmula price padrão
+  const valor84x = (() => {
+    const inv = parseFloat(String(fields.investimento).replace(',', '.'));
+    if (!inv || inv <= 0) return 0;
+    const i = 0.024;
+    const n = 84;
+    return Math.ceil((inv * i) / (1 - Math.pow(1 + i, -n)));
+  })();
+  // DC/AC ratio: painéis em kWp sobre inversores em kW. Padrão de mercado 1,05-1,30.
+  // Fora dessa faixa, mostra warning soft pro vendedor revisar o kit.
+  const dcAcRatio = (() => {
+    const potInv = parseFloat(String(fields.potencia_inversor).replace(',', '.'));
+    const qtdInv = parseInt(fields.qtd_inversores, 10) || 1;
+    const totalInvKw = potInv * qtdInv;
+    if (!kwpCalc || !totalInvKw) return 0;
+    return kwpCalc / totalInvKw;
+  })();
+  const dcAcWarning = (() => {
+    if (!dcAcRatio) return '';
+    if (dcAcRatio < 1.0) return `Inversor sobredimensionado (ratio ${dcAcRatio.toFixed(2).replace('.', ',')}). Padrão é 1,05-1,30 — cliente paga inversor que não usa.`;
+    if (dcAcRatio > 1.35) return `Inversor subdimensionado (ratio ${dcAcRatio.toFixed(2).replace('.', ',')}). Vai perder geração nos picos — considere inversor maior.`;
+    return '';
   })();
 
   function setField<K extends keyof typeof fields>(k: K, v: (typeof fields)[K]) {
@@ -398,6 +431,21 @@ export default function PropostaSolarPage() {
               <label className={styles.label}>Potência do inversor (kW) *</label>
               <input type="text" inputMode="decimal" value={fields.potencia_inversor} onChange={e => setField('potencia_inversor', e.target.value)} placeholder="Ex: 5" className="input-field" required />
             </div>
+            {dcAcWarning && (
+              <div className={styles.fieldFull}>
+                <div style={{
+                  background: 'rgba(245,158,11,0.10)',
+                  border: '1px solid rgba(245,158,11,0.4)',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  fontSize: 12,
+                  color: '#92400E',
+                  lineHeight: 1.5,
+                }}>
+                  ⚠️ {dcAcWarning}
+                </div>
+              </div>
+            )}
           </div>
           <div style={{ marginTop: 16 }}>
             <label className={styles.label}>Tipo de instalação</label>
@@ -509,17 +557,88 @@ export default function PropostaSolarPage() {
               alignItems: 'center',
             }}>
               <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                💳 Calculado automaticamente — 18× no cartão (×1,19)
+                💳 Cartão — 18× sobre preço cheio (×1,19)
               </span>
               <strong style={{ fontSize: 18, color: '#10B981' }}>
                 18× R$ {valor18x.toLocaleString('pt-BR')}
               </strong>
             </div>
           )}
+          {valor84x > 0 && (
+            <div style={{
+              marginTop: 8,
+              background: 'rgba(99,102,241,0.08)',
+              border: '1px dashed rgba(99,102,241,0.4)',
+              borderRadius: 10,
+              padding: '12px 16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                🏦 Financiamento — 84× (2,4% a.m., aprovação em 48h)
+              </span>
+              <strong style={{ fontSize: 18, color: '#4F46E5' }}>
+                84× R$ {valor84x.toLocaleString('pt-BR')}
+              </strong>
+            </div>
+          )}
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>
-            A geração mensal e o payback (inflação 6% a.a.) são calculados automaticamente baseado no kWp e UF.
+            A geração mensal e o payback são calculados automaticamente baseado no kWp, UF e inflação configurada abaixo.
           </p>
         </div>
+
+        {/* DETALHES EDITÁVEIS (colapsável) */}
+        <details className={styles.section} style={{ cursor: 'pointer' }}>
+          <summary style={{
+            listStyle: 'none',
+            fontSize: 15,
+            fontWeight: 700,
+            color: 'var(--color-text)',
+            padding: '4px 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <span>⚙️ Detalhes editáveis (avançado)</span>
+            <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>
+              taxa mínima · prazo · garantias · inflação
+            </span>
+          </summary>
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '10px 0 14px' }}>
+            Valores padrão funcionam pra maioria dos casos. Edite só se precisar customizar.
+          </p>
+          <div className={styles.grid2}>
+            <div className={styles.field}>
+              <label className={styles.label}>Taxa mínima da concessionária (R$/mês)</label>
+              <input type="text" inputMode="decimal" value={fields.taxa_minima} onChange={e => setField('taxa_minima', e.target.value)} placeholder="90" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Prazo de instalação (dias úteis)</label>
+              <input type="text" inputMode="numeric" value={fields.prazo_instalacao_dias} onChange={e => setField('prazo_instalacao_dias', e.target.value)} placeholder="45" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Inflação anual da tarifa (%)</label>
+              <input type="text" inputMode="decimal" value={fields.inflacao_aa} onChange={e => setField('inflacao_aa', e.target.value)} placeholder="6" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Garantia dos painéis (anos)</label>
+              <input type="text" inputMode="numeric" value={fields.garantia_paineis} onChange={e => setField('garantia_paineis', e.target.value)} placeholder="25" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Garantia do inversor (anos)</label>
+              <input type="text" inputMode="numeric" value={fields.garantia_inversor} onChange={e => setField('garantia_inversor', e.target.value)} placeholder="10" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Garantia da estrutura (anos)</label>
+              <input type="text" inputMode="numeric" value={fields.garantia_estrutura} onChange={e => setField('garantia_estrutura', e.target.value)} placeholder="10" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Garantia da instalação (anos)</label>
+              <input type="text" inputMode="numeric" value={fields.garantia_instalacao} onChange={e => setField('garantia_instalacao', e.target.value)} placeholder="1" className="input-field" />
+            </div>
+          </div>
+        </details>
 
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || (modoCliente === 'cadastrado' ? !clienteId : !clienteNome.trim())}>

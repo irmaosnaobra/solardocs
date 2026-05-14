@@ -1521,6 +1521,22 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
   // 18× no cartão: investimento × 1,19 / 18, arredondado pra cima (sem centavos)
   const valor18x = investimento > 0 ? Math.ceil((investimento * 1.19) / 18) : 0;
+  // 84× no financiamento: PMT a 2,4% a.m. — fórmula price padrão, arredondada pra cima
+  const TAXA_FIN_MES = 0.024;
+  const PRAZO_FIN_MESES = 84;
+  const valor84x = investimento > 0
+    ? Math.ceil((investimento * TAXA_FIN_MES) / (1 - Math.pow(1 + TAXA_FIN_MES, -PRAZO_FIN_MESES)))
+    : 0;
+
+  // Campos editáveis pelo tenant (com defaults seguros — propostas antigas continuam funcionando)
+  const taxaMinima = parseFloat(String(f.taxa_minima || '90').toString().replace(',', '.')) || 90;
+  const prazoDias = parseInt(String(f.prazo_instalacao_dias || '45'), 10) || 45;
+  const garPaineis = parseInt(String(f.garantia_paineis || '25'), 10) || 25;
+  const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
+  const garEstrutura = parseInt(String(f.garantia_estrutura || '10'), 10) || 10;
+  const garInstalacao = parseInt(String(f.garantia_instalacao || '1'), 10) || 1;
+  const inflacaoPct = parseFloat(String(f.inflacao_aa || '6').toString().replace(',', '.')) || 6;
+  const inflacao = inflacaoPct / 100;
 
   // Cálculos solares — usa HSP da cidade se cadastrada (top 50 mercados),
   // cai pro estado caso contrário.
@@ -1529,8 +1545,33 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
   const mediaMensalGerada = Math.round(geracaoAnual / 12);
   const economiaPercent = consumoKwh > 0 ? Math.min(100, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;
-  const payback = calcPayback(investimento, geracaoAnual, ref.tarifa, 0.06);
+  const payback = calcPayback(investimento, geracaoAnual, ref.tarifa, inflacao);
   const paybackAnos = payback.paybackMeses > 0 ? (payback.paybackMeses / 12).toFixed(1).replace('.', ',') : '—';
+  // Payback formatado como "X anos e Y meses" (mais natural que 1,8 anos)
+  const paybackTexto = (() => {
+    const m = payback.paybackMeses;
+    if (!m) return '—';
+    const anos = Math.floor(m / 12);
+    const meses = m % 12;
+    if (anos === 0) return `${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+    if (meses === 0) return `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
+    return `${anos} ${anos === 1 ? 'ano' : 'anos'} e ${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+  })();
+
+  // Conta antes vs depois: hoje paga consumo × tarifa; com solar paga taxa mínima
+  const contaHoje = Math.round(consumoKwh * ref.tarifa);
+  const contaComSolar = taxaMinima;
+  const economiaMensal = Math.max(0, contaHoje - contaComSolar);
+
+  // Breakdown da economia em 25 anos (ano 1, 5, 10, 25)
+  const breakdownAnos = [1, 5, 10, 25];
+  const breakdownEconomia = breakdownAnos.map((anoAlvo) => {
+    let acum = 0;
+    for (let a = 1; a <= anoAlvo; a++) {
+      acum += geracaoAnual * ref.tarifa * Math.pow(1 + inflacao, a - 1);
+    }
+    return Math.round(acum);
+  });
 
   // SVG bar chart 12 meses (puro SVG, sem JS)
   const W = 600, H = 240, P = { top: 24, right: 16, bottom: 50, left: 48 };
@@ -1565,7 +1606,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     ? `<img src="${empresaCompany.logo_base64}" alt="${pEsc(company.nome)}" style="max-height: 56px; max-width: 220px; object-fit: contain;"/>`
     : `<div style="font-size: 24px; font-weight: 800; letter-spacing: -1px;">${pEsc(company.nome)}</div>`;
 
-  // Bloco de pagamento: à vista com desconto (se houver) e 18× no cartão em destaque
+  // Bloco de pagamento: à vista com desconto (se houver), 18× cartão, 84× financiamento
   const avistaHtml = precoAvista > 0
     ? `<div class="invest-avista">
         <div class="invest-avista-label">Desconto à vista</div>
@@ -1575,10 +1616,21 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     : '';
   const cartaoHtml = valor18x > 0
     ? `<div class="invest-cartao">
-        <div class="invest-cartao-label">Parcelado no cartão</div>
+        <div class="invest-cartao-label">Cartão de crédito</div>
         <div class="invest-cartao-value">18× de ${pBRL(valor18x)}</div>
+        <div class="invest-cartao-sub">no cartão sem entrada</div>
       </div>`
     : '';
+  const financiamentoHtml = valor84x > 0
+    ? `<div class="invest-financ">
+        <div class="invest-financ-label">Financiamento bancário</div>
+        <div class="invest-financ-value">84× de ${pBRL(valor84x)}</div>
+        <div class="invest-financ-sub">aprovação em até 48h · 2,4% a.m.</div>
+      </div>`
+    : '';
+  // Quantos cards mostrar no grid? Cartão + financiamento sempre que tem investimento.
+  // Se tem desconto à vista, vira 3 colunas; senão 2.
+  const investCardsCount = (precoAvista > 0 ? 1 : 0) + (valor18x > 0 ? 1 : 0) + (valor84x > 0 ? 1 : 0);
 
   const today = dateBR();
 
@@ -1639,8 +1691,46 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .invest-avista-economia { font-size: 11px; color: #059669; font-weight: 600; }
 .invest-cartao { background: linear-gradient(135deg, var(--c1), var(--c2)); color: white; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
 .invest-cartao-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9; font-weight: 700; }
-.invest-cartao-value { font-size: 26px; font-weight: 900; margin-top: 6px; line-height: 1; letter-spacing: -0.5px; }
-.invest-grid-single { grid-template-columns: 1fr; }
+.invest-cartao-value { font-size: 24px; font-weight: 900; margin-top: 4px; line-height: 1; letter-spacing: -0.5px; }
+.invest-cartao-sub { font-size: 10px; opacity: 0.85; margin-top: 4px; font-weight: 500; }
+.invest-financ { background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.02)); border: 2px solid #6366F1; border-radius: 12px; padding: 16px; text-align: center; }
+.invest-financ-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #4F46E5; font-weight: 700; }
+.invest-financ-value { font-size: 24px; font-weight: 900; color: #4F46E5; margin: 4px 0 2px; line-height: 1; letter-spacing: -0.5px; }
+.invest-financ-sub { font-size: 10px; color: #4F46E5; font-weight: 600; opacity: 0.85; }
+.invest-grid-1 { grid-template-columns: 1fr; }
+.invest-grid-2 { grid-template-columns: 1fr 1fr; }
+.invest-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+/* Antes vs depois */
+.compare { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; }
+.compare-card { padding: 18px 16px; border-radius: 12px; text-align: center; }
+.compare-antes { background: linear-gradient(135deg, #FEF2F2, #FEE2E2); border: 2px solid #FCA5A5; }
+.compare-depois { background: linear-gradient(135deg, #ECFDF5, #D1FAE5); border: 2px solid #6EE7B7; }
+.compare-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
+.compare-antes .compare-label { color: #DC2626; }
+.compare-depois .compare-label { color: #059669; }
+.compare-value { font-size: 26px; font-weight: 900; margin: 6px 0 2px; line-height: 1; letter-spacing: -0.5px; }
+.compare-antes .compare-value { color: #DC2626; }
+.compare-depois .compare-value { color: #059669; }
+.compare-sub { font-size: 11px; color: var(--c-muted); }
+.compare-arrow { font-size: 28px; color: var(--c1); font-weight: 900; }
+.compare-savings { text-align: center; margin-top: 12px; padding: 10px 14px; background: var(--c3); border-radius: 10px; font-size: 13px; color: var(--c1); font-weight: 700; }
+/* Prazo */
+.prazo-box { display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, var(--c3) 0%, white 100%); border-radius: 12px; padding: 18px 20px; border-left: 4px solid var(--c1); }
+.prazo-num { font-size: 36px; font-weight: 900; color: var(--c1); line-height: 1; letter-spacing: -1px; }
+.prazo-info { flex: 1; }
+.prazo-titulo { font-size: 14px; font-weight: 700; color: var(--c-text); margin-bottom: 2px; }
+.prazo-desc { font-size: 12px; color: var(--c-muted); line-height: 1.4; }
+/* Breakdown 25 anos */
+.breakdown { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.breakdown-card { background: #F9FAFB; padding: 14px 10px; border-radius: 10px; text-align: center; border-bottom: 3px solid var(--c1); }
+.breakdown-ano { font-size: 11px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 4px; }
+.breakdown-val { font-size: 17px; font-weight: 800; color: var(--c1); line-height: 1.1; letter-spacing: -0.3px; }
+.breakdown-nota { text-align: center; color: var(--c-muted); font-size: 11px; margin-top: 10px; font-style: italic; }
+/* FAQ */
+.faq-list { display: flex; flex-direction: column; gap: 10px; }
+.faq-item { background: #F9FAFB; border-radius: 10px; padding: 14px 16px; border-left: 3px solid var(--c1); }
+.faq-q { font-size: 13px; font-weight: 700; color: var(--c-text); margin-bottom: 4px; }
+.faq-a { font-size: 12px; color: var(--c-muted); line-height: 1.5; }
 /* Foto do telhado */
 .foto-wrap {
   border-radius: 12px;
@@ -1690,9 +1780,19 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   .invest-box { padding: 16px 16px !important; }
   .invest-value { font-size: 28px !important; margin: 2px 0 !important; }
   .invest-grid { margin-top: 12px !important; gap: 8px !important; }
-  .invest-avista, .invest-cartao { padding: 12px !important; }
-  .invest-avista-value, .invest-cartao-value { font-size: 20px !important; }
+  .invest-avista, .invest-cartao, .invest-financ { padding: 12px !important; }
+  .invest-avista-value, .invest-cartao-value, .invest-financ-value { font-size: 18px !important; }
   .invest-cartao { border: 2px solid var(--c1) !important; }
+  .compare-card { padding: 12px !important; }
+  .compare-value { font-size: 20px !important; }
+  .compare-arrow { font-size: 22px !important; }
+  .prazo-box { padding: 12px 14px !important; }
+  .prazo-num { font-size: 28px !important; }
+  .breakdown-card { padding: 10px 6px !important; }
+  .breakdown-val { font-size: 14px !important; }
+  .faq-item { padding: 10px 12px !important; }
+  .faq-q { font-size: 11px !important; }
+  .faq-a { font-size: 10px !important; }
   .cta-box { padding: 18px 16px !important; }
   .cta-title { font-size: 17px !important; }
   .cta-sub { font-size: 12px !important; margin-bottom: 10px !important; }
@@ -1719,8 +1819,11 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   .section { padding: 24px 20px; }
   .specs, .garantias { grid-template-columns: 1fr 1fr; }
   .invest-value { font-size: 28px; }
-  .invest-grid { grid-template-columns: 1fr; }
-  .invest-avista-value, .invest-cartao-value { font-size: 22px; }
+  .invest-grid, .invest-grid-2, .invest-grid-3 { grid-template-columns: 1fr; }
+  .invest-avista-value, .invest-cartao-value, .invest-financ-value { font-size: 22px; }
+  .compare { grid-template-columns: 1fr; gap: 8px; }
+  .compare-arrow { transform: rotate(90deg); }
+  .breakdown { grid-template-columns: 1fr 1fr; }
   .footer { padding: 24px 20px 32px; }
 }
 @media (max-width: 400px) {
@@ -1745,7 +1848,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     <div class="economia">
       <div class="economia-label">Economia em 25 anos</div>
       <div class="economia-value">${pBRL(payback.acumulado25anos)}</div>
-      <div class="economia-period">Considerando inflação de 6% ao ano na tarifa</div>
+      <div class="economia-period">Considerando inflação de ${inflacaoPct.toFixed(0).replace('.', ',')}% a.a. na tarifa (média histórica ANEEL ~ 7% nos últimos 10 anos)</div>
     </div>
   </div>
 
@@ -1764,9 +1867,27 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     </div>
     <div class="stat">
       <div class="stat-value">${paybackAnos}</div>
-      <div class="stat-label">Anos pra retorno</div>
+      <div class="stat-label">${paybackAnos === '—' ? 'Anos pra retorno' : 'Anos pra retorno'}</div>
     </div>
   </div>
+
+  ${consumoKwh > 0 && contaHoje > 0 ? `<div class="section">
+    <h2>Sua conta de luz: antes vs depois</h2>
+    <div class="compare">
+      <div class="compare-card compare-antes">
+        <div class="compare-label">Hoje você paga</div>
+        <div class="compare-value">${pBRL(contaHoje)}</div>
+        <div class="compare-sub">por mês na sua conta</div>
+      </div>
+      <div class="compare-arrow">→</div>
+      <div class="compare-card compare-depois">
+        <div class="compare-label">Com energia solar</div>
+        <div class="compare-value">${pBRL(contaComSolar)}</div>
+        <div class="compare-sub">taxa mínima da concessionária</div>
+      </div>
+    </div>
+    <div class="compare-savings">💰 Economia de ${pBRL(economiaMensal)} todo mês — em ${paybackTexto} o sistema se paga sozinho</div>
+  </div>` : ''}
 
   <div class="section">
     <h2>Geração mensal estimada — ${pEsc(cidade)}/${uf}</h2>
@@ -1826,20 +1947,73 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     <div class="invest-box">
       <div class="invest-label">Preço do projeto</div>
       <div class="invest-value">${pBRL(investimento)}</div>
-      <div class="invest-grid${precoAvista > 0 ? '' : ' invest-grid-single'}">
+      <div class="invest-grid invest-grid-${Math.max(1, investCardsCount)}">
         ${avistaHtml}
         ${cartaoHtml}
+        ${financiamentoHtml}
+      </div>
+    </div>
+  </div>
+
+  ${investimento > 0 ? `<div class="section">
+    <h2>Economia ao longo dos anos</h2>
+    <div class="breakdown">
+      ${breakdownAnos.map((ano, i) => `<div class="breakdown-card">
+        <div class="breakdown-ano">em ${ano} ${ano === 1 ? 'ano' : 'anos'}</div>
+        <div class="breakdown-val">${pBRL(breakdownEconomia[i])}</div>
+      </div>`).join('')}
+    </div>
+    <div class="breakdown-nota">Valores acumulados considerando tarifa atual de ${ref.tarifa.toFixed(2).replace('.', ',')} R$/kWh + inflação de ${inflacaoPct.toFixed(0).replace('.', ',')}% ao ano</div>
+  </div>` : ''}
+
+  <div class="section">
+    <h2>Prazo de instalação</h2>
+    <div class="prazo-box">
+      <div class="prazo-num">${prazoDias}</div>
+      <div class="prazo-info">
+        <div class="prazo-titulo">dias úteis do contrato à ligação</div>
+        <div class="prazo-desc">Inclui projeto, vistoria técnica, instalação, homologação na concessionária e ART. Pode variar conforme aprovação do órgão regulador.</div>
       </div>
     </div>
   </div>
 
   <div class="section">
-    <h2>Garantias</h2>
+    <h2>Garantias inclusas</h2>
     <div class="garantias">
-      <div class="garantia"><div class="garantia-num">25</div><div class="garantia-label">anos<br/>painéis</div></div>
-      <div class="garantia"><div class="garantia-num">10</div><div class="garantia-label">anos<br/>inversor</div></div>
-      <div class="garantia"><div class="garantia-num">10</div><div class="garantia-label">anos<br/>estrutura</div></div>
-      <div class="garantia"><div class="garantia-num">1</div><div class="garantia-label">ano<br/>instalação</div></div>
+      <div class="garantia"><div class="garantia-num">${garPaineis}</div><div class="garantia-label">anos<br/>painéis</div></div>
+      <div class="garantia"><div class="garantia-num">${garInversor}</div><div class="garantia-label">${garInversor === 1 ? 'ano' : 'anos'}<br/>inversor</div></div>
+      <div class="garantia"><div class="garantia-num">${garEstrutura}</div><div class="garantia-label">${garEstrutura === 1 ? 'ano' : 'anos'}<br/>estrutura</div></div>
+      <div class="garantia"><div class="garantia-num">${garInstalacao}</div><div class="garantia-label">${garInstalacao === 1 ? 'ano' : 'anos'}<br/>instalação</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Dúvidas frequentes</h2>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q">E quando faltar luz na rua?</div>
+        <div class="faq-a">O sistema desliga automaticamente por segurança (anti-ilhamento, exigência da concessionária). Pra ter energia mesmo na queda da rede, é preciso adicionar bateria — não é obrigatório.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">E nos dias nublados ou à noite?</div>
+        <div class="faq-a">A energia que sobra nos dias ensolarados vira crédito na concessionária e é compensada à noite ou em meses de menor geração. O sistema funciona conectado à rede — você só paga a taxa mínima.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Preciso de bateria?</div>
+        <div class="faq-a">Não. O sistema padrão é on-grid (conectado à rede), usa a própria concessionária como "bateria virtual" via créditos. Bateria física só faz sentido em locais com queda frequente de energia.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">E se eu mudar de casa?</div>
+        <div class="faq-a">O sistema valoriza o imóvel (estudos do CRECI apontam +6% no valor de venda). Você pode levar o sistema pra casa nova (com custo de remontagem) ou deixar como diferencial de venda.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Tem manutenção?</div>
+        <div class="faq-a">Mínima. Limpeza dos painéis a cada 6-12 meses (chuva resolve boa parte) e inspeção visual. Sem partes móveis, sem desgaste mecânico. O inversor é o único componente eletrônico ativo.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">E se queimar o inversor?</div>
+        <div class="faq-a">Coberto pela garantia de fabricante (${garInversor} ${garInversor === 1 ? 'ano' : 'anos'}). Trocamos sem custo adicional dentro do prazo. Após a garantia, o inversor é um componente substituível com custo entre 5-10% do projeto.</div>
+      </div>
     </div>
   </div>
 
@@ -1861,9 +2035,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   })() : ''}
 
   <div class="footer">
-    ${vendedor ? `<div class="vendedor-label">Vendedor responsável</div>
-    <div class="vendedor-nome">${pEsc(vendedor)}</div>` : ''}
-    <div class="empresa-info">${pEsc(company.nome)} · CNPJ ${company.cnpj}</div>
+    <div class="empresa-info">${pEsc(company.nome)}${company.cnpj ? ` · CNPJ ${company.cnpj}` : ''}</div>
     <div class="gerado">Proposta gerada por SolarDoc Pro · solardoc.app</div>
   </div>
 </div>
