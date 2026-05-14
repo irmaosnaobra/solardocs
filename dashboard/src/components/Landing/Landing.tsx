@@ -280,7 +280,8 @@ export default function Landing() {
         <div className={styles.gridPattern} aria-hidden />
 
         <div className={styles.heroInner}>
-          <div className={styles.heroLeft}>
+          {/* TOP: eyebrow + h1 + lead */}
+          <div className={styles.heroTop}>
             <span className={styles.eyebrow}>
               <span className={styles.eyebrowDot} />
               Pra integrador solar com CNPJ
@@ -292,39 +293,42 @@ export default function Landing() {
               SolarDoc é o app que <b>fecha a sua venda solar</b>. Contrato, proposta e procuração em
               minutos — com o cliente ali, na sua frente. Sem advogado. Sem Word. Sem terceiros.
             </p>
+          </div>
 
-            {/* HERO VSL — Vimeo 9:16 */}
-            <div className={styles.heroVslWrap}>
-              <div className={styles.vslFrame}>
-                <iframe
-                  ref={vslIframeRef}
-                  className={styles.vslIframe}
-                  src="https://player.vimeo.com/video/1192117573?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1"
-                  allow="autoplay; fullscreen; picture-in-picture"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  title="SolarDoc Pro - demo"
-                />
-                <div className={styles.vslOverlay} onClick={vslTogglePlay} />
-                {vslShowUnmute && (
-                  <button type="button" className={styles.vslUnmute} onClick={vslUnmute}>
-                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                    </svg>
-                    Ativar som
-                  </button>
-                )}
-                <div className={styles.vslControls}>
-                  <div className={styles.vslProgress} onClick={vslSeek}>
-                    <div className={styles.vslProgressFill} style={{ width: `${vslProgress}%` }} />
-                  </div>
-                  <button type="button" className={styles.vslSpeed} onClick={vslCycleSpeed}>
-                    {vslSpeeds[vslSpeedIdx]}×
-                  </button>
+          {/* MEDIA: VSL Vimeo 9:16 */}
+          <div className={styles.heroMedia}>
+            <div className={styles.vslFrame}>
+              <iframe
+                ref={vslIframeRef}
+                className={styles.vslIframe}
+                src="https://player.vimeo.com/video/1192117573?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1"
+                allow="autoplay; fullscreen; picture-in-picture"
+                referrerPolicy="strict-origin-when-cross-origin"
+                title="SolarDoc Pro - demo"
+              />
+              <div className={styles.vslOverlay} onClick={vslTogglePlay} />
+              {vslShowUnmute && (
+                <button type="button" className={styles.vslUnmute} onClick={vslUnmute}>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  </svg>
+                  Ativar som
+                </button>
+              )}
+              <div className={styles.vslControls}>
+                <div className={styles.vslProgress} onClick={vslSeek}>
+                  <div className={styles.vslProgressFill} style={{ width: `${vslProgress}%` }} />
                 </div>
+                <button type="button" className={styles.vslSpeed} onClick={vslCycleSpeed}>
+                  {vslSpeeds[vslSpeedIdx]}×
+                </button>
               </div>
             </div>
+          </div>
 
+          {/* BOTTOM: trust + form */}
+          <div className={styles.heroBottom}>
             <div className={styles.trustRow}>
               <span className={styles.trustItem}>
                 <span className={styles.trustCheck}>✓</span> <b>10 docs grátis</b>
@@ -460,28 +464,6 @@ export default function Landing() {
                   </div>
                 </form>
               )}
-            </div>
-          </div>
-
-          {/* CARIMBO GIGANTE — substitui o mockup do celular */}
-          <div className={styles.heroVisual}>
-            <div className={styles.stamp}>
-              <div className={styles.stampStars}>★ ★ ★</div>
-              <div className={styles.stampHeadline}>
-                Gerador de Proposta
-                <span className={styles.stampHeadlineAccent}>com a sua cara</span>
-              </div>
-              <div className={styles.stampDivider} />
-              <ul className={styles.stampList}>
-                <li>
-                  <span className={styles.stampCheck}>✓</span>
-                  Sem burocracia
-                </li>
-                <li>
-                  <span className={styles.stampCheck}>✓</span>
-                  Aberto a todos os equipamentos do mercado
-                </li>
-              </ul>
             </div>
           </div>
         </div>

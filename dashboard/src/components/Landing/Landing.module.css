@@ -202,11 +202,17 @@
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 40px;
-  align-items: center;
+  gap: 32px;
+  align-items: start;
 }
 
-/* ---- HERO LEFT ---- */
+/* ---- HERO TOP / BOTTOM ---- */
+.heroTop, .heroBottom {
+  animation: fadeUp 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.heroBottom { animation-delay: 0.15s; }
+
+/* ---- HERO LEFT (legacy, mantido se algo referencia) ---- */
 .heroLeft {
   animation: fadeUp 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
@@ -750,7 +756,22 @@
 }
 @media (min-width: 980px) {
   .hero { padding: 96px 24px 120px; }
-  .heroInner { grid-template-columns: 1.05fr 0.95fr; gap: 60px; }
+  .heroInner {
+    grid-template-columns: 1.05fr 0.95fr;
+    grid-template-areas:
+      "top    media"
+      "bottom media";
+    column-gap: 64px;
+    row-gap: 24px;
+    align-items: start;
+  }
+  .heroTop { grid-area: top; }
+  .heroBottom { grid-area: bottom; }
+  .heroMedia {
+    grid-area: media;
+    align-self: center;
+    justify-self: center;
+  }
 }
 @media (min-width: 1200px) {
   .h1 { font-size: 72px; }
@@ -1885,14 +1906,18 @@
 }
 
 /* ============ HERO VSL — Vimeo 9:16 ============ */
-.heroVslWrap {
+.heroMedia {
   display: flex;
   justify-content: center;
-  margin: 24px 0 28px;
+  align-items: center;
+  width: 100%;
+  margin: 8px 0 24px;
+  animation: fadeUp 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: 0.2s;
 }
 .vslFrame {
   position: relative;
-  width: 320px;
+  width: 280px;
   max-width: 100%;
   aspect-ratio: 9 / 16;
   border-radius: 38px;
@@ -1989,6 +2014,14 @@
 .vslSpeed:hover { background: rgba(255, 255, 255, 0.24); }
 
 @media (max-width: 768px) {
-  .vslFrame { width: 280px; }
+  .vslFrame { width: 260px; border-width: 8px; border-radius: 32px; }
+  .heroMedia { margin: 4px 0 20px; }
+}
+@media (min-width: 980px) {
+  .vslFrame { width: 320px; }
+  .heroMedia { margin: 0; }
+}
+@media (min-width: 1200px) {
+  .vslFrame { width: 360px; }
 }
 
