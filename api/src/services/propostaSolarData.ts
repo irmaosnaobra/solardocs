@@ -42,7 +42,7 @@ export const HSP_TARIFA_BR: Record<string, SolarRef> = {
 
   // Sudeste
   ES: { hsp: 5.3, tarifa: 1.02 },
-  MG: { hsp: 5.4, tarifa: 1.05 },
+  MG: { hsp: 5.4, tarifa: 1.20 },
   RJ: { hsp: 5.1, tarifa: 1.06 },
   SP: { hsp: 5.0, tarifa: 0.92 },
 

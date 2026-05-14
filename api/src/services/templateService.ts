@@ -1,4 +1,4 @@
-import { getRef, geracaoMensal, calcPayback, MESES_ABREV } from './propostaSolarData';
+import { getRef, geracaoMensal, MESES_ABREV } from './propostaSolarData';
 
 interface Company {
   nome: string;
@@ -1536,8 +1536,12 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
   const garEstrutura = parseInt(String(f.garantia_estrutura || '10'), 10) || 10;
   const garInstalacao = parseInt(String(f.garantia_instalacao || '1'), 10) || 1;
-  const inflacaoPct = parseFloat(String(f.inflacao_aa || '6').toString().replace(',', '.')) || 6;
+  const inflacaoPct = parseFloat(String(f.inflacao_aa || '7').toString().replace(',', '.')) || 7;
   const inflacao = inflacaoPct / 100;
+  // Taxa mínima cresce mais devagar que a tarifa de energia (é parcela fixa
+  // menos exposta ao mercado de geração). Default 4% — vendedor pode ajustar.
+  const inflacaoTaxaMinPct = parseFloat(String(f.taxa_minima_inflacao_aa || '4').toString().replace(',', '.')) || 4;
+  const inflacaoTaxaMin = inflacaoTaxaMinPct / 100;
 
   // Cálculos solares — usa HSP da cidade se cadastrada (top 50 mercados),
   // cai pro estado caso contrário.
@@ -1546,11 +1550,26 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
   const mediaMensalGerada = Math.round(geracaoAnual / 12);
   const economiaPercent = consumoKwh > 0 ? Math.min(100, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;
-  const payback = calcPayback(investimento, geracaoAnual, ref.tarifa, inflacao);
-  const paybackAnos = payback.paybackMeses > 0 ? (payback.paybackMeses / 12).toFixed(1).replace('.', ',') : '—';
-  // Payback formatado como "X anos e Y meses" (mais natural que 1,8 anos)
+  // Payback usando o MESMO modelo dual-inflação do chart 25 anos
+  // (senão o "X anos pra retorno" diverge dos números mostrados nas curvas)
+  const paybackMeses = (() => {
+    if (investimento <= 0 || consumoKwh <= 0) return 0;
+    let acum = 0;
+    for (let a = 1; a <= 25; a++) {
+      const ftar = Math.pow(1 + inflacao, a - 1);
+      const fmin = Math.pow(1 + inflacaoTaxaMin, a - 1);
+      const economiaAno = consumoKwh * 12 * ref.tarifa * ftar - taxaMinima * 12 * fmin;
+      if (acum + economiaAno >= investimento) {
+        const restante = investimento - acum;
+        return (a - 1) * 12 + Math.ceil((restante / economiaAno) * 12);
+      }
+      acum += economiaAno;
+    }
+    return 0;
+  })();
+  const paybackAnos = paybackMeses > 0 ? (paybackMeses / 12).toFixed(1).replace('.', ',') : '—';
   const paybackTexto = (() => {
-    const m = payback.paybackMeses;
+    const m = paybackMeses;
     if (!m) return '—';
     const anos = Math.floor(m / 12);
     const meses = m % 12;
@@ -1565,18 +1584,20 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const economiaMensal = Math.max(0, contaHoje - contaComSolar);
 
   // Série anual acumulada pros 25 anos: conta SEM solar × conta COM solar.
-  // "Sem solar" = consumo × tarifa × 12 (com inflação composta)
-  // "Com solar" = taxa mínima × 12 (com inflação composta)
-  // Economia = diff entre as duas curvas — número honesto que o cliente sente no bolso.
+  // "Sem solar" = consumo × tarifa × 12 (tarifa cresce 7%/ano histórico ANEEL)
+  // "Com solar" = taxa mínima × 12 (taxa mínima cresce ~4%/ano — fixa, menos
+  // exposta ao mercado de geração)
+  // Economia = diff entre as duas curvas — número que o cliente sente no bolso.
   const NUM_ANOS = 25;
   const semSolarAcum: number[] = [];
   const comSolarAcum: number[] = [];
   {
     let sem = 0, com = 0;
     for (let a = 1; a <= NUM_ANOS; a++) {
-      const fator = Math.pow(1 + inflacao, a - 1);
-      sem += consumoKwh * 12 * ref.tarifa * fator;
-      com += taxaMinima * 12 * fator;
+      const fatorTarifa = Math.pow(1 + inflacao, a - 1);
+      const fatorMin = Math.pow(1 + inflacaoTaxaMin, a - 1);
+      sem += consumoKwh * 12 * ref.tarifa * fatorTarifa;
+      com += taxaMinima * 12 * fatorMin;
       semSolarAcum.push(Math.round(sem));
       comSolarAcum.push(Math.round(com));
     }
@@ -1904,7 +1925,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     <div class="economia">
       <div class="economia-label">Economia em 25 anos</div>
       <div class="economia-value">${pBRL(economia25)}</div>
-      <div class="economia-period">Considerando inflação de ${inflacaoPct.toFixed(0).replace('.', ',')}% a.a. na tarifa (média histórica ANEEL ~ 7% nos últimos 10 anos)</div>
+      <div class="economia-period">Tarifa cresce ${inflacaoPct.toFixed(0).replace('.', ',')}% a.a. e taxa mínima ${inflacaoTaxaMinPct.toFixed(0).replace('.', ',')}% a.a. — médias históricas ANEEL</div>
     </div>
   </div>
 
@@ -2019,7 +2040,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
         <div class="breakdown-val">${pBRL(breakdownEconomia[i])}</div>
       </div>`).join('')}
     </div>
-    <div class="breakdown-nota">Valores acumulados considerando tarifa atual de ${ref.tarifa.toFixed(2).replace('.', ',')} R$/kWh + inflação de ${inflacaoPct.toFixed(0).replace('.', ',')}% ao ano</div>
+    <div class="breakdown-nota">Tarifa atual ${ref.tarifa.toFixed(2).replace('.', ',')} R$/kWh · cresce ${inflacaoPct.toFixed(0).replace('.', ',')}% a.a. · taxa mínima cresce ${inflacaoTaxaMinPct.toFixed(0).replace('.', ',')}% a.a.</div>
   </div>` : ''}
 
   <div class="section">
