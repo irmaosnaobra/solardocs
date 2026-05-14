@@ -1088,20 +1088,53 @@
     content: ''; width: 8px; height: 8px; border-radius: 50%;
     background: var(--gold); box-shadow: 0 0 0 4px rgba(194, 138, 44, 0.3);
   }
+  .areas-regions {
+    margin-top: 36px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .areas-region {
+    background: rgba(255,255,255,0.55);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 22px 24px;
+  }
+  .areas-region-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .areas-region-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 700; font-size: 18px; color: var(--navy);
+    letter-spacing: -0.01em;
+    font-variation-settings: "opsz" 60, "SOFT" 50;
+  }
+  .areas-region-count {
+    font-size: 12px; font-weight: 700; color: var(--text-muted);
+    letter-spacing: 0.06em; text-transform: uppercase;
+    white-space: nowrap;
+  }
   .areas-chips {
-    margin-top: 28px;
     display: flex; flex-wrap: wrap; gap: 8px 10px;
-    justify-content: center;
   }
   .areas-chip {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 14px; border-radius: 999px;
-    background: var(--bg); border: 1px solid var(--border);
+    padding: 7px 13px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border);
     font-size: 13px; font-weight: 600; color: var(--text);
   }
   .areas-chip .pin { color: var(--navy); font-size: 12px; }
-  .areas-chip.go { background: rgba(194, 138, 44, 0.08); border-color: rgba(194, 138, 44, 0.25); }
-  .areas-chip.go .pin { color: var(--gold); }
+  .areas-region.go .areas-region-name { color: var(--gold); }
+  .areas-region.go .areas-chip { background: rgba(194, 138, 44, 0.06); border-color: rgba(194, 138, 44, 0.22); }
+  .areas-region.go .areas-chip .pin { color: var(--gold); }
+  @media (max-width: 640px) {
+    .areas-region { padding: 18px 16px 20px; }
+    .areas-region-name { font-size: 16px; }
+    .areas-chip { padding: 6px 11px; font-size: 12px; }
+  }
   .areas-list { columns: 2; column-gap: 24px; }
   .areas-list .city {
     display: flex; align-items: center; gap: 10px;
@@ -1805,35 +1838,137 @@
       </button>
     </div>
 
-    <div class="areas-chips" aria-label="Lista de cidades atendidas">
-      <span class="areas-chip"><span class="pin">📍</span>Uberlândia<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Uberaba<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Araguari<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Ituiutaba<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Patos de Minas<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Patrocínio<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Monte Carmelo<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Araxá<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Frutal<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Coromandel<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Tupaciguara<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Iturama<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Prata<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Capinópolis<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Indianópolis<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip"><span class="pin">📍</span>Romaria<span style="font-size:10px;color:var(--text-soft);margin-left:4px;">MG</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Itumbiara<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Catalão<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Caldas Novas<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Goiatuba<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Morrinhos<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Ipameri<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Goiandira<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Três Ranchos<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Cumari<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Ouvidor<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Anhanguera<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
-      <span class="areas-chip go"><span class="pin">📍</span>Bom Jesus de Goiás<span style="font-size:10px;color:var(--gold);margin-left:4px;font-weight:700;">GO</span></span>
+    <div class="areas-regions" aria-label="Cidades atendidas por região">
+
+      <div class="areas-region">
+        <div class="areas-region-head">
+          <h3 class="areas-region-name">Triângulo Mineiro · MG</h3>
+          <span class="areas-region-count">47 cidades</span>
+        </div>
+        <div class="areas-chips">
+          <span class="areas-chip"><span class="pin">📍</span>Uberlândia</span>
+          <span class="areas-chip"><span class="pin">📍</span>Uberaba</span>
+          <span class="areas-chip"><span class="pin">📍</span>Araguari</span>
+          <span class="areas-chip"><span class="pin">📍</span>Ituiutaba</span>
+          <span class="areas-chip"><span class="pin">📍</span>Tupaciguara</span>
+          <span class="areas-chip"><span class="pin">📍</span>Indianópolis</span>
+          <span class="areas-chip"><span class="pin">📍</span>Monte Alegre de Minas</span>
+          <span class="areas-chip"><span class="pin">📍</span>Prata</span>
+          <span class="areas-chip"><span class="pin">📍</span>Capinópolis</span>
+          <span class="areas-chip"><span class="pin">📍</span>Centralina</span>
+          <span class="areas-chip"><span class="pin">📍</span>Canápolis</span>
+          <span class="areas-chip"><span class="pin">📍</span>Cachoeira Dourada</span>
+          <span class="areas-chip"><span class="pin">📍</span>Ipiaçu</span>
+          <span class="areas-chip"><span class="pin">📍</span>Gurinhatã</span>
+          <span class="areas-chip"><span class="pin">📍</span>Santa Vitória</span>
+          <span class="areas-chip"><span class="pin">📍</span>Campina Verde</span>
+          <span class="areas-chip"><span class="pin">📍</span>Carneirinho</span>
+          <span class="areas-chip"><span class="pin">📍</span>Iturama</span>
+          <span class="areas-chip"><span class="pin">📍</span>Limeira do Oeste</span>
+          <span class="areas-chip"><span class="pin">📍</span>União de Minas</span>
+          <span class="areas-chip"><span class="pin">📍</span>São Francisco de Sales</span>
+          <span class="areas-chip"><span class="pin">📍</span>Itapagipe</span>
+          <span class="areas-chip"><span class="pin">📍</span>Planura</span>
+          <span class="areas-chip"><span class="pin">📍</span>Conceição das Alagoas</span>
+          <span class="areas-chip"><span class="pin">📍</span>Campo Florido</span>
+          <span class="areas-chip"><span class="pin">📍</span>Veríssimo</span>
+          <span class="areas-chip"><span class="pin">📍</span>Conquista</span>
+          <span class="areas-chip"><span class="pin">📍</span>Sacramento</span>
+          <span class="areas-chip"><span class="pin">📍</span>Pedrinópolis</span>
+          <span class="areas-chip"><span class="pin">📍</span>Perdizes</span>
+          <span class="areas-chip"><span class="pin">📍</span>Pratinha</span>
+          <span class="areas-chip"><span class="pin">📍</span>Ibiá</span>
+          <span class="areas-chip"><span class="pin">📍</span>Tapira</span>
+          <span class="areas-chip"><span class="pin">📍</span>Santa Juliana</span>
+          <span class="areas-chip"><span class="pin">📍</span>Comendador Gomes</span>
+          <span class="areas-chip"><span class="pin">📍</span>Delta</span>
+          <span class="areas-chip"><span class="pin">📍</span>Água Comprida</span>
+          <span class="areas-chip"><span class="pin">📍</span>Fronteira</span>
+          <span class="areas-chip"><span class="pin">📍</span>Frutal</span>
+          <span class="areas-chip"><span class="pin">📍</span>Nova Ponte</span>
+          <span class="areas-chip"><span class="pin">📍</span>Cascalho Rico</span>
+          <span class="areas-chip"><span class="pin">📍</span>Cruzeiro da Fortaleza</span>
+          <span class="areas-chip"><span class="pin">📍</span>Estrela do Sul</span>
+          <span class="areas-chip"><span class="pin">📍</span>Grupiara</span>
+          <span class="areas-chip"><span class="pin">📍</span>Douradoquara</span>
+          <span class="areas-chip"><span class="pin">📍</span>Abadia dos Dourados</span>
+          <span class="areas-chip"><span class="pin">📍</span>Romaria</span>
+        </div>
+      </div>
+
+      <div class="areas-region">
+        <div class="areas-region-head">
+          <h3 class="areas-region-name">Alto Paranaíba · MG</h3>
+          <span class="areas-region-count">16 cidades</span>
+        </div>
+        <div class="areas-chips">
+          <span class="areas-chip"><span class="pin">📍</span>Patos de Minas</span>
+          <span class="areas-chip"><span class="pin">📍</span>Patrocínio</span>
+          <span class="areas-chip"><span class="pin">📍</span>Monte Carmelo</span>
+          <span class="areas-chip"><span class="pin">📍</span>Araxá</span>
+          <span class="areas-chip"><span class="pin">📍</span>Coromandel</span>
+          <span class="areas-chip"><span class="pin">📍</span>Carmo do Paranaíba</span>
+          <span class="areas-chip"><span class="pin">📍</span>São Gotardo</span>
+          <span class="areas-chip"><span class="pin">📍</span>Lagoa Formosa</span>
+          <span class="areas-chip"><span class="pin">📍</span>Lagoa Grande</span>
+          <span class="areas-chip"><span class="pin">📍</span>Rio Paranaíba</span>
+          <span class="areas-chip"><span class="pin">📍</span>Tiros</span>
+          <span class="areas-chip"><span class="pin">📍</span>Matutina</span>
+          <span class="areas-chip"><span class="pin">📍</span>Presidente Olegário</span>
+          <span class="areas-chip"><span class="pin">📍</span>Serra do Salitre</span>
+          <span class="areas-chip"><span class="pin">📍</span>Guimarânia</span>
+          <span class="areas-chip"><span class="pin">📍</span>Vazante</span>
+        </div>
+      </div>
+
+      <div class="areas-region go">
+        <div class="areas-region-head">
+          <h3 class="areas-region-name">Sul de Goiás · GO</h3>
+          <span class="areas-region-count">39 cidades</span>
+        </div>
+        <div class="areas-chips">
+          <span class="areas-chip"><span class="pin">📍</span>Itumbiara</span>
+          <span class="areas-chip"><span class="pin">📍</span>Catalão</span>
+          <span class="areas-chip"><span class="pin">📍</span>Caldas Novas</span>
+          <span class="areas-chip"><span class="pin">📍</span>Goiatuba</span>
+          <span class="areas-chip"><span class="pin">📍</span>Morrinhos</span>
+          <span class="areas-chip"><span class="pin">📍</span>Ipameri</span>
+          <span class="areas-chip"><span class="pin">📍</span>Goiandira</span>
+          <span class="areas-chip"><span class="pin">📍</span>Três Ranchos</span>
+          <span class="areas-chip"><span class="pin">📍</span>Cumari</span>
+          <span class="areas-chip"><span class="pin">📍</span>Ouvidor</span>
+          <span class="areas-chip"><span class="pin">📍</span>Anhanguera</span>
+          <span class="areas-chip"><span class="pin">📍</span>Bom Jesus de Goiás</span>
+          <span class="areas-chip"><span class="pin">📍</span>Davinópolis</span>
+          <span class="areas-chip"><span class="pin">📍</span>Buriti Alegre</span>
+          <span class="areas-chip"><span class="pin">📍</span>Panamá</span>
+          <span class="areas-chip"><span class="pin">📍</span>Marzagão</span>
+          <span class="areas-chip"><span class="pin">📍</span>Inaciolândia</span>
+          <span class="areas-chip"><span class="pin">📍</span>Corumbaíba</span>
+          <span class="areas-chip"><span class="pin">📍</span>Pires do Rio</span>
+          <span class="areas-chip"><span class="pin">📍</span>Urutaí</span>
+          <span class="areas-chip"><span class="pin">📍</span>Vicentinópolis</span>
+          <span class="areas-chip"><span class="pin">📍</span>Joviânia</span>
+          <span class="areas-chip"><span class="pin">📍</span>Aloândia</span>
+          <span class="areas-chip"><span class="pin">📍</span>Mairipotaba</span>
+          <span class="areas-chip"><span class="pin">📍</span>Edealina</span>
+          <span class="areas-chip"><span class="pin">📍</span>Edéia</span>
+          <span class="areas-chip"><span class="pin">📍</span>Indiara</span>
+          <span class="areas-chip"><span class="pin">📍</span>Cromínia</span>
+          <span class="areas-chip"><span class="pin">📍</span>Piracanjuba</span>
+          <span class="areas-chip"><span class="pin">📍</span>Pontalina</span>
+          <span class="areas-chip"><span class="pin">📍</span>Castelândia</span>
+          <span class="areas-chip"><span class="pin">📍</span>Santa Helena de Goiás</span>
+          <span class="areas-chip"><span class="pin">📍</span>Maurilândia</span>
+          <span class="areas-chip"><span class="pin">📍</span>Quirinópolis</span>
+          <span class="areas-chip"><span class="pin">📍</span>Gouvelândia</span>
+          <span class="areas-chip"><span class="pin">📍</span>Itarumã</span>
+          <span class="areas-chip"><span class="pin">📍</span>Aparecida do Rio Doce</span>
+          <span class="areas-chip"><span class="pin">📍</span>Itajá</span>
+          <span class="areas-chip"><span class="pin">📍</span>Cachoeira Dourada</span>
+        </div>
+      </div>
+
     </div>
 
   </div>
