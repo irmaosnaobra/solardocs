@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '@/services/api';
-import { setToken, setUser } from '@/services/auth';
 import { useLpTracking } from '@/hooks/useLpTracking';
 import styles from './Landing.module.css';
 
@@ -46,14 +44,9 @@ export default function Landing() {
   const { trackEvent } = useLpTracking();
 
   const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
   const [cargo, setCargo] = useState('');
-  const [cnpj, setCnpj] = useState('');
   const formRef = useRef<HTMLDivElement>(null);
 
   // ===== Hero VSL (Vimeo) =====
@@ -155,35 +148,11 @@ export default function Landing() {
 
   function scrollToFormFrom(plano: 'grátis' | 'pro' | 'vip') {
     trackEvent('cta_click', { label: plano });
-    router.push('/auth?mode=register');
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => document.getElementById('input-nome')?.focus(), 500);
   }
 
-  function formatCNPJ(value: string): string {
-    const v = value.replace(/\D/g, '').slice(0, 14);
-    return v
-      .replace(/^(\d{2})(\d)/, '$1.$2')
-      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-      .replace(/\.(\d{3})(\d)/, '.$1/$2')
-      .replace(/(\d{4})(\d)/, '$1-$2');
-  }
-
-  function isValidCNPJ(value: string): boolean {
-    const c = value.replace(/\D/g, '');
-    if (c.length !== 14) return false;
-    if (/^(\d)\1{13}$/.test(c)) return false;
-    const calcDigit = (slice: string, weights: number[]) => {
-      const sum = slice.split('').reduce((acc, d, i) => acc + Number(d) * weights[i], 0);
-      const rest = sum % 11;
-      return rest < 2 ? 0 : 11 - rest;
-    };
-    const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-    const w2 = [6, ...w1];
-    if (calcDigit(c.slice(0, 12), w1) !== Number(c[12])) return false;
-    if (calcDigit(c.slice(0, 13), w2) !== Number(c[13])) return false;
-    return true;
-  }
-
-  function handleStep1(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (!nome.trim() || nome.trim().length < 2) {
@@ -198,58 +167,9 @@ export default function Landing() {
       window.fbq('track', 'Lead', { content_name: 'hero_step1', cargo });
     }
     trackEvent('hero_step1_submit', { cargo });
-    setStep(2);
-    setTimeout(() => document.getElementById('input-email')?.focus(), 50);
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-
-    if (!email.trim() || !password) {
-      setError('Preencha email e senha.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('A senha precisa de pelo menos 6 caracteres.');
-      return;
-    }
-    if (!isValidCNPJ(cnpj)) {
-      setError('CNPJ inválido — confere os números.');
-      return;
-    }
-    if (!whatsapp.trim() || whatsapp.replace(/\D/g, '').length < 10) {
-      setError('WhatsApp obrigatório (com DDD).');
-      return;
-    }
-
     setLoading(true);
-    try {
-      const eventId = crypto.randomUUID();
-      const { data } = await api.post(
-        '/auth/register',
-        {
-          email,
-          password,
-          nome,
-          cargo,
-          cnpj: cnpj.replace(/\D/g, ''),
-          whatsapp,
-        },
-        { headers: { 'X-Meta-Event-Id': eventId } }
-      );
-      setToken(data.token);
-      setUser(data.user);
-      if (typeof window !== 'undefined' && window.fbq) {
-        window.fbq('track', 'CompleteRegistration', {}, { eventID: eventId });
-      }
-      router.push('/dashboard');
-    } catch (err: unknown) {
-      const ex = err as { response?: { data?: { error?: string } } };
-      setError(ex.response?.data?.error || 'Erro ao criar conta. Tenta de novo.');
-    } finally {
-      setLoading(false);
-    }
+    const qs = new URLSearchParams({ mode: 'register', nome: nome.trim(), cargo });
+    router.push(`/auth?${qs.toString()}`);
   }
 
 
@@ -342,128 +262,47 @@ export default function Landing() {
             </div>
 
             <div className={styles.formCard} ref={formRef} id="cadastro">
-              <span className={styles.formBadge}>
-                {step === 1 ? '✓ GRÁTIS — 10 DOCUMENTOS' : 'ETAPA 2 DE 2 · QUASE LÁ'}
-              </span>
-              <div className={styles.formTitle}>
-                {step === 1
-                  ? 'Comece em 30 segundos'
-                  : `Falta pouco${nome ? `, ${nome.split(' ')[0]}` : ''} — agora os dados da empresa`}
-              </div>
-              <div className={styles.formSub}>
-                {step === 1
-                  ? 'Diz quem você é. Sem teste vencendo. Use quando precisar.'
-                  : 'CNPJ válido + WhatsApp pro suporte. Email e senha pro acesso.'}
-              </div>
+              <span className={styles.formBadge}>✓ GRÁTIS — 10 DOCUMENTOS</span>
+              <div className={styles.formTitle}>Comece em 30 segundos</div>
+              <div className={styles.formSub}>Diz quem você é. Sem teste vencendo. Use quando precisar.</div>
 
-              {step === 1 ? (
-                <form onSubmit={handleStep1}>
-                  <div className={styles.formGrid}>
-                    <input
-                      id="input-nome"
-                      type="text"
-                      autoComplete="name"
-                      placeholder="Seu nome"
-                      value={nome}
-                      onChange={e => setNome(e.target.value)}
-                      required
-                    />
-                    <select
-                      className={styles.formSelect}
-                      value={cargo}
-                      onChange={e => setCargo(e.target.value)}
-                      required
-                    >
-                      <option value="">Seu cargo na empresa</option>
-                      <option value="socio">Sócio / Dono</option>
-                      <option value="gestor">Gestor / Diretor</option>
-                      <option value="vendedor">Vendedor / Comercial</option>
-                      <option value="engenheiro">Engenheiro / Projetista</option>
-                      <option value="tecnico">Técnico / Instalador</option>
-                      <option value="outro">Outro</option>
-                    </select>
-                  </div>
-
-                  <button type="submit" className={styles.cta}>
-                    <span>Continuar →</span>
-                  </button>
-
-                  {error && <div className={styles.formError}>{error}</div>}
-
-                  <div className={styles.formFoot}>
-                    Próximo passo: CNPJ, email e WhatsApp pra liberar seu Gerador.
-                  </div>
-                </form>
-              ) : (
-                <form onSubmit={handleSubmit}>
-                  <div className={styles.formGrid}>
-                    <input
-                      id="input-email"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="Email da empresa"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
-                    />
-                    <input
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder="Senha (mínimo 6 caracteres)"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
-                    />
-                    <div className={styles.row2}>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        placeholder="CNPJ"
-                        value={cnpj}
-                        onChange={e => setCnpj(formatCNPJ(e.target.value))}
-                        maxLength={18}
-                        required
-                      />
-                      <input
-                        type="tel"
-                        autoComplete="tel"
-                        placeholder="WhatsApp"
-                        value={whatsapp}
-                        onChange={e => setWhatsapp(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <button type="submit" className={styles.cta} disabled={loading}>
-                    <span>{loading ? 'Criando sua conta...' : 'Criar conta e gerar meu primeiro contrato'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={styles.formBack}
-                    onClick={() => { setError(''); setStep(1); }}
+              <form onSubmit={handleSubmit}>
+                <div className={styles.formGrid}>
+                  <input
+                    id="input-nome"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Seu nome"
+                    value={nome}
+                    onChange={e => setNome(e.target.value)}
+                    required
+                  />
+                  <select
+                    className={styles.formSelect}
+                    value={cargo}
+                    onChange={e => setCargo(e.target.value)}
+                    required
                   >
-                    ← voltar
-                  </button>
+                    <option value="">Seu cargo na empresa</option>
+                    <option value="socio">Sócio / Dono</option>
+                    <option value="gestor">Gestor / Diretor</option>
+                    <option value="vendedor">Vendedor / Comercial</option>
+                    <option value="engenheiro">Engenheiro / Projetista</option>
+                    <option value="tecnico">Técnico / Instalador</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                </div>
 
-                  {error && (
-                    <div className={styles.formError}>
-                      {error}
-                      {error.toLowerCase().includes('cadastrado') && (
-                        <a href={`/auth?mode=login${email ? `&email=${encodeURIComponent(email)}` : ''}`} className={styles.formErrorLink}>
-                          Entrar com essa conta →
-                        </a>
-                      )}
-                    </div>
-                  )}
+                <button type="submit" className={styles.cta} disabled={loading}>
+                  <span>{loading ? 'Carregando…' : 'Continuar →'}</span>
+                </button>
 
-                  <div className={styles.formFoot}>
-                    Pronto. Próximo passo: gerar seu primeiro contrato.
-                  </div>
-                </form>
-              )}
+                {error && <div className={styles.formError}>{error}</div>}
+
+                <div className={styles.formFoot}>
+                  Próximo passo: CNPJ, email e WhatsApp pra liberar seu Gerador.
+                </div>
+              </form>
             </div>
           </div>
         </div>

@@ -60,8 +60,11 @@ function RegisterContent() {
   const router = useRouter();
   const params = useSearchParams();
   const sessionId = params.get('session');
+  const urlNome = params.get('nome');
+  const urlCargo = params.get('cargo');
 
-  const [nome, setNome] = useState('');
+  const [nome, setNome] = useState(urlNome ?? '');
+  const [cargo] = useState(urlCargo ?? '');
   const [email, setEmail] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [cnpj, setCnpj] = useState('');
@@ -118,6 +121,7 @@ function RegisterContent() {
         email,
         password,
         nome,
+        cargo: cargo || undefined,
         whatsapp: whatsapp.replace(/\D/g, '') || undefined,
         cnpj: cnpj.replace(/\D/g, '') || undefined,
         empresa: empresa.trim() || undefined,
