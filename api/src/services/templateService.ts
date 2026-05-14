@@ -2036,7 +2036,6 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   })() : ''}
 
   <div class="footer">
-    <div class="empresa-info">${pEsc(company.nome)}${company.cnpj ? ` · CNPJ ${company.cnpj}` : ''}</div>
     <div class="gerado">Proposta gerada por SolarDoc Pro · solardoc.app</div>
   </div>
 </div>
