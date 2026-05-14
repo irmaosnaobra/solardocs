@@ -1564,15 +1564,69 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const contaComSolar = taxaMinima;
   const economiaMensal = Math.max(0, contaHoje - contaComSolar);
 
-  // Breakdown da economia em 25 anos (ano 1, 5, 10, 25)
+  // Série anual acumulada pros 25 anos: conta SEM solar × conta COM solar.
+  // "Sem solar" = consumo × tarifa × 12 (com inflação composta)
+  // "Com solar" = taxa mínima × 12 (com inflação composta)
+  // Economia = diff entre as duas curvas — número honesto que o cliente sente no bolso.
+  const NUM_ANOS = 25;
+  const semSolarAcum: number[] = [];
+  const comSolarAcum: number[] = [];
+  {
+    let sem = 0, com = 0;
+    for (let a = 1; a <= NUM_ANOS; a++) {
+      const fator = Math.pow(1 + inflacao, a - 1);
+      sem += consumoKwh * 12 * ref.tarifa * fator;
+      com += taxaMinima * 12 * fator;
+      semSolarAcum.push(Math.round(sem));
+      comSolarAcum.push(Math.round(com));
+    }
+  }
+  const economia25 = semSolarAcum[NUM_ANOS - 1] - comSolarAcum[NUM_ANOS - 1];
+
+  // Breakdown da economia em 25 anos (ano 1, 5, 10, 25) — usa o MESMO modelo do chart
+  // pra não dar números contraditórios na mesma proposta.
   const breakdownAnos = [1, 5, 10, 25];
   const breakdownEconomia = breakdownAnos.map((anoAlvo) => {
-    let acum = 0;
-    for (let a = 1; a <= anoAlvo; a++) {
-      acum += geracaoAnual * ref.tarifa * Math.pow(1 + inflacao, a - 1);
-    }
-    return Math.round(acum);
+    return semSolarAcum[anoAlvo - 1] - comSolarAcum[anoAlvo - 1];
   });
+
+  // SVG comparativo 25 anos: 2 áreas (sem/com solar) com gap destacado em verde.
+  const CW = 700, CH = 280, CP = { top: 24, right: 20, bottom: 50, left: 70 };
+  const cInnerW = CW - CP.left - CP.right;
+  const cInnerH = CH - CP.top - CP.bottom;
+  const yMaxComp = Math.max(...semSolarAcum, 1);
+  const pBRLshort = (n: number): string => {
+    if (n >= 1_000_000) return `R$ ${(n / 1_000_000).toFixed(1).replace('.', ',')}M`;
+    if (n >= 1_000) return `R$ ${Math.round(n / 1_000)}k`;
+    return `R$ ${Math.round(n)}`;
+  };
+  const cYTicks = 5;
+  const cYLines = Array.from({ length: cYTicks + 1 }, (_, i) => {
+    const v = (yMaxComp * i) / cYTicks;
+    const y = CP.top + cInnerH - (cInnerH * i) / cYTicks;
+    return `<line x1="${CP.left}" y1="${y}" x2="${CP.left + cInnerW}" y2="${y}" stroke="#E5E7EB" stroke-width="1"/>
+<text x="${CP.left - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="#9CA3AF">${pBRLshort(v)}</text>`;
+  }).join('\n');
+  const xCoord = (i: number): number => CP.left + (cInnerW * i) / (NUM_ANOS - 1);
+  const yCoord = (v: number): number => CP.top + cInnerH - (cInnerH * v) / yMaxComp;
+
+  // Path da linha "sem solar"
+  const semPath = semSolarAcum.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xCoord(i).toFixed(1)} ${yCoord(v).toFixed(1)}`).join(' ');
+  // Path da linha "com solar"
+  const comPath = comSolarAcum.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xCoord(i).toFixed(1)} ${yCoord(v).toFixed(1)}`).join(' ');
+  // Área de economia: polygon do sem (topo) descendo ao com (base) e fechando
+  const areaEconomia = semSolarAcum.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xCoord(i).toFixed(1)} ${yCoord(v).toFixed(1)}`).join(' ')
+    + ' ' + [...comSolarAcum].reverse().map((v, i) => {
+        const idx = NUM_ANOS - 1 - i;
+        return `L ${xCoord(idx).toFixed(1)} ${yCoord(v).toFixed(1)}`;
+      }).join(' ')
+    + ' Z';
+
+  // Labels do eixo X: anos 1, 5, 10, 15, 20, 25
+  const cXLabels = [1, 5, 10, 15, 20, 25].map(a => {
+    const i = a - 1;
+    return `<text x="${xCoord(i).toFixed(1)}" y="${(CP.top + cInnerH + 18).toFixed(1)}" text-anchor="middle" font-size="11" fill="#6B7280" font-weight="600">Ano ${a}</text>`;
+  }).join('\n');
 
   // SVG bar chart 12 meses (puro SVG, sem JS)
   const W = 600, H = 240, P = { top: 24, right: 16, bottom: 50, left: 48 };
@@ -1727,11 +1781,13 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .breakdown-ano { font-size: 11px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 4px; }
 .breakdown-val { font-size: 17px; font-weight: 800; color: var(--c1); line-height: 1.1; letter-spacing: -0.3px; }
 .breakdown-nota { text-align: center; color: var(--c-muted); font-size: 11px; margin-top: 10px; font-style: italic; }
-/* FAQ */
-.faq-list { display: flex; flex-direction: column; gap: 10px; }
-.faq-item { background: #F9FAFB; border-radius: 10px; padding: 14px 16px; border-left: 3px solid var(--c1); }
-.faq-q { font-size: 13px; font-weight: 700; color: var(--c-text); margin-bottom: 4px; }
-.faq-a { font-size: 12px; color: var(--c-muted); line-height: 1.5; }
+/* Gráfico 25 anos */
+.chart25-legend { display: flex; justify-content: center; gap: 20px; margin-top: 4px; flex-wrap: wrap; }
+.chart25-leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--c-text); font-weight: 600; }
+.chart25-leg-dot { width: 14px; height: 14px; border-radius: 3px; }
+.chart25-economia-card { background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02)); border: 2px solid #10B981; border-radius: 12px; padding: 14px 18px; text-align: center; margin-top: 12px; }
+.chart25-economia-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #059669; font-weight: 700; }
+.chart25-economia-val { font-size: 24px; font-weight: 900; color: #10B981; margin-top: 4px; line-height: 1; letter-spacing: -0.5px; }
 /* Foto do telhado */
 .foto-wrap {
   border-radius: 12px;
@@ -1791,9 +1847,8 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   .prazo-num { font-size: 28px !important; }
   .breakdown-card { padding: 10px 6px !important; }
   .breakdown-val { font-size: 14px !important; }
-  .faq-item { padding: 10px 12px !important; }
-  .faq-q { font-size: 11px !important; }
-  .faq-a { font-size: 10px !important; }
+  .chart25-economia-val { font-size: 18px !important; }
+  .chart25-leg-item { font-size: 10px !important; }
   .cta-box { padding: 18px 16px !important; }
   .cta-title { font-size: 17px !important; }
   .cta-sub { font-size: 12px !important; margin-bottom: 10px !important; }
@@ -1848,7 +1903,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     <p class="subtitle">Sua proposta de energia solar pra economizar pelos próximos 25 anos</p>
     <div class="economia">
       <div class="economia-label">Economia em 25 anos</div>
-      <div class="economia-value">${pBRL(payback.acumulado25anos)}</div>
+      <div class="economia-value">${pBRL(economia25)}</div>
       <div class="economia-period">Considerando inflação de ${inflacaoPct.toFixed(0).replace('.', ',')}% a.a. na tarifa (média histórica ANEEL ~ 7% nos últimos 10 anos)</div>
     </div>
   </div>
@@ -1988,35 +2043,32 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     </div>
   </div>
 
-  <div class="section">
-    <h2>Dúvidas frequentes</h2>
-    <div class="faq-list">
-      <div class="faq-item">
-        <div class="faq-q">E quando faltar luz na rua?</div>
-        <div class="faq-a">O sistema desliga automaticamente por segurança (anti-ilhamento, exigência da concessionária). Pra ter energia mesmo na queda da rede, é preciso adicionar bateria — não é obrigatório.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q">E nos dias nublados ou à noite?</div>
-        <div class="faq-a">A energia que sobra nos dias ensolarados vira crédito na concessionária e é compensada à noite ou em meses de menor geração. O sistema funciona conectado à rede — você só paga a taxa mínima.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q">Preciso de bateria?</div>
-        <div class="faq-a">Não. O sistema padrão é on-grid (conectado à rede), usa a própria concessionária como "bateria virtual" via créditos. Bateria física só faz sentido em locais com queda frequente de energia.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q">E se eu mudar de casa?</div>
-        <div class="faq-a">O sistema valoriza o imóvel (estudos do CRECI apontam +6% no valor de venda). Você pode levar o sistema pra casa nova (com custo de remontagem) ou deixar como diferencial de venda.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q">Tem manutenção?</div>
-        <div class="faq-a">Mínima. Limpeza dos painéis a cada 6-12 meses (chuva resolve boa parte) e inspeção visual. Sem partes móveis, sem desgaste mecânico. O inversor é o único componente eletrônico ativo.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q">E se queimar o inversor?</div>
-        <div class="faq-a">Coberto pela garantia de fabricante (${garInversor} ${garInversor === 1 ? 'ano' : 'anos'}). Trocamos sem custo adicional dentro do prazo. Após a garantia, o inversor é um componente substituível com custo entre 5-10% do projeto.</div>
-      </div>
+  ${consumoKwh > 0 ? `<div class="section">
+    <h2>Conta de luz nos próximos 25 anos</h2>
+    <div class="chart-wrap">
+      <svg viewBox="0 0 ${CW} ${CH}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="gEco" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#10B981" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#10B981" stop-opacity="0.10"/>
+          </linearGradient>
+        </defs>
+        ${cYLines}
+        <path d="${areaEconomia}" fill="url(#gEco)" stroke="none"/>
+        <path d="${semPath}" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="${comPath}" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        ${cXLabels}
+      </svg>
     </div>
-  </div>
+    <div class="chart25-legend">
+      <div class="chart25-leg-item"><span class="chart25-leg-dot" style="background:#EF4444"></span>Sem energia solar (${pBRLshort(semSolarAcum[NUM_ANOS - 1])} em 25 anos)</div>
+      <div class="chart25-leg-item"><span class="chart25-leg-dot" style="background:#10B981"></span>Com energia solar (${pBRLshort(comSolarAcum[NUM_ANOS - 1])} em 25 anos)</div>
+    </div>
+    <div class="chart25-economia-card">
+      <div class="chart25-economia-label">A área verde é sua economia</div>
+      <div class="chart25-economia-val">${pBRL(economia25)} a mais no seu bolso</div>
+    </div>
+  </div>` : ''}
 
   ${vendedorWhatsApp ? (() => {
     const phoneClean = vendedorWhatsApp.replace(/^55/, '');
