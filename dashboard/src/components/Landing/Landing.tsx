@@ -53,6 +53,103 @@ export default function Landing() {
   const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
+  // ===== Hero VSL (Vimeo) =====
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type VimeoPlayerLike = any;
+  const vslIframeRef = useRef<HTMLIFrameElement>(null);
+  const vslPlayerRef = useRef<VimeoPlayerLike>(null);
+  const vslDurRef = useRef(0);
+  const vslSpeeds = [1, 1.5, 2];
+  const [vslShowUnmute, setVslShowUnmute] = useState(true);
+  const [vslSpeedIdx, setVslSpeedIdx] = useState(0);
+  const [vslProgress, setVslProgress] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const w = window as unknown as { Vimeo?: { Player: new (el: HTMLIFrameElement) => VimeoPlayerLike } };
+
+    const ensureVimeo = () =>
+      new Promise<void>((resolve) => {
+        if (w.Vimeo) return resolve();
+        const existing = document.querySelector<HTMLScriptElement>('script[data-vimeo-player]');
+        if (existing) {
+          existing.addEventListener('load', () => resolve(), { once: true });
+          return;
+        }
+        const s = document.createElement('script');
+        s.src = 'https://player.vimeo.com/api/player.js';
+        s.async = true;
+        s.dataset.vimeoPlayer = 'true';
+        s.onload = () => resolve();
+        document.head.appendChild(s);
+      });
+
+    ensureVimeo().then(() => {
+      if (cancelled || !vslIframeRef.current || !w.Vimeo) return;
+      const player: VimeoPlayerLike = new w.Vimeo.Player(vslIframeRef.current);
+      vslPlayerRef.current = player;
+
+      player.ready().then(() => {
+        player.getDuration().then((d: number) => { vslDurRef.current = d || 0; });
+        player.setVolume(0.6);
+        player.setMuted(false)
+          .then(() => player.play())
+          .then(() => setVslShowUnmute(false))
+          .catch(() => {
+            player.setMuted(true);
+            player.play().catch(() => {});
+          });
+
+        interval = setInterval(() => {
+          player.getCurrentTime().then((cur: number) => {
+            const dur = vslDurRef.current;
+            if (dur > 0) setVslProgress((cur / dur) * 100);
+          }).catch(() => {});
+        }, 500);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
+  }, []);
+
+  function vslUnmute() {
+    const p = vslPlayerRef.current;
+    if (!p) return;
+    p.setMuted(false)
+      .then(() => p.setVolume(0.6))
+      .then(() => p.play())
+      .catch(() => {});
+    setVslShowUnmute(false);
+  }
+
+  function vslTogglePlay() {
+    const p = vslPlayerRef.current;
+    if (!p) return;
+    p.getPaused().then((paused: boolean) => (paused ? p.play() : p.pause())).catch(() => {});
+  }
+
+  function vslSeek(e: React.MouseEvent<HTMLDivElement>) {
+    const p = vslPlayerRef.current;
+    const dur = vslDurRef.current;
+    if (!p || !dur) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    p.setCurrentTime(Math.max(0, Math.min(dur, pct * dur)));
+  }
+
+  function vslCycleSpeed() {
+    const next = (vslSpeedIdx + 1) % vslSpeeds.length;
+    setVslSpeedIdx(next);
+    const p = vslPlayerRef.current;
+    if (p) p.setPlaybackRate(vslSpeeds[next]).catch(() => {});
+  }
+
   function scrollToFormFrom(plano: 'grátis' | 'pro' | 'vip') {
     trackEvent('cta_click', { label: plano });
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -213,25 +310,35 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* CARIMBO GIGANTE — substitui o mockup do celular */}
+          {/* HERO VSL — Vimeo 9:16 */}
           <div className={styles.heroVisual}>
-            <div className={styles.stamp}>
-              <div className={styles.stampStars}>★ ★ ★</div>
-              <div className={styles.stampHeadline}>
-                Gerador de Proposta
-                <span className={styles.stampHeadlineAccent}>com a sua cara</span>
+            <div className={styles.vslFrame}>
+              <iframe
+                ref={vslIframeRef}
+                className={styles.vslIframe}
+                src="https://player.vimeo.com/video/1192117573?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1"
+                allow="autoplay; fullscreen; picture-in-picture"
+                referrerPolicy="strict-origin-when-cross-origin"
+                title="SolarDoc Pro - demo"
+              />
+              <div className={styles.vslOverlay} onClick={vslTogglePlay} />
+              {vslShowUnmute && (
+                <button type="button" className={styles.vslUnmute} onClick={vslUnmute}>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  </svg>
+                  Ativar som
+                </button>
+              )}
+              <div className={styles.vslControls}>
+                <div className={styles.vslProgress} onClick={vslSeek}>
+                  <div className={styles.vslProgressFill} style={{ width: `${vslProgress}%` }} />
+                </div>
+                <button type="button" className={styles.vslSpeed} onClick={vslCycleSpeed}>
+                  {vslSpeeds[vslSpeedIdx]}×
+                </button>
               </div>
-              <div className={styles.stampDivider} />
-              <ul className={styles.stampList}>
-                <li>
-                  <span className={styles.stampCheck}>✓</span>
-                  Sem burocracia
-                </li>
-                <li>
-                  <span className={styles.stampCheck}>✓</span>
-                  Aberto a todos os equipamentos do mercado
-                </li>
-              </ul>
             </div>
           </div>
         </div>
