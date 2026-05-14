@@ -453,6 +453,119 @@ alt=""/></noscript>
   }
 
   /* ============ HERO VISUAL ============ */
+  /* Hero VSL */
+  .hero-vsl {
+    margin-top: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .hero-vsl-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--accent-soft);
+    border: 1px solid rgba(196, 99, 31, 0.18);
+    border-radius: 999px;
+    color: var(--accent-deep);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+  .hero-vsl-eyebrow::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .hero-vsl-frame {
+    position: relative;
+    width: 280px;
+    max-width: 100%;
+    aspect-ratio: 9 / 16;
+    border-radius: 24px;
+    overflow: hidden;
+    background: #000;
+    box-shadow:
+      0 0 0 1px var(--line),
+      0 1px 2px rgba(0,0,0,0.04),
+      0 24px 60px rgba(0,0,0,0.12);
+  }
+  .hero-vsl-frame iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border: 0;
+  }
+  .hero-vsl-overlay {
+    position: absolute; inset: 0;
+    z-index: 5;
+    cursor: pointer;
+  }
+  .hero-vsl-unmute {
+    position: absolute;
+    top: 12px; right: 12px;
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.96);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 999px;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    animation: vslPulse 2s ease infinite;
+  }
+  @keyframes vslPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  .hero-vsl-controls {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    z-index: 8;
+    padding: 28px 12px 12px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.55));
+    pointer-events: none;
+  }
+  .hero-vsl-progress {
+    width: 100%; height: 3px;
+    background: rgba(255,255,255,0.22);
+    border-radius: 2px;
+    cursor: pointer;
+    pointer-events: auto;
+    margin-bottom: 10px;
+  }
+  .hero-vsl-progress-fill {
+    height: 100%; width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width .2s linear;
+    pointer-events: none;
+  }
+  .hero-vsl-speed {
+    pointer-events: auto;
+    display: block;
+    margin-left: auto;
+    background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.22);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    letter-spacing: 0.3px;
+  }
+
   .hero-visual {
     margin-top: 64px;
     background: var(--bg-elevated);
@@ -1994,6 +2107,29 @@ alt=""/></noscript>
       </div>
     </div>
 
+    <!-- Hero VSL -->
+    <div class="hero-vsl">
+      <div class="hero-vsl-eyebrow">Veja em 1 minuto</div>
+      <div class="hero-vsl-frame">
+        <iframe id="vsl-player"
+          src="https://player.vimeo.com/video/1192117573?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1"
+          allow="autoplay; fullscreen; picture-in-picture"
+          referrerpolicy="strict-origin-when-cross-origin"
+          title="SolarDoc"></iframe>
+        <div class="hero-vsl-overlay" onclick="vslTogglePlay()"></div>
+        <button class="hero-vsl-unmute" id="vsl-unmute" onclick="vslUnmute()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          Ativar som
+        </button>
+        <div class="hero-vsl-controls">
+          <div class="hero-vsl-progress" onclick="vslSeek(event)">
+            <div class="hero-vsl-progress-fill" id="vsl-progress-fill"></div>
+          </div>
+          <button class="hero-vsl-speed" id="vsl-speed" onclick="vslCycleSpeed()">1×</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Hero Visual -->
     <div class="hero-visual">
       <div class="browser-bar">
@@ -2630,6 +2766,73 @@ alt=""/></noscript>
       if (progress < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
+  }
+</script>
+
+<!-- Hero VSL — Vimeo player -->
+<script src="https://player.vimeo.com/api/player.js"></script>
+<script>
+  var vslPlayer, vslSpeeds = [1, 1.5, 2], vslSpeedIdx = 0, vslDur = 0;
+
+  function vslHideUnmute() {
+    var b = document.getElementById('vsl-unmute');
+    if (b) b.style.display = 'none';
+  }
+
+  (function vslInit() {
+    var iframe = document.getElementById('vsl-player');
+    if (!iframe || typeof Vimeo === 'undefined') return;
+    vslPlayer = new Vimeo.Player(iframe);
+    vslPlayer.ready().then(function () {
+      vslPlayer.getDuration().then(function (d) { vslDur = d || 0; });
+      setInterval(vslUpdateProgress, 500);
+      vslPlayer.setVolume(0.6);
+      vslPlayer.setMuted(false).then(function () {
+        return vslPlayer.play();
+      }).then(vslHideUnmute).catch(function () {
+        vslPlayer.setMuted(true);
+        vslPlayer.play().catch(function () {});
+      });
+    });
+  })();
+
+  function vslUnmute() {
+    if (!vslPlayer) return;
+    vslPlayer.setMuted(false).then(function () {
+      vslPlayer.setVolume(0.6);
+      vslPlayer.play().catch(function () {});
+    });
+    vslHideUnmute();
+  }
+
+  function vslTogglePlay() {
+    if (!vslPlayer) return;
+    vslPlayer.getPaused().then(function (p) {
+      p ? vslPlayer.play() : vslPlayer.pause();
+    });
+  }
+
+  function vslUpdateProgress() {
+    if (!vslPlayer || !vslDur) return;
+    vslPlayer.getCurrentTime().then(function (cur) {
+      var fill = document.getElementById('vsl-progress-fill');
+      if (fill) fill.style.width = (cur / vslDur * 100) + '%';
+    }).catch(function () {});
+  }
+
+  function vslSeek(e) {
+    if (!vslPlayer || !vslDur) return;
+    var rect = e.currentTarget.getBoundingClientRect();
+    var pct = (e.clientX - rect.left) / rect.width;
+    vslPlayer.setCurrentTime(Math.max(0, Math.min(vslDur, pct * vslDur)));
+  }
+
+  function vslCycleSpeed() {
+    vslSpeedIdx = (vslSpeedIdx + 1) % vslSpeeds.length;
+    var s = vslSpeeds[vslSpeedIdx];
+    if (vslPlayer) vslPlayer.setPlaybackRate(s).catch(function () {});
+    var b = document.getElementById('vsl-speed');
+    if (b) b.textContent = s + '×';
   }
 </script>
 
