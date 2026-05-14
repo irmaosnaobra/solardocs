@@ -37,6 +37,8 @@ export async function createIoLead(req: Request, res: Response): Promise<void> {
       premium_preco:   b.premium?.preco   ?? null,
       premium_inv:     b.premium?.inv     ?? null,
       plano_escolhido: b.plano_escolhido || null,
+      cliente_grande:  Boolean(b.cliente_grande),
+      placas_estimadas: b.placas_estimadas ? Number(b.placas_estimadas) : null,
       utm_source:   b.utm_source   || null,
       utm_campaign: b.utm_campaign || null,
       utm_content:  b.utm_content  || null,
@@ -59,7 +61,9 @@ export async function createIoLead(req: Request, res: Response): Promise<void> {
 
     // Cora dispara welcome instantâneo se for horário comercial.
     // Fire-and-forget — não bloqueia a resposta pro cliente.
-    if (data?.id) {
+    // Pula pra cliente_grande: o lead já foi redirecionado ao WhatsApp manualmente
+    // e vai mandar a primeira mensagem ele mesmo; welcome automatizado da Cora atropelaria.
+    if (data?.id && !payload.cliente_grande) {
       import('../services/agents/io/ioCrmAgent')
         .then(({ sendWelcomeIfBusinessHours }) => sendWelcomeIfBusinessHours(data.id))
         .catch(err => console.error('cora welcome dispatch failed:', err));

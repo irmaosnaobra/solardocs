@@ -381,9 +381,9 @@
   <div class="progress-inner">
     <div class="progress-bar"><div class="fill" id="progFill" style="width:25%"></div></div>
     <div class="progress-steps">
-      <div class="s active" data-step="1"><span class="n">1</span> Você</div>
-      <div class="s" data-step="2"><span class="n">2</span> Imóvel</div>
-      <div class="s" data-step="3"><span class="n">3</span> Conta</div>
+      <div class="s active" data-step="1"><span class="n">1</span> Imóvel</div>
+      <div class="s" data-step="2"><span class="n">2</span> Conta</div>
+      <div class="s" data-step="3"><span class="n">3</span> Você</div>
       <div class="s" data-step="4"><span class="n">4</span> Resultado</div>
     </div>
   </div>
@@ -391,49 +391,10 @@
 
 <main class="stage">
 
-  <!-- ============ STEP 1: IDENTIFICAÇÃO ============ -->
+  <!-- ============ STEP 1: IMÓVEL ============ -->
   <section class="card step" data-step="1">
     <div class="step-head">
       <span class="eyebrow">Passo 1 de 3 · 1 minuto</span>
-      <h1>Calcule sua <em>economia.</em></h1>
-      <p class="lead">Preço, equipamentos e economia em 25 anos.</p>
-    </div>
-
-    <div class="field">
-      <label>Nome <span class="req">*</span></label>
-      <input type="text" id="f_nome" placeholder="Seu nome" autocomplete="name" />
-      <div class="err-msg">Preencha seu nome.</div>
-    </div>
-
-    <div class="field">
-      <label>WhatsApp <span class="req">*</span></label>
-      <input type="tel" id="f_whats" placeholder="(34) 99999-9999" autocomplete="tel" inputmode="numeric" />
-      <div class="err-msg">WhatsApp inválido.</div>
-    </div>
-
-    <div class="field-row">
-      <div class="field">
-        <label>Cidade <span class="req">*</span></label>
-        <input type="text" id="f_cidade" list="cidades" placeholder="Digite a cidade" autocomplete="off" />
-        <datalist id="cidades"></datalist>
-        <div class="city-hint" id="cityHint"></div>
-      </div>
-      <div class="field">
-        <label>UF</label>
-        <input type="text" id="f_estado" placeholder="—" readonly />
-      </div>
-    </div>
-
-    <div class="actions">
-      <span></span>
-      <button class="btn btn-primary" data-next="2">Próximo passo →</button>
-    </div>
-  </section>
-
-  <!-- ============ STEP 2: IMÓVEL ============ -->
-  <section class="card step" data-step="2" style="display:none">
-    <div class="step-head">
-      <span class="eyebrow">Passo 2 de 3</span>
       <h1>Sobre seu <em>imóvel.</em></h1>
       <p class="lead">Pra escolher o sistema e a estrutura certa.</p>
     </div>
@@ -480,17 +441,17 @@
     </div>
 
     <div class="actions">
-      <button class="btn btn-ghost" data-back="1">← Voltar</button>
-      <button class="btn btn-primary" data-next="3">Próximo passo →</button>
+      <span></span>
+      <button class="btn btn-primary" data-next="2">Próximo passo →</button>
     </div>
   </section>
 
-  <!-- ============ STEP 3: PADRÃO + CONTA ============ -->
-  <section class="card step" data-step="3" style="display:none">
+  <!-- ============ STEP 2: PADRÃO + CONTA ============ -->
+  <section class="card step" data-step="2" style="display:none">
     <div class="step-head">
-      <span class="eyebrow">Passo 3 de 3 · última</span>
+      <span class="eyebrow">Passo 2 de 3</span>
       <h1>Sua <em>conta de luz.</em></h1>
-      <p class="lead">Próxima tela: estimativa pronta.</p>
+      <p class="lead">Pra calcular a economia real.</p>
     </div>
 
     <div class="field">
@@ -528,6 +489,45 @@
         <span class="rs-suffix">/mês</span>
       </div>
       <div class="err-msg">Mínimo R$ 100.</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" data-back="1">← Voltar</button>
+      <button class="btn btn-primary" data-next="3">Próximo passo →</button>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3: IDENTIFICAÇÃO ============ -->
+  <section class="card step" data-step="3" style="display:none">
+    <div class="step-head">
+      <span class="eyebrow">Passo 3 de 3 · última</span>
+      <h1>Pra onde mando sua <em>estimativa?</em></h1>
+      <p class="lead">Em segundos você recebe o orçamento pronto.</p>
+    </div>
+
+    <div class="field">
+      <label>Nome <span class="req">*</span></label>
+      <input type="text" id="f_nome" placeholder="Seu nome" autocomplete="name" />
+      <div class="err-msg">Preencha seu nome.</div>
+    </div>
+
+    <div class="field">
+      <label>WhatsApp <span class="req">*</span></label>
+      <input type="tel" id="f_whats" placeholder="(34) 99999-9999" autocomplete="tel" inputmode="numeric" />
+      <div class="err-msg">WhatsApp inválido.</div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Cidade <span class="req">*</span></label>
+        <input type="text" id="f_cidade" list="cidades" placeholder="Digite a cidade" autocomplete="off" />
+        <datalist id="cidades"></datalist>
+        <div class="city-hint" id="cityHint"></div>
+      </div>
+      <div class="field">
+        <label>UF</label>
+        <input type="text" id="f_estado" placeholder="—" readonly />
+      </div>
     </div>
 
     <div class="actions">
@@ -606,6 +606,42 @@
 
     <div class="disclaimer">
       *Valores estimados com base em equipamentos certificados e geração média do Triângulo Mineiro (HSP 5,2 h/dia). O orçamento final é confirmado após visita técnica gratuita.
+    </div>
+  </section>
+
+  <!-- STEP 5 — CLIENTE GRANDE (>25 placas / consumo alto) -->
+  <section class="card step" data-step="5" style="display:none">
+    <div class="result-head">
+      <span class="eyebrow" style="background:linear-gradient(135deg,#0f7d3a 0%,#16a34a 100%);color:#fff">★ Projeto de alto porte</span>
+      <h1 id="bc_hello">Pronto, <em>fulano!</em></h1>
+      <p class="lead">
+        Seu consumo é maior do que o simulador padrão atende — provavelmente seu projeto pede
+        <b>mais de 25 painéis</b>. Para um sistema desse porte, a gente faz <b>orçamento personalizado</b>
+        com engenheiro, direto no WhatsApp.
+      </p>
+    </div>
+
+    <div class="hero-offer" style="background:linear-gradient(135deg,#052e16 0%,#064e2c 100%);border-color:#16a34a">
+      <div class="hero-offer-tag" style="background:#16a34a;color:#fff">⚡ Atendimento personalizado</div>
+      <div class="hero-offer-inv" style="color:#fff">Especialista vai te chamar</div>
+      <div class="hero-offer-from" style="color:#a7f3d0">Orçamento sob medida em</div>
+      <div class="hero-offer-price" style="color:#fff">
+        <span style="font-size:54px">5min</span>
+      </div>
+      <div class="hero-offer-sub" style="color:#a7f3d0">Consumo estimado: <b id="bc_consumo">—</b> kWh/mês · <b id="bc_placas">—</b>+ painéis</div>
+      <a href="#" id="bc_whatsapp" class="hero-offer-cta" target="_blank" rel="noopener" data-plan="cliente_grande">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></span>
+        <span>Falar agora com especialista</span>
+      </a>
+      <div class="hero-offer-foot" style="color:#a7f3d0">Te conectando direto com um engenheiro · projetos comerciais e industriais</div>
+    </div>
+
+    <div style="text-align:center;color:var(--muted);font-size:13px;margin-top:18px">
+      <span id="bc_autoRedirect">Te direcionando pro WhatsApp em <b id="bc_countdown">5</b>s…</span>
+    </div>
+
+    <div class="disclaimer" style="margin-top:24px">
+      Projetos acima de 15 kWp envolvem dimensionamento de estrutura, transformador e homologação específica — por isso a equipe técnica atende caso a caso, sem usar o simulador padrão.
     </div>
   </section>
 
@@ -848,14 +884,37 @@ $('#f_cidade').addEventListener('input', (e) => {
 function validateStep(step) {
   let ok = true;
   if (step === 1) {
+    // Imóvel: tipo + telhado
+    const tipo = document.querySelector('input[name=tipo]:checked');
+    const telhado = document.querySelector('input[name=telhado]:checked');
+    const tipoErr = !tipo, telErr = !telhado;
+    setErrGroup('tipo', tipoErr);
+    setErrGroup('telhado', telErr);
+    if (tipoErr || telErr) ok = false;
+    if (ok) { state.tipo = tipo.value; state.telhado = telhado.value; }
+  }
+  if (step === 2) {
+    // Conta: padrão + pagamento + consumo
+    const padrao = document.querySelector('input[name=padrao]:checked');
+    const pagamento = document.querySelector('input[name=pagamento]:checked');
+    const val = parseInt($('#f_consumo').value.replace(/\D/g,''), 10);
+    const minOk = val >= 100;
+    setErrGroup('padrao', !padrao);
+    setErrGroup('pagamento', !pagamento);
+    setErr('#f_consumo', !val || !minOk);
+    if (!padrao || !pagamento || !val || !minOk) ok = false;
+    if (ok) { state.padrao = padrao.value; state.pagamento = pagamento.value; state.consumoRs = val; }
+  }
+  if (step === 3) {
+    // Você: nome + whatsapp + cidade/UF
     const nome = $('#f_nome').value.trim();
-    const whats = $('#f_whats').value.replace(/\D/g,'');
     const cid = $('#f_cidade').value.split('/')[0].trim();
     const uf = $('#f_estado').value;
+    const whats = $('#f_whats').value.replace(/\D/g,'');
 
-    // Nome: precisa ter ao menos nome + sobrenome (2 palavras de 2+ letras cada)
-    const nomeOk = /^[A-Za-zÀ-ÿ]{2,}\s+[A-Za-zÀ-ÿ]{2,}/.test(nome);
-    // WhatsApp: exatamente 11 dígitos, DDD válido (11-99), nono dígito é 9, sem 8 dígitos iguais
+    // Nome: aceita primeiro nome (2+ letras). Não exige sobrenome.
+    const nomeOk = /^[A-Za-zÀ-ÿ]{2,}/.test(nome);
+    // WhatsApp: exatamente 11 dígitos, DDD válido (11-99), nono dígito é 9, sem 11 dígitos iguais
     const ddd = parseInt(whats.slice(0, 2), 10);
     const whatsOk = whats.length === 11
       && ddd >= 11 && ddd <= 99
@@ -867,32 +926,12 @@ function validateStep(step) {
     setErr('#f_nome',   !nomeOk);
     setErr('#f_whats',  !whatsOk);
     setErr('#f_cidade', !cidadeOk);
-    setErrMsg('#f_nome',   'Informe nome e sobrenome.');
+    setErrMsg('#f_nome',   'Informe seu nome (mínimo 2 letras).');
     setErrMsg('#f_whats',  'WhatsApp inválido — (DDD) 9XXXX-XXXX, 11 dígitos.');
     setErrMsg('#f_cidade', 'Escolha uma cidade da lista (atendemos no raio 250 km).');
 
     if (!nomeOk || !whatsOk || !cidadeOk) ok = false;
     if (ok) { state.nome = nome; state.whats = whats; state.cidade = cid; state.estado = uf; }
-  }
-  if (step === 2) {
-    const tipo = document.querySelector('input[name=tipo]:checked');
-    const telhado = document.querySelector('input[name=telhado]:checked');
-    const tipoErr = !tipo, telErr = !telhado;
-    setErrGroup('tipo', tipoErr);
-    setErrGroup('telhado', telErr);
-    if (tipoErr || telErr) ok = false;
-    if (ok) { state.tipo = tipo.value; state.telhado = telhado.value; }
-  }
-  if (step === 3) {
-    const padrao = document.querySelector('input[name=padrao]:checked');
-    const pagamento = document.querySelector('input[name=pagamento]:checked');
-    const val = parseInt($('#f_consumo').value.replace(/\D/g,''), 10);
-    const minOk = val >= 100;
-    setErrGroup('padrao', !padrao);
-    setErrGroup('pagamento', !pagamento);
-    setErr('#f_consumo', !val || !minOk);
-    if (!padrao || !pagamento || !val || !minOk) ok = false;
-    if (ok) { state.padrao = padrao.value; state.pagamento = pagamento.value; state.consumoRs = val; }
   }
   return ok;
 }
@@ -942,8 +981,23 @@ function goStep(n) {
 // ════════════════════════════════════════════════════════════════
 // CÁLCULO PRINCIPAL
 // ════════════════════════════════════════════════════════════════
+// Threshold: se consumo precisa de > 25 placas (geração > 2000 kWh/mês), cliente vai pra WhatsApp
+const PLACAS_MAX = 25;
+const GERACAO_MAX_TABELA = 2000; // kWh/mês — bate com n=25 da maior tabela
+
 $('#btnCalc').addEventListener('click', () => {
   if (!validateStep(3)) return;
+
+  // Detecta cliente grande ANTES de calcular oferta padrão
+  const consumoKwh = state.consumoRs / TARIFA;
+  const geracaoNecessaria = consumoKwh * 1.05;
+  const placasEstimadas = Math.ceil(geracaoNecessaria / 80); // ~80 kWh/mês por placa 600W
+
+  if (geracaoNecessaria > GERACAO_MAX_TABELA) {
+    handleBigClient(consumoKwh, placasEstimadas);
+    return;
+  }
+
   const result = calcular();
   renderResult(result);
   goStep(4);
@@ -1285,6 +1339,12 @@ function buildWhatsapp(r) {
 
   const oferta = o ? `\n\n⚡ *Sistema simulado:*\n• ${o.kwp.toFixed(1).replace('.',',')} kWp · ${o.n} painéis de ${o.pot}W\n• ${getInversorDisplay(o)}\n• Geração ~${fmtNum(o.g)} kWh/mês\n• ${precoTxt(o)}` : '';
 
+  // Visita técnica presencial só em Uberlândia. Demais cidades atendidas → ligação.
+  const cidadeNorm = (state.cidade || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').trim();
+  const cta = cidadeNorm === 'uberlandia'
+    ? 'Gostaria de garantir essa condição e agendar a visita técnica gratuita!'
+    : 'Gostaria de garantir essa condição. Pode me ligar agora pra fechar?';
+
   const msg = encodeURIComponent(
 `Olá! Acabei de simular meu projeto solar no site da Irmãos na Obra.
 
@@ -1296,9 +1356,116 @@ function buildWhatsapp(r) {
 • Forma de pagamento: ${pagLbl}
 • Conta atual: R$ ${state.consumoRs}/mês${oferta}
 
-Gostaria de garantir essa condição e agendar a visita técnica gratuita!`
+${cta}`
   );
   return `https://wa.me/${phone}?text=${msg}`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// CLIENTE GRANDE — > 25 placas / consumo alto, vai direto pro WhatsApp
+// ════════════════════════════════════════════════════════════════
+function buildBigClientWhatsapp(consumoKwh, placasEstimadas) {
+  const phone = '5534998165040';
+  const padraoLbl = {mono110:'Mono 110V',mono220:'Mono 220V',bif220:'Bifásico 220V',tri220:'Trifásico'}[state.padrao] || state.padrao;
+  const pagLbl = {avista:'À vista',cartao:'Cartão de crédito',financiamento:'Financiamento'}[state.pagamento] || state.pagamento;
+  const tipoLbl = state.tipo.charAt(0).toUpperCase() + state.tipo.slice(1);
+  const telhadoLbl = state.telhado.charAt(0).toUpperCase() + state.telhado.slice(1);
+
+  const msg = encodeURIComponent(
+`Olá! Acabei de simular meu projeto solar no site da Irmãos na Obra.
+
+Meu consumo é grande — o simulador me direcionou pra falar direto com um especialista.
+
+📋 *Meus dados:*
+• Nome: ${state.nome}
+• Cidade: ${state.cidade}/${state.estado}
+• Tipo: ${tipoLbl} · Telhado ${telhadoLbl}
+• Padrão: ${padraoLbl}
+• Forma de pagamento: ${pagLbl}
+• Conta atual: R$ ${state.consumoRs}/mês (~${Math.round(consumoKwh)} kWh/mês)
+• Estimativa: ${placasEstimadas}+ painéis
+
+Pode me ajudar com um orçamento personalizado pra esse porte?`
+  );
+  return `https://wa.me/${phone}?text=${msg}`;
+}
+
+function handleBigClient(consumoKwh, placasEstimadas) {
+  const link = buildBigClientWhatsapp(consumoKwh, placasEstimadas);
+
+  // Preenche a tela big-client
+  const primeiroNome = (state.nome || '').split(' ')[0] || 'tudo certo';
+  $('#bc_hello').innerHTML = `Pronto, <em>${primeiroNome}!</em>`;
+  $('#bc_consumo').textContent = Math.round(consumoKwh).toLocaleString('pt-BR');
+  $('#bc_placas').textContent = placasEstimadas;
+  $('#bc_whatsapp').href = link;
+
+  goStep(5);
+
+  // Tracking — lead grande
+  fbqTrack('Lead', { content_name: 'simulador_cliente_grande', value: state.consumoRs, currency: 'BRL' });
+  fbqCustom('Sim_ClienteGrande', { consumo_rs: state.consumoRs, placas: placasEstimadas });
+  _simConverted = true;
+  _simWhatsClicked = true; // marca como "convertido pro WhatsApp" pra não chamar fireSimExit
+
+  // Tracking backend
+  try {
+    fetch('/_api/tracking/event', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        session_id: getSessId(),
+        event_type: 'simulator_cliente_grande',
+        event_data: {
+          nome: state.nome, whats: state.whats, cidade: state.cidade, estado: state.estado,
+          consumoRs: state.consumoRs, consumoKwh: Math.round(consumoKwh),
+          placas_estimadas: placasEstimadas, pagamento: state.pagamento,
+        }
+      }),
+      keepalive: true,
+    }).catch(()=>{});
+  } catch(_){}
+
+  // Cria lead no CRM com flag cliente_grande
+  try {
+    const utm = (() => {
+      const sp = new URLSearchParams(location.search);
+      return { utm_source: sp.get('utm_source'), utm_campaign: sp.get('utm_campaign'), utm_content: sp.get('utm_content') };
+    })();
+    fetch('/_api/io-leads', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        nome: state.nome,
+        whatsapp: state.whats,
+        cidade: state.cidade,
+        estado: state.estado,
+        tipo: state.tipo,
+        telhado: state.telhado,
+        padrao: state.padrao,
+        pagamento: state.pagamento,
+        consumo_rs: state.consumoRs,
+        cliente_grande: true,
+        placas_estimadas: placasEstimadas,
+        comercial: null,
+        premium: null,
+        session_id: getSessId(),
+        ...utm,
+      }),
+      keepalive: true,
+    }).catch(()=>{});
+  } catch(_){}
+
+  // Countdown + auto-redirect (5s pra dar tempo de ler)
+  let n = 5;
+  const cd = $('#bc_countdown');
+  if (cd) cd.textContent = n;
+  const tick = setInterval(() => {
+    n -= 1;
+    if (cd) cd.textContent = Math.max(n, 0);
+    if (n <= 0) {
+      clearInterval(tick);
+      window.location.href = link;
+    }
+  }, 1000);
 }
 
 // Track inicial — entrada no funil
