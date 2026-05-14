@@ -207,11 +207,12 @@ export default function Landing() {
               Pra integrador solar com CNPJ
             </span>
             <h1 className={styles.h1}>
-              O documento que vem depois do <strong>aperto de mão.</strong>
+              Faça o orçamento do <strong>telhado</strong> em 2 minutos.
             </h1>
             <p className={styles.lead}>
-              SolarDoc é o app que <b>fecha a sua venda solar</b>. Contrato, proposta e procuração em
-              minutos — com o cliente ali, na sua frente. Sem advogado. Sem Word. Sem terceiros.
+              E feche a venda no mesmo app. Depois do orçamento, o SolarDoc gera <b>contrato, proposta
+              bancária e procuração da concessionária</b> em minutos — direto do celular, com o cliente
+              ali na sua frente. Sem advogado, sem Word, sem terceiros.
             </p>
           </div>
 
