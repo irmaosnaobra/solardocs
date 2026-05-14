@@ -1545,7 +1545,14 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
 
   // Cálculos solares — usa HSP da cidade se cadastrada (top 50 mercados),
   // cai pro estado caso contrário.
-  const ref = getRef(uf, cidade);
+  const refBase = getRef(uf, cidade);
+  // Tarifa: vendedor pode sobrescrever por proposta (conta de luz do cliente
+  // é a fonte de verdade — varia por concessionária e faixa de consumo).
+  const tarifaOverride = parseFloat(String(f.tarifa_kwh || '').replace(',', '.'));
+  const ref = {
+    ...refBase,
+    tarifa: tarifaOverride > 0 ? tarifaOverride : refBase.tarifa,
+  };
   const mensal = geracaoMensal(kwp, uf, cidade);
   const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
   const mediaMensalGerada = Math.round(geracaoAnual / 12);

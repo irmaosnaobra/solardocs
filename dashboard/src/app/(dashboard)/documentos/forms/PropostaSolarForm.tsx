@@ -61,7 +61,9 @@ const initialFields = {
   investimento: '',
   preco_avista: '',
   foto_telhado_b64: '', // dataURL JPEG comprimido
-  // Campos editáveis (defaults aplicados no servidor se vierem vazios)
+  // Campos editáveis (defaults aplicados no servidor se vierem vazios).
+  // tarifa_kwh: deixar vazio = usa default do estado. Preencher = override por proposta.
+  tarifa_kwh: '',
   taxa_minima: '90',
   prazo_instalacao_dias: '45',
   garantia_paineis: '25',
@@ -597,8 +599,8 @@ export default function PropostaSolarPage() {
           </p>
         </div>
 
-        {/* DETALHES EDITÁVEIS (colapsável) */}
-        <details className={styles.section} style={{ cursor: 'pointer' }}>
+        {/* DETALHES EDITÁVEIS (abertos por padrão — afetam payback/economia) */}
+        <details className={styles.section} style={{ cursor: 'pointer' }} open>
           <summary style={{
             listStyle: 'none',
             fontSize: 15,
@@ -609,22 +611,25 @@ export default function PropostaSolarPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
-            <span>⚙️ Detalhes editáveis (avançado)</span>
+            <span>⚙️ Tarifa, taxa mínima, garantias e prazo</span>
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>
-              taxa mínima · prazo · garantias · inflação
+              ajuste por região se preciso
             </span>
           </summary>
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '10px 0 14px' }}>
-            Valores padrão funcionam pra maioria dos casos. Edite só se precisar customizar.
+            Tarifa muda por região e concessionária. Os outros valores funcionam pra maioria dos casos.
           </p>
           <div className={styles.grid2}>
             <div className={styles.field}>
-              <label className={styles.label}>Taxa mínima da concessionária (R$/mês)</label>
-              <input type="text" inputMode="decimal" value={fields.taxa_minima} onChange={e => setField('taxa_minima', e.target.value)} placeholder="90" className="input-field" />
+              <label className={styles.label}>⚡ Tarifa de energia (R$/kWh)</label>
+              <input type="text" inputMode="decimal" value={fields.tarifa_kwh} onChange={e => setField('tarifa_kwh', e.target.value)} placeholder="vazio = default do estado" className="input-field" />
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                Ex: MG ≈ 1,20 · SP ≈ 0,92 · BA ≈ 0,99. Olha a conta de luz do cliente pra ser exato.
+              </span>
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Prazo de instalação (dias úteis)</label>
-              <input type="text" inputMode="numeric" value={fields.prazo_instalacao_dias} onChange={e => setField('prazo_instalacao_dias', e.target.value)} placeholder="45" className="input-field" />
+              <label className={styles.label}>Taxa mínima da concessionária (R$/mês)</label>
+              <input type="text" inputMode="decimal" value={fields.taxa_minima} onChange={e => setField('taxa_minima', e.target.value)} placeholder="90" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Inflação anual da tarifa (%)</label>
@@ -633,6 +638,10 @@ export default function PropostaSolarPage() {
             <div className={styles.field}>
               <label className={styles.label}>Inflação da taxa mínima (%)</label>
               <input type="text" inputMode="decimal" value={fields.taxa_minima_inflacao_aa} onChange={e => setField('taxa_minima_inflacao_aa', e.target.value)} placeholder="4" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Prazo de instalação (dias úteis)</label>
+              <input type="text" inputMode="numeric" value={fields.prazo_instalacao_dias} onChange={e => setField('prazo_instalacao_dias', e.target.value)} placeholder="45" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Garantia dos painéis (anos)</label>
