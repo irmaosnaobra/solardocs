@@ -432,6 +432,59 @@
   .eq-item .info .n{font-size:14px;font-weight:700;color:var(--navy)}
   .eq-item .info .d{font-size:12px;color:var(--text-muted);font-weight:500;margin-top:2px}
 
+  /* ============ DEPOIMENTOS REAIS — carousel horizontal ============ */
+  .test-card-wrap{background:#fff;border:1px solid var(--border);border-radius:18px;padding:22px 0 24px;margin-bottom:24px;box-shadow:var(--shadow-sm);overflow:hidden}
+  .test-card-wrap h3{font-family:inherit;font-weight:800;font-size:19px;color:var(--navy);margin:0 24px 4px;letter-spacing:-.01em}
+  .test-card-wrap .sub{font-size:12.5px;color:var(--text-muted);font-weight:500;margin:0 24px 14px;line-height:1.4}
+  .test-grid{position:relative}
+  .test-scroller{
+    overflow-x:auto;overflow-y:hidden;scroll-behavior:smooth;
+    scrollbar-width:none;-ms-overflow-style:none;
+    mask-image:linear-gradient(to right,transparent 0,#000 40px,#000 calc(100% - 40px),transparent 100%);
+    -webkit-mask-image:linear-gradient(to right,transparent 0,#000 40px,#000 calc(100% - 40px),transparent 100%);
+  }
+  .test-scroller::-webkit-scrollbar{display:none}
+  .test-track{display:flex;flex-direction:row;gap:16px;width:max-content;padding:4px 24px}
+  .test-nav{
+    position:absolute;top:50%;transform:translateY(-50%);
+    width:42px;height:42px;border-radius:50%;
+    background:#fff;border:1px solid var(--border);
+    box-shadow:0 6px 16px rgba(15,23,42,.16);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;z-index:5;color:var(--navy);padding:0;
+    transition:transform .2s, background .2s, color .2s;
+  }
+  .test-nav:hover{transform:translateY(-50%) scale(1.06);background:var(--navy);color:#fff}
+  .test-nav svg{width:18px;height:18px}
+  .test-nav.prev{left:6px}
+  .test-nav.next{right:6px}
+  .test-card{
+    background:linear-gradient(180deg,#f7f5ef 0%,#ece4d2 100%);
+    border:1px solid var(--border);border-radius:14px;
+    padding:10px 10px 12px;flex-shrink:0;width:240px;
+    display:flex;flex-direction:column;
+    box-shadow:0 6px 16px rgba(15,23,42,.06);
+  }
+  .test-shot-frame{
+    width:100%;height:380px;border-radius:10px;background:#111418;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+  }
+  .test-shot{display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+  .test-caption{display:flex;align-items:center;gap:8px;padding:10px 4px 0}
+  .test-stars{color:var(--gold);font-size:12px;letter-spacing:.14em;margin:0}
+  .test-who{font-size:12px;color:var(--text-muted);font-weight:600}
+  @media (max-width:640px){
+    .test-card-wrap{padding:18px 0 20px}
+    .test-card-wrap h3{margin:0 16px 4px;font-size:17px}
+    .test-card-wrap .sub{margin:0 16px 12px;font-size:12px}
+    .test-track{padding:4px 16px;gap:12px}
+    .test-card{width:200px;padding:8px 8px 10px}
+    .test-shot-frame{height:320px}
+    .test-nav{width:38px;height:38px}
+    .test-nav.prev{left:4px}
+    .test-nav.next{right:4px}
+  }
+
   /* CTAS RESULT */
   .result-ctas{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:stretch}
   .result-ctas .cta-wa{
@@ -753,6 +806,35 @@
     <div class="eq-card">
       <h3>O que você recebe</h3>
       <div class="eq-list" id="r_equipamentos"></div>
+    </div>
+
+    <!-- DEPOIMENTOS REAIS — carousel horizontal -->
+    <div class="test-card-wrap">
+      <h3>O que dizem nossos clientes</h3>
+      <p class="sub">Mensagens reais recebidas no WhatsApp comercial após a instalação. ⭐⭐⭐⭐⭐</p>
+      <div class="test-grid" aria-label="Depoimentos de clientes">
+        <button class="test-nav prev" type="button" aria-label="Depoimento anterior">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="test-nav next" type="button" aria-label="Próximo depoimento">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="test-scroller">
+          <div class="test-track">
+            <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd4.jpg" alt="Feedback Márcio" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Márcio · cliente</span></div></div>
+            <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd5.jpg" alt="Feedback Huberth Rocha" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Huberth Rocha · cliente</span></div></div>
+            <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd6.jpg" alt="Feedback Cléber" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Cléber · cliente</span></div></div>
+            <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd3.jpg" alt="Feedback Sueli" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Sueli · Uberlândia</span></div></div>
+            <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd1.jpg" alt="Feedback Denivan" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Denivan · cliente</span></div></div>
+            <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd7.jpg" alt="Feedback Andrigo" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Andrigo · cliente</span></div></div>
+            <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd2.jpg" alt="Feedback Sebastião" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Sebastião · cliente</span></div></div>
+            <!-- duplicados pro loop infinito -->
+            <div class="test-card" aria-hidden="true"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd4.jpg" alt="" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Márcio · cliente</span></div></div>
+            <div class="test-card" aria-hidden="true"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd5.jpg" alt="" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Huberth Rocha · cliente</span></div></div>
+            <div class="test-card" aria-hidden="true"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd6.jpg" alt="" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Cléber · cliente</span></div></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="result-ctas">
@@ -1699,6 +1781,44 @@ function handleBigClient(consumoKwh, placasEstimadas) {
 // Track inicial — entrada no funil
 fbqCustom('Sim_Entrou', { step: 1 });
 bkEvt('sim_step', { step: 1 });
+
+// ════════════════════════════════════════════════════════════════
+// CAROUSEL de depoimentos — auto-scroll + setas
+// ════════════════════════════════════════════════════════════════
+(() => {
+  const scroller = document.querySelector('.test-scroller');
+  const track = scroller && scroller.querySelector('.test-track');
+  const prev = document.querySelector('.test-nav.prev');
+  const next = document.querySelector('.test-nav.next');
+  if (!scroller || !track) return;
+
+  const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let pausedUntil = 0;
+  let isPointerInside = false;
+
+  scroller.addEventListener('mouseenter', () => { isPointerInside = true; });
+  scroller.addEventListener('mouseleave', () => { isPointerInside = false; });
+  scroller.addEventListener('touchstart', () => { pausedUntil = Date.now() + 4000; }, { passive: true });
+
+  function tick() {
+    if (!prefersReduced && !isPointerInside && Date.now() > pausedUntil) {
+      scroller.scrollLeft += 0.5;
+      const half = track.scrollWidth / 2;
+      if (half > 0 && scroller.scrollLeft >= half) scroller.scrollLeft -= half;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  function step(dir) {
+    pausedUntil = Date.now() + 4000;
+    const card = track.querySelector('.test-card');
+    const w = card ? card.getBoundingClientRect().width + 16 : 260;
+    scroller.scrollBy({ left: dir * w, behavior: 'smooth' });
+  }
+  if (prev) prev.addEventListener('click', () => step(-1));
+  if (next) next.addEventListener('click', () => step(1));
+})();
 </script>
 </body>
 </html>
