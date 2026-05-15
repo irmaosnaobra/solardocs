@@ -680,14 +680,6 @@ export default function PropostaSolarPage() {
               <input type="text" inputMode="decimal" value={fields.taxa_minima} onChange={e => setField('taxa_minima', e.target.value)} placeholder="90" className="input-field" />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Inflação anual da tarifa (%)</label>
-              <input type="text" inputMode="decimal" value={fields.inflacao_aa} onChange={e => setField('inflacao_aa', e.target.value)} placeholder="6" className="input-field" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Inflação da taxa mínima (%)</label>
-              <input type="text" inputMode="decimal" value={fields.taxa_minima_inflacao_aa} onChange={e => setField('taxa_minima_inflacao_aa', e.target.value)} placeholder="6" className="input-field" />
-            </div>
-            <div className={styles.field}>
               <label className={styles.label}>Prazo de instalação (dias úteis)</label>
               <input type="text" inputMode="numeric" value={fields.prazo_instalacao_dias} onChange={e => setField('prazo_instalacao_dias', e.target.value)} placeholder="45" className="input-field" />
             </div>
