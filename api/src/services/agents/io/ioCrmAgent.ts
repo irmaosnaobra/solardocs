@@ -39,9 +39,9 @@ import { logger } from '../../../utils/logger';
 const CADENCIA_DIAS = [2, 3, 5, 8, 12, 20];
 
 // Welcome enviado pela Cora QUANDO o lead conclui o simulador (POST /io-leads).
-// Já avisa que recebemos a simulação e pergunta se pode ligar.
-const WELCOME_MSG = (nome: string): string =>
-  `Oi ${nome}, recebemos sua simulação aqui. Posso te ligar agora pra fechar os detalhes?`;
+// Texto fixo, dispara 24/7 — só follow-ups respeitam horário comercial.
+const WELCOME_MSG = (_nome: string): string =>
+  `Oi, recebemos seu cadastro, logo um de nossos consultores vai te atender.`;
 
 // Welcome enviado pela Cora QUANDO o lead manda primeira mensagem no zap
 // (clicou no botão WhatsApp do simulador, abriu o app, mandou). Sai com 15s
@@ -185,16 +185,11 @@ async function gravarHistorico(leadId: string, fromStatus: string | null, toStat
 
 // ─── Welcome instantâneo: chamado pelo controller após criar io_lead ──
 //
-// Best-effort: se está em horário comercial, manda boas-vindas agora.
-// Senão, deixa pro cron pegar (vai sair 10h do próximo dia útil).
+// Dispara 24/7 (welcome NÃO respeita horário comercial — só follow-ups).
 // Idempotente — claim atômico via followup_last_at IS NULL.
 // Nunca lança exceção (rola fire-and-forget no controller).
-export async function sendWelcomeIfBusinessHours(leadId: string): Promise<{ sent: boolean; reason?: string }> {
+export async function sendWelcomeInstant(leadId: string): Promise<{ sent: boolean; reason?: string }> {
   try {
-    if (!isHorarioComercial()) {
-      return { sent: false, reason: 'fora_horario' };
-    }
-
     const { data: lead } = await supabase
       .from('io_leads')
       .select('id, nome, whatsapp, status, followup_last_at, opt_out, followup_paused')

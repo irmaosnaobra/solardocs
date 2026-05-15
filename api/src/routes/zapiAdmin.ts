@@ -408,6 +408,23 @@ router.post('/io/restart', async (req: Request, res: Response): Promise<void> =>
   res.json({ restart: r });
 });
 
+// Dispara o welcome da Cora pra um lead específico (uso manual / recuperação).
+// Útil quando o welcome instantâneo do POST /io-leads falhou ou quando se quer
+// re-disparar pra um lead criado antes da feature ter sido habilitada 24/7.
+// Uso: POST /zapi-admin/io/welcome-lead?key=...&id=<lead_uuid>
+router.post('/io/welcome-lead', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+  const leadId = String(req.query.id || '').trim();
+  if (!leadId) { res.status(400).json({ error: 'id query param obrigatorio' }); return; }
+  try {
+    const { sendWelcomeInstant } = await import('../services/agents/io/ioCrmAgent');
+    const r = await sendWelcomeInstant(leadId);
+    res.json({ ok: true, result: r });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err?.message || String(err) });
+  }
+});
+
 // Envia uma mensagem de teste pra confirmar outbound funcionando
 router.post('/io/test-send', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
