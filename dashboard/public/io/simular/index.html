@@ -368,30 +368,74 @@
   .city-hint.ok{display:flex;color:var(--green)}
   .city-hint.warn{display:flex;color:#b45309;background:#fef3c7;padding:10px 12px;border-radius:8px;border:1px solid #fde68a}
 
-  /* MOBILE */
+  /* MOBILE — 100% otimizado pra celular */
   @media (max-width:640px){
-    .stage{padding:10px 12px 20px}
-    .card{padding:18px 16px}
-    h1{font-size:23px;line-height:1.2}
-    .lead{font-size:14px;line-height:1.45}
-    .result-head h1{font-size:26px}
-    .brand .name{font-size:14px}
-    .brand .name small{font-size:9px}
-    .field{margin-bottom:11px}
-    .field label{font-size:12.5px}
-    .field input,.field select{font-size:16px;padding:13px 14px}
+    body{padding-bottom:90px} /* espaço pro CTA fixo */
+    .stage{padding:8px 10px 16px;max-width:100%}
+    .topbar{padding:8px 14px}
+    .brand .mark{width:38px;height:38px}
+    .brand .name{font-size:13px}
+    .brand .name small{font-size:8.5px;margin-top:2px}
+    .back-btn{font-size:12px;padding:6px 10px}
+
+    .card{padding:16px 14px;border-radius:14px}
+    .step-head{margin-bottom:10px}
+    .eyebrow{font-size:9.5px;padding:3px 8px;margin-bottom:6px}
+    h1{font-size:21px;line-height:1.18;letter-spacing:-.02em}
+    .lead{font-size:13.5px;line-height:1.4}
+    .result-head h1{font-size:25px}
+
+    /* Campos compactos */
+    .field{margin-bottom:14px}
+    .field label{font-size:12px;margin-bottom:5px}
+    .field input,.field select{font-size:16px;padding:13px 14px;border-radius:10px}
+    .field-row,.field-row.row-3{grid-template-columns:1fr;gap:8px}
+
+    /* Balões maiores pra tap fácil */
+    .opts{grid-template-columns:repeat(2,1fr);gap:7px;margin-top:4px}
+    .opts.tight{grid-template-columns:repeat(3,1fr)}
+    .opt{padding:13px 6px 12px;min-height:78px;justify-content:center}
+    .opt .ic{width:36px;height:36px}
+    .opt .ic svg{width:20px;height:20px}
+    .opt .num{width:32px;height:32px;font-size:17px}
+    .opt .lbl{font-size:13px;font-weight:700}
+    .opt .sub{font-size:10.5px;font-weight:600}
+
+    /* Conta R$ — destaque */
+    .rs-input input{font-size:22px;padding:13px 12px}
+    .rs-input .rs-prefix,.rs-input .rs-suffix{padding:11px 12px;font-size:14px}
+
+    /* CTA dentro do card vira fixo no rodapé */
+    .actions{position:fixed;left:0;right:0;bottom:0;z-index:40;
+      background:#fff;padding:10px 12px 14px;
+      box-shadow:0 -8px 24px rgba(15,23,42,.10);
+      border-top:1px solid var(--border);margin-top:0;
+      justify-content:center}
+    .actions .btn-primary{width:100%;padding:16px 20px!important;font-size:16px!important;
+      border-radius:12px;box-shadow:0 6px 16px rgba(194,138,44,.4)}
+    /* No card de resultado/big-client não usa actions fixed */
+    .step[data-step="4"] .actions,.step[data-step="5"] .actions{position:static;padding:0;box-shadow:none;border-top:0}
+
+    /* Resultado */
     .plans{grid-template-columns:1fr}
-    .plan-price .val{font-size:36px}
-    .hero-offer{padding:22px 20px;border-radius:18px}
-    .hero-offer-price{font-size:50px}
-    .hero-offer-price small{font-size:22px}
-    .stats-row{grid-template-columns:1fr}
-    .field-row,.field-row.row-3{grid-template-columns:1fr}
+    .plan-price .val{font-size:34px}
+    .hero-offer{padding:22px 18px;border-radius:18px}
+    .hero-offer-price{font-size:46px}
+    .hero-offer-price small{font-size:20px}
+    .hero-offer-specs{padding:11px;gap:6px}
+    .hero-offer-specs .spec-v{font-size:15px}
+    .stats-row{grid-template-columns:1fr;gap:8px}
+    .stat{padding:14px 12px}
+    .stat .n{font-size:22px}
     .result-ctas{grid-template-columns:1fr}
     .chart{height:130px}
-    .opts{grid-template-columns:repeat(2,1fr)}
-    .opt .lbl{font-size:14px}
+    .chart-card,.eq-card{padding:18px 14px}
     .btn{font-size:15px;padding:14px 20px}
+    .err-msg{font-size:12px}
+  }
+  @media (max-width:380px){
+    .opts.tight{grid-template-columns:repeat(2,1fr)}
+    h1{font-size:19px}
   }
 </style>
 </head>
@@ -420,16 +464,16 @@
       <div class="opts">
         <label class="opt"><input type="radio" name="tipo" value="residencial">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></div>
-          <div class="lbl">Residencial</div><div class="sub">Casa / apartamento</div></label>
+          <div class="lbl">Residencial</div></label>
         <label class="opt"><input type="radio" name="tipo" value="comercial">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><line x1="8" y1="7" x2="8" y2="7"/><line x1="12" y1="7" x2="12" y2="7"/><line x1="16" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="8" y2="15"/><line x1="12" y1="15" x2="12" y2="15"/><line x1="16" y1="15" x2="16" y2="15"/><path d="M10 21v-3h4v3"/></svg></div>
-          <div class="lbl">Comercial</div><div class="sub">Loja / escritório</div></label>
+          <div class="lbl">Comercial</div></label>
         <label class="opt"><input type="radio" name="tipo" value="industrial">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l5 3V10l5 3V10l5 3v8z"/><path d="M3 21h18"/><line x1="8" y1="17" x2="8" y2="17"/><line x1="13" y1="17" x2="13" y2="17"/><line x1="18" y1="17" x2="18" y2="17"/></svg></div>
-          <div class="lbl">Industrial</div><div class="sub">Galpão / fábrica</div></label>
+          <div class="lbl">Industrial</div></label>
         <label class="opt"><input type="radio" name="tipo" value="rural">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="M5 21q3-9 7-11"/><path d="M19 21q-3-9-7-11"/><path d="M3 21h18"/></svg></div>
-          <div class="lbl">Rural</div><div class="sub">Fazenda / sítio</div></label>
+          <div class="lbl">Rural</div></label>
       </div>
       <div class="err-msg">Escolha o tipo de imóvel.</div>
     </div>
@@ -459,10 +503,10 @@
     <div class="field">
       <label>Padrão de energia <span class="req">*</span></label>
       <div class="opts">
-        <label class="opt"><input type="radio" name="padrao" value="mono110"><div class="num">1</div><div class="lbl">Mono 110V</div><div class="sub">2 fios</div></label>
-        <label class="opt"><input type="radio" name="padrao" value="mono220"><div class="num">1</div><div class="lbl">Mono 220V</div><div class="sub">2 fios</div></label>
-        <label class="opt"><input type="radio" name="padrao" value="bif220"><div class="num">2</div><div class="lbl">Bifásico 220V</div><div class="sub">3 fios</div></label>
-        <label class="opt"><input type="radio" name="padrao" value="tri220"><div class="num">3</div><div class="lbl">Trifásico</div><div class="sub">220V ou 380V</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="mono110"><div class="num">1</div><div class="lbl">Mono 110V</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="mono220"><div class="num">1</div><div class="lbl">Mono 220V</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="bif220"><div class="num">2</div><div class="lbl">Bifásico 220V</div></label>
+        <label class="opt"><input type="radio" name="padrao" value="tri220"><div class="num">3</div><div class="lbl">Trifásico</div></label>
       </div>
       <div class="err-msg">Escolha o padrão.</div>
     </div>
@@ -472,13 +516,13 @@
       <div class="opts">
         <label class="opt"><input type="radio" name="pagamento" value="avista">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 10h.01M18 10h.01M6 14h.01M18 14h.01"/></svg></div>
-          <div class="lbl">À vista</div><div class="sub">Melhor desconto</div></label>
+          <div class="lbl">À vista</div></label>
         <label class="opt"><input type="radio" name="pagamento" value="cartao">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg></div>
-          <div class="lbl">Cartão</div><div class="sub">Parcele em até 18x</div></label>
+          <div class="lbl">Cartão</div></label>
         <label class="opt"><input type="radio" name="pagamento" value="financiamento">
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M3 10l9-6 9 6"/><line x1="3" y1="10" x2="3" y2="21"/><line x1="21" y1="10" x2="21" y2="21"/><line x1="7" y1="14" x2="7" y2="18"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="17" y1="14" x2="17" y2="18"/></svg></div>
-          <div class="lbl">Financiamento</div><div class="sub">Sem entrada · 60 meses</div></label>
+          <div class="lbl">Financiamento</div></label>
       </div>
       <div class="err-msg">Escolha como pretende investir.</div>
     </div>
