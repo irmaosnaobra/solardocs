@@ -377,26 +377,14 @@
   <a href="/io" class="back-btn">← Voltar</a>
 </header>
 
-<div class="progress-wrap">
-  <div class="progress-inner">
-    <div class="progress-bar"><div class="fill" id="progFill" style="width:25%"></div></div>
-    <div class="progress-steps">
-      <div class="s active" data-step="1"><span class="n">1</span> Imóvel</div>
-      <div class="s" data-step="2"><span class="n">2</span> Conta</div>
-      <div class="s" data-step="3"><span class="n">3</span> Você</div>
-      <div class="s" data-step="4"><span class="n">4</span> Resultado</div>
-    </div>
-  </div>
-</div>
-
 <main class="stage">
 
-  <!-- ============ STEP 1: IMÓVEL ============ -->
+  <!-- ============ FORMULÁRIO ÚNICO ============ -->
   <section class="card step" data-step="1">
     <div class="step-head">
-      <span class="eyebrow">Passo 1 de 3 · 1 minuto</span>
-      <h1>Sobre seu <em>imóvel.</em></h1>
-      <p class="lead">Pra escolher o sistema e a estrutura certa.</p>
+      <span class="eyebrow">Simulador · 1 minuto</span>
+      <h1>Simule seu projeto <em>solar.</em></h1>
+      <p class="lead">Preencha os dados e clique em simular — proposta na hora.</p>
     </div>
 
     <div class="field">
@@ -440,20 +428,6 @@
       <div class="err-msg">Escolha o tipo de telhado.</div>
     </div>
 
-    <div class="actions">
-      <span></span>
-      <button class="btn btn-primary" data-next="2">Próximo passo →</button>
-    </div>
-  </section>
-
-  <!-- ============ STEP 2: PADRÃO + CONTA ============ -->
-  <section class="card step" data-step="2" style="display:none">
-    <div class="step-head">
-      <span class="eyebrow">Passo 2 de 3</span>
-      <h1>Sua <em>conta de luz.</em></h1>
-      <p class="lead">Pra calcular a economia real.</p>
-    </div>
-
     <div class="field">
       <label>Padrão de energia <span class="req">*</span></label>
       <div class="opts">
@@ -491,22 +465,8 @@
       <div class="err-msg">Mínimo R$ 100.</div>
     </div>
 
-    <div class="actions">
-      <button class="btn btn-ghost" data-back="1">← Voltar</button>
-      <button class="btn btn-primary" data-next="3">Próximo passo →</button>
-    </div>
-  </section>
-
-  <!-- ============ STEP 3: IDENTIFICAÇÃO ============ -->
-  <section class="card step" data-step="3" style="display:none">
-    <div class="step-head">
-      <span class="eyebrow">Passo 3 de 3 · última</span>
-      <h1>Pra onde mando sua <em>estimativa?</em></h1>
-      <p class="lead">Em segundos você recebe o orçamento pronto.</p>
-    </div>
-
     <div class="field">
-      <label>Nome <span class="req">*</span></label>
+      <label>Seu nome <span class="req">*</span></label>
       <input type="text" id="f_nome" placeholder="Seu nome" autocomplete="name" />
       <div class="err-msg">Preencha seu nome.</div>
     </div>
@@ -530,9 +490,8 @@
       </div>
     </div>
 
-    <div class="actions">
-      <button class="btn btn-ghost" data-back="2">← Voltar</button>
-      <button class="btn btn-primary" id="btnCalc">Ver minha estimativa →</button>
+    <div class="actions" style="justify-content:center">
+      <button class="btn btn-primary" id="btnCalc" style="width:100%;padding:16px 24px;font-size:16px">VER PROPOSTA →</button>
     </div>
   </section>
 
@@ -839,8 +798,8 @@ window.addEventListener('pagehide', () => {
   } catch(_){}
 });
 
-// Funil por step — eventos distintos pro Meta Ads
-const STEP_EVENT = { 1: 'Sim_Entrou', 2: 'Sim_Step2', 3: 'Sim_Step3', 4: 'Sim_Step4_Resultado' };
+// Funil — eventos pro Meta Ads
+const STEP_EVENT = { 1: 'Sim_Entrou', 4: 'Sim_Step4_Resultado' };
 let _simConverted = false; // chegou ao step 4 (lead criado)
 let _simWhatsClicked = false;
 let _simExitFired = false;
@@ -880,60 +839,65 @@ $('#f_cidade').addEventListener('input', (e) => {
 });
 
 
-// Validações de step
-function validateStep(step) {
-  let ok = true;
-  if (step === 1) {
-    // Imóvel: tipo + telhado
-    const tipo = document.querySelector('input[name=tipo]:checked');
-    const telhado = document.querySelector('input[name=telhado]:checked');
-    const tipoErr = !tipo, telErr = !telhado;
-    setErrGroup('tipo', tipoErr);
-    setErrGroup('telhado', telErr);
-    if (tipoErr || telErr) ok = false;
-    if (ok) { state.tipo = tipo.value; state.telhado = telhado.value; }
-  }
-  if (step === 2) {
-    // Conta: padrão + pagamento + consumo
-    const padrao = document.querySelector('input[name=padrao]:checked');
-    const pagamento = document.querySelector('input[name=pagamento]:checked');
-    const val = parseInt($('#f_consumo').value.replace(/\D/g,''), 10);
-    const minOk = val >= 100;
-    setErrGroup('padrao', !padrao);
-    setErrGroup('pagamento', !pagamento);
-    setErr('#f_consumo', !val || !minOk);
-    if (!padrao || !pagamento || !val || !minOk) ok = false;
-    if (ok) { state.padrao = padrao.value; state.pagamento = pagamento.value; state.consumoRs = val; }
-  }
-  if (step === 3) {
-    // Você: nome + whatsapp + cidade/UF
-    const nome = $('#f_nome').value.trim();
-    const cid = $('#f_cidade').value.split('/')[0].trim();
-    const uf = $('#f_estado').value;
-    const whats = $('#f_whats').value.replace(/\D/g,'');
+// Validação única — todos os campos do formulário
+function validateAll() {
+  // Tipo + telhado
+  const tipo = document.querySelector('input[name=tipo]:checked');
+  const telhado = document.querySelector('input[name=telhado]:checked');
+  setErrGroup('tipo', !tipo);
+  setErrGroup('telhado', !telhado);
 
-    // Nome: aceita primeiro nome (2+ letras). Não exige sobrenome.
-    const nomeOk = /^[A-Za-zÀ-ÿ]{2,}/.test(nome);
-    // WhatsApp: exatamente 11 dígitos, DDD válido (11-99), nono dígito é 9, sem 11 dígitos iguais
-    const ddd = parseInt(whats.slice(0, 2), 10);
-    const whatsOk = whats.length === 11
-      && ddd >= 11 && ddd <= 99
-      && whats[2] === '9'
-      && !/^(\d)\1{10}$/.test(whats);
-    // Cidade: tem que estar na lista atendida (uf preenchido = passou no autocomplete)
-    const cidadeOk = !!uf && CIDADE_MAP[cid.toLowerCase()] === uf;
+  // Padrão + pagamento + consumo
+  const padrao = document.querySelector('input[name=padrao]:checked');
+  const pagamento = document.querySelector('input[name=pagamento]:checked');
+  const val = parseInt(($('#f_consumo').value || '').replace(/\D/g,''), 10);
+  const minOk = val >= 100;
+  setErrGroup('padrao', !padrao);
+  setErrGroup('pagamento', !pagamento);
+  setErr('#f_consumo', !val || !minOk);
 
-    setErr('#f_nome',   !nomeOk);
-    setErr('#f_whats',  !whatsOk);
-    setErr('#f_cidade', !cidadeOk);
-    setErrMsg('#f_nome',   'Informe seu nome (mínimo 2 letras).');
-    setErrMsg('#f_whats',  'WhatsApp inválido — (DDD) 9XXXX-XXXX, 11 dígitos.');
-    setErrMsg('#f_cidade', 'Escolha uma cidade da lista (atendemos no raio 250 km).');
+  // Nome + WhatsApp + cidade
+  const nome = $('#f_nome').value.trim();
+  const cid = $('#f_cidade').value.split('/')[0].trim();
+  const uf = $('#f_estado').value;
+  const whats = $('#f_whats').value.replace(/\D/g,'');
+  const nomeOk = /^[A-Za-zÀ-ÿ]{2,}/.test(nome);
+  // WhatsApp: 11 dígitos, DDD válido (11-99), nono dígito 9, sem 11 dígitos iguais
+  const ddd = parseInt(whats.slice(0, 2), 10);
+  const whatsOk = whats.length === 11
+    && ddd >= 11 && ddd <= 99
+    && whats[2] === '9'
+    && !/^(\d)\1{10}$/.test(whats);
+  const cidadeOk = !!uf && CIDADE_MAP[cid.toLowerCase()] === uf;
+  setErr('#f_nome', !nomeOk);
+  setErr('#f_whats', !whatsOk);
+  setErr('#f_cidade', !cidadeOk);
+  setErrMsg('#f_nome', 'Informe seu nome (mínimo 2 letras).');
+  setErrMsg('#f_whats', 'WhatsApp inválido — (DDD) 9XXXX-XXXX, 11 dígitos.');
+  setErrMsg('#f_cidade', 'Escolha uma cidade da lista (atendemos no raio 250 km).');
 
-    if (!nomeOk || !whatsOk || !cidadeOk) ok = false;
-    if (ok) { state.nome = nome; state.whats = whats; state.cidade = cid; state.estado = uf; }
+  const ok = !!tipo && !!telhado && !!padrao && !!pagamento && val && minOk && nomeOk && whatsOk && cidadeOk;
+  if (ok) {
+    state.tipo = tipo.value;
+    state.telhado = telhado.value;
+    state.padrao = padrao.value;
+    state.pagamento = pagamento.value;
+    state.consumoRs = val;
+    state.nome = nome;
+    state.whats = whats;
+    state.cidade = cid;
+    state.estado = uf;
   }
   return ok;
+}
+
+// Rola até o primeiro campo com erro
+function scrollToFirstError() {
+  const el = document.querySelector('.field .err-msg.show, .field input.invalid');
+  if (el) {
+    const field = el.closest('.field') || el;
+    field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 }
 function setErr(sel, isErr) {
   const el = $(sel); if (!el) return;
@@ -955,24 +919,10 @@ function setErrGroup(name, isErr) {
   if (msg) msg.classList.toggle('show', isErr);
 }
 
-// Navegação
-$$('[data-next]').forEach(b => b.addEventListener('click', () => {
-  const cur = parseInt(b.closest('.step').dataset.step, 10);
-  if (validateStep(cur)) goStep(parseInt(b.dataset.next, 10));
-}));
-$$('[data-back]').forEach(b => b.addEventListener('click', () => {
-  goStep(parseInt(b.dataset.back, 10));
-}));
-
+// Navegação — só troca entre formulário e tela de resultado
 function goStep(n) {
   state.step = n;
   $$('.step').forEach(s => { s.style.display = parseInt(s.dataset.step,10) === n ? 'block' : 'none'; });
-  $$('.progress-steps .s').forEach(s => {
-    const sn = parseInt(s.dataset.step,10);
-    s.classList.toggle('active', sn === n);
-    s.classList.toggle('done', sn < n);
-  });
-  $('#progFill').style.width = (n * 25) + '%';
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (STEP_EVENT[n]) fbqCustom(STEP_EVENT[n], { step: n });
   bkEvt('sim_step', { step: n });
@@ -986,7 +936,7 @@ const PLACAS_MAX = 25;
 const GERACAO_MAX_TABELA = 2000; // kWh/mês — bate com n=25 da maior tabela
 
 $('#btnCalc').addEventListener('click', () => {
-  if (!validateStep(3)) return;
+  if (!validateAll()) { scrollToFirstError(); return; }
 
   // Detecta cliente grande ANTES de calcular oferta padrão
   const consumoKwh = state.consumoRs / TARIFA;
