@@ -1497,6 +1497,13 @@ function pEsc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] || c);
 }
 
+// PMT Price com carência: juros capitalizam no saldo durante a carência, depois Price padrão
+function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: number): number {
+  if (!pv || pv <= 0) return 0;
+  const saldo = pv * Math.pow(1 + i, carenciaMeses);
+  return saldo * i / (1 - Math.pow(1 + i, -n));
+}
+
 function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>): string {
   // Inputs do form
   const palette = PALETTES[String(f.paleta || 'solar')] || PALETTES.solar;
@@ -1520,14 +1527,26 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const investimento = parseFloat(String(f.investimento || '0').toString().replace(',', '.')) || 0;
   const precoAvistaInput = parseFloat(String(f.preco_avista || '0').toString().replace(',', '.')) || 0;
   const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
-  // 18× no cartão: investimento × 1,19 / 18, arredondado pra cima (sem centavos)
+  // Parcelas no cartão (sobre o preço cheio): 10x ×1,11 ; 12x ×1,12 ; 18x ×1,19
+  const valor10x = investimento > 0 ? Math.ceil((investimento * 1.11) / 10) : 0;
+  const valor12x = investimento > 0 ? Math.ceil((investimento * 1.12) / 12) : 0;
   const valor18x = investimento > 0 ? Math.ceil((investimento * 1.19) / 18) : 0;
-  // 84× no financiamento: PMT a 2,4% a.m. — fórmula price padrão, arredondada pra cima
-  const TAXA_FIN_MES = 0.024;
-  const PRAZO_FIN_MESES = 84;
-  const valor84x = investimento > 0
-    ? Math.ceil((investimento * TAXA_FIN_MES) / (1 - Math.pow(1 + TAXA_FIN_MES, -PRAZO_FIN_MESES)))
-    : 0;
+  // Financiamento Price com 120 dias (4 meses) de carência sobre o preço cheio
+  const valor84x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, 0.025, 84, 4)) : 0;
+  const valor60x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, 0.024, 60, 4)) : 0;
+
+  // Quais opções aparecem para o cliente (consultor escolhe no form).
+  // Default retro-compatível: tudo ligado se nada vier.
+  const pagOpts = {
+    vista:  f.pag_vista === false ? false : true,
+    cartao: f.pag_cartao === false ? false : true,
+    p10:    f.pag_cartao_10 === false ? false : true,
+    p12:    f.pag_cartao_12 === false ? false : true,
+    p18:    f.pag_cartao_18 === false ? false : true,
+    fin:    f.pag_fin === false ? false : true,
+    p84:    f.pag_fin_84 === false ? false : true,
+    p60:    f.pag_fin_60 === false ? false : true,
+  };
 
   // Campos editáveis pelo tenant (com defaults seguros — propostas antigas continuam funcionando)
   const taxaMinima = parseFloat(String(f.taxa_minima || '90').toString().replace(',', '.')) || 90;
@@ -1687,31 +1706,56 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     ? `<img src="${empresaCompany.logo_base64}" alt="${pEsc(company.nome)}" style="max-height: 56px; max-width: 220px; object-fit: contain;"/>`
     : `<div style="font-size: 24px; font-weight: 800; letter-spacing: -1px;">${pEsc(company.nome)}</div>`;
 
-  // Bloco de pagamento: à vista com desconto (se houver), 18× cartão, 84× financiamento
-  const avistaHtml = precoAvista > 0
-    ? `<div class="invest-avista">
-        <div class="invest-avista-label">Desconto à vista</div>
-        <div class="invest-avista-value">${pBRL(precoAvista)}</div>
-        <div class="invest-avista-economia">economia de ${pBRL(investimento - precoAvista)}</div>
-      </div>`
-    : '';
-  const cartaoHtml = valor18x > 0
-    ? `<div class="invest-cartao">
-        <div class="invest-cartao-label">Cartão de crédito</div>
-        <div class="invest-cartao-value">18× de ${pBRL(valor18x)}</div>
-        <div class="invest-cartao-sub">no cartão sem entrada</div>
-      </div>`
-    : '';
-  const financiamentoHtml = valor84x > 0
-    ? `<div class="invest-financ">
-        <div class="invest-financ-label">Financiamento bancário</div>
-        <div class="invest-financ-value">84× de ${pBRL(valor84x)}</div>
-        <div class="invest-financ-sub">aprovação em até 48h · 2,4% a.m.</div>
-      </div>`
-    : '';
-  // Quantos cards mostrar no grid? Cartão + financiamento sempre que tem investimento.
-  // Se tem desconto à vista, vira 3 colunas; senão 2.
-  const investCardsCount = (precoAvista > 0 ? 1 : 0) + (valor18x > 0 ? 1 : 0) + (valor84x > 0 ? 1 : 0);
+  // Bloco de pagamento: monta os cards que o consultor marcou no form
+  const cards: string[] = [];
+
+  // À vista — usa desconto se houver, senão preço cheio
+  if (pagOpts.vista) {
+    const valorVista = precoAvista > 0 ? precoAvista : investimento;
+    const economia = precoAvista > 0 ? `<div class="invest-avista-economia">economia de ${pBRL(investimento - precoAvista)}</div>` : '';
+    cards.push(`<div class="invest-avista">
+        <div class="invest-avista-label">${precoAvista > 0 ? 'Desconto à vista' : 'À vista'}</div>
+        <div class="invest-avista-value">${pBRL(valorVista)}</div>
+        ${economia}
+      </div>`);
+  }
+
+  // Cartão de crédito — cada parcela vira um card
+  if (pagOpts.cartao && investimento > 0) {
+    const subs: Array<[boolean, number, number]> = [
+      [pagOpts.p10, 10, valor10x],
+      [pagOpts.p12, 12, valor12x],
+      [pagOpts.p18, 18, valor18x],
+    ];
+    for (const [ativo, n, valor] of subs) {
+      if (ativo && valor > 0) {
+        cards.push(`<div class="invest-cartao">
+          <div class="invest-cartao-label">Cartão de crédito</div>
+          <div class="invest-cartao-value">${n}× de ${pBRL(valor)}</div>
+          <div class="invest-cartao-sub">no cartão sem entrada</div>
+        </div>`);
+      }
+    }
+  }
+
+  // Financiamento bancário — cada prazo vira um card
+  if (pagOpts.fin && investimento > 0) {
+    const subs: Array<[boolean, number, number, string]> = [
+      [pagOpts.p84, 84, valor84x, '2,5% a.m.'],
+      [pagOpts.p60, 60, valor60x, '2,4% a.m.'],
+    ];
+    for (const [ativo, n, valor, taxa] of subs) {
+      if (ativo && valor > 0) {
+        cards.push(`<div class="invest-financ">
+          <div class="invest-financ-label">Financiamento bancário</div>
+          <div class="invest-financ-value">${n}× de ${pBRL(valor)}</div>
+          <div class="invest-financ-sub">120 dias de carência · ${taxa}</div>
+        </div>`);
+      }
+    }
+  }
+
+  const investCardsCount = cards.length;
 
   const today = dateBR();
 
@@ -1765,7 +1809,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .invest-box { background: linear-gradient(135deg, var(--c3) 0%, white 100%); padding: 28px 24px; border-radius: 16px; border: 2px solid var(--c1); text-align: center; }
 .invest-label { color: var(--c-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
 .invest-value { font-size: 38px; font-weight: 900; color: var(--c1); margin: 6px 0; line-height: 1; letter-spacing: -1px; }
-.invest-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+.invest-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 18px; }
 .invest-avista { background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02)); border: 2px solid #10B981; border-radius: 12px; padding: 16px; text-align: center; }
 .invest-avista-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #059669; font-weight: 700; }
 .invest-avista-value { font-size: 26px; font-weight: 900; color: #10B981; margin: 6px 0 2px; line-height: 1; letter-spacing: -0.5px; }
@@ -2029,10 +2073,8 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     <div class="invest-box">
       <div class="invest-label">Preço do projeto</div>
       <div class="invest-value">${pBRL(investimento)}</div>
-      <div class="invest-grid invest-grid-${Math.max(1, investCardsCount)}">
-        ${avistaHtml}
-        ${cartaoHtml}
-        ${financiamentoHtml}
+      <div class="invest-grid invest-grid-${Math.max(1, Math.min(3, investCardsCount))}">
+        ${cards.join('\n        ')}
       </div>
     </div>
   </div>

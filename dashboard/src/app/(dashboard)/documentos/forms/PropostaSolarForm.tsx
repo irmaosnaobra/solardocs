@@ -72,7 +72,23 @@ const initialFields = {
   garantia_instalacao: '1',
   inflacao_aa: '6',
   taxa_minima_inflacao_aa: '6',
+  // Formas de pagamento — consultor escolhe o que aparece para o cliente
+  pag_vista: true,
+  pag_cartao: true,
+  pag_cartao_10: true,
+  pag_cartao_12: true,
+  pag_cartao_18: true,
+  pag_fin: true,
+  pag_fin_84: true,
+  pag_fin_60: true,
 };
+
+// PMT Price com carência: juros capitalizam durante a carência, depois Price padrão
+function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: number) {
+  if (!pv || pv <= 0) return 0;
+  const saldo = pv * Math.pow(1 + i, carenciaMeses);
+  return saldo * i / (1 - Math.pow(1 + i, -n));
+}
 
 export default function PropostaSolarPage() {
   const { user } = useDashboard();
@@ -107,20 +123,17 @@ export default function PropostaSolarPage() {
     }
   }, [fields.consumo_kwh, fields.potencia_modulo, fields.qtd_modulos]);
 
-  // Cálculo do 18× no cartão: investimento × 1,19 / 18, arredondado pra cima (sem centavos)
-  const valor18x = (() => {
-    const inv = parseFloat(String(fields.investimento).replace(',', '.'));
-    if (!inv || inv <= 0) return 0;
-    return Math.ceil((inv * 1.19) / 18);
+  // Parcelas no cartão (sobre o preço cheio): 10x ×1,11; 12x ×1,12; 18x ×1,19
+  const invNum = (() => {
+    const v = parseFloat(String(fields.investimento).replace(',', '.'));
+    return v > 0 ? v : 0;
   })();
-  // Cálculo do 84× financiamento: PMT a 2,4% a.m., fórmula price padrão
-  const valor84x = (() => {
-    const inv = parseFloat(String(fields.investimento).replace(',', '.'));
-    if (!inv || inv <= 0) return 0;
-    const i = 0.024;
-    const n = 84;
-    return Math.ceil((inv * i) / (1 - Math.pow(1 + i, -n)));
-  })();
+  const valor10x = invNum > 0 ? Math.ceil((invNum * 1.11) / 10) : 0;
+  const valor12x = invNum > 0 ? Math.ceil((invNum * 1.12) / 12) : 0;
+  const valor18x = invNum > 0 ? Math.ceil((invNum * 1.19) / 18) : 0;
+  // Financiamento Price com 120 dias (4 meses) de carência sobre o preço cheio
+  const valor84x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, 0.025, 84, 4)) : 0;
+  const valor60x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, 0.024, 60, 4)) : 0;
   // DC/AC ratio: painéis em kWp sobre inversores em kW. Padrão de mercado 1,05-1,30.
   // Fora dessa faixa, mostra warning soft pro vendedor revisar o kit.
   const dcAcRatio = (() => {
@@ -556,42 +569,77 @@ export default function PropostaSolarPage() {
               <input type="text" inputMode="decimal" value={fields.preco_avista} onChange={e => setField('preco_avista', e.target.value)} placeholder="Ex: 21300 (opcional)" className="input-field" />
             </div>
           </div>
-          {valor18x > 0 && (
+          {invNum > 0 && (
             <div style={{
-              marginTop: 12,
-              background: 'rgba(16,185,129,0.08)',
-              border: '1px dashed rgba(16,185,129,0.4)',
-              borderRadius: 10,
-              padding: '12px 16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+              marginTop: 16,
+              padding: '14px 16px',
+              borderRadius: 12,
+              background: 'rgba(245,158,11,0.06)',
+              border: '1px solid rgba(245,158,11,0.25)',
             }}>
-              <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                💳 Cartão — 18× sobre preço cheio (×1,19)
-              </span>
-              <strong style={{ fontSize: 18, color: '#10B981' }}>
-                18× R$ {valor18x.toLocaleString('pt-BR')}
-              </strong>
-            </div>
-          )}
-          {valor84x > 0 && (
-            <div style={{
-              marginTop: 8,
-              background: 'rgba(99,102,241,0.08)',
-              border: '1px dashed rgba(99,102,241,0.4)',
-              borderRadius: 10,
-              padding: '12px 16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}>
-              <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                🏦 Financiamento — 84× (2,4% a.m., aprovação em 48h)
-              </span>
-              <strong style={{ fontSize: 18, color: '#4F46E5' }}>
-                84× R$ {valor84x.toLocaleString('pt-BR')}
-              </strong>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 4 }}>
+                Formas de pagamento que aparecem na proposta
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+                Marque o que o cliente vai ver. Desmarcar esconde da proposta gerada.
+              </div>
+
+              {/* À VISTA */}
+              <PagGrupo
+                checked={fields.pag_vista}
+                onToggle={(v) => setField('pag_vista', v)}
+                titulo="À vista"
+                valor={`R$ ${(parseFloat(String(fields.preco_avista).replace(',','.')) > 0 && parseFloat(String(fields.preco_avista).replace(',','.')) < invNum ? parseFloat(String(fields.preco_avista).replace(',','.')) : invNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              />
+
+              {/* CARTÃO DE CRÉDITO */}
+              <PagGrupo
+                checked={fields.pag_cartao}
+                onToggle={(v) => setField('pag_cartao', v)}
+                titulo="Cartão de crédito"
+              >
+                <PagSubItem
+                  checked={fields.pag_cartao_10}
+                  onToggle={(v) => setField('pag_cartao_10', v)}
+                  label="10x"
+                  valor={`R$ ${valor10x.toLocaleString('pt-BR')}/mês`}
+                />
+                <PagSubItem
+                  checked={fields.pag_cartao_12}
+                  onToggle={(v) => setField('pag_cartao_12', v)}
+                  label="12x"
+                  valor={`R$ ${valor12x.toLocaleString('pt-BR')}/mês`}
+                />
+                <PagSubItem
+                  checked={fields.pag_cartao_18}
+                  onToggle={(v) => setField('pag_cartao_18', v)}
+                  label="18x"
+                  valor={`R$ ${valor18x.toLocaleString('pt-BR')}/mês`}
+                />
+              </PagGrupo>
+
+              {/* FINANCIAMENTO */}
+              <PagGrupo
+                checked={fields.pag_fin}
+                onToggle={(v) => setField('pag_fin', v)}
+                titulo="Financiamento"
+                subtitulo="120 dias de carência"
+              >
+                <PagSubItem
+                  checked={fields.pag_fin_84}
+                  onToggle={(v) => setField('pag_fin_84', v)}
+                  label="84x"
+                  sub="2,5% a.m."
+                  valor={`R$ ${valor84x.toLocaleString('pt-BR')}/mês`}
+                />
+                <PagSubItem
+                  checked={fields.pag_fin_60}
+                  onToggle={(v) => setField('pag_fin_60', v)}
+                  label="60x"
+                  sub="2,4% a.m."
+                  valor={`R$ ${valor60x.toLocaleString('pt-BR')}/mês`}
+                />
+              </PagGrupo>
             </div>
           )}
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>
@@ -668,6 +716,71 @@ export default function PropostaSolarPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+function PagGrupo({
+  checked, onToggle, titulo, subtitulo, valor, children,
+}: {
+  checked: boolean;
+  onToggle: (v: boolean) => void;
+  titulo: string;
+  subtitulo?: string;
+  valor?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div style={{
+      background: 'white',
+      border: '1px solid var(--color-border)',
+      borderRadius: 8,
+      padding: '10px 12px',
+      marginBottom: 8,
+      opacity: checked ? 1 : 0.55,
+    }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onToggle(e.target.checked)}
+          style={{ width: 17, height: 17, accentColor: 'var(--color-primary)', cursor: 'pointer', margin: 0 }}
+        />
+        <span style={{ flex: 1, fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
+          {titulo}{subtitulo && <span style={{ fontWeight: 500, color: 'var(--color-text-muted)', fontSize: 11 }}> · {subtitulo}</span>}
+        </span>
+        {valor && <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>{valor}</span>}
+      </label>
+      {children && (
+        <div style={{ marginTop: 8, paddingLeft: 27, display: 'grid', gap: 4, pointerEvents: checked ? 'auto' : 'none' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PagSubItem({
+  checked, onToggle, label, sub, valor,
+}: {
+  checked: boolean;
+  onToggle: (v: boolean) => void;
+  label: string;
+  sub?: string;
+  valor: string;
+}) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none', padding: '4px 6px', borderRadius: 6 }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onToggle(e.target.checked)}
+        style={{ width: 15, height: 15, accentColor: 'var(--color-primary)', cursor: 'pointer', margin: 0 }}
+      />
+      <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: 'var(--color-text)' }}>
+        {label}{sub && <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}> · {sub}</span>}
+      </span>
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--color-text)' }}>{valor}</span>
+    </label>
   );
 }
 
