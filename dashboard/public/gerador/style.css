@@ -1030,7 +1030,7 @@
   /* PARCELAS */
   .parcelas {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 12px;
   }
   .parcelas.parcelas-2 {
@@ -1076,6 +1076,93 @@
   .parc.destaque .qt { color: #f5c518; }
   .parc.destaque .vl { color: white; }
   .parc.destaque .obs { color: rgba(255,255,255,.8); }
+
+  /* PAG CARD (consultor escolhe o que aparece na proposta) */
+  .pag-card .pag-sub {
+    font-size: 12px;
+    color: #6b7280;
+    margin: -4px 0 14px;
+  }
+  .pag-grupo {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .pag-grupo:last-child { margin-bottom: 0; }
+  .pag-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .pag-head input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #0d2d5e;
+    cursor: pointer;
+    margin: 0;
+  }
+  .pag-head-lbl {
+    flex: 1;
+    font-weight: 700;
+    color: #0d2d5e;
+    font-size: 14px;
+  }
+  .pag-head-lbl small {
+    font-weight: 500;
+    color: #6b7280;
+    font-size: 11px;
+  }
+  .pag-head-val {
+    font-weight: 700;
+    color: #0d2d5e;
+    font-size: 14px;
+  }
+  .pag-subs {
+    margin-top: 10px;
+    padding-left: 28px;
+    display: grid;
+    gap: 6px;
+  }
+  .pag-subs[hidden] { display: none; }
+  .pag-sub-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    padding: 6px 8px;
+    border-radius: 6px;
+  }
+  .pag-sub-item:hover { background: #eef2f7; }
+  .pag-sub-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #0d2d5e;
+    cursor: pointer;
+    margin: 0;
+  }
+  .pag-sub-lbl {
+    flex: 1;
+    font-weight: 600;
+    color: #334155;
+    font-size: 13px;
+  }
+  .pag-sub-lbl small {
+    font-weight: 400;
+    color: #6b7280;
+  }
+  .pag-sub-val {
+    font-weight: 700;
+    color: #0d2d5e;
+    font-size: 13px;
+  }
+  .pag-grupo.off .pag-head-lbl,
+  .pag-grupo.off .pag-head-val { opacity: .45; }
+  .pag-grupo.off .pag-subs { opacity: .45; pointer-events: none; }
   .badge {
     position: absolute;
     top: -10px;
@@ -1271,9 +1358,11 @@
   }
 
   /* PRINT */
+  .print-only { display: none !important; }
   @media print {
     body { background: white; padding: 0; }
-    #formSection, .acoes, .btn-nova { display: none !important; }
+    #formSection, .acoes, .btn-nova, #card-pagamento-consultor { display: none !important; }
+    .print-only { display: block !important; }
     .card, .prop-header, .preco-box {
       box-shadow: none;
       page-break-inside: avoid;

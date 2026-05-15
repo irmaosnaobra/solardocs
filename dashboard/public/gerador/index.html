@@ -507,19 +507,63 @@
       <div style="text-align:center;color:#6B7280;font-size:11px;margin-top:10px;font-style:italic;" id="bd-nota"></div>
     </div>
 
-    <div class="card">
-      <h2>Formas de pagamento no cartão</h2>
-      <div class="parcelas parcelas-2">
-        <div class="parc parc-destaque-amarelo">
-          <div class="badge">✨ mais vendido</div>
-          <div class="qt">10x no cartão</div>
-          <div class="vl" id="parc-10"></div>
-          <div class="obs">sobre o preço à vista</div>
+    <div class="card" id="card-pagamento-cliente" style="display:none;">
+      <h2>Formas de pagamento</h2>
+      <div class="parcelas" id="card-pagamento-grid"></div>
+    </div>
+
+    <div class="card pag-card" id="card-pagamento-consultor">
+      <h2>Formas de pagamento</h2>
+      <div class="pag-sub">Marque o que vai aparecer para o cliente na proposta</div>
+
+      <div class="pag-grupo" id="grp-vista">
+        <label class="pag-head">
+          <input type="checkbox" id="opt-vista" onchange="onPagOptChange()">
+          <span class="pag-head-lbl">À vista</span>
+          <span class="pag-head-val" id="opt-vista-val"></span>
+        </label>
+      </div>
+
+      <div class="pag-grupo" id="grp-cartao">
+        <label class="pag-head">
+          <input type="checkbox" id="opt-cartao" onchange="onPagOptChange()">
+          <span class="pag-head-lbl">Cartão de crédito</span>
+        </label>
+        <div class="pag-subs" id="opt-cartao-subs">
+          <label class="pag-sub-item">
+            <input type="checkbox" id="opt-cartao-10" onchange="onPagOptChange()">
+            <span class="pag-sub-lbl">10x</span>
+            <span class="pag-sub-val" id="opt-cartao-10-val"></span>
+          </label>
+          <label class="pag-sub-item">
+            <input type="checkbox" id="opt-cartao-12" onchange="onPagOptChange()">
+            <span class="pag-sub-lbl">12x</span>
+            <span class="pag-sub-val" id="opt-cartao-12-val"></span>
+          </label>
+          <label class="pag-sub-item">
+            <input type="checkbox" id="opt-cartao-18" onchange="onPagOptChange()">
+            <span class="pag-sub-lbl">18x</span>
+            <span class="pag-sub-val" id="opt-cartao-18-val"></span>
+          </label>
         </div>
-        <div class="parc">
-          <div class="qt">18x no cartão</div>
-          <div class="vl" id="parc-18"></div>
-          <div class="obs">sobre o preço à vista</div>
+      </div>
+
+      <div class="pag-grupo" id="grp-fin">
+        <label class="pag-head">
+          <input type="checkbox" id="opt-fin" onchange="onPagOptChange()">
+          <span class="pag-head-lbl">Financiamento <small>· 120 dias de carência</small></span>
+        </label>
+        <div class="pag-subs" id="opt-fin-subs">
+          <label class="pag-sub-item">
+            <input type="checkbox" id="opt-fin-84" onchange="onPagOptChange()">
+            <span class="pag-sub-lbl">84x <small>· 2,5% a.m.</small></span>
+            <span class="pag-sub-val" id="opt-fin-84-val"></span>
+          </label>
+          <label class="pag-sub-item">
+            <input type="checkbox" id="opt-fin-60" onchange="onPagOptChange()">
+            <span class="pag-sub-lbl">60x <small>· 2,4% a.m.</small></span>
+            <span class="pag-sub-val" id="opt-fin-60-val"></span>
+          </label>
         </div>
       </div>
     </div>
@@ -971,6 +1015,54 @@ function acrescimoPorKm(km) {
   return 0;
 }
 
+// Parcela Price com carência: durante a carência os juros capitalizam no saldo
+function pmtPriceCarencia(pv, i, n, carenciaMeses) {
+  if (!pv || pv <= 0) return 0;
+  const saldo = pv * Math.pow(1 + i, carenciaMeses);
+  return saldo * i / (1 - Math.pow(1 + i, -n));
+}
+
+function renderPagamentoCard(d) {
+  const po = d.pagOpts || {
+    vista: true,
+    cartao: { ativo: true, p10: true, p12: false, p18: true },
+    fin:    { ativo: false, p84: false, p60: false }
+  };
+  const pv  = d.precoVista || 0;
+  const pOrc = d.precoOrcamento || 0;
+  const v10 = d.parc10x != null ? d.parc10x : pv * 1.11 / 10;
+  const v12 = d.parc12x != null ? d.parc12x : pv * 1.12 / 12;
+  const v18 = d.parc18x != null ? d.parc18x : pv * 1.19 / 18;
+  const f84 = d.fin84x != null ? d.fin84x : pmtPriceCarencia(pOrc, 0.025, 84, 4);
+  const f60 = d.fin60x != null ? d.fin60x : pmtPriceCarencia(pOrc, 0.024, 60, 4);
+
+  const blocos = [];
+  if (po.vista) blocos.push(`
+    <div class="parc parc-destaque-amarelo">
+      <div class="badge">💎 melhor opção</div>
+      <div class="qt">À vista</div>
+      <div class="vl">R$ ${fmt(pv)}</div>
+      <div class="obs">pagamento único</div>
+    </div>`);
+  if (po.cartao && po.cartao.ativo) {
+    if (po.cartao.p10) blocos.push(`<div class="parc"><div class="qt">10x no cartão</div><div class="vl">R$ ${fmt(v10)}</div><div class="obs">sobre o preço à vista</div></div>`);
+    if (po.cartao.p12) blocos.push(`<div class="parc"><div class="qt">12x no cartão</div><div class="vl">R$ ${fmt(v12)}</div><div class="obs">sobre o preço à vista</div></div>`);
+    if (po.cartao.p18) blocos.push(`<div class="parc"><div class="qt">18x no cartão</div><div class="vl">R$ ${fmt(v18)}</div><div class="obs">sobre o preço à vista</div></div>`);
+  }
+  if (po.fin && po.fin.ativo) {
+    if (po.fin.p84) blocos.push(`<div class="parc"><div class="qt">84x financiado</div><div class="vl">R$ ${fmt(f84)}</div><div class="obs">120 dias de carência</div></div>`);
+    if (po.fin.p60) blocos.push(`<div class="parc"><div class="qt">60x financiado</div><div class="vl">R$ ${fmt(f60)}</div><div class="obs">120 dias de carência</div></div>`);
+  }
+
+  const card = document.getElementById('card-pagamento-cliente');
+  const grid = document.getElementById('card-pagamento-grid');
+  if (!card || !grid) return;
+  if (blocos.length === 0) { card.style.display = 'none'; return; }
+  grid.className = 'parcelas' + (blocos.length === 2 ? ' parcelas-2' : '');
+  grid.innerHTML = blocos.join('');
+  card.style.display = '';
+}
+
 let rastreioPromise = null;
 async function rastrearDistancia({ silent = false } = {}) {
   const cidade = document.getElementById('f-cidade').value.trim();
@@ -1149,7 +1241,12 @@ async function gerar() {
 
   // Parcelas em cima do preço à vista
   const parc10x = precoVista * 1.11 / 10;
+  const parc12x = precoVista * 1.12 / 12;
   const parc18x = precoVista * 1.19 / 18;
+
+  // Financiamento Price com 120 dias (4 meses) de carência sobre o orçamento
+  const fin84x = pmtPriceCarencia(precoOrcamento, 0.025, 84, 4);
+  const fin60x = pmtPriceCarencia(precoOrcamento, 0.024, 60, 4);
 
   // Cálculo solar avançado por cidade/UF (HSP real + payback com inflação 6% a.a.)
   const cidadeNomeCalc = document.getElementById('f-cidade').value.trim();
@@ -1193,7 +1290,15 @@ async function gerar() {
     mensalKwh, geracaoAnualKwh, mediaMensalGerada, economiaPercent,
     hspRef: refSolar.hsp,
     qtdInv, garInv,
-    precoVista, precoOrcamento, parc10x, parc18x, usarDescMax,
+    precoVista, precoOrcamento,
+    parc10x, parc12x, parc18x,
+    fin84x, fin60x,
+    pagOpts: (editandoCodigo && dadosAtual && dadosAtual.pagOpts) ? dadosAtual.pagOpts : {
+      vista: true,
+      cartao: { ativo: true, p10: true, p12: true, p18: true },
+      fin:    { ativo: true, p84: true, p60: true }
+    },
+    usarDescMax,
     acrescDist,
     consultor,
     linha,
@@ -1331,8 +1436,36 @@ function renderProposta(d, viaLink) {
   document.getElementById('p-total').textContent = `R$ ${fmt(d.precoOrcamento)}`;
   document.getElementById('p-vista').textContent = `R$ ${fmt(d.precoVista)}`;
 
-  document.getElementById('parc-10').textContent = `R$ ${fmt(d.parc10x)}`;
-  document.getElementById('parc-18').textContent = `R$ ${fmt(d.parc18x)}`;
+  // Card de pagamento — duas visões:
+  //   - viaLink (cliente): card renderizado só com o que o consultor marcou
+  //   - !viaLink (consultor): checkboxes para escolher (mas também popula o card-cliente
+  //     pra que a impressão mostre a versão do cliente, controlada via @media print)
+  renderPagamentoCard(d);
+  const cardConsultor = document.getElementById('card-pagamento-consultor');
+  const cardCliente   = document.getElementById('card-pagamento-cliente');
+  if (viaLink) {
+    cardConsultor.style.display = 'none';
+    if (cardCliente) cardCliente.classList.remove('print-only');
+  } else {
+    cardConsultor.style.display = '';
+    if (cardCliente) cardCliente.classList.add('print-only');
+    document.getElementById('opt-vista-val').textContent     = `R$ ${fmt(d.precoVista)}`;
+    document.getElementById('opt-cartao-10-val').textContent = `R$ ${fmt(d.parc10x)}/mês`;
+    document.getElementById('opt-cartao-12-val').textContent = `R$ ${fmt(d.parc12x)}/mês`;
+    document.getElementById('opt-cartao-18-val').textContent = `R$ ${fmt(d.parc18x)}/mês`;
+    document.getElementById('opt-fin-84-val').textContent    = `R$ ${fmt(d.fin84x)}/mês`;
+    document.getElementById('opt-fin-60-val').textContent    = `R$ ${fmt(d.fin60x)}/mês`;
+    const po = d.pagOpts || { vista:true, cartao:{ativo:true,p10:true,p12:true,p18:true}, fin:{ativo:true,p84:true,p60:true} };
+    document.getElementById('opt-vista').checked     = !!po.vista;
+    document.getElementById('opt-cartao').checked    = !!(po.cartao && po.cartao.ativo);
+    document.getElementById('opt-cartao-10').checked = !!(po.cartao && po.cartao.p10);
+    document.getElementById('opt-cartao-12').checked = !!(po.cartao && po.cartao.p12);
+    document.getElementById('opt-cartao-18').checked = !!(po.cartao && po.cartao.p18);
+    document.getElementById('opt-fin').checked       = !!(po.fin && po.fin.ativo);
+    document.getElementById('opt-fin-84').checked    = !!(po.fin && po.fin.p84);
+    document.getElementById('opt-fin-60').checked    = !!(po.fin && po.fin.p60);
+    aplicarEstadoPagGrupos();
+  }
 
   // Rodapé do consultor: só aparece pro vendedor (NÃO pro cliente que abre o link)
   const cardCons = document.getElementById('card-consultor');
@@ -1412,6 +1545,45 @@ async function garantirCodigo() {
   if (dadosAtual.codigo) return dadosAtual.codigo;
   dadosAtual.codigo = await salvarPropostaSupabase(dadosAtual);
   return dadosAtual.codigo;
+}
+
+function aplicarEstadoPagGrupos() {
+  const setOff = (id, off) => {
+    const grp = document.getElementById(id);
+    if (!grp) return;
+    grp.classList.toggle('off', off);
+  };
+  setOff('grp-vista',  !document.getElementById('opt-vista').checked);
+  setOff('grp-cartao', !document.getElementById('opt-cartao').checked);
+  setOff('grp-fin',    !document.getElementById('opt-fin').checked);
+}
+
+let _pagPatchTimer = null;
+function onPagOptChange() {
+  if (!dadosAtual) return;
+  dadosAtual.pagOpts = {
+    vista: document.getElementById('opt-vista').checked,
+    cartao: {
+      ativo: document.getElementById('opt-cartao').checked,
+      p10:   document.getElementById('opt-cartao-10').checked,
+      p12:   document.getElementById('opt-cartao-12').checked,
+      p18:   document.getElementById('opt-cartao-18').checked,
+    },
+    fin: {
+      ativo: document.getElementById('opt-fin').checked,
+      p84:   document.getElementById('opt-fin-84').checked,
+      p60:   document.getElementById('opt-fin-60').checked,
+    }
+  };
+  aplicarEstadoPagGrupos();
+  // Se a proposta já foi salva, espelha no Supabase (debounced)
+  if (dadosAtual.codigo) {
+    clearTimeout(_pagPatchTimer);
+    _pagPatchTimer = setTimeout(() => {
+      atualizarPropostaSupabase(dadosAtual.codigo, dadosAtual)
+        .catch(e => console.error('PATCH pagOpts falhou:', e));
+    }, 400);
+  }
 }
 
 async function gerarLinkProposta() {
@@ -2289,6 +2461,27 @@ function gerarPDF() {
   window.print();
 }
 
+// Monta o bloco "Formas de pagamento" do texto do WhatsApp respeitando d.pagOpts
+function montarBlocoPagamentoWpp(d) {
+  const po = d.pagOpts || { vista:true, cartao:{ativo:true,p10:true,p18:true}, fin:{ativo:false} };
+  const linhas = [];
+  if (po.vista) linhas.push(`💎 *À vista:* R$ ${fmt(d.precoVista)}`);
+  if (po.cartao && po.cartao.ativo) {
+    const sub = [];
+    if (po.cartao.p10 && d.parc10x != null) sub.push(`• 10x: R$ ${fmt(d.parc10x)}/mês`);
+    if (po.cartao.p12 && d.parc12x != null) sub.push(`• 12x: R$ ${fmt(d.parc12x)}/mês`);
+    if (po.cartao.p18 && d.parc18x != null) sub.push(`• 18x: R$ ${fmt(d.parc18x)}/mês`);
+    if (sub.length) linhas.push(`💳 *Cartão de crédito:*\n${sub.join('\n')}`);
+  }
+  if (po.fin && po.fin.ativo) {
+    const sub = [];
+    if (po.fin.p84 && d.fin84x != null) sub.push(`• 84x: R$ ${fmt(d.fin84x)}/mês (2,5% a.m.)`);
+    if (po.fin.p60 && d.fin60x != null) sub.push(`• 60x: R$ ${fmt(d.fin60x)}/mês (2,4% a.m.)`);
+    if (sub.length) linhas.push(`🏦 *Financiamento* (120 dias de carência):\n${sub.join('\n')}`);
+  }
+  return linhas.join('\n\n');
+}
+
 // ============= WHATSAPP =============
 async function copiarWhatsApp() {
   if (!dadosAtual) return;
@@ -2342,12 +2535,8 @@ ${linhasCli.join('\n')}
 
 ━━━━━━━━━━━━━━━━━━
 💰 *Investimento (Valor Financiado): R$ ${fmt(d.precoOrcamento)}*
-💎 *Condição especial à vista: R$ ${fmt(d.precoVista)}*
 
-💳 *Formas de pagamento no cartão:*
-• 10x: R$ ${fmt(d.parc10x)}/mês
-• 18x: R$ ${fmt(d.parc18x)}/mês
-
+${montarBlocoPagamentoWpp(d)}
 ${d.consultor ? `━━━━━━━━━━━━━━━━━━\n👤 *Atendimento:* ${d.consultor}\n` : ''}
 _Proposta válida por 7 dias_`;
 

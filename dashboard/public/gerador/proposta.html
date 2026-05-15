@@ -586,7 +586,7 @@ de<!DOCTYPE html>
   /* PARCELAS */
   .parcelas {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 12px;
   }
   .parcelas.parcelas-2 {
@@ -649,7 +649,7 @@ de<!DOCTYPE html>
   /* AÇÕES */
   .acoes {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 12px;
     margin-top: 8px;
   }
@@ -665,13 +665,7 @@ de<!DOCTYPE html>
     transition: opacity .15s;
   }
   .acoes button:hover { opacity: .92; }
-  .btn-pdf { background: #0d2d5e; }
-  .btn-wpp { background: #25D366; }
   .btn-link { background: #f5c518; color: #0d2d5e !important; }
-  .acoes.acoes-3 { grid-template-columns: 1fr 1fr 1fr; }
-  @media (max-width: 700px) {
-    .acoes.acoes-3 { grid-template-columns: 1fr; }
-  }
   .exp-btn-wpp {
     display: inline-block;
     margin-top: 8px;
@@ -744,7 +738,7 @@ de<!DOCTYPE html>
     .fields, .spec-grid, .inc-grid, .gars, .equip-grid { grid-template-columns: 1fr; }
     .parcelas { grid-template-columns: 1fr; }
     .parc.destaque { order: -1; }
-    .acoes, .acoes.acoes-3 { grid-template-columns: 1fr; }
+    .acoes { grid-template-columns: 1fr; }
     .header h1, .prop-header h1 { font-size: 17px; line-height: 1.3; }
     .vista-val { font-size: 36px; }
     .fin-val { font-size: 18px; }
@@ -1095,21 +1089,9 @@ de<!DOCTYPE html>
       </div>
     </div>
 
-    <div class="card">
-      <h2>Formas de pagamento no cartão</h2>
-      <div class="parcelas parcelas-2">
-        <div class="parc parc-destaque-amarelo">
-          <div class="badge">✨ mais vendido</div>
-          <div class="qt">10x no cartão</div>
-          <div class="vl" id="parc-10"></div>
-          <div class="obs">sobre o preço à vista</div>
-        </div>
-        <div class="parc">
-          <div class="qt">18x no cartão</div>
-          <div class="vl" id="parc-18"></div>
-          <div class="obs">sobre o preço à vista</div>
-        </div>
-      </div>
+    <div class="card" id="card-pagamento" style="display:none;">
+      <h2 id="card-pagamento-titulo">Formas de pagamento</h2>
+      <div class="parcelas" id="card-pagamento-grid"></div>
     </div>
 
     <div class="card consultor-rodape" id="card-consultor" style="display:none;">
@@ -1124,7 +1106,6 @@ de<!DOCTYPE html>
     </div>
 
     <div class="acoes">
-      <button class="btn-wpp" onclick="copiarWhatsApp()">📱 Copiar WhatsApp</button>
       <button class="btn-link" id="btn-link" onclick="gerarLinkProposta()">🔗 Copiar link</button>
     </div>
 
@@ -1483,7 +1464,12 @@ function gerar() {
 
   // Parcelas em cima do preço à vista
   const parc10x = precoVista * 1.11 / 10;
+  const parc12x = precoVista * 1.12 / 12;
   const parc18x = precoVista * 1.19 / 18;
+
+  // Financiamento Price com 120 dias (4 meses) de carência sobre o orçamento
+  const fin84x = pmtPriceCarencia(precoOrcamento, 0.025, 84, 4);
+  const fin60x = pmtPriceCarencia(precoOrcamento, 0.024, 60, 4);
 
   // Cálculos
   const areaReal = (item.kwp * 1000 / tab.pot * 2.1).toFixed(1);
@@ -1505,12 +1491,104 @@ function gerar() {
     tab: { inv: tab.inv, mod: tab.mod, pot: tab.pot },
     areaReal, economia, economia25, payback,
     qtdInv, garInv,
-    precoVista, precoOrcamento, parc10x, parc18x, usarDescMax,
+    precoVista, precoOrcamento,
+    parc10x, parc12x, parc18x,
+    fin84x, fin60x,
+    pagOpts: (dadosAtual && dadosAtual.pagOpts) ? dadosAtual.pagOpts : {
+      vista: true,
+      cartao: { ativo: true, p10: true, p12: true, p18: true },
+      fin:    { ativo: true, p84: true, p60: true }
+    },
+    usarDescMax,
     consultor
   };
 
   renderProposta(dadosAtual, false);
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============= PAGAMENTO (card dinâmico baseado em d.pagOpts) =============
+function pmtPriceCarencia(pv, i, n, carenciaMeses) {
+  if (!pv || pv <= 0) return 0;
+  const saldo = pv * Math.pow(1 + i, carenciaMeses);
+  return saldo * i / (1 - Math.pow(1 + i, -n));
+}
+
+function renderPagamentoCard(d) {
+  // Default retro-compatível (propostas antigas sem pagOpts)
+  const po = d.pagOpts || {
+    vista: true,
+    cartao: { ativo: true, p10: true, p12: false, p18: true },
+    fin:    { ativo: false, p84: false, p60: false }
+  };
+
+  // Valores: usa os do dados se vierem, senão recalcula
+  const pv  = d.precoVista || 0;
+  const pOrc = d.precoOrcamento || 0;
+  const v10 = d.parc10x != null ? d.parc10x : pv * 1.11 / 10;
+  const v12 = d.parc12x != null ? d.parc12x : pv * 1.12 / 12;
+  const v18 = d.parc18x != null ? d.parc18x : pv * 1.19 / 18;
+  const f84 = d.fin84x != null ? d.fin84x : pmtPriceCarencia(pOrc, 0.025, 84, 4);
+  const f60 = d.fin60x != null ? d.fin60x : pmtPriceCarencia(pOrc, 0.024, 60, 4);
+
+  const blocos = [];
+
+  if (po.vista) {
+    blocos.push(`
+      <div class="parc parc-destaque-amarelo">
+        <div class="badge">💎 melhor opção</div>
+        <div class="qt">À vista</div>
+        <div class="vl">R$ ${fmt(pv)}</div>
+        <div class="obs">pagamento único</div>
+      </div>`);
+  }
+
+  if (po.cartao && po.cartao.ativo) {
+    if (po.cartao.p10) blocos.push(`
+      <div class="parc">
+        <div class="qt">10x no cartão</div>
+        <div class="vl">R$ ${fmt(v10)}</div>
+        <div class="obs">sobre o preço à vista</div>
+      </div>`);
+    if (po.cartao.p12) blocos.push(`
+      <div class="parc">
+        <div class="qt">12x no cartão</div>
+        <div class="vl">R$ ${fmt(v12)}</div>
+        <div class="obs">sobre o preço à vista</div>
+      </div>`);
+    if (po.cartao.p18) blocos.push(`
+      <div class="parc">
+        <div class="qt">18x no cartão</div>
+        <div class="vl">R$ ${fmt(v18)}</div>
+        <div class="obs">sobre o preço à vista</div>
+      </div>`);
+  }
+
+  if (po.fin && po.fin.ativo) {
+    if (po.fin.p84) blocos.push(`
+      <div class="parc">
+        <div class="qt">84x financiado</div>
+        <div class="vl">R$ ${fmt(f84)}</div>
+        <div class="obs">120 dias de carência</div>
+      </div>`);
+    if (po.fin.p60) blocos.push(`
+      <div class="parc">
+        <div class="qt">60x financiado</div>
+        <div class="vl">R$ ${fmt(f60)}</div>
+        <div class="obs">120 dias de carência</div>
+      </div>`);
+  }
+
+  const card = document.getElementById('card-pagamento');
+  const grid = document.getElementById('card-pagamento-grid');
+  if (!card || !grid) return;
+  if (blocos.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+  grid.className = 'parcelas' + (blocos.length === 2 ? ' parcelas-2' : '');
+  grid.innerHTML = blocos.join('');
+  card.style.display = '';
 }
 
 // ============= RENDER TELA 2 =============
@@ -1557,8 +1635,7 @@ function renderProposta(d, viaLink) {
     elEco.style.display = 'none';
   }
 
-  document.getElementById('parc-10').textContent = `R$ ${fmt(d.parc10x)}`;
-  document.getElementById('parc-18').textContent = `R$ ${fmt(d.parc18x)}`;
+  renderPagamentoCard(d);
 
   // Rodapé do consultor: só aparece pro vendedor (NÃO pro cliente que abre o link)
   const cardCons = document.getElementById('card-consultor');
@@ -1849,83 +1926,6 @@ function abrirProposta(codigo) {
   window.location.href = `${window.location.pathname}?p=${codigo}`;
 }
 
-// ============= PDF =============
-function gerarPDF() {
-  window.print();
-}
-
-// ============= WHATSAPP =============
-async function copiarWhatsApp() {
-  if (!dadosAtual) return;
-  const d = dadosAtual;
-
-  // Tracking — salva proposta se ainda não tem código + marca envio WhatsApp
-  garantirCodigo()
-    .then(cod => supaRpc('marcar_enviado_wpp', { p_codigo: cod }))
-    .catch(e => console.error('Tracking falhou:', e));
-
-  const linhasCli = [`👤 *Cliente:* ${d.nome}`];
-  if (d.cidade)  linhasCli.push(`📍 *Cidade:* ${d.cidade}`);
-  if (d.fase)    linhasCli.push(`⚡ *Ligação:* ${d.fase}`);
-  if (d.telhado) linhasCli.push(`🏠 *Telhado:* ${d.telhado}`);
-
-  const txt =
-`☀️ *PROPOSTA DE ENERGIA SOLAR* ☀️
-
-${linhasCli.join('\n')}
-
-━━━━━━━━━━━━━━━━━━
-🔋 *SISTEMA*
-• Módulos: ${d.item.n}x ${d.tab.mod}
-• Inversor: ${d.qtdInv}x ${d.tab.inv}
-• Potência instalada: ${d.item.kwp.toFixed(1)} kWp
-• Geração estimada: ${fmtN(d.item.g)} kWh/mês
-• Área no telhado: ~${d.areaReal} m²
-
-━━━━━━━━━━━━━━━━━━
-📦 *INCLUSO NO PROJETO*
-✅ Estruturas de fixação
-✅ Cabeamento completo
-✅ Caixa de corrente alternada
-✅ Aterramento do sistema
-✅ Homologação na concessionária
-✅ Projeto conforme Lei 14.300/22
-✅ Instalação conforme normas ABNT
-✅ Monitoramento do sistema
-
-━━━━━━━━━━━━━━━━━━
-🛡️ *GARANTIAS*
-• Módulos: 25 anos de performance | 15 anos contra defeitos
-• Inversor: ${d.garInv} anos
-• Mão de obra: 1 ano
-
-━━━━━━━━━━━━━━━━━━
-📈 *RETORNO FINANCEIRO*
-• Economia mensal: ~R$ ${fmtN(d.economia)}/mês
-• Economia em 25 anos: ~R$ ${fmtN(d.economia25)}
-• Payback estimado: ~${d.payback} anos
-
-━━━━━━━━━━━━━━━━━━
-💎 *INVESTIMENTO À VISTA: R$ ${fmt(d.precoVista)}* ✨ (melhor opção)
-💰 _ou Valor Financiado: R$ ${fmt(d.precoOrcamento)}_
-
-💳 *Formas de pagamento no cartão:*
-• 10x: R$ ${fmt(d.parc10x)}/mês
-• 18x: R$ ${fmt(d.parc18x)}/mês
-
-${d.consultor ? `━━━━━━━━━━━━━━━━━━\n👤 *Atendimento:* ${d.consultor}\n` : ''}
-_Proposta válida por 7 dias_`;
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(txt).then(
-      () => showToast('✅ Copiado! Cole no WhatsApp'),
-      () => fallbackCopy(txt)
-    );
-  } else {
-    fallbackCopy(txt);
-  }
-}
-
 function fallbackCopy(txt) {
   const ta = document.createElement('textarea');
   ta.value = txt;
@@ -1935,7 +1935,7 @@ function fallbackCopy(txt) {
   ta.select();
   try {
     document.execCommand('copy');
-    showToast('✅ Copiado! Cole no WhatsApp');
+    showToast('✅ Link copiado!');
   } catch (e) {
     showToast('❌ Não foi possível copiar');
   }
