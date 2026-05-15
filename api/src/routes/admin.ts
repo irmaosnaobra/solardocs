@@ -338,6 +338,18 @@ router.get('/sdr-metrics', async (_req: Request, res: Response) => {
   }
 });
 
+// Exclui lead SDR + sessão de conversa (whatsapp_sessions)
+router.delete('/sdr-leads/:phone', async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.params;
+    if (!phone) { res.status(400).json({ error: 'phone obrigatório' }); return; }
+    await supabase.from('whatsapp_sessions').delete().eq('phone', phone).eq('tipo', 'sdr');
+    const { error } = await supabase.from('sdr_leads').delete().eq('phone', phone);
+    if (error) { res.status(500).json({ error: 'Erro ao excluir' }); return; }
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Erro ao excluir' }); }
+});
+
 // Histórico completo da conversa do lead
 router.get('/sdr-leads/:phone/history', async (req: Request, res: Response) => {
   try {

@@ -240,12 +240,13 @@ function Badge({ children, color = 'gray', title }: { children: React.ReactNode;
   );
 }
 
-function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor }: {
+function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDelete }: {
   lead: SdrLead;
   onClick: () => void;
   onMove: (phone: string, estagio: string) => void;
   onToggleTakeover: (phone: string, takeover: boolean) => void;
   onSetConsultor: (phone: string, consultor: string | null) => void;
+  onDelete: (lead: SdrLead) => void;
 }) {
   const col = SDR_COLS.find(c => c.id === lead.estagio) ?? SDR_COLS[0];
   const isTakeover = !!lead.human_takeover;
@@ -372,6 +373,12 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor }: {
             background: isTakeover ? 'rgba(34,197,94,0.12)' : 'rgba(168,85,247,0.12)',
             color: isTakeover ? '#22c55e' : '#a855f7',
           }}>{isTakeover ? '↩️' : '🙋'}</button>
+        <button onClick={() => onDelete(lead)} title="Excluir lead"
+          style={{
+            padding: '3px 6px', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+            border: '1px solid rgba(239,68,68,0.35)',
+            background: 'rgba(239,68,68,0.1)', color: '#ef4444',
+          }}>🗑️</button>
       </div>
       <div onClick={e => e.stopPropagation()}>
         <select value={lead.consultor || ''} onChange={e => onSetConsultor(lead.phone, e.target.value || null)}
@@ -782,6 +789,21 @@ export default function CrmPage() {
     await api.patch(`/admin/sdr-leads/${phone}/consultor`, { consultor });
   }
 
+  async function deleteSdr(lead: SdrLead) {
+    const ok = confirm(`Excluir "${lead.nome || fmtPhone(lead.phone)}"?\n\nIsso apaga o lead e o histórico de conversa. Ação permanente.`);
+    if (!ok) return;
+    const prev = sdrLeads;
+    setSdrLeads(p => p.filter(l => l.phone !== lead.phone));
+    if (drawerLead?.phone === lead.phone) setDrawerLead(null);
+    try {
+      await api.delete(`/admin/sdr-leads/${lead.phone}`);
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao excluir lead');
+      setSdrLeads(prev);
+    }
+  }
+
   async function movePlat(id: string, estagio: string) {
     await api.patch(`/admin/platform-crm/${id}/estagio`, { estagio });
     setPlatCols(prev => {
@@ -951,7 +973,8 @@ export default function CrmPage() {
                         onClick={() => setDrawerLead(l)}
                         onMove={moveSdr}
                         onToggleTakeover={toggleSdrTakeover}
-                        onSetConsultor={setConsultor} />
+                        onSetConsultor={setConsultor}
+                        onDelete={deleteSdr} />
                     ))
                   }
                 </KanbanCol>

@@ -166,7 +166,7 @@ function KanbanCol({
 }
 
 // ── Card de lead ───────────────────────────────────────────────────
-function LeadCard({ lead, onClick }: { lead: IoLead; onClick: () => void }) {
+function LeadCard({ lead, onClick, onDelete }: { lead: IoLead; onClick: () => void; onDelete: (lead: IoLead) => void }) {
   const col = COL_BY_ID[lead.status] || COL_BY_ID.novo;
   const fromMeta = !!lead.utm_source && /(face|insta|meta|fb|ig)/i.test(lead.utm_source);
   const novo = isToday(lead.created_at);
@@ -214,6 +214,15 @@ function LeadCard({ lead, onClick }: { lead: IoLead; onClick: () => void }) {
             background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)',
             textDecoration: 'none', fontSize: 12, lineHeight: 1, flexShrink: 0,
           }}>📲</a>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(lead); }}
+          title="Excluir lead"
+          style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 22, height: 22, borderRadius: '50%', padding: 0,
+            background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.35)',
+            color: '#ef4444', cursor: 'pointer', fontSize: 11, lineHeight: 1, flexShrink: 0,
+          }}>🗑️</button>
       </div>
 
       <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6, lineHeight: 1.3 }}>
@@ -505,6 +514,21 @@ export default function CrmIoPage() {
     } finally { setSavingStatus(false); }
   }
 
+  async function deleteLead(lead: IoLead) {
+    const ok = confirm(`Excluir o lead "${lead.nome}"?\n\nEssa ação é permanente.`);
+    if (!ok) return;
+    const prev = leads;
+    setLeads(p => p.filter(l => l.id !== lead.id));
+    if (drawerLead?.id === lead.id) setDrawerLead(null);
+    try {
+      await api.delete(`/io-leads/${lead.id}`);
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao excluir lead');
+      setLeads(prev);
+    }
+  }
+
   async function saveNotes(id: string, notes: string) {
     setSavingNotes(true);
     try {
@@ -575,7 +599,7 @@ export default function CrmIoPage() {
                 }}>
                 {colLeads.length === 0
                   ? <div style={{ textAlign: 'center', padding: '12px 8px', color: 'var(--color-text-muted)', fontSize: 11 }}>—</div>
-                  : colLeads.map(l => <LeadCard key={l.id} lead={l} onClick={() => setDrawerLead(l)} />)
+                  : colLeads.map(l => <LeadCard key={l.id} lead={l} onClick={() => setDrawerLead(l)} onDelete={deleteLead} />)
                 }
               </KanbanCol>
             );

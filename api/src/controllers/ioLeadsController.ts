@@ -167,6 +167,26 @@ export async function updateIoLead(req: Request, res: Response): Promise<void> {
   }
 }
 
+// DELETE autenticado — remove lead + histórico
+export async function deleteIoLead(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    if (!id) { res.status(400).json({ error: 'id obrigatório' }); return; }
+
+    await supabase.from('io_lead_history').delete().eq('lead_id', id);
+    const { error } = await supabase.from('io_leads').delete().eq('id', id);
+    if (error) {
+      console.error('deleteIoLead error:', error);
+      res.status(500).json({ error: 'Erro ao excluir' });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('deleteIoLead exception:', err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+}
+
 // GET autenticado — histórico de um lead
 export async function getIoLeadHistory(req: Request, res: Response): Promise<void> {
   try {
