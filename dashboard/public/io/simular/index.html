@@ -28,7 +28,7 @@
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
     --navy:#0F2A52; --navy-2:#1a3a6e; --gold:#c28a2c; --gold-soft:#e0a83a; --gold-pale:#f5cf6e;
-    --bg:#fbf7ee; --surface:#fff; --border:#e0d6c2;
+    --bg:#f4f1e8; --surface:#fff; --border:#e0d6c2;
     --text:#1a1a1a; --text-muted:#5a5a5a; --text-soft:#8a8a8a;
     --green:#16a34a; --red:#dc2626;
     --shadow-sm:0 2px 8px rgba(15,23,42,0.06);
@@ -36,6 +36,7 @@
     --shadow-lg:0 18px 44px rgba(15,23,42,0.16);
   }
   html,body{min-height:100vh;background:var(--bg);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--text);scroll-behavior:smooth;font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  body{background-image:radial-gradient(ellipse 900px 700px at 50% -120px, rgba(15,42,82,.08) 0%, transparent 70%);background-attachment:fixed}
 
   /* TOPBAR */
   .topbar{position:sticky;top:0;z-index:50;background:var(--navy);color:#fff;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 14px rgba(15,42,82,.18)}
@@ -95,6 +96,50 @@
     .trust-inner{gap:6px;font-size:10.5px}
     .trust-inner .tb{padding:4px 9px;gap:4px}
     .trust-inner .tb svg{width:11px;height:11px}
+  }
+
+  /* DEPOIMENTOS no topo — versão compacta acima do form */
+  .trust-feedback{
+    max-width:760px;margin:14px auto 0;padding:12px 0 14px;
+    background:#fff;border:1px solid var(--border);border-radius:18px;
+    box-shadow:var(--shadow-sm);overflow:hidden;
+  }
+  .trust-feedback .tf-strip{
+    padding:0 18px 10px;
+    display:flex;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:wrap;
+    font-size:12.5px;color:var(--text-muted);font-weight:500;
+  }
+  .trust-feedback .tf-strip .tf-stars{
+    color:var(--gold);font-size:13px;letter-spacing:1px;font-weight:900;
+  }
+  .trust-feedback .tf-strip b{color:var(--navy);font-weight:800}
+  .trust-feedback .tf-strip .tf-real{font-size:11.5px;color:var(--text-soft);font-weight:600}
+  .trust-feedback .test-grid{position:relative}
+  @media (max-width:640px){
+    .trust-feedback{margin:10px auto 0;padding:10px 0 12px}
+    .trust-feedback .tf-strip{padding:0 12px 8px;font-size:11.5px;gap:6px}
+    .trust-feedback .tf-strip .tf-real{font-size:10.5px}
+  }
+
+  /* PAY-STRIP — formas de pagamento aceitas, antes do CTA */
+  .pay-strip{
+    margin:14px 0 6px;padding:11px 14px;
+    background:linear-gradient(135deg, rgba(15,42,82,.045) 0%, rgba(194,138,44,.06) 100%);
+    border:1px solid var(--border);border-radius:12px;
+    display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;text-align:center;
+  }
+  .pay-strip .ps-lbl{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft)}
+  .pay-strip .ps-tag{
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:12px;font-weight:700;color:var(--navy);
+    background:#fff;border:1px solid var(--border);
+    padding:5px 11px;border-radius:999px;box-shadow:var(--shadow-sm);
+  }
+  .pay-strip .ps-tag::before{content:'✓';color:var(--green);font-weight:900;margin-right:2px;font-size:11px}
+  @media (max-width:640px){
+    .pay-strip{padding:10px 12px;gap:6px}
+    .pay-strip .ps-lbl{font-size:10px;width:100%;margin-bottom:2px}
+    .pay-strip .ps-tag{font-size:11px;padding:4px 9px}
   }
 
   /* PREVIEW ao vivo (aparece depois que cliente preenche o suficiente) */
@@ -620,12 +665,43 @@
 
 <main class="stage">
 
+  <!-- ============ DEPOIMENTOS NO TOPO — prova social acima do form ============ -->
+  <section class="trust-feedback">
+    <div class="tf-strip">
+      <span class="tf-stars">★ ★ ★ ★ ★</span>
+      <span class="tf-text"><b>+200 famílias</b> já economizam · <span class="tf-real">mensagens reais recebidas no WhatsApp</span></span>
+    </div>
+    <div class="test-grid" aria-label="Depoimentos de clientes">
+      <button class="test-nav prev" type="button" aria-label="Depoimento anterior">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button class="test-nav next" type="button" aria-label="Próximo depoimento">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="test-scroller">
+        <div class="test-track">
+          <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd4.jpg" alt="Feedback Márcio" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Márcio · cliente</span></div></div>
+          <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd5.jpg" alt="Feedback Huberth Rocha" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Huberth Rocha · cliente</span></div></div>
+          <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd6.jpg" alt="Feedback Cléber" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Cléber · cliente</span></div></div>
+          <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd3.jpg" alt="Feedback Sueli" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Sueli · Uberlândia</span></div></div>
+          <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd1.jpg" alt="Feedback Denivan" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Denivan · cliente</span></div></div>
+          <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd7.jpg" alt="Feedback Andrigo" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Andrigo · cliente</span></div></div>
+          <div class="test-card"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd2.jpg" alt="Feedback Sebastião" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Sebastião · cliente</span></div></div>
+          <!-- duplicados pro loop infinito -->
+          <div class="test-card" aria-hidden="true"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd4.jpg" alt="" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Márcio · cliente</span></div></div>
+          <div class="test-card" aria-hidden="true"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd5.jpg" alt="" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Huberth Rocha · cliente</span></div></div>
+          <div class="test-card" aria-hidden="true"><div class="test-shot-frame"><img class="test-shot" src="/io/img/fedd6.jpg" alt="" loading="lazy" /></div><div class="test-caption"><span class="test-stars">★ ★ ★ ★ ★</span><span class="test-who">Cléber · cliente</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ FORMULÁRIO ÚNICO ============ -->
   <section class="card step" data-step="1">
     <div class="step-head">
-      <span class="eyebrow">Simulador · 1 minuto</span>
-      <h1>Simule seu projeto <em>solar.</em></h1>
-      <p class="lead">Preencha os dados e clique em simular — proposta na hora.</p>
+      <span class="eyebrow">⚡ Grátis · 30 segundos</span>
+      <h1>Sua conta de luz, <em>até 90% menor.</em></h1>
+      <p class="lead">Veja sua proposta solar agora: preço, equipamentos e quanto você economiza em 25 anos. <b>+200 famílias já atendidas no Triângulo Mineiro.</b></p>
     </div>
 
     <div class="field">
@@ -667,33 +743,6 @@
           <div class="lbl">Solo</div></label>
       </div>
       <div class="err-msg">Escolha o tipo de telhado.</div>
-    </div>
-
-    <div class="field">
-      <label>Padrão de energia <span class="req">*</span></label>
-      <div class="opts">
-        <label class="opt"><input type="radio" name="padrao" value="mono110"><div class="num">1</div><div class="lbl">Mono 110V</div></label>
-        <label class="opt"><input type="radio" name="padrao" value="mono220"><div class="num">1</div><div class="lbl">Mono 220V</div></label>
-        <label class="opt"><input type="radio" name="padrao" value="bif220"><div class="num">2</div><div class="lbl">Bifásico 220V</div></label>
-        <label class="opt"><input type="radio" name="padrao" value="tri220"><div class="num">3</div><div class="lbl">Trifásico</div></label>
-      </div>
-      <div class="err-msg">Escolha o padrão.</div>
-    </div>
-
-    <div class="field">
-      <label>Como pretende investir? <span class="req">*</span></label>
-      <div class="opts">
-        <label class="opt"><input type="radio" name="pagamento" value="avista">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 10h.01M18 10h.01M6 14h.01M18 14h.01"/></svg></div>
-          <div class="lbl">À vista</div></label>
-        <label class="opt"><input type="radio" name="pagamento" value="cartao">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg></div>
-          <div class="lbl">Cartão de Crédito</div></label>
-        <label class="opt"><input type="radio" name="pagamento" value="financiamento">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M3 10l9-6 9 6"/><line x1="3" y1="10" x2="3" y2="21"/><line x1="21" y1="10" x2="21" y2="21"/><line x1="7" y1="14" x2="7" y2="18"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="17" y1="14" x2="17" y2="18"/></svg></div>
-          <div class="lbl">Financiamento</div></label>
-      </div>
-      <div class="err-msg">Escolha como pretende investir.</div>
     </div>
 
     <div class="field">
@@ -740,6 +789,13 @@
         <div class="lp-cell"><div class="v">R$ <em id="lp_economia">—</em></div><div class="l">Economia<br/>por mês</div></div>
       </div>
       <div class="lp-foot">Veja a proposta completa com preço, equipamentos e gráfico de geração ↓</div>
+    </div>
+
+    <div class="pay-strip">
+      <span class="ps-lbl">Aceitamos:</span>
+      <span class="ps-tag">À vista</span>
+      <span class="ps-tag">Cartão 18×</span>
+      <span class="ps-tag">Financiamento sem entrada</span>
     </div>
 
     <div class="actions" style="justify-content:center;flex-direction:column;gap:6px">
@@ -1164,13 +1220,9 @@ function validateAll() {
   setErrGroup('tipo', !tipo);
   setErrGroup('telhado', !telhado);
 
-  // Padrão + pagamento + consumo
-  const padrao = document.querySelector('input[name=padrao]:checked');
-  const pagamento = document.querySelector('input[name=pagamento]:checked');
+  // Consumo
   const val = parseInt(($('#f_consumo').value || '').replace(/\D/g,''), 10);
   const minOk = val >= 100;
-  setErrGroup('padrao', !padrao);
-  setErrGroup('pagamento', !pagamento);
   setErr('#f_consumo', !val || !minOk);
 
   // Nome + WhatsApp + cidade
@@ -1193,12 +1245,10 @@ function validateAll() {
   setErrMsg('#f_whats', 'WhatsApp inválido — (DDD) 9XXXX-XXXX, 11 dígitos.');
   setErrMsg('#f_cidade', 'Escolha uma cidade da lista (atendemos no raio 250 km).');
 
-  const ok = !!tipo && !!telhado && !!padrao && !!pagamento && val && minOk && nomeOk && whatsOk && cidadeOk;
+  const ok = !!tipo && !!telhado && val && minOk && nomeOk && whatsOk && cidadeOk;
   if (ok) {
     state.tipo = tipo.value;
     state.telhado = telhado.value;
-    state.padrao = padrao.value;
-    state.pagamento = pagamento.value;
     state.consumoRs = val;
     state.nome = nome;
     state.whats = whats;
@@ -1281,7 +1331,7 @@ $('#btnCalc').addEventListener('click', () => {
         event_type: 'simulator_lead',
         event_data: {
           nome: state.nome, whats: state.whats, cidade: state.cidade,
-          consumoRs: state.consumoRs, pagamento: state.pagamento,
+          consumoRs: state.consumoRs, pagamento: state.pagamento || null,
           oferta: result.oferta ? { kwp: result.oferta.kwp, preco: result.oferta.preco, inv: getInvLabel(result.oferta) } : null,
         }
       }),
@@ -1304,8 +1354,8 @@ $('#btnCalc').addEventListener('click', () => {
         estado: state.estado,
         tipo: state.tipo,
         telhado: state.telhado,
-        padrao: state.padrao,
-        pagamento: state.pagamento,
+        padrao: state.padrao || null,
+        pagamento: state.pagamento || null,
         consumo_rs: state.consumoRs,
         // mantém o shape antigo da tabela io_leads (campos comercial_*) — usa a oferta única em ambos
         comercial: result.oferta ? { kwp: result.oferta.kwp, preco: result.oferta.preco, inv: getInvLabel(result.oferta) } : null,
@@ -1466,7 +1516,8 @@ function calcParcela(pv, taxa, n) {
 // Retorna como exibir o preço de cada plano conforme a forma de pagamento escolhida
 function getPriceDisplay(plano) {
   const pv = plano.preco ?? plano.pOrc; // preço de orçamento
-  if (state.pagamento === 'cartao') {
+  const pag = state.pagamento || 'avista'; // default: à vista (cliente não escolhe mais)
+  if (pag === 'cartao') {
     // (preço de venda × 1,19) / 18 — 19% de acréscimo, em 18x
     const parcela = (pv * 1.19) / 18;
     return {
@@ -1477,7 +1528,7 @@ function getPriceDisplay(plano) {
       sub: '',
     };
   }
-  if (state.pagamento === 'financiamento') {
+  if (pag === 'financiamento') {
     // 84 parcelas, juros compostos 2,4% a.m.
     const parcela = calcParcela(pv, 0.024, 84);
     return {
@@ -1515,30 +1566,30 @@ function aplicaPrecoCard(prefixo, plano) {
 
 let _ultimoResultado = null;
 
-// Comparação de pagamento — mostra alternativas mais baratas que a forma escolhida
+// Comparação de pagamento — mostra alternativas conforme a forma exibida em tela
 function renderCompare(plano) {
   const wrap = $('#r_compare');
   if (!wrap || !plano) return;
   const pv = plano.preco ?? plano.pOrc;
   const items = [];
+  const pag = state.pagamento || 'avista';
 
   // Cartão: 19% acréscimo / 18x · Financiamento: 84x · 2,4% a.m. · À vista: pv
   const cartaoParc = (pv * 1.19) / 18;
+  const financParc = calcParcela(pv, 0.024, 84);
   const avistaTxt  = 'R$ ' + fmtBRL(pv);
   const cartaoTxt  = '18× R$ ' + fmtBRL(cartaoParc);
+  const financTxt  = '84× R$ ' + fmtBRL(financParc);
 
-  if (state.pagamento === 'cartao') {
-    // Mostra à vista (mais barato)
+  if (pag === 'cartao') {
     items.push({ label: 'À vista', val: avistaTxt, best: true });
-  } else if (state.pagamento === 'financiamento') {
-    // Mostra cartão e à vista (ambos mais baratos que financiamento)
+  } else if (pag === 'financiamento') {
     items.push({ label: 'Cartão de Crédito', val: cartaoTxt, best: false });
     items.push({ label: 'À vista', val: avistaTxt, best: true });
   } else {
-    // Já está no à vista — sem comparação
-    wrap.style.display = 'none';
-    wrap.innerHTML = '';
-    return;
+    // À vista (default): mostra alternativas pra quem prefere parcelar
+    items.push({ label: 'Cartão 18×', val: cartaoTxt, best: false });
+    items.push({ label: 'Financiamento 84× sem entrada', val: financTxt, best: false });
   }
 
   wrap.style.display = 'block';
@@ -1631,8 +1682,6 @@ function renderResult(r) {
 function buildWhatsapp(r) {
   const phone = '5534998165040';
   const o = r.oferta;
-  const padraoLbl = {mono110:'Mono 110V',mono220:'Mono 220V',bif220:'Bifásico 220V',tri220:'Trifásico'}[state.padrao] || state.padrao;
-  const pagLbl = {avista:'À vista',cartao:'Cartão de crédito',financiamento:'Financiamento'}[state.pagamento] || state.pagamento;
   const tipoLbl = state.tipo.charAt(0).toUpperCase() + state.tipo.slice(1);
   const telhadoLbl = state.telhado.charAt(0).toUpperCase() + state.telhado.slice(1);
 
@@ -1659,8 +1708,6 @@ function buildWhatsapp(r) {
 • Nome: ${state.nome}
 • Cidade: ${state.cidade}/${state.estado}
 • Tipo: ${tipoLbl} · Telhado ${telhadoLbl}
-• Padrão: ${padraoLbl}
-• Forma de pagamento: ${pagLbl}
 • Conta atual: R$ ${state.consumoRs}/mês${oferta}
 
 ${cta}`
@@ -1673,8 +1720,6 @@ ${cta}`
 // ════════════════════════════════════════════════════════════════
 function buildBigClientWhatsapp(consumoKwh, placasEstimadas) {
   const phone = '5534998165040';
-  const padraoLbl = {mono110:'Mono 110V',mono220:'Mono 220V',bif220:'Bifásico 220V',tri220:'Trifásico'}[state.padrao] || state.padrao;
-  const pagLbl = {avista:'À vista',cartao:'Cartão de crédito',financiamento:'Financiamento'}[state.pagamento] || state.pagamento;
   const tipoLbl = state.tipo.charAt(0).toUpperCase() + state.tipo.slice(1);
   const telhadoLbl = state.telhado.charAt(0).toUpperCase() + state.telhado.slice(1);
 
@@ -1687,8 +1732,6 @@ Meu consumo é grande — o simulador me direcionou pra falar direto com um espe
 • Nome: ${state.nome}
 • Cidade: ${state.cidade}/${state.estado}
 • Tipo: ${tipoLbl} · Telhado ${telhadoLbl}
-• Padrão: ${padraoLbl}
-• Forma de pagamento: ${pagLbl}
 • Conta atual: R$ ${state.consumoRs}/mês (~${Math.round(consumoKwh)} kWh/mês)
 • Estimativa: ${placasEstimadas}+ painéis
 
@@ -1725,7 +1768,7 @@ function handleBigClient(consumoKwh, placasEstimadas) {
         event_data: {
           nome: state.nome, whats: state.whats, cidade: state.cidade, estado: state.estado,
           consumoRs: state.consumoRs, consumoKwh: Math.round(consumoKwh),
-          placas_estimadas: placasEstimadas, pagamento: state.pagamento,
+          placas_estimadas: placasEstimadas, pagamento: state.pagamento || null,
         }
       }),
       keepalive: true,
@@ -1747,8 +1790,8 @@ function handleBigClient(consumoKwh, placasEstimadas) {
         estado: state.estado,
         tipo: state.tipo,
         telhado: state.telhado,
-        padrao: state.padrao,
-        pagamento: state.pagamento,
+        padrao: state.padrao || null,
+        pagamento: state.pagamento || null,
         consumo_rs: state.consumoRs,
         cliente_grande: true,
         placas_estimadas: placasEstimadas,
@@ -1780,41 +1823,44 @@ fbqCustom('Sim_Entrou', { step: 1 });
 bkEvt('sim_step', { step: 1 });
 
 // ════════════════════════════════════════════════════════════════
-// CAROUSEL de depoimentos — auto-scroll + setas
+// CAROUSEL de depoimentos — auto-scroll + setas (suporta múltiplas instâncias)
 // ════════════════════════════════════════════════════════════════
 (() => {
-  const scroller = document.querySelector('.test-scroller');
-  const track = scroller && scroller.querySelector('.test-track');
-  const prev = document.querySelector('.test-nav.prev');
-  const next = document.querySelector('.test-nav.next');
-  if (!scroller || !track) return;
-
   const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let pausedUntil = 0;
-  let isPointerInside = false;
 
-  scroller.addEventListener('mouseenter', () => { isPointerInside = true; });
-  scroller.addEventListener('mouseleave', () => { isPointerInside = false; });
-  scroller.addEventListener('touchstart', () => { pausedUntil = Date.now() + 4000; }, { passive: true });
+  document.querySelectorAll('.test-scroller').forEach(scroller => {
+    const track = scroller.querySelector('.test-track');
+    const grid = scroller.closest('.test-grid');
+    const prev = grid && grid.querySelector('.test-nav.prev');
+    const next = grid && grid.querySelector('.test-nav.next');
+    if (!track) return;
 
-  function tick() {
-    if (!prefersReduced && !isPointerInside && Date.now() > pausedUntil) {
-      scroller.scrollLeft += 0.5;
-      const half = track.scrollWidth / 2;
-      if (half > 0 && scroller.scrollLeft >= half) scroller.scrollLeft -= half;
+    let pausedUntil = 0;
+    let isPointerInside = false;
+
+    scroller.addEventListener('mouseenter', () => { isPointerInside = true; });
+    scroller.addEventListener('mouseleave', () => { isPointerInside = false; });
+    scroller.addEventListener('touchstart', () => { pausedUntil = Date.now() + 4000; }, { passive: true });
+
+    function tick() {
+      if (!prefersReduced && !isPointerInside && Date.now() > pausedUntil) {
+        scroller.scrollLeft += 0.5;
+        const half = track.scrollWidth / 2;
+        if (half > 0 && scroller.scrollLeft >= half) scroller.scrollLeft -= half;
+      }
+      requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
 
-  function step(dir) {
-    pausedUntil = Date.now() + 4000;
-    const card = track.querySelector('.test-card');
-    const w = card ? card.getBoundingClientRect().width + 16 : 260;
-    scroller.scrollBy({ left: dir * w, behavior: 'smooth' });
-  }
-  if (prev) prev.addEventListener('click', () => step(-1));
-  if (next) next.addEventListener('click', () => step(1));
+    function step(dir) {
+      pausedUntil = Date.now() + 4000;
+      const card = track.querySelector('.test-card');
+      const w = card ? card.getBoundingClientRect().width + 16 : 260;
+      scroller.scrollBy({ left: dir * w, behavior: 'smooth' });
+    }
+    if (prev) prev.addEventListener('click', () => step(-1));
+    if (next) next.addEventListener('click', () => step(1));
+  });
 })();
 </script>
 </body>
