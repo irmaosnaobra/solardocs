@@ -569,79 +569,81 @@ export default function PropostaSolarPage() {
               <input type="text" inputMode="decimal" value={fields.preco_avista} onChange={e => setField('preco_avista', e.target.value)} placeholder="Ex: 21300 (opcional)" className="input-field" />
             </div>
           </div>
-          {invNum > 0 && (
-            <div style={{
-              marginTop: 16,
-              padding: '14px 16px',
-              borderRadius: 12,
-              background: 'rgba(245,158,11,0.06)',
-              border: '1px solid rgba(245,158,11,0.25)',
-            }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 4 }}>
-                Formas de pagamento que aparecem na proposta
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 12 }}>
-                Marque o que o cliente vai ver. Desmarcar esconde da proposta gerada.
-              </div>
-
-              {/* À VISTA */}
-              <PagGrupo
-                checked={fields.pag_vista}
-                onToggle={(v) => setField('pag_vista', v)}
-                titulo="À vista"
-                valor={`R$ ${(parseFloat(String(fields.preco_avista).replace(',','.')) > 0 && parseFloat(String(fields.preco_avista).replace(',','.')) < invNum ? parseFloat(String(fields.preco_avista).replace(',','.')) : invNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-              />
-
-              {/* CARTÃO DE CRÉDITO */}
-              <PagGrupo
-                checked={fields.pag_cartao}
-                onToggle={(v) => setField('pag_cartao', v)}
-                titulo="Cartão de crédito"
-              >
-                <PagSubItem
-                  checked={fields.pag_cartao_10}
-                  onToggle={(v) => setField('pag_cartao_10', v)}
-                  label="10x"
-                  valor={`R$ ${valor10x.toLocaleString('pt-BR')}/mês`}
-                />
-                <PagSubItem
-                  checked={fields.pag_cartao_12}
-                  onToggle={(v) => setField('pag_cartao_12', v)}
-                  label="12x"
-                  valor={`R$ ${valor12x.toLocaleString('pt-BR')}/mês`}
-                />
-                <PagSubItem
-                  checked={fields.pag_cartao_18}
-                  onToggle={(v) => setField('pag_cartao_18', v)}
-                  label="18x"
-                  valor={`R$ ${valor18x.toLocaleString('pt-BR')}/mês`}
-                />
-              </PagGrupo>
-
-              {/* FINANCIAMENTO */}
-              <PagGrupo
-                checked={fields.pag_fin}
-                onToggle={(v) => setField('pag_fin', v)}
-                titulo="Financiamento"
-                subtitulo="120 dias de carência"
-              >
-                <PagSubItem
-                  checked={fields.pag_fin_84}
-                  onToggle={(v) => setField('pag_fin_84', v)}
-                  label="84x"
-                  sub="2,5% a.m."
-                  valor={`R$ ${valor84x.toLocaleString('pt-BR')}/mês`}
-                />
-                <PagSubItem
-                  checked={fields.pag_fin_60}
-                  onToggle={(v) => setField('pag_fin_60', v)}
-                  label="60x"
-                  sub="2,4% a.m."
-                  valor={`R$ ${valor60x.toLocaleString('pt-BR')}/mês`}
-                />
-              </PagGrupo>
+          <div style={{
+            marginTop: 16,
+            padding: '14px 16px',
+            borderRadius: 12,
+            background: 'rgba(245,158,11,0.06)',
+            border: '1px solid rgba(245,158,11,0.25)',
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)', marginBottom: 4 }}>
+              Formas de pagamento que aparecem na proposta
             </div>
-          )}
+            <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+              {invNum > 0
+                ? 'Marque o que o cliente vai ver. Desmarcar esconde da proposta gerada.'
+                : 'Preencha o preço do projeto acima pra ver os valores das parcelas.'}
+            </div>
+
+            {/* À VISTA */}
+            <PagGrupo
+              checked={fields.pag_vista}
+              onToggle={(v) => setField('pag_vista', v)}
+              titulo="À vista"
+              valor={invNum > 0
+                ? `R$ ${(parseFloat(String(fields.preco_avista).replace(',','.')) > 0 && parseFloat(String(fields.preco_avista).replace(',','.')) < invNum ? parseFloat(String(fields.preco_avista).replace(',','.')) : invNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : '—'}
+            />
+
+            {/* CARTÃO DE CRÉDITO */}
+            <PagGrupo
+              checked={fields.pag_cartao}
+              onToggle={(v) => setField('pag_cartao', v)}
+              titulo="Cartão de crédito"
+            >
+              <PagSubItem
+                checked={fields.pag_cartao_10}
+                onToggle={(v) => setField('pag_cartao_10', v)}
+                label="10x"
+                valor={invNum > 0 ? `R$ ${valor10x.toLocaleString('pt-BR')}/mês` : '—'}
+              />
+              <PagSubItem
+                checked={fields.pag_cartao_12}
+                onToggle={(v) => setField('pag_cartao_12', v)}
+                label="12x"
+                valor={invNum > 0 ? `R$ ${valor12x.toLocaleString('pt-BR')}/mês` : '—'}
+              />
+              <PagSubItem
+                checked={fields.pag_cartao_18}
+                onToggle={(v) => setField('pag_cartao_18', v)}
+                label="18x"
+                valor={invNum > 0 ? `R$ ${valor18x.toLocaleString('pt-BR')}/mês` : '—'}
+              />
+            </PagGrupo>
+
+            {/* FINANCIAMENTO */}
+            <PagGrupo
+              checked={fields.pag_fin}
+              onToggle={(v) => setField('pag_fin', v)}
+              titulo="Financiamento"
+              subtitulo="120 dias de carência"
+            >
+              <PagSubItem
+                checked={fields.pag_fin_84}
+                onToggle={(v) => setField('pag_fin_84', v)}
+                label="84x"
+                sub="2,5% a.m."
+                valor={invNum > 0 ? `R$ ${valor84x.toLocaleString('pt-BR')}/mês` : '—'}
+              />
+              <PagSubItem
+                checked={fields.pag_fin_60}
+                onToggle={(v) => setField('pag_fin_60', v)}
+                label="60x"
+                sub="2,4% a.m."
+                valor={invNum > 0 ? `R$ ${valor60x.toLocaleString('pt-BR')}/mês` : '—'}
+              />
+            </PagGrupo>
+          </div>
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>
             A geração mensal e o payback são calculados automaticamente baseado no kWp, UF e inflação configurada abaixo.
           </p>
