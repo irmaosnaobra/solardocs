@@ -890,21 +890,18 @@ export default function AdminPage() {
         const simSessions = baseSessions.filter(s => (s.landing_url || '').includes('/io/simular'));
         const visits = simSessions.length;
         const step1 = simSessions.filter(s => (s.max_step ?? 0) >= 1).length;
-        const step2 = simSessions.filter(s => (s.max_step ?? 0) >= 2).length;
-        const step3 = simSessions.filter(s => (s.max_step ?? 0) >= 3).length;
-        const step4 = simSessions.filter(s => (s.max_step ?? 0) >= 4).length;
+        // Novo fluxo single-page: sem step 2 e 3 — só entrou (1) → viu proposta (4)
+        const propostaVista = simSessions.filter(s => (s.max_step ?? 0) >= 4).length;
         const whatsClicks = simSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('whatsapp_sim'))).length;
         const abandonos = simSessions.filter(s => s.sim_abandon).length;
         const avgTime = simSessions.reduce((a,s)=>a+(s.time_on_page||0),0) / Math.max(simSessions.length,1);
         const mobileCount = simSessions.filter(s => /Mobile|Android|iPhone|iPad/i.test(s.user_agent||'')).length;
         const desktopCount = visits - mobileCount;
 
-        // Funil SVG
+        // Funil SVG — novo fluxo simplificado
         const simFunnel: FunnelStep[] = [
-          { label: 'Entrou (Step 1)', value: step1 },
-          { label: 'Step 2',          value: step2 },
-          { label: 'Step 3',          value: step3 },
-          { label: 'Resultado (4)',   value: step4 },
+          { label: 'Entrou',          value: step1 },
+          { label: 'Viu proposta',    value: propostaVista },
           { label: 'Clicou WhatsApp', value: whatsClicks },
         ];
 
@@ -952,32 +949,24 @@ export default function AdminPage() {
                 <div style={{fontWeight:700, marginBottom:6}}>Sem acessos registrados ainda</div>
                 <div style={{fontSize:13, color:'var(--color-text-muted)'}}>
                   Os dados aparecem aqui quando alguém visita <code>/io/simular</code>.
-                  O Meta Pixel também tá capturando — ver eventos <code>Sim_Entrou</code>, <code>Sim_Step2</code>, etc no{' '}
+                  O Meta Pixel também tá capturando — ver eventos <code>Sim_Entrou</code>, <code>Sim_Step4_Resultado</code>, <code>Sim_WhatsApp</code> no{' '}
                   <a href="https://business.facebook.com/events_manager2/list/pixel/446093469730871/overview" target="_blank" rel="noopener noreferrer" style={{color:'#22c55e'}}>Gerenciador de Eventos</a>.
                 </div>
               </div>
             ) : (
               <>
-                {/* Cards principais */}
-                <div className={styles.cards} style={{gridTemplateColumns:'repeat(5,1fr)', marginTop: 12}}>
+                {/* Cards principais — novo fluxo single-page */}
+                <div className={styles.cards} style={{gridTemplateColumns:'repeat(3,1fr)', marginTop: 12}}>
                   <div className={styles.card}>
-                    <div className={styles.cardLabel}>Entrou (Step 1)</div>
+                    <div className={styles.cardLabel}>Entrou</div>
                     <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{step1}</div>
                   </div>
                   <div className={styles.card}>
-                    <div className={styles.cardLabel}>Step 2 ({pct(step2, step1)})</div>
-                    <div className={styles.cardValue} style={{color:'#3b82f6'}}>{step2}</div>
+                    <div className={styles.cardLabel}>Viu proposta ({pct(propostaVista, step1)})</div>
+                    <div className={styles.cardValue} style={{color:'#F59E0B'}}>{propostaVista}</div>
                   </div>
                   <div className={styles.card}>
-                    <div className={styles.cardLabel}>Step 3 ({pct(step3, step1)})</div>
-                    <div className={styles.cardValue} style={{color:'#8b5cf6'}}>{step3}</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>Resultado ({pct(step4, step1)})</div>
-                    <div className={styles.cardValue} style={{color:'#F59E0B'}}>{step4}</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>Cliques WhatsApp</div>
+                    <div className={styles.cardLabel}>Cliques WhatsApp ({pct(whatsClicks, step1)})</div>
                     <div className={styles.cardValue} style={{color:'#22c55e'}}>{whatsClicks}</div>
                   </div>
                 </div>
@@ -1053,7 +1042,7 @@ export default function AdminPage() {
                       <th>Origem</th>
                       <th>Campanha</th>
                       <th>Dispositivo</th>
-                      <th>Step</th>
+                      <th>Etapa</th>
                       <th>Tempo</th>
                       <th>WhatsApp</th>
                       <th>Status</th>
@@ -1062,10 +1051,12 @@ export default function AdminPage() {
                       {simSessions.slice(0, 80).map((s, i) => {
                         const r = relDate(s.created_at);
                         const stp = s.max_step ?? 0;
-                        const stpColor = stp >= 4 ? '#22c55e' : stp === 3 ? '#F59E0B' : stp === 2 ? '#3b82f6' : '#94a3b8';
+                        const viuProposta = stp >= 4;
+                        const etapaLabel = viuProposta ? 'Viu proposta' : 'Só entrou';
+                        const etapaColor = viuProposta ? '#F59E0B' : '#94a3b8';
                         const wa = s.cta_clicks?.find(c => (c.label||'').toLowerCase().includes('whatsapp_sim'));
-                        const status = stp >= 4 && wa ? '✅ Lead + zap' : stp >= 4 ? '🔥 Lead' : s.sim_abandon ? '🚪 Abandonou' : '⏳ Em fluxo';
-                        const statusColor = stp >= 4 && wa ? '#22c55e' : stp >= 4 ? '#F59E0B' : s.sim_abandon ? '#f87171' : '#94a3b8';
+                        const status = viuProposta && wa ? '✅ Lead + zap' : viuProposta ? '🔥 Lead' : s.sim_abandon ? '🚪 Abandonou' : '⏳ Em fluxo';
+                        const statusColor = viuProposta && wa ? '#22c55e' : viuProposta ? '#F59E0B' : s.sim_abandon ? '#f87171' : '#94a3b8';
                         return (
                           <tr key={s.session_id || i}>
                             <td>
@@ -1078,8 +1069,8 @@ export default function AdminPage() {
                             <td className={styles.mutedCell}>{s.utm_campaign || <span className={styles.emptyDash}>—</span>}</td>
                             <td className={styles.mutedCell}>{deviceIcon(s.user_agent)}</td>
                             <td>
-                              <span style={{display:'inline-block', padding:'2px 8px', borderRadius:4, background:'rgba(255,255,255,0.05)', color:stpColor, fontWeight:700, fontSize:12}}>
-                                {stp > 0 ? `Step ${stp}/4` : '—'}
+                              <span style={{display:'inline-block', padding:'2px 8px', borderRadius:4, background:'rgba(255,255,255,0.05)', color:etapaColor, fontWeight:700, fontSize:12}}>
+                                {stp > 0 ? etapaLabel : '—'}
                               </span>
                             </td>
                             <td className={styles.mutedCell}>{fmtTime(s.time_on_page)}</td>
