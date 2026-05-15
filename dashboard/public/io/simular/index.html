@@ -64,6 +64,80 @@
   .progress-steps .s.active .n{background:var(--navy);color:#fff}
   .progress-steps .s.done .n{background:var(--gold);color:#fff}
 
+  /* TOPBAR scroll-shrink no mobile */
+  .topbar.shrunk .mark{width:34px;height:34px;transition:width .2s, height .2s}
+  .topbar.shrunk{padding:6px 14px;transition:padding .2s}
+  .topbar .mark, .topbar{transition:padding .2s, width .2s, height .2s}
+
+  /* PROVA SOCIAL strip */
+  .trust-strip{
+    background:linear-gradient(180deg,#fff 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border);
+    padding:10px 12px;
+  }
+  .trust-inner{
+    max-width:760px;margin:0 auto;
+    display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;
+    font-size:11.5px;font-weight:700;color:var(--text-muted);
+    letter-spacing:.02em;
+  }
+  .trust-inner .tb{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:5px 11px;border-radius:999px;
+    background:#fff;border:1px solid var(--border);
+    box-shadow:var(--shadow-sm);
+    white-space:nowrap;
+  }
+  .trust-inner .tb svg{width:13px;height:13px;color:var(--gold)}
+  .trust-inner .tb b{color:var(--navy);font-weight:800}
+  @media (max-width:640px){
+    .trust-strip{padding:8px 10px}
+    .trust-inner{gap:6px;font-size:10.5px}
+    .trust-inner .tb{padding:4px 9px;gap:4px}
+    .trust-inner .tb svg{width:11px;height:11px}
+  }
+
+  /* PREVIEW ao vivo (aparece depois que cliente preenche o suficiente) */
+  .live-preview{
+    display:none;
+    margin:14px 0 0;
+    padding:14px 16px;
+    background:linear-gradient(135deg,rgba(22,163,74,.08) 0%,rgba(194,138,44,.08) 100%);
+    border:1.5px dashed rgba(194,138,44,.5);
+    border-radius:14px;
+    animation:slideIn .35s ease;
+  }
+  .live-preview.show{display:block}
+  .live-preview .lp-tag{
+    display:inline-block;
+    font-size:9.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--green);background:rgba(22,163,74,.14);
+    padding:3px 9px;border-radius:999px;margin-bottom:8px;
+  }
+  .live-preview .lp-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  }
+  .live-preview .lp-cell{text-align:center}
+  .live-preview .lp-cell .v{
+    font-family:inherit;font-weight:900;font-size:20px;
+    color:var(--navy);line-height:1.05;letter-spacing:-.01em;
+  }
+  .live-preview .lp-cell .v em{font-style:normal;color:var(--gold)}
+  .live-preview .lp-cell .l{
+    margin-top:4px;font-size:9.5px;font-weight:700;
+    color:var(--text-soft);letter-spacing:.08em;text-transform:uppercase;
+    line-height:1.25;
+  }
+  .live-preview .lp-foot{
+    margin-top:10px;font-size:11px;text-align:center;
+    color:var(--text-soft);font-weight:600;
+  }
+  @media (max-width:640px){
+    .live-preview{padding:12px 14px;margin:12px 0 0}
+    .live-preview .lp-cell .v{font-size:18px}
+    .live-preview .lp-cell .l{font-size:9px}
+  }
+
   /* CONTAINER */
   .stage{max-width:760px;margin:0 auto;padding:14px 16px 28px}
 
@@ -465,13 +539,34 @@
 </head>
 <body>
 
-<header class="topbar">
+<header class="topbar" id="topbar">
   <a href="/io" class="brand">
     <span class="mark"><img src="/io/img/logoio.png" alt="Irmãos na Obra"></span>
     <span class="name">Irmãos na Obra<small>ENERGIA SOLAR</small></span>
   </a>
   <a href="/io" class="back-btn">← Voltar</a>
 </header>
+
+<div class="trust-strip" id="trustStrip">
+  <div class="trust-inner">
+    <span class="tb">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <b>CEMIG</b> homologado
+    </span>
+    <span class="tb">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2H22l-6 4.4 2.3 7.2L12 16.4 5.7 20.8 8 13.6 2 9.2h7.6z"/></svg>
+      <b>25 anos</b> de garantia
+    </span>
+    <span class="tb">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/></svg>
+      Triângulo · Alto Paranaíba · GO
+    </span>
+    <span class="tb">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+      Instala em <b>até 7 dias</b>
+    </span>
+  </div>
+</div>
 
 <main class="stage">
 
@@ -586,8 +681,20 @@
       </div>
     </div>
 
-    <div class="actions" style="justify-content:center">
+    <!-- Preview ao vivo — aparece quando cliente preenche o suficiente -->
+    <div class="live-preview" id="livePreview">
+      <div style="text-align:center"><span class="lp-tag">⚡ Sua prévia</span></div>
+      <div class="lp-grid">
+        <div class="lp-cell"><div class="v" id="lp_kwp">—</div><div class="l">Potência<br/>estimada</div></div>
+        <div class="lp-cell"><div class="v" id="lp_paineis">—</div><div class="l">Painéis<br/>solares</div></div>
+        <div class="lp-cell"><div class="v">R$ <em id="lp_economia">—</em></div><div class="l">Economia<br/>por mês</div></div>
+      </div>
+      <div class="lp-foot">Veja a proposta completa com preço, equipamentos e gráfico de geração ↓</div>
+    </div>
+
+    <div class="actions" style="justify-content:center;flex-direction:column;gap:6px">
       <button class="btn btn-primary" id="btnCalc" style="width:100%;padding:16px 24px;font-size:16px">VER PROPOSTA →</button>
+      <small style="font-size:11.5px;color:var(--text-soft);font-weight:600;letter-spacing:.02em">✓ Sem custo · ✓ Sem compromisso · 30 segundos</small>
     </div>
   </section>
 
@@ -909,10 +1016,44 @@ $('#f_whats').addEventListener('input', (e) => {
   e.target.value = v;
 });
 
-// Mask Consumo (só dígitos)
+// Mask Consumo (só dígitos) + live preview
 $('#f_consumo').addEventListener('input', (e) => {
   e.target.value = e.target.value.replace(/\D/g,'').slice(0,7);
+  updateLivePreview();
 });
+
+// Live preview — calcula e exibe estimativa em tempo real assim que dá
+function updateLivePreview() {
+  const lp = document.getElementById('livePreview');
+  if (!lp) return;
+  const val = parseInt(($('#f_consumo').value || '').replace(/\D/g,''), 10);
+  if (!val || val < 100) { lp.classList.remove('show'); return; }
+  const consumoKwh = val / TARIFA;
+  const geracaoNecessaria = consumoKwh * 1.05;
+  const economiaMes = consumoKwh * TARIFA_ECONOMIA;
+
+  if (geracaoNecessaria > GERACAO_MAX_TABELA) {
+    const placasEstimadas = Math.ceil(geracaoNecessaria / 80);
+    document.getElementById('lp_kwp').textContent = 'Sob medida';
+    document.getElementById('lp_paineis').textContent = placasEstimadas + '+';
+    document.getElementById('lp_economia').textContent = fmtBRL(economiaMes);
+  } else {
+    const oferta = buscarMelhor(geracaoNecessaria, null);
+    if (!oferta) { lp.classList.remove('show'); return; }
+    document.getElementById('lp_kwp').textContent = oferta.kwp.toFixed(1).replace('.', ',') + ' kWp';
+    document.getElementById('lp_paineis').textContent = String(oferta.n);
+    document.getElementById('lp_economia').textContent = fmtBRL(economiaMes);
+  }
+  lp.classList.add('show');
+}
+
+// Topbar shrink no scroll (só mobile)
+const _topbar = document.getElementById('topbar');
+window.addEventListener('scroll', () => {
+  if (!_topbar || window.innerWidth > 640) return;
+  if (window.scrollY > 30) _topbar.classList.add('shrunk');
+  else _topbar.classList.remove('shrunk');
+}, { passive: true });
 
 // Cidade autocomplete + valida + preenche UF
 $('#f_cidade').addEventListener('input', (e) => {
