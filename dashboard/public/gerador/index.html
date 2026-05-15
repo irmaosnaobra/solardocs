@@ -437,61 +437,6 @@
       <div class="parcelas" id="card-pagamento-grid"></div>
     </div>
 
-    <div class="card pag-card" id="card-pagamento-consultor">
-      <h2>Formas de pagamento</h2>
-      <div class="pag-sub">Marque o que vai aparecer para o cliente na proposta</div>
-
-      <div class="pag-grupo" id="grp-vista">
-        <label class="pag-head">
-          <input type="checkbox" id="opt-vista" onchange="onPagOptChange()">
-          <span class="pag-head-lbl">À vista</span>
-          <span class="pag-head-val" id="opt-vista-val"></span>
-        </label>
-      </div>
-
-      <div class="pag-grupo" id="grp-cartao">
-        <label class="pag-head">
-          <input type="checkbox" id="opt-cartao" onchange="onPagOptChange()">
-          <span class="pag-head-lbl">Cartão de crédito</span>
-        </label>
-        <div class="pag-subs" id="opt-cartao-subs">
-          <label class="pag-sub-item">
-            <input type="checkbox" id="opt-cartao-10" onchange="onPagOptChange()">
-            <span class="pag-sub-lbl">10x</span>
-            <span class="pag-sub-val" id="opt-cartao-10-val"></span>
-          </label>
-          <label class="pag-sub-item">
-            <input type="checkbox" id="opt-cartao-12" onchange="onPagOptChange()">
-            <span class="pag-sub-lbl">12x</span>
-            <span class="pag-sub-val" id="opt-cartao-12-val"></span>
-          </label>
-          <label class="pag-sub-item">
-            <input type="checkbox" id="opt-cartao-18" onchange="onPagOptChange()">
-            <span class="pag-sub-lbl">18x</span>
-            <span class="pag-sub-val" id="opt-cartao-18-val"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="pag-grupo" id="grp-fin">
-        <label class="pag-head">
-          <input type="checkbox" id="opt-fin" onchange="onPagOptChange()">
-          <span class="pag-head-lbl">Financiamento <small>· 120 dias de carência</small></span>
-        </label>
-        <div class="pag-subs" id="opt-fin-subs">
-          <label class="pag-sub-item">
-            <input type="checkbox" id="opt-fin-84" onchange="onPagOptChange()">
-            <span class="pag-sub-lbl">84x <small>· 2,5% a.m.</small></span>
-            <span class="pag-sub-val" id="opt-fin-84-val"></span>
-          </label>
-          <label class="pag-sub-item">
-            <input type="checkbox" id="opt-fin-60" onchange="onPagOptChange()">
-            <span class="pag-sub-lbl">60x <small>· 2,4% a.m.</small></span>
-            <span class="pag-sub-val" id="opt-fin-60-val"></span>
-          </label>
-        </div>
-      </div>
-    </div>
 
     <div class="card consultor-rodape" id="card-consultor" style="display:none;">
       <h2>Atendimento</h2>
@@ -1009,10 +954,13 @@ function pmtPriceCarencia(pv, i, n, carenciaMeses) {
 }
 
 function renderPagamentoCard(d) {
+  // Sempre mostra tudo: à vista + 10/12/18x cartão + 84/60x financiamento.
+  // Mantém leitura de d.pagOpts pra retro-compat com propostas antigas que
+  // foram salvas quando o consultor podia escolher.
   const po = d.pagOpts || {
     vista: true,
-    cartao: { ativo: true, p10: true, p12: false, p18: true },
-    fin:    { ativo: false, p84: false, p60: false }
+    cartao: { ativo: true, p10: true, p12: true, p18: true },
+    fin:    { ativo: true, p84: true, p60: true }
   };
   const pv  = d.precoVista || 0;
   const pOrc = d.precoOrcamento || 0;
@@ -1471,36 +1419,9 @@ function renderProposta(d, viaLink) {
   document.getElementById('p-total').textContent = `R$ ${fmt(d.precoOrcamento)}`;
   document.getElementById('p-vista').textContent = `R$ ${fmt(d.precoVista)}`;
 
-  // Card de pagamento — duas visões:
-  //   - viaLink (cliente): card renderizado só com o que o consultor marcou
-  //   - !viaLink (consultor): checkboxes para escolher (mas também popula o card-cliente
-  //     pra que a impressão mostre a versão do cliente, controlada via @media print)
+  // Card de pagamento — versão final pro cliente, sempre visível
+  // (consultor não escolhe mais — proposta sempre mostra à vista + 10/12/18x + 84/60x)
   renderPagamentoCard(d);
-  const cardConsultor = document.getElementById('card-pagamento-consultor');
-  const cardCliente   = document.getElementById('card-pagamento-cliente');
-  if (viaLink) {
-    cardConsultor.style.display = 'none';
-    if (cardCliente) cardCliente.classList.remove('print-only');
-  } else {
-    cardConsultor.style.display = '';
-    if (cardCliente) cardCliente.classList.add('print-only');
-    document.getElementById('opt-vista-val').textContent     = `R$ ${fmt(d.precoVista)}`;
-    document.getElementById('opt-cartao-10-val').textContent = `R$ ${fmt(d.parc10x)}/mês`;
-    document.getElementById('opt-cartao-12-val').textContent = `R$ ${fmt(d.parc12x)}/mês`;
-    document.getElementById('opt-cartao-18-val').textContent = `R$ ${fmt(d.parc18x)}/mês`;
-    document.getElementById('opt-fin-84-val').textContent    = `R$ ${fmt(d.fin84x)}/mês`;
-    document.getElementById('opt-fin-60-val').textContent    = `R$ ${fmt(d.fin60x)}/mês`;
-    const po = d.pagOpts || { vista:true, cartao:{ativo:true,p10:true,p12:true,p18:true}, fin:{ativo:true,p84:true,p60:true} };
-    document.getElementById('opt-vista').checked     = !!po.vista;
-    document.getElementById('opt-cartao').checked    = !!(po.cartao && po.cartao.ativo);
-    document.getElementById('opt-cartao-10').checked = !!(po.cartao && po.cartao.p10);
-    document.getElementById('opt-cartao-12').checked = !!(po.cartao && po.cartao.p12);
-    document.getElementById('opt-cartao-18').checked = !!(po.cartao && po.cartao.p18);
-    document.getElementById('opt-fin').checked       = !!(po.fin && po.fin.ativo);
-    document.getElementById('opt-fin-84').checked    = !!(po.fin && po.fin.p84);
-    document.getElementById('opt-fin-60').checked    = !!(po.fin && po.fin.p60);
-    aplicarEstadoPagGrupos();
-  }
 
   // Rodapé do consultor: só aparece pro vendedor (NÃO pro cliente que abre o link)
   const cardCons = document.getElementById('card-consultor');
@@ -1581,45 +1502,6 @@ async function garantirCodigo() {
   if (dadosAtual.codigo) return dadosAtual.codigo;
   dadosAtual.codigo = await salvarPropostaSupabase(dadosAtual);
   return dadosAtual.codigo;
-}
-
-function aplicarEstadoPagGrupos() {
-  const setOff = (id, off) => {
-    const grp = document.getElementById(id);
-    if (!grp) return;
-    grp.classList.toggle('off', off);
-  };
-  setOff('grp-vista',  !document.getElementById('opt-vista').checked);
-  setOff('grp-cartao', !document.getElementById('opt-cartao').checked);
-  setOff('grp-fin',    !document.getElementById('opt-fin').checked);
-}
-
-let _pagPatchTimer = null;
-function onPagOptChange() {
-  if (!dadosAtual) return;
-  dadosAtual.pagOpts = {
-    vista: document.getElementById('opt-vista').checked,
-    cartao: {
-      ativo: document.getElementById('opt-cartao').checked,
-      p10:   document.getElementById('opt-cartao-10').checked,
-      p12:   document.getElementById('opt-cartao-12').checked,
-      p18:   document.getElementById('opt-cartao-18').checked,
-    },
-    fin: {
-      ativo: document.getElementById('opt-fin').checked,
-      p84:   document.getElementById('opt-fin-84').checked,
-      p60:   document.getElementById('opt-fin-60').checked,
-    }
-  };
-  aplicarEstadoPagGrupos();
-  // Se a proposta já foi salva, espelha no Supabase (debounced)
-  if (dadosAtual.codigo) {
-    clearTimeout(_pagPatchTimer);
-    _pagPatchTimer = setTimeout(() => {
-      atualizarPropostaSupabase(dadosAtual.codigo, dadosAtual)
-        .catch(e => console.error('PATCH pagOpts falhou:', e));
-    }, 400);
-  }
 }
 
 async function gerarLinkProposta() {
