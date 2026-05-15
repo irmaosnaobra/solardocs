@@ -208,36 +208,6 @@ export default function PropostaSolarPage() {
     });
   }
 
-  function handleWhatsApp() {
-    if (!publicId) return;
-    const url = `${window.location.origin}/p/${publicId}`;
-    const texto = encodeURIComponent(
-      `Olá ${clienteNome || 'cliente'}! Aqui está sua proposta de energia solar:\n\n${url}\n\nQualquer dúvida me chama 👋`
-    );
-    window.open(`https://wa.me/?text=${texto}`, '_blank');
-  }
-
-  async function handlePdfDownload() {
-    if (!generated?.doc_id) return;
-    try {
-      const res = await api.get(`/documents/${generated.doc_id}/pdf`, { responseType: 'blob' });
-      const blobUrl = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      // Nome do arquivo: prefere slug.curto, depois codigo de 12-dig, depois cliente
-      const baseName = (generated.empresa_slug && generated.codigo_curto)
-        ? `${generated.empresa_slug}-${generated.codigo_curto}`
-        : generated.codigo
-        ? generated.codigo
-        : `proposta-${(clienteNome || 'cliente').toLowerCase().replace(/\s+/g, '-')}`;
-      a.download = `${baseName}.pdf`;
-      a.click();
-      URL.revokeObjectURL(blobUrl);
-    } catch {
-      alert('Erro ao baixar PDF.');
-    }
-  }
-
   // Quando preview ativo, fica fullscreen com iframe + ações
   if (generated) {
     return (
@@ -259,10 +229,8 @@ export default function PropostaSolarPage() {
             </span>
           )}
           <div style={{ flex: 1 }} />
-          <button type="button" onClick={handleWhatsApp} style={btn('whatsapp')}>💬 WhatsApp</button>
           <button type="button" onClick={handleCopyLink} style={btn('primary')}>🔗 Copiar link</button>
           <button type="button" onClick={handlePrint} style={btn('outline')}>🖨️ Imprimir</button>
-          <button type="button" onClick={handlePdfDownload} style={btn('outline')}>📄 PDF</button>
           {copyMsg && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}
         </div>
         <div style={{
@@ -778,7 +746,7 @@ function PagSubItem({
   );
 }
 
-function btn(variant: 'primary' | 'outline' | 'ghost' | 'whatsapp'): React.CSSProperties {
+function btn(variant: 'primary' | 'outline' | 'ghost'): React.CSSProperties {
   const base: React.CSSProperties = {
     padding: '8px 14px',
     borderRadius: 8,
@@ -789,7 +757,6 @@ function btn(variant: 'primary' | 'outline' | 'ghost' | 'whatsapp'): React.CSSPr
     transition: 'all 0.15s',
   };
   if (variant === 'primary') return { ...base, background: 'var(--color-primary, #F59E0B)', color: '#0F172A' };
-  if (variant === 'whatsapp') return { ...base, background: '#25D366', color: 'white' };
   if (variant === 'outline') return { ...base, background: 'transparent', color: 'var(--color-text)', border: '1px solid var(--color-border)' };
   return { ...base, background: 'transparent', color: 'var(--color-text-muted)' };
 }
