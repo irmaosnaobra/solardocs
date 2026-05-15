@@ -111,9 +111,7 @@
   .opt .lbl{font-size:13.5px;font-weight:700;color:var(--text);line-height:1.2}
   .opt .sub{font-size:11.5px;font-weight:600;color:var(--text-soft);line-height:1.2}
   .opt:hover{border-color:var(--gold-soft)}
-  .opt:hover .ic{background:rgba(194,138,44,.12);color:var(--gold)}
   .opt:has(input:checked){border-color:var(--gold);background:rgba(194,138,44,.06);box-shadow:0 3px 10px rgba(194,138,44,.18)}
-  .opt:has(input:checked) .ic{background:var(--gold);color:#fff}
   .opt:has(input:checked)::after{content:'✓';position:absolute;top:5px;right:6px;background:var(--gold);color:#fff;width:15px;height:15px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:900}
   .opt .num{
     width:34px;height:34px;border-radius:9px;
@@ -122,7 +120,37 @@
     font-family:inherit;font-weight:800;font-size:18px;
     transition:all .15s;
   }
-  .opt:hover .num{background:rgba(194,138,44,.12);color:var(--gold)}
+
+  /* ───── CORES POR OPÇÃO — cada balão tem identidade visual ───── */
+  /* TIPO DE IMÓVEL */
+  .opt:has(input[value="residencial"]) .ic { background:#dbeafe; color:#1d4ed8 }
+  .opt:has(input[value="comercial"])  .ic  { background:#fde68a; color:#b45309 }
+  .opt:has(input[value="industrial"]) .ic  { background:#fecaca; color:#b91c1c }
+  .opt:has(input[value="rural"])      .ic  { background:#bbf7d0; color:#15803d }
+
+  /* TELHADO */
+  .opt:has(input[value="ceramico"]) .ic { background:#fed7aa; color:#c2410c }
+  .opt:has(input[value="eternit"])  .ic { background:#e5e7eb; color:#4b5563 }
+  .opt:has(input[value="laje"])     .ic { background:#cbd5e1; color:#334155 }
+  .opt:has(input[value="metalico"]) .ic { background:#e0e7ff; color:#4338ca }
+  .opt:has(input[value="solo"])     .ic { background:#fef3c7; color:#854d0e }
+
+  /* PADRÃO DE ENERGIA — usa .num (números) */
+  .opt:has(input[value="mono110"]) .num { background:#fef3c7; color:#a16207 }
+  .opt:has(input[value="mono220"]) .num { background:#fde68a; color:#854d0e }
+  .opt:has(input[value="bif220"])  .num { background:#fed7aa; color:#c2410c }
+  .opt:has(input[value="tri220"])  .num { background:#fecaca; color:#b91c1c }
+
+  /* PAGAMENTO */
+  .opt:has(input[value="avista"])        .ic { background:#bbf7d0; color:#15803d }
+  .opt:has(input[value="cartao"])        .ic { background:#dbeafe; color:#1d4ed8 }
+  .opt:has(input[value="financiamento"]) .ic { background:#e9d5ff; color:#6b21a8 }
+
+  /* Hover — adiciona sombra leve, mantém a cor base */
+  .opt:hover .ic, .opt:hover .num { transform:scale(1.04) }
+  /* Selecionado — força gold (vence as cores específicas por specificity) */
+  .opt:has(input:checked) .ic,
+  .opt:has(input:checked) .num { background:var(--gold)!important; color:#fff!important; transform:none }
   .opt:has(input:checked) .num{background:var(--gold);color:#fff}
 
   /* ACTIONS */
