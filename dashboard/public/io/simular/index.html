@@ -215,7 +215,31 @@
   }
   .hero-offer-price small{font-size:26px;font-weight:700;opacity:.85;margin-right:5px}
   .hero-offer-price .x{font-size:20px;font-weight:600;opacity:.65;margin-left:8px;letter-spacing:0}
-  .hero-offer-sub{font-size:13px;color:rgba(255,255,255,.78);font-weight:600;letter-spacing:.02em;margin-bottom:18px;min-height:14px}
+  .hero-offer-sub{font-size:13px;color:rgba(255,255,255,.78);font-weight:600;letter-spacing:.02em;margin-bottom:14px;min-height:14px}
+
+  /* COMPARAÇÃO de formas de pagamento (mostra alternativas mais baratas) */
+  .hero-compare{margin-bottom:16px}
+  .hero-compare .cmp-tag{
+    font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    color:rgba(255,255,255,.6);margin-bottom:8px;text-align:center;
+  }
+  .hero-compare .cmp-list{display:grid;gap:6px}
+  .hero-compare .cmp{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:10px 14px;border-radius:11px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+  }
+  .hero-compare .cmp .lbl{font-size:12px;font-weight:700;color:rgba(255,255,255,.85);letter-spacing:.02em}
+  .hero-compare .cmp .val{font-family:inherit;font-weight:800;font-size:15px;color:#fff;letter-spacing:-.01em;white-space:nowrap}
+  .hero-compare .cmp.best{background:rgba(22,163,74,.18);border-color:rgba(34,197,94,.55)}
+  .hero-compare .cmp.best .lbl{color:#bbf7d0}
+  .hero-compare .cmp.best .val{color:#dcfce7}
+  .hero-compare .cmp.best .star{display:inline-block;background:#16a34a;color:#fff;font-size:9px;font-weight:900;letter-spacing:.08em;padding:2px 7px;border-radius:999px;margin-left:6px;text-transform:uppercase;vertical-align:middle}
+  @media (max-width:640px){
+    .hero-compare .cmp{padding:9px 12px}
+    .hero-compare .cmp .val{font-size:14px}
+  }
+
   .hero-offer-specs{
     display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
     padding:14px;border-radius:14px;
@@ -583,6 +607,7 @@
         <small>R$</small><span id="r_preco">—</span><span class="x" id="r_x"></span>
       </div>
       <div class="hero-offer-sub" id="r_modeSub"></div>
+      <div class="hero-compare" id="r_compare" style="display:none"></div>
       <div class="hero-offer-specs">
         <div class="spec"><div class="spec-v" id="r_kwp">—</div><div class="spec-l">Potência</div></div>
         <div class="spec"><div class="spec-v" id="r_paineis">—</div><div class="spec-l">Painéis</div></div>
@@ -1270,6 +1295,45 @@ function aplicaPrecoCard(prefixo, plano) {
 
 let _ultimoResultado = null;
 
+// Comparação de pagamento — mostra alternativas mais baratas que a forma escolhida
+function renderCompare(plano) {
+  const wrap = $('#r_compare');
+  if (!wrap || !plano) return;
+  const pv = plano.preco ?? plano.pOrc;
+  const items = [];
+
+  // Cartão: 19% acréscimo / 18x · Financiamento: 84x · 2,4% a.m. · À vista: pv
+  const cartaoParc = (pv * 1.19) / 18;
+  const avistaTxt  = 'R$ ' + fmtBRL(pv);
+  const cartaoTxt  = '18× R$ ' + fmtBRL(cartaoParc);
+
+  if (state.pagamento === 'cartao') {
+    // Mostra à vista (mais barato)
+    items.push({ label: 'À vista', val: avistaTxt, best: true });
+  } else if (state.pagamento === 'financiamento') {
+    // Mostra cartão e à vista (ambos mais baratos que financiamento)
+    items.push({ label: 'Cartão de Crédito', val: cartaoTxt, best: false });
+    items.push({ label: 'À vista', val: avistaTxt, best: true });
+  } else {
+    // Já está no à vista — sem comparação
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  wrap.innerHTML =
+    '<div class="cmp-tag">Outras formas de pagar</div>' +
+    '<div class="cmp-list">' +
+    items.map(i =>
+      `<div class="cmp${i.best?' best':''}">
+        <span class="lbl">${i.label}${i.best?'<span class="star">Melhor preço</span>':''}</span>
+        <span class="val">${i.val}</span>
+      </div>`
+    ).join('') +
+    '</div>';
+}
+
 function aplicaOferta(r, o) {
   if (!o) return;
   o.preco = o.pOrc;
@@ -1278,6 +1342,7 @@ function aplicaOferta(r, o) {
   r.geracaoMensal = SAZON.map(f => Math.round(o.g * f));
   r.geracaoAno = r.geracaoMensal.reduce((a,b)=>a+b,0);
   aplicaPrecoCard('', o);
+  renderCompare(o);
   $('#r_inv').textContent = `${o.n} painéis · ${getInversorDisplay(o)}`;
   $('#r_kwp').textContent = o.kwp.toFixed(1).replace('.', ',') + ' kWp';
   $('#r_paineis').textContent = `${o.n} × ${o.pot}W`;
