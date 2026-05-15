@@ -290,6 +290,31 @@
         </div>
         <input type="hidden" id="f-taxamin" value="95">
 
+        <details class="field full" style="margin-top:8px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;">
+          <summary style="cursor:pointer;font-weight:700;font-size:13px;color:#0d2d5e;">⚙️ Garantias, prazo e foto do telhado</summary>
+          <div class="fields" style="margin-top:12px;">
+            <div class="field"><label>Prazo de instalação (dias úteis)</label><input type="number" id="f-prazo-instalacao" min="1" value="45"></div>
+            <div class="field"><label>Garantia painéis (anos)</label><input type="number" id="f-gar-paineis" min="1" value="25"></div>
+            <div class="field"><label>Garantia inversor (anos)</label><input type="number" id="f-gar-inversor" min="1" value="10"></div>
+            <div class="field"><label>Garantia estrutura (anos)</label><input type="number" id="f-gar-estrutura" min="1" value="10"></div>
+            <div class="field"><label>Garantia instalação (anos)</label><input type="number" id="f-gar-instalacao" min="1" value="1"></div>
+          </div>
+          <div class="field full" style="margin-top:10px;">
+            <label>Foto do telhado (opcional)</label>
+            <div id="foto-area">
+              <label id="foto-pick" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:24px 16px;border:2px dashed #cbd5e1;border-radius:10px;cursor:pointer;color:#64748b;font-size:13px;">
+                📷 Tirar foto / escolher do dispositivo
+                <input type="file" id="f-foto-telhado" accept="image/*" capture="environment" style="display:none;" onchange="onFotoTelhadoChange(event)">
+              </label>
+              <div id="foto-preview" style="display:none;align-items:center;gap:10px;margin-top:6px;">
+                <img id="foto-img" alt="Foto do telhado" style="width:160px;height:108px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;">
+                <button type="button" onclick="removerFotoTelhado()" style="padding:8px 12px;border:1px solid #ef4444;background:transparent;color:#ef4444;border-radius:8px;cursor:pointer;font-size:12px;">🗑️ Remover</button>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#64748b;margin-top:6px;">Foto real do telhado aumenta a credibilidade da proposta. Sem foto, essa seção não aparece.</div>
+          </div>
+        </details>
+
         <div class="toggle-group">
           <button id="btn-kwh" class="ativo" onclick="setModo('kwh')">Por consumo (kWh)</button>
           <button id="btn-placas" onclick="setModo('placas')">Por quantidade de placas</button>
@@ -436,20 +461,50 @@
       </a>
     </div>
 
+    <div class="card" id="card-foto-telhado" style="display:none;">
+      <h2>Local da instalação</h2>
+      <div style="border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+        <img id="r-foto-telhado" alt="Foto do telhado" style="width:100%;display:block;max-height:360px;object-fit:cover;">
+      </div>
+      <div id="r-foto-caption" style="font-size:11px;color:#64748b;text-align:center;margin-top:6px;font-style:italic;"></div>
+    </div>
+
+    <div id="card-dcac-warning" class="card" style="display:none;background:#fff7ed;border:1px solid #fdba74;">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <div style="font-size:20px;">⚠️</div>
+        <div id="r-dcac-msg" style="font-size:13px;color:#9a3412;line-height:1.5;"></div>
+      </div>
+    </div>
+
     <div class="card">
       <h2>Garantias</h2>
       <div class="gars">
         <div class="gar">
-          <div class="num">25 anos</div>
+          <div class="num" id="g-paineis"></div>
           <div class="desc">Performance dos módulos</div>
         </div>
         <div class="gar">
           <div class="num" id="g-inv"></div>
-          <div class="desc">Inversores e módulos</div>
+          <div class="desc">Inversores</div>
         </div>
         <div class="gar">
-          <div class="num">1 ano</div>
+          <div class="num" id="g-estrutura"></div>
+          <div class="desc">Estrutura de fixação</div>
+        </div>
+        <div class="gar">
+          <div class="num" id="g-instalacao"></div>
           <div class="desc">Mão de obra</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="card-prazo">
+      <h2>Prazo de instalação</h2>
+      <div style="display:flex;gap:14px;align-items:center;">
+        <div style="font-size:44px;font-weight:900;color:#0d2d5e;line-height:1;letter-spacing:-1.5px;" id="r-prazo-num"></div>
+        <div>
+          <div style="font-weight:700;color:#0d2d5e;font-size:14px;" id="r-prazo-tit"></div>
+          <div style="font-size:12px;color:#64748b;line-height:1.45;margin-top:4px;">Inclui projeto, vistoria técnica, instalação, homologação na concessionária e ART. Pode variar conforme aprovação do órgão regulador.</div>
         </div>
       </div>
     </div>
@@ -1015,6 +1070,67 @@ function acrescimoPorKm(km) {
   return 0;
 }
 
+// Comprime imagem pra max 1200px largura, JPEG 0.82 — foto 3-5MB cai pra ~150kb
+async function compressImage(file, maxW = 1200, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const ratio = img.width > maxW ? maxW / img.width : 1;
+        const w = Math.round(img.width * ratio);
+        const h = Math.round(img.height * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('canvas'));
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('img load'));
+      img.src = String(e.target.result || '');
+    };
+    reader.onerror = () => reject(new Error('reader'));
+    reader.readAsDataURL(file);
+  });
+}
+
+let fotoTelhadoB64 = '';
+
+async function onFotoTelhadoChange(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  try {
+    fotoTelhadoB64 = await compressImage(file);
+    document.getElementById('foto-img').src = fotoTelhadoB64;
+    document.getElementById('foto-pick').style.display = 'none';
+    document.getElementById('foto-preview').style.display = 'flex';
+    if (dadosAtual) {
+      dadosAtual.fotoTelhado = fotoTelhadoB64;
+      if (dadosAtual.codigo) {
+        atualizarPropostaSupabase(dadosAtual.codigo, dadosAtual).catch(e => console.error('PATCH foto:', e));
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    showErro('Erro ao processar imagem. Tente outra.');
+  }
+}
+
+function removerFotoTelhado() {
+  fotoTelhadoB64 = '';
+  document.getElementById('f-foto-telhado').value = '';
+  document.getElementById('foto-img').src = '';
+  document.getElementById('foto-pick').style.display = 'flex';
+  document.getElementById('foto-preview').style.display = 'none';
+  if (dadosAtual) {
+    dadosAtual.fotoTelhado = '';
+    if (dadosAtual.codigo) {
+      atualizarPropostaSupabase(dadosAtual.codigo, dadosAtual).catch(e => console.error('PATCH foto:', e));
+    }
+  }
+}
+
 // Parcela Price com carência: durante a carência os juros capitalizam no saldo
 function pmtPriceCarencia(pv, i, n, carenciaMeses) {
   if (!pv || pv <= 0) return 0;
@@ -1274,7 +1390,26 @@ async function gerar() {
   // Inversores (vem da própria tabela ou do manual)
   const isString = tab.inv.includes('SAJ') || tab.inv.includes('Sungrow');
   const qtdInv = item.invs;
-  const garInv = manualInputs ? manualInputs.garInvIn : (isString ? '10' : '15');
+  // Garantia inversor: prioriza input genérico (f-gar-inversor); fallback no manual; senão default por tipo
+  const garInvInGen = (document.getElementById('f-gar-inversor').value || '').trim();
+  const garInv = garInvInGen || (manualInputs ? manualInputs.garInvIn : (isString ? '10' : '15'));
+
+  // Demais garantias + prazo (editáveis no <details>)
+  const garPaineis    = (document.getElementById('f-gar-paineis').value || '25').trim() || '25';
+  const garEstrutura  = (document.getElementById('f-gar-estrutura').value || '10').trim() || '10';
+  const garInstalacao = (document.getElementById('f-gar-instalacao').value || '1').trim() || '1';
+  const prazoInstalacao = (document.getElementById('f-prazo-instalacao').value || '45').trim() || '45';
+
+  // DC/AC ratio (kWp painéis / kW inversores). Padrão de mercado 1,05-1,30.
+  // Tenta extrair kW do nome do inversor (ex: "Growatt 5K" → 5). Se não conseguir, pula o aviso.
+  const potInvMatch = String(tab.inv || '').match(/([\d.,]+)\s*k/i);
+  const potInvKw = potInvMatch ? parseFloat(potInvMatch[1].replace(',', '.')) : 0;
+  const dcAcRatio = (potInvKw > 0 && qtdInv > 0) ? (item.kwp / (potInvKw * qtdInv)) : 0;
+  let dcAcWarning = '';
+  if (dcAcRatio > 0) {
+    if (dcAcRatio < 1.0) dcAcWarning = `Inversor sobredimensionado (ratio ${dcAcRatio.toFixed(2).replace('.',',')}). Padrão é 1,05-1,30 — cliente paga inversor que não usa.`;
+    else if (dcAcRatio > 1.35) dcAcWarning = `Inversor subdimensionado (ratio ${dcAcRatio.toFixed(2).replace('.',',')}). Vai perder geração nos picos — considere inversor maior.`;
+  }
 
   // Guardar para o WhatsApp / link
   dadosAtual = {
@@ -1290,6 +1425,9 @@ async function gerar() {
     mensalKwh, geracaoAnualKwh, mediaMensalGerada, economiaPercent,
     hspRef: refSolar.hsp,
     qtdInv, garInv,
+    garPaineis, garEstrutura, garInstalacao, prazoInstalacao,
+    fotoTelhado: fotoTelhadoB64 || '',
+    dcAcRatio, dcAcWarning,
     precoVista, precoOrcamento,
     parc10x, parc12x, parc18x,
     fin84x, fin60x,
@@ -1421,7 +1559,34 @@ function renderProposta(d, viaLink) {
   document.getElementById('e-inv').textContent = `${d.qtdInv}× ${d.tab.inv}`;
   document.getElementById('e-pot').textContent = `${d.tab.pot} W / módulo`;
 
-  document.getElementById('g-inv').textContent = `${d.garInv} anos`;
+  document.getElementById('g-paineis').textContent     = `${d.garPaineis || 25} anos`;
+  document.getElementById('g-inv').textContent         = `${d.garInv} anos`;
+  document.getElementById('g-estrutura').textContent   = `${d.garEstrutura || 10} anos`;
+  document.getElementById('g-instalacao').textContent  = (d.garInstalacao && d.garInstalacao !== '1') ? `${d.garInstalacao} anos` : '1 ano';
+
+  // Prazo de instalação
+  const prazo = d.prazoInstalacao || 45;
+  document.getElementById('r-prazo-num').textContent = prazo;
+  document.getElementById('r-prazo-tit').textContent = `${prazo === 1 || prazo === '1' ? 'dia útil' : 'dias úteis'} do contrato à ligação`;
+
+  // Foto do telhado
+  const cardFoto = document.getElementById('card-foto-telhado');
+  if (d.fotoTelhado) {
+    document.getElementById('r-foto-telhado').src = d.fotoTelhado;
+    document.getElementById('r-foto-caption').textContent = d.consultor ? `Vistoria realizada por ${d.consultor}` : 'Foto do local da instalação';
+    cardFoto.style.display = '';
+  } else {
+    cardFoto.style.display = 'none';
+  }
+
+  // DC/AC ratio warning (só pro consultor — esconde via link do cliente)
+  const cardDcAc = document.getElementById('card-dcac-warning');
+  if (!viaLink && d.dcAcWarning) {
+    document.getElementById('r-dcac-msg').textContent = d.dcAcWarning;
+    cardDcAc.style.display = '';
+  } else {
+    cardDcAc.style.display = 'none';
+  }
 
   document.getElementById('r-mensal').textContent = `~ R$ ${fmtN(d.economia)}/mês`;
   document.getElementById('r-25').textContent = `~ R$ ${fmtN(d.economia25)}`;
@@ -1528,6 +1693,7 @@ function novoCliente() {
   if (qtdInvEl) qtdInvEl.value = 1;
   const garEl = document.getElementById('f-man-gar');
   if (garEl) garEl.value = 10;
+  removerFotoTelhado();
   onLinhaChange();
   hideErro();
   dadosAtual = null;
@@ -2429,6 +2595,21 @@ async function editarProposta(codigo) {
 
     document.getElementById('f-descmax').checked = !!d.usarDescMax;
 
+    // Garantias / prazo / foto (propostas antigas usam defaults)
+    document.getElementById('f-prazo-instalacao').value = d.prazoInstalacao || '45';
+    document.getElementById('f-gar-paineis').value      = d.garPaineis || '25';
+    document.getElementById('f-gar-inversor').value     = d.garInv || '10';
+    document.getElementById('f-gar-estrutura').value    = d.garEstrutura || '10';
+    document.getElementById('f-gar-instalacao').value   = d.garInstalacao || '1';
+    if (d.fotoTelhado) {
+      fotoTelhadoB64 = d.fotoTelhado;
+      document.getElementById('foto-img').src = d.fotoTelhado;
+      document.getElementById('foto-pick').style.display = 'none';
+      document.getElementById('foto-preview').style.display = 'flex';
+    } else {
+      removerFotoTelhado();
+    }
+
     // Estado de edição
     editandoCodigo = codigo;
     originalDataEmissao = d.dataEmissao || row.created_at;
@@ -2523,9 +2704,13 @@ ${linhasCli.join('\n')}
 
 ━━━━━━━━━━━━━━━━━━
 🛡️ *GARANTIAS*
-• Módulos: 25 anos de performance | 15 anos contra defeitos
+• Módulos: ${d.garPaineis || 25} anos de performance
 • Inversor: ${d.garInv} anos
-• Mão de obra: 1 ano
+• Estrutura: ${d.garEstrutura || 10} anos
+• Instalação: ${d.garInstalacao || 1} ano${(d.garInstalacao && +d.garInstalacao > 1) ? 's' : ''}
+
+⏱️ *PRAZO DE INSTALAÇÃO*
+${d.prazoInstalacao || 45} dias úteis do contrato à ligação
 
 ━━━━━━━━━━━━━━━━━━
 📈 *RETORNO FINANCEIRO*
