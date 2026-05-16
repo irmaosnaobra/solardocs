@@ -2099,16 +2099,28 @@ async function abrirHistorico() {
       const dt = new Date(r.created_at);
       return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}` === ymAtual;
     });
+    // Vendas fechadas no mês — usa vendido_em (não created_at).
+    // Reginaldo: proposta de abr, venda em mai → conta em mai.
+    const vendasMes = rows.filter(r => {
+      if (!r.vendido || !r.vendido_em) return false;
+      const dt = new Date(r.vendido_em);
+      return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}` === ymAtual;
+    });
 
-    const blocoStats = (titulo, rsBruto) => {
+    const blocoStats = (titulo, rsBruto, vendasOverride) => {
       const rs = dedupPorCliente(rsBruto);
+      const vendasRs = vendasOverride ? dedupPorCliente(vendasOverride) : rs.filter(r => r.vendido);
       const totalKwp = rs.reduce((s, r) => s + Number(r.kwp || 0), 0);
       const totalRs = rs.reduce((s, r) => s + Number((r.dados && r.dados.precoVista) || 0), 0);
-      const totalVendidos = rs.filter(r => r.vendido).length;
-      const valorVendido = rs.filter(r => r.vendido).reduce((s, r) => s + Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0)), 0);
+      const totalVendidos = vendasRs.length;
+      const valorVendido = vendasRs.reduce((s, r) => s + Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0)), 0);
       const taxaConv = rs.length > 0 ? Math.round((totalVendidos / rs.length) * 100) : 0;
       const ticketMedio = totalVendidos > 0 ? valorVendido / totalVendidos : 0;
-      const emNegociacao = totalRs - valorVendido;
+      // "Em negociação" continua usando o universo de propostas criadas (rs):
+      // valor das propostas do mês que ainda não viraram venda
+      const vendidosDoRs = rs.filter(r => r.vendido);
+      const valorVendidoDoRs = vendidosDoRs.reduce((s, r) => s + Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0)), 0);
+      const emNegociacao = totalRs - valorVendidoDoRs;
       const consultores = new Set(rs.map(r => r.consultor_nome).filter(Boolean)).size;
       return `
         <div class="historico-secao">
@@ -2128,7 +2140,7 @@ async function abrirHistorico() {
       `;
     };
 
-    statsBox.innerHTML = blocoStats('📊 Geral', rows) + blocoStats(`📅 Este mês · ${nomeMes(ymAtual)}`, rowsMes);
+    statsBox.innerHTML = blocoStats('📊 Geral', rows) + blocoStats(`📅 Este mês · ${nomeMes(ymAtual)}`, rowsMes, vendasMes);
 
     historicoRows = rows;
     historicoPage = 1;
@@ -2403,15 +2415,23 @@ function abrirHistoricoStats() {
     const dt = new Date(r.created_at);
     return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}` === ymAtual;
   });
-  const blocoStats = (titulo, rsBruto) => {
+  const vendasMes = historicoRows.filter(r => {
+    if (!r.vendido || !r.vendido_em) return false;
+    const dt = new Date(r.vendido_em);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}` === ymAtual;
+  });
+  const blocoStats = (titulo, rsBruto, vendasOverride) => {
     const rs = dedupPorCliente(rsBruto);
+    const vendasRs = vendasOverride ? dedupPorCliente(vendasOverride) : rs.filter(r => r.vendido);
     const totalKwp = rs.reduce((s, r) => s + Number(r.kwp || 0), 0);
     const totalRs = rs.reduce((s, r) => s + Number((r.dados && r.dados.precoVista) || 0), 0);
-    const totalVendidos = rs.filter(r => r.vendido).length;
-    const valorVendido = rs.filter(r => r.vendido).reduce((s, r) => s + Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0)), 0);
+    const totalVendidos = vendasRs.length;
+    const valorVendido = vendasRs.reduce((s, r) => s + Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0)), 0);
     const taxaConv = rs.length > 0 ? Math.round((totalVendidos / rs.length) * 100) : 0;
     const ticketMedio = totalVendidos > 0 ? valorVendido / totalVendidos : 0;
-    const emNegociacao = totalRs - valorVendido;
+    const vendidosDoRs = rs.filter(r => r.vendido);
+    const valorVendidoDoRs = vendidosDoRs.reduce((s, r) => s + Number(r.valor_vendido != null ? r.valor_vendido : ((r.dados && r.dados.precoVista) || 0)), 0);
+    const emNegociacao = totalRs - valorVendidoDoRs;
     const consultores = new Set(rs.map(r => r.consultor_nome).filter(Boolean)).size;
     return `
       <div class="historico-secao">
@@ -2430,7 +2450,7 @@ function abrirHistoricoStats() {
       </div>
     `;
   };
-  statsBox.innerHTML = blocoStats('📊 Geral', historicoRows) + blocoStats(`📅 Este mês · ${nomeMes(ymAtual)}`, rowsMes);
+  statsBox.innerHTML = blocoStats('📊 Geral', historicoRows) + blocoStats(`📅 Este mês · ${nomeMes(ymAtual)}`, rowsMes, vendasMes);
 }
 
 async function editarProposta(codigo) {
