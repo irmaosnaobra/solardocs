@@ -1378,3 +1378,75 @@
       print-color-adjust: exact !important;
     }
   }
+
+/* ====== Celebração de venda ====== */
+.celebra-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  pointer-events: auto;
+  background: radial-gradient(circle at center, rgba(13,45,94,0.35), rgba(0,0,0,0.55));
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  animation: celebra-fade-in 0.2s ease-out;
+}
+.celebra-overlay.out { animation: celebra-fade-out 0.4s ease-in forwards; }
+.celebra-parabens {
+  position: relative; z-index: 2;
+  font-weight: 900;
+  font-size: clamp(48px, 14vw, 160px);
+  line-height: 1;
+  text-align: center;
+  color: #fff;
+  text-shadow:
+    0 0 20px rgba(255,215,0,0.9),
+    0 0 40px rgba(255,165,0,0.7),
+    0 6px 0 #b8860b,
+    0 10px 30px rgba(0,0,0,0.5);
+  background: linear-gradient(180deg, #fff8dc 0%, #ffd700 45%, #ff8c00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: celebra-pop 0.55s cubic-bezier(.2,1.6,.4,1) both, celebra-shake 0.6s ease-in-out 0.55s;
+  letter-spacing: -0.02em;
+  padding: 0 16px;
+}
+.celebra-sub {
+  position: absolute;
+  top: calc(50% + clamp(50px, 10vw, 110px));
+  left: 50%; transform: translateX(-50%);
+  z-index: 2;
+  color: #fff;
+  font-size: clamp(16px, 3vw, 22px);
+  font-weight: 600;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  white-space: nowrap;
+  animation: celebra-fade-in 0.4s ease-out 0.4s both;
+}
+.celebra-confete {
+  position: absolute;
+  top: -20px;
+  width: 10px; height: 16px;
+  opacity: 0.95;
+  will-change: transform, opacity;
+  animation: celebra-cair linear forwards;
+}
+@keyframes celebra-pop {
+  0%   { transform: scale(0.3) rotate(-8deg); opacity: 0; }
+  60%  { transform: scale(1.15) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@keyframes celebra-shake {
+  0%,100% { transform: translate(0,0) rotate(0); }
+  25%     { transform: translate(-6px,2px) rotate(-1.5deg); }
+  50%     { transform: translate(6px,-2px) rotate(1.5deg); }
+  75%     { transform: translate(-4px,1px) rotate(-1deg); }
+}
+@keyframes celebra-cair {
+  0%   { transform: translate3d(0,-20px,0) rotate(0); opacity: 1; }
+  100% { transform: translate3d(var(--dx, 0px), 110vh, 0) rotate(var(--rot, 720deg)); opacity: 0.9; }
+}
+@keyframes celebra-fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes celebra-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .celebra-parabens { animation: celebra-fade-in 0.3s ease-out both; }
+  .celebra-confete { display: none; }
+}

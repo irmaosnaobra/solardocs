@@ -2169,6 +2169,55 @@ function fecharModalVenda() {
   _vendaCodigo = null;
 }
 
+function dispararConfetes(valor) {
+  const old = document.getElementById('celebra-overlay');
+  if (old) old.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'celebra-overlay';
+  overlay.className = 'celebra-overlay';
+  const parabens = document.createElement('div');
+  parabens.className = 'celebra-parabens';
+  parabens.textContent = 'PARABÉNS! 🎉';
+  overlay.appendChild(parabens);
+  if (valor && valor > 0) {
+    const sub = document.createElement('div');
+    sub.className = 'celebra-sub';
+    sub.textContent = `Venda fechada: R$ ${fmt(valor)}`;
+    overlay.appendChild(sub);
+  }
+  const cores = ['#ffd700','#ff6b6b','#4ecdc4','#ffe66d','#a8e6cf','#ff8c42','#7367f0','#28c76f','#ff4d6d','#00cfe8'];
+  const N = 120;
+  const vw = window.innerWidth;
+  for (let i = 0; i < N; i++) {
+    const c = document.createElement('span');
+    c.className = 'celebra-confete';
+    const startX = Math.random() * vw;
+    const drift = (Math.random() - 0.5) * 320;
+    const rot = (Math.random() * 1080 + 360) * (Math.random() < 0.5 ? -1 : 1);
+    const dur = 2.2 + Math.random() * 1.6;
+    const delay = Math.random() * 0.6;
+    const w = 6 + Math.random() * 8;
+    const h = 10 + Math.random() * 14;
+    c.style.left = startX + 'px';
+    c.style.width = w + 'px';
+    c.style.height = h + 'px';
+    c.style.background = cores[i % cores.length];
+    c.style.borderRadius = Math.random() < 0.3 ? '50%' : '2px';
+    c.style.setProperty('--dx', drift + 'px');
+    c.style.setProperty('--rot', rot + 'deg');
+    c.style.animationDuration = dur + 's';
+    c.style.animationDelay = delay + 's';
+    overlay.appendChild(c);
+  }
+  const fechar = () => {
+    overlay.classList.add('out');
+    setTimeout(() => overlay.remove(), 400);
+  };
+  overlay.addEventListener('click', fechar);
+  document.body.appendChild(overlay);
+  setTimeout(fechar, 2800);
+}
+
 async function confirmarVenda() {
   if (!_vendaCodigo) return;
   const valor = parseFloat(document.getElementById('venda-valor').value);
@@ -2200,6 +2249,7 @@ async function confirmarVenda() {
     renderHistoricoTbody();
     renderRanking(historicoRows);
     document.getElementById('historico-stats').innerHTML = '';
+    if (!jaEraVendido) dispararConfetes(valor);
     showToast(jaEraVendido ? `✅ Venda atualizada: R$ ${fmt(valor)}` : `🎉 Venda confirmada: R$ ${fmt(valor)}!`);
     // Re-render stats
     abrirHistoricoStats();
