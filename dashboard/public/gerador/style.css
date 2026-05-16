@@ -192,8 +192,8 @@
     50% { transform: translateX(-50%) translateY(-2px); }
   }
   .podio-card .avatar {
-    width: 27px;
-    height: 27px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: white;
     color: #0d2d5e;
@@ -201,11 +201,16 @@
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 10px;
-    margin: 0 auto 3px;
-    border: 1.5px solid;
+    font-size: 14px;
+    margin: 0 auto 4px;
+    border: 2px solid;
     box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
   }
+  .podio-card .avatar.foto { color: transparent; }
   .podio-card .medalha {
     font-size: 14px;
     line-height: 1;
@@ -296,7 +301,7 @@
     .podio-card { padding: 5px 3px 5px; border-radius: 6px; }
     .podio-card.p1 { transform: translateY(-4px); padding-top: 11px; }
     .podio-card .crown { font-size: 14px; top: -11px; }
-    .podio-card .avatar { width: 22px; height: 22px; font-size: 9px; }
+    .podio-card .avatar { width: 40px; height: 40px; font-size: 12px; }
     .podio-card .medalha { font-size: 12px; }
     .podio-card .nome { font-size: 9px; }
     .podio-card.p1 .nome { font-size: 10px; }

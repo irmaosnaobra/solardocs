@@ -673,6 +673,27 @@ async function purgarPropostasExpiradas() {
   }
 }
 
+// Fotos dos consultores (carregadas do banco; cache por sessão)
+let consultoresFotos = {};
+async function carregarConsultoresFotos() {
+  try {
+    const rows = await supaGet('consultores?select=nome,foto_url');
+    consultoresFotos = {};
+    for (const r of (rows || [])) {
+      if (r.nome && r.foto_url) consultoresFotos[r.nome] = r.foto_url;
+    }
+  } catch (e) {
+    console.error('Falha ao carregar fotos dos consultores:', e);
+  }
+}
+function avatarConsultorHtml(nome) {
+  const foto = consultoresFotos[nome];
+  if (foto) {
+    return `<div class="avatar foto" style="background-image:url('${foto}')" title="${escapeHtml(nome)}">${escapeHtml(initials(nome))}</div>`;
+  }
+  return `<div class="avatar">${escapeHtml(initials(nome))}</div>`;
+}
+
 function _propostaRowFromDados(d) {
   const cidade = (d.cidade || '').trim();
   const partes = cidade.split(',').map(s => s.trim()).filter(Boolean);
@@ -1823,7 +1844,7 @@ function renderRanking(rows) {
         <div class="podio-card p${c.pos}">
           ${c.pos === 1 ? '<div class="crown">👑</div>' : ''}
           <div class="medalha">${medalhas[c.pos]}</div>
-          <div class="avatar">${escapeHtml(initials(c.nome))}</div>
+          ${avatarConsultorHtml(c.nome)}
           <div class="nome" title="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}</div>
           <div style="${trioStyle}">
             <div style="${statRowStyle}">
@@ -2056,6 +2077,7 @@ async function abrirHistorico() {
 
   try {
     await purgarPropostasExpiradas();
+    await carregarConsultoresFotos();
     const rows = await supaGet('propostas?select=*&order=created_at.desc&limit=500');
     if (!rows || rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="19" class="historico-vazio">Nenhuma proposta gerada ainda. Volte e gere a primeira!</td></tr>';
