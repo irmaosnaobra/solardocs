@@ -1659,7 +1659,51 @@ function nomeMes(ym) {
   return `${meses[m-1]}/${String(y).slice(-2)}`;
 }
 
+function chaveCliente(r) {
+  const tel = (r.dados && (r.dados.telefoneDigitos || (r.dados.telefone || '').replace(/\D/g, ''))) || '';
+  if (tel && tel.length >= 8) return 'tel:' + tel;
+  const nome = (r.cliente_nome || '').trim().toLowerCase();
+  const cid = (r.cliente_cidade || '').trim().toLowerCase();
+  if (nome) return 'nm:' + nome + '|' + cid;
+  return 'id:' + r.codigo;
+}
+
+// Mantém só a proposta mais recente por cliente (chave = WhatsApp).
+// Se a versão mais recente foi vendida, a venda também conta — caso contrário,
+// olha as outras propostas do mesmo cliente pra ver se alguma foi vendida.
+function dedupPorCliente(rows) {
+  const sorted = [...rows].sort((a, b) => {
+    const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return tb - ta;
+  });
+  const grupos = new Map();
+  for (const r of sorted) {
+    const k = chaveCliente(r);
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(r);
+  }
+  const out = [];
+  for (const grupo of grupos.values()) {
+    const principal = { ...grupo[0] };
+    if (!principal.vendido) {
+      const vendida = grupo.find(g => g.vendido);
+      if (vendida) {
+        principal.vendido = true;
+        principal.vendido_em = vendida.vendido_em;
+        principal.vendido_por = vendida.vendido_por;
+        principal.valor_vendido = vendida.valor_vendido;
+        principal.forma_pagamento = vendida.forma_pagamento;
+        principal.obs_venda = vendida.obs_venda;
+      }
+    }
+    out.push(principal);
+  }
+  return out;
+}
+
 function buildRankingPorMes(rows) {
+  const rowsUnicas = dedupPorCliente(rows);
   const map = new Map();
   const ensure = (ym) => {
     if (!map.has(ym)) map.set(ym, { ym, rows: [], vendasFechadas: [] });
@@ -1669,7 +1713,7 @@ function buildRankingPorMes(rows) {
     const dt = new Date(iso);
     return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}`;
   };
-  for (const r of rows) {
+  for (const r of rowsUnicas) {
     if (r.created_at) ensure(ymOf(r.created_at)).rows.push(r);
     if (r.vendido) {
       const ymVenda = r.vendido_em ? ymOf(r.vendido_em) : (r.created_at ? ymOf(r.created_at) : null);
@@ -1769,7 +1813,7 @@ function renderRanking(rows) {
             </div>
             <div style="${statRowStyle}">
               <span style="${!rankPorVendas ? bigStyle : numStyle}">${c.qtd}</span>
-              <span style="${lblStyle}">proposta${c.qtd !== 1 ? 's' : ''}</span>
+              <span style="${lblStyle}" title="Clientes únicos — várias propostas pro mesmo WhatsApp contam como 1">cliente${c.qtd !== 1 ? 's' : ''}</span>
             </div>
             <div style="${statRowStyle}">
               <span style="${numStyle}">R$ ${fmtN(valorMostrar)}</span>
@@ -1785,8 +1829,8 @@ function renderRanking(rows) {
     <div class="ranking-resto">
       ${resto.map((c, i) => {
         const linha = rankPorVendas
-          ? `${c.vendidos} venda${c.vendidos !== 1 ? 's' : ''} · ${c.qtd} proposta${c.qtd !== 1 ? 's' : ''} · ${c.kwp.toFixed(1)} kWp${c.valorVendido ? ' · R$ ' + fmt(c.valorVendido) + ' vendido' : ''}`
-          : `${c.qtd} proposta${c.qtd !== 1 ? 's' : ''} · ${c.kwp.toFixed(1)} kWp · ${c.acessos} abertura${c.acessos !== 1 ? 's' : ''}${c.valor ? ' · R$ ' + fmt(c.valor) : ''}`;
+          ? `${c.vendidos} venda${c.vendidos !== 1 ? 's' : ''} · ${c.qtd} cliente${c.qtd !== 1 ? 's' : ''} · ${c.kwp.toFixed(1)} kWp${c.valorVendido ? ' · R$ ' + fmt(c.valorVendido) + ' vendido' : ''}`
+          : `${c.qtd} cliente${c.qtd !== 1 ? 's' : ''} · ${c.kwp.toFixed(1)} kWp · ${c.acessos} abertura${c.acessos !== 1 ? 's' : ''}${c.valor ? ' · R$ ' + fmt(c.valor) : ''}`;
         return `
         <div class="ranking-row">
           <div class="pos">${i + 4}º</div>
@@ -1800,17 +1844,17 @@ function renderRanking(rows) {
   `;
 
   container.innerHTML = `
-    <h3>🏆 Ranking de propostas por mês</h3>
+    <h3>🏆 Ranking de clientes por mês</h3>
     <div class="ranking-meses">
       ${meses.map(m => `
-        <button class="ranking-mes-btn ${m.ym === rankingMesAtivo ? 'ativo' : ''}" onclick="selecionarMesRanking('${m.ym}')">
+        <button class="ranking-mes-btn ${m.ym === rankingMesAtivo ? 'ativo' : ''}" onclick="selecionarMesRanking('${m.ym}')" title="Clientes únicos (dedup por WhatsApp)">
           ${nomeMes(m.ym)}<span class="qtd">${m.rows.length}</span>
         </button>
       `).join('')}
     </div>
     <div style="font-size:13px; color:#555; margin-bottom:6px;">
-      <strong>${nomeMes(mesAtual.ym)}</strong> · ${totalMes} proposta${totalMes !== 1 ? 's' : ''} · ${totalKwpMes.toFixed(1)} kWp totais
-      ${rankPorVendas ? '' : ' · <span style="color:#888;font-style:italic;">sem vendas marcadas — ranqueando por propostas geradas</span>'}
+      <strong>${nomeMes(mesAtual.ym)}</strong> · ${totalMes} cliente${totalMes !== 1 ? 's' : ''} único${totalMes !== 1 ? 's' : ''} · ${totalKwpMes.toFixed(1)} kWp totais
+      ${rankPorVendas ? '' : ' · <span style="color:#888;font-style:italic;">sem vendas marcadas — ranqueando por clientes atendidos</span>'}
     </div>
     ${podioHtml}
     ${restoHtml}
@@ -1848,7 +1892,7 @@ function renderGraficoMes(rows) {
   container.innerHTML = `
     <div style="margin:0 0 12px 0;font-size:13px;color:#0d2d5e;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">📊 Evolução mensal</div>
     <div style="display:flex;gap:14px;margin-bottom:10px;font-size:11px;color:#555;font-weight:600;">
-      <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#4a90e2;display:inline-block;"></span>Propostas</div>
+      <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#4a90e2;display:inline-block;"></span>Clientes</div>
       <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#2ecc71;display:inline-block;"></span>Vendidos</div>
       <div style="margin-left:auto;font-size:10px;color:#888;font-weight:500;">% = conversão do mês</div>
     </div>
@@ -2312,7 +2356,7 @@ function abrirHistoricoStats() {
     const ticketMedio = totalVendidos > 0 ? valorVendido / totalVendidos : 0;
     const emNegociacao = totalRs - valorVendido;
     const consultores = new Set(rs.map(r => r.consultor_nome).filter(Boolean)).size;
-    const clientes = new Set(rs.map(r => r.cliente_nome).filter(Boolean)).size;
+    const clientes = new Set(rs.map(chaveCliente)).size;
     return `
       <div class="historico-secao">
         <h4>${titulo}</h4>
