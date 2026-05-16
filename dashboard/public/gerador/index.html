@@ -696,7 +696,9 @@ async function carregarConsultoresFotos() {
 function avatarConsultorHtml(nome) {
   const foto = consultoresFotos[nome];
   if (foto) {
-    return `<div class="avatar foto" style="background-image:url('${foto}')" title="${escapeHtml(nome)}">${escapeHtml(initials(nome))}</div>`;
+    // Estilo inline: funciona mesmo se o style.css cacheado for antigo
+    const s = 'width:48px;height:48px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 4px;border:2px solid currentColor;box-shadow:0 1px 4px rgba(0,0,0,0.15);background:#fff;';
+    return `<img class="avatar foto" src="${foto}" alt="${escapeHtml(nome)}" title="${escapeHtml(nome)}" loading="lazy" style="${s}" onerror="this.outerHTML='<div class=\\'avatar\\'>${escapeHtml(initials(nome))}</div>'">`;
   }
   return `<div class="avatar">${escapeHtml(initials(nome))}</div>`;
 }
