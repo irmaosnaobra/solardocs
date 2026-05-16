@@ -535,12 +535,13 @@
               <th>Enviado</th>
               <th>Acessos</th>
               <th>Último acesso</th>
+              <th>Dia da Venda</th>
               <th>Valor</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody id="historico-tbody">
-            <tr><td colspan="19" class="historico-vazio">Carregando...</td></tr>
+            <tr><td colspan="20" class="historico-vazio">Carregando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -1974,7 +1975,7 @@ function renderHistoricoTbody() {
   const pageRows = rowsFiltradas.slice(start, start + HISTORICO_PER_PAGE);
 
   if (pageRows.length === 0 && historicoRows.length > 0) {
-    tbody.innerHTML = `<tr><td colspan="19" class="historico-vazio">Nenhuma proposta no filtro "${filtroStatus}".</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="20" class="historico-vazio">Nenhuma proposta no filtro "${filtroStatus}".</td></tr>`;
     if (pag) pag.style.display = 'none';
     return;
   }
@@ -2020,6 +2021,7 @@ function renderHistoricoTbody() {
       <td>${enviadoCell}</td>
       <td><strong>${r.acessos || 0}</strong></td>
       <td>${r.ultimo_acesso ? formatDataBR(r.ultimo_acesso) : '<span style="color:#aaa">nunca</span>'}</td>
+      <td>${r.vendido && r.vendido_em ? '<strong style="color:#2ecc71">' + new Date(r.vendido_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' }) + '</strong>' : '<span style="color:#aaa">-</span>'}</td>
       <td class="valor-cell">${valorCell}</td>
       <td>
         <div class="acoes-mini">
@@ -2074,7 +2076,7 @@ async function abrirHistorico() {
   const rk = document.getElementById('ranking-mes');
   const gr = document.getElementById('grafico-mes');
   const filtros = document.getElementById('historico-filtros');
-  tbody.innerHTML = '<tr><td colspan="19" class="historico-vazio">Carregando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="20" class="historico-vazio">Carregando...</td></tr>';
   statsBox.innerHTML = '';
   if (pag) pag.style.display = 'none';
   if (rk) rk.style.display = 'none';
@@ -2086,7 +2088,7 @@ async function abrirHistorico() {
     await carregarConsultoresFotos();
     const rows = await supaGet('propostas?select=*&order=created_at.desc&limit=500');
     if (!rows || rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="19" class="historico-vazio">Nenhuma proposta gerada ainda. Volte e gere a primeira!</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="20" class="historico-vazio">Nenhuma proposta gerada ainda. Volte e gere a primeira!</td></tr>';
       return;
     }
 
@@ -2136,7 +2138,7 @@ async function abrirHistorico() {
     renderHistoricoTbody();
   } catch (e) {
     console.error(e);
-    tbody.innerHTML = `<tr><td colspan="19" class="historico-vazio">Erro ao carregar: ${escapeHtml(e.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="20" class="historico-vazio">Erro ao carregar: ${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
