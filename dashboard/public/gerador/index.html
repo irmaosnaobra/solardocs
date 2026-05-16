@@ -654,6 +654,25 @@ async function supaPatch(query, body) {
   return r.json();
 }
 
+async function supaDelete(query) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, {
+    method: 'DELETE',
+    headers: { ...supaHeaders(), 'Prefer': 'return=minimal' }
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return true;
+}
+
+// Apaga TUDO que passou de 168h (7 dias). Roda ao abrir o histórico.
+async function purgarPropostasExpiradas() {
+  try {
+    const cutoff = new Date(Date.now() - 168 * 60 * 60 * 1000).toISOString();
+    await supaDelete(`propostas?created_at=lt.${encodeURIComponent(cutoff)}`);
+  } catch (e) {
+    console.error('Falha ao purgar propostas expiradas (>168h):', e);
+  }
+}
+
 function _propostaRowFromDados(d) {
   const cidade = (d.cidade || '').trim();
   const partes = cidade.split(',').map(s => s.trim()).filter(Boolean);
@@ -2036,6 +2055,7 @@ async function abrirHistorico() {
   if (filtros) filtros.style.display = 'none';
 
   try {
+    await purgarPropostasExpiradas();
     const rows = await supaGet('propostas?select=*&order=created_at.desc&limit=500');
     if (!rows || rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="19" class="historico-vazio">Nenhuma proposta gerada ainda. Volte e gere a primeira!</td></tr>';
@@ -2051,9 +2071,6 @@ async function abrirHistorico() {
     });
 
     const blocoStats = (titulo, rs) => {
-      const totalAcessos = rs.reduce((s, r) => s + (r.acessos || 0), 0);
-      const totalLink = rs.reduce((s, r) => s + (r.enviado_link || 0), 0);
-      const totalWpp = rs.reduce((s, r) => s + (r.enviado_wpp || 0), 0);
       const totalKwp = rs.reduce((s, r) => s + Number(r.kwp || 0), 0);
       const totalRs = rs.reduce((s, r) => s + Number((r.dados && r.dados.precoVista) || 0), 0);
       const totalVendidos = rs.filter(r => r.vendido).length;
@@ -2062,7 +2079,7 @@ async function abrirHistorico() {
       const ticketMedio = totalVendidos > 0 ? valorVendido / totalVendidos : 0;
       const emNegociacao = totalRs - valorVendido;
       const consultores = new Set(rs.map(r => r.consultor_nome).filter(Boolean)).size;
-      const clientes = new Set(rs.map(r => r.cliente_nome).filter(Boolean)).size;
+      const clientes = new Set(rs.map(chaveCliente)).size;
       return `
         <div class="historico-secao">
           <h4>${titulo}</h4>
@@ -2071,9 +2088,6 @@ async function abrirHistorico() {
             <div class="historico-stat"><div class="lbl">Clientes</div><div class="val">${clientes}</div></div>
             <div class="historico-stat"><div class="lbl">Consultores</div><div class="val">${consultores}</div></div>
             <div class="historico-stat"><div class="lbl">kWp totais</div><div class="val">${totalKwp.toFixed(1)}</div></div>
-            <div class="historico-stat"><div class="lbl">🔗 Links</div><div class="val">${totalLink}</div></div>
-            <div class="historico-stat"><div class="lbl">📱 WhatsApp</div><div class="val">${totalWpp}</div></div>
-            <div class="historico-stat"><div class="lbl">Aberturas</div><div class="val">${totalAcessos}</div></div>
             <div class="historico-stat"><div class="lbl">💰 Total propostas</div><div class="val">R$ ${fmt(totalRs)}</div></div>
             <div class="historico-stat destaque-vendido"><div class="lbl">🎯 Vendidos</div><div class="val">${totalVendidos}</div></div>
             <div class="historico-stat destaque-conv"><div class="lbl">📈 Conversão</div><div class="val">${taxaConv}%</div></div>
@@ -2345,9 +2359,6 @@ function abrirHistoricoStats() {
     return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}` === ymAtual;
   });
   const blocoStats = (titulo, rs) => {
-    const totalAcessos = rs.reduce((s, r) => s + (r.acessos || 0), 0);
-    const totalLink = rs.reduce((s, r) => s + (r.enviado_link || 0), 0);
-    const totalWpp = rs.reduce((s, r) => s + (r.enviado_wpp || 0), 0);
     const totalKwp = rs.reduce((s, r) => s + Number(r.kwp || 0), 0);
     const totalRs = rs.reduce((s, r) => s + Number((r.dados && r.dados.precoVista) || 0), 0);
     const totalVendidos = rs.filter(r => r.vendido).length;
@@ -2365,9 +2376,6 @@ function abrirHistoricoStats() {
           <div class="historico-stat"><div class="lbl">Clientes</div><div class="val">${clientes}</div></div>
           <div class="historico-stat"><div class="lbl">Consultores</div><div class="val">${consultores}</div></div>
           <div class="historico-stat"><div class="lbl">kWp totais</div><div class="val">${totalKwp.toFixed(1)}</div></div>
-          <div class="historico-stat"><div class="lbl">🔗 Links</div><div class="val">${totalLink}</div></div>
-          <div class="historico-stat"><div class="lbl">📱 WhatsApp</div><div class="val">${totalWpp}</div></div>
-          <div class="historico-stat"><div class="lbl">Aberturas</div><div class="val">${totalAcessos}</div></div>
           <div class="historico-stat"><div class="lbl">💰 Total propostas</div><div class="val">R$ ${fmt(totalRs)}</div></div>
           <div class="historico-stat destaque-vendido"><div class="lbl">🎯 Vendidos</div><div class="val">${totalVendidos}</div></div>
           <div class="historico-stat destaque-conv"><div class="lbl">📈 Conversão</div><div class="val">${taxaConv}%</div></div>
