@@ -567,6 +567,10 @@
       <input type="number" id="venda-valor" step="0.01" min="0" inputmode="decimal">
     </div>
     <div class="field">
+      <label>Data do fechamento *</label>
+      <input type="date" id="venda-data">
+    </div>
+    <div class="field">
       <label>Forma de pagamento</label>
       <select id="venda-pagamento">
         <option value="">--</option>
@@ -2237,6 +2241,10 @@ function abrirModalVenda(codigo) {
 
   const valorDefault = r.valor_vendido != null ? r.valor_vendido : precoVista;
   document.getElementById('venda-valor').value = Number(valorDefault).toFixed(2);
+  // Data: pega a existente se for edição; senão, hoje. Sempre no formato YYYY-MM-DD local.
+  const dataBase = r.vendido_em ? new Date(r.vendido_em) : new Date();
+  const ymd = `${dataBase.getFullYear()}-${String(dataBase.getMonth()+1).padStart(2,'0')}-${String(dataBase.getDate()).padStart(2,'0')}`;
+  document.getElementById('venda-data').value = ymd;
   document.getElementById('venda-pagamento').value = r.forma_pagamento || '';
   document.getElementById('venda-obs').value = r.obs_venda || '';
 
@@ -2306,16 +2314,28 @@ async function confirmarVenda() {
     showToast('Informe um valor válido');
     return;
   }
+  const dataStr = document.getElementById('venda-data').value;
+  if (!dataStr) {
+    showToast('Informe a data do fechamento');
+    return;
+  }
   const pagamento = document.getElementById('venda-pagamento').value || null;
   const obs = (document.getElementById('venda-obs').value || '').trim() || null;
   const consultor = getConsultorAtual();
   const r = historicoRows.find(x => x.codigo === _vendaCodigo);
   const jaEraVendido = r && r.vendido;
 
+  // Se a data escolhida = hoje, usa now() (mantém hora cheia). Se for passado, meio-dia local.
+  const hoje = new Date();
+  const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
+  const vendidoEm = (dataStr === hojeStr)
+    ? hoje.toISOString()
+    : new Date(dataStr + 'T12:00:00').toISOString();
+
   try {
     const body = {
       vendido: true,
-      vendido_em: jaEraVendido && r.vendido_em ? r.vendido_em : new Date().toISOString(),
+      vendido_em: vendidoEm,
       vendido_por: jaEraVendido && r.vendido_por ? r.vendido_por : consultor,
       valor_vendido: valor,
       forma_pagamento: pagamento,
