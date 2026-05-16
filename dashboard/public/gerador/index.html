@@ -663,11 +663,13 @@ async function supaDelete(query) {
   return true;
 }
 
-// Apaga TUDO que passou de 168h (7 dias). Roda ao abrir o histórico.
+// Apaga propostas NÃO vendidas que passaram de 168h (7 dias).
+// Vendas ficam pra sempre — preservam histórico, ranking e relatórios.
 async function purgarPropostasExpiradas() {
   try {
     const cutoff = new Date(Date.now() - 168 * 60 * 60 * 1000).toISOString();
-    await supaDelete(`propostas?created_at=lt.${encodeURIComponent(cutoff)}`);
+    const q = `propostas?created_at=lt.${encodeURIComponent(cutoff)}&or=(vendido.is.null,vendido.eq.false)`;
+    await supaDelete(q);
   } catch (e) {
     console.error('Falha ao purgar propostas expiradas (>168h):', e);
   }
