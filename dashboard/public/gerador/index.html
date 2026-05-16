@@ -2092,7 +2092,8 @@ async function abrirHistorico() {
       return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}` === ymAtual;
     });
 
-    const blocoStats = (titulo, rs) => {
+    const blocoStats = (titulo, rsBruto) => {
+      const rs = dedupPorCliente(rsBruto);
       const totalKwp = rs.reduce((s, r) => s + Number(r.kwp || 0), 0);
       const totalRs = rs.reduce((s, r) => s + Number((r.dados && r.dados.precoVista) || 0), 0);
       const totalVendidos = rs.filter(r => r.vendido).length;
@@ -2101,13 +2102,11 @@ async function abrirHistorico() {
       const ticketMedio = totalVendidos > 0 ? valorVendido / totalVendidos : 0;
       const emNegociacao = totalRs - valorVendido;
       const consultores = new Set(rs.map(r => r.consultor_nome).filter(Boolean)).size;
-      const clientes = new Set(rs.map(chaveCliente)).size;
       return `
         <div class="historico-secao">
           <h4>${titulo}</h4>
           <div class="historico-stats">
-            <div class="historico-stat"><div class="lbl">Propostas</div><div class="val">${rs.length}</div></div>
-            <div class="historico-stat"><div class="lbl">Clientes</div><div class="val">${clientes}</div></div>
+            <div class="historico-stat"><div class="lbl">Clientes</div><div class="val">${rs.length}</div></div>
             <div class="historico-stat"><div class="lbl">Consultores</div><div class="val">${consultores}</div></div>
             <div class="historico-stat"><div class="lbl">kWp totais</div><div class="val">${totalKwp.toFixed(1)}</div></div>
             <div class="historico-stat"><div class="lbl">💰 Total propostas</div><div class="val">R$ ${fmt(totalRs)}</div></div>
@@ -2380,7 +2379,8 @@ function abrirHistoricoStats() {
     const dt = new Date(r.created_at);
     return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2, '0')}` === ymAtual;
   });
-  const blocoStats = (titulo, rs) => {
+  const blocoStats = (titulo, rsBruto) => {
+    const rs = dedupPorCliente(rsBruto);
     const totalKwp = rs.reduce((s, r) => s + Number(r.kwp || 0), 0);
     const totalRs = rs.reduce((s, r) => s + Number((r.dados && r.dados.precoVista) || 0), 0);
     const totalVendidos = rs.filter(r => r.vendido).length;
@@ -2389,13 +2389,11 @@ function abrirHistoricoStats() {
     const ticketMedio = totalVendidos > 0 ? valorVendido / totalVendidos : 0;
     const emNegociacao = totalRs - valorVendido;
     const consultores = new Set(rs.map(r => r.consultor_nome).filter(Boolean)).size;
-    const clientes = new Set(rs.map(chaveCliente)).size;
     return `
       <div class="historico-secao">
         <h4>${titulo}</h4>
         <div class="historico-stats">
-          <div class="historico-stat"><div class="lbl">Propostas</div><div class="val">${rs.length}</div></div>
-          <div class="historico-stat"><div class="lbl">Clientes</div><div class="val">${clientes}</div></div>
+          <div class="historico-stat"><div class="lbl">Clientes</div><div class="val">${rs.length}</div></div>
           <div class="historico-stat"><div class="lbl">Consultores</div><div class="val">${consultores}</div></div>
           <div class="historico-stat"><div class="lbl">kWp totais</div><div class="val">${totalKwp.toFixed(1)}</div></div>
           <div class="historico-stat"><div class="lbl">💰 Total propostas</div><div class="val">R$ ${fmt(totalRs)}</div></div>
