@@ -196,6 +196,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<'users'|'visits'|'io_visits'|'sim_visits'>('users');
 
   const [users, setUsers]               = useState<UserRow[]>([]);
+  const [documents, setDocuments]       = useState<{created_at: string}[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [search, setSearch]             = useState('');
   const [filterPlano, setFilterPlano]   = useState('todos');
@@ -218,7 +219,10 @@ export default function AdminPage() {
   const [metaLoaded, setMetaLoaded]       = useState(false);
 
   useEffect(() => {
-    api.get('/admin/users').then(r => setUsers(r.data.users)).catch(()=>{}).finally(()=>setLoadingUsers(false));
+    api.get('/admin/users').then(r => {
+      setUsers(r.data.users);
+      setDocuments(r.data.documents ?? []);
+    }).catch(()=>{}).finally(()=>setLoadingUsers(false));
   }, []);
 
   const loadAnalytics = useCallback((p?: string) => {
@@ -277,6 +281,34 @@ export default function AdminPage() {
   const totalPro  = filteredUsers.filter(u=>u.plano==='pro').length;
   const totalVip  = filteredUsers.filter(u=>u.plano==='ilimitado').length;
   const totalFree = filteredUsers.filter(u=>u.plano==='free').length;
+
+  const totalDocs = documents.filter(d => {
+    if (filterPeriodo === 'maximo') return true;
+    const now = nowBrasilia();
+    const dt  = toBrasilia(d.created_at);
+    if (filterPeriodo === 'hoje') {
+      return dt.getUTCFullYear()===now.getUTCFullYear() && dt.getUTCMonth()===now.getUTCMonth() && dt.getUTCDate()===now.getUTCDate();
+    }
+    if (filterPeriodo === 'ontem') {
+      const ontem = new Date(now); ontem.setUTCDate(ontem.getUTCDate()-1);
+      return dt.getUTCFullYear()===ontem.getUTCFullYear() && dt.getUTCMonth()===ontem.getUTCMonth() && dt.getUTCDate()===ontem.getUTCDate();
+    }
+    if (filterPeriodo === '7dias') {
+      const sete = new Date(now); sete.setUTCDate(sete.getUTCDate()-6); sete.setUTCHours(0,0,0,0);
+      return dt >= sete;
+    }
+    if (filterPeriodo === 'mes') {
+      return dt.getUTCFullYear()===now.getUTCFullYear() && dt.getUTCMonth()===now.getUTCMonth();
+    }
+    if (filterPeriodo === 'custom') {
+      const from = customFrom ? new Date(customFrom+'T03:00:00Z') : null;
+      const to   = customTo   ? new Date(customTo  +'T02:59:59Z') : null;
+      if (from && dt < from) return false;
+      if (to   && dt > to)   return false;
+      return true;
+    }
+    return true;
+  }).length;
 
   const baseSessions = (analytics?.sessions??[]);
 
@@ -378,6 +410,7 @@ export default function AdminPage() {
         <>
           <div className={styles.cards}>
             <div className={styles.card}><div className={styles.cardLabel}>Cadastros (Período)</div><div className={styles.cardValue} style={{color:'#22c55e'}}>{totalPeriodo}</div></div>
+            <div className={styles.card}><div className={styles.cardLabel}>Documentos Gerados</div><div className={styles.cardValue} style={{color:'#3b82f6'}}>{totalDocs}</div></div>
             <div className={styles.card}><div className={styles.cardLabel}>FREE</div><div className={styles.cardValue} style={{color:'#64748b'}}>{totalFree}</div></div>
             <div className={styles.card}><div className={styles.cardLabel}>PRO</div><div className={styles.cardValue} style={{color:'#F59E0B'}}>{totalPro}</div></div>
             <div className={styles.card}><div className={styles.cardLabel}>VIP</div><div className={styles.cardValue} style={{color:'#f97316'}}>{totalVip}</div></div>

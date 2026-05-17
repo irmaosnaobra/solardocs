@@ -37,7 +37,12 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
       empresa_whatsapp: companyMap.get(u.id)?.whatsapp ?? null,
     }));
 
-    res.json({ users: result });
+    const { data: docs } = await supabase
+      .from('documents')
+      .select('created_at')
+      .order('created_at', { ascending: false });
+
+    res.json({ users: result, documents: docs ?? [] });
   } catch (err) {
     console.error('Admin getUsers error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
