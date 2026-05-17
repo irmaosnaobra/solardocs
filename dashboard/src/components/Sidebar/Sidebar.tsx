@@ -59,7 +59,7 @@ const cadastroItems: NavItem[] = [
 ];
 
 const docsClienteItems: NavItem[] = [
-  { href: '/documentos?tipo=proposta',          icon: Sparkles,       label: 'Proposta Solar',     requireCompany: true },
+  { href: '/documentos?tipo=proposta',          icon: Sparkles,       label: 'Gerador de Proposta', requireCompany: true },
   { href: '/documentos?tipo=vistoria',          icon: ClipboardCheck, label: 'Vistoria CheckList', requireCompany: true },
   { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,       label: 'Proposta de Banco',  requireCompany: true },
   { href: '/documentos?tipo=contrato-solar',    icon: FileSignature,  label: 'Contrato Solar',     requireCompany: true },
