@@ -81,6 +81,10 @@ const initialFields = {
   pag_fin: true,
   pag_fin_84: true,
   pag_fin_60: true,
+  pag_entrada: true,
+  pag_entrada_30: true,
+  pag_entrada_60: true,
+  pag_custom: '',
 };
 
 // PMT Price com carência: juros capitalizam durante a carência, depois Price padrão
@@ -134,6 +138,8 @@ export default function PropostaSolarPage() {
   // Financiamento Price com 120 dias (4 meses) de carência sobre o preço cheio
   const valor84x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, 0.025, 84, 4)) : 0;
   const valor60x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, 0.024, 60, 4)) : 0;
+  // Entrada + saldo: 50% hoje + 50% no vencimento (30 ou 60 dias)
+  const valorEntradaMetade = invNum > 0 ? Math.ceil(invNum / 2) : 0;
   // DC/AC ratio: painéis em kWp sobre inversores em kW. Padrão de mercado 1,05-1,30.
   // Fora dessa faixa, mostra warning soft pro vendedor revisar o kit.
   const dcAcRatio = (() => {
@@ -610,6 +616,53 @@ export default function PropostaSolarPage() {
                 valor={invNum > 0 ? `R$ ${valor60x.toLocaleString('pt-BR')}/mês` : '—'}
               />
             </PagGrupo>
+
+            {/* ENTRADA + SALDO (30 ou 60 dias) */}
+            <PagGrupo
+              checked={fields.pag_entrada}
+              onToggle={(v) => setField('pag_entrada', v)}
+              titulo="Entrada + saldo"
+              subtitulo="50% hoje + 50% no vencimento"
+            >
+              <PagSubItem
+                checked={fields.pag_entrada_30}
+                onToggle={(v) => setField('pag_entrada_30', v)}
+                label="30 dias"
+                sub="2 parcelas iguais"
+                valor={invNum > 0 ? `R$ ${valorEntradaMetade.toLocaleString('pt-BR')} + R$ ${valorEntradaMetade.toLocaleString('pt-BR')}` : '—'}
+              />
+              <PagSubItem
+                checked={fields.pag_entrada_60}
+                onToggle={(v) => setField('pag_entrada_60', v)}
+                label="60 dias"
+                sub="2 parcelas iguais"
+                valor={invNum > 0 ? `R$ ${valorEntradaMetade.toLocaleString('pt-BR')} + R$ ${valorEntradaMetade.toLocaleString('pt-BR')}` : '—'}
+              />
+            </PagGrupo>
+
+            {/* PAGAMENTO CUSTOMIZADO — texto livre */}
+            <div style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8,
+              padding: '10px 12px',
+              marginBottom: 8,
+            }}>
+              <label style={{ display: 'block', fontWeight: 700, fontSize: 13, color: 'var(--color-text)', marginBottom: 6 }}>
+                Outro tipo de pagamento
+              </label>
+              <input
+                type="text"
+                value={fields.pag_custom}
+                onChange={(e) => setField('pag_custom', e.target.value)}
+                placeholder='Ex: "Boleto em 5x sem juros" ou "Permuta + saldo em 90 dias"'
+                className="input-field"
+                style={{ width: '100%' }}
+              />
+              <span style={{ display: 'block', fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                Se preenchido, vai aparecer como um card extra na proposta. Deixe vazio pra esconder.
+              </span>
+            </div>
           </div>
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>
             A geração mensal e o payback são calculados automaticamente baseado no kWp, UF e inflação configurada abaixo.
