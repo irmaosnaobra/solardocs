@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Building2, Users, Handshake,
   Banknote, ScrollText, FileSignature,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
-  Save, Lightbulb, HardHat, GraduationCap,
+  Save, Lightbulb, HardHat, GraduationCap, Smartphone,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -76,6 +76,7 @@ const contaItems: NavItem[] = [
   { href: '/conta/sugestoes',   icon: Lightbulb,      label: 'Sugestões',               vipOnly: true },
   { href: '/conta/mao-de-obra', icon: HardHat,        label: 'Cadastro de Mão de Obra', vipOnly: true },
   { href: '/mentoria',          icon: GraduationCap,  label: 'Mentorias' },
+  { href: '/baixe-app',         icon: Smartphone,     label: 'Baixe o App' },
 ];
 
 // ── Componente principal ────────────────────────────────────────────
