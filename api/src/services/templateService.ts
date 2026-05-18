@@ -1534,6 +1534,11 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   // Financiamento Price com 120 dias (4 meses) de carência sobre o preço cheio
   const valor84x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, 0.025, 84, 4)) : 0;
   const valor60x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, 0.024, 60, 4)) : 0;
+  // Entrada + saldo: 50% hoje + 50% em 30 ou 60 dias
+  const valorEntradaMetade = investimento > 0 ? Math.ceil(investimento / 2) : 0;
+
+  // Texto livre de "outro tipo de pagamento" (vendedor preenche se quiser)
+  const pagCustom = String(f.pag_custom || '').trim();
 
   // Quais opções aparecem para o cliente (consultor escolhe no form).
   // Default retro-compatível: tudo ligado se nada vier.
@@ -1546,6 +1551,9 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     fin:    f.pag_fin === false ? false : true,
     p84:    f.pag_fin_84 === false ? false : true,
     p60:    f.pag_fin_60 === false ? false : true,
+    entrada: f.pag_entrada === false ? false : true,
+    pe30:   f.pag_entrada_30 === false ? false : true,
+    pe60:   f.pag_entrada_60 === false ? false : true,
   };
 
   // Campos editáveis pelo tenant (com defaults seguros — propostas antigas continuam funcionando)
@@ -1753,6 +1761,32 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
         </div>`);
       }
     }
+  }
+
+  // Entrada + saldo (30 ou 60 dias) — 2 parcelas iguais de 50%
+  if (pagOpts.entrada && investimento > 0 && valorEntradaMetade > 0) {
+    const subs: Array<[boolean, number]> = [
+      [pagOpts.pe30, 30],
+      [pagOpts.pe60, 60],
+    ];
+    for (const [ativo, dias] of subs) {
+      if (ativo) {
+        cards.push(`<div class="invest-cartao">
+          <div class="invest-cartao-label">Entrada + saldo em ${dias} dias</div>
+          <div class="invest-cartao-value">${pBRL(valorEntradaMetade)} + ${pBRL(valorEntradaMetade)}</div>
+          <div class="invest-cartao-sub">50% hoje · 50% em ${dias} dias</div>
+        </div>`);
+      }
+    }
+  }
+
+  // Pagamento customizado — texto livre que o vendedor digitou no form
+  if (pagCustom) {
+    cards.push(`<div class="invest-cartao">
+      <div class="invest-cartao-label">Condição especial</div>
+      <div class="invest-cartao-value">${pEsc(pagCustom)}</div>
+      <div class="invest-cartao-sub">a combinar com o vendedor</div>
+    </div>`);
   }
 
   const investCardsCount = cards.length;
