@@ -509,10 +509,10 @@ export default function PropostaSolarPage() {
               color: 'var(--color-text-muted)',
               fontSize: 14,
             }}>
-              📷 Tirar foto / escolher do dispositivo
+              📁 Selecionar arquivo do dispositivo
               <input
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
                 style={{ display: 'none' }}
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
