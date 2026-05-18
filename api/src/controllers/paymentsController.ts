@@ -45,9 +45,19 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
 
   const { data: user } = await supabase
     .from('users')
-    .select('email')
+    .select('email, plano')
     .eq('id', req.userId)
     .single();
+
+  if (!user?.email) {
+    res.status(400).json({ error: 'Usuário não encontrado' });
+    return;
+  }
+
+  if (user.plano === planInfo.plano) {
+    res.status(400).json({ error: 'Você já está nesse plano' });
+    return;
+  }
 
   // Atualiza a descrição do produto no Stripe para refletir os valores corretos
   try {
@@ -58,11 +68,44 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     }
   } catch { /* silencioso — não bloqueia o checkout */ }
 
+  // Tem subscription ativa? Faz upgrade in-place com proração — cobra a diferença
+  // imediatamente no cartão já cadastrado, sem novo checkout.
+  try {
+    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    const customer = customers.data[0];
+    if (customer) {
+      const subs = await stripe.subscriptions.list({
+        customer: customer.id,
+        status: 'active',
+        limit: 1,
+      });
+      const activeSub = subs.data[0];
+      if (activeSub && activeSub.items.data[0]) {
+        await stripe.subscriptions.update(activeSub.id, {
+          items: [{ id: activeSub.items.data[0].id, price: priceId }],
+          proration_behavior: 'always_invoice',
+          metadata: { userId: req.userId! },
+        });
+
+        await supabase
+          .from('users')
+          .update({ plano: planInfo.plano, limite_documentos: planInfo.limite, documentos_usados: 0 })
+          .eq('id', req.userId);
+
+        res.json({ upgraded: true, plano: planInfo.plano });
+        return;
+      }
+    }
+  } catch (err) {
+    console.error('upgrade in-place falhou, caindo no checkout normal:', err);
+  }
+
+  // Fluxo normal: usuário sem subscription ativa (FREE) → cria checkout
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
     line_items: [{ price: priceId, quantity: 1 }],
-    customer_email: user?.email,
+    customer_email: user.email,
     metadata: { userId: req.userId! },
     success_url: `${process.env.DASHBOARD_URL}/planos?sucesso=1&sid={CHECKOUT_SESSION_ID}`,
     cancel_url:  `${process.env.DASHBOARD_URL}/planos?cancelado=1`,

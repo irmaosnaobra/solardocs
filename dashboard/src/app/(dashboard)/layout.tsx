@@ -53,6 +53,11 @@ function UpgradePage({ email }: { email: string }) {
     setLoading(planKey);
     try {
       const { data } = await api.post('/payments/create-checkout', { plan: planKey });
+      if (data.upgraded) {
+        alert('Plano atualizado! A diferença foi cobrada no seu cartão. Recarregando...');
+        window.location.reload();
+        return;
+      }
       window.location.href = data.url;
     } catch {
       alert('Erro ao iniciar pagamento. Tente novamente.');

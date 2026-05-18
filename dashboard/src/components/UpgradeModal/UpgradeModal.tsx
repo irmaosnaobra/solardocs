@@ -65,6 +65,11 @@ export default function UpgradeModal({ onClose, plano }: UpgradeModalProps) {
     try {
       (window as any).fbq?.('track', 'InitiateCheckout', { value, currency: 'BRL', content_name: name });
       const { data } = await api.post('/payments/create-checkout', { plan: planKey });
+      if (data.upgraded) {
+        alert(`Plano atualizado pra ${name}! A diferença foi cobrada no seu cartão. Recarregando...`);
+        window.location.reload();
+        return;
+      }
       window.location.href = data.url;
     } catch {
       alert('Erro ao iniciar pagamento. Tente novamente.');
