@@ -28,7 +28,7 @@ const ALL_PLANS = [
     label: 'Assinar PRO →',
   },
   {
-    key: 'vip',
+    key: 'ilimitado',
     name: 'VIP',
     amount: '67',
     indicado: 'Indicado para +20 vendas/mês',
@@ -53,7 +53,7 @@ const ALL_PLANS = [
 
 const PLANS = {
   free: ALL_PLANS,
-  pro:  ALL_PLANS.filter(p => p.key === 'vip'),
+  pro:  ALL_PLANS.filter(p => p.key === 'ilimitado'),
 };
 
 export default function UpgradeModal({ onClose, plano }: UpgradeModalProps) {
