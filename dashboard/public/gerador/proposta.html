@@ -1013,6 +1013,9 @@ de<!DOCTYPE html>
         <div class="equip-item"><strong>Módulos</strong><span id="e-mod"></span></div>
         <div class="equip-item"><strong>Inversores</strong><span id="e-inv"></span></div>
         <div class="equip-item"><strong>Potência por módulo</strong><span id="e-pot"></span></div>
+        <div class="equip-item" id="e-bat-wrap" style="display:none;"><strong>Bateria</strong><span id="e-bat"></span></div>
+        <div class="equip-item" id="e-ctrl-wrap" style="display:none;"><strong>Controlador de carga</strong><span id="e-ctrl"></span></div>
+        <div class="equip-item" id="e-estr-wrap" style="display:none;"><strong>Estrutura</strong><span id="e-estr"></span></div>
         <div class="equip-item"><strong>Monitoramento</strong><span>Incluso</span></div>
       </div>
     </div>
@@ -1614,6 +1617,35 @@ function renderProposta(d, viaLink) {
   document.getElementById('e-mod').textContent = `${d.item.n}x ${d.tab.mod}`;
   document.getElementById('e-inv').textContent = `${d.qtdInv}x ${d.tab.inv}`;
   document.getElementById('e-pot').textContent = `${d.tab.pot}W / módulo`;
+
+  const wrapBat = document.getElementById('e-bat-wrap');
+  if (d.bateria && d.bateria.incluir) {
+    const b = d.bateria;
+    const capTxt = b.capacidade > 0 ? ` (${String(b.capacidade).replace('.', ',')} kWh)` : '';
+    const modTxt = b.modelo ? ` · ${b.modelo}` : '';
+    document.getElementById('e-bat').textContent = `${b.qtd || 1}x${capTxt}${modTxt}`;
+    wrapBat.style.display = '';
+  } else {
+    wrapBat.style.display = 'none';
+  }
+
+  const wrapCtrl = document.getElementById('e-ctrl-wrap');
+  if (d.controlador && d.controlador.incluir) {
+    const c = d.controlador;
+    const modTxt = c.modelo ? ` · ${c.modelo}` : '';
+    document.getElementById('e-ctrl').textContent = `${c.qtd || 1}x${modTxt}`;
+    wrapCtrl.style.display = '';
+  } else {
+    wrapCtrl.style.display = 'none';
+  }
+
+  const wrapEstr = document.getElementById('e-estr-wrap');
+  if (d.estrutura) {
+    document.getElementById('e-estr').textContent = d.estrutura;
+    wrapEstr.style.display = '';
+  } else {
+    wrapEstr.style.display = 'none';
+  }
 
   document.getElementById('g-inv').textContent = `${d.garInv} anos`;
 
