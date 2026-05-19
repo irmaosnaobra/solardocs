@@ -32,10 +32,17 @@
       #0a0a0a;
   }
 
+  .player-col {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
   .player {
     position: relative;
     width: 100%;
-    max-width: 420px;
     padding-top: 177.7777%;
     background: #000;
     border-radius: 18px;
@@ -54,20 +61,23 @@
   }
 
   @media (min-width: 760px) {
-    .player { max-width: 460px; }
+    .player-col { max-width: 460px; }
   }
 </style>
 </head>
 <body>
 
 <main class="stage">
-  <div class="player">
-    <iframe
-      id="panda-bff5383a-0111-45f5-8ab9-46468dd31afe"
-      src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=bff5383a-0111-45f5-8ab9-46468dd31afe"
-      allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-      allowfullscreen="true"
-      fetchpriority="high"></iframe>
+  <div class="player-col">
+    <div class="player">
+      <iframe
+        id="panda-bff5383a-0111-45f5-8ab9-46468dd31afe"
+        src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=bff5383a-0111-45f5-8ab9-46468dd31afe"
+        allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+        allowfullscreen="true"
+        fetchpriority="high"></iframe>
+    </div>
+    <div id="e46431f6-a66a-41c6-90e6-c9413c6d3d9b"></div>
   </div>
 </main>
 
