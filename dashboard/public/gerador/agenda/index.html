@@ -176,7 +176,7 @@
     font-weight: 600;
     cursor: pointer;
   }
-  .slot.ocupado:hover { background: #11377a; }
+  .slot.ocupado:hover { filter: brightness(1.12); }
   .slot.ocupado .nome {
     font-size: 12px;
     font-weight: 700;
@@ -190,6 +190,12 @@
     opacity: .85;
     margin-top: 2px;
   }
+  /* Status coloridos */
+  .slot.status-agendado      { background: #0d2d5e; color: #fff; }
+  .slot.status-nao_atendeu   { background: #dc2626; color: #fff; }
+  .slot.status-sem_orcamento { background: #ea580c; color: #fff; }
+  .slot.status-fez_orcamento { background: #eab308; color: #1f2937; }
+  .slot.status-fechou        { background: #16a34a; color: #fff; }
   .slot.passado { opacity: .55; cursor: not-allowed; }
 
   /* ===== MODAL ===== */
@@ -338,9 +344,60 @@
   }
   .legenda .item { display: inline-flex; align-items: center; gap: 6px; }
   .legenda .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #e5e7eb; }
-  .sw-livre { background: #fff; }
-  .sw-fora  { background: #fafafa; }
-  .sw-ocup  { background: #0d2d5e; }
+  .sw-livre  { background: #fff; }
+  .sw-fora   { background: #fafafa; }
+  .sw-ag     { background: #0d2d5e; }
+  .sw-na     { background: #dc2626; }
+  .sw-so     { background: #ea580c; }
+  .sw-fo     { background: #eab308; }
+  .sw-fe     { background: #16a34a; }
+
+  /* Botões de status no modal de detalhes */
+  .status-atual-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    margin-top: 6px;
+  }
+  .status-atual-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .btn-status {
+    padding: 11px 10px;
+    border-radius: 9px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13px;
+    color: #fff;
+    font-family: inherit;
+    text-align: center;
+    line-height: 1.2;
+    transition: transform .08s, filter .12s;
+  }
+  .btn-status:hover { filter: brightness(1.08); }
+  .btn-status:active { transform: scale(0.97); }
+  .btn-status.is-atual {
+    outline: 3px solid rgba(255,255,255,.9);
+    outline-offset: -5px;
+    box-shadow: 0 0 0 2px #0d2d5e;
+  }
+  .btn-status.bg-ag { background: #0d2d5e; }
+  .btn-status.bg-na { background: #dc2626; }
+  .btn-status.bg-so { background: #ea580c; }
+  .btn-status.bg-fo { background: #eab308; color: #1f2937; }
+  .btn-status.bg-fe { background: #16a34a; }
+  .status-label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: .4px; margin-top: 14px; }
 
   @media (max-width: 720px) {
     .ctrl { padding: 10px 14px; }
@@ -374,9 +431,13 @@
 <div class="grid-wrap">
   <div id="grid-container" class="loading">Carregando agenda…</div>
   <div class="legenda">
-    <div class="item"><div class="sw sw-livre"></div> Livre (prioridade até 18h)</div>
+    <div class="item"><div class="sw sw-livre"></div> Livre</div>
     <div class="item"><div class="sw sw-fora"></div> Após 18h</div>
-    <div class="item"><div class="sw sw-ocup"></div> Ocupado</div>
+    <div class="item"><div class="sw sw-ag"></div> Agendada</div>
+    <div class="item"><div class="sw sw-na"></div> Não atendeu</div>
+    <div class="item"><div class="sw sw-so"></div> Sem orçamento</div>
+    <div class="item"><div class="sw sw-fo"></div> Fez orçamento</div>
+    <div class="item"><div class="sw sw-fe"></div> Fechou</div>
   </div>
 </div>
 
@@ -417,9 +478,18 @@
       <div class="row"><div class="label">Marcado por</div><div class="val" id="d-criador"></div></div>
     </div>
 
+    <div class="status-label">Resultado da ligação</div>
+    <div class="status-grid">
+      <button type="button" class="btn-status bg-ag" data-status="agendado"      onclick="atualizarStatus('agendado')">📞 Agendada</button>
+      <button type="button" class="btn-status bg-na" data-status="nao_atendeu"   onclick="atualizarStatus('nao_atendeu')">❌ Não atendeu</button>
+      <button type="button" class="btn-status bg-so" data-status="sem_orcamento" onclick="atualizarStatus('sem_orcamento')">📋 Sem orçamento</button>
+      <button type="button" class="btn-status bg-fo" data-status="fez_orcamento" onclick="atualizarStatus('fez_orcamento')">💰 Fez orçamento</button>
+      <button type="button" class="btn-status bg-fe" data-status="fechou"        onclick="atualizarStatus('fechou')" style="grid-column: span 2;">✅ Fechou</button>
+    </div>
+
     <div class="modal-erro" id="d-erro"></div>
 
-    <div class="modal-acoes">
+    <div class="modal-acoes" style="margin-top:14px">
       <a class="btn-wpp" id="d-btn-wpp" target="_blank" rel="noopener">💬 WhatsApp</a>
     </div>
     <div class="modal-acoes" style="margin-top:8px">
@@ -564,7 +634,8 @@ async function carregarSemana() {
   const fim = addDays(inicio, 5);
   fim.setHours(0,0,0,0);
 
-  const q = `agendamentos?select=*&status=eq.agendado&quando=gte.${encodeURIComponent(toLocalIso(inicio))}&quando=lt.${encodeURIComponent(toLocalIso(fim))}&order=quando.asc`;
+  // Pega todos os status menos cancelado (slot continua "ocupado" mesmo após a call)
+  const q = `agendamentos?select=*&status=neq.cancelado&quando=gte.${encodeURIComponent(toLocalIso(inicio))}&quando=lt.${encodeURIComponent(toLocalIso(fim))}&order=quando.asc`;
   try {
     agendamentosCache = await supaGet(q);
   } catch (e) {
@@ -627,7 +698,8 @@ function renderGrid() {
         });
 
         if (ag) {
-          html += `<div class="slot ocupado" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
+          const stCls = `status-${(ag.status || 'agendado')}`;
+          html += `<div class="slot ocupado ${stCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
             <div class="nome">${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}</div>
           </div>`;
@@ -743,10 +815,36 @@ function abrirDetalhes(id) {
   document.getElementById('d-criador').textContent = ag.created_by || '—';
   document.getElementById('d-btn-wpp').href = `https://wa.me/${formatTelDigits(ag.cliente_telefone)}`;
   document.getElementById('d-erro').textContent = '';
+  marcarStatusAtualNosBotoes(ag.status || 'agendado');
   document.getElementById('modal-det').classList.add('show');
+}
+function marcarStatusAtualNosBotoes(status) {
+  document.querySelectorAll('#modal-det .btn-status').forEach(b => {
+    b.classList.toggle('is-atual', b.dataset.status === status);
+  });
 }
 function fecharModalDet() {
   document.getElementById('modal-det').classList.remove('show');
+}
+async function atualizarStatus(novoStatus) {
+  if (!detalheAtual) return;
+  if (detalheAtual.status === novoStatus) { fecharModalDet(); return; }
+  try {
+    await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, { status: novoStatus });
+    fecharModalDet();
+    const labels = {
+      agendado:      '📞 Marcado como Agendada',
+      nao_atendeu:   '❌ Marcado como Não atendeu',
+      sem_orcamento: '📋 Marcado como Sem orçamento',
+      fez_orcamento: '💰 Marcado como Fez orçamento',
+      fechou:        '✅ Marcado como Fechou',
+    };
+    showToast(labels[novoStatus] || 'Status atualizado');
+    await renderTudo();
+  } catch (e) {
+    document.getElementById('d-erro').textContent = 'Erro ao atualizar status.';
+    console.error(e);
+  }
 }
 async function excluirAgendamento() {
   if (!detalheAtual) return;
