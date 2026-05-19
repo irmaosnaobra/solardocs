@@ -62,6 +62,7 @@ function RegisterContent() {
   const sessionId = params.get('session');
   const urlNome = params.get('nome');
   const urlCargo = params.get('cargo');
+  const urlPlano = params.get('plano'); // 'pro' | 'vip' — vindo do landing
 
   const [nome, setNome] = useState(urlNome ?? '');
   const [cargo] = useState(urlCargo ?? '');
@@ -135,6 +136,20 @@ function RegisterContent() {
         w.fbq('track', 'Lead', {}, { eventID: eventId });
         w.fbq('track', 'CompleteRegistration', {}, { eventID: eventId });
       }
+
+      // Veio do landing com plano escolhido → cria checkout com trial 7d e redireciona pro Stripe
+      if (urlPlano === 'pro' || urlPlano === 'vip') {
+        try {
+          const { data: ck } = await api.post('/payments/checkout', { plan: urlPlano });
+          if (ck.url) {
+            window.location.href = ck.url;
+            return;
+          }
+        } catch {
+          // Se falhar, cai no fluxo padrão — usuário entra no app e pode assinar depois
+        }
+      }
+
       router.push('/documentos?tipo=proposta');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
@@ -158,12 +173,16 @@ function RegisterContent() {
       )}
 
       <h1 className={styles.title}>
-        {planFromStripe ? 'Complete seu cadastro' : 'Criar conta grátis'}
+        {planFromStripe ? 'Complete seu cadastro' : urlPlano ? 'Criar conta · 7 dias grátis' : 'Criar conta grátis'}
       </h1>
       <p className={styles.subtitle}>
-        {planFromStripe
-          ? <>Use o mesmo e-mail do pagamento pra ativar seu plano <strong style={{ color: '#0f172a' }}>{PLAN_LABEL[planFromStripe] ?? planFromStripe}</strong>.</>
-          : 'Você ganha 10 documentos vitalícios. Sem cartão de crédito.'}
+        {planFromStripe ? (
+          <>Use o mesmo e-mail do pagamento pra ativar seu plano <strong style={{ color: '#0f172a' }}>{PLAN_LABEL[planFromStripe] ?? planFromStripe}</strong>.</>
+        ) : urlPlano === 'pro' || urlPlano === 'vip' ? (
+          <>Próximo passo: passar o cartão pra liberar o plano <strong style={{ color: '#0f172a' }}>{urlPlano.toUpperCase()}</strong>. Nada é cobrado nos 7 primeiros dias.</>
+        ) : (
+          'Você ganha 10 documentos vitalícios. Sem cartão de crédito.'
+        )}
       </p>
 
       <form onSubmit={handleSubmit} className={styles.form} noValidate>
@@ -300,7 +319,13 @@ function RegisterContent() {
         {error && <div className={styles.formError} role="alert">{error}</div>}
 
         <button type="submit" className={styles.submit} disabled={loading}>
-          {loading ? <><span className={styles.spinner} /> Criando sua conta...</> : (planFromStripe ? 'Ativar meu plano' : 'Criar conta grátis')}
+          {loading
+            ? <><span className={styles.spinner} /> Criando sua conta...</>
+            : (planFromStripe
+                ? 'Ativar meu plano'
+                : (urlPlano === 'pro' || urlPlano === 'vip'
+                    ? 'Continuar pro cartão →'
+                    : 'Criar conta grátis'))}
         </button>
       </form>
 

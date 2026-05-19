@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLpTracking } from '@/hooks/useLpTracking';
 import styles from './Landing.module.css';
@@ -38,56 +38,33 @@ function useReveal() {
   }, []);
 }
 
-type Billing = 'monthly' | 'annual';
-
-// Preços base mensais (R$). Anual = mensal × 12 × 0,7 (30% off).
+// Preços mensais (R$).
 const PRICES = {
-  pro: { monthly: 27, annual: 226.8 },
-  vip: { monthly: 67, annual: 562.8 },
+  pro: 27,
+  vip: 67,
 } as const;
-
-function fmtBRL(value: number): string {
-  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 export default function Landing() {
   const router = useRouter();
   useReveal();
   const { trackEvent } = useLpTracking();
 
-  const [billing, setBilling] = useState<Billing>('annual');
-
-  function goToRegister(plano: 'pro' | 'vip' | 'grátis', billingOverride?: Billing) {
-    const b = billingOverride ?? billing;
-    trackEvent('cta_click', { label: plano, billing: b });
+  function scrollToPlans() {
+    trackEvent('cta_click', { label: 'scroll_to_plans' });
     if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'Lead', { content_name: 'cta_register', plano, billing: b });
+      window.fbq('track', 'ViewContent', { content_name: 'plans_section' });
     }
-    const qs = new URLSearchParams({ mode: 'register' });
-    if (plano !== 'grátis') {
-      qs.set('plano', plano);
-      qs.set('billing', b);
+    document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function goToRegister(plano: 'pro' | 'vip') {
+    trackEvent('cta_click', { label: plano });
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'Lead', { content_name: 'cta_register', plano });
     }
+    const qs = new URLSearchParams({ mode: 'register', plano });
     router.push(`/auth?${qs.toString()}`);
   }
-
-  // Helpers de preço por plano
-  function priceLabel(plan: 'pro' | 'vip') {
-    if (billing === 'monthly') {
-      return { big: `R$ ${PRICES[plan].monthly}`, small: '/mês', sub: 'Cobrado após 7 dias grátis' };
-    }
-    const annual = PRICES[plan].annual;
-    const monthlyEquiv = annual / 12;
-    const saved = PRICES[plan].monthly * 12 - annual;
-    return {
-      big: `R$ ${fmtBRL(monthlyEquiv)}`,
-      small: '/mês',
-      sub: `Cobrado anualmente — R$ ${fmtBRL(annual)}/ano após 7 dias grátis. Economia de R$ ${fmtBRL(saved)} vs mensal.`,
-    };
-  }
-
-  const proPrice = priceLabel('pro');
-  const vipPrice = priceLabel('vip');
 
   return (
     <div className={styles.page}>
@@ -99,7 +76,7 @@ export default function Landing() {
           </div>
           <div className={styles.navRight}>
             <a href="/auth?mode=login" className={styles.navLink}>Entrar</a>
-            <button onClick={() => goToRegister('grátis')} className={styles.navCta}>Começar 7 dias grátis</button>
+            <button onClick={scrollToPlans} className={styles.navCta}>Começar 7 dias grátis</button>
           </div>
         </div>
       </nav>
@@ -127,7 +104,7 @@ export default function Landing() {
               a procuração e a proposta bancária — pronto pra mandar no WhatsApp.
             </p>
 
-            <button className={styles.finalCtaBtn} onClick={() => goToRegister('vip', 'annual')}>
+            <button className={styles.finalCtaBtn} onClick={scrollToPlans}>
               Começar 7 dias grátis →
             </button>
 
@@ -318,8 +295,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PLANS — 2 planos com toggle Mensal/Anual */}
-      <section className={styles.plans}>
+      {/* PLANS — 2 planos mensais com trial 7 dias */}
+      <section id="planos" className={styles.plans} style={{ scrollMarginTop: 80 }}>
         <div className={styles.plansInner}>
           <div className={styles.sectionLabelWrap}>
             <span className={styles.sectionLabel} data-reveal>Planos</span>
@@ -328,82 +305,8 @@ export default function Landing() {
             <strong>7 dias grátis</strong> em qualquer plano. Cancela antes e não paga.
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            Passe o cartão pra começar, use sem limite por 7 dias. Se gostou, mantém. Se não, cancela e nada é cobrado.
+            Passe o cartão pra começar, use sem limite por 7 dias. Se gostou, mantém. Se não, cancela quando quiser e nada é cobrado.
           </p>
-
-          {/* TOGGLE Mensal | Anual */}
-          <div data-reveal style={{ display: 'flex', justifyContent: 'center', marginTop: 32 }}>
-            <div
-              role="tablist"
-              aria-label="Periodicidade de cobrança"
-              style={{
-                display: 'inline-flex',
-                background: 'rgba(15, 23, 42, 0.6)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: 999,
-                padding: 4,
-                gap: 4,
-                backdropFilter: 'blur(8px)',
-              }}
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={billing === 'monthly'}
-                onClick={() => setBilling('monthly')}
-                style={{
-                  border: 0,
-                  background: billing === 'monthly' ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'transparent',
-                  color: billing === 'monthly' ? '#0f172a' : '#cbd5e1',
-                  fontWeight: 800,
-                  fontSize: 14,
-                  padding: '10px 22px',
-                  borderRadius: 999,
-                  cursor: 'pointer',
-                  transition: 'background 0.2s, color 0.2s',
-                  fontFamily: 'inherit',
-                }}
-              >
-                Mensal
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={billing === 'annual'}
-                onClick={() => setBilling('annual')}
-                style={{
-                  border: 0,
-                  background: billing === 'annual' ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'transparent',
-                  color: billing === 'annual' ? '#0f172a' : '#cbd5e1',
-                  fontWeight: 800,
-                  fontSize: 14,
-                  padding: '10px 22px',
-                  borderRadius: 999,
-                  cursor: 'pointer',
-                  transition: 'background 0.2s, color 0.2s',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontFamily: 'inherit',
-                }}
-              >
-                Anual
-                <span
-                  style={{
-                    background: billing === 'annual' ? '#0f172a' : 'rgba(52, 211, 153, 0.18)',
-                    color: billing === 'annual' ? '#fbbf24' : '#34d399',
-                    fontSize: 10,
-                    fontWeight: 900,
-                    padding: '3px 7px',
-                    borderRadius: 6,
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  −30%
-                </span>
-              </button>
-            </div>
-          </div>
 
           {/* CARDS — 2 colunas (auto-fit), VIP destacado */}
           <div
@@ -420,9 +323,9 @@ export default function Landing() {
           >
             <div className={styles.plan} data-reveal>
               <div className={styles.planName}>Pro</div>
-              <div className={styles.planPrice}>{proPrice.big}<small>{proPrice.small}</small></div>
+              <div className={styles.planPrice}>R$ {PRICES.pro}<small>/mês</small></div>
               <div className={styles.planSub}>
-                {proPrice.sub}<br />
+                Cobrado só após os 7 dias grátis<br />
                 <span style={{ opacity: 0.7 }}>Pro integrador que fecha 5–15 vendas/mês</span>
               </div>
               <ul className={styles.planList}>
@@ -441,9 +344,9 @@ export default function Landing() {
             <div className={`${styles.plan} ${styles.planFeatured}`} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.planTag}>Mais escolhido</div>
               <div className={styles.planName}>VIP</div>
-              <div className={styles.planPrice}>{vipPrice.big}<small>{vipPrice.small}</small></div>
+              <div className={styles.planPrice}>R$ {PRICES.vip}<small>/mês</small></div>
               <div className={styles.planSub}>
-                {vipPrice.sub}<br />
+                Cobrado só após os 7 dias grátis<br />
                 <span style={{ opacity: 0.7 }}>Pra empresa solar consolidada — documentos ilimitados</span>
               </div>
               <ul className={styles.planList}>
@@ -490,14 +393,6 @@ export default function Landing() {
               <div className={styles.faqAnswer}>
                 Direto na sua conta, dentro do app, em 1 clique. <b>Sem multa, sem ligação, sem letra miúda.</b>
                 Se cancelar antes do 7º dia, não é cobrado nenhum valor.
-              </div>
-            </details>
-
-            <details className={styles.faqItem} data-reveal>
-              <summary>Qual a diferença entre Mensal e Anual?</summary>
-              <div className={styles.faqAnswer}>
-                Mesmo produto, mesma funcionalidade. <b>No anual você economiza 30%</b> —
-                pagando antecipado o ano todo de uma vez. No mensal, cobra todo mês.
               </div>
             </details>
 
@@ -549,11 +444,11 @@ export default function Landing() {
             7 dias grátis. Cancela antes e não paga. Sem pegadinha.
           </p>
           <div data-reveal>
-            <button className={styles.finalCtaBtn} onClick={() => goToRegister('vip', 'annual')}>
+            <button className={styles.finalCtaBtn} onClick={scrollToPlans}>
               Começar 7 dias grátis →
             </button>
             <div className={styles.finalCtaFoot}>
-              Depois do trial: Pro R$ 27/mês ou VIP R$ 67/mês · 30% off no anual · cancela quando quiser.
+              Depois do trial: Pro R$ 27/mês ou VIP R$ 67/mês · cancela quando quiser.
             </div>
           </div>
         </div>
