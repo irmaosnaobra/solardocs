@@ -757,20 +757,9 @@
 @media (min-width: 980px) {
   .hero { padding: 96px 24px 120px; }
   .heroInner {
-    grid-template-columns: 1.05fr 0.95fr;
-    grid-template-areas:
-      "top    media"
-      "bottom media";
-    column-gap: 64px;
-    row-gap: 24px;
-    align-items: start;
-  }
-  .heroTop { grid-area: top; }
-  .heroBottom { grid-area: bottom; }
-  .heroMedia {
-    grid-area: media;
-    align-self: center;
-    justify-self: center;
+    grid-template-columns: 1fr;
+    max-width: 880px;
+    justify-items: center;
   }
 }
 @media (min-width: 1200px) {
