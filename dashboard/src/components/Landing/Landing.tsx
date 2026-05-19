@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLpTracking } from '@/hooks/useLpTracking';
+import { useEffect } from 'react';
 import styles from './Landing.module.css';
 
 declare global {
@@ -49,103 +50,6 @@ export default function Landing() {
   const [cargo, setCargo] = useState('');
   const formRef = useRef<HTMLDivElement>(null);
 
-  // ===== Hero VSL (Vimeo) =====
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  type VimeoPlayerLike = any;
-  const vslIframeRef = useRef<HTMLIFrameElement>(null);
-  const vslPlayerRef = useRef<VimeoPlayerLike>(null);
-  const vslDurRef = useRef(0);
-  const vslSpeeds = [1, 1.5, 2];
-  const [vslShowUnmute, setVslShowUnmute] = useState(true);
-  const [vslSpeedIdx, setVslSpeedIdx] = useState(0);
-  const [vslProgress, setVslProgress] = useState(0);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    let cancelled = false;
-    let interval: ReturnType<typeof setInterval> | null = null;
-
-    const w = window as unknown as { Vimeo?: { Player: new (el: HTMLIFrameElement) => VimeoPlayerLike } };
-
-    const ensureVimeo = () =>
-      new Promise<void>((resolve) => {
-        if (w.Vimeo) return resolve();
-        const existing = document.querySelector<HTMLScriptElement>('script[data-vimeo-player]');
-        if (existing) {
-          existing.addEventListener('load', () => resolve(), { once: true });
-          return;
-        }
-        const s = document.createElement('script');
-        s.src = 'https://player.vimeo.com/api/player.js';
-        s.async = true;
-        s.dataset.vimeoPlayer = 'true';
-        s.onload = () => resolve();
-        document.head.appendChild(s);
-      });
-
-    ensureVimeo().then(() => {
-      if (cancelled || !vslIframeRef.current || !w.Vimeo) return;
-      const player: VimeoPlayerLike = new w.Vimeo.Player(vslIframeRef.current);
-      vslPlayerRef.current = player;
-
-      player.ready().then(() => {
-        player.getDuration().then((d: number) => { vslDurRef.current = d || 0; });
-        player.setVolume(0.6);
-        player.setMuted(false)
-          .then(() => player.play())
-          .then(() => setVslShowUnmute(false))
-          .catch(() => {
-            player.setMuted(true);
-            player.play().catch(() => {});
-          });
-
-        interval = setInterval(() => {
-          player.getCurrentTime().then((cur: number) => {
-            const dur = vslDurRef.current;
-            if (dur > 0) setVslProgress((cur / dur) * 100);
-          }).catch(() => {});
-        }, 500);
-      });
-    });
-
-    return () => {
-      cancelled = true;
-      if (interval) clearInterval(interval);
-    };
-  }, []);
-
-  function vslUnmute() {
-    const p = vslPlayerRef.current;
-    if (!p) return;
-    p.setMuted(false)
-      .then(() => p.setVolume(0.6))
-      .then(() => p.play())
-      .catch(() => {});
-    setVslShowUnmute(false);
-  }
-
-  function vslTogglePlay() {
-    const p = vslPlayerRef.current;
-    if (!p) return;
-    p.getPaused().then((paused: boolean) => (paused ? p.play() : p.pause())).catch(() => {});
-  }
-
-  function vslSeek(e: React.MouseEvent<HTMLDivElement>) {
-    const p = vslPlayerRef.current;
-    const dur = vslDurRef.current;
-    if (!p || !dur) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    p.setCurrentTime(Math.max(0, Math.min(dur, pct * dur)));
-  }
-
-  function vslCycleSpeed() {
-    const next = (vslSpeedIdx + 1) % vslSpeeds.length;
-    setVslSpeedIdx(next);
-    const p = vslPlayerRef.current;
-    if (p) p.setPlaybackRate(vslSpeeds[next]).catch(() => {});
-  }
-
   function scrollToFormFrom(plano: 'grátis' | 'pro' | 'vip') {
     trackEvent('cta_click', { label: plano });
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -185,12 +89,12 @@ export default function Landing() {
           </div>
           <div className={styles.navRight}>
             <a href="/auth?mode=login" className={styles.navLink}>Entrar</a>
-            <button onClick={() => scrollToFormFrom('grátis')} className={styles.navCta}>Quero o Gerador com a minha Marca</button>
+            <button onClick={() => scrollToFormFrom('grátis')} className={styles.navCta}>Começar grátis</button>
           </div>
         </div>
       </nav>
 
-      {/* HERO */}
+      {/* HERO — enxuto, sem vídeo, form como protagonista */}
       <section className={styles.hero}>
         <div className={styles.aurora} aria-hidden>
           <div className={`${styles.auroraBlob} ${styles.auroraBlob1}`} />
@@ -200,55 +104,20 @@ export default function Landing() {
         <div className={styles.gridPattern} aria-hidden />
 
         <div className={styles.heroInner}>
-          {/* TOP: eyebrow + h1 + lead */}
           <div className={styles.heroTop}>
             <span className={styles.eyebrow}>
               <span className={styles.eyebrowDot} />
               Pra integrador solar com CNPJ
             </span>
             <h1 className={styles.h1}>
-              Faça o orçamento do <strong>telhado</strong> em 2 minutos.
+              Gerador de Proposta + Contratos solares <strong>com a sua marca</strong>.
             </h1>
             <p className={styles.lead}>
-              E feche a venda no mesmo app. Depois do orçamento, o SolarDoc gera <b>contrato, proposta
-              bancária e procuração da concessionária</b> em minutos — direto do celular, com o cliente
-              ali na sua frente. Sem advogado, sem Word, sem terceiros.
+              Cadastra a empresa, sobe sua logo e <b>comece grátis</b>. Em minutos sai a proposta solar, o contrato,
+              a procuração e a proposta bancária — pronto pra mandar no WhatsApp.
             </p>
           </div>
 
-          {/* MEDIA: VSL Vimeo 9:16 */}
-          <div className={styles.heroMedia}>
-            <div className={styles.vslFrame}>
-              <iframe
-                ref={vslIframeRef}
-                className={styles.vslIframe}
-                src="https://player.vimeo.com/video/1192132509?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1"
-                allow="autoplay; fullscreen; picture-in-picture"
-                referrerPolicy="strict-origin-when-cross-origin"
-                title="SolarDoc Pro - demo"
-              />
-              <div className={styles.vslOverlay} onClick={vslTogglePlay} />
-              {vslShowUnmute && (
-                <button type="button" className={styles.vslUnmute} onClick={vslUnmute}>
-                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                  </svg>
-                  Ativar som
-                </button>
-              )}
-              <div className={styles.vslControls}>
-                <div className={styles.vslProgress} onClick={vslSeek}>
-                  <div className={styles.vslProgressFill} style={{ width: `${vslProgress}%` }} />
-                </div>
-                <button type="button" className={styles.vslSpeed} onClick={vslCycleSpeed}>
-                  {vslSpeeds[vslSpeedIdx]}×
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* BOTTOM: trust + form */}
           <div className={styles.heroBottom}>
             <div className={styles.trustRow}>
               <span className={styles.trustItem}>
@@ -328,193 +197,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* GERADOR DE PROPOSTA — pain hook (logo após trust strip) */}
-      <section className={styles.diffs}>
-        <div className={styles.diffsInner}>
-          <div className={styles.sectionLabelWrap}>
-            <span className={styles.sectionLabel} data-reveal>Novidade · Gerador de Proposta Personalizado</span>
-          </div>
-          <h2 className={styles.sectionTitle} data-reveal>
-            Cansado de pagar <strong>caro</strong> em gerador de proposta?<br />
-            Tenha o seu — <strong>moderno, com a sua cara</strong>.
-          </h2>
-          <p className={styles.sectionSub} data-reveal>
-            Os geradores especializados cobram <b>R$ 100 a R$ 300 por mês</b> pra te entregar um modelo
-            engessado, igual ao do concorrente. Aqui você tem o <b>seu</b> gerador — sua marca, suas cores,
-            sua identidade — já incluso no plano.
-          </p>
-
-          <div className={styles.diffsGrid} style={{ marginTop: 40 }}>
-            <div className={styles.diffCard} data-reveal>
-              <div className={styles.diffIcon}>💸</div>
-              <div className={styles.diffH}>Sem mensalidade absurda</div>
-              <div className={styles.diffP}>
-                Pare de pagar <b>centenas de reais por mês</b> só pra ter "uma proposta bonita". No SolarDoc,
-                o gerador de proposta vem incluso a partir de <b>R$ 27/mês</b> — o resto fica como bônus.
-              </div>
-            </div>
-
-            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.diffIcon}>🎨</div>
-              <div className={styles.diffH}>Com a sua cara, não a dos outros</div>
-              <div className={styles.diffP}>
-                Logo, cor da empresa, foto do seu portfólio. O cliente recebe uma proposta <b>com a sua
-                identidade visual</b> — não um template genérico que metade do mercado já mandou pra ele.
-              </div>
-            </div>
-
-            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.diffIcon}>⚡</div>
-              <div className={styles.diffH}>Moderno e gerado em segundos</div>
-              <div className={styles.diffP}>
-                Você preenche kWp, consumo e valor — a IA monta uma proposta <b>visual e moderna</b>, pronta
-                pro WhatsApp do cliente. Sem PowerPoint. Sem ficar mexendo em PDF na unha.
-              </div>
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: 40 }} data-reveal>
-            <button onClick={() => scrollToFormFrom('grátis')} className={styles.cta} style={{ maxWidth: 360 }}>
-              <span>Quero o Gerador com a minha Marca →</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* COMO FUNCIONA */}
-      <section className={styles.how}>
-        <div className={styles.howInner}>
-          <div className={styles.sectionLabelWrap}>
-            <span className={styles.sectionLabel} data-reveal>Como funciona</span>
-          </div>
-          <h2 className={styles.sectionTitle} data-reveal>
-            Do <strong>aperto de mão</strong> ao contrato assinado<br />
-            em 3 minutos.
-          </h2>
-          <p className={styles.sectionSub} data-reveal>
-            Você não precisa instalar nada. Não precisa de advogado. Não precisa sair do telhado.
-          </p>
-
-          <div className={styles.howGrid}>
-            <div className={styles.howStep} data-reveal>
-              <div className={styles.howNum}>01</div>
-              <div className={styles.howH}>Cadastra o cliente</div>
-              <div className={styles.howP}>
-                Nome, CPF/CNPJ, endereço. Em 30 segundos. <b>No celular, ali na visita.</b>
-              </div>
-            </div>
-            <div className={styles.howStep} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.howNum}>02</div>
-              <div className={styles.howH}>IA gera o documento</div>
-              <div className={styles.howP}>
-                Escolhe o tipo (contrato, procuração, proposta…), preenche os dados solares —
-                <b> a IA monta o documento</b> com cláusulas técnicas do setor.
-              </div>
-            </div>
-            <div className={styles.howStep} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.howNum}>03</div>
-              <div className={styles.howH}>Manda pra assinar</div>
-              <div className={styles.howP}>
-                WhatsApp ou email. Cliente assina pelo celular dele. <b>Você fecha a venda na hora.</b>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* DIFERENCIAIS */}
-      <section className={styles.diffs}>
-        <div className={styles.diffsInner}>
-          <div className={styles.sectionLabelWrap}>
-            <span className={styles.sectionLabel} data-reveal>Por que SolarDoc</span>
-          </div>
-          <h2 className={styles.sectionTitle} data-reveal>
-            Não é planilha. Não é Word.<br />
-            <strong>É o app que formaliza sua venda solar.</strong>
-          </h2>
-
-          <div className={styles.diffsGrid} style={{ marginTop: 40 }}>
-            <div className={styles.diffCard} data-reveal>
-              <div className={styles.diffIcon}>⚡</div>
-              <div className={styles.diffH}>Contrato em 2 minutos</div>
-              <div className={styles.diffP}>
-                <b>Visita técnica + contrato assinado.</b> Mesmo dia, mesmo lugar. O cliente nem precisa
-                voltar pra casa pra decidir — fecha ali, no seu celular.
-              </div>
-            </div>
-
-            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.diffIcon}>🛡️</div>
-              <div className={styles.diffH}>Juridicamente blindado</div>
-              <div className={styles.diffP}>
-                Cláusulas técnicas do <b>setor solar</b>, validadas por especialistas. Procurações que as
-                concessionárias aceitam de primeira. Você não precisa de advogado.
-              </div>
-            </div>
-
-            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.diffIcon}>📱</div>
-              <div className={styles.diffH}>Você no comando</div>
-              <div className={styles.diffP}>
-                <b>O dono pode operar.</b> Cadastra o cliente, gera o documento, manda no WhatsApp, o cliente assina.
-                Não depende de escritório, não depende de terceiro. Sai perfeito.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* COMPARATIVO em cards */}
-      <section className={styles.compare}>
-        <div className={styles.compareInner}>
-          <div className={styles.sectionLabelWrap}>
-            <span className={styles.sectionLabel} data-reveal>Por que sair do Word</span>
-          </div>
-          <h2 className={styles.sectionTitle} data-reveal>
-            Quem fecha 5 vendas/mês usa Word.<br />
-            <strong>Quem fecha 15 usa SolarDoc.</strong>
-          </h2>
-
-          <div className={styles.compareGrid}>
-            <div className={styles.compareCol} data-reveal>
-              <div className={styles.compareTitle}>Word / Drive</div>
-              <ul className={styles.compareList}>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Sem foco em documento solar</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Sem cláusulas da concessionária</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> 2 dias por documento</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Sem assinatura digital</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Sua marca fica torta</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Não funciona no celular</li>
-              </ul>
-            </div>
-
-            <div className={styles.compareCol} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.compareTitle}>Plataforma genérica</div>
-              <ul className={styles.compareList}>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Foca em tudo, não em solar</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Você adapta os modelos</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Tempo médio</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Tem assinatura digital</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Marca limitada</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Funciona razoavelmente no celular</li>
-              </ul>
-            </div>
-
-            <div className={`${styles.compareCol} ${styles.compareColBest}`} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.compareTitle}>SolarDoc</div>
-              <ul className={styles.compareList}>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> 100% focado em documento solar</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Cláusulas validadas das concessionárias</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Documento pronto em 2 minutos</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Assinatura digital com validade jurídica</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Sua marca, sua cor, seu padrão</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Feito pro celular do integrador</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* DOCS */}
       <section className={styles.docs}>
         <div className={styles.docsInner}>
@@ -563,16 +245,16 @@ export default function Landing() {
 
           <div className={styles.statsGrid}>
             <div className={styles.stat} data-reveal>
-              <div className={styles.statN}>2 min</div>
-              <div className={styles.statL}>Tempo médio pra gerar um contrato</div>
+              <div className={styles.statN}>+200</div>
+              <div className={styles.statL}>Documentos solares já gerados na plataforma</div>
             </div>
             <div className={styles.stat} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.statN}>5</div>
-              <div className={styles.statL}>Tipos de documento prontos</div>
+              <div className={styles.statN}>60+</div>
+              <div className={styles.statL}>Empresas solares ativas com CNPJ cadastrado</div>
             </div>
             <div className={styles.stat} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.statN}>R$ 0</div>
-              <div className={styles.statL}>Pra gerar os 10 primeiros</div>
+              <div className={styles.statN}>2 min</div>
+              <div className={styles.statL}>Pra gerar um contrato pronto do zero</div>
             </div>
           </div>
 
@@ -668,20 +350,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* POSITIONING */}
-      <section className={styles.posBlock}>
-        <div className={styles.posBlockInner} data-reveal>
-          <div className={styles.posCross}>
-            <s>Word</s> &nbsp;·&nbsp; <s>Drive</s> &nbsp;·&nbsp; <s>Plataforma cheia de função que você nem usa</s>
-          </div>
-          <div className={styles.posMain}>
-            SolarDoc é <strong>o documento que fecha a venda</strong>.<br />
-            E só.
-          </div>
-        </div>
-      </section>
-
-      {/* PLANS */}
+      {/* PLANS — repaginado: persona, ancoragem por dia, CTAs padronizados */}
       <section className={styles.plans}>
         <div className={styles.plansInner}>
           <div className={styles.sectionLabelWrap}>
@@ -691,54 +360,98 @@ export default function Landing() {
             <strong>Comece grátis.</strong> Continue se valer a pena.
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            10 documentos sem pagar nada. Quando precisar de mais, escolhe o plano. Sem trial, sem
-            cartão antecipado.
+            10 documentos sem pagar nada. Quando precisar de mais, escolhe o plano — sem trial, sem cartão antecipado.
           </p>
 
           <div className={styles.plansGrid}>
             <div className={styles.plan} data-reveal>
               <div className={styles.planName}>Free</div>
               <div className={styles.planPrice}>R$ 0</div>
-              <div className={styles.planSub}>10 documentos vitalícios</div>
+              <div className={styles.planSub}>Pra testar o gerador sem compromisso</div>
               <ul className={styles.planList}>
-                <li>10 documentos pra usar quando quiser</li>
+                <li>10 documentos vitalícios</li>
                 <li>Todos os 5 tipos de documento</li>
-                <li>Sua marca / sua cor</li>
-                <li>Assinatura digital</li>
+                <li>Gerador de Proposta com sua marca</li>
+                <li>Assinatura digital com validade jurídica</li>
                 <li>Suporte por WhatsApp</li>
               </ul>
-              <button onClick={() => scrollToFormFrom('grátis')} className={styles.planBtn}>Quero o Gerador com a minha Marca</button>
+              <button onClick={() => scrollToFormFrom('grátis')} className={styles.planBtn}>Comece grátis</button>
             </div>
 
             <div className={`${styles.plan} ${styles.planFeatured}`} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.planTag}>Mais escolhido</div>
               <div className={styles.planName}>Pro</div>
               <div className={styles.planPrice}>R$ 27<small>/mês</small></div>
-              <div className={styles.planSub}>90 documentos por mês</div>
+              <div className={styles.planSub}>
+                ≈ R$ 0,90/dia · <b>menos de R$ 0,30 por documento</b><br />
+                <span style={{ opacity: 0.7 }}>Pro integrador que fecha 5–15 vendas/mês</span>
+              </div>
               <ul className={styles.planList}>
-                <li>Tudo do Free, e mais:</li>
+                <li><b>Tudo do Free, e mais:</b></li>
                 <li>90 documentos por mês</li>
                 <li>Logo em alta resolução</li>
-                <li>Suporte prioritário</li>
-                <li>Paga quando quiser, sem teste vencendo</li>
+                <li>Suporte prioritário no WhatsApp</li>
+                <li>Cancela quando quiser, sem multa</li>
               </ul>
               <button onClick={() => scrollToFormFrom('pro')} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
-                Quero o Gerador com a minha Marca
+                Comece grátis
               </button>
             </div>
 
             <div className={styles.plan} data-reveal style={{ transitionDelay: '0.2s' }}>
               <div className={styles.planName}>VIP</div>
               <div className={styles.planPrice}>R$ 67<small>/mês</small></div>
-              <div className={styles.planSub}>Documentos ilimitados</div>
+              <div className={styles.planSub}>
+                ≈ R$ 2,20/dia · documentos <b>ilimitados</b><br />
+                <span style={{ opacity: 0.7 }}>Pra empresa solar consolidada e em escala</span>
+              </div>
               <ul className={styles.planList}>
-                <li>Tudo do Pro, e mais:</li>
+                <li><b>Tudo do Pro, e mais:</b></li>
                 <li>Documentos ilimitados</li>
                 <li>Mentoria mensal de vendas solares</li>
                 <li>Suporte VIP por WhatsApp</li>
-                <li>Acesso a novos documentos primeiro</li>
+                <li>Acesso antecipado a novos documentos</li>
               </ul>
-              <button onClick={() => scrollToFormFrom('vip')} className={styles.planBtn}>Quero o Gerador com a minha Marca</button>
+              <button onClick={() => scrollToFormFrom('vip')} className={styles.planBtn}>Quero o VIP</button>
+            </div>
+          </div>
+
+          {/* TABELA COMPARATIVA — estilo Panda Video */}
+          <div className={styles.compareGrid} style={{ marginTop: 56 }}>
+            <div className={styles.compareCol} data-reveal>
+              <div className={styles.compareTitle}>Free</div>
+              <ul className={styles.compareList}>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>10</span> Documentos</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Gerador de Proposta</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Sua marca / sua cor</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Assinatura digital</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Suporte prioritário</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Mentoria solar</li>
+              </ul>
+            </div>
+
+            <div className={`${styles.compareCol} ${styles.compareColBest}`} data-reveal style={{ transitionDelay: '0.1s' }}>
+              <div className={styles.compareTitle}>Pro</div>
+              <ul className={styles.compareList}>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>90</span> Documentos/mês</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Gerador de Proposta</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Sua marca / sua cor</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Assinatura digital</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Suporte prioritário</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Mentoria solar</li>
+              </ul>
+            </div>
+
+            <div className={styles.compareCol} data-reveal style={{ transitionDelay: '0.2s' }}>
+              <div className={styles.compareTitle}>VIP</div>
+              <ul className={styles.compareList}>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>∞</span> Documentos ilimitados</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Gerador de Proposta</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Sua marca / sua cor</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Assinatura digital</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Suporte VIP</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Mentoria mensal</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -820,10 +533,10 @@ export default function Landing() {
           </p>
           <div data-reveal>
             <button className={styles.finalCtaBtn} onClick={() => scrollToFormFrom('grátis')}>
-              Quero o Gerador com a minha Marca →
+              Começar grátis →
             </button>
             <div className={styles.finalCtaFoot}>
-              Continuar usando depois? A partir de R$ 27/mês. Cancela quando quiser.
+              Pro plano pago: a partir de R$ 27/mês (≈ R$ 0,90/dia). Cancela quando quiser.
             </div>
           </div>
         </div>
