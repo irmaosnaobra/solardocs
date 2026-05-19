@@ -265,6 +265,15 @@
   .opt:has(input[value="cartao"])        .ic { background:#dbeafe; color:#1d4ed8 }
   .opt:has(input[value="financiamento"]) .ic { background:#e9d5ff; color:#6b21a8 }
 
+  /* Eletros — chips multi-select (emoji dentro do .ic) */
+  .opts-eletro .opt{padding:14px 8px 12px;min-height:84px}
+  .opts-eletro .opt .ic{font-size:22px;line-height:1}
+  .opt:has(input[value="ar_condicionado"]) .ic { background:#dbeafe }
+  .opt:has(input[value="freezer"])         .ic { background:#e0f2fe }
+  .opt:has(input[value="piscina_aquecida"]) .ic{ background:#cffafe }
+  .opt:has(input[value="carro_eletrico"])  .ic { background:#fef3c7 }
+  .opt:has(input[value="forno_eletrico"])  .ic { background:#fed7aa }
+
   /* Hover — adiciona sombra leve, mantém a cor base */
   .opt:hover .ic, .opt:hover .num { transform:scale(1.04) }
   /* Selecionado — força gold (vence as cores específicas por specificity) */
@@ -765,6 +774,32 @@
     </div>
 
     <div class="field">
+      <label>Você tem algum desses? <small style="font-weight:600;color:var(--text-soft)">(opcional · pode marcar mais de um)</small></label>
+      <div class="opts opts-eletro">
+        <label class="opt"><input type="checkbox" name="eletro" value="ar_condicionado">
+          <div class="ic" aria-hidden="true">❄️</div>
+          <div class="lbl">Ar-condicionado</div>
+        </label>
+        <label class="opt"><input type="checkbox" name="eletro" value="freezer">
+          <div class="ic" aria-hidden="true">🧊</div>
+          <div class="lbl">Freezer</div>
+        </label>
+        <label class="opt"><input type="checkbox" name="eletro" value="piscina_aquecida">
+          <div class="ic" aria-hidden="true">🏊</div>
+          <div class="lbl">Piscina aquecida</div>
+        </label>
+        <label class="opt"><input type="checkbox" name="eletro" value="carro_eletrico">
+          <div class="ic" aria-hidden="true">⚡</div>
+          <div class="lbl">Carro elétrico</div>
+        </label>
+        <label class="opt"><input type="checkbox" name="eletro" value="forno_eletrico">
+          <div class="ic" aria-hidden="true">🍳</div>
+          <div class="lbl">Forno/cooktop</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
       <label>Seu nome <span class="req">*</span></label>
       <input type="text" id="f_nome" placeholder="Seu nome" autocomplete="name" />
       <div class="err-msg">Preencha seu nome.</div>
@@ -1082,6 +1117,7 @@ const state = {
   tipo: '', telhado: '', padrao: '',
   pagamento: '', // 'avista' | 'cartao' | 'financiamento'
   consumoRs: 0,  // valor da conta em R$/mês
+  eletro: [],    // ['ar_condicionado','freezer',...] — opcional, multi-select
 };
 
 // ════════════════════════════════════════════════════════════════
@@ -1268,6 +1304,7 @@ function validateAll() {
     state.whats = whats;
     state.cidade = cid;
     state.estado = uf;
+    state.eletro = Array.from(document.querySelectorAll('input[name=eletro]:checked')).map(el => el.value);
   }
   return ok;
 }
@@ -1346,6 +1383,7 @@ $('#btnCalc').addEventListener('click', () => {
         event_data: {
           nome: state.nome, whats: state.whats, cidade: state.cidade,
           consumoRs: state.consumoRs, pagamento: state.pagamento || null,
+          eletro: state.eletro,
           oferta: result.oferta ? { kwp: result.oferta.kwp, preco: result.oferta.preco, inv: getInvLabel(result.oferta) } : null,
         }
       }),
@@ -1380,6 +1418,7 @@ function enviarLeadCRM() {
         padrao: state.padrao || null,
         pagamento: state.pagamento || null,
         consumo_rs: state.consumoRs,
+        eletro: state.eletro,
         // mantém o shape antigo da tabela io_leads (campos comercial_*) — usa a oferta única em ambos
         comercial: (r && r.oferta) ? { kwp: r.oferta.kwp, preco: r.oferta.preco, inv: getInvLabel(r.oferta) } : null,
         premium:   null,
@@ -1744,6 +1783,16 @@ function buildWhatsapp(r) {
 
   const oferta = o ? `\n\n⚡ *Sistema simulado:*\n• ${o.kwp.toFixed(1).replace('.',',')} kWp · ${o.n} painéis de ${o.pot}W\n• ${getInversorDisplay(o)}\n• Geração ~${fmtNum(o.g)} kWh/mês\n• ${precoTxt(o)}` : '';
 
+  const ELETRO_LBL = {
+    ar_condicionado: 'Ar-condicionado',
+    freezer: 'Freezer',
+    piscina_aquecida: 'Piscina aquecida',
+    carro_eletrico: 'Carro elétrico',
+    forno_eletrico: 'Forno/cooktop elétrico',
+  };
+  const eletroLista = (state.eletro || []).map(k => ELETRO_LBL[k]).filter(Boolean).join(', ');
+  const eletroLine = eletroLista ? `\n• Tem em casa: ${eletroLista}` : '';
+
   // Visita técnica presencial só em Uberlândia. Demais cidades atendidas → ligação.
   const cidadeNorm = (state.cidade || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').trim();
   const cta = cidadeNorm === 'uberlandia'
@@ -1757,7 +1806,7 @@ function buildWhatsapp(r) {
 • Nome: ${state.nome}
 • Cidade: ${state.cidade}/${state.estado}
 • Tipo: ${tipoLbl} · Telhado ${telhadoLbl}
-• Conta atual: R$ ${state.consumoRs}/mês${oferta}
+• Conta atual: R$ ${state.consumoRs}/mês${eletroLine}${oferta}
 
 ${cta}`
   );
@@ -1772,6 +1821,16 @@ function buildBigClientWhatsapp(consumoKwh, placasEstimadas) {
   const tipoLbl = state.tipo.charAt(0).toUpperCase() + state.tipo.slice(1);
   const telhadoLbl = state.telhado.charAt(0).toUpperCase() + state.telhado.slice(1);
 
+  const ELETRO_LBL = {
+    ar_condicionado: 'Ar-condicionado',
+    freezer: 'Freezer',
+    piscina_aquecida: 'Piscina aquecida',
+    carro_eletrico: 'Carro elétrico',
+    forno_eletrico: 'Forno/cooktop elétrico',
+  };
+  const eletroLista = (state.eletro || []).map(k => ELETRO_LBL[k]).filter(Boolean).join(', ');
+  const eletroLine = eletroLista ? `\n• Tem em casa: ${eletroLista}` : '';
+
   const msg = encodeURIComponent(
 `Olá! Acabei de simular meu projeto solar no site da Irmãos na Obra.
 
@@ -1782,7 +1841,7 @@ Meu consumo é grande — o simulador me direcionou pra falar direto com um espe
 • Cidade: ${state.cidade}/${state.estado}
 • Tipo: ${tipoLbl} · Telhado ${telhadoLbl}
 • Conta atual: R$ ${state.consumoRs}/mês (~${Math.round(consumoKwh)} kWh/mês)
-• Estimativa: ${placasEstimadas}+ painéis
+• Estimativa: ${placasEstimadas}+ painéis${eletroLine}
 
 Pode me ajudar com um orçamento personalizado pra esse porte?`
   );
