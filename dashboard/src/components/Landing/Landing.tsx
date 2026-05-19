@@ -49,8 +49,30 @@ export default function Landing() {
   useReveal();
   const { trackEvent } = useLpTracking();
 
+  // Tracking de seção: dispara 'section' { section: 'precos' } quando o bloco de planos
+  // entra na viewport. Usado pelo /admin (LP SolarDoc) pra calcular "Viu Seção Preços".
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const el = document.getElementById('planos');
+    if (!el || !('IntersectionObserver' in window)) return;
+    let sent = false;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (sent) return;
+        if (entries.some(e => e.isIntersecting)) {
+          sent = true;
+          trackEvent('section', { section: 'precos' });
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [trackEvent]);
+
   function scrollToPlans() {
-    trackEvent('cta_click', { label: 'scroll_to_plans' });
+    trackEvent('cta_click', { label: 'grátis' });
     if (typeof window !== 'undefined' && window.fbq) {
       window.fbq('track', 'ViewContent', { content_name: 'plans_section' });
     }
