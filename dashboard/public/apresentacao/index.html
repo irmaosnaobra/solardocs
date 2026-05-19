@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="robots" content="noindex">
+<title>SolarDoc Pro — Demonstração</title>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #0a0a0a;
+    color: #fff;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .stage {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(245,158,11,0.12) 0%, transparent 60%),
+      #0a0a0a;
+  }
+
+  .player {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    padding-top: 177.7777%;
+    background: #000;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow:
+      0 25px 50px -10px rgba(0,0,0,0.8),
+      0 0 0 1px rgba(245,158,11,0.18);
+  }
+
+  .player iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  @media (min-width: 760px) {
+    .player { max-width: 460px; }
+  }
+</style>
+</head>
+<body>
+
+<main class="stage">
+  <div class="player">
+    <iframe
+      id="panda-bff5383a-0111-45f5-8ab9-46468dd31afe"
+      src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=bff5383a-0111-45f5-8ab9-46468dd31afe"
+      allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+      allowfullscreen="true"
+      fetchpriority="high"></iframe>
+  </div>
+</main>
+
+<script>
+  if (!document.querySelector('script[src^="https://player.pandavideo.com.br/api.v2.js"]')) {
+    const s = document.createElement('script');
+    s.src = 'https://player.pandavideo.com.br/api.v2.js';
+    s.async = true;
+    document.head.appendChild(s);
+  }
+  window.pandascripttag = window.pandascripttag || [];
+  window.pandascripttag.push(function () {
+    const p = new PandaPlayer('panda-bff5383a-0111-45f5-8ab9-46468dd31afe', {
+      onReady() {
+        p.loadButtonInTime({ fetchApi: true });
+        p.setParentWindowUrl();
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
