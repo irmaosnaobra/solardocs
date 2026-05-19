@@ -2200,7 +2200,7 @@
 
     try {
       if (!sessionStorage.getItem(SENT)) {
-        send('/tracking/visit', {
+        send('/_t/v', {
           session_id: sid,
           landing_url: location.href,
           referrer: document.referrer || null,
@@ -2211,7 +2211,7 @@
     } catch (_) {}
 
     function evt(type, data) {
-      send('/tracking/event', { session_id: sid, event_type: type, event_data: data || null });
+      send('/_t/e', { session_id: sid, event_type: type, event_data: data || null });
     }
 
     document.addEventListener('click', (e) => {
@@ -2240,7 +2240,7 @@
       const seconds = Math.round((Date.now() - start) / 1000);
       if (seconds < 3) return;
       try {
-        navigator.sendBeacon(url + '/tracking/event', new Blob([JSON.stringify({
+        navigator.sendBeacon(url + '/_t/e', new Blob([JSON.stringify({
           session_id: sid, event_type: 'time_on_page', event_data: { seconds }
         })], { type: 'application/json' }));
       } catch (_) {}

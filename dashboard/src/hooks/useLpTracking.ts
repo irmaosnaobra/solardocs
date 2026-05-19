@@ -63,7 +63,7 @@ export function useLpTracking() {
     } catch {}
 
     const utms = extractUtms();
-    api.post('/tracking/visit', {
+    api.post('/_t/v', {
       session_id: sessionId.current,
       ...utms,
       referrer: document.referrer || null,
@@ -78,7 +78,7 @@ export function useLpTracking() {
   // trackEvent — usado pra CTAs e seções
   const trackEvent = useCallback((event_type: string, event_data?: Record<string, unknown>) => {
     if (!sessionId.current) sessionId.current = getOrCreateSession();
-    api.post('/tracking/event', {
+    api.post('/_t/e', {
       session_id: sessionId.current,
       event_type,
       event_data: event_data ?? null,
@@ -127,8 +127,8 @@ export function useLpTracking() {
       });
       try {
         const url = (window.location.hostname !== 'localhost')
-          ? '/_api/tracking/event'
-          : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/tracking/event';
+          ? '/_api/_t/e'
+          : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/_t/e';
         navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
       } catch {}
     }

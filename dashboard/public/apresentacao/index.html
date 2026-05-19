@@ -100,7 +100,7 @@
         localStorage.setItem(STORAGE_KEY, sid);
       }
       const qs = new URLSearchParams(location.search);
-      fetch('/_api/tracking/visit', {
+      fetch('/_api/_t/v', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

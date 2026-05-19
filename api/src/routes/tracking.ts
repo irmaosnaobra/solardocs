@@ -11,9 +11,14 @@ router.use((_req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// /v e /e = paths neutros (escapam adblocker). /visit e /event = alias temporário.
+router.options('/v',     (_req, res) => { res.sendStatus(204); });
+router.options('/e',     (_req, res) => { res.sendStatus(204); });
 router.options('/visit', (_req, res) => { res.sendStatus(204); });
-router.options('/event',  (_req, res) => { res.sendStatus(204); });
+router.options('/event', (_req, res) => { res.sendStatus(204); });
 
+router.post('/v',     trackVisit);
+router.post('/e',     trackEvent);
 router.post('/visit', trackVisit);
 router.post('/event', trackEvent);
 

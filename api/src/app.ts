@@ -81,6 +81,8 @@ app.use('/suggestions', suggestionsRoutes);
 app.use('/prestadores', prestadoresRoutes);
 app.use('/payments', paymentsRoutes);
 app.use('/admin', adminRoutes);
+// /_t = path neutro (escapa adblocker). /tracking mantido temporariamente como alias.
+app.use('/_t', trackingRoutes);
 app.use('/tracking', trackingRoutes);
 app.use('/io-leads', ioLeadsRoutes);
 app.use('/cron', cronRoutes);

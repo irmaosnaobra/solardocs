@@ -1148,14 +1148,14 @@ const _simSidEarly = (() => {
 const _simT0 = Date.now();
 function bkSend(path, payload) {
   try {
-    fetch('/_api/tracking' + path, {
+    fetch('/_api/_t' + path, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify(payload), keepalive: true,
     }).catch(()=>{});
   } catch(_){}
 }
 function bkEvt(type, data) {
-  bkSend('/event', { session_id: _simSidEarly, event_type: type, event_data: data || null });
+  bkSend('/e', { session_id: _simSidEarly, event_type: type, event_data: data || null });
 }
 // Visit (1× por aba)
 (() => {
@@ -1163,7 +1163,7 @@ function bkEvt(type, data) {
   try {
     if (sessionStorage.getItem(SENT)) return;
     const sp = new URLSearchParams(location.search);
-    bkSend('/visit', {
+    bkSend('/v', {
       session_id: _simSidEarly,
       landing_url: location.href,
       referrer: document.referrer || null,
@@ -1181,7 +1181,7 @@ window.addEventListener('pagehide', () => {
   const s = Math.round((Date.now() - _simT0) / 1000);
   if (s < 3) return;
   try {
-    navigator.sendBeacon('/_api/tracking/event', new Blob([JSON.stringify({
+    navigator.sendBeacon('/_api/_t/e', new Blob([JSON.stringify({
       session_id: _simSidEarly, event_type: 'time_on_page', event_data: { seconds: s }
     })], { type: 'application/json' }));
   } catch(_){}
@@ -1375,7 +1375,7 @@ $('#btnCalc').addEventListener('click', () => {
 
   // envia ao backend tracking (não-bloqueante)
   try {
-    fetch('/_api/tracking/event', {
+    fetch('/_api/_t/e', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         session_id: getSessId(),
@@ -1868,7 +1868,7 @@ function handleBigClient(consumoKwh, placasEstimadas) {
 
   // Tracking backend
   try {
-    fetch('/_api/tracking/event', {
+    fetch('/_api/_t/e', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         session_id: getSessId(),
