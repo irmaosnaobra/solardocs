@@ -75,7 +75,6 @@ export default function Landing() {
             <span>SolarDoc<span className={styles.brandAccent}>.App</span></span>
           </div>
           <div className={styles.navRight}>
-            <a href="/auth?mode=login" className={styles.navLink}>Entrar</a>
             <button onClick={scrollToPlans} className={styles.navCta}>Começar 7 dias grátis</button>
           </div>
         </div>
@@ -462,7 +461,6 @@ export default function Landing() {
           </div>
           <div className={styles.footerLinks}>
             <a href="https://wa.me/5534999437831" target="_blank" rel="noopener noreferrer">Suporte WhatsApp</a>
-            <a href="/auth?mode=login">Entrar</a>
           </div>
         </div>
       </footer>
