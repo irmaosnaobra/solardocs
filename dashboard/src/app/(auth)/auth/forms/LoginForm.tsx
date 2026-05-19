@@ -81,15 +81,6 @@ export default function LoginForm() {
 
   return (
     <div className={styles.card}>
-      <div className={styles.tabs} role="tablist">
-        <Link href="/auth?mode=login" className={`${styles.tab} ${styles.tabActive}`} role="tab" aria-selected="true">
-          Entrar
-        </Link>
-        <Link href="/auth?mode=register" className={styles.tab} role="tab" aria-selected="false">
-          Cadastrar
-        </Link>
-      </div>
-
       <h1 className={styles.title}>Bem-vindo de volta</h1>
       <p className={styles.subtitle}>Acesse sua conta SolarDoc Pro.</p>
 
@@ -161,8 +152,8 @@ export default function LoginForm() {
 
       <p className={styles.footer}>
         Não tem conta?{' '}
-        <Link href="/auth?mode=register" className={styles.link}>
-          Cadastre-se grátis
+        <Link href="/#planos" className={styles.link}>
+          Veja os planos
         </Link>
       </p>
 

@@ -90,6 +90,15 @@ function RegisterContent() {
       .catch(() => {});
   }, [sessionId]);
 
+  // Guard anti-bypass: cadastro só pode acontecer com plano escolhido
+  // (vindo do landing /?plano=pro|vip) OU vindo de checkout pago (sessionId).
+  // Sem nenhum dos dois → manda pra landing pra escolher plano.
+  useEffect(() => {
+    if (urlPlano === 'pro' || urlPlano === 'vip') return; // fluxo padrão (landing → cadastro → stripe)
+    if (sessionId) return; // fluxo pago já completado
+    router.replace('/#planos');
+  }, [urlPlano, sessionId, router]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
