@@ -9,6 +9,7 @@ import {
   Banknote, ScrollText, FileSignature,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
   Save, Lightbulb, HardHat, GraduationCap, Smartphone,
+  Filter,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -46,6 +47,7 @@ interface NavItem {
 
 const adminItems: NavItem[] = [
   { href: '/admin',                   icon: Settings,   label: 'Painel Admin' },
+  { href: '/admin/funil',             icon: Filter,     label: 'Funil SolarDoc' },
   { href: '/admin/insights',          icon: BarChart3,  label: 'Insights' },
   { href: '/crm/solardoc',            icon: FolderOpen, label: 'CRM SolarDoc', count: 58 },
   { href: '/crm/io',                  icon: HardHat,    label: 'CRM Irmãos na Obra' },

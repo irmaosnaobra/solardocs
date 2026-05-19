@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
-import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel } from '../controllers/adminController';
+import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel } from '../controllers/adminController';
 import { supabase } from '../utils/supabase';
 
 const router = Router();
@@ -62,6 +62,7 @@ router.post('/reset-monthly', triggerMonthlyReset);
 router.get('/visits',         getVisits);
 router.get('/analytics',      getAnalytics);
 router.get('/meta-funnel',    getMetaFunnel);
+router.get('/funnel',         getFunnel);
 
 // Deletar user (cascade manual). Aceita { email } OU { cnpj } no body.
 // Apaga: documents, clients, terceiros, company, e o user.

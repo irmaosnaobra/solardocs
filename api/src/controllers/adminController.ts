@@ -68,6 +68,86 @@ export async function getVisits(req: Request, res: Response): Promise<void> {
   }
 }
 
+// Funil da operação SolarDoc B2B: VSL → Landing → Cadastro → Stripe → Plataforma
+// Counts únicos por session_id quando possível.
+export async function getFunnel(req: Request, res: Response): Promise<void> {
+  try {
+    const period = (req.query.period as string) || 'maximo';
+    const now = new Date();
+    let since: Date;
+    if (period === 'hoje')       { since = new Date(now); since.setHours(0, 0, 0, 0); }
+    else if (period === 'ontem') { since = new Date(now.getTime() - 86400000); since.setHours(0, 0, 0, 0); }
+    else if (period === '7dias') { since = new Date(now.getTime() - 7 * 86400000); }
+    else if (period === '30dias'){ since = new Date(now.getTime() - 30 * 86400000); }
+    else if (period === 'mes')   { since = new Date(now.getFullYear(), now.getMonth(), 1); }
+    else                         { since = new Date(0); }
+
+    // 1) VSL — visitas em /apresentacao
+    const { data: vslRows } = await supabase
+      .from('page_visits')
+      .select('session_id')
+      .gte('created_at', since.toISOString())
+      .ilike('landing_url', '%apresentacao%')
+      .limit(10000);
+    const vslPageviews = vslRows?.length ?? 0;
+    const vslUnique = new Set((vslRows ?? []).map(v => v.session_id).filter(Boolean)).size;
+
+    // 2) Landing — visitas na home (excluindo /io, /gerador, /apresentacao)
+    const { data: allVisits } = await supabase
+      .from('page_visits')
+      .select('session_id, landing_url')
+      .gte('created_at', since.toISOString())
+      .limit(10000);
+    const landingFiltered = (allVisits ?? []).filter(v => {
+      const url = (v.landing_url || '').toLowerCase();
+      if (!url) return true; // sem landing_url = considera root
+      if (url.includes('apresentacao')) return false;
+      if (url.includes('/io')) return false;
+      if (url.includes('/gerador')) return false;
+      if (url.includes('/auth')) return false;
+      return true;
+    });
+    const landingPageviews = landingFiltered.length;
+    const landingUnique = new Set(landingFiltered.map(v => v.session_id).filter(Boolean)).size;
+
+    // 3) Cadastros — users criados no período (qualquer plano)
+    const { count: cadastros } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', since.toISOString());
+
+    // 4) Stripe — users que viraram pagantes (plano != free) no período
+    const { count: pagantes } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', since.toISOString())
+      .neq('plano', 'free');
+
+    // 5) Plataforma — users que geraram pelo menos 1 documento no período
+    const { data: docsRows } = await supabase
+      .from('documents')
+      .select('user_id')
+      .gte('created_at', since.toISOString())
+      .limit(10000);
+    const ativos = new Set((docsRows ?? []).map(d => d.user_id).filter(Boolean)).size;
+
+    res.json({
+      period,
+      since: since.toISOString(),
+      steps: [
+        { key: 'vsl',        label: 'VSL',         count: vslUnique,        sub: `${vslPageviews} pageviews` },
+        { key: 'landing',    label: 'Landing',     count: landingUnique,    sub: `${landingPageviews} pageviews` },
+        { key: 'cadastro',   label: 'Cadastro',    count: cadastros ?? 0,   sub: 'contas criadas' },
+        { key: 'stripe',     label: 'Stripe',      count: pagantes ?? 0,    sub: 'em trial ou pagante' },
+        { key: 'plataforma', label: 'Plataforma',  count: ativos,           sub: 'usaram a ferramenta' },
+      ],
+    });
+  } catch (err) {
+    console.error('getFunnel error:', err);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+}
+
 export async function getAnalytics(req: Request, res: Response): Promise<void> {
   try {
     const limit = Math.min(Number(req.query.limit) || 300, 500);
