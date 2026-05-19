@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLpTracking } from '@/hooks/useLpTracking';
-import { useEffect } from 'react';
 import styles from './Landing.module.css';
 
 declare global {
@@ -44,43 +43,16 @@ export default function Landing() {
   useReveal();
   const { trackEvent } = useLpTracking();
 
-  const [nome, setNome] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [cargo, setCargo] = useState('');
-  const formRef = useRef<HTMLDivElement>(null);
-
-  function scrollToFormFrom(plano: 'grátis' | 'pro' | 'vip') {
+  function goToRegister(plano: 'grátis' | 'pro' | 'vip') {
     trackEvent('cta_click', { label: plano });
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => document.getElementById('input-nome')?.focus(), 500);
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    if (!nome.trim() || nome.trim().length < 2) {
-      setError('Coloca seu nome pra continuar.');
-      return;
-    }
-    if (!cargo) {
-      setError('Escolhe seu cargo na empresa.');
-      return;
-    }
     if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'Lead', { content_name: 'hero_step1', cargo });
+      window.fbq('track', 'Lead', { content_name: 'cta_register', plano });
     }
-    trackEvent('hero_step1_submit', { cargo });
-    setLoading(true);
-    const qs = new URLSearchParams({ mode: 'register', nome: nome.trim(), cargo });
-    router.push(`/auth?${qs.toString()}`);
+    router.push('/auth?mode=register');
   }
-
 
   return (
     <div className={styles.page}>
-      <a href="#cadastro" className={styles.skipLink}>Pular para o cadastro</a>
-
       {/* NAV */}
       <nav className={styles.nav}>
         <div className={styles.navInner}>
@@ -89,12 +61,12 @@ export default function Landing() {
           </div>
           <div className={styles.navRight}>
             <a href="/auth?mode=login" className={styles.navLink}>Entrar</a>
-            <button onClick={() => scrollToFormFrom('grátis')} className={styles.navCta}>Começar grátis</button>
+            <button onClick={() => goToRegister('grátis')} className={styles.navCta}>Começar grátis</button>
           </div>
         </div>
       </nav>
 
-      {/* HERO — enxuto, sem vídeo, form como protagonista */}
+      {/* HERO — só título + sub + CTA único */}
       <section className={styles.hero}>
         <div className={styles.aurora} aria-hidden>
           <div className={`${styles.auroraBlob} ${styles.auroraBlob1}`} />
@@ -104,7 +76,7 @@ export default function Landing() {
         <div className={styles.gridPattern} aria-hidden />
 
         <div className={styles.heroInner}>
-          <div className={styles.heroTop}>
+          <div className={styles.heroTop} style={{ textAlign: 'center' }}>
             <span className={styles.eyebrow}>
               <span className={styles.eyebrowDot} />
               Pra integrador solar com CNPJ
@@ -112,14 +84,16 @@ export default function Landing() {
             <h1 className={styles.h1}>
               Gerador de Proposta + Contratos solares <strong>com a sua marca</strong>.
             </h1>
-            <p className={styles.lead}>
+            <p className={styles.lead} style={{ margin: '0 auto 32px' }}>
               Cadastra a empresa, sobe sua logo e <b>comece grátis</b>. Em minutos sai a proposta solar, o contrato,
               a procuração e a proposta bancária — pronto pra mandar no WhatsApp.
             </p>
-          </div>
 
-          <div className={styles.heroBottom}>
-            <div className={styles.trustRow}>
+            <button className={styles.finalCtaBtn} onClick={() => goToRegister('grátis')}>
+              Começar grátis →
+            </button>
+
+            <div className={styles.trustRow} style={{ justifyContent: 'center', marginTop: 24 }}>
               <span className={styles.trustItem}>
                 <span className={styles.trustCheck}>✓</span> <b>10 docs grátis</b>
               </span>
@@ -129,50 +103,6 @@ export default function Landing() {
               <span className={styles.trustItem}>
                 <span className={styles.trustCheck}>✓</span> Cancela quando quiser
               </span>
-            </div>
-
-            <div className={styles.formCard} ref={formRef} id="cadastro">
-              <span className={styles.formBadge}>✓ GRÁTIS — 10 DOCUMENTOS</span>
-              <div className={styles.formTitle}>Comece em 30 segundos</div>
-              <div className={styles.formSub}>Diz quem você é. Sem teste vencendo. Use quando precisar.</div>
-
-              <form onSubmit={handleSubmit}>
-                <div className={styles.formGrid}>
-                  <input
-                    id="input-nome"
-                    type="text"
-                    autoComplete="name"
-                    placeholder="Seu nome"
-                    value={nome}
-                    onChange={e => setNome(e.target.value)}
-                    required
-                  />
-                  <select
-                    className={styles.formSelect}
-                    value={cargo}
-                    onChange={e => setCargo(e.target.value)}
-                    required
-                  >
-                    <option value="">Seu cargo na empresa</option>
-                    <option value="socio">Sócio / Dono</option>
-                    <option value="gestor">Gestor / Diretor</option>
-                    <option value="vendedor">Vendedor / Comercial</option>
-                    <option value="engenheiro">Engenheiro / Projetista</option>
-                    <option value="tecnico">Técnico / Instalador</option>
-                    <option value="outro">Outro</option>
-                  </select>
-                </div>
-
-                <button type="submit" className={styles.cta} disabled={loading}>
-                  <span>{loading ? 'Carregando…' : 'Continuar →'}</span>
-                </button>
-
-                {error && <div className={styles.formError}>{error}</div>}
-
-                <div className={styles.formFoot}>
-                  Próximo passo: CNPJ, email e WhatsApp pra liberar seu Gerador.
-                </div>
-              </form>
             </div>
           </div>
         </div>
@@ -375,7 +305,7 @@ export default function Landing() {
                 <li>Assinatura digital com validade jurídica</li>
                 <li>Suporte por WhatsApp</li>
               </ul>
-              <button onClick={() => scrollToFormFrom('grátis')} className={styles.planBtn}>Comece grátis</button>
+              <button onClick={() => goToRegister('grátis')} className={styles.planBtn}>Comece grátis</button>
             </div>
 
             <div className={`${styles.plan} ${styles.planFeatured}`} data-reveal style={{ transitionDelay: '0.1s' }}>
@@ -393,7 +323,7 @@ export default function Landing() {
                 <li>Suporte prioritário no WhatsApp</li>
                 <li>Cancela quando quiser, sem multa</li>
               </ul>
-              <button onClick={() => scrollToFormFrom('pro')} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
+              <button onClick={() => goToRegister('pro')} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
                 Comece grátis
               </button>
             </div>
@@ -412,7 +342,7 @@ export default function Landing() {
                 <li>Suporte VIP por WhatsApp</li>
                 <li>Acesso antecipado a novos documentos</li>
               </ul>
-              <button onClick={() => scrollToFormFrom('vip')} className={styles.planBtn}>Quero o VIP</button>
+              <button onClick={() => goToRegister('vip')} className={styles.planBtn}>Quero o VIP</button>
             </div>
           </div>
 
@@ -532,7 +462,7 @@ export default function Landing() {
             10 documentos grátis pra começar. Sem cartão. Sem pegadinha.
           </p>
           <div data-reveal>
-            <button className={styles.finalCtaBtn} onClick={() => scrollToFormFrom('grátis')}>
+            <button className={styles.finalCtaBtn} onClick={() => goToRegister('grátis')}>
               Começar grátis →
             </button>
             <div className={styles.finalCtaFoot}>
