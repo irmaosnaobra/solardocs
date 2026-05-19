@@ -45,13 +45,14 @@
 
   .player-col {
     width: 100%;
-    max-width: 420px;
+    /* Cap pela altura também: 9/16 ≈ 0.5625 → largura máxima = (vh − padding) × 0.5625 */
+    max-width: min(420px, calc((100dvh - 48px) * 0.5625));
   }
 
   .player {
     position: relative;
     width: 100%;
-    padding-top: 177.7777%;
+    aspect-ratio: 9 / 16;
     background: #000;
     border-radius: 18px;
     overflow: hidden;
@@ -69,7 +70,7 @@
   }
 
   @media (min-width: 760px) {
-    .player-col { max-width: 460px; }
+    .player-col { max-width: min(460px, calc((100dvh - 48px) * 0.5625)); }
   }
 </style>
 </head>
