@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLpTracking } from '@/hooks/useLpTracking';
 import styles from './Landing.module.css';
@@ -38,18 +38,56 @@ function useReveal() {
   }, []);
 }
 
+type Billing = 'monthly' | 'annual';
+
+// Preços base mensais (R$). Anual = mensal × 12 × 0,7 (30% off).
+const PRICES = {
+  pro: { monthly: 27, annual: 226.8 },
+  vip: { monthly: 67, annual: 562.8 },
+} as const;
+
+function fmtBRL(value: number): string {
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function Landing() {
   const router = useRouter();
   useReveal();
   const { trackEvent } = useLpTracking();
 
-  function goToRegister(plano: 'grátis' | 'pro' | 'vip') {
-    trackEvent('cta_click', { label: plano });
+  const [billing, setBilling] = useState<Billing>('annual');
+
+  function goToRegister(plano: 'pro' | 'vip' | 'grátis', billingOverride?: Billing) {
+    const b = billingOverride ?? billing;
+    trackEvent('cta_click', { label: plano, billing: b });
     if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'Lead', { content_name: 'cta_register', plano });
+      window.fbq('track', 'Lead', { content_name: 'cta_register', plano, billing: b });
     }
-    router.push('/auth?mode=register');
+    const qs = new URLSearchParams({ mode: 'register' });
+    if (plano !== 'grátis') {
+      qs.set('plano', plano);
+      qs.set('billing', b);
+    }
+    router.push(`/auth?${qs.toString()}`);
   }
+
+  // Helpers de preço por plano
+  function priceLabel(plan: 'pro' | 'vip') {
+    if (billing === 'monthly') {
+      return { big: `R$ ${PRICES[plan].monthly}`, small: '/mês', sub: 'Cobrado após 7 dias grátis' };
+    }
+    const annual = PRICES[plan].annual;
+    const monthlyEquiv = annual / 12;
+    const saved = PRICES[plan].monthly * 12 - annual;
+    return {
+      big: `R$ ${fmtBRL(monthlyEquiv)}`,
+      small: '/mês',
+      sub: `Cobrado anualmente — R$ ${fmtBRL(annual)}/ano após 7 dias grátis. Economia de R$ ${fmtBRL(saved)} vs mensal.`,
+    };
+  }
+
+  const proPrice = priceLabel('pro');
+  const vipPrice = priceLabel('vip');
 
   return (
     <div className={styles.page}>
@@ -61,12 +99,12 @@ export default function Landing() {
           </div>
           <div className={styles.navRight}>
             <a href="/auth?mode=login" className={styles.navLink}>Entrar</a>
-            <button onClick={() => goToRegister('grátis')} className={styles.navCta}>Começar grátis</button>
+            <button onClick={() => goToRegister('grátis')} className={styles.navCta}>Começar 7 dias grátis</button>
           </div>
         </div>
       </nav>
 
-      {/* HERO — só título + sub + CTA único */}
+      {/* HERO */}
       <section className={styles.hero}>
         <div className={styles.aurora} aria-hidden>
           <div className={`${styles.auroraBlob} ${styles.auroraBlob1}`} />
@@ -85,30 +123,30 @@ export default function Landing() {
               Gerador de Proposta + Contratos solares <strong>com a sua marca</strong>.
             </h1>
             <p className={styles.lead} style={{ margin: '0 auto 32px' }}>
-              Cadastra a empresa, sobe sua logo e <b>comece grátis</b>. Em minutos sai a proposta solar, o contrato,
+              Cadastra a empresa, sobe sua logo e <b>use 7 dias grátis</b>. Em minutos sai a proposta solar, o contrato,
               a procuração e a proposta bancária — pronto pra mandar no WhatsApp.
             </p>
 
-            <button className={styles.finalCtaBtn} onClick={() => goToRegister('grátis')}>
-              Começar grátis →
+            <button className={styles.finalCtaBtn} onClick={() => goToRegister('vip', 'annual')}>
+              Começar 7 dias grátis →
             </button>
 
             <div className={styles.trustRow} style={{ justifyContent: 'center', marginTop: 24 }}>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> <b>10 docs grátis</b>
+                <span className={styles.trustCheck}>✓</span> <b>7 dias grátis</b>
               </span>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> Sem cartão
+                <span className={styles.trustCheck}>✓</span> Cancela antes e não paga
               </span>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> Cancela quando quiser
+                <span className={styles.trustCheck}>✓</span> Sem multa
               </span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* TRUST STRIP — concessionárias */}
+      {/* TRUST STRIP */}
       <section className={styles.trustStrip}>
         <div className={styles.trustStripInner}>
           <div className={styles.trustStripLabel} data-reveal>
@@ -280,110 +318,151 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PLANS — repaginado: persona, ancoragem por dia, CTAs padronizados */}
+      {/* PLANS — 2 planos com toggle Mensal/Anual */}
       <section className={styles.plans}>
         <div className={styles.plansInner}>
           <div className={styles.sectionLabelWrap}>
             <span className={styles.sectionLabel} data-reveal>Planos</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            <strong>Comece grátis.</strong> Continue se valer a pena.
+            <strong>7 dias grátis</strong> em qualquer plano. Cancela antes e não paga.
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            10 documentos sem pagar nada. Quando precisar de mais, escolhe o plano — sem trial, sem cartão antecipado.
+            Passe o cartão pra começar, use sem limite por 7 dias. Se gostou, mantém. Se não, cancela e nada é cobrado.
           </p>
 
-          <div className={styles.plansGrid}>
+          {/* TOGGLE Mensal | Anual */}
+          <div data-reveal style={{ display: 'flex', justifyContent: 'center', marginTop: 32 }}>
+            <div
+              role="tablist"
+              aria-label="Periodicidade de cobrança"
+              style={{
+                display: 'inline-flex',
+                background: 'rgba(15, 23, 42, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 999,
+                padding: 4,
+                gap: 4,
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={billing === 'monthly'}
+                onClick={() => setBilling('monthly')}
+                style={{
+                  border: 0,
+                  background: billing === 'monthly' ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'transparent',
+                  color: billing === 'monthly' ? '#0f172a' : '#cbd5e1',
+                  fontWeight: 800,
+                  fontSize: 14,
+                  padding: '10px 22px',
+                  borderRadius: 999,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s, color 0.2s',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Mensal
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={billing === 'annual'}
+                onClick={() => setBilling('annual')}
+                style={{
+                  border: 0,
+                  background: billing === 'annual' ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'transparent',
+                  color: billing === 'annual' ? '#0f172a' : '#cbd5e1',
+                  fontWeight: 800,
+                  fontSize: 14,
+                  padding: '10px 22px',
+                  borderRadius: 999,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s, color 0.2s',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontFamily: 'inherit',
+                }}
+              >
+                Anual
+                <span
+                  style={{
+                    background: billing === 'annual' ? '#0f172a' : 'rgba(52, 211, 153, 0.18)',
+                    color: billing === 'annual' ? '#fbbf24' : '#34d399',
+                    fontSize: 10,
+                    fontWeight: 900,
+                    padding: '3px 7px',
+                    borderRadius: 6,
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  −30%
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* CARDS — 2 colunas (auto-fit), VIP destacado */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: 22,
+              marginTop: 40,
+              maxWidth: 780,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+              alignItems: 'stretch',
+            }}
+          >
             <div className={styles.plan} data-reveal>
-              <div className={styles.planName}>Free</div>
-              <div className={styles.planPrice}>R$ 0</div>
-              <div className={styles.planSub}>Pra testar o gerador sem compromisso</div>
+              <div className={styles.planName}>Pro</div>
+              <div className={styles.planPrice}>{proPrice.big}<small>{proPrice.small}</small></div>
+              <div className={styles.planSub}>
+                {proPrice.sub}<br />
+                <span style={{ opacity: 0.7 }}>Pro integrador que fecha 5–15 vendas/mês</span>
+              </div>
               <ul className={styles.planList}>
-                <li>10 documentos vitalícios</li>
-                <li>Todos os 5 tipos de documento</li>
+                <li>90 documentos por mês</li>
                 <li>Gerador de Proposta com sua marca</li>
+                <li>Todos os 5 tipos de documento</li>
                 <li>Assinatura digital com validade jurídica</li>
-                <li>Suporte por WhatsApp</li>
+                <li>Suporte prioritário no WhatsApp</li>
+                <li>Cancela quando quiser, sem multa</li>
               </ul>
-              <button onClick={() => goToRegister('grátis')} className={styles.planBtn}>Comece grátis</button>
+              <button onClick={() => goToRegister('pro')} className={styles.planBtn}>
+                Começar 7 dias grátis
+              </button>
             </div>
 
             <div className={`${styles.plan} ${styles.planFeatured}`} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.planTag}>Mais escolhido</div>
-              <div className={styles.planName}>Pro</div>
-              <div className={styles.planPrice}>R$ 27<small>/mês</small></div>
-              <div className={styles.planSub}>
-                ≈ R$ 0,90/dia · <b>menos de R$ 0,30 por documento</b><br />
-                <span style={{ opacity: 0.7 }}>Pro integrador que fecha 5–15 vendas/mês</span>
-              </div>
-              <ul className={styles.planList}>
-                <li><b>Tudo do Free, e mais:</b></li>
-                <li>90 documentos por mês</li>
-                <li>Logo em alta resolução</li>
-                <li>Suporte prioritário no WhatsApp</li>
-                <li>Cancela quando quiser, sem multa</li>
-              </ul>
-              <button onClick={() => goToRegister('pro')} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
-                Comece grátis
-              </button>
-            </div>
-
-            <div className={styles.plan} data-reveal style={{ transitionDelay: '0.2s' }}>
               <div className={styles.planName}>VIP</div>
-              <div className={styles.planPrice}>R$ 67<small>/mês</small></div>
+              <div className={styles.planPrice}>{vipPrice.big}<small>{vipPrice.small}</small></div>
               <div className={styles.planSub}>
-                ≈ R$ 2,20/dia · documentos <b>ilimitados</b><br />
-                <span style={{ opacity: 0.7 }}>Pra empresa solar consolidada e em escala</span>
+                {vipPrice.sub}<br />
+                <span style={{ opacity: 0.7 }}>Pra empresa solar consolidada — documentos ilimitados</span>
               </div>
               <ul className={styles.planList}>
                 <li><b>Tudo do Pro, e mais:</b></li>
-                <li>Documentos ilimitados</li>
+                <li>Documentos <b>ilimitados</b></li>
                 <li>Mentoria mensal de vendas solares</li>
                 <li>Suporte VIP por WhatsApp</li>
                 <li>Acesso antecipado a novos documentos</li>
+                <li>Logo em alta resolução</li>
               </ul>
-              <button onClick={() => goToRegister('vip')} className={styles.planBtn}>Quero o VIP</button>
+              <button onClick={() => goToRegister('vip')} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
+                Começar 7 dias grátis
+              </button>
             </div>
           </div>
 
-          {/* TABELA COMPARATIVA — estilo Panda Video */}
-          <div className={styles.compareGrid} style={{ marginTop: 56 }}>
-            <div className={styles.compareCol} data-reveal>
-              <div className={styles.compareTitle}>Free</div>
-              <ul className={styles.compareList}>
-                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>10</span> Documentos</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Gerador de Proposta</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Sua marca / sua cor</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Assinatura digital</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Suporte prioritário</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Mentoria solar</li>
-              </ul>
-            </div>
-
-            <div className={`${styles.compareCol} ${styles.compareColBest}`} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.compareTitle}>Pro</div>
-              <ul className={styles.compareList}>
-                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>90</span> Documentos/mês</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Gerador de Proposta</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Sua marca / sua cor</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Assinatura digital</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Suporte prioritário</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Mentoria solar</li>
-              </ul>
-            </div>
-
-            <div className={styles.compareCol} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.compareTitle}>VIP</div>
-              <ul className={styles.compareList}>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>∞</span> Documentos ilimitados</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Gerador de Proposta</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Sua marca / sua cor</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Assinatura digital</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Suporte VIP</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Mentoria mensal</li>
-              </ul>
-            </div>
-          </div>
+          <p data-reveal style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: '#94a3b8' }}>
+            Cobrança automática só depois dos 7 dias. Você pode cancelar a qualquer momento na sua conta.
+          </p>
         </div>
       </section>
 
@@ -399,10 +478,26 @@ export default function Landing() {
 
           <div className={styles.faqList}>
             <details className={styles.faqItem} data-reveal>
-              <summary>Preciso pagar pra começar?</summary>
+              <summary>Por que preciso passar o cartão pra começar?</summary>
               <div className={styles.faqAnswer}>
-                Não. Você cadastra a empresa solar com CNPJ e ganha <b>10 documentos vitalícios</b> sem
-                cartão. Use quando precisar — não vence.
+                Pra liberar acesso completo imediato durante os 7 dias. <b>Nada é cobrado nesse período</b> —
+                a primeira fatura só sai no 8º dia, e só se você não cancelar antes.
+              </div>
+            </details>
+
+            <details className={styles.faqItem} data-reveal>
+              <summary>Como cancelo durante o trial?</summary>
+              <div className={styles.faqAnswer}>
+                Direto na sua conta, dentro do app, em 1 clique. <b>Sem multa, sem ligação, sem letra miúda.</b>
+                Se cancelar antes do 7º dia, não é cobrado nenhum valor.
+              </div>
+            </details>
+
+            <details className={styles.faqItem} data-reveal>
+              <summary>Qual a diferença entre Mensal e Anual?</summary>
+              <div className={styles.faqAnswer}>
+                Mesmo produto, mesma funcionalidade. <b>No anual você economiza 30%</b> —
+                pagando antecipado o ano todo de uma vez. No mensal, cobra todo mês.
               </div>
             </details>
 
@@ -432,14 +527,6 @@ export default function Landing() {
             </details>
 
             <details className={styles.faqItem} data-reveal>
-              <summary>Cancelo quando quiser?</summary>
-              <div className={styles.faqAnswer}>
-                Sim. <b>Sem multa, sem fidelidade, sem letra miúda.</b> Você cancela direto na sua conta
-                e pronto.
-              </div>
-            </details>
-
-            <details className={styles.faqItem} data-reveal>
               <summary>O dono mesmo consegue usar?</summary>
               <div className={styles.faqAnswer}>
                 Esse é exatamente o público pra quem foi feito. Você não precisa de funcionário,
@@ -459,14 +546,14 @@ export default function Landing() {
             <strong>o cliente assinando no seu celular.</strong>
           </h2>
           <p className={styles.finalCtaSub} data-reveal>
-            10 documentos grátis pra começar. Sem cartão. Sem pegadinha.
+            7 dias grátis. Cancela antes e não paga. Sem pegadinha.
           </p>
           <div data-reveal>
-            <button className={styles.finalCtaBtn} onClick={() => goToRegister('grátis')}>
-              Começar grátis →
+            <button className={styles.finalCtaBtn} onClick={() => goToRegister('vip', 'annual')}>
+              Começar 7 dias grátis →
             </button>
             <div className={styles.finalCtaFoot}>
-              Pro plano pago: a partir de R$ 27/mês (≈ R$ 0,90/dia). Cancela quando quiser.
+              Depois do trial: Pro R$ 27/mês ou VIP R$ 67/mês · 30% off no anual · cancela quando quiser.
             </div>
           </div>
         </div>
