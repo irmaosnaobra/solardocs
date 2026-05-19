@@ -58,8 +58,11 @@ const cadastroItems: NavItem[] = [
   { href: '/terceiros', icon: Handshake,       label: 'Terceiros', requireCompany: true },
 ];
 
+const geradorItem: NavItem = {
+  href: '/documentos?tipo=proposta', icon: Sparkles, label: 'Gerador de Proposta', requireCompany: true,
+};
+
 const docsClienteItems: NavItem[] = [
-  { href: '/documentos?tipo=proposta',          icon: Sparkles,       label: 'Gerador de Proposta', requireCompany: true },
   { href: '/documentos?tipo=vistoria',          icon: ClipboardCheck, label: 'Vistoria CheckList', requireCompany: true },
   { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,       label: 'Proposta de Banco',  requireCompany: true },
   { href: '/documentos?tipo=contrato-solar',    icon: FileSignature,  label: 'Contrato Solar',     requireCompany: true },
@@ -179,6 +182,11 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
             </div>
           </>
         )}
+
+        {/* ── Seção: Gerador de Proposta (destaque no topo) ── */}
+        <div className={styles.navSection}>
+          {renderItem(geradorItem)}
+        </div>
 
         {/* ── Seção 2: Cadastro ── */}
         <div className={styles.navDivider}>
