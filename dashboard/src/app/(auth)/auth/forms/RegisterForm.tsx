@@ -135,7 +135,7 @@ function RegisterContent() {
         w.fbq('track', 'Lead', {}, { eventID: eventId });
         w.fbq('track', 'CompleteRegistration', {}, { eventID: eventId });
       }
-      router.push('/dashboard');
+      router.push('/documentos?tipo=proposta');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setError(e.response?.data?.error || 'Erro ao criar conta. Tenta de novo.');
