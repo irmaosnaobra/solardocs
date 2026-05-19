@@ -13,6 +13,7 @@ import { runCarlaMorningBroadcast } from '../services/agents/sdr/sdrB2bMorningHo
 import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoCrmFollowups, runCoraTick } from '../services/agents/io/ioCrmAgent';
+import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -120,7 +121,7 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -134,6 +135,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       cleanupMessageDedup(),
       // enviarRelatorioDiario(),       // [LUMA-IO-OFF] relatório diário IO
       retryCardsPendentes(),
+      processarLembretesAgenda(),      // lembretes 5min/3h da agenda /gerador
     ]);
     res.json({
       ok: true,
@@ -143,6 +145,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       cleanup:    cleanupResult.status === 'fulfilled' ? cleanupResult.value : { error: String((cleanupResult as any).reason) },
       dedup_cleanup: dedupCleanupResult.status === 'fulfilled' ? dedupCleanupResult.value : { error: String((dedupCleanupResult as any).reason) },
       card_retry: cardRetryResult.status === 'fulfilled' ? cardRetryResult.value : { error: String((cardRetryResult as any).reason) },
+      agenda:     agendaResult.status === 'fulfilled' ? agendaResult.value : { error: String((agendaResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {

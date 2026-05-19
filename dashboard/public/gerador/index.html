@@ -52,6 +52,7 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
 /* Barra de ações acima do gerador */
 .top-actions{display:flex;gap:10px;justify-content:flex-end;margin-bottom:14px}
 .btn-top{padding:8px 16px;border-radius:99px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;border:none}
+.btn-top-agenda{background:#0d2d5e;color:#fff}
 .btn-top-hist{background:#f5c518;color:#0d2d5e}
 .btn-top-sair{background:#fff;color:#0d2d5e;border:2px solid #0d2d5e}
 .btn-top:hover{opacity:.9}
@@ -109,6 +110,7 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
   <div id="formSection">
 
     <div class="top-actions">
+      <button type="button" class="btn-top btn-top-agenda" onclick="location.href='/gerador/agenda'">📅 Agenda</button>
       <button type="button" class="btn-top btn-top-hist" onclick="abrirHistorico()">📋 Histórico</button>
       <button type="button" class="btn-top btn-top-sair" onclick="sairGerador()">Sair</button>
     </div>
