@@ -7,6 +7,17 @@
 <meta name="robots" content="noindex">
 <title>SolarDoc Pro — Demonstração</title>
 
+<!-- Panda Video: preloads para acelerar o player -->
+<link rel="preload" href="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/css/plyr.css" as="style">
+<link rel="preload" href="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/css/styles.css" as="style">
+<link rel="preload" href="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/css/pb.css" as="style">
+<link rel="preload" href="https://config.tv.pandavideo.com.br/vz-380ec774-9b3/bff5383a-0111-45f5-8ab9-46468dd31afe.json" as="fetch" crossorigin>
+<link rel="preload" href="https://config.tv.pandavideo.com.br/vz-380ec774-9b3/config.json" as="fetch" crossorigin>
+<link rel="dns-prefetch" href="https://b-vz-380ec774-9b3.tv.pandavideo.com.br">
+<link rel="preload" href="https://b-vz-380ec774-9b3.tv.pandavideo.com.br/bff5383a-0111-45f5-8ab9-46468dd31afe/playlist.m3u8" as="fetch" crossorigin>
+<link rel="prerender" href="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=bff5383a-0111-45f5-8ab9-46468dd31afe">
+<link rel="dns-prefetch" href="https://player-vz-380ec774-9b3.tv.pandavideo.com.br">
+
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
@@ -71,7 +82,6 @@
   <div class="player-col">
     <div class="player">
       <iframe
-        id="panda-bff5383a-0111-45f5-8ab9-46468dd31afe"
         src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=bff5383a-0111-45f5-8ab9-46468dd31afe"
         allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
         allowfullscreen="true"
@@ -82,19 +92,25 @@
 </main>
 
 <script>
-  if (!document.querySelector('script[src^="https://player.pandavideo.com.br/api.v2.js"]')) {
-    const s = document.createElement('script');
-    s.src = 'https://player.pandavideo.com.br/api.v2.js';
-    s.async = true;
-    document.head.appendChild(s);
-  }
-  window.pandascripttag = window.pandascripttag || [];
-  window.pandascripttag.push(function () {
-    const p = new PandaPlayer('panda-bff5383a-0111-45f5-8ab9-46468dd31afe', {
-      onReady() {
-        p.loadButtonInTime({ fetchApi: true });
-        p.setParentWindowUrl();
-      }
+  document.addEventListener('readystatechange', () => {
+    if (document.readyState !== 'complete') return;
+    const hlsLink = 'https://b-vz-380ec774-9b3.tv.pandavideo.com.br/bff5383a-0111-45f5-8ab9-46468dd31afe/playlist.m3u8';
+    const pullzone = hlsLink.split('b-')[1].split('.')[0];
+    const id = hlsLink.split('.com.br/')[1].split('/')[0];
+    if (!document.querySelector('script[src^="https://player.pandavideo.com.br/api.v2.js"]')) {
+      const s = document.createElement('script');
+      s.src = 'https://player.pandavideo.com.br/api.v2.js';
+      s.async = true;
+      document.head.appendChild(s);
+    }
+    window.pandascripttag = window.pandascripttag || [];
+    window.pandascripttag.push(function () {
+      const p = new PandaPlayer('iframe[src*="' + pullzone + '"][src*="' + id + '"]', {
+        onReady() {
+          p.loadButtonInTime({ fetchApi: true });
+          p.setParentWindowUrl();
+        }
+      });
     });
   });
 </script>
