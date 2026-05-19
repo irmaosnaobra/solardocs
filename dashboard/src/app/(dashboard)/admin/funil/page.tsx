@@ -49,7 +49,7 @@ function pct(num: number, den: number): string {
 }
 
 export default function FunilPage() {
-  const [period, setPeriod] = useState<Period>('30dias');
+  const [period, setPeriod] = useState<Period>('hoje');
   const [data, setData] = useState<FunnelData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
