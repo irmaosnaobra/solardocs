@@ -140,7 +140,7 @@ function RegisterContent() {
       // Veio do landing com plano escolhido → cria checkout com trial 7d e redireciona pro Stripe
       if (urlPlano === 'pro' || urlPlano === 'vip') {
         try {
-          const { data: ck } = await api.post('/payments/checkout', { plan: urlPlano });
+          const { data: ck } = await api.post('/payments/create-checkout', { plan: urlPlano });
           if (ck?.url) {
             window.location.href = ck.url;
             return;
