@@ -104,6 +104,7 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
 
   // Fluxo normal: usuário sem subscription ativa (FREE) → cria checkout
   // Com trial de 7 dias: cartão capturado, primeira cobrança só no 8º dia.
+  const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
@@ -114,8 +115,8 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
       trial_period_days: 7,
       metadata: { userId: req.userId! },
     },
-    success_url: `${process.env.DASHBOARD_URL}/documentos?tipo=proposta&trial=1`,
-    cancel_url:  `${process.env.DASHBOARD_URL}/planos?cancelado=1`,
+    success_url: `${dashboardUrl}/documentos?tipo=proposta&trial=1`,
+    cancel_url:  `${dashboardUrl}/?cancelado=1`,
     custom_text: {
       submit: { message: planInfo.descricao },
     },

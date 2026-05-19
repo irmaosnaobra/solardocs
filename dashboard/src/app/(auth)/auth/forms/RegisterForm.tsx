@@ -141,13 +141,17 @@ function RegisterContent() {
       if (urlPlano === 'pro' || urlPlano === 'vip') {
         try {
           const { data: ck } = await api.post('/payments/checkout', { plan: urlPlano });
-          if (ck.url) {
+          if (ck?.url) {
             window.location.href = ck.url;
             return;
           }
-        } catch {
-          // Se falhar, cai no fluxo padrão — usuário entra no app e pode assinar depois
+          console.error('[Register→Checkout] resposta sem URL:', ck);
+        } catch (ckErr) {
+          console.error('[Register→Checkout] falha:', ckErr);
         }
+        // Falhou checkout: conta criada com sucesso, leva pro app com flag
+        router.push('/documentos?tipo=proposta&checkout_falhou=1');
+        return;
       }
 
       router.push('/documentos?tipo=proposta');
