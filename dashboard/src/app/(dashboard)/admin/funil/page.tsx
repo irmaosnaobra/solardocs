@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/services/api';
 
-type Period = 'hoje' | 'ontem' | '7dias' | '30dias' | 'mes' | 'maximo';
+type Period = 'hoje' | 'ontem' | '3dias' | '7dias' | 'mes' | 'maximo';
 
 interface FunnelStep {
   key: 'vsl' | 'landing' | 'cadastro' | 'stripe' | 'plataforma';
@@ -18,12 +18,12 @@ interface FunnelData {
 }
 
 const PERIODS: { value: Period; label: string }[] = [
-  { value: 'hoje',    label: 'Hoje' },
-  { value: 'ontem',   label: 'Ontem' },
-  { value: '7dias',   label: '7 dias' },
-  { value: '30dias',  label: '30 dias' },
-  { value: 'mes',     label: 'Mês' },
-  { value: 'maximo',  label: 'Máximo' },
+  { value: 'hoje',   label: 'Hoje' },
+  { value: 'ontem',  label: 'Ontem' },
+  { value: '3dias',  label: '3 dias' },
+  { value: '7dias',  label: '7 dias' },
+  { value: 'mes',    label: 'Esse mês' },
+  { value: 'maximo', label: 'Máximo' },
 ];
 
 // Cores por etapa — degradê quente da VSL → laranja da plataforma

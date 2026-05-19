@@ -77,6 +77,7 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
     let since: Date;
     if (period === 'hoje')       { since = new Date(now); since.setHours(0, 0, 0, 0); }
     else if (period === 'ontem') { since = new Date(now.getTime() - 86400000); since.setHours(0, 0, 0, 0); }
+    else if (period === '3dias') { since = new Date(now.getTime() - 3 * 86400000); }
     else if (period === '7dias') { since = new Date(now.getTime() - 7 * 86400000); }
     else if (period === '30dias'){ since = new Date(now.getTime() - 30 * 86400000); }
     else if (period === 'mes')   { since = new Date(now.getFullYear(), now.getMonth(), 1); }
