@@ -17,7 +17,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     type DocRow = { id: string; tipo: string; arquivo_url: string | null; content: string | null };
     let doc: DocRow | null = null;
 
-    // Formato 1: slug.codigo_curto (ex: irmaosnaobra.20260001)
+    // Formato 1: slug.codigo_curto (ex: cmoenergiasolar.20260001) — preferido
     const slugCurtoMatch = id.match(/^([a-z0-9]+)\.(\d{8})$/);
     if (slugCurtoMatch) {
       const [, slug, codigoCurto] = slugCurtoMatch;
@@ -35,14 +35,12 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
           .maybeSingle();
         doc = (d ?? null) as DocRow | null;
       }
-    } else {
-      // Formato 2: 12-dígitos legacy. Formato 3: UUID.
-      const isCodigo = /^\d{12}$/.test(id);
-      const lookupCol = isCodigo ? 'codigo' : 'id';
+    } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      // Formato 2: UUID — fallback pra docs sem codigo_curto
       const { data: d } = await supabase
         .from('documents')
         .select('id, tipo, arquivo_url, content')
-        .eq(lookupCol, id)
+        .eq('id', id)
         .maybeSingle();
       doc = (d ?? null) as DocRow | null;
     }

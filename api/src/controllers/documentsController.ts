@@ -184,7 +184,6 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       arquivo_url,
       status: 'saved',
     };
-    if (codigo) insertPayload.codigo = codigo;
     if (codigoCurto) insertPayload.codigo_curto = codigoCurto;
 
     const { data: saved, error: insertErr } = await supabase
@@ -195,16 +194,6 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
 
     if (insertErr) {
       logger.error('documents', 'INSERT documents falhou', insertErr);
-      // Se colunas 'codigo'/'codigo_curto' não existirem (migration não aplicada), tenta sem elas
-      if ((codigo || codigoCurto) && /codigo|column/i.test(insertErr.message || '')) {
-        delete insertPayload.codigo;
-        delete insertPayload.codigo_curto;
-        const retry = await supabase.from('documents').insert(insertPayload).select('id').single();
-        if (retry.data) {
-          res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: retry.data.id, codigo: null, codigo_curto: null, empresa_slug: null, warning: 'Migration codigo nao aplicada — proposta salva sem codigo' });
-          return;
-        }
-      }
       res.status(500).json({ error: 'Falha ao salvar documento', detail: insertErr.message });
       return;
     }
