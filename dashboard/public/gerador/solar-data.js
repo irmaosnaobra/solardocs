@@ -191,3 +191,89 @@ function renderGraficoMensalSVG(mensal, opts) {
     ${bars}
   </svg>`;
 }
+
+// Formato BRL curto: R$ 100k, R$ 1,2M
+function pBRLshort(n) {
+  if (n >= 1000000) return 'R$ ' + (n / 1000000).toFixed(1).replace('.', ',') + 'M';
+  if (n >= 1000) return 'R$ ' + Math.round(n / 1000) + 'k';
+  return 'R$ ' + Math.round(n);
+}
+function pBRL(n) {
+  return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+}
+
+// SVG comparativo 25 anos: 2 linhas (sem solar vermelha vs com solar verde)
+// + área verde de economia preenchida. Espelha propostaSolarM1 da plataforma.
+// Retorna { html, semTotal, comTotal, economia25 } ou null se faltar dado.
+function renderChart25SVG(d) {
+  const consumoKwh = Number(d.consumoKwh) || 0;
+  const tarifa = Number(d.tarifa) || 0;
+  const taxaMin = Number(d.taxaMin) || 0;
+  const inflTarifa = Number(d.inflTarifa) || 0.06;
+  const inflTaxaMin = Number(d.inflTaxaMin) || 0.06;
+  if (consumoKwh <= 0 || tarifa <= 0 || taxaMin <= 0) return null;
+
+  const NUM_ANOS = 25;
+  const semSolarAcum = [];
+  const comSolarAcum = [];
+  let sem = 0, com = 0;
+  for (let a = 1; a <= NUM_ANOS; a++) {
+    const fatorTarifa = Math.pow(1 + inflTarifa, a - 1);
+    const fatorMin = Math.pow(1 + inflTaxaMin, a - 1);
+    sem += consumoKwh * 12 * tarifa * fatorTarifa;
+    com += taxaMin * 12 * fatorMin;
+    semSolarAcum.push(Math.round(sem));
+    comSolarAcum.push(Math.round(com));
+  }
+  const semTotal = semSolarAcum[NUM_ANOS - 1];
+  const comTotal = comSolarAcum[NUM_ANOS - 1];
+  const economia25 = semTotal - comTotal;
+
+  const CW = 700, CH = 280, CP = { top: 24, right: 20, bottom: 50, left: 70 };
+  const cInnerW = CW - CP.left - CP.right;
+  const cInnerH = CH - CP.top - CP.bottom;
+  const yMax = Math.max.apply(null, semSolarAcum.concat([1]));
+
+  const cYTicks = 5;
+  const yLinesArr = [];
+  for (let i = 0; i <= cYTicks; i++) {
+    const v = (yMax * i) / cYTicks;
+    const y = CP.top + cInnerH - (cInnerH * i) / cYTicks;
+    yLinesArr.push(
+      '<line x1="' + CP.left + '" y1="' + y + '" x2="' + (CP.left + cInnerW) + '" y2="' + y + '" stroke="#E5E7EB" stroke-width="1"/>' +
+      '<text x="' + (CP.left - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10" fill="#9CA3AF">' + pBRLshort(v) + '</text>'
+    );
+  }
+  const cYLines = yLinesArr.join('\n');
+
+  const xCoord = (i) => CP.left + (cInnerW * i) / (NUM_ANOS - 1);
+  const yCoord = (v) => CP.top + cInnerH - (cInnerH * v) / yMax;
+
+  const semPath = semSolarAcum.map((v, i) => (i === 0 ? 'M' : 'L') + ' ' + xCoord(i).toFixed(1) + ' ' + yCoord(v).toFixed(1)).join(' ');
+  const comPath = comSolarAcum.map((v, i) => (i === 0 ? 'M' : 'L') + ' ' + xCoord(i).toFixed(1) + ' ' + yCoord(v).toFixed(1)).join(' ');
+  const semForward = semPath;
+  const comReverse = [...comSolarAcum].reverse().map((v, i) => {
+    const idx = NUM_ANOS - 1 - i;
+    return 'L ' + xCoord(idx).toFixed(1) + ' ' + yCoord(v).toFixed(1);
+  }).join(' ');
+  const areaEconomia = semForward + ' ' + comReverse + ' Z';
+
+  const cXLabels = [1, 5, 10, 15, 20, 25].map(a => {
+    const i = a - 1;
+    return '<text x="' + xCoord(i).toFixed(1) + '" y="' + (CP.top + cInnerH + 18).toFixed(1) + '" text-anchor="middle" font-size="11" fill="#6B7280" font-weight="600">Ano ' + a + '</text>';
+  }).join('\n');
+
+  const html = '<svg viewBox="0 0 ' + CW + ' ' + CH + '" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs><linearGradient id="gEco" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0%" stop-color="#10B981" stop-opacity="0.35"/>' +
+    '<stop offset="100%" stop-color="#10B981" stop-opacity="0.10"/>' +
+    '</linearGradient></defs>' +
+    cYLines +
+    '<path d="' + areaEconomia + '" fill="url(#gEco)" stroke="none"/>' +
+    '<path d="' + semPath + '" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '<path d="' + comPath + '" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+    cXLabels +
+    '</svg>';
+
+  return { html: html, semTotal: semTotal, comTotal: comTotal, economia25: economia25 };
+}
