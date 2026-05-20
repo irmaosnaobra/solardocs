@@ -124,6 +124,16 @@ export default function DisparosPage() {
 
   useEffect(() => { loadHistorico(); }, [loadHistorico]);
 
+  // Pré-preenche contatos vindo do /admin/leads-google via localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const prefill = window.localStorage.getItem('disparos_telefones_prefill');
+    if (prefill) {
+      setContatosRaw(prefill);
+      window.localStorage.removeItem('disparos_telefones_prefill');
+    }
+  }, []);
+
   const mensagens = useMemo(() => [msg1, msg2, msg3].filter(m => m.trim().length > 0), [msg1, msg2, msg3]);
 
   const contatosFinais = useMemo(() => {

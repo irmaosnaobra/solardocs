@@ -761,4 +761,165 @@ router.get('/io/broadcasts', async (req: Request, res: Response): Promise<void> 
   }
 });
 
+// ── Lead Extractor (Google Places Text Search New API) ────────────
+// /admin/leads/google/search   POST  { query, max_pages? } → busca + persiste
+// /admin/leads/google/searches GET   lista buscas anteriores
+// /admin/leads/google/searches/:id GET  retorna leads da busca
+// /admin/leads/google/searches/:id DELETE  remove busca + leads
+interface GooglePlace {
+  id: string;
+  displayName?: { text?: string };
+  formattedAddress?: string;
+  nationalPhoneNumber?: string;
+  internationalPhoneNumber?: string;
+  websiteUri?: string;
+  rating?: number;
+  userRatingCount?: number;
+  types?: string[];
+  location?: { latitude?: number; longitude?: number };
+}
+
+router.post('/leads/google/search', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { query, max_pages } = req.body as { query?: string; max_pages?: number };
+    const q = (query || '').trim();
+    if (!q) { res.status(400).json({ error: 'query obrigatoria' }); return; }
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
+    if (!apiKey) { res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY nao configurado' }); return; }
+
+    const pages = Math.max(1, Math.min(Number(max_pages) || 3, 3));
+    const fieldMask = [
+      'places.id', 'places.displayName', 'places.formattedAddress',
+      'places.nationalPhoneNumber', 'places.internationalPhoneNumber',
+      'places.websiteUri', 'places.rating', 'places.userRatingCount',
+      'places.types', 'places.location',
+      'nextPageToken',
+    ].join(',');
+
+    const allPlaces: GooglePlace[] = [];
+    let nextPageToken: string | undefined;
+
+    for (let page = 0; page < pages; page++) {
+      const body: Record<string, unknown> = {
+        textQuery: q,
+        languageCode: 'pt-BR',
+        regionCode: 'BR',
+        pageSize: 20,
+      };
+      if (nextPageToken) body.pageToken = nextPageToken;
+
+      const r = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': fieldMask,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const txt = await r.text();
+        res.status(502).json({ error: 'Erro Google Places', http_status: r.status, body: txt });
+        return;
+      }
+      const data = await r.json() as { places?: GooglePlace[]; nextPageToken?: string };
+      const places = data.places ?? [];
+      allPlaces.push(...places);
+      nextPageToken = data.nextPageToken;
+      if (!nextPageToken) break;
+      // Google exige delay curto antes de usar o nextPageToken
+      await new Promise<void>(resolve => setTimeout(resolve, 2000));
+    }
+
+    // Cria registro da busca
+    const comTelefone = allPlaces.filter(p => p.nationalPhoneNumber || p.internationalPhoneNumber).length;
+    const { data: searchRow, error: sErr } = await supabase.from('google_lead_searches').insert({
+      criado_por: req.userId,
+      query: q,
+      total_resultados: allPlaces.length,
+      com_telefone: comTelefone,
+      status: 'concluido',
+    }).select('id').single();
+    if (sErr || !searchRow) { res.status(500).json({ error: 'Erro criando busca', detail: sErr?.message }); return; }
+
+    // Insere leads (deduplica por place_id dentro da mesma busca)
+    if (allPlaces.length > 0) {
+      const seen = new Set<string>();
+      const rows = allPlaces
+        .filter(p => p.id && !seen.has(p.id) && seen.add(p.id))
+        .map(p => ({
+          search_id: searchRow.id,
+          place_id: p.id,
+          nome: p.displayName?.text ?? null,
+          telefone: p.nationalPhoneNumber ?? null,
+          telefone_internacional: p.internationalPhoneNumber ?? null,
+          endereco: p.formattedAddress ?? null,
+          website: p.websiteUri ?? null,
+          rating: p.rating ?? null,
+          reviews_count: p.userRatingCount ?? null,
+          types: p.types ?? null,
+          latitude: p.location?.latitude ?? null,
+          longitude: p.location?.longitude ?? null,
+        }));
+      if (rows.length > 0) {
+        const { error: lErr } = await supabase.from('google_leads').insert(rows);
+        if (lErr) { res.status(500).json({ error: 'Erro inserindo leads', detail: lErr.message }); return; }
+      }
+    }
+
+    // Retorna leads recém-inseridos
+    const { data: leads } = await supabase.from('google_leads')
+      .select('*').eq('search_id', searchRow.id).order('rating', { ascending: false, nullsFirst: false });
+
+    res.json({
+      search_id: searchRow.id,
+      query: q,
+      total: allPlaces.length,
+      com_telefone: comTelefone,
+      leads: leads ?? [],
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro buscando Google Places', message: String(err) });
+  }
+});
+
+router.get('/leads/google/searches', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 30, 100);
+    const { data, error } = await supabase
+      .from('google_lead_searches')
+      .select('id, criado_em, query, total_resultados, com_telefone, status')
+      .order('criado_em', { ascending: false })
+      .limit(limit);
+    if (error) { res.status(500).json({ error: 'Erro listando buscas', detail: error.message }); return; }
+    res.json({ searches: data ?? [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro list searches', message: String(err) });
+  }
+});
+
+router.get('/leads/google/searches/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('google_leads')
+      .select('*')
+      .eq('search_id', req.params.id)
+      .order('rating', { ascending: false, nullsFirst: false });
+    if (error) { res.status(500).json({ error: 'Erro buscando leads', detail: error.message }); return; }
+    res.json({ leads: data ?? [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro get leads', message: String(err) });
+  }
+});
+
+router.delete('/leads/google/searches/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { error } = await supabase.from('google_lead_searches').delete().eq('id', req.params.id);
+    if (error) { res.status(500).json({ error: 'Erro deletando busca', detail: error.message }); return; }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro delete search', message: String(err) });
+  }
+});
+
 export default router;
