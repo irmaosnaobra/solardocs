@@ -13,6 +13,8 @@ interface UserRow {
   empresa_nome: string | null; empresa_cnpj: string | null; empresa_whatsapp: string | null;
   followup_day_recovered: number | null;
   followup_started_at: string | null;
+  stripe_status: string | null;
+  stripe_plan: string | null;
 }
 interface LeadRow {
   id: string; name: string; whatsapp: string | null;
@@ -439,9 +441,9 @@ export default function AdminPage() {
           </div>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
-              <thead><tr><th>Email</th><th>Empresa</th><th>WhatsApp</th><th>Plano</th><th>Docs</th><th>Cadastro</th><th>Followup</th><th>Resultado Followup</th></tr></thead>
+              <thead><tr><th>Email</th><th>Empresa</th><th>WhatsApp</th><th>Plano</th><th>Stripe</th><th>Docs</th><th>Cadastro</th><th>Followup</th><th>Resultado Followup</th></tr></thead>
               <tbody>
-                {filteredUsers.length===0&&<tr><td colSpan={8} className={styles.empty}>Nenhum usuário encontrado</td></tr>}
+                {filteredUsers.length===0&&<tr><td colSpan={9} className={styles.empty}>Nenhum usuário encontrado</td></tr>}
                 {filteredUsers.map(u=>{
                   const fsRaw       = u.followup_started_at;
                   const isInSystem  = !!fsRaw;
@@ -464,6 +466,27 @@ export default function AdminPage() {
                       return wpp ? <a href={`https://wa.me/55${wpp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" style={{color:'#22c55e',textDecoration:'none'}}>📲 {wpp}</a> : <span className={styles.emptyDash}>—</span>;
                     })()}</td>
                     <td><span className={styles.planTag} style={{background:PLANO_COLOR[u.plano]+'22',color:PLANO_COLOR[u.plano],borderColor:PLANO_COLOR[u.plano]+'55'}}>{PLANO_LABEL[u.plano]??u.plano}</span></td>
+                    <td style={{textAlign:'center'}}>{(() => {
+                      // Sem subscription no Stripe: cadastrou mas não passou cartão
+                      if (!u.stripe_status) {
+                        return u.plano === 'free'
+                          ? <span title="Cadastrou mas não passou cartão" style={{display:'inline-block',padding:'2px 8px',borderRadius:6,background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.30)',color:'#f87171',fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>Não passou</span>
+                          : <span className={styles.emptyDash}>—</span>;
+                      }
+                      // Com subscription: traduzir status
+                      const map: Record<string,{label:string;bg:string;border:string;color:string}> = {
+                        trialing:           { label:'Trial',     bg:'rgba(59,130,246,0.10)', border:'rgba(59,130,246,0.30)', color:'#60a5fa' },
+                        active:             { label:'Ativo',     bg:'rgba(34,197,94,0.10)',  border:'rgba(34,197,94,0.30)',  color:'#22c55e' },
+                        past_due:           { label:'Em atraso', bg:'rgba(245,158,11,0.10)', border:'rgba(245,158,11,0.30)', color:'#f59e0b' },
+                        canceled:           { label:'Cancelou',  bg:'rgba(239,68,68,0.10)',  border:'rgba(239,68,68,0.30)',  color:'#f87171' },
+                        incomplete:         { label:'Incompleto',bg:'rgba(148,163,184,0.10)',border:'rgba(148,163,184,0.30)',color:'#94a3b8' },
+                        incomplete_expired: { label:'Expirou',   bg:'rgba(148,163,184,0.10)',border:'rgba(148,163,184,0.30)',color:'#94a3b8' },
+                        unpaid:             { label:'Não pagou', bg:'rgba(239,68,68,0.10)',  border:'rgba(239,68,68,0.30)',  color:'#f87171' },
+                        paused:             { label:'Pausada',   bg:'rgba(148,163,184,0.10)',border:'rgba(148,163,184,0.30)',color:'#94a3b8' },
+                      };
+                      const s = map[u.stripe_status] ?? { label:u.stripe_status, bg:'rgba(148,163,184,0.10)', border:'rgba(148,163,184,0.30)', color:'#94a3b8' };
+                      return <span title={`Stripe: ${u.stripe_status}`} style={{display:'inline-block',padding:'2px 8px',borderRadius:6,background:s.bg,border:`1px solid ${s.border}`,color:s.color,fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>{s.label}</span>;
+                    })()}</td>
                     <td className={styles.mutedCell}>{u.documentos_usados}/{u.limite_documentos===999999?'∞':u.limite_documentos}</td>
                     <td>{(() => { const r = relDate(u.created_at); return <div style={{display:'flex',flexDirection:'column',gap:2}}><span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>{r.showTime&&<span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}</div>; })()}</td>
                     <td style={{textAlign:'center'}}>

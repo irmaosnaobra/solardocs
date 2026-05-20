@@ -40,12 +40,49 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
 
     const companyMap = new Map(companies?.map(c => [c.user_id, c]) ?? []);
 
-    const result = (users as UserRow[] | null)?.map(u => ({
-      ...u,
-      empresa_nome:     companyMap.get(u.id)?.nome     ?? null,
-      empresa_cnpj:     companyMap.get(u.id)?.cnpj     ?? null,
-      empresa_whatsapp: companyMap.get(u.id)?.whatsapp ?? null,
-    }));
+    // Stripe status por email: detecta quem passou cartão e quem ficou FREE
+    // sem chegar no checkout. Lookup nos últimos 60 dias cobre todos os trials
+    // ativos + churn recente sem custo excessivo de API.
+    const stripeByEmail = new Map<string, { status: string; plan: string | null }>();
+    try {
+      const sinceUnix = Math.floor(Date.now() / 1000) - 60 * 86400;
+      let cursor: string | undefined;
+      for (let page = 0; page < 5; page++) {
+        const subs = await stripe.subscriptions.list({
+          created: { gte: sinceUnix },
+          status: 'all',
+          limit: 100,
+          starting_after: cursor,
+          expand: ['data.customer'],
+        });
+        for (const s of subs.data) {
+          const cust = s.customer as Stripe.Customer | string;
+          const email = typeof cust === 'string' ? null : cust.email;
+          if (!email) continue;
+          const priceId = s.items.data[0]?.price?.id ?? '';
+          stripeByEmail.set(email.toLowerCase(), {
+            status: s.status,
+            plan: PRICE_TO_PLAN[priceId] ?? null,
+          });
+        }
+        if (!subs.has_more) break;
+        cursor = subs.data[subs.data.length - 1]?.id;
+      }
+    } catch (err) {
+      console.error('getUsers: stripe lookup falhou (segue sem stripe_status):', err);
+    }
+
+    const result = (users as UserRow[] | null)?.map(u => {
+      const stripe = stripeByEmail.get(u.email.toLowerCase());
+      return {
+        ...u,
+        empresa_nome:     companyMap.get(u.id)?.nome     ?? null,
+        empresa_cnpj:     companyMap.get(u.id)?.cnpj     ?? null,
+        empresa_whatsapp: companyMap.get(u.id)?.whatsapp ?? null,
+        stripe_status:    stripe?.status ?? null,
+        stripe_plan:      stripe?.plan   ?? null,
+      };
+    });
 
     const { data: docs } = await supabase
       .from('documents')
