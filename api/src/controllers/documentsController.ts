@@ -186,15 +186,37 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     };
     if (codigoCurto) insertPayload.codigo_curto = codigoCurto;
 
-    const { data: saved, error: insertErr } = await supabase
-      .from('documents')
-      .insert(insertPayload)
-      .select('id')
-      .single();
+    // Retry em race de codigo_curto: se 2 propostas geram simultaneamente, ambas leem o mesmo
+    // COUNT pra calcular a sequência e tentam o mesmo número. Unique constraint
+    // (user_id, codigo_curto) bloqueia a 2ª — aí recalcula e tenta de novo.
+    let saved: { id: string } | null = null;
+    let insertErr: { code?: string; message?: string } | null = null;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const result = await supabase.from('documents').insert(insertPayload).select('id').single();
+      if (!result.error) {
+        saved = result.data;
+        insertErr = null;
+        break;
+      }
+      insertErr = result.error;
+      const isCodigoRace = codigoCurto
+        && result.error.code === '23505'
+        && /codigo_curto/i.test(result.error.message || '');
+      if (!isCodigoRace) break;
+      try {
+        const recalc = await ensureEmpresaSlugAndCodigoCurto(req.userId, company.id);
+        codigoCurto = recalc.codigoCurto;
+        empresaSlug = recalc.slug;
+        insertPayload.codigo_curto = codigoCurto;
+        logger.warn('documents', `race em codigo_curto, retry ${attempt} com ${codigoCurto}`);
+      } catch {
+        break;
+      }
+    }
 
-    if (insertErr) {
+    if (insertErr || !saved) {
       logger.error('documents', 'INSERT documents falhou', insertErr);
-      res.status(500).json({ error: 'Falha ao salvar documento', detail: insertErr.message });
+      res.status(500).json({ error: 'Falha ao salvar documento', detail: insertErr?.message });
       return;
     }
 
