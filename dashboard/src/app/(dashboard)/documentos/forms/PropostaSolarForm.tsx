@@ -105,6 +105,7 @@ export default function PropostaSolarPage() {
   const [error, setError] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [copyMsg, setCopyMsg] = useState('');
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // kWp deriva de qtd_modulos × potencia_modulo (verdade técnica: 10×620W = 6,2 kWp)
   const kwpCalc = (() => {
@@ -191,10 +192,29 @@ export default function PropostaSolarPage() {
     }
   }
 
-  async function handlePrint() {
-    if (!iframeRef.current?.contentWindow) return;
-    iframeRef.current.contentWindow.focus();
-    iframeRef.current.contentWindow.print();
+  async function handleDownloadPdf() {
+    if (!generated?.doc_id || downloadingPdf) return;
+    setDownloadingPdf(true);
+    try {
+      const response = await api.get(`/documents/${generated.doc_id}/pdf`, { responseType: 'blob' });
+      const blob = response.data as Blob;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = (generated.cliente_nome || 'proposta')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      a.download = `proposta-${safeName || 'cliente'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setCopyMsg('❌ Erro ao gerar PDF. Tenta de novo.');
+      setTimeout(() => setCopyMsg(''), 4000);
+    } finally {
+      setDownloadingPdf(false);
+    }
   }
 
   // Identificador público preferencial:
@@ -236,8 +256,15 @@ export default function PropostaSolarPage() {
           )}
           <div style={{ flex: 1 }} />
           <button type="button" onClick={handleCopyLink} style={btn('primary')}>🔗 Copiar link</button>
-          <button type="button" onClick={handlePrint} style={btn('outline')}>🖨️ Imprimir</button>
-          {copyMsg && <span style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf || !generated.doc_id}
+            style={{ ...btn('outline'), opacity: (downloadingPdf || !generated.doc_id) ? 0.6 : 1, cursor: downloadingPdf ? 'wait' : 'pointer' }}
+          >
+            {downloadingPdf ? '⏳ Gerando PDF…' : '📥 Baixar PDF'}
+          </button>
+          {copyMsg && <span style={{ color: copyMsg.startsWith('❌') ? '#EF4444' : '#10B981', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}
         </div>
         <div style={{
           background: '#F3F4F6',
