@@ -1669,10 +1669,30 @@
     box-shadow: none !important;
   }
 
-  /* Cards grandes podem precisar de uma margem extra antes de iniciar
-     numa nova página pra não ficar comprimido no topo */
-  .preco-box,
-  .cta-fechamento { margin-top: 8mm; }
+  /* Título nunca fica órfão no fim da página — sempre junto do conteúdo da seção */
+  #propostaSection .section h2,
+  #propostaSection .invest-label,
+  #propostaSection .compare-card .compare-label {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Footer não força quebra de página — fica colado no último elemento */
+  #propostaSection .footer {
+    break-before: avoid !important;
+    page-break-before: avoid !important;
+    border-top: none !important;
+    padding: 8px 40px 12px !important;
+  }
+
+  /* Reduz padding das seções no print pra encaixar mais por página */
+  #propostaSection .section { padding: 18px 30px !important; }
+  #propostaSection .stats { padding: 22px 30px !important; }
+  #propostaSection .hero { padding: 36px 30px !important; }
+  #propostaSection .topbar { padding: 14px 30px !important; }
+
+  /* Controle de órfãs/viúvas — força no mínimo 3 linhas juntas */
+  #propostaSection { orphans: 3; widows: 3; }
 
   a { color: inherit !important; text-decoration: none !important; }
 }
