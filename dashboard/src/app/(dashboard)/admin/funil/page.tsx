@@ -6,7 +6,7 @@ import api from '@/services/api';
 type Period = 'hoje' | 'ontem' | '3dias' | '7dias' | 'mes' | 'maximo';
 
 interface FunnelStep {
-  key: 'vsl' | 'landing' | 'cadastro' | 'stripe' | 'plataforma';
+  key: 'vsl' | 'landing' | 'cadastro' | 'stripe' | 'empresa' | 'plataforma';
   label: string;
   count: number;
   sub?: string;
@@ -36,6 +36,7 @@ const STEP_COLORS: Record<FunnelStep['key'], { bg: string; border: string; accen
   landing:    { bg: 'rgba(59, 130, 246, 0.10)', border: 'rgba(59, 130, 246, 0.30)', accent: '#60a5fa' },
   cadastro:   { bg: 'rgba(16, 185, 129, 0.10)', border: 'rgba(16, 185, 129, 0.30)', accent: '#34d399' },
   stripe:     { bg: 'rgba(245, 158, 11, 0.10)', border: 'rgba(245, 158, 11, 0.30)', accent: '#fbbf24' },
+  empresa:    { bg: 'rgba(20, 184, 166, 0.10)', border: 'rgba(20, 184, 166, 0.30)', accent: '#2dd4bf' },
   plataforma: { bg: 'rgba(239, 68, 68, 0.10)',  border: 'rgba(239, 68, 68, 0.30)',  accent: '#f87171' },
 };
 
@@ -44,6 +45,7 @@ const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
   landing:    'Tráfego frio (Google/indicação) — VSL pula direto pro cadastro',
   cadastro:   'Criaram conta na plataforma',
   stripe:     'Passaram cartão (inclui cancelados no trial)',
+  empresa:    'Preencheram CNPJ pós-pagamento (gate pra emitir documento)',
   plataforma: 'Geraram ao menos 1 documento',
 };
 
@@ -93,7 +95,7 @@ export default function FunilPage() {
             Funil da operação SolarDoc
           </h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '6px 0 0' }}>
-            VSL → Landing → Cadastro → Stripe → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
+            VSL → Cadastro → Stripe → Empresa → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
           </p>
         </div>
 
@@ -267,15 +269,17 @@ export default function FunilPage() {
           </div>
 
           {/* Resumo de conversões macro. Primeira linha = fluxo principal
-              (VSL → Cadastro → Stripe → Ativo). LP fria fica no fim, separada,
-              pra dar visibilidade ao tráfego não-VSL sem confundir o KPI. */}
+              (VSL → Cadastro → Stripe → Empresa → Ativo). LP fria fica no fim,
+              separada, pra dar visibilidade ao tráfego não-VSL sem confundir o KPI.
+              Índices: 0=vsl, 1=landing, 2=cadastro, 3=stripe, 4=empresa, 5=plataforma. */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             {[
               { label: 'VSL → Cadastro',     val: pct(data.steps[2].count, data.steps[0].count) },
               { label: 'Cadastro → Stripe',  val: pct(data.steps[3].count, data.steps[2].count) },
-              { label: 'Stripe → Ativo',     val: pct(data.steps[4].count, data.steps[3].count) },
+              { label: 'Stripe → Empresa',   val: pct(data.steps[4].count, data.steps[3].count) },
+              { label: 'Empresa → Ativo',    val: pct(data.steps[5].count, data.steps[4].count) },
               { label: 'VSL → Pagante',      val: pct(data.steps[3].count, data.steps[0].count) },
-              { label: 'VSL → Ativo',        val: pct(data.steps[4].count, data.steps[0].count) },
+              { label: 'VSL → Ativo',        val: pct(data.steps[5].count, data.steps[0].count) },
               { label: 'LP fria → Cadastro', val: pct(data.steps[2].count, data.steps[1].count), muted: true },
             ].map(m => (
               <div key={m.label} style={{
@@ -298,10 +302,14 @@ export default function FunilPage() {
           {/* Notas */}
           <div style={{ marginTop: 32, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
             <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> os números são únicos —
-            visitantes únicos por sessão (VSL/Landing) e usuários distintos (Cadastro/Stripe/Plataforma).
+            visitantes únicos por sessão (VSL/Landing) e usuários distintos (Cadastro/Stripe/Empresa/Plataforma).
             "Pageviews" no canto inferior conta o total de visitas (com re-visita). VSL conta acessos a
             <code style={{ padding: '0 4px' }}>/apresentacao</code>; Landing conta a home
             <code style={{ padding: '0 4px' }}>solardoc.app/</code> (excluindo /io, /gerador, /auth, /apresentacao).
+            <br /><br />
+            <strong style={{ color: '#2dd4bf' }}>Empresa:</strong> users que preencheram CNPJ em
+            <code style={{ padding: '0 4px' }}>/empresa</code> pós-pagamento. É gate obrigatório pra emitir
+            documentos — drop entre Stripe e Empresa = pagantes que não terminam o onboarding.
             <br /><br />
             <strong style={{ color: '#f87171' }}>Landing PAUSADA:</strong> quem vem da VSL é redirecionado direto
             pro cadastro, pulando a LP. A Landing aparece muted só pra dar visibilidade ao tráfego frio (Google/indicação)

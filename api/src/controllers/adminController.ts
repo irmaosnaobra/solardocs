@@ -164,7 +164,26 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
       stripeReached = pagantes ?? 0;
     }
 
-    // 5) Plataforma — users que geraram pelo menos 1 documento no período
+    // 5) Empresa preenchida — users criados no período que já têm registro em company.
+    // Etapa nova do novo flow VSL → Cadastro → Stripe → /empresa → Documentos.
+    // company não tem created_at, então usamos users.created_at como proxy
+    // (user criado no período E tem empresa cadastrada em algum momento).
+    const { data: newUsers } = await supabase
+      .from('users')
+      .select('id')
+      .gte('created_at', since.toISOString())
+      .limit(10000);
+    const newUserIds = (newUsers ?? []).map(u => u.id);
+    let empresaCount = 0;
+    if (newUserIds.length) {
+      const { data: companies } = await supabase
+        .from('company')
+        .select('user_id')
+        .in('user_id', newUserIds);
+      empresaCount = new Set((companies ?? []).map(c => c.user_id)).size;
+    }
+
+    // 6) Plataforma — users que geraram pelo menos 1 documento no período
     const { data: docsRows } = await supabase
       .from('documents')
       .select('user_id')
@@ -186,7 +205,8 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
           sub: 'chegaram ao pagamento',
           detail: { closed: stripeClosed, byProduct },
         },
-        { key: 'plataforma', label: 'Plataforma',  count: ativos,           sub: 'usaram a ferramenta' },
+        { key: 'empresa',    label: 'Empresa',     count: empresaCount,     sub: 'preencheram CNPJ' },
+        { key: 'plataforma', label: 'Plataforma',  count: ativos,           sub: 'geraram 1+ documento' },
       ],
     });
   } catch (err) {
