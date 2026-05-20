@@ -517,6 +517,7 @@
 <div class="topbar">
   <div class="brand">📅 Agenda <small>· Irmãos na Obra</small></div>
   <div class="actions">
+    <button class="btn-volta" id="btn-refresh" onclick="atualizarAgenda()" title="Atualizar agenda" style="width:36px;padding:8px 0">↻</button>
     <button class="btn-volta" onclick="location.href='/gerador'">← Gerador</button>
     <button class="btn-sair" onclick="sair()">Sair</button>
   </div>
@@ -803,6 +804,14 @@ function navSemana(delta) {
 function irHoje() {
   semanaAtual = inicioSemanaSegunda(new Date());
   renderTudo();
+}
+async function atualizarAgenda() {
+  const btn = document.getElementById('btn-refresh');
+  btn.style.transition = 'transform .5s';
+  btn.style.transform = 'rotate(360deg)';
+  await renderTudo();
+  setTimeout(() => { btn.style.transition = 'none'; btn.style.transform = 'rotate(0deg)'; }, 520);
+  showToast('🔄 Agenda atualizada');
 }
 function trocarVendedor(nome) {
   vendedorAtivo = nome;
