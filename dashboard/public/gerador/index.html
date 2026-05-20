@@ -234,10 +234,18 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
             <option value="TO">TO</option>
           </select>
         </div>
-        <div class="field full">
+        <div class="field">
           <label>Distância de Uberlândia/MG (km) <span style="opacity:.6;font-weight:normal;">— preenche automático</span></label>
           <input type="number" id="f-distancia" placeholder="Auto via cidade/UF" min="0" step="1">
           <small id="dist-status" style="display:block; margin-top:6px; font-size:13px; opacity:.8;"></small>
+        </div>
+        <div class="field">
+          <label>Cadastro de excedente</label>
+          <select id="f-excedente">
+            <option value="">Selecione...</option>
+            <option value="Sem Excedente">Sem Excedente</option>
+            <option value="Com Excedente">Com Excedente</option>
+          </select>
         </div>
         <div class="field">
           <label>Tipo de telhado</label>
@@ -257,8 +265,6 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
             <option value="Monofásica">Monofásica</option>
             <option value="Bifásica">Bifásica</option>
             <option value="Trifásica">Trifásica</option>
-            <option value="Sem Excedente">Sem Excedente</option>
-            <option value="Com Excedente">Com Excedente</option>
           </select>
         </div>
       </div>
@@ -1550,6 +1556,7 @@ async function gerar() {
   const distanciaKm = parseFloat(document.getElementById('f-distancia').value) || 0;
   const telhado = document.getElementById('f-telhado').value;
   const fase = document.getElementById('f-fase').value;
+  const excedente = document.getElementById('f-excedente').value;
   const linha = document.getElementById('f-linha').value;
   const tarifa = parseFloat(document.getElementById('f-tarifa').value) || 1.09;
   const taxaMin = parseFloat(document.getElementById('f-taxamin').value) || 95;
@@ -1718,7 +1725,7 @@ async function gerar() {
   // Guardar para o WhatsApp / link
   dadosAtual = {
     dataEmissao: editandoCodigo && originalDataEmissao ? originalDataEmissao : new Date().toISOString(),
-    nome, telefone, telefoneDigitos, cidade, distanciaKm, telhado, fase,
+    nome, telefone, telefoneDigitos, cidade, distanciaKm, telhado, fase, excedente,
     item: { n: item.n, g: item.g, kwp: item.kwp, invs: item.invs },
     tab: { inv: tab.inv, mod: tab.mod, pot: tab.pot },
     areaReal, economia, economia25, payback, paybackTextoLong, pbPct,
@@ -2006,6 +2013,7 @@ function novoCliente() {
   if (distStatus) distStatus.textContent = '';
   document.getElementById('f-telhado').value = '';
   document.getElementById('f-fase').value = '';
+  document.getElementById('f-excedente').value = '';
   document.getElementById('f-linha').value = '';
   document.getElementById('f-consumo').value = '';
   document.getElementById('f-qtd').value = '';
@@ -2996,6 +3004,7 @@ async function editarProposta(codigo) {
     if (distStatus) distStatus.textContent = '';
     document.getElementById('f-telhado').value = d.telhado || '';
     document.getElementById('f-fase').value = d.fase || '';
+    document.getElementById('f-excedente').value = d.excedente || '';
     if (d.consultor) document.getElementById('f-consultor').value = d.consultor;
 
     // Linha (deriva do inversor pra propostas legadas)
