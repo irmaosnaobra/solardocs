@@ -672,6 +672,20 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
       </div>
     </div>
 
+    <!-- GRÁFICO 25 ANOS: conta de luz sem solar vs com solar -->
+    <div class="section" id="card-chart25" style="display:none;">
+      <h2>Conta de luz nos próximos 25 anos</h2>
+      <div class="chart-wrap" id="chart25-wrap"></div>
+      <div class="chart25-legend">
+        <div class="chart25-leg-item"><span class="chart25-leg-dot" style="background:#EF4444"></span><span id="chart25-leg-sem"></span></div>
+        <div class="chart25-leg-item"><span class="chart25-leg-dot" style="background:#10B981"></span><span id="chart25-leg-com"></span></div>
+      </div>
+      <div class="chart25-economia-card">
+        <div class="chart25-economia-label">A área verde é sua economia</div>
+        <div class="chart25-economia-val" id="chart25-economia-val"></div>
+      </div>
+    </div>
+
     <!-- RETORNO FINANCEIRO -->
     <div class="section">
       <h2>Retorno financeiro</h2>
@@ -1918,6 +1932,24 @@ function renderProposta(d, viaLink) {
     cardGraf.style.display = '';
   } else {
     cardGraf.style.display = 'none';
+  }
+
+  // Gráfico SVG de 25 anos: sem solar vs com solar (área verde = economia)
+  // Espelha o template propostaSolarM1 da plataforma SolarDoc Pro.
+  const cardChart25 = document.getElementById('card-chart25');
+  if (d.consumoKwh > 0 && d.tarifa > 0 && d.taxaMin > 0) {
+    const svg = renderChart25SVG(d);
+    if (svg) {
+      document.getElementById('chart25-wrap').innerHTML = svg.html;
+      document.getElementById('chart25-leg-sem').textContent = `Sem energia solar (${pBRLshort(svg.semTotal)} em 25 anos)`;
+      document.getElementById('chart25-leg-com').textContent = `Com energia solar (${pBRLshort(svg.comTotal)} em 25 anos)`;
+      document.getElementById('chart25-economia-val').textContent = `${pBRL(svg.economia25)} a mais no seu bolso`;
+      cardChart25.style.display = '';
+    } else {
+      cardChart25.style.display = 'none';
+    }
+  } else {
+    cardChart25.style.display = 'none';
   }
 
   document.getElementById('e-mod').textContent = `${d.item.n}× ${d.tab.mod}`;
