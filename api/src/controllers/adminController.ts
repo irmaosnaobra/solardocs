@@ -1,7 +1,17 @@
 import { Request, Response } from 'express';
+import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { runMonthlyReset } from '../services/planService';
 import { fetchAdsetInsights, sumTotals, type MetaPeriod } from '../services/metaAdsService';
+
+const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
+
+// price_id → nome do plano. Sincronizado com PLAN_MAP em paymentsController.ts —
+// se mudar lá, mudar aqui.
+const PRICE_TO_PLAN: Record<string, string> = {
+  [(process.env.STRIPE_PRICE_PRO || 'price_1TKNtbCkkgzQ4IHeCr0mYSXn').trim()]: 'pro',
+  [(process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim()]: 'ilimitado',
+};
 
 type UserRow = {
   id: string;
@@ -117,12 +127,42 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
       .select('id', { count: 'exact', head: true })
       .gte('created_at', since.toISOString());
 
-    // 4) Stripe — users que viraram pagantes (plano != free) no período
-    const { count: pagantes } = await supabase
-      .from('users')
-      .select('id', { count: 'exact', head: true })
-      .gte('created_at', since.toISOString())
-      .neq('plano', 'free');
+    // 4) Stripe — subscriptions criadas no período via Stripe API.
+    // Distingue quem só passou cartão (trial/canceled) de quem fechou (status=active,
+    // ou seja, passou do trial de 7d e pagou a primeira fatura). Quebra por produto.
+    let stripeReached = 0;
+    let stripeClosed = 0;
+    const byProduct: Record<string, number> = { pro: 0, ilimitado: 0 };
+    try {
+      const sinceUnix = Math.floor(since.getTime() / 1000);
+      let cursor: string | undefined;
+      // Pagina até 5 páginas (500 subs) — suficiente para qualquer período corrente.
+      for (let page = 0; page < 5; page++) {
+        const subs = await stripe.subscriptions.list({
+          created: { gte: sinceUnix },
+          status: 'all',
+          limit: 100,
+          starting_after: cursor,
+        });
+        for (const s of subs.data) {
+          stripeReached += 1;
+          if (s.status === 'active') stripeClosed += 1;
+          const priceId = s.items.data[0]?.price?.id ?? '';
+          const plano = PRICE_TO_PLAN[priceId];
+          if (plano) byProduct[plano] = (byProduct[plano] ?? 0) + 1;
+        }
+        if (!subs.has_more) break;
+        cursor = subs.data[subs.data.length - 1]?.id;
+      }
+    } catch (err) {
+      console.error('getFunnel — falha ao consultar Stripe, caindo no fallback DB:', err);
+      const { count: pagantes } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', since.toISOString())
+        .neq('plano', 'free');
+      stripeReached = pagantes ?? 0;
+    }
 
     // 5) Plataforma — users que geraram pelo menos 1 documento no período
     const { data: docsRows } = await supabase
@@ -139,7 +179,13 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
         { key: 'vsl',        label: 'VSL',         count: vslUnique,        sub: `${vslPageviews} pageviews` },
         { key: 'landing',    label: 'Landing',     count: landingUnique,    sub: `${landingPageviews} pageviews` },
         { key: 'cadastro',   label: 'Cadastro',    count: cadastros ?? 0,   sub: 'contas criadas' },
-        { key: 'stripe',     label: 'Stripe',      count: pagantes ?? 0,    sub: 'em trial ou pagante' },
+        {
+          key: 'stripe',
+          label: 'Stripe',
+          count: stripeReached,
+          sub: 'chegaram ao pagamento',
+          detail: { closed: stripeClosed, byProduct },
+        },
         { key: 'plataforma', label: 'Plataforma',  count: ativos,           sub: 'usaram a ferramenta' },
       ],
     });

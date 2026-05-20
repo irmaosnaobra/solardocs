@@ -10,6 +10,10 @@ interface FunnelStep {
   label: string;
   count: number;
   sub?: string;
+  detail?: {
+    closed: number;
+    byProduct: Record<string, number>;
+  };
 }
 interface FunnelData {
   period: Period;
@@ -39,8 +43,13 @@ const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
   vsl:        'Acessaram a página do vídeo de venda',
   landing:    'Chegaram na home solardoc.app',
   cadastro:   'Criaram conta na plataforma',
-  stripe:     'Passaram cartão (trial 7d ou pagantes)',
+  stripe:     'Passaram cartão (inclui cancelados no trial)',
   plataforma: 'Geraram ao menos 1 documento',
+};
+
+const PRODUCT_LABEL: Record<string, string> = {
+  pro: 'PRO',
+  ilimitado: 'Ilimitado',
 };
 
 function pct(num: number, den: number): string {
@@ -174,6 +183,33 @@ export default function FunilPage() {
                     <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
                       {STEP_DESCRIPTIONS[step.key]}
                     </div>
+                    {step.key === 'stripe' && step.detail && (
+                      <div style={{
+                        marginTop: 10,
+                        paddingTop: 10,
+                        borderTop: `1px solid ${colors.border}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>
+                          {step.detail.closed} {step.detail.closed === 1 ? 'fechou' : 'fecharam'}{' '}
+                          <span style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                            (passou do trial)
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                          {Object.entries(step.detail.byProduct).map(([plano, n], idx, arr) => (
+                            <span key={plano}>
+                              <span style={{ color: 'var(--color-text)', fontWeight: 700 }}>
+                                {PRODUCT_LABEL[plano] ?? plano}
+                              </span>: {n}
+                              {idx < arr.length - 1 ? '  •  ' : ''}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {totalPct !== null && (
                       <div style={{ marginTop: 'auto', paddingTop: 12, fontSize: 11, color: colors.accent, fontWeight: 700, letterSpacing: '0.04em' }}>
                         {totalPct} do topo
