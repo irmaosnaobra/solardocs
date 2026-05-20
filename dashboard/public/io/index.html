@@ -1348,21 +1348,39 @@
   }
   .contact .section-title { color: #fff; }
   .contact .section-lead { color: rgba(255,255,255,0.75); }
-  .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 48px; }
-  .contact-info { display: grid; gap: 26px; }
-  .contact-block { display: flex; gap: 18px; align-items: flex-start; }
+  .contact-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-top: 48px;
+  }
+  .contact-block {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 16px;
+    padding: 24px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transition: transform 0.2s, border-color 0.2s, background 0.2s;
+  }
+  .contact-block:hover {
+    transform: translateY(-3px);
+    border-color: rgba(194, 138, 44, 0.38);
+    background: rgba(255,255,255,0.06);
+  }
   .contact-block .ic {
-    width: 48px; height: 48px;
+    width: 44px; height: 44px;
     border-radius: 12px;
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.12);
     color: var(--gold-soft);
     display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
+    font-size: 19px;
     flex-shrink: 0;
   }
-  .contact-block h4 { font-size: 13px; color: rgba(255,255,255,0.6); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px; }
-  .contact-block .v { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.3; }
+  .contact-block h4 { font-size: 11px; color: rgba(255,255,255,0.55); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .contact-block .v { font-size: 15px; font-weight: 600; color: #fff; line-height: 1.4; word-break: break-word; overflow-wrap: anywhere; }
   .contact-block .v a { color: #fff; transition: color 0.2s; }
   .contact-block .v a:hover { color: var(--gold-soft); }
 
@@ -1459,7 +1477,7 @@
     .test-card { width: 280px; }
     .test-shot-frame { height: 460px; }
     .areas-inner { grid-template-columns: 1fr; }
-    .contact-grid { grid-template-columns: 1fr; gap: 40px; }
+    .contact-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
     .ft-grid { grid-template-columns: 1fr 1fr; gap: 36px 24px; }
     .ft-bottom { justify-content: center; text-align: center; }
   }
@@ -1473,6 +1491,7 @@
     .certs-logos { grid-template-columns: repeat(2, 1fr); }
     .areas-list { columns: 1; }
     .form-row-2 { grid-template-columns: 1fr; }
+    .contact-grid { grid-template-columns: 1fr; }
     .ft-grid { grid-template-columns: 1fr; }
   }
 </style>
@@ -2329,100 +2348,47 @@
 <!-- ============ CONTATO ============ -->
 <section class="contact" id="contato">
   <div class="container">
-    <div class="block-head" style="text-align:left; margin-bottom:0;">
-      <div class="eyebrow" style="color:var(--gold-soft)">Vamos conversar</div>
-      <h2 class="section-title">Solicite uma visita técnica gratuita.</h2>
-      <p class="section-lead">
-        Um engenheiro irá até o seu imóvel para avaliar a viabilidade do projeto. Sem custo, sem compromisso.
+    <div class="block-head" style="text-align:center;">
+      <div class="eyebrow" style="color:var(--gold-soft)">Fale com a gente</div>
+      <h2 class="section-title">Estamos aqui pra te atender.</h2>
+      <p class="section-lead" style="margin-left:auto; margin-right:auto;">
+        Use o canal que preferir — respondemos rápido. Visita técnica e proposta sem custo, conforme a sua agenda.
       </p>
     </div>
 
     <div class="contact-grid">
-      <div class="contact-info">
-        <div class="contact-block">
-          <div class="ic">💬</div>
-          <div>
-            <h4>WhatsApp</h4>
-            <div class="v">
-              <a href="https://wa.me/5534998165040" target="_blank" rel="noopener">(34) 99816-5040</a>
-            </div>
-          </div>
-        </div>
+      <a href="https://wa.me/5534998165040" target="_blank" rel="noopener" class="contact-block" style="text-decoration:none;">
+        <div class="ic">💬</div>
+        <h4>WhatsApp</h4>
+        <div class="v">(34) 99816-5040</div>
+      </a>
 
-        <div class="contact-block">
-          <div class="ic">📍</div>
-          <div>
-            <h4>Endereço</h4>
-            <div class="v" style="font-size:15px; font-weight:600;">
-              Bairro Santa Mônica<br/>
-              Uberlândia/MG
-            </div>
-          </div>
-        </div>
+      <a href="mailto:irmaosnaobrasolar@gmail.com" class="contact-block" style="text-decoration:none;">
+        <div class="ic">✉</div>
+        <h4>E-mail</h4>
+        <div class="v">irmaosnaobrasolar@gmail.com</div>
+      </a>
 
-        <div class="contact-block">
-          <div class="ic">✉</div>
-          <div>
-            <h4>E-mail</h4>
-            <div class="v">
-              <a href="mailto:irmaosnaobrasolar@gmail.com">irmaosnaobrasolar@gmail.com</a>
-            </div>
-          </div>
-        </div>
+      <div class="contact-block">
+        <div class="ic">📍</div>
+        <h4>Endereço</h4>
+        <div class="v">Santa Mônica<br/>Uberlândia/MG</div>
+      </div>
 
-        <div class="contact-block">
-          <div class="ic">📱</div>
-          <div>
-            <h4>Redes sociais</h4>
-            <div class="v" style="font-size:15px;">
-              <a href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener">@irmaosnaobra__</a><br/>
-              <a href="https://www.facebook.com/profile.php?id=61578755447927" target="_blank" rel="noopener" style="font-weight:500;">Facebook</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="contact-block">
-          <div class="ic">🕐</div>
-          <div>
-            <h4>Horário de atendimento</h4>
-            <div class="v" style="font-size:15px; font-weight:600;">
-              Segunda a sexta · 8h às 18h<br/>
-              Sábados · 9h às 13h
-            </div>
-          </div>
+      <div class="contact-block">
+        <div class="ic">📱</div>
+        <h4>Redes sociais</h4>
+        <div class="v">
+          <a href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener">@irmaosnaobra__</a><br/>
+          <a href="https://www.facebook.com/profile.php?id=61578755447927" target="_blank" rel="noopener">Facebook</a>
         </div>
       </div>
 
-      <form class="contact-form" id="contactForm">
-        <h3>Envie sua solicitação</h3>
-        <div class="form-field">
-          <input type="text" name="nome" placeholder="Nome completo" required autocomplete="name">
-        </div>
-        <div class="form-row-2">
-          <div class="form-field">
-            <input type="tel" name="whatsapp" placeholder="WhatsApp" required autocomplete="tel">
-          </div>
-          <div class="form-field">
-            <input type="email" name="email" placeholder="E-mail" required autocomplete="email">
-          </div>
-        </div>
-        <div class="form-field">
-          <select name="tipo" required>
-            <option value="" disabled selected>Tipo de projeto</option>
-            <option value="residencial">Residencial</option>
-            <option value="comercial">Comercial</option>
-            <option value="industrial">Industrial</option>
-            <option value="rural">Rural</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <input type="text" name="cidade" placeholder="Cidade" required>
-        </div>
-        <div class="form-field">
-          <textarea name="msg" placeholder="Conte um pouco sobre o seu caso (consumo médio, observações)"></textarea>
-        </div>
-        <button type="submit" class="form-submit">SOLICITAR VISITA TÉCNICA →</button>
-      </form>
+      <div class="contact-block">
+        <div class="ic">🕐</div>
+        <h4>Atendimento</h4>
+        <div class="v">Seg–Sex · 8h–18h<br/>Sáb · 9h–13h</div>
+      </div>
     </div>
   </div>
 </section>
