@@ -497,6 +497,60 @@
   .hv-overlay-card .t { font-size: 14px; line-height: 1.3; color: var(--text-muted); }
   .hv-overlay-card .t b { color: var(--navy); display: block; font-size: 16px; font-weight: 800; margin-bottom: 2px; }
 
+  /* ============ HERO FORM (substitui o hero-visual) ============ */
+  .hero-form-card {
+    background: linear-gradient(180deg, var(--navy) 0%, #081A38 100%);
+    color: #fff;
+    border-radius: 20px;
+    padding: 34px 30px;
+    box-shadow: 0 30px 60px -16px rgba(15, 42, 82, 0.40);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-form-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle 360px at 100% 0%, rgba(194, 138, 44, 0.18), transparent 60%),
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: auto, 40px 40px, 40px 40px;
+    pointer-events: none;
+  }
+  .hero-form-card > * { position: relative; }
+  .hero-form-card .hero-form-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gold-soft);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .hero-form-card .hero-form-eyebrow::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 4px rgba(30, 122, 74, 0.25);
+  }
+  .hero-form-card h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 26px;
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .hero-form-card .hero-form-sub {
+    font-size: 14px;
+    color: rgba(255,255,255,0.72);
+    line-height: 1.5;
+    margin-bottom: 22px;
+  }
+
   /* ============ STATS BAR ============ */
   .stats {
     background: var(--navy);
@@ -1388,6 +1442,7 @@
     .hero { padding: 50px 0 60px; }
     .hero-inner { grid-template-columns: 1fr; gap: 40px; }
     .hero-visual { max-width: 480px; margin: 0 auto; }
+    .hero-form-card { max-width: 540px; margin: 0 auto; width: 100%; }
     .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 36px 20px; }
     section.block { padding: 70px 0; }
     .about-inner { grid-template-columns: 1fr; gap: 40px; }
@@ -1506,29 +1561,36 @@
       </div>
     </div>
 
-    <div class="hero-visual">
-      <div class="hv-clouds">
-        <div class="hv-cloud c1"></div>
-        <div class="hv-cloud c2"></div>
-        <div class="hv-cloud c3"></div>
+    <form id="heroForm" class="hero-form-card" autocomplete="on">
+      <div class="hero-form-eyebrow">Resposta em até 5 minutos</div>
+      <h3>Solicite seu atendimento</h3>
+      <p class="hero-form-sub">Preencha e te chamamos no WhatsApp com a primeira avaliação do seu projeto.</p>
+
+      <div class="form-field">
+        <input type="text" name="nome" placeholder="Nome completo" required autocomplete="name">
       </div>
-      <div class="hv-sun"></div>
-      <div class="hv-mountains"></div>
-      <div class="hv-roof"></div>
-      <div class="hv-chimney"></div>
-      <div class="hv-panels"></div>
-      <div class="hv-overlay-card">
-        <div class="ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="currentColor"/>
-          </svg>
+      <div class="form-row-2">
+        <div class="form-field">
+          <input type="tel" name="whatsapp" placeholder="WhatsApp" required autocomplete="tel">
         </div>
-        <div class="t">
-          <b>Mais de 1.200 projetos entregues</b>
-          em residências, comércios, indústrias e agronegócio
+        <div class="form-field">
+          <input type="email" name="email" placeholder="E-mail" required autocomplete="email">
         </div>
       </div>
-    </div>
+      <div class="form-field">
+        <select name="tipo" required>
+          <option value="" disabled selected>Tipo de projeto</option>
+          <option value="residencial">Residencial</option>
+          <option value="comercial">Comercial</option>
+          <option value="industrial">Industrial</option>
+          <option value="rural">Rural</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <input type="text" name="cidade" placeholder="Cidade" required>
+      </div>
+      <button type="submit" class="form-submit">SOLICITAR ATENDIMENTO →</button>
+    </form>
   </div>
 </header>
 
@@ -2511,8 +2573,10 @@
     document.querySelectorAll('.btn-primary').forEach(b => {
       b.addEventListener('click', () => evt('cta_click', { label: 'hero_cta_primary' }));
     });
-    const cform = document.getElementById('contactForm');
-    if (cform) cform.addEventListener('submit', () => evt('cta_click', { label: 'contact_form_submit' }));
+    ['contactForm', 'heroForm'].forEach(id => {
+      const f = document.getElementById(id);
+      if (f) f.addEventListener('submit', () => evt('cta_click', { label: id === 'heroForm' ? 'hero_form_submit' : 'contact_form_submit' }));
+    });
 
     // Scroll milestones
     let max = 0;
@@ -2556,9 +2620,11 @@
       b.addEventListener('click', () => fire('InitiateCheckout', { content_name: 'hero_cta' }));
     });
 
-    // Contact: submit do form de contato
-    const form = document.getElementById('contactForm');
-    if (form) form.addEventListener('submit', () => fire('Contact', { content_name: 'contact_form' }));
+    // Contact: submit dos forms de contato (hero + contato)
+    ['contactForm', 'heroForm'].forEach(id => {
+      const f = document.getElementById(id);
+      if (f) f.addEventListener('submit', () => fire('Contact', { content_name: id === 'heroForm' ? 'hero_form' : 'contact_form' }));
+    });
 
     // ViewContent: scroll passa de 50%
     let fired50 = false;
@@ -2673,20 +2739,20 @@
     });
   })();
 
-  // Mask whatsapp
-  const wa = document.querySelector('input[name="whatsapp"]');
-  if (wa) {
+  // Mask whatsapp em todos os inputs com name="whatsapp"
+  document.querySelectorAll('input[name="whatsapp"]').forEach(wa => {
     wa.addEventListener('input', (e) => {
       let v = e.target.value.replace(/\D/g, '').slice(0, 11);
       if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
       else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
       e.target.value = v;
     });
-  }
+  });
 
-  // Submit
-  const form = document.getElementById('contactForm');
-  if (form) {
+  // Submit — qualquer form da página vai pro WhatsApp da operação
+  ['contactForm', 'heroForm'].forEach(id => {
+    const form = document.getElementById(id);
+    if (!form) return;
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(form);
@@ -2697,7 +2763,7 @@
       );
       window.location.href = `https://wa.me/5534998165040?text=${msg}`;
     });
-  }
+  });
 </script>
 
 </body>
