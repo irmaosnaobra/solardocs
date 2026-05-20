@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import Anthropic from '@anthropic-ai/sdk';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
 import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel } from '../controllers/adminController';
@@ -583,6 +584,75 @@ router.post('/platform-crm/:id/para-sdr', async (req: Request, res: Response) =>
     }, { onConflict: 'phone' });
     res.json({ ok: true });
   } catch { res.status(500).json({ error: 'Erro ao mover para SDR' }); }
+});
+
+// ── Disparos IO (broadcast WhatsApp via linha Irmãos na Obra) ──────────
+// /admin/io/humanize — IA reformula mensagem-base para soar humano
+// /admin/io/send-text — envia texto via Z-API IO (autenticado, sem bootstrap key)
+router.post('/io/humanize', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { base, context } = req.body as { base?: string; context?: string };
+    if (!base || typeof base !== 'string') { res.status(400).json({ error: 'base obrigatorio' }); return; }
+    const key = process.env.ANTHROPIC_API_KEY?.trim();
+    if (!key) { res.status(500).json({ error: 'ANTHROPIC_API_KEY nao configurado' }); return; }
+
+    const anthropic = new Anthropic({ apiKey: key });
+    const ctx = (context || '').trim();
+    const systemPrompt = [
+      'Voce reformula uma mensagem-base do WhatsApp para soar como um humano brasileiro real escrevendo, nao como robo.',
+      'Regras absolutas:',
+      '- Mantenha o significado e a intencao da mensagem-base.',
+      '- Frases curtas, naturais, coloquiais.',
+      '- NUNCA use travessao (—) nem em-dash. Use virgula, ponto, ou simplesmente quebre a frase.',
+      '- Sem emoji.',
+      '- Variar sutilmente entre reformulacoes: ora "tudo bem?", ora vai direto; ora "Boa tarde", ora "Oi".',
+      '- Nao adicione informacao nova que nao esteja na base.',
+      '- Saida: APENAS a mensagem reformulada, sem aspas, sem prefixo, sem explicacao.',
+      ctx ? `Contexto adicional do disparo: ${ctx}` : '',
+    ].filter(Boolean).join('\n');
+
+    const r = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      temperature: 0.9,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `Mensagem-base: ${base}\n\nReformule.` }],
+    });
+    const c = r.content[0];
+    const text = c?.type === 'text' ? c.text.trim().replace(/^["']|["']$/g, '') : base;
+    res.json({ message: text || base });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro na humanizacao', message: String(err) });
+  }
+});
+
+router.post('/io/send-text', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { phone, message } = req.body as { phone?: string; message?: string };
+    const cleanPhone = (phone || '').replace(/\D/g, '');
+    if (!cleanPhone) { res.status(400).json({ error: 'phone obrigatorio' }); return; }
+    if (!message || typeof message !== 'string') { res.status(400).json({ error: 'message obrigatorio' }); return; }
+
+    const id = process.env.ZAPI_INSTANCE_ID_IO?.trim();
+    const token = process.env.ZAPI_TOKEN_IO?.trim();
+    const client = (process.env.ZAPI_CLIENT_TOKEN_IO || process.env.ZAPI_CLIENT_TOKEN)?.trim();
+    if (!id || !token || !client) {
+      res.status(500).json({ error: 'creds Z-API IO ausentes' });
+      return;
+    }
+
+    const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/send-text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Client-Token': client },
+      body: JSON.stringify({ phone: cleanPhone, message }),
+    });
+    const txt = await r.text();
+    let body: unknown;
+    try { body = JSON.parse(txt); } catch { body = txt; }
+    res.status(r.ok ? 200 : 502).json({ zapi_status: r.status, body });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro no envio', message: String(err) });
+  }
 });
 
 export default router;
