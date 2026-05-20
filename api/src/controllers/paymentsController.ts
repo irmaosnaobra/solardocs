@@ -116,7 +116,9 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
       trial_period_days: 7,
       metadata: { userId: req.userId! },
     },
-    success_url: `${dashboardUrl}/documentos?tipo=proposta&trial=1`,
+    // Pós-pagamento: cai em /empresa pra preencher dados de empresa.
+    // Sem isso, user não consegue emitir documentos (templates exigem company).
+    success_url: `${dashboardUrl}/empresa?welcome=1&plan=${encodeURIComponent(planInfo.plano)}`,
     cancel_url:  `${dashboardUrl}/?cancelado=1`,
     custom_text: {
       submit: { message: planInfo.descricao },

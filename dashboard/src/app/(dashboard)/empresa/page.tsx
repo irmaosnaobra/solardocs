@@ -91,8 +91,19 @@ export default function EmpresaPage() {
   const [cnpjError, setCnpjError] = useState('');
   const [dragging, setDragging] = useState(false);
   const [logoError, setLogoError] = useState('');
+  const [isWelcome, setIsWelcome] = useState(false);
+  const [welcomePlan, setWelcomePlan] = useState<string | null>(null);
   // CNPJ que já foi validado nesta sessão de edição
   const validatedCnpjRef = useRef('');
+
+  useEffect(() => {
+    // Vindo direto do checkout do Stripe (?welcome=1&plan=ilimitado|pro)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setIsWelcome(params.get('welcome') === '1');
+      setWelcomePlan(params.get('plan'));
+    }
+  }, []);
 
   useEffect(() => {
     api.get('/company').then(({ data }) => {
@@ -343,7 +354,33 @@ export default function EmpresaPage() {
         )}
       </div>
 
-      {!company && (
+      {isWelcome && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(245,158,11,0.10))',
+          border: '1px solid rgba(34,197,94,0.4)',
+          borderRadius: 12,
+          padding: '18px 22px',
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+        }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: '#22c55e', color: '#0f172a',
+            display: 'grid', placeItems: 'center',
+            fontSize: 22, fontWeight: 900, flexShrink: 0,
+          }}>✓</div>
+          <div style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+            <strong style={{ color: 'var(--color-text)', fontSize: 15.5, display: 'block', marginBottom: 2 }}>
+              Plano {welcomePlan === 'ilimitado' ? 'VIP' : welcomePlan === 'pro' ? 'PRO' : ''} ativado! Seus 7 dias grátis começaram.
+            </strong>
+            Pra emitir seu primeiro documento, preencha os dados da empresa abaixo. Leva 2 minutinhos.
+          </div>
+        </div>
+      )}
+
+      {!company && !isWelcome && (
         <div style={{
           background: 'rgba(245,158,11,0.08)',
           border: '1px solid rgba(245,158,11,0.3)',

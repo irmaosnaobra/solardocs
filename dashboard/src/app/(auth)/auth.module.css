@@ -74,8 +74,8 @@
 .brandList {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-top: 28px;
+  gap: 12px;
+  margin-top: 24px;
   list-style: none;
   padding: 0;
 }
@@ -83,10 +83,10 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 600;
   color: #ffffff;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 .brandList li::before {
   content: '✓';

@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import '@/styles/globals.css';
 import styles from './auth.module.css';
+import BrandPanel from './BrandPanel';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,18 +16,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <div className={styles.brandMid}>
-          <h2 className={styles.brandHeadline}>
-            O documento que vem depois do aperto de mão.
-          </h2>
-          <p className={styles.brandSub}>
-            Contrato, proposta e procuração em minutos. Pra integrador solar com CNPJ.
-          </p>
-
-          <ul className={styles.brandList}>
-            <li>10 documentos grátis pra começar</li>
-            <li>Cláusulas validadas do setor solar</li>
-            <li>O cliente assina pelo celular dele</li>
-          </ul>
+          <Suspense fallback={null}>
+            <BrandPanel />
+          </Suspense>
         </div>
 
         <div className={styles.brandBottom}>
