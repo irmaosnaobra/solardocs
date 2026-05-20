@@ -276,6 +276,31 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
           </select>
         </div>
 
+        <details class="opt-block" style="margin-top:8px;">
+          <summary>⚙️ Garantias, prazo e foto do telhado <span class="opt-tag">opcional</span></summary>
+          <div class="fields" style="margin-top:12px;">
+            <div class="field"><label>Prazo de instalação (dias úteis)</label><input type="number" id="f-prazo-instalacao" min="1" value="30"></div>
+            <div class="field"><label>Garantia painéis (anos)</label><input type="number" id="f-gar-paineis" min="1" value="25"></div>
+            <div class="field"><label>Garantia inversor (anos)</label><input type="number" id="f-gar-inversor" min="1" value="10"></div>
+            <div class="field"><label>Garantia estrutura (anos)</label><input type="number" id="f-gar-estrutura" min="1" value="10"></div>
+            <div class="field"><label>Garantia instalação (anos)</label><input type="number" id="f-gar-instalacao" min="1" value="1"></div>
+          </div>
+          <div class="field full" style="margin-top:10px;">
+            <label>Foto do telhado (opcional)</label>
+            <div id="foto-area">
+              <label id="foto-pick" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:24px 16px;border:2px dashed #cbd5e1;border-radius:10px;cursor:pointer;color:#64748b;font-size:13px;">
+                📷 Tirar foto / escolher do dispositivo
+                <input type="file" id="f-foto-telhado" accept="image/*" capture="environment" style="display:none;" onchange="onFotoTelhadoChange(event)">
+              </label>
+              <div id="foto-preview" style="display:none;align-items:center;gap:10px;margin-top:6px;">
+                <img id="foto-img" alt="Foto do telhado" style="width:160px;height:108px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;">
+                <button type="button" onclick="removerFotoTelhado()" style="padding:8px 12px;border:1px solid #ef4444;background:transparent;color:#ef4444;border-radius:8px;cursor:pointer;font-size:12px;">🗑️ Remover</button>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#64748b;margin-top:6px;">Foto real do telhado aumenta a credibilidade da proposta. Sem foto, essa seção não aparece.</div>
+          </div>
+        </details>
+
         <div id="campo-manual" style="display:none;grid-column:1/-1;background:#fff8e1;border:1px solid #f5d76e;border-radius:8px;padding:12px 14px;margin-bottom:8px;">
           <div style="font-size:12px;color:#7a4d00;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px;">⚙️ Equipamento manual — preencha tudo abaixo</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
@@ -313,42 +338,18 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
           <div class="opt-dica">O valor adicional entra no preço à vista e nas parcelas/financiamento.</div>
         </details>
 
-        <div class="field">
-          <label>Tarifa (R$/kWh)</label>
-          <input type="number" id="f-tarifa" value="1.09" step="0.01">
-        </div>
         <input type="hidden" id="f-infl-tarifa" value="6">
         <input type="hidden" id="f-infl-taxamin" value="6">
         <input type="hidden" id="f-taxamin" value="95">
 
-        <details class="opt-block" style="margin-top:8px;">
-          <summary>⚙️ Garantias, prazo e foto do telhado <span class="opt-tag">opcional</span></summary>
-          <div class="fields" style="margin-top:12px;">
-            <div class="field"><label>Prazo de instalação (dias úteis)</label><input type="number" id="f-prazo-instalacao" min="1" value="30"></div>
-            <div class="field"><label>Garantia painéis (anos)</label><input type="number" id="f-gar-paineis" min="1" value="25"></div>
-            <div class="field"><label>Garantia inversor (anos)</label><input type="number" id="f-gar-inversor" min="1" value="10"></div>
-            <div class="field"><label>Garantia estrutura (anos)</label><input type="number" id="f-gar-estrutura" min="1" value="10"></div>
-            <div class="field"><label>Garantia instalação (anos)</label><input type="number" id="f-gar-instalacao" min="1" value="1"></div>
-          </div>
-          <div class="field full" style="margin-top:10px;">
-            <label>Foto do telhado (opcional)</label>
-            <div id="foto-area">
-              <label id="foto-pick" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:24px 16px;border:2px dashed #cbd5e1;border-radius:10px;cursor:pointer;color:#64748b;font-size:13px;">
-                📷 Tirar foto / escolher do dispositivo
-                <input type="file" id="f-foto-telhado" accept="image/*" capture="environment" style="display:none;" onchange="onFotoTelhadoChange(event)">
-              </label>
-              <div id="foto-preview" style="display:none;align-items:center;gap:10px;margin-top:6px;">
-                <img id="foto-img" alt="Foto do telhado" style="width:160px;height:108px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;">
-                <button type="button" onclick="removerFotoTelhado()" style="padding:8px 12px;border:1px solid #ef4444;background:transparent;color:#ef4444;border-radius:8px;cursor:pointer;font-size:12px;">🗑️ Remover</button>
-              </div>
-            </div>
-            <div style="font-size:11px;color:#64748b;margin-top:6px;">Foto real do telhado aumenta a credibilidade da proposta. Sem foto, essa seção não aparece.</div>
-          </div>
-        </details>
-
         <div class="toggle-group">
           <button id="btn-kwh" class="ativo" onclick="setModo('kwh')">Por consumo (kWh)</button>
           <button id="btn-placas" onclick="setModo('placas')">Por quantidade de placas</button>
+        </div>
+
+        <div class="field full">
+          <label>Tarifa (R$/kWh)</label>
+          <input type="number" id="f-tarifa" value="1.09" step="0.01">
         </div>
 
         <div class="field full" id="campo-consumo">
