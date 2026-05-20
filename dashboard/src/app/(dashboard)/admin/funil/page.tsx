@@ -273,15 +273,21 @@ export default function FunilPage() {
               separada, pra dar visibilidade ao tráfego não-VSL sem confundir o KPI.
               Índices: 0=vsl, 1=landing, 2=cadastro, 3=stripe, 4=empresa, 5=plataforma. */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            {[
-              { label: 'VSL → Cadastro',     val: pct(data.steps[2].count, data.steps[0].count) },
-              { label: 'Cadastro → Stripe',  val: pct(data.steps[3].count, data.steps[2].count) },
-              { label: 'Stripe → Empresa',   val: pct(data.steps[4].count, data.steps[3].count) },
-              { label: 'Empresa → Ativo',    val: pct(data.steps[5].count, data.steps[4].count) },
-              { label: 'VSL → Pagante',      val: pct(data.steps[3].count, data.steps[0].count) },
-              { label: 'VSL → Ativo',        val: pct(data.steps[5].count, data.steps[0].count) },
-              { label: 'LP fria → Cadastro', val: pct(data.steps[2].count, data.steps[1].count), muted: true },
-            ].map(m => (
+            {(() => {
+              // Lookup defensivo — se API roda versão antiga (5 steps), não quebra a página.
+              const by = (key: FunnelStep['key']) => data.steps.find(s => s.key === key)?.count ?? 0;
+              const vsl = by('vsl'), landing = by('landing'), cadastro = by('cadastro'),
+                    stripe = by('stripe'), empresa = by('empresa'), plataforma = by('plataforma');
+              return [
+                { label: 'VSL → Cadastro',     val: pct(cadastro, vsl) },
+                { label: 'Cadastro → Stripe',  val: pct(stripe, cadastro) },
+                { label: 'Stripe → Empresa',   val: pct(empresa, stripe) },
+                { label: 'Empresa → Ativo',    val: pct(plataforma, empresa) },
+                { label: 'VSL → Pagante',      val: pct(stripe, vsl) },
+                { label: 'VSL → Ativo',        val: pct(plataforma, vsl) },
+                { label: 'LP fria → Cadastro', val: pct(cadastro, landing), muted: true },
+              ];
+            })().map(m => (
               <div key={m.label} style={{
                 background: 'var(--color-surface)',
                 border: m.muted ? '1px dashed var(--color-border)' : '1px solid var(--color-border)',
