@@ -195,6 +195,47 @@ export async function sendFollowupEmail(email: string, userId: string, day: numb
   await sendMarketingEmail({ to: email, userId, subject: template.subject, html: template.html });
 }
 
+// Email pra quem cadastrou mas não passou cartão (abandonou o checkout do Stripe).
+// Diferente do followup CNPJ — copy é cirúrgico no plano VIP + trial.
+export async function sendCheckoutRecoveryEmail(email: string, userId: string): Promise<void> {
+  const subject = 'Faltou só o cartão — seus 7 dias grátis estão te esperando';
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:32px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:26px;font-weight:900;line-height:1.2;letter-spacing:-0.5px;">
+      Você criou a conta mas não terminou o cadastro
+    </h1>
+  </div>
+  <div style="padding:32px 36px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">
+      Vi aqui que você começou a ativar o <strong style="color:#fbbf24;">Plano VIP</strong> mas parou na hora do cartão.
+    </p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 18px;">
+      <strong style="color:#f8fafc;">Lembrando o que você ganha nos 7 dias grátis:</strong>
+    </p>
+    <ul style="color:#cbd5e1;font-size:14.5px;line-height:1.9;margin:0 0 24px;padding-left:22px;">
+      <li>Documentos <strong style="color:#f8fafc;">ilimitados</strong></li>
+      <li>Procuração, Vistoria Técnica, Contrato PJ, Contrato Vendedor</li>
+      <li>Gerador de Proposta com sua marca</li>
+      <li>Suporte VIP por WhatsApp</li>
+    </ul>
+    <p style="color:#94a3b8;font-size:14px;line-height:1.7;margin:0 0 24px;">
+      <strong style="color:#fbbf24;">Nada é cobrado nos 7 primeiros dias.</strong> Se não gostar, cancela em 1 clique e zero cobrança.
+    </p>
+    <div style="text-align:center;margin:28px 0 8px;">
+      <a href="${APP_URL}/auth?mode=login" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:18px 40px;border-radius:12px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(245,158,11,0.4);">
+        Continuar de onde parei →
+      </a>
+    </div>
+    <p style="color:#64748b;font-size:12px;margin:24px 0 0;line-height:1.6;text-align:center;">
+      Já entra na sua conta — o botão pra liberar o trial tá esperando lá dentro.
+    </p>
+  </div>
+</div>`;
+  await sendMarketingEmail({ to: email, userId, subject, html });
+}
+
 const noContractsEmails: Array<{ subject: string; html: (nome: string | null) => string }> = [
   {
     subject: 'Sua conta SolarDoc Pro está parada — vamos voltar?',

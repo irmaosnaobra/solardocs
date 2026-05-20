@@ -1,5 +1,8 @@
+import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
-import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail } from '../utils/mailer';
+import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail } from '../utils/mailer';
+
+const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
 const FOLLOWUP_START = new Date('2026-04-17T00:00:00-03:00');
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -32,7 +35,7 @@ export async function runFollowupCnpj(): Promise<{ sent: number; skipped: number
 
   const { data: users } = await supabase
     .from('users')
-    .select('id, email, created_at, followup_started_at, followup_email_last_sent_at, followup_abandoned, email_opt_out')
+    .select('id, email, created_at, followup_started_at, followup_email_last_sent_at, followup_abandoned, email_opt_out, checkout_recovery_sent_at')
     .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)')
     .or(`followup_started_at.not.is.null,created_at.gte.${FOLLOWUP_START.toISOString()}`);
 
@@ -45,6 +48,8 @@ export async function runFollowupCnpj(): Promise<{ sent: number; skipped: number
   for (const user of users) {
     if (user.email_opt_out) { skipped++; continue; }
     if (user.followup_abandoned) { skipped++; continue; }
+    // Recebeu o email específico de abandono de checkout → não duplica com email genérico de CNPJ.
+    if (user.checkout_recovery_sent_at) { skipped++; continue; }
 
     const baseDate = user.followup_started_at
       ? new Date((user.followup_started_at as string).replace(' ', 'T') + 'Z')
@@ -197,6 +202,80 @@ export async function runNoContractsEmailReminder(): Promise<{ sent: number; ski
       sent++;
     } catch (err) {
       console.error(`No-contracts reminder failed for ${u.email}:`, err);
+    }
+  }
+
+  return { sent, skipped };
+}
+
+// ─── Abandono de checkout ─────────────────────────────────────────
+// VSL → Cadastro → Stripe → /empresa. Quem fecha a aba na hora do
+// cartão fica FREE. Esse fluxo manda 1 email "Faltou só o cartão" na
+// janela 4-72h após signup, uma vez só.
+//
+// Detecção: user FREE criado nessa janela, SEM subscription no Stripe
+// (qualquer status), opt-out=false, sem checkout_recovery_sent_at.
+// O timestamp marca pra não repetir e pra runFollowupCnpj pular esse
+// user (email genérico de CNPJ seria redundante).
+export async function runCheckoutAbandonRecovery(): Promise<{ sent: number; skipped: number }> {
+  const now = new Date();
+  const minAge = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString();   // criou há ≥ 4h
+  const maxAge = new Date(now.getTime() - 72 * 60 * 60 * 1000).toISOString();  // criou há ≤ 72h
+
+  const { data: candidates } = await supabase
+    .from('users')
+    .select('id, email, email_opt_out, plano, created_at')
+    .eq('plano', 'free')
+    .eq('email_opt_out', false)
+    .is('checkout_recovery_sent_at', null)
+    .lte('created_at', minAge)
+    .gte('created_at', maxAge);
+
+  if (!candidates || candidates.length === 0) return { sent: 0, skipped: 0 };
+
+  // Mapeia email → tem subscription no Stripe? Janela ampla pra cobrir todos
+  // os candidates (que foram criados nas últimas 72h).
+  const stripeEmails = new Set<string>();
+  try {
+    const sinceUnix = Math.floor(now.getTime() / 1000) - 5 * 86400; // 5d cobre janela + folga
+    let cursor: string | undefined;
+    for (let page = 0; page < 3; page++) {
+      const subs = await stripe.subscriptions.list({
+        created: { gte: sinceUnix },
+        status: 'all',
+        limit: 100,
+        starting_after: cursor,
+        expand: ['data.customer'],
+      });
+      for (const s of subs.data) {
+        const cust = s.customer as Stripe.Customer | string;
+        const email = typeof cust === 'string' ? null : cust.email;
+        if (email) stripeEmails.add(email.toLowerCase());
+      }
+      if (!subs.has_more) break;
+      cursor = subs.data[subs.data.length - 1]?.id;
+    }
+  } catch (err) {
+    console.error('runCheckoutAbandonRecovery: stripe lookup falhou — abortando pra evitar email errado:', err);
+    return { sent: 0, skipped: candidates.length };
+  }
+
+  let sent = 0;
+  let skipped = 0;
+
+  for (const user of candidates) {
+    if (stripeEmails.has(user.email.toLowerCase())) { skipped++; continue; }
+
+    try {
+      await sendCheckoutRecoveryEmail(user.email, user.id);
+      await supabase
+        .from('users')
+        .update({ checkout_recovery_sent_at: now.toISOString() })
+        .eq('id', user.id);
+      sent++;
+    } catch (err) {
+      console.error(`Checkout recovery email failed for ${user.email}:`, err);
+      skipped++;
     }
   }
 

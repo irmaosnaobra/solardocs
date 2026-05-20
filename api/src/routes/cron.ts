@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
-import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder } from '../services/followupService';
+import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder, runCheckoutAbandonRecovery } from '../services/followupService';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
@@ -66,6 +66,20 @@ router.get('/followup-cnpj', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'followup-cnpj falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Roda diário — pega quem cadastrou nas últimas 4-72h e não passou cartão,
+// manda 1 email de recuperação ("Faltou só o cartão"). Idempotente via
+// checkout_recovery_sent_at em users.
+router.get('/checkout-recovery', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runCheckoutAbandonRecovery();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'checkout-recovery falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
@@ -301,6 +315,7 @@ router.get('/master', async (req: Request, res: Response) => {
   // WhatsApp Carla continua pausado pra evitar novos bloqueios.
   // Pra reativar restantes: descomentar linhas [PAUSED-FOLLOWUP].
   const tasks: Array<[string, () => Promise<any>]> = [
+    ['checkout-recovery',           () => runCheckoutAbandonRecovery()], // 1 email pra quem cadastrou e não passou cartão (4-72h)
     ['followup-email-cnpj',         () => runFollowupCnpj()],            // 5 emails/30d — gerador de proposta
     // ['no-contracts-reminder',       () => runNoContractsEmailReminder()], // [PAUSED-FOLLOWUP] lembrete inativos por email
     // ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // [PAUSED-FOLLOWUP] WhatsApp Carla — 3 toques 30d
