@@ -141,22 +141,6 @@ export default function PropostaSolarPage() {
   const valor60x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, 0.024, 60, 4)) : 0;
   // Entrada + saldo: 50% hoje + 50% no vencimento (30 ou 60 dias)
   const valorEntradaMetade = invNum > 0 ? Math.ceil(invNum / 2) : 0;
-  // DC/AC ratio: painéis em kWp sobre inversores em kW. Padrão de mercado 1,05-1,30.
-  // Fora dessa faixa, mostra warning soft pro vendedor revisar o kit.
-  const dcAcRatio = (() => {
-    const potInv = parseFloat(String(fields.potencia_inversor).replace(',', '.'));
-    const qtdInv = parseInt(fields.qtd_inversores, 10) || 1;
-    const totalInvKw = potInv * qtdInv;
-    if (!kwpCalc || !totalInvKw) return 0;
-    return kwpCalc / totalInvKw;
-  })();
-  const dcAcWarning = (() => {
-    if (!dcAcRatio) return '';
-    if (dcAcRatio < 1.0) return `Inversor sobredimensionado (ratio ${dcAcRatio.toFixed(2).replace('.', ',')}). Padrão é 1,05-1,30 — cliente paga inversor que não usa.`;
-    if (dcAcRatio > 1.35) return `Inversor subdimensionado (ratio ${dcAcRatio.toFixed(2).replace('.', ',')}). Vai perder geração nos picos — considere inversor maior.`;
-    return '';
-  })();
-
   function setField<K extends keyof typeof fields>(k: K, v: (typeof fields)[K]) {
     setFields(f => ({ ...f, [k]: v }));
   }
@@ -456,21 +440,6 @@ export default function PropostaSolarPage() {
               <label className={styles.label}>Potência do inversor (kW) *</label>
               <input type="text" inputMode="decimal" value={fields.potencia_inversor} onChange={e => setField('potencia_inversor', e.target.value)} placeholder="Ex: 1,875 ou 5" className="input-field" required />
             </div>
-            {dcAcWarning && (
-              <div className={styles.fieldFull}>
-                <div style={{
-                  background: 'rgba(245,158,11,0.10)',
-                  border: '1px solid rgba(245,158,11,0.4)',
-                  borderRadius: 8,
-                  padding: '10px 14px',
-                  fontSize: 12,
-                  color: '#92400E',
-                  lineHeight: 1.5,
-                }}>
-                  ⚠️ {dcAcWarning}
-                </div>
-              </div>
-            )}
           </div>
           <div style={{ marginTop: 16 }}>
             <label className={styles.label}>Tipo de instalação</label>
