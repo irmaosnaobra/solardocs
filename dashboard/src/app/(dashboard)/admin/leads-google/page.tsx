@@ -33,6 +33,21 @@ function digits(p: string | null | undefined): string {
   return (p || '').replace(/\D/g, '');
 }
 
+// Detecta se o número (no formato bruto vindo da Google: "(34) 99990-0094" ou
+// "(34) 3212-5320") é um celular brasileiro. Fixo não tem WhatsApp, então o
+// disparo via Z-API vai falhar em 100% dos casos.
+function isCelularBR(rawPhone: string | null | undefined): boolean {
+  const d = digits(rawPhone);
+  if (!d) return false;
+  // Sem prefixo de país: 11 dígitos com 3º dígito = 9 (formato moderno)
+  if (d.length === 11 && d[2] === '9') return true;
+  // 10 dígitos: pré-2012, 3º dígito = 6/7/8/9
+  if (d.length === 10 && '6789'.includes(d[2])) return true;
+  // Com 55: 13 dígitos com 5º dígito = 9
+  if (d.length === 13 && d.startsWith('55') && d[4] === '9') return true;
+  return false;
+}
+
 export default function LeadsGooglePage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -44,7 +59,7 @@ export default function LeadsGooglePage() {
   const [searchAtual, setSearchAtual] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selecionados, setSelecionados] = useState<Record<string, boolean>>({});
-  const [somenteComTelefone, setSomenteComTelefone] = useState(true);
+  const [somenteCelular, setSomenteCelular] = useState(true);
 
   const loadSearches = useCallback(async () => {
     try {
@@ -80,8 +95,11 @@ export default function LeadsGooglePage() {
       const list: Lead[] = r.data?.leads ?? [];
       setSearchAtual(r.data?.search_id ?? null);
       setLeads(list);
+      // Default selecionado: só os celulares (se o filtro tá ON)
       const sel: Record<string, boolean> = {};
-      list.forEach(l => { sel[l.id] = !!l.telefone; });
+      list.forEach(l => {
+        sel[l.id] = somenteCelular ? isCelularBR(l.telefone) : !!l.telefone;
+      });
       setSelecionados(sel);
       loadSearches();
     } catch (e: unknown) {
@@ -102,8 +120,15 @@ export default function LeadsGooglePage() {
   }
 
   const visiveis = useMemo(() => {
-    return somenteComTelefone ? leads.filter(l => l.telefone) : leads;
-  }, [leads, somenteComTelefone]);
+    if (somenteCelular) return leads.filter(l => isCelularBR(l.telefone));
+    return leads.filter(l => l.telefone);
+  }, [leads, somenteCelular]);
+
+  const totaisDebug = useMemo(() => {
+    const comTelefone = leads.filter(l => l.telefone).length;
+    const celulares = leads.filter(l => isCelularBR(l.telefone)).length;
+    return { total: leads.length, comTelefone, celulares };
+  }, [leads]);
 
   function toggleTodos() {
     const todosSelecionados = visiveis.every(l => selecionados[l.id]);
@@ -207,6 +232,22 @@ export default function LeadsGooglePage() {
             {buscando ? 'Buscando...' : 'Buscar'}
           </button>
         </div>
+
+        <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={somenteCelular}
+              onChange={e => setSomenteCelular(e.target.checked)}
+              disabled={buscando}
+            />
+            <strong>Só celular (com WhatsApp)</strong>
+          </label>
+          <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+            Telefones fixos não recebem WhatsApp — disparo falharia 100%
+          </span>
+        </div>
+
         {erro && (
           <p style={{ marginTop: 10, color: '#dc2626', fontSize: 13 }}>
             {erro}
@@ -221,16 +262,15 @@ export default function LeadsGooglePage() {
       {leads.length > 0 && (
         <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
-            <div>
-              <strong>{visiveis.length}</strong> de {leads.length} leads
+            <div style={{ fontSize: 13 }}>
+              Mostrando <strong>{visiveis.length}</strong> de {totaisDebug.total} ·{' '}
+              <span style={{ color: 'var(--color-text-muted)' }}>
+                {totaisDebug.celulares} celulares · {totaisDebug.comTelefone - totaisDebug.celulares} fixos · {totaisDebug.total - totaisDebug.comTelefone} sem telefone
+              </span>
               {' · '}
               <strong>{totalSelecionados}</strong> selecionados
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                <input type="checkbox" checked={somenteComTelefone} onChange={e => setSomenteComTelefone(e.target.checked)} />
-                só com telefone
-              </label>
               <button style={btnGhost} onClick={toggleTodos}>
                 {visiveis.every(l => selecionados[l.id]) ? 'Desmarcar todos' : 'Marcar todos'}
               </button>
