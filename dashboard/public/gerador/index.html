@@ -727,7 +727,6 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
     <div class="acoes">
       <button class="btn-wpp" onclick="copiarWhatsApp()" style="display:none;">📱 Copiar WhatsApp</button>
       <button class="btn-link" id="btn-link" onclick="gerarLinkProposta()">🔗 Copiar link</button>
-      <button class="btn-pdf" id="btn-pdf" onclick="baixarPDF()">📄 Baixar PDF</button>
     </div>
 
     <div class="botoes-rodape" id="btn-nova">
@@ -3414,48 +3413,6 @@ function montarBlocoPagamentoWpp(d) {
   }
 
   return linhas.join('\n\n');
-}
-
-// ============= BAIXAR PDF (server-side via Puppeteer no backend) =============
-async function baixarPDF() {
-  const btn = document.getElementById('btn-pdf');
-  const labelOriginal = btn ? btn.textContent : '';
-  try {
-    // Garante que a proposta tem código salvo no banco — sem código, o endpoint
-    // não acha a proposta pra renderizar.
-    const codigo = await garantirCodigo();
-    if (!codigo) {
-      showToast('❌ Salve a proposta antes de baixar o PDF');
-      return;
-    }
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Gerando PDF…'; }
-    showToast('📄 Gerando PDF…');
-
-    // /_api/* é reescrito pra api.solardoc.app pelo vercel.json do dashboard.
-    const resp = await fetch(`/_api/gerador/pdf/${encodeURIComponent(codigo)}`);
-    if (!resp.ok) {
-      const txt = await resp.text().catch(() => '');
-      throw new Error(`HTTP ${resp.status}: ${txt.slice(0, 200)}`);
-    }
-    const blob = await resp.blob();
-    const cd = resp.headers.get('Content-Disposition') || '';
-    const m = cd.match(/filename="([^"]+)"/);
-    const filename = m ? m[1] : `proposta_${codigo}.pdf`;
-
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
-    showToast('✅ PDF baixado!');
-  } catch (e) {
-    console.error('Erro ao baixar PDF:', e);
-    showToast('❌ Erro ao gerar PDF — tenta de novo');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = labelOriginal || '📄 Baixar PDF'; }
-  }
 }
 
 // ============= WHATSAPP =============
