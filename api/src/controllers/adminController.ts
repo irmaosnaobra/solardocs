@@ -56,8 +56,8 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
           expand: ['data.customer'],
         });
         for (const s of subs.data) {
-          const cust = s.customer as Stripe.Customer | string;
-          const email = typeof cust === 'string' ? null : cust.email;
+          const cust = s.customer as { email?: string | null } | string;
+          const email = typeof cust === 'string' ? null : (cust.email ?? null);
           if (!email) continue;
           const priceId = s.items.data[0]?.price?.id ?? '';
           stripeByEmail.set(email.toLowerCase(), {

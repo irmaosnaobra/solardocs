@@ -248,8 +248,8 @@ export async function runCheckoutAbandonRecovery(): Promise<{ sent: number; skip
         expand: ['data.customer'],
       });
       for (const s of subs.data) {
-        const cust = s.customer as Stripe.Customer | string;
-        const email = typeof cust === 'string' ? null : cust.email;
+        const cust = s.customer as { email?: string | null } | string;
+        const email = typeof cust === 'string' ? null : (cust.email ?? null);
         if (email) stripeEmails.add(email.toLowerCase());
       }
       if (!subs.has_more) break;
