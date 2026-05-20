@@ -56,6 +56,44 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
 .btn-top-hist{background:#f5c518;color:#0d2d5e}
 .btn-top-sair{background:#fff;color:#0d2d5e;border:2px solid #0d2d5e}
 .btn-top:hover{opacity:.9}
+
+/* ===== Blocos opcionais padronizados (bateria, controlador, garantias) ===== */
+.opt-block{grid-column:1/-1;background:#fafbfc;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;transition:background .15s}
+.opt-block[open]{background:#fff;border-color:#cbd5e1}
+.opt-block summary{cursor:pointer;font-weight:700;font-size:13px;color:#0d2d5e;list-style:none;display:flex;align-items:center;gap:8px}
+.opt-block summary::-webkit-details-marker{display:none}
+.opt-block summary::before{content:"›";display:inline-block;color:#94a3b8;font-size:18px;line-height:1;transition:transform .15s;margin-right:2px}
+.opt-block[open] summary::before{transform:rotate(90deg)}
+.opt-tag{margin-left:auto;font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;background:#f1f5f9;padding:2px 8px;border-radius:99px}
+.opt-dica{font-size:11px;color:#64748b;margin-top:8px}
+
+/* ===== Linha de flag (Aplicar desconto máximo) ===== */
+.flag-row{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fafbfc;border:1px solid #e5e7eb;border-radius:10px;cursor:pointer;font-size:13px}
+.flag-row:hover{background:#f1f5f9}
+.flag-row input[type="checkbox"]{width:18px;height:18px;accent-color:#0d2d5e;cursor:pointer}
+.flag-row .flag-label{font-weight:700;color:#0d2d5e}
+.flag-row .flag-hint{color:#64748b;font-size:12px;margin-left:auto}
+.flag-row:has(input:checked){background:#fef9e7;border-color:#f5c518}
+
+/* ===== Card "Formas de pagamento" ===== */
+#card-formas-pagamento .pag-hint{font-size:12px;color:#64748b;margin-bottom:14px}
+.pag-grupo{padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:10px;background:#fff;transition:background .15s,border-color .15s}
+.pag-grupo.pag-ativo,.pag-grupo:has(> .pag-head input:checked){border-color:#cbd5e1;background:#fafbfc}
+.pag-head,.pag-head-textonly{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;user-select:none}
+.pag-head input[type="checkbox"]{width:18px;height:18px;accent-color:#0d2d5e;cursor:pointer;flex-shrink:0}
+.pag-titulo{font-weight:700;color:#0d2d5e}
+.pag-sub{color:#64748b;font-size:12px;margin-left:auto;text-align:right}
+.pag-sub-grid{display:none;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed #e5e7eb}
+.pag-grupo.pag-ativo .pag-sub-grid,.pag-grupo:has(> .pag-head input:checked) .pag-sub-grid{display:grid}
+.pag-sub-item{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#374151;font-weight:600;padding:6px 8px;border-radius:6px;cursor:pointer;background:#fff;border:1px solid #e5e7eb}
+.pag-sub-item:hover{background:#f1f5f9}
+.pag-sub-item input[type="checkbox"]{width:15px;height:15px;accent-color:#0d2d5e;cursor:pointer}
+.pag-sub-item:has(input:checked){background:#fef9e7;border-color:#f5c518}
+.pag-ver-mais{display:none;margin-top:10px;padding:6px 12px;background:transparent;border:1px solid #cbd5e1;color:#0d2d5e;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit}
+.pag-grupo.pag-ativo .pag-ver-mais,.pag-grupo:has(> .pag-head input:checked) .pag-ver-mais{display:inline-block}
+.pag-ver-mais:hover{background:#f1f5f9}
+#card-formas-pagamento textarea{width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;margin-top:8px;box-sizing:border-box;resize:vertical}
+#card-formas-pagamento textarea:focus{outline:none;border-color:#0d2d5e}
 </style>
 <script>
 (function(){
@@ -254,25 +292,25 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
           <div style="font-size:11px;color:#7a5800;margin-top:8px;">💡 O acréscimo automático por distância (≥250km) ainda se aplica em cima do preço à vista informado.</div>
         </div>
 
-        <details class="field full" style="margin-top:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 14px;">
-          <summary style="cursor:pointer;font-weight:700;font-size:13px;color:#0c4a6e;">🔋 Bateria de armazenamento (opcional)</summary>
+        <details class="opt-block" style="margin-top:8px;">
+          <summary>🔋 Bateria de armazenamento <span class="opt-tag">opcional</span></summary>
           <div class="fields" style="margin-top:12px;">
             <div class="field"><label>Modelo / marca</label><input type="text" id="f-bat-modelo" placeholder="Ex: BYD B-Box 5.0"></div>
             <div class="field"><label>Capacidade (kWh)</label><input type="number" id="f-bat-cap" min="0" step="0.1" placeholder="Ex: 5"></div>
             <div class="field"><label>Quantidade</label><input type="number" id="f-bat-qtd" min="1" value="1"></div>
             <div class="field"><label>Preço adicional (R$)</label><input type="number" id="f-bat-preco" min="0" step="0.01" placeholder="Ex: 12500"></div>
           </div>
-          <div style="font-size:11px;color:#075985;margin-top:8px;">💡 O valor adicional entra no preço à vista e nas parcelas/financiamento.</div>
+          <div class="opt-dica">O valor adicional entra no preço à vista e nas parcelas/financiamento.</div>
         </details>
 
-        <details class="field full" style="margin-top:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;">
-          <summary style="cursor:pointer;font-weight:700;font-size:13px;color:#14532d;">⚡ Controlador de carga (opcional)</summary>
+        <details class="opt-block" style="margin-top:8px;">
+          <summary>⚡ Controlador de carga <span class="opt-tag">opcional</span></summary>
           <div class="fields" style="margin-top:12px;">
             <div class="field"><label>Modelo / marca</label><input type="text" id="f-ctrl-modelo" placeholder="Ex: Epever Tracer 60A MPPT"></div>
             <div class="field"><label>Quantidade</label><input type="number" id="f-ctrl-qtd" min="1" value="1"></div>
             <div class="field"><label>Preço adicional (R$)</label><input type="number" id="f-ctrl-preco" min="0" step="0.01" placeholder="Ex: 1800"></div>
           </div>
-          <div style="font-size:11px;color:#166534;margin-top:8px;">💡 O valor adicional entra no preço à vista e nas parcelas/financiamento.</div>
+          <div class="opt-dica">O valor adicional entra no preço à vista e nas parcelas/financiamento.</div>
         </details>
 
         <div class="field">
@@ -283,8 +321,8 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
         <input type="hidden" id="f-infl-taxamin" value="6">
         <input type="hidden" id="f-taxamin" value="95">
 
-        <details class="field full" style="margin-top:8px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;">
-          <summary style="cursor:pointer;font-weight:700;font-size:13px;color:#0d2d5e;">⚙️ Garantias, prazo e foto do telhado</summary>
+        <details class="opt-block" style="margin-top:8px;">
+          <summary>⚙️ Garantias, prazo e foto do telhado <span class="opt-tag">opcional</span></summary>
           <div class="fields" style="margin-top:12px;">
             <div class="field"><label>Prazo de instalação (dias úteis)</label><input type="number" id="f-prazo-instalacao" min="1" value="30"></div>
             <div class="field"><label>Garantia painéis (anos)</label><input type="number" id="f-gar-paineis" min="1" value="25"></div>
@@ -322,15 +360,71 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
           <input type="number" id="f-qtd" placeholder="Ex: 8">
         </div>
 
-        <div class="field full">
-          <label class="chk-desc">
-            <input type="checkbox" id="f-descmax">
-            <span>💎 Aplicar desconto máximo (preço à vista mais agressivo)</span>
-          </label>
+        <label class="flag-row" for="f-descmax">
+          <input type="checkbox" id="f-descmax">
+          <span class="flag-label">💎 Aplicar desconto máximo</span>
+          <span class="flag-hint">preço à vista mais agressivo</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- ============= FORMAS DE PAGAMENTO ============= -->
+    <div class="card" id="card-formas-pagamento">
+      <h2>Formas de pagamento na proposta</h2>
+      <div class="pag-hint">Selecione o que vai aparecer no orçamento do cliente.</div>
+
+      <div class="pag-grupo">
+        <label class="pag-head">
+          <input type="checkbox" id="pag-vista" checked>
+          <span class="pag-titulo">💎 À vista</span>
+          <span class="pag-sub">pagamento único, com desconto</span>
+        </label>
+      </div>
+
+      <div class="pag-grupo">
+        <label class="pag-head">
+          <input type="checkbox" id="pag-cartao" checked>
+          <span class="pag-titulo">💳 Cartão de crédito</span>
+          <span class="pag-sub">parcelado com acréscimo da operadora</span>
+        </label>
+        <div class="pag-sub-grid" id="pag-cartao-grid"></div>
+        <button type="button" class="pag-ver-mais" id="pag-cartao-ver-mais" onclick="togglePagCartaoVerMais()">Ver todas as 21 parcelas</button>
+      </div>
+
+      <div class="pag-grupo">
+        <label class="pag-head">
+          <input type="checkbox" id="pag-fin" checked>
+          <span class="pag-titulo">🏦 Financiamento</span>
+          <span class="pag-sub">120 dias de carência</span>
+        </label>
+        <div class="pag-sub-grid">
+          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-60" checked> 60x · 2,4% a.m.</label>
+          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-84"> 84x · 2,5% a.m.</label>
         </div>
       </div>
 
-      <button class="btn-principal" onclick="gerar()">⚡ Gerar proposta</button>
+      <div class="pag-grupo">
+        <label class="pag-head">
+          <input type="checkbox" id="pag-entrada">
+          <span class="pag-titulo">💵 Entrada + saldo</span>
+          <span class="pag-sub">50% hoje + 50% depois</span>
+        </label>
+        <div class="pag-sub-grid">
+          <label class="pag-sub-item"><input type="checkbox" id="pag-entrada-30"> Saldo em 30 dias</label>
+          <label class="pag-sub-item"><input type="checkbox" id="pag-entrada-60"> Saldo em 60 dias</label>
+        </div>
+      </div>
+
+      <div class="pag-grupo">
+        <label class="pag-head-textonly">
+          <span class="pag-titulo">✏️ Forma customizada</span>
+          <span class="pag-sub">aparece como bloco extra no orçamento</span>
+        </label>
+        <textarea id="pag-custom" rows="2" placeholder="Ex: Pix em 3x sem juros, conforme combinado."></textarea>
+      </div>
+    </div>
+
+      <button class="btn-principal" onclick="gerar()" style="margin-top:18px;">⚡ Gerar proposta</button>
     </div>
 
   </div>
@@ -1128,20 +1222,163 @@ function pmtPriceCarencia(pv, i, n, carenciaMeses) {
   return saldo * i / (1 - Math.pow(1 + i, -n));
 }
 
+// ============= TABELA DE CARTÃO (MyGateway 2026, coluna da direita) =============
+// Acréscimo total sobre o preço à vista por número de parcelas.
+const TABELA_CARTAO = {
+  1: 0.0439, 2: 0.0609, 3: 0.0665, 4: 0.0715, 5: 0.0769,
+  6: 0.0819, 7: 0.0909, 8: 0.0969, 9: 0.1025, 10: 0.1079,
+  11: 0.1139, 12: 0.1169, 13: 0.1255, 14: 0.1299, 15: 0.1369,
+  16: 0.1429, 17: 0.1485, 18: 0.1549, 19: 0.1639, 20: 0.1739,
+  21: 0.1828
+};
+// Parcelas marcadas por padrão num novo orçamento.
+const CARTAO_PARCELAS_DEFAULT = [12, 18, 21];
+
+function calcParcelaCartao(precoVista, n) {
+  const acresc = TABELA_CARTAO[n];
+  if (precoVista <= 0 || acresc == null) return 0;
+  return (precoVista * (1 + acresc)) / n;
+}
+function calcTodasParcelas(precoVista) {
+  const out = {};
+  for (const n in TABELA_CARTAO) out[n] = calcParcelaCartao(precoVista, Number(n));
+  return out;
+}
+// Lê pagOpts em formato novo OU antigo ({ p10, p12, p18 }) → array de parcelas.
+function parcelasDoPagOpts(po) {
+  if (!po || !po.cartao || !po.cartao.ativo) return [];
+  if (Array.isArray(po.cartao.parcelas)) return po.cartao.parcelas.slice().sort((a,b)=>a-b);
+  // Retro-compat — formato antigo
+  const antigas = [];
+  if (po.cartao.p10) antigas.push(10);
+  if (po.cartao.p12) antigas.push(12);
+  if (po.cartao.p18) antigas.push(18);
+  return antigas;
+}
+
+// ============= UI DO CARD "FORMAS DE PAGAMENTO" =============
+// Quais parcelas aparecem por padrão e quais ficam atrás do "Ver todas"
+const CARTAO_PARCELAS_DESTAQUE = [1, 6, 12, 18, 21];
+
+function renderPagCartaoGrid() {
+  const grid = document.getElementById('pag-cartao-grid');
+  if (!grid) return;
+  const verTodas = grid.dataset.verTodas === '1';
+  const ns = verTodas
+    ? Object.keys(TABELA_CARTAO).map(Number).sort((a,b)=>a-b)
+    : CARTAO_PARCELAS_DESTAQUE.slice();
+  // Preserva o que estava marcado antes de re-renderizar
+  const marcadasAntes = new Set();
+  grid.querySelectorAll('input[type="checkbox"]:checked').forEach(c => marcadasAntes.add(Number(c.dataset.n)));
+  // Defaults na primeira carga (sem nada marcado)
+  const checadasPadrao = new Set(grid.children.length === 0 ? CARTAO_PARCELAS_DEFAULT : []);
+
+  grid.innerHTML = ns.map(n => {
+    const checked = marcadasAntes.has(n) || checadasPadrao.has(n) ? 'checked' : '';
+    return `<label class="pag-sub-item"><input type="checkbox" data-n="${n}" ${checked}> ${n}x</label>`;
+  }).join('');
+}
+
+function togglePagCartaoVerMais() {
+  const grid = document.getElementById('pag-cartao-grid');
+  const btn  = document.getElementById('pag-cartao-ver-mais');
+  if (!grid) return;
+  const expand = grid.dataset.verTodas !== '1';
+  grid.dataset.verTodas = expand ? '1' : '';
+  btn.textContent = expand ? 'Mostrar apenas destaques' : 'Ver todas as 21 parcelas';
+  renderPagCartaoGrid();
+}
+
+function lerPagOptsDoForm() {
+  const vista = !!document.getElementById('pag-vista')?.checked;
+  const cartaoOn = !!document.getElementById('pag-cartao')?.checked;
+  const parcelas = [];
+  document.querySelectorAll('#pag-cartao-grid input[type="checkbox"]:checked').forEach(c => {
+    const n = Number(c.dataset.n);
+    if (n) parcelas.push(n);
+  });
+  parcelas.sort((a,b) => a-b);
+
+  const finOn = !!document.getElementById('pag-fin')?.checked;
+  const p60 = !!document.getElementById('pag-fin-60')?.checked;
+  const p84 = !!document.getElementById('pag-fin-84')?.checked;
+
+  const entradaOn = !!document.getElementById('pag-entrada')?.checked;
+  const d30 = !!document.getElementById('pag-entrada-30')?.checked;
+  const d60 = !!document.getElementById('pag-entrada-60')?.checked;
+
+  const custom = (document.getElementById('pag-custom')?.value || '').trim();
+
+  return {
+    vista,
+    cartao:  { ativo: cartaoOn, parcelas },
+    fin:     { ativo: finOn, p60, p84 },
+    entrada: { ativo: entradaOn, d30, d60 },
+    custom,
+  };
+}
+
+function escreverPagOptsNoForm(po) {
+  if (!po) return;
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+  set('pag-vista', po.vista);
+  set('pag-cartao', po.cartao && po.cartao.ativo);
+  set('pag-fin', po.fin && po.fin.ativo);
+  set('pag-fin-60', po.fin && po.fin.p60);
+  set('pag-fin-84', po.fin && po.fin.p84);
+  set('pag-entrada', po.entrada && po.entrada.ativo);
+  set('pag-entrada-30', po.entrada && po.entrada.d30);
+  set('pag-entrada-60', po.entrada && po.entrada.d60);
+  const ta = document.getElementById('pag-custom');
+  if (ta) ta.value = po.custom || '';
+
+  // Cartão: re-renderiza o grid com os checkboxes marcados conforme parcelas
+  const grid = document.getElementById('pag-cartao-grid');
+  if (grid) {
+    const parcSet = new Set(parcelasDoPagOpts(po));
+    const verTodas = grid.dataset.verTodas === '1';
+    const ns = verTodas
+      ? Object.keys(TABELA_CARTAO).map(Number).sort((a,b)=>a-b)
+      : Array.from(new Set([...CARTAO_PARCELAS_DESTAQUE, ...parcSet])).sort((a,b)=>a-b);
+    grid.innerHTML = ns.map(n =>
+      `<label class="pag-sub-item"><input type="checkbox" data-n="${n}" ${parcSet.has(n)?'checked':''}> ${n}x</label>`
+    ).join('');
+  }
+}
+
+// Fallback JS pra :has() — browsers antigos não suportam, então toggle classe manualmente
+function aplicarPagAtivoClass() {
+  document.querySelectorAll('#card-formas-pagamento .pag-grupo').forEach(g => {
+    const head = g.querySelector('.pag-head input[type="checkbox"]');
+    if (!head) return;
+    g.classList.toggle('pag-ativo', head.checked);
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderPagCartaoGrid();
+  aplicarPagAtivoClass();
+  document.querySelectorAll('#card-formas-pagamento .pag-head input[type="checkbox"]')
+    .forEach(cb => cb.addEventListener('change', aplicarPagAtivoClass));
+});
+
 function renderPagamentoCard(d) {
-  // Sempre mostra tudo: à vista + 10/12/18x cartão + 84/60x financiamento.
-  // Mantém leitura de d.pagOpts pra retro-compat com propostas antigas que
-  // foram salvas quando o consultor podia escolher.
+  // Lê d.pagOpts; se ausente (proposta antiga), assume default permissivo.
   const po = d.pagOpts || {
     vista: true,
-    cartao: { ativo: true, p10: true, p12: true, p18: true },
+    cartao: { ativo: true, parcelas: [10, 12, 18] },
     fin:    { ativo: true, p84: true, p60: true }
   };
-  const pv  = d.precoVista || 0;
+  const pv   = d.precoVista || 0;
   const pOrc = d.precoOrcamento || 0;
-  const v10 = d.parc10x != null ? d.parc10x : pv * 1.11 / 10;
-  const v12 = d.parc12x != null ? d.parc12x : pv * 1.12 / 12;
-  const v18 = d.parc18x != null ? d.parc18x : pv * 1.19 / 18;
+
+  // Mapa de parcelas — usa pré-calculadas se disponível, senão recalcula via tabela.
+  const parcMap = d.parcelasCartao || calcTodasParcelas(pv);
+  // Retro-compat: propostas antigas têm só parc10x/12x/18x
+  if (!d.parcelasCartao && d.parc10x != null) parcMap[10] = d.parc10x;
+  if (!d.parcelasCartao && d.parc12x != null) parcMap[12] = d.parc12x;
+  if (!d.parcelasCartao && d.parc18x != null) parcMap[18] = d.parc18x;
+
   const f84 = d.fin84x != null ? d.fin84x : pmtPriceCarencia(pOrc, 0.025, 84, 4);
   const f60 = d.fin60x != null ? d.fin60x : pmtPriceCarencia(pOrc, 0.024, 60, 4);
 
@@ -1153,14 +1390,28 @@ function renderPagamentoCard(d) {
       <div class="vl">R$ ${fmt(pv)}</div>
       <div class="obs">pagamento único</div>
     </div>`);
-  if (po.cartao && po.cartao.ativo) {
-    if (po.cartao.p10) blocos.push(`<div class="parc"><div class="qt">10x no cartão</div><div class="vl">R$ ${fmt(v10)}</div><div class="obs">sobre o preço à vista</div></div>`);
-    if (po.cartao.p12) blocos.push(`<div class="parc"><div class="qt">12x no cartão</div><div class="vl">R$ ${fmt(v12)}</div><div class="obs">sobre o preço à vista</div></div>`);
-    if (po.cartao.p18) blocos.push(`<div class="parc"><div class="qt">18x no cartão</div><div class="vl">R$ ${fmt(v18)}</div><div class="obs">sobre o preço à vista</div></div>`);
+
+  const parcsCartao = parcelasDoPagOpts(po);
+  for (const n of parcsCartao) {
+    const v = parcMap[n];
+    if (!v) continue;
+    const obs = n === 1 ? 'à vista no cartão' : 'sobre o preço à vista';
+    blocos.push(`<div class="parc"><div class="qt">${n}x no cartão</div><div class="vl">R$ ${fmt(v)}</div><div class="obs">${obs}</div></div>`);
   }
+
   if (po.fin && po.fin.ativo) {
     if (po.fin.p84) blocos.push(`<div class="parc"><div class="qt">84x financiado</div><div class="vl">R$ ${fmt(f84)}</div><div class="obs">120 dias de carência</div></div>`);
     if (po.fin.p60) blocos.push(`<div class="parc"><div class="qt">60x financiado</div><div class="vl">R$ ${fmt(f60)}</div><div class="obs">120 dias de carência</div></div>`);
+  }
+
+  if (po.entrada && po.entrada.ativo) {
+    const meio = pv / 2;
+    if (po.entrada.d30) blocos.push(`<div class="parc"><div class="qt">50% + 50% (30d)</div><div class="vl">2× R$ ${fmt(meio)}</div><div class="obs">metade hoje, metade em 30 dias</div></div>`);
+    if (po.entrada.d60) blocos.push(`<div class="parc"><div class="qt">50% + 50% (60d)</div><div class="vl">2× R$ ${fmt(meio)}</div><div class="obs">metade hoje, metade em 60 dias</div></div>`);
+  }
+
+  if (po.custom && po.custom.trim()) {
+    blocos.push(`<div class="parc parc-custom"><div class="qt">Outras formas</div><div class="vl" style="font-size:14px;line-height:1.3;white-space:pre-line">${escapeHtml(po.custom.trim())}</div></div>`);
   }
 
   const card = document.getElementById('card-pagamento-cliente');
@@ -1379,10 +1630,12 @@ async function gerar() {
   const precoVista = (usarDescMax ? item.descMax : item.pVista) + acrescDist + precoAddons;
   const precoOrcamento = Math.ceil((item.pOrc + acrescDist + precoAddons) / 100) * 100;
 
-  // Parcelas em cima do preço à vista
-  const parc10x = precoVista * 1.11 / 10;
-  const parc12x = precoVista * 1.12 / 12;
-  const parc18x = precoVista * 1.19 / 18;
+  // Tabela completa do cartão (1x..21x) pré-calculada
+  const parcelasCartao = calcTodasParcelas(precoVista);
+  // Retro-compat: mantém campos antigos pra propostas que ainda usem essas chaves.
+  const parc10x = parcelasCartao[10];
+  const parc12x = parcelasCartao[12];
+  const parc18x = parcelasCartao[18];
 
   // Financiamento Price com 120 dias (4 meses) de carência sobre o orçamento
   const fin84x = pmtPriceCarencia(precoOrcamento, 0.025, 84, 4);
@@ -1455,11 +1708,14 @@ async function gerar() {
     dcAcRatio, dcAcWarning,
     precoVista, precoOrcamento,
     parc10x, parc12x, parc18x,
+    parcelasCartao,
     fin84x, fin60x,
-    pagOpts: (editandoCodigo && dadosAtual && dadosAtual.pagOpts) ? dadosAtual.pagOpts : {
+    pagOpts: lerPagOptsDoForm() || {
       vista: true,
-      cartao: { ativo: true, p10: true, p12: true, p18: true },
-      fin:    { ativo: true, p84: true, p60: true }
+      cartao: { ativo: true, parcelas: CARTAO_PARCELAS_DEFAULT.slice() },
+      fin:    { ativo: true, p84: false, p60: true },
+      entrada:{ ativo: false, d30: false, d60: false },
+      custom: ''
     },
     usarDescMax,
     acrescDist,
@@ -2761,6 +3017,31 @@ async function editarProposta(codigo) {
 
     document.getElementById('f-estrutura').value = d.estrutura || '';
 
+    // Formas de pagamento: usa pagOpts salvo, traduzindo formato antigo se preciso
+    let pagOptsEdit;
+    if (d.pagOpts) {
+      // Se formato antigo (tem p10/p12/p18 em cartao), converte pra parcelas[]
+      const c = d.pagOpts.cartao || {};
+      const parcelas = Array.isArray(c.parcelas) ? c.parcelas : parcelasDoPagOpts(d.pagOpts);
+      pagOptsEdit = {
+        vista: !!d.pagOpts.vista,
+        cartao: { ativo: !!c.ativo, parcelas },
+        fin: d.pagOpts.fin || { ativo: false },
+        entrada: d.pagOpts.entrada || { ativo: false },
+        custom: d.pagOpts.custom || '',
+      };
+    } else {
+      // Proposta antiga: assume default permissivo (vista + 10/12/18 cartão + 60/84 fin)
+      pagOptsEdit = {
+        vista: true,
+        cartao: { ativo: true, parcelas: [10, 12, 18] },
+        fin:    { ativo: true, p60: true, p84: true },
+        entrada:{ ativo: false, d30: false, d60: false },
+        custom: '',
+      };
+    }
+    escreverPagOptsNoForm(pagOptsEdit);
+
     // Estado de edição
     editandoCodigo = codigo;
     originalDataEmissao = d.dataEmissao || row.created_at;
@@ -2795,22 +3076,41 @@ function gerarPDF() {
 
 // Monta o bloco "Formas de pagamento" do texto do WhatsApp respeitando d.pagOpts
 function montarBlocoPagamentoWpp(d) {
-  const po = d.pagOpts || { vista:true, cartao:{ativo:true,p10:true,p18:true}, fin:{ativo:false} };
+  const po = d.pagOpts || { vista:true, cartao:{ativo:true,parcelas:[10,12,18]}, fin:{ativo:false} };
+  const pv = d.precoVista || 0;
+  const parcMap = d.parcelasCartao || calcTodasParcelas(pv);
+  if (!d.parcelasCartao && d.parc10x != null) parcMap[10] = d.parc10x;
+  if (!d.parcelasCartao && d.parc12x != null) parcMap[12] = d.parc12x;
+  if (!d.parcelasCartao && d.parc18x != null) parcMap[18] = d.parc18x;
+
   const linhas = [];
-  if (po.vista) linhas.push(`💎 *À vista:* R$ ${fmt(d.precoVista)}`);
-  if (po.cartao && po.cartao.ativo) {
-    const sub = [];
-    if (po.cartao.p10 && d.parc10x != null) sub.push(`• 10x: R$ ${fmt(d.parc10x)}/mês`);
-    if (po.cartao.p12 && d.parc12x != null) sub.push(`• 12x: R$ ${fmt(d.parc12x)}/mês`);
-    if (po.cartao.p18 && d.parc18x != null) sub.push(`• 18x: R$ ${fmt(d.parc18x)}/mês`);
-    if (sub.length) linhas.push(`💳 *Cartão de crédito:*\n${sub.join('\n')}`);
+  if (po.vista) linhas.push(`💎 *À vista:* R$ ${fmt(pv)}`);
+
+  const parcs = parcelasDoPagOpts(po);
+  if (parcs.length) {
+    const sub = parcs.map(n => `• ${n}x: R$ ${fmt(parcMap[n] || 0)}/mês`);
+    linhas.push(`💳 *Cartão de crédito:*\n${sub.join('\n')}`);
   }
+
   if (po.fin && po.fin.ativo) {
     const sub = [];
-    if (po.fin.p84 && d.fin84x != null) sub.push(`• 84x: R$ ${fmt(d.fin84x)}/mês (2,5% a.m.)`);
     if (po.fin.p60 && d.fin60x != null) sub.push(`• 60x: R$ ${fmt(d.fin60x)}/mês (2,4% a.m.)`);
+    if (po.fin.p84 && d.fin84x != null) sub.push(`• 84x: R$ ${fmt(d.fin84x)}/mês (2,5% a.m.)`);
     if (sub.length) linhas.push(`🏦 *Financiamento* (120 dias de carência):\n${sub.join('\n')}`);
   }
+
+  if (po.entrada && po.entrada.ativo) {
+    const meio = pv / 2;
+    const sub = [];
+    if (po.entrada.d30) sub.push(`• 50% hoje + 50% em 30 dias (R$ ${fmt(meio)} cada)`);
+    if (po.entrada.d60) sub.push(`• 50% hoje + 50% em 60 dias (R$ ${fmt(meio)} cada)`);
+    if (sub.length) linhas.push(`💵 *Entrada + saldo:*\n${sub.join('\n')}`);
+  }
+
+  if (po.custom && po.custom.trim()) {
+    linhas.push(`📝 *Outras formas:*\n${po.custom.trim()}`);
+  }
+
   return linhas.join('\n\n');
 }
 
