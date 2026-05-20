@@ -13,6 +13,7 @@ import { runCarlaMorningBroadcast } from '../services/agents/sdr/sdrB2bMorningHo
 import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoCrmFollowups, runCoraTick } from '../services/agents/io/ioCrmAgent';
+import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { runDunning } from '../services/dunningService';
 import { logger } from '../utils/logger';
@@ -258,6 +259,22 @@ router.get('/io-cora-tick', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'io-cora-tick falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Processa fila de disparos em massa (broadcasts /admin/disparos) server-side.
+// Cloudflare Worker chama a cada minuto. Cada tick pega o broadcast mais antigo
+// em status='rodando', adquire lock, e processa até MAX_ENVIOS_POR_TICK envios
+// respeitando cadência aleatória. Loop client-side da página é apenas um fallback
+// — mesmo se o browser fechar, o servidor continua até concluir.
+router.get('/io-broadcast-tick', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runIoBroadcastTick();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'io-broadcast-tick falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });

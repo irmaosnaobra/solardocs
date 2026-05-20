@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
 import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel } from '../controllers/adminController';
 import { supabase } from '../utils/supabase';
+import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 
 const router = Router();
 
@@ -662,8 +663,9 @@ router.post('/io/send-text', async (req: Request, res: Response): Promise<void> 
 // Cria registro de auditoria de um disparo. Retorna id pra cliente referenciar.
 router.post('/io/broadcasts', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mensagens, contexto_ai, usou_ia, cadencia_min, cadencia_max, total } = req.body as {
+    const { mensagens, contatos, contexto_ai, usou_ia, cadencia_min, cadencia_max, total } = req.body as {
       mensagens?: { slot: number; base: string }[];
+      contatos?: string[];
       contexto_ai?: string;
       usou_ia?: boolean;
       cadencia_min?: number;
@@ -675,6 +677,7 @@ router.post('/io/broadcasts', async (req: Request, res: Response): Promise<void>
     const { data, error } = await supabase.from('io_broadcasts').insert({
       criado_por: req.userId,
       mensagens,
+      contatos: Array.isArray(contatos) ? contatos : null,
       contexto_ai: contexto_ai ?? null,
       usou_ia: usou_ia ?? true,
       cadencia_min: cadencia_min ?? 4,
@@ -686,6 +689,20 @@ router.post('/io/broadcasts', async (req: Request, res: Response): Promise<void>
     res.json({ id: data.id });
   } catch (err) {
     res.status(500).json({ error: 'Erro criando broadcast', message: String(err) });
+  }
+});
+
+// Anexa/substitui a lista de contatos de um broadcast (pra retomar disparos
+// antigos cuja lista nao foi persistida).
+router.put('/io/broadcasts/:id/contatos', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { contatos } = req.body as { contatos?: string[] };
+    if (!Array.isArray(contatos)) { res.status(400).json({ error: 'contatos[] obrigatorio' }); return; }
+    const { error } = await supabase.from('io_broadcasts').update({ contatos }).eq('id', req.params.id);
+    if (error) { res.status(500).json({ error: 'Erro atualizando contatos', detail: error.message }); return; }
+    res.json({ ok: true, n: contatos.length });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro put contatos', message: String(err) });
   }
 });
 
@@ -758,6 +775,65 @@ router.get('/io/broadcasts', async (req: Request, res: Response): Promise<void> 
     res.json({ broadcasts: data ?? [] });
   } catch (err) {
     res.status(500).json({ error: 'Erro list broadcasts', message: String(err) });
+  }
+});
+
+// Detalhe de um broadcast (com contatos).
+router.get('/io/broadcasts/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('io_broadcasts')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (error) { res.status(500).json({ error: 'Erro buscando broadcast', detail: error.message }); return; }
+    if (!data) { res.status(404).json({ error: 'nao encontrado' }); return; }
+    res.json({ broadcast: data });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro get broadcast', message: String(err) });
+  }
+});
+
+// Lista envios de um broadcast (opcional ?since=ISO + ?limit=N).
+router.get('/io/broadcasts/:id/envios', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    let q = supabase
+      .from('io_broadcast_envios')
+      .select('*')
+      .eq('broadcast_id', req.params.id)
+      .order('enviado_em', { ascending: false })
+      .limit(limit);
+    if (typeof req.query.since === 'string' && req.query.since) {
+      q = q.gt('enviado_em', req.query.since);
+    }
+    const { data, error } = await q;
+    if (error) { res.status(500).json({ error: 'Erro buscando envios', detail: error.message }); return; }
+    res.json({ envios: data ?? [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro get envios', message: String(err) });
+  }
+});
+
+// Kick-off manual: chama o tick imediatamente sem esperar o cron. Retorna
+// resultado do tick (até MAX_ENVIOS_POR_TICK envios processados).
+router.post('/io/broadcasts/:id/tick', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id;
+    // Garante que esse broadcast existe e está rodando — se 'pendente' inicial, marca rodando
+    const { data: b } = await supabase.from('io_broadcasts').select('status').eq('id', id).maybeSingle();
+    if (!b) { res.status(404).json({ error: 'nao encontrado' }); return; }
+    if (b.status !== 'rodando' && b.status !== 'pendente') {
+      res.json({ ok: true, skipped: true, status: b.status });
+      return;
+    }
+    if (b.status === 'pendente') {
+      await supabase.from('io_broadcasts').update({ status: 'rodando' }).eq('id', id);
+    }
+    const result = await runIoBroadcastTick();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro no tick manual', message: String(err) });
   }
 });
 

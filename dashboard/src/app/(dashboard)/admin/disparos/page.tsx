@@ -103,10 +103,13 @@ export default function DisparosPage() {
   const [parsed, setParsed] = useState<NumberParseResult | null>(null);
   const [dddsAtivos, setDddsAtivos] = useState<Record<string, boolean>>({});
 
-  const [rodando, setRodando] = useState(false);
-  const stopRef = useRef(false);
+  // Broadcast em execução (server-side). null = ocioso.
+  const [broadcastAtivoId, setBroadcastAtivoId] = useState<string | null>(null);
+  const rodando = broadcastAtivoId !== null;
   const [log, setLog] = useState<LogLine[]>([]);
   const [progresso, setProgresso] = useState({ feitos: 0, total: 0 });
+  const lastEnvioTsRef = useRef<string | null>(null);
+  const seenEnvioIdsRef = useRef<Set<string>>(new Set());
   const [historico, setHistorico] = useState<BroadcastRow[]>([]);
   const [historicoLoading, setHistoricoLoading] = useState(false);
 
@@ -161,19 +164,19 @@ export default function DisparosPage() {
     if (mensagens.length === 0) { alert('Adicione pelo menos uma mensagem'); return; }
     if (contatosFinais.length === 0) { alert('Nenhum contato para disparar'); return; }
     if (cadMin > cadMax) { alert('Cadência min deve ser <= max'); return; }
-    if (!confirm(`Disparar ${mensagens.length} mensagem(ns) para ${contatosFinais.length} contato(s)? Total: ${mensagens.length * contatosFinais.length} envios.`)) return;
-
-    stopRef.current = false;
-    setRodando(true);
-    setLog([]);
     const total = mensagens.length * contatosFinais.length;
-    setProgresso({ feitos: 0, total });
+    if (!confirm(`Disparar ${mensagens.length} mensagem(ns) para ${contatosFinais.length} contato(s)? Total: ${total} envios.\n\nO servidor processa em background — pode fechar a aba que continua.`)) return;
 
-    // Cria registro de auditoria no Supabase
+    setLog([]);
+    setProgresso({ feitos: 0, total });
+    lastEnvioTsRef.current = null;
+    seenEnvioIdsRef.current = new Set();
+
     let broadcastId: string | null = null;
     try {
       const r = await api.post('/admin/io/broadcasts', {
         mensagens: mensagens.map((base, i) => ({ slot: i + 1, base })),
+        contatos: contatosFinais,
         contexto_ai: usarIA ? contextoIA : null,
         usou_ia: usarIA,
         cadencia_min: cadMin,
@@ -181,111 +184,120 @@ export default function DisparosPage() {
         total,
       });
       broadcastId = r.data?.id ?? null;
-    } catch {
-      pushLog({ phone: '—', slot: 0, status: 'err', detail: 'Falha ao criar registro de auditoria (segue mesmo assim)' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'erro ao criar broadcast';
+      alert(`Erro: ${msg}`);
+      return;
     }
+    if (!broadcastId) { alert('Erro: backend não retornou broadcast id'); return; }
 
-    let feitos = 0;
-    let sucesso = 0;
-    let falha = 0;
-    for (let slotIdx = 0; slotIdx < mensagens.length; slotIdx++) {
-      const slot = slotIdx + 1;
-      const base = mensagens[slotIdx];
-      pushLog({ phone: '—', slot, status: 'ok', detail: `=== INICIANDO RODADA ${slot} (${contatosFinais.length} contatos) ===` });
+    setBroadcastAtivoId(broadcastId);
+    pushLog({ phone: '—', slot: 0, status: 'ok', detail: `Broadcast criado (${broadcastId.slice(0, 8)}...). Disparando primeiro tick.` });
 
-      for (const phone of contatosFinais) {
-        if (stopRef.current) {
-          pushLog({ phone, slot, status: 'skip', detail: 'PARADO pelo usuario' });
-          if (broadcastId) {
-            try {
-              await api.patch(`/admin/io/broadcasts/${broadcastId}`, { sucesso, falha, status: 'parado' });
-            } catch { /* já reportamos no log */ }
-          }
-          setRodando(false);
-          loadHistorico();
-          return;
+    // Kick-off imediato (fire-and-forget). O cron continua daí.
+    api.post(`/admin/io/broadcasts/${broadcastId}/tick`).catch(() => {
+      /* tick pode demorar até 4 min; ignoramos resposta */
+    });
+  }
+
+  async function parar() {
+    if (!broadcastAtivoId) return;
+    if (!confirm('Parar disparo? Envios já feitos ficam, os restantes não vão.')) return;
+    try {
+      await api.patch(`/admin/io/broadcasts/${broadcastAtivoId}`, { status: 'parado' });
+      pushLog({ phone: '—', slot: 0, status: 'skip', detail: 'PARANDO… aguardando confirmação do servidor' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'erro ao parar';
+      alert(`Falha ao parar: ${msg}`);
+    }
+  }
+
+  // Polling do broadcast ativo (status + novos envios) a cada 3s
+  useEffect(() => {
+    if (!broadcastAtivoId) return;
+    let cancelled = false;
+
+    async function tick() {
+      try {
+        const [bRes, eRes] = await Promise.all([
+          api.get(`/admin/io/broadcasts/${broadcastAtivoId}`),
+          api.get(`/admin/io/broadcasts/${broadcastAtivoId}/envios?limit=50${lastEnvioTsRef.current ? `&since=${encodeURIComponent(lastEnvioTsRef.current)}` : ''}`),
+        ]);
+        if (cancelled) return;
+
+        const b = bRes.data?.broadcast;
+        if (b) {
+          setProgresso({ feitos: (b.sucesso || 0) + (b.falha || 0), total: b.total || 0 });
         }
 
-        let textoFinal = base;
-        if (usarIA) {
-          try {
-            const r = await api.post('/admin/io/humanize', { base, context: contextoIA });
-            textoFinal = (r.data?.message || base).trim();
-          } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : 'erro humanize';
-            pushLog({ phone, slot, status: 'err', detail: `Humanize falhou (usando base): ${msg}` });
-            textoFinal = base;
-          }
-        }
-
-        let envioStatus: 'ok' | 'erro' = 'erro';
-        let zaapId: string | null = null;
-        let messageId: string | null = null;
-        let erroDetalhe: string | null = null;
-
-        try {
-          const r = await api.post('/admin/io/send-text', { phone, message: textoFinal });
-          const ok = r.status >= 200 && r.status < 300;
-          envioStatus = ok ? 'ok' : 'erro';
-          if (ok) {
-            sucesso++;
-            const respBody = r.data?.body;
-            if (respBody && typeof respBody === 'object') {
-              zaapId = respBody.zaapId ?? null;
-              messageId = respBody.messageId ?? respBody.id ?? null;
-            }
-          } else {
-            falha++;
-            erroDetalhe = `HTTP ${r.status}`;
-          }
+        const envios = (eRes.data?.envios ?? []) as Array<{
+          id: string; enviado_em: string; phone: string; slot: number;
+          mensagem_final: string; status: string; erro: string | null;
+        }>;
+        // Ordena cronologicamente
+        const ordenados = [...envios].sort((a, b) => a.enviado_em.localeCompare(b.enviado_em));
+        for (const env of ordenados) {
+          if (seenEnvioIdsRef.current.has(env.id)) continue;
+          seenEnvioIdsRef.current.add(env.id);
+          lastEnvioTsRef.current = env.enviado_em;
           pushLog({
-            phone,
-            slot,
-            status: ok ? 'ok' : 'err',
-            detail: `→ "${textoFinal.slice(0, 80)}${textoFinal.length > 80 ? '...' : ''}"`,
+            phone: env.phone,
+            slot: env.slot,
+            status: env.status === 'ok' ? 'ok' : 'err',
+            detail: env.status === 'ok'
+              ? `→ "${env.mensagem_final.slice(0, 80)}${env.mensagem_final.length > 80 ? '...' : ''}"`
+              : `Erro: ${env.erro || 'desconhecido'}`,
           });
-        } catch (e: unknown) {
-          falha++;
-          const msg = e instanceof Error ? e.message : 'erro envio';
-          erroDetalhe = msg;
-          pushLog({ phone, slot, status: 'err', detail: `Envio falhou: ${msg}` });
         }
 
-        if (broadcastId) {
-          try {
-            await api.post(`/admin/io/broadcasts/${broadcastId}/envios`, {
-              phone,
-              slot,
-              mensagem_final: textoFinal,
-              status: envioStatus,
-              zaap_id: zaapId,
-              message_id: messageId,
-              erro: erroDetalhe,
-            });
-          } catch { /* nao bloqueia o disparo */ }
+        if (b && (b.status === 'concluido' || b.status === 'parado' || b.status === 'erro')) {
+          pushLog({
+            phone: '—',
+            slot: 0,
+            status: b.status === 'concluido' ? 'ok' : 'skip',
+            detail: `DISPARO ${b.status.toUpperCase()} · ${b.sucesso}/${b.total} sucessos · ${b.falha} falhas`,
+          });
+          setBroadcastAtivoId(null);
+          loadHistorico();
         }
-
-        feitos++;
-        setProgresso({ feitos, total });
-
-        const espera = Math.floor((Math.random() * (cadMax - cadMin) + cadMin) * 1000);
-        await sleep(espera);
+      } catch {
+        /* tenta de novo no próximo tick */
       }
     }
 
-    pushLog({ phone: '—', slot: 0, status: 'ok', detail: 'TODOS OS ROUNDS CONCLUIDOS' });
-    if (broadcastId) {
-      try {
-        await api.patch(`/admin/io/broadcasts/${broadcastId}`, { sucesso, falha, status: 'concluido' });
-      } catch { /* nao bloqueia */ }
-    }
-    setRodando(false);
-    loadHistorico();
+    tick();
+    const id = window.setInterval(tick, 3000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, [broadcastAtivoId, loadHistorico]);
+
+  // Detecta broadcast pendente do histórico (em status='rodando') e oferece retomar
+  const pendenteDoHistorico = useMemo(
+    () => historico.find(h => h.status === 'rodando'),
+    [historico],
+  );
+
+  function retomarPendente() {
+    if (!pendenteDoHistorico) return;
+    setBroadcastAtivoId(pendenteDoHistorico.id);
+    setLog([]);
+    setProgresso({ feitos: pendenteDoHistorico.sucesso + pendenteDoHistorico.falha, total: pendenteDoHistorico.total });
+    lastEnvioTsRef.current = null;
+    seenEnvioIdsRef.current = new Set();
+    pushLog({ phone: '—', slot: 0, status: 'ok', detail: 'Reanexando ao disparo em andamento + chamando próximo tick' });
+    api.post(`/admin/io/broadcasts/${pendenteDoHistorico.id}/tick`).catch(() => { /* ignora */ });
   }
 
-  function parar() {
-    stopRef.current = true;
-  }
+  // Aviso ao tentar sair com disparo rodando (mesmo que server continue,
+  // o user pode querer ficar vendo o progresso)
+  useEffect(() => {
+    if (!rodando) return;
+    function handler(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [rodando]);
 
   // ── estilos inline (mantem padrao das outras admin pages) ─────────
   const cardStyle: React.CSSProperties = {
@@ -335,9 +347,36 @@ export default function DisparosPage() {
       <header style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Disparos em massa (Irmãos na Obra)</h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 13, marginTop: 4 }}>
-          Linha 34998165040 · cadência aleatória + reescrita por IA = baixa chance de bloqueio anti-spam.
+          Linha 34998165040 · servidor processa em background — pode fechar a aba que continua.
         </p>
       </header>
+
+      {/* Retomar pendente */}
+      {!broadcastAtivoId && pendenteDoHistorico && (
+        <div style={{
+          padding: 14,
+          marginBottom: 16,
+          background: 'rgba(59,130,246,0.08)',
+          border: '1px solid #3b82f6',
+          borderRadius: 10,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}>
+          <div style={{ fontSize: 13 }}>
+            <strong style={{ color: '#3b82f6' }}>Disparo pendente</strong>{' '}
+            de {new Date(pendenteDoHistorico.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            {' · '}
+            {pendenteDoHistorico.sucesso}/{pendenteDoHistorico.total} enviados.
+            O servidor continua processando automaticamente; clique pra acompanhar.
+          </div>
+          <button style={btnPrimary} onClick={retomarPendente}>
+            Acompanhar
+          </button>
+        </div>
+      )}
 
       {/* Mensagens */}
       <div style={cardStyle}>

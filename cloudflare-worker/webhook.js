@@ -3,15 +3,25 @@ const API_BASE = 'https://api.solardoc.app';
 const CRON_SECRET = 'solardocs_master_cron_2024';
 
 export default {
-  // Cron trigger — Cora vigilante 24/7 a cada 20 min.
-  // /cron/io-cora-tick = vigilância (envelhecimento de cards) + envios em
-  // horário comercial. Schedule em wrangler.toml.
-  async scheduled(_event, _env, ctx) {
-    ctx.waitUntil(
-      fetch(`${API_BASE}/cron/io-cora-tick`, {
-        headers: { 'Authorization': `Bearer ${CRON_SECRET}` }
-      }).catch(() => {})
-    );
+  // Cron trigger discriminado por padrão:
+  // - "*/20 * * * *" → io-cora-tick (CRM vigilante, vela horário comercial)
+  // - "* * * * *"    → io-broadcast-tick (fila de disparos em massa)
+  async scheduled(event, _env, ctx) {
+    const cron = event && event.cron;
+    if (cron === '* * * * *') {
+      ctx.waitUntil(
+        fetch(`${API_BASE}/cron/io-broadcast-tick`, {
+          headers: { 'Authorization': `Bearer ${CRON_SECRET}` }
+        }).catch(() => {})
+      );
+    } else {
+      // Default + "*/20 * * * *": Cora
+      ctx.waitUntil(
+        fetch(`${API_BASE}/cron/io-cora-tick`, {
+          headers: { 'Authorization': `Bearer ${CRON_SECRET}` }
+        }).catch(() => {})
+      );
+    }
   },
 
   async fetch(request, env, ctx) {

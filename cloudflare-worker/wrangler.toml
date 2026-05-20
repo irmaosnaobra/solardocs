@@ -2,8 +2,9 @@ name = "zapi-webhook"
 main = "webhook.js"
 compatibility_date = "2024-01-01"
 
-# Cora — vigilante 24/7, a cada 20 min. O CRM /io é responsabilidade dela.
-# Cada tick: vigilância de cards (envelhecimento + reativação) + tentativa
-# de envios (welcome + cadência, que respeitam horário comercial por dentro).
+# Cron schedules:
+# - "*/20 * * * *": Cora (CRM /io vigilante, env. comercial respeitado por dentro)
+# - "* * * * *":    io-broadcast-tick (processa fila de disparos em massa server-side)
+# O scheduled handler discrimina pelo padrão do cron.
 [triggers]
-crons = ["*/20 * * * *"]
+crons = ["*/20 * * * *", "* * * * *"]
