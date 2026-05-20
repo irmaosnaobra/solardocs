@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Building2, Users, Handshake,
   Banknote, ScrollText, FileSignature,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
-  Save, Lightbulb, HardHat, GraduationCap, Smartphone,
+  Save, HardHat, GraduationCap, Smartphone,
   Filter, Send, MapPin,
   type LucideIcon,
 } from 'lucide-react';
@@ -80,8 +80,6 @@ const docsTerceiroItems: NavItem[] = [
 
 const contaItems: NavItem[] = [
   { href: '/conta/documentos',  icon: Save,           label: 'Documentos Salvos',       vipOnly: true },
-  { href: '/conta/sugestoes',   icon: Lightbulb,      label: 'Sugestões',               vipOnly: true },
-  { href: '/conta/mao-de-obra', icon: HardHat,        label: 'Cadastro de Mão de Obra', vipOnly: true },
   { href: '/mentoria',          icon: GraduationCap,  label: 'Mentorias' },
   { href: '/baixe-app',         icon: Smartphone,     label: 'Baixe o App' },
 ];
