@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { sendMetaEvent } from '../utils/metaPixel';
+import { sendDunningDay0, sendDunningRecovered } from '../services/dunningService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -198,6 +199,8 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     }
   }
 
+  // Cancelamento explícito da assinatura (cliente cancelou, ou Stripe encerrou
+  // após retentativas esgotadas) — rebaixa pra free de fato.
   if (event.type === 'customer.subscription.deleted') {
     const sub    = event.data.object as any;
     const custId = sub.customer as string;
@@ -205,28 +208,59 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     if (customer.email) {
       await supabase
         .from('users')
-        .update({ plano: 'free', limite_documentos: 0, documentos_usados: 0 })
+        .update({
+          plano: 'free',
+          limite_documentos: 0,
+          documentos_usados: 0,
+          billing_status: 'active',     // não está mais em cobrança, é só free
+          past_due_since: null,
+          dunning_last_day_sent: null,
+        })
         .eq('email', customer.email);
     }
   }
 
-  // Pagamento da renovação falhou — corta o acesso imediatamente
+  // Renovação da assinatura falhou — INICIA o fluxo de dunning de 7 dias.
+  // NÃO corta acesso. Carimba past_due_since (idempotente, só na 1ª falha
+  // pra não resetar o relógio em cada retentativa do Stripe Smart Retries)
+  // e dispara o aviso D0 imediato por email + WhatsApp.
   if (event.type === 'invoice.payment_failed') {
-    const invoice  = event.data.object as any;
-    const custId   = invoice.customer as string;
-    // Só age se for cobrança de renovação (não a primeira, que já tem checkout.session)
-    if ((invoice as any).billing_reason === 'subscription_cycle') {
+    const invoice = event.data.object as any;
+    const custId  = invoice.customer as string;
+
+    // Só age em renovação. Primeira cobrança falha já é tratada pelo próprio
+    // checkout (cliente vê o erro na hora e tenta de novo).
+    if (invoice.billing_reason === 'subscription_cycle') {
       const customer = await stripe.customers.retrieve(custId) as any;
       if (customer.email) {
-        await supabase
+        // Idempotência: só carimba past_due_since se ainda for null. Cada
+        // retentativa do Stripe dispara payment_failed de novo — sem o
+        // guard, o usuário ganhava +7 dias de tolerância a cada falha.
+        const { data: updated } = await supabase
           .from('users')
-          .update({ plano: 'free', limite_documentos: 0 })
-          .eq('email', customer.email);
+          .update({
+            billing_status: 'past_due',
+            past_due_since: new Date().toISOString(),
+            dunning_last_day_sent: null,
+          })
+          .eq('email', customer.email)
+          .is('past_due_since', null)
+          .select('id')
+          .maybeSingle();
+
+        // Dispara D0 só na 1ª falha (quando o update acima de fato carimbou).
+        if (updated?.id) {
+          await sendDunningDay0(updated.id).catch(err =>
+            console.error('sendDunningDay0 falhou:', err),
+          );
+        }
       }
     }
   }
 
-  // Assinatura virou past_due ou unpaid (retentativas esgotadas) — garante corte
+  // Sincronização de status: Stripe muda subscription pra past_due/unpaid.
+  // Só ATUALIZA billing_status (sem mexer em past_due_since/dunning — esses
+  // são responsabilidade do invoice.payment_failed). Idempotente.
   if (event.type === 'customer.subscription.updated') {
     const sub = event.data.object as any;
     if (sub.status === 'past_due' || sub.status === 'unpaid') {
@@ -235,11 +269,83 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
       if (customer.email) {
         await supabase
           .from('users')
-          .update({ plano: 'free', limite_documentos: 0 })
+          .update({ billing_status: 'past_due' })
+          .eq('email', customer.email)
+          .eq('billing_status', 'active'); // só se ainda estava active — evita
+                                            // sobrescrever 'suspended' caso evento chegue fora de ordem
+      }
+    }
+  }
+
+  // Pagamento confirmado (cobrança recorrente OU retry bem-sucedido do
+  // Smart Retries durante o dunning) — limpa estado de inadimplência e
+  // notifica o cliente.
+  if (event.type === 'invoice.payment_succeeded') {
+    const invoice = event.data.object as any;
+    if (invoice.billing_reason === 'subscription_cycle' || invoice.billing_reason === 'subscription_update') {
+      const custId   = invoice.customer as string;
+      const customer = await stripe.customers.retrieve(custId) as any;
+      if (customer.email) {
+        // Só notifica se o usuário estava de fato em dunning (past_due ou suspended).
+        const { data: userBefore } = await supabase
+          .from('users')
+          .select('id, billing_status')
+          .eq('email', customer.email)
+          .single();
+
+        await supabase
+          .from('users')
+          .update({
+            billing_status: 'active',
+            past_due_since: null,
+            dunning_last_day_sent: null,
+          })
           .eq('email', customer.email);
+
+        const wasDunning = userBefore?.billing_status === 'past_due' || userBefore?.billing_status === 'suspended';
+        if (wasDunning && userBefore?.id) {
+          await sendDunningRecovered(userBefore.id).catch(err =>
+            console.error('sendDunningRecovered falhou:', err),
+          );
+        }
       }
     }
   }
 
   res.json({ received: true });
+}
+
+// Customer portal — link assinado pra o cliente atualizar cartão / cancelar
+// assinatura. Usado pelo botão "Atualizar pagamento" na tela de suspensão.
+export async function createBillingPortal(req: Request, res: Response): Promise<void> {
+  try {
+    const { data: user } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', req.userId)
+      .single();
+
+    if (!user?.email) {
+      res.status(400).json({ error: 'Usuário não encontrado' });
+      return;
+    }
+
+    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    const customer = customers.data[0];
+    if (!customer) {
+      res.status(404).json({ error: 'Nenhuma assinatura encontrada pra esse email' });
+      return;
+    }
+
+    const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customer.id,
+      return_url: `${dashboardUrl}/dashboard`,
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('createBillingPortal error:', err);
+    res.status(500).json({ error: 'Falha ao criar sessão do portal' });
+  }
 }

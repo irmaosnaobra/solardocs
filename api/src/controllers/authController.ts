@@ -242,7 +242,7 @@ export async function getMe(req: Request, res: Response): Promise<void> {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, nome, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin')
+      .select('id, email, nome, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status, past_due_since')
       .eq('id', req.userId)
       .single();
 

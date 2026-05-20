@@ -14,6 +14,7 @@ import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sd
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoCrmFollowups, runCoraTick } from '../services/agents/io/ioCrmAgent';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
+import { runDunning } from '../services/dunningService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -261,6 +262,20 @@ router.get('/io-cora-tick', async (req: Request, res: Response) => {
   }
 });
 
+// Dunning de inadimplência — varre contas past_due, manda lembretes D2/D4/D6
+// e suspende+notifica no D7. Idempotente (dunning_last_day_sent garante que
+// cada dia só é enviado uma vez). Rodado pelo master diário.
+router.get('/dunning', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runDunning();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'dunning falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 router.get('/master', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
 
@@ -282,6 +297,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],
+    ['dunning',                     () => runDunning()],            // tolerância 7 dias pós invoice.payment_failed
   ];
 
   const settled = await Promise.allSettled(tasks.map(([, fn]) => fn()));

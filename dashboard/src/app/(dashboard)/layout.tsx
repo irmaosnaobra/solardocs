@@ -6,7 +6,7 @@ import Sidebar from '@/components/Sidebar/Sidebar';
 import TopBar from '@/components/TopBar/TopBar';
 import UpgradeModal from '@/components/UpgradeModal/UpgradeModal';
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
-import { isAuthenticated } from '@/services/auth';
+import { isAuthenticated, removeToken } from '@/services/auth';
 import api from '@/services/api';
 import styles from './dashboard.module.css';
 
@@ -45,6 +45,105 @@ const PLANOS_DATA = [
     featured: true,
   },
 ];
+
+function BillingSuspendedPage({ email }: { email: string }) {
+  const [loading, setLoading] = useState(false);
+
+  async function abrirPortal() {
+    setLoading(true);
+    try {
+      const { data } = await api.post('/payments/billing-portal');
+      window.location.href = data.url;
+    } catch {
+      alert('Falha ao abrir portal de pagamento. Tente novamente em instantes ou entre em contato pelo WhatsApp (34) 99943-7831.');
+      setLoading(false);
+    }
+  }
+
+  function sair() {
+    removeToken();
+    window.location.href = '/auth?mode=login';
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--color-bg, #0b1120)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '40px 20px',
+    }}>
+      <div style={{
+        maxWidth: 520,
+        width: '100%',
+        background: 'linear-gradient(145deg, #1a1200 0%, #2d1f00 50%, #1a1200 100%)',
+        border: '1.5px solid rgba(251,191,36,0.4)',
+        borderRadius: 22,
+        padding: '40px 36px',
+        textAlign: 'center',
+        boxShadow: '0 4px 28px rgba(251,191,36,0.15)',
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 12px', lineHeight: 1.3 }}>
+          Sua conta está temporariamente suspensa
+        </h1>
+        <p style={{ color: '#cbd5e1', fontSize: '0.95rem', lineHeight: 1.6, margin: '0 0 8px' }}>
+          A cobrança da sua assinatura não foi processada e os 7 dias de tolerância encerraram.
+        </p>
+        <p style={{ color: '#cbd5e1', fontSize: '0.95rem', lineHeight: 1.6, margin: '0 0 28px' }}>
+          A reativação é <strong style={{ color: '#fbbf24' }}>imediata</strong> assim que você atualizar a forma de pagamento. Todo o seu histórico está preservado.
+        </p>
+
+        <button
+          onClick={abrirPortal}
+          disabled={loading}
+          style={{
+            width: '100%',
+            padding: '16px',
+            borderRadius: 12,
+            background: 'linear-gradient(135deg,#f59e0b,#fbbf24)',
+            color: '#0f172a',
+            fontWeight: 900,
+            fontSize: '1rem',
+            border: 'none',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+            boxShadow: '0 4px 18px rgba(245,158,11,0.45)',
+            marginBottom: 12,
+          }}
+        >
+          {loading ? 'Aguarde...' : 'Atualizar forma de pagamento'}
+        </button>
+
+        <button
+          onClick={sair}
+          style={{
+            width: '100%',
+            padding: '12px',
+            borderRadius: 12,
+            background: 'transparent',
+            color: '#94a3b8',
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            border: '1px solid #334155',
+            cursor: 'pointer',
+          }}
+        >
+          Sair da conta
+        </button>
+
+        <p style={{ color: '#64748b', fontSize: '0.78rem', margin: '24px 0 0' }}>
+          {email}
+        </p>
+        <p style={{ color: '#475569', fontSize: '0.75rem', margin: '12px 0 0', lineHeight: 1.6 }}>
+          Precisa de ajuda? WhatsApp <strong style={{ color: '#94a3b8' }}>(34) 99943-7831</strong>
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function UpgradePage({ email }: { email: string }) {
   const [loading, setLoading] = useState<string | null>(null);
@@ -253,6 +352,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // Antes: redirect compulsório pra /empresa quando free + sem empresa.
   // Agora: deixa o lead navegar e explorar. Empresa é exigida só na hora de
   // gerar o primeiro documento (gate específico em /documentos).
+
+  // Conta suspensa (D7 do dunning sem pagamento) → tela cheia bloqueando tudo
+  // exceto atualização de cartão via Stripe billing portal. Stripe Smart Retries
+  // continua tentando em paralelo; se o pagamento cair, o webhook reabre.
+  if (user.billing_status === 'suspended') {
+    return <BillingSuspendedPage email={user.email} />;
+  }
 
   const isFree = user.plano === 'free';
   const docsRestantes = isFree ? Math.max(0, user.limite_documentos - (user.documentos_usados ?? 0)) : null;

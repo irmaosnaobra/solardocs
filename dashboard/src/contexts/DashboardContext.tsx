@@ -10,6 +10,8 @@ interface User {
   documentos_usados: number;
   limite_documentos: number;
   is_admin?: boolean;
+  billing_status?: 'active' | 'past_due' | 'suspended';
+  past_due_since?: string | null;
 }
 
 interface DashboardContextType {
