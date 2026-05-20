@@ -444,4 +444,28 @@ router.post('/io/test-send', async (req: Request, res: Response): Promise<void> 
   res.json({ status: r.status, body: txt });
 });
 
+// Envio livre via linha IO — phone na query, message no body JSON
+// Uso: POST /zapi-admin/io/send-text?key=BOOTSTRAP&phone=5534XXXXXXXXX  body: {"message": "texto"}
+router.post('/io/send-text', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+
+  const creds = getIOCreds();
+  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+
+  const phone = String(req.query.phone || '').replace(/\D/g, '');
+  const message = typeof req.body?.message === 'string' ? req.body.message : '';
+  if (!phone) { res.status(400).json({ error: 'phone query param obrigatorio' }); return; }
+  if (!message) { res.status(400).json({ error: 'body.message obrigatorio' }); return; }
+
+  const r = await fetch(`https://api.z-api.io/instances/${creds.id}/token/${creds.token}/send-text`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Client-Token': creds.client },
+    body: JSON.stringify({ phone, message }),
+  });
+  const txt = await r.text();
+  let body: unknown;
+  try { body = JSON.parse(txt); } catch { body = txt; }
+  res.json({ status: r.status, body });
+});
+
 export default router;
