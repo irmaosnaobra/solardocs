@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '@/services/api';
 
 interface LogLine {
@@ -10,6 +10,20 @@ interface LogLine {
   slot: number;
   status: 'ok' | 'err' | 'skip';
   detail: string;
+}
+
+interface BroadcastRow {
+  id: string;
+  criado_em: string;
+  mensagens: { slot: number; base: string }[];
+  total: number;
+  sucesso: number;
+  falha: number;
+  status: string;
+  finalizado_em: string | null;
+  usou_ia: boolean;
+  cadencia_min: number;
+  cadencia_max: number;
 }
 
 interface NumberParseResult {
@@ -93,6 +107,22 @@ export default function DisparosPage() {
   const stopRef = useRef(false);
   const [log, setLog] = useState<LogLine[]>([]);
   const [progresso, setProgresso] = useState({ feitos: 0, total: 0 });
+  const [historico, setHistorico] = useState<BroadcastRow[]>([]);
+  const [historicoLoading, setHistoricoLoading] = useState(false);
+
+  const loadHistorico = useCallback(async () => {
+    setHistoricoLoading(true);
+    try {
+      const r = await api.get('/admin/io/broadcasts?limit=20');
+      setHistorico(r.data?.broadcasts ?? []);
+    } catch {
+      setHistorico([]);
+    } finally {
+      setHistoricoLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadHistorico(); }, [loadHistorico]);
 
   const mensagens = useMemo(() => [msg1, msg2, msg3].filter(m => m.trim().length > 0), [msg1, msg2, msg3]);
 
@@ -129,7 +159,25 @@ export default function DisparosPage() {
     const total = mensagens.length * contatosFinais.length;
     setProgresso({ feitos: 0, total });
 
+    // Cria registro de auditoria no Supabase
+    let broadcastId: string | null = null;
+    try {
+      const r = await api.post('/admin/io/broadcasts', {
+        mensagens: mensagens.map((base, i) => ({ slot: i + 1, base })),
+        contexto_ai: usarIA ? contextoIA : null,
+        usou_ia: usarIA,
+        cadencia_min: cadMin,
+        cadencia_max: cadMax,
+        total,
+      });
+      broadcastId = r.data?.id ?? null;
+    } catch {
+      pushLog({ phone: '—', slot: 0, status: 'err', detail: 'Falha ao criar registro de auditoria (segue mesmo assim)' });
+    }
+
     let feitos = 0;
+    let sucesso = 0;
+    let falha = 0;
     for (let slotIdx = 0; slotIdx < mensagens.length; slotIdx++) {
       const slot = slotIdx + 1;
       const base = mensagens[slotIdx];
@@ -138,7 +186,13 @@ export default function DisparosPage() {
       for (const phone of contatosFinais) {
         if (stopRef.current) {
           pushLog({ phone, slot, status: 'skip', detail: 'PARADO pelo usuario' });
+          if (broadcastId) {
+            try {
+              await api.patch(`/admin/io/broadcasts/${broadcastId}`, { sucesso, falha, status: 'parado' });
+            } catch { /* já reportamos no log */ }
+          }
           setRodando(false);
+          loadHistorico();
           return;
         }
 
@@ -154,9 +208,26 @@ export default function DisparosPage() {
           }
         }
 
+        let envioStatus: 'ok' | 'erro' = 'erro';
+        let zaapId: string | null = null;
+        let messageId: string | null = null;
+        let erroDetalhe: string | null = null;
+
         try {
           const r = await api.post('/admin/io/send-text', { phone, message: textoFinal });
           const ok = r.status >= 200 && r.status < 300;
+          envioStatus = ok ? 'ok' : 'erro';
+          if (ok) {
+            sucesso++;
+            const respBody = r.data?.body;
+            if (respBody && typeof respBody === 'object') {
+              zaapId = respBody.zaapId ?? null;
+              messageId = respBody.messageId ?? respBody.id ?? null;
+            }
+          } else {
+            falha++;
+            erroDetalhe = `HTTP ${r.status}`;
+          }
           pushLog({
             phone,
             slot,
@@ -164,8 +235,24 @@ export default function DisparosPage() {
             detail: `→ "${textoFinal.slice(0, 80)}${textoFinal.length > 80 ? '...' : ''}"`,
           });
         } catch (e: unknown) {
+          falha++;
           const msg = e instanceof Error ? e.message : 'erro envio';
+          erroDetalhe = msg;
           pushLog({ phone, slot, status: 'err', detail: `Envio falhou: ${msg}` });
+        }
+
+        if (broadcastId) {
+          try {
+            await api.post(`/admin/io/broadcasts/${broadcastId}/envios`, {
+              phone,
+              slot,
+              mensagem_final: textoFinal,
+              status: envioStatus,
+              zaap_id: zaapId,
+              message_id: messageId,
+              erro: erroDetalhe,
+            });
+          } catch { /* nao bloqueia o disparo */ }
         }
 
         feitos++;
@@ -177,7 +264,13 @@ export default function DisparosPage() {
     }
 
     pushLog({ phone: '—', slot: 0, status: 'ok', detail: 'TODOS OS ROUNDS CONCLUIDOS' });
+    if (broadcastId) {
+      try {
+        await api.patch(`/admin/io/broadcasts/${broadcastId}`, { sucesso, falha, status: 'concluido' });
+      } catch { /* nao bloqueia */ }
+    }
     setRodando(false);
+    loadHistorico();
   }
 
   function parar() {
@@ -456,6 +549,57 @@ export default function DisparosPage() {
           </div>
         </div>
       )}
+
+      {/* Histórico */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <label style={{ ...labelStyle, margin: 0 }}>Histórico (últimos 20 disparos)</label>
+          <button style={btnGhost} onClick={loadHistorico} disabled={historicoLoading || rodando}>
+            {historicoLoading ? 'Carregando...' : 'Atualizar'}
+          </button>
+        </div>
+        {historico.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
+            {historicoLoading ? 'Carregando...' : 'Nenhum disparo registrado ainda.'}
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {historico.map(b => {
+              const data = new Date(b.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+              const cor = b.status === 'concluido' ? '#22c55e' : b.status === 'parado' ? '#f59e0b' : b.status === 'rodando' ? '#3b82f6' : '#dc2626';
+              const taxa = b.total > 0 ? Math.round((b.sucesso / b.total) * 100) : 0;
+              const preview = (b.mensagens?.[0]?.base || '').slice(0, 60);
+              return (
+                <details key={b.id} style={{ border: '1px solid var(--color-border)', borderRadius: 8, padding: 10 }}>
+                  <summary style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0, flex: 1 }}>
+                      <span style={{ padding: '2px 8px', borderRadius: 6, background: cor, color: '#fff', fontSize: 11, fontWeight: 700 }}>
+                        {b.status.toUpperCase()}
+                      </span>
+                      <span style={{ color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{data}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        "{preview}{(b.mensagens?.[0]?.base || '').length > 60 ? '...' : ''}"
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {b.sucesso}/{b.total} ({taxa}%)
+                    </span>
+                  </summary>
+                  <div style={{ marginTop: 10, fontSize: 12, color: 'var(--color-text-muted)' }}>
+                    <div><strong>Mensagens ({b.mensagens?.length || 0}):</strong></div>
+                    <ul style={{ margin: '4px 0 8px 18px', padding: 0 }}>
+                      {(b.mensagens || []).map(m => (
+                        <li key={m.slot}>R{m.slot}: {m.base}</li>
+                      ))}
+                    </ul>
+                    <div>IA: {b.usou_ia ? 'sim' : 'não'} · Cadência: {b.cadencia_min}-{b.cadencia_max}s · Falhas: {b.falha}</div>
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

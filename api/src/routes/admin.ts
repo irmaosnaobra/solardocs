@@ -608,7 +608,11 @@ router.post('/io/humanize', async (req: Request, res: Response): Promise<void> =
       '- Variar sutilmente entre reformulacoes: ora "tudo bem?", ora vai direto; ora "Boa tarde", ora "Oi".',
       '- Nao adicione informacao nova que nao esteja na base.',
       '- Saida: APENAS a mensagem reformulada, sem aspas, sem prefixo, sem explicacao.',
-      ctx ? `Contexto adicional do disparo: ${ctx}` : '',
+      '',
+      'Exemplo de reformulacao no tom certo:',
+      'Base: Boa tarde, aqui e a Giovanna',
+      'Saida: Boa tarde, e a Giovanna falando',
+      ctx ? `\nContexto adicional do disparo: ${ctx}` : '',
     ].filter(Boolean).join('\n');
 
     const r = await anthropic.messages.create({
@@ -652,6 +656,108 @@ router.post('/io/send-text', async (req: Request, res: Response): Promise<void> 
     res.status(r.ok ? 200 : 502).json({ zapi_status: r.status, body });
   } catch (err) {
     res.status(500).json({ error: 'Erro no envio', message: String(err) });
+  }
+});
+
+// Cria registro de auditoria de um disparo. Retorna id pra cliente referenciar.
+router.post('/io/broadcasts', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { mensagens, contexto_ai, usou_ia, cadencia_min, cadencia_max, total } = req.body as {
+      mensagens?: { slot: number; base: string }[];
+      contexto_ai?: string;
+      usou_ia?: boolean;
+      cadencia_min?: number;
+      cadencia_max?: number;
+      total?: number;
+    };
+    if (!Array.isArray(mensagens) || mensagens.length === 0) { res.status(400).json({ error: 'mensagens obrigatorio' }); return; }
+
+    const { data, error } = await supabase.from('io_broadcasts').insert({
+      criado_por: req.userId,
+      mensagens,
+      contexto_ai: contexto_ai ?? null,
+      usou_ia: usou_ia ?? true,
+      cadencia_min: cadencia_min ?? 4,
+      cadencia_max: cadencia_max ?? 8,
+      total: total ?? 0,
+      status: 'rodando',
+    }).select('id').single();
+    if (error || !data) { res.status(500).json({ error: 'Erro criando broadcast', detail: error?.message }); return; }
+    res.json({ id: data.id });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro criando broadcast', message: String(err) });
+  }
+});
+
+// Append de um envio individual à auditoria.
+router.post('/io/broadcasts/:id/envios', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const broadcastId = req.params.id;
+    const { phone, slot, mensagem_final, status, zaap_id, message_id, erro } = req.body as {
+      phone?: string;
+      slot?: number;
+      mensagem_final?: string;
+      status?: string;
+      zaap_id?: string | null;
+      message_id?: string | null;
+      erro?: string | null;
+    };
+    if (!phone || !slot || !mensagem_final || !status) {
+      res.status(400).json({ error: 'phone, slot, mensagem_final, status obrigatorios' });
+      return;
+    }
+    const { error } = await supabase.from('io_broadcast_envios').insert({
+      broadcast_id: broadcastId,
+      phone,
+      slot,
+      mensagem_final,
+      status,
+      zaap_id: zaap_id ?? null,
+      message_id: message_id ?? null,
+      erro: erro ?? null,
+    });
+    if (error) { res.status(500).json({ error: 'Erro inserindo envio', detail: error.message }); return; }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro append envio', message: String(err) });
+  }
+});
+
+// Atualiza contadores e status final do broadcast.
+router.patch('/io/broadcasts/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const broadcastId = req.params.id;
+    const { sucesso, falha, status } = req.body as { sucesso?: number; falha?: number; status?: string };
+    const patch: Record<string, unknown> = {};
+    if (typeof sucesso === 'number') patch.sucesso = sucesso;
+    if (typeof falha === 'number') patch.falha = falha;
+    if (status) {
+      patch.status = status;
+      if (status === 'concluido' || status === 'parado' || status === 'erro') {
+        patch.finalizado_em = new Date().toISOString();
+      }
+    }
+    const { error } = await supabase.from('io_broadcasts').update(patch).eq('id', broadcastId);
+    if (error) { res.status(500).json({ error: 'Erro atualizando broadcast', detail: error.message }); return; }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro patch broadcast', message: String(err) });
+  }
+});
+
+// Lista os últimos N broadcasts (default 20).
+router.get('/io/broadcasts', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 20, 100);
+    const { data, error } = await supabase
+      .from('io_broadcasts')
+      .select('id, criado_em, mensagens, total, sucesso, falha, status, finalizado_em, usou_ia, cadencia_min, cadencia_max')
+      .order('criado_em', { ascending: false })
+      .limit(limit);
+    if (error) { res.status(500).json({ error: 'Erro listando broadcasts', detail: error.message }); return; }
+    res.json({ broadcasts: data ?? [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro list broadcasts', message: String(err) });
   }
 });
 
