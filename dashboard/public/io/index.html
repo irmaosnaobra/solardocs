@@ -662,6 +662,136 @@
   .svc-card p { font-size: 14px; color: var(--text-muted); line-height: 1.55; margin-bottom: 20px; }
   .svc-tag { font-size: 11px; color: var(--gold); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 
+  /* ============ VANTAGENS ============ */
+  .benefits { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .benefits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .benefit-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px 26px;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .benefit-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--gold-soft);
+  }
+  .benefit-icon {
+    width: 56px; height: 56px; flex-shrink: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(194, 138, 44, 0.22), rgba(194, 138, 44, 0.06));
+    color: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 0 1px rgba(194, 138, 44, 0.28);
+  }
+  .benefit-icon svg { width: 28px; height: 28px; }
+  .benefit-body h4 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 19px;
+    color: var(--navy);
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: -0.005em;
+  }
+  .benefit-body p { font-size: 14px; color: var(--text-muted); line-height: 1.55; }
+
+  /* ============ FINANCIAMENTO ============ */
+  .finance {
+    background:
+      radial-gradient(circle 600px at 85% 25%, rgba(194, 138, 44, 0.20), transparent 60%),
+      linear-gradient(180deg, var(--navy) 0%, #081A38 100%);
+    color: #fff;
+    padding: 100px 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .finance::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+  .finance-inner { position: relative; display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 60px; align-items: center; }
+  .finance .eyebrow { color: var(--gold-soft); }
+  .finance h2.section-title { color: #fff; }
+  .finance h2.section-title em { color: var(--gold-soft); font-style: italic; }
+  .finance-lead {
+    color: rgba(255,255,255,0.78);
+    font-size: 17px;
+    line-height: 1.6;
+    margin-top: 14px;
+    margin-bottom: 32px;
+    max-width: 540px;
+  }
+  .finance-points { display: grid; gap: 16px; margin-bottom: 32px; }
+  .finance-point { display: flex; gap: 14px; align-items: flex-start; font-size: 15px; line-height: 1.5; }
+  .finance-point .check {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--gold);
+    color: var(--navy);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 13px;
+    flex-shrink: 0;
+  }
+  .finance-point b { color: #fff; font-weight: 700; }
+  .finance-point .l { color: rgba(255,255,255,0.78); }
+  .finance-cta { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .finance-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 30px;
+    position: relative;
+    backdrop-filter: blur(8px);
+  }
+  .finance-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .finance-card-header .ic {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border-radius: 12px;
+    color: var(--navy);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 22px;
+    flex-shrink: 0;
+  }
+  .finance-card-header .t small { display: block; font-size: 10px; color: rgba(255,255,255,0.55); letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; }
+  .finance-card-header .t span { font-family: 'Fraunces', Georgia, serif; font-size: 20px; color: #fff; font-weight: 700; line-height: 1.15; margin-top: 2px; display: block; }
+  .finance-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .finance-row:last-of-type { border-bottom: 0; }
+  .finance-row .k { color: rgba(255,255,255,0.7); font-size: 13px; }
+  .finance-row .v { color: #fff; font-weight: 700; font-size: 15px; }
+  .finance-row .v.gold { color: var(--gold-soft); }
+  .finance-disclaimer { margin-top: 14px; font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 0.02em; line-height: 1.4; }
+  .finance-banks { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .finance-bank {
+    font-size: 11px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.82);
+    letter-spacing: 0.04em;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  @media (max-width: 980px) {
+    .benefits-grid { grid-template-columns: repeat(2, 1fr); }
+    .finance-inner { grid-template-columns: 1fr; gap: 40px; }
+  }
+  @media (max-width: 600px) {
+    .benefits-grid { grid-template-columns: 1fr; }
+    .finance { padding: 70px 0; }
+    .finance-card { padding: 22px; }
+  }
+
   /* ============ COMO FUNCIONA ============ */
   .how-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; position: relative; }
   .how-step { text-align: center; padding: 0 14px; }
@@ -1540,6 +1670,101 @@
   </div>
 </section>
 
+<!-- ============ VANTAGENS ============ -->
+<section class="block benefits" id="vantagens">
+  <div class="container">
+    <div class="block-head">
+      <div class="eyebrow">Por que solar?</div>
+      <h2 class="section-title">As vantagens reais de gerar a própria energia.</h2>
+      <p class="section-lead">
+        Energia solar fotovoltaica é o investimento de maior retorno garantido pra residências e negócios no Brasil. Veja o que os nossos clientes já estão colhendo.
+      </p>
+    </div>
+
+    <div class="benefits-grid">
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <div class="benefit-body">
+          <h4>Até 95% de economia</h4>
+          <p>Redução agressiva da conta da CEMIG já no primeiro mês de operação do sistema.</p>
+        </div>
+      </div>
+
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-12V5l-8-3-8 3v5c0 8 8 12 8 12z"/>
+            <polyline points="9 12 11 14 15 10"/>
+          </svg>
+        </div>
+        <div class="benefit-body">
+          <h4>Garantia de 25 anos</h4>
+          <p>Painéis Tier 1 com garantia de geração e desempenho asseguradas em contrato pelos fabricantes.</p>
+        </div>
+      </div>
+
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="12 17 12 13"/>
+            <polyline points="10 15 12 13 14 15"/>
+          </svg>
+        </div>
+        <div class="benefit-body">
+          <h4>Valorização do imóvel</h4>
+          <p>Imóveis com energia solar valorizam de 6% a 8% no mercado, segundo estudos do setor.</p>
+        </div>
+      </div>
+
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.8 2c1 4 .5 16-8.8 18z"/>
+            <path d="M2 22c2-2 7-3 8.5-4"/>
+          </svg>
+        </div>
+        <div class="benefit-body">
+          <h4>Energia 100% limpa</h4>
+          <p>Zero emissão de CO₂. Cada sistema instalado evita a queima de combustíveis fósseis.</p>
+        </div>
+      </div>
+
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+            <polyline points="17 6 23 6 23 12"/>
+          </svg>
+        </div>
+        <div class="benefit-body">
+          <h4>Retorno garantido</h4>
+          <p>Payback médio entre 4 e 5 anos. Depois disso, é só economia pelas próximas 2 décadas.</p>
+        </div>
+      </div>
+
+      <div class="benefit-card">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+            <line x1="12" y1="18" x2="12.01" y2="18"/>
+            <path d="M9 7h6M9 11h6" opacity=".55"/>
+          </svg>
+        </div>
+        <div class="benefit-body">
+          <h4>Monitoramento em tempo real</h4>
+          <p>App pra acompanhar a geração do sistema 24h por dia, direto do celular ou navegador.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============ COMO FUNCIONA ============ -->
 <section class="block" id="processo">
   <div class="container">
@@ -1971,6 +2196,70 @@
 
     </div>
 
+  </div>
+</section>
+
+<!-- ============ FINANCIAMENTO ============ -->
+<section class="finance" id="financiamento">
+  <div class="container finance-inner">
+    <div>
+      <div class="eyebrow">Financiamento solar</div>
+      <h2 class="section-title">Sem entrada. Em até <em>84x</em> pra pagar.</h2>
+      <p class="finance-lead">
+        Trabalhamos com bancos parceiros e linhas específicas pra energia solar. A parcela mensal do financiamento normalmente fica menor do que a sua conta de luz atual — você troca dívida com a concessionária por patrimônio no seu nome.
+      </p>
+
+      <div class="finance-points">
+        <div class="finance-point">
+          <span class="check">✓</span>
+          <div><b>Aprovação em até 24h.</b> <span class="l">Análise direta com bancos parceiros, sem burocracia desnecessária.</span></div>
+        </div>
+        <div class="finance-point">
+          <span class="check">✓</span>
+          <div><b>Cobrimos orçamentos.</b> <span class="l">Tem proposta concorrente? Manda pra gente avaliar antes de fechar.</span></div>
+        </div>
+        <div class="finance-point">
+          <span class="check">✓</span>
+          <div><b>Linha Pronaf disponível.</b> <span class="l">Pra produtores rurais, taxa subsidiada via Mais Alimentos.</span></div>
+        </div>
+      </div>
+
+      <div class="finance-cta">
+        <a href="/io/simular" class="btn-primary" data-source="finance">
+          Simular agora <span style="font-size:18px">→</span>
+        </a>
+        <a href="https://wa.me/5534998165040?text=Ol%C3%A1!%20Gostaria%20de%20entender%20as%20condi%C3%A7%C3%B5es%20de%20financiamento%20solar." class="btn-ghost" target="_blank" rel="noopener">
+          Falar no WhatsApp
+        </a>
+      </div>
+    </div>
+
+    <div class="finance-card" aria-label="Exemplo de simulação">
+      <div class="finance-card-header">
+        <div class="ic">$</div>
+        <div class="t">
+          <small>Simulação ilustrativa</small>
+          <span>Sistema residencial 6 kWp</span>
+        </div>
+      </div>
+      <div class="finance-row"><span class="k">Valor do sistema</span><span class="v">R$ 24.800</span></div>
+      <div class="finance-row"><span class="k">Economia mensal estimada</span><span class="v gold">R$ 720</span></div>
+      <div class="finance-row"><span class="k">Parcela financiada (84x)</span><span class="v">R$ 599</span></div>
+      <div class="finance-row"><span class="k">Saldo a favor</span><span class="v gold">+R$ 121 / mês</span></div>
+      <div class="finance-row"><span class="k">Payback estimado</span><span class="v">4,5 anos</span></div>
+
+      <div class="finance-disclaimer">
+        Simulação ilustrativa. Condições reais dependem de análise de crédito, tarifa CEMIG vigente e consumo histórico do imóvel.
+      </div>
+
+      <div class="finance-banks" aria-label="Bancos parceiros">
+        <span class="finance-bank">BV</span>
+        <span class="finance-bank">Sicredi</span>
+        <span class="finance-bank">Santander</span>
+        <span class="finance-bank">Banco do Brasil</span>
+        <span class="finance-bank">Solfácil</span>
+      </div>
+    </div>
   </div>
 </section>
 
