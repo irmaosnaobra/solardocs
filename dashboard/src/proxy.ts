@@ -10,6 +10,17 @@ export function proxy(request: NextRequest) {
   const isHome = pathname === '/';
   const isPublicPath = isHome || PUBLIC_PATHS.some(path => pathname.startsWith(path));
 
+  // Curto-circuito VSL → cadastro. Quem veio da /apresentacao já foi vendido
+  // pelo vídeo — a LP entre VSL e cadastro só atrapalha e vaza gente. Manda
+  // direto pro fluxo de cadastro com plano VIP pré-selecionado. LP segue
+  // acessível pra tráfego frio (Google/indicação) que não tem esse referer.
+  if (isHome && !token) {
+    const referer = request.headers.get('referer') || '';
+    if (referer.includes('/apresentacao')) {
+      return NextResponse.redirect(new URL('/auth?mode=register&plano=vip', request.url));
+    }
+  }
+
   if (!token && !isPublicPath) {
     return NextResponse.redirect(new URL('/auth?mode=login', request.url));
   }
