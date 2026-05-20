@@ -107,8 +107,25 @@
   }
   .historico-tabela .acoes-mini button.copiar { background: #f5c518; color: #0d2d5e; }
   .historico-tabela .acoes-mini button.editar { background: #4a90e2; color: #fff; }
+  .historico-tabela .acoes-mini button.historico-link { background: #6b21a8; color: #fff; }
   .historico-tabela .acoes-mini button.vendido-toggle { background: #e74c3c; color: white; min-width: 28px; padding: 6px 8px; }
   .historico-tabela .acoes-mini button.vendido-toggle.sold { background: #2ecc71; }
+
+  /* Badge de "acesso novo" no histórico do consultor */
+  .badge-novo {
+    display: inline-block;
+    font-size: 9px;
+    line-height: 1;
+    vertical-align: middle;
+    animation: badge-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes badge-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .55; transform: scale(.85); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .badge-novo { animation: none; }
+  }
   .historico-tabela td.valor-cell { font-weight: 600; color: #0d2d5e; white-space: nowrap; }
   .historico-pag {
     display: flex;
@@ -559,20 +576,26 @@
   /* CARDS */
   .card {
     background: white;
-    border-radius: 12px;
-    padding: 22px;
+    border-radius: 16px;
+    padding: 24px;
     margin-bottom: 16px;
-    box-shadow: 0 2px 8px rgba(13,45,94,.06);
+    box-shadow: 0 4px 16px rgba(13, 45, 94, .07), 0 1px 3px rgba(13, 45, 94, .04);
+    border: 1px solid rgba(13, 45, 94, .04);
+    transition: box-shadow .2s ease, transform .2s ease;
+  }
+  .card:hover {
+    box-shadow: 0 8px 24px rgba(13, 45, 94, .10), 0 2px 6px rgba(13, 45, 94, .06);
   }
   .card h2 {
-    font-size: 16px;
+    font-size: 15px;
     color: #0d2d5e;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
     text-transform: uppercase;
-    letter-spacing: .5px;
-    border-bottom: 2px solid #f5c518;
-    padding-bottom: 8px;
+    letter-spacing: .8px;
+    border-bottom: 3px solid #f5c518;
+    padding-bottom: 10px;
     display: inline-block;
+    font-weight: 800;
   }
 
   /* FIELDS */
@@ -720,23 +743,56 @@
 
   /* PROPOSTA — HEADER */
   .prop-header {
-    background: #0d2d5e;
+    background: linear-gradient(135deg, #0a234a 0%, #0d2d5e 45%, #1a4690 100%);
     border-left: 5px solid #f5c518;
     color: white;
-    padding: 22px 24px;
-    border-radius: 12px;
-    margin-bottom: 16px;
+    padding: 28px 26px;
+    border-radius: 18px;
+    margin-bottom: 18px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 12px 32px rgba(13, 45, 94, .22), 0 2px 6px rgba(13, 45, 94, .12);
   }
-  .prop-header h1 { font-size: 22px; }
+  .prop-header::before {
+    content: '';
+    position: absolute;
+    top: -55%;
+    right: -12%;
+    width: 360px;
+    height: 360px;
+    background: radial-gradient(circle, rgba(245, 197, 24, .22) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .prop-header::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    left: -10%;
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(255, 255, 255, .08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .prop-header > * { position: relative; z-index: 1; }
+  .prop-header h1 {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -.3px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .15);
+  }
   .prop-header .sub {
     font-size: 13px;
-    opacity: .85;
+    opacity: .88;
     margin-top: 4px;
+    font-weight: 500;
   }
-  .prop-header .sun { font-size: 40px; }
+  .prop-header .sun {
+    font-size: 44px;
+    filter: drop-shadow(0 2px 6px rgba(245, 197, 24, .35));
+  }
 
   /* CLIENTE */
   .cliente-box {
@@ -775,11 +831,17 @@
     gap: 12px;
   }
   .spec {
-    background: #f8fafc;
-    padding: 14px;
-    border-radius: 8px;
+    background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+    padding: 16px 12px;
+    border-radius: 12px;
     border-bottom: 3px solid #f5c518;
     text-align: center;
+    box-shadow: 0 1px 3px rgba(13, 45, 94, .04);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .spec:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 45, 94, .08);
   }
   .spec .label {
     font-size: 11px;
@@ -802,48 +864,63 @@
 
   /* HERO — economia em 25 anos como âncora visual */
   .hero-economia {
-    background: linear-gradient(135deg, #0d2d5e 0%, #2a5298 100%);
+    background: linear-gradient(135deg, #0a234a 0%, #0d2d5e 45%, #1a4690 100%);
     color: white;
-    padding: 32px 24px;
-    border-radius: 14px;
+    padding: 38px 26px;
+    border-radius: 18px;
     text-align: center;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 6px 20px rgba(13, 45, 94, 0.25);
+    box-shadow: 0 14px 36px rgba(13, 45, 94, .28), 0 2px 8px rgba(13, 45, 94, .14);
   }
   .hero-economia::before {
     content: '';
     position: absolute;
-    top: -50%;
-    right: -10%;
-    width: 320px;
-    height: 320px;
-    background: radial-gradient(circle, rgba(245, 197, 24, 0.18) 0%, transparent 70%);
+    top: -55%;
+    right: -12%;
+    width: 360px;
+    height: 360px;
+    background: radial-gradient(circle, rgba(245, 197, 24, .22) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .hero-economia::after {
+    content: '';
+    position: absolute;
+    bottom: -45%;
+    left: -10%;
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(255, 255, 255, .08) 0%, transparent 70%);
     pointer-events: none;
   }
   .hero-economia .hero-label {
     font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 2.5px;
-    opacity: 0.9;
-    margin-bottom: 8px;
-    font-weight: 600;
+    letter-spacing: 3px;
+    opacity: .9;
+    margin-bottom: 10px;
+    font-weight: 700;
     position: relative;
+    z-index: 1;
   }
   .hero-economia .hero-valor {
-    font-size: 44px;
+    font-size: 52px;
     font-weight: 900;
     line-height: 1;
-    letter-spacing: -1px;
+    letter-spacing: -1.8px;
     position: relative;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1;
+    color: #f5c518;
+    text-shadow: 0 2px 16px rgba(245, 197, 24, .35);
   }
   .hero-economia .hero-period {
     font-size: 12px;
-    opacity: 0.85;
-    margin-top: 8px;
+    opacity: .85;
+    margin-top: 10px;
     position: relative;
+    z-index: 1;
+    font-weight: 500;
   }
 
   /* GRÁFICO mensal SVG */
@@ -934,11 +1011,17 @@
     gap: 12px;
   }
   .gar {
-    background: #f8fafc;
-    padding: 14px 10px;
-    border-radius: 8px;
+    background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+    padding: 16px 10px;
+    border-radius: 12px;
     border-top: 3px solid #f5c518;
     text-align: center;
+    box-shadow: 0 1px 3px rgba(13, 45, 94, .04);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .gar:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 45, 94, .08);
   }
   .gar .num {
     font-size: 22px;
@@ -986,29 +1069,47 @@
 
   /* PREÇO */
   .preco-box {
-    background: #0d2d5e;
+    background: linear-gradient(135deg, #0a234a 0%, #0d2d5e 45%, #1a4690 100%);
     color: white;
-    padding: 24px;
-    border-radius: 12px;
+    padding: 32px 24px;
+    border-radius: 18px;
     text-align: center;
     border-bottom: 4px solid #f5c518;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 14px 36px rgba(13, 45, 94, .28), 0 2px 8px rgba(13, 45, 94, .14);
   }
+  .preco-box::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -15%;
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle, rgba(245, 197, 24, .18) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .preco-box > * { position: relative; z-index: 1; }
   .preco-box .lbl {
-    font-size: 13px;
+    font-size: 12px;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
     opacity: .85;
+    font-weight: 700;
   }
   .preco-box .valor {
-    font-size: 38px;
-    font-weight: 800;
-    margin: 6px 0;
+    font-size: 44px;
+    font-weight: 900;
+    margin: 10px 0 4px;
     color: #f5c518;
+    letter-spacing: -1.2px;
+    text-shadow: 0 2px 12px rgba(245, 197, 24, .35);
+    line-height: 1;
   }
   .preco-box .obs {
     font-size: 12px;
-    opacity: .8;
+    opacity: .82;
   }
   .cond-vista {
     margin-top: 14px;
@@ -1191,20 +1292,31 @@
     margin-top: 8px;
   }
   .acoes button {
-    padding: 14px;
+    padding: 15px 14px;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
     color: white;
     font-family: inherit;
-    transition: opacity .15s;
+    transition: transform .15s ease, box-shadow .15s ease, opacity .15s;
+    box-shadow: 0 4px 12px rgba(13, 45, 94, .12);
   }
-  .acoes button:hover { opacity: .92; }
-  .btn-pdf { background: #0d2d5e; }
-  .btn-wpp { background: #25D366; }
-  .btn-link { background: #f5c518; color: #0d2d5e !important; }
+  .acoes button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(13, 45, 94, .18);
+  }
+  .btn-pdf {
+    background: linear-gradient(135deg, #0a234a 0%, #0d2d5e 50%, #1a4690 100%);
+  }
+  .btn-wpp { background: linear-gradient(135deg, #1ebd5b 0%, #25D366 100%); }
+  .btn-link {
+    background: linear-gradient(135deg, #f5c518 0%, #fdd84d 100%);
+    color: #0d2d5e !important;
+    box-shadow: 0 4px 12px rgba(245, 197, 24, .25);
+  }
+  .btn-link:hover { box-shadow: 0 6px 18px rgba(245, 197, 24, .35); }
   .acoes.acoes-3 { grid-template-columns: 1fr 1fr 1fr; }
   @media (max-width: 700px) {
     .acoes.acoes-3 { grid-template-columns: 1fr; }
@@ -1219,6 +1331,46 @@
     text-decoration: none;
     font-weight: 700;
     font-size: 15px;
+  }
+
+  /* CTA gigante da tela expirada — chama atenção pro WhatsApp do consultor */
+  .exp-cta-wpp {
+    display: inline-block;
+    background: linear-gradient(135deg, #1ebd5b 0%, #25D366 50%, #34e07a 100%);
+    color: white !important;
+    padding: 18px 34px;
+    border-radius: 14px;
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: .3px;
+    box-shadow: 0 10px 28px rgba(37, 211, 102, .35), 0 2px 6px rgba(37, 211, 102, .2);
+    transition: transform .2s ease, box-shadow .2s ease;
+    animation: exp-cta-pulse 2.2s ease-in-out infinite;
+  }
+  .exp-cta-wpp:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 36px rgba(37, 211, 102, .45), 0 4px 10px rgba(37, 211, 102, .25);
+    animation: none;
+  }
+  @keyframes exp-cta-pulse {
+    0%, 100% { box-shadow: 0 10px 28px rgba(37, 211, 102, .35), 0 2px 6px rgba(37, 211, 102, .2); }
+    50%      { box-shadow: 0 14px 40px rgba(37, 211, 102, .55), 0 4px 12px rgba(37, 211, 102, .3); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .exp-cta-wpp { animation: none; }
+  }
+  @media (max-width: 600px) {
+    .exp-cta-wpp { padding: 16px 24px; font-size: 15px; display: block; }
+  }
+
+  /* TELA EXPIRADA — header em tom mais quente pra sinalizar "atenção, refazer" */
+  #expiradoSection .prop-header {
+    background: linear-gradient(135deg, #7c2d12 0%, #9a3412 45%, #c2410c 100%);
+    border-left-color: #f5c518;
+  }
+  #expiradoSection .prop-header::before {
+    background: radial-gradient(circle, rgba(254, 215, 170, .25) 0%, transparent 65%);
   }
   .botoes-rodape {
     display: grid;
@@ -1455,4 +1607,39 @@
 @media (prefers-reduced-motion: reduce) {
   .celebra-parabens { animation: celebra-fade-in 0.3s ease-out both; }
   .celebra-confete { display: none; }
+}
+
+/* ============= PRINT — gera PDF limpo via Ctrl+P / Baixar PDF ============= */
+@media print {
+  /* Esconde controles internos do consultor — só conteúdo da proposta */
+  .acoes,
+  .botoes-rodape,
+  .top-actions,
+  .btn-hist,
+  .btn-hist-voltar,
+  .toast,
+  #loadingProposta { display: none !important; }
+
+  body {
+    background: white !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .container { max-width: 100% !important; padding: 0 !important; }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+    page-break-inside: avoid;
+  }
+  .prop-header,
+  .hero-economia,
+  .preco-box {
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+  .card:hover,
+  .spec:hover,
+  .gar:hover { transform: none !important; box-shadow: none !important; }
+  a { color: inherit !important; text-decoration: none !important; }
 }

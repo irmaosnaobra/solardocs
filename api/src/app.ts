@@ -25,6 +25,7 @@ import mcpRoutes from './routes/mcp';
 import unsubscribeRoutes from './routes/unsubscribe';
 import publicPropostaRoutes from './routes/publicProposta';
 import dashboardsRoutes from './routes/dashboards';
+import geradorRoutes from './routes/gerador';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
@@ -95,6 +96,7 @@ app.use('/mcp', mcpRoutes);
 app.use('/unsubscribe', unsubscribeRoutes);
 app.use('/p', publicPropostaRoutes);
 app.use('/dashboards', dashboardsRoutes);
+app.use('/gerador', geradorRoutes);
 
 // Error handler global — nunca expõe stack trace em produção
 app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

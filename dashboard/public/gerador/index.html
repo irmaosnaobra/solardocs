@@ -702,8 +702,9 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
     </div>
 
     <div class="acoes">
-      <button class="btn-wpp" onclick="copiarWhatsApp()">📱 Copiar WhatsApp</button>
+      <button class="btn-wpp" onclick="copiarWhatsApp()" style="display:none;">📱 Copiar WhatsApp</button>
       <button class="btn-link" id="btn-link" onclick="gerarLinkProposta()">🔗 Copiar link</button>
+      <button class="btn-pdf" id="btn-pdf" onclick="baixarPDF()">📄 Baixar PDF</button>
     </div>
 
     <div class="botoes-rodape" id="btn-nova">
@@ -727,21 +728,40 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
 
     <div class="card">
       <h2>Olá, <span id="exp-nome"></span>!</h2>
-      <p style="margin: 10px 0; color: #555; font-size: 15px; line-height: 1.5;">
-        Esta proposta de energia solar foi gerada há mais de 7 dias e por isso os preços precisam ser revalidados.
+      <p style="margin: 10px 0; color: #555; font-size: 15px; line-height: 1.55;">
+        Sua proposta de energia solar passou da validade de <strong>7 dias</strong>. Os preços de equipamentos e a tarifa de energia mudam todo mês — pra te dar o valor certo, precisamos refazer.
       </p>
-      <p style="margin: 10px 0; color: #555; font-size: 15px; line-height: 1.5;">
-        Os valores de equipamentos, módulos e inversores são atualizados periodicamente pelos fornecedores. Para receber uma proposta atualizada com os valores vigentes, entre em contato com o consultor responsável.
+      <p style="margin: 10px 0 0; color: #555; font-size: 15px; line-height: 1.55;">
+        É rapidinho: <strong>chama seu consultor no WhatsApp</strong> que ele monta uma proposta nova em minutos.
       </p>
+    </div>
 
-      <div id="exp-consultor" style="display:none; margin-top: 20px;">
-        <div class="consultor-info">
-          <div class="consultor-avatar">👤</div>
-          <div class="consultor-dados">
-            <div class="consultor-nome" id="exp-consultor-nome"></div>
-            <a class="exp-btn-wpp" id="exp-consultor-tel" href="#" target="_blank"></a>
-          </div>
+    <div id="exp-cta-card" class="card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #25D366; text-align: center; padding: 28px 22px; display:none;">
+      <div style="font-size: 13px; color: #166534; text-transform: uppercase; letter-spacing: 2px; font-weight: 800;">Fala com seu consultor</div>
+      <div class="consultor-info" style="justify-content: center; margin: 16px 0 10px;">
+        <div class="consultor-avatar" style="background: #25D366; color: white;">👤</div>
+        <div class="consultor-dados" style="text-align: left;">
+          <div class="consultor-nome" id="exp-consultor-nome" style="font-size: 18px;"></div>
+          <div style="font-size: 13px; color: #166534; font-weight: 600;">Consultor responsável</div>
         </div>
+      </div>
+      <a id="exp-consultor-cta" class="exp-cta-wpp" href="#" target="_blank" rel="noopener noreferrer">
+        💬 Quero outra proposta — WhatsApp
+      </a>
+      <div style="margin-top: 12px; font-size: 12px; color: #166534; opacity: .8;">
+        Resposta na hora, em horário comercial
+      </div>
+    </div>
+
+    <!-- Fallback: se a proposta não tinha consultor cadastrado, mostra contato da operação -->
+    <div id="exp-cta-fallback" class="card" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #f5c518; text-align: center; padding: 28px 22px; display:none;">
+      <div style="font-size: 13px; color: #92400e; text-transform: uppercase; letter-spacing: 2px; font-weight: 800;">Fala com a gente</div>
+      <p style="margin: 12px 0 16px; color: #555; font-size: 14px;">Sua proposta expirou — chama no WhatsApp da operação que a gente refaz pra você.</p>
+      <a class="exp-cta-wpp" href="https://wa.me/5534998165040?text=Oi%2C%20minha%20proposta%20expirou%20e%20eu%20gostaria%20de%20receber%20uma%20nova." target="_blank" rel="noopener noreferrer">
+        💬 Quero outra proposta — WhatsApp
+      </a>
+      <div style="margin-top: 12px; font-size: 13px; color: #92400e; font-weight: 700;">
+        (34) 99816-5040
       </div>
     </div>
   </div>
@@ -856,6 +876,17 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
       <button class="secondary" onclick="fecharModalDuplicado()">Cancelar</button>
       <button class="primary" onclick="continuarMesmoAssim()">Criar nova mesmo assim</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal "Histórico do Link" — quem abriu, quando, de onde, clicou onde -->
+<div id="histLinkModal" class="modal-overlay" onclick="if(event.target===this) fecharHistoricoLink()" style="display:none;">
+  <div class="modal-box" style="max-width:560px;padding:0;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#0a234a 0%,#0d2d5e 50%,#1a4690 100%);color:white;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;">
+      <h3 id="histLinkTitle" style="margin:0;font-size:17px;font-weight:800;color:white;">Histórico do link</h3>
+      <button onclick="fecharHistoricoLink()" style="background:rgba(255,255,255,.15);color:white;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>
+    <div id="histLinkBody" style="max-height:70vh;overflow-y:auto;background:#f0f4f8;"></div>
   </div>
 </div>
 
@@ -1960,6 +1991,12 @@ function renderProposta(d, viaLink) {
       ? `Olá! Sou ${nomeCli} e quero fechar minha proposta de energia solar com a Irmãos na Obra${codigo}.`
       : `Olá! Quero fechar minha proposta de energia solar com a Irmãos na Obra${codigo}.`;
     ctaLink.href = `https://wa.me/5534998165040?text=${encodeURIComponent(msg)}`;
+    // Tracking: marca clique no CTA principal (não bloqueia redirect, usa sendBeacon)
+    if (!viaLink && !d.codigo) {
+      // Sem código (vendedor preview) — não trackeia
+    } else {
+      ctaLink.addEventListener('click', () => trackClickWpp(d.codigo, 'click_wpp_cta'), { once: false });
+    }
   }
 
   // Rodapé do consultor: só aparece pro vendedor (NÃO pro cliente que abre o link)
@@ -2097,52 +2134,78 @@ async function carregarDeURL() {
     const p = url.searchParams.get('p');
     if (!p) return;
 
-    let d, dataEmissao, codigoSupabase = null;
+    let d, dataEmissao;
     const vendedor = ehVendedor();
+    const isPdfMode = url.searchParams.get('pdf') === '1';
 
-    if (/^\d{6,12}$/.test(p)) {
-      // Código curto — busca no Supabase
+    // Caminho 0 — PDF mode com dados injetados pelo backend (Puppeteer).
+    // O backend pré-carrega __INJECTED_PROPOSAL via evaluateOnNewDocument, então
+    // bypassa qualquer filtro de expiração e não precisa de chamada de rede.
+    if (isPdfMode && window.__INJECTED_PROPOSAL && window.__INJECTED_PROPOSAL.dados) {
+      const inj = window.__INJECTED_PROPOSAL;
+      d = inj.dados;
+      d.dataEmissao = inj.created_at;
+      d.codigo = inj.codigo;
+      dadosAtual = d;
+      renderProposta(d, true);
+      return;
+    }
+
+    // Caminho legado: base64 na URL (links antigos sem banco)
+    if (!/^\d{6,12}$/.test(p)) {
+      try {
+        const json = decodeURIComponent(escape(atob(decodeURIComponent(p))));
+        d = JSON.parse(json);
+        if (!d.nome || !d.item || !d.tab) return;
+        dataEmissao = d.dataEmissao ? new Date(d.dataEmissao) : new Date();
+        const diasPassados = (new Date() - dataEmissao) / (1000 * 60 * 60 * 24);
+        if (diasPassados > 7 && !vendedor) { mostrarExpirado(d); return; }
+        dadosAtual = d;
+        renderProposta(d, !vendedor);
+      } catch (e) { console.error(e); }
+      return;
+    }
+
+    // Caminho 1 — Vendedor logado: lê tabela direto (vê propostas antigas pra reaproveitar)
+    if (vendedor) {
       const arr = await supaGet(`propostas?codigo=eq.${encodeURIComponent(p)}&select=*&limit=1`);
-      if (!arr || arr.length === 0) {
-        document.documentElement.dataset.mode = 'viewer';
-        document.getElementById('formSection').style.display = 'none';
-        const exp = document.getElementById('expiradoSection');
-        exp.style.display = '';
-        document.getElementById('exp-nome').textContent = 'cliente';
-        document.querySelector('#expiradoSection .prop-header h1').textContent = 'Proposta não encontrada';
-        document.querySelector('#expiradoSection .prop-header .sub').textContent = 'Esta proposta não existe ou foi removida';
-        document.getElementById('exp-consultor').style.display = 'none';
-        return;
-      }
+      if (!arr || arr.length === 0) { mostrarPropostaNaoEncontrada(); return; }
       const row = arr[0];
       d = row.dados;
       d.dataEmissao = row.created_at;
       d.codigo = row.codigo;
-      codigoSupabase = row.codigo;
-      dataEmissao = new Date(row.created_at);
-
-      // Registrar acesso APENAS se for cliente (não inflar contador com vendedor revisitando)
-      if (!vendedor) {
-        supaRpc('registrar_acesso', { p_codigo: p }).catch(e => console.error(e));
-      }
-    } else {
-      // Legado: base64 (links antigos sem banco)
-      const json = decodeURIComponent(escape(atob(decodeURIComponent(p))));
-      d = JSON.parse(json);
-      if (!d.nome || !d.item || !d.tab) return;
-      dataEmissao = d.dataEmissao ? new Date(d.dataEmissao) : new Date();
-    }
-
-    // Vendedor: ignora expiração (precisa reaproveitar propostas antigas)
-    const diasPassados = (new Date() - dataEmissao) / (1000 * 60 * 60 * 24);
-    if (diasPassados > 7 && !vendedor) {
-      mostrarExpirado(d);
+      dadosAtual = d;
+      renderProposta(d, false); // mostra controles do consultor
       return;
     }
 
+    // Caminho 2 — Cliente comum: RPC com filtro server-side de expiração
+    const resp = await supaRpc('get_proposta_pub', { p_codigo: p });
+    if (!resp || resp.length === 0) {
+      mostrarPropostaNaoEncontrada();
+      return;
+    }
+    const row = resp[0];
+    if (row.expirou) {
+      // RPC retornou só nome/consultor/telefone — dados comerciais nunca saíram do server
+      mostrarExpirado(row.dados);
+      return;
+    }
+    d = row.dados;
+    d.dataEmissao = row.created_at;
+    d.codigo = row.codigo;
+    dataEmissao = new Date(row.created_at);
+
+    // Tracking server-side: lê IP/UA, resolve geo, insere em proposta_acessos
+    fetch('/_api/gerador/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo: p, evento: 'abertura', userAgent: navigator.userAgent }),
+      keepalive: true,
+    }).catch(e => console.error('track falhou:', e));
+
     dadosAtual = d;
-    // viaLink = true (esconde botões) só pro cliente. Vendedor vê tudo.
-    renderProposta(d, !vendedor);
+    renderProposta(d, true); // viaLink=true esconde controles do consultor
   } catch (e) {
     console.error('Erro ao carregar proposta da URL:', e);
     // Não deixa o cliente preso no loading: mostra tela amigável.
@@ -2156,10 +2219,45 @@ async function carregarDeURL() {
       const sub = document.querySelector('#expiradoSection .prop-header .sub');
       if (h1) h1.textContent = 'Não foi possível carregar';
       if (sub) sub.textContent = 'Tente novamente em alguns instantes';
-      const c = document.getElementById('exp-consultor');
-      if (c) c.style.display = 'none';
+      const c1 = document.getElementById('exp-cta-card'); if (c1) c1.style.display = 'none';
+      const c2 = document.getElementById('exp-cta-fallback'); if (c2) c2.style.display = 'none';
     }
   }
+}
+
+// Tracking de cliques no WhatsApp (cliente clicou pra falar com consultor).
+// Usa sendBeacon onde disponível pra não atrasar o redirect pro WhatsApp.
+function trackClickWpp(codigo, evento) {
+  if (!codigo) return;
+  try {
+    const body = JSON.stringify({ codigo, evento, userAgent: navigator.userAgent });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/_api/gerador/track', new Blob([body], { type: 'application/json' }));
+    } else {
+      fetch('/_api/gerador/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    }
+  } catch (e) { /* não bloqueia o redirect */ }
+}
+
+function mostrarPropostaNaoEncontrada() {
+  document.documentElement.dataset.mode = 'viewer';
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('propostaSection').style.display = 'none';
+  const exp = document.getElementById('expiradoSection');
+  if (!exp) return;
+  exp.style.display = '';
+  const expNome = document.getElementById('exp-nome'); if (expNome) expNome.textContent = 'cliente';
+  const h1 = exp.querySelector('.prop-header h1');
+  const sub = exp.querySelector('.prop-header .sub');
+  if (h1) h1.textContent = 'Proposta não encontrada';
+  if (sub) sub.textContent = 'O link expirou ou foi removido. Peça pro consultor enviar de novo.';
+  const c1 = document.getElementById('exp-cta-card'); if (c1) c1.style.display = 'none';
+  const c2 = document.getElementById('exp-cta-fallback'); if (c2) c2.style.display = '';
 }
 
 function mostrarExpirado(d) {
@@ -2171,13 +2269,29 @@ function mostrarExpirado(d) {
 
   document.getElementById('exp-nome').textContent = d.nome || '';
 
-  const consultorBox = document.getElementById('exp-consultor');
-  if (d.consultor) {
-    consultorBox.style.display = '';
+  const ctaCard = document.getElementById('exp-cta-card');
+  const fallback = document.getElementById('exp-cta-fallback');
+
+  // Limpa telefoneDigitos (remove caracteres unicode/separadores)
+  const tel = String(d.telefoneDigitos || d.telefone || '').replace(/\D+/g, '');
+
+  if (d.consultor && tel.length >= 10) {
+    const numero = tel.length === 11 || tel.length === 10 ? `55${tel}` : tel;
+    const nomeCli = d.nome ? ` Sou ${d.nome}.` : '';
+    const msg = `Oi ${d.consultor}!${nomeCli} Minha proposta de energia solar expirou — pode me enviar uma atualizada?`;
+    const link = `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`;
+
     document.getElementById('exp-consultor-nome').textContent = d.consultor;
-    document.getElementById('exp-consultor-tel').style.display = 'none';
+    const cta = document.getElementById('exp-consultor-cta');
+    cta.href = link;
+    // Tracking: clique no WhatsApp da tela expirada (sinal forte de interesse pós-expiração)
+    const codigoAtual = (new URLSearchParams(location.search)).get('p');
+    cta.addEventListener('click', () => trackClickWpp(codigoAtual, 'click_wpp_expirado'), { once: false });
+    ctaCard.style.display = '';
+    fallback.style.display = 'none';
   } else {
-    consultorBox.style.display = 'none';
+    ctaCard.style.display = 'none';
+    fallback.style.display = '';
   }
 }
 
@@ -2540,14 +2654,15 @@ function renderHistoricoTbody() {
       <td>${escapeHtml(r.telhado) || '-'}</td>
       <td>${escapeHtml(r.fase) || '-'}</td>
       <td>${enviadoCell}</td>
-      <td><strong>${r.acessos || 0}</strong></td>
+      <td><strong>${r.acessos || 0}</strong>${acessoNovo(r) ? ' <span class="badge-novo" title="Acesso novo desde sua última visita">🔴</span>' : ''}</td>
       <td>${r.ultimo_acesso ? formatDataBR(r.ultimo_acesso) : '<span style="color:#aaa">nunca</span>'}</td>
       <td>${r.vendido && r.vendido_em ? '<strong style="color:#2ecc71">' + new Date(r.vendido_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' }) + '</strong>' : '<span style="color:#aaa">-</span>'}</td>
       <td class="valor-cell">${valorCell}</td>
       <td>
         <div class="acoes-mini">
-          <button class="copiar" onclick="copiarLinkCodigo('${escapeHtml(r.codigo)}')">🔗</button>
-          <button class="editar" onclick="editarProposta('${escapeHtml(r.codigo)}')">✏️</button>
+          <button class="copiar" onclick="copiarLinkCodigo('${escapeHtml(r.codigo)}')" title="Copiar link">🔗</button>
+          <button class="editar" onclick="editarProposta('${escapeHtml(r.codigo)}')" title="Editar">✏️</button>
+          <button class="historico-link" onclick="abrirHistoricoLink('${escapeHtml(r.codigo)}')" title="Histórico do link (quem abriu, quando, de onde)">📊</button>
           <button onclick="abrirProposta('${escapeHtml(r.codigo)}')">Abrir</button>
           <button class="vendido-toggle ${r.vendido ? 'sold' : ''}" title="${r.vendido ? 'Vendido' + (r.valor_vendido != null ? ' por R$ ' + fmt(r.valor_vendido) : '') + (r.vendido_por ? ' (' + r.vendido_por.replace(/"/g, '') + ')' : '') + (r.vendido_em ? ' em ' + formatDataBR(r.vendido_em) : '') + ' — clicar pra editar' : 'Não vendido — clicar pra registrar venda'}" onclick="abrirModalVenda('${escapeHtml(r.codigo)}')">${r.vendido ? '✓' : '✗'}</button>
         </div>
@@ -2669,6 +2784,10 @@ async function abrirHistorico() {
     renderGraficoMes(rows);
     renderRanking(rows);
     renderHistoricoTbody();
+
+    // Marca timestamp da visita DEPOIS de renderizar — badges 🔴 já estão visíveis
+    // nessa sessão; próxima abertura do histórico vai ter o ponteiro atualizado.
+    setTimeout(marcarVisitaHistorico, 500);
   } catch (e) {
     console.error(e);
     tbody.innerHTML = `<tr><td colspan="20" class="historico-vazio">Erro ao carregar: ${escapeHtml(e.message)}</td></tr>`;
@@ -2749,6 +2868,111 @@ function copiarLinkCodigo(codigo) {
 
 function abrirProposta(codigo) {
   window.location.href = `${window.location.pathname}?p=${codigo}`;
+}
+
+// ============= BADGE & HISTÓRICO DO LINK =============
+// localStorage marca a última vez que o consultor abriu o painel — qualquer acesso
+// posterior à proposta mostra badge 🔴. Por consultor, não global.
+const ULTIMA_VISITA_KEY = 'gerador-ultima-visita-historico';
+
+function getUltimaVisitaHistorico() {
+  try { return parseInt(localStorage.getItem(ULTIMA_VISITA_KEY) || '0', 10) || 0; }
+  catch { return 0; }
+}
+function marcarVisitaHistorico() {
+  try { localStorage.setItem(ULTIMA_VISITA_KEY, String(Date.now())); } catch {}
+}
+function acessoNovo(r) {
+  if (!r || !r.ultimo_acesso) return false;
+  const t = new Date(r.ultimo_acesso).getTime();
+  if (!t) return false;
+  return t > getUltimaVisitaHistorico();
+}
+
+// Ícone + descrição amigável por evento (mesmos do whitelist no backend)
+function descricaoEvento(ev) {
+  switch (ev) {
+    case 'abertura':            return { icon: '👁️', label: 'Abriu a proposta', cor: '#0d2d5e' };
+    case 'click_wpp_cta':       return { icon: '🔥', label: 'Clicou no botão "Quero fechar"', cor: '#dc2626' };
+    case 'click_wpp_expirado':  return { icon: '⏰', label: 'Clicou no WhatsApp (proposta expirada)', cor: '#c2410c' };
+    case 'click_wpp_consultor': return { icon: '💬', label: 'Clicou no WhatsApp do consultor', cor: '#16a34a' };
+    case 'click_pdf':           return { icon: '📄', label: 'Baixou o PDF', cor: '#0d2d5e' };
+    default:                    return { icon: '•',  label: ev || 'evento', cor: '#555' };
+  }
+}
+
+async function abrirHistoricoLink(codigo) {
+  const modal = document.getElementById('histLinkModal');
+  const body = document.getElementById('histLinkBody');
+  const title = document.getElementById('histLinkTitle');
+  if (!modal || !body) return;
+
+  title.textContent = `Histórico do link ${codigo}`;
+  body.innerHTML = `<div style="padding:32px;text-align:center;color:#6b7280;">Carregando…</div>`;
+  modal.style.display = 'flex';
+
+  try {
+    const rows = await supaGet(
+      `proposta_acessos?codigo_proposta=eq.${encodeURIComponent(codigo)}&order=ts.desc&limit=200`
+    );
+    if (!rows || rows.length === 0) {
+      body.innerHTML = `
+        <div style="padding:40px 20px;text-align:center;color:#6b7280;">
+          <div style="font-size:40px;margin-bottom:10px;">📭</div>
+          <div style="font-weight:700;color:#0d2d5e;margin-bottom:4px;">Ninguém abriu ainda</div>
+          <div style="font-size:13px;">Quando o cliente abrir o link, todos os acessos aparecem aqui — incluindo cidade, dispositivo e cliques nos botões.</div>
+        </div>`;
+      return;
+    }
+
+    // Stats no topo
+    const aberturas = rows.filter(r => r.evento === 'abertura').length;
+    const cliques = rows.filter(r => r.evento !== 'abertura').length;
+    const primeiro = rows[rows.length - 1].ts;
+    const ultimo = rows[0].ts;
+
+    const statBox = (lbl, val, cor) => `
+      <div style="background:#f8fafc;border-radius:10px;padding:12px 14px;border-bottom:3px solid ${cor};text-align:center;">
+        <div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;font-weight:700;">${lbl}</div>
+        <div style="font-size:18px;font-weight:800;color:#0d2d5e;margin-top:4px;">${val}</div>
+      </div>`;
+
+    const itemsHtml = rows.map(r => {
+      const d = descricaoEvento(r.evento);
+      const local = [r.cidade, r.uf].filter(Boolean).join('/') || (r.pais || 'Local não identificado');
+      const disp = r.dispositivo ? `<span style="font-size:11px;color:#555;background:#eef2f7;border-radius:99px;padding:2px 8px;font-weight:600;">${r.dispositivo}</span>` : '';
+      return `
+        <div style="display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid #eef2f7;">
+          <div style="width:36px;height:36px;border-radius:50%;background:${d.cor}15;color:${d.cor};display:flex;align-items:center;justify-content:center;font-size:18px;">${d.icon}</div>
+          <div>
+            <div style="font-weight:700;color:#0d2d5e;font-size:14px;">${d.label}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">📍 ${escapeHtml(local)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px;font-weight:700;color:#0d2d5e;white-space:nowrap;">${formatDataBR(r.ts)}</div>
+            ${disp ? `<div style="margin-top:4px;">${disp}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:16px;background:white;border-bottom:1px solid #eef2f7;">
+        ${statBox('Aberturas', aberturas, '#0d2d5e')}
+        ${statBox('Cliques', cliques, '#dc2626')}
+        ${statBox('Primeiro', formatDataBR(primeiro), '#f5c518')}
+        ${statBox('Último', formatDataBR(ultimo), '#2ecc71')}
+      </div>
+      <div style="background:white;">${itemsHtml}</div>
+    `;
+  } catch (e) {
+    console.error('Erro ao carregar histórico do link:', e);
+    body.innerHTML = `<div style="padding:32px;text-align:center;color:#dc2626;">Erro ao carregar — tenta de novo</div>`;
+  }
+}
+
+function fecharHistoricoLink() {
+  const modal = document.getElementById('histLinkModal');
+  if (modal) modal.style.display = 'none';
 }
 
 function getConsultorAtual() {
@@ -3158,6 +3382,48 @@ function montarBlocoPagamentoWpp(d) {
   }
 
   return linhas.join('\n\n');
+}
+
+// ============= BAIXAR PDF (server-side via Puppeteer no backend) =============
+async function baixarPDF() {
+  const btn = document.getElementById('btn-pdf');
+  const labelOriginal = btn ? btn.textContent : '';
+  try {
+    // Garante que a proposta tem código salvo no banco — sem código, o endpoint
+    // não acha a proposta pra renderizar.
+    const codigo = await garantirCodigo();
+    if (!codigo) {
+      showToast('❌ Salve a proposta antes de baixar o PDF');
+      return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Gerando PDF…'; }
+    showToast('📄 Gerando PDF…');
+
+    // /_api/* é reescrito pra api.solardoc.app pelo vercel.json do dashboard.
+    const resp = await fetch(`/_api/gerador/pdf/${encodeURIComponent(codigo)}`);
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => '');
+      throw new Error(`HTTP ${resp.status}: ${txt.slice(0, 200)}`);
+    }
+    const blob = await resp.blob();
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename="([^"]+)"/);
+    const filename = m ? m[1] : `proposta_${codigo}.pdf`;
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    showToast('✅ PDF baixado!');
+  } catch (e) {
+    console.error('Erro ao baixar PDF:', e);
+    showToast('❌ Erro ao gerar PDF — tenta de novo');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = labelOriginal || '📄 Baixar PDF'; }
+  }
 }
 
 // ============= WHATSAPP =============
