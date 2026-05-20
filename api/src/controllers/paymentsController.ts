@@ -116,9 +116,10 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
       trial_period_days: 7,
       metadata: { userId: req.userId! },
     },
-    // Pós-pagamento: cai em /empresa pra preencher dados de empresa.
-    // Sem isso, user não consegue emitir documentos (templates exigem company).
-    success_url: `${dashboardUrl}/empresa?welcome=1&plan=${encodeURIComponent(planInfo.plano)}`,
+    // Pós-pagamento: cai em /documentos pra ele ver os tipos de doc, conhecer
+    // a plataforma. Banner sugere (não obriga) cadastrar empresa. CompanyRequiredGate
+    // só bloqueia quando ele clica num tipo específico de doc.
+    success_url: `${dashboardUrl}/documentos?welcome=1&plan=${encodeURIComponent(planInfo.plano)}`,
     cancel_url:  `${dashboardUrl}/?cancelado=1`,
     custom_text: {
       submit: { message: planInfo.descricao },

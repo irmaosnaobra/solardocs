@@ -95,9 +95,77 @@ function CompanyRequiredGate({ tipo, children }: { tipo: string | null; children
   return <>{children}</>;
 }
 
+function WelcomeBanner({ plan }: { plan: string | null }) {
+  const router = useRouter();
+  const [hasCompany, setHasCompany] = useState<boolean | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    api.get('/company')
+      .then(({ data }) => setHasCompany(!!data.company?.cnpj))
+      .catch(() => setHasCompany(false));
+  }, []);
+
+  if (dismissed || hasCompany === null || hasCompany === true) return null;
+
+  const planLabel = plan === 'ilimitado' ? 'VIP' : plan === 'pro' ? 'PRO' : '';
+
+  return (
+    <div style={{
+      maxWidth: 720,
+      margin: '0 auto 28px',
+      padding: '20px 24px',
+      background: 'linear-gradient(135deg, rgba(34,197,94,0.10), rgba(245,158,11,0.10))',
+      border: '1px solid rgba(34,197,94,0.35)',
+      borderRadius: 14,
+      position: 'relative',
+    }}>
+      <button
+        onClick={() => setDismissed(true)}
+        aria-label="Fechar"
+        style={{
+          position: 'absolute', top: 10, right: 12,
+          background: 'transparent', border: 0,
+          color: 'var(--color-text-muted)', cursor: 'pointer',
+          fontSize: 18, lineHeight: 1, padding: 4,
+        }}
+      >×</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: '50%',
+          background: '#22c55e', color: '#0f172a',
+          display: 'grid', placeItems: 'center',
+          fontSize: 22, fontWeight: 900, flexShrink: 0,
+        }}>✓</div>
+        <div style={{ flex: '1 1 280px', lineHeight: 1.5 }}>
+          <div style={{ fontWeight: 800, fontSize: 15.5, color: 'var(--color-text)', marginBottom: 2 }}>
+            Plano {planLabel} ativado! Seus 7 dias grátis começaram.
+          </div>
+          <div style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+            Dá uma olhada nos modelos abaixo. Quando quiser emitir, é só cadastrar sua empresa pra documentos saírem com sua marca.
+          </div>
+        </div>
+        <button
+          onClick={() => router.push('/empresa')}
+          style={{
+            background: '#f59e0b', color: '#0f172a',
+            border: 0, padding: '10px 18px',
+            borderRadius: 10, fontWeight: 800, fontSize: 13,
+            cursor: 'pointer', whiteSpace: 'nowrap',
+          }}
+        >
+          Cadastrar empresa →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DocumentosContent() {
   const searchParams = useSearchParams();
   const tipo = searchParams.get('tipo');
+  const isWelcome = searchParams.get('welcome') === '1';
+  const planFromUrl = searchParams.get('plan');
 
   const formByType = (() => {
     switch (tipo) {
@@ -115,6 +183,7 @@ function DocumentosContent() {
   if (!formByType) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
+        {isWelcome && <WelcomeBanner plan={planFromUrl} />}
         <h2 style={{ marginBottom: '2rem', fontSize: '1.4rem' }}>O que deseja gerar agora?</h2>
         <div style={{
           display: 'grid',
