@@ -586,14 +586,6 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
       <div class="foto-caption" id="r-foto-caption"></div>
     </div>
 
-    <!-- WARNING DC/AC (escondido por padrão — feedback do Thiago: sem warnings consultivos) -->
-    <div class="section" id="card-dcac-warning" style="display:none;">
-      <div class="warn-box">
-        <div class="warn-ico">⚠️</div>
-        <div id="r-dcac-msg"></div>
-      </div>
-    </div>
-
     <!-- INVESTIMENTO (preço + à vista + formas de pagamento integradas) -->
     <div class="section">
       <h2>Investimento</h2>
@@ -2003,15 +1995,6 @@ function renderProposta(d, viaLink) {
     cardFoto.style.display = '';
   } else {
     cardFoto.style.display = 'none';
-  }
-
-  // DC/AC ratio warning (só pro consultor — esconde via link do cliente)
-  const cardDcAc = document.getElementById('card-dcac-warning');
-  if (!viaLink && d.dcAcWarning) {
-    document.getElementById('r-dcac-msg').textContent = d.dcAcWarning;
-    cardDcAc.style.display = '';
-  } else {
-    cardDcAc.style.display = 'none';
   }
 
   document.getElementById('r-mensal').textContent = `~ R$ ${fmtN(d.economia)}/mês`;
