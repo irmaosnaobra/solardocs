@@ -241,21 +241,18 @@ export default function LeadsGooglePage() {
           </div>
 
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-                  <th style={{ padding: 8, width: 30 }}></th>
-                  <th style={{ padding: 8 }}>Nome</th>
-                  <th style={{ padding: 8 }}>Telefone</th>
-                  <th style={{ padding: 8 }}>Endereço</th>
-                  <th style={{ padding: 8 }}>Rating</th>
-                  <th style={{ padding: 8 }}>Site</th>
+                  <th style={{ padding: 10, width: 30 }}></th>
+                  <th style={{ padding: 10 }}>Nome</th>
+                  <th style={{ padding: 10 }}>WhatsApp</th>
                 </tr>
               </thead>
               <tbody>
                 {visiveis.map(l => (
                   <tr key={l.id} style={{ borderBottom: '1px dashed var(--color-border)' }}>
-                    <td style={{ padding: 8 }}>
+                    <td style={{ padding: 10 }}>
                       <input
                         type="checkbox"
                         checked={!!selecionados[l.id]}
@@ -263,22 +260,9 @@ export default function LeadsGooglePage() {
                         disabled={!l.telefone}
                       />
                     </td>
-                    <td style={{ padding: 8, fontWeight: 600 }}>{l.nome || '—'}</td>
-                    <td style={{ padding: 8, fontFamily: 'monospace', fontSize: 12 }}>
+                    <td style={{ padding: 10, fontWeight: 600 }}>{l.nome || '—'}</td>
+                    <td style={{ padding: 10, fontFamily: 'monospace' }}>
                       {l.telefone ? l.telefone : <span style={{ color: 'var(--color-text-muted)' }}>sem telefone</span>}
-                    </td>
-                    <td style={{ padding: 8, color: 'var(--color-text-muted)', fontSize: 12, maxWidth: 280 }}>
-                      {l.endereco || '—'}
-                    </td>
-                    <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
-                      {l.rating != null ? `★ ${l.rating.toFixed(1)} (${l.reviews_count ?? 0})` : '—'}
-                    </td>
-                    <td style={{ padding: 8 }}>
-                      {l.website ? (
-                        <a href={l.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary, #F59E0B)' }}>
-                          abrir
-                        </a>
-                      ) : '—'}
                     </td>
                   </tr>
                 ))}
