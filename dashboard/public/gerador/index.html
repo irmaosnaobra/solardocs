@@ -3549,10 +3549,32 @@ function sairGerador() {
   window.scrollTo({ top: 0 });
 }
 
-// ============= PWA — Service Worker =============
+// ============= PWA — Service Worker + auto-update =============
 if ('serviceWorker' in navigator) {
+  let reloading = false;
+  const scheduleReload = () => {
+    if (reloading) return;
+    reloading = true;
+    const tryReload = () => {
+      const ae = document.activeElement;
+      const editing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable);
+      if (editing || document.visibilityState !== 'visible') {
+        setTimeout(tryReload, 3000);
+        return;
+      }
+      window.location.reload();
+    };
+    tryReload();
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', scheduleReload);
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/gerador/sw.js', { scope: '/gerador/' }).catch(e => console.error('SW falhou:', e));
+    navigator.serviceWorker.register('/gerador/sw.js', { scope: '/gerador/' }).then(reg => {
+      const checkUpdate = () => reg.update().catch(() => {});
+      checkUpdate();
+      setInterval(checkUpdate, 60_000);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+    }).catch(e => console.error('SW falhou:', e));
   });
 }
 </script>
