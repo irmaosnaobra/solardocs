@@ -198,6 +198,32 @@
   .slot.status-fechou        { background: #16a34a; color: #fff; }
   .slot.passado { opacity: .55; cursor: not-allowed; }
 
+  /* Slot bloqueado pelo consultor */
+  .slot.bloqueado {
+    background: repeating-linear-gradient(
+      45deg,
+      #6b7280,
+      #6b7280 6px,
+      #525c6a 6px,
+      #525c6a 12px
+    );
+    color: #fff;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .slot.bloqueado:hover { filter: brightness(1.1); }
+  .slot.bloqueado .motivo {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    line-height: 1.15;
+    text-shadow: 0 1px 2px rgba(0,0,0,.4);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   /* ===== MODAL ===== */
   .modal-bg {
     position: fixed;
@@ -227,6 +253,84 @@
     font-size: 13px;
     color: #6b7280;
     margin-bottom: 18px;
+  }
+
+  /* Abas Agendar/Bloquear no modal novo */
+  .modal-tabs {
+    display: flex;
+    gap: 6px;
+    background: #f3f4f6;
+    padding: 4px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+  }
+  .modal-tabs button {
+    flex: 1;
+    padding: 9px 8px;
+    border: none;
+    background: transparent;
+    border-radius: 7px;
+    font-weight: 700;
+    font-size: 13px;
+    color: #6b7280;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .modal-tabs button.ativa {
+    background: #fff;
+    color: #0d2d5e;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .modal-tabs button:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+  }
+  .tab-pane { display: none; }
+  .tab-pane.ativa { display: block; }
+
+  /* Chips de duração */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    padding: 8px 12px;
+    border-radius: 99px;
+    background: #f3f4f6;
+    border: 1.5px solid transparent;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .chip:hover { background: #e5e7eb; }
+  .chip.ativo {
+    background: #0d2d5e;
+    color: #fff;
+    border-color: #0d2d5e;
+  }
+
+  .modal select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+  }
+  .modal select:focus { outline: none; border-color: #0d2d5e; }
+
+  .aviso-info {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-top: 10px;
+    border-left: 3px solid #f5c518;
   }
   .modal label {
     display: block;
@@ -438,29 +542,98 @@
     <div class="item"><div class="sw sw-so"></div> Sem orçamento</div>
     <div class="item"><div class="sw sw-fo"></div> Fez orçamento</div>
     <div class="item"><div class="sw sw-fe"></div> Fechou</div>
+    <div class="item"><div class="sw" style="background:repeating-linear-gradient(45deg,#6b7280,#6b7280 4px,#525c6a 4px,#525c6a 8px)"></div> Bloqueado</div>
   </div>
 </div>
 
 <!-- MODAL NOVO -->
 <div id="modal-novo" class="modal-bg" onclick="if(event.target===this)fecharModal()">
   <div class="modal">
-    <h2>Agendar ligação</h2>
+    <h2 id="modal-novo-titulo">Agendar ligação</h2>
     <div class="sub" id="modal-novo-sub"></div>
 
-    <label>Nome do cliente *</label>
-    <input type="text" id="m-nome" autocomplete="off" maxlength="80">
+    <div class="modal-tabs" id="modal-tabs">
+      <button type="button" id="tab-btn-agendar" class="ativa" onclick="trocarAba('agendar')">📞 Agendar cliente</button>
+      <button type="button" id="tab-btn-bloquear" onclick="trocarAba('bloquear')">🚫 Bloquear horário</button>
+    </div>
 
-    <label>WhatsApp do cliente *</label>
-    <input type="tel" id="m-tel" placeholder="(34) 99999-9999" inputmode="tel" autocomplete="off">
+    <!-- ABA AGENDAR -->
+    <div id="tab-agendar" class="tab-pane ativa">
+      <label>Nome do cliente *</label>
+      <input type="text" id="m-nome" autocomplete="off" maxlength="80">
 
-    <label>Observação</label>
-    <textarea id="m-obs" maxlength="300" placeholder="Anotações sobre o cliente, contexto, etc."></textarea>
+      <label>WhatsApp do cliente *</label>
+      <input type="tel" id="m-tel" placeholder="(34) 99999-9999" inputmode="tel" autocomplete="off">
+
+      <label>Observação</label>
+      <textarea id="m-obs" maxlength="300" placeholder="Anotações sobre o cliente, contexto, etc."></textarea>
+    </div>
+
+    <!-- ABA BLOQUEAR -->
+    <div id="tab-bloquear" class="tab-pane">
+      <label>Duração do bloqueio</label>
+      <div class="chips" id="chips-duracao">
+        <button type="button" class="chip" data-dur="15">15min</button>
+        <button type="button" class="chip" data-dur="30">30min</button>
+        <button type="button" class="chip ativo" data-dur="60">1h</button>
+        <button type="button" class="chip" data-dur="120">2h</button>
+        <button type="button" class="chip" data-dur="dia">Resto do dia</button>
+        <button type="button" class="chip" data-dur="custom">Customizado</button>
+      </div>
+
+      <div id="bloq-custom-wrap" style="display:none">
+        <label>Termina às</label>
+        <input type="time" id="bloq-fim" step="900">
+      </div>
+
+      <label>Motivo *</label>
+      <select id="bloq-motivo">
+        <option value="Indisponível">Indisponível</option>
+        <option value="Em viagem">Em viagem</option>
+        <option value="Fora da cidade">Fora da cidade</option>
+        <option value="Ocupado">Ocupado</option>
+        <option value="Almoço">Almoço</option>
+        <option value="Reunião">Reunião</option>
+        <option value="Folga">Folga</option>
+        <option value="__outro">Outro…</option>
+      </select>
+
+      <div id="bloq-outro-wrap" style="display:none">
+        <label>Descreva</label>
+        <input type="text" id="bloq-outro" maxlength="60" placeholder="Ex: Dentista, viagem família…">
+      </div>
+
+      <div id="bloq-aviso-outro-consultor" class="aviso-info" style="display:none">
+        Você só pode bloquear horários na sua própria agenda. Troque pra aba do seu nome.
+      </div>
+    </div>
 
     <div class="modal-erro" id="m-erro"></div>
 
     <div class="modal-acoes">
       <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
-      <button class="btn-salvar" id="m-salvar" onclick="salvarAgendamento()">Salvar</button>
+      <button class="btn-salvar" id="m-salvar" onclick="salvarAcao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHES BLOQUEIO -->
+<div id="modal-bloq" class="modal-bg" onclick="if(event.target===this)fecharModalBloq()">
+  <div class="modal">
+    <h2>🚫 Horário bloqueado</h2>
+    <div class="sub" id="modal-bloq-sub"></div>
+
+    <div class="detalhe-box">
+      <div class="row"><div class="label">Motivo</div><div class="val" id="b-motivo"></div></div>
+      <div class="row"><div class="label">Período</div><div class="val" id="b-periodo"></div></div>
+      <div class="row"><div class="label">Consultor</div><div class="val" id="b-consultor"></div></div>
+    </div>
+
+    <div class="modal-erro" id="b-erro"></div>
+
+    <div class="modal-acoes" style="margin-top:14px">
+      <button class="btn-cancelar" onclick="fecharModalBloq()">Fechar</button>
+      <button class="btn-excluir" id="b-btn-desbloquear" onclick="desbloquearHorario()">Desbloquear</button>
     </div>
   </div>
 </div>
@@ -518,8 +691,11 @@ const inicioSemana = inicioSemanaSegunda(new Date());
 let semanaAtual = new Date(inicioSemana);   // segunda-feira
 let vendedorAtivo = VENDEDORES[0];
 let agendamentosCache = [];                  // { id, vendedor_nome, quando, cliente_nome, cliente_telefone, observacao, created_by, ... }
+let bloqueiosCache = [];                     // { id, vendedor_nome, inicio, fim, motivo, created_by }
 let slotAtual = null;                        // { vendedor, dataIso, label } — selecionado pro modal novo
 let detalheAtual = null;                     // agendamento selecionado pro modal detalhes
+let bloqueioAtual = null;                    // bloqueio selecionado pro modal de detalhes
+let abaAtiva = 'agendar';                    // 'agendar' | 'bloquear'
 
 // ============= UTILS =============
 const supaHeaders = () => ({
@@ -552,6 +728,13 @@ async function supaPatch(query, body) {
   });
   if (!r.ok) throw new Error(`PATCH ${query}: ${r.status}`);
   return r.json();
+}
+async function supaDelete(query) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, {
+    method: 'DELETE',
+    headers: supaHeaders(),
+  });
+  if (!r.ok) throw new Error(`DELETE ${query}: ${r.status}`);
 }
 
 function getAuth() {
@@ -634,15 +817,32 @@ async function carregarSemana() {
   const fim = addDays(inicio, 5);
   fim.setHours(0,0,0,0);
 
+  const iniIso = encodeURIComponent(toLocalIso(inicio));
+  const fimIso = encodeURIComponent(toLocalIso(fim));
+
   // Pega todos os status menos cancelado (slot continua "ocupado" mesmo após a call)
-  const q = `agendamentos?select=*&status=neq.cancelado&quando=gte.${encodeURIComponent(toLocalIso(inicio))}&quando=lt.${encodeURIComponent(toLocalIso(fim))}&order=quando.asc`;
+  const qAg   = `agendamentos?select=*&status=neq.cancelado&quando=gte.${iniIso}&quando=lt.${fimIso}&order=quando.asc`;
+  // Bloqueios que sobrepõem a semana: inicio<fim_semana AND fim>inicio_semana
+  const qBloq = `agenda_bloqueios?select=*&inicio=lt.${fimIso}&fim=gt.${iniIso}&order=inicio.asc`;
   try {
-    agendamentosCache = await supaGet(q);
+    const [ags, bloqs] = await Promise.all([supaGet(qAg), supaGet(qBloq)]);
+    agendamentosCache = ags;
+    bloqueiosCache    = bloqs;
   } catch (e) {
     console.error(e);
     showToast('❌ Falha ao carregar agenda');
     agendamentosCache = [];
+    bloqueiosCache = [];
   }
+}
+
+// Retorna o bloqueio ativo no slot (vendedor + horário inicial do slot), ou null
+function bloqueioNoSlot(vendedor, dt) {
+  const t = dt.getTime();
+  return bloqueiosCache.find(b => {
+    if (b.vendedor_nome !== vendedor) return false;
+    return new Date(b.inicio).getTime() <= t && new Date(b.fim).getTime() > t;
+  }) || null;
 }
 
 // ============= RENDER =============
@@ -697,11 +897,19 @@ function renderGrid() {
           return ad.getTime() === dt.getTime();
         });
 
+        const bloq = ag ? null : bloqueioNoSlot(vendedorAtivo, dt);
+
         if (ag) {
           const stCls = `status-${(ag.status || 'agendado')}`;
           html += `<div class="slot ocupado ${stCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
             <div class="nome">${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}</div>
+          </div>`;
+        } else if (bloq) {
+          // Mostra texto do motivo só no primeiro slot do bloqueio (pro slot inicial casar exato)
+          const ehInicio = new Date(bloq.inicio).getTime() === dt.getTime();
+          html += `<div class="slot bloqueado" onclick="abrirDetalhesBloqueio(${bloq.id})">
+            ${ehInicio ? `<div class="motivo">🚫 ${escapeHtml(bloq.motivo)}</div>` : ''}
           </div>`;
         } else {
           const cls = ['slot'];
@@ -738,12 +946,157 @@ function abrirNovo(isoStr) {
   slotAtual = { vendedor: vendedorAtivo, dataIso: dt };
   const sub = `${vendedorAtivo} · ${diaSemanaLabel(dt)} ${fmtData(dt)} · ${pad(dt.getHours())}h${pad(dt.getMinutes())}`;
   document.getElementById('modal-novo-sub').textContent = sub;
+
+  // Reset aba agendar
   document.getElementById('m-nome').value = '';
   document.getElementById('m-tel').value = '';
   document.getElementById('m-obs').value = '';
   document.getElementById('m-erro').textContent = '';
+
+  // Reset aba bloquear
+  document.querySelectorAll('#chips-duracao .chip').forEach(c => c.classList.toggle('ativo', c.dataset.dur === '60'));
+  document.getElementById('bloq-custom-wrap').style.display = 'none';
+  document.getElementById('bloq-fim').value = '';
+  document.getElementById('bloq-motivo').value = 'Indisponível';
+  document.getElementById('bloq-outro-wrap').style.display = 'none';
+  document.getElementById('bloq-outro').value = '';
+
+  // Trava aba "Bloquear" se a aba do consultor logado não bate com a aba ativa
+  const meu = consultorLogado();
+  const podeBloquear = !!meu && meu === vendedorAtivo;
+  const btnBloq = document.getElementById('tab-btn-bloquear');
+  btnBloq.disabled = !podeBloquear;
+  btnBloq.title = podeBloquear ? '' : 'Só é possível bloquear sua própria agenda.';
+  document.getElementById('bloq-aviso-outro-consultor').style.display = podeBloquear ? 'none' : '';
+
+  trocarAba('agendar');
   document.getElementById('modal-novo').classList.add('show');
   setTimeout(() => document.getElementById('m-nome').focus(), 60);
+}
+
+function trocarAba(aba) {
+  if (aba === 'bloquear' && document.getElementById('tab-btn-bloquear').disabled) return;
+  abaAtiva = aba;
+  document.getElementById('tab-btn-agendar').classList.toggle('ativa', aba === 'agendar');
+  document.getElementById('tab-btn-bloquear').classList.toggle('ativa', aba === 'bloquear');
+  document.getElementById('tab-agendar').classList.toggle('ativa', aba === 'agendar');
+  document.getElementById('tab-bloquear').classList.toggle('ativa', aba === 'bloquear');
+  document.getElementById('modal-novo-titulo').textContent =
+    aba === 'agendar' ? 'Agendar ligação' : 'Bloquear horário';
+  document.getElementById('m-erro').textContent = '';
+}
+
+function salvarAcao() {
+  if (abaAtiva === 'agendar') return salvarAgendamento();
+  return salvarBloqueio();
+}
+
+// Chips de duração + dropdown "Outro"
+document.addEventListener('click', (ev) => {
+  const chip = ev.target.closest('#chips-duracao .chip');
+  if (chip) {
+    document.querySelectorAll('#chips-duracao .chip').forEach(c => c.classList.remove('ativo'));
+    chip.classList.add('ativo');
+    document.getElementById('bloq-custom-wrap').style.display =
+      chip.dataset.dur === 'custom' ? '' : 'none';
+  }
+});
+document.addEventListener('change', (ev) => {
+  if (ev.target && ev.target.id === 'bloq-motivo') {
+    document.getElementById('bloq-outro-wrap').style.display =
+      ev.target.value === '__outro' ? '' : 'none';
+  }
+});
+
+function calcularFimBloqueio() {
+  const ini = new Date(slotAtual.dataIso);
+  const chip = document.querySelector('#chips-duracao .chip.ativo');
+  if (!chip) return null;
+  const dur = chip.dataset.dur;
+  if (dur === 'dia') {
+    const fim = new Date(ini);
+    fim.setHours(HORA_FIM, 0, 0, 0);
+    return fim;
+  }
+  if (dur === 'custom') {
+    const v = document.getElementById('bloq-fim').value;
+    if (!v) return null;
+    const [hh, mm] = v.split(':').map(Number);
+    const fim = new Date(ini);
+    fim.setHours(hh, mm, 0, 0);
+    return fim;
+  }
+  const min = parseInt(dur, 10);
+  const fim = new Date(ini);
+  fim.setMinutes(fim.getMinutes() + min);
+  return fim;
+}
+
+async function salvarBloqueio() {
+  const err = document.getElementById('m-erro');
+  err.textContent = '';
+  const btn = document.getElementById('m-salvar');
+
+  const meu = consultorLogado();
+  if (!meu || meu !== slotAtual.vendedor) {
+    err.textContent = 'Você só pode bloquear sua própria agenda.';
+    return;
+  }
+
+  const ini = new Date(slotAtual.dataIso);
+  const fim = calcularFimBloqueio();
+  if (!fim) { err.textContent = 'Informe a hora final do bloqueio.'; return; }
+  if (fim <= ini) { err.textContent = 'A hora final precisa ser depois da inicial.'; return; }
+
+  const motivoSel = document.getElementById('bloq-motivo').value;
+  let motivo = motivoSel;
+  if (motivoSel === '__outro') {
+    motivo = document.getElementById('bloq-outro').value.trim();
+    if (!motivo) { err.textContent = 'Descreva o motivo do bloqueio.'; return; }
+  }
+
+  // Conflito: agendamento existente dentro do range?
+  const conflitoAg = agendamentosCache.some(a => {
+    if (a.vendedor_nome !== slotAtual.vendedor) return false;
+    const t = new Date(a.quando).getTime();
+    return t >= ini.getTime() && t < fim.getTime();
+  });
+  if (conflitoAg) {
+    err.textContent = 'Já existe agendamento dentro desse intervalo. Cancele antes de bloquear.';
+    return;
+  }
+  // Conflito: outro bloqueio sobreposto?
+  const conflitoBloq = bloqueiosCache.some(b => {
+    if (b.vendedor_nome !== slotAtual.vendedor) return false;
+    const bi = new Date(b.inicio).getTime();
+    const bf = new Date(b.fim).getTime();
+    return bi < fim.getTime() && bf > ini.getTime();
+  });
+  if (conflitoBloq) {
+    err.textContent = 'Esse horário já está bloqueado (sobreposição).';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+  try {
+    await supaInsert('agenda_bloqueios', {
+      vendedor_nome: slotAtual.vendedor,
+      inicio: toLocalIso(ini),
+      fim: toLocalIso(fim),
+      motivo,
+      created_by: meu,
+    });
+    fecharModal();
+    showToast('🚫 Horário bloqueado');
+    await renderTudo();
+  } catch (e) {
+    err.textContent = 'Erro ao bloquear. Tente novamente.';
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar';
+  }
 }
 
 function diaSemanaLabel(d) {
@@ -856,6 +1209,51 @@ async function excluirAgendamento() {
     await renderTudo();
   } catch (e) {
     document.getElementById('d-erro').textContent = 'Erro ao cancelar.';
+    console.error(e);
+  }
+}
+
+// ============= MODAL DETALHES BLOQUEIO =============
+function abrirDetalhesBloqueio(id) {
+  const b = bloqueiosCache.find(x => x.id === id);
+  if (!b) return;
+  bloqueioAtual = b;
+  const ini = new Date(b.inicio);
+  const fim = new Date(b.fim);
+  document.getElementById('modal-bloq-sub').textContent =
+    `${b.vendedor_nome} · ${diaSemanaLabel(ini)} ${fmtData(ini)}`;
+  document.getElementById('b-motivo').textContent = b.motivo;
+  document.getElementById('b-periodo').textContent =
+    `${pad(ini.getHours())}h${pad(ini.getMinutes())} até ${pad(fim.getHours())}h${pad(fim.getMinutes())}`;
+  document.getElementById('b-consultor').textContent = b.created_by || b.vendedor_nome;
+  document.getElementById('b-erro').textContent = '';
+
+  // Só o próprio consultor pode desbloquear
+  const meu = consultorLogado();
+  const podeDesbloquear = !!meu && meu === b.vendedor_nome;
+  const btn = document.getElementById('b-btn-desbloquear');
+  btn.style.display = podeDesbloquear ? '' : 'none';
+
+  document.getElementById('modal-bloq').classList.add('show');
+}
+function fecharModalBloq() {
+  document.getElementById('modal-bloq').classList.remove('show');
+}
+async function desbloquearHorario() {
+  if (!bloqueioAtual) return;
+  const meu = consultorLogado();
+  if (!meu || meu !== bloqueioAtual.vendedor_nome) {
+    document.getElementById('b-erro').textContent = 'Só o próprio consultor pode desbloquear.';
+    return;
+  }
+  if (!confirm('Desbloquear esse horário?')) return;
+  try {
+    await supaDelete(`agenda_bloqueios?id=eq.${bloqueioAtual.id}`);
+    fecharModalBloq();
+    showToast('🔓 Horário desbloqueado');
+    await renderTudo();
+  } catch (e) {
+    document.getElementById('b-erro').textContent = 'Erro ao desbloquear.';
     console.error(e);
   }
 }
