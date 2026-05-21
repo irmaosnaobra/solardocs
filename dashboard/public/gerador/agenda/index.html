@@ -570,7 +570,17 @@
   html[data-theme="dark"] .slot:hover { background: #2A3A55; }
   html[data-theme="dark"] .slot.fora-prioridade { background: #182238; }
   html[data-theme="dark"] .slot.fora-prioridade:hover { background: #243046; }
-  /* Slots ocupados/status já são coloridos com bg sólido, mantêm o look */
+  /* Cards de status mantêm o padrão de cores do light (especificidade ≥ dark .slot) */
+  html[data-theme="dark"] .slot.ocupado              { background: #0d2d5e; color: #fff; }
+  html[data-theme="dark"] .slot.status-agendado      { background: #0d2d5e; color: #fff; }
+  html[data-theme="dark"] .slot.status-nao_atendeu   { background: #dc2626; color: #fff; }
+  html[data-theme="dark"] .slot.status-sem_orcamento { background: #ea580c; color: #fff; }
+  html[data-theme="dark"] .slot.status-fez_orcamento { background: #eab308; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-fechou        { background: #16a34a; color: #fff; }
+  html[data-theme="dark"] .slot.bloqueado {
+    background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
+    color: #fff;
+  }
 
   html[data-theme="dark"] .legenda { color: #94A3B8; }
   html[data-theme="dark"] .legenda .sw { border-color: #475569; }
