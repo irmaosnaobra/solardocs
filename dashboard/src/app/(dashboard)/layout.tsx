@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import TopBar from '@/components/TopBar/TopBar';
@@ -428,7 +428,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <DashboardProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      <Suspense fallback={null}>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </Suspense>
     </DashboardProvider>
   );
 }
