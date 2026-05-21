@@ -55,16 +55,19 @@ const adminItems: NavItem[] = [
   { href: '/crm/io',                  icon: HardHat,    label: 'CRM Irmãos na Obra' },
 ];
 
-const cadastroItems: NavItem[] = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',                       paidOnly: true },
-  { href: '/empresa',   icon: Building2,       label: 'Empresa' },
-  { href: '/clientes',  icon: Users,           label: 'Clientes',  requireCompany: true, paidOnly: true },
-  { href: '/terceiros', icon: Handshake,       label: 'Terceiros', requireCompany: true, paidOnly: true },
+// Bloco de topo, na ordem: Dashboard (locked pra free) > Gerador > Baixe o App.
+// Baixe o App fica liberado pra todo mundo, inclusive free.
+const topoItems: NavItem[] = [
+  { href: '/dashboard',              icon: LayoutDashboard, label: 'Dashboard',           paidOnly: true },
+  { href: '/documentos?tipo=proposta', icon: Sparkles,      label: 'Gerador de Proposta', requireCompany: true },
+  { href: '/baixe-app',              icon: Smartphone,      label: 'Baixe o App' },
 ];
 
-const geradorItem: NavItem = {
-  href: '/documentos?tipo=proposta', icon: Sparkles, label: 'Gerador de Proposta', requireCompany: true,
-};
+const cadastroItems: NavItem[] = [
+  { href: '/empresa',   icon: Building2, label: 'Empresa' },
+  { href: '/clientes',  icon: Users,     label: 'Clientes',  requireCompany: true, paidOnly: true },
+  { href: '/terceiros', icon: Handshake, label: 'Terceiros', requireCompany: true, paidOnly: true },
+];
 
 const docsClienteItems: NavItem[] = [
   { href: '/documentos?tipo=vistoria',          icon: ClipboardCheck, label: 'Vistoria CheckList', requireCompany: true, paidOnly: true },
@@ -79,9 +82,8 @@ const docsTerceiroItems: NavItem[] = [
 ];
 
 const contaItems: NavItem[] = [
-  { href: '/conta/documentos',  icon: Save,           label: 'Documentos Salvos',       vipOnly: true },
-  { href: '/mentoria',          icon: GraduationCap,  label: 'Mentorias',                                  paidOnly: true },
-  { href: '/baixe-app',         icon: Smartphone,     label: 'Baixe o App',                                paidOnly: true },
+  { href: '/conta/documentos', icon: Save,          label: 'Documentos Salvos', vipOnly: true },
+  { href: '/mentoria',         icon: GraduationCap, label: 'Mentorias',         paidOnly: true },
 ];
 
 // ── Componente principal ────────────────────────────────────────────
@@ -190,9 +192,9 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
           </>
         )}
 
-        {/* ── Seção: Gerador de Proposta (destaque no topo) ── */}
+        {/* ── Topo: Dashboard, Gerador (destaque), Baixe o App ── */}
         <div className={styles.navSection}>
-          {renderItem(geradorItem)}
+          {topoItems.map(renderItem)}
         </div>
 
         {/* ── Seção 2: Cadastro ── */}

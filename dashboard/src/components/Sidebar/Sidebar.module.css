@@ -93,7 +93,8 @@
   padding: 7px 9px;
   border-radius: 6px;
   font-size: 12px;
-  color: var(--color-nav-text);
+  font-weight: 500;
+  color: var(--color-text);
   text-decoration: none;
   transition: background 0.12s, color 0.12s;
   /* Compatibilidade quando navItem é <button> (ex: theme picker) */
@@ -113,6 +114,7 @@
 .navItemActive {
   background: var(--color-nav-active);
   color: #FAC775;
+  font-weight: 600;
 }
 
 .navItemLocked {
@@ -122,8 +124,9 @@
   padding: 7px 9px;
   border-radius: 6px;
   font-size: 12px;
-  color: var(--color-nav-text);
-  opacity: 0.45;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  opacity: 0.55;
   user-select: none;
   background: transparent;
   border: none;
@@ -135,7 +138,7 @@
 }
 
 .navItemLocked:hover {
-  opacity: 0.7;
+  opacity: 0.75;
   background: var(--color-nav-hover);
 }
 
