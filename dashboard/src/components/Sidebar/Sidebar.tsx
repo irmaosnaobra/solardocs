@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Building2, Users, Handshake,
   Banknote, ScrollText, FileSignature,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
-  Save, HardHat, GraduationCap, Smartphone,
+  Save, GraduationCap, Smartphone,
   Filter, Send, MapPin,
   type LucideIcon,
 } from 'lucide-react';
@@ -46,13 +46,12 @@ interface NavItem {
 // ── Configuração das 5 seções ─────────────────────────────────────
 
 const adminItems: NavItem[] = [
-  { href: '/admin',                   icon: Settings,   label: 'Painel Admin' },
-  { href: '/admin/funil',             icon: Filter,     label: 'Funil SolarDoc' },
-  { href: '/admin/insights',          icon: BarChart3,  label: 'Insights' },
-  { href: '/admin/leads-google',      icon: MapPin,     label: 'Leads Google' },
-  { href: '/admin/disparos',          icon: Send,       label: 'Disparos IO' },
-  { href: '/crm/solardoc',            icon: FolderOpen, label: 'CRM SolarDoc', count: 58 },
-  { href: '/crm/io',                  icon: HardHat,    label: 'CRM Irmãos na Obra' },
+  { href: '/admin',              icon: Settings,   label: 'Painel SolarDoc' },
+  { href: '/crm/solardoc',       icon: FolderOpen, label: 'CRM SolarDoc', count: 58 },
+  { href: '/admin/funil',        icon: Filter,     label: 'Funil SolarDoc' },
+  { href: '/admin/leads-google', icon: MapPin,     label: 'Leads Google' },
+  { href: '/admin/insights',     icon: BarChart3,  label: 'Insights IO' },
+  { href: '/admin/disparos',     icon: Send,       label: 'Disparos IO' },
 ];
 
 // Bloco de topo, na ordem: Dashboard (locked pra free) > Gerador > Baixe o App.
