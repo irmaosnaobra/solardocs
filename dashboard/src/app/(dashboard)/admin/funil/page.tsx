@@ -85,8 +85,6 @@ export default function FunilPage() {
 
   useEffect(() => { fetchFunnel(); }, [fetchFunnel]);
 
-  const topCount = data?.steps?.[0]?.count ?? 0;
-
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', padding: '32px 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
@@ -135,38 +133,25 @@ export default function FunilPage() {
         </div>
       )}
 
-      {!loading && data && (
+      {!loading && data && (() => {
+        // Filtra etapas pausadas do render — caminho atual é VSL → Cadastro → Stripe → Empresa → Plataforma.
+        const visibleSteps = data.steps.filter(s => !PAUSED_STEPS.has(s.key));
+        const topVisibleCount = visibleSteps[0]?.count ?? 0;
+        return (
         <>
-          {/* Funil horizontal — cards + setas. Etapas em PAUSED_STEPS aparecem
-              muted e o cálculo de conversão pula elas (ex: VSL → Cadastro direto
-              ignorando Landing). */}
           <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, flexWrap: 'wrap', marginBottom: 40 }}>
-            {data.steps.map((step, i) => {
+            {visibleSteps.map((step, i, arr) => {
               const colors = STEP_COLORS[step.key];
-              const isPaused = PAUSED_STEPS.has(step.key);
-
-              // Pra etapa ativa, a seta antes dela compara com a última etapa ATIVA
-              // anterior (pula as pausadas). Pra etapa pausada, escondemos a seta.
-              let prevActive: FunnelStep | null = null;
-              if (!isPaused) {
-                for (let j = i - 1; j >= 0; j--) {
-                  if (!PAUSED_STEPS.has(data.steps[j].key)) {
-                    prevActive = data.steps[j];
-                    break;
-                  }
-                }
-              }
-              const prevPct = prevActive ? pct(step.count, prevActive.count) : null;
-              const dropoff = prevActive && prevActive.count > 0
-                ? ((prevActive.count - step.count) / prevActive.count * 100).toFixed(1)
+              const prevStep = i > 0 ? arr[i - 1] : null;
+              const prevPct = prevStep ? pct(step.count, prevStep.count) : null;
+              const dropoff = prevStep && prevStep.count > 0
+                ? ((prevStep.count - step.count) / prevStep.count * 100).toFixed(1)
                 : null;
-              const totalPct = (i === 0 || isPaused) ? null : pct(step.count, topCount);
+              const totalPct = i === 0 ? null : pct(step.count, topVisibleCount);
 
               return (
                 <div key={step.key} style={{ display: 'flex', alignItems: 'stretch', flex: '1 1 220px', minWidth: 220 }}>
-                  {/* Seta entre cards. Não exibe antes do primeiro card nem antes
-                      de etapas pausadas (que ficam "soltas" lateralmente). */}
-                  {i > 0 && !isPaused && (
+                  {i > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 6px', minWidth: 70 }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                         {prevPct}
@@ -179,17 +164,11 @@ export default function FunilPage() {
                       )}
                     </div>
                   )}
-                  {i > 0 && isPaused && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px', minWidth: 40, opacity: 0.3 }}>
-                      <div style={{ fontSize: 16, color: 'var(--color-text-muted)' }}>┄</div>
-                    </div>
-                  )}
 
-                  {/* Card da etapa */}
                   <div style={{
                     flex: 1,
                     background: colors.bg,
-                    border: isPaused ? `1px dashed ${colors.border}` : `1px solid ${colors.border}`,
+                    border: `1px solid ${colors.border}`,
                     borderRadius: 16,
                     padding: '20px 18px',
                     display: 'flex',
@@ -197,25 +176,7 @@ export default function FunilPage() {
                     gap: 6,
                     position: 'relative',
                     overflow: 'hidden',
-                    opacity: isPaused ? 0.55 : 1,
                   }}>
-                    {isPaused && (
-                      <div style={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        fontSize: 9,
-                        fontWeight: 900,
-                        letterSpacing: '0.14em',
-                        padding: '3px 7px',
-                        borderRadius: 4,
-                        background: 'rgba(239, 68, 68, 0.18)',
-                        color: '#f87171',
-                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                      }}>
-                        PAUSADA
-                      </div>
-                    )}
                     <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: colors.accent }}>
                       {i + 1}. {step.label}
                     </div>
@@ -268,15 +229,11 @@ export default function FunilPage() {
             })}
           </div>
 
-          {/* Resumo de conversões macro. Primeira linha = fluxo principal
-              (VSL → Cadastro → Stripe → Empresa → Ativo). LP fria fica no fim,
-              separada, pra dar visibilidade ao tráfego não-VSL sem confundir o KPI.
-              Índices: 0=vsl, 1=landing, 2=cadastro, 3=stripe, 4=empresa, 5=plataforma. */}
+          {/* Resumo de conversões macro do fluxo principal (VSL → Cadastro → Stripe → Empresa → Ativo). */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             {(() => {
-              // Lookup defensivo — se API roda versão antiga (5 steps), não quebra a página.
               const by = (key: FunnelStep['key']) => data.steps.find(s => s.key === key)?.count ?? 0;
-              const vsl = by('vsl'), landing = by('landing'), cadastro = by('cadastro'),
+              const vsl = by('vsl'), cadastro = by('cadastro'),
                     stripe = by('stripe'), empresa = by('empresa'), plataforma = by('plataforma');
               return [
                 { label: 'VSL → Cadastro',     val: pct(cadastro, vsl) },
@@ -285,15 +242,13 @@ export default function FunilPage() {
                 { label: 'Empresa → Ativo',    val: pct(plataforma, empresa) },
                 { label: 'VSL → Pagante',      val: pct(stripe, vsl) },
                 { label: 'VSL → Ativo',        val: pct(plataforma, vsl) },
-                { label: 'LP fria → Cadastro', val: pct(cadastro, landing), muted: true },
               ];
             })().map(m => (
               <div key={m.label} style={{
                 background: 'var(--color-surface)',
-                border: m.muted ? '1px dashed var(--color-border)' : '1px solid var(--color-border)',
+                border: '1px solid var(--color-border)',
                 borderRadius: 12,
                 padding: '16px 18px',
-                opacity: m.muted ? 0.55 : 1,
               }}>
                 <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 6 }}>
                   {m.label}
@@ -308,21 +263,17 @@ export default function FunilPage() {
           {/* Notas */}
           <div style={{ marginTop: 32, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
             <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> os números são únicos —
-            visitantes únicos por sessão (VSL/Landing) e usuários distintos (Cadastro/Stripe/Empresa/Plataforma).
+            visitantes únicos por sessão (VSL) e usuários distintos (Cadastro/Stripe/Empresa/Plataforma).
             "Pageviews" no canto inferior conta o total de visitas (com re-visita). VSL conta acessos a
-            <code style={{ padding: '0 4px' }}>/apresentacao</code>; Landing conta a home
-            <code style={{ padding: '0 4px' }}>solardoc.app/</code> (excluindo /io, /gerador, /auth, /apresentacao).
+            <code style={{ padding: '0 4px' }}>/apresentacao</code>.
             <br /><br />
             <strong style={{ color: '#2dd4bf' }}>Empresa:</strong> users que preencheram CNPJ em
             <code style={{ padding: '0 4px' }}>/empresa</code> pós-pagamento. É gate obrigatório pra emitir
             documentos — drop entre Stripe e Empresa = pagantes que não terminam o onboarding.
-            <br /><br />
-            <strong style={{ color: '#f87171' }}>Landing PAUSADA:</strong> quem vem da VSL é redirecionado direto
-            pro cadastro, pulando a LP. A Landing aparece muted só pra dar visibilidade ao tráfego frio (Google/indicação)
-            que ainda chega pela home. O cálculo VSL → Cadastro pula a Landing.
           </div>
         </>
-      )}
+        );
+      })()}
     </div>
   );
 }
