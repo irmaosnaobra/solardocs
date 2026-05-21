@@ -37,7 +37,8 @@ async function sendMarketingEmail(opts: { to: string; userId: string; subject: s
 }
 
 const followupEmails: Record<number, { subject: string; html: string }> = {
-  // Cadência (2026-05-12): 5 emails ao longo de 30 dias, foco no Gerador de Proposta Personalizado.
+  // Cadência (2026-05-21): 13 emails ao longo de 365 dias, foco no Gerador de Proposta Personalizado.
+  // 7 templates onboarding (idx 1-7) + 5 variantes ongoing (cnpjOngoingEmails) cicladas via modulo.
   // Disparada às 8h30 BRT via master cron. Audiência: usuários sem CNPJ (não-ativos na plataforma).
   1: {
     subject: '🎨 Sua próxima proposta solar pode ter A SUA cara',
@@ -131,15 +132,15 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
       </div>`,
   },
   5: {
-    subject: 'Última mensagem — 10 propostas grátis ainda te esperam',
+    subject: '10 propostas grátis ainda te esperam — falta só o CNPJ',
     html: `
       <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
         <div style="background:#f59e0b;padding:28px 36px;">
           <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
-          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Sua conta tá parada há 30 dias — vamos ativar?</h1>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Sua conta tá parada há mais de um mês — vamos ativar?</h1>
         </div>
         <div style="padding:36px;">
-          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Essa é a última mensagem da nossa sequência de boas-vindas. Sua conta foi criada há 30 dias e o CNPJ ainda não foi informado.</p>
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Faz mais de um mês que você criou a conta e o CNPJ da empresa ainda não foi informado.</p>
           <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 22px;">Você ainda tem <strong style="color:#fbbf24;">10 documentos grátis</strong> esperando — inclui o Gerador de Proposta com a sua marca, contratos, procurações e propostas bancárias. Não vence.</p>
           <div style="background:#1e293b;border-radius:12px;padding:22px;margin:0 0 28px;">
             <p style="color:#f59e0b;font-weight:700;font-size:13px;margin:0 0 10px;text-transform:uppercase;letter-spacing:1px;">Pra ativar você precisa só de:</p>
@@ -171,7 +172,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
       </div>`,
   },
   7: {
-    subject: 'Último lembrete — seu acesso gratuito ainda está aqui',
+    subject: 'Vai deixar o mercado te passar na frente?',
     html: `
       <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
         <div style="background:#f59e0b;padding:28px 36px;">
@@ -179,11 +180,10 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
           <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Vai deixar o mercado te passar na frente?</h1>
         </div>
         <div style="padding:36px;">
-          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Essa é nossa última mensagem por agora. Sua conta foi criada há 7 dias e o CNPJ da empresa ainda não foi informado.</p>
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Faz alguns meses que sua conta foi criada e o CNPJ ainda não foi informado.</p>
           <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 20px;">O SolarDoc Pro foi construído ao longo de 8 anos de experiência real como integradores para resolver o problema que todo integrador enfrenta: <strong style="color:#f8fafc;">burocracia que consome tempo de venda.</strong></p>
           <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Seus 10 documentos gratuitos continuam disponíveis. Basta informar o CNPJ e começar.</p>
           <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:16px;padding:18px 40px;border-radius:10px;text-decoration:none;">Ativar agora — é grátis</a>
-          <p style="color:#334155;font-size:12px;margin:36px 0 0;line-height:1.6;">Não quer mais receber esses emails? Basta ignorar — só enviaremos comunicações importantes da sua conta a partir de agora.</p>
         </div>
       </div>`,
   },
@@ -526,6 +526,18 @@ export async function sendWelcomeEmail(opts: { to: string; userId: string; nome:
   </div>
 
   <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;"></div></div>
+
+  <div style="padding:28px 36px 8px;">
+    <p style="margin:0 0 4px;color:#fbbf24;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Seu acesso grátis</p>
+    <h2 style="margin:0 0 18px;color:#f8fafc;font-size:20px;font-weight:800;line-height:1.3;">10 documentos grátis + Gerador de Proposta com a sua marca</h2>
+    <p style="color:#cbd5e1;font-size:15px;line-height:1.7;margin:0 0 18px;">Você já pode gerar contratos, procurações, propostas bancárias e a <strong style="color:#fbbf24;">proposta solar personalizada</strong> — com a sua logo, sua cor e suas fotos de portfólio.</p>
+    <div style="background:#1e293b;border-left:4px solid #f59e0b;border-radius:0 10px 10px 0;padding:18px 22px;margin:0 0 8px;">
+      <p style="margin:0 0 6px;color:#f59e0b;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">Próximo passo</p>
+      <p style="margin:0;color:#e2e8f0;font-size:14.5px;line-height:1.6;">Cadastre o <strong style="color:#f8fafc;">CNPJ da sua empresa</strong> dentro da plataforma para liberar os 10 documentos gratuitos e personalizar o gerador com sua marca.</p>
+    </div>
+  </div>
+
+  <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;margin-top:20px;"></div></div>
 
   <div style="padding:28px 36px 16px;">
     <p style="margin:0 0 4px;color:#fbbf24;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Instalar como app</p>

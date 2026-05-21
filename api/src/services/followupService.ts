@@ -10,18 +10,26 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Idempotência: só envia se o último email foi há ≥ 23h
 const MIN_GAP_MS = 23 * 60 * 60 * 1000;
 
-// Cadência CNPJ (refatorada 2026-05-12): 5 emails ao longo de 30 dias.
+// Cadência CNPJ (refatorada 2026-05-21): 13 emails ao longo de 365 dias.
 // Foco no Gerador de Proposta Personalizado. Disparada às 8h30 BRT.
 // Audiência: usuários sem CNPJ (não-ativos na plataforma).
 const CNPJ_SCHEDULE: ReadonlyArray<{ day: number; kind: 'onboarding' | 'ongoing'; idx: number }> = [
   { day: 1,   kind: 'onboarding', idx: 1 },  // Hook: novidade Gerador de Proposta
-  { day: 5,   kind: 'onboarding', idx: 2 },  // Pain: R$ 200/mês em gerador, aqui vem incluso
+  { day: 3,   kind: 'onboarding', idx: 2 },  // Pain: R$ 200/mês em gerador, aqui vem incluso
   { day: 12,  kind: 'onboarding', idx: 3 },  // Features: logo, cor, portfólio
   { day: 20,  kind: 'onboarding', idx: 4 },  // Equipamentos: aberto a todos do mercado
-  { day: 30,  kind: 'onboarding', idx: 5 },  // Última: ativar gratuitamente
+  { day: 35,  kind: 'onboarding', idx: 5 },  // Marco 35 dias: ativar gratuitamente
+  { day: 50,  kind: 'onboarding', idx: 6 },  // Case: integradores fechando mais
+  { day: 75,  kind: 'onboarding', idx: 7 },  // Marco 75 dias: vai deixar o mercado passar?
+  { day: 100, kind: 'ongoing',    idx: 1 },  // Ongoing: CNPJ ainda não foi cadastrado
+  { day: 125, kind: 'ongoing',    idx: 2 },  // Ongoing: contrato no Word
+  { day: 180, kind: 'ongoing',    idx: 3 },  // Ongoing: 10 docs grátis te esperam
+  { day: 260, kind: 'ongoing',    idx: 4 },  // Ongoing: novidades
+  { day: 320, kind: 'ongoing',    idx: 5 },  // Ongoing: concorrente já automatizou
+  { day: 365, kind: 'ongoing',    idx: 6 },  // Ongoing: cicla pra idx 0 via modulo
 ];
 
-const CNPJ_HORIZON_DAYS = 30;
+const CNPJ_HORIZON_DAYS = 365;
 
 function scheduledForDay(day: number): { kind: 'onboarding' | 'ongoing'; idx: number } | null {
   const entry = CNPJ_SCHEDULE.find(e => e.day === day);
