@@ -68,19 +68,29 @@ const initialFields = {
   garantia_instalacao: '1',
   inflacao_aa: '6',
   taxa_minima_inflacao_aa: '6',
-  // Formas de pagamento — consultor escolhe o que aparece para o cliente
+  // Formas de pagamento — consultor escolhe o que aparece para o cliente.
+  // Padrão 2026-05-21: vista + cartão 10x + fin 48x/60x fixos. 36x opcional.
+  // Entrada livre (valor + modo de quitação do restante) é off por padrão.
   pag_vista: true,
   pag_cartao: true,
   pag_cartao_10: true,
-  pag_cartao_12: true,
-  pag_cartao_18: true,
   pag_fin: true,
-  pag_fin_84: true,
+  pag_fin_36: false,
+  pag_fin_48: true,
   pag_fin_60: true,
-  pag_entrada: true,
-  pag_entrada_30: true,
-  pag_entrada_60: true,
+  pag_entrada: false,
+  entrada_valor: '',
+  entrada_modo: 'dias' as 'dias' | 'entrega' | 'montagem' | 'liberacao',
+  entrada_dias: '30',
   pag_custom: '',
+};
+
+// Rótulo do marco que o integrador escolhe pra quitação do saldo.
+const ENTRADA_MODO_LABEL: Record<'dias' | 'entrega' | 'montagem' | 'liberacao', string> = {
+  dias:      'Em X dias',
+  entrega:   'Na entrega do material',
+  montagem:  'Na montagem do sistema',
+  liberacao: 'Na liberação do sistema',
 };
 
 // PMT Price com carência: juros capitalizam durante a carência, depois Price padrão
@@ -132,19 +142,25 @@ export default function PropostaSolarPage() {
     }
   }, [fields.consumo_kwh, fields.potencia_modulo, fields.qtd_modulos]);
 
-  // Parcelas no cartão (sobre o preço cheio): 10x ×1,11; 12x ×1,12; 18x ×1,19
+  // Parcelas no cartão (sobre o preço cheio): 10x ×1,11
   const invNum = (() => {
     const v = parseFloat(String(fields.investimento).replace(',', '.'));
     return v > 0 ? v : 0;
   })();
   const valor10x = invNum > 0 ? Math.ceil((invNum * 1.11) / 10) : 0;
-  const valor12x = invNum > 0 ? Math.ceil((invNum * 1.12) / 12) : 0;
-  const valor18x = invNum > 0 ? Math.ceil((invNum * 1.19) / 18) : 0;
-  // Financiamento Price com 120 dias (4 meses) de carência sobre o preço cheio
-  const valor84x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, 0.025, 84, 4)) : 0;
-  const valor60x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, 0.024, 60, 4)) : 0;
-  // Entrada + saldo: 50% hoje + 50% no vencimento (30 ou 60 dias)
-  const valorEntradaMetade = invNum > 0 ? Math.ceil(invNum / 2) : 0;
+  // Financiamento Price com 120 dias (4 meses) de carência a 2,2% a.m.
+  // (taxa interna — não exibida no form nem na proposta)
+  const FIN_RATE = 0.022;
+  const FIN_CARENCIA_MESES = 4;
+  const valor36x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, FIN_RATE, 36, FIN_CARENCIA_MESES)) : 0;
+  const valor48x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, FIN_RATE, 48, FIN_CARENCIA_MESES)) : 0;
+  const valor60x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, FIN_RATE, 60, FIN_CARENCIA_MESES)) : 0;
+  // Entrada + saldo: integrador define a entrada (R$) e como/quando quitar o restante
+  const entradaValor = (() => {
+    const v = parseFloat(String(fields.entrada_valor).replace(',', '.'));
+    return v > 0 ? v : 0;
+  })();
+  const entradaRestante = invNum > 0 && entradaValor > 0 ? Math.max(0, invNum - entradaValor) : 0;
   function setField<K extends keyof typeof fields>(k: K, v: (typeof fields)[K]) {
     setFields(f => ({ ...f, [k]: v }));
   }
@@ -539,7 +555,7 @@ export default function PropostaSolarPage() {
                 : '—'}
             />
 
-            {/* CARTÃO DE CRÉDITO */}
+            {/* CARTÃO DE CRÉDITO — só 10x */}
             <PagGrupo
               checked={fields.pag_cartao}
               onToggle={(v) => setField('pag_cartao', v)}
@@ -551,21 +567,9 @@ export default function PropostaSolarPage() {
                 label="10x"
                 valor={invNum > 0 ? `R$ ${valor10x.toLocaleString('pt-BR')}/mês` : '—'}
               />
-              <PagSubItem
-                checked={fields.pag_cartao_12}
-                onToggle={(v) => setField('pag_cartao_12', v)}
-                label="12x"
-                valor={invNum > 0 ? `R$ ${valor12x.toLocaleString('pt-BR')}/mês` : '—'}
-              />
-              <PagSubItem
-                checked={fields.pag_cartao_18}
-                onToggle={(v) => setField('pag_cartao_18', v)}
-                label="18x"
-                valor={invNum > 0 ? `R$ ${valor18x.toLocaleString('pt-BR')}/mês` : '—'}
-              />
             </PagGrupo>
 
-            {/* FINANCIAMENTO */}
+            {/* FINANCIAMENTO — 36x, 48x, 60x (taxa interna, não exibida) */}
             <PagGrupo
               checked={fields.pag_fin}
               onToggle={(v) => setField('pag_fin', v)}
@@ -573,42 +577,70 @@ export default function PropostaSolarPage() {
               subtitulo="120 dias de carência"
             >
               <PagSubItem
-                checked={fields.pag_fin_84}
-                onToggle={(v) => setField('pag_fin_84', v)}
-                label="84x"
-                sub="2,5% a.m."
-                valor={invNum > 0 ? `R$ ${valor84x.toLocaleString('pt-BR')}/mês` : '—'}
+                checked={fields.pag_fin_36}
+                onToggle={(v) => setField('pag_fin_36', v)}
+                label="36x"
+                valor={invNum > 0 ? `R$ ${valor36x.toLocaleString('pt-BR')}/mês` : '—'}
+              />
+              <PagSubItem
+                checked={fields.pag_fin_48}
+                onToggle={(v) => setField('pag_fin_48', v)}
+                label="48x"
+                valor={invNum > 0 ? `R$ ${valor48x.toLocaleString('pt-BR')}/mês` : '—'}
               />
               <PagSubItem
                 checked={fields.pag_fin_60}
                 onToggle={(v) => setField('pag_fin_60', v)}
                 label="60x"
-                sub="2,4% a.m."
                 valor={invNum > 0 ? `R$ ${valor60x.toLocaleString('pt-BR')}/mês` : '—'}
               />
             </PagGrupo>
 
-            {/* ENTRADA + SALDO (30 ou 60 dias) */}
+            {/* ENTRADA + SALDO — integrador define entrada e modo de quitação do restante */}
             <PagGrupo
               checked={fields.pag_entrada}
               onToggle={(v) => setField('pag_entrada', v)}
               titulo="Entrada + saldo"
-              subtitulo="50% hoje + 50% no vencimento"
+              subtitulo="integrador define o valor"
             >
-              <PagSubItem
-                checked={fields.pag_entrada_30}
-                onToggle={(v) => setField('pag_entrada_30', v)}
-                label="30 dias"
-                sub="2 parcelas iguais"
-                valor={invNum > 0 ? `R$ ${valorEntradaMetade.toLocaleString('pt-BR')} + R$ ${valorEntradaMetade.toLocaleString('pt-BR')}` : '—'}
-              />
-              <PagSubItem
-                checked={fields.pag_entrada_60}
-                onToggle={(v) => setField('pag_entrada_60', v)}
-                label="60 dias"
-                sub="2 parcelas iguais"
-                valor={invNum > 0 ? `R$ ${valorEntradaMetade.toLocaleString('pt-BR')} + R$ ${valorEntradaMetade.toLocaleString('pt-BR')}` : '—'}
-              />
+              <div style={{ display: 'grid', gap: 10, padding: '4px 0 2px' }}>
+                <div className={styles.field}>
+                  <label className={styles.label} style={{ fontSize: 12 }}>Entrada (R$)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={fields.entrada_valor}
+                    onChange={(e) => setField('entrada_valor', e.target.value)}
+                    placeholder="Ex: 5000"
+                    className="input-field"
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} style={{ fontSize: 12 }}>
+                    Restante {invNum > 0 && entradaValor > 0 ? `(R$ ${entradaRestante.toLocaleString('pt-BR')})` : ''}
+                  </label>
+                  <select
+                    value={fields.entrada_modo}
+                    onChange={(e) => setField('entrada_modo', e.target.value as typeof fields.entrada_modo)}
+                    className="input-field"
+                  >
+                    {(['dias', 'entrega', 'montagem', 'liberacao'] as const).map((m) => (
+                      <option key={m} value={m}>{ENTRADA_MODO_LABEL[m]}</option>
+                    ))}
+                  </select>
+                  {fields.entrada_modo === 'dias' && (
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={fields.entrada_dias}
+                      onChange={(e) => setField('entrada_dias', e.target.value)}
+                      placeholder="30"
+                      className="input-field"
+                      style={{ marginTop: 6 }}
+                    />
+                  )}
+                </div>
+              </div>
             </PagGrupo>
 
             {/* PAGAMENTO CUSTOMIZADO — texto livre */}

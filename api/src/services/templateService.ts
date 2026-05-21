@@ -1533,33 +1533,43 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const investimento = parseFloat(String(f.investimento || '0').toString().replace(',', '.')) || 0;
   const precoAvistaInput = parseFloat(String(f.preco_avista || '0').toString().replace(',', '.')) || 0;
   const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
-  // Parcelas no cartão (sobre o preço cheio): 10x ×1,11 ; 12x ×1,12 ; 18x ×1,19
+  // Parcelas no cartão (sobre o preço cheio): só 10x ×1,11 (padrão 2026-05-21).
   const valor10x = investimento > 0 ? Math.ceil((investimento * 1.11) / 10) : 0;
-  const valor12x = investimento > 0 ? Math.ceil((investimento * 1.12) / 12) : 0;
-  const valor18x = investimento > 0 ? Math.ceil((investimento * 1.19) / 18) : 0;
-  // Financiamento Price com 120 dias (4 meses) de carência sobre o preço cheio
-  const valor84x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, 0.025, 84, 4)) : 0;
-  const valor60x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, 0.024, 60, 4)) : 0;
-  // Entrada + saldo: 50% hoje + 50% em 30 ou 60 dias
-  const valorEntradaMetade = investimento > 0 ? Math.ceil(investimento / 2) : 0;
+  // Financiamento Price com 120 dias (4 meses) de carência a 2,2% a.m.
+  // Taxa interna — não exibida no PDF nem no form.
+  const FIN_RATE = 0.022;
+  const FIN_CARENCIA_MESES = 4;
+  const valor36x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, FIN_RATE, 36, FIN_CARENCIA_MESES)) : 0;
+  const valor48x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, FIN_RATE, 48, FIN_CARENCIA_MESES)) : 0;
+  const valor60x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, FIN_RATE, 60, FIN_CARENCIA_MESES)) : 0;
+  // Entrada + saldo: integrador define a entrada (R$) e como/quando quitar o restante.
+  // Modo do restante: 'dias' (N dias) | 'entrega' | 'montagem' | 'liberacao'.
+  const entradaValor = parseFloat(String(f.entrada_valor || '0').toString().replace(',', '.')) || 0;
+  const entradaRestante = investimento > 0 && entradaValor > 0 ? Math.max(0, investimento - entradaValor) : 0;
+  const entradaModoRaw = String(f.entrada_modo || 'dias');
+  const entradaModo: 'dias' | 'entrega' | 'montagem' | 'liberacao' =
+    entradaModoRaw === 'entrega' || entradaModoRaw === 'montagem' || entradaModoRaw === 'liberacao' ? entradaModoRaw : 'dias';
+  const entradaDias = parseInt(String(f.entrada_dias || '30'), 10) || 30;
+  const entradaPrazoLabel = entradaModo === 'dias'
+    ? `em ${entradaDias} dia${entradaDias === 1 ? '' : 's'}`
+    : entradaModo === 'entrega'    ? 'na entrega do material'
+    : entradaModo === 'montagem'   ? 'na montagem do sistema'
+    :                                 'na liberação do sistema';
 
   // Texto livre de "outro tipo de pagamento" (vendedor preenche se quiser)
   const pagCustom = String(f.pag_custom || '').trim();
 
   // Quais opções aparecem para o cliente (consultor escolhe no form).
-  // Default retro-compatível: tudo ligado se nada vier.
+  // Defaults novos: vista/cartão 10x/fin 48-60x ligados; 36x e entrada desligados.
   const pagOpts = {
     vista:  f.pag_vista === false ? false : true,
     cartao: f.pag_cartao === false ? false : true,
     p10:    f.pag_cartao_10 === false ? false : true,
-    p12:    f.pag_cartao_12 === false ? false : true,
-    p18:    f.pag_cartao_18 === false ? false : true,
     fin:    f.pag_fin === false ? false : true,
-    p84:    f.pag_fin_84 === false ? false : true,
-    p60:    f.pag_fin_60 === false ? false : true,
-    entrada: f.pag_entrada === false ? false : true,
-    pe30:   f.pag_entrada_30 === false ? false : true,
-    pe60:   f.pag_entrada_60 === false ? false : true,
+    p36:    f.pag_fin_36 === true,                                    // off by default
+    p48:    f.pag_fin_48 === false ? false : true,                    // on by default
+    p60:    f.pag_fin_60 === false ? false : true,                    // on by default
+    entrada: f.pag_entrada === true,                                  // off by default
   };
 
   // Campos editáveis pelo tenant (com defaults seguros — propostas antigas continuam funcionando)
@@ -1734,56 +1744,40 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
       </div>`);
   }
 
-  // Cartão de crédito — cada parcela vira um card
-  if (pagOpts.cartao && investimento > 0) {
-    const subs: Array<[boolean, number, number]> = [
-      [pagOpts.p10, 10, valor10x],
-      [pagOpts.p12, 12, valor12x],
-      [pagOpts.p18, 18, valor18x],
-    ];
-    for (const [ativo, n, valor] of subs) {
-      if (ativo && valor > 0) {
-        cards.push(`<div class="invest-cartao">
-          <div class="invest-cartao-label">Cartão de crédito</div>
-          <div class="invest-cartao-value">${n}× de ${pBRL(valor)}</div>
-          <div class="invest-cartao-sub">no cartão sem entrada</div>
-        </div>`);
-      }
-    }
+  // Cartão de crédito — só 10x (padrão 2026-05-21)
+  if (pagOpts.cartao && pagOpts.p10 && valor10x > 0) {
+    cards.push(`<div class="invest-cartao">
+      <div class="invest-cartao-label">Cartão de crédito</div>
+      <div class="invest-cartao-value">10× de ${pBRL(valor10x)}</div>
+      <div class="invest-cartao-sub">no cartão sem entrada</div>
+    </div>`);
   }
 
-  // Financiamento bancário — cada prazo vira um card
+  // Financiamento bancário — 36x / 48x / 60x. Taxa interna, não exibida.
   if (pagOpts.fin && investimento > 0) {
-    const subs: Array<[boolean, number, number, string]> = [
-      [pagOpts.p84, 84, valor84x, '2,5% a.m.'],
-      [pagOpts.p60, 60, valor60x, '2,4% a.m.'],
+    const subs: Array<[boolean, number, number]> = [
+      [pagOpts.p36, 36, valor36x],
+      [pagOpts.p48, 48, valor48x],
+      [pagOpts.p60, 60, valor60x],
     ];
-    for (const [ativo, n, valor, taxa] of subs) {
+    for (const [ativo, n, valor] of subs) {
       if (ativo && valor > 0) {
         cards.push(`<div class="invest-financ">
           <div class="invest-financ-label">Financiamento bancário</div>
           <div class="invest-financ-value">${n}× de ${pBRL(valor)}</div>
-          <div class="invest-financ-sub">120 dias de carência · ${taxa}</div>
+          <div class="invest-financ-sub">120 dias de carência</div>
         </div>`);
       }
     }
   }
 
-  // Entrada + saldo (30 ou 60 dias) — 2 parcelas iguais de 50%
-  if (pagOpts.entrada && investimento > 0 && valorEntradaMetade > 0) {
-    const subs: Array<[boolean, number]> = [
-      [pagOpts.pe30, 30],
-      [pagOpts.pe60, 60],
-    ];
-    for (const [ativo, dias] of subs) {
-      if (ativo) {
-        cards.push(`<div class="invest-cartao">
-          <div class="invest-cartao-label">Entrada + saldo em ${dias} dias</div>
-          <div class="invest-cartao-value">${pBRL(valorEntradaMetade)} + ${pBRL(valorEntradaMetade)}</div>
-          <div class="invest-cartao-sub">50% hoje · 50% em ${dias} dias</div>
-        </div>`);
-      }
-    }
+  // Entrada + saldo — integrador define a entrada e como o restante é quitado.
+  if (pagOpts.entrada && investimento > 0 && entradaValor > 0 && entradaRestante > 0) {
+    cards.push(`<div class="invest-cartao">
+      <div class="invest-cartao-label">Entrada + saldo</div>
+      <div class="invest-cartao-value">${pBRL(entradaValor)} + ${pBRL(entradaRestante)}</div>
+      <div class="invest-cartao-sub">${pBRL(entradaValor)} hoje · ${pBRL(entradaRestante)} ${entradaPrazoLabel}</div>
+    </div>`);
   }
 
   // Pagamento customizado — texto livre que o vendedor digitou no form
