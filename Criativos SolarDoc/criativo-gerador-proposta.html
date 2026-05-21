@@ -201,69 +201,18 @@
     justify-content: center;
     position: relative;
   }
-  /* Halo solar atrás do celular */
-  .mockup-col::before {
-    content: '';
-    position: absolute;
-    width: 380px;
-    height: 380px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(251, 191, 36, 0.22) 0%, transparent 65%);
-    z-index: 0;
-    pointer-events: none;
-  }
-  /* Painel solar decorativo atrás-esquerda do celular */
-  .solar-deco {
-    position: absolute;
-    width: 110px;
-    height: 90px;
-    background-image:
-      linear-gradient(rgba(0,0,0,0.25) 2px, transparent 2px),
-      linear-gradient(90deg, rgba(0,0,0,0.25) 2px, transparent 2px),
-      linear-gradient(135deg, #1D4ED8, #1E3A8A);
-    background-size: 22px 22px, 22px 22px, 100% 100%;
-    border: 2px solid #0F172A;
-    border-radius: 6px;
-    transform: rotate(-18deg) skewY(-12deg);
-    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5);
-    z-index: 1;
-  }
-  .solar-deco-1 { top: 30px; left: -10px; }
-  .solar-deco-2 {
-    bottom: 60px;
-    right: -8px;
-    width: 90px;
-    height: 76px;
-    background-size: 18px 18px, 18px 18px, 100% 100%;
-    transform: rotate(14deg) skewY(8deg);
-  }
-  /* Raios de sol decorativos no canto */
-  .ray {
-    position: absolute;
-    width: 4px;
-    border-radius: 4px;
-    background: linear-gradient(180deg, var(--accent-2), transparent);
-    transform-origin: bottom center;
-    z-index: 0;
-  }
-  .ray-1 { top: 0; left: 38%; height: 60px; transform: rotate(-12deg); }
-  .ray-2 { top: 0; left: 50%; height: 80px; transform: rotate(0deg); }
-  .ray-3 { top: 0; left: 62%; height: 60px; transform: rotate(12deg); }
-
   .phone {
-    width: 270px;
-    height: 540px;
+    width: 250px;
+    height: 500px;
     background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);
-    border-radius: 40px;
+    border-radius: 38px;
     border: 6px solid #1E293B;
     box-shadow:
-      0 36px 72px rgba(0, 0, 0, 0.7),
-      0 0 0 1px rgba(245, 158, 11, 0.25),
-      0 0 60px rgba(245, 158, 11, 0.15);
+      0 32px 64px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(245, 158, 11, 0.2);
     position: relative;
     overflow: hidden;
-    transform: rotate(-3deg);
-    z-index: 2;
+    transform: rotate(-4deg);
   }
   .phone::before {
     content: '';
@@ -329,10 +278,10 @@
     letter-spacing: -0.3px;
   }
   .ph-hero {
-    margin-top: 8px;
+    margin-top: 10px;
     border-radius: 12px;
     overflow: hidden;
-    height: 76px;
+    height: 100px;
     background:
       linear-gradient(135deg, rgba(245,158,11,0.18), rgba(251,191,36,0.06)),
       repeating-linear-gradient(45deg, #1E40AF 0 6px, #1E3A8A 6px 12px);
@@ -347,10 +296,10 @@
     font-size: 26px;
   }
   .ph-cards {
-    margin-top: 8px;
+    margin-top: 10px;
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 5px;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
   }
   .ph-card {
     background: #FAFAFA;
@@ -361,46 +310,8 @@
   }
   .ph-card-l { font-size: 7px; color: #64748B; text-transform: uppercase; font-weight: 700; letter-spacing: 0.2px; }
   .ph-card-v { font-size: 12px; color: var(--accent-dark); font-weight: 900; margin-top: 2px; }
-  /* Chart de payback (linha verde subindo) */
-  .ph-chart {
-    margin-top: 10px;
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
-    border-radius: 10px;
-    padding: 8px 10px;
-  }
-  .ph-chart-title {
-    font-size: 7px;
-    color: #64748B;
-    text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.2px;
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 4px;
-  }
-  .ph-chart-title b { color: #16A34A; font-size: 9px; }
-  .ph-chart svg { width: 100%; height: 36px; display: block; }
-  /* Selo de aprovado */
-  .ph-selo {
-    margin-top: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    background: rgba(34, 197, 94, 0.12);
-    border: 1px solid rgba(34, 197, 94, 0.4);
-    border-radius: 8px;
-    padding: 6px 0;
-    color: #15803D;
-    font-size: 9px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-  }
-  .ph-selo .stars { letter-spacing: 1px; color: #F59E0B; }
   .ph-bar {
-    margin-top: 8px;
+    margin-top: 10px;
     background: linear-gradient(135deg, #D97706, #F59E0B);
     color: #fff;
     border-radius: 9px;
@@ -618,13 +529,6 @@
 
       <!-- COLUNA DIREITA: MOCKUP -->
       <div class="mockup-col">
-        <!-- Decorações ao fundo -->
-        <div class="ray ray-1"></div>
-        <div class="ray ray-2"></div>
-        <div class="ray ray-3"></div>
-        <div class="solar-deco solar-deco-1"></div>
-        <div class="solar-deco solar-deco-2"></div>
-
         <div class="float-badge-1">
           <span class="num">10</span>
           <span>propostas<br/>grátis</span>
@@ -639,43 +543,26 @@
                 <div class="ph-co-sub">Energia que paga</div>
               </div>
             </div>
-            <div class="ph-title">Proposta solar · 6,2 kWp</div>
+            <div class="ph-title">Proposta solar</div>
             <div class="ph-cliente">João da Silva</div>
             <div class="ph-hero"></div>
             <div class="ph-cards">
               <div class="ph-card">
                 <div class="ph-card-l">Geração</div>
-                <div class="ph-card-v">680<span style="font-size:8px;font-weight:700;color:#64748B"> kWh</span></div>
+                <div class="ph-card-v">680 kWh</div>
               </div>
               <div class="ph-card">
                 <div class="ph-card-l">Economia</div>
                 <div class="ph-card-v">R$ 814</div>
               </div>
               <div class="ph-card">
+                <div class="ph-card-l">Investimento</div>
+                <div class="ph-card-v">R$ 22.000</div>
+              </div>
+              <div class="ph-card">
                 <div class="ph-card-l">Payback</div>
                 <div class="ph-card-v">3,2 anos</div>
               </div>
-            </div>
-            <div class="ph-chart">
-              <div class="ph-chart-title">
-                <span>Economia em 25 anos</span>
-                <b>+R$ 312k</b>
-              </div>
-              <svg viewBox="0 0 200 36" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#22C55E" stop-opacity="0.5"/>
-                    <stop offset="100%" stop-color="#22C55E" stop-opacity="0"/>
-                  </linearGradient>
-                </defs>
-                <path d="M0,32 L20,30 L40,27 L60,24 L80,20 L100,15 L120,12 L140,9 L160,6 L180,4 L200,2 L200,36 L0,36 Z" fill="url(#g)"/>
-                <path d="M0,32 L20,30 L40,27 L60,24 L80,20 L100,15 L120,12 L140,9 L160,6 L180,4 L200,2" fill="none" stroke="#16A34A" stroke-width="2"/>
-                <path d="M0,34 L200,34" fill="none" stroke="#EF4444" stroke-width="1" stroke-dasharray="2,2"/>
-              </svg>
-            </div>
-            <div class="ph-selo">
-              <span class="stars">★★★★★</span>
-              <span>cliente assina no celular</span>
             </div>
             <div class="ph-bar">10× sem juros · R$ 2.475/mês</div>
             <div class="ph-bar" style="margin-top: 4px; background: #0F172A;">QUERO FECHAR — WHATSAPP</div>
@@ -701,8 +588,8 @@
             </svg>
           </div>
           <div class="price-info">
-            <div class="price-label">10 PROPOSTAS GRÁTIS</div>
-            <div class="price-value">R$ 0</div>
+            <div class="price-label">10 PROPOSTAS</div>
+            <div class="price-value">R$ 0<span class="small">/sempre</span></div>
           </div>
         </div>
         <button class="cta">
