@@ -94,6 +94,14 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
 .pag-ver-mais:hover{background:#f1f5f9}
 #card-formas-pagamento textarea{width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;margin-top:8px;box-sizing:border-box;resize:vertical}
 #card-formas-pagamento textarea:focus{outline:none;border-color:#0d2d5e}
+.pag-entrada-form{display:none;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;padding-top:12px;border-top:1px dashed #e5e7eb}
+.pag-grupo.pag-ativo .pag-entrada-form,.pag-grupo:has(> .pag-head input:checked) .pag-entrada-form{display:grid}
+.pag-entrada-field{display:flex;flex-direction:column;gap:4px}
+.pag-entrada-field label{font-size:12px;color:#64748b;font-weight:600}
+.pag-entrada-field input,.pag-entrada-field select{width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;background:#fff;box-sizing:border-box}
+.pag-entrada-field input:focus,.pag-entrada-field select:focus{outline:none;border-color:#0d2d5e}
+.pag-entrada-field input.is-hidden{display:none}
+@media(max-width:520px){.pag-entrada-form{grid-template-columns:1fr}}
 
 /* ===== CTA de fechamento (final da proposta) ===== */
 .cta-fechamento{background:linear-gradient(135deg,#f59e0b 0%,#f97316 100%);border-radius:14px;padding:28px 24px;text-align:center;color:#fff;margin:18px 0;box-shadow:0 8px 20px rgba(249,115,22,.25)}
@@ -422,8 +430,9 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
           <span class="pag-sub">120 dias de carência</span>
         </label>
         <div class="pag-sub-grid">
-          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-60" checked> 60x · 2,4% a.m.</label>
-          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-84"> 84x · 2,5% a.m.</label>
+          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-36"> 36x</label>
+          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-48" checked> 48x</label>
+          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-60" checked> 60x</label>
         </div>
       </div>
 
@@ -431,11 +440,23 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
         <label class="pag-head">
           <input type="checkbox" id="pag-entrada">
           <span class="pag-titulo">💵 Entrada + saldo</span>
-          <span class="pag-sub">50% hoje + 50% depois</span>
+          <span class="pag-sub">integrador define o valor</span>
         </label>
-        <div class="pag-sub-grid">
-          <label class="pag-sub-item"><input type="checkbox" id="pag-entrada-30"> Saldo em 30 dias</label>
-          <label class="pag-sub-item"><input type="checkbox" id="pag-entrada-60"> Saldo em 60 dias</label>
+        <div class="pag-entrada-form">
+          <div class="pag-entrada-field">
+            <label for="pag-entrada-valor">Entrada (R$)</label>
+            <input type="text" inputmode="decimal" id="pag-entrada-valor" placeholder="Ex: 5000">
+          </div>
+          <div class="pag-entrada-field">
+            <label for="pag-entrada-modo" id="pag-entrada-restante-label">Restante</label>
+            <select id="pag-entrada-modo" onchange="atualizarEntradaModo()">
+              <option value="dias">Em X dias</option>
+              <option value="entrega">Na entrega do material</option>
+              <option value="montagem">Na montagem do sistema</option>
+              <option value="liberacao">Na liberação do sistema</option>
+            </select>
+            <input type="text" inputmode="numeric" id="pag-entrada-dias" placeholder="30" value="30" style="margin-top:6px">
+          </div>
         </div>
       </div>
 
@@ -1345,6 +1366,13 @@ function parcelasDoPagOpts(po) {
 // Quais parcelas aparecem por padrão e quais ficam atrás do "Ver todas"
 const CARTAO_PARCELAS_DESTAQUE = [1, 6, 12, 18, 21];
 
+// Mostra/esconde o input de dias conforme o modo selecionado
+function atualizarEntradaModo() {
+  const modo = document.getElementById('pag-entrada-modo')?.value || 'dias';
+  const dias = document.getElementById('pag-entrada-dias');
+  if (dias) dias.classList.toggle('is-hidden', modo !== 'dias');
+}
+
 function renderPagCartaoGrid() {
   const grid = document.getElementById('pag-cartao-grid');
   if (!grid) return;
@@ -1385,20 +1413,23 @@ function lerPagOptsDoForm() {
   parcelas.sort((a,b) => a-b);
 
   const finOn = !!document.getElementById('pag-fin')?.checked;
+  const p36 = !!document.getElementById('pag-fin-36')?.checked;
+  const p48 = !!document.getElementById('pag-fin-48')?.checked;
   const p60 = !!document.getElementById('pag-fin-60')?.checked;
-  const p84 = !!document.getElementById('pag-fin-84')?.checked;
 
   const entradaOn = !!document.getElementById('pag-entrada')?.checked;
-  const d30 = !!document.getElementById('pag-entrada-30')?.checked;
-  const d60 = !!document.getElementById('pag-entrada-60')?.checked;
+  const entradaValor = (document.getElementById('pag-entrada-valor')?.value || '').trim();
+  const entradaModoRaw = document.getElementById('pag-entrada-modo')?.value || 'dias';
+  const entradaModo = ['dias','entrega','montagem','liberacao'].includes(entradaModoRaw) ? entradaModoRaw : 'dias';
+  const entradaDias = (document.getElementById('pag-entrada-dias')?.value || '').trim();
 
   const custom = (document.getElementById('pag-custom')?.value || '').trim();
 
   return {
     vista,
     cartao:  { ativo: cartaoOn, parcelas },
-    fin:     { ativo: finOn, p60, p84 },
-    entrada: { ativo: entradaOn, d30, d60 },
+    fin:     { ativo: finOn, p36, p48, p60 },
+    entrada: { ativo: entradaOn, valor: entradaValor, modo: entradaModo, dias: entradaDias },
     custom,
   };
 }
@@ -1409,11 +1440,18 @@ function escreverPagOptsNoForm(po) {
   set('pag-vista', po.vista);
   set('pag-cartao', po.cartao && po.cartao.ativo);
   set('pag-fin', po.fin && po.fin.ativo);
+  set('pag-fin-36', po.fin && po.fin.p36);
+  set('pag-fin-48', po.fin && po.fin.p48);
   set('pag-fin-60', po.fin && po.fin.p60);
-  set('pag-fin-84', po.fin && po.fin.p84);
   set('pag-entrada', po.entrada && po.entrada.ativo);
-  set('pag-entrada-30', po.entrada && po.entrada.d30);
-  set('pag-entrada-60', po.entrada && po.entrada.d60);
+  const e = po.entrada || {};
+  const elValor = document.getElementById('pag-entrada-valor');
+  if (elValor) elValor.value = e.valor || '';
+  const elModo = document.getElementById('pag-entrada-modo');
+  if (elModo) elModo.value = ['dias','entrega','montagem','liberacao'].includes(e.modo) ? e.modo : 'dias';
+  const elDias = document.getElementById('pag-entrada-dias');
+  if (elDias) elDias.value = e.dias || '30';
+  atualizarEntradaModo();
   const ta = document.getElementById('pag-custom');
   if (ta) ta.value = po.custom || '';
 
@@ -1443,6 +1481,7 @@ function aplicarPagAtivoClass() {
 window.addEventListener('DOMContentLoaded', () => {
   renderPagCartaoGrid();
   aplicarPagAtivoClass();
+  atualizarEntradaModo();
   document.querySelectorAll('#card-formas-pagamento .pag-head input[type="checkbox"]')
     .forEach(cb => cb.addEventListener('change', aplicarPagAtivoClass));
 });
@@ -1452,7 +1491,7 @@ function renderPagamentoCard(d) {
   const po = d.pagOpts || {
     vista: true,
     cartao: { ativo: true, parcelas: [10, 12, 18] },
-    fin:    { ativo: true, p84: true, p60: true }
+    fin:    { ativo: true, p48: true, p60: true }
   };
   const pv   = d.precoVista || 0;
   const pOrc = d.precoOrcamento || 0;
@@ -1464,8 +1503,9 @@ function renderPagamentoCard(d) {
   if (!d.parcelasCartao && d.parc12x != null) parcMap[12] = d.parc12x;
   if (!d.parcelasCartao && d.parc18x != null) parcMap[18] = d.parc18x;
 
-  const f84 = d.fin84x != null ? d.fin84x : pmtPriceCarencia(pOrc, 0.025, 84, 4);
-  const f60 = d.fin60x != null ? d.fin60x : pmtPriceCarencia(pOrc, 0.024, 60, 4);
+  const f36 = d.fin36x != null ? d.fin36x : pmtPriceCarencia(pOrc, 0.022, 36, 4);
+  const f48 = d.fin48x != null ? d.fin48x : pmtPriceCarencia(pOrc, 0.022, 48, 4);
+  const f60 = d.fin60x != null ? d.fin60x : pmtPriceCarencia(pOrc, 0.022, 60, 4);
 
   const blocos = [];
   if (po.vista) blocos.push(`
@@ -1485,14 +1525,23 @@ function renderPagamentoCard(d) {
   }
 
   if (po.fin && po.fin.ativo) {
-    if (po.fin.p84) blocos.push(`<div class="parc"><div class="qt">84x financiado</div><div class="vl">R$ ${fmt(f84)}</div><div class="obs">120 dias de carência</div></div>`);
+    if (po.fin.p36) blocos.push(`<div class="parc"><div class="qt">36x financiado</div><div class="vl">R$ ${fmt(f36)}</div><div class="obs">120 dias de carência</div></div>`);
+    if (po.fin.p48) blocos.push(`<div class="parc"><div class="qt">48x financiado</div><div class="vl">R$ ${fmt(f48)}</div><div class="obs">120 dias de carência</div></div>`);
     if (po.fin.p60) blocos.push(`<div class="parc"><div class="qt">60x financiado</div><div class="vl">R$ ${fmt(f60)}</div><div class="obs">120 dias de carência</div></div>`);
   }
 
   if (po.entrada && po.entrada.ativo) {
-    const meio = pv / 2;
-    if (po.entrada.d30) blocos.push(`<div class="parc"><div class="qt">50% + 50% (30d)</div><div class="vl">2× R$ ${fmt(meio)}</div><div class="obs">metade hoje, metade em 30 dias</div></div>`);
-    if (po.entrada.d60) blocos.push(`<div class="parc"><div class="qt">50% + 50% (60d)</div><div class="vl">2× R$ ${fmt(meio)}</div><div class="obs">metade hoje, metade em 60 dias</div></div>`);
+    const eValor = parseFloat(String(po.entrada.valor || '').replace(',', '.')) || 0;
+    if (eValor > 0 && eValor < pv) {
+      const restante = pv - eValor;
+      const modo = po.entrada.modo || 'dias';
+      const obs = modo === 'dias'
+        ? `saldo em ${(po.entrada.dias || '30')} dias`
+        : (modo === 'entrega'   ? 'saldo na entrega do material'
+        :  modo === 'montagem'  ? 'saldo na montagem do sistema'
+        :                         'saldo na liberação do sistema');
+      blocos.push(`<div class="parc"><div class="qt">Entrada + saldo</div><div class="vl">R$ ${fmt(eValor)} + R$ ${fmt(restante)}</div><div class="obs">${obs}</div></div>`);
+    }
   }
 
   if (po.custom && po.custom.trim()) {
@@ -1724,8 +1773,11 @@ async function gerar() {
   const parc18x = parcelasCartao[18];
 
   // Financiamento Price com 120 dias (4 meses) de carência sobre o orçamento
-  const fin84x = pmtPriceCarencia(precoOrcamento, 0.025, 84, 4);
-  const fin60x = pmtPriceCarencia(precoOrcamento, 0.024, 60, 4);
+  const FIN_RATE = 0.022;
+  const FIN_CARENCIA_MESES = 4;
+  const fin36x = pmtPriceCarencia(precoOrcamento, FIN_RATE, 36, FIN_CARENCIA_MESES);
+  const fin48x = pmtPriceCarencia(precoOrcamento, FIN_RATE, 48, FIN_CARENCIA_MESES);
+  const fin60x = pmtPriceCarencia(precoOrcamento, FIN_RATE, 60, FIN_CARENCIA_MESES);
 
   // Cálculo solar avançado por cidade/UF (HSP real + payback com inflação 6% a.a.)
   const cidadeNomeCalc = document.getElementById('f-cidade').value.trim();
@@ -1795,12 +1847,12 @@ async function gerar() {
     precoVista, precoOrcamento,
     parc10x, parc12x, parc18x,
     parcelasCartao,
-    fin84x, fin60x,
+    fin36x, fin48x, fin60x,
     pagOpts: lerPagOptsDoForm() || {
       vista: true,
       cartao: { ativo: true, parcelas: CARTAO_PARCELAS_DEFAULT.slice() },
-      fin:    { ativo: true, p84: false, p60: true },
-      entrada:{ ativo: false, d30: false, d60: false },
+      fin:    { ativo: true, p36: false, p48: true, p60: true },
+      entrada:{ ativo: false, valor: '', modo: 'dias', dias: '30' },
       custom: ''
     },
     usarDescMax,
@@ -3324,20 +3376,39 @@ async function editarProposta(codigo) {
       // Se formato antigo (tem p10/p12/p18 em cartao), converte pra parcelas[]
       const c = d.pagOpts.cartao || {};
       const parcelas = Array.isArray(c.parcelas) ? c.parcelas : parcelasDoPagOpts(d.pagOpts);
+      // Financiamento: novo formato é p36/p48/p60. Propostas antigas tinham p84 — descarta (84x foi removido).
+      const finAntigo = d.pagOpts.fin || {};
+      const finNovo = {
+        ativo: !!finAntigo.ativo,
+        p36: !!finAntigo.p36,
+        p48: !!finAntigo.p48,
+        p60: !!finAntigo.p60,
+      };
+      // Entrada: novo formato é valor/modo/dias. Formato antigo (d30/d60) não é expressível — desliga.
+      const entAntigo = d.pagOpts.entrada || {};
+      const entradaTinhaNovo = entAntigo.valor != null || entAntigo.modo != null || entAntigo.dias != null;
+      const entradaNovo = entradaTinhaNovo
+        ? {
+            ativo: !!entAntigo.ativo,
+            valor: entAntigo.valor || '',
+            modo: ['dias','entrega','montagem','liberacao'].includes(entAntigo.modo) ? entAntigo.modo : 'dias',
+            dias: entAntigo.dias || '30',
+          }
+        : { ativo: false, valor: '', modo: 'dias', dias: '30' };
       pagOptsEdit = {
         vista: !!d.pagOpts.vista,
         cartao: { ativo: !!c.ativo, parcelas },
-        fin: d.pagOpts.fin || { ativo: false },
-        entrada: d.pagOpts.entrada || { ativo: false },
+        fin: finNovo,
+        entrada: entradaNovo,
         custom: d.pagOpts.custom || '',
       };
     } else {
-      // Proposta antiga: assume default permissivo (vista + 10/12/18 cartão + 60/84 fin)
+      // Proposta antiga sem pagOpts: assume default permissivo (vista + 10/12/18 cartão + 48/60 fin)
       pagOptsEdit = {
         vista: true,
         cartao: { ativo: true, parcelas: [10, 12, 18] },
-        fin:    { ativo: true, p60: true, p84: true },
-        entrada:{ ativo: false, d30: false, d60: false },
+        fin:    { ativo: true, p36: false, p48: true, p60: true },
+        entrada:{ ativo: false, valor: '', modo: 'dias', dias: '30' },
         custom: '',
       };
     }
@@ -3395,17 +3466,24 @@ function montarBlocoPagamentoWpp(d) {
 
   if (po.fin && po.fin.ativo) {
     const sub = [];
-    if (po.fin.p60 && d.fin60x != null) sub.push(`• 60x: R$ ${fmt(d.fin60x)}/mês (2,4% a.m.)`);
-    if (po.fin.p84 && d.fin84x != null) sub.push(`• 84x: R$ ${fmt(d.fin84x)}/mês (2,5% a.m.)`);
+    if (po.fin.p36 && d.fin36x != null) sub.push(`• 36x: R$ ${fmt(d.fin36x)}/mês`);
+    if (po.fin.p48 && d.fin48x != null) sub.push(`• 48x: R$ ${fmt(d.fin48x)}/mês`);
+    if (po.fin.p60 && d.fin60x != null) sub.push(`• 60x: R$ ${fmt(d.fin60x)}/mês`);
     if (sub.length) linhas.push(`🏦 *Financiamento* (120 dias de carência):\n${sub.join('\n')}`);
   }
 
   if (po.entrada && po.entrada.ativo) {
-    const meio = pv / 2;
-    const sub = [];
-    if (po.entrada.d30) sub.push(`• 50% hoje + 50% em 30 dias (R$ ${fmt(meio)} cada)`);
-    if (po.entrada.d60) sub.push(`• 50% hoje + 50% em 60 dias (R$ ${fmt(meio)} cada)`);
-    if (sub.length) linhas.push(`💵 *Entrada + saldo:*\n${sub.join('\n')}`);
+    const eValor = parseFloat(String(po.entrada.valor || '').replace(',', '.')) || 0;
+    if (eValor > 0 && eValor < pv) {
+      const restante = pv - eValor;
+      const modo = po.entrada.modo || 'dias';
+      const quando = modo === 'dias'
+        ? `em ${(po.entrada.dias || '30')} dias`
+        : (modo === 'entrega'   ? 'na entrega do material'
+        :  modo === 'montagem'  ? 'na montagem do sistema'
+        :                         'na liberação do sistema');
+      linhas.push(`💵 *Entrada + saldo:*\n• Entrada: R$ ${fmt(eValor)}\n• Saldo: R$ ${fmt(restante)} ${quando}`);
+    }
   }
 
   if (po.custom && po.custom.trim()) {
