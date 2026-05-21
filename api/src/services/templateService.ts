@@ -1472,11 +1472,14 @@ Gerado por SolarDoc Pro — solardoc.app
 
 interface Palette { c1: string; c2: string; c3: string; nome: string; }
 const PALETTES: Record<string, Palette> = {
-  solar:    { c1: '#F59E0B', c2: '#FBBF24', c3: '#FFFBEB', nome: 'Solar' },
-  oceano:   { c1: '#0EA5E9', c2: '#38BDF8', c3: '#F0F9FF', nome: 'Oceano' },
-  floresta: { c1: '#10B981', c2: '#34D399', c3: '#ECFDF5', nome: 'Floresta' },
-  royal:    { c1: '#8B5CF6', c2: '#A78BFA', c3: '#F5F3FF', nome: 'Royal' },
-  carbono:  { c1: '#1F2937', c2: '#F59E0B', c3: '#FAFAF9', nome: 'Carbono' },
+  solar:          { c1: '#F59E0B', c2: '#FBBF24', c3: '#FFFBEB', nome: 'Solar' },
+  oceano:         { c1: '#0EA5E9', c2: '#38BDF8', c3: '#F0F9FF', nome: 'Oceano' },
+  floresta:       { c1: '#10B981', c2: '#34D399', c3: '#ECFDF5', nome: 'Floresta' },
+  royal:          { c1: '#8B5CF6', c2: '#A78BFA', c3: '#F5F3FF', nome: 'Royal' },
+  carbono:        { c1: '#1F2937', c2: '#F59E0B', c3: '#FAFAF9', nome: 'Carbono' },
+  azul_escuro:    { c1: '#1E3A8A', c2: '#1D4ED8', c3: '#EFF6FF', nome: 'Azul Escuro' },
+  verde_escuro:   { c1: '#065F46', c2: '#047857', c3: '#ECFDF5', nome: 'Verde Escuro' },
+  amarelo_escuro: { c1: '#B45309', c2: '#D97706', c3: '#FFFBEB', nome: 'Amarelo Escuro' },
 };
 
 function pBRL(n: number): string {
@@ -1508,8 +1511,12 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   // Inputs do form
   const palette = PALETTES[String(f.paleta || 'solar')] || PALETTES.solar;
   const codigoProposta = str(f.codigo) === '___' ? '' : String(f.codigo);
-  const vendedor = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome);
-  const vendedorWhatsApp = (str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '');
+  // Vendedor caiu do form — usa contato da empresa cadastrada (sócio admin / razão social + WhatsApp da empresa).
+  // Se o form ainda mandar (proposta antiga ou white-label custom), prioriza o do form.
+  const vendedorForm = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome).trim();
+  const vendedor = vendedorForm || String(company.socio_adm || company.nome || '').trim();
+  const vendedorWhatsAppForm = (str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '');
+  const vendedorWhatsApp = vendedorWhatsAppForm || String((company as { whatsapp?: string }).whatsapp || '').replace(/\D/g, '');
   const fotoTelhado = str(f.foto_telhado_b64) === '___' ? '' : String(f.foto_telhado_b64);
   const tipoTelhado = str(f.tipo_telhado) === '___' ? (client.tipo_telhado || '') : String(f.tipo_telhado);
   const cidade = (str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade)).trim();

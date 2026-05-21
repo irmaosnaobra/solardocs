@@ -58,6 +58,14 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       throw new ApiError(400, 'Cadastre sua empresa (CNPJ obrigatório) antes de gerar documentos');
     }
 
+    // Free plan só libera o Gerador de Proposta — resto exige upgrade.
+    // Sidebar já tranca visualmente, mas o endpoint precisa garantir.
+    const { data: planUser } = await supabase
+      .from('users').select('plano, is_admin').eq('id', req.userId).single();
+    if (planUser && !planUser.is_admin && planUser.plano === 'free' && body.tipo !== 'propostaSolar') {
+      throw new ApiError(402, 'Faça upgrade pra gerar esse tipo de documento. O plano gratuito libera só o Gerador de Proposta.');
+    }
+
     // Fetch client or terceiro and map to unified entity
     let entity: Record<string, unknown>;
     let entityNome: string;

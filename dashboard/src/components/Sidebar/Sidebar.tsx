@@ -41,6 +41,7 @@ interface NavItem {
   count?: number;
   requireCompany?: boolean;
   vipOnly?: boolean;
+  paidOnly?: boolean; // free vê locked → clique abre upgrade modal
 }
 
 // ── Configuração das 5 seções ─────────────────────────────────────
@@ -56,10 +57,10 @@ const adminItems: NavItem[] = [
 ];
 
 const cadastroItems: NavItem[] = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',                       paidOnly: true },
   { href: '/empresa',   icon: Building2,       label: 'Empresa' },
-  { href: '/clientes',  icon: Users,           label: 'Clientes',  requireCompany: true },
-  { href: '/terceiros', icon: Handshake,       label: 'Terceiros', requireCompany: true },
+  { href: '/clientes',  icon: Users,           label: 'Clientes',  requireCompany: true, paidOnly: true },
+  { href: '/terceiros', icon: Handshake,       label: 'Terceiros', requireCompany: true, paidOnly: true },
 ];
 
 const geradorItem: NavItem = {
@@ -67,21 +68,21 @@ const geradorItem: NavItem = {
 };
 
 const docsClienteItems: NavItem[] = [
-  { href: '/documentos?tipo=vistoria',          icon: ClipboardCheck, label: 'Vistoria CheckList', requireCompany: true },
-  { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,       label: 'Proposta de Banco',  requireCompany: true },
-  { href: '/documentos?tipo=contrato-solar',    icon: FileSignature,  label: 'Contrato Solar',     requireCompany: true },
-  { href: '/documentos?tipo=procuracao',        icon: ScrollText,     label: 'Procuração',         requireCompany: true },
+  { href: '/documentos?tipo=vistoria',          icon: ClipboardCheck, label: 'Vistoria CheckList', requireCompany: true, paidOnly: true },
+  { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,       label: 'Proposta de Banco',  requireCompany: true, paidOnly: true },
+  { href: '/documentos?tipo=contrato-solar',    icon: FileSignature,  label: 'Contrato Solar',     requireCompany: true, paidOnly: true },
+  { href: '/documentos?tipo=procuracao',        icon: ScrollText,     label: 'Procuração',         requireCompany: true, paidOnly: true },
 ];
 
 const docsTerceiroItems: NavItem[] = [
-  { href: '/documentos?tipo=prestacao-servico', icon: Wrench,    label: 'Prestação de Serviço', requireCompany: true },
-  { href: '/documentos?tipo=contrato-pj',       icon: Briefcase, label: 'Contrato Vendedor',     requireCompany: true },
+  { href: '/documentos?tipo=prestacao-servico', icon: Wrench,    label: 'Prestação de Serviço', requireCompany: true, paidOnly: true },
+  { href: '/documentos?tipo=contrato-pj',       icon: Briefcase, label: 'Contrato Vendedor',     requireCompany: true, paidOnly: true },
 ];
 
 const contaItems: NavItem[] = [
   { href: '/conta/documentos',  icon: Save,           label: 'Documentos Salvos',       vipOnly: true },
-  { href: '/mentoria',          icon: GraduationCap,  label: 'Mentorias' },
-  { href: '/baixe-app',         icon: Smartphone,     label: 'Baixe o App' },
+  { href: '/mentoria',          icon: GraduationCap,  label: 'Mentorias',                                  paidOnly: true },
+  { href: '/baixe-app',         icon: Smartphone,     label: 'Baixe o App',                                paidOnly: true },
 ];
 
 // ── Componente principal ────────────────────────────────────────────
@@ -90,6 +91,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
   const pathname = usePathname();
   const router = useRouter();
   const isVip = user.plano === 'ilimitado';
+  const isFree = user.plano === 'free';
   const isAdmin = !!user.is_admin;
   const [open, setOpen] = useState(false);
 
@@ -108,7 +110,9 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
   function renderItem(item: NavItem) {
     const active = pathname === item.href;
     const lockedByCompany = !isAdmin && !hasCompany && !!item.requireCompany;
-    const lockedByPlan = !!item.vipOnly && !isVip && !isAdmin;
+    const lockedByVip = !!item.vipOnly && !isVip && !isAdmin;
+    const lockedByFree = !!item.paidOnly && isFree && !isAdmin;
+    const lockedByPlan = lockedByVip || lockedByFree;
 
     // Bloqueado por falta de empresa → cinza, sem badge
     if (lockedByCompany) {
@@ -122,10 +126,12 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
 
     // Bloqueado por plano → clique abre o modal contextual (sem badge no menu)
     if (lockedByPlan) {
+      const title = lockedByVip ? 'Disponível no plano VIP' : 'Faça upgrade para liberar';
       return (
-        <button key={item.href} className={styles.navItemLocked} onClick={onUpgradeClick} title="Disponível no plano VIP">
+        <button key={item.href} className={styles.navItemLocked} onClick={onUpgradeClick} title={title}>
           <item.icon className={styles.navIcon} size={16} strokeWidth={1.75} />
           <span className={styles.navLabel}>{item.label}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 11 }}>🔒</span>
         </button>
       );
     }
@@ -233,9 +239,22 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
         />
 
         {!isVip && !isAdmin && (
-          <button className={styles.upgradeBtn} onClick={onUpgradeClick}>
+          <button
+            className={styles.upgradeBtn}
+            onClick={onUpgradeClick}
+            style={isFree ? {
+              background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+              color: '#0f172a',
+              fontWeight: 900,
+              boxShadow: '0 4px 18px rgba(245,158,11,0.45)',
+              animation: 'sd-upgrade-pulse 2.6s ease-in-out infinite',
+            } : undefined}
+          >
             ⚡ Fazer Upgrade
           </button>
+        )}
+        {isFree && !isAdmin && (
+          <style>{`@keyframes sd-upgrade-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}`}</style>
         )}
 
         <button className={styles.logoutBtn} onClick={handleLogout}>Sair</button>

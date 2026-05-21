@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/services/api';
 import styles from './empresa.module.css';
 
@@ -80,6 +81,7 @@ function InfoRow({ label, value }: { label: string; value?: string }) {
 }
 
 export default function EmpresaPage() {
+  const router = useRouter();
   const [company, setCompany] = useState<Company | null>(null);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -248,6 +250,11 @@ export default function EmpresaPage() {
 
       // Notifica o layout para desbloquear a sidebar
       window.dispatchEvent(new CustomEvent('company-saved'));
+
+      // Fluxo VSL: free cadastrou empresa pela 1ª vez → direto pro gerador.
+      if (isNew && welcomePlan === 'free') {
+        setTimeout(() => router.push('/documentos?tipo=proposta'), 800);
+      }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       setMessage({ type: 'error', text: error.response?.data?.error || 'Erro ao salvar' });
@@ -354,7 +361,33 @@ export default function EmpresaPage() {
         )}
       </div>
 
-      {isWelcome && (
+      {isWelcome && welcomePlan === 'free' && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(245,158,11,0.10))',
+          border: '1px solid rgba(34,197,94,0.4)',
+          borderRadius: 12,
+          padding: '18px 22px',
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+        }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: '#22c55e', color: '#0f172a',
+            display: 'grid', placeItems: 'center',
+            fontSize: 22, fontWeight: 900, flexShrink: 0,
+          }}>✓</div>
+          <div style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+            <strong style={{ color: 'var(--color-text)', fontSize: 15.5, display: 'block', marginBottom: 2 }}>
+              Conta criada! Você tem 10 propostas grátis pra usar.
+            </strong>
+            Cadastre sua empresa abaixo (2 min) e já libera o Gerador de Proposta — sai com sua logo e contato.
+          </div>
+        </div>
+      )}
+
+      {isWelcome && welcomePlan !== 'free' && (
         <div style={{
           background: 'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(245,158,11,0.10))',
           border: '1px solid rgba(34,197,94,0.4)',
@@ -390,28 +423,12 @@ export default function EmpresaPage() {
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
-          justifyContent: 'space-between',
           gap: 12,
         }}>
           <div style={{ fontSize: 13.5, color: 'var(--color-text-muted)', flex: '1 1 320px', lineHeight: 1.5 }}>
-            <strong style={{ color: 'var(--color-text)' }}>Cadastre o CNPJ pra gerar documentos.</strong><br />
-            Você pode fazer isso agora ou deixar pra quando for criar seu primeiro contrato — fica do seu jeito.
+            <strong style={{ color: 'var(--color-text)' }}>Cadastre o CNPJ pra gerar propostas.</strong><br />
+            Sua logo e contato vão aparecer em toda proposta que você criar.
           </div>
-          <a
-            href="/dashboard"
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: 'var(--color-primary)',
-              textDecoration: 'none',
-              padding: '8px 14px',
-              border: '1px solid var(--color-primary)',
-              borderRadius: 8,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Pular por enquanto →
-          </a>
         </div>
       )}
 

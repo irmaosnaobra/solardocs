@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import ClientSelector from '@/components/ClientSelector/ClientSelector';
 import api from '@/services/api';
-import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null }
@@ -35,19 +33,20 @@ async function compressImage(file: File, maxW = 1200, quality = 0.82): Promise<s
 }
 
 const PALETAS = [
-  { id: 'solar',    nome: 'Solar',    c1: '#F59E0B', c2: '#FBBF24' },
-  { id: 'oceano',   nome: 'Oceano',   c1: '#0EA5E9', c2: '#38BDF8' },
-  { id: 'floresta', nome: 'Floresta', c1: '#10B981', c2: '#34D399' },
-  { id: 'royal',    nome: 'Royal',    c1: '#8B5CF6', c2: '#A78BFA' },
-  { id: 'carbono',  nome: 'Carbono',  c1: '#1F2937', c2: '#F59E0B' },
+  { id: 'solar',          nome: 'Solar',          c1: '#F59E0B', c2: '#FBBF24' },
+  { id: 'oceano',         nome: 'Oceano',         c1: '#0EA5E9', c2: '#38BDF8' },
+  { id: 'floresta',       nome: 'Floresta',       c1: '#10B981', c2: '#34D399' },
+  { id: 'royal',          nome: 'Royal',          c1: '#8B5CF6', c2: '#A78BFA' },
+  { id: 'carbono',        nome: 'Carbono',        c1: '#1F2937', c2: '#F59E0B' },
+  { id: 'azul_escuro',    nome: 'Azul Escuro',    c1: '#1E3A8A', c2: '#1D4ED8' },
+  { id: 'verde_escuro',   nome: 'Verde Escuro',   c1: '#065F46', c2: '#047857' },
+  { id: 'amarelo_escuro', nome: 'Amarelo Escuro', c1: '#B45309', c2: '#D97706' },
 ] as const;
 
 const TIPOS_TELHADO = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport'] as const;
 
 const initialFields = {
   paleta: 'solar' as typeof PALETAS[number]['id'],
-  vendedor_nome: '',
-  vendedor_whatsapp: '',
   cidade: '',
   uf: '',
   consumo_kwh: '',
@@ -94,11 +93,19 @@ function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: numbe
   return saldo * i / (1 - Math.pow(1 + i, -n));
 }
 
+// "Uberlândia/MG" / "Uberlândia, MG" / "Uberlandia - MG" → { cidade, uf }.
+// Aceita também só cidade (sem UF) — backend cai pro default SP.
+function parseCidadeUf(input: string): { cidade: string; uf: string } {
+  const raw = input.trim();
+  if (!raw) return { cidade: '', uf: '' };
+  const m = raw.match(/^(.+?)[\s,/\-]+([A-Za-z]{2})$/);
+  if (m) return { cidade: m[1].trim(), uf: m[2].toUpperCase() };
+  return { cidade: raw, uf: '' };
+}
+
 export default function PropostaSolarPage() {
-  const { user } = useDashboard();
-  const [modoCliente, setModoCliente] = useState<'avulso' | 'cadastrado'>('avulso');
-  const [clienteId, setClienteId] = useState('');
   const [clienteNome, setClienteNome] = useState('');
+  const [cidadeUf, setCidadeUf] = useState('');
   const [fields, setFields] = useState(initialFields);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
@@ -147,25 +154,22 @@ export default function PropostaSolarPage() {
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
-    if (modoCliente === 'cadastrado' && !clienteId) { setError('Selecione um cliente cadastrado'); return; }
-    if (modoCliente === 'avulso' && !clienteNome.trim()) { setError('Informe o nome do cliente'); return; }
+    if (!clienteNome.trim()) { setError('Informe o nome do cliente'); return; }
+    if (!cidadeUf.trim()) { setError('Informe a cidade do cliente'); return; }
     if (!kwpCalc) { setError('Quantidade de módulos × potência por módulo precisam estar preenchidos'); return; }
     if (!fields.investimento) { setError('Valor do investimento é obrigatório'); return; }
 
     setError('');
     setGenerating(true);
     try {
+      const { cidade, uf } = parseCidadeUf(cidadeUf);
       const payload: Record<string, unknown> = {
         tipo: 'propostaSolar',
-        fields,
+        fields: { ...fields, cidade, uf },
         useTemplate: true,
         modeloNumero: 1,
+        cliente_nome_avulso: clienteNome.trim(),
       };
-      if (modoCliente === 'cadastrado') {
-        payload.cliente_id = clienteId;
-      } else {
-        payload.cliente_nome_avulso = clienteNome.trim();
-      }
       const { data } = await api.post('/documents/generate', payload);
       setGenerated(data);
     } catch (err: unknown) {
@@ -313,38 +317,14 @@ export default function PropostaSolarPage() {
           {PaletaPicker}
         </div>
 
-        {/* CLIENTE + VENDEDOR */}
+        {/* CLIENTE */}
         <div className={styles.section}>
-          <h2 className={styles.sectionTitle}>Cliente e vendedor</h2>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <button type="button" onClick={() => setModoCliente('avulso')} style={{
-              flex: 1, padding: '10px 14px', borderRadius: 8,
-              border: modoCliente === 'avulso' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-              background: modoCliente === 'avulso' ? 'rgba(245,158,11,0.08)' : 'var(--color-surface)',
-              color: 'var(--color-text)', cursor: 'pointer', fontSize: 13,
-              fontWeight: modoCliente === 'avulso' ? 700 : 500, textAlign: 'left',
-            }}>
-              ⚡ Rápido (só nome)
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 400, marginTop: 2 }}>
-                Em cima do telhado, gerar agora
-              </div>
-            </button>
-            <button type="button" onClick={() => setModoCliente('cadastrado')} style={{
-              flex: 1, padding: '10px 14px', borderRadius: 8,
-              border: modoCliente === 'cadastrado' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-              background: modoCliente === 'cadastrado' ? 'rgba(245,158,11,0.08)' : 'var(--color-surface)',
-              color: 'var(--color-text)', cursor: 'pointer', fontSize: 13,
-              fontWeight: modoCliente === 'cadastrado' ? 700 : 500, textAlign: 'left',
-            }}>
-              📇 Cliente cadastrado
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 400, marginTop: 2 }}>
-                Auto-preenche cidade, telhado, etc
-              </div>
-            </button>
-          </div>
-
-          {modoCliente === 'avulso' ? (
-            <div className={styles.field}>
+          <h2 className={styles.sectionTitle}>Cliente</h2>
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: -4, marginBottom: 10 }}>
+            Seu nome e WhatsApp já vêm do cadastro da empresa.
+          </p>
+          <div className={styles.grid2}>
+            <div className={styles.fieldFull}>
               <label className={styles.label}>Nome do cliente *</label>
               <input
                 type="text"
@@ -355,37 +335,16 @@ export default function PropostaSolarPage() {
                 required
               />
             </div>
-          ) : (
-            <ClientSelector value={clienteId} onChange={(id, c) => {
-              setClienteId(id);
-              setClienteNome(c?.nome || '');
-              if (c) {
-                if (c.cidade && !fields.cidade) setField('cidade', c.cidade);
-                if (c.uf && !fields.uf) setField('uf', c.uf);
-                const t = c.tipo_telhado;
-                if (t && !fields.tipo_telhado) {
-                  const match = TIPOS_TELHADO.find(x => x.toLowerCase() === t.toLowerCase());
-                  if (match) setField('tipo_telhado', match);
-                }
-              }
-            }} />
-          )}
-          <div className={styles.grid2} style={{ marginTop: 12 }}>
             <div className={styles.field}>
-              <label className={styles.label}>Vendedor responsável *</label>
-              <input type="text" value={fields.vendedor_nome} onChange={e => setField('vendedor_nome', e.target.value)} placeholder="Nome completo" className="input-field" required />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>WhatsApp do vendedor *</label>
-              <input type="tel" value={fields.vendedor_whatsapp} onChange={e => setField('vendedor_whatsapp', e.target.value)} placeholder="Ex: 34999999999 (com DDD)" className="input-field" required />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Cidade *</label>
-              <input type="text" value={fields.cidade} onChange={e => setField('cidade', e.target.value)} placeholder="Ex: Uberlândia" className="input-field" required />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Estado (UF) *</label>
-              <input type="text" maxLength={2} value={fields.uf} onChange={e => setField('uf', e.target.value.toUpperCase())} placeholder="MG" className="input-field" required />
+              <label className={styles.label}>Cidade/UF *</label>
+              <input
+                type="text"
+                value={cidadeUf}
+                onChange={e => setCidadeUf(e.target.value)}
+                placeholder="Ex: Uberlândia/MG"
+                className="input-field"
+                required
+              />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Consumo médio (kWh/mês) *</label>
@@ -721,7 +680,7 @@ export default function PropostaSolarPage() {
         </details>
 
         {error && <p className="error-message">{error}</p>}
-        <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || (modoCliente === 'cadastrado' ? !clienteId : !clienteNome.trim())}>
+        <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteNome.trim()}>
           {generating ? '⏳ Gerando...' : '✨ Gerar Proposta'}
         </button>
       </form>

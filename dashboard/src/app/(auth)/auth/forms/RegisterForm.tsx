@@ -28,10 +28,9 @@ function RegisterContent() {
   const router = useRouter();
   const params = useSearchParams();
   const sessionId = params.get('session');
-  const urlPlano = params.get('plano'); // 'pro' | 'vip' — vindo do landing/VSL
-  // Default VIP: quem cadastra sem plano explícito vai pro checkout VIP.
-  // Só respeita 'pro' se vier explícito do landing.
-  const targetPlan: 'pro' | 'vip' = urlPlano === 'pro' ? 'pro' : 'vip';
+  const urlPlano = params.get('plano'); // 'pro' | 'vip' — vindo do landing/VSL pra checkout direto
+  // Default agora é FREE (10 docs grátis, só gerador). Stripe só se vier plano explícito.
+  const targetPlan: 'pro' | 'vip' | null = urlPlano === 'pro' ? 'pro' : urlPlano === 'vip' ? 'vip' : null;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -105,18 +104,24 @@ function RegisterContent() {
         return;
       }
 
-      // Todo cadastro novo → checkout com trial 7d (VIP por default, Pro só se vier explícito).
-      try {
-        const { data: ck } = await api.post('/payments/create-checkout', { plan: targetPlan });
-        if (ck?.url) {
-          window.location.href = ck.url;
-          return;
+      // Cadastro com plano explícito (vindo de landing/VIP/PRO direto) → Stripe checkout 7d trial.
+      if (targetPlan) {
+        try {
+          const { data: ck } = await api.post('/payments/create-checkout', { plan: targetPlan });
+          if (ck?.url) {
+            window.location.href = ck.url;
+            return;
+          }
+          console.error('[Register→Checkout] resposta sem URL:', ck);
+        } catch (ckErr) {
+          console.error('[Register→Checkout] falha:', ckErr);
         }
-        console.error('[Register→Checkout] resposta sem URL:', ck);
-      } catch (ckErr) {
-        console.error('[Register→Checkout] falha:', ckErr);
+        router.push('/empresa?checkout_falhou=1');
+        return;
       }
-      router.push('/empresa?checkout_falhou=1');
+
+      // Fluxo padrão VSL → cadastro free, vai direto pra empresa (obrigatório antes do gerador).
+      router.push('/empresa?welcome=1&plan=free');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setError(e.response?.data?.error || 'Erro ao criar conta. Tenta de novo.');
@@ -139,13 +144,19 @@ function RegisterContent() {
       )}
 
       <h1 className={styles.title}>
-        {planFromStripe ? 'Complete seu cadastro' : `Criar conta · Plano ${targetPlan.toUpperCase()}`}
+        {planFromStripe
+          ? 'Complete seu cadastro'
+          : targetPlan
+            ? `Criar conta · Plano ${targetPlan.toUpperCase()}`
+            : 'Criar conta grátis'}
       </h1>
       <p className={styles.subtitle}>
         {planFromStripe ? (
           <>Use o mesmo e-mail do pagamento pra ativar seu plano <strong style={{ color: '#0f172a' }}>{PLAN_LABEL[planFromStripe] ?? planFromStripe}</strong>.</>
-        ) : (
+        ) : targetPlan ? (
           <>Próximo passo: passar o cartão pra liberar o plano <strong style={{ color: '#0f172a' }}>{targetPlan.toUpperCase()}</strong>. <strong style={{ color: '#0f172a' }}>7 dias grátis</strong> · nada é cobrado agora.</>
+        ) : (
+          <><strong style={{ color: '#0f172a' }}>10 propostas grátis</strong> pra começar — sem cartão, sem cobrança. Cadastre sua empresa e já gera a primeira.</>
         )}
       </p>
 
@@ -269,7 +280,9 @@ function RegisterContent() {
             ? <><span className={styles.spinner} /> Criando sua conta...</>
             : (planFromStripe
                 ? `Ativar plano ${PLAN_LABEL[planFromStripe] ?? planFromStripe}`
-                : `Liberar plano ${targetPlan.toUpperCase()} →`)}
+                : targetPlan
+                  ? `Liberar plano ${targetPlan.toUpperCase()} →`
+                  : 'Criar conta grátis →')}
         </button>
       </form>
 
