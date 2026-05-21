@@ -104,11 +104,11 @@ export default function MentoriaPage({ params }: { params: Promise<{ slug: strin
           rel="noopener noreferrer"
           className="mentoria-cta"
         >
-          💬 {produto.cta} → WhatsApp Thiago
+          💬 {produto.cta} → Atendimento SolarDoc
         </a>
 
         <div className="mentoria-microcopy">
-          <span>📱 (34) 99136-0223</span>
+          <span>📱 (34) 99943-7831</span>
           {produto.garantiaDias > 0 && <span>· Garantia {produto.garantiaDias} dias</span>}
           <span>· 100% individual ao vivo</span>
         </div>

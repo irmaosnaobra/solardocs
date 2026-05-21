@@ -1,7 +1,7 @@
 // Conteúdo das mentorias usando AIDA + SPIN.
-// Cada produto tem 1 CTA principal verde com link WhatsApp pra Thiago (34 99136-0223).
+// Cada produto tem 1 CTA principal verde com link WhatsApp pra Thiago (34 99943-7831).
 
-export const WHATSAPP_THIAGO = '5534991360223';
+export const WHATSAPP_THIAGO = '5534999437831';
 
 export type CorTema = 'gold' | 'green' | 'purple' | 'coral';
 
@@ -73,7 +73,7 @@ export const MENTORIAS: Record<string, Produto> = {
       'Suporte 7 dias após a sessão',
     ],
     cta: 'Quero a Planilha Mestre',
-    whatsappMsg: 'Olá Thiago! Quero a *Planilha Mestre* (R$ 997) e agendar a apresentação de 40 min.',
+    whatsappMsg: 'Olá! Quero a *Planilha Mestre* (R$ 997) e agendar a apresentação de 40 min.',
     garantiaDias: 7,
     vagasMes: 4,
     crossSellCombo: true,
@@ -109,7 +109,7 @@ export const MENTORIAS: Record<string, Produto> = {
       'Independência da engenharia terceirizada',
     ],
     cta: 'Dominar Homologação',
-    whatsappMsg: 'Olá Thiago! Quero dominar a *Homologação* com o Trello (R$ 997).',
+    whatsappMsg: 'Olá! Quero dominar a *Homologação* com o Trello (R$ 997).',
     garantiaDias: 7,
     vagasMes: 4,
     crossSellCombo: true,
@@ -144,7 +144,7 @@ export const MENTORIAS: Record<string, Produto> = {
       'Sem mensalidade — pago uma vez',
     ],
     cta: 'Quero o Gerador',
-    whatsappMsg: 'Olá Thiago! Tenho interesse no *Gerador de Proposta* personalizado. Pode me passar os detalhes e o investimento?',
+    whatsappMsg: 'Olá! Tenho interesse no *Gerador de Proposta* personalizado. Pode me passar os detalhes e o investimento?',
     garantiaDias: 7,
     vagasMes: 4,
   },
@@ -178,7 +178,7 @@ export const MENTORIAS: Record<string, Produto> = {
       'KPIs pra ler painel sem se enganar',
     ],
     cta: 'Quero parar de queimar grana',
-    whatsappMsg: 'Olá Thiago! Quero a mentoria de *Tráfego Pago* pra solar. Pode me passar os detalhes e o investimento?',
+    whatsappMsg: 'Olá! Quero a mentoria de *Tráfego Pago* pra solar. Pode me passar os detalhes e o investimento?',
     garantiaDias: 7,
     vagasMes: 4,
   },
@@ -213,7 +213,7 @@ export const MENTORIAS: Record<string, Produto> = {
       'Mentoria de fechamento incluída',
     ],
     cta: 'Quero ser Parceiro',
-    whatsappMsg: 'Olá Thiago! Tenho interesse em ser *Parceiro Integrador*. Minha cidade é:',
+    whatsappMsg: 'Olá! Tenho interesse em ser *Parceiro Integrador*. Minha cidade é:',
     garantiaDias: 0,
     vagasMes: 1,
   },
@@ -256,7 +256,7 @@ export const MENTORIAS: Record<string, Produto> = {
     totalReal: 2491,
     economia: 994,
     cta: 'QUERO O COMBO COMPLETO',
-    whatsappMsg: 'Olá Thiago! Quero o *COMBO Planilha Mestre + Trello Homologação* por R$ 1.497 (economia de R$ 994). Pode me passar os detalhes e agendar as duas sessões?',
+    whatsappMsg: 'Olá! Quero o *COMBO Planilha Mestre + Trello Homologação* por R$ 1.497 (economia de R$ 994). Pode me passar os detalhes e agendar as duas sessões?',
     garantiaDias: 7,
     vagasMes: 4,
   },

@@ -59,14 +59,14 @@ export default function MentoriaIndexPage() {
       </section>
 
       <section className="mentoria-contato">
-        <p>Falar com Thiago direto:</p>
+        <p>Falar com o atendimento SolarDoc:</p>
         <a
-          href={`https://wa.me/${WHATSAPP_THIAGO}?text=${encodeURIComponent('Olá Thiago! Tenho interesse nas mentorias da SolarDoc e queria conversar.')}`}
+          href={`https://wa.me/${WHATSAPP_THIAGO}?text=${encodeURIComponent('Olá! Tenho interesse nas mentorias da SolarDoc e queria conversar.')}`}
           target="_blank"
           rel="noopener noreferrer"
           className="mentoria-contato-btn"
         >
-          📱 (34) 99136-0223 — WhatsApp Thiago
+          📱 (34) 99943-7831 — Atendimento SolarDoc
         </a>
       </section>
     </div>
