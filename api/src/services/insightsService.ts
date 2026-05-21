@@ -93,20 +93,52 @@ async function fetchPlanilha(): Promise<PlanilhaKpis> {
   const iLucroPct = idx('% DE LUCRO');
   const iLiberacao = idx('LIBERAÇÃO VISTORIA');
   const iConcessionaria = idx('CONCESSIONARIA');
-  const iDataFim = idx('DATA FINAL INSTALAÇÃO');
+  const iCadastroTrello = idx('CADASTRO TRELLO');
 
-  const data = rows.slice(1).filter((r) => r[iCodigo]?.trim() && r[iValor]?.trim());
+  const reDataBR = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+  const parseDataBR = (s: string): Date | null => {
+    const m = s.trim().match(reDataBR);
+    if (!m) return null;
+    return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+  };
+  const fmtDataBR = (d: Date): string => {
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  };
+
+  // Só vira venda quem tem CADASTRO TRELLO preenchido.
+  // "nc" herda a data da próxima linha com data, menos 3 dias.
+  const candidates = rows.slice(1).filter((r) => r[iCodigo]?.trim() && r[iValor]?.trim());
+  const effDates: (Date | null)[] = candidates.map(() => null);
+  for (let i = candidates.length - 1; i >= 0; i--) {
+    const v = (candidates[i][iCadastroTrello] || '').trim();
+    const direct = parseDataBR(v);
+    if (direct) {
+      effDates[i] = direct;
+    } else if (v.toLowerCase() === 'nc') {
+      for (let j = i + 1; j < candidates.length; j++) {
+        if (effDates[j]) {
+          const d = new Date(effDates[j]!);
+          d.setDate(d.getDate() - 3);
+          effDates[i] = d;
+          break;
+        }
+      }
+    }
+  }
+  const data: string[][] = [];
+  const dataDates: Date[] = [];
+  for (let i = 0; i < candidates.length; i++) {
+    if (effDates[i]) {
+      data.push(candidates[i]);
+      dataDates.push(effDates[i]!);
+    }
+  }
 
   const now = new Date();
   const mesAtual = now.getMonth();
   const anoAtual = now.getFullYear();
-
-  const isMesAtual = (s: string): boolean => {
-    if (!s) return false;
-    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!m) return false;
-    return parseInt(m[2], 10) - 1 === mesAtual && parseInt(m[3], 10) === anoAtual;
-  };
 
   let faturamentoTotal = 0;
   let faturamentoMes = 0;
@@ -131,11 +163,13 @@ async function fetchPlanilha(): Promise<PlanilhaKpis> {
   const faturamentoMensalMap = new Map<string, { faturamento: number; vendas: number }>();
   ultimos6.forEach(m => faturamentoMensalMap.set(m.key, { faturamento: 0, vendas: 0 }));
 
-  for (const row of data) {
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const effDate = dataDates[i];
     const valorNum = parseBR(row[iValor]);
     faturamentoTotal += valorNum;
 
-    if (isMesAtual(row[iDataFim] || '')) {
+    if (effDate.getMonth() === mesAtual && effDate.getFullYear() === anoAtual) {
       faturamentoMes += valorNum;
       vendasMes++;
     }
@@ -166,24 +200,19 @@ async function fetchPlanilha(): Promise<PlanilhaKpis> {
       if (/^\d{2}\/\d{2}\/\d{4}$/.test(lib)) liberadosCemig++;
     }
 
-    // Faturamento mensal — agrupar pela DATA FINAL INSTALAÇÃO
-    const dataInst = (row[iDataFim] || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (dataInst) {
-      const mDate = parseInt(dataInst[2], 10) - 1;
-      const yDate = parseInt(dataInst[3], 10);
-      const key = `${yDate}-${mDate}`;
-      const entry = faturamentoMensalMap.get(key);
-      if (entry) {
-        entry.faturamento += valorNum;
-        entry.vendas++;
-      }
+    // Faturamento mensal — agrupar pela data do CADASTRO TRELLO
+    const key = `${effDate.getFullYear()}-${effDate.getMonth()}`;
+    const entry = faturamentoMensalMap.get(key);
+    if (entry) {
+      entry.faturamento += valorNum;
+      entry.vendas++;
     }
 
     ultimas.push({
       codigo: row[iCodigo],
       nome: (row[iNome] || '').slice(0, 30),
       valor: row[iValor] || '',
-      data: row[iDataFim] || '',
+      data: fmtDataBR(effDate),
     });
   }
 
