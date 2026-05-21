@@ -55,6 +55,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 .btn-top-agenda{background:#1E3A8A;color:#fff}
 .btn-top-hist{background:#EFF6FF;color:#1E3A8A;border:1px solid #1E3A8A}
 .btn-top-sair{background:#fff;color:#1E3A8A;border:2px solid #1E3A8A}
+.btn-top-tema{background:#fff;color:#1E3A8A;border:2px solid #1E3A8A;padding:6px 12px;font-size:15px;line-height:1}
 .btn-top:hover{opacity:.9}
 
 /* ===== Blocos opcionais padronizados (bateria, controlador, garantias) ===== */
@@ -130,6 +131,22 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   var authed = false;
   try { authed = !!localStorage.getItem(AUTH_KEY); } catch(e) {}
   document.documentElement.dataset.mode = authed ? 'app' : 'login';
+
+  // Tema: só aplica no UI interno (form/login/histórico). Proposta sempre light.
+  var THEME_KEY = 'gerador-tema-v1';
+  var savedTheme = 'light';
+  try { savedTheme = localStorage.getItem(THEME_KEY) || 'light'; } catch(e) {}
+  document.documentElement.dataset.theme = savedTheme;
+  window.toggleTheme = function(){
+    var cur = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    var next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
+    document.querySelectorAll('.btn-top-tema').forEach(function(b){ b.textContent = next === 'dark' ? '☀️' : '🌙'; });
+  };
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.btn-top-tema').forEach(function(b){ b.textContent = savedTheme === 'dark' ? '☀️' : '🌙'; });
+  });
 })();
 </script>
 </head>
@@ -173,6 +190,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="top-actions">
       <button type="button" class="btn-top btn-top-agenda" onclick="location.href='/gerador/agenda'">📅 Agenda</button>
       <button type="button" class="btn-top btn-top-hist" onclick="abrirHistorico()">📋 Histórico</button>
+      <button type="button" class="btn-top btn-top-tema" onclick="toggleTheme()" title="Alternar tema claro/escuro" aria-label="Alternar tema">🌙</button>
       <button type="button" class="btn-top btn-top-sair" onclick="sairGerador()">Sair</button>
     </div>
 
