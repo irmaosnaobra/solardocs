@@ -13,6 +13,39 @@ const PLAN_LABEL: Record<string, string> = {
   ilimitado: 'VIP',
 };
 
+// Máscara (XX) XXXXX-XXXX. WhatsApp BR sempre 11 dígitos (DDD + 9 dígitos).
+function maskWhatsapp(v: string): string {
+  const d = v.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 2) return d;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+// Máscara XX.XXX.XXX/XXXX-XX. CNPJ sempre 14 dígitos.
+function maskCnpj(v: string): string {
+  const d = v.replace(/\D/g, '').slice(0, 14);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
+
+// Valida dígitos verificadores do CNPJ.
+function isValidCnpj(cnpjMasked: string): boolean {
+  const cnpj = cnpjMasked.replace(/\D/g, '');
+  if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+  const calc = (slice: string, weights: number[]) => {
+    const sum = slice.split('').reduce((acc, n, i) => acc + Number(n) * weights[i], 0);
+    const r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  return calc(cnpj.slice(0, 12), w1) === Number(cnpj[12])
+      && calc(cnpj.slice(0, 13), w2) === Number(cnpj[13]);
+}
+
 function getStrength(pw: string): { score: 0 | 1 | 2 | 3; label: string; cls: string } {
   if (!pw) return { score: 0, label: '', cls: '' };
   let score = 0;
@@ -29,10 +62,14 @@ function RegisterContent() {
   const params = useSearchParams();
   const sessionId = params.get('session');
   const urlPlano = params.get('plano'); // 'pro' | 'vip' — vindo do landing/VSL pra checkout direto
-  // Default agora é FREE (10 docs grátis, só gerador). Stripe só se vier plano explícito.
+  // Default agora é FREE. Stripe só se vier plano explícito.
   const targetPlan: 'pro' | 'vip' | null = urlPlano === 'pro' ? 'pro' : urlPlano === 'vip' ? 'vip' : null;
 
+  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [cnpj, setCnpj] = useState('');
+  const [empresa, setEmpresa] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -60,8 +97,17 @@ function RegisterContent() {
     e.preventDefault();
     setError('');
 
-    if (!email.trim() || !password) {
-      setError('Preencha e-mail e senha.');
+    if (!nome.trim() || !email.trim() || !password) {
+      setError('Preencha nome, e-mail e senha.');
+      return;
+    }
+    const waDigits = whatsapp.replace(/\D/g, '');
+    if (waDigits.length < 10 || waDigits.length > 11) {
+      setError('Informe o WhatsApp com DDD (10 ou 11 dígitos).');
+      return;
+    }
+    if (!isValidCnpj(cnpj)) {
+      setError('CNPJ inválido. Confere os dígitos.');
       return;
     }
     if (password.length < 8) {
@@ -87,6 +133,10 @@ function RegisterContent() {
       const { data } = await api.post('/auth/register', {
         email,
         password,
+        nome: nome.trim(),
+        whatsapp: waDigits,
+        cnpj: cnpj.replace(/\D/g, ''),
+        empresa: empresa.trim() || undefined,
       }, {
         headers: { 'X-Meta-Event-Id': eventId },
       });
@@ -104,7 +154,7 @@ function RegisterContent() {
         return;
       }
 
-      // Cadastro com plano explícito (vindo de landing/VIP/PRO direto) → Stripe checkout 7d trial.
+      // Cadastro com plano explícito → Stripe checkout 7d trial.
       if (targetPlan) {
         try {
           const { data: ck } = await api.post('/payments/create-checkout', { plan: targetPlan });
@@ -120,8 +170,9 @@ function RegisterContent() {
         return;
       }
 
-      // Fluxo padrão VSL → cadastro free, vai direto pra empresa (obrigatório antes do gerador).
-      router.push('/empresa?welcome=1&plan=free');
+      // Cadastro free com CNPJ já preenchido — backend criou a company,
+      // pode ir direto pro gerador.
+      router.push('/documentos?tipo=proposta&welcome=1');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setError(e.response?.data?.error || 'Erro ao criar conta. Tenta de novo.');
@@ -156,11 +207,25 @@ function RegisterContent() {
         ) : targetPlan ? (
           <>Próximo passo: passar o cartão pra liberar o plano <strong style={{ color: '#0f172a' }}>{targetPlan.toUpperCase()}</strong>. <strong style={{ color: '#0f172a' }}>7 dias grátis</strong> · nada é cobrado agora.</>
         ) : (
-          <><strong style={{ color: '#0f172a' }}>10 propostas grátis</strong> pra começar — sem cartão, sem cobrança. Cadastre sua empresa e já gera a primeira.</>
+          <><strong style={{ color: '#0f172a' }}>10 propostas grátis</strong> pra começar — sem cartão, sem cobrança.</>
         )}
       </p>
 
       <form onSubmit={handleSubmit} className={styles.form} noValidate>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="reg-nome">Nome completo</label>
+          <input
+            id="reg-nome"
+            type="text"
+            autoComplete="name"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder="Seu nome"
+            className={styles.input}
+            required
+          />
+        </div>
+
         <div className={styles.field}>
           <label className={styles.label} htmlFor="reg-email">E-mail</label>
           <div className={styles.inputGroup}>
@@ -180,6 +245,50 @@ function RegisterContent() {
               required
             />
           </div>
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="reg-whatsapp">WhatsApp</label>
+          <input
+            id="reg-whatsapp"
+            type="tel"
+            autoComplete="tel"
+            inputMode="tel"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(maskWhatsapp(e.target.value))}
+            placeholder="(00) 00000-0000"
+            className={styles.input}
+            maxLength={15}
+            required
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="reg-empresa">Nome da empresa</label>
+          <input
+            id="reg-empresa"
+            type="text"
+            autoComplete="organization"
+            value={empresa}
+            onChange={(e) => setEmpresa(e.target.value)}
+            placeholder="Sua Empresa Solar Ltda (opcional)"
+            className={styles.input}
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="reg-cnpj">CNPJ</label>
+          <input
+            id="reg-cnpj"
+            type="text"
+            inputMode="numeric"
+            value={cnpj}
+            onChange={(e) => setCnpj(maskCnpj(e.target.value))}
+            placeholder="00.000.000/0000-00"
+            className={styles.input}
+            maxLength={18}
+            required
+          />
         </div>
 
         <div className={styles.field}>
