@@ -21,10 +21,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
-        {/* Tema antes do paint — evita flash. Inline pra rodar 100% síncrono. */}
+        {/* Dark mode fixo. Preferência antiga em localStorage é ignorada. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var m=localStorage.getItem('sd-theme')||'light';var r=m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m;document.documentElement.dataset.theme=r;}catch(e){}`,
+            __html: `try{document.documentElement.dataset.theme='dark';localStorage.removeItem('sd-theme');}catch(e){}`,
           }}
         />
         {/* Preconnect para Google Fonts — não bloqueia render em Android antigo */}

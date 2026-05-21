@@ -1472,14 +1472,13 @@ Gerado por SolarDoc Pro — solardoc.app
 
 interface Palette { c1: string; c2: string; c3: string; nome: string; }
 const PALETTES: Record<string, Palette> = {
-  solar:          { c1: '#F59E0B', c2: '#FBBF24', c3: '#FFFBEB', nome: 'Solar' },
-  oceano:         { c1: '#0EA5E9', c2: '#38BDF8', c3: '#F0F9FF', nome: 'Oceano' },
-  floresta:       { c1: '#10B981', c2: '#34D399', c3: '#ECFDF5', nome: 'Floresta' },
-  royal:          { c1: '#8B5CF6', c2: '#A78BFA', c3: '#F5F3FF', nome: 'Royal' },
-  carbono:        { c1: '#1F2937', c2: '#F59E0B', c3: '#FAFAF9', nome: 'Carbono' },
-  azul_escuro:    { c1: '#1E3A8A', c2: '#1D4ED8', c3: '#EFF6FF', nome: 'Azul Escuro' },
-  verde_escuro:   { c1: '#065F46', c2: '#047857', c3: '#ECFDF5', nome: 'Verde Escuro' },
-  amarelo_escuro: { c1: '#B45309', c2: '#D97706', c3: '#FFFBEB', nome: 'Amarelo Escuro' },
+  // 2026-05-21: solar/oceano/floresta agora usam tons fortes/escuros pra
+  // dar mais autoridade visual no PDF. Royal e carbono mantidos.
+  solar:    { c1: '#B45309', c2: '#D97706', c3: '#FFFBEB', nome: 'Solar' },
+  oceano:   { c1: '#1E3A8A', c2: '#1D4ED8', c3: '#EFF6FF', nome: 'Oceano' },
+  floresta: { c1: '#065F46', c2: '#047857', c3: '#ECFDF5', nome: 'Floresta' },
+  royal:    { c1: '#8B5CF6', c2: '#A78BFA', c3: '#F5F3FF', nome: 'Royal' },
+  carbono:  { c1: '#1F2937', c2: '#F59E0B', c3: '#FAFAF9', nome: 'Carbono' },
 };
 
 function pBRL(n: number): string {

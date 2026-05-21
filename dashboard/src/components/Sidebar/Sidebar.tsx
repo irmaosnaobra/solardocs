@@ -15,7 +15,6 @@ import {
 import { removeToken } from '@/services/auth';
 import PlanBadge from '../PlanBadge/PlanBadge';
 import Logo from '../Logo/Logo';
-import ThemeToggle from '../ThemeToggle/ThemeToggle';
 import styles from './Sidebar.module.css';
 
 interface User {
@@ -276,7 +275,6 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
             <Logo className={styles.mobileLogoImg} />
           </button>
         )}
-        <ThemeToggle />
       </div>
 
       {open && <div className={styles.overlay} onClick={() => setOpen(false)} />}

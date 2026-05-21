@@ -33,14 +33,11 @@ async function compressImage(file: File, maxW = 1200, quality = 0.82): Promise<s
 }
 
 const PALETAS = [
-  { id: 'solar',          nome: 'Solar',          c1: '#F59E0B', c2: '#FBBF24' },
-  { id: 'oceano',         nome: 'Oceano',         c1: '#0EA5E9', c2: '#38BDF8' },
-  { id: 'floresta',       nome: 'Floresta',       c1: '#10B981', c2: '#34D399' },
-  { id: 'royal',          nome: 'Royal',          c1: '#8B5CF6', c2: '#A78BFA' },
-  { id: 'carbono',        nome: 'Carbono',        c1: '#1F2937', c2: '#F59E0B' },
-  { id: 'azul_escuro',    nome: 'Azul Escuro',    c1: '#1E3A8A', c2: '#1D4ED8' },
-  { id: 'verde_escuro',   nome: 'Verde Escuro',   c1: '#065F46', c2: '#047857' },
-  { id: 'amarelo_escuro', nome: 'Amarelo Escuro', c1: '#B45309', c2: '#D97706' },
+  { id: 'solar',    nome: 'Solar',    c1: '#B45309', c2: '#D97706' },
+  { id: 'oceano',   nome: 'Oceano',   c1: '#1E3A8A', c2: '#1D4ED8' },
+  { id: 'floresta', nome: 'Floresta', c1: '#065F46', c2: '#047857' },
+  { id: 'royal',    nome: 'Royal',    c1: '#8B5CF6', c2: '#A78BFA' },
+  { id: 'carbono',  nome: 'Carbono',  c1: '#1F2937', c2: '#F59E0B' },
 ] as const;
 
 const TIPOS_TELHADO = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport'] as const;
