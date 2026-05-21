@@ -664,7 +664,7 @@ router.post('/io/send-text', async (req: Request, res: Response): Promise<void> 
 router.post('/io/broadcasts', async (req: Request, res: Response): Promise<void> => {
   try {
     const { mensagens, contatos, contexto_ai, usou_ia, cadencia_min, cadencia_max, total } = req.body as {
-      mensagens?: { slot: number; base: string }[];
+      mensagens?: { slot: number; base: string; media_url?: string | null; media_type?: 'image' | 'video' | null }[];
       contatos?: string[];
       contexto_ai?: string;
       usou_ia?: boolean;
@@ -674,9 +674,15 @@ router.post('/io/broadcasts', async (req: Request, res: Response): Promise<void>
     };
     if (!Array.isArray(mensagens) || mensagens.length === 0) { res.status(400).json({ error: 'mensagens obrigatorio' }); return; }
 
+    const mensagensClean = mensagens.map(m => {
+      const mt = m.media_type === 'image' || m.media_type === 'video' ? m.media_type : null;
+      const mu = mt && typeof m.media_url === 'string' && m.media_url.trim() ? m.media_url.trim() : null;
+      return { slot: m.slot, base: m.base, media_url: mu, media_type: mt };
+    });
+
     const { data, error } = await supabase.from('io_broadcasts').insert({
       criado_por: req.userId,
-      mensagens,
+      mensagens: mensagensClean,
       contatos: Array.isArray(contatos) ? contatos : null,
       contexto_ai: contexto_ai ?? null,
       usou_ia: usou_ia ?? true,
@@ -834,6 +840,43 @@ router.post('/io/broadcasts/:id/tick', async (req: Request, res: Response): Prom
     res.json({ ok: true, ...result });
   } catch (err) {
     res.status(500).json({ error: 'Erro no tick manual', message: String(err) });
+  }
+});
+
+// Upload de mídia (imagem/vídeo) pros disparos IO. Aceita base64 e devolve URL
+// pública (bucket io-broadcasts-media, auto-criado público). Z-API precisa de
+// URL pública pra send-image/send-video.
+router.post('/io/broadcasts/upload-media', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, mime, kind } = req.body as { data?: string; mime?: string; kind?: 'image' | 'video' };
+    if (!data || typeof data !== 'string') { res.status(400).json({ error: 'data (base64) obrigatorio' }); return; }
+    if (kind !== 'image' && kind !== 'video') { res.status(400).json({ error: 'kind precisa ser image ou video' }); return; }
+
+    const base64 = data.includes(',') ? data.split(',', 2)[1] : data;
+    const buf = Buffer.from(base64, 'base64');
+    if (buf.length === 0) { res.status(400).json({ error: 'data vazio ou invalido' }); return; }
+
+    const bucket = 'io-broadcasts-media';
+    // Garante bucket publico (idempotente — ignora "already exists").
+    const { error: createErr } = await supabase.storage.createBucket(bucket, { public: true });
+    if (createErr && !/already exists/i.test(createErr.message)) {
+      res.status(500).json({ error: 'Erro criando bucket', detail: createErr.message });
+      return;
+    }
+
+    const ext = (mime?.split('/')[1] || (kind === 'image' ? 'jpg' : 'mp4')).replace(/[^a-z0-9]/gi, '').slice(0, 8) || (kind === 'image' ? 'jpg' : 'mp4');
+    const path = `${kind}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const { error: upErr } = await supabase.storage.from(bucket).upload(path, buf, {
+      contentType: mime || (kind === 'image' ? 'image/jpeg' : 'video/mp4'),
+      upsert: false,
+    });
+    if (upErr) { res.status(500).json({ error: 'Erro upload', detail: upErr.message }); return; }
+
+    const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
+    res.json({ url: pub.publicUrl, path });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro upload media', message: String(err) });
   }
 });
 

@@ -2,7 +2,13 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 
-interface Mensagem { slot: number; base: string }
+type MediaType = 'image' | 'video';
+interface Mensagem {
+  slot: number;
+  base: string;
+  media_url?: string | null;
+  media_type?: MediaType | null;
+}
 interface Broadcast {
   id: string;
   mensagens: Mensagem[];
@@ -56,23 +62,39 @@ async function humanizar(base: string, contexto: string | null): Promise<string>
   return base;
 }
 
-async function enviarZapiIO(phone: string, message: string): Promise<{ ok: boolean; zaapId?: string; messageId?: string; erro?: string }> {
+async function enviarZapiIO(
+  phone: string,
+  message: string,
+  mediaUrl?: string | null,
+  mediaType?: MediaType | null,
+): Promise<{ ok: boolean; zaapId?: string; messageId?: string; erro?: string }> {
   const id = process.env.ZAPI_INSTANCE_ID_IO?.trim();
   const token = process.env.ZAPI_TOKEN_IO?.trim();
   const client = (process.env.ZAPI_CLIENT_TOKEN_IO || process.env.ZAPI_CLIENT_TOKEN)?.trim();
   if (!id || !token || !client) return { ok: false, erro: 'creds Z-API IO ausentes' };
 
   const cleanPhone = phone.replace(/\D/g, '');
-  const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/send-text`, {
+
+  let path = 'send-text';
+  let body: Record<string, unknown> = { phone: cleanPhone, message };
+  if (mediaUrl && mediaType === 'image') {
+    path = 'send-image';
+    body = { phone: cleanPhone, image: mediaUrl, caption: message };
+  } else if (mediaUrl && mediaType === 'video') {
+    path = 'send-video';
+    body = { phone: cleanPhone, video: mediaUrl, caption: message };
+  }
+
+  const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Client-Token': client },
-    body: JSON.stringify({ phone: cleanPhone, message }),
+    body: JSON.stringify(body),
   });
   const txt = await r.text();
   if (!r.ok) return { ok: false, erro: `HTTP ${r.status}: ${txt.slice(0, 200)}` };
   try {
-    const body = JSON.parse(txt) as { zaapId?: string; messageId?: string; id?: string };
-    return { ok: true, zaapId: body.zaapId, messageId: body.messageId || body.id };
+    const parsed = JSON.parse(txt) as { zaapId?: string; messageId?: string; id?: string };
+    return { ok: true, zaapId: parsed.zaapId, messageId: parsed.messageId || parsed.id };
   } catch {
     return { ok: true };
   }
@@ -132,11 +154,13 @@ export async function runIoBroadcastTick(): Promise<{ processed: number; broadca
     );
 
     // 4. Constrói fila de pendentes (mensagens × contatos - enviados)
-    const pendentes: Array<{ phone: string; slot: number; base: string }> = [];
+    const pendentes: Array<{ phone: string; slot: number; base: string; mediaUrl: string | null; mediaType: MediaType | null }> = [];
     for (const m of broadcast.mensagens) {
+      const mt = m.media_type === 'image' || m.media_type === 'video' ? m.media_type : null;
+      const mu = mt && m.media_url ? m.media_url : null;
       for (const phone of broadcast.contatos) {
         if (!enviadosSet.has(`${phone}|${m.slot}`)) {
-          pendentes.push({ phone, slot: m.slot, base: m.base });
+          pendentes.push({ phone, slot: m.slot, base: m.base, mediaUrl: mu, mediaType: mt });
         }
       }
     }
@@ -191,7 +215,7 @@ export async function runIoBroadcastTick(): Promise<{ processed: number; broadca
       let messageId: string | null = null;
       let erro: string | null = null;
       try {
-        const r = await enviarZapiIO(item.phone, mensagemFinal);
+        const r = await enviarZapiIO(item.phone, mensagemFinal, item.mediaUrl, item.mediaType);
         if (r.ok) {
           envioStatus = 'ok';
           zaapId = r.zaapId ?? null;

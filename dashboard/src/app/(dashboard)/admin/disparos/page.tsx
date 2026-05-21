@@ -12,10 +12,19 @@ interface LogLine {
   detail: string;
 }
 
+type MediaType = '' | 'image' | 'video';
+
+interface MensagemEditor {
+  texto: string;
+  mediaType: MediaType;
+  mediaUrl: string;
+  uploading: boolean;
+}
+
 interface BroadcastRow {
   id: string;
   criado_em: string;
-  mensagens: { slot: number; base: string }[];
+  mensagens: { slot: number; base: string; media_url?: string | null; media_type?: 'image' | 'video' | null }[];
   total: number;
   sucesso: number;
   falha: number;
@@ -88,10 +97,10 @@ function sleep(ms: number) {
   return new Promise<void>(res => setTimeout(res, ms));
 }
 
+const mensagemVazia = (): MensagemEditor => ({ texto: '', mediaType: '', mediaUrl: '', uploading: false });
+
 export default function DisparosPage() {
-  const [msg1, setMsg1] = useState('');
-  const [msg2, setMsg2] = useState('');
-  const [msg3, setMsg3] = useState('');
+  const [msgs, setMsgs] = useState<MensagemEditor[]>([mensagemVazia(), mensagemVazia(), mensagemVazia()]);
   const [contatosRaw, setContatosRaw] = useState('');
   const [contextoIA, setContextoIA] = useState(
     'Sou a Giovanna, consultora da Irmaos na Obra Energia Solar. Estou prospectando contatos de quem demonstrou interesse em energia solar. Tom: simpatico, direto, sem ser invasivo.'
@@ -137,7 +146,18 @@ export default function DisparosPage() {
     }
   }, []);
 
-  const mensagens = useMemo(() => [msg1, msg2, msg3].filter(m => m.trim().length > 0), [msg1, msg2, msg3]);
+  const mensagens = useMemo(() => {
+    // Slot é o índice original (1-based), preservado mesmo se houver gaps na UI.
+    const out: { slot: number; base: string; media_url: string | null; media_type: 'image' | 'video' | null }[] = [];
+    msgs.forEach((m, i) => {
+      const txt = m.texto.trim();
+      const mt = (m.mediaType === 'image' || m.mediaType === 'video') ? m.mediaType : null;
+      const mu = mt && m.mediaUrl.trim() ? m.mediaUrl.trim() : null;
+      if (!txt && !mu) return;
+      out.push({ slot: i + 1, base: txt, media_url: mu, media_type: mt });
+    });
+    return out;
+  }, [msgs]);
 
   const contatosFinais = useMemo(() => {
     if (!parsed) return [];
@@ -175,7 +195,7 @@ export default function DisparosPage() {
     let broadcastId: string | null = null;
     try {
       const r = await api.post('/admin/io/broadcasts', {
-        mensagens: mensagens.map((base, i) => ({ slot: i + 1, base })),
+        mensagens,
         contatos: contatosFinais,
         contexto_ai: usarIA ? contextoIA : null,
         usou_ia: usarIA,
@@ -380,30 +400,119 @@ export default function DisparosPage() {
 
       {/* Mensagens */}
       <div style={cardStyle}>
-        <label style={labelStyle}>Mensagem 1 (obrigatória)</label>
-        <textarea
-          style={textareaStyle}
-          value={msg1}
-          onChange={e => setMsg1(e.target.value)}
-          placeholder="Ex: Boa tarde, aqui é a Giovanna"
-          disabled={rodando}
-        />
-        <label style={{ ...labelStyle, marginTop: 14 }}>Mensagem 2 (opcional)</label>
-        <textarea
-          style={textareaStyle}
-          value={msg2}
-          onChange={e => setMsg2(e.target.value)}
-          placeholder="Ex: A energia solar é uma prioridade pra você?"
-          disabled={rodando}
-        />
-        <label style={{ ...labelStyle, marginTop: 14 }}>Mensagem 3 (opcional)</label>
-        <textarea
-          style={textareaStyle}
-          value={msg3}
-          onChange={e => setMsg3(e.target.value)}
-          placeholder="Ex: Quero marcar uma ligação, qual melhor dia e horário?"
-          disabled={rodando}
-        />
+        {msgs.map((m, i) => (
+          <div key={i} style={{ marginTop: i === 0 ? 0 : 18, paddingTop: i === 0 ? 0 : 14, borderTop: i === 0 ? 'none' : '1px dashed var(--color-border)' }}>
+            <label style={labelStyle}>
+              Mensagem {i + 1} {i === 0 ? '(obrigatória)' : '(opcional)'}
+            </label>
+            <textarea
+              style={textareaStyle}
+              value={m.texto}
+              onChange={e => setMsgs(prev => prev.map((x, j) => j === i ? { ...x, texto: e.target.value } : x))}
+              placeholder={
+                i === 0 ? 'Ex: Boa tarde, aqui é a Giovanna'
+                  : i === 1 ? 'Ex: A energia solar é uma prioridade pra você?'
+                  : 'Ex: Quero marcar uma ligação, qual melhor dia e horário?'
+              }
+              disabled={rodando}
+            />
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' }}>
+              <select
+                value={m.mediaType}
+                onChange={e => setMsgs(prev => prev.map((x, j) => j === i ? { ...x, mediaType: e.target.value as MediaType, mediaUrl: e.target.value === '' ? '' : x.mediaUrl } : x))}
+                disabled={rodando}
+                style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: 13 }}
+              >
+                <option value="">Só texto</option>
+                <option value="image">+ Imagem</option>
+                <option value="video">+ Vídeo</option>
+              </select>
+
+              {m.mediaType && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Cole URL pública da mídia"
+                    value={m.mediaUrl}
+                    onChange={e => setMsgs(prev => prev.map((x, j) => j === i ? { ...x, mediaUrl: e.target.value } : x))}
+                    disabled={rodando || m.uploading}
+                    style={{ flex: 1, minWidth: 200, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: 13 }}
+                  />
+                  <label
+                    style={{
+                      ...btnGhost,
+                      cursor: rodando || m.uploading ? 'not-allowed' : 'pointer',
+                      opacity: rodando || m.uploading ? 0.5 : 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    {m.uploading ? 'Enviando...' : 'Upload'}
+                    <input
+                      type="file"
+                      accept={m.mediaType === 'image' ? 'image/*' : 'video/*'}
+                      disabled={rodando || m.uploading}
+                      style={{ display: 'none' }}
+                      onChange={async e => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        e.target.value = '';
+                        const idx = i;
+                        const kind = m.mediaType;
+                        if (!kind) return;
+                        // Limite suave (Express aceita ~10MB; deixa folga pro overhead de base64)
+                        if (file.size > 7 * 1024 * 1024) {
+                          alert('Arquivo grande demais (máx 7 MB). Hospede em outro lugar e cole a URL.');
+                          return;
+                        }
+                        setMsgs(prev => prev.map((x, j) => j === idx ? { ...x, uploading: true } : x));
+                        try {
+                          const dataUrl = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(String(reader.result || ''));
+                            reader.onerror = () => reject(reader.error || new Error('falha lendo arquivo'));
+                            reader.readAsDataURL(file);
+                          });
+                          const base64 = dataUrl.includes(',') ? dataUrl.split(',', 2)[1] : dataUrl;
+                          const r = await api.post('/admin/io/broadcasts/upload-media', {
+                            data: base64,
+                            mime: file.type,
+                            kind,
+                          });
+                          const url = r.data?.url as string | undefined;
+                          if (!url) throw new Error('backend não retornou url');
+                          setMsgs(prev => prev.map((x, j) => j === idx ? { ...x, mediaUrl: url, uploading: false } : x));
+                        } catch (err: unknown) {
+                          const msg = err instanceof Error ? err.message : 'erro upload';
+                          alert(`Falha no upload: ${msg}`);
+                          setMsgs(prev => prev.map((x, j) => j === idx ? { ...x, uploading: false } : x));
+                        }
+                      }}
+                    />
+                  </label>
+                  {m.mediaUrl && (
+                    <a
+                      href={m.mediaUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: 12, color: 'var(--color-primary, #F59E0B)' }}
+                    >
+                      preview
+                    </a>
+                  )}
+                </>
+              )}
+            </div>
+
+            {m.mediaType && (
+              <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
+                A mídia vai com a mensagem como legenda. URL precisa ser pública (Z-API baixa o arquivo). Upload: máx 7 MB.
+              </p>
+            )}
+          </div>
+        ))}
       </div>
 
       {/* Contatos */}
@@ -637,9 +746,17 @@ export default function DisparosPage() {
                   <div style={{ marginTop: 10, fontSize: 12, color: 'var(--color-text-muted)' }}>
                     <div><strong>Mensagens ({b.mensagens?.length || 0}):</strong></div>
                     <ul style={{ margin: '4px 0 8px 18px', padding: 0 }}>
-                      {(b.mensagens || []).map(m => (
-                        <li key={m.slot}>R{m.slot}: {m.base}</li>
-                      ))}
+                      {(b.mensagens || []).map(m => {
+                        const tag = m.media_type === 'image' ? ' [+imagem]' : m.media_type === 'video' ? ' [+vídeo]' : '';
+                        return (
+                          <li key={m.slot}>
+                            R{m.slot}: {m.base}{tag}
+                            {m.media_url && (
+                              <> · <a href={m.media_url} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary, #F59E0B)' }}>ver mídia</a></>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                     <div>IA: {b.usou_ia ? 'sim' : 'não'} · Cadência: {b.cadencia_min}-{b.cadencia_max}s · Falhas: {b.falha}</div>
                   </div>
