@@ -291,7 +291,7 @@ function UpgradePage({ email }: { email: string }) {
 
 // Paths que free pode acessar sem upgrade. Resto vira locked/redirect.
 // /documentos é tratado à parte (só libera quando tipo=proposta).
-const FREE_ALLOWED_PATHS = ['/empresa', '/planos'];
+const FREE_ALLOWED_PATHS = ['/empresa', '/planos', '/baixe-app'];
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
