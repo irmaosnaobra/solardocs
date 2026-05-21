@@ -2218,3 +2218,21 @@ html[data-theme="dark"] #formSection .pag-ver-mais:hover { background: #1E293B; 
 html[data-theme="dark"] #formSection #card-formas-pagamento textarea { background: #0F172A; color: #E5E7EB; border-color: #334155; }
 html[data-theme="dark"] #formSection .pag-entrada-field label { color: #94A3B8; }
 html[data-theme="dark"] #formSection .pag-entrada-field input { background: #0F172A; color: #E5E7EB; border-color: #334155; }
+
+/* Bloco "Equipamento manual" — estilos inline no HTML, sobrescritos aqui no dark */
+html[data-theme="dark"] #formSection #campo-manual { background: #0F172A !important; border-color: #475569 !important; }
+html[data-theme="dark"] #formSection #campo-manual > div:first-child { color: #93C5FD !important; }
+html[data-theme="dark"] #formSection #campo-manual > div:last-child { color: #94A3B8 !important; }
+
+/* Autofill do Chrome — força fundo dark em vez do amarelo/azul claro padrão */
+html[data-theme="dark"] #formSection input:-webkit-autofill,
+html[data-theme="dark"] #formSection input:-webkit-autofill:hover,
+html[data-theme="dark"] #formSection input:-webkit-autofill:focus,
+html[data-theme="dark"] #historicoSection input:-webkit-autofill,
+html[data-theme="dark"] .modal-box input:-webkit-autofill,
+html[data-theme="dark"] .login-card input:-webkit-autofill {
+  -webkit-text-fill-color: #E5E7EB;
+  -webkit-box-shadow: 0 0 0 1000px #0F172A inset;
+  caret-color: #E5E7EB;
+  border-color: #334155;
+}
