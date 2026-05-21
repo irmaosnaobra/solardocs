@@ -115,7 +115,7 @@ export async function getVisits(req: Request, res: Response): Promise<void> {
   }
 }
 
-// Funil da operação SolarDoc B2B: VSL → Landing → Cadastro → Stripe → Plataforma
+// Funil da operação SolarDoc B2B: VSL → Landing → Cadastro → Empresa → Stripe → Plataforma
 // Counts únicos por session_id quando possível.
 export async function getFunnel(req: Request, res: Response): Promise<void> {
   try {
@@ -202,7 +202,7 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
     }
 
     // 5) Empresa preenchida — users criados no período que já têm registro em company.
-    // Etapa nova do novo flow VSL → Cadastro → Stripe → /empresa → Documentos.
+    // Gate entre Cadastro e Stripe: VSL → Cadastro → /empresa → Stripe → Documentos.
     // company não tem created_at, então usamos users.created_at como proxy
     // (user criado no período E tem empresa cadastrada em algum momento).
     const { data: newUsers } = await supabase
@@ -235,6 +235,7 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
         { key: 'vsl',        label: 'VSL',         count: vslUnique,        sub: `${vslPageviews} pageviews` },
         { key: 'landing',    label: 'Landing',     count: landingUnique,    sub: `${landingPageviews} pageviews` },
         { key: 'cadastro',   label: 'Cadastro',    count: cadastros ?? 0,   sub: 'contas criadas' },
+        { key: 'empresa',    label: 'Empresa',     count: empresaCount,     sub: 'preencheram CNPJ' },
         {
           key: 'stripe',
           label: 'Stripe',
@@ -242,7 +243,6 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
           sub: 'chegaram ao pagamento',
           detail: { closed: stripeClosed, byProduct },
         },
-        { key: 'empresa',    label: 'Empresa',     count: empresaCount,     sub: 'preencheram CNPJ' },
         { key: 'plataforma', label: 'Plataforma',  count: ativos,           sub: 'geraram 1+ documento' },
       ],
     });

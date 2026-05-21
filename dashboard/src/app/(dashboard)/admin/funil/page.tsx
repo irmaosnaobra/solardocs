@@ -45,7 +45,7 @@ const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
   landing:    'Tráfego frio (Google/indicação) — VSL pula direto pro cadastro',
   cadastro:   'Criaram conta na plataforma',
   stripe:     'Passaram cartão (inclui cancelados no trial)',
-  empresa:    'Preencheram CNPJ pós-pagamento (gate pra emitir documento)',
+  empresa:    'Preencheram CNPJ (gate pra liberar checkout)',
   plataforma: 'Geraram ao menos 1 documento',
 };
 
@@ -93,7 +93,7 @@ export default function FunilPage() {
             Funil da operação SolarDoc
           </h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '6px 0 0' }}>
-            VSL → Cadastro → Stripe → Empresa → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
+            VSL → Cadastro → Empresa → Stripe → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
           </p>
         </div>
 
@@ -229,7 +229,7 @@ export default function FunilPage() {
             })}
           </div>
 
-          {/* Resumo de conversões macro do fluxo principal (VSL → Cadastro → Stripe → Empresa → Ativo). */}
+          {/* Resumo de conversões macro do fluxo principal (VSL → Cadastro → Empresa → Stripe → Ativo). */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             {(() => {
               const by = (key: FunnelStep['key']) => data.steps.find(s => s.key === key)?.count ?? 0;
@@ -237,9 +237,9 @@ export default function FunilPage() {
                     stripe = by('stripe'), empresa = by('empresa'), plataforma = by('plataforma');
               return [
                 { label: 'VSL → Cadastro',     val: pct(cadastro, vsl) },
-                { label: 'Cadastro → Stripe',  val: pct(stripe, cadastro) },
-                { label: 'Stripe → Empresa',   val: pct(empresa, stripe) },
-                { label: 'Empresa → Ativo',    val: pct(plataforma, empresa) },
+                { label: 'Cadastro → Empresa', val: pct(empresa, cadastro) },
+                { label: 'Empresa → Stripe',   val: pct(stripe, empresa) },
+                { label: 'Stripe → Ativo',     val: pct(plataforma, stripe) },
                 { label: 'VSL → Pagante',      val: pct(stripe, vsl) },
                 { label: 'VSL → Ativo',        val: pct(plataforma, vsl) },
               ];
@@ -268,8 +268,8 @@ export default function FunilPage() {
             <code style={{ padding: '0 4px' }}>/apresentacao</code>.
             <br /><br />
             <strong style={{ color: '#2dd4bf' }}>Empresa:</strong> users que preencheram CNPJ em
-            <code style={{ padding: '0 4px' }}>/empresa</code> pós-pagamento. É gate obrigatório pra emitir
-            documentos — drop entre Stripe e Empresa = pagantes que não terminam o onboarding.
+            <code style={{ padding: '0 4px' }}>/empresa</code>. É gate obrigatório antes do checkout —
+            drop entre Cadastro e Empresa = quem criou conta mas não preencheu CNPJ.
           </div>
         </>
         );
