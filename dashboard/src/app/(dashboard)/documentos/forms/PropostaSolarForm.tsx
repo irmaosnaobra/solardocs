@@ -425,6 +425,25 @@ export default function PropostaSolarPage() {
               })}
             </div>
           </div>
+          {/* GARANTIAS — visíveis aqui pra não ficar enterrado no collapsible. */}
+          <div className={styles.grid2} style={{ marginTop: 18 }}>
+            <div className={styles.field}>
+              <label className={styles.label}>Garantia dos painéis (anos)</label>
+              <input type="text" inputMode="numeric" value={fields.garantia_paineis} onChange={e => setField('garantia_paineis', e.target.value)} placeholder="25" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Garantia do inversor (anos)</label>
+              <input type="text" inputMode="numeric" value={fields.garantia_inversor} onChange={e => setField('garantia_inversor', e.target.value)} placeholder="10" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Garantia da estrutura (anos)</label>
+              <input type="text" inputMode="numeric" value={fields.garantia_estrutura} onChange={e => setField('garantia_estrutura', e.target.value)} placeholder="10" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Garantia da instalação (anos)</label>
+              <input type="text" inputMode="numeric" value={fields.garantia_instalacao} onChange={e => setField('garantia_instalacao', e.target.value)} placeholder="1" className="input-field" />
+            </div>
+          </div>
         </div>
 
         {/* FOTO DO TELHADO */}
@@ -633,7 +652,7 @@ export default function PropostaSolarPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
-            <span>⚙️ Tarifa, taxa mínima, garantias e prazo</span>
+            <span>⚙️ Tarifa, taxa mínima e prazo</span>
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>
               ajuste por região se preciso
             </span>
@@ -656,22 +675,6 @@ export default function PropostaSolarPage() {
             <div className={styles.field}>
               <label className={styles.label}>Prazo de instalação (dias úteis)</label>
               <input type="text" inputMode="numeric" value={fields.prazo_instalacao_dias} onChange={e => setField('prazo_instalacao_dias', e.target.value)} placeholder="45" className="input-field" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Garantia dos painéis (anos)</label>
-              <input type="text" inputMode="numeric" value={fields.garantia_paineis} onChange={e => setField('garantia_paineis', e.target.value)} placeholder="25" className="input-field" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Garantia do inversor (anos)</label>
-              <input type="text" inputMode="numeric" value={fields.garantia_inversor} onChange={e => setField('garantia_inversor', e.target.value)} placeholder="10" className="input-field" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Garantia da estrutura (anos)</label>
-              <input type="text" inputMode="numeric" value={fields.garantia_estrutura} onChange={e => setField('garantia_estrutura', e.target.value)} placeholder="10" className="input-field" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Garantia da instalação (anos)</label>
-              <input type="text" inputMode="numeric" value={fields.garantia_instalacao} onChange={e => setField('garantia_instalacao', e.target.value)} placeholder="1" className="input-field" />
             </div>
           </div>
         </details>
