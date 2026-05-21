@@ -1621,9 +1621,10 @@ function renderProposta(d, viaLink) {
   const wrapBat = document.getElementById('e-bat-wrap');
   if (d.bateria && d.bateria.incluir) {
     const b = d.bateria;
+    const modTxt = b.modelo || 'Bateria';
     const capTxt = b.capacidade > 0 ? ` (${String(b.capacidade).replace('.', ',')} kWh)` : '';
-    const modTxt = b.modelo ? ` · ${b.modelo}` : '';
-    document.getElementById('e-bat').textContent = `${b.qtd || 1}x${capTxt}${modTxt}`;
+    const garTxt = b.garantiaAnos > 0 ? ` · ${b.garantiaAnos} ${b.garantiaAnos == 1 ? 'ano' : 'anos'} de garantia` : '';
+    document.getElementById('e-bat').textContent = `${b.qtd || 1}x ${modTxt}${capTxt}${garTxt}`;
     wrapBat.style.display = '';
   } else {
     wrapBat.style.display = 'none';
@@ -1632,8 +1633,9 @@ function renderProposta(d, viaLink) {
   const wrapCtrl = document.getElementById('e-ctrl-wrap');
   if (d.controlador && d.controlador.incluir) {
     const c = d.controlador;
-    const modTxt = c.modelo ? ` · ${c.modelo}` : '';
-    document.getElementById('e-ctrl').textContent = `${c.qtd || 1}x${modTxt}`;
+    const modTxt = c.modelo || 'Controlador';
+    const garTxt = c.garantiaAnos > 0 ? ` · ${c.garantiaAnos} ${c.garantiaAnos == 1 ? 'ano' : 'anos'} de garantia` : '';
+    document.getElementById('e-ctrl').textContent = `${c.qtd || 1}x ${modTxt}${garTxt}`;
     wrapCtrl.style.display = '';
   } else {
     wrapCtrl.style.display = 'none';

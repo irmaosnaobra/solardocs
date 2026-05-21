@@ -372,9 +372,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <div class="field"><label>Modelo / marca</label><input type="text" id="f-bat-modelo" placeholder="Ex: BYD B-Box 5.0"></div>
             <div class="field"><label>Capacidade (kWh)</label><input type="number" id="f-bat-cap" min="0" step="0.1" placeholder="Ex: 5"></div>
             <div class="field"><label>Quantidade</label><input type="number" id="f-bat-qtd" min="1" value="1"></div>
-            <div class="field"><label>Preço adicional (R$)</label><input type="number" id="f-bat-preco" min="0" step="0.01" placeholder="Ex: 12500"></div>
+            <div class="field"><label>Garantia (anos)</label><input type="number" id="f-bat-gar" min="0" step="1" placeholder="Ex: 10"></div>
           </div>
-          <div class="opt-dica">O valor adicional entra no preço à vista e nas parcelas/financiamento.</div>
+          <div class="opt-dica">Embuta o custo da bateria no preço à vista do sistema. A garantia aparece na descrição da proposta.</div>
         </details>
 
         <details class="opt-block" style="margin-top:8px;">
@@ -382,9 +382,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="fields" style="margin-top:12px;">
             <div class="field"><label>Modelo / marca</label><input type="text" id="f-ctrl-modelo" placeholder="Ex: Epever Tracer 60A MPPT"></div>
             <div class="field"><label>Quantidade</label><input type="number" id="f-ctrl-qtd" min="1" value="1"></div>
-            <div class="field"><label>Preço adicional (R$)</label><input type="number" id="f-ctrl-preco" min="0" step="0.01" placeholder="Ex: 1800"></div>
+            <div class="field"><label>Garantia (anos)</label><input type="number" id="f-ctrl-gar" min="0" step="1" placeholder="Ex: 5"></div>
           </div>
-          <div class="opt-dica">O valor adicional entra no preço à vista e nas parcelas/financiamento.</div>
+          <div class="opt-dica">Embuta o custo do controlador no preço à vista do sistema. A garantia aparece na descrição da proposta.</div>
         </details>
 
         <input type="hidden" id="f-infl-tarifa" value="6">
@@ -1751,21 +1751,21 @@ async function gerar() {
     }
   }
 
-  // Bateria (opcional)
+  // Bateria (opcional) — só descrição/garantia, custo embutido no preço à vista do sistema
   const batModelo = (document.getElementById('f-bat-modelo').value || '').trim();
   const batCap = parseFloat(document.getElementById('f-bat-cap').value) || 0;
   const batQtd = parseInt(document.getElementById('f-bat-qtd').value) || 1;
-  const batPreco = parseFloat(document.getElementById('f-bat-preco').value) || 0;
-  const bateria = batPreco > 0
-    ? { incluir: true, modelo: batModelo, capacidade: batCap, qtd: batQtd, precoAdd: batPreco }
+  const batGar = parseInt(document.getElementById('f-bat-gar').value) || 0;
+  const bateria = (batModelo || batCap > 0 || batGar > 0)
+    ? { incluir: true, modelo: batModelo, capacidade: batCap, qtd: batQtd, garantiaAnos: batGar }
     : null;
 
-  // Controlador de carga (opcional)
+  // Controlador de carga (opcional) — mesma regra da bateria
   const ctrlModelo = (document.getElementById('f-ctrl-modelo').value || '').trim();
   const ctrlQtd = parseInt(document.getElementById('f-ctrl-qtd').value) || 1;
-  const ctrlPreco = parseFloat(document.getElementById('f-ctrl-preco').value) || 0;
-  const controlador = ctrlPreco > 0
-    ? { incluir: true, modelo: ctrlModelo, qtd: ctrlQtd, precoAdd: ctrlPreco }
+  const ctrlGar = parseInt(document.getElementById('f-ctrl-gar').value) || 0;
+  const controlador = (ctrlModelo || ctrlGar > 0)
+    ? { incluir: true, modelo: ctrlModelo, qtd: ctrlQtd, garantiaAnos: ctrlGar }
     : null;
 
   // Estrutura (opcional — só info, sem impacto em preço)
@@ -1777,11 +1777,8 @@ async function gerar() {
   //   >= 250 km → +R$ 500,00
   const acrescDist = acrescimoPorKm(distanciaKm);
   const usarDescMax = document.getElementById('f-descmax').checked;
-  const precoBat = bateria ? bateria.precoAdd : 0;
-  const precoCtrl = controlador ? controlador.precoAdd : 0;
-  const precoAddons = precoBat + precoCtrl;
-  const precoVista = (usarDescMax ? item.descMax : item.pVista) + acrescDist + precoAddons;
-  const precoOrcamento = Math.ceil((item.pOrc + acrescDist + precoAddons) / 100) * 100;
+  const precoVista = (usarDescMax ? item.descMax : item.pVista) + acrescDist;
+  const precoOrcamento = Math.ceil((item.pOrc + acrescDist) / 100) * 100;
 
   // Tabela completa do cartão (1x..21x) pré-calculada
   const parcelasCartao = calcTodasParcelas(precoVista);
@@ -1808,10 +1805,8 @@ async function gerar() {
     ? Math.min(100, Math.round((mediaMensalGerada / consumoKwhInput) * 100))
     : null;
   // Modelo realista: usa consumo informado; modo qtdPlacas usa geração como proxy
-  // Payback/economia25 ignoram bateria e controlador (não geram kWh — distorceriam o ROI solar)
   const consumoModelo = consumoKwhInput > 0 ? consumoKwhInput : mediaMensalGerada;
-  const precoVistaSolar = precoVista - precoAddons;
-  const modelo = calcModeloRealista(consumoModelo, tarifa, taxaMin, precoVistaSolar, inflTarifa, inflTaxaMin);
+  const modelo = calcModeloRealista(consumoModelo, tarifa, taxaMin, precoVista, inflTarifa, inflTaxaMin);
   const paybackAnos = modelo.paybackAnos > 0 ? modelo.paybackAnos.toFixed(1).replace('.', ',') : '—';
 
   // Cálculos
@@ -2020,9 +2015,10 @@ function renderProposta(d, viaLink) {
   const wrapBat = document.getElementById('e-bat-wrap');
   if (d.bateria && d.bateria.incluir) {
     const b = d.bateria;
+    const modTxt = b.modelo || 'Bateria';
     const capTxt = b.capacidade > 0 ? ` (${String(b.capacidade).replace('.', ',')} kWh)` : '';
-    const modTxt = b.modelo ? ` · ${b.modelo}` : '';
-    document.getElementById('e-bat').textContent = `${b.qtd || 1}×${capTxt}${modTxt}`;
+    const garTxt = b.garantiaAnos > 0 ? ` · ${b.garantiaAnos} ${b.garantiaAnos == 1 ? 'ano' : 'anos'} de garantia` : '';
+    document.getElementById('e-bat').textContent = `${b.qtd || 1}× ${modTxt}${capTxt}${garTxt}`;
     wrapBat.style.display = '';
   } else {
     wrapBat.style.display = 'none';
@@ -2031,8 +2027,9 @@ function renderProposta(d, viaLink) {
   const wrapCtrl = document.getElementById('e-ctrl-wrap');
   if (d.controlador && d.controlador.incluir) {
     const c = d.controlador;
-    const modTxt = c.modelo ? ` · ${c.modelo}` : '';
-    document.getElementById('e-ctrl').textContent = `${c.qtd || 1}×${modTxt}`;
+    const modTxt = c.modelo || 'Controlador';
+    const garTxt = c.garantiaAnos > 0 ? ` · ${c.garantiaAnos} ${c.garantiaAnos == 1 ? 'ano' : 'anos'} de garantia` : '';
+    document.getElementById('e-ctrl').textContent = `${c.qtd || 1}× ${modTxt}${garTxt}`;
     wrapCtrl.style.display = '';
   } else {
     wrapCtrl.style.display = 'none';
@@ -2164,7 +2161,7 @@ function novoCliente() {
   if (qtdInvEl) qtdInvEl.value = 1;
   const garEl = document.getElementById('f-man-gar');
   if (garEl) garEl.value = 10;
-  ['f-bat-modelo','f-bat-cap','f-bat-preco','f-ctrl-modelo','f-ctrl-preco'].forEach(id => {
+  ['f-bat-modelo','f-bat-cap','f-bat-gar','f-ctrl-modelo','f-ctrl-gar'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -3379,12 +3376,12 @@ async function editarProposta(codigo) {
     document.getElementById('f-bat-modelo').value = bat.modelo || '';
     document.getElementById('f-bat-cap').value    = bat.capacidade || '';
     document.getElementById('f-bat-qtd').value    = bat.qtd || 1;
-    document.getElementById('f-bat-preco').value  = bat.precoAdd || '';
+    document.getElementById('f-bat-gar').value    = bat.garantiaAnos || '';
 
     const ctrl = d.controlador || {};
     document.getElementById('f-ctrl-modelo').value = ctrl.modelo || '';
     document.getElementById('f-ctrl-qtd').value    = ctrl.qtd || 1;
-    document.getElementById('f-ctrl-preco').value  = ctrl.precoAdd || '';
+    document.getElementById('f-ctrl-gar').value    = ctrl.garantiaAnos || '';
 
     document.getElementById('f-estrutura').value = d.estrutura || '';
 
@@ -3534,7 +3531,7 @@ ${linhasCli.join('\n')}
 ━━━━━━━━━━━━━━━━━━
 🔋 *SISTEMA*
 • Módulos: ${d.item.n}x ${d.tab.mod}
-• Inversor: ${d.qtdInv}x ${d.tab.inv}${d.bateria && d.bateria.incluir ? `\n• Bateria: ${d.bateria.qtd || 1}x ${d.bateria.modelo || 'Armazenamento'}${d.bateria.capacidade > 0 ? ` (${String(d.bateria.capacidade).replace('.', ',')} kWh)` : ''}` : ''}${d.controlador && d.controlador.incluir ? `\n• Controlador de carga: ${d.controlador.qtd || 1}x ${d.controlador.modelo || 'MPPT'}` : ''}${d.estrutura ? `\n• Estrutura: ${d.estrutura}` : ''}
+• Inversor: ${d.qtdInv}x ${d.tab.inv}${d.bateria && d.bateria.incluir ? `\n• Bateria: ${d.bateria.qtd || 1}x ${d.bateria.modelo || 'Armazenamento'}${d.bateria.capacidade > 0 ? ` (${String(d.bateria.capacidade).replace('.', ',')} kWh)` : ''}${d.bateria.garantiaAnos > 0 ? ` — ${d.bateria.garantiaAnos} ${d.bateria.garantiaAnos == 1 ? 'ano' : 'anos'} de garantia` : ''}` : ''}${d.controlador && d.controlador.incluir ? `\n• Controlador de carga: ${d.controlador.qtd || 1}x ${d.controlador.modelo || 'MPPT'}${d.controlador.garantiaAnos > 0 ? ` — ${d.controlador.garantiaAnos} ${d.controlador.garantiaAnos == 1 ? 'ano' : 'anos'} de garantia` : ''}` : ''}${d.estrutura ? `\n• Estrutura: ${d.estrutura}` : ''}
 • Potência instalada: ${d.item.kwp.toFixed(1)} kWp
 • Geração estimada: ${fmtN(d.item.g)} kWh/mês
 • Área no telhado: ~${d.areaReal} m²
