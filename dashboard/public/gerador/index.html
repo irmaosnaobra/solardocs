@@ -143,6 +143,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     document.documentElement.dataset.theme = next;
     try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
     document.querySelectorAll('.btn-top-tema').forEach(function(b){ b.textContent = next === 'dark' ? '☀️' : '🌙'; });
+    // Notifica componentes que renderizam cores via inline styles
+    document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }));
   };
   document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.btn-top-tema').forEach(function(b){ b.textContent = savedTheme === 'dark' ? '☀️' : '🌙'; });
@@ -2416,6 +2418,16 @@ const HISTORICO_PER_PAGE = 10;
 let historicoRows = [];
 let historicoPage = 1;
 let rankingMesAtivo = null;
+
+// Re-render histórico quando o tema mudar (cores inline dependem do data-theme)
+document.addEventListener('themechange', function(){
+  const hist = document.getElementById('historicoSection');
+  if (hist && hist.style.display !== 'none' && historicoRows.length) {
+    renderGraficoMes(historicoRows);
+    renderRanking(historicoRows);
+    renderHistoricoTbody();
+  }
+});
 let filtroStatus = 'todos';
 
 function getRowsFiltradas() {
@@ -2623,6 +2635,10 @@ function renderRanking(rows) {
     </div>
   `;
 
+  const isDarkRank = document.documentElement.dataset.theme === 'dark';
+  const corSub  = isDarkRank ? '#94A3B8' : '#555';
+  const corSub2 = isDarkRank ? '#64748B' : '#888';
+
   container.innerHTML = `
     <h3>🏆 Ranking de clientes por mês</h3>
     <div class="ranking-meses">
@@ -2632,9 +2648,9 @@ function renderRanking(rows) {
         </button>
       `).join('')}
     </div>
-    <div style="font-size:13px; color:#555; margin-bottom:6px;">
+    <div style="font-size:13px; color:${corSub}; margin-bottom:6px;">
       <strong>${nomeMes(mesAtual.ym)}</strong> · ${totalMes} cliente${totalMes !== 1 ? 's' : ''} único${totalMes !== 1 ? 's' : ''} · ${totalKwpMes.toFixed(1)} kWp totais
-      ${rankPorVendas ? '' : ' · <span style="color:#888;font-style:italic;">sem vendas marcadas — ranqueando por clientes atendidos</span>'}
+      ${rankPorVendas ? '' : ` · <span style="color:${corSub2};font-style:italic;">sem vendas marcadas — ranqueando por clientes atendidos</span>`}
     </div>
     ${podioHtml}
     ${restoHtml}
@@ -2652,8 +2668,16 @@ function renderGraficoMes(rows) {
   const meses = buildRankingPorMes(rows);
   if (meses.length === 0) { container.style.display = 'none'; return; }
 
-  // Container styling inline (robusto contra cache de CSS)
-  container.setAttribute('style', 'background:#f8f9fc;border:1px solid #e2e6ee;border-radius:10px;padding:14px 16px;margin-bottom:14px;display:block;');
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const corTitulo  = isDark ? '#93C5FD' : '#1E3A8A';
+  const corLegenda = isDark ? '#94A3B8' : '#555';
+  const corLegSub  = isDark ? '#64748B' : '#888';
+  const corLabel   = isDark ? '#E5E7EB' : '#1E3A8A';
+  const bgBarEmpty = isDark ? '#334155' : '#e8eaef';
+  const corBarEmpty = isDark ? '#94A3B8' : '#999';
+
+  // Container styling inline (robusto contra cache de CSS) — bg/borda vêm do CSS pra respeitar dark mode
+  container.style.display = 'block';
 
   // Mostrar até 12 meses mais recentes, em ordem cronológica (asc)
   const top = meses.slice(0, 12).reverse();
@@ -2667,23 +2691,23 @@ function renderGraficoMes(rows) {
 
   const barStyleProp = 'height:18px;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;color:#fff;font-size:11px;font-weight:700;min-width:28px;background:linear-gradient(90deg,#4a90e2 0%,#6aa9e8 100%);box-shadow:inset 0 -1px 0 rgba(0,0,0,0.1);';
   const barStyleVend = 'height:18px;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;color:#fff;font-size:11px;font-weight:700;min-width:28px;background:linear-gradient(90deg,#2ecc71 0%,#4cd989 100%);box-shadow:inset 0 -1px 0 rgba(0,0,0,0.1);';
-  const barStyleEmpty = 'height:18px;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;color:#999;font-size:11px;font-weight:700;min-width:28px;background:#e8eaef;';
+  const barStyleEmpty = `height:18px;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;color:${corBarEmpty};font-size:11px;font-weight:700;min-width:28px;background:${bgBarEmpty};`;
 
   container.innerHTML = `
-    <div style="margin:0 0 12px 0;font-size:13px;color:#1E3A8A;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">📊 Evolução mensal</div>
-    <div style="display:flex;gap:14px;margin-bottom:10px;font-size:11px;color:#555;font-weight:600;">
+    <div style="margin:0 0 12px 0;font-size:13px;color:${corTitulo};font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">📊 Evolução mensal</div>
+    <div style="display:flex;gap:14px;margin-bottom:10px;font-size:11px;color:${corLegenda};font-weight:600;">
       <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#4a90e2;display:inline-block;"></span>Clientes</div>
       <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#2ecc71;display:inline-block;"></span>Vendidos</div>
-      <div style="margin-left:auto;font-size:10px;color:#888;font-weight:500;">% = conversão do mês</div>
+      <div style="margin-left:auto;font-size:10px;color:${corLegSub};font-weight:500;">% = conversão do mês</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;">
       ${dadosMes.map(d => {
         const propPct = (d.total / maxTotal) * 100;
         const vendPct = (d.vendidos / maxTotal) * 100;
-        const convCor = d.conv >= 30 ? '#2ecc71' : d.conv >= 15 ? '#f5a623' : '#999';
+        const convCor = d.conv >= 30 ? '#2ecc71' : d.conv >= 15 ? '#f5a623' : (isDark ? '#94A3B8' : '#999');
         return `
           <div style="display:grid;grid-template-columns:64px 1fr 56px;align-items:center;gap:10px;">
-            <div style="font-size:12px;color:#1E3A8A;font-weight:800;text-align:right;">${nomeMes(d.ym)}</div>
+            <div style="font-size:12px;color:${corLabel};font-weight:800;text-align:right;">${nomeMes(d.ym)}</div>
             <div style="display:flex;flex-direction:column;gap:3px;">
               <div style="${barStyleProp}width:${Math.max(propPct, 6)}%;">${d.total}</div>
               <div style="${d.vendidos > 0 ? barStyleVend : barStyleEmpty}width:${Math.max(vendPct, 6)}%;">${d.vendidos}</div>
@@ -2713,6 +2737,9 @@ function renderHistoricoTbody() {
     return;
   }
 
+  const isDarkHist = document.documentElement.dataset.theme === 'dark';
+  const corMuted = isDarkHist ? '#64748B' : '#aaa';
+
   tbody.innerHTML = pageRows.map(r => {
     const l = r.enviado_link || 0;
     const w = r.enviado_wpp || 0;
@@ -2720,20 +2747,20 @@ function renderHistoricoTbody() {
     if (l > 0 && w > 0) enviadoCell = `<span title="Link e WhatsApp">🔗${l} 📱${w}</span>`;
     else if (l > 0) enviadoCell = `<span title="Apenas link">🔗 ${l}x</span>`;
     else if (w > 0) enviadoCell = `<span title="Apenas WhatsApp">📱 ${w}x</span>`;
-    else enviadoCell = '<span style="color:#aaa">-</span>';
+    else enviadoCell = `<span style="color:${corMuted}">-</span>`;
 
     const precoVista = r.dados && r.dados.precoVista;
     let valorCell;
     if (r.vendido && r.valor_vendido != null) {
       const diff = precoVista && Math.abs(r.valor_vendido - precoVista) > 0.01;
       valorCell = `<strong style="color:#2ecc71">R$ ${fmt(r.valor_vendido)}</strong>` +
-        (diff ? `<br><small style="text-decoration:line-through;color:#aaa">R$ ${fmt(precoVista)}</small>` : '');
+        (diff ? `<br><small style="text-decoration:line-through;color:${corMuted}">R$ ${fmt(precoVista)}</small>` : '');
     } else {
-      valorCell = precoVista ? `R$ ${fmt(precoVista)}` : '<span style="color:#aaa">-</span>';
+      valorCell = precoVista ? `R$ ${fmt(precoVista)}` : `<span style="color:${corMuted}">-</span>`;
     }
 
     const tel = r.dados && (r.dados.telefone || r.dados.telefoneDigitos);
-    const telCell = tel ? escapeHtml(tel) : '<span style="color:#aaa">-</span>';
+    const telCell = tel ? escapeHtml(tel) : `<span style="color:${corMuted}">-</span>`;
 
     return `
     <tr>
@@ -2753,8 +2780,8 @@ function renderHistoricoTbody() {
       <td>${escapeHtml(r.fase) || '-'}</td>
       <td>${enviadoCell}</td>
       <td><strong>${r.acessos || 0}</strong>${acessoNovo(r) ? ' <span class="badge-novo" title="Acesso novo desde sua última visita">🔴</span>' : ''}</td>
-      <td>${r.ultimo_acesso ? formatDataBR(r.ultimo_acesso) : '<span style="color:#aaa">nunca</span>'}</td>
-      <td>${r.vendido && r.vendido_em ? '<strong style="color:#2ecc71">' + new Date(r.vendido_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' }) + '</strong>' : '<span style="color:#aaa">-</span>'}</td>
+      <td>${r.ultimo_acesso ? formatDataBR(r.ultimo_acesso) : `<span style="color:${corMuted}">nunca</span>`}</td>
+      <td>${r.vendido && r.vendido_em ? '<strong style="color:#2ecc71">' + new Date(r.vendido_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' }) + '</strong>' : `<span style="color:${corMuted}">-</span>`}</td>
       <td class="valor-cell">${valorCell}</td>
       <td>
         <div class="acoes-mini">
@@ -3005,8 +3032,20 @@ async function abrirHistoricoLink(codigo) {
   const title = document.getElementById('histLinkTitle');
   if (!modal || !body) return;
 
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const corBgBody  = isDark ? '#0F172A' : '#F9FAFB';
+  const corBgStat  = isDark ? '#1E293B' : '#f8fafc';
+  const corBgCard  = isDark ? '#0F172A' : 'white';
+  const corBorder  = isDark ? '#334155' : '#eef2f7';
+  const corTextEm  = isDark ? '#93C5FD' : '#1E3A8A';
+  const corTextMut = isDark ? '#94A3B8' : '#6b7280';
+  const corTextLbl = isDark ? '#64748B' : '#777';
+  const corDispBg  = isDark ? '#334155' : '#eef2f7';
+  const corDispFg  = isDark ? '#E5E7EB' : '#555';
+
+  body.style.background = corBgBody;
   title.textContent = `Histórico do link ${codigo}`;
-  body.innerHTML = `<div style="padding:32px;text-align:center;color:#6b7280;">Carregando…</div>`;
+  body.innerHTML = `<div style="padding:32px;text-align:center;color:${corTextMut};">Carregando…</div>`;
   modal.style.display = 'flex';
 
   try {
@@ -3015,9 +3054,9 @@ async function abrirHistoricoLink(codigo) {
     );
     if (!rows || rows.length === 0) {
       body.innerHTML = `
-        <div style="padding:40px 20px;text-align:center;color:#6b7280;">
+        <div style="padding:40px 20px;text-align:center;color:${corTextMut};">
           <div style="font-size:40px;margin-bottom:10px;">📭</div>
-          <div style="font-weight:700;color:#1E3A8A;margin-bottom:4px;">Ninguém abriu ainda</div>
+          <div style="font-weight:700;color:${corTextEm};margin-bottom:4px;">Ninguém abriu ainda</div>
           <div style="font-size:13px;">Quando o cliente abrir o link, todos os acessos aparecem aqui — incluindo cidade, dispositivo e cliques nos botões.</div>
         </div>`;
       return;
@@ -3030,37 +3069,37 @@ async function abrirHistoricoLink(codigo) {
     const ultimo = rows[0].ts;
 
     const statBox = (lbl, val, cor) => `
-      <div style="background:#f8fafc;border-radius:10px;padding:12px 14px;border-bottom:3px solid ${cor};text-align:center;">
-        <div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;font-weight:700;">${lbl}</div>
-        <div style="font-size:18px;font-weight:800;color:#1E3A8A;margin-top:4px;">${val}</div>
+      <div style="background:${corBgStat};border-radius:10px;padding:12px 14px;border-bottom:3px solid ${cor};text-align:center;">
+        <div style="font-size:10px;color:${corTextLbl};text-transform:uppercase;letter-spacing:1px;font-weight:700;">${lbl}</div>
+        <div style="font-size:18px;font-weight:800;color:${corTextEm};margin-top:4px;">${val}</div>
       </div>`;
 
     const itemsHtml = rows.map(r => {
       const d = descricaoEvento(r.evento);
       const local = [r.cidade, r.uf].filter(Boolean).join('/') || (r.pais || 'Local não identificado');
-      const disp = r.dispositivo ? `<span style="font-size:11px;color:#555;background:#eef2f7;border-radius:99px;padding:2px 8px;font-weight:600;">${r.dispositivo}</span>` : '';
+      const disp = r.dispositivo ? `<span style="font-size:11px;color:${corDispFg};background:${corDispBg};border-radius:99px;padding:2px 8px;font-weight:600;">${r.dispositivo}</span>` : '';
       return `
-        <div style="display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid #eef2f7;">
-          <div style="width:36px;height:36px;border-radius:50%;background:${d.cor}15;color:${d.cor};display:flex;align-items:center;justify-content:center;font-size:18px;">${d.icon}</div>
+        <div style="display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid ${corBorder};">
+          <div style="width:36px;height:36px;border-radius:50%;background:${d.cor}${isDark ? '30' : '15'};color:${d.cor};display:flex;align-items:center;justify-content:center;font-size:18px;">${d.icon}</div>
           <div>
-            <div style="font-weight:700;color:#1E3A8A;font-size:14px;">${d.label}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px;">📍 ${escapeHtml(local)}</div>
+            <div style="font-weight:700;color:${corTextEm};font-size:14px;">${d.label}</div>
+            <div style="font-size:12px;color:${corTextMut};margin-top:2px;">📍 ${escapeHtml(local)}</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:12px;font-weight:700;color:#1E3A8A;white-space:nowrap;">${formatDataBR(r.ts)}</div>
+            <div style="font-size:12px;font-weight:700;color:${corTextEm};white-space:nowrap;">${formatDataBR(r.ts)}</div>
             ${disp ? `<div style="margin-top:4px;">${disp}</div>` : ''}
           </div>
         </div>`;
     }).join('');
 
     body.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:16px;background:white;border-bottom:1px solid #eef2f7;">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:16px;background:${corBgCard};border-bottom:1px solid ${corBorder};">
         ${statBox('Aberturas', aberturas, '#1E3A8A')}
         ${statBox('Cliques', cliques, '#dc2626')}
         ${statBox('Primeiro', formatDataBR(primeiro), '#1D4ED8')}
         ${statBox('Último', formatDataBR(ultimo), '#2ecc71')}
       </div>
-      <div style="background:white;">${itemsHtml}</div>
+      <div style="background:${corBgCard};">${itemsHtml}</div>
     `;
   } catch (e) {
     console.error('Erro ao carregar histórico do link:', e);

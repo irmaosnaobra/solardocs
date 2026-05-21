@@ -15,6 +15,21 @@
     if (!authed) {
       location.replace('/gerador');
     }
+
+    var THEME_KEY = 'gerador-tema-v1';
+    var savedTheme = 'light';
+    try { savedTheme = localStorage.getItem(THEME_KEY) || 'light'; } catch(e){}
+    document.documentElement.dataset.theme = savedTheme;
+    window.toggleTheme = function(){
+      var cur = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+      var next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem(THEME_KEY, next); } catch(e){}
+      document.querySelectorAll('.btn-tema').forEach(function(b){ b.textContent = next === 'dark' ? '☀️' : '🌙'; });
+    };
+    document.addEventListener('DOMContentLoaded', function(){
+      document.querySelectorAll('.btn-tema').forEach(function(b){ b.textContent = savedTheme === 'dark' ? '☀️' : '🌙'; });
+    });
   })();
 </script>
 <style>
@@ -510,6 +525,96 @@
     .topbar .brand { font-size: 14px; }
     .topbar .brand small { display: none; }
   }
+
+  /* Botão tema (mesmo estilo do .btn-volta) */
+  .btn-tema {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 99px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    background: #fff;
+    color: #0d2d5e;
+  }
+  .btn-tema:hover { opacity: .9; }
+
+  /* ============ DARK MODE ============ */
+  html[data-theme="dark"] body { background: #0F172A; color: #E5E7EB; }
+
+  html[data-theme="dark"] .topbar { background: #0B1220; border-bottom-color: #f5c518; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  html[data-theme="dark"] .btn-volta { background: #1E293B; color: #93C5FD; }
+  html[data-theme="dark"] .btn-tema { background: #1E293B; color: #FBBF24; }
+  html[data-theme="dark"] .btn-sair { background: transparent; color: #E5E7EB; border-color: #94A3B8 !important; }
+
+  html[data-theme="dark"] .ctrl { background: #0B1220; border-bottom-color: #334155; }
+  html[data-theme="dark"] .nav-semana .nav-btn { background: #1E293B; border-color: #334155; color: #93C5FD; }
+  html[data-theme="dark"] .nav-semana .nav-btn:hover { background: #243046; }
+  html[data-theme="dark"] .nav-semana .periodo { color: #E5E7EB; }
+  html[data-theme="dark"] .nav-semana .btn-hoje { background: #f5c518; color: #0F172A; }
+
+  html[data-theme="dark"] .aba { background: #1E293B; color: #94A3B8; }
+  html[data-theme="dark"] .aba.ativa { background: #3B82F6; color: #fff; }
+  html[data-theme="dark"] .aba:not(.ativa) .badge { background: #0F172A; color: #94A3B8; }
+
+  html[data-theme="dark"] .grid { background: #1E293B; border-color: #334155; }
+  html[data-theme="dark"] .grid .head { background: #0B1220; color: #93C5FD; }
+  html[data-theme="dark"] .grid .head .dia-label { color: #94A3B8; }
+  html[data-theme="dark"] .grid .head .data { color: #93C5FD; }
+  html[data-theme="dark"] .grid .head.hoje .data { color: #FBBF24; }
+  html[data-theme="dark"] .grid .hora { background: #0B1220; color: #94A3B8; border-right-color: #334155; }
+  html[data-theme="dark"] .grid .hora.cheia { color: #93C5FD; }
+  html[data-theme="dark"] .slot { background: #1E293B; color: #E5E7EB; }
+  html[data-theme="dark"] .slot:hover { background: #2A3A55; }
+  html[data-theme="dark"] .slot.fora-prioridade { background: #182238; }
+  html[data-theme="dark"] .slot.fora-prioridade:hover { background: #243046; }
+  /* Slots ocupados/status já são coloridos com bg sólido, mantêm o look */
+
+  html[data-theme="dark"] .legenda { color: #94A3B8; }
+  html[data-theme="dark"] .legenda .sw { border-color: #334155; }
+  html[data-theme="dark"] .sw-livre { background: #1E293B; }
+  html[data-theme="dark"] .sw-fora { background: #182238; }
+  html[data-theme="dark"] .loading { color: #94A3B8; }
+
+  /* Modais */
+  html[data-theme="dark"] .modal-bg { background: rgba(0,0,0,.65); }
+  html[data-theme="dark"] .modal { background: #1E293B; color: #E5E7EB; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  html[data-theme="dark"] .modal h2 { color: #93C5FD; }
+  html[data-theme="dark"] .modal .sub { color: #94A3B8; }
+  html[data-theme="dark"] .modal label { color: #94A3B8; }
+  html[data-theme="dark"] .modal input,
+  html[data-theme="dark"] .modal textarea,
+  html[data-theme="dark"] .modal select { background: #0F172A; color: #E5E7EB; border-color: #334155; }
+  html[data-theme="dark"] .modal input:focus,
+  html[data-theme="dark"] .modal textarea:focus,
+  html[data-theme="dark"] .modal select:focus { border-color: #60A5FA; }
+  html[data-theme="dark"] .modal-tabs { background: #0F172A; }
+  html[data-theme="dark"] .modal-tabs button { color: #94A3B8; }
+  html[data-theme="dark"] .modal-tabs button.ativa { background: #1E293B; color: #93C5FD; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  html[data-theme="dark"] .chip { background: #0F172A; color: #94A3B8; }
+  html[data-theme="dark"] .chip:hover { background: #182238; }
+  html[data-theme="dark"] .chip.ativo { background: #3B82F6; color: #fff; border-color: #3B82F6; }
+  html[data-theme="dark"] .aviso-info { background: #3F2B0A; color: #FBBF24; border-left-color: #f5c518; }
+  html[data-theme="dark"] .detalhe-box { background: #0F172A; }
+  html[data-theme="dark"] .detalhe-box .label { color: #94A3B8; }
+  html[data-theme="dark"] .detalhe-box .val { color: #E5E7EB; }
+  html[data-theme="dark"] .btn-salvar { background: #3B82F6; }
+  html[data-theme="dark"] .btn-salvar:hover { background: #2563EB; }
+  html[data-theme="dark"] .btn-cancelar { background: #334155; color: #E5E7EB; }
+  html[data-theme="dark"] .btn-cancelar:hover { background: #475569; }
+  html[data-theme="dark"] .btn-excluir { background: #4C1D1D; color: #FCA5A5; }
+  html[data-theme="dark"] .btn-excluir:hover { background: #5B2424; }
+  html[data-theme="dark"] .status-label { color: #94A3B8; }
+
+  /* Autofill do Chrome no dark */
+  html[data-theme="dark"] .modal input:-webkit-autofill,
+  html[data-theme="dark"] .modal input:-webkit-autofill:hover,
+  html[data-theme="dark"] .modal input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #E5E7EB !important;
+    -webkit-box-shadow: 0 0 0 100px #0F172A inset !important;
+    caret-color: #E5E7EB;
+  }
 </style>
 </head>
 <body>
@@ -519,6 +624,7 @@
   <div class="actions">
     <button class="btn-volta" id="btn-refresh" onclick="atualizarAgenda()" title="Atualizar agenda" style="width:36px;padding:8px 0">↻</button>
     <button class="btn-volta" onclick="location.href='/gerador'">← Gerador</button>
+    <button class="btn-tema" onclick="toggleTheme()" title="Alternar tema claro/escuro" aria-label="Alternar tema" style="width:36px;padding:8px 0">🌙</button>
     <button class="btn-sair" onclick="sair()">Sair</button>
   </div>
 </div>
