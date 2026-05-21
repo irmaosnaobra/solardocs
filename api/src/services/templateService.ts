@@ -1579,6 +1579,14 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
   const garEstrutura = parseInt(String(f.garantia_estrutura || '10'), 10) || 10;
   const garInstalacao = parseInt(String(f.garantia_instalacao || '1'), 10) || 1;
+  // Garantias extras (até 2) — só renderizam se nome e anos > 0 estiverem preenchidos.
+  type GarExtra = { nome: string; anos: number };
+  const garExtras: GarExtra[] = ([1, 2] as const).flatMap((i): GarExtra[] => {
+    const nome = String(f[`garantia_extra${i}_nome` as keyof typeof f] || '').trim();
+    const anos = parseInt(String(f[`garantia_extra${i}_anos` as keyof typeof f] || '0'), 10) || 0;
+    if (!nome || anos <= 0) return [];
+    return [{ nome, anos }];
+  });
   const inflacaoPct = parseFloat(String(f.inflacao_aa || '6').toString().replace(',', '.')) || 6;
   const inflacao = inflacaoPct / 100;
   const inflacaoTaxaMinPct = parseFloat(String(f.taxa_minima_inflacao_aa || '6').toString().replace(',', '.')) || 6;
@@ -2142,6 +2150,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
       <div class="garantia"><div class="garantia-num">${garInversor}</div><div class="garantia-label">${garInversor === 1 ? 'ano' : 'anos'}<br/>inversor</div></div>
       <div class="garantia"><div class="garantia-num">${garEstrutura}</div><div class="garantia-label">${garEstrutura === 1 ? 'ano' : 'anos'}<br/>estrutura</div></div>
       <div class="garantia"><div class="garantia-num">${garInstalacao}</div><div class="garantia-label">${garInstalacao === 1 ? 'ano' : 'anos'}<br/>instalação</div></div>
+      ${garExtras.map(g => `<div class="garantia"><div class="garantia-num">${g.anos}</div><div class="garantia-label">${g.anos === 1 ? 'ano' : 'anos'}<br/>${pEsc(g.nome)}</div></div>`).join('')}
     </div>
   </div>
 

@@ -66,6 +66,13 @@ const initialFields = {
   garantia_inversor: '10',
   garantia_estrutura: '10',
   garantia_instalacao: '1',
+  // Garantias extras (ex: bateria, controlador de carga) — preenchidas
+  // a critério do integrador. Só aparecem na proposta se ambos os campos
+  // (nome + anos) estiverem preenchidos.
+  garantia_extra1_nome: '',
+  garantia_extra1_anos: '',
+  garantia_extra2_nome: '',
+  garantia_extra2_anos: '',
   inflacao_aa: '6',
   taxa_minima_inflacao_aa: '6',
   // Formas de pagamento — consultor escolhe o que aparece para o cliente.
@@ -441,7 +448,7 @@ export default function PropostaSolarPage() {
               })}
             </div>
           </div>
-          {/* GARANTIAS — visíveis aqui pra não ficar enterrado no collapsible. */}
+          {/* GARANTIAS — 4 fixas + 2 vagas livres pra extras (bateria, controlador, etc). */}
           <div className={styles.grid2} style={{ marginTop: 18 }}>
             <div className={styles.field}>
               <label className={styles.label}>Garantia dos painéis (anos)</label>
@@ -458,6 +465,55 @@ export default function PropostaSolarPage() {
             <div className={styles.field}>
               <label className={styles.label}>Garantia da instalação (anos)</label>
               <input type="text" inputMode="numeric" value={fields.garantia_instalacao} onChange={e => setField('garantia_instalacao', e.target.value)} placeholder="1" className="input-field" />
+            </div>
+          </div>
+          <p style={{ fontSize: 11.5, color: 'var(--color-text-muted)', margin: '14px 0 6px' }}>
+            Garantias extras (opcional) — só aparecem na proposta se preencher nome e anos. Ex: bateria, controlador de carga, microinversor.
+          </p>
+          <div className={styles.grid2}>
+            <div className={styles.field}>
+              <label className={styles.label} style={{ fontSize: 12 }}>Garantia extra #1</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  value={fields.garantia_extra1_nome}
+                  onChange={e => setField('garantia_extra1_nome', e.target.value)}
+                  placeholder="Ex: Bateria"
+                  className="input-field"
+                  style={{ flex: 2 }}
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={fields.garantia_extra1_anos}
+                  onChange={e => setField('garantia_extra1_anos', e.target.value)}
+                  placeholder="anos"
+                  className="input-field"
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+              </div>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} style={{ fontSize: 12 }}>Garantia extra #2</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  value={fields.garantia_extra2_nome}
+                  onChange={e => setField('garantia_extra2_nome', e.target.value)}
+                  placeholder="Ex: Controlador"
+                  className="input-field"
+                  style={{ flex: 2 }}
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={fields.garantia_extra2_anos}
+                  onChange={e => setField('garantia_extra2_anos', e.target.value)}
+                  placeholder="anos"
+                  className="input-field"
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+              </div>
             </div>
           </div>
         </div>
