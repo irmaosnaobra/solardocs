@@ -80,7 +80,11 @@ const initialFields = {
   // Entrada livre (valor + modo de quitação do restante) é off por padrão.
   pag_vista: true,
   pag_cartao: true,
+  pag_cartao_6: false,
   pag_cartao_10: true,
+  pag_cartao_12: false,
+  pag_cartao_18: false,
+  pag_cartao_21: false,
   pag_fin: true,
   pag_fin_36: false,
   pag_fin_48: true,
@@ -149,12 +153,17 @@ export default function PropostaSolarPage() {
     }
   }, [fields.consumo_kwh, fields.potencia_modulo, fields.qtd_modulos]);
 
-  // Parcelas no cartão (sobre o preço cheio): 10x ×1,11
+  // Parcelas no cartão — taxa total média sobre o preço cheio (tabela 2026-05-21).
+  // 6x=8,90% · 10x=12,65% · 12x=14,30% · 18x=18,65% · 21x=20,50%.
   const invNum = (() => {
     const v = parseFloat(String(fields.investimento).replace(',', '.'));
     return v > 0 ? v : 0;
   })();
-  const valor10x = invNum > 0 ? Math.ceil((invNum * 1.11) / 10) : 0;
+  const valor6x  = invNum > 0 ? Math.ceil((invNum * 1.0890) /  6) : 0;
+  const valor10x = invNum > 0 ? Math.ceil((invNum * 1.1265) / 10) : 0;
+  const valor12x = invNum > 0 ? Math.ceil((invNum * 1.1430) / 12) : 0;
+  const valor18x = invNum > 0 ? Math.ceil((invNum * 1.1865) / 18) : 0;
+  const valor21x = invNum > 0 ? Math.ceil((invNum * 1.2050) / 21) : 0;
   // Financiamento Price com 120 dias (4 meses) de carência a 2,2% a.m.
   // (taxa interna — não exibida no form nem na proposta)
   const FIN_RATE = 0.022;
@@ -611,17 +620,41 @@ export default function PropostaSolarPage() {
                 : '—'}
             />
 
-            {/* CARTÃO DE CRÉDITO — só 10x */}
+            {/* CARTÃO DE CRÉDITO — 10x fixo + opções extras (6/12/18/21) */}
             <PagGrupo
               checked={fields.pag_cartao}
               onToggle={(v) => setField('pag_cartao', v)}
               titulo="Cartão de crédito"
             >
               <PagSubItem
+                checked={fields.pag_cartao_6}
+                onToggle={(v) => setField('pag_cartao_6', v)}
+                label="6x"
+                valor={invNum > 0 ? `R$ ${valor6x.toLocaleString('pt-BR')}/mês` : '—'}
+              />
+              <PagSubItem
                 checked={fields.pag_cartao_10}
                 onToggle={(v) => setField('pag_cartao_10', v)}
                 label="10x"
                 valor={invNum > 0 ? `R$ ${valor10x.toLocaleString('pt-BR')}/mês` : '—'}
+              />
+              <PagSubItem
+                checked={fields.pag_cartao_12}
+                onToggle={(v) => setField('pag_cartao_12', v)}
+                label="12x"
+                valor={invNum > 0 ? `R$ ${valor12x.toLocaleString('pt-BR')}/mês` : '—'}
+              />
+              <PagSubItem
+                checked={fields.pag_cartao_18}
+                onToggle={(v) => setField('pag_cartao_18', v)}
+                label="18x"
+                valor={invNum > 0 ? `R$ ${valor18x.toLocaleString('pt-BR')}/mês` : '—'}
+              />
+              <PagSubItem
+                checked={fields.pag_cartao_21}
+                onToggle={(v) => setField('pag_cartao_21', v)}
+                label="21x"
+                valor={invNum > 0 ? `R$ ${valor21x.toLocaleString('pt-BR')}/mês` : '—'}
               />
             </PagGrupo>
 

@@ -1533,8 +1533,13 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const investimento = parseFloat(String(f.investimento || '0').toString().replace(',', '.')) || 0;
   const precoAvistaInput = parseFloat(String(f.preco_avista || '0').toString().replace(',', '.')) || 0;
   const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
-  // Parcelas no cartão (sobre o preço cheio): só 10x ×1,11 (padrão 2026-05-21).
-  const valor10x = investimento > 0 ? Math.ceil((investimento * 1.11) / 10) : 0;
+  // Parcelas no cartão — taxa total média sobre o preço cheio (tabela 2026-05-21).
+  // 6x=8,90% · 10x=12,65% · 12x=14,30% · 18x=18,65% · 21x=20,50%. Padrão: 10x marcado.
+  const valor6x  = investimento > 0 ? Math.ceil((investimento * 1.0890) /  6) : 0;
+  const valor10x = investimento > 0 ? Math.ceil((investimento * 1.1265) / 10) : 0;
+  const valor12x = investimento > 0 ? Math.ceil((investimento * 1.1430) / 12) : 0;
+  const valor18x = investimento > 0 ? Math.ceil((investimento * 1.1865) / 18) : 0;
+  const valor21x = investimento > 0 ? Math.ceil((investimento * 1.2050) / 21) : 0;
   // Financiamento Price com 120 dias (4 meses) de carência a 2,2% a.m.
   // Taxa interna — não exibida no PDF nem no form.
   const FIN_RATE = 0.022;
@@ -1564,7 +1569,11 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const pagOpts = {
     vista:  f.pag_vista === false ? false : true,
     cartao: f.pag_cartao === false ? false : true,
-    p10:    f.pag_cartao_10 === false ? false : true,
+    p6:     f.pag_cartao_6 === true,                                  // off by default
+    p10:    f.pag_cartao_10 === false ? false : true,                 // on by default
+    p12:    f.pag_cartao_12 === true,                                 // off by default
+    p18:    f.pag_cartao_18 === true,                                 // off by default
+    p21:    f.pag_cartao_21 === true,                                 // off by default
     fin:    f.pag_fin === false ? false : true,
     p36:    f.pag_fin_36 === true,                                    // off by default
     p48:    f.pag_fin_48 === false ? false : true,                    // on by default
@@ -1752,13 +1761,24 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
       </div>`);
   }
 
-  // Cartão de crédito — só 10x (padrão 2026-05-21)
-  if (pagOpts.cartao && pagOpts.p10 && valor10x > 0) {
-    cards.push(`<div class="invest-cartao">
-      <div class="invest-cartao-label">Cartão de crédito</div>
-      <div class="invest-cartao-value">10× de ${pBRL(valor10x)}</div>
-      <div class="invest-cartao-sub">no cartão sem entrada</div>
-    </div>`);
+  // Cartão de crédito — 5 prazos possíveis. Padrão exibe 10x; resto opcional.
+  if (pagOpts.cartao && investimento > 0) {
+    const subs: Array<[boolean, number, number]> = [
+      [pagOpts.p6,   6, valor6x],
+      [pagOpts.p10, 10, valor10x],
+      [pagOpts.p12, 12, valor12x],
+      [pagOpts.p18, 18, valor18x],
+      [pagOpts.p21, 21, valor21x],
+    ];
+    for (const [ativo, n, valor] of subs) {
+      if (ativo && valor > 0) {
+        cards.push(`<div class="invest-cartao">
+          <div class="invest-cartao-label">Cartão de crédito</div>
+          <div class="invest-cartao-value">${n}× de ${pBRL(valor)}</div>
+          <div class="invest-cartao-sub">no cartão sem entrada</div>
+        </div>`);
+      }
+    }
   }
 
   // Financiamento bancário — 36x / 48x / 60x. Taxa interna, não exibida.
