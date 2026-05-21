@@ -79,6 +79,14 @@ export default function Landing() {
     document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  function goToFreeRegister() {
+    trackEvent('cta_click', { label: 'free' });
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'Lead', { content_name: 'cta_register', plano: 'free' });
+    }
+    router.push('/auth?mode=register');
+  }
+
   function goToRegister(plano: 'pro' | 'vip') {
     trackEvent('cta_click', { label: plano });
     if (typeof window !== 'undefined' && window.fbq) {
@@ -98,7 +106,7 @@ export default function Landing() {
           </div>
           <div className={styles.navRight}>
             <a href="/auth?mode=login" className={styles.navLink}>Entrar</a>
-            <button onClick={scrollToPlans} className={styles.navCta}>Começar 7 dias grátis</button>
+            <button onClick={goToFreeRegister} className={styles.navCta}>Começar grátis</button>
           </div>
         </div>
       </nav>
@@ -122,23 +130,23 @@ export default function Landing() {
               Gerador de Proposta + Contratos solares <strong>com a sua marca</strong>.
             </h1>
             <p className={styles.lead} style={{ margin: '0 auto 32px' }}>
-              Cadastra a empresa, sobe sua logo e <b>use 7 dias grátis</b>. Em minutos sai a proposta solar, o contrato,
-              a procuração e a proposta bancária — pronto pra mandar no WhatsApp.
+              Cadastra a empresa, sobe sua logo e <b>gera 10 propostas grátis</b>. Em minutos sai a proposta
+              solar pronta com seu nome, sua cor e os números certos — pra mandar no WhatsApp do cliente.
             </p>
 
-            <button className={styles.finalCtaBtn} onClick={scrollToPlans}>
-              Começar 7 dias grátis →
+            <button className={styles.finalCtaBtn} onClick={goToFreeRegister}>
+              Começar grátis →
             </button>
 
             <div className={styles.trustRow} style={{ justifyContent: 'center', marginTop: 24 }}>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> <b>7 dias grátis</b>
+                <span className={styles.trustCheck}>✓</span> <b>10 propostas grátis</b>
               </span>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> Cancela antes e não paga
+                <span className={styles.trustCheck}>✓</span> Sem cartão
               </span>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> Sem multa
+                <span className={styles.trustCheck}>✓</span> Sem cobrança
               </span>
             </div>
           </div>
@@ -317,42 +325,61 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PLANS — 2 planos mensais com trial 7 dias */}
+      {/* PLANS — Grátis + 2 pagos */}
       <section id="planos" className={styles.plans} style={{ scrollMarginTop: 80 }}>
         <div className={styles.plansInner}>
           <div className={styles.sectionLabelWrap}>
             <span className={styles.sectionLabel} data-reveal>Planos</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            <strong>7 dias grátis</strong> em qualquer plano. Cancela antes e não paga.
+            Comece <strong>grátis</strong>. Faça upgrade quando precisar.
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            Passe o cartão pra começar, use sem limite por 7 dias. Se gostou, mantém. Se não, cancela quando quiser e nada é cobrado.
+            10 propostas grátis no Gerador, sem passar cartão. Quando quiser mais documentos ou recursos, escolhe um plano.
           </p>
 
-          {/* CARDS — 2 colunas (auto-fit), VIP destacado */}
+          {/* CARDS — 3 colunas (auto-fit) */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
               gap: 22,
               marginTop: 40,
-              maxWidth: 780,
+              maxWidth: 1100,
               marginLeft: 'auto',
               marginRight: 'auto',
               alignItems: 'stretch',
             }}
           >
-            <div className={styles.plan} data-reveal>
+            <div className={styles.plan} data-reveal style={{ borderColor: 'rgba(34,197,94,0.4)', position: 'relative' }}>
+              <div className={styles.planTag} style={{ background: 'linear-gradient(90deg, #16a34a, #22c55e)', color: '#0b1120' }}>Comece aqui</div>
+              <div className={styles.planName} style={{ color: '#22c55e' }}>Grátis</div>
+              <div className={styles.planPrice}>R$ 0<small>/sempre</small></div>
+              <div className={styles.planSub}>
+                Sem cartão. Sem cobrança.<br />
+                <span style={{ opacity: 0.7 }}>Pra testar o gerador antes de assinar</span>
+              </div>
+              <ul className={styles.planList}>
+                <li><b>10 propostas grátis</b> (vitalício)</li>
+                <li>Gerador de Proposta com sua marca</li>
+                <li>Logo + cor da empresa no PDF</li>
+                <li>Link compartilhável pro WhatsApp</li>
+                <li>Cálculo de payback automático</li>
+              </ul>
+              <button onClick={goToFreeRegister} className={styles.planBtn}>
+                Começar grátis
+              </button>
+            </div>
+
+            <div className={styles.plan} data-reveal style={{ transitionDelay: '0.05s' }}>
               <div className={styles.planName}>Pro</div>
               <div className={styles.planPrice}>R$ {PRICES.pro}<small>/mês</small></div>
               <div className={styles.planSub}>
-                Cobrado só após os 7 dias grátis<br />
+                7 dias grátis · cancela quando quiser<br />
                 <span style={{ opacity: 0.7 }}>Pro integrador que fecha 5–15 vendas/mês</span>
               </div>
               <ul className={styles.planList}>
                 <li>90 documentos por mês</li>
-                <li>Gerador de Proposta com sua marca</li>
                 <li>Todos os 5 tipos de documento</li>
                 <li>Assinatura digital com validade jurídica</li>
                 <li>Suporte prioritário no WhatsApp</li>
@@ -368,7 +395,7 @@ export default function Landing() {
               <div className={styles.planName}>VIP</div>
               <div className={styles.planPrice}>R$ {PRICES.vip}<small>/mês</small></div>
               <div className={styles.planSub}>
-                Cobrado só após os 7 dias grátis<br />
+                7 dias grátis · cancela quando quiser<br />
                 <span style={{ opacity: 0.7 }}>Pra empresa solar consolidada — documentos ilimitados</span>
               </div>
               <ul className={styles.planList}>
@@ -377,7 +404,6 @@ export default function Landing() {
                 <li>Mentoria mensal de vendas solares</li>
                 <li>Suporte VIP por WhatsApp</li>
                 <li>Acesso antecipado a novos documentos</li>
-                <li>Logo em alta resolução</li>
               </ul>
               <button onClick={() => goToRegister('vip')} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
                 Começar 7 dias grátis
@@ -386,7 +412,7 @@ export default function Landing() {
           </div>
 
           <p data-reveal style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: '#94a3b8' }}>
-            Cobrança automática só depois dos 7 dias. Você pode cancelar a qualquer momento na sua conta.
+            Plano grátis não exige cartão. Nos planos pagos, cobrança só depois dos 7 dias e cancela a qualquer momento.
           </p>
         </div>
       </section>
@@ -403,18 +429,18 @@ export default function Landing() {
 
           <div className={styles.faqList}>
             <details className={styles.faqItem} data-reveal>
-              <summary>Por que preciso passar o cartão pra começar?</summary>
+              <summary>Preciso passar cartão pra começar?</summary>
               <div className={styles.faqAnswer}>
-                Pra liberar acesso completo imediato durante os 7 dias. <b>Nada é cobrado nesse período</b> —
-                a primeira fatura só sai no 8º dia, e só se você não cancelar antes.
+                <b>Não.</b> Você cria sua conta grátis, cadastra a empresa e já gera até 10 propostas
+                sem informar cartão. Cartão só entra se você decidir fazer upgrade pra Pro ou VIP.
               </div>
             </details>
 
             <details className={styles.faqItem} data-reveal>
-              <summary>Como cancelo durante o trial?</summary>
+              <summary>E depois das 10 propostas grátis?</summary>
               <div className={styles.faqAnswer}>
-                Direto na sua conta, dentro do app, em 1 clique. <b>Sem multa, sem ligação, sem letra miúda.</b>
-                Se cancelar antes do 7º dia, não é cobrado nenhum valor.
+                Quando acabar, a plataforma te oferece um plano pago. Você decide se faz upgrade
+                ou para por aí — <b>nada é cobrado automaticamente</b>. Sem letra miúda.
               </div>
             </details>
 
@@ -463,14 +489,14 @@ export default function Landing() {
             <strong>o cliente assinando no seu celular.</strong>
           </h2>
           <p className={styles.finalCtaSub} data-reveal>
-            7 dias grátis. Cancela antes e não paga. Sem pegadinha.
+            10 propostas grátis no Gerador. Sem cartão, sem cobrança.
           </p>
           <div data-reveal>
-            <button className={styles.finalCtaBtn} onClick={scrollToPlans}>
-              Começar 7 dias grátis →
+            <button className={styles.finalCtaBtn} onClick={goToFreeRegister}>
+              Começar grátis →
             </button>
             <div className={styles.finalCtaFoot}>
-              Depois do trial: Pro R$ 27/mês ou VIP R$ 67/mês · cancela quando quiser.
+              Quer mais? Upgrade pra Pro R$ {PRICES.pro}/mês ou VIP R$ {PRICES.vip}/mês quando quiser.
             </div>
           </div>
         </div>
