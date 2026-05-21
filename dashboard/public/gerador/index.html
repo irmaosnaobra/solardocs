@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Gerador de Proposta Solar — Irmãos na Obra</title>
-<meta name="theme-color" content="#0d2d5e">
+<meta name="theme-color" content="#1E3A8A">
 <meta name="description" content="Gerador de propostas comerciais de energia solar — Irmãos na Obra">
 <link rel="manifest" href="/gerador/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
@@ -23,13 +23,13 @@ html[data-mode="login"] #loginSection{display:flex}
 html[data-mode="login"] .container,
 html[data-mode="loading"] .container{display:none!important}
 html[data-mode="login"] body,
-html[data-mode="loading"] body{background:#0d2d5e}
+html[data-mode="loading"] body{background:#1E3A8A}
 html[data-mode="viewer"] #formSection,
 html[data-mode="viewer"] #historicoSection,
 html[data-mode="viewer"] .top-actions{display:none!important}
 
 /* Loading da proposta (cliente) */
-#loadingProposta{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:#0d2d5e;color:#fff;z-index:9999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+#loadingProposta{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:#1E3A8A;color:#fff;z-index:9999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 html[data-mode="loading"] #loadingProposta{display:flex}
 #loadingProposta .lp-logo{font-size:22px;font-weight:700;letter-spacing:.5px;margin-bottom:18px;opacity:.95;text-align:center;padding:0 24px}
 #loadingProposta .lp-spinner{width:38px;height:38px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:lp-spin .8s linear infinite}
@@ -37,30 +37,30 @@ html[data-mode="loading"] #loadingProposta{display:flex}
 @keyframes lp-spin{to{transform:rotate(360deg)}}
 
 /* Tela de login */
-html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
+html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 #loginSection{min-height:100vh;align-items:center;justify-content:center;flex-direction:column;padding:24px;box-sizing:border-box}
 .login-card{background:#fff;border-radius:16px;padding:36px 32px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.18);box-sizing:border-box}
-.login-logo{font-size:22px;font-weight:800;color:#0d2d5e;text-align:center;margin-bottom:4px}
+.login-logo{font-size:22px;font-weight:800;color:#1E3A8A;text-align:center;margin-bottom:4px}
 .login-subtitle{text-align:center;color:#6b7280;font-size:13px;margin-bottom:28px}
 .login-card label{display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px}
 .login-card select,.login-card input{width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:15px;font-family:inherit;box-sizing:border-box;background:#fff}
-.login-card select:focus,.login-card input:focus{outline:none;border-color:#0d2d5e}
-.login-card .btn-login{width:100%;margin-top:22px;padding:14px;background:#0d2d5e;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
-.login-card .btn-login:hover{background:#11377a}
+.login-card select:focus,.login-card input:focus{outline:none;border-color:#1E3A8A}
+.login-card .btn-login{width:100%;margin-top:22px;padding:14px;background:#1E3A8A;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.login-card .btn-login:hover{background:#1D4ED8}
 .login-erro{color:#dc2626;font-size:13px;font-weight:600;margin-top:14px;min-height:18px;text-align:center}
 
 /* Barra de ações acima do gerador */
 .top-actions{display:flex;gap:10px;justify-content:flex-end;margin-bottom:14px}
 .btn-top{padding:8px 16px;border-radius:99px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;border:none}
-.btn-top-agenda{background:#0d2d5e;color:#fff}
-.btn-top-hist{background:#f5c518;color:#0d2d5e}
-.btn-top-sair{background:#fff;color:#0d2d5e;border:2px solid #0d2d5e}
+.btn-top-agenda{background:#1E3A8A;color:#fff}
+.btn-top-hist{background:#EFF6FF;color:#1E3A8A;border:1px solid #1E3A8A}
+.btn-top-sair{background:#fff;color:#1E3A8A;border:2px solid #1E3A8A}
 .btn-top:hover{opacity:.9}
 
 /* ===== Blocos opcionais padronizados (bateria, controlador, garantias) ===== */
 .opt-block{grid-column:1/-1;background:#fafbfc;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;transition:background .15s}
 .opt-block[open]{background:#fff;border-color:#cbd5e1}
-.opt-block summary{cursor:pointer;font-weight:700;font-size:13px;color:#0d2d5e;list-style:none;display:flex;align-items:center;gap:8px}
+.opt-block summary{cursor:pointer;font-weight:700;font-size:13px;color:#1E3A8A;list-style:none;display:flex;align-items:center;gap:8px}
 .opt-block summary::-webkit-details-marker{display:none}
 .opt-block summary::before{content:"›";display:inline-block;color:#94a3b8;font-size:18px;line-height:1;transition:transform .15s;margin-right:2px}
 .opt-block[open] summary::before{transform:rotate(90deg)}
@@ -70,36 +70,36 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
 /* ===== Linha de flag (Aplicar desconto máximo) ===== */
 .flag-row{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fafbfc;border:1px solid #e5e7eb;border-radius:10px;cursor:pointer;font-size:13px}
 .flag-row:hover{background:#f1f5f9}
-.flag-row input[type="checkbox"]{width:18px;height:18px;accent-color:#0d2d5e;cursor:pointer}
-.flag-row .flag-label{font-weight:700;color:#0d2d5e}
+.flag-row input[type="checkbox"]{width:18px;height:18px;accent-color:#1E3A8A;cursor:pointer}
+.flag-row .flag-label{font-weight:700;color:#1E3A8A}
 .flag-row .flag-hint{color:#64748b;font-size:12px;margin-left:auto}
-.flag-row:has(input:checked){background:#fef9e7;border-color:#f5c518}
+.flag-row:has(input:checked){background:#EFF6FF;border-color:#1E3A8A}
 
 /* ===== Card "Formas de pagamento" ===== */
 #card-formas-pagamento .pag-hint{font-size:12px;color:#64748b;margin-bottom:14px}
 .pag-grupo{padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:10px;background:#fff;transition:background .15s,border-color .15s}
 .pag-grupo.pag-ativo,.pag-grupo:has(> .pag-head input:checked){border-color:#cbd5e1;background:#fafbfc}
 .pag-head,.pag-head-textonly{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;user-select:none}
-.pag-head input[type="checkbox"]{width:18px;height:18px;accent-color:#0d2d5e;cursor:pointer;flex-shrink:0}
-.pag-titulo{font-weight:700;color:#0d2d5e}
+.pag-head input[type="checkbox"]{width:18px;height:18px;accent-color:#1E3A8A;cursor:pointer;flex-shrink:0}
+.pag-titulo{font-weight:700;color:#1E3A8A}
 .pag-sub{color:#64748b;font-size:12px;margin-left:auto;text-align:right}
 .pag-sub-grid{display:none;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed #e5e7eb}
 .pag-grupo.pag-ativo .pag-sub-grid,.pag-grupo:has(> .pag-head input:checked) .pag-sub-grid{display:grid}
 .pag-sub-item{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#374151;font-weight:600;padding:6px 8px;border-radius:6px;cursor:pointer;background:#fff;border:1px solid #e5e7eb}
 .pag-sub-item:hover{background:#f1f5f9}
-.pag-sub-item input[type="checkbox"]{width:15px;height:15px;accent-color:#0d2d5e;cursor:pointer}
-.pag-sub-item:has(input:checked){background:#fef9e7;border-color:#f5c518}
-.pag-ver-mais{display:none;margin-top:10px;padding:6px 12px;background:transparent;border:1px solid #cbd5e1;color:#0d2d5e;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit}
+.pag-sub-item input[type="checkbox"]{width:15px;height:15px;accent-color:#1E3A8A;cursor:pointer}
+.pag-sub-item:has(input:checked){background:#EFF6FF;border-color:#1E3A8A}
+.pag-ver-mais{display:none;margin-top:10px;padding:6px 12px;background:transparent;border:1px solid #cbd5e1;color:#1E3A8A;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit}
 .pag-grupo.pag-ativo .pag-ver-mais,.pag-grupo:has(> .pag-head input:checked) .pag-ver-mais{display:inline-block}
 .pag-ver-mais:hover{background:#f1f5f9}
 #card-formas-pagamento textarea{width:100%;padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;margin-top:8px;box-sizing:border-box;resize:vertical}
-#card-formas-pagamento textarea:focus{outline:none;border-color:#0d2d5e}
+#card-formas-pagamento textarea:focus{outline:none;border-color:#1E3A8A}
 .pag-entrada-form{display:none;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;padding-top:12px;border-top:1px dashed #e5e7eb}
 .pag-grupo.pag-ativo .pag-entrada-form,.pag-grupo:has(> .pag-head input:checked) .pag-entrada-form{display:grid}
 .pag-entrada-field{display:flex;flex-direction:column;gap:4px}
 .pag-entrada-field label{font-size:12px;color:#64748b;font-weight:600}
 .pag-entrada-field input,.pag-entrada-field select{width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;background:#fff;box-sizing:border-box}
-.pag-entrada-field input:focus,.pag-entrada-field select:focus{outline:none;border-color:#0d2d5e}
+.pag-entrada-field input:focus,.pag-entrada-field select:focus{outline:none;border-color:#1E3A8A}
 .pag-entrada-field input.is-hidden{display:none}
 @media(max-width:520px){.pag-entrada-form{grid-template-columns:1fr}}
 
@@ -332,8 +332,8 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
           </div>
         </details>
 
-        <div id="campo-manual" style="display:none;grid-column:1/-1;background:#fff8e1;border:1px solid #f5d76e;border-radius:8px;padding:12px 14px;margin-bottom:8px;">
-          <div style="font-size:12px;color:#7a4d00;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px;">⚙️ Equipamento manual — preencha tudo abaixo</div>
+        <div id="campo-manual" style="display:none;grid-column:1/-1;background:#EFF6FF;border:1px solid #1E3A8A;border-radius:8px;padding:12px 14px;margin-bottom:8px;">
+          <div style="font-size:12px;color:#1E3A8A;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px;">⚙️ Equipamento manual — preencha tudo abaixo</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
             <div class="field"><label>Modelo do inversor *</label><input type="text" id="f-man-inv" placeholder="Ex: Growatt 5K"></div>
             <div class="field"><label>Qtd de inversores *</label><input type="number" id="f-man-qtdinv" min="1" value="1"></div>
@@ -797,13 +797,13 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
     </div>
 
     <!-- Fallback: se a proposta não tinha consultor cadastrado, mostra contato da operação -->
-    <div id="exp-cta-fallback" class="card" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #f5c518; text-align: center; padding: 28px 22px; display:none;">
-      <div style="font-size: 13px; color: #92400e; text-transform: uppercase; letter-spacing: 2px; font-weight: 800;">Fala com a gente</div>
+    <div id="exp-cta-fallback" class="card" style="background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border: 2px solid #1E3A8A; text-align: center; padding: 28px 22px; display:none;">
+      <div style="font-size: 13px; color: #1E3A8A; text-transform: uppercase; letter-spacing: 2px; font-weight: 800;">Fala com a gente</div>
       <p style="margin: 12px 0 16px; color: #555; font-size: 14px;">Sua proposta expirou — chama no WhatsApp da operação que a gente refaz pra você.</p>
       <a class="exp-cta-wpp" href="https://wa.me/5534998165040?text=Oi%2C%20minha%20proposta%20expirou%20e%20eu%20gostaria%20de%20receber%20uma%20nova." target="_blank" rel="noopener noreferrer">
         💬 Quero outra proposta — WhatsApp
       </a>
-      <div style="margin-top: 12px; font-size: 13px; color: #92400e; font-weight: 700;">
+      <div style="margin-top: 12px; font-size: 13px; color: #1E3A8A; font-weight: 700;">
         (34) 99816-5040
       </div>
     </div>
@@ -925,11 +925,11 @@ html[data-mode="login"] body{background:#0d2d5e;min-height:100vh}
 <!-- Modal "Histórico do Link" — quem abriu, quando, de onde, clicou onde -->
 <div id="histLinkModal" class="modal-overlay" onclick="if(event.target===this) fecharHistoricoLink()" style="display:none;">
   <div class="modal-box" style="max-width:560px;padding:0;overflow:hidden;">
-    <div style="background:linear-gradient(135deg,#0a234a 0%,#0d2d5e 50%,#1a4690 100%);color:white;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="background:linear-gradient(135deg,#1E3A8A 0%,#1D4ED8 100%);color:white;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;">
       <h3 id="histLinkTitle" style="margin:0;font-size:17px;font-weight:800;color:white;">Histórico do link</h3>
       <button onclick="fecharHistoricoLink()" style="background:rgba(255,255,255,.15);color:white;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">×</button>
     </div>
-    <div id="histLinkBody" style="max-height:70vh;overflow-y:auto;background:#f0f4f8;"></div>
+    <div id="histLinkBody" style="max-height:70vh;overflow-y:auto;background:#F9FAFB;"></div>
   </div>
 </div>
 
@@ -2555,9 +2555,9 @@ function renderRanking(rows) {
     <div class="ranking-podio-grid cols-${podioOrdem.length}">
       ${podioOrdem.map(c => {
         const isP1 = c.pos === 1;
-        const corNum = isP1 ? '#5a3800' : '#0d2d5e';
+        const corNum = isP1 ? '#5a3800' : '#1E3A8A';
         const corLbl = isP1 ? '#7a5800' : '#777';
-        const corBig = isP1 ? '#7a4d00' : '#0d2d5e';
+        const corBig = isP1 ? '#7a4d00' : '#1E3A8A';
         const tamBig = isP1 ? '26px' : '22px';
         const numStyle = `font-size:13px;font-weight:800;color:${corNum};`;
         const lblStyle = `font-size:8px;color:${corLbl};text-transform:uppercase;letter-spacing:0.3px;font-weight:700;margin-top:1px;`;
@@ -2655,7 +2655,7 @@ function renderGraficoMes(rows) {
   const barStyleEmpty = 'height:18px;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;color:#999;font-size:11px;font-weight:700;min-width:28px;background:#e8eaef;';
 
   container.innerHTML = `
-    <div style="margin:0 0 12px 0;font-size:13px;color:#0d2d5e;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">📊 Evolução mensal</div>
+    <div style="margin:0 0 12px 0;font-size:13px;color:#1E3A8A;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">📊 Evolução mensal</div>
     <div style="display:flex;gap:14px;margin-bottom:10px;font-size:11px;color:#555;font-weight:600;">
       <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#4a90e2;display:inline-block;"></span>Clientes</div>
       <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#2ecc71;display:inline-block;"></span>Vendidos</div>
@@ -2668,7 +2668,7 @@ function renderGraficoMes(rows) {
         const convCor = d.conv >= 30 ? '#2ecc71' : d.conv >= 15 ? '#f5a623' : '#999';
         return `
           <div style="display:grid;grid-template-columns:64px 1fr 56px;align-items:center;gap:10px;">
-            <div style="font-size:12px;color:#0d2d5e;font-weight:800;text-align:right;">${nomeMes(d.ym)}</div>
+            <div style="font-size:12px;color:#1E3A8A;font-weight:800;text-align:right;">${nomeMes(d.ym)}</div>
             <div style="display:flex;flex-direction:column;gap:3px;">
               <div style="${barStyleProp}width:${Math.max(propPct, 6)}%;">${d.total}</div>
               <div style="${d.vendidos > 0 ? barStyleVend : barStyleEmpty}width:${Math.max(vendPct, 6)}%;">${d.vendidos}</div>
@@ -2975,11 +2975,11 @@ function acessoNovo(r) {
 // Ícone + descrição amigável por evento (mesmos do whitelist no backend)
 function descricaoEvento(ev) {
   switch (ev) {
-    case 'abertura':            return { icon: '👁️', label: 'Abriu a proposta', cor: '#0d2d5e' };
+    case 'abertura':            return { icon: '👁️', label: 'Abriu a proposta', cor: '#1E3A8A' };
     case 'click_wpp_cta':       return { icon: '🔥', label: 'Clicou no botão "Quero fechar"', cor: '#dc2626' };
     case 'click_wpp_expirado':  return { icon: '⏰', label: 'Clicou no WhatsApp (proposta expirada)', cor: '#c2410c' };
     case 'click_wpp_consultor': return { icon: '💬', label: 'Clicou no WhatsApp do consultor', cor: '#16a34a' };
-    case 'click_pdf':           return { icon: '📄', label: 'Baixou o PDF', cor: '#0d2d5e' };
+    case 'click_pdf':           return { icon: '📄', label: 'Baixou o PDF', cor: '#1E3A8A' };
     default:                    return { icon: '•',  label: ev || 'evento', cor: '#555' };
   }
 }
@@ -3002,7 +3002,7 @@ async function abrirHistoricoLink(codigo) {
       body.innerHTML = `
         <div style="padding:40px 20px;text-align:center;color:#6b7280;">
           <div style="font-size:40px;margin-bottom:10px;">📭</div>
-          <div style="font-weight:700;color:#0d2d5e;margin-bottom:4px;">Ninguém abriu ainda</div>
+          <div style="font-weight:700;color:#1E3A8A;margin-bottom:4px;">Ninguém abriu ainda</div>
           <div style="font-size:13px;">Quando o cliente abrir o link, todos os acessos aparecem aqui — incluindo cidade, dispositivo e cliques nos botões.</div>
         </div>`;
       return;
@@ -3017,7 +3017,7 @@ async function abrirHistoricoLink(codigo) {
     const statBox = (lbl, val, cor) => `
       <div style="background:#f8fafc;border-radius:10px;padding:12px 14px;border-bottom:3px solid ${cor};text-align:center;">
         <div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;font-weight:700;">${lbl}</div>
-        <div style="font-size:18px;font-weight:800;color:#0d2d5e;margin-top:4px;">${val}</div>
+        <div style="font-size:18px;font-weight:800;color:#1E3A8A;margin-top:4px;">${val}</div>
       </div>`;
 
     const itemsHtml = rows.map(r => {
@@ -3028,11 +3028,11 @@ async function abrirHistoricoLink(codigo) {
         <div style="display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid #eef2f7;">
           <div style="width:36px;height:36px;border-radius:50%;background:${d.cor}15;color:${d.cor};display:flex;align-items:center;justify-content:center;font-size:18px;">${d.icon}</div>
           <div>
-            <div style="font-weight:700;color:#0d2d5e;font-size:14px;">${d.label}</div>
+            <div style="font-weight:700;color:#1E3A8A;font-size:14px;">${d.label}</div>
             <div style="font-size:12px;color:#6b7280;margin-top:2px;">📍 ${escapeHtml(local)}</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:12px;font-weight:700;color:#0d2d5e;white-space:nowrap;">${formatDataBR(r.ts)}</div>
+            <div style="font-size:12px;font-weight:700;color:#1E3A8A;white-space:nowrap;">${formatDataBR(r.ts)}</div>
             ${disp ? `<div style="margin-top:4px;">${disp}</div>` : ''}
           </div>
         </div>`;
@@ -3040,9 +3040,9 @@ async function abrirHistoricoLink(codigo) {
 
     body.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:16px;background:white;border-bottom:1px solid #eef2f7;">
-        ${statBox('Aberturas', aberturas, '#0d2d5e')}
+        ${statBox('Aberturas', aberturas, '#1E3A8A')}
         ${statBox('Cliques', cliques, '#dc2626')}
-        ${statBox('Primeiro', formatDataBR(primeiro), '#f5c518')}
+        ${statBox('Primeiro', formatDataBR(primeiro), '#1D4ED8')}
         ${statBox('Último', formatDataBR(ultimo), '#2ecc71')}
       </div>
       <div style="background:white;">${itemsHtml}</div>
