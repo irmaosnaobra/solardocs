@@ -192,7 +192,10 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
           </>
         )}
 
-        {/* ── Topo: Dashboard, Gerador (destaque), Baixe o App ── */}
+        {/* ── Menu: Dashboard, Gerador (destaque), Baixe o App ── */}
+        <div className={styles.navDivider}>
+          <span className={styles.navDividerLabel}>Menu</span>
+        </div>
         <div className={styles.navSection}>
           {topoItems.map(renderItem)}
         </div>
