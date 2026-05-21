@@ -5,6 +5,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import TopBar from '@/components/TopBar/TopBar';
 import UpgradeModal from '@/components/UpgradeModal/UpgradeModal';
+import WhatsAppFab from '@/components/WhatsAppFab/WhatsAppFab';
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
 import { isAuthenticated, removeToken } from '@/services/auth';
 import api from '@/services/api';
@@ -421,6 +422,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
       </main>
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} plano={user.plano} />}
+      <WhatsAppFab />
     </div>
   );
 }
