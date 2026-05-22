@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
+import api from '@/services/api';
 import PlanBadge from '../PlanBadge/PlanBadge';
 import Logo from '../Logo/Logo';
 import styles from './Sidebar.module.css';
@@ -38,6 +39,7 @@ interface NavItem {
   label: string;
   external?: boolean;
   count?: number;
+  counts?: { total: number; pro: number; vip: number } | null;
   requireCompany?: boolean;
   vipOnly?: boolean;
   paidOnly?: boolean; // free vê locked → clique abre upgrade modal
@@ -45,9 +47,9 @@ interface NavItem {
 
 // ── Configuração das 5 seções ─────────────────────────────────────
 
-const adminItems: NavItem[] = [
+const baseAdminItems: NavItem[] = [
   { href: '/admin',              icon: Settings,   label: 'Painel SolarDoc' },
-  { href: '/crm/solardoc',       icon: FolderOpen, label: 'CRM SolarDoc', count: 58 },
+  { href: '/crm/solardoc',       icon: FolderOpen, label: 'CRM SolarDoc' },
   { href: '/admin/funil',        icon: Filter,     label: 'Funil SolarDoc' },
   { href: '/admin/leads-google', icon: MapPin,     label: 'Leads Google' },
   { href: '/admin/insights',     icon: BarChart3,  label: 'Insights IO' },
@@ -94,8 +96,23 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
   const isFree = user.plano === 'free';
   const isAdmin = !!user.is_admin;
   const [open, setOpen] = useState(false);
+  const [crmCounts, setCrmCounts] = useState<{ total: number; pro: number; vip: number } | null>(null);
 
   useEffect(() => { setOpen(false); }, [pathname]);
+
+  // Conta leads do CRM SolarDoc com empresa + whatsapp (só faz sentido pra admin)
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    api.get('/admin/platform-crm/counts')
+      .then(r => { if (!cancelled) setCrmCounts(r.data); })
+      .catch(() => { /* badge some silenciosamente */ });
+    return () => { cancelled = true; };
+  }, [isAdmin]);
+
+  const adminItems: NavItem[] = baseAdminItems.map(item =>
+    item.href === '/crm/solardoc' ? { ...item, counts: crmCounts } : item
+  );
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
@@ -136,13 +153,23 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
       );
     }
 
+    const badge = item.counts ? (
+      <span className={styles.tripleBadge} title={`${item.counts.total} total · ${item.counts.pro} PRO · ${item.counts.vip} VIP (empresa + WhatsApp)`}>
+        <span className={styles.tripleTotal}>{item.counts.total}</span>
+        <span className={styles.triplePro}>{item.counts.pro}</span>
+        <span className={styles.tripleVip}>{item.counts.vip}</span>
+      </span>
+    ) : item.count != null ? (
+      <span className={styles.countBadge}>{item.count}</span>
+    ) : null;
+
     if (item.external) {
       return (
         <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer"
            className={styles.navItem}>
           <item.icon className={styles.navIcon} size={16} strokeWidth={1.75} />
           <span className={styles.navLabel}>{item.label}</span>
-          {item.count != null && <span className={styles.countBadge}>{item.count}</span>}
+          {badge}
           <span className={styles.externalIcon}>↗</span>
         </a>
       );
@@ -153,7 +180,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
             className={`${styles.navItem} ${active ? styles.navItemActive : ''}`}>
         <item.icon className={styles.navIcon} size={16} strokeWidth={1.75} />
         <span className={styles.navLabel}>{item.label}</span>
-        {item.count != null && <span className={styles.countBadge}>{item.count}</span>}
+        {badge}
       </Link>
     );
   }

@@ -501,6 +501,32 @@ Apenas JSON, sem markdown.`,
   } catch (err) { res.status(500).json({ error: 'Erro IA', detail: err instanceof Error ? err.message : String(err) }); }
 });
 
+// Contagem leve pro badge do sidebar — leads com empresa + whatsapp,
+// quebrados por plano (total, pro, vip).
+router.get('/platform-crm/counts', async (_req: Request, res: Response) => {
+  try {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, plano, whatsapp');
+    const { data: companies } = await supabase.from('company').select('user_id');
+    const companySet = new Set((companies ?? []).map((c: any) => c.user_id));
+
+    let total = 0, pro = 0, vip = 0;
+    for (const u of users ?? []) {
+      const hasWpp = !!(u.whatsapp && String(u.whatsapp).trim());
+      const hasCompany = companySet.has(u.id);
+      if (!hasWpp || !hasCompany) continue;
+      total++;
+      if (u.plano === 'pro') pro++;
+      else if (u.plano === 'ilimitado') vip++;
+    }
+    res.json({ total, pro, vip });
+  } catch (err) {
+    console.error('platform-crm/counts error:', err);
+    res.status(500).json({ error: 'Erro ao contar' });
+  }
+});
+
 // ── CRM Plataforma — status dinâmico + override manual ────────────
 router.get('/platform-crm', async (req: Request, res: Response) => {
   try {
