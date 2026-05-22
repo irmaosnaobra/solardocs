@@ -39,7 +39,7 @@ interface NavItem {
   label: string;
   external?: boolean;
   count?: number;
-  counts?: { total: number; pro: number; vip: number } | null;
+  counts?: { total: number; pro: number; vip: number; adm: number } | null;
   requireCompany?: boolean;
   vipOnly?: boolean;
   paidOnly?: boolean; // free vê locked → clique abre upgrade modal
@@ -96,7 +96,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
   const isFree = user.plano === 'free';
   const isAdmin = !!user.is_admin;
   const [open, setOpen] = useState(false);
-  const [crmCounts, setCrmCounts] = useState<{ total: number; pro: number; vip: number } | null>(null);
+  const [crmCounts, setCrmCounts] = useState<{ total: number; pro: number; vip: number; adm: number } | null>(null);
 
   useEffect(() => { setOpen(false); }, [pathname]);
 
@@ -154,10 +154,11 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
     }
 
     const badge = item.counts ? (
-      <span className={styles.tripleBadge} title={`${item.counts.total} total · ${item.counts.pro} PRO · ${item.counts.vip} VIP (empresa + WhatsApp)`}>
+      <span className={styles.tripleBadge} title={`${item.counts.total} total · ${item.counts.pro} PRO · ${item.counts.vip} VIP · ${item.counts.adm} ADM (empresa + WhatsApp)`}>
         <span className={styles.tripleTotal}>{item.counts.total}</span>
         <span className={styles.triplePro}>{item.counts.pro}</span>
         <span className={styles.tripleVip}>{item.counts.vip}</span>
+        <span className={styles.tripleAdm}>{item.counts.adm}</span>
       </span>
     ) : item.count != null ? (
       <span className={styles.countBadge}>{item.count}</span>

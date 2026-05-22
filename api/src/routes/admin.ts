@@ -502,25 +502,26 @@ Apenas JSON, sem markdown.`,
 });
 
 // Contagem leve pro badge do sidebar — leads com empresa + whatsapp,
-// quebrados por plano (total, pro, vip).
+// quebrados por plano (total, pro, vip, adm). Admin não conta como cliente.
 router.get('/platform-crm/counts', async (_req: Request, res: Response) => {
   try {
     const { data: users } = await supabase
       .from('users')
-      .select('id, plano, whatsapp');
+      .select('id, plano, whatsapp, is_admin');
     const { data: companies } = await supabase.from('company').select('user_id');
     const companySet = new Set((companies ?? []).map((c: any) => c.user_id));
 
-    let total = 0, pro = 0, vip = 0;
+    let total = 0, pro = 0, vip = 0, adm = 0;
     for (const u of users ?? []) {
       const hasWpp = !!(u.whatsapp && String(u.whatsapp).trim());
       const hasCompany = companySet.has(u.id);
       if (!hasWpp || !hasCompany) continue;
+      if (u.is_admin) { adm++; continue; } // admin sai do funil de clientes
       total++;
       if (u.plano === 'pro') pro++;
       else if (u.plano === 'ilimitado') vip++;
     }
-    res.json({ total, pro, vip });
+    res.json({ total, pro, vip, adm });
   } catch (err) {
     console.error('platform-crm/counts error:', err);
     res.status(500).json({ error: 'Erro ao contar' });

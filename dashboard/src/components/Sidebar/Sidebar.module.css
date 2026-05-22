@@ -195,6 +195,7 @@
 .tripleTotal { color: #ffffff; background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.30); }
 .triplePro   { color: #c4b5fd; background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.45); }
 .tripleVip   { color: #f9a8d4; background: rgba(236,72,153,0.15); border-color: rgba(236,72,153,0.45); }
+.tripleAdm   { color: #818cf8; background: rgba(99,102,241,0.15);  border-color: rgba(99,102,241,0.45); }
 
 /* ── Título da seção ── */
 .navDivider {
