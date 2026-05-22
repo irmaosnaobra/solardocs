@@ -13,6 +13,29 @@ const PRICE_TO_PLAN: Record<string, string> = {
   [(process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim()]: 'ilimitado',
 };
 
+// Início-de-período em America/Sao_Paulo. A API roda em UTC, então
+// setHours(0,0,0,0) cai em SP 21:00 do dia anterior — bugava o "Hoje" do
+// funil entre 21:00 SP e meia-noite. SP é UTC-3 fixo (Brasil aboliu DST em 2019).
+function spStartOfToday(): Date {
+  const ymd = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  return new Date(`${ymd}T00:00:00-03:00`);
+}
+function spStartOfYesterday(): Date {
+  const dt = spStartOfToday();
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  return dt;
+}
+function spStartOfMonth(): Date {
+  const ymd = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  return new Date(`${ymd.slice(0, 7)}-01T00:00:00-03:00`);
+}
+
 type UserRow = {
   id: string;
   email: string;
@@ -122,12 +145,12 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
     const period = (req.query.period as string) || 'maximo';
     const now = new Date();
     let since: Date;
-    if (period === 'hoje')       { since = new Date(now); since.setHours(0, 0, 0, 0); }
-    else if (period === 'ontem') { since = new Date(now.getTime() - 86400000); since.setHours(0, 0, 0, 0); }
+    if (period === 'hoje')       { since = spStartOfToday(); }
+    else if (period === 'ontem') { since = spStartOfYesterday(); }
     else if (period === '3dias') { since = new Date(now.getTime() - 3 * 86400000); }
     else if (period === '7dias') { since = new Date(now.getTime() - 7 * 86400000); }
     else if (period === '30dias'){ since = new Date(now.getTime() - 30 * 86400000); }
-    else if (period === 'mes')   { since = new Date(now.getFullYear(), now.getMonth(), 1); }
+    else if (period === 'mes')   { since = spStartOfMonth(); }
     else                         { since = new Date(0); }
 
     // 1) VSL — visitas em /apresentacao
@@ -259,11 +282,11 @@ export async function getAnalytics(req: Request, res: Response): Promise<void> {
 
     const now = new Date();
     let since: Date;
-    if (period === 'hoje')        { since = new Date(now); since.setHours(0,0,0,0); }
-    else if (period === 'ontem')  { since = new Date(now.getTime() - 86400000); since.setHours(0,0,0,0); }
+    if (period === 'hoje')        { since = spStartOfToday(); }
+    else if (period === 'ontem')  { since = spStartOfYesterday(); }
     else if (period === '3d')     { since = new Date(now.getTime() - 3 * 86400000); }
     else if (period === '7dias')  { since = new Date(now.getTime() - 7 * 86400000); }
-    else if (period === 'mes')    { since = new Date(now.getFullYear(), now.getMonth(), 1); }
+    else if (period === 'mes')    { since = spStartOfMonth(); }
     else                          { since = new Date(0); }
 
     // Busca visitas recentes
@@ -482,11 +505,11 @@ export async function getMetaFunnel(req: Request, res: Response): Promise<void> 
 
   const now   = new Date();
   let since: Date;
-  if (period === 'hoje')        { since = new Date(now); since.setHours(0, 0, 0, 0); }
-  else if (period === 'ontem')  { since = new Date(now.getTime() - 86400000); since.setHours(0, 0, 0, 0); }
+  if (period === 'hoje')        { since = spStartOfToday(); }
+  else if (period === 'ontem')  { since = spStartOfYesterday(); }
   else if (period === '3d')     { since = new Date(now.getTime() - 3 * 86400000); }
   else if (period === '7dias')  { since = new Date(now.getTime() - 7 * 86400000); }
-  else if (period === 'mes')    { since = new Date(now.getFullYear(), now.getMonth(), 1); }
+  else if (period === 'mes')    { since = spStartOfMonth(); }
   else                          { since = new Date(0); }
 
   try {
