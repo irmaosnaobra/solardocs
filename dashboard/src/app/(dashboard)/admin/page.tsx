@@ -486,7 +486,11 @@ export default function AdminPage() {
                         paused:             { label:'Pausada',   bg:'rgba(148,163,184,0.10)',border:'rgba(148,163,184,0.30)',color:'#94a3b8' },
                       };
                       const s = map[u.stripe_status] ?? { label:u.stripe_status, bg:'rgba(148,163,184,0.10)', border:'rgba(148,163,184,0.30)', color:'#94a3b8' };
-                      return <span title={`Stripe: ${u.stripe_status}`} style={{display:'inline-block',padding:'2px 8px',borderRadius:6,background:s.bg,border:`1px solid ${s.border}`,color:s.color,fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>{s.label}</span>;
+                      // Concatena com PRO/VIP nos status que carregam plano (active/trialing/past_due)
+                      const planSuffix = u.stripe_plan && (u.stripe_status === 'active' || u.stripe_status === 'trialing' || u.stripe_status === 'past_due')
+                        ? ` ${PLANO_LABEL[u.stripe_plan] ?? u.stripe_plan.toUpperCase()}`
+                        : '';
+                      return <span title={`Stripe: ${u.stripe_status}${u.stripe_plan?' / '+u.stripe_plan:''}`} style={{display:'inline-block',padding:'2px 8px',borderRadius:6,background:s.bg,border:`1px solid ${s.border}`,color:s.color,fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>{s.label}{planSuffix}</span>;
                     })()}</td>
                     <td className={styles.mutedCell}>{u.documentos_usados}/{u.limite_documentos===999999?'∞':u.limite_documentos}</td>
                     <td>{(() => { const r = relDate(u.created_at); return <div style={{display:'flex',flexDirection:'column',gap:2}}><span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>{r.showTime&&<span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}</div>; })()}</td>
