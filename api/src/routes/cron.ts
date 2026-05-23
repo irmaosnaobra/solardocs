@@ -16,6 +16,8 @@ import { runIoCrmFollowups, runCoraTick } from '../services/agents/io/ioCrmAgent
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { runDunning } from '../services/dunningService';
+import { syncStripePlans } from '../services/stripeSyncService';
+import { runWinback } from '../services/winbackService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -293,9 +295,37 @@ router.get('/io-broadcast-tick', async (req: Request, res: Response) => {
   }
 });
 
-// Dunning de inadimplência — varre contas past_due, manda lembretes D2/D4/D6
-// e suspende+notifica no D7. Idempotente (dunning_last_day_sent garante que
-// cada dia só é enviado uma vez). Rodado pelo master diário.
+// Reconcilia users.plano com Stripe real (varre todas subs, pagina, e ajusta
+// plano + limite por email). Disparado pelo master horário (.github/workflows/cron.yml).
+// NÃO toca billing_status / past_due_since / dunning_last_day_sent — webhook é dono.
+router.get('/sync-stripe-plans', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await syncStripePlans();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'sync-stripe-plans falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Winback de cancelados — varre subs canceladas no Stripe e dispara emails
+// D+7 e D+30 pra clientes free que cancelaram (ex-dunning OU voluntários).
+// Email-only, idempotente via winback_d7_sent_at / winback_d30_sent_at.
+router.get('/winback', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runWinback();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'winback falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Dunning de inadimplência — varre contas past_due, manda lembretes D1/D2/D3/D4
+// e CANCELA sub no Stripe + rebaixa pra free no D5. Idempotente
+// (dunning_last_day_sent garante que cada dia só é enviado uma vez).
 router.get('/dunning', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
@@ -329,7 +359,9 @@ router.get('/master', async (req: Request, res: Response) => {
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],
-    ['dunning',                     () => runDunning()],            // tolerância 7 dias pós invoice.payment_failed
+    ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free
+    ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)
+    ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
   ];
 
   const settled = await Promise.allSettled(tasks.map(([, fn]) => fn()));

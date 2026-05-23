@@ -1,24 +1,28 @@
-// Dunning de inadimplência — 7 dias de tolerância após falha de cobrança.
+// Dunning de inadimplência — 5 dias de tolerância após falha de cobrança.
 //
 // Fluxo:
 //   D0: invoice.payment_failed (webhook) → marca past_due_since, envia D0 imediato
-//   D2/D4/D6: cron diário envia lembretes (acesso mantido)
-//   D7: cron diário muda billing_status='suspended' + envia último aviso
-//   Stripe Smart Retries continua tentando em paralelo. Se cair
-//   invoice.payment_succeeded em qualquer dia, billing_status volta pra 'active'.
+//   D1/D2/D3/D4: cron diário envia lembretes (acesso mantido)
+//   D5: cron diário CANCELA a sub no Stripe + plano='free' + envia aviso final
+//   Stripe Smart Retries continua tentando em D1-D4 em paralelo. Se cair
+//   invoice.payment_succeeded em qualquer dia até D4, billing_status volta pra 'active'.
+//   Depois de D5 (sub cancelada), pra voltar tem que assinar de novo do zero.
 
 import { supabase } from '../utils/supabase';
 import { Resend } from 'resend';
+import Stripe from 'stripe';
 import { sendWhatsApp } from './agents/zapiClient';
 import { logger } from '../utils/logger';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
 const FROM_EMAIL = process.env.MAIL_FROM || 'SolarDoc Pro <equipe@solardoc.app>';
 const REPLY_TO = process.env.MAIL_REPLY_TO || 'aiorosgroup@gmail.com';
 
 const SUPPORT_PHONE_LABEL = '(34) 99943-7831';
 const BILLING_URL = `${APP_URL}/conta`;
+const CHECKOUT_URL = `${APP_URL}/`;
 
 interface DunningTemplate {
   subject: string;
@@ -38,21 +42,21 @@ function tplD0(nome: string | null): DunningTemplate {
          Pode ter sido um cartão expirado, limite indisponível ou bloqueio temporário pelo banco.
        </p>
        <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
-         <strong>Seu acesso à plataforma continua ativo nos próximos 7 dias.</strong>
-         Pedimos a gentileza de atualizar os dados de pagamento dentro desse prazo para evitar a suspensão da conta.
+         <strong>Seu acesso à plataforma continua ativo nos próximos 5 dias.</strong>
+         Pedimos a gentileza de atualizar os dados de pagamento dentro desse prazo para evitar o cancelamento da assinatura.
        </p>`,
       'Atualizar forma de pagamento',
     ),
     whatsapp:
       `*SolarDoc Pro — Aviso de cobrança*\n\n${oi}\n\n` +
       `A cobrança da sua assinatura SolarDoc Pro não foi processada com sucesso. ` +
-      `Seu acesso continua liberado pelos próximos 7 dias.\n\n` +
-      `Por favor, atualize os dados de pagamento para evitar a suspensão:\n${BILLING_URL}\n\n` +
+      `Seu acesso continua liberado pelos próximos 5 dias.\n\n` +
+      `Por favor, atualize os dados de pagamento para evitar o cancelamento:\n${BILLING_URL}\n\n` +
       `Em caso de dúvidas, estamos à disposição.`,
   };
 }
 
-function tplD2(nome: string | null): DunningTemplate {
+function tplD1(nome: string | null): DunningTemplate {
   const oi = nome ? `Prezado(a) ${nome.split(' ')[0]},` : 'Prezado(a) cliente,';
   return {
     subject: 'Lembrete: pagamento da sua assinatura SolarDoc Pro',
@@ -60,106 +64,130 @@ function tplD2(nome: string | null): DunningTemplate {
       'Lembrete de pagamento pendente',
       `<p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${oi}</p>
        <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
-         Há 2 dias identificamos uma falha na cobrança da sua assinatura e o pagamento ainda não foi regularizado.
+         Ontem identificamos uma falha na cobrança da sua assinatura e o pagamento ainda não foi regularizado.
        </p>
        <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
-         Faltam <strong>5 dias</strong> para a suspensão automática da conta.
-         A atualização leva menos de 1 minuto.
+         Faltam <strong>4 dias</strong> para o cancelamento automático.
+         A atualização do cartão leva menos de 1 minuto.
        </p>`,
       'Atualizar forma de pagamento',
     ),
     whatsapp:
       `*SolarDoc Pro — Lembrete*\n\n${oi}\n\n` +
-      `Há 2 dias identificamos uma falha na cobrança da sua assinatura e o pagamento ainda não foi regularizado.\n\n` +
-      `*Faltam 5 dias para a suspensão automática da conta.*\n\n` +
-      `Atualize os dados de pagamento em:\n${BILLING_URL}`,
+      `Ontem identificamos uma falha na cobrança da sua assinatura.\n\n` +
+      `*Faltam 4 dias para o cancelamento automático.*\n\n` +
+      `Atualize em:\n${BILLING_URL}`,
+  };
+}
+
+function tplD2(nome: string | null): DunningTemplate {
+  const oi = nome ? `Prezado(a) ${nome.split(' ')[0]},` : 'Prezado(a) cliente,';
+  return {
+    subject: 'Pagamento pendente — faltam 3 dias',
+    html: emailShell(
+      'Pagamento ainda pendente',
+      `<p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${oi}</p>
+       <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
+         Já se passaram 2 dias desde a falha na cobrança da sua assinatura SolarDoc Pro.
+       </p>
+       <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
+         Faltam <strong>3 dias</strong> para o cancelamento. Se houver alguma dificuldade,
+         responda este email ou nos chame no WhatsApp ${SUPPORT_PHONE_LABEL}.
+       </p>`,
+      'Atualizar forma de pagamento',
+    ),
+    whatsapp:
+      `*SolarDoc Pro — Pagamento pendente*\n\n${oi}\n\n` +
+      `Já se passaram 2 dias desde a falha na cobrança.\n\n` +
+      `*Faltam 3 dias para o cancelamento.*\n\n` +
+      `Atualize em:\n${BILLING_URL}\n\n` +
+      `Se houver alguma dificuldade, basta responder esta mensagem.`,
+  };
+}
+
+function tplD3(nome: string | null): DunningTemplate {
+  const oi = nome ? `Prezado(a) ${nome.split(' ')[0]},` : 'Prezado(a) cliente,';
+  return {
+    subject: 'Atenção: faltam 2 dias para o cancelamento',
+    html: emailShell(
+      'Atenção — cancelamento próximo',
+      `<p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${oi}</p>
+       <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
+         A cobrança da sua assinatura SolarDoc Pro segue pendente há 3 dias.
+       </p>
+       <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
+         <strong>Faltam apenas 2 dias para o cancelamento automático da assinatura.</strong>
+         Após o cancelamento, será necessário contratar novamente para retomar o acesso.
+       </p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.7;margin:0 0 18px;">
+         Em caso de dúvidas, fale com a nossa equipe pelo WhatsApp ${SUPPORT_PHONE_LABEL}.
+       </p>`,
+      'Regularizar pagamento agora',
+    ),
+    whatsapp:
+      `*SolarDoc Pro — Atenção*\n\n${oi}\n\n` +
+      `A cobrança da sua assinatura segue pendente há 3 dias.\n\n` +
+      `*Faltam apenas 2 dias para o cancelamento automático.*\n\n` +
+      `Após o cancelamento, será preciso contratar novamente.\n\n` +
+      `Regularize em:\n${BILLING_URL}`,
   };
 }
 
 function tplD4(nome: string | null): DunningTemplate {
   const oi = nome ? `Prezado(a) ${nome.split(' ')[0]},` : 'Prezado(a) cliente,';
   return {
-    subject: 'Atenção: faltam 3 dias para a suspensão da sua conta',
+    subject: 'Último aviso — sua assinatura será cancelada amanhã',
     html: emailShell(
-      'Pagamento pendente — atenção necessária',
+      'Último aviso antes do cancelamento',
       `<p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${oi}</p>
        <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
-         A cobrança da sua assinatura SolarDoc Pro segue pendente. Já se passaram 4 dias desde a primeira falha.
+         Este é o último aviso antes do cancelamento da sua assinatura SolarDoc Pro.
+         A cobrança permanece pendente há 4 dias.
        </p>
        <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
-         <strong>Faltam apenas 3 dias para a suspensão automática da conta.</strong>
-         Após a suspensão, o acesso à geração de documentos será bloqueado até a regularização do pagamento.
+         <strong>O cancelamento ocorrerá amanhã caso o pagamento não seja regularizado até lá.</strong>
+         Depois disso, a conta volta para o plano gratuito e será preciso assinar novamente para retomar o acesso completo.
        </p>
        <p style="color:#94a3b8;font-size:14px;line-height:1.7;margin:0 0 18px;">
-         Caso precise de auxílio com a atualização, entre em contato pelo WhatsApp ${SUPPORT_PHONE_LABEL}.
-       </p>`,
-      'Regularizar pagamento agora',
-    ),
-    whatsapp:
-      `*SolarDoc Pro — Atenção*\n\n${oi}\n\n` +
-      `A cobrança da sua assinatura segue pendente. Já se passaram 4 dias desde a primeira falha.\n\n` +
-      `*Faltam apenas 3 dias para a suspensão automática da conta.*\n\n` +
-      `Após a suspensão, o acesso à plataforma será bloqueado até a regularização.\n\n` +
-      `Regularize em:\n${BILLING_URL}\n\n` +
-      `Caso precise de auxílio, responda esta mensagem.`,
-  };
-}
-
-function tplD6(nome: string | null): DunningTemplate {
-  const oi = nome ? `Prezado(a) ${nome.split(' ')[0]},` : 'Prezado(a) cliente,';
-  return {
-    subject: 'Último aviso — sua conta será suspensa amanhã',
-    html: emailShell(
-      'Último aviso antes da suspensão',
-      `<p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${oi}</p>
-       <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
-         Este é o último aviso antes da suspensão da sua conta SolarDoc Pro.
-         A cobrança da sua assinatura permanece pendente há 6 dias.
-       </p>
-       <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
-         <strong>A suspensão ocorrerá amanhã, caso o pagamento não seja regularizado até lá.</strong>
-       </p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.7;margin:0 0 18px;">
-         Para qualquer dificuldade na atualização do cartão, nossa equipe está disponível no WhatsApp ${SUPPORT_PHONE_LABEL}.
+         Para qualquer dificuldade, nossa equipe está disponível no WhatsApp ${SUPPORT_PHONE_LABEL}.
        </p>`,
       'Regularizar pagamento',
     ),
     whatsapp:
       `*SolarDoc Pro — Último aviso*\n\n${oi}\n\n` +
-      `Este é o último aviso antes da suspensão da sua conta. ` +
-      `A cobrança permanece pendente há 6 dias.\n\n` +
-      `*A suspensão ocorrerá amanhã, caso o pagamento não seja regularizado até lá.*\n\n` +
+      `Último aviso antes do cancelamento. A cobrança permanece pendente há 4 dias.\n\n` +
+      `*O cancelamento ocorrerá amanhã caso o pagamento não seja regularizado.*\n\n` +
       `Regularize em:\n${BILLING_URL}\n\n` +
       `Estamos à disposição para auxiliar.`,
   };
 }
 
-function tplD7(nome: string | null): DunningTemplate {
+function tplD5(nome: string | null): DunningTemplate {
   const oi = nome ? `Prezado(a) ${nome.split(' ')[0]},` : 'Prezado(a) cliente,';
   return {
-    subject: 'Sua conta SolarDoc Pro foi suspensa',
+    subject: 'Sua assinatura SolarDoc Pro foi cancelada',
     html: emailShell(
-      'Conta suspensa por falta de pagamento',
+      'Assinatura cancelada',
       `<p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${oi}</p>
        <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
-         Após 7 dias sem a regularização do pagamento, sua conta SolarDoc Pro foi <strong>suspensa</strong>.
-         A geração de documentos e demais funcionalidades da plataforma estão temporariamente bloqueadas.
+         Após 5 dias sem a regularização do pagamento, sua assinatura SolarDoc Pro foi <strong>cancelada</strong>.
+         Sua conta voltou para o plano gratuito e seu histórico permanece preservado.
        </p>
        <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 18px;">
-         <strong>Boa notícia:</strong> a reativação é imediata. Basta atualizar a forma de pagamento e
-         sua conta volta a funcionar normalmente, com todo o seu histórico preservado.
+         Para retomar o acesso completo às funcionalidades (geração de propostas, contratos, vistorias e documentos),
+         basta contratar novamente pelo botão abaixo.
        </p>
        <p style="color:#94a3b8;font-size:14px;line-height:1.7;margin:0 0 18px;">
-         Em caso de dúvidas, entre em contato pelo WhatsApp ${SUPPORT_PHONE_LABEL}.
+         Em caso de dúvidas, fale conosco pelo WhatsApp ${SUPPORT_PHONE_LABEL}.
        </p>`,
-      'Reativar minha conta',
+      'Assinar novamente',
     ),
     whatsapp:
-      `*SolarDoc Pro — Conta suspensa*\n\n${oi}\n\n` +
-      `Após 7 dias sem a regularização do pagamento, sua conta foi *suspensa*. ` +
-      `As funcionalidades da plataforma estão temporariamente bloqueadas.\n\n` +
-      `*A reativação é imediata.* Atualize a forma de pagamento e sua conta volta a funcionar com todo o histórico preservado:\n${BILLING_URL}\n\n` +
-      `Estamos à disposição para auxiliar.`,
+      `*SolarDoc Pro — Assinatura cancelada*\n\n${oi}\n\n` +
+      `Após 5 dias sem regularização, sua assinatura foi *cancelada* e a conta voltou para o plano gratuito. ` +
+      `Seu histórico permanece preservado.\n\n` +
+      `Para retomar o acesso completo, basta assinar novamente:\n${CHECKOUT_URL}\n\n` +
+      `Estamos à disposição.`,
   };
 }
 
@@ -205,10 +233,11 @@ function emailShell(headline: string, body: string, ctaLabel: string): string {
 
 const TEMPLATES: Record<number, (nome: string | null) => DunningTemplate> = {
   0: tplD0,
+  1: tplD1,
   2: tplD2,
+  3: tplD3,
   4: tplD4,
-  6: tplD6,
-  7: tplD7,
+  5: tplD5,
 };
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
@@ -291,9 +320,30 @@ export async function sendDunningRecovered(userId: string): Promise<void> {
   await Promise.allSettled(tasks);
 }
 
+// Cancela TODAS subs ativas/past_due desse email no Stripe. Idempotente —
+// se já estiver canceled, Stripe retorna sem efeito. Chamado no D5.
+async function cancelStripeSubsForEmail(email: string): Promise<number> {
+  let canceled = 0;
+  try {
+    const customers = await stripe.customers.list({ email, limit: 5 });
+    for (const cust of customers.data) {
+      const subs = await stripe.subscriptions.list({ customer: cust.id, status: 'all', limit: 20 });
+      for (const s of subs.data) {
+        if (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due' || s.status === 'unpaid') {
+          await stripe.subscriptions.cancel(s.id, { invoice_now: false, prorate: false });
+          canceled++;
+        }
+      }
+    }
+  } catch (err) {
+    logger.error('dunning', `cancelStripeSubsForEmail falhou pra ${email}`, err);
+  }
+  return canceled;
+}
+
 // Cron diário (chamado pelo master) — varre contas past_due e dispara avisos
-// nos dias 2/4/6 e suspende+notifica no dia 7.
-export async function runDunning(): Promise<{ scanned: number; notified: number; suspended: number }> {
+// D1/D2/D3/D4 e CANCELA+notifica no D5.
+export async function runDunning(): Promise<{ scanned: number; notified: number; canceled: number }> {
   const { data: users, error } = await supabase
     .from('users')
     .select('id, email, nome, whatsapp, past_due_since, dunning_last_day_sent, billing_status')
@@ -302,11 +352,11 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
 
   if (error) {
     logger.error('dunning', 'query falhou', error);
-    return { scanned: 0, notified: 0, suspended: 0 };
+    return { scanned: 0, notified: 0, canceled: 0 };
   }
 
   let notified = 0;
-  let suspended = 0;
+  let canceled = 0;
   const now = Date.now();
 
   for (const u of users ?? []) {
@@ -315,32 +365,46 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
     const daysElapsed = Math.floor((now - past) / 86_400_000);
     const lastSent = (u.dunning_last_day_sent ?? -1) as number;
 
-    // Encontra o maior dia (0/2/4/6/7) que já passou e ainda não foi notificado.
+    // Encontra o maior dia (0..5) que já passou e ainda não foi notificado.
     // D0 normalmente já foi enviado pelo webhook; mas se por algum motivo não foi
     // (ex: webhook falhou), o cron pega no dia seguinte.
-    const milestones = [0, 2, 4, 6, 7];
+    const milestones = [0, 1, 2, 3, 4, 5];
     let dayToSend: number | null = null;
     for (const d of milestones) {
       if (daysElapsed >= d && d > lastSent) dayToSend = d;
     }
     if (dayToSend === null) continue;
 
-    // Dia 7 → suspende ANTES de notificar (pra mensagem refletir o novo estado)
-    if (dayToSend === 7 && u.billing_status !== 'suspended') {
+    // Dia 5 → cancela sub no Stripe + rebaixa pra free ANTES de notificar
+    // (pra mensagem refletir o novo estado).
+    if (dayToSend === 5) {
+      const cancelCount = await cancelStripeSubsForEmail(u.email);
       await supabase
         .from('users')
-        .update({ billing_status: 'suspended' })
+        .update({
+          plano: 'free',
+          limite_documentos: 0,
+          documentos_usados: 0,
+          billing_status: 'active',  // não está mais cobrando — é só free
+          past_due_since: null,
+          dunning_last_day_sent: 5,  // marca pra não reenviar
+        })
         .eq('id', u.id);
-      suspended++;
+      canceled++;
+      logger.info('dunning', `${u.email}: D5 — ${cancelCount} subs canceladas no Stripe + rebaixado pra free`);
     }
 
     await sendDayNotification(u, dayToSend);
-    await supabase
-      .from('users')
-      .update({ dunning_last_day_sent: dayToSend })
-      .eq('id', u.id);
+
+    // Pro D5 já atualizamos acima junto com o cancel. Pros outros dias só carimba o último enviado.
+    if (dayToSend !== 5) {
+      await supabase
+        .from('users')
+        .update({ dunning_last_day_sent: dayToSend })
+        .eq('id', u.id);
+    }
     notified++;
   }
 
-  return { scanned: users?.length ?? 0, notified, suspended };
+  return { scanned: users?.length ?? 0, notified, canceled };
 }
