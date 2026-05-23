@@ -82,8 +82,13 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
           const cust = s.customer as { email?: string | null } | string;
           const email = typeof cust === 'string' ? null : (cust.email ?? null);
           if (!email) continue;
+          const key = email.toLowerCase();
+          // Stripe lista por created desc — primeira sub que aparecer pra esse email
+          // é a vigente. Sem esse guard, uma past_due velha (jonoilson tinha sub
+          // de abril que sobrescrevia a trial nova de maio) ganha do trial vigente.
+          if (stripeByEmail.has(key)) continue;
           const priceId = s.items.data[0]?.price?.id ?? '';
-          stripeByEmail.set(email.toLowerCase(), {
+          stripeByEmail.set(key, {
             status: s.status,
             plan: PRICE_TO_PLAN[priceId] ?? null,
           });
