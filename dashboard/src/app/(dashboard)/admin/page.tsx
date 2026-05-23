@@ -195,7 +195,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'users'|'visits'|'io_visits'|'sim_visits'>('users');
+  const [tab, setTab] = useState<'users'|'visits'|'io_visits'|'sim_visits'|'pack_visits'>('users');
 
   const [users, setUsers]               = useState<UserRow[]>([]);
   const [documents, setDocuments]       = useState<{created_at: string}[]>([]);
@@ -241,7 +241,7 @@ export default function AdminPage() {
 
   useEffect(() => { if (tab==='visits' && !analyticsLoaded) loadAnalytics(visitPeriod); }, [tab,analyticsLoaded,loadAnalytics,visitPeriod]);
   useEffect(() => { if (tab==='visits' && !metaLoaded) loadMeta(visitPeriod); }, [tab,metaLoaded,visitPeriod,loadMeta]);
-  useEffect(() => { if ((tab==='io_visits'||tab==='sim_visits') && !analyticsLoaded) loadAnalytics(visitPeriod); }, [tab,analyticsLoaded,loadAnalytics,visitPeriod]);
+  useEffect(() => { if ((tab==='io_visits'||tab==='sim_visits'||tab==='pack_visits') && !analyticsLoaded) loadAnalytics(visitPeriod); }, [tab,analyticsLoaded,loadAnalytics,visitPeriod]);
 
   function changeVisitPeriod(p: 'hoje'|'ontem'|'3d'|'7dias'|'mes'|'maximo') {
     setVisitPeriod(p); 
@@ -405,6 +405,7 @@ export default function AdminPage() {
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 LP SolarDoc</button>
         <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ Acessos Site IO</button>
         <button className={tab==='sim_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('sim_visits')}>🧮 Acesso Simulador</button>
+        <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>🎨 Pack Solar</button>
       </div>
 
       {/* ═══ ABA USUÁRIOS ══════════════════════════════════════ */}
@@ -1132,6 +1133,212 @@ export default function AdminPage() {
                             <td className={styles.mutedCell}>{fmtTime(s.time_on_page)}</td>
                             <td className={styles.mutedCell}>{wa ? `✓ ${wa.plan ?? 'geral'}` : <span className={styles.emptyDash}>—</span>}</td>
                             <td style={{color:statusColor, fontWeight:600, fontSize:12}}>{status}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </>
+        );
+      })()}
+
+      {/* ═══ ABA PACK SOLAR (pack.solardoc.app) ════════════════════ */}
+      {tab === 'pack_visits' && (() => {
+        // Filtra sessões da LP do Pack Solar (pack.solardoc.app/* — todas as rotas)
+        const packSessions = baseSessions.filter(s => {
+          const url = s.landing_url || '';
+          return url.includes('pack.solardoc');
+        });
+        const visits     = packSessions.length;
+        const scroll50   = packSessions.filter(s => (s.max_scroll||0) >= 50).length;
+        const ctaTotal   = packSessions.filter(s => (s.cta_clicks?.length||0) > 0).length;
+        const ctaExtras  = packSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').includes('/extras'))).length;
+        const ctaCheckout= packSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('checkout') || (c.label||'').toLowerCase().includes('pagamento'))).length;
+        const ctaWhats   = packSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('whats'))).length;
+        const avgTime    = packSessions.reduce((a,s) => a + (s.time_on_page||0), 0) / Math.max(visits, 1);
+        const mobile     = packSessions.filter(s => /Mobile|Android|iPhone|iPad/i.test(s.user_agent||'')).length;
+        const desktop    = visits - mobile;
+
+        // Funil Pack Solar: Acessou LP → Scroll 50% → Foi pra /extras → Foi pro checkout
+        const packFunnel: FunnelStep[] = [
+          { label: 'Acessou LP',        value: visits },
+          { label: 'Scroll 50%',        value: scroll50 },
+          { label: 'Clicou Comprar',    value: ctaExtras },
+          { label: 'Foi pro checkout',  value: ctaCheckout },
+        ];
+
+        const srcMap = new Map<string, { visits: number; scroll: number; cta: number; checkout: number }>();
+        packSessions.forEach(s => {
+          const src = srcLabel(s);
+          const cur = srcMap.get(src) ?? { visits: 0, scroll: 0, cta: 0, checkout: 0 };
+          cur.visits++;
+          if ((s.max_scroll||0) >= 50) cur.scroll++;
+          if ((s.cta_clicks?.length||0) > 0) cur.cta++;
+          if (s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('checkout') || (c.label||'').toLowerCase().includes('pagamento'))) cur.checkout++;
+          srcMap.set(src, cur);
+        });
+        const sources = Array.from(srcMap.entries())
+          .map(([source, v]) => ({ source, ...v }))
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 8);
+
+        const campMap = new Map<string, number>();
+        packSessions.forEach(s => {
+          if (s.utm_campaign) campMap.set(s.utm_campaign, (campMap.get(s.utm_campaign) ?? 0) + 1);
+        });
+        const campaigns = Array.from(campMap.entries())
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6);
+
+        return (
+          <>
+            <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
+              <div className={styles.periodTabs}>
+                {([['hoje','Hoje'],['ontem','Ontem'],['3d','3 dias'],['7dias','7 dias'],['mes','Esse mês'],['maximo','Máximo']] as const).map(([v,l])=>(
+                  <button key={v} className={visitPeriod===v?styles.periodActive:styles.periodBtn} onClick={()=>changeVisitPeriod(v as any)} disabled={loadingAnalytics}>{l}</button>
+                ))}
+              </div>
+              <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{visits} acessos no <code>pack.solardoc.app</code> · {baseSessions.length} totais</span>
+            </div>
+
+            {loadingAnalytics ? (
+              <div className={styles.loading}>Carregando estatísticas...</div>
+            ) : visits === 0 ? (
+              <div className={styles.loading} style={{textAlign:'center', padding:'48px 24px'}}>
+                <div style={{fontSize:48, marginBottom:12}}>🎨</div>
+                <div style={{fontWeight:700, marginBottom:6}}>Sem acessos registrados ainda</div>
+                <div style={{fontSize:13, color:'var(--color-text-muted)'}}>Dados aparecem aqui após alguém visitar <code>pack.solardoc.app</code>. Meta Pixel separado (824905216831401) também captura — ver no <a href="https://business.facebook.com/events_manager2/list/dataset/824905216831401/overview" target="_blank" rel="noopener noreferrer" style={{color:'#22c55e'}}>Events Manager</a>.</div>
+              </div>
+            ) : (
+              <>
+                <div className={styles.cards} style={{gridTemplateColumns:'repeat(5,1fr)', marginTop: 12}}>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Acessos</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{visits}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Clicou CTA ({pct(ctaTotal, visits)})</div>
+                    <div className={styles.cardValue} style={{color:'#3b82f6'}}>{ctaTotal}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Foi pra /extras ({pct(ctaExtras, visits)})</div>
+                    <div className={styles.cardValue} style={{color:'#F59E0B'}}>{ctaExtras}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Foi pro checkout ({pct(ctaCheckout, visits)})</div>
+                    <div className={styles.cardValue} style={{color:'#22c55e'}}>{ctaCheckout}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>WhatsApp ({pct(ctaWhats, visits)})</div>
+                    <div className={styles.cardValue} style={{color:'#a78bfa'}}>{ctaWhats}</div>
+                  </div>
+                </div>
+
+                <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Scroll 50%+ ({pct(scroll50, visits)})</div>
+                    <div className={styles.cardValue} style={{color:'#ec4899'}}>{scroll50}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>⏱️ Tempo médio</div>
+                    <div className={styles.cardValue} style={{color:'#94a3b8'}}>{fmtTime(Math.round(avgTime))}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>📱 Mobile</div>
+                    <div className={styles.cardValue} style={{color:'#60a5fa'}}>{mobile} ({pct(mobile, visits)})</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>🖥️ Desktop</div>
+                    <div className={styles.cardValue} style={{color:'#a78bfa'}}>{desktop} ({pct(desktop, visits)})</div>
+                  </div>
+                </div>
+
+                <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
+                  <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>📉 Funil Pack Solar</div>
+                  <FunnelSVG steps={packFunnel} />
+                </div>
+
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
+                  <div className={styles.tableWrap}>
+                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Top origens</div>
+                    <table className={styles.table}>
+                      <thead><tr><th>Origem</th><th>Visitas</th><th>Scroll</th><th>CTA</th><th>Checkout</th></tr></thead>
+                      <tbody>
+                        {sources.map(s => (
+                          <tr key={s.source}>
+                            <td style={{fontWeight:600}}>{s.source}</td>
+                            <td className={styles.mutedCell}>{s.visits}</td>
+                            <td className={styles.mutedCell}>{s.scroll} ({pct(s.scroll, s.visits)})</td>
+                            <td className={styles.mutedCell}>{s.cta} ({pct(s.cta, s.visits)})</td>
+                            <td className={styles.mutedCell}>{s.checkout} ({pct(s.checkout, s.visits)})</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className={styles.tableWrap}>
+                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>📣 Top campanhas (UTM)</div>
+                    <table className={styles.table}>
+                      <thead><tr><th>Campanha</th><th>Visitas</th></tr></thead>
+                      <tbody>
+                        {campaigns.length === 0 ? (
+                          <tr><td colSpan={2} className={styles.mutedCell} style={{textAlign:'center',padding:'18px 8px'}}>Sem UTMs registradas</td></tr>
+                        ) : campaigns.map(c => (
+                          <tr key={c.name}>
+                            <td style={{fontWeight:600}}>{c.name}</td>
+                            <td className={styles.mutedCell}>{c.count}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className={styles.tableWrap} style={{marginTop:24}}>
+                  <table className={styles.table}>
+                    <thead><tr>
+                      <th>Quando</th>
+                      <th>Origem</th>
+                      <th>Campanha</th>
+                      <th>Dispositivo</th>
+                      <th>Página</th>
+                      <th>Scroll</th>
+                      <th>Tempo</th>
+                      <th>CTAs</th>
+                    </tr></thead>
+                    <tbody>
+                      {packSessions.slice(0, 80).map((s, i) => {
+                        const r = relDate(s.created_at);
+                        const ctaLabels = (s.cta_clicks ?? []).map(c => c.label).filter(Boolean).join(', ');
+                        let pageLabel = '/';
+                        try {
+                          if (s.landing_url) {
+                            const u = new URL(s.landing_url);
+                            pageLabel = u.pathname || '/';
+                          }
+                        } catch {}
+                        return (
+                          <tr key={s.session_id || i}>
+                            <td>
+                              <div style={{display:'flex',flexDirection:'column',gap:2}}>
+                                <span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>
+                                {r.showTime && <span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}
+                              </div>
+                            </td>
+                            <td className={styles.mutedCell}>{srcLabel(s)}</td>
+                            <td className={styles.mutedCell}>{s.utm_campaign || <span className={styles.emptyDash}>—</span>}</td>
+                            <td className={styles.mutedCell}>{deviceIcon(s.user_agent)}</td>
+                            <td className={styles.mutedCell}><code style={{fontSize:11}}>{pageLabel}</code></td>
+                            <td className={styles.mutedCell}>{s.max_scroll ? `${s.max_scroll}%` : '—'}</td>
+                            <td className={styles.mutedCell}>{fmtTime(s.time_on_page)}</td>
+                            <td className={styles.mutedCell} style={{maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}} title={ctaLabels || ''}>
+                              {ctaLabels || <span className={styles.emptyDash}>—</span>}
+                            </td>
                           </tr>
                         );
                       })}

@@ -176,6 +176,7 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
       if (url.includes('/io')) return false;
       if (url.includes('/gerador')) return false;
       if (url.includes('/auth')) return false;
+      if (url.includes('pack.solardoc')) return false; // tem aba própria
       return true;
     });
     const landingPageviews = landingFiltered.length;
