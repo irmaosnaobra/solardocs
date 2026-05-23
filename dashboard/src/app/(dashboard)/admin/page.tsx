@@ -468,6 +468,10 @@ export default function AdminPage() {
                     })()}</td>
                     <td><span className={styles.planTag} style={{background:PLANO_COLOR[u.plano]+'22',color:PLANO_COLOR[u.plano],borderColor:PLANO_COLOR[u.plano]+'55'}}>{PLANO_LABEL[u.plano]??u.plano}</span></td>
                     <td style={{textAlign:'center'}}>{(() => {
+                      // Admin não passa pelo funil de Stripe — plano vitalício manual
+                      if (u.is_admin) {
+                        return <span title="Admin — plano vitalício, fora do funil Stripe" style={{display:'inline-block',padding:'2px 8px',borderRadius:6,background:'rgba(99,102,241,0.10)',border:'1px solid rgba(99,102,241,0.30)',color:'#818cf8',fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>ADM</span>;
+                      }
                       // Sem subscription no Stripe: cadastrou mas não passou cartão
                       if (!u.stripe_status) {
                         return u.plano === 'free'

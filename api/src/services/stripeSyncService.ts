@@ -89,7 +89,7 @@ export async function syncStripePlans(): Promise<{
 
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, email, plano, limite_documentos, billing_status, past_due_since, trial_expires_at');
+    .select('id, email, plano, limite_documentos, billing_status, past_due_since, trial_expires_at, is_admin');
 
   if (error || !users) {
     logger.error('stripe-sync', 'leitura de users falhou', error);
@@ -97,6 +97,13 @@ export async function syncStripePlans(): Promise<{
   }
 
   for (const u of users) {
+    // Admins não passam pelo funil de Stripe — têm plano vitalício gerenciado
+    // manualmente. Sem este guard, o sync ia rebaixar admin pra free toda hora
+    // (porque admin não tem sub no Stripe).
+    if (u.is_admin) {
+      unchanged++;
+      continue;
+    }
     scanned++;
     const stripeTruth = truth.get(u.email.toLowerCase());
 
