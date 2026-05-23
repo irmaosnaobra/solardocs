@@ -8,9 +8,12 @@ const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
 // price_id → nome do plano. Sincronizado com PLAN_MAP em paymentsController.ts —
 // se mudar lá, mudar aqui.
+// price_1TKPoS é o PRO antigo (R$47), mantido como alias pra clientes legados
+// que ainda assinam por esse preço (ex: comercial@newenergyrssolar.com.br).
 const PRICE_TO_PLAN: Record<string, string> = {
   [(process.env.STRIPE_PRICE_PRO || 'price_1TKNtbCkkgzQ4IHeCr0mYSXn').trim()]: 'pro',
   [(process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim()]: 'ilimitado',
+  'price_1TKPoSCkkgzQ4IHesK6wi3Qq': 'pro',  // PRO antigo (R$47)
 };
 
 // Início-de-período em America/Sao_Paulo. A API roda em UTC, então

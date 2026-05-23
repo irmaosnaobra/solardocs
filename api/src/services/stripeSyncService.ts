@@ -7,9 +7,11 @@ const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
 // price_id → plano interno + limite. Sincronizado com PLAN_MAP em
 // paymentsController.ts — se mudar lá, mudar aqui.
+// price_1TKPoS é o PRO antigo (R$47), mantido como alias pra clientes legados.
 const PRICE_TO_PLAN: Record<string, { plano: 'pro' | 'ilimitado'; limite: number }> = {
   [(process.env.STRIPE_PRICE_PRO || 'price_1TKNtbCkkgzQ4IHeCr0mYSXn').trim()]: { plano: 'pro',       limite: 90 },
   [(process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim()]: { plano: 'ilimitado', limite: 999999 },
+  'price_1TKPoSCkkgzQ4IHesK6wi3Qq': { plano: 'pro', limite: 90 },  // PRO antigo (R$47)
 };
 
 // Stripe statuses que mantêm acesso ao plano. past_due fica DENTRO porque
