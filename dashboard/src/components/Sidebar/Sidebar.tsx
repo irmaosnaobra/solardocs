@@ -9,7 +9,7 @@ import {
   Banknote, ScrollText, FileSignature,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
   Save, GraduationCap, Smartphone,
-  Filter, Send, MapPin,
+  Filter, Send, MapPin, Palette,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -59,6 +59,7 @@ const baseAdminItems: NavItem[] = [
 const topoItems: NavItem[] = [
   { href: '/dashboard',              icon: LayoutDashboard, label: 'Dashboard',           paidOnly: true },
   { href: '/documentos?tipo=proposta', icon: Sparkles,      label: 'Gerador de Proposta', requireCompany: true },
+  { href: 'https://pack.solardoc.app/', icon: Palette,     label: 'Crie seu Mascote',    external: true },
   { href: '/baixe-app',              icon: Smartphone,      label: 'Baixe o App' },
 ];
 
