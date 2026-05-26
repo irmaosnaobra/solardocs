@@ -518,6 +518,72 @@
   .btn-status.bg-fe { background: #16a34a; }
   .status-label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: .4px; margin-top: 14px; }
 
+  /* ===== TEMPERATURA DO CLIENTE ===== */
+  .temp-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .btn-temp {
+    padding: 11px 6px;
+    border-radius: 9px;
+    border: 2px solid #e5e7eb;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13px;
+    color: #374151;
+    font-family: inherit;
+    line-height: 1.2;
+    transition: transform .08s, border-color .12s, background .12s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .btn-temp .emoji { font-size: 18px; line-height: 1; }
+  .btn-temp:hover { background: #f9fafb; }
+  .btn-temp:active { transform: scale(0.97); }
+  .btn-temp.is-atual.bt-frio   { border-color: #06b6d4; background: #ecfeff; color: #0e7490; }
+  .btn-temp.is-atual.bt-morno  { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
+  .btn-temp.is-atual.bt-quente { border-color: #ec4899; background: #fdf2f8; color: #9d174d; }
+  .btn-temp .clear-x {
+    position: absolute;
+    top: 2px; right: 6px;
+    font-size: 12px;
+    color: #9ca3af;
+    line-height: 1;
+  }
+
+  /* Marcador de temperatura no slot da grade */
+  .slot .temp-mark {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    font-size: 12px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
+    pointer-events: none;
+  }
+  /* Faixa lateral colorida (reforço visual além do emoji) */
+  .slot.temp-frio::before,
+  .slot.temp-morno::before,
+  .slot.temp-quente::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+  }
+  .slot.temp-frio::before   { background: #06b6d4; }
+  .slot.temp-morno::before  { background: #f59e0b; }
+  .slot.temp-quente::before { background: #ec4899; }
+
+  /* Swatches da legenda */
+  .sw-tf { background: #06b6d4; }
+  .sw-tm { background: #f59e0b; }
+  .sw-tq { background: #ec4899; }
+
   @media (max-width: 720px) {
     .ctrl { padding: 10px 14px; }
     .grid-wrap { padding: 12px 6px 60px; }
@@ -618,6 +684,13 @@
   html[data-theme="dark"] .btn-excluir:hover { background: #5B2424; }
   html[data-theme="dark"] .status-label { color: #94A3B8; }
 
+  /* Temperatura — dark */
+  html[data-theme="dark"] .btn-temp { background: #0F172A; border-color: #334155; color: #CBD5E1; }
+  html[data-theme="dark"] .btn-temp:hover { background: #182238; }
+  html[data-theme="dark"] .btn-temp.is-atual.bt-frio   { border-color: #22d3ee; background: #0c2a33; color: #67e8f9; }
+  html[data-theme="dark"] .btn-temp.is-atual.bt-morno  { border-color: #fbbf24; background: #2d2410; color: #fcd34d; }
+  html[data-theme="dark"] .btn-temp.is-atual.bt-quente { border-color: #f472b6; background: #2d1320; color: #fbcfe8; }
+
   /* Autofill do Chrome no dark */
   html[data-theme="dark"] .modal input:-webkit-autofill,
   html[data-theme="dark"] .modal input:-webkit-autofill:hover,
@@ -661,6 +734,9 @@
     <div class="item"><div class="sw sw-fo"></div> Fez orçamento</div>
     <div class="item"><div class="sw sw-fe"></div> Fechou</div>
     <div class="item"><div class="sw" style="background:repeating-linear-gradient(45deg,#6b7280,#6b7280 4px,#525c6a 4px,#525c6a 8px)"></div> Bloqueado</div>
+    <div class="item" style="margin-left:8px;padding-left:12px;border-left:1px solid #d1d5db">❄️ <div class="sw sw-tf"></div> Frio</div>
+    <div class="item">🌤️ <div class="sw sw-tm"></div> Morno</div>
+    <div class="item">🔥 <div class="sw sw-tq"></div> Quente</div>
   </div>
 </div>
 
@@ -767,6 +843,13 @@
       <div class="row"><div class="label">WhatsApp</div><div class="val" id="d-tel"></div></div>
       <div class="row" id="d-obs-row" style="display:none"><div class="label">Observação</div><div class="val" id="d-obs"></div></div>
       <div class="row"><div class="label">Marcado por</div><div class="val" id="d-criador"></div></div>
+    </div>
+
+    <div class="status-label">Temperatura do cliente</div>
+    <div class="temp-grid">
+      <button type="button" class="btn-temp bt-frio"   data-temp="frio"   onclick="atualizarTemperatura('frio')"><span class="emoji">❄️</span>Frio</button>
+      <button type="button" class="btn-temp bt-morno"  data-temp="morno"  onclick="atualizarTemperatura('morno')"><span class="emoji">🌤️</span>Morno</button>
+      <button type="button" class="btn-temp bt-quente" data-temp="quente" onclick="atualizarTemperatura('quente')"><span class="emoji">🔥</span>Quente</button>
     </div>
 
     <div class="status-label">Resultado da ligação</div>
@@ -1027,7 +1110,12 @@ function renderGrid() {
 
         if (ag) {
           const stCls = `status-${(ag.status || 'agendado')}`;
-          html += `<div class="slot ocupado ${stCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
+          const tempCls = ag.temperatura ? ` temp-${ag.temperatura}` : '';
+          const tempEmoji = ag.temperatura === 'frio'   ? '❄️'
+                          : ag.temperatura === 'morno'  ? '🌤️'
+                          : ag.temperatura === 'quente' ? '🔥' : '';
+          html += `<div class="slot ocupado ${stCls}${tempCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
+            ${tempEmoji ? `<div class="temp-mark">${tempEmoji}</div>` : ''}
             <div class="nome">${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}</div>
           </div>`;
@@ -1295,11 +1383,17 @@ function abrirDetalhes(id) {
   document.getElementById('d-btn-wpp').href = `https://wa.me/${formatTelDigits(ag.cliente_telefone)}`;
   document.getElementById('d-erro').textContent = '';
   marcarStatusAtualNosBotoes(ag.status || 'agendado');
+  marcarTemperaturaAtualNosBotoes(ag.temperatura || null);
   document.getElementById('modal-det').classList.add('show');
 }
 function marcarStatusAtualNosBotoes(status) {
   document.querySelectorAll('#modal-det .btn-status').forEach(b => {
     b.classList.toggle('is-atual', b.dataset.status === status);
+  });
+}
+function marcarTemperaturaAtualNosBotoes(temp) {
+  document.querySelectorAll('#modal-det .btn-temp').forEach(b => {
+    b.classList.toggle('is-atual', b.dataset.temp === temp);
   });
 }
 function fecharModalDet() {
@@ -1325,6 +1419,29 @@ async function atualizarStatus(novoStatus) {
     console.error(e);
   }
 }
+async function atualizarTemperatura(novaTemp) {
+  if (!detalheAtual) return;
+  // toggle: clicar na mesma → remove (null)
+  const valor = detalheAtual.temperatura === novaTemp ? null : novaTemp;
+  try {
+    await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, { temperatura: valor });
+    detalheAtual.temperatura = valor;
+    const idx = agendamentosCache.findIndex(a => a.id === detalheAtual.id);
+    if (idx >= 0) agendamentosCache[idx].temperatura = valor;
+    marcarTemperaturaAtualNosBotoes(valor);
+    const labels = {
+      frio:   '❄️ Cliente frio',
+      morno:  '🌤️ Cliente morno',
+      quente: '🔥 Cliente quente',
+    };
+    showToast(valor ? labels[valor] : 'Temperatura removida');
+    renderGrid();
+  } catch (e) {
+    document.getElementById('d-erro').textContent = 'Erro ao atualizar temperatura.';
+    console.error(e);
+  }
+}
+
 async function excluirAgendamento() {
   if (!detalheAtual) return;
   if (!confirm(`Cancelar a ligação com ${detalheAtual.cliente_nome}?`)) return;
