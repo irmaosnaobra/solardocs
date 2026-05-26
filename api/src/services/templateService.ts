@@ -48,7 +48,7 @@ export function generateFromTemplate(
   company: Company,
   client: Client,
   fields: Record<string, unknown>,
-  modelo: 1 | 2 = 1
+  modelo: 1 | 2 | 3 = 1
 ): string {
   switch (type) {
     case 'contratoSolar':
@@ -60,6 +60,7 @@ export function generateFromTemplate(
         ? contratoPjM1(company, client, fields)
         : contratoPjM2(company, client, fields);
     case 'procuracao':
+      if (modelo === 3) return procuracaoM3(company, client, fields);
       return modelo === 1
         ? procuracaoM1(company, client, fields)
         : procuracaoM2(company, client, fields);
@@ -643,6 +644,105 @@ ${client.nome}
 OUTORGANTE — CPF/CNPJ: ${client.cpf_cnpj || '___'}
 `;
 }
+
+// ════════════════════════════════════════════════════════════
+// PROCURAÇÃO — MODELO 3  (procuração ANEEL com a empresa
+// outorgada + lista de procuradores cadastrados na company)
+// ════════════════════════════════════════════════════════════
+function procuracaoM3(
+  company: Company,
+  client: Client,
+  f: Record<string, unknown>
+): string {
+  const today = dateBR();
+  const cidade = str(f.foro_cidade || (client as any).cidade || company.cidade || '___');
+  const concessionaria = str(f.concessionaria);
+
+  // Qualificação de cada procurador cadastrado: 1 engenheiro + até 3 técnicos.
+  // Itera nos campos sufixados (tecnico, tecnico2, tecnico3).
+  const c = company as unknown as Record<string, string | undefined>;
+
+  function qualificaEngenheiro(): string {
+    if (!company.engenheiro_nome) return '';
+    let q = company.engenheiro_nome.toUpperCase();
+    if (company.engenheiro_nacionalidade) q += `, ${company.engenheiro_nacionalidade}`;
+    if (company.engenheiro_estado_civil)  q += `, ${company.engenheiro_estado_civil}`;
+    if (company.engenheiro_profissao)     q += `, ${company.engenheiro_profissao}`;
+    if (company.engenheiro_rg)   q += `, portador(a) da carteira de identidade nº ${company.engenheiro_rg}`;
+    if (company.engenheiro_cpf)  q += `, CPF nº ${company.engenheiro_cpf}`;
+    if (company.engenheiro_crea) q += `, inscrito(a) no ${company.engenheiro_crea}`;
+    if (company.engenheiro_endereco) q += `, residente na ${company.engenheiro_endereco}`;
+    return q + '.';
+  }
+
+  function qualificaTecnico(prefix: 'tecnico' | 'tecnico2' | 'tecnico3'): string {
+    const nome = c[`${prefix}_nome`];
+    if (!nome) return '';
+    let q = nome.toUpperCase();
+    const nac    = c[`${prefix}_nacionalidade`];
+    const ec     = c[`${prefix}_estado_civil`];
+    const crt    = c[`${prefix}_crt_cft`];
+    const rg     = c[`${prefix}_rg`];
+    const cpf    = c[`${prefix}_cpf`];
+    const end    = c[`${prefix}_endereco`];
+    if (nac) q += `, ${nac}`;
+    if (ec)  q += `, ${ec}`;
+    if (crt) q += `, ${crt}`;
+    if (rg)  q += `, portador(a) da carteira de identidade nº ${rg}`;
+    if (cpf) q += `, CPF nº ${cpf}`;
+    if (end) q += `, residente na ${end}`;
+    return q + '.';
+  }
+
+  const procuradores: string[] = [
+    qualificaEngenheiro(),
+    qualificaTecnico('tecnico'),
+    qualificaTecnico('tecnico2'),
+    qualificaTecnico('tecnico3'),
+  ].filter(Boolean);
+
+  const procuradoresBloco = procuradores.length
+    ? procuradores.join('\n\n')
+    : '___';
+
+  // OUTORGADA: empresa + sócio administrador (quando cadastrados).
+  const socioAdm = (company as any).socio_adm as string | undefined;
+  const empresaEndereco = enderecoCompleto(company.endereco, undefined, company.cidade, company.uf);
+  const outorgadaLinha =
+    `OUTORGADO(A): ${company.nome.toUpperCase()}, inscrita no CNPJ nº ${company.cnpj}` +
+    `, sediada${empresaEndereco ? ` na ${empresaEndereco}` : ''}` +
+    (socioAdm ? `, neste ato devidamente representada por seu sócio proprietário ${socioAdm.toUpperCase()}` : '') +
+    ', com poderes para assinar procuração em nome da empresa supracitada.';
+
+  const enderecoCliente = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
+
+  return `PROCURAÇÃO
+
+OUTORGANTE: ${client.nome.toUpperCase()}, CPF nº ${client.cpf_cnpj || '___'}, residente no ${enderecoCliente || '___'} (endereço idêntico à conta de energia).
+
+${outorgadaLinha}
+
+${procuradoresBloco}
+
+Por intermédio do presente instrumento particular de procuração, o OUTORGANTE infra-assinado nomeia e constitui seu Procurador o OUTORGADO supramencionado conferindo-lhes poderes para representá-lo com a finalidade exclusiva de providenciar ou autorizar qualquer requerimento junto à prestadora de serviço de energia, ${concessionaria || '(NOME DA CONCESSIONÁRIA DE DISTRIBUIÇÃO LOCAL)'}, e a Agência Nacional de Energia Elétrica (ANEEL), com as devidas finalidades: Troca de titularidade, solicitação de conexão, formulário de solicitação de acesso, emissão de TRT, formulário de rateio, aumento de carga, nova ligação, troca de medidor, mudança de padrão, ou seja, homologação geral do sistema de geração de energia solar fotovoltaica.
+
+Insta esclarecer que o presente instrumento não permite o substabelecimento a terceiros.
+
+Por oportuno, ressalta-se ainda que os efeitos deste, cessa a partir do término das atividades delimitadas neste documento.
+
+Tudo isto, com fulcro nos artigos 653 e 654 do Código Civil de 2002.
+
+${cidade}, ${today}.
+
+
+
+
+________________________________
+${client.nome}
+(nome completo do cliente)
+`;
+}
+
 // ════════════════════════════════════════════════════════════
 // PROPOSTA DE BANCO — MODELO 1  (formato Documento2.pdf)
 // ════════════════════════════════════════════════════════════

@@ -125,6 +125,37 @@ export async function register(req: Request, res: Response): Promise<void> {
   }
 }
 
+// Contador real pra social proof no /auth?mode=register.
+// Cache em módulo: 5min por instância serverless — evita martelar o DB.
+let signupsCache: { value: number; expiresAt: number } | null = null;
+
+export async function recentSignupsCount(_req: Request, res: Response): Promise<void> {
+  try {
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
+
+    if (signupsCache && signupsCache.expiresAt > Date.now()) {
+      res.json({ count: signupsCache.value });
+      return;
+    }
+
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { count, error } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', since);
+
+    if (error) throw error;
+
+    const value = count ?? 0;
+    signupsCache = { value, expiresAt: Date.now() + 5 * 60 * 1000 };
+    res.json({ count: value });
+  } catch (err) {
+    console.error('recentSignupsCount error:', err);
+    // Fallback silencioso — popup tem fallback próprio.
+    res.json({ count: 0 });
+  }
+}
+
 export async function login(req: Request, res: Response): Promise<void> {
   try {
     const body = loginSchema.parse(req.body);

@@ -15,7 +15,7 @@ const generateSchema = z.object({
   cliente_nome_avulso: z.string().min(2).optional(),
   fields: z.record(z.string(), z.unknown()),
   useTemplate: z.boolean().optional().default(false),
-  modeloNumero: z.union([z.literal(1), z.literal(2)]).optional().default(1),
+  modeloNumero: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional().default(1),
 });
 
 // Tipos que aceitam modo rapido (so nome do cliente, sem cadastro)

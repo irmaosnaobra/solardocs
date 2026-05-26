@@ -27,6 +27,20 @@ interface Company {
   tecnico_nacionalidade?: string;
   tecnico_estado_civil?: string;
   tecnico_endereco?: string;
+  tecnico2_nome?: string;
+  tecnico2_cpf?: string;
+  tecnico2_rg?: string;
+  tecnico2_crt_cft?: string;
+  tecnico2_nacionalidade?: string;
+  tecnico2_estado_civil?: string;
+  tecnico2_endereco?: string;
+  tecnico3_nome?: string;
+  tecnico3_cpf?: string;
+  tecnico3_rg?: string;
+  tecnico3_crt_cft?: string;
+  tecnico3_nacionalidade?: string;
+  tecnico3_estado_civil?: string;
+  tecnico3_endereco?: string;
 }
 
 const emptyForm = {
@@ -37,6 +51,12 @@ const emptyForm = {
   tecnico_nome: '', tecnico_cpf: '',
   tecnico_rg: '', tecnico_crt_cft: '', tecnico_nacionalidade: '', tecnico_estado_civil: '',
   tecnico_endereco: '',
+  tecnico2_nome: '', tecnico2_cpf: '',
+  tecnico2_rg: '', tecnico2_crt_cft: '', tecnico2_nacionalidade: '', tecnico2_estado_civil: '',
+  tecnico2_endereco: '',
+  tecnico3_nome: '', tecnico3_cpf: '',
+  tecnico3_rg: '', tecnico3_crt_cft: '', tecnico3_nacionalidade: '', tecnico3_estado_civil: '',
+  tecnico3_endereco: '',
 };
 
 function fmtCnpj(v: string) {
@@ -123,6 +143,14 @@ export default function EmpresaPage() {
           tecnico_rg: c.tecnico_rg || '', tecnico_crt_cft: c.tecnico_crt_cft || '',
           tecnico_nacionalidade: c.tecnico_nacionalidade || '',
           tecnico_estado_civil: c.tecnico_estado_civil || '', tecnico_endereco: c.tecnico_endereco || '',
+          tecnico2_nome: c.tecnico2_nome || '', tecnico2_cpf: c.tecnico2_cpf || '',
+          tecnico2_rg: c.tecnico2_rg || '', tecnico2_crt_cft: c.tecnico2_crt_cft || '',
+          tecnico2_nacionalidade: c.tecnico2_nacionalidade || '',
+          tecnico2_estado_civil: c.tecnico2_estado_civil || '', tecnico2_endereco: c.tecnico2_endereco || '',
+          tecnico3_nome: c.tecnico3_nome || '', tecnico3_cpf: c.tecnico3_cpf || '',
+          tecnico3_rg: c.tecnico3_rg || '', tecnico3_crt_cft: c.tecnico3_crt_cft || '',
+          tecnico3_nacionalidade: c.tecnico3_nacionalidade || '',
+          tecnico3_estado_civil: c.tecnico3_estado_civil || '', tecnico3_endereco: c.tecnico3_endereco || '',
         });
         // CNPJ já salvo é considerado válido
         if (c.cnpj) {
@@ -335,6 +363,36 @@ export default function EmpresaPage() {
               <p className={styles.emptySection}>Nenhum técnico cadastrado</p>
             )}
           </section>
+
+          {company.tecnico2_nome && (
+            <section className={styles.card}>
+              <h2 className={styles.sectionTitle}>2º Técnico Responsável</h2>
+              <div className={styles.infoGrid}>
+                <InfoRow label="Nome" value={company.tecnico2_nome} />
+                <InfoRow label="Nacionalidade" value={company.tecnico2_nacionalidade} />
+                <InfoRow label="Estado Civil" value={company.tecnico2_estado_civil} />
+                <InfoRow label="CPF" value={company.tecnico2_cpf} />
+                <InfoRow label="RG" value={company.tecnico2_rg} />
+                <InfoRow label="CRT / CFT" value={company.tecnico2_crt_cft} />
+                <InfoRow label="Endereço" value={company.tecnico2_endereco} />
+              </div>
+            </section>
+          )}
+
+          {company.tecnico3_nome && (
+            <section className={styles.card}>
+              <h2 className={styles.sectionTitle}>3º Técnico Responsável</h2>
+              <div className={styles.infoGrid}>
+                <InfoRow label="Nome" value={company.tecnico3_nome} />
+                <InfoRow label="Nacionalidade" value={company.tecnico3_nacionalidade} />
+                <InfoRow label="Estado Civil" value={company.tecnico3_estado_civil} />
+                <InfoRow label="CPF" value={company.tecnico3_cpf} />
+                <InfoRow label="RG" value={company.tecnico3_rg} />
+                <InfoRow label="CRT / CFT" value={company.tecnico3_crt_cft} />
+                <InfoRow label="Endereço" value={company.tecnico3_endereco} />
+              </div>
+            </section>
+          )}
         </div>
       </div>
     );
@@ -640,6 +698,88 @@ export default function EmpresaPage() {
             <div className={styles.fieldFull}>
               <label className={styles.label}>Endereço</label>
               <input type="text" value={form.tecnico_endereco} onChange={e => set('tecnico_endereco', e.target.value)}
+                placeholder="Rua, número, bairro, cidade - UF" className="input-field" />
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.card}>
+          <h2 className={styles.sectionTitle}>2º Técnico Responsável <span className={styles.optional}>opcional</span></h2>
+          <div className={styles.grid2}>
+            <div className={styles.fieldFull}>
+              <label className={styles.label}>Nome completo</label>
+              <input type="text" value={form.tecnico2_nome} onChange={e => set('tecnico2_nome', e.target.value)}
+                placeholder="Nome completo" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Nacionalidade</label>
+              <input type="text" value={form.tecnico2_nacionalidade} onChange={e => set('tecnico2_nacionalidade', e.target.value)}
+                placeholder="Ex: brasileiro" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Estado Civil</label>
+              <input type="text" value={form.tecnico2_estado_civil} onChange={e => set('tecnico2_estado_civil', e.target.value)}
+                placeholder="Ex: casado" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>CPF</label>
+              <input type="text" value={form.tecnico2_cpf} onChange={e => set('tecnico2_cpf', fmtCpf(e.target.value))}
+                placeholder="000.000.000-00" className="input-field" maxLength={14} />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>RG</label>
+              <input type="text" value={form.tecnico2_rg} onChange={e => set('tecnico2_rg', e.target.value)}
+                placeholder="Ex: 2.456.789" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>CRT / CFT</label>
+              <input type="text" value={form.tecnico2_crt_cft} onChange={e => set('tecnico2_crt_cft', e.target.value)}
+                placeholder="Ex: CRT-MG 0001234" className="input-field" />
+            </div>
+            <div className={styles.fieldFull}>
+              <label className={styles.label}>Endereço</label>
+              <input type="text" value={form.tecnico2_endereco} onChange={e => set('tecnico2_endereco', e.target.value)}
+                placeholder="Rua, número, bairro, cidade - UF" className="input-field" />
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.card}>
+          <h2 className={styles.sectionTitle}>3º Técnico Responsável <span className={styles.optional}>opcional</span></h2>
+          <div className={styles.grid2}>
+            <div className={styles.fieldFull}>
+              <label className={styles.label}>Nome completo</label>
+              <input type="text" value={form.tecnico3_nome} onChange={e => set('tecnico3_nome', e.target.value)}
+                placeholder="Nome completo" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Nacionalidade</label>
+              <input type="text" value={form.tecnico3_nacionalidade} onChange={e => set('tecnico3_nacionalidade', e.target.value)}
+                placeholder="Ex: brasileiro" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Estado Civil</label>
+              <input type="text" value={form.tecnico3_estado_civil} onChange={e => set('tecnico3_estado_civil', e.target.value)}
+                placeholder="Ex: casado" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>CPF</label>
+              <input type="text" value={form.tecnico3_cpf} onChange={e => set('tecnico3_cpf', fmtCpf(e.target.value))}
+                placeholder="000.000.000-00" className="input-field" maxLength={14} />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>RG</label>
+              <input type="text" value={form.tecnico3_rg} onChange={e => set('tecnico3_rg', e.target.value)}
+                placeholder="Ex: 2.456.789" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>CRT / CFT</label>
+              <input type="text" value={form.tecnico3_crt_cft} onChange={e => set('tecnico3_crt_cft', e.target.value)}
+                placeholder="Ex: CRT-MG 0001234" className="input-field" />
+            </div>
+            <div className={styles.fieldFull}>
+              <label className={styles.label}>Endereço</label>
+              <input type="text" value={form.tecnico3_endereco} onChange={e => set('tecnico3_endereco', e.target.value)}
                 placeholder="Rua, número, bairro, cidade - UF" className="input-field" />
             </div>
           </div>

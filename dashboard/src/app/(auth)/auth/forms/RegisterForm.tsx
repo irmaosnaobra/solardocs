@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/services/api';
 import { setToken, setUser } from '@/services/auth';
 import styles from './login.module.css';
+import SocialProofPopup from './SocialProofPopup';
 
 const PLAN_LABEL: Record<string, string> = {
   iniciante: 'Iniciante',
@@ -401,6 +402,8 @@ function RegisterContent() {
           Entrar
         </Link>
       </p>
+
+      {!planFromStripe && !targetPlan && <SocialProofPopup />}
     </div>
   );
 }
