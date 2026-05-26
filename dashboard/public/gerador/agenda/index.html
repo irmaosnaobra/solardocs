@@ -206,11 +206,13 @@
     margin-top: 2px;
   }
   /* Status coloridos */
-  .slot.status-agendado      { background: #0d2d5e; color: #fff; }
-  .slot.status-nao_atendeu   { background: #dc2626; color: #fff; }
-  .slot.status-sem_orcamento { background: #ea580c; color: #fff; }
-  .slot.status-fez_orcamento { background: #eab308; color: #1f2937; }
-  .slot.status-fechou        { background: #16a34a; color: #fff; }
+  .slot.status-agendado          { background: #0d2d5e; color: #fff; }
+  .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
+  .slot.status-falando_whatsapp  { background: #14b8a6; color: #fff; }
+  .slot.status-sem_interesse     { background: #64748b; color: #fff; }
+  .slot.status-sem_orcamento     { background: #ea580c; color: #fff; }
+  .slot.status-fez_orcamento     { background: #eab308; color: #1f2937; }
+  .slot.status-fechou            { background: #16a34a; color: #fff; }
   .slot.passado { opacity: .55; cursor: not-allowed; }
 
   /* Slot bloqueado pelo consultor */
@@ -467,6 +469,8 @@
   .sw-fora   { background: #fafafa; }
   .sw-ag     { background: #0d2d5e; }
   .sw-na     { background: #dc2626; }
+  .sw-wp     { background: #14b8a6; }
+  .sw-si     { background: #64748b; }
   .sw-so     { background: #ea580c; }
   .sw-fo     { background: #eab308; }
   .sw-fe     { background: #16a34a; }
@@ -513,6 +517,8 @@
   }
   .btn-status.bg-ag { background: #0d2d5e; }
   .btn-status.bg-na { background: #dc2626; }
+  .btn-status.bg-wp { background: #14b8a6; }
+  .btn-status.bg-si { background: #64748b; }
   .btn-status.bg-so { background: #ea580c; }
   .btn-status.bg-fo { background: #eab308; color: #1f2937; }
   .btn-status.bg-fe { background: #16a34a; }
@@ -637,12 +643,14 @@
   html[data-theme="dark"] .slot.fora-prioridade { background: #182238; }
   html[data-theme="dark"] .slot.fora-prioridade:hover { background: #243046; }
   /* Cards de status mantêm o padrão de cores do light (especificidade ≥ dark .slot) */
-  html[data-theme="dark"] .slot.ocupado              { background: #0d2d5e; color: #fff; }
-  html[data-theme="dark"] .slot.status-agendado      { background: #0d2d5e; color: #fff; }
-  html[data-theme="dark"] .slot.status-nao_atendeu   { background: #dc2626; color: #fff; }
-  html[data-theme="dark"] .slot.status-sem_orcamento { background: #ea580c; color: #fff; }
-  html[data-theme="dark"] .slot.status-fez_orcamento { background: #eab308; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-fechou        { background: #16a34a; color: #fff; }
+  html[data-theme="dark"] .slot.ocupado                  { background: #0d2d5e; color: #fff; }
+  html[data-theme="dark"] .slot.status-agendado          { background: #0d2d5e; color: #fff; }
+  html[data-theme="dark"] .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
+  html[data-theme="dark"] .slot.status-falando_whatsapp  { background: #14b8a6; color: #fff; }
+  html[data-theme="dark"] .slot.status-sem_interesse     { background: #64748b; color: #fff; }
+  html[data-theme="dark"] .slot.status-sem_orcamento     { background: #ea580c; color: #fff; }
+  html[data-theme="dark"] .slot.status-fez_orcamento     { background: #eab308; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-fechou            { background: #16a34a; color: #fff; }
   html[data-theme="dark"] .slot.bloqueado {
     background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
     color: #fff;
@@ -730,6 +738,8 @@
     <div class="item"><div class="sw sw-fora"></div> Após 18h</div>
     <div class="item"><div class="sw sw-ag"></div> Agendada</div>
     <div class="item"><div class="sw sw-na"></div> Não atendeu</div>
+    <div class="item"><div class="sw sw-wp"></div> Falando WhatsApp</div>
+    <div class="item"><div class="sw sw-si"></div> Sem interesse</div>
     <div class="item"><div class="sw sw-so"></div> Sem orçamento</div>
     <div class="item"><div class="sw sw-fo"></div> Fez orçamento</div>
     <div class="item"><div class="sw sw-fe"></div> Fechou</div>
@@ -854,11 +864,13 @@
 
     <div class="status-label">Resultado da ligação</div>
     <div class="status-grid">
-      <button type="button" class="btn-status bg-ag" data-status="agendado"      onclick="atualizarStatus('agendado')">📞 Agendada</button>
-      <button type="button" class="btn-status bg-na" data-status="nao_atendeu"   onclick="atualizarStatus('nao_atendeu')">❌ Não atendeu</button>
-      <button type="button" class="btn-status bg-so" data-status="sem_orcamento" onclick="atualizarStatus('sem_orcamento')">📋 Sem orçamento</button>
-      <button type="button" class="btn-status bg-fo" data-status="fez_orcamento" onclick="atualizarStatus('fez_orcamento')">💰 Fez orçamento</button>
-      <button type="button" class="btn-status bg-fe" data-status="fechou"        onclick="atualizarStatus('fechou')" style="grid-column: span 2;">✅ Fechou</button>
+      <button type="button" class="btn-status bg-ag" data-status="agendado"          onclick="atualizarStatus('agendado')">📞 Agendada</button>
+      <button type="button" class="btn-status bg-na" data-status="nao_atendeu"       onclick="atualizarStatus('nao_atendeu')">❌ Não atendeu</button>
+      <button type="button" class="btn-status bg-wp" data-status="falando_whatsapp"  onclick="atualizarStatus('falando_whatsapp')">💬 Falando no WhatsApp</button>
+      <button type="button" class="btn-status bg-si" data-status="sem_interesse"     onclick="atualizarStatus('sem_interesse')">🙅 Sem interesse</button>
+      <button type="button" class="btn-status bg-so" data-status="sem_orcamento"     onclick="atualizarStatus('sem_orcamento')">📋 Sem orçamento</button>
+      <button type="button" class="btn-status bg-fo" data-status="fez_orcamento"     onclick="atualizarStatus('fez_orcamento')">💰 Fez orçamento</button>
+      <button type="button" class="btn-status bg-fe" data-status="fechou"            onclick="atualizarStatus('fechou')" style="grid-column: span 2;">✅ Fechou</button>
     </div>
 
     <div class="modal-erro" id="d-erro"></div>
@@ -1406,11 +1418,13 @@ async function atualizarStatus(novoStatus) {
     await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, { status: novoStatus });
     fecharModalDet();
     const labels = {
-      agendado:      '📞 Marcado como Agendada',
-      nao_atendeu:   '❌ Marcado como Não atendeu',
-      sem_orcamento: '📋 Marcado como Sem orçamento',
-      fez_orcamento: '💰 Marcado como Fez orçamento',
-      fechou:        '✅ Marcado como Fechou',
+      agendado:          '📞 Marcado como Agendada',
+      nao_atendeu:       '❌ Marcado como Não atendeu',
+      falando_whatsapp:  '💬 Marcado como Falando no WhatsApp',
+      sem_interesse:     '🙅 Marcado como Sem interesse',
+      sem_orcamento:     '📋 Marcado como Sem orçamento',
+      fez_orcamento:     '💰 Marcado como Fez orçamento',
+      fechou:            '✅ Marcado como Fechou',
     };
     showToast(labels[novoStatus] || 'Status atualizado');
     await renderTudo();
