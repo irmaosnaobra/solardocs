@@ -426,6 +426,61 @@
   .detalhe-box .label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: .4px; }
   .detalhe-box .val { font-weight: 600; color: #1f2937; }
 
+  /* ===== HISTÓRICO DE NOTAS ===== */
+  .hist-box {
+    background: #f9fafb;
+    border-radius: 9px;
+    padding: 10px 12px;
+    margin-top: 6px;
+    max-height: 160px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #374151;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border: 1px solid #e5e7eb;
+  }
+  .hist-box:empty::before {
+    content: 'Nenhuma anotação ainda.';
+    color: #9ca3af;
+    font-style: italic;
+  }
+  .hist-entry { margin-bottom: 6px; }
+  .hist-entry:last-child { margin-bottom: 0; }
+  .hist-entry .meta { font-size: 11px; color: #6b7280; font-weight: 700; }
+  .nota-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .nota-box textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 56px;
+    padding: 9px 11px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+  }
+  .nota-box .btn-nota {
+    align-self: flex-end;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #0d2d5e;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .nota-box .btn-nota:hover { opacity: .92; }
+  .nota-box .btn-nota:disabled { opacity: .5; cursor: not-allowed; }
+
   /* ===== TOAST ===== */
   #toast {
     position: fixed;
@@ -684,6 +739,12 @@
   html[data-theme="dark"] .detalhe-box { background: #0F172A; }
   html[data-theme="dark"] .detalhe-box .label { color: #94A3B8; }
   html[data-theme="dark"] .detalhe-box .val { color: #E5E7EB; }
+  html[data-theme="dark"] .hist-box { background: #0F172A; border-color: #475569; color: #E5E7EB; }
+  html[data-theme="dark"] .hist-box:empty::before { color: #94A3B8; }
+  html[data-theme="dark"] .hist-entry .meta { color: #93C5FD; }
+  html[data-theme="dark"] .nota-box textarea { background: #0F172A; border-color: #475569; color: #E5E7EB; }
+  html[data-theme="dark"] .nota-box textarea:focus { border-color: #60A5FA; outline: none; }
+  html[data-theme="dark"] .nota-box .btn-nota { background: #3B82F6; }
   html[data-theme="dark"] .btn-salvar { background: #3B82F6; }
   html[data-theme="dark"] .btn-salvar:hover { background: #2563EB; }
   html[data-theme="dark"] .btn-cancelar { background: #334155; color: #E5E7EB; }
@@ -853,6 +914,13 @@
       <div class="row"><div class="label">WhatsApp</div><div class="val" id="d-tel"></div></div>
       <div class="row" id="d-obs-row" style="display:none"><div class="label">Observação</div><div class="val" id="d-obs"></div></div>
       <div class="row"><div class="label">Marcado por</div><div class="val" id="d-criador"></div></div>
+    </div>
+
+    <div class="status-label">Histórico</div>
+    <div class="hist-box" id="d-hist"></div>
+    <div class="nota-box">
+      <textarea id="d-nota" placeholder="Adicionar anotação (Ctrl+Enter para salvar)…" rows="2"></textarea>
+      <button type="button" class="btn-nota" id="d-btn-nota" onclick="adicionarNota()">Adicionar nota</button>
     </div>
 
     <div class="status-label">Temperatura do cliente</div>
@@ -1394,9 +1462,39 @@ function abrirDetalhes(id) {
   document.getElementById('d-criador').textContent = ag.created_by || '—';
   document.getElementById('d-btn-wpp').href = `https://wa.me/${formatTelDigits(ag.cliente_telefone)}`;
   document.getElementById('d-erro').textContent = '';
+  document.getElementById('d-hist').textContent = ag.historico || '';
+  document.getElementById('d-nota').value = '';
   marcarStatusAtualNosBotoes(ag.status || 'agendado');
   marcarTemperaturaAtualNosBotoes(ag.temperatura || null);
   document.getElementById('modal-det').classList.add('show');
+}
+
+async function adicionarNota() {
+  if (!detalheAtual) return;
+  const ta = document.getElementById('d-nota');
+  const btn = document.getElementById('d-btn-nota');
+  const txt = ta.value.trim();
+  if (!txt) return;
+  const agora = new Date();
+  const autor = consultorLogado() || '—';
+  const ts = `${pad(agora.getDate())}/${pad(agora.getMonth()+1)} ${pad(agora.getHours())}h${pad(agora.getMinutes())}`;
+  const entrada = `[${ts} · ${autor}] ${txt}`;
+  const novo = detalheAtual.historico ? `${entrada}\n\n${detalheAtual.historico}` : entrada;
+  btn.disabled = true;
+  try {
+    await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, { historico: novo });
+    detalheAtual.historico = novo;
+    const idx = agendamentosCache.findIndex(a => a.id === detalheAtual.id);
+    if (idx >= 0) agendamentosCache[idx].historico = novo;
+    document.getElementById('d-hist').textContent = novo;
+    ta.value = '';
+    showToast('📝 Nota adicionada');
+  } catch (e) {
+    document.getElementById('d-erro').textContent = 'Erro ao salvar nota.';
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+  }
 }
 function marcarStatusAtualNosBotoes(status) {
   document.querySelectorAll('#modal-det .btn-status').forEach(b => {
@@ -1516,6 +1614,12 @@ async function desbloquearHorario() {
 }
 
 // ============= MÁSCARA TEL =============
+document.getElementById('d-nota').addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    adicionarNota();
+  }
+});
 document.getElementById('m-tel').addEventListener('input', function(e) {
   let v = e.target.value.replace(/\D/g, '').slice(0, 11);
   if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
