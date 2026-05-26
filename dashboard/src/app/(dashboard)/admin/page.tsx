@@ -195,7 +195,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'users'|'visits'|'io_visits'|'sim_visits'|'pack_visits'>('users');
+  const [tab, setTab] = useState<'users'|'visits'|'io_visits'|'pack_visits'>('users');
 
   const [users, setUsers]               = useState<UserRow[]>([]);
   const [documents, setDocuments]       = useState<{created_at: string}[]>([]);
@@ -241,7 +241,7 @@ export default function AdminPage() {
 
   useEffect(() => { if (tab==='visits' && !analyticsLoaded) loadAnalytics(visitPeriod); }, [tab,analyticsLoaded,loadAnalytics,visitPeriod]);
   useEffect(() => { if (tab==='visits' && !metaLoaded) loadMeta(visitPeriod); }, [tab,metaLoaded,visitPeriod,loadMeta]);
-  useEffect(() => { if ((tab==='io_visits'||tab==='sim_visits'||tab==='pack_visits') && !analyticsLoaded) loadAnalytics(visitPeriod); }, [tab,analyticsLoaded,loadAnalytics,visitPeriod]);
+  useEffect(() => { if ((tab==='io_visits'||tab==='pack_visits') && !analyticsLoaded) loadAnalytics(visitPeriod); }, [tab,analyticsLoaded,loadAnalytics,visitPeriod]);
 
   function changeVisitPeriod(p: 'hoje'|'ontem'|'3d'|'7dias'|'mes'|'maximo') {
     setVisitPeriod(p); 
@@ -384,14 +384,6 @@ export default function AdminPage() {
             </button>
           </div>
         )}
-        {tab==='sim_visits' && (
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <a href="/io/simular" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{textDecoration:'none'}}>↗ Abrir /io/simular</a>
-            <button className="btn-secondary" disabled={loadingAnalytics} onClick={()=>loadAnalytics()}>
-              {loadingAnalytics?'Atualizando...':'🔄 Atualizar'}
-            </button>
-          </div>
-        )}
       </div>
 
       {resetMsg && (
@@ -404,7 +396,6 @@ export default function AdminPage() {
         <button className={tab==='users'?styles.tabActive:styles.tab} onClick={()=>setTab('users')}>👥 Usuários SolarDocs Pro</button>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 LP SolarDoc</button>
         <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ Acessos Site IO</button>
-        <button className={tab==='sim_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('sim_visits')}>🧮 Acesso Simulador</button>
         <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>🎨 Pack Solar</button>
       </div>
 
@@ -523,11 +514,7 @@ export default function AdminPage() {
 
       {/* ═══ ABA ACESSOS SITE IO ════════════════════════════════ */}
       {tab === 'io_visits' && (() => {
-        // Inclui /io, /io/oferta etc. — exclui /io/simular (tem aba própria).
-        const ioSessions = baseSessions.filter(s => {
-          const url = s.landing_url || '';
-          return url.includes('/io') && !url.includes('/io/simular');
-        });
+        const ioSessions = baseSessions.filter(s => (s.landing_url || '').includes('/io'));
         const visits     = ioSessions.length;
         const scroll50   = ioSessions.filter(s => (s.max_scroll||0) >= 50).length;
         const ctaTotal   = ioSessions.filter(s => (s.cta_clicks?.length||0) > 0).length;
@@ -950,208 +937,7 @@ export default function AdminPage() {
         );
       })()}
 
-      {/* ═══ ABA ACESSO SIMULADOR ════════════════════════════════ */}
-      {tab === 'sim_visits' && (() => {
-        const simSessions = baseSessions.filter(s => (s.landing_url || '').includes('/io/simular'));
-        const visits = simSessions.length;
-        const step1 = simSessions.filter(s => (s.max_step ?? 0) >= 1).length;
-        // Novo fluxo single-page: sem step 2 e 3 — só entrou (1) → viu proposta (4)
-        const propostaVista = simSessions.filter(s => (s.max_step ?? 0) >= 4).length;
-        const whatsClicks = simSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('whatsapp_sim'))).length;
-        const abandonos = simSessions.filter(s => s.sim_abandon).length;
-        const avgTime = simSessions.reduce((a,s)=>a+(s.time_on_page||0),0) / Math.max(simSessions.length,1);
-        const mobileCount = simSessions.filter(s => /Mobile|Android|iPhone|iPad/i.test(s.user_agent||'')).length;
-        const desktopCount = visits - mobileCount;
-
-        // Funil SVG — novo fluxo simplificado
-        const simFunnel: FunnelStep[] = [
-          { label: 'Entrou',          value: step1 },
-          { label: 'Viu proposta',    value: propostaVista },
-          { label: 'Clicou WhatsApp', value: whatsClicks },
-        ];
-
-        // Origens (top)
-        const srcMap = new Map<string, { visits: number; step4: number; whats: number }>();
-        simSessions.forEach(s => {
-          const src = srcLabel(s);
-          const cur = srcMap.get(src) ?? { visits: 0, step4: 0, whats: 0 };
-          cur.visits++;
-          if ((s.max_step ?? 0) >= 4) cur.step4++;
-          if (s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('whatsapp_sim'))) cur.whats++;
-          srcMap.set(src, cur);
-        });
-        const sources = Array.from(srcMap.entries())
-          .map(([source, v]) => ({ source, ...v }))
-          .sort((a, b) => b.visits - a.visits)
-          .slice(0, 8);
-
-        // Campanhas UTM (top)
-        const campMap = new Map<string, number>();
-        simSessions.forEach(s => {
-          if (s.utm_campaign) campMap.set(s.utm_campaign, (campMap.get(s.utm_campaign) ?? 0) + 1);
-        });
-        const campaigns = Array.from(campMap.entries())
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 6);
-
-        return (
-          <>
-            <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
-              <div className={styles.periodTabs}>
-                {([['hoje','Hoje'],['ontem','Ontem'],['3d','3 dias'],['7dias','7 dias'],['mes','Esse mês'],['maximo','Máximo']] as const).map(([v,l])=>(
-                  <button key={v} className={visitPeriod===v?styles.periodActive:styles.periodBtn} onClick={()=>changeVisitPeriod(v as any)} disabled={loadingAnalytics}>{l}</button>
-                ))}
-              </div>
-              <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{visits} acessos no /io/simular · {baseSessions.length} totais</span>
-            </div>
-
-            {loadingAnalytics ? (
-              <div className={styles.loading}>Carregando estatísticas...</div>
-            ) : visits === 0 ? (
-              <div className={styles.loading} style={{textAlign:'center', padding:'48px 24px'}}>
-                <div style={{fontSize:48, marginBottom:12}}>🧮</div>
-                <div style={{fontWeight:700, marginBottom:6}}>Sem acessos registrados ainda</div>
-                <div style={{fontSize:13, color:'var(--color-text-muted)'}}>
-                  Os dados aparecem aqui quando alguém visita <code>/io/simular</code>.
-                  O Meta Pixel também tá capturando — ver eventos <code>Sim_Entrou</code>, <code>Sim_Step4_Resultado</code>, <code>Sim_WhatsApp</code> no{' '}
-                  <a href="https://business.facebook.com/events_manager2/list/pixel/446093469730871/overview" target="_blank" rel="noopener noreferrer" style={{color:'#22c55e'}}>Gerenciador de Eventos</a>.
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Cards principais — novo fluxo single-page */}
-                <div className={styles.cards} style={{gridTemplateColumns:'repeat(3,1fr)', marginTop: 12}}>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>Entrou</div>
-                    <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{step1}</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>Viu proposta ({pct(propostaVista, step1)})</div>
-                    <div className={styles.cardValue} style={{color:'#F59E0B'}}>{propostaVista}</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>Cliques WhatsApp ({pct(whatsClicks, step1)})</div>
-                    <div className={styles.cardValue} style={{color:'#22c55e'}}>{whatsClicks}</div>
-                  </div>
-                </div>
-
-                {/* Cards secundários */}
-                <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>Tempo médio</div>
-                    <div className={styles.cardValue} style={{color:'#94a3b8'}}>{fmtTime(Math.round(avgTime))}</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>Abandonaram</div>
-                    <div className={styles.cardValue} style={{color:'#f87171'}}>{abandonos}</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>📱 Mobile</div>
-                    <div className={styles.cardValue} style={{color:'#60a5fa'}}>{mobileCount} ({pct(mobileCount, visits)})</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>🖥️ Desktop</div>
-                    <div className={styles.cardValue} style={{color:'#a78bfa'}}>{desktopCount} ({pct(desktopCount, visits)})</div>
-                  </div>
-                </div>
-
-                {/* Funil SVG */}
-                <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
-                  <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>📉 Funil completo do simulador</div>
-                  <FunnelSVG steps={simFunnel} />
-                </div>
-
-                {/* Origens + Campanhas lado a lado */}
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
-                  <div className={styles.tableWrap}>
-                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Top origens</div>
-                    <table className={styles.table}>
-                      <thead><tr><th>Origem</th><th>Visitas</th><th>Resultado</th><th>WhatsApp</th></tr></thead>
-                      <tbody>
-                        {sources.map(s => (
-                          <tr key={s.source}>
-                            <td style={{fontWeight:600}}>{s.source}</td>
-                            <td className={styles.mutedCell}>{s.visits}</td>
-                            <td className={styles.mutedCell}>{s.step4} ({pct(s.step4, s.visits)})</td>
-                            <td className={styles.mutedCell}>{s.whats} ({pct(s.whats, s.visits)})</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className={styles.tableWrap}>
-                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>📣 Top campanhas (UTM)</div>
-                    <table className={styles.table}>
-                      <thead><tr><th>Campanha</th><th>Visitas</th></tr></thead>
-                      <tbody>
-                        {campaigns.length === 0 ? (
-                          <tr><td colSpan={2} className={styles.mutedCell} style={{textAlign:'center',padding:'18px 8px'}}>Sem UTMs registradas</td></tr>
-                        ) : campaigns.map(c => (
-                          <tr key={c.name}>
-                            <td style={{fontWeight:600}}>{c.name}</td>
-                            <td className={styles.mutedCell}>{c.count}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Tabela de sessões */}
-                <div className={styles.tableWrap} style={{marginTop:24}}>
-                  <table className={styles.table}>
-                    <thead><tr>
-                      <th>Quando</th>
-                      <th>Origem</th>
-                      <th>Campanha</th>
-                      <th>Dispositivo</th>
-                      <th>Etapa</th>
-                      <th>Tempo</th>
-                      <th>WhatsApp</th>
-                      <th>Status</th>
-                    </tr></thead>
-                    <tbody>
-                      {simSessions.slice(0, 80).map((s, i) => {
-                        const r = relDate(s.created_at);
-                        const stp = s.max_step ?? 0;
-                        const viuProposta = stp >= 4;
-                        const etapaLabel = viuProposta ? 'Viu proposta' : 'Só entrou';
-                        const etapaColor = viuProposta ? '#F59E0B' : '#94a3b8';
-                        const wa = s.cta_clicks?.find(c => (c.label||'').toLowerCase().includes('whatsapp_sim'));
-                        const status = viuProposta && wa ? '✅ Lead + zap' : viuProposta ? '🔥 Lead' : s.sim_abandon ? '🚪 Abandonou' : '⏳ Em fluxo';
-                        const statusColor = viuProposta && wa ? '#22c55e' : viuProposta ? '#F59E0B' : s.sim_abandon ? '#f87171' : '#94a3b8';
-                        return (
-                          <tr key={s.session_id || i}>
-                            <td>
-                              <div style={{display:'flex',flexDirection:'column',gap:2}}>
-                                <span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>
-                                {r.showTime && <span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}
-                              </div>
-                            </td>
-                            <td className={styles.mutedCell}>{srcLabel(s)}</td>
-                            <td className={styles.mutedCell}>{s.utm_campaign || <span className={styles.emptyDash}>—</span>}</td>
-                            <td className={styles.mutedCell}>{deviceIcon(s.user_agent)}</td>
-                            <td>
-                              <span style={{display:'inline-block', padding:'2px 8px', borderRadius:4, background:'rgba(255,255,255,0.05)', color:etapaColor, fontWeight:700, fontSize:12}}>
-                                {stp > 0 ? etapaLabel : '—'}
-                              </span>
-                            </td>
-                            <td className={styles.mutedCell}>{fmtTime(s.time_on_page)}</td>
-                            <td className={styles.mutedCell}>{wa ? `✓ ${wa.plan ?? 'geral'}` : <span className={styles.emptyDash}>—</span>}</td>
-                            <td style={{color:statusColor, fontWeight:600, fontSize:12}}>{status}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </>
-        );
-      })()}
+      {/* Aba sim_visits removida — funil /io/simular descontinuado */}
 
       {/* ═══ ABA PACK SOLAR (pack.solardoc.app) ════════════════════ */}
       {tab === 'pack_visits' && (() => {

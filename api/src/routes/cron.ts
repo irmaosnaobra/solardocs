@@ -12,7 +12,6 @@ import { runSdrB2bFollowups } from '../services/agents/sdr/sdrB2bFollowupService
 import { runCarlaMorningBroadcast } from '../services/agents/sdr/sdrB2bMorningHook';
 import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
-import { runIoCrmFollowups, runCoraTick } from '../services/agents/io/ioCrmAgent';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { runDunning } from '../services/dunningService';
@@ -252,33 +251,6 @@ router.get('/carla-pergunta-cnpj', async (req: Request, res: Response) => {
   }
 });
 
-// Standalone — útil pra teste manual sem rodar o master inteiro
-router.get('/io-crm-followup', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runIoCrmFollowups();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'io-crm-followup falhou', err);
-    res.status(500).json({ error: 'Cron failed' });
-  }
-});
-
-// Tick da Cora — rodado a cada 20 min pelo Cloudflare Worker, 24/7.
-// Faz vigilância de CRM (envelhecimento de cards, reativação de pausas)
-// + tenta envios (welcome + cadência), que internamente respeitam horário
-// comercial. CRM é responsabilidade da Cora.
-router.get('/io-cora-tick', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runCoraTick();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'io-cora-tick falhou', err);
-    res.status(500).json({ error: 'Cron failed' });
-  }
-});
-
 // Processa fila de disparos em massa (broadcasts /admin/disparos) server-side.
 // Cloudflare Worker chama a cada minuto. Cada tick pega o broadcast mais antigo
 // em status='rodando', adquire lock, e processa até MAX_ENVIOS_POR_TICK envios
@@ -353,7 +325,6 @@ router.get('/master', async (req: Request, res: Response) => {
     // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [PAUSED-FOLLOWUP] broadcast matinal
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
-    ['io-crm-followup',              () => runIoCrmFollowups()],
     ['insights-prewarm',             () => getInsights(true)],
     // ['luma-reativacao',             () => processarReativacao()], // [LUMA-IO-OFF] linha IO é só da Cora
     ['cleanup-pro-docs',            () => cleanupProDocuments()],

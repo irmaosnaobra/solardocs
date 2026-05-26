@@ -14,7 +14,6 @@ import prestadoresRoutes from './routes/prestadores';
 import paymentsRoutes from './routes/payments';
 import adminRoutes from './routes/admin';
 import trackingRoutes from './routes/tracking';
-import ioLeadsRoutes from './routes/ioLeads';
 import cronRoutes from './routes/cron';
 import chatRoutes from './routes/chat';
 import quizRoutes from './routes/quiz';
@@ -85,7 +84,6 @@ app.use('/admin', adminRoutes);
 // /_t = path neutro (escapa adblocker). /tracking mantido temporariamente como alias.
 app.use('/_t', trackingRoutes);
 app.use('/tracking', trackingRoutes);
-app.use('/io-leads', ioLeadsRoutes);
 app.use('/cron', cronRoutes);
 app.use('/chat', chatRoutes);
 app.use('/quiz', quizRoutes);

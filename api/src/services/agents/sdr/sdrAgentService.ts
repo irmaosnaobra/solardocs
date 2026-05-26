@@ -1139,19 +1139,9 @@ export async function handleSdrLead(
 ): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
-  // ─── LINHA IO (34998165040) — só Cora opera, Luma desligada ──────
-  // Cora cuida só do CRM (classifica + move card). NÃO responde mensagens.
-  // Inbound pra essa linha NUNCA gera resposta automática — humanos
-  // atendem na conta WhatsApp Business / Z-API direto.
-  if (instance === 'io') {
-    try {
-      const { processIoInboundForCrm } = await import('../io/ioCrmAgent');
-      await processIoInboundForCrm(cleanPhone, text);
-    } catch (err) {
-      logger.error('sdr-agent', `cora hook falhou pra ${cleanPhone}`, err);
-    }
-    return;
-  }
+  // Linha IO (34998165040) — agente Cora/CRM removido junto com o funil
+  // do simulador. Humanos atendem direto na conta WhatsApp Business / Z-API.
+  if (instance === 'io') return;
 
   // Respeita takeover humano — se um operador ja respondeu manualmente,
   // a Luma fica em silencio. Apenas atualiza o registro e sai.
