@@ -1533,13 +1533,24 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const investimento = parseFloat(String(f.investimento || '0').toString().replace(',', '.')) || 0;
   const precoAvistaInput = parseFloat(String(f.preco_avista || '0').toString().replace(',', '.')) || 0;
   const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
-  // Parcelas no cartão — taxa total média sobre o preço cheio (tabela 2026-05-21).
-  // 6x=8,90% · 10x=12,65% · 12x=14,30% · 18x=18,65% · 21x=20,50%. Padrão: 10x marcado.
-  const valor6x  = investimento > 0 ? Math.ceil((investimento * 1.0890) /  6) : 0;
-  const valor10x = investimento > 0 ? Math.ceil((investimento * 1.1265) / 10) : 0;
-  const valor12x = investimento > 0 ? Math.ceil((investimento * 1.1430) / 12) : 0;
-  const valor18x = investimento > 0 ? Math.ceil((investimento * 1.1865) / 18) : 0;
-  const valor21x = investimento > 0 ? Math.ceil((investimento * 1.2050) / 21) : 0;
+  // Parcelas no cartão — 1x a 21x. Cada parcela tem taxa editável vinda do form
+  // (fallback: tabela Elo padrão). Fórmula: valor = (investimento × (1+taxa%)) / N.
+  // Tabela Elo padrão (usada quando o tenant não envia taxa customizada).
+  const TAXA_CARTAO_DEFAULT: Record<number, number> = {
+    1: 3.99, 2: 5.30, 3: 5.99, 4: 6.68, 5: 7.35, 6: 8.02, 7: 9.47,
+    8: 10.13, 9: 10.78, 10: 11.43, 11: 12.06, 12: 12.70, 13: 13.32,
+    14: 13.94, 15: 14.56, 16: 15.17, 17: 15.77, 18: 16.37,
+    19: 16.97, 20: 17.57, 21: 18.17,
+  };
+  function taxaCartao(n: number): number {
+    const raw = String(f[`taxa_cartao_${n}` as keyof typeof f] || '').replace(',', '.');
+    const v = parseFloat(raw);
+    return v > 0 ? v : (TAXA_CARTAO_DEFAULT[n] ?? 0);
+  }
+  function valorParcelaCartao(n: number): number {
+    if (investimento <= 0 || n <= 0) return 0;
+    return Math.ceil((investimento * (1 + taxaCartao(n) / 100)) / n);
+  }
   // Financiamento Price com 120 dias (4 meses) de carência a 2,2% a.m.
   // Taxa interna — não exibida no PDF nem no form.
   const FIN_RATE = 0.022;
@@ -1565,15 +1576,16 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const pagCustom = String(f.pag_custom || '').trim();
 
   // Quais opções aparecem para o cliente (consultor escolhe no form).
-  // Defaults novos: vista/cartão 10x/fin 48-60x ligados; 36x e entrada desligados.
+  // Cartão: 1x a 21x — o que o form envia como true aparece (form é a fonte de verdade).
+  // Default visual do form: 6x/12x/18x/21x marcados; mas aqui só lê o que veio.
+  const cartaoAtivo: Record<number, boolean> = {};
+  for (let n = 1; n <= 21; n++) {
+    cartaoAtivo[n] = f[`pag_cartao_${n}` as keyof typeof f] === true;
+  }
   const pagOpts = {
     vista:  f.pag_vista === false ? false : true,
     cartao: f.pag_cartao === false ? false : true,
-    p6:     f.pag_cartao_6 === true,                                  // off by default
-    p10:    f.pag_cartao_10 === false ? false : true,                 // on by default
-    p12:    f.pag_cartao_12 === true,                                 // off by default
-    p18:    f.pag_cartao_18 === true,                                 // off by default
-    p21:    f.pag_cartao_21 === true,                                 // off by default
+    cartaoAtivo,
     fin:    f.pag_fin === false ? false : true,
     p36:    f.pag_fin_36 === true,                                    // off by default
     p48:    f.pag_fin_48 === false ? false : true,                    // on by default
@@ -1611,7 +1623,8 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     ...refBase,
     tarifa: tarifaOverride > 0 ? tarifaOverride : refBase.tarifa,
   };
-  const mensal = geracaoMensal(kwp, uf, cidade);
+  const geracaoMediaOverride = parseFloat(String(f.geracao_media_kwh || '').replace(',', '.'));
+  const mensal = geracaoMensal(kwp, uf, cidade, geracaoMediaOverride > 0 ? geracaoMediaOverride : undefined);
   const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
   const mediaMensalGerada = Math.round(geracaoAnual / 12);
   const economiaPercent = consumoKwh > 0 ? Math.min(100, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;
@@ -1761,23 +1774,17 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
       </div>`);
   }
 
-  // Cartão de crédito — 5 prazos possíveis. Padrão exibe 10x; resto opcional.
+  // Cartão de crédito — 1x a 21x. Cada parcela tem taxa editável (form ou tabela Elo).
   if (pagOpts.cartao && investimento > 0) {
-    const subs: Array<[boolean, number, number]> = [
-      [pagOpts.p6,   6, valor6x],
-      [pagOpts.p10, 10, valor10x],
-      [pagOpts.p12, 12, valor12x],
-      [pagOpts.p18, 18, valor18x],
-      [pagOpts.p21, 21, valor21x],
-    ];
-    for (const [ativo, n, valor] of subs) {
-      if (ativo && valor > 0) {
-        cards.push(`<div class="invest-cartao">
-          <div class="invest-cartao-label">Cartão de crédito</div>
-          <div class="invest-cartao-value">${n}× de ${pBRL(valor)}</div>
-          <div class="invest-cartao-sub">no cartão sem entrada</div>
-        </div>`);
-      }
+    for (let n = 1; n <= 21; n++) {
+      if (!pagOpts.cartaoAtivo[n]) continue;
+      const valor = valorParcelaCartao(n);
+      if (valor <= 0) continue;
+      cards.push(`<div class="invest-cartao">
+        <div class="invest-cartao-label">Cartão de crédito</div>
+        <div class="invest-cartao-value">${n}× de ${pBRL(valor)}</div>
+        <div class="invest-cartao-sub">no cartão sem entrada</div>
+      </div>`);
     }
   }
 

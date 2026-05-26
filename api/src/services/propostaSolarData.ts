@@ -132,9 +132,16 @@ export const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set
 // Calcula geração mensal (kWh/mês) por mês, baseado em kWp + UF.
 // Fórmula: kWh = kWp * HSP * dias * eficiência_sistema * variacao_mensal
 // Eficiência típica de sistema (perdas inversor + cabeamento + sujeira): 80%
-export function geracaoMensal(kwp: number, uf: string, cidade?: string): number[] {
-  const ref = getRef(uf, cidade);
+// Se mediaOverride > 0, ignora kWp/HSP e usa esse valor como média mensal,
+// aplicando a sazonalidade da região por cima (normalizada pra média bater exato).
+export function geracaoMensal(kwp: number, uf: string, cidade?: string, mediaOverride?: number): number[] {
   const variacao = variacaoMensal(uf);
+  if (mediaOverride && mediaOverride > 0) {
+    const somaVar = variacao.reduce((a, b) => a + b, 0);
+    const fator = (mediaOverride * 12) / somaVar;
+    return variacao.map((v) => Math.round(v * fator));
+  }
+  const ref = getRef(uf, cidade);
   const efic = 0.80;
   const baseAnual = kwp * ref.hsp * 365 * efic; // kWh/ano
   const mediaMensal = baseAnual / 12;

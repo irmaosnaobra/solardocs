@@ -54,6 +54,10 @@ const initialFields = {
   marca_inversor: '',
   potencia_inversor: '',
   tipo_telhado: '' as '' | typeof TIPOS_TELHADO[number],
+  // Geração média mensal (kWh). Pré-preenchida com estimativa (kWp × HSP × 365 × 0.80 / 12)
+  // quando o consultor preenche kWp + UF. Editável — o que vier daqui vale, e o
+  // gráfico aplica a sazonalidade da região por cima preservando essa média.
+  geracao_media_kwh: '',
   investimento: '',
   preco_avista: '',
   foto_telhado_b64: '', // dataURL JPEG comprimido
@@ -80,11 +84,50 @@ const initialFields = {
   // Entrada livre (valor + modo de quitação do restante) é off por padrão.
   pag_vista: true,
   pag_cartao: true,
-  pag_cartao_6: false,
-  pag_cartao_10: true,
-  pag_cartao_12: false,
-  pag_cartao_18: false,
-  pag_cartao_21: false,
+  // Cartão de crédito: 1x a 21x. Defaults marcados: 6x, 12x, 18x, 21x.
+  // Taxas Elo padrão (editáveis pelo consultor por proposta).
+  pag_cartao_1: false,
+  pag_cartao_2: false,
+  pag_cartao_3: false,
+  pag_cartao_4: false,
+  pag_cartao_5: false,
+  pag_cartao_6: true,
+  pag_cartao_7: false,
+  pag_cartao_8: false,
+  pag_cartao_9: false,
+  pag_cartao_10: false,
+  pag_cartao_11: false,
+  pag_cartao_12: true,
+  pag_cartao_13: false,
+  pag_cartao_14: false,
+  pag_cartao_15: false,
+  pag_cartao_16: false,
+  pag_cartao_17: false,
+  pag_cartao_18: true,
+  pag_cartao_19: false,
+  pag_cartao_20: false,
+  pag_cartao_21: true,
+  taxa_cartao_1: '3.99',
+  taxa_cartao_2: '5.30',
+  taxa_cartao_3: '5.99',
+  taxa_cartao_4: '6.68',
+  taxa_cartao_5: '7.35',
+  taxa_cartao_6: '8.02',
+  taxa_cartao_7: '9.47',
+  taxa_cartao_8: '10.13',
+  taxa_cartao_9: '10.78',
+  taxa_cartao_10: '11.43',
+  taxa_cartao_11: '12.06',
+  taxa_cartao_12: '12.70',
+  taxa_cartao_13: '13.32',
+  taxa_cartao_14: '13.94',
+  taxa_cartao_15: '14.56',
+  taxa_cartao_16: '15.17',
+  taxa_cartao_17: '15.77',
+  taxa_cartao_18: '16.37',
+  taxa_cartao_19: '16.97',
+  taxa_cartao_20: '17.57',
+  taxa_cartao_21: '18.17',
   pag_fin: true,
   pag_fin_36: false,
   pag_fin_48: true,
@@ -140,6 +183,11 @@ export default function PropostaSolarPage() {
     return 0;
   })();
 
+  // Estimativa de geração média mensal (kWh) — só pra placeholder do input.
+  // Usa HSP médio do Brasil (5.2) com eficiência 80%. O backend tem a tabela
+  // completa por UF/cidade, então o valor real do PDF pode diferir um pouco.
+  const geracaoMediaSugerida = kwpCalc > 0 ? Math.round((kwpCalc * 5.2 * 365 * 0.80) / 12) : 0;
+
   // Sugere qtd_modulos baseado no consumo (estimativa: kWh/mês ÷ 115 = kWp).
   // Divisor 115 gera ~10% de oversize pra cobrir degradação dos painéis (~0,5% a.a.)
   // — sem isso, no ano 2-3 o sistema já fica deficitário.
@@ -153,17 +201,20 @@ export default function PropostaSolarPage() {
     }
   }, [fields.consumo_kwh, fields.potencia_modulo, fields.qtd_modulos]);
 
-  // Parcelas no cartão — taxa total média sobre o preço cheio (tabela 2026-05-21).
-  // 6x=8,90% · 10x=12,65% · 12x=14,30% · 18x=18,65% · 21x=20,50%.
+  // Parcelas no cartão — taxa total Elo padrão (editável por proposta).
+  // Fórmula: valor parcela = (investimento × (1 + taxa%)) / N
   const invNum = (() => {
     const v = parseFloat(String(fields.investimento).replace(',', '.'));
     return v > 0 ? v : 0;
   })();
-  const valor6x  = invNum > 0 ? Math.ceil((invNum * 1.0890) /  6) : 0;
-  const valor10x = invNum > 0 ? Math.ceil((invNum * 1.1265) / 10) : 0;
-  const valor12x = invNum > 0 ? Math.ceil((invNum * 1.1430) / 12) : 0;
-  const valor18x = invNum > 0 ? Math.ceil((invNum * 1.1865) / 18) : 0;
-  const valor21x = invNum > 0 ? Math.ceil((invNum * 1.2050) / 21) : 0;
+  function parseTaxa(s: string): number {
+    const v = parseFloat(String(s || '').replace(',', '.'));
+    return v > 0 ? v : 0;
+  }
+  function valorParcela(n: number, taxaPct: number): number {
+    if (invNum <= 0 || n <= 0) return 0;
+    return Math.ceil((invNum * (1 + taxaPct / 100)) / n);
+  }
   // Financiamento Price com 120 dias (4 meses) de carência a 2,2% a.m.
   // (taxa interna — não exibida no form nem na proposta)
   const FIN_RATE = 0.022;
@@ -412,6 +463,20 @@ export default function PropostaSolarPage() {
                 </strong>
               </div>
             </div>
+            <div className={styles.fieldFull}>
+              <label className={styles.label}>Geração média mensal (kWh)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={fields.geracao_media_kwh}
+                onChange={e => setField('geracao_media_kwh', e.target.value)}
+                placeholder={geracaoMediaSugerida > 0 ? `Estimado: ${geracaoMediaSugerida} kWh/mês (deixe vazio pra usar)` : 'Preencha kWp e cidade pra ver estimativa'}
+                className="input-field"
+              />
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                O que você colocar aqui vira a média anual da proposta. Vazio = sistema calcula via HSP da cidade. O gráfico aplica a sazonalidade da região em cima desse valor.
+              </span>
+            </div>
             <div className={styles.field}>
               <label className={styles.label}>Marca dos módulos *</label>
               <input type="text" value={fields.marca_modulo} onChange={e => setField('marca_modulo', e.target.value)} placeholder="Ex: Canadian Solar" className="input-field" required />
@@ -620,42 +685,32 @@ export default function PropostaSolarPage() {
                 : '—'}
             />
 
-            {/* CARTÃO DE CRÉDITO — 10x fixo + opções extras (6/12/18/21) */}
+            {/* CARTÃO DE CRÉDITO — 1x a 21x, cada uma com taxa editável ao lado */}
             <PagGrupo
               checked={fields.pag_cartao}
               onToggle={(v) => setField('pag_cartao', v)}
               titulo="Cartão de crédito"
             >
-              <PagSubItem
-                checked={fields.pag_cartao_6}
-                onToggle={(v) => setField('pag_cartao_6', v)}
-                label="6x"
-                valor={invNum > 0 ? `R$ ${valor6x.toLocaleString('pt-BR')}/mês` : '—'}
-              />
-              <PagSubItem
-                checked={fields.pag_cartao_10}
-                onToggle={(v) => setField('pag_cartao_10', v)}
-                label="10x"
-                valor={invNum > 0 ? `R$ ${valor10x.toLocaleString('pt-BR')}/mês` : '—'}
-              />
-              <PagSubItem
-                checked={fields.pag_cartao_12}
-                onToggle={(v) => setField('pag_cartao_12', v)}
-                label="12x"
-                valor={invNum > 0 ? `R$ ${valor12x.toLocaleString('pt-BR')}/mês` : '—'}
-              />
-              <PagSubItem
-                checked={fields.pag_cartao_18}
-                onToggle={(v) => setField('pag_cartao_18', v)}
-                label="18x"
-                valor={invNum > 0 ? `R$ ${valor18x.toLocaleString('pt-BR')}/mês` : '—'}
-              />
-              <PagSubItem
-                checked={fields.pag_cartao_21}
-                onToggle={(v) => setField('pag_cartao_21', v)}
-                label="21x"
-                valor={invNum > 0 ? `R$ ${valor21x.toLocaleString('pt-BR')}/mês` : '—'}
-              />
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', padding: '2px 6px 8px', lineHeight: 1.4 }}>
+                <strong>Obs:</strong> taxa padronizada — adeque a sua realidade no campo de taxa ao lado de cada parcela.
+              </div>
+              {Array.from({ length: 21 }, (_, i) => i + 1).map((n) => {
+                const ativoKey = `pag_cartao_${n}` as keyof typeof fields;
+                const taxaKey = `taxa_cartao_${n}` as keyof typeof fields;
+                const taxaPct = parseTaxa(String(fields[taxaKey] || ''));
+                const valor = valorParcela(n, taxaPct);
+                return (
+                  <PagSubItemTaxa
+                    key={n}
+                    checked={Boolean(fields[ativoKey])}
+                    onToggle={(v) => setField(ativoKey, v as never)}
+                    label={`${n}x`}
+                    taxa={String(fields[taxaKey] || '')}
+                    onTaxaChange={(v) => setField(taxaKey, v as never)}
+                    valor={invNum > 0 ? `R$ ${valor.toLocaleString('pt-BR')}/mês` : '—'}
+                  />
+                );
+              })}
             </PagGrupo>
 
             {/* FINANCIAMENTO — 36x, 48x, 60x (taxa interna, não exibida) */}
@@ -757,7 +812,7 @@ export default function PropostaSolarPage() {
             </div>
           </div>
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>
-            A geração mensal e o payback são calculados automaticamente baseado no kWp, UF e inflação configurada abaixo.
+            Payback calculado automaticamente baseado no kWp, UF e inflação configurada abaixo. Geração mensal usa o valor que você preencheu na seção Sistema (vazio = calcula via HSP da cidade).
           </p>
         </div>
 
@@ -871,6 +926,50 @@ function PagSubItem({
       </span>
       <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--color-text)' }}>{valor}</span>
     </label>
+  );
+}
+
+function PagSubItemTaxa({
+  checked, onToggle, label, taxa, onTaxaChange, valor,
+}: {
+  checked: boolean;
+  onToggle: (v: boolean) => void;
+  label: string;
+  taxa: string;
+  onTaxaChange: (v: string) => void;
+  valor: string;
+}) {
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '18px 56px 110px 1fr',
+      alignItems: 'center',
+      gap: 10,
+      padding: '4px 6px',
+      borderRadius: 6,
+      opacity: checked ? 1 : 0.6,
+    }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onToggle(e.target.checked)}
+        style={{ width: 15, height: 15, accentColor: 'var(--color-primary)', cursor: 'pointer', margin: 0 }}
+      />
+      <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--color-text)' }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={taxa}
+          onChange={(e) => onTaxaChange(e.target.value)}
+          className="input-field"
+          style={{ width: 70, padding: '4px 6px', fontSize: 12, textAlign: 'right' }}
+          placeholder="0,00"
+        />
+        <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>%</span>
+      </div>
+      <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--color-text)', textAlign: 'right' }}>{valor}</span>
+    </div>
   );
 }
 
