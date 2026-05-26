@@ -129,9 +129,16 @@ const initialFields = {
   taxa_cartao_20: '17.57',
   taxa_cartao_21: '18.17',
   pag_fin: true,
-  pag_fin_36: false,
+  // Financiamento: 36x/48x/60x/84x. Default marcados: 36x e 48x.
+  // Taxa mensal editável (default 2,2% a.m. — Price com 120 dias de carência).
+  pag_fin_36: true,
   pag_fin_48: true,
-  pag_fin_60: true,
+  pag_fin_60: false,
+  pag_fin_84: false,
+  taxa_fin_36: '2.20',
+  taxa_fin_48: '2.20',
+  taxa_fin_60: '2.20',
+  taxa_fin_84: '2.20',
   pag_entrada: false,
   entrada_valor: '',
   entrada_modo: 'dias' as 'dias' | 'entrega' | 'montagem' | 'liberacao',
@@ -215,13 +222,13 @@ export default function PropostaSolarPage() {
     if (invNum <= 0 || n <= 0) return 0;
     return Math.ceil((invNum * (1 + taxaPct / 100)) / n);
   }
-  // Financiamento Price com 120 dias (4 meses) de carência a 2,2% a.m.
-  // (taxa interna — não exibida no form nem na proposta)
-  const FIN_RATE = 0.022;
+  // Financiamento Price com 120 dias (4 meses) de carência.
+  // Taxa mensal editável por proposta (default 2,2% a.m.)
   const FIN_CARENCIA_MESES = 4;
-  const valor36x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, FIN_RATE, 36, FIN_CARENCIA_MESES)) : 0;
-  const valor48x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, FIN_RATE, 48, FIN_CARENCIA_MESES)) : 0;
-  const valor60x = invNum > 0 ? Math.ceil(pmtPriceCarencia(invNum, FIN_RATE, 60, FIN_CARENCIA_MESES)) : 0;
+  function valorFinanciamento(n: number, taxaMensalPct: number): number {
+    if (invNum <= 0 || n <= 0 || taxaMensalPct <= 0) return 0;
+    return Math.ceil(pmtPriceCarencia(invNum, taxaMensalPct / 100, n, FIN_CARENCIA_MESES));
+  }
   // Entrada + saldo: integrador define a entrada (R$) e como/quando quitar o restante
   const entradaValor = (() => {
     const v = parseFloat(String(fields.entrada_valor).replace(',', '.'));
@@ -713,31 +720,33 @@ export default function PropostaSolarPage() {
               })}
             </PagGrupo>
 
-            {/* FINANCIAMENTO — 36x, 48x, 60x (taxa interna, não exibida) */}
+            {/* FINANCIAMENTO — 36x/48x/60x/84x, cada uma com taxa mensal editável */}
             <PagGrupo
               checked={fields.pag_fin}
               onToggle={(v) => setField('pag_fin', v)}
               titulo="Financiamento"
               subtitulo="120 dias de carência"
             >
-              <PagSubItem
-                checked={fields.pag_fin_36}
-                onToggle={(v) => setField('pag_fin_36', v)}
-                label="36x"
-                valor={invNum > 0 ? `R$ ${valor36x.toLocaleString('pt-BR')}/mês` : '—'}
-              />
-              <PagSubItem
-                checked={fields.pag_fin_48}
-                onToggle={(v) => setField('pag_fin_48', v)}
-                label="48x"
-                valor={invNum > 0 ? `R$ ${valor48x.toLocaleString('pt-BR')}/mês` : '—'}
-              />
-              <PagSubItem
-                checked={fields.pag_fin_60}
-                onToggle={(v) => setField('pag_fin_60', v)}
-                label="60x"
-                valor={invNum > 0 ? `R$ ${valor60x.toLocaleString('pt-BR')}/mês` : '—'}
-              />
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', padding: '2px 6px 8px', lineHeight: 1.4 }}>
+                <strong>Obs:</strong> taxa mensal padrão 2,2% a.m. — adeque a sua realidade no campo de taxa ao lado de cada parcela.
+              </div>
+              {[36, 48, 60, 84].map((n) => {
+                const ativoKey = `pag_fin_${n}` as keyof typeof fields;
+                const taxaKey = `taxa_fin_${n}` as keyof typeof fields;
+                const taxaPct = parseTaxa(String(fields[taxaKey] || ''));
+                const valor = valorFinanciamento(n, taxaPct);
+                return (
+                  <PagSubItemTaxa
+                    key={n}
+                    checked={Boolean(fields[ativoKey])}
+                    onToggle={(v) => setField(ativoKey, v as never)}
+                    label={`${n}x`}
+                    taxa={String(fields[taxaKey] || '')}
+                    onTaxaChange={(v) => setField(taxaKey, v as never)}
+                    valor={invNum > 0 ? `R$ ${valor.toLocaleString('pt-BR')}/mês` : '—'}
+                  />
+                );
+              })}
             </PagGrupo>
 
             {/* ENTRADA + SALDO — integrador define entrada e modo de quitação do restante */}

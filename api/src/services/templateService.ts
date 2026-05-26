@@ -1551,13 +1551,19 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     if (investimento <= 0 || n <= 0) return 0;
     return Math.ceil((investimento * (1 + taxaCartao(n) / 100)) / n);
   }
-  // Financiamento Price com 120 dias (4 meses) de carência a 2,2% a.m.
-  // Taxa interna — não exibida no PDF nem no form.
-  const FIN_RATE = 0.022;
+  // Financiamento Price com 120 dias (4 meses) de carência.
+  // Taxa mensal editável por proposta (default 2,2% a.m.). Prazos: 36/48/60/84.
   const FIN_CARENCIA_MESES = 4;
-  const valor36x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, FIN_RATE, 36, FIN_CARENCIA_MESES)) : 0;
-  const valor48x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, FIN_RATE, 48, FIN_CARENCIA_MESES)) : 0;
-  const valor60x = investimento > 0 ? Math.ceil(pmtPriceCarencia(investimento, FIN_RATE, 60, FIN_CARENCIA_MESES)) : 0;
+  const FIN_RATE_DEFAULT = 2.20; // % a.m.
+  function taxaFin(n: number): number {
+    const raw = String(f[`taxa_fin_${n}` as keyof typeof f] || '').replace(',', '.');
+    const v = parseFloat(raw);
+    return v > 0 ? v : FIN_RATE_DEFAULT;
+  }
+  function valorParcelaFin(n: number): number {
+    if (investimento <= 0 || n <= 0) return 0;
+    return Math.ceil(pmtPriceCarencia(investimento, taxaFin(n) / 100, n, FIN_CARENCIA_MESES));
+  }
   // Entrada + saldo: integrador define a entrada (R$) e como/quando quitar o restante.
   // Modo do restante: 'dias' (N dias) | 'entrega' | 'montagem' | 'liberacao'.
   const entradaValor = parseFloat(String(f.entrada_valor || '0').toString().replace(',', '.')) || 0;
@@ -1582,14 +1588,18 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   for (let n = 1; n <= 21; n++) {
     cartaoAtivo[n] = f[`pag_cartao_${n}` as keyof typeof f] === true;
   }
+  // Financiamento: 36/48/60/84. Form é a fonte de verdade — só lê o que veio.
+  const FIN_PRAZOS = [36, 48, 60, 84] as const;
+  const finAtivo: Record<number, boolean> = {};
+  for (const n of FIN_PRAZOS) {
+    finAtivo[n] = f[`pag_fin_${n}` as keyof typeof f] === true;
+  }
   const pagOpts = {
     vista:  f.pag_vista === false ? false : true,
     cartao: f.pag_cartao === false ? false : true,
     cartaoAtivo,
     fin:    f.pag_fin === false ? false : true,
-    p36:    f.pag_fin_36 === true,                                    // off by default
-    p48:    f.pag_fin_48 === false ? false : true,                    // on by default
-    p60:    f.pag_fin_60 === false ? false : true,                    // on by default
+    finAtivo,
     entrada: f.pag_entrada === true,                                  // off by default
   };
 
@@ -1788,21 +1798,18 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     }
   }
 
-  // Financiamento bancário — 36x / 48x / 60x. Taxa interna, não exibida.
+  // Financiamento bancário — 36x / 48x / 60x / 84x. Taxa mensal por parcela
+  // (form ou default 2,2% a.m.), Price com 120 dias de carência.
   if (pagOpts.fin && investimento > 0) {
-    const subs: Array<[boolean, number, number]> = [
-      [pagOpts.p36, 36, valor36x],
-      [pagOpts.p48, 48, valor48x],
-      [pagOpts.p60, 60, valor60x],
-    ];
-    for (const [ativo, n, valor] of subs) {
-      if (ativo && valor > 0) {
-        cards.push(`<div class="invest-financ">
-          <div class="invest-financ-label">Financiamento bancário</div>
-          <div class="invest-financ-value">${n}× de ${pBRL(valor)}</div>
-          <div class="invest-financ-sub">120 dias de carência</div>
-        </div>`);
-      }
+    for (const n of FIN_PRAZOS) {
+      if (!pagOpts.finAtivo[n]) continue;
+      const valor = valorParcelaFin(n);
+      if (valor <= 0) continue;
+      cards.push(`<div class="invest-financ">
+        <div class="invest-financ-label">Financiamento bancário</div>
+        <div class="invest-financ-value">${n}× de ${pBRL(valor)}</div>
+        <div class="invest-financ-sub">120 dias de carência</div>
+      </div>`);
     }
   }
 
