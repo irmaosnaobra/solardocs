@@ -106,7 +106,7 @@ export default function Landing() {
           </div>
           <div className={styles.navRight}>
             <a href="/auth?mode=login" className={styles.navLink}>Entrar</a>
-            <button onClick={goToFreeRegister} className={styles.navCta}>Começar grátis</button>
+            <button onClick={scrollToPlans} className={styles.navCta}>Começar grátis</button>
           </div>
         </div>
       </nav>
@@ -129,12 +129,37 @@ export default function Landing() {
             <h1 className={styles.h1}>
               Gerador de Proposta + Contratos solares <strong>com a sua marca</strong>.
             </h1>
+
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: 880,
+                margin: '32px auto',
+                aspectRatio: '16 / 9',
+                borderRadius: 16,
+                overflow: 'hidden',
+                boxShadow: '0 30px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(251,191,36,0.25)',
+                background: '#000',
+              }}
+            >
+              <iframe
+                id="panda-5b428e1d-8592-4112-9b35-5f3d3afe83a1"
+                src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=5b428e1d-8592-4112-9b35-5f3d3afe83a1"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+                allowFullScreen
+                fetchPriority="high"
+                title="SolarDoc — apresentação"
+              />
+            </div>
+
             <p className={styles.lead} style={{ margin: '0 auto 32px' }}>
               Cadastra a empresa, sobe sua logo e <b>gera 10 propostas grátis</b>. Em minutos sai a proposta
               solar pronta com seu nome, sua cor e os números certos — pra mandar no WhatsApp do cliente.
             </p>
 
-            <button className={styles.finalCtaBtn} onClick={goToFreeRegister}>
+            <button className={styles.finalCtaBtn} onClick={scrollToPlans}>
               Começar grátis →
             </button>
 
@@ -492,7 +517,7 @@ export default function Landing() {
             10 propostas grátis no Gerador. Sem cartão, sem cobrança.
           </p>
           <div data-reveal>
-            <button className={styles.finalCtaBtn} onClick={goToFreeRegister}>
+            <button className={styles.finalCtaBtn} onClick={scrollToPlans}>
               Começar grátis →
             </button>
             <div className={styles.finalCtaFoot}>
