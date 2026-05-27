@@ -140,6 +140,44 @@ export default function Landing() {
 
   return (
     <div className={styles.page}>
+      {/* OVERLAY FULLSCREEN — só o vídeo até 02:10 */}
+      {scrollLocked && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: '#000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 'clamp(8px, 3vw, 32px)',
+          }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: 'min(1280px, calc((100vh - 64px) * 16 / 9))',
+              aspectRatio: '16 / 9',
+              borderRadius: 12,
+              overflow: 'hidden',
+              boxShadow: '0 40px 100px rgba(251,191,36,0.18)',
+              background: '#000',
+            }}
+          >
+            <iframe
+              id="panda-5b428e1d-8592-4112-9b35-5f3d3afe83a1"
+              src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=5b428e1d-8592-4112-9b35-5f3d3afe83a1"
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+              allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+              allowFullScreen
+              title="SolarDoc — apresentação"
+            />
+          </div>
+        </div>
+      )}
+
       {/* NAV */}
       <nav className={styles.nav}>
         <div className={styles.navInner}>
@@ -171,44 +209,6 @@ export default function Landing() {
             <h1 className={styles.h1}>
               Gerador de Proposta + Contratos solares <strong>com a sua marca</strong>.
             </h1>
-
-            <div
-              style={{
-                position: 'relative',
-                width: '100%',
-                maxWidth: 880,
-                margin: '32px auto',
-                aspectRatio: '16 / 9',
-                borderRadius: 16,
-                overflow: 'hidden',
-                boxShadow: '0 30px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(251,191,36,0.25)',
-                background: '#000',
-              }}
-            >
-              <iframe
-                id="panda-5b428e1d-8592-4112-9b35-5f3d3afe83a1"
-                src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=5b428e1d-8592-4112-9b35-5f3d3afe83a1"
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
-                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-                allowFullScreen
-                fetchPriority="high"
-                title="SolarDoc — apresentação"
-              />
-            </div>
-
-            {scrollLocked && (
-              <div
-                style={{
-                  fontSize: 13,
-                  color: 'rgba(255,255,255,0.75)',
-                  margin: '-12px auto 24px',
-                  textAlign: 'center',
-                  letterSpacing: '0.02em',
-                }}
-              >
-                ▼ Assista ao vídeo — a página libera em instantes
-              </div>
-            )}
 
             <p className={styles.lead} style={{ margin: '0 auto 32px' }}>
               Cadastra a empresa, sobe sua logo e <b>gera 10 propostas grátis</b>. Em minutos sai a proposta
