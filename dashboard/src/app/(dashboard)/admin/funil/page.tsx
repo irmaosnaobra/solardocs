@@ -42,17 +42,14 @@ const STEP_COLORS: Record<FunnelStep['key'], { bg: string; border: string; accen
 
 const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
   vsl:        'Acessaram a página do vídeo de venda',
-  landing:    'Tráfego frio (Google/indicação) — VSL pula direto pro cadastro',
+  landing:    'Visitaram a home solardoc.app (LP principal)',
   cadastro:   'Criaram conta na plataforma',
   stripe:     'Passaram cartão (inclui cancelados no trial)',
   empresa:    'Preencheram CNPJ (gate pra liberar checkout)',
   plataforma: 'Geraram ao menos 1 documento',
 };
 
-// Etapas fora do caminho principal. Continuam mostradas mas marcadas como
-// PAUSADA e ignoradas no cálculo de conversão do funil. Landing virou rota
-// secundária quando VSL passou a redirecionar direto pra /auth.
-const PAUSED_STEPS = new Set<FunnelStep['key']>(['landing']);
+const PAUSED_STEPS = new Set<FunnelStep['key']>();
 
 const PRODUCT_LABEL: Record<string, string> = {
   pro: 'PRO',
@@ -93,7 +90,7 @@ export default function FunilPage() {
             Funil da operação SolarDoc
           </h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '6px 0 0' }}>
-            VSL → Cadastro → Empresa → Stripe → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
+            VSL → LP → Cadastro → Empresa → Stripe → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
           </p>
         </div>
 
@@ -229,14 +226,15 @@ export default function FunilPage() {
             })}
           </div>
 
-          {/* Resumo de conversões macro do fluxo principal (VSL → Cadastro → Empresa → Stripe → Ativo). */}
+          {/* Resumo de conversões macro do fluxo principal (VSL → LP → Cadastro → Empresa → Stripe → Ativo). */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             {(() => {
               const by = (key: FunnelStep['key']) => data.steps.find(s => s.key === key)?.count ?? 0;
-              const vsl = by('vsl'), cadastro = by('cadastro'),
+              const vsl = by('vsl'), landing = by('landing'), cadastro = by('cadastro'),
                     stripe = by('stripe'), empresa = by('empresa'), plataforma = by('plataforma');
               return [
-                { label: 'VSL → Cadastro',     val: pct(cadastro, vsl) },
+                { label: 'VSL → LP',           val: pct(landing, vsl) },
+                { label: 'LP → Cadastro',      val: pct(cadastro, landing) },
                 { label: 'Cadastro → Empresa', val: pct(empresa, cadastro) },
                 { label: 'Empresa → Stripe',   val: pct(stripe, empresa) },
                 { label: 'Stripe → Ativo',     val: pct(plataforma, stripe) },
@@ -263,9 +261,10 @@ export default function FunilPage() {
           {/* Notas */}
           <div style={{ marginTop: 32, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
             <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> os números são únicos —
-            visitantes únicos por sessão (VSL) e usuários distintos (Cadastro/Stripe/Empresa/Plataforma).
+            visitantes únicos por sessão (VSL/LP) e usuários distintos (Cadastro/Stripe/Empresa/Plataforma).
             "Pageviews" no canto inferior conta o total de visitas (com re-visita). VSL conta acessos a
-            <code style={{ padding: '0 4px' }}>/apresentacao</code>.
+            <code style={{ padding: '0 4px' }}>/apresentacao</code>; LP conta a home
+            <code style={{ padding: '0 4px' }}>solardoc.app</code> (exclui /io, /gerador, /apresentacao).
             <br /><br />
             <strong style={{ color: '#2dd4bf' }}>Empresa:</strong> users que preencheram CNPJ em
             <code style={{ padding: '0 4px' }}>/empresa</code>. É gate obrigatório antes do checkout —
