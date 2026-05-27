@@ -6,6 +6,7 @@ import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/w
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
+import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
@@ -262,6 +263,19 @@ router.get('/promo-gerador-blast', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'promo-gerador-blast falhou', err);
+    res.status(500).json({ error: 'Cron failed', message: String(err) });
+  }
+});
+
+// V2: re-engajamento sem pedir email, link direto pro /auth.
+// Cadência 15-20s, idempotente via promo_gerador_v2_sent_at.
+router.get('/promo-gerador-v2-blast', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runPromoGeradorV2Broadcast();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'promo-gerador-v2-blast falhou', err);
     res.status(500).json({ error: 'Cron failed', message: String(err) });
   }
 });
