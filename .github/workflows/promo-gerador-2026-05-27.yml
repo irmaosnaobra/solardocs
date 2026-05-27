@@ -1,0 +1,54 @@
+name: Promo Gerador Blast (27/05/2026)
+
+# One-shot: 27/05/2026 06:50 BRT (= 09:50 UTC)
+# Dispara o broadcast pros users plano=free pedindo e-mail em troca
+# de 10 créditos no novo gerador. Idempotente via promo_gerador_sent_at.
+# Faz 4 chamadas com 4 minutos entre cada — cada uma processa até
+# 20 envios com delay aleatório de 10-14s entre mensagens.
+on:
+  schedule:
+    - cron: '50 9 27 5 *'   # 09:50 UTC = 06:50 BRT, dia 27 do mês 5
+  workflow_dispatch:
+
+jobs:
+  blast:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Batch 1 (06:50 BRT)
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/promo-gerador-blast" \
+            -H "Authorization: Bearer solardocs_master_cron_2024" \
+            --max-time 290 -sS -w "\nHTTP %{http_code}\n"
+
+      - name: Aguarda 4min antes do próximo batch
+        run: sleep 240
+
+      - name: Batch 2
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/promo-gerador-blast" \
+            -H "Authorization: Bearer solardocs_master_cron_2024" \
+            --max-time 290 -sS -w "\nHTTP %{http_code}\n"
+
+      - name: Aguarda 4min antes do próximo batch
+        run: sleep 240
+
+      - name: Batch 3
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/promo-gerador-blast" \
+            -H "Authorization: Bearer solardocs_master_cron_2024" \
+            --max-time 290 -sS -w "\nHTTP %{http_code}\n"
+
+      - name: Aguarda 4min antes do próximo batch
+        run: sleep 240
+
+      - name: Batch 4 (limpa restantes)
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/promo-gerador-blast" \
+            -H "Authorization: Bearer solardocs_master_cron_2024" \
+            --max-time 290 -sS -w "\nHTTP %{http_code}\n"
+
+      - name: Batch 5 (drenagem extra de segurança)
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/promo-gerador-blast" \
+            -H "Authorization: Bearer solardocs_master_cron_2024" \
+            --max-time 290 -sS -w "\nHTTP %{http_code}\n"

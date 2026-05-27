@@ -5,6 +5,7 @@ import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContract
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
+import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
@@ -247,6 +248,20 @@ router.get('/carla-pergunta-cnpj', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'carla-pergunta-cnpj falhou', err);
+    res.status(500).json({ error: 'Cron failed', message: String(err) });
+  }
+});
+
+// One-shot 27/05/2026 06:50 BRT — broadcast pros users plano=free pedindo
+// e-mail em troca de 10 créditos no novo gerador. Idempotente
+// (promo_gerador_sent_at). GitHub Actions chama em sequência até esvaziar.
+router.get('/promo-gerador-blast', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runPromoGeradorBroadcast();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'promo-gerador-blast falhou', err);
     res.status(500).json({ error: 'Cron failed', message: String(err) });
   }
 });
