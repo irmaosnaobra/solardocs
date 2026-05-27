@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'SolarDoc Pro',
     short_name: 'SolarDoc',
     description: 'Documentação solar com IA',
-    start_url: '/',
+    start_url: '/auth',
     display: 'standalone',
     background_color: '#0f172a',
     theme_color: '#f59e0b',
