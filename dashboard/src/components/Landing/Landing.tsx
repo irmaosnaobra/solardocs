@@ -209,6 +209,7 @@ export default function Landing() {
               }}
             >
               <div
+                className={scrollLocked ? 'video-locked' : 'video-unlocked'}
                 style={{
                   position: 'relative',
                   width: '100%',
@@ -234,6 +235,27 @@ export default function Landing() {
                 />
               </div>
             </div>
+
+            {/*
+              Mobile (≤768px), com vídeo travado: tira o aspect-ratio 16:9 e
+              força altura ~70% do viewport — fica grande, formato vertical
+              estilo stories. Vídeo (16:9 nativo) fica letterboxed dentro,
+              centralizado pelo player.
+            */}
+            <style
+              dangerouslySetInnerHTML={{
+                __html: `
+                  @media (max-width: 768px) {
+                    .video-locked {
+                      aspect-ratio: auto !important;
+                      width: 100% !important;
+                      max-width: 100% !important;
+                      height: 70vh !important;
+                    }
+                  }
+                `,
+              }}
+            />
 
             <p className={styles.lead} style={{ margin: '0 auto 32px' }}>
               Cadastra a empresa, sobe sua logo e <b>gera 10 propostas grátis</b>. Em minutos sai a proposta
