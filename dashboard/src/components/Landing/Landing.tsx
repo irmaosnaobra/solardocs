@@ -153,6 +153,70 @@ export default function Landing() {
         />
       )}
 
+      {/*
+        Wrapper do vídeo — FORA do hero. Tem que ser sibling direto de .page
+        porque .heroTop tem `animation: fadeUp` com transform, e qualquer
+        ancestor com transform vira containing block, prendendo o
+        position:fixed dentro do hero (gera tela preta atrás do backdrop).
+        Estrutura DOM idêntica entre estados — só estilos inline mudam,
+        então o <iframe> nunca remonta e o vídeo continua tocando.
+      */}
+      <div
+        style={{
+          position: scrollLocked ? 'fixed' : 'relative',
+          inset: scrollLocked ? 0 : undefined,
+          zIndex: scrollLocked ? 9999 : undefined,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: scrollLocked ? 'clamp(8px, 3vw, 32px)' : '24px 16px',
+          margin: 0,
+          width: '100%',
+        }}
+      >
+        <div
+          className={scrollLocked ? 'video-locked' : 'video-unlocked'}
+          style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: scrollLocked
+              ? 'min(1280px, calc((100vh - 64px) * 16 / 9))'
+              : 880,
+            aspectRatio: '16 / 9',
+            borderRadius: scrollLocked ? 12 : 16,
+            overflow: 'hidden',
+            background: '#000',
+            boxShadow: scrollLocked
+              ? '0 40px 100px rgba(251,191,36,0.18)'
+              : '0 30px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(251,191,36,0.25)',
+          }}
+        >
+          <iframe
+            id="panda-5b428e1d-8592-4112-9b35-5f3d3afe83a1"
+            src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=5b428e1d-8592-4112-9b35-5f3d3afe83a1"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+            allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+            allowFullScreen
+            title="SolarDoc — apresentação"
+          />
+        </div>
+      </div>
+
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media (max-width: 768px) {
+              .video-locked {
+                aspect-ratio: auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                height: 70vh !important;
+              }
+            }
+          `,
+        }}
+      />
+
       {/* NAV */}
       <nav className={styles.nav}>
         <div className={styles.navInner}>
@@ -184,78 +248,6 @@ export default function Landing() {
             <h1 className={styles.h1}>
               Gerador de Proposta + Contratos solares <strong>com a sua marca</strong>.
             </h1>
-
-            {/*
-              Wrapper do vídeo — estrutura DOM idêntica em ambos estados, só
-              muda estilos inline. Assim o <iframe> nunca é reparentado e o
-              vídeo continua tocando depois que libera o scroll.
-
-              Travado: outer = fixed fullscreen com flex centralizado.
-                       inner = caixa 16:9 limitada ao viewport.
-              Livre:   outer = relative, sem dimensão fixa (só host do flex).
-                       inner = caixa 16:9 no fluxo do hero, max 880px.
-            */}
-            <div
-              style={{
-                position: scrollLocked ? 'fixed' : 'relative',
-                inset: scrollLocked ? 0 : undefined,
-                zIndex: scrollLocked ? 9999 : undefined,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: scrollLocked ? 'clamp(8px, 3vw, 32px)' : 0,
-                margin: scrollLocked ? 0 : '32px auto',
-                width: '100%',
-              }}
-            >
-              <div
-                className={scrollLocked ? 'video-locked' : 'video-unlocked'}
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  maxWidth: scrollLocked
-                    ? 'min(1280px, calc((100vh - 64px) * 16 / 9))'
-                    : 880,
-                  aspectRatio: '16 / 9',
-                  borderRadius: scrollLocked ? 12 : 16,
-                  overflow: 'hidden',
-                  background: '#000',
-                  boxShadow: scrollLocked
-                    ? '0 40px 100px rgba(251,191,36,0.18)'
-                    : '0 30px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(251,191,36,0.25)',
-                }}
-              >
-                <iframe
-                  id="panda-5b428e1d-8592-4112-9b35-5f3d3afe83a1"
-                  src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=5b428e1d-8592-4112-9b35-5f3d3afe83a1"
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
-                  allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-                  allowFullScreen
-                  title="SolarDoc — apresentação"
-                />
-              </div>
-            </div>
-
-            {/*
-              Mobile (≤768px), com vídeo travado: tira o aspect-ratio 16:9 e
-              força altura ~70% do viewport — fica grande, formato vertical
-              estilo stories. Vídeo (16:9 nativo) fica letterboxed dentro,
-              centralizado pelo player.
-            */}
-            <style
-              dangerouslySetInnerHTML={{
-                __html: `
-                  @media (max-width: 768px) {
-                    .video-locked {
-                      aspect-ratio: auto !important;
-                      width: 100% !important;
-                      max-width: 100% !important;
-                      height: 70vh !important;
-                    }
-                  }
-                `,
-              }}
-            />
 
             <p className={styles.lead} style={{ margin: '0 auto 32px' }}>
               Cadastra a empresa, sobe sua logo e <b>gera 10 propostas grátis</b>. Em minutos sai a proposta
