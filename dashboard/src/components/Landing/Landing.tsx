@@ -45,7 +45,7 @@ const PRICES = {
 } as const;
 
 // Segundo em que liberamos o scroll da LP (mantém usuário focado no vídeo).
-const UNLOCK_AT_SECONDS = 130; // 02:10
+const UNLOCK_AT_SECONDS = 138; // 02:18
 
 export default function Landing() {
   const router = useRouter();
