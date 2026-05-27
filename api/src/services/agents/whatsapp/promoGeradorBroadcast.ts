@@ -23,9 +23,23 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const randomDelay = () =>
   DELAY_MIN_MS + Math.floor(Math.random() * (DELAY_MAX_MS - DELAY_MIN_MS + 1));
 
-function buildMessage(primeiroNome: string): string {
+// Retorna o primeiro nome só se for "de verdade" (tem letra de início
+// maiúscula plausível, sem ponto/dígito do tipo "enterprise.moc" ou "rafaelgbi1").
+// Caso contrário retorna null e a saudação fica sem nome — melhor não saudar
+// do que mandar "Bom dia, enterprise.moc!".
+function extractFirstName(nome: string | null): string | null {
+  if (!nome) return null;
+  const primeiro = nome.trim().split(/\s+/)[0];
+  if (!primeiro) return null;
+  if (primeiro.length < 2 || primeiro.length > 20) return null;
+  if (!/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'-]+$/.test(primeiro)) return null;
+  return primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase();
+}
+
+function buildMessage(primeiroNome: string | null): string {
+  const saudacao = primeiroNome ? `Bom dia, ${primeiroNome}! ☀️` : `Bom dia! ☀️`;
   return [
-    `Bom dia, ${primeiroNome}! ☀️`,
+    saudacao,
     '',
     `Hoje é dia cheio de vendas — que tal testar nosso *novo gerador de propostas* da SolarDoc?`,
     '',
@@ -76,7 +90,7 @@ export async function runPromoGeradorBroadcast(): Promise<{
 
   for (let i = 0; i < batch.length; i++) {
     const u = batch[i];
-    const primeiroNome = (u.nome || u.email.split('@')[0]).trim().split(/\s+/)[0];
+    const primeiroNome = extractFirstName(u.nome);
     const msg = buildMessage(primeiroNome);
 
     try {
