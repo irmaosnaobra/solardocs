@@ -3,6 +3,7 @@ import { supabase } from '../../../utils/supabase';
 import { handleSdrLead } from '../sdr/sdrAgentService';
 import { fmtPhone, sendHuman } from '../zapiClient';
 import { logger } from '../../../utils/logger';
+import { detectAndActivatePromoCredits } from './promoGeradorActivation';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
@@ -13,9 +14,31 @@ const MAX_HISTORY = 30;
 
 function buildSystemPrompt(user: {
   email: string; plano: string; nome_empresa?: string; tem_cnpj: boolean; nome?: string;
-}): string {
+}, promoCtx?: { ativadoAgora?: boolean; jaAtivado?: boolean; email?: string }): string {
   const planoLabel: Record<string, string> = { free: 'Gratuito', pro: 'PRO', ilimitado: 'VIP' };
   const nomeUsuario = user.nome ? user.nome.split(' ')[0] : null;
+
+  // Bloco da promo (só aparece quando relevante).
+  let promoBloco = '';
+  if (promoCtx?.ativadoAgora) {
+    promoBloco = `
+
+━━ ⚡ AÇÃO AUTOMÁTICA — RESPONDA SOBRE ISSO ━━
+O sistema acabou de ATIVAR 10 créditos pra esse cliente no novo gerador
+de propostas, usando o e-mail "${promoCtx.email}".
+Sua resposta DEVE:
+1. Confirmar que os 10 créditos já estão liberados.
+2. Direcionar pra ${APP_URL} pra ele começar a gerar propostas.
+3. Curtinha, tom de amiga. Pode usar 1 emoji discreto (🎁 ou ⚡).
+NÃO peça o e-mail de novo. NÃO mande link de pagamento. NÃO ofereça plano.`;
+  } else if (promoCtx?.jaAtivado) {
+    promoBloco = `
+
+━━ ℹ️ CONTEXTO PROMO ━━
+Esse cliente já recebeu os 10 créditos da promo de hoje (e-mail "${promoCtx.email}").
+Se ele perguntar de novo sobre créditos, confirme que já estão liberados
+e mande pra ${APP_URL}. Nada de duplicar.`;
+  }
 
   return `Você é a "Dani" da SolarDoc Pro. Tom de amiga prestativa, não vendedora. Tranquila. Sem pressão.
 
@@ -32,7 +55,7 @@ ${nomeUsuario ? `- Nome: ${nomeUsuario}` : '- Nome: integrador'}
 - Só mencione ${APP_URL} se for relevante (e nunca mais que 1 vez na conversa).
 
 ━━ FORMATO ━━
-Máximo 2 bolhas separadas por ||. Frases curtas.`;
+Máximo 2 bolhas separadas por ||. Frases curtas.${promoBloco}`;
 }
 
 // ─── histórico ───────────────────────────────────────────────────
@@ -259,6 +282,16 @@ export async function handleIncomingWhatsApp(
     nome: nome || undefined,
   };
 
+  // Promo Gerador (27/05/2026): se o user recebeu a promo nas últimas 48h
+  // e mandou um e-mail nessa mensagem, ativa 10 créditos automaticamente
+  // e injeta contexto pra Dani confirmar a ativação naturalmente.
+  const promoResult = await detectAndActivatePromoCredits(user.id, text);
+  const promoCtx = promoResult.ativado
+    ? { ativadoAgora: true as const, email: promoResult.email }
+    : promoResult.ja_ativado_antes
+    ? { jaAtivado: true as const, email: promoResult.email }
+    : undefined;
+
   // Se tem imagem, monta content multimodal; senao texto puro
   const userContent: any = imageSource
     ? [
@@ -275,7 +308,7 @@ export async function handleIncomingWhatsApp(
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 350,
-    system: buildSystemPrompt(userCtx),
+    system: buildSystemPrompt(userCtx, promoCtx),
     messages,
   });
 
