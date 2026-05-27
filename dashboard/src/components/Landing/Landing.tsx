@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLpTracking } from '@/hooks/useLpTracking';
 import styles from './Landing.module.css';
@@ -44,10 +44,52 @@ const PRICES = {
   vip: 67,
 } as const;
 
+// Segundo em que liberamos o scroll da LP (mantém usuário focado no vídeo).
+const UNLOCK_AT_SECONDS = 130; // 02:10
+
 export default function Landing() {
   const router = useRouter();
   useReveal();
   const { trackEvent } = useLpTracking();
+  const [scrollLocked, setScrollLocked] = useState(true);
+
+  // Trava o scroll da LP até o vídeo Panda passar de 02:10. Player Panda emite
+  // postMessage com { message: 'panda_timeupdate', currentTime } — escutamos isso
+  // e liberamos overflow do body assim que o tempo cruza o threshold.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const prevOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    function unlock() {
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      setScrollLocked(false);
+    }
+
+    function onMessage(ev: MessageEvent) {
+      const data = ev.data as { message?: string; currentTime?: number } | null;
+      if (!data || typeof data !== 'object') return;
+      if (data.message !== 'panda_timeupdate') return;
+      if (typeof data.currentTime !== 'number') return;
+
+      if (data.currentTime >= UNLOCK_AT_SECONDS) {
+        unlock();
+        window.removeEventListener('message', onMessage);
+      }
+    }
+
+    window.addEventListener('message', onMessage);
+
+    return () => {
+      window.removeEventListener('message', onMessage);
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, []);
 
   // Tracking de seção: dispara 'section' { section: 'precos' } quando o bloco de planos
   // entra na viewport. Usado pelo /admin (LP SolarDoc) pra calcular "Viu Seção Preços".
@@ -153,6 +195,20 @@ export default function Landing() {
                 title="SolarDoc — apresentação"
               />
             </div>
+
+            {scrollLocked && (
+              <div
+                style={{
+                  fontSize: 13,
+                  color: 'rgba(255,255,255,0.75)',
+                  margin: '-12px auto 24px',
+                  textAlign: 'center',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                ▼ Assista ao vídeo — a página libera em instantes
+              </div>
+            )}
 
             <p className={styles.lead} style={{ margin: '0 auto 32px' }}>
               Cadastra a empresa, sobe sua logo e <b>gera 10 propostas grátis</b>. Em minutos sai a proposta
