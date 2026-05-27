@@ -13,6 +13,7 @@ import { Resend } from 'resend';
 import Stripe from 'stripe';
 import { sendWhatsApp } from './agents/zapiClient';
 import { logger } from '../utils/logger';
+import { FREE_LIMIT } from './planService';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
@@ -383,7 +384,7 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
         .from('users')
         .update({
           plano: 'free',
-          limite_documentos: 0,
+          limite_documentos: FREE_LIMIT,
           documentos_usados: 0,
           billing_status: 'active',  // não está mais cobrando — é só free
           past_due_since: null,

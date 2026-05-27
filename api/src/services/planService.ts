@@ -2,6 +2,8 @@ import { supabase } from '../utils/supabase';
 import { ApiError } from '../utils/apiError';
 import { logger } from '../utils/logger';
 
+export const FREE_LIMIT = 10;
+
 export async function checkLimit(userId: string): Promise<void> {
   const { data: user } = await supabase
     .from('users')

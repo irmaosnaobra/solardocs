@@ -9,6 +9,7 @@ import { sendMetaEvent } from '../utils/metaPixel';
 import { sendPasswordResetEmail } from '../utils/mailer';
 import { sendWelcomeWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { sendWelcomeEmail } from '../utils/mailer';
+import { FREE_LIMIT } from '../services/planService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -69,7 +70,7 @@ export async function register(req: Request, res: Response): Promise<void> {
     // Verifica se o e-mail já possui assinatura ativa no Stripe (comprou antes de cadastrar)
     const stripePlan = await detectStripePlan(body.email);
     const plano             = stripePlan?.plano  ?? 'free';
-    const limite_documentos = stripePlan?.limite ?? 10;
+    const limite_documentos = stripePlan?.limite ?? FREE_LIMIT;
 
     const dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: user, error } = await supabase

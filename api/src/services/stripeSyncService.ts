@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
 import { sendDunningDay0 } from './dunningService';
+import { FREE_LIMIT } from './planService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -108,7 +109,7 @@ export async function syncStripePlans(): Promise<{
     const stripeTruth = truth.get(u.email.toLowerCase());
 
     const realPlano  = stripeTruth?.plano  ?? 'free';
-    const realLimite = stripeTruth?.limite ?? 0;
+    const realLimite = stripeTruth?.limite ?? FREE_LIMIT;
     const realStatus = stripeTruth?.status ?? null;
 
     // ── Reconcilia billing_status com Stripe (backstop pro webhook) ──

@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { sendDunningDay0, sendDunningRecovered } from '../services/dunningService';
+import { FREE_LIMIT } from '../services/planService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -213,7 +214,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         .from('users')
         .update({
           plano: 'free',
-          limite_documentos: 0,
+          limite_documentos: FREE_LIMIT,
           documentos_usados: 0,
           billing_status: 'active',     // não está mais em cobrança, é só free
           past_due_since: null,
