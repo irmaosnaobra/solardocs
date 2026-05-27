@@ -35,13 +35,31 @@ async function detectStripePlan(email: string): Promise<{ plano: string; limite:
   }
 }
 
+// CNPJ — valida dígitos verificadores. Aceita só dígitos (frontend já tira máscara).
+function isValidCnpjDigits(cnpj: string): boolean {
+  if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+  const calc = (slice: string, weights: number[]) => {
+    const sum = slice.split('').reduce((acc, n, i) => acc + Number(n) * weights[i], 0);
+    const r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  return calc(cnpj.slice(0, 12), w1) === Number(cnpj[12])
+      && calc(cnpj.slice(0, 13), w2) === Number(cnpj[13]);
+}
+
 const registerSchema = z.object({
   email:    z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   nome:     z.string().min(2, 'Nome obrigatório').optional(),
   cargo:    z.string().optional(),
-  whatsapp: z.string().optional(),
-  cnpj:     z.string().optional(),
+  whatsapp: z.string()
+    .transform(v => v.replace(/\D/g, ''))
+    .refine(d => d.length === 10 || d.length === 11, 'WhatsApp deve ter DDD + 8 ou 9 dígitos'),
+  cnpj:     z.string()
+    .transform(v => v.replace(/\D/g, ''))
+    .refine(isValidCnpjDigits, 'CNPJ inválido'),
   empresa:  z.string().optional(),
 });
 
