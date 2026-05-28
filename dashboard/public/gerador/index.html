@@ -28,9 +28,17 @@ html[data-mode="viewer"] #formSection,
 html[data-mode="viewer"] #historicoSection,
 html[data-mode="viewer"] .top-actions{display:none!important}
 
-/* ===== Sidebar (menu lateral) — só no Gerador (form) ===== */
-#app-sidebar{display:none}
-html[data-mode="app"] #app-sidebar{display:flex}
+/* ===== Sidebar (menu lateral) — SÓ no app interno do consultor ===== */
+/* Nunca aparece pro cliente (viewer/loading) nem no login. */
+#app-sidebar,
+.sb-mobile-toggle{display:none!important}
+html[data-mode="app"] #app-sidebar{display:flex!important}
+html[data-mode="viewer"] #app-sidebar,
+html[data-mode="loading"] #app-sidebar,
+html[data-mode="login"] #app-sidebar,
+html[data-mode="viewer"] .sb-mobile-toggle,
+html[data-mode="loading"] .sb-mobile-toggle,
+html[data-mode="login"] .sb-mobile-toggle{display:none!important}
 /* No histórico/tabelas/leads a sidebar some e o conteúdo ocupa a largura toda */
 html[data-mode="app"].historico-aberto #app-sidebar,
 html[data-mode="app"].tabelas-aberta #app-sidebar,
@@ -141,8 +149,8 @@ html[data-mode="app"] .container > #historicoSection{
   html[data-mode="app"] .container{margin-left:0;padding:0 16px}
   #app-sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.5)}
   #app-sidebar.aberta{transform:translateX(0)}
-  html[data-mode="app"] .sb-mobile-toggle{
-    display:flex;align-items:center;justify-content:center;
+  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto) .sb-mobile-toggle{
+    display:flex!important;align-items:center;justify-content:center;
     position:fixed;top:14px;left:14px;z-index:950;width:44px;height:44px;
     border-radius:12px;border:1px solid rgba(255,255,255,.12);
     background:rgba(17,24,42,.85);backdrop-filter:blur(12px);
