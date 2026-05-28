@@ -2260,3 +2260,15 @@ html[data-theme="dark"][data-mode="app"] .btn-principal:hover {
   filter: brightness(1.05);
   transform: translateY(-1px);
 }
+
+/* ===== Dark na tela Tabelas ===== */
+html[data-theme="dark"] #tabelasSection .historico-tabela th { background: #1E3A8A; color: #fff; border-color: #475569; }
+html[data-theme="dark"] #tabelasSection .historico-tabela td { color: #E5E7EB; border-bottom-color: #475569; }
+html[data-theme="dark"] #tabelasSection .historico-tabela tr:hover td { background: #1E293B; }
+html[data-theme="dark"] #tabelasSection .historico-vazio { color: #94A3B8; }
+html[data-theme="dark"] #tabelasSection .tbl-precos td:first-child { color: #E5E7EB; }
+html[data-theme="dark"] #tabelasSection .tbl-precos .invest { color: #93C5FD; }
+html[data-theme="dark"] #tabelasSection .tbl-precos .vista { color: #fbbf24; }
+html[data-theme="dark"] #tabelasSection .tbl-precos { min-width: 640px; font-size: 13px; }
+html[data-theme="dark"] #tabelasSection .historico-tabela td,
+html[data-theme="dark"] #tabelasSection .historico-tabela th { padding: 11px 12px; white-space: nowrap; }
