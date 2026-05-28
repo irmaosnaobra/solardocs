@@ -2111,7 +2111,9 @@ html[data-theme="dark"] .btn-top-tema { background: #1E293B; color: #FBBF24; bor
 
 /* CARDS / FIELDS (form interno) */
 html[data-theme="dark"] #formSection .card,
-html[data-theme="dark"] #historicoSection .card {
+html[data-theme="dark"] #historicoSection .card,
+html[data-theme="dark"] #tabelasSection .card,
+html[data-theme="dark"] #leadsSection .card {
   background: #1E293B;
   color: #E5E7EB;
   border-color: rgba(255,255,255,.05);
@@ -2239,7 +2241,9 @@ html[data-theme="dark"] .login-card input:-webkit-autofill {
 
 /* ===== Glassmorphism premium no app (menu lateral + cards) ===== */
 html[data-theme="dark"][data-mode="app"] #formSection .card,
-html[data-theme="dark"][data-mode="app"] #historicoSection .card {
+html[data-theme="dark"][data-mode="app"] #historicoSection .card,
+html[data-theme="dark"][data-mode="app"] #tabelasSection .card,
+html[data-theme="dark"][data-mode="app"] #leadsSection .card {
   background: rgba(30, 41, 59, .55);
   backdrop-filter: blur(14px) saturate(130%);
   -webkit-backdrop-filter: blur(14px) saturate(130%);
