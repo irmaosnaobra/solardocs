@@ -16,6 +16,7 @@ import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sd
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
+import { syncLeadsMeta } from '../services/agenda/leadsMetaService';
 import { runDunning } from '../services/dunningService';
 import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
@@ -46,6 +47,18 @@ router.get('/cleanup-pro-docs', async (req: Request, res: Response) => {
   } catch (err) {
     logger.error('cron', 'cleanup-pro-docs falhou', err);
     res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// A cada 15min (GitHub Actions) — puxa Lead Ads do Instagram e agenda no rodízio
+router.get('/sync-leads-meta', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const r = await syncLeadsMeta();
+    res.json({ ok: true, ...r });
+  } catch (err: any) {
+    logger.error('cron', 'sync-leads-meta falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
 

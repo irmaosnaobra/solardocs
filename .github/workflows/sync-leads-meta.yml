@@ -1,0 +1,18 @@
+name: Sync Leads Meta (Instagram → Agenda)
+
+# A cada 15 minutos: puxa novos Lead Ads da página Irmãos na Obra,
+# distribui no rodízio Thiago→Diego→Nilce e cria card na agenda.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sincronizar leads
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/sync-leads-meta" \
+            -H "Authorization: Bearer solardocs_master_cron_2024" \
+            --max-time 120 -sS -w "\nHTTP %{http_code}\n"

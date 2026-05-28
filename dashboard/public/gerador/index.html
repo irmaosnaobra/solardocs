@@ -31,13 +31,25 @@ html[data-mode="viewer"] .top-actions{display:none!important}
 /* ===== Sidebar (menu lateral) — só no Gerador (form) ===== */
 #app-sidebar{display:none}
 html[data-mode="app"] #app-sidebar{display:flex}
-/* No histórico/tabelas a sidebar some e o conteúdo ocupa a largura toda */
+/* No histórico/tabelas/leads a sidebar some e o conteúdo ocupa a largura toda */
 html[data-mode="app"].historico-aberto #app-sidebar,
-html[data-mode="app"].tabelas-aberta #app-sidebar{display:none}
+html[data-mode="app"].tabelas-aberta #app-sidebar,
+html[data-mode="app"].leads-aberto #app-sidebar{display:none}
 html[data-mode="app"].historico-aberto .sb-mobile-toggle,
-html[data-mode="app"].tabelas-aberta .sb-mobile-toggle{display:none}
+html[data-mode="app"].tabelas-aberta .sb-mobile-toggle,
+html[data-mode="app"].leads-aberto .sb-mobile-toggle{display:none}
 html[data-mode="app"].historico-aberto .container,
-html[data-mode="app"].tabelas-aberta .container{margin-left:0}
+html[data-mode="app"].tabelas-aberta .container,
+html[data-mode="app"].leads-aberto .container{margin-left:0}
+.leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
+.leads-tabela td .lead-wpp{color:#34d399;font-weight:700;text-decoration:none}
+.leads-tabela td .lead-consultor{font-weight:700;color:#93C5FD}
+.leads-tabela .lead-det-btn{background:#1E293B;color:#93C5FD;border:1px solid #3B82F6;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600}
+html[data-theme="dark"] #leadsSection .historico-tabela th{background:#1E3A8A;color:#fff;border-color:#475569}
+html[data-theme="dark"] #leadsSection .historico-tabela td{color:#E5E7EB;border-bottom-color:#475569}
+html[data-theme="dark"] #leadsSection .historico-tabela tr:hover td{background:#1E293B}
+html[data-theme="dark"] #leadsSection .historico-vazio{color:#94A3B8}
+#leadsSection .leads-tabela{min-width:980px}
 
 /* ===== Tela Tabelas ===== */
 .tbl-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
@@ -292,6 +304,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <div class="sb-nav">
     <button type="button" class="sb-item" id="nav-gerador" onclick="navGerador()"><span class="sb-ic">⚡</span> Gerar proposta</button>
     <button type="button" class="sb-item" id="nav-historico" onclick="navHistorico()"><span class="sb-ic">📋</span> Histórico</button>
+    <button type="button" class="sb-item" id="nav-leads" onclick="navLeads()"><span class="sb-ic">📱</span> Leads</button>
     <button type="button" class="sb-item" id="nav-tabelas" onclick="navTabelas()"><span class="sb-ic">📊</span> Tabelas</button>
     <button type="button" class="sb-item" id="nav-agenda" onclick="location.href='/gerador/agenda'"><span class="sb-ic">📅</span> Agenda</button>
   </div>
@@ -1035,6 +1048,44 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </table>
       </div>
       <div class="tbl-rodape">💡 Use os botões acima para <strong>ativar/desativar</strong> equipamentos no gerador de propostas. Desativados não aparecem na lista de linha ao criar proposta.</div>
+    </div>
+  </div>
+
+  <!-- ============= TELA 6: LEADS (Instagram/Meta) ============= -->
+  <div id="leadsSection" style="display:none;">
+    <div class="header">
+      <div class="header-titulo">
+        <h1>📱 Leads do Instagram</h1>
+      </div>
+      <button class="btn-hist-voltar" onclick="voltarDosLeads()">← Voltar</button>
+    </div>
+
+    <div class="card">
+      <div class="leads-info">
+        Leads dos anúncios são agendados automaticamente no rodízio <strong>Thiago → Diego → Nilce</strong>, no horário escolhido pelo cliente. O card pode ser transferido a outro consultor na Agenda.
+      </div>
+      <div class="historico-tabela-wrap">
+        <table class="historico-tabela leads-tabela">
+          <thead>
+            <tr>
+              <th>Entrou</th>
+              <th>Nome</th>
+              <th>WhatsApp</th>
+              <th>Cidade</th>
+              <th>Consultor</th>
+              <th>Agendado</th>
+              <th>Consumo</th>
+              <th>Urgência</th>
+              <th>Pagamento</th>
+              <th>Decisor</th>
+              <th>Detalhes</th>
+            </tr>
+          </thead>
+          <tbody id="leads-tbody">
+            <tr><td colspan="11" class="historico-vazio">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -3227,6 +3278,87 @@ async function toggleEquip(linha, ev) {
   } catch (e) {
     showToast && showToast('Erro ao salvar — tente de novo');
   }
+}
+
+// ============= TELA LEADS (Instagram/Meta) =============
+function navLeads() {
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  const sec = document.getElementById('leadsSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('leads-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta');
+  marcarNavAtivo('nav-leads');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  carregarLeads();
+}
+
+function voltarDosLeads() {
+  document.getElementById('leadsSection').style.display = 'none';
+  document.getElementById('formSection').style.display = '';
+  document.documentElement.classList.remove('leads-aberto');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function leadCampo(fd, ...termos) {
+  if (!Array.isArray(fd)) return '';
+  for (const f of fd) {
+    const nm = (f.name || '').toLowerCase();
+    if (termos.some(t => nm.includes(t)) && f.values && f.values[0]) return f.values[0];
+  }
+  return '';
+}
+
+async function carregarLeads() {
+  const tbody = document.getElementById('leads-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="11" class="historico-vazio">Carregando...</td></tr>';
+  let rows = [];
+  try {
+    rows = await supaGet('leads_meta?select=*&order=created_time.desc&limit=500');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="11" class="historico-vazio">Erro ao carregar leads.</td></tr>';
+    return;
+  }
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="11" class="historico-vazio">Nenhum lead ainda. Quando chegarem anúncios novos, aparecem aqui automaticamente.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const fd = r.field_data || [];
+    const dt = r.created_time ? new Date(r.created_time) : null;
+    const p2 = n => String(n).padStart(2, '0');
+    const dtTxt = dt ? `${p2(dt.getDate())}/${p2(dt.getMonth()+1)} ${p2(dt.getHours())}:${p2(dt.getMinutes())}` : '—';
+    const wppLink = r.whatsapp ? `<a class="lead-wpp" href="https://wa.me/${r.whatsapp}" target="_blank">${r.whatsapp}</a>` : '—';
+    const consumo = leadCampo(fd, 'consum');
+    const urgencia = leadCampo(fd, 'urg');
+    const pagamento = leadCampo(fd, 'investir', 'pagamento', 'pagar');
+    const decisor = leadCampo(fd, 'decide', 'decisor');
+    const agendado = r.agendado_id ? '✓' : '—';
+    const detJson = encodeURIComponent(JSON.stringify(fd));
+    return `<tr>
+      <td>${dtTxt}</td>
+      <td>${escapeHtml(r.nome || '—')}</td>
+      <td>${wppLink}</td>
+      <td>${escapeHtml(r.cidade || '—')}</td>
+      <td><span class="lead-consultor">${escapeHtml(r.consultor || '—')}</span></td>
+      <td>${agendado}</td>
+      <td>${escapeHtml(consumo || '—')}</td>
+      <td>${escapeHtml(urgencia || '—')}</td>
+      <td>${escapeHtml(pagamento || '—')}</td>
+      <td>${escapeHtml(decisor || '—')}</td>
+      <td><button class="lead-det-btn" onclick="verLeadDetalhe('${detJson}')">ver tudo</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function verLeadDetalhe(detJson) {
+  let fd = [];
+  try { fd = JSON.parse(decodeURIComponent(detJson)); } catch(e) {}
+  const linhas = fd.filter(f => f.values && f.values[0])
+    .map(f => `${f.name}: ${f.values[0]}`).join('\n');
+  alert(linhas || 'Sem detalhes.');
 }
 
 function exportarHistoricoCSV() {
