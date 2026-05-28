@@ -28,9 +28,13 @@ html[data-mode="viewer"] #formSection,
 html[data-mode="viewer"] #historicoSection,
 html[data-mode="viewer"] .top-actions{display:none!important}
 
-/* ===== Sidebar (menu lateral) — só no app interno ===== */
+/* ===== Sidebar (menu lateral) — só no Gerador (form) ===== */
 #app-sidebar{display:none}
 html[data-mode="app"] #app-sidebar{display:flex}
+/* No histórico a sidebar some e o conteúdo ocupa a largura toda */
+html[data-mode="app"].historico-aberto #app-sidebar{display:none}
+html[data-mode="app"].historico-aberto .sb-mobile-toggle{display:none}
+html[data-mode="app"].historico-aberto .container{margin-left:0}
 html[data-mode="app"] .top-actions{display:none!important} /* substituída pela sidebar */
 html[data-mode="app"][data-theme="dark"] body{
   background:radial-gradient(1200px 800px at 12% -10%, #1e2a4a 0%, transparent 55%),
@@ -2920,6 +2924,7 @@ async function abrirHistorico() {
   document.getElementById('propostaSection').style.display = 'none';
   document.getElementById('expiradoSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = '';
+  document.documentElement.classList.add('historico-aberto'); // esconde sidebar no histórico
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const tbody = document.getElementById('historico-tbody');
@@ -3013,6 +3018,7 @@ async function abrirHistorico() {
 function voltarDoHistorico() {
   document.getElementById('historicoSection').style.display = 'none';
   document.getElementById('formSection').style.display = '';
+  document.documentElement.classList.remove('historico-aberto'); // volta a sidebar no gerador
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
