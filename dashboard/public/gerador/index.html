@@ -38,11 +38,19 @@ html[data-mode="app"][data-theme="dark"] body{
              #0b1020;
 }
 html[data-mode="app"] .container{
-  margin:0 auto;
+  margin-left:248px;
+  margin-right:0;
+  max-width:none;
+  width:auto;
+  padding:0 28px;
+  box-sizing:border-box;
+  transition:margin-left .25s ease;
+}
+/* Centraliza o conteúdo no espaço restante (à direita da sidebar) sem estourar */
+html[data-mode="app"] .container > #formSection,
+html[data-mode="app"] .container > #historicoSection{
   max-width:920px;
-  padding-left:268px;
-  padding-right:20px;
-  transition:padding-left .25s ease;
+  margin:0 auto;
 }
 #app-sidebar{
   position:fixed;top:0;left:0;bottom:0;width:248px;z-index:900;
@@ -76,7 +84,7 @@ html[data-mode="app"] .container{
 .sb-foot .sb-item{font-size:13px;font-weight:600;color:#9aa6c4}
 .sb-mobile-toggle{display:none}
 @media(max-width:860px){
-  html[data-mode="app"] .container{padding-left:16px;padding-right:16px}
+  html[data-mode="app"] .container{margin-left:0;padding:0 16px}
   #app-sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.5)}
   #app-sidebar.aberta{transform:translateX(0)}
   html[data-mode="app"] .sb-mobile-toggle{
