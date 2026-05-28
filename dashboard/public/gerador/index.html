@@ -39,16 +39,16 @@ html[data-mode="login"] #app-sidebar,
 html[data-mode="viewer"] .sb-mobile-toggle,
 html[data-mode="loading"] .sb-mobile-toggle,
 html[data-mode="login"] .sb-mobile-toggle{display:none!important}
-/* No histórico/tabelas/leads a sidebar some e o conteúdo ocupa a largura toda */
+/* Menu lateral SÓ na tela Gerar proposta. Nas demais (histórico/tabelas/leads) some. */
 html[data-mode="app"].historico-aberto #app-sidebar,
 html[data-mode="app"].tabelas-aberta #app-sidebar,
-html[data-mode="app"].leads-aberto #app-sidebar{display:none}
+html[data-mode="app"].leads-aberto #app-sidebar{display:none!important}
 html[data-mode="app"].historico-aberto .sb-mobile-toggle,
 html[data-mode="app"].tabelas-aberta .sb-mobile-toggle,
-html[data-mode="app"].leads-aberto .sb-mobile-toggle{display:none}
+html[data-mode="app"].leads-aberto .sb-mobile-toggle{display:none!important}
 html[data-mode="app"].historico-aberto .container,
 html[data-mode="app"].tabelas-aberta .container,
-html[data-mode="app"].leads-aberto .container{margin-left:0}
+html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
 .leads-tabela td .lead-wpp{color:#34d399;font-weight:700;text-decoration:none}
 .leads-tabela td .lead-consultor{font-weight:700;color:#93C5FD}
