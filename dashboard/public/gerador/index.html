@@ -206,25 +206,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   try { authed = !!localStorage.getItem(AUTH_KEY); } catch(e) {}
   document.documentElement.dataset.mode = authed ? 'app' : 'login';
 
-  // Tema: só aplica no UI interno (form/login/histórico). Proposta sempre light.
-  var THEME_KEY = 'gerador-tema-v1';
-  var savedTheme = 'dark';
-  try { savedTheme = localStorage.getItem(THEME_KEY) || 'dark'; } catch(e) {}
-  // No app interno o visual é sempre escuro (design glassmorphism). Tema claro só fora do app.
-  if (authed) savedTheme = 'dark';
-  document.documentElement.dataset.theme = savedTheme;
-  window.toggleTheme = function(){
-    var cur = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-    var next = cur === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
-    document.querySelectorAll('.btn-top-tema').forEach(function(b){ b.textContent = next === 'dark' ? '☀️' : '🌙'; });
-    // Notifica componentes que renderizam cores via inline styles
-    document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }));
-  };
-  document.addEventListener('DOMContentLoaded', function(){
-    document.querySelectorAll('.btn-top-tema').forEach(function(b){ b.textContent = savedTheme === 'dark' ? '☀️' : '🌙'; });
-  });
+  // Tema único: escuro (glassmorphism). Sem opção clara.
+  document.documentElement.dataset.theme = 'dark';
+  window.toggleTheme = function(){}; // no-op mantido p/ compat com chamadas antigas
 })();
 </script>
 </head>
@@ -286,7 +270,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="top-actions">
       <button type="button" class="btn-top btn-top-agenda" onclick="location.href='/gerador/agenda'">📅 Agenda</button>
       <button type="button" class="btn-top btn-top-hist" onclick="abrirHistorico()">📋 Histórico</button>
-      <button type="button" class="btn-top btn-top-tema" onclick="toggleTheme()" title="Alternar tema claro/escuro" aria-label="Alternar tema">🌙</button>
       <button type="button" class="btn-top btn-top-sair" onclick="sairGerador()">Sair</button>
     </div>
 
