@@ -31,10 +31,48 @@ html[data-mode="viewer"] .top-actions{display:none!important}
 /* ===== Sidebar (menu lateral) — só no Gerador (form) ===== */
 #app-sidebar{display:none}
 html[data-mode="app"] #app-sidebar{display:flex}
-/* No histórico a sidebar some e o conteúdo ocupa a largura toda */
-html[data-mode="app"].historico-aberto #app-sidebar{display:none}
-html[data-mode="app"].historico-aberto .sb-mobile-toggle{display:none}
-html[data-mode="app"].historico-aberto .container{margin-left:0}
+/* No histórico/tabelas a sidebar some e o conteúdo ocupa a largura toda */
+html[data-mode="app"].historico-aberto #app-sidebar,
+html[data-mode="app"].tabelas-aberta #app-sidebar{display:none}
+html[data-mode="app"].historico-aberto .sb-mobile-toggle,
+html[data-mode="app"].tabelas-aberta .sb-mobile-toggle{display:none}
+html[data-mode="app"].historico-aberto .container,
+html[data-mode="app"].tabelas-aberta .container{margin-left:0}
+
+/* ===== Tela Tabelas ===== */
+.tbl-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.tbl-km-field{display:flex;flex-direction:column;gap:6px}
+.tbl-km-field label{font-size:12px;font-weight:600;color:#93C5FD}
+.tbl-km-field input{width:160px;padding:9px 12px;border:1.5px solid #475569;border-radius:9px;background:#0F172A;color:#E5E7EB;font-size:14px;font-family:inherit}
+.tbl-km-field input:focus{outline:none;border-color:#60A5FA}
+.tbl-km-dica{font-size:11.5px;color:#94A3B8;align-self:flex-end}
+.tbl-abas{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.tbl-aba{
+  display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);
+  color:#c3cce0;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  transition:all .15s;
+}
+.tbl-aba:hover{background:rgba(255,255,255,.09);color:#fff}
+.tbl-aba.ativo-aba{
+  background:linear-gradient(135deg,rgba(37,99,235,.4),rgba(245,158,11,.2));
+  border-color:rgba(96,165,250,.5);color:#fff;
+}
+.tbl-aba.desativado{opacity:.45;filter:grayscale(.5)}
+.tbl-aba .tbl-toggle{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:5px;font-size:11px;
+  background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.18);
+}
+.tbl-aba.on .tbl-toggle{background:#10b981;border-color:#10b981;color:#fff}
+.tbl-aba.off .tbl-toggle{background:#475569;color:#cbd5e1}
+.tbl-precos td:first-child{font-weight:600;color:#E5E7EB}
+.tbl-precos .vista{color:#fbbf24;font-weight:700}
+.tbl-precos .invest{color:#93C5FD;font-weight:700}
+.tbl-rodape{font-size:12px;color:#94A3B8;margin-top:14px;line-height:1.5}
+.tbl-status{display:inline-block;margin-left:10px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px}
+.tbl-status.on{background:rgba(16,185,129,.18);color:#34d399}
+.tbl-status.off{background:rgba(148,163,184,.18);color:#94a3b8}
 html[data-mode="app"] .top-actions{display:none!important} /* substituída pela sidebar */
 html[data-mode="app"][data-theme="dark"] body{
   background:radial-gradient(1200px 800px at 12% -10%, #1e2a4a 0%, transparent 55%),
@@ -254,6 +292,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <div class="sb-nav">
     <button type="button" class="sb-item" id="nav-gerador" onclick="navGerador()"><span class="sb-ic">⚡</span> Gerar proposta</button>
     <button type="button" class="sb-item" id="nav-historico" onclick="navHistorico()"><span class="sb-ic">📋</span> Histórico</button>
+    <button type="button" class="sb-item" id="nav-tabelas" onclick="navTabelas()"><span class="sb-ic">📊</span> Tabelas</button>
     <button type="button" class="sb-item" id="nav-agenda" onclick="location.href='/gerador/agenda'"><span class="sb-ic">📅</span> Agenda</button>
   </div>
   <div class="sb-spacer"></div>
@@ -961,6 +1000,44 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
   </div>
 
+  <!-- ============= TELA 5: TABELAS ============= -->
+  <div id="tabelasSection" style="display:none;">
+    <div class="header">
+      <div class="header-titulo">
+        <h1>📊 Tabelas de equipamentos</h1>
+      </div>
+      <button class="btn-hist-voltar" onclick="voltarDoTabelas()">← Voltar</button>
+    </div>
+
+    <div class="card">
+      <div class="tbl-toolbar">
+        <div class="tbl-km-field">
+          <label for="tbl-km">Distância (km) — recalcula o acréscimo</label>
+          <input type="number" id="tbl-km" min="0" step="1" placeholder="0" oninput="renderTabelaAtiva()">
+        </div>
+        <div class="tbl-km-dica">≥ 250 km: +R$ 500 · ≥ 350 km: +R$ 750 (sobre o investimento)</div>
+      </div>
+      <div class="tbl-abas" id="tbl-abas"></div>
+      <div class="historico-tabela-wrap">
+        <table class="historico-tabela tbl-precos">
+          <thead>
+            <tr>
+              <th>Equipamento</th>
+              <th>kWp</th>
+              <th>Geração (kWh/mês)</th>
+              <th>Valor do investimento</th>
+              <th>Preço à vista (−5%)</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-tbody">
+            <tr><td colspan="5" class="historico-vazio">Selecione um equipamento.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tbl-rodape">💡 Use os botões acima para <strong>ativar/desativar</strong> equipamentos no gerador de propostas. Desativados não aparecem na lista de linha ao criar proposta.</div>
+    </div>
+  </div>
+
 </div>
 
 <div id="modal-venda" class="modal-overlay" onclick="if(event.target===this) fecharModalVenda()">
@@ -1578,6 +1655,8 @@ window.addEventListener('DOMContentLoaded', () => {
   atualizarEntradaModo();
   document.querySelectorAll('#card-formas-pagamento .pag-head input[type="checkbox"]')
     .forEach(cb => cb.addEventListener('change', aplicarPagAtivoClass));
+  // Aplica config de equipamentos ativos/inativos no select de linha
+  carregarEquipConfig().then(aplicarEquipConfigNoSelect).catch(()=>{});
 });
 
 function renderPagamentoCard(d) {
@@ -3028,6 +3107,126 @@ function toggleSidebar() {
 function fecharSidebarMobile() {
   document.getElementById('app-sidebar')?.classList.remove('aberta');
   document.getElementById('sb-backdrop')?.classList.remove('aberta');
+}
+
+// ============= TELA TABELAS =============
+let equipConfig = {};   // { linha: ativo(bool) }
+let tblAbaAtiva = null;
+
+const fmtBR = v => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+
+async function carregarEquipConfig() {
+  try {
+    const rows = await supaGet('equipamentos_config?select=linha,ativo');
+    equipConfig = {};
+    rows.forEach(r => { equipConfig[r.linha] = r.ativo; });
+  } catch (e) {
+    equipConfig = {}; // sem config = tudo ativo (fallback)
+  }
+}
+
+// Esconde do <select> de linha os equipamentos desativados
+function aplicarEquipConfigNoSelect() {
+  const sel = document.getElementById('f-linha');
+  if (!sel) return;
+  Array.from(sel.options).forEach(opt => {
+    if (!opt.value || opt.value === 'MANUAL') return;
+    const ativo = equipConfig[opt.value] !== false; // default ativo
+    opt.hidden = !ativo;
+    opt.disabled = !ativo;
+  });
+}
+
+async function navTabelas() {
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  const sec = document.getElementById('tabelasSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('tabelas-aberta');
+  document.documentElement.classList.remove('historico-aberto');
+  marcarNavAtivo('nav-tabelas');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  await carregarEquipConfig();
+  if (!tblAbaAtiva) tblAbaAtiva = Object.keys(TABELAS)[0];
+  renderAbasTabelas();
+  renderTabelaAtiva();
+}
+
+function voltarDoTabelas() {
+  document.getElementById('tabelasSection').style.display = 'none';
+  document.getElementById('formSection').style.display = '';
+  document.documentElement.classList.remove('tabelas-aberta');
+  aplicarEquipConfigNoSelect(); // reflete toggles ao voltar pro gerador
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderAbasTabelas() {
+  const wrap = document.getElementById('tbl-abas');
+  if (!wrap) return;
+  wrap.innerHTML = Object.keys(TABELAS).map(linha => {
+    const t = TABELAS[linha];
+    const ativo = equipConfig[linha] !== false;
+    const sel = linha === tblAbaAtiva ? ' ativo-aba' : '';
+    const onoff = ativo ? 'on' : 'off desativado';
+    const nome = `${t.inv} + ${t.mod}`;
+    return `<button type="button" class="tbl-aba${sel} ${onoff}" data-linha="${linha}">
+      <span onclick="selecionarAba('${linha}')">${nome}</span>
+      <span class="tbl-toggle" title="${ativo ? 'Ativo no gerador — clique p/ desativar' : 'Desativado — clique p/ ativar'}" onclick="toggleEquip('${linha}', event)">${ativo ? '✓' : '✕'}</span>
+    </button>`;
+  }).join('');
+}
+
+function selecionarAba(linha) {
+  tblAbaAtiva = linha;
+  renderAbasTabelas();
+  renderTabelaAtiva();
+}
+
+function renderTabelaAtiva() {
+  const tbody = document.getElementById('tbl-tbody');
+  if (!tbody || !tblAbaAtiva) return;
+  const t = TABELAS[tblAbaAtiva];
+  if (!t) return;
+  const km = parseFloat(document.getElementById('tbl-km')?.value) || 0;
+  const acresc = acrescimoPorKm(km);
+  const ativo = equipConfig[tblAbaAtiva] !== false;
+  const statusBadge = `<span class="tbl-status ${ativo ? 'on' : 'off'}">${ativo ? 'ATIVO no gerador' : 'DESATIVADO'}</span>`;
+
+  tbody.innerHTML = t.rows.map(r => {
+    const pOrc = Math.ceil((r.pOrc + acresc) / 100) * 100;      // = valor do investimento (igual gerador)
+    const pVista = Math.round(pOrc * 0.95);                      // regra à vista -5%
+    const equip = `${r.n}x ${t.mod} + ${r.invs}x ${t.inv}`;
+    return `<tr>
+      <td>${equip}</td>
+      <td>${r.kwp.toLocaleString('pt-BR')}</td>
+      <td>${r.g.toLocaleString('pt-BR')}</td>
+      <td class="invest">${fmtBR(pOrc)}</td>
+      <td class="vista">${fmtBR(pVista)}</td>
+    </tr>`;
+  }).join('');
+
+  // título com badge de status
+  const h1 = document.querySelector('#tabelasSection .header-titulo h1');
+  if (h1) h1.innerHTML = `📊 ${t.inv} + ${t.mod} ${statusBadge}`;
+}
+
+async function toggleEquip(linha, ev) {
+  if (ev) ev.stopPropagation();
+  const novoAtivo = !(equipConfig[linha] !== false);
+  equipConfig[linha] = novoAtivo;
+  renderAbasTabelas();
+  if (linha === tblAbaAtiva) renderTabelaAtiva();
+  // upsert no Supabase (vale pra todos)
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/equipamentos_config?on_conflict=linha`, {
+      method: 'POST',
+      headers: { ...supaHeaders(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ linha, ativo: novoAtivo, updated_at: new Date().toISOString() })
+    });
+  } catch (e) {
+    showToast && showToast('Erro ao salvar — tente de novo');
+  }
 }
 
 function exportarHistoricoCSV() {
