@@ -413,12 +413,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <label>Quantidade de placas</label>
           <input type="number" id="f-qtd" placeholder="Ex: 8">
         </div>
-
-        <label class="flag-row" for="f-descmax">
-          <input type="checkbox" id="f-descmax">
-          <span class="flag-label">💎 Aplicar desconto máximo</span>
-          <span class="flag-hint">preço à vista mais agressivo</span>
-        </label>
       </div>
     </div>
 
@@ -1351,7 +1345,7 @@ function pmtPriceCarencia(pv, i, n, carenciaMeses) {
 }
 
 // ============= TABELA DE CARTÃO (MyGateway 2026, coluna da direita) =============
-// Acréscimo total sobre o preço à vista por número de parcelas.
+// Acréscimo total sobre o valor do investimento por número de parcelas.
 const TABELA_CARTAO = {
   1: 0.0439, 2: 0.0609, 3: 0.0665, 4: 0.0715, 5: 0.0769,
   6: 0.0819, 7: 0.0909, 8: 0.0969, 9: 0.1025, 10: 0.1079,
@@ -1362,14 +1356,14 @@ const TABELA_CARTAO = {
 // Parcelas marcadas por padrão num novo orçamento.
 const CARTAO_PARCELAS_DEFAULT = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
 
-function calcParcelaCartao(precoVista, n) {
+function calcParcelaCartao(base, n) {
   const acresc = TABELA_CARTAO[n];
-  if (precoVista <= 0 || acresc == null) return 0;
-  return (precoVista * (1 + acresc)) / n;
+  if (base <= 0 || acresc == null) return 0;
+  return (base * (1 + acresc)) / n;
 }
-function calcTodasParcelas(precoVista) {
+function calcTodasParcelas(base) {
   const out = {};
-  for (const n in TABELA_CARTAO) out[n] = calcParcelaCartao(precoVista, Number(n));
+  for (const n in TABELA_CARTAO) out[n] = calcParcelaCartao(base, Number(n));
   return out;
 }
 // Lê pagOpts em formato novo OU antigo ({ p10, p12, p18 }) → array de parcelas.
@@ -1518,8 +1512,8 @@ function renderPagamentoCard(d) {
   const pv   = d.precoVista || 0;
   const pOrc = d.precoOrcamento || 0;
 
-  // Mapa de parcelas — usa pré-calculadas se disponível, senão recalcula via tabela.
-  const parcMap = d.parcelasCartao || calcTodasParcelas(pv);
+  // Mapa de parcelas — usa pré-calculadas se disponível, senão recalcula sobre o investimento.
+  const parcMap = d.parcelasCartao || calcTodasParcelas(pOrc);
   // Retro-compat: propostas antigas têm só parc10x/12x/18x
   if (!d.parcelasCartao && d.parc10x != null) parcMap[10] = d.parc10x;
   if (!d.parcelasCartao && d.parc12x != null) parcMap[12] = d.parc12x;
@@ -1535,14 +1529,14 @@ function renderPagamentoCard(d) {
       <div class="badge">💎 melhor opção</div>
       <div class="qt">À vista</div>
       <div class="vl">R$ ${fmt(pv)}</div>
-      <div class="obs">pagamento único</div>
+      <div class="obs">5% de desconto, pago no ato</div>
     </div>`);
 
   const parcsCartao = parcelasDoPagOpts(po);
   for (const n of parcsCartao) {
     const v = parcMap[n];
     if (!v) continue;
-    const obs = n === 1 ? 'à vista no cartão' : 'sobre o preço à vista';
+    const obs = n === 1 ? 'à vista no cartão' : 'sobre o valor do investimento';
     blocos.push(`<div class="parc"><div class="qt">${n}x no cartão</div><div class="vl">R$ ${fmt(v)}</div><div class="obs">${obs}</div></div>`);
   }
 
@@ -1647,9 +1641,6 @@ function onLinhaChange() {
   if (toggleGroup) toggleGroup.style.display = isManual ? 'none' : '';
   document.getElementById('campo-consumo').style.display = isManual ? 'none' : (modo === 'kwh' ? '' : 'none');
   document.getElementById('campo-qtd').style.display = isManual ? 'none' : (modo === 'placas' ? '' : 'none');
-  const chkDescParent = document.getElementById('f-descmax').closest('.field');
-  if (chkDescParent) chkDescParent.style.display = isManual ? 'none' : '';
-
   // Defaults por tipo de inversor: micro = 15 anos garantia + 30 dias prazo; string = 10 anos + 45 dias.
   // Sobrescreve em carregamento de proposta antiga, mas é re-sobrescrito logo depois pelos valores salvos.
   if (linha && !isManual) {
@@ -1780,12 +1771,12 @@ async function gerar() {
   //   >= 350 km → +R$ 750,00
   //   >= 250 km → +R$ 500,00
   const acrescDist = acrescimoPorKm(distanciaKm);
-  const usarDescMax = document.getElementById('f-descmax').checked;
-  const precoVista = (usarDescMax ? item.descMax : item.pVista) + acrescDist;
   const precoOrcamento = Math.ceil((item.pOrc + acrescDist) / 100) * 100;
+  // À vista = 5% de desconto sobre o investimento, pago no ato do contrato (ignora coluna da tabela).
+  const precoVista = Math.round(precoOrcamento * 0.95);
 
-  // Tabela completa do cartão (1x..21x) pré-calculada
-  const parcelasCartao = calcTodasParcelas(precoVista);
+  // Tabela completa do cartão (1x..21x) — acréscimo sobre o valor do investimento
+  const parcelasCartao = calcTodasParcelas(precoOrcamento);
   // Retro-compat: mantém campos antigos pra propostas que ainda usem essas chaves.
   const parc10x = parcelasCartao[10];
   const parc12x = parcelasCartao[12];
@@ -1798,17 +1789,20 @@ async function gerar() {
   const fin48x = pmtPriceCarencia(precoOrcamento, FIN_RATE, 48, FIN_CARENCIA_MESES);
   const fin60x = pmtPriceCarencia(precoOrcamento, FIN_RATE, 60, FIN_CARENCIA_MESES);
 
-  // Cálculo solar avançado por cidade/UF (HSP real + payback com inflação 6% a.a.)
+  // Geração: usa o valor fixo da tabela (item.g), não o cálculo por HSP.
   const cidadeNomeCalc = document.getElementById('f-cidade').value.trim();
   const ufCalc = document.getElementById('f-uf').value;
   const refSolar = getRef(ufCalc, cidadeNomeCalc);
-  const mensalKwh = geracaoMensal(item.kwp, ufCalc, cidadeNomeCalc);
-  const geracaoAnualKwh = mensalKwh.reduce((a, b) => a + b, 0);
-  const mediaMensalGerada = Math.round(geracaoAnualKwh / 12);
+  const mediaMensalGerada = item.g;
+  // Curva sazonal por HSP só pro gráfico, normalizada pra média = geração da tabela.
+  const curvaHsp = geracaoMensal(item.kwp, ufCalc, cidadeNomeCalc);
+  const mediaCurva = curvaHsp.reduce((a, b) => a + b, 0) / 12 || 1;
+  const mensalKwh = curvaHsp.map(v => Math.round(v * mediaMensalGerada / mediaCurva));
+  const geracaoAnualKwh = mediaMensalGerada * 12;
   const economiaPercent = consumoKwhInput > 0
     ? Math.min(100, Math.round((mediaMensalGerada / consumoKwhInput) * 100))
     : null;
-  // Modelo realista: usa consumo informado; modo qtdPlacas usa geração como proxy
+  // Modelo realista: usa consumo informado; modo qtdPlacas usa geração da tabela como proxy
   const consumoModelo = consumoKwhInput > 0 ? consumoKwhInput : mediaMensalGerada;
   const modelo = calcModeloRealista(consumoModelo, tarifa, taxaMin, precoVista, inflTarifa, inflTaxaMin);
   const paybackAnos = modelo.paybackAnos > 0 ? modelo.paybackAnos.toFixed(1).replace('.', ',') : '—';
@@ -1872,7 +1866,6 @@ async function gerar() {
       entrada:{ ativo: false, valor: '', modo: 'dias', dias: '30' },
       custom: ''
     },
-    usarDescMax,
     acrescDist,
     consultor,
     linha,
@@ -2162,7 +2155,6 @@ function novoCliente() {
   document.getElementById('f-linha').value = '';
   document.getElementById('f-consumo').value = '';
   document.getElementById('f-qtd').value = '';
-  document.getElementById('f-descmax').checked = false;
   ['f-man-inv','f-man-mod','f-man-potmod','f-man-placas','f-man-ger','f-man-pvista','f-man-porc'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -3402,8 +3394,6 @@ async function editarProposta(codigo) {
       document.getElementById('f-consumo').value = '';
     }
 
-    document.getElementById('f-descmax').checked = !!d.usarDescMax;
-
     // Garantias / prazo / foto (propostas antigas usam defaults)
     document.getElementById('f-prazo-instalacao').value = d.prazoInstalacao || '45';
     document.getElementById('f-gar-paineis').value      = d.garPaineis || '25';
@@ -3512,13 +3502,14 @@ function gerarPDF() {
 function montarBlocoPagamentoWpp(d) {
   const po = d.pagOpts || { vista:true, cartao:{ativo:true,parcelas:[10,12,18]}, fin:{ativo:false} };
   const pv = d.precoVista || 0;
-  const parcMap = d.parcelasCartao || calcTodasParcelas(pv);
+  const pOrc = d.precoOrcamento || 0;
+  const parcMap = d.parcelasCartao || calcTodasParcelas(pOrc);
   if (!d.parcelasCartao && d.parc10x != null) parcMap[10] = d.parc10x;
   if (!d.parcelasCartao && d.parc12x != null) parcMap[12] = d.parc12x;
   if (!d.parcelasCartao && d.parc18x != null) parcMap[18] = d.parc18x;
 
   const linhas = [];
-  if (po.vista) linhas.push(`💎 *À vista:* R$ ${fmt(pv)}`);
+  if (po.vista) linhas.push(`💎 *À vista:* R$ ${fmt(pv)} (5% de desconto, pago no ato)`);
 
   const parcs = parcelasDoPagOpts(po);
   if (parcs.length) {

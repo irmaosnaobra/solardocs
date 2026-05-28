@@ -1650,69 +1650,81 @@ function pmtPriceCarencia(pv, i, n, carenciaMeses) {
   return saldo * i / (1 - Math.pow(1 + i, -n));
 }
 
+// Acréscimo total sobre o valor do investimento por número de parcelas (MyGateway 2026).
+const TABELA_CARTAO = {
+  1: 0.0439, 2: 0.0609, 3: 0.0665, 4: 0.0715, 5: 0.0769,
+  6: 0.0819, 7: 0.0909, 8: 0.0969, 9: 0.1025, 10: 0.1079,
+  11: 0.1139, 12: 0.1169, 13: 0.1255, 14: 0.1299, 15: 0.1369,
+  16: 0.1429, 17: 0.1485, 18: 0.1549, 19: 0.1639, 20: 0.1739,
+  21: 0.1828
+};
+function calcParcelaCartao(base, n) {
+  const acresc = TABELA_CARTAO[n];
+  if (base <= 0 || acresc == null) return 0;
+  return (base * (1 + acresc)) / n;
+}
+function calcTodasParcelas(base) {
+  const out = {};
+  for (const n in TABELA_CARTAO) out[n] = calcParcelaCartao(base, Number(n));
+  return out;
+}
+// Lê pagOpts em formato novo (cartao.parcelas array) OU antigo (p10/p12/p18) → array de parcelas.
+function parcelasDoPagOpts(po) {
+  if (!po || !po.cartao || !po.cartao.ativo) return [];
+  if (Array.isArray(po.cartao.parcelas)) return po.cartao.parcelas.slice().sort((a,b)=>a-b);
+  const antigas = [];
+  if (po.cartao.p10) antigas.push(10);
+  if (po.cartao.p12) antigas.push(12);
+  if (po.cartao.p18) antigas.push(18);
+  return antigas;
+}
+
 function renderPagamentoCard(d) {
   // Default retro-compatível (propostas antigas sem pagOpts)
   const po = d.pagOpts || {
     vista: true,
     cartao: { ativo: true, p10: true, p12: false, p18: true },
-    fin:    { ativo: false, p84: false, p60: false }
+    fin:    { ativo: false }
   };
 
-  // Valores: usa os do dados se vierem, senão recalcula
-  const pv  = d.precoVista || 0;
+  const pv   = d.precoVista || 0;
   const pOrc = d.precoOrcamento || 0;
-  const v10 = d.parc10x != null ? d.parc10x : pv * 1.11 / 10;
-  const v12 = d.parc12x != null ? d.parc12x : pv * 1.12 / 12;
-  const v18 = d.parc18x != null ? d.parc18x : pv * 1.19 / 18;
+
+  // Mapa de parcelas — usa pré-calculadas (sobre o investimento) se vierem, senão recalcula.
+  const parcMap = d.parcelasCartao || calcTodasParcelas(pOrc);
+  // Retro-compat: propostas antigas têm só parc10x/12x/18x
+  if (!d.parcelasCartao && d.parc10x != null) parcMap[10] = d.parc10x;
+  if (!d.parcelasCartao && d.parc12x != null) parcMap[12] = d.parc12x;
+  if (!d.parcelasCartao && d.parc18x != null) parcMap[18] = d.parc18x;
+
+  const f36 = d.fin36x != null ? d.fin36x : pmtPriceCarencia(pOrc, 0.022, 36, 4);
+  const f48 = d.fin48x != null ? d.fin48x : pmtPriceCarencia(pOrc, 0.022, 48, 4);
+  const f60 = d.fin60x != null ? d.fin60x : pmtPriceCarencia(pOrc, 0.022, 60, 4);
+  // Retro-compat: propostas antigas usavam 84x
   const f84 = d.fin84x != null ? d.fin84x : pmtPriceCarencia(pOrc, 0.025, 84, 4);
-  const f60 = d.fin60x != null ? d.fin60x : pmtPriceCarencia(pOrc, 0.024, 60, 4);
 
   const blocos = [];
 
-  if (po.vista) {
-    blocos.push(`
-      <div class="parc parc-destaque-amarelo">
-        <div class="badge">💎 melhor opção</div>
-        <div class="qt">À vista</div>
-        <div class="vl">R$ ${fmt(pv)}</div>
-        <div class="obs">pagamento único</div>
-      </div>`);
-  }
+  if (po.vista) blocos.push(`
+    <div class="parc parc-destaque-amarelo">
+      <div class="badge">💎 melhor opção</div>
+      <div class="qt">À vista</div>
+      <div class="vl">R$ ${fmt(pv)}</div>
+      <div class="obs">5% de desconto, pago no ato</div>
+    </div>`);
 
-  if (po.cartao && po.cartao.ativo) {
-    if (po.cartao.p10) blocos.push(`
-      <div class="parc">
-        <div class="qt">10x no cartão</div>
-        <div class="vl">R$ ${fmt(v10)}</div>
-        <div class="obs">sobre o preço à vista</div>
-      </div>`);
-    if (po.cartao.p12) blocos.push(`
-      <div class="parc">
-        <div class="qt">12x no cartão</div>
-        <div class="vl">R$ ${fmt(v12)}</div>
-        <div class="obs">sobre o preço à vista</div>
-      </div>`);
-    if (po.cartao.p18) blocos.push(`
-      <div class="parc">
-        <div class="qt">18x no cartão</div>
-        <div class="vl">R$ ${fmt(v18)}</div>
-        <div class="obs">sobre o preço à vista</div>
-      </div>`);
+  for (const n of parcelasDoPagOpts(po)) {
+    const v = parcMap[n];
+    if (!v) continue;
+    const obs = n === 1 ? 'à vista no cartão' : 'sobre o valor do investimento';
+    blocos.push(`<div class="parc"><div class="qt">${n}x no cartão</div><div class="vl">R$ ${fmt(v)}</div><div class="obs">${obs}</div></div>`);
   }
 
   if (po.fin && po.fin.ativo) {
-    if (po.fin.p84) blocos.push(`
-      <div class="parc">
-        <div class="qt">84x financiado</div>
-        <div class="vl">R$ ${fmt(f84)}</div>
-        <div class="obs">120 dias de carência</div>
-      </div>`);
-    if (po.fin.p60) blocos.push(`
-      <div class="parc">
-        <div class="qt">60x financiado</div>
-        <div class="vl">R$ ${fmt(f60)}</div>
-        <div class="obs">120 dias de carência</div>
-      </div>`);
+    if (po.fin.p36) blocos.push(`<div class="parc"><div class="qt">36x financiado</div><div class="vl">R$ ${fmt(f36)}</div><div class="obs">120 dias de carência</div></div>`);
+    if (po.fin.p48) blocos.push(`<div class="parc"><div class="qt">48x financiado</div><div class="vl">R$ ${fmt(f48)}</div><div class="obs">120 dias de carência</div></div>`);
+    if (po.fin.p60) blocos.push(`<div class="parc"><div class="qt">60x financiado</div><div class="vl">R$ ${fmt(f60)}</div><div class="obs">120 dias de carência</div></div>`);
+    if (po.fin.p84) blocos.push(`<div class="parc"><div class="qt">84x financiado</div><div class="vl">R$ ${fmt(f84)}</div><div class="obs">120 dias de carência</div></div>`);
   }
 
   const card = document.getElementById('card-pagamento');
