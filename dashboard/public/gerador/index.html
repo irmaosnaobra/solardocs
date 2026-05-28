@@ -306,8 +306,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <select id="f-linha" onchange="onLinhaChange()">
             <option value="">Selecione...</option>
             <option value="MICRODEYE-TSUN600W">Micro Deye 2,25K + Tsun 600W</option>
+            <option value="SAJ-2.25K-TSUN600W">Micro SAJ 2,25K + Tsun 600W</option>
             <option value="SAJ-3K">String SAJ 3K + Tsun 600W</option>
             <option value="SAJ-6K">String SAJ 6K + Tsun 600W</option>
+            <option value="SAJ-7.5K">String SAJ 7,5K + Tsun 600W</option>
             <option value="SUNGROW-5K">String Sungrow 5K + ZNShine 600W</option>
             <option value="SUNGROW-7.5K">String Sungrow 7,5K + ZNShine 600W</option>
             <option value="TSUNNES-2.25K-ERA700W">Micro Tsunnes 2,25K + Era 700W</option>
@@ -427,7 +429,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
       <div class="pag-grupo">
         <label class="pag-head">
-          <input type="checkbox" id="pag-vista" checked>
+          <input type="checkbox" id="pag-vista">
           <span class="pag-titulo">💎 À vista</span>
           <span class="pag-sub">pagamento único, com desconto</span>
         </label>
@@ -445,14 +447,14 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
       <div class="pag-grupo">
         <label class="pag-head">
-          <input type="checkbox" id="pag-fin" checked>
+          <input type="checkbox" id="pag-fin">
           <span class="pag-titulo">🏦 Financiamento</span>
           <span class="pag-sub">120 dias de carência</span>
         </label>
         <div class="pag-sub-grid">
           <label class="pag-sub-item"><input type="checkbox" id="pag-fin-36"> 36x</label>
-          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-48" checked> 48x</label>
-          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-60" checked> 60x</label>
+          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-48"> 48x</label>
+          <label class="pag-sub-item"><input type="checkbox" id="pag-fin-60"> 60x</label>
         </div>
       </div>
 
@@ -633,7 +635,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="invest-box">
         <div class="invest-label">Valor financiado</div>
         <div class="invest-value" id="p-total"></div>
-        <div class="invest-grid invest-grid-2">
+        <div class="invest-grid invest-grid-2" id="invest-avista-grid">
           <div class="invest-avista">
             <div class="invest-avista-label">À vista</div>
             <div class="invest-avista-value" id="p-vista"></div>
@@ -1358,7 +1360,7 @@ const TABELA_CARTAO = {
   21: 0.1828
 };
 // Parcelas marcadas por padrão num novo orçamento.
-const CARTAO_PARCELAS_DEFAULT = [12, 18, 21];
+const CARTAO_PARCELAS_DEFAULT = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
 
 function calcParcelaCartao(precoVista, n) {
   const acresc = TABELA_CARTAO[n];
@@ -1384,7 +1386,7 @@ function parcelasDoPagOpts(po) {
 
 // ============= UI DO CARD "FORMAS DE PAGAMENTO" =============
 // Quais parcelas aparecem por padrão e quais ficam atrás do "Ver todas"
-const CARTAO_PARCELAS_DESTAQUE = [1, 6, 12, 18, 21];
+const CARTAO_PARCELAS_DESTAQUE = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
 
 // Mostra/esconde o input de dias conforme o modo selecionado
 function atualizarEntradaModo() {
@@ -1651,7 +1653,7 @@ function onLinhaChange() {
   // Defaults por tipo de inversor: micro = 15 anos garantia + 30 dias prazo; string = 10 anos + 45 dias.
   // Sobrescreve em carregamento de proposta antiga, mas é re-sobrescrito logo depois pelos valores salvos.
   if (linha && !isManual) {
-    const isStringLinha = linha.startsWith('SAJ') || linha.startsWith('SUNGROW');
+    const isStringLinha = (linha.startsWith('SAJ') && !linha.includes('2.25K')) || linha.startsWith('SUNGROW');
     document.getElementById('f-gar-inversor').value     = isStringLinha ? '10' : '15';
     document.getElementById('f-prazo-instalacao').value = '30';
   }
@@ -1820,7 +1822,7 @@ async function gerar() {
   const pbPct = Math.min(Math.round((modelo.paybackAnos / 25) * 100), 100);
 
   // Inversores (vem da própria tabela ou do manual)
-  const isString = tab.inv.includes('SAJ') || tab.inv.includes('Sungrow');
+  const isString = (tab.inv.includes('SAJ') && !tab.inv.includes('2,25K')) || tab.inv.includes('Sungrow');
   const qtdInv = item.invs;
   // Garantia inversor: prioriza input genérico (f-gar-inversor); fallback no manual; senão default por tipo
   const garInvInGen = (document.getElementById('f-gar-inversor').value || '').trim();
@@ -2076,7 +2078,13 @@ function renderProposta(d, viaLink) {
   document.getElementById('pb-leg').textContent = `${d.paybackTextoLong || (d.payback + ' anos')} de payback em 25 anos de geração`;
 
   document.getElementById('p-total').textContent = `R$ ${fmt(d.precoOrcamento)}`;
-  document.getElementById('p-vista').textContent = `R$ ${fmt(d.precoVista)}`;
+  const avistaGrid = document.getElementById('invest-avista-grid');
+  if (!d.pagOpts || d.pagOpts.vista) {
+    if (avistaGrid) avistaGrid.style.display = '';
+    document.getElementById('p-vista').textContent = `R$ ${fmt(d.precoVista)}`;
+  } else if (avistaGrid) {
+    avistaGrid.style.display = 'none';
+  }
 
   // Card de pagamento — versão final pro cliente, sempre visível
   // (consultor não escolhe mais — proposta sempre mostra à vista + 10/12/18x + 84/60x)
