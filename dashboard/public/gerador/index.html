@@ -28,6 +28,68 @@ html[data-mode="viewer"] #formSection,
 html[data-mode="viewer"] #historicoSection,
 html[data-mode="viewer"] .top-actions{display:none!important}
 
+/* ===== Sidebar (menu lateral) — só no app interno ===== */
+#app-sidebar{display:none}
+html[data-mode="app"] #app-sidebar{display:flex}
+html[data-mode="app"] .top-actions{display:none!important} /* substituída pela sidebar */
+html[data-mode="app"][data-theme="dark"] body{
+  background:radial-gradient(1200px 800px at 12% -10%, #1e2a4a 0%, transparent 55%),
+             radial-gradient(1000px 700px at 110% 10%, #2a1f3d 0%, transparent 50%),
+             #0b1020;
+}
+html[data-mode="app"] .container{
+  margin:0 auto;
+  max-width:920px;
+  padding-left:268px;
+  padding-right:20px;
+  transition:padding-left .25s ease;
+}
+#app-sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:248px;z-index:900;
+  flex-direction:column;padding:22px 16px;gap:6px;
+  background:rgba(17,24,42,.72);
+  backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+  border-right:1px solid rgba(255,255,255,.08);
+  box-sizing:border-box;
+}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:6px 10px 18px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sb-brand .sb-sun{font-size:22px;filter:drop-shadow(0 0 8px rgba(245,158,11,.6))}
+.sb-brand .sb-name{color:#fff;font-weight:800;font-size:15px;line-height:1.15;letter-spacing:.2px}
+.sb-brand .sb-name small{display:block;font-weight:500;font-size:10.5px;color:#8b98b8;letter-spacing:.4px;text-transform:uppercase;margin-top:2px}
+.sb-nav{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.sb-item{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:11px 13px;border-radius:11px;border:1px solid transparent;
+  background:transparent;color:#c3cce0;font-family:inherit;font-size:14px;font-weight:600;
+  cursor:pointer;transition:background .15s,color .15s,border-color .15s;
+}
+.sb-item .sb-ic{font-size:17px;width:20px;text-align:center;flex-shrink:0}
+.sb-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.sb-item.ativo{
+  background:linear-gradient(135deg,rgba(37,99,235,.35),rgba(245,158,11,.18));
+  border-color:rgba(96,165,250,.4);color:#fff;
+  box-shadow:0 4px 18px -6px rgba(37,99,235,.6);
+}
+.sb-spacer{flex:1}
+.sb-foot{display:flex;flex-direction:column;gap:4px;padding-top:12px;border-top:1px solid rgba(255,255,255,.07)}
+.sb-foot .sb-item{font-size:13px;font-weight:600;color:#9aa6c4}
+.sb-mobile-toggle{display:none}
+@media(max-width:860px){
+  html[data-mode="app"] .container{padding-left:16px;padding-right:16px}
+  #app-sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.5)}
+  #app-sidebar.aberta{transform:translateX(0)}
+  html[data-mode="app"] .sb-mobile-toggle{
+    display:flex;align-items:center;justify-content:center;
+    position:fixed;top:14px;left:14px;z-index:950;width:44px;height:44px;
+    border-radius:12px;border:1px solid rgba(255,255,255,.12);
+    background:rgba(17,24,42,.85);backdrop-filter:blur(12px);
+    color:#fff;font-size:20px;cursor:pointer;
+  }
+  #sb-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:890}
+  #sb-backdrop.aberta{display:block}
+}
+
 /* Loading da proposta (cliente) */
 #loadingProposta{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:#1E3A8A;color:#fff;z-index:9999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 html[data-mode="loading"] #loadingProposta{display:flex}
@@ -134,8 +196,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
   // Tema: só aplica no UI interno (form/login/histórico). Proposta sempre light.
   var THEME_KEY = 'gerador-tema-v1';
-  var savedTheme = 'light';
-  try { savedTheme = localStorage.getItem(THEME_KEY) || 'light'; } catch(e) {}
+  var savedTheme = 'dark';
+  try { savedTheme = localStorage.getItem(THEME_KEY) || 'dark'; } catch(e) {}
+  // No app interno o visual é sempre escuro (design glassmorphism). Tema claro só fora do app.
+  if (authed) savedTheme = 'dark';
   document.documentElement.dataset.theme = savedTheme;
   window.toggleTheme = function(){
     var cur = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
@@ -183,6 +247,24 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   </form>
 </div>
 
+
+<button type="button" class="sb-mobile-toggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+<div id="sb-backdrop" onclick="toggleSidebar()"></div>
+<nav id="app-sidebar">
+  <div class="sb-brand">
+    <span class="sb-sun">☀️</span>
+    <span class="sb-name">Irmãos na Obra<small>Gerador solar</small></span>
+  </div>
+  <div class="sb-nav">
+    <button type="button" class="sb-item" id="nav-gerador" onclick="navGerador()"><span class="sb-ic">⚡</span> Gerar proposta</button>
+    <button type="button" class="sb-item" id="nav-historico" onclick="navHistorico()"><span class="sb-ic">📋</span> Histórico</button>
+    <button type="button" class="sb-item" id="nav-agenda" onclick="location.href='/gerador/agenda'"><span class="sb-ic">📅</span> Agenda</button>
+  </div>
+  <div class="sb-spacer"></div>
+  <div class="sb-foot">
+    <button type="button" class="sb-item" onclick="sairGerador()"><span class="sb-ic">↩</span> Sair</button>
+  </div>
+</nav>
 
 <div class="container">
 
@@ -1495,6 +1577,7 @@ function aplicarPagAtivoClass() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  if (typeof marcarNavAtivo === 'function') marcarNavAtivo('nav-gerador');
   renderPagCartaoGrid();
   aplicarPagAtivoClass();
   atualizarEntradaModo();
@@ -2923,6 +3006,31 @@ function voltarDoHistorico() {
   document.getElementById('historicoSection').style.display = 'none';
   document.getElementById('formSection').style.display = '';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== Navegação pela sidebar =====
+function marcarNavAtivo(id) {
+  document.querySelectorAll('#app-sidebar .sb-item').forEach(b => b.classList.remove('ativo'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('ativo');
+}
+function navGerador() {
+  voltarDoHistorico();
+  marcarNavAtivo('nav-gerador');
+  fecharSidebarMobile();
+}
+function navHistorico() {
+  abrirHistorico();
+  marcarNavAtivo('nav-historico');
+  fecharSidebarMobile();
+}
+function toggleSidebar() {
+  document.getElementById('app-sidebar')?.classList.toggle('aberta');
+  document.getElementById('sb-backdrop')?.classList.toggle('aberta');
+}
+function fecharSidebarMobile() {
+  document.getElementById('app-sidebar')?.classList.remove('aberta');
+  document.getElementById('sb-backdrop')?.classList.remove('aberta');
 }
 
 function exportarHistoricoCSV() {
