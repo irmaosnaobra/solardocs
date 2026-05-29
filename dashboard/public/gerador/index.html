@@ -127,8 +127,9 @@ html[data-mode="app"] .container > #historicoSection{
   border-right:1px solid rgba(255,255,255,.08);
   box-sizing:border-box;
 }
-.sb-brand{display:flex;align-items:center;gap:10px;padding:6px 10px 18px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.07)}
-.sb-brand .sb-sun{font-size:22px;filter:drop-shadow(0 0 8px rgba(245,158,11,.6))}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:6px 10px 18px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.07);width:100%;background:transparent;border-left:0;border-right:0;border-top:0;cursor:pointer;font-family:inherit;text-align:left;border-radius:8px;transition:background .15s}
+.sb-brand:hover{background:rgba(255,255,255,.05)}
+.sb-brand .sb-logo{width:34px;height:34px;object-fit:contain;border-radius:8px;flex-shrink:0;filter:drop-shadow(0 0 8px rgba(245,158,11,.4))}
 .sb-brand .sb-name{color:#fff;font-weight:800;font-size:15px;line-height:1.15;letter-spacing:.2px}
 .sb-brand .sb-name small{display:block;font-weight:500;font-size:10.5px;color:#8b98b8;letter-spacing:.4px;text-transform:uppercase;margin-top:2px}
 .sb-nav{display:flex;flex-direction:column;gap:4px;margin-top:6px}
@@ -309,10 +310,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <button type="button" class="sb-mobile-toggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
 <div id="sb-backdrop" onclick="toggleSidebar()"></div>
 <nav id="app-sidebar">
-  <div class="sb-brand">
-    <span class="sb-sun">☀️</span>
+  <button type="button" class="sb-brand" onclick="navGerador()" title="Início">
+    <img class="sb-logo" src="/gerador/logo.png" alt="Irmãos na Obra">
     <span class="sb-name">Irmãos na Obra<small>Gerador solar</small></span>
-  </div>
+  </button>
   <div class="sb-nav">
     <button type="button" class="sb-item" id="nav-gerador" onclick="navGerador()"><span class="sb-ic">⚡</span> Gerar proposta</button>
     <button type="button" class="sb-item" id="nav-historico" onclick="navHistorico()"><span class="sb-ic">📋</span> Histórico</button>
@@ -3154,9 +3155,16 @@ function marcarNavAtivo(id) {
   if (el) el.classList.add('ativo');
 }
 function navGerador() {
-  voltarDoHistorico();
+  // volta pro form a partir de qualquer tela interna
+  ['historicoSection', 'tabelasSection', 'leadsSection'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto');
+  document.getElementById('formSection').style.display = '';
   marcarNavAtivo('nav-gerador');
   fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function navHistorico() {
   abrirHistorico();
