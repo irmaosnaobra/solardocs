@@ -2005,9 +2005,9 @@ async function gerar() {
     const invModelo = document.getElementById('f-man-inv').value.trim();
     const qtdInvIn = parseInt(document.getElementById('f-man-qtdinv').value) || 1;
     const modModelo = document.getElementById('f-man-mod').value.trim();
-    const potMod = parseFloat(document.getElementById('f-man-potmod').value) || 0;
+    let potMod = parseFloat(document.getElementById('f-man-potmod').value) || 0;
     const qtdPlacasMan = parseInt(document.getElementById('f-man-placas').value) || 0;
-    const geracaoMan = parseFloat(document.getElementById('f-man-ger').value) || 0;
+    let geracaoMan = parseFloat(document.getElementById('f-man-ger').value) || 0;
     const precoVistaIn = parseFloat(document.getElementById('f-man-pvista').value) || 0;
     const precoOrcIn = parseFloat(document.getElementById('f-man-porc').value) || 0;
     const garInvIn = (document.getElementById('f-man-gar').value || '').trim() || '10';
@@ -2018,6 +2018,17 @@ async function gerar() {
     if (!qtdPlacasMan || qtdPlacasMan <= 0) return showErro('Manual: quantidade de placas inválida.');
     if (!geracaoMan || geracaoMan <= 0) return showErro('Manual: geração estimada inválida.');
     if (!precoVistaIn || precoVistaIn <= 0) return showErro('Manual: preço à vista inválido.');
+
+    // Correção/validação de unidades (evita orçamento com geração ~5 kWh e conta R$ 2).
+    // Potência do módulo é em WATTS. Se vier <10 é quase certo que digitaram em kW (ex: 0,6 → 600).
+    if (potMod > 0 && potMod < 10) potMod = potMod * 1000;
+    if (potMod < 300 || potMod > 800) {
+      return showErro(`Manual: potência por módulo (${potMod} W) fora da faixa real (300–800 W). Confira — o valor é em WATTS por placa (ex: 550, 600).`);
+    }
+    // Geração é em kWh/MÊS. Abaixo de 50 é erro de digitação (ou alguém pôs HSP/diária no lugar).
+    if (geracaoMan < 50) {
+      return showErro(`Manual: geração de ${geracaoMan} kWh/mês é baixa demais — confira. O campo é a geração MENSAL total do sistema em kWh (normalmente 200–2000).`);
+    }
 
     const kwp = (qtdPlacasMan * potMod) / 1000;
     const pOrc = precoOrcIn > 0 ? precoOrcIn : Math.ceil(precoVistaIn * 1.05 / 100) * 100;
