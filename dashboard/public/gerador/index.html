@@ -42,14 +42,59 @@ html[data-mode="login"] .sb-mobile-toggle{display:none!important}
 /* Menu lateral SÓ na tela Gerar proposta. Nas demais (histórico/tabelas/leads) some. */
 html[data-mode="app"].historico-aberto #app-sidebar,
 html[data-mode="app"].tabelas-aberta #app-sidebar,
+html[data-mode="app"].redes-aberto #app-sidebar,
 html[data-mode="app"].leads-aberto #app-sidebar{display:none!important}
 html[data-mode="app"].historico-aberto .sb-mobile-toggle,
 html[data-mode="app"].tabelas-aberta .sb-mobile-toggle,
+html[data-mode="app"].redes-aberto .sb-mobile-toggle,
 html[data-mode="app"].leads-aberto .sb-mobile-toggle{display:none!important}
 html[data-mode="app"].historico-aberto .container,
 html[data-mode="app"].tabelas-aberta .container,
+html[data-mode="app"].redes-aberto .container,
 html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
+/* ===== Cockpit Redes ===== */
+.redes-tabs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.redes-tab{background:rgba(255,255,255,.06);color:#cbd5e1;border:1px solid rgba(255,255,255,.12);padding:8px 16px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.redes-tab:hover{background:rgba(255,255,255,.1);color:#fff}
+.redes-tab.ativo{background:#3B82F6;border-color:#3B82F6;color:#fff}
+.redes-atualizado{margin-left:auto;font-size:12px;color:#94A3B8}
+.redes-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.redes-kpi{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 16px}
+.redes-kpi .k-label{font-size:12px;color:#94A3B8;margin-bottom:4px}
+.redes-kpi .k-val{font-size:24px;font-weight:800;color:#fff;line-height:1.1}
+.redes-kpi .k-sub{font-size:12px;margin-top:4px;font-weight:600}
+.redes-kpi .k-up{color:#34d399}.redes-kpi .k-down{color:#f87171}
+.redes-bloco{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px;margin-bottom:16px}
+.redes-bloco h3{font-size:15px;color:#E5E7EB;margin:0 0 12px}
+.redes-spark{width:100%;height:64px;display:block}
+.redes-posts{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.redes-post{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.redes-post .rp-thumb{width:100%;aspect-ratio:1/1;object-fit:cover;background:#1E293B;display:block}
+.redes-post .rp-body{padding:10px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.redes-post .rp-cap{font-size:12px;color:#cbd5e1;line-height:1.35;max-height:50px;overflow:hidden}
+.redes-post .rp-mets{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#93C5FD;font-weight:700;margin-top:auto}
+.redes-post .rp-link{font-size:11px;color:#34d399;text-decoration:none;font-weight:700}
+.redes-post.pior{border-color:rgba(248,113,113,.35)}
+.redes-aud{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:640px){.redes-aud{grid-template-columns:1fr}}
+.redes-bar{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#cbd5e1}
+.redes-bar .rb-lab{width:90px;flex-shrink:0;text-align:right;color:#94A3B8}
+.redes-bar .rb-track{flex:1;height:14px;background:rgba(255,255,255,.07);border-radius:7px;overflow:hidden}
+.redes-bar .rb-fill{height:100%;background:linear-gradient(90deg,#3B82F6,#60A5FA);border-radius:7px}
+.redes-bar .rb-val{width:42px;flex-shrink:0;color:#E5E7EB;font-weight:700}
+.redes-vazio-tt{text-align:center;padding:28px 16px;color:#cbd5e1}
+.redes-vazio-tt .vt-big{font-size:34px;font-weight:800;color:#fff}
+.redes-ia-card{margin-top:8px}
+.redes-ia-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.redes-ia-head h3{font-size:15px;color:#E5E7EB;margin:0}
+.btn-redes-ia{background:#10b981;color:#fff;border:none;padding:9px 18px;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:14px}
+.btn-redes-ia:disabled{opacity:.55;cursor:wait}
+.redes-ia-sub{font-size:12px;color:#94A3B8;margin:8px 0 12px}
+.redes-ideia{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.redes-ideia h4{margin:0 0 6px;font-size:14px;color:#fff}
+.redes-ideia p{margin:4px 0;font-size:13px;color:#cbd5e1;line-height:1.45}
+.redes-ideia .ri-tag{font-size:11px;color:#6ee7b7;font-weight:700;text-transform:uppercase}
 .leads-tabela td .lead-wpp{color:#34d399;font-weight:700;text-decoration:none}
 .leads-tabela td .lead-consultor{font-weight:700;color:#93C5FD}
 .leads-tabela .lead-det-btn{background:#1E293B;color:#93C5FD;border:1px solid #3B82F6;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600}
@@ -154,7 +199,7 @@ html[data-mode="app"] .container > #historicoSection{
   html[data-mode="app"] .container{margin-left:0;padding:0 16px}
   #app-sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.5)}
   #app-sidebar.aberta{transform:translateX(0)}
-  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto) .sb-mobile-toggle{
+  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.redes-aberto) .sb-mobile-toggle{
     display:flex!important;align-items:center;justify-content:center;
     position:fixed;top:14px;left:14px;z-index:950;width:44px;height:44px;
     border-radius:12px;border:1px solid rgba(255,255,255,.12);
@@ -318,6 +363,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <button type="button" class="sb-item" id="nav-gerador" onclick="navGerador()"><span class="sb-ic">⚡</span> Gerar proposta</button>
     <button type="button" class="sb-item" id="nav-historico" onclick="navHistorico()"><span class="sb-ic">📋</span> Histórico</button>
     <button type="button" class="sb-item" id="nav-leads" onclick="navLeads()"><span class="sb-ic">📱</span> Leads</button>
+    <button type="button" class="sb-item" id="nav-redes" onclick="navRedes()"><span class="sb-ic">📈</span> Redes</button>
     <button type="button" class="sb-item" id="nav-tabelas" onclick="navTabelas()"><span class="sb-ic">📊</span> Tabelas</button>
     <button type="button" class="sb-item" id="nav-agenda" onclick="location.href='/gerador/agenda'"><span class="sb-ic">📅</span> Agenda</button>
   </div>
@@ -1099,6 +1145,37 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- ============= TELA REDES (cockpit social Windsor.ai) ============= -->
+  <div id="redesSection" style="display:none;">
+    <div class="header">
+      <div class="header-titulo">
+        <h1>📈 Redes Sociais</h1>
+      </div>
+      <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
+    </div>
+
+    <!-- abas rede -->
+    <div class="redes-tabs">
+      <button type="button" class="redes-tab ativo" id="redes-tab-instagram" onclick="redesTrocaRede('instagram')">📷 Instagram</button>
+      <button type="button" class="redes-tab" id="redes-tab-tiktok" onclick="redesTrocaRede('tiktok')">🎵 TikTok</button>
+      <span class="redes-atualizado" id="redes-atualizado"></span>
+    </div>
+
+    <div id="redes-conteudo">
+      <div class="historico-vazio" style="padding:40px">Carregando...</div>
+    </div>
+
+    <!-- IA: ideias de conteúdo -->
+    <div class="card redes-ia-card">
+      <div class="redes-ia-head">
+        <h3>🤖 Ideias de Reels virais — energia solar</h3>
+        <button type="button" class="btn-redes-ia" id="btn-redes-ia" onclick="gerarIdeiasRedes()">Gerar ideias</button>
+      </div>
+      <p class="redes-ia-sub">A IA analisa os seus posts que mais bombaram e sugere roteiros novos no mesmo DNA.</p>
+      <div id="redes-ia-saida"></div>
     </div>
   </div>
 
@@ -3156,11 +3233,11 @@ function marcarNavAtivo(id) {
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
-  ['historicoSection', 'tabelasSection', 'leadsSection'].forEach(id => {
+  ['historicoSection', 'tabelasSection', 'leadsSection', 'redesSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto');
   document.getElementById('formSection').style.display = '';
   marcarNavAtivo('nav-gerador');
   fecharSidebarMobile();
@@ -3297,6 +3374,201 @@ async function toggleEquip(linha, ev) {
     });
   } catch (e) {
     showToast && showToast('Erro ao salvar — tente de novo');
+  }
+}
+
+// ============= TELA REDES (cockpit social — Windsor.ai) =============
+let redesData = { instagram: null, tiktok: null };
+let redesRedeAtiva = 'instagram';
+
+function navRedes() {
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  document.getElementById('leadsSection').style.display = 'none';
+  const sec = document.getElementById('redesSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('redes-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto');
+  marcarNavAtivo('nav-redes');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  carregarRedes();
+}
+
+const nfmt = n => (n == null ? '—' : Number(n).toLocaleString('pt-BR'));
+
+async function carregarRedes() {
+  const cont = document.getElementById('redes-conteudo');
+  cont.innerHTML = '<div class="historico-vazio" style="padding:40px">Carregando...</div>';
+  try {
+    const [daily, posts, aud] = await Promise.all([
+      supaGet('social_daily?select=*&order=dia.asc'),
+      supaGet('social_posts?select=*&order=engajamento.desc'),
+      supaGet('social_audience?select=*'),
+    ]);
+    const split = (arr, rede) => (arr || []).filter(r => r.rede === rede);
+    redesData = {
+      instagram: { daily: split(daily,'instagram'), posts: split(posts,'instagram'), aud: split(aud,'instagram') },
+      tiktok:    { daily: split(daily,'tiktok'),    posts: split(posts,'tiktok'),    aud: split(aud,'tiktok') },
+    };
+    // "atualizado em" = maior atualizado_em de daily
+    const todos = (daily || []).map(d => d.atualizado_em).filter(Boolean).sort();
+    const ult = todos[todos.length - 1];
+    const at = document.getElementById('redes-atualizado');
+    if (at && ult) { const d = new Date(ult); at.textContent = 'atualizado ' + d.toLocaleDateString('pt-BR') + ' ' + String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+    renderRede(redesRedeAtiva);
+  } catch (e) {
+    cont.innerHTML = '<div class="historico-vazio" style="padding:40px">Erro ao carregar dados das redes.</div>';
+  }
+}
+
+function redesTrocaRede(rede) {
+  redesRedeAtiva = rede;
+  document.getElementById('redes-tab-instagram').classList.toggle('ativo', rede === 'instagram');
+  document.getElementById('redes-tab-tiktok').classList.toggle('ativo', rede === 'tiktok');
+  renderRede(rede);
+}
+
+// soma últimos N dias de um campo
+function somaUlt(daily, campo, n) {
+  return daily.slice(-n).reduce((a, r) => a + (Number(r[campo]) || 0), 0);
+}
+
+// sparkline SVG inline (sem dependência — recharts é só do bundle React)
+function sparkline(daily, campo) {
+  const vals = daily.map(r => Number(r[campo]) || 0);
+  if (!vals.length) return '';
+  const W = 600, H = 64, max = Math.max(...vals, 1), min = Math.min(...vals);
+  const span = (max - min) || 1;
+  const pts = vals.map((v, i) => {
+    const x = (i / (vals.length - 1 || 1)) * W;
+    const y = H - 4 - ((v - min) / span) * (H - 12);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg class="redes-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <polyline fill="none" stroke="#60A5FA" stroke-width="2.5" points="${pts}"/>
+  </svg>`;
+}
+
+function renderRede(rede) {
+  const cont = document.getElementById('redes-conteudo');
+  const d = redesData[rede];
+  if (!d || !d.daily.length) {
+    cont.innerHTML = '<div class="historico-vazio" style="padding:40px">Sem dados ainda. O sync roda 1x/dia.</div>';
+    return;
+  }
+  const daily = d.daily;
+  // seguidores = último valor não-nulo
+  const segArr = daily.map(r => r.seguidores).filter(v => v != null);
+  const seguidores = segArr.length ? segArr[segArr.length - 1] : null;
+  const alc30 = somaUlt(daily, 'alcance', 30);
+  const views30 = somaUlt(daily, 'views', 30);
+  const int30 = somaUlt(daily, 'interacoes', 30);
+  const novos30 = somaUlt(daily, 'novos_seg', 30);
+
+  // TikTok quase inativo → aviso honesto + ainda mostra o que tem
+  let avisoTT = '';
+  if (rede === 'tiktok' && (seguidores == null || seguidores < 50)) {
+    avisoTT = `<div class="redes-bloco redes-vazio-tt">
+      <div class="vt-big">${nfmt(seguidores)} seguidores</div>
+      <p>Sua conta no TikTok ainda está começando. Os gráficos abaixo enchem sozinhos conforme você posta e cresce — a estrutura já está pronta. 🚀</p>
+    </div>`;
+  }
+
+  const kpis = `<div class="redes-kpis">
+    <div class="redes-kpi"><div class="k-label">Seguidores</div><div class="k-val">${nfmt(seguidores)}</div>${novos30 ? `<div class="k-sub k-up">+${nfmt(novos30)} em 30d</div>` : ''}</div>
+    <div class="redes-kpi"><div class="k-label">Alcance (30d)</div><div class="k-val">${nfmt(alc30)}</div></div>
+    <div class="redes-kpi"><div class="k-label">Visualizações (30d)</div><div class="k-val">${nfmt(views30)}</div></div>
+    <div class="redes-kpi"><div class="k-label">Interações (30d)</div><div class="k-val">${nfmt(int30)}</div></div>
+  </div>`;
+
+  const graf = `<div class="redes-bloco">
+    <h3>${rede === 'tiktok' ? 'Visualizações' : 'Alcance'} por dia</h3>
+    ${sparkline(daily, rede === 'tiktok' ? 'views' : 'alcance')}
+  </div>`;
+
+  // ranking: melhores e piores (só posts com algum engajamento pra "pior" fazer sentido)
+  const posts = d.posts.slice();
+  const melhores = posts.slice(0, 6);
+  const piores = posts.filter(p => (p.views || p.alcance || p.engajamento)).slice(-3).reverse();
+
+  const cardPost = (p, pior) => {
+    const cap = (p.legenda || '').slice(0, 90);
+    const mets = rede === 'tiktok'
+      ? `<span>▶ ${nfmt(p.views)}</span><span>❤ ${nfmt(p.likes)}</span><span>💬 ${nfmt(p.comentarios)}</span>`
+      : `<span>👁 ${nfmt(p.alcance)}</span><span>❤ ${nfmt(p.likes)}</span><span>💬 ${nfmt(p.comentarios)}</span><span>🔖 ${nfmt(p.salvos)}</span>`;
+    const thumb = p.thumbnail_url ? `<img class="rp-thumb" src="${p.thumbnail_url}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : '<div class="rp-thumb"></div>';
+    return `<div class="redes-post${pior ? ' pior' : ''}">
+      ${thumb}
+      <div class="rp-body">
+        <div class="rp-cap">${escapeHtml(cap) || '<i style=opacity:.5>sem legenda</i>'}</div>
+        <div class="rp-mets">${mets}</div>
+        ${p.permalink ? `<a class="rp-link" href="${p.permalink}" target="_blank" rel="noopener">ver post ↗</a>` : ''}
+      </div>
+    </div>`;
+  };
+
+  const rankBlocos = melhores.length ? `
+    <div class="redes-bloco">
+      <h3>🏆 Melhores posts</h3>
+      <div class="redes-posts">${melhores.map(p => cardPost(p, false)).join('')}</div>
+    </div>
+    ${piores.length ? `<div class="redes-bloco">
+      <h3>📉 Que menos performaram</h3>
+      <div class="redes-posts">${piores.map(p => cardPost(p, true)).join('')}</div>
+    </div>` : ''}` : '';
+
+  // audiência (só IG tem; barras CSS)
+  const audBlocos = renderAudiencia(d.aud);
+
+  cont.innerHTML = avisoTT + kpis + graf + rankBlocos + audBlocos;
+}
+
+function renderAudiencia(aud) {
+  if (!aud || !aud.length) return '';
+  const grupo = dim => aud.filter(a => a.dimensao === dim).sort((a,b) => b.valor - a.valor);
+  const barras = (rows, top) => {
+    rows = rows.slice(0, top);
+    const max = Math.max(...rows.map(r => r.valor), 1);
+    return rows.map(r => `<div class="redes-bar">
+      <span class="rb-lab">${escapeHtml(r.rotulo)}</span>
+      <span class="rb-track"><span class="rb-fill" style="width:${(r.valor/max*100).toFixed(0)}%"></span></span>
+      <span class="rb-val">${nfmt(r.valor)}</span>
+    </div>`).join('');
+  };
+  const gi = grupo('genero_idade'), ci = grupo('cidade');
+  if (!gi.length && !ci.length) return '';
+  return `<div class="redes-aud">
+    ${gi.length ? `<div class="redes-bloco"><h3>👥 Quem te segue</h3>${barras(gi, 8)}</div>` : ''}
+    ${ci.length ? `<div class="redes-bloco"><h3>📍 Principais cidades</h3>${barras(ci, 8)}</div>` : ''}
+  </div>`;
+}
+
+async function gerarIdeiasRedes() {
+  const btn = document.getElementById('btn-redes-ia');
+  const saida = document.getElementById('redes-ia-saida');
+  btn.disabled = true; btn.textContent = 'Gerando...';
+  saida.innerHTML = '<div class="historico-vazio" style="padding:20px">A IA está analisando seus melhores posts...</div>';
+  try {
+    const r = await fetch('/_api/gerador/social/ideias', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rede: redesRedeAtiva }),
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    const ideias = j.ideias || [];
+    if (!ideias.length) { saida.innerHTML = '<div class="historico-vazio" style="padding:20px">Não consegui gerar agora. Tente de novo.</div>'; return; }
+    saida.innerHTML = ideias.map(i => `<div class="redes-ideia">
+      <span class="ri-tag">${escapeHtml(i.formato || 'Reel')}</span>
+      <h4>${escapeHtml(i.titulo || '')}</h4>
+      ${i.gancho ? `<p><strong>Gancho:</strong> ${escapeHtml(i.gancho)}</p>` : ''}
+      ${i.roteiro ? `<p><strong>Roteiro:</strong> ${escapeHtml(i.roteiro)}</p>` : ''}
+      ${i.legenda ? `<p><strong>Legenda:</strong> ${escapeHtml(i.legenda)}</p>` : ''}
+    </div>`).join('');
+  } catch (e) {
+    saida.innerHTML = '<div class="historico-vazio" style="padding:20px">Erro ao gerar ideias.</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Gerar ideias';
   }
 }
 
