@@ -108,56 +108,80 @@ async function fetchLeadsSince(formId: string, pageToken: string, sinceUnix: num
   return out;
 }
 
-// Próximo slot livre pro consultor a partir de (dia, horaPreferida)
-async function acharSlot(consultor: string, base: Date): Promise<Date> {
-  // tenta a hora preferida; se ocupada, avança de 15min até HORA_FIM; senão próximo dia útil 08:00
-  const tentativa = new Date(base);
-  for (let dia = 0; dia < 7; dia++) {
-    const d = new Date(tentativa);
-    d.setDate(d.getDate() + dia);
-    // pula fim de semana
-    const dow = d.getDay();
-    if (dow === 0 || dow === 6) continue;
-
-    let horaIni = dia === 0 ? d.getHours() : HORA_INI;
-    let minIni = dia === 0 ? d.getMinutes() : 0;
-    if (horaIni < HORA_INI) { horaIni = HORA_INI; minIni = 0; }
-
-    for (let h = horaIni; h < HORA_FIM; h++) {
-      for (let m = (h === horaIni ? minIni : 0); m < 60; m += 15) {
-        const slot = new Date(d);
-        slot.setHours(h, m, 0, 0);
-        if (slot < new Date()) continue; // não agenda no passado
-        const iso = slot.toISOString();
-        const { data } = await supabaseGerador
-          .from('agendamentos')
-          .select('id')
-          .eq('vendedor_nome', consultor)
-          .eq('quando', iso)
-          .neq('status', 'cancelado')
-          .limit(1);
-        if (!data || data.length === 0) return slot;
-      }
-    }
-  }
-  // fallback: agora + 1h
-  const fb = new Date();
-  fb.setHours(fb.getHours() + 1, 0, 0, 0);
-  return fb;
+// ===== Horário de São Paulo (-03:00) — servidor roda em UTC =====
+// "Agora" em SP, decomposto em partes.
+function nowSP() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', weekday: 'short', hour12: false,
+  }).formatToParts(new Date());
+  const g = (t: string) => parts.find(p => p.type === t)?.value || '';
+  let h = +g('hour'); if (h === 24) h = 0; // Intl pode devolver 24 à meia-noite
+  return {
+    y: +g('year'), m: +g('month'), d: +g('day'),
+    h, min: +g('minute'),
+    dow: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(g('weekday')),
+  };
 }
 
-// Calcula a data-base (dia + hora preferida) a partir da faixa do lead
-function dataBaseDaFaixa(faixa: string): Date {
-  const horaPref = horaDaFaixa(faixa);
+// Date a partir de Y-M-D h:min interpretado como horário de SP (-03:00)
+function spDate(y: number, m: number, d: number, h: number, min: number): Date {
+  const p2 = (n: number) => String(n).padStart(2, '0');
+  return new Date(`${y}-${p2(m)}-${p2(d)}T${p2(h)}:${p2(min)}:00-03:00`);
+}
+
+// Dia da semana (0=dom..6=sab) de uma data Y-M-D em SP
+function dowSP(y: number, m: number, d: number): number {
+  const wd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', weekday: 'short' })
+    .format(spDate(y, m, d, 12, 0));
+  return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(wd);
+}
+
+// Avança um dia (lida com virada de mês/ano) usando UTC como aritmética segura
+function proximoDia(y: number, m: number, d: number): { y: number; m: number; d: number } {
+  const t = new Date(Date.UTC(y, m - 1, d));
+  t.setUTCDate(t.getUTCDate() + 1);
+  return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() };
+}
+
+// Próximo slot livre pro consultor, em horário de SP, seg-sex 08:00-20:00
+async function acharSlot(consultor: string, base: { y: number; m: number; d: number; h: number }): Promise<Date> {
+  let { y, m, d } = base;
   const agora = new Date();
-  const hoje = new Date(agora);
-  hoje.setHours(horaPref, 0, 0, 0);
-  // "mesmo dia se der tempo": se a hora preferida de hoje ainda não passou, usa hoje; senão amanhã
-  if (hoje > agora) return hoje;
-  const amanha = new Date(agora);
-  amanha.setDate(amanha.getDate() + 1);
-  amanha.setHours(horaPref, 0, 0, 0);
-  return amanha;
+  for (let i = 0; i < 14; i++) {
+    const dow = dowSP(y, m, d);
+    if (dow !== 0 && dow !== 6) {  // só seg-sex
+      const horaIni = i === 0 ? Math.max(HORA_INI, base.h) : HORA_INI;
+      for (let h = horaIni; h < HORA_FIM; h++) {
+        for (let min = 0; min < 60; min += 15) {
+          const slot = spDate(y, m, d, h, min);
+          if (slot < agora) continue; // não agenda no passado
+          const { data } = await supabaseGerador
+            .from('agendamentos')
+            .select('id')
+            .eq('vendedor_nome', consultor)
+            .eq('quando', slot.toISOString())
+            .neq('status', 'cancelado')
+            .limit(1);
+          if (!data || data.length === 0) return slot;
+        }
+      }
+    }
+    ({ y, m, d } = proximoDia(y, m, d));
+  }
+  // fallback: próximo dia útil 08:00 SP
+  return spDate(base.y, base.m, base.d, HORA_INI, 0);
+}
+
+// Data-base (dia + hora preferida) em SP a partir da faixa do lead
+function dataBaseDaFaixa(faixa: string): { y: number; m: number; d: number; h: number } {
+  const horaPref = horaDaFaixa(faixa);
+  const n = nowSP();
+  // "mesmo dia se der tempo": se a hora preferida de hoje (SP) ainda não passou, usa hoje; senão amanhã
+  if (horaPref > n.h) return { y: n.y, m: n.m, d: n.d, h: horaPref };
+  const prox = proximoDia(n.y, n.m, n.d);
+  return { ...prox, h: horaPref };
 }
 
 function montarObservacao(fields: FieldItem[]): string {
