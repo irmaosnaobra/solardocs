@@ -146,10 +146,43 @@ function proximoDia(y: number, m: number, d: number): { y: number; m: number; d:
   return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() };
 }
 
-// Próximo slot livre pro consultor, em horário de SP, seg-sex 08:00-20:00
-async function acharSlot(consultor: string, base: { y: number; m: number; d: number; h: number }): Promise<Date> {
-  let { y, m, d } = base;
+// Carrega ocupação (agendamentos + bloqueios) de um consultor, de agora em diante.
+async function carregarOcupacao(consultor: string, agoraIso: string) {
+  const [{ data: ags }, { data: blqs }] = await Promise.all([
+    supabaseGerador.from('agendamentos')
+      .select('quando').eq('vendedor_nome', consultor).neq('status', 'cancelado').gte('quando', agoraIso),
+    supabaseGerador.from('agenda_bloqueios')
+      .select('inicio,fim').eq('vendedor_nome', consultor).gte('fim', agoraIso),
+  ]);
+  const ocupados = new Set((ags || []).map((a: any) => new Date(a.quando).getTime()));
+  const bloqueios = (blqs || []).map((b: any) => ({ ini: new Date(b.inicio).getTime(), fim: new Date(b.fim).getTime() }));
+  return { ocupados, bloqueios };
+}
+
+function slotDisponivel(t: number, agoraMs: number, occ: { ocupados: Set<number>; bloqueios: { ini: number; fim: number }[] }): boolean {
+  if (t < agoraMs) return false;
+  if (occ.ocupados.has(t)) return false;
+  if (occ.bloqueios.some(b => t >= b.ini && t < b.fim)) return false;
+  return true;
+}
+
+// Acha slot + consultor respeitando o rodízio. Se o consultor da vez está
+// bloqueado/ocupado no horário pedido, PASSA pro próximo consultor naquele
+// mesmo horário. Só avança o horário quando nenhum consultor está livre.
+// Retorna { slot, consultor, idxUsado } — idxUsado avança o rodízio em +1.
+async function acharSlotRodizio(
+  rodizioIdx: number,
+  base: { y: number; m: number; d: number; h: number },
+): Promise<{ slot: Date; consultor: string }> {
   const agora = new Date();
+  const agoraMs = agora.getTime();
+  const agoraIso = agora.toISOString();
+
+  // ocupação de cada consultor (carrega uma vez)
+  const occ: Record<string, { ocupados: Set<number>; bloqueios: { ini: number; fim: number }[] }> = {};
+  for (const c of CONSULTORES_RODIZIO) occ[c] = await carregarOcupacao(c, agoraIso);
+
+  let { y, m, d } = base;
   for (let i = 0; i < 14; i++) {
     const dow = dowSP(y, m, d);
     if (dow !== 0 && dow !== 6) {  // só seg-sex
@@ -157,21 +190,41 @@ async function acharSlot(consultor: string, base: { y: number; m: number; d: num
       for (let h = horaIni; h < HORA_FIM; h++) {
         for (let min = 0; min < 60; min += 15) {
           const slot = spDate(y, m, d, h, min);
-          if (slot < agora) continue; // não agenda no passado
-          const { data } = await supabaseGerador
-            .from('agendamentos')
-            .select('id')
-            .eq('vendedor_nome', consultor)
-            .eq('quando', slot.toISOString())
-            .neq('status', 'cancelado')
-            .limit(1);
-          if (!data || data.length === 0) return slot;
+          const t = slot.getTime();
+          // tenta os consultores na ordem do rodízio, a partir da vez atual
+          for (let off = 0; off < CONSULTORES_RODIZIO.length; off++) {
+            const consultor = CONSULTORES_RODIZIO[(rodizioIdx + off) % CONSULTORES_RODIZIO.length];
+            if (slotDisponivel(t, agoraMs, occ[consultor])) {
+              return { slot, consultor };
+            }
+          }
         }
       }
     }
     ({ y, m, d } = proximoDia(y, m, d));
   }
-  // fallback: próximo dia útil 08:00 SP
+  // fallback: consultor da vez, próximo dia útil 08:00 SP
+  return { slot: spDate(base.y, base.m, base.d, HORA_INI, 0), consultor: CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length] };
+}
+
+// Slot livre pra um consultor FIXO (usado no realinhamento — não mexe no rodízio).
+async function slotLivreConsultor(consultor: string, base: { y: number; m: number; d: number; h: number }): Promise<Date> {
+  const agora = new Date();
+  const occ = await carregarOcupacao(consultor, agora.toISOString());
+  let { y, m, d } = base;
+  for (let i = 0; i < 14; i++) {
+    const dow = dowSP(y, m, d);
+    if (dow !== 0 && dow !== 6) {
+      const horaIni = i === 0 ? Math.max(HORA_INI, base.h) : HORA_INI;
+      for (let h = horaIni; h < HORA_FIM; h++) {
+        for (let min = 0; min < 60; min += 15) {
+          const slot = spDate(y, m, d, h, min);
+          if (slotDisponivel(slot.getTime(), agora.getTime(), occ)) return slot;
+        }
+      }
+    }
+    ({ y, m, d } = proximoDia(y, m, d));
+  }
   return spDate(base.y, base.m, base.d, HORA_INI, 0);
 }
 
@@ -281,12 +334,12 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
         let consultor: string | null = null;
 
         if (naArea) {
-          // dentro da área: rodízio + agendamento automático
-          consultor = CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length];
-          rodizioIdx++;  // só avança a vez do rodízio quando agenda de fato
-
+          // dentro da área: acha slot+consultor respeitando rodízio e bloqueios
           const base = dataBaseDaFaixa(faixa);
-          const slot = await acharSlot(consultor, base);
+          const escolha = await acharSlotRodizio(rodizioIdx, base);
+          consultor = escolha.consultor;
+          rodizioIdx++;  // avança a vez do rodízio quando agenda de fato
+          const slot = escolha.slot;
 
           const { data: agIns, error: agErr } = await supabaseGerador
             .from('agendamentos')
@@ -360,7 +413,7 @@ export async function realinharAgendamentosLeadMeta(): Promise<{ realinhados: nu
       const faixa = fieldContains(fields, 'horário', 'horario', 'hoario');
       const consultor = lead.consultor || CONSULTORES_RODIZIO[0];
       const base = dataBaseDaFaixa(faixa);
-      const slot = await acharSlot(consultor, base);
+      const slot = await slotLivreConsultor(consultor, base);
       const { error } = await supabaseGerador
         .from('agendamentos')
         .update({ quando: slot.toISOString() })
