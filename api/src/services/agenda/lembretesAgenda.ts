@@ -19,17 +19,28 @@ type Consultor = { nome: string; whatsapp: string | null };
 
 const ZAPI_INSTANCE = 'io' as const;
 
+const BRT_TZ = 'America/Sao_Paulo';
+
 function formatHora(iso: string): string {
-  const d = new Date(iso);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: BRT_TZ,
+  }).formatToParts(new Date(iso));
+  const hh = parts.find(p => p.type === 'hour')?.value ?? '00';
+  const mm = parts.find(p => p.type === 'minute')?.value ?? '00';
   return `${hh}h${mm}`;
 }
 
 function formatDataHora(iso: string): string {
-  const d = new Date(iso);
-  const dia = String(d.getDate()).padStart(2, '0');
-  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: BRT_TZ,
+  }).formatToParts(new Date(iso));
+  const dia = parts.find(p => p.type === 'day')?.value ?? '00';
+  const mes = parts.find(p => p.type === 'month')?.value ?? '00';
   return `${dia}/${mes} às ${formatHora(iso)}`;
 }
 
