@@ -166,49 +166,8 @@ function slotDisponivel(t: number, agoraMs: number, occ: { ocupados: Set<number>
   return true;
 }
 
-// Acha slot + consultor respeitando o rodízio. Se o consultor da vez está
-// bloqueado/ocupado no horário pedido, PASSA pro próximo consultor naquele
-// mesmo horário. Só avança o horário quando nenhum consultor está livre.
-// Retorna { slot, consultor, idxUsado } — idxUsado avança o rodízio em +1.
-async function acharSlotRodizio(
-  rodizioIdx: number,
-  base: { y: number; m: number; d: number; h: number },
-): Promise<{ slot: Date; consultor: string; off: number }> {
-  const agora = new Date();
-  const agoraMs = agora.getTime();
-  const agoraIso = agora.toISOString();
-
-  // ocupação de cada consultor (carrega uma vez)
-  const occ: Record<string, { ocupados: Set<number>; bloqueios: { ini: number; fim: number }[] }> = {};
-  for (const c of CONSULTORES_RODIZIO) occ[c] = await carregarOcupacao(c, agoraIso);
-
-  let { y, m, d } = base;
-  for (let i = 0; i < 14; i++) {
-    const dow = dowSP(y, m, d);
-    if (dow !== 0 && dow !== 6) {  // só seg-sex
-      const horaIni = i === 0 ? Math.max(HORA_INI, base.h) : HORA_INI;
-      for (let h = horaIni; h < HORA_FIM; h++) {
-        for (let min = 0; min < 60; min += 15) {
-          const slot = spDate(y, m, d, h, min);
-          const t = slot.getTime();
-          // tenta os consultores na ordem do rodízio, a partir da vez atual.
-          // off=0 → o consultor da vez pegou; off>0 → substituto (vez do bloqueado é preservada)
-          for (let off = 0; off < CONSULTORES_RODIZIO.length; off++) {
-            const consultor = CONSULTORES_RODIZIO[(rodizioIdx + off) % CONSULTORES_RODIZIO.length];
-            if (slotDisponivel(t, agoraMs, occ[consultor])) {
-              return { slot, consultor, off };
-            }
-          }
-        }
-      }
-    }
-    ({ y, m, d } = proximoDia(y, m, d));
-  }
-  // fallback: consultor da vez, próximo dia útil 08:00 SP
-  return { slot: spDate(base.y, base.m, base.d, HORA_INI, 0), consultor: CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length], off: 0 };
-}
-
-// Slot livre pra um consultor FIXO (usado no realinhamento — não mexe no rodízio).
+// Slot livre pra um consultor FIXO. Respeita bloqueios/ocupação dele,
+// achando outro horário livre se o pedido estiver indisponível.
 async function slotLivreConsultor(consultor: string, base: { y: number; m: number; d: number; h: number }): Promise<Date> {
   const agora = new Date();
   const occ = await carregarOcupacao(consultor, agora.toISOString());
@@ -335,14 +294,13 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
         let consultor: string | null = null;
 
         if (naArea) {
-          // dentro da área: acha slot+consultor respeitando rodízio e bloqueios
+          // Rodízio SEMPRE em ordem (Thiago→Diego→Nilce), sem pular ninguém.
+          // O consultor da vez é fixo; se bloqueado/ocupado no horário pedido,
+          // agenda ele em OUTRO horário livre dele (não passa pro próximo).
+          consultor = CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length];
+          rodizioIdx++;
           const base = dataBaseDaFaixa(faixa);
-          const escolha = await acharSlotRodizio(rodizioIdx, base);
-          consultor = escolha.consultor;
-          // só avança a vez se o consultor da vez (off=0) pegou. Se foi substituto
-          // por bloqueio (off>0), o bloqueado MANTÉM a vez pro próximo lead.
-          if (escolha.off === 0) rodizioIdx++;
-          const slot = escolha.slot;
+          const slot = await slotLivreConsultor(consultor, base);
 
           const { data: agIns, error: agErr } = await supabaseGerador
             .from('agendamentos')
