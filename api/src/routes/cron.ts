@@ -17,6 +17,7 @@ import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendame
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda/leadsMetaService';
+import { syncSocialWindsor } from '../services/agenda/socialWindsorService';
 import { runDunning } from '../services/dunningService';
 import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
@@ -58,6 +59,18 @@ router.get('/sync-leads-meta', async (req: Request, res: Response) => {
     res.json({ ok: true, ...r });
   } catch (err: any) {
     logger.error('cron', 'sync-leads-meta falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// Sincroniza métricas sociais (IG + TikTok) da Windsor.ai → aba "Redes" do gerador
+router.get('/sync-social-windsor', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const r = await syncSocialWindsor();
+    res.json({ ok: true, ...r });
+  } catch (err: any) {
+    logger.error('cron', 'sync-social-windsor falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
@@ -379,11 +392,13 @@ router.get('/master', async (req: Request, res: Response) => {
     // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [PAUSED-FOLLOWUP] broadcast matinal
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
+    ['sync-social-windsor',         () => syncSocialWindsor()],      // métricas IG+TikTok → aba Redes do gerador
     ['insights-prewarm',             () => getInsights(true)],
     // ['luma-reativacao',             () => processarReativacao()], // [LUMA-IO-OFF] linha IO é só da Cora
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],
+    ['lembretes-agenda',            () => processarLembretesAgenda()], // backstop diário: garante confirmações que escaparam do gatilho de 15min
     ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
