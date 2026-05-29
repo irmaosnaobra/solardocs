@@ -1,5 +1,4 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
-import { sendWhatsApp } from '../agents/zapiClient';
 import { logger } from '../../utils/logger';
 
 // Puxa leads dos formulários (Lead Ads) da página "Irmãos na Obra" no Meta,
@@ -211,47 +210,6 @@ function montarObservacao(fields: FieldItem[]): string {
   return linhas.join(' · ');
 }
 
-// ===== Confirmação no WhatsApp (no momento do agendamento) =====
-const DIAS_SEMANA = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-
-function formatarQuandoSP(slot: Date): { diaSemana: string; data: string; hora: string } {
-  const f = (opts: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', ...opts }).formatToParts(slot);
-  const wd = f({ weekday: 'long' }).find(p => p.type === 'weekday')?.value || '';
-  const dp = f({ day: '2-digit', month: '2-digit' });
-  const dia = dp.find(p => p.type === 'day')?.value || '';
-  const mes = dp.find(p => p.type === 'month')?.value || '';
-  const tp = f({ hour: '2-digit', minute: '2-digit', hour12: false });
-  const hh = tp.find(p => p.type === 'hour')?.value || '';
-  const mm = tp.find(p => p.type === 'minute')?.value || '';
-  return { diaSemana: wd, data: `${dia}/${mes}`, hora: `${hh}h${mm}` };
-}
-
-function primeiroNomeLead(nome: string): string {
-  const n = (nome || '').trim().split(/\s+/)[0] || '';
-  return n && n.toLowerCase() !== 'lead' ? n : '';
-}
-
-// Mensagem aspiracional de confirmação. Não derruba o sync se o envio falhar.
-async function enviarConfirmacao(telefone: string, nome: string, consultor: string, slot: Date) {
-  if (!telefone) return;
-  const { diaSemana, data, hora } = formatarQuandoSP(slot);
-  const oi = primeiroNomeLead(nome);
-  const msg =
-    `Olá${oi ? ' ' + oi : ''}! 🌞\n\n` +
-    `Sua avaliação gratuita de energia solar com *${consultor}*, da *Irmãos na Obra*, está *confirmada* para *${diaSemana}, ${data}, às ${hora}*.\n\n` +
-    `Prepare-se para uma boa notícia: vamos te mostrar como o seu telhado pode gerar a sua própria energia — e quanto você vai *deixar de pagar todo mês* pra companhia de luz. ☀️\n\n` +
-    `Esse dinheiro que hoje some na conta de energia volta pro seu bolso e vira o que *você* decidir: aquela viagem em família, a troca do carro, terminar a reforma da casa… 💸\n\n` +
-    `Energia solar não é gasto — é o investimento mais inteligente que existe pra fazer o seu dinheiro render por mais de 25 anos.\n\n` +
-    `Deixe o telefone à mão na ${diaSemana}. ${consultor} vai te ligar pra te mostrar tudo, sem compromisso. Até lá! 🤝\n\n` +
-    `_Equipe Irmãos na Obra ☀️_`;
-  try {
-    await sendWhatsApp(telefone, msg, 'io');
-  } catch (e) {
-    logger.error('leads-meta', `falha ao enviar confirmação p/ ${telefone}`, e);
-  }
-}
-
 export async function syncLeadsMeta(): Promise<{ novos: number; agendados: number; erros: number }> {
   if (!SU_TOKEN) throw new Error('META_SYSTEM_USER_TOKEN ausente');
   let novos = 0, agendados = 0, erros = 0;
@@ -319,11 +277,9 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
 
           agendadoId = agErr ? null : (agIns as any)?.id ?? null;
           if (agErr) { logger.error('leads-meta', 'erro criar agendamento', agErr); erros++; }
-          else {
-            agendados++;
-            // confirmação aspiracional no WhatsApp (best-effort, não derruba o sync)
-            await enviarConfirmacao(whatsapp, nome, consultor, slot);
-          }
+          else agendados++;
+          // confirmação no WhatsApp: enviada pelo cron processarLembretesAgenda
+          // (com retry até entregar) — não inline, pra "sem falhar".
         }
         // fora da área: não agenda, não consome rodízio — só registra com fora_area=true
 

@@ -8,9 +8,12 @@ type Agendamento = {
   quando: string;
   cliente_nome: string;
   cliente_telefone: string;
+  cidade: string | null;
   observacao: string | null;
   status: string;
-  lembrete_3h_at: string | null;
+  created_by: string | null;
+  confirmacao_at: string | null;
+  lembrete_1h_at: string | null;
   lembrete_5min_at: string | null;
   created_at: string;
 };
@@ -45,7 +48,14 @@ function formatDataHora(iso: string): string {
 }
 
 function primeiroNome(nome: string): string {
-  return (nome || '').trim().split(/\s+/)[0] || '';
+  const n = (nome || '').trim().split(/\s+/)[0] || '';
+  return n && n.toLowerCase() !== 'lead' ? n : '';
+}
+
+function diaSemanaSP(iso: string): string {
+  const wd = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZone: BRT_TZ })
+    .formatToParts(new Date(iso)).find(p => p.type === 'weekday')?.value || '';
+  return wd;
 }
 
 async function carregarConsultoresMap(): Promise<Map<string, string>> {
@@ -60,94 +70,129 @@ async function carregarConsultoresMap(): Promise<Map<string, string>> {
   return map;
 }
 
+// CLIENTE primeiro, CONSULTOR depois. A flag só é setada DEPOIS de ambos
+// enviarem com sucesso — se falhar, o próximo tick do cron tenta de novo.
+async function enviarParCliente(
+  ag: Agendamento, vendedorWpp: string | null, msgCliente: string, msgVendedor: string,
+) {
+  await sendWhatsApp(ag.cliente_telefone, msgCliente, ZAPI_INSTANCE);
+  if (vendedorWpp) await sendWhatsApp(vendedorWpp, msgVendedor, ZAPI_INSTANCE);
+}
+
+// 1) AO MARCAR — mensagem que já vende, cliente vislumbra ter energia solar.
+async function dispararConfirmacao(ag: Agendamento, vendedorWpp: string | null) {
+  const nomeCli = primeiroNome(ag.cliente_nome);
+  const dia = diaSemanaSP(ag.quando);
+  const quandoTxt = formatDataHora(ag.quando);
+
+  const msgC =
+    `Olá${nomeCli ? ' ' + nomeCli : ''}! 🌞\n\n` +
+    `Sua avaliação gratuita de energia solar com *${ag.vendedor_nome}*, da *Irmãos na Obra*, está *confirmada* para *${dia}, ${quandoTxt}*.\n\n` +
+    `Imagine sua casa gerando a própria energia ☀️ — o telhado trabalhando pra você e a conta de luz despencando todo mês.\n\n` +
+    `Esse dinheiro que hoje some na conta de energia volta pro seu bolso e vira o que *você* decidir: aquela viagem em família ✈️, a troca do carro 🚗, terminar a reforma 🏠…\n\n` +
+    `Energia solar não é gasto — é o investimento mais inteligente pra fazer seu dinheiro render por mais de 25 anos. 💸\n\n` +
+    `Deixe o telefone à mão na ${dia}. ${ag.vendedor_nome} vai te ligar e te mostrar tudo, sem compromisso. Até lá! 🤝\n\n` +
+    `_Equipe Irmãos na Obra ☀️_`;
+
+  const msgV =
+    `✅ *Novo agendamento!*\n` +
+    `Cliente: *${ag.cliente_nome}*\n` +
+    `Quando: *${dia}, ${quandoTxt}*\n` +
+    `Tel: ${ag.cliente_telefone}` +
+    (ag.cidade ? `\nCidade: ${ag.cidade}` : '') +
+    (ag.observacao ? `\n_Obs: ${ag.observacao}_` : '');
+
+  await enviarParCliente(ag, vendedorWpp, msgC, msgV);
+  await supabaseGerador.from('agendamentos').update({ confirmacao_at: new Date().toISOString() }).eq('id', ag.id);
+}
+
+// 2) 1 HORA ANTES
+async function disparar1h(ag: Agendamento, vendedorWpp: string | null) {
+  const nomeCli = primeiroNome(ag.cliente_nome);
+  const hora = formatHora(ag.quando);
+
+  const msgC =
+    `Olá${nomeCli ? ' ' + nomeCli : ''}! ⏰ Falta *1 hora* pra sua conversa sobre energia solar com *${ag.vendedor_nome}*, da *Irmãos na Obra* (às ${hora}).\n\n` +
+    `Já pensa no quanto você vai economizar todo mês ☀️💸 — daqui a pouco te ligamos pra te mostrar tudo!`;
+  const msgV =
+    `🔔 *Em 1 hora:* ligação com *${ag.cliente_nome}* às *${hora}*.\n` +
+    `Tel: ${ag.cliente_telefone}` +
+    (ag.cidade ? `\nCidade: ${ag.cidade}` : '') +
+    (ag.observacao ? `\n_Obs: ${ag.observacao}_` : '');
+
+  await enviarParCliente(ag, vendedorWpp, msgC, msgV);
+  await supabaseGerador.from('agendamentos').update({ lembrete_1h_at: new Date().toISOString() }).eq('id', ag.id);
+}
+
+// 3) 5 MINUTOS ANTES
 async function disparar5min(ag: Agendamento, vendedorWpp: string | null) {
   const nomeCli = primeiroNome(ag.cliente_nome);
   const hora = formatHora(ag.quando);
 
-  // Vendedor
-  if (vendedorWpp) {
-    const msgV =
-      `📞 *Em 5 minutos:* ligação com *${ag.cliente_nome}* às *${hora}*.\n` +
-      `Tel: ${ag.cliente_telefone}` +
-      (ag.observacao ? `\n_Obs: ${ag.observacao}_` : '');
-    await sendWhatsApp(vendedorWpp, msgV, ZAPI_INSTANCE);
-  }
-
-  // Cliente
   const msgC =
-    `Olá${nomeCli ? ' ' + nomeCli : ''}! Em ~5 minutos o consultor *${ag.vendedor_nome}* ` +
-    `da *Irmãos na Obra* vai te ligar (às ${hora}). Deixa o telefone à mão!`;
-  await sendWhatsApp(ag.cliente_telefone, msgC, ZAPI_INSTANCE);
+    `${nomeCli ? nomeCli + ', s' : 'S'}ua ligação é *agora* 📞 — em ~5 minutos o consultor *${ag.vendedor_nome}* ` +
+    `da *Irmãos na Obra* vai te ligar (${hora}). Deixa o telefone à mão e prepare-se pra economizar! ☀️`;
+  const msgV =
+    `📞 *Em 5 minutos:* ligação com *${ag.cliente_nome}* às *${hora}*.\n` +
+    `Tel: ${ag.cliente_telefone}` +
+    (ag.cidade ? `\nCidade: ${ag.cidade}` : '') +
+    (ag.observacao ? `\n_Obs: ${ag.observacao}_` : '');
 
-  await supabaseGerador
-    .from('agendamentos')
-    .update({ lembrete_5min_at: new Date().toISOString() })
-    .eq('id', ag.id);
-}
-
-async function disparar3h(ag: Agendamento, vendedorWpp: string | null) {
-  const nomeCli = primeiroNome(ag.cliente_nome);
-  const quandoTxt = formatDataHora(ag.quando);
-
-  if (vendedorWpp) {
-    const msgV =
-      `🔔 *Em ~3 horas:* ligação com *${ag.cliente_nome}* (${quandoTxt}).\n` +
-      `Tel: ${ag.cliente_telefone}` +
-      (ag.observacao ? `\n_Obs: ${ag.observacao}_` : '');
-    await sendWhatsApp(vendedorWpp, msgV, ZAPI_INSTANCE);
-  }
-
-  const msgC =
-    `Olá${nomeCli ? ' ' + nomeCli : ''}! Lembrando da sua conversa com o consultor *${ag.vendedor_nome}* ` +
-    `da *Irmãos na Obra*, hoje ${quandoTxt}. Te ligamos no horário!`;
-  await sendWhatsApp(ag.cliente_telefone, msgC, ZAPI_INSTANCE);
-
-  await supabaseGerador
-    .from('agendamentos')
-    .update({ lembrete_3h_at: new Date().toISOString() })
-    .eq('id', ag.id);
+  await enviarParCliente(ag, vendedorWpp, msgC, msgV);
+  await supabaseGerador.from('agendamentos').update({ lembrete_5min_at: new Date().toISOString() }).eq('id', ag.id);
 }
 
 /**
  * Roda a cada minuto (chamada do /cron/process-messages).
- * - Lembrete 5min: dispara quando faltam entre 0 e 6 min pra ligação.
- * - Lembrete 3h: dispara quando faltam entre 2h55min e 3h05min, e o agendamento
- *   foi criado com >24h de antecedência.
- * Cada lembrete só dispara uma vez (flags lembrete_*_at).
+ * Três mensagens cron-driven, cada uma com sua flag (só seta no sucesso → retry automático):
+ * - Confirmação (ao marcar): assim que confirmacao_at é null, p/ leads do Instagram futuros.
+ * - Lembrete 1h: quando faltam 55–65 min.
+ * - Lembrete 5min: quando faltam 0–6 min.
+ * Cliente e consultor recebem juntos (cliente primeiro).
  */
 export async function processarLembretesAgenda(): Promise<{
+  confirmacoes: number;
+  enviados_1h: number;
   enviados_5min: number;
-  enviados_3h: number;
   erros: number;
 }> {
   const now = new Date();
   const nowMs = now.getTime();
 
-  // Janela ampla: pega tudo de agora até 4h à frente que tenha algum lembrete pendente.
-  const limite = new Date(nowMs + 4 * 60 * 60 * 1000).toISOString();
+  // Pega agendamentos futuros (até 30 dias) que ainda têm alguma das 3 mensagens pendente.
+  const limite = new Date(nowMs + 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: rows, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, observacao, status, lembrete_3h_at, lembrete_5min_at, created_at')
+    .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, cidade, observacao, status, created_by, confirmacao_at, lembrete_1h_at, lembrete_5min_at, created_at')
     .eq('status', 'agendado')
     .gte('quando', now.toISOString())
     .lte('quando', limite);
 
   if (error) {
     logger.error('agenda', 'falha ao listar agendamentos', error);
-    return { enviados_5min: 0, enviados_3h: 0, erros: 1 };
+    return { confirmacoes: 0, enviados_1h: 0, enviados_5min: 0, erros: 1 };
   }
-  if (!rows?.length) return { enviados_5min: 0, enviados_3h: 0, erros: 0 };
+  if (!rows?.length) return { confirmacoes: 0, enviados_1h: 0, enviados_5min: 0, erros: 0 };
 
   const consultores = await carregarConsultoresMap();
-  let env5 = 0;
-  let env3 = 0;
-  let erros = 0;
+  let conf = 0, env1 = 0, env5 = 0, erros = 0;
 
   for (const ag of rows as Agendamento[]) {
     const quandoMs = new Date(ag.quando).getTime();
     const minutosAteCall = (quandoMs - nowMs) / 60000;
     const vendedorWpp = consultores.get(ag.vendedor_nome) ?? null;
+
+    // ── Confirmação ao marcar (só leads do Instagram; agendamento manual não dispara blast) ──
+    if (!ag.confirmacao_at && ag.created_by === 'lead-meta') {
+      try {
+        await dispararConfirmacao(ag, vendedorWpp);
+        conf++;
+      } catch (e) {
+        logger.error('agenda', 'falha confirmação', { id: ag.id, erro: String(e) });
+        erros++;
+      }
+    }
 
     // ── 5 min antes ──
     if (!ag.lembrete_5min_at && minutosAteCall <= 6 && minutosAteCall >= -1) {
@@ -158,24 +203,20 @@ export async function processarLembretesAgenda(): Promise<{
         logger.error('agenda', 'falha lembrete 5min', { id: ag.id, erro: String(e) });
         erros++;
       }
-      continue; // mesmo ciclo: não dispara 3h junto
+      continue;
     }
 
-    // ── 3 h antes (só se o agendamento foi feito com >24h de antecedência) ──
-    if (!ag.lembrete_3h_at && minutosAteCall <= 185 && minutosAteCall >= 175) {
-      const criadoMs = new Date(ag.created_at).getTime();
-      const antecedenciaHoras = (quandoMs - criadoMs) / (1000 * 60 * 60);
-      if (antecedenciaHoras < 24) continue;
-
+    // ── 1 hora antes ──
+    if (!ag.lembrete_1h_at && minutosAteCall <= 65 && minutosAteCall >= 55) {
       try {
-        await disparar3h(ag, vendedorWpp);
-        env3++;
+        await disparar1h(ag, vendedorWpp);
+        env1++;
       } catch (e) {
-        logger.error('agenda', 'falha lembrete 3h', { id: ag.id, erro: String(e) });
+        logger.error('agenda', 'falha lembrete 1h', { id: ag.id, erro: String(e) });
         erros++;
       }
     }
   }
 
-  return { enviados_5min: env5, enviados_3h: env3, erros };
+  return { confirmacoes: conf, enviados_1h: env1, enviados_5min: env5, erros };
 }
