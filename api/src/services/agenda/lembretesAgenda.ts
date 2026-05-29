@@ -194,8 +194,9 @@ export async function processarLembretesAgenda(): Promise<{
       }
     }
 
-    // ── 5 min antes ──
-    if (!ag.lembrete_5min_at && minutosAteCall <= 6 && minutosAteCall >= -1) {
+    // ── ~5 min antes ── janela alargada (12min) p/ tolerar atraso do cron de 5min.
+    // A flag impede duplo envio, então alargar é seguro.
+    if (!ag.lembrete_5min_at && minutosAteCall <= 12 && minutosAteCall >= -3) {
       try {
         await disparar5min(ag, vendedorWpp);
         env5++;
@@ -206,8 +207,8 @@ export async function processarLembretesAgenda(): Promise<{
       continue;
     }
 
-    // ── 1 hora antes ──
-    if (!ag.lembrete_1h_at && minutosAteCall <= 65 && minutosAteCall >= 55) {
+    // ── ~1 hora antes ── janela alargada (45–75min) p/ não perder tick.
+    if (!ag.lembrete_1h_at && minutosAteCall <= 75 && minutosAteCall >= 45) {
       try {
         await disparar1h(ag, vendedorWpp);
         env1++;

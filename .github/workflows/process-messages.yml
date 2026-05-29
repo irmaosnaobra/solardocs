@@ -1,0 +1,20 @@
+name: Process Messages (lembretes agenda + fila Z-API)
+
+# A cada 5 minutos: dispara as 3 mensagens da agenda (confirmação ao marcar,
+# lembrete 1h e 5min antes), pra cliente E consultor, além de processar a fila Z-API.
+# GitHub Actions tem piso de ~5min e pode atrasar; as janelas no código são
+# alargadas (5min: -3..12 / 1h: 45..75) pra tolerar ticks atrasados sem perder envio.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Processar mensagens
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/process-messages" \
+            -H "Authorization: Bearer solardocs_master_cron_2024" \
+            --max-time 120 -sS -w "\nHTTP %{http_code}\n"
