@@ -87,8 +87,9 @@ async function dispararConfirmacao(ag: Agendamento, vendedorWpp: string | null) 
 
   const msgC =
     `Olá${nomeCli ? ', ' + nomeCli : ''}. ✅\n\n` +
-    `Sua reunião com *${ag.vendedor_nome}*, da *Irmãos na Obra*, está confirmada para *${dia}, ${quandoTxt}*.\n\n` +
-    `A ligação será neste número. Pedimos que esteja disponível no horário.\n\n` +
+    `Você está prestes a fazer o melhor investimento em termos de retorno. Já pensou em algo que se paga em menos de 2 anos?\n\n` +
+    `É exatamente isso que *${ag.vendedor_nome}*, da *Irmãos na Obra*, vai te apresentar na sua reunião, confirmada para *${dia}, ${quandoTxt}*.\n\n` +
+    `A ligação será neste número. Esteja disponível no horário.\n\n` +
     `Até lá.\n` +
     `_Irmãos na Obra_`;
 
