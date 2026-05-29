@@ -58,6 +58,10 @@ html[data-theme="dark"] #leadsSection .historico-tabela td{color:#E5E7EB;border-
 html[data-theme="dark"] #leadsSection .historico-tabela tr:hover td{background:#1E293B}
 html[data-theme="dark"] #leadsSection .historico-vazio{color:#94A3B8}
 #leadsSection .leads-tabela{min-width:980px}
+/* Lead fora da área de atendimento: linha em vermelho claro, não agendado */
+#leadsSection .leads-tabela tr.lead-fora td{background:rgba(239,68,68,.16)!important;color:#fecaca}
+#leadsSection .leads-tabela tr.lead-fora:hover td{background:rgba(239,68,68,.24)!important}
+.lead-fora-tag{display:inline-block;font-size:11px;font-weight:700;color:#fca5a5;background:rgba(239,68,68,.2);padding:2px 9px;border-radius:99px}
 
 /* ===== Tela Tabelas ===== */
 .tbl-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
@@ -3343,14 +3347,18 @@ async function carregarLeads() {
     const urgencia = leadCampo(fd, 'urg');
     const pagamento = leadCampo(fd, 'investir', 'pagamento', 'pagar');
     const decisor = leadCampo(fd, 'decide', 'decisor');
-    const agendado = r.agendado_id ? '✓' : '—';
+    const foraArea = !!r.fora_area;
+    const agendado = r.agendado_id ? '✓' : (foraArea ? '⚠ fora da área' : '—');
+    const consultorCell = foraArea
+      ? '<span class="lead-fora-tag">fora da área</span>'
+      : `<span class="lead-consultor">${escapeHtml(r.consultor || '—')}</span>`;
     const detJson = encodeURIComponent(JSON.stringify(fd));
-    return `<tr>
+    return `<tr class="${foraArea ? 'lead-fora' : ''}">
       <td>${dtTxt}</td>
       <td>${escapeHtml(r.nome || '—')}</td>
       <td>${wppLink}</td>
       <td>${escapeHtml(r.cidade || '—')}</td>
-      <td><span class="lead-consultor">${escapeHtml(r.consultor || '—')}</span></td>
+      <td>${consultorCell}</td>
       <td>${agendado}</td>
       <td>${escapeHtml(consumo || '—')}</td>
       <td>${escapeHtml(urgencia || '—')}</td>

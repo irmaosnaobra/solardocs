@@ -55,6 +55,30 @@ function fieldContains(fields: FieldItem[], ...terms: string[]): string {
   return '';
 }
 
+// Normaliza cidade do lead (texto livre) pra comparar com a área de atendimento.
+// "Capelinha mg", "Rio Paranaíba zona rural" → "capelinha", "rio paranaiba"
+function normalizarCidade(s: string): string {
+  return (s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // tira acentos
+    .toLowerCase()
+    .replace(/\b(zona rural|zona urbana|mg|sp|go|minas gerais|sao paulo|goias)\b/g, '')
+    .replace(/[^a-z\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// True se a cidade do lead está na área de atendimento (tabela cidades_atendimento)
+async function dentroDaArea(cidade: string): Promise<boolean> {
+  const norm = normalizarCidade(cidade);
+  if (!norm) return false;
+  const { data } = await supabaseGerador
+    .from('cidades_atendimento')
+    .select('id')
+    .eq('cidade_normalizada', norm)
+    .limit(1);
+  return !!(data && data.length > 0);
+}
+
 // Deriva o Page Access Token na hora (SU token é permanente; page token derivado não expira na prática)
 async function getPageToken(): Promise<string> {
   const r = await fetch(`${GRAPH}/${PAGE_ID}?fields=access_token&access_token=${SU_TOKEN}`);
@@ -184,33 +208,39 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
         const cidade = fieldVal(fields, 'city');
         const faixa = fieldContains(fields, 'horário', 'horario', 'hoario');
 
-        // rodízio
-        const consultor = CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length];
-        rodizioIdx++;
-
-        // horário
-        const base = dataBaseDaFaixa(faixa);
-        const slot = await acharSlot(consultor, base);
-
-        // cria agendamento
+        const naArea = await dentroDaArea(cidade);
         const obs = montarObservacao(fields);
-        const { data: agIns, error: agErr } = await supabaseGerador
-          .from('agendamentos')
-          .insert({
-            vendedor_nome: consultor,
-            quando: slot.toISOString(),
-            cliente_nome: nome,
-            cliente_telefone: whatsapp,
-            observacao: obs ? `[Lead Instagram] ${obs}` : '[Lead Instagram]',
-            status: 'agendado',
-            created_by: 'lead-meta',
-          })
-          .select('id')
-          .single();
 
-        const agendadoId = agErr ? null : (agIns as any)?.id ?? null;
-        if (agErr) { logger.error('leads-meta', 'erro criar agendamento', agErr); erros++; }
-        else agendados++;
+        let agendadoId: number | null = null;
+        let consultor: string | null = null;
+
+        if (naArea) {
+          // dentro da área: rodízio + agendamento automático
+          consultor = CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length];
+          rodizioIdx++;  // só avança a vez do rodízio quando agenda de fato
+
+          const base = dataBaseDaFaixa(faixa);
+          const slot = await acharSlot(consultor, base);
+
+          const { data: agIns, error: agErr } = await supabaseGerador
+            .from('agendamentos')
+            .insert({
+              vendedor_nome: consultor,
+              quando: slot.toISOString(),
+              cliente_nome: nome,
+              cliente_telefone: whatsapp,
+              observacao: obs ? `[Lead Instagram] ${obs}` : '[Lead Instagram]',
+              status: 'agendado',
+              created_by: 'lead-meta',
+            })
+            .select('id')
+            .single();
+
+          agendadoId = agErr ? null : (agIns as any)?.id ?? null;
+          if (agErr) { logger.error('leads-meta', 'erro criar agendamento', agErr); erros++; }
+          else agendados++;
+        }
+        // fora da área: não agenda, não consome rodízio — só registra com fora_area=true
 
         // grava lead
         await supabaseGerador.from('leads_meta').insert({
@@ -221,6 +251,7 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
           field_data: fields,
           agendado_id: agendadoId,
           consultor,
+          fora_area: !naArea,
         });
         novos++;
       } catch (e) {
