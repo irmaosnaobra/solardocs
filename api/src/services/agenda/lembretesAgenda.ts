@@ -86,13 +86,11 @@ async function dispararConfirmacao(ag: Agendamento, vendedorWpp: string | null) 
   const quandoTxt = formatDataHora(ag.quando);
 
   const msgC =
-    `Olá${nomeCli ? ' ' + nomeCli : ''}! 🌞\n\n` +
-    `Sua avaliação gratuita de energia solar com *${ag.vendedor_nome}*, da *Irmãos na Obra*, está *confirmada* para *${dia}, ${quandoTxt}*.\n\n` +
-    `Imagine sua casa gerando a própria energia ☀️ — o telhado trabalhando pra você e a conta de luz despencando todo mês.\n\n` +
-    `Esse dinheiro que hoje some na conta de energia volta pro seu bolso e vira o que *você* decidir: aquela viagem em família ✈️, a troca do carro 🚗, terminar a reforma 🏠…\n\n` +
-    `Energia solar não é gasto — é o investimento mais inteligente pra fazer seu dinheiro render por mais de 25 anos. 💸\n\n` +
-    `Deixe o telefone à mão na ${dia}. ${ag.vendedor_nome} vai te ligar e te mostrar tudo, sem compromisso. Até lá! 🤝\n\n` +
-    `_Equipe Irmãos na Obra ☀️_`;
+    `Olá${nomeCli ? ', ' + nomeCli : ''}. ✅\n\n` +
+    `Sua reunião com *${ag.vendedor_nome}*, da *Irmãos na Obra*, está confirmada para *${dia}, ${quandoTxt}*.\n\n` +
+    `A ligação será neste número. Pedimos que esteja disponível no horário.\n\n` +
+    `Até lá.\n` +
+    `_Irmãos na Obra_`;
 
   const msgV =
     `✅ *Novo agendamento!*\n` +
