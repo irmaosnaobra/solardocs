@@ -86,6 +86,18 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .redes-vazio-tt{text-align:center;padding:28px 16px;color:#cbd5e1}
 .redes-vazio-tt .vt-big{font-size:34px;font-weight:800;color:#fff}
 .redes-ia-card{margin-top:8px}
+.redes-pub-card{margin-top:8px}
+.redes-pub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
+.redes-pub-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 10px;border-radius:12px;text-decoration:none;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);transition:transform .12s,border-color .12s}
+.redes-pub-btn:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.3)}
+.redes-pub-btn .rp-ic{font-size:26px;line-height:1}
+.redes-pub-btn .rp-nome{font-size:14px;font-weight:700;color:#fff}
+.redes-pub-btn .rp-tag{font-size:11px;color:#94A3B8}
+.redes-pub-btn.rp-ig:hover{border-color:#E1306C;box-shadow:0 0 0 1px #E1306C inset}
+.redes-pub-btn.rp-tt:hover{border-color:#25F4EE;box-shadow:0 0 0 1px #25F4EE inset}
+.redes-pub-btn.rp-yt:hover{border-color:#FF0000;box-shadow:0 0 0 1px #FF0000 inset}
+.redes-pub-btn.rp-fb:hover{border-color:#1877F2;box-shadow:0 0 0 1px #1877F2 inset}
+.redes-pub-btn.rp-kw:hover{border-color:#FF7700;box-shadow:0 0 0 1px #FF7700 inset}
 .redes-ia-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .redes-ia-head h3{font-size:15px;color:#E5E7EB;margin:0}
 .btn-redes-ia{background:#10b981;color:#fff;border:none;padding:9px 18px;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:14px}
@@ -1166,6 +1178,32 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
     <div id="redes-conteudo">
       <div class="historico-vazio" style="padding:40px">Carregando...</div>
+    </div>
+
+    <!-- Publicar nas redes: atalhos pra postar o mesmo vídeo em todas -->
+    <div class="card redes-pub-card">
+      <div class="redes-ia-head">
+        <h3>🚀 Publicar nas redes</h3>
+        <span class="redes-ia-sub" style="margin:0">Baixe o vídeo 1x e replique em todas — abra cada rede num clique</span>
+      </div>
+      <div class="redes-pub-grid">
+        <a class="redes-pub-btn rp-ig" href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener">
+          <span class="rp-ic">📷</span><span class="rp-nome">Instagram</span><span class="rp-tag">Reels</span>
+        </a>
+        <a class="redes-pub-btn rp-tt" href="https://www.tiktok.com/@irmaosnaobra__" target="_blank" rel="noopener">
+          <span class="rp-ic">🎵</span><span class="rp-nome">TikTok</span><span class="rp-tag">@irmaosnaobra__</span>
+        </a>
+        <a class="redes-pub-btn rp-yt" href="https://www.youtube.com/upload" target="_blank" rel="noopener">
+          <span class="rp-ic">▶️</span><span class="rp-nome">YouTube</span><span class="rp-tag">Shorts • criar canal</span>
+        </a>
+        <a class="redes-pub-btn rp-fb" href="https://www.facebook.com/search/top?q=irm%C3%A3os%20na%20obra" target="_blank" rel="noopener">
+          <span class="rp-ic">👥</span><span class="rp-nome">Facebook</span><span class="rp-tag">página IO</span>
+        </a>
+        <a class="redes-pub-btn rp-kw" href="https://www.kwai.com/" target="_blank" rel="noopener">
+          <span class="rp-ic">⚡</span><span class="rp-nome">Kwai</span><span class="rp-tag">criar conta</span>
+        </a>
+      </div>
+      <p class="redes-ia-sub" style="margin:12px 0 0">💡 Dica: poste o mesmo Reel vertical em todas. YouTube e Kwai você ainda vai criar — o atalho já te leva lá.</p>
     </div>
 
     <!-- IA: ideias de conteúdo -->
