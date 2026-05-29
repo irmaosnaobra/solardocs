@@ -173,7 +173,7 @@ function slotDisponivel(t: number, agoraMs: number, occ: { ocupados: Set<number>
 async function acharSlotRodizio(
   rodizioIdx: number,
   base: { y: number; m: number; d: number; h: number },
-): Promise<{ slot: Date; consultor: string }> {
+): Promise<{ slot: Date; consultor: string; off: number }> {
   const agora = new Date();
   const agoraMs = agora.getTime();
   const agoraIso = agora.toISOString();
@@ -191,11 +191,12 @@ async function acharSlotRodizio(
         for (let min = 0; min < 60; min += 15) {
           const slot = spDate(y, m, d, h, min);
           const t = slot.getTime();
-          // tenta os consultores na ordem do rodízio, a partir da vez atual
+          // tenta os consultores na ordem do rodízio, a partir da vez atual.
+          // off=0 → o consultor da vez pegou; off>0 → substituto (vez do bloqueado é preservada)
           for (let off = 0; off < CONSULTORES_RODIZIO.length; off++) {
             const consultor = CONSULTORES_RODIZIO[(rodizioIdx + off) % CONSULTORES_RODIZIO.length];
             if (slotDisponivel(t, agoraMs, occ[consultor])) {
-              return { slot, consultor };
+              return { slot, consultor, off };
             }
           }
         }
@@ -204,7 +205,7 @@ async function acharSlotRodizio(
     ({ y, m, d } = proximoDia(y, m, d));
   }
   // fallback: consultor da vez, próximo dia útil 08:00 SP
-  return { slot: spDate(base.y, base.m, base.d, HORA_INI, 0), consultor: CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length] };
+  return { slot: spDate(base.y, base.m, base.d, HORA_INI, 0), consultor: CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length], off: 0 };
 }
 
 // Slot livre pra um consultor FIXO (usado no realinhamento — não mexe no rodízio).
@@ -338,7 +339,9 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
           const base = dataBaseDaFaixa(faixa);
           const escolha = await acharSlotRodizio(rodizioIdx, base);
           consultor = escolha.consultor;
-          rodizioIdx++;  // avança a vez do rodízio quando agenda de fato
+          // só avança a vez se o consultor da vez (off=0) pegou. Se foi substituto
+          // por bloqueio (off>0), o bloqueado MANTÉM a vez pro próximo lead.
+          if (escolha.off === 0) rodizioIdx++;
           const slot = escolha.slot;
 
           const { data: agIns, error: agErr } = await supabaseGerador
