@@ -391,6 +391,10 @@
     color: #b91c1c;
   }
   .btn-excluir:hover { background: #fecaca; }
+  .btn-reagendar { background: #1E3A8A; color: #fff; width: 100%; }
+  .btn-reagendar:hover { background: #1D4ED8; }
+  html[data-theme="dark"] .btn-reagendar { background: #2563EB; color: #fff; }
+  html[data-theme="dark"] .btn-reagendar:hover { background: #1D4ED8; }
   .btn-wpp {
     background: #25d366;
     color: #fff;
@@ -932,8 +936,34 @@
 
     <div class="modal-erro" id="d-erro"></div>
 
+    <!-- Bloco de reagendamento (escondido até clicar em Reagendar) -->
+    <div id="d-reagendar-box" style="display:none; margin-top:14px; padding:14px; border-radius:10px; background:rgba(96,165,250,.1); border:1px solid rgba(96,165,250,.3);">
+      <div style="font-weight:700; color:#93C5FD; margin-bottom:10px; font-size:13px;">📅 Reagendar / transferir</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div>
+          <label for="d-re-data">Data</label>
+          <input type="date" id="d-re-data">
+        </div>
+        <div>
+          <label for="d-re-hora">Hora</label>
+          <input type="time" id="d-re-hora" step="900">
+        </div>
+        <div style="grid-column:1/-1;">
+          <label for="d-re-consultor">Consultor</label>
+          <select id="d-re-consultor"></select>
+        </div>
+      </div>
+      <div class="modal-acoes" style="margin-top:12px">
+        <button class="btn-cancelar" onclick="fecharReagendar()">Voltar</button>
+        <button class="btn-salvar" onclick="salvarReagendamento()">Salvar novo horário</button>
+      </div>
+    </div>
+
     <div class="modal-acoes" style="margin-top:14px">
       <a class="btn-wpp" id="d-btn-wpp" target="_blank" rel="noopener">💬 WhatsApp</a>
+    </div>
+    <div class="modal-acoes" style="margin-top:8px">
+      <button class="btn-reagendar" id="d-btn-reagendar" onclick="abrirReagendar()">📅 Reagendar</button>
     </div>
     <div class="modal-acoes" style="margin-top:8px">
       <button class="btn-excluir" onclick="excluirAgendamento()">Cancelar agendamento</button>
@@ -1455,6 +1485,7 @@ function abrirDetalhes(id) {
   document.getElementById('d-nota').value = '';
   marcarStatusAtualNosBotoes(ag.status || 'agendado');
   marcarTemperaturaAtualNosBotoes(ag.temperatura || null);
+  fecharReagendar();
   document.getElementById('modal-det').classList.add('show');
 }
 
@@ -1553,6 +1584,45 @@ async function excluirAgendamento() {
     await renderTudo();
   } catch (e) {
     document.getElementById('d-erro').textContent = 'Erro ao cancelar.';
+    console.error(e);
+  }
+}
+
+// ============= REAGENDAR / TRANSFERIR =============
+function abrirReagendar() {
+  if (!detalheAtual) return;
+  const dt = new Date(detalheAtual.quando);
+  document.getElementById('d-re-data').value = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+  document.getElementById('d-re-hora').value = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  const sel = document.getElementById('d-re-consultor');
+  sel.innerHTML = VENDEDORES.map(v => `<option value="${v}" ${v === detalheAtual.vendedor_nome ? 'selected' : ''}>${v}</option>`).join('');
+  document.getElementById('d-reagendar-box').style.display = '';
+  document.getElementById('d-btn-reagendar').style.display = 'none';
+}
+function fecharReagendar() {
+  document.getElementById('d-reagendar-box').style.display = 'none';
+  document.getElementById('d-btn-reagendar').style.display = '';
+}
+async function salvarReagendamento() {
+  if (!detalheAtual) return;
+  const data = document.getElementById('d-re-data').value;
+  const hora = document.getElementById('d-re-hora').value;
+  const consultor = document.getElementById('d-re-consultor').value;
+  if (!data || !hora) { document.getElementById('d-erro').textContent = 'Informe data e hora.'; return; }
+  const novoQuando = new Date(`${data}T${hora}:00`);
+  if (isNaN(novoQuando.getTime())) { document.getElementById('d-erro').textContent = 'Data/hora inválida.'; return; }
+  try {
+    await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, {
+      quando: novoQuando.toISOString(),
+      vendedor_nome: consultor,
+      status: 'agendado',
+    });
+    fecharModalDet();
+    const transf = consultor !== detalheAtual.vendedor_nome ? ` e transferido p/ ${consultor}` : '';
+    showToast(`📅 Reagendado${transf}`);
+    await renderTudo();
+  } catch (e) {
+    document.getElementById('d-erro').textContent = 'Erro ao reagendar.';
     console.error(e);
   }
 }
