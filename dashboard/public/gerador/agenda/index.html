@@ -194,6 +194,14 @@
     opacity: .85;
     margin-top: 2px;
   }
+  .slot.ocupado .cidade {
+    font-size: 10px;
+    opacity: .8;
+    margin-top: 1px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   /* Status coloridos */
   .slot.status-agendado          { background: #0d2d5e; color: #fff; }
   .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
@@ -823,6 +831,9 @@
       <label>WhatsApp do cliente *</label>
       <input type="tel" id="m-tel" placeholder="(34) 99999-9999" inputmode="tel" autocomplete="off">
 
+      <label>Cidade</label>
+      <input type="text" id="m-cidade" autocomplete="off" maxlength="80" placeholder="Ex: Uberlândia">
+
       <label>Observação</label>
       <textarea id="m-obs" maxlength="300" placeholder="Anotações sobre o cliente, contexto, etc."></textarea>
     </div>
@@ -1217,6 +1228,7 @@ function renderGrid() {
             ${tempEmoji ? `<div class="temp-mark">${tempEmoji}</div>` : ''}
             <div class="nome">${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}</div>
+            ${ag.cidade ? `<div class="cidade">📍 ${escapeHtml(ag.cidade)}</div>` : ''}
           </div>`;
         } else if (bloq) {
           // Mostra texto do motivo só no primeiro slot do bloqueio (pro slot inicial casar exato)
@@ -1263,6 +1275,7 @@ function abrirNovo(isoStr) {
   // Reset aba agendar
   document.getElementById('m-nome').value = '';
   document.getElementById('m-tel').value = '';
+  document.getElementById('m-cidade').value = '';
   document.getElementById('m-obs').value = '';
   document.getElementById('m-erro').textContent = '';
 
@@ -1423,6 +1436,7 @@ function fecharModal() {
 async function salvarAgendamento() {
   const nome = document.getElementById('m-nome').value.trim();
   const telRaw = document.getElementById('m-tel').value;
+  const cidade = document.getElementById('m-cidade').value.trim();
   const obs = document.getElementById('m-obs').value.trim();
   const err = document.getElementById('m-erro');
   err.textContent = '';
@@ -1442,6 +1456,7 @@ async function salvarAgendamento() {
       quando:           toLocalIso(slotAtual.dataIso),
       cliente_nome:     nome,
       cliente_telefone: tel,
+      cidade:           cidade || null,
       observacao:       obs || null,
       created_by:       consultorLogado() || null,
     });

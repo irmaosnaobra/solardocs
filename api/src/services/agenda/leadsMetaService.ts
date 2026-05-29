@@ -348,6 +348,7 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
               quando: slot.toISOString(),
               cliente_nome: nome,
               cliente_telefone: whatsapp,
+              cidade: cidade || null,
               observacao: obs ? `[Lead Instagram] ${obs}` : '[Lead Instagram]',
               status: 'agendado',
               created_by: 'lead-meta',
