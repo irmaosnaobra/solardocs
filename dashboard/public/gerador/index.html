@@ -1085,7 +1085,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
               <th>WhatsApp</th>
               <th>Cidade</th>
               <th>Consultor</th>
-              <th>Agendado</th>
+              <th>Agendado p/</th>
               <th>Consumo</th>
               <th>Urgência</th>
               <th>Pagamento</th>
@@ -3337,10 +3337,19 @@ async function carregarLeads() {
     tbody.innerHTML = '<tr><td colspan="11" class="historico-vazio">Nenhum lead ainda. Quando chegarem anúncios novos, aparecem aqui automaticamente.</td></tr>';
     return;
   }
+  // Busca o "quando" dos agendamentos vinculados pra mostrar a data agendada
+  const agIds = rows.map(r => r.agendado_id).filter(Boolean);
+  const quandoMap = {};
+  if (agIds.length) {
+    try {
+      const ags = await supaGet(`agendamentos?select=id,quando&id=in.(${agIds.join(',')})`);
+      (ags || []).forEach(a => { quandoMap[a.id] = a.quando; });
+    } catch (e) {}
+  }
+  const p2 = n => String(n).padStart(2, '0');
   tbody.innerHTML = rows.map(r => {
     const fd = r.field_data || [];
     const dt = r.created_time ? new Date(r.created_time) : null;
-    const p2 = n => String(n).padStart(2, '0');
     const dtTxt = dt ? `${p2(dt.getDate())}/${p2(dt.getMonth()+1)} ${p2(dt.getHours())}:${p2(dt.getMinutes())}` : '—';
     const wppLink = r.whatsapp ? `<a class="lead-wpp" href="https://wa.me/${r.whatsapp}" target="_blank">${r.whatsapp}</a>` : '—';
     const consumo = leadCampo(fd, 'consum');
@@ -3348,7 +3357,15 @@ async function carregarLeads() {
     const pagamento = leadCampo(fd, 'investir', 'pagamento', 'pagar');
     const decisor = leadCampo(fd, 'decide', 'decisor');
     const foraArea = !!r.fora_area;
-    const agendado = r.agendado_id ? '✓' : (foraArea ? '⚠ fora da área' : '—');
+    let agendado;
+    if (r.agendado_id && quandoMap[r.agendado_id]) {
+      const q = new Date(quandoMap[r.agendado_id]);
+      agendado = `${p2(q.getDate())}/${p2(q.getMonth()+1)} ${p2(q.getHours())}:${p2(q.getMinutes())}`;
+    } else if (foraArea) {
+      agendado = '⚠ fora da área';
+    } else {
+      agendado = '—';
+    }
     const consultorCell = foraArea
       ? '<span class="lead-fora-tag">fora da área</span>'
       : `<span class="lead-consultor">${escapeHtml(r.consultor || '—')}</span>`;
