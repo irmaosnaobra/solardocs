@@ -63,7 +63,7 @@ export default function TopBar({ userEmail }: TopBarProps) {
           {menuOpen && (
             <div className={styles.menu}>
               {userEmail && <div className={styles.menuEmail}>{userEmail}</div>}
-              <Link href="/conta/documentos" className={styles.menuItem} onClick={() => setMenuOpen(false)}>
+              <Link href="/minha-conta" className={styles.menuItem} onClick={() => setMenuOpen(false)}>
                 <User size={15} /> Minha conta
               </Link>
               <Link href="/empresa" className={styles.menuItem} onClick={() => setMenuOpen(false)}>

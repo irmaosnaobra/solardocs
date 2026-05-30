@@ -1,0 +1,75 @@
+.page { max-width: 640px; }
+
+.title { font-size: 24px; font-weight: 700; color: var(--color-text); }
+.subtitle { font-size: 14px; color: var(--color-text-muted); margin: 4px 0 22px; }
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 3px rgba(16,24,40,0.06);
+}
+.cardTitle { font-size: 16px; font-weight: 700; color: var(--color-text); margin-bottom: 16px; }
+
+.label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 12px 0 5px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 13px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input:focus { border-color: var(--color-primary); }
+.input:disabled { background: var(--color-surface-2); color: var(--color-text-muted); cursor: not-allowed; }
+
+.row { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+
+.btnPrimary {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px 20px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  border: none; border-radius: 8px;
+  cursor: pointer; text-decoration: none;
+  transition: background 0.15s, opacity 0.15s;
+}
+.btnPrimary:hover { background: var(--color-primary-hover); }
+.btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnSecondary {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px 20px;
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid var(--color-border-strong); border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btnSecondary:hover { background: var(--color-surface-2); }
+.btnSecondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ok  { font-size: 13px; color: var(--color-success); font-weight: 600; }
+.err { font-size: 13px; color: var(--color-error); font-weight: 600; }
+
+.planRow { display: flex; align-items: center; justify-content: space-between; }
+.planName { font-size: 18px; font-weight: 700; color: var(--color-text); }
+.planUsage { font-size: 13px; color: var(--color-text-muted); margin-top: 3px; }

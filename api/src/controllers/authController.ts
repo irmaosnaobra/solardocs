@@ -288,6 +288,57 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
   }
 }
 
+// Troca de senha estando logado — exige a senha atual (segurança).
+export async function changePassword(req: Request, res: Response): Promise<void> {
+  try {
+    const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
+    if (!currentPassword || !newPassword) { res.status(400).json({ error: 'Senha atual e nova são obrigatórias' }); return; }
+    if (newPassword.length < 6) { res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' }); return; }
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, password_hash')
+      .eq('id', req.userId)
+      .single();
+
+    if (!user) { res.status(404).json({ error: 'Usuário não encontrado' }); return; }
+
+    const ok = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!ok) { res.status(400).json({ error: 'Senha atual incorreta' }); return; }
+
+    const password_hash = await bcrypt.hash(newPassword, 12);
+    await supabase.from('users').update({ password_hash }).eq('id', user.id);
+
+    res.json({ message: 'Senha alterada com sucesso!' });
+  } catch (err) {
+    console.error('ChangePassword error:', err);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+}
+
+// Edita o perfil — SÓ o nome. Email (login) e plano NÃO mudam por aqui (segurança).
+export async function updateProfile(req: Request, res: Response): Promise<void> {
+  try {
+    const { nome } = req.body as { nome?: string };
+    const nomeLimpo = (nome ?? '').trim();
+    if (!nomeLimpo) { res.status(400).json({ error: 'Nome não pode ficar vazio' }); return; }
+    if (nomeLimpo.length > 120) { res.status(400).json({ error: 'Nome muito longo' }); return; }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .update({ nome: nomeLimpo })
+      .eq('id', req.userId)
+      .select('id, email, nome, plano, limite_documentos, documentos_usados, is_admin, billing_status')
+      .single();
+
+    if (error || !user) { res.status(500).json({ error: 'Falha ao atualizar perfil' }); return; }
+    res.json({ user });
+  } catch (err) {
+    console.error('UpdateProfile error:', err);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+}
+
 export async function getMe(req: Request, res: Response): Promise<void> {
   try {
     const { data: user, error } = await supabase
