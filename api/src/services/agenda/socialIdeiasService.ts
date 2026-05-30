@@ -114,8 +114,9 @@ export async function transcreverYoutube(url: string): Promise<string | null> {
 // Recebe um tema (e opcionalmente o link do vídeo viral de origem) e devolve
 // um roteiro pronto no DNA viral, com ponte pro nicho solar. Se a fonte for um
 // vídeo do YouTube, transcreve o conteúdo real e usa no prompt (entende o vídeo).
-export async function roteirizarTema(tema: string, fonteUrl?: string): Promise<Roteiro | null> {
+export async function roteirizarTema(tema: string, fonteUrl?: string, apresentador?: string): Promise<Roteiro | null> {
   const resumo = await topPostsResumo('instagram');
+  const quem = (apresentador || 'ambos').toLowerCase(); // 'thiago' | 'diego' | 'ambos'
 
   // tenta entender o vídeo de verdade (transcrição do YouTube)
   let transcricao: string | null = null;
@@ -135,13 +136,20 @@ ${resumo}
 
 ${blocoFonte}
 
-Crie UM roteiro de Reel/Short curto (~30-45s) apresentado por THIAGO e DIEGO, partindo desse conteúdo e fazendo a PONTE pro nicho de energia solar. Escolha o arquétipo (fernando | larcabral | lucas).
+${quem === 'ambos'
+  ? `Crie UM roteiro de Reel/Short curto (~30-45s) apresentado por THIAGO e DIEGO em diálogo, partindo desse conteúdo e fazendo a PONTE pro nicho de energia solar. Escolha o arquétipo (fernando | larcabral | lucas).
 
 REGRAS DE FALA:
-- Divida o roteiro em FALAS, cada uma marcada com quem fala (THIAGO ou DIEGO).
-- Cada fala é o texto EXATO que o avatar vai dizer (será gerado no HeyGen com a voz clonada de cada um) — escreva natural, como gente fala, não como texto escrito.
+- Divida em FALAS marcadas com quem fala (THIAGO ou DIEGO).
+- Cada fala é o texto EXATO que o avatar vai dizer (gerado no HeyGen com a voz clonada de cada um) — natural, como gente fala.
 - Thiago abre o gancho; Diego entra com o contexto/dado; alternem. CTA no fim por um dos dois.
-- Falas curtas e diretas, tom regional de Minas, sem jargão técnico.
+- Falas curtas e diretas, tom regional de Minas, sem jargão técnico.`
+  : `Crie UM roteiro de Reel/Short curto (~30-45s) apresentado SÓ POR ${quem.toUpperCase()} (monólogo, ele falando direto pra câmera), partindo desse conteúdo e fazendo a PONTE pro nicho de energia solar. Escolha o arquétipo (fernando | larcabral | lucas).
+
+REGRAS DE FALA:
+- TODAS as falas são de ${quem.toUpperCase()} (será gerado no HeyGen com a voz clonada dele) — natural, como gente fala.
+- Divida em blocos curtos de fala (cada bloco = uma cena/respiração), todos marcados com "${quem.toUpperCase()}".
+- ${quem === 'thiago' ? 'Thiago: energia e autoridade, abre forte.' : 'Diego: traz o dado/explicação com clareza.'} Tom regional de Minas, sem jargão. CTA no fim.`}
 
 Responda APENAS com objeto JSON válido:
 {"arquetipo":"fernando|larcabral|lucas","gancho":"primeira frase do Thiago (3s)","falas":[{"quem":"THIAGO","texto":"..."},{"quem":"DIEGO","texto":"..."}],"roteiro":"resumo do que mostrar na tela (b-roll, cortes)","legenda":"legenda pronta + hashtags","cta":"chamada final"}`;

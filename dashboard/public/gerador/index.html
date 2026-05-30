@@ -133,6 +133,11 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .redes-st-item .st-gancho{font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;line-height:1.3}
 .redes-st-item .st-corpo{font-size:13px;color:#cbd5e1;line-height:1.5;margin:4px 0}
 .redes-st-item .st-corpo b{color:#E5E7EB}
+.redes-st-apres{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 10px}
+.apres-label{font-size:13px;color:#94A3B8;margin-right:2px}
+.apres-btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#cbd5e1;padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.apres-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.apres-btn.ativo{background:#f5a623;border-color:#f5a623;color:#1a1206}
 .st-falas{white-space:pre-wrap;margin-top:4px;padding:10px 12px;background:rgba(255,255,255,.04);border-radius:8px;font-size:13px;line-height:1.6}
 .redes-st-acoes{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .redes-st-acoes button{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:none}
@@ -1306,7 +1311,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <h3>🎬 Estúdio de virais</h3>
         <span class="redes-st-badge" id="redes-st-status">estrutura pronta · conectando fontes</span>
       </div>
-      <p class="redes-ia-sub">Achou um vídeo viral por aí (qualquer tema)? Cole o link que a IA cria um roteiro com a ponte pro solar — pra você + Diego gravarem ou virar avatar.</p>
+      <p class="redes-ia-sub">Achou um vídeo viral por aí (qualquer tema)? Cole o link que a IA cria um roteiro com a ponte pro solar — pro avatar de Thiago e/ou Diego apresentar.</p>
+
+      <!-- seletor de apresentador -->
+      <div class="redes-st-apres">
+        <span class="apres-label">Quem apresenta?</span>
+        <button type="button" class="apres-btn ativo" data-apres="thiago" onclick="redesSelApres(this)">🧔 Thiago</button>
+        <button type="button" class="apres-btn" data-apres="diego" onclick="redesSelApres(this)">🧔🏻 Diego</button>
+        <button type="button" class="apres-btn" data-apres="ambos" onclick="redesSelApres(this)">👥 Os dois</button>
+      </div>
 
       <!-- bate-pronto: link manual -->
       <div class="redes-st-input">
@@ -1316,6 +1329,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="redes-st-fontes">
         <button type="button" class="redes-st-fonte" onclick="varrerAdLibraryEstudio()">🔍 Varrer virais do nicho (Ad Library)</button>
       </div>
+      <p class="redes-ia-sub" style="margin-top:10px">🟢 No HeyGen, gere o vídeo do avatar com <b>fundo verde ou transparente</b> — depois você põe ele num canto sobre o vídeo viral (CapCut/Edits).</p>
 
       <!-- fila -->
       <div id="redes-studio-fila" class="redes-studio-fila"></div>
@@ -3536,6 +3550,11 @@ async function toggleEquip(linha, ev) {
 // ============= TELA REDES (cockpit social — Windsor.ai) =============
 let redesData = { instagram: null, tiktok: null };
 let redesRedeAtiva = 'instagram';
+let redesApresentador = 'thiago';   // quem apresenta o vídeo (thiago | diego | ambos)
+function redesSelApres(btn) {
+  redesApresentador = btn.getAttribute('data-apres');
+  document.querySelectorAll('.apres-btn').forEach(b => b.classList.toggle('ativo', b === btn));
+}
 
 function navRedes() {
   document.getElementById('formSection').style.display = 'none';
@@ -3913,7 +3932,7 @@ async function roteirizarTemaEstudio() {
     const ehLink = /^https?:\/\//i.test(tema);
     const r = await fetch('/_api/gerador/social/roteirizar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tema, fonte_url: ehLink ? tema : null }),
+      body: JSON.stringify({ tema, fonte_url: ehLink ? tema : null, apresentador: redesApresentador }),
     });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();

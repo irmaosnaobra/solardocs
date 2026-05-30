@@ -33,7 +33,7 @@ router.post('/social/roteirizar', async (req: Request, res: Response) => {
   try {
     const tema = String(req.body?.tema || '').trim();
     if (!tema) return res.status(400).json({ error: 'tema obrigatório' });
-    const roteiro = await roteirizarTema(tema, req.body?.fonte_url);
+    const roteiro = await roteirizarTema(tema, req.body?.fonte_url, req.body?.apresentador);
     res.json({ ok: true, roteiro });
   } catch (err: any) {
     logger.error('gerador', 'social/roteirizar falhou', err);
