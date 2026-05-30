@@ -3,7 +3,6 @@ import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { sendDunningDay0, sendDunningRecovered } from '../services/dunningService';
-import { FREE_LIMIT } from '../services/planService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -130,13 +129,59 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
   res.json({ url: session.url });
 }
 
+// Checkout PÚBLICO (sem login) — fluxo LP → Stripe → Cadastro.
+// A pessoa escolhe o plano na LP e vai DIRETO pro Stripe (coleta email + cartão,
+// 7 dias grátis). Só depois de aprovar o cartão ela cria a conta no cadastro
+// (com o email do session_id). Sem free: quem não passa daqui não tem conta.
+export async function createPublicCheckout(req: Request, res: Response): Promise<void> {
+  const { plan } = req.body as { plan: string };
+  const planKey = plan === 'vip' ? 'ilimitado' : plan;
+  const planInfo = PLAN_MAP[planKey];
+
+  if (!planInfo) {
+    res.status(400).json({ error: 'Plano inválido' });
+    return;
+  }
+
+  try {
+    const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{ price: planInfo.priceId, quantity: 1 }],
+      // Stripe coleta o email no próprio checkout (não temos user ainda).
+      billing_address_collection: 'auto',
+      subscription_data: {
+        trial_period_days: 7,
+        metadata: { plan: planInfo.plano, source: 'public_checkout' },
+      },
+      metadata: { plan: planInfo.plano, source: 'public_checkout' },
+      // Pós-pagamento → cadastro com o session_id pra puxar o email e o plano.
+      success_url: `${dashboardUrl}/auth?mode=register&session={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${dashboardUrl}/?cancelado=1`,
+      custom_text: { submit: { message: planInfo.descricao } },
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('createPublicCheckout error:', err);
+    res.status(500).json({ error: 'Falha ao iniciar o checkout' });
+  }
+}
+
 export async function getCheckoutInfo(req: Request, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
     const session = await stripe.checkout.sessions.retrieve(sessionId as any);
 
-    if (session.payment_status !== 'paid') {
-      res.status(400).json({ error: 'Pagamento não confirmado' });
+    // No trial de 7 dias NÃO há cobrança imediata: payment_status vem como
+    // 'no_payment_required' e a sub fica 'trialing'. Então validamos que o
+    // checkout foi COMPLETO (status complete) — não que houve pagamento.
+    const paidOrTrialing = session.payment_status === 'paid'
+      || session.payment_status === 'no_payment_required'
+      || session.status === 'complete';
+    if (!paidOrTrialing) {
+      res.status(400).json({ error: 'Checkout não concluído' });
       return;
     }
 

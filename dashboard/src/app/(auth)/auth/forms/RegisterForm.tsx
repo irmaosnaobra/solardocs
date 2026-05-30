@@ -84,11 +84,14 @@ function RegisterContent() {
   const strength = useMemo(() => getStrength(password), [password]);
   const mismatch = confirm.length > 0 && confirm !== password;
 
+  // Email travado quando veio do Stripe (não deixa pagar como A e cadastrar como B).
+  const [emailLocked, setEmailLocked] = useState(false);
+
   useEffect(() => {
     if (!sessionId) return;
     api.get(`/payments/checkout-info/${sessionId}`)
       .then(r => {
-        if (r.data.email) setEmail(r.data.email);
+        if (r.data.email) { setEmail(r.data.email); setEmailLocked(true); }
         if (r.data.plan) setPlanFromStripe(r.data.plan);
       })
       .catch(() => {});
@@ -138,6 +141,7 @@ function RegisterContent() {
         whatsapp: waDigits,
         cnpj: cnpj.replace(/\D/g, ''),
         empresa: empresa.trim() || undefined,
+        fromCheckout: !!sessionId, // veio do Stripe → backend exige plano detectado
       }, {
         headers: { 'X-Meta-Event-Id': eventId },
       });
@@ -175,8 +179,26 @@ function RegisterContent() {
       // pode ir direto pro gerador.
       router.push('/documentos?tipo=proposta&welcome=1');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Erro ao criar conta. Tenta de novo.');
+      const e = err as { response?: { data?: { error?: string; planoAtivado?: string } } };
+      const code = e.response?.data?.error;
+      // Pós-Stripe com email que já tinha conta: o backend ativou o plano na
+      // conta existente. Manda fazer login (não recria, não reseta senha).
+      if (code === 'JA_TEM_CONTA_PLANO_ATIVADO') {
+        const plano = e.response?.data?.planoAtivado;
+        router.push(`/auth?mode=login&plano_ativado=${plano ?? '1'}`);
+        return;
+      }
+      if (code === 'Email já cadastrado') {
+        setError('Esse email já tem conta. Faça login pra continuar.');
+        setLoading(false);
+        return;
+      }
+      if (code === 'PAGAMENTO_NAO_DETECTADO') {
+        setError('Não localizamos seu pagamento. Use o mesmo e-mail do cartão, ou fale com o suporte no WhatsApp (34) 99943-7831.');
+        setLoading(false);
+        return;
+      }
+      setError(code || 'Erro ao criar conta. Tenta de novo.');
     } finally {
       setLoading(false);
     }
@@ -242,7 +264,7 @@ function RegisterContent() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               className={styles.input}
-              readOnly={!!planFromStripe}
+              readOnly={!!planFromStripe || emailLocked}
               required
             />
           </div>

@@ -26,9 +26,13 @@ async function detectStripePlan(email: string): Promise<{ plano: string; limite:
   try {
     const customers = await stripe.customers.list({ email, limit: 1 });
     if (!customers.data.length) return null;
-    const subs = await stripe.subscriptions.list({ customer: customers.data[0].id, status: 'active', limit: 1 });
-    if (!subs.data.length) return null;
-    const priceId = subs.data[0].items.data[0]?.price?.id ?? '';
+    // Inclui 'trialing': no fluxo LP→Stripe→cadastro, o cliente passou o cartão
+    // e está nos 7 dias grátis (sub trialing, ainda sem cobrança). Tem que
+    // entrar já como PRO/VIP. 'all' + filtro pega active E trialing.
+    const subs = await stripe.subscriptions.list({ customer: customers.data[0].id, status: 'all', limit: 5 });
+    const sub = subs.data.find(s => s.status === 'active' || s.status === 'trialing');
+    if (!sub) return null;
+    const priceId = sub.items.data[0]?.price?.id ?? '';
     return PRICE_TO_PLAN[priceId] ?? null;
   } catch {
     return null;
@@ -78,15 +82,35 @@ export async function register(req: Request, res: Response): Promise<void> {
       .eq('email', body.email)
       .single();
 
+    // Detecta plano no Stripe (active OU trialing). No fluxo LP→Stripe→cadastro,
+    // a pessoa já passou o cartão (7 dias grátis) antes de chegar aqui.
+    const stripePlan = await detectStripePlan(body.email);
+
+    // Veio do checkout público (passou pelo Stripe)? Se sim e a detecção falhou,
+    // NÃO cria conta free silenciosa — pagou mas algo deu errado, retorna claro.
+    const fromCheckout = (req.body as { fromCheckout?: boolean }).fromCheckout === true;
+    if (fromCheckout && !stripePlan && !existing) {
+      res.status(402).json({ error: 'PAGAMENTO_NAO_DETECTADO' });
+      return;
+    }
+
     if (existing) {
+      // Email já tem conta. Se acabou de pagar (tem plano no Stripe), ATIVA o
+      // plano na conta existente e manda fazer login — não recria, não reseta senha.
+      if (stripePlan) {
+        await supabase
+          .from('users')
+          .update({ plano: stripePlan.plano, limite_documentos: stripePlan.limite, billing_status: 'active' })
+          .eq('id', existing.id);
+        res.status(409).json({ error: 'JA_TEM_CONTA_PLANO_ATIVADO', planoAtivado: stripePlan.plano });
+        return;
+      }
       res.status(409).json({ error: 'Email já cadastrado' });
       return;
     }
 
     const password_hash = await bcrypt.hash(body.password, 12);
 
-    // Verifica se o e-mail já possui assinatura ativa no Stripe (comprou antes de cadastrar)
-    const stripePlan = await detectStripePlan(body.email);
     const plano             = stripePlan?.plano  ?? 'free';
     const limite_documentos = stripePlan?.limite ?? FREE_LIMIT;
 

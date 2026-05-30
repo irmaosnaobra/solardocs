@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLpTracking } from '@/hooks/useLpTracking';
+import api from '@/services/api';
 import styles from './Landing.module.css';
 
 declare global {
@@ -121,13 +122,30 @@ export default function Landing() {
     document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function goToRegister(plano: 'pro' | 'vip') {
+  const [checkoutLoading, setCheckoutLoading] = useState<'pro' | 'vip' | null>(null);
+
+  // Fluxo LP → Stripe → Cadastro: clica no plano e vai DIRETO pro checkout
+  // público do Stripe (email + cartão, 7 dias grátis). Só depois de aprovar
+  // o cartão a pessoa cria a conta. Sem free.
+  async function goToRegister(plano: 'pro' | 'vip') {
     trackEvent('cta_click', { label: plano });
     if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'Lead', { content_name: 'cta_register', plano });
+      window.fbq('track', 'InitiateCheckout', { content_name: plano });
     }
-    const qs = new URLSearchParams({ mode: 'register', plano });
-    router.push(`/auth?${qs.toString()}`);
+    setCheckoutLoading(plano);
+    try {
+      const { data } = await api.post('/payments/public-checkout', { plan: plano });
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+      console.error('[LP→Checkout] resposta sem URL:', data);
+    } catch (err) {
+      console.error('[LP→Checkout] falha:', err);
+    }
+    // Fallback: se o checkout falhar, cai no cadastro com o plano (fluxo antigo).
+    setCheckoutLoading(null);
+    router.push(`/auth?mode=register&plano=${plano}`);
   }
 
   return (
@@ -477,8 +495,8 @@ export default function Landing() {
                 <li>Suporte prioritário no WhatsApp</li>
                 <li>Cancela quando quiser, sem multa</li>
               </ul>
-              <button onClick={() => goToRegister('pro')} className={styles.planBtn}>
-                Testar 7 dias grátis
+              <button onClick={() => goToRegister('pro')} className={styles.planBtn} disabled={checkoutLoading !== null}>
+                {checkoutLoading === 'pro' ? 'Abrindo checkout...' : 'Testar 7 dias grátis'}
               </button>
             </div>
 
@@ -497,8 +515,8 @@ export default function Landing() {
                 <li>Suporte VIP por WhatsApp</li>
                 <li>Acesso antecipado a novos documentos</li>
               </ul>
-              <button onClick={() => goToRegister('vip')} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
-                Testar 7 dias grátis
+              <button onClick={() => goToRegister('vip')} className={`${styles.planBtn} ${styles.planBtnPrimary}`} disabled={checkoutLoading !== null}>
+                {checkoutLoading === 'vip' ? 'Abrindo checkout...' : 'Testar 7 dias grátis'}
               </button>
             </div>
           </div>
