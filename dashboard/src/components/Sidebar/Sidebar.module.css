@@ -93,11 +93,11 @@
 .navItem {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 13px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 11px 14px;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 15px;
   color: #E8EAED;            /* branco-suave de alto contraste no fundo escuro */
   text-decoration: none;
   position: relative;
@@ -133,11 +133,11 @@
 .navItemLocked {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 13px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 11px 14px;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 15px;
   color: #C2C6CC;            /* claro o bastante pra ler, mas distinto do ativo */
   opacity: 0.8;
   user-select: none;
@@ -156,8 +156,8 @@
 }
 
 .navIcon {
-  width: 23px;
-  height: 23px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
   color: currentColor;
 }
