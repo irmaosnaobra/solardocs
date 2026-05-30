@@ -65,7 +65,7 @@
   color: #94a3b8;
 }
 .input:focus {
-  border-color: #f59e0b;
+  border-color: #F26513;
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
 }
 .input:disabled {
@@ -158,7 +158,7 @@
 .submit {
   width: 100%;
   height: 48px;
-  background: #f59e0b;
+  background: #F26513;
   color: #ffffff;
   border: none;
   border-radius: 10px;
@@ -176,7 +176,7 @@
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 .submit:hover {
-  background: #d97706;
+  background: #E0560A;
   box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
 }
 .submit:active { transform: scale(0.99); }
@@ -286,7 +286,7 @@
   border-radius: 2px;
   transition: background 0.2s;
 }
-.strengthBarActive { background: #f59e0b; }
+.strengthBarActive { background: #F26513; }
 .strengthBarStrong { background: #16a34a; }
 .strengthLabel {
   font-size: 11.5px;
@@ -312,7 +312,7 @@
   margin-top: 2px;
   width: 16px;
   height: 16px;
-  accent-color: #f59e0b;
+  accent-color: #F26513;
   flex-shrink: 0;
 }
 .checkbox a {
@@ -362,7 +362,7 @@
 .pwaHintBtn {
   width: 100%;
   height: 38px;
-  background: #f59e0b;
+  background: #F26513;
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -371,7 +371,7 @@
   cursor: pointer;
   font-family: inherit;
 }
-.pwaHintBtn:hover { background: #d97706; }
+.pwaHintBtn:hover { background: #E0560A; }
 
 @media (max-width: 540px) {
   .title { font-size: 24px; }
