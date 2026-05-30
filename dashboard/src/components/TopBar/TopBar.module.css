@@ -28,30 +28,7 @@
 .brandSolar { color: #fff; }
 .brandDoc { color: var(--color-primary); }
 
-.search {
-  flex: 1;
-  max-width: 620px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--chrome-bg-2);
-  border: 1px solid var(--chrome-border);
-  border-radius: 8px;
-  padding: 0 14px;
-  height: 40px;
-}
-.searchIcon { color: var(--chrome-text-dim); flex-shrink: 0; }
-.searchInput {
-  flex: 1;
-  background: none;
-  border: none;
-  outline: none;
-  color: #fff;
-  font-size: 14px;
-  font-family: inherit;
-}
-.searchInput::placeholder { color: var(--chrome-text-dim); }
+.spacer { flex: 1; }
 
 .actions {
   display: flex;
@@ -69,10 +46,12 @@
   width: 32px;
   height: 32px;
   border-radius: 6px;
+  text-decoration: none;
   transition: color .12s, background .12s;
 }
 .iconBtn:hover { color: #fff; background: var(--chrome-bg-2); }
 
+.avatarWrap { position: relative; }
 .avatar {
   width: 34px;
   height: 34px;
@@ -84,7 +63,51 @@
   font-size: 14px;
   font-weight: 600;
   flex-shrink: 0;
+  border: none;
+  cursor: pointer;
 }
+
+/* Dropdown do avatar */
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(16,24,40,0.18);
+  padding: 6px;
+  z-index: 70;
+}
+.menuEmail {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 7px;
+  font-size: 14px;
+  color: var(--color-text);
+  background: none;
+  border: none;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s;
+}
+.menuItem:hover { background: var(--color-surface-2); }
 
 /* Mobile: a TopBar full-width some; o mobileHeader da Sidebar assume o topo */
 @media (max-width: 768px) {

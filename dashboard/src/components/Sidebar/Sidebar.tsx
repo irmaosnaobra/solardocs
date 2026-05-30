@@ -266,8 +266,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
         {isFree && !isAdmin && (
           <style>{`@keyframes sd-upgrade-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}`}</style>
         )}
-
-        <button className={styles.logoutBtn} onClick={handleLogout}>Sair</button>
+        {/* "Sair" agora vive no menu do avatar (topbar) — removido daqui pra não duplicar */}
       </div>
     </aside>
   );
