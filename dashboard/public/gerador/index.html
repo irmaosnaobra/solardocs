@@ -57,6 +57,16 @@ html[data-mode="app"].redes-aberto .container,
 html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
 /* ===== Cockpit Redes ===== */
+/* sub-abas Destaques | Criação */
+.redes-subnav{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:0}
+.redes-subtab{background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;padding:10px 16px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:-1px}
+.redes-subtab:hover{color:#E5E7EB}
+.redes-subtab.ativo{color:#fff;border-bottom-color:#3B82F6}
+/* Criação: Estúdio em destaque no topo via order */
+#redes-pane-criacao{display:flex;flex-direction:column}
+#redes-pane-criacao .redes-studio-card{order:1}
+#redes-pane-criacao .redes-pub-card{order:2}
+#redes-pane-criacao .redes-ia-card{order:3}
 .redes-tabs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}
 .redes-tab{background:rgba(255,255,255,.06);color:#cbd5e1;border:1px solid rgba(255,255,255,.12);padding:8px 16px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
 .redes-tab:hover{background:rgba(255,255,255,.1);color:#fff}
@@ -1227,16 +1237,28 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
     </div>
 
-    <!-- abas rede -->
-    <div class="redes-tabs">
-      <button type="button" class="redes-tab ativo" id="redes-tab-instagram" onclick="redesTrocaRede('instagram')">📷 Instagram</button>
-      <button type="button" class="redes-tab" id="redes-tab-tiktok" onclick="redesTrocaRede('tiktok')">🎵 TikTok</button>
-      <span class="redes-atualizado" id="redes-atualizado"></span>
+    <!-- sub-abas: Destaques (analytics) | Criação (estúdio + ferramentas) -->
+    <div class="redes-subnav">
+      <button type="button" class="redes-subtab ativo" id="subtab-destaques" onclick="redesSubaba('destaques')">📊 Destaques</button>
+      <button type="button" class="redes-subtab" id="subtab-criacao" onclick="redesSubaba('criacao')">🎬 Criação</button>
     </div>
 
-    <div id="redes-conteudo">
-      <div class="historico-vazio" style="padding:40px">Carregando...</div>
+    <!-- ===== SUB-ABA DESTAQUES (analytics) ===== -->
+    <div id="redes-pane-destaques">
+      <!-- abas rede -->
+      <div class="redes-tabs">
+        <button type="button" class="redes-tab ativo" id="redes-tab-instagram" onclick="redesTrocaRede('instagram')">📷 Instagram</button>
+        <button type="button" class="redes-tab" id="redes-tab-tiktok" onclick="redesTrocaRede('tiktok')">🎵 TikTok</button>
+        <span class="redes-atualizado" id="redes-atualizado"></span>
+      </div>
+
+      <div id="redes-conteudo">
+        <div class="historico-vazio" style="padding:40px">Carregando...</div>
+      </div>
     </div>
+
+    <!-- ===== SUB-ABA CRIAÇÃO (estúdio + ferramentas) ===== -->
+    <div id="redes-pane-criacao" style="display:none;">
 
     <!-- Publicar nas redes: atalhos pra postar o mesmo vídeo em todas -->
     <div class="card redes-pub-card">
@@ -1294,6 +1316,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <p class="redes-ia-sub">A IA analisa os seus posts que mais bombaram e sugere roteiros novos no mesmo DNA.</p>
       <div id="redes-ia-saida"></div>
     </div>
+
+    </div><!-- /redes-pane-criacao -->
   </div>
 
 </div>
@@ -3556,6 +3580,17 @@ function redesTrocaRede(rede) {
   document.getElementById('redes-tab-instagram').classList.toggle('ativo', rede === 'instagram');
   document.getElementById('redes-tab-tiktok').classList.toggle('ativo', rede === 'tiktok');
   renderRede(rede);
+}
+
+// alterna entre sub-abas Destaques (analytics) e Criação (estúdio + ferramentas)
+function redesSubaba(qual) {
+  const ehDest = qual === 'destaques';
+  document.getElementById('redes-pane-destaques').style.display = ehDest ? '' : 'none';
+  document.getElementById('redes-pane-criacao').style.display = ehDest ? 'none' : 'flex';
+  document.getElementById('subtab-destaques').classList.toggle('ativo', ehDest);
+  document.getElementById('subtab-criacao').classList.toggle('ativo', !ehDest);
+  if (!ehDest) carregarStudioFila();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // soma últimos N dias de um campo
