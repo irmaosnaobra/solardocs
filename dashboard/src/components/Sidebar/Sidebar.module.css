@@ -18,14 +18,10 @@
 .sidebar::-webkit-scrollbar { width: 4px; }
 .sidebar::-webkit-scrollbar-thumb { background: var(--chrome-border); border-radius: 4px; }
 
-.logoWrap {
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12px 16px 8px;
-  gap: 4px;
-}
+/* No desktop a logo já está na topbar → esconde o cabeçalho da sidebar
+   (logo grande + saudação) que estava ocupando espaço e cortando itens.
+   No mobile (sem topbar) ele reaparece via @media. */
+.logoWrap { display: none; }
 
 .logo {
   display: flex;
@@ -56,7 +52,7 @@
 
 .userHello {
   font-size: 10px;
-  color: var(--color-text-muted);
+  color: var(--chrome-text-dim);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -64,7 +60,7 @@
 .userName {
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text);
+  color: #fff;
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -270,7 +266,7 @@
 .footer {
   flex-shrink: 0;
   padding: 12px 14px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--chrome-border);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -307,8 +303,8 @@
   width: 100%;
   padding: 8px;
   background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
+  border: 1px solid var(--chrome-border);
+  color: var(--chrome-text-dim);
   border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
@@ -316,8 +312,8 @@
 }
 
 .logoutBtn:hover {
-  background: var(--color-surface-2);
-  color: var(--color-text);
+  background: var(--chrome-bg-2);
+  color: #fff;
 }
 
 /* ── MOBILE HEADER (hamburger) ── */
