@@ -7,12 +7,18 @@
 //    pra chunk que o servidor já não tem (a causa do ChunkLoadError antigo).
 //  - /_next/static/*   → CACHE-FIRST. São hasheados (o nome muda a cada build),
 //    então cache nunca colide com deploy novo — e deixa o app instantâneo.
+//  - /_api/*           → NETWORK-ONLY. NUNCA cacheia. São respostas autenticadas
+//    (passam pelo proxy interno same-origin). O cache é chaveado por URL e ignora
+//    o header Authorization — cachear aqui vaza dados de uma conta pra outra
+//    (ex: /auth/me de um login servido pra outro). PROIBIDO.
 //  - Demais GET same-origin → stale-while-revalidate leve.
 //
 // Recuperação: se um dia este SW se comportar mal, basta voltar o sw.js
 // "kill-switch" (que só apaga caches e se desregistra) que ele se remove do campo.
 
-const VERSION = 'sd-v1';
+// v2: /_api virou network-only. O bump também PURGA o cache sd-v1 envenenado
+// (o activate apaga caches cujo nome não começa com VERSION).
+const VERSION = 'sd-v2';
 const STATIC_CACHE = `${VERSION}-static`;
 const OFFLINE_URL = '/limpar-cache'; // página leve que já existe, serve de shell offline
 
@@ -39,6 +45,10 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // não intercepta cross-origin (Stripe, fonts...)
+
+  // 0) API autenticada (/_api/*) → NETWORK-ONLY. Não toca no cache de jeito
+  //    nenhum: o cache ignora o token e serviria dados de uma conta pra outra.
+  if (url.pathname.startsWith('/_api')) return;
 
   // 1) Navegação (HTML) → NETWORK-FIRST. Online = sempre fresco.
   if (req.mode === 'navigate') {

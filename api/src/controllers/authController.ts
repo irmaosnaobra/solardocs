@@ -205,7 +205,10 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     const { data: user } = await supabase
       .from('users')
-      .select('id, email, nome, password_hash, plano, limite_documentos, documentos_usados, data_reset, created_at')
+      // is_admin + billing_status precisam vir no login: o front salva este user
+      // no cookie e o Sidebar decide a Área Restrita por is_admin. Sem eles, o
+      // admin loga e a Área Restrita some até o /auth/me corrigir (race no 1º paint).
+      .select('id, email, nome, password_hash, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status')
       .eq('email', body.email)
       .single();
 
