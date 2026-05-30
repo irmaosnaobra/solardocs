@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, Bell, HelpCircle, FileText } from 'lucide-react';
+import { Search, Bell, HelpCircle, FileText, Menu } from 'lucide-react';
+import { useDashboard } from '@/contexts/DashboardContext';
 import styles from './TopBar.module.css';
 
 interface TopBarProps {
@@ -10,9 +11,13 @@ interface TopBarProps {
 
 export default function TopBar({ userEmail }: TopBarProps) {
   const initials = (userEmail || '?').slice(0, 1).toUpperCase();
+  const { toggleSidebar } = useDashboard();
 
   return (
     <header className={styles.topbar}>
+      <button className={styles.burger} onClick={toggleSidebar} aria-label="Expandir menu">
+        <Menu size={22} />
+      </button>
       <Link href="/documentos?tipo=proposta" className={styles.brand}>
         <span className={styles.brandSolar}>Solar</span><span className={styles.brandDoc}>Doc</span>
       </Link>

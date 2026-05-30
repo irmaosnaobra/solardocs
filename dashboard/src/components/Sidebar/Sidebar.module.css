@@ -20,6 +20,32 @@
 .sidebar > .logoWrap,
 .sidebar > .footer { display: none; }
 
+/* ── EXPANDIDA (☰) — desktop: vira menu largo com ícones + texto ── */
+.sidebar.expanded {
+  width: 240px;
+  align-items: stretch;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+}
+.sidebar.expanded > .logoWrap { display: flex; }
+.sidebar.expanded > .footer { display: flex; }
+.sidebar.expanded .nav { align-items: stretch; padding: 6px 8px 8px; gap: 1px; }
+.sidebar.expanded .navSection { align-items: stretch; gap: 1px; }
+.sidebar.expanded .navItem,
+.sidebar.expanded .navItemLocked {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; height: auto; padding: 10px 12px;
+  border-radius: 8px; font-size: 13px; text-align: left;
+}
+.sidebar.expanded .navLabel { display: block; flex: 1; min-width: 0; }
+.sidebar.expanded .countBadge,
+.sidebar.expanded .tripleBadge,
+.sidebar.expanded .externalIcon { display: inline-flex; }
+.sidebar.expanded .navDivider {
+  width: auto; height: auto; background: none; padding: 12px 12px 4px; margin: 0;
+}
+.sidebar.expanded .navDividerLabel,
+.sidebar.expanded .navDividerLabelAdmin { display: block; }
+
 .logoWrap {
   border-bottom: 1px solid var(--color-border);
   display: flex;

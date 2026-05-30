@@ -13,6 +13,21 @@
   background: var(--chrome-bg);
 }
 
+.burger {
+  background: none;
+  border: none;
+  color: var(--chrome-text-dim);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color .12s, background .12s;
+}
+.burger:hover { color: #fff; background: var(--chrome-bg-2); }
+
 .brand {
   display: flex;
   align-items: center;

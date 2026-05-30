@@ -20,6 +20,9 @@ interface DashboardContextType {
   showUpgrade: boolean;
   setShowUpgrade: (show: boolean) => void;
   openUpgrade: () => void;
+  // Desktop: sidebar expandida (ícones+texto) vs colapsada (só ícones). ☰ alterna.
+  sidebarExpanded: boolean;
+  toggleSidebar: () => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -27,11 +30,13 @@ const DashboardContext = createContext<DashboardContextType | undefined>(undefin
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   const openUpgrade = () => setShowUpgrade(true);
+  const toggleSidebar = () => setSidebarExpanded((v) => !v);
 
   return (
-    <DashboardContext.Provider value={{ user, setUser, showUpgrade, setShowUpgrade, openUpgrade }}>
+    <DashboardContext.Provider value={{ user, setUser, showUpgrade, setShowUpgrade, openUpgrade, sidebarExpanded, toggleSidebar }}>
       {children}
     </DashboardContext.Provider>
   );

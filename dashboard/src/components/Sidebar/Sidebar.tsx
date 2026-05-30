@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
+import { useDashboard } from '@/contexts/DashboardContext';
 import PlanBadge from '../PlanBadge/PlanBadge';
 import Logo from '../Logo/Logo';
 import styles from './Sidebar.module.css';
@@ -95,6 +96,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
   const isFree = user.plano === 'free';
   const isAdmin = !!user.is_admin;
   const [open, setOpen] = useState(false);
+  const { sidebarExpanded } = useDashboard();
 
   useEffect(() => { setOpen(false); }, [pathname]);
 
@@ -166,7 +168,7 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
   }
 
   const sidebarContent = (
-    <aside className={`${styles.sidebar} ${open ? styles.sidebarOpen : ''}`}>
+    <aside className={`${styles.sidebar} ${open ? styles.sidebarOpen : ''} ${sidebarExpanded ? styles.expanded : ''}`}>
       <div className={styles.logoWrap}>
         {(isVip || isAdmin) ? (
           <Link href="/dashboard" className={styles.logo}>
