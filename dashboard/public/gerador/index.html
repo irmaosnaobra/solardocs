@@ -6,6 +6,9 @@
 <title>Gerador de Proposta Solar — Irmãos na Obra</title>
 <meta name="theme-color" content="#1E3A8A">
 <meta name="description" content="Gerador de propostas comerciais de energia solar — Irmãos na Obra">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
 <link rel="manifest" href="/gerador/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
 <link rel="apple-touch-icon" href="/gerador/icon-192.png">
@@ -123,6 +126,36 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .st-video{background:#3B82F6;color:#fff}
 .st-descartar{background:rgba(248,113,113,.15);color:#fca5a5;border:1px solid rgba(248,113,113,.3)!important}
 .redes-st-vazio{text-align:center;color:#94A3B8;padding:24px;font-size:13px}
+/* ===== Estilo "Linear" (dark grafite premium, acento laranja) — só nos cards .lnr ===== */
+#redesSection .card.lnr{background:#0e0f11!important;border:1px solid rgba(255,255,255,.08)!important;border-radius:10px!important;box-shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3)!important;font-family:'Inter',system-ui,sans-serif;letter-spacing:-.011em}
+.lnr .redes-ia-head h3{color:#f7f8f8;font-weight:600;letter-spacing:-.02em}
+.lnr .redes-ia-sub{color:#9ca0a8}
+.lnr .redes-st-badge{color:#f5a623;background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.30)}
+/* inputs e botões */
+.lnr .redes-st-input input{background:#131416;border:1px solid rgba(255,255,255,.11);color:#f7f8f8;border-radius:6px}
+.lnr .redes-st-input input:focus{border-color:rgba(245,166,35,.5)}
+.lnr .btn-redes-ia{background:#f5a623;color:#1a1206;font-weight:600;border-radius:6px}
+.lnr .btn-redes-ia:hover{background:#ffb13d}
+.lnr .redes-st-fonte{background:#131416;border:1px solid rgba(255,255,255,.11);color:#9ca0a8;border-radius:6px}
+.lnr .redes-st-fonte:hover{background:#1a1b1e;color:#f7f8f8;border-color:rgba(245,166,35,.30)}
+/* itens da fila */
+.lnr .redes-st-item{background:#131416;border:1px solid rgba(255,255,255,.07);border-radius:8px}
+.lnr .redes-st-item .st-arq{color:#f5a623;background:rgba(245,166,35,.12)}
+.lnr .redes-st-item .st-gancho{color:#f7f8f8}
+.lnr .redes-st-item .st-corpo{color:#9ca0a8}
+.lnr .redes-st-item .st-corpo b{color:#f7f8f8}
+.lnr .st-aprovar{background:#f5a623;color:#1a1206}
+.lnr .st-aprovar:hover{background:#ffb13d}
+.lnr .st-video{background:#131416;color:#f7f8f8;border:1px solid rgba(255,255,255,.11)!important}
+.lnr .st-video:hover{background:#1a1b1e}
+.lnr .st-descartar{background:transparent;color:#9ca0a8;border:1px solid rgba(255,255,255,.11)!important}
+.lnr .st-descartar:hover{color:#fca5a5;border-color:rgba(248,113,113,.4)!important}
+.lnr .redes-st-vazio{color:#62666d}
+/* card de ideias */
+.lnr .redes-ideia{background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.20)}
+.lnr .redes-ideia h4{color:#f7f8f8}
+.lnr .redes-ideia p{color:#9ca0a8}
+.lnr .redes-ideia .ri-tag{color:#f5a623}
 .redes-ia-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .redes-ia-head h3{font-size:15px;color:#E5E7EB;margin:0}
 .btn-redes-ia{background:#10b981;color:#fff;border:none;padding:9px 18px;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:14px}
@@ -1232,7 +1265,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
 
     <!-- ESTÚDIO: fila de produção de vídeos virais -->
-    <div class="card redes-studio-card">
+    <div class="card redes-studio-card lnr">
       <div class="redes-ia-head">
         <h3>🎬 Estúdio de virais</h3>
         <span class="redes-st-badge" id="redes-st-status">estrutura pronta · conectando fontes</span>
@@ -1253,7 +1286,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
 
     <!-- IA: ideias de conteúdo -->
-    <div class="card redes-ia-card">
+    <div class="card redes-ia-card lnr">
       <div class="redes-ia-head">
         <h3>🤖 Ideias de Reels virais — energia solar</h3>
         <button type="button" class="btn-redes-ia" id="btn-redes-ia" onclick="gerarIdeiasRedes()">Gerar ideias</button>
