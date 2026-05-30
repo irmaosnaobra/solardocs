@@ -57,14 +57,14 @@ const baseAdminItems: NavItem[] = [
 // Bloco de topo, na ordem: Dashboard (locked pra free) > Gerador > Baixe o App.
 // Baixe o App fica liberado pra todo mundo, inclusive free.
 const topoItems: NavItem[] = [
-  { href: '/dashboard',              icon: LayoutDashboard, label: 'Dashboard',           paidOnly: true },
+  { href: '/dashboard',              icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/documentos?tipo=proposta', icon: Sparkles,      label: 'Gerador de Proposta', requireCompany: true },
   { href: 'https://pack.solardoc.app/', icon: Palette,     label: 'Crie seu Mascote',    external: true },
   { href: '/baixe-app',              icon: Smartphone,      label: 'Baixe o App' },
 ];
 
+// Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.
 const cadastroItems: NavItem[] = [
-  { href: '/empresa',   icon: Building2, label: 'Empresa' },
   { href: '/clientes',  icon: Users,     label: 'Clientes',  requireCompany: true, paidOnly: true },
   { href: '/terceiros', icon: Handshake, label: 'Terceiros', requireCompany: true, paidOnly: true },
 ];
@@ -81,10 +81,8 @@ const docsTerceiroItems: NavItem[] = [
   { href: '/documentos?tipo=contrato-pj',       icon: Briefcase, label: 'Contrato Vendedor',     requireCompany: true, paidOnly: true },
 ];
 
-const contaItems: NavItem[] = [
-  { href: '/conta/documentos', icon: Save,          label: 'Documentos Salvos', vipOnly: true },
-  { href: '/mentoria',         icon: GraduationCap, label: 'Mentorias',         paidOnly: true },
-];
+// Documentos Salvos vive no avatar (topbar); Mentorias removido. Seção Conta vazia.
+const contaItems: NavItem[] = [];
 
 // ── Componente principal ────────────────────────────────────────────
 
@@ -230,13 +228,17 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
           {docsTerceiroItems.map(renderItem)}
         </div>
 
-        {/* ── Seção 5: Conta ── */}
-        <div className={styles.navDivider}>
-          <span className={styles.navDividerLabel}>Conta</span>
-        </div>
-        <div className={styles.navSection}>
-          {contaItems.map(renderItem)}
-        </div>
+        {/* ── Seção 5: Conta (só renderiza se houver itens) ── */}
+        {contaItems.length > 0 && (
+          <>
+            <div className={styles.navDivider}>
+              <span className={styles.navDividerLabel}>Conta</span>
+            </div>
+            <div className={styles.navSection}>
+              {contaItems.map(renderItem)}
+            </div>
+          </>
+        )}
       </nav>
 
       <div className={styles.footer}>
