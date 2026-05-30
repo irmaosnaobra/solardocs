@@ -220,6 +220,90 @@ async function syncTiktokPosts(): Promise<number> {
   return ups.length;
 }
 
+// ─── YouTube: métricas diárias (canal) ──────────────────────────────────────
+async function syncYoutubeDaily(): Promise<number> {
+  // Métricas por vídeo/dia agregadas no nível de canal. subscriber_count e
+  // view_count são totais do canal (snapshot); o resto soma por dia.
+  const rows = await windsor('youtube',
+    ['date', 'subscriber_count', 'view_count', 'views', 'estimated_minutes_watched',
+     'likes', 'comments', 'shares', 'subscribers_gained'],
+    { date_preset: 'last_90d' });
+
+  // agrega por dia (a API traz por vídeo×dia)
+  const porDia: Record<string, any> = {};
+  for (const r of rows) {
+    if (!r.date) continue;
+    const dia = String(r.date).slice(0, 10);
+    const d = porDia[dia] || { views: 0, likes: 0, comments: 0, shares: 0, novos: 0, sub: null };
+    d.views += num(r.views) || 0;
+    d.likes += num(r.likes) || 0;
+    d.comments += num(r.comments) || 0;
+    d.shares += num(r.shares) || 0;
+    d.novos += num(r.subscribers_gained) || 0;
+    if (r.subscriber_count != null) d.sub = num(r.subscriber_count);
+    porDia[dia] = d;
+  }
+  const ups = Object.entries(porDia).map(([dia, d]: [string, any]) => ({
+    rede: 'youtube', dia,
+    seguidores: d.sub,
+    novos_seg: d.novos,
+    alcance: null as number | null,
+    views: d.views,
+    interacoes: d.likes + d.comments + d.shares,
+    contas_engaj: null as number | null,
+    comentarios: d.comments,
+    compart: d.shares,
+    perfil_views: null as number | null,
+    atualizado_em: new Date().toISOString(),
+  }));
+  if (ups.length) {
+    const { error } = await supabaseGerador.from('social_daily').upsert(ups, { onConflict: 'rede,dia' });
+    if (error) throw new Error('upsert social_daily YouTube: ' + error.message);
+  }
+  return ups.length;
+}
+
+// ─── YouTube: vídeos (ranking) ──────────────────────────────────────────────
+async function syncYoutubePosts(): Promise<number> {
+  const rows = await windsor('youtube',
+    ['video', 'video_title', 'published_at', 'views', 'likes', 'comments',
+     'shares', 'average_view_percentage', 'videourl', 'videoimage', 'creator_content_type'],
+    { date_preset: 'last_year' });
+
+  // agrega métricas por vídeo (a API traz por vídeo×dia)
+  const porVideo: Record<string, any> = {};
+  for (const r of rows) {
+    const vid = r.video;
+    if (!vid) continue;
+    const v = porVideo[vid] || { titulo: r.video_title, pub: r.published_at, url: r.videourl, img: r.videoimage, tipo: r.creator_content_type, views: 0, likes: 0, coments: 0, shares: 0, watch: numF(r.average_view_percentage) };
+    v.views += num(r.views) || 0;
+    v.likes += num(r.likes) || 0;
+    v.coments += num(r.comments) || 0;
+    v.shares += num(r.shares) || 0;
+    porVideo[vid] = v;
+  }
+  const ups = Object.entries(porVideo).map(([vid, v]: [string, any]) => ({
+    media_id: 'yt_' + vid,
+    rede: 'youtube',
+    tipo: v.tipo === 'shorts' ? 'SHORT' : 'VIDEO',
+    legenda: v.titulo || null,
+    publicado_em: v.pub || null,
+    thumbnail_url: v.img || null,
+    permalink: v.url || null,
+    likes: v.likes, comentarios: v.coments, salvos: 0, compart: v.shares,
+    alcance: 0,
+    views: v.views,
+    watch_full: v.watch,
+    engajamento: v.likes + v.coments + v.shares,
+    atualizado_em: new Date().toISOString(),
+  }));
+  if (ups.length) {
+    const { error } = await supabaseGerador.from('social_posts').upsert(ups, { onConflict: 'media_id' });
+    if (error) throw new Error('upsert social_posts YouTube: ' + error.message);
+  }
+  return ups.length;
+}
+
 // ─── Orquestrador (chamado pelo cron) ───────────────────────────────────────
 // Cada etapa é isolada: se uma rede/seção falhar, as outras seguem.
 export async function syncSocialWindsor(): Promise<Record<string, any>> {
@@ -230,6 +314,8 @@ export async function syncSocialWindsor(): Promise<Record<string, any>> {
     ['ig_audience', syncInstagramAudience],
     ['tt_daily', syncTiktokDaily],
     ['tt_posts', syncTiktokPosts],
+    ['yt_daily', syncYoutubeDaily],
+    ['yt_posts', syncYoutubePosts],
   ];
   for (const [nome, fn] of steps) {
     try {

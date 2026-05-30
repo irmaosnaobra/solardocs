@@ -1252,6 +1252,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="redes-tabs">
         <button type="button" class="redes-tab ativo" id="redes-tab-instagram" onclick="redesTrocaRede('instagram')">📷 Instagram</button>
         <button type="button" class="redes-tab" id="redes-tab-tiktok" onclick="redesTrocaRede('tiktok')">🎵 TikTok</button>
+        <button type="button" class="redes-tab" id="redes-tab-youtube" onclick="redesTrocaRede('youtube')">▶️ YouTube</button>
+        <button type="button" class="redes-tab" id="redes-tab-facebook" onclick="redesTrocaRede('facebook')">👥 Facebook</button>
+        <button type="button" class="redes-tab" id="redes-tab-kwai" onclick="redesTrocaRede('kwai')">⚡ Kwai</button>
         <span class="redes-atualizado" id="redes-atualizado"></span>
       </div>
 
@@ -3563,10 +3566,10 @@ async function carregarRedes() {
       supaGet('social_audience?select=*'),
     ]);
     const split = (arr, rede) => (arr || []).filter(r => r.rede === rede);
-    redesData = {
-      instagram: { daily: split(daily,'instagram'), posts: split(posts,'instagram'), aud: split(aud,'instagram') },
-      tiktok:    { daily: split(daily,'tiktok'),    posts: split(posts,'tiktok'),    aud: split(aud,'tiktok') },
-    };
+    redesData = {};
+    ['instagram','tiktok','youtube','facebook','kwai'].forEach(rede => {
+      redesData[rede] = { daily: split(daily,rede), posts: split(posts,rede), aud: split(aud,rede) };
+    });
     // "atualizado em" = maior atualizado_em de daily
     const todos = (daily || []).map(d => d.atualizado_em).filter(Boolean).sort();
     const ult = todos[todos.length - 1];
@@ -3581,8 +3584,10 @@ async function carregarRedes() {
 
 function redesTrocaRede(rede) {
   redesRedeAtiva = rede;
-  document.getElementById('redes-tab-instagram').classList.toggle('ativo', rede === 'instagram');
-  document.getElementById('redes-tab-tiktok').classList.toggle('ativo', rede === 'tiktok');
+  ['instagram','tiktok','youtube','facebook','kwai'].forEach(r => {
+    const el = document.getElementById('redes-tab-' + r);
+    if (el) el.classList.toggle('ativo', r === rede);
+  });
   renderRede(rede);
 }
 
@@ -3618,11 +3623,21 @@ function sparkline(daily, campo) {
   </svg>`;
 }
 
+const REDE_NOME = { instagram:'Instagram', tiktok:'TikTok', youtube:'YouTube', facebook:'Facebook', kwai:'Kwai' };
+
 function renderRede(rede) {
   const cont = document.getElementById('redes-conteudo');
   const d = redesData[rede];
   if (!d || !d.daily.length) {
-    cont.innerHTML = '<div class="historico-vazio" style="padding:40px">Sem dados ainda. O sync roda 1x/dia.</div>';
+    let msg;
+    if (rede === 'youtube') {
+      msg = '▶️ Canal recém-criado. Os números aparecem aqui conforme você posta Shorts e o YouTube sincroniza (1x/dia).';
+    } else if (rede === 'facebook' || rede === 'kwai') {
+      msg = `${REDE_NOME[rede]} ainda não tem fonte de analytics conectada. Use a aba <strong>Criação → Publicar nas redes</strong> pra postar; as métricas viram quando houver integração.`;
+    } else {
+      msg = 'Sem dados ainda. O sync roda 1x/dia.';
+    }
+    cont.innerHTML = `<div class="redes-bloco" style="text-align:center;padding:40px;color:#cbd5e1;line-height:1.6">${msg}</div>`;
     return;
   }
   const daily = d.daily;
