@@ -76,9 +76,9 @@ html, body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 15px;          /* base maior, estilo SolarZ */
   line-height: 1.6;
-  letter-spacing: -0.011em; /* tracking apertado — marca registrada do estilo Linear */
+  letter-spacing: 0;        /* Nunito Sans é arredondada — sem tracking apertado */
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
   max-width: 100%;
