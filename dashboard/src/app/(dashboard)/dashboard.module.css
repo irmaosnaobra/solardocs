@@ -37,7 +37,7 @@
 @media (max-width: 768px) {
   .main {
     margin-left: 0;
-    margin-top: var(--topbar-height); /* topbar fixa também no mobile */
+    margin-top: 56px; /* topbar full-width some; mobileHeader fixo tem 56px */
     padding: 0;
   }
   .content {

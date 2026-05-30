@@ -86,11 +86,7 @@
   flex-shrink: 0;
 }
 
-/* Mobile: a logo já aparece no mobileHeader da Sidebar; encolhemos a busca */
+/* Mobile: a TopBar full-width some; o mobileHeader da Sidebar assume o topo */
 @media (max-width: 768px) {
-  .topbar { gap: 10px; padding: 0 12px; }
-  .brand { display: none; }
-  .search { max-width: none; }
-  .actions { gap: 8px; }
-  .iconBtn:not(:last-child) { display: none; } /* só avatar no mobile */
+  .topbar { display: none; }
 }

@@ -354,31 +354,53 @@
   display: none;
 }
 
-/* ── MOBILE ── */
+/* ── MOBILE ──
+   No celular a sidebar NÃO é o rail estreito: volta a ser a gaveta larga
+   (280px) com labels visíveis. Desfaz aqui tudo que o rail desktop aplicou. */
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
     width: 280px;
     height: 100dvh;
+    top: 0;                /* gaveta cobre tela toda, não começa abaixo da topbar */
+    align-items: stretch;  /* desfaz o center do rail */
+    background: var(--chrome-bg);
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
 
-  .logoWrap {
-    flex-shrink: 0;
-  }
+  /* a topbar escura full-width some no mobile; o mobileHeader assume */
+  .sidebar > .logoWrap { display: flex; flex-shrink: 0; }
+  .sidebar > .footer { display: flex; flex-shrink: 0; }
 
   .nav {
     flex: 1 1 0px;
+    align-items: stretch;
+    padding: 6px 8px 8px;
+    gap: 1px;
     overflow-y: scroll;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
   }
+  .navSection { align-items: stretch; gap: 1px; }
 
   .nav::-webkit-scrollbar { width: 4px; }
-  .nav::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+  .nav::-webkit-scrollbar-thumb { background: var(--chrome-border); border-radius: 4px; }
+
+  /* itens voltam a ser linha com ícone + label */
+  .navItem, .navItemLocked {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; height: auto; padding: 11px 12px;
+    border-radius: 8px; font-size: 14px; text-align: left;
+  }
+  .navLabel { display: block; flex: 1; min-width: 0; color: inherit; }
+  .navDivider { width: auto; height: auto; background: none; padding: 12px 12px 4px; margin: 0; }
+  .navDividerLabel { display: block; }
+  .navDividerLabelAdmin { display: block; }
+  .countBadge, .tripleBadge, .externalIcon { display: inline-flex; }
+  .navItemActive::before { width: 3px; }
 
   .footer { flex-shrink: 0; }
 
@@ -393,11 +415,11 @@
     left: 0;
     right: 0;
     height: 56px;
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
+    background: var(--chrome-bg);   /* escuro, igual ao chrome SolarZ */
     padding: 0 16px;
     z-index: 100;
   }
+  .hamburger span { background: #fff; }  /* hambúrguer branco sobre header escuro */
 
   .mobileLogoImg {
     height: 28px;
