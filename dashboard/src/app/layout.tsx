@@ -44,7 +44,10 @@ export default function RootLayout({
                   //    O sw.js usa network-first pra HTML — não revive o ChunkLoadError.
                   if ('serviceWorker' in navigator) {
                     window.addEventListener('load', function(){
-                      navigator.serviceWorker.register('/sw.js').catch(function(){});
+                      // updateViaCache:'none' = browser nunca serve um sw.js velho
+                      // do HTTP cache; sempre revalida. Garante que o kill-switch
+                      // (voltar o sw.js self-destruct) chegue rápido se preciso.
+                      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(function(){});
                     });
                   }
                   // 3. Airbag: quando JS dinâmico falha (chunk de deploy antigo sumiu),
