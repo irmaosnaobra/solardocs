@@ -263,18 +263,20 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
     res.json({
       period,
       since: since.toISOString(),
+      // Ordem do fluxo atual: VSL → LP → Stripe (cartão) → Cadastro → Empresa → Plataforma.
+      // O cartão vem ANTES da conta — só cadastra quem passou pelo checkout.
       steps: [
         { key: 'vsl',        label: 'VSL',         count: vslUnique,        sub: `${vslPageviews} pageviews` },
         { key: 'landing',    label: 'Landing',     count: landingUnique,    sub: `${landingPageviews} pageviews` },
-        { key: 'cadastro',   label: 'Cadastro',    count: cadastros ?? 0,   sub: 'contas criadas' },
-        { key: 'empresa',    label: 'Empresa',     count: empresaCount,     sub: 'preencheram CNPJ' },
         {
           key: 'stripe',
           label: 'Stripe',
           count: stripeReached,
-          sub: 'chegaram ao pagamento',
+          sub: 'passaram cartão',
           detail: { closed: stripeClosed, byProduct },
         },
+        { key: 'cadastro',   label: 'Cadastro',    count: cadastros ?? 0,   sub: 'criaram conta' },
+        { key: 'empresa',    label: 'Empresa',     count: empresaCount,     sub: 'preencheram CNPJ' },
         { key: 'plataforma', label: 'Plataforma',  count: ativos,           sub: 'geraram 1+ documento' },
       ],
     });

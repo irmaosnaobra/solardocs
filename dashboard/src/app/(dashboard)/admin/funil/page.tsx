@@ -43,9 +43,9 @@ const STEP_COLORS: Record<FunnelStep['key'], { bg: string; border: string; accen
 const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
   vsl:        'Acessaram a página do vídeo de venda',
   landing:    'Visitaram a home solardoc.app (LP principal)',
-  cadastro:   'Criaram conta na plataforma',
-  stripe:     'Passaram cartão (inclui cancelados no trial)',
-  empresa:    'Preencheram CNPJ (gate pra liberar checkout)',
+  stripe:     'Passaram cartão no checkout (trial 7 dias)',
+  cadastro:   'Criaram conta após o pagamento',
+  empresa:    'Preencheram CNPJ na plataforma',
   plataforma: 'Geraram ao menos 1 documento',
 };
 
@@ -90,7 +90,7 @@ export default function FunilPage() {
             Funil da operação SolarDoc
           </h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '6px 0 0' }}>
-            VSL → LP → Cadastro → Empresa → Stripe → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
+            VSL → LP → Stripe → Cadastro → Empresa → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
           </p>
         </div>
 
@@ -234,11 +234,11 @@ export default function FunilPage() {
                     stripe = by('stripe'), empresa = by('empresa'), plataforma = by('plataforma');
               return [
                 { label: 'VSL → LP',           val: pct(landing, vsl) },
-                { label: 'LP → Cadastro',      val: pct(cadastro, landing) },
+                { label: 'LP → Stripe',        val: pct(stripe, landing) },
+                { label: 'Stripe → Cadastro',  val: pct(cadastro, stripe) },
                 { label: 'Cadastro → Empresa', val: pct(empresa, cadastro) },
-                { label: 'Empresa → Stripe',   val: pct(stripe, empresa) },
-                { label: 'Stripe → Ativo',     val: pct(plataforma, stripe) },
-                { label: 'VSL → Pagante',      val: pct(stripe, vsl) },
+                { label: 'Empresa → Ativo',    val: pct(plataforma, empresa) },
+                { label: 'LP → Pagante',       val: pct(stripe, landing) },
                 { label: 'VSL → Ativo',        val: pct(plataforma, vsl) },
               ];
             })().map(m => (
@@ -266,9 +266,9 @@ export default function FunilPage() {
             <code style={{ padding: '0 4px' }}>/apresentacao</code>; LP conta a home
             <code style={{ padding: '0 4px' }}>solardoc.app</code> (exclui /io, /gerador, /apresentacao).
             <br /><br />
-            <strong style={{ color: '#2dd4bf' }}>Empresa:</strong> users que preencheram CNPJ em
-            <code style={{ padding: '0 4px' }}>/empresa</code>. É gate obrigatório antes do checkout —
-            drop entre Cadastro e Empresa = quem criou conta mas não preencheu CNPJ.
+            <strong style={{ color: '#fbbf24' }}>Fluxo novo:</strong> o cliente passa o cartão no Stripe
+            (trial 7 dias) <b>antes</b> de criar a conta — só cadastra quem pagou. Depois preenche o CNPJ em
+            <code style={{ padding: '0 4px' }}>/empresa</code> dentro da plataforma e gera os documentos.
           </div>
         </>
         );
