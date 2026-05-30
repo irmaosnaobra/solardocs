@@ -121,14 +121,6 @@ export default function Landing() {
     document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function goToFreeRegister() {
-    trackEvent('cta_click', { label: 'free' });
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'Lead', { content_name: 'cta_register', plano: 'free' });
-    }
-    router.push('/auth?mode=register');
-  }
-
   function goToRegister(plano: 'pro' | 'vip') {
     trackEvent('cta_click', { label: plano });
     if (typeof window !== 'undefined' && window.fbq) {
@@ -444,7 +436,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PLANS — Grátis + 2 pagos */}
+      {/* PLANS — PRO + VIP (7 dias grátis) */}
       <section id="planos" className={styles.plans} style={{ scrollMarginTop: 80 }}>
         <div className={styles.plansInner}>
           <div className={styles.sectionLabelWrap}>
@@ -529,18 +521,18 @@ export default function Landing() {
 
           <div className={styles.faqList}>
             <details className={styles.faqItem} data-reveal>
-              <summary>Preciso passar cartão pra começar?</summary>
+              <summary>Como funcionam os 7 dias grátis?</summary>
               <div className={styles.faqAnswer}>
-                <b>Não.</b> Você cria sua conta grátis, cadastra a empresa e já gera até 10 propostas
-                sem informar cartão. Cartão só entra se você decidir fazer upgrade pra Pro ou VIP.
+                Você escolhe Pro ou VIP, cadastra o cartão e usa a plataforma completa por 7 dias sem pagar nada.
+                A <b>primeira cobrança só acontece no 8º dia</b>. Cancelou antes? Não é cobrado. Sem letra miúda.
               </div>
             </details>
 
             <details className={styles.faqItem} data-reveal>
-              <summary>E depois das 10 propostas grátis?</summary>
+              <summary>Qual a diferença entre Pro e VIP?</summary>
               <div className={styles.faqAnswer}>
-                Quando acabar, a plataforma te oferece um plano pago. Você decide se faz upgrade
-                ou para por aí — <b>nada é cobrado automaticamente</b>. Sem letra miúda.
+                O <b>Pro (R$ {PRICES.pro}/mês)</b> dá 90 documentos por mês — ideal pra quem fecha de 5 a 15 vendas.
+                O <b>VIP (R$ {PRICES.vip}/mês)</b> é ilimitado, com mentoria e suporte prioritário, pra empresa com volume alto.
               </div>
             </details>
 
@@ -589,14 +581,14 @@ export default function Landing() {
             <strong>o cliente assinando no seu celular.</strong>
           </h2>
           <p className={styles.finalCtaSub} data-reveal>
-            10 propostas grátis no Gerador. Sem cartão, sem cobrança.
+            Teste o melhor gerador de proposta do Brasil por 7 dias grátis.
           </p>
           <div data-reveal>
             <button className={styles.finalCtaBtn} onClick={scrollToPlans}>
-              Começar grátis →
+              Testar 7 dias grátis →
             </button>
             <div className={styles.finalCtaFoot}>
-              Quer mais? Upgrade pra Pro R$ {PRICES.pro}/mês ou VIP R$ {PRICES.vip}/mês quando quiser.
+              Pro R$ {PRICES.pro}/mês ou VIP R$ {PRICES.vip}/mês · cancele quando quiser, sem fidelidade.
             </div>
           </div>
         </div>
