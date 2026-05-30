@@ -135,8 +135,12 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .redes-st-item .st-corpo b{color:#E5E7EB}
 .redes-st-acoes{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .redes-st-acoes button{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:none}
+.redes-st-acoes a{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center}
 .st-aprovar{background:#10b981;color:#fff}
-.st-video{background:#3B82F6;color:#fff}
+.st-copiar{background:rgba(255,255,255,.08);color:#cbd5e1;border:1px solid rgba(255,255,255,.15)!important}
+.st-copiar:hover{background:rgba(255,255,255,.14);color:#fff}
+.st-heygen{background:#7C3AED;color:#fff}
+.st-heygen:hover{background:#8B5CF6}
 .st-descartar{background:rgba(248,113,113,.15);color:#fca5a5;border:1px solid rgba(248,113,113,.3)!important}
 .redes-st-vazio{text-align:center;color:#94A3B8;padding:24px;font-size:13px}
 /* ===== Estilo "Linear" (dark grafite premium, acento laranja) — só nos cards .lnr ===== */
@@ -159,8 +163,10 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .lnr .redes-st-item .st-corpo b{color:#f7f8f8}
 .lnr .st-aprovar{background:#f5a623;color:#1a1206}
 .lnr .st-aprovar:hover{background:#ffb13d}
-.lnr .st-video{background:#131416;color:#f7f8f8;border:1px solid rgba(255,255,255,.11)!important}
-.lnr .st-video:hover{background:#1a1b1e}
+.lnr .st-copiar{background:#131416;color:#f7f8f8;border:1px solid rgba(255,255,255,.11)!important}
+.lnr .st-copiar:hover{background:#1a1b1e}
+.lnr .st-heygen{background:#7C3AED;color:#fff}
+.lnr .st-heygen:hover{background:#8B5CF6}
 .lnr .st-descartar{background:transparent;color:#9ca0a8;border:1px solid rgba(255,255,255,.11)!important}
 .lnr .st-descartar:hover{color:#fca5a5;border-color:rgba(248,113,113,.4)!important}
 .lnr .redes-st-vazio{color:#62666d}
@@ -3867,6 +3873,14 @@ async function carregarStudioFila() {
   box.innerHTML = rows.map(r => {
     const arq = ARQ_LABEL[r.arquetipo] || r.arquetipo || 'Roteiro';
     const aprovado = r.status === 'aprovado' || r.status === 'postado';
+    // texto completo do roteiro pra copiar (vai pro avatar no HeyGen)
+    const roteiroFull = [
+      r.gancho ? `GANCHO: ${r.gancho}` : '',
+      r.roteiro ? `\nROTEIRO:\n${r.roteiro}` : '',
+      r.legenda ? `\nLEGENDA: ${r.legenda}` : '',
+      r.cta ? `\nCTA: ${r.cta}` : '',
+    ].filter(Boolean).join('\n');
+    const legendaFull = [r.legenda, r.cta].filter(Boolean).join('\n');
     return `<div class="redes-st-item">
       <div class="st-top">
         <span class="st-arq">${escapeHtml(arq)}</span>
@@ -3878,8 +3892,10 @@ async function carregarStudioFila() {
       ${r.legenda ? `<div class="st-corpo"><b>Legenda:</b> ${escapeHtml(r.legenda)}</div>` : ''}
       ${r.cta ? `<div class="st-corpo"><b>CTA:</b> ${escapeHtml(r.cta)}</div>` : ''}
       <div class="redes-st-acoes">
-        ${!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">✅ Aprovar</button>` : '<span class="st-status">✅ aprovado</span>'}
-        <button class="st-video" onclick="studioGerarVideo(${r.id})">🎭 Gerar vídeo (avatar)</button>
+        ${!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">✅ Aprovar</button>` : '<span class="st-status" style="align-self:center">✅ aprovado</span>'}
+        <button class="st-copiar" data-copy="${encodeURIComponent(roteiroFull)}" onclick="studioCopiar(this,'roteiro')">📋 Copiar roteiro</button>
+        <button class="st-copiar" data-copy="${encodeURIComponent(legendaFull)}" onclick="studioCopiar(this,'legenda')">🏷️ Copiar legenda</button>
+        <a class="st-heygen" href="https://app.heygen.com/" target="_blank" rel="noopener">🎭 Gerar no HeyGen ↗</a>
         <button class="st-descartar" onclick="studioAcao(${r.id},'descartado')">🗑 Descartar</button>
       </div>
     </div>`;
@@ -3927,16 +3943,22 @@ async function studioAcao(id, status) {
   } catch (e) { showToast && showToast('Erro ao atualizar'); }
 }
 
-async function studioGerarVideo(id) {
+// copia roteiro/legenda pra área de transferência (pra colar no HeyGen ou num chat IA)
+async function studioCopiar(btn, tipo) {
+  const txt = decodeURIComponent(btn.getAttribute('data-copy') || '');
+  if (!txt) { showToast && showToast('Nada pra copiar'); return; }
   try {
-    const r = await fetch('/_api/gerador/social/gerar-video', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
-    const j = await r.json();
-    if (j.ok === false) { showToast && showToast(j.motivo || 'Geração de vídeo ainda não configurada'); return; }
-    await carregarStudioFila();
-  } catch (e) { showToast && showToast('Erro ao gerar vídeo'); }
+    await navigator.clipboard.writeText(txt);
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copiado!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  } catch (e) {
+    // fallback pra navegadores sem clipboard API
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); showToast && showToast('Copiado!'); } catch (_) { showToast && showToast('Copie manualmente'); }
+    document.body.removeChild(ta);
+  }
 }
 
 async function varrerAdLibraryEstudio() {
