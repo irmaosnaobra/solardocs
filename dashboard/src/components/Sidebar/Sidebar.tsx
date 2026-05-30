@@ -9,7 +9,7 @@ import {
   Banknote, ScrollText, FileSignature,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
   Save, GraduationCap, Smartphone,
-  Filter, Send, MapPin, Palette,
+  Filter, Send, MapPin, Palette, LogOut,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -266,7 +266,12 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
         {isFree && !isAdmin && (
           <style>{`@keyframes sd-upgrade-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}`}</style>
         )}
-        {/* "Sair" agora vive no menu do avatar (topbar) — removido daqui pra não duplicar */}
+        {/* "Sair" no desktop vive no menu do avatar (topbar). No mobile a topbar
+            some (display:none), então o botão precisa existir AQUI — visível só
+            no mobile pra não duplicar no desktop. */}
+        <button className={styles.logoutBtnMobile} onClick={handleLogout}>
+          <LogOut size={15} strokeWidth={1.75} /> Sair
+        </button>
       </div>
     </aside>
   );

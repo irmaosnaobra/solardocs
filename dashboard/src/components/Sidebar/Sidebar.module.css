@@ -316,6 +316,36 @@
   color: #fff;
 }
 
+/* Sair só no mobile: no desktop ele vive no menu do avatar (topbar).
+   A topbar some em ≤768px, então o botão aparece aqui no drawer da sidebar. */
+.logoutBtnMobile {
+  display: none;
+}
+@media (max-width: 768px) {
+  .logoutBtnMobile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 11px;
+    background: transparent;
+    border: 1px solid var(--chrome-border);
+    color: var(--chrome-text-dim);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .logoutBtnMobile:active {
+    background: var(--chrome-bg-2);
+    color: #fff;
+  }
+}
+
 /* ── MOBILE HEADER (hamburger) ── */
 .mobileHeader {
   display: none;
