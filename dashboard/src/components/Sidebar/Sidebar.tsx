@@ -70,7 +70,6 @@ const cadastroItems: NavItem[] = [
 ];
 
 const docsClienteItems: NavItem[] = [
-  { href: '/documentos?tipo=vistoria',          icon: ClipboardCheck, label: 'Vistoria CheckList', requireCompany: true, paidOnly: true },
   { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,       label: 'Proposta de Banco',  requireCompany: true, paidOnly: true },
   { href: '/documentos?tipo=contrato-solar',    icon: FileSignature,  label: 'Contrato Solar',     requireCompany: true, paidOnly: true },
   { href: '/documentos?tipo=procuracao',        icon: ScrollText,     label: 'Procuração',         requireCompany: true, paidOnly: true },
