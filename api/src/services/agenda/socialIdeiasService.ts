@@ -73,7 +73,16 @@ Responda APENAS com array JSON válido:
   return Array.isArray(arr) ? arr.slice(0, 6) : [];
 }
 
-interface Roteiro { arquetipo: string; gancho: string; roteiro: string; legenda: string; cta: string; }
+interface Fala { quem: string; texto: string; }
+interface Roteiro { arquetipo: string; gancho: string; falas?: Fala[]; roteiro: string; legenda: string; cta: string; }
+
+// Perfil dos apresentadores — guia a IA a escrever no estilo de cada um.
+// Base neutra por ora; será refinada quando Thiago descrever cada um e quando
+// casarmos com os avatares/vozes reais do HeyGen (via MCP).
+const PERFIL_APRESENTADORES = `APRESENTADORES (os avatares que vão falar o roteiro):
+- THIAGO: sócio da Irmãos na Obra, energia e autoridade. Costuma ABRIR o vídeo com o gancho forte, fala direto com o público, tom de quem entende do assunto.
+- DIEGO: sócio, complementa com o dado/explicação/bastidor. Entra reforçando o que o Thiago abriu, fecha raciocínio.
+Ambos são do interior de Minas (Triângulo Mineiro), falam de forma próxima e regional, sem jargão técnico. Aprenda o tom REAL deles pelos posts abaixo.`;
 
 // Extrai o ID de um vídeo do YouTube de várias formas de URL.
 function youtubeId(url: string): string | null {
@@ -119,14 +128,23 @@ export async function roteirizarTema(tema: string, fonteUrl?: string): Promise<R
 
   const prompt = `${DNA_VIRAL}
 
-O que já funciona na conta real:
+${PERFIL_APRESENTADORES}
+
+O que já funciona na conta real (aprenda o jeito de escrever/falar deles):
 ${resumo}
 
 ${blocoFonte}
 
-Crie UM roteiro de Reel/Short (Thiago e Diego apresentando) que parte desse conteúdo e faz a PONTE pro nicho de energia solar. Escolha o arquétipo que melhor encaixa (fernando | larcabral | lucas).
+Crie UM roteiro de Reel/Short curto (~30-45s) apresentado por THIAGO e DIEGO, partindo desse conteúdo e fazendo a PONTE pro nicho de energia solar. Escolha o arquétipo (fernando | larcabral | lucas).
+
+REGRAS DE FALA:
+- Divida o roteiro em FALAS, cada uma marcada com quem fala (THIAGO ou DIEGO).
+- Cada fala é o texto EXATO que o avatar vai dizer (será gerado no HeyGen com a voz clonada de cada um) — escreva natural, como gente fala, não como texto escrito.
+- Thiago abre o gancho; Diego entra com o contexto/dado; alternem. CTA no fim por um dos dois.
+- Falas curtas e diretas, tom regional de Minas, sem jargão técnico.
+
 Responda APENAS com objeto JSON válido:
-{"arquetipo":"fernando|larcabral|lucas","gancho":"primeira frase, 3s","roteiro":"roteiro completo do que falar/mostrar","legenda":"legenda pronta + hashtags","cta":"chamada final (ex: comenta SOLAR que te mando o cálculo)"}`;
+{"arquetipo":"fernando|larcabral|lucas","gancho":"primeira frase do Thiago (3s)","falas":[{"quem":"THIAGO","texto":"..."},{"quem":"DIEGO","texto":"..."}],"roteiro":"resumo do que mostrar na tela (b-roll, cortes)","legenda":"legenda pronta + hashtags","cta":"chamada final"}`;
   const raw = await chamarClaude(SISTEMA_BASE, prompt);
   const r = extrairJson<Roteiro>(raw, 'social-roteiro');
   // anexa flag de transcrição pro front saber que "entendeu o vídeo"

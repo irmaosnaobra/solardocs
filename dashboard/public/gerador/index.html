@@ -133,6 +133,7 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .redes-st-item .st-gancho{font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;line-height:1.3}
 .redes-st-item .st-corpo{font-size:13px;color:#cbd5e1;line-height:1.5;margin:4px 0}
 .redes-st-item .st-corpo b{color:#E5E7EB}
+.st-falas{white-space:pre-wrap;margin-top:4px;padding:10px 12px;background:rgba(255,255,255,.04);border-radius:8px;font-size:13px;line-height:1.6}
 .redes-st-acoes{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .redes-st-acoes button{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:none}
 .redes-st-acoes a{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center}
@@ -3888,7 +3889,7 @@ async function carregarStudioFila() {
         <span class="st-status">${escapeHtml(r.status)}</span>
       </div>
       ${r.gancho ? `<div class="st-gancho">${escapeHtml(r.gancho)}</div>` : ''}
-      ${r.roteiro ? `<div class="st-corpo"><b>Roteiro:</b> ${escapeHtml(r.roteiro)}</div>` : ''}
+      ${r.roteiro ? `<div class="st-corpo"><b>Roteiro (falas):</b><div class="st-falas">${escapeHtml(r.roteiro)}</div></div>` : ''}
       ${r.legenda ? `<div class="st-corpo"><b>Legenda:</b> ${escapeHtml(r.legenda)}</div>` : ''}
       ${r.cta ? `<div class="st-corpo"><b>CTA:</b> ${escapeHtml(r.cta)}</div>` : ''}
       <div class="redes-st-acoes">
@@ -3918,12 +3919,20 @@ async function roteirizarTemaEstudio() {
     const j = await r.json();
     const rot = j.roteiro;
     if (!rot) { showToast && showToast('Não consegui gerar agora — tente de novo'); return; }
+    // monta o roteiro com as FALAS separadas (THIAGO/DIEGO) + indicação de tela
+    let roteiroTxt = '';
+    if (Array.isArray(rot.falas) && rot.falas.length) {
+      roteiroTxt = rot.falas.map(f => `${(f.quem||'').toUpperCase()}: ${f.texto}`).join('\n');
+      if (rot.roteiro) roteiroTxt += `\n\n[TELA / B-ROLL] ${rot.roteiro}`;
+    } else {
+      roteiroTxt = rot.roteiro || '';
+    }
     // grava na fila (Supabase) via supaInsert
     await supaInsert('social_studio', {
       fonte: ehLink ? 'manual' : 'curadoria',
       fonte_url: ehLink ? tema : null,
       tema, arquetipo: rot.arquetipo, gancho: rot.gancho,
-      roteiro: rot.roteiro, legenda: rot.legenda, cta: rot.cta,
+      roteiro: roteiroTxt, legenda: rot.legenda, cta: rot.cta,
       status: 'roteirizado',
     });
     inp.value = '';
