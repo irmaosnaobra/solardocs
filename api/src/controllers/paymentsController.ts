@@ -248,8 +248,9 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     }
   }
 
-  // Cancelamento explícito da assinatura (cliente cancelou, ou Stripe encerrou
-  // após retentativas esgotadas) — rebaixa pra free de fato.
+  // Cancelamento da assinatura (cancelou nos 7 dias, ou Stripe encerrou após
+  // retentativas). Modelo SEM FREE: BLOQUEIA (suspended) — a tela de suspensão
+  // pede pra reativar/atualizar o cartão. Não vira mais free.
   if (event.type === 'customer.subscription.deleted') {
     const sub    = event.data.object as any;
     const custId = sub.customer as string;
@@ -258,11 +259,8 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
       await supabase
         .from('users')
         .update({
-          plano: 'free',
-          limite_documentos: FREE_LIMIT,
+          billing_status: 'suspended',
           documentos_usados: 0,
-          billing_status: 'active',     // não está mais em cobrança, é só free
-          past_due_since: null,
           dunning_last_day_sent: null,
         })
         .eq('email', customer.email);
