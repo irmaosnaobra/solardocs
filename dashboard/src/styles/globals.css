@@ -11,9 +11,9 @@
   --color-surface-2: #F4F6F9;
   --color-border: #E5E9EF;
   --color-border-strong: #D5DBE3;
-  --color-text: #111827;        /* texto principal bem escuro (quase preto) no corpo claro */
-  --color-text-muted: #4B5563;  /* secundário mais escuro que antes (era cinza claro) */
-  --color-text-dim: #9AA3AF;
+  --color-text: #0B1220;        /* texto principal quase-preto no corpo claro */
+  --color-text-muted: #374151;  /* secundário ESCURO — labels legíveis no fundo branco */
+  --color-text-dim: #6B7280;    /* "dim" também mais escuro (era cinza claro demais) */
   --color-success: #22C55E;
   --color-error: #EF4444;
   --color-warning: #F59E0B;
