@@ -103,7 +103,8 @@ function InfoRow({ label, value }: { label: string; value?: string }) {
 export default function EmpresaPage() {
   const router = useRouter();
   const [company, setCompany] = useState<Company | null>(null);
-  const [editing, setEditing] = useState(false);
+  // Empresa abre SEMPRE no formulário editável (sem etapa de "Editar")
+  const [editing, setEditing] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -267,7 +268,7 @@ export default function EmpresaPage() {
         headers: isNew ? { 'x-meta-event-id': eventId } : {},
       });
       setCompany(data.company);
-      setEditing(false);
+      // Continua no formulário editável após salvar (não volta pra view)
       setMessage({ type: 'success', text: 'Empresa salva com sucesso!' });
       setTimeout(() => setMessage(null), 3000);
 
@@ -415,7 +416,7 @@ export default function EmpresaPage() {
           <p className={styles.subtitle}>Dados usados automaticamente em todos os documentos</p>
         </div>
         {company && (
-          <button className="btn-secondary" onClick={() => setEditing(false)}>Cancelar</button>
+          <button className="btn-secondary" onClick={() => router.push('/documentos?tipo=proposta')}>Voltar</button>
         )}
       </div>
 
@@ -791,7 +792,7 @@ export default function EmpresaPage() {
 
         <div className={styles.saveBar}>
           {company && (
-            <button type="button" className="btn-secondary" onClick={() => setEditing(false)}>Cancelar</button>
+            <button type="button" className="btn-secondary" onClick={() => router.push('/documentos?tipo=proposta')}>Voltar</button>
           )}
           <button
             type="submit"
