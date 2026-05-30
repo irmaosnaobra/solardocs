@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Documentação solar com IA',
     start_url: '/auth',
     display: 'standalone',
-    background_color: '#0f172a',
-    theme_color: '#f59e0b',
+    background_color: '#EEF1F4',
+    theme_color: '#F26513',
     orientation: 'portrait',
     icons: [
       {
