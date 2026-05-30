@@ -2,65 +2,94 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 
-// Gera ideias de Reels/vídeos de energia solar para a Irmãos na Obra,
-// ancoradas nos posts que MAIS performaram na conta real (via social_posts,
-// populado pelo socialWindsorService). Usado pela aba "Redes" do /gerador.
+// IA de conteúdo da aba "Redes" do /gerador. Duas frentes que compartilham
+// o MESMO core (client Anthropic + extração de JSON):
+//   1) gerarIdeiasSociais  — ideias soltas ancoradas nos top posts reais
+//   2) roteirizarTema      — pega 1 tema-isca e gera roteiro no DNA viral (estúdio)
+// Ambas dependem de créditos Anthropic (ANTHROPIC_API_KEY já no ambiente).
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const MODEL = 'claude-sonnet-4-6';
 
-interface Ideia {
-  formato: string;
-  titulo: string;
-  gancho: string;
-  roteiro: string;
-  legenda: string;
-}
+// ─── DNA viral decodificado de criadores reais (referência do roteirizador) ──
+// Mantido aqui pra os dois fluxos usarem o mesmo "cérebro".
+const DNA_VIRAL = `DNA de conteúdo viral (3 arquétipos comprovados, adapte ao tema):
+- FERNANDO MIRANDA (history/bastidor + gancho de TENSÃO): abre com afirmação contra-intuitiva nos 3s ("A X não caiu porque você pensa... foi por Z"), pega QUALQUER assunto e extrai uma lição, tom de autoridade que explica o "porquê profundo". Ex p/ solar: "A conta de luz não subiu por causa da seca. Subiu por um motivo que ninguém te conta...".
+- LAR.CABRAL (listicle de obra/casa): gancho NÚMERO+benefício ("7 acertos no telhado que economizam energia"), gera salvamento, CTA de escolha ("qual você faria?"). Público dono de casa/obra.
+- LUCAS ARRIAL (descoberta + CTA palavra-chave): mostra algo que a pessoa não sabia + CTA "comenta SOLAR que te mando o cálculo" pra explodir comentários.
+Regra de ouro do Thiago: pode partir de QUALQUER tema viral (ferramentas, construção, telhado, acidentes elétricos, empresas de sucesso, notícias, China/carro elétrico) e construir uma PONTE pro nicho de energia solar.`;
 
-export async function gerarIdeiasSociais(rede: string): Promise<Ideia[]> {
-  const r = rede === 'tiktok' ? 'tiktok' : 'instagram';
+const SISTEMA_BASE = `Você é o roteirista-chefe de conteúdo viral da "Irmãos na Obra", empresa de energia solar do interior de Minas Gerais (Triângulo Mineiro — Uberaba, Araguari, Araxá, Ituiutaba). Os apresentadores são Thiago e Diego (avatares). Público: adultos 25-54, donos de casa/comércio que querem reduzir a conta de luz. Tom: próximo, direto, regional, autoridade sem jargão técnico. Responda SEMPRE em português do Brasil.`;
 
-  // Top posts reais pra ancorar o prompt (o que JÁ funciona nessa conta)
-  const { data: posts } = await supabaseGerador
-    .from('social_posts')
-    .select('legenda, likes, comentarios, alcance, views, salvos, compart, engajamento')
-    .eq('rede', r)
-    .order('engajamento', { ascending: false })
-    .limit(8);
-
-  const topResumo = (posts || [])
-    .filter(p => p.legenda)
-    .map((p, i) => `${i + 1}. "${String(p.legenda).slice(0, 120)}" — ${p.likes || 0} likes, ${p.comentarios || 0} comentários, ${p.alcance || p.views || 0} de alcance`)
-    .join('\n') || '(sem histórico suficiente — use boas práticas do nicho de energia solar no interior de MG)';
-
-  const sistema = `Você é um especialista em conteúdo viral para Instagram e TikTok no nicho de ENERGIA SOLAR, atuando para a "Irmãos na Obra", uma empresa de energia solar do interior de Minas Gerais (Triângulo Mineiro — Uberaba, Araguari, Araxá, Ituiutaba e região). O público é majoritariamente adulto 25-54, donos de casa/comércio que querem reduzir a conta de luz. Tom: próximo, direto, regional, sem jargão técnico. Responda SEMPRE em português do Brasil.`;
-
-  const prompt = `Estes são os posts que MAIS engajaram na conta real (analise o DNA do que funciona — formato, gancho, tema):
-${topResumo}
-
-Gere 4 ideias NOVAS de ${r === 'tiktok' ? 'vídeos para TikTok' : 'Reels para Instagram'} de energia solar, no mesmo DNA do que já dá certo, mas frescas e variadas (depoimento de cliente, antes/depois de conta de luz, mito x verdade, bastidor de instalação, pergunta que gera comentário).
-
-Responda APENAS com um array JSON válido, sem texto fora do JSON, neste formato exato:
-[{"formato":"Reel 15-30s","titulo":"...","gancho":"primeira frase que segura nos 3s","roteiro":"o que mostrar/falar, curto","legenda":"legenda pronta com 1-2 hashtags do nicho"}]`;
-
+// Core: chama Claude e devolve o texto cru.
+async function chamarClaude(sistema: string, prompt: string, maxTokens = 1500): Promise<string> {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 1500,
+    model: MODEL,
+    max_tokens: maxTokens,
     system: sistema,
     messages: [{ role: 'user', content: prompt }],
   });
+  return (response.content[0] as { text: string }).text;
+}
 
-  const raw = (response.content[0] as { text: string }).text;
-  // Extrai o array JSON mesmo se vier cercado de texto/```json
-  const m = raw.match(/\[[\s\S]*\]/);
-  if (!m) {
-    logger.warn('social-ideias', 'resposta sem JSON', { raw: raw.slice(0, 200) });
-    return [];
-  }
-  try {
-    const arr = JSON.parse(m[0]) as Ideia[];
-    return Array.isArray(arr) ? arr.slice(0, 6) : [];
-  } catch (e) {
-    logger.warn('social-ideias', 'JSON inválido', { raw: m[0].slice(0, 200) });
-    return [];
-  }
+// Core: extrai um array OU objeto JSON da resposta, mesmo cercado de texto/```.
+function extrairJson<T>(raw: string, ctx: string): T | null {
+  const m = raw.match(/[\[{][\s\S]*[\]}]/);
+  if (!m) { logger.warn(ctx, 'resposta sem JSON', { raw: raw.slice(0, 200) }); return null; }
+  try { return JSON.parse(m[0]) as T; }
+  catch { logger.warn(ctx, 'JSON inválido', { raw: m[0].slice(0, 200) }); return null; }
+}
+
+// Resumo dos top posts reais (ancora os dois fluxos no que JÁ funciona).
+async function topPostsResumo(rede: string): Promise<string> {
+  const { data: posts } = await supabaseGerador
+    .from('social_posts')
+    .select('legenda, likes, comentarios, alcance, views, engajamento')
+    .eq('rede', rede)
+    .order('engajamento', { ascending: false })
+    .limit(8);
+  return (posts || [])
+    .filter(p => p.legenda)
+    .map((p, i) => `${i + 1}. "${String(p.legenda).slice(0, 120)}" — ${p.likes || 0} likes, ${p.comentarios || 0} coments, ${p.alcance || p.views || 0} alcance`)
+    .join('\n') || '(sem histórico suficiente — use boas práticas do nicho de energia solar no interior de MG)';
+}
+
+interface Ideia { formato: string; titulo: string; gancho: string; roteiro: string; legenda: string; }
+
+// ─── Fluxo 1: ideias soltas (botão "Gerar ideias") ──────────────────────────
+export async function gerarIdeiasSociais(rede: string): Promise<Ideia[]> {
+  const r = rede === 'tiktok' ? 'tiktok' : 'instagram';
+  const resumo = await topPostsResumo(r);
+  const prompt = `${DNA_VIRAL}
+
+Posts que MAIS engajaram na conta real:
+${resumo}
+
+Gere 4 ideias NOVAS de ${r === 'tiktok' ? 'vídeos para TikTok' : 'Reels para Instagram'}, frescas e variadas, no DNA acima.
+Responda APENAS com array JSON válido:
+[{"formato":"Reel 15-30s","titulo":"...","gancho":"frase que segura nos 3s","roteiro":"o que mostrar/falar","legenda":"legenda + 1-2 hashtags"}]`;
+  const raw = await chamarClaude(SISTEMA_BASE, prompt);
+  const arr = extrairJson<Ideia[]>(raw, 'social-ideias');
+  return Array.isArray(arr) ? arr.slice(0, 6) : [];
+}
+
+interface Roteiro { arquetipo: string; gancho: string; roteiro: string; legenda: string; cta: string; }
+
+// ─── Fluxo 2: roteirizar UM tema-isca (estúdio) ─────────────────────────────
+// Recebe um tema (e opcionalmente o link do vídeo viral de origem) e devolve
+// um roteiro pronto no DNA viral, com ponte pro nicho solar.
+export async function roteirizarTema(tema: string, fonteUrl?: string): Promise<Roteiro | null> {
+  const resumo = await topPostsResumo('instagram');
+  const prompt = `${DNA_VIRAL}
+
+O que já funciona na conta real:
+${resumo}
+
+TEMA-ISCA a transformar em vídeo: "${tema}"${fonteUrl ? `\n(vídeo de origem: ${fonteUrl})` : ''}
+
+Crie UM roteiro de Reel/Short (Thiago e Diego apresentando) que parte desse tema e faz a PONTE pro nicho de energia solar. Escolha o arquétipo que melhor encaixa (fernando | larcabral | lucas).
+Responda APENAS com objeto JSON válido:
+{"arquetipo":"fernando|larcabral|lucas","gancho":"primeira frase, 3s","roteiro":"roteiro completo do que falar/mostrar","legenda":"legenda pronta + hashtags","cta":"chamada final (ex: comenta SOLAR que te mando o cálculo)"}`;
+  const raw = await chamarClaude(SISTEMA_BASE, prompt);
+  return extrairJson<Roteiro>(raw, 'social-roteiro');
 }

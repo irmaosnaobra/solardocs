@@ -100,6 +100,29 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .redes-pub-btn.rp-yt:hover{border-color:#FF0000;box-shadow:0 0 0 1px #FF0000 inset}
 .redes-pub-btn.rp-fb:hover{border-color:#1877F2;box-shadow:0 0 0 1px #1877F2 inset}
 .redes-pub-btn.rp-kw:hover{border-color:#FF7700;box-shadow:0 0 0 1px #FF7700 inset}
+/* Estúdio de virais */
+.redes-studio-card{margin-top:8px}
+.redes-st-badge{font-size:11px;color:#94A3B8;background:rgba(148,163,184,.12);padding:4px 10px;border-radius:20px}
+.redes-st-input{display:flex;gap:8px;margin:14px 0 10px;flex-wrap:wrap}
+.redes-st-input input{flex:1;min-width:220px;background:#0F172A;border:1px solid #475569;color:#E5E7EB;border-radius:10px;padding:11px 14px;font-size:14px;font-family:inherit}
+.redes-st-input input:focus{outline:none;border-color:#60A5FA}
+.redes-st-fontes{display:flex;gap:8px;flex-wrap:wrap}
+.redes-st-fonte{background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);color:#93C5FD;padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.redes-st-fonte:hover{background:rgba(96,165,250,.18)}
+.redes-studio-fila{margin-top:16px;display:flex;flex-direction:column;gap:12px}
+.redes-st-item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 16px}
+.redes-st-item .st-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.redes-st-item .st-arq{font-size:11px;font-weight:700;text-transform:uppercase;color:#6ee7b7;background:rgba(16,185,129,.12);padding:3px 9px;border-radius:6px}
+.redes-st-item .st-status{font-size:11px;color:#94A3B8;margin-left:auto}
+.redes-st-item .st-gancho{font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;line-height:1.3}
+.redes-st-item .st-corpo{font-size:13px;color:#cbd5e1;line-height:1.5;margin:4px 0}
+.redes-st-item .st-corpo b{color:#E5E7EB}
+.redes-st-acoes{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.redes-st-acoes button{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:none}
+.st-aprovar{background:#10b981;color:#fff}
+.st-video{background:#3B82F6;color:#fff}
+.st-descartar{background:rgba(248,113,113,.15);color:#fca5a5;border:1px solid rgba(248,113,113,.3)!important}
+.redes-st-vazio{text-align:center;color:#94A3B8;padding:24px;font-size:13px}
 .redes-ia-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .redes-ia-head h3{font-size:15px;color:#E5E7EB;margin:0}
 .btn-redes-ia{background:#10b981;color:#fff;border:none;padding:9px 18px;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:14px}
@@ -1206,6 +1229,27 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </a>
       </div>
       <p class="redes-ia-sub" style="margin:12px 0 0">💡 Dica: poste o mesmo Reel vertical em todas. YouTube e Kwai você ainda vai criar — o atalho já te leva lá.</p>
+    </div>
+
+    <!-- ESTÚDIO: fila de produção de vídeos virais -->
+    <div class="card redes-studio-card">
+      <div class="redes-ia-head">
+        <h3>🎬 Estúdio de virais</h3>
+        <span class="redes-st-badge" id="redes-st-status">estrutura pronta · conectando fontes</span>
+      </div>
+      <p class="redes-ia-sub">Achou um vídeo viral por aí (qualquer tema)? Cole o link que a IA cria um roteiro com a ponte pro solar — pra você + Diego gravarem ou virar avatar.</p>
+
+      <!-- bate-pronto: link manual -->
+      <div class="redes-st-input">
+        <input type="text" id="redes-st-link" placeholder="Cole o link do vídeo (TikTok, IG, YouTube…) ou descreva o tema">
+        <button type="button" class="btn-redes-ia" id="btn-redes-roteirizar" onclick="roteirizarTemaEstudio()">Criar roteiro</button>
+      </div>
+      <div class="redes-st-fontes">
+        <button type="button" class="redes-st-fonte" onclick="varrerAdLibraryEstudio()">🔍 Varrer virais do nicho (Ad Library)</button>
+      </div>
+
+      <!-- fila -->
+      <div id="redes-studio-fila" class="redes-studio-fila"></div>
     </div>
 
     <!-- IA: ideias de conteúdo -->
@@ -3471,6 +3515,7 @@ async function carregarRedes() {
   } catch (e) {
     cont.innerHTML = '<div class="historico-vazio" style="padding:40px">Erro ao carregar dados das redes.</div>';
   }
+  carregarStudioFila();
 }
 
 function redesTrocaRede(rede) {
@@ -3621,6 +3666,104 @@ async function gerarIdeiasRedes() {
   } finally {
     btn.disabled = false; btn.textContent = 'Gerar ideias';
   }
+}
+
+// ===== ESTÚDIO DE VIRAIS (fila de produção) =====
+const ARQ_LABEL = { fernando: 'História + tensão', larcabral: 'Listicle obra', lucas: 'Descoberta + CTA' };
+
+async function carregarStudioFila() {
+  const box = document.getElementById('redes-studio-fila');
+  if (!box) return;
+  let rows = [];
+  try {
+    rows = await supaGet('social_studio?select=*&status=neq.descartado&order=criado_em.desc&limit=50');
+  } catch (e) { box.innerHTML = ''; return; }
+  if (!rows || !rows.length) {
+    box.innerHTML = '<div class="redes-st-vazio">Nenhum roteiro na fila ainda. Cole um link acima ou varra os virais do nicho pra começar.</div>';
+    return;
+  }
+  box.innerHTML = rows.map(r => {
+    const arq = ARQ_LABEL[r.arquetipo] || r.arquetipo || 'Roteiro';
+    const aprovado = r.status === 'aprovado' || r.status === 'postado';
+    return `<div class="redes-st-item">
+      <div class="st-top">
+        <span class="st-arq">${escapeHtml(arq)}</span>
+        ${r.fonte_url ? `<a href="${r.fonte_url}" target="_blank" rel="noopener" style="font-size:11px;color:#60A5FA">fonte ↗</a>` : ''}
+        <span class="st-status">${escapeHtml(r.status)}</span>
+      </div>
+      ${r.gancho ? `<div class="st-gancho">${escapeHtml(r.gancho)}</div>` : ''}
+      ${r.roteiro ? `<div class="st-corpo"><b>Roteiro:</b> ${escapeHtml(r.roteiro)}</div>` : ''}
+      ${r.legenda ? `<div class="st-corpo"><b>Legenda:</b> ${escapeHtml(r.legenda)}</div>` : ''}
+      ${r.cta ? `<div class="st-corpo"><b>CTA:</b> ${escapeHtml(r.cta)}</div>` : ''}
+      <div class="redes-st-acoes">
+        ${!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">✅ Aprovar</button>` : '<span class="st-status">✅ aprovado</span>'}
+        <button class="st-video" onclick="studioGerarVideo(${r.id})">🎭 Gerar vídeo (avatar)</button>
+        <button class="st-descartar" onclick="studioAcao(${r.id},'descartado')">🗑 Descartar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function roteirizarTemaEstudio() {
+  const inp = document.getElementById('redes-st-link');
+  const btn = document.getElementById('btn-redes-roteirizar');
+  const tema = (inp.value || '').trim();
+  if (!tema) { showToast && showToast('Cole um link ou descreva o tema'); return; }
+  btn.disabled = true; btn.textContent = 'Criando...';
+  try {
+    const ehLink = /^https?:\/\//i.test(tema);
+    const r = await fetch('/_api/gerador/social/roteirizar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tema, fonte_url: ehLink ? tema : null }),
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    const rot = j.roteiro;
+    if (!rot) { showToast && showToast('Não consegui gerar agora — tente de novo'); return; }
+    // grava na fila (Supabase) via supaInsert
+    await supaInsert('social_studio', {
+      fonte: ehLink ? 'manual' : 'curadoria',
+      fonte_url: ehLink ? tema : null,
+      tema, arquetipo: rot.arquetipo, gancho: rot.gancho,
+      roteiro: rot.roteiro, legenda: rot.legenda, cta: rot.cta,
+      status: 'roteirizado',
+    });
+    inp.value = '';
+    await carregarStudioFila();
+    showToast && showToast('Roteiro criado! 🎬');
+  } catch (e) {
+    showToast && showToast('Erro ao criar roteiro (IA pode estar sem crédito)');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Criar roteiro';
+  }
+}
+
+async function studioAcao(id, status) {
+  try {
+    await supaPatch(`social_studio?id=eq.${id}`, { status, atualizado_em: new Date().toISOString() });
+    await carregarStudioFila();
+  } catch (e) { showToast && showToast('Erro ao atualizar'); }
+}
+
+async function studioGerarVideo(id) {
+  try {
+    const r = await fetch('/_api/gerador/social/gerar-video', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    const j = await r.json();
+    if (j.ok === false) { showToast && showToast(j.motivo || 'Geração de vídeo ainda não configurada'); return; }
+    await carregarStudioFila();
+  } catch (e) { showToast && showToast('Erro ao gerar vídeo'); }
+}
+
+async function varrerAdLibraryEstudio() {
+  try {
+    const r = await fetch('/_api/gerador/social/varrer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const j = await r.json();
+    if (j.ok === false) { showToast && showToast(j.motivo || 'Varredura ainda não disponível'); return; }
+    await carregarStudioFila();
+  } catch (e) { showToast && showToast('Erro na varredura'); }
 }
 
 // ============= TELA LEADS (Instagram/Meta) =============

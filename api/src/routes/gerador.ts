@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { generateGeradorPdf } from '../controllers/pdfGeradorController';
 import { trackEvent } from '../controllers/trackingGeradorController';
-import { gerarIdeiasSociais } from '../services/agenda/socialIdeiasService';
+import { gerarIdeiasSociais, roteirizarTema } from '../services/agenda/socialIdeiasService';
+import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStudioStubs';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -25,6 +26,29 @@ router.post('/social/ideias', async (req: Request, res: Response) => {
     logger.error('gerador', 'social/ideias falhou', err);
     res.status(500).json({ error: 'IA failed', detail: String(err?.message || err) });
   }
+});
+
+// Estúdio: roteiriza UM tema-isca no DNA viral (pega tema + link opcional).
+router.post('/social/roteirizar', async (req: Request, res: Response) => {
+  try {
+    const tema = String(req.body?.tema || '').trim();
+    if (!tema) return res.status(400).json({ error: 'tema obrigatório' });
+    const roteiro = await roteirizarTema(tema, req.body?.fonte_url);
+    res.json({ ok: true, roteiro });
+  } catch (err: any) {
+    logger.error('gerador', 'social/roteirizar falhou', err);
+    res.status(500).json({ error: 'IA failed', detail: String(err?.message || err) });
+  }
+});
+
+// Estúdio: varredura de virais (Ad Library) — STUB até a Meta liberar.
+router.post('/social/varrer', async (_req: Request, res: Response) => {
+  res.json(await varrerAdLibrary());
+});
+
+// Estúdio: gerar vídeo com avatar (HeyGen) — STUB até configurar HeyGen.
+router.post('/social/gerar-video', async (req: Request, res: Response) => {
+  res.json(await gerarVideoAvatar(String(req.body?.roteiro || '')));
 });
 
 export default router;
