@@ -328,20 +328,20 @@
     justify-content: center;
     gap: 8px;
     width: 100%;
-    margin-top: 10px;
-    padding: 11px;
-    background: transparent;
+    margin-top: 4px;
+    padding: 13px;
+    background: var(--chrome-bg-2);
     border: 1px solid var(--chrome-border);
-    color: var(--chrome-text-dim);
+    color: #E8EAED;            /* claro e legível no fundo escuro (feedback de contraste) */
     border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 700;
     font-family: inherit;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
   }
   .logoutBtnMobile:active {
-    background: var(--chrome-bg-2);
+    background: #3a4452;
     color: #fff;
   }
 }
@@ -391,8 +391,16 @@
     overflow: hidden;
   }
 
-  /* a topbar escura full-width some no mobile; o mobileHeader assume */
-  .sidebar > .logoWrap { display: flex; flex-shrink: 0; }
+  /* a topbar escura full-width some no mobile; o mobileHeader assume.
+     padding generoso no topo pra logo não colar/cortar na borda do drawer. */
+  .sidebar > .logoWrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid var(--chrome-border);
+  }
   .sidebar > .footer { display: flex; flex-shrink: 0; }
 
   .nav {
@@ -422,9 +430,13 @@
   .countBadge, .tripleBadge, .externalIcon { display: inline-flex; }
   .navItemActive::before { width: 3px; }
 
-  .footer { flex-shrink: 0; }
+  /* footer com folga: Administrador / VIP / Sair não ficam espremidos */
+  .footer { flex-shrink: 0; padding: 14px; gap: 10px; }
 
-  .sidebarOpen { transform: translateX(0); }
+  /* Drawer ABERTO precisa ficar ACIMA do overlay (150) e do mobileHeader (100),
+     senão o overlay escurece o próprio menu (efeito "lavado") e o header corta
+     a logo. z-index só no estado aberto e só no mobile — não afeta o desktop. */
+  .sidebarOpen { transform: translateX(0); z-index: 160; }
 
   .mobileHeader {
     display: flex;

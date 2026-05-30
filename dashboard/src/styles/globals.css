@@ -193,3 +193,11 @@ input, textarea, select {
   font-size: 13px;
   margin-top: 4px;
 }
+
+/* Enquanto o menu lateral (drawer) está aberto no mobile, os botões flutuantes
+   (WhatsApp z-index 9998 e chat z-index 99999) não podem ficar por cima do menu.
+   O Sidebar adiciona .sd-drawer-open no body ao abrir. */
+body.sd-drawer-open .sd-whats-fab,
+body.sd-drawer-open .sd-chat-fab {
+  display: none !important;
+}

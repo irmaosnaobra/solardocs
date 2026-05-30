@@ -62,7 +62,7 @@ export default function ChatWidget() {
   return (
     <>
       <button
-        className={styles.fab}
+        className={`${styles.fab} sd-chat-fab`}
         onClick={() => setOpen(o => !o)}
         title="Assistente SolarDoc"
         aria-label="Abrir chat"

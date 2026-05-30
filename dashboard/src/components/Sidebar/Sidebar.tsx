@@ -98,7 +98,13 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    // marca o body enquanto o drawer está aberto → CSS esconde o ChatWidget
+    // (z-index 99999) que senão fica por cima do menu no mobile.
+    document.body.classList.toggle('sd-drawer-open', open);
+    return () => {
+      document.body.style.overflow = '';
+      document.body.classList.remove('sd-drawer-open');
+    };
   }, [open]);
 
   function handleLogout() {

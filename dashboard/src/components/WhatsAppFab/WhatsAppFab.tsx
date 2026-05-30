@@ -13,6 +13,7 @@ export default function WhatsAppFab() {
       rel="noopener noreferrer"
       aria-label="Falar com suporte no WhatsApp"
       title="Suporte SolarDoc no WhatsApp"
+      className="sd-whats-fab"
       style={{
         position: 'fixed',
         bottom: 24,
