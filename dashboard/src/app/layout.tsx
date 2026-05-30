@@ -40,19 +40,14 @@ export default function RootLayout({
             __html: `
               (function(){
                 try {
-                  // 1. Mata service workers antigos
+                  // 1. Registra o service worker (PWA instalável + offline).
+                  //    O sw.js usa network-first pra HTML — não revive o ChunkLoadError.
                   if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.getRegistrations().then(function(regs){
-                      regs.forEach(function(r){ r.unregister(); });
+                    window.addEventListener('load', function(){
+                      navigator.serviceWorker.register('/sw.js').catch(function(){});
                     });
                   }
-                  // 2. Limpa Cache Storage API (chunks antigos do _next/static)
-                  if ('caches' in window) {
-                    caches.keys().then(function(keys){
-                      keys.forEach(function(k){ caches.delete(k); });
-                    });
-                  }
-                  // 3. Quando JS dinâmico falha (chunk de deploy antigo sumiu),
+                  // 3. Airbag: quando JS dinâmico falha (chunk de deploy antigo sumiu),
                   //    redireciona pra /limpar-cache que zera tudo e volta.
                   //    Antes era só location.reload() — não era suficiente em casos
                   //    onde o browser tinha HTML cacheado apontando pra chunk inexistente.
