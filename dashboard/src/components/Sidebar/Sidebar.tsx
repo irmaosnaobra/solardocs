@@ -56,10 +56,9 @@ const baseAdminItems: NavItem[] = [
 
 // Bloco de topo, na ordem: Dashboard (locked pra free) > Gerador > Baixe o App.
 // Baixe o App fica liberado pra todo mundo, inclusive free.
+// Mascote e Baixe o App foram pra topbar (ícones). Sidebar só com o Gerador.
 const topoItems: NavItem[] = [
   { href: '/documentos?tipo=proposta', icon: Sparkles,      label: 'Gerador de Proposta', requireCompany: true },
-  { href: 'https://pack.solardoc.app/', icon: Palette,     label: 'Crie seu Mascote',    external: true },
-  { href: '/baixe-app',              icon: Smartphone,      label: 'Baixe o App' },
 ];
 
 // Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.

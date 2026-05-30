@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, HelpCircle, User, Building2, LogOut } from 'lucide-react';
+import { FileText, HelpCircle, User, Building2, LogOut, Palette, Smartphone } from 'lucide-react';
 import { removeToken } from '@/services/auth';
 import styles from './TopBar.module.css';
 
@@ -43,6 +43,12 @@ export default function TopBar({ userEmail }: TopBarProps) {
       <div className={styles.spacer} />
 
       <div className={styles.actions}>
+        <a href="https://pack.solardoc.app/" target="_blank" rel="noopener noreferrer" className={styles.iconBtn} title="Crie seu Mascote">
+          <Palette size={18} />
+        </a>
+        <Link href="/baixe-app" className={styles.iconBtn} title="Baixe o App">
+          <Smartphone size={18} />
+        </Link>
         <Link href="/conta/documentos" className={styles.iconBtn} title="Documentos salvos">
           <FileText size={18} />
         </Link>
