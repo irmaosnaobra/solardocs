@@ -93,11 +93,11 @@
 .navItem {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 13px;
   width: 100%;
-  padding: 7px 12px;
+  padding: 11px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
   color: #E8EAED;            /* branco-suave de alto contraste no fundo escuro */
   text-decoration: none;
   position: relative;
@@ -214,11 +214,11 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 9px 3px;
+  padding: 16px 11px 5px;
 }
 
 .navDividerLabel {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   color: #9AA1AB;            /* label de seção legível no fundo escuro */
   text-transform: uppercase;
