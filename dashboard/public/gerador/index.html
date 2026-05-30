@@ -3623,6 +3623,46 @@ function sparkline(daily, campo) {
   </svg>`;
 }
 
+// linha dupla (2 séries) — ex: views vs alcance
+function linhaDupla(daily, campoA, campoB) {
+  const a = daily.map(r => Number(r[campoA]) || 0);
+  const b = daily.map(r => Number(r[campoB]) || 0);
+  if (!a.length) return '';
+  const W = 600, H = 90, max = Math.max(...a, ...b, 1);
+  const linha = (vals, cor) => {
+    const pts = vals.map((v, i) => `${((i/(vals.length-1||1))*W).toFixed(1)},${(H-6-(v/max)*(H-14)).toFixed(1)}`).join(' ');
+    return `<polyline fill="none" stroke="${cor}" stroke-width="2.5" points="${pts}"/>`;
+  };
+  return `<svg class="redes-spark" style="height:90px" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${linha(a,'#60A5FA')}${linha(b,'#34d399')}</svg>`;
+}
+
+// barras verticais por dia (ex: novos seguidores, engajamento)
+function barrasDia(daily, campo, cor) {
+  const vals = daily.slice(-30).map(r => Number(r[campo]) || 0);
+  if (!vals.length || vals.every(v => v === 0)) return '';
+  const max = Math.max(...vals, 1);
+  const bw = 100 / vals.length;
+  const bars = vals.map((v, i) => {
+    const h = (v / max) * 90;
+    return `<rect x="${(i*bw).toFixed(2)}%" y="${(96-h).toFixed(1)}%" width="${(bw*0.7).toFixed(2)}%" height="${h.toFixed(1)}%" rx="1" fill="${cor||'#60A5FA'}"/>`;
+  }).join('');
+  return `<svg class="redes-spark" style="height:96px" viewBox="0 0 100 100" preserveAspectRatio="none">${bars}</svg>`;
+}
+
+// barras horizontais por categoria (ex: tipo de post, dia da semana)
+function barrasCategoria(items) {
+  // items: [{rotulo, valor, sub}]
+  if (!items.length) return '';
+  const max = Math.max(...items.map(i => i.valor), 1);
+  return items.map(i => `<div class="redes-bar">
+    <span class="rb-lab" style="width:120px">${escapeHtml(i.rotulo)}</span>
+    <span class="rb-track"><span class="rb-fill" style="width:${(i.valor/max*100).toFixed(0)}%"></span></span>
+    <span class="rb-val" style="width:auto;min-width:60px">${escapeHtml(String(i.sub != null ? i.sub : nfmt(i.valor)))}</span>
+  </div>`).join('');
+}
+
+const DIAS_SEM = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+
 const REDE_NOME = { instagram:'Instagram', tiktok:'TikTok', youtube:'YouTube', facebook:'Facebook', kwai:'Kwai' };
 
 function renderRede(rede) {
@@ -3658,17 +3698,51 @@ function renderRede(rede) {
     </div>`;
   }
 
+  // métricas derivadas
+  const baseEng = rede === 'tiktok' ? views30 : alc30;
+  const taxaEng = baseEng > 0 ? (int30 / baseEng * 100) : null;       // % engajamento
+  const totalPosts = d.posts.length;
+  const com30 = somaUlt(daily, 'comentarios', 30);
+  const shr30 = somaUlt(daily, 'compart', 30);
+
   const kpis = `<div class="redes-kpis">
     <div class="redes-kpi"><div class="k-label">Seguidores</div><div class="k-val">${nfmt(seguidores)}</div>${novos30 ? `<div class="k-sub k-up">+${nfmt(novos30)} em 30d</div>` : ''}</div>
     <div class="redes-kpi"><div class="k-label">Alcance (30d)</div><div class="k-val">${nfmt(alc30)}</div></div>
     <div class="redes-kpi"><div class="k-label">Visualizações (30d)</div><div class="k-val">${nfmt(views30)}</div></div>
     <div class="redes-kpi"><div class="k-label">Interações (30d)</div><div class="k-val">${nfmt(int30)}</div></div>
+    ${taxaEng != null ? `<div class="redes-kpi"><div class="k-label">Taxa de engajamento</div><div class="k-val">${taxaEng.toFixed(1)}%</div><div class="k-sub" style="color:#94A3B8">interações ÷ ${rede==='tiktok'?'views':'alcance'}</div></div>` : ''}
+    <div class="redes-kpi"><div class="k-label">Posts publicados</div><div class="k-val">${nfmt(totalPosts)}</div><div class="k-sub" style="color:#94A3B8">últimos 12 meses</div></div>
+    <div class="redes-kpi"><div class="k-label">Comentários (30d)</div><div class="k-val">${nfmt(com30)}</div></div>
+    <div class="redes-kpi"><div class="k-label">Compart. (30d)</div><div class="k-val">${nfmt(shr30)}</div></div>
   </div>`;
 
-  const graf = `<div class="redes-bloco">
-    <h3>${rede === 'tiktok' ? 'Visualizações' : 'Alcance'} por dia</h3>
-    ${sparkline(daily, rede === 'tiktok' ? 'views' : 'alcance')}
-  </div>`;
+  // gráfico principal: views vs alcance (IG tem ambos) ou só views (TikTok)
+  const temAlc = daily.some(r => r.alcance != null && r.alcance > 0);
+  const temViews = daily.some(r => r.views != null && r.views > 0);
+  let grafPrincipal = '';
+  if (temViews && temAlc) {
+    grafPrincipal = `<div class="redes-bloco"><h3>Visualizações × Alcance por dia <span style="font-size:12px;font-weight:400"><span style="color:#60A5FA">━ views</span> <span style="color:#34d399">━ alcance</span></span></h3>${linhaDupla(daily, 'views', 'alcance')}</div>`;
+  } else if (temViews) {
+    grafPrincipal = `<div class="redes-bloco"><h3>Visualizações por dia</h3>${sparkline(daily, 'views')}</div>`;
+  } else if (temAlc) {
+    grafPrincipal = `<div class="redes-bloco"><h3>Alcance por dia</h3>${sparkline(daily, 'alcance')}</div>`;
+  }
+
+  // barras: novos seguidores/dia (usa novos_seg, não seguidores que é só snapshot)
+  const grafNovos = barrasDia(daily, 'novos_seg', '#34d399');
+  const blocoNovos = grafNovos ? `<div class="redes-bloco"><h3>Novos seguidores por dia (30d)</h3>${grafNovos}</div>` : '';
+
+  // barras: engajamento/dia
+  const grafEng = barrasDia(daily, 'interacoes', '#f5a623');
+  const blocoEng = grafEng ? `<div class="redes-bloco"><h3>Interações por dia (30d)</h3>${grafEng}</div>` : '';
+
+  // análise por tipo de post + melhor dia da semana (computado dos posts)
+  const blocoTipo = renderPorTipo(d.posts);
+  const blocoDiaSemana = renderMelhorDia(d.posts, rede);
+
+  const graf = grafPrincipal +
+    `<div class="redes-aud">${blocoNovos}${blocoEng}</div>` +
+    `<div class="redes-aud">${blocoTipo}${blocoDiaSemana}</div>`;
 
   // ranking: melhores e piores (só posts com algum engajamento pra "pior" fazer sentido)
   const posts = d.posts.slice();
@@ -3725,6 +3799,36 @@ function renderAudiencia(aud) {
     ${gi.length ? `<div class="redes-bloco"><h3>👥 Quem te segue</h3>${barras(gi, 8)}</div>` : ''}
     ${ci.length ? `<div class="redes-bloco"><h3>📍 Principais cidades</h3>${barras(ci, 8)}</div>` : ''}
   </div>`;
+}
+
+// engajamento médio por TIPO de post (Reel, Feed, Carrossel...)
+function renderPorTipo(posts) {
+  if (!posts || posts.length < 3) return '';
+  const por = {};
+  posts.forEach(p => {
+    const t = p.tipo || 'OUTRO';
+    (por[t] = por[t] || []).push(p.engajamento || 0);
+  });
+  const items = Object.entries(por)
+    .map(([t, arr]) => ({ rotulo: t, valor: arr.reduce((a,b)=>a+b,0)/arr.length, sub: Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) + ' eng · ' + arr.length + 'x' }))
+    .sort((a,b) => b.valor - a.valor);
+  if (items.length < 2) return '';   // só vale comparar se há >1 tipo
+  return `<div class="redes-bloco"><h3>🎬 Engajamento médio por formato</h3>${barrasCategoria(items)}</div>`;
+}
+
+// melhor DIA DA SEMANA pra postar (engajamento médio por dia, de publicado_em)
+function renderMelhorDia(posts, rede) {
+  const comData = (posts || []).filter(p => p.publicado_em);
+  if (comData.length < 5) return '';
+  const por = {};
+  comData.forEach(p => {
+    const wd = new Date(p.publicado_em).getDay();
+    (por[wd] = por[wd] || []).push(p.engajamento || 0);
+  });
+  const items = Object.entries(por)
+    .map(([wd, arr]) => ({ rotulo: DIAS_SEM[wd], valor: arr.reduce((a,b)=>a+b,0)/arr.length, sub: Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) + ' eng' }))
+    .sort((a,b) => b.valor - a.valor);
+  return `<div class="redes-bloco"><h3>📅 Melhor dia pra postar</h3>${barrasCategoria(items)}</div>`;
 }
 
 async function gerarIdeiasRedes() {
