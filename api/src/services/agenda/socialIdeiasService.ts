@@ -75,21 +75,61 @@ Responda APENAS com array JSON válido:
 
 interface Roteiro { arquetipo: string; gancho: string; roteiro: string; legenda: string; cta: string; }
 
+// Extrai o ID de um vídeo do YouTube de várias formas de URL.
+function youtubeId(url: string): string | null {
+  if (!url) return null;
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+// Transcrição real de um vídeo do YouTube via legendas (validado do IP Vercel).
+// Retorna o texto falado, ou null se não houver legenda/falhar. Caminho leve:
+// sem baixar vídeo nem Whisper. TikTok/IG não suportados aqui (sem legenda pública).
+export async function transcreverYoutube(url: string): Promise<string | null> {
+  const id = youtubeId(url);
+  if (!id) return null;
+  try {
+    const { YoutubeTranscript } = await import('youtube-transcript');
+    let t;
+    try { t = await YoutubeTranscript.fetchTranscript(id, { lang: 'pt-BR' } as any); }
+    catch { t = await YoutubeTranscript.fetchTranscript(id); }
+    const txt = t.map((x: any) => x.text).join(' ').replace(/\s+/g, ' ').trim();
+    return txt.length > 20 ? txt.slice(0, 6000) : null;
+  } catch (e) {
+    logger.warn('social-roteiro', 'transcrição YouTube falhou', { url, e: String(e).slice(0, 120) });
+    return null;
+  }
+}
+
 // ─── Fluxo 2: roteirizar UM tema-isca (estúdio) ─────────────────────────────
 // Recebe um tema (e opcionalmente o link do vídeo viral de origem) e devolve
-// um roteiro pronto no DNA viral, com ponte pro nicho solar.
+// um roteiro pronto no DNA viral, com ponte pro nicho solar. Se a fonte for um
+// vídeo do YouTube, transcreve o conteúdo real e usa no prompt (entende o vídeo).
 export async function roteirizarTema(tema: string, fonteUrl?: string): Promise<Roteiro | null> {
   const resumo = await topPostsResumo('instagram');
+
+  // tenta entender o vídeo de verdade (transcrição do YouTube)
+  let transcricao: string | null = null;
+  const link = fonteUrl || (/^https?:\/\//i.test(tema) ? tema : undefined);
+  if (link) transcricao = await transcreverYoutube(link);
+
+  const blocoFonte = transcricao
+    ? `CONTEÚDO REAL do vídeo de origem (transcrição — use pra entender do que ele fala e fazer a ponte certa):\n"""${transcricao}"""`
+    : `TEMA-ISCA a transformar em vídeo: "${tema}"${link ? `\n(vídeo de origem: ${link} — sem transcrição disponível, use o tema)` : ''}`;
+
   const prompt = `${DNA_VIRAL}
 
 O que já funciona na conta real:
 ${resumo}
 
-TEMA-ISCA a transformar em vídeo: "${tema}"${fonteUrl ? `\n(vídeo de origem: ${fonteUrl})` : ''}
+${blocoFonte}
 
-Crie UM roteiro de Reel/Short (Thiago e Diego apresentando) que parte desse tema e faz a PONTE pro nicho de energia solar. Escolha o arquétipo que melhor encaixa (fernando | larcabral | lucas).
+Crie UM roteiro de Reel/Short (Thiago e Diego apresentando) que parte desse conteúdo e faz a PONTE pro nicho de energia solar. Escolha o arquétipo que melhor encaixa (fernando | larcabral | lucas).
 Responda APENAS com objeto JSON válido:
 {"arquetipo":"fernando|larcabral|lucas","gancho":"primeira frase, 3s","roteiro":"roteiro completo do que falar/mostrar","legenda":"legenda pronta + hashtags","cta":"chamada final (ex: comenta SOLAR que te mando o cálculo)"}`;
   const raw = await chamarClaude(SISTEMA_BASE, prompt);
-  return extrairJson<Roteiro>(raw, 'social-roteiro');
+  const r = extrairJson<Roteiro>(raw, 'social-roteiro');
+  // anexa flag de transcrição pro front saber que "entendeu o vídeo"
+  if (r) (r as any).transcrito = !!transcricao;
+  return r;
 }

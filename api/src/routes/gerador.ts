@@ -51,21 +51,4 @@ router.post('/social/gerar-video', async (req: Request, res: Response) => {
   res.json(await gerarVideoAvatar(String(req.body?.roteiro || '')));
 });
 
-// [THROWAWAY] teste: pega transcrição de um vídeo do YouTube do IP da Vercel.
-// Valida se o YouTube libera legenda do datacenter (não do meu IP local).
-router.get('/social/_test-transcript', async (req: Request, res: Response) => {
-  const vid = String(req.query.v || '');
-  if (!vid) return res.status(400).json({ error: 'passe ?v=VIDEO_ID' });
-  try {
-    const { YoutubeTranscript } = await import('youtube-transcript');
-    let t;
-    try { t = await YoutubeTranscript.fetchTranscript(vid, { lang: 'pt-BR' } as any); }
-    catch { t = await YoutubeTranscript.fetchTranscript(vid); }
-    const txt = t.map((x: any) => x.text).join(' ');
-    res.json({ ok: true, chars: txt.length, preview: txt.slice(0, 300) });
-  } catch (err: any) {
-    res.json({ ok: false, erro: String(err?.message || err).slice(0, 200) });
-  }
-});
-
 export default router;
