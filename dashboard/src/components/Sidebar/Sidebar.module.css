@@ -98,7 +98,7 @@
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 13px;
-  color: var(--chrome-text-dim);
+  color: #E8EAED;            /* branco-suave de alto contraste no fundo escuro */
   text-decoration: none;
   position: relative;
   transition: background 0.12s, color 0.12s;
@@ -138,8 +138,8 @@
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 13px;
-  color: var(--chrome-text-dim);
-  opacity: 0.45;
+  color: #C2C6CC;            /* claro o bastante pra ler, mas distinto do ativo */
+  opacity: 0.8;
   user-select: none;
   background: transparent;
   border: none;
@@ -220,7 +220,7 @@
 .navDividerLabel {
   font-size: 9px;
   font-weight: 700;
-  color: var(--color-nav-section-label);
+  color: #9AA1AB;            /* label de seção legível no fundo escuro */
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
