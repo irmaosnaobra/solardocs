@@ -1,18 +1,24 @@
+/* Rail estreito escuro estilo SolarZ — começa abaixo da topbar fixa */
 .sidebar {
-  width: var(--sidebar-width);
-  height: 100vh;
-  background: var(--color-bg);
-  border-right: 1px solid var(--color-border);
+  width: var(--rail-width);
+  height: calc(100vh - var(--topbar-height));
+  background: var(--chrome-bg);
   display: flex;
   flex-direction: column;
+  align-items: center;
   position: fixed;
   left: 0;
-  top: 0;
-  z-index: 200;
+  top: var(--topbar-height);
+  z-index: 40;
   overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-y: auto;
   transition: transform 0.3s ease;
 }
+.sidebar::-webkit-scrollbar { width: 0; }
+
+/* No rail: esconde logo, saudação e footer (são da versão larga) */
+.sidebar > .logoWrap,
+.sidebar > .footer { display: none; }
 
 .logoWrap {
   border-bottom: 1px solid var(--color-border);
@@ -70,10 +76,12 @@
 .nav {
   flex: 1;
   min-height: 0;
-  padding: 6px 8px 8px;
+  width: 100%;
+  padding: 8px 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  align-items: center;
+  gap: 2px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -81,87 +89,87 @@
 .navSection {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  margin-bottom: 4px;
+  align-items: center;
+  width: 100%;
+  gap: 2px;
+  margin-bottom: 2px;
 }
 
 /* ── Item de menu ── */
+/* Item do rail = quadrado de 46px só com ícone (estilo SolarZ) */
 .navItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 9px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-muted);
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 0;
+  color: var(--chrome-text-dim);
   text-decoration: none;
   position: relative;
   transition: background 0.12s, color 0.12s;
-  /* Compatibilidade quando navItem é <button> (ex: theme picker) */
   background: transparent;
   border: none;
-  width: 100%;
-  text-align: left;
   font-family: inherit;
   cursor: pointer;
 }
 
 .navItem:hover {
-  background: var(--color-nav-hover);
-  color: var(--color-text);
+  background: var(--chrome-bg-2);
+  color: #fff;
 }
 
 .navItemActive {
-  background: var(--color-nav-active);
-  color: var(--color-text);
-  font-weight: 600;
+  background: var(--chrome-bg-2);
+  color: #fff;
 }
 
-/* Acento laranja aparece SÓ como uma fina barra no item ativo (parcimônia, estilo Linear) */
+/* Faixa laranja à esquerda no item ativo (igual SolarZ) */
 .navItemActive::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 2px;
-  height: 15px;
-  border-radius: 2px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
   background: var(--color-primary);
 }
 
+/* No rail: esconde texto e contadores, mantém só o ícone */
+.navLabel,
+.externalIcon,
+.countBadge,
+.tripleBadge { display: none; }
+
+/* Divisores de seção viram um separador fino, sem texto */
+.navDivider { width: 28px; height: 1px; padding: 0; margin: 6px 0; background: var(--chrome-border); }
+.navDividerLabel, .navDividerLabelAdmin { display: none; }
+
 .navItemLocked {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 9px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--color-text-muted);
-  opacity: 0.55;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  color: var(--chrome-text-dim);
+  opacity: 0.45;
   user-select: none;
   background: transparent;
   border: none;
-  width: 100%;
-  text-align: left;
   font-family: inherit;
   cursor: pointer;
+  position: relative;
   transition: opacity 0.15s, background 0.15s;
 }
 
 .navItemLocked:hover {
-  opacity: 0.75;
-  background: var(--color-nav-hover);
+  opacity: 0.7;
+  background: var(--chrome-bg-2);
 }
 
 .navIcon {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
   color: currentColor;
-  opacity: 0.85;
 }
 
 .navLabel {

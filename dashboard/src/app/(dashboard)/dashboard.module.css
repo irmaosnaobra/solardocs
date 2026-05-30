@@ -8,16 +8,17 @@
   flex: 1;
   min-width: 0; /* CRÍTICO: permite overflow horizontal nos filhos (Kanban CRM) */
   max-width: 100%;
-  margin-left: var(--sidebar-width);
+  margin-left: var(--rail-width);   /* rail estreito estilo SolarZ */
+  margin-top: var(--topbar-height); /* topbar fixa full-width acima */
   padding: 0;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--topbar-height));
   overflow-y: auto;
   overflow-x: hidden; /* Bloqueia overflow do pai pra forçar scroll no filho .crm-kanban-scroll */
 }
 
 /* Wrapper interno do conteúdo (depois do TopBar) — dá padding sem afetar o TopBar */
 .content {
-  padding: 24px 32px 32px;
+  padding: 22px 26px 32px;
 }
 
 /* Em mobile, sidebar some, main ocupa tudo */
@@ -36,8 +37,8 @@
 @media (max-width: 768px) {
   .main {
     margin-left: 0;
+    margin-top: var(--topbar-height); /* topbar fixa também no mobile */
     padding: 0;
-    padding-top: 56px; /* espaço para a barra superior mobile fixa (56px height) */
   }
   .content {
     padding: 16px 16px 32px;

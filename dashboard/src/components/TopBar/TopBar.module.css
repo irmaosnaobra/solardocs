@@ -1,39 +1,96 @@
+/* TopBar escura full-width estilo SolarZ — fixa no topo, acima do rail */
 .topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 50;
+  left: 0;
+  right: 0;
+  z-index: 60;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 48px;
-  padding: 0 32px;
-  margin: 0;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  gap: 20px;
+  height: var(--topbar-height);
+  padding: 0 20px;
+  background: var(--chrome-bg);
 }
 
-.spacer {
+.brand {
+  display: flex;
+  align-items: center;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  flex-shrink: 0;
+  /* alinha a marca com a largura do rail */
+  min-width: calc(var(--rail-width) + 70px);
+  padding-left: 4px;
+}
+.brandSolar { color: #fff; }
+.brandDoc { color: var(--color-primary); }
+
+.search {
   flex: 1;
+  max-width: 620px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--chrome-bg-2);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  padding: 0 14px;
+  height: 40px;
 }
+.searchIcon { color: var(--chrome-text-dim); flex-shrink: 0; }
+.searchInput {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+}
+.searchInput::placeholder { color: var(--chrome-text-dim); }
 
-.controls {
+.actions {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex-shrink: 0;
+}
+.iconBtn {
+  background: none;
+  border: none;
+  color: var(--chrome-text-dim);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  transition: color .12s, background .12s;
+}
+.iconBtn:hover { color: #fff; background: var(--chrome-bg-2); }
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3a4452, #2a323d);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
-.email {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+/* Mobile: a logo já aparece no mobileHeader da Sidebar; encolhemos a busca */
 @media (max-width: 768px) {
-  .topbar {
-    /* No mobile o ThemeToggle vai pro mobileHeader da Sidebar — escondemos a TopBar */
-    display: none;
-  }
+  .topbar { gap: 10px; padding: 0 12px; }
+  .brand { display: none; }
+  .search { max-width: none; }
+  .actions { gap: 8px; }
+  .iconBtn:not(:last-child) { display: none; } /* só avatar no mobile */
 }

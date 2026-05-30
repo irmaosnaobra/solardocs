@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolarDoc — Protótipo estilo SolarZ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     SolarDoc — Casca visual "SolarZ" (light)
+     Sidebar escura estreita só-ícones + topbar escura +
+     corpo cinza-claro com cards brancos + abas com contador.
+     Marca e navegação = SolarDoc (não o logo SolarZ).
+     ============================================================ */
+  :root {
+    --topbar-h: 64px;
+    --rail-w: 60px;
+
+    /* Light — corpo */
+    --bg:           #EEF1F4;     /* fundo cinza-claro */
+    --card:         #FFFFFF;     /* cards brancos */
+    --border:       #E5E9EF;
+    --border-2:     #EDF0F4;
+
+    /* Escuro — sidebar + topbar */
+    --dark:         #1B2129;     /* topbar/sidebar escuras */
+    --dark-2:       #232B35;
+    --rail-active:  #2B333D;
+
+    /* Texto */
+    --text:         #1F2937;
+    --text-muted:   #6B7280;
+    --text-dim:     #9AA3AF;
+    --on-dark:      #C5CCD6;
+    --on-dark-dim:  #7E8794;
+
+    /* Acento laranja (SolarZ) */
+    --accent:       #F26513;
+    --accent-hover: #E0560A;
+    --accent-soft:  #FFF1E9;
+
+    /* Contadores das abas */
+    --c-green:  #22C55E;
+    --c-red:    #EF4444;
+    --c-blue:   #3B82F6;
+    --c-amber:  #F59E0B;
+    --c-gray:   #9CA3AF;
+
+    --radius:   10px;
+    --shadow:   0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .ico { stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ───────────── TOPBAR (escura, full-width) ───────────── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+    background: var(--dark);
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 20px; z-index: 50;
+  }
+  .burger { background: none; border: none; color: var(--on-dark); cursor: pointer; display: grid; place-items: center; width: 32px; height: 32px; }
+  .brand { display: flex; align-items: center; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .brand .s { color: #fff; }
+  .brand .doc { color: var(--accent); }
+  .topbar-search {
+    flex: 1; max-width: 620px; margin: 0 auto;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--dark-2); border: 1px solid #2E3742; border-radius: 8px;
+    padding: 9px 14px; color: var(--on-dark-dim); font-size: 14px;
+  }
+  .topbar-actions { display: flex; align-items: center; gap: 16px; color: var(--on-dark); }
+  .topbar-actions .ti { cursor: pointer; display: grid; place-items: center; }
+  .topbar-actions .pct { color: var(--accent); font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 4px; }
+  .avatar-top { width: 34px; height: 34px; border-radius: 50%; background: #E5E7EB; }
+
+  /* ───────────── RAIL (sidebar escura estreita só-ícones) ───────────── */
+  .rail {
+    position: fixed; top: var(--topbar-h); left: 0; bottom: 0; width: var(--rail-w);
+    background: var(--dark);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px 0; gap: 2px; z-index: 40;
+  }
+  .rail-item {
+    width: 100%; height: 46px;
+    display: grid; place-items: center;
+    color: var(--on-dark-dim); cursor: pointer; position: relative;
+    transition: color .12s, background .12s;
+  }
+  .rail-item:hover { color: #fff; background: var(--dark-2); }
+  .rail-item.active { color: #fff; background: var(--dark-2); }
+  .rail-item.active::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--accent);
+  }
+  .rail-spacer { flex: 1; }
+
+  /* ───────────── CONTENT ───────────── */
+  .main { margin-left: var(--rail-w); margin-top: var(--topbar-h); padding: 22px 26px; }
+  .layout { display: flex; gap: 26px; }
+
+  /* coluna de sub-navegação (ex: Configurações) */
+  .subnav { width: 220px; flex-shrink: 0; }
+  .subnav-user { display: flex; align-items: center; gap: 10px; padding: 4px 4px 18px; }
+  .subnav-user .av { width: 42px; height: 42px; border-radius: 50%; background: #DCE0E6; flex-shrink: 0; }
+  .subnav-user .nm { font-weight: 600; font-size: 14px; }
+  .subnav-user .em { font-size: 12px; color: var(--text-muted); }
+  .subnav-item {
+    padding: 11px 14px; border-radius: 8px; color: var(--text-muted);
+    font-size: 14px; cursor: pointer; position: relative; margin-bottom: 2px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .subnav-item:hover { background: #E7EBF0; color: var(--text); }
+  .subnav-item.active { color: var(--accent); font-weight: 600; }
+  .subnav-item.active::before {
+    content: ''; position: absolute; right: -1px; top: 6px; bottom: 6px; width: 3px;
+    background: var(--accent); border-radius: 3px;
+  }
+  .subnav-item.locked { color: var(--text-dim); }
+
+  .panel { flex: 1; min-width: 0; }
+
+  /* card branco principal */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 22px 24px;
+  }
+
+  /* abas internas (Colaboradores / Perfis) */
+  .tabs-line { display: flex; gap: 26px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
+  .tab-l { padding: 0 2px 12px; color: var(--text-muted); font-size: 15px; cursor: pointer; position: relative; }
+  .tab-l.active { color: var(--accent); font-weight: 600; }
+  .tab-l.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); }
+
+  .head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .h-title { font-size: 22px; font-weight: 700; }
+  .h-actions { display: flex; gap: 10px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    border: 1px solid var(--border); background: #fff; color: var(--text-muted); cursor: pointer;
+  }
+  .btn:disabled { opacity: .55; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: transparent; }
+  .btn-primary:hover { background: var(--accent-hover); }
+
+  /* abas com CONTADOR colorido (Todos ⓪ Normal ⓪ ...) */
+  .filter-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .ft {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border-radius: 8px; border: 1px solid var(--border);
+    background: #fff; font-size: 14px; color: var(--text-muted); cursor: pointer;
+  }
+  .ft.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .ft .count {
+    min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+    display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff;
+  }
+  .count.green { background: var(--c-green); } .count.red { background: var(--c-red); }
+  .count.blue { background: var(--c-blue); } .count.amber { background: var(--c-amber); }
+  .count.gray { background: var(--c-gray); }
+
+  /* tabela */
+  .tbl { width: 100%; border-collapse: collapse; }
+  .tbl th { text-align: left; font-size: 13px; font-weight: 700; color: var(--text); padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .tbl td { padding: 14px; border-bottom: 1px solid var(--border-2); color: var(--text-muted); }
+  .empty { text-align: center; padding: 54px 0; color: var(--text-dim); }
+  .empty svg { opacity: .35; margin-bottom: 8px; }
+
+  /* KPIs grandes */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 18px; }
+  .kpi { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; }
+  .kpi .lbl { font-size: 14px; color: var(--text-muted); margin-bottom: 10px; }
+  .kpi .num { font-size: 32px; font-weight: 700; }
+
+  .note { margin-top: 22px; padding: 13px 16px; background: var(--accent-soft); border: 1px solid #FAD9C5; border-radius: var(--radius); font-size: 13.5px; color: #92400E; }
+  .note b { color: #7c2d12; }
+</style>
+</head>
+<body>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <button class="burger"><svg class="ico" width="22" height="22" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+    <div class="brand"><span class="s">Solar</span><span class="doc">Doc</span></div>
+    <div class="topbar-search">
+      <svg class="ico" width="16" height="16" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      Buscar...
+    </div>
+    <div class="topbar-actions">
+      <span class="ti"><svg class="ico" width="19" height="19" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+      <span class="ti"><svg class="ico" width="19" height="19" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>
+      <span class="ti"><svg class="ico" width="19" height="19" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg></span>
+      <span class="ti"><svg class="ico" width="19" height="19" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg></span>
+      <span class="pct">🎖 0%</span>
+      <div class="avatar-top"></div>
+    </div>
+  </div>
+
+  <!-- RAIL -->
+  <nav class="rail">
+    <div class="rail-item active" title="Gerador"><svg class="ico" width="20" height="20" viewBox="0 0 24 24"><path d="M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M3 12h3m12 0h3"/><circle cx="12" cy="12" r="4"/></svg></div>
+    <div class="rail-item" title="Documentos"><svg class="ico" width="20" height="20" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4M16 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg></div>
+    <div class="rail-item" title="Empresa"><svg class="ico" width="20" height="20" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14"/></svg></div>
+    <div class="rail-item" title="Clientes"><svg class="ico" width="20" height="20" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg></div>
+    <div class="rail-item" title="Histórico"><svg class="ico" width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></div>
+    <div class="rail-item" title="Mentorias"><svg class="ico" width="20" height="20" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5zM6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg></div>
+    <div class="rail-spacer"></div>
+    <div class="rail-item" title="Configurações"><svg class="ico" width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 0 1 0-4h.1A1.6 1.6 0 0 0 2.6 7"/></svg></div>
+    <div class="rail-item" title="Suporte"><svg class="ico" width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg></div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="layout">
+
+      <!-- subnav (ex.: área de Configurações da empresa) -->
+      <aside class="subnav">
+        <div class="subnav-user">
+          <div class="av"></div>
+          <div><div class="nm">Eterno Energia Ltda</div><div class="em">eternoenergia@gmail.com</div></div>
+        </div>
+        <div class="subnav-item active">Colaboradores</div>
+        <div class="subnav-item">Desempenho</div>
+        <div class="subnav-item">Dispositivos</div>
+        <div class="subnav-item">Formas de pagamento</div>
+        <div class="subnav-item locked">Integrações 🔒</div>
+        <div class="subnav-item locked">Oportunidades 🔒</div>
+        <div class="subnav-item">Perfil de Usuário</div>
+        <div class="subnav-item">Perguntas Frequentes</div>
+        <div class="subnav-item">Personalização</div>
+        <div class="subnav-item">Predefinições de Usinas</div>
+        <div class="subnav-item">Preferências</div>
+      </aside>
+
+      <!-- painel -->
+      <section class="panel">
+        <div class="card">
+          <div class="tabs-line">
+            <div class="tab-l active">Colaboradores</div>
+            <div class="tab-l">Perfis de usuário</div>
+          </div>
+
+          <div class="head-row">
+            <div class="h-title">Colaboradores</div>
+            <div class="h-actions">
+              <button class="btn btn-primary">Adicionar colaborador</button>
+              <button class="btn" disabled>Editar em massa</button>
+            </div>
+          </div>
+
+          <div class="filter-tabs">
+            <span class="ft active">Todos <i class="count blue">0</i></span>
+            <span class="ft">Ativos <i class="count green">0</i></span>
+            <span class="ft">Com alerta <i class="count amber">0</i></span>
+            <span class="ft">Inativos <i class="count gray">0</i></span>
+          </div>
+
+          <table class="tbl">
+            <thead>
+              <tr><th>☐ Colaborador</th><th>Último acesso</th><th>Grupo de usuário</th><th>Recursos</th><th>Permissões</th><th>Ações</th></tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="6">
+                <div class="empty">
+                  <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#c7cdd6" stroke-width="1.5"><path d="M3 8l4 8h10l4-8M3 8h18M3 8l2-3h14l2 3"/></svg>
+                  <div>Não há dados</div>
+                </div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note">
+          🎨 <b>Casca SolarZ aplicada:</b> topbar escura full-width + sidebar estreita só-ícones (faixa laranja no ativo) ·
+          corpo cinza-claro com card branco · abas com contador colorido · botão laranja · coluna de sub-navegação ·
+          tabela com header forte e estado "Não há dados". Marca = SolarDoc, navegação = a sua real.
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

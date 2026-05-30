@@ -1,27 +1,39 @@
 /* Fonte carregada via <link> no layout.tsx para não bloquear o render */
 
 :root {
-  --color-primary: #F5A623;
-  --color-primary-hover: #FFB13D;
-  /* Fundo grafite neutro (estilo Linear) — sem o azul-marinho, parece mais sofisticado */
-  --color-bg: #08090A;
-  --color-surface: #131416;
-  --color-surface-2: #1A1B1E;
-  /* Bordas claras o bastante pra terem contraste em dark mode (não usar #334155/fracas) */
-  --color-border: rgba(255, 255, 255, 0.12);
-  --color-border-strong: rgba(255, 255, 255, 0.16);
-  --color-text: #F7F8F8;
-  --color-text-muted: #9CA0A8;
-  --color-text-dim: #62666D;
-  --color-success: #4CB782;
+  /* ── Acento laranja estilo SolarZ (mais vermelho/quente que o amber antigo) ── */
+  --color-primary: #F26513;
+  --color-primary-hover: #E0560A;
+
+  /* ── CORPO: light por padrão (estilo SolarZ) — fundo cinza-claro + cards brancos ── */
+  --color-bg: #EEF1F4;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F4F6F9;
+  --color-border: #E5E9EF;
+  --color-border-strong: #D5DBE3;
+  --color-text: #1F2937;
+  --color-text-muted: #6B7280;
+  --color-text-dim: #9AA3AF;
+  --color-success: #22C55E;
   --color-error: #EF4444;
-  --color-warning: #F5A623;
-  --color-accent-soft: rgba(245, 166, 35, 0.12);
-  --color-accent-border: rgba(245, 166, 35, 0.30);
-  --color-nav-hover: #1A1B1E;
-  --color-nav-active: #131416;
-  --color-nav-text: #9CA0A8;
-  --color-nav-section-label: #62666D;
+  --color-warning: #F59E0B;
+  --color-accent-soft: #FFF1E9;
+  --color-accent-border: #FAD9C5;
+
+  /* ── CHROME: topbar + rail SEMPRE escuros, independem do tema do corpo ── */
+  --chrome-bg: #1B2129;
+  --chrome-bg-2: #232B35;
+  --chrome-border: #2E3742;
+  --chrome-text: #FFFFFF;
+  --chrome-text-dim: #7E8794;
+  --rail-width: 60px;
+  --topbar-height: 64px;
+
+  /* nav (usado dentro do chrome escuro) */
+  --color-nav-hover: #232B35;
+  --color-nav-active: #232B35;
+  --color-nav-text: #7E8794;
+  --color-nav-section-label: #6B7280;
 
   /* Paleta amber monocromática para gráficos (5 níveis) */
   --chart-1: #F59E0B;
@@ -45,20 +57,11 @@
 
   --sidebar-width: 260px;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
+/* data-theme="light" é o mesmo que o default agora — mantido por segurança */
 :root[data-theme="light"] {
-  --color-bg: #EEF2F7;
-  --color-surface: #FFFFFF;
-  --color-surface-2: #E2E8F0;
-  --color-border: #94A3B8;
-  --color-text: #0F172A;
-  --color-text-muted: #475569;
-  --color-nav-hover: #E2E8F0;
-  --color-nav-active: #FEF3C7;
-  --color-nav-text: #334155;
-  --color-nav-section-label: #64748B;
   color-scheme: light;
 }
 

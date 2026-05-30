@@ -19,12 +19,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" data-theme="light">
       <head>
-        {/* Dark mode fixo. Preferência antiga em localStorage é ignorada. */}
+        {/* Light mode fixo (estilo SolarZ). Preferência antiga em localStorage é ignorada. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{document.documentElement.dataset.theme='dark';localStorage.removeItem('sd-theme');}catch(e){}`,
+            __html: `try{document.documentElement.dataset.theme='light';localStorage.removeItem('sd-theme');}catch(e){}`,
           }}
         />
         {/* Preconnect para Google Fonts — não bloqueia render em Android antigo */}
