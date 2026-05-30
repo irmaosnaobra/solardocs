@@ -1,21 +1,27 @@
 /* Fonte carregada via <link> no layout.tsx para não bloquear o render */
 
 :root {
-  --color-primary: #F59E0B;
-  --color-primary-hover: #D97706;
-  --color-bg: #0F172A;
-  --color-surface: #1E293B;
-  --color-surface-2: #253347;
-  --color-border: #334155;
-  --color-text: #F1F5F9;
-  --color-text-muted: #94A3B8;
-  --color-success: #10B981;
+  --color-primary: #F5A623;
+  --color-primary-hover: #FFB13D;
+  /* Fundo grafite neutro (estilo Linear) — sem o azul-marinho, parece mais sofisticado */
+  --color-bg: #08090A;
+  --color-surface: #131416;
+  --color-surface-2: #1A1B1E;
+  /* Bordas claras o bastante pra terem contraste em dark mode (não usar #334155/fracas) */
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-text: #F7F8F8;
+  --color-text-muted: #9CA0A8;
+  --color-text-dim: #62666D;
+  --color-success: #4CB782;
   --color-error: #EF4444;
-  --color-warning: #F59E0B;
-  --color-nav-hover: #252525;
-  --color-nav-active: #2a2a2a;
-  --color-nav-text: #ccc;
-  --color-nav-section-label: #666;
+  --color-warning: #F5A623;
+  --color-accent-soft: rgba(245, 166, 35, 0.12);
+  --color-accent-border: rgba(245, 166, 35, 0.30);
+  --color-nav-hover: #1A1B1E;
+  --color-nav-active: #131416;
+  --color-nav-text: #9CA0A8;
+  --color-nav-section-label: #62666D;
 
   /* Paleta amber monocromática para gráficos (5 níveis) */
   --chart-1: #F59E0B;
@@ -69,6 +75,7 @@ html, body {
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.6;
+  letter-spacing: -0.011em; /* tracking apertado — marca registrada do estilo Linear */
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
   max-width: 100%;

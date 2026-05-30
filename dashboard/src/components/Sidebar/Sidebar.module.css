@@ -1,7 +1,7 @@
 .sidebar {
   width: var(--sidebar-width);
   height: 100vh;
-  background: var(--color-surface);
+  background: var(--color-bg);
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
@@ -94,8 +94,9 @@
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text);
+  color: var(--color-text-muted);
   text-decoration: none;
+  position: relative;
   transition: background 0.12s, color 0.12s;
   /* Compatibilidade quando navItem é <button> (ex: theme picker) */
   background: transparent;
@@ -113,8 +114,21 @@
 
 .navItemActive {
   background: var(--color-nav-active);
-  color: #FAC775;
+  color: var(--color-text);
   font-weight: 600;
+}
+
+/* Acento laranja aparece SÓ como uma fina barra no item ativo (parcimônia, estilo Linear) */
+.navItemActive::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 15px;
+  border-radius: 2px;
+  background: var(--color-primary);
 }
 
 .navItemLocked {
