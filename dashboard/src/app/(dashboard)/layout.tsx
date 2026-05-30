@@ -297,11 +297,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [hasCompany, setHasCompany] = useState(false);
   const [companyLoaded, setCompanyLoaded] = useState(false);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [companyNome, setCompanyNome] = useState<string | null>(null);
 
   const fetchCompany = useCallback(() => {
     api.get('/company').then(({ data }) => {
       setHasCompany(!!data.company?.cnpj);
       setCompanyLogo(data.company?.logo_base64 || null);
+      setCompanyNome(data.company?.nome || null);
     }).catch(() => {}).finally(() => setCompanyLoaded(true));
   }, []);
 
@@ -382,7 +384,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={styles.layout}>
-      <Sidebar user={user} hasCompany={hasCompany} onUpgradeClick={() => setShowUpgrade(true)} />
+      <Sidebar user={user} hasCompany={hasCompany} companyNome={companyNome} onUpgradeClick={() => setShowUpgrade(true)} />
       <main className={styles.main}>
         <TopBar userEmail={user.email} companyLogo={companyLogo} />
         <div className={styles.content}>

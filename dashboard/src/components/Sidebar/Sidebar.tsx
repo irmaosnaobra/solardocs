@@ -29,6 +29,7 @@ interface User {
 interface SidebarProps {
   user: User;
   hasCompany: boolean;
+  companyNome?: string | null;
   onUpgradeClick: () => void;
 }
 
@@ -96,7 +97,13 @@ const mobileContaItems: NavItem[] = [
 
 // ── Componente principal ────────────────────────────────────────────
 
-export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarProps) {
+export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick }: SidebarProps) {
+  // Saudação: nome do responsável → senão nome da empresa → senão prefixo do email.
+  // (Regra: todo cliente mostra responsável ou empresa, nunca lixo/email cru.)
+  const greetingName =
+    (user.nome && user.nome.trim()) ||
+    (companyNome && companyNome.trim()) ||
+    user.email.split('@')[0];
   const pathname = usePathname();
   const router = useRouter();
   const isVip = user.plano === 'ilimitado';
@@ -191,10 +198,10 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
             <Logo className={styles.logoImg} />
           </button>
         )}
-        {(user.nome || user.email) && (
+        {greetingName && (
           <div className={styles.userGreeting}>
             <span className={styles.userHello}>Olá,</span>
-            <span className={styles.userName}>{user.nome || user.email.split('@')[0]}</span>
+            <span className={styles.userName}>{greetingName}</span>
           </div>
         )}
       </div>
