@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Settings, Zap, FolderOpen, FileText,
-  LayoutDashboard, Building2, Users, Handshake,
+  LayoutDashboard, Building2, Users, User, Handshake,
   Banknote, ScrollText, FileSignature,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
   Save, GraduationCap, Smartphone,
@@ -81,6 +81,18 @@ const docsTerceiroItems: NavItem[] = [
 
 // Documentos Salvos vive no avatar (topbar); Mentorias removido. Seção Conta vazia.
 const contaItems: NavItem[] = [];
+
+// ── Itens que no DESKTOP vivem na topbar/avatar, mas no MOBILE a topbar some,
+//    então precisam aparecer no drawer. Esta seção é mobile-only (CSS).
+//    IMPORTANTE: NADA de requireCompany aqui — Empresa é onde se cadastra a
+//    empresa; gatear viraria catch-22 (sem empresa não acessa Empresa).
+const mobileContaItems: NavItem[] = [
+  { href: '/minha-conta',       icon: User,       label: 'Minha Conta' },
+  { href: '/empresa',           icon: Building2,  label: 'Empresa' },
+  { href: '/conta/documentos',  icon: Save,       label: 'Documentos Salvos' },
+  { href: '/baixe-app',         icon: Smartphone, label: 'Baixe o App' },
+  { href: 'https://pack.solardoc.app/', icon: Palette, label: 'Crie seu Mascote', external: true },
+];
 
 // ── Componente principal ────────────────────────────────────────────
 
@@ -243,6 +255,17 @@ export default function Sidebar({ user, hasCompany, onUpgradeClick }: SidebarPro
             </div>
           </>
         )}
+
+        {/* ── Conta (MOBILE ONLY): no desktop estes itens vivem na topbar/avatar.
+              No mobile a topbar some, então aparecem aqui. CSS esconde no desktop. ── */}
+        <div className={styles.mobileOnlySection}>
+          <div className={styles.navDivider}>
+            <span className={styles.navDividerLabel}>Conta</span>
+          </div>
+          <div className={styles.navSection}>
+            {mobileContaItems.map(renderItem)}
+          </div>
+        </div>
       </nav>
 
       <div className={styles.footer}>

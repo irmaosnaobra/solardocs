@@ -316,6 +316,12 @@
   color: #fff;
 }
 
+/* Seção/itens que só aparecem no MOBILE (no desktop vivem na topbar/avatar).
+   Escondidos por padrão; o @media ≤768px revela. */
+.mobileOnlySection {
+  display: none;
+}
+
 /* Sair só no mobile: no desktop ele vive no menu do avatar (topbar).
    A topbar some em ≤768px, então o botão aparece aqui no drawer da sidebar. */
 .logoutBtnMobile {
@@ -429,6 +435,9 @@
   .navDividerLabelAdmin { display: block; }
   .countBadge, .tripleBadge, .externalIcon { display: inline-flex; }
   .navItemActive::before { width: 3px; }
+
+  /* revela a seção Conta mobile-only dentro do drawer */
+  .mobileOnlySection { display: block; }
 
   /* footer com folga: Administrador / VIP / Sair não ficam espremidos */
   .footer { flex-shrink: 0; padding: 14px; gap: 10px; }
