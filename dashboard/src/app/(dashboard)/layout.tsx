@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import TopBar from '@/components/TopBar/TopBar';
 import UpgradeModal from '@/components/UpgradeModal/UpgradeModal';
@@ -290,14 +290,9 @@ function UpgradePage({ email }: { email: string }) {
   );
 }
 
-// Paths que free pode acessar sem upgrade. Resto vira locked/redirect.
-// /documentos é tratado à parte (só libera quando tipo=proposta).
-const FREE_ALLOWED_PATHS = ['/empresa', '/planos', '/baixe-app'];
-
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { user, setUser, showUpgrade, setShowUpgrade } = useDashboard();
   const [hasCompany, setHasCompany] = useState(false);
   const [companyLoaded, setCompanyLoaded] = useState(false);
@@ -356,23 +351,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Free user: empresa é obrigatória pra ativar o gerador; navegação fica restrita
-  // a /empresa, /planos e /documentos?tipo=proposta. Resto cai no upgrade modal
-  // ou redireciona pro gerador. Admin e pagos passam direto.
+  // Free user: empresa (CNPJ) continua obrigatória pra ativar o gerador.
+  // Mas a navegação é LIVRE — free acessa todas as telas/tipos de documento.
+  // O limite do plano free é só no volume (10 docs/mês), não nas features.
   const isFree = user.plano === 'free';
   const isAdminUser = !!user.is_admin;
   if (isFree && !isAdminUser) {
     if (!hasCompany && pathname !== '/empresa') {
       router.replace('/empresa?welcome=1&plan=free');
       return null;
-    }
-    if (hasCompany) {
-      const isGenerator = pathname === '/documentos' && searchParams.get('tipo') === 'proposta';
-      const isAllowedExact = FREE_ALLOWED_PATHS.includes(pathname);
-      if (!isGenerator && !isAllowedExact) {
-        router.replace('/documentos?tipo=proposta');
-        return null;
-      }
     }
   }
 

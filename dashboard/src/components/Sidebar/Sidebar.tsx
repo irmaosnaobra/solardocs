@@ -63,20 +63,21 @@ const topoItems: NavItem[] = [
 ];
 
 // Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.
+// Tudo liberado pra free (sem paidOnly); o limite é nos 10 docs/mês, não nas telas.
 const cadastroItems: NavItem[] = [
-  { href: '/clientes',  icon: Users,     label: 'Clientes',  requireCompany: true, paidOnly: true },
-  { href: '/terceiros', icon: Handshake, label: 'Terceiros', requireCompany: true, paidOnly: true },
+  { href: '/clientes',  icon: Users,     label: 'Clientes',  requireCompany: true },
+  { href: '/terceiros', icon: Handshake, label: 'Terceiros', requireCompany: true },
 ];
 
 const docsClienteItems: NavItem[] = [
-  { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,       label: 'Proposta de Banco',  requireCompany: true, paidOnly: true },
-  { href: '/documentos?tipo=contrato-solar',    icon: FileSignature,  label: 'Contrato Solar',     requireCompany: true, paidOnly: true },
-  { href: '/documentos?tipo=procuracao',        icon: ScrollText,     label: 'Procuração',         requireCompany: true, paidOnly: true },
+  { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,       label: 'Proposta de Banco',  requireCompany: true },
+  { href: '/documentos?tipo=contrato-solar',    icon: FileSignature,  label: 'Contrato Solar',     requireCompany: true },
+  { href: '/documentos?tipo=procuracao',        icon: ScrollText,     label: 'Procuração',         requireCompany: true },
 ];
 
 const docsTerceiroItems: NavItem[] = [
-  { href: '/documentos?tipo=prestacao-servico', icon: Wrench,    label: 'Prestação de Serviço', requireCompany: true, paidOnly: true },
-  { href: '/documentos?tipo=contrato-pj',       icon: Briefcase, label: 'Contrato Vendedor',     requireCompany: true, paidOnly: true },
+  { href: '/documentos?tipo=prestacao-servico', icon: Wrench,    label: 'Prestação de Serviço', requireCompany: true },
+  { href: '/documentos?tipo=contrato-pj',       icon: Briefcase, label: 'Contrato Vendedor',     requireCompany: true },
 ];
 
 // Documentos Salvos vive no avatar (topbar); Mentorias removido. Seção Conta vazia.

@@ -95,7 +95,7 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 7px 12px;
   border-radius: 8px;
   font-size: 13px;
   color: #E8EAED;            /* branco-suave de alto contraste no fundo escuro */
@@ -135,7 +135,7 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 7px 12px;
   border-radius: 8px;
   font-size: 13px;
   color: #C2C6CC;            /* claro o bastante pra ler, mas distinto do ativo */
@@ -214,7 +214,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 9px 4px;
+  padding: 6px 9px 3px;
 }
 
 .navDividerLabel {
