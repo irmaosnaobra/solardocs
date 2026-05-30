@@ -45,6 +45,18 @@ router.post('/social/roteirizar', async (req: Request, res: Response) => {
   }
 });
 
+// [THROWAWAY] testa o Whisper em prod (saldo OpenAI + IP) com áudio público pequeno.
+router.get('/social/_test-whisper', async (_req: Request, res: Response) => {
+  try {
+    const { transcribeAudio } = await import('../utils/mediaProcessor');
+    const url = 'https://upload.wikimedia.org/wikipedia/commons/c/c8/Example.ogg';
+    const t = await transcribeAudio(url, 'audio/ogg');
+    res.json({ ok: true, transcricao: t ? t.slice(0, 120) : null, whisper: t ? 'funciona' : 'null (sem saldo/erro?)' });
+  } catch (err: any) {
+    res.json({ ok: false, erro: String(err?.message || err).slice(0, 200) });
+  }
+});
+
 // Estúdio: varredura de virais (Ad Library) — STUB até a Meta liberar.
 router.post('/social/varrer', async (_req: Request, res: Response) => {
   res.json(await varrerAdLibrary());
