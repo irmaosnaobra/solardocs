@@ -8,7 +8,7 @@
   flex: 1;
   min-width: 0; /* CRÍTICO: permite overflow horizontal nos filhos (Kanban CRM) */
   max-width: 100%;
-  margin-left: var(--rail-width);   /* rail estreito estilo SolarZ */
+  margin-left: 240px;               /* sidebar larga sempre aberta (SolarZ) */
   margin-top: var(--topbar-height); /* topbar fixa full-width acima */
   padding: 0;
   min-height: calc(100vh - var(--topbar-height));

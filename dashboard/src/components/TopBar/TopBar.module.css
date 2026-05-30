@@ -13,21 +13,6 @@
   background: var(--chrome-bg);
 }
 
-.burger {
-  background: none;
-  border: none;
-  color: var(--chrome-text-dim);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
-  flex-shrink: 0;
-  transition: color .12s, background .12s;
-}
-.burger:hover { color: #fff; background: var(--chrome-bg-2); }
-
 .brand {
   display: flex;
   align-items: center;
@@ -36,8 +21,8 @@
   letter-spacing: -0.02em;
   text-decoration: none;
   flex-shrink: 0;
-  /* alinha a marca com a largura do rail */
-  min-width: calc(var(--rail-width) + 70px);
+  /* ocupa a faixa da sidebar larga (240px) pra logo alinhar com o menu */
+  min-width: 220px;
   padding-left: 4px;
 }
 .brandSolar { color: #fff; }

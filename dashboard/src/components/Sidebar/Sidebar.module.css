@@ -1,11 +1,12 @@
-/* Rail estreito escuro estilo SolarZ — começa abaixo da topbar fixa */
+/* Sidebar escura SEMPRE aberta (larga, ícones + texto) estilo SolarZ.
+   Começa abaixo da topbar fixa. Sem colapso. */
 .sidebar {
-  width: var(--rail-width);
+  width: 240px;
   height: calc(100vh - var(--topbar-height));
   background: var(--chrome-bg);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   position: fixed;
   left: 0;
   top: var(--topbar-height);
@@ -14,37 +15,8 @@
   overflow-y: auto;
   transition: transform 0.3s ease;
 }
-.sidebar::-webkit-scrollbar { width: 0; }
-
-/* No rail: esconde logo, saudação e footer (são da versão larga) */
-.sidebar > .logoWrap,
-.sidebar > .footer { display: none; }
-
-/* ── EXPANDIDA (☰) — desktop: vira menu largo com ícones + texto ── */
-.sidebar.expanded {
-  width: 240px;
-  align-items: stretch;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
-}
-.sidebar.expanded > .logoWrap { display: flex; }
-.sidebar.expanded > .footer { display: flex; }
-.sidebar.expanded .nav { align-items: stretch; padding: 6px 8px 8px; gap: 1px; }
-.sidebar.expanded .navSection { align-items: stretch; gap: 1px; }
-.sidebar.expanded .navItem,
-.sidebar.expanded .navItemLocked {
-  display: flex; align-items: center; gap: 10px;
-  width: 100%; height: auto; padding: 10px 12px;
-  border-radius: 8px; font-size: 13px; text-align: left;
-}
-.sidebar.expanded .navLabel { display: block; flex: 1; min-width: 0; }
-.sidebar.expanded .countBadge,
-.sidebar.expanded .tripleBadge,
-.sidebar.expanded .externalIcon { display: inline-flex; }
-.sidebar.expanded .navDivider {
-  width: auto; height: auto; background: none; padding: 12px 12px 4px; margin: 0;
-}
-.sidebar.expanded .navDividerLabel,
-.sidebar.expanded .navDividerLabelAdmin { display: block; }
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--chrome-border); border-radius: 4px; }
 
 .logoWrap {
   border-bottom: 1px solid var(--color-border);
@@ -103,11 +75,11 @@
   flex: 1;
   min-height: 0;
   width: 100%;
-  padding: 8px 0;
+  padding: 6px 8px 8px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
+  align-items: stretch;
+  gap: 1px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -115,26 +87,28 @@
 .navSection {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   width: 100%;
-  gap: 2px;
+  gap: 1px;
   margin-bottom: 2px;
 }
 
-/* ── Item de menu ── */
-/* Item do rail = quadrado de 46px só com ícone (estilo SolarZ) */
+/* ── Item de menu (linha com ícone + texto) ── */
 .navItem {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
   color: var(--chrome-text-dim);
   text-decoration: none;
   position: relative;
   transition: background 0.12s, color 0.12s;
   background: transparent;
   border: none;
+  text-align: left;
   font-family: inherit;
   cursor: pointer;
 }
@@ -160,26 +134,20 @@
   background: var(--color-primary);
 }
 
-/* No rail: esconde texto e contadores, mantém só o ícone */
-.navLabel,
-.externalIcon,
-.countBadge,
-.tripleBadge { display: none; }
-
-/* Divisores de seção viram um separador fino, sem texto */
-.navDivider { width: 28px; height: 1px; padding: 0; margin: 6px 0; background: var(--chrome-border); }
-.navDividerLabel, .navDividerLabelAdmin { display: none; }
-
 .navItemLocked {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
   color: var(--chrome-text-dim);
   opacity: 0.45;
   user-select: none;
   background: transparent;
   border: none;
+  text-align: left;
   font-family: inherit;
   cursor: pointer;
   position: relative;
