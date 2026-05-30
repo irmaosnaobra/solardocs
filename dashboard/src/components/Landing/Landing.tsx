@@ -224,7 +224,7 @@ export default function Landing() {
             <span>SolarDoc<span className={styles.brandAccent}>.App</span></span>
           </div>
           <div className={styles.navRight}>
-            <button onClick={scrollToPlans} className={styles.navCta}>Começar grátis</button>
+            <button onClick={scrollToPlans} className={styles.navCta}>Testar 7 dias grátis</button>
           </div>
         </div>
       </nav>
@@ -245,27 +245,27 @@ export default function Landing() {
               Pra integrador solar com CNPJ
             </span>
             <h1 className={styles.h1}>
-              Gerador de Proposta + Contratos solares <strong>com a sua marca</strong>.
+              O melhor Gerador de Proposta do Brasil — <strong>com a sua marca</strong>.
             </h1>
 
             <p className={styles.lead} style={{ margin: '0 auto 32px' }}>
-              Cadastra a empresa, sobe sua logo e <b>gera 10 propostas grátis</b>. Em minutos sai a proposta
-              solar pronta com seu nome, sua cor e os números certos — pra mandar no WhatsApp do cliente.
+              Proposta solar e todos os contratos que o integrador precisa, prontos em minutos: seu nome,
+              sua logo, sua cor e os números certos — pra fechar mais rápido no WhatsApp do cliente.
             </p>
 
             <button className={styles.finalCtaBtn} onClick={scrollToPlans}>
-              Começar grátis →
+              Testar 7 dias grátis →
             </button>
 
             <div className={styles.trustRow} style={{ justifyContent: 'center', marginTop: 24 }}>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> <b>10 propostas grátis</b>
+                <span className={styles.trustCheck}>✓</span> <b>7 dias grátis</b>
               </span>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> Sem cartão
+                <span className={styles.trustCheck}>✓</span> Cancele quando quiser
               </span>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> Sem cobrança
+                <span className={styles.trustCheck}>✓</span> Sem fidelidade
               </span>
             </div>
           </div>
@@ -451,45 +451,25 @@ export default function Landing() {
             <span className={styles.sectionLabel} data-reveal>Planos</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            Comece <strong>grátis</strong>. Faça upgrade quando precisar.
+            Escolha seu plano. <strong>7 dias grátis nos dois.</strong>
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            10 propostas grátis no Gerador, sem passar cartão. Quando quiser mais documentos ou recursos, escolhe um plano.
+            Teste a plataforma completa por 7 dias. Só é cobrado se continuar — cancele quando quiser, sem fidelidade.
           </p>
 
           {/* CARDS — 3 colunas (auto-fit) */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
               gap: 22,
               marginTop: 40,
-              maxWidth: 1100,
+              maxWidth: 760,
               marginLeft: 'auto',
               marginRight: 'auto',
               alignItems: 'stretch',
             }}
           >
-            <div className={styles.plan} data-reveal style={{ borderColor: 'rgba(34,197,94,0.4)', position: 'relative' }}>
-              <div className={styles.planTag} style={{ background: 'linear-gradient(90deg, #16a34a, #22c55e)', color: '#0b1120' }}>Comece aqui</div>
-              <div className={styles.planName} style={{ color: '#22c55e' }}>Grátis</div>
-              <div className={styles.planPrice}>R$ 0<small>/sempre</small></div>
-              <div className={styles.planSub}>
-                Sem cartão. Sem cobrança.<br />
-                <span style={{ opacity: 0.7 }}>Pra testar o gerador antes de assinar</span>
-              </div>
-              <ul className={styles.planList}>
-                <li><b>10 propostas grátis</b> (vitalício)</li>
-                <li>Gerador de Proposta com sua marca</li>
-                <li>Logo + cor da empresa no PDF</li>
-                <li>Link compartilhável pro WhatsApp</li>
-                <li>Cálculo de payback automático</li>
-              </ul>
-              <button onClick={goToFreeRegister} className={styles.planBtn}>
-                Começar grátis
-              </button>
-            </div>
-
             <div className={styles.plan} data-reveal style={{ transitionDelay: '0.05s' }}>
               <div className={styles.planName}>Pro</div>
               <div className={styles.planPrice}>R$ {PRICES.pro}<small>/mês</small></div>
@@ -499,13 +479,14 @@ export default function Landing() {
               </div>
               <ul className={styles.planList}>
                 <li>90 documentos por mês</li>
+                <li>Gerador de Proposta com sua marca</li>
                 <li>Todos os 5 tipos de documento</li>
                 <li>Assinatura digital com validade jurídica</li>
                 <li>Suporte prioritário no WhatsApp</li>
                 <li>Cancela quando quiser, sem multa</li>
               </ul>
               <button onClick={() => goToRegister('pro')} className={styles.planBtn}>
-                Começar 7 dias grátis
+                Testar 7 dias grátis
               </button>
             </div>
 
@@ -525,13 +506,13 @@ export default function Landing() {
                 <li>Acesso antecipado a novos documentos</li>
               </ul>
               <button onClick={() => goToRegister('vip')} className={`${styles.planBtn} ${styles.planBtnPrimary}`}>
-                Começar 7 dias grátis
+                Testar 7 dias grátis
               </button>
             </div>
           </div>
 
           <p data-reveal style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: '#94a3b8' }}>
-            Plano grátis não exige cartão. Nos planos pagos, cobrança só depois dos 7 dias e cancela a qualquer momento.
+            Os 7 dias grátis valem pros dois planos. A primeira cobrança só acontece no 8º dia — cancelou antes? Não paga nada.
           </p>
         </div>
       </section>
