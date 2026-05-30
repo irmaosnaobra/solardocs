@@ -4,17 +4,17 @@
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1fr;
-  background: #ffffff;
-  color: #0f172a;
+  background: var(--color-bg);
+  color: var(--color-text);
   font-family: var(--font-sans);
 }
 
-/* ----- LADO ESQUERDO: BRANDING (laranja) ----- */
+/* ----- LADO ESQUERDO: BRANDING (chrome escuro, padrão SolarZ) ----- */
 .brand {
   display: none;
   background:
-    radial-gradient(800px circle at 80% 20%, rgba(255, 255, 255, 0.18), transparent 50%),
-    linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
+    radial-gradient(700px circle at 80% 15%, rgba(242, 101, 19, 0.18), transparent 55%),
+    var(--chrome-bg);
   color: #ffffff;
   padding: 56px 56px 48px;
   position: relative;
@@ -39,10 +39,7 @@
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 10px 18px 10px 14px;
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 0;
 }
 .brandLogoImg {
   width: 36px;
@@ -50,12 +47,12 @@
   display: block;
 }
 .brandLogoText {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: -0.015em;
-  color: #0f172a;
+  letter-spacing: -0.02em;
+  color: #ffffff;
 }
-.brandLogoText span { color: #f59e0b; }
+.brandLogoText span { color: var(--color-primary); }
 
 .brandHeadline {
   font-size: clamp(28px, 3.4vw, 40px);
@@ -67,7 +64,7 @@
 .brandSub {
   font-size: 16px;
   line-height: 1.55;
-  color: #fff7ed;
+  color: var(--chrome-text-dim);
   max-width: 460px;
 }
 
@@ -94,8 +91,9 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-primary);
   display: grid;
   place-items: center;
   font-weight: 900;
@@ -104,7 +102,7 @@
 
 .brandFoot {
   font-size: 13px;
-  color: #fef3c7;
+  color: var(--chrome-text-dim);
   font-weight: 500;
   letter-spacing: 0.02em;
 }
@@ -116,8 +114,8 @@
   align-items: center;
   justify-content: center;
   padding: 32px 20px;
-  background: #ffffff;
-  color: #0f172a;
+  background: var(--color-surface);
+  color: var(--color-text);
   min-height: 100vh;
   position: relative;
 }
@@ -134,12 +132,12 @@
   height: auto;
 }
 .contentLogoText {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 800;
-  letter-spacing: -0.015em;
-  color: #0f172a;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
 }
-.contentLogoText span { color: #f59e0b; }
+.contentLogoText span { color: var(--color-primary); }
 
 .contentInner {
   width: 100%;
@@ -179,7 +177,7 @@
     padding: 0;
   }
   .brandLogoText { color: #ffffff; }
-  .brandLogoText span { color: #fef3c7; }
+  .brandLogoText span { color: var(--color-primary); }
 }
 
 @media (max-width: 540px) {
