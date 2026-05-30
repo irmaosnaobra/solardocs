@@ -169,7 +169,7 @@ export async function transcreverYoutube(url: string): Promise<{ texto: string; 
 // Recebe um tema (e opcionalmente o link do vídeo viral de origem) e devolve
 // um roteiro pronto no DNA viral, com ponte pro nicho solar. Se a fonte for um
 // vídeo do YouTube, transcreve o conteúdo real e usa no prompt (entende o vídeo).
-export async function roteirizarTema(tema: string, fonteUrl?: string, apresentador?: string): Promise<Roteiro | null> {
+export async function roteirizarTema(tema: string, fonteUrl?: string, apresentador?: string): Promise<Roteiro | { erro: string; ehYoutube?: boolean } | null> {
   const resumo = await topPostsResumo('instagram');
   const quem = (apresentador || 'ambos').toLowerCase(); // 'thiago' | 'diego' | 'ambos'
 
@@ -189,6 +189,12 @@ export async function roteirizarTema(tema: string, fonteUrl?: string, apresentad
       duracaoSeg = Math.min(60, real);
       fonteDuracao = real > 60 ? 'youtube_capado_60s' : 'youtube_transcript';
       minutagemConfianca = 'baixa'; // alvo capado = estimativa por taxa, não contagem bruta
+    } else {
+      // veio um LINK mas não conseguimos transcrever (sem legenda OU YouTube
+      // bloqueou o IP da Vercel). NÃO roteirizar com a URL crua como tema —
+      // isso gera lixo. Degrada honesto: pede descrição ao usuário.
+      const ehYoutube = !!youtubeId(link);
+      return { erro: 'transcricao_indisponivel', ehYoutube } as any;
     }
   }
 

@@ -3946,7 +3946,17 @@ async function roteirizarTemaEstudio() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();
     const rot = j.roteiro;
-    if (!rot) { showToast && showToast('Não consegui gerar agora — tente de novo'); return; }
+    if (!rot) {
+      if (j.motivo === 'transcricao_indisponivel') {
+        const dica = j.ehYoutube
+          ? 'Não consegui ler a legenda desse vídeo do YouTube agora (acontece às vezes). Tenta de novo, ou descreve em 1 linha o que ele mostra/fala que eu roteirizo em cima disso.'
+          : 'TikTok/Instagram não têm legenda pra eu ler. Descreve em 1 linha o que o vídeo mostra/fala (em vez do link) que eu roteirizo em cima disso.';
+        alert(dica);
+      } else {
+        showToast && showToast('Não consegui gerar agora — tente de novo');
+      }
+      return;
+    }
     // monta o roteiro com as FALAS separadas (THIAGO/DIEGO) + indicação de tela
     let roteiroTxt = '';
     if (Array.isArray(rot.falas) && rot.falas.length) {

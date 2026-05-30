@@ -33,8 +33,12 @@ router.post('/social/roteirizar', async (req: Request, res: Response) => {
   try {
     const tema = String(req.body?.tema || '').trim();
     if (!tema) return res.status(400).json({ error: 'tema obrigatório' });
-    const roteiro = await roteirizarTema(tema, req.body?.fonte_url, req.body?.apresentador);
-    res.json({ ok: true, roteiro });
+    const r = await roteirizarTema(tema, req.body?.fonte_url, req.body?.apresentador);
+    // degradação honesta: link sem transcrição → sinaliza pro front pedir descrição
+    if (r && (r as any).erro) {
+      return res.json({ ok: true, roteiro: null, motivo: (r as any).erro, ehYoutube: (r as any).ehYoutube });
+    }
+    res.json({ ok: true, roteiro: r });
   } catch (err: any) {
     logger.error('gerador', 'social/roteirizar falhou', err);
     res.status(500).json({ error: 'IA failed', detail: String(err?.message || err) });
