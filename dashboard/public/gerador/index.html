@@ -138,6 +138,8 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .apres-btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#cbd5e1;padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 .apres-btn:hover{background:rgba(255,255,255,.12);color:#fff}
 .apres-btn.ativo{background:#f5a623;border-color:#f5a623;color:#1a1206}
+.st-dur{font-size:11px;color:#93C5FD;background:rgba(96,165,250,.12);padding:3px 8px;border-radius:6px}
+.st-revisao{margin:8px 0;padding:8px 12px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:8px;font-size:12px;color:#fcd34d}
 .st-falas{white-space:pre-wrap;margin-top:4px;padding:10px 12px;background:rgba(255,255,255,.04);border-radius:8px;font-size:13px;line-height:1.6}
 .redes-st-acoes{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .redes-st-acoes button{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:none}
@@ -3904,9 +3906,11 @@ async function carregarStudioFila() {
     return `<div class="redes-st-item">
       <div class="st-top">
         <span class="st-arq">${escapeHtml(arq)}</span>
+        ${r.minutagem && r.minutagem.duracao_alvo_s ? `<span class="st-dur">⏱ ~${r.minutagem.duracao_alvo_s}s</span>` : ''}
         ${r.fonte_url ? `<a href="${r.fonte_url}" target="_blank" rel="noopener" style="font-size:11px;color:#60A5FA">fonte ↗</a>` : ''}
         <span class="st-status">${escapeHtml(r.status)}</span>
       </div>
+      ${r.precisa_revisao_humana ? `<div class="st-revisao">⚠️ Revise antes de usar — a IA não fechou 100% das regras automáticas. Confira minutagem e falas.</div>` : ''}
       ${r.gancho ? `<div class="st-gancho">${escapeHtml(r.gancho)}</div>` : ''}
       ${r.roteiro ? `<div class="st-corpo"><b>Roteiro (falas):</b><div class="st-falas">${escapeHtml(r.roteiro)}</div></div>` : ''}
       ${r.legenda ? `<div class="st-corpo"><b>Legenda:</b> ${escapeHtml(r.legenda)}</div>` : ''}
@@ -3952,6 +3956,8 @@ async function roteirizarTemaEstudio() {
       fonte_url: ehLink ? tema : null,
       tema, arquetipo: rot.arquetipo, gancho: rot.gancho,
       roteiro: roteiroTxt, legenda: rot.legenda, cta: rot.cta,
+      qa: rot.qa || null, minutagem: rot.minutagem || null,
+      precisa_revisao_humana: !!rot.precisa_revisao_humana,
       status: 'roteirizado',
     });
     inp.value = '';

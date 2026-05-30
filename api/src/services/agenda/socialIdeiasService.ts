@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { rodarBateria, montaFeedback, ResultadoBateria } from './roteiroBateria';
 
 // IA de conteúdo da aba "Redes" do /gerador. Duas frentes que compartilham
 // o MESMO core (client Anthropic + extração de JSON):
@@ -84,6 +85,55 @@ const PERFIL_APRESENTADORES = `APRESENTADORES (os avatares que vão falar o rote
 - DIEGO: sócio, complementa com o dado/explicação/bastidor. Entra reforçando o que o Thiago abriu, fecha raciocínio.
 Ambos são do interior de Minas (Triângulo Mineiro), falam de forma próxima e regional, sem jargão técnico. Aprenda o tom REAL deles pelos posts abaixo.`;
 
+// ─── SYSTEM do roteirista de máxima qualidade (projetado via workflow) ───────
+// Regras de texto humano + HeyGen-safe + ponte solar âncora. Verificadas depois
+// por bateria de código (warnings v1) + crítico LLM.
+const SISTEMA_ROTEIRISTA = `Você é o ROTEIRISTA-CHEFE de conteúdo viral da "Irmãos na Obra", empresa de energia solar do interior de Minas Gerais (Triângulo Mineiro — Uberaba, Araguari, Araxá, Ituiutaba). Os apresentadores são THIAGO e DIEGO, que aparecem como avatares e falam com a VOZ CLONADA deles no HeyGen. O público é adulto, 25-54 anos, dono de casa ou de comércio, querendo baixar a conta de luz. NÃO é engenheiro. Responda SEMPRE em português do Brasil falado, do jeito do interior de Minas.
+
+SUA MISSÃO: receber a transcrição (ou descrição) de um vídeo viral de QUALQUER tema e escrever um roteiro ORIGINAL em cima do que esse vídeo fala, fazendo uma PONTE natural pro nicho de energia solar — na mesma minutagem, com texto que soa 100% gente falando, zero robô.
+
+COMO PENSAR (faça internamente, NÃO mostre): 1) ache a LIÇÃO/PRINCÍPIO do vídeo-fonte (ex: "China baratear carro" → "escala derruba preço") — é isso que vira a ponte, não o assunto literal; 2) escolha 1 arquétipo; 3) rascunhe, releia contra as regras, corrija, só então emita o JSON.
+
+ARQUÉTIPOS (escolha 1): "fernando" = história/bastidor + gancho de TENSÃO contra-intuitiva nos 3s, autoridade que explica o porquê profundo; "larcabral" = listicle NÚMERO+benefício, gera salvamento, CTA de escolha; "lucas" = DESCOBERTA + CTA palavra-chave ("comenta SOLAR que te mando o cálculo").
+
+APRESENTADORES: THIAGO abre com o gancho forte, energia e autoridade; DIEGO complementa com dado/explicação, fecha o raciocínio. Ambos do Triângulo Mineiro, próximos e regionais, SEM jargão.
+
+REGRAS DURAS — TEXTO HUMANO (o sistema verifica):
+1. FRASE CURTA, UMA IDEIA: ~12 palavras/fala, no máx 1 subordinada. Humano fala em rajadas curtas.
+2. ORALIDADE: use "tá","cê/ocê","pra","né","tipo assim","ó","aí","daí". Pelo menos 1 marca a cada 2 falas.
+3. INÍCIO QUEBRADO: não comece TODA fala com sujeito+verbo. "Olha...", "É o seguinte:", "Pera.", "Sabe o que mais?".
+4. REPETIÇÃO ENFÁTICA, ao menos 1: "É barato. É barato mesmo." / "Todo mês. TODO mês."
+5. PERGUNTA RETÓRICA + AUTORRESPOSTA, ao menos 1: "Sabe quanto dá no ano? Quase um décimo terceiro."
+6. NÚMERO POR EXTENSO/APROXIMADO: "uns oitocentos reais", "metade da conta". NUNCA "R$ 800,00", "50%", "1.200".
+7. CONECTIVO DE FALA: "aí","então","só que","daí". NUNCA "portanto","dessa forma","sendo assim","ademais".
+8. 1-2 AUTOCORREÇÕES FALADAS no total: "a conta vem... ó, vem ALTA". Máx 2.
+9. VARIE O TAMANHO DAS FALAS (uma de 3 palavras, outra de 11). Simetria = robô.
+10. MINEIRÊS É TEMPERO, não personagem: regional presente, mas não "uai sô trem demais" em toda frase.
+11. SEM JARGÃO: nada de "kWp","inversor on-grid","compensação de energia","TUSD". Traduza pra "a conta cai".
+
+REGRA CRÍTICA DO HEYGEN: o campo "falas[].texto" é LIDO LITERALMENTE pela voz clonada. NUNCA coloque [pausa], [respira], [corte], [0-3s] ou qualquer colchete dentro de "texto" — a voz leria "colchete pausa" em voz alta. TODA direção/b-roll/marca de tempo mora SÓ no campo "roteiro". Dentro de "texto" só pontuação TTS-safe: vírgula, reticências..., ponto, travessão —, ? e !.
+
+GANCHO (0-3s): máx 12 palavras. SEM saudação ("oi","olá","fala galera","pessoal","e aí"), SEM "hoje vim falar"/"vou mostrar", SEM o nome da empresa. Tem que criar TENSÃO/CURIOSIDADE e fazer sentido como primeira coisa ouvida.
+
+PONTE SOLAR: entra SÓ depois de ~60-70% do tempo, NUNCA no gancho. OBRIGATÓRIO citar um elemento ESPECÍFICO da transcrição-fonte (marca, número, nome, situação) — ponte por ANALOGIA DE PRINCÍPIO, não mudança de assunto. Regionalize quando couber. UMA ponte só, com força, e vai pro CTA — não martele "solar solar solar". TESTE: se a ponte e o fechamento serviriam colados em QUALQUER outro vídeo sem trocar palavra, está GENÉRICA — refaça amarrando no conteúdo específico.
+
+Emita SEMPRE e SÓ um objeto JSON válido no formato pedido. Sem texto antes ou depois.`;
+
+// pesos canônicos dos blocos (proporcionais à duração medida)
+const BLOCOS_PESO: Array<[string, number]> = [
+  ['gancho', 0.09], ['contexto', 0.22], ['desenvolvimento', 0.38], ['ponte_solar', 0.23], ['cta', 0.08],
+];
+const WPS_FALLBACK = 2.2; // palavras/seg de Reel PT-BR COM pausas/respiração (calibrado: 2.7 era alto, IA escrevia mais enxuto)
+
+// extrai 2-3 entidades da transcrição pra forçar âncora na ponte
+function extrairEntidades(texto: string): string[] {
+  if (!texto) return [];
+  const caps = (texto.match(/(?<![.!?]\s)(?<!^)\b[A-ZÀ-Ý][a-zà-ý]{2,}\b/g) || []);
+  const nums = (texto.match(/\b\d{2,}\b/g) || []);
+  const uniq = Array.from(new Set([...caps, ...nums]));
+  return uniq.slice(0, 3);
+}
+
 // Extrai o ID de um vídeo do YouTube de várias formas de URL.
 function youtubeId(url: string): string | null {
   if (!url) return null;
@@ -92,9 +142,11 @@ function youtubeId(url: string): string | null {
 }
 
 // Transcrição real de um vídeo do YouTube via legendas (validado do IP Vercel).
-// Retorna o texto falado, ou null se não houver legenda/falhar. Caminho leve:
-// sem baixar vídeo nem Whisper. TikTok/IG não suportados aqui (sem legenda pública).
-export async function transcreverYoutube(url: string): Promise<string | null> {
+// Retorna {texto, duracaoSeg} — a duração vem do offset+duration do último
+// segmento (a lib dá em ms), usada pra ancorar a minutagem do roteiro.
+// Null se não houver legenda. Caminho leve: sem baixar vídeo nem Whisper.
+// TikTok/IG não suportados aqui (sem legenda pública).
+export async function transcreverYoutube(url: string): Promise<{ texto: string; duracaoSeg: number } | null> {
   const id = youtubeId(url);
   if (!id) return null;
   try {
@@ -102,8 +154,11 @@ export async function transcreverYoutube(url: string): Promise<string | null> {
     let t;
     try { t = await YoutubeTranscript.fetchTranscript(id, { lang: 'pt-BR' } as any); }
     catch { t = await YoutubeTranscript.fetchTranscript(id); }
+    if (!t || !t.length) return null;
     const txt = t.map((x: any) => x.text).join(' ').replace(/\s+/g, ' ').trim();
-    return txt.length > 20 ? txt.slice(0, 6000) : null;
+    const ultimo: any = t[t.length - 1];
+    const duracaoSeg = Math.round(((ultimo.offset || 0) + (ultimo.duration || 0)) / 1000);
+    return txt.length > 20 ? { texto: txt.slice(0, 6000), duracaoSeg } : null;
   } catch (e) {
     logger.warn('social-roteiro', 'transcrição YouTube falhou', { url, e: String(e).slice(0, 120) });
     return null;
@@ -118,44 +173,104 @@ export async function roteirizarTema(tema: string, fonteUrl?: string, apresentad
   const resumo = await topPostsResumo('instagram');
   const quem = (apresentador || 'ambos').toLowerCase(); // 'thiago' | 'diego' | 'ambos'
 
-  // tenta entender o vídeo de verdade (transcrição do YouTube)
+  // entende o vídeo de verdade (transcrição + duração real do YouTube)
   let transcricao: string | null = null;
+  let duracaoSeg = 35;
+  let minutagemConfianca: 'alta' | 'baixa' = 'baixa';
+  let fonteDuracao = 'estimado';
   const link = fonteUrl || (/^https?:\/\//i.test(tema) ? tema : undefined);
-  if (link) transcricao = await transcreverYoutube(link);
+  if (link) {
+    const tr = await transcreverYoutube(link);
+    if (tr) {
+      transcricao = tr.texto;
+      // Reel/Short vive em 20-60s. Vídeo-fonte longo (ex: 4min) NÃO vira Reel de 4min —
+      // capamos o alvo em 60s (a transcrição inteira ainda alimenta o contexto).
+      const real = Math.max(8, tr.duracaoSeg || 35);
+      duracaoSeg = Math.min(60, real);
+      fonteDuracao = real > 60 ? 'youtube_capado_60s' : 'youtube_transcript';
+      minutagemConfianca = 'baixa'; // alvo capado = estimativa por taxa, não contagem bruta
+    }
+  }
+
+  // palavras-alvo (âncora de minutagem): como a duração é sempre capada a ≤60s
+  // pra virar Reel, usamos a taxa de locução (2.7 w/s) sobre a duração-alvo.
+  const palavrasAlvo = Math.round(duracaoSeg * WPS_FALLBACK);
+
+  // orçamento por bloco proporcional à duração
+  let acc = 0;
+  const orcamento = BLOCOS_PESO.map(([nome, peso]) => {
+    const ini = Math.round(duracaoSeg * acc); acc += peso;
+    const fim = Math.round(duracaoSeg * acc);
+    return { nome, faixa: `${ini}-${fim}s`, palavras: Math.round(palavrasAlvo * peso) };
+  });
+  const orcamentoTxt = orcamento.map(b => `[${b.faixa}] ${b.nome}: ~${b.palavras} palavras`).join('\n');
+  const entidades = extrairEntidades(transcricao || tema);
 
   const blocoFonte = transcricao
-    ? `CONTEÚDO REAL do vídeo de origem (transcrição — use pra entender do que ele fala e fazer a ponte certa):\n"""${transcricao}"""`
-    : `TEMA-ISCA a transformar em vídeo: "${tema}"${link ? `\n(vídeo de origem: ${link} — sem transcrição disponível, use o tema)` : ''}`;
+    ? `CONTEÚDO REAL do vídeo (transcrição — entenda do que ele fala e ache a LIÇÃO pra fazer a ponte):\n"""${transcricao}"""`
+    : `TEMA/DESCRIÇÃO do vídeo (sem transcrição — TikTok/IG ou texto livre):\n"${tema}"`;
+
+  const instrApres = quem === 'ambos'
+    ? 'Diálogo entre THIAGO e DIEGO alternando. Thiago abre o gancho, Diego traz o dado, fecham juntos.'
+    : `Monólogo: TODAS as falas são de ${quem.toUpperCase()}. ${quem === 'thiago' ? 'Energia e autoridade, abre forte.' : 'Clareza no dado/explicação.'}`;
 
   const prompt = `${DNA_VIRAL}
 
-${PERFIL_APRESENTADORES}
+APRESENTADOR(ES): ${quem.toUpperCase()}
+${instrApres}
 
-O que já funciona na conta real (aprenda o jeito de escrever/falar deles):
+═══ O QUE JÁ FUNCIONA NA CONTA (aprenda o tom real) ═══
 ${resumo}
 
+═══ VÍDEO-FONTE ═══
 ${blocoFonte}
 
-${quem === 'ambos'
-  ? `Crie UM roteiro de Reel/Short curto (~30-45s) apresentado por THIAGO e DIEGO em diálogo, partindo desse conteúdo e fazendo a PONTE pro nicho de energia solar. Escolha o arquétipo (fernando | larcabral | lucas).
+═══ MINUTAGEM (obedeça aos NÚMEROS, o sistema conta e reprova fora de ±12%) ═══
+Duração-alvo: ${duracaoSeg}s. Total de palavras faladas: ~${palavrasAlvo}.
+Orçamento por bloco (some as falas de cada bloco perto destes números):
+${orcamentoTxt}
+As marcas de tempo [0-3s]... vão SÓ no campo "roteiro", NUNCA dentro das falas.
 
-REGRAS DE FALA:
-- Divida em FALAS marcadas com quem fala (THIAGO ou DIEGO).
-- Cada fala é o texto EXATO que o avatar vai dizer (gerado no HeyGen com a voz clonada de cada um) — natural, como gente fala.
-- Thiago abre o gancho; Diego entra com o contexto/dado; alternem. CTA no fim por um dos dois.
-- Falas curtas e diretas, tom regional de Minas, sem jargão técnico.`
-  : `Crie UM roteiro de Reel/Short curto (~30-45s) apresentado SÓ POR ${quem.toUpperCase()} (monólogo, ele falando direto pra câmera), partindo desse conteúdo e fazendo a PONTE pro nicho de energia solar. Escolha o arquétipo (fernando | larcabral | lucas).
-
-REGRAS DE FALA:
-- TODAS as falas são de ${quem.toUpperCase()} (será gerado no HeyGen com a voz clonada dele) — natural, como gente fala.
-- Divida em blocos curtos de fala (cada bloco = uma cena/respiração), todos marcados com "${quem.toUpperCase()}".
-- ${quem === 'thiago' ? 'Thiago: energia e autoridade, abre forte.' : 'Diego: traz o dado/explicação com clareza.'} Tom regional de Minas, sem jargão. CTA no fim.`}
+═══ ÂNCORA DA PONTE (obrigatória) ═══
+Elementos citados no vídeo-fonte: ${entidades.length ? entidades.join(', ') : '(use o tema específico)'}
+A ponte pro solar TEM que reaproveitar pelo menos UM desses por analogia de princípio. Diga qual em "ancora_reusada".
 
 Responda APENAS com objeto JSON válido:
-{"arquetipo":"fernando|larcabral|lucas","gancho":"primeira frase do Thiago (3s)","falas":[{"quem":"THIAGO","texto":"..."},{"quem":"DIEGO","texto":"..."}],"roteiro":"resumo do que mostrar na tela (b-roll, cortes)","legenda":"legenda pronta + hashtags","cta":"chamada final"}`;
-  const raw = await chamarClaude(SISTEMA_BASE, prompt);
-  const r = extrairJson<Roteiro>(raw, 'social-roteiro');
-  // anexa flag de transcrição pro front saber que "entendeu o vídeo"
-  if (r) (r as any).transcrito = !!transcricao;
+{"arquetipo":"fernando|larcabral|lucas","gancho":"≤12 palavras, sem saudação/nome da empresa","falas":[{"quem":"THIAGO","texto":"texto lido literal pela voz — só pontuação, zero colchete, números por extenso"}],"roteiro":"direção/b-roll/cortes COM as marcas [0-3s]... e [pausa] etc — tudo que NÃO é falado","legenda":"legenda + 1-2 hashtags","cta":"CTA palavra-chave (ex: comenta SOLAR que te mando o cálculo)","ancora_reusada":"qual entidade do vídeo a ponte reusou"}`;
+
+  // ── Loop GERAR → BATERIA → REGENERAR (teto 1 regen) ──
+  let r: Roteiro | null = null;
+  let bateria: ResultadoBateria | null = null;
+  let tentativas = 0;
+  let feedback = '';
+  for (let i = 0; i < 2; i++) {
+    tentativas++;
+    const p = feedback ? `${prompt}\n\n═══ CORREÇÃO OBRIGATÓRIA ═══\n${feedback}` : prompt;
+    const raw = await chamarClaude(SISTEMA_ROTEIRISTA, p, 3000);
+    const cand = extrairJson<Roteiro>(raw, 'social-roteiro');
+    if (!cand) continue;
+    r = cand;
+    bateria = rodarBateria(cand.falas || [], cand.gancho || '', palavrasAlvo);
+    if (bateria.passou) break;          // sem hard-fail → entrega
+    feedback = montaFeedback(bateria.hardFails, palavrasAlvo);  // regenera 1x
+  }
+  if (!r) return null;
+
+  (r as any).transcrito = !!transcricao;
+  (r as any).ancora_reusada = (r as any).ancora_reusada || null;
+  (r as any).minutagem = {
+    duracao_alvo_s: duracaoSeg, palavras_alvo: palavrasAlvo,
+    palavras_geradas: (r.falas || []).reduce((s, f) => s + (f.texto || '').trim().split(/\s+/).length, 0),
+    fonte_duracao: fonteDuracao, minutagem_confianca: minutagemConfianca,
+  };
+  (r as any).qa = {
+    tentativas,
+    gates_passed: bateria?.passou ?? false,
+    warnings: (bateria?.warnings || []).map(w => w.regra),
+    relatorio: bateria?.relatorio || '',
+  };
+  // se ainda reprovou após o teto, marca pra revisão humana (nunca shippa silencioso)
+  (r as any).precisa_revisao_humana = !(bateria?.passou ?? false);
+  (r as any).gates_falhados = (bateria?.hardFails || []).map(h => h.regra);
   return r;
 }
