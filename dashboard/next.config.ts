@@ -15,6 +15,19 @@ const nextConfig: NextConfig = {
       { source: '/redefinir-senha', destination: '/auth?mode=redefinir', permanent: false },
     ];
   },
+  async headers() {
+    return [
+      {
+        // O sw.js NUNCA pode ficar preso em cache HTTP — senão um kill-switch
+        // (voltar o self-destruct) demoraria a chegar nos usuários. Sempre revalida.
+        source: '/sw.js',
+        headers: [
+          { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
