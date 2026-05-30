@@ -65,7 +65,12 @@
   flex-shrink: 0;
   border: none;
   cursor: pointer;
+  overflow: hidden;
+  padding: 0;
 }
+/* Quando há logo da empresa: fundo branco pra logo (geralmente colorida) aparecer */
+.avatarLogo { background: #fff; }
+.avatarImg { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 /* Dropdown do avatar */
 .menu {

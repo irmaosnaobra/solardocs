@@ -11,9 +11,10 @@ const WA_SUPORTE = 'https://wa.me/5534999437831?text=' + encodeURIComponent('Ol√
 
 interface TopBarProps {
   userEmail?: string;
+  companyLogo?: string | null;
 }
 
-export default function TopBar({ userEmail }: TopBarProps) {
+export default function TopBar({ userEmail, companyLogo }: TopBarProps) {
   const router = useRouter();
   const initials = (userEmail || '?').slice(0, 1).toUpperCase();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -57,8 +58,14 @@ export default function TopBar({ userEmail }: TopBarProps) {
         </a>
 
         <div className={styles.avatarWrap} ref={wrapRef}>
-          <button className={styles.avatar} title={userEmail} onClick={() => setMenuOpen((v) => !v)}>
-            {initials}
+          <button
+            className={`${styles.avatar} ${companyLogo ? styles.avatarLogo : ''}`}
+            title={userEmail}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            {companyLogo
+              ? <img src={companyLogo} alt="Logo da empresa" className={styles.avatarImg} />
+              : initials}
           </button>
           {menuOpen && (
             <div className={styles.menu}>
