@@ -139,6 +139,10 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .apres-btn:hover{background:rgba(255,255,255,.12);color:#fff}
 .apres-btn.ativo{background:#f5a623;border-color:#f5a623;color:#1a1206}
 .st-dur{font-size:11px;color:#93C5FD;background:rgba(96,165,250,.12);padding:3px 8px;border-radius:6px}
+.st-transc{margin:8px 0;font-size:12px}
+.st-transc summary{cursor:pointer;color:#94A3B8;font-weight:600;padding:6px 0}
+.st-transc summary:hover{color:#cbd5e1}
+.st-transc-txt{margin-top:6px;padding:10px 12px;background:rgba(255,255,255,.03);border-left:2px solid rgba(96,165,250,.4);border-radius:0 8px 8px 0;color:#94A3B8;line-height:1.5;max-height:160px;overflow-y:auto}
 .st-revisao{margin:8px 0;padding:8px 12px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:8px;font-size:12px;color:#fcd34d}
 .st-falas{white-space:pre-wrap;margin-top:4px;padding:10px 12px;background:rgba(255,255,255,.04);border-radius:8px;font-size:13px;line-height:1.6}
 .redes-st-acoes{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
@@ -3911,6 +3915,7 @@ async function carregarStudioFila() {
         <span class="st-status">${escapeHtml(r.status)}</span>
       </div>
       ${r.precisa_revisao_humana ? `<div class="st-revisao">⚠️ Revise antes de usar — a IA não fechou 100% das regras automáticas. Confira minutagem e falas.</div>` : ''}
+      ${r.transcricao ? `<details class="st-transc"><summary>📄 Transcrição do vídeo (o que a IA entendeu)</summary><div class="st-transc-txt">${escapeHtml(r.transcricao)}</div></details>` : ''}
       ${r.gancho ? `<div class="st-gancho">${escapeHtml(r.gancho)}</div>` : ''}
       ${r.roteiro ? `<div class="st-corpo"><b>Roteiro (falas):</b><div class="st-falas">${escapeHtml(r.roteiro)}</div></div>` : ''}
       ${r.legenda ? `<div class="st-corpo"><b>Legenda:</b> ${escapeHtml(r.legenda)}</div>` : ''}
@@ -3958,6 +3963,7 @@ async function roteirizarTemaEstudio() {
       roteiro: roteiroTxt, legenda: rot.legenda, cta: rot.cta,
       qa: rot.qa || null, minutagem: rot.minutagem || null,
       precisa_revisao_humana: !!rot.precisa_revisao_humana,
+      transcricao: rot.transcricao || null,
       status: 'roteirizado',
     });
     inp.value = '';

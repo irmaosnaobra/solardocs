@@ -257,6 +257,9 @@ Responda APENAS com objeto JSON válido:
   if (!r) return null;
 
   (r as any).transcrito = !!transcricao;
+  // devolve a transcrição (recortada) pra o front exibir — o usuário quer VER
+  // do que o vídeo fala antes/junto do roteiro. Null se não houve transcrição.
+  (r as any).transcricao = transcricao ? transcricao.slice(0, 2000) : null;
   (r as any).ancora_reusada = (r as any).ancora_reusada || null;
   (r as any).minutagem = {
     duracao_alvo_s: duracaoSeg, palavras_alvo: palavrasAlvo,
