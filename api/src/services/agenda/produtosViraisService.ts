@@ -73,21 +73,26 @@ export async function topProdutosDoDia(n = 3): Promise<Produto[]> {
   return out;
 }
 
-interface RoteiroAida { gancho: string; falas: { quem: string; texto: string }[]; legenda: string; cta: string; }
+interface RoteiroAida { gancho: string; prompt_higgsfield: string; legenda: string; cta: string; }
 
-// roteiriza um produto no modelo AIDA pra conta de afiliados (NÃO é solar)
+// roteiriza um produto pra conta de afiliados (NÃO é solar, NÃO usa avatar/clone).
+// A modelagem do vídeo é feita no Higgsfield, RECRIANDO um anúncio viral do produto —
+// sem rosto, sem clone. A saída é um PROMPT de geração de vídeo (ancorado na imagem do
+// produto) + legenda + CTA de afiliado. A lógica AIDA mora em como moldamos gancho/legenda/cta.
 export async function roteirizarProdutoAida(p: Produto): Promise<RoteiroAida | null> {
-  const sistema = `Você é roteirista de vídeos virais de PRODUTO pra TikTok/Reels (conta de afiliados brasileira, NÃO é energia solar). Apresentador: avatar clone (Thiago) mostrando/recomendando o produto. Tom: empolgado, direto, gente de verdade falando — zero robô. PT-BR coloquial. Use a estrutura AIDA: Atenção (gancho de 3s) → Interesse (o que é/por que viralizou) → Desejo (benefício concreto, prova social das vendas) → Ação (CTA forte). Falas curtas, números por extenso, sem colchetes dentro das falas.`;
+  const sistema = `Você é diretor de criativos de vídeos virais de PRODUTO pra TikTok/Reels (conta de afiliados brasileira, NÃO é energia solar). O vídeo será GERADO NO HIGGSFIELD (IA de vídeo) recriando um anúncio viral do produto — SEM pessoa, SEM rosto, SEM avatar falando: é um anúncio de produto no estilo TikTok Shop (produto em uso, close nos detalhes, antes/depois, b-roll de mão usando o produto, texto na tela). Sua saída principal é um PROMPT de geração de vídeo em INGLÊS (Higgsfield responde melhor em inglês), rico em descrição de cena, ancorado na IMAGEM do produto como referência visual. Use a lógica AIDA pra moldar o ritmo: Atenção (3s de gancho visual forte) → Interesse (o que é / por que chama atenção) → Desejo (benefício mostrado em uso, prova social das vendas como texto na tela) → Ação (frame final com CTA). O gancho, a legenda e o CTA saem em PT-BR coloquial.`;
   const prompt = `PRODUTO viral do TikTok Shop:
 - Nome: ${p.titulo}
-- Vendas: ${p.vendas} unidades vendidas (prova social — use!)
+- Vendas: ${p.vendas} unidades vendidas (prova social — vire texto na tela)
 - Preço: ${p.preco}${p.desconto ? ` (${p.desconto} de desconto)` : ''}
 - Nota: ${p.nota || '—'}
 - Categoria: ${p.categoria}
+- Imagem de referência (use como âncora visual do produto): ${p.imagem || '—'}
 
-Crie um roteiro AIDA curto (~25-35s) pro avatar apresentar esse produto e fazer o público querer comprar pelo seu link de afiliado.
+Crie a modelagem de um anúncio viral curto (~20-30s) desse produto pra recriar no Higgsfield e fazer o público comprar pelo link de afiliado.
+O "prompt_higgsfield" deve: (1) estar em inglês; (2) descrever cena a cena um anúncio de produto vertical 9:16 estilo TikTok Shop, sem pessoas faladas/avatar; (3) instruir explicitamente a usar a imagem do produto como referência ("use the provided product image as the exact visual reference for the product"); (4) funcionar tanto se o Higgsfield for image-to-video (imagem = seed) quanto text-to-video (descrição completa); (5) incluir onde entram os textos na tela (gancho, número de vendas, preço, CTA).
 Responda APENAS com JSON:
-{"gancho":"≤12 palavras, choque/curiosidade, sem saudação","falas":[{"quem":"THIAGO","texto":"fala curta, lida literal pela voz, números por extenso, zero colchete"}],"legenda":"legenda + hashtags do nicho do produto","cta":"CTA forte de afiliado (ex: 'corre no link da bio antes que esgote')"}`;
+{"gancho":"PT-BR, ≤12 palavras, choque/curiosidade, sem saudação — vira o texto na tela do 1º frame","prompt_higgsfield":"prompt em inglês, descrição rica de cena a cena de um anúncio de produto vertical 9:16, ancorado na imagem do produto, sem avatar/pessoa falando","legenda":"PT-BR, legenda + hashtags do nicho do produto","cta":"PT-BR, CTA forte de afiliado (ex: 'corre no link da bio antes que esgote')"}`;
   const resp = await anthropic.messages.create({ model: MODEL, max_tokens: 1500, system: sistema, messages: [{ role: 'user', content: prompt }] });
   const raw = (resp.content[0] as { text: string }).text;
   const m = raw.match(/\{[\s\S]*\}/);
@@ -112,7 +117,6 @@ export async function gerarProdutosVirais(): Promise<Record<string, any>> {
     try {
       const rot = await roteirizarProdutoAida(p);
       if (!rot) continue;
-      const roteiroTxt = (rot.falas || []).map(f => `${(f.quem || 'THIAGO').toUpperCase()}: ${f.texto}`).join('\n');
       const { error } = await supabaseGerador.from('social_studio').insert({
         canal: 'produtos',
         fonte: 'tiktok_shop',
@@ -120,7 +124,7 @@ export async function gerarProdutosVirais(): Promise<Record<string, any>> {
         tema: p.titulo,
         arquetipo: 'aida',
         gancho: rot.gancho,
-        roteiro: roteiroTxt,
+        roteiro: rot.prompt_higgsfield,
         legenda: rot.legenda,
         cta: rot.cta,
         produto_meta: { vendas: p.vendas, preco: p.preco, desconto: p.desconto, nota: p.nota, imagem: p.imagem, categoria: p.categoria },

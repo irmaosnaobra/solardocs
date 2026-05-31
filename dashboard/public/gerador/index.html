@@ -4021,6 +4021,9 @@ async function carregarStudioFila(canal, boxId) {
   box.innerHTML = rows.map(r => {
     const arq = ARQ_LABEL[r.arquetipo] || r.arquetipo || 'Roteiro';
     const aprovado = r.status === 'aprovado' || r.status === 'postado';
+    // produtos = afiliados, vídeo modelado no Higgsfield (recria o anúncio, sem avatar/clone).
+    // solar = UGC com o avatar/clone no HeyGen. O render é compartilhado, ramifica por canal.
+    const ehProduto = r.canal === 'produtos';
     // texto completo do roteiro pra copiar (vai pro avatar no HeyGen)
     const roteiroFull = [
       r.gancho ? `GANCHO: ${r.gancho}` : '',
@@ -4047,16 +4050,21 @@ async function carregarStudioFila(canal, boxId) {
       ${r.precisa_revisao_humana ? `<div class="st-revisao">⚠️ Revise antes de usar — a IA não fechou 100% das regras automáticas. Confira minutagem e falas.</div>` : ''}
       ${r.transcricao ? `<details class="st-transc"><summary>📄 Transcrição do vídeo (o que a IA entendeu)</summary><div class="st-transc-txt">${escapeHtml(r.transcricao)}</div></details>` : ''}
       ${r.gancho ? `<div class="st-gancho">${escapeHtml(r.gancho)}</div>` : ''}
-      ${r.roteiro ? `<div class="st-bloco"><span class="st-rotulo">Roteiro (falas)</span><div class="st-falas">${escapeHtml(r.roteiro)}</div></div>` : ''}
+      ${r.roteiro ? `<div class="st-bloco"><span class="st-rotulo">${ehProduto ? 'Prompt Higgsfield (recria o anúncio)' : 'Roteiro (falas)'}</span><div class="st-falas">${escapeHtml(r.roteiro)}</div></div>` : ''}
       ${r.legenda ? `<div class="st-corpo st-sec"><span class="st-rotulo">Legenda</span> ${escapeHtml(r.legenda)}</div>` : ''}
       ${r.cta ? `<div class="st-corpo st-sec"><span class="st-rotulo">CTA</span> ${escapeHtml(r.cta)}</div>` : ''}
       ${Array.isArray(r.broll) && r.broll.length ? `<details class="st-broll"><summary>🎞️ B-roll sugerido (cole no Higgsfield) <a href="https://higgsfield.ai/" target="_blank" rel="noopener" class="st-broll-link" onclick="event.stopPropagation()">abrir ↗</a></summary>${r.broll.map(p => `<div class="st-broll-item"><code>${escapeHtml(p)}</code><button class="st-broll-cp" data-copy="${encodeURIComponent(p)}" onclick="studioCopiar(this,'broll')">copiar</button></div>`).join('')}</details>` : ''}
-      ${aprovado ? `<div class="st-heygen-nota">🟢 No HeyGen gere o avatar com <b>fundo verde/transparente</b> — depois ponha num canto sobre o viral no CapCut.</div>` : ''}
+      ${!ehProduto && aprovado ? `<div class="st-heygen-nota">🟢 No HeyGen gere o avatar com <b>fundo verde/transparente</b> — depois ponha num canto sobre o viral no CapCut.</div>` : ''}
+      ${ehProduto && aprovado ? `<div class="st-heygen-nota">🟢 No Higgsfield gere o vídeo do produto usando a <b>imagem do produto como referência</b> — depois é só pôr os textos na tela (gancho, vendas, preço, CTA).</div>` : ''}
       <div class="redes-st-acoes">
         ${!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">Aprovar</button>` : '<span class="st-aprovado-selo">✓ aprovado</span>'}
-        <button class="st-copiar" data-copy="${encodeURIComponent(roteiroFull)}" onclick="studioCopiar(this,'roteiro')"><span>Copiar roteiro</span><span class="st-hint">cole no HeyGen</span></button>
+        ${ehProduto
+          ? `<button class="st-copiar" data-copy="${encodeURIComponent(r.roteiro || '')}" onclick="studioCopiar(this,'prompt')"><span>Copiar prompt</span><span class="st-hint">cole no Higgsfield</span></button>`
+          : `<button class="st-copiar" data-copy="${encodeURIComponent(roteiroFull)}" onclick="studioCopiar(this,'roteiro')"><span>Copiar roteiro</span><span class="st-hint">cole no HeyGen</span></button>`}
         <button class="st-copiar" data-copy="${encodeURIComponent(legendaFull)}" onclick="studioCopiar(this,'legenda')"><span>Copiar legenda</span><span class="st-hint">cole no post</span></button>
-        <a class="st-heygen${aprovado ? ' st-heygen--primaria' : ''}" href="https://app.heygen.com/" target="_blank" rel="noopener">Gerar no HeyGen <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+        ${ehProduto
+          ? `<a class="st-heygen${aprovado ? ' st-heygen--primaria' : ''}" href="https://higgsfield.ai/" target="_blank" rel="noopener">Gerar no Higgsfield <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>`
+          : `<a class="st-heygen${aprovado ? ' st-heygen--primaria' : ''}" href="https://app.heygen.com/" target="_blank" rel="noopener">Gerar no HeyGen <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>`}
         <button class="st-descartar" title="Descartar" onclick="studioAcao(${r.id},'descartado')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
       </div>
     </div>`;
