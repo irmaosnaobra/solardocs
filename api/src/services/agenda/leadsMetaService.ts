@@ -67,16 +67,34 @@ function normalizarCidade(s: string): string {
     .trim();
 }
 
-// True se a cidade do lead está na área de atendimento (tabela cidades_atendimento)
-async function dentroDaArea(cidade: string): Promise<boolean> {
+// DDDs que são certeza de atendimento. Se o lead vier com cidade errada/abreviada
+// ou fora da lista (ex: "Udi" = Uberlândia), o DDD garante o agendamento.
+// 34 = Triângulo/Alto Paranaíba, 64 = Sudoeste de GO, 16 = Ribeirão Preto/Franca-SP.
+const DDDS_AREA = new Set(['34', '64', '16']);
+
+// Extrai o DDD de um whatsapp brasileiro (só dígitos). Tolera com/sem 55.
+// "553491949201" → "34"; "5564999413671" → "64"; "34999..." → "34"
+function dddDoWhatsapp(whatsapp: string): string {
+  const d = (whatsapp || '').replace(/[^\d]/g, '');
+  if (d.startsWith('55') && d.length >= 4) return d.slice(2, 4);
+  if (d.length >= 2) return d.slice(0, 2);
+  return '';
+}
+
+// True se o lead está na área: cidade na tabela cidades_atendimento OU,
+// quando a cidade vem errada/abreviada/fora da lista, DDD 34/64/16.
+async function dentroDaArea(cidade: string, whatsapp: string): Promise<boolean> {
   const norm = normalizarCidade(cidade);
-  if (!norm) return false;
-  const { data } = await supabaseGerador
-    .from('cidades_atendimento')
-    .select('id')
-    .eq('cidade_normalizada', norm)
-    .limit(1);
-  return !!(data && data.length > 0);
+  if (norm) {
+    const { data } = await supabaseGerador
+      .from('cidades_atendimento')
+      .select('id')
+      .eq('cidade_normalizada', norm)
+      .limit(1);
+    if (data && data.length > 0) return true;
+  }
+  // cidade não bateu (ou veio vazia) → DDD decide
+  return DDDS_AREA.has(dddDoWhatsapp(whatsapp));
 }
 
 // Deriva o Page Access Token na hora (SU token é permanente; page token derivado não expira na prática)
@@ -245,7 +263,7 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
         const cidade = fieldVal(fields, 'city');
         const faixa = fieldContains(fields, 'horário', 'horario', 'hoario');
 
-        const naArea = await dentroDaArea(cidade);
+        const naArea = await dentroDaArea(cidade, whatsapp);
         const obs = montarObservacao(fields);
 
         let agendadoId: number | null = null;
