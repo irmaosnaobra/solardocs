@@ -45,26 +45,6 @@ router.post('/social/roteirizar', async (req: Request, res: Response) => {
   }
 });
 
-// [THROWAWAY] testa o Whisper em prod e DEVOLVE o status HTTP exato (401/429/400).
-router.get('/social/_test-whisper', async (_req: Request, res: Response) => {
-  try {
-    const key = process.env.OPENAI_API_KEY?.trim();
-    if (!key) return res.json({ ok: false, motivo: 'OPENAI_API_KEY ausente no runtime' });
-    const audioRes = await fetch('https://upload.wikimedia.org/wikipedia/commons/c/c8/Example.ogg');
-    const buf = await audioRes.arrayBuffer();
-    const form = new FormData();
-    form.append('file', new Blob([buf], { type: 'audio/ogg' }), 'a.ogg');
-    form.append('model', 'whisper-1');
-    const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form,
-    });
-    const body = await r.text();
-    res.json({ ok: r.ok, http: r.status, keyLen: key.length, body: body.slice(0, 300) });
-  } catch (err: any) {
-    res.json({ ok: false, erro: String(err?.message || err).slice(0, 200) });
-  }
-});
-
 // Estúdio: varredura de virais (Ad Library) — STUB até a Meta liberar.
 router.post('/social/varrer', async (_req: Request, res: Response) => {
   res.json(await varrerAdLibrary());
