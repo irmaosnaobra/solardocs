@@ -299,9 +299,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [companyNome, setCompanyNome] = useState<string | null>(null);
 
-  const fetchCompany = useCallback(() => {
+  // forceHasCompany: admin navega livre mesmo sem CNPJ; não rebaixar hasCompany
+  // por causa da resposta da empresa (mas ainda pegamos logo e nome pra UI).
+  const fetchCompany = useCallback((forceHasCompany = false) => {
     api.get('/company').then(({ data }) => {
-      setHasCompany(!!data.company?.cnpj);
+      setHasCompany(forceHasCompany || !!data.company?.cnpj);
       setCompanyLogo(data.company?.logo_base64 || null);
       setCompanyNome(data.company?.nome || null);
     }).catch(() => {}).finally(() => setCompanyLoaded(true));
@@ -314,9 +316,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     }
     api.get('/auth/me').then(({ data }) => {
       setUser(data.user);
+      // Admin sempre navega livre (não precisa de CNPJ), mas ainda buscamos a
+      // empresa pra ter o nome dela na saudação (senão companyNome fica null e
+      // a saudação cairia no prefixo do email). Re-força hasCompany=true depois.
       if (data.user?.is_admin) {
-        setHasCompany(true);
-        setCompanyLoaded(true);
+        fetchCompany(true); // força hasCompany=true, mas pega nome/logo da empresa
         return;
       }
       fetchCompany();
