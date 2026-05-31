@@ -75,7 +75,7 @@ Responda APENAS com array JSON válido:
 }
 
 interface Fala { quem: string; texto: string; }
-interface Roteiro { arquetipo: string; gancho: string; falas?: Fala[]; roteiro: string; legenda: string; cta: string; }
+interface Roteiro { arquetipo: string; gancho: string; falas?: Fala[]; roteiro: string; legenda: string; cta: string; broll?: string[]; }
 
 // Perfil dos apresentadores — guia a IA a escrever no estilo de cada um.
 // Base neutra por ora; será refinada quando Thiago descrever cada um e quando
@@ -270,7 +270,7 @@ Elementos citados no vídeo-fonte: ${entidades.length ? entidades.join(', ') : '
 A ponte pro solar TEM que reaproveitar pelo menos UM desses por analogia de princípio. Diga qual em "ancora_reusada".
 
 Responda APENAS com objeto JSON válido:
-{"arquetipo":"fernando|larcabral|lucas","gancho":"≤12 palavras, sem saudação/nome da empresa","falas":[{"quem":"THIAGO","texto":"texto lido literal pela voz — só pontuação, zero colchete, números por extenso"}],"roteiro":"direção/b-roll/cortes COM as marcas [0-3s]... e [pausa] etc — tudo que NÃO é falado","legenda":"legenda + 1-2 hashtags","cta":"CTA palavra-chave (ex: comenta SOLAR que te mando o cálculo)","ancora_reusada":"qual entidade do vídeo a ponte reusou"}`;
+{"arquetipo":"fernando|larcabral|lucas","gancho":"≤12 palavras, sem saudação/nome da empresa","falas":[{"quem":"THIAGO","texto":"texto lido literal pela voz — só pontuação, zero colchete, números por extenso"}],"roteiro":"direção/b-roll/cortes COM as marcas [0-3s]... e [pausa] etc — tudo que NÃO é falado","legenda":"legenda + 1-2 hashtags","cta":"CTA palavra-chave (ex: comenta SOLAR que te mando o cálculo)","ancora_reusada":"qual entidade do vídeo a ponte reusou","broll":["2-3 prompts PRONTOS pra gerar b-roll cinematográfico no Higgsfield, ligados ao que o roteiro diz — em INGLÊS (geradores entendem melhor), descritivos com estilo/câmera/luz. Ex: 'solar panels on a rooftop at golden hour, slow cinematic pan, warm light, 4k'"]}`;
 
   // ── Loop GERAR → BATERIA → REGENERAR (teto 1 regen) ──
   let r: Roteiro | null = null;
