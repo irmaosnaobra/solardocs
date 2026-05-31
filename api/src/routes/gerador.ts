@@ -3,6 +3,7 @@ import { generateGeradorPdf } from '../controllers/pdfGeradorController';
 import { trackEvent } from '../controllers/trackingGeradorController';
 import { gerarIdeiasSociais, roteirizarTema, roteirizarUpload } from '../services/agenda/socialIdeiasService';
 import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStudioStubs';
+import { gerarProdutosVirais } from '../services/agenda/produtosViraisService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -67,6 +68,18 @@ router.post('/social/varrer', async (_req: Request, res: Response) => {
 // Estúdio: gerar vídeo com avatar (HeyGen) — STUB até configurar HeyGen.
 router.post('/social/gerar-video', async (req: Request, res: Response) => {
   res.json(await gerarVideoAvatar(String(req.body?.roteiro || '')));
+});
+
+// Máquina 2: gera roteiros AIDA dos produtos virais do dia (TikTok Shop via SociaVault).
+// Disparável manual (botão "Buscar produtos do dia") e pelo cron das 9h.
+router.post('/social/produtos-virais', async (_req: Request, res: Response) => {
+  try {
+    const r = await gerarProdutosVirais();
+    res.json({ ok: true, ...r });
+  } catch (err: any) {
+    logger.error('gerador', 'produtos-virais falhou', err);
+    res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
+  }
 });
 
 export default router;

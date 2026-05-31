@@ -18,6 +18,7 @@ import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda/leadsMetaService';
 import { syncSocialWindsor } from '../services/agenda/socialWindsorService';
+import { gerarProdutosVirais } from '../services/agenda/produtosViraisService';
 import { runDunning } from '../services/dunningService';
 import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
@@ -393,6 +394,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
     ['sync-social-windsor',         () => syncSocialWindsor()],      // métricas IG+TikTok → aba Redes do gerador
+    ['produtos-virais',             () => gerarProdutosVirais()],    // 3 produtos top TikTok Shop → roteiro AIDA → fila canal 'produtos'
     ['insights-prewarm',             () => getInsights(true)],
     // ['luma-reativacao',             () => processarReativacao()], // [LUMA-IO-OFF] linha IO é só da Cora
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
