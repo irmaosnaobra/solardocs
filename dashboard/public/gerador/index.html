@@ -4110,15 +4110,25 @@ async function produtoRegerar(id, btn) {
   } catch (e) { if (btn) { btn.disabled = false; btn.textContent = 'Tentar de novo'; } }
 }
 
-// polling leve: enquanto houver produto 'gerando', recarrega a fila a cada 20s.
+// polling leve: enquanto houver produto 'gerando', a cada 20s pergunta ao Higgsfield
+// o status de cada um (GET grátis, via backend) e recarrega a fila. O webhook do
+// Higgsfield não dispara sozinho, então o reconcile é o caminho que faz o vídeo
+// aparecer. GET status não gasta crédito (só a geração gasta).
 let _refreshProdutosTimer = null;
 function agendarRefreshProdutos(rows, canal, boxId) {
   if (canal !== 'produtos') return;
-  const temGerando = (rows || []).some(r => r.video_status === 'gerando');
+  const gerando = (rows || []).filter(r => r.video_status === 'gerando');
   if (_refreshProdutosTimer) { clearTimeout(_refreshProdutosTimer); _refreshProdutosTimer = null; }
-  if (temGerando) {
-    _refreshProdutosTimer = setTimeout(() => { carregarStudioFila(canal, boxId); }, 20000);
-  }
+  if (!gerando.length) return;
+  _refreshProdutosTimer = setTimeout(async () => {
+    // reconcilia cada um (best-effort) e então recarrega a fila pra refletir
+    await Promise.all(gerando.map(r =>
+      fetch('/_api/gerador/social/produto-status', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id }),
+      }).catch(() => {})
+    ));
+    carregarStudioFila(canal, boxId);
+  }, 20000);
 }
 
 async function roteirizarTemaEstudio() {

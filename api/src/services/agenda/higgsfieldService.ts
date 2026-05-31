@@ -93,35 +93,61 @@ function extrairStatus(p: any): string {
   return String(p?.status || p?.state || '').toLowerCase();
 }
 
-// processa o POST do Higgsfield no nosso webhook. Acha a linha por hf_request_id
-// e atualiza video_status + video_url. Só toca linhas que estavam 'gerando'
-// (defesa contra POST externo arbitrário).
+// mapeia (status, videoUrl) → video_status nosso e aplica o patch na linha.
+// Compartilhado por webhook E polling (mesma lógica, sem duplicar).
+async function aplicarStatusVideo(rowId: number, status: string, videoUrl: string | null): Promise<string> {
+  let novoStatus: string;
+  if (status === 'completed' && videoUrl) novoStatus = 'pronto';
+  else if (status === 'failed' || status === 'nsfw' || status === 'canceled' || status === 'error') novoStatus = 'erro';
+  else if (videoUrl) novoStatus = 'pronto';            // completou implícito
+  else novoStatus = 'gerando';                         // ainda processando — mantém
+  const patch: Record<string, any> = { video_status: novoStatus };
+  if (videoUrl) patch.video_url = videoUrl;
+  await supabaseGerador.from('social_studio').update(patch).eq('id', rowId);
+  return novoStatus;
+}
+
+// processa o POST do Higgsfield no nosso webhook (se algum dia ele disparar). Acha a
+// linha por hf_request_id. Idempotente — convive com o polling sem conflito.
 export async function processarWebhook(payload: any): Promise<{ ok: boolean; rowId?: number }> {
   const requestId = payload?.request_id || payload?.id || payload?.requestId || null;
   if (!requestId) {
     logger.warn('higgsfield', 'webhook sem request_id', { keys: Object.keys(payload || {}) });
     return { ok: false };
   }
-
   const { data: rows } = await supabaseGerador.from('social_studio')
-    .select('id, video_status').eq('hf_request_id', String(requestId)).limit(1);
+    .select('id').eq('hf_request_id', String(requestId)).limit(1);
   const row = rows?.[0];
-  if (!row) {
-    logger.warn('higgsfield', 'webhook: nenhuma linha com esse request_id', { requestId });
+  if (!row) { logger.warn('higgsfield', 'webhook: request_id sem linha', { requestId }); return { ok: false }; }
+  const novo = await aplicarStatusVideo(row.id, extrairStatus(payload), extrairVideoUrl(payload));
+  logger.info('higgsfield', 'webhook processado', { rowId: row.id, novo });
+  return { ok: true, rowId: row.id };
+}
+
+// RECONCILE (caminho principal, pois o webhook do Higgsfield não dispara sozinho):
+// consulta GET {BASE}/requests/{request_id}/status (GRÁTIS, não gasta crédito) e
+// atualiza a linha. Chamado pelo front a cada 20s enquanto há vídeo 'gerando'.
+export async function reconciliarStatusProduto(rowId: number): Promise<{ ok: boolean; video_status?: string; video_url?: string | null }> {
+  const { data: rows } = await supabaseGerador.from('social_studio')
+    .select('id, hf_request_id, video_status, video_url, canal').eq('id', rowId).limit(1);
+  const row = rows?.[0] as any;
+  if (!row || row.canal !== 'produtos') return { ok: false };
+  // já resolvido — não precisa consultar
+  if (row.video_status === 'pronto' || row.video_status === 'erro') {
+    return { ok: true, video_status: row.video_status, video_url: row.video_url };
+  }
+  if (!row.hf_request_id || !temHiggsfield()) return { ok: false };
+
+  try {
+    const r = await fetch(`${BASE}/requests/${encodeURIComponent(row.hf_request_id)}/status`, {
+      headers: { 'Authorization': `Key ${HF_KEY}`, 'User-Agent': 'higgsfield-server-js/2.0' },
+    });
+    if (!r.ok) { logger.warn('higgsfield', `status HTTP ${r.status}`, { rowId }); return { ok: false }; }
+    const j = await r.json() as any;
+    const novo = await aplicarStatusVideo(rowId, extrairStatus(j), extrairVideoUrl(j));
+    return { ok: true, video_status: novo, video_url: extrairVideoUrl(j) };
+  } catch (e: any) {
+    logger.warn('higgsfield', 'reconcile falhou', { rowId, err: String(e?.message || e) });
     return { ok: false };
   }
-
-  const status = extrairStatus(payload);
-  const videoUrl = extrairVideoUrl(payload);
-  let novoStatus: string;
-  if (status === 'completed' && videoUrl) novoStatus = 'pronto';
-  else if (status === 'failed' || status === 'nsfw' || status === 'canceled' || status === 'error') novoStatus = 'erro';
-  else if (videoUrl) novoStatus = 'pronto';            // completou implícito
-  else novoStatus = 'gerando';                         // update intermediário — mantém
-
-  const patch: Record<string, any> = { video_status: novoStatus };
-  if (videoUrl) patch.video_url = videoUrl;
-  await supabaseGerador.from('social_studio').update(patch).eq('id', row.id);
-  logger.info('higgsfield', 'webhook processado', { rowId: row.id, novoStatus, temUrl: !!videoUrl });
-  return { ok: true, rowId: row.id };
 }

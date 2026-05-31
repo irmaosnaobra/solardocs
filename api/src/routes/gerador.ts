@@ -4,7 +4,7 @@ import { trackEvent } from '../controllers/trackingGeradorController';
 import { gerarIdeiasSociais, roteirizarTema, roteirizarUpload } from '../services/agenda/socialIdeiasService';
 import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStudioStubs';
 import { gerarProdutosVirais, redispararVideoProduto } from '../services/agenda/produtosViraisService';
-import { processarWebhook } from '../services/agenda/higgsfieldService';
+import { processarWebhook, reconciliarStatusProduto } from '../services/agenda/higgsfieldService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -93,6 +93,21 @@ router.post('/social/higgsfield-webhook', async (req: Request, res: Response) =>
   } catch (err: any) {
     logger.error('gerador', 'higgsfield-webhook falhou', err);
     res.status(200).json({ ok: false }); // 200 mesmo no erro: não queremos retry agressivo
+  }
+});
+
+// Reconcilia o status do vídeo de um produto consultando o Higgsfield (GET status,
+// grátis). Caminho principal — o webhook do Higgsfield não dispara sozinho. O front
+// chama isso a cada 20s enquanto a linha está 'gerando'.
+router.post('/social/produto-status', async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.body?.id);
+    if (!id) return res.status(400).json({ error: 'id obrigatório' });
+    const r = await reconciliarStatusProduto(id);
+    res.json(r);
+  } catch (err: any) {
+    logger.error('gerador', 'produto-status falhou', err);
+    res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
   }
 });
 
