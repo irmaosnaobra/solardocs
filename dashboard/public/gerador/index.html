@@ -247,6 +247,11 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .st-vid-retry{background:#131416;border:1px solid rgba(255,255,255,.18);color:#f7f8f8;font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600}
 .st-vid-retry:hover{background:#1a1b1e}
 .st-video--cfg{padding:12px 14px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.18);color:#9ca0a8}
+.st-video--novo{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);color:#cdd0d6}
+.st-video--novo b{color:#f7f8f8}
+.st-vid-gerar{flex-shrink:0;background:#f5a623;color:#1a1206;border:none;font-size:13px;font-weight:700;padding:8px 16px;border-radius:7px;cursor:pointer;font-family:inherit}
+.st-vid-gerar:hover{background:#ffb13d}
+.st-vid-gerar:disabled{opacity:.6;cursor:default}
 /* gerar manual (fallback, recolhível) — produto agora é automático */
 .st-manual{font-size:12px}
 .st-manual summary{cursor:pointer;color:#7e8794;font-size:11.5px;padding:4px 0;list-style:none}
@@ -4080,6 +4085,7 @@ async function carregarStudioFila(canal, boxId) {
       ${ehProduto && vs === 'pronto' && r.video_url ? `<div class="st-video st-video--pronto"><video class="st-vid-player" src="${r.video_url}" controls preload="metadata" playsinline></video></div>` : ''}
       ${ehProduto && vs === 'erro' ? `<div class="st-video st-video--erro">⚠️ Não consegui gerar o vídeo agora. <button class="st-vid-retry" onclick="produtoRegerar(${r.id},this)">Tentar de novo</button></div>` : ''}
       ${ehProduto && vs === 'aguardando_config' ? `<div class="st-video st-video--cfg">🔌 Vídeo automático aguardando a chave do Higgsfield (HF_KEY). O roteiro/prompt já está pronto — assim que a chave for configurada, passa a gerar sozinho.</div>` : ''}
+      ${ehProduto && (vs === 'pendente' || vs === null || vs === undefined) ? `<div class="st-video st-video--novo"><div>🎬 <b>Roteiro pronto.</b> Gere o vídeo no Higgsfield (1 crédito).</div><button class="st-vid-gerar" onclick="produtoRegerar(${r.id},this)">Gerar vídeo</button></div>` : ''}
       <div class="redes-st-acoes">
         ${ehProduto ? '' : (!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">Aprovar</button>` : '<span class="st-aprovado-selo">✓ aprovado</span>')}
         ${ehProduto && vs === 'pronto' && r.video_url ? `<a class="st-aprovar" href="${r.video_url}" download="produto-${r.id}.mp4" target="_blank" rel="noopener">⬇ Baixar vídeo</a>` : ''}
@@ -4097,17 +4103,22 @@ async function carregarStudioFila(canal, boxId) {
   agendarRefreshProdutos(rows, canal, boxId);
 }
 
-// re-dispara o vídeo de uma linha de produto que deu erro.
+// dispara (ou re-dispara) o vídeo de uma linha de produto no Higgsfield.
 async function produtoRegerar(id, btn) {
-  if (btn) { btn.disabled = true; btn.textContent = 'Reenviando…'; }
+  const textoOrig = btn ? btn.textContent : 'Gerar vídeo';
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
   try {
     const r = await fetch('/_api/gerador/social/produto-regerar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
     });
     const j = await r.json();
-    if (j.ok) { showToast && showToast('Vídeo reenviado pro Higgsfield'); recarregarFilas(); }
-    else { showToast && showToast('Não consegui reenviar agora'); if (btn) { btn.disabled = false; btn.textContent = 'Tentar de novo'; } }
-  } catch (e) { if (btn) { btn.disabled = false; btn.textContent = 'Tentar de novo'; } }
+    if (j.ok) { showToast && showToast('🎬 Vídeo enviado pro Higgsfield — vai aparecer aqui em ~1 min'); recarregarFilas(); }
+    else {
+      const msg = j.motivo === 'sem_hf_key' ? 'Falta configurar a chave do Higgsfield' : 'Não consegui enviar agora';
+      showToast && showToast(msg);
+      if (btn) { btn.disabled = false; btn.textContent = textoOrig; }
+    }
+  } catch (e) { if (btn) { btn.disabled = false; btn.textContent = textoOrig; } }
 }
 
 // polling leve: enquanto houver produto 'gerando', a cada 20s pergunta ao Higgsfield
