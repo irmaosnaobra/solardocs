@@ -16,13 +16,12 @@ import { logger } from '../../utils/logger';
 
 const BASE = 'https://platform.higgsfield.ai';
 const HF_KEY = process.env.HF_KEY || '';
-// model/application de image-to-video. NÃO é público no SDK — vem do dashboard da
-// conta. Configurável por env pra ajustar sem deploy. Default chutado; corrige-se
-// olhando a 1ª resposta de erro do Higgsfield.
-const HF_APP_I2V = process.env.HF_APP_I2V || 'higgsfield/image-to-video';
-// nome do campo da imagem nos arguments — também varia por model. Isolado aqui
-// pra correção de 1 linha caso o 1º disparo real reclame do campo.
-const HF_CAMPO_IMAGEM = process.env.HF_CAMPO_IMAGEM || 'image_url';
+// endpoint de image-to-video (DoP) — confirmado no SDK JS oficial
+// github.com/higgsfield-ai/higgsfield-js: subscribe('/v1/image2video/dop', {input}).
+// O body do POST é o `input` ESPALHADO direto (não embrulhado). Configurável por env.
+const HF_APP_I2V = process.env.HF_APP_I2V || 'v1/image2video/dop';
+// model variant: dop-turbo (2x mais rápido) / dop-lite (entrada) / dop-preview (premium).
+const HF_MODEL = process.env.HF_MODEL || 'dop-turbo';
 // URL pública da nossa API (onde o Higgsfield faz o POST de volta).
 const API_BASE = process.env.API_PUBLIC_BASE || 'https://api.solardoc.app';
 const WEBHOOK_URL = `${API_BASE}/gerador/social/higgsfield-webhook`;
@@ -43,16 +42,19 @@ export async function dispararVideoProduto({ prompt, imagemUrl, rowId }: Dispara
     return { ok: false, motivo: 'sem_hf_key' };
   }
 
-  // arguments do submit. Builder isolado: prompt (cena a cena, já em inglês),
-  // 9:16 vertical, e a imagem do produto como âncora (image-to-video).
-  const args: Record<string, any> = { prompt, aspect_ratio: '9:16' };
-  if (imagemUrl) args[HF_CAMPO_IMAGEM] = imagemUrl;
+  // body do submit. Formato VALIDADO contra a API real (curl): o DoP exige os campos
+  // embrulhados em { params: {...} } — a API retorna 422 "Field required: body.params"
+  // sem o wrapper (o README do SDK simplifica, mas a API quer params). Confirmado por
+  // 403 "Not enough credits" com este shape = tudo certo, só faltava crédito.
+  const params: Record<string, any> = { model: HF_MODEL, prompt };
+  if (imagemUrl) params.input_images = [{ type: 'image_url', image_url: imagemUrl }];
+  const args = { params };
 
   const url = `${BASE}/${HF_APP_I2V}?hf_webhook=${encodeURIComponent(WEBHOOK_URL)}`;
   try {
     const r = await fetch(url, {
       method: 'POST',
-      headers: { 'Authorization': `Key ${HF_KEY}`, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Key ${HF_KEY}`, 'Content-Type': 'application/json', 'User-Agent': 'higgsfield-server-js/2.0' },
       body: JSON.stringify(args),
     });
     if (!r.ok) {
@@ -74,12 +76,15 @@ export async function dispararVideoProduto({ prompt, imagemUrl, rowId }: Dispara
   }
 }
 
-// extrai a URL do vídeo do payload do webhook, tolerando vários shapes possíveis.
+// extrai a URL do vídeo do payload do webhook. Formato confirmado no SDK JS:
+// { status, request_id, images:[{url}], video:{url} }. Mantém fallbacks por garantia.
 function extrairVideoUrl(p: any): string | null {
   return (
+    p?.video?.url ||                                    // formato DoP oficial
     p?.video_url || p?.url || p?.output?.url || p?.result?.url ||
     p?.videos?.[0]?.url || p?.output?.videos?.[0]?.url ||
-    p?.results?.[0]?.url || p?.output?.[0]?.url || null
+    p?.results?.[0]?.url || p?.output?.[0]?.url ||
+    p?.jobs?.[0]?.results?.raw?.url || null             // shape JobSet
   );
 }
 
