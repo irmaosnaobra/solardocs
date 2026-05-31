@@ -234,6 +234,24 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .st-prod-mets{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#9ca0a8;font-weight:600}
 .st-prod-desc{color:#6ee7b7}
 .st-prod-link{font-size:11px;color:#f5a623;text-decoration:none;display:inline-block;margin-top:4px}
+/* vídeo auto-gerado do produto (Higgsfield) — gerando / pronto / erro / aguardando */
+.st-video{margin:10px 0;border-radius:10px;font-size:13px;line-height:1.45}
+.st-video--gerando{display:flex;align-items:center;gap:12px;padding:14px;background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.22);color:#f7d9a6}
+.st-video--gerando b{color:#ffce8a}
+.st-vid-sub{font-size:11.5px;color:#b79a72;margin-top:2px;font-weight:400}
+.st-vid-spinner{flex-shrink:0;width:20px;height:20px;border:2.5px solid rgba(245,166,35,.25);border-top-color:#f5a623;border-radius:50%;animation:st-spin .8s linear infinite}
+@keyframes st-spin{to{transform:rotate(360deg)}}
+.st-video--pronto{padding:0;background:#000;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+.st-vid-player{display:block;width:100%;max-height:520px;background:#000;border-radius:10px}
+.st-video--erro{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:#fca5a5}
+.st-vid-retry{background:#131416;border:1px solid rgba(255,255,255,.18);color:#f7f8f8;font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600}
+.st-vid-retry:hover{background:#1a1b1e}
+.st-video--cfg{padding:12px 14px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.18);color:#9ca0a8}
+/* gerar manual (fallback, recolhível) — produto agora é automático */
+.st-manual{font-size:12px}
+.st-manual summary{cursor:pointer;color:#7e8794;font-size:11.5px;padding:4px 0;list-style:none}
+.st-manual summary:hover{color:#9ca0a8}
+.st-manual-box{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
 /* b-roll sugerido (Higgsfield) */
 .st-broll{margin:8px 0;font-size:12px}
 .st-broll summary{cursor:pointer;color:#9ca0a8;font-weight:600;padding:6px 0;display:flex;align-items:center;gap:8px}
@@ -4024,6 +4042,9 @@ async function carregarStudioFila(canal, boxId) {
     // produtos = afiliados, vídeo modelado no Higgsfield (recria o anúncio, sem avatar/clone).
     // solar = UGC com o avatar/clone no HeyGen. O render é compartilhado, ramifica por canal.
     const ehProduto = r.canal === 'produtos';
+    // produtos: vídeo é gerado AUTOMÁTICO no Higgsfield (sem aprovação). video_status:
+    // null (texto, aguardando) / aguardando_config (sem HF_KEY) / gerando / pronto / erro
+    const vs = ehProduto ? (r.video_status || null) : null;
     // texto completo do roteiro pra copiar (vai pro avatar no HeyGen)
     const roteiroFull = [
       r.gancho ? `GANCHO: ${r.gancho}` : '',
@@ -4055,20 +4076,49 @@ async function carregarStudioFila(canal, boxId) {
       ${r.cta ? `<div class="st-corpo st-sec"><span class="st-rotulo">CTA</span> ${escapeHtml(r.cta)}</div>` : ''}
       ${Array.isArray(r.broll) && r.broll.length ? `<details class="st-broll"><summary>🎞️ B-roll sugerido (cole no Higgsfield) <a href="https://higgsfield.ai/" target="_blank" rel="noopener" class="st-broll-link" onclick="event.stopPropagation()">abrir ↗</a></summary>${r.broll.map(p => `<div class="st-broll-item"><code>${escapeHtml(p)}</code><button class="st-broll-cp" data-copy="${encodeURIComponent(p)}" onclick="studioCopiar(this,'broll')">copiar</button></div>`).join('')}</details>` : ''}
       ${!ehProduto && aprovado ? `<div class="st-heygen-nota">🟢 No HeyGen gere o avatar com <b>fundo verde/transparente</b> — depois ponha num canto sobre o viral no CapCut.</div>` : ''}
-      ${ehProduto && aprovado ? `<div class="st-heygen-nota">🟢 No Higgsfield gere o vídeo do produto usando a <b>imagem do produto como referência</b> — depois é só pôr os textos na tela (gancho, vendas, preço, CTA).</div>` : ''}
+      ${ehProduto && vs === 'gerando' ? `<div class="st-video st-video--gerando"><span class="st-vid-spinner"></span><div><b>🎬 Gerando o vídeo no Higgsfield…</b><div class="st-vid-sub">automático, sem aprovação — o player aparece aqui sozinho quando ficar pronto.</div></div></div>` : ''}
+      ${ehProduto && vs === 'pronto' && r.video_url ? `<div class="st-video st-video--pronto"><video class="st-vid-player" src="${r.video_url}" controls preload="metadata" playsinline></video></div>` : ''}
+      ${ehProduto && vs === 'erro' ? `<div class="st-video st-video--erro">⚠️ Não consegui gerar o vídeo agora. <button class="st-vid-retry" onclick="produtoRegerar(${r.id},this)">Tentar de novo</button></div>` : ''}
+      ${ehProduto && vs === 'aguardando_config' ? `<div class="st-video st-video--cfg">🔌 Vídeo automático aguardando a chave do Higgsfield (HF_KEY). O roteiro/prompt já está pronto — assim que a chave for configurada, passa a gerar sozinho.</div>` : ''}
       <div class="redes-st-acoes">
-        ${!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">Aprovar</button>` : '<span class="st-aprovado-selo">✓ aprovado</span>'}
-        ${ehProduto
-          ? `<button class="st-copiar" data-copy="${encodeURIComponent(r.roteiro || '')}" onclick="studioCopiar(this,'prompt')"><span>Copiar prompt</span><span class="st-hint">cole no Higgsfield</span></button>`
-          : `<button class="st-copiar" data-copy="${encodeURIComponent(roteiroFull)}" onclick="studioCopiar(this,'roteiro')"><span>Copiar roteiro</span><span class="st-hint">cole no HeyGen</span></button>`}
+        ${ehProduto ? '' : (!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">Aprovar</button>` : '<span class="st-aprovado-selo">✓ aprovado</span>')}
+        ${ehProduto && vs === 'pronto' && r.video_url ? `<a class="st-aprovar" href="${r.video_url}" download="produto-${r.id}.mp4" target="_blank" rel="noopener">⬇ Baixar vídeo</a>` : ''}
         <button class="st-copiar" data-copy="${encodeURIComponent(legendaFull)}" onclick="studioCopiar(this,'legenda')"><span>Copiar legenda</span><span class="st-hint">cole no post</span></button>
         ${ehProduto
-          ? `<a class="st-heygen${aprovado ? ' st-heygen--primaria' : ''}" href="https://higgsfield.ai/" target="_blank" rel="noopener">Gerar no Higgsfield <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>`
-          : `<a class="st-heygen${aprovado ? ' st-heygen--primaria' : ''}" href="https://app.heygen.com/" target="_blank" rel="noopener">Gerar no HeyGen <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>`}
+          ? `<details class="st-manual"><summary>gerar manual</summary><div class="st-manual-box"><button class="st-copiar" data-copy="${encodeURIComponent(r.roteiro || '')}" onclick="studioCopiar(this,'prompt')"><span>Copiar prompt</span><span class="st-hint">cole no Higgsfield</span></button><a class="st-heygen" href="https://higgsfield.ai/" target="_blank" rel="noopener">Abrir Higgsfield ↗</a></div></details>`
+          : `<button class="st-copiar" data-copy="${encodeURIComponent(roteiroFull)}" onclick="studioCopiar(this,'roteiro')"><span>Copiar roteiro</span><span class="st-hint">cole no HeyGen</span></button>
+             <a class="st-heygen${aprovado ? ' st-heygen--primaria' : ''}" href="https://app.heygen.com/" target="_blank" rel="noopener">Gerar no HeyGen <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>`}
         <button class="st-descartar" title="Descartar" onclick="studioAcao(${r.id},'descartado')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
       </div>
     </div>`;
   }).join('');
+  // auto-refresh: se algum produto está 'gerando', re-busca a fila pra o player
+  // aparecer sozinho quando o webhook do Higgsfield chegar.
+  agendarRefreshProdutos(rows, canal, boxId);
+}
+
+// re-dispara o vídeo de uma linha de produto que deu erro.
+async function produtoRegerar(id, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Reenviando…'; }
+  try {
+    const r = await fetch('/_api/gerador/social/produto-regerar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
+    });
+    const j = await r.json();
+    if (j.ok) { showToast && showToast('Vídeo reenviado pro Higgsfield'); recarregarFilas(); }
+    else { showToast && showToast('Não consegui reenviar agora'); if (btn) { btn.disabled = false; btn.textContent = 'Tentar de novo'; } }
+  } catch (e) { if (btn) { btn.disabled = false; btn.textContent = 'Tentar de novo'; } }
+}
+
+// polling leve: enquanto houver produto 'gerando', recarrega a fila a cada 20s.
+let _refreshProdutosTimer = null;
+function agendarRefreshProdutos(rows, canal, boxId) {
+  if (canal !== 'produtos') return;
+  const temGerando = (rows || []).some(r => r.video_status === 'gerando');
+  if (_refreshProdutosTimer) { clearTimeout(_refreshProdutosTimer); _refreshProdutosTimer = null; }
+  if (temGerando) {
+    _refreshProdutosTimer = setTimeout(() => { carregarStudioFila(canal, boxId); }, 20000);
+  }
 }
 
 async function roteirizarTemaEstudio() {

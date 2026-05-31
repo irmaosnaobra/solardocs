@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { dispararVideoProduto, temHiggsfield } from './higgsfieldService';
 
 // MÁQUINA 2 do Estúdio: produtos virais do TikTok Shop → roteiro AIDA pra conta
 // de afiliados (separada do solar). Fonte: SociaVault Shop Search por categoria
@@ -101,7 +102,9 @@ Responda APENAS com JSON:
   catch { logger.warn('produtos-virais', 'JSON inválido'); return null; }
 }
 
-// orquestrador do cron 9h: top 3 produtos → roteiro AIDA → grava na fila (canal 'produtos')
+// orquestrador do cron: TOP 1 produto do dia → roteiro → INSERT → dispara vídeo
+// automático no Higgsfield (sem aprovação). Decisão Thiago: 1 vídeo/dia (1 crédito),
+// bate com "1 produto novo por dia".
 export async function gerarProdutosVirais(): Promise<Record<string, any>> {
   // dedup: sold_count é CUMULATIVO (não "do dia"), então os bestsellers repetiriam
   // todo dia. Pulamos product_ids já na fila (qualquer status) → força rotação,
@@ -111,13 +114,16 @@ export async function gerarProdutosVirais(): Promise<Record<string, any>> {
   const idsVistos = new Set((jaVistos || []).map((r: any) => String(r.fonte_url || '')));
 
   const candidatos = await topProdutosDoDia(12);  // pega mais pra ter de onde escolher após o dedup
-  const produtos = candidatos.filter(p => !idsVistos.has(String(p.link || ''))).slice(0, 3);
-  let criados = 0;
+  const produtos = candidatos.filter(p => !idsVistos.has(String(p.link || ''))).slice(0, 1); // TOP 1
+  let criados = 0, videosDisparados = 0;
   for (const p of produtos) {
     try {
       const rot = await roteirizarProdutoAida(p);
       if (!rot) continue;
-      const { error } = await supabaseGerador.from('social_studio').insert({
+      // estado inicial do vídeo: 'gerando' se tem HF key (vai disparar já),
+      // senão null (fica como texto até a key existir).
+      const videoStatusInicial = temHiggsfield() ? 'gerando' : null;
+      const { data: inserted, error } = await supabaseGerador.from('social_studio').insert({
         canal: 'produtos',
         fonte: 'tiktok_shop',
         fonte_url: p.link,
@@ -128,11 +134,26 @@ export async function gerarProdutosVirais(): Promise<Record<string, any>> {
         legenda: rot.legenda,
         cta: rot.cta,
         produto_meta: { vendas: p.vendas, preco: p.preco, desconto: p.desconto, nota: p.nota, imagem: p.imagem, categoria: p.categoria },
+        video_status: videoStatusInicial,
         status: 'roteirizado',
-      });
-      if (!error) criados++;
+      }).select('id').single();
+      if (error || !inserted) { logger.warn('produtos-virais', 'INSERT falhou', error); continue; }
+      criados++;
+      // dispara o vídeo automático (image-to-video ancorado na imagem do produto).
+      // Não bloqueia o resultado do cron se falhar — dispararVideoProduto é honesto.
+      const d = await dispararVideoProduto({ prompt: rot.prompt_higgsfield, imagemUrl: p.imagem, rowId: inserted.id });
+      if (d.ok) videosDisparados++;
     } catch (e) { logger.warn('produtos-virais', 'falha roteiro produto', e); }
   }
-  logger.info('produtos-virais', `gerados ${criados} roteiros de produto`, { produtos: produtos.length });
-  return { produtos_encontrados: produtos.length, roteiros_criados: criados };
+  logger.info('produtos-virais', `gerados ${criados} roteiros, ${videosDisparados} vídeos disparados`, { produtos: produtos.length });
+  return { produtos_encontrados: produtos.length, roteiros_criados: criados, videos_disparados: videosDisparados, tem_hf_key: temHiggsfield() };
+}
+
+// re-dispara o vídeo de uma linha existente (botão "Tentar de novo" no front).
+export async function redispararVideoProduto(rowId: number): Promise<{ ok: boolean; motivo?: string }> {
+  const { data: rows } = await supabaseGerador.from('social_studio')
+    .select('id, roteiro, produto_meta, canal').eq('id', rowId).limit(1);
+  const row = rows?.[0] as any;
+  if (!row || row.canal !== 'produtos') return { ok: false, motivo: 'linha_invalida' };
+  return dispararVideoProduto({ prompt: row.roteiro || '', imagemUrl: row.produto_meta?.imagem || null, rowId });
 }
