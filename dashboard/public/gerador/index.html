@@ -4037,6 +4037,16 @@ async function carregarStudioFila(canal, boxId) {
   try {
     rows = await supaGet(`social_studio?select=*&canal=eq.${canal}&status=neq.descartado&order=criado_em.desc&limit=50`);
   } catch (e) { box.innerHTML = ''; return; }
+  // PRODUTOS (afiliados): a aba mostra só 2 cards — o produto do dia (mais recente)
+  // + o último vídeo pronto. Os demais continuam no banco mas não poluem a tela.
+  // (decisão Thiago: aba = produto do dia + vídeo criado)
+  if (canal === 'produtos' && rows && rows.length) {
+    const doDia = rows[0];                                              // mais recente = produto do dia
+    const ultimoPronto = rows.find(r => r.video_status === 'pronto');  // último vídeo gerado
+    const sel = [doDia];
+    if (ultimoPronto && ultimoPronto.id !== doDia.id) sel.push(ultimoPronto);
+    rows = sel;
+  }
   if (!rows || !rows.length) {
     box.innerHTML = '<div class="redes-st-vazio"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" style="opacity:.5;margin-bottom:8px"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 7l3.5-3 3 3M9.5 7l3.5-3 3 3M16 7l3.5-3"/></svg><div class="st-vazio-tit">Nenhum roteiro ainda</div><div class="st-vazio-sub">Cole um link viral acima — a IA cria o roteiro com a ponte pro solar.</div></div>';
     return;
