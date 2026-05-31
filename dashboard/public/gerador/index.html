@@ -182,6 +182,68 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .lnr .st-descartar{background:transparent;color:#9ca0a8;border:1px solid rgba(255,255,255,.11)!important}
 .lnr .st-descartar:hover{color:#fca5a5;border-color:rgba(248,113,113,.4)!important}
 .lnr .redes-st-vazio{color:#62666d}
+/* ===== Redesign 10/10 do Estúdio (Input-Hero + polish, sobrescreve acima) ===== */
+/* trilho da jornada */
+.st-trilho{display:flex;align-items:center;gap:0;margin:14px 0 18px;flex-wrap:wrap}
+.st-tr-step{display:flex;align-items:center;gap:6px;font-size:12px;color:#9ca0a8;white-space:nowrap}
+.st-tr-step i{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-style:normal;background:rgba(255,255,255,.06);color:#9ca0a8}
+.st-tr-sep{flex:1;min-width:14px;height:1px;background:rgba(255,255,255,.08);margin:0 8px}
+/* avatar compacto */
+.st-apres-compact{margin:4px 0 12px;gap:6px}
+.st-apres-compact .apres-btn{padding:6px 12px;font-size:12.5px}
+/* hero input (barra única) */
+.redes-st-input.st-hero{position:relative;align-items:stretch;flex-wrap:nowrap;background:#131416;border:1px solid rgba(255,255,255,.11);border-radius:8px;padding:4px;gap:0;margin:10px 0 4px}
+.st-hero:focus-within{border-color:rgba(245,166,35,.5)}
+.st-hero .st-hero-ic{align-self:center;margin:0 4px 0 10px;color:#62666d;flex-shrink:0}
+.st-hero input{flex:1;min-width:0;background:transparent!important;border:none!important;color:#f7f8f8;font-size:15px;padding:12px 8px}
+.st-hero input:focus{outline:none;border:none!important}
+.st-hero .btn-redes-ia{flex-shrink:0;border-radius:6px;padding:0 18px;font-size:14px}
+/* erro inline */
+.st-erro{margin:6px 0 4px;padding:9px 12px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.32);border-radius:8px;font-size:12.5px;color:#fcd34d;line-height:1.5}
+/* linha "ou" */
+.st-ou{font-size:11px;color:#62666d;text-align:center;margin:10px 0 8px;position:relative}
+.st-ou::before,.st-ou::after{content:"";position:absolute;top:50%;width:calc(50% - 18px);height:1px;background:rgba(255,255,255,.07)}
+.st-ou::before{left:0}.st-ou::after{right:0}
+/* chips de fonte */
+.redes-st-fonte{display:inline-flex;align-items:center;gap:6px}
+.redes-st-fonte--soon{opacity:.5;cursor:not-allowed}
+.lnr .redes-st-fonte--soon:hover{background:#131416;color:#9ca0a8;border-color:rgba(255,255,255,.11)!important}
+.st-soon-pill{font-size:10px;font-weight:600;background:rgba(255,255,255,.08);color:#9ca0a8;padding:2px 7px;border-radius:4px;margin-left:2px}
+/* item da fila: meta neutro */
+.st-dur{font-size:11px;color:#9ca0a8;background:rgba(255,255,255,.06);padding:3px 8px;border-radius:6px}
+.st-fonte-link{font-size:11px;color:#9ca0a8;text-decoration:none}
+.st-fonte-link:hover{color:#f5a623}
+.lnr .redes-st-item .st-arq{color:#9ca0a8!important;background:rgba(255,255,255,.06)!important}
+.st-transc-txt{border-left:2px solid rgba(255,255,255,.12)!important}
+/* gancho protagonista */
+.lnr .redes-st-item .st-gancho{font-size:16px;font-weight:700;color:#f7f8f8;line-height:1.32;margin:10px 0 8px}
+/* falas mono recuado */
+.st-falas{white-space:pre-wrap;margin-top:6px;padding:10px 12px;background:rgba(255,255,255,.03);border-left:2px solid rgba(255,255,255,.10);border-radius:0 6px 6px 0;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.6;color:#cdd0d6}
+.st-rotulo{display:inline-block;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#9ca0a8;margin-bottom:2px}
+.st-bloco{margin:8px 0}
+.st-corpo.st-sec{font-size:12px;color:#62666d;margin:6px 0}
+.st-corpo.st-sec .st-rotulo{margin-right:6px}
+/* nota verde do HeyGen (só no aprovado) */
+.st-heygen-nota{margin:10px 0 4px;padding:8px 12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.22);border-radius:8px;font-size:12px;color:#6ee7b7;line-height:1.45}
+.st-heygen-nota b{color:#a7f3d0}
+/* tiering das ações */
+.redes-st-acoes{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.st-descartar{margin-left:auto}
+.lnr .st-descartar{background:transparent;color:#62666d;border:1px solid transparent!important;padding:7px 8px;display:inline-flex;align-items:center}
+.lnr .st-descartar:hover{color:#fca5a5;background:rgba(248,113,113,.10);border-color:rgba(248,113,113,.25)!important}
+.lnr .st-copiar{background:#131416;color:#f7f8f8;border:1px solid rgba(255,255,255,.11)!important;display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;padding:6px 14px}
+.st-copiar .st-hint{font-size:10px;color:#62666d;font-weight:400;margin-top:1px}
+.st-copiar:hover .st-hint{color:#9ca0a8}
+.st-aprovado-selo{font-size:13px;font-weight:600;color:#6ee7b7;display:inline-flex;align-items:center;align-self:center;padding:7px 4px}
+/* heygen: mata roxo, vira neutro; primária laranja só pós-aprovação */
+.lnr .st-heygen{background:#131416;color:#f7f8f8;border:1px solid rgba(255,255,255,.11)!important;display:inline-flex;align-items:center}
+.lnr .st-heygen:hover{background:#1a1b1e}
+.lnr .st-heygen--primaria{background:#f5a623;color:#1a1206;border-color:#f5a623!important}
+.lnr .st-heygen--primaria:hover{background:#ffb13d}
+/* estado vazio caprichado */
+.lnr .redes-st-vazio{color:#62666d;padding:30px 24px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.st-vazio-tit{font-size:14px;font-weight:600;color:#9ca0a8;margin-bottom:4px}
+.st-vazio-sub{font-size:12.5px;color:#62666d;max-width:320px;line-height:1.5}
 /* card de ideias */
 .lnr .redes-ideia{background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.20)}
 .lnr .redes-ideia h4{color:#f7f8f8}
@@ -1314,31 +1376,43 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <!-- ESTÚDIO: fila de produção de vídeos virais -->
     <div class="card redes-studio-card lnr">
       <div class="redes-ia-head">
-        <h3>🎬 Estúdio de virais</h3>
-        <span class="redes-st-badge" id="redes-st-status">estrutura pronta · conectando fontes</span>
+        <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="vertical-align:-2px;margin-right:6px;opacity:.85"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 7l3.5-3 3 3M9.5 7l3.5-3 3 3M16 7l3.5-3"/></svg>Estúdio de virais</h3>
+        <span class="redes-st-badge" id="redes-st-status">Beta</span>
       </div>
-      <p class="redes-ia-sub">Achou um vídeo viral por aí (qualquer tema)? Cole o link que a IA cria um roteiro com a ponte pro solar — pro avatar de Thiago e/ou Diego apresentar.</p>
+      <p class="redes-ia-sub">Cole o link de um viral (qualquer tema) e a IA cria o roteiro com a ponte pro solar — pro avatar de Thiago e/ou Diego apresentar.</p>
 
-      <!-- seletor de apresentador -->
-      <div class="redes-st-apres">
+      <!-- trilho da jornada (estático) -->
+      <div class="st-trilho">
+        <span class="st-tr-step"><i>1</i>Cole/suba</span><span class="st-tr-sep"></span>
+        <span class="st-tr-step"><i>2</i>IA roteiriza</span><span class="st-tr-sep"></span>
+        <span class="st-tr-step"><i>3</i>Você aprova</span><span class="st-tr-sep"></span>
+        <span class="st-tr-step"><i>4</i>Gera no HeyGen</span><span class="st-tr-sep"></span>
+        <span class="st-tr-step"><i>5</i>Publica</span>
+      </div>
+
+      <!-- seletor de apresentador (compacto) -->
+      <div class="redes-st-apres st-apres-compact">
         <span class="apres-label">Quem apresenta?</span>
         <button type="button" class="apres-btn ativo" data-apres="thiago" onclick="redesSelApres(this)">🧔 Thiago</button>
         <button type="button" class="apres-btn" data-apres="diego" onclick="redesSelApres(this)">🧔🏻 Diego</button>
         <button type="button" class="apres-btn" data-apres="ambos" onclick="redesSelApres(this)">👥 Os dois</button>
       </div>
 
-      <!-- bate-pronto: link manual -->
-      <div class="redes-st-input">
-        <input type="text" id="redes-st-link" placeholder="Cole o link do vídeo (TikTok, IG, YouTube…) ou descreva o tema">
+      <!-- HERO: barra única de criação -->
+      <div class="redes-st-input st-hero">
+        <svg class="st-hero-ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+        <input type="text" id="redes-st-link" placeholder="Cole o link de um viral (TikTok, IG, YouTube) ou descreva o tema…">
         <button type="button" class="btn-redes-ia" id="btn-redes-roteirizar" onclick="roteirizarTemaEstudio()">Criar roteiro</button>
       </div>
+      <div class="st-erro" id="redes-st-erro" style="display:none"></div>
+
+      <div class="st-ou">ou</div>
       <div class="redes-st-fontes">
-        <button type="button" class="redes-st-fonte" onclick="document.getElementById('redes-st-file').click()">⬆️ Enviar vídeo do PC (TikTok/IG/qualquer)</button>
-        <button type="button" class="redes-st-fonte" onclick="varrerAdLibraryEstudio()">🔍 Varrer virais do nicho (Ad Library)</button>
+        <button type="button" class="redes-st-fonte" onclick="document.getElementById('redes-st-file').click()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg> Enviar vídeo do PC</button>
+        <button type="button" class="redes-st-fonte redes-st-fonte--soon" disabled title="Em breve — por enquanto cole o link ou suba o vídeo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg> Varrer virais (Ad Library) <span class="st-soon-pill">em breve</span></button>
         <input type="file" id="redes-st-file" accept="video/*" style="display:none" onchange="enviarVideoEstudio(this)">
       </div>
       <p class="redes-ia-sub" id="redes-st-upmsg" style="margin-top:8px;display:none"></p>
-      <p class="redes-ia-sub" style="margin-top:10px">🟢 No HeyGen, gere o vídeo do avatar com <b>fundo verde ou transparente</b> — depois você põe ele num canto sobre o vídeo viral (CapCut/Edits).</p>
 
       <!-- fila -->
       <div id="redes-studio-fila" class="redes-studio-fila"></div>
@@ -3896,7 +3970,7 @@ async function carregarStudioFila() {
     rows = await supaGet('social_studio?select=*&status=neq.descartado&order=criado_em.desc&limit=50');
   } catch (e) { box.innerHTML = ''; return; }
   if (!rows || !rows.length) {
-    box.innerHTML = '<div class="redes-st-vazio">Nenhum roteiro na fila ainda. Cole um link acima ou varra os virais do nicho pra começar.</div>';
+    box.innerHTML = '<div class="redes-st-vazio"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" style="opacity:.5;margin-bottom:8px"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 7l3.5-3 3 3M9.5 7l3.5-3 3 3M16 7l3.5-3"/></svg><div class="st-vazio-tit">Nenhum roteiro ainda</div><div class="st-vazio-sub">Cole um link viral acima — a IA cria o roteiro com a ponte pro solar.</div></div>';
     return;
   }
   box.innerHTML = rows.map(r => {
@@ -3914,21 +3988,22 @@ async function carregarStudioFila() {
       <div class="st-top">
         <span class="st-arq">${escapeHtml(arq)}</span>
         ${r.minutagem && r.minutagem.duracao_alvo_s ? `<span class="st-dur">⏱ ~${r.minutagem.duracao_alvo_s}s</span>` : ''}
-        ${r.fonte_url ? `<a href="${r.fonte_url}" target="_blank" rel="noopener" style="font-size:11px;color:#60A5FA">fonte ↗</a>` : ''}
+        ${r.fonte_url ? `<a href="${r.fonte_url}" target="_blank" rel="noopener" class="st-fonte-link">fonte ↗</a>` : ''}
         <span class="st-status">${escapeHtml(r.status)}</span>
       </div>
       ${r.precisa_revisao_humana ? `<div class="st-revisao">⚠️ Revise antes de usar — a IA não fechou 100% das regras automáticas. Confira minutagem e falas.</div>` : ''}
       ${r.transcricao ? `<details class="st-transc"><summary>📄 Transcrição do vídeo (o que a IA entendeu)</summary><div class="st-transc-txt">${escapeHtml(r.transcricao)}</div></details>` : ''}
       ${r.gancho ? `<div class="st-gancho">${escapeHtml(r.gancho)}</div>` : ''}
-      ${r.roteiro ? `<div class="st-corpo"><b>Roteiro (falas):</b><div class="st-falas">${escapeHtml(r.roteiro)}</div></div>` : ''}
-      ${r.legenda ? `<div class="st-corpo"><b>Legenda:</b> ${escapeHtml(r.legenda)}</div>` : ''}
-      ${r.cta ? `<div class="st-corpo"><b>CTA:</b> ${escapeHtml(r.cta)}</div>` : ''}
+      ${r.roteiro ? `<div class="st-bloco"><span class="st-rotulo">Roteiro (falas)</span><div class="st-falas">${escapeHtml(r.roteiro)}</div></div>` : ''}
+      ${r.legenda ? `<div class="st-corpo st-sec"><span class="st-rotulo">Legenda</span> ${escapeHtml(r.legenda)}</div>` : ''}
+      ${r.cta ? `<div class="st-corpo st-sec"><span class="st-rotulo">CTA</span> ${escapeHtml(r.cta)}</div>` : ''}
+      ${aprovado ? `<div class="st-heygen-nota">🟢 No HeyGen gere o avatar com <b>fundo verde/transparente</b> — depois ponha num canto sobre o viral no CapCut.</div>` : ''}
       <div class="redes-st-acoes">
-        ${!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">✅ Aprovar</button>` : '<span class="st-status" style="align-self:center">✅ aprovado</span>'}
-        <button class="st-copiar" data-copy="${encodeURIComponent(roteiroFull)}" onclick="studioCopiar(this,'roteiro')">📋 Copiar roteiro</button>
-        <button class="st-copiar" data-copy="${encodeURIComponent(legendaFull)}" onclick="studioCopiar(this,'legenda')">🏷️ Copiar legenda</button>
-        <a class="st-heygen" href="https://app.heygen.com/" target="_blank" rel="noopener">🎭 Gerar no HeyGen ↗</a>
-        <button class="st-descartar" onclick="studioAcao(${r.id},'descartado')">🗑 Descartar</button>
+        ${!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">Aprovar</button>` : '<span class="st-aprovado-selo">✓ aprovado</span>'}
+        <button class="st-copiar" data-copy="${encodeURIComponent(roteiroFull)}" onclick="studioCopiar(this,'roteiro')"><span>Copiar roteiro</span><span class="st-hint">cole no HeyGen</span></button>
+        <button class="st-copiar" data-copy="${encodeURIComponent(legendaFull)}" onclick="studioCopiar(this,'legenda')"><span>Copiar legenda</span><span class="st-hint">cole no post</span></button>
+        <a class="st-heygen${aprovado ? ' st-heygen--primaria' : ''}" href="https://app.heygen.com/" target="_blank" rel="noopener">Gerar no HeyGen <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+        <button class="st-descartar" title="Descartar" onclick="studioAcao(${r.id},'descartado')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
       </div>
     </div>`;
   }).join('');
@@ -3939,6 +4014,7 @@ async function roteirizarTemaEstudio() {
   const btn = document.getElementById('btn-redes-roteirizar');
   const tema = (inp.value || '').trim();
   if (!tema) { showToast && showToast('Cole um link ou descreva o tema'); return; }
+  const erroBox = document.getElementById('redes-st-erro'); if (erroBox) erroBox.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Criando...';
   try {
     const ehLink = /^https?:\/\//i.test(tema);
@@ -3950,14 +4026,17 @@ async function roteirizarTemaEstudio() {
     const j = await r.json();
     const rot = j.roteiro;
     if (!rot) {
+      const erroBox = document.getElementById('redes-st-erro');
+      let dica;
       if (j.motivo === 'transcricao_indisponivel') {
-        const dica = j.ehYoutube
-          ? 'Não consegui ler a legenda desse vídeo do YouTube agora (acontece às vezes). Tenta de novo, ou descreve em 1 linha o que ele mostra/fala que eu roteirizo em cima disso.'
-          : 'TikTok/Instagram não têm legenda pra eu ler. Descreve em 1 linha o que o vídeo mostra/fala (em vez do link) que eu roteirizo em cima disso.';
-        alert(dica);
+        dica = j.ehYoutube
+          ? '⚠️ Não consegui ler a legenda desse vídeo do YouTube agora (acontece às vezes). Tenta de novo, ou descreve em 1 linha o que ele mostra/fala que eu roteirizo em cima disso.'
+          : '⚠️ TikTok/Instagram não têm legenda pra eu ler. Descreve em 1 linha o que o vídeo mostra/fala (em vez do link), ou use "Enviar vídeo do PC".';
       } else {
-        showToast && showToast('Não consegui gerar agora — tente de novo');
+        dica = '⚠️ Não consegui gerar agora — tente de novo (a IA pode estar sem saldo).';
       }
+      if (erroBox) { erroBox.textContent = dica; erroBox.style.display = ''; }
+      else { showToast && showToast(dica); }
       return;
     }
     // monta o roteiro com as FALAS separadas (THIAGO/DIEGO) + indicação de tela
@@ -4063,9 +4142,9 @@ async function studioCopiar(btn, tipo) {
   if (!txt) { showToast && showToast('Nada pra copiar'); return; }
   try {
     await navigator.clipboard.writeText(txt);
-    const orig = btn.textContent;
-    btn.textContent = '✓ Copiado!';
-    setTimeout(() => { btn.textContent = orig; }, 1500);
+    const orig = btn.innerHTML;   // preserva os spans (label + micro-legenda)
+    btn.innerHTML = '✓ Copiado!';
+    setTimeout(() => { btn.innerHTML = orig; }, 1500);
   } catch (e) {
     // fallback pra navegadores sem clipboard API
     const ta = document.createElement('textarea');
