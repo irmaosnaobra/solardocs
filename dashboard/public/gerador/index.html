@@ -1333,8 +1333,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="btn-redes-ia" id="btn-redes-roteirizar" onclick="roteirizarTemaEstudio()">Criar roteiro</button>
       </div>
       <div class="redes-st-fontes">
+        <button type="button" class="redes-st-fonte" onclick="document.getElementById('redes-st-file').click()">⬆️ Enviar vídeo do PC (TikTok/IG/qualquer)</button>
         <button type="button" class="redes-st-fonte" onclick="varrerAdLibraryEstudio()">🔍 Varrer virais do nicho (Ad Library)</button>
+        <input type="file" id="redes-st-file" accept="video/*" style="display:none" onchange="enviarVideoEstudio(this)">
       </div>
+      <p class="redes-ia-sub" id="redes-st-upmsg" style="margin-top:8px;display:none"></p>
       <p class="redes-ia-sub" style="margin-top:10px">🟢 No HeyGen, gere o vídeo do avatar com <b>fundo verde ou transparente</b> — depois você põe ele num canto sobre o vídeo viral (CapCut/Edits).</p>
 
       <!-- fila -->
@@ -3983,6 +3986,67 @@ async function roteirizarTemaEstudio() {
     showToast && showToast('Erro ao criar roteiro (IA pode estar sem crédito)');
   } finally {
     btn.disabled = false; btn.textContent = 'Criar roteiro';
+  }
+}
+
+// monta o texto do roteiro (falas) e grava na fila
+async function salvarRoteiroNaFila(rot, fonteInfo) {
+  let roteiroTxt = '';
+  if (Array.isArray(rot.falas) && rot.falas.length) {
+    roteiroTxt = rot.falas.map(f => `${(f.quem||'').toUpperCase()}: ${f.texto}`).join('\n');
+    if (rot.roteiro) roteiroTxt += `\n\n[TELA / B-ROLL] ${rot.roteiro}`;
+  } else { roteiroTxt = rot.roteiro || ''; }
+  await supaInsert('social_studio', {
+    fonte: fonteInfo.fonte, fonte_url: fonteInfo.fonte_url || null,
+    tema: fonteInfo.tema, arquetipo: rot.arquetipo, gancho: rot.gancho,
+    roteiro: roteiroTxt, legenda: rot.legenda, cta: rot.cta,
+    qa: rot.qa || null, minutagem: rot.minutagem || null,
+    precisa_revisao_humana: !!rot.precisa_revisao_humana,
+    transcricao: rot.transcricao || null, status: 'roteirizado',
+  });
+  await carregarStudioFila();
+}
+
+// upload de vídeo do PC → Supabase Storage → transcreve (Whisper) → roteiriza
+async function enviarVideoEstudio(inputEl) {
+  const file = inputEl.files && inputEl.files[0];
+  inputEl.value = '';
+  if (!file) return;
+  const msg = document.getElementById('redes-st-upmsg');
+  const show = (t) => { msg.style.display = ''; msg.innerHTML = t; };
+  // aviso de tamanho (Whisper limita 25MB)
+  if (file.size > 25 * 1024 * 1024) {
+    show('⚠️ Esse vídeo tem ' + (file.size/1048576).toFixed(0) + 'MB. O limite pra transcrever é 25MB. Corte/comprima o vídeo (ou use só o trecho que importa).');
+    return;
+  }
+  try {
+    show('⬆️ Enviando vídeo...');
+    const nome = 'up_' + Date.now() + '_' + (file.name||'video.mp4').replace(/[^a-zA-Z0-9._-]/g,'');
+    // upload pro bucket studio-videos via REST do Storage (anon)
+    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/studio-videos/${nome}`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': file.type || 'video/mp4', 'x-upsert': 'true' },
+      body: file,
+    });
+    if (!up.ok) { show('❌ Falha ao enviar o vídeo (' + up.status + ').'); return; }
+    const videoUrl = `${SUPABASE_URL}/storage/v1/object/public/studio-videos/${nome}`;
+    show('🎧 Transcrevendo o áudio e criando o roteiro... (pode levar até 1 min)');
+    const r = await fetch('/_api/gerador/social/roteirizar-upload', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ video_url: videoUrl, apresentador: redesApresentador }),
+    });
+    const j = await r.json();
+    if (!j.roteiro) {
+      if (j.motivo === 'transcricao_upload_falhou') {
+        show('❌ Não consegui transcrever o vídeo. Pode ser: a IA de transcrição (OpenAI) está sem saldo, o vídeo passa de 25MB, ou o formato. Recarregue o OpenAI ou descreva o vídeo no campo acima.');
+      } else { show('❌ Não consegui gerar o roteiro agora.'); }
+      return;
+    }
+    await salvarRoteiroNaFila(j.roteiro, { fonte: 'upload', fonte_url: videoUrl, tema: file.name || 'vídeo enviado' });
+    show('✅ Roteiro criado a partir do seu vídeo!');
+    setTimeout(() => { msg.style.display = 'none'; }, 4000);
+  } catch (e) {
+    show('❌ Erro no envio/transcrição.');
   }
 }
 

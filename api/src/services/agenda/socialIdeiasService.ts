@@ -165,11 +165,33 @@ export async function transcreverYoutube(url: string): Promise<{ texto: string; 
   }
 }
 
+// Transcreve um vídeo enviado pelo usuário (URL do Supabase Storage) via Whisper
+// e roteiriza em cima. Usado quando o link do YouTube não transcreve em prod.
+// Retorna o roteiro, ou {erro} se o Whisper falhar (sem saldo / >25MB / formato).
+export async function roteirizarUpload(videoUrl: string, apresentador?: string): Promise<Roteiro | { erro: string } | null> {
+  const { transcribeAudio } = await import('../../utils/mediaProcessor');
+  // mime por extensão do arquivo (Whisper detecta formato pelo nome/mime)
+  const ext = (videoUrl.split('?')[0].split('.').pop() || 'mp4').toLowerCase();
+  const mime = ext === 'mov' ? 'video/quicktime' : ext === 'webm' ? 'video/webm' : 'video/mp4';
+  let txt: string | null = null;
+  try {
+    txt = await transcribeAudio(videoUrl, mime);
+  } catch (e) {
+    logger.warn('social-roteiro', 'whisper upload falhou', { e: String(e).slice(0, 120) });
+  }
+  if (!txt || txt.trim().length < 20) {
+    // Whisper nulo: sem saldo OpenAI, vídeo >25MB, ou formato. Degrada honesto.
+    return { erro: 'transcricao_upload_falhou' };
+  }
+  const r = await roteirizarTema(txt.slice(0, 200), undefined, apresentador, txt);
+  return r as any;
+}
+
 // ─── Fluxo 2: roteirizar UM tema-isca (estúdio) ─────────────────────────────
 // Recebe um tema (e opcionalmente o link do vídeo viral de origem) e devolve
 // um roteiro pronto no DNA viral, com ponte pro nicho solar. Se a fonte for um
 // vídeo do YouTube, transcreve o conteúdo real e usa no prompt (entende o vídeo).
-export async function roteirizarTema(tema: string, fonteUrl?: string, apresentador?: string): Promise<Roteiro | { erro: string; ehYoutube?: boolean } | null> {
+export async function roteirizarTema(tema: string, fonteUrl?: string, apresentador?: string, transcricaoPronta?: string): Promise<Roteiro | { erro: string; ehYoutube?: boolean } | null> {
   const resumo = await topPostsResumo('instagram');
   const quem = (apresentador || 'ambos').toLowerCase(); // 'thiago' | 'diego' | 'ambos'
 
@@ -179,7 +201,13 @@ export async function roteirizarTema(tema: string, fonteUrl?: string, apresentad
   let minutagemConfianca: 'alta' | 'baixa' = 'baixa';
   let fonteDuracao = 'estimado';
   const link = fonteUrl || (/^https?:\/\//i.test(tema) ? tema : undefined);
-  if (link) {
+  if (transcricaoPronta && transcricaoPronta.trim().length > 20) {
+    // veio do UPLOAD já transcrito (Whisper) — usa direto, estima duração pela fala
+    transcricao = transcricaoPronta.slice(0, 6000);
+    const pal = transcricao.trim().split(/\s+/).length;
+    duracaoSeg = Math.min(60, Math.max(8, Math.round(pal / WPS_FALLBACK)));
+    fonteDuracao = 'upload_whisper';
+  } else if (link) {
     const tr = await transcreverYoutube(link);
     if (tr) {
       transcricao = tr.texto;

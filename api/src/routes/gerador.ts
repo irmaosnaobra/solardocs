@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { generateGeradorPdf } from '../controllers/pdfGeradorController';
 import { trackEvent } from '../controllers/trackingGeradorController';
-import { gerarIdeiasSociais, roteirizarTema } from '../services/agenda/socialIdeiasService';
+import { gerarIdeiasSociais, roteirizarTema, roteirizarUpload } from '../services/agenda/socialIdeiasService';
 import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStudioStubs';
 import { logger } from '../utils/logger';
 
@@ -41,6 +41,20 @@ router.post('/social/roteirizar', async (req: Request, res: Response) => {
     res.json({ ok: true, roteiro: r });
   } catch (err: any) {
     logger.error('gerador', 'social/roteirizar falhou', err);
+    res.status(500).json({ error: 'IA failed', detail: String(err?.message || err) });
+  }
+});
+
+// Estúdio: roteiriza a partir de um vídeo enviado (URL no Storage) — transcreve via Whisper.
+router.post('/social/roteirizar-upload', async (req: Request, res: Response) => {
+  try {
+    const videoUrl = String(req.body?.video_url || '').trim();
+    if (!videoUrl) return res.status(400).json({ error: 'video_url obrigatório' });
+    const r = await roteirizarUpload(videoUrl, req.body?.apresentador);
+    if (r && (r as any).erro) return res.json({ ok: true, roteiro: null, motivo: (r as any).erro });
+    res.json({ ok: true, roteiro: r });
+  } catch (err: any) {
+    logger.error('gerador', 'social/roteirizar-upload falhou', err);
     res.status(500).json({ error: 'IA failed', detail: String(err?.message || err) });
   }
 });
