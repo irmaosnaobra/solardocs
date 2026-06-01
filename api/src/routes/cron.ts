@@ -16,6 +16,7 @@ import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sd
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
+import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda/leadsMetaService';
 import { syncSocialWindsor } from '../services/agenda/socialWindsorService';
 import { gerarProdutosVirais } from '../services/agenda/produtosViraisService';
@@ -49,6 +50,21 @@ router.get('/cleanup-pro-docs', async (req: Request, res: Response) => {
   } catch (err) {
     logger.error('cron', 'cleanup-pro-docs falhou', err);
     res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Todo dia 17h BRT (0 20 * * * UTC) — manda pra cada consultor a lista de
+// clientes parados que precisam reagendar, com link único pro CRM filtrado.
+// ?dry=1 → não envia, só retorna o que enviaria (conferência).
+router.get('/reagendar-diario', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    const r = await enviarReagendarDiario({ dry });
+    res.json({ ok: true, dry, ...r });
+  } catch (err: any) {
+    logger.error('cron', 'reagendar-diario falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
 

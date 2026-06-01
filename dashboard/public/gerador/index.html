@@ -90,6 +90,7 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .crm-col-qt{font-size:12px;font-weight:700;color:#cbd5e1;background:rgba(255,255,255,.1);border-radius:999px;padding:2px 9px;min-width:24px;text-align:center}
 .crm-col-body{padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
 .crm-col-vazia{color:#64748b;text-align:center;padding:18px 0;font-size:13px}
+.crm-col-destaque{outline:2px solid #F87171;outline-offset:-1px;box-shadow:0 0 0 4px rgba(248,113,113,.18)}
 /* faixa de cor no topo de cada coluna por etapa */
 .crm-col-agendado .crm-col-head{box-shadow:inset 0 3px 0 #94A3B8}
 .crm-col-reagendar .crm-col-head{box-shadow:inset 0 3px 0 #F87171}
@@ -3112,6 +3113,22 @@ function mostrarExpirado(d) {
 
 window.addEventListener('DOMContentLoaded', carregarDeURL);
 
+// Deep-link do digest 17h: ?crm=reagendar&consultor=Nome → abre o CRM já
+// filtrado no consultor e rolado até a coluna pedida. Só roda se autenticado
+// (o login fica na mesma URL, então a query sobrevive — chamamos de novo após login).
+function crmCheckDeepLink() {
+  if (document.documentElement.dataset.mode !== 'app') return;
+  const q = new URLSearchParams(location.search);
+  const alvo = q.get('crm');
+  if (!alvo) return;
+  const consultor = q.get('consultor') || '__todos__';
+  // tira os params da URL pra não reabrir ao recarregar
+  history.replaceState(null, '', location.pathname);
+  if (typeof navCRM === 'function') navCRM({ consultor, coluna: alvo });
+}
+window.crmCheckDeepLink = crmCheckDeepLink;
+window.addEventListener('DOMContentLoaded', crmCheckDeepLink);
+
 // ============= HISTÓRICO =============
 function formatDataBR(iso) {
   if (!iso) return '-';
@@ -4531,7 +4548,7 @@ function crmTelDisplay(raw) {
   return `(${ddd}) ${resto.slice(0,4)}-${resto.slice(4)}`;
 }
 
-function navCRM() {
+function navCRM(opts) {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
   const sec = document.getElementById('crmSection');
@@ -4541,7 +4558,27 @@ function navCRM() {
   marcarNavAtivo('nav-crm');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (!crmCarregado) carregarCRM();
+  // Deep-link: ?crm=reagendar&consultor=X — pré-seleciona o consultor e rola até a coluna.
+  if (opts && opts.consultor) crmFiltroConsultor = opts.consultor;
+  const apos = () => {
+    crmRenderFiltros();
+    renderCRM();
+    if (opts && opts.coluna) crmScrollToCol(opts.coluna);
+  };
+  if (!crmCarregado) carregarCRM().then(apos);
+  else apos();
+}
+
+// Rola o board até a coluna pedida e dá um destaque rápido.
+function crmScrollToCol(etKey) {
+  setTimeout(() => {
+    const col = document.querySelector('.crm-col-' + etKey);
+    if (col) {
+      col.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+      col.classList.add('crm-col-destaque');
+      setTimeout(() => col.classList.remove('crm-col-destaque'), 1800);
+    }
+  }, 120);
 }
 
 async function carregarCRM(forcar) {
@@ -4673,7 +4710,8 @@ function crmUnificar(props, agends, leads) {
     // PRECISA REAGENDAR: o consultor não deu conta do card.
     //  - não atendeu a ligação (nao_atendeu) ou não conseguiu orçar (sem_orcamento), OU
     //  - agendamento ficou "agendado" (sem ação) e o horário já passou.
-    const precisaReagendar = agOrd.some(a =>
+    // MAS: se já existe um agendamento FUTURO, o cliente já foi reagendado → não entra.
+    const precisaReagendar = !agFuturo && agOrd.some(a =>
       a.status === 'nao_atendeu' ||
       a.status === 'sem_orcamento' ||
       (a.status === 'agendado' && !a.temperatura && stamp(a.quando) > 0 && stamp(a.quando) < agora)
@@ -5644,6 +5682,8 @@ function fazerLogin(ev) {
 
   document.documentElement.dataset.mode = 'app';
   document.getElementById('login-senha').value = '';
+  // Se veio de um link do digest (?crm=reagendar...), abre direto a lista.
+  if (typeof crmCheckDeepLink === 'function') crmCheckDeepLink();
 }
 
 function sairGerador() {

@@ -1,0 +1,19 @@
+name: Reagendar diário (lista de clientes parados → WhatsApp do consultor)
+
+# Todo dia às 17h BRT (= 20h UTC; Brasil não tem horário de verão desde 2019).
+# Manda pra cada consultor a lista dos clientes dele que precisam reagendar,
+# com um link único que abre o CRM já filtrado nessa lista.
+on:
+  schedule:
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+jobs:
+  reagendar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar digest de reagendamento
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/reagendar-diario" \
+            -H "Authorization: Bearer solardocs_master_cron_2024" \
+            --max-time 120 -sS -w "\nHTTP %{http_code}\n"
