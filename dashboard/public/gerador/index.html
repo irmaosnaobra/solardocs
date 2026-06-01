@@ -116,6 +116,8 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .crm-act{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;font-size:14px;cursor:pointer;text-decoration:none;font-family:inherit}
 .crm-act:hover{background:rgba(255,255,255,.16);color:#fff}
 .crm-act-wpp:hover{background:rgba(37,211,102,.22);border-color:rgba(37,211,102,.5)}
+.crm-act-reag{background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.35);color:#FCA5A5}
+.crm-act-reag:hover{background:rgba(248,113,113,.28);border-color:rgba(248,113,113,.6);color:#fff}
 @media(max-width:640px){
   .crm-filtro-lbl{min-width:auto;width:100%}
   .crm-kpi-val{font-size:20px}
@@ -4569,6 +4571,20 @@ function navCRM(opts) {
   else apos();
 }
 
+// Botão Reagendar do card → manda pra Agenda (reusa o fluxo de reagendar já testado lá).
+// Com agendamento: abre ele pronto pra reagendar. Sem agendamento: cria pré-preenchido.
+function crmReagendar(c) {
+  if (c && c.agId) {
+    location.href = `/gerador/agenda?ag=${encodeURIComponent(c.agId)}`;
+  } else {
+    const p = new URLSearchParams({ novo: '1' });
+    if (c && c.nome) p.set('nome', c.nome);
+    if (c && c.tel) p.set('tel', c.tel);
+    if (c && c.consultor) p.set('consultor', c.consultor);
+    location.href = `/gerador/agenda?${p.toString()}`;
+  }
+}
+
 // Rola o board até a coluna pedida e dá um destaque rápido.
 function crmScrollToCol(etKey) {
   setTimeout(() => {
@@ -4591,7 +4607,7 @@ async function carregarCRM(forcar) {
   try {
     [props, agends, leads] = await Promise.all([
       supaGet('propostas?select=codigo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
-      supaGet('agendamentos?select=cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,created_at&order=quando.desc&limit=1000'),
+      supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,created_at&order=quando.desc&limit=1000'),
       supaGet('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc&limit=1000')
     ]);
   } catch (e) {
@@ -4684,6 +4700,8 @@ function crmUnificar(props, agends, leads) {
     const agRecente = agOrd[0] || null;
     const agFuturo = agOrd.find(a => stamp(a.quando) >= agora && !CRM_STATUS_PERDIDO.has(a.status)) || null;
     const statusAg = agRecente ? agRecente.status : null;
+    // id do agendamento mais recente — usado pelo botão "Reagendar" do card.
+    c.agId = agRecente ? agRecente.id : null;
     c.temperatura = (agOrd.find(a => a.temperatura) || {}).temperatura || null;
 
     // Valor: venda fechada > preço à vista da proposta mais recente
@@ -4821,6 +4839,8 @@ function renderCRM() {
     const verProp = c.propRecente
       ? `<button class="crm-act" onclick="event.stopPropagation();abrirProposta('${escapeHtml(c.propRecente.codigo)}')" title="Abrir proposta ${escapeHtml(c.propRecente.codigo)}">📄</button>`
       : '';
+    // Reagendar: leva pra Agenda. Se tem agendamento, abre ele; senão cria pré-preenchido.
+    const reagBtn = `<button class="crm-act crm-act-reag" onclick='event.stopPropagation();crmReagendar(${JSON.stringify({ agId: c.agId, nome: c.nome, tel: c.tel, consultor: c.consultor })})' title="Reagendar na agenda">🔄</button>`;
     const linhaCidade = c.cidade ? `<span class="crm-card-cid">📍 ${escapeHtml(c.cidade)}</span>` : '';
     const linhaAg = c.agFuturo ? `<span class="crm-card-ag">📅 ${dataCurta(c.agFuturo)}</span>` : '';
     const cons = c.consultor ? `<span class="crm-card-cons">${escapeHtml(c.consultor)}</span>` : '';
@@ -4836,7 +4856,7 @@ function renderCRM() {
       <div class="crm-card-meta">${cons}${linhaCidade}${linhaAg}</div>
       <div class="crm-card-foot">
         ${valorTxt}
-        <span class="crm-card-acoes">${wpp}${verProp}</span>
+        <span class="crm-card-acoes">${reagBtn}${wpp}${verProp}</span>
       </div>
     </div>`;
   };

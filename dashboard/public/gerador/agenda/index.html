@@ -1090,6 +1090,15 @@ function toLocalIso(d) {
 function formatTelDigits(raw) {
   return (raw || '').replace(/\D/g, '');
 }
+// Padroniza celular BR → 55 + DDD + 9 + 8 dígitos (13). Mantém o número como
+// veio se não for celular reconhecível (fixo/curto/estrangeiro) — não inventa dígito.
+function normalizeTelBR(raw) {
+  let d = (raw || '').replace(/\D/g, '');
+  if (d.startsWith('55') && d.length >= 12) d = d.slice(2); // tira DDI pra avaliar nacional
+  if (d.length === 11) return '55' + d;                                   // DDD+9+8 ok
+  if (d.length === 10 && '6789'.includes(d[2])) return '55' + d.slice(0,2) + '9' + d.slice(2); // cel antigo → injeta 9
+  return (raw || '').replace(/\D/g, '');                                  // não mexe (fixo/lixo)
+}
 function formatTelBR(raw) {
   const d = formatTelDigits(raw);
   // assume DDI 55 se 12-13 dígitos
@@ -1443,9 +1452,9 @@ async function salvarAgendamento() {
   const btn = document.getElementById('m-salvar');
 
   if (!nome) { err.textContent = 'Informe o nome do cliente.'; return; }
-  let tel = formatTelDigits(telRaw);
-  if (tel.length < 10) { err.textContent = 'WhatsApp inválido.'; return; }
-  if (tel.length === 10 || tel.length === 11) tel = '55' + tel;
+  if (formatTelDigits(telRaw).length < 10) { err.textContent = 'WhatsApp inválido.'; return; }
+  // Sempre padroniza: 55 + DDD + 9 + 8 dígitos.
+  const tel = normalizeTelBR(telRaw);
   if (tel.length < 12 || tel.length > 13) { err.textContent = 'WhatsApp inválido.'; return; }
 
   btn.disabled = true;
@@ -1715,10 +1724,56 @@ document.getElementById('m-tel').addEventListener('input', function(e) {
   e.target.value = v;
 });
 
+// ============= DEEP-LINK (vindo do botão Reagendar do CRM) =============
+// ?ag=<id> → abre o agendamento já pronto pra reagendar.
+// ?novo=1&nome=&tel=&consultor= → abre o modal de novo agendamento pré-preenchido.
+async function processarDeepLinkAgenda() {
+  const q = new URLSearchParams(location.search);
+  const agId = q.get('ag');
+  const novo = q.get('novo');
+  if (!agId && !novo) return;
+  // limpa a URL pra não reabrir ao recarregar
+  history.replaceState(null, '', location.pathname);
+
+  if (agId) {
+    const id = Number(agId);
+    let ag = agendamentosCache.find(a => a.id === id);
+    // Card de "Reagendar" costuma ser de um agendamento PASSADO, fora da semana
+    // carregada → busca direto pelo id e injeta no cache pra abrirDetalhes achar.
+    if (!ag) {
+      try {
+        const rows = await supaGet(`agendamentos?id=eq.${id}&select=*&limit=1`);
+        if (rows && rows[0]) { ag = rows[0]; agendamentosCache.push(ag); }
+      } catch (e) { console.error('deep-link ag', e); }
+    }
+    if (ag) {
+      if (ag.vendedor_nome && VENDEDORES.includes(ag.vendedor_nome)) vendedorAtivo = ag.vendedor_nome;
+      abrirDetalhes(id);
+      setTimeout(() => { if (typeof abrirReagendar === 'function') abrirReagendar(); }, 120);
+    } else {
+      showToast('Agendamento não encontrado (pode ter sido alterado).');
+    }
+    return;
+  }
+
+  if (novo) {
+    const cons = q.get('consultor');
+    if (cons && VENDEDORES.includes(cons)) vendedorAtivo = cons;
+    // próxima hora cheia como ponto de partida; o consultor ajusta o horário.
+    const dt = new Date();
+    dt.setMinutes(0, 0, 0);
+    dt.setHours(dt.getHours() + 1);
+    abrirNovo(dt.toISOString());
+    const nome = q.get('nome'); const tel = q.get('tel');
+    if (nome) document.getElementById('m-nome').value = nome;
+    if (tel) document.getElementById('m-tel').value = formatTelBR(tel);
+  }
+}
+
 // ============= BOOT =============
 const meu = consultorLogado();
 if (meu && VENDEDORES.includes(meu)) vendedorAtivo = meu;
-renderTudo();
+renderTudo().then(processarDeepLinkAgenda);
 </script>
 
 </body>
