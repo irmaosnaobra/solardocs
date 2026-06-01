@@ -4552,6 +4552,17 @@ function crmTelDisplay(raw) {
   return `(${ddd}) ${resto.slice(0,4)}-${resto.slice(4)}`;
 }
 
+// Consultor logado (do login/prefs). Vazio se não reconhecido.
+const CRM_CONSULTORES_VALIDOS = ['Diego', 'Giovanna', 'Nilce', 'Thiago'];
+function crmConsultorLogado() {
+  let nome = '';
+  try { nome = (JSON.parse(localStorage.getItem(AUTH_KEY) || '{}').consultor) || ''; } catch (e) {}
+  if (!nome) { try { nome = (JSON.parse(localStorage.getItem(PREFS_KEY) || '{}').consultor) || ''; } catch (e) {} }
+  return CRM_CONSULTORES_VALIDOS.includes(nome) ? nome : '';
+}
+
+let crmFiltroIniciado = false;  // só aplica o default-do-logado na 1ª abertura
+
 function navCRM(opts) {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
@@ -4563,7 +4574,15 @@ function navCRM(opts) {
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // Deep-link: ?crm=reagendar&consultor=X — pré-seleciona o consultor e rola até a coluna.
-  if (opts && opts.consultor) crmFiltroConsultor = opts.consultor;
+  if (opts && opts.consultor) {
+    crmFiltroConsultor = opts.consultor;
+    crmFiltroIniciado = true;
+  } else if (!crmFiltroIniciado) {
+    // Abre já na carteira do consultor logado (ele navega pros outros nos chips).
+    const meu = crmConsultorLogado();
+    if (meu) crmFiltroConsultor = meu;
+    crmFiltroIniciado = true;
+  }
   const apos = () => {
     crmRenderFiltros();
     renderCRM();
