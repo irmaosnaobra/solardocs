@@ -27,13 +27,12 @@ const HF_VIDEO = process.env.HF_VIDEO || 'kling-video/v2.1/pro/image-to-video';
 // animar é sob demanda (botão "Animar"), NÃO automático — gasta crédito só no que
 // o Thiago escolher postar (decisão 2026-05-31). HF_AUTO_VIDEO=1 liga o auto se quiser.
 const AUTO_VIDEO = process.env.HF_AUTO_VIDEO === '1';
-// duração do vídeo = tempo de ler a narração (gancho+corpo+CTA), arredondado pro que
-// o Kling suporta. Kling v2.1 honra 5 e 10 (validado: duration:10 → 10.04s).
-function duracaoNarracao(textos: string[]): number {
-  const palavras = textos.filter(Boolean).join(' ').trim().split(/\s+/).filter(Boolean).length;
-  const seg = palavras / 2.5; // ~2.5 palavras/seg de locução PT-BR
-  return seg > 7 ? 10 : 5;     // arredonda pro enum suportado
-}
+// duração do vídeo: 5s FIXO. Testado em prod: 10s acumula movimento e o Kling
+// (câmera travada) ainda assim empurra o CTA pra fora do quadro no fim; 5s mantém
+// TODO o texto (incl. CTA) intacto — validado no último frame. O vídeo é MUDO e
+// roda em LOOP por baixo da narração do Thiago no app, então 5s cobre a fala do
+// mesmo jeito (não "termina curto", repete). Configurável por env se um dia mudar.
+const HF_VIDEO_DUR = Number(process.env.HF_VIDEO_DUR || '5');
 // prompt de movimento: câmera TRAVADA (sem zoom/pan) pra o texto não sair do quadro.
 const VIDEO_PROMPT = 'Locked-off static camera, NO zoom, NO pan, NO camera movement. Only the person/product and fabric move subtly in place. Keep the full frame and all on-screen text exactly fixed and fully visible.';
 
@@ -159,12 +158,7 @@ async function comporEFinalizecar(rowId: number, imagemBaseUrl: string): Promise
 // tempo de ler a narração (gancho+roteiro+cta). Sobe o PNG pro cloudfront e dispara.
 async function animarCriativo(rowId: number, pngUrl: string): Promise<{ ok: boolean }> {
   try {
-    // duração derivada da narração que o Thiago vai falar por cima
-    const { data: rows } = await supabaseGerador.from('social_studio')
-      .select('gancho, roteiro, cta').eq('id', rowId).limit(1);
-    const row = rows?.[0] as any;
-    const dur = duracaoNarracao([row?.gancho, row?.roteiro, row?.cta]);
-
+    const dur = HF_VIDEO_DUR; // 5s fixo (10s cortava o CTA — ver comentário no topo)
     const ref = await uploadParaHiggsfield(pngUrl);
     if (!ref) return { ok: false };
     const r = await fetch(`${BASE}/${HF_VIDEO}`, {
