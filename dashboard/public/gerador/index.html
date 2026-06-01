@@ -242,7 +242,7 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .st-vid-spinner{flex-shrink:0;width:20px;height:20px;border:2.5px solid rgba(245,166,35,.25);border-top-color:#f5a623;border-radius:50%;animation:st-spin .8s linear infinite}
 @keyframes st-spin{to{transform:rotate(360deg)}}
 .st-video--pronto{padding:0;background:#000;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
-.st-vid-player{display:block;width:100%;max-height:520px;background:#000;border-radius:10px}
+.st-vid-player{display:block;width:100%;max-height:560px;object-fit:contain;background:#000;border-radius:10px}
 .st-video--erro{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:#fca5a5}
 .st-vid-retry{background:#131416;border:1px solid rgba(255,255,255,.18);color:#f7f8f8;font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600}
 .st-vid-retry:hover{background:#1a1b1e}
@@ -4091,14 +4091,15 @@ async function carregarStudioFila(canal, boxId) {
       ${r.cta ? `<div class="st-corpo st-sec"><span class="st-rotulo">CTA</span> ${escapeHtml(r.cta)}</div>` : ''}
       ${Array.isArray(r.broll) && r.broll.length ? `<details class="st-broll"><summary>🎞️ B-roll sugerido (cole no Higgsfield) <a href="https://higgsfield.ai/" target="_blank" rel="noopener" class="st-broll-link" onclick="event.stopPropagation()">abrir ↗</a></summary>${r.broll.map(p => `<div class="st-broll-item"><code>${escapeHtml(p)}</code><button class="st-broll-cp" data-copy="${encodeURIComponent(p)}" onclick="studioCopiar(this,'broll')">copiar</button></div>`).join('')}</details>` : ''}
       ${!ehProduto && aprovado ? `<div class="st-heygen-nota">🟢 No HeyGen gere o avatar com <b>fundo verde/transparente</b> — depois ponha num canto sobre o viral no CapCut.</div>` : ''}
-      ${ehProduto && vs === 'gerando' ? `<div class="st-video st-video--gerando"><span class="st-vid-spinner"></span><div><b>🎬 Gerando o vídeo no Higgsfield…</b><div class="st-vid-sub">automático, sem aprovação — o player aparece aqui sozinho quando ficar pronto.</div></div></div>` : ''}
-      ${ehProduto && vs === 'pronto' && r.video_url ? `<div class="st-video st-video--pronto"><video class="st-vid-player" src="${r.video_url}" controls preload="metadata" playsinline></video></div>` : ''}
-      ${ehProduto && vs === 'erro' ? `<div class="st-video st-video--erro">⚠️ Não consegui gerar o vídeo agora. <button class="st-vid-retry" onclick="produtoRegerar(${r.id},this)">Tentar de novo</button></div>` : ''}
-      ${ehProduto && vs === 'aguardando_config' ? `<div class="st-video st-video--cfg">🔌 Vídeo automático aguardando a chave do Higgsfield (HF_KEY). O roteiro/prompt já está pronto — assim que a chave for configurada, passa a gerar sozinho.</div>` : ''}
-      ${ehProduto && (vs === 'pendente' || vs === null || vs === undefined) ? `<div class="st-video st-video--novo"><div>🎬 <b>Roteiro e prompt prontos.</b> Geração automática de vídeo em ajuste — por ora gere no Higgsfield com o prompt abaixo (Marketing Studio, modo UGC/product review).</div><a class="st-vid-gerar" href="https://cloud.higgsfield.ai/marketing-studio" target="_blank" rel="noopener">Abrir Higgsfield ↗</a></div>` : ''}
+      ${ehProduto && vs === 'gerando' ? `<div class="st-video st-video--gerando"><span class="st-vid-spinner"></span><div><b>🎨 Modelando o criativo…</b><div class="st-vid-sub">a IA recria a cena do produto — o criativo aparece aqui sozinho em ~1 min.</div></div></div>` : ''}
+      ${ehProduto && vs === 'compondo' ? `<div class="st-video st-video--gerando"><span class="st-vid-spinner"></span><div><b>✍️ Aplicando os textos…</b><div class="st-vid-sub">gancho, preço e CTA por cima da imagem. Quase lá.</div></div></div>` : ''}
+      ${ehProduto && vs === 'pronto' && r.video_url ? `<div class="st-video st-video--pronto"><img class="st-vid-player" src="${r.video_url}" alt="criativo do produto" loading="lazy"></div>` : ''}
+      ${ehProduto && vs === 'erro' ? `<div class="st-video st-video--erro">⚠️ Não consegui modelar o criativo agora. <button class="st-vid-retry" onclick="produtoRegerar(${r.id},this)">Tentar de novo</button></div>` : ''}
+      ${ehProduto && vs === 'aguardando_config' ? `<div class="st-video st-video--cfg">🔌 Criativo automático aguardando a chave do Higgsfield (HF_KEY). O roteiro/copy já está pronto — assim que a chave for configurada, passa a modelar sozinho.</div>` : ''}
+      ${ehProduto && (vs === 'pendente' || vs === null || vs === undefined) ? `<div class="st-video st-video--novo"><div>🎨 <b>Copy pronta.</b> Modela o criativo do anúncio (a IA recria a cena do produto + aplica os textos).</div><button class="st-vid-gerar" onclick="produtoRegerar(${r.id},this)">Modelar criativo</button></div>` : ''}
       <div class="redes-st-acoes">
         ${ehProduto ? '' : (!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">Aprovar</button>` : '<span class="st-aprovado-selo">✓ aprovado</span>')}
-        ${ehProduto && vs === 'pronto' && r.video_url ? `<a class="st-aprovar" href="${r.video_url}" download="produto-${r.id}.mp4" target="_blank" rel="noopener">⬇ Baixar vídeo</a>` : ''}
+        ${ehProduto && vs === 'pronto' && r.video_url ? `<a class="st-aprovar" href="${r.video_url}" download="criativo-${r.id}.png" target="_blank" rel="noopener">⬇ Baixar imagem</a>` : ''}
         <button class="st-copiar" data-copy="${encodeURIComponent(legendaFull)}" onclick="studioCopiar(this,'legenda')"><span>Copiar legenda</span><span class="st-hint">cole no post</span></button>
         ${ehProduto
           ? `<details class="st-manual"><summary>gerar manual</summary><div class="st-manual-box"><button class="st-copiar" data-copy="${encodeURIComponent(r.roteiro || '')}" onclick="studioCopiar(this,'prompt')"><span>Copiar prompt</span><span class="st-hint">cole no Higgsfield</span></button><a class="st-heygen" href="https://higgsfield.ai/" target="_blank" rel="noopener">Abrir Higgsfield ↗</a></div></details>`
@@ -4115,14 +4116,14 @@ async function carregarStudioFila(canal, boxId) {
 
 // dispara (ou re-dispara) o vídeo de uma linha de produto no Higgsfield.
 async function produtoRegerar(id, btn) {
-  const textoOrig = btn ? btn.textContent : 'Gerar vídeo';
+  const textoOrig = btn ? btn.textContent : 'Modelar criativo';
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
   try {
     const r = await fetch('/_api/gerador/social/produto-regerar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
     });
     const j = await r.json();
-    if (j.ok) { showToast && showToast('🎬 Vídeo enviado pro Higgsfield — vai aparecer aqui em ~1 min'); recarregarFilas(); }
+    if (j.ok) { showToast && showToast('🎨 Modelando o criativo — aparece aqui em ~1 min'); recarregarFilas(); }
     else {
       const msg = j.motivo === 'sem_hf_key' ? 'Falta configurar a chave do Higgsfield' : 'Não consegui enviar agora';
       showToast && showToast(msg);
@@ -4138,7 +4139,7 @@ async function produtoRegerar(id, btn) {
 let _refreshProdutosTimer = null;
 function agendarRefreshProdutos(rows, canal, boxId) {
   if (canal !== 'produtos') return;
-  const gerando = (rows || []).filter(r => r.video_status === 'gerando');
+  const gerando = (rows || []).filter(r => r.video_status === 'gerando' || r.video_status === 'compondo');
   if (_refreshProdutosTimer) { clearTimeout(_refreshProdutosTimer); _refreshProdutosTimer = null; }
   if (!gerando.length) return;
   _refreshProdutosTimer = setTimeout(async () => {
