@@ -90,10 +90,13 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .crm-col-body{padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
 .crm-col-vazia{color:#64748b;text-align:center;padding:18px 0;font-size:13px}
 /* faixa de cor no topo de cada coluna por etapa */
-.crm-col-novo .crm-col-head{box-shadow:inset 0 3px 0 #94A3B8}
-.crm-col-agendado .crm-col-head{box-shadow:inset 0 3px 0 #60A5FA}
-.crm-col-proposta .crm-col-head{box-shadow:inset 0 3px 0 #A78BFA}
-.crm-col-negociacao .crm-col-head{box-shadow:inset 0 3px 0 #FB923C}
+.crm-col-agendado .crm-col-head{box-shadow:inset 0 3px 0 #94A3B8}
+.crm-col-nao_abriu .crm-col-head{box-shadow:inset 0 3px 0 #64748B}
+.crm-col-abriu .crm-col-head{box-shadow:inset 0 3px 0 #A78BFA}
+.crm-col-whatsapp .crm-col-head{box-shadow:inset 0 3px 0 #25D366}
+.crm-col-frio .crm-col-head{box-shadow:inset 0 3px 0 #38BDF8}
+.crm-col-morno .crm-col-head{box-shadow:inset 0 3px 0 #FBBF24}
+.crm-col-quente .crm-col-head{box-shadow:inset 0 3px 0 #FB923C}
 .crm-col-vendido .crm-col-head{box-shadow:inset 0 3px 0 #34D399}
 .crm-col-perdido .crm-col-head{box-shadow:inset 0 3px 0 #F87171}
 /* card de cliente */
@@ -4477,19 +4480,22 @@ function voltarDosLeads() {
 // A etapa do funil é DERIVADA do estado das 3 fontes — atualiza sozinha
 // conforme histórico e agenda mudam. Read-only por enquanto.
 
-// Etapas, em ordem do funil. Quanto maior o peso, mais "avançado".
+// Colunas do CRM. A etapa é DERIVADA da agenda + histórico (ver crmDerivarEtapa).
+// Ordem = funil, da entrada à direita. Temperatura "puxa" o card, forçando o
+// consultor a classificar a agenda (senão fica empacado em "não abriu"/"agendado").
 const CRM_ETAPAS = {
-  novo:        { lbl: 'Novo lead',   ic: '🆕', peso: 1 },
-  agendado:    { lbl: 'Agendado',    ic: '📅', peso: 2 },
-  proposta:    { lbl: 'Proposta',    ic: '📄', peso: 3 },
-  negociacao:  { lbl: 'Negociação',  ic: '🔥', peso: 4 },
-  vendido:     { lbl: 'Vendido',     ic: '✅', peso: 6 },
-  perdido:     { lbl: 'Perdido',     ic: '❌', peso: 0 }
+  agendado:    { lbl: 'Agendado',          ic: '📅' },
+  nao_abriu:   { lbl: 'Não abriu',         ic: '✉️' },
+  abriu:       { lbl: 'Abriu proposta',    ic: '👀' },
+  whatsapp:    { lbl: 'Falando WhatsApp',  ic: '💬' },
+  frio:        { lbl: 'Frio',              ic: '❄️' },
+  morno:       { lbl: 'Morno',             ic: '🌤️' },
+  quente:      { lbl: 'Quente',            ic: '🔥' },
+  vendido:     { lbl: 'Vendido',           ic: '✅' },
+  perdido:     { lbl: 'Perdido',           ic: '❌' }
 };
-// Status de agendamento que contam como "perdido"
+// Status de agendamento que contam como "perdido" (sem interesse = perdido)
 const CRM_STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse']);
-// Status de agendamento que indicam negociação ativa
-const CRM_STATUS_NEGOCIA = new Set(['falando_whatsapp', 'fez_orcamento']);
 
 let crmClientes = [];          // lista unificada já processada
 let crmFiltroConsultor = '__todos__';
@@ -4650,23 +4656,33 @@ function crmUnificar(props, agends, leads) {
     // Agendamento futuro formatado
     c.agFuturo = agFuturo ? agFuturo.quando : null;
 
-    // ===== DERIVAÇÃO DA ETAPA =====
+    // Algum agendamento marcado como perdido (sem interesse / cancelado)?
+    const temPerdido = agOrd.some(a => CRM_STATUS_PERDIDO.has(a.status));
+    // Algum em conversa ativa no WhatsApp?
+    const temWhatsapp = agOrd.some(a => a.status === 'falando_whatsapp');
+
+    // ===== DERIVAÇÃO DA ETAPA (prioridade de cima pra baixo) =====
+    // Temperatura "puxa" o card — força o consultor a classificar a agenda.
     let etapa;
     if (vendida) {
       etapa = 'vendido';
-    } else if (statusAg && CRM_STATUS_PERDIDO.has(statusAg)) {
+    } else if (temPerdido) {
       etapa = 'perdido';
-    } else if (
-      (statusAg && CRM_STATUS_NEGOCIA.has(statusAg)) ||
-      (c.props.length && (c.acessou || agFuturo))
-    ) {
-      etapa = 'negociacao';
+    } else if (c.temperatura === 'quente') {
+      etapa = 'quente';
+    } else if (c.temperatura === 'morno') {
+      etapa = 'morno';
+    } else if (c.temperatura === 'frio') {
+      etapa = 'frio';
+    } else if (temWhatsapp) {
+      etapa = 'whatsapp';
+    } else if (c.props.length && c.acessou) {
+      etapa = 'abriu';
     } else if (c.props.length) {
-      etapa = 'proposta';
-    } else if (agFuturo || c.agends.length) {
-      etapa = 'agendado';
+      etapa = 'nao_abriu';
     } else {
-      etapa = 'novo';
+      // só agenda/lead, sem proposta ainda
+      etapa = 'agendado';
     }
     c.etapa = etapa;
 
@@ -4706,7 +4722,7 @@ function crmFiltrados() {
 }
 
 // Ordem das colunas do kanban (funil). Perdido por último.
-const CRM_KANBAN_ORDEM = ['novo', 'agendado', 'proposta', 'negociacao', 'vendido', 'perdido'];
+const CRM_KANBAN_ORDEM = ['agendado', 'nao_abriu', 'abriu', 'whatsapp', 'frio', 'morno', 'quente', 'vendido', 'perdido'];
 
 function renderCRM() {
   const board = document.getElementById('crm-kanban');
@@ -4719,16 +4735,20 @@ function renderCRM() {
   if (kpiBox) {
     const cont = (et) => baseKpi.filter(c => c.etapa === et).length;
     const total = baseKpi.length;
-    const ativos = baseKpi.filter(c => c.etapa !== 'vendido' && c.etapa !== 'perdido').length;
+    const fechados = new Set(['vendido', 'perdido']);
+    const ativos = baseKpi.filter(c => !fechados.has(c.etapa)).length;
+    // "Precisa organizar": tem proposta/agenda mas sem temperatura nem conversa ativa
+    const semClassif = baseKpi.filter(c => ['agendado', 'nao_abriu', 'abriu'].includes(c.etapa)).length;
     const vendidos = cont('vendido');
     const pipeline = baseKpi
-      .filter(c => c.etapa !== 'vendido' && c.etapa !== 'perdido')
+      .filter(c => !fechados.has(c.etapa))
       .reduce((s, c) => s + Number(c.valor || 0), 0);
     const kpi = (lbl, val, cls) => `<div class="crm-kpi ${cls || ''}"><div class="crm-kpi-val">${val}</div><div class="crm-kpi-lbl">${lbl}</div></div>`;
     kpiBox.innerHTML =
       kpi('Clientes', total) +
       kpi('Em aberto', ativos, 'azul') +
-      kpi('Negociação', cont('negociacao'), 'laranja') +
+      kpi('Quentes', cont('quente'), 'laranja') +
+      kpi('A organizar', semClassif, 'roxo') +
       kpi('Vendidos', vendidos, 'verde') +
       kpi('Pipeline', 'R$ ' + Math.round(pipeline).toLocaleString('pt-BR'), 'roxo');
   }
