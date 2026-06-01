@@ -1,13 +1,15 @@
 name: Sync Leads Meta (Instagram → Agenda)
 
-# A cada 15 minutos: puxa novos Lead Ads da página Irmãos na Obra,
+# A cada 10 minutos: puxa novos Lead Ads da página Irmãos na Obra,
 # distribui no rodízio Thiago→Diego→Nilce e cria card na agenda.
 # Também dispara as mensagens da agenda (confirmação/1h/5min) — garantia
 # de execução mesmo se o workflow process-messages.yml (5min) ainda não ativou.
 # Flags no banco impedem envio duplicado, então rodar os dois é seguro.
+# Obs: o cron do GitHub Actions não é pontual (atrasa e pode pular ticks em
+# horário de pico) — */10 é "no máximo a cada ~10min", não garantido.
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
