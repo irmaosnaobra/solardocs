@@ -34,30 +34,35 @@ function montarHtml(a: ComporArgs): string {
   const vendasTxt = a.vendas && a.vendas > 0 ? `🔥 ${Number(a.vendas).toLocaleString('pt-BR')} vendidos` : '';
   const precoTxt = a.preco ? esc(a.preco) : '';
   const descTxt = a.desconto ? `${esc(a.desconto)} OFF` : '';
+  const bg = esc(a.imagemBaseUrl);
   return `<!doctype html><html><head><meta charset="utf-8"><style>
   *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter','Helvetica Neue',Arial,sans-serif}
   html,body{width:1080px;height:1920px;overflow:hidden}
-  .wrap{position:relative;width:1080px;height:1920px;background:#0e0f11}
-  .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-  .grad-top{position:absolute;top:0;left:0;right:0;height:520px;background:linear-gradient(180deg,rgba(0,0,0,.78),rgba(0,0,0,0))}
-  .grad-bot{position:absolute;bottom:0;left:0;right:0;height:680px;background:linear-gradient(0deg,rgba(0,0,0,.86),rgba(0,0,0,0))}
-  .gancho{position:absolute;top:70px;left:60px;right:60px;color:#fff;font-size:74px;line-height:1.08;font-weight:800;text-shadow:0 4px 24px rgba(0,0,0,.5);letter-spacing:-1px}
-  .badges{position:absolute;bottom:430px;left:60px;right:60px;display:flex;gap:18px;flex-wrap:wrap}
-  .badge{background:rgba(255,255,255,.16);backdrop-filter:blur(8px);border:2px solid rgba(255,255,255,.3);color:#fff;font-size:40px;font-weight:700;padding:16px 30px;border-radius:18px}
+  .wrap{position:relative;width:1080px;height:1920px;background:#0e0f11;overflow:hidden}
+  /* a foto do produto raramente é 9:16 — fundo blur preenche, foto inteira no centro */
+  .blur{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(44px) brightness(.55);transform:scale(1.12)}
+  .fg{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);width:100%;max-height:1180px;object-fit:contain}
+  .grad-top{position:absolute;top:0;left:0;right:0;height:480px;background:linear-gradient(180deg,rgba(0,0,0,.82),rgba(0,0,0,0))}
+  .grad-bot{position:absolute;bottom:0;left:0;right:0;height:780px;background:linear-gradient(0deg,rgba(0,0,0,.92),rgba(0,0,0,.4) 55%,rgba(0,0,0,0))}
+  .gancho{position:absolute;top:64px;left:60px;right:60px;color:#fff;font-size:72px;line-height:1.08;font-weight:800;text-shadow:0 4px 24px rgba(0,0,0,.6);letter-spacing:-1px}
+  /* bloco inferior coeso: badges → preço → CTA empilhados, sem sobreposição */
+  .bottom{position:absolute;bottom:80px;left:60px;right:60px;display:flex;flex-direction:column;gap:22px}
+  .badges{display:flex;gap:18px;flex-wrap:wrap}
+  .badge{background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.35);color:#fff;font-size:38px;font-weight:700;padding:14px 28px;border-radius:16px}
   .badge.off{background:#10b981;border-color:#10b981}
-  .preco{position:absolute;bottom:300px;left:60px;color:#fff;font-size:96px;font-weight:900;text-shadow:0 4px 24px rgba(0,0,0,.6)}
-  .cta{position:absolute;bottom:90px;left:60px;right:60px;background:#f5a623;color:#1a1206;font-size:56px;font-weight:900;text-align:center;padding:38px;border-radius:26px;box-shadow:0 10px 40px rgba(245,166,35,.4)}
+  .preco{color:#fff;font-size:104px;font-weight:900;line-height:1;text-shadow:0 4px 24px rgba(0,0,0,.7)}
+  .cta{background:#f5a623;color:#1a1206;font-size:52px;font-weight:900;text-align:center;padding:36px;border-radius:24px;box-shadow:0 10px 40px rgba(245,166,35,.45);line-height:1.12}
   </style></head><body>
   <div class="wrap">
-    <img class="bg" src="${esc(a.imagemBaseUrl)}" crossorigin="anonymous">
+    <img class="blur" src="${bg}" crossorigin="anonymous">
+    <img class="fg" src="${bg}" crossorigin="anonymous">
     <div class="grad-top"></div><div class="grad-bot"></div>
     ${a.gancho ? `<div class="gancho">${esc(a.gancho)}</div>` : ''}
-    <div class="badges">
-      ${vendasTxt ? `<div class="badge">${vendasTxt}</div>` : ''}
-      ${descTxt ? `<div class="badge off">${descTxt}</div>` : ''}
+    <div class="bottom">
+      ${(vendasTxt || descTxt) ? `<div class="badges">${vendasTxt ? `<div class="badge">${vendasTxt}</div>` : ''}${descTxt ? `<div class="badge off">${descTxt}</div>` : ''}</div>` : ''}
+      ${precoTxt ? `<div class="preco">${precoTxt}</div>` : ''}
+      ${a.cta ? `<div class="cta">${esc(a.cta)}</div>` : ''}
     </div>
-    ${precoTxt ? `<div class="preco">${precoTxt}</div>` : ''}
-    ${a.cta ? `<div class="cta">${esc(a.cta)}</div>` : ''}
   </div></body></html>`;
 }
 

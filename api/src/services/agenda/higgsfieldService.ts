@@ -54,33 +54,39 @@ async function uploadParaHiggsfield(srcUrl: string): Promise<string | null> {
 
 interface DispararArgs { prompt: string; imagemUrl: string | null; rowId: number; }
 
-// modela o criativo: Soul image-to-image ancorado na foto do produto. Grava o
-// request_id e marca 'gerando'. Degradação honesta sem HF_KEY.
+// Soul image-to-image OPCIONAL (default OFF): pra produto de afiliado, o Soul
+// ALUCINA o produto (gera item errado + texto-lixo), o que é fatal — a foto real
+// do TikTok Shop (modelo usando o produto) é melhor e correta. Então por padrão
+// modelamos = foto original do produto + overlay da copy (compositor). Soul só
+// entra se HF_USE_SOUL=1 (experimental).
+const USE_SOUL = process.env.HF_USE_SOUL === '1';
+
+// modela o criativo do anúncio: imagem do produto + overlay da copy (gancho/preço/
+// CTA/vendas) via compositor. Síncrono, grátis, produto correto. (Soul opcional.)
 export async function modelarCriativoProduto({ prompt, imagemUrl, rowId }: DispararArgs): Promise<{ ok: boolean; motivo?: string; requestId?: string }> {
+  if (!imagemUrl) {
+    await supabaseGerador.from('social_studio').update({ video_status: 'erro' }).eq('id', rowId);
+    return { ok: false, motivo: 'sem_imagem' };
+  }
+
+  // caminho padrão: compõe direto sobre a foto do produto (sem IA de imagem).
+  if (!USE_SOUL) {
+    await supabaseGerador.from('social_studio').update({ video_status: 'compondo' }).eq('id', rowId);
+    const novo = await comporEFinalizecar(rowId, imagemUrl);
+    return { ok: novo === 'pronto', motivo: novo === 'pronto' ? undefined : 'composicao_falhou' };
+  }
+
+  // caminho experimental (Soul i2i) — só se HF_USE_SOUL=1 e tiver key.
   if (!temHiggsfield()) {
     await supabaseGerador.from('social_studio').update({ video_status: 'aguardando_config' }).eq('id', rowId);
     return { ok: false, motivo: 'sem_hf_key' };
   }
-
-  // prompt de CENA (sem texto — o texto é overlay depois). Reaproveita o prompt já
-  // gerado e reforça "anúncio de produto e-commerce, sem texto na imagem".
-  const cena = `${prompt}\n\nProduct advertising scene, e-commerce / TikTok Shop style, clean studio or lifestyle background, premium lighting, vertical 9:16, NO text or watermark in the image, leave clean space top and bottom for captions.`;
-
-  // a foto do produto precisa estar no CDN do Higgsfield pra virar image_reference.
-  let refUrl: string | null = null;
-  if (imagemUrl) refUrl = await uploadParaHiggsfield(imagemUrl);
-
+  const cena = `${prompt}\n\nProduct advertising scene, e-commerce / TikTok Shop style, clean background, premium lighting, vertical 9:16, NO text or watermark in the image.`;
+  const refUrl = await uploadParaHiggsfield(imagemUrl);
   const body: Record<string, any> = { prompt: cena };
-  if (refUrl) {
-    body.image_reference = { type: 'image_url', image_url: refUrl };
-    body.image_reference_strength = HF_REF_STRENGTH;
-  }
-
+  if (refUrl) { body.image_reference = { type: 'image_url', image_url: refUrl }; body.image_reference_strength = HF_REF_STRENGTH; }
   try {
-    const r = await fetch(`${BASE}/${HF_SOUL}`, {
-      method: 'POST', headers: { ...AUTH(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const r = await fetch(`${BASE}/${HF_SOUL}`, { method: 'POST', headers: { ...AUTH(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) {
       const t = await r.text().catch(() => '');
       logger.warn('higgsfield', `soul submit HTTP ${r.status}`, { rowId, body: t.slice(0, 300) });
@@ -89,12 +95,9 @@ export async function modelarCriativoProduto({ prompt, imagemUrl, rowId }: Dispa
     }
     const j = await r.json() as any;
     const requestId = j?.request_id || j?.id || null;
-    await supabaseGerador.from('social_studio')
-      .update({ hf_request_id: requestId, video_status: 'gerando' }).eq('id', rowId);
-    logger.info('higgsfield', 'criativo de produto disparado (soul)', { rowId, requestId });
+    await supabaseGerador.from('social_studio').update({ hf_request_id: requestId, video_status: 'gerando' }).eq('id', rowId);
     return { ok: true, requestId };
   } catch (e: any) {
-    logger.warn('higgsfield', 'falha no submit soul', { rowId, err: String(e?.message || e) });
     await supabaseGerador.from('social_studio').update({ video_status: 'erro' }).eq('id', rowId);
     return { ok: false, motivo: 'exception' };
   }
