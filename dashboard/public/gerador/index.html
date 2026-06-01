@@ -4702,6 +4702,9 @@ function crmUnificar(props, agends, leads) {
     const agRecente = agOrd[0] || null;
     const agFuturo = agOrd.find(a => stamp(a.quando) >= agora && !CRM_STATUS_PERDIDO.has(a.status)) || null;
     const statusAg = agRecente ? agRecente.status : null;
+    // O consultor do card = quem vai ATENDER. O agendamento mais recente manda
+    // (uma transferência na agenda reflete na hora); proposta/lead são só fallback.
+    if (agRecente && agRecente.vendedor_nome) c.consultor = agRecente.vendedor_nome;
     // id do agendamento mais recente — usado pelo botão "Reagendar" do card.
     c.agId = agRecente ? agRecente.id : null;
     c.temperatura = (agOrd.find(a => a.temperatura) || {}).temperatura || null;
