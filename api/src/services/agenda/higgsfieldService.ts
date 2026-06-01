@@ -22,6 +22,20 @@ const BASE = 'https://platform.higgsfield.ai';
 const HF_KEY = process.env.HF_KEY || '';
 const HF_SOUL = process.env.HF_SOUL || 'higgsfield-ai/soul/standard';
 const HF_REF_STRENGTH = Number(process.env.HF_REF_STRENGTH || '0.45'); // 0=ignora ref, 1=copia
+// modelo de vídeo image-to-video (anima o criativo). Kling v2.1 pro — VALIDADO.
+const HF_VIDEO = process.env.HF_VIDEO || 'kling-video/v2.1/pro/image-to-video';
+// animar é sob demanda (botão "Animar"), NÃO automático — gasta crédito só no que
+// o Thiago escolher postar (decisão 2026-05-31). HF_AUTO_VIDEO=1 liga o auto se quiser.
+const AUTO_VIDEO = process.env.HF_AUTO_VIDEO === '1';
+// duração do vídeo = tempo de ler a narração (gancho+corpo+CTA), arredondado pro que
+// o Kling suporta. Kling v2.1 honra 5 e 10 (validado: duration:10 → 10.04s).
+function duracaoNarracao(textos: string[]): number {
+  const palavras = textos.filter(Boolean).join(' ').trim().split(/\s+/).filter(Boolean).length;
+  const seg = palavras / 2.5; // ~2.5 palavras/seg de locução PT-BR
+  return seg > 7 ? 10 : 5;     // arredonda pro enum suportado
+}
+// prompt de movimento: câmera TRAVADA (sem zoom/pan) pra o texto não sair do quadro.
+const VIDEO_PROMPT = 'Locked-off static camera, NO zoom, NO pan, NO camera movement. Only the person/product and fabric move subtly in place. Keep the full frame and all on-screen text exactly fixed and fully visible.';
 
 export function temHiggsfield(): boolean {
   return !!HF_KEY;
@@ -115,8 +129,8 @@ function extrairStatus(p: any): string {
   return String(p?.status || p?.state || '').toLowerCase();
 }
 
-// após o Soul completar, compõe o texto por cima e finaliza a linha.
-// Se a composição falhar, cai pra 'pronto' com a imagem-base (degradação honesta).
+// após o Soul completar, compõe o texto por cima → PNG do criativo. Depois, se
+// AUTO_VIDEO, dispara a animação (Kling). Se composição falhar, cai pra imagem-base.
 async function comporEFinalizecar(rowId: number, imagemBaseUrl: string): Promise<string> {
   await supabaseGerador.from('social_studio').update({ video_status: 'compondo' }).eq('id', rowId);
   const { data: rows } = await supabaseGerador.from('social_studio')
@@ -127,9 +141,66 @@ async function comporEFinalizecar(rowId: number, imagemBaseUrl: string): Promise
     imagemBaseUrl, gancho: row?.gancho, cta: row?.cta,
     preco: pm.preco, vendas: pm.vendas, desconto: pm.desconto, rowId,
   });
-  const url = final || imagemBaseUrl; // fallback: imagem sem overlay
-  await supabaseGerador.from('social_studio').update({ video_status: 'pronto', video_url: url }).eq('id', rowId);
+  const pngUrl = final || imagemBaseUrl; // fallback: imagem sem overlay
+  // guarda o PNG do criativo em imagem_url (fica como fallback se o vídeo falhar)
+  await supabaseGerador.from('social_studio').update({ imagem_url: pngUrl, video_url: pngUrl }).eq('id', rowId);
+
+  // anima o criativo → vídeo (decisão Thiago: automático). Best-effort.
+  if (AUTO_VIDEO && temHiggsfield()) {
+    const v = await animarCriativo(rowId, pngUrl);
+    if (v.ok) return 'animando'; // reconcile pega o mp4 quando o Kling terminar
+  }
+  // sem vídeo (auto off / sem key / falha ao disparar): pronto com a imagem
+  await supabaseGerador.from('social_studio').update({ video_status: 'pronto', video_url: pngUrl }).eq('id', rowId);
   return 'pronto';
+}
+
+// anima o PNG do criativo via Kling (image-to-video, câmera travada). Duração =
+// tempo de ler a narração (gancho+roteiro+cta). Sobe o PNG pro cloudfront e dispara.
+async function animarCriativo(rowId: number, pngUrl: string): Promise<{ ok: boolean }> {
+  try {
+    // duração derivada da narração que o Thiago vai falar por cima
+    const { data: rows } = await supabaseGerador.from('social_studio')
+      .select('gancho, roteiro, cta').eq('id', rowId).limit(1);
+    const row = rows?.[0] as any;
+    const dur = duracaoNarracao([row?.gancho, row?.roteiro, row?.cta]);
+
+    const ref = await uploadParaHiggsfield(pngUrl);
+    if (!ref) return { ok: false };
+    const r = await fetch(`${BASE}/${HF_VIDEO}`, {
+      method: 'POST', headers: { ...AUTH(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_url: ref, prompt: VIDEO_PROMPT, duration: dur }),
+    });
+    if (!r.ok) { logger.warn('higgsfield', `kling submit HTTP ${r.status}`, { rowId }); return { ok: false }; }
+    const j = await r.json() as any;
+    const vid = j?.request_id || j?.id || null;
+    if (!vid) return { ok: false };
+    await supabaseGerador.from('social_studio')
+      .update({ hf_video_request_id: vid, video_status: 'animando' }).eq('id', rowId);
+    logger.info('higgsfield', 'criativo enviado pra animar (kling)', { rowId, vid, dur });
+    return { ok: true };
+  } catch (e: any) {
+    logger.warn('higgsfield', 'falha ao animar', { rowId, err: String(e?.message || e) });
+    return { ok: false };
+  }
+}
+
+// botão "Animar criativo": dispara a animação de uma linha que já tem imagem pronta.
+// Sob demanda — gasta 1 crédito Kling só quando o Thiago clica.
+export async function animarProduto(rowId: number): Promise<{ ok: boolean; motivo?: string }> {
+  if (!temHiggsfield()) return { ok: false, motivo: 'sem_hf_key' };
+  const { data: rows } = await supabaseGerador.from('social_studio')
+    .select('id, imagem_url, video_url, canal').eq('id', rowId).limit(1);
+  const row = rows?.[0] as any;
+  if (!row || row.canal !== 'produtos') return { ok: false, motivo: 'linha_invalida' };
+  const png = row.imagem_url || row.video_url; // imagem do criativo (PNG)
+  if (!png || /\.mp4($|\?)/.test(png)) return { ok: false, motivo: 'sem_imagem' };
+  const v = await animarCriativo(rowId, png);
+  return { ok: v.ok, motivo: v.ok ? undefined : 'falha_animar' };
+}
+
+function extrairVideoUrl(p: any): string | null {
+  return p?.video?.url || p?.videos?.[0]?.url || p?.output?.url || p?.url || null;
 }
 
 // mapeia status do Soul → estado da linha. Em 'completed' com imagem, dispara composição.
@@ -158,20 +229,42 @@ export async function processarWebhook(payload: any): Promise<{ ok: boolean; row
   return { ok: true, rowId: row.id };
 }
 
-// RECONCILE (caminho principal): GET status do Soul (grátis) → ao completar, compõe.
+// RECONCILE (caminho principal): poll dos jobs do Higgsfield (grátis) e avança o estado.
+// Fluxo: gerando(soul, se usar) → compondo → animando(kling) → pronto(mp4).
 export async function reconciliarStatusProduto(rowId: number): Promise<{ ok: boolean; video_status?: string; video_url?: string | null }> {
   const { data: rows } = await supabaseGerador.from('social_studio')
-    .select('id, hf_request_id, video_status, video_url, canal').eq('id', rowId).limit(1);
+    .select('id, hf_request_id, hf_video_request_id, imagem_url, video_status, video_url, canal').eq('id', rowId).limit(1);
   const row = rows?.[0] as any;
   if (!row || row.canal !== 'produtos') return { ok: false };
   if (row.video_status === 'pronto' || row.video_status === 'erro') {
     return { ok: true, video_status: row.video_status, video_url: row.video_url };
   }
-  // 'compondo' = Soul já terminou, composição em andamento/falha — não reconsulta a IA.
-  if (row.video_status === 'compondo') return { ok: true, video_status: 'compondo' };
-  if (!row.hf_request_id || !temHiggsfield()) return { ok: false };
+  if (!temHiggsfield()) return { ok: false };
 
   try {
+    // ESTADO 'animando': poll do job de vídeo (Kling) → ao completar grava o MP4.
+    if (row.video_status === 'animando') {
+      if (!row.hf_video_request_id) return { ok: true, video_status: 'animando' };
+      const r = await fetch(`${BASE}/requests/${encodeURIComponent(row.hf_video_request_id)}/status`, { headers: AUTH() });
+      if (!r.ok) return { ok: false };
+      const j = await r.json() as any;
+      const st = extrairStatus(j);
+      const vurl = extrairVideoUrl(j);
+      if (st === 'completed' && vurl) {
+        await supabaseGerador.from('social_studio').update({ video_status: 'pronto', video_url: vurl }).eq('id', rowId);
+        return { ok: true, video_status: 'pronto', video_url: vurl };
+      }
+      if (st === 'failed' || st === 'nsfw' || st === 'canceled' || st === 'error') {
+        // vídeo falhou → entrega a IMAGEM do criativo (degradação honesta)
+        await supabaseGerador.from('social_studio').update({ video_status: 'pronto', video_url: row.imagem_url || row.video_url }).eq('id', rowId);
+        return { ok: true, video_status: 'pronto', video_url: row.imagem_url || row.video_url };
+      }
+      return { ok: true, video_status: 'animando' };
+    }
+    // 'compondo' = composição síncrona em curso/falha — não reconsulta IA.
+    if (row.video_status === 'compondo') return { ok: true, video_status: 'compondo' };
+    // ESTADO 'gerando' (só se usar Soul): poll do job de imagem → ao completar, compõe.
+    if (!row.hf_request_id) return { ok: false };
     const r = await fetch(`${BASE}/requests/${encodeURIComponent(row.hf_request_id)}/status`, { headers: AUTH() });
     if (!r.ok) { logger.warn('higgsfield', `status HTTP ${r.status}`, { rowId }); return { ok: false }; }
     const j = await r.json() as any;

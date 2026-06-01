@@ -4,7 +4,7 @@ import { trackEvent } from '../controllers/trackingGeradorController';
 import { gerarIdeiasSociais, roteirizarTema, roteirizarUpload } from '../services/agenda/socialIdeiasService';
 import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStudioStubs';
 import { gerarProdutosVirais, redispararVideoProduto } from '../services/agenda/produtosViraisService';
-import { processarWebhook, reconciliarStatusProduto } from '../services/agenda/higgsfieldService';
+import { processarWebhook, reconciliarStatusProduto, animarProduto } from '../services/agenda/higgsfieldService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -107,6 +107,20 @@ router.post('/social/produto-status', async (req: Request, res: Response) => {
     res.json(r);
   } catch (err: any) {
     logger.error('gerador', 'produto-status falhou', err);
+    res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
+  }
+});
+
+// Anima o criativo (imagem→vídeo Kling) de uma linha de produto — botão "Animar".
+// Sob demanda: gasta crédito só quando o Thiago clica. Duração = tempo da narração.
+router.post('/social/produto-animar', async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.body?.id);
+    if (!id) return res.status(400).json({ error: 'id obrigatório' });
+    const r = await animarProduto(id);
+    res.json(r);
+  } catch (err: any) {
+    logger.error('gerador', 'produto-animar falhou', err);
     res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
   }
 });
