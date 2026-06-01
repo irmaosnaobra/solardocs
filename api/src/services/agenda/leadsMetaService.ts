@@ -12,6 +12,13 @@ const CONSULTORES_RODIZIO = ['Thiago', 'Diego', 'Nilce'];
 const HORA_INI = 8;   // agenda abre 08:00
 const HORA_FIM = 20;  // fecha 20:00
 
+// Normaliza uma hora pra dentro do expediente [HORA_INI, HORA_FIM].
+function clampHora(h: number): number {
+  if (h < HORA_INI) return HORA_INI;
+  if (h > HORA_FIM) return HORA_FIM;
+  return h;
+}
+
 // Extrai a hora preferida (início da faixa) de qualquer formato de texto:
 // "08 a 10", "Manhã (09h às 11h)", "Após 18", "13 a 15" → 8, 9, 18, 13
 function horaDaFaixa(txt: string): number {
@@ -29,6 +36,30 @@ function horaDaFaixa(txt: string): number {
   if (t.includes('tarde')) return 14;
   if (t.includes('noite') || t.includes('após') || t.includes('apos')) return 18;
   return HORA_INI;
+}
+
+// Extrai o FIM da faixa de horário (último número), pra decidir se a janela
+// ainda está aberta hoje. "15h às 18h"→18, "08 a 10"→10, "13 a 15"→15.
+// Faixa de número único / palavra-chave / vazia → fim do expediente (HORA_FIM),
+// pq não há limite superior explícito do que o lead aceita.
+function horaFimDaFaixa(txt: string): number {
+  if (!txt) return HORA_FIM;
+  const t = txt.toLowerCase();
+  // todos os números do texto (em ordem) — o último é o fim da janela
+  const nums = (t.match(/\d{1,2}/g) || []).map(n => parseInt(n, 10));
+  if (nums.length >= 2) return clampHora(nums[nums.length - 1]);
+  if (nums.length === 1) {
+    // único número: "após 18" / "a partir das 13" → janela aberta até o fim
+    if (t.includes('após') || t.includes('apos') || t.includes('partir')) return HORA_FIM;
+    // "até as 11" → o número é o teto
+    if (t.includes('até') || t.includes('ate')) return clampHora(nums[0]);
+    // número solto (ex: "16") → faixa de ~1h a partir dele
+    return clampHora(nums[0] + 1);
+  }
+  if (t.includes('manh')) return 12;
+  if (t.includes('tarde')) return 18;
+  if (t.includes('noite')) return HORA_FIM;
+  return HORA_FIM;
 }
 
 interface FieldItem { name: string; values: string[]; }
@@ -71,6 +102,16 @@ function normalizarCidade(s: string): string {
 // ou fora da lista (ex: "Udi" = Uberlândia), o DDD garante o agendamento.
 // 34 = Triângulo/Alto Paranaíba, 64 = Sudoeste de GO, 16 = Ribeirão Preto/Franca-SP.
 const DDDS_AREA = new Set(['34', '64', '16']);
+
+// Padroniza celular BR → 55 + DDD + 9 + 8 dígitos (13). Mantém como veio se não
+// for celular reconhecível (fixo/curto). Mesma regra do front (agenda/CRM).
+function normalizeTelBR(raw: string): string {
+  let d = (raw || '').replace(/\D/g, '');
+  if (d.startsWith('55') && d.length >= 12) d = d.slice(2);
+  if (d.length === 11) return '55' + d;
+  if (d.length === 10 && '6789'.includes(d[2])) return '55' + d.slice(0, 2) + '9' + d.slice(2);
+  return (raw || '').replace(/\D/g, '');
+}
 
 // Extrai o DDD de um whatsapp brasileiro (só dígitos). Tolera com/sem 55.
 // "553491949201" → "34"; "5564999413671" → "64"; "34999..." → "34"
@@ -205,14 +246,27 @@ async function slotLivreConsultor(consultor: string, base: { y: number; m: numbe
   return spDate(base.y, base.m, base.d, HORA_INI, 0);
 }
 
-// Data-base (dia + hora preferida) em SP a partir da faixa do lead
+// Data-base (dia + hora preferida) em SP a partir da faixa do lead.
+//
+// Regra: agenda DENTRO da janela pedida sempre que ela ainda estiver aberta hoje.
+// O lead pode estar com o celular na mão — quanto antes contatar, melhor.
+//   chegou 14h, faixa 15-18 → hoje, base 15h  (janela ainda não abriu)
+//   chegou 16h, faixa 15-18 → hoje, base 16h  (no meio da janela → "já liga")
+//   chegou 18:01, faixa 15-18 → amanhã, base 15h  (janela fechou)
+// A precisão de minutos ("chegou 15:10 → marca 15:15") sai de graça do
+// slotLivreConsultor, que pula slots já no passado na grade de 15min.
 function dataBaseDaFaixa(faixa: string): { y: number; m: number; d: number; h: number } {
-  const horaPref = horaDaFaixa(faixa);
+  const horaIni = horaDaFaixa(faixa);
+  const horaFim = horaFimDaFaixa(faixa);
   const n = nowSP();
-  // "mesmo dia se der tempo": se a hora preferida de hoje (SP) ainda não passou, usa hoje; senão amanhã
-  if (horaPref > n.h) return { y: n.y, m: n.m, d: n.d, h: horaPref };
+  // janela ainda aberta hoje? (n.h < fim da faixa) → agenda hoje
+  if (n.h < horaFim) {
+    // base = início da faixa, ou agora se já estamos dentro dela
+    return { y: n.y, m: n.m, d: n.d, h: Math.max(horaIni, n.h) };
+  }
+  // janela fechou hoje → amanhã no início da faixa
   const prox = proximoDia(n.y, n.m, n.d);
-  return { ...prox, h: horaPref };
+  return { ...prox, h: horaIni };
 }
 
 function montarObservacao(fields: FieldItem[]): string {
@@ -244,9 +298,22 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
 
   let maxCreated = cutoffUnix;
 
+  // Junta os leads de TODOS os forms num array só e ordena por chegada
+  // (created_time ascendente). Crítico pro rodízio: a Graph API devolve os
+  // leads de cada form em ordem decrescente (mais novo 1º) e processamos um
+  // form por vez — sem reordenar, o rodízio Thiago→Diego→Nilce é atribuído
+  // fora da ordem de chegada e embaralha na tela. Ordena por epoch (não string).
+  const todosLeads: Array<{ lead: RawLead; formId: string }> = [];
   for (const formId of forms) {
     const leads = await fetchLeadsSince(formId, pageToken, cutoffUnix);
-    for (const lead of leads) {
+    for (const lead of leads) todosLeads.push({ lead, formId });
+  }
+  todosLeads.sort(
+    (a, b) => new Date(a.lead.created_time).getTime() - new Date(b.lead.created_time).getTime(),
+  );
+
+  {
+    for (const { lead, formId } of todosLeads) {
       try {
         const createdUnix = Math.floor(new Date(lead.created_time).getTime() / 1000);
         if (createdUnix > maxCreated) maxCreated = createdUnix;
@@ -258,7 +325,7 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
 
         const fields = lead.field_data || [];
         const nome = fieldVal(fields, 'first_name', 'full_name') || 'Lead Instagram';
-        const whatsapp = fieldVal(fields, 'whatsapp_number', 'phone_number').replace(/[^\d]/g, '');
+        const whatsapp = normalizeTelBR(fieldVal(fields, 'whatsapp_number', 'phone_number'));
         const email = fieldVal(fields, 'email');
         const cidade = fieldVal(fields, 'city');
         const faixa = fieldContains(fields, 'horário', 'horario', 'hoario');
