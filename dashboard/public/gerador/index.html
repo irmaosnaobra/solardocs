@@ -46,16 +46,60 @@ html[data-mode="login"] .sb-mobile-toggle{display:none!important}
 html[data-mode="app"].historico-aberto #app-sidebar,
 html[data-mode="app"].tabelas-aberta #app-sidebar,
 html[data-mode="app"].redes-aberto #app-sidebar,
+html[data-mode="app"].crm-aberto #app-sidebar,
 html[data-mode="app"].leads-aberto #app-sidebar{display:none!important}
 html[data-mode="app"].historico-aberto .sb-mobile-toggle,
 html[data-mode="app"].tabelas-aberta .sb-mobile-toggle,
 html[data-mode="app"].redes-aberto .sb-mobile-toggle,
+html[data-mode="app"].crm-aberto .sb-mobile-toggle,
 html[data-mode="app"].leads-aberto .sb-mobile-toggle{display:none!important}
 html[data-mode="app"].historico-aberto .container,
 html[data-mode="app"].tabelas-aberta .container,
 html[data-mode="app"].redes-aberto .container,
+html[data-mode="app"].crm-aberto .container,
 html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
+/* ===== CRM ===== */
+.crm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px}
+.crm-kpi{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 12px;text-align:center}
+.crm-kpi-val{font-size:24px;font-weight:800;color:#fff;line-height:1.1}
+.crm-kpi-lbl{font-size:12px;font-weight:600;color:#94A3B8;margin-top:4px;text-transform:uppercase;letter-spacing:.4px}
+.crm-kpi.azul .crm-kpi-val{color:#60A5FA}
+.crm-kpi.laranja .crm-kpi-val{color:#FB923C}
+.crm-kpi.verde .crm-kpi-val{color:#34D399}
+.crm-kpi.roxo .crm-kpi-val{color:#A78BFA}
+.crm-filtro-linha{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.crm-filtro-lbl{font-size:12px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;min-width:74px}
+.crm-chips{display:flex;gap:6px;flex-wrap:wrap}
+.crm-chip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.crm-chip:hover{background:rgba(255,255,255,.1);color:#fff}
+.crm-chip.ativo{background:#3B82F6;border-color:#3B82F6;color:#fff}
+.crm-busca-wrap{display:flex;gap:8px;margin:14px 0 4px}
+.crm-busca{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;font-family:inherit}
+.crm-busca::placeholder{color:#7c8aa3}
+.crm-busca:focus{outline:none;border-color:#3B82F6}
+.crm-reload{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#cbd5e1;width:42px;border-radius:10px;font-size:18px;cursor:pointer}
+.crm-reload:hover{background:rgba(255,255,255,.12);color:#fff}
+.crm-tabela td{vertical-align:middle}
+.crm-cli-nome{font-weight:700;color:#fff;display:flex;align-items:center;gap:6px}
+.crm-cli-tel{font-size:12px;color:#94A3B8;margin-top:2px}
+.crm-etapa{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.crm-etapa-novo{background:rgba(148,163,184,.18);color:#cbd5e1}
+.crm-etapa-agendado{background:rgba(96,165,250,.18);color:#93C5FD}
+.crm-etapa-proposta{background:rgba(167,139,250,.18);color:#C4B5FD}
+.crm-etapa-negociacao{background:rgba(251,146,60,.2);color:#FDBA74}
+.crm-etapa-vendido{background:rgba(52,211,153,.2);color:#6EE7B7}
+.crm-etapa-perdido{background:rgba(248,113,113,.18);color:#FCA5A5}
+.crm-temp{font-size:13px}
+.crm-origem-tag{display:inline-block;background:rgba(255,255,255,.07);color:#94A3B8;font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;margin:1px 2px 1px 0}
+.crm-acoes{display:flex;gap:6px}
+.crm-act{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;font-size:15px;cursor:pointer;text-decoration:none;font-family:inherit}
+.crm-act:hover{background:rgba(255,255,255,.14);color:#fff}
+.crm-act-wpp:hover{background:rgba(37,211,102,.22);border-color:rgba(37,211,102,.5)}
+@media(max-width:640px){
+  .crm-filtro-lbl{min-width:auto;width:100%}
+  .crm-kpi-val{font-size:20px}
+}
 /* ===== Cockpit Redes ===== */
 /* sub-abas Destaques | Criação */
 .redes-subnav{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:0}
@@ -402,7 +446,7 @@ html[data-mode="app"] .container > #historicoSection{
   html[data-mode="app"] .container{margin-left:0;padding:0 16px}
   #app-sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.5)}
   #app-sidebar.aberta{transform:translateX(0)}
-  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.redes-aberto) .sb-mobile-toggle{
+  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.redes-aberto):not(.crm-aberto) .sb-mobile-toggle{
     display:flex!important;align-items:center;justify-content:center;
     position:fixed;top:14px;left:14px;z-index:950;width:44px;height:44px;
     border-radius:12px;border:1px solid rgba(255,255,255,.12);
@@ -564,6 +608,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   </button>
   <div class="sb-nav">
     <button type="button" class="sb-item" id="nav-gerador" onclick="navGerador()"><span class="sb-ic">⚡</span> Gerar proposta</button>
+    <button type="button" class="sb-item" id="nav-crm" onclick="navCRM()"><span class="sb-ic">🗂️</span> CRM</button>
     <button type="button" class="sb-item" id="nav-historico" onclick="navHistorico()"><span class="sb-ic">📋</span> Histórico</button>
     <button type="button" class="sb-item" id="nav-leads" onclick="navLeads()"><span class="sb-ic">📱</span> Leads</button>
     <button type="button" class="sb-item" id="nav-redes" onclick="navRedes()"><span class="sb-ic">📈</span> Redes</button>
@@ -1345,6 +1390,62 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </thead>
           <tbody id="leads-tbody">
             <tr><td colspan="11" class="historico-vazio">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= TELA CRM (clientes unificados: propostas + agenda + leads) ============= -->
+  <div id="crmSection" style="display:none;">
+    <div class="header">
+      <div class="header-titulo">
+        <h1>🗂️ CRM</h1>
+      </div>
+      <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
+    </div>
+
+    <div class="card">
+      <div class="leads-info">
+        Todo cliente que chega — de proposta, da agenda ou de anúncio — aparece aqui, unificado por WhatsApp. A etapa é calculada sozinha conforme o histórico e a agenda se atualizam.
+      </div>
+
+      <!-- KPIs -->
+      <div class="crm-kpis" id="crm-kpis"></div>
+
+      <!-- Filtro por consultor -->
+      <div class="crm-filtro-linha">
+        <span class="crm-filtro-lbl">Consultor</span>
+        <div class="crm-chips" id="crm-chips-consultor"></div>
+      </div>
+      <!-- Filtro por etapa -->
+      <div class="crm-filtro-linha">
+        <span class="crm-filtro-lbl">Etapa</span>
+        <div class="crm-chips" id="crm-chips-etapa"></div>
+      </div>
+      <!-- Busca -->
+      <div class="crm-busca-wrap">
+        <input type="text" id="crm-busca" class="crm-busca" placeholder="🔎 Buscar por nome, telefone ou cidade…" oninput="renderCRM()">
+        <button class="crm-reload" onclick="carregarCRM(true)" title="Atualizar">↻</button>
+      </div>
+
+      <div class="historico-tabela-wrap">
+        <table class="historico-tabela crm-tabela">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Etapa</th>
+              <th>Consultor</th>
+              <th>Cidade</th>
+              <th>Valor</th>
+              <th>Agendado p/</th>
+              <th>Origem</th>
+              <th>Última atividade</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="crm-tbody">
+            <tr><td colspan="9" class="historico-vazio">Carregando…</td></tr>
           </tbody>
         </table>
       </div>
@@ -3550,11 +3651,11 @@ function marcarNavAtivo(id) {
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
-  ['historicoSection', 'tabelasSection', 'leadsSection', 'redesSection'].forEach(id => {
+  ['historicoSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto');
   document.getElementById('formSection').style.display = '';
   marcarNavAtivo('nav-gerador');
   fecharSidebarMobile();
@@ -4375,6 +4476,308 @@ function voltarDosLeads() {
   document.getElementById('formSection').style.display = '';
   document.documentElement.classList.remove('leads-aberto');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============= TELA CRM (clientes unificados) =============
+// Junta propostas + agendamentos + leads_meta num cliente único por WhatsApp.
+// A etapa do funil é DERIVADA do estado das 3 fontes — atualiza sozinha
+// conforme histórico e agenda mudam. Read-only por enquanto.
+
+// Etapas, em ordem do funil. Quanto maior o peso, mais "avançado".
+const CRM_ETAPAS = {
+  novo:        { lbl: 'Novo lead',   ic: '🆕', peso: 1 },
+  agendado:    { lbl: 'Agendado',    ic: '📅', peso: 2 },
+  proposta:    { lbl: 'Proposta',    ic: '📄', peso: 3 },
+  negociacao:  { lbl: 'Negociação',  ic: '🔥', peso: 4 },
+  vendido:     { lbl: 'Vendido',     ic: '✅', peso: 6 },
+  perdido:     { lbl: 'Perdido',     ic: '❌', peso: 0 }
+};
+// Status de agendamento que contam como "perdido"
+const CRM_STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse']);
+// Status de agendamento que indicam negociação ativa
+const CRM_STATUS_NEGOCIA = new Set(['falando_whatsapp', 'fez_orcamento']);
+
+let crmClientes = [];          // lista unificada já processada
+let crmFiltroConsultor = '__todos__';
+let crmFiltroEtapa = '__todas__';
+let crmCarregado = false;
+
+// Normaliza telefone p/ chave de merge: só dígitos, tira 55 do início,
+// usa DDD + últimos 8 (ignora o 9º dígito que varia entre fontes).
+function crmTelKey(raw) {
+  let d = String(raw || '').replace(/\D/g, '');
+  d = d.replace(/^55/, '');
+  if (d.length < 10) return null;
+  const ddd = d.slice(0, 2);
+  const ult8 = d.slice(-8);
+  return ddd + ult8;
+}
+
+// Telefone "bonito" pra exibir / wa.me (sempre com 55).
+function crmTelBonito(raw) {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (!d.startsWith('55')) d = '55' + d;
+  return d;
+}
+
+function navCRM() {
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  const sec = document.getElementById('crmSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('crm-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto');
+  marcarNavAtivo('nav-crm');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (!crmCarregado) carregarCRM();
+}
+
+async function carregarCRM(forcar) {
+  const tbody = document.getElementById('crm-tbody');
+  if (!tbody) return;
+  if (forcar || !crmCarregado) {
+    tbody.innerHTML = '<tr><td colspan="9" class="historico-vazio">Carregando…</td></tr>';
+  }
+  let props = [], agends = [], leads = [];
+  try {
+    [props, agends, leads] = await Promise.all([
+      supaGet('propostas?select=codigo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
+      supaGet('agendamentos?select=cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,created_at&order=quando.desc&limit=1000'),
+      supaGet('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc&limit=1000')
+    ]);
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="9" class="historico-vazio">Erro ao carregar: ${escapeHtml(e.message || '')}</td></tr>`;
+    return;
+  }
+  crmClientes = crmUnificar(props, agends, leads);
+  crmCarregado = true;
+  crmRenderFiltros();
+  renderCRM();
+}
+
+// Junta as 3 fontes num mapa por chave de telefone (ou nome quando sem telefone).
+function crmUnificar(props, agends, leads) {
+  const mapa = new Map();
+  // Prioridade da fonte do nome (menor = mais confiável). Proposta tem o nome
+  // digitado pelo consultor; agendamento às vezes é uma nota de tarefa ("Entrar
+  // em contato com fulano…"), então fica por último.
+  const ensure = (key, nome, prioNome) => {
+    if (!mapa.has(key)) {
+      mapa.set(key, {
+        key, nome: '', nomePrio: 99, tel: '', cidade: '', consultor: '',
+        props: [], agends: [], leads: [],
+        ultAtiv: 0, origem: new Set()
+      });
+    }
+    const c = mapa.get(key);
+    const nm = (nome || '').trim();
+    // Aceita o nome se vier de fonte mais confiável, ou (mesma fonte) se o atual
+    // estiver vazio. Ignora "nomes" muito longos (provável nota de tarefa).
+    if (nm && nm.length <= 40 && (prioNome < c.nomePrio || !c.nome)) {
+      c.nome = nm; c.nomePrio = prioNome;
+    } else if (nm && !c.nome) {
+      c.nome = nm; c.nomePrio = prioNome; // fallback: melhor um nome longo que nenhum
+    }
+    return c;
+  };
+  const stamp = (iso) => iso ? new Date(iso).getTime() : 0;
+
+  // 1) Propostas
+  for (const p of (props || [])) {
+    const d = p.dados || {};
+    const telRaw = d.telefoneDigitos || d.telefone || '';
+    const key = crmTelKey(telRaw) || ('nm:' + (p.cliente_nome || '').trim().toLowerCase() + '|' + (p.cliente_cidade || '').trim().toLowerCase());
+    const c = ensure(key, p.cliente_nome, 1);
+    if (!c.tel && telRaw) c.tel = crmTelBonito(telRaw);
+    if (!c.cidade && p.cliente_cidade) c.cidade = p.cliente_cidade + (p.cliente_uf ? '/' + p.cliente_uf : '');
+    if (!c.consultor && p.consultor_nome) c.consultor = p.consultor_nome;
+    c.props.push(p);
+    c.origem.add('Proposta');
+    c.ultAtiv = Math.max(c.ultAtiv, stamp(p.created_at), stamp(p.vendido_em));
+  }
+
+  // 2) Agendamentos
+  for (const a of (agends || [])) {
+    const key = crmTelKey(a.cliente_telefone) || ('nm:' + (a.cliente_nome || '').trim().toLowerCase());
+    const c = ensure(key, a.cliente_nome, 3);
+    if (!c.tel && a.cliente_telefone) c.tel = crmTelBonito(a.cliente_telefone);
+    if (!c.cidade && a.cidade) c.cidade = a.cidade;
+    if (!c.consultor && a.vendedor_nome) c.consultor = a.vendedor_nome;
+    c.agends.push(a);
+    c.origem.add('Agenda');
+    // "Última atividade" = quando o agendamento foi criado (passado), NÃO o
+    // horário marcado (quando), que é futuro e tem coluna própria.
+    c.ultAtiv = Math.max(c.ultAtiv, stamp(a.created_at));
+  }
+
+  // 3) Leads Meta
+  for (const l of (leads || [])) {
+    const key = crmTelKey(l.whatsapp) || ('nm:' + (l.nome || '').trim().toLowerCase());
+    const c = ensure(key, l.nome, 2);
+    if (!c.tel && l.whatsapp) c.tel = crmTelBonito(l.whatsapp);
+    if (!c.cidade && l.cidade) c.cidade = l.cidade;
+    if (!c.consultor && l.consultor) c.consultor = l.consultor;
+    c.leads.push(l);
+    c.origem.add('Anúncio');
+    c.ultAtiv = Math.max(c.ultAtiv, stamp(l.created_time));
+  }
+
+  // Deriva etapa, valor, agendamento futuro e temperatura por cliente
+  const agora = Date.now();
+  const out = [];
+  for (const c of mapa.values()) {
+    c.origem = Array.from(c.origem);
+
+    // Venda?
+    const vendida = c.props.find(p => p.vendido);
+    // Agendamento mais recente (já vem ordenado, mas garantimos)
+    const agOrd = [...c.agends].sort((x, y) => stamp(y.quando) - stamp(x.quando));
+    const agRecente = agOrd[0] || null;
+    const agFuturo = agOrd.find(a => stamp(a.quando) >= agora && !CRM_STATUS_PERDIDO.has(a.status)) || null;
+    const statusAg = agRecente ? agRecente.status : null;
+    c.temperatura = (agOrd.find(a => a.temperatura) || {}).temperatura || null;
+
+    // Valor: venda fechada > preço à vista da proposta mais recente
+    let valor = 0;
+    if (vendida && vendida.valor_vendido != null) valor = Number(vendida.valor_vendido);
+    else {
+      const pComPreco = c.props.find(p => p.dados && (p.dados.precoVista || p.dados.precoOrcamento));
+      if (pComPreco) valor = Number(pComPreco.dados.precoVista || pComPreco.dados.precoOrcamento || 0);
+    }
+    c.valor = valor;
+
+    // Proposta mais recente (pra abrir / código)
+    c.propRecente = c.props.length
+      ? [...c.props].sort((x, y) => stamp(y.created_at) - stamp(x.created_at))[0]
+      : null;
+    c.acessou = c.props.some(p => Number(p.acessos || 0) > 0);
+
+    // Agendamento futuro formatado
+    c.agFuturo = agFuturo ? agFuturo.quando : null;
+
+    // ===== DERIVAÇÃO DA ETAPA =====
+    let etapa;
+    if (vendida) {
+      etapa = 'vendido';
+    } else if (statusAg && CRM_STATUS_PERDIDO.has(statusAg)) {
+      etapa = 'perdido';
+    } else if (
+      (statusAg && CRM_STATUS_NEGOCIA.has(statusAg)) ||
+      (c.props.length && (c.acessou || agFuturo))
+    ) {
+      etapa = 'negociacao';
+    } else if (c.props.length) {
+      etapa = 'proposta';
+    } else if (agFuturo || c.agends.length) {
+      etapa = 'agendado';
+    } else {
+      etapa = 'novo';
+    }
+    c.etapa = etapa;
+
+    out.push(c);
+  }
+
+  // Ordena por atividade mais recente
+  out.sort((a, b) => b.ultAtiv - a.ultAtiv);
+  return out;
+}
+
+function crmRenderFiltros() {
+  // Consultores presentes nos dados (união real, sem hardcode)
+  const setC = new Set();
+  crmClientes.forEach(c => { if (c.consultor) setC.add(c.consultor); });
+  const consultores = Array.from(setC).sort();
+
+  const wrapC = document.getElementById('crm-chips-consultor');
+  if (wrapC) {
+    const chip = (val, lbl) => `<button type="button" class="crm-chip ${crmFiltroConsultor === val ? 'ativo' : ''}" onclick="crmSetConsultor('${val.replace(/'/g, "\\'")}')">${escapeHtml(lbl)}</button>`;
+    wrapC.innerHTML = chip('__todos__', 'Geral') + consultores.map(c => chip(c, c)).join('');
+  }
+
+  const wrapE = document.getElementById('crm-chips-etapa');
+  if (wrapE) {
+    const chipE = (val, lbl) => `<button type="button" class="crm-chip ${crmFiltroEtapa === val ? 'ativo' : ''}" onclick="crmSetEtapa('${val}')">${lbl}</button>`;
+    let html = chipE('__todas__', 'Todas');
+    Object.entries(CRM_ETAPAS).forEach(([k, v]) => { html += chipE(k, `${v.ic} ${v.lbl}`); });
+    wrapE.innerHTML = html;
+  }
+}
+
+function crmSetConsultor(v) { crmFiltroConsultor = v; crmRenderFiltros(); renderCRM(); }
+function crmSetEtapa(v) { crmFiltroEtapa = v; crmRenderFiltros(); renderCRM(); }
+
+function crmFiltrados() {
+  const busca = (document.getElementById('crm-busca')?.value || '').trim().toLowerCase();
+  return crmClientes.filter(c => {
+    if (crmFiltroConsultor !== '__todos__' && c.consultor !== crmFiltroConsultor) return false;
+    if (crmFiltroEtapa !== '__todas__' && c.etapa !== crmFiltroEtapa) return false;
+    if (busca) {
+      const alvo = `${c.nome} ${c.tel} ${c.cidade}`.toLowerCase();
+      if (!alvo.includes(busca)) return false;
+    }
+    return true;
+  });
+}
+
+function renderCRM() {
+  const tbody = document.getElementById('crm-tbody');
+  if (!tbody) return;
+  const lista = crmFiltrados();
+
+  // ===== KPIs (sobre o conjunto filtrado por consultor, ignorando etapa/busca) =====
+  const baseKpi = crmClientes.filter(c => crmFiltroConsultor === '__todos__' || c.consultor === crmFiltroConsultor);
+  const kpiBox = document.getElementById('crm-kpis');
+  if (kpiBox) {
+    const cont = (et) => baseKpi.filter(c => c.etapa === et).length;
+    const total = baseKpi.length;
+    const ativos = baseKpi.filter(c => c.etapa !== 'vendido' && c.etapa !== 'perdido').length;
+    const vendidos = cont('vendido');
+    const pipeline = baseKpi
+      .filter(c => c.etapa !== 'vendido' && c.etapa !== 'perdido')
+      .reduce((s, c) => s + Number(c.valor || 0), 0);
+    const kpi = (lbl, val, cls) => `<div class="crm-kpi ${cls || ''}"><div class="crm-kpi-val">${val}</div><div class="crm-kpi-lbl">${lbl}</div></div>`;
+    kpiBox.innerHTML =
+      kpi('Clientes', total) +
+      kpi('Em aberto', ativos, 'azul') +
+      kpi('Negociação', cont('negociacao'), 'laranja') +
+      kpi('Vendidos', vendidos, 'verde') +
+      kpi('Pipeline', 'R$ ' + Math.round(pipeline).toLocaleString('pt-BR'), 'roxo');
+  }
+
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="historico-vazio">Nenhum cliente neste filtro.</td></tr>';
+    return;
+  }
+
+  const p2 = n => String(n).padStart(2, '0');
+  const dataCurta = (val) => { if (!val) return '—'; const d = new Date(val); if (isNaN(d.getTime())) return '—'; return `${p2(d.getDate())}/${p2(d.getMonth()+1)} ${p2(d.getHours())}h${p2(d.getMinutes())}`; };
+  const tempBadge = (t) => t ? `<span class="crm-temp crm-temp-${t}" title="Temperatura: ${t}">${t === 'quente' ? '🔥' : t === 'morno' ? '🌤️' : '❄️'}</span>` : '';
+
+  tbody.innerHTML = lista.map(c => {
+    const et = CRM_ETAPAS[c.etapa] || CRM_ETAPAS.novo;
+    const etBadge = `<span class="crm-etapa crm-etapa-${c.etapa}">${et.ic} ${et.lbl}</span>`;
+    const valorTxt = c.valor ? 'R$ ' + Math.round(c.valor).toLocaleString('pt-BR') : '—';
+    const origemTxt = (c.origem || []).map(o => `<span class="crm-origem-tag">${o}</span>`).join('');
+    const wpp = c.tel ? `<a class="crm-act crm-act-wpp" href="https://wa.me/${c.tel}" target="_blank" rel="noopener" title="Abrir WhatsApp">💬</a>` : '';
+    const verProp = c.propRecente
+      ? `<button class="crm-act" onclick="abrirProposta('${escapeHtml(c.propRecente.codigo)}')" title="Abrir proposta ${escapeHtml(c.propRecente.codigo)}">📄</button>`
+      : '';
+    const agTxt = c.agFuturo ? dataCurta(c.agFuturo) : '—';
+    return `<tr>
+      <td><div class="crm-cli-nome">${escapeHtml(c.nome || '—')} ${tempBadge(c.temperatura)}</div>${c.tel ? `<div class="crm-cli-tel">${escapeHtml(c.tel)}</div>` : ''}</td>
+      <td>${etBadge}</td>
+      <td>${escapeHtml(c.consultor || '—')}</td>
+      <td>${escapeHtml(c.cidade || '—')}</td>
+      <td>${valorTxt}</td>
+      <td>${agTxt}</td>
+      <td>${origemTxt || '—'}</td>
+      <td>${dataCurta(c.ultAtiv)}</td>
+      <td><div class="crm-acoes">${wpp}${verProp}</div></td>
+    </tr>`;
+  }).join('');
 }
 
 function leadCampo(fd, ...termos) {
