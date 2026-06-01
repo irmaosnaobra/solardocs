@@ -59,9 +59,10 @@ html[data-mode="app"].redes-aberto .container,
 html[data-mode="app"].crm-aberto .container,
 html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
-/* ===== CRM ===== */
+/* ===== CRM (sempre dark — força fundo escuro como o cockpit Redes) ===== */
+#crmSection .card{background:#1E293B!important;color:#E5E7EB!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 4px 16px rgba(0,0,0,.25)!important}
 .crm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px}
-.crm-kpi{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 12px;text-align:center}
+.crm-kpi{background:#0f1a2e;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 12px;text-align:center}
 .crm-kpi-val{font-size:24px;font-weight:800;color:#fff;line-height:1.1}
 .crm-kpi-lbl{font-size:12px;font-weight:600;color:#94A3B8;margin-top:4px;text-transform:uppercase;letter-spacing:.4px}
 .crm-kpi.azul .crm-kpi-val{color:#60A5FA}
@@ -71,34 +72,48 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .crm-filtro-linha{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
 .crm-filtro-lbl{font-size:12px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;min-width:74px}
 .crm-chips{display:flex;gap:6px;flex-wrap:wrap}
-.crm-chip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
-.crm-chip:hover{background:rgba(255,255,255,.1);color:#fff}
+.crm-chip{background:#0f1a2e;border:1px solid rgba(255,255,255,.12);color:#cbd5e1;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.crm-chip:hover{background:#1c2c47;color:#fff}
 .crm-chip.ativo{background:#3B82F6;border-color:#3B82F6;color:#fff}
-.crm-busca-wrap{display:flex;gap:8px;margin:14px 0 4px}
-.crm-busca{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;font-family:inherit}
+.crm-busca-wrap{display:flex;gap:8px;margin:14px 0 18px}
+.crm-busca{flex:1;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;font-family:inherit}
 .crm-busca::placeholder{color:#7c8aa3}
 .crm-busca:focus{outline:none;border-color:#3B82F6}
-.crm-reload{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#cbd5e1;width:42px;border-radius:10px;font-size:18px;cursor:pointer}
-.crm-reload:hover{background:rgba(255,255,255,.12);color:#fff}
-.crm-tabela td{vertical-align:middle}
-.crm-cli-nome{font-weight:700;color:#fff;display:flex;align-items:center;gap:6px}
-.crm-cli-tel{font-size:12px;color:#94A3B8;margin-top:2px}
-.crm-etapa{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
-.crm-etapa-novo{background:rgba(148,163,184,.18);color:#cbd5e1}
-.crm-etapa-agendado{background:rgba(96,165,250,.18);color:#93C5FD}
-.crm-etapa-proposta{background:rgba(167,139,250,.18);color:#C4B5FD}
-.crm-etapa-negociacao{background:rgba(251,146,60,.2);color:#FDBA74}
-.crm-etapa-vendido{background:rgba(52,211,153,.2);color:#6EE7B7}
-.crm-etapa-perdido{background:rgba(248,113,113,.18);color:#FCA5A5}
-.crm-temp{font-size:13px}
-.crm-origem-tag{display:inline-block;background:rgba(255,255,255,.07);color:#94A3B8;font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;margin:1px 2px 1px 0}
-.crm-acoes{display:flex;gap:6px}
-.crm-act{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;font-size:15px;cursor:pointer;text-decoration:none;font-family:inherit}
-.crm-act:hover{background:rgba(255,255,255,.14);color:#fff}
+.crm-reload{background:#0f1a2e;border:1px solid rgba(255,255,255,.14);color:#cbd5e1;width:42px;border-radius:10px;font-size:18px;cursor:pointer}
+.crm-reload:hover{background:#1c2c47;color:#fff}
+/* Board kanban: rola na horizontal; cada coluna rola na vertical */
+.crm-kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+.crm-col{flex:0 0 260px;width:260px;background:#0f1a2e;border:1px solid rgba(255,255,255,.08);border-radius:14px;display:flex;flex-direction:column;max-height:72vh}
+.crm-col-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0}
+.crm-col-tit{font-size:13px;font-weight:800;color:#fff;letter-spacing:.2px}
+.crm-col-qt{font-size:12px;font-weight:700;color:#cbd5e1;background:rgba(255,255,255,.1);border-radius:999px;padding:2px 9px;min-width:24px;text-align:center}
+.crm-col-body{padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.crm-col-vazia{color:#64748b;text-align:center;padding:18px 0;font-size:13px}
+/* faixa de cor no topo de cada coluna por etapa */
+.crm-col-novo .crm-col-head{box-shadow:inset 0 3px 0 #94A3B8}
+.crm-col-agendado .crm-col-head{box-shadow:inset 0 3px 0 #60A5FA}
+.crm-col-proposta .crm-col-head{box-shadow:inset 0 3px 0 #A78BFA}
+.crm-col-negociacao .crm-col-head{box-shadow:inset 0 3px 0 #FB923C}
+.crm-col-vendido .crm-col-head{box-shadow:inset 0 3px 0 #34D399}
+.crm-col-perdido .crm-col-head{box-shadow:inset 0 3px 0 #F87171}
+/* card de cliente */
+.crm-card{background:#1c2c47;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
+.crm-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+.crm-card-nome{font-size:14px;font-weight:700;color:#fff;line-height:1.25;word-break:break-word}
+.crm-card-meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:#94A3B8}
+.crm-card-cons{color:#cbd5e1;font-weight:600}
+.crm-card-cid,.crm-card-ag{color:#94A3B8}
+.crm-card-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:1px}
+.crm-card-val{font-size:14px;font-weight:800;color:#6EE7B7}
+.crm-card-acoes{display:flex;gap:5px;margin-left:auto}
+.crm-temp{font-size:14px;flex-shrink:0}
+.crm-act{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;font-size:14px;cursor:pointer;text-decoration:none;font-family:inherit}
+.crm-act:hover{background:rgba(255,255,255,.16);color:#fff}
 .crm-act-wpp:hover{background:rgba(37,211,102,.22);border-color:rgba(37,211,102,.5)}
 @media(max-width:640px){
   .crm-filtro-lbl{min-width:auto;width:100%}
   .crm-kpi-val{font-size:20px}
+  .crm-col{flex-basis:82vw;width:82vw}
 }
 /* ===== Cockpit Redes ===== */
 /* sub-abas Destaques | Criação */
@@ -1418,36 +1433,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <span class="crm-filtro-lbl">Consultor</span>
         <div class="crm-chips" id="crm-chips-consultor"></div>
       </div>
-      <!-- Filtro por etapa -->
-      <div class="crm-filtro-linha">
-        <span class="crm-filtro-lbl">Etapa</span>
-        <div class="crm-chips" id="crm-chips-etapa"></div>
-      </div>
       <!-- Busca -->
       <div class="crm-busca-wrap">
         <input type="text" id="crm-busca" class="crm-busca" placeholder="🔎 Buscar por nome, telefone ou cidade…" oninput="renderCRM()">
         <button class="crm-reload" onclick="carregarCRM(true)" title="Atualizar">↻</button>
       </div>
 
-      <div class="historico-tabela-wrap">
-        <table class="historico-tabela crm-tabela">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Etapa</th>
-              <th>Consultor</th>
-              <th>Cidade</th>
-              <th>Valor</th>
-              <th>Agendado p/</th>
-              <th>Origem</th>
-              <th>Última atividade</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="crm-tbody">
-            <tr><td colspan="9" class="historico-vazio">Carregando…</td></tr>
-          </tbody>
-        </table>
+      <!-- Kanban: uma coluna por etapa do funil -->
+      <div class="crm-kanban" id="crm-kanban">
+        <div class="historico-vazio" style="padding:40px">Carregando…</div>
       </div>
     </div>
   </div>
@@ -4499,7 +4493,6 @@ const CRM_STATUS_NEGOCIA = new Set(['falando_whatsapp', 'fez_orcamento']);
 
 let crmClientes = [];          // lista unificada já processada
 let crmFiltroConsultor = '__todos__';
-let crmFiltroEtapa = '__todas__';
 let crmCarregado = false;
 
 // Normaliza telefone p/ chave de merge: só dígitos, tira 55 do início,
@@ -4535,10 +4528,10 @@ function navCRM() {
 }
 
 async function carregarCRM(forcar) {
-  const tbody = document.getElementById('crm-tbody');
-  if (!tbody) return;
+  const board = document.getElementById('crm-kanban');
+  if (!board) return;
   if (forcar || !crmCarregado) {
-    tbody.innerHTML = '<tr><td colspan="9" class="historico-vazio">Carregando…</td></tr>';
+    board.innerHTML = '<div class="historico-vazio" style="padding:40px">Carregando…</div>';
   }
   let props = [], agends = [], leads = [];
   try {
@@ -4548,7 +4541,7 @@ async function carregarCRM(forcar) {
       supaGet('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc&limit=1000')
     ]);
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="9" class="historico-vazio">Erro ao carregar: ${escapeHtml(e.message || '')}</td></tr>`;
+    board.innerHTML = `<div class="historico-vazio" style="padding:40px">Erro ao carregar: ${escapeHtml(e.message || '')}</div>`;
     return;
   }
   crmClientes = crmUnificar(props, agends, leads);
@@ -4696,24 +4689,14 @@ function crmRenderFiltros() {
     const chip = (val, lbl) => `<button type="button" class="crm-chip ${crmFiltroConsultor === val ? 'ativo' : ''}" onclick="crmSetConsultor('${val.replace(/'/g, "\\'")}')">${escapeHtml(lbl)}</button>`;
     wrapC.innerHTML = chip('__todos__', 'Geral') + consultores.map(c => chip(c, c)).join('');
   }
-
-  const wrapE = document.getElementById('crm-chips-etapa');
-  if (wrapE) {
-    const chipE = (val, lbl) => `<button type="button" class="crm-chip ${crmFiltroEtapa === val ? 'ativo' : ''}" onclick="crmSetEtapa('${val}')">${lbl}</button>`;
-    let html = chipE('__todas__', 'Todas');
-    Object.entries(CRM_ETAPAS).forEach(([k, v]) => { html += chipE(k, `${v.ic} ${v.lbl}`); });
-    wrapE.innerHTML = html;
-  }
 }
 
 function crmSetConsultor(v) { crmFiltroConsultor = v; crmRenderFiltros(); renderCRM(); }
-function crmSetEtapa(v) { crmFiltroEtapa = v; crmRenderFiltros(); renderCRM(); }
 
 function crmFiltrados() {
   const busca = (document.getElementById('crm-busca')?.value || '').trim().toLowerCase();
   return crmClientes.filter(c => {
     if (crmFiltroConsultor !== '__todos__' && c.consultor !== crmFiltroConsultor) return false;
-    if (crmFiltroEtapa !== '__todas__' && c.etapa !== crmFiltroEtapa) return false;
     if (busca) {
       const alvo = `${c.nome} ${c.tel} ${c.cidade}`.toLowerCase();
       if (!alvo.includes(busca)) return false;
@@ -4722,12 +4705,15 @@ function crmFiltrados() {
   });
 }
 
+// Ordem das colunas do kanban (funil). Perdido por último.
+const CRM_KANBAN_ORDEM = ['novo', 'agendado', 'proposta', 'negociacao', 'vendido', 'perdido'];
+
 function renderCRM() {
-  const tbody = document.getElementById('crm-tbody');
-  if (!tbody) return;
+  const board = document.getElementById('crm-kanban');
+  if (!board) return;
   const lista = crmFiltrados();
 
-  // ===== KPIs (sobre o conjunto filtrado por consultor, ignorando etapa/busca) =====
+  // ===== KPIs (sobre o conjunto filtrado por consultor, ignorando a busca) =====
   const baseKpi = crmClientes.filter(c => crmFiltroConsultor === '__todos__' || c.consultor === crmFiltroConsultor);
   const kpiBox = document.getElementById('crm-kpis');
   if (kpiBox) {
@@ -4747,36 +4733,51 @@ function renderCRM() {
       kpi('Pipeline', 'R$ ' + Math.round(pipeline).toLocaleString('pt-BR'), 'roxo');
   }
 
-  if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="historico-vazio">Nenhum cliente neste filtro.</td></tr>';
-    return;
-  }
-
   const p2 = n => String(n).padStart(2, '0');
-  const dataCurta = (val) => { if (!val) return '—'; const d = new Date(val); if (isNaN(d.getTime())) return '—'; return `${p2(d.getDate())}/${p2(d.getMonth()+1)} ${p2(d.getHours())}h${p2(d.getMinutes())}`; };
+  const dataCurta = (val) => { if (!val) return ''; const d = new Date(val); if (isNaN(d.getTime())) return ''; return `${p2(d.getDate())}/${p2(d.getMonth()+1)} ${p2(d.getHours())}h${p2(d.getMinutes())}`; };
   const tempBadge = (t) => t ? `<span class="crm-temp crm-temp-${t}" title="Temperatura: ${t}">${t === 'quente' ? '🔥' : t === 'morno' ? '🌤️' : '❄️'}</span>` : '';
 
-  tbody.innerHTML = lista.map(c => {
-    const et = CRM_ETAPAS[c.etapa] || CRM_ETAPAS.novo;
-    const etBadge = `<span class="crm-etapa crm-etapa-${c.etapa}">${et.ic} ${et.lbl}</span>`;
-    const valorTxt = c.valor ? 'R$ ' + Math.round(c.valor).toLocaleString('pt-BR') : '—';
-    const origemTxt = (c.origem || []).map(o => `<span class="crm-origem-tag">${o}</span>`).join('');
-    const wpp = c.tel ? `<a class="crm-act crm-act-wpp" href="https://wa.me/${c.tel}" target="_blank" rel="noopener" title="Abrir WhatsApp">💬</a>` : '';
+  // Agrupa por etapa
+  const porEtapa = {};
+  CRM_KANBAN_ORDEM.forEach(k => { porEtapa[k] = []; });
+  lista.forEach(c => { (porEtapa[c.etapa] || (porEtapa[c.etapa] = [])).push(c); });
+
+  // Monta um card compacto de cliente
+  const card = (c) => {
+    const valorTxt = c.valor ? '<span class="crm-card-val">R$ ' + Math.round(c.valor).toLocaleString('pt-BR') + '</span>' : '';
+    const wpp = c.tel ? `<a class="crm-act crm-act-wpp" href="https://wa.me/${c.tel}" target="_blank" rel="noopener" title="WhatsApp" onclick="event.stopPropagation()">💬</a>` : '';
     const verProp = c.propRecente
-      ? `<button class="crm-act" onclick="abrirProposta('${escapeHtml(c.propRecente.codigo)}')" title="Abrir proposta ${escapeHtml(c.propRecente.codigo)}">📄</button>`
+      ? `<button class="crm-act" onclick="event.stopPropagation();abrirProposta('${escapeHtml(c.propRecente.codigo)}')" title="Abrir proposta ${escapeHtml(c.propRecente.codigo)}">📄</button>`
       : '';
-    const agTxt = c.agFuturo ? dataCurta(c.agFuturo) : '—';
-    return `<tr>
-      <td><div class="crm-cli-nome">${escapeHtml(c.nome || '—')} ${tempBadge(c.temperatura)}</div>${c.tel ? `<div class="crm-cli-tel">${escapeHtml(c.tel)}</div>` : ''}</td>
-      <td>${etBadge}</td>
-      <td>${escapeHtml(c.consultor || '—')}</td>
-      <td>${escapeHtml(c.cidade || '—')}</td>
-      <td>${valorTxt}</td>
-      <td>${agTxt}</td>
-      <td>${origemTxt || '—'}</td>
-      <td>${dataCurta(c.ultAtiv)}</td>
-      <td><div class="crm-acoes">${wpp}${verProp}</div></td>
-    </tr>`;
+    const linhaCidade = c.cidade ? `<span class="crm-card-cid">📍 ${escapeHtml(c.cidade)}</span>` : '';
+    const linhaAg = c.agFuturo ? `<span class="crm-card-ag">📅 ${dataCurta(c.agFuturo)}</span>` : '';
+    const cons = c.consultor ? `<span class="crm-card-cons">${escapeHtml(c.consultor)}</span>` : '';
+    return `<div class="crm-card">
+      <div class="crm-card-top">
+        <span class="crm-card-nome">${escapeHtml(c.nome || '—')}</span>
+        ${tempBadge(c.temperatura)}
+      </div>
+      <div class="crm-card-meta">${cons}${linhaCidade}${linhaAg}</div>
+      <div class="crm-card-foot">
+        ${valorTxt}
+        <span class="crm-card-acoes">${wpp}${verProp}</span>
+      </div>
+    </div>`;
+  };
+
+  board.innerHTML = CRM_KANBAN_ORDEM.map(etKey => {
+    const et = CRM_ETAPAS[etKey];
+    const cards = porEtapa[etKey] || [];
+    const corpo = cards.length
+      ? cards.map(card).join('')
+      : '<div class="crm-col-vazia">—</div>';
+    return `<div class="crm-col crm-col-${etKey}">
+      <div class="crm-col-head">
+        <span class="crm-col-tit">${et.ic} ${et.lbl}</span>
+        <span class="crm-col-qt">${cards.length}</span>
+      </div>
+      <div class="crm-col-body">${corpo}</div>
+    </div>`;
   }).join('');
 }
 
