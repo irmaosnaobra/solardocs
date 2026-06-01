@@ -454,7 +454,9 @@ html[data-mode="app"] .container > #historicoSection{
   background:transparent;color:#c3cce0;font-family:inherit;font-size:14px;font-weight:600;
   cursor:pointer;transition:background .15s,color .15s,border-color .15s;
 }
-.sb-item .sb-ic{font-size:17px;width:20px;text-align:center;flex-shrink:0}
+.sb-item .sb-ic{width:20px;height:20px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
+.sb-item .sb-ic svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none;opacity:.85}
+.sb-item:hover .sb-ic svg,.sb-item.ativo .sb-ic svg{opacity:1}
 .sb-item:hover{background:rgba(255,255,255,.06);color:#fff}
 .sb-item.ativo{
   background:linear-gradient(135deg,rgba(37,99,235,.35),rgba(245,158,11,.18));
@@ -630,13 +632,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <span class="sb-name">Irmãos na Obra<small>Gerador solar</small></span>
   </button>
   <div class="sb-nav">
-    <button type="button" class="sb-item" id="nav-gerador" onclick="navGerador()"><span class="sb-ic">⚡</span> Gerar proposta</button>
-    <button type="button" class="sb-item" id="nav-crm" onclick="navCRM()"><span class="sb-ic">🗂️</span> CRM</button>
-    <button type="button" class="sb-item" id="nav-historico" onclick="navHistorico()"><span class="sb-ic">📋</span> Histórico</button>
-    <button type="button" class="sb-item" id="nav-leads" onclick="navLeads()"><span class="sb-ic">📱</span> Leads</button>
-    <button type="button" class="sb-item" id="nav-redes" onclick="navRedes()"><span class="sb-ic">📈</span> Redes</button>
-    <button type="button" class="sb-item" id="nav-tabelas" onclick="navTabelas()"><span class="sb-ic">📊</span> Tabelas</button>
-    <button type="button" class="sb-item" id="nav-agenda" onclick="location.href='/gerador/agenda'"><span class="sb-ic">📅</span> Agenda</button>
+    <button type="button" class="sb-item" id="nav-gerador" onclick="navGerador()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span> Gerar proposta</button>
+    <button type="button" class="sb-item" id="nav-agenda" onclick="location.href='/gerador/agenda'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span> Agenda</button>
+    <button type="button" class="sb-item" id="nav-crm" onclick="navCRM()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg></span> CRM</button>
+    <button type="button" class="sb-item" id="nav-historico" onclick="navHistorico()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg></span> Histórico</button>
+    <button type="button" class="sb-item" id="nav-leads" onclick="navLeads()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span> Leads</button>
+    <button type="button" class="sb-item" id="nav-redes" onclick="navRedes()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg></span> Redes</button>
+    <button type="button" class="sb-item" id="nav-tabelas" onclick="navTabelas()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span> Tabelas</button>
   </div>
   <div class="sb-spacer"></div>
   <div class="sb-foot">
