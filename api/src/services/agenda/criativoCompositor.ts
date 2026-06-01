@@ -32,7 +32,8 @@ function esc(s: any): string {
 // HTML 9:16 (1080x1920) com a imagem de fundo + overlays de texto estilo TikTok Shop.
 function montarHtml(a: ComporArgs): string {
   const vendasTxt = a.vendas && a.vendas > 0 ? `🔥 ${Number(a.vendas).toLocaleString('pt-BR')} vendidos` : '';
-  const precoTxt = a.preco ? esc(a.preco) : '';
+  // normaliza preço pro padrão BR: "R$ 71.01" → "R$ 71,01" (SociaVault às vezes manda ponto)
+  const precoTxt = a.preco ? esc(String(a.preco).replace(/(\d)\.(\d{2})(\D|$)/, '$1,$2$3')) : '';
   const descTxt = a.desconto ? `${esc(a.desconto)} OFF` : '';
   const bg = esc(a.imagemBaseUrl);
   return `<!doctype html><html><head><meta charset="utf-8"><style>
