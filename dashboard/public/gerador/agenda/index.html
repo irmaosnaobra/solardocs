@@ -1619,26 +1619,39 @@ function fecharReagendar() {
   document.getElementById('d-btn-reagendar').style.display = '';
 }
 async function salvarReagendamento() {
-  if (!detalheAtual) return;
+  const erroEl = document.getElementById('d-erro');
+  if (erroEl) erroEl.textContent = '';
+  if (!detalheAtual) { if (erroEl) erroEl.textContent = 'Nenhum agendamento selecionado.'; return; }
+  // Sem id real não dá pra atualizar a linha certa (PATCH viraria id=eq.undefined → 0 linhas).
+  if (detalheAtual.id == null) { if (erroEl) erroEl.textContent = 'Agendamento sem ID — recarregue a agenda e tente de novo.'; return; }
   const data = document.getElementById('d-re-data').value;
   const hora = document.getElementById('d-re-hora').value;
   const consultor = document.getElementById('d-re-consultor').value;
-  if (!data || !hora) { document.getElementById('d-erro').textContent = 'Informe data e hora.'; return; }
+  if (!data || !hora) { if (erroEl) erroEl.textContent = 'Informe data e hora.'; return; }
   const novoQuando = new Date(`${data}T${hora}:00`);
-  if (isNaN(novoQuando.getTime())) { document.getElementById('d-erro').textContent = 'Data/hora inválida.'; return; }
+  if (isNaN(novoQuando.getTime())) { if (erroEl) erroEl.textContent = 'Data/hora inválida.'; return; }
+  const btn = document.querySelector('#d-reagendar-box .btn-salvar');
+  if (btn) { btn.disabled = true; btn.dataset._t = btn.textContent; btn.textContent = 'Salvando…'; }
   try {
-    await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, {
+    const res = await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, {
       quando: novoQuando.toISOString(),
       vendedor_nome: consultor,
       status: 'agendado',
     });
+    // PostgREST devolve 200 com [] quando nenhuma linha casou (id sumiu / RLS).
+    // Sem isso, fecharia o modal e diria "Reagendado" sem ter mudado nada.
+    if (!Array.isArray(res) || res.length === 0) {
+      throw new Error('Nenhuma linha atualizada — o agendamento pode ter sido removido.');
+    }
     fecharModalDet();
     const transf = consultor !== detalheAtual.vendedor_nome ? ` e transferido p/ ${consultor}` : '';
     showToast(`📅 Reagendado${transf}`);
     await renderTudo();
   } catch (e) {
-    document.getElementById('d-erro').textContent = 'Erro ao reagendar.';
-    console.error(e);
+    if (erroEl) erroEl.textContent = 'Erro ao reagendar: ' + (e.message || e);
+    console.error('[reagendar]', e);
+  } finally {
+    if (btn) { btn.disabled = false; if (btn.dataset._t) btn.textContent = btn.dataset._t; }
   }
 }
 
