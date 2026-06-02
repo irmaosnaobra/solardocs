@@ -63,6 +63,8 @@ function RegisterContent() {
   const params = useSearchParams();
   const sessionId = params.get('session');
   const urlPlano = params.get('plano'); // 'pro' | 'vip' — vindo do landing/VSL pra checkout direto
+  const urlEmail = params.get('email');  // pré-preenche (ex: vindo do Pack Solar /obrigado). NÃO trava — não é verificado.
+  const refOrigem = params.get('ref');   // 'pack-solar' etc — origem pra atribuição
   // Default agora é FREE. Stripe só se vier plano explícito.
   // IMPORTANTE: com sessionId a pessoa JÁ pagou (veio do success_url). Nesse caso
   // o plano da URL é só fallback de exibição — NÃO pode disparar novo checkout
@@ -97,6 +99,13 @@ function RegisterContent() {
   const [emailLocked, setEmailLocked] = useState(false);
   // checkout-info não respondeu: mostra aviso pra usar o MESMO email do cartão.
   const [checkoutInfoFailed, setCheckoutInfoFailed] = useState(false);
+
+  // Pré-preenche email vindo da query (ex: link do Pack Solar). Só quando NÃO
+  // veio de session (session é autoritativo e trava o campo). Não trava aqui.
+  useEffect(() => {
+    if (sessionId) return;
+    if (urlEmail && /\S+@\S+\.\S+/.test(urlEmail)) setEmail(urlEmail);
+  }, [sessionId, urlEmail]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -161,6 +170,7 @@ function RegisterContent() {
         empresa: empresa.trim() || undefined,
         fromCheckout: !!sessionId, // veio do Stripe → backend exige plano detectado
         session: sessionId || undefined, // matching autoritativo (plano vem da session, não do email)
+        origem: refOrigem || undefined,  // 'pack-solar' etc — atribuição de origem
       }, {
         headers: { 'X-Meta-Event-Id': eventId },
       });
