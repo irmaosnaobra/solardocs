@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { sendDunningDay0, sendDunningRecovered } from '../services/dunningService';
+import { sendCheckoutCompletionEmail } from '../utils/mailer';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -157,7 +158,9 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       },
       metadata: { plan: planInfo.plano, source: 'public_checkout' },
       // Pós-pagamento → cadastro com o session_id pra puxar o email e o plano.
-      success_url: `${dashboardUrl}/auth?mode=register&session={CHECKOUT_SESSION_ID}`,
+      // &plano= é fallback: se o GET /checkout-info falhar, o RegisterForm ainda
+      // sabe o plano e não mostra a tela enganosa de "criar conta grátis".
+      success_url: `${dashboardUrl}/auth?mode=register&session={CHECKOUT_SESSION_ID}&plano=${encodeURIComponent(planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}`,
       cancel_url:  `${dashboardUrl}/?cancelado=1`,
       custom_text: { submit: { message: planInfo.descricao } },
     });
@@ -224,6 +227,10 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     }
 
     const planInfo = planByPrice(priceId);
+    // Guard cross-produto: este bloco SÓ roda pra price PRO/VIP do SolarDoc.
+    // Compra do Pack Solar é mode=payment, sem subscription → priceId='' →
+    // planByPrice undefined → bloco pulado. Conta Stripe é compartilhada, então
+    // o isolamento aqui é justamente o `if (planInfo)`.
     if (planInfo) {
       const { plano, limite } = planInfo;
 
@@ -233,10 +240,30 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           .update({ plano, limite_documentos: limite, documentos_usados: 0 })
           .eq('id', userId);
       } else if (email) {
-        await supabase
+        // UPDATE com .select() pra saber se casou alguma linha. No fluxo
+        // LP→Stripe→Cadastro a conta só nasce quando a pessoa VOLTA e preenche
+        // o form — e este evento dispara NO MOMENTO do pagamento, ANTES disso.
+        // Então 0 linhas aqui é o caminho NORMAL (a pessoa ainda vai cadastrar),
+        // NÃO um órfão. Por isso NÃO mandamos email de recuperação daqui — só
+        // gravamos um marcador. O envio real é feito pelo sweep
+        // recoverOrphanCheckouts (followupService) após uma janela de carência,
+        // que confirma que a conta ainda não existe minutos depois.
+        const { data: updated } = await supabase
           .from('users')
           .update({ plano, limite_documentos: limite, documentos_usados: 0 })
-          .eq('email', email);
+          .eq('email', email)
+          .select('id');
+
+        if (!updated?.length) {
+          // Marcador idempotente do checkout pendente (insert falha em 23505 se já
+          // existe — ok). O sweep lê estes marcadores; não enviamos nada aqui.
+          await supabase
+            .from('system_state')
+            .insert({
+              key: `orphan_checkout:${session.id}`,
+              value: { email, plano, session_id: session.id, created_at: new Date().toISOString() },
+            });
+        }
       }
 
       const valorMap: Record<string, number> = { iniciante: 27, pro: 47, ilimitado: 97 };

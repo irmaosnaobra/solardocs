@@ -39,6 +39,29 @@ async function detectStripePlan(email: string): Promise<{ plano: string; limite:
   }
 }
 
+// Resolve plano DIRETO da checkout session (fonte autoritativa). Mais robusto que
+// detectStripePlan(email): não depende do email digitado bater com o do cartão,
+// e blinda cross-produto (session do Pack é mode=payment, sem subscription/price
+// SolarDoc → retorna null). Usado quando o register vem com session_id.
+async function detectPlanFromSession(sessionId: string): Promise<{ plano: string; limite: number; email: string | null } | null> {
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    // Guard: só checkout público do SolarDoc. Pack nunca seta source.
+    if (session.metadata?.source !== 'public_checkout') return null;
+    if (!session.subscription) return null;
+    const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+    const priceId = sub.items.data[0]?.price?.id ?? '';
+    const info = PRICE_TO_PLAN[priceId];
+    if (!info) return null;
+    const email = session.customer_email
+      ?? (session.customer_details as { email?: string } | null)?.email
+      ?? null;
+    return { ...info, email };
+  } catch {
+    return null;
+  }
+}
+
 // CNPJ — valida dígitos verificadores. Aceita só dígitos (frontend já tira máscara).
 function isValidCnpjDigits(cnpj: string): boolean {
   if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
@@ -82,13 +105,31 @@ export async function register(req: Request, res: Response): Promise<void> {
       .eq('email', body.email)
       .single();
 
-    // Detecta plano no Stripe (active OU trialing). No fluxo LP→Stripe→cadastro,
-    // a pessoa já passou o cartão (7 dias grátis) antes de chegar aqui.
-    const stripePlan = await detectStripePlan(body.email);
+    const sessionId = (req.body as { session?: string }).session;
+    const fromCheckout = (req.body as { fromCheckout?: boolean }).fromCheckout === true;
+
+    // Detecta o plano pago. PRIORIDADE: pela session_id (autoritativo — não depende
+    // do email digitado). Fallback: por email (fluxos antigos / sem session).
+    // No fluxo LP→Stripe→cadastro a pessoa já passou o cartão (7d grátis) antes daqui.
+    let stripePlan: { plano: string; limite: number } | null = null;
+    if (sessionId) {
+      const fromSession = await detectPlanFromSession(sessionId);
+      if (fromSession) {
+        // Segurança: o email do cadastro tem que ser o MESMO do checkout (quando o
+        // Stripe coletou um). Evita pagar como A e cadastrar como B.
+        if (fromSession.email && fromSession.email.toLowerCase() !== body.email.toLowerCase()) {
+          res.status(400).json({ error: 'EMAIL_DIFERENTE_DO_PAGAMENTO' });
+          return;
+        }
+        stripePlan = { plano: fromSession.plano, limite: fromSession.limite };
+      }
+    }
+    if (!stripePlan) {
+      stripePlan = await detectStripePlan(body.email);
+    }
 
     // Veio do checkout público (passou pelo Stripe)? Se sim e a detecção falhou,
     // NÃO cria conta free silenciosa — pagou mas algo deu errado, retorna claro.
-    const fromCheckout = (req.body as { fromCheckout?: boolean }).fromCheckout === true;
     if (fromCheckout && !stripePlan && !existing) {
       res.status(402).json({ error: 'PAGAMENTO_NAO_DETECTADO' });
       return;

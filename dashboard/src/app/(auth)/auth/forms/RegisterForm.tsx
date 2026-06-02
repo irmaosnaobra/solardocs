@@ -64,7 +64,16 @@ function RegisterContent() {
   const sessionId = params.get('session');
   const urlPlano = params.get('plano'); // 'pro' | 'vip' — vindo do landing/VSL pra checkout direto
   // Default agora é FREE. Stripe só se vier plano explícito.
-  const targetPlan: 'pro' | 'vip' | null = urlPlano === 'pro' ? 'pro' : urlPlano === 'vip' ? 'vip' : null;
+  // IMPORTANTE: com sessionId a pessoa JÁ pagou (veio do success_url). Nesse caso
+  // o plano da URL é só fallback de exibição — NÃO pode disparar novo checkout
+  // (senão um pagante seria mandado pra um 2º cartão). targetPlan só vale SEM session.
+  const targetPlan: 'pro' | 'vip' | null = sessionId
+    ? null
+    : urlPlano === 'pro' ? 'pro' : urlPlano === 'vip' ? 'vip' : null;
+  // Plano vindo da URL pós-pagamento (fallback de exibição quando checkout-info falha).
+  const urlPlanFromCheckout: string | null = sessionId
+    ? (urlPlano === 'vip' ? 'ilimitado' : urlPlano === 'pro' ? 'pro' : null)
+    : null;
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -86,6 +95,8 @@ function RegisterContent() {
 
   // Email travado quando veio do Stripe (não deixa pagar como A e cadastrar como B).
   const [emailLocked, setEmailLocked] = useState(false);
+  // checkout-info não respondeu: mostra aviso pra usar o MESMO email do cartão.
+  const [checkoutInfoFailed, setCheckoutInfoFailed] = useState(false);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -94,8 +105,15 @@ function RegisterContent() {
         if (r.data.email) { setEmail(r.data.email); setEmailLocked(true); }
         if (r.data.plan) setPlanFromStripe(r.data.plan);
       })
-      .catch(() => {});
-  }, [sessionId]);
+      .catch(() => {
+        // checkout-info falhou (rede/sessão). NÃO engolir o erro: a pessoa veio
+        // do success_url (já pagou). Usa o plano da URL como fallback pra não cair
+        // na tela enganosa de "criar conta grátis". NÃO travamos o email aqui
+        // (ficaria vazio e bloqueado) — o backend valida o email contra a session.
+        if (urlPlanFromCheckout) setPlanFromStripe(urlPlanFromCheckout);
+        setCheckoutInfoFailed(true);
+      });
+  }, [sessionId, urlPlanFromCheckout]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -142,6 +160,7 @@ function RegisterContent() {
         cnpj: cnpj.replace(/\D/g, ''),
         empresa: empresa.trim() || undefined,
         fromCheckout: !!sessionId, // veio do Stripe → backend exige plano detectado
+        session: sessionId || undefined, // matching autoritativo (plano vem da session, não do email)
       }, {
         headers: { 'X-Meta-Event-Id': eventId },
       });
@@ -195,6 +214,11 @@ function RegisterContent() {
       }
       if (code === 'PAGAMENTO_NAO_DETECTADO') {
         setError('Não localizamos seu pagamento. Use o mesmo e-mail do cartão, ou fale com o suporte no WhatsApp (34) 99943-7831.');
+        setLoading(false);
+        return;
+      }
+      if (code === 'EMAIL_DIFERENTE_DO_PAGAMENTO') {
+        setError('Esse e-mail é diferente do usado no pagamento. Cadastre com o mesmo e-mail do cartão pra liberar seu plano.');
         setLoading(false);
         return;
       }
@@ -268,6 +292,11 @@ function RegisterContent() {
               required
             />
           </div>
+          {checkoutInfoFailed && !emailLocked && (
+            <span className={styles.fieldError}>
+              Use o <strong>mesmo e-mail do cartão</strong> pra liberar seu plano.
+            </span>
+          )}
         </div>
 
         <div className={styles.field}>

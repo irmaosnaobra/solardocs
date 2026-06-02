@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
-import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail } from '../utils/mailer';
+import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail } from '../utils/mailer';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -288,4 +288,77 @@ export async function runCheckoutAbandonRecovery(): Promise<{ sent: number; skip
   }
 
   return { sent, skipped };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// REDE DE SEGURANÇA — checkout público SEM conta (PAGOU e NÃO cadastrou)
+// ════════════════════════════════════════════════════════════════════
+// Fluxo LP→Stripe→Cadastro: a sub trialing nasce no momento do pagamento,
+// mas a conta em `users` só nasce quando a pessoa VOLTA e preenche o form.
+// Quem fecha a aba paga e some (Lucas/Josefi/Ivan). O webhook NÃO pode
+// avisar na hora (todo mundo está "sem conta" segundos após pagar — seria
+// spam pra quem ainda vai cadastrar). Então este sweep roda periodicamente:
+// pega subs públicas trialing/active criadas há ≥ GRACE (carência) e ≤ MAX,
+// confirma que a conta AINDA não existe, e manda o link de conclusão.
+// Idempotente via system_state (1 email por checkout). Pega passado e futuro.
+const ORPHAN_GRACE_MS = 30 * 60 * 1000;            // só age após 30min (deu tempo de cadastrar)
+const ORPHAN_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000; // até 6d (antes do trial de 7d virar cobrança)
+
+// Lê os marcadores `orphan_checkout:{sessionId}` que o webhook gravou (email +
+// plano + session_id já corretos — sem re-derivar do Stripe). Pra cada um que,
+// passada a carência, AINDA não tem conta em `users`, manda o link de conclusão.
+// Dedup só DEPOIS do envio confirmado (não queima a chave se falhar). NÃO conta
+// como enviado quando não há session (não acontece: o marcador sempre tem uma).
+// Backlog anterior ao marcador (Lucas/Josefi/Ivan) é recuperado manualmente.
+export async function recoverOrphanCheckouts(): Promise<{ sent: number; skipped: number; scanned: number }> {
+  const now = Date.now();
+  const graceCutoff = now - ORPHAN_GRACE_MS;
+  const maxAgeCutoff = now - ORPHAN_MAX_AGE_MS;
+
+  const { data: markers } = await supabase
+    .from('system_state')
+    .select('key, value')
+    .like('key', 'orphan_checkout:%')
+    .limit(500);
+
+  if (!markers?.length) return { sent: 0, skipped: 0, scanned: 0 };
+
+  // Filtra por janela de carência (criado há ≥30min e ≤6d) e que ainda não foi enviado.
+  type Marker = { sessionId: string; email: string; plano: string; createdMs: number };
+  const pending: Marker[] = [];
+  for (const m of markers) {
+    const v = (m.value ?? {}) as { email?: string; plano?: string; session_id?: string; created_at?: string; sent_at?: string };
+    if (v.sent_at) continue;                            // já enviado
+    if (!v.email || !v.session_id) continue;
+    const createdMs = v.created_at ? Date.parse(v.created_at) : 0;
+    if (!createdMs || createdMs > graceCutoff) continue; // dentro da carência
+    if (createdMs < maxAgeCutoff) continue;              // velho demais (trial já virou cobrança/cancelou)
+    pending.push({ sessionId: v.session_id, email: v.email.toLowerCase(), plano: v.plano || 'pro', createdMs });
+  }
+
+  if (!pending.length) return { sent: 0, skipped: 0, scanned: markers.length };
+
+  // Quem desses JÁ criou conta? (voltou e cadastrou) — não é mais órfão.
+  const emails = Array.from(new Set(pending.map(p => p.email)));
+  const { data: existingUsers } = await supabase.from('users').select('email').in('email', emails);
+  const hasAccount = new Set((existingUsers ?? []).map(u => (u.email || '').toLowerCase()));
+
+  let sent = 0, skipped = 0;
+  for (const p of pending) {
+    if (hasAccount.has(p.email)) { skipped++; continue; }
+    try {
+      await sendCheckoutCompletionEmail({ to: p.email, sessionId: p.sessionId, plano: p.plano });
+      // Marca enviado SÓ após sucesso (não queima a chave em caso de falha).
+      await supabase
+        .from('system_state')
+        .update({ key: `orphan_checkout:${p.sessionId}`, value: { email: p.email, plano: p.plano, session_id: p.sessionId, created_at: new Date(p.createdMs).toISOString(), sent_at: new Date(now).toISOString() } })
+        .eq('key', `orphan_checkout:${p.sessionId}`);
+      sent++;
+    } catch (err) {
+      console.error(`recoverOrphanCheckouts: email falhou pra ${p.email}:`, err);
+      skipped++;
+    }
+  }
+
+  return { sent, skipped, scanned: pending.length };
 }
