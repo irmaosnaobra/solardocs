@@ -402,7 +402,7 @@ router.get('/master', async (req: Request, res: Response) => {
   // Pra reativar restantes: descomentar linhas [PAUSED-FOLLOWUP].
   const tasks: Array<[string, () => Promise<any>]> = [
     ['checkout-recovery',           () => runCheckoutAbandonRecovery()], // 1 email pra quem cadastrou e não passou cartão (4-72h)
-    // ['orphan-checkout-recovery',    () => recoverOrphanCheckouts()],  // [AGUARDA-OK-TEXTO] PAGOU e NÃO cadastrou: link de conclusão (carência 30min, até 6d). Descomentar após Thiago aprovar o template sendCheckoutCompletionEmail.
+    ['orphan-checkout-recovery',    () => recoverOrphanCheckouts()],     // PAGOU e NÃO cadastrou: link de conclusão (carência 30min, até 6d). Template aprovado 02/06.
     ['followup-email-cnpj',         () => runFollowupCnpj()],            // 5 emails/30d — gerador de proposta
     // ['no-contracts-reminder',       () => runNoContractsEmailReminder()], // [PAUSED-FOLLOWUP] lembrete inativos por email
     // ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // [PAUSED-FOLLOWUP] WhatsApp Carla — 3 toques 30d
