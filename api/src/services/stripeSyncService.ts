@@ -90,7 +90,7 @@ export async function syncStripePlans(): Promise<{
 
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, email, plano, limite_documentos, billing_status, past_due_since, trial_expires_at, is_admin');
+    .select('id, email, plano, limite_documentos, billing_status, past_due_since, trial_expires_at, is_admin, pack_trial_until');
 
   if (error || !users) {
     logger.error('stripe-sync', 'leitura de users falhou', error);
@@ -107,6 +107,24 @@ export async function syncStripePlans(): Promise<{
     }
     scanned++;
     const stripeTruth = truth.get(u.email.toLowerCase());
+
+    // Trial Pack→SolarDoc (sem cartão, sem sub Stripe): enquanto vigente, o user
+    // tem PRO e o sync NÃO pode rebaixar. Sai do funil do Stripe igual admin.
+    const packTrialActive = u.pack_trial_until
+      ? new Date(u.pack_trial_until).getTime() > Date.now()
+      : false;
+    if (packTrialActive && !stripeTruth) {
+      // Garante PRO + billing trialing enquanto o trial Pack vale. Sem sub Stripe,
+      // o cron pack-trial-expiry rebaixa no vencimento.
+      if (u.plano !== 'pro' || u.billing_status !== 'trialing') {
+        await supabase
+          .from('users')
+          .update({ plano: 'pro', limite_documentos: 90, billing_status: 'trialing' })
+          .eq('id', u.id);
+      }
+      unchanged++;
+      continue;
+    }
 
     const realPlano  = stripeTruth?.plano  ?? 'free';
     const realLimite = stripeTruth?.limite ?? FREE_LIMIT;
@@ -196,6 +214,9 @@ export async function syncStripePlans(): Promise<{
     // perderia contagem mensal a cada execução horária.
     const patch: Record<string, unknown> = { plano: realPlano, limite_documentos: realLimite };
     if (u.plano !== realPlano) patch.documentos_usados = 0;
+    // Trial Pack vencido (chegou aqui = packTrialActive false): limpa o carimbo
+    // pra não reprocessar e deixar claro que acabou.
+    if (realPlano === 'free' && u.pack_trial_until) patch.pack_trial_until = null;
 
     const { error: updErr } = await supabase.from('users').update(patch).eq('id', u.id);
     if (updErr) {

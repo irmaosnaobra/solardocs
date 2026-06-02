@@ -128,6 +128,17 @@ export async function register(req: Request, res: Response): Promise<void> {
       stripePlan = await detectStripePlan(body.email);
     }
 
+    // [PENDENTE — trial Pack→SolarDoc] Aqui entra a concessão do trial PRO grátis
+    // pra quem comprou o Pack com o bump 'solardoc_trial'. NÃO ativar via param
+    // origem='pack-solar' (atacável). Verificar pedido REAL pago:
+    //   pack.pedidos WHERE email=body.email AND paid_at NOT NULL
+    //     AND bump_solardoc_trial=true AND solardoc_user_id IS NULL
+    // Se válido: criar conta com pack_trial_until = now()+7d (coluna já existe;
+    // syncStripePlans já respeita e expira). Stampar solardoc_user_id/
+    // solardoc_trial_ativado_at no pedido (anti-double-grant). Decidir caso
+    // existing (já tem conta). GATED: só fiar após 1 checkout real testar o
+    // fluxo P0 (detectPlanFromSession) em produção. origem chega em req.body.origem.
+
     // Veio do checkout público (passou pelo Stripe)? Se sim e a detecção falhou,
     // NÃO cria conta free silenciosa — pagou mas algo deu errado, retorna claro.
     if (fromCheckout && !stripePlan && !existing) {
