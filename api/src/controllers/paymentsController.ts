@@ -255,14 +255,39 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           .select('id');
 
         if (!updated?.length) {
-          // Marcador idempotente do checkout pendente (insert falha em 23505 se já
-          // existe — ok). O sweep lê estes marcadores; não enviamos nada aqui.
-          await supabase
+          // Fluxo LP→Stripe→Cadastro: cartão aprovado mas a conta ainda não
+          // nasceu (a pessoa volta e preenche o form depois). Manda o email de
+          // boas-vindas + link de cadastro NA HORA — purchase confirmation não é
+          // spam, e fecha o vazamento de quem fecha a aba e some.
+          const nowIso = new Date().toISOString();
+
+          // O INSERT do marcador é o lock de idempotência. Stripe entrega este
+          // evento at-least-once (re-entregas por 2xx lento / retry manual / dupe).
+          // Inserindo ANTES de enviar, a 2ª entrega bate em 23505 e NÃO reenvia o
+          // email. (Sem isto, re-entrega = email duplicado pro cliente.)
+          const { error: insertErr } = await supabase
             .from('system_state')
             .insert({
               key: `orphan_checkout:${session.id}`,
-              value: { email, plano, session_id: session.id, created_at: new Date().toISOString() },
+              value: { email, plano, session_id: session.id, created_at: nowIso },
             });
+
+          // insertErr (tipicamente 23505) = marcador já existe = re-entrega →
+          // email já foi tratado na 1ª vez, não reenvia.
+          if (!insertErr) {
+            try {
+              await sendCheckoutCompletionEmail({ to: email, sessionId: session.id, plano });
+              // Carimba sent_at → o sweep recoverOrphanCheckouts PULA (evita 2º toque).
+              await supabase
+                .from('system_state')
+                .update({ value: { email, plano, session_id: session.id, created_at: nowIso, sent_at: new Date().toISOString() } })
+                .eq('key', `orphan_checkout:${session.id}`);
+            } catch (err) {
+              // Email falhou: sent_at fica null → o sweep recupera depois
+              // (rede de segurança intacta).
+              console.error('sendCheckoutCompletionEmail (imediato) falhou:', err);
+            }
+          }
         }
       }
 

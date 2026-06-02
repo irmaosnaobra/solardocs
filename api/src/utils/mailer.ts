@@ -414,27 +414,34 @@ export async function sendCnpjOngoingEmail(email: string, userId: string, varian
 export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId: string; plano?: string | null }): Promise<void> {
   const planoLabel = opts.plano === 'ilimitado' ? 'VIP' : opts.plano === 'pro' ? 'PRO' : null;
   const completeUrl = `${APP_URL}/auth?mode=register&session=${encodeURIComponent(opts.sessionId)}`;
+  const loginUrl = `${APP_URL}/auth`;
+  // Tom A (transacional / "recibo de compra"): curto, 1 CTA, sem bloco pesado de
+  // PWA (esse fica no sendWelcomeEmail pós-signup). Disparado NA HORA pelo webhook
+  // em checkout.session.completed quando a conta ainda não existe.
   const html = `
 <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
   <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:32px 36px;">
     <p style="margin:0;color:#0f172a;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro</p>
     <h1 style="margin:8px 0 0;color:#0f172a;font-size:26px;font-weight:900;line-height:1.2;letter-spacing:-0.5px;">
-      Falta só 1 passo pra liberar seu acesso${planoLabel ? ` ${planoLabel}` : ''} 🚀
+      Pagamento aprovado${planoLabel ? ` — acesso ${planoLabel} liberado` : ''} ✅
     </h1>
   </div>
   <div style="padding:32px 36px;">
     <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">
-      Seu pagamento já foi aprovado e seus <strong style="color:#fbbf24;">7 dias grátis</strong> estão ativos${planoLabel ? ` no plano <strong style="color:#fbbf24;">${planoLabel}</strong>` : ''}. Faltou só criar seu login pra entrar na plataforma.
+      <strong style="color:#fbbf24;">Pagamento aprovado!</strong> Seus <strong style="color:#fbbf24;">7 dias grátis</strong>${planoLabel ? ` no plano <strong style="color:#fbbf24;">${planoLabel}</strong>` : ''} já estão ativos.
     </p>
     <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">
-      É rapidinho — seu e-mail e plano já estão garantidos, é só definir a senha:
+      Falta só criar seu login pra entrar na plataforma — seu e-mail e plano já estão garantidos, é só definir a senha:
     </p>
     <div style="text-align:center;margin:28px 0 8px;">
       <a href="${completeUrl}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:18px 40px;border-radius:12px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(245,158,11,0.4);">
         Concluir meu cadastro →
       </a>
     </div>
-    <p style="color:#64748b;font-size:12px;margin:24px 0 0;line-height:1.6;text-align:center;">
+    <p style="color:#94a3b8;font-size:13px;margin:20px 0 0;line-height:1.6;text-align:center;">
+      Já definiu sua senha? É só entrar em <a href="${loginUrl}" style="color:#fbbf24;text-decoration:none;font-weight:700;">solardoc.app/auth</a>.
+    </p>
+    <p style="color:#64748b;font-size:12px;margin:16px 0 0;line-height:1.6;text-align:center;">
       Dúvidas? Chama a gente no WhatsApp (34) 99943-7831.
     </p>
   </div>
@@ -443,7 +450,7 @@ export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId:
     from: FROM_EMAIL,
     to: opts.to,
     replyTo: REPLY_TO,
-    subject: `Falta 1 passo pra liberar seu SolarDoc${planoLabel ? ` ${planoLabel}` : ''} 🚀`,
+    subject: `✅ Pagamento aprovado — falta 1 passo pra entrar no SolarDoc${planoLabel ? ` ${planoLabel}` : ''}`,
     html,
   });
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
