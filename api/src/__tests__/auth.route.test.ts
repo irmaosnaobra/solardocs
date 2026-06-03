@@ -15,13 +15,25 @@ vi.mock('../utils/supabase', () => ({
     })),
   },
 }));
+// Stripe mockado com fns compartilhados pra os testes configurarem o retorno
+// (detectPlanFromSession usa checkout.sessions.retrieve + subscriptions.retrieve).
+// vi.mock é içado pro topo do arquivo → as vars do factory PRECISAM começar com
+// "mock" (única exceção que o vitest permite usar antes da inicialização).
+const { mockSessionRetrieve, mockSubRetrieve, mockSubList, mockCustomerList } = vi.hoisted(() => ({
+  mockSessionRetrieve: vi.fn(),
+  mockSubRetrieve:     vi.fn(),
+  mockSubList:         vi.fn(),
+  mockCustomerList:    vi.fn(),
+}));
 vi.mock('stripe', () => ({
   default: class {
-    customers = { list: vi.fn().mockResolvedValue({ data: [] }) };
-    subscriptions = { list: vi.fn().mockResolvedValue({ data: [] }), retrieve: vi.fn() };
-    checkout = { sessions: { retrieve: vi.fn() } };
+    customers = { list: mockCustomerList };
+    subscriptions = { list: mockSubList, retrieve: mockSubRetrieve };
+    checkout = { sessions: { retrieve: mockSessionRetrieve } };
   },
 }));
+// Price VIP (fallback hardcoded do authController quando env não está setado).
+const PRICE_VIP = 'price_1TUh2yCkkgzQ4IHeZqy52Zu2';
 vi.mock('../utils/metaPixel', () => ({ sendMetaEvent: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../utils/mailer', () => ({
   sendPasswordResetEmail:       vi.fn().mockResolvedValue(undefined),
@@ -41,7 +53,13 @@ vi.mock('../services/agents/whatsapp/whatsappAgentService', () => ({
 
 import app from '../app';
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // clearAllMocks zera as implementações — re-arma os defaults "vazios" do Stripe
+  // (sem sub / sem customer) que os testes que NÃO sobrescrevem dependem.
+  mockSubList.mockResolvedValue({ data: [] });
+  mockCustomerList.mockResolvedValue({ data: [] });
+});
 
 // ─── POST /auth/register ─────────────────────────────────────────────
 describe('POST /auth/register', () => {
@@ -82,6 +100,29 @@ describe('POST /auth/register', () => {
 
     expect(res.status).toBe(402);
     expect(res.body.error).toBe('PAGAMENTO_NAO_DETECTADO');
+  });
+
+  // Happy-path pós-pago: session com plano VIP detectável → cria conta no plano
+  // pago, SEM exigir CNPJ. É o comportamento central que esta tarefa entregou.
+  it('cria conta pós-pago (session VIP) sem CNPJ → 201 no plano pago', async () => {
+    mockSessionRetrieve.mockResolvedValueOnce({
+      metadata: { source: 'public_checkout' },
+      subscription: 'sub_123',
+      customer_email: 'vip@a.com',
+    });
+    mockSubRetrieve.mockResolvedValueOnce({ items: { data: [{ price: { id: PRICE_VIP } }] } });
+
+    mockSingle
+      .mockResolvedValueOnce({ data: null }) // email não existe
+      .mockResolvedValueOnce({ data: { id: 'uid-vip', email: 'vip@a.com', plano: 'ilimitado', limite_documentos: 999999, documentos_usados: 0, created_at: new Date().toISOString() }, error: null });
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ email: 'vip@a.com', password: 'senha123', session: 'cs_test_123', fromCheckout: true });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty('token');
+    expect(res.body.user).toMatchObject({ email: 'vip@a.com', plano: 'ilimitado' });
   });
 
   it('retorna 409 quando email já existe (free orgânico)', async () => {
