@@ -609,6 +609,7 @@ export async function getMetaFunnel(req: Request, res: Response): Promise<void> 
       return {
         adset_id:      adset.adset_id,
         adset_name:    adset.adset_name,
+        campaign_id:   adset.campaign_id,
         campaign_name: adset.campaign_name,
         impressions:   adset.impressions,
         reach:         adset.reach,
@@ -642,6 +643,120 @@ export async function getMetaFunnel(req: Request, res: Response): Promise<void> 
     });
   } catch (err) {
     console.error('getMetaFunnel error:', err);
+    res.status(500).json({ error: String(err) });
+  }
+}
+
+// plano → priceId (pra buscar o unit_amount REAL no Stripe). Espelha PLAN_MAP
+// do paymentsController. NÃO usar o valorMap do webhook (aquilo é valor de
+// evento Meta CAPI, não o preço da assinatura).
+const PLAN_TO_PRICE: Record<string, string> = {
+  pro:       (process.env.STRIPE_PRICE_PRO || 'price_1TKNtbCkkgzQ4IHeCr0mYSXn').trim(),
+  ilimitado: (process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim(),
+};
+
+// Busca o valor mensal REAL (em reais) de um plano via Stripe unit_amount,
+// cacheando por priceId pra não bater na API a cada usuário.
+const _mrrCache = new Map<string, number>();
+async function mrrForPlano(plano: string): Promise<number> {
+  const priceId = PLAN_TO_PRICE[plano];
+  if (!priceId) return 0;
+  if (_mrrCache.has(priceId)) return _mrrCache.get(priceId)!;
+  try {
+    const price = await stripe.prices.retrieve(priceId);
+    const reais = (price.unit_amount ?? 0) / 100;
+    _mrrCache.set(priceId, reais);
+    return reais;
+  } catch (err) {
+    console.error('mrrForPlano falhou pra', plano, err);
+    return 0;
+  }
+}
+
+// Receita atribuída por campanha (forward-only). Agrupa usuários PAGANTES
+// (plano != free) com atribuição capturada na janela, por utm_campaign EXATO
+// (normalizado). NÃO usa o join fuzzy do meta-funnel — aqui é dinheiro, match
+// frouxo dobraria receita. O ROAS é calculado no front cruzando com o gasto Meta.
+export async function getRevenue(req: Request, res: Response): Promise<void> {
+  try {
+    const period = (req.query.period as string) || 'maximo';
+    const now = new Date();
+    let since: Date;
+    if (period === 'hoje')        { since = spStartOfToday(); }
+    else if (period === 'ontem')  { since = spStartOfYesterday(); }
+    else if (period === '3d')     { since = new Date(now.getTime() - 3 * 86400000); }
+    else if (period === '7dias')  { since = new Date(now.getTime() - 7 * 86400000); }
+    else if (period === 'mes')    { since = spStartOfMonth(); }
+    else                          { since = new Date(0); }
+
+    // Pagantes atribuídos na janela. attribution_captured_at é a data do vínculo
+    // (não o created_at) — é quando a venda foi atribuída a uma campanha.
+    // Exclui suspended: ao cancelar, o plano fica 'pro' mas billing_status vira
+    // 'suspended' — sem este filtro, assinatura morta inflaria a receita pra sempre.
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('plano, billing_status, utm_source, utm_campaign, attribution_captured_at')
+      .neq('plano', 'free')
+      .neq('billing_status', 'suspended')
+      .not('attribution_captured_at', 'is', null)
+      .gte('attribution_captured_at', since.toISOString());
+
+    if (error) throw error;
+    const rows = users ?? [];
+
+    // Resolve o MRR real de cada plano presente (1 fetch por plano, cacheado).
+    const planos = Array.from(new Set(rows.map(r => r.plano)));
+    const mrrByPlano = new Map<string, number>();
+    for (const p of planos) mrrByPlano.set(p, await mrrForPlano(p));
+
+    // Nome legível das campanhas (utm_campaign = ID da campanha Meta). Busca em
+    // mm_campanhas pra exibir "Solardoc.App - Lp" em vez do ID cru — mesmo que a
+    // campanha não esteja no gasto Meta da janela atual.
+    const campIds = Array.from(new Set(rows.map(r => (r.utm_campaign || '').trim()).filter(Boolean)));
+    const nameById = new Map<string, string>();
+    if (campIds.length) {
+      const { data: camps } = await supabase.from('mm_campanhas').select('id, nome').in('id', campIds);
+      for (const c of camps ?? []) if (c.nome) nameById.set(String(c.id), c.nome);
+    }
+
+    const norm = (s: string | null | undefined) => (s || '').trim().toLowerCase();
+
+    // campaign = ID da campanha Meta (chave do join com o gasto no front).
+    // campaign_name = rótulo legível (mm_campanhas), cai no ID se desconhecido.
+    const campMap = new Map<string, { campaign: string; campaign_name: string; users: number; mrr: number; plans: Record<string, number> }>();
+    const srcMap  = new Map<string, { source: string; users: number; mrr: number }>();
+    let totalMrr = 0;
+
+    for (const r of rows) {
+      const mrr = mrrByPlano.get(r.plano) ?? 0;
+      totalMrr += mrr;
+
+      // Campanha — agrupa pelo ID (utm_campaign), exibe o nome quando conhecido.
+      const campKey   = norm(r.utm_campaign);
+      const campId    = (r.utm_campaign || '').trim();
+      const campName  = nameById.get(campId) || campId;
+      const c = campMap.get(campKey) ?? { campaign: campId, campaign_name: campName, users: 0, mrr: 0, plans: {} as Record<string, number> };
+      c.users++; c.mrr += mrr; c.plans[r.plano] = (c.plans[r.plano] ?? 0) + 1;
+      campMap.set(campKey, c);
+
+      // Origem (utm_source).
+      const srcKey   = norm(r.utm_source);
+      const srcLabel = (r.utm_source || '').trim();
+      const s = srcMap.get(srcKey) ?? { source: srcLabel, users: 0, mrr: 0 };
+      s.users++; s.mrr += mrr;
+      srcMap.set(srcKey, s);
+    }
+
+    res.json({
+      period,
+      mrr_source: 'stripe_unit_amount',
+      total_mrr: totalMrr,
+      total_users: rows.length,
+      by_campaign: Array.from(campMap.values()).sort((a, b) => b.mrr - a.mrr),
+      by_source:   Array.from(srcMap.values()).sort((a, b) => b.mrr - a.mrr),
+    });
+  } catch (err) {
+    console.error('getRevenue error:', err);
     res.status(500).json({ error: String(err) });
   }
 }

@@ -1,26 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '@/services/api';
 import styles from './admin.module.css';
 
 /* ─── tipos ─────────────────────────────────────────────────── */
-interface UserRow {
-  id: string; email: string; plano: string;
-  documentos_usados: number; limite_documentos: number;
-  created_at: string; is_admin: boolean;
-  whatsapp: string | null;
-  empresa_nome: string | null; empresa_cnpj: string | null; empresa_whatsapp: string | null;
-  followup_day_recovered: number | null;
-  followup_started_at: string | null;
-  stripe_status: string | null;
-  stripe_plan: string | null;
-}
-interface LeadRow {
-  id: string; name: string; whatsapp: string | null;
-  city: string; state: string; created_at: string; status: string;
-  score: number | null; followup: string;
-}
 interface SessionRow {
   session_id: string | null; created_at: string;
   utm_source: string | null; utm_medium: string | null;
@@ -42,7 +26,7 @@ interface Analytics {
   sources: SourceRow[]; top_ctas: CtaRow[]; sessions: SessionRow[];
 }
 interface MetaAdsetRow {
-  adset_id: string; adset_name: string; campaign_name: string;
+  adset_id: string; adset_name: string; campaign_id?: string; campaign_name: string;
   impressions: number; reach: number; clicks: number;
   spend: number; ctr: number; cpc: number;
   lp_visits: number; scroll_50: number; saw_precos: number;
@@ -56,15 +40,21 @@ interface MetaFunnelData {
   avg_time?: number | null;
   adsets?: MetaAdsetRow[];
 }
+/* Receita atribuída por campanha (GET /admin/revenue) — vínculo forward-only UTM→Stripe. */
+interface RevenueCampaignRow {
+  campaign: string; campaign_name?: string; users: number; mrr: number; plans: Record<string, number>;
+}
+interface RevenueSourceRow { source: string; users: number; mrr: number; }
+interface RevenueData {
+  period: string; total_mrr: number; total_users: number;
+  mrr_source: string;
+  by_campaign: RevenueCampaignRow[];
+  by_source: RevenueSourceRow[];
+}
 
 /* ─── helpers ────────────────────────────────────────────────── */
-import { toBrasilia, nowBrasilia, fmtDateTimeBR, fmtDateBR, daysDiffBR } from '@/utils/brasilia';
+import { toBrasilia, fmtDateBR, daysDiffBR } from '@/utils/brasilia';
 
-function fmt(d: string) { return fmtDateTimeBR(d); }
-function isToday(d: string) {
-  const a = toBrasilia(d), b = nowBrasilia();
-  return a.getUTCFullYear()===b.getUTCFullYear() && a.getUTCMonth()===b.getUTCMonth() && a.getUTCDate()===b.getUTCDate();
-}
 function relDate(d: string) {
   const diff = daysDiffBR(d);
   const s    = toBrasilia(d);
@@ -95,7 +85,6 @@ function fmtNum(n: number) { return n.toLocaleString('pt-BR'); }
 
 const PLANO_LABEL: Record<string,string> = { free:'FREE', pro:'PRO', ilimitado:'VIP' };
 const PLANO_COLOR: Record<string,string> = { free:'#64748b', pro:'#F59E0B', ilimitado:'#f97316' };
-const SECTION_LABEL: Record<string,string> = { problema:'Problema', crenca:'Crença', solucao:'Solução', precos:'Preços', faq:'FAQ' };
 
 /* ─── componente funil SVG (estilo UTMify) ───────────────────── */
 interface FunnelStep { label: string; value: number; sub?: string; }
@@ -195,37 +184,20 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'users'|'visits'|'io_visits'|'pack_visits'>('users');
-
-  const [users, setUsers]               = useState<UserRow[]>([]);
-  const [documents, setDocuments]       = useState<{created_at: string}[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
-  const [search, setSearch]             = useState('');
-  const [filterPlano, setFilterPlano]   = useState('todos');
-  const [filterPeriodo, setFilterPeriodo] = useState<'hoje'|'ontem'|'7dias'|'mes'|'custom'|'maximo'>('maximo');
-  const [customFrom, setCustomFrom]     = useState('');
-  const [customTo, setCustomTo]         = useState('');
-  const [resetting, setResetting]       = useState(false);
-  const [resetMsg, setResetMsg]         = useState('');
+  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'>('visits');
 
   const [analytics, setAnalytics]               = useState<Analytics|null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [analyticsLoaded, setAnalyticsLoaded]   = useState(false);
-  const [visitSearch, setVisitSearch]           = useState('');
-  const [filterSource, setFilterSource]         = useState('');
-  const [expandedSession, setExpandedSession]   = useState<string|null>(null);
 
   const [metaData, setMetaData]           = useState<MetaFunnelData|null>(null);
   const [loadingMeta, setLoadingMeta]     = useState(false);
   const [visitPeriod, setVisitPeriod]     = useState<'hoje'|'ontem'|'3d'|'7dias'|'mes'|'maximo'>('7dias');
   const [metaLoaded, setMetaLoaded]       = useState(false);
 
-  useEffect(() => {
-    api.get('/admin/users').then(r => {
-      setUsers(r.data.users);
-      setDocuments(r.data.documents ?? []);
-    }).catch(()=>{}).finally(()=>setLoadingUsers(false));
-  }, []);
+  const [revenue, setRevenue]             = useState<RevenueData|null>(null);
+  const [loadingRevenue, setLoadingRevenue] = useState(false);
+  const [revenueLoaded, setRevenueLoaded] = useState(false);
 
   const loadAnalytics = useCallback((p?: string) => {
     setLoadingAnalytics(true);
@@ -239,91 +211,31 @@ export default function AdminPage() {
     api.get(`/admin/meta-funnel?period=${qp}`).then(r=>{setMetaData(r.data);setMetaLoaded(true);}).catch(()=>{}).finally(()=>setLoadingMeta(false));
   }, [visitPeriod]);
 
+  const loadRevenue = useCallback((p?: string) => {
+    setLoadingRevenue(true);
+    const qp = p || visitPeriod;
+    api.get(`/admin/revenue?period=${qp}`).then(r=>{setRevenue(r.data);setRevenueLoaded(true);}).catch(()=>{}).finally(()=>setLoadingRevenue(false));
+  }, [visitPeriod]);
+
   useEffect(() => { if (tab==='visits' && !analyticsLoaded) loadAnalytics(visitPeriod); }, [tab,analyticsLoaded,loadAnalytics,visitPeriod]);
   useEffect(() => { if (tab==='visits' && !metaLoaded) loadMeta(visitPeriod); }, [tab,metaLoaded,visitPeriod,loadMeta]);
   useEffect(() => { if ((tab==='io_visits'||tab==='pack_visits') && !analyticsLoaded) loadAnalytics(visitPeriod); }, [tab,analyticsLoaded,loadAnalytics,visitPeriod]);
+  // Receita precisa do gasto Meta (meta-funnel) pra calcular ROAS → carrega os dois.
+  useEffect(() => { if (tab==='receita' && !revenueLoaded) loadRevenue(visitPeriod); }, [tab,revenueLoaded,loadRevenue,visitPeriod]);
+  useEffect(() => { if (tab==='receita' && !metaLoaded) loadMeta(visitPeriod); }, [tab,metaLoaded,visitPeriod,loadMeta]);
 
   function changeVisitPeriod(p: 'hoje'|'ontem'|'3d'|'7dias'|'mes'|'maximo') {
-    setVisitPeriod(p); 
-    setMetaLoaded(false); 
-    setAnalyticsLoaded(false); 
-    loadMeta(p); 
+    setVisitPeriod(p);
+    setMetaLoaded(false);
+    setAnalyticsLoaded(false);
+    setRevenueLoaded(false);
+    loadMeta(p);
     loadAnalytics(p);
+    loadRevenue(p);
   }
-
-  const filteredUsers = users.filter(u => {
-    const okSearch = search==='' || u.email.toLowerCase().includes(search.toLowerCase()) || (u.empresa_nome??'').toLowerCase().includes(search.toLowerCase());
-    const okPlano  = filterPlano==='todos' || u.plano===filterPlano;
-    let okPeriodo  = true;
-    if (filterPeriodo !== 'maximo') {
-      const now = nowBrasilia();
-      const d   = toBrasilia(u.created_at);
-      if (filterPeriodo === 'hoje') {
-        okPeriodo = d.getUTCFullYear()===now.getUTCFullYear() && d.getUTCMonth()===now.getUTCMonth() && d.getUTCDate()===now.getUTCDate();
-      } else if (filterPeriodo === 'ontem') {
-        const ontem = new Date(now); ontem.setUTCDate(ontem.getUTCDate()-1);
-        okPeriodo = d.getUTCFullYear()===ontem.getUTCFullYear() && d.getUTCMonth()===ontem.getUTCMonth() && d.getUTCDate()===ontem.getUTCDate();
-      } else if (filterPeriodo === '7dias') {
-        const sete = new Date(now); sete.setUTCDate(sete.getUTCDate()-6);
-        sete.setUTCHours(0,0,0,0);
-        okPeriodo = d >= sete;
-      } else if (filterPeriodo === 'mes') {
-        okPeriodo = d.getUTCFullYear()===now.getUTCFullYear() && d.getUTCMonth()===now.getUTCMonth();
-      } else if (filterPeriodo === 'custom') {
-        const from = customFrom ? new Date(customFrom+'T03:00:00Z') : null;
-        const to   = customTo   ? new Date(customTo  +'T02:59:59Z') : null;
-        if (from) okPeriodo = okPeriodo && d >= from;
-        if (to)   okPeriodo = okPeriodo && d <= to;
-      }
-    }
-    return okSearch && okPlano && okPeriodo;
-  });
-
-  const totalPeriodo = filteredUsers.length;
-  const totalPro  = filteredUsers.filter(u=>u.plano==='pro').length;
-  const totalVip  = filteredUsers.filter(u=>u.plano==='ilimitado').length;
-  const totalFree = filteredUsers.filter(u=>u.plano==='free').length;
-
-  const totalDocs = documents.filter(d => {
-    if (filterPeriodo === 'maximo') return true;
-    const now = nowBrasilia();
-    const dt  = toBrasilia(d.created_at);
-    if (filterPeriodo === 'hoje') {
-      return dt.getUTCFullYear()===now.getUTCFullYear() && dt.getUTCMonth()===now.getUTCMonth() && dt.getUTCDate()===now.getUTCDate();
-    }
-    if (filterPeriodo === 'ontem') {
-      const ontem = new Date(now); ontem.setUTCDate(ontem.getUTCDate()-1);
-      return dt.getUTCFullYear()===ontem.getUTCFullYear() && dt.getUTCMonth()===ontem.getUTCMonth() && dt.getUTCDate()===ontem.getUTCDate();
-    }
-    if (filterPeriodo === '7dias') {
-      const sete = new Date(now); sete.setUTCDate(sete.getUTCDate()-6); sete.setUTCHours(0,0,0,0);
-      return dt >= sete;
-    }
-    if (filterPeriodo === 'mes') {
-      return dt.getUTCFullYear()===now.getUTCFullYear() && dt.getUTCMonth()===now.getUTCMonth();
-    }
-    if (filterPeriodo === 'custom') {
-      const from = customFrom ? new Date(customFrom+'T03:00:00Z') : null;
-      const to   = customTo   ? new Date(customTo  +'T02:59:59Z') : null;
-      if (from && dt < from) return false;
-      if (to   && dt > to)   return false;
-      return true;
-    }
-    return true;
-  }).length;
 
   const baseSessions = (analytics?.sessions??[]);
 
-  const allSources      = Array.from(new Set(baseSessions.map(s=>srcLabel(s)))).sort();
-  const filteredSessions = baseSessions.filter(s => {
-    const src = srcLabel(s).toLowerCase();
-    return (!filterSource||src===filterSource.toLowerCase()) &&
-           (!visitSearch||src.includes(visitSearch.toLowerCase())||(s.utm_campaign??'').toLowerCase().includes(visitSearch.toLowerCase())||(s.ip??'').includes(visitSearch));
-  });
-
-  if (loadingUsers) return <div className={styles.loading}>Carregando...</div>;
-
-  const fn  = analytics?.funnel;
   const mt  = metaData?.meta_totals;
   const lpf = metaData?.lp_funnel;
 
@@ -358,159 +270,26 @@ export default function AdminPage() {
     <div className={styles.page}>
       <div className={styles.header} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
         <div>
-          <h1 className={styles.title}>⚙️ Painel Admin</h1>
-          <p className={styles.subtitle}>{users.length} usuários cadastrados</p>
+          <h1 className={styles.title}>📊 Tráfego &amp; Receita</h1>
+          <p className={styles.subtitle}>Aquisição por campanha — visitas, funil e retorno do investimento</p>
         </div>
-        {tab==='users' && (
-          <button className="btn-secondary" disabled={resetting} onClick={async()=>{
-            if(!confirm('Resetar documentos de todos os usuários FREE/PRO com data vencida?'))return;
-            setResetting(true);setResetMsg('');
-            try{const r=await api.post('/admin/reset-monthly');setResetMsg(r.data.message);}
-            catch{setResetMsg('Erro ao executar reset');}
-            finally{setResetting(false);}
-          }}>{resetting?'Executando...':'🔄 Reset Mensal'}</button>
-        )}
-        {tab==='visits' && (
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          {tab==='io_visits' && (
+            <a href="/io" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{textDecoration:'none'}}>↗ Abrir Site /io</a>
+          )}
           <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
-            onClick={()=>{loadAnalytics();setMetaLoaded(false);loadMeta();}}>
+            onClick={()=>{setAnalyticsLoaded(false);setMetaLoaded(false);loadAnalytics();loadMeta();}}>
             {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
           </button>
-        )}
-        {tab==='io_visits' && (
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <a href="/io" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{textDecoration:'none'}}>↗ Abrir Site /io</a>
-            <button className="btn-secondary" disabled={loadingAnalytics} onClick={()=>loadAnalytics()}>
-              {loadingAnalytics?'Atualizando...':'🔄 Atualizar'}
-            </button>
-          </div>
-        )}
+        </div>
       </div>
 
-      {resetMsg && (
-        <div style={{background:'rgba(34,197,94,0.1)',border:'1px solid #22c55e',color:'#22c55e',borderRadius:8,padding:'10px 16px',marginBottom:16,fontSize:13}}>
-          ✓ {resetMsg}
-        </div>
-      )}
-
       <div className={styles.tabs}>
-        <button className={tab==='users'?styles.tabActive:styles.tab} onClick={()=>setTab('users')}>👥 Usuários SolarDocs Pro</button>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 LP SolarDoc</button>
+        <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>💰 Receita / ROAS</button>
         <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ Acessos Site IO</button>
         <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>🎨 Pack Solar</button>
       </div>
-
-      {/* ═══ ABA USUÁRIOS ══════════════════════════════════════ */}
-      {tab==='users' && (
-        <>
-          <div className={styles.cards}>
-            <div className={styles.card}><div className={styles.cardLabel}>Cadastros (Período)</div><div className={styles.cardValue} style={{color:'#22c55e'}}>{totalPeriodo}</div></div>
-            <div className={styles.card}><div className={styles.cardLabel}>Documentos Gerados</div><div className={styles.cardValue} style={{color:'#3b82f6'}}>{totalDocs}</div></div>
-            <div className={styles.card}><div className={styles.cardLabel}>FREE</div><div className={styles.cardValue} style={{color:'#64748b'}}>{totalFree}</div></div>
-            <div className={styles.card}><div className={styles.cardLabel}>PRO</div><div className={styles.cardValue} style={{color:'#F59E0B'}}>{totalPro}</div></div>
-            <div className={styles.card}><div className={styles.cardLabel}>VIP</div><div className={styles.cardValue} style={{color:'#f97316'}}>{totalVip}</div></div>
-          </div>
-          <div className={styles.filters}>
-            <input type="text" placeholder="Buscar por email ou empresa..." value={search} onChange={e=>setSearch(e.target.value)} className="input-field" style={{maxWidth:320}}/>
-            <select value={filterPlano} onChange={e=>setFilterPlano(e.target.value)} className="input-field" style={{maxWidth:140}}>
-              <option value="todos">Todos os planos</option>
-              <option value="free">FREE</option><option value="pro">PRO</option><option value="ilimitado">VIP</option>
-            </select>
-          </div>
-          <div className={styles.filters} style={{marginTop:8,alignItems:'center'}}>
-            <div className={styles.periodTabs}>
-              {([['hoje','Hoje'],['ontem','Ontem'],['7dias','7 dias'],['mes','Esse mês'],['custom','Período'],['maximo','Máximo']] as const).map(([v,l])=>(
-                <button key={v} className={filterPeriodo===v?styles.periodActive:styles.periodBtn} onClick={()=>setFilterPeriodo(v)}>{l}</button>
-              ))}
-            </div>
-            {filterPeriodo==='custom'&&(
-              <>
-                <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)} className="input-field" style={{maxWidth:150}} />
-                <span style={{color:'var(--color-text-muted)',fontSize:13}}>até</span>
-                <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)} className="input-field" style={{maxWidth:150}} />
-              </>
-            )}
-            <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>{filteredUsers.length} resultado{filteredUsers.length!==1?'s':''}</span>
-          </div>
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead><tr><th>Email</th><th>Empresa</th><th>WhatsApp</th><th>Plano</th><th>Stripe</th><th>Docs</th><th>Cadastro</th><th>Followup</th><th>Resultado Followup</th></tr></thead>
-              <tbody>
-                {filteredUsers.length===0&&<tr><td colSpan={9} className={styles.empty}>Nenhum usuário encontrado</td></tr>}
-                {filteredUsers.map(u=>{
-                  const fsRaw       = u.followup_started_at;
-                  const isInSystem  = !!fsRaw;
-                  const baseMs      = fsRaw ? new Date(fsRaw.replace(' ','T')+'Z').getTime() : 0;
-                  const diffDays    = isInSystem ? Math.floor((Date.now() - baseMs) / 86400000) : 0;
-                  const followupDay = diffDays + 1;
-                  const inSequence  = isInSystem && !u.empresa_cnpj && followupDay >= 1 && followupDay <= 7;
-                  const expired     = isInSystem && !u.empresa_cnpj && followupDay > 7;
-                  const converted   = isInSystem && !!u.empresa_cnpj;
-                  const convDay     = u.followup_day_recovered ?? (converted ? followupDay : null);
-                  return (
-                  <tr key={u.id} className={isToday(u.created_at)?styles.rowNew:''}>
-                    <td>
-                      {u.email}
-                      {u.is_admin&&<span className={styles.adminTag}>admin</span>}
-                    </td>
-                    <td className={styles.mutedCell}>{u.empresa_nome??<span className={styles.emptyDash}>—</span>}</td>
-                    <td className={styles.mutedCell}>{(() => {
-                      const wpp = u.empresa_whatsapp || u.whatsapp;
-                      return wpp ? <a href={`https://wa.me/55${wpp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" style={{color:'#22c55e',textDecoration:'none'}}>📲 {wpp}</a> : <span className={styles.emptyDash}>—</span>;
-                    })()}</td>
-                    <td><span className={styles.planTag} style={{background:PLANO_COLOR[u.plano]+'22',color:PLANO_COLOR[u.plano],borderColor:PLANO_COLOR[u.plano]+'55'}}>{PLANO_LABEL[u.plano]??u.plano}</span></td>
-                    <td style={{textAlign:'center'}}>{(() => {
-                      // Admin não passa pelo funil de Stripe — plano vitalício manual
-                      if (u.is_admin) {
-                        return <span title="Admin — plano vitalício, fora do funil Stripe" style={{display:'inline-block',padding:'2px 8px',borderRadius:6,background:'rgba(99,102,241,0.10)',border:'1px solid rgba(99,102,241,0.30)',color:'#818cf8',fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>ADM</span>;
-                      }
-                      // Sem subscription no Stripe: cadastrou mas não passou cartão
-                      if (!u.stripe_status) {
-                        return u.plano === 'free'
-                          ? <span title="Cadastrou mas não passou cartão" style={{display:'inline-block',padding:'2px 8px',borderRadius:6,background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.30)',color:'#f87171',fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>Não passou</span>
-                          : <span className={styles.emptyDash}>—</span>;
-                      }
-                      // Com subscription: traduzir status
-                      const map: Record<string,{label:string;bg:string;border:string;color:string}> = {
-                        trialing:           { label:'Trial',     bg:'rgba(59,130,246,0.10)', border:'rgba(59,130,246,0.30)', color:'#60a5fa' },
-                        active:             { label:'Ativo',     bg:'rgba(34,197,94,0.10)',  border:'rgba(34,197,94,0.30)',  color:'#22c55e' },
-                        past_due:           { label:'Em atraso', bg:'rgba(245,158,11,0.10)', border:'rgba(245,158,11,0.30)', color:'#f59e0b' },
-                        canceled:           { label:'Cancelou',  bg:'rgba(239,68,68,0.10)',  border:'rgba(239,68,68,0.30)',  color:'#f87171' },
-                        incomplete:         { label:'Incompleto',bg:'rgba(148,163,184,0.10)',border:'rgba(148,163,184,0.30)',color:'#94a3b8' },
-                        incomplete_expired: { label:'Expirou',   bg:'rgba(148,163,184,0.10)',border:'rgba(148,163,184,0.30)',color:'#94a3b8' },
-                        unpaid:             { label:'Não pagou', bg:'rgba(239,68,68,0.10)',  border:'rgba(239,68,68,0.30)',  color:'#f87171' },
-                        paused:             { label:'Pausada',   bg:'rgba(148,163,184,0.10)',border:'rgba(148,163,184,0.30)',color:'#94a3b8' },
-                      };
-                      const s = map[u.stripe_status] ?? { label:u.stripe_status, bg:'rgba(148,163,184,0.10)', border:'rgba(148,163,184,0.30)', color:'#94a3b8' };
-                      // Concatena com PRO/VIP nos status que carregam plano (active/trialing/past_due)
-                      const planSuffix = u.stripe_plan && (u.stripe_status === 'active' || u.stripe_status === 'trialing' || u.stripe_status === 'past_due')
-                        ? ` ${PLANO_LABEL[u.stripe_plan] ?? u.stripe_plan.toUpperCase()}`
-                        : '';
-                      return <span title={`Stripe: ${u.stripe_status}${u.stripe_plan?' / '+u.stripe_plan:''}`} style={{display:'inline-block',padding:'2px 8px',borderRadius:6,background:s.bg,border:`1px solid ${s.border}`,color:s.color,fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>{s.label}{planSuffix}</span>;
-                    })()}</td>
-                    <td className={styles.mutedCell}>{u.documentos_usados}/{u.limite_documentos===999999?'∞':u.limite_documentos}</td>
-                    <td>{(() => { const r = relDate(u.created_at); return <div style={{display:'flex',flexDirection:'column',gap:2}}><span style={{fontWeight:600,fontSize:12,color:r.color}}>{r.label}</span>{r.showTime&&<span style={{fontSize:11,color:'var(--color-text-muted)'}}>{r.time}</span>}</div>; })()}</td>
-                    <td style={{textAlign:'center'}}>
-                      {inSequence
-                        ? <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:'rgba(245,158,11,0.12)',border:'1px solid rgba(245,158,11,0.35)',color:'#f59e0b',fontWeight:700,fontSize:12}}>{String(followupDay).padStart(2,'0')}</span>
-                        : <span className={styles.emptyDash}>—</span>
-                      }
-                    </td>
-                    <td style={{textAlign:'center'}}>
-                      {converted
-                        ? <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.3)',color:'#22c55e',fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>Sucesso followup {String(convDay??followupDay).padStart(2,'0')}</span>
-                        : expired
-                          ? <span style={{display:'inline-block',padding:'2px 10px',borderRadius:6,background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.25)',color:'#f87171',fontWeight:600,fontSize:11,whiteSpace:'nowrap'}}>Sem sucesso</span>
-                          : <span className={styles.emptyDash}>—</span>
-                      }
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
 
       {/* ═══ ABA ACESSOS SITE IO ════════════════════════════════ */}
       {tab === 'io_visits' && (() => {
@@ -938,6 +717,150 @@ export default function AdminPage() {
       })()}
 
       {/* Aba sim_visits removida — funil /io/simular descontinuado */}
+
+      {/* ═══ ABA RECEITA / ROAS ═════════════════════════════════ */}
+      {tab === 'receita' && (() => {
+        const loading = loadingRevenue || loadingMeta;
+        const rows    = revenue?.by_campaign ?? [];
+
+        // O utm_campaign que a Meta injeta na URL é o ID da campanha ({{campaign.id}}),
+        // não o nome. Então cruzamos gasto×receita por campaign_id (ID↔ID), e usamos
+        // o campaign_name dos adsets só pra exibir um rótulo legível na tabela.
+        const spendById = new Map<string, number>();
+        const nameById  = new Map<string, string>();
+        (metaData?.adsets ?? []).forEach(a => {
+          const id = (a.campaign_id || '').trim();
+          if (!id) return;
+          spendById.set(id, (spendById.get(id) ?? 0) + (a.spend || 0));
+          if (a.campaign_name) nameById.set(id, a.campaign_name);
+        });
+        const metaAvailable = !!metaData?.available;
+
+        const joined = rows.map(r => {
+          const id    = (r.campaign || '').trim();
+          const spend = spendById.get(id) ?? 0;
+          const roas  = spend > 0 ? r.mrr / spend : null;
+          // Nome legível: o backend (mm_campanhas) tem prioridade; cai pro nome do
+          // gasto da janela, e por último o ID cru.
+          const label = r.campaign_name || nameById.get(id) || r.campaign;
+          return { ...r, label, spend, roas };
+        }).sort((a, b) => b.mrr - a.mrr);
+
+        const totalMrr   = revenue?.total_mrr ?? 0;
+        const totalSpend = joined.reduce((acc, r) => acc + r.spend, 0);
+        const totalRoas  = totalSpend > 0 ? totalMrr / totalSpend : null;
+        const payingUsers = revenue?.total_users ?? 0;
+
+        return (
+          <>
+            <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
+              <div className={styles.periodTabs}>
+                {([['hoje','Hoje'],['ontem','Ontem'],['3d','3 dias'],['7dias','7 dias'],['mes','Esse mês'],['maximo','Máximo']] as const).map(([v,l])=>(
+                  <button key={v} className={visitPeriod===v?styles.periodActive:styles.periodBtn} onClick={()=>changeVisitPeriod(v as any)} disabled={loading}>{l}</button>
+                ))}
+              </div>
+              <span style={{fontSize:12,color:'var(--color-text-muted)',marginLeft:'auto'}}>
+                ROAS = MRR novo no período ÷ gasto Meta no período · atribuição forward-only
+              </span>
+            </div>
+
+            {/* Aviso forward-only — a atribuição só conta checkouts NOVOS (pós-implementação). */}
+            <div style={{background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.30)', color:'#93c5fd', borderRadius:8, padding:'10px 14px', marginBottom:20, fontSize:12, lineHeight:1.5}}>
+              ℹ️ A receita por campanha é <strong>forward-only</strong>: só aparece para checkouts feitos depois que a atribuição UTM→Stripe foi ligada. Compras antigas não têm a origem salva e não entram aqui.
+            </div>
+
+            {loading ? (
+              <div className={styles.loading}>Carregando receita...</div>
+            ) : payingUsers === 0 ? (
+              <div className={styles.loading} style={{textAlign:'center', padding:'48px 24px'}}>
+                <div style={{fontSize:48, marginBottom:12}}>💰</div>
+                <div style={{fontWeight:700, marginBottom:6}}>Nenhuma venda atribuída ainda</div>
+                <div style={{fontSize:13, color:'var(--color-text-muted)', maxWidth:460, margin:'0 auto'}}>
+                  O painel começa a encher a partir do próximo checkout que vier de um link com <code>?utm_campaign=...</code>. Assim que alguém pagar vindo de uma campanha, a receita e o ROAS aparecem aqui.
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Cards de topo */}
+                <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop:12}}>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel} title="Inclui assinaturas em trial de 7 dias (cancelamento no trial não é descontado)">MRR potencial (inclui trials)</div>
+                    <div className={styles.cardValue} style={{color:'#22c55e'}}>{fmtBRL(totalMrr)}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Assinantes atribuídos</div>
+                    <div className={styles.cardValue} style={{color:'#3b82f6'}}>{payingUsers}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Gasto Meta (campanhas)</div>
+                    <div className={styles.cardValue} style={{color:'#f87171'}}>{metaAvailable ? fmtBRL(totalSpend) : '—'}</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>ROAS médio</div>
+                    <div className={styles.cardValue} style={{color: totalRoas==null ? '#94a3b8' : totalRoas>=1 ? '#22c55e' : '#f59e0b'}}>
+                      {totalRoas==null ? '—' : `${totalRoas.toFixed(2)}x`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tabela receita por campanha */}
+                <div className={styles.tableWrap} style={{marginTop:24}}>
+                  <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>💰 Receita por campanha</div>
+                  <table className={styles.table}>
+                    <thead><tr>
+                      <th>Campanha (UTM)</th>
+                      <th>Assinantes</th>
+                      <th>Planos</th>
+                      <th>MRR</th>
+                      <th>Gasto Meta</th>
+                      <th>ROAS</th>
+                    </tr></thead>
+                    <tbody>
+                      {joined.map(r => (
+                        <tr key={r.campaign}>
+                          <td style={{fontWeight:600}}>{r.label || <span className={styles.emptyDash}>(sem campanha)</span>}</td>
+                          <td className={styles.mutedCell}>{r.users}</td>
+                          <td className={styles.mutedCell}>
+                            {Object.entries(r.plans).map(([p,n]) => (
+                              <span key={p} className={styles.planTag} style={{background:(PLANO_COLOR[p]||'#64748b')+'22',color:PLANO_COLOR[p]||'#94a3b8',borderColor:(PLANO_COLOR[p]||'#64748b')+'55',marginRight:4}}>
+                                {(PLANO_LABEL[p]??p)} {n}
+                              </span>
+                            ))}
+                          </td>
+                          <td className={styles.mutedCell} style={{fontWeight:700,color:'#22c55e'}}>{fmtBRL(r.mrr)}</td>
+                          <td className={styles.mutedCell}>{r.spend>0 ? fmtBRL(r.spend) : (metaAvailable ? '—' : 'sem dado')}</td>
+                          <td className={styles.mutedCell} style={{fontWeight:700, color: r.roas==null ? '#94a3b8' : r.roas>=1 ? '#22c55e' : '#f59e0b'}}>
+                            {r.roas==null ? '—' : `${r.roas.toFixed(2)}x`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Tabela receita por origem (utm_source) */}
+                {(revenue?.by_source?.length ?? 0) > 0 && (
+                  <div className={styles.tableWrap} style={{marginTop:24}}>
+                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Receita por origem</div>
+                    <table className={styles.table}>
+                      <thead><tr><th>Origem (utm_source)</th><th>Assinantes</th><th>MRR</th></tr></thead>
+                      <tbody>
+                        {(revenue?.by_source ?? []).map(s => (
+                          <tr key={s.source}>
+                            <td style={{fontWeight:600}}>{s.source || <span className={styles.emptyDash}>(direto)</span>}</td>
+                            <td className={styles.mutedCell}>{s.users}</td>
+                            <td className={styles.mutedCell} style={{fontWeight:700,color:'#22c55e'}}>{fmtBRL(s.mrr)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        );
+      })()}
 
       {/* ═══ ABA PACK SOLAR (pack.solardoc.app) ════════════════════ */}
       {tab === 'pack_visits' && (() => {
