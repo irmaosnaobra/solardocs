@@ -20,6 +20,21 @@
   --color-accent-soft: #FFF1E9;
   --color-accent-border: #FAD9C5;
 
+  /* ── Acentos ESCUROS para texto/valores sobre fundo CLARO (cards brancos) ──
+     Mesma cor, tom escuro: azul-claro → azul-escuro, verde-claro → verde-escuro
+     etc. Usar estes em vez dos hexes claros (#60a5fa, #22c55e...) que somem no
+     branco. NÃO usar no chrome/rail escuro — lá a cor clara é a correta. */
+  --ink-blue:   #1D4ED8;  /* era #60a5fa / #3b82f6 */
+  --ink-indigo: #4338CA;  /* era #818cf8 */
+  --ink-green:  #15803D;  /* era #22c55e / #34d399 / #4ade80 */
+  --ink-teal:   #0F766E;  /* era #2dd4bf / #14b8a6 */
+  --ink-purple: #7C3AED;  /* era #a78bfa / #c084fc */
+  --ink-amber:  #B45309;  /* era #fbbf24 / #fcd34d — âmbar escuro, ainda lê laranja */
+  --ink-orange: #C2410C;  /* era #fb923c */
+  --ink-pink:   #BE185D;  /* era #ec4899 */
+  --ink-red:    #DC2626;  /* era #f87171 */
+  --ink-slate:  #475569;  /* era #94a3b8 — cinza secundário legível no branco */
+
   /* ── CHROME: topbar + rail SEMPRE escuros, independem do tema do corpo ── */
   --chrome-bg: #1B2129;
   --chrome-bg-2: #232B35;

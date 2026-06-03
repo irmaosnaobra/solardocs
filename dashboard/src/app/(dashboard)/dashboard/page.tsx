@@ -242,7 +242,7 @@ export default function DashboardPage() {
                 <Pie data={tipoData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
                   {tipoData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
-                <Legend formatter={(v) => <span style={{ fontSize: 12, color: '#94a3b8' }}>{v}</span>} iconType="circle" iconSize={8} />
+                <Legend formatter={(v) => <span style={{ fontSize: 12, color: 'var(--ink-slate)' }}>{v}</span>} iconType="circle" iconSize={8} />
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <Tooltip formatter={((v: any) => [`${Number(v ?? 0)} doc${Number(v) !== 1 ? 's' : ''}`, '']) as any} />
               </PieChart>
