@@ -25,9 +25,9 @@ interface Prestador {
 }
 
 const STATUS_OPCOES = [
-  { v: 'pendente', l: '⏳ Pendente', color: '#f59e0b' },
-  { v: 'aprovado', l: '✓ Aprovado', color: '#22c55e' },
-  { v: 'suspenso', l: '⏸ Suspenso', color: '#ef4444' },
+  { v: 'pendente', l: '⏳ Pendente', color: '#B45309' },
+  { v: 'aprovado', l: '✓ Aprovado', color: '#15803D' },
+  { v: 'suspenso', l: '⏸ Suspenso', color: '#DC2626' },
 ];
 
 const ESPECIALIDADE_LABEL: Record<string, string> = {

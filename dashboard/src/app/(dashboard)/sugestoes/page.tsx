@@ -25,8 +25,8 @@ interface Comentario {
 }
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
-  aprovada:           { label: '✓ Aprovada',       color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
-  em_desenvolvimento: { label: '🔨 Em construção', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+  aprovada:           { label: '✓ Aprovada',       color: 'var(--ink-green)', bg: 'rgba(34,197,94,0.12)' },
+  em_desenvolvimento: { label: '🔨 Em construção', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.12)' },
   publicada:          { label: '🚀 Publicada',     color: '#1D9E75', bg: 'rgba(29,158,117,0.15)' },
 };
 

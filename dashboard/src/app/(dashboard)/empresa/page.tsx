@@ -402,9 +402,9 @@ export default function EmpresaPage() {
   // ── CNPJ status helpers ────────────────────────────────────
   const cnpjHint =
     cnpjStatus === 'checking'    ? { color: 'var(--color-text-muted)', text: 'Consultando Receita Federal...' } :
-    cnpjStatus === 'valid'       ? { color: '#22c55e', text: '✓ CNPJ válido e encontrado na Receita Federal' } :
-    cnpjStatus === 'unverified'  ? { color: '#f59e0b', text: '✓ CNPJ aceito (não conseguimos confirmar na Receita agora — pode prosseguir)' } :
-    cnpjStatus === 'invalid'     ? { color: '#ef4444', text: `✗ ${cnpjError}` } :
+    cnpjStatus === 'valid'       ? { color: 'var(--ink-green)', text: '✓ CNPJ válido e encontrado na Receita Federal' } :
+    cnpjStatus === 'unverified'  ? { color: 'var(--ink-amber)', text: '✓ CNPJ aceito (não conseguimos confirmar na Receita agora — pode prosseguir)' } :
+    cnpjStatus === 'invalid'     ? { color: 'var(--ink-red)', text: `✗ ${cnpjError}` } :
     null;
 
   // ── EDIT ─────────────────────────────────────────────────
@@ -500,7 +500,7 @@ export default function EmpresaPage() {
               <label className={styles.label}>Logo da empresa</label>
 
               {logoError && (
-                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 8 }}>
+                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: 'var(--ink-red)', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 8 }}>
                   ⚠️ {logoError}
                 </div>
               )}

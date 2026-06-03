@@ -16,11 +16,11 @@ interface Sugestao {
 }
 
 const STATUS_OPCOES = [
-  { v: 'recebido',           l: 'Recebido',          color: '#94a3b8' },
-  { v: 'aprovada',           l: '✓ Aprovar',         color: '#22c55e' },
-  { v: 'em_desenvolvimento', l: '🔨 Em construção',  color: '#f59e0b' },
+  { v: 'recebido',           l: 'Recebido',          color: '#475569' },
+  { v: 'aprovada',           l: '✓ Aprovar',         color: '#15803D' },
+  { v: 'em_desenvolvimento', l: '🔨 Em construção',  color: '#B45309' },
   { v: 'publicada',          l: '🚀 Publicada',      color: '#1D9E75' },
-  { v: 'rejeitada',          l: '× Rejeitar',        color: '#ef4444' },
+  { v: 'rejeitada',          l: '× Rejeitar',        color: '#DC2626' },
 ];
 
 function fmtData(iso: string) {
@@ -102,8 +102,8 @@ export default function AdminSugestoesPage() {
                   <div className="sug-item-head">
                     <h3>{s.titulo}</h3>
                     <span className="sug-status" style={{
-                      color: statusInfo?.color || '#94a3b8',
-                      background: `${statusInfo?.color || '#94a3b8'}1f`,
+                      color: statusInfo?.color || '#475569',
+                      background: `${statusInfo?.color || '#475569'}1f`,
                     }}>
                       {statusInfo?.l || s.status}
                     </span>

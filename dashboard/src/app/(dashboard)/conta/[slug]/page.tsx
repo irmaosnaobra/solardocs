@@ -50,9 +50,9 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
 
       {/* ── INTEREST (SPIN — 4 cards) ── */}
       <section className="mentoria-spin" aria-label="SPIN">
-        <SpinCard label="Situação"    texto={feature.spin.situacao}    cor="#94a3b8" />
-        <SpinCard label="Problema"    texto={feature.spin.problema}    cor="#ef4444" />
-        <SpinCard label="Implicação"  texto={feature.spin.implicacao}  cor="#f59e0b" />
+        <SpinCard label="Situação"    texto={feature.spin.situacao}    cor="var(--ink-slate)" />
+        <SpinCard label="Problema"    texto={feature.spin.problema}    cor="var(--ink-red)" />
+        <SpinCard label="Implicação"  texto={feature.spin.implicacao}  cor="var(--ink-amber)" />
         <SpinCard label="Necessidade" texto={feature.spin.necessidade} cor={corPrimary} />
       </section>
 
@@ -86,7 +86,7 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
             </button>
 
             {feature.status === 'em_breve' && (
-              <div className="mentoria-urgencia" style={{ color: '#f59e0b', background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.3)' }}>
+              <div className="mentoria-urgencia" style={{ color: 'var(--ink-amber)', background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.3)' }}>
                 🚧 Recurso em desenvolvimento — disponível em breve. Você será notificado.
               </div>
             )}

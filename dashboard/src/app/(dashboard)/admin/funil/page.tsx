@@ -32,12 +32,12 @@ const PERIODS: { value: Period; label: string }[] = [
 
 // Cores por etapa — degradê quente da VSL → laranja da plataforma
 const STEP_COLORS: Record<FunnelStep['key'], { bg: string; border: string; accent: string }> = {
-  vsl:        { bg: 'rgba(139, 92, 246, 0.10)', border: 'rgba(139, 92, 246, 0.30)', accent: '#a78bfa' },
-  landing:    { bg: 'rgba(59, 130, 246, 0.10)', border: 'rgba(59, 130, 246, 0.30)', accent: '#60a5fa' },
-  cadastro:   { bg: 'rgba(16, 185, 129, 0.10)', border: 'rgba(16, 185, 129, 0.30)', accent: '#34d399' },
-  stripe:     { bg: 'rgba(245, 158, 11, 0.10)', border: 'rgba(245, 158, 11, 0.30)', accent: '#fbbf24' },
-  empresa:    { bg: 'rgba(20, 184, 166, 0.10)', border: 'rgba(20, 184, 166, 0.30)', accent: '#2dd4bf' },
-  plataforma: { bg: 'rgba(239, 68, 68, 0.10)',  border: 'rgba(239, 68, 68, 0.30)',  accent: '#f87171' },
+  vsl:        { bg: 'rgba(139, 92, 246, 0.10)', border: 'rgba(139, 92, 246, 0.30)', accent: 'var(--ink-purple)' },
+  landing:    { bg: 'rgba(59, 130, 246, 0.10)', border: 'rgba(59, 130, 246, 0.30)', accent: 'var(--ink-blue)' },
+  cadastro:   { bg: 'rgba(16, 185, 129, 0.10)', border: 'rgba(16, 185, 129, 0.30)', accent: 'var(--ink-green)' },
+  stripe:     { bg: 'rgba(245, 158, 11, 0.10)', border: 'rgba(245, 158, 11, 0.30)', accent: 'var(--ink-amber)' },
+  empresa:    { bg: 'rgba(20, 184, 166, 0.10)', border: 'rgba(20, 184, 166, 0.30)', accent: 'var(--ink-teal)' },
+  plataforma: { bg: 'rgba(239, 68, 68, 0.10)',  border: 'rgba(239, 68, 68, 0.30)',  accent: 'var(--ink-red)' },
 };
 
 const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
@@ -125,7 +125,7 @@ export default function FunilPage() {
       )}
 
       {error && (
-        <div style={{ padding: 24, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, color: '#f87171' }}>
+        <div style={{ padding: 24, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, color: 'var(--ink-red)' }}>
           {error}
         </div>
       )}
@@ -155,7 +155,7 @@ export default function FunilPage() {
                       </div>
                       <div style={{ fontSize: 22, color: 'var(--color-text-muted)' }}>→</div>
                       {dropoff && Number(dropoff) > 0 && (
-                        <div style={{ fontSize: 10, color: '#f87171', fontWeight: 700 }}>
+                        <div style={{ fontSize: 10, color: 'var(--ink-red)', fontWeight: 700 }}>
                           −{dropoff}%
                         </div>
                       )}
@@ -266,7 +266,7 @@ export default function FunilPage() {
             <code style={{ padding: '0 4px' }}>/apresentacao</code>; LP conta a home
             <code style={{ padding: '0 4px' }}>solardoc.app</code> (exclui /io, /gerador, /apresentacao).
             <br /><br />
-            <strong style={{ color: '#fbbf24' }}>Fluxo novo:</strong> o cliente passa o cartão no Stripe
+            <strong style={{ color: 'var(--ink-amber)' }}>Fluxo novo:</strong> o cliente passa o cartão no Stripe
             (trial 7 dias) <b>antes</b> de criar a conta — só cadastra quem pagou. Depois preenche o CNPJ em
             <code style={{ padding: '0 4px' }}>/empresa</code> dentro da plataforma e gera os documentos.
           </div>

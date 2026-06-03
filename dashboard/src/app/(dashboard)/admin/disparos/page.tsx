@@ -386,7 +386,7 @@ export default function DisparosPage() {
           flexWrap: 'wrap',
         }}>
           <div style={{ fontSize: 13 }}>
-            <strong style={{ color: '#3b82f6' }}>Disparo pendente</strong>{' '}
+            <strong style={{ color: 'var(--ink-blue)' }}>Disparo pendente</strong>{' '}
             de {new Date(pendenteDoHistorico.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
             {' · '}
             {pendenteDoHistorico.sucesso}/{pendenteDoHistorico.total} enviados.
@@ -697,7 +697,7 @@ export default function DisparosPage() {
               <div key={l.id} style={{
                 padding: '3px 0',
                 borderBottom: '1px dashed var(--color-border)',
-                color: l.status === 'err' ? '#dc2626' : l.status === 'skip' ? '#f59e0b' : 'var(--color-text)',
+                color: l.status === 'err' ? 'var(--ink-red)' : l.status === 'skip' ? 'var(--ink-amber)' : 'var(--color-text)',
               }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>[{l.ts}]</span>{' '}
                 {l.slot > 0 && <span style={{ color: 'var(--color-text-muted)' }}>R{l.slot}</span>}{' '}
