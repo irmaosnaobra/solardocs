@@ -15,6 +15,7 @@ import api from '@/services/api';
 const SK_SESSION = 'sd_lp_session';
 const SK_VISIT_SENT = 'sd_lp_visit_sent';
 const SK_SCROLL_REACHED = 'sd_lp_scroll_max';
+const SK_UTMS = 'sd_lp_utms';   // UTMs persistidos no 1º acesso (sobrevivem à navegação interna)
 
 function uuid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -46,6 +47,29 @@ function extractUtms(): Record<string, string> {
     const v = params.get(k);
     if (v) out[k] = v;
   });
+  // Persiste no 1º acesso (com UTMs na URL); recupera depois mesmo se o user
+  // navegou pra outra rota interna e a query sumiu da URL.
+  try {
+    if (Object.keys(out).length) {
+      sessionStorage.setItem(SK_UTMS, JSON.stringify(out));
+      return out;
+    }
+    const stored = sessionStorage.getItem(SK_UTMS);
+    if (stored) return JSON.parse(stored) as Record<string, string>;
+  } catch {}
+  return out;
+}
+
+// Lê session_id + UTMs pra mandar no checkout público (atribuição UTM→Stripe).
+// Mesma origem/aba do tracking → sessionStorage está disponível aqui.
+export function getCheckoutAttribution(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const out: Record<string, string> = {};
+  try {
+    const sid = sessionStorage.getItem(SK_SESSION);
+    if (sid) out.lp_session = sid;
+  } catch {}
+  Object.assign(out, extractUtms());
   return out;
 }
 

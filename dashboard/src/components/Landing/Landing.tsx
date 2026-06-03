@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLpTracking } from '@/hooks/useLpTracking';
+import { useLpTracking, getCheckoutAttribution } from '@/hooks/useLpTracking';
 import api from '@/services/api';
 import styles from './Landing.module.css';
 
@@ -134,7 +134,12 @@ export default function Landing() {
     }
     setCheckoutLoading(plano);
     try {
-      const { data } = await api.post('/payments/public-checkout', { plan: plano });
+      // Atribuição: manda o session_id da LP + UTMs (de sessionStorage) junto.
+      // O backend grava no metadata do Stripe → receita atribuída à campanha.
+      const { data } = await api.post('/payments/public-checkout', {
+        plan: plano,
+        ...getCheckoutAttribution(),
+      });
       if (data?.url) {
         window.location.href = data.url;
         return;

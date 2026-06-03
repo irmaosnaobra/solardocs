@@ -43,7 +43,25 @@ async function detectStripePlan(email: string): Promise<{ plano: string; limite:
 // detectStripePlan(email): não depende do email digitado bater com o do cartão,
 // e blinda cross-produto (session do Pack é mode=payment, sem subscription/price
 // SolarDoc → retorna null). Usado quando o register vem com session_id.
-async function detectPlanFromSession(sessionId: string): Promise<{ plano: string; limite: number; email: string | null } | null> {
+// Atribuição forward-only: monta o patch das colunas de `users` a partir do
+// metadata do checkout (utm_* + lp_session que a LP enviou). Só campos presentes.
+function attributionPatchFromSession(
+  meta: Record<string, unknown> | null | undefined,
+  checkoutSessionId: string,
+): Record<string, string> {
+  const patch: Record<string, string> = { checkout_session_id: checkoutSessionId };
+  let hasAttr = false;
+  for (const k of ['utm_source','utm_medium','utm_campaign','utm_content','utm_term']) {
+    const v = meta?.[k];
+    if (typeof v === 'string' && v.trim()) { patch[k] = v.trim(); hasAttr = true; }
+  }
+  const lp = meta?.lp_session;
+  if (typeof lp === 'string' && lp.trim()) { patch.attribution_session_id = lp.trim(); hasAttr = true; }
+  if (hasAttr) patch.attribution_captured_at = new Date().toISOString();
+  return patch;
+}
+
+async function detectPlanFromSession(sessionId: string): Promise<{ plano: string; limite: number; email: string | null; attribution: Record<string, string> } | null> {
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     // Guard: só checkout público do SolarDoc. Pack nunca seta source.
@@ -56,7 +74,8 @@ async function detectPlanFromSession(sessionId: string): Promise<{ plano: string
     const email = session.customer_email
       ?? (session.customer_details as { email?: string } | null)?.email
       ?? null;
-    return { ...info, email };
+    const attribution = attributionPatchFromSession(session.metadata, session.id);
+    return { ...info, email, attribution };
   } catch {
     return null;
   }
@@ -135,6 +154,9 @@ export async function register(req: Request, res: Response): Promise<void> {
     // do email digitado). Fallback: por email (fluxos antigos / sem session).
     // No fluxo LP→Stripe→cadastro a pessoa já passou o cartão (7d grátis) antes daqui.
     let stripePlan: { plano: string; limite: number } | null = null;
+    // Atribuição UTM→Stripe (escrita PRIMÁRIA): só o fluxo por session traz os
+    // UTMs do metadata. Fica vazio nos fluxos sem session (orgânico/email).
+    let attribution: Record<string, string> = {};
     if (sessionId) {
       const fromSession = await detectPlanFromSession(sessionId);
       if (fromSession) {
@@ -145,6 +167,7 @@ export async function register(req: Request, res: Response): Promise<void> {
           return;
         }
         stripePlan = { plano: fromSession.plano, limite: fromSession.limite };
+        attribution = fromSession.attribution;
       }
     }
     if (!stripePlan) {
@@ -179,7 +202,7 @@ export async function register(req: Request, res: Response): Promise<void> {
       if (stripePlan) {
         await supabase
           .from('users')
-          .update({ plano: stripePlan.plano, limite_documentos: stripePlan.limite, billing_status: 'active' })
+          .update({ plano: stripePlan.plano, limite_documentos: stripePlan.limite, billing_status: 'active', ...attribution })
           .eq('id', existing.id);
         res.status(409).json({ error: 'JA_TEM_CONTA_PLANO_ATIVADO', planoAtivado: stripePlan.plano });
         return;
@@ -196,7 +219,7 @@ export async function register(req: Request, res: Response): Promise<void> {
     const dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: user, error } = await supabase
       .from('users')
-      .insert({ email: body.email, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null })
+      .insert({ email: body.email, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null, ...attribution })
       .select('id, email, nome, plano, limite_documentos, documentos_usados, created_at')
       .single();
 
