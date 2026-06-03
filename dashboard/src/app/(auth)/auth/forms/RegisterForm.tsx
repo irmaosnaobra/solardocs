@@ -76,6 +76,11 @@ function RegisterContent() {
   const urlPlanFromCheckout: string | null = sessionId
     ? (urlPlano === 'vip' ? 'ilimitado' : urlPlano === 'pro' ? 'pro' : null)
     : null;
+  // Cadastro pós-pago: veio do success_url do Stripe (sessionId presente). A pessoa
+  // JÁ passou o cartão → form mínimo (só email + senha), entra na plataforma na hora.
+  // WhatsApp/CNPJ ficam pra depois (/empresa). Usamos sessionId — não planFromStripe —
+  // porque o gatilho precisa valer ANTES do checkout-info responder (e mesmo se falhar).
+  const isPaidCheckout = !!sessionId;
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -128,19 +133,35 @@ function RegisterContent() {
     e.preventDefault();
     setError('');
 
-    if (!nome.trim() || !email.trim() || !password) {
-      setError('Preencha nome, e-mail e senha.');
-      return;
-    }
     const waDigits = whatsapp.replace(/\D/g, '');
-    if (waDigits.length < 10 || waDigits.length > 11) {
-      setError('Informe o WhatsApp com DDD (10 ou 11 dígitos).');
-      return;
+
+    if (isPaidCheckout) {
+      // Pós-pago: só email + senha. Nome/WhatsApp/CNPJ opcionais (preenche depois).
+      if (!email.trim() || !password) {
+        setError('Preencha e-mail e senha.');
+        return;
+      }
+      // Se a pessoa optou por preencher o WhatsApp, valida o que digitou.
+      if (waDigits && (waDigits.length < 10 || waDigits.length > 11)) {
+        setError('WhatsApp com DDD (10 ou 11 dígitos), ou deixe em branco.');
+        return;
+      }
+    } else {
+      // Fluxo free orgânico: nome + WhatsApp + CNPJ obrigatórios.
+      if (!nome.trim() || !email.trim() || !password) {
+        setError('Preencha nome, e-mail e senha.');
+        return;
+      }
+      if (waDigits.length < 10 || waDigits.length > 11) {
+        setError('Informe o WhatsApp com DDD (10 ou 11 dígitos).');
+        return;
+      }
+      if (!isValidCnpj(cnpj)) {
+        setError('CNPJ inválido. Confere os dígitos.');
+        return;
+      }
     }
-    if (!isValidCnpj(cnpj)) {
-      setError('CNPJ inválido. Confere os dígitos.');
-      return;
-    }
+
     if (password.length < 8) {
       setError('A senha precisa de pelo menos 8 caracteres.');
       return;
@@ -161,12 +182,13 @@ function RegisterContent() {
     setLoading(true);
     try {
       const eventId = crypto.randomUUID();
+      const cnpjDigits = cnpj.replace(/\D/g, '');
       const { data } = await api.post('/auth/register', {
         email,
         password,
-        nome: nome.trim(),
-        whatsapp: waDigits,
-        cnpj: cnpj.replace(/\D/g, ''),
+        nome: nome.trim() || undefined,
+        whatsapp: waDigits || undefined,
+        cnpj: cnpjDigits || undefined,
         empresa: empresa.trim() || undefined,
         fromCheckout: !!sessionId, // veio do Stripe → backend exige plano detectado
         session: sessionId || undefined, // matching autoritativo (plano vem da session, não do email)
@@ -182,9 +204,12 @@ function RegisterContent() {
         w.fbq('track', 'CompleteRegistration', {}, { eventID: eventId });
       }
 
-      // Quem já pagou (planFromStripe via sessionId) → só ativa, vai pra /empresa.
-      if (planFromStripe) {
-        router.push('/empresa');
+      // Quem já pagou → entra DIRETO na plataforma (soft-landing /documentos, banner
+      // sugere cadastrar empresa sem obrigar). NÃO manda pra /empresa: re-muraria com
+      // o CNPJ que acabamos de tirar do form. Gatilho é isPaidCheckout (sessionId),
+      // não planFromStripe — assim funciona mesmo se o checkout-info tiver falhado.
+      if (isPaidCheckout) {
+        router.push('/documentos?welcome=1');
         return;
       }
 
@@ -240,7 +265,7 @@ function RegisterContent() {
 
   return (
     <div className={styles.card}>
-      {!planFromStripe && (
+      {!isPaidCheckout && (
         <div className={styles.tabs} role="tablist">
           <Link href="/auth?mode=login" className={styles.tab} role="tab" aria-selected="false">
             Entrar
@@ -252,15 +277,23 @@ function RegisterContent() {
       )}
 
       <h1 className={styles.title}>
-        {planFromStripe
-          ? 'Complete seu cadastro'
+        {isPaidCheckout
+          ? 'Pagamento aprovado — defina sua senha'
           : targetPlan
             ? `Criar conta · Plano ${targetPlan.toUpperCase()}`
             : 'Criar conta grátis'}
       </h1>
       <p className={styles.subtitle}>
-        {planFromStripe ? (
-          <>Use o mesmo e-mail do pagamento pra ativar seu plano <strong style={{ color: '#0f172a' }}>{PLAN_LABEL[planFromStripe] ?? planFromStripe}</strong>.</>
+        {isPaidCheckout ? (
+          // Plano a exibir: do checkout-info, com fallback no plano da URL (caso a
+          // chamada tenha falhado) — nunca cai no framing "grátis" pra quem pagou.
+          (() => {
+            const shownPlan = planFromStripe ?? urlPlanFromCheckout;
+            const planTxt = shownPlan ? (PLAN_LABEL[shownPlan] ?? shownPlan) : null;
+            return (
+              <>Seus <strong style={{ color: '#0f172a' }}>7 dias grátis</strong>{planTxt ? <> do plano <strong style={{ color: '#0f172a' }}>{planTxt}</strong></> : null} já estão ativos. Defina sua senha pra entrar na plataforma.</>
+            );
+          })()
         ) : targetPlan ? (
           <>Próximo passo: passar o cartão pra liberar o plano <strong style={{ color: '#0f172a' }}>{targetPlan.toUpperCase()}</strong>. <strong style={{ color: '#0f172a' }}>7 dias grátis</strong> · nada é cobrado agora.</>
         ) : (
@@ -269,19 +302,21 @@ function RegisterContent() {
       </p>
 
       <form onSubmit={handleSubmit} className={styles.form} noValidate>
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="reg-nome">Nome completo</label>
-          <input
-            id="reg-nome"
-            type="text"
-            autoComplete="name"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Seu nome"
-            className={styles.input}
-            required
-          />
-        </div>
+        {!isPaidCheckout && (
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="reg-nome">Nome completo</label>
+            <input
+              id="reg-nome"
+              type="text"
+              autoComplete="name"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Seu nome"
+              className={styles.input}
+              required
+            />
+          </div>
+        )}
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="reg-email">E-mail</label>
@@ -309,49 +344,53 @@ function RegisterContent() {
           )}
         </div>
 
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="reg-whatsapp">WhatsApp</label>
-          <input
-            id="reg-whatsapp"
-            type="tel"
-            autoComplete="tel"
-            inputMode="tel"
-            value={whatsapp}
-            onChange={(e) => setWhatsapp(maskWhatsapp(e.target.value))}
-            placeholder="(00) 00000-0000"
-            className={styles.input}
-            maxLength={15}
-            required
-          />
-        </div>
+        {!isPaidCheckout && (
+          <>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="reg-whatsapp">WhatsApp</label>
+              <input
+                id="reg-whatsapp"
+                type="tel"
+                autoComplete="tel"
+                inputMode="tel"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(maskWhatsapp(e.target.value))}
+                placeholder="(00) 00000-0000"
+                className={styles.input}
+                maxLength={15}
+                required
+              />
+            </div>
 
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="reg-empresa">Nome da empresa</label>
-          <input
-            id="reg-empresa"
-            type="text"
-            autoComplete="organization"
-            value={empresa}
-            onChange={(e) => setEmpresa(e.target.value)}
-            placeholder="Sua Empresa Solar Ltda (opcional)"
-            className={styles.input}
-          />
-        </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="reg-empresa">Nome da empresa</label>
+              <input
+                id="reg-empresa"
+                type="text"
+                autoComplete="organization"
+                value={empresa}
+                onChange={(e) => setEmpresa(e.target.value)}
+                placeholder="Sua Empresa Solar Ltda (opcional)"
+                className={styles.input}
+              />
+            </div>
 
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="reg-cnpj">CNPJ</label>
-          <input
-            id="reg-cnpj"
-            type="text"
-            inputMode="numeric"
-            value={cnpj}
-            onChange={(e) => setCnpj(maskCnpj(e.target.value))}
-            placeholder="00.000.000/0000-00"
-            className={styles.input}
-            maxLength={18}
-            required
-          />
-        </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="reg-cnpj">CNPJ</label>
+              <input
+                id="reg-cnpj"
+                type="text"
+                inputMode="numeric"
+                value={cnpj}
+                onChange={(e) => setCnpj(maskCnpj(e.target.value))}
+                placeholder="00.000.000/0000-00"
+                className={styles.input}
+                maxLength={18}
+                required
+              />
+            </div>
+          </>
+        )}
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="reg-pw">Senha</label>
@@ -448,9 +487,9 @@ function RegisterContent() {
 
         <button type="submit" className={styles.submit} disabled={loading}>
           {loading
-            ? <><span className={styles.spinner} /> Criando sua conta...</>
-            : (planFromStripe
-                ? `Ativar plano ${PLAN_LABEL[planFromStripe] ?? planFromStripe}`
+            ? <><span className={styles.spinner} /> {isPaidCheckout ? 'Entrando...' : 'Criando sua conta...'}</>
+            : (isPaidCheckout
+                ? 'Ativar e entrar →'
                 : targetPlan
                   ? `Liberar plano ${targetPlan.toUpperCase()} →`
                   : 'Criar conta grátis →')}
@@ -464,7 +503,7 @@ function RegisterContent() {
         </Link>
       </p>
 
-      {!planFromStripe && !targetPlan && <SocialProofPopup />}
+      {!isPaidCheckout && !targetPlan && <SocialProofPopup />}
     </div>
   );
 }

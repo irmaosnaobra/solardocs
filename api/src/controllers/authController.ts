@@ -76,18 +76,41 @@ function isValidCnpjDigits(cnpj: string): boolean {
       && calc(cnpj.slice(0, 13), w2) === Number(cnpj[13]);
 }
 
+// Cadastro pós-checkout pago (session/fromCheckout): a pessoa JÁ passou o cartão,
+// então o cadastro é só email + senha (mínimo atrito — entra na plataforma na hora).
+// WhatsApp/CNPJ/nome ficam pra depois (tela /empresa + cadência de email de CNPJ).
+// Cadastro FREE orgânico continua exigindo WhatsApp + CNPJ válido (sem isso a conta
+// não vira "ativa": é o gate que alimenta toda a cadência de onboarding por CNPJ).
 const registerSchema = z.object({
   email:    z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   nome:     z.string().min(2, 'Nome obrigatório').optional(),
   cargo:    z.string().optional(),
+  // WhatsApp/CNPJ: aceitam vazio aqui; a obrigatoriedade é decidida no superRefine
+  // conforme a origem. Quando vêm preenchidos, validam normalmente.
   whatsapp: z.string()
-    .transform(v => v.replace(/\D/g, ''))
-    .refine(d => d.length === 10 || d.length === 11, 'WhatsApp deve ter DDD + 8 ou 9 dígitos'),
+    .transform(v => (v ?? '').replace(/\D/g, ''))
+    .refine(d => d === '' || d.length === 10 || d.length === 11, 'WhatsApp deve ter DDD + 8 ou 9 dígitos')
+    .optional(),
   cnpj:     z.string()
-    .transform(v => v.replace(/\D/g, ''))
-    .refine(isValidCnpjDigits, 'CNPJ inválido'),
+    .transform(v => (v ?? '').replace(/\D/g, ''))
+    .refine(d => d === '' || isValidCnpjDigits(d), 'CNPJ inválido')
+    .optional(),
   empresa:  z.string().optional(),
+  // Marcadores de origem — usados pra decidir se WhatsApp/CNPJ são obrigatórios.
+  session:      z.string().optional(),
+  fromCheckout: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+  const fromPaidCheckout = !!data.session || data.fromCheckout === true;
+  if (fromPaidCheckout) return; // pós-pago: só email + senha bastam.
+
+  // Fluxo free orgânico: WhatsApp + CNPJ obrigatórios (gate de conta "ativa").
+  if (!data.whatsapp) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['whatsapp'], message: 'WhatsApp deve ter DDD + 8 ou 9 dígitos' });
+  }
+  if (!data.cnpj) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cnpj'], message: 'CNPJ inválido' });
+  }
 });
 
 const loginSchema = z.object({
@@ -105,8 +128,8 @@ export async function register(req: Request, res: Response): Promise<void> {
       .eq('email', body.email)
       .single();
 
-    const sessionId = (req.body as { session?: string }).session;
-    const fromCheckout = (req.body as { fromCheckout?: boolean }).fromCheckout === true;
+    const sessionId = body.session;
+    const fromCheckout = body.fromCheckout === true;
 
     // Detecta o plano pago. PRIORIDADE: pela session_id (autoritativo — não depende
     // do email digitado). Fallback: por email (fluxos antigos / sem session).
@@ -141,7 +164,11 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     // Veio do checkout público (passou pelo Stripe)? Se sim e a detecção falhou,
     // NÃO cria conta free silenciosa — pagou mas algo deu errado, retorna claro.
-    if (fromCheckout && !stripePlan && !existing) {
+    // Keyado em fromPaidCheckout (session OU fromCheckout) — o MESMO sinal que
+    // relaxa o CNPJ no schema. Sem isso, um POST com session sem plano detectável
+    // criaria uma conta free SEM CNPJ, furando o gate do fluxo orgânico.
+    const fromPaidCheckout = !!sessionId || fromCheckout;
+    if (fromPaidCheckout && !stripePlan && !existing) {
       res.status(402).json({ error: 'PAGAMENTO_NAO_DETECTADO' });
       return;
     }

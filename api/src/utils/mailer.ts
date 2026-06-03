@@ -431,11 +431,11 @@ export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId:
       <strong style="color:#fbbf24;">Pagamento aprovado!</strong> Seus <strong style="color:#fbbf24;">7 dias grátis</strong>${planoLabel ? ` no plano <strong style="color:#fbbf24;">${planoLabel}</strong>` : ''} já estão ativos.
     </p>
     <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">
-      Falta só criar seu login pra entrar na plataforma — seu e-mail e plano já estão garantidos, é só definir a senha:
+      Falta só <strong style="color:#f8fafc;">definir sua senha</strong> pra entrar na plataforma — seu e-mail e plano já estão garantidos. É 1 passo, leva 10 segundos:
     </p>
     <div style="text-align:center;margin:28px 0 8px;">
       <a href="${completeUrl}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:18px 40px;border-radius:12px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(245,158,11,0.4);">
-        Concluir meu cadastro →
+        Definir senha e entrar →
       </a>
     </div>
     <p style="color:#94a3b8;font-size:13px;margin:20px 0 0;line-height:1.6;text-align:center;">
