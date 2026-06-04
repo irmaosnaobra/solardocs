@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/services/api';
 import styles from './admin.module.css';
+import FunilSolarDocPanel from './_components/FunilSolarDocPanel';
+import FunilLimpaproPanel from './_components/FunilLimpaproPanel';
 
 /* ─── tipos ─────────────────────────────────────────────────── */
 interface SessionRow {
@@ -184,7 +186,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'>('visits');
+  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'>('visits');
 
   const [analytics, setAnalytics]               = useState<Analytics|null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -277,10 +279,14 @@ export default function AdminPage() {
           {tab==='io_visits' && (
             <a href="/io" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{textDecoration:'none'}}>↗ Abrir Site /io</a>
           )}
-          <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
-            onClick={()=>{setAnalyticsLoaded(false);setMetaLoaded(false);loadAnalytics();loadMeta();}}>
-            {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
-          </button>
+          {/* Funis têm seu próprio seletor de período e refazem o fetch sozinhos — o
+              refresh compartilhado (analytics/meta) não vale ali. */}
+          {tab!=='funil_solardoc' && tab!=='funil_limpapro' && (
+            <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
+              onClick={()=>{setAnalyticsLoaded(false);setMetaLoaded(false);loadAnalytics();loadMeta();}}>
+              {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -289,6 +295,8 @@ export default function AdminPage() {
         <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>💰 Receita / ROAS</button>
         <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ Acessos Site IO</button>
         <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>🎨 Pack Solar</button>
+        <button className={tab==='funil_solardoc'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_solardoc')}>🔻 Funil SolarDoc</button>
+        <button className={tab==='funil_limpapro'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_limpapro')}>💧 Funil LimpaPro</button>
       </div>
 
       {/* ═══ ABA ACESSOS SITE IO ════════════════════════════════ */}
@@ -1067,6 +1075,12 @@ export default function AdminPage() {
           </>
         );
       })()}
+
+      {/* ═══ ABA FUNIL SOLARDOC ═════════════════════════════════ */}
+      {tab === 'funil_solardoc' && <FunilSolarDocPanel />}
+
+      {/* ═══ ABA FUNIL LIMPAPRO ═════════════════════════════════ */}
+      {tab === 'funil_limpapro' && <FunilLimpaproPanel />}
 
     </div>
   );
