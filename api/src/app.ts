@@ -35,6 +35,7 @@ const PRODUCTION_ORIGINS = [
   'https://solardoc.app',
   'https://www.solardoc.app',
   'https://solardocs-dashboard.vercel.app',
+  'https://limpapro.solardoc.app', // landing do curso LimpaPro → tracking /_t/limpapro
 ];
 const envOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
   .split(',')
