@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { trackVisit, trackEvent } from '../controllers/trackingController';
+import { trackLimpapro } from '../controllers/limpaproController';
 
 const router = Router();
 
@@ -12,14 +13,17 @@ router.use((_req: Request, res: Response, next: NextFunction) => {
 });
 
 // /v e /e = paths neutros (escapam adblocker). /visit e /event = alias temporário.
-router.options('/v',     (_req, res) => { res.sendStatus(204); });
-router.options('/e',     (_req, res) => { res.sendStatus(204); });
-router.options('/visit', (_req, res) => { res.sendStatus(204); });
-router.options('/event', (_req, res) => { res.sendStatus(204); });
+router.options('/v',        (_req, res) => { res.sendStatus(204); });
+router.options('/e',        (_req, res) => { res.sendStatus(204); });
+router.options('/visit',    (_req, res) => { res.sendStatus(204); });
+router.options('/event',    (_req, res) => { res.sendStatus(204); });
+router.options('/limpapro', (_req, res) => { res.sendStatus(204); });
 
-router.post('/v',     trackVisit);
-router.post('/e',     trackEvent);
-router.post('/visit', trackVisit);
-router.post('/event', trackEvent);
+router.post('/v',        trackVisit);
+router.post('/e',        trackEvent);
+router.post('/visit',    trackVisit);
+router.post('/event',    trackEvent);
+// Funil LimpaPro (curso de limpeza) — isolado de page_visits
+router.post('/limpapro', trackLimpapro);
 
 export default router;

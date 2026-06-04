@@ -9,7 +9,7 @@ import {
   Banknote, ScrollText, FileSignature,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
   Save, GraduationCap, Smartphone,
-  Filter, Send, MapPin, Palette, LogOut,
+  Filter, Send, MapPin, Palette, LogOut, Droplet,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -50,6 +50,7 @@ const baseAdminItems: NavItem[] = [
   { href: '/admin',              icon: Settings,   label: 'Painel SolarDoc' },
   { href: '/crm/solardoc',       icon: FolderOpen, label: 'CRM SolarDoc' },
   { href: '/admin/funil',        icon: Filter,     label: 'Funil SolarDoc' },
+  { href: '/admin/funil-limpapro', icon: Droplet,  label: 'Funil LimpaPro' },
   { href: '/admin/leads-google', icon: MapPin,     label: 'Leads Google' },
   { href: '/admin/insights',     icon: BarChart3,  label: 'Insights IO' },
   { href: '/admin/disparos',     icon: Send,       label: 'Disparos IO' },
