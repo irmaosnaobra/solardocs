@@ -187,7 +187,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'|'membros'>('visits');
+  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'|'membros'>('membros');
 
   const [analytics, setAnalytics]               = useState<Analytics|null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -292,8 +292,8 @@ export default function AdminPage() {
       </div>
 
       <div className={styles.tabs}>
-        <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 LP SolarDoc</button>
         <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>👥 Membros</button>
+        <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 LP SolarDoc</button>
         <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>💰 Receita / ROAS</button>
         <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ Acessos Site IO</button>
         <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>🎨 Pack Solar</button>
