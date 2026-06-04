@@ -8,7 +8,15 @@ interface Message {
   text: string;
 }
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://solardocs-api-irmaosnaobra-aioros.vercel.app') + '/chat';
+// Em produção usa o proxy de mesma origem /_api (igual services/api.ts); só cai
+// no NEXT_PUBLIC_API_URL/localhost em dev. Evita depender do alias .vercel.app
+// cross-origin (que pode prender num build CLI velho).
+function chatApiUrl(): string {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return '/_api/chat';
+  }
+  return (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/chat';
+}
 const WA_URL = 'https://wa.me/5534999437831';
 
 export default function ChatWidget() {
@@ -39,7 +47,7 @@ export default function ChatWidget() {
     setLoading(true);
 
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch(chatApiUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, history }),
