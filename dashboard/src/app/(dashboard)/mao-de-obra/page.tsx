@@ -26,9 +26,9 @@ interface Prestador {
 }
 
 const STATUS_LABEL: Record<Status, { label: string; color: string; bg: string }> = {
-  pendente: { label: '⏳ Aguardando aprovação', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-  aprovado: { label: '✓ Aprovado',              color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
-  suspenso: { label: '⏸ Suspenso',              color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+  pendente: { label: '⏳ Aguardando aprovação', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.12)' },
+  aprovado: { label: '✓ Aprovado',              color: 'var(--ink-green)', bg: 'rgba(34,197,94,0.12)' },
+  suspenso: { label: '⏸ Suspenso',              color: 'var(--ink-red)', bg: 'rgba(239,68,68,0.12)' },
 };
 
 const ESTADOS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];

@@ -135,7 +135,7 @@ export default function InsightsPage() {
   );
 
   if (err) return (
-    <div style={{ padding: 32, color: '#EF4444' }}>{err}</div>
+    <div style={{ padding: 32, color: 'var(--ink-red)' }}>{err}</div>
   );
 
   if (!data) return null;

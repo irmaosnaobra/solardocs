@@ -36,7 +36,7 @@
 
 .savedBadge {
   font-size: 13px;
-  color: var(--color-success, #22c55e);
+  color: var(--ink-green);
   font-weight: 500;
 }
 

@@ -5,3 +5,4 @@ process.env.ANTHROPIC_API_KEY = 'test-key';
 process.env.STRIPE_SECRET_KEY = 'sk_test_placeholder';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_placeholder';
 process.env.CORS_ORIGIN = 'http://localhost:3000';
+process.env.RESEND_API_KEY = 're_test_placeholder'; // mailer/dunningService instanciam Resend no import

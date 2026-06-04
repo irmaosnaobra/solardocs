@@ -43,7 +43,25 @@ async function detectStripePlan(email: string): Promise<{ plano: string; limite:
 // detectStripePlan(email): não depende do email digitado bater com o do cartão,
 // e blinda cross-produto (session do Pack é mode=payment, sem subscription/price
 // SolarDoc → retorna null). Usado quando o register vem com session_id.
-async function detectPlanFromSession(sessionId: string): Promise<{ plano: string; limite: number; email: string | null } | null> {
+// Atribuição forward-only: monta o patch das colunas de `users` a partir do
+// metadata do checkout (utm_* + lp_session que a LP enviou). Só campos presentes.
+function attributionPatchFromSession(
+  meta: Record<string, unknown> | null | undefined,
+  checkoutSessionId: string,
+): Record<string, string> {
+  const patch: Record<string, string> = { checkout_session_id: checkoutSessionId };
+  let hasAttr = false;
+  for (const k of ['utm_source','utm_medium','utm_campaign','utm_content','utm_term']) {
+    const v = meta?.[k];
+    if (typeof v === 'string' && v.trim()) { patch[k] = v.trim(); hasAttr = true; }
+  }
+  const lp = meta?.lp_session;
+  if (typeof lp === 'string' && lp.trim()) { patch.attribution_session_id = lp.trim(); hasAttr = true; }
+  if (hasAttr) patch.attribution_captured_at = new Date().toISOString();
+  return patch;
+}
+
+async function detectPlanFromSession(sessionId: string): Promise<{ plano: string; limite: number; email: string | null; attribution: Record<string, string> } | null> {
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     // Guard: só checkout público do SolarDoc. Pack nunca seta source.
@@ -56,7 +74,8 @@ async function detectPlanFromSession(sessionId: string): Promise<{ plano: string
     const email = session.customer_email
       ?? (session.customer_details as { email?: string } | null)?.email
       ?? null;
-    return { ...info, email };
+    const attribution = attributionPatchFromSession(session.metadata, session.id);
+    return { ...info, email, attribution };
   } catch {
     return null;
   }
@@ -76,18 +95,41 @@ function isValidCnpjDigits(cnpj: string): boolean {
       && calc(cnpj.slice(0, 13), w2) === Number(cnpj[13]);
 }
 
+// Cadastro pós-checkout pago (session/fromCheckout): a pessoa JÁ passou o cartão,
+// então o cadastro é só email + senha (mínimo atrito — entra na plataforma na hora).
+// WhatsApp/CNPJ/nome ficam pra depois (tela /empresa + cadência de email de CNPJ).
+// Cadastro FREE orgânico continua exigindo WhatsApp + CNPJ válido (sem isso a conta
+// não vira "ativa": é o gate que alimenta toda a cadência de onboarding por CNPJ).
 const registerSchema = z.object({
   email:    z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   nome:     z.string().min(2, 'Nome obrigatório').optional(),
   cargo:    z.string().optional(),
+  // WhatsApp/CNPJ: aceitam vazio aqui; a obrigatoriedade é decidida no superRefine
+  // conforme a origem. Quando vêm preenchidos, validam normalmente.
   whatsapp: z.string()
-    .transform(v => v.replace(/\D/g, ''))
-    .refine(d => d.length === 10 || d.length === 11, 'WhatsApp deve ter DDD + 8 ou 9 dígitos'),
+    .transform(v => (v ?? '').replace(/\D/g, ''))
+    .refine(d => d === '' || d.length === 10 || d.length === 11, 'WhatsApp deve ter DDD + 8 ou 9 dígitos')
+    .optional(),
   cnpj:     z.string()
-    .transform(v => v.replace(/\D/g, ''))
-    .refine(isValidCnpjDigits, 'CNPJ inválido'),
+    .transform(v => (v ?? '').replace(/\D/g, ''))
+    .refine(d => d === '' || isValidCnpjDigits(d), 'CNPJ inválido')
+    .optional(),
   empresa:  z.string().optional(),
+  // Marcadores de origem — usados pra decidir se WhatsApp/CNPJ são obrigatórios.
+  session:      z.string().optional(),
+  fromCheckout: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+  const fromPaidCheckout = !!data.session || data.fromCheckout === true;
+  if (fromPaidCheckout) return; // pós-pago: só email + senha bastam.
+
+  // Fluxo free orgânico: WhatsApp + CNPJ obrigatórios (gate de conta "ativa").
+  if (!data.whatsapp) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['whatsapp'], message: 'WhatsApp deve ter DDD + 8 ou 9 dígitos' });
+  }
+  if (!data.cnpj) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cnpj'], message: 'CNPJ inválido' });
+  }
 });
 
 const loginSchema = z.object({
@@ -105,13 +147,16 @@ export async function register(req: Request, res: Response): Promise<void> {
       .eq('email', body.email)
       .single();
 
-    const sessionId = (req.body as { session?: string }).session;
-    const fromCheckout = (req.body as { fromCheckout?: boolean }).fromCheckout === true;
+    const sessionId = body.session;
+    const fromCheckout = body.fromCheckout === true;
 
     // Detecta o plano pago. PRIORIDADE: pela session_id (autoritativo — não depende
     // do email digitado). Fallback: por email (fluxos antigos / sem session).
     // No fluxo LP→Stripe→cadastro a pessoa já passou o cartão (7d grátis) antes daqui.
     let stripePlan: { plano: string; limite: number } | null = null;
+    // Atribuição UTM→Stripe (escrita PRIMÁRIA): só o fluxo por session traz os
+    // UTMs do metadata. Fica vazio nos fluxos sem session (orgânico/email).
+    let attribution: Record<string, string> = {};
     if (sessionId) {
       const fromSession = await detectPlanFromSession(sessionId);
       if (fromSession) {
@@ -122,6 +167,7 @@ export async function register(req: Request, res: Response): Promise<void> {
           return;
         }
         stripePlan = { plano: fromSession.plano, limite: fromSession.limite };
+        attribution = fromSession.attribution;
       }
     }
     if (!stripePlan) {
@@ -141,7 +187,11 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     // Veio do checkout público (passou pelo Stripe)? Se sim e a detecção falhou,
     // NÃO cria conta free silenciosa — pagou mas algo deu errado, retorna claro.
-    if (fromCheckout && !stripePlan && !existing) {
+    // Keyado em fromPaidCheckout (session OU fromCheckout) — o MESMO sinal que
+    // relaxa o CNPJ no schema. Sem isso, um POST com session sem plano detectável
+    // criaria uma conta free SEM CNPJ, furando o gate do fluxo orgânico.
+    const fromPaidCheckout = !!sessionId || fromCheckout;
+    if (fromPaidCheckout && !stripePlan && !existing) {
       res.status(402).json({ error: 'PAGAMENTO_NAO_DETECTADO' });
       return;
     }
@@ -152,7 +202,7 @@ export async function register(req: Request, res: Response): Promise<void> {
       if (stripePlan) {
         await supabase
           .from('users')
-          .update({ plano: stripePlan.plano, limite_documentos: stripePlan.limite, billing_status: 'active' })
+          .update({ plano: stripePlan.plano, limite_documentos: stripePlan.limite, billing_status: 'active', ...attribution })
           .eq('id', existing.id);
         res.status(409).json({ error: 'JA_TEM_CONTA_PLANO_ATIVADO', planoAtivado: stripePlan.plano });
         return;
@@ -169,7 +219,7 @@ export async function register(req: Request, res: Response): Promise<void> {
     const dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: user, error } = await supabase
       .from('users')
-      .insert({ email: body.email, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null })
+      .insert({ email: body.email, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null, ...attribution })
       .select('id, email, nome, plano, limite_documentos, documentos_usados, created_at')
       .single();
 

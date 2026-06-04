@@ -339,7 +339,7 @@ export default function PropostaSolarPage() {
           >
             {downloadingPdf ? '⏳ Gerando PDF…' : '📥 Baixar PDF'}
           </button>
-          {copyMsg && <span style={{ color: copyMsg.startsWith('❌') ? '#EF4444' : '#10B981', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}
+          {copyMsg && <span style={{ color: copyMsg.startsWith('❌') ? 'var(--ink-red)' : 'var(--ink-green)', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}
         </div>
         <div style={{
           background: '#F3F4F6',
@@ -615,7 +615,7 @@ export default function PropostaSolarPage() {
               <button
                 type="button"
                 onClick={() => setField('foto_telhado_b64', '')}
-                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #EF4444', background: 'transparent', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #EF4444', background: 'transparent', color: 'var(--ink-red)', cursor: 'pointer', fontSize: 13 }}
               >
                 🗑️ Remover foto
               </button>

@@ -44,6 +44,11 @@ export async function runFollowupCnpj(): Promise<{ sent: number; skipped: number
   const { data: users } = await supabase
     .from('users')
     .select('id, email, created_at, followup_started_at, followup_email_last_sent_at, followup_abandoned, email_opt_out, checkout_recovery_sent_at')
+    // SÓ free. A cadência é "ative sua conta grátis cadastrando o CNPJ" — desde que
+    // o cadastro pós-pago deixou de exigir CNPJ, há pagantes (pro/ilimitado) SEM
+    // company. Sem este filtro eles cairiam aqui e receberiam "ative gratuitamente /
+    // 10 docs grátis te esperam" no meio do trial — confunde e dá medo da cobrança.
+    .eq('plano', 'free')
     .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)')
     .or(`followup_started_at.not.is.null,created_at.gte.${FOLLOWUP_START.toISOString()}`);
 
@@ -100,6 +105,7 @@ export async function stampFollowupStarted(): Promise<{ stamped: number }> {
   const { data: users } = await supabase
     .from('users')
     .select('id')
+    .eq('plano', 'free') // só free — não carimba relógio de cadência de CNPJ em pagante
     .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)')
     .is('followup_started_at', null);
 
@@ -121,6 +127,7 @@ export async function blastFollowupDay1(): Promise<{ sent: number }> {
   const { data: users } = await supabase
     .from('users')
     .select('id, email, email_opt_out')
+    .eq('plano', 'free') // só free — cadência de CNPJ não vai pra pagante (ver runFollowupCnpj)
     .not('id', 'in', excludedIds.length > 0 ? `(${excludedIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)');
 
   if (!users || users.length === 0) return { sent: 0 };

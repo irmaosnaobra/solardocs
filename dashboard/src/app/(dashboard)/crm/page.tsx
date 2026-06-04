@@ -75,28 +75,28 @@ interface Insights {
 // ── Configurações dos Kanbans ──────────────────────────────────────
 
 const SDR_COLS = [
-  { id: 'reativacao', label: 'Reativação', emoji: '⚡', color: '#a855f7', bg: 'rgba(168,85,247,0.1)',   border: 'rgba(168,85,247,0.3)' },
-  { id: 'novo',       label: 'Novo',       emoji: '🆕', color: '#64748b', bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.3)' },
-  { id: 'frio',       label: 'Frio',       emoji: '🔵', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.3)' },
-  { id: 'morno',      label: 'Morno',      emoji: '🟡', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',   border: 'rgba(245,158,11,0.3)' },
-  { id: 'quente',     label: 'Quente',     emoji: '🔴', color: '#ef4444', bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.3)' },
-  { id: 'fechamento', label: 'Fechado',    emoji: '✅', color: '#22c55e', bg: 'rgba(34,197,94,0.1)',    border: 'rgba(34,197,94,0.3)' },
-  { id: 'perdido',    label: 'Perdido',    emoji: '❌', color: '#6b7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)' },
+  { id: 'reativacao', label: 'Reativação', emoji: '⚡', color: 'var(--ink-purple)', bg: 'rgba(168,85,247,0.1)',   border: 'rgba(168,85,247,0.3)' },
+  { id: 'novo',       label: 'Novo',       emoji: '🆕', color: 'var(--ink-slate)', bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.3)' },
+  { id: 'frio',       label: 'Frio',       emoji: '🔵', color: 'var(--ink-blue)', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.3)' },
+  { id: 'morno',      label: 'Morno',      emoji: '🟡', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.1)',   border: 'rgba(245,158,11,0.3)' },
+  { id: 'quente',     label: 'Quente',     emoji: '🔴', color: 'var(--ink-red)', bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.3)' },
+  { id: 'fechamento', label: 'Fechado',    emoji: '✅', color: 'var(--ink-green)', bg: 'rgba(34,197,94,0.1)',    border: 'rgba(34,197,94,0.3)' },
+  { id: 'perdido',    label: 'Perdido',    emoji: '❌', color: 'var(--ink-slate)', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)' },
 ];
 
 const CONSULTORES = [
-  { id: 'diego',    nome: 'Diego',    inicial: 'D', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.4)' },
-  { id: 'giovanna', nome: 'Giovanna', inicial: 'G', color: '#ec4899', bg: 'rgba(236,72,153,0.15)', border: 'rgba(236,72,153,0.4)' },
-  { id: 'nilce',    nome: 'Nilce',    inicial: 'N', color: '#22c55e', bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)' },
-  { id: 'thiago',   nome: 'Thiago',   inicial: 'T', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)' },
+  { id: 'diego',    nome: 'Diego',    inicial: 'D', color: 'var(--ink-blue)', bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.4)' },
+  { id: 'giovanna', nome: 'Giovanna', inicial: 'G', color: 'var(--ink-pink)', bg: 'rgba(236,72,153,0.15)', border: 'rgba(236,72,153,0.4)' },
+  { id: 'nilce',    nome: 'Nilce',    inicial: 'N', color: 'var(--ink-green)', bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)' },
+  { id: 'thiago',   nome: 'Thiago',   inicial: 'T', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)' },
 ];
 
 const PLAT_COLS = [
-  { id: 'sem_cnpj',   label: 'Sem CNPJ',           emoji: '📋', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)' },
-  { id: 'desativado', label: 'Cadastro Desativado', emoji: '😴', color: '#64748b', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.3)' },
-  { id: 'ativo',      label: 'Cadastro Ativo',      emoji: '⚡', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.3)' },
-  { id: 'pro',        label: 'PRO',                 emoji: '🚀', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)',  border: 'rgba(139,92,246,0.3)' },
-  { id: 'vip',        label: 'VIP',                 emoji: '👑', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)' },
+  { id: 'sem_cnpj',   label: 'Sem CNPJ',           emoji: '📋', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)' },
+  { id: 'desativado', label: 'Cadastro Desativado', emoji: '😴', color: 'var(--ink-slate)', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.3)' },
+  { id: 'ativo',      label: 'Cadastro Ativo',      emoji: '⚡', color: 'var(--ink-blue)', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.3)' },
+  { id: 'pro',        label: 'PRO',                 emoji: '🚀', color: 'var(--ink-purple)', bg: 'rgba(139,92,246,0.1)',  border: 'rgba(139,92,246,0.3)' },
+  { id: 'vip',        label: 'VIP',                 emoji: '👑', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)' },
 ];
 
 const POLL_INTERVAL_MS = 30_000;
@@ -224,12 +224,12 @@ function KanbanCol({ col, children, count, onDropPhone, isDragOver, onDragEnter,
 
 function Badge({ children, color = 'gray', title }: { children: React.ReactNode; color?: string; title?: string }) {
   const colors: Record<string, [string, string, string]> = {
-    gray:   ['rgba(100,116,139,0.12)', 'rgba(100,116,139,0.3)', '#94a3b8'],
-    amber:  ['rgba(245,158,11,0.15)', 'rgba(245,158,11,0.3)', '#f59e0b'],
-    purple: ['rgba(168,85,247,0.15)', 'rgba(168,85,247,0.3)', '#a855f7'],
-    green:  ['rgba(34,197,94,0.12)', 'rgba(34,197,94,0.3)', '#22c55e'],
-    blue:   ['rgba(59,130,246,0.12)', 'rgba(59,130,246,0.3)', '#3b82f6'],
-    red:    ['rgba(239,68,68,0.12)', 'rgba(239,68,68,0.3)', '#ef4444'],
+    gray:   ['rgba(100,116,139,0.12)', 'rgba(100,116,139,0.3)', 'var(--ink-slate)'],
+    amber:  ['rgba(245,158,11,0.15)', 'rgba(245,158,11,0.3)', 'var(--ink-amber)'],
+    purple: ['rgba(168,85,247,0.15)', 'rgba(168,85,247,0.3)', 'var(--ink-purple)'],
+    green:  ['rgba(34,197,94,0.12)', 'rgba(34,197,94,0.3)', 'var(--ink-green)'],
+    blue:   ['rgba(59,130,246,0.12)', 'rgba(59,130,246,0.3)', 'var(--ink-blue)'],
+    red:    ['rgba(239,68,68,0.12)', 'rgba(239,68,68,0.3)', 'var(--ink-red)'],
   };
   const [bg, border, fg] = colors[color] || colors.gray;
   return (
@@ -309,7 +309,7 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDe
         <div style={{
           background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)',
           borderRadius: 6, padding: '4px 8px', marginBottom: 6,
-          fontSize: 11, fontWeight: 700, color: '#22c55e',
+          fontSize: 11, fontWeight: 700, color: 'var(--ink-green)',
         }}>
           📅 {canalLabel(lead.canal_atendimento)} · {lead.horario_atendimento}
         </div>
@@ -322,11 +322,11 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDe
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6,
         }}>
           {lead.codigo_contrato && (
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#22c55e' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-green)' }}>
               {lead.codigo_contrato}
             </span>
           )}
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#22c55e', marginLeft: 'auto' }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink-green)', marginLeft: 'auto' }}>
             {lead.valor_venda != null && lead.valor_venda > 0
               ? `R$ ${Number(lead.valor_venda).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               : 'sem valor'}
@@ -352,7 +352,7 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDe
             <span key={tag} style={{
               fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 4,
               background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.3)',
-              color: '#a855f7',
+              color: 'var(--ink-purple)',
             }}>#{tag}</span>
           ))}
         </div>
@@ -371,13 +371,13 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDe
             padding: '3px 6px', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer',
             border: '1px solid var(--color-border)',
             background: isTakeover ? 'rgba(34,197,94,0.12)' : 'rgba(168,85,247,0.12)',
-            color: isTakeover ? '#22c55e' : '#a855f7',
+            color: isTakeover ? 'var(--ink-green)' : 'var(--ink-purple)',
           }}>{isTakeover ? '↩️' : '🙋'}</button>
         <button onClick={() => onDelete(lead)} title="Excluir lead"
           style={{
             padding: '3px 6px', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer',
             border: '1px solid rgba(239,68,68,0.35)',
-            background: 'rgba(239,68,68,0.1)', color: '#ef4444',
+            background: 'rgba(239,68,68,0.1)', color: 'var(--ink-red)',
           }}>🗑️</button>
       </div>
       <div onClick={e => e.stopPropagation()}>
@@ -534,7 +534,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
             background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)',
             borderRadius: 10, padding: 12, marginBottom: 16,
           }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', marginBottom: 4 }}>📅 Agendamento</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-green)', textTransform: 'uppercase', marginBottom: 4 }}>📅 Agendamento</div>
             <div style={{ fontSize: 14, color: 'var(--color-text)', fontWeight: 700 }}>
               {canalLabel(lead.canal_atendimento)} · {lead.horario_atendimento}
             </div>
@@ -547,7 +547,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
             <button onClick={cancelarAgendamento} disabled={busy} style={{
               marginTop: 8, padding: '4px 10px', borderRadius: 6, fontSize: 11,
               background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)',
-              color: '#ef4444', cursor: 'pointer', fontWeight: 700,
+              color: 'var(--ink-red)', cursor: 'pointer', fontWeight: 700,
             }}>Cancelar agendamento</button>
           </div>
         )}
@@ -569,7 +569,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
               <p style={{ fontSize: 13, color: 'var(--color-text)', margin: '0 0 8px' }}>{insights.resumo}</p>
               {typeof insights.score === 'number' && (
                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                  Score de fechamento: <strong style={{ color: insights.score > 60 ? '#22c55e' : insights.score > 30 ? '#f59e0b' : '#ef4444' }}>{insights.score}/100</strong>
+                  Score de fechamento: <strong style={{ color: insights.score > 60 ? 'var(--ink-green)' : insights.score > 30 ? 'var(--ink-amber)' : 'var(--ink-red)' }}>{insights.score}/100</strong>
                 </div>
               )}
               {insights.proxima_acao && (
@@ -595,7 +595,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
               placeholder="Ex: 12990 ou 12990.00"
               style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontSize: 13, fontWeight: 700 }} />
             {lead.codigo_contrato && (
-              <span style={{ padding: '6px 10px', borderRadius: 6, background: 'rgba(34,197,94,0.1)', color: '#22c55e', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+              <span style={{ padding: '6px 10px', borderRadius: 6, background: 'rgba(34,197,94,0.1)', color: 'var(--ink-green)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
                 {lead.codigo_contrato}
               </span>
             )}
@@ -669,7 +669,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
           <button onClick={forcarFollowup} disabled={busy} style={{
             flex: 1, padding: 8, borderRadius: 6, fontSize: 11, fontWeight: 700,
             background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)',
-            color: '#f59e0b', cursor: 'pointer',
+            color: 'var(--ink-amber)', cursor: 'pointer',
           }}>🔁 Forçar follow-up agora</button>
         </div>
 
@@ -695,7 +695,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
                   borderRadius: 10, padding: '6px 10px',
                   fontSize: 12, color: 'var(--color-text)', whiteSpace: 'pre-wrap',
                 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: isUser ? '#94a3b8' : '#22c55e', marginBottom: 2 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: isUser ? 'var(--ink-slate)' : 'var(--ink-green)', marginBottom: 2 }}>
                     {isUser ? '👤 Lead' : '🤖 Luma'}
                   </div>
                   {content}
@@ -867,7 +867,7 @@ export default function CrmPage() {
           {tab === 'solar' && (
             <button onClick={() => setImportOpen(true)} title="Importar lista de leads pra reativação" style={{
               padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(168,85,247,0.4)',
-              background: 'rgba(168,85,247,0.12)', color: '#a855f7',
+              background: 'rgba(168,85,247,0.12)', color: 'var(--ink-purple)',
               cursor: 'pointer', fontSize: 12, fontWeight: 700, height: 28,
             }}>⚡ Importar</button>
           )}
@@ -888,15 +888,15 @@ export default function CrmPage() {
             <MetricPill label="Hoje" value={metrics.hoje} color="var(--color-primary)" />
             <MetricPill label="Mês" value={metrics.mes} />
             <MetricPill label="Total" value={metrics.total} />
-            <MetricPill label="Quentes" value={metrics.por_estagio.quente || 0} color="#ef4444" />
-            <MetricPill label="Fechados" value={metrics.por_estagio.fechamento || 0} color="#22c55e" />
-            <MetricPill label="Conv. Mês" value={`${metrics.conversao_pct}%`} color="#22c55e" />
-            <MetricPill label="💰 Mês" value={fmtMoney(metrics.valor_vendido_mes)} color="#22c55e"
+            <MetricPill label="Quentes" value={metrics.por_estagio.quente || 0} color="var(--ink-red)" />
+            <MetricPill label="Fechados" value={metrics.por_estagio.fechamento || 0} color="var(--ink-green)" />
+            <MetricPill label="Conv. Mês" value={`${metrics.conversao_pct}%`} color="var(--ink-green)" />
+            <MetricPill label="💰 Mês" value={fmtMoney(metrics.valor_vendido_mes)} color="var(--ink-green)"
               progress={metrics.meta_mes ? (metrics.valor_vendido_mes / metrics.meta_mes) * 100 : undefined}
               meta={metrics.meta_mes ? `Meta ${fmtMoney(metrics.meta_mes)}` : undefined} />
-            <MetricPill label="💰 Ano" value={fmtMoney(metrics.valor_vendido_ano)} color="#f59e0b" />
-            <MetricPill label="Takeover" value={metrics.em_takeover} color="#a855f7" />
-            <MetricPill label="Agend. 24h" value={metrics.agendados_24h.length} color="#f59e0b" />
+            <MetricPill label="💰 Ano" value={fmtMoney(metrics.valor_vendido_ano)} color="var(--ink-amber)" />
+            <MetricPill label="Takeover" value={metrics.em_takeover} color="var(--ink-purple)" />
+            <MetricPill label="Agend. 24h" value={metrics.agendados_24h.length} color="var(--ink-amber)" />
           </div>
         )}
       </div>
@@ -927,7 +927,7 @@ export default function CrmPage() {
               title="Limpar filtros"
               style={{
                 padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444',
+                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)', color: 'var(--ink-red)',
                 height: 28, flexShrink: 0,
               }}>✕</button>
           )}
@@ -1222,8 +1222,8 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
             }}>
               <div style={{ fontSize: 12 }}>
                 {fileError
-                  ? <span style={{ color: '#ef4444' }}>❌ {fileError}</span>
-                  : <span style={{ color: '#22c55e' }}>✅ <strong>{fileName}</strong> · {fileLeads.length} leads detectados</span>}
+                  ? <span style={{ color: 'var(--ink-red)' }}>❌ {fileError}</span>
+                  : <span style={{ color: 'var(--ink-green)' }}>✅ <strong>{fileName}</strong> · {fileLeads.length} leads detectados</span>}
               </div>
               <button onClick={limparArquivo} style={{ padding: '2px 8px', borderRadius: 4, background: 'transparent', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 11 }}>✕</button>
             </div>
@@ -1253,13 +1253,13 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
         <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
           <strong>{parsed.leads.length}</strong> leads válidos
           {parsed.erros.length > 0 && (
-            <span style={{ color: '#ef4444' }}> · {parsed.erros.length} linhas inválidas</span>
+            <span style={{ color: 'var(--ink-red)' }}> · {parsed.erros.length} linhas inválidas</span>
           )}
         </div>
 
         {parsed.erros.length > 0 && (
           <details style={{ marginTop: 8, fontSize: 11 }}>
-            <summary style={{ cursor: 'pointer', color: '#ef4444' }}>Ver linhas inválidas</summary>
+            <summary style={{ cursor: 'pointer', color: 'var(--ink-red)' }}>Ver linhas inválidas</summary>
             <ul style={{ marginTop: 4, paddingLeft: 16, color: 'var(--color-text-muted)' }}>
               {parsed.erros.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
               {parsed.erros.length > 10 && <li>... e mais {parsed.erros.length - 10}</li>}
@@ -1272,7 +1272,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
             marginTop: 12, padding: 10, borderRadius: 8, fontSize: 12,
             background: result.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
             border: `1px solid ${result.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
-            color: result.error ? '#ef4444' : '#22c55e',
+            color: result.error ? 'var(--ink-red)' : 'var(--ink-green)',
           }}>
             {result.error ? `Erro: ${result.error}` : (
               <>
@@ -1327,7 +1327,7 @@ function PlatCard({ lead, colId, onMove, onParaSdr }: {
         )}
         {lead.whatsapp && (
           <button onClick={() => onParaSdr(lead.id)}
-            style={{ padding: '4px 9px', borderRadius: 6, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>☀️ → SDR</button>
+            style={{ padding: '4px 9px', borderRadius: 6, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: 'var(--ink-amber)', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>☀️ → SDR</button>
         )}
         <span style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center' }}>📄 {lead.documentos_usados}</span>
       </div>

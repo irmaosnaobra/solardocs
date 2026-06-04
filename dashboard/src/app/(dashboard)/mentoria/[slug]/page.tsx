@@ -34,9 +34,9 @@ export default function MentoriaPage({ params }: { params: Promise<{ slug: strin
 
       {/* ── INTEREST (SPIN — 4 cards) ── */}
       <section className="mentoria-spin" aria-label="SPIN">
-        <SpinCard label="Situação"     texto={produto.spin.situacao}     cor="#94a3b8" />
-        <SpinCard label="Problema"     texto={produto.spin.problema}     cor="#ef4444" />
-        <SpinCard label="Implicação"   texto={produto.spin.implicacao}   cor="#f59e0b" />
+        <SpinCard label="Situação"     texto={produto.spin.situacao}     cor="var(--ink-slate)" />
+        <SpinCard label="Problema"     texto={produto.spin.problema}     cor="var(--ink-red)" />
+        <SpinCard label="Implicação"   texto={produto.spin.implicacao}   cor="var(--ink-amber)" />
         <SpinCard label="Necessidade"  texto={produto.spin.necessidade}  cor={cor.primary} />
       </section>
 

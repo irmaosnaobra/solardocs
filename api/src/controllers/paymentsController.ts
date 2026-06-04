@@ -34,6 +34,50 @@ function planByPrice(priceId: string) {
   return Object.values(PLAN_MAP).find(p => p.priceId === priceId);
 }
 
+// Campos de atribuição que viajam da LP → Stripe metadata → users.
+// lp_session = sd_lp_session (session_id da landing, casa com page_visits).
+const ATTRIBUTION_KEYS = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','lp_session'] as const;
+
+// Extrai só os campos de atribuição PRESENTES do body, como strings (Stripe
+// exige string e limita 500 chars/valor). Campos ausentes não entram → o
+// checkout sem UTM fica idêntico ao de hoje (aditivo, não pode quebrar nada).
+function extractAttribution(body: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of ATTRIBUTION_KEYS) {
+    const v = body?.[k];
+    if (typeof v === 'string' && v.trim()) out[k] = v.trim().slice(0, 480);
+  }
+  return out;
+}
+
+// Só os utm_* presentes no metadata (pra guardar no marcador órfão / value JSONB).
+function utmsFromMetadata(meta: Record<string, unknown> | null | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of ['utm_source','utm_medium','utm_campaign','utm_content','utm_term']) {
+    const v = meta?.[k];
+    if (typeof v === 'string' && v.trim()) out[k] = v.trim();
+  }
+  return out;
+}
+
+// Patch de atribuição pras colunas de `users`, montado SÓ com campos presentes
+// no metadata do checkout. Re-entrega do webhook sem UTM → patch vazio (a menos
+// do checkout_session_id) → nunca sobrescreve valor já gravado com null.
+function attributionPatchFromMetadata(
+  meta: Record<string, unknown> | null | undefined,
+  checkoutSessionId: string,
+): Record<string, string> {
+  const utms = utmsFromMetadata(meta);
+  const patch: Record<string, string> = { ...utms, checkout_session_id: checkoutSessionId };
+  const lp = meta?.lp_session;
+  if (typeof lp === 'string' && lp.trim()) patch.attribution_session_id = lp.trim();
+  // Só carimba a data se de fato houve algum dado de atribuição (utm ou lp_session).
+  if (Object.keys(utms).length || patch.attribution_session_id) {
+    patch.attribution_captured_at = new Date().toISOString();
+  }
+  return patch;
+}
+
 export async function createCheckout(req: Request, res: Response): Promise<void> {
   const { plan } = req.body as { plan: string };
   // Aceita 'vip' (alias do landing) → 'ilimitado'
@@ -146,6 +190,13 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
 
   try {
     const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+
+    // Atribuição: a LP manda os UTMs + o session_id (sd_lp_session) no body.
+    // Só entram no metadata se vierem preenchidos (campos ausentes = checkout
+    // normal de hoje). Stripe exige valores string; truncamos por segurança.
+    const attribution = extractAttribution(req.body);
+    const baseMeta = { plan: planInfo.plano, source: 'public_checkout', ...attribution };
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -154,9 +205,9 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       billing_address_collection: 'auto',
       subscription_data: {
         trial_period_days: 7,
-        metadata: { plan: planInfo.plano, source: 'public_checkout' },
+        metadata: baseMeta,
       },
-      metadata: { plan: planInfo.plano, source: 'public_checkout' },
+      metadata: baseMeta,
       // Pós-pagamento → cadastro com o session_id pra puxar o email e o plano.
       // &plano= é fallback: se o GET /checkout-info falhar, o RegisterForm ainda
       // sabe o plano e não mostra a tela enganosa de "criar conta grátis".
@@ -234,10 +285,16 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     if (planInfo) {
       const { plano, limite } = planInfo;
 
+      // Atribuição forward-only: lê os UTMs que createPublicCheckout gravou no
+      // metadata. Só keys NÃO-vazias entram no patch — uma re-entrega do webhook
+      // sem UTM (improvável, mas at-least-once) nunca zera o que já foi gravado.
+      // Esta é a escrita de FALLBACK; a primária é no register (authController).
+      const attrPatch = attributionPatchFromMetadata(session.metadata, session.id);
+
       if (userId) {
         await supabase
           .from('users')
-          .update({ plano, limite_documentos: limite, documentos_usados: 0 })
+          .update({ plano, limite_documentos: limite, documentos_usados: 0, ...attrPatch })
           .eq('id', userId);
       } else if (email) {
         // UPDATE com .select() pra saber se casou alguma linha. No fluxo
@@ -250,19 +307,49 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         // que confirma que a conta ainda não existe minutos depois.
         const { data: updated } = await supabase
           .from('users')
-          .update({ plano, limite_documentos: limite, documentos_usados: 0 })
+          .update({ plano, limite_documentos: limite, documentos_usados: 0, ...attrPatch })
           .eq('email', email)
           .select('id');
 
         if (!updated?.length) {
-          // Marcador idempotente do checkout pendente (insert falha em 23505 se já
-          // existe — ok). O sweep lê estes marcadores; não enviamos nada aqui.
-          await supabase
+          // Fluxo LP→Stripe→Cadastro: cartão aprovado mas a conta ainda não
+          // nasceu (a pessoa volta e preenche o form depois). Manda o email de
+          // boas-vindas + link de cadastro NA HORA — purchase confirmation não é
+          // spam, e fecha o vazamento de quem fecha a aba e some.
+          const nowIso = new Date().toISOString();
+
+          // Guarda os UTMs no marcador órfão também — se a pessoa nunca cadastrar,
+          // a atribuição da venda não se perde (fica no system_state pra auditoria).
+          const orphanUtms = utmsFromMetadata(session.metadata);
+
+          // O INSERT do marcador é o lock de idempotência. Stripe entrega este
+          // evento at-least-once (re-entregas por 2xx lento / retry manual / dupe).
+          // Inserindo ANTES de enviar, a 2ª entrega bate em 23505 e NÃO reenvia o
+          // email. (Sem isto, re-entrega = email duplicado pro cliente.)
+          const { error: insertErr } = await supabase
             .from('system_state')
             .insert({
               key: `orphan_checkout:${session.id}`,
-              value: { email, plano, session_id: session.id, created_at: new Date().toISOString() },
+              value: { email, plano, session_id: session.id, created_at: nowIso, ...orphanUtms },
             });
+
+          // insertErr (tipicamente 23505) = marcador já existe = re-entrega →
+          // email já foi tratado na 1ª vez, não reenvia.
+          if (!insertErr) {
+            try {
+              await sendCheckoutCompletionEmail({ to: email, sessionId: session.id, plano });
+              // Carimba sent_at → o sweep recoverOrphanCheckouts PULA (evita 2º toque).
+              // Mantém os utms no value (senão o rewrite apagaria a atribuição órfã).
+              await supabase
+                .from('system_state')
+                .update({ value: { email, plano, session_id: session.id, created_at: nowIso, ...orphanUtms, sent_at: new Date().toISOString() } })
+                .eq('key', `orphan_checkout:${session.id}`);
+            } catch (err) {
+              // Email falhou: sent_at fica null → o sweep recupera depois
+              // (rede de segurança intacta).
+              console.error('sendCheckoutCompletionEmail (imediato) falhou:', err);
+            }
+          }
         }
       }
 
