@@ -911,10 +911,14 @@ router.post('/io/broadcasts/upload-media', async (req: Request, res: Response): 
 });
 
 // ── Lead Extractor (Google Places Text Search New API) ────────────
-// /admin/leads/google/search   POST  { query, max_pages? } → busca + persiste
-// /admin/leads/google/searches GET   lista buscas anteriores
-// /admin/leads/google/searches/:id GET  retorna leads da busca
-// /admin/leads/google/searches/:id DELETE  remove busca + leads
+// /admin/leads/google/search                POST   { query, max_pages? } → busca rápida (1 termo, até 60) + persiste
+// /admin/leads/google/scan/start            POST   { uf, categoria } → inicia varredura estadual (job), retorna search_id
+// /admin/leads/google/scan/:id/tick         POST   processa UMA fatia de municípios (dirigido pela aba)
+// /admin/leads/google/scan/:id/cancel       POST   seta flag de cancelamento
+// /admin/leads/google/searches              GET    lista buscas anteriores
+// /admin/leads/google/searches/:id          GET    retorna leads da busca
+// /admin/leads/google/searches/:id/progress GET    retorna o estado do job (p/ barra + retomar)
+// /admin/leads/google/searches/:id          DELETE remove busca + leads
 interface GooglePlace {
   id: string;
   displayName?: { text?: string };
@@ -928,6 +932,109 @@ interface GooglePlace {
   location?: { latitude?: number; longitude?: number };
 }
 
+// Campos pedidos à Google (compartilhado entre busca rápida e varredura).
+const GOOGLE_PLACES_FIELD_MASK = [
+  'places.id', 'places.displayName', 'places.formattedAddress',
+  'places.nationalPhoneNumber', 'places.internationalPhoneNumber',
+  'places.websiteUri', 'places.rating', 'places.userRatingCount',
+  'places.types', 'places.location',
+  'nextPageToken',
+].join(',');
+
+// UFs válidas (IBGE) — valida o input da varredura.
+const UFS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
+// Mapeia um GooglePlace pra linha de google_leads (mesmo mapeamento da busca rápida).
+function placeToRow(searchId: string, p: GooglePlace) {
+  return {
+    search_id: searchId,
+    place_id: p.id,
+    nome: p.displayName?.text ?? null,
+    telefone: p.nationalPhoneNumber ?? null,
+    telefone_internacional: p.internationalPhoneNumber ?? null,
+    endereco: p.formattedAddress ?? null,
+    website: p.websiteUri ?? null,
+    rating: p.rating ?? null,
+    reviews_count: p.userRatingCount ?? null,
+    types: p.types ?? null,
+    latitude: p.location?.latitude ?? null,
+    longitude: p.location?.longitude ?? null,
+  };
+}
+
+// Erro tipado pra distinguir rate-limit/transitório (429/5xx/RESOURCE_EXHAUSTED).
+class GooglePlacesError extends Error {
+  httpStatus: number;
+  transient: boolean;
+  constructor(message: string, httpStatus: number) {
+    super(message);
+    this.httpStatus = httpStatus;
+    this.transient = httpStatus === 429 || httpStatus >= 500;
+  }
+}
+
+// Pagina um único termo até `maxPages` (máx ~60). O delay de 2s é SÓ entre
+// páginas do MESMO termo (exigência do nextPageToken da Google), nunca entre
+// termos diferentes. Retorna os places + quantos requests gastou.
+async function buscarPlacesPaginado(
+  query: string,
+  apiKey: string,
+  maxPages = 3,
+): Promise<{ places: GooglePlace[]; requests: number }> {
+  const out: GooglePlace[] = [];
+  let nextPageToken: string | undefined;
+  let requests = 0;
+
+  for (let page = 0; page < maxPages; page++) {
+    const body: Record<string, unknown> = {
+      textQuery: query,
+      languageCode: 'pt-BR',
+      regionCode: 'BR',
+      pageSize: 20,
+    };
+    if (nextPageToken) body.pageToken = nextPageToken;
+
+    const r = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': GOOGLE_PLACES_FIELD_MASK,
+      },
+      body: JSON.stringify(body),
+    });
+    requests++;
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new GooglePlacesError(`Google Places ${r.status}: ${txt.slice(0, 300)}`, r.status);
+    }
+    const data = await r.json() as { places?: GooglePlace[]; nextPageToken?: string };
+    out.push(...(data.places ?? []));
+    nextPageToken = data.nextPageToken;
+    if (!nextPageToken) break;
+    // Google exige um pequeno delay antes de reusar o nextPageToken.
+    await sleep(2000);
+  }
+  return { places: out, requests };
+}
+
+interface Municipio { id: number; nome: string }
+
+// Lista de municípios de uma UF via IBGE, ORDENADA por id (cursor determinístico:
+// a fatia [processados : processados+BATCH] tem que ser estável entre ticks).
+async function fetchMunicipiosIBGE(uf: string): Promise<Municipio[]> {
+  const r = await fetch(
+    `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`,
+  );
+  if (!r.ok) throw new Error(`IBGE ${r.status}`);
+  const data = await r.json() as Array<{ id: number; nome: string }>;
+  return data
+    .map(m => ({ id: m.id, nome: m.nome }))
+    .sort((a, b) => a.id - b.id);
+}
+
 router.post('/leads/google/search', async (req: Request, res: Response): Promise<void> => {
   try {
     const { query, max_pages } = req.body as { query?: string; max_pages?: number };
@@ -937,53 +1044,22 @@ router.post('/leads/google/search', async (req: Request, res: Response): Promise
     if (!apiKey) { res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY nao configurado' }); return; }
 
     const pages = Math.max(1, Math.min(Number(max_pages) || 3, 3));
-    const fieldMask = [
-      'places.id', 'places.displayName', 'places.formattedAddress',
-      'places.nationalPhoneNumber', 'places.internationalPhoneNumber',
-      'places.websiteUri', 'places.rating', 'places.userRatingCount',
-      'places.types', 'places.location',
-      'nextPageToken',
-    ].join(',');
 
-    const allPlaces: GooglePlace[] = [];
-    let nextPageToken: string | undefined;
-
-    for (let page = 0; page < pages; page++) {
-      const body: Record<string, unknown> = {
-        textQuery: q,
-        languageCode: 'pt-BR',
-        regionCode: 'BR',
-        pageSize: 20,
-      };
-      if (nextPageToken) body.pageToken = nextPageToken;
-
-      const r = await fetch('https://places.googleapis.com/v1/places:searchText', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': apiKey,
-          'X-Goog-FieldMask': fieldMask,
-        },
-        body: JSON.stringify(body),
-      });
-      if (!r.ok) {
-        const txt = await r.text();
-        res.status(502).json({ error: 'Erro Google Places', http_status: r.status, body: txt });
-        return;
-      }
-      const data = await r.json() as { places?: GooglePlace[]; nextPageToken?: string };
-      const places = data.places ?? [];
-      allPlaces.push(...places);
-      nextPageToken = data.nextPageToken;
-      if (!nextPageToken) break;
-      // Google exige delay curto antes de usar o nextPageToken
-      await new Promise<void>(resolve => setTimeout(resolve, 2000));
+    let allPlaces: GooglePlace[];
+    try {
+      const r = await buscarPlacesPaginado(q, apiKey, pages);
+      allPlaces = r.places;
+    } catch (err) {
+      const status = err instanceof GooglePlacesError ? err.httpStatus : 0;
+      res.status(502).json({ error: 'Erro Google Places', http_status: status, body: String(err) });
+      return;
     }
 
-    // Cria registro da busca
+    // Cria registro da busca (tipo 'single' = busca rápida)
     const comTelefone = allPlaces.filter(p => p.nationalPhoneNumber || p.internationalPhoneNumber).length;
     const { data: searchRow, error: sErr } = await supabase.from('google_lead_searches').insert({
       criado_por: req.userId,
+      tipo: 'single',
       query: q,
       total_resultados: allPlaces.length,
       com_telefone: comTelefone,
@@ -991,27 +1067,15 @@ router.post('/leads/google/search', async (req: Request, res: Response): Promise
     }).select('id').single();
     if (sErr || !searchRow) { res.status(500).json({ error: 'Erro criando busca', detail: sErr?.message }); return; }
 
-    // Insere leads (deduplica por place_id dentro da mesma busca)
+    // Insere leads (deduplica por place_id via índice único (search_id, place_id))
     if (allPlaces.length > 0) {
       const seen = new Set<string>();
       const rows = allPlaces
         .filter(p => p.id && !seen.has(p.id) && seen.add(p.id))
-        .map(p => ({
-          search_id: searchRow.id,
-          place_id: p.id,
-          nome: p.displayName?.text ?? null,
-          telefone: p.nationalPhoneNumber ?? null,
-          telefone_internacional: p.internationalPhoneNumber ?? null,
-          endereco: p.formattedAddress ?? null,
-          website: p.websiteUri ?? null,
-          rating: p.rating ?? null,
-          reviews_count: p.userRatingCount ?? null,
-          types: p.types ?? null,
-          latitude: p.location?.latitude ?? null,
-          longitude: p.location?.longitude ?? null,
-        }));
+        .map(p => placeToRow(searchRow.id, p));
       if (rows.length > 0) {
-        const { error: lErr } = await supabase.from('google_leads').insert(rows);
+        const { error: lErr } = await supabase.from('google_leads')
+          .upsert(rows, { onConflict: 'search_id,place_id', ignoreDuplicates: true });
         if (lErr) { res.status(500).json({ error: 'Erro inserindo leads', detail: lErr.message }); return; }
       }
     }
@@ -1032,12 +1096,271 @@ router.post('/leads/google/search', async (req: Request, res: Response): Promise
   }
 });
 
+// ── Varredura estadual: INICIA o job ────────────────────────────────────────
+// Cria a busca como 'rodando', guarda uf/categoria, conta municípios via IBGE
+// e retorna search_id na hora. A aba então chama /tick em loop.
+router.post('/leads/google/scan/start', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { uf: rawUf, categoria: rawCat } = req.body as { uf?: string; categoria?: string };
+    const uf = (rawUf || '').trim().toUpperCase();
+    const categoria = (rawCat || '').trim();
+    if (!UFS_BR.includes(uf)) { res.status(400).json({ error: 'UF inválida' }); return; }
+    if (!categoria) { res.status(400).json({ error: 'categoria obrigatoria' }); return; }
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
+    if (!apiKey) { res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY nao configurado' }); return; }
+
+    let municipiosTotal: number;
+    try {
+      municipiosTotal = (await fetchMunicipiosIBGE(uf)).length;
+    } catch {
+      res.status(502).json({ error: 'Erro consultando IBGE — tente de novo' });
+      return;
+    }
+
+    const { data: searchRow, error: sErr } = await supabase.from('google_lead_searches').insert({
+      criado_por: req.userId,
+      tipo: 'varredura',
+      uf,
+      categoria,
+      query: `${categoria} — ${uf} (varredura)`,
+      status: 'rodando',
+      municipios_total: municipiosTotal,
+      municipios_processados: 0,
+      requests_feitos: 0,
+      total_resultados: 0,
+      com_telefone: 0,
+      cancelar: false,
+    }).select('id').single();
+    if (sErr || !searchRow) { res.status(500).json({ error: 'Erro criando varredura', detail: sErr?.message }); return; }
+
+    res.json({
+      search_id: searchRow.id,
+      municipios_total: municipiosTotal,
+      projecao_requests: municipiosTotal * 3,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro iniciando varredura', message: String(err) });
+  }
+});
+
+// ── Varredura estadual: processa UMA fatia (dirigido pela aba) ───────────────
+const SCAN_BATCH = 24;          // municípios por fatia (limitado pelo time-box)
+const SCAN_CONCURRENCY = 8;     // queries simultâneas dentro da fatia
+// Time-box CURTO de propósito: o tick fala com a aba via proxy edge /_api, que
+// tem um teto de resposta menor que o maxDuration de 300s da função. Mantendo o
+// budget bem abaixo desse teto, um tick nunca é morto no meio (o que viraria
+// loop que gasta na Google sem avançar o cursor). Mais ticks, cada um seguro.
+const SCAN_TICK_BUDGET_MS = 22000;  // para de pegar novos municípios após ~22s
+const SCAN_LEASE_MS = 60000;        // lease > budget + margem (cobre crash)
+
+router.post('/leads/google/scan/:id/tick', async (req: Request, res: Response): Promise<void> => {
+  const id = String(req.params.id);
+  try {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
+    if (!apiKey) { res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY nao configurado' }); return; }
+
+    const nowIso = new Date().toISOString();
+    const lockUntil = new Date(Date.now() + SCAN_LEASE_MS).toISOString();
+
+    // 1) Claim atômico do lease: só pega se status='rodando', não cancelado e
+    //    lock livre/expirado. Duas abas (ou um cron) não dirigem o mesmo job.
+    const { data: claimed } = await supabase
+      .from('google_lead_searches')
+      .update({ locked_until: lockUntil })
+      .eq('id', id)
+      .eq('status', 'rodando')
+      .eq('cancelar', false)
+      .or(`locked_until.is.null,locked_until.lt.${nowIso}`)
+      .select('id, uf, categoria, municipios_processados, requests_feitos, falhas, falhas_consecutivas')
+      .maybeSingle();
+
+    if (!claimed) {
+      // Pode ser: cancelado, já concluído, ou outra aba segurando o lock.
+      const { data: cur } = await supabase
+        .from('google_lead_searches')
+        .select('status, cancelar, municipios_processados, municipios_total, total_resultados, com_telefone, requests_feitos')
+        .eq('id', id).maybeSingle();
+      if (cur?.cancelar && cur.status === 'rodando') {
+        // Cancelamento pedido: finaliza como 'parado'.
+        await supabase.from('google_lead_searches')
+          .update({ status: 'parado', locked_until: null }).eq('id', id);
+        res.json({ claimed: false, done: true, ...cur, status: 'parado' });
+        return;
+      }
+      res.json({ claimed: false, ...(cur ?? {}), done: cur?.status !== 'rodando', status: cur?.status ?? 'desconhecido' });
+      return;
+    }
+
+    const uf = claimed.uf as string;
+    const categoria = claimed.categoria as string;
+    const base = claimed.municipios_processados as number;
+    const falhasAtuais = Array.isArray(claimed.falhas) ? claimed.falhas : [];
+
+    // 2) Re-busca a lista IBGE (fonte da verdade de total/cursor). Blip → retry
+    //    sem avançar; 3 consecutivos → 'erro'. Nunca matar o job por um blip.
+    let municipios: Municipio[];
+    try {
+      municipios = await fetchMunicipiosIBGE(uf);
+    } catch {
+      const nConsec = (claimed.falhas_consecutivas as number) + 1;
+      if (nConsec >= 3) {
+        await supabase.from('google_lead_searches')
+          .update({ status: 'erro', falhas_consecutivas: nConsec, locked_until: null }).eq('id', id);
+        res.json({ claimed: true, done: true, status: 'erro', error: 'IBGE indisponível' });
+        return;
+      }
+      await supabase.from('google_lead_searches')
+        .update({ falhas_consecutivas: nConsec, locked_until: null }).eq('id', id);
+      res.json({ claimed: true, retry: true, status: 'rodando' });
+      return;
+    }
+
+    const total = municipios.length;
+    if (base >= total) {
+      await supabase.from('google_lead_searches')
+        .update({ status: 'concluido', municipios_processados: total, locked_until: null }).eq('id', id);
+      res.json({ claimed: true, done: true, status: 'concluido', municipios_processados: total, municipios_total: total });
+      return;
+    }
+
+    // 3) Fatia [base : base+BATCH], processada em chunks concorrentes com time-box.
+    const fatia = municipios.slice(base, base + SCAN_BATCH);
+    const inicio = Date.now();
+    let processedThisTick = 0;
+    let requestsThisTick = 0;
+    const placesColetados: GooglePlace[] = [];
+    const novasFalhas: Array<{ id: number; nome: string }> = [];
+
+    for (let i = 0; i < fatia.length; i += SCAN_CONCURRENCY) {
+      if (Date.now() - inicio > SCAN_TICK_BUDGET_MS) break; // time-box: termina o tick
+      const grupo = fatia.slice(i, i + SCAN_CONCURRENCY);
+      const results = await Promise.allSettled(grupo.map(async (m) => {
+        const query = `${categoria} ${m.nome} ${uf}`;
+        try {
+          return await buscarPlacesPaginado(query, apiKey);
+        } catch (err) {
+          // 1 retry inline (blip/rate-limit transitório)
+          if (err instanceof GooglePlacesError && err.transient) {
+            await sleep(1500);
+            return await buscarPlacesPaginado(query, apiKey);
+          }
+          throw err;
+        }
+      }));
+      results.forEach((r, idx) => {
+        const m = grupo[idx];
+        if (r.status === 'fulfilled') {
+          placesColetados.push(...r.value.places);
+          requestsThisTick += r.value.requests;
+        } else {
+          // Falha persistente: registra e segue (não bloqueia o cursor).
+          novasFalhas.push({ id: m.id, nome: m.nome });
+        }
+        processedThisTick++; // concluído = sucesso OU falha registrada
+      });
+    }
+
+    // 4) Upsert dedup dos places coletados (índice único (search_id, place_id)).
+    if (placesColetados.length > 0) {
+      const seen = new Set<string>();
+      const rows = placesColetados
+        .filter(p => p.id && !seen.has(p.id) && seen.add(p.id))
+        .map(p => placeToRow(id, p));
+      if (rows.length > 0) {
+        await supabase.from('google_leads')
+          .upsert(rows, { onConflict: 'search_id,place_id', ignoreDuplicates: true });
+      }
+    }
+
+    // 5) Recomputa contadores (idempotente) e avança o cursor pelo nº REAL.
+    const { count: totalResultados } = await supabase.from('google_leads')
+      .select('id', { count: 'exact', head: true }).eq('search_id', id);
+    const { count: comTelefone } = await supabase.from('google_leads')
+      .select('id', { count: 'exact', head: true }).eq('search_id', id).not('telefone', 'is', null);
+
+    const novoProcessados = base + processedThisTick;
+    const done = novoProcessados >= total;
+
+    await supabase.from('google_lead_searches').update({
+      municipios_processados: novoProcessados,
+      requests_feitos: (claimed.requests_feitos as number) + requestsThisTick,
+      total_resultados: totalResultados ?? 0,
+      com_telefone: comTelefone ?? 0,
+      falhas: [...falhasAtuais, ...novasFalhas],
+      falhas_consecutivas: 0,
+      status: done ? 'concluido' : 'rodando',
+      locked_until: null,
+    }).eq('id', id);
+
+    res.json({
+      claimed: true,
+      done,
+      status: done ? 'concluido' : 'rodando',
+      municipios_processados: novoProcessados,
+      municipios_total: total,
+      total_resultados: totalResultados ?? 0,
+      com_telefone: comTelefone ?? 0,
+      requests_feitos: (claimed.requests_feitos as number) + requestsThisTick,
+    });
+  } catch (err) {
+    // Libera o lock pra próxima tentativa não ficar travada no lease.
+    await supabase.from('google_lead_searches').update({ locked_until: null }).eq('id', id);
+    res.status(500).json({ error: 'Erro no tick da varredura', message: String(err) });
+  }
+});
+
+// ── Varredura estadual: pede cancelamento (cobre tab-close) ──────────────────
+router.post('/leads/google/scan/:id/cancel', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { error } = await supabase.from('google_lead_searches')
+      .update({ cancelar: true }).eq('id', req.params.id);
+    if (error) { res.status(500).json({ error: 'Erro cancelando', detail: error.message }); return; }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro cancelando varredura', message: String(err) });
+  }
+});
+
+// ── Varredura estadual: re-arma um job 'parado'/'erro' pra continuar do cursor ─
+// Não ressuscita 'concluido'. Limpa cancelar/lock/falhas e volta pra 'rodando';
+// o tick continua de municipios_processados (upsert torna re-tentativa segura).
+router.post('/leads/google/scan/:id/resume', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase.from('google_lead_searches')
+      .update({ status: 'rodando', cancelar: false, falhas_consecutivas: 0, locked_until: null })
+      .eq('id', req.params.id)
+      .eq('tipo', 'varredura')
+      .in('status', ['parado', 'erro', 'rodando'])
+      .select('id, municipios_total, municipios_processados, total_resultados, com_telefone, requests_feitos')
+      .maybeSingle();
+    if (error) { res.status(500).json({ error: 'Erro retomando', detail: error.message }); return; }
+    if (!data) { res.status(409).json({ error: 'Varredura não pode ser retomada (já concluída?)' }); return; }
+    res.json({ ok: true, ...data });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro retomando varredura', message: String(err) });
+  }
+});
+
+// ── Estado do job (p/ barra de progresso + retomar ao recarregar) ────────────
+router.get('/leads/google/searches/:id/progress', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase.from('google_lead_searches')
+      .select('id, tipo, uf, categoria, query, status, cancelar, municipios_total, municipios_processados, requests_feitos, total_resultados, com_telefone, falhas')
+      .eq('id', req.params.id).maybeSingle();
+    if (error) { res.status(500).json({ error: 'Erro progress', detail: error.message }); return; }
+    if (!data) { res.status(404).json({ error: 'Busca não encontrada' }); return; }
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro progress', message: String(err) });
+  }
+});
+
 router.get('/leads/google/searches', async (req: Request, res: Response): Promise<void> => {
   try {
     const limit = Math.min(Number(req.query.limit) || 30, 100);
     const { data, error } = await supabase
       .from('google_lead_searches')
-      .select('id, criado_em, query, total_resultados, com_telefone, status')
+      .select('id, criado_em, query, total_resultados, com_telefone, status, tipo, uf, categoria, municipios_total, municipios_processados, requests_feitos')
       .order('criado_em', { ascending: false })
       .limit(limit);
     if (error) { res.status(500).json({ error: 'Erro listando buscas', detail: error.message }); return; }
@@ -1049,13 +1372,24 @@ router.get('/leads/google/searches', async (req: Request, res: Response): Promis
 
 router.get('/leads/google/searches/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { data, error } = await supabase
-      .from('google_leads')
-      .select('*')
-      .eq('search_id', req.params.id)
-      .order('rating', { ascending: false, nullsFirst: false });
-    if (error) { res.status(500).json({ error: 'Erro buscando leads', detail: error.message }); return; }
-    res.json({ leads: data ?? [] });
+    // Pagina em blocos de 1000 (teto do PostgREST) até esgotar — uma varredura
+    // estadual pode ter milhares de leads, e um select simples cortaria em 1000.
+    const PAGE = 1000;
+    const todos: unknown[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('google_leads')
+        .select('*')
+        .eq('search_id', req.params.id)
+        .order('rating', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: true }) // desempate estável entre páginas
+        .range(from, from + PAGE - 1);
+      if (error) { res.status(500).json({ error: 'Erro buscando leads', detail: error.message }); return; }
+      const lote = data ?? [];
+      todos.push(...lote);
+      if (lote.length < PAGE) break;
+    }
+    res.json({ leads: todos });
   } catch (err) {
     res.status(500).json({ error: 'Erro get leads', message: String(err) });
   }
