@@ -5,6 +5,7 @@ import { handleGroupMessage } from '../services/agents/sdr/sdrGroupAgent';
 import { supabase } from '../utils/supabase';
 import { transcribeAudio, downloadImageAsAnthropicSource } from '../utils/mediaProcessor';
 import { sendWhatsApp } from '../services/agents/zapiClient';
+import { kiwifyWebhook } from '../controllers/limpaproController';
 
 // Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
 // primeiro disponível pra dedup atômico contra redelivery e race com polling.
@@ -27,6 +28,12 @@ router.get('/io', (_req: Request, res: Response): void => {
 router.get('/io-sent', (_req: Request, res: Response): void => {
   res.json({ status: 'webhook io-sent online', instance: 'io', ts: new Date().toISOString() });
 });
+
+// Webhook de vendas da Kiwify (produto LimpaPro). GET = healthcheck, POST = evento.
+router.get('/kiwify', (_req: Request, res: Response): void => {
+  res.json({ status: 'webhook kiwify online', ts: new Date().toISOString() });
+});
+router.post('/kiwify', kiwifyWebhook);
 
 // Extrai texto de payloads Z-API (formato antigo e novo)
 function extractText(body: any): string {
