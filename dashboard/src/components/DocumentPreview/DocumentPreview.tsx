@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import styles from './DocumentPreview.module.css';
 import api from '@/services/api';
-import { getToken } from '@/services/auth';
 interface Company {
   nome: string;
   cnpj: string;
@@ -187,19 +186,51 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
       alert('Documento ainda não foi salvo. Tente novamente em instantes.');
       return;
     }
-    const token = getToken();
-    if (!token) {
-      alert('Sessão expirou. Faça login novamente.');
-      return;
-    }
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const url = `${apiUrl}/documents/${docId}/pdf?token=${encodeURIComponent(token)}`;
 
     // Server-side PDF (Puppeteer/Chromium) com margens A4 fixas — mais confiável
     // que html2pdf.js no browser, que estourava conteúdo pra direita.
-    // Content-Disposition: attachment faz o browser baixar em vez de navegar.
-    window.location.href = url;
+    // Baixa via axios (mesmo padrão do /historico): usa o proxy /_api em produção
+    // (não NEXT_PUBLIC_API_URL), manda o token no header (não na URL/histórico) e
+    // se o backend devolver JSON de erro, mostra o stage real em vez de jogar o
+    // usuário numa página de JSON cru.
+    try {
+      const res = await api.get(`/documents/${docId}/pdf`, { responseType: 'blob' });
+      const ct = res.headers?.['content-type'] || '';
+      if (ct.includes('application/json')) {
+        const text = await (res.data as Blob).text();
+        try {
+          const j = JSON.parse(text) as { error?: string; stage?: string; message?: string };
+          alert(`Erro ao gerar PDF\nEtapa: ${j.stage || '?'}\n${j.message || j.error || 'sem detalhes'}`);
+        } catch {
+          alert('Erro ao gerar PDF. Resposta inesperada do servidor.');
+        }
+        return;
+      }
+      const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const slug = (s: string) => stripDiacritics(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      const fileName = `${slug(tipo)}_${slug(clienteNome) || 'documento'}.pdf`;
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      const e = err as { response?: { status?: number; data?: Blob } };
+      if (e.response?.status === 401) {
+        alert('Sessão expirou. Faça login novamente.');
+        return;
+      }
+      const data = e.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const j = JSON.parse(await data.text()) as { error?: string; stage?: string; message?: string };
+          alert(`Erro ao gerar PDF\nEtapa: ${j.stage || '?'}\n${j.message || j.error || 'sem detalhes'}`);
+          return;
+        } catch {/* cai no genérico */}
+      }
+      alert('Erro ao baixar o PDF. Tente novamente em instantes.');
+    }
   }
 
   return (
