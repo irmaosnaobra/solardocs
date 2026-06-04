@@ -5,6 +5,7 @@ import api from '@/services/api';
 import styles from './admin.module.css';
 import FunilSolarDocPanel from './_components/FunilSolarDocPanel';
 import FunilLimpaproPanel from './_components/FunilLimpaproPanel';
+import MembrosPanel from './_components/MembrosPanel';
 
 /* ─── tipos ─────────────────────────────────────────────────── */
 interface SessionRow {
@@ -186,7 +187,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'>('visits');
+  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'|'membros'>('visits');
 
   const [analytics, setAnalytics]               = useState<Analytics|null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -279,9 +280,9 @@ export default function AdminPage() {
           {tab==='io_visits' && (
             <a href="/io" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{textDecoration:'none'}}>↗ Abrir Site /io</a>
           )}
-          {/* Funis têm seu próprio seletor de período e refazem o fetch sozinhos — o
-              refresh compartilhado (analytics/meta) não vale ali. */}
-          {tab!=='funil_solardoc' && tab!=='funil_limpapro' && (
+          {/* Funis e Membros têm seu próprio botão Atualizar e não usam o período
+              compartilhado (analytics/meta) — o refresh global não vale ali. */}
+          {tab!=='funil_solardoc' && tab!=='funil_limpapro' && tab!=='membros' && (
             <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
               onClick={()=>{setAnalyticsLoaded(false);setMetaLoaded(false);loadAnalytics();loadMeta();}}>
               {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
@@ -292,6 +293,7 @@ export default function AdminPage() {
 
       <div className={styles.tabs}>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 LP SolarDoc</button>
+        <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>👥 Membros</button>
         <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>💰 Receita / ROAS</button>
         <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ Acessos Site IO</button>
         <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>🎨 Pack Solar</button>
@@ -1075,6 +1077,9 @@ export default function AdminPage() {
           </>
         );
       })()}
+
+      {/* ═══ ABA MEMBROS (base de usuários da plataforma) ═══════════ */}
+      {tab === 'membros' && <MembrosPanel />}
 
       {/* ═══ ABA FUNIL SOLARDOC ═════════════════════════════════ */}
       {tab === 'funil_solardoc' && <FunilSolarDocPanel />}
