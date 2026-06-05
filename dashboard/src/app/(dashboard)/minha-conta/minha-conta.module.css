@@ -70,6 +70,14 @@
 .ok  { font-size: 13px; color: var(--color-success); font-weight: 600; }
 .err { font-size: 13px; color: var(--color-error); font-weight: 600; }
 
-.planRow { display: flex; align-items: center; justify-content: space-between; }
+.planRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .planName { font-size: 18px; font-weight: 700; color: var(--color-text); }
 .planUsage { font-size: 13px; color: var(--color-text-muted); margin-top: 3px; }
+
+/* Mobile: card com menos padding e botões empilhados (2 botões lado a lado
+   apertavam em 360px). */
+@media (max-width: 480px) {
+  .card { padding: 16px; }
+  .row { flex-direction: column; align-items: stretch; }
+  .btnPrimary, .btnSecondary { width: 100%; padding: 12px; }
+}
