@@ -210,7 +210,7 @@ export default function InsightsPage() {
           {/* GRÁFICOS PLANILHA */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
             gap: 16,
             marginTop: 20,
           }}>

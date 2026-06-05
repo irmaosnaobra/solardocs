@@ -37,7 +37,7 @@
 
 /* ─── abas ───────────────────────────── */
 .tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--color-border); }
-.tab, .tabActive { padding: 8px 18px; border-radius: 8px 8px 0 0; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--color-text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
+.tab, .tabActive { padding: 8px 18px; border-radius: 8px 8px 0 0; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--color-text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; white-space: nowrap; }
 .tabActive { color: var(--color-primary); border-bottom-color: var(--color-primary); }
 .tab:hover { color: var(--color-text); }
 
@@ -252,15 +252,33 @@
   .metaFinGrid { grid-template-columns: repeat(3,1fr); }
 }
 @media (max-width: 768px) {
-  .cards { grid-template-columns: repeat(2,1fr); }
-  .ctaItem { grid-template-columns: 140px 1fr 40px; }
+  /* abas viram faixa rolável horizontal — sem isso as 7 abas estouram a tela
+     e como o .main tem overflow-x:hidden, as últimas (Funil SolarDoc/LimpaPro)
+     ficavam inacessíveis no celular. */
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab, .tabActive { flex-shrink: 0; padding: 8px 14px; }
+  /* !important porque o page.tsx/MembrosPanel setam gridTemplateColumns inline
+     (repeat(4,1fr)/repeat(5,1fr)); regra de stylesheet com !important vence o
+     inline e impede os KPI cards de espremerem a ~70px no mobile. */
+  .cards { grid-template-columns: repeat(2,1fr) !important; }
+  .ctaItem { grid-template-columns: 110px 1fr 40px; }
   .metaFinGrid { grid-template-columns: repeat(2,1fr); }
   .metaBlockHeader { flex-direction: column; align-items: flex-start; gap: 12px; }
+  /* blocos lado-a-lado (1fr 1fr inline) empilham no mobile */
+  .twoCol { grid-template-columns: 1fr !important; }
 }
 @media (max-width: 480px) {
-  .cards { grid-template-columns: repeat(2,1fr); }
+  .cards { grid-template-columns: repeat(2,1fr) !important; }
   .filters { flex-direction: column; }
   .filters .input-field { max-width: 100% !important; }
   .expandedGrid { grid-template-columns: 1fr; }
   .metaFinGrid { grid-template-columns: repeat(2,1fr); }
+  .ctaItem { grid-template-columns: 90px 1fr 36px; gap: 8px; }
+  .funnelStep { grid-template-columns: 22px 1fr 84px; gap: 8px; }
 }

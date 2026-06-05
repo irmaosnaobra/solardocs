@@ -294,7 +294,8 @@ export default function AdminPage() {
       <div className={styles.tabs}>
         <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>👥 Membros</button>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 LP SolarDoc</button>
-        <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>💰 Receita / ROAS</button>
+        {/* Aba Receita / ROAS ocultada — bloco e fetch mantidos abaixo, só removido o botão de navegação. */}
+        {/* <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>💰 Receita / ROAS</button> */}
         <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ Acessos Site IO</button>
         <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>🎨 Pack Solar</button>
         <button className={tab==='funil_solardoc'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_solardoc')}>🔻 Funil SolarDoc</button>
@@ -420,7 +421,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* Origens + Campanhas lado a lado */}
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
+                <div className={styles.twoCol} style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
                   <div className={styles.tableWrap}>
                     <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Top origens</div>
                     <table className={styles.table}>
@@ -645,7 +646,7 @@ export default function AdminPage() {
               </div>
 
               {/* Origens + Campanhas lado a lado */}
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
+              <div className={styles.twoCol} style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
                 <div className={styles.tableWrap}>
                   <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Top origens</div>
                   <table className={styles.table}>
@@ -989,7 +990,7 @@ export default function AdminPage() {
                   <FunnelSVG steps={packFunnel} />
                 </div>
 
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
+                <div className={styles.twoCol} style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
                   <div className={styles.tableWrap}>
                     <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Top origens</div>
                     <table className={styles.table}>
