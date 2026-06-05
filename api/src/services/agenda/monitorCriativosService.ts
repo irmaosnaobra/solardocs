@@ -1,4 +1,5 @@
 import { sendWhatsApp } from '../agents/zapiClient';
+import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 
 // ─── Monitor de criativos ruins no Meta Ads ──────────────────────────────────
@@ -31,16 +32,24 @@ const WEAK_CPC_MIN    = N(process.env.META_MON_WEAK_CPC, 2.0);     // gatilho B:
 const WEAK_SPEND_MIN  = N(process.env.META_MON_WEAK_SPEND, 4);     // gatilho B: gasto mínimo pra julgar
 const WEAK_IMPR_MIN   = N(process.env.META_MON_WEAK_IMPR, 150);    // gatilho B: impressões mínimas (não julga CTR cedo demais)
 
+// Janela de avaliação. last_7d (default) — os limiares foram calibrados em 7 dias;
+// "today" às 8h30 (quando o cron roda) seria vazio e nunca dispararia. Override por env.
+const WINDOW = (process.env.META_MON_WINDOW || 'last_7d').trim();
+// Dedup: o master cron roda DE HORA EM HORA. Sem isto, a mesma lista de sangradores
+// seria reenviada toda hora = spam. Só re-alerta o mesmo ad_id após 24h.
+const DEDUP_KEY = 'monitor_criativos:dedup';
+const DEDUP_HOURS = N(process.env.META_MON_DEDUP_HOURS, 24);
+
 interface AdInsight {
   ad_id: string; ad_name: string; campaign_name: string;
   spend: number; impressions: number; clicks: number; ctr: number; cpc: number;
   purchases: number;
 }
 
-// Puxa insights de HOJE por anúncio, só dos ativos. Calcula compras a partir de actions.
-async function fetchTodayInsights(): Promise<AdInsight[]> {
+// Puxa insights da janela (last_7d) por anúncio, só dos ativos. Compras de actions.
+async function fetchInsights(): Promise<AdInsight[]> {
   const fields = 'ad_id,ad_name,campaign_name,spend,impressions,clicks,ctr,cpc,actions';
-  const url = `${GRAPH}/${AD_ACCOUNT_ID}/insights?level=ad&date_preset=today` +
+  const url = `${GRAPH}/${AD_ACCOUNT_ID}/insights?level=ad&date_preset=${encodeURIComponent(WINDOW)}` +
     `&filtering=${encodeURIComponent(JSON.stringify([{ field: 'ad.effective_status', operator: 'IN', value: ['ACTIVE'] }]))}` +
     `&fields=${fields}&limit=200&access_token=${META_TOKEN}`;
 
@@ -93,38 +102,74 @@ function adsManagerLink(adId: string): string {
   return `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${acct}&selected_ad_ids=${adId}`;
 }
 
-export async function runMonitorCriativos(opts: { dry?: boolean } = {}): Promise<{ avaliados: number; ruins: number; enviado: boolean }> {
+// Lê o mapa de dedup {ad_id: ISO do último alerta}. Tolerante a ausência.
+async function getDedup(): Promise<Record<string, string>> {
+  try {
+    const { data } = await supabase.from('system_state').select('value').eq('key', DEDUP_KEY).maybeSingle();
+    const v = (data?.value ?? {}) as Record<string, string>;
+    return typeof v === 'object' && v ? v : {};
+  } catch { return {}; }
+}
+
+async function saveDedup(map: Record<string, string>): Promise<void> {
+  try {
+    await supabase.from('system_state').upsert(
+      { key: DEDUP_KEY, value: map, updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    );
+  } catch (err) { logger.error('cron', 'monitor-criativos: saveDedup falhou', err); }
+}
+
+export async function runMonitorCriativos(opts: { dry?: boolean } = {}): Promise<{ avaliados: number; ruins: number; novos: number; enviado: boolean }> {
   if (!META_TOKEN) {
     logger.error('cron', 'monitor-criativos: META token ausente');
-    return { avaliados: 0, ruins: 0, enviado: false };
+    return { avaliados: 0, ruins: 0, novos: 0, enviado: false };
   }
 
-  const ads = await fetchTodayInsights();
+  const ads = await fetchInsights();
   const ruins = ads
     .map(ad => ({ ad, v: avaliar(ad) }))
     .filter(x => x.v !== null)
     .sort((a, b) => b.ad.spend - a.ad.spend);
 
-  logger.info('cron', `monitor-criativos: ${ads.length} ads ativos, ${ruins.length} ruins`);
+  // Dedup: o cron roda de hora em hora. Só alerta ad_id não avisado nas últimas DEDUP_HOURS.
+  const nowMs = Date.now();
+  const dedup = await getDedup();
+  const cutoffMs = nowMs - DEDUP_HOURS * 3600_000;
+  const novos = ruins.filter(({ ad }) => {
+    const last = dedup[ad.ad_id];
+    return !last || new Date(last).getTime() < cutoffMs;
+  });
 
-  if (ruins.length === 0) {
-    return { avaliados: ads.length, ruins: 0, enviado: false };
+  logger.info('cron', `monitor-criativos: ${ads.length} ads, ${ruins.length} ruins, ${novos.length} novos (janela ${WINDOW})`);
+
+  if (novos.length === 0) {
+    return { avaliados: ads.length, ruins: ruins.length, novos: 0, enviado: false };
   }
 
   // Monta a mensagem. Uma só por execução (não spamma 1 msg por anúncio).
-  const linhas = ruins.map(({ ad, v }) =>
+  const linhas = novos.map(({ ad, v }) =>
     `🔴 *${ad.ad_name}* (${ad.campaign_name})\n   ${v!.motivo}\n   👉 Pausar: ${adsManagerLink(ad.ad_id)}`
   );
   const msg =
-    `⚠️ *Criativos ruins HOJE* (Ekent- Pré Paga)\n\n` +
+    `⚠️ *Criativos ruins* (Ekent- Pré Paga · últimos 7 dias)\n\n` +
     linhas.join('\n\n') +
     `\n\n_Você decide: clique no link pra pausar no Gerenciador. Nada foi pausado automaticamente._`;
 
   if (opts.dry) {
     logger.info('cron', `monitor-criativos DRY:\n${msg}`);
-    return { avaliados: ads.length, ruins: ruins.length, enviado: false };
+    return { avaliados: ads.length, ruins: ruins.length, novos: novos.length, enviado: false };
   }
 
   await sendWhatsApp(ALERT_PHONE, msg, 'solardoc');
-  return { avaliados: ads.length, ruins: ruins.length, enviado: true };
+
+  // Carimba os enviados no dedup. Poda entradas vencidas pra não crescer pra sempre.
+  const nowIso = new Date().toISOString();
+  for (const { ad } of novos) dedup[ad.ad_id] = nowIso;
+  for (const id of Object.keys(dedup)) {
+    if (new Date(dedup[id]).getTime() < cutoffMs) delete dedup[id];
+  }
+  await saveDedup(dedup);
+
+  return { avaliados: ads.length, ruins: ruins.length, novos: novos.length, enviado: true };
 }
