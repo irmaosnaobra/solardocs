@@ -149,8 +149,14 @@ export default function Landing() {
       console.error('[LP→Checkout] falha:', err);
     }
     // Fallback: se o checkout falhar, cai no cadastro com o plano (fluxo antigo).
+    // Preserva os UTMs na URL pra atribuição não evaporar se o público falhar.
     setCheckoutLoading(null);
-    router.push(`/auth?mode=register&plano=${plano}`);
+    const attr = getCheckoutAttribution();
+    const qs = new URLSearchParams({ mode: 'register', plano });
+    for (const k of ['utm_source','utm_medium','utm_campaign','utm_content','utm_term']) {
+      if (attr[k]) qs.set(k, attr[k]);
+    }
+    router.push(`/auth?${qs.toString()}`);
   }
 
   return (

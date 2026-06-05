@@ -54,12 +54,16 @@ beforeEach(() => vi.clearAllMocks());
 // ─── POST /documents/generate ────────────────────────────────────────
 describe('POST /documents/generate', () => {
   it('gera documento com sucesso', async () => {
-    // Ordem: company → client → checkLimit → incrementUsed.select → insert.single
+    // Ordem real das 7 chamadas .single() no controller:
+    //  1. company  2. users(free-check)  3. client  4. checkLimit(users)
+    //  5. incrementUsed(users)  6. users(isVip-check)  7. insert
     mockSingle
       .mockResolvedValueOnce({ data: { nome: 'Empresa', cnpj: '00.000.000/0001-00' } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
       .mockResolvedValueOnce({ data: { id: CLIENT_UUID, nome: 'Cliente' } })
       .mockResolvedValueOnce({ data: { plano: 'pro', documentos_usados: 5, limite_documentos: 90 } })
       .mockResolvedValueOnce({ data: { documentos_usados: 5 } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
       .mockResolvedValueOnce({ data: { id: 'doc-1' }, error: null });
 
     const res = await request(app)
@@ -82,8 +86,10 @@ describe('POST /documents/generate', () => {
   });
 
   it('retorna 403 quando limite atingido', async () => {
+    // company → users(free-check) → client → checkLimit(users, no limite)
     mockSingle
       .mockResolvedValueOnce({ data: { nome: 'Empresa', cnpj: '00.000.000/0001-00' } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
       .mockResolvedValueOnce({ data: { id: CLIENT_UUID, nome: 'Cliente' } })
       .mockResolvedValueOnce({ data: { plano: 'pro', documentos_usados: 90, limite_documentos: 90 } });
 

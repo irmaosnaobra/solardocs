@@ -226,37 +226,71 @@ export default function FunilSolarDocPanel() {
             })}
           </div>
 
-          {/* Resumo de conversões macro do fluxo principal (VSL → LP → Cadastro → Empresa → Stripe → Ativo). */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            {(() => {
-              const by = (key: FunnelStep['key']) => data.steps.find(s => s.key === key)?.count ?? 0;
-              const vsl = by('vsl'), landing = by('landing'), cadastro = by('cadastro'),
-                    stripe = by('stripe'), empresa = by('empresa'), plataforma = by('plataforma');
-              return [
-                { label: 'VSL → LP',           val: pct(landing, vsl) },
-                { label: 'LP → Stripe',        val: pct(stripe, landing) },
-                { label: 'Stripe → Cadastro',  val: pct(cadastro, stripe) },
-                { label: 'Cadastro → Empresa', val: pct(empresa, cadastro) },
-                { label: 'Empresa → Ativo',    val: pct(plataforma, empresa) },
-                { label: 'LP → Pagante',       val: pct(stripe, landing) },
-                { label: 'VSL → Ativo',        val: pct(plataforma, vsl) },
-              ];
-            })().map(m => (
-              <div key={m.label} style={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 12,
-                padding: '16px 18px',
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 6 }}>
-                  {m.label}
+          {/* Conversões — SÓ taxas dentro da mesma unidade de contagem.
+              Tráfego (VSL/LP) é por SESSÃO; Stripe é por ASSINATURA (API, todas do período,
+              não só as que vieram da LP); Cadastro/Empresa/Plataforma é por PESSOA.
+              Cruzar sessão↔assinatura↔pessoa daria taxa sem sentido (podia passar de 100%) —
+              sem atribuição UTM→user não dá pra ligar tráfego a pagamento de forma honesta. */}
+          {(() => {
+            const by = (key: FunnelStep['key']) => data.steps.find(s => s.key === key)?.count ?? 0;
+            const vsl = by('vsl'), landing = by('landing'), cadastro = by('cadastro'),
+                  stripe = by('stripe'), empresa = by('empresa'), plataforma = by('plataforma');
+            const stripeClosed = data.steps.find(s => s.key === 'stripe')?.detail?.closed ?? 0;
+
+            // Tráfego: tudo por sessão única.
+            const trafego = [
+              { label: 'VSL → LP', val: pct(landing, vsl), sub: 'sessões' },
+            ];
+            // Conversão pós-cadastro: tudo por pessoa (users/documents).
+            const pessoas = [
+              { label: 'Cadastro → Empresa', val: pct(empresa, cadastro), sub: 'pessoas' },
+              { label: 'Empresa → Ativo',    val: pct(plataforma, empresa), sub: 'pessoas' },
+              { label: 'Cadastro → Ativo',   val: pct(plataforma, cadastro), sub: 'pessoas' },
+            ];
+            // Checkout Stripe: a própria API distingue quem passou cartão de quem fechou (trial→pago).
+            const stripeRates = [
+              { label: 'Passou cartão → Fechou', val: pct(stripeClosed, stripe), sub: 'assinaturas' },
+            ];
+
+            const Group = ({ title, unit, items }: { title: string; unit: string; items: { label: string; val: string; sub: string }[] }) => (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 10 }}>
+                  {title} <span style={{ fontWeight: 600, opacity: 0.7 }}>· {unit}</span>
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 900 }}>
-                  {m.val}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                  {items.map(m => (
+                    <div key={m.label} style={{
+                      background: 'var(--color-surface)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 12,
+                      padding: '16px 18px',
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 6 }}>
+                        {m.label}
+                      </div>
+                      <div style={{ fontSize: 24, fontWeight: 900 }}>
+                        {m.val}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+
+            return (
+              <>
+                <Group title="Tráfego" unit="por sessão única" items={trafego} />
+                <Group title="Checkout" unit="por assinatura (Stripe)" items={stripeRates} />
+                <Group title="Ativação na plataforma" unit="por pessoa" items={pessoas} />
+                <div style={{ padding: '12px 16px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                  ⚠️ <b style={{ color: 'var(--ink-amber)' }}>Por que não tem "LP → Pagante" aqui:</b> tráfego é contado
+                  por sessão e pagamento por assinatura — são populações diferentes, e hoje não existe atribuição
+                  UTM→usuário no banco pra ligar uma na outra. Mostrar essa taxa daria um número falso (poderia
+                  passar de 100%). Quando a atribuição estiver ligada, essa ponte vira real e entra aqui.
+                </div>
+              </>
+            );
+          })()}
 
           {/* Notas */}
           <div style={{ marginTop: 32, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>

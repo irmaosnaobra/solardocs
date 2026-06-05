@@ -52,6 +52,15 @@ function primeiroNome(nome: string): string {
   return n && n.toLowerCase() !== 'lead' ? n : '';
 }
 
+// Telefone só pra EXIBIR no aviso do vendedor: sai sem o 55 (DDD + número),
+// do jeito que o consultor digita no grupo. NÃO mexe no número usado pra enviar.
+function telExibicao(tel: string): string {
+  const d = (tel || '').replace(/\D/g, '');
+  // 55 + DDD(2) + 8 ou 9 dígitos → 12 ou 13 dígitos. Só aí tira o prefixo BR.
+  if (d.startsWith('55') && (d.length === 12 || d.length === 13)) return d.slice(2);
+  return d || (tel || '');
+}
+
 function diaSemanaSP(iso: string): string {
   const wd = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZone: BRT_TZ })
     .formatToParts(new Date(iso)).find(p => p.type === 'weekday')?.value || '';
@@ -97,7 +106,7 @@ async function dispararConfirmacao(ag: Agendamento, vendedorWpp: string | null) 
     `✅ *Novo agendamento!*\n` +
     `Cliente: *${ag.cliente_nome}*\n` +
     `Quando: *${dia}, ${quandoTxt}*\n` +
-    `Tel: ${ag.cliente_telefone}` +
+    `Tel: ${telExibicao(ag.cliente_telefone)}` +
     (ag.cidade ? `\nCidade: ${ag.cidade}` : '') +
     (ag.observacao ? `\n_Obs: ${ag.observacao}_` : '');
 
@@ -115,7 +124,7 @@ async function disparar1h(ag: Agendamento, vendedorWpp: string | null) {
     `Já pensa no quanto você vai economizar todo mês ☀️💸 — daqui a pouco te ligamos pra te mostrar tudo!`;
   const msgV =
     `🔔 *Em 1 hora:* ligação com *${ag.cliente_nome}* às *${hora}*.\n` +
-    `Tel: ${ag.cliente_telefone}` +
+    `Tel: ${telExibicao(ag.cliente_telefone)}` +
     (ag.cidade ? `\nCidade: ${ag.cidade}` : '') +
     (ag.observacao ? `\n_Obs: ${ag.observacao}_` : '');
 
@@ -133,7 +142,7 @@ async function disparar5min(ag: Agendamento, vendedorWpp: string | null) {
     `da *Irmãos na Obra* vai te ligar (${hora}). Deixa o telefone à mão e prepare-se pra economizar! ☀️`;
   const msgV =
     `📞 *Em 5 minutos:* ligação com *${ag.cliente_nome}* às *${hora}*.\n` +
-    `Tel: ${ag.cliente_telefone}` +
+    `Tel: ${telExibicao(ag.cliente_telefone)}` +
     (ag.cidade ? `\nCidade: ${ag.cidade}` : '') +
     (ag.observacao ? `\n_Obs: ${ag.observacao}_` : '');
 
