@@ -23,6 +23,7 @@ import { gerarProdutosVirais } from '../services/agenda/produtosViraisService';
 import { runDunning } from '../services/dunningService';
 import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
+import { runMonitorCriativos } from '../services/agenda/monitorCriativosService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -393,6 +394,22 @@ router.get('/dunning', async (req: Request, res: Response) => {
   }
 });
 
+// Monitor de criativos ruins no Meta (conta Ekent- Pré Paga). Alerta no WhatsApp
+// do Thiago (34991360223) quando um anúncio gasta sem vender (sangrador) ou tem
+// CTR baixa + CPC alto (criativo fraco). NÃO pausa — só avisa com link pra pausar.
+// ?dry=1 → não envia WhatsApp, só loga o que enviaria (conferência).
+router.get('/monitor-criativos', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    const result = await runMonitorCriativos({ dry });
+    res.json({ ok: true, dry, ...result });
+  } catch (err: any) {
+    logger.error('cron', 'monitor-criativos falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 router.get('/master', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
 
@@ -421,6 +438,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
+    ['monitor-criativos',           () => runMonitorCriativos()],   // alerta WhatsApp: criativos Meta gastando sem vender / CTR baixa
   ];
 
   const settled = await Promise.allSettled(tasks.map(([, fn]) => fn()));
