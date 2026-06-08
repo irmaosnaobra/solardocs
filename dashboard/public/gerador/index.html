@@ -113,16 +113,87 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .crm-card-val{font-size:14px;font-weight:800;color:#6EE7B7}
 .crm-card-acoes{display:flex;gap:5px;margin-left:auto}
 .crm-temp{font-size:14px;flex-shrink:0}
+/* selo do resultado da ligação no card */
+.crm-status-selo{display:inline-flex;align-items:center;width:fit-content;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;letter-spacing:.2px}
+.crm-status-selo.selo-na{background:rgba(220,38,38,.18);color:#FCA5A5}
+.crm-status-selo.selo-wp{background:rgba(20,184,166,.18);color:#5EEAD4}
+.crm-status-selo.selo-si{background:rgba(100,116,139,.22);color:#CBD5E1}
+.crm-status-selo.selo-so{background:rgba(234,88,12,.2);color:#FDBA74}
+.crm-status-selo.selo-fo{background:rgba(234,179,8,.2);color:#FDE68A}
+.crm-status-selo.selo-fe{background:rgba(22,163,74,.22);color:#86EFAC}
 .crm-act{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;font-size:14px;cursor:pointer;text-decoration:none;font-family:inherit}
 .crm-act:hover{background:rgba(255,255,255,.16);color:#fff}
 .crm-act-wpp:hover{background:rgba(37,211,102,.22);border-color:rgba(37,211,102,.5)}
 .crm-act-reag{background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.35);color:#FCA5A5}
 .crm-act-reag:hover{background:rgba(248,113,113,.28);border-color:rgba(248,113,113,.6);color:#fff}
+/* card clicável: abre o modal de detalhe (mesmo da agenda) */
+.crm-card{cursor:pointer;transition:border-color .12s,transform .08s}
+.crm-card:hover{border-color:rgba(96,165,250,.5)}
+.crm-card:active{transform:scale(.99)}
 @media(max-width:640px){
   .crm-filtro-lbl{min-width:auto;width:100%}
   .crm-kpi-val{font-size:20px}
   .crm-col{flex-basis:82vw;width:82vw}
 }
+/* ===== CRM · Modal de detalhe do lead (paridade com o card da Agenda) ===== */
+.crm-det-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;display:none;align-items:flex-start;justify-content:center;padding:24px 14px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.crm-det-bg.show{display:flex}
+.crm-det{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.1);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6);width:100%;max-width:440px;padding:22px 22px 18px;margin:auto}
+.crm-det h2{margin:0 0 2px;font-size:19px;font-weight:800;color:#93C5FD;word-break:break-word}
+.crm-det .crm-det-sub{font-size:13px;color:#94A3B8;margin-bottom:14px}
+.crm-det-box{background:#0F172A;border-radius:9px;padding:14px;margin-bottom:6px}
+.crm-det-box .row{margin-bottom:8px;font-size:14px}
+.crm-det-box .row:last-child{margin-bottom:0}
+.crm-det-box .label{font-size:11px;color:#94A3B8;text-transform:uppercase;font-weight:700;letter-spacing:.4px}
+.crm-det-box .val{font-weight:600;color:#E5E7EB;word-break:break-word}
+.crm-det-box .val a{color:#93C5FD;text-decoration:none}
+.crm-det-box .val a:hover{text-decoration:underline}
+.crm-det-lbl{font-size:11px;color:#94A3B8;text-transform:uppercase;font-weight:700;letter-spacing:.4px;margin-top:16px;margin-bottom:2px;display:block}
+/* histórico de notas */
+.crm-det-hist{background:#0F172A;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:10px 12px;margin-top:6px;max-height:150px;overflow-y:auto;font-size:13px;line-height:1.45;color:#CBD5E1;white-space:pre-wrap;word-break:break-word}
+.crm-det-hist:empty::before{content:'Nenhuma anotação ainda.';color:#64748b;font-style:italic}
+.crm-det-nota{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.crm-det-nota textarea{width:100%;box-sizing:border-box;min-height:54px;padding:9px 11px;border:1px solid #475569;border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;background:#0F172A;color:#E5E7EB}
+.crm-det-nota textarea:focus{outline:none;border-color:#60A5FA}
+.crm-det-nota .btn-nota{align-self:flex-end;padding:8px 16px;border:none;border-radius:8px;background:#3B82F6;color:#fff;font-weight:700;font-size:13px;font-family:inherit;cursor:pointer}
+.crm-det-nota .btn-nota:hover{opacity:.92}
+.crm-det-nota .btn-nota:disabled{opacity:.5;cursor:not-allowed}
+/* temperatura */
+.crm-det-temp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.crm-btn-temp{padding:11px 6px;border-radius:9px;border:2px solid #475569;background:#0F172A;cursor:pointer;font-weight:700;font-size:13px;color:#CBD5E1;font-family:inherit;line-height:1.2;transition:transform .08s,border-color .12s,background .12s;display:flex;flex-direction:column;align-items:center;gap:3px}
+.crm-btn-temp .emoji{font-size:18px;line-height:1}
+.crm-btn-temp:hover{background:#1c2c47}
+.crm-btn-temp:active{transform:scale(.97)}
+.crm-btn-temp.is-atual.bt-frio{border-color:#06b6d4;background:rgba(6,182,212,.15);color:#67e8f9}
+.crm-btn-temp.is-atual.bt-morno{border-color:#f59e0b;background:rgba(245,158,11,.15);color:#fcd34d}
+.crm-btn-temp.is-atual.bt-quente{border-color:#ec4899;background:rgba(236,72,153,.15);color:#f9a8d4}
+/* resultado da ligação (status) */
+.crm-det-status{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.crm-btn-status{padding:11px 10px;border-radius:9px;border:2px solid transparent;cursor:pointer;font-weight:700;font-size:13px;color:#fff;font-family:inherit;text-align:center;line-height:1.2;transition:transform .08s,filter .12s}
+.crm-btn-status:hover{filter:brightness(1.12)}
+.crm-btn-status:active{transform:scale(.97)}
+.crm-btn-status.is-atual{outline:3px solid rgba(255,255,255,.9);outline-offset:-5px;box-shadow:0 0 0 2px #1E293B}
+.crm-btn-status.bg-ag{background:#0d2d5e}
+.crm-btn-status.bg-na{background:#dc2626}
+.crm-btn-status.bg-wp{background:#14b8a6}
+.crm-btn-status.bg-si{background:#64748b}
+.crm-btn-status.bg-so{background:#ea580c}
+.crm-btn-status.bg-fo{background:#eab308;color:#1f2937}
+.crm-btn-status.bg-fe{background:#16a34a}
+/* ações de rodapé */
+.crm-det-acoes{display:flex;gap:10px;margin-top:14px}
+.crm-det-acoes>*{flex:1;padding:12px;border-radius:10px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;text-align:center;border:none;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.crm-det-wpp{background:#25D366;color:#0B2818}
+.crm-det-wpp:hover{filter:brightness(1.08)}
+.crm-det-agendar{background:#3B82F6;color:#fff}
+.crm-det-agendar:hover{filter:brightness(1.08)}
+.crm-det-fechar{background:#1c2c47;color:#CBD5E1;border:1px solid rgba(255,255,255,.14)}
+.crm-det-fechar:hover{background:#243046;color:#fff}
+.crm-det-erro{color:#F87171;font-size:13px;margin-top:10px;min-height:1px}
+.crm-det-aviso{background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);border-radius:9px;padding:11px 13px;font-size:13px;color:#BFDBFE;line-height:1.45;margin-top:14px}
+.crm-det-x{position:absolute;top:14px;right:16px;background:rgba(255,255,255,.08);border:none;color:#CBD5E1;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center}
+.crm-det-x:hover{background:rgba(255,255,255,.16);color:#fff}
+.crm-det-head{position:relative;padding-right:36px}
 /* ===== Cockpit Redes ===== */
 /* sub-abas Destaques | Criação */
 .redes-subnav{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:0}
@@ -1653,6 +1724,68 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button onclick="fecharHistoricoLink()" style="background:rgba(255,255,255,.15);color:white;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">×</button>
     </div>
     <div id="histLinkBody" style="max-height:70vh;overflow-y:auto;background:#F9FAFB;"></div>
+  </div>
+</div>
+
+<!-- CRM · Modal de detalhe do lead (mesmas ações do card da Agenda) -->
+<div id="crm-det-bg" class="crm-det-bg" onclick="if(event.target===this)crmFecharDetalhe()">
+  <div class="crm-det">
+    <div class="crm-det-head">
+      <button class="crm-det-x" onclick="crmFecharDetalhe()" title="Fechar">×</button>
+      <h2 id="crm-det-nome">Cliente</h2>
+      <div class="crm-det-sub" id="crm-det-sub"></div>
+    </div>
+
+    <div class="crm-det-box">
+      <div class="row"><div class="label">WhatsApp</div><div class="val" id="crm-det-tel">—</div></div>
+      <div class="row" id="crm-det-cid-row"><div class="label">Cidade</div><div class="val" id="crm-det-cid">—</div></div>
+      <div class="row"><div class="label">Consultor</div><div class="val" id="crm-det-cons">—</div></div>
+      <div class="row" id="crm-det-obs-row" style="display:none"><div class="label">Observação</div><div class="val" id="crm-det-obs"></div></div>
+      <div class="row"><div class="label">Origem</div><div class="val" id="crm-det-origem">—</div></div>
+    </div>
+
+    <!-- Bloco completo: só aparece quando o lead tem ligação na agenda -->
+    <div id="crm-det-funil">
+      <span class="crm-det-lbl">Histórico</span>
+      <div class="crm-det-hist" id="crm-det-hist"></div>
+      <div class="crm-det-nota">
+        <textarea id="crm-det-nota-in" placeholder="Adicionar anotação (Ctrl+Enter para salvar)…" rows="2"></textarea>
+        <button type="button" class="btn-nota" id="crm-det-nota-btn" onclick="crmAdicionarNota()">Adicionar nota</button>
+      </div>
+
+      <span class="crm-det-lbl">Temperatura do cliente</span>
+      <div class="crm-det-temp">
+        <button type="button" class="crm-btn-temp bt-frio"   data-temp="frio"   onclick="crmAtualizarTemperatura('frio')"><span class="emoji">❄️</span>Frio</button>
+        <button type="button" class="crm-btn-temp bt-morno"  data-temp="morno"  onclick="crmAtualizarTemperatura('morno')"><span class="emoji">🌤️</span>Morno</button>
+        <button type="button" class="crm-btn-temp bt-quente" data-temp="quente" onclick="crmAtualizarTemperatura('quente')"><span class="emoji">🔥</span>Quente</button>
+      </div>
+
+      <span class="crm-det-lbl">Resultado da ligação</span>
+      <div class="crm-det-status">
+        <button type="button" class="crm-btn-status bg-ag" data-status="agendado"         onclick="crmAtualizarStatus('agendado')">📞 Agendada</button>
+        <button type="button" class="crm-btn-status bg-na" data-status="nao_atendeu"      onclick="crmAtualizarStatus('nao_atendeu')">❌ Não atendeu</button>
+        <button type="button" class="crm-btn-status bg-wp" data-status="falando_whatsapp" onclick="crmAtualizarStatus('falando_whatsapp')">💬 Falando no WhatsApp</button>
+        <button type="button" class="crm-btn-status bg-si" data-status="sem_interesse"    onclick="crmAtualizarStatus('sem_interesse')">🙅 Sem interesse</button>
+        <button type="button" class="crm-btn-status bg-so" data-status="sem_orcamento"    onclick="crmAtualizarStatus('sem_orcamento')">📋 Sem orçamento</button>
+        <button type="button" class="crm-btn-status bg-fo" data-status="fez_orcamento"    onclick="crmAtualizarStatus('fez_orcamento')">💰 Fez orçamento</button>
+        <button type="button" class="crm-btn-status bg-fe" data-status="fechou"           onclick="crmAtualizarStatus('fechou')" style="grid-column:span 2">✅ Fechou</button>
+      </div>
+    </div>
+
+    <!-- Aviso quando o lead ainda não tem ligação agendada -->
+    <div id="crm-det-sem-ag" class="crm-det-aviso" style="display:none">
+      Esse lead ainda não tem ligação na agenda. Agende uma ligação pra começar a classificar (temperatura, resultado, anotações).
+    </div>
+
+    <div class="crm-det-erro" id="crm-det-erro"></div>
+
+    <div class="crm-det-acoes">
+      <a class="crm-det-wpp" id="crm-det-wpp" target="_blank" rel="noopener" style="display:none">💬 WhatsApp</a>
+      <button type="button" class="crm-det-agendar" id="crm-det-agendar" onclick="crmAgendarDoDetalhe()">📅 Agendar ligação</button>
+    </div>
+    <div class="crm-det-acoes" style="margin-top:8px">
+      <button type="button" class="crm-det-fechar" onclick="crmFecharDetalhe()">Fechar</button>
+    </div>
   </div>
 </div>
 
@@ -4607,6 +4740,182 @@ function crmReagendar(c) {
   }
 }
 
+// ============= CRM · MODAL DE DETALHE DO LEAD =============
+// Mesmas ações do card da Agenda (temperatura, resultado, notas, WhatsApp),
+// só que sem sair do kanban. Toda a parte de "funil" grava no agendamento
+// mais recente do cliente. Lead sem agendamento mostra só info + agendar.
+let crmDetAtual = null;       // { c, agRec } — agRec = agendamento mais recente (ou null)
+
+// Encontra o agendamento mais recente do cliente (mesma regra do crmUnificar).
+function crmAgRecente(c) {
+  const stamp = (iso) => iso ? new Date(iso).getTime() : 0;
+  const ord = [...(c.agends || [])].sort((x, y) => stamp(y.quando) - stamp(x.quando));
+  return ord[0] || null;
+}
+
+function crmAbrirDetalhe(key) {
+  const c = crmClientes.find(x => x.key === key);
+  if (!c) return;
+  const agRec = crmAgRecente(c);
+  crmDetAtual = { c, agRec };
+
+  document.getElementById('crm-det-nome').textContent = c.nome || '—';
+  const etLbl = (CRM_ETAPAS[c.etapa] || {}).lbl || '';
+  const etIc  = (CRM_ETAPAS[c.etapa] || {}).ic || '';
+  document.getElementById('crm-det-sub').textContent = etLbl ? `${etIc} ${etLbl}` : '';
+
+  // Telefone (display) + link clicável pra ligar
+  const telEl = document.getElementById('crm-det-tel');
+  if (c.tel) telEl.innerHTML = `<a href="tel:${escapeHtml(c.tel)}" title="Ligar">${escapeHtml(crmTelDisplay(c.tel))}</a>`;
+  else telEl.textContent = '—';
+
+  // Cidade
+  const cidRow = document.getElementById('crm-det-cid-row');
+  if (c.cidade) { cidRow.style.display = ''; document.getElementById('crm-det-cid').textContent = c.cidade; }
+  else { cidRow.style.display = 'none'; }
+
+  document.getElementById('crm-det-cons').textContent = c.consultor || '—';
+  document.getElementById('crm-det-origem').textContent = (c.origem || []).join(' · ') || '—';
+
+  // Observação (do agendamento mais recente, se houver)
+  const obsRow = document.getElementById('crm-det-obs-row');
+  const obs = agRec && agRec.observacao;
+  if (obs) { obsRow.style.display = ''; document.getElementById('crm-det-obs').textContent = obs; }
+  else { obsRow.style.display = 'none'; }
+
+  // WhatsApp
+  const wpp = document.getElementById('crm-det-wpp');
+  if (c.tel) { wpp.style.display = ''; wpp.href = `https://wa.me/${c.tel}`; }
+  else { wpp.style.display = 'none'; }
+
+  document.getElementById('crm-det-erro').textContent = '';
+
+  const temAg = !!(agRec && agRec.id != null);
+  document.getElementById('crm-det-funil').style.display = temAg ? '' : 'none';
+  document.getElementById('crm-det-sem-ag').style.display = temAg ? 'none' : '';
+  // "Agendar ligação" vira "Reagendar" quando já existe agendamento.
+  document.getElementById('crm-det-agendar').textContent = temAg ? '📅 Reagendar' : '📅 Agendar ligação';
+
+  if (temAg) {
+    document.getElementById('crm-det-hist').textContent = agRec.historico || '';
+    document.getElementById('crm-det-nota-in').value = '';
+    crmMarcarStatus(agRec.status || 'agendado');
+    // Marca pela temperatura do card (c.temperatura), que é a que define a
+    // coluna — pode ser de um agendamento mais antigo que o agRec.
+    crmMarcarTemp(c.temperatura || agRec.temperatura || null);
+  }
+
+  document.getElementById('crm-det-bg').classList.add('show');
+}
+
+function crmFecharDetalhe() {
+  document.getElementById('crm-det-bg').classList.remove('show');
+  crmDetAtual = null;
+}
+
+function crmMarcarStatus(status) {
+  document.querySelectorAll('#crm-det-funil .crm-btn-status').forEach(b => {
+    b.classList.toggle('is-atual', b.dataset.status === status);
+  });
+}
+function crmMarcarTemp(temp) {
+  document.querySelectorAll('#crm-det-funil .crm-btn-temp').forEach(b => {
+    b.classList.toggle('is-atual', b.dataset.temp === temp);
+  });
+}
+
+async function crmAdicionarNota() {
+  if (!crmDetAtual || !crmDetAtual.agRec) return;
+  const ag = crmDetAtual.agRec;
+  const ta = document.getElementById('crm-det-nota-in');
+  const btn = document.getElementById('crm-det-nota-btn');
+  const txt = ta.value.trim();
+  if (!txt) return;
+  const agora = new Date();
+  const p2 = n => String(n).padStart(2, '0');
+  const autor = crmConsultorLogado() || '—';
+  const ts = `${p2(agora.getDate())}/${p2(agora.getMonth()+1)} ${p2(agora.getHours())}h${p2(agora.getMinutes())}`;
+  const entrada = `[${ts} · ${autor}] ${txt}`;
+  const novo = ag.historico ? `${entrada}\n\n${ag.historico}` : entrada;
+  btn.disabled = true;
+  try {
+    await supaPatch(`agendamentos?id=eq.${ag.id}`, { historico: novo });
+    ag.historico = novo;
+    document.getElementById('crm-det-hist').textContent = novo;
+    ta.value = '';
+    showToast('📝 Nota adicionada');
+  } catch (e) {
+    document.getElementById('crm-det-erro').textContent = 'Erro ao salvar nota.';
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function crmAtualizarTemperatura(novaTemp) {
+  if (!crmDetAtual || !crmDetAtual.agRec) return;
+  const { c, agRec: ag } = crmDetAtual;
+  // toggle: clicar na mesma (a que está marcada no card) → remove
+  // Edge conhecido: com 2+ agendamentos onde o mais recente (agRec) NÃO tem temp
+  // mas um mais antigo tem, a marcação reflete o antigo (c.temperatura) e o write
+  // vai no agRec. No caso comum (1 agendamento) são a mesma linha. Aceitável.
+  const valor = (c.temperatura || ag.temperatura) === novaTemp ? null : novaTemp;
+  try {
+    await supaPatch(`agendamentos?id=eq.${ag.id}`, { temperatura: valor });
+    ag.temperatura = valor;            // atualiza a linha em memória
+    crmDerivar(c);                     // recalcula etapa/coluna do cliente
+    crmMarcarTemp(c.temperatura || null);
+    const labels = { frio: '❄️ Cliente frio', morno: '🌤️ Cliente morno', quente: '🔥 Cliente quente' };
+    showToast(valor ? labels[valor] : 'Temperatura removida');
+    renderCRM();                       // re-render local: card migra de coluna, sem refetch
+  } catch (e) {
+    document.getElementById('crm-det-erro').textContent = 'Erro ao atualizar temperatura.';
+    console.error(e);
+  }
+}
+
+async function crmAtualizarStatus(novoStatus) {
+  if (!crmDetAtual || !crmDetAtual.agRec) return;
+  const { c, agRec: ag } = crmDetAtual;
+  try {
+    await supaPatch(`agendamentos?id=eq.${ag.id}`, { status: novoStatus });
+    ag.status = novoStatus;            // atualiza a linha em memória
+    crmDerivar(c);                     // recalcula etapa/coluna + selo do card
+    const labels = {
+      agendado:         '📞 Marcado como Agendada',
+      nao_atendeu:      '❌ Marcado como Não atendeu',
+      falando_whatsapp: '💬 Marcado como Falando no WhatsApp',
+      sem_interesse:    '🙅 Marcado como Sem interesse',
+      sem_orcamento:    '📋 Marcado como Sem orçamento',
+      fez_orcamento:    '💰 Marcado como Fez orçamento',
+      fechou:           '✅ Marcado como Fechou',
+    };
+    showToast(labels[novoStatus] || 'Status atualizado');
+    crmFecharDetalhe();
+    renderCRM();                       // re-render local: card migra/ganha selo, sem refetch
+  } catch (e) {
+    document.getElementById('crm-det-erro').textContent = 'Erro ao atualizar status.';
+    console.error(e);
+  }
+}
+
+// "Agendar / Reagendar" → reusa o fluxo já testado da Agenda.
+function crmAgendarDoDetalhe() {
+  if (!crmDetAtual) return;
+  const c = crmDetAtual.c;
+  crmReagendar({ agId: c.agId, nome: c.nome, tel: c.tel, consultor: c.consultor });
+}
+
+// Salvar nota com Ctrl+Enter (igual à Agenda).
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' &&
+      document.getElementById('crm-det-bg')?.classList.contains('show') &&
+      document.activeElement?.id === 'crm-det-nota-in') {
+    e.preventDefault();
+    crmAdicionarNota();
+  }
+});
+
 // Rola o board até a coluna pedida e dá um destaque rápido.
 function crmScrollToCol(etKey) {
   setTimeout(() => {
@@ -4629,7 +4938,7 @@ async function carregarCRM(forcar) {
   try {
     [props, agends, leads] = await Promise.all([
       supaGet('propostas?select=codigo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
-      supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,created_at&order=quando.desc&limit=1000'),
+      supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at&order=quando.desc&limit=1000'),
       supaGet('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc&limit=1000')
     ]);
   } catch (e) {
@@ -4710,85 +5019,94 @@ function crmUnificar(props, agends, leads) {
   }
 
   // Deriva etapa, valor, agendamento futuro e temperatura por cliente
-  const agora = Date.now();
   const out = [];
   for (const c of mapa.values()) {
     c.origem = Array.from(c.origem);
-
-    // Venda?
-    const vendida = c.props.find(p => p.vendido);
-    // Agendamento mais recente (já vem ordenado, mas garantimos)
-    const agOrd = [...c.agends].sort((x, y) => stamp(y.quando) - stamp(x.quando));
-    const agRecente = agOrd[0] || null;
-    const agFuturo = agOrd.find(a => stamp(a.quando) >= agora && !CRM_STATUS_PERDIDO.has(a.status)) || null;
-    const statusAg = agRecente ? agRecente.status : null;
-    // O consultor do card = quem vai ATENDER. O agendamento mais recente manda
-    // (uma transferência na agenda reflete na hora); proposta/lead são só fallback.
-    if (agRecente && agRecente.vendedor_nome) c.consultor = agRecente.vendedor_nome;
-    // id do agendamento mais recente — usado pelo botão "Reagendar" do card.
-    c.agId = agRecente ? agRecente.id : null;
-    c.temperatura = (agOrd.find(a => a.temperatura) || {}).temperatura || null;
-
-    // Valor: venda fechada > preço à vista da proposta mais recente
-    let valor = 0;
-    if (vendida && vendida.valor_vendido != null) valor = Number(vendida.valor_vendido);
-    else {
-      const pComPreco = c.props.find(p => p.dados && (p.dados.precoVista || p.dados.precoOrcamento));
-      if (pComPreco) valor = Number(pComPreco.dados.precoVista || pComPreco.dados.precoOrcamento || 0);
-    }
-    c.valor = valor;
-
-    // Proposta mais recente (pra abrir / código)
-    c.propRecente = c.props.length
-      ? [...c.props].sort((x, y) => stamp(y.created_at) - stamp(x.created_at))[0]
-      : null;
-
-    // Agendamento futuro formatado
-    c.agFuturo = agFuturo ? agFuturo.quando : null;
-
-    // Algum agendamento marcado como perdido (sem interesse / cancelado)?
-    const temPerdido = agOrd.some(a => CRM_STATUS_PERDIDO.has(a.status));
-    // Algum em conversa ativa no WhatsApp?
-    const temWhatsapp = agOrd.some(a => a.status === 'falando_whatsapp');
-    // PRECISA REAGENDAR: o consultor não deu conta do card.
-    //  - não atendeu a ligação (nao_atendeu) ou não conseguiu orçar (sem_orcamento), OU
-    //  - agendamento ficou "agendado" (sem ação) e o horário já passou.
-    // MAS: se já existe um agendamento FUTURO, o cliente já foi reagendado → não entra.
-    const precisaReagendar = !agFuturo && agOrd.some(a =>
-      a.status === 'nao_atendeu' ||
-      a.status === 'sem_orcamento' ||
-      (a.status === 'agendado' && !a.temperatura && stamp(a.quando) > 0 && stamp(a.quando) < agora)
-    );
-
-    // ===== DERIVAÇÃO DA ETAPA (prioridade de cima pra baixo) =====
-    // Temperatura "puxa" o card — força o consultor a classificar a agenda.
-    let etapa;
-    if (vendida) {
-      etapa = 'vendido';
-    } else if (temPerdido) {
-      etapa = 'perdido';
-    } else if (c.temperatura === 'quente') {
-      etapa = 'quente';
-    } else if (c.temperatura === 'morno') {
-      etapa = 'morno';
-    } else if (c.temperatura === 'frio') {
-      etapa = 'frio';
-    } else if (temWhatsapp) {
-      etapa = 'whatsapp';
-    } else if (precisaReagendar) {
-      etapa = 'reagendar';
-    } else {
-      // Tem agendamento futuro ou lead/proposta sem ação ainda → Agendado.
-      etapa = 'agendado';
-    }
-    c.etapa = etapa;
-
+    crmDerivar(c);
     out.push(c);
   }
 
   // Ordena por atividade mais recente
   out.sort((a, b) => b.ultAtiv - a.ultAtiv);
   return out;
+}
+
+// Recalcula etapa/temperatura/status/valor de UM cliente a partir das suas
+// fontes em memória (c.agends/c.props). Usada no unificador E após updates
+// locais do modal — assim o card migra de coluna sem refetch das 3 tabelas.
+function crmDerivar(c) {
+  const stamp = (iso) => iso ? new Date(iso).getTime() : 0;
+  const agora = Date.now();
+
+  // Venda?
+  const vendida = c.props.find(p => p.vendido);
+  // Agendamento mais recente (já vem ordenado, mas garantimos)
+  const agOrd = [...c.agends].sort((x, y) => stamp(y.quando) - stamp(x.quando));
+  const agRecente = agOrd[0] || null;
+  const agFuturo = agOrd.find(a => stamp(a.quando) >= agora && !CRM_STATUS_PERDIDO.has(a.status)) || null;
+  const statusAg = agRecente ? agRecente.status : null;
+  // O consultor do card = quem vai ATENDER. O agendamento mais recente manda
+  // (uma transferência na agenda reflete na hora); proposta/lead são só fallback.
+  if (agRecente && agRecente.vendedor_nome) c.consultor = agRecente.vendedor_nome;
+  // id do agendamento mais recente — usado pelo botão "Reagendar" do card.
+  c.agId = agRecente ? agRecente.id : null;
+  // status do agendamento mais recente — vira o selo de status no card.
+  c.statusAg = statusAg;
+  c.temperatura = (agOrd.find(a => a.temperatura) || {}).temperatura || null;
+
+  // Valor: venda fechada > preço à vista da proposta mais recente
+  let valor = 0;
+  if (vendida && vendida.valor_vendido != null) valor = Number(vendida.valor_vendido);
+  else {
+    const pComPreco = c.props.find(p => p.dados && (p.dados.precoVista || p.dados.precoOrcamento));
+    if (pComPreco) valor = Number(pComPreco.dados.precoVista || pComPreco.dados.precoOrcamento || 0);
+  }
+  c.valor = valor;
+
+  // Proposta mais recente (pra abrir / código)
+  c.propRecente = c.props.length
+    ? [...c.props].sort((x, y) => stamp(y.created_at) - stamp(x.created_at))[0]
+    : null;
+
+  // Agendamento futuro formatado
+  c.agFuturo = agFuturo ? agFuturo.quando : null;
+
+  // Algum agendamento marcado como perdido (sem interesse / cancelado)?
+  const temPerdido = agOrd.some(a => CRM_STATUS_PERDIDO.has(a.status));
+  // Algum em conversa ativa no WhatsApp?
+  const temWhatsapp = agOrd.some(a => a.status === 'falando_whatsapp');
+  // PRECISA REAGENDAR: o consultor não deu conta do card.
+  //  - não atendeu a ligação (nao_atendeu) ou não conseguiu orçar (sem_orcamento), OU
+  //  - agendamento ficou "agendado" (sem ação) e o horário já passou.
+  // MAS: se já existe um agendamento FUTURO, o cliente já foi reagendado → não entra.
+  const precisaReagendar = !agFuturo && agOrd.some(a =>
+    a.status === 'nao_atendeu' ||
+    a.status === 'sem_orcamento' ||
+    (a.status === 'agendado' && !a.temperatura && stamp(a.quando) > 0 && stamp(a.quando) < agora)
+  );
+
+  // ===== DERIVAÇÃO DA ETAPA (prioridade de cima pra baixo) =====
+  // Temperatura "puxa" o card — força o consultor a classificar a agenda.
+  let etapa;
+  if (vendida) {
+    etapa = 'vendido';
+  } else if (temPerdido) {
+    etapa = 'perdido';
+  } else if (c.temperatura === 'quente') {
+    etapa = 'quente';
+  } else if (c.temperatura === 'morno') {
+    etapa = 'morno';
+  } else if (c.temperatura === 'frio') {
+    etapa = 'frio';
+  } else if (temWhatsapp) {
+    etapa = 'whatsapp';
+  } else if (precisaReagendar) {
+    etapa = 'reagendar';
+  } else {
+    // Tem agendamento futuro ou lead/proposta sem ação ainda → Agendado.
+    etapa = 'agendado';
+  }
+  c.etapa = etapa;
 }
 
 function crmRenderFiltros() {
@@ -4851,6 +5169,20 @@ function renderCRM() {
   const p2 = n => String(n).padStart(2, '0');
   const dataCurta = (val) => { if (!val) return ''; const d = new Date(val); if (isNaN(d.getTime())) return ''; return `${p2(d.getDate())}/${p2(d.getMonth()+1)} ${p2(d.getHours())}h${p2(d.getMinutes())}`; };
   const tempBadge = (t) => t ? `<span class="crm-temp crm-temp-${t}" title="Temperatura: ${t}">${t === 'quente' ? '🔥' : t === 'morno' ? '🌤️' : '❄️'}</span>` : '';
+  // Selo do resultado da ligação (mesmo significado dos status da Agenda).
+  // "agendado" não vira selo (é o estado neutro/coluna padrão).
+  const STATUS_SELO = {
+    nao_atendeu:      { lbl: 'Não atendeu',  cls: 'na' },
+    falando_whatsapp: { lbl: 'No WhatsApp',  cls: 'wp' },
+    sem_interesse:    { lbl: 'Sem interesse', cls: 'si' },
+    sem_orcamento:    { lbl: 'Sem orçamento', cls: 'so' },
+    fez_orcamento:    { lbl: '💰 Fez orçamento', cls: 'fo' },
+    fechou:           { lbl: '✅ Fechou', cls: 'fe' },
+  };
+  const statusBadge = (s) => {
+    const def = STATUS_SELO[s];
+    return def ? `<span class="crm-status-selo selo-${def.cls}">${escapeHtml(def.lbl)}</span>` : '';
+  };
 
   // Agrupa por etapa
   const porEtapa = {};
@@ -4872,13 +5204,14 @@ function renderCRM() {
     const telLinha = c.tel
       ? `<a class="crm-card-tel" href="tel:${escapeHtml(c.tel)}" onclick="event.stopPropagation()" title="Ligar">📱 ${escapeHtml(crmTelDisplay(c.tel))}</a>`
       : '';
-    return `<div class="crm-card">
+    return `<div class="crm-card" data-key="${escapeHtml(c.key)}" onclick="crmAbrirDetalhe(this.dataset.key)" title="Ver detalhes e classificar">
       <div class="crm-card-top">
         <span class="crm-card-nome">${escapeHtml(c.nome || '—')}</span>
         ${tempBadge(c.temperatura)}
       </div>
       ${telLinha}
       <div class="crm-card-meta">${cons}${linhaCidade}${linhaAg}</div>
+      ${statusBadge(c.statusAg)}
       <div class="crm-card-foot">
         ${valorTxt}
         <span class="crm-card-acoes">${reagBtn}${wpp}${verProp}</span>
