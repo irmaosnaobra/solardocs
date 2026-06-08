@@ -204,6 +204,8 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .crm-det-wpp:hover{filter:brightness(1.08)}
 .crm-det-agendar{background:#3B82F6;color:#fff}
 .crm-det-agendar:hover{filter:brightness(1.08)}
+.crm-det-orcamento{background:linear-gradient(135deg,#F59E0B,#D97706);color:#1f2937;font-size:15px}
+.crm-det-orcamento:hover{filter:brightness(1.06)}
 .crm-det-fechar{background:#1c2c47;color:#CBD5E1;border:1px solid rgba(255,255,255,.14)}
 .crm-det-fechar:hover{background:#243046;color:#fff}
 .crm-det-perdido{background:rgba(248,113,113,.14);color:#FCA5A5;border:1px solid rgba(248,113,113,.4)}
@@ -1802,7 +1804,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
     <div class="crm-det-erro" id="crm-det-erro"></div>
 
-    <div class="crm-det-acoes">
+    <div class="crm-det-acoes" style="margin-top:14px">
+      <button type="button" class="crm-det-orcamento" id="crm-det-orcamento" onclick="crmGerarOrcamento()">📄 Gerar orçamento</button>
+    </div>
+    <div class="crm-det-acoes" style="margin-top:8px">
       <a class="crm-det-wpp" id="crm-det-wpp" target="_blank" rel="noopener" style="display:none">💬 WhatsApp</a>
       <button type="button" class="crm-det-agendar" id="crm-det-agendar" onclick="crmAgendarDoDetalhe()">📅 Agendar ligação</button>
     </div>
@@ -4990,6 +4995,42 @@ function crmAgendarDoDetalhe() {
   if (!crmDetAtual) return;
   const c = crmDetAtual.c;
   crmReagendar({ agId: c.agId, nome: c.nome, tel: c.tel, consultor: c.consultor });
+}
+
+// "Gerar orçamento" → abre o gerador de propostas já com os dados do cliente
+// (nome, WhatsApp, cidade/UF) pré-preenchidos, pra adiantar.
+function crmGerarOrcamento() {
+  if (!crmDetAtual) return;
+  // Captura ANTES de fechar (crmFecharDetalhe zera crmDetAtual).
+  const c = crmDetAtual.c;
+  const nome = c.nome || '';
+  const telBonito = c.tel ? crmTelDisplay(c.tel) : '';   // (34) 99999-9999
+  // c.cidade vem "Cidade/UF" (proposta) ou só "Cidade" (agenda/lead). Separa.
+  let cidNome = '', uf = '';
+  if (c.cidade) {
+    const partes = String(c.cidade).split('/').map(s => s.trim());
+    cidNome = partes[0] || '';
+    uf = (partes[1] || '').toUpperCase().slice(0, 2);
+  }
+
+  crmFecharDetalhe();
+  navGerador();          // esconde o CRM, mostra o form, ajusta sidebar/nav
+  novoCliente();         // zera o form (não herda dados de outra proposta) e foca o nome
+
+  // Preenche os dados que já temos.
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+  set('f-nome', nome);
+  set('f-telefone', telBonito);
+  set('f-cidade', cidNome);
+  if (uf) { const ufEl = document.getElementById('f-uf'); if (ufEl) ufEl.value = uf; }
+  // Dispara o cálculo automático de distância (via cidade/UF), igual ao fluxo
+  // normal — a função só roda se o campo distância estiver vazio (novoCliente
+  // acabou de limpar). rastrearDistancia é o que os listeners blur/change usam.
+  if (cidNome && typeof rastrearDistancia === 'function') {
+    try { rastrearDistancia(); } catch (e) {}
+  }
+
+  showToast('📄 Dados do cliente preenchidos — complete o orçamento');
 }
 
 // Perdido/Reativar pra lead SEM ficha — grava em crm_perdidos (keyed por c.key,
