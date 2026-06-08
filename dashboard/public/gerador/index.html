@@ -189,6 +189,10 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .crm-det-agendar:hover{filter:brightness(1.08)}
 .crm-det-fechar{background:#1c2c47;color:#CBD5E1;border:1px solid rgba(255,255,255,.14)}
 .crm-det-fechar:hover{background:#243046;color:#fff}
+.crm-det-perdido{background:rgba(248,113,113,.14);color:#FCA5A5;border:1px solid rgba(248,113,113,.4)}
+.crm-det-perdido:hover{background:rgba(248,113,113,.26);color:#fff}
+.crm-det-perdido.is-reativar{background:rgba(52,211,153,.14);color:#6EE7B7;border-color:rgba(52,211,153,.4)}
+.crm-det-perdido.is-reativar:hover{background:rgba(52,211,153,.26);color:#fff}
 .crm-det-erro{color:#F87171;font-size:13px;margin-top:10px;min-height:1px}
 .crm-det-aviso{background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);border-radius:9px;padding:11px 13px;font-size:13px;color:#BFDBFE;line-height:1.45;margin-top:14px}
 .crm-det-x{position:absolute;top:14px;right:16px;background:rgba(255,255,255,.08);border:none;color:#CBD5E1;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center}
@@ -1782,6 +1786,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="crm-det-acoes">
       <a class="crm-det-wpp" id="crm-det-wpp" target="_blank" rel="noopener" style="display:none">💬 WhatsApp</a>
       <button type="button" class="crm-det-agendar" id="crm-det-agendar" onclick="crmAgendarDoDetalhe()">📅 Agendar ligação</button>
+    </div>
+    <!-- Perdido/Reativar: só pra lead SEM ficha (sem agendamento onde gravar status) -->
+    <div class="crm-det-acoes" id="crm-det-perdido-wrap" style="margin-top:8px; display:none">
+      <button type="button" class="crm-det-perdido" id="crm-det-perdido" onclick="crmTogglePerdido()">🙅 Marcar como Perdido</button>
     </div>
     <div class="crm-det-acoes" style="margin-top:8px">
       <button type="button" class="crm-det-fechar" onclick="crmFecharDetalhe()">Fechar</button>
@@ -4656,6 +4664,7 @@ const CRM_STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse']);
 let crmClientes = [];          // lista unificada já processada
 let crmFiltroConsultor = '__todos__';
 let crmCarregado = false;
+let crmPerdidos = new Set();    // c.key dos leads sem ficha marcados como Perdido (tabela crm_perdidos)
 
 // Normaliza telefone p/ chave de merge: só dígitos, tira 55 do início,
 // usa DDD + últimos 8 (ignora o 9º dígito que varia entre fontes).
@@ -4805,7 +4814,20 @@ function crmAbrirDetalhe(key) {
     crmMarcarTemp(c.temperatura || agRec.temperatura || null);
   }
 
+  // Perdido/Reativar só pra lead SEM ficha (com ficha usa o status "Sem interesse").
+  const perdidoWrap = document.getElementById('crm-det-perdido-wrap');
+  perdidoWrap.style.display = temAg ? 'none' : '';
+  if (!temAg) crmMarcarBotaoPerdido(crmPerdidos.has(c.key));
+
   document.getElementById('crm-det-bg').classList.add('show');
+}
+
+// Ajusta label/estilo do botão conforme já está perdido ou não.
+function crmMarcarBotaoPerdido(jaPerdido) {
+  const btn = document.getElementById('crm-det-perdido');
+  if (!btn) return;
+  btn.classList.toggle('is-reativar', jaPerdido);
+  btn.textContent = jaPerdido ? '♻️ Reativar lead' : '🙅 Marcar como Perdido';
 }
 
 function crmFecharDetalhe() {
@@ -4906,6 +4928,43 @@ function crmAgendarDoDetalhe() {
   crmReagendar({ agId: c.agId, nome: c.nome, tel: c.tel, consultor: c.consultor });
 }
 
+// Perdido/Reativar pra lead SEM ficha — grava em crm_perdidos (keyed por c.key,
+// a mesma chave de merge do board). Toggle: marcar manda pra coluna Perdido,
+// reativar devolve. Imune ao purge de propostas e ao re-import de leads_meta.
+async function crmTogglePerdido() {
+  if (!crmDetAtual) return;
+  const c = crmDetAtual.c;
+  const btn = document.getElementById('crm-det-perdido');
+  const jaPerdido = crmPerdidos.has(c.key);
+  if (btn) btn.disabled = true;
+  try {
+    if (jaPerdido) {
+      // Reativar: tira da tabela e do Set.
+      await supaDelete(`crm_perdidos?key=eq.${encodeURIComponent(c.key)}`);
+      crmPerdidos.delete(c.key);
+      showToast('♻️ Lead reativado');
+    } else {
+      // Marcar perdido: upsert (key é PK → merge-duplicates evita erro de duplicado).
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/crm_perdidos`, {
+        method: 'POST',
+        headers: { ...supaHeaders(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: c.key, nome: c.nome || null, consultor: c.consultor || null, marcado_por: crmConsultorLogado() || null })
+      });
+      if (!r.ok) throw new Error(await r.text());
+      crmPerdidos.add(c.key);
+      showToast('🙅 Lead marcado como Perdido');
+    }
+    crmDerivar(c);          // recalcula etapa: vai pra Perdido (ou volta)
+    crmFecharDetalhe();
+    renderCRM();            // re-render local, sem refetch
+  } catch (e) {
+    document.getElementById('crm-det-erro').textContent = 'Erro ao atualizar. Tente de novo.';
+    console.error(e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 // Salvar nota com Ctrl+Enter (igual à Agenda).
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' &&
@@ -4934,7 +4993,7 @@ async function carregarCRM(forcar) {
   if (forcar || !crmCarregado) {
     board.innerHTML = '<div class="historico-vazio" style="padding:40px">Carregando…</div>';
   }
-  let props = [], agends = [], leads = [];
+  let props = [], agends = [], leads = [], perdidos = [];
   try {
     [props, agends, leads] = await Promise.all([
       supaGet('propostas?select=codigo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
@@ -4945,6 +5004,9 @@ async function carregarCRM(forcar) {
     board.innerHTML = `<div class="historico-vazio" style="padding:40px">Erro ao carregar: ${escapeHtml(e.message || '')}</div>`;
     return;
   }
+  // "Perdido" manual de leads sem ficha — tolerante a falha (não quebra o board).
+  try { perdidos = await supaGet('crm_perdidos?select=key'); } catch (e) { perdidos = []; }
+  crmPerdidos = new Set((perdidos || []).map(p => p.key));
   crmClientes = crmUnificar(props, agends, leads);
   crmCarregado = true;
   crmRenderFiltros();
@@ -5085,12 +5147,18 @@ function crmDerivar(c) {
     (a.status === 'agendado' && !a.temperatura && stamp(a.quando) > 0 && stamp(a.quando) < agora)
   );
 
+  // Perdido manual (lead SEM ficha marcado no modal) — guardado em crm_perdidos.
+  // Gate em !agRecente: se o lead depois ganhar um agendamento, o status dele
+  // passa a mandar (senão ficaria preso em Perdido, sem botão Reativar no modal).
+  c.perdidoManual = !agRecente && crmPerdidos.has(c.key);
+
   // ===== DERIVAÇÃO DA ETAPA (prioridade de cima pra baixo) =====
   // Temperatura "puxa" o card — força o consultor a classificar a agenda.
   let etapa;
   if (vendida) {
     etapa = 'vendido';
-  } else if (temPerdido) {
+  } else if (temPerdido || c.perdidoManual) {
+    // Venda sempre ganha; fora isso, Perdido (de agendamento OU manual) vence.
     etapa = 'perdido';
   } else if (c.temperatura === 'quente') {
     etapa = 'quente';
