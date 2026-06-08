@@ -178,6 +178,12 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .crm-btn-temp.is-atual.bt-frio{border-color:#06b6d4;background:rgba(6,182,212,.15);color:#67e8f9}
 .crm-btn-temp.is-atual.bt-morno{border-color:#f59e0b;background:rgba(245,158,11,.15);color:#fcd34d}
 .crm-btn-temp.is-atual.bt-quente{border-color:#ec4899;background:rgba(236,72,153,.15);color:#f9a8d4}
+.crm-det-limpar-temp{margin-top:8px;width:100%;padding:9px;border-radius:9px;background:transparent;border:1px solid rgba(255,255,255,.18);color:#94A3B8;font-weight:600;font-size:13px;font-family:inherit;cursor:pointer}
+.crm-det-limpar-temp:hover{background:rgba(255,255,255,.06);color:#E5E7EB}
+.crm-btn-temp:disabled{opacity:.4;cursor:not-allowed}
+.crm-btn-temp:disabled:hover{background:#0F172A}
+.crm-det-temp-aviso{margin-top:8px;font-size:12px;color:#94A3B8;line-height:1.4;padding:8px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px}
+.crm-det-temp-aviso strong{color:#FBBF24}
 /* resultado da ligação (status) */
 .crm-det-status{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .crm-btn-status{padding:11px 10px;border-radius:9px;border:2px solid transparent;cursor:pointer;font-weight:700;font-size:13px;color:#fff;font-family:inherit;text-align:center;line-height:1.2;transition:transform .08s,filter .12s}
@@ -1774,6 +1780,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="crm-btn-temp bt-morno"  data-temp="morno"  onclick="crmAtualizarTemperatura('morno')"><span class="emoji">🌤️</span>Morno</button>
         <button type="button" class="crm-btn-temp bt-quente" data-temp="quente" onclick="crmAtualizarTemperatura('quente')"><span class="emoji">🔥</span>Quente</button>
       </div>
+      <div class="crm-det-temp-aviso" id="crm-det-temp-aviso" style="display:none">🔒 Só dá pra classificar a temperatura depois de <strong>enviar o orçamento</strong> (marque o resultado "Fez orçamento").</div>
+      <button type="button" class="crm-det-limpar-temp" id="crm-det-limpar-temp" onclick="crmLimparTemperatura()" style="display:none">✖ Remover temperatura</button>
 
       <span class="crm-det-lbl">Resultado da ligação</span>
       <div class="crm-det-status">
@@ -4823,6 +4831,8 @@ function crmAbrirDetalhe(key) {
     // Marca pela temperatura do card (c.temperatura), que é a que define a
     // coluna — pode ser de um agendamento mais antigo que o agRec.
     crmMarcarTemp(c.temperatura || agRec.temperatura || null);
+    // Temperatura só pode ser DEFINIDA se o cliente já foi orçado em algum momento.
+    crmAplicarGateTemp(c, c.temperatura || agRec.temperatura || null);
   }
 
   // Perdido/Reativar só pra lead SEM ficha (com ficha usa o status "Sem interesse").
@@ -4855,6 +4865,29 @@ function crmMarcarTemp(temp) {
   document.querySelectorAll('#crm-det-funil .crm-btn-temp').forEach(b => {
     b.classList.toggle('is-atual', b.dataset.temp === temp);
   });
+  // Botão "Remover temperatura" só aparece quando há alguma marcada.
+  const limpar = document.getElementById('crm-det-limpar-temp');
+  if (limpar) limpar.style.display = temp ? '' : 'none';
+}
+
+// Temperatura só faz sentido depois do orçamento enviado. Libera os botões
+// Frio/Morno/Quente só se ALGUM agendamento do cliente já chegou a "Fez
+// orçamento"/"Fechou" — é uma propriedade do HISTÓRICO, não do status atual.
+// (Senão um lead orçado e depois reagendado — status volta a "agendado" —
+// travaria, embora já tenha sido orçado.) O "Remover" continua sempre liberado.
+const CRM_TEMP_STATUS_OK = new Set(['fez_orcamento', 'fechou']);
+function crmTempLiberada(c) {
+  return (c.agends || []).some(a => CRM_TEMP_STATUS_OK.has(a.status));
+}
+function crmAplicarGateTemp(c, tempAtual) {
+  const liberado = crmTempLiberada(c);
+  document.querySelectorAll('#crm-det-funil .crm-btn-temp').forEach(b => {
+    b.disabled = !liberado;
+  });
+  // Aviso só quando bloqueado E ainda não tem temperatura marcada
+  // (se já tem, o card mostra o botão Remover, que basta).
+  const aviso = document.getElementById('crm-det-temp-aviso');
+  if (aviso) aviso.style.display = (!liberado && !tempAtual) ? '' : 'none';
 }
 
 async function crmAdicionarNota() {
@@ -4885,22 +4918,42 @@ async function crmAdicionarNota() {
   }
 }
 
-async function crmAtualizarTemperatura(novaTemp) {
+// Clicar num botão de temperatura: toggle (clicar na marcada remove).
+function crmAtualizarTemperatura(novaTemp) {
   if (!crmDetAtual || !crmDetAtual.agRec) return;
-  const { c, agRec: ag } = crmDetAtual;
-  // toggle: clicar na mesma (a que está marcada no card) → remove
-  // Edge conhecido: com 2+ agendamentos onde o mais recente (agRec) NÃO tem temp
-  // mas um mais antigo tem, a marcação reflete o antigo (c.temperatura) e o write
-  // vai no agRec. No caso comum (1 agendamento) são a mesma linha. Aceitável.
-  const valor = (c.temperatura || ag.temperatura) === novaTemp ? null : novaTemp;
+  const atual = crmDetAtual.c.temperatura || null;
+  // Defesa: só permite DEFINIR temperatura se o cliente já foi orçado em algum
+  // momento. Remover (clicar na que já está marcada → null) sempre passa.
+  if (atual !== novaTemp && !crmTempLiberada(crmDetAtual.c)) {
+    showToast('🔒 Classifique a temperatura só após enviar o orçamento');
+    return;
+  }
+  crmGravarTemperatura(atual === novaTemp ? null : novaTemp);
+}
+
+// Botão explícito "Remover temperatura".
+function crmLimparTemperatura() {
+  if (!crmDetAtual || !crmDetAtual.agRec) return;
+  crmGravarTemperatura(null);
+}
+
+// Grava a temperatura (ou null pra remover) em TODAS as linhas de agendamento
+// do cliente. A temperatura do card pode estar num agendamento mais ANTIGO que
+// o mais recente — escrever só no recente gravava na linha errada e o card não
+// mudava (bug do "morno que não sai"). Por isso o id=in.(...) cobre todas.
+async function crmGravarTemperatura(valor) {
+  if (!crmDetAtual) return;
+  const { c } = crmDetAtual;
+  const ids = (c.agends || []).map(a => a.id).filter(id => id != null);
+  if (!ids.length) return;
   try {
-    await supaPatch(`agendamentos?id=eq.${ag.id}`, { temperatura: valor });
-    ag.temperatura = valor;            // atualiza a linha em memória
-    crmDerivar(c);                     // recalcula etapa/coluna do cliente
+    await supaPatch(`agendamentos?id=in.(${ids.join(',')})`, { temperatura: valor });
+    c.agends.forEach(a => { a.temperatura = valor; });   // espelha em memória
+    crmDerivar(c);                                       // recalcula etapa/coluna
     crmMarcarTemp(c.temperatura || null);
     const labels = { frio: '❄️ Cliente frio', morno: '🌤️ Cliente morno', quente: '🔥 Cliente quente' };
     showToast(valor ? labels[valor] : 'Temperatura removida');
-    renderCRM();                       // re-render local: card migra de coluna, sem refetch
+    renderCRM();                                         // re-render local, sem refetch
   } catch (e) {
     document.getElementById('crm-det-erro').textContent = 'Erro ao atualizar temperatura.';
     console.error(e);
