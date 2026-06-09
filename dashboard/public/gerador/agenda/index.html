@@ -417,6 +417,15 @@
     flex: 1;
   }
   .btn-wpp:hover { opacity: .92; }
+  .btn-orcamento {
+    background: #F59E0B;
+    color: #fff;
+    width: 100%;
+    font-weight: 700;
+  }
+  .btn-orcamento:hover { background: #D97706; }
+  html[data-theme="dark"] .btn-orcamento { background: #F59E0B; color: #1A1205; }
+  html[data-theme="dark"] .btn-orcamento:hover { background: #FBBF24; }
 
   .detalhe-box {
     background: #f9fafb;
@@ -974,6 +983,9 @@
       <a class="btn-wpp" id="d-btn-wpp" target="_blank" rel="noopener">💬 WhatsApp</a>
     </div>
     <div class="modal-acoes" style="margin-top:8px">
+      <button type="button" class="btn-orcamento" id="d-btn-orcamento" onclick="gerarOrcamentoDoDetalhe()">📄 Gerar orçamento</button>
+    </div>
+    <div class="modal-acoes" style="margin-top:8px">
       <button class="btn-reagendar" id="d-btn-reagendar" onclick="abrirReagendar()">📅 Reagendar</button>
     </div>
     <div class="modal-acoes" style="margin-top:8px">
@@ -1511,6 +1523,19 @@ function abrirDetalhes(id) {
   marcarTemperaturaAtualNosBotoes(ag.temperatura || null);
   fecharReagendar();
   document.getElementById('modal-det').classList.add('show');
+}
+
+// "Gerar orçamento" → volta pro gerador (página separada) já com os dados do
+// cliente. O handoff é por querystring, mesmo padrão do botão Reagendar do CRM
+// (?ag=). O /gerador lê ?orc=1 no load e pré-preenche o form.
+function gerarOrcamentoDoDetalhe() {
+  if (!detalheAtual) return;
+  const ag = detalheAtual;
+  const p = new URLSearchParams({ orc: '1' });
+  if (ag.cliente_nome)      p.set('nome', ag.cliente_nome);
+  if (ag.cliente_telefone)  p.set('tel', formatTelBR(ag.cliente_telefone));
+  if (ag.cidade)            p.set('cidade', ag.cidade);
+  location.href = `/gerador?${p.toString()}`;
 }
 
 async function adicionarNota() {

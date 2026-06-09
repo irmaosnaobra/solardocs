@@ -3299,6 +3299,25 @@ function crmCheckDeepLink() {
 window.crmCheckDeepLink = crmCheckDeepLink;
 window.addEventListener('DOMContentLoaded', crmCheckDeepLink);
 
+// Deep-link "Gerar orçamento" vindo da Agenda (página separada): ?orc=1&nome=&tel=&cidade=
+// → abre o form do gerador já com os dados do cliente preenchidos. Espelha
+// crmCheckDeepLink: só roda autenticado, tira os params da URL pra não reabrir.
+function orcCheckDeepLink() {
+  if (document.documentElement.dataset.mode !== 'app') return;
+  const q = new URLSearchParams(location.search);
+  if (q.get('orc') !== '1') return;
+  const nome   = q.get('nome')   || '';
+  const tel    = q.get('tel')    || '';
+  const cidade = q.get('cidade') || '';
+  history.replaceState(null, '', location.pathname);
+  navGerador();          // garante o form visível (caso tenha aberto noutra tela)
+  novoCliente();         // zera o form pra não herdar dados de outra proposta
+  preencherClienteNoForm({ nome, tel, cidade });
+  if (typeof showToast === 'function') showToast('📄 Dados do cliente preenchidos — complete o orçamento');
+}
+window.orcCheckDeepLink = orcCheckDeepLink;
+window.addEventListener('DOMContentLoaded', orcCheckDeepLink);
+
 // ============= HISTÓRICO =============
 function formatDataBR(iso) {
   if (!iso) return '-';
@@ -4997,30 +5016,21 @@ function crmAgendarDoDetalhe() {
   crmReagendar({ agId: c.agId, nome: c.nome, tel: c.tel, consultor: c.consultor });
 }
 
-// "Gerar orçamento" → abre o gerador de propostas já com os dados do cliente
-// (nome, WhatsApp, cidade/UF) pré-preenchidos, pra adiantar.
-function crmGerarOrcamento() {
-  if (!crmDetAtual) return;
-  // Captura ANTES de fechar (crmFecharDetalhe zera crmDetAtual).
-  const c = crmDetAtual.c;
-  const nome = c.nome || '';
-  const telBonito = c.tel ? crmTelDisplay(c.tel) : '';   // (34) 99999-9999
-  // c.cidade vem "Cidade/UF" (proposta) ou só "Cidade" (agenda/lead). Separa.
+// Pré-preenche o form do gerador com os dados que já temos do cliente.
+// Reusado por: (a) "Gerar orçamento" do CRM (mesma página) e (b) o deep-link
+// vindo do botão "Gerar orçamento" da Agenda (?orc=1&...). Espera o form já
+// visível e zerado (chame navGerador()/novoCliente() antes).
+// cidade pode vir "Cidade/UF" (proposta) ou só "Cidade" (agenda/lead) — separa.
+function preencherClienteNoForm({ nome, tel, cidade } = {}) {
   let cidNome = '', uf = '';
-  if (c.cidade) {
-    const partes = String(c.cidade).split('/').map(s => s.trim());
+  if (cidade) {
+    const partes = String(cidade).split('/').map(s => s.trim());
     cidNome = partes[0] || '';
     uf = (partes[1] || '').toUpperCase().slice(0, 2);
   }
-
-  crmFecharDetalhe();
-  navGerador();          // esconde o CRM, mostra o form, ajusta sidebar/nav
-  novoCliente();         // zera o form (não herda dados de outra proposta) e foca o nome
-
-  // Preenche os dados que já temos.
   const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
-  set('f-nome', nome);
-  set('f-telefone', telBonito);
+  set('f-nome', nome || '');
+  set('f-telefone', tel || '');
   set('f-cidade', cidNome);
   if (uf) { const ufEl = document.getElementById('f-uf'); if (ufEl) ufEl.value = uf; }
   // Dispara o cálculo automático de distância (via cidade/UF), igual ao fluxo
@@ -5029,6 +5039,24 @@ function crmGerarOrcamento() {
   if (cidNome && typeof rastrearDistancia === 'function') {
     try { rastrearDistancia(); } catch (e) {}
   }
+}
+window.preencherClienteNoForm = preencherClienteNoForm;
+
+// "Gerar orçamento" → abre o gerador de propostas já com os dados do cliente
+// (nome, WhatsApp, cidade/UF) pré-preenchidos, pra adiantar.
+function crmGerarOrcamento() {
+  if (!crmDetAtual) return;
+  // Captura ANTES de fechar (crmFecharDetalhe zera crmDetAtual).
+  const c = crmDetAtual.c;
+  const nome = c.nome || '';
+  const telBonito = c.tel ? crmTelDisplay(c.tel) : '';   // (34) 99999-9999
+  const cidade = c.cidade || '';
+
+  crmFecharDetalhe();
+  navGerador();          // esconde o CRM, mostra o form, ajusta sidebar/nav
+  novoCliente();         // zera o form (não herda dados de outra proposta) e foca o nome
+
+  preencherClienteNoForm({ nome, tel: telBonito, cidade });
 
   showToast('📄 Dados do cliente preenchidos — complete o orçamento');
 }
@@ -6235,6 +6263,8 @@ function fazerLogin(ev) {
   document.getElementById('login-senha').value = '';
   // Se veio de um link do digest (?crm=reagendar...), abre direto a lista.
   if (typeof crmCheckDeepLink === 'function') crmCheckDeepLink();
+  // Se veio do "Gerar orçamento" da Agenda (?orc=1...), pré-preenche o form.
+  if (typeof orcCheckDeepLink === 'function') orcCheckDeepLink();
 }
 
 function sairGerador() {
