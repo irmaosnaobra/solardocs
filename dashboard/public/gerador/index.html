@@ -918,11 +918,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <div class="field"><label>Potência por módulo (W) *</label><input type="number" id="f-man-potmod" min="1" placeholder="Ex: 580"></div>
             <div class="field"><label>Qtd de placas *</label><input type="number" id="f-man-placas" min="1" placeholder="Ex: 10"></div>
             <div class="field"><label>Geração estimada (kWh/mês) *</label><input type="number" id="f-man-ger" min="1" placeholder="Ex: 750"></div>
-            <div class="field"><label>Preço à vista (R$) *</label><input type="number" id="f-man-pvista" min="0" step="0.01" placeholder="Ex: 18500"></div>
-            <div class="field"><label>Orçamento financiado (R$)</label><input type="number" id="f-man-porc" min="0" step="0.01" placeholder="auto = à vista × 1,05"></div>
+            <div class="field"><label>Valor do investimento (R$) *</label><input type="number" id="f-man-pvista" min="0" step="0.01" placeholder="Ex: 18500"></div>
             <div class="field"><label>Garantia inversor (anos)</label><input type="number" id="f-man-gar" min="1" value="10"></div>
           </div>
-          <div style="font-size:11px;color:#7a5800;margin-top:8px;">💡 O acréscimo automático por distância (≥250km) ainda se aplica em cima do preço à vista informado.</div>
+          <div style="font-size:11px;color:#7a5800;margin-top:8px;">💡 Todo o cálculo (à vista, cartão, financiamento) é feito sobre esse valor. O acréscimo automático por distância (≥250km) ainda se aplica em cima dele.</div>
         </div>
 
         <details class="opt-block" style="margin-top:8px;">
@@ -962,11 +961,17 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <div class="field full" id="campo-consumo">
           <label>Consumo mensal (kWh)</label>
-          <input type="number" id="f-consumo" placeholder="Ex: 600">
+          <input type="number" id="f-consumo" placeholder="Ex: 600" oninput="recalcInvestPreview()">
         </div>
         <div class="field full" id="campo-qtd" style="display:none;">
           <label>Quantidade de placas</label>
-          <input type="number" id="f-qtd" placeholder="Ex: 8">
+          <input type="number" id="f-qtd" placeholder="Ex: 8" oninput="recalcInvestPreview()">
+        </div>
+
+        <div class="field full" id="campo-invest" style="display:none;">
+          <label>Valor do investimento (R$)</label>
+          <input type="number" id="f-invest" min="0" step="0.01" placeholder="auto pela tabela" oninput="onInvestEdit()">
+          <div style="font-size:11px;color:#64748b;margin-top:4px;">Vem pré-preenchido pela tabela do equipamento. Edite pra dar mais desconto — o sistema recalcula à vista, cartão e financiamento sobre o novo valor.</div>
         </div>
       </div>
     </div>
@@ -1188,7 +1193,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="invest-avista">
             <div class="invest-avista-label">À vista</div>
             <div class="invest-avista-value" id="p-vista"></div>
-            <div class="invest-avista-sub">condição especial pagamento à vista</div>
+            <div class="invest-avista-sub">pago no ato do contrato</div>
           </div>
         </div>
       </div>
@@ -1465,11 +1470,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
               <th>kWp</th>
               <th>Geração (kWh/mês)</th>
               <th>Valor do investimento</th>
-              <th>Preço à vista (−5%)</th>
             </tr>
           </thead>
           <tbody id="tbl-tbody">
-            <tr><td colspan="5" class="historico-vazio">Selecione um equipamento.</td></tr>
+            <tr><td colspan="4" class="historico-vazio">Selecione um equipamento.</td></tr>
           </tbody>
         </table>
       </div>
@@ -2404,7 +2408,7 @@ function renderPagamentoCard(d) {
       <div class="badge">💎 melhor opção</div>
       <div class="qt">À vista</div>
       <div class="vl">R$ ${fmt(pv)}</div>
-      <div class="obs">5% de desconto, pago no ato</div>
+      <div class="obs">pago no ato do contrato</div>
     </div>`);
 
   const parcsCartao = parcelasDoPagOpts(po);
@@ -2505,6 +2509,67 @@ function setModo(m) {
   document.getElementById('btn-placas').classList.toggle('ativo', m === 'placas');
   document.getElementById('campo-consumo').style.display = m === 'kwh' ? '' : 'none';
   document.getElementById('campo-qtd').style.display = m === 'placas' ? '' : 'none';
+  recalcInvestPreview();
+}
+
+// ============= VALOR DO INVESTIMENTO (modo lista) =============
+// O campo f-invest é a única âncora de preço: vem pré-preenchido pela tabela,
+// mas o consultor pode editar pra dar mais desconto. investDirty trava o
+// auto-preenchimento depois que ele mexe (pra não sobrescrever o desconto).
+let investDirty = false;
+
+function onInvestEdit() {
+  investDirty = true;
+}
+
+// Resolve a linha da tabela pelo modo/consumo/qtd atuais (mesma lógica do gerar()).
+// Retorna o objeto da row ou null se faltar dado.
+function resolverItemTabela() {
+  const linha = document.getElementById('f-linha').value;
+  if (!linha || linha === 'MANUAL') return null;
+  const tab = TABELAS[linha];
+  if (!tab) return null;
+  if (modo === 'kwh') {
+    const consumo = parseFloat(document.getElementById('f-consumo').value);
+    if (!consumo || consumo <= 0) return null;
+    return tab.rows.find(r => r.g >= consumo) || tab.rows[tab.rows.length - 1];
+  } else {
+    const qtd = parseFloat(document.getElementById('f-qtd').value);
+    if (!qtd || qtd <= 0) return null;
+    return tab.rows.reduce((a, b) =>
+      Math.abs(b.n - qtd) < Math.abs(a.n - qtd) ? b : a
+    );
+  }
+}
+
+// Pré-preenche f-invest com o pOrc da tabela (sem distância — ela entra no gerar).
+// Não sobrescreve se o consultor já editou (investDirty).
+function recalcInvestPreview() {
+  const campo = document.getElementById('campo-invest');
+  const input = document.getElementById('f-invest');
+  if (!campo || !input) return;
+  const linha = document.getElementById('f-linha').value;
+  const isLista = linha && linha !== 'MANUAL';
+  campo.style.display = isLista ? '' : 'none';
+  if (!isLista) return;
+  if (investDirty) return;
+  const item = resolverItemTabela();
+  input.value = item ? item.pOrc : '';
+}
+
+// Ao reabrir uma proposta salva (modo lista), preenche f-invest com o pOrc salvo.
+// O precoOrcamento salvo já inclui a distância e o arredondamento — a distância é
+// reaplicada no gerar(), então tiramos ela aqui pra não somar duas vezes. Marca
+// investDirty pra que recalcInvestPreview não sobrescreva com o valor cru da tabela.
+function reidratarInvestLista(d) {
+  const input = document.getElementById('f-invest');
+  if (!input) return;
+  const acresc = acrescimoPorKm(d.distanciaKm || 0);
+  const base = d.precoOrcamento ? (d.precoOrcamento - acresc) : ((d.item && d.item.pOrc) || 0);
+  if (base > 0) {
+    input.value = base;
+    investDirty = true;
+  }
 }
 
 function onLinhaChange() {
@@ -2516,6 +2581,9 @@ function onLinhaChange() {
   if (toggleGroup) toggleGroup.style.display = isManual ? 'none' : '';
   document.getElementById('campo-consumo').style.display = isManual ? 'none' : (modo === 'kwh' ? '' : 'none');
   document.getElementById('campo-qtd').style.display = isManual ? 'none' : (modo === 'placas' ? '' : 'none');
+  // Trocar de linha de equipamento reseta o desconto manual (preço-base mudou).
+  investDirty = false;
+  recalcInvestPreview();
   // Defaults por tipo de inversor: micro = 15 anos garantia + 30 dias prazo; string = 10 anos + 45 dias.
   // Sobrescreve em carregamento de proposta antiga, mas é re-sobrescrito logo depois pelos valores salvos.
   if (linha && !isManual) {
@@ -2585,8 +2653,7 @@ async function gerar() {
     let potMod = parseFloat(document.getElementById('f-man-potmod').value) || 0;
     const qtdPlacasMan = parseInt(document.getElementById('f-man-placas').value) || 0;
     let geracaoMan = parseFloat(document.getElementById('f-man-ger').value) || 0;
-    const precoVistaIn = parseFloat(document.getElementById('f-man-pvista').value) || 0;
-    const precoOrcIn = parseFloat(document.getElementById('f-man-porc').value) || 0;
+    const investIn = parseFloat(document.getElementById('f-man-pvista').value) || 0;
     const garInvIn = (document.getElementById('f-man-gar').value || '').trim() || '10';
 
     if (!invModelo) return showErro('Manual: informe o modelo do inversor.');
@@ -2594,7 +2661,7 @@ async function gerar() {
     if (!potMod || potMod <= 0) return showErro('Manual: potência por módulo inválida.');
     if (!qtdPlacasMan || qtdPlacasMan <= 0) return showErro('Manual: quantidade de placas inválida.');
     if (!geracaoMan || geracaoMan <= 0) return showErro('Manual: geração estimada inválida.');
-    if (!precoVistaIn || precoVistaIn <= 0) return showErro('Manual: preço à vista inválido.');
+    if (!investIn || investIn <= 0) return showErro('Manual: valor do investimento inválido.');
 
     // Correção/validação de unidades (evita orçamento com geração ~5 kWh e conta R$ 2).
     // Potência do módulo é em WATTS. Se vier <10 é quase certo que digitaram em kW (ex: 0,6 → 600).
@@ -2608,14 +2675,16 @@ async function gerar() {
     }
 
     const kwp = (qtdPlacasMan * potMod) / 1000;
-    const pOrc = precoOrcIn > 0 ? precoOrcIn : Math.ceil(precoVistaIn * 1.05 / 100) * 100;
+    // Valor do investimento é a âncora única: à vista, cartão e financiamento
+    // saem todos de pOrc. À vista = o próprio investimento (sem desconto).
+    const pOrc = investIn;
     tab = { inv: invModelo, mod: modModelo, pot: potMod };
     item = {
       n: qtdPlacasMan, g: geracaoMan, kwp, invs: qtdInvIn,
-      pVista: precoVistaIn, pOrc: pOrc, descMax: precoVistaIn
+      pVista: pOrc, pOrc: pOrc, descMax: pOrc
     };
     qtdPlacasInput = qtdPlacasMan;
-    manualInputs = { invModelo, qtdInv: qtdInvIn, modModelo, potMod, qtdPlacas: qtdPlacasMan, geracao: geracaoMan, precoVistaIn, precoOrcIn, garInvIn };
+    manualInputs = { invModelo, qtdInv: qtdInvIn, modModelo, potMod, qtdPlacas: qtdPlacasMan, geracao: geracaoMan, investIn, garInvIn };
   } else {
     tab = TABELAS[linha];
     if (!tab) return showErro('Linha de equipamento inválida.');
@@ -2629,6 +2698,12 @@ async function gerar() {
       item = tab.rows.reduce((a, b) =>
         Math.abs(b.n - qtdPlacasInput) < Math.abs(a.n - qtdPlacasInput) ? b : a
       );
+    }
+    // Override do valor do investimento: consultor consulta a tabela e refaz o orçamento
+    // editando o valor. Vira a nova âncora — à vista, cartão e financiamento recalculam.
+    const investOverride = parseFloat(document.getElementById('f-invest').value) || 0;
+    if (investOverride > 0) {
+      item = { ...item, pOrc: investOverride, pVista: investOverride, descMax: investOverride };
     }
   }
 
@@ -2658,8 +2733,8 @@ async function gerar() {
   //   >= 250 km → +R$ 500,00
   const acrescDist = acrescimoPorKm(distanciaKm);
   const precoOrcamento = Math.ceil((item.pOrc + acrescDist) / 100) * 100;
-  // À vista = 5% de desconto sobre o investimento, pago no ato do contrato (ignora coluna da tabela).
-  const precoVista = Math.round(precoOrcamento * 0.95);
+  // À vista = valor do investimento (sem desconto). Pago no ato do contrato.
+  const precoVista = precoOrcamento;
 
   // Tabela completa do cartão (1x..21x) — acréscimo sobre o valor do investimento
   const parcelasCartao = calcTodasParcelas(precoOrcamento);
@@ -3041,7 +3116,10 @@ function novoCliente() {
   document.getElementById('f-linha').value = '';
   document.getElementById('f-consumo').value = '';
   document.getElementById('f-qtd').value = '';
-  ['f-man-inv','f-man-mod','f-man-potmod','f-man-placas','f-man-ger','f-man-pvista','f-man-porc'].forEach(id => {
+  const investEl = document.getElementById('f-invest');
+  if (investEl) investEl.value = '';
+  investDirty = false;
+  ['f-man-inv','f-man-mod','f-man-potmod','f-man-placas','f-man-ger','f-man-pvista'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -3966,14 +4044,12 @@ function renderTabelaAtiva() {
 
   tbody.innerHTML = t.rows.map(r => {
     const pOrc = Math.ceil((r.pOrc + acresc) / 100) * 100;      // = valor do investimento (igual gerador)
-    const pVista = Math.round(pOrc * 0.95);                      // regra à vista -5%
     const equip = `${r.n}x ${t.mod} + ${r.invs}x ${t.inv}`;
     return `<tr>
       <td>${equip}</td>
       <td>${r.kwp.toLocaleString('pt-BR')}</td>
       <td>${r.g.toLocaleString('pt-BR')}</td>
       <td class="invest">${fmtBR(pOrc)}</td>
-      <td class="vista">${fmtBR(pVista)}</td>
     </tr>`;
   }).join('');
 
@@ -5973,17 +6049,21 @@ async function editarProposta(codigo) {
       document.getElementById('f-man-potmod').value = m.potMod || (d.tab && d.tab.pot) || '';
       document.getElementById('f-man-placas').value = m.qtdPlacas || (d.item && d.item.n) || '';
       document.getElementById('f-man-ger').value = m.geracao || (d.item && d.item.g) || '';
-      document.getElementById('f-man-pvista').value = m.precoVistaIn || (d.item && d.item.pVista) || '';
-      document.getElementById('f-man-porc').value = m.precoOrcIn || '';
+      // Valor do investimento = pOrc salvo. Fallbacks cobrem propostas legadas (investIn novo,
+      // precoVistaIn antigo). Distância já está embutida no precoOrcamento, então tira ela.
+      const investSalvoMan = m.investIn || (d.precoOrcamento ? d.precoOrcamento - acrescimoPorKm(d.distanciaKm || 0) : 0) || m.precoVistaIn || (d.item && d.item.pOrc) || '';
+      document.getElementById('f-man-pvista').value = investSalvoMan;
       document.getElementById('f-man-gar').value = m.garInvIn || d.garInv || '10';
     } else if (d.modoEntrada === 'kwh' && d.consumoKwh) {
       setModo('kwh');
       document.getElementById('f-consumo').value = d.consumoKwh;
       document.getElementById('f-qtd').value = '';
+      reidratarInvestLista(d);
     } else {
       setModo('placas');
       document.getElementById('f-qtd').value = (d.item && d.item.n) || d.qtdPlacas || '';
       document.getElementById('f-consumo').value = '';
+      reidratarInvestLista(d);
     }
 
     // Garantias / prazo / foto (propostas antigas usam defaults)
@@ -6101,7 +6181,7 @@ function montarBlocoPagamentoWpp(d) {
   if (!d.parcelasCartao && d.parc18x != null) parcMap[18] = d.parc18x;
 
   const linhas = [];
-  if (po.vista) linhas.push(`💎 *À vista:* R$ ${fmt(pv)} (5% de desconto, pago no ato)`);
+  if (po.vista) linhas.push(`💎 *À vista:* R$ ${fmt(pv)} (pago no ato do contrato)`);
 
   const parcs = parcelasDoPagOpts(po);
   if (parcs.length) {
@@ -6194,7 +6274,7 @@ ${d.prazoInstalacao || 45} dias úteis do contrato à ligação
 • Payback estimado: ~${d.payback} anos
 
 ━━━━━━━━━━━━━━━━━━
-💰 *Investimento (Valor Financiado): R$ ${fmt(d.precoOrcamento)}*
+💰 *Valor do investimento: R$ ${fmt(d.precoOrcamento)}*
 
 ${montarBlocoPagamentoWpp(d)}
 ${d.consultor ? `━━━━━━━━━━━━━━━━━━\n👤 *Atendimento:* ${d.consultor}\n` : ''}
