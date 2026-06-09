@@ -627,6 +627,17 @@
   .field input:focus, .field select:focus {
     border-color: #1E3A8A;
   }
+  /* Esconde as setinhas (spinner) dos campos numéricos — digitar continua normal */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 
   .dica {
     margin-top: 12px;
