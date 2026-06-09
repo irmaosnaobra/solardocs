@@ -149,7 +149,19 @@ const TABELAS = {
     {n:17, invs:5, g:1649, kwp:11.9, descMax:30450.00, pVista:30450, pOrc:30450.00, p18x:4716.71},
     {n:18, invs:5, g:1746, kwp:12.6, descMax:31450.00, pVista:31450, pOrc:31450.00, p18x:4871.61},
     {n:19, invs:5, g:1843, kwp:13.3, descMax:32450.00, pVista:32450, pOrc:32450.00, p18x:5026.51},
-    {n:20, invs:5, g:1940, kwp:14, descMax:33450.00, pVista:33450, pOrc:33450.00, p18x:5181.41}
+    {n:20, invs:5, g:1940, kwp:14, descMax:33450.00, pVista:33450, pOrc:33450.00, p18x:5181.41},
+    {n:21, invs:6, g:2037, kwp:14.7, descMax:36750.00, pVista:36750, pOrc:36750.00, p18x:5692.58},
+    {n:22, invs:6, g:2134, kwp:15.4, descMax:37800.00, pVista:37800, pOrc:37800.00, p18x:5855.22},
+    {n:23, invs:6, g:2231, kwp:16.1, descMax:38800.00, pVista:38800, pOrc:38800.00, p18x:6010.12},
+    {n:24, invs:6, g:2328, kwp:16.8, descMax:39850.00, pVista:39850, pOrc:39850.00, p18x:6172.77},
+    {n:25, invs:7, g:2425, kwp:17.5, descMax:43150.00, pVista:43150, pOrc:43150.00, p18x:6683.94},
+    {n:26, invs:7, g:2522, kwp:18.2, descMax:44200.00, pVista:44200, pOrc:44200.00, p18x:6846.58},
+    {n:27, invs:7, g:2619, kwp:18.9, descMax:45200.00, pVista:45200, pOrc:45200.00, p18x:7001.48},
+    {n:28, invs:7, g:2716, kwp:19.6, descMax:46250.00, pVista:46250, pOrc:46250.00, p18x:7164.13},
+    {n:29, invs:8, g:2813, kwp:20.3, descMax:49550.00, pVista:49550, pOrc:49550.00, p18x:7675.3},
+    {n:30, invs:8, g:2910, kwp:21, descMax:50550.00, pVista:50550, pOrc:50550.00, p18x:7830.2},
+    {n:31, invs:8, g:3007, kwp:21.7, descMax:51600.00, pVista:51600, pOrc:51600.00, p18x:7992.84},
+    {n:32, invs:8, g:3104, kwp:22.4, descMax:52600.00, pVista:52600, pOrc:52600.00, p18x:8147.74}
   ]
 },
 
@@ -173,7 +185,19 @@ const TABELAS = {
     {n:17, invs:5, g:1445, kwp:10.54, descMax:29000.00, pVista:29000, pOrc:29000.00, p18x:4492.1},
     {n:18, invs:5, g:1530, kwp:11.16, descMax:29900.00, pVista:29900, pOrc:29900.00, p18x:4631.51},
     {n:19, invs:5, g:1615, kwp:11.78, descMax:30850.00, pVista:30850, pOrc:30850.00, p18x:4778.67},
-    {n:20, invs:5, g:1700, kwp:12.4, descMax:31750.00, pVista:31750, pOrc:31750.00, p18x:4918.08}
+    {n:20, invs:5, g:1700, kwp:12.4, descMax:31750.00, pVista:31750, pOrc:31750.00, p18x:4918.08},
+    {n:21, invs:6, g:1785, kwp:13.02, descMax:35000.00, pVista:35000, pOrc:35000.00, p18x:5421.5},
+    {n:22, invs:6, g:1870, kwp:13.64, descMax:35950.00, pVista:35950, pOrc:35950.00, p18x:5568.66},
+    {n:23, invs:6, g:1955, kwp:14.26, descMax:36900.00, pVista:36900, pOrc:36900.00, p18x:5715.81},
+    {n:24, invs:6, g:2040, kwp:14.88, descMax:37850.00, pVista:37850, pOrc:37850.00, p18x:5862.97},
+    {n:25, invs:7, g:2125, kwp:15.5, descMax:41050.00, pVista:41050, pOrc:41050.00, p18x:6358.65},
+    {n:26, invs:7, g:2210, kwp:16.12, descMax:42000.00, pVista:42000, pOrc:42000.00, p18x:6505.8},
+    {n:27, invs:7, g:2295, kwp:16.74, descMax:42950.00, pVista:42950, pOrc:42950.00, p18x:6652.96},
+    {n:28, invs:7, g:2380, kwp:17.36, descMax:43900.00, pVista:43900, pOrc:43900.00, p18x:6800.11},
+    {n:29, invs:8, g:2465, kwp:17.98, descMax:47100.00, pVista:47100, pOrc:47100.00, p18x:7295.79},
+    {n:30, invs:8, g:2550, kwp:18.6, descMax:48050.00, pVista:48050, pOrc:48050.00, p18x:7442.95},
+    {n:31, invs:8, g:2635, kwp:19.22, descMax:49000.00, pVista:49000, pOrc:49000.00, p18x:7590.1},
+    {n:32, invs:8, g:2720, kwp:19.84, descMax:49950.00, pVista:49950, pOrc:49950.00, p18x:7737.26}
   ]
 }
 
