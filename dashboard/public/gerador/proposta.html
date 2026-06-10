@@ -1,4 +1,4 @@
-de<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -683,6 +683,22 @@ de<!DOCTYPE html>
   }
   .acoes button:hover { opacity: .92; }
   .btn-link { background: #f5c518; color: #0d2d5e !important; }
+  .acoes-pdf {
+    margin-top: 8px;
+  }
+  .btn-pdf {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    color: white;
+    background: #0d2d5e;
+    font-family: inherit;
+  }
+  .btn-pdf:hover { opacity: .92; }
   .exp-btn-wpp {
     display: inline-block;
     margin-top: 8px;
@@ -841,7 +857,7 @@ de<!DOCTYPE html>
   /* PRINT */
   @media print {
     body { background: white; padding: 0; }
-    #formSection, .acoes, .btn-nova { display: none !important; }
+    #formSection, .acoes, .acoes-pdf, .btn-nova { display: none !important; }
     .card, .prop-header, .preco-box {
       box-shadow: none;
       page-break-inside: avoid;
@@ -1127,6 +1143,10 @@ de<!DOCTYPE html>
           <a class="consultor-tel" id="rodape-consultor-tel" href="#" target="_blank"></a>
         </div>
       </div>
+    </div>
+
+    <div class="acoes-pdf">
+      <button class="btn-pdf" onclick="baixarPDF()">📄 Baixar / Imprimir PDF</button>
     </div>
 
     <div class="acoes">
@@ -1917,6 +1937,24 @@ async function gerarLinkProposta() {
     console.error(e);
     showToast('❌ Erro ao gerar link');
   }
+}
+
+function baixarPDF() {
+  // Usa o diálogo nativo de impressão (Salvar como PDF). O CSS @media print
+  // já esconde formulário, botões e ajusta cores — funciona offline (PWA).
+  const tituloOriginal = document.title;
+  const cliEl = document.getElementById('cli-nome');
+  const nome = (cliEl && cliEl.textContent.trim()) ||
+    (dadosAtual && dadosAtual.nome) || '';
+  if (nome) {
+    // Vira o nome de arquivo sugerido no diálogo "Salvar como PDF"
+    document.title = 'Proposta Solar - ' + nome;
+  }
+  const restaurar = () => { document.title = tituloOriginal; };
+  window.addEventListener('afterprint', restaurar, { once: true });
+  // Fallback caso afterprint não dispare (alguns navegadores mobile)
+  setTimeout(restaurar, 2000);
+  window.print();
 }
 
 function ehVendedor() {
