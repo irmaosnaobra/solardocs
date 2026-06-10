@@ -93,6 +93,8 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 .crm-busca:focus{outline:none;border-color:#3B82F6}
 .crm-reload{background:#0f1a2e;border:1px solid rgba(255,255,255,.14);color:#cbd5e1;width:42px;border-radius:10px;font-size:18px;cursor:pointer}
 .crm-reload:hover{background:#1c2c47;color:#fff}
+.crm-novo-contato{background:#16a34a;border:1px solid #16a34a;color:#fff;padding:0 14px;border-radius:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap}
+.crm-novo-contato:hover{background:#15803d;border-color:#15803d}
 /* Board kanban: rola na horizontal; cada coluna rola na vertical */
 .crm-kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}
 .crm-col{flex:0 0 260px;width:260px;background:#0f1a2e;border:1px solid rgba(255,255,255,.08);border-radius:14px;display:flex;flex-direction:column;max-height:72vh}
@@ -1544,6 +1546,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <!-- Busca -->
       <div class="crm-busca-wrap">
         <input type="text" id="crm-busca" class="crm-busca" placeholder="🔎 Buscar por nome, telefone ou cidade…" oninput="renderCRM()">
+        <button class="crm-novo-contato" onclick="abrirNovoContato()" title="Criar contato manual (não veio por agendamento)">➕ Contato</button>
         <button class="crm-reload" onclick="carregarCRM(true)" title="Atualizar">↻</button>
       </div>
 
@@ -1739,6 +1742,32 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="modal-acoes">
       <button class="secondary" onclick="fecharModalDuplicado()">Cancelar</button>
       <button class="primary" onclick="continuarMesmoAssim()">Criar nova mesmo assim</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal "Novo contato" — cria um contato manual no CRM (não veio por agendamento).
+     Sem data de ligação: entra como "Falando WhatsApp". -->
+<div id="modal-novo-contato" class="modal-overlay" onclick="if(event.target===this) fecharNovoContato()">
+  <div class="modal-box">
+    <h3>➕ Novo contato</h3>
+    <p style="color:#94A3B8;font-size:13px;margin-top:-4px;">Pra quem chegou fora do agendamento (indicação, chamou no WhatsApp…). Entra no funil em <strong>Falando WhatsApp</strong>. Você agenda a ligação depois, se quiser.</p>
+    <div class="field">
+      <label>Nome do cliente *</label>
+      <input type="text" id="nc-nome" placeholder="Ex: João Silva" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>WhatsApp *</label>
+      <input type="tel" id="nc-tel" placeholder="(34) 99999-9999" inputmode="numeric" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Cidade</label>
+      <input type="text" id="nc-cidade" placeholder="Ex: Uberlândia (opcional)" autocomplete="off">
+    </div>
+    <div id="nc-erro" style="color:#F87171;font-size:13px;min-height:18px;margin-top:4px;"></div>
+    <div class="modal-acoes">
+      <button class="secondary" onclick="fecharNovoContato()">Cancelar</button>
+      <button class="success" id="nc-salvar" onclick="salvarNovoContato()">✓ Criar contato</button>
     </div>
   </div>
 </div>
@@ -4925,10 +4954,14 @@ function crmAbrirDetalhe(key) {
   document.getElementById('crm-det-erro').textContent = '';
 
   const temAg = !!(agRec && agRec.id != null);
+  // Contato manual tem ficha em `agendamentos` mas SEM data (quando=null). Pro
+  // funil ele conta como ficha (temAg), mas o botão deve ser "Agendar ligação"
+  // (fluxo novo), não "Reagendar" — Reagendar deep-linka pra agenda por data e
+  // não acharia um registro sem quando.
+  const temData = !!(agRec && agRec.quando);
   document.getElementById('crm-det-funil').style.display = temAg ? '' : 'none';
   document.getElementById('crm-det-sem-ag').style.display = temAg ? 'none' : '';
-  // "Agendar ligação" vira "Reagendar" quando já existe agendamento.
-  document.getElementById('crm-det-agendar').textContent = temAg ? '📅 Reagendar' : '📅 Agendar ligação';
+  document.getElementById('crm-det-agendar').textContent = temData ? '📅 Reagendar' : '📅 Agendar ligação';
 
   if (temAg) {
     document.getElementById('crm-det-hist').textContent = agRec.historico || '';
@@ -5092,10 +5125,15 @@ async function crmAtualizarStatus(novoStatus) {
 }
 
 // "Agendar / Reagendar" → reusa o fluxo já testado da Agenda.
+// Só passa agId (→ deep-link de reagendamento por data) quando o agendamento
+// mais recente TEM data. Contato manual (quando=null) tem agId, mas deep-linkar
+// por ele abriria a agenda em nada — então cai no fluxo novo (pré-preenchido).
 function crmAgendarDoDetalhe() {
   if (!crmDetAtual) return;
   const c = crmDetAtual.c;
-  crmReagendar({ agId: c.agId, nome: c.nome, tel: c.tel, consultor: c.consultor });
+  const agRec = crmDetAtual.agRec;
+  const temData = !!(agRec && agRec.quando);
+  crmReagendar({ agId: temData ? c.agId : null, nome: c.nome, tel: c.tel, consultor: c.consultor });
 }
 
 // Pré-preenche o form do gerador com os dados que já temos do cliente.
@@ -5141,6 +5179,81 @@ function crmGerarOrcamento() {
   preencherClienteNoForm({ nome, tel: telBonito, cidade });
 
   showToast('📄 Dados do cliente preenchidos — complete o orçamento');
+}
+
+// ============= CRM · NOVO CONTATO MANUAL =============
+// Cria um contato pra quem NÃO veio por agendamento (indicação, chamou no zap).
+// Grava em `agendamentos` com quando=NULL e status='falando_whatsapp' → cai na
+// coluna "Falando WhatsApp" do kanban. quando NULL é invisível pro cron de
+// lembretes (filtro gte falha) e pra regra de Reagendar (exige quando>0).
+function abrirNovoContato() {
+  document.getElementById('nc-nome').value = '';
+  document.getElementById('nc-tel').value = '';
+  document.getElementById('nc-cidade').value = '';
+  document.getElementById('nc-erro').textContent = '';
+  document.getElementById('modal-novo-contato').classList.add('show');
+  setTimeout(() => document.getElementById('nc-nome').focus(), 50);
+}
+
+function fecharNovoContato() {
+  document.getElementById('modal-novo-contato').classList.remove('show');
+}
+
+async function salvarNovoContato() {
+  const nome = document.getElementById('nc-nome').value.trim();
+  const telDigits = normalizeTelefone(document.getElementById('nc-tel').value);
+  const cidade = document.getElementById('nc-cidade').value.trim();
+  const erro = document.getElementById('nc-erro');
+  const btn = document.getElementById('nc-salvar');
+  erro.textContent = '';
+
+  if (!nome) { erro.textContent = 'Informe o nome do contato.'; return; }
+  // 10 = fixo (DDD+8), 11 = celular (DDD+9). Sem o 55 ainda.
+  const semBR = telDigits.replace(/^55/, '');
+  if (semBR.length < 10 || semBR.length > 11) { erro.textContent = 'WhatsApp inválido. Inclua DDD + número.'; return; }
+
+  // Trava de duplicado: se o telefone já está no board, avisa (mas deixa criar).
+  const key = crmTelKey(telDigits);
+  if (key && Array.isArray(crmClientes)) {
+    const existente = crmClientes.find(c => c.key === key);
+    if (existente && !erro.dataset.confirmado) {
+      erro.textContent = `Já existe "${existente.nome || 'contato'}" com esse número. Toque em "Criar contato" de novo pra adicionar mesmo assim.`;
+      erro.dataset.confirmado = '1';
+      return;
+    }
+  }
+  delete erro.dataset.confirmado;
+
+  const consultor = getConsultorAtual();
+  if (!consultor) { erro.textContent = 'Sessão sem consultor. Recarregue e entre de novo.'; return; }
+
+  btn.disabled = true;
+  const txtOrig = btn.textContent;
+  btn.textContent = 'Criando…';
+  try {
+    await supaInsert('agendamentos', {
+      vendedor_nome:    consultor,
+      quando:           null,                 // sem data — contato solto
+      cliente_nome:     nome,
+      cliente_telefone: crmTelBonito(telDigits), // 55 + DDD + número
+      cidade:           cidade || null,
+      status:           'falando_whatsapp',   // cai na coluna Falando WhatsApp
+      created_by:       consultor,
+    });
+    fecharNovoContato();
+    showToast('✅ Contato criado');
+    await carregarCRM(true);
+  } catch (e) {
+    // vendedor_nome tem FK pra `consultores` — se o nome da sessão não casar, é esse o erro.
+    const msg = String((e && e.message) || e);
+    erro.textContent = /foreign key|consultores|fkey/i.test(msg)
+      ? `Consultor "${consultor}" não está cadastrado. Recarregue e entre de novo.`
+      : 'Erro ao criar. Tente de novo.';
+    console.error('novo contato', e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = txtOrig;
+  }
 }
 
 // Perdido/Reativar pra lead SEM ficha — grava em crm_perdidos (keyed por c.key,
