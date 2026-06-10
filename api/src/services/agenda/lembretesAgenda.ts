@@ -95,12 +95,11 @@ async function dispararConfirmacao(ag: Agendamento, vendedorWpp: string | null) 
   const quandoTxt = formatDataHora(ag.quando);
 
   const msgC =
-    `Olá${nomeCli ? ', ' + nomeCli : ''}. ✅\n\n` +
-    `Você está prestes a fazer o melhor investimento em termos de retorno. Já pensou em algo que se paga em menos de 2 anos?\n\n` +
-    `É exatamente isso que *${ag.vendedor_nome}*, da *Irmãos na Obra*, vai te apresentar na sua reunião, confirmada para *${dia}, ${quandoTxt}*.\n\n` +
-    `A ligação será neste número. Esteja disponível no horário.\n\n` +
-    `Até lá.\n` +
-    `_Irmãos na Obra_`;
+    `Oi${nomeCli ? ', ' + nomeCli : ''}! Tudo certo? ✅\n\n` +
+    `Sua conversa com *${ag.vendedor_nome}*, da *Irmãos na Obra*, está confirmada: *${dia}, ${quandoTxt}*.\n\n` +
+    `É uma conversa rápida e sem compromisso — a gente te mostra quanto dá pra economizar saindo da conta da distribuidora de energia e você decide com calma.\n\n` +
+    `A ligação chega neste mesmo número. Se precisar remarcar, é só me avisar por aqui. 👍\n\n` +
+    `_Irmãos na Obra ☀️_`;
 
   const msgV =
     `✅ *Novo agendamento!*\n` +
@@ -120,8 +119,9 @@ async function disparar1h(ag: Agendamento, vendedorWpp: string | null) {
   const hora = formatHora(ag.quando);
 
   const msgC =
-    `Olá${nomeCli ? ' ' + nomeCli : ''}! ⏰ Falta *1 hora* pra sua conversa sobre energia solar com *${ag.vendedor_nome}*, da *Irmãos na Obra* (às ${hora}).\n\n` +
-    `Já pensa no quanto você vai economizar todo mês ☀️💸 — daqui a pouco te ligamos pra te mostrar tudo!`;
+    `Oi${nomeCli ? ', ' + nomeCli : ''}! ⏰\n\n` +
+    `Daqui a *1 hora* (às ${hora}) o *${ag.vendedor_nome}*, da *Irmãos na Obra*, vai te ligar pra falar de energia solar.\n\n` +
+    `É rapidinho. Se não der agora, me avisa por aqui que a gente remarca. 👍`;
   const msgV =
     `🔔 *Em 1 hora:* ligação com *${ag.cliente_nome}* às *${hora}*.\n` +
     `Tel: ${telExibicao(ag.cliente_telefone)}` +
@@ -138,8 +138,9 @@ async function disparar5min(ag: Agendamento, vendedorWpp: string | null) {
   const hora = formatHora(ag.quando);
 
   const msgC =
-    `${nomeCli ? nomeCli + ', s' : 'S'}ua ligação é *agora* 📞 — em ~5 minutos o consultor *${ag.vendedor_nome}* ` +
-    `da *Irmãos na Obra* vai te ligar (${hora}). Deixa o telefone à mão e prepare-se pra economizar! ☀️`;
+    `${nomeCli ? nomeCli + ', é' : 'É'} agora! 📞\n\n` +
+    `Em uns 5 minutos o *${ag.vendedor_nome}*, da *Irmãos na Obra*, vai te ligar neste número (às ${hora}).\n\n` +
+    `Deixa o telefone à mão. Até já! ☀️`;
   const msgV =
     `📞 *Em 5 minutos:* ligação com *${ag.cliente_nome}* às *${hora}*.\n` +
     `Tel: ${telExibicao(ag.cliente_telefone)}` +
