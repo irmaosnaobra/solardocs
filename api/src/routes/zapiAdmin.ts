@@ -451,4 +451,29 @@ router.post('/io/send-text', async (req: Request, res: Response): Promise<void> 
   res.json({ status: r.status, body });
 });
 
+// Teste de figurinha via linha IO — phone na query, sticker (URL) no body ou default.
+// Uso: POST /zapi-admin/io/send-sticker?key=BOOTSTRAP&phone=5534XXXXXXXXX
+router.post('/io/send-sticker', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+
+  const creds = getIOCreds();
+  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+
+  const phone = String(req.query.phone || '').replace(/\D/g, '');
+  const sticker = typeof req.body?.sticker === 'string' && req.body.sticker
+    ? req.body.sticker
+    : 'https://solardoc.app/io/img/sticker-chegou.webp';
+  if (!phone) { res.status(400).json({ error: 'phone query param obrigatorio' }); return; }
+
+  const r = await fetch(`https://api.z-api.io/instances/${creds.id}/token/${creds.token}/send-sticker`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Client-Token': creds.client },
+    body: JSON.stringify({ phone, sticker }),
+  });
+  const txt = await r.text();
+  let body: unknown;
+  try { body = JSON.parse(txt); } catch { body = txt; }
+  res.json({ status: r.status, body });
+});
+
 export default router;
