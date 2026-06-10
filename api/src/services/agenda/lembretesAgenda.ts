@@ -1,6 +1,10 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
-import { sendWhatsApp } from '../agents/zapiClient';
+import { sendWhatsApp, sendSticker } from '../agents/zapiClient';
 import { logger } from '../../utils/logger';
+
+// Figurinha "Irmãos na Obra Chegou!" enviada logo após a confirmação (só cliente).
+// 512x512 transparente, servida pelo dashboard em /io/img/.
+const STICKER_CHEGOU_URL = 'https://solardoc.app/io/img/sticker-chegou.webp';
 
 type Agendamento = {
   id: number;
@@ -110,6 +114,16 @@ async function dispararConfirmacao(ag: Agendamento, vendedorWpp: string | null) 
     (ag.observacao ? `\n_Obs: ${ag.observacao}_` : '');
 
   await enviarParCliente(ag, vendedorWpp, msgC, msgV);
+
+  // Figurinha logo abaixo do texto — SÓ pro cliente, best-effort.
+  // try/catch isolado de propósito: se o sticker falhar, NÃO pode travar o
+  // confirmacao_at abaixo (senão a confirmação inteira re-dispara a cada tick).
+  try {
+    await sendSticker(ag.cliente_telefone, STICKER_CHEGOU_URL, ZAPI_INSTANCE);
+  } catch (e) {
+    logger.error('agenda', 'falha sticker confirmação (ignorado)', { id: ag.id, erro: String(e) });
+  }
+
   await supabaseGerador.from('agendamentos').update({ confirmacao_at: new Date().toISOString() }).eq('id', ag.id);
 }
 

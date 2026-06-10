@@ -101,6 +101,12 @@ export async function sendWhatsApp(phone: string, message: string, instance: Zap
   await zapiPost('send-text', { phone: fmtPhone(phone), message }, 2, instance);
 }
 
+// Envia figurinha (sticker) do WhatsApp. `sticker` é URL pública de imagem
+// (a Z-API converte server-side; ideal 512x512 com fundo transparente).
+export async function sendSticker(phone: string, stickerUrl: string, instance: ZapiInstance = 'solardoc'): Promise<void> {
+  await zapiPost('send-sticker', { phone: fmtPhone(phone), sticker: stickerUrl }, 2, instance);
+}
+
 export async function sendHuman(phone: string, parts: string[], instance: ZapiInstance = 'solardoc', opts?: { slow?: boolean }): Promise<void> {
   // slow=true → simula leitura+digitação ~15s por bolha (B2B Carla, vendedora humana).
   // Default: rápido (até 2.5s) — agentes de suporte/operacional.
