@@ -451,4 +451,29 @@ router.post('/io/send-text', async (req: Request, res: Response): Promise<void> 
   res.json({ status: r.status, body });
 });
 
+// Envio de figurinha via linha IO. `sticker` no body = URL pública OU base64
+// (data:image/...;base64,...). TEMPORÁRIO p/ enviar o pack de stickers.
+// Uso: POST /zapi-admin/io/send-sticker?key=BOOTSTRAP&phone=5534XXXXXXXXX  body: {"sticker": "..."}
+router.post('/io/send-sticker', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+
+  const creds = getIOCreds();
+  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
+
+  const phone = String(req.query.phone || '').replace(/\D/g, '');
+  const sticker = typeof req.body?.sticker === 'string' ? req.body.sticker : '';
+  if (!phone) { res.status(400).json({ error: 'phone query param obrigatorio' }); return; }
+  if (!sticker) { res.status(400).json({ error: 'body.sticker obrigatorio (URL ou base64)' }); return; }
+
+  const r = await fetch(`https://api.z-api.io/instances/${creds.id}/token/${creds.token}/send-sticker`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Client-Token': creds.client },
+    body: JSON.stringify({ phone, sticker }),
+  });
+  const txt = await r.text();
+  let body: unknown;
+  try { body = JSON.parse(txt); } catch { body = txt; }
+  res.json({ status: r.status, body });
+});
+
 export default router;
