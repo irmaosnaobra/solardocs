@@ -90,7 +90,7 @@ export async function syncStripePlans(): Promise<{
 
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, email, plano, limite_documentos, billing_status, past_due_since, trial_expires_at, is_admin, pack_trial_until');
+    .select('id, email, plano, limite_documentos, billing_status, past_due_since, trial_expires_at, is_admin, pack_trial_until, plano_expira_em');
 
   if (error || !users) {
     logger.error('stripe-sync', 'leitura de users falhou', error);
@@ -122,6 +122,18 @@ export async function syncStripePlans(): Promise<{
           .update({ plano: 'pro', limite_documentos: 90, billing_status: 'trialing' })
           .eq('id', u.id);
       }
+      unchanged++;
+      continue;
+    }
+
+    // Liberação por Pix (sem cartão, sem sub Stripe): enquanto plano_expira_em
+    // estiver no futuro, o acesso foi pago manualmente e o sync NÃO pode rebaixar.
+    // Sai do funil do Stripe igual admin/pack_trial. Não há cron de expiração Pix —
+    // o rebaixamento no vencimento é manual (ou via /schedule).
+    const pixAccessActive = u.plano_expira_em
+      ? new Date(u.plano_expira_em).getTime() > Date.now()
+      : false;
+    if (pixAccessActive && !stripeTruth) {
       unchanged++;
       continue;
     }
