@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import api from '@/services/api';
 import ContratoSolarForm from './forms/ContratoSolarForm';
 import ProcuracaoForm from './forms/ProcuracaoForm';
+import ReciboForm from './forms/ReciboForm';
 import PropostaBancariaForm from './forms/PropostaBancariaForm';
 import PrestacaoServicoForm from './forms/PrestacaoServicoForm';
 import ContratoPjForm from './forms/ContratoPjForm';
@@ -22,6 +23,7 @@ interface CompanyGate {
 const REQUIRE_CLIENT = new Set([
   'contrato-solar',
   'procuracao',
+  'recibo',
   'proposta-bancaria',
   'prestacao-servico',
   'contrato-pj',
@@ -226,6 +228,7 @@ function DocumentosContent() {
     switch (tipo) {
       case 'contrato-solar':     return <ContratoSolarForm />;
       case 'procuracao':         return <ProcuracaoForm />;
+      case 'recibo':             return <ReciboForm />;
       case 'proposta-bancaria':  return <PropostaBancariaForm />;
       case 'prestacao-servico':  return <PrestacaoServicoForm />;
       case 'contrato-pj':        return <ContratoPjForm />;
@@ -252,6 +255,7 @@ function DocumentosContent() {
             { id: 'vistoria',           icon: '📋', label: 'Vistoria CheckList' },
             { id: 'contrato-solar',     icon: '☀️', label: 'Contrato Solar' },
             { id: 'procuracao',         icon: '📜', label: 'Procuração' },
+            { id: 'recibo',             icon: '🧾', label: 'Recibo' },
             { id: 'proposta-bancaria',  icon: '🏦', label: 'Proposta Bancária' },
             { id: 'prestacao-servico',  icon: '🔧', label: 'Prestação de Serviço' },
             { id: 'contrato-pj',        icon: '🤝', label: 'Contrato Vendedor' },

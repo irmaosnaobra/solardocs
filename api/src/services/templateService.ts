@@ -64,6 +64,8 @@ export function generateFromTemplate(
       return modelo === 1
         ? procuracaoM1(company, client, fields)
         : procuracaoM2(company, client, fields);
+    case 'recibo':
+      return reciboM1(company, client, fields);
     case 'propostaBanco':
       return modelo === 1
         ? propostaBancoM1(company, client, fields)
@@ -741,6 +743,95 @@ ________________________________
 ${client.nome}
 (nome completo do cliente)
 `;
+}
+
+// ════════════════════════════════════════════════════════════
+// RECIBO DE PAGAMENTO — MODELO 1
+// Recibo parcial/total: registra valores recebidos e calcula o
+// saldo em aberto a partir do total do contrato. Suporta N linhas
+// de pagamento (forma + data + valor). Rodapé bancário opcional.
+// ════════════════════════════════════════════════════════════
+interface Pagamento { forma?: string; data?: string; valor?: unknown }
+
+function reciboM1(
+  company: Company,
+  client: Client,
+  f: Record<string, unknown>
+): string {
+  const today = dateBR();
+  const cidade = str(f.foro_cidade || (client as any).cidade || company.cidade || '___');
+  const numero = str(f.numero);
+  const dataContrato = str(f.data_contrato);
+  const descricao = str(f.descricao_servico);
+  const endInst = str(f.endereco_instalacao) !== '___'
+    ? str(f.endereco_instalacao)
+    : enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
+
+  const valorContrato = parseBRL(f.valor_contrato);
+
+  // Pagamentos: array de { forma, data, valor }. Filtra linhas sem valor.
+  const pagamentos: Pagamento[] = Array.isArray(f.pagamentos)
+    ? (f.pagamentos as Pagamento[]).filter(p => parseBRL(p?.valor) > 0)
+    : [];
+  const totalPago = pagamentos.reduce((s, p) => s + parseBRL(p.valor), 0);
+  const saldo = Math.max(0, valorContrato - totalPago);
+  const quitado = saldo <= 0.005 && totalPago > 0;
+
+  // Endereço completo da empresa pra qualificação no corpo
+  const enderecoCliente = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
+
+  // Linhas de pagamento discriminadas
+  const linhasPagamento = pagamentos.length
+    ? pagamentos.map(p => {
+        const forma = str(p.forma);
+        const data = p.data ? ` — ${str(p.data)}` : '';
+        return `   ${forma}${data}: R$ ${fmtBRL(parseBRL(p.valor))}`;
+      }).join('\n')
+    : '   (nenhum pagamento informado)';
+
+  // Frase de quitação conforme parcial x total
+  const fraseQuitacao = quitado
+    ? `Damos plena, geral e irrevogável quitação do valor total de R$ ${fmtBRL(totalPago)} (${extenso(totalPago)}), referente ao contrato acima, nada mais havendo a reclamar a esse título.`
+    : `Damos plena e geral quitação dos valores ora recebidos (R$ ${fmtBRL(totalPago)}), permanecendo em aberto o saldo de R$ ${fmtBRL(saldo)} (${extenso(saldo)}), a ser pago conforme acordado entre as partes. Este recibo não representa quitação total do contrato.`;
+
+  // Rodapé bancário (só aparece se algum dado for informado)
+  const dadosBanco = [
+    str(f.banco) !== '___' ? `Banco ${str(f.banco)}` : '',
+    str(f.agencia) !== '___' ? `Ag. ${str(f.agencia)}` : '',
+    str(f.conta) !== '___' ? `C/C ${str(f.conta)}` : '',
+    str(f.chave_pix) !== '___' ? `Chave Pix: ${str(f.chave_pix)}` : '',
+  ].filter(Boolean).join(' · ');
+  const rodapeBanco = dadosBanco
+    ? `\n────────────────────────────────────────────────────────────\n${company.nome} · CNPJ ${company.cnpj} · ${dadosBanco}\n`
+    : '';
+
+  const valorContratoLinha = valorContrato > 0
+    ? `   Valor total do contrato: R$ ${fmtBRL(valorContrato)}\n`
+    : '';
+
+  return `RECIBO DE PAGAMENTO
+
+Nº ${numero}${dataContrato !== '___' ? `   |   Contrato firmado em ${dataContrato}` : ''}
+
+Recebemos de ${client.nome.toUpperCase()}, CPF/CNPJ nº ${client.cpf_cnpj || '___'}${enderecoCliente !== '___' ? `, residente na ${enderecoCliente}` : ''}, a importância de R$ ${fmtBRL(totalPago)} (${extenso(totalPago)}), paga conforme discriminado abaixo${descricao !== '___' ? `, referente à ${descricao}` : ''}${endInst !== '___' ? `, no local ${endInst}` : ''}, nos termos do contrato de serviços firmado entre as partes.
+
+DEMONSTRATIVO DE PAGAMENTO
+
+${valorContratoLinha}${linhasPagamento}
+
+   Total pago até esta data: R$ ${fmtBRL(totalPago)}${valorContrato > 0 ? `\n   Saldo restante em aberto: R$ ${fmtBRL(saldo)}` : ''}
+
+${fraseQuitacao}
+
+${cidade}, ${today}.
+
+
+
+
+________________________________
+${company.nome}
+CNPJ: ${company.cnpj}
+${rodapeBanco}`;
 }
 
 // ════════════════════════════════════════════════════════════

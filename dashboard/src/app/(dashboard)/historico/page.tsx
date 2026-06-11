@@ -19,6 +19,7 @@ const TIPO_LABEL: Record<string, string> = {
   contratoSolar:    'Contrato Solar',
   proposta:         'Proposta',
   procuracao:       'Procuração',
+  recibo:           'Recibo',
   prestacaoServico: 'Prestação de Serviço',
   contratoPJ:       'Contrato Vendedor',
   propostaBanco:    'Proposta Bancária',

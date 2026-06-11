@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Settings, Zap, FolderOpen, FileText,
   LayoutDashboard, Building2, Users, User, Handshake,
-  Banknote, ScrollText, FileSignature,
+  Banknote, ScrollText, FileSignature, Receipt,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
   Save, GraduationCap, Smartphone,
   Send, MapPin, Palette, LogOut,
@@ -74,6 +74,7 @@ const docsClienteItems: NavItem[] = [
   { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,       label: 'Proposta de Banco',  requireCompany: true },
   { href: '/documentos?tipo=contrato-solar',    icon: FileSignature,  label: 'Contrato Solar',     requireCompany: true },
   { href: '/documentos?tipo=procuracao',        icon: ScrollText,     label: 'Procuração',         requireCompany: true },
+  { href: '/documentos?tipo=recibo',            icon: Receipt,        label: 'Recibo',             requireCompany: true },
 ];
 
 const docsTerceiroItems: NavItem[] = [
