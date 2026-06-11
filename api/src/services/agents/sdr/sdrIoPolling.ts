@@ -509,6 +509,7 @@ export async function processarReativacao(): Promise<{ enviados: number; pulado_
     .select('phone, nome, cidade, instance, reativacao_tentativas')
     .eq('estagio', 'reativacao')
     .eq('instance', 'io')
+    .eq('human_takeover', false) // respeita takeover (inclui contatos de disparo em massa)
     .is('reativacao_enviada_at', null)
     .order('created_at', { ascending: true })
     .limit(limite);

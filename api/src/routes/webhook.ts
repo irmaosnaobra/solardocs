@@ -269,7 +269,10 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
             try {
               const phoneClean = String(phone).replace(/\D/g, '');
               const { data: leadRow } = await supabase
-                .from('sdr_leads').select('nome').eq('phone', phoneClean).maybeSingle();
+                .from('sdr_leads').select('nome, human_takeover').eq('phone', phoneClean).maybeSingle();
+              // Respeita takeover/disparo: se o contato está em silêncio (ex:
+              // recebeu disparo em massa), nem o aviso automático vai.
+              if (leadRow?.human_takeover) return;
               const primeiroNome = leadRow?.nome ? String(leadRow.nome).trim().split(/\s+/)[0] : '';
               const aviso = primeiroNome
                 ? `${primeiroNome}, tive um probleminha pra ouvir seu áudio. Pode digitar pra mim?`

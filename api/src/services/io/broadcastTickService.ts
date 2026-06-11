@@ -249,6 +249,23 @@ export async function runIoBroadcastTick(): Promise<{ processed: number; broadca
         erro,
       });
 
+      // Silencia os agentes (Luma) pra esse contato: disparo é "só o que eu
+      // envio". Marca human_takeover (mesmo flag do takeover manual). Só afeta
+      // quem JÁ é lead — número novo não tem row e o UPDATE é no-op (não
+      // polui sdr_leads com contatos frios). Reversível pelo "liberar" do grupo.
+      if (envioStatus === 'ok') {
+        try {
+          await supabase.from('sdr_leads').update({
+            human_takeover: true,
+            human_takeover_at: new Date().toISOString(),
+            aguardando_resposta: false,
+            updated_at: new Date().toISOString(),
+          }).eq('phone', item.phone).eq('human_takeover', false);
+        } catch (err) {
+          logger.error('broadcast-tick', `falha marcando human_takeover ${item.phone}`, err);
+        }
+      }
+
       processed++;
     }
 
