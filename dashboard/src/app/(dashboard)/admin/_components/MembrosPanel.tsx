@@ -238,7 +238,7 @@ export default function MembrosPanel() {
                           : <span className={styles.emptyDash}>—</span>}
                       </td>
                       <td className={styles.mutedCell}>
-                        {u.documentos_usados}<span style={{ color: 'var(--color-text-muted)' }}>/{u.limite_documentos}</span>
+                        {u.documentos_usados}<span style={{ color: 'var(--color-text-muted)' }}>/{u.plano === 'ilimitado' ? '∞' : u.limite_documentos}</span>
                       </td>
                       <td className={styles.mutedCell}>
                         {whats
