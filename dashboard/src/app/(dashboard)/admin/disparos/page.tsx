@@ -12,7 +12,7 @@ interface LogLine {
   detail: string;
 }
 
-type MediaType = '' | 'image' | 'video';
+type MediaType = '' | 'image' | 'video' | 'audio';
 
 interface MensagemEditor {
   texto: string;
@@ -24,7 +24,7 @@ interface MensagemEditor {
 interface BroadcastRow {
   id: string;
   criado_em: string;
-  mensagens: { slot: number; base: string; media_url?: string | null; media_type?: 'image' | 'video' | null }[];
+  mensagens: { slot: number; base: string; media_url?: string | null; media_type?: 'image' | 'video' | 'audio' | null }[];
   total: number;
   sucesso: number;
   falha: number;
@@ -148,11 +148,12 @@ export default function DisparosPage() {
 
   const mensagens = useMemo(() => {
     // Slot é o índice original (1-based), preservado mesmo se houver gaps na UI.
-    const out: { slot: number; base: string; media_url: string | null; media_type: 'image' | 'video' | null }[] = [];
+    const out: { slot: number; base: string; media_url: string | null; media_type: 'image' | 'video' | 'audio' | null }[] = [];
     msgs.forEach((m, i) => {
       const txt = m.texto.trim();
-      const mt = (m.mediaType === 'image' || m.mediaType === 'video') ? m.mediaType : null;
+      const mt = (m.mediaType === 'image' || m.mediaType === 'video' || m.mediaType === 'audio') ? m.mediaType : null;
       const mu = mt && m.mediaUrl.trim() ? m.mediaUrl.trim() : null;
+      // Audio vai sozinho (sem caption), entao basta a URL; demais precisam de texto OU midia.
       if (!txt && !mu) return;
       out.push({ slot: i + 1, base: txt, media_url: mu, media_type: mt });
     });
@@ -427,6 +428,7 @@ export default function DisparosPage() {
                 <option value="">Só texto</option>
                 <option value="image">+ Imagem</option>
                 <option value="video">+ Vídeo</option>
+                <option value="audio">Áudio (nota de voz)</option>
               </select>
 
               {m.mediaType && (
@@ -452,7 +454,7 @@ export default function DisparosPage() {
                     {m.uploading ? 'Enviando...' : 'Upload'}
                     <input
                       type="file"
-                      accept={m.mediaType === 'image' ? 'image/*' : 'video/*'}
+                      accept={m.mediaType === 'image' ? 'image/*' : m.mediaType === 'audio' ? 'audio/*' : 'video/*'}
                       disabled={rodando || m.uploading}
                       style={{ display: 'none' }}
                       onChange={async e => {
@@ -508,7 +510,9 @@ export default function DisparosPage() {
 
             {m.mediaType && (
               <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
-                A mídia vai com a mensagem como legenda. URL precisa ser pública (Z-API baixa o arquivo). Upload: máx 7 MB.
+                {m.mediaType === 'audio'
+                  ? 'O áudio vai sozinho, como nota de voz gravada só pra aquela pessoa (não leva o texto acima). URL precisa ser pública (Z-API baixa o arquivo). Upload: máx 7 MB.'
+                  : 'A mídia vai com a mensagem como legenda. URL precisa ser pública (Z-API baixa o arquivo). Upload: máx 7 MB.'}
               </p>
             )}
           </div>
@@ -747,7 +751,7 @@ export default function DisparosPage() {
                     <div><strong>Mensagens ({b.mensagens?.length || 0}):</strong></div>
                     <ul style={{ margin: '4px 0 8px 18px', padding: 0 }}>
                       {(b.mensagens || []).map(m => {
-                        const tag = m.media_type === 'image' ? ' [+imagem]' : m.media_type === 'video' ? ' [+vídeo]' : '';
+                        const tag = m.media_type === 'image' ? ' [+imagem]' : m.media_type === 'video' ? ' [+vídeo]' : m.media_type === 'audio' ? ' [+áudio]' : '';
                         return (
                           <li key={m.slot}>
                             R{m.slot}: {m.base}{tag}

@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 
-type MediaType = 'image' | 'video';
+type MediaType = 'image' | 'video' | 'audio';
 interface Mensagem {
   slot: number;
   base: string;
@@ -83,6 +83,11 @@ async function enviarZapiIO(
   } else if (mediaUrl && mediaType === 'video') {
     path = 'send-video';
     body = { phone: cleanPhone, video: mediaUrl, caption: message };
+  } else if (mediaUrl && mediaType === 'audio') {
+    // send-audio nao aceita caption: o audio vai sozinho, como nota de voz
+    // "gravada so pra aquela pessoa" (waveform exibe as ondas sonoras).
+    path = 'send-audio';
+    body = { phone: cleanPhone, audio: mediaUrl, waveform: true };
   }
 
   const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/${path}`, {
@@ -156,7 +161,7 @@ export async function runIoBroadcastTick(): Promise<{ processed: number; broadca
     // 4. Constrói fila de pendentes (mensagens × contatos - enviados)
     const pendentes: Array<{ phone: string; slot: number; base: string; mediaUrl: string | null; mediaType: MediaType | null }> = [];
     for (const m of broadcast.mensagens) {
-      const mt = m.media_type === 'image' || m.media_type === 'video' ? m.media_type : null;
+      const mt = m.media_type === 'image' || m.media_type === 'video' || m.media_type === 'audio' ? m.media_type : null;
       const mu = mt && m.media_url ? m.media_url : null;
       for (const phone of broadcast.contatos) {
         if (!enviadosSet.has(`${phone}|${m.slot}`)) {
@@ -199,9 +204,12 @@ export async function runIoBroadcastTick(): Promise<{ processed: number; broadca
         if (Date.now() - tickStart > TICK_MAX_DURATION_MS) break;
       }
 
-      // Humanização
+      // Humanização — pula audio (vai sozinho, sem texto/caption); registra
+      // placeholder pra auditoria/log ficar limpo.
       let mensagemFinal = item.base;
-      if (broadcast.usou_ia) {
+      if (item.mediaType === 'audio') {
+        mensagemFinal = '[áudio]';
+      } else if (broadcast.usou_ia) {
         try {
           mensagemFinal = await humanizar(item.base, broadcast.contexto_ai);
         } catch (err) {
