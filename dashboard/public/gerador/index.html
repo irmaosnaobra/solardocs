@@ -4968,7 +4968,7 @@ function crmAbrirDetalhe(key) {
     // Marca pela temperatura do card (c.temperatura), que é a que define a
     // coluna — pode ser de um agendamento mais antigo que o agRec.
     crmMarcarTemp(c.temperatura || agRec.temperatura || null);
-    // Temperatura só pode ser DEFINIDA se o cliente já foi orçado em algum momento.
+    // Temperatura é sempre liberada (botões nunca opacos, classificação opcional).
     crmAplicarGateTemp(c, c.temperatura || agRec.temperatura || null);
   }
 
@@ -5007,14 +5007,12 @@ function crmMarcarTemp(temp) {
   if (limpar) limpar.style.display = temp ? '' : 'none';
 }
 
-// Temperatura só faz sentido depois do orçamento enviado. Libera os botões
-// Frio/Morno/Quente só se ALGUM agendamento do cliente já chegou a "Fez
-// orçamento"/"Fechou" — é uma propriedade do HISTÓRICO, não do status atual.
-// (Senão um lead orçado e depois reagendado — status volta a "agendado" —
-// travaria, embora já tenha sido orçado.) O "Remover" continua sempre liberado.
-const CRM_TEMP_STATUS_OK = new Set(['fez_orcamento', 'fechou']);
+// Temperatura é sempre opcional e sempre liberada — o consultor classifica
+// (ou não) quando quiser, em qualquer etapa. (Antes havia um gate que só
+// liberava Frio/Morno/Quente após "Fez orçamento"/"Fechou"; removido a pedido
+// do Thiago porque deixava os botões opacos e parecia campo obrigatório.)
 function crmTempLiberada(c) {
-  return (c.agends || []).some(a => CRM_TEMP_STATUS_OK.has(a.status));
+  return true;
 }
 function crmAplicarGateTemp(c, tempAtual) {
   const liberado = crmTempLiberada(c);
@@ -5059,12 +5057,6 @@ async function crmAdicionarNota() {
 function crmAtualizarTemperatura(novaTemp) {
   if (!crmDetAtual || !crmDetAtual.agRec) return;
   const atual = crmDetAtual.c.temperatura || null;
-  // Defesa: só permite DEFINIR temperatura se o cliente já foi orçado em algum
-  // momento. Remover (clicar na que já está marcada → null) sempre passa.
-  if (atual !== novaTemp && !crmTempLiberada(crmDetAtual.c)) {
-    showToast('🔒 Classifique a temperatura só após enviar o orçamento');
-    return;
-  }
   crmGravarTemperatura(atual === novaTemp ? null : novaTemp);
 }
 
