@@ -7,8 +7,8 @@ import { supabase } from '../utils/supabase';
 import { signToken } from '../utils/jwt';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { sendPasswordResetEmail } from '../utils/mailer';
-import { sendWelcomeWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
-import { sendWelcomeEmail } from '../utils/mailer';
+import { sendWelcomeWhatsApp, sendPurchaseWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
+import { sendWelcomeEmail, sendPurchaseEmail } from '../utils/mailer';
 import { FREE_LIMIT } from '../services/planService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
@@ -204,6 +204,15 @@ export async function register(req: Request, res: Response): Promise<void> {
           .from('users')
           .update({ plano: stripePlan.plano, limite_documentos: stripePlan.limite, billing_status: 'active', ...attribution })
           .eq('id', existing.id);
+        // Boas-vindas de COMPRA também nesta branch — quem já tinha conta FREE e
+        // comprou depois cai aqui e antes não recebia NADA. AWAIT obrigatório em
+        // serverless (ver nota na branch de conta nova).
+        const tasks: Promise<unknown>[] = [];
+        if (body.whatsapp) {
+          tasks.push(sendPurchaseWhatsApp(body.whatsapp, stripePlan.plano, body.nome || null).catch(() => {}));
+        }
+        tasks.push(sendPurchaseEmail({ to: body.email, userId: existing.id, nome: body.nome || null, plano: stripePlan.plano }).catch(() => {}));
+        await Promise.allSettled(tasks);
         res.status(409).json({ error: 'JA_TEM_CONTA_PLANO_ATIVADO', planoAtivado: stripePlan.plano });
         return;
       }
@@ -248,15 +257,24 @@ export async function register(req: Request, res: Response): Promise<void> {
       userAgent: req.headers['user-agent'],
     });
 
-    // Boas-vindas: WhatsApp (Dani 5 bolhas) + email (Resend).
+    // Boas-vindas: WhatsApp (Giovanna) + email (Resend).
+    // Quem COMPROU (stripePlan) recebe o pacote de compra (agradece + confirma
+    // plano + instruções completas); quem é FREE recebe a boas-vindas padrão.
     // AWAIT é obrigatório em serverless — sem ele, a função encerra antes
     // das bolhas terminarem (vimos: só a 1ª chegava). Resposta demora ~20s
     // mas user só vê depois das mensagens enviadas (mais coerente).
     const tasks: Promise<unknown>[] = [];
-    if (body.whatsapp) {
-      tasks.push(sendWelcomeWhatsApp(body.whatsapp, body.email, body.nome || null).catch(() => {}));
+    if (stripePlan) {
+      if (body.whatsapp) {
+        tasks.push(sendPurchaseWhatsApp(body.whatsapp, stripePlan.plano, body.nome || null).catch(() => {}));
+      }
+      tasks.push(sendPurchaseEmail({ to: body.email, userId: user.id, nome: body.nome || null, plano: stripePlan.plano }).catch(() => {}));
+    } else {
+      if (body.whatsapp) {
+        tasks.push(sendWelcomeWhatsApp(body.whatsapp, body.email, body.nome || null).catch(() => {}));
+      }
+      tasks.push(sendWelcomeEmail({ to: body.email, userId: user.id, nome: body.nome || null }).catch(() => {}));
     }
-    tasks.push(sendWelcomeEmail({ to: body.email, userId: user.id, nome: body.nome || null }).catch(() => {}));
     await Promise.allSettled(tasks);
 
     res.status(201).json({ token, user });

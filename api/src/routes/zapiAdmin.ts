@@ -39,7 +39,7 @@ async function zapiPut(creds: IOCreds, path: string, body: any): Promise<any> {
 
 // Teste de envio real pela instancia SOLARDOC.
 // Uso: GET /zapi-admin/solardoc/test-send?key=BOOTSTRAP&phone=55XXYYYYYYYY
-// Manda 'Teste SolarDoc 🌞 — se voce recebeu isso, a Dani ta funcionando.'
+// Manda 'Teste SolarDoc 🌞 — se voce recebeu isso, a Giovanna ta funcionando.'
 router.get('/solardoc/test-send', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
   const phone = String(req.query.phone || '').replace(/\D/g, '');
@@ -52,7 +52,7 @@ router.get('/solardoc/test-send', async (req: Request, res: Response): Promise<v
   const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/send-text`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Client-Token': client },
-    body: JSON.stringify({ phone, message: 'Teste SolarDoc 🌞 — se voce recebeu isso, a Dani ta funcionando.' }),
+    body: JSON.stringify({ phone, message: 'Teste SolarDoc 🌞 — se voce recebeu isso, a Giovanna ta funcionando.' }),
   });
   const txt = await r.text();
   let body: unknown;
@@ -60,7 +60,7 @@ router.get('/solardoc/test-send', async (req: Request, res: Response): Promise<v
   res.json({ http_status: r.status, body });
 });
 
-// Status da instancia SOLARDOC (usada pela Dani — boas-vindas + atendimento)
+// Status da instancia SOLARDOC (usada pela Giovanna — boas-vindas + atendimento)
 router.get('/solardoc/status', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
   const id = process.env.ZAPI_INSTANCE_ID?.trim();

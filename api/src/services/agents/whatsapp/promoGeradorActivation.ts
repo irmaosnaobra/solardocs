@@ -1,10 +1,10 @@
 // ════════════════════════════════════════════════════════════
 // PROMO GERADOR — ATIVAÇÃO AUTOMÁTICA DE 10 CRÉDITOS
 // ════════════════════════════════════════════════════════════
-// Chamada pelo handleIncomingWhatsApp ANTES da Dani responder.
+// Chamada pelo handleIncomingWhatsApp ANTES da Giovanna responder.
 // Se o user recebeu a promo nas últimas 48h e mandou um e-mail
 // válido na mensagem atual, ativa 10 créditos (limite_documentos)
-// e retorna contexto pra Dani confirmar naturalmente.
+// e retorna contexto pra Giovanna confirmar naturalmente.
 //
 // Idempotente: UPDATE atômico com WHERE promo_gerador_creditos_em IS NULL
 // garante que mesmo se o user mandar 3 e-mails, só ativa 1 vez.

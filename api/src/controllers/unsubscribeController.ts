@@ -38,9 +38,11 @@ export async function handleUnsubscribe(req: Request, res: Response): Promise<vo
     return renderPage('Link invalido', 'Esse link de descadastro expirou ou foi alterado. Se quiser parar de receber nossos emails, responda o ultimo email que recebeu que cancelamos manualmente.', false);
   }
 
+  // Opt-out UNIFICADO: descadastrou no email → para TUDO (email + WhatsApp).
+  // Espelha o mesmo comportamento do opt-out via WhatsApp (whatsappAgentService).
   const { error } = await supabase
     .from('users')
-    .update({ email_opt_out: true })
+    .update({ email_opt_out: true, whatsapp_opt_out: true })
     .eq('id', userId);
 
   if (error) {

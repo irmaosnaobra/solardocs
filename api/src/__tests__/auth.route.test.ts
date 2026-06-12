@@ -38,6 +38,7 @@ vi.mock('../utils/metaPixel', () => ({ sendMetaEvent: vi.fn().mockResolvedValue(
 vi.mock('../utils/mailer', () => ({
   sendPasswordResetEmail:       vi.fn().mockResolvedValue(undefined),
   sendWelcomeEmail:             vi.fn().mockResolvedValue(undefined),
+  sendPurchaseEmail:            vi.fn().mockResolvedValue(undefined),
   sendCheckoutCompletionEmail:  vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -47,6 +48,7 @@ const CNPJ_VALIDO = '11222333000181';
 const WHATSAPP_OK = '34999999999';
 vi.mock('../services/agents/whatsapp/whatsappAgentService', () => ({
   sendWelcomeWhatsApp:    vi.fn().mockResolvedValue(undefined),
+  sendPurchaseWhatsApp:   vi.fn().mockResolvedValue(undefined),
   handleIncomingWhatsApp: vi.fn().mockResolvedValue(undefined),
   processMessageQueue:    vi.fn().mockResolvedValue({ processed: 0 }),
 }));

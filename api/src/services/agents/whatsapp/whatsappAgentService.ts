@@ -40,7 +40,7 @@ Se ele perguntar de novo sobre créditos, confirme que já estão liberados
 e mande pra ${APP_URL}. Nada de duplicar.`;
   }
 
-  return `Você é a "Dani" da SolarDoc Pro. Tom de amiga prestativa, não vendedora. Tranquila. Sem pressão.
+  return `Você é a "Giovanna", assistente da SolarDoc Pro. Tom de amiga prestativa, não vendedora. Tranquila. Sem pressão.
 
 ━━ PERFIL DO USUÁRIO ━━
 ${nomeUsuario ? `- Nome: ${nomeUsuario}` : '- Nome: integrador'}
@@ -126,9 +126,33 @@ export async function sendWelcomeWhatsApp(phone: string, _email: string, nome?: 
   const greeting = firstName ? `Oi ${firstName}!` : 'Oi!';
 
   const parts = [
-    `${greeting} 🌞 Sou a Dani, da SolarDoc Pro.`,
+    `${greeting} 🌞 Sou a Giovanna, assistente da SolarDoc Pro.`,
     `Tua conta tá pronta. Te mando o link de acesso pra você salvar:\n\n🔗 solardoc.app/auth`,
     `Quer instalar como app no celular? Em 1 toque vira ícone na tela:\n\n📱 *iPhone*: Safari → *Compartilhar* → *"Adicionar à Tela de Início"*\n\n📱 *Android*: Chrome → *3 pontinhos* → *"Instalar app"*\n\n💻 *PC*: *Ctrl+D* pra favoritar OU ícone *"+"* na barra pra instalar como app\n\nTô aqui se travar em algo. Bom uso! 🚀`,
+  ];
+
+  await sendHuman(cleanPhone, parts);
+
+  const fullText = parts.join(' || ');
+  await saveSession(cleanPhone, nome || null, [{ role: 'assistant', content: fullText }]);
+}
+
+// Boas-vindas para quem COMPROU (PRO/VIP). Agradece a compra, confirma o plano
+// e dá TODAS as instruções pra começar. Suporte 10/10 — Giovanna se coloca como
+// canal direto. Disparado no authController quando stripePlan existe (conta nova
+// OU conta existente que acabou de pagar).
+export async function sendPurchaseWhatsApp(phone: string, plano: string, nome?: string | null): Promise<void> {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const firstName = (nome || '').trim().split(/\s+/)[0];
+  const greeting = firstName ? `Oi ${firstName}!` : 'Oi!';
+  const planoLabel = plano === 'ilimitado' ? 'VIP (documentos ilimitados)' : 'PRO';
+
+  const parts = [
+    `${greeting} 🌞 Sou a Giovanna, assistente da SolarDoc Pro. Sua compra foi confirmada — muito obrigada e seja bem-vindo(a)! 🎉`,
+    `Seu plano *${planoLabel}* já tá ativo. Aqui é seu acesso, salva esse link:\n\n🔗 solardoc.app/auth\n\nÉ só entrar com o e-mail e a senha que você cadastrou.`,
+    `Pra deixar tudo redondo, faça isso já no primeiro acesso:\n\n1️⃣ Cadastre o *CNPJ da sua empresa* em *Empresa*\n2️⃣ Suba sua *logo, cor e fotos* — todo documento e proposta já sai com a sua marca\n3️⃣ Pronto pra gerar contratos, procurações e propostas solares ✅`,
+    `Quer instalar como app no celular? Em 1 toque vira ícone na tela:\n\n📱 *iPhone*: Safari → *Compartilhar* → *"Adicionar à Tela de Início"*\n📱 *Android*: Chrome → *3 pontinhos* → *"Instalar app"*\n💻 *PC*: ícone *"+"* na barra do navegador`,
+    `Qualquer dúvida — de verdade, qualquer uma — me chama *aqui mesmo neste número*. Eu te respondo. Bom uso e boas vendas! 🚀`,
   ];
 
   await sendHuman(cleanPhone, parts);
@@ -254,9 +278,11 @@ export async function handleIncomingWhatsApp(
     whatsapp_replied_at: new Date().toISOString(),
   }).eq('id', user.id);
 
-  // Detecta pedido explicito de parar com mensagens automaticas
+  // Detecta pedido explicito de parar com mensagens automaticas.
+  // Opt-out UNIFICADO: "não quero mais" para TODOS os canais (WhatsApp + email).
+  // Sem isso, a pessoa silenciava o Whats mas continuava recebendo email.
   if (OPT_OUT_PATTERNS.test(text)) {
-    await supabase.from('users').update({ whatsapp_opt_out: true }).eq('id', user.id);
+    await supabase.from('users').update({ whatsapp_opt_out: true, email_opt_out: true }).eq('id', user.id);
     await sendHuman(cleanPhone, [
       'Anotado, parei de mandar mensagem automatica.',
       'Se um dia precisar de algo, e so me chamar aqui.',
@@ -284,7 +310,7 @@ export async function handleIncomingWhatsApp(
 
   // Promo Gerador (27/05/2026): se o user recebeu a promo nas últimas 48h
   // e mandou um e-mail nessa mensagem, ativa 10 créditos automaticamente
-  // e injeta contexto pra Dani confirmar a ativação naturalmente.
+  // e injeta contexto pra Giovanna confirmar a ativação naturalmente.
   const promoResult = await detectAndActivatePromoCredits(user.id, text);
   const promoCtx = promoResult.ativado
     ? { ativadoAgora: true as const, email: promoResult.email }

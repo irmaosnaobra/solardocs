@@ -644,3 +644,81 @@ export async function sendWelcomeEmail(opts: { to: string; userId: string; nome:
     html,
   });
 }
+
+// Email de boas-vindas para quem COMPROU (PRO/VIP). Transacional: confirma a
+// compra, o plano, e dá as instruções de início. NÃO usa o copy de "10 grátis"
+// (esse é do cadastro FREE). Suporte direto = Giovanna / (34) 99816-5040.
+export async function sendPurchaseEmail(opts: { to: string; userId: string; nome: string | null; plano: string }): Promise<void> {
+  const firstName = (opts.nome || '').trim().split(/\s+/)[0] || 'Olá';
+  const planoLabel = opts.plano === 'ilimitado' ? 'VIP' : 'PRO';
+  const planoDesc = opts.plano === 'ilimitado'
+    ? 'Documentos <strong style="color:#fbbf24;">ilimitados</strong> + Gerador de Proposta com a sua marca'
+    : '90 documentos/mês + Gerador de Proposta com a sua marca';
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:32px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro · Plano ${planoLabel}</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:28px;font-weight:900;line-height:1.15;letter-spacing:-0.5px;">Compra confirmada, ${firstName}! 🎉</h1>
+    <p style="margin:8px 0 0;color:#0f172a;font-size:15px;font-weight:600;opacity:0.85;">Obrigada pela confiança. Seu plano ${planoLabel} já tá ativo.</p>
+  </div>
+
+  <div style="padding:32px 36px 24px;text-align:center;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.6;margin:0 0 22px;">Entre com o <strong style="color:#f8fafc;">e-mail e a senha</strong> que você cadastrou:</p>
+    <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:18px 44px;border-radius:12px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(245,158,11,0.4);">
+      🔓 ENTRAR NA PLATAFORMA
+    </a>
+    <p style="margin:14px 0 0;color:#64748b;font-size:13px;">solardoc.app/auth</p>
+  </div>
+
+  <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;"></div></div>
+
+  <div style="padding:28px 36px 8px;">
+    <p style="margin:0 0 4px;color:#fbbf24;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Seu plano ${planoLabel}</p>
+    <h2 style="margin:0 0 18px;color:#f8fafc;font-size:20px;font-weight:800;line-height:1.3;">${planoDesc}</h2>
+    <div style="background:#1e293b;border-left:4px solid #f59e0b;border-radius:0 10px 10px 0;padding:18px 22px;margin:0 0 8px;">
+      <p style="margin:0 0 6px;color:#f59e0b;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">Primeiro passo — faça agora</p>
+      <p style="margin:0 0 6px;color:#e2e8f0;font-size:14.5px;line-height:1.6;">1️⃣ Cadastre o <strong style="color:#f8fafc;">CNPJ da sua empresa</strong> em <strong>Empresa</strong>.</p>
+      <p style="margin:0 0 6px;color:#e2e8f0;font-size:14.5px;line-height:1.6;">2️⃣ Suba sua <strong style="color:#f8fafc;">logo, cor e fotos</strong> — todo documento e proposta sai com a sua marca.</p>
+      <p style="margin:0;color:#e2e8f0;font-size:14.5px;line-height:1.6;">3️⃣ Pronto: gere contratos, procurações e propostas solares personalizadas.</p>
+    </div>
+  </div>
+
+  <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;margin-top:20px;"></div></div>
+
+  <div style="padding:28px 36px 16px;">
+    <p style="margin:0 0 4px;color:#fbbf24;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Instalar como app</p>
+    <h2 style="margin:0 0 22px;color:#f8fafc;font-size:20px;font-weight:800;line-height:1.3;">Em 1 toque vira ícone na tua tela</h2>
+  </div>
+
+  <div style="margin:0 24px 12px;background:#1e293b;border-radius:12px;padding:20px 22px;border-left:4px solid #f59e0b;">
+    <p style="margin:0 0 6px;color:#fbbf24;font-size:14px;font-weight:800;">📱 iPhone / iPad</p>
+    <p style="margin:0;color:#cbd5e1;font-size:13px;line-height:1.7;">Abre o link no <strong style="color:#f8fafc;">Safari</strong> → botão <strong>Compartilhar</strong> (↑) → <strong>"Adicionar à Tela de Início"</strong>.</p>
+  </div>
+
+  <div style="margin:0 24px 12px;background:#1e293b;border-radius:12px;padding:20px 22px;border-left:4px solid #10b981;">
+    <p style="margin:0 0 6px;color:#34d399;font-size:14px;font-weight:800;">📱 Android</p>
+    <p style="margin:0;color:#cbd5e1;font-size:13px;line-height:1.7;">Abre no <strong style="color:#f8fafc;">Chrome</strong> → <strong>3 pontinhos</strong> → <strong>"Instalar app"</strong>.</p>
+  </div>
+
+  <div style="margin:0 24px 8px;background:#1e293b;border-radius:12px;padding:20px 22px;border-left:4px solid #0ea5e9;">
+    <p style="margin:0 0 6px;color:#38bdf8;font-size:14px;font-weight:800;">💻 Computador</p>
+    <p style="margin:0;color:#cbd5e1;font-size:13px;line-height:1.7;">No Chrome ou Edge, clica no ícone <strong>"+"</strong> na barra de endereço (ou Menu → "Instalar SolarDoc Pro").</p>
+  </div>
+
+  <div style="padding:24px 36px 28px;text-align:center;">
+    <p style="margin:0 0 6px;color:#94a3b8;font-size:14px;">Qualquer dúvida, fala com a Giovanna — respondo rápido:</p>
+    <p style="margin:0;color:#f8fafc;font-size:15px;font-weight:700;">📞 (34) 99816-5040</p>
+    <p style="margin:18px 0 0;color:#475569;font-size:13px;">Boas vendas! 🚀<br/><span style="color:#64748b;">Giovanna · Equipe SolarDoc Pro</span></p>
+  </div>
+
+</div>
+`;
+
+  await sendMarketingEmail({
+    to: opts.to,
+    userId: opts.userId,
+    subject: `🎉 Compra confirmada, ${firstName} — seu plano ${planoLabel} no SolarDoc Pro já tá ativo`,
+    html,
+  });
+}
