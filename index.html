@@ -48,6 +48,16 @@ src="https://www.facebook.com/tr?id=824905216831401&ev=PageView&noscript=1"
 alt=""/></noscript>
 <!-- End Meta Pixel Code -->
 
+<!-- Utmify UTMs -->
+<script
+  src="https://cdn.utmify.com.br/scripts/utms/latest.js"
+  data-utmify-prevent-xcod-sck
+  data-utmify-prevent-subids
+  async
+  defer
+></script>
+<!-- End Utmify UTMs -->
+
 <style>
   :root {
     --bg: #fafaf7;
@@ -2112,8 +2122,8 @@ alt=""/></noscript>
       <div class="hero-vsl-eyebrow">Veja em 1 minuto</div>
       <div class="hero-vsl-frame">
         <iframe id="vsl-player"
-          src="https://player.vimeo.com/video/1192117573?background=1&autoplay=1&muted=1&loop=1&controls=0&playsinline=1&dnt=1"
-          allow="autoplay; fullscreen; picture-in-picture"
+          src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=b16175a4-f30e-401f-acf6-4aa78891477e&autoplay=true&muted=true&controls=progress&saveProgress=false&hideControlsOnStart=true&playsinline=true"
+          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
           referrerpolicy="strict-origin-when-cross-origin"
           title="SolarDoc"></iframe>
         <div class="hero-vsl-overlay" onclick="vslTogglePlay()"></div>
@@ -2867,68 +2877,67 @@ alt=""/></noscript>
   }
 </script>
 
-<!-- Hero VSL — Vimeo player -->
-<script src="https://player.vimeo.com/api/player.js"></script>
+<!-- Hero VSL — Panda Video player -->
+<script async src="https://player.pandavideo.com.br/api.v2.js"></script>
 <script>
-  var vslPlayer, vslSpeeds = [1, 1.5, 2], vslSpeedIdx = 0, vslDur = 0;
+  var vslPlayer, vslSpeeds = [1, 1.5, 2], vslSpeedIdx = 0, vslDur = 0, vslMuted = true;
 
   function vslHideUnmute() {
     var b = document.getElementById('vsl-unmute');
     if (b) b.style.display = 'none';
   }
 
-  (function vslInit() {
-    var iframe = document.getElementById('vsl-player');
-    if (!iframe || typeof Vimeo === 'undefined') return;
-    vslPlayer = new Vimeo.Player(iframe);
-    vslPlayer.ready().then(function () {
-      vslPlayer.getDuration().then(function (d) { vslDur = d || 0; });
-      setInterval(vslUpdateProgress, 500);
-      vslPlayer.setVolume(0.6);
-      vslPlayer.setMuted(false).then(function () {
-        return vslPlayer.play();
-      }).then(vslHideUnmute).catch(function () {
-        vslPlayer.setMuted(true);
-        vslPlayer.play().catch(function () {});
-      });
+  window.pandascripttag = window.pandascripttag || [];
+  window.pandascripttag.push(function () {
+    if (!document.getElementById('vsl-player')) return;
+    vslPlayer = new PandaPlayer('vsl-player', {
+      onReady: function () {
+        try { vslDur = vslPlayer.getDuration() || 0; } catch (e) {}
+        // Loop manual: panda_ended não dispara com autoplay
+        vslPlayer.onEvent(function (ev) {
+          if (!ev) return;
+          if (ev.message === 'panda_timeupdate') {
+            var cur = (typeof ev.currentTime === 'number') ? ev.currentTime : 0;
+            if (!vslDur) { try { vslDur = vslPlayer.getDuration() || 0; } catch (e) {} }
+            var fill = document.getElementById('vsl-progress-fill');
+            if (fill && vslDur) fill.style.width = (cur / vslDur * 100) + '%';
+            if (vslDur && cur >= vslDur - 0.4) {
+              try { vslPlayer.setCurrentTime(0); vslPlayer.play(); } catch (e) {}
+            }
+          } else if (ev.message === 'panda_ended') {
+            try { vslPlayer.setCurrentTime(0); vslPlayer.play(); } catch (e) {}
+          }
+        });
+      }
     });
-  })();
+  });
 
   function vslUnmute() {
     if (!vslPlayer) return;
-    vslPlayer.setMuted(false).then(function () {
-      vslPlayer.setVolume(0.6);
-      vslPlayer.play().catch(function () {});
-    });
+    try {
+      vslPlayer.setVolume(0.6); // volume > 0 desmuta no Panda
+      vslPlayer.play();
+      vslMuted = false;
+    } catch (e) {}
     vslHideUnmute();
   }
 
   function vslTogglePlay() {
     if (!vslPlayer) return;
-    vslPlayer.getPaused().then(function (p) {
-      p ? vslPlayer.play() : vslPlayer.pause();
-    });
-  }
-
-  function vslUpdateProgress() {
-    if (!vslPlayer || !vslDur) return;
-    vslPlayer.getCurrentTime().then(function (cur) {
-      var fill = document.getElementById('vsl-progress-fill');
-      if (fill) fill.style.width = (cur / vslDur * 100) + '%';
-    }).catch(function () {});
+    try { vslPlayer.togglePlay(); } catch (e) {}
   }
 
   function vslSeek(e) {
     if (!vslPlayer || !vslDur) return;
     var rect = e.currentTarget.getBoundingClientRect();
     var pct = (e.clientX - rect.left) / rect.width;
-    vslPlayer.setCurrentTime(Math.max(0, Math.min(vslDur, pct * vslDur)));
+    try { vslPlayer.setCurrentTime(Math.max(0, Math.min(vslDur, pct * vslDur))); } catch (err) {}
   }
 
   function vslCycleSpeed() {
     vslSpeedIdx = (vslSpeedIdx + 1) % vslSpeeds.length;
     var s = vslSpeeds[vslSpeedIdx];
-    if (vslPlayer) vslPlayer.setPlaybackRate(s).catch(function () {});
+    if (vslPlayer) { try { vslPlayer.setSpeed(s); } catch (e) {} }
     var b = document.getElementById('vsl-speed');
     if (b) b.textContent = s + '×';
   }
