@@ -128,7 +128,7 @@ export default function MinhaContaPage() {
             <div className={styles.planUsage}>
               {isFree
                 ? `${docsUsados} de ${limite} documentos usados este mês`
-                : user.plano === 'ilimitado'
+                : user.plano === 'ilimitado' || limite >= 999999
                   ? 'Documentos ilimitados'
                   : `${docsUsados} de ${limite} documentos este mês`}
             </div>

@@ -8,7 +8,7 @@ interface PlanBadgeProps {
 }
 
 export default function PlanBadge({ plano, documentosUsados, limiteDocumentos }: PlanBadgeProps) {
-  const isIlimitado = plano === 'ilimitado';
+  const isIlimitado = plano === 'ilimitado' || limiteDocumentos >= 999999;
   const percentage = isIlimitado ? 0 : Math.min((documentosUsados / limiteDocumentos) * 100, 100);
 
   return (

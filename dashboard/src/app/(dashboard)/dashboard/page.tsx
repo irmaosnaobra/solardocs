@@ -166,7 +166,7 @@ export default function DashboardPage() {
   }
   if (!user) return null;
 
-  const isIlimitado  = user.plano === 'ilimitado';
+  const isIlimitado  = user.plano === 'ilimitado' || user.limite_documentos >= 999999;
   const docPercent   = isIlimitado ? 0 : Math.min((user.documentos_usados / user.limite_documentos) * 100, 100);
   const docsRestantes = isIlimitado ? null : user.limite_documentos - user.documentos_usados;
   const monthlyData  = buildMonthlyData(docs);
