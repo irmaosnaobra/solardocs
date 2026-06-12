@@ -214,7 +214,7 @@ export default function Landing() {
         >
           <iframe
             id="panda-b16175a4-f30e-401f-acf6-4aa78891477e"
-            src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=b16175a4-f30e-401f-acf6-4aa78891477e"
+            src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=b16175a4-f30e-401f-acf6-4aa78891477e&startTime=270"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
             allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
             allowFullScreen
