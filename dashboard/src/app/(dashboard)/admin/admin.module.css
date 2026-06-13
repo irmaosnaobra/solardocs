@@ -30,7 +30,7 @@
 .table td { padding: 11px 16px; border-bottom: 1px solid var(--color-border); color: var(--color-text); }
 .table tbody tr:last-child td { border-bottom: none; }
 .table tbody tr:hover td { background: var(--color-surface-2); }
-.rowNew td  { background: rgba(34,197,94,0.04); }
+.rowNew td  { background: var(--color-surface-2); }
 .rowClickable { cursor: pointer; }
 .mutedCell  { color: var(--color-text-muted) !important; }
 .empty      { color: var(--color-text-muted); font-style: italic; text-align: center; padding: 32px !important; }
@@ -43,16 +43,16 @@
 
 /* ─── tags ───────────────────────────── */
 .planTag    { display: inline-block; padding: 2px 8px; border-radius: 4px; border: 1px solid; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
-.sourceTag  { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(96,165,250,0.12); color: var(--ink-blue); border: 1px solid rgba(96,165,250,0.25); white-space: nowrap; }
-.scrollTag  { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; background: rgba(34,197,94,0.12); color: var(--ink-green); border: 1px solid rgba(34,197,94,0.25); }
+.sourceTag  { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: var(--color-surface-2); color: var(--color-text-muted); border: 1px solid var(--color-border); white-space: nowrap; }
+.scrollTag  { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; background: var(--color-surface-2); color: var(--color-text-muted); border: 1px solid var(--color-border); }
 .emptyDash  { color: var(--color-text-muted); font-style: italic; }
-.ctaClickTag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(167,139,250,0.12); color: var(--ink-purple); border: 1px solid rgba(167,139,250,0.25); }
+.ctaClickTag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: var(--color-surface-2); color: var(--color-text-muted); border: 1px solid var(--color-border); }
 .metricBadge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; white-space: nowrap; }
 
 /* ─── pills seções ────────────────────── */
 .sectionPills { display: flex; flex-wrap: wrap; gap: 4px; }
 .sectionPill  { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(148,163,184,0.1); color: var(--color-text-muted); border: 1px solid rgba(148,163,184,0.2); }
-.sectionPillHighlight { background: rgba(251,146,60,0.12); color: var(--ink-orange); border-color: rgba(251,146,60,0.3); }
+.sectionPillHighlight { background: var(--color-accent-soft); color: var(--color-primary); border-color: var(--color-accent-border); }
 
 /* ─── linha expandida ─────────────────── */
 .expandedRow td { background: rgba(30,41,59,0.6) !important; border-bottom: 1px solid var(--color-border) !important; padding: 0 !important; }
@@ -61,7 +61,7 @@
 .expandedLabel { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-muted); margin-bottom: 2px; }
 .expandedVal   { color: var(--color-text); font-size: 12px; }
 .ctaClickList  { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.ctaClickBadge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; background: rgba(167,139,250,0.12); color: var(--ink-purple); border: 1px solid rgba(167,139,250,0.25); }
+.ctaClickBadge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; background: var(--color-surface-2); color: var(--color-text-muted); border: 1px solid var(--color-border); }
 
 /* ─── funil horizontal (barras) ──────── */
 .funnelCard, .sourcesCard { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
@@ -70,11 +70,11 @@
 .funnelStep  { display: grid; grid-template-columns: 28px 1fr 140px; align-items: center; gap: 12px; }
 .funnelIcon  { font-size: 18px; text-align: center; }
 .funnelBar   { height: 10px; background: rgba(51,65,85,0.5); border-radius: 99px; overflow: hidden; }
-.funnelFill  { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a); border-radius: 99px; transition: width 0.5s ease; }
+.funnelFill  { height: 100%; background: var(--color-primary); border-radius: 99px; transition: width 0.5s ease; }
 .funnelMeta  { display: flex; align-items: center; gap: 10px; }
 .funnelValue { font-size: 15px; font-weight: 700; color: var(--color-text); min-width: 36px; }
-.funnelPct   { font-size: 12px; font-weight: 600; color: var(--ink-green); min-width: 42px; }
-.funnelPctInline { font-size: 11px; color: var(--ink-green); margin-left: 4px; }
+.funnelPct   { font-size: 12px; font-weight: 600; color: var(--color-text-muted); min-width: 42px; }
+.funnelPctInline { font-size: 11px; color: var(--color-text-muted); margin-left: 4px; }
 .funnelLabel { font-size: 12px; color: var(--color-text-muted); }
 
 /* ─── top CTAs ──────────────────────── */
@@ -82,8 +82,8 @@
 .ctaItem { display: grid; grid-template-columns: 200px 1fr 48px; align-items: center; gap: 12px; }
 .ctaLabel { font-size: 12px; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ctaBarWrap { height: 8px; background: rgba(51,65,85,0.5); border-radius: 99px; overflow: hidden; }
-.ctaBar     { height: 100%; background: linear-gradient(90deg,#a78bfa,#7c3aed); border-radius: 99px; transition: width 0.4s ease; }
-.ctaCount   { font-size: 12px; font-weight: 700; color: var(--ink-purple); text-align: right; }
+.ctaBar     { height: 100%; background: var(--color-primary); border-radius: 99px; transition: width 0.4s ease; }
+.ctaCount   { font-size: 12px; font-weight: 700; color: var(--color-text-muted); text-align: right; }
 
 /* ─── divisor / label seção ─────────── */
 .sectionDivider { height: 1px; background: var(--color-border); margin: 32px 0; }
@@ -118,7 +118,7 @@
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: #1877f2;
+  background: var(--color-primary);
   color: white;
   font-size: 16px;
   font-weight: 900;
@@ -128,8 +128,8 @@
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(96,165,250,0.3);
-  border-top-color: var(--ink-blue);
+  border: 2px solid var(--color-border-strong);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -149,9 +149,9 @@
   transition: all 0.15s;
 }
 .periodActive {
-  background: rgba(96,165,250,0.12);
-  color: var(--ink-blue);
-  border-color: rgba(96,165,250,0.3);
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
+  border-color: var(--color-accent-border);
 }
 .periodBtn:hover { color: var(--color-text); }
 
@@ -168,7 +168,7 @@
   color: var(--color-text-muted);
 }
 .setupCallout strong { color: var(--color-text); display: block; margin-bottom: 4px; }
-.setupCallout code   { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; font-size: 12px; color: var(--ink-orange); }
+.setupCallout code   { background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; color: var(--color-primary); }
 
 /* ─── funil SVG (estilo UTMify) ────────── */
 .svgFunnelWrap { padding: 8px 0 4px; }
@@ -222,9 +222,9 @@
   padding: 1px 6px;
   border-radius: 4px;
 }
-.convHigh { background: rgba(34,197,94,0.12);  color: var(--ink-green); }
-.convMid  { background: rgba(251,146,60,0.12);  color: var(--ink-orange); }
-.convLow  { background: rgba(239,68,68,0.12);   color: var(--ink-red); }
+.convHigh { background: var(--color-surface-2);  color: var(--color-text-muted); }
+.convMid  { background: var(--color-surface-2);  color: var(--color-text-muted); }
+.convLow  { background: var(--color-surface-2);  color: var(--color-text-muted); }
 
 /* ─── grid métricas financeiras ────────── */
 .metaFinGrid {

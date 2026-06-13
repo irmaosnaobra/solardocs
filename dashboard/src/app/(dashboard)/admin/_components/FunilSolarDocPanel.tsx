@@ -30,15 +30,16 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: 'maximo', label: 'Máximo' },
 ];
 
-// Cores por etapa — degradê quente da VSL → laranja da plataforma
+// Monocromático: fundo + label neutros; laranja de marca fica reservado só pro
+// "% do topo" (1 acento esparso por card, não os 7 labels inteiros).
 const STEP_COLORS: Record<FunnelStep['key'], { bg: string; border: string; accent: string }> = {
-  vsl:        { bg: 'rgba(139, 92, 246, 0.10)', border: 'rgba(139, 92, 246, 0.30)', accent: 'var(--ink-purple)' },
-  landing:    { bg: 'rgba(59, 130, 246, 0.10)', border: 'rgba(59, 130, 246, 0.30)', accent: 'var(--ink-blue)' },
-  cadastro:   { bg: 'rgba(16, 185, 129, 0.10)', border: 'rgba(16, 185, 129, 0.30)', accent: 'var(--ink-green)' },
-  stripe:     { bg: 'rgba(245, 158, 11, 0.10)', border: 'rgba(245, 158, 11, 0.30)', accent: 'var(--ink-amber)' },
-  whatsapp:   { bg: 'rgba(37, 211, 102, 0.10)', border: 'rgba(37, 211, 102, 0.30)', accent: '#25D366' },
-  empresa:    { bg: 'rgba(20, 184, 166, 0.10)', border: 'rgba(20, 184, 166, 0.30)', accent: 'var(--ink-teal)' },
-  plataforma: { bg: 'rgba(239, 68, 68, 0.10)',  border: 'rgba(239, 68, 68, 0.30)',  accent: 'var(--ink-red)' },
+  vsl:        { bg: 'var(--color-surface-2)', border: 'var(--color-border)', accent: 'var(--color-text)' },
+  landing:    { bg: 'var(--color-surface-2)', border: 'var(--color-border)', accent: 'var(--color-text)' },
+  cadastro:   { bg: 'var(--color-surface-2)', border: 'var(--color-border)', accent: 'var(--color-text)' },
+  stripe:     { bg: 'var(--color-surface-2)', border: 'var(--color-border)', accent: 'var(--color-text)' },
+  whatsapp:   { bg: 'var(--color-surface-2)', border: 'var(--color-border)', accent: 'var(--color-text)' },
+  empresa:    { bg: 'var(--color-surface-2)', border: 'var(--color-border)', accent: 'var(--color-text)' },
+  plataforma: { bg: 'var(--color-surface-2)', border: 'var(--color-border)', accent: 'var(--color-text)' },
 };
 
 const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
@@ -129,7 +130,7 @@ export default function FunilSolarDocPanel() {
       )}
 
       {error && (
-        <div style={{ padding: 24, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, color: 'var(--ink-red)' }}>
+        <div style={{ padding: 24, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, color: 'var(--color-text)' }}>
           {error}
         </div>
       )}
@@ -159,7 +160,7 @@ export default function FunilSolarDocPanel() {
                       </div>
                       <div style={{ fontSize: 22, color: 'var(--color-text-muted)' }}>→</div>
                       {dropoff && Number(dropoff) > 0 && (
-                        <div style={{ fontSize: 10, color: 'var(--ink-red)', fontWeight: 700 }}>
+                        <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 700 }}>
                           −{dropoff}%
                         </div>
                       )}
@@ -220,7 +221,7 @@ export default function FunilSolarDocPanel() {
                       </div>
                     )}
                     {totalPct !== null && (
-                      <div style={{ marginTop: 'auto', paddingTop: 12, fontSize: 11, color: colors.accent, fontWeight: 700, letterSpacing: '0.04em' }}>
+                      <div style={{ marginTop: 'auto', paddingTop: 12, fontSize: 11, color: 'var(--color-primary)', fontWeight: 700, letterSpacing: '0.04em' }}>
                         {totalPct} do topo
                       </div>
                     )}
@@ -281,8 +282,8 @@ export default function FunilSolarDocPanel() {
               <>
                 <Group title="Checkout" unit="por assinatura (Stripe)" items={stripeRates} />
                 <Group title="Ativação na plataforma" unit="por pessoa" items={pessoas} />
-                <div style={{ padding: '12px 16px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                  ⚠️ <b style={{ color: 'var(--ink-amber)' }}>Por que não tem "LP → Pagante" aqui:</b> tráfego é contado
+                <div style={{ padding: '12px 16px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                  <b style={{ color: 'var(--color-text)' }}>Por que não tem "LP → Pagante" aqui:</b> tráfego é contado
                   por sessão e pagamento por assinatura — são populações diferentes, e hoje não existe atribuição
                   UTM→usuário no banco pra ligar uma na outra. Mostrar essa taxa daria um número falso (poderia
                   passar de 100%). Quando a atribuição estiver ligada, essa ponte vira real e entra aqui.
@@ -299,11 +300,11 @@ export default function FunilSolarDocPanel() {
             <code style={{ padding: '0 4px' }}>solardoc.app</code> (exclui /io, /gerador, /apresentacao).
             A VSL faz parte da própria LP, por isso não aparece como etapa separada.
             <br /><br />
-            <strong style={{ color: 'var(--ink-amber)' }}>Fluxo novo:</strong> o cliente passa o cartão no Stripe
+            <strong style={{ color: 'var(--color-text)' }}>Fluxo novo:</strong> o cliente passa o cartão no Stripe
             (trial 7 dias) <b>antes</b> de criar a conta — só cadastra quem pagou. Depois preenche o CNPJ em
             <code style={{ padding: '0 4px' }}>/empresa</code> dentro da plataforma e gera os documentos.
             <br /><br />
-            <strong style={{ color: '#25D366' }}>WhatsApp (forward-only):</strong> conta quem teve a boas-vindas
+            <strong style={{ color: 'var(--color-text)' }}>WhatsApp (forward-only):</strong> conta quem teve a boas-vindas
             da Giovanna <b>disparada</b> no cadastro (tentativa de envio, não entrega confirmada — a Z-API pode
             falhar). Só registra a partir de jun/2026; cadastros anteriores aparecem como 0 nessa etapa.
           </div>

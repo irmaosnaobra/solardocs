@@ -26,7 +26,7 @@ interface UsersResponse { users: MemberRow[]; documents: Array<{ created_at: str
 
 /* ─── helpers ───────────────────────────────────────────────────── */
 const PLANO_LABEL: Record<string, string> = { free: 'FREE', pro: 'PRO', ilimitado: 'VIP' };
-const PLANO_COLOR: Record<string, string> = { free: '#64748b', pro: 'var(--ink-amber)', ilimitado: 'var(--ink-orange)' };
+const PLANO_COLOR: Record<string, string> = { free: '#64748b', pro: '#64748b', ilimitado: '#64748b' };
 
 // Tradução amigável do status do Stripe. Trial e ativo = receita viva; o resto sinaliza atrito.
 const STRIPE_LABEL: Record<string, string> = {
@@ -40,21 +40,21 @@ const STRIPE_LABEL: Record<string, string> = {
   paused:             'Pausado',
 };
 const STRIPE_COLOR: Record<string, string> = {
-  trialing:           'var(--ink-blue)',
-  active:             'var(--ink-green)',
-  past_due:           '#f59e0b',
-  canceled:           'var(--ink-red)',
-  unpaid:             'var(--ink-red)',
-  incomplete:         '#f59e0b',
+  trialing:           'var(--color-text)',
+  active:             'var(--color-text)',
+  past_due:           'var(--color-text-muted)',
+  canceled:           'var(--color-text-muted)',
+  unpaid:             'var(--color-text-muted)',
+  incomplete:         'var(--color-text-muted)',
   incomplete_expired: 'var(--color-text-muted)',
   paused:             'var(--color-text-muted)',
 };
 
 function relDateShort(d: string) {
   const diff = daysDiffBR(d);
-  if (diff === 0) return { label: 'HOJE',  color: 'var(--ink-green)' };
-  if (diff === 1) return { label: 'ONTEM', color: 'var(--ink-blue)' };
-  if (diff <= 7)  return { label: `${diff} DIAS`, color: '#f59e0b' };
+  if (diff === 0) return { label: 'HOJE',  color: 'var(--color-text)' };
+  if (diff === 1) return { label: 'ONTEM', color: 'var(--color-text)' };
+  if (diff <= 7)  return { label: `${diff} DIAS`, color: 'var(--color-text-muted)' };
   return { label: fmtDateBR(d), color: 'var(--color-text-muted)' };
 }
 function fmtWhats(w?: string | null) {
@@ -135,7 +135,7 @@ export default function MembrosPanel() {
         <input
           value={q}
           onChange={e => setQ(e.target.value)}
-          placeholder="🔍 Buscar por email, empresa, CNPJ ou WhatsApp…"
+          placeholder="Buscar por email, empresa, CNPJ ou WhatsApp…"
           style={{
             flex: '1 1 280px', minWidth: 220, padding: '8px 12px', fontSize: 13,
             borderRadius: 8, border: '1px solid var(--color-border)',
@@ -143,7 +143,7 @@ export default function MembrosPanel() {
           }}
         />
         <button className="btn-secondary" disabled={loading} onClick={load}>
-          {loading ? 'Atualizando…' : '🔄 Atualizar'}
+          {loading ? 'Atualizando…' : 'Atualizar'}
         </button>
         <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
           {rows.length} de {all.length} membros
@@ -151,7 +151,7 @@ export default function MembrosPanel() {
       </div>
 
       {error && (
-        <div style={{ padding: 24, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, color: 'var(--ink-red)', marginBottom: 16 }}>
+        <div style={{ padding: 24, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, color: 'var(--color-text)', marginBottom: 16 }}>
           {error}
         </div>
       )}
@@ -160,7 +160,6 @@ export default function MembrosPanel() {
         <div className={styles.loading}>Carregando membros…</div>
       ) : all.length === 0 ? (
         <div className={styles.loading} style={{ textAlign: 'center', padding: '48px 24px' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>👥</div>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Nenhum membro cadastrado ainda</div>
         </div>
       ) : (
@@ -173,20 +172,20 @@ export default function MembrosPanel() {
             </div>
             <div className={styles.card}>
               <div className={styles.cardLabel}>PRO / VIP</div>
-              <div className={styles.cardValue} style={{ color: 'var(--ink-amber)' }}>{kpis.pro} <span style={{ fontSize: 14, color: 'var(--ink-orange)' }}>/ {kpis.vip}</span></div>
+              <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{kpis.pro} <span style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>/ {kpis.vip}</span></div>
             </div>
             <div className={styles.card}>
               <div className={styles.cardLabel}>FREE</div>
-              <div className={styles.cardValue} style={{ color: 'var(--ink-slate)' }}>{kpis.free}</div>
+              <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{kpis.free}</div>
             </div>
             <div className={styles.card}>
               <div className={styles.cardLabel}>Stripe: trial · ativo · churn</div>
               <div className={styles.cardValue} style={{ fontSize: 20 }}>
-                <span style={{ color: 'var(--ink-blue)' }}>{kpis.trial}</span>
+                <span style={{ color: 'var(--color-text)' }}>{kpis.trial}</span>
                 <span style={{ color: 'var(--color-text-muted)' }}> · </span>
-                <span style={{ color: 'var(--ink-green)' }}>{kpis.ativos}</span>
+                <span style={{ color: 'var(--color-text)' }}>{kpis.ativos}</span>
                 <span style={{ color: 'var(--color-text-muted)' }}> · </span>
-                <span style={{ color: 'var(--ink-red)' }}>{kpis.churn}</span>
+                <span style={{ color: 'var(--color-text-muted)' }}>{kpis.churn}</span>
               </div>
             </div>
           </div>
@@ -214,7 +213,7 @@ export default function MembrosPanel() {
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                           <span style={{ fontWeight: 600 }}>
-                            {u.email}{u.is_admin && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: 'var(--ink-purple)' }}>⚙️ ADMIN</span>}
+                            {u.email}{u.is_admin && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: 'var(--color-text-muted)' }}>ADMIN</span>}
                           </span>
                         </div>
                       </td>
@@ -226,7 +225,7 @@ export default function MembrosPanel() {
                       <td>
                         <span className={styles.planTag} style={{
                           background: (PLANO_COLOR[u.plano] || '#64748b') + '22',
-                          color: PLANO_COLOR[u.plano] || 'var(--ink-slate)',
+                          color: PLANO_COLOR[u.plano] || '#64748b',
                           borderColor: (PLANO_COLOR[u.plano] || '#64748b') + '55',
                         }}>
                           {PLANO_LABEL[u.plano] ?? u.plano}
@@ -242,7 +241,7 @@ export default function MembrosPanel() {
                       </td>
                       <td className={styles.mutedCell}>
                         {whats
-                          ? <a href={`https://wa.me/55${whats.replace(/^55/, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink-green)' }}>{whats}</a>
+                          ? <a href={`https://wa.me/55${whats.replace(/^55/, '')}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>{whats}</a>
                           : <span className={styles.emptyDash}>—</span>}
                       </td>
                       <td>

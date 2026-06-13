@@ -6,7 +6,7 @@ import api from '@/services/api';
 type Period = 'hoje' | 'ontem' | '3dias' | '7dias' | 'mes' | 'maximo';
 
 interface FunnelStep {
-  key: 'visita' | 'checkout' | 'venda';
+  key: 'visita' | 'clique' | 'checkout' | 'venda';
   label: string;
   count: number;
   sub?: string;
@@ -14,6 +14,7 @@ interface FunnelStep {
 interface FunnelStats {
   clientes: number;
   vendas: number;
+  abandonos: number;
   liquido: number;
   ticketVenda: number;
   ticketCliente: number;
@@ -48,17 +49,20 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: 'maximo', label: 'Máximo' },
 ];
 
-// Degradê azul → amarelo (paleta da landing LimpaPro).
+// Monocromático: fundo + label neutros; laranja de marca fica reservado só pro
+// "% do topo" (1 acento esparso por card, não o label inteiro).
 const STEP_COLORS: Record<FunnelStep['key'], { bg: string; border: string; accent: string }> = {
-  visita:   { bg: 'rgba(59, 130, 246, 0.10)',  border: 'rgba(59, 130, 246, 0.30)',  accent: 'var(--ink-blue)' },
-  checkout: { bg: 'rgba(245, 158, 11, 0.10)',  border: 'rgba(245, 158, 11, 0.30)',  accent: 'var(--ink-amber)' },
-  venda:    { bg: 'rgba(16, 185, 129, 0.10)',  border: 'rgba(16, 185, 129, 0.30)',  accent: 'var(--ink-green)' },
+  visita:   { bg: 'var(--color-surface-2)',  border: 'var(--color-border)',  accent: 'var(--color-text)' },
+  clique:   { bg: 'var(--color-surface-2)',  border: 'var(--color-border)',  accent: 'var(--color-text)' },
+  checkout: { bg: 'var(--color-surface-2)',  border: 'var(--color-border)',  accent: 'var(--color-text)' },
+  venda:    { bg: 'var(--color-surface-2)',  border: 'var(--color-border)',  accent: 'var(--color-text)' },
 };
 
 const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
   visita:   'Visitaram limpapro.solardoc.app (Pixel + tracking próprio)',
-  checkout: 'Clicaram no botão de compra (vão pro checkout)',
-  venda:    'Pedidos pagos na Kiwify (cada produto/order bump conta 1)',
+  clique:   'Clicaram no botão de compra na landing',
+  checkout: 'Preencheram o checkout da Kiwify (pagaram ou abandonaram)',
+  venda:    'Compradores únicos — pessoas que concluíram a compra',
 };
 
 function pct(num: number, den: number): string {
@@ -95,7 +99,7 @@ export default function FunilLimpaproPanel() {
             Funil LimpaPro
           </h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '6px 0 0' }}>
-            Curso de limpeza de placas (Kiwify) · Visita → Clique no checkout → Compra · visitas únicas por sessão, pedidos pagos via webhook
+            Curso de limpeza de placas (Kiwify) · Visitou → Clicou → Entrou no checkout → Comprou · pessoas únicas em cada etapa
           </p>
         </div>
 
@@ -130,7 +134,7 @@ export default function FunilLimpaproPanel() {
       )}
 
       {error && (
-        <div style={{ padding: 24, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, color: 'var(--ink-red)' }}>
+        <div style={{ padding: 24, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, color: 'var(--color-text)' }}>
           {error}
         </div>
       )}
@@ -159,7 +163,7 @@ export default function FunilLimpaproPanel() {
                       </div>
                       <div style={{ fontSize: 22, color: 'var(--color-text-muted)' }}>→</div>
                       {dropoff && Number(dropoff) > 0 && (
-                        <div style={{ fontSize: 10, color: 'var(--ink-red)', fontWeight: 700 }}>
+                        <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 700 }}>
                           −{dropoff}%
                         </div>
                       )}
@@ -193,7 +197,7 @@ export default function FunilLimpaproPanel() {
                       {STEP_DESCRIPTIONS[step.key]}
                     </div>
                     {totalPct !== null && (
-                      <div style={{ marginTop: 'auto', paddingTop: 12, fontSize: 11, color: colors.accent, fontWeight: 700, letterSpacing: '0.04em' }}>
+                      <div style={{ marginTop: 'auto', paddingTop: 12, fontSize: 11, color: 'var(--color-primary)', fontWeight: 700, letterSpacing: '0.04em' }}>
                         {totalPct} do topo
                       </div>
                     )}
@@ -207,11 +211,12 @@ export default function FunilLimpaproPanel() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 16 }}>
             {(() => {
               const by = (key: FunnelStep['key']) => steps.find(s => s.key === key)?.count ?? 0;
-              const visita = by('visita'), checkout = by('checkout'), venda = by('venda');
+              const visita = by('visita'), clique = by('clique'), checkout = by('checkout'), venda = by('venda');
               return [
-                { label: 'Visita → Clique', val: pct(checkout, visita) },
-                { label: 'Clique → Compra', val: pct(venda, checkout) },
-                { label: 'Visita → Compra', val: pct(venda, visita) },
+                { label: 'Visita → Clique',    val: pct(clique, visita) },
+                { label: 'Clique → Checkout',  val: pct(checkout, clique) },
+                { label: 'Checkout → Compra',  val: pct(venda, checkout) },
+                { label: 'Visita → Compra',    val: pct(venda, visita) },
               ];
             })().map(m => (
               <div key={m.label} style={{
@@ -233,14 +238,15 @@ export default function FunilLimpaproPanel() {
           {/* Painel de vendas — números reais da Kiwify (banco) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
             {[
-              { label: 'Faturamento',     val: brl(data.faturamento),                 hint: 'valor cobrado (bruto)',  accent: 'var(--ink-green)' },
-              { label: 'Líquido',         val: brl(data.liquido),                      hint: 'após taxa Kiwify (= tela Vendas)', accent: 'var(--ink-green)' },
+              { label: 'Faturamento',     val: brl(data.faturamento),                 hint: 'valor cobrado (bruto)',  accent: 'var(--color-primary)' },
+              { label: 'Líquido',         val: brl(data.liquido),                      hint: 'após taxa Kiwify (= tela Vendas)', accent: 'var(--color-primary)' },
               { label: 'Vendas',          val: data.stats.vendas.toLocaleString('pt-BR'), hint: 'pedidos pagos',       accent: 'var(--color-text)' },
               { label: 'Clientes',        val: data.stats.clientes.toLocaleString('pt-BR'), hint: 'compradores únicos', accent: 'var(--color-text)' },
               { label: 'Ticket / venda',  val: data.stats.ticketVenda > 0 ? brl(data.stats.ticketVenda) : '—', hint: 'por pedido', accent: 'var(--color-text)' },
               { label: 'Ticket / cliente',val: data.stats.ticketCliente > 0 ? brl(data.stats.ticketCliente) : '—', hint: 'gasto médio por comprador', accent: 'var(--color-text)' },
-              { label: 'Reembolsos',      val: data.stats.reembolsos.toLocaleString('pt-BR'), hint: data.stats.reembolsoValor > 0 ? `−${brl(data.stats.reembolsoValor)}` : 'nenhum', accent: data.stats.reembolsos > 0 ? 'var(--ink-red)' : 'var(--color-text-muted)' },
-              { label: 'Aguardando',      val: data.stats.aguardando.toLocaleString('pt-BR'), hint: 'pix/boleto não pago', accent: 'var(--ink-amber)' },
+              { label: 'Abandonos',       val: data.stats.abandonos.toLocaleString('pt-BR'), hint: 'entraram no checkout, não compraram', accent: 'var(--color-text)' },
+              { label: 'Reembolsos',      val: data.stats.reembolsos.toLocaleString('pt-BR'), hint: data.stats.reembolsoValor > 0 ? `−${brl(data.stats.reembolsoValor)}` : 'nenhum', accent: 'var(--color-text)' },
+              { label: 'Aguardando',      val: data.stats.aguardando.toLocaleString('pt-BR'), hint: 'pix/boleto não pago', accent: 'var(--color-text)' },
               { label: 'Recusados',       val: data.stats.recusados.toLocaleString('pt-BR'), hint: 'cartão negado', accent: 'var(--color-text-muted)' },
             ].map(m => (
               <div key={m.label} style={{
@@ -285,7 +291,7 @@ export default function FunilLimpaproPanel() {
                     <div style={{ fontWeight: 700 }}>{p.name}</div>
                     <div style={{ textAlign: 'right', color: 'var(--color-text-muted)' }}>{p.vendas.toLocaleString('pt-BR')}</div>
                     <div style={{ textAlign: 'right', fontWeight: 700 }}>{brl(p.receita)}</div>
-                    <div style={{ textAlign: 'right', color: 'var(--ink-amber)', fontWeight: 700 }}>
+                    <div style={{ textAlign: 'right', color: 'var(--color-text-muted)', fontWeight: 700 }}>
                       {data.faturamento > 0 ? `${((p.receita / data.faturamento) * 100).toFixed(0)}%` : '—'}
                     </div>
                   </div>
@@ -296,14 +302,16 @@ export default function FunilLimpaproPanel() {
 
           {/* Notas */}
           <div style={{ marginTop: 32, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
-            <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> Visita e Clique são
-            únicos por sessão. <b>Vendas</b> = pedidos pagos (cada produto/order bump da Kiwify conta 1);
-            <b>Clientes</b> = compradores distintos. Por isso quem leva vários produtos no mesmo checkout
-            faz "Vendas" {'>'} "Clientes" — e a conversão Clique → Compra pode passar de 100%.
+            <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> o funil conta <b>pessoas únicas</b>
+            em cada etapa, então as barras nunca passam de 100%. <b>Visitou</b> e <b>Clicou</b> vêm da sessão na
+            landing; <b>Entrou no checkout</b> e <b>Comprou</b> vêm da pessoa na Kiwify (por e-mail). Como são
+            sistemas diferentes, a passagem <b>Clicou → Checkout</b> é uma aproximação. O card <b>Comprou</b>
+            mostra compradores únicos; <b>Vendas</b> (pedidos, cada order bump conta 1) e o faturamento aparecem
+            como sub-número.
             <br /><br />
-            <strong style={{ color: 'var(--ink-amber)' }}>Fonte dos dados:</strong> Visita e Clique vêm do
+            <strong style={{ color: 'var(--color-text)' }}>Fonte dos dados:</strong> Visita e Clique vêm do
             tracking próprio da landing <code style={{ padding: '0 4px' }}>limpapro.solardoc.app</code>;
-            as vendas vêm do <b>webhook da Kiwify</b> (status pago). <b>Faturamento</b> = valor cobrado bruto;
+            checkout e vendas vêm do <b>webhook da Kiwify</b>. <b>Faturamento</b> = valor cobrado bruto;
             <b>Líquido</b> = depois da taxa da Kiwify — é o número que aparece na tela "Vendas" da Kiwify.
             Reembolsos e recusados ficam de fora. <b>Atenção:</b> o webhook começou a registrar em ~06/jun,
             então vendas anteriores a isso (ex.: pré-lançamento) podem não aparecer aqui — confira o total na

@@ -66,9 +66,9 @@ function relDate(d: string) {
   const time = `${hh}:${mm}`;
   const date = fmtDateBR(d);
   let label: string; let color: string;
-  if (diff === 0)      { label = 'HOJE';         color = 'var(--ink-green)'; }
-  else if (diff === 1) { label = 'ONTEM';        color = 'var(--ink-blue)'; }
-  else if (diff <= 7)  { label = `${diff} DIAS`; color = '#f59e0b'; }
+  if (diff === 0)      { label = 'HOJE';         color = 'var(--color-text)'; }
+  else if (diff === 1) { label = 'ONTEM';        color = 'var(--color-text)'; }
+  else if (diff <= 7)  { label = `${diff} DIAS`; color = 'var(--color-text-muted)'; }
   else                 { label = date;            color = 'var(--color-text-muted)'; }
   return { label, color, time, showTime: diff <= 7 };
 }
@@ -77,7 +77,7 @@ function srcLabel(s: SessionRow) {
   if (s.referrer) { try { return new URL(s.referrer).hostname.replace('www.',''); } catch { return s.referrer; } }
   return 'Direto';
 }
-function deviceIcon(ua: string | null) { return !ua ? '—' : /Mobile|Android|iPhone|iPad/i.test(ua) ? '📱' : '🖥️'; }
+function deviceIcon(ua: string | null) { return !ua ? '—' : /Mobile|Android|iPhone|iPad/i.test(ua) ? 'Mobile' : 'Desktop'; }
 function fmtTime(sec: number | null | undefined) {
   if (sec == null || sec <= 0) return '—';
   return sec < 60 ? `${sec}s` : `${Math.floor(sec/60)}m${sec%60>0?` ${sec%60}s`:''}`;
@@ -87,7 +87,7 @@ function fmtBRL(val: number) { return val.toLocaleString('pt-BR',{style:'currenc
 function fmtNum(n: number) { return n.toLocaleString('pt-BR'); }
 
 const PLANO_LABEL: Record<string,string> = { free:'FREE', pro:'PRO', ilimitado:'VIP' };
-const PLANO_COLOR: Record<string,string> = { free:'#64748b', pro:'var(--ink-amber)', ilimitado:'var(--ink-orange)' };
+const PLANO_COLOR: Record<string,string> = { free:'#64748b', pro:'#64748b', ilimitado:'#64748b' };
 
 /* ─── componente funil SVG (estilo UTMify) ───────────────────── */
 interface FunnelStep { label: string; value: number; sub?: string; }
@@ -135,9 +135,8 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
       <svg viewBox={`0 0 ${W} ${H}`} className={styles.svgFunnelSvg} preserveAspectRatio="none">
         <defs>
           <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%"   stopColor="#3b82f6" stopOpacity="0.95" />
-            <stop offset="45%"  stopColor="#8b5cf6" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#ec4899" stopOpacity="0.95" />
+            <stop offset="0%"   stopColor="#F26513" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#9C3A06" stopOpacity="0.95" />
           </linearGradient>
         </defs>
 
@@ -255,25 +254,25 @@ export default function AdminPage() {
 
   // Métricas financeiras derivadas
   const metaFinCards = (metaData?.available && mt && lpf) ? [
-    { label: 'Gasto total',      value: fmtBRL(mt.spend),                                    color: 'var(--ink-red)' },
-    { label: 'CPC',              value: fmtBRL(mt.cpc),                                      color: 'var(--ink-orange)' },
-    { label: 'CPM',              value: mt.impressions>0?fmtBRL(mt.spend/mt.impressions*1000):'—', color: 'var(--ink-amber)' },
-    { label: 'Custo / visita LP',value: lpf.lp_visits>0?fmtBRL(mt.spend/lpf.lp_visits):'—', color: 'var(--ink-green)' },
-    { label: 'Custo / Preços',   value: lpf.saw_precos>0?fmtBRL(mt.spend/lpf.saw_precos):'—',color: 'var(--ink-orange)' },
-    { label: 'Custo / CTA',      value: lpf.cta_clicks>0?fmtBRL(mt.spend/lpf.cta_clicks):'—',color: 'var(--ink-purple)' },
-    { label: 'CTR',              value: mt.ctr.toFixed(2)+'%',                               color: 'var(--ink-blue)' },
-    { label: 'Taxa LP→Preços',   value: pct(lpf.saw_precos, lpf.lp_visits),                  color: 'var(--ink-indigo)' },
-    { label: 'Taxa LP→CTA',      value: pct(lpf.cta_clicks, lpf.lp_visits),                  color: 'var(--ink-purple)' },
-    { label: 'Taxa Click→LP',    value: pct(lpf.lp_visits, mt.clicks),                       color: 'var(--ink-teal)' },
-    { label: 'Tempo médio LP',   value: fmtTime(metaData?.avg_time),                         color: 'var(--ink-slate)' },
-    { label: 'Impressões',       value: fmtNum(mt.impressions),                              color: 'var(--ink-blue)' },
+    { label: 'Gasto total',      value: fmtBRL(mt.spend),                                    color: 'var(--color-primary)' },
+    { label: 'CPC',              value: fmtBRL(mt.cpc),                                      color: 'var(--color-text)' },
+    { label: 'CPM',              value: mt.impressions>0?fmtBRL(mt.spend/mt.impressions*1000):'—', color: 'var(--color-text)' },
+    { label: 'Custo / visita LP',value: lpf.lp_visits>0?fmtBRL(mt.spend/lpf.lp_visits):'—', color: 'var(--color-text)' },
+    { label: 'Custo / Preços',   value: lpf.saw_precos>0?fmtBRL(mt.spend/lpf.saw_precos):'—',color: 'var(--color-text)' },
+    { label: 'Custo / CTA',      value: lpf.cta_clicks>0?fmtBRL(mt.spend/lpf.cta_clicks):'—',color: 'var(--color-text)' },
+    { label: 'CTR',              value: mt.ctr.toFixed(2)+'%',                               color: 'var(--color-text)' },
+    { label: 'Taxa LP→Preços',   value: pct(lpf.saw_precos, lpf.lp_visits),                  color: 'var(--color-text)' },
+    { label: 'Taxa LP→CTA',      value: pct(lpf.cta_clicks, lpf.lp_visits),                  color: 'var(--color-text)' },
+    { label: 'Taxa Click→LP',    value: pct(lpf.lp_visits, mt.clicks),                       color: 'var(--color-text)' },
+    { label: 'Tempo médio LP',   value: fmtTime(metaData?.avg_time),                         color: 'var(--color-text-muted)' },
+    { label: 'Impressões',       value: fmtNum(mt.impressions),                              color: 'var(--color-text)' },
   ] : [];
 
   return (
     <div className={styles.page}>
       <div className={styles.header} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
         <div>
-          <h1 className={styles.title}>📊 Tráfego &amp; Receita</h1>
+          <h1 className={styles.title}>Tráfego &amp; Receita</h1>
           <p className={styles.subtitle}>Aquisição por campanha — visitas, funil e retorno do investimento</p>
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
@@ -285,21 +284,21 @@ export default function AdminPage() {
           {tab!=='funil_solardoc' && tab!=='funil_limpapro' && tab!=='membros' && (
             <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
               onClick={()=>{setAnalyticsLoaded(false);setMetaLoaded(false);loadAnalytics();loadMeta();}}>
-              {(loadingAnalytics||loadingMeta)?'Atualizando...':'🔄 Atualizar'}
+              {(loadingAnalytics||loadingMeta)?'Atualizando...':'Atualizar'}
             </button>
           )}
         </div>
       </div>
 
       <div className={styles.tabs}>
-        <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>👥 Membros</button>
-        <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 LP SolarDoc</button>
+        <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>Membros</button>
+        <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>LP SolarDoc</button>
         {/* Aba Receita / ROAS ocultada — bloco e fetch mantidos abaixo, só removido o botão de navegação. */}
-        {/* <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>💰 Receita / ROAS</button> */}
-        <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ LP IO</button>
-        <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>🎨 LP Pack</button>
-        <button className={tab==='funil_solardoc'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_solardoc')}>🔻 Funil SolarDoc</button>
-        <button className={tab==='funil_limpapro'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_limpapro')}>💧 Funil LimpaPro</button>
+        {/* <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>Receita / ROAS</button> */}
+        <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>LP IO</button>
+        <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>LP Pack</button>
+        <button className={tab==='funil_solardoc'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_solardoc')}>Funil SolarDoc</button>
+        <button className={tab==='funil_limpapro'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_limpapro')}>Funil LimpaPro</button>
       </div>
 
       {/* ═══ ABA ACESSOS SITE IO ════════════════════════════════ */}
@@ -359,9 +358,8 @@ export default function AdminPage() {
               <div className={styles.loading}>Carregando estatísticas...</div>
             ) : visits === 0 ? (
               <div className={styles.loading} style={{textAlign:'center', padding:'48px 24px'}}>
-                <div style={{fontSize:48, marginBottom:12}}>🏗️</div>
                 <div style={{fontWeight:700, marginBottom:6}}>Sem acessos registrados ainda</div>
-                <div style={{fontSize:13, color:'var(--color-text-muted)'}}>Os dados aparecem aqui depois que alguém visita <code>/io</code>. O Meta Pixel também já está capturando, ver no <a href="https://business.facebook.com/events_manager2/list/pixel/446093469730871/overview" target="_blank" rel="noopener noreferrer" style={{color:'var(--ink-green)'}}>Gerenciador de Eventos</a>.</div>
+                <div style={{fontSize:13, color:'var(--color-text-muted)'}}>Os dados aparecem aqui depois que alguém visita <code>/io</code>. O Meta Pixel também já está capturando, ver no <a href="https://business.facebook.com/events_manager2/list/pixel/446093469730871/overview" target="_blank" rel="noopener noreferrer" style={{color:'var(--color-primary)'}}>Gerenciador de Eventos</a>.</div>
               </div>
             ) : (
               <>
@@ -373,32 +371,32 @@ export default function AdminPage() {
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>Clicou alguma CTA ({pct(ctaTotal, visits)})</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-blue)'}}>{ctaTotal}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{ctaTotal}</div>
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>CTA Hero ({pct(ctaHero, visits)})</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-amber)'}}>{ctaHero}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{ctaHero}</div>
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>Cliques WhatsApp ({pct(ctaWhats, visits)})</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-green)'}}>{ctaWhats}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{ctaWhats}</div>
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>Form contato</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-purple)'}}>{formSubmit}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{formSubmit}</div>
                   </div>
                 </div>
 
                 {/* Funil SVG */}
                 <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
-                  <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>📉 Funil do /io</div>
+                  <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>Funil do /io</div>
                   <FunnelSVG steps={ioFunnel} />
                 </div>
 
                 {/* Origens + Campanhas lado a lado */}
                 <div className={styles.twoCol} style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
                   <div className={styles.tableWrap}>
-                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Top origens</div>
+                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>Top origens</div>
                     <table className={styles.table}>
                       <thead><tr><th>Origem</th><th>Visitas</th><th>Scroll</th><th>CTA</th><th>WhatsApp</th></tr></thead>
                       <tbody>
@@ -416,7 +414,7 @@ export default function AdminPage() {
                   </div>
 
                   <div className={styles.tableWrap}>
-                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>📣 Top campanhas (UTM)</div>
+                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>Top campanhas (UTM)</div>
                     <table className={styles.table}>
                       <thead><tr><th>Campanha</th><th>Visitas</th></tr></thead>
                       <tbody>
@@ -550,7 +548,6 @@ export default function AdminPage() {
             <div className={styles.loading}>Carregando estatísticas...</div>
           ) : visits === 0 ? (
             <div className={styles.loading} style={{textAlign:'center', padding:'48px 24px'}}>
-              <div style={{fontSize:48, marginBottom:12}}>📊</div>
               <div style={{fontWeight:700, marginBottom:6}}>Sem acessos no período</div>
               <div style={{fontSize:13, color:'var(--color-text-muted)'}}>Trocar o filtro acima ou aguardar novo tráfego em <code>solardoc.app</code>.</div>
             </div>
@@ -564,28 +561,28 @@ export default function AdminPage() {
                 </div>
                 <div className={styles.card}>
                   <div className={styles.cardLabel}>Clicou alguma CTA ({pct(ctaTotal, visits)})</div>
-                  <div className={styles.cardValue} style={{color:'var(--ink-blue)'}}>{ctaTotal}</div>
+                  <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{ctaTotal}</div>
                 </div>
                 <div className={styles.card}>
                   <div className={styles.cardLabel}>Clicaram PRO</div>
-                  <div className={styles.cardValue} style={{color:'var(--ink-amber)'}}>{ctaPro}</div>
+                  <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{ctaPro}</div>
                 </div>
                 <div className={styles.card}>
                   <div className={styles.cardLabel}>Clicaram VIP</div>
-                  <div className={styles.cardValue} style={{color:'var(--ink-orange)'}}>{ctaVip}</div>
+                  <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{ctaVip}</div>
                 </div>
               </div>
 
               {/* Funil SVG */}
               <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
-                <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>📉 Funil da LP</div>
+                <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>Funil da LP</div>
                 <FunnelSVG steps={lpFunnel} />
               </div>
 
               {/* Origens + Campanhas lado a lado */}
               <div className={styles.twoCol} style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
                 <div className={styles.tableWrap}>
-                  <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Top origens</div>
+                  <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>Top origens</div>
                   <table className={styles.table}>
                     <thead><tr><th>Origem</th><th>Visitas</th><th>Scroll</th><th>Preços</th><th>CTA</th></tr></thead>
                     <tbody>
@@ -603,7 +600,7 @@ export default function AdminPage() {
                 </div>
 
                 <div className={styles.tableWrap}>
-                  <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>📣 Top campanhas (UTM)</div>
+                  <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>Top campanhas (UTM)</div>
                   <table className={styles.table}>
                     <thead><tr><th>Campanha</th><th>Visitas</th></tr></thead>
                     <tbody>
@@ -713,15 +710,14 @@ export default function AdminPage() {
             </div>
 
             {/* Aviso forward-only — a atribuição só conta checkouts NOVOS (pós-implementação). */}
-            <div style={{background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.30)', color:'var(--ink-blue)', borderRadius:8, padding:'10px 14px', marginBottom:20, fontSize:12, lineHeight:1.5}}>
-              ℹ️ A receita por campanha é <strong>forward-only</strong>: só aparece para checkouts feitos depois que a atribuição UTM→Stripe foi ligada. Compras antigas não têm a origem salva e não entram aqui.
+            <div style={{background:'var(--color-surface-2)', border:'1px solid var(--color-border)', color:'var(--color-text-muted)', borderRadius:8, padding:'10px 14px', marginBottom:20, fontSize:12, lineHeight:1.5}}>
+              A receita por campanha é <strong>forward-only</strong>: só aparece para checkouts feitos depois que a atribuição UTM→Stripe foi ligada. Compras antigas não têm a origem salva e não entram aqui.
             </div>
 
             {loading ? (
               <div className={styles.loading}>Carregando receita...</div>
             ) : payingUsers === 0 ? (
               <div className={styles.loading} style={{textAlign:'center', padding:'48px 24px'}}>
-                <div style={{fontSize:48, marginBottom:12}}>💰</div>
                 <div style={{fontWeight:700, marginBottom:6}}>Nenhuma venda atribuída ainda</div>
                 <div style={{fontSize:13, color:'var(--color-text-muted)', maxWidth:460, margin:'0 auto'}}>
                   O painel começa a encher a partir do próximo checkout que vier de um link com <code>?utm_campaign=...</code>. Assim que alguém pagar vindo de uma campanha, a receita e o ROAS aparecem aqui.
@@ -733,19 +729,19 @@ export default function AdminPage() {
                 <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop:12}}>
                   <div className={styles.card}>
                     <div className={styles.cardLabel} title="Inclui assinaturas em trial de 7 dias (cancelamento no trial não é descontado)">MRR potencial (inclui trials)</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-green)'}}>{fmtBRL(totalMrr)}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{fmtBRL(totalMrr)}</div>
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>Assinantes atribuídos</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-blue)'}}>{payingUsers}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{payingUsers}</div>
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>Gasto Meta (campanhas)</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-red)'}}>{metaAvailable ? fmtBRL(totalSpend) : '—'}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{metaAvailable ? fmtBRL(totalSpend) : '—'}</div>
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>ROAS médio</div>
-                    <div className={styles.cardValue} style={{color: totalRoas==null ? 'var(--ink-slate)' : totalRoas>=1 ? 'var(--ink-green)' : '#f59e0b'}}>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>
                       {totalRoas==null ? '—' : `${totalRoas.toFixed(2)}x`}
                     </div>
                   </div>
@@ -753,7 +749,7 @@ export default function AdminPage() {
 
                 {/* Tabela receita por campanha */}
                 <div className={styles.tableWrap} style={{marginTop:24}}>
-                  <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>💰 Receita por campanha</div>
+                  <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>Receita por campanha</div>
                   <table className={styles.table}>
                     <thead><tr>
                       <th>Campanha (UTM)</th>
@@ -770,14 +766,14 @@ export default function AdminPage() {
                           <td className={styles.mutedCell}>{r.users}</td>
                           <td className={styles.mutedCell}>
                             {Object.entries(r.plans).map(([p,n]) => (
-                              <span key={p} className={styles.planTag} style={{background:(PLANO_COLOR[p]||'#64748b')+'22',color:PLANO_COLOR[p]||'var(--ink-slate)',borderColor:(PLANO_COLOR[p]||'#64748b')+'55',marginRight:4}}>
+                              <span key={p} className={styles.planTag} style={{background:(PLANO_COLOR[p]||'#64748b')+'22',color:PLANO_COLOR[p]||'#64748b',borderColor:(PLANO_COLOR[p]||'#64748b')+'55',marginRight:4}}>
                                 {(PLANO_LABEL[p]??p)} {n}
                               </span>
                             ))}
                           </td>
-                          <td className={styles.mutedCell} style={{fontWeight:700,color:'var(--ink-green)'}}>{fmtBRL(r.mrr)}</td>
+                          <td className={styles.mutedCell} style={{fontWeight:700,color:'var(--color-text)'}}>{fmtBRL(r.mrr)}</td>
                           <td className={styles.mutedCell}>{r.spend>0 ? fmtBRL(r.spend) : (metaAvailable ? '—' : 'sem dado')}</td>
-                          <td className={styles.mutedCell} style={{fontWeight:700, color: r.roas==null ? 'var(--ink-slate)' : r.roas>=1 ? 'var(--ink-green)' : '#f59e0b'}}>
+                          <td className={styles.mutedCell} style={{fontWeight:700, color:'var(--color-text)'}}>
                             {r.roas==null ? '—' : `${r.roas.toFixed(2)}x`}
                           </td>
                         </tr>
@@ -789,7 +785,7 @@ export default function AdminPage() {
                 {/* Tabela receita por origem (utm_source) */}
                 {(revenue?.by_source?.length ?? 0) > 0 && (
                   <div className={styles.tableWrap} style={{marginTop:24}}>
-                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Receita por origem</div>
+                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>Receita por origem</div>
                     <table className={styles.table}>
                       <thead><tr><th>Origem (utm_source)</th><th>Assinantes</th><th>MRR</th></tr></thead>
                       <tbody>
@@ -797,7 +793,7 @@ export default function AdminPage() {
                           <tr key={s.source}>
                             <td style={{fontWeight:600}}>{s.source || <span className={styles.emptyDash}>(direto)</span>}</td>
                             <td className={styles.mutedCell}>{s.users}</td>
-                            <td className={styles.mutedCell} style={{fontWeight:700,color:'var(--ink-green)'}}>{fmtBRL(s.mrr)}</td>
+                            <td className={styles.mutedCell} style={{fontWeight:700,color:'var(--color-text)'}}>{fmtBRL(s.mrr)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -869,9 +865,8 @@ export default function AdminPage() {
               <div className={styles.loading}>Carregando estatísticas...</div>
             ) : visits === 0 ? (
               <div className={styles.loading} style={{textAlign:'center', padding:'48px 24px'}}>
-                <div style={{fontSize:48, marginBottom:12}}>🎨</div>
                 <div style={{fontWeight:700, marginBottom:6}}>Sem acessos registrados ainda</div>
-                <div style={{fontSize:13, color:'var(--color-text-muted)'}}>Dados aparecem aqui após alguém visitar <code>pack.solardoc.app</code>. Meta Pixel separado (824905216831401) também captura — ver no <a href="https://business.facebook.com/events_manager2/list/dataset/824905216831401/overview" target="_blank" rel="noopener noreferrer" style={{color:'var(--ink-green)'}}>Events Manager</a>.</div>
+                <div style={{fontSize:13, color:'var(--color-text-muted)'}}>Dados aparecem aqui após alguém visitar <code>pack.solardoc.app</code>. Meta Pixel separado (824905216831401) também captura — ver no <a href="https://business.facebook.com/events_manager2/list/dataset/824905216831401/overview" target="_blank" rel="noopener noreferrer" style={{color:'var(--color-primary)'}}>Events Manager</a>.</div>
               </div>
             ) : (
               <>
@@ -882,30 +877,30 @@ export default function AdminPage() {
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>Clicou CTA ({pct(ctaTotal, visits)})</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-blue)'}}>{ctaTotal}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{ctaTotal}</div>
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>Foi pra /extras ({pct(ctaExtras, visits)})</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-amber)'}}>{ctaExtras}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{ctaExtras}</div>
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>Foi pro checkout ({pct(ctaCheckout, visits)})</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-green)'}}>{ctaCheckout}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{ctaCheckout}</div>
                   </div>
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>WhatsApp ({pct(ctaWhats, visits)})</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-purple)'}}>{ctaWhats}</div>
+                    <div className={styles.cardValue} style={{color:'var(--color-text)'}}>{ctaWhats}</div>
                   </div>
                 </div>
 
                 <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
-                  <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>📉 Funil Pack Solar</div>
+                  <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>Funil Pack Solar</div>
                   <FunnelSVG steps={packFunnel} />
                 </div>
 
                 <div className={styles.twoCol} style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24}}>
                   <div className={styles.tableWrap}>
-                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>🌐 Top origens</div>
+                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>Top origens</div>
                     <table className={styles.table}>
                       <thead><tr><th>Origem</th><th>Visitas</th><th>Scroll</th><th>CTA</th><th>Checkout</th></tr></thead>
                       <tbody>
@@ -923,7 +918,7 @@ export default function AdminPage() {
                   </div>
 
                   <div className={styles.tableWrap}>
-                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>📣 Top campanhas (UTM)</div>
+                    <div style={{padding:'12px 16px', fontSize:13, fontWeight:700, borderBottom:'1px solid var(--color-border)'}}>Top campanhas (UTM)</div>
                     <table className={styles.table}>
                       <thead><tr><th>Campanha</th><th>Visitas</th></tr></thead>
                       <tbody>
