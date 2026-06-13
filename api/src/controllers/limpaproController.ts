@@ -127,10 +127,13 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
     const buyer = evt.Customer || evt.customer || evt.buyer || {};
     const product = evt.Product || evt.product || {};
     const commission = evt.Commissions || evt.commissions || {};
+    // A Kiwify JÁ manda os valores em CENTAVOS (charge_amount: 1200 = R$ 12,00),
+    // então guardamos o inteiro direto — NÃO multiplicar por 100. (product.price também
+    // vem em centavos no payload da Kiwify.)
     const amountCents =
-      toCents(commission.charge_amount) ??
-      toCents(evt.charge_amount) ??
-      toCents(product.price) ??
+      asCents(commission.charge_amount) ??
+      asCents(evt.charge_amount) ??
+      asCents(product.price) ??
       null;
 
     const row = {
@@ -161,31 +164,54 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
 }
 
 // ── 3) Funil admin — GET /admin/funnel-limpapro?period= ──
+// Retorna o funil (Visita → Clique → Compra) + um painel rico de vendas:
+// nº de clientes, nº de vendas, reembolsos, ticket médio e lista de produtos vendidos.
+//
+// Definições (fechadas com o Thiago):
+// • "Compra" = pedidos individuais — cada produto/order bump da Kiwify é 1 linha.
+//   (O mesmo checkout com 4 bumps conta como 4 vendas; por isso convers conversão Clique→Compra
+//    pode passar de 100%, já que o clique é por sessão da LP e a venda é por pedido na Kiwify.)
+// • "Clientes" = e-mails distintos que compraram (dedup do bundle).
+// • Faturamento = valor BRUTO cobrado (charge_amount, com juros de parcelamento incluídos) —
+//   é o número que a Kiwify mostra na vitrine de vendas. Já vive em amount_cents.
+interface LimpaproFunnelRpc {
+  pv_total: number; pv_uniq: number;
+  ck_total: number; ck_uniq: number;
+  vendas: number; clientes: number; faturamento: number; liquido: number;
+  reembolsos: number; reembolso_valor: number; recusados: number; aguardando: number;
+  produtos: { name: string; vendas: number; receita: number }[];
+}
+
 export async function getLimpaproFunnel(req: Request, res: Response): Promise<void> {
   try {
     const period = (req.query.period as string) || 'maximo';
     const since = sinceFromPeriod(period);
     const sinceIso = since.toISOString();
 
-    const { data: rows } = await supabase
-      .from('limpapro_events')
-      .select('event_type, session_id, status, amount_cents')
-      .gte('created_at', sinceIso)
-      .limit(50000);
+    // Agregação no banco via RPC — evita o cap de 1000 linhas do PostgREST (já passamos de 1300
+    // eventos) e resolve COUNT(DISTINCT session) que o supabase-js não expressa. Os números
+    // batem 1:1 com a vitrine da Kiwify.
+    const { data, error } = await supabase.rpc('limpapro_funnel', { since_ts: sinceIso });
+    if (error) throw error;
+    const r = (data ?? {}) as LimpaproFunnelRpc;
 
-    const all = rows ?? [];
-    const pageviewRows = all.filter(r => r.event_type === 'pageview');
-    const clickRows    = all.filter(r => r.event_type === 'checkout_click');
-    const purchaseRows = all.filter(r => r.event_type === 'purchase');
+    const visitas     = r.pv_uniq ?? 0;
+    const visitasPV   = r.pv_total ?? 0;
+    const cliques     = r.ck_uniq ?? 0;
+    const cliquesPV   = r.ck_total ?? 0;
+    const vendas      = r.vendas ?? 0;           // pedidos individuais (cada bump conta 1)
+    const clientes    = r.clientes ?? 0;         // compradores únicos (e-mail distinto)
+    const faturamento = Number(r.faturamento ?? 0); // bruto cobrado (charge_amount)
+    const liquido     = Number(r.liquido ?? 0);     // líquido (my_commission) — = tela "Vendas" da Kiwify
 
-    const visitasPV   = pageviewRows.length;
-    const visitas     = new Set(pageviewRows.map(r => r.session_id).filter(Boolean)).size;
-    const cliquesPV   = clickRows.length;
-    const cliques     = new Set(clickRows.map(r => r.session_id).filter(Boolean)).size;
+    const ticketVenda   = vendas > 0 ? faturamento / vendas : 0;
+    const ticketCliente = clientes > 0 ? faturamento / clientes : 0;
 
-    const pagos       = purchaseRows.filter(r => r.status === 'paid');
-    const vendas      = pagos.length;
-    const faturamento = pagos.reduce((acc, r) => acc + (r.amount_cents ?? 0), 0) / 100;
+    const produtos = (r.produtos ?? []).map(p => ({
+      name: p.name,
+      vendas: Number(p.vendas),
+      receita: Number(p.receita),
+    }));
 
     res.json({
       period,
@@ -196,6 +222,19 @@ export async function getLimpaproFunnel(req: Request, res: Response): Promise<vo
         { key: 'venda',    label: 'Comprou',        count: vendas,  sub: faturamento > 0 ? `R$ ${faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : undefined },
       ],
       faturamento,
+      liquido,
+      stats: {
+        clientes,
+        vendas,
+        liquido,
+        ticketVenda,
+        ticketCliente,
+        reembolsos:     r.reembolsos ?? 0,
+        reembolsoValor: Number(r.reembolso_valor ?? 0),
+        recusados:      r.recusados ?? 0,
+        aguardando:     r.aguardando ?? 0,
+      },
+      produtos,
     });
   } catch (err) {
     console.error('getLimpaproFunnel error:', err);
@@ -203,12 +242,13 @@ export async function getLimpaproFunnel(req: Request, res: Response): Promise<vo
   }
 }
 
-function toCents(v: unknown): number | null {
+// A Kiwify envia montantes já em centavos como inteiro (1200 = R$ 12,00).
+// Só normalizamos pra número inteiro — sem multiplicar por 100.
+function asCents(v: unknown): number | null {
   if (v == null || v === '') return null;
   const n = Number(v);
   if (isNaN(n)) return null;
-  // Kiwify manda valores em reais (ex 77 ou "77.00") → centavos.
-  return Math.round(n * 100);
+  return Math.round(n);
 }
 
 // Tipagem solta do payload Kiwify — campos variam por versão do webhook.

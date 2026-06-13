@@ -11,12 +11,33 @@ interface FunnelStep {
   count: number;
   sub?: string;
 }
+interface FunnelStats {
+  clientes: number;
+  vendas: number;
+  liquido: number;
+  ticketVenda: number;
+  ticketCliente: number;
+  reembolsos: number;
+  reembolsoValor: number;
+  recusados: number;
+  aguardando: number;
+}
+interface ProdutoVendido {
+  name: string;
+  vendas: number;
+  receita: number;
+}
 interface FunnelData {
   period: Period;
   since: string;
   steps: FunnelStep[];
   faturamento: number;
+  liquido: number;
+  stats: FunnelStats;
+  produtos: ProdutoVendido[];
 }
+
+const brl = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: 'hoje',   label: 'Hoje' },
@@ -37,7 +58,7 @@ const STEP_COLORS: Record<FunnelStep['key'], { bg: string; border: string; accen
 const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
   visita:   'Visitaram limpapro.solardoc.app (Pixel + tracking próprio)',
   checkout: 'Clicaram no botão de compra (vão pro checkout)',
-  venda:    'Compraram o curso (venda paga confirmada na Kiwify)',
+  venda:    'Pedidos pagos na Kiwify (cada produto/order bump conta 1)',
 };
 
 function pct(num: number, den: number): string {
@@ -74,7 +95,7 @@ export default function FunilLimpaproPanel() {
             Funil LimpaPro
           </h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '6px 0 0' }}>
-            Curso de limpeza de placas (Kiwify) · Visita → Clique no checkout → Compra · visitas únicas por sessão, vendas pagas via webhook
+            Curso de limpeza de placas (Kiwify) · Visita → Clique no checkout → Compra · visitas únicas por sessão, pedidos pagos via webhook
           </p>
         </div>
 
@@ -182,18 +203,15 @@ export default function FunilLimpaproPanel() {
             })}
           </div>
 
-          {/* Resumo de conversões + faturamento */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          {/* Conversões do funil */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 16 }}>
             {(() => {
               const by = (key: FunnelStep['key']) => steps.find(s => s.key === key)?.count ?? 0;
               const visita = by('visita'), checkout = by('checkout'), venda = by('venda');
-              const ticket = venda > 0 ? data.faturamento / venda : 0;
               return [
-                { label: 'Visita → Clique',  val: pct(checkout, visita) },
-                { label: 'Clique → Compra',  val: pct(venda, checkout) },
-                { label: 'Visita → Compra',  val: pct(venda, visita) },
-                { label: 'Faturamento',      val: `R$ ${data.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
-                { label: 'Ticket médio',     val: ticket > 0 ? `R$ ${ticket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—' },
+                { label: 'Visita → Clique', val: pct(checkout, visita) },
+                { label: 'Clique → Compra', val: pct(venda, checkout) },
+                { label: 'Visita → Compra', val: pct(venda, visita) },
               ];
             })().map(m => (
               <div key={m.label} style={{
@@ -212,16 +230,84 @@ export default function FunilLimpaproPanel() {
             ))}
           </div>
 
+          {/* Painel de vendas — números reais da Kiwify (banco) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+            {[
+              { label: 'Faturamento',     val: brl(data.faturamento),                 hint: 'valor cobrado (bruto)',  accent: 'var(--ink-green)' },
+              { label: 'Líquido',         val: brl(data.liquido),                      hint: 'após taxa Kiwify (= tela Vendas)', accent: 'var(--ink-green)' },
+              { label: 'Vendas',          val: data.stats.vendas.toLocaleString('pt-BR'), hint: 'pedidos pagos',       accent: 'var(--color-text)' },
+              { label: 'Clientes',        val: data.stats.clientes.toLocaleString('pt-BR'), hint: 'compradores únicos', accent: 'var(--color-text)' },
+              { label: 'Ticket / venda',  val: data.stats.ticketVenda > 0 ? brl(data.stats.ticketVenda) : '—', hint: 'por pedido', accent: 'var(--color-text)' },
+              { label: 'Ticket / cliente',val: data.stats.ticketCliente > 0 ? brl(data.stats.ticketCliente) : '—', hint: 'gasto médio por comprador', accent: 'var(--color-text)' },
+              { label: 'Reembolsos',      val: data.stats.reembolsos.toLocaleString('pt-BR'), hint: data.stats.reembolsoValor > 0 ? `−${brl(data.stats.reembolsoValor)}` : 'nenhum', accent: data.stats.reembolsos > 0 ? 'var(--ink-red)' : 'var(--color-text-muted)' },
+              { label: 'Aguardando',      val: data.stats.aguardando.toLocaleString('pt-BR'), hint: 'pix/boleto não pago', accent: 'var(--ink-amber)' },
+              { label: 'Recusados',       val: data.stats.recusados.toLocaleString('pt-BR'), hint: 'cartão negado', accent: 'var(--color-text-muted)' },
+            ].map(m => (
+              <div key={m.label} style={{
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 12,
+                padding: '16px 18px',
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 6 }}>
+                  {m.label}
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: m.accent }}>
+                  {m.val}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                  {m.hint}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Produtos vendidos */}
+          {data.produtos.length > 0 && (
+            <div style={{ marginTop: 32 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 14px' }}>
+                Produtos vendidos
+              </h3>
+              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
+                {/* Cabeçalho */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 140px 90px', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--color-border)', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>
+                  <div>Produto</div>
+                  <div style={{ textAlign: 'right' }}>Vendas</div>
+                  <div style={{ textAlign: 'right' }}>Receita</div>
+                  <div style={{ textAlign: 'right' }}>% fat.</div>
+                </div>
+                {data.produtos.map((p, i) => (
+                  <div key={p.name} style={{
+                    display: 'grid', gridTemplateColumns: '1fr 90px 140px 90px', gap: 12,
+                    padding: '12px 18px', alignItems: 'center', fontSize: 14,
+                    borderBottom: i < data.produtos.length - 1 ? '1px solid var(--color-border)' : 0,
+                  }}>
+                    <div style={{ fontWeight: 700 }}>{p.name}</div>
+                    <div style={{ textAlign: 'right', color: 'var(--color-text-muted)' }}>{p.vendas.toLocaleString('pt-BR')}</div>
+                    <div style={{ textAlign: 'right', fontWeight: 700 }}>{brl(p.receita)}</div>
+                    <div style={{ textAlign: 'right', color: 'var(--ink-amber)', fontWeight: 700 }}>
+                      {data.faturamento > 0 ? `${((p.receita / data.faturamento) * 100).toFixed(0)}%` : '—'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Notas */}
           <div style={{ marginTop: 32, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
-            <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> os números são únicos —
-            visitantes únicos por sessão (Visita/Clique) e vendas pagas distintas (Compra).
-            "pageviews"/"cliques" no subtítulo contam o total bruto (com re-visita).
+            <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> Visita e Clique são
+            únicos por sessão. <b>Vendas</b> = pedidos pagos (cada produto/order bump da Kiwify conta 1);
+            <b>Clientes</b> = compradores distintos. Por isso quem leva vários produtos no mesmo checkout
+            faz "Vendas" {'>'} "Clientes" — e a conversão Clique → Compra pode passar de 100%.
             <br /><br />
             <strong style={{ color: 'var(--ink-amber)' }}>Fonte dos dados:</strong> Visita e Clique vêm do
             tracking próprio da landing <code style={{ padding: '0 4px' }}>limpapro.solardoc.app</code>;
-            a Compra vem do <b>webhook da Kiwify</b> (só conta venda com status pago). O Pixel da Meta roda
-            em paralelo pra otimização de anúncios, mas o número aqui é o do banco — fonte da verdade pra dinheiro.
+            as vendas vêm do <b>webhook da Kiwify</b> (status pago). <b>Faturamento</b> = valor cobrado bruto;
+            <b>Líquido</b> = depois da taxa da Kiwify — é o número que aparece na tela "Vendas" da Kiwify.
+            Reembolsos e recusados ficam de fora. <b>Atenção:</b> o webhook começou a registrar em ~06/jun,
+            então vendas anteriores a isso (ex.: pré-lançamento) podem não aparecer aqui — confira o total na
+            própria Kiwify se precisar do histórico completo.
           </div>
         </>
         );
