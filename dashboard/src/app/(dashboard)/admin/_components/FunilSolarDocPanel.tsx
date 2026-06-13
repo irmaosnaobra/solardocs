@@ -51,7 +51,9 @@ const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
   plataforma: 'Geraram ao menos 1 documento',
 };
 
-const PAUSED_STEPS = new Set<FunnelStep['key']>();
+// VSL faz parte da própria LP (mesmo tráfego) — escondida do funil pra não
+// duplicar a contagem de topo. Backend ainda devolve o step; só não renderiza.
+const PAUSED_STEPS = new Set<FunnelStep['key']>(['vsl']);
 
 const PRODUCT_LABEL: Record<string, string> = {
   pro: 'PRO',
@@ -92,7 +94,7 @@ export default function FunilSolarDocPanel() {
             Funil da operação SolarDoc
           </h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '6px 0 0' }}>
-            VSL → LP → Stripe → Cadastro → Empresa → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
+            LP → Stripe → Cadastro → WhatsApp → Empresa → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
           </p>
         </div>
 
@@ -235,14 +237,10 @@ export default function FunilSolarDocPanel() {
               sem atribuição UTM→user não dá pra ligar tráfego a pagamento de forma honesta. */}
           {(() => {
             const by = (key: FunnelStep['key']) => data.steps.find(s => s.key === key)?.count ?? 0;
-            const vsl = by('vsl'), landing = by('landing'), cadastro = by('cadastro'),
+            const cadastro = by('cadastro'),
                   stripe = by('stripe'), empresa = by('empresa'), plataforma = by('plataforma');
             const stripeClosed = data.steps.find(s => s.key === 'stripe')?.detail?.closed ?? 0;
 
-            // Tráfego: tudo por sessão única.
-            const trafego = [
-              { label: 'VSL → LP', val: pct(landing, vsl), sub: 'sessões' },
-            ];
             // Conversão pós-cadastro: tudo por pessoa (users/documents).
             const pessoas = [
               { label: 'Cadastro → Empresa', val: pct(empresa, cadastro), sub: 'pessoas' },
@@ -281,7 +279,6 @@ export default function FunilSolarDocPanel() {
 
             return (
               <>
-                <Group title="Tráfego" unit="por sessão única" items={trafego} />
                 <Group title="Checkout" unit="por assinatura (Stripe)" items={stripeRates} />
                 <Group title="Ativação na plataforma" unit="por pessoa" items={pessoas} />
                 <div style={{ padding: '12px 16px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
@@ -297,10 +294,10 @@ export default function FunilSolarDocPanel() {
           {/* Notas */}
           <div style={{ marginTop: 32, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
             <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> os números são únicos —
-            visitantes únicos por sessão (VSL/LP) e usuários distintos (Cadastro/Stripe/Empresa/Plataforma).
-            "Pageviews" no canto inferior conta o total de visitas (com re-visita). VSL conta acessos a
-            <code style={{ padding: '0 4px' }}>/apresentacao</code>; LP conta a home
+            visitantes únicos por sessão (LP) e usuários distintos (Cadastro/Stripe/Empresa/Plataforma).
+            "Pageviews" no canto inferior conta o total de visitas (com re-visita). LP conta a home
             <code style={{ padding: '0 4px' }}>solardoc.app</code> (exclui /io, /gerador, /apresentacao).
+            A VSL faz parte da própria LP, por isso não aparece como etapa separada.
             <br /><br />
             <strong style={{ color: 'var(--ink-amber)' }}>Fluxo novo:</strong> o cliente passa o cartão no Stripe
             (trial 7 dias) <b>antes</b> de criar a conta — só cadastra quem pagou. Depois preenche o CNPJ em
