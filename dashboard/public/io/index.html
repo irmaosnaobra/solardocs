@@ -518,6 +518,9 @@
   .hv-overlay-card .t { font-size: 14px; line-height: 1.3; color: var(--text-muted); }
   .hv-overlay-card .t b { color: var(--navy); display: block; font-size: 16px; font-weight: 800; margin-bottom: 2px; }
 
+  /* Âncoras internas não ficam escondidas atrás da nav sticky */
+  #heroForm, section[id] { scroll-margin-top: 100px; }
+
   /* ============ HERO FORM (substitui o hero-visual) ============ */
   .hero-form-card {
     background: linear-gradient(180deg, var(--navy) 0%, #081A38 100%);
