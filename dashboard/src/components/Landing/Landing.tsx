@@ -478,6 +478,26 @@ export default function Landing() {
             Teste a plataforma completa por 7 dias. Só é cobrado se continuar — cancele quando quiser, sem fidelidade.
           </p>
 
+          {/* BANNERS dos planos — só no desktop (planBanners esconde no mobile via
+              CSS, pois o banner é denso de texto e filtraria ilegível num ~390px;
+              no mobile os cards abaixo já trazem todos os benefícios em HTML legível).
+              ⚠️ Os preços (R$27/R$67) estão PINTADOS na imagem — se mudar PRICES,
+              regenerar os banners (banner-pro.png / banner-vip.png no bucket). */}
+          <div className={styles.planBanners} data-reveal>
+            <img
+              src="https://qdpfwncyzuztibpujlbq.supabase.co/storage/v1/object/public/checkout-assets/banner-pro.png"
+              alt="SolarDoc PRO — gerador de proposta, documentos em menos de 2 minutos, no celular e no computador, 7 dias grátis"
+              loading="lazy"
+              className={styles.planBanner}
+            />
+            <img
+              src="https://qdpfwncyzuztibpujlbq.supabase.co/storage/v1/object/public/checkout-assets/banner-vip.png"
+              alt="SolarDoc VIP — documentos ilimitados, mentoria mensal, suporte VIP, 7 dias grátis"
+              loading="lazy"
+              className={styles.planBanner}
+            />
+          </div>
+
           {/* CARDS — 3 colunas (auto-fit) */}
           <div
             style={{
