@@ -524,14 +524,6 @@ export default function AdminPage() {
         const mobile     = lpSessions.filter(s => /Mobile|Android|iPhone|iPad/i.test(s.user_agent||'')).length;
         const desktop    = visits - mobile;
 
-        // Funil LP: Acessou → Scroll 50% → Viu Preços → Clicou CTA → Cadastrou (conversão geral)
-        const lpFunnel: FunnelStep[] = [
-          { label: 'Acessou LP',  value: visits },
-          { label: 'Scroll 50%',  value: scroll50 },
-          { label: 'Viu Preços',  value: sawPrecos },
-          { label: 'Clicou CTA',  value: ctaTotal },
-        ];
-
         // Top origens
         const srcMap = new Map<string, { visits: number; scroll: number; precos: number; cta: number }>();
         lpSessions.forEach(s => {
@@ -632,12 +624,6 @@ export default function AdminPage() {
                   <div className={styles.cardLabel}>⏱️ Tempo médio na LP</div>
                   <div className={styles.cardValue} style={{color:'var(--ink-slate)'}}>{fmtTime(Math.round(avgTime))}</div>
                 </div>
-              </div>
-
-              {/* Funil SVG */}
-              <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
-                <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>📉 Funil da LP</div>
-                <FunnelSVG steps={lpFunnel} />
               </div>
 
               {/* Origens + Campanhas lado a lado */}
