@@ -519,9 +519,6 @@ export default function AdminPage() {
         const ctaTotal   = lpSessions.filter(s => (s.cta_clicks?.length||0) > 0).length;
         const ctaPro     = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('pro'))).length;
         const ctaVip     = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('vip'))).length;
-        const avgTime    = lpSessions.reduce((a,s) => a + (s.time_on_page||0), 0) / Math.max(visits, 1);
-        const mobile     = lpSessions.filter(s => /Mobile|Android|iPhone|iPad/i.test(s.user_agent||'')).length;
-        const desktop    = visits - mobile;
 
         // Funil LP (sem Scroll): Acessou → Viu Preços → Clicou CTA
         const lpFunnel: FunnelStep[] = [
@@ -601,30 +598,6 @@ export default function AdminPage() {
                 <div className={styles.card}>
                   <div className={styles.cardLabel}>Clicaram VIP</div>
                   <div className={styles.cardValue} style={{color:'var(--ink-orange)'}}>{ctaVip}</div>
-                </div>
-              </div>
-
-              {/* Cards secundários — engajamento */}
-              <div className={styles.cards} style={{gridTemplateColumns:'repeat(3,1fr)', marginTop: 12}}>
-                <div className={styles.card}>
-                  <div className={styles.cardLabel}>Viu seção Preços ({pct(sawPrecos, visits)})</div>
-                  <div className={styles.cardValue} style={{color:'var(--ink-pink)'}}>{sawPrecos}</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardLabel}>📱 Mobile</div>
-                  <div className={styles.cardValue} style={{color:'var(--ink-blue)'}}>{mobile} ({pct(mobile, visits)})</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardLabel}>🖥️ Desktop</div>
-                  <div className={styles.cardValue} style={{color:'var(--ink-purple)'}}>{desktop} ({pct(desktop, visits)})</div>
-                </div>
-              </div>
-
-              {/* Tempo médio em destaque */}
-              <div className={styles.cards} style={{gridTemplateColumns:'1fr', marginTop: 12}}>
-                <div className={styles.card}>
-                  <div className={styles.cardLabel}>⏱️ Tempo médio na LP</div>
-                  <div className={styles.cardValue} style={{color:'var(--ink-slate)'}}>{fmtTime(Math.round(avgTime))}</div>
                 </div>
               </div>
 
