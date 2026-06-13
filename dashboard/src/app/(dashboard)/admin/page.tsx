@@ -296,8 +296,8 @@ export default function AdminPage() {
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>📊 LP SolarDoc</button>
         {/* Aba Receita / ROAS ocultada — bloco e fetch mantidos abaixo, só removido o botão de navegação. */}
         {/* <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>💰 Receita / ROAS</button> */}
-        <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ Acessos Site IO</button>
-        <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>🎨 Pack Solar</button>
+        <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>🏗️ LP IO</button>
+        <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>🎨 LP Pack</button>
         <button className={tab==='funil_solardoc'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_solardoc')}>🔻 Funil SolarDoc</button>
         <button className={tab==='funil_limpapro'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_limpapro')}>💧 Funil LimpaPro</button>
       </div>
@@ -306,19 +306,14 @@ export default function AdminPage() {
       {tab === 'io_visits' && (() => {
         const ioSessions = baseSessions.filter(s => (s.landing_url || '').includes('/io'));
         const visits     = ioSessions.length;
-        const scroll50   = ioSessions.filter(s => (s.max_scroll||0) >= 50).length;
         const ctaTotal   = ioSessions.filter(s => (s.cta_clicks?.length||0) > 0).length;
         const ctaHero    = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('hero'))).length;
         const ctaWhats   = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('whats'))).length;
         const formSubmit = ioSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('contact_form'))).length;
-        const avgTime    = ioSessions.reduce((a,s) => a + (s.time_on_page||0), 0) / Math.max(visits, 1);
-        const mobile     = ioSessions.filter(s => /Mobile|Android|iPhone|iPad/i.test(s.user_agent||'')).length;
-        const desktop    = visits - mobile;
 
-        // Funil IO: Acessou → Scroll 50% → CTA hero → Clicou WhatsApp
+        // Funil IO: Acessou → CTA hero → Clicou WhatsApp
         const ioFunnel: FunnelStep[] = [
           { label: 'Acessou /io',     value: visits },
-          { label: 'Scroll 50%',      value: scroll50 },
           { label: 'CTA Hero',        value: ctaHero },
           { label: 'Clicou WhatsApp', value: ctaWhats },
         ];
@@ -391,26 +386,6 @@ export default function AdminPage() {
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>Form contato</div>
                     <div className={styles.cardValue} style={{color:'var(--ink-purple)'}}>{formSubmit}</div>
-                  </div>
-                </div>
-
-                {/* Cards secundários — engajamento */}
-                <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>Scroll 50%+ ({pct(scroll50, visits)})</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-pink)'}}>{scroll50}</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>⏱️ Tempo médio</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-slate)'}}>{fmtTime(Math.round(avgTime))}</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>📱 Mobile</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-blue)'}}>{mobile} ({pct(mobile, visits)})</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>🖥️ Desktop</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-purple)'}}>{desktop} ({pct(desktop, visits)})</div>
                   </div>
                 </div>
 
@@ -843,19 +818,14 @@ export default function AdminPage() {
           return url.includes('pack.solardoc');
         });
         const visits     = packSessions.length;
-        const scroll50   = packSessions.filter(s => (s.max_scroll||0) >= 50).length;
         const ctaTotal   = packSessions.filter(s => (s.cta_clicks?.length||0) > 0).length;
         const ctaExtras  = packSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').includes('/extras'))).length;
         const ctaCheckout= packSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('checkout') || (c.label||'').toLowerCase().includes('pagamento'))).length;
         const ctaWhats   = packSessions.filter(s => s.cta_clicks?.some(c => (c.label||'').toLowerCase().includes('whats'))).length;
-        const avgTime    = packSessions.reduce((a,s) => a + (s.time_on_page||0), 0) / Math.max(visits, 1);
-        const mobile     = packSessions.filter(s => /Mobile|Android|iPhone|iPad/i.test(s.user_agent||'')).length;
-        const desktop    = visits - mobile;
 
-        // Funil Pack Solar: Acessou LP → Scroll 50% → Foi pra /extras → Foi pro checkout
+        // Funil Pack Solar: Acessou LP → Foi pra /extras → Foi pro checkout
         const packFunnel: FunnelStep[] = [
           { label: 'Acessou LP',        value: visits },
-          { label: 'Scroll 50%',        value: scroll50 },
           { label: 'Clicou Comprar',    value: ctaExtras },
           { label: 'Foi pro checkout',  value: ctaCheckout },
         ];
@@ -925,25 +895,6 @@ export default function AdminPage() {
                   <div className={styles.card}>
                     <div className={styles.cardLabel}>WhatsApp ({pct(ctaWhats, visits)})</div>
                     <div className={styles.cardValue} style={{color:'var(--ink-purple)'}}>{ctaWhats}</div>
-                  </div>
-                </div>
-
-                <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>Scroll 50%+ ({pct(scroll50, visits)})</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-pink)'}}>{scroll50}</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>⏱️ Tempo médio</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-slate)'}}>{fmtTime(Math.round(avgTime))}</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>📱 Mobile</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-blue)'}}>{mobile} ({pct(mobile, visits)})</div>
-                  </div>
-                  <div className={styles.card}>
-                    <div className={styles.cardLabel}>🖥️ Desktop</div>
-                    <div className={styles.cardValue} style={{color:'var(--ink-purple)'}}>{desktop} ({pct(desktop, visits)})</div>
                   </div>
                 </div>
 
