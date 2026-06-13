@@ -94,7 +94,7 @@ export default function FunilSolarDocPanel() {
             Funil da operação SolarDoc
           </h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '6px 0 0' }}>
-            LP → Stripe → Cadastro → WhatsApp → Empresa → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
+            LP → Stripe → WhatsApp → Cadastro → Empresa → Plataforma · counts únicos por sessão (page_visits) ou usuário (users/documents)
           </p>
         </div>
 
