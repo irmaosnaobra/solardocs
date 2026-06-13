@@ -2014,24 +2014,3 @@
   .vslFrame { width: 360px; }
 }
 
-/* Banners dos planos (PRO/VIP) — showcase full-width acima dos cards.
-   Só desktop: no mobile (≤540px) some, pois o banner é denso de texto e
-   ficaria ilegível; os cards abaixo já entregam os benefícios em HTML. */
-.planBanners {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  max-width: 880px;
-  margin: 36px auto 8px;
-}
-.planBanner {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 16px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
-}
-@media (max-width: 540px) {
-  .planBanners { display: none; }
-}
-
