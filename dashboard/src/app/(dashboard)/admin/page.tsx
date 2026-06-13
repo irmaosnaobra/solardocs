@@ -515,7 +515,6 @@ export default function AdminPage() {
       {tab === 'visits' && (() => {
         const lpSessions = baseSessions.filter(s => !(s.landing_url||'').includes('/io'));
         const visits     = lpSessions.length;
-        const scroll50   = lpSessions.filter(s => (s.max_scroll||0) >= 50).length;
         const sawPrecos  = lpSessions.filter(s => s.sections_seen?.includes('precos')).length;
         const ctaTotal   = lpSessions.filter(s => (s.cta_clicks?.length||0) > 0).length;
         const ctaPro     = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('pro'))).length;
@@ -523,6 +522,13 @@ export default function AdminPage() {
         const avgTime    = lpSessions.reduce((a,s) => a + (s.time_on_page||0), 0) / Math.max(visits, 1);
         const mobile     = lpSessions.filter(s => /Mobile|Android|iPhone|iPad/i.test(s.user_agent||'')).length;
         const desktop    = visits - mobile;
+
+        // Funil LP (sem Scroll): Acessou → Viu Preços → Clicou CTA
+        const lpFunnel: FunnelStep[] = [
+          { label: 'Acessou LP',  value: visits },
+          { label: 'Viu Preços',  value: sawPrecos },
+          { label: 'Clicou CTA',  value: ctaTotal },
+        ];
 
         // Top origens
         const srcMap = new Map<string, { visits: number; scroll: number; precos: number; cta: number }>();
@@ -599,11 +605,7 @@ export default function AdminPage() {
               </div>
 
               {/* Cards secundários — engajamento */}
-              <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
-                <div className={styles.card}>
-                  <div className={styles.cardLabel}>Scroll 50%+ ({pct(scroll50, visits)})</div>
-                  <div className={styles.cardValue} style={{color:'var(--ink-purple)'}}>{scroll50}</div>
-                </div>
+              <div className={styles.cards} style={{gridTemplateColumns:'repeat(3,1fr)', marginTop: 12}}>
                 <div className={styles.card}>
                   <div className={styles.cardLabel}>Viu seção Preços ({pct(sawPrecos, visits)})</div>
                   <div className={styles.cardValue} style={{color:'var(--ink-pink)'}}>{sawPrecos}</div>
@@ -624,6 +626,12 @@ export default function AdminPage() {
                   <div className={styles.cardLabel}>⏱️ Tempo médio na LP</div>
                   <div className={styles.cardValue} style={{color:'var(--ink-slate)'}}>{fmtTime(Math.round(avgTime))}</div>
                 </div>
+              </div>
+
+              {/* Funil SVG */}
+              <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
+                <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>📉 Funil da LP</div>
+                <FunnelSVG steps={lpFunnel} />
               </div>
 
               {/* Origens + Campanhas lado a lado */}
