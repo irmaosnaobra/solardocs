@@ -6,7 +6,7 @@ import api from '@/services/api';
 type Period = 'hoje' | 'ontem' | '3dias' | '7dias' | 'mes' | 'maximo';
 
 interface FunnelStep {
-  key: 'vsl' | 'landing' | 'cadastro' | 'stripe' | 'empresa' | 'plataforma';
+  key: 'vsl' | 'landing' | 'cadastro' | 'stripe' | 'whatsapp' | 'empresa' | 'plataforma';
   label: string;
   count: number;
   sub?: string;
@@ -36,6 +36,7 @@ const STEP_COLORS: Record<FunnelStep['key'], { bg: string; border: string; accen
   landing:    { bg: 'rgba(59, 130, 246, 0.10)', border: 'rgba(59, 130, 246, 0.30)', accent: 'var(--ink-blue)' },
   cadastro:   { bg: 'rgba(16, 185, 129, 0.10)', border: 'rgba(16, 185, 129, 0.30)', accent: 'var(--ink-green)' },
   stripe:     { bg: 'rgba(245, 158, 11, 0.10)', border: 'rgba(245, 158, 11, 0.30)', accent: 'var(--ink-amber)' },
+  whatsapp:   { bg: 'rgba(37, 211, 102, 0.10)', border: 'rgba(37, 211, 102, 0.30)', accent: '#25D366' },
   empresa:    { bg: 'rgba(20, 184, 166, 0.10)', border: 'rgba(20, 184, 166, 0.30)', accent: 'var(--ink-teal)' },
   plataforma: { bg: 'rgba(239, 68, 68, 0.10)',  border: 'rgba(239, 68, 68, 0.30)',  accent: 'var(--ink-red)' },
 };
@@ -45,6 +46,7 @@ const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
   landing:    'Visitaram a home solardoc.app (LP principal)',
   stripe:     'Passaram cartão no checkout (trial 7 dias)',
   cadastro:   'Criaram conta após o pagamento',
+  whatsapp:   'Receberam a boas-vindas no WhatsApp (Giovanna)',
   empresa:    'Preencheram CNPJ na plataforma',
   plataforma: 'Geraram ao menos 1 documento',
 };
@@ -303,6 +305,10 @@ export default function FunilSolarDocPanel() {
             <strong style={{ color: 'var(--ink-amber)' }}>Fluxo novo:</strong> o cliente passa o cartão no Stripe
             (trial 7 dias) <b>antes</b> de criar a conta — só cadastra quem pagou. Depois preenche o CNPJ em
             <code style={{ padding: '0 4px' }}>/empresa</code> dentro da plataforma e gera os documentos.
+            <br /><br />
+            <strong style={{ color: '#25D366' }}>WhatsApp (forward-only):</strong> conta quem teve a boas-vindas
+            da Giovanna <b>disparada</b> no cadastro (tentativa de envio, não entrega confirmada — a Z-API pode
+            falhar). Só registra a partir de jun/2026; cadastros anteriores aparecem como 0 nessa etapa.
           </div>
         </>
         );

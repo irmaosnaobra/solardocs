@@ -208,11 +208,21 @@ export async function register(req: Request, res: Response): Promise<void> {
         // comprou depois cai aqui e antes não recebia NADA. AWAIT obrigatório em
         // serverless (ver nota na branch de conta nova).
         const tasks: Promise<unknown>[] = [];
+        let whatsappAttempted = false;
         if (body.whatsapp) {
+          whatsappAttempted = true;
           tasks.push(sendPurchaseWhatsApp(body.whatsapp, stripePlan.plano, body.nome || null).catch(() => {}));
         }
         tasks.push(sendPurchaseEmail({ to: body.email, userId: existing.id, nome: body.nome || null, plano: stripePlan.plano }).catch(() => {}));
         await Promise.allSettled(tasks);
+        // Registra o disparo da boas-vindas WhatsApp (forward-only, métrica do funil).
+        if (whatsappAttempted) {
+          await supabase
+            .from('users')
+            .update({ whatsapp_welcome_sent_at: new Date().toISOString() })
+            .eq('id', existing.id)
+            .then(() => {}, () => {});
+        }
         res.status(409).json({ error: 'JA_TEM_CONTA_PLANO_ATIVADO', planoAtivado: stripePlan.plano });
         return;
       }
@@ -264,18 +274,33 @@ export async function register(req: Request, res: Response): Promise<void> {
     // das bolhas terminarem (vimos: só a 1ª chegava). Resposta demora ~20s
     // mas user só vê depois das mensagens enviadas (mais coerente).
     const tasks: Promise<unknown>[] = [];
+    // Marca se DISPAROU boas-vindas WhatsApp (compra OU free) — alimenta a etapa
+    // WhatsApp do funil /admin. É "tentativa de envio", não entrega confirmada
+    // (Z-API pode falhar/bannear); o registro acontece mesmo se o envio der erro.
+    let whatsappAttempted = false;
     if (stripePlan) {
       if (body.whatsapp) {
+        whatsappAttempted = true;
         tasks.push(sendPurchaseWhatsApp(body.whatsapp, stripePlan.plano, body.nome || null).catch(() => {}));
       }
       tasks.push(sendPurchaseEmail({ to: body.email, userId: user.id, nome: body.nome || null, plano: stripePlan.plano }).catch(() => {}));
     } else {
       if (body.whatsapp) {
+        whatsappAttempted = true;
         tasks.push(sendWelcomeWhatsApp(body.whatsapp, body.email, body.nome || null).catch(() => {}));
       }
       tasks.push(sendWelcomeEmail({ to: body.email, userId: user.id, nome: body.nome || null }).catch(() => {}));
     }
     await Promise.allSettled(tasks);
+
+    // Registra o disparo da boas-vindas WhatsApp (forward-only, métrica do funil).
+    if (whatsappAttempted) {
+      await supabase
+        .from('users')
+        .update({ whatsapp_welcome_sent_at: new Date().toISOString() })
+        .eq('id', user.id)
+        .then(() => {}, () => {});
+    }
 
     res.status(201).json({ token, user });
   } catch (err: unknown) {

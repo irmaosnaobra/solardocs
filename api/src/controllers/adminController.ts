@@ -233,6 +233,15 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
       stripeReached = pagantes ?? 0;
     }
 
+    // 4b) WhatsApp boas-vindas — users criados no período que tiveram a mensagem
+    // de boas-vindas/compra (Giovanna) DISPARADA. Forward-only: só conta a partir
+    // de jun/2026, quando o registro foi ligado (cadastros antigos têm NULL).
+    const { count: whatsappCount } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', since.toISOString())
+      .not('whatsapp_welcome_sent_at', 'is', null);
+
     // 5) Empresa preenchida — users criados no período que já têm registro em company.
     // Gate entre Cadastro e Stripe: VSL → Cadastro → /empresa → Stripe → Documentos.
     // company não tem created_at, então usamos users.created_at como proxy
@@ -276,6 +285,7 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
           detail: { closed: stripeClosed, byProduct },
         },
         { key: 'cadastro',   label: 'Cadastro',    count: cadastros ?? 0,   sub: 'criaram conta' },
+        { key: 'whatsapp',   label: 'WhatsApp',    count: whatsappCount ?? 0, sub: 'receberam boas-vindas' },
         { key: 'empresa',    label: 'Empresa',     count: empresaCount,     sub: 'preencheram CNPJ' },
         { key: 'plataforma', label: 'Plataforma',  count: ativos,           sub: 'geraram 1+ documento' },
       ],

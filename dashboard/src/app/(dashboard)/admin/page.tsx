@@ -518,7 +518,6 @@ export default function AdminPage() {
         const scroll50   = lpSessions.filter(s => (s.max_scroll||0) >= 50).length;
         const sawPrecos  = lpSessions.filter(s => s.sections_seen?.includes('precos')).length;
         const ctaTotal   = lpSessions.filter(s => (s.cta_clicks?.length||0) > 0).length;
-        const ctaGratis  = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('grátis'))).length;
         const ctaPro     = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('pro'))).length;
         const ctaVip     = lpSessions.filter(s => s.cta_clicks?.some(c => c.label?.toLowerCase().includes('vip'))).length;
         const avgTime    = lpSessions.reduce((a,s) => a + (s.time_on_page||0), 0) / Math.max(visits, 1);
@@ -588,7 +587,7 @@ export default function AdminPage() {
           ) : (
             <>
               {/* Cards primários — funil de conversão */}
-              <div className={styles.cards} style={{gridTemplateColumns:'repeat(5,1fr)', marginTop: 12}}>
+              <div className={styles.cards} style={{gridTemplateColumns:'repeat(4,1fr)', marginTop: 12}}>
                 <div className={styles.card}>
                   <div className={styles.cardLabel}>Acessaram a LP</div>
                   <div className={styles.cardValue} style={{color:'var(--color-primary)'}}>{visits}</div>
@@ -596,10 +595,6 @@ export default function AdminPage() {
                 <div className={styles.card}>
                   <div className={styles.cardLabel}>Clicou alguma CTA ({pct(ctaTotal, visits)})</div>
                   <div className={styles.cardValue} style={{color:'var(--ink-blue)'}}>{ctaTotal}</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardLabel}>Clicaram Grátis</div>
-                  <div className={styles.cardValue} style={{color:'var(--ink-green)'}}>{ctaGratis}</div>
                 </div>
                 <div className={styles.card}>
                   <div className={styles.cardLabel}>Clicaram PRO</div>
