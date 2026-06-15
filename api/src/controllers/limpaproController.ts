@@ -177,6 +177,7 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
 interface LimpaproFunnelRpc {
   pv_total: number; pv_uniq: number;
   ck_total: number; ck_uniq: number;
+  co_pessoas: number; abandonos: number;
   vendas: number; clientes: number; faturamento: number; liquido: number;
   reembolsos: number; reembolso_valor: number; recusados: number; aguardando: number;
   produtos: { name: string; vendas: number; receita: number }[];
@@ -199,6 +200,8 @@ export async function getLimpaproFunnel(req: Request, res: Response): Promise<vo
     const visitasPV   = r.pv_total ?? 0;
     const cliques     = r.ck_uniq ?? 0;
     const cliquesPV   = r.ck_total ?? 0;
+    const coPessoas   = r.co_pessoas ?? 0;       // entraram no checkout da Kiwify (pessoas únicas)
+    const abandonos   = r.abandonos ?? 0;        // entraram no checkout e NÃO compraram
     const vendas      = r.vendas ?? 0;           // pedidos individuais (cada bump conta 1)
     const clientes    = r.clientes ?? 0;         // compradores únicos (e-mail distinto)
     const faturamento = Number(r.faturamento ?? 0); // bruto cobrado (charge_amount)
@@ -213,19 +216,26 @@ export async function getLimpaproFunnel(req: Request, res: Response): Promise<vo
       receita: Number(p.receita),
     }));
 
+    const brlSub = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
     res.json({
       period,
       since: sinceIso,
+      // Funil de 4 etapas — todas em PESSOAS únicas, então as barras nunca passam de 100%.
+      // Etapas 1-2 = sessão da LP (tracking próprio); 3-4 = pessoa na Kiwify (por e-mail).
+      // A transição 2→3 cruza dois sistemas (sessão LP × e-mail Kiwify) = aproximação.
       steps: [
-        { key: 'visita',   label: 'Visitou a LP',   count: visitas, sub: `${visitasPV} pageviews` },
-        { key: 'checkout', label: 'Clicou comprar', count: cliques, sub: `${cliquesPV} cliques` },
-        { key: 'venda',    label: 'Comprou',        count: vendas,  sub: faturamento > 0 ? `R$ ${faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : undefined },
+        { key: 'visita',   label: 'Visitou a LP',      count: visitas,   sub: `${visitasPV} pageviews` },
+        { key: 'clique',   label: 'Clicou no botão',   count: cliques,   sub: `${cliquesPV} cliques` },
+        { key: 'checkout', label: 'Entrou no checkout',count: coPessoas, sub: abandonos > 0 ? `${abandonos} abandonaram` : undefined },
+        { key: 'venda',    label: 'Comprou',           count: clientes,  sub: vendas > 0 ? `${vendas} pedidos · ${brlSub(faturamento)}` : undefined },
       ],
       faturamento,
       liquido,
       stats: {
         clientes,
         vendas,
+        abandonos,
         liquido,
         ticketVenda,
         ticketCliente,
@@ -239,6 +249,39 @@ export async function getLimpaproFunnel(req: Request, res: Response): Promise<vo
   } catch (err) {
     console.error('getLimpaproFunnel error:', err);
     res.status(500).json({ error: 'Erro ao carregar funil LimpaPro' });
+  }
+}
+
+// ── 4) Leads de recuperação de checkout — GET /admin/leads-limpapro?period= ──
+// Pessoas que entraram no checkout da Kiwify e NÃO compraram (abandonaram ou geraram
+// pix e não pagaram). A lista é a fonte pra followup (WhatsApp). Contém PII (nome/
+// telefone): a RPC limpapro_leads é security definer com grant SÓ pro service_role,
+// e esta rota já é admin-gated (authMiddleware + adminMiddleware).
+//
+// Definições (auditadas):
+// • Recuperado = abandonou/gerou pix e SÓ DEPOIS comprou (Δt positivo; refused NÃO ancora
+//   recuperação — retry de cartão na mesma sessão não é recuperação).
+// • Em aberto = nunca pagou e nunca estornou → vai pra lista (sempre cumulativo, qualquer
+//   período: lead antigo ainda é recuperável).
+// • R$ na mesa = soma das SKUs distintas da sessão de pix ATIVA (por pix_expiration), nunca
+//   amount_cents (bug ×100). Abandono puro não tem valor no raw → âncora R$ 47 (Limpa Solar Pro).
+// • since_ts filtra SÓ a métrica "recuperados no período" (por data da compra); a lista ignora.
+export async function getLimpaproLeads(req: Request, res: Response): Promise<void> {
+  try {
+    const period = (req.query.period as string) || 'maximo';
+    const since = sinceFromPeriod(period);
+    // period 'maximo' → desde a epoch; a RPC interpreta null como "sem corte de período"
+    // (mesma semântica), mas mandamos o ISO real pra alinhar com o resto do painel.
+    const sinceIso = period === 'maximo' ? null : since.toISOString();
+
+    const { data, error } = await supabase.rpc('limpapro_leads', { since_ts: sinceIso });
+    if (error) throw error;
+
+    // A RPC retorna { metrics, leads_abertos } pronto — repassa direto.
+    res.json(data ?? { metrics: {}, leads_abertos: [] });
+  } catch (err) {
+    console.error('getLimpaproLeads error:', err);
+    res.status(500).json({ error: 'Erro ao carregar leads LimpaPro' });
   }
 }
 

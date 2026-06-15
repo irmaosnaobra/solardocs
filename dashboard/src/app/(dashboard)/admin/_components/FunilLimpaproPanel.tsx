@@ -38,7 +38,64 @@ interface FunnelData {
   produtos: ProdutoVendido[];
 }
 
+// ── Recuperação de checkout (endpoint /admin/leads-limpapro) ──
+interface LeadAberto {
+  nome: string | null;
+  email: string;
+  telefone: string | null;
+  whatsapp_url: string | null;
+  telefone_suspeito: boolean;
+  produto: string | null;
+  status: 'pix_gerado' | 'abandonou';
+  valor_centavos: number | null;
+  valor_estimado: boolean;
+  quando_iso: string | null;
+  quando_label: string | null;
+  horas_desde: number | null;
+  pix_expira_iso: string | null;
+  pix_ativo: boolean;
+}
+interface LeadsMetrics {
+  recuperados_total: number;
+  recuperados_no_periodo: number;
+  em_aberto_total: number;
+  em_aberto_com_valor: number;
+  falsos_positivos: number;
+  pessoas_checkout_aberto: number;
+  rs_na_mesa: number;
+}
+interface LeadsData {
+  metrics: LeadsMetrics;
+  leads_abertos: LeadAberto[];
+}
+
 const brl = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+// Idade do lead em texto curto ("há 3 dias", "há 5h").
+function idadeLabel(horas: number | null): string {
+  if (horas == null) return '';
+  if (horas < 1) return 'agora há pouco';
+  if (horas < 24) return `há ${Math.round(horas)}h`;
+  return `há ${Math.round(horas / 24)} dia${Math.round(horas / 24) > 1 ? 's' : ''}`;
+}
+
+// Mensagem de WhatsApp pré-preenchida por estado (URL-encoded).
+function waLink(lead: LeadAberto): string | null {
+  if (!lead.whatsapp_url) return null;
+  const nome = (lead.nome || '').trim().split(/\s+/)[0];
+  const saud = nome ? `Oi ${nome}!` : 'Oi, tudo bem?';
+  const produto = lead.produto || 'Limpa Solar Pro';
+  // 3 cenários: pix ativo (link ainda vale) · pix vencido (gerar novo) · abandono puro.
+  let msg: string;
+  if (lead.status === 'pix_gerado' && lead.pix_ativo) {
+    msg = `${saud} Seu Pix do ${produto} foi gerado mas ainda não caiu. Quer que eu te reenvie o link pra finalizar?`;
+  } else if (lead.status === 'pix_gerado') {
+    msg = `${saud} Você gerou o Pix do ${produto} mas ele acabou expirando. Quer que eu gere um link novo pra você concluir?`;
+  } else {
+    msg = `${saud} Vi que você começou a compra do ${produto} e não finalizou. Posso te ajudar a concluir?`;
+  }
+  return `${lead.whatsapp_url}?text=${encodeURIComponent(msg)}`;
+}
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: 'hoje',   label: 'Hoje' },
@@ -73,12 +130,17 @@ function pct(num: number, den: number): string {
 export default function FunilLimpaproPanel() {
   const [period, setPeriod] = useState<Period>('7dias');
   const [data, setData] = useState<FunnelData | null>(null);
+  const [leads, setLeads] = useState<LeadsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const fetchFunnel = useCallback(async () => {
     setLoading(true);
     setError('');
+    // O funil é o conteúdo principal e já está em produção; os leads vêm de um
+    // endpoint novo. Buscas SEPARADAS de propósito: se /leads-limpapro falhar (ex.:
+    // ainda não deployado → 404), o funil NÃO pode quebrar junto — só some o bloco
+    // de recuperação (guardado por {leads && …}).
     try {
       const { data } = await api.get<FunnelData>('/admin/funnel-limpapro', { params: { period } });
       setData(data);
@@ -86,6 +148,12 @@ export default function FunilLimpaproPanel() {
       setError('Erro ao carregar funil. Tenta de novo.');
     } finally {
       setLoading(false);
+    }
+    try {
+      const { data } = await api.get<LeadsData>('/admin/leads-limpapro', { params: { period } });
+      setLeads(data);
+    } catch {
+      setLeads(null); // endpoint indisponível → esconde o bloco, não derruba o painel
     }
   }, [period]);
 
@@ -300,8 +368,151 @@ export default function FunilLimpaproPanel() {
             </div>
           )}
 
+          {/* Recuperação de checkout (leads pra followup) */}
+          {leads && (
+            <div style={{ marginTop: 32 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Recuperação de checkout</h3>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                  lista completa · não filtra por período
+                </span>
+              </div>
+
+              {/* Mini-stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+                {[
+                  {
+                    label: 'Recuperados',
+                    val: leads.metrics.recuperados_no_periodo.toLocaleString('pt-BR'),
+                    hint: `compraram após abandonar · ${PERIODS.find(p => p.value === period)?.label.toLowerCase()}`,
+                    accent: 'var(--ink-green)',
+                  },
+                  {
+                    label: 'Em aberto',
+                    val: leads.metrics.em_aberto_total.toLocaleString('pt-BR'),
+                    hint: 'leads pra contatar (cumulativo)',
+                    accent: 'var(--ink-amber)',
+                  },
+                  {
+                    label: 'R$ na mesa',
+                    val: `${brl(leads.metrics.rs_na_mesa)}*`,
+                    hint: 'valor dos checkouts em aberto (estimado)',
+                    accent: 'var(--color-text)',
+                  },
+                ].map(m => (
+                  <div key={m.label} style={{
+                    background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                    borderRadius: 12, padding: '16px 18px',
+                  }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 6 }}>
+                      {m.label}
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: m.accent }}>{m.val}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>{m.hint}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Reconciliação (em pessoas) */}
+              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 12 }}>
+                {leads.metrics.pessoas_checkout_aberto} pessoas entraram no checkout sem comprar ={' '}
+                {leads.metrics.em_aberto_total} em aberto + {leads.metrics.recuperados_total} recuperado(s) +{' '}
+                {leads.metrics.falsos_positivos} já tinham comprado antes
+              </div>
+
+              {/* Lista de leads */}
+              {leads.leads_abertos.length > 0 && (
+                <div style={{ marginTop: 16, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
+                  {/* Cabeçalho */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 120px 120px 110px 130px', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--color-border)', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>
+                    <div>Cliente</div>
+                    <div>Produto</div>
+                    <div>Estado</div>
+                    <div style={{ textAlign: 'right' }}>Checkout</div>
+                    <div style={{ textAlign: 'right' }}>Quando</div>
+                    <div style={{ textAlign: 'right' }}>Contato</div>
+                  </div>
+                  {leads.leads_abertos.map((lead, i) => {
+                    const wa = waLink(lead);
+                    const pixVencido = lead.status === 'pix_gerado' && !lead.pix_ativo;
+                    return (
+                      <div key={lead.email} style={{
+                        display: 'grid', gridTemplateColumns: '1.4fr 1fr 120px 120px 110px 130px', gap: 12,
+                        padding: '12px 18px', alignItems: 'center', fontSize: 14,
+                        borderBottom: i < leads.leads_abertos.length - 1 ? '1px solid var(--color-border)' : 0,
+                      }}>
+                        {/* Cliente */}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {lead.nome || '(sem nome)'}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {lead.email}
+                          </div>
+                        </div>
+                        {/* Produto */}
+                        <div style={{ color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {lead.produto || '—'}
+                        </div>
+                        {/* Estado */}
+                        <div>
+                          <span style={{
+                            display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
+                            background: lead.status === 'pix_gerado' ? 'rgba(245,158,11,0.12)' : 'var(--color-surface-2)',
+                            color: lead.status === 'pix_gerado' ? 'var(--ink-amber)' : 'var(--color-text-muted)',
+                            border: `1px solid ${lead.status === 'pix_gerado' ? 'rgba(245,158,11,0.3)' : 'var(--color-border)'}`,
+                          }}>
+                            {lead.status === 'pix_gerado' ? 'Pix gerado' : 'Abandonou'}
+                          </span>
+                          {pixVencido && (
+                            <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 3 }}>pix vencido</div>
+                          )}
+                        </div>
+                        {/* Valor do checkout */}
+                        <div style={{ textAlign: 'right', fontWeight: 700 }}>
+                          {lead.valor_centavos != null
+                            ? `${brl(lead.valor_centavos / 100)}${lead.valor_estimado ? '~' : ''}`
+                            : '—'}
+                        </div>
+                        {/* Quando */}
+                        <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--color-text-muted)' }}>
+                          <div>{lead.quando_label || '—'}</div>
+                          <div style={{ fontSize: 11 }}>{idadeLabel(lead.horas_desde)}</div>
+                        </div>
+                        {/* Contato */}
+                        <div style={{ textAlign: 'right' }}>
+                          {wa ? (
+                            <a href={wa} target="_blank" rel="noopener noreferrer" style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700,
+                              padding: '6px 12px', borderRadius: 8, textDecoration: 'none',
+                              background: 'rgba(16,185,129,0.12)', color: 'var(--ink-green)',
+                              border: '1px solid rgba(16,185,129,0.3)',
+                            }}>
+                              WhatsApp{lead.telefone_suspeito ? ' ⚠' : ''}
+                            </a>
+                          ) : (
+                            <span style={{ color: 'var(--color-text-muted)' }}>—</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Notas */}
           <div style={{ marginTop: 32, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
+            <strong style={{ color: 'var(--color-text)' }}>Recuperação de checkout:</strong> aqui ficam quem
+            entrou no checkout e <b>não comprou</b> — abandonou ou gerou Pix e não pagou (mais quente). <b>Recuperado</b> =
+            abandonou/gerou pix e SÓ DEPOIS comprou; quem comprou antes é falso positivo e fica de fora. A <b>lista é
+            sempre completa</b>, não segue o filtro de período (lead antigo ainda dá pra recuperar) — só "Recuperados"
+            segue o período. <b>R$ na mesa</b> é estimado: pros Pix usa o valor real do checkout, pros abandonos usa o
+            preço do Limpa Solar Pro (R$ 47). "Recuperado" = a pessoa comprou <b>qualquer</b> item depois; se ela tinha
+            outro produto avulso abandonado, ele não aparece aqui. ⚠️ Lista com nome e telefone de clientes — só pra
+            contato comercial.
+            <br /><br />
             <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> o funil conta <b>pessoas únicas</b>
             em cada etapa, então as barras nunca passam de 100%. <b>Visitou</b> e <b>Clicou</b> vêm da sessão na
             landing; <b>Entrou no checkout</b> e <b>Comprou</b> vêm da pessoa na Kiwify (por e-mail). Como são
