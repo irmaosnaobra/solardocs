@@ -208,6 +208,7 @@ async function lerLeadsAbertos(): Promise<LeadAberto[]> {
 // Chamado em 'waiting_payment'/'abandoned' (NUNCA paid/refunded/chargeback).
 // ═════════════════════════════════════════════════════════════════════
 export async function agendarRecuperacaoRealtime(email: string | null, nome?: string | null): Promise<void> {
+  if (!recuperacaoHabilitada()) return;                     // DARK: não acumula marcador enquanto desligado
   if (!email) return;
   const e = email.toLowerCase().trim();
   if (await jaContatado(e)) return;                         // corta na origem (dedup produtores)
