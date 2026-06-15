@@ -305,6 +305,27 @@ router.get('/recup-probe-inbound', async (req: Request, res: Response) => {
   }
 });
 
+// DEBUG READ-ONLY — lê a config de webhook ATUAL da instância IO na Z-API.
+// Responde a pergunta: o on-message-received da IO está apontado pro nosso endpoint?
+// (se não, o io=0 no webhook_debug é "não configurado", não "Multi Device morto").
+router.get('/recup-probe-webhook', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const id = process.env.ZAPI_INSTANCE_ID_IO?.trim();
+    const token = process.env.ZAPI_TOKEN_IO?.trim();
+    const client = (process.env.ZAPI_CLIENT_TOKEN_IO || process.env.ZAPI_CLIENT_TOKEN)?.trim();
+    if (!id || !token || !client) { res.json({ ok: false, motivo: 'creds_io_ausentes' }); return; }
+
+    // Z-API: GET /instances/{id}/token/{token}/webhooks lista os callbacks configurados.
+    const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/webhooks`, { headers: { 'Client-Token': client } });
+    const raw: any = r.ok ? await r.json() : await r.text().catch(() => null);
+    res.json({ ok: true, status: r.status, webhooks_io: raw });
+  } catch (err: any) {
+    logger.error('cron', 'recup-probe-webhook falhou', err);
+    res.status(500).json({ ok: false, erro: String(err?.message || err) });
+  }
+});
+
 // Roda a cada 30 min — follow-up SDR (10 tentativas antes de marcar Perdido)
 router.get('/sdr-followup', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
