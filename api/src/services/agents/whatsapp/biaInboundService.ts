@@ -33,11 +33,23 @@ function recuperacaoHabilitada(): boolean {
 
 // Roteamento: este telefone é um lead de recuperação que a Bia abordou? (tem sessão
 // tipo='recuperacao'). Usado pelo webhook /io pra decidir Bia vs. atendimento humano.
+// Variantes BR do telefone — a Z-API/Worker às vezes grava SEM o 9º dígito do celular
+// (ex.: opener salvo como 5534991360223, mas o inbound chega como 553491360223). Sem isso
+// o match de sessão falha e a Bia não responde. Inclui com/sem 9 e com/sem 55.
+export function phoneVariants(raw: string): string[] {
+  const clean = raw.replace(/\D/g, '');
+  const c55 = clean.startsWith('55') ? clean : `55${clean}`;
+  const semDdi = c55.replace(/^55/, '');
+  // adiciona/remove o 9 após o DDD (posição 4 no formato 55+DD)
+  const add9 = c55.length === 12 ? c55.slice(0, 4) + '9' + c55.slice(4) : c55;
+  const rem9 = c55.length === 13 && c55[4] === '9' ? c55.slice(0, 4) + c55.slice(5) : c55;
+  return Array.from(new Set([clean, c55, semDdi, add9, rem9, add9.replace(/^55/, ''), rem9.replace(/^55/, '')]));
+}
+
 export async function ehLeadRecuperacao(rawPhone: string): Promise<boolean> {
   if (!recuperacaoHabilitada()) return false;
-  const phone = fmtPhone(rawPhone);
   const { data } = await supabase.from('whatsapp_sessions')
-    .select('id').eq('phone', phone).eq('tipo', 'recuperacao').limit(1).maybeSingle();
+    .select('id').in('phone', phoneVariants(rawPhone)).eq('tipo', 'recuperacao').limit(1).maybeSingle();
   return Boolean(data);
 }
 
@@ -102,11 +114,15 @@ responda UMA vez acolhendo que vai passar pro time, e termine com a tag literal 
 }
 
 // ─── sessão ─────────────────────────────────────────────────────────
-async function loadSession(phone: string): Promise<BiaSession> {
+// Busca por VARIANTES (o inbound pode chegar com formato de phone diferente do salvo)
+// e retorna o phone CANÔNICO (o que está no banco) — pra salvar de volta na MESMA linha,
+// não criar uma sessão duplicada com outro formato.
+async function loadSession(rawPhone: string): Promise<BiaSession & { phoneCanonico: string }> {
   const { data } = await supabase.from('whatsapp_sessions')
-    .select('messages, nome, lead_data').eq('phone', phone).eq('tipo', 'recuperacao')
+    .select('phone, messages, nome, lead_data').in('phone', phoneVariants(rawPhone)).eq('tipo', 'recuperacao')
     .order('updated_at', { ascending: false }).limit(1).maybeSingle();
   return {
+    phoneCanonico: (data?.phone as string) ?? fmtPhone(rawPhone),
     messages: (data?.messages as BiaSession['messages']) || [],
     nome: data?.nome ?? null,
     lead_data: (data?.lead_data as BiaLeadData) ?? {},
@@ -121,20 +137,19 @@ async function saveSession(phone: string, msgs: BiaSession['messages'], nome: st
 
 // ─── takeover: humano digitou do celular da recuperação → Bia cala ──
 export async function marcarTakeoverBia(rawPhone: string): Promise<void> {
-  const phone = fmtPhone(rawPhone);
-  const s = await loadSession(phone);
-  await saveSession(phone, s.messages, s.nome, { ...s.lead_data, human_takeover: true });
-  logger.info('bia-inbound', `human takeover ${phone} — Bia silenciada`);
+  const s = await loadSession(rawPhone);
+  await saveSession(s.phoneCanonico, s.messages, s.nome, { ...s.lead_data, human_takeover: true });
+  logger.info('bia-inbound', `human takeover ${s.phoneCanonico} — Bia silenciada`);
 }
 
 // ─── handler principal — chamado pelo webhook /io quando ehLeadRecuperacao()=true ──
 export async function handleBiaInbound(rawPhone: string, text: string, senderName?: string | null): Promise<void> {
   if (!recuperacaoHabilitada()) return;
-  const phone = fmtPhone(rawPhone);
   const clean = (text || '').trim();
   if (!clean) return;
 
-  const session = await loadSession(phone);
+  const session = await loadSession(rawPhone);
+  const phone = session.phoneCanonico;     // chave da sessão (salvar aqui pra não duplicar)
   const nome = session.nome ?? senderName ?? null;
 
   if (session.lead_data.human_takeover === true) { // humano assumiu → registra e cala
@@ -142,7 +157,7 @@ export async function handleBiaInbound(rawPhone: string, text: string, senderNam
     return;
   }
   if (OPT_OUT.test(clean)) {
-    await sendHuman(phone, ['Sem problema, parei por aqui.', 'Se precisar é só me chamar neste número.'], INSTANCE);
+    await sendHuman(rawPhone, ['Sem problema, parei por aqui.', 'Se precisar é só me chamar neste número.'], INSTANCE);
     await saveSession(phone, [...session.messages, { role: 'user', content: clean }], nome, { ...session.lead_data, human_takeover: true });
     logger.info('bia-inbound', `opt-out ${phone}`);
     return;
