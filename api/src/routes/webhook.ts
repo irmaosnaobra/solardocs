@@ -6,6 +6,7 @@ import { supabase } from '../utils/supabase';
 import { transcribeAudio, downloadImageAsAnthropicSource } from '../utils/mediaProcessor';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { kiwifyWebhook } from '../controllers/limpaproController';
+import { handleBiaInbound, ehLeadRecuperacao, marcarTakeoverBia } from '../services/agents/whatsapp/biaInboundService';
 
 // Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
 // primeiro disponível pra dedup atômico contra redelivery e race com polling.
@@ -231,7 +232,18 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
   }
 
   // ── ROTA LEAD (DM): conversa privada com cliente ──
-  if (isFromMe(body)) return;
+  // Mensagem NOSSA: se um humano digitou (fromMe && !fromApi) num lead de recuperação,
+  // silencia a Bia (takeover). fromApi = a própria Bia respondendo → ignora (anti-loop).
+  if (isFromMe(body)) {
+    const fromApi = body.fromApi === true || body.fromApi === 'true';
+    if (!fromApi) {
+      const myPhone = String(body.phone || body.senderPhone || '').replace(/\D/g, '');
+      if (myPhone && await ehLeadRecuperacao(myPhone)) {
+        await marcarTakeoverBia(myPhone).catch(e => console.error('[webhook:io] takeover bia falhou', e));
+      }
+    }
+    return;
+  }
 
   const phone = body.phone || body.senderPhone;
   const text = extractText(body);
@@ -249,6 +261,17 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
       console.info(`[webhook:io] mensagem ${messageId} já processada — pulando`);
       return;
     }
+  }
+
+  // ── ROTEAMENTO BIA (recuperação LimpaPro) ──
+  // A linha IO é compartilhada: humanos atendem energia solar; a Bia (IA) só responde
+  // quem ELA abordou (tem sessão tipo='recuperacao'). Cliente de energia NUNCA cai aqui
+  // (nunca terá essa sessão). Texto-only no v1; mídia segue pro fluxo humano abaixo.
+  const textoRecup = extractText(body);
+  if (textoRecup && await ehLeadRecuperacao(String(phone))) {
+    handleBiaInbound(String(phone), textoRecup, body.senderName || body.pushname)
+      .catch(err => console.error('[webhook:io] handleBiaInbound falhou:', err));
+    return;
   }
 
   // Processa em background — chama Luma direto na linha 'io'.

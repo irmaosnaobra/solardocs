@@ -8,6 +8,8 @@ import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCn
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
+import { runLimpaproRecoveryConsumer, seedLimpaproRecoveryBacklog } from '../services/agents/whatsapp/limpaproRecoveryService';
+import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundService';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
@@ -197,7 +199,7 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupConsumerResult, biaPollResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -212,6 +214,8 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       // enviarRelatorioDiario(),       // [LUMA-IO-OFF] relatório diário IO
       retryCardsPendentes(),
       processarLembretesAgenda(),      // lembretes 5min/3h da agenda /gerador
+      runLimpaproRecoveryConsumer(),   // recuperação LimpaPro (Bia): drena marcadores prontos
+      pollBiaRecuperacao(),            // inbound da Bia (poll IO; webhook IO não entrega texto)
     ]);
     res.json({
       ok: true,
@@ -222,11 +226,38 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       dedup_cleanup: dedupCleanupResult.status === 'fulfilled' ? dedupCleanupResult.value : { error: String((dedupCleanupResult as any).reason) },
       card_retry: cardRetryResult.status === 'fulfilled' ? cardRetryResult.value : { error: String((cardRetryResult as any).reason) },
       agenda:     agendaResult.status === 'fulfilled' ? agendaResult.value : { error: String((agendaResult as any).reason) },
+      recup_consumer: recupConsumerResult.status === 'fulfilled' ? recupConsumerResult.value : { error: String((recupConsumerResult as any).reason) },
+      bia_poll:       biaPollResult.status === 'fulfilled' ? biaPollResult.value : { error: String((biaPollResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
     logger.error('cron', 'process-messages falhou', err);
     res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// ── Recuperação LimpaPro (Bia) — endpoints manuais (gated). ──
+// O CONSUMO real roda dentro do /process-messages (tick ~5min); estes são pra
+// disparo manual e ?dry=1 (conferência sem enviar/semear).
+// Seed do backlog é one-shot: rodar UMA vez ao ligar a Bia (não agendar).
+router.get('/limpapro-recovery-consume', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runLimpaproRecoveryConsumer({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'limpapro-recovery-consume falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+router.get('/limpapro-recovery-seed', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await seedLimpaproRecoveryBacklog({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'limpapro-recovery-seed falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
 

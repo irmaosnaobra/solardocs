@@ -1,6 +1,6 @@
 // Suporte a múltiplas instâncias Z-API.
 // 'solardoc' = linha B2B da SolarDoc (Carla + Giovanna)
-// 'io'       = linha B2C Irmãos na Obra (Luma — energia solar cliente final)
+// 'io'       = linha B2C Irmãos na Obra (humanos + Bia de recuperação LimpaPro)
 export type ZapiInstance = 'solardoc' | 'io';
 
 interface ZapiCreds {

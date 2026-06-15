@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
+import { agendarRecuperacaoRealtime } from '../services/agents/whatsapp/limpaproRecoveryService';
 
 // ── Funil do produto LimpaPro (curso de limpeza de placas, vendido na Kiwify) ──
 // Totalmente isolado do funil SolarDoc: grava em limpapro_events, nunca em page_visits.
@@ -153,6 +154,18 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
     } else {
       // Sem order_id identificável: insere assim mesmo (auditoria), não dá pra deduplicar.
       await supabase.from('limpapro_events').insert(row);
+    }
+
+    // ── Produtor real-time da recuperação (Bia) ──
+    // Só semeia pra quem está EM ABERTO (pix gerado / abandono). NUNCA paid/refunded/
+    // chargeback. NÃO envia aqui — só agenda o marcador; o consumidor (com re-check de
+    // pagamento) envia depois do debounce. await + try/catch: em serverless 'void promise'
+    // após o res morre sem rodar. É 1 select + 1 upsert (~50-150ms); o webhook já awaita
+    // supabase antes do 200, e o catch externo responde 200 mesmo se algo lançar.
+    const ehEmAberto = status === 'waiting_payment' || /abandon/.test(statusRaw);
+    if (row.buyer_email && ehEmAberto) {
+      try { await agendarRecuperacaoRealtime(row.buyer_email, row.buyer_name); }
+      catch (e) { console.warn('[kiwify] seed recuperação falhou (ignorado):', e); }
     }
 
     res.status(200).json({ ok: true });
