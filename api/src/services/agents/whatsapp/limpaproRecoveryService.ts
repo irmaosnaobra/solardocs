@@ -56,8 +56,8 @@ const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
 const MAX_POR_HORA = 12;
 // Debounce: atraso entre o sinal de "aberto" e o contato (deixa a compra cair primeiro).
 export const DEBOUNCE_MS = 8 * 60 * 1000; // 8 min
-// Escalonamento do backlog: 10 min entre leads.
-const SEED_STAGGER_MS = 10 * 60 * 1000;
+// Escalonamento do backlog: 5 min entre leads (cadência pedida pelo Thiago).
+const SEED_STAGGER_MS = 5 * 60 * 1000;
 // Anti-rajada intra-tick: no máximo N envios por execução do consumidor.
 const MAX_ENVIOS_POR_TICK = 2;
 

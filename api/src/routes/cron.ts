@@ -261,6 +261,50 @@ router.get('/limpapro-recovery-seed', async (req: Request, res: Response) => {
   }
 });
 
+// DEBUG READ-ONLY — testa se o endpoint chat-messages da Z-API IO retorna TEXTO
+// em Multi Device (a incerteza de que todo o inbound da Bia depende). NÃO envia nada.
+// Uso: /cron/recup-probe-inbound?phone=<um chat IO existente>
+router.get('/recup-probe-inbound', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const id = process.env.ZAPI_INSTANCE_ID_IO?.trim();
+    const token = process.env.ZAPI_TOKEN_IO?.trim();
+    const client = (process.env.ZAPI_CLIENT_TOKEN_IO || process.env.ZAPI_CLIENT_TOKEN)?.trim();
+    if (!id || !token || !client) { res.json({ ok: false, motivo: 'creds_io_ausentes' }); return; }
+
+    const phone = String(req.query.phone || '').replace(/\D/g, '');
+    // 1) Pega chats recentes da IO (pra escolher um phone se não passaram).
+    const chatsRes = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/chats?pageSize=10`, { headers: { 'Client-Token': client } });
+    const chatsRaw: any = chatsRes.ok ? await chatsRes.json() : null;
+    const chats = Array.isArray(chatsRaw) ? chatsRaw : (chatsRaw?.value ?? chatsRaw?.chats ?? []);
+    const alvo = phone || (chats.find((c: any) => !c.isGroup && c.phone)?.phone ?? '').replace(/\D/g, '');
+    if (!alvo) { res.json({ ok: false, motivo: 'sem_chat_pra_testar', chats_count: chats.length }); return; }
+
+    // 2) Tenta ler as mensagens desse chat — a pergunta-chave: vem text.message?
+    const msgRes = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/chat-messages/${alvo}?pageSize=5`, { headers: { 'Client-Token': client } });
+    const msgRaw: any = msgRes.ok ? await msgRes.json() : null;
+    const arr = Array.isArray(msgRaw) ? msgRaw : (msgRaw?.value ?? msgRaw?.messages ?? []);
+    const amostra = (arr || []).slice(-5).map((m: any) => ({
+      fromMe: m.fromMe, type: m.type ?? m.messageType,
+      tem_texto: Boolean(m.text?.message ?? m.message ?? m.body),
+      texto_preview: String(m.text?.message ?? m.message ?? m.body ?? '').slice(0, 40),
+    }));
+    res.json({
+      ok: true,
+      chat_messages_status: msgRes.status,
+      veio_texto: amostra.some((m: any) => m.tem_texto),  // ← a resposta que importa
+      qtd_mensagens: arr?.length ?? 0,
+      amostra,
+      conclusao: amostra.some((m: any) => m.tem_texto)
+        ? 'INBOUND OK: chat-messages retorna texto → Bia consegue ler respostas'
+        : 'INBOUND MORTO: chat-messages NÃO retorna texto → Bia seria só 1º toque',
+    });
+  } catch (err: any) {
+    logger.error('cron', 'recup-probe-inbound falhou', err);
+    res.status(500).json({ ok: false, erro: String(err?.message || err) });
+  }
+});
+
 // Roda a cada 30 min — follow-up SDR (10 tentativas antes de marcar Perdido)
 router.get('/sdr-followup', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
