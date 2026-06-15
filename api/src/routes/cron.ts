@@ -316,10 +316,20 @@ router.get('/recup-probe-webhook', async (req: Request, res: Response) => {
     const client = (process.env.ZAPI_CLIENT_TOKEN_IO || process.env.ZAPI_CLIENT_TOKEN)?.trim();
     if (!id || !token || !client) { res.json({ ok: false, motivo: 'creds_io_ausentes' }); return; }
 
-    // Z-API: GET /instances/{id}/token/{token}/webhooks lista os callbacks configurados.
-    const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/webhooks`, { headers: { 'Client-Token': client } });
-    const raw: any = r.ok ? await r.json() : await r.text().catch(() => null);
-    res.json({ ok: true, status: r.status, webhooks_io: raw });
+    // Tenta vários endpoints de leitura da Z-API pra (a) achar o instanceId real da IO
+    // e (b) a URL do on-message-received configurado.
+    const tryGet = async (path: string) => {
+      try {
+        const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/${path}`, { headers: { 'Client-Token': client } });
+        const body = r.ok ? await r.json().catch(() => null) : await r.text().catch(() => null);
+        return { path, status: r.status, body };
+      } catch (e) { return { path, status: 0, body: String(e) }; }
+    };
+    const [device, received] = await Promise.all([
+      tryGet('device'),                       // info do device/conta (traz o número conectado)
+      tryGet('update-webhook-received'),      // alguns endpoints GET retornam a URL atual
+    ]);
+    res.json({ ok: true, env_instance_id: id, device, on_message_received: received });
   } catch (err: any) {
     logger.error('cron', 'recup-probe-webhook falhou', err);
     res.status(500).json({ ok: false, erro: String(err?.message || err) });
