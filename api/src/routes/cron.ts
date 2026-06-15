@@ -325,11 +325,16 @@ router.get('/recup-probe-webhook', async (req: Request, res: Response) => {
         return { path, status: r.status, body };
       } catch (e) { return { path, status: 0, body: String(e) }; }
     };
-    const [device, received] = await Promise.all([
-      tryGet('device'),                       // info do device/conta (traz o número conectado)
-      tryGet('update-webhook-received'),      // alguns endpoints GET retornam a URL atual
-    ]);
-    res.json({ ok: true, env_instance_id: id, device, on_message_received: received });
+    const me = await tryGet('me');            // /me traz receivedCallbackUrl (pra onde a IO manda inbound)
+    const meBody = (me.body ?? {}) as any;
+    res.json({
+      ok: true,
+      env_instance_id: id,
+      received_callback_url: meBody?.receivedCallbackUrl ?? null,  // ← a resposta decisiva
+      sent_callback_url: meBody?.sentCallbackUrl ?? null,
+      me_status: me.status,
+      me_keys: meBody && typeof meBody === 'object' ? Object.keys(meBody) : null,
+    });
   } catch (err: any) {
     logger.error('cron', 'recup-probe-webhook falhou', err);
     res.status(500).json({ ok: false, erro: String(err?.message || err) });
