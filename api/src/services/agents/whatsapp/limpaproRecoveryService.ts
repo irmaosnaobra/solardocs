@@ -354,3 +354,18 @@ export async function runLimpaproRecoveryConsumer(opts: { dry?: boolean } = {}):
   }
   return out;
 }
+
+// ─── TESTE: manda o 1º toque pra UM número específico (valida o ciclo completo) ──
+// Cria a sessão de recuperação (faz ehLeadRecuperacao=true → backoff/inbound funcionam)
+// e manda o opener pela linha IO. Lead sintético — NÃO passa pela RPC/seed (o número de
+// teste não é lead real). Usado só pelo endpoint gated de teste, nunca em produção.
+export async function enviarOpenerTeste(telefone: string, nome?: string | null): Promise<{ ok: boolean; motivo?: string }> {
+  if (!recuperacaoHabilitada()) return { ok: false, motivo: 'desabilitado' };
+  const lead: LeadAberto = {
+    nome: nome ?? 'Teste', email: `teste+${telefone.replace(/\D/g, '')}@limpapro.local`,
+    telefone, telefone_suspeito: false, produto: 'Limpa Solar Pro',
+    status: 'abandonou', valor_centavos: 4700, pix_ativo: false, horas_desde: 1,
+  };
+  await enviarParaLead(lead);
+  return { ok: true };
+}

@@ -8,7 +8,7 @@ import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCn
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
-import { runLimpaproRecoveryConsumer, seedLimpaproRecoveryBacklog } from '../services/agents/whatsapp/limpaproRecoveryService';
+import { runLimpaproRecoveryConsumer, seedLimpaproRecoveryBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundService';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
@@ -258,6 +258,21 @@ router.get('/limpapro-recovery-seed', async (req: Request, res: Response) => {
   } catch (err: any) {
     logger.error('cron', 'limpapro-recovery-seed falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// TESTE gated — manda o 1º toque pra UM número (valida o ciclo completo antes dos 12).
+// /cron/recup-test-opener?phone=5534991360223&nome=Thiago
+router.get('/recup-test-opener', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const phone = String(req.query.phone || '').replace(/\D/g, '');
+    if (!phone) { res.status(400).json({ error: 'phone obrigatorio' }); return; }
+    const nome = req.query.nome ? String(req.query.nome) : null;
+    res.json({ phone, ...(await enviarOpenerTeste(phone, nome)) });
+  } catch (err: any) {
+    logger.error('cron', 'recup-test-opener falhou', err);
+    res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
   }
 });
 
