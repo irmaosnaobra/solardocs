@@ -17,6 +17,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendHuman, fmtPhone } from '../zapiClient';
+import { tryClaimMessage } from '../sdr/sdrAgentService';
 import { logger } from '../../../utils/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -172,69 +173,70 @@ export async function handleBiaInbound(rawPhone: string, text: string, senderNam
   if (escalar) logger.info('bia-inbound', `escalado pra humano: ${phone} (${session.lead_data.email ?? 's/ email'})`);
 }
 
-// ─── INBOUND POR POLLING (via confiável da linha IO) ────────────────
-// O webhook on-message-received da Z-API NÃO entrega texto na instância IO em Multi
-// Device (confirmado: _route='/io'=0 eventos; ReceivedCallback não casa sdr_leads) —
-// por isso o sdrIoPolling existe. A Bia escuta respostas do MESMO jeito: poll dos chats
-// IO, e SÓ processa quem tem sessão de recuperação (ehLeadRecuperacao). Cliente de
-// energia nunca é tocado. Texto vem do endpoint chat-messages.
+// ─── INBOUND VIA webhook_debug (a via REAL da linha IO) ──────────────
+// A linha IO manda os ReceivedCallback pra um Cloudflare Worker (receivedCallbackUrl
+// = zapi-webhook.aiorosgroup.workers.dev), que grava tudo em webhook_debug. Os endpoints
+// de leitura direta da Z-API (chat-messages) dão 400 em Multi Device — então a Bia lê o
+// inbound DAQUI (webhook_debug), sem repontar nada e sem tocar no tráfego de energia.
 //
-// ⚠️ chat-messages NÃO é usado em nenhum outro lugar do projeto — comportamento em
-// Multi Device é INCERTO. VALIDAR E2E num número de teste antes de RECUP_ENABLED=true.
+// ROTEAMENTO SEGURO: só processa quem tem sessão tipo='recuperacao' (ehLeadRecuperacao).
+// Cliente de energia (576/semana) nunca casa → nunca é tocado pela Bia.
+// fromMe=false → resposta do cliente → Bia responde. fromMe=true & !fromApi → humano
+// digitou → takeover (Bia cala). Dedup por messageId (tryClaimMessage).
+const INSTANCE_ID_IO = '3F26F6ECE67D72BB7FCA6244BF24326C';
+
 export async function pollBiaRecuperacao(): Promise<{ processed: number; skipped: number; errors: number }> {
   if (!recuperacaoHabilitada()) return { processed: 0, skipped: 0, errors: 0 };
-  const id = process.env.ZAPI_INSTANCE_ID_IO?.trim();
-  const token = process.env.ZAPI_TOKEN_IO?.trim();
-  const client = (process.env.ZAPI_CLIENT_TOKEN_IO || process.env.ZAPI_CLIENT_TOKEN)?.trim();
-  if (!id || !token || !client) return { processed: 0, skipped: 0, errors: 0 };
 
-  const cutoff = Date.now() - 5 * 60 * 1000;
-  let chats: Array<{ phone?: string; name?: string; isGroup?: unknown; lastMessageTime?: unknown }> = [];
-  try {
-    const res = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/chats?pageSize=30`,
-      { headers: { 'Client-Token': client } });
-    if (!res.ok) return { processed: 0, skipped: 0, errors: 0 };
-    const data: any = await res.json();
-    chats = Array.isArray(data) ? data : (data.value ?? data.chats ?? []);
-  } catch (err) { logger.error('bia-poll', 'fetch chats falhou', err); return { processed: 0, skipped: 0, errors: 1 }; }
+  // Janela: 6 min (cobre o tick ~5min do /process-messages com folga).
+  const desde = new Date(Date.now() - 6 * 60 * 1000).toISOString();
+  const { data: rows, error } = await supabase
+    .from('webhook_debug')
+    .select('payload, created_at')
+    .gte('created_at', desde)
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if (error) { logger.error('bia-poll', 'ler webhook_debug falhou', error); return { processed: 0, skipped: 0, errors: 1 }; }
 
   let processed = 0, skipped = 0, errors = 0;
-  for (const chat of chats) {
-    if (chat.isGroup === true || chat.isGroup === 'true' || !chat.phone) { skipped++; continue; }
-    const rawT = chat.lastMessageTime ?? 0;
-    const lastTime = typeof rawT === 'number' ? (rawT > 1e12 ? rawT : rawT * 1000) : Number(rawT) || new Date(rawT as string).getTime();
-    if (!lastTime || lastTime < cutoff) { skipped++; continue; }
+  for (const r of rows ?? []) {
+    const p = (r.payload ?? {}) as Record<string, any>;
+    // Só ReceivedCallback da instância IO.
+    if (p.type !== 'ReceivedCallback' || p.instanceId !== INSTANCE_ID_IO) { skipped++; continue; }
+    if (p.isGroup === true || p.isGroup === 'true') { skipped++; continue; }
 
-    const phone = String(chat.phone).replace(/\D/g, '');
+    const phone = String(p.phone || p.senderPhone || '').replace(/\D/g, '');
     if (!phone) { skipped++; continue; }
 
-    // ROTEAMENTO: só processa quem a Bia abordou (tem sessão recuperação). Energia = pula.
+    // ROTEAMENTO: só leads que a Bia abordou. Energia nunca casa → pula.
     if (!(await ehLeadRecuperacao(phone))) { skipped++; continue; }
 
-    // Busca a última mensagem do chat (chat-messages). Se foi do CLIENTE (fromMe=false) →
-    // Bia responde. Se foi NOSSA mas NÃO da API (humano digitou) → takeover.
-    try {
-      const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/chat-messages/${phone}?pageSize=1`,
-        { headers: { 'Client-Token': client } });
-      if (!r.ok) { skipped++; continue; }
-      const msgs: any = await r.json();
-      const arr = Array.isArray(msgs) ? msgs : (msgs.value ?? msgs.messages ?? []);
-      const last = arr[arr.length - 1] ?? arr[0];
-      if (!last) { skipped++; continue; }
+    const fromMe = p.fromMe === true || p.fromMe === 'true';
+    const fromApi = p.fromApi === true || p.fromApi === 'true';
 
-      const fromMe = last.fromMe === true || last.fromMe === 'true';
-      const fromApi = last.fromApi === true || last.fromApi === 'true';
-      if (fromMe) {
-        // Humano digitou do celular (não foi a Bia via API) → silencia a Bia.
-        if (!fromApi) { await marcarTakeoverBia(phone); processed++; } else skipped++;
-        continue;
-      }
-      const texto = last.text?.message ?? last.message ?? last.body ?? '';
-      if (!texto.trim()) { skipped++; continue; }
-      await handleBiaInbound(phone, texto, chat.name ?? null);
+    if (fromMe) {
+      // Humano digitou do celular da linha (não a Bia via API) → silencia a Bia.
+      if (!fromApi) {
+        try { await marcarTakeoverBia(phone); processed++; } catch (err) { errors++; logger.error('bia-poll', `takeover ${phone}`, err); }
+      } else skipped++;
+      continue;
+    }
+
+    const texto = p.text?.message ?? (typeof p.text === 'string' ? p.text : '') ?? p.message ?? p.body ?? '';
+    if (!String(texto).trim()) { skipped++; continue; }
+
+    // Dedup por messageId — não reprocessa o mesmo evento em ticks sobrepostos.
+    const messageId = p.messageId || p.zaapId || p.id || null;
+    if (messageId) {
+      const claimed = await tryClaimMessage(`bia:${messageId}`, phone, 'poll');
+      if (!claimed) { skipped++; continue; }
+    }
+
+    try {
+      await handleBiaInbound(phone, String(texto), p.senderName || p.pushname || null);
       processed++;
     } catch (err) {
-      logger.error('bia-poll', `processar ${phone} falhou`, err);
+      logger.error('bia-poll', `handleBiaInbound ${phone} falhou`, err);
       errors++;
     }
   }
