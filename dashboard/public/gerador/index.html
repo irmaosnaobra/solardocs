@@ -58,6 +58,45 @@ html[data-mode="app"].tabelas-aberta .container,
 html[data-mode="app"].redes-aberto .container,
 html[data-mode="app"].crm-aberto .container,
 html[data-mode="app"].leads-aberto .container{margin-left:0!important}
+/* ===== Calculadora (fullscreen como CRM/Redes/Leads) ===== */
+html[data-mode="app"].calc-aberto #app-sidebar,
+html[data-mode="app"].calc-aberto .sb-mobile-toggle{display:none!important}
+html[data-mode="app"].calc-aberto .container{margin-left:0!important}
+#calcSection{max-width:560px;margin:0 auto}
+#calcSection .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:20px 18px;margin-bottom:16px}
+.calc-card-title{font-size:12px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.7px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.calc-card-title .dot{width:6px;height:6px;border-radius:50%;background:#3B82F6}
+.calc-field{margin-bottom:14px}
+.calc-field:last-child{margin-bottom:0}
+.calc-field label{display:block;font-size:13px;font-weight:600;color:#E5E7EB;margin-bottom:7px}
+.calc-field label .hint{font-weight:400;color:#94A3B8;font-size:11.5px}
+.calc-inp{position:relative}
+.calc-inp .pre{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:14px;font-weight:600;pointer-events:none}
+.calc-inp input{width:100%;padding:12px 14px 12px 38px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#fff;font-size:16px;font-family:inherit;font-weight:600;outline:none;transition:border-color .2s}
+.calc-inp.pct input{padding-left:14px;padding-right:42px}
+.calc-inp .suf{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:14px;font-weight:600;pointer-events:none}
+.calc-inp input:focus{border-color:#3B82F6}
+.calc-inp input::placeholder{color:#475569;font-weight:400}
+.calc-inp input::-webkit-outer-spin-button,.calc-inp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.calc-brow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:14px}
+.calc-brow:last-of-type{border-bottom:none}
+.calc-brow .lbl{color:#94A3B8}
+.calc-brow .val{font-weight:700;color:#E5E7EB;font-variant-numeric:tabular-nums}
+.calc-brow.total{border-top:1px solid rgba(255,255,255,.14);border-bottom:none;margin-top:4px;padding-top:13px}
+.calc-brow.total .lbl{color:#fff;font-weight:700}
+.calc-price-box{background:#0f1a2e;border:1px solid #3B82F6;border-radius:12px;padding:18px;text-align:center;margin-bottom:14px}
+.calc-price-box .cap{font-size:11.5px;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.calc-price-box .big{font-size:33px;font-weight:800;color:#60A5FA;margin:6px 0 2px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.calc-price-box .small{font-size:12.5px;color:#94A3B8}
+.calc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.calc-kpi{background:#0f1a2e;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:13px 14px}
+.calc-kpi .k{font-size:11px;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.calc-kpi .v{font-size:18px;font-weight:800;margin-top:4px;color:#E5E7EB;font-variant-numeric:tabular-nums}
+.calc-kpi .v.grn{color:#34D399}
+.calc-kpi .v.info{color:#60A5FA}
+.calc-warn{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:#fca5a5;border-radius:10px;padding:12px 14px;font-size:13px;font-weight:600;text-align:center}
+.calc-foot{text-align:center;font-size:11.5px;color:#94A3B8;line-height:1.55;opacity:.85;margin-top:6px}
+.calc-foot b{color:#E5E7EB}
 .leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
 /* ===== CRM (sempre dark — força fundo escuro como o cockpit Redes) ===== */
 #crmSection .card{background:#1E293B!important;color:#E5E7EB!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 4px 16px rgba(0,0,0,.25)!important}
@@ -734,6 +773,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <button type="button" class="sb-item" id="nav-historico" onclick="navHistorico()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg></span> Histórico</button>
     <button type="button" class="sb-item" id="nav-leads" onclick="navLeads()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span> Leads</button>
     <button type="button" class="sb-item" id="nav-tabelas" onclick="navTabelas()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span> Tabelas</button>
+    <button type="button" class="sb-item" id="nav-calc" onclick="navCalc()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10"></line><line x1="12" y1="10" x2="12" y2="10"></line><line x1="16" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="16" y1="14" x2="16" y2="18"></line><line x1="8" y1="18" x2="12" y2="18"></line></svg></span> Calculadora</button>
     <button type="button" class="sb-item" id="nav-redes" onclick="navRedes()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg></span> Redes</button>
   </div>
   <div class="sb-spacer"></div>
@@ -1443,6 +1483,104 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <span id="hist-page-info">Página 1 de 1</span>
         <button id="hist-next" onclick="historicoPagProxima()">Próxima →</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ============= TELA: CALCULADORA DE PRECIFICAÇÃO ============= -->
+  <div id="calcSection" style="display:none;">
+    <div class="header">
+      <div class="header-titulo">
+        <h1>🧮 Calculadora de precificação</h1>
+      </div>
+      <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
+    </div>
+
+    <!-- CUSTOS -->
+    <div class="card">
+      <div class="calc-card-title"><span class="dot"></span>Custos do projeto</div>
+
+      <div class="calc-field">
+        <label>Valor do kit <span class="hint">(painéis, inversor, estrutura)</span></label>
+        <div class="calc-inp"><span class="pre">R$</span><input type="number" id="calc-kit" inputmode="decimal" placeholder="0,00" oninput="calcKitChange()"></div>
+      </div>
+
+      <div class="calc-field">
+        <label>Material C.A <span class="hint">(padrão: 7% do kit — editável)</span></label>
+        <div class="calc-inp"><span class="pre">R$</span><input type="number" id="calc-ca" inputmode="decimal" placeholder="0,00" oninput="calcCaEditado()"></div>
+      </div>
+
+      <div class="calc-field">
+        <label>Mão de obra / Instalação</label>
+        <div class="calc-inp"><span class="pre">R$</span><input type="number" id="calc-mao" inputmode="decimal" placeholder="0,00" oninput="calcPreco()"></div>
+      </div>
+
+      <div class="calc-field">
+        <label>Deslocamento / Logística <span class="hint">(combustível, frete)</span></label>
+        <div class="calc-inp"><span class="pre">R$</span><input type="number" id="calc-desl" inputmode="decimal" placeholder="0,00" oninput="calcPreco()"></div>
+      </div>
+
+      <div class="calc-field">
+        <label>Homologação <span class="hint">(padrão: R$ 250)</span></label>
+        <div class="calc-inp"><span class="pre">R$</span><input type="number" id="calc-homolog" inputmode="decimal" value="250" oninput="calcPreco()"></div>
+      </div>
+
+      <div class="calc-field">
+        <label>ART <span class="hint">(padrão: R$ 190)</span></label>
+        <div class="calc-inp"><span class="pre">R$</span><input type="number" id="calc-art" inputmode="decimal" value="190" oninput="calcPreco()"></div>
+      </div>
+    </div>
+
+    <!-- MARGEM -->
+    <div class="card">
+      <div class="calc-card-title"><span class="dot"></span>Lucro e comissão</div>
+
+      <div class="calc-field">
+        <label>Margem de lucro alvo <span class="hint">(sobre o preço de venda)</span></label>
+        <div class="calc-inp pct"><input type="number" id="calc-margem" inputmode="decimal" placeholder="30" value="30" oninput="calcPreco()"><span class="suf">%</span></div>
+      </div>
+
+      <div class="calc-field">
+        <label>Comissão do vendedor <span class="hint">(sobre o preço de venda)</span></label>
+        <div class="calc-inp pct"><input type="number" id="calc-comissao" inputmode="decimal" placeholder="0" value="0" oninput="calcPreco()"><span class="suf">%</span></div>
+      </div>
+
+      <div class="calc-field">
+        <label>Impostos <span class="hint">(sobre o preço de venda)</span></label>
+        <div class="calc-inp pct"><input type="number" id="calc-impostos" inputmode="decimal" placeholder="0" value="0" oninput="calcPreco()"><span class="suf">%</span></div>
+      </div>
+    </div>
+
+    <!-- RESULTADO -->
+    <div class="card">
+      <div class="calc-card-title"><span class="dot"></span>Resultado</div>
+
+      <div style="margin-bottom:18px">
+        <div class="calc-brow"><span class="lbl">Kit</span><span class="val" id="calc-b-kit">R$ 0,00</span></div>
+        <div class="calc-brow"><span class="lbl">Material C.A</span><span class="val" id="calc-b-ca">R$ 0,00</span></div>
+        <div class="calc-brow"><span class="lbl">Mão de obra</span><span class="val" id="calc-b-mao">R$ 0,00</span></div>
+        <div class="calc-brow"><span class="lbl">Deslocamento</span><span class="val" id="calc-b-desl">R$ 0,00</span></div>
+        <div class="calc-brow"><span class="lbl">Homologação</span><span class="val" id="calc-b-homolog">R$ 0,00</span></div>
+        <div class="calc-brow"><span class="lbl">ART</span><span class="val" id="calc-b-art">R$ 0,00</span></div>
+        <div class="calc-brow total"><span class="lbl">Custo total</span><span class="val" id="calc-b-custo">R$ 0,00</span></div>
+      </div>
+
+      <div class="calc-price-box">
+        <div class="cap">Preço de venda sugerido</div>
+        <div class="big" id="calc-r-preco">R$ 0,00</div>
+        <div class="small" id="calc-r-sub">Defina os custos acima</div>
+      </div>
+
+      <div id="calc-r-warn" class="calc-warn" style="display:none;"></div>
+
+      <div class="calc-kpis" id="calc-r-kpis">
+        <div class="calc-kpi"><div class="k">Lucro líquido</div><div class="v grn" id="calc-r-lucro">R$ 0,00</div></div>
+        <div class="calc-kpi"><div class="k">Comissão</div><div class="v info" id="calc-r-comissao">R$ 0,00</div></div>
+      </div>
+    </div>
+
+    <div class="calc-foot">
+      Margem, comissão e impostos incidem <b>sobre o preço de venda</b> (padrão do mercado).<br>
+      Preço&nbsp;=&nbsp;Custo&nbsp;÷&nbsp;(1&nbsp;−&nbsp;margem%&nbsp;−&nbsp;comissão%&nbsp;−&nbsp;impostos%)
     </div>
   </div>
 
@@ -3965,11 +4103,11 @@ function marcarNavAtivo(id) {
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
-  ['historicoSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection'].forEach(id => {
+  ['historicoSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto');
   document.getElementById('formSection').style.display = '';
   marcarNavAtivo('nav-gerador');
   fecharSidebarMobile();
@@ -4131,6 +4269,111 @@ function navRedes() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   redesSubaba('criacao');   // abre direto na Criação (estúdio)
   carregarRedes();          // carrega dados de analytics em background (p/ Destaques)
+}
+
+// ============= TELA: CALCULADORA DE PRECIFICAÇÃO =============
+// Standalone — só estima preço de venda; NÃO escreve no "Valor do investimento" da proposta.
+const CALC_CA_PCT = 0.07;   // Material C.A padrão = 7% do kit
+let calcCaTocado = false;   // vira true quando o consultor edita o C.A na mão
+
+function navCalc() {
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  ['tabelasSection', 'leadsSection', 'redesSection', 'crmSection'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const sec = document.getElementById('calcSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('calc-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto');
+  marcarNavAtivo('nav-calc');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  calcPreco();
+}
+
+const calcFmt = n => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const calcNum = id => {
+  const el = document.getElementById(id);
+  const v = parseFloat((el && el.value || '').replace(',', '.'));
+  return isFinite(v) && v > 0 ? v : 0;
+};
+
+// Kit mudou: enquanto o consultor não tiver editado o C.A na mão, mantém em 7% do kit
+function calcKitChange() {
+  if (!calcCaTocado) {
+    const kit = calcNum('calc-kit');
+    document.getElementById('calc-ca').value = kit > 0 ? (kit * CALC_CA_PCT).toFixed(2) : '';
+  }
+  calcPreco();
+}
+// Consultor digitou no C.A: respeita o valor dele daqui pra frente (some campo vazio volta ao auto)
+function calcCaEditado() {
+  calcCaTocado = (document.getElementById('calc-ca').value || '').trim() !== '';
+  calcPreco();
+}
+
+function calcPreco() {
+  const kit     = calcNum('calc-kit');
+  const ca      = calcNum('calc-ca');
+  const mao     = calcNum('calc-mao');
+  const desl    = calcNum('calc-desl');
+  const homolog = calcNum('calc-homolog');
+  const art     = calcNum('calc-art');
+  const custo   = kit + ca + mao + desl + homolog + art;
+
+  const margemPct   = calcNum('calc-margem');
+  const comissaoPct = calcNum('calc-comissao');
+  const impostosPct = calcNum('calc-impostos');
+
+  document.getElementById('calc-b-kit').textContent     = calcFmt(kit);
+  document.getElementById('calc-b-ca').textContent      = calcFmt(ca);
+  document.getElementById('calc-b-mao').textContent     = calcFmt(mao);
+  document.getElementById('calc-b-desl').textContent    = calcFmt(desl);
+  document.getElementById('calc-b-homolog').textContent = calcFmt(homolog);
+  document.getElementById('calc-b-art').textContent     = calcFmt(art);
+  document.getElementById('calc-b-custo').textContent   = calcFmt(custo);
+
+  const elPreco = document.getElementById('calc-r-preco');
+  const elSub   = document.getElementById('calc-r-sub');
+  const elWarn  = document.getElementById('calc-r-warn');
+  const elLucro = document.getElementById('calc-r-lucro');
+  const elComis = document.getElementById('calc-r-comissao');
+  const elKpis  = document.getElementById('calc-r-kpis');
+
+  if (custo <= 0) {
+    elPreco.textContent = 'R$ 0,00';
+    elSub.textContent = 'Defina os custos acima';
+    elWarn.style.display = 'none';
+    elKpis.style.display = 'grid';
+    elLucro.textContent = calcFmt(0);
+    elComis.textContent = calcFmt(0);
+    return;
+  }
+
+  // margem + comissão + impostos saem do MESMO denominador (todos sobre o preço de venda)
+  const denom = 1 - (margemPct + comissaoPct + impostosPct) / 100;
+
+  if (denom <= 0) {
+    elPreco.textContent = '—';
+    elSub.textContent = 'Reveja os percentuais';
+    elWarn.textContent = '⚠️ Margem + comissão + impostos somam ' + (margemPct + comissaoPct + impostosPct).toFixed(0) + '% (≥100%). É impossível precificar — reduza algum deles.';
+    elWarn.style.display = 'block';
+    elKpis.style.display = 'none';
+    return;
+  }
+
+  const preco    = custo / denom;
+  const comissao = preco * comissaoPct / 100;
+  const lucro    = preco * margemPct / 100;
+
+  elPreco.textContent = calcFmt(preco);
+  elSub.textContent = 'Margem real de ' + margemPct.toFixed(0) + '% garantida';
+  elWarn.style.display = 'none';
+  elKpis.style.display = 'grid';
+  elLucro.textContent = calcFmt(lucro);
+  elComis.textContent = calcFmt(comissao);
 }
 
 const nfmt = n => (n == null ? '—' : Number(n).toLocaleString('pt-BR'));
