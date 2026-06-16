@@ -167,6 +167,14 @@ async function jaContatado(email: string): Promise<boolean> {
   return Date.now() - new Date(v.contacted_at).getTime() < COOLDOWN_MS;
 }
 
+// Quando o opener foi enviado (ISO) — usado pra cravar o cupom em opener+2h no backlog.
+async function quandoContatado(email: string): Promise<number | null> {
+  const { data } = await supabase
+    .from('system_state').select('value').eq('key', stateKey(email)).maybeSingle();
+  const v = (data?.value ?? {}) as { contacted_at?: string };
+  return v.contacted_at ? new Date(v.contacted_at).getTime() : null;
+}
+
 async function marcarContatado(email: string, lead: LeadAberto): Promise<void> {
   await supabase.from('system_state').upsert({
     key: stateKey(email),
@@ -425,11 +433,15 @@ export async function seedLimpaproCupomBacklog(opts: { dry?: boolean } = {}): Pr
     if (await jaPagou(e))          { bump('ja_pagou'); continue; }
     if (await clienteRespondeu(lead.telefone)) { bump('cliente_respondeu'); continue; }
 
-    // ready imediato + stagger (não tem como "não responder em 2h" quem já está há dias
-    // no vácuo — o opener foi há muito; escalona só pra não disparar tudo no mesmo tick).
+    // ready_at respeita as 2h DESDE O OPENER pra todos: quem foi contatado há dias cai
+    // pra "agora" (já passou) e quem tomou opener recente (Jadson/Lucimary) espera completar
+    // as 2h. + stagger pra não disparar tudo no mesmo tick (anti-ban da linha compartilhada).
+    const openerAt = await quandoContatado(e);
+    const elegivelEm = openerAt ? openerAt + CUPOM_DELAY_MS : base; // sem timestamp → trata como pronto
+    const readyAt = Math.max(elegivelEm, base) + semeados * SEED_STAGGER_MS;
     novos.push({
       key: cupomPendingKey(e),
-      value: { origem: 'cupom', ready_at: new Date(base + semeados * SEED_STAGGER_MS).toISOString(),
+      value: { origem: 'cupom', ready_at: new Date(readyAt).toISOString(),
                seeded_at: new Date().toISOString(), nome: lead.nome },
       updated_at: new Date().toISOString(),
     });
