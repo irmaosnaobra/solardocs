@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
 import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel, getRevenue } from '../controllers/adminController';
-import { getLimpaproFunnel, getLimpaproLeads } from '../controllers/limpaproController';
+import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas } from '../controllers/limpaproController';
 import { supabase } from '../utils/supabase';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 
@@ -68,6 +68,7 @@ router.get('/meta-funnel',    getMetaFunnel);
 router.get('/funnel',         getFunnel);
 router.get('/funnel-limpapro', getLimpaproFunnel);
 router.get('/leads-limpapro',  getLimpaproLeads);
+router.get('/conversas-limpapro', getLimpaproConversas);
 router.get('/revenue',        getRevenue);
 
 // Deletar user (cascade manual). Aceita { email } OU { cnpj } no body.

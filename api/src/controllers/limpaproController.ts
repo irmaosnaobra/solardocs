@@ -140,7 +140,10 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
     const row = {
       event_type:   'purchase',
       order_id:     orderId,
-      buyer_email:  (buyer.email || '').toLowerCase() || null,
+      // Abandono da Kiwify guarda o email no TOPO do raw (evt.email), não em Customer —
+      // por isso o coalesce. Sem ele, buyer_email fica null no abandono e o produtor
+      // real-time da Bia (gate abaixo) nunca semeia. Casa com o coalesce da RPC limpapro_leads.
+      buyer_email:  (buyer.email || evt.email || '').toLowerCase() || null,
       buyer_name:   buyer.full_name || buyer.name || null,
       product_name: product.product_name || product.name || evt.product_name || null,
       status,
@@ -298,6 +301,68 @@ export async function getLimpaproLeads(req: Request, res: Response): Promise<voi
   }
 }
 
+// ── 5) Conversas da Bia (recuperação) — GET /admin/conversas-limpapro ──
+// Histórico das conversas que a agente Bia teve com quem abandonou o checkout.
+// Lê whatsapp_sessions tipo='recuperacao' (a Bia só abre sessão com quem ELA abordou,
+// nunca toca cliente de energia solar). Contém PII (telefone + texto da conversa):
+// rota admin-gated (authMiddleware + adminMiddleware), mesma classe da lista de leads.
+//
+// Cada sessão carrega messages[] {role:'assistant'|'user', content}. Derivamos:
+// • respondeu  = a pessoa mandou ao menos 1 msg (role='user') → engajou
+// • takeover   = humano assumiu (lead_data.human_takeover) → Bia calou
+// A sessão de teste do Thiago (phone 5534991360223 / email teste+...@limpapro.local)
+// é marcada como teste pro front poder esconder, sem sumir do banco.
+interface BiaMsg { role: 'assistant' | 'user'; content: string }
+interface BiaSessionRow {
+  phone: string | null;
+  nome: string | null;
+  messages: BiaMsg[] | null;
+  updated_at: string | null;
+  lead_data: Record<string, unknown> | null;
+}
+
+export async function getLimpaproConversas(_req: Request, res: Response): Promise<void> {
+  try {
+    // Sessões da Bia, mais recentes primeiro. Cap de 200 — a fila de recuperação é
+    // pequena (dezenas), bem abaixo do teto de 1000 do PostgREST.
+    const { data, error } = await supabase
+      .from('whatsapp_sessions')
+      .select('phone, nome, messages, updated_at, lead_data')
+      .eq('tipo', 'recuperacao')
+      .order('updated_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+
+    const TESTE_PHONE = '5534991360223';
+    const conversas = ((data ?? []) as BiaSessionRow[]).map((s) => {
+      const msgs = Array.isArray(s.messages) ? s.messages : [];
+      const respondeu = msgs.some((m) => m?.role === 'user');
+      const takeover = Boolean(s.lead_data?.['human_takeover']);
+      const ehTeste = s.phone === TESTE_PHONE || /(^|\W)teste\b/i.test(s.nome ?? '');
+      return {
+        phone: s.phone,
+        nome: s.nome,
+        updated_at: s.updated_at,
+        n_msgs: msgs.length,
+        respondeu,
+        takeover,
+        teste: ehTeste,
+        // Texto da conversa, na ordem em que aconteceu.
+        mensagens: msgs.map((m) => ({ role: m.role, content: m.content })),
+      };
+    });
+
+    res.json({
+      total: conversas.length,
+      respondidas: conversas.filter((c) => c.respondeu && !c.teste).length,
+      conversas,
+    });
+  } catch (err) {
+    console.error('getLimpaproConversas error:', err);
+    res.status(500).json({ error: 'Erro ao carregar conversas da Bia' });
+  }
+}
+
 // A Kiwify envia montantes já em centavos como inteiro (1200 = R$ 12,00).
 // Só normalizamos pra número inteiro — sem multiplicar por 100.
 function asCents(v: unknown): number | null {
@@ -310,6 +375,7 @@ function asCents(v: unknown): number | null {
 // Tipagem solta do payload Kiwify — campos variam por versão do webhook.
 interface KiwifyPayload {
   order_id?: string; id?: string; order_status?: string; status?: string;
+  email?: string; // Kiwify põe o email do abandono no topo do raw, fora de Customer.
   webhook_event_type?: string; charge_amount?: number | string; product_name?: string;
   order?: { id?: string };
   Customer?: { order_id?: string; email?: string; full_name?: string; name?: string };

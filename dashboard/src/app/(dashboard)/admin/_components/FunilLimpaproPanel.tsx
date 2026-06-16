@@ -69,6 +69,27 @@ interface LeadsData {
   leads_abertos: LeadAberto[];
 }
 
+// ── Conversas da Bia (endpoint /admin/conversas-limpapro) ──
+interface BiaMensagem {
+  role: 'assistant' | 'user';
+  content: string;
+}
+interface BiaConversa {
+  phone: string | null;
+  nome: string | null;
+  updated_at: string | null;
+  n_msgs: number;
+  respondeu: boolean;
+  takeover: boolean;
+  teste: boolean;
+  mensagens: BiaMensagem[];
+}
+interface ConversasData {
+  total: number;
+  respondidas: number;
+  conversas: BiaConversa[];
+}
+
 const brl = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
 // Idade do lead em texto curto ("há 3 dias", "há 5h").
@@ -127,10 +148,28 @@ function pct(num: number, den: number): string {
   return `${((num / den) * 100).toFixed(1)}%`;
 }
 
+// Data/hora curta pt-BR a partir de ISO ("16/06 12:21").
+function dataCurta(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+// Telefone canônico → formato legível (55 34 99136-0223).
+function telLegivel(phone: string | null): string {
+  if (!phone) return '—';
+  const d = phone.replace(/\D/g, '');
+  const m = d.match(/^(\d{2})(\d{2})(\d{4,5})(\d{4})$/);
+  return m ? `${m[1]} ${m[2]} ${m[3]}-${m[4]}` : phone;
+}
+
 export default function FunilLimpaproPanel() {
   const [period, setPeriod] = useState<Period>('7dias');
   const [data, setData] = useState<FunnelData | null>(null);
   const [leads, setLeads] = useState<LeadsData | null>(null);
+  const [conversas, setConversas] = useState<ConversasData | null>(null);
+  const [aberta, setAberta] = useState<string | null>(null); // phone da conversa expandida
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -154,6 +193,14 @@ export default function FunilLimpaproPanel() {
       setLeads(data);
     } catch {
       setLeads(null); // endpoint indisponível → esconde o bloco, não derruba o painel
+    }
+    // Conversas da Bia — fetch próprio (não filtra por período: o histórico é cumulativo).
+    // Mesmo guarda dos leads: se /conversas-limpapro 404 (não deployado), só some o bloco.
+    try {
+      const { data } = await api.get<ConversasData>('/admin/conversas-limpapro');
+      setConversas(data);
+    } catch {
+      setConversas(null);
     }
   }, [period]);
 
@@ -501,6 +548,108 @@ export default function FunilLimpaproPanel() {
               )}
             </div>
           )}
+
+          {/* Conversas da Bia (histórico de followup automático) */}
+          {conversas && conversas.conversas.length > 0 && (() => {
+            // Esconde a sessão de teste do Thiago da lista, mas conta o resto.
+            const reais = conversas.conversas.filter(c => !c.teste);
+            if (reais.length === 0) return null;
+            return (
+            <div style={{ marginTop: 32 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Conversas da Bia</h3>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                  followup automático por WhatsApp · clique pra ler a conversa
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 14 }}>
+                {reais.length} {reais.length === 1 ? 'pessoa abordada' : 'pessoas abordadas'} ·{' '}
+                {conversas.respondidas} {conversas.respondidas === 1 ? 'respondeu' : 'responderam'}
+              </div>
+
+              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
+                {reais.map((c, i) => {
+                  const isOpen = aberta === c.phone;
+                  // Estado: humano assumiu > respondeu > sem resposta.
+                  const estado = c.takeover
+                    ? { txt: 'Humano assumiu', bg: 'rgba(245,158,11,0.12)', fg: 'var(--ink-amber)', bd: 'rgba(245,158,11,0.3)' }
+                    : c.respondeu
+                    ? { txt: 'Respondeu',      bg: 'rgba(16,185,129,0.12)', fg: 'var(--ink-green)', bd: 'rgba(16,185,129,0.3)' }
+                    : { txt: 'Sem resposta',   bg: 'var(--color-surface-2)', fg: 'var(--color-text-muted)', bd: 'var(--color-border)' };
+                  return (
+                    <div key={c.phone ?? i} style={{ borderBottom: i < reais.length - 1 ? '1px solid var(--color-border)' : 0 }}>
+                      {/* Linha-cabeçalho clicável */}
+                      <button
+                        onClick={() => setAberta(isOpen ? null : c.phone)}
+                        style={{
+                          width: '100%', display: 'grid', gridTemplateColumns: '1.4fr 150px 140px 90px 24px',
+                          gap: 12, padding: '12px 18px', alignItems: 'center', fontSize: 14, textAlign: 'left',
+                          background: isOpen ? 'var(--color-surface-2)' : 'transparent', border: 0,
+                          cursor: 'pointer', fontFamily: 'inherit', color: 'var(--color-text)',
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {c.nome || '(sem nome)'}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{telLegivel(c.phone)}</div>
+                        </div>
+                        <div>
+                          <span style={{
+                            display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
+                            background: estado.bg, color: estado.fg, border: `1px solid ${estado.bd}`,
+                          }}>
+                            {estado.txt}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{dataCurta(c.updated_at)}</div>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'right' }}>
+                          {c.n_msgs} {c.n_msgs === 1 ? 'msg' : 'msgs'}
+                        </div>
+                        <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>›</div>
+                      </button>
+
+                      {/* Thread expandida */}
+                      {isOpen && (
+                        <div style={{ padding: '8px 18px 18px', display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--color-surface-2)' }}>
+                          {c.mensagens.length === 0 && (
+                            <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Sem mensagens registradas.</div>
+                          )}
+                          {c.mensagens.map((m, j) => {
+                            const daBia = m.role === 'assistant';
+                            return (
+                              <div key={j} style={{ display: 'flex', justifyContent: daBia ? 'flex-start' : 'flex-end' }}>
+                                <div style={{
+                                  maxWidth: '78%', padding: '9px 13px', borderRadius: 12, fontSize: 13.5, lineHeight: 1.45,
+                                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                                  background: daBia ? 'var(--color-surface)' : 'rgba(16,185,129,0.14)',
+                                  border: `1px solid ${daBia ? 'var(--color-border)' : 'rgba(16,185,129,0.3)'}`,
+                                  borderBottomLeftRadius: daBia ? 3 : 12,
+                                  borderBottomRightRadius: daBia ? 12 : 3,
+                                }}>
+                                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 3 }}>
+                                    {daBia ? 'Bia' : (c.nome?.trim().split(/\s+/)[0] || 'Cliente')}
+                                  </div>
+                                  {m.content}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 10, lineHeight: 1.6 }}>
+                A <b>Bia</b> só conversa com quem ela abordou (quem abandonou o checkout) — cliente de energia solar
+                nunca é tocado. <b>Humano assumiu</b> = você ou alguém respondeu manualmente pelo WhatsApp e a Bia
+                parou de falar naquela conversa. ⚠️ Contém telefone e texto real de clientes — só pra contato comercial.
+              </div>
+            </div>
+            );
+          })()}
 
           {/* Notas */}
           <div style={{ marginTop: 32, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
