@@ -190,38 +190,38 @@
     }
     window.pandascripttag = window.pandascripttag || [];
     window.pandascripttag.push(function () {
-      // CTA próprio (same-tab, funciona em iPhone) revelado aos 04:30 pela
-      // timeline do player. Não usamos o botão nativo do Panda (loadButtonInTime):
-      // ele não navega em Safari/in-app browser mesmo com setParentWindowUrl.
-      // Evento e campos confirmados no api.v2.js: 'panda_timeupdate' + event.currentTime.
-      const REVEAL_AT = 270; // 04:30 em segundos
-      const cta = document.getElementById('cta');
-      let revealed = false;
-      function revealCTA() {
-        if (revealed || !cta) return;
-        revealed = true;
-        cta.classList.add('is-visible');
-      }
-
       const p = new PandaPlayer('iframe[src*="' + pullzone + '"][src*="' + id + '"]', {
         onReady() {
           p.setParentWindowUrl();
-        },
-        // A API v2 do Panda manda os eventos do player por aqui.
-        onEvent(event) {
-          if (!event || event.message !== 'panda_timeupdate') return;
-          const t = event.currentTime;
-          if (typeof t !== 'number') return;
-          // Revela aos 04:30; se o vídeo for mais curto, revela ~25s antes do fim.
-          const dur = event.playerData && event.playerData.duration;
-          const threshold = (typeof dur === 'number' && dur > 0)
-            ? Math.min(REVEAL_AT, Math.max(0, dur - 25))
-            : REVEAL_AT;
-          if (t >= threshold) revealCTA();
         }
       });
     });
   });
+
+  // ===== Revela o CTA aos 04:30 pela timeline do player =====
+  // Não usamos o botão nativo do Panda (loadButtonInTime): ele não navega em
+  // Safari/in-app browser mesmo com setParentWindowUrl. E não dependemos da
+  // API onEvent do SDK (formato incerto): escutamos direto o postMessage do
+  // player — padrão provado em produção na LP. O iframe posta
+  // { message: 'panda_timeupdate', currentTime } independente de configuração.
+  (function () {
+    const REVEAL_AT = 270; // 04:30 em segundos
+    const cta = document.getElementById('cta');
+    if (!cta) return;
+    let revealed = false;
+    function onMessage(ev) {
+      const data = ev && ev.data;
+      if (!data || typeof data !== 'object') return;
+      if (data.message !== 'panda_timeupdate') return;
+      if (typeof data.currentTime !== 'number') return;
+      if (data.currentTime >= REVEAL_AT && !revealed) {
+        revealed = true;
+        cta.classList.add('is-visible');
+        window.removeEventListener('message', onMessage);
+      }
+    }
+    window.addEventListener('message', onMessage);
+  })();
 </script>
 
 </body>

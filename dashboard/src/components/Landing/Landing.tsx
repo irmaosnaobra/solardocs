@@ -45,52 +45,10 @@ const PRICES = {
   vip: 67,
 } as const;
 
-// Segundo em que liberamos o scroll da LP (mantém usuário focado no vídeo).
-const UNLOCK_AT_SECONDS = 153; // 02:33
-
 export default function Landing() {
   const router = useRouter();
   useReveal();
   const { trackEvent } = useLpTracking();
-  const [scrollLocked, setScrollLocked] = useState(true);
-
-  // Trava o scroll da LP até o vídeo Panda passar de 02:10. Player Panda emite
-  // postMessage com { message: 'panda_timeupdate', currentTime } — escutamos isso
-  // e liberamos overflow do body assim que o tempo cruza o threshold.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const prevOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    function unlock() {
-      document.body.style.overflow = prevOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      setScrollLocked(false);
-    }
-
-    function onMessage(ev: MessageEvent) {
-      const data = ev.data as { message?: string; currentTime?: number } | null;
-      if (!data || typeof data !== 'object') return;
-      if (data.message !== 'panda_timeupdate') return;
-      if (typeof data.currentTime !== 'number') return;
-
-      if (data.currentTime >= UNLOCK_AT_SECONDS) {
-        unlock();
-        window.removeEventListener('message', onMessage);
-      }
-    }
-
-    window.addEventListener('message', onMessage);
-
-    return () => {
-      window.removeEventListener('message', onMessage);
-      document.body.style.overflow = prevOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
-    };
-  }, []);
 
   // Tracking de seção: dispara 'section' { section: 'precos' } quando o bloco de planos
   // entra na viewport. Usado pelo /admin (LP SolarDoc) pra calcular "Viu Seção Preços".
@@ -161,83 +119,6 @@ export default function Landing() {
 
   return (
     <div className={styles.page}>
-      {/* Backdrop preto enquanto travado — cobre tudo atrás do vídeo fixo */}
-      {scrollLocked && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9998,
-            background: '#000',
-          }}
-          aria-hidden
-        />
-      )}
-
-      {/*
-        Wrapper do vídeo — FORA do hero. Tem que ser sibling direto de .page
-        porque .heroTop tem `animation: fadeUp` com transform, e qualquer
-        ancestor com transform vira containing block, prendendo o
-        position:fixed dentro do hero (gera tela preta atrás do backdrop).
-        Estrutura DOM idêntica entre estados — só estilos inline mudam,
-        então o <iframe> nunca remonta e o vídeo continua tocando.
-      */}
-      <div
-        style={{
-          position: scrollLocked ? 'fixed' : 'relative',
-          inset: scrollLocked ? 0 : undefined,
-          zIndex: scrollLocked ? 9999 : undefined,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: scrollLocked ? 'clamp(8px, 3vw, 32px)' : '24px 16px',
-          margin: 0,
-          width: '100%',
-        }}
-      >
-        <div
-          className={scrollLocked ? 'video-locked' : 'video-unlocked'}
-          style={{
-            position: 'relative',
-            width: '100%',
-            maxWidth: scrollLocked
-              ? 'min(1280px, calc((100vh - 64px) * 16 / 9))'
-              : 880,
-            aspectRatio: '16 / 9',
-            borderRadius: scrollLocked ? 12 : 16,
-            overflow: 'hidden',
-            background: '#000',
-            boxShadow: scrollLocked
-              ? '0 40px 100px rgba(251,191,36,0.18)'
-              : '0 30px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(251,191,36,0.25)',
-          }}
-        >
-          <iframe
-            id="panda-b16175a4-f30e-401f-acf6-4aa78891477e"
-            src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=b16175a4-f30e-401f-acf6-4aa78891477e&startTime=270"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
-            allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-            allowFullScreen
-            title="SolarDoc — apresentação"
-          />
-        </div>
-      </div>
-
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @media (max-width: 768px) {
-              .video-locked {
-                aspect-ratio: auto !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                height: 70vh !important;
-              }
-            }
-          `,
-        }}
-      />
-
       {/* NAV */}
       <nav className={styles.nav}>
         <div className={styles.navInner}>
