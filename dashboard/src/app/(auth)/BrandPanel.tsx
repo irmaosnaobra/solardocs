@@ -40,11 +40,11 @@ const BENEFITS: Record<'pro' | 'vip', { headline: string; sub: string; items: st
 
 const DEFAULT = {
   headline: 'O documento que vem depois do aperto de mão.',
-  sub: 'Contrato, proposta e procuração em minutos. Pra integrador solar com CNPJ.',
+  sub: 'Contratos, propostas e procurações com validade jurídica, prontos em minutos. Feito para o integrador solar.',
   items: [
-    '10 documentos grátis pra começar',
-    'Cláusulas validadas do setor solar',
-    'O cliente assina pelo celular dele',
+    'Cláusulas revisadas para o setor solar',
+    'Assinatura digital com validade jurídica',
+    'Seu cliente assina pelo celular, em qualquer lugar',
   ],
 };
 

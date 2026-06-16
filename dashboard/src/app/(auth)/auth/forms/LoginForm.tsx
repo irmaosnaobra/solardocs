@@ -82,7 +82,7 @@ export default function LoginForm() {
   return (
     <div className={styles.card}>
       <h1 className={styles.title}>Bem-vindo de volta</h1>
-      <p className={styles.subtitle}>Acesse sua conta SolarDoc Pro.</p>
+      <p className={styles.subtitle}>Entre para continuar de onde parou.</p>
 
       <form onSubmit={handleSubmit} className={styles.form} noValidate>
         <div className={styles.field}>
