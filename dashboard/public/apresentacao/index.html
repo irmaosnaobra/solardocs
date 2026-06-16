@@ -92,14 +92,24 @@
     box-shadow: 0 10px 30px -8px rgba(245,158,11,0.55), inset 0 1px 0 rgba(255,255,255,0.35);
     -webkit-tap-highlight-color: transparent;
     transition: transform .12s ease, box-shadow .12s ease, opacity .5s ease;
-    /* Aparece com leve fade-in; não depende da timeline do vídeo */
+    /* Escondido até o vídeo chegar em ~04:30 (revelado via JS pela timeline) */
     opacity: 0;
-    animation: ctaIn .6s ease 1.2s forwards;
+    transform: translateY(8px);
+    pointer-events: none;
+    /* Ocupa espaço só quando revelado */
+    display: none;
+  }
+  .cta.is-visible {
+    display: flex;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    animation: ctaIn .5s ease forwards;
   }
   .cta:active { transform: scale(.98); }
   .cta .arrow { font-size: 18px; line-height: 1; transition: transform .15s ease; }
   .cta:hover .arrow { transform: translateX(3px); }
-  @keyframes ctaIn { to { opacity: 1; } }
+  @keyframes ctaIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   @media (hover: none) { .cta:hover .arrow { transform: none; } }
 </style>
 </head>
@@ -180,12 +190,34 @@
     }
     window.pandascripttag = window.pandascripttag || [];
     window.pandascripttag.push(function () {
+      // CTA próprio (same-tab, funciona em iPhone) revelado aos 04:30 pela
+      // timeline do player. Não usamos o botão nativo do Panda (loadButtonInTime):
+      // ele não navega em Safari/in-app browser mesmo com setParentWindowUrl.
+      // Evento e campos confirmados no api.v2.js: 'panda_timeupdate' + event.currentTime.
+      const REVEAL_AT = 270; // 04:30 em segundos
+      const cta = document.getElementById('cta');
+      let revealed = false;
+      function revealCTA() {
+        if (revealed || !cta) return;
+        revealed = true;
+        cta.classList.add('is-visible');
+      }
+
       const p = new PandaPlayer('iframe[src*="' + pullzone + '"][src*="' + id + '"]', {
         onReady() {
-          // CTA agora é um <a href> próprio na página (same-tab, funciona em iPhone).
-          // Não usamos loadButtonInTime: o botão nativo do Panda não navega em
-          // Safari/in-app browser mesmo com setParentWindowUrl.
           p.setParentWindowUrl();
+        },
+        // A API v2 do Panda manda os eventos do player por aqui.
+        onEvent(event) {
+          if (!event || event.message !== 'panda_timeupdate') return;
+          const t = event.currentTime;
+          if (typeof t !== 'number') return;
+          // Revela aos 04:30; se o vídeo for mais curto, revela ~25s antes do fim.
+          const dur = event.playerData && event.playerData.duration;
+          const threshold = (typeof dur === 'number' && dur > 0)
+            ? Math.min(REVEAL_AT, Math.max(0, dur - 25))
+            : REVEAL_AT;
+          if (t >= threshold) revealCTA();
         }
       });
     });
