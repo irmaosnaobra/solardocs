@@ -8,7 +8,7 @@ import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCn
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
-import { runLimpaproRecoveryConsumer, seedLimpaproRecoveryBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
+import { runLimpaproRecoveryConsumer, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundService';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
@@ -257,6 +257,18 @@ router.get('/limpapro-recovery-seed', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await seedLimpaproRecoveryBacklog({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'limpapro-recovery-seed falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+// 2º toque (cupom) pro backlog — semeia o cupom pra quem já tomou o opener e não respondeu.
+// One-shot manual ao ligar o cupom (não agendar). ?dry=1 pra conferir a contagem sem semear.
+router.get('/limpapro-cupom-seed', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await seedLimpaproCupomBacklog({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'limpapro-cupom-seed falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
