@@ -1,7 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import api from '@/services/api';
 import './precificacao.css';
+
+// Analytics de uso (NÃO abate crédito). Fail-silent: nunca trava a UX.
+function logUso(event_type: string) {
+  api.post('/feature-events', { feature: 'precificacao', event_type }).catch(() => {});
+}
 
 const fmt = (n: number) =>
   'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -35,6 +41,18 @@ export default function PrecificacaoPage() {
   const set = (key: string, v: string) =>
     setValores((prev) => ({ ...prev, [key]: v }));
 
+  // ── Analytics de uso (beta / futuro order-bump). Não abate crédito. ──
+  // 'open': uma vez ao abrir. 'calc': uma vez quando o cliente realmente
+  // chega a um preço válido (preencheu custo). Ambos disparam 1x por visita.
+  const openLogged = useRef(false);
+  const calcLogged = useRef(false);
+
+  useEffect(() => {
+    if (openLogged.current) return;
+    openLogged.current = true;
+    logUso('open');
+  }, []);
+
   const r = useMemo(() => {
     const linhas = CUSTOS.map((c) => ({ ...c, valor: num(valores[c.key]) }));
     const custo = linhas.reduce((s, l) => s + l.valor, 0);
@@ -56,9 +74,21 @@ export default function PrecificacaoPage() {
     return { linhas, custo, margemPct, comissaoPct, impostoPct, denom, impossivel, preco, lucro, valComissao, valImposto };
   }, [valores, margem, comissao, imposto]);
 
+  // Registra 'calc' uma única vez, quando o cliente chega a um preço válido.
+  useEffect(() => {
+    if (calcLogged.current) return;
+    if (r.preco > 0 && !r.impossivel) {
+      calcLogged.current = true;
+      logUso('calc');
+    }
+  }, [r.preco, r.impossivel]);
+
   return (
     <div className="prec-wrap">
       <header className="prec-hero">
+        <span className="prec-beta">
+          ⚡ Beta · uso de teste — esta ferramenta pode ser encerrada a qualquer momento
+        </span>
         <h1>Calculadora de Precificação</h1>
         <p>Descubra o preço de venda certo do seu projeto solar</p>
       </header>
