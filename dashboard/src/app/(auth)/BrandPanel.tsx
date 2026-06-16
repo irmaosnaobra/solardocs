@@ -13,7 +13,7 @@ const BENEFITS: Record<'pro' | 'vip', { headline: string; sub: string; items: st
       '90 documentos por mês',
       'Gerador de Proposta com sua marca',
       'Todos os 5 tipos de documento',
-      'Assinatura digital com validade jurídica',
+      'Cláusulas revisadas para o setor solar',
       'Suporte prioritário no WhatsApp',
       'Cancela quando quiser, sem multa',
     ],
@@ -39,11 +39,11 @@ const BENEFITS: Record<'pro' | 'vip', { headline: string; sub: string; items: st
 };
 
 const DEFAULT = {
-  headline: 'Do aperto de mão ao contrato assinado, sem sair do escritório.',
+  headline: 'Do aperto de mão ao contrato pronto, sem sair do escritório.',
   sub: 'Toda a papelada da venda solar em um só lugar: contrato, proposta e procuração em minutos.',
   items: [
     'Modelos prontos e revisados para energia solar',
-    'Assinatura digital com validade jurídica',
+    'Documentos com a sua marca, prontos para enviar',
     'Acompanhe e gere documentos de qualquer lugar',
   ],
 };

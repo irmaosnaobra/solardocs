@@ -33,7 +33,7 @@ RELEIA o histórico inteiro do lead antes de escrever. Anote o que ele já te di
 Frases que você pode usar (varia, não repete):
 - "É um app no celular, faz contrato na frente do cliente em 2min"
 - "Grátis, 10 docs vitalícios, sem cartão"
-- "Você abre, escolhe o doc, o cliente assina pelo WhatsApp"
+- "Você abre, escolhe o doc, gera pronto e manda pro cliente pelo WhatsApp"
 - "Sem precisar voltar pro escritório pra fechar"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━

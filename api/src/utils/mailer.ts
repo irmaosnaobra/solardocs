@@ -162,7 +162,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
         <div style="padding:36px;">
           <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Integradores que adotaram o SolarDoc Pro relatam uma mudança simples mas poderosa: <strong style="color:#f59e0b;">conseguem enviar o contrato para o cliente no mesmo dia da visita técnica.</strong></p>
           <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 20px;">Antes precisavam voltar ao escritório, abrir o Word, ajustar o modelo, conferir cláusula por cláusula, salvar em PDF, mandar por WhatsApp e torcer para o cliente não perder o arquivo.</p>
-          <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Hoje fazem isso direto do celular, em menos de 2 minutos, com link de assinatura digital incluído.</p>
+          <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 28px;">Hoje fazem isso direto do celular, em menos de 2 minutos, com o documento pronto para enviar ao cliente.</p>
           <div style="background:#1e293b;border-left:4px solid #f59e0b;border-radius:0 10px 10px 0;padding:20px 24px;margin:0 0 28px;">
             <p style="color:#e2e8f0;font-style:italic;font-size:15px;line-height:1.7;margin:0;">"A ferramenta foi feita por quem entende do setor. Os documentos já saem corretos, não preciso revisar nada."</p>
             <p style="color:#64748b;font-size:13px;margin:12px 0 0;">— Integrador solar, 8 anos de mercado</p>
@@ -381,7 +381,7 @@ const cnpjOngoingEmails: Array<{ subject: string; html: string }> = [
           <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">A plataforma evoluiu desde a última vez</h1>
         </div>
         <div style="padding:36px;">
-          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Templates novos, geração ainda mais rápida e assinatura digital integrada. Tudo isso libera com seu CNPJ.</p>
+          <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Templates novos, geração ainda mais rápida e o Gerador de Proposta com a sua marca. Tudo isso libera com seu CNPJ.</p>
           <a href="${APP_URL}/auth" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:800;font-size:15px;padding:16px 36px;border-radius:10px;text-decoration:none;">Conhecer as novidades</a>
         </div>
       </div>`,

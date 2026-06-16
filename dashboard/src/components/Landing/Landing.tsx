@@ -502,7 +502,7 @@ export default function Landing() {
                 <li>90 documentos por mês</li>
                 <li>Gerador de Proposta com sua marca</li>
                 <li>Todos os 5 tipos de documento</li>
-                <li>Assinatura digital com validade jurídica</li>
+                <li>Cláusulas revisadas para o setor solar</li>
                 <li>Suporte prioritário no WhatsApp</li>
                 <li>Cancela quando quiser, sem multa</li>
               </ul>
@@ -568,9 +568,9 @@ export default function Landing() {
             <details className={styles.faqItem} data-reveal>
               <summary>Os contratos têm validade jurídica?</summary>
               <div className={styles.faqAnswer}>
-                Sim. Os modelos seguem cláusulas técnicas validadas pro setor solar (geração, garantia,
-                inadimplência, titularidade). A <b>assinatura digital tem validade jurídica</b> no
-                Brasil através do padrão Autentique.
+                Sim. Os modelos seguem <b>cláusulas técnicas revisadas pro setor solar</b> (geração,
+                garantia, inadimplência, titularidade) e são prontos para você imprimir e assinar
+                com o seu cliente, do jeito tradicional ou pela plataforma de assinatura que já usa.
               </div>
             </details>
 
