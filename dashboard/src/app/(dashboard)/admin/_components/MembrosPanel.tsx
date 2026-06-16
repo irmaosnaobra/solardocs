@@ -22,7 +22,8 @@ interface MemberRow {
   stripe_status?: string | null; // trialing | active | canceled | past_due | ...
   stripe_plan?: string | null;
 }
-interface UsersResponse { users: MemberRow[]; documents: Array<{ created_at: string }>; }
+interface CalcUso { aberturas: number; calculos: number; clientes: number; }
+interface UsersResponse { users: MemberRow[]; documents: Array<{ created_at: string }>; calculadora?: CalcUso; }
 
 /* ─── helpers ───────────────────────────────────────────────────── */
 const PLANO_LABEL: Record<string, string> = { free: 'FREE', pro: 'PRO', ilimitado: 'VIP' };
@@ -67,6 +68,7 @@ type PlanFilter = 'todos' | 'free' | 'pro' | 'ilimitado';
 
 export default function MembrosPanel() {
   const [data, setData]       = useState<MemberRow[] | null>(null);
+  const [calc, setCalc]       = useState<CalcUso | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
   const [q, setQ]             = useState('');
@@ -78,6 +80,7 @@ export default function MembrosPanel() {
     try {
       const { data } = await api.get<UsersResponse>('/admin/users');
       setData(data.users ?? []);
+      setCalc(data.calculadora ?? null);
     } catch {
       setError('Erro ao carregar membros. Tenta de novo.');
     } finally {
@@ -165,7 +168,7 @@ export default function MembrosPanel() {
       ) : (
         <>
           {/* KPIs */}
-          <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 12 }}>
+          <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(5,1fr)', marginTop: 12 }}>
             <div className={styles.card}>
               <div className={styles.cardLabel}>Total de membros</div>
               <div className={styles.cardValue} style={{ color: 'var(--color-primary)' }}>{kpis.total}</div>
@@ -186,6 +189,15 @@ export default function MembrosPanel() {
                 <span style={{ color: 'var(--color-text)' }}>{kpis.ativos}</span>
                 <span style={{ color: 'var(--color-text-muted)' }}> · </span>
                 <span style={{ color: 'var(--color-text-muted)' }}>{kpis.churn}</span>
+              </div>
+            </div>
+            <div className={styles.card}>
+              <div className={styles.cardLabel}>🧮 Calculadora (BETA) · abriu · calculou</div>
+              <div className={styles.cardValue} style={{ fontSize: 20 }}>
+                <span style={{ color: 'var(--color-primary)' }}>{calc?.aberturas ?? 0}</span>
+                <span style={{ color: 'var(--color-text-muted)' }}> · </span>
+                <span style={{ color: 'var(--color-text)' }}>{calc?.calculos ?? 0}</span>
+                <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}> · {calc?.clientes ?? 0} clientes</span>
               </div>
             </div>
           </div>

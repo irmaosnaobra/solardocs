@@ -120,7 +120,21 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
       .select('created_at')
       .order('created_at', { ascending: false });
 
-    res.json({ users: result, documents: docs ?? [] });
+    // Uso da Calculadora de Precificação (beta). Analytics interno — não
+    // consome crédito. Agrega aberturas/cálculos/clientes únicos pro card do admin.
+    const { data: calcEvents } = await supabase
+      .from('feature_events')
+      .select('user_id, event_type')
+      .eq('feature', 'precificacao')
+      .limit(50000);
+    const calcRows = calcEvents ?? [];
+    const calculadora = {
+      aberturas: calcRows.filter(e => e.event_type === 'open').length,
+      calculos:  calcRows.filter(e => e.event_type === 'calc').length,
+      clientes:  new Set(calcRows.map(e => e.user_id).filter(Boolean)).size,
+    };
+
+    res.json({ users: result, documents: docs ?? [], calculadora });
   } catch (err) {
     console.error('Admin getUsers error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
