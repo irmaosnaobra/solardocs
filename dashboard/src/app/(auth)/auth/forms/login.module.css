@@ -50,24 +50,30 @@
 /* Input branco com texto preto, regra de contraste do briefing */
 .input {
   width: 100%;
-  height: 48px;
-  background: #ffffff;
+  height: 50px;
+  background: #fbfcfe;
   color: #0f172a;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
+  border: 1px solid #d6dde6;
+  border-radius: 12px;
   padding: 0 14px;
   font-size: 15px;
   font-family: inherit;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.input:hover:not(:focus):not(:disabled) {
+  border-color: #b9c3cf;
+  background: #ffffff;
 }
 .input::placeholder {
   color: #94a3b8;
 }
 .input:focus {
   border-color: #F26513;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+  box-shadow: 0 0 0 3px rgba(242, 101, 19, 0.16);
 }
+/* o ícone à esquerda acompanha o foco */
+.inputGroup:focus-within .inputIcon { color: #F26513; }
 .input:disabled {
   background: #f8fafc;
   color: #64748b;
@@ -144,46 +150,48 @@
 }
 .actionLink {
   font-size: 13px;
-  color: #b45309;
+  color: #c2540f;
   font-weight: 600;
   text-decoration: none;
   transition: color 0.15s;
 }
 .actionLink:hover {
-  color: #92400e;
+  color: #E0560A;
   text-decoration: underline;
 }
 
 /* CTA primário do form */
 .submit {
   width: 100%;
-  height: 48px;
-  background: #F26513;
+  height: 50px;
+  background: linear-gradient(180deg, #F47438 0%, #F26513 100%);
   color: #ffffff;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
   letter-spacing: 0.005em;
-  transition: background 0.15s, transform 0.1s;
+  transition: background 0.18s, transform 0.1s, box-shadow 0.18s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   margin-top: 4px;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 6px 18px rgba(242, 101, 19, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 .submit:hover {
-  background: #E0560A;
-  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+  background: linear-gradient(180deg, #F26513 0%, #E0560A 100%);
+  box-shadow: 0 10px 26px rgba(242, 101, 19, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
 }
-.submit:active { transform: scale(0.99); }
+.submit:active { transform: translateY(0) scale(0.99); }
 .submit:disabled {
   opacity: 0.65;
   cursor: not-allowed;
   box-shadow: none;
+  transform: none;
 }
 
 .submitGhost {
@@ -219,13 +227,13 @@
 }
 
 .link {
-  color: #b45309;
+  color: #c2540f;
   font-weight: 700;
   text-decoration: none;
   transition: color 0.15s;
 }
 .link:hover {
-  color: #92400e;
+  color: #E0560A;
   text-decoration: underline;
 }
 

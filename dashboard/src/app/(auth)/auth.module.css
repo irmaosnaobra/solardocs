@@ -13,8 +13,9 @@
 .brand {
   display: none;
   background:
-    radial-gradient(700px circle at 80% 15%, rgba(242, 101, 19, 0.18), transparent 55%),
-    var(--chrome-bg);
+    radial-gradient(620px circle at 82% 8%, rgba(242, 101, 19, 0.22), transparent 52%),
+    radial-gradient(540px circle at 10% 100%, rgba(242, 101, 19, 0.10), transparent 60%),
+    linear-gradient(160deg, var(--chrome-bg-2) 0%, var(--chrome-bg) 58%);
   color: #ffffff;
   padding: 56px 56px 48px;
   position: relative;
@@ -22,17 +23,39 @@
   flex-direction: column;
   justify-content: space-between;
 }
+/* grade sutil de fundo */
 .brand::before {
   content: '';
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 50px 50px;
-  mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 35%, black 35%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 35%, black 35%, transparent 85%);
   pointer-events: none;
+}
+/* glow orgânico que respira no canto superior */
+.brand::after {
+  content: '';
+  position: absolute;
+  top: -120px;
+  right: -80px;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(242, 101, 19, 0.28), transparent 68%);
+  filter: blur(8px);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: brandGlow 9s ease-in-out infinite;
+}
+@keyframes brandGlow {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.85; }
+  50% { transform: translate(-24px, 18px) scale(1.08); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand::after { animation: none; }
 }
 .brandTop, .brandMid, .brandBottom { position: relative; z-index: 1; }
 .brandLogoWrap {
@@ -55,11 +78,15 @@
 .brandLogoText span { color: var(--color-primary); }
 
 .brandHeadline {
-  font-size: clamp(28px, 3.4vw, 40px);
+  font-size: clamp(28px, 3.4vw, 41px);
   font-weight: 900;
-  line-height: 1.05;
-  letter-spacing: -0.025em;
+  line-height: 1.04;
+  letter-spacing: -0.028em;
   margin-bottom: 16px;
+  background: linear-gradient(180deg, #ffffff 55%, #d6dbe2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .brandSub {
   font-size: 16px;
@@ -71,33 +98,49 @@
 .brandList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 14px;
+  margin-top: 28px;
   list-style: none;
   padding: 0;
 }
 .brandList li {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   font-size: 14.5px;
   font-weight: 600;
   color: #ffffff;
   line-height: 1.35;
+  opacity: 0;
+  animation: brandItemIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.brandList li:nth-child(1) { animation-delay: 0.10s; }
+.brandList li:nth-child(2) { animation-delay: 0.18s; }
+.brandList li:nth-child(3) { animation-delay: 0.26s; }
+.brandList li:nth-child(4) { animation-delay: 0.34s; }
+.brandList li:nth-child(5) { animation-delay: 0.42s; }
+.brandList li:nth-child(6) { animation-delay: 0.50s; }
+@keyframes brandItemIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brandList li { animation: none; opacity: 1; }
 }
 .brandList li::before {
   content: '✓';
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: var(--color-accent-soft);
-  border: 1px solid var(--color-accent-border);
-  color: var(--color-primary);
+  background: linear-gradient(135deg, rgba(242, 101, 19, 0.28), rgba(242, 101, 19, 0.12));
+  border: 1px solid rgba(242, 101, 19, 0.45);
+  color: #ffb27a;
   display: grid;
   place-items: center;
   font-weight: 900;
   font-size: 13px;
+  box-shadow: 0 2px 8px rgba(242, 101, 19, 0.15);
 }
 
 .brandFoot {
@@ -114,7 +157,9 @@
   align-items: center;
   justify-content: center;
   padding: 32px 20px;
-  background: var(--color-surface);
+  background:
+    radial-gradient(620px circle at 50% -10%, rgba(242, 101, 19, 0.05), transparent 60%),
+    var(--color-surface);
   color: var(--color-text);
   min-height: 100vh;
   position: relative;
