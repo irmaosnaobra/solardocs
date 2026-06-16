@@ -1,0 +1,206 @@
+/* Calculadora de Precificação — tema light SolarZ (tokens de styles/globals.css) */
+
+.prec-wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 0 60px;
+  color: var(--color-text);
+}
+
+.prec-hero {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.prec-hero h1 {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0 0 6px;
+}
+.prec-hero p {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Layout: 2 colunas no desktop, empilha no mobile */
+.prec-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.prec-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@media (max-width: 760px) {
+  .prec-grid { grid-template-columns: 1fr; }
+}
+
+/* ── CARD ── */
+.prec-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+}
+.prec-card-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
+}
+
+/* ── FIELDS ── */
+.prec-field { margin-bottom: 14px; }
+.prec-field:last-child { margin-bottom: 0; }
+.prec-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 7px;
+}
+.prec-field label .hint {
+  font-weight: 400;
+  color: var(--color-text-dim);
+  font-size: 11.5px;
+}
+
+.prec-inp { position: relative; }
+.prec-inp .pre {
+  position: absolute;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-dim);
+  font-size: 14px; font-weight: 700;
+  pointer-events: none;
+}
+.prec-inp .suf {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-dim);
+  font-size: 14px; font-weight: 700;
+  pointer-events: none;
+}
+.prec-inp input {
+  width: 100%;
+  padding: 12px 14px 12px 36px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 16px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.prec-inp.pct input { padding-left: 14px; padding-right: 40px; }
+.prec-inp input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+.prec-inp input::placeholder { color: var(--color-text-dim); font-weight: 400; opacity: 0.6; }
+.prec-inp input::-webkit-outer-spin-button,
+.prec-inp input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ── RESULTADO ── */
+.prec-breakdown { margin-bottom: 16px; }
+.brow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+}
+.brow:last-of-type { border-bottom: none; }
+.brow .lbl { color: var(--color-text-muted); }
+.brow .val { font-weight: 800; font-variant-numeric: tabular-nums; }
+.brow.total {
+  border-top: 1px solid var(--color-border-strong);
+  border-bottom: none;
+  margin-top: 4px;
+  padding-top: 13px;
+}
+.brow.total .lbl { color: var(--color-text); font-weight: 800; }
+
+.prec-price {
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  text-align: center;
+  margin-bottom: 14px;
+}
+.prec-price .cap {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.prec-price .big {
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--color-primary);
+  margin: 6px 0 2px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+.prec-price .small { font-size: 12.5px; color: var(--color-text-muted); }
+
+.prec-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 420px) {
+  .prec-kpis { grid-template-columns: 1fr; }
+}
+.prec-kpis .kpi {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 13px 14px;
+}
+.prec-kpis .k {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.prec-kpis .v {
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.prec-kpis .v.grn { color: var(--ink-green); }
+.prec-kpis .v.info { color: var(--ink-blue); }
+
+.prec-warn {
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: var(--ink-red);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.prec-foot {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--color-text-dim);
+  margin-top: 14px;
+  line-height: 1.55;
+}
+.prec-foot b { color: var(--color-text); }

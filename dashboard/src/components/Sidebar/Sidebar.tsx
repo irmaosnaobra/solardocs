@@ -7,7 +7,7 @@ import {
   Settings, Zap, FolderOpen, FileText,
   LayoutDashboard, Building2, Users, User, Handshake,
   Banknote, ScrollText, FileSignature, Receipt,
-  Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3,
+  Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
   Save, GraduationCap, Smartphone,
   Send, MapPin, Palette, LogOut,
   type LucideIcon,
@@ -60,7 +60,9 @@ const baseAdminItems: NavItem[] = [
 // Baixe o App fica liberado pra todo mundo, inclusive free.
 // Mascote e Baixe o App foram pra topbar (ícones). Sidebar só com o Gerador.
 const topoItems: NavItem[] = [
-  { href: '/documentos?tipo=proposta', icon: Sparkles,      label: 'Gerador de Proposta', requireCompany: true },
+  { href: '/documentos?tipo=proposta', icon: Sparkles,    label: 'Gerador de Proposta', requireCompany: true },
+  // Precificação: ferramenta grátis (isca de retenção) — sem requireCompany, free também vê.
+  { href: '/precificacao',             icon: Calculator,  label: 'Precificação' },
 ];
 
 // Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.
