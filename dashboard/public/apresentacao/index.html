@@ -72,6 +72,35 @@
   @media (min-width: 760px) {
     .player-col { max-width: min(460px, calc((100dvh - 48px) * 0.5625)); }
   }
+
+  /* CTA próprio (parent document) — navegação same-tab, funciona em iPhone/WhatsApp */
+  .cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 16px 20px;
+    width: 100%;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #F5A623 0%, #E8910F 100%);
+    color: #1a1205;
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: 0.2px;
+    text-decoration: none;
+    box-shadow: 0 10px 30px -8px rgba(245,158,11,0.55), inset 0 1px 0 rgba(255,255,255,0.35);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .12s ease, box-shadow .12s ease, opacity .5s ease;
+    /* Aparece com leve fade-in; não depende da timeline do vídeo */
+    opacity: 0;
+    animation: ctaIn .6s ease 1.2s forwards;
+  }
+  .cta:active { transform: scale(.98); }
+  .cta .arrow { font-size: 18px; line-height: 1; transition: transform .15s ease; }
+  .cta:hover .arrow { transform: translateX(3px); }
+  @keyframes ctaIn { to { opacity: 1; } }
+  @media (hover: none) { .cta:hover .arrow { transform: none; } }
 </style>
 </head>
 <body>
@@ -86,6 +115,13 @@
         fetchpriority="high"></iframe>
     </div>
     <div id="e46431f6-a66a-41c6-90e6-c9413c6d3d9b"></div>
+
+    <!-- CTA próprio: navegação same-tab (funciona em iPhone/WhatsApp).
+         Não usamos o botão nativo do Panda porque o setParentWindowUrl falha
+         em Safari/in-app browser. Destino = LP (home), onde o lead escolhe o plano. -->
+    <a class="cta" id="cta" href="/">
+      Quero começar agora <span class="arrow">→</span>
+    </a>
   </div>
 </main>
 
@@ -100,6 +136,17 @@
         localStorage.setItem(STORAGE_KEY, sid);
       }
       const qs = new URLSearchParams(location.search);
+
+      // Repassa UTMs/parâmetros da VSL pro CTA, sem perder mode/plano
+      try {
+        const cta = document.getElementById('cta');
+        if (cta && [...qs.keys()].length) {
+          const url = new URL(cta.getAttribute('href'), location.origin);
+          qs.forEach((v, k) => { if (!url.searchParams.has(k)) url.searchParams.set(k, v); });
+          cta.setAttribute('href', url.pathname + url.search);
+        }
+      } catch {}
+
       fetch('/_api/_t/v', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,7 +182,9 @@
     window.pandascripttag.push(function () {
       const p = new PandaPlayer('iframe[src*="' + pullzone + '"][src*="' + id + '"]', {
         onReady() {
-          p.loadButtonInTime({ fetchApi: true });
+          // CTA agora é um <a href> próprio na página (same-tab, funciona em iPhone).
+          // Não usamos loadButtonInTime: o botão nativo do Panda não navega em
+          // Safari/in-app browser mesmo com setParentWindowUrl.
           p.setParentWindowUrl();
         }
       });
