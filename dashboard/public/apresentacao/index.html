@@ -92,7 +92,7 @@
     box-shadow: 0 10px 30px -8px rgba(245,158,11,0.55), inset 0 1px 0 rgba(255,255,255,0.35);
     -webkit-tap-highlight-color: transparent;
     transition: transform .12s ease, box-shadow .12s ease, opacity .5s ease;
-    /* Escondido até o vídeo chegar em ~04:30 (revelado via JS pela timeline) */
+    /* Escondido até o vídeo chegar em ~02:40 (revelado via JS pela timeline) */
     opacity: 0;
     transform: translateY(8px);
     pointer-events: none;
@@ -198,14 +198,14 @@
     });
   });
 
-  // ===== Revela o CTA aos 04:30 pela timeline do player =====
+  // ===== Revela o CTA aos 02:40 pela timeline do player =====
   // Não usamos o botão nativo do Panda (loadButtonInTime): ele não navega em
   // Safari/in-app browser mesmo com setParentWindowUrl. E não dependemos da
   // API onEvent do SDK (formato incerto): escutamos direto o postMessage do
   // player — padrão provado em produção na LP. O iframe posta
   // { message: 'panda_timeupdate', currentTime } independente de configuração.
   (function () {
-    const REVEAL_AT = 270; // 04:30 em segundos
+    const REVEAL_AT = 160; // 02:40 em segundos
     const cta = document.getElementById('cta');
     if (!cta) return;
     let revealed = false;
