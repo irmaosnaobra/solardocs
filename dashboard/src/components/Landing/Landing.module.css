@@ -1510,17 +1510,18 @@
 .planList li {
   font-size: 14px;
   color: var(--color-text);
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
+  position: relative;
+  padding-left: 24px;
   line-height: 1.45;
+  text-align: left;
 }
 .planList li::before {
   content: '✓';
   color: #34d399;
   font-weight: 900;
-  flex-shrink: 0;
-  margin-top: 1px;
+  position: absolute;
+  left: 0;
+  top: 0;
 }
 .planBtn {
   margin-top: auto;
