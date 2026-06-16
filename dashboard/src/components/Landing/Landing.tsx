@@ -377,14 +377,13 @@ export default function Landing() {
               <div className={styles.planPrice}>R$ {PRICES.pro}<small>/mês</small></div>
               <div className={styles.planSub}>
                 7 dias grátis · cancela quando quiser<br />
-                <span style={{ opacity: 0.7 }}>Pro integrador que fecha 5–15 vendas/mês</span>
+                <span style={{ opacity: 0.7 }}>Pra quem tá começando a profissionalizar as vendas</span>
               </div>
               <ul className={styles.planList}>
                 <li>90 documentos por mês</li>
-                <li>Gerador de Proposta com sua marca</li>
-                <li>Todos os 5 tipos de documento</li>
-                <li>Cláusulas revisadas para o setor solar</li>
-                <li>Suporte prioritário no WhatsApp</li>
+                <li>Os 8 tipos de documento com a sua marca</li>
+                <li>Cláusulas prontas pro setor solar</li>
+                <li>Histórico dos seus documentos por 30 dias</li>
                 <li>Cancela quando quiser, sem multa</li>
               </ul>
               <button onClick={() => goToRegister('pro')} className={styles.planBtn} disabled={checkoutLoading !== null}>
@@ -398,14 +397,14 @@ export default function Landing() {
               <div className={styles.planPrice}>R$ {PRICES.vip}<small>/mês</small></div>
               <div className={styles.planSub}>
                 7 dias grátis · cancela quando quiser<br />
-                <span style={{ opacity: 0.7 }}>Pra empresa solar consolidada — documentos ilimitados</span>
+                <span style={{ opacity: 0.7 }}>Pra empresa solar que vende todo dia — sem limite nenhum</span>
               </div>
               <ul className={styles.planList}>
                 <li><b>Tudo do Pro, e mais:</b></li>
-                <li>Documentos <b>ilimitados</b></li>
-                <li>Mentoria mensal de vendas solares</li>
-                <li>Suporte VIP por WhatsApp</li>
-                <li>Acesso antecipado a novos documentos</li>
+                <li>Documentos <b>ilimitados</b> — gere à vontade, sem teto</li>
+                <li>Histórico <b>ilimitado</b> — toda venda salva pra sempre</li>
+                <li>Cadastro de prestadores parceiros</li>
+                <li>Voz no roadmap: vote e peça novos recursos</li>
               </ul>
               <button onClick={() => goToRegister('vip')} className={`${styles.planBtn} ${styles.planBtnPrimary}`} disabled={checkoutLoading !== null}>
                 {checkoutLoading === 'vip' ? 'Abrindo checkout...' : 'Testar 7 dias grátis'}
