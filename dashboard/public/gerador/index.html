@@ -6533,7 +6533,7 @@ function montarBlocoPagamentoWpp(d) {
   if (!d.parcelasCartao && d.parc18x != null) parcMap[18] = d.parc18x;
 
   const linhas = [];
-  if (po.vista) linhas.push(`💎 *À vista:* R$ ${fmt(pv)} (pago no ato do contrato)`);
+  if (po.vista) linhas.push(`💎 *À vista:* R$ ${fmt(pv)}`);
 
   const parcs = parcelasDoPagOpts(po);
   if (parcs.length) {
@@ -6580,57 +6580,34 @@ async function copiarWhatsApp() {
     .then(cod => supaRpc('marcar_enviado_wpp', { p_codigo: cod }))
     .catch(e => console.error('Tracking falhou:', e));
 
-  const linhasCli = [`👤 *Cliente:* ${d.nome}`];
-  if (d.cidade)  linhasCli.push(`📍 *Cidade:* ${d.cidade}`);
-  if (d.fase)    linhasCli.push(`⚡ *Ligação:* ${d.fase}`);
-  if (d.telhado) linhasCli.push(`🏠 *Telhado:* ${d.telhado}`);
+  // Cliente — nome + cidade, numa linha só
+  const linhaCli = d.cidade ? `${d.nome} · ${d.cidade}` : `${d.nome}`;
+
+  // Sistema condensado: módulos + inversor numa linha
+  const sistema = `${d.item.n}x ${d.tab.mod} + ${d.qtdInv}x ${d.tab.inv}`;
 
   const txt =
-`☀️ *PROPOSTA DE ENERGIA SOLAR* ☀️
+`☀️ *PROPOSTA DE ENERGIA SOLAR*
 
-${linhasCli.join('\n')}
+👤 ${linhaCli}
 
-━━━━━━━━━━━━━━━━━━
 🔋 *SISTEMA*
-• Módulos: ${d.item.n}x ${d.tab.mod}
-• Inversor: ${d.qtdInv}x ${d.tab.inv}${d.bateria && d.bateria.incluir ? `\n• Bateria: ${d.bateria.qtd || 1}x ${d.bateria.modelo || 'Armazenamento'}${d.bateria.capacidade > 0 ? ` (${String(d.bateria.capacidade).replace('.', ',')} kWh)` : ''}${d.bateria.garantiaAnos > 0 ? ` — ${d.bateria.garantiaAnos} ${d.bateria.garantiaAnos == 1 ? 'ano' : 'anos'} de garantia` : ''}` : ''}${d.controlador && d.controlador.incluir ? `\n• Controlador de carga: ${d.controlador.qtd || 1}x ${d.controlador.modelo || 'MPPT'}${d.controlador.garantiaAnos > 0 ? ` — ${d.controlador.garantiaAnos} ${d.controlador.garantiaAnos == 1 ? 'ano' : 'anos'} de garantia` : ''}` : ''}${d.estrutura ? `\n• Estrutura: ${d.estrutura}` : ''}
-• Potência instalada: ${d.item.kwp.toFixed(1)} kWp
-• Geração estimada: ${fmtN(d.item.g)} kWh/mês
-• Área no telhado: ~${d.areaReal} m²
+• ${sistema}
+• ${d.item.kwp.toFixed(1)} kWp · gera ~${fmtN(d.item.g)} kWh/mês
 
-━━━━━━━━━━━━━━━━━━
-📦 *INCLUSO NO PROJETO*
-✅ Estruturas de fixação
-✅ Cabeamento completo
-✅ Caixa de corrente alternada
-✅ Aterramento do sistema
-✅ Homologação na concessionária
-✅ Projeto conforme Lei 14.300/22
-✅ Instalação conforme normas ABNT
-✅ Monitoramento do sistema
+💰 *Economia: ~R$ ${fmtN(d.economia)}/mês na conta de luz*
+✅ Projeto, homologação e instalação inclusos
 
-━━━━━━━━━━━━━━━━━━
 🛡️ *GARANTIAS*
 • Módulos: ${d.garPaineis || 25} anos de performance
 • Inversor: ${d.garInv} anos
 • Estrutura: ${d.garEstrutura || 10} anos
 • Instalação: ${d.garInstalacao || 1} ano${(d.garInstalacao && +d.garInstalacao > 1) ? 's' : ''}
 
-⏱️ *PRAZO DE INSTALAÇÃO*
-${d.prazoInstalacao || 45} dias úteis do contrato à ligação
-
 ━━━━━━━━━━━━━━━━━━
-📈 *RETORNO FINANCEIRO*
-• Economia mensal: ~R$ ${fmtN(d.economia)}/mês
-• Economia em 25 anos: ~R$ ${fmtN(d.economia25)}
-• Payback estimado: ~${d.payback} anos
+*Investimento: R$ ${fmt(d.precoOrcamento)}*
 
-━━━━━━━━━━━━━━━━━━
-💰 *Valor do investimento: R$ ${fmt(d.precoOrcamento)}*
-
-${montarBlocoPagamentoWpp(d)}
-${d.consultor ? `━━━━━━━━━━━━━━━━━━\n👤 *Atendimento:* ${d.consultor}\n` : ''}
-_Proposta válida por 7 dias_`;
+${montarBlocoPagamentoWpp(d)}`;
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(txt).then(
