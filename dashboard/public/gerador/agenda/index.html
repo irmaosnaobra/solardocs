@@ -947,8 +947,7 @@
     <div class="status-grid">
       <button type="button" class="btn-status bg-ag" data-status="agendado"          onclick="atualizarStatus('agendado')">📞 Agendada</button>
       <button type="button" class="btn-status bg-na" data-status="nao_atendeu"       onclick="atualizarStatus('nao_atendeu')">❌ Não atendeu</button>
-      <button type="button" class="btn-status bg-si" data-status="sem_interesse"     onclick="atualizarStatus('sem_interesse')">🙅 Sem interesse</button>
-      <button type="button" class="btn-status bg-fo" data-status="fez_orcamento"     onclick="atualizarStatus('fez_orcamento')">💰 Fez orçamento</button>
+      <button type="button" class="btn-status bg-si" data-status="sem_interesse"     onclick="atualizarStatus('sem_interesse')" style="grid-column: span 2;">🙅 Sem interesse</button>
       <button type="button" class="btn-status bg-fe" data-status="fechou"            onclick="atualizarStatus('fechou')" style="grid-column: span 2;">✅ Fechou</button>
     </div>
 
@@ -1526,9 +1525,23 @@ function abrirDetalhes(id) {
 // "Gerar orçamento" → volta pro gerador (página separada) já com os dados do
 // cliente. O handoff é por querystring, mesmo padrão do botão Reagendar do CRM
 // (?ag=). O /gerador lê ?orc=1 no load e pré-preenche o form.
-function gerarOrcamentoDoDetalhe() {
+// Gerar orçamento JÁ classifica o lead como Frio (era o antigo botão "Fez
+// orçamento", removido): quem recebeu orçamento entra na coluna Frio do CRM e
+// sai do alvo do followup automático (que pula qualquer lead com temperatura).
+// A gravação é best-effort — se falhar, ainda navega (não trava o consultor).
+async function gerarOrcamentoDoDetalhe() {
   if (!detalheAtual) return;
   const ag = detalheAtual;
+  if (ag.temperatura !== 'frio') {
+    try {
+      await supaPatch(`agendamentos?id=eq.${ag.id}`, { temperatura: 'frio' });
+      ag.temperatura = 'frio';
+      const idx = agendamentosCache.findIndex(a => a.id === ag.id);
+      if (idx >= 0) agendamentosCache[idx].temperatura = 'frio';
+    } catch (e) {
+      console.error('Falha ao marcar Frio ao gerar orçamento (segue mesmo assim):', e);
+    }
+  }
   const p = new URLSearchParams({ orc: '1' });
   if (ag.cliente_nome)      p.set('nome', ag.cliente_nome);
   if (ag.cliente_telefone)  p.set('tel', formatTelBR(ag.cliente_telefone));

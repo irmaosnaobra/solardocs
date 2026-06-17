@@ -1953,15 +1953,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="crm-btn-temp bt-morno"  data-temp="morno"  onclick="crmAtualizarTemperatura('morno')"><span class="emoji">🌤️</span>Morno</button>
         <button type="button" class="crm-btn-temp bt-quente" data-temp="quente" onclick="crmAtualizarTemperatura('quente')"><span class="emoji">🔥</span>Quente</button>
       </div>
-      <div class="crm-det-temp-aviso" id="crm-det-temp-aviso" style="display:none">🔒 Só dá pra classificar a temperatura depois de <strong>enviar o orçamento</strong> (marque o resultado "Fez orçamento").</div>
       <button type="button" class="crm-det-limpar-temp" id="crm-det-limpar-temp" onclick="crmLimparTemperatura()" style="display:none">✖ Remover temperatura</button>
 
       <span class="crm-det-lbl">Resultado da ligação</span>
       <div class="crm-det-status">
         <button type="button" class="crm-btn-status bg-ag" data-status="agendado"         onclick="crmAtualizarStatus('agendado')">📞 Agendada</button>
         <button type="button" class="crm-btn-status bg-na" data-status="nao_atendeu"      onclick="crmAtualizarStatus('nao_atendeu')">❌ Não atendeu</button>
-        <button type="button" class="crm-btn-status bg-si" data-status="sem_interesse"    onclick="crmAtualizarStatus('sem_interesse')">🙅 Sem interesse</button>
-        <button type="button" class="crm-btn-status bg-fo" data-status="fez_orcamento"    onclick="crmAtualizarStatus('fez_orcamento')">💰 Fez orçamento</button>
+        <button type="button" class="crm-btn-status bg-si" data-status="sem_interesse"    onclick="crmAtualizarStatus('sem_interesse')" style="grid-column:span 2">🙅 Sem interesse</button>
         <button type="button" class="crm-btn-status bg-fe" data-status="fechou"           onclick="crmAtualizarStatus('fechou')" style="grid-column:span 2">✅ Fechou</button>
       </div>
     </div>
@@ -5397,13 +5395,24 @@ window.preencherClienteNoForm = preencherClienteNoForm;
 
 // "Gerar orçamento" → abre o gerador de propostas já com os dados do cliente
 // (nome, WhatsApp, cidade/UF) pré-preenchidos, pra adiantar.
-function crmGerarOrcamento() {
+// Gerar orçamento JÁ classifica o lead como Frio (era o antigo botão "Fez
+// orçamento", removido): o card cai na coluna Frio do kanban e sai do alvo do
+// followup automático (que pula qualquer lead com temperatura). Best-effort:
+// se a gravação falhar, ainda preenche o form (não trava o consultor).
+async function crmGerarOrcamento() {
   if (!crmDetAtual) return;
   // Captura ANTES de fechar (crmFecharDetalhe zera crmDetAtual).
   const c = crmDetAtual.c;
   const nome = c.nome || '';
   const telBonito = c.tel ? crmTelDisplay(c.tel) : '';   // (34) 99999-9999
   const cidade = c.cidade || '';
+
+  // Marca Frio (só se ainda não estiver). crmGravarTemperatura é setter direto
+  // (NÃO o toggle crmAtualizarTemperatura), grava em todas as agendas do cliente
+  // e recalcula a coluna. Só roda quando há agenda onde gravar.
+  if (c.temperatura !== 'frio' && (c.agends || []).some(a => a.id != null)) {
+    await crmGravarTemperatura('frio');
+  }
 
   crmFecharDetalhe();
   navGerador();          // esconde o CRM, mostra o form, ajusta sidebar/nav
