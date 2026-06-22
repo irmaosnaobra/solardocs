@@ -629,16 +629,24 @@
     line-height: 1;
   }
 
-  /* Marcador de temperatura no slot da grade */
+  /* Marcador de temperatura no slot da grade — texto (FRIO/MORNO/QUENTE) */
   .slot .temp-mark {
     position: absolute;
     top: 3px;
     right: 4px;
-    font-size: 12px;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .5px;
     line-height: 1;
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: #fff;
+    text-shadow: 0 1px 1px rgba(0,0,0,.35);
     pointer-events: none;
   }
+  .slot.temp-frio   .temp-mark { background: #06b6d4; }
+  .slot.temp-morno  .temp-mark { background: #f59e0b; }
+  .slot.temp-quente .temp-mark { background: #ec4899; }
   /* Faixa lateral colorida (reforço visual além do emoji) */
   .slot.temp-frio::before,
   .slot.temp-morno::before,
@@ -1239,11 +1247,11 @@ function renderGrid() {
         if (ag) {
           const stCls = `status-${(ag.status || 'agendado')}`;
           const tempCls = ag.temperatura ? ` temp-${ag.temperatura}` : '';
-          const tempEmoji = ag.temperatura === 'frio'   ? '❄️'
-                          : ag.temperatura === 'morno'  ? '🌤️'
-                          : ag.temperatura === 'quente' ? '🔥' : '';
+          const tempLabel = ag.temperatura === 'frio'   ? 'FRIO'
+                          : ag.temperatura === 'morno'  ? 'MORNO'
+                          : ag.temperatura === 'quente' ? 'QUENTE' : '';
           html += `<div class="slot ocupado ${stCls}${tempCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
-            ${tempEmoji ? `<div class="temp-mark">${tempEmoji}</div>` : ''}
+            ${tempLabel ? `<div class="temp-mark">${tempLabel}</div>` : ''}
             <div class="nome">${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}</div>
             ${ag.cidade ? `<div class="cidade">📍 ${escapeHtml(ag.cidade)}</div>` : ''}
@@ -1532,14 +1540,23 @@ function abrirDetalhes(id) {
 async function gerarOrcamentoDoDetalhe() {
   if (!detalheAtual) return;
   const ag = detalheAtual;
-  if (ag.temperatura !== 'frio') {
+  // Gerar orçamento marca DUAS coisas (best-effort, independentes):
+  //  - temperatura=frio → joga o card na coluna Frio do CRM e tira do followup
+  //  - status=fez_orcamento → pinta o card de amarelo na agenda (#eab308) + selo no CRM
+  // Guard 'fechou': nunca rebaixa um lead já ganho de volta pra amarelo.
+  // Patch montado à parte do gate de temperatura: um card que já era frio
+  // (reclique) ainda precisa receber o status pra virar amarelo.
+  const patch = {};
+  if (ag.temperatura !== 'frio') patch.temperatura = 'frio';
+  if (ag.status !== 'fez_orcamento' && ag.status !== 'fechou') patch.status = 'fez_orcamento';
+  if (Object.keys(patch).length) {
     try {
-      await supaPatch(`agendamentos?id=eq.${ag.id}`, { temperatura: 'frio' });
-      ag.temperatura = 'frio';
+      await supaPatch(`agendamentos?id=eq.${ag.id}`, patch);
+      Object.assign(ag, patch);
       const idx = agendamentosCache.findIndex(a => a.id === ag.id);
-      if (idx >= 0) agendamentosCache[idx].temperatura = 'frio';
+      if (idx >= 0) Object.assign(agendamentosCache[idx], patch);
     } catch (e) {
-      console.error('Falha ao marcar Frio ao gerar orçamento (segue mesmo assim):', e);
+      console.error('Falha ao marcar Frio/Fez orçamento ao gerar (segue mesmo assim):', e);
     }
   }
   const p = new URLSearchParams({ orc: '1' });

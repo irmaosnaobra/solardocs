@@ -78,6 +78,11 @@ html[data-mode="app"].calc-aberto .container{margin-left:0!important}
 .calc-inp input:focus{border-color:#3B82F6}
 .calc-inp input::placeholder{color:#475569;font-weight:400}
 .calc-inp input::-webkit-outer-spin-button,.calc-inp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.calc-nf-opts{display:flex;flex-direction:column;gap:8px}
+.calc-nf-opt{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:600;color:#E5E7EB;cursor:pointer;padding:10px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;transition:border-color .2s}
+.calc-nf-opt:has(input:checked){border-color:#3B82F6}
+.calc-nf-opt input{accent-color:#3B82F6;width:16px;height:16px;cursor:pointer}
+.calc-nf-opt .hint{font-weight:400;color:#94A3B8;font-size:11.5px}
 .calc-brow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:14px}
 .calc-brow:last-of-type{border-bottom:none}
 .calc-brow .lbl{color:#94A3B8}
@@ -1505,7 +1510,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
 
       <div class="calc-field">
-        <label>Material C.A <span class="hint">(padrão: 7% do kit — editável)</span></label>
+        <label>Material C.A <span class="hint">(padrão: 10% do kit — editável)</span></label>
         <div class="calc-inp"><span class="pre">R$</span><input type="number" id="calc-ca" inputmode="decimal" placeholder="0,00" oninput="calcCaEditado()"></div>
       </div>
 
@@ -1548,6 +1553,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <label>Impostos <span class="hint">(sobre o preço de venda)</span></label>
         <div class="calc-inp pct"><input type="number" id="calc-impostos" inputmode="decimal" placeholder="0" value="0" oninput="calcPreco()"><span class="suf">%</span></div>
       </div>
+
+      <div class="calc-field">
+        <label>Nota fiscal <span class="hint">(6% — uma ou outra)</span></label>
+        <div class="calc-nf-opts">
+          <label class="calc-nf-opt"><input type="radio" name="calc-nf" id="calc-nf-nenhuma" value="nenhuma" onchange="calcPreco()"> Sem NF</label>
+          <label class="calc-nf-opt"><input type="radio" name="calc-nf" id="calc-nf-serv" value="serv" checked onchange="calcPreco()"> NF de serviço <span class="hint">(6% do total − kit)</span></label>
+          <label class="calc-nf-opt"><input type="radio" name="calc-nf" id="calc-nf-total" value="total" onchange="calcPreco()"> NF total <span class="hint">(6% do total)</span></label>
+        </div>
+      </div>
     </div>
 
     <!-- RESULTADO -->
@@ -1562,6 +1576,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="calc-brow"><span class="lbl">Homologação</span><span class="val" id="calc-b-homolog">R$ 0,00</span></div>
         <div class="calc-brow"><span class="lbl">ART</span><span class="val" id="calc-b-art">R$ 0,00</span></div>
         <div class="calc-brow total"><span class="lbl">Custo total</span><span class="val" id="calc-b-custo">R$ 0,00</span></div>
+        <div class="calc-brow" id="calc-b-nf-row" style="display:none;"><span class="lbl" id="calc-b-nf-lbl">Nota fiscal</span><span class="val" id="calc-b-nf">R$ 0,00</span></div>
       </div>
 
       <div class="calc-price-box">
@@ -4271,7 +4286,7 @@ function navRedes() {
 
 // ============= TELA: CALCULADORA DE PRECIFICAÇÃO =============
 // Standalone — só estima preço de venda; NÃO escreve no "Valor do investimento" da proposta.
-const CALC_CA_PCT = 0.07;   // Material C.A padrão = 7% do kit
+const CALC_CA_PCT = 0.10;   // Material C.A padrão = 10% do kit
 let calcCaTocado = false;   // vira true quando o consultor edita o C.A na mão
 
 function navCalc() {
@@ -4298,7 +4313,7 @@ const calcNum = id => {
   return isFinite(v) && v > 0 ? v : 0;
 };
 
-// Kit mudou: enquanto o consultor não tiver editado o C.A na mão, mantém em 7% do kit
+// Kit mudou: enquanto o consultor não tiver editado o C.A na mão, mantém em 10% do kit
 function calcKitChange() {
   if (!calcCaTocado) {
     const kit = calcNum('calc-kit');
@@ -4325,6 +4340,16 @@ function calcPreco() {
   const comissaoPct = calcNum('calc-comissao');
   const impostosPct = calcNum('calc-impostos');
 
+  // Nota fiscal (6%, uma OU outra — radio):
+  //  - 'total': 6% sobre o preço de venda inteiro
+  //  - 'serv' : 6% sobre (preço de venda − kit), i.e. só a parte de serviço
+  // Ambas são dedução sobre a venda (igual impostos), então entram no denominador.
+  // A de serviço, por isentar o kit, também devolve 0,06·kit ao numerador.
+  // Algebra (P=preço): P = (custo − nfServ·kit) / (1 − margem − comissão − impostos − nf%)
+  const NF_PCT = 6;
+  const nfModo = (document.querySelector('input[name="calc-nf"]:checked') || {}).value || 'nenhuma';
+  const nfPct  = nfModo === 'nenhuma' ? 0 : NF_PCT;
+
   document.getElementById('calc-b-kit').textContent     = calcFmt(kit);
   document.getElementById('calc-b-ca').textContent      = calcFmt(ca);
   document.getElementById('calc-b-mao').textContent     = calcFmt(mao);
@@ -4347,24 +4372,41 @@ function calcPreco() {
     elKpis.style.display = 'grid';
     elLucro.textContent = calcFmt(0);
     elComis.textContent = calcFmt(0);
+    document.getElementById('calc-b-nf-row').style.display = 'none';
     return;
   }
 
-  // margem + comissão + impostos saem do MESMO denominador (todos sobre o preço de venda)
-  const denom = 1 - (margemPct + comissaoPct + impostosPct) / 100;
+  // margem + comissão + impostos + NF saem do MESMO denominador (todos sobre o preço de venda)
+  const somaPct = margemPct + comissaoPct + impostosPct + nfPct;
+  const denom = 1 - somaPct / 100;
 
   if (denom <= 0) {
     elPreco.textContent = '—';
     elSub.textContent = 'Reveja os percentuais';
-    elWarn.textContent = '⚠️ Margem + comissão + impostos somam ' + (margemPct + comissaoPct + impostosPct).toFixed(0) + '% (≥100%). É impossível precificar — reduza algum deles.';
+    elWarn.textContent = '⚠️ Margem + comissão + impostos + NF somam ' + somaPct.toFixed(0) + '% (≥100%). É impossível precificar — reduza algum deles.';
     elWarn.style.display = 'block';
     elKpis.style.display = 'none';
+    document.getElementById('calc-b-nf-row').style.display = 'none';
     return;
   }
 
-  const preco    = custo / denom;
+  // NF de serviço isenta o kit → devolve 6%·kit ao numerador (a NF total não)
+  const numerador = custo - (nfModo === 'serv' ? (NF_PCT / 100) * kit : 0);
+  const preco    = numerador / denom;
   const comissao = preco * comissaoPct / 100;
   const lucro    = preco * margemPct / 100;
+  const nfBase   = nfModo === 'serv' ? Math.max(0, preco - kit) : preco;
+  const nfValor  = nfModo === 'nenhuma' ? 0 : nfBase * NF_PCT / 100;
+
+  // Linha da NF no detalhamento (só aparece quando há NF marcada)
+  const nfRow = document.getElementById('calc-b-nf-row');
+  if (nfModo === 'nenhuma') {
+    nfRow.style.display = 'none';
+  } else {
+    nfRow.style.display = '';
+    document.getElementById('calc-b-nf-lbl').textContent = nfModo === 'serv' ? 'NF de serviço (6%)' : 'NF total (6%)';
+    document.getElementById('calc-b-nf').textContent = calcFmt(nfValor);
+  }
 
   elPreco.textContent = calcFmt(preco);
   elSub.textContent = 'Margem real de ' + margemPct.toFixed(0) + '% garantida';
