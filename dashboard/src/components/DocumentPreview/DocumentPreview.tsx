@@ -45,12 +45,16 @@ function parseContent(raw: string): Block[] {
     const line = lines[i];
     const trimmed = line.trim();
 
-    if (trimmed === '') { blocks.push({ type: 'empty' }); continue; }
-    // Sentinela de quebra de página (só a proposta de banco M1 usa). Reseta a
-    // zona de assinatura: a 2ª parte volta a ser corpo normal, não signatureLine.
+    // Linha em branco encerra um bloco de assinatura (nome/cpf vêm logo abaixo
+    // da régua, sem linha vazia entre eles). Assim a zona não "vaza" pro resto.
+    if (trimmed === '') { inSignatureZone = false; blocks.push({ type: 'empty' }); continue; }
+    // Sentinela de quebra de página (só a proposta de banco M1 usa).
     if (trimmed === '[[PAGEBREAK]]') { inSignatureZone = false; blocks.push({ type: 'pageBreak' }); continue; }
-    if (/^[═─]{6,}$/.test(trimmed)) { blocks.push({ type: 'separator' }); continue; }
-    if (trimmed.includes('___')) { inSignatureZone = true; blocks.push({ type: 'signatureLine', text: trimmed }); continue; }
+    if (/^[═─]{6,}$/.test(trimmed)) { inSignatureZone = false; blocks.push({ type: 'separator' }); continue; }
+    // Régua de assinatura = linha SÓ de underscores (com possíveis espaços, p/
+    // duas assinaturas lado a lado). Inicia a zona. Campos de preenchimento
+    // inline ("Consumo: ___ kWh") têm texto junto e NÃO contam — viram body.
+    if (/^_{3,}[\s_]*$/.test(trimmed)) { inSignatureZone = true; blocks.push({ type: 'signatureLine', text: trimmed }); continue; }
     if (inSignatureZone) { blocks.push({ type: 'signatureLine', text: trimmed }); continue; }
     if (/^[a-z]\)\s/.test(trimmed) || /^—\s/.test(trimmed) || /^-\s/.test(trimmed)) { blocks.push({ type: 'listItem', text: trimmed }); continue; }
     if (!titleFound && trimmed === trimmed.toUpperCase() && trimmed.length > 10 && /[A-Z]/.test(trimmed)) { titleFound = true; blocks.push({ type: 'title', text: trimmed }); continue; }
@@ -134,7 +138,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
 .${s.bodyText} { margin: 0 0 5px 0; text-align: justify; color: #222; }
 .${s.listItem} { margin: 3px 0 3px 18px; text-align: justify; color: #222; }
 .${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9pt; color: #333; margin: 3px 0; }
-.${s.signatureBlock} { margin-top: 12px; }
+.${s.signatureBlock} { page-break-inside: avoid; break-inside: avoid; margin-top: 12px; }
 .${s.pageBreak} { break-after: page; page-break-after: always; height: 0; }
 .${s.spacer} { height: 6px; }
 .${s.footer} { margin-top: 20px; padding-top: 6px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }
@@ -144,6 +148,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
   .${s.page} { padding: 0 !important; min-height: auto !important; display: block !important; }
   .${s.footer} { display: none !important; }
   .${s.pageBreak} { break-after: page !important; page-break-after: always !important; }
+  .${s.signatureBlock} { page-break-inside: avoid !important; break-inside: avoid !important; }
   .${s.sectionHeader} { page-break-after: avoid !important; break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; }
   .${s.bodyText}, .${s.listItem}, .${s.signatureLine} { page-break-inside: avoid; break-inside: avoid; }
 }`.trim();
@@ -354,32 +359,30 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
             {/* Document body */}
             <div className={styles.docBody}>
               {(() => {
-                const sigStart = blocks.findIndex(b => b.type === 'signatureLine');
-                if (sigStart === -1) {
-                  return blocks.map((block, i) => (
-                    <RenderBlock key={`b-${i}`} block={block} idx={i} />
-                  ));
+                // Agrupa CADA cluster contíguo de assinatura (régua + nome/cpf que
+                // vêm logo abaixo) num signatureBlock próprio, com page-break-inside:
+                // avoid — assim cada assinatura não racha entre páginas, sem engolir
+                // o documento inteiro. Um doc pode ter vários clusters (a proposta de
+                // banco tem 2 partes × 2 assinaturas); cada um vira um bloco isolado.
+                const out: React.ReactNode[] = [];
+                let i = 0;
+                while (i < blocks.length) {
+                  if (blocks[i].type === 'signatureLine') {
+                    const start = i;
+                    while (i < blocks.length && blocks[i].type === 'signatureLine') i++;
+                    out.push(
+                      <div className={styles.signatureBlock} key={`sig-${start}`}>
+                        {blocks.slice(start, i).map((block, j) => (
+                          <RenderBlock key={`s-${start}-${j}`} block={block} idx={start + j} />
+                        ))}
+                      </div>
+                    );
+                  } else {
+                    out.push(<RenderBlock key={`b-${i}`} block={blocks[i]} idx={i} />);
+                    i++;
+                  }
                 }
-                // Puxa a última cláusula/seção junto da assinatura: busca o último
-                // sectionHeader antes da assinatura para que subam juntos se houver quebra.
-                let keepStart = sigStart;
-                for (let i = sigStart - 1; i >= 0; i--) {
-                  if (blocks[i].type === 'sectionHeader') { keepStart = i; break; }
-                }
-                const before = blocks.slice(0, keepStart);
-                const keep = blocks.slice(keepStart);
-                return (
-                  <>
-                    {before.map((block, i) => (
-                      <RenderBlock key={`b-${i}`} block={block} idx={i} />
-                    ))}
-                    <div className={styles.signatureBlock}>
-                      {keep.map((block, i) => (
-                        <RenderBlock key={`s-${i}`} block={block} idx={i} />
-                      ))}
-                    </div>
-                  </>
-                );
+                return <>{out}</>;
               })()}
             </div>
 

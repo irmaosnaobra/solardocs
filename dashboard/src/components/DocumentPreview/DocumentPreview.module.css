@@ -198,8 +198,10 @@
   height: 0;
 }
 
-/* Signature group */
+/* Signature group — não quebra no meio (a página nova vem do [[PAGEBREAK]], não daqui) */
 .signatureBlock {
+  page-break-inside: avoid;
+  break-inside: avoid;
   margin-top: 12px;
 }
 
