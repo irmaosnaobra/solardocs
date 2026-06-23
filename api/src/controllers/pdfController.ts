@@ -68,16 +68,25 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
     await page.setJavaScriptEnabled(false);
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
+    const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const tipoSlug = stripDiacritics(doc.tipo ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Margem por tipo: a Proposta de Banco saía com margens grandes/assimétricas
+    // (top 2 / bottom 2.5), deixando o conteúdo apertado e desbalanceado. Usa um
+    // conjunto mais enxuto e simétrico (espelha o da proposta solar, equilibrada).
+    // Demais documentos mantêm o padrão 2/2.5/2/2 que já estava bom.
+    const margin = tipoSlug === 'propostabanco'
+      ? { top: '1.5cm', bottom: '1.5cm', left: '1.5cm', right: '1.5cm' }
+      : { top: '2cm', bottom: '2.5cm', left: '2cm', right: '2cm' };
+
     stage = 'render-pdf';
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '2cm', bottom: '2.5cm', left: '2cm', right: '2cm' },
+      margin,
       preferCSSPageSize: false,
     });
 
-    const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
-    const tipoSlug = stripDiacritics(doc.tipo ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const clienteSlug = stripDiacritics(doc.cliente_nome ?? 'documento')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
