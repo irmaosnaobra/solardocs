@@ -191,10 +191,15 @@
   height: 8px;
 }
 
-/* Signature group — never split across pages */
+/* Quebra de página forçada (sentinela [[PAGEBREAK]] — proposta de banco M1) */
+.pageBreak {
+  break-after: page;
+  page-break-after: always;
+  height: 0;
+}
+
+/* Signature group */
 .signatureBlock {
-  page-break-inside: avoid;
-  break-inside: avoid;
   margin-top: 12px;
 }
 

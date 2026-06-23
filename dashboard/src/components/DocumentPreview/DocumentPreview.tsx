@@ -29,6 +29,7 @@ type Block =
   | { type: 'title'; text: string }
   | { type: 'sectionHeader'; text: string }
   | { type: 'separator' }
+  | { type: 'pageBreak' }
   | { type: 'listItem'; text: string }
   | { type: 'signatureLine'; text: string }
   | { type: 'body'; text: string }
@@ -45,6 +46,9 @@ function parseContent(raw: string): Block[] {
     const trimmed = line.trim();
 
     if (trimmed === '') { blocks.push({ type: 'empty' }); continue; }
+    // Sentinela de quebra de página (só a proposta de banco M1 usa). Reseta a
+    // zona de assinatura: a 2ª parte volta a ser corpo normal, não signatureLine.
+    if (trimmed === '[[PAGEBREAK]]') { inSignatureZone = false; blocks.push({ type: 'pageBreak' }); continue; }
     if (/^[═─]{6,}$/.test(trimmed)) { blocks.push({ type: 'separator' }); continue; }
     if (trimmed.includes('___')) { inSignatureZone = true; blocks.push({ type: 'signatureLine', text: trimmed }); continue; }
     if (inSignatureZone) { blocks.push({ type: 'signatureLine', text: trimmed }); continue; }
@@ -62,6 +66,7 @@ function RenderBlock({ block, idx }: { block: Block; idx: number }) {
     case 'title': return <h1 className={styles.docTitle}>{block.text}</h1>;
     case 'sectionHeader': return <h2 className={styles.sectionHeader}>{block.text}</h2>;
     case 'separator': return <hr className={styles.separator} />;
+    case 'pageBreak': return <div className={styles.pageBreak} aria-hidden="true" />;
     case 'listItem': return <p className={styles.listItem}>{block.text}</p>;
     case 'signatureLine': return <p className={styles.signatureLine}>{block.text}</p>;
     case 'body': return <p className={styles.bodyText}>{block.text}</p>;
@@ -129,7 +134,8 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
 .${s.bodyText} { margin: 0 0 5px 0; text-align: justify; color: #222; }
 .${s.listItem} { margin: 3px 0 3px 18px; text-align: justify; color: #222; }
 .${s.signatureLine} { font-family: Arial, sans-serif; font-size: 9pt; color: #333; margin: 3px 0; }
-.${s.signatureBlock} { page-break-inside: avoid; break-inside: avoid; margin-top: 12px; }
+.${s.signatureBlock} { margin-top: 12px; }
+.${s.pageBreak} { break-after: page; page-break-after: always; height: 0; }
 .${s.spacer} { height: 6px; }
 .${s.footer} { margin-top: 20px; padding-top: 6px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-family: Arial, sans-serif; font-size: 8pt; color: #999; }
 @page { size: A4 portrait; margin: 1.5cm 1.5cm 2cm 1.5cm; }
@@ -137,7 +143,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
   html, body { background: #fff !important; }
   .${s.page} { padding: 0 !important; min-height: auto !important; display: block !important; }
   .${s.footer} { display: none !important; }
-  .${s.signatureBlock} { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .${s.pageBreak} { break-after: page !important; page-break-after: always !important; }
   .${s.sectionHeader} { page-break-after: avoid !important; break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; }
   .${s.bodyText}, .${s.listItem}, .${s.signatureLine} { page-break-inside: avoid; break-inside: avoid; }
 }`.trim();
