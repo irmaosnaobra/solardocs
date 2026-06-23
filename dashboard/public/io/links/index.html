@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Irmãos na Obra | Links</title>
+  <meta name="description" content="Irmãos na Obra — a tecnologia que acelera o setor solar.">
+
+  <link rel="icon" href="/io/img/icon-512.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lexend:wght@700;800&display=swap" rel="stylesheet" />
+
+  <!-- Meta Pixel -->
+  <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '446093469730871'); // Simulador B2C
+    fbq('init', '824905216831401'); // SolarDoc B2B
+    fbq('track', 'PageView');
+  </script>
+
+  <style>
+    :root {
+      --bg: #020617;
+      --surface: #0f172a;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --solar: #f59e0b;
+      --solar-glow: rgba(245, 158, 11, 0.4);
+      --border: rgba(255, 255, 255, 0.08);
+      --radius: 20px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 60px 20px;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Grid de energia */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image:
+        linear-gradient(rgba(245, 158, 11, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245, 158, 11, 0.03) 1px, transparent 1px);
+      background-size: 30px 30px;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* Radial glow */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 150%; height: 150%;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.05) 0%, transparent 70%);
+      z-index: -1;
+      pointer-events: none;
+      animation: pulse 10s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
+      to { opacity: 0.7; transform: translate(-50%, -50%) scale(1.1); }
+    }
+
+    .container { width: 100%; max-width: 450px; text-align: center; z-index: 10; }
+
+    .header { margin-bottom: 40px; }
+
+    .logo-wrap {
+      width: 96px; height: 96px;
+      margin: 0 auto 24px;
+      background: #fff;
+      border-radius: 50%;
+      padding: 12px;
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
+      display: flex; align-items: center; justify-content: center;
+      animation: float 3s ease-in-out infinite;
+      position: relative; z-index: 10;
+    }
+    .logo { width: 100%; object-fit: contain; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    .brand-name {
+      font-family: 'Lexend', sans-serif;
+      font-size: 28px; font-weight: 800;
+      letter-spacing: -1px; margin-bottom: 8px;
+    }
+    .brand-name span { color: var(--solar); }
+    .bio { font-size: 15px; color: var(--muted); line-height: 1.5; font-weight: 500; }
+
+    .links-list { display: flex; flex-direction: column; gap: 16px; }
+
+    .section-title {
+      font-size: 11px; font-weight: 800; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 2px;
+      margin: 32px 0 12px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .section-title:first-child { margin-top: 0; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .link-item {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 16px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      position: relative; overflow: hidden;
+    }
+
+    .link-item:hover {
+      transform: translateY(-4px);
+      border-color: rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.05);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+    }
+
+    .link-item.featured {
+      background: linear-gradient(135deg, var(--solar), #d97706);
+      color: #000; border: none;
+      box-shadow: 0 10px 25px rgba(245, 158, 11, 0.2);
+    }
+    .link-item.featured:hover { box-shadow: 0 15px 35px rgba(245, 158, 11, 0.4); }
+
+    /* Verde pra links de WhatsApp (detecção por URL) */
+    .link-item.whats { border-color: rgba(34, 197, 94, 0.25); }
+    .link-item.whats:hover { border-color: rgba(34, 197, 94, 0.5); background: rgba(34, 197, 94, 0.06); }
+
+    .link-item::after {
+      content: '';
+      position: absolute;
+      top: -100%; left: -100%; width: 50%; height: 300%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transform: rotate(35deg);
+      animation: scan 4s infinite;
+    }
+    @keyframes scan { 0% { left: -100%; } 50% { left: 150%; } 100% { left: 150%; } }
+
+    .icon { font-size: 20px; }
+
+    .social-icons { display: flex; justify-content: center; gap: 24px; margin: 40px 0 24px; }
+    .social-link { color: var(--muted); transition: all 0.3s; }
+    .social-link:hover { color: var(--solar); transform: scale(1.1); }
+
+    .footer { font-size: 11px; color: var(--muted); opacity: 0.6; font-weight: 600; letter-spacing: 1px; }
+
+    /* Entrada escalonada */
+    .link-item { opacity: 0; animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* estado de carregamento / vazio */
+    .state { color: var(--muted); font-size: 14px; padding: 24px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <div class="logo-wrap">
+        <img src="https://i.postimg.cc/KzBwm9nJ/Whats-App-Image-2025-08-04-at-16-03-01-1-removebg-preview.png" class="logo" alt="Irmãos na Obra">
+      </div>
+      <h1 class="brand-name">Irmãos na <span>Obra</span></h1>
+      <p class="bio">A tecnologia que acelera o setor solar.</p>
+    </div>
+
+    <div class="links-list" id="links">
+      <div class="state" id="state">Carregando…</div>
+    </div>
+
+    <div class="social-icons">
+      <a href="https://www.instagram.com/irmaosnaobra__" target="_blank" rel="noopener" class="social-link" title="Instagram">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+      </a>
+    </div>
+
+    <p class="footer">© 2026 IRMÃOS NA OBRA SOLAR</p>
+  </div>
+
+  <script>
+    // Mesma origem em produção (rewrite /_api → api.solardoc.app). Localhost cai na API local.
+    const API = (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1')
+      ? '/_api' : 'http://localhost:3001';
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // Conta o clique server-side (best-effort) e dispara o pixel, sem segurar a navegação.
+    function trackClick(id, label) {
+      try { fbq('trackCustom', 'ClickLinkBio', { name: label }); } catch (e) {}
+      try {
+        if (navigator.sendBeacon) navigator.sendBeacon(API + '/io-links/' + id + '/click');
+        else fetch(API + '/io-links/' + id + '/click', { method: 'POST', keepalive: true });
+      } catch (e) {}
+    }
+
+    function render(links) {
+      const wrap = document.getElementById('links');
+      if (!links.length) {
+        wrap.innerHTML = '<div class="state">Em breve, novidades por aqui. 🌞</div>';
+        return;
+      }
+      let html = '';
+      let lastSection = '__none__';
+      let delay = 0;
+      for (const l of links) {
+        const section = l.section || null;
+        if (section && section !== lastSection) {
+          html += '<div class="section-title">' + esc(section) + '</div>';
+          lastSection = section;
+        } else if (!section) {
+          lastSection = '__none__';
+        }
+        const isWhats = /wa\.me|whatsapp/i.test(l.url || '');
+        const cls = 'link-item' + (l.featured ? ' featured' : '') + (isWhats ? ' whats' : '');
+        const target = /^https?:\/\//i.test(l.url) ? ' target="_blank" rel="noopener"' : '';
+        delay += 0.08;
+        // Sem onclick inline: o tracking é ligado via addEventListener depois,
+        // lendo data-id/data-label. Evita qualquer quebra com aspas/apóstrofo no texto.
+        html +=
+          '<a href="' + esc(l.url) + '" class="' + cls + '"' + target +
+          ' data-id="' + esc(l.id) + '" data-label="' + esc(l.label) + '"' +
+          ' style="animation-delay:' + delay.toFixed(2) + 's">' +
+          (l.icon ? '<span class="icon">' + esc(l.icon) + '</span> ' : '') +
+          esc(l.label) +
+          '</a>';
+      }
+      wrap.innerHTML = html;
+      wrap.querySelectorAll('a[data-id]').forEach(a => {
+        a.addEventListener('click', () => trackClick(a.dataset.id, a.dataset.label || ''));
+      });
+    }
+
+    fetch(API + '/io-links', { headers: { 'Accept': 'application/json' } })
+      .then(r => r.json())
+      .then(d => render((d && d.links) || []))
+      .catch(() => {
+        document.getElementById('state').textContent = 'Não consegui carregar os links agora. Tente recarregar.';
+      });
+  </script>
+
+</body>
+</html>

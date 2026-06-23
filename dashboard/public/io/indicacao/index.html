@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Indique e Ganhe PIX | Irmãos na Obra</title>
+  <meta name="description" content="Indique um amigo ou familiar que queira reduzir a conta de luz e ganhe PIX quando o projeto fechar.">
+
+  <link rel="icon" href="/io/img/icon-512.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lexend:wght@700;800&display=swap" rel="stylesheet" />
+
+  <!-- Meta Pixel -->
+  <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '446093469730871');
+    fbq('init', '824905216831401');
+    fbq('track', 'PageView');
+  </script>
+
+  <style>
+    :root {
+      --bg: #020617;
+      --surface: #0f172a;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --solar: #f59e0b;
+      --border: rgba(255, 255, 255, 0.10);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px 18px 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(245,158,11,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245,158,11,.03) 1px, transparent 1px);
+      background-size: 30px 30px;
+      pointer-events: none; z-index: -1;
+    }
+
+    .wrap { width: 100%; max-width: 480px; }
+
+    .head { text-align: center; margin-bottom: 26px; }
+    .logo-wrap {
+      width: 80px; height: 80px; margin: 0 auto 18px;
+      background: #fff; border-radius: 50%; padding: 10px;
+      box-shadow: 0 0 30px rgba(245,158,11,.4);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-wrap img { width: 100%; object-fit: contain; }
+    .title {
+      font-family: 'Lexend', sans-serif; font-size: 26px; font-weight: 800;
+      letter-spacing: -.5px; line-height: 1.15; margin-bottom: 10px;
+    }
+    .title span { color: var(--solar); }
+    .sub { font-size: 15px; color: var(--muted); line-height: 1.5; }
+
+    .card {
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+
+    .card-title {
+      font-size: 13px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 1.5px; color: var(--solar); margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* Tabela de prêmios (só visual) */
+    .tier {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .tier:last-child { border-bottom: none; }
+    .tier-faixa { font-size: 14px; color: #e2e8f0; font-weight: 600; }
+    .tier-pix {
+      font-size: 15px; font-weight: 800; color: #fff;
+      background: linear-gradient(135deg, var(--solar), #d97706);
+      padding: 5px 12px; border-radius: 999px; white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(245,158,11,.25);
+    }
+    .tier-note { font-size: 13px; color: var(--muted); margin-top: 14px; line-height: 1.5; }
+
+    /* Form */
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block; font-size: 13px; font-weight: 700;
+      color: #e2e8f0; margin-bottom: 7px;
+    }
+    .field label .req { color: var(--solar); }
+    .field input {
+      width: 100%;
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .field input:focus { border-color: var(--solar); }
+    .field input::placeholder { color: #64748b; }
+    .field .hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
+
+    /* honeypot — escondido de gente, visível pra bot */
+    .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+    .submit {
+      width: 100%;
+      background: linear-gradient(135deg, var(--solar), #d97706);
+      color: #0b1220;
+      border: none; border-radius: 14px;
+      padding: 17px; font-size: 17px; font-weight: 800;
+      cursor: pointer; margin-top: 6px;
+      transition: filter .2s, transform .2s;
+      box-shadow: 0 10px 25px rgba(245,158,11,.25);
+    }
+    .submit:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-2px); }
+    .submit:disabled { opacity: .65; cursor: default; }
+
+    .formError {
+      background: rgba(248,113,113,.12);
+      border: 1px solid rgba(248,113,113,.4);
+      color: #fecaca; border-radius: 12px;
+      padding: 12px 14px; font-size: 14px; font-weight: 600;
+      margin-bottom: 14px; display: none;
+    }
+
+    /* Sucesso */
+    .success { display: none; text-align: center; padding: 20px 6px; }
+    .success .ico { font-size: 56px; margin-bottom: 14px; }
+    .success h2 { font-family: 'Lexend', sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 10px; }
+    .success p { color: var(--muted); font-size: 15px; line-height: 1.6; }
+    .success .again {
+      margin-top: 22px; display: inline-block;
+      color: var(--solar); font-weight: 700; font-size: 14px;
+      text-decoration: none; cursor: pointer;
+    }
+
+    .foot { text-align: center; font-size: 11px; color: var(--muted); opacity: .6; font-weight: 600; letter-spacing: 1px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div class="logo-wrap">
+        <img src="https://i.postimg.cc/KzBwm9nJ/Whats-App-Image-2025-08-04-at-16-03-01-1-removebg-preview.png" alt="Irmãos na Obra">
+      </div>
+      <h1 class="title">Programa <span>Parceiro</span> 🌞</h1>
+      <p class="sub">Indique um amigo ou familiar que queira reduzir a conta de luz. Se a indicação fechar o projeto com a gente, você recebe um PIX conforme o tamanho do projeto.</p>
+    </div>
+
+    <!-- Tabela de prêmios (display-only) -->
+    <div class="card">
+      <div class="card-title">💰 Quanto você ganha</div>
+      <div class="tier"><span class="tier-faixa">Projetos até R$ 10.000</span><span class="tier-pix">R$ 200</span></div>
+      <div class="tier"><span class="tier-faixa">De R$ 10.001 a R$ 20.000</span><span class="tier-pix">R$ 300</span></div>
+      <div class="tier"><span class="tier-faixa">De R$ 20.001 a R$ 35.000</span><span class="tier-pix">R$ 500</span></div>
+      <div class="tier"><span class="tier-faixa">Acima de R$ 35.000</span><span class="tier-pix">R$ 700</span></div>
+      <p class="tier-note">O pagamento é feito na conclusão da instalação do sistema. 💸<br>Quanto maior o projeto, maior a sua recompensa. Indique e ganhe! 🌟</p>
+    </div>
+
+    <!-- Formulário -->
+    <div class="card" id="formCard">
+      <div class="card-title">📝 Faça sua indicação</div>
+      <div class="formError" id="formError"></div>
+
+      <form id="form" novalidate>
+        <!-- honeypot -->
+        <div class="hp" aria-hidden="true">
+          <label>Não preencha este campo
+            <input type="text" name="website" tabindex="-1" autocomplete="off">
+          </label>
+        </div>
+
+        <div class="field">
+          <label>Nome de quem você está indicando <span class="req">*</span></label>
+          <input type="text" name="indicado_nome" placeholder="Quem quer o orçamento" maxlength="200" required>
+        </div>
+
+        <div class="field">
+          <label>Telefone/WhatsApp da indicação (com DDD) <span class="req">*</span></label>
+          <input type="tel" name="indicado_telefone" placeholder="(34) 99999-9999" maxlength="200" required>
+          <span class="hint">É por aqui que vamos falar com a indicação.</span>
+        </div>
+
+        <div class="field">
+          <label>Seu nome completo (para sabermos quem indicou) <span class="req">*</span></label>
+          <input type="text" name="indicador_nome" placeholder="Seu nome" maxlength="200" required>
+        </div>
+
+        <div class="field">
+          <label>Sua chave PIX (para o pagamento do prêmio) <span class="req">*</span></label>
+          <input type="text" name="indicador_pix" placeholder="CPF, telefone, e-mail ou aleatória" maxlength="200" required>
+        </div>
+
+        <button type="submit" class="submit" id="submitBtn">Enviar indicação 🚀</button>
+      </form>
+    </div>
+
+    <!-- Sucesso -->
+    <div class="card success" id="success">
+      <div class="ico">✅</div>
+      <h2>Indicação recebida!</h2>
+      <p>Obrigado! Vamos entrar em contato com a sua indicação. Quando o projeto fechar e for instalado, o seu PIX cai na chave que você informou. 🌞</p>
+      <a class="again" id="again">Fazer outra indicação</a>
+    </div>
+
+    <p class="foot">© 2026 IRMÃOS NA OBRA SOLAR</p>
+  </div>
+
+  <script>
+    const API = (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1')
+      ? '/_api' : 'http://localhost:3001';
+
+    const form = document.getElementById('form');
+    const btn = document.getElementById('submitBtn');
+    const errBox = document.getElementById('formError');
+    const formCard = document.getElementById('formCard');
+    const success = document.getElementById('success');
+
+    function showError(msg) {
+      errBox.textContent = msg;
+      errBox.style.display = 'block';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errBox.style.display = 'none';
+
+      const fd = new FormData(form);
+      const payload = {
+        indicado_nome: (fd.get('indicado_nome') || '').toString().trim(),
+        indicado_telefone: (fd.get('indicado_telefone') || '').toString().trim(),
+        indicador_nome: (fd.get('indicador_nome') || '').toString().trim(),
+        indicador_pix: (fd.get('indicador_pix') || '').toString().trim(),
+        website: (fd.get('website') || '').toString(),
+        origem: new URLSearchParams(location.search).get('utm_source') || 'link-bio',
+      };
+
+      if (!payload.indicado_nome || !payload.indicado_telefone || !payload.indicador_nome || !payload.indicador_pix) {
+        showError('Por favor, preencha todos os campos.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+
+      try {
+        const r = await fetch(API + '/io-indicacoes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          showError(data.error || 'Não consegui registrar. Tente novamente.');
+          btn.disabled = false;
+          btn.textContent = 'Enviar indicação 🚀';
+          return;
+        }
+        try { fbq('trackCustom', 'IndicacaoEnviada'); } catch (e) {}
+        formCard.style.display = 'none';
+        success.style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (e) {
+        showError('Sem conexão. Verifique a internet e tente de novo.');
+        btn.disabled = false;
+        btn.textContent = 'Enviar indicação 🚀';
+      }
+    });
+
+    document.getElementById('again').addEventListener('click', () => {
+      form.reset();
+      success.style.display = 'none';
+      formCard.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Enviar indicação 🚀';
+    });
+  </script>
+</body>
+</html>

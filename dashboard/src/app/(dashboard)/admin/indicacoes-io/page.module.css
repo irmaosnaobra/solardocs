@@ -1,0 +1,205 @@
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+  color: #f8fafc;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin: 0 0 6px; }
+.subtitle { font-size: 14px; color: #cbd5e1; line-height: 1.5; margin: 0; max-width: 560px; }
+.publicLink { color: #fbbf24; font-weight: 700; text-decoration: none; }
+.publicLink:hover { text-decoration: underline; }
+
+.btnGhost {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.btnGhost:hover { background: rgba(255, 255, 255, 0.12); }
+
+.error {
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  color: #fecaca;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.empty { text-align: center; color: #cbd5e1; padding: 48px 0; font-size: 15px; }
+
+/* ── Filtros ── */
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #cbd5e1;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.2s;
+}
+.chip span {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+.chip:hover { border-color: rgba(245, 158, 11, 0.4); }
+.chipOn {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #0b1220;
+  border-color: transparent;
+}
+.chipOn span { background: rgba(0, 0, 0, 0.2); }
+
+/* ── Lista ── */
+.list { display: flex; flex-direction: column; gap: 14px; }
+
+.card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-left: 4px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+.st_novo { border-left-color: #38bdf8; }
+.st_contatado { border-left-color: #fbbf24; }
+.st_fechado { border-left-color: #a78bfa; }
+.st_pago { border-left-color: #34d399; opacity: 0.82; }
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.statusTag {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 7px;
+  padding: 3px 9px;
+}
+.tag_novo { background: rgba(56, 189, 248, 0.18); color: #7dd3fc; }
+.tag_contatado { background: rgba(251, 191, 36, 0.18); color: #fcd34d; }
+.tag_fechado { background: rgba(167, 139, 250, 0.18); color: #c4b5fd; }
+.tag_pago { background: rgba(52, 211, 153, 0.18); color: #6ee7b7; }
+
+.date { font-size: 12px; color: #94a3b8; font-weight: 600; }
+
+.block { margin-bottom: 12px; }
+.blockLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+  margin-bottom: 5px;
+}
+.blockMain { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.blockMain strong { font-size: 16px; color: #f8fafc; font-weight: 700; }
+
+.contactRow { display: flex; gap: 8px; }
+.waBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #86efac;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.waBtn:hover { background: rgba(34, 197, 94, 0.2); }
+
+.pixBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fcd34d;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pixBtn:hover { background: rgba(245, 158, 11, 0.18); }
+.copyHint { font-size: 11px; opacity: 0.7; font-weight: 600; }
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.statusPicker { display: flex; gap: 6px; flex-wrap: wrap; }
+.stBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #cbd5e1;
+  border-radius: 9px;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.stBtn:hover { border-color: rgba(245, 158, 11, 0.4); }
+.stBtnOn { background: #f59e0b; color: #0b1220; border-color: transparent; }
+
+.delBtn {
+  background: transparent;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  color: #fca5a5;
+  border-radius: 9px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.delBtn:hover { background: rgba(248, 113, 113, 0.12); }
+
+@media (max-width: 560px) {
+  .cardActions { flex-direction: column; align-items: stretch; }
+  .delBtn { align-self: flex-end; }
+}

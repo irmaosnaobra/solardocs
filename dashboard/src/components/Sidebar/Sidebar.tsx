@@ -9,7 +9,7 @@ import {
   Banknote, ScrollText, FileSignature, Receipt,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
   Save, GraduationCap, Smartphone,
-  Send, MapPin, Palette, LogOut,
+  Send, MapPin, Palette, LogOut, Link2, Gift,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -54,6 +54,8 @@ const baseAdminItems: NavItem[] = [
   { href: '/admin/leads-google', icon: MapPin,     label: 'Leads Google' },
   { href: '/admin/insights',     icon: BarChart3,  label: 'Insights IO' },
   { href: '/admin/disparos',     icon: Send,       label: 'Disparos IO' },
+  { href: '/admin/links-io',     icon: Link2,      label: 'Link na Bio IO' },
+  { href: '/admin/indicacoes-io', icon: Gift,      label: 'Indicações IO' },
 ];
 
 // Bloco de topo, na ordem: Dashboard (locked pra free) > Gerador > Baixe o App.

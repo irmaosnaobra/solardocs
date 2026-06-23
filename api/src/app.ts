@@ -26,9 +26,16 @@ import unsubscribeRoutes from './routes/unsubscribe';
 import publicPropostaRoutes from './routes/publicProposta';
 import dashboardsRoutes from './routes/dashboards';
 import geradorRoutes from './routes/gerador';
+import ioLinksRoutes from './routes/ioLinks';
+import ioIndicacoesRoutes from './routes/ioIndicacoes';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
+
+// Atrás do proxy da Vercel: confia no 1º hop (X-Forwarded-For) pra req.ip ser o
+// IP real do cliente. Sem isso, todo mundo cai no mesmo bucket de rate-limit (o IP
+// do proxy) e o express-rate-limit v8 ainda avisa de misconfig. '1' = não-permissivo.
+app.set('trust proxy', 1);
 
 app.use(helmet());
 // Domínios de produção sempre permitidos (rede de segurança, independe de env var)
@@ -98,6 +105,8 @@ app.use('/unsubscribe', unsubscribeRoutes);
 app.use('/p', publicPropostaRoutes);
 app.use('/dashboards', dashboardsRoutes);
 app.use('/gerador', geradorRoutes);
+app.use('/io-links', ioLinksRoutes);
+app.use('/io-indicacoes', ioIndicacoesRoutes);
 
 // Error handler global — nunca expõe stack trace em produção
 app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

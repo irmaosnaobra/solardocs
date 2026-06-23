@@ -15,3 +15,13 @@ export const aiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Endpoint público de WRITE (formulário de indicação): alvo de spam. Limite
+// apertado por IP — um humano não manda mais que isso de boa fé.
+export const indicacaoLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 8,
+  message: { error: 'Muitas indicações em pouco tempo. Tente novamente mais tarde.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
