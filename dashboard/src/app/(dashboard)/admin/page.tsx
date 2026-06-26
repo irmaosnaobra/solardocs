@@ -6,6 +6,7 @@ import styles from './admin.module.css';
 import FunilSolarDocPanel from './_components/FunilSolarDocPanel';
 import FunilLimpaproPanel from './_components/FunilLimpaproPanel';
 import MembrosPanel from './_components/MembrosPanel';
+import TrafegoPanel from './_components/TrafegoPanel';
 
 /* ─── tipos ─────────────────────────────────────────────────── */
 interface SessionRow {
@@ -186,7 +187,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'|'membros'>('membros');
+  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'|'membros'|'trafego'>('membros');
 
   const [analytics, setAnalytics]               = useState<Analytics|null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -292,6 +293,7 @@ export default function AdminPage() {
 
       <div className={styles.tabs}>
         <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>Membros</button>
+        <button className={tab==='trafego'?styles.tabActive:styles.tab} onClick={()=>setTab('trafego')}>📈 Tráfego Pago</button>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>LP SolarDoc</button>
         {/* Aba Receita / ROAS ocultada — bloco e fetch mantidos abaixo, só removido o botão de navegação. */}
         {/* <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>Receita / ROAS</button> */}
@@ -989,6 +991,7 @@ export default function AdminPage() {
 
       {/* ═══ ABA MEMBROS (base de usuários da plataforma) ═══════════ */}
       {tab === 'membros' && <MembrosPanel />}
+      {tab === 'trafego' && <TrafegoPanel />}
 
       {/* ═══ ABA FUNIL SOLARDOC ═════════════════════════════════ */}
       {tab === 'funil_solardoc' && <FunilSolarDocPanel />}

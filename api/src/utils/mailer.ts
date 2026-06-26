@@ -593,6 +593,48 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   }
 }
 
+// Confirmação de reunião de tráfego pago. TRANSACIONAL (o cliente pediu o
+// agendamento) → sem footer de unsubscribe. quando = string já formatada em BRT.
+// Retorna true/false (não joga) pra o painel admin reportar sucesso/falha do envio.
+export async function sendMeetingConfirmedEmail(opts: { to: string; nome: string | null; quando: string; meetLink: string }): Promise<boolean> {
+  const firstName = (opts.nome || '').trim().split(/\s+/)[0] || '';
+  const ola = firstName ? `Oi ${firstName}!` : 'Oi!';
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#059669 0%,#10b981 100%);padding:28px 32px;">
+    <p style="margin:0;color:#053826;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc · Tráfego Pago</p>
+    <h1 style="margin:8px 0 0;color:#053826;font-size:24px;font-weight:900;line-height:1.2;">Reunião confirmada! 📅</h1>
+  </div>
+  <div style="padding:30px 32px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${ola} Tá tudo certo pra nossa conversa sobre tráfego pago pra sua região.</p>
+    <div style="background:#0f231a;border-left:4px solid #10b981;border-radius:0 10px 10px 0;padding:18px 22px;margin:0 0 22px;">
+      <p style="margin:0 0 8px;color:#34d399;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">Quando</p>
+      <p style="margin:0 0 14px;color:#f8fafc;font-size:17px;font-weight:700;">${opts.quando}</p>
+      <p style="margin:0 0 8px;color:#34d399;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">Onde (Google Meet)</p>
+      <a href="${opts.meetLink}" style="color:#34d399;font-size:15px;font-weight:700;word-break:break-all;">${opts.meetLink}</a>
+    </div>
+    <div style="text-align:center;margin:0 0 8px;">
+      <a href="${opts.meetLink}" style="display:inline-block;background:#10b981;color:#053826;font-weight:900;font-size:16px;padding:15px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(16,185,129,0.35);">Entrar na reunião →</a>
+    </div>
+    <p style="color:#64748b;font-size:12.5px;margin:22px 0 0;line-height:1.6;text-align:center;">Salva esse link. Qualquer imprevisto, fala com a Giovanna no WhatsApp (34) 99816-5040. Até lá! 🚀</p>
+  </div>
+</div>`;
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: opts.to,
+      replyTo: REPLY_TO,
+      subject: `📅 Reunião confirmada — ${opts.quando}`,
+      html,
+    });
+    if (error) { console.error('sendMeetingConfirmedEmail resend error:', error); return false; }
+    return true;
+  } catch (err) {
+    console.error('sendMeetingConfirmedEmail falhou:', err);
+    return false;
+  }
+}
+
 interface SuggestionEmailOptions {
   titulo: string;
   descricao: string;
@@ -797,7 +839,7 @@ export async function sendPurchaseEmail(opts: { to: string; userId: string; nome
       <p style="margin:0;color:#cbd5e1;font-size:13.5px;line-height:1.6;">Gestão a partir de <strong style="color:#34d399;">R$ 997/mês</strong> + a verba de anúncio que você escolher. Temos pacotes do "testar" ao "dominar a cidade" — eu te mostro qual encaixa numa call rápida.</p>
     </div>
     <div style="text-align:center;margin:0 0 4px;">
-      <a href="https://wa.me/5534998165040?text=${encodeURIComponent('Oi! Quero saber sobre o tráfego pago pra minha região')}" style="display:inline-block;background:#10b981;color:#0f172a;font-weight:900;font-size:15px;padding:15px 36px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(16,185,129,0.35);">📲 Quero marcar uma call de 20 min →</a>
+      <a href="${APP_URL}/trafego" style="display:inline-block;background:#10b981;color:#0f172a;font-weight:900;font-size:15px;padding:15px 36px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(16,185,129,0.35);">📅 Quero marcar uma call de 20 min →</a>
     </div>
   </div>
 

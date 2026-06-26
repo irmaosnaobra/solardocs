@@ -14,6 +14,7 @@ import featureEventsRoutes from './routes/featureEvents';
 import prestadoresRoutes from './routes/prestadores';
 import paymentsRoutes from './routes/payments';
 import adminRoutes from './routes/admin';
+import trafegoRoutes from './routes/trafego';
 import trackingRoutes from './routes/tracking';
 import cronRoutes from './routes/cron';
 import chatRoutes from './routes/chat';
@@ -91,6 +92,7 @@ app.use('/feature-events', featureEventsRoutes);
 app.use('/prestadores', prestadoresRoutes);
 app.use('/payments', paymentsRoutes);
 app.use('/admin', adminRoutes);
+app.use('/trafego', trafegoRoutes);
 // /_t = path neutro (escapa adblocker). /tracking mantido temporariamente como alias.
 app.use('/_t', trackingRoutes);
 app.use('/tracking', trackingRoutes);

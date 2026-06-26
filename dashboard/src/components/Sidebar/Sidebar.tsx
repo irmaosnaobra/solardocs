@@ -100,7 +100,7 @@ const mobileContaItems: NavItem[] = [
   { href: '/conta/documentos',  icon: Save,       label: 'Documentos Salvos' },
   { href: '/baixe-app',         icon: Smartphone, label: 'Baixe o App' },
   { href: 'https://pack.solardoc.app/', icon: Palette, label: 'Crie seu Mascote', external: true },
-  { href: 'https://wa.me/5534998165040?text=' + encodeURIComponent('Oi! Quero saber sobre o tráfego pago pra minha região'), icon: TrendingUp, label: 'Tráfego Pago', external: true },
+  { href: '/trafego', icon: TrendingUp, label: 'Tráfego Pago' },
 ];
 
 // ── Componente principal ────────────────────────────────────────────

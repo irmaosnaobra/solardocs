@@ -1,0 +1,189 @@
+/* LP de Tráfego Pago — tema light + verde de destaque (consistente com o upsell) */
+
+.traf-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 0 60px;
+  color: var(--color-text);
+}
+
+/* ── BANNER ── */
+.traf-hero {
+  background: linear-gradient(135deg, #053826 0%, #065f46 60%, #047857 100%);
+  border-radius: var(--radius-lg);
+  padding: 30px 28px;
+  margin-bottom: 20px;
+  color: #ecfdf5;
+}
+.traf-tag {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.22);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #6ee7b7;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+.traf-hero h1 {
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.2;
+  margin: 0 0 10px;
+  color: #f0fdfa;
+}
+.traf-sub {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #a7f3d0;
+  margin: 0 0 18px;
+}
+.traf-sub strong { color: #f0fdfa; }
+.traf-bullets { display: flex; flex-direction: column; gap: 10px; }
+.traf-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #d1fae5;
+}
+.traf-bullet span { font-size: 16px; }
+.traf-bullet strong { color: #6ee7b7; }
+
+/* ── CARD DE AGENDAMENTO ── */
+.traf-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+.traf-card h2 {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  color: var(--color-text);
+}
+.traf-card-sub {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  margin: 0 0 20px;
+}
+.traf-card-sub strong { color: var(--color-text); }
+
+.traf-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 18px 0 8px;
+}
+.traf-label:first-of-type { margin-top: 4px; }
+
+.traf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+.traf-opt {
+  padding: 11px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  text-transform: capitalize;
+}
+.traf-opt:hover:not(:disabled) { border-color: #10b981; }
+.traf-opt.sel {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  color: var(--color-text);
+}
+.traf-opt:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.traf-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.traf-input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+.traf-input::placeholder { color: var(--color-text-dim); font-weight: 400; }
+
+.traf-erro {
+  margin-top: 14px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: var(--ink-red);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.traf-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: #053826;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+  transition: transform 0.12s, box-shadow 0.15s;
+}
+.traf-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4); }
+.traf-btn:disabled { opacity: 0.6; cursor: wait; }
+
+.traf-nota {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-dim);
+  margin: 12px 0 0;
+}
+
+/* ── SUCESSO ── */
+.traf-sucesso {
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 48px 28px;
+}
+.traf-sucesso-icon { font-size: 48px; margin-bottom: 8px; }
+.traf-sucesso h1 { font-size: 24px; font-weight: 900; margin: 0 0 12px; color: var(--color-text); }
+.traf-sucesso p { font-size: 15px; line-height: 1.7; color: var(--color-text-muted); margin: 0 auto 24px; max-width: 440px; }
+.traf-sucesso p strong { color: var(--color-text); }
+.traf-btn-sec {
+  display: inline-block;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+}
