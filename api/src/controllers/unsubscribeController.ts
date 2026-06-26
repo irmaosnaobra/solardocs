@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
-
-const SECRET = process.env.JWT_SECRET || 'solardoc_jwt_2024_segredo_forte_production';
+import { JWT_SECRET } from '../utils/jwt';
 
 export function unsubToken(userId: string): string {
-  return crypto.createHmac('sha256', SECRET).update(`unsub:${userId}`).digest('hex').slice(0, 32);
+  return crypto.createHmac('sha256', JWT_SECRET).update(`unsub:${userId}`).digest('hex').slice(0, 32);
 }
 
 function verify(userId: string, token: string): boolean {

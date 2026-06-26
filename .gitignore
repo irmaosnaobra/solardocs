@@ -1,9 +1,18 @@
 .vercel
 node_modules/
 **/node_modules/
+# Todos os arquivos de ambiente com segredos. Padrões amplos pra não escapar
+# variações como .env.vercel.local / .env.local.temp (que já vazaram antes).
 .env
 **/.env
-*.env.local
-**/*.env.local
+.env.*
+**/.env.*
+*.env*
+**/*.env*
+!.env.example
+!**/.env.example
+# Settings locais do Claude Code podem conter chaves na allowlist.
+.claude/settings.local.json
+**/.claude/settings.local.json
 /landing
 

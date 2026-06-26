@@ -4,8 +4,9 @@ import crypto from 'crypto';
 const router = Router();
 
 const BASE_URL = process.env.API_URL || 'https://api.solardoc.app';
-// Token estático — qualquer usuário autorizado do Claude.ai usa o mesmo
-const STATIC_TOKEN = process.env.MCP_TOKEN || 'solardoc-mcp-token-2026';
+// Token estático — vem só do env (sem fallback hardcoded). (Este módulo não está
+// montado no app.ts; o caminho vivo é routes/mcp.ts.)
+const STATIC_TOKEN = (process.env.MCP_TOKEN || '').trim();
 const codes = new Map<string, number>(); // code → expiry
 
 // ─── OAuth 2.0 Discovery ──────────────────────────────────────────

@@ -19,10 +19,10 @@ jobs:
       - name: Sincronizar leads
         run: |
           curl -X GET "https://api.solardoc.app/cron/sync-leads-meta" \
-            -H "Authorization: Bearer solardocs_master_cron_2024" \
+            -H "Authorization: Bearer b8684209dd6875c0868d056f6bc3ac174047486c39835d05" \
             --max-time 120 -sS -w "\nHTTP %{http_code}\n"
       - name: Disparar mensagens da agenda
         run: |
           curl -X GET "https://api.solardoc.app/cron/process-messages" \
-            -H "Authorization: Bearer solardocs_master_cron_2024" \
+            -H "Authorization: Bearer b8684209dd6875c0868d056f6bc3ac174047486c39835d05" \
             --max-time 120 -sS -w "\nHTTP %{http_code}\n"

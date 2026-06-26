@@ -9,11 +9,12 @@ import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 
 const router = Router();
 
-// Endpoint /admin/users/delete-bootstrap aceita ?key=ZAPI_IO_2026_BOOTSTRAP pra
-// disparo de manutencao via curl (sem precisar token de admin). DEFINIDO ANTES
-// dos middlewares pra pular auth.
+// Endpoint /admin/users/delete-bootstrap: manutenção via curl, fora do auth de
+// admin. A key vem do env BOOTSTRAP_KEY (SEM fallback hardcoded) — se não estiver
+// setada, o endpoint fica fechado (fail-closed). DEFINIDO ANTES dos middlewares.
 router.post('/users/delete-bootstrap', async (req: Request, res: Response): Promise<void> => {
-  if (req.query.key !== 'ZAPI_IO_2026_BOOTSTRAP') { res.status(403).json({ error: 'forbidden' }); return; }
+  const BOOTSTRAP_KEY = (process.env.BOOTSTRAP_KEY || '').trim();
+  if (!BOOTSTRAP_KEY || req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
   try {
     const { email, cnpj } = req.body as { email?: string; cnpj?: string };
     if (!email && !cnpj) { res.status(400).json({ error: 'Informe email ou cnpj' }); return; }
@@ -22,11 +23,16 @@ router.post('/users/delete-bootstrap', async (req: Request, res: Response): Prom
     let userEmail: string | null = null;
 
     if (cnpj) {
-      const cleanCnpj = cnpj.replace(/\D/g, '');
+      // Sanitiza pra SÓ [0-9./-] — remove vírgula/parênteses que causariam
+      // filter-injection no .or() do PostgREST. CNPJ (com ou sem máscara) só usa
+      // esses caracteres, então cobre os dois formatos guardados no banco.
+      const safe = String(cnpj).replace(/[^0-9./-]/g, '');
+      const onlyDigits = safe.replace(/\D/g, '');
+      if (!onlyDigits) { res.status(400).json({ error: 'CNPJ inválido' }); return; }
       const { data: comp } = await supabase
         .from('company')
         .select('user_id')
-        .or(`cnpj.eq.${cnpj},cnpj.eq.${cleanCnpj}`)
+        .or(`cnpj.eq.${safe},cnpj.eq.${onlyDigits}`)
         .maybeSingle();
       if (!comp) { res.status(404).json({ error: 'Empresa com esse CNPJ não encontrada' }); return; }
       userId = comp.user_id;

@@ -3,7 +3,9 @@ import { supabase } from '../utils/supabase';
 
 const router = Router();
 const BASE    = process.env.API_URL || 'https://api.solardoc.app';
-const TOKEN   = process.env.MCP_TOKEN || 'solardoc-mcp-token-2026';
+// SEM fallback hardcoded: se MCP_TOKEN não estiver no env, o token fica vazio e
+// NENHUMA requisição autentica (endpoint fica fechado por padrão, fail-closed).
+const TOKEN   = (process.env.MCP_TOKEN || '').trim();
 const codes   = new Map<string, number>();
 
 // ─── OAuth 2.0 Discovery ──────────────────────────────────────────
@@ -167,7 +169,10 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
 // ─── Endpoint MCP (JSON-RPC 2.0) ─────────────────────────────────
 router.post('/', async (req: Request, res: Response): Promise<void> => {
   const auth = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
-  if (auth && auth !== TOKEN) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  // Fail-closed: exige token presente E correto. Sem header (auth vazio) ou
+  // sem MCP_TOKEN configurado (TOKEN vazio) → 401. Antes, header ausente pulava
+  // a checagem e abria o dump de usuários + envio de WhatsApp pra qualquer um.
+  if (!TOKEN || auth !== TOKEN) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const { jsonrpc, id, method, params } = req.body as any;
 
   res.setHeader('Content-Type', 'application/json');

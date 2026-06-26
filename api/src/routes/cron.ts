@@ -34,11 +34,15 @@ const router = Router();
 function verifyCronSecret(req: Request, res: Response): boolean {
   const auth   = req.headers['authorization'] ?? '';
   const secret = auth.replace('Bearer ', '').trim();
-  
-  const validVercel = process.env.CRON_SECRET && secret === process.env.CRON_SECRET;
-  const validGithub = secret === 'solardocs_master_cron_2024';
-  
-  if (!validVercel && !validGithub) {
+
+  // Secrets vêm SÓ de env (sem fallback hardcoded). Aceita o do Vercel OU o do
+  // GitHub Actions — ambos configuráveis. Sem secret no header → 401.
+  const cronSecret   = (process.env.CRON_SECRET || '').trim();
+  const githubSecret = (process.env.GITHUB_CRON_SECRET || '').trim();
+  const validVercel = cronSecret && secret === cronSecret;
+  const validGithub = githubSecret && secret === githubSecret;
+
+  if (!secret || (!validVercel && !validGithub)) {
     res.status(401).json({ error: 'Unauthorized' });
     return false;
   }

@@ -1,8 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 import { executePixelEvent } from '../controllers/pixelController';
+import { authMiddleware } from '../middleware/auth';
+import { adminMiddleware } from '../middleware/adminAuth';
 
 const router = Router();
+
+// Os endpoints de telemetria do simulador (/event, /funnel, /summary) são
+// PÚBLICOS de propósito (rodam no navegador do visitante). Já os de LEADS
+// (listar/status/note) expõem PII e notas internas de venda → admin-only.
 
 router.post('/event', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -310,7 +316,7 @@ router.get('/summary', async (req: Request, res: Response): Promise<void> => {
 });
 
 // ── POST /quiz/leads/status — atualizar status de acompanhamento ─────────
-router.post('/leads/status', async (req: Request, res: Response): Promise<void> => {
+router.post('/leads/status', authMiddleware, adminMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { session_id, status, value } = req.body;
     if (!session_id || !status) {
@@ -379,7 +385,7 @@ router.post('/leads/status', async (req: Request, res: Response): Promise<void> 
 });
 
 // ── POST /quiz/leads/note — salvar anotação do SDR ──────────────────────
-router.post('/leads/note', async (req: Request, res: Response): Promise<void> => {
+router.post('/leads/note', authMiddleware, adminMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { session_id, note } = req.body;
     if (!session_id) {
@@ -402,7 +408,7 @@ router.post('/leads/note', async (req: Request, res: Response): Promise<void> =>
 });
 
 // ── GET /quiz/leads — leads do simulador B2C ──────────────────────
-router.get('/leads', async (req: Request, res: Response): Promise<void> => {
+router.get('/leads', authMiddleware, adminMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { data: raw } = await supabase
       .from('quiz_events')
