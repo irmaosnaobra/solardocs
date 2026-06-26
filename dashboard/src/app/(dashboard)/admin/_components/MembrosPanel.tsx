@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import api from '@/services/api';
@@ -143,7 +143,7 @@ export default function MembrosPanel() {
 
   return (
     <>
-      <div className={styles.filters} style={{ marginTop: 16, marginBottom: 24, alignItems: 'center', background: 'var(--color-bg-elevated)', padding: '12px 16px', borderRadius: 8, gap: 12, flexWrap: 'wrap' }}>
+      <div className={styles.filters} style={{ marginTop: 16, marginBottom: 24, alignItems: 'center', background: 'var(--color-surface-2)', padding: '12px 16px', borderRadius: 8, gap: 12, flexWrap: 'wrap' }}>
         <div className={styles.periodTabs}>
           {(['todos', 'free', 'pro', 'ilimitado'] as const).map(p => (
             <button

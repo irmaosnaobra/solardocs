@@ -42,8 +42,10 @@
   --color-border: #334155;
   --color-text: #F1F5F9;
   --color-text-muted: #cbd5e1;
-  --color-primary: #F59E0B;
-  --color-primary-hover: #D97706;
+  /* Alinhado ao laranja do app (#F26513) pra a cor da marca não MUDAR quando o
+     cliente sai da LP e entra no dashboard. (O fundo dark da LP é proposital.) */
+  --color-primary: #F26513;
+  --color-primary-hover: #E0560A;
 
   min-height: 100vh;
   background: #0F172A;

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/services/api';
@@ -347,7 +347,7 @@ export default function AdminPage() {
 
         return (
           <>
-            <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
+            <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-surface-2)', padding:'12px 16px', borderRadius:8}}>
               <div className={styles.periodTabs}>
                 {([['hoje','Hoje'],['ontem','Ontem'],['3d','3 dias'],['7dias','7 dias'],['mes','Esse mês'],['maximo','Máximo']] as const).map(([v,l])=>(
                   <button key={v} className={visitPeriod===v?styles.periodActive:styles.periodBtn} onClick={()=>changeVisitPeriod(v as any)} disabled={loadingAnalytics}>{l}</button>
@@ -390,7 +390,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* Funil SVG */}
-                <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
+                <div style={{marginTop:24, background:'var(--color-surface-2)', borderRadius:8, padding:'18px 16px 8px'}}>
                   <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>Funil do /io</div>
                   <FunnelSVG steps={ioFunnel} />
                 </div>
@@ -530,7 +530,7 @@ export default function AdminPage() {
 
         return (
         <>
-          <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
+          <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-surface-2)', padding:'12px 16px', borderRadius:8}}>
             <div className={styles.periodTabs}>
               {([['hoje','Hoje'],['ontem','Ontem'],['3d','3 dias'],['7dias','7 dias'],['mes','Esse mês'],['maximo','Máximo']] as const).map(([v,l])=>(
                 <button
@@ -576,7 +576,7 @@ export default function AdminPage() {
               </div>
 
               {/* Funil SVG */}
-              <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
+              <div style={{marginTop:24, background:'var(--color-surface-2)', borderRadius:8, padding:'18px 16px 8px'}}>
                 <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>Funil da LP</div>
                 <FunnelSVG steps={lpFunnel} />
               </div>
@@ -700,7 +700,7 @@ export default function AdminPage() {
 
         return (
           <>
-            <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
+            <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-surface-2)', padding:'12px 16px', borderRadius:8}}>
               <div className={styles.periodTabs}>
                 {([['hoje','Hoje'],['ontem','Ontem'],['3d','3 dias'],['7dias','7 dias'],['mes','Esse mês'],['maximo','Máximo']] as const).map(([v,l])=>(
                   <button key={v} className={visitPeriod===v?styles.periodActive:styles.periodBtn} onClick={()=>changeVisitPeriod(v as any)} disabled={loading}>{l}</button>
@@ -854,7 +854,7 @@ export default function AdminPage() {
 
         return (
           <>
-            <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-bg-elevated)', padding:'12px 16px', borderRadius:8}}>
+            <div className={styles.filters} style={{marginTop:16, marginBottom:24, alignItems:'center', background:'var(--color-surface-2)', padding:'12px 16px', borderRadius:8}}>
               <div className={styles.periodTabs}>
                 {([['hoje','Hoje'],['ontem','Ontem'],['3d','3 dias'],['7dias','7 dias'],['mes','Esse mês'],['maximo','Máximo']] as const).map(([v,l])=>(
                   <button key={v} className={visitPeriod===v?styles.periodActive:styles.periodBtn} onClick={()=>changeVisitPeriod(v as any)} disabled={loadingAnalytics}>{l}</button>
@@ -895,7 +895,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div style={{marginTop:24, background:'var(--color-bg-elevated)', borderRadius:8, padding:'18px 16px 8px'}}>
+                <div style={{marginTop:24, background:'var(--color-surface-2)', borderRadius:8, padding:'18px 16px 8px'}}>
                   <div style={{fontSize:13, fontWeight:700, color:'var(--color-text)', marginBottom:12}}>Funil Pack Solar</div>
                   <FunnelSVG steps={packFunnel} />
                 </div>

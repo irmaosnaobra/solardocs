@@ -216,3 +216,14 @@ body.sd-drawer-open .sd-whats-fab,
 body.sd-drawer-open .sd-chat-fab {
   display: none !important;
 }
+
+/* ── Acessibilidade: indicador de foco por teclado ──────────────────────────
+   Vários componentes usam outline:none (remove o anel de foco). Isso quebra a
+   navegação por teclado (sem indicação visual de onde está o foco). Esta regra
+   devolve um anel SÓ pra navegação por teclado (:focus-visible não dispara em
+   clique de mouse), então não polui o visual de quem usa mouse. */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

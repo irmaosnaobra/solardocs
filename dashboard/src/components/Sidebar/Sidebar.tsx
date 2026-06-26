@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Settings, Zap, FolderOpen, FileText,
   LayoutDashboard, Building2, Users, User, Handshake,
@@ -68,7 +68,9 @@ const topoItems: NavItem[] = [
 ];
 
 // Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.
-// Tudo liberado pra free (sem paidOnly); o limite é nos 10 docs/mês, não nas telas.
+// Telas navegáveis pra free (sem paidOnly aqui), MAS o backend
+// (documentsController:65) só deixa o free GERAR propostaSolar — os outros
+// tipos retornam 402 "faça upgrade". O gate é no generate, não na navegação.
 const cadastroItems: NavItem[] = [
   { href: '/clientes',  icon: Users,     label: 'Clientes',  requireCompany: true },
   { href: '/terceiros', icon: Handshake, label: 'Terceiros', requireCompany: true },
@@ -111,6 +113,10 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
     (companyNome && companyNome.trim()) ||
     user.email.split('@')[0];
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // href cheio atual (pathname + ?tipo=...) pra casar com os itens de doc,
+  // que diferem só pela query (/documentos?tipo=proposta vs ?tipo=recibo).
+  const currentTipo = searchParams.get('tipo');
   const router = useRouter();
   const isVip = user.plano === 'ilimitado';
   const isFree = user.plano === 'free';
@@ -138,7 +144,11 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
   }
 
   function renderItem(item: NavItem) {
-    const active = pathname === item.href;
+    // Casa pathname E o ?tipo= — os itens de documento têm o mesmo /documentos
+    // e diferem só pela query, então comparar só pathname nunca acendia nenhum.
+    const [itemPath, itemQuery] = item.href.split('?');
+    const itemTipo = itemQuery ? new URLSearchParams(itemQuery).get('tipo') : null;
+    const active = pathname === itemPath && (itemTipo ? currentTipo === itemTipo : !currentTipo);
     const lockedByCompany = !isAdmin && !hasCompany && !!item.requireCompany;
     const lockedByVip = !!item.vipOnly && !isVip && !isAdmin;
     const lockedByFree = !!item.paidOnly && isFree && !isAdmin;
