@@ -2,6 +2,24 @@
 
 Atualizado em 2026-06-26. Estado da blindagem.
 
+## ✅ ROTAÇÃO COMPLETA (26/06 — verificado em prod)
+- ✅ SUPABASE: nova sb_secret no Vercel + legada JWT DESABILITADA no painel.
+  API lendo o banco (200). O que vazou no git NÃO funciona mais.
+- ✅ ANTHROPIC: nova key (solardoc-prod) no Vercel. IA respondendo (200).
+- ✅ STRIPE secret key: rolada (sk_live novo) no Vercel. Cria checkout (200).
+  Antiga expira em 24h (transição segura).
+- ✅ Cron/bootstrap/mcp secrets: rotacionados (valor antigo → 401).
+
+## ⏳ Sobrou (decidido deixar pra depois, BAIXA urgência)
+- Stripe WEBHOOK secret: NÃO rotacionado (menos crítico — só valida origem da
+  notificação; vazado no máximo forja "pagamento aprovado" falso). Quando quiser:
+  dashboard.stripe.com/webhooks → endpoint solardocs-api → Revogar segredo →
+  copiar novo whsec → me pedir pra setar STRIPE_WEBHOOK_SECRET no Vercel.
+- JWT_SECRET: não rotacionado (rotacionar desloga os 127 usuários). Opcional.
+- 🚨 CRON_SECRET no GitHub: AINDA falta criar (crons parados). Ver item 0 abaixo.
+- Anthropic: a key antiga do git (3wg...) já não está na lista do painel
+  (removida antes). As 6 outras keys são de OUTROS projetos — não deletar.
+
 ## ✅ JÁ FEITO (automático, no ar, verificado)
 - Secrets removidos do git + `.gitignore` reforçado (não vaza mais env).
 - Fallbacks hardcoded de secret removidos do código (JWT, MCP, cron, bootstrap).
