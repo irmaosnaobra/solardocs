@@ -1370,7 +1370,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <!-- AÇÕES DO CONSULTOR (fora visualmente, escondidas no print pelo @media print) -->
     <div class="acoes">
       <button class="btn-wpp" onclick="copiarWhatsApp()">📱 Copiar pra WhatsApp</button>
-      <button class="btn-link" id="btn-link" onclick="gerarLinkProposta()">🔗 Copiar link</button>
     </div>
 
     <div class="botoes-rodape" id="btn-nova">
@@ -3337,32 +3336,6 @@ async function garantirCodigo() {
   if (dadosAtual.codigo) return dadosAtual.codigo;
   dadosAtual.codigo = await salvarPropostaSupabase(dadosAtual);
   return dadosAtual.codigo;
-}
-
-async function gerarLinkProposta() {
-  if (!dadosAtual) return;
-  showToast('⏳ Gerando link...');
-  try {
-    const codigo = await garantirCodigo();
-    supaRpc('marcar_enviado_link', { p_codigo: codigo }).catch(e => console.error(e));
-
-    const baseUrl = window.location.origin + window.location.pathname;
-    const link = `${baseUrl}?p=${codigo}`;
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      try {
-        await navigator.clipboard.writeText(link);
-        showToast(`🔗 Link ${codigo} copiado!`);
-      } catch (e) {
-        fallbackCopy(link);
-      }
-    } else {
-      fallbackCopy(link);
-    }
-  } catch (e) {
-    console.error(e);
-    showToast('❌ Erro ao gerar link');
-  }
 }
 
 function ehVendedor() {
@@ -6622,22 +6595,16 @@ function montarBlocoPagamentoWpp(d) {
 }
 
 // ============= WHATSAPP =============
-async function copiarWhatsApp() {
-  if (!dadosAtual) return;
-  const d = dadosAtual;
-
-  // Tracking — salva proposta se ainda não tem código + marca envio WhatsApp
-  garantirCodigo()
-    .then(cod => supaRpc('marcar_enviado_wpp', { p_codigo: cod }))
-    .catch(e => console.error('Tracking falhou:', e));
-
+// Monta o texto completo da proposta (formatação WhatsApp).
+// O "Copiar pra WhatsApp" anexa o link da proposta no final.
+function montarTextoProposta(d) {
   // Cliente — nome + cidade, numa linha só
   const linhaCli = d.cidade ? `${d.nome} · ${d.cidade}` : `${d.nome}`;
 
   // Sistema condensado: módulos + inversor numa linha
   const sistema = `${d.item.n}x ${d.tab.mod} + ${d.qtdInv}x ${d.tab.inv}`;
 
-  const txt =
+  return (
 `☀️ *PROPOSTA DE ENERGIA SOLAR*
 
 👤 ${linhaCli}
@@ -6658,15 +6625,43 @@ async function copiarWhatsApp() {
 ━━━━━━━━━━━━━━━━━━
 *Investimento: R$ ${fmt(d.precoOrcamento)}*
 
-${montarBlocoPagamentoWpp(d)}`;
+${montarBlocoPagamentoWpp(d)}`
+  );
+}
 
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(txt).then(
-      () => showToast('✅ Copiado! Cole no WhatsApp'),
-      () => fallbackCopy(txt)
-    );
-  } else {
-    fallbackCopy(txt);
+async function copiarWhatsApp() {
+  if (!dadosAtual) return;
+  const d = dadosAtual;
+  showToast('⏳ Gerando proposta...');
+
+  try {
+    // Garante o código salvo e marca os dois tracking (WhatsApp + link),
+    // já que agora a cópia leva a proposta + o link da proposta juntos.
+    const codigo = await garantirCodigo();
+    supaRpc('marcar_enviado_wpp',  { p_codigo: codigo }).catch(e => console.error(e));
+    supaRpc('marcar_enviado_link', { p_codigo: codigo }).catch(e => console.error(e));
+
+    const baseUrl = window.location.origin + window.location.pathname;
+    const link = `${baseUrl}?p=${codigo}`;
+
+    // Proposta completa + o link da proposta no final
+    const txt = `${montarTextoProposta(d)}
+
+${link}`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(txt);
+        showToast('✅ Copiado! Cole no WhatsApp');
+      } catch (e) {
+        fallbackCopy(txt);
+      }
+    } else {
+      fallbackCopy(txt);
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Erro ao gerar a proposta');
   }
 }
 
