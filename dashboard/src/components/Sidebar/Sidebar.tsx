@@ -9,7 +9,7 @@ import {
   Banknote, ScrollText, FileSignature, Receipt,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
   Save, GraduationCap, Smartphone,
-  Send, MapPin, Palette, LogOut, Link2, Gift,
+  Send, MapPin, Palette, LogOut, TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -54,8 +54,9 @@ const baseAdminItems: NavItem[] = [
   { href: '/admin/leads-google', icon: MapPin,     label: 'Leads Google' },
   { href: '/admin/insights',     icon: BarChart3,  label: 'Insights IO' },
   { href: '/admin/disparos',     icon: Send,       label: 'Disparos IO' },
-  { href: '/admin/links-io',     icon: Link2,      label: 'Link na Bio IO' },
-  { href: '/admin/indicacoes-io', icon: Gift,      label: 'Indicações IO' },
+  // Link na Bio IO e Indicações IO viraram sub-abas dentro do Funil LimpaPro
+  // (Painel SolarDoc → aba Funil LimpaPro) — saíram daqui pra não duplicar.
+  // Rotas /admin/links-io e /admin/indicacoes-io seguem vivas (acesso por URL).
 ];
 
 // Bloco de topo, na ordem: Dashboard (locked pra free) > Gerador > Baixe o App.
@@ -99,6 +100,7 @@ const mobileContaItems: NavItem[] = [
   { href: '/conta/documentos',  icon: Save,       label: 'Documentos Salvos' },
   { href: '/baixe-app',         icon: Smartphone, label: 'Baixe o App' },
   { href: 'https://pack.solardoc.app/', icon: Palette, label: 'Crie seu Mascote', external: true },
+  { href: 'https://wa.me/5534998165040?text=' + encodeURIComponent('Oi! Quero saber sobre o tráfego pago pra minha região'), icon: TrendingUp, label: 'Tráfego Pago', external: true },
 ];
 
 // ── Componente principal ────────────────────────────────────────────

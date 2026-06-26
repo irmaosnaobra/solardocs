@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, HelpCircle, User, Building2, LogOut, Palette, Smartphone } from 'lucide-react';
+import { FileText, HelpCircle, User, Building2, LogOut, Palette, Smartphone, TrendingUp } from 'lucide-react';
 import { removeToken } from '@/services/auth';
 import styles from './TopBar.module.css';
 
 const WA_SUPORTE = 'https://wa.me/5534999437831?text=' + encodeURIComponent('Olá! Preciso de ajuda com o SolarDoc.');
+// Upsell de tráfego pago — mesmo número/mensagem do email de boas-vindas (linha IO).
+const WA_TRAFEGO = 'https://wa.me/5534998165040?text=' + encodeURIComponent('Oi! Quero saber sobre o tráfego pago pra minha região');
 
 interface TopBarProps {
   userEmail?: string;
@@ -46,6 +48,9 @@ export default function TopBar({ userEmail, companyLogo }: TopBarProps) {
       <div className={styles.actions}>
         <a href="https://pack.solardoc.app/" target="_blank" rel="noopener noreferrer" className={styles.iconBtn} title="Crie seu Mascote">
           <Palette size={18} />
+        </a>
+        <a href={WA_TRAFEGO} target="_blank" rel="noopener noreferrer" className={styles.iconBtn} title="Tráfego pago — domine sua região" style={{ color: '#10b981' }}>
+          <TrendingUp size={18} />
         </a>
         <Link href="/baixe-app" className={styles.iconBtn} title="Baixe o App">
           <Smartphone size={18} />
