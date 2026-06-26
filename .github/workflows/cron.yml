@@ -12,4 +12,4 @@ jobs:
       - name: Trigger Vercel API Master Cron
         run: |
           curl -X GET "https://api.solardoc.app/cron/master" \
-          -H "Authorization: Bearer b8684209dd6875c0868d056f6bc3ac174047486c39835d05"
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

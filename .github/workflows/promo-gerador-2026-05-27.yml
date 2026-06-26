@@ -17,7 +17,7 @@ jobs:
       - name: Batch 1 (06:50 BRT)
         run: |
           curl -X GET "https://api.solardoc.app/cron/promo-gerador-blast" \
-            -H "Authorization: Bearer b8684209dd6875c0868d056f6bc3ac174047486c39835d05" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --max-time 290 -sS -w "\nHTTP %{http_code}\n"
 
       - name: Aguarda 4min antes do próximo batch
@@ -26,7 +26,7 @@ jobs:
       - name: Batch 2
         run: |
           curl -X GET "https://api.solardoc.app/cron/promo-gerador-blast" \
-            -H "Authorization: Bearer b8684209dd6875c0868d056f6bc3ac174047486c39835d05" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --max-time 290 -sS -w "\nHTTP %{http_code}\n"
 
       - name: Aguarda 4min antes do próximo batch
@@ -35,7 +35,7 @@ jobs:
       - name: Batch 3
         run: |
           curl -X GET "https://api.solardoc.app/cron/promo-gerador-blast" \
-            -H "Authorization: Bearer b8684209dd6875c0868d056f6bc3ac174047486c39835d05" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --max-time 290 -sS -w "\nHTTP %{http_code}\n"
 
       - name: Aguarda 4min antes do próximo batch
@@ -44,11 +44,11 @@ jobs:
       - name: Batch 4 (limpa restantes)
         run: |
           curl -X GET "https://api.solardoc.app/cron/promo-gerador-blast" \
-            -H "Authorization: Bearer b8684209dd6875c0868d056f6bc3ac174047486c39835d05" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --max-time 290 -sS -w "\nHTTP %{http_code}\n"
 
       - name: Batch 5 (drenagem extra de segurança)
         run: |
           curl -X GET "https://api.solardoc.app/cron/promo-gerador-blast" \
-            -H "Authorization: Bearer b8684209dd6875c0868d056f6bc3ac174047486c39835d05" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --max-time 290 -sS -w "\nHTTP %{http_code}\n"
