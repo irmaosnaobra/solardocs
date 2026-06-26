@@ -171,6 +171,7 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
+.prec-kpis.duas { grid-template-columns: repeat(2, 1fr); }
 @media (max-width: 420px) {
   .prec-kpis { grid-template-columns: 1fr; }
 }
@@ -215,3 +216,54 @@
   line-height: 1.55;
 }
 .prec-foot b { color: var(--color-text); }
+
+/* ── NOTA FISCAL (seletor) — tema light, mesmos tokens dos demais campos ── */
+.prec-nf-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prec-nf-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 11px 12px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.prec-nf-opt:has(input:checked) {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+.prec-nf-opt input {
+  accent-color: var(--color-primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  margin: 0;
+}
+.prec-nf-opt .hint {
+  font-weight: 400;
+  color: var(--color-text-dim);
+  font-size: 11.5px;
+}
+/* Campo da alíquota da NF (aparece quando há NF selecionada) */
+.prec-nf-pct { margin-top: 10px; }
+.prec-nf-pct label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 7px;
+}
+.prec-nf-pct label .hint {
+  font-weight: 400;
+  color: var(--color-text-dim);
+  font-size: 11.5px;
+}

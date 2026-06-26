@@ -309,6 +309,38 @@ export default function PropostaSolarPage() {
     });
   }
 
+  // Mensagem curta de hand-off pro WhatsApp. Os números calculados (economia,
+  // payback) vivem no HTML do backend, então NÃO recalculamos aqui — o link
+  // abre a proposta completa com os valores corretos. Só usamos o que está
+  // garantido em escopo (nome, sistema, investimento) + o link.
+  function handleCopyWhatsApp() {
+    if (!publicId) return;
+    const url = `${window.location.origin}/p/${publicId}`;
+    const nome = (generated?.cliente_nome || clienteNome || '').trim();
+    const sistemaLinhas: string[] = [];
+    if (kwpCalc > 0) {
+      const mod = [fields.qtd_modulos && `${fields.qtd_modulos}x`, fields.marca_modulo]
+        .filter(Boolean).join(' ');
+      sistemaLinhas.push(`🔋 ${kwpCalc.toFixed(2).replace('.', ',')} kWp${mod ? ` · ${mod}` : ''}`);
+    }
+    if (invNum > 0) {
+      sistemaLinhas.push(`💰 Investimento: R$ ${invNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    }
+    const txt = [
+      '☀️ *Proposta de Energia Solar*',
+      '',
+      nome ? `Olá ${nome}! Segue sua proposta:` : 'Segue sua proposta:',
+      ...(sistemaLinhas.length ? ['', ...sistemaLinhas] : []),
+      '',
+      'Proposta completa (link):',
+      url,
+    ].join('\n');
+    navigator.clipboard.writeText(txt).then(() => {
+      setCopyMsg('Mensagem copiada! Cole no WhatsApp');
+      setTimeout(() => setCopyMsg(''), 2800);
+    });
+  }
+
   // Quando preview ativo, fica fullscreen com iframe + ações
   if (generated) {
     return (
@@ -330,6 +362,7 @@ export default function PropostaSolarPage() {
             </span>
           )}
           <div style={{ flex: 1 }} />
+          <button type="button" onClick={handleCopyWhatsApp} style={btn('whatsapp')}>📱 Copiar WhatsApp</button>
           <button type="button" onClick={handleCopyLink} style={btn('primary')}>🔗 Copiar link</button>
           <button
             type="button"
@@ -982,7 +1015,7 @@ function PagSubItemTaxa({
   );
 }
 
-function btn(variant: 'primary' | 'outline' | 'ghost'): React.CSSProperties {
+function btn(variant: 'primary' | 'outline' | 'ghost' | 'whatsapp'): React.CSSProperties {
   const base: React.CSSProperties = {
     padding: '8px 14px',
     borderRadius: 8,
@@ -993,6 +1026,7 @@ function btn(variant: 'primary' | 'outline' | 'ghost'): React.CSSProperties {
     transition: 'all 0.15s',
   };
   if (variant === 'primary') return { ...base, background: 'var(--color-primary, #F59E0B)', color: '#0F172A' };
+  if (variant === 'whatsapp') return { ...base, background: '#25D366', color: '#fff' };
   if (variant === 'outline') return { ...base, background: 'transparent', color: 'var(--color-text)', border: '1px solid var(--color-border)' };
   return { ...base, background: 'transparent', color: 'var(--color-text-muted)' };
 }
