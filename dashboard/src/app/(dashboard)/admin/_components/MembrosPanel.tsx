@@ -21,6 +21,9 @@ interface MemberRow {
   empresa_whatsapp?: string | null;
   stripe_status?: string | null; // trialing | active | canceled | past_due | ...
   stripe_plan?: string | null;
+  docs_gerados?: number;                 // total real de docs gerados (não reseta)
+  followup_toques?: number;              // quantos toques de follow-up já recebeu
+  temperatura?: 'quente' | 'morno' | 'frio' | null; // só free: alvo de conversão
 }
 interface CalcUso { aberturas: number; calculos: number; clientes: number; }
 interface UsersResponse { users: MemberRow[]; documents: Array<{ created_at: string }>; calculadora?: CalcUso; }
@@ -63,6 +66,13 @@ function fmtWhats(w?: string | null) {
   const d = w.replace(/\D/g, '');
   return d || null;
 }
+
+// Temperatura de conversão (só free). 🔥 quente = 3+ docs (alvo forte de upgrade).
+const TEMP_META: Record<'quente' | 'morno' | 'frio', { emoji: string; label: string }> = {
+  quente: { emoji: '🔥', label: 'Quente' },
+  morno:  { emoji: '🟡', label: 'Morno' },
+  frio:   { emoji: '❄️', label: 'Frio' },
+};
 
 type PlanFilter = 'todos' | 'free' | 'pro' | 'ilimitado';
 
@@ -107,7 +117,7 @@ export default function MembrosPanel() {
   // Filtro + busca
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return all.filter(u => {
+    const filtered = all.filter(u => {
       if (planFilter !== 'todos' && u.plano !== planFilter) return false;
       if (!needle) return true;
       return (
@@ -118,6 +128,17 @@ export default function MembrosPanel() {
         (u.empresa_whatsapp || '').includes(needle)
       );
     });
+    // No filtro FREE, joga os QUENTES (alvo de conversão) pro topo — mais docs primeiro.
+    if (planFilter === 'free') {
+      const peso = { quente: 3, morno: 2, frio: 1 } as const;
+      return [...filtered].sort((a, b) => {
+        const pa = peso[a.temperatura ?? 'frio'] ?? 1;
+        const pb = peso[b.temperatura ?? 'frio'] ?? 1;
+        if (pa !== pb) return pb - pa;
+        return (b.docs_gerados ?? 0) - (a.docs_gerados ?? 0);
+      });
+    }
+    return filtered;
   }, [all, q, planFilter]);
 
   return (
@@ -211,6 +232,8 @@ export default function MembrosPanel() {
                 <th>Plano</th>
                 <th>Stripe</th>
                 <th>Docs</th>
+                <th>Temperatura</th>
+                <th>Follow-ups</th>
                 <th>WhatsApp</th>
                 <th>Cadastro</th>
               </tr></thead>
@@ -250,6 +273,21 @@ export default function MembrosPanel() {
                       </td>
                       <td className={styles.mutedCell}>
                         {u.documentos_usados}<span style={{ color: 'var(--color-text-muted)' }}>/{u.plano === 'ilimitado' || u.limite_documentos >= 999999 ? '∞' : u.limite_documentos}</span>
+                        {typeof u.docs_gerados === 'number' && u.docs_gerados !== u.documentos_usados && (
+                          <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }} title="Total de documentos já gerados (não reseta no mês)"> · {u.docs_gerados} total</span>
+                        )}
+                      </td>
+                      <td className={styles.mutedCell}>
+                        {u.temperatura
+                          ? <span title={`${TEMP_META[u.temperatura].label} — ${u.docs_gerados ?? 0} docs gerados`} style={{ fontWeight: 700, color: 'var(--color-text)' }}>
+                              {TEMP_META[u.temperatura].emoji} {TEMP_META[u.temperatura].label}
+                            </span>
+                          : <span className={styles.emptyDash}>—</span>}
+                      </td>
+                      <td className={styles.mutedCell}>
+                        {u.followup_toques && u.followup_toques > 0
+                          ? <span title="Toques de follow-up já enviados (todas as cadências somadas)" style={{ fontWeight: 600 }}>{u.followup_toques}×</span>
+                          : <span className={styles.emptyDash}>—</span>}
                       </td>
                       <td className={styles.mutedCell}>
                         {whats
@@ -263,7 +301,7 @@ export default function MembrosPanel() {
                   );
                 })}
                 {rows.length === 0 && (
-                  <tr><td colSpan={7} className={styles.mutedCell} style={{ textAlign: 'center', padding: '24px 8px' }}>
+                  <tr><td colSpan={9} className={styles.mutedCell} style={{ textAlign: 'center', padding: '24px 8px' }}>
                     Nenhum membro bate com o filtro/busca.
                   </td></tr>
                 )}

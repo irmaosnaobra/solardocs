@@ -49,13 +49,18 @@ type UserRow = {
   is_admin: boolean;
   whatsapp: string | null;
   followup_started_at: string | null;
+  // Contadores de follow-up (quantos toques cada cadência já deu pro usuário).
+  // Alimentam o "contador ao lado de cada um" no painel admin.
+  carla_inativo_count: number | null;
+  carla_sem_cnpj_count: number | null;
+  contract_reminder_count: number | null;
 };
 
 export async function getUsers(req: Request, res: Response): Promise<void> {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('id, email, plano, documentos_usados, limite_documentos, created_at, is_admin, whatsapp, followup_started_at')
+      .select('id, email, plano, documentos_usados, limite_documentos, created_at, is_admin, whatsapp, followup_started_at, carla_inativo_count, carla_sem_cnpj_count, contract_reminder_count')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -103,8 +108,35 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
       console.error('getUsers: stripe lookup falhou (segue sem stripe_status):', err);
     }
 
+    // Docs com user_id — alimenta a timeline (created_at) E o contador de docs
+    // gerados por usuário (base da "temperatura" de conversão no painel).
+    const { data: docs } = await supabase
+      .from('documents')
+      .select('user_id, created_at')
+      .order('created_at', { ascending: false });
+
+    const docCountByUser = new Map<string, number>();
+    for (const d of docs ?? []) {
+      if (d.user_id) docCountByUser.set(d.user_id, (docCountByUser.get(d.user_id) ?? 0) + 1);
+    }
+
+    // Temperatura de conversão (só faz sentido pra FREE — alvo de upgrade):
+    // 🔥 quente = 3+ docs (engajado, candidato forte) · 🟡 morno = 1-2 · ❄️ frio = 0.
+    const temperatura = (plano: string, docs: number): 'quente' | 'morno' | 'frio' | null => {
+      if (plano !== 'free') return null;
+      if (docs >= 3) return 'quente';
+      if (docs >= 1) return 'morno';
+      return 'frio';
+    };
+
     const result = (users as UserRow[] | null)?.map(u => {
       const stripe = stripeByEmail.get(u.email.toLowerCase());
+      const docsGerados = docCountByUser.get(u.id) ?? 0;
+      // Total de toques de follow-up que esse usuário já recebeu (soma das cadências).
+      const followupToques =
+        (u.carla_inativo_count ?? 0) +
+        (u.carla_sem_cnpj_count ?? 0) +
+        (u.contract_reminder_count ?? 0);
       return {
         ...u,
         empresa_nome:     companyMap.get(u.id)?.nome     ?? null,
@@ -112,13 +144,11 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
         empresa_whatsapp: companyMap.get(u.id)?.whatsapp ?? null,
         stripe_status:    stripe?.status ?? null,
         stripe_plan:      stripe?.plan   ?? null,
+        docs_gerados:     docsGerados,
+        followup_toques:  followupToques,
+        temperatura:      temperatura(u.plano, docsGerados),
       };
     });
-
-    const { data: docs } = await supabase
-      .from('documents')
-      .select('created_at')
-      .order('created_at', { ascending: false });
 
     // Uso da Calculadora de Precificação (beta). Analytics interno — não
     // consome crédito. Agrega aberturas/cálculos/clientes únicos pro card do admin.
