@@ -2,8 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/services/api';
+import LinksIoPanel from './LinksIoPanel';
+import IndicacoesIoPanel from './IndicacoesIoPanel';
 
 type Period = 'hoje' | 'ontem' | '3dias' | '7dias' | 'mes' | 'maximo';
+type SubTab = 'funil' | 'links' | 'indicacoes';
 
 interface FunnelStep {
   key: 'visita' | 'clique' | 'checkout' | 'venda';
@@ -165,6 +168,7 @@ function telLegivel(phone: string | null): string {
 }
 
 export default function FunilLimpaproPanel() {
+  const [subTab, setSubTab] = useState<SubTab>('funil');
   const [period, setPeriod] = useState<Period>('7dias');
   const [data, setData] = useState<FunnelData | null>(null);
   const [leads, setLeads] = useState<LeadsData | null>(null);
@@ -206,8 +210,44 @@ export default function FunilLimpaproPanel() {
 
   useEffect(() => { fetchFunnel(); }, [fetchFunnel]);
 
+  const SUB_TABS: { value: SubTab; label: string }[] = [
+    { value: 'funil', label: 'Funil' },
+    { value: 'links', label: 'Link na Bio' },
+    { value: 'indicacoes', label: 'Indicações' },
+  ];
+
   return (
     <div>
+      {/* Sub-abas: Funil · Link na Bio · Indicações (vieram do menu lateral) */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 16, marginBottom: 8, borderBottom: '1px solid var(--color-border)' }}>
+        {SUB_TABS.map(t => (
+          <button
+            key={t.value}
+            onClick={() => setSubTab(t.value)}
+            style={{
+              padding: '10px 18px',
+              fontSize: 14,
+              fontWeight: 800,
+              border: 0,
+              borderBottom: subTab === t.value ? '2px solid var(--color-primary)' : '2px solid transparent',
+              background: 'transparent',
+              color: subTab === t.value ? 'var(--color-text)' : 'var(--color-text-muted)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              marginBottom: -1,
+              transition: 'color 0.15s',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'links' && <LinksIoPanel />}
+      {subTab === 'indicacoes' && <IndicacoesIoPanel />}
+
+      {subTab === 'funil' && (
+      <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32, flexWrap: 'wrap', gap: 16, marginTop: 16 }}>
         <div>
           <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0, letterSpacing: '-0.02em' }}>
@@ -680,6 +720,8 @@ export default function FunilLimpaproPanel() {
         </>
         );
       })()}
+      </>
+      )}
     </div>
   );
 }
