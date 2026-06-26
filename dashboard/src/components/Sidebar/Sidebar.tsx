@@ -9,7 +9,7 @@ import {
   Banknote, ScrollText, FileSignature, Receipt,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
   Save, GraduationCap, Smartphone,
-  Send, MapPin, LogOut, TrendingUp,
+  Send, LogOut, TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -51,9 +51,8 @@ const baseAdminItems: NavItem[] = [
   { href: '/crm/solardoc',       icon: FolderOpen, label: 'CRM SolarDoc' },
   // Funil SolarDoc e Funil LimpaPro viraram abas dentro do Painel SolarDoc (/admin) —
   // saíram daqui pra não duplicar. Rotas /admin/funil e /admin/funil-limpapro seguem vivas.
-  { href: '/admin/leads-google', icon: MapPin,     label: 'Leads Google' },
+  { href: '/admin/pesquisa-disparo', icon: Send,   label: 'Pesquisa/Disparo IO' },
   { href: '/admin/insights',     icon: BarChart3,  label: 'Insights IO' },
-  { href: '/admin/disparos',     icon: Send,       label: 'Disparos IO' },
   // Link na Bio IO e Indicações IO viraram sub-abas dentro do Funil LimpaPro
   // (Painel SolarDoc → aba Funil LimpaPro) — saíram daqui pra não duplicar.
   // Rotas /admin/links-io e /admin/indicacoes-io seguem vivas (acesso por URL).
