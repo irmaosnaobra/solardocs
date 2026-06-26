@@ -784,6 +784,25 @@ export async function sendPurchaseEmail(opts: { to: string; userId: string; nome
 
   <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;margin-top:20px;"></div></div>
 
+  <!-- UPSELL TRÁFEGO — diagnóstico, NÃO oferta. Pergunta planta a semente; o pacote
+       é escolhido na REUNIÃO. Sem tabela de preços (ancoraria a relação em R$2k antes
+       de sentir a plataforma). Só: pergunta + diferencial (leads no Gerador) + ancora
+       leve + CTA de call. Ativação acima continua sendo o protagonista. -->
+  <div style="padding:28px 36px 4px;">
+    <p style="margin:0 0 4px;color:#34d399;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Uma pergunta que pode mudar seu faturamento</p>
+    <h2 style="margin:0 0 14px;color:#f8fafc;font-size:20px;font-weight:800;line-height:1.3;">Você tem o melhor tráfego pago da sua região?</h2>
+    <p style="margin:0 0 14px;color:#cbd5e1;font-size:14.5px;line-height:1.7;">Quando alguém na sua cidade pesquisa <strong style="color:#f8fafc;">"energia solar"</strong>, é o <strong style="color:#f8fafc;">seu</strong> anúncio que aparece primeiro? Ou é do concorrente?</p>
+    <p style="margin:0 0 16px;color:#cbd5e1;font-size:14.5px;line-height:1.7;">A gente faz tráfego pago pro nosso próprio negócio de solar — e dá pra montar isso pra você com uma vantagem que nenhuma agência tem: <strong style="color:#34d399;">os leads caem direto aqui no seu Gerador</strong>, prontos pra virar proposta na hora.</p>
+    <div style="background:#0f231a;border-left:4px solid #10b981;border-radius:0 10px 10px 0;padding:16px 20px;margin:0 0 18px;">
+      <p style="margin:0;color:#cbd5e1;font-size:13.5px;line-height:1.6;">Gestão a partir de <strong style="color:#34d399;">R$ 997/mês</strong> + a verba de anúncio que você escolher. Temos pacotes do "testar" ao "dominar a cidade" — eu te mostro qual encaixa numa call rápida.</p>
+    </div>
+    <div style="text-align:center;margin:0 0 4px;">
+      <a href="https://wa.me/5534998165040?text=${encodeURIComponent('Oi! Quero saber sobre o tráfego pago pra minha região')}" style="display:inline-block;background:#10b981;color:#0f172a;font-weight:900;font-size:15px;padding:15px 36px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(16,185,129,0.35);">📲 Quero marcar uma call de 20 min →</a>
+    </div>
+  </div>
+
+  <div style="padding:24px 36px 0;"><div style="border-top:1px solid #1e293b;"></div></div>
+
   <div style="padding:28px 36px 16px;">
     <p style="margin:0 0 4px;color:#fbbf24;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Instalar como app</p>
     <h2 style="margin:0 0 22px;color:#f8fafc;font-size:20px;font-weight:800;line-height:1.3;">Em 1 toque vira ícone na tua tela</h2>
