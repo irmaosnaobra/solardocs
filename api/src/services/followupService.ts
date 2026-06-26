@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
-import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail } from '../utils/mailer';
+import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail } from '../utils/mailer';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -368,4 +368,85 @@ export async function recoverOrphanCheckouts(): Promise<{ sent: number; skipped:
   }
 
   return { sent, skipped, scanned: pending.length };
+}
+
+// ── Cadência de CONVERSÃO free->pago ───────────────────────────────────────
+// Alvo (ponto cego da cadência CNPJ, que exclui quem TEM CNPJ): free ENGAJADO
+// = tem CNPJ + gerou 3+ documentos. Eles já usam de verdade, só não pagam.
+//
+// STOP-ON-CONVERSION: a elegibilidade é RECONSULTADA a cada run (plano='free' +
+// ainda 3+ docs). Quem vira PRO some naturalmente no próximo tick — nunca
+// iteramos uma lista "congelada" (senão um nudge "vira PRO!" cairia em quem
+// acabou de pagar). Contadores próprios (upgrade_nudge_*) pra não tocar no
+// estado da cadência CNPJ.
+//
+// 3 toques: 1º imediato (na 1ª vez que entra), 2º após ~3d, 3º após ~7d do toque
+// anterior. MIN_GAP_MS (23h) protege contra duplo-envio no mesmo dia.
+const UPGRADE_NUDGE_MAX = 3;
+const UPGRADE_GAP_DAYS = [0, 3, 4]; // espera antes do toque idx 0,1,2 (a partir do anterior)
+const UPGRADE_MIN_DOCS = 3;
+
+export async function runUpgradeNudge(): Promise<{ sent: number; skipped: number; eligiveis: number }> {
+  // 1) free com CNPJ (re-query fresh — base da elegibilidade a cada run)
+  const { data: companies } = await supabase.from('company').select('user_id');
+  const comCnpj = new Set((companies ?? []).map((c: any) => c.user_id).filter(Boolean));
+  if (comCnpj.size === 0) return { sent: 0, skipped: 0, eligiveis: 0 };
+
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, email, nome, plano, email_opt_out, followup_abandoned, upgrade_nudge_count, upgrade_nudge_last_sent_at')
+    .eq('plano', 'free');
+  if (!users || users.length === 0) return { sent: 0, skipped: 0, eligiveis: 0 };
+
+  const freeComCnpj = users.filter(u => comCnpj.has(u.id));
+  if (freeComCnpj.length === 0) return { sent: 0, skipped: 0, eligiveis: 0 };
+
+  // 2) docs gerados por esses usuários (define quem é "engajado" — 3+)
+  const ids = freeComCnpj.map(u => u.id);
+  const { data: docs } = await supabase
+    .from('documents')
+    .select('user_id')
+    .in('user_id', ids);
+  const docCount = new Map<string, number>();
+  for (const d of docs ?? []) {
+    if (d.user_id) docCount.set(d.user_id, (docCount.get(d.user_id) ?? 0) + 1);
+  }
+
+  const now = new Date();
+  let sent = 0, skipped = 0, eligiveis = 0;
+
+  for (const u of freeComCnpj) {
+    const nDocs = docCount.get(u.id) ?? 0;
+    if (nDocs < UPGRADE_MIN_DOCS) { skipped++; continue; } // ainda não é quente
+    if (!u.email) { skipped++; continue; }
+    if (u.email_opt_out) { skipped++; continue; }
+    if (u.followup_abandoned) { skipped++; continue; }
+
+    eligiveis++;
+
+    const count = (u.upgrade_nudge_count as number | null) ?? 0;
+    if (count >= UPGRADE_NUDGE_MAX) { skipped++; continue; } // já recebeu os 3 toques
+
+    // Gap desde o último toque (idx do PRÓXIMO toque = count atual)
+    if (u.upgrade_nudge_last_sent_at) {
+      const last = new Date((u.upgrade_nudge_last_sent_at as string).replace(' ', 'T') + 'Z');
+      const gapDias = UPGRADE_GAP_DAYS[count] ?? 7;
+      const precisaEsperarMs = Math.max(MIN_GAP_MS, gapDias * DAY_MS);
+      if (now.getTime() - last.getTime() < precisaEsperarMs) { skipped++; continue; }
+    }
+
+    try {
+      await sendUpgradeNudgeEmail(u.email, u.id, count + 1, (u.nome as string | null) ?? null, nDocs);
+      await supabase.from('users').update({
+        upgrade_nudge_count: count + 1,
+        upgrade_nudge_last_sent_at: now.toISOString(),
+      }).eq('id', u.id);
+      sent++;
+    } catch (err) {
+      console.error(`Upgrade nudge falhou pra ${u.email} (toque ${count + 1}):`, err);
+      skipped++;
+    }
+  }
+
+  return { sent, skipped, eligiveis };
 }

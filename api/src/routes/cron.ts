@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
-import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder, runCheckoutAbandonRecovery, recoverOrphanCheckouts } from '../services/followupService';
+import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder, runCheckoutAbandonRecovery, recoverOrphanCheckouts, runUpgradeNudge } from '../services/followupService';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
@@ -128,6 +128,21 @@ router.get('/followup-cnpj', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'followup-cnpj falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Nudge de CONVERSÃO free->pago — free engajado (CNPJ + 3+ docs). Email via
+// sendMarketingEmail (List-Unsubscribe). Elegibilidade reconsultada a cada run
+// (stop-on-conversion). NÃO está no master cron ainda: rodada como one-shot
+// controlado primeiro (dispara o 1º lote e observa) antes de virar autopilot.
+router.get('/upgrade-nudge', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runUpgradeNudge();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'upgrade-nudge falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });

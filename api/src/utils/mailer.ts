@@ -195,6 +195,81 @@ export async function sendFollowupEmail(email: string, userId: string, day: numb
   await sendMarketingEmail({ to: email, userId, subject: template.subject, html: template.html });
 }
 
+// ── Nudge de CONVERSÃO free->pago ──────────────────────────────────────────
+// Alvo: free ENGAJADO (já tem CNPJ e gerou 3+ propostas). O delta deles NÃO é
+// "proposta com sua marca" (já têm, vem com o CNPJ no free) — é destravar os
+// OUTROS tipos de documento (contrato, procuração, recibo, vistoria...) que o
+// free tranca, e sair do teto de 10 docs/mês. A copy fala exatamente disso.
+// 3 toques (idx 1/2/3) com angulação diferente. Via sendMarketingEmail →
+// List-Unsubscribe + footer de descadastro (entregabilidade + compliance).
+const UPGRADE_NUDGE: Record<number, (firstName: string, docsFeitos: number) => { subject: string; html: string }> = {
+  1: (nome, docs) => ({
+    subject: `${nome}, você já fez ${docs} propostas no SolarDoc — falta destravar o resto`,
+    html: `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:30px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Você já tá usando — só falta destravar tudo</h1>
+  </div>
+  <div style="padding:32px 36px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${nome}, você já gerou <strong style="color:#fbbf24;">${docs} propostas</strong> com a sua marca. 👏</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 22px;">Mas toda vez que você tenta gerar um <strong style="color:#f8fafc;">contrato</strong>, uma <strong style="color:#f8fafc;">procuração</strong> ou um <strong style="color:#f8fafc;">recibo</strong>, esbarra no aviso de upgrade. No plano grátis, só a proposta é liberada.</p>
+    <div style="background:#1e293b;border-left:4px solid #f59e0b;border-radius:0 10px 10px 0;padding:18px 22px;margin:0 0 24px;">
+      <p style="color:#fbbf24;font-weight:800;font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px;">No PRO você destrava</p>
+      <p style="color:#e2e8f0;font-size:14.5px;line-height:1.7;margin:0;">📄 Contrato solar · Procuração · Recibo · Vistoria · Prestação de serviço · Proposta bancária<br/>📈 E sai do teto de 10 documentos/mês.</p>
+    </div>
+    <div style="text-align:center;margin:8px 0;">
+      <a href="${APP_URL}/planos" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:16px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">Quero destravar tudo →</a>
+    </div>
+  </div>
+</div>`,
+  }),
+  2: (nome, docs) => ({
+    subject: `${nome}, seu contrato solar ainda tá no Word?`,
+    html: `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:30px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">A proposta sai daqui. E o contrato?</h1>
+  </div>
+  <div style="padding:32px 36px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${nome}, suas <strong style="color:#fbbf24;">${docs} propostas</strong> já saem prontas e bonitas no SolarDoc.</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 22px;">Mas aí pra fechar você ainda abre o Word pra montar o contrato na mão, ajusta a procuração, digita o recibo… O cliente esfria nesse vai-e-vem.</p>
+    <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 24px;">No <strong style="color:#fbbf24;">PRO</strong>, contrato, procuração e recibo saem com os mesmos dados da proposta — em segundos, já com a sua marca. Fecha na hora.</p>
+    <div style="text-align:center;margin:8px 0;">
+      <a href="${APP_URL}/planos" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:16px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">Virar PRO e fechar mais rápido →</a>
+    </div>
+  </div>
+</div>`,
+  }),
+  3: (nome, docs) => ({
+    subject: `${nome}, última chamada — destrave os documentos do PRO`,
+    html: `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:30px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Você é dos que mais usam o SolarDoc</h1>
+  </div>
+  <div style="padding:32px 36px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${nome}, com <strong style="color:#fbbf24;">${docs} propostas geradas</strong>, você está entre os integradores que mais aproveitam a plataforma — ainda no plano grátis.</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">Quem usa desse jeito fecha mais quando tem o kit completo de documentos na mão. É o último empurrão: destrava contrato, procuração, recibo e o resto — e tira o limite de 10/mês.</p>
+    <div style="text-align:center;margin:8px 0;">
+      <a href="${APP_URL}/planos" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:16px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">Fazer upgrade agora →</a>
+    </div>
+    <p style="color:#64748b;font-size:13px;margin:20px 0 0;line-height:1.6;text-align:center;">Dúvida sobre qual plano? Chama a Giovanna no WhatsApp (34) 99816-5040.</p>
+  </div>
+</div>`,
+  }),
+};
+
+export async function sendUpgradeNudgeEmail(email: string, userId: string, toque: number, nome: string | null, docsFeitos: number): Promise<void> {
+  const builder = UPGRADE_NUDGE[toque];
+  if (!builder) return;
+  const firstName = (nome || '').trim().split(/\s+/)[0] || 'Olá';
+  const { subject, html } = builder(firstName, docsFeitos);
+  await sendMarketingEmail({ to: email, userId, subject, html });
+}
+
 // Email pra quem cadastrou mas não passou cartão (abandonou o checkout do Stripe).
 // Diferente do followup CNPJ — copy é cirúrgico no plano VIP + trial.
 export async function sendCheckoutRecoveryEmail(email: string, userId: string): Promise<void> {
