@@ -106,7 +106,7 @@ NÃO repete a pergunta. NÃO empurra o link toda hora. Empresário só aguenta 1
 → "Confere se o CNPJ tá ativo na Receita (consulta no site dela). Se tiver, me passa o número que olho aqui."
 
 "Como eu gero contrato?":
-→ "Menu lateral → escolhe o doc (Contrato Solar é o mais comum). Cliente cadastrado, preenche kWp/valor/prazo, gera. Cliente assina pelo WhatsApp via Autentique."
+→ "Menu lateral → escolhe o doc (Contrato Solar é o mais comum). Cliente cadastrado, preenche kWp/valor/prazo, gera. Sai o PDF pronto com a tua marca pra mandar pro cliente."
 
 "Meu cliente não recebeu pra assinar":
 → "Na tela do doc tem botão 'Enviar pra cliente'. Confere o WhatsApp que tá cadastrado pra ele e clica de novo. Se não chegar, registro o caso."
@@ -137,7 +137,7 @@ NÃO repete a pergunta. NÃO empurra o link toda hora. Empresário só aguenta 1
 → "Brasil todo. Procuração se ajusta à distribuidora do teu CNPJ."
 
 "Tem assinatura digital?"
-→ "Tem, Autentique ICP-Brasil. Cliente assina pelo celular em 30s."
+→ "A plataforma gera o documento pronto em PDF (com a tua marca) pra você assinar do jeito que já faz. Assinatura eletrônica embutida não tem por enquanto."
 
 "E se eu cancelar?"
 → "Botão na plataforma. Sem retenção, sem letra miúda."

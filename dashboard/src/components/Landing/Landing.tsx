@@ -326,7 +326,7 @@ export default function Landing() {
               </header>
               <div className={styles.igBody}>
                 rapaz, eu mesmo faço tudo aqui — sem secretária, sem advogado. <b>contrato sai em 2 minutos</b>
-                com a cara da minha empresa e o cliente assina ali no celular. quero ver alguém perder venda
+                com a cara da minha empresa e já mando pro cliente no WhatsApp. quero ver alguém perder venda
                 desse jeito 🚀
               </div>
               <div className={styles.igActions}>
@@ -487,7 +487,7 @@ export default function Landing() {
         <div className={styles.finalCtaInner}>
           <h2 className={styles.finalCtaTitle} data-reveal>
             Sua próxima venda solar fecha com<br />
-            <strong>o cliente assinando no seu celular.</strong>
+            <strong>proposta e contrato prontos em 2 minutos.</strong>
           </h2>
           <p className={styles.finalCtaSub} data-reveal>
             Teste o melhor gerador de proposta do Brasil por 7 dias grátis.
