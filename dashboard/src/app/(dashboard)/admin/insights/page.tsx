@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend,
+  type PieLabelRenderProps,
 } from 'recharts';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
@@ -222,7 +223,7 @@ export default function InsightsPage() {
                   <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                   <Tooltip
-                    formatter={(v: number) => [fmtBRL(v), 'Faturamento']}
+                    formatter={(v) => [fmtBRL(Number(v)), 'Faturamento']}
                     contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }}
                   />
                   <Bar dataKey="faturamento" fill="#F59E0B" radius={[4, 4, 0, 0]} />
@@ -238,7 +239,7 @@ export default function InsightsPage() {
                   <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
                   <YAxis dataKey="nome" type="category" tick={{ fontSize: 11, fill: 'var(--color-text)' }} axisLine={false} tickLine={false} width={80} />
                   <Tooltip
-                    formatter={(v: number) => [`${v} venda${v !== 1 ? 's' : ''}`, '']}
+                    formatter={(v) => { const n = Number(v); return [`${n} venda${n !== 1 ? 's' : ''}`, '']; }}
                     contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }}
                   />
                   <Bar dataKey="qtd" fill="#0EA5E9" radius={[0, 4, 4, 0]} />
@@ -257,7 +258,10 @@ export default function InsightsPage() {
                     cx="50%"
                     cy="50%"
                     outerRadius={75}
-                    label={(e: { origem: string; qtd: number }) => `${e.origem} (${e.qtd})`}
+                    label={(p: PieLabelRenderProps) => {
+                      const d = p.payload as { origem: string; qtd: number };
+                      return `${d.origem} (${d.qtd})`;
+                    }}
                     labelLine={false}
                     style={{ fontSize: 11 }}
                   >

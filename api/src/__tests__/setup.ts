@@ -6,3 +6,4 @@ process.env.STRIPE_SECRET_KEY = 'sk_test_placeholder';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_placeholder';
 process.env.CORS_ORIGIN = 'http://localhost:3000';
 process.env.RESEND_API_KEY = 're_test_placeholder'; // mailer/dunningService instanciam Resend no import
+process.env.CRON_SECRET = 'solardocs_master_cron_2024'; // verifyCronSecret é env-only (sem fallback hardcoded)

@@ -11,6 +11,10 @@ vi.mock('../utils/supabase', () => ({
       select: vi.fn().mockReturnThis(),
       eq:     vi.fn().mockReturnThis(),
       insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnThis(), single: mockSingle }),
+      // update().eq() precisa resolver numa Promise (o register chama .then()
+      // pra registrar whatsapp_welcome_sent_at). eq isolado pra não afetar o
+      // eq de topo usado pela cadeia SELECT.
+      update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) }),
       single: mockSingle,
     })),
   },

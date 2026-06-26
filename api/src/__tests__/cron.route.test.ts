@@ -46,9 +46,13 @@ vi.mock('../services/agents/whatsapp/carlaPlatformFollowupService', () => ({
   runCarlaInativoFollowup:  vi.fn().mockResolvedValue({ enviados: 0, encerrados: 0 }),
 }));
 vi.mock('../services/followupService', () => ({
-  runFollowupCnpj:      vi.fn().mockResolvedValue({ sent: 0 }),
-  blastFollowupDay1:    vi.fn().mockResolvedValue({ sent: 0 }),
-  stampFollowupStarted: vi.fn().mockResolvedValue({ stamped: 0 }),
+  runFollowupCnpj:            vi.fn().mockResolvedValue({ sent: 0 }),
+  blastFollowupDay1:          vi.fn().mockResolvedValue({ sent: 0 }),
+  stampFollowupStarted:       vi.fn().mockResolvedValue({ stamped: 0 }),
+  // /master também invoca estes — sem o mock, viram undefined() → throw síncrono → 500.
+  runCheckoutAbandonRecovery: vi.fn().mockResolvedValue({ sent: 0, skipped: 0 }),
+  recoverOrphanCheckouts:     vi.fn().mockResolvedValue({ sent: 0, skipped: 0, scanned: 0 }),
+  runUpgradeNudge:            vi.fn().mockResolvedValue({ sent: 0, skipped: 0, eligiveis: 0 }),
 }));
 
 import app from '../app';
@@ -64,7 +68,8 @@ describe('GET /cron/master', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.results).toHaveProperty('executed');
+    // /master retorna results como ARRAY de {task, status, ...} — não objeto com 'executed'.
+    expect(Array.isArray(res.body.results)).toBe(true);
   });
 
   it('retorna 401 sem token', async () => {
