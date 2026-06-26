@@ -415,9 +415,12 @@ export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId:
   const planoLabel = opts.plano === 'ilimitado' ? 'VIP' : opts.plano === 'pro' ? 'PRO' : null;
   const completeUrl = `${APP_URL}/auth?mode=register&session=${encodeURIComponent(opts.sessionId)}`;
   const loginUrl = `${APP_URL}/auth`;
-  // Tom A (transacional / "recibo de compra"): curto, 1 CTA, sem bloco pesado de
-  // PWA (esse fica no sendWelcomeEmail pós-signup). Disparado NA HORA pelo webhook
-  // em checkout.session.completed quando a conta ainda não existe.
+  // Tom A (transacional / "recibo de compra"): o CTA "definir senha" é o
+  // protagonista absoluto (é o único passo que destrava a conta). Abaixo dele,
+  // SECUNDÁRIOS e mais leves, vêm "o que te espera" + "instalar como app" — pra
+  // plantar a semana de onboarding sem competir com o CTA. Quem paga e some
+  // (maior fatia do churn silencioso) é justo quem precisa ver isso já aqui,
+  // pois pode nunca chegar ao sendWelcomeEmail (que só dispara pós-signup).
   const html = `
 <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
   <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:32px 36px;">
@@ -441,7 +444,27 @@ export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId:
     <p style="color:#94a3b8;font-size:13px;margin:20px 0 0;line-height:1.6;text-align:center;">
       Já definiu sua senha? É só entrar em <a href="${loginUrl}" style="color:#fbbf24;text-decoration:none;font-weight:700;">solardoc.app/auth</a>.
     </p>
-    <p style="color:#64748b;font-size:12px;margin:16px 0 0;line-height:1.6;text-align:center;">
+  </div>
+
+  <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;"></div></div>
+
+  <div style="padding:26px 36px 6px;">
+    <p style="margin:0 0 4px;color:#fbbf24;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">Assim que entrar</p>
+    <p style="margin:0;color:#cbd5e1;font-size:14px;line-height:1.7;">
+      1️⃣ Cadastre o <strong style="color:#f8fafc;">CNPJ da empresa</strong> &nbsp;·&nbsp; 2️⃣ Suba <strong style="color:#f8fafc;">logo e cor</strong> &nbsp;·&nbsp; 3️⃣ Gere propostas e documentos com a <strong style="color:#f8fafc;">sua marca</strong>.
+    </p>
+  </div>
+
+  <div style="padding:18px 36px 8px;">
+    <p style="margin:0 0 10px;color:#fbbf24;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">📱 Deixe como app no celular</p>
+    <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.7;">
+      <strong style="color:#e2e8f0;">iPhone:</strong> abra no Safari → Compartilhar (↑) → "Adicionar à Tela de Início".<br/>
+      <strong style="color:#e2e8f0;">Android:</strong> abra no Chrome → 3 pontinhos → "Instalar app".
+    </p>
+  </div>
+
+  <div style="padding:18px 36px 28px;text-align:center;">
+    <p style="margin:0;color:#64748b;font-size:12px;line-height:1.6;">
       Dúvidas? Chama a gente no WhatsApp (34) 99943-7831.
     </p>
   </div>
