@@ -197,7 +197,7 @@ export default function Landing() {
       <section className={styles.docs}>
         <div className={styles.docsInner}>
           <div className={styles.sectionLabelWrap}>
-            <span className={styles.sectionLabel} data-reveal>5 documentos prontos</span>
+            <span className={styles.sectionLabel} data-reveal>8 documentos prontos</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
             Tudo o que sua empresa solar <strong>precisa pra fechar</strong>.<br />
@@ -207,23 +207,35 @@ export default function Landing() {
           <div className={styles.docsGrid}>
             <div className={styles.docCard} data-reveal>
               <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Contrato de Compra e Venda Solar</span>
+              <span className={styles.docName}>Proposta Solar</span>
             </div>
             <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.05s' }}>
               <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Procuração para Concessionária</span>
+              <span className={styles.docName}>Contrato de Compra e Venda Solar</span>
             </div>
             <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.1s' }}>
               <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Prestação de Serviço</span>
+              <span className={styles.docName}>Procuração para Concessionária</span>
             </div>
             <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.15s' }}>
               <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Contrato Vendedor</span>
+              <span className={styles.docName}>Prestação de Serviço</span>
             </div>
             <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.2s' }}>
               <span className={styles.docCheck}>✓</span>
+              <span className={styles.docName}>Contrato Vendedor</span>
+            </div>
+            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.25s' }}>
+              <span className={styles.docCheck}>✓</span>
               <span className={styles.docName}>Proposta para Financiamento Bancário</span>
+            </div>
+            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.3s' }}>
+              <span className={styles.docCheck}>✓</span>
+              <span className={styles.docName}>Recibo</span>
+            </div>
+            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.35s' }}>
+              <span className={styles.docCheck}>✓</span>
+              <span className={styles.docName}>Vistoria Técnica</span>
             </div>
           </div>
         </div>
@@ -449,8 +461,8 @@ export default function Landing() {
               <summary>Os contratos têm validade jurídica?</summary>
               <div className={styles.faqAnswer}>
                 Sim. Os modelos seguem <b>cláusulas técnicas revisadas pro setor solar</b> (geração,
-                garantia, inadimplência, titularidade) e são prontos para você imprimir e assinar
-                com o seu cliente, do jeito tradicional ou pela plataforma de assinatura que já usa.
+                garantia, inadimplência, titularidade) e saem prontos pra você assinar com o seu
+                cliente — à mão ou na ferramenta de assinatura que você já usar.
               </div>
             </details>
 
@@ -466,7 +478,7 @@ export default function Landing() {
               <summary>Posso usar com a marca da minha empresa?</summary>
               <div className={styles.faqAnswer}>
                 Sim. Você sobe a logo, define a cor da empresa e os documentos saem com a sua
-                identidade visual. <b>A IA preenche, você não precisa formatar nada.</b>
+                identidade visual. <b>Você só preenche os dados — a formatação sai pronta.</b>
               </div>
             </details>
 

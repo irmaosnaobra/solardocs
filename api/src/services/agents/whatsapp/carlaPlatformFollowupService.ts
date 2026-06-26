@@ -157,7 +157,7 @@ async function gerarMsgCarla(args: Parameters<typeof carlaSystem>[0]): Promise<s
         1: `${args.nome}, tudo certo por aí? Faz uns dias que não te vejo na plataforma.`,
         2: `${args.nome}, ferramenta só vira ativo quando roda com cliente real. Tem alguma venda dessa semana pra rodar?`,
         3: `${args.nome}, qual ferramenta você tá usando pros docs hoje? Tô curiosa.`,
-        4: `${args.nome}, integrador parecido com você fechou 3 contratos esta semana pela plataforma. Vale rodar 1 venda?`,
+        4: `${args.nome}, quem roda a proposta com a própria marca costuma fechar mais rápido. Vale testar com 1 venda dessa semana?`,
         5: `${args.nome}, vou encerrar pra não te incomodar. Quando quiser retomar, ${APP_URL} tá aí. Abs.`,
       },
     };

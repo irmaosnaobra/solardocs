@@ -348,14 +348,17 @@ const noContractsEmails: Array<{ subject: string; html: (nome: string | null) =>
       <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
         <div style="background:#f59e0b;padding:28px 36px;">
           <p style="margin:0;color:#0f172a;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">SolarDoc Pro</p>
-          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">5 documentos que fecham venda</h1>
+          <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">8 documentos que fecham venda</h1>
         </div>
         <div style="padding:36px;">
           <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">${nome ? `${nome.split(' ')[0]}, dá uma olhada` : 'Dá uma olhada'} no que você pode mandar pro seu cliente hoje:</p>
           <ul style="color:#94a3b8;font-size:15px;line-height:2;margin:0 0 28px;padding-left:20px;">
+            <li>Proposta solar com a sua marca</li>
             <li>Contrato de instalação solar</li>
             <li>Proposta bancária para financiamento</li>
             <li>Procuração para distribuidora</li>
+            <li>Recibo</li>
+            <li>Vistoria técnica</li>
             <li>Contrato Vendedor</li>
             <li>Contrato de prestação de serviço (O&amp;M)</li>
           </ul>

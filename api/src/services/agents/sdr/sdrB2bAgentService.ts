@@ -145,8 +145,8 @@ NÃO repete a pergunta. NÃO empurra o link toda hora. Empresário só aguenta 1
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # CONHECIMENTO TÉCNICO (use sob demanda, NÃO derrama)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- 5 documentos: Contrato Instalação, Proposta Bancária, Procuração de Acesso, Contrato Vendedor (PF/PJ — representação comercial), Prestação de Serviço (O&M).
-- Bancos cobertos: BV, Santander, Sicredi, BNDES, Solfacil, Sol+.
+- Documentos: Proposta Solar, Proposta Bancária, Contrato Solar (Instalação), Procuração de Acesso, Recibo, Vistoria, Contrato Vendedor (PF/PJ — representação comercial), Prestação de Serviço (O&M).
+- Proposta Bancária: você digita o banco/financiadora (qualquer um) e sai o PDF pronto — não há integração por banco, é o documento padronizado.
 - Distribuidoras: Cemig, Enel, CPFL, Coelba, Equatorial, Energisa, Light, Copel.
 - Planos: FREE 10 docs vitalícios · PRO R$27/mês 90 docs · VIP R$67/mês ilimitado.
 - Cancela no botão. Stripe (cartão) ou PIX avulso.

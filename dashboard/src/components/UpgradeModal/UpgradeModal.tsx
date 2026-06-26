@@ -17,8 +17,8 @@ const ALL_PLANS = [
     indicado: 'Indicado para até 20 vendas/mês',
     features: [
       '90 documentos por mês',
-      'Contrato Solar, Prestação de Serviço, Procuração, Contrato Vendedor e Proposta Bancária',
-      'Geração com IA + 2 modelos prontos',
+      'Os 8 tipos: Proposta, Contrato Solar, Procuração, Recibo, Vistoria, Prestação de Serviço, Contrato Vendedor e Proposta Bancária',
+      'Modelos prontos pro setor solar',
       'Contratos com a logomarca da sua empresa',
       'Histórico dos últimos 30 dias',
     ],
@@ -34,8 +34,8 @@ const ALL_PLANS = [
     indicado: 'Indicado para +20 vendas/mês',
     features: [
       'Documentos ilimitados — sem teto mensal',
-      'Todos os 5 tipos de documento',
-      'Geração com IA + 2 modelos prontos',
+      'Todos os 8 tipos de documento',
+      'Modelos prontos pro setor solar',
       'Contratos com a logomarca da sua empresa',
       'Histórico completo e permanente',
       'Dashboard com gráficos e analytics de uso',

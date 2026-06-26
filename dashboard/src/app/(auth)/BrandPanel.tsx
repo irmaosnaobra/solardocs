@@ -12,7 +12,7 @@ const BENEFITS: Record<'pro' | 'vip', { headline: string; sub: string; items: st
     items: [
       '90 documentos por mês',
       'Gerador de Proposta com sua marca',
-      'Todos os 5 tipos de documento',
+      'Todos os 8 tipos de documento',
       'Cláusulas revisadas para o setor solar',
       'Suporte prioritário no WhatsApp',
       'Cancela quando quiser, sem multa',
@@ -24,7 +24,7 @@ const BENEFITS: Record<'pro' | 'vip', { headline: string; sub: string; items: st
     items: [
       'Documentos ilimitados',
       'Gerador de Proposta com sua marca',
-      'Todos os 5 tipos de documento',
+      'Todos os 8 tipos de documento',
       'Procuração',
       'Vistoria Técnica',
       'Contrato PJ',
