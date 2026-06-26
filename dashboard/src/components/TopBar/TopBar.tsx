@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, HelpCircle, User, Building2, LogOut, Palette, Smartphone, TrendingUp } from 'lucide-react';
+import { FileText, HelpCircle, User, Building2, LogOut, Smartphone, TrendingUp } from 'lucide-react';
 import { removeToken } from '@/services/auth';
 import styles from './TopBar.module.css';
 
@@ -44,9 +44,6 @@ export default function TopBar({ userEmail, companyLogo }: TopBarProps) {
       <div className={styles.spacer} />
 
       <div className={styles.actions}>
-        <a href="https://pack.solardoc.app/" target="_blank" rel="noopener noreferrer" className={styles.iconBtn} title="Crie seu Mascote">
-          <Palette size={18} />
-        </a>
         <Link href="/trafego" className={styles.iconBtn} title="Tráfego pago — domine sua região" style={{ color: '#10b981' }}>
           <TrendingUp size={18} />
         </Link>
