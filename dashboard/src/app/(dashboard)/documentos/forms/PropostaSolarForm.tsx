@@ -181,6 +181,64 @@ export default function PropostaSolarPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [copyMsg, setCopyMsg] = useState('');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  // Validação inline: quais campos obrigatórios estão faltando (pra marcar de vermelho).
+  const [faltando, setFaltando] = useState<Set<string>>(new Set());
+
+  // ── Autosave (item 1): rascunho em localStorage, debounce 600ms. Um erro de
+  // rede/timeout não apaga mais os ~40 campos. Restaura ao montar, limpa no sucesso.
+  const DRAFT_KEY = 'proposta-solar-draft-v1';
+  const draftLoaded = useRef(false);
+  // State (não ref) pra o aviso re-renderizar quando o rascunho é restaurado.
+  const [restored, setRestored] = useState(false);
+
+  // Restaura rascunho ao montar (1x).
+  useEffect(() => {
+    if (draftLoaded.current) return;
+    draftLoaded.current = true;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.clienteNome) setClienteNome(d.clienteNome);
+      if (d.cidadeUf) setCidadeUf(d.cidadeUf);
+      if (d.fields) setFields(f => ({ ...f, ...d.fields }));
+      setRestored(true);
+    } catch { /* rascunho corrompido — ignora */ }
+  }, []);
+
+  // Salva o rascunho (debounce). Só depois do load inicial pra não sobrescrever.
+  useEffect(() => {
+    if (!draftLoaded.current) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ clienteNome, cidadeUf, fields }));
+      } catch { /* quota/privado — ignora */ }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [clienteNome, cidadeUf, fields]);
+
+  function limparRascunho() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignora */ }
+  }
+
+  // ── Marcas recentes (item 2): lembra as últimas marcas de módulo/inversor
+  // digitadas, pra autocompletar via <datalist> (não redigitar toda proposta).
+  const MARCAS_MOD_KEY = 'proposta-marcas-modulo';
+  const MARCAS_INV_KEY = 'proposta-marcas-inversor';
+  function lerMarcas(key: string): string[] {
+    try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+  }
+  function salvarMarca(key: string, valor: string) {
+    const v = valor.trim();
+    if (!v) return;
+    try {
+      const atuais = lerMarcas(key).filter(m => m.toLowerCase() !== v.toLowerCase());
+      localStorage.setItem(key, JSON.stringify([v, ...atuais].slice(0, 8)));
+    } catch { /* ignora */ }
+  }
+  const [marcasMod, setMarcasMod] = useState<string[]>([]);
+  const [marcasInv, setMarcasInv] = useState<string[]>([]);
+  useEffect(() => { setMarcasMod(lerMarcas(MARCAS_MOD_KEY)); setMarcasInv(lerMarcas(MARCAS_INV_KEY)); }, []);
 
   // kWp deriva de qtd_modulos × potencia_modulo (verdade técnica: 10×620W = 6,2 kWp)
   const kwpCalc = (() => {
@@ -239,13 +297,67 @@ export default function PropostaSolarPage() {
     setFields(f => ({ ...f, [k]: v }));
   }
 
+  // Marca visual de campo faltante (item 3): borda vermelha + data-invalid pro
+  // scrollIntoView achar o primeiro. Ao digitar, tira a marca daquele campo.
+  function invalidProps(campo: string) {
+    const invalido = faltando.has(campo);
+    return {
+      'data-invalid': invalido ? 'true' : undefined,
+      style: invalido ? { borderColor: 'var(--ink-red, #DC2626)', boxShadow: '0 0 0 2px rgba(220,38,38,0.15)' } : undefined,
+    };
+  }
+  function clearFaltando(campo: string) {
+    if (!faltando.has(campo)) return;
+    setFaltando(prev => { const n = new Set(prev); n.delete(campo); return n; });
+  }
+
+  // "Nova proposta" (item 4): zera os dados DO CLIENTE e do sistema desta venda,
+  // pra não mandar proposta com nome/valor do cliente anterior. Mantém o que é
+  // template reutilizável (garantias, taxas, formas de pagamento, paleta).
+  function novaProposta() {
+    setGenerated(null);
+    setError('');
+    setFaltando(new Set());
+    setRestored(false);
+    setClienteNome('');
+    setCidadeUf('');
+    setFields(f => ({
+      ...f,
+      // específicos do cliente/venda — zerados:
+      consumo_kwh: '', qtd_modulos: '', potencia_modulo: '',
+      qtd_inversores: initialFields.qtd_inversores, potencia_inversor: '',
+      geracao_media_kwh: '', investimento: '', preco_avista: '',
+      foto_telhado_b64: '', tipo_telhado: '',
+      // marca/garantias/pagamento ficam como estão (template do integrador).
+    }));
+    limparRascunho();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
-    if (!clienteNome.trim()) { setError('Informe o nome do cliente'); return; }
-    if (!cidadeUf.trim()) { setError('Informe a cidade do cliente'); return; }
-    if (!kwpCalc) { setError('Quantidade de módulos × potência por módulo precisam estar preenchidos'); return; }
-    if (!fields.investimento) { setError('Valor do investimento é obrigatório'); return; }
 
+    // Validação inline (item 3): junta TODOS os faltantes, marca os campos de
+    // vermelho e rola até o primeiro — em vez de 1 erro de texto no rodapé.
+    const faltam = new Set<string>();
+    if (!clienteNome.trim()) faltam.add('clienteNome');
+    if (!cidadeUf.trim()) faltam.add('cidadeUf');
+    if (!fields.qtd_modulos || !fields.potencia_modulo) {
+      if (!fields.qtd_modulos) faltam.add('qtd_modulos');
+      if (!fields.potencia_modulo) faltam.add('potencia_modulo');
+    }
+    if (!fields.investimento) faltam.add('investimento');
+
+    if (faltam.size > 0) {
+      setFaltando(faltam);
+      setError(`Preencha os campos destacados (${faltam.size} pendente${faltam.size > 1 ? 's' : ''}).`);
+      // Rola até o primeiro campo faltante.
+      const primeiro = document.querySelector('[data-invalid="true"]');
+      primeiro?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    setFaltando(new Set());
     setError('');
     setGenerating(true);
     try {
@@ -259,6 +371,13 @@ export default function PropostaSolarPage() {
       };
       const { data } = await api.post('/documents/generate', payload);
       setGenerated(data);
+      // Sucesso: limpa o rascunho e lembra as marcas usadas (itens 1 e 2).
+      limparRascunho();
+      setRestored(false);
+      salvarMarca(MARCAS_MOD_KEY, fields.marca_modulo);
+      salvarMarca(MARCAS_INV_KEY, fields.marca_inversor);
+      setMarcasMod(lerMarcas(MARCAS_MOD_KEY));
+      setMarcasInv(lerMarcas(MARCAS_INV_KEY));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       setError(error.response?.data?.error || 'Erro ao gerar proposta');
@@ -346,7 +465,7 @@ export default function PropostaSolarPage() {
     return (
       <div className={styles.page}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
-          <button type="button" onClick={() => setGenerated(null)} style={btn('ghost')}>← Nova proposta</button>
+          <button type="button" onClick={novaProposta} style={btn('ghost')}>← Nova proposta</button>
           {publicId && (
             <span style={{
               padding: '6px 12px',
@@ -430,6 +549,20 @@ export default function PropostaSolarPage() {
         <p className={styles.subtitle}>Gera proposta comercial bonita pra cliente final — copia link, manda WhatsApp ou imprime</p>
       </div>
 
+      {restored && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap',
+          background: 'var(--color-accent-soft)', border: '1px solid var(--color-accent-border)',
+          borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--color-text)',
+        }}>
+          <span>💾 Recuperamos um rascunho que você tinha começado.</span>
+          <button type="button" onClick={() => { setRestored(false); novaProposta(); }}
+            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
+            Descartar e começar do zero
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleGenerate} className={styles.form}>
         {/* PALETA */}
         <div className={styles.section}>
@@ -449,10 +582,11 @@ export default function PropostaSolarPage() {
               <input
                 type="text"
                 value={clienteNome}
-                onChange={e => setClienteNome(e.target.value)}
+                onChange={e => { setClienteNome(e.target.value); clearFaltando('clienteNome'); }}
                 placeholder="Ex: João da Silva"
                 className="input-field"
                 required
+                {...invalidProps('clienteNome')}
               />
             </div>
             <div className={styles.field}>
@@ -460,10 +594,11 @@ export default function PropostaSolarPage() {
               <input
                 type="text"
                 value={cidadeUf}
-                onChange={e => setCidadeUf(e.target.value)}
+                onChange={e => { setCidadeUf(e.target.value); clearFaltando('cidadeUf'); }}
                 placeholder="Ex: Uberlândia/MG"
                 className="input-field"
                 required
+                {...invalidProps('cidadeUf')}
               />
             </div>
             <div className={styles.field}>
@@ -479,11 +614,11 @@ export default function PropostaSolarPage() {
           <div className={styles.grid2}>
             <div className={styles.field}>
               <label className={styles.label}>Quantidade de módulos *</label>
-              <input type="text" inputMode="numeric" value={fields.qtd_modulos} onChange={e => setField('qtd_modulos', e.target.value)} placeholder="Ex: 10" className="input-field" required />
+              <input type="text" inputMode="numeric" value={fields.qtd_modulos} onChange={e => { setField('qtd_modulos', e.target.value); clearFaltando('qtd_modulos'); }} placeholder="Ex: 10" className="input-field" required {...invalidProps('qtd_modulos')} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Potência por módulo (W) *</label>
-              <input type="text" inputMode="numeric" value={fields.potencia_modulo} onChange={e => setField('potencia_modulo', e.target.value)} placeholder="Ex: 620" className="input-field" required />
+              <input type="text" inputMode="numeric" value={fields.potencia_modulo} onChange={e => { setField('potencia_modulo', e.target.value); clearFaltando('potencia_modulo'); }} placeholder="Ex: 620" className="input-field" required {...invalidProps('potencia_modulo')} />
             </div>
             <div className={styles.fieldFull}>
               <div style={{
@@ -519,7 +654,8 @@ export default function PropostaSolarPage() {
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Marca dos módulos *</label>
-              <input type="text" value={fields.marca_modulo} onChange={e => setField('marca_modulo', e.target.value)} placeholder="Ex: Canadian Solar" className="input-field" required />
+              <input type="text" list="marcas-modulo" value={fields.marca_modulo} onChange={e => setField('marca_modulo', e.target.value)} placeholder="Ex: Canadian Solar" className="input-field" required />
+              <datalist id="marcas-modulo">{marcasMod.map(m => <option key={m} value={m} />)}</datalist>
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Quantidade de inversores</label>
@@ -527,7 +663,8 @@ export default function PropostaSolarPage() {
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Marca do inversor *</label>
-              <input type="text" value={fields.marca_inversor} onChange={e => setField('marca_inversor', e.target.value)} placeholder="Ex: Growatt" className="input-field" required />
+              <input type="text" list="marcas-inversor" value={fields.marca_inversor} onChange={e => setField('marca_inversor', e.target.value)} placeholder="Ex: Growatt" className="input-field" required />
+              <datalist id="marcas-inversor">{marcasInv.map(m => <option key={m} value={m} />)}</datalist>
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Potência do inversor (kW) *</label>
@@ -692,7 +829,7 @@ export default function PropostaSolarPage() {
           <div className={styles.grid2}>
             <div className={styles.field}>
               <label className={styles.label}>Preço do projeto (R$) *</label>
-              <input type="text" inputMode="decimal" value={fields.investimento} onChange={e => setField('investimento', e.target.value)} placeholder="Ex: 22000" className="input-field" required />
+              <input type="text" inputMode="decimal" value={fields.investimento} onChange={e => { setField('investimento', e.target.value); clearFaltando('investimento'); }} placeholder="Ex: 22000" className="input-field" required {...invalidProps('investimento')} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Desconto especial à vista (R$)</label>
