@@ -406,11 +406,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               gap: 8,
             }}>
               <span style={{ fontSize: 13, color: docsRestantes <= 2 ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
-                📄 Plano Gratuito — <strong>{docsRestantes} documento{docsRestantes !== 1 ? 's' : ''}</strong> restante{docsRestantes !== 1 ? 's' : ''} de 10.
+                {docsRestantes <= 2
+                  ? <>📄 Plano Gratuito — <strong>{docsRestantes} documento{docsRestantes !== 1 ? 's' : ''}</strong> restante{docsRestantes !== 1 ? 's' : ''} de 10.</>
+                  : <>📄 No plano grátis você só gera <strong>propostas</strong>. Destrave <strong>contratos, procurações e recibos</strong> no PRO.</>}
               </span>
-              <a href="/planos" style={{ fontSize: 12, fontWeight: 700, color: docsRestantes <= 2 ? '#ef4444' : '#f59e0b', textDecoration: 'underline', whiteSpace: 'nowrap' }}>
-                Ver planos →
-              </a>
+              <button
+                onClick={() => setShowUpgrade(true)}
+                style={{ fontSize: 12, fontWeight: 700, color: docsRestantes <= 2 ? '#ef4444' : '#f59e0b', textDecoration: 'underline', whiteSpace: 'nowrap', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+              >
+                {docsRestantes <= 2 ? 'Ver planos →' : 'Quero destravar →'}
+              </button>
             </div>
           )}
           {children}

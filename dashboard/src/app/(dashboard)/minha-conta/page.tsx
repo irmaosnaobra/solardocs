@@ -12,7 +12,7 @@ const PLAN_LABEL: Record<string, string> = {
 };
 
 export default function MinhaContaPage() {
-  const { user, setUser } = useDashboard();
+  const { user, setUser, openUpgrade } = useDashboard();
 
   // perfil
   const [nome, setNome] = useState(user?.nome ?? '');
@@ -136,7 +136,7 @@ export default function MinhaContaPage() {
         </div>
         <div className={styles.row}>
           {isFree ? (
-            <a className={styles.btnPrimary} href="/planos">Ver planos</a>
+            <button className={styles.btnPrimary} onClick={openUpgrade}>Ver planos</button>
           ) : (
             <button className={styles.btnSecondary} onClick={gerenciarAssinatura} disabled={openingPortal}>
               {openingPortal ? 'Abrindo...' : 'Gerenciar assinatura'}

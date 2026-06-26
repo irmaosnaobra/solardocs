@@ -98,7 +98,7 @@ export default function HistoricoPage() {
             Acesse e baixe todos os documentos gerados nos últimos 30 dias.<br/>
             No VIP, o histórico é ilimitado.
           </p>
-          <a href="/planos" className={styles.upgradeBtn}>Ver planos →</a>
+          <a href="/#planos" className={styles.upgradeBtn}>Ver planos →</a>
         </div>
       </div>
     );
