@@ -500,12 +500,14 @@ router.get('/master', async (req: Request, res: Response) => {
     ['orphan-checkout-recovery',    () => recoverOrphanCheckouts()],     // PAGOU e NÃO cadastrou: link de conclusão (carência 30min, até 6d). Template aprovado 02/06.
     ['followup-email-cnpj',         () => runFollowupCnpj()],            // 5 emails/30d — gerador de proposta
     // ['no-contracts-reminder',       () => runNoContractsEmailReminder()], // [PAUSED-FOLLOWUP] lembrete inativos por email
-    // 2026-06-29: WhatsApp Carla REATIVADO com teto anti-ban (carlaThrottle:
-    //   MAX_CARLA_POR_HORA=4 compartilhado entre as 2 cadências + gap 4s + marcador
-    //   carla_sent). Master roda de hora em hora, então o backlog (24 sem_cnpj + 39
-    //   inativo) drena em drip ao longo de dias em vez de pico que toma ban.
-    ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // WhatsApp Carla — 3 toques 30d
-    ['carla-inativo',               () => runCarlaInativoFollowup()],     // WhatsApp Carla — 5 toques 60d
+    // 2026-06-29: WhatsApp Carla RE-PAUSADO temporariamente. Foi reativado com
+    //   throttle de manhã, mas o objetivo virou "levar o follow-up até a venda como
+    //   humano, sem bugar". Antes de soltar pra 63 clientes reais, falta: (1) Carla
+    //   salvar o que envia (hoje não salva → Giovanna assume cega no reply = bug do
+    //   print Aibo); (2) UMA persona só (Carla→Giovanna no meio = troca de atendente);
+    //   (3) testar o loop ponta a ponta no número do Thiago. Religar = descomentar.
+    // ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // WhatsApp Carla — 3 toques 30d
+    // ['carla-inativo',               () => runCarlaInativoFollowup()],     // WhatsApp Carla — 5 toques 60d
     // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [PAUSED-FOLLOWUP] broadcast matinal
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
