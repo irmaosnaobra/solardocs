@@ -20,8 +20,12 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
-import { sendZAPI } from '../zapiClient';
+import { sendZAPI, sleep } from '../zapiClient';
 import { logger } from '../../../utils/logger';
+import { dentroDoTetoCarla, marcarEnvioCarla } from './carlaThrottle';
+
+// Espaçamento mínimo entre dois envios da Carla no MESMO ciclo (anti-ráfaga).
+const GAP_ENTRE_ENVIOS_MS = 4000;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -217,6 +221,13 @@ export async function runCarlaSemCnpjFollowup(): Promise<{ enviados: number; enc
 
     if (!intervaloAtingido(count, lastAt, signup, INTERVALOS_SEM_CNPJ, now)) continue;
 
+    // Teto anti-ban COMPARTILHADO (sem_cnpj + inativo) na linha solardoc. Estourou
+    // → para de varrer (break, não continue): o resto fica pro próximo ciclo horário.
+    if (!(await dentroDoTetoCarla())) {
+      logger.info('carla-sem-cnpj', 'teto anti-ban atingido, segurando pro próximo ciclo');
+      break;
+    }
+
     const proxima = count + 1;
     const isLast = proxima === MAX_SEM_CNPJ;
     const nome = primeiroNome(u.nome);
@@ -232,6 +243,7 @@ export async function runCarlaSemCnpjFollowup(): Promise<{ enviados: number; enc
         tomCfg: TONS_SEM_CNPJ[proxima],
       });
       await sendZAPI(u.whatsapp, msg, 'solardoc');
+      await marcarEnvioCarla(u.id);  // alimenta o teto anti-ban
 
       await supabase.from('users').update({
         carla_sem_cnpj_count: proxima,
@@ -240,6 +252,7 @@ export async function runCarlaSemCnpjFollowup(): Promise<{ enviados: number; enc
 
       enviados++;
       if (isLast) encerrados++;
+      await sleep(GAP_ENTRE_ENVIOS_MS); // espaça do próximo envio (anti-ráfaga)
     } catch (err) {
       logger.error('carla-sem-cnpj', `falha pra user ${u.id}`, err);
     }
@@ -296,6 +309,12 @@ export async function runCarlaInativoFollowup(): Promise<{ enviados: number; enc
 
     if (!intervaloAtingido(count, lastAt, ultAtividade, INTERVALOS_INATIVO, now)) continue;
 
+    // Mesmo teto anti-ban compartilhado da linha solardoc. Estourou → para o ciclo.
+    if (!(await dentroDoTetoCarla())) {
+      logger.info('carla-inativo', 'teto anti-ban atingido, segurando pro próximo ciclo');
+      break;
+    }
+
     const proxima = count + 1;
     const isLast = proxima === MAX_INATIVO;
     const nome = primeiroNome(u.nome);
@@ -312,6 +331,7 @@ export async function runCarlaInativoFollowup(): Promise<{ enviados: number; enc
         tomCfg: TONS_INATIVO[proxima],
       });
       await sendZAPI(u.whatsapp, msg, 'solardoc');
+      await marcarEnvioCarla(u.id);  // alimenta o teto anti-ban
 
       await supabase.from('users').update({
         carla_inativo_count: proxima,
@@ -320,6 +340,7 @@ export async function runCarlaInativoFollowup(): Promise<{ enviados: number; enc
 
       enviados++;
       if (isLast) encerrados++;
+      await sleep(GAP_ENTRE_ENVIOS_MS); // espaça do próximo envio (anti-ráfaga)
     } catch (err) {
       logger.error('carla-inativo', `falha pra user ${u.id}`, err);
     }
