@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
-import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel, getRevenue } from '../controllers/adminController';
+import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel, getRevenue, getBilling } from '../controllers/adminController';
 import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas } from '../controllers/limpaproController';
 import { supabase } from '../utils/supabase';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
@@ -76,6 +76,7 @@ router.get('/funnel-limpapro', getLimpaproFunnel);
 router.get('/leads-limpapro',  getLimpaproLeads);
 router.get('/conversas-limpapro', getLimpaproConversas);
 router.get('/revenue',        getRevenue);
+router.get('/billing',        getBilling);
 
 // Deletar user (cascade manual). Aceita { email } OU { cnpj } no body.
 // Apaga: documents, clients, terceiros, company, e o user.

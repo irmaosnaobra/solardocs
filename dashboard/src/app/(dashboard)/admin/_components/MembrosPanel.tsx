@@ -28,6 +28,23 @@ interface MemberRow {
 interface CalcUso { aberturas: number; calculos: number; clientes: number; }
 interface UsersResponse { users: MemberRow[]; documents: Array<{ created_at: string }>; calculadora?: CalcUso; }
 
+// Recebimento (Stripe) — espelha o payload de GET /admin/billing.
+interface BillingResponse {
+  recebido_total: number;
+  recebido_mes: number;
+  previsao_mes: number;
+  previsao_proximo_mes: number;
+  mrr_ativo: number;
+  trial_upside: number;
+  assinaturas_ativas: number;
+  trials: number;
+  moeda: 'BRL';
+  atualizado_em: string;
+}
+
+const fmtBRL = (v: number | null | undefined) =>
+  (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
 /* ─── helpers ───────────────────────────────────────────────────── */
 const PLANO_LABEL: Record<string, string> = { free: 'FREE', pro: 'PRO', ilimitado: 'VIP' };
 const PLANO_COLOR: Record<string, string> = { free: '#64748b', pro: '#64748b', ilimitado: '#64748b' };
@@ -79,6 +96,7 @@ type PlanFilter = 'todos' | 'free' | 'pro' | 'ilimitado';
 export default function MembrosPanel() {
   const [data, setData]       = useState<MemberRow[] | null>(null);
   const [calc, setCalc]       = useState<CalcUso | null>(null);
+  const [billing, setBilling] = useState<BillingResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
   const [q, setQ]             = useState('');
@@ -88,9 +106,19 @@ export default function MembrosPanel() {
     setLoading(true);
     setError('');
     try {
-      const { data } = await api.get<UsersResponse>('/admin/users');
-      setData(data.users ?? []);
-      setCalc(data.calculadora ?? null);
+      // Membros e recebimento em paralelo. O recebimento (Stripe) é mais lento e
+      // pode falhar isolado — não derruba a lista de membros se der erro.
+      const [usersRes, billingRes] = await Promise.allSettled([
+        api.get<UsersResponse>('/admin/users'),
+        api.get<BillingResponse>('/admin/billing'),
+      ]);
+      if (usersRes.status === 'fulfilled') {
+        setData(usersRes.value.data.users ?? []);
+        setCalc(usersRes.value.data.calculadora ?? null);
+      } else {
+        throw usersRes.reason;
+      }
+      setBilling(billingRes.status === 'fulfilled' ? billingRes.value.data : null);
     } catch {
       setError('Erro ao carregar membros. Tenta de novo.');
     } finally {
@@ -188,6 +216,34 @@ export default function MembrosPanel() {
         </div>
       ) : (
         <>
+          {/* Recebimento (Stripe) — bruto, só assinaturas SolarDoc PRO/VIP */}
+          {billing && (
+            <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(3,1fr)', marginTop: 12 }}>
+              <div className={styles.card} style={{ borderColor: 'var(--color-primary)', borderWidth: 1, borderStyle: 'solid' }}>
+                <div className={styles.cardLabel}>💰 Acumulado recebido</div>
+                <div className={styles.cardValue} style={{ color: 'var(--color-primary)' }}>{fmtBRL(billing.recebido_total)}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                  Total já pago no Stripe (bruto, sem taxas) · todas as assinaturas
+                </div>
+              </div>
+              <div className={styles.card}>
+                <div className={styles.cardLabel}>📅 Previsão deste mês</div>
+                <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{fmtBRL(billing.previsao_mes)}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                  Recebido no mês ({fmtBRL(billing.recebido_mes)}) + o que ainda fatura até o fim
+                </div>
+              </div>
+              <div className={styles.card}>
+                <div className={styles.cardLabel}>🔮 Previsão próximo mês</div>
+                <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{fmtBRL(billing.previsao_proximo_mes)}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                  {billing.assinaturas_ativas} assinatura{billing.assinaturas_ativas === 1 ? '' : 's'} ativa{billing.assinaturas_ativas === 1 ? '' : 's'}
+                  {billing.trial_upside > 0 && <> · +{fmtBRL(billing.trial_upside)} se os {billing.trials} trials converterem</>}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* KPIs */}
           <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(5,1fr)', marginTop: 12 }}>
             <div className={styles.card}>

@@ -727,6 +727,181 @@ async function mrrForPlano(plano: string): Promise<number> {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// RECEBIMENTO (Stripe) — acumulado recebido + previsão mês atual / próximo.
+// Fonte de verdade: faturas PAGAS do Stripe (recebido) e estado das assinaturas
+// (previsão). NUNCA conta plano×preço do banco — os 12 em trial pagaram R$0 e os
+// churned podem ter pago 1× e parado; só a fatura PAGA conta como recebido.
+//
+// Conta Stripe COMPARTILHADA (Pack Solar, etc): tudo é filtrado pelos price IDs
+// do SolarDoc (PRO/VIP + PRO antigo R$47 de clientes legados). Mesmo isolamento
+// do webhook (paymentsController). Valores em BRUTO (sem deduzir taxa Stripe).
+// ════════════════════════════════════════════════════════════════════════
+
+// Set de price IDs que SÃO SolarDoc (mesma fonte do PRICE_TO_PLAN, sem o mapa).
+const SOLARDOC_PRICE_IDS = new Set(Object.keys(PRICE_TO_PLAN));
+
+type BillingPayload = {
+  recebido_total: number;       // acumulado recebido (bruto, all-time)
+  recebido_mes: number;         // recebido dentro do mês corrente (SP)
+  previsao_mes: number;         // recebido_mes + o que ainda fatura até o fim do mês
+  previsao_proximo_mes: number; // MRR firme das assinaturas ATIVAS (sem trial)
+  mrr_ativo: number;            // = previsao_proximo_mes (alias explícito)
+  trial_upside: number;         // MRR potencial dos trials (SE converterem) — não somado
+  assinaturas_ativas: number;
+  trials: number;
+  moeda: 'BRL';
+  atualizado_em: string;
+};
+
+let _billingCache: { at: number; data: BillingPayload } | null = null;
+const BILLING_TTL_MS = 60_000;
+
+// Fim do mês corrente em SP (1º dia do mês seguinte 00:00 SP, como instante).
+function spStartOfNextMonth(): Date {
+  const inicio = spStartOfMonth();
+  const d = new Date(inicio);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  return d;
+}
+
+export async function getBilling(req: Request, res: Response): Promise<void> {
+  try {
+    if (_billingCache && Date.now() - _billingCache.at < BILLING_TTL_MS) {
+      res.json(_billingCache.data);
+      return;
+    }
+
+    const inicioMes = spStartOfMonth();
+    const fimMes = spStartOfNextMonth();
+    const inicioMesUnix = Math.floor(inicioMes.getTime() / 1000);
+    const fimMesUnix = Math.floor(fimMes.getTime() / 1000);
+
+    // Uma invoice "é SolarDoc" se qualquer linha aponta pra um price do SolarDoc.
+    // Retorna o valor SolarDoc dessa fatura (em centavos) — só as linhas nossas,
+    // pra não contar Pack Solar de uma fatura mista (raro, mas seguro).
+    // Tipagem estrutural leve: o shape de Invoice muda entre versões do SDK, então
+    // lemos só os campos que importam (mesmo padrão pragmático do webhook).
+    // ATENÇÃO: no SDK 22 / API 2025 o price da linha NÃO é mais `line.price.id`,
+    // e sim `line.pricing.price_details.price` (string ID por padrão, sem expand).
+    // Lemos os dois (pricing novo + price legado) pra ser robusto entre versões —
+    // se errar o caminho, o filtro casa 0 linhas e zera o recebido em SILÊNCIO.
+    type LineLite = {
+      amount?: number | null;
+      pricing?: { price_details?: { price?: string | { id?: string } } } | null;
+      price?: { id?: string } | null;
+    };
+    type InvoiceLite = {
+      created: number;
+      status_transitions?: { paid_at?: number | null };
+      lines?: { data?: LineLite[] };
+    };
+    const linePriceId = (line: LineLite): string => {
+      const p = line.pricing?.price_details?.price;
+      if (typeof p === 'string') return p;
+      if (p && typeof p === 'object') return p.id ?? '';
+      return line.price?.id ?? ''; // fallback API antiga
+    };
+    const solardocAmountCents = (inv: InvoiceLite): number => {
+      let cents = 0;
+      for (const line of inv.lines?.data ?? []) {
+        if (SOLARDOC_PRICE_IDS.has(linePriceId(line))) cents += line.amount ?? 0;
+      }
+      return cents;
+    };
+
+    // ── 1) RECEBIDO: faturas pagas (all-time), paginadas. ──────────────────
+    let recebidoTotalCents = 0;
+    let recebidoMesCents = 0;
+    let cursor: string | undefined;
+    for (let page = 0; page < 40; page++) { // teto defensivo (40×100 = 4000 faturas)
+      const invoices = await stripe.invoices.list({
+        status: 'paid',
+        limit: 100,
+        starting_after: cursor,
+      });
+      for (const inv of invoices.data as unknown as InvoiceLite[]) {
+        const cents = solardocAmountCents(inv);
+        if (cents <= 0) continue; // fatura de outro produto (Pack Solar) → ignora
+        recebidoTotalCents += cents;
+        const paidAt = inv.status_transitions?.paid_at ?? inv.created;
+        if (paidAt >= inicioMesUnix && paidAt < fimMesUnix) recebidoMesCents += cents;
+      }
+      if (!invoices.has_more) break;
+      cursor = invoices.data[invoices.data.length - 1]?.id;
+    }
+
+    // ── 2) PREVISÃO: percorre as assinaturas vivas (active + trialing). ────
+    let mrrAtivoCents = 0;
+    let trialUpsideCents = 0;
+    let aFaturarAteFimMesCents = 0; // renovações/1ª cobrança que caem dentro do mês
+    let nAtivas = 0;
+    let nTrials = 0;
+    let subCursor: string | undefined;
+    for (let page = 0; page < 20; page++) {
+      const subs = await stripe.subscriptions.list({
+        status: 'all',
+        limit: 100,
+        starting_after: subCursor,
+        expand: ['data.items.data.price'],
+      });
+      const nowUnix = Math.floor(Date.now() / 1000);
+      for (const s of subs.data) {
+        const item = s.items.data[0];
+        const priceId = item?.price?.id ?? '';
+        if (!SOLARDOC_PRICE_IDS.has(priceId)) continue; // não é SolarDoc
+        const valorCents = item?.price?.unit_amount ?? 0;
+        // No SDK 22 / API 2025 o current_period_end migrou pro item da assinatura.
+        // Fallback no campo legado da sub pra robustez entre versões.
+        const periodEnd =
+          (item as { current_period_end?: number } | undefined)?.current_period_end ??
+          (s as unknown as { current_period_end?: number }).current_period_end ?? 0;
+
+        if (s.status === 'active') {
+          mrrAtivoCents += valorCents;
+          nAtivas++;
+          // Renovação que vence dentro deste mês e ainda não foi faturada hoje:
+          // entra na previsão do mês corrente.
+          if (periodEnd >= nowUnix && periodEnd < fimMesUnix) {
+            aFaturarAteFimMesCents += valorCents;
+          }
+        } else if (s.status === 'trialing') {
+          trialUpsideCents += valorCents;
+          nTrials++;
+          // Trial que termina dentro do mês → 1ª cobrança cai neste mês (SE não
+          // cancelar). Conta como previsão do mês (otimista mas é "previsão").
+          const trialEnd = s.trial_end ?? 0;
+          if (trialEnd >= nowUnix && trialEnd < fimMesUnix) {
+            aFaturarAteFimMesCents += valorCents;
+          }
+        }
+      }
+      if (!subs.has_more) break;
+      subCursor = subs.data[subs.data.length - 1]?.id;
+    }
+
+    const toReais = (c: number) => Math.round(c) / 100;
+    const payload: BillingPayload = {
+      recebido_total:       toReais(recebidoTotalCents),
+      recebido_mes:         toReais(recebidoMesCents),
+      previsao_mes:         toReais(recebidoMesCents + aFaturarAteFimMesCents),
+      previsao_proximo_mes: toReais(mrrAtivoCents),
+      mrr_ativo:            toReais(mrrAtivoCents),
+      trial_upside:         toReais(trialUpsideCents),
+      assinaturas_ativas:   nAtivas,
+      trials:               nTrials,
+      moeda:                'BRL',
+      atualizado_em:        new Date().toISOString(),
+    };
+
+    _billingCache = { at: Date.now(), data: payload };
+    res.json(payload);
+  } catch (err) {
+    console.error('getBilling error:', err);
+    res.status(500).json({ error: 'Erro ao calcular recebimento' });
+  }
+}
+
 // Receita atribuída por campanha (forward-only). Agrupa usuários PAGANTES
 // (plano != free) com atribuição capturada na janela, por utm_campaign EXATO
 // (normalizado). NÃO usa o join fuzzy do meta-funnel — aqui é dinheiro, match
