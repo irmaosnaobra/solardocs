@@ -14,17 +14,19 @@ function envPrice(key: string, fallback: string): string {
   return v || fallback;
 }
 
-const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number; descricao: string }> = {
+const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number; valor: number; descricao: string }> = {
   pro: {
     priceId: envPrice('STRIPE_PRICE_PRO', 'price_1TKNtbCkkgzQ4IHeCr0mYSXn'),
     plano: 'pro',
     limite: 90,
+    valor: 27, // preço mensal real (R$) — espelha PRICES.pro da Landing. Usado no value do Purchase (Meta CAPI).
     descricao: '📄 90 documentos por mês  •  Indicado para até 20 vendas mensais  •  Tudo do Iniciante  •  Histórico completo de documentos  •  Suporte prioritário',
   },
   ilimitado: {
     priceId: envPrice('STRIPE_PRICE_VIP', 'price_1TUh2yCkkgzQ4IHeZqy52Zu2'),
     plano: 'ilimitado',
     limite: 999999,
+    valor: 67, // preço mensal real (R$) — espelha PRICES.vip da Landing. Usado no value do Purchase (Meta CAPI).
     descricao: '📄 Documentos ilimitados  •  Indicado para +20 vendas mensais  •  Dashboard completo  •  Acesso a toda expansão da plataforma  •  Suporte prioritário',
   },
 };
@@ -283,7 +285,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     // planByPrice undefined → bloco pulado. Conta Stripe é compartilhada, então
     // o isolamento aqui é justamente o `if (planInfo)`.
     if (planInfo) {
-      const { plano, limite } = planInfo;
+      const { plano, limite, valor } = planInfo;
 
       // Atribuição forward-only: lê os UTMs que createPublicCheckout gravou no
       // metadata. Só keys NÃO-vazias entram no patch — uma re-entrega do webhook
@@ -353,11 +355,14 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         }
       }
 
-      const valorMap: Record<string, number> = { iniciante: 27, pro: 47, ilimitado: 97 };
+      // value = preço mensal REAL do plano comprado (PRO=27, VIP/ilimitado=67),
+      // lido do PLAN_MAP (mesma fonte do priceId). Antes havia um valorMap solto
+      // com os preços ANTIGOS (47/97) que inflava o "Valor da compra" na Meta e
+      // desalinhava ROAS/CPA. Derivar de planInfo evita defasar de novo.
       sendMetaEvent('Purchase', {
         eventId:    session.id,
         email:      email ?? undefined,
-        customData: { value: valorMap[plano] ?? 0, currency: 'BRL', content_name: plano.toUpperCase() },
+        customData: { value: valor, currency: 'BRL', content_name: plano.toUpperCase() },
       });
     }
   }
