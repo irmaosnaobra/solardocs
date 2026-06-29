@@ -49,18 +49,25 @@ type UserRow = {
   is_admin: boolean;
   whatsapp: string | null;
   followup_started_at: string | null;
+  // Status do follow-up de EMAIL (cadência CNPJ — o canal que está ATIVO).
+  followup_email_last_sent_at: string | null;
   // Contadores de follow-up (quantos toques cada cadência já deu pro usuário).
   // Alimentam o "contador ao lado de cada um" no painel admin.
+  // OBS: carla_* são WhatsApp (canal PAUSADO desde mai/2026 por ban Z-API) —
+  // mostram só histórico. O canal vivo é o email (followup_email_last_sent_at).
   carla_inativo_count: number | null;
   carla_sem_cnpj_count: number | null;
   contract_reminder_count: number | null;
 };
 
+// Uma mensagem trocada (formato do whatsapp_sessions.messages jsonb).
+type ChatMsg = { role: 'user' | 'assistant'; content: string };
+
 export async function getUsers(req: Request, res: Response): Promise<void> {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('id, email, plano, documentos_usados, limite_documentos, created_at, is_admin, whatsapp, followup_started_at, carla_inativo_count, carla_sem_cnpj_count, contract_reminder_count')
+      .select('id, email, plano, documentos_usados, limite_documentos, created_at, is_admin, whatsapp, followup_started_at, followup_email_last_sent_at, carla_inativo_count, carla_sem_cnpj_count, contract_reminder_count')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -129,14 +136,49 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
       return 'frio';
     };
 
+    // ── Conversas de WhatsApp (whatsapp_sessions, tipo='platform'). ──────────
+    // É a conversa REAL trocada com o membro (o que ele escreveu + o que o
+    // agente respondeu). Casa com o user por user_id OU por telefone (sufixo de
+    // 10 dígitos pra driblar 9º dígito/DDI — ver normalização LimpaPro). O
+    // phone-join ~dobra a cobertura (25→43 dos 91 FREE).
+    const normFone = (s: string | null | undefined): string => (s ? s.replace(/\D/g, '') : '');
+    const sufixo = (s: string): string => (s.length >= 10 ? s.slice(-10) : '');
+    const { data: sessions } = await supabase
+      .from('whatsapp_sessions')
+      .select('user_id, phone, nome, messages, updated_at, tipo')
+      .eq('tipo', 'platform');
+
+    const convByUserId = new Map<string, { messages: ChatMsg[]; updated_at: string; nome: string | null }>();
+    const convBySufixo = new Map<string, { messages: ChatMsg[]; updated_at: string; nome: string | null }>();
+    for (const s of sessions ?? []) {
+      const msgs = Array.isArray(s.messages) ? (s.messages as ChatMsg[]) : [];
+      if (!msgs.length) continue;
+      const entry = { messages: msgs, updated_at: s.updated_at as string, nome: (s.nome as string) ?? null };
+      if (s.user_id) convByUserId.set(s.user_id as string, entry);
+      const suf = sufixo(normFone(s.phone as string));
+      if (suf) convBySufixo.set(suf, entry); // última sessão por sufixo vence (mais recente vinda do select)
+    }
+
+    // Resolve a conversa de um user: prioriza match por user_id, cai pro fone.
+    const conversaDoUser = (u: UserRow): { messages: ChatMsg[]; updated_at: string } | null => {
+      const direct = convByUserId.get(u.id);
+      if (direct) return { messages: direct.messages, updated_at: direct.updated_at };
+      const suf = sufixo(normFone(u.whatsapp));
+      const byFone = suf ? convBySufixo.get(suf) : undefined;
+      return byFone ? { messages: byFone.messages, updated_at: byFone.updated_at } : null;
+    };
+
     const result = (users as UserRow[] | null)?.map(u => {
       const stripe = stripeByEmail.get(u.email.toLowerCase());
       const docsGerados = docCountByUser.get(u.id) ?? 0;
       // Total de toques de follow-up que esse usuário já recebeu (soma das cadências).
-      const followupToques =
+      const followupWhatsapp =
         (u.carla_inativo_count ?? 0) +
         (u.carla_sem_cnpj_count ?? 0) +
         (u.contract_reminder_count ?? 0);
+      // Nº de emails de follow-up enviados: o schema não guarda um contador
+      // dedicado, então sinalizamos pelo timestamp do último envio (canal ativo).
+      const conversa = conversaDoUser(u);
       return {
         ...u,
         empresa_nome:     companyMap.get(u.id)?.nome     ?? null,
@@ -145,7 +187,13 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
         stripe_status:    stripe?.status ?? null,
         stripe_plan:      stripe?.plan   ?? null,
         docs_gerados:     docsGerados,
-        followup_toques:  followupToques,
+        // followup_toques: mantido por compat (= toques WhatsApp, canal pausado).
+        followup_toques:  followupWhatsapp,
+        followup_whatsapp_toques: followupWhatsapp,
+        // Canal ATIVO: email. Último envio da cadência CNPJ (null = nunca recebeu).
+        followup_email_last_sent_at: u.followup_email_last_sent_at ?? null,
+        // Conversa real trocada no WhatsApp (null quando não há histórico).
+        conversa: conversa ? { mensagens: conversa.messages, atualizada_em: conversa.updated_at } : null,
         temperatura:      temperatura(u.plano, docsGerados),
       };
     });

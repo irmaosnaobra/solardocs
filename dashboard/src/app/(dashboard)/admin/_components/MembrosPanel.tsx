@@ -22,9 +22,13 @@ interface MemberRow {
   stripe_status?: string | null; // trialing | active | canceled | past_due | ...
   stripe_plan?: string | null;
   docs_gerados?: number;                 // total real de docs gerados (não reseta)
-  followup_toques?: number;              // quantos toques de follow-up já recebeu
+  followup_toques?: number;              // compat: = toques WhatsApp (canal pausado)
+  followup_whatsapp_toques?: number;     // toques WhatsApp Carla (histórico, canal pausado)
+  followup_email_last_sent_at?: string | null; // último email de follow-up (canal ATIVO)
+  conversa?: { mensagens: ChatMsg[]; atualizada_em: string } | null; // conversa real trocada
   temperatura?: 'quente' | 'morno' | 'frio' | null; // só free: alvo de conversão
 }
+interface ChatMsg { role: 'user' | 'assistant'; content: string }
 interface CalcUso { aberturas: number; calculos: number; clientes: number; }
 interface UsersResponse { users: MemberRow[]; documents: Array<{ created_at: string }>; calculadora?: CalcUso; }
 
@@ -101,6 +105,8 @@ export default function MembrosPanel() {
   const [error, setError]     = useState('');
   const [q, setQ]             = useState('');
   const [planFilter, setPlanFilter] = useState<PlanFilter>('todos');
+  // Membro cuja conversa está aberta no modal (null = fechado).
+  const [convAberta, setConvAberta] = useState<MemberRow | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -341,9 +347,39 @@ export default function MembrosPanel() {
                           : <span className={styles.emptyDash}>—</span>}
                       </td>
                       <td className={styles.mutedCell}>
-                        {u.followup_toques && u.followup_toques > 0
-                          ? <span title="Toques de follow-up já enviados (todas as cadências somadas)" style={{ fontWeight: 600 }}>{u.followup_toques}×</span>
-                          : <span className={styles.emptyDash}>—</span>}
+                        {(() => {
+                          const emailAt = u.followup_email_last_sent_at;
+                          const wpp = u.followup_whatsapp_toques ?? u.followup_toques ?? 0;
+                          const temConversa = !!u.conversa && (u.conversa.mensagens?.length ?? 0) > 0;
+                          if (!emailAt && wpp === 0 && !temConversa) return <span className={styles.emptyDash}>—</span>;
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                              {emailAt && (
+                                <span title={`Cadência de e-mail (ativa). Último envio: ${fmtDateBR(emailAt)}`}
+                                      style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text)' }}>
+                                  ✉️ E-mail · {relDateShort(emailAt).label}
+                                </span>
+                              )}
+                              {wpp > 0 && (
+                                <span title="Toques de WhatsApp da Carla (canal PAUSADO — histórico)"
+                                      style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                                  💬 WhatsApp {wpp}× <span style={{ fontSize: 10 }}>(pausado)</span>
+                                </span>
+                              )}
+                              {temConversa && (
+                                <button
+                                  onClick={() => setConvAberta(u)}
+                                  style={{
+                                    fontSize: 11, fontWeight: 700, color: 'var(--color-primary)',
+                                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                                    textDecoration: 'underline', fontFamily: 'inherit',
+                                  }}>
+                                  Ver conversa ({u.conversa!.mensagens.length})
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className={styles.mutedCell}>
                         {whats
@@ -365,6 +401,61 @@ export default function MembrosPanel() {
             </table>
           </div>
         </>
+      )}
+
+      {/* Modal: conversa real trocada no WhatsApp com o membro */}
+      {convAberta && convAberta.conversa && (
+        <div
+          onClick={() => setConvAberta(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--color-surface)', borderRadius: 12, border: '1px solid var(--color-border)',
+              width: 'min(560px, 100%)', maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            }}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>
+                  Conversa · {convAberta.empresa_nome || convAberta.email}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                  {convAberta.conversa.mensagens.length} mensagens · última {fmtDateBR(convAberta.conversa.atualizada_em)}
+                </span>
+              </div>
+              <button
+                onClick={() => setConvAberta(null)}
+                style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--color-text-muted)', lineHeight: 1, fontFamily: 'inherit' }}
+                aria-label="Fechar">×</button>
+            </div>
+            <div style={{ padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {convAberta.conversa.mensagens.map((m, i) => {
+                const isAgente = m.role === 'assistant'; // assistant = nós (Carla/agente)
+                return (
+                  <div key={i} style={{ display: 'flex', justifyContent: isAgente ? 'flex-end' : 'flex-start' }}>
+                    <div style={{
+                      maxWidth: '78%', padding: '8px 12px', borderRadius: 12, fontSize: 13, lineHeight: 1.45,
+                      whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                      background: isAgente ? 'var(--color-primary)' : 'var(--color-surface-2)',
+                      color: isAgente ? '#fff' : 'var(--color-text)',
+                      borderBottomRightRadius: isAgente ? 3 : 12,
+                      borderBottomLeftRadius: isAgente ? 12 : 3,
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, marginBottom: 2 }}>
+                        {isAgente ? 'SolarDoc' : (convAberta.empresa_nome || 'Cliente')}
+                      </div>
+                      {/* remove o separador de bolhas || que o agente usa internamente */}
+                      {m.content.replace(/\s*\|\|\s*/g, '\n')}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
