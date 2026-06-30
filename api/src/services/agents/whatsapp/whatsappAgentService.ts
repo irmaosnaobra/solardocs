@@ -479,6 +479,21 @@ export async function handleIncomingWhatsApp(
     ? { jaAtivado: true as const, email: promoResult.email }
     : undefined;
 
+  // ANTI-LOOP DE 2 IAs (teto de turnos). Caso real: a gente faz outbound pra
+  // empresas de solar (B2B) e MUITAS têm autoresponder/chatbot. O bot delas
+  // responde a Giovanna, a Giovanna responde de volta, e vira loop infinito de
+  // despedidas ("abraço! até logo 👋" × N) — queima mensagem e arrisca ban.
+  // Prompt não segura (Haiku ignora o anti-loop soft). Teto DURO: passou de
+  // MAX_TURNOS_AUTO respostas nossas, PARA de responder e deixa pro humano.
+  const MAX_TURNOS_AUTO = 12;
+  const turnosNossos = session.messages.filter((m) => m.role === 'assistant').length;
+  if (turnosNossos >= MAX_TURNOS_AUTO) {
+    logger.info('giovanna-antiloop', `sessão ${cleanPhone} atingiu ${turnosNossos} turnos — para de auto-responder (provável loop bot-bot / handoff humano)`);
+    // Marca como respondido pra sair de qualquer cadência e não reabrir o ciclo.
+    await supabase.from('users').update({ whatsapp_replied_at: new Date().toISOString() }).eq('id', user.id);
+    return; // silêncio: não responde mais nada automaticamente
+  }
+
   // Se tem imagem, monta content multimodal; senao texto puro
   const userContent: any = imageSource
     ? [
