@@ -22,7 +22,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendZAPI, sleep } from '../zapiClient';
 import { logger } from '../../../utils/logger';
-import { dentroDoTetoCarla, marcarEnvioCarla } from './carlaThrottle';
+import { dentroDoTetoCarla, marcarEnvioCarla, dentroDaJanelaDeEnvio } from './carlaThrottle';
 import { registrarMsgProativa } from './whatsappAgentService';
 
 // Espaçamento mínimo entre dois envios da Carla no MESMO ciclo (anti-ráfaga).
@@ -195,6 +195,9 @@ function intervaloAtingido(
 export async function runCarlaSemCnpjFollowup(): Promise<{ enviados: number; encerrados: number; debug?: any }> {
   const now = new Date();
 
+  // Janela de envio (hoje 30/jun: só 18:30–20:00 BRT). Fora dela, não dispara.
+  if (!dentroDaJanelaDeEnvio(now)) return { enviados: 0, encerrados: 0, debug: 'fora_da_janela' };
+
   // 1. Pega user_ids que JÁ tem CNPJ pra excluir
   const { data: companies } = await supabase.from('company').select('user_id');
   const comCnpj = new Set((companies ?? []).map((c: any) => c.user_id).filter(Boolean));
@@ -268,6 +271,9 @@ export async function runCarlaSemCnpjFollowup(): Promise<{ enviados: number; enc
 
 export async function runCarlaInativoFollowup(): Promise<{ enviados: number; encerrados: number; debug?: any }> {
   const now = new Date();
+
+  // Janela de envio (hoje 30/jun: só 18:30–20:00 BRT). Fora dela, não dispara.
+  if (!dentroDaJanelaDeEnvio(now)) return { enviados: 0, encerrados: 0, debug: 'fora_da_janela' };
 
   const { data: companies } = await supabase.from('company').select('user_id');
   if (!companies?.length) return { enviados: 0, encerrados: 0 };

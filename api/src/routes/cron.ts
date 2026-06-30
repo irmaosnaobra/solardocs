@@ -524,6 +524,9 @@ router.get('/master', async (req: Request, res: Response) => {
     //   na voz da Giovanna (não mais "Carla" seca) → uma pessoa só do 1º contato ao
     //   fechamento; (3) guarda anti-loop + saída pra humano no prompt da Giovanna.
     //   Teto anti-ban segue ativo (carlaThrottle, 4/h). Re-pausar = comentar as 2.
+    //   2026-06-30: ARRANQUE controlado — guard dentroDaJanelaDeEnvio só deixa
+    //   disparar HOJE entre 18:30–20:00 BRT (≈4 pessoas no tick das 19h). A partir
+    //   de 01/jul o guard expira sozinho e a cadência volta 24/7 (4/h, ~96/dia).
     ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // follow-up Giovanna — 3 toques 30d
     ['carla-inativo',               () => runCarlaInativoFollowup()],     // follow-up Giovanna — 5 toques 60d
     // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [PAUSED-FOLLOWUP] broadcast matinal
