@@ -500,14 +500,15 @@ router.get('/master', async (req: Request, res: Response) => {
     ['orphan-checkout-recovery',    () => recoverOrphanCheckouts()],     // PAGOU e NÃO cadastrou: link de conclusão (carência 30min, até 6d). Template aprovado 02/06.
     ['followup-email-cnpj',         () => runFollowupCnpj()],            // 5 emails/30d — gerador de proposta
     // ['no-contracts-reminder',       () => runNoContractsEmailReminder()], // [PAUSED-FOLLOWUP] lembrete inativos por email
-    // 2026-06-29: WhatsApp Carla RE-PAUSADO temporariamente. Foi reativado com
-    //   throttle de manhã, mas o objetivo virou "levar o follow-up até a venda como
-    //   humano, sem bugar". Antes de soltar pra 63 clientes reais, falta: (1) Carla
-    //   salvar o que envia (hoje não salva → Giovanna assume cega no reply = bug do
-    //   print Aibo); (2) UMA persona só (Carla→Giovanna no meio = troca de atendente);
-    //   (3) testar o loop ponta a ponta no número do Thiago. Religar = descomentar.
-    // ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // WhatsApp Carla — 3 toques 30d
-    // ['carla-inativo',               () => runCarlaInativoFollowup()],     // WhatsApp Carla — 5 toques 60d
+    // 2026-06-30: WhatsApp Carla RELIGADO já como UMA persona (Giovanna) que leva
+    //   o follow-up até a venda. Conserto feito: (1) o opener é salvo na sessão por
+    //   user_id (registrarMsgProativa) → quando o cliente responde, a Giovanna lê o
+    //   contexto e continua a MESMA conversa (não assume cega); (2) o opener é gerado
+    //   na voz da Giovanna (não mais "Carla" seca) → uma pessoa só do 1º contato ao
+    //   fechamento; (3) guarda anti-loop + saída pra humano no prompt da Giovanna.
+    //   Teto anti-ban segue ativo (carlaThrottle, 4/h). Re-pausar = comentar as 2.
+    ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // follow-up Giovanna — 3 toques 30d
+    ['carla-inativo',               () => runCarlaInativoFollowup()],     // follow-up Giovanna — 5 toques 60d
     // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [PAUSED-FOLLOWUP] broadcast matinal
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],

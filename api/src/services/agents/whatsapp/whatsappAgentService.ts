@@ -93,9 +93,11 @@ ${vendaBloco}
 
 ━━ COMO RESPONDER ━━
 - Curto e natural. 1-2 frases por bolha. Emojis com parcimônia (0-1).
-- Conduza a conversa: termine com uma pergunta que avança pra próxima etapa (entender dor → mostrar valor → assinar).
+- Conduza a conversa: cada resposta avança UMA etapa (entender dor → mostrar valor → ASSINAR). Nunca ande em círculo.
 - Se a pessoa SÓ quer suporte técnico, resolva direto e bem — não force venda no meio de um problema.
-- Atenção a pedidos elípticos: "Pode mandar" = ele quer que VOCÊ mande algo (o link/proposta), NÃO que ele te mande. Não confunda.
+- Atenção a pedidos elípticos: "Pode mandar", "bora", "vamos testar", "quero" = ele quer AVANÇAR. Não devolva a bola perguntando "o que você quer?" — dê o próximo passo concreto (mostre o valor ou mande o link de assinatura).
+- ANTI-LOOP (crítico): se você JÁ fez uma pergunta de sondagem antes e o cliente respondeu mostrando interesse, NÃO faça outra pergunta de sondagem — AVANCE pro link ${APP_URL}. Você nunca faz a mesma pergunta (ou equivalente) duas vezes.
+- SAÍDA PRA HUMANO: se travar de verdade (cliente confuso, irritado, pergunta que você não sabe, ou pedindo algo fora do seu alcance), pare de insistir e diga que vai chamar uma pessoa do time pra ajudar — não invente nem fique repetindo.
 - Nunca prometa o que a plataforma não faz. Nunca invente preço (PRO 27 / VIP 67, só esses).
 
 ━━ FORMATO ━━
@@ -104,8 +106,23 @@ Máximo 2 bolhas separadas por ||. Frases curtas.${promoBloco}`;
 
 // ─── histórico ───────────────────────────────────────────────────
 
-async function getSession(phone: string): Promise<{ messages: { role: 'user' | 'assistant'; content: string }[]; nome?: string }> {
-  const { data } = await supabase.from('whatsapp_sessions').select('messages, nome').eq('phone', phone).single();
+// Lê a sessão priorizando user_id (chave ESTÁVEL — o phone do Z-API diverge do
+// users.whatsapp em 100% dos casos reais, então casar por phone perde o contexto
+// do follow-up que a Giovanna abriu). Cai pro phone quando não há user_id (visitante
+// sem conta) ou quando ainda não há linha por user_id.
+async function getSession(phone: string, userId?: string | null): Promise<{ messages: { role: 'user' | 'assistant'; content: string }[]; nome?: string }> {
+  if (userId) {
+    const { data } = await supabase
+      .from('whatsapp_sessions')
+      .select('messages, nome')
+      .eq('user_id', userId)
+      .eq('tipo', 'platform')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) return { messages: (data.messages as any[]) || [], nome: data.nome || undefined };
+  }
+  const { data } = await supabase.from('whatsapp_sessions').select('messages, nome').eq('phone', phone).maybeSingle();
   return { messages: (data?.messages as any[]) || [], nome: data?.nome || undefined };
 }
 
@@ -118,6 +135,34 @@ async function saveSession(
   const trimmed = messages.slice(-MAX_HISTORY * 2);
   const payload: any = { phone, user_id: userId, tipo: 'platform', messages: trimmed, updated_at: new Date().toISOString() };
   if (nome) payload.nome = nome;
+  await supabase.from('whatsapp_sessions').upsert(payload, { onConflict: 'phone,tipo' });
+}
+
+// Registra na sessão 'platform' uma mensagem que NÓS (Giovanna) enviamos de forma
+// proativa — ex.: o opener do follow-up da Carla. ESSENCIAL pra continuidade: sem
+// isso, quando o cliente responde, a Giovanna assume a conversa SEM saber o que foi
+// dito antes (foi a causa-raiz do "Pode mandar" bugado). Faz APPEND (não sobrescreve
+// histórico) e ancora por user_id — a chave que a Giovanna lê (phone do Z-API diverge
+// do users.whatsapp em 100% dos casos). content entra como role 'assistant' (= nós).
+export async function registrarMsgProativa(args: {
+  userId: string;
+  phone: string;          // u.whatsapp (formato do banco) — vira a chave phone da linha
+  content: string;
+  nome?: string | null;
+}): Promise<void> {
+  const phoneKey = args.phone.replace(/\D/g, '');
+  // Lê a sessão existente do user (por user_id, fallback phone) pra fazer append.
+  const existente = await getSession(phoneKey, args.userId);
+  const novas = [...existente.messages, { role: 'assistant' as const, content: args.content }];
+  const trimmed = novas.slice(-MAX_HISTORY * 2);
+  const payload: any = {
+    phone: phoneKey,
+    user_id: args.userId,
+    tipo: 'platform',
+    messages: trimmed,
+    updated_at: new Date().toISOString(),
+  };
+  if (args.nome) payload.nome = args.nome;
   await supabase.from('whatsapp_sessions').upsert(payload, { onConflict: 'phone,tipo' });
 }
 
@@ -340,7 +385,7 @@ export async function handleIncomingWhatsApp(
     .eq('user_id', user.id)
     .single();
 
-  const session = await getSession(cleanPhone);
+  const session = await getSession(cleanPhone, user.id);
   // Salva nome do remetente se ainda não tiver
   const nome = session.nome || senderName || null;
 

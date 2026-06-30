@@ -23,6 +23,7 @@ import { supabase } from '../../../utils/supabase';
 import { sendZAPI, sleep } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { dentroDoTetoCarla, marcarEnvioCarla } from './carlaThrottle';
+import { registrarMsgProativa } from './whatsappAgentService';
 
 // Espaçamento mínimo entre dois envios da Carla no MESMO ciclo (anti-ráfaga).
 const GAP_ENTRE_ENVIOS_MS = 4000;
@@ -43,16 +44,16 @@ const INTERVALOS_SEM_CNPJ = [
 
 const TONS_SEM_CNPJ: Record<number, { tom: string; objetivo: string }> = {
   1: {
-    tom: 'Empresário pra empresário, leve. "Tava aqui e vi que parou no meio."',
+    tom: 'Próxima e leve, como quem percebeu que a pessoa parou no meio. "Tava aqui e vi que parou no meio."',
     objetivo: 'Lembrar do CNPJ pra destravar a plataforma — sem cobrar. Mencionar que com 1 doc gerado a percepção de valor muda.',
   },
   2: {
-    tom: 'Pragmática. "Sem CNPJ a plataforma fica fora do ar pra você."',
+    tom: 'Prestativa e direta. "Sem CNPJ a plataforma fica fora do ar pra você."',
     objetivo: 'Oferecer ajuda concreta pra cadastrar. Lembrar dos 10 docs grátis vitalícios.',
   },
   3: {
-    tom: 'Direta, encerra com classe. Sem cobrança.',
-    objetivo: 'Última pergunta clara: ainda faz sentido ou encerro o cadastro? Empresário decide.',
+    tom: 'Direta e calorosa, encerra com classe. Sem cobrança.',
+    objetivo: 'Última pergunta clara: ainda faz sentido ou encerro o cadastro? O cliente decide.',
   },
 };
 
@@ -84,8 +85,8 @@ const TONS_INATIVO: Record<number, { tom: string; objetivo: string }> = {
     objetivo: 'Acender pertencimento sem inventar nomes. Convidar pra próximo passo concreto.',
   },
   5: {
-    tom: 'Última pergunta direta, sem rodeio. Encerra com classe se for o caso.',
-    objetivo: 'Empresário decide: seguimos ou encerro? Deixa porta aberta pra retorno espontâneo.',
+    tom: 'Última pergunta direta e calorosa, sem rodeio. Encerra com classe se for o caso.',
+    objetivo: 'O cliente decide: seguimos ou encerro? Deixa porta aberta pra retorno espontâneo.',
   },
 };
 
@@ -103,7 +104,7 @@ function carlaSystem(args: {
   tomCfg: { tom: string; objetivo: string };
 }): string {
   const linhas = [
-    `Você é a Carla, empresária-vendedora da SolarDoc Pro. Esteve 6 anos no campo instalando painel antes de virar consultora — fala empresário pra empresário, peer-to-peer.`,
+    `Você é a "Giovanna", consultora especialista da SolarDoc Pro. Vendedora de verdade, mas humana e consultiva — entende o negócio do integrador solar e conduz com calor, sem ser robótica. (Esta é a MESMA Giovanna que responde quando o cliente retorna — uma pessoa só, do primeiro contato ao fechamento.)`,
     ``,
     `CONTEXTO:`,
     `- Nome: ${args.nome}`,
@@ -124,10 +125,10 @@ function carlaSystem(args: {
   }
   linhas.push(``);
   linhas.push(`REGRAS DE HUMANIZAÇÃO (CRÍTICAS):`);
-  linhas.push(`- Tom B2B: empresário pra empresário. SEM "tudo bem?", SEM "como posso te ajudar", SEM linguagem jovem de SDR.`);
-  linhas.push(`- Direta, frases curtas, peso de quem viveu o setor (resgate experiência se couber: "quando eu tava no campo").`);
+  linhas.push(`- Tom: consultora calorosa e segura, que entende o negócio do integrador. Próxima, sem ser robótica nem manual de SDR.`);
+  linhas.push(`- Direta, frases curtas, com peso de quem conhece o setor solar.`);
   linhas.push(`- 1-2 frases. Máximo 2 bolhas separadas por ||.`);
-  linhas.push(`- 0-1 emoji NO MÁXIMO. Idealmente nenhum.`);
+  linhas.push(`- 0-1 emoji (com parcimônia, natural — não exagere).`);
   linhas.push(`- VARIE o início. NUNCA "Oi [Nome]" duas vezes seguidas. Use ("E aí ${args.nome}", "${args.nome}, voltei aqui", "${args.nome}, posso te roubar 30s?", "Tava lembrando da nossa conversa").`);
   linhas.push(`- NÃO use frases de manual ("estou à disposição", "qualquer dúvida", "não perca essa oportunidade").`);
   linhas.push(`- Termine de um jeito que gere resposta natural — uma pergunta curta direta.`);
@@ -244,6 +245,8 @@ export async function runCarlaSemCnpjFollowup(): Promise<{ enviados: number; enc
       });
       await sendZAPI(u.whatsapp, msg, 'solardoc');
       await marcarEnvioCarla(u.id);  // alimenta o teto anti-ban
+      // Salva o opener na sessão (por user_id) pra Giovanna ter contexto no reply.
+      await registrarMsgProativa({ userId: u.id, phone: u.whatsapp, content: msg, nome: u.nome });
 
       await supabase.from('users').update({
         carla_sem_cnpj_count: proxima,
@@ -332,6 +335,8 @@ export async function runCarlaInativoFollowup(): Promise<{ enviados: number; enc
       });
       await sendZAPI(u.whatsapp, msg, 'solardoc');
       await marcarEnvioCarla(u.id);  // alimenta o teto anti-ban
+      // Salva o opener na sessão (por user_id) pra Giovanna ter contexto no reply.
+      await registrarMsgProativa({ userId: u.id, phone: u.whatsapp, content: msg, nome: u.nome });
 
       await supabase.from('users').update({
         carla_inativo_count: proxima,
