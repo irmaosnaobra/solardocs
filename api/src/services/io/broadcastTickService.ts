@@ -158,16 +158,38 @@ export async function runIoBroadcastTick(): Promise<{ processed: number; broadca
       (enviadosRows as EnvioEnviado[] | null ?? []).map((e) => `${e.phone}|${e.slot}`),
     );
 
+    // 3.5. Lista de bloqueio (whatsapp_suppression): quem pediu pra NUNCA mais ser
+    //      contatado (opt-out/denúncia). É o que impede re-contatar alguém cujo
+    //      número foi raspado de novo do Google Maps. Casa por sufixo de 10 dígitos
+    //      (com/sem 9º dígito/DDI). Anti-denúncia de verdade.
+    const sufBloqueados = new Set<string>();
+    {
+      const { data: supRows } = await supabase.from('whatsapp_suppression').select('phone');
+      for (const r of supRows ?? []) {
+        const d = String(r.phone || '').replace(/\D/g, '');
+        if (d.length >= 10) sufBloqueados.add(d.slice(-10));
+      }
+    }
+    const estaBloqueado = (phone: string): boolean => {
+      const d = String(phone || '').replace(/\D/g, '');
+      return d.length >= 10 && sufBloqueados.has(d.slice(-10));
+    };
+
     // 4. Constrói fila de pendentes (mensagens × contatos - enviados)
     const pendentes: Array<{ phone: string; slot: number; base: string; mediaUrl: string | null; mediaType: MediaType | null }> = [];
+    let bloqueadosPulados = 0;
     for (const m of broadcast.mensagens) {
       const mt = m.media_type === 'image' || m.media_type === 'video' || m.media_type === 'audio' ? m.media_type : null;
       const mu = mt && m.media_url ? m.media_url : null;
       for (const phone of broadcast.contatos) {
+        if (estaBloqueado(phone)) { bloqueadosPulados++; continue; } // nunca re-contatar
         if (!enviadosSet.has(`${phone}|${m.slot}`)) {
           pendentes.push({ phone, slot: m.slot, base: m.base, mediaUrl: mu, mediaType: mt });
         }
       }
+    }
+    if (bloqueadosPulados > 0) {
+      logger.info('broadcast-tick', `${bloqueadosPulados} envio(s) pulado(s) por lista de bloqueio (anti-denúncia)`);
     }
 
     if (pendentes.length === 0) {

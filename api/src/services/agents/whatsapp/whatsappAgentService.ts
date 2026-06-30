@@ -273,10 +273,60 @@ export async function sendPurchaseWhatsApp(phone: string, plano: string, nome?: 
 // Aqui exigimos frases completas com contexto inequivoco de opt-out.
 const OPT_OUT_PATTERNS = /\b(parar de mandar|para de mandar|para de me mandar|para de me chamar|chega de mensagem|chega dessas mensagens|nao manda mais|não manda mais|nao me manda mais|não me manda mais|nao quero mais (essas |receber|mensagem)|não quero mais (essas |receber|mensagem)|me descadastra|descadastrar|sai dessa lista|sair da lista|cancela (meu )?cadastro|cancelar (meu )?cadastro|stop)\b/i;
 
+// Linguagem que PRECEDE uma denúncia (Procon, "spam", ameaça de reportar/processar).
+// É o sinal que estamos correndo pra bater ANTES da denúncia — dispara a remoção
+// imediata (deleta FREE / silencia pagante) + entra na lista de bloqueio.
+const DENUNCIA_PATTERNS = /\b(vou denunciar|vou te denunciar|vou reportar|isso (é|e) spam|isso aqui (é|e) spam|que spam|procon|vou (te )?processar|vou no procon|abusiv|me tira(r)? (daqui|disso|dessa porra)|n[aã]o autorizei|nunca autorizei|para de me perturbar|para de perturbar|me deixa em paz|para com isso porra|encheu o saco)\b/i;
+
 export interface IncomingMedia {
   url: string;
   type: string; // 'audio' | 'image' | 'video' | 'document'
   mime: string;
+}
+
+// Grava o contato na lista de bloqueio (whatsapp_suppression) pra NUNCA mais ser
+// contatado — sobrevive à deleção do user e é consultada pela cadência e pelo
+// disparo em massa. phone guardado como só-dígitos.
+async function bloquearContato(phone: string, motivo: string, userDeletado: boolean): Promise<void> {
+  const phoneDigits = (phone || '').replace(/\D/g, '');
+  if (!phoneDigits) return;
+  await supabase.from('whatsapp_suppression').upsert(
+    { phone: phoneDigits, motivo, origem: 'giovanna_followup', user_deletado: userDeletado },
+    { onConflict: 'phone' },
+  );
+}
+
+// Cliente pediu CLARAMENTE pra não ser mais atendido (opt-out forte ou denúncia).
+// Regra: FREE → DELETA o registro (FKs são CASCADE/SET NULL, o DELETE é limpo).
+// PRO/VIP → NUNCA deleta (está pagando!) — só silencia. Em AMBOS os casos grava
+// na lista de bloqueio pra nunca re-contatar (anti-denúncia de verdade).
+async function excluirOuSilenciarContato(
+  user: { id: string; email: string; plano: string },
+  phone: string,
+  motivo: 'opt_out' | 'denuncia',
+): Promise<{ deletado: boolean }> {
+  const ehPagante = user.plano === 'pro' || user.plano === 'ilimitado';
+
+  // Silencia SEMPRE primeiro (idempotente; garante parada mesmo se o delete falhar).
+  await supabase.from('users')
+    .update({ whatsapp_opt_out: true, email_opt_out: true })
+    .eq('id', user.id);
+
+  if (ehPagante) {
+    await bloquearContato(phone, motivo, false);
+    return { deletado: false };
+  }
+
+  // FREE → deleta o registro. Bloqueia ANTES do delete (a suppression sobrevive).
+  await bloquearContato(phone, motivo, true);
+  try {
+    await supabase.from('users').delete().eq('id', user.id);
+    return { deletado: true };
+  } catch (err) {
+    // Se o delete falhar por algum motivo, o opt-out + bloqueio já garantem a parada.
+    logger.error('giovanna-optout', `delete falhou pra user ${user.id}, ficou só silenciado`, err);
+    return { deletado: false };
+  }
 }
 
 // ─── resposta a mensagem recebida ────────────────────────────────
@@ -384,15 +434,20 @@ export async function handleIncomingWhatsApp(
     whatsapp_replied_at: new Date().toISOString(),
   }).eq('id', user.id);
 
-  // Detecta pedido explicito de parar com mensagens automaticas.
-  // Opt-out UNIFICADO: "não quero mais" para TODOS os canais (WhatsApp + email).
-  // Sem isso, a pessoa silenciava o Whats mas continuava recebendo email.
-  if (OPT_OUT_PATTERNS.test(text)) {
-    await supabase.from('users').update({ whatsapp_opt_out: true, email_opt_out: true }).eq('id', user.id);
+  // Cliente deixou CLARO que não quer mais ser atendido. Dois níveis:
+  // - DENÚNCIA (procon/spam/processar/"me deixa em paz"): remoção imediata.
+  // - OPT-OUT ("não quero mais", "para de mandar"): também remove.
+  // Regra (excluirOuSilenciarContato): FREE → DELETA o registro; PRO/VIP → só
+  // silencia (não apaga quem paga). Em ambos, entra na lista de bloqueio pra
+  // NUNCA re-contatar (mesmo se o número for raspado de novo). Anti-denúncia.
+  const ehDenuncia = DENUNCIA_PATTERNS.test(text);
+  if (ehDenuncia || OPT_OUT_PATTERNS.test(text)) {
+    // Despede com classe ANTES de deletar (depois o registro pode sumir).
     await sendHuman(cleanPhone, [
-      'Anotado, parei de mandar mensagem automatica.',
-      'Se um dia precisar de algo, e so me chamar aqui.',
-    ]);
+      'Entendido, vou parar por aqui e não te incomodo mais.',
+      'Se um dia precisar, é só me chamar. Abraço!',
+    ]).catch(() => {});
+    await excluirOuSilenciarContato(user, cleanPhone, ehDenuncia ? 'denuncia' : 'opt_out');
     return;
   }
 
