@@ -353,3 +353,50 @@ export async function runCarlaInativoFollowup(): Promise<{ enviados: number; enc
 
   return { enviados, encerrados };
 }
+
+// ─── TESTE GATED: dispara o opener (Giovanna) pra UM user específico ──────────
+// Mesmo caminho de produção (gera msg na voz da Giovanna, envia, marca throttle,
+// SALVA a sessão por user_id, incrementa o count) — mas escopado a 1 user_id e
+// ignorando o gate de intervalo (é disparo manual). Serve pra validar o loop
+// chama→contexto→vende num cliente real antes da leva automática.
+export async function dispararOpenerTesteParaUser(userId: string): Promise<{ ok: boolean; enviado_para?: string; msg?: string; detail?: string }> {
+  const { data: u } = await supabase
+    .from('users')
+    .select('id, nome, whatsapp, plano, created_at, carla_inativo_count, whatsapp_opt_out, whatsapp_replied_at')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!u) return { ok: false, detail: 'user não encontrado' };
+  if (!u.whatsapp) return { ok: false, detail: 'user sem whatsapp' };
+  if (u.whatsapp_opt_out) return { ok: false, detail: 'user fez opt-out' };
+
+  const now = new Date();
+  const count = (u.carla_inativo_count as number | null) ?? 0;
+  const proxima = count + 1;
+  const nome = primeiroNome(u.nome as string | null);
+
+  // Total de docs (contexto pro pitch).
+  const { count: totalDocs } = await supabase
+    .from('documents').select('id', { count: 'exact', head: true }).eq('user_id', u.id);
+
+  const msg = await gerarMsgCarla({
+    fluxo: 'inativo',
+    tentativa: proxima,
+    maxTentativas: MAX_INATIVO,
+    nome,
+    diasInativo: 5,
+    totalDocs: totalDocs ?? 0,
+    tomCfg: TONS_INATIVO[proxima] ?? TONS_INATIVO[1],
+  });
+
+  await sendZAPI(u.whatsapp as string, msg, 'solardoc');
+  await marcarEnvioCarla(u.id as string);
+  // Salva o opener por user_id → Giovanna lê o contexto quando o cliente responder.
+  await registrarMsgProativa({ userId: u.id as string, phone: u.whatsapp as string, content: msg, nome: u.nome as string | null });
+  await supabase.from('users').update({
+    carla_inativo_count: proxima,
+    carla_inativo_last_at: now.toISOString(),
+  }).eq('id', u.id);
+
+  return { ok: true, enviado_para: u.whatsapp as string, msg };
+}

@@ -3,7 +3,7 @@ import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder, runCheckoutAbandonRecovery, recoverOrphanCheckouts, runUpgradeNudge } from '../services/followupService';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
-import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup } from '../services/agents/whatsapp/carlaPlatformFollowupService';
+import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup, dispararOpenerTesteParaUser } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
@@ -303,6 +303,23 @@ router.get('/recup-test-opener', async (req: Request, res: Response) => {
     res.json({ phone, ...(await enviarOpenerTeste(phone, nome)) });
   } catch (err: any) {
     logger.error('cron', 'recup-test-opener falhou', err);
+    res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
+  }
+});
+
+// TESTE gated — dispara o opener da Giovanna (follow-up) pra UM user_id, pelo
+// caminho real (salva sessão por user_id, incrementa count). Valida o loop
+// chama→contexto→vende num cliente antes da leva automática.
+// /cron/giovanna-test-followup?userId=<uuid>
+router.get('/giovanna-test-followup', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const userId = String(req.query.userId || '').trim();
+    if (!userId) { res.status(400).json({ error: 'userId obrigatorio' }); return; }
+    const r = await dispararOpenerTesteParaUser(userId);
+    res.json(r);
+  } catch (err: any) {
+    logger.error('cron', 'giovanna-test-followup falhou', err);
     res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
   }
 });
