@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import '@/styles/globals.css';
+import UpdateBanner from '@/components/UpdateBanner/UpdateBanner';
 
 export const metadata: Metadata = {
   title: 'SolarDoc Pro',
@@ -47,7 +48,33 @@ export default function RootLayout({
                       // updateViaCache:'none' = browser nunca serve um sw.js velho
                       // do HTTP cache; sempre revalida. Garante que o kill-switch
                       // (voltar o sw.js self-destruct) chegue rápido se preciso.
-                      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(function(){});
+                      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function(reg){
+                        if (!reg) return;
+                        // DETECÇÃO de nova versão (só detecção — NÃO recarrega sozinho:
+                        // recarga silenciosa perde trabalho, ex: 40 campos da proposta).
+                        // Quando um SW novo termina de instalar E já existe um controller
+                        // ativo (=é UPDATE, não 1ª instalação), avisa a UI. O <UpdateBanner>
+                        // ouve 'sw-update-ready' e mostra "Nova versão → Atualizar" (reload
+                        // no clique). NÃO usamos controllerchange: o sw.js já faz skipWaiting
+                        // +claim, então um handler de controllerchange recarregaria todo
+                        // mundo na hora do deploy = a recarga silenciosa que evitamos.
+                        function watch(worker){
+                          if (!worker) return;
+                          worker.addEventListener('statechange', function(){
+                            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                              window.dispatchEvent(new CustomEvent('sw-update-ready'));
+                            }
+                          });
+                        }
+                        if (reg.waiting && navigator.serviceWorker.controller) {
+                          window.dispatchEvent(new CustomEvent('sw-update-ready'));
+                        }
+                        reg.addEventListener('updatefound', function(){ watch(reg.installing); });
+                        // Tab PARADO aberto: o browser só checa update SW ao navegar ou
+                        // ~a cada 24h. Sondar a cada 30min faz o app parado (o caso que
+                        // essa feature existe pra cobrir) perceber o deploy sem reabrir.
+                        setInterval(function(){ reg.update().catch(function(){}); }, 30 * 60 * 1000);
+                      }).catch(function(){});
                     });
                   }
                   // 3. Airbag: quando JS dinâmico falha (chunk de deploy antigo sumiu),
@@ -113,6 +140,7 @@ export default function RootLayout({
       </head>
       <body>
         {children}
+        <UpdateBanner />
       </body>
     </html>
   );

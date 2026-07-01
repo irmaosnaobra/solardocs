@@ -18,7 +18,13 @@
 
 // v2: /_api virou network-only. O bump também PURGA o cache sd-v1 envenenado
 // (o activate apaga caches cujo nome não começa com VERSION).
-const VERSION = 'sd-v2';
+//
+// VERSION carrega um token POR BUILD: o postbuild (scripts/stamp-sw.mjs)
+// troca o placeholder pelo commit SHA da Vercel a cada deploy. Sem isso o
+// arquivo era byte-idêntico entre deploys → o browser nunca detectava update →
+// a faixa "Nova versão" jamais aparecia. Em dev (sem stamp) fica o literal, o
+// que é inofensivo. Ao mudar de build, o activate purga o cache antigo sozinho.
+const VERSION = 'sd-__BUILD_ID__';
 const STATIC_CACHE = `${VERSION}-static`;
 const OFFLINE_URL = '/limpar-cache'; // página leve que já existe, serve de shell offline
 
