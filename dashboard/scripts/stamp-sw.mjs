@@ -1,4 +1,4 @@
-// Postbuild: carimba o service worker com um token único por build.
+// Prebuild: carimba o service worker com um token único por build.
 //
 // POR QUÊ: public/sw.js é estático. Entre dois deploys que não editam o arquivo
 // ele fica byte-idêntico → o browser (que detecta update SW por comparação de
@@ -6,9 +6,12 @@
 // nunca aparece. Trocar __BUILD_ID__ pelo SHA do commit faz TODO deploy mudar o
 // sw.js, então o update passa a ser detectável de verdade.
 //
-// Roda depois do `next build`. A Vercel expõe VERCEL_GIT_COMMIT_SHA no build;
-// fora dela (build local) cai num timestamp. Idempotente: se já foi carimbado
-// (sem o placeholder), não faz nada — não quebra rebuilds.
+// RODA ANTES do `next build` (hook prebuild). Tem que ser antes: o next build
+// snapshota public/ pro output estático; se o stamp rodasse depois, editaria um
+// arquivo que já não é o servido (foi o bug do 1º deploy — carimbou mas o /sw.js
+// servido continuou com o placeholder). A Vercel expõe VERCEL_GIT_COMMIT_SHA;
+// fora dela (build local) é no-op pelo gate VERCEL!=1 abaixo. Idempotente: se já
+// foi carimbado (sem placeholder), não faz nada — não quebra rebuilds.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

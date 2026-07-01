@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/stamp-sw.mjs",
+    "prebuild": "node scripts/stamp-sw.mjs",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
