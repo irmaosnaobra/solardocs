@@ -7,6 +7,33 @@ import puppeteer from 'puppeteer-core';
 // Mismatch causa TargetCloseError ao tentar ler o PDF do navegador.
 const CHROMIUM_URL = 'https://github.com/Sparticuz/chromium/releases/download/v147.0.0/chromium-v147.0.0-pack.x64.tar';
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Lança o Chromium com retry curto. O launch pode dar `spawn ETXTBSY` ("text
+// file busy") quando DUAS invocações concorrentes no mesmo container Lambda
+// tentam extrair/spawnar o binário em /tmp ao mesmo tempo — o binário ainda
+// está sendo escrito por uma quando a outra tenta executar. É transitório:
+// esperar alguns ms e tentar de novo resolve. Visto 2× em ~2 meses; sem o
+// retry, cada uma dessas chega no cliente como "erro ao baixar". Só retenta
+// erros transitórios de launch; erro real (ex: binário corrompido) estoura na
+// última tentativa e cai no catch com o stage certo.
+async function launchWithRetry(opts: Parameters<typeof puppeteer.launch>[0]) {
+  const TRANSIENT = /ETXTBSY|Target closed|Failed to launch/i;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await puppeteer.launch(opts);
+    } catch (err) {
+      lastErr = err;
+      const msg = (err as Error)?.message || '';
+      if (!TRANSIENT.test(msg) || attempt === 3) throw err;
+      console.warn(`[pdf] launch retry ${attempt}/2 após erro transitório: ${msg}`);
+      await sleep(attempt * 300);
+    }
+  }
+  throw lastErr;
+}
+
 export async function generatePdf(req: Request, res: Response): Promise<void> {
   let browser;
   let stage = 'init';
@@ -52,7 +79,7 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
     const execPath = await chromium.executablePath(CHROMIUM_URL);
 
     stage = 'puppeteer-launch';
-    browser = await puppeteer.launch({
+    browser = await launchWithRetry({
       args: chromium.args,
       defaultViewport: (chromium as any).defaultViewport,
       executablePath: execPath,
