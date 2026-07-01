@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import api from '@/services/api';
+import { getToken } from '@/services/auth';
 import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null }
@@ -180,7 +181,6 @@ export default function PropostaSolarPage() {
   const [error, setError] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [copyMsg, setCopyMsg] = useState('');
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
   // Validação inline: quais campos obrigatórios estão faltando (pra marcar de vermelho).
   const [faltando, setFaltando] = useState<Set<string>>(new Set());
 
@@ -386,29 +386,28 @@ export default function PropostaSolarPage() {
     }
   }
 
-  async function handleDownloadPdf() {
-    if (!generated?.doc_id || downloadingPdf) return;
-    setDownloadingPdf(true);
-    try {
-      const response = await api.get(`/documents/${generated.doc_id}/pdf`, { responseType: 'blob' });
-      const blob = response.data as Blob;
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const safeName = (generated.cliente_nome || 'proposta')
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')
-        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-      a.download = `proposta-${safeName || 'cliente'}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch {
-      setCopyMsg('❌ Erro ao gerar PDF. Tenta de novo.');
+  function handleDownloadPdf() {
+    if (!generated?.doc_id) return;
+
+    const token = getToken();
+    if (!token) {
+      setCopyMsg('❌ Sessão expirou. Faça login novamente.');
       setTimeout(() => setCopyMsg(''), 4000);
-    } finally {
-      setDownloadingPdf(false);
+      return;
     }
+
+    // Download via navegação MESMA-ORIGEM (/_api em produção) — mesmo padrão do
+    // DocumentPreview. Crítico pra mobile: iOS Safari frequentemente ignora o
+    // download via blob (createObjectURL + a.click()) — abre em aba ou "nada
+    // acontece". A navegação direta pra uma URL com Content-Disposition:
+    // attachment funciona no iOS, e mesma-origem evita o cross-origin do
+    // solardocs-api.vercel.app. O token vai na query porque navegação não manda
+    // header Authorization (a rota /documents/:id/pdf aceita ?token= via
+    // downloadAuth).
+    const base = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
+      ? '/_api'
+      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
+    window.location.href = `${base}/documents/${generated.doc_id}/pdf?token=${encodeURIComponent(token)}`;
   }
 
   // Identificador público preferencial:
@@ -486,10 +485,10 @@ export default function PropostaSolarPage() {
           <button
             type="button"
             onClick={handleDownloadPdf}
-            disabled={downloadingPdf || !generated.doc_id}
-            style={{ ...btn('outline'), opacity: (downloadingPdf || !generated.doc_id) ? 0.6 : 1, cursor: downloadingPdf ? 'wait' : 'pointer' }}
+            disabled={!generated.doc_id}
+            style={{ ...btn('outline'), opacity: !generated.doc_id ? 0.6 : 1, cursor: 'pointer' }}
           >
-            {downloadingPdf ? '⏳ Gerando PDF…' : '📥 Baixar PDF'}
+            📥 Baixar PDF
           </button>
           {copyMsg && <span style={{ color: copyMsg.startsWith('❌') ? 'var(--ink-red)' : 'var(--ink-green)', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}
         </div>
