@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
+import { getToken } from '@/services/auth';
 import styles from './historico.module.css';
 import { fmtDateBR } from '@/utils/brasilia';
-import { slugifyDocName } from '@/utils/docFilename';
 
 interface Doc {
   id: string;
@@ -32,7 +32,6 @@ export default function HistoricoPage() {
   const [loading, setLoading] = useState(true);
   const [historico, setHistorico] = useState(false);
   const [plano, setPlano] = useState('');
-  const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
     api.get('/documents/list').then(({ data }) => {
@@ -42,47 +41,26 @@ export default function HistoricoPage() {
     }).finally(() => setLoading(false));
   }, []);
 
-  async function handleDownloadPdf(doc: Doc) {
-    setDownloading(doc.id);
-    try {
-      const res = await api.get(`/documents/${doc.id}/pdf`, { responseType: 'blob' });
-      // Se o backend retornou JSON de erro com Content-Type: application/json,
-      // o axios entrega como Blob — extraímos o texto pra ler o erro real.
-      const ct = res.headers?.['content-type'] || '';
-      if (ct.includes('application/json')) {
-        const text = await (res.data as Blob).text();
-        try {
-          const j = JSON.parse(text) as { error?: string; stage?: string; message?: string };
-          alert(`Erro ao gerar PDF\nStage: ${j.stage || '?'}\n${j.message || j.error || 'sem detalhes'}`);
-        } catch {
-          alert('Erro ao gerar PDF. Resposta inesperada do servidor.');
-        }
-        return;
-      }
-      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${slugifyDocName(doc.tipo, doc.cliente_nome)}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: Blob | { error?: string; stage?: string; message?: string } } };
-      const data = e.response?.data;
-      if (data instanceof Blob) {
-        try {
-          const txt = await data.text();
-          const j = JSON.parse(txt);
-          alert(`Erro ao gerar PDF\nStage: ${j.stage || '?'}\n${j.message || j.error || 'sem detalhes'}`);
-          return;
-        } catch {}
-      } else if (data && typeof data === 'object') {
-        alert(`Erro ao gerar PDF\nStage: ${data.stage || '?'}\n${data.message || data.error || 'sem detalhes'}`);
-        return;
-      }
-      alert('Erro ao gerar PDF. Tente novamente.');
-    } finally {
-      setDownloading(null);
+  function handleDownloadPdf(doc: Doc) {
+    const token = getToken();
+    if (!token) {
+      alert('Sessão expirou. Faça login novamente.');
+      return;
     }
+
+    // Download via navegação MESMA-ORIGEM (/_api em produção) — mesmo padrão do
+    // DocumentPreview e da Proposta Solar. Crítico pra mobile: iOS Safari
+    // frequentemente ignora o download via blob (createObjectURL + a.click()) —
+    // abre em aba ou "nada acontece". A navegação direta pra uma URL com
+    // Content-Disposition: attachment funciona no iOS, e mesma-origem evita o
+    // cross-origin do solardocs-api.vercel.app. O token vai na query porque
+    // navegação não manda header Authorization (a rota /documents/:id/pdf aceita
+    // ?token= via downloadAuth). Se o PDF falhar, o backend responde a mensagem
+    // de erro na própria aba — trade-off aceitável frente a não baixar no iPhone.
+    const base = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
+      ? '/_api'
+      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
+    window.location.href = `${base}/documents/${doc.id}/pdf?token=${encodeURIComponent(token)}`;
   }
 
   if (loading) return <div className={styles.page}><p className={styles.empty}>Carregando...</p></div>;
@@ -129,9 +107,8 @@ export default function HistoricoPage() {
                   <button
                     className={styles.downloadBtn}
                     onClick={() => handleDownloadPdf(doc)}
-                    disabled={downloading === doc.id}
                   >
-                    {downloading === doc.id ? '⏳ Gerando...' : '⬇ Baixar PDF'}
+                    ⬇ Baixar PDF
                   </button>
                 ) : (
                   <span className={styles.noFile}>Processando...</span>
