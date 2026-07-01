@@ -29,6 +29,20 @@ export function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
+// Circuit-breaker por instância, fail-open e auto-expirável. Quando a instância
+// Z-API está fora (ex: "Instance not found" = deletada/cancelada/token errado),
+// SEM isto cada tick de cron re-tentava 20 cards × 3 chamadas = ~60 falhas/min
+// nos logs, floodando observabilidade e queimando execução — visto desde 30/jun.
+// Aqui: a 1ª falha marca um cooldown; chamadas seguintes na mesma janela
+// short-circuitam sem tocar a rede. Expira sozinho → quando a instância volta,
+// o próximo tick tenta de novo (recuperação automática, sem probe de status que
+// poderia dar falso-negativo e barrar envio legítimo).
+const COOLDOWN_MS = 60_000;
+const instanceCooldownUntil: Record<string, number> = {};
+// "Instance not found" é PERMANENTE (não adianta retentar na mesma chamada) —
+// além de disparar o cooldown, pula os retries internos.
+const PERMANENT_ERR = /Instance not found/i;
+
 export function fmtPhone(raw: string): string {
   const d = raw.replace(/\D/g, '');
   return d.startsWith('55') ? d : `55${d}`;
@@ -44,6 +58,14 @@ export async function zapiPost(
   if (!id || !token || !client) {
     throw new Error(`[zapi:${instance}] credenciais Z-API ausentes (verifique ZAPI_INSTANCE_ID${instance === 'io' ? '_IO' : ''}, ZAPI_TOKEN${instance === 'io' ? '_IO' : ''}, ZAPI_CLIENT_TOKEN)`);
   }
+
+  // Circuit-breaker: se esta instância falhou há pouco (instância fora), nem
+  // toca a rede — evita o flood de 60 falhas/min por tick de cron.
+  const cd = instanceCooldownUntil[instance];
+  if (cd && Date.now() < cd) {
+    throw new Error(`[zapi:${instance}] em cooldown (instância indisponível há <60s) — pulando envio`);
+  }
+
   let lastErr: Error | null = null;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -64,6 +86,13 @@ export async function zapiPost(
       lastErr = new Error(`[zapi:${instance}] HTTP ${res.status} — ${txt}`);
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err));
+    }
+    // Erro PERMANENTE (instância não existe): abre o cooldown e para de retentar
+    // — retentar "not found" só multiplica o flood. Cobre falha via HTTP (body
+    // "Instance not found") E via exceção de rede que contenha a mesma marca.
+    if (PERMANENT_ERR.test(lastErr.message)) {
+      instanceCooldownUntil[instance] = Date.now() + COOLDOWN_MS;
+      throw lastErr;
     }
     if (attempt < retries) await sleep(1000 * (attempt + 1));
   }
