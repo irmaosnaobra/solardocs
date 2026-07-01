@@ -1,17 +1,23 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Bia — inbound conversacional da recuperação de checkout LimpaPro (linha 'recuperacao').
 //
-// Quando o cliente RESPONDE a mensagem de recuperação, a Bia conversa com IA (Claude
-// Sonnet): tira dúvida, reenvia o link oficial de pagamento, contorna objeção — tom de
-// atendente humana, simpática, NÃO insistente. Mantém histórico em whatsapp_sessions
-// (tipo='recuperacao'), o que também faz o backoff do outbound (emConversa()=true).
+// Quando o cliente RESPONDE, a Bia conversa com IA (Claude Sonnet) como uma VENDEDORA
+// CONSULTIVA: entende a trava, contorna a objeção, cria urgência honesta e CONDUZ AO
+// FECHAMENTO — não é uma tiradora-de-dúvidas passiva. Ela tem UMA alavanca de fechamento
+// real: o cupom LIMPA30 (30% OFF), que pode oferecer 1 VEZ quando a pessoa hesita ou
+// sinaliza intenção. Mantém histórico em whatsapp_sessions (tipo='recuperacao'), o que
+// também faz o backoff do outbound (emConversa()=true).
+//
+// Persistência é DENTRO da conversa ativa (seguro/desejado), não re-ping a frio. Só para
+// de vender com recusa EXPLÍCITA → tag [PERDIDO] (status='perdido', Bia cala). "Vou pensar"/
+// "depois" NÃO é perdido — acolhe e mantém a porta aberta (foi onde perdemos Lucimary/Gilberto).
 //
 // Via PRIMÁRIA: webhook /webhook/recup (tem o texto direto). Poll é fallback se o
 // webhook Multi Device da Z-API falhar (bug conhecido — ver sdrIoPolling).
 //
-// Guard-rails duros no system prompt: NUNCA inventa preço/link/desconto. Pedido de
-// desconto/reembolso/problema sério → tag [ESCALAR] → human_takeover (Bia cala, humano assume).
-// Tudo no-op enquanto recuperacaoHabilitada()=false (RECUP_ENABLED!='true').
+// Guard-rails duros: NUNCA inventa preço/link. Usa SÓ o cupom LIMPA30 (nunca inventa outro
+// desconto/parcelamento/brinde). Reembolso/problema no pagamento/reclamação séria → tag
+// [ESCALAR] → human_takeover. Tudo no-op enquanto recuperacaoHabilitada()=false.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -53,11 +59,19 @@ export async function ehLeadRecuperacao(rawPhone: string): Promise<boolean> {
   return Boolean(data);
 }
 
-const OPT_OUT = /\b(parar de mandar|para de mandar|chega de mensagem|n[ãa]o (me )?manda mais|n[ãa]o quero mais|me descadastr|descadastrar|sair da lista|cancela(r)? (meu )?cadastro|stop)\b/i;
+// Opt-out DURO → PERDIDO na hora (antes de chamar a IA). Só recusa EXPLÍCITA: "vou pensar"/
+// "depois"/"esse mês não dá" NÃO casam de propósito (mantêm o lead quente). Os radicais
+// descadastr/cancela usam \w* no fim pra pegar as conjugações ("descadastra", "descadastro",
+// "cancela", "cancelar") — sem isso, o \b logo após o radical falhava em "me descadastra".
+const OPT_OUT = /\b(parar de mandar|para de mandar|chega de mensagem|n[ãa]o (me )?manda mais|n[ãa]o quero mais|me descadastr\w*|descadastr\w*|sair da lista|cancela\w* (meu )?cadastro|stop)\b/i;
 
 interface BiaLeadData {
-  email?: string; produto?: string | null; status?: 'pix_gerado' | 'abandonou' | null;
+  email?: string; produto?: string | null; status?: 'pix_gerado' | 'abandonou' | 'perdido' | null;
   valor_centavos?: number | null; link?: string | null; pix_code?: string | null; human_takeover?: boolean;
+  // Fechamento: cupom LIMPA30 é oferta ÚNICA por conversa (não vira leilão de desconto).
+  cupom_oferecido?: boolean;
+  // Marcado quando o cliente recusou explicitamente ([PERDIDO]) — Bia para de vender.
+  perdido_em?: string;
 }
 interface BiaSession {
   messages: { role: 'user' | 'assistant'; content: string }[];
@@ -66,51 +80,79 @@ interface BiaSession {
 }
 
 // ─── system prompt da Bia ───────────────────────────────────────────
-function buildBiaSystemPrompt(ctx: {
-  nome?: string | null; produto?: string | null; status?: 'pix_gerado' | 'abandonou' | null;
+// Exportado pra teste de regressão comportamental (replay dos casos reais Lucimary/Gilberto/Eduardo).
+export function buildBiaSystemPrompt(ctx: {
+  nome?: string | null; produto?: string | null; status?: 'pix_gerado' | 'abandonou' | 'perdido' | null;
   valorCentavos?: number | null; link?: string | null; pixCode?: string | null;
+  cupomJaOferecido?: boolean;
 }): string {
   const nome = ctx.nome ? ctx.nome.trim().split(/\s+/)[0] : null;
   const produto = ctx.produto || 'Limpa Solar Pro';
   const valor = ctx.valorCentavos
     ? `R$ ${(ctx.valorCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null;
   const link = ctx.link || process.env.RECUP_CHECKOUT_URL || null;
+  // Alavanca de fechamento: cupom LIMPA30 (30% OFF). Gate IGUAL ao outbound (cupomHabilitado):
+  // RECUP_CUPOM_ENABLED='true' + URL setada. Assim, se o Thiago desligar o cupom (margem etc),
+  // a Bia inbound PARA de oferecer junto com o toque frio — não fica dando 30% por conta própria.
+  const cupomUrl = process.env.RECUP_CUPOM_URL?.trim() || null;
+  const cupomLigado = process.env.RECUP_CUPOM_ENABLED === 'true' && Boolean(cupomUrl);
+  const cupomDisponivel = cupomLigado && !ctx.cupomJaOferecido;
 
-  return `Você é a "Bia", atendente do Limpa Solar Pro pelo WhatsApp. A pessoa entrou
-no checkout e não finalizou — você ajuda a concluir, tira dúvida, remove travas.
-Atendente humana, simpática, tranquila. NUNCA robótica, NUNCA insistente.
+  return `Você é a "Bia", vendedora consultiva do Limpa Solar Pro pelo WhatsApp. A pessoa
+entrou no checkout e NÃO finalizou. Seu trabalho é FECHAR essa venda: entender a trava,
+resolver, e conduzir a pessoa até concluir a compra. Você é gente boa, humana e simpática —
+mas é VENDEDORA: não larga a bola, conduz. Nunca robótica, nunca agressiva, nunca chata.
 
 ━━ CONTEXTO DESTE CLIENTE ━━
 ${nome ? `- Nome: ${nome}` : '- Nome: desconhecido (não invente)'}
-- Produto: ${produto}
-${valor ? `- Valor: ${valor}` : '- Valor: NÃO informado — você NÃO sabe o preço'}
+- Produto: ${produto}${valor ? ` — valor ${valor}` : ' — valor NÃO informado (você NÃO sabe o preço; não invente)'}
 - Situação: ${ctx.status === 'pix_gerado' ? 'gerou o Pix e não pagou' : ctx.status === 'abandonou' ? 'abandonou o checkout' : 'entrou no checkout'}
-${link ? `- LINK OFICIAL pra finalizar: ${link}` : '- LINK: indisponível agora (NÃO invente nenhum link)'}
+${link ? `- ÚNICO LINK OFICIAL (use SEMPRE este, nunca outro): ${link}` : '- LINK: indisponível (NÃO invente nenhum link)'}
+${cupomUrl ? `- LINK COM CUPOM 30% OFF (sua alavanca de fechamento): ${cupomUrl}` : ''}
 ${ctx.pixCode ? '- PIX copia-e-cola disponível (use exatamente como está)' : ''}
 
-━━ O QUE VOCÊ FAZ ━━
-- Responde dúvida de forma simples e direta.
-- Reenvia o LINK OFICIAL acima quando a pessoa quer pagar/pede o link. Use SOMENTE
-  o link/pix do CONTEXTO. Sem ele, diga que vai pedir o link atualizado pro time —
-  NÃO escreva nenhuma URL de cabeça.
-- Contorna objeção comum (segurança, "vou pensar", "é confiável?") com calma, sem pressão.
+━━ O QUE É O PRODUTO (pra tirar dúvida com segurança) ━━
+- Curso em VIDEOAULAS de limpeza profissional de placas solares. Acessa no celular ou
+  computador, no seu tempo, sem prazo pra terminar. Acesso liberado na hora do pagamento.
+- Se perguntarem algo que você NÃO sabe de fato, não invente: diga que confirma e siga.
 
-━━ REGRA DURA — NUNCA ━━
-- NUNCA invente preço. Sem valor no contexto e perguntarem: diga que confirma com o time.
-- NUNCA prometa desconto, cupom, brinde, parcelamento especial ou reembolso (depende de
-  humano). Se pedirem, diga que vai verificar e PARE (sem prometer prazo curto).
-- NUNCA invente link, código pix ou política da empresa.
-- NÃO insista. "Não quero agora"/"vou pensar" → acolha ("sem problema, fico à disposição") e ENCERRE.
+━━ COMO VENDER (conduza sempre pro próximo passo) ━━
+1. Entenda a trava real. Faça UMA pergunta curta se não estiver claro ("o que te segurou?").
+2. Resolva a objeção com calma e uma frase de valor (ex.: "é no seu tempo, acesso na hora").
+3. FECHE: proponha o próximo passo concreto e mande o LINK OFICIAL. Ex.: "consegue finalizar
+   agora que eu te acompanho?" — sempre terminando com um convite pra concluir, não no ar.
+4. Sinal de intenção ("quero", "vou adquirir", "como faço") → NÃO adie. Mande o link e diga
+   que é rápido. NUNCA responda "quando quiser me chama" a quem demonstrou que quer comprar.
+${cupomDisponivel ? `
+━━ SUA ALAVANCA DE FECHAMENTO — CUPOM 30% OFF (use com inteligência) ━━
+- Você PODE oferecer o cupom de 30% OFF, mas UMA ÚNICA VEZ nesta conversa. Guarde pro momento
+  certo: quando a pessoa hesita ("vou pensar", "tá caro", "depois"), fica na dúvida, ou você
+  já contornou a objeção e ela ainda não fechou. É seu empurrãozinho final.
+- Ao oferecer: mande o LINK COM CUPOM acima (o desconto já vem aplicado) e enquadre como algo
+  especial e por tempo limitado ("consegui um desconto pra fechar hoje"). Honesto, sem mentir.
+- Depois de oferecer o cupom, NÃO ofereça de novo nem invente desconto maior. É essa oferta.` : `
+━━ DESCONTO ━━
+- Você NÃO tem cupom disponível agora. Se pedirem desconto, diga que vai verificar com o time
+  e siga vendendo pelo valor cheio. NUNCA invente cupom, desconto, brinde ou parcelamento.`}
+
+━━ REGRAS DURAS — NUNCA ━━
+- NUNCA invente preço, link, código pix ou política. Use SÓ o que está no CONTEXTO.
+- NUNCA prometa outro desconto além do cupom acima, nem reembolso, brinde ou parcelamento especial.
+- Se já comprou ("já paguei"/"comprei"): agradeça, diga que confere o acesso — NÃO mande link, NÃO cobre.
+
+━━ QUANDO PARAR (2 tags — o sistema remove a tag antes de enviar) ━━
+- RECUSA EXPLÍCITA ("não quero mais", "para de me mandar", "me tira daí", "não tenho interesse"):
+  acolha com uma frase respeitosa e termine com a tag literal [PERDIDO]. Bia para de vender.
+  ATENÇÃO: "vou pensar", "depois", "esse mês não dá", "mês que vem", "agora não" NÃO são recusa —
+  NÃO use [PERDIDO] neles. Acolha, deixe a porta aberta ("fico por aqui quando decidir 😊") e,
+  se ainda não ofereceu, esse é um bom momento pro cupom.
+- PRECISA DE HUMANO (reembolso, problema no pagamento que você não resolve, reclamação séria):
+  responda UMA vez acolhendo que vai passar pro time, e termine com a tag literal [ESCALAR].
 
 ━━ COMO ESCREVER ━━
 - WhatsApp: curto, humano, no máximo 2 bolhas separadas por ||. 1-2 frases por bolha.
-  No máximo 1 emoji. UMA resposta por mensagem do cliente. Nome só se souber.
-- Se já comprou ("já paguei"/"comprei"): agradeça, diga que confere — NÃO mande link, NÃO cobre.
-
-━━ ESCALAÇÃO ━━
-Assunto que exige humano (desconto, reembolso, problema no pagamento, reclamação séria):
-responda UMA vez acolhendo que vai passar pro time, e termine com a tag literal [ESCALAR]
-(o sistema remove a tag antes de enviar e aciona um humano).`;
+  No máximo 1 emoji. UMA resposta por mensagem do cliente. Nome só se souber. Sempre puxando
+  pro fechamento, mas leve — conversa de gente, não script de robô.`;
 }
 
 // ─── sessão ─────────────────────────────────────────────────────────
@@ -152,14 +194,17 @@ export async function handleBiaInbound(rawPhone: string, text: string, senderNam
   const phone = session.phoneCanonico;     // chave da sessão (salvar aqui pra não duplicar)
   const nome = session.nome ?? senderName ?? null;
 
-  if (session.lead_data.human_takeover === true) { // humano assumiu → registra e cala
+  // Estados de PARADA: humano assumiu OU lead marcado perdido → registra e cala.
+  if (session.lead_data.human_takeover === true || session.lead_data.status === 'perdido') {
     await saveSession(phone, [...session.messages, { role: 'user', content: clean }], nome, session.lead_data);
     return;
   }
+  // Opt-out explícito (regex dura) → PERDIDO na hora, sem chamar a IA. Acolhe e para de vender.
   if (OPT_OUT.test(clean)) {
     await sendHuman(rawPhone, ['Sem problema, parei por aqui.', 'Se precisar é só me chamar neste número.'], INSTANCE);
-    await saveSession(phone, [...session.messages, { role: 'user', content: clean }], nome, { ...session.lead_data, human_takeover: true });
-    logger.info('bia-inbound', `opt-out ${phone}`);
+    await saveSession(phone, [...session.messages, { role: 'user', content: clean }], nome,
+      { ...session.lead_data, status: 'perdido', perdido_em: new Date().toISOString() });
+    logger.info('bia-inbound', `opt-out → perdido ${phone}`);
     return;
   }
 
@@ -171,6 +216,7 @@ export async function handleBiaInbound(rawPhone: string, text: string, senderNam
       system: buildBiaSystemPrompt({
         nome, produto: session.lead_data.produto, status: session.lead_data.status,
         valorCentavos: session.lead_data.valor_centavos, link: session.lead_data.link, pixCode: session.lead_data.pix_code,
+        cupomJaOferecido: session.lead_data.cupom_oferecido === true,
       }),
       messages,
     });
@@ -179,13 +225,27 @@ export async function handleBiaInbound(rawPhone: string, text: string, senderNam
   } catch (err) { logger.error('bia-inbound', `claude falhou ${phone}`, err); return; }
   if (!raw.trim()) return;
 
+  // Tags de controle (removidas antes de enviar): [ESCALAR] → humano · [PERDIDO] → para de vender.
   const escalar = /\[ESCALAR\]/i.test(raw);
-  const parts = raw.replace(/\[ESCALAR\]/ig, '').trim().split('||').map(p => p.trim()).filter(Boolean).slice(0, 2);
+  const perdido = /\[PERDIDO\]/i.test(raw);
+  const parts = raw.replace(/\[ESCALAR\]/ig, '').replace(/\[PERDIDO\]/ig, '').trim()
+    .split('||').map(p => p.trim()).filter(Boolean).slice(0, 2);
   if (parts.length) await sendHuman(phone, parts, INSTANCE);
 
-  await saveSession(phone, [...messages, { role: 'assistant', content: raw }], nome,
-    escalar ? { ...session.lead_data, human_takeover: true } : session.lead_data);
+  // Rate-limit do cupom: se a Bia mandou o link com cupom nesta resposta, trava a próxima oferta.
+  const cupomUrl = process.env.RECUP_CUPOM_URL?.trim();
+  const ofereceuCupomAgora = Boolean(cupomUrl && raw.includes(cupomUrl))
+    || /\bLIMPA30\b/i.test(raw) || (/30\s*%/.test(raw) && /(desconto|off|cupom)/i.test(raw));
+
+  const novoLeadData: BiaLeadData = { ...session.lead_data };
+  if (escalar) novoLeadData.human_takeover = true;
+  if (perdido) { novoLeadData.status = 'perdido'; novoLeadData.perdido_em = new Date().toISOString(); }
+  if (ofereceuCupomAgora) novoLeadData.cupom_oferecido = true;
+
+  await saveSession(phone, [...messages, { role: 'assistant', content: raw }], nome, novoLeadData);
   if (escalar) logger.info('bia-inbound', `escalado pra humano: ${phone} (${session.lead_data.email ?? 's/ email'})`);
+  if (perdido) logger.info('bia-inbound', `lead marcado PERDIDO: ${phone} (${session.lead_data.email ?? 's/ email'})`);
+  if (ofereceuCupomAgora) logger.info('bia-inbound', `cupom LIMPA30 ofertado: ${phone}`);
 }
 
 // ─── INBOUND VIA webhook_debug (a via REAL da linha IO) ──────────────

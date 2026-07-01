@@ -8,7 +8,7 @@ import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCn
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
-import { runLimpaproRecoveryConsumer, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
+import { runLimpaproRecoveryConsumer, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundService';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
@@ -288,6 +288,18 @@ router.get('/limpapro-cupom-seed', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await seedLimpaproCupomBacklog({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'limpapro-cupom-seed falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+// 3º toque (fechamento) pro backlog — última msg fria pra quem tomou opener+cupom e segue
+// mudo. One-shot manual ao ligar o fechamento. ?dry=1 confere a contagem sem semear.
+router.get('/limpapro-fechamento-seed', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await seedLimpaproFechamentoBacklog({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'limpapro-fechamento-seed falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });

@@ -308,8 +308,10 @@ export async function getLimpaproLeads(req: Request, res: Response): Promise<voi
 // rota admin-gated (authMiddleware + adminMiddleware), mesma classe da lista de leads.
 //
 // Cada sessão carrega messages[] {role:'assistant'|'user', content}. Derivamos:
-// • respondeu  = a pessoa mandou ao menos 1 msg (role='user') → engajou
+// • comprou    = o email da sessão tem purchase paga → RECUPERADO (a venda fechou!)
+// • perdido    = cliente recusou explícito (lead_data.status='perdido') → Bia parou de vender
 // • takeover   = humano assumiu (lead_data.human_takeover) → Bia calou
+// • respondeu  = a pessoa mandou ao menos 1 msg (role='user') → engajou
 // A sessão de teste do Thiago (phone 5534991360223 / email teste+...@limpapro.local)
 // é marcada como teste pro front poder esconder, sem sumir do banco.
 interface BiaMsg { role: 'assistant' | 'user'; content: string }
@@ -333,11 +335,33 @@ export async function getLimpaproConversas(_req: Request, res: Response): Promis
       .limit(200);
     if (error) throw error;
 
+    const rows = (data ?? []) as BiaSessionRow[];
+
+    // RECUPERADOS: quais emails das sessões já têm compra paga? Uma query só (in-list dos
+    // emails presentes nas sessões), pra marcar "comprou" sem N+1. lead_data.email é o elo.
+    const emails = Array.from(new Set(
+      rows.map((s) => String((s.lead_data?.['email'] ?? '')).toLowerCase().trim()).filter(Boolean),
+    ));
+    const compradores = new Set<string>();
+    if (emails.length) {
+      const { data: pagos } = await supabase
+        .from('limpapro_events')
+        .select('buyer_email')
+        .eq('event_type', 'purchase').eq('status', 'paid')
+        .in('buyer_email', emails);
+      for (const p of (pagos ?? []) as { buyer_email: string | null }[]) {
+        if (p.buyer_email) compradores.add(p.buyer_email.toLowerCase().trim());
+      }
+    }
+
     const TESTE_PHONE = '5534991360223';
-    const conversas = ((data ?? []) as BiaSessionRow[]).map((s) => {
+    const conversas = rows.map((s) => {
       const msgs = Array.isArray(s.messages) ? s.messages : [];
       const respondeu = msgs.some((m) => m?.role === 'user');
       const takeover = Boolean(s.lead_data?.['human_takeover']);
+      const perdido = s.lead_data?.['status'] === 'perdido';
+      const email = String(s.lead_data?.['email'] ?? '').toLowerCase().trim();
+      const comprou = Boolean(email && compradores.has(email));
       const ehTeste = s.phone === TESTE_PHONE || /(^|\W)teste\b/i.test(s.nome ?? '');
       return {
         phone: s.phone,
@@ -346,6 +370,8 @@ export async function getLimpaproConversas(_req: Request, res: Response): Promis
         n_msgs: msgs.length,
         respondeu,
         takeover,
+        perdido,
+        comprou,
         teste: ehTeste,
         // Texto da conversa, na ordem em que aconteceu.
         mensagens: msgs.map((m) => ({ role: m.role, content: m.content })),
@@ -355,6 +381,7 @@ export async function getLimpaproConversas(_req: Request, res: Response): Promis
     res.json({
       total: conversas.length,
       respondidas: conversas.filter((c) => c.respondeu && !c.teste).length,
+      recuperados: conversas.filter((c) => c.comprou && !c.teste).length,
       conversas,
     });
   } catch (err) {

@@ -34,6 +34,7 @@
 import { supabase } from '../../../utils/supabase';
 import { sendHuman, fmtPhone } from '../zapiClient';
 import { logger } from '../../../utils/logger';
+import { dentroDoTetoHorarioLinha } from './lineThrottle';
 
 // A recuperação SAI pela MESMA linha física IO (34998165040) — decisão do Thiago:
 // uma só linha, a IA de recuperação convive com o atendimento humano de energia solar.
@@ -52,8 +53,6 @@ function recuperacaoHabilitada(): boolean {
 
 // Cooldown: não recontatar o mesmo lead dentro deste intervalo (1 toque por lead).
 const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
-// Cap de segurança por hora na linha (anti-ban).
-const MAX_POR_HORA = 12;
 // Debounce: atraso entre o sinal de "aberto" e o contato (deixa a compra cair primeiro).
 export const DEBOUNCE_MS = 8 * 60 * 1000; // 8 min
 // Escalonamento do backlog: 5 min entre leads (cadência pedida pelo Thiago).
@@ -71,6 +70,14 @@ const CUPOM_SENT_PREFIX = 'limpapro_cupom_sent:';
 // "não responder" uma msg que ainda não chegou) e o opener sai ~8min após o abandono.
 const CUPOM_DELAY_MS = 2 * 60 * 60 * 1000; // 2h
 
+// 3º e ÚLTIMO toque (fechamento): quem tomou opener+cupom e continua em silêncio total.
+// Fila e marcador próprios (mesma razão dos independentes do cupom). É a última mensagem
+// FRIA — o cap de 3 toques que o Thiago aprovou. Depois disso, quem não respondeu fica quieto.
+const FECHAMENTO_PENDING_PREFIX = 'limpapro_fechamento_pending:';
+const FECHAMENTO_SENT_PREFIX = 'limpapro_fechamento_sent:';
+// Espera após o CUPOM antes do toque de fechamento (dá tempo do cupom fazer efeito).
+const FECHAMENTO_DELAY_MS = 20 * 60 * 60 * 1000; // 20h (≈ dia seguinte, sem virar madrugada)
+
 // Cupom de recuperação (2º toque). DARK até RECUP_CUPOM_ENABLED='true' E o link estar
 // setado/confirmado pelo Thiago (a Kiwify precisa aceitar ?coupon= na URL — a confirmar).
 function cupomHabilitado(): boolean {
@@ -79,7 +86,14 @@ function cupomHabilitado(): boolean {
     && Boolean(process.env.RECUP_CUPOM_URL?.trim());
 }
 
-type Origem = 'backlog' | 'realtime' | 'cupom';
+// 3º toque (fechamento). Flag PRÓPRIO — é a parte com maior risco de ban na linha
+// compartilhada (mensagem fria adicional). DARK por padrão até o Thiago ligar de olhos
+// abertos: RECUP_FECHAMENTO_ENABLED='true'. Reaproveita o link de cupom se houver.
+function fechamentoHabilitado(): boolean {
+  return recuperacaoHabilitada() && process.env.RECUP_FECHAMENTO_ENABLED === 'true';
+}
+
+type Origem = 'backlog' | 'realtime' | 'cupom' | 'fechamento';
 interface PendingMarker { origem: Origem; ready_at: string; seeded_at: string; nome?: string | null; }
 
 interface LeadAberto {
@@ -132,9 +146,50 @@ export function montarMensagemCupom(lead: LeadAberto): string[] {
   ];
 }
 
+// ─── 3º toque: fechamento (última msg fria — cap de 3 toques aprovado pelo Thiago) ─────
+// Só quem tomou opener+cupom e ficou em silêncio TOTAL. Urgência honesta em cima do cupom
+// que já foi mandado (não inventa oferta nova). Se não houver link de cupom, fecha pelo
+// checkout normal. Tom: leve, respeitoso, é um "vou encerrar por aqui" — não insistência.
+export function montarMensagemFechamento(lead: LeadAberto): string[] {
+  const nome = (lead.nome || '').trim().split(/\s+/)[0];
+  const oi = nome ? `Oi ${nome}!` : 'Oi!';
+  const link = process.env.RECUP_CUPOM_URL?.trim() || process.env.RECUP_CHECKOUT_URL?.trim() || '';
+  const temCupom = Boolean(process.env.RECUP_CUPOM_URL?.trim());
+  if (temCupom) {
+    return [
+      `${oi} Passando só pra avisar que aquele *desconto de 30%* que te mandei ainda tá de pé, mas vou precisar encerrar em breve 💧`,
+      link ? `Se ainda quiser garantir, é só finalizar por aqui que o desconto já vem aplicado: ${link}` : 'Se ainda quiser garantir, me avisa que te passo o link 😊',
+      `Se não for o momento, sem problema — é só me dizer que eu não te incomodo mais 🙏`,
+    ];
+  }
+  return [
+    `${oi} Passando pra saber se ainda quer concluir a compra do Limpa Solar Pro — posso te ajudar a finalizar rapidinho 💧`,
+    link ? `É só por aqui: ${link}` : '',
+    `Se não for o momento, sem problema — só me avisar que eu não te incomodo mais 🙏`,
+  ].filter(Boolean);
+}
+
 // ─── idempotência via system_state (envios efetivados) ──────────────
 function stateKey(email: string): string {
   return `limpapro_recovery:${email.toLowerCase().trim()}`;
+}
+function fechamentoPendingKey(email: string): string {
+  return `${FECHAMENTO_PENDING_PREFIX}${email.toLowerCase().trim()}`;
+}
+function fechamentoSentKey(email: string): string {
+  return `${FECHAMENTO_SENT_PREFIX}${email.toLowerCase().trim()}`;
+}
+async function jaMandeiFechamento(email: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('system_state').select('key').eq('key', fechamentoSentKey(email)).maybeSingle();
+  return Boolean(data);
+}
+async function marcarFechamentoEnviado(email: string): Promise<void> {
+  await supabase.from('system_state').upsert({
+    key: fechamentoSentKey(email),
+    value: { sent_at: new Date().toISOString() },
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'key' });
 }
 function pendingKey(email: string): string {
   return `${PENDING_PREFIX}${email.toLowerCase().trim()}`;
@@ -232,17 +287,11 @@ async function clienteRespondeu(telefone: string): Promise<boolean> {
 }
 
 // ─── throttle por hora (anti-ban) ───────────────────────────────────
-// Conta TODOS os envios da linha física na última hora — opener (limpapro_recovery:)
-// E cupom (limpapro_cupom_sent:). É 1 só teto pra linha inteira: o cupom não pode furar
-// o anti-ban só porque tem chave diferente (a linha IO também carrega tráfego de energia).
-async function dentroDoTetoHorario(): Promise<boolean> {
-  const desde = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { data } = await supabase
-    .from('system_state').select('key')
-    .or('key.like.limpapro_recovery:%,key.like.limpapro_cupom_sent:%')
-    .gte('updated_at', desde).limit(MAX_POR_HORA + 1);
-  return (data?.length ?? 0) < MAX_POR_HORA;
-}
+// Teto ÚNICO da linha física IO: conta os envios de TODOS os bots (Bia opener+cupom E
+// followup do /gerador) na última hora. Mora em lineThrottle.ts pra que Bia e gerador
+// dividam o MESMO orçamento — senão a linha mandaria N×MAX/h e tomaria ban (foi o bug
+// do cupom: teto que só contava `recovery:`). Ver lineThrottle.BOT_SENT_PREFIXES.
+const dentroDoTetoHorario = dentroDoTetoHorarioLinha;
 
 // ─── elegibilidade lead-específica ──────────────────────────────────
 async function porqueNaoEnviarLead(lead: LeadAberto): Promise<string | null> {
@@ -292,6 +341,39 @@ async function enviarCupom(lead: LeadAberto): Promise<void> {
   // pra Bia ter contexto se a pessoa responder depois. Append à conversa existente.
   const phone = fmtPhone(lead.telefone!);
   const texto = montarMensagemCupom(lead).join(' ');
+  // Lê messages E lead_data pra fazer merge: o cupom FRIO já usou a alavanca de 30%, então
+  // trava a oferta na conversa inbound (senão a Bia ofereceria o MESMO 30% de novo se a
+  // pessoa responder depois). Merge (não sobrescreve) pra preservar o que o opener gravou.
+  const { data: sess } = await supabase
+    .from('whatsapp_sessions').select('messages, lead_data').in('phone', phoneVariants(lead.telefone!))
+    .eq('tipo', 'recuperacao').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  const hist = ((sess?.messages as unknown[]) || []).concat([{ role: 'assistant', content: texto }]);
+  const ldMerged = { ...((sess?.lead_data as Record<string, unknown>) || {}), cupom_oferecido: true };
+  await supabase.from('whatsapp_sessions').upsert({
+    phone, tipo: 'recuperacao', nome: lead.nome, messages: hist, lead_data: ldMerged,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'phone,tipo' });
+
+  await sendHuman(lead.telefone!, montarMensagemCupom(lead), INSTANCE);  // 2. SEND
+  logger.info('limpapro-recovery', `cupom enviado ${lead.email} via ${lead.telefone}`);
+
+  // 3. AGENDA o 3º toque (fechamento) pra +FECHAMENTO_DELAY. Só se habilitado e ainda não enviado.
+  //    O envio em si tem re-check de pagamento + "cliente respondeu?" no consumidor — aqui só agenda.
+  if (fechamentoHabilitado() && !(await jaMandeiFechamento(lead.email))) {
+    await supabase.from('system_state').upsert({
+      key: fechamentoPendingKey(lead.email),
+      value: { origem: 'fechamento', ready_at: new Date(Date.now() + FECHAMENTO_DELAY_MS).toISOString(),
+               seeded_at: new Date().toISOString(), nome: lead.nome } as PendingMarker,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'key' });
+  }
+}
+
+// ─── envio do 3º toque (fechamento). Gates de SEND rodam no consumidor, não aqui. ──
+async function enviarFechamento(lead: LeadAberto): Promise<void> {
+  await marcarFechamentoEnviado(lead.email);                // 1. MARK (idempotência própria)
+  const phone = fmtPhone(lead.telefone!);
+  const texto = montarMensagemFechamento(lead).join(' ');
   const { data: sess } = await supabase
     .from('whatsapp_sessions').select('messages').in('phone', phoneVariants(lead.telefone!))
     .eq('tipo', 'recuperacao').order('updated_at', { ascending: false }).limit(1).maybeSingle();
@@ -301,8 +383,31 @@ async function enviarCupom(lead: LeadAberto): Promise<void> {
     updated_at: new Date().toISOString(),
   }, { onConflict: 'phone,tipo' });
 
-  await sendHuman(lead.telefone!, montarMensagemCupom(lead), INSTANCE);  // 2. SEND
-  logger.info('limpapro-recovery', `cupom enviado ${lead.email} via ${lead.telefone}`);
+  await sendHuman(lead.telefone!, montarMensagemFechamento(lead), INSTANCE);  // 2. SEND
+  logger.info('limpapro-recovery', `fechamento enviado ${lead.email} via ${lead.telefone}`);
+}
+
+// Lead marcado PERDIDO (recusou explícito)? Guarda dura contra mandar QUALQUER toque frio
+// a quem já disse não — mesmo que outros gates não peguem. Lê status='perdido' da sessão.
+async function foiMarcadoPerdido(telefone: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('whatsapp_sessions').select('lead_data')
+    .in('phone', phoneVariants(telefone)).eq('tipo', 'recuperacao')
+    .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  return (data?.lead_data as { status?: string } | null)?.status === 'perdido';
+}
+
+// ─── elegibilidade do FECHAMENTO (3º toque) ─────────────────────────
+// Mais restrito que o cupom: SÓ dispara se o cliente segue em silêncio TOTAL. Qualquer
+// resposta/takeover → a conversa está viva, a Bia inbound cuida, não manda msg fria.
+async function porqueNaoEnviarFechamento(lead: LeadAberto): Promise<string | null> {
+  if (!lead.telefone) return 'sem_telefone';
+  if (lead.telefone_suspeito) return 'telefone_suspeito';
+  if (await jaMandeiFechamento(lead.email)) return 'fechamento_ja_enviado';
+  if (await jaPagou(lead.email)) return 'ja_pagou';
+  if (await foiMarcadoPerdido(lead.telefone)) return 'perdido';         // já disse não → nunca insiste
+  if (await clienteRespondeu(lead.telefone)) return 'cliente_respondeu'; // conversa viva → não insiste a frio
+  return null;
 }
 
 // ─── elegibilidade do CUPOM (2º toque) ──────────────────────────────
@@ -311,6 +416,7 @@ async function porqueNaoEnviarCupom(lead: LeadAberto): Promise<string | null> {
   if (lead.telefone_suspeito) return 'telefone_suspeito';
   if (await jaMandeiCupom(lead.email)) return 'cupom_ja_enviado';
   if (await jaPagou(lead.email)) return 'ja_pagou';            // re-check DURO: não dar desconto a quem já pagou cheio
+  if (await foiMarcadoPerdido(lead.telefone)) return 'perdido'; // já disse não → não manda cupom
   if (await clienteRespondeu(lead.telefone)) return 'cliente_respondeu'; // respondeu/takeover → Bia humana cuida
   return null;
 }
@@ -455,6 +561,58 @@ export async function seedLimpaproCupomBacklog(opts: { dry?: boolean } = {}): Pr
 }
 
 // ═════════════════════════════════════════════════════════════════════
+// SEED DO FECHAMENTO (3º toque) PRO BACKLOG — quem JÁ tomou o cupom e segue em silêncio.
+// Mesma lacuna do cupom: quem recebeu o 2º toque antes desta feature existir nunca teve
+// marcador de fechamento. Só semeia p/ quem tomou o cupom, não pagou e não respondeu.
+// Idempotente. É o toque MAIS restrito (última msg fria — cap de 3 aprovado pelo Thiago).
+// ═════════════════════════════════════════════════════════════════════
+export async function seedLimpaproFechamentoBacklog(opts: { dry?: boolean } = {}): Promise<{
+  semeados: number; pulados: number; motivo_skip: Record<string, number>;
+}> {
+  const motivo: Record<string, number> = {};
+  const bump = (k: string) => { motivo[k] = (motivo[k] || 0) + 1; };
+  if (!fechamentoHabilitado()) return { semeados: 0, pulados: 0, motivo_skip: { fechamento_desabilitado: 1 } };
+
+  const leads = await lerLeadsAbertos();
+  leads.sort((a, b) => (b.horas_desde ?? 0) - (a.horas_desde ?? 0));
+
+  const { data: pend } = await supabase
+    .from('system_state').select('key').like('key', `${FECHAMENTO_PENDING_PREFIX}%`);
+  const jaPendFech = new Set((pend ?? []).map(r => r.key.slice(FECHAMENTO_PENDING_PREFIX.length)));
+
+  const novos: { key: string; value: PendingMarker; updated_at: string }[] = [];
+  const base = Date.now();
+  let semeados = 0;
+
+  for (const lead of leads) {
+    const e = lead.email.toLowerCase().trim();
+    if (!lead.telefone)             { bump('sem_telefone'); continue; }
+    if (lead.telefone_suspeito)     { bump('telefone_suspeito'); continue; }
+    if (jaPendFech.has(e))          { bump('fechamento_ja_agendado'); continue; }
+    if (await jaMandeiFechamento(e)) { bump('fechamento_ja_enviado'); continue; }
+    if (!(await jaMandeiCupom(e)))  { bump('sem_cupom_ainda'); continue; } // só 3º toque p/ quem teve o 2º
+    if (await jaPagou(e))           { bump('ja_pagou'); continue; }
+    if (await clienteRespondeu(lead.telefone)) { bump('cliente_respondeu'); continue; }
+
+    // Todos caem pra "agora" + stagger (o cupom do backlog já foi há tempo). Anti-rajada
+    // pelo stagger + cap por tick + teto horário no consumidor.
+    const readyAt = base + semeados * SEED_STAGGER_MS;
+    novos.push({
+      key: fechamentoPendingKey(e),
+      value: { origem: 'fechamento', ready_at: new Date(readyAt).toISOString(),
+               seeded_at: new Date().toISOString(), nome: lead.nome },
+      updated_at: new Date().toISOString(),
+    });
+    semeados++;
+  }
+
+  if (!opts.dry && novos.length) {
+    await supabase.from('system_state').upsert(novos, { onConflict: 'key', ignoreDuplicates: true });
+  }
+  return { semeados, pulados: leads.length - semeados, motivo_skip: motivo };
+}
+
+// ═════════════════════════════════════════════════════════════════════
 // CONSUMIDOR ÚNICO — drena marcadores prontos. Roda no tick de /process-messages.
 // Seguro sob execuções concorrentes via CLAIM por DELETE…RETURNING.
 // Ordem de gates load-bearing:
@@ -469,12 +627,12 @@ export async function runLimpaproRecoveryConsumer(opts: { dry?: boolean } = {}):
   const out = { enviados: 0, resolvidos: 0, pulados: 0, mantidos: 0, motivo };
   if (!recuperacaoHabilitada()) { bump('desabilitado'); return out; }
 
-  // 1. Marcadores prontos — opener (PENDING_PREFIX) E cupom (CUPOM_PENDING_PREFIX) na mesma
-  //    fila, ramifica por prefixo no loop. (poucas linhas → filtra/ordena em JS; sem operador-
-  //    seta JSON no filtro, que é sintaxe não-exercitada no repo → risco de no-op silencioso).
+  // 1. Marcadores prontos — opener, cupom E fechamento na mesma fila, ramifica por prefixo
+  //    no loop. (poucas linhas → filtra/ordena em JS; sem operador-seta JSON no filtro, que é
+  //    sintaxe não-exercitada no repo → risco de no-op silencioso).
   const { data: rows, error: stErr } = await supabase
     .from('system_state').select('key, value')
-    .or(`key.like.${PENDING_PREFIX}%,key.like.${CUPOM_PENDING_PREFIX}%`).limit(200);
+    .or(`key.like.${PENDING_PREFIX}%,key.like.${CUPOM_PENDING_PREFIX}%,key.like.${FECHAMENTO_PENDING_PREFIX}%`).limit(200);
   if (stErr) { logger.error('limpapro-recovery', 'consumer: ler markers falhou', stErr); bump('erro_markers'); return out; }
 
   const now = Date.now();
@@ -495,18 +653,21 @@ export async function runLimpaproRecoveryConsumer(opts: { dry?: boolean } = {}):
 
   let enviadosTick = 0;
   for (const r of prontos) {
-    // Tipo do marcador pelo prefixo: opener (toque 1) ou cupom (toque 2).
+    // Tipo do marcador pelo prefixo: opener (toque 1), cupom (toque 2) ou fechamento (toque 3).
+    const ehFechamento = r.key.startsWith(FECHAMENTO_PENDING_PREFIX);
     const ehCupom = r.key.startsWith(CUPOM_PENDING_PREFIX);
-    const email = r.key.slice((ehCupom ? CUPOM_PENDING_PREFIX : PENDING_PREFIX).length);
-    const gate = ehCupom ? porqueNaoEnviarCupom : porqueNaoEnviarLead;
-    const enviar = ehCupom ? enviarCupom : enviarParaLead;
-    const tag = ehCupom ? 'cupom' : 'opener';
+    const prefixo = ehFechamento ? FECHAMENTO_PENDING_PREFIX : ehCupom ? CUPOM_PENDING_PREFIX : PENDING_PREFIX;
+    const email = r.key.slice(prefixo.length);
+    const gate = ehFechamento ? porqueNaoEnviarFechamento : ehCupom ? porqueNaoEnviarCupom : porqueNaoEnviarLead;
+    const enviar = ehFechamento ? enviarFechamento : ehCupom ? enviarCupom : enviarParaLead;
+    const tag = ehFechamento ? 'fechamento' : ehCupom ? 'cupom' : 'opener';
 
     // ── GATES PRÉ-CLAIM (break → marcador sobrevive pro próximo tick) ──
     if (enviadosTick >= MAX_ENVIOS_POR_TICK) { out.mantidos++; bump('cap_tick'); break; }
     if (!opts.dry && !(await dentroDoTetoHorario())) { out.mantidos++; bump('teto_horario'); break; }
-    // Cupom desligado mas há marcador pendente: deixa quieto pro próximo tick (não claima).
+    // Toque desligado mas há marcador pendente: deixa quieto pro próximo tick (não claima).
     if (ehCupom && !cupomHabilitado()) { out.mantidos++; bump('cupom_desabilitado'); continue; }
+    if (ehFechamento && !fechamentoHabilitado()) { out.mantidos++; bump('fechamento_desabilitado'); continue; }
 
     if (opts.dry) { // simula sem claimar/enviar/deletar
       const lead = porEmail.get(email);

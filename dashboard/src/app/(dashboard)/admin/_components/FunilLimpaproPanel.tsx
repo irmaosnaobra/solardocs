@@ -84,12 +84,15 @@ interface BiaConversa {
   n_msgs: number;
   respondeu: boolean;
   takeover: boolean;
+  perdido: boolean;
+  comprou: boolean;
   teste: boolean;
   mensagens: BiaMensagem[];
 }
 interface ConversasData {
   total: number;
   respondidas: number;
+  recuperados: number;
   conversas: BiaConversa[];
 }
 
@@ -605,14 +608,26 @@ export default function FunilLimpaproPanel() {
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 14 }}>
                 {reais.length} {reais.length === 1 ? 'pessoa abordada' : 'pessoas abordadas'} ·{' '}
                 {conversas.respondidas} {conversas.respondidas === 1 ? 'respondeu' : 'responderam'}
+                {conversas.recuperados > 0 && (
+                  <>
+                    {' · '}
+                    <b style={{ color: 'var(--ink-green)' }}>
+                      {conversas.recuperados} {conversas.recuperados === 1 ? 'venda recuperada' : 'vendas recuperadas'} 🎉
+                    </b>
+                  </>
+                )}
               </div>
 
               <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
                 {reais.map((c, i) => {
                   const isOpen = aberta === c.phone;
-                  // Estado: humano assumiu > respondeu > sem resposta.
-                  const estado = c.takeover
+                  // Estado (prioridade): comprou > humano assumiu > perdido > respondeu > sem resposta.
+                  const estado = c.comprou
+                    ? { txt: '✓ Comprou',      bg: 'rgba(16,185,129,0.18)', fg: 'var(--ink-green)', bd: 'rgba(16,185,129,0.45)' }
+                    : c.takeover
                     ? { txt: 'Humano assumiu', bg: 'rgba(245,158,11,0.12)', fg: 'var(--ink-amber)', bd: 'rgba(245,158,11,0.3)' }
+                    : c.perdido
+                    ? { txt: 'Perdido',        bg: 'rgba(239,68,68,0.12)', fg: '#f87171', bd: 'rgba(239,68,68,0.35)' }
                     : c.respondeu
                     ? { txt: 'Respondeu',      bg: 'rgba(16,185,129,0.12)', fg: 'var(--ink-green)', bd: 'rgba(16,185,129,0.3)' }
                     : { txt: 'Sem resposta',   bg: 'var(--color-surface-2)', fg: 'var(--color-text-muted)', bd: 'var(--color-border)' };
