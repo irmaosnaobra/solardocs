@@ -44,16 +44,16 @@ const INTERVALOS_SEM_CNPJ = [
 
 const TONS_SEM_CNPJ: Record<number, { tom: string; objetivo: string }> = {
   1: {
-    tom: 'Próxima e leve, como quem percebeu que a pessoa parou no meio. "Tava aqui e vi que parou no meio."',
-    objetivo: 'Lembrar do CNPJ pra destravar a plataforma — sem cobrar. Mencionar que com 1 doc gerado a percepção de valor muda.',
+    tom: 'Próxima e leve, como quem percebeu que a pessoa cadastrou e parou. "Tava aqui e lembrei de você."',
+    objetivo: 'Reabrir a conversa entendendo a dor real dele (como monta proposta/contrato hoje). NÃO fala de plano ainda — só puxa o papo pra descobrir onde a plataforma ajudaria.',
   },
   2: {
-    tom: 'Prestativa e direta. "Sem CNPJ a plataforma fica fora do ar pra você."',
-    objetivo: 'Oferecer ajuda concreta pra cadastrar. Lembrar dos 10 docs grátis vitalícios.',
+    tom: 'Consultora que entende o negócio. Conecta a dor dele a UM ganho concreto (proposta com payback na frente do cliente, contrato com a marca dele).',
+    objetivo: 'Mostrar o valor de virar assinante e conduzir pro trial: "põe o cartão, testa 7 dias sem pagar, cancela quando quiser". Preços PRO 27 / VIP 67.',
   },
   3: {
-    tom: 'Direta e calorosa, encerra com classe. Sem cobrança.',
-    objetivo: 'Última pergunta clara: ainda faz sentido ou encerro o cadastro? O cliente decide.',
+    tom: 'Direta e calorosa, encerra com classe. Sem pressão.',
+    objetivo: 'Última pergunta clara: faz sentido testar 7 dias grátis pra ver funcionando, ou prefere que eu não te incomode mais? O cliente decide.',
   },
 };
 
@@ -70,23 +70,23 @@ const INTERVALOS_INATIVO = [
 const TONS_INATIVO: Record<number, { tom: string; objetivo: string }> = {
   1: {
     tom: 'Checagem leve, sem cobrar. "Tudo certo por aí?"',
-    objetivo: 'Reabrir conversa sem pressão. Se gerou docs antes, parabeniza brevemente.',
+    objetivo: 'Reabrir conversa sem pressão. Se gerou docs antes, reconhece brevemente. Descobre o que travou.',
   },
   2: {
-    tom: 'Valor concreto. "Ferramenta só vira ativo quando roda com cliente real."',
-    objetivo: 'Lembrar que cada doc gerado economiza 30-60min. Convidar pra rodar 1 venda esta semana.',
+    tom: 'Valor concreto. "Quem opera com a própria marca e proposta com payback fecha mais rápido."',
+    objetivo: 'Conectar a dor a um ganho e conduzir pro trial pago (7 dias grátis no cartão). Convidar pra testar com 1 venda desta semana.',
   },
   3: {
-    tom: 'Pergunta dor — qual ferramenta tá usando hoje pros docs?',
-    objetivo: 'Entender o gargalo. Se usa Word/manual, oferecer gerar 1 doc pra ele de exemplo.',
+    tom: 'Pergunta dor — qual ferramenta tá usando hoje pros docs/propostas?',
+    objetivo: 'Entender o gargalo. Se usa Word/manual, mostra o ganho de assinar e oferece o trial pra ele sentir.',
   },
   4: {
-    tom: 'Prova social leve. Outros integradores estão fechando contratos pela plataforma.',
-    objetivo: 'Acender pertencimento sem inventar nomes. Convidar pra próximo passo concreto.',
+    tom: 'Prova social leve + valor. Integradores que assinam saem na frente do concorrente.',
+    objetivo: 'Acender pertencimento sem inventar nomes. Conduzir pro trial de 7 dias (PRO 27 / VIP 67).',
   },
   5: {
     tom: 'Última pergunta direta e calorosa, sem rodeio. Encerra com classe se for o caso.',
-    objetivo: 'O cliente decide: seguimos ou encerro? Deixa porta aberta pra retorno espontâneo.',
+    objetivo: 'O cliente decide: testa 7 dias grátis pra ver funcionando, ou encerro? Deixa porta aberta.',
   },
 };
 
@@ -119,10 +119,16 @@ function carlaSystem(args: {
   linhas.push(``);
   linhas.push(`SITUAÇÃO ATUAL DO USUÁRIO:`);
   if (args.fluxo === 'sem_cnpj') {
-    linhas.push(`- Cadastrou na solardoc.app mas NÃO preencheu o CNPJ da empresa ainda. Sem CNPJ a plataforma não gera documento.`);
+    linhas.push(`- Cadastrou na solardoc.app mas parou no começo (não configurou a empresa/CNPJ ainda).`);
   } else {
     linhas.push(`- Tem empresa cadastrada na solardoc.app mas está há ${args.diasInativo}+ dias sem gerar nenhum documento novo.`);
   }
+  linhas.push(``);
+  linhas.push(`SUA MISSÃO (converter em ASSINANTE — NÃO existe mais plano grátis pra oferecer):`);
+  linhas.push(`- Você está reabrindo a conversa pra CONVERTER este usuário num assinante pago (PRO R$27 ou VIP R$67).`);
+  linhas.push(`- A entrada é o TRIAL: escolhe o plano, põe o cartão, 7 dias grátis, só cobra no 8º dia, cancela quando quiser.`);
+  linhas.push(`- NUNCA ofereça "plano grátis", "10 docs grátis" ou "sem cartão" — isso ACABOU. Se citar valor, é PRO 27 / VIP 67 com 7 dias grátis.`);
+  linhas.push(`- Venda a transformação (parecer/operar mais profissional, fechar mais rápido), não a ferramenta. Uma tacada certeira por mensagem.`);
   linhas.push(``);
   linhas.push(`REGRAS DE HUMANIZAÇÃO (CRÍTICAS):`);
   linhas.push(`- Tom: consultora calorosa e segura, que entende o negócio do integrador. Próxima, sem ser robótica nem manual de SDR.`);
@@ -133,9 +139,8 @@ function carlaSystem(args: {
   linhas.push(`- NÃO use frases de manual ("estou à disposição", "qualquer dúvida", "não perca essa oportunidade").`);
   linhas.push(`- Termine de um jeito que gere resposta natural — uma pergunta curta direta.`);
   linhas.push(`- NÃO use markdown.`);
-  linhas.push(`- Se o lead já tem empresa cadastrada, NÃO peça pra cadastrar de novo.`);
   linhas.push(`- Se ele já gerou ${args.totalDocs ?? 0} docs antes, reconhece sem bajular.`);
-  linhas.push(`- Pode mencionar o link ${APP_URL} no máximo UMA vez na cadência inteira (use só quando fizer sentido).`);
+  linhas.push(`- O link ${APP_URL} leva ao checkout do plano (7 dias grátis no cartão). Mande no máximo UMA vez na cadência, quando ele mostrar interesse.`);
   linhas.push(`- Saída: APENAS o texto da mensagem (com || pra separar bolhas se for o caso). Sem aspas, sem prefixo.`);
   return linhas.join('\n');
 }
@@ -154,16 +159,16 @@ async function gerarMsgCarla(args: Parameters<typeof carlaSystem>[0]): Promise<s
     logger.error('carla-platform', 'falha gerando msg via IA, usando fallback', err);
     const fb: Record<string, Record<number, string>> = {
       sem_cnpj: {
-        1: `${args.nome}, vi que você cadastrou mas o CNPJ não entrou ainda. || Sem ele a plataforma fica em pausa — me chama aqui se travou em algo.`,
-        2: `${args.nome}, voltei aqui. Tem 10 docs grátis te esperando — só precisa do CNPJ pra destravar. ${APP_URL}`,
-        3: `${args.nome}, posso te perguntar direto? Ainda faz sentido seguir ou prefere que eu encerre por aqui?`,
+        1: `${args.nome}, vi que você cadastrou e parou no começo. || Como tu monta proposta e contrato pro cliente hoje?`,
+        2: `${args.nome}, voltei aqui. A plataforma gera proposta com payback e contrato com a tua marca em 2min. || Testa 7 dias grátis, só põe o cartão e cancela quando quiser: ${APP_URL}`,
+        3: `${args.nome}, posso te perguntar direto? Faz sentido testar 7 dias grátis pra ver funcionando, ou prefere que eu encerre por aqui?`,
       },
       inativo: {
         1: `${args.nome}, tudo certo por aí? Faz uns dias que não te vejo na plataforma.`,
-        2: `${args.nome}, ferramenta só vira ativo quando roda com cliente real. Tem alguma venda dessa semana pra rodar?`,
+        2: `${args.nome}, quem roda a proposta com a própria marca e payback fecha mais rápido. Tem alguma venda essa semana pra testar?`,
         3: `${args.nome}, qual ferramenta você tá usando pros docs hoje? Tô curiosa.`,
-        4: `${args.nome}, quem roda a proposta com a própria marca costuma fechar mais rápido. Vale testar com 1 venda dessa semana?`,
-        5: `${args.nome}, vou encerrar pra não te incomodar. Quando quiser retomar, ${APP_URL} tá aí. Abs.`,
+        4: `${args.nome}, integrador que assina sai na frente do concorrente. || Testa 7 dias grátis (só cobra no 8º dia): ${APP_URL}`,
+        5: `${args.nome}, vou encerrar pra não te incomodar. Quando quiser testar, ${APP_URL} tá aí. Abs.`,
       },
     };
     return fb[args.fluxo][args.tentativa] || `${args.nome}, ainda faz sentido a gente conversar?`;
