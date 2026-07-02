@@ -348,16 +348,35 @@ async function registrarChamado(phone: string, nome: string | null, area: string
 interface SdrB2bSession {
   messages: { role: 'user' | 'assistant'; content: any }[];
   nome?: string;
+  phoneCanonico: string;   // o phone REALMENTE gravado (pra salvar de volta na MESMA linha)
+}
+
+// Variantes BR do telefone — a Z-API grava às vezes COM o 9º dígito do celular
+// (5534998165040), às vezes SEM (553498165040). Sem casar as duas, a 2ª mensagem do
+// lead não acha a sessão → Carla reinicia a conversa (repergunta nome, re-apresenta).
+// Mesmo padrão da Bia/Giovanna. É o que a torna "boa de contexto" de verdade.
+function phoneVariants(raw: string): string[] {
+  const clean = raw.replace(/\D/g, '');
+  const c55 = clean.startsWith('55') ? clean : `55${clean}`;
+  const semDdi = c55.replace(/^55/, '');
+  const add9 = c55.length === 12 ? c55.slice(0, 4) + '9' + c55.slice(4) : c55;          // insere 9 após DDD
+  const rem9 = c55.length === 13 && c55[4] === '9' ? c55.slice(0, 4) + c55.slice(5) : c55; // remove 9 após DDD
+  return Array.from(new Set([clean, c55, semDdi, add9, rem9, add9.replace(/^55/, ''), rem9.replace(/^55/, '')]));
 }
 
 async function getSession(phone: string): Promise<SdrB2bSession> {
+  // Busca por VARIANTES e retorna o phone CANÔNICO (o gravado) — pra salvar de volta na
+  // mesma linha e não duplicar sessão com outro formato. Mais recente primeiro.
   const { data } = await supabase
     .from('whatsapp_sessions')
-    .select('messages, nome')
-    .eq('phone', phone)
+    .select('phone, messages, nome')
+    .in('phone', phoneVariants(phone))
     .eq('tipo', 'sdr_b2b')
-    .single();
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
   return {
+    phoneCanonico: (data?.phone as string) || phone.replace(/\D/g, ''),
     messages: (data?.messages as any[]) || [],
     nome: data?.nome || undefined,
   };
@@ -448,6 +467,9 @@ export async function handleSolarDocB2bLead(
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
   const session = await getSession(cleanPhone);
   const nome = session.nome || senderName || null;
+  // Chave canônica: o phone REALMENTE gravado na sessão (via variantes). Salva de volta
+  // AQUI pra não duplicar sessão/CRM quando a Z-API variar o formato do 9º dígito.
+  const phoneKey = session.phoneCanonico;
 
   // Se tem imagem, content multimodal; senao texto puro
   const userContent: any = imageSource
@@ -527,9 +549,9 @@ export async function handleSolarDocB2bLead(
   const allMessages = [...messages, { role: 'assistant', content: cleanText }];
 
   await Promise.all([
-    saveSession(cleanPhone, allMessages, nome),
+    saveSession(phoneKey, allMessages, nome),
     upsertCrmLead({
-      phone: cleanPhone,
+      phone: phoneKey,
       nome,
       estagio,
       ultimaMensagem: text,
