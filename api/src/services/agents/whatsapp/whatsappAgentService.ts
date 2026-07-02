@@ -426,10 +426,16 @@ export async function handleIncomingWhatsApp(
       'quero o solardoc',    'quero a solardoc',
       'quero o soladoc',     'quero a soladoc',
       'quero conhecer a solardoc', 'quero conhecer o solardoc',
-      // Gatilho do anúncio Meta B2B (jul/2026): "Quero saber mais da SolarDoc.App".
-      // Substrings cobrem gênero (da/do) e o typo soladoc; o ".app" cai fora do match.
+      // Gatilho do anúncio Meta B2B (jul/2026). O texto REAL do anúncio é
+      // "Quero saber mais sobre o SolarDoc.App" — cobrimos "sobre o/a", "da/do" e
+      // a forma mínima "mais solardoc" pra pegar qualquer variação que o lead digite.
+      // Match é lowerText.includes(t): o ".app" e a pontuação caem fora e ainda casa.
+      'saber mais sobre o solardoc', 'saber mais sobre a solardoc',
+      'saber mais sobre o soladoc',  'saber mais sobre a soladoc',
       'saber mais da solardoc', 'saber mais do solardoc',
       'saber mais da soladoc',  'saber mais do soladoc',
+      'mais sobre o solardoc', 'mais sobre a solardoc',
+      'sobre o solardoc.app', 'sobre a solardoc.app',
       'sou empresario solar', 'sou empresário solar',
       'integrador solar',
     ];
