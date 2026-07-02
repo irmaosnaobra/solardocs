@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendMetaEvent } from '../../../utils/metaPixel';
-import { sendHuman } from '../zapiClient';
+import { sendHuman, ZapiInstance } from '../zapiClient';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -88,19 +88,20 @@ Se o lead demonstrar que curtiu SER atendido assim ("que atendimento bom", "noss
 
 Se você ENVIOU recentemente uma das frases-gancho:
 - "posso te fazer 1 pergunta rapidinha?"
-- "o que tá te travando pra cadastrar o CNPJ?"
-- "travou no CNPJ ou ficou em dúvida sobre a plataforma?"
+- "o que tá te segurando pra começar?"
+- "ficou alguma dúvida sobre a plataforma?"
 
 E o lead RESPONDEU (qualquer coisa: "claro", "manda", "tá tudo certo", etc):
 
-→ Faz UMA pergunta direta sobre o CNPJ:
-  "${'$'}{primeiroNome}, o que faltou pra cadastrar teu CNPJ na plataforma?"
+→ Faz UMA pergunta direta que puxa pro fechamento:
+  "${'$'}{primeiroNome}, o que faltou pra tu começar a usar? É dúvida no plano, no preço, ou só não teve tempo ainda?"
 
-→ Se ele responder com objeção (não tem MEI/CNPJ ainda, esqueceu, perdeu senha):
-  Ofereça ajuda concreta — link de CNPJ, ${APP_URL}/auth?mode=esqueci, etc.
+→ Se ele responder com objeção (preço, tempo, "já uso outra"):
+  Contorna curto e conduz pro trial — "põe o cartão, testa 7 dias sem pagar, e decide vendo funcionar: ${APP_URL}".
 
-→ Se ele responder "não preciso" / "não vou cadastrar":
-  Pergunta empática: "Entendo. O que mudaria de ideia? É preço, é tempo, ou já tá usando outra coisa?"
+→ Se ele responder "não quero" / "não vou assinar":
+  Pergunta empática UMA vez: "Entendo. O que mudaria de ideia — é preço, é tempo, ou já tá usando outra coisa?"
+  Se ainda for não, respeita e encerra ([ESTAGIO:perdido]).
 
 NÃO repete a pergunta. NÃO empurra o link toda hora. Empresário só aguenta 1 push.
 
@@ -462,7 +463,10 @@ export async function handleSolarDocB2bLead(
   text: string,
   senderName?: string | null,
   tracking?: { ctwa_clid?: string | null },
-  imageSource?: { type: 'base64'; media_type: any; data: string } | null
+  imageSource?: { type: 'base64'; media_type: any; data: string } | null,
+  // Linha de origem: responde pelo MESMO número que o lead contatou. Default 'solardoc'
+  // (retrocompat); 'io' quando o lead veio do anúncio na linha IO.
+  originInstance: ZapiInstance = 'solardoc',
 ): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
   const session = await getSession(cleanPhone);
@@ -544,7 +548,7 @@ export async function handleSolarDocB2bLead(
   const { text: cleanText, estagio } = extractEstagio(finalText);
   const parts = cleanText.split('||').map(p => p.trim()).filter(Boolean);
 
-  await sendHuman(cleanPhone, parts, 'solardoc', { slow: true });
+  await sendHuman(cleanPhone, parts, originInstance, { slow: true });
 
   const allMessages = [...messages, { role: 'assistant', content: cleanText }];
 

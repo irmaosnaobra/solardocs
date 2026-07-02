@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { handleSdrLead } from '../sdr/sdrAgentService';
-import { fmtPhone, sendHuman } from '../zapiClient';
+import { fmtPhone, sendHuman, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
 
@@ -9,6 +9,9 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
 
 const MAX_HISTORY = 30;
+// instanceId da linha IO (Irmãos na Obra, 34998165040). Carimbado na message_queue pelo
+// Worker → decide a linha de RESPOSTA (responder pelo mesmo número que o cliente contatou).
+const INSTANCE_ID_IO = '3F26F6ECE67D72BB7FCA6244BF24326C';
 
 // ─── system prompt ───────────────────────────────────────────────
 
@@ -120,6 +123,10 @@ ${vendaBloco}
   Word", "perde lead", "demora pra fechar") a UM ganho concreto da plataforma — com uma frase que ele sinta
   o antes/depois. Venda a transformação, não a ferramenta. Uma tacada certeira vale mais que 5 features.
 - Se a pessoa SÓ quer suporte técnico, resolva direto e bem — não force venda no meio de um problema.
+- ESCALAR PRA HUMANO (suporte 10/10): se for um problema REAL que você não resolve (bug persistente, pagamento
+  travado, algo que precisa de gente do time olhar), acolhe UMA vez ("já vou acionar o time pra resolver isso pra
+  você") e termine a resposta com a tag literal [HUMANO] (o sistema remove a tag e abre o chamado de verdade).
+  Use [HUMANO] com parcimônia — só quando REALMENTE precisa de humano, não pra dúvida simples que você resolve.
 - Atenção a pedidos elípticos: "Pode mandar", "bora", "vamos testar", "quero" = ele quer AVANÇAR. Não devolva a bola perguntando "o que você quer?" — dê o próximo passo concreto (mostre o valor ou mande o link de assinatura).
 - ANTI-LOOP (crítico): se você JÁ fez uma pergunta de sondagem antes e o cliente respondeu mostrando interesse, NÃO faça outra pergunta de sondagem — AVANCE pro link ${APP_URL}. Você nunca faz a mesma pergunta (ou equivalente) duas vezes. NUNCA entre em loop de despedidas ("abraço/até breve/valeu") — se já se despediu uma vez, PARE (não responda mais).
 - ANTI-DESPEJO (crítico): NUNCA liste várias ferramentas numa mensagem. Escolha o 1 pilar/benefício que resolve a dor que ELE acabou de mencionar. Plataforma cheia de recurso vira ruído — venda 1 transformação por vez.
@@ -231,7 +238,11 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
         type: msg.media_type as string,
         mime: (msg.media_mime as string) || '',
       } : undefined;
-      await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name, undefined, media);
+      // Linha de ORIGEM: o Worker carimba instance_id na fila. IO → responde por 'io'
+      // (mesmo número que o cliente contatou); qualquer outra/null → 'solardoc' (default
+      // retrocompatível). É o que evita o lead do anúncio receber resposta de outro número.
+      const originInstance: ZapiInstance = msg.instance_id === INSTANCE_ID_IO ? 'io' : 'solardoc';
+      await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name, undefined, media, originInstance);
       processed++;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -350,7 +361,11 @@ export async function handleIncomingWhatsApp(
   text: string,
   senderName?: string | null,
   tracking?: { ctwa_clid?: string | null },
-  media?: IncomingMedia
+  media?: IncomingMedia,
+  // Linha de origem (de qual número o cliente escreveu). Default 'solardoc' pra
+  // retrocompat; 'io' quando a mensagem veio da linha IO. Todas as RESPOSTAS de inbound
+  // saem por ela → cliente é respondido pelo MESMO número que contatou.
+  originInstance: ZapiInstance = 'solardoc',
 ): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
@@ -427,10 +442,12 @@ export async function handleIncomingWhatsApp(
     const { data: b2bSession } = await supabase
       .from('whatsapp_sessions').select('id').eq('phone', cleanPhone).eq('tipo', 'sdr_b2b').single();
 
-    // Roteamento: prioriza sessão existente, depois trigger, depois ad (B2B por default)
+    // Roteamento: prioriza sessão existente, depois trigger, depois ad (B2B por default).
+    // originInstance vai pra Carla → ela responde pela MESMA linha que o lead contatou
+    // (o lead do anúncio na linha IO recebe resposta do número da IO, não da solardoc).
     if (b2bSession || isB2bTriggered) {
       const { handleSolarDocB2bLead } = await import('../sdr/sdrB2bAgentService');
-      await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking, imageSource);
+      await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking, imageSource, originInstance);
       return;
     }
     if (b2cSession || isB2cTriggered) {
@@ -442,7 +459,7 @@ export async function handleIncomingWhatsApp(
       // Anúncio Meta (ctwa_clid) sem trigger explícito → assume B2B SolarDoc
       // (porque é o produto que está rodando ads no momento)
       const { handleSolarDocB2bLead } = await import('../sdr/sdrB2bAgentService');
-      await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking, imageSource);
+      await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking, imageSource, originInstance);
       return;
     }
     // Mensagem aleatória de número desconhecido → ignora
@@ -463,11 +480,11 @@ export async function handleIncomingWhatsApp(
   // NUNCA re-contatar (mesmo se o número for raspado de novo). Anti-denúncia.
   const ehDenuncia = DENUNCIA_PATTERNS.test(text);
   if (ehDenuncia || OPT_OUT_PATTERNS.test(text)) {
-    // Despede com classe ANTES de deletar (depois o registro pode sumir).
+    // Despede com classe ANTES de deletar (depois o registro pode sumir). Pela linha de origem.
     await sendHuman(cleanPhone, [
       'Entendido, vou parar por aqui e não te incomodo mais.',
       'Se um dia precisar, é só me chamar. Abraço!',
-    ]).catch(() => {});
+    ], originInstance).catch(() => {});
     await excluirOuSilenciarContato(user, cleanPhone, ehDenuncia ? 'denuncia' : 'opt_out');
     return;
   }
@@ -540,9 +557,35 @@ export async function handleIncomingWhatsApp(
   });
 
   const raw = (response.content[0] as { text: string }).text;
-  const parts = raw.split('||').map(p => p.trim()).filter(Boolean);
 
-  await sendHuman(cleanPhone, parts);
+  // ESCALAÇÃO PRA HUMANO via tag [HUMANO] (espelha o padrão [PERDIDO]/[ESCALAR]): quando a
+  // Giovanna diz que vai chamar o time, o código REGISTRA de fato o chamado — senão o cliente
+  // (pagante!) ficava no vácuo. Detecção == strip (simétrico) pra a tag NUNCA vazar pro cliente.
+  const pedeHumano = /\[HUMANO\]/i.test(raw);
+  const limpo = raw.replace(/\[HUMANO\]/ig, '').trim();
+  const parts = limpo.split('||').map(p => p.trim()).filter(Boolean);
+
+  await sendHuman(cleanPhone, parts, originInstance);  // responde pela linha que o cliente contatou
+
+  if (pedeHumano) {
+    // Guard: 1 chamado por sessão (senão um modelo tagarela re-emite [HUMANO] e spamma
+    // chamado pro pagante). Só abre se não houver chamado 'aberto' pra este telefone.
+    const { data: aberto } = await supabase
+      .from('tech_issues').select('id').eq('phone', cleanPhone).eq('status', 'aberto').limit(1).maybeSingle();
+    if (!aberto) {
+      try {
+        await supabase.from('tech_issues').insert({
+          phone: cleanPhone, nome: nome || null, area: 'atendimento_giovanna',
+          descricao: (text || '').slice(0, 500),
+          diagnostico_automatico: `escalado pela Giovanna (plano ${user.plano}, ${user.email})`.slice(0, 500),
+          status: 'aberto',
+        });
+        logger.info('giovanna-escalar', `chamado aberto ${cleanPhone} (${user.email})`);
+      } catch (e) {
+        logger.error('giovanna-escalar', `registrar chamado falhou ${cleanPhone}`, e);
+      }
+    }
+  }
 
   await saveSession(cleanPhone, user.id, [
     ...messages,
