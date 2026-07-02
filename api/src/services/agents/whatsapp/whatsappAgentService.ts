@@ -396,13 +396,19 @@ export async function handleIncomingWhatsApp(
     ];
     const isB2cTriggered = B2C_TRIGGERS.some(t => lowerText.includes(t));
 
-    // B2B signals (SolarDoc) — inclui typos comuns ("soladoc") e variacoes
+    // B2B signals (SolarDoc) — inclui typos comuns ("soladoc") e variacoes.
+    // Match é lowerText.includes(t): use SUBSTRING robusta, não a frase inteira, pra
+    // pegar pontuação/sufixo do anúncio ("...SolarDoc.App" → "solardoc.app" ainda casa).
     const B2B_TRIGGERS = [
       'eu quero o solardoc', 'eu quero a solardoc',
       'eu quero o soladoc',  'eu quero a soladoc',
       'quero o solardoc',    'quero a solardoc',
       'quero o soladoc',     'quero a soladoc',
       'quero conhecer a solardoc', 'quero conhecer o solardoc',
+      // Gatilho do anúncio Meta B2B (jul/2026): "Quero saber mais da SolarDoc.App".
+      // Substrings cobrem gênero (da/do) e o typo soladoc; o ".app" cai fora do match.
+      'saber mais da solardoc', 'saber mais do solardoc',
+      'saber mais da soladoc',  'saber mais do soladoc',
       'sou empresario solar', 'sou empresário solar',
       'integrador solar',
     ];
