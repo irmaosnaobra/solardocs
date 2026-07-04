@@ -43,6 +43,7 @@ function useReveal() {
 const PRICES = {
   pro: 27,
   vip: 67,
+  vipPromo: 49, // downsell: VIP com desconto oferecido no popup ao clicar no Pro
 } as const;
 
 export default function Landing() {
@@ -80,12 +81,24 @@ export default function Landing() {
     document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  const [checkoutLoading, setCheckoutLoading] = useState<'pro' | 'vip' | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState<'pro' | 'vip' | 'vip_promo' | null>(null);
+  const [showDownsell, setShowDownsell] = useState(false);
+
+  // Popup de downsell (clicou no Pro → oferta do VIP com desconto): fecha no Esc
+  // e trava o scroll do fundo enquanto está aberto.
+  useEffect(() => {
+    if (!showDownsell) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowDownsell(false); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+  }, [showDownsell]);
 
   // Fluxo LP → Stripe → Cadastro: clica no plano e vai DIRETO pro checkout
   // público do Stripe (email + cartão, 7 dias grátis). Só depois de aprovar
   // o cartão a pessoa cria a conta. Sem free.
-  async function goToRegister(plano: 'pro' | 'vip') {
+  async function goToRegister(plano: 'pro' | 'vip' | 'vip_promo') {
     trackEvent('cta_click', { label: plano });
     if (typeof window !== 'undefined' && window.fbq) {
       window.fbq('track', 'InitiateCheckout', { content_name: plano });
@@ -110,15 +123,24 @@ export default function Landing() {
     // Preserva os UTMs na URL pra atribuição não evaporar se o público falhar.
     setCheckoutLoading(null);
     const attr = getCheckoutAttribution();
-    const qs = new URLSearchParams({ mode: 'register', plano });
+    const qs = new URLSearchParams({ mode: 'register', plano: plano === 'vip_promo' ? 'vip' : plano });
     for (const k of ['utm_source','utm_medium','utm_campaign','utm_content','utm_term']) {
       if (attr[k]) qs.set(k, attr[k]);
     }
     router.push(`/auth?${qs.toString()}`);
   }
 
+  // Data de hoje em pt-BR (fuso de SP) pra barra de urgência — sempre "hoje".
+  const hojeBR = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' });
+
   return (
     <div className={styles.page}>
+      {/* BARRA DE URGÊNCIA — desconto exclusivo do dia (clica → rola pros planos) */}
+      <button type="button" className={styles.promoBar} onClick={scrollToPlans} aria-label="Desconto exclusivo somente hoje — ver planos">
+        <span className={styles.promoDot} aria-hidden="true" />
+        Desconto exclusivo • Somente hoje, <u suppressHydrationWarning>{hojeBR}</u>
+      </button>
+
       {/* NAV */}
       <nav className={styles.nav}>
         <div className={styles.navInner}>
@@ -384,22 +406,24 @@ export default function Landing() {
               alignItems: 'stretch',
             }}
           >
-            <div className={styles.plan} data-reveal style={{ transitionDelay: '0.05s' }}>
+            <div className={styles.plan} data-reveal style={{ transitionDelay: '0.05s', opacity: 0.9 }}>
               <div className={styles.planName}>Pro</div>
               <div className={styles.planPrice}>R$ {PRICES.pro}<small>/mês</small></div>
               <div className={styles.planSub}>
                 7 dias grátis · cancela quando quiser<br />
-                <span style={{ opacity: 0.7 }}>Pra quem tá começando a profissionalizar as vendas</span>
+                <span style={{ opacity: 0.7 }}>Pra quem tá começando — 90 documentos por mês</span>
               </div>
               <ul className={styles.planList}>
-                <li>90 documentos por mês</li>
                 <li>Os 8 tipos de documento com a sua marca</li>
                 <li>Cláusulas prontas pro setor solar</li>
-                <li>Histórico dos seus documentos por 30 dias</li>
                 <li>Cancela quando quiser, sem multa</li>
+                <li className={styles.off}>Documentos ilimitados</li>
+                <li className={styles.off}>Histórico salvo pra sempre</li>
+                <li className={styles.off}>Cadastro de prestadores parceiros</li>
+                <li className={styles.off}>Voz no roadmap: peça novos recursos</li>
               </ul>
-              <button onClick={() => goToRegister('pro')} className={styles.planBtn} disabled={checkoutLoading !== null}>
-                {checkoutLoading === 'pro' ? 'Abrindo checkout...' : 'Testar 7 dias grátis'}
+              <button onClick={() => { trackEvent('cta_click', { label: 'pro_downsell_open' }); setShowDownsell(true); }} className={styles.planBtn} disabled={checkoutLoading !== null}>
+                Testar 7 dias grátis
               </button>
             </div>
 
@@ -412,11 +436,13 @@ export default function Landing() {
                 <span style={{ opacity: 0.7 }}>Pra empresa solar que vende todo dia — sem limite nenhum</span>
               </div>
               <ul className={styles.planList}>
-                <li><b>Tudo do Pro, e mais:</b></li>
-                <li>Documentos <b>ilimitados</b> — gere à vontade, sem teto</li>
-                <li>Histórico <b>ilimitado</b> — toda venda salva pra sempre</li>
+                <li>Os 8 tipos de documento com a sua marca</li>
+                <li>Cláusulas prontas pro setor solar</li>
+                <li>Cancela quando quiser, sem multa</li>
+                <li><b>Documentos ilimitados</b> — sem teto mensal</li>
+                <li><b>Histórico salvo pra sempre</b></li>
                 <li>Cadastro de prestadores parceiros</li>
-                <li>Voz no roadmap: vote e peça novos recursos</li>
+                <li>Voz no roadmap: peça novos recursos</li>
               </ul>
               <button onClick={() => goToRegister('vip')} className={`${styles.planBtn} ${styles.planBtnPrimary}`} disabled={checkoutLoading !== null}>
                 {checkoutLoading === 'vip' ? 'Abrindo checkout...' : 'Testar 7 dias grátis'}
@@ -526,6 +552,92 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* ===== POPUP DOWNSELL — clicou no Pro, oferece o VIP com desconto (R$ 49/mês) ===== */}
+      {showDownsell && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="downsellTitle"
+          onClick={() => setShowDownsell(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 16, background: 'rgba(15,23,42,0.72)', backdropFilter: 'blur(3px)',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: 'relative', width: '100%', maxWidth: 440,
+              background: '#fff', color: '#0f172a', borderRadius: 20,
+              padding: '30px 26px 26px', boxShadow: '0 24px 70px rgba(2,6,23,0.45)',
+              border: '1px solid rgba(148,163,184,0.25)',
+            }}
+          >
+            <button
+              type="button" aria-label="Fechar" onClick={() => setShowDownsell(false)}
+              style={{
+                position: 'absolute', top: 12, right: 14, width: 32, height: 32,
+                border: 'none', background: 'transparent', color: '#94a3b8',
+                fontSize: 26, lineHeight: 1, cursor: 'pointer',
+              }}
+            >×</button>
+
+            <div style={{
+              display: 'inline-block', fontSize: 12, fontWeight: 700, letterSpacing: 0.3,
+              textTransform: 'uppercase', color: '#16a34a', background: 'rgba(22,163,74,0.10)',
+              padding: '5px 11px', borderRadius: 999, marginBottom: 14,
+            }}>
+              Espere! Oferta exclusiva pra você
+            </div>
+
+            <h3 id="downsellTitle" style={{ fontSize: 22, lineHeight: 1.25, margin: '0 0 14px', fontWeight: 800 }}>
+              Leve o <span style={{ color: '#16a34a' }}>VIP</span> com tudo ilimitado
+            </h3>
+
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
+              <span style={{ fontSize: 17, color: '#94a3b8', textDecoration: 'line-through' }}>R$ {PRICES.vip}</span>
+              <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1 }}>
+                <span style={{ fontSize: 20, fontWeight: 700, verticalAlign: '6px' }}>R$ </span>{PRICES.vipPromo}
+                <small style={{ fontSize: 15, fontWeight: 600, color: '#64748b' }}>/mês</small>
+              </span>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a', marginBottom: 16 }}>
+              Você economiza R$ {PRICES.vip - PRICES.vipPromo} todo mês
+            </div>
+
+            <p style={{ fontSize: 14, lineHeight: 1.6, color: '#475569', margin: '0 0 20px' }}>
+              No Pro você tem <b>90 documentos por mês</b>. No VIP é <b>tudo ilimitado</b> — documentos,
+              histórico salvo pra sempre e cadastro de prestadores parceiros. Os mesmos <b>7 dias grátis</b>:
+              a primeira cobrança só acontece no 8º dia.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => goToRegister('vip_promo')}
+              disabled={checkoutLoading !== null}
+              className={`${styles.planBtn} ${styles.planBtnPrimary}`}
+              style={{ width: '100%' }}
+            >
+              {checkoutLoading === 'vip_promo' ? 'Abrindo checkout...' : `Quero o VIP por R$ ${PRICES.vipPromo}/mês →`}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => goToRegister('pro')}
+              disabled={checkoutLoading !== null}
+              style={{
+                display: 'block', width: '100%', marginTop: 12, padding: 8,
+                border: 'none', background: 'transparent', color: '#94a3b8',
+                fontSize: 13, cursor: 'pointer', textDecoration: 'underline',
+              }}
+            >
+              {checkoutLoading === 'pro' ? 'Abrindo checkout...' : `Não, seguir com o Pro (R$ ${PRICES.pro}/mês)`}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

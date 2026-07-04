@@ -29,6 +29,20 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
     valor: 67, // preço mensal real (R$) — espelha PRICES.vip da Landing. Usado no value do Purchase (Meta CAPI).
     descricao: '📄 Documentos ilimitados  •  Indicado para +20 vendas mensais  •  Dashboard completo  •  Acesso a toda expansão da plataforma  •  Suporte prioritário',
   },
+  // Downsell da LP: MESMO acesso ilimitado (VIP), preço promocional R$ 49/mês.
+  // Oferecido no popup ao clicar no Pro. planByPrice() resolve isto pra plano
+  // 'ilimitado' (libera VIP na plataforma) e valor 49 entra no Purchase da Meta
+  // (CAPI) — NÃO 67. Trial de 7 dias é herdado do createPublicCheckout.
+  // Preço R$ 49/mês LIVE criado no produto SolarDoc VIP (prod_UIzsfi8HDwqOvu) em
+  // 04/jul/2026. Fallback já é o price_id real; STRIPE_PRICE_VIP_PROMO no Vercel
+  // é opcional (sobrescreve o fallback, boa prática).
+  vip_promo: {
+    priceId: envPrice('STRIPE_PRICE_VIP_PROMO', 'price_1TpYsLCkkgzQ4IHeSt3Oupwg'),
+    plano: 'ilimitado',
+    limite: 999999,
+    valor: 49,
+    descricao: '📄 Documentos ilimitados  •  Dashboard completo  •  Acesso a toda expansão da plataforma  •  Suporte prioritário',
+  },
 };
 
 // mapa invertido price_id → plano (para o webhook)
