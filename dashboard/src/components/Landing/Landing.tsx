@@ -193,6 +193,16 @@ export default function Landing() {
               </span>
             </div>
           </div>
+
+          <div className={styles.heroProduct} data-reveal>
+            <img
+              src="/hero-produto.webp"
+              width={1120}
+              height={666}
+              alt="Proposta solar gerada no SolarDoc, com a sua logo — no computador e no celular"
+              loading="eager"
+            />
+          </div>
         </div>
       </section>
 
