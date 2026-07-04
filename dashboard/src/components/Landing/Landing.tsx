@@ -222,7 +222,7 @@ export default function Landing() {
             <span className={styles.sectionLabel} data-reveal>8 documentos prontos</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            Tudo o que sua empresa solar <strong>precisa pra fechar</strong>.<br />
+            Tudo o que sua empresa solar <strong>precisa pra fechar</strong>.{' '}<br />
             Nada do que não precisa.
           </h2>
 
@@ -524,7 +524,7 @@ export default function Landing() {
       <section className={styles.finalCta}>
         <div className={styles.finalCtaInner}>
           <h2 className={styles.finalCtaTitle} data-reveal>
-            Sua próxima venda solar fecha com<br />
+            Sua próxima venda solar fecha com{' '}<br />
             <strong>proposta e contrato prontos em 2 minutos.</strong>
           </h2>
           <p className={styles.finalCtaSub} data-reveal>

@@ -130,6 +130,10 @@
   cursor: pointer;
   box-shadow: 0 2px 12px rgba(245, 158, 11, 0.3);
   letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px; /* tap target confortável no mobile (era ~31px) */
 }
 .navCta:hover {
   background: var(--color-primary-hover);
@@ -1830,7 +1834,7 @@
   /* SOCIAL — stats + testimonial */
   .social { padding: 56px 16px; }
   .statsGrid { gap: 12px; margin-top: 30px; margin-bottom: 36px; }
-  .stat { padding: 28px 18px; border-radius: 16px; }
+  .stat { padding: 20px 18px; border-radius: 16px; }
   .statN { font-size: 36px; }
   .statL { font-size: 12px; }
   .testimonialsGrid { gap: 14px; }
