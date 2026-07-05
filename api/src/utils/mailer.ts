@@ -311,6 +311,59 @@ export async function sendCheckoutRecoveryEmail(email: string, userId: string): 
   await sendMarketingEmail({ to: email, userId, subject, html });
 }
 
+// Digest diário de estoque baixo do Inventário. Lista os itens que bateram/
+// furaram o estoque mínimo. CTA leva direto pra aba de inventário.
+export interface LowStockItem {
+  nome: string;
+  local: string;
+  marca: string | null;
+  quantidade: number;
+  unidade: string;
+  estoque_minimo: number;
+}
+export async function sendInventoryLowStockEmail(
+  email: string,
+  userId: string,
+  nome: string | null,
+  itens: LowStockItem[],
+): Promise<void> {
+  if (!itens || itens.length === 0) return;
+  const firstName = (nome || '').trim().split(/\s+/)[0] || 'Olá';
+  const nf = (n: number) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+  const linhas = itens
+    .map(
+      (i) => `
+      <tr>
+        <td style="padding:10px 14px;border-bottom:1px solid #1e293b;color:#f8fafc;font-size:14px;font-weight:700;">${i.nome}${i.marca ? ` <span style="color:#64748b;font-weight:400;">· ${i.marca}</span>` : ''}<br><span style="color:#64748b;font-size:12px;font-weight:400;">${i.local}</span></td>
+        <td style="padding:10px 14px;border-bottom:1px solid #1e293b;color:#f87171;font-size:14px;font-weight:800;text-align:right;white-space:nowrap;">${nf(i.quantidade)} ${i.unidade}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #1e293b;color:#94a3b8;font-size:13px;text-align:right;white-space:nowrap;">mín. ${nf(i.estoque_minimo)}</td>
+      </tr>`,
+    )
+    .join('');
+  const subject =
+    itens.length === 1
+      ? `⚠️ 1 item no estoque mínimo — ${itens[0].nome}`
+      : `⚠️ ${itens.length} itens no estoque mínimo`;
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:30px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro · Inventário</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">Hora de repor o estoque</h1>
+  </div>
+  <div style="padding:32px 36px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">${firstName}, ${itens.length === 1 ? 'um item bateu' : `${itens.length} itens bateram`} o estoque mínimo que você definiu. Vale repor antes que falte na obra:</p>
+    <table style="width:100%;border-collapse:collapse;background:#111c30;border-radius:10px;overflow:hidden;margin:0 0 26px;">
+      ${linhas}
+    </table>
+    <div style="text-align:center;margin:8px 0;">
+      <a href="${APP_URL}/inventario" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:15px;padding:15px 38px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">Abrir meu inventário →</a>
+    </div>
+    <p style="color:#64748b;font-size:12px;margin:22px 0 0;line-height:1.6;text-align:center;">Você recebe este aviso porque definiu um estoque mínimo para esses itens no Inventário.</p>
+  </div>
+</div>`;
+  await sendMarketingEmail({ to: email, userId, subject, html });
+}
+
 const noContractsEmails: Array<{ subject: string; html: (nome: string | null) => string }> = [
   {
     subject: 'Sua conta SolarDoc Pro está parada — vamos voltar?',

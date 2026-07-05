@@ -27,6 +27,7 @@ import { runDunning } from '../services/dunningService';
 import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
 import { runMonitorCriativos } from '../services/agenda/monitorCriativosService';
+import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -517,6 +518,22 @@ router.get('/monitor-criativos', async (req: Request, res: Response) => {
   }
 });
 
+// Digest de estoque baixo do Inventário (aba grátis). GATED: rodar manual /
+// ?dry=1 primeiro pra conferir volume; só entra no master depois de adoção.
+// O badge in-app já é o alerta sempre-ligado — o email é reforço opcional.
+// /cron/inventory-low-stock?dry=1
+router.get('/inventory-low-stock', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    const result = await runInventoryLowStockAlert({ dry });
+    res.json({ ok: true, ...result });
+  } catch (err: any) {
+    logger.error('cron', 'inventory-low-stock falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 router.get('/master', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
 
@@ -557,6 +574,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
     ['pix-vip-reminder',            () => runPixVipReminder()],     // avisa VIP-pix (84994501564) ~2d antes de vencer: valor + chave Pix
     ['monitor-criativos',           () => runMonitorCriativos()],   // alerta WhatsApp: criativos Meta gastando sem vender / CTR baixa
+    // ['inventory-low-stock',         () => runInventoryLowStockAlert()], // [GATED] digest de estoque baixo — ligar após adoção do Inventário
   ];
 
   const settled = await Promise.allSettled(tasks.map(([, fn]) => fn()));

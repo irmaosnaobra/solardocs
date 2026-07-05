@@ -30,7 +30,8 @@ interface MemberRow {
 }
 interface ChatMsg { role: 'user' | 'assistant'; content: string }
 interface CalcUso { aberturas: number; calculos: number; clientes: number; }
-interface UsersResponse { users: MemberRow[]; documents: Array<{ created_at: string }>; calculadora?: CalcUso; }
+interface InvUso { aberturas: number; itens: number; clientes: number; }
+interface UsersResponse { users: MemberRow[]; documents: Array<{ created_at: string }>; calculadora?: CalcUso; inventario?: InvUso; }
 
 // Recebimento (Stripe) — espelha o payload de GET /admin/billing.
 interface BillingResponse {
@@ -100,6 +101,7 @@ type PlanFilter = 'todos' | 'free' | 'pro' | 'ilimitado';
 export default function MembrosPanel() {
   const [data, setData]       = useState<MemberRow[] | null>(null);
   const [calc, setCalc]       = useState<CalcUso | null>(null);
+  const [inv, setInv]         = useState<InvUso | null>(null);
   const [billing, setBilling] = useState<BillingResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -121,6 +123,7 @@ export default function MembrosPanel() {
       if (usersRes.status === 'fulfilled') {
         setData(usersRes.value.data.users ?? []);
         setCalc(usersRes.value.data.calculadora ?? null);
+        setInv(usersRes.value.data.inventario ?? null);
       } else {
         throw usersRes.reason;
       }
@@ -281,6 +284,15 @@ export default function MembrosPanel() {
                 <span style={{ color: 'var(--color-text-muted)' }}> · </span>
                 <span style={{ color: 'var(--color-text)' }}>{calc?.calculos ?? 0}</span>
                 <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}> · {calc?.clientes ?? 0} clientes</span>
+              </div>
+            </div>
+            <div className={styles.card}>
+              <div className={styles.cardLabel}>📦 Inventário · abriu · itens</div>
+              <div className={styles.cardValue} style={{ fontSize: 20 }}>
+                <span style={{ color: 'var(--color-primary)' }}>{inv?.aberturas ?? 0}</span>
+                <span style={{ color: 'var(--color-text-muted)' }}> · </span>
+                <span style={{ color: 'var(--color-text)' }}>{inv?.itens ?? 0}</span>
+                <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}> · {inv?.clientes ?? 0} clientes</span>
               </div>
             </div>
           </div>

@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Building2, Users, User, Handshake,
   Banknote, ScrollText, FileSignature, Receipt,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
-  Save, GraduationCap, Smartphone,
+  Boxes, Save, GraduationCap, Smartphone,
   Send, LogOut, TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
@@ -65,6 +65,8 @@ const topoItems: NavItem[] = [
   { href: '/documentos?tipo=proposta', icon: Sparkles,    label: 'Gerador de Proposta', requireCompany: true },
   // Precificação: ferramenta grátis (isca de retenção) — sem requireCompany, free também vê.
   { href: '/precificacao',             icon: Calculator,  label: 'Precificação' },
+  // Inventário: ferramenta grátis (isca de retenção) — controle de patrimônio/estoque.
+  { href: '/inventario',               icon: Boxes,       label: 'Inventário' },
 ];
 
 // Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.

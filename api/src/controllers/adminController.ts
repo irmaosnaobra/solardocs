@@ -212,7 +212,21 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
       clientes:  new Set(calcRows.map(e => e.user_id).filter(Boolean)).size,
     };
 
-    res.json({ users: result, documents: docs ?? [], calculadora });
+    // Uso do Inventário (aba grátis) — mesma telemetria: abriu / adicionou item /
+    // clientes únicos. Analytics interno, não consome crédito.
+    const { data: invEvents } = await supabase
+      .from('feature_events')
+      .select('user_id, event_type')
+      .eq('feature', 'inventario')
+      .limit(50000);
+    const invRows = invEvents ?? [];
+    const inventario = {
+      aberturas: invRows.filter(e => e.event_type === 'open').length,
+      itens:     invRows.filter(e => e.event_type === 'add_item').length,
+      clientes:  new Set(invRows.map(e => e.user_id).filter(Boolean)).size,
+    };
+
+    res.json({ users: result, documents: docs ?? [], calculadora, inventario });
   } catch (err) {
     console.error('Admin getUsers error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
