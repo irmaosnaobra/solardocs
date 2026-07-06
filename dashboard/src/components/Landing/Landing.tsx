@@ -130,15 +130,21 @@ export default function Landing() {
     router.push(`/auth?${qs.toString()}`);
   }
 
-  // Data de hoje em pt-BR (fuso de SP) pra barra de urgência — sempre "hoje".
-  const hojeBR = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' });
+  // Data de hoje em pt-BR (fuso de SP) pra barra de urgência. Calculada NO CLIENTE
+  // (useEffect) pra sempre refletir o dia ATUAL de quem abre. Se computasse no
+  // render, o Next executa no servidor/build e a página cacheia (SSG/ISR) →
+  // a data congelava no dia do build (ex.: mostrava 05/07 no dia 06/07).
+  const [hojeBR, setHojeBR] = useState('');
+  useEffect(() => {
+    setHojeBR(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' }));
+  }, []);
 
   return (
     <div className={styles.page}>
       {/* BARRA DE URGÊNCIA — desconto exclusivo do dia (clica → rola pros planos) */}
       <button type="button" className={styles.promoBar} onClick={scrollToPlans} aria-label="Desconto exclusivo somente hoje — ver planos">
         <span className={styles.promoDot} aria-hidden="true" />
-        Desconto exclusivo • Somente hoje, <u suppressHydrationWarning>{hojeBR}</u>
+        Desconto exclusivo • Somente hoje, <u>{hojeBR}</u>
       </button>
 
       {/* NAV */}

@@ -52,7 +52,9 @@
   background: #0F172A;
   color: #F1F5F9;
   font-family: var(--font-sans);
-  overflow-x: hidden;
+  /* clip (não hidden): clipa o overflow horizontal SEM virar scroll-container —
+     senão a barra de urgência position:sticky quebra em alguns navegadores (iOS). */
+  overflow-x: clip;
   color-scheme: dark;
 }
 
