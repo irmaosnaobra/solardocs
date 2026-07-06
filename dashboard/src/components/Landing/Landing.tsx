@@ -136,7 +136,12 @@ export default function Landing() {
   // a data congelava no dia do build (ex.: mostrava 05/07 no dia 06/07).
   const [hojeBR, setHojeBR] = useState('');
   useEffect(() => {
-    setHojeBR(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' }));
+    const calcHoje = () => new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' });
+    setHojeBR(calcHoje());
+    // Vira a data à meia-noite de São Paulo mesmo com a página aberta: recomputa
+    // no fuso de SP a cada 30s e só re-renderiza quando o dia efetivamente troca.
+    const id = setInterval(() => setHojeBR(prev => { const d = calcHoje(); return d !== prev ? d : prev; }), 30000);
+    return () => clearInterval(id);
   }, []);
 
   return (
