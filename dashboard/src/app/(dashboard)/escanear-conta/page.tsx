@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ScanLine, Camera, Upload, FileText, CheckCircle2,
   AlertTriangle, Zap, ArrowRight, RefreshCw, Sparkles,
@@ -98,6 +99,7 @@ export default function EscanearContaPage() {
   const [preview, setPreview] = useState('');
   const [previewIsPdf, setPreviewIsPdf] = useState(false);
   const [created, setCreated] = useState<Client | null>(null);
+  const router = useRouter();
 
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -154,6 +156,23 @@ export default function EscanearContaPage() {
     setCreated(client);
     setModalOpen(false);
     logUso('cliente_criado');
+  }
+
+  // Gera proposta JÁ preenchida: semeia o rascunho que o PropostaSolarForm
+  // restaura no mount (chave estável 'proposta-solar-draft-v1'). Preenche nome,
+  // cidade/UF e o consumo (kWh) — que a proposta usa pra dimensionar o sistema.
+  function gerarProposta() {
+    try {
+      const cidadeUf = [created?.cidade, created?.uf].filter(Boolean).join('/');
+      const consumo = scan?.detectado?.consumo_medio_kwh;
+      localStorage.setItem('proposta-solar-draft-v1', JSON.stringify({
+        clienteNome: created?.nome || '',
+        cidadeUf,
+        fields: consumo ? { consumo_kwh: String(consumo) } : {},
+      }));
+    } catch { /* localStorage indisponível: segue sem prefill */ }
+    logUso('gerar_proposta_prefill');
+    router.push('/documentos?tipo=proposta');
   }
 
   const det = scan?.detectado;
@@ -223,9 +242,9 @@ export default function EscanearContaPage() {
           <h2 className="ec-successTitle">Cliente cadastrado!</h2>
           <p className="ec-successName">{created.nome}</p>
           <div className="ec-successActions">
-            <Link href="/documentos?tipo=proposta" className="ec-primaryBtn">
-              <Sparkles size={17} strokeWidth={2} /> Gerar proposta
-            </Link>
+            <button className="ec-primaryBtn" onClick={gerarProposta}>
+              <Sparkles size={17} strokeWidth={2} /> Gerar proposta com os dados preenchidos
+            </button>
             <Link href="/clientes" className="ec-ghostBtn">Ver em Clientes</Link>
             <button className="ec-ghostBtn" onClick={reset}>
               <RefreshCw size={15} strokeWidth={2} /> Escanear outra
