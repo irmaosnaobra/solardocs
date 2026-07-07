@@ -191,7 +191,7 @@ a) Módulos fotovoltaicos: ${str(f.garantia_modulos_anos)} (${numExtenso(f.garan
 
 b) Inversor: ${str(f.garantia_inversor_anos)} (${numExtenso(f.garantia_inversor_anos)}) anos de garantia do fabricante, incluindo cobertura contra defeitos de funcionamento e falhas de componentes eletrônicos;
 
-c) Serviços de instalação: ${str(f.garantia_instalacao_anos)} (${numExtenso(f.garantia_instalacao_anos)}) ano(s) de garantia sobre a execução dos serviços realizados pela CONTRATADA, cobrindo exclusivamente defeitos provenientes da instalação, como infiltrações causadas pela fixação, falhas em conexões elétricas ou problemas estruturais gerados durante a obra.
+c) Serviços de instalação: ${garantiaInstalacaoExtenso(f)} de garantia sobre a execução dos serviços realizados pela CONTRATADA, cobrindo exclusivamente defeitos provenientes da instalação, como infiltrações causadas pela fixação, falhas em conexões elétricas ou problemas estruturais gerados durante a obra.
 
 Vale destacar que as garantias dos equipamentos são administradas diretamente pelos respectivos fabricantes. Nos casos em que for necessário acionar a garantia de um equipamento, a CONTRATADA prestará suporte ao CONTRATANTE no processo de acionamento junto ao fabricante, facilitando os trâmites necessários.
 
@@ -378,7 +378,7 @@ ${str(f.condicoes_pagamento)}
 
 Equipamentos: As garantias dos equipamentos são exclusivamente do fabricante, cobrindo ${str(f.garantia_modulos_anos)} (${numExtenso(f.garantia_modulos_anos)}) anos para módulos fotovoltaicos, ${str(f.garantia_inversor_anos)} (${numExtenso(f.garantia_inversor_anos)}) anos para o inversor, e prazos específicos para demais componentes conforme manual do fabricante.
 
-Instalação: A garantia de instalação é de ${str(f.garantia_instalacao_anos)} (${numExtenso(f.garantia_instalacao_anos)}) anos, válida somente para defeitos de instalação devidamente constatados por laudo técnico.
+Instalação: A garantia de instalação é de ${garantiaInstalacaoExtenso(f)}, válida somente para defeitos de instalação devidamente constatados por laudo técnico.
 
 Exclusões de Garantia: A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da CONTRATADA, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.
 
@@ -2516,6 +2516,20 @@ function numExtenso(v: unknown): string {
   return useE
     ? partes.slice(0, -1).join(' ') + ' e ' + partes[partes.length - 1]
     : partes.join(' ');
+}
+
+// Garantia da instalação (mão de obra): renderiza valor + extenso + unidade com
+// plural correto. Mão de obra às vezes é 6 MESES (não 1 ano) — o form manda
+// garantia_instalacao_unidade='anos'|'meses'. Ex: "1 (um) ano", "2 (dois) anos",
+// "6 (seis) meses", "1 (um) mês". Sem a unidade, cai em anos (retrocompatível).
+function garantiaInstalacaoExtenso(f: Record<string, unknown>): string {
+  const valor = f.garantia_instalacao_anos;
+  const emMeses = String(f.garantia_instalacao_unidade ?? 'anos').toLowerCase() === 'meses';
+  const n = parseInt(String(valor ?? '').replace(/\D/g, ''), 10) || 0;
+  const unidade = emMeses
+    ? (n === 1 ? 'mês' : 'meses')
+    : (n === 1 ? 'ano' : 'anos');
+  return `${str(valor)} (${numExtenso(valor)}) ${unidade}`;
 }
 
 function extenso(v: unknown): string {

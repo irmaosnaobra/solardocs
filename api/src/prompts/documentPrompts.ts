@@ -56,7 +56,7 @@ PRAZOS:
 GARANTIAS:
 - Módulos fotovoltaicos: ${fields.garantia_modulos_anos} anos
 - Inversor: ${fields.garantia_inversor_anos} anos
-- Serviço de instalação: ${fields.garantia_instalacao_anos} anos
+- Serviço de instalação: ${fields.garantia_instalacao_anos} ${String((fields as Record<string, unknown>).garantia_instalacao_unidade ?? 'anos') === 'meses' ? 'meses' : 'anos'}
 
 FORO: Comarca de ${fields.foro_cidade}
 

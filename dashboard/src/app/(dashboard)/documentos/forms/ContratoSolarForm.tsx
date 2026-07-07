@@ -29,6 +29,7 @@ const initialFields = {
   garantia_modulos_anos: '',
   garantia_inversor_anos: '',
   garantia_instalacao_anos: '',
+  garantia_instalacao_unidade: 'anos', // 'anos' | 'meses' — mão de obra às vezes é 6 meses
   foro_cidade: '',
 };
 
@@ -166,19 +167,31 @@ export default function ContratoSolarPage() {
         </div>
 
         <div className={styles.section}>
-          <h2 className={styles.sectionTitle}>Garantias (anos)</h2>
+          <h2 className={styles.sectionTitle}>Garantias</h2>
           <div className={styles.grid3}>
             <div className={styles.field}>
-              <label className={styles.label}>Módulos *</label>
+              <label className={styles.label}>Módulos (anos) *</label>
               <input type="number" value={fields.garantia_modulos_anos} onChange={e => setFields({...fields, garantia_modulos_anos: e.target.value})} placeholder="15" className="input-field" required />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Inversor *</label>
+              <label className={styles.label}>Inversor (anos) *</label>
               <input type="number" value={fields.garantia_inversor_anos} onChange={e => setFields({...fields, garantia_inversor_anos: e.target.value})} placeholder="10" className="input-field" required />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Instalação *</label>
-              <input type="number" value={fields.garantia_instalacao_anos} onChange={e => setFields({...fields, garantia_instalacao_anos: e.target.value})} placeholder="2" className="input-field" required />
+              <label className={styles.label}>Instalação (mão de obra) *</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input type="number" value={fields.garantia_instalacao_anos} onChange={e => setFields({...fields, garantia_instalacao_anos: e.target.value})} placeholder="2" className="input-field" style={{ flex: 1, minWidth: 0 }} required />
+                <select
+                  value={fields.garantia_instalacao_unidade}
+                  onChange={e => setFields({...fields, garantia_instalacao_unidade: e.target.value})}
+                  className="input-field"
+                  style={{ flex: '0 0 auto', width: 'auto' }}
+                  aria-label="Unidade da garantia de instalação"
+                >
+                  <option value="anos">anos</option>
+                  <option value="meses">meses</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
