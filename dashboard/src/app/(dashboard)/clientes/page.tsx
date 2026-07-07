@@ -123,9 +123,30 @@ export default function ClientesPage() {
           <h1 className={styles.title}>Clientes</h1>
           <p className={styles.subtitle}>{clients.length} {clients.length === 1 ? 'cliente cadastrado' : 'clientes cadastrados'}</p>
         </div>
-        <button className="btn-primary" onClick={() => { setEditingClient(null); setShowModal(true); }}>
-          + Novo Cliente
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Link
+            href="/escanear-conta"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '10px 16px',
+              borderRadius: 10,
+              fontSize: '0.92rem',
+              fontWeight: 700,
+              textDecoration: 'none',
+              color: '#0f172a',
+              background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+              boxShadow: '0 4px 14px rgba(245,158,11,0.3)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            📸 Escanear Conta
+          </Link>
+          <button className="btn-primary" onClick={() => { setEditingClient(null); setShowModal(true); }}>
+            + Novo Cliente
+          </button>
+        </div>
       </div>
 
       {deleteError && (

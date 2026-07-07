@@ -63,6 +63,10 @@ export const clientsApi = {
   update: (id: string, data: { nome?: string; cpf_cnpj?: string; endereco?: string; cep?: string }) =>
     api.put(`/clients/${id}`, data),
   delete: (id: string) => api.delete(`/clients/${id}`),
+  // Escanear Conta: manda a conta de luz (foto/PDF em base64) e recebe os
+  // campos do cliente já normalizados + os dados detectados (consumo etc).
+  scan: (file_base64: string, media_type: string) =>
+    api.post('/clients/scan', { file_base64, media_type }),
 };
 
 // Documents

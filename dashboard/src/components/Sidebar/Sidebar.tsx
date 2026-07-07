@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Building2, Users, User, Handshake,
   Banknote, ScrollText, FileSignature, Receipt,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
-  Boxes, Save, GraduationCap, Smartphone,
+  Boxes, Save, GraduationCap, Smartphone, ScanLine,
   Send, LogOut, TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
@@ -63,6 +63,9 @@ const baseAdminItems: NavItem[] = [
 // Mascote e Baixe o App foram pra topbar (ícones). Sidebar só com o Gerador.
 const topoItems: NavItem[] = [
   { href: '/documentos?tipo=proposta', icon: Sparkles,    label: 'Gerador de Proposta', requireCompany: true },
+  // Escanear Conta: foto/PDF da conta de luz → IA lê e cadastra o cliente. requireCompany
+  // (precisa de empresa pra atuar); custo de IA contido pelo aiLimiter (10/min por IP).
+  { href: '/escanear-conta',           icon: ScanLine,    label: 'Escanear Conta', requireCompany: true },
   // Precificação: ferramenta grátis (isca de retenção) — sem requireCompany, free também vê.
   { href: '/precificacao',             icon: Calculator,  label: 'Precificação' },
   // Inventário: ferramenta grátis (isca de retenção) — controle de patrimônio/estoque.

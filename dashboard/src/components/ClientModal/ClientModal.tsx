@@ -26,6 +26,12 @@ interface ClientModalProps {
   client: Client | null;
   onClose: () => void;
   onSave: (client: Client) => void;
+  // seed: pré-preenche o formulário em modo CRIAÇÃO (ex: dados lidos da conta
+  // de luz pelo Escanear Conta). Só vale quando client === null; se client tem
+  // id, é edição e o seed é ignorado — mantém compatível com os usos existentes.
+  seed?: Partial<Client>;
+  // notice: aviso opcional no topo do form (ex: consumo detectado / conferir CPF).
+  notice?: React.ReactNode;
 }
 
 function fmtCpf(v: string) {
@@ -49,22 +55,25 @@ function fmtTel(v: string) {
   return d.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
 }
 
-export default function ClientModal({ client, onClose, onSave }: ClientModalProps) {
+export default function ClientModal({ client, onClose, onSave, seed, notice }: ClientModalProps) {
+  // Em edição (client com id) usa o client; em criação, cai no seed (Escanear
+  // Conta) e depois no default. seed só influencia o estado inicial.
+  const init = client ?? seed ?? null;
   const [form, setForm] = useState({
-    tipo: client?.tipo || 'PF' as 'PF' | 'PJ',
-    nome: client?.nome || '',
-    nacionalidade: client?.nacionalidade || 'brasileiro(a)',
-    cpf_cnpj: client?.cpf_cnpj || '',
-    endereco: client?.endereco || '',
-    cep: client?.cep || '',
-    cidade: client?.cidade || '',
-    uf: client?.uf || '',
-    concessionaria: client?.concessionaria || '',
-    email: client?.email || '',
-    telefone: client?.telefone || '',
-    telefone2: client?.telefone2 || '',
-    padrao: client?.padrao || '',
-    tipo_telhado: client?.tipo_telhado || '',
+    tipo: init?.tipo || 'PF' as 'PF' | 'PJ',
+    nome: init?.nome || '',
+    nacionalidade: init?.nacionalidade || 'brasileiro(a)',
+    cpf_cnpj: init?.cpf_cnpj || '',
+    endereco: init?.endereco || '',
+    cep: init?.cep || '',
+    cidade: init?.cidade || '',
+    uf: init?.uf || '',
+    concessionaria: init?.concessionaria || '',
+    email: init?.email || '',
+    telefone: init?.telefone || '',
+    telefone2: init?.telefone2 || '',
+    padrao: init?.padrao || '',
+    tipo_telhado: init?.tipo_telhado || '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -105,11 +114,25 @@ export default function ClientModal({ client, onClose, onSave }: ClientModalProp
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2 className={styles.title}>{client ? 'Editar cliente' : 'Novo cliente'}</h2>
+          <h2 className={styles.title}>{client ? 'Editar cliente' : seed ? 'Revisar dados da conta' : 'Novo cliente'}</h2>
           <button className={styles.closeBtn} onClick={onClose}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
+
+          {notice && (
+            <div style={{
+              background: 'rgba(34,197,94,0.08)',
+              border: '1px solid rgba(34,197,94,0.35)',
+              borderRadius: 10,
+              padding: '11px 14px',
+              fontSize: 13,
+              lineHeight: 1.5,
+              color: 'var(--color-text, #e2e8f0)',
+            }}>
+              {notice}
+            </div>
+          )}
 
           {/* Tipo PF / PJ */}
           <div className={styles.tipoRow}>

@@ -1,0 +1,255 @@
+/* Escanear Conta — usa as variáveis de tema globais (--color-*) pra combinar
+   com o resto do dashboard em light/dark. */
+
+.ec-page {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+/* ── Hero ── */
+.ec-hero {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.ec-heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-primary, #63b3ed);
+  background: color-mix(in srgb, var(--color-primary, #63b3ed) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary, #63b3ed) 30%, transparent);
+  padding: 5px 12px;
+  border-radius: 99px;
+  margin-bottom: 14px;
+}
+.ec-heroTitle {
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--color-text, #f1f5f9);
+  margin: 0 0 10px;
+}
+.ec-heroSub {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--color-text-muted, #94a3b8);
+  margin: 0 auto;
+  max-width: 480px;
+}
+
+/* ── Dropzone ── */
+.ec-drop {
+  border: 2px dashed var(--color-border, #334155);
+  border-radius: 18px;
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+  background: var(--color-surface, #0f172a);
+}
+.ec-drop:hover,
+.ec-drop:focus-visible {
+  border-color: var(--color-primary, #63b3ed);
+  background: color-mix(in srgb, var(--color-primary, #63b3ed) 6%, var(--color-surface, #0f172a));
+  outline: none;
+}
+.ec-dropIcon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--color-primary, #63b3ed);
+  background: color-mix(in srgb, var(--color-primary, #63b3ed) 14%, transparent);
+}
+.ec-dropText {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--color-text, #e2e8f0);
+  margin: 0 0 6px;
+}
+.ec-dropHint {
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #94a3b8);
+  margin: 0;
+}
+
+/* ── Botões ── */
+.ec-btnRow {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.ec-primaryBtn,
+.ec-ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 13px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+  text-decoration: none;
+  border: none;
+  font-family: inherit;
+}
+.ec-primaryBtn {
+  flex: 1;
+  min-width: 180px;
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  color: #0f172a;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+}
+.ec-primaryBtn:hover { filter: brightness(1.05); }
+.ec-primaryBtn:active { transform: translateY(1px); }
+.ec-ghostBtn {
+  background: transparent;
+  color: var(--color-text, #e2e8f0);
+  border: 1px solid var(--color-border, #334155);
+}
+.ec-ghostBtn:hover { border-color: var(--color-primary, #63b3ed); color: var(--color-primary, #63b3ed); }
+.ec-cameraBtn { flex: 1; min-width: 180px; }
+
+/* ── Passos ── */
+.ec-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 28px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: var(--color-surface, #0f172a);
+  border: 1px solid var(--color-border, #1e293b);
+}
+.ec-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted, #cbd5e1);
+}
+.ec-stepNum {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--color-primary, #63b3ed);
+  background: color-mix(in srgb, var(--color-primary, #63b3ed) 15%, transparent);
+}
+
+/* ── Erro ── */
+.ec-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+/* ── Card genérico (lendo / resumo / sucesso) ── */
+.ec-card {
+  text-align: center;
+  padding: 32px 24px;
+  border-radius: 18px;
+  background: var(--color-surface, #0f172a);
+  border: 1px solid var(--color-border, #1e293b);
+}
+
+/* ── Lendo ── */
+.ec-reading { display: flex; flex-direction: column; align-items: center; }
+.ec-readingImg {
+  width: 120px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #334155);
+  margin-bottom: 20px;
+}
+.ec-pdfThumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary, #63b3ed);
+  background: color-mix(in srgb, var(--color-primary, #63b3ed) 10%, transparent);
+}
+.ec-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border, #334155);
+  border-top-color: var(--color-primary, #63b3ed);
+  border-radius: 50%;
+  animation: ec-spin 0.8s linear infinite;
+  margin-bottom: 14px;
+}
+@keyframes ec-spin { to { transform: rotate(360deg); } }
+.ec-readingText { font-size: 1.05rem; font-weight: 700; color: var(--color-text, #f1f5f9); margin: 0 0 4px; }
+.ec-readingHint { font-size: 0.86rem; color: var(--color-text-muted, #94a3b8); margin: 0; }
+
+/* ── Resumo (modal fechado) ── */
+.ec-summary { text-align: left; }
+.ec-summaryHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--color-text, #e2e8f0);
+  margin-bottom: 14px;
+}
+.ec-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  padding: 6px 12px;
+  border-radius: 99px;
+  margin-bottom: 16px;
+}
+.ec-summaryActions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* ── Sucesso ── */
+.ec-successIcon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+}
+.ec-successTitle { font-size: 1.35rem; font-weight: 800; color: var(--color-text, #f1f5f9); margin: 0 0 4px; }
+.ec-successName { font-size: 1rem; color: var(--color-text-muted, #94a3b8); margin: 0 0 24px; }
+.ec-successActions { display: flex; flex-direction: column; gap: 10px; max-width: 320px; margin: 0 auto; }
+.ec-successActions .ec-primaryBtn,
+.ec-successActions .ec-ghostBtn { width: 100%; flex: none; min-width: 0; }
+
+@media (max-width: 520px) {
+  .ec-heroTitle { font-size: 1.3rem; }
+  .ec-primaryBtn, .ec-cameraBtn { min-width: 100%; }
+}
