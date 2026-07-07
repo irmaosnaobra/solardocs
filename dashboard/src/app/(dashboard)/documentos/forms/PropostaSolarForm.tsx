@@ -201,8 +201,6 @@ export default function PropostaSolarPage() {
   // rede/timeout não apaga mais os ~40 campos. Restaura ao montar, limpa no sucesso.
   const DRAFT_KEY = 'proposta-solar-draft-v1';
   const draftLoaded = useRef(false);
-  // State (não ref) pra o aviso re-renderizar quando o rascunho é restaurado.
-  const [restored, setRestored] = useState(false);
 
   // Restaura rascunho ao montar (1x).
   useEffect(() => {
@@ -215,7 +213,6 @@ export default function PropostaSolarPage() {
       if (d.clienteNome) setClienteNome(d.clienteNome);
       if (d.cidadeUf) setCidadeUf(d.cidadeUf);
       if (d.fields) setFields(f => ({ ...f, ...d.fields }));
-      setRestored(true);
     } catch { /* rascunho corrompido — ignora */ }
   }, []);
 
@@ -331,7 +328,6 @@ export default function PropostaSolarPage() {
     setGenerated(null);
     setError('');
     setFaltando(new Set());
-    setRestored(false);
     setClienteNome('');
     setCidadeUf('');
     setFields(f => ({
@@ -386,7 +382,6 @@ export default function PropostaSolarPage() {
       setGenerated(data);
       // Sucesso: limpa o rascunho e lembra as marcas usadas (itens 1 e 2).
       limparRascunho();
-      setRestored(false);
       salvarMarca(MARCAS_MOD_KEY, fields.marca_modulo);
       salvarMarca(MARCAS_INV_KEY, fields.marca_inversor);
       setMarcasMod(lerMarcas(MARCAS_MOD_KEY));
@@ -617,20 +612,6 @@ export default function PropostaSolarPage() {
         <h1 className={styles.title}>Proposta Solar</h1>
         <p className={styles.subtitle}>Gera proposta comercial bonita pra cliente final — copia link, manda WhatsApp ou imprime</p>
       </div>
-
-      {restored && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap',
-          background: 'var(--color-accent-soft)', border: '1px solid var(--color-accent-border)',
-          borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--color-text)',
-        }}>
-          <span>Recuperamos um rascunho que você tinha começado.</span>
-          <button type="button" onClick={() => { setRestored(false); novaProposta(); }}
-            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
-            Descartar e começar do zero
-          </button>
-        </div>
-      )}
 
       <form onSubmit={handleGenerate} className={styles.form}>
         {/* PALETA */}
