@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Link as LinkIcon, Download, RotateCcw } from 'lucide-react';
+import Link from 'next/link';
+import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine } from 'lucide-react';
 import api from '@/services/api';
 import { getToken } from '@/services/auth';
 import styles from '../documentos.module.css';
@@ -611,6 +612,24 @@ export default function PropostaSolarPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>Proposta Solar</h1>
         <p className={styles.subtitle}>Gera proposta comercial bonita pra cliente final — copia link, manda WhatsApp ou imprime</p>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+        <Link
+          href="/escanear-conta"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            padding: '10px 16px', borderRadius: 10, fontSize: '0.92rem', fontWeight: 700,
+            textDecoration: 'none', color: '#0f172a',
+            background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+            boxShadow: '0 4px 14px rgba(245,158,11,0.3)', whiteSpace: 'nowrap',
+          }}
+        >
+          <ScanLine size={17} /> Escanear Conta
+        </Link>
+        <span style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+          Tem a conta de luz? Escaneie pra puxar os dados do cliente automaticamente.
+        </span>
       </div>
 
       <form onSubmit={handleGenerate} className={styles.form}>
