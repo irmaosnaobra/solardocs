@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Download, Lock } from 'lucide-react';
 import api from '@/services/api';
 import { getToken } from '@/services/auth';
 import styles from './historico.module.css';
@@ -70,7 +71,7 @@ export default function HistoricoPage() {
       <div className={styles.page}>
         <div className={styles.header}><h1 className={styles.title}>Meus Documentos</h1></div>
         <div className={styles.locked}>
-          
+          <div className={styles.lockedIcon}><Lock size={40} /></div>
           <h2 className={styles.lockedTitle}>Disponível a partir do plano PRO</h2>
           <p className={styles.lockedDesc}>
             Acesse e baixe todos os documentos gerados nos últimos 30 dias.<br/>
@@ -107,8 +108,9 @@ export default function HistoricoPage() {
                   <button
                     className={styles.downloadBtn}
                     onClick={() => handleDownloadPdf(doc)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
-                    Baixar PDF
+                    <Download size={15} /> Baixar PDF
                   </button>
                 ) : (
                   <span className={styles.noFile}>Processando...</span>

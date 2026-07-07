@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { MessageCircle, Link as LinkIcon, Download, RotateCcw } from 'lucide-react';
 import api from '@/services/api';
 import { getToken } from '@/services/auth';
 import styles from '../documentos.module.css';
@@ -484,7 +485,7 @@ export default function PropostaSolarPage() {
     return (
       <div className={styles.page}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
-          <button type="button" onClick={novaProposta} style={btn('ghost')}>← Nova proposta</button>
+          <button type="button" onClick={novaProposta} style={{ ...btn('ghost'), display: 'inline-flex', alignItems: 'center', gap: 6 }}><RotateCcw size={15} /> Nova proposta</button>
           {publicId && (
             <span style={{
               padding: '6px 12px',
@@ -500,15 +501,15 @@ export default function PropostaSolarPage() {
             </span>
           )}
           <div style={{ flex: 1 }} />
-          <button type="button" onClick={handleCopyWhatsApp} style={btn('whatsapp')}>Copiar WhatsApp</button>
-          <button type="button" onClick={handleCopyLink} style={btn('primary')}>Copiar link</button>
+          <button type="button" onClick={handleCopyWhatsApp} style={{ ...btn('whatsapp'), display: 'inline-flex', alignItems: 'center', gap: 6 }}><MessageCircle size={15} /> Copiar WhatsApp</button>
+          <button type="button" onClick={handleCopyLink} style={{ ...btn('primary'), display: 'inline-flex', alignItems: 'center', gap: 6 }}><LinkIcon size={15} /> Copiar link</button>
           <button
             type="button"
             onClick={handleDownloadPdf}
             disabled={!generated.doc_id}
-            style={{ ...btn('outline'), opacity: !generated.doc_id ? 0.6 : 1, cursor: 'pointer' }}
+            style={{ ...btn('outline'), opacity: !generated.doc_id ? 0.6 : 1, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            Baixar PDF
+            <Download size={15} /> Baixar PDF
           </button>
           {/* Cor do toast: vermelho só no erro de sessão; sucesso (copiado) fica verde. */}
           {copyMsg && <span style={{ color: copyMsg.startsWith('Sessão') ? 'var(--ink-red)' : 'var(--ink-green)', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}

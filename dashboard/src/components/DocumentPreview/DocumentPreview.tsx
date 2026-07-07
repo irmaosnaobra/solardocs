@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { Download, Pencil, Save, Check, X, FilePlus } from 'lucide-react';
 import styles from './DocumentPreview.module.css';
 import api from '@/services/api';
 import { getToken } from '@/services/auth';
@@ -243,16 +244,16 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
               <button
                 className="btn-secondary"
                 onClick={handleCancelEdit}
-                style={{ borderColor: '#ef4444', color: '#ef4444' }}
+                style={{ borderColor: '#ef4444', color: '#ef4444', display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                Cancelar
+                <X size={15} /> Cancelar
               </button>
               <button
                 className="btn-primary"
                 onClick={handleConfirmEdit}
-                style={{ background: '#16a34a' }}
+                style={{ background: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                Confirmar Edição
+                <Check size={15} /> Confirmar Edição
               </button>
             </>
           ) : (
@@ -262,23 +263,23 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
               ) : saved ? (
                 <span className={styles.savedBadge}>Arquivado</span>
               ) : docId && userPlano !== 'free' ? (
-                <button className="btn-secondary" onClick={() => uploadHtml(docId, displayContent)}>
-                  Salvar
+                <button className="btn-secondary" onClick={() => uploadHtml(docId, displayContent)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Save size={15} /> Salvar
                 </button>
               ) : null}
               <button
                 className="btn-secondary"
                 onClick={() => { setEditedContent(displayContent); setEditMode(true); }}
                 title="Revisar e ajustar o documento antes de imprimir"
-                style={{ borderColor: '#f59e0b', color: '#f59e0b' }}
+                style={{ borderColor: '#f59e0b', color: '#f59e0b', display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                Editar
+                <Pencil size={15} /> Editar
               </button>
-              <button className={styles.pdfBtn} onClick={handleDownloadPDF} disabled={saving}>
-                {saving ? 'Preparando...' : 'Baixar PDF'}
+              <button className={styles.pdfBtn} onClick={handleDownloadPDF} disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Download size={15} /> {saving ? 'Preparando...' : 'Baixar PDF'}
               </button>
-              <button className="btn-secondary" onClick={onNewGeneration}>
-                Novo documento
+              <button className="btn-secondary" onClick={onNewGeneration} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <FilePlus size={15} /> Novo documento
               </button>
             </>
           )}
