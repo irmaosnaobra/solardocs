@@ -105,6 +105,12 @@ function toNum(v: unknown): number | null {
   return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
 }
 
+// Decimal preservado (pra tarifa R$/kWh e valores em R$; toNum arredondaria)
+function toDecimal(v: unknown): number | null {
+  const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 // Forma bruta que o modelo devolve via tool-use
 export interface RawExtraction {
   tipo?: string;
@@ -121,6 +127,8 @@ export interface RawExtraction {
   padrao?: string;
   consumo_medio_kwh?: number | string;
   historico_kwh?: unknown;
+  tarifa_kwh?: number | string;
+  iluminacao_publica?: number | string;
   confianca?: string;
   observacoes?: string;
   conta_valida?: boolean;
@@ -155,6 +163,8 @@ export const EXTRACT_TOOL: Anthropic.Tool = {
         items: { type: 'number' },
         description: 'Histórico de consumo em kWh dos últimos meses (mais recente primeiro), se a conta trouxer.',
       },
+      tarifa_kwh: { type: 'number', description: 'Tarifa efetiva por kWh em reais (R$/kWh) que o cliente paga, com tributos se possível. Se não houver linha explícita de "tarifa", calcule: valor total cobrado da energia consumida ÷ kWh consumidos. Ex: 0.78.' },
+      iluminacao_publica: { type: 'number', description: 'Valor em reais da Contribuição de Iluminação Pública (CIP/COSIP) na conta, se houver. Ex: 12.50.' },
       confianca: { type: 'string', enum: ['alta', 'media', 'baixa'], description: 'Sua confiança geral na leitura.' },
       observacoes: { type: 'string', description: 'Qualquer campo duvidoso ou ilegível que o usuário deva conferir. Curto.' },
     },
@@ -275,6 +285,8 @@ export function normalizeExtraction(raw: RawExtraction) {
   const detectado = {
     consumo_medio_kwh: toNum(raw.consumo_medio_kwh) ?? (historico.length ? Math.round(historico.reduce((a, b) => a + b, 0) / historico.length) : null),
     historico_kwh: historico,
+    tarifa_kwh: toDecimal(raw.tarifa_kwh),
+    iluminacao_publica: toDecimal(raw.iluminacao_publica),
     cpf_mascarado: cpfMascarado,
     confianca: conf === 'alta' || conf === 'media' || conf === 'baixa' ? conf : 'media',
     observacoes: toStr(raw.observacoes),

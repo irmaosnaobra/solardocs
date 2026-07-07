@@ -78,3 +78,22 @@ describe('normalizeExtraction — consumo detectado', () => {
     expect(detectado.historico_kwh).toEqual([]);
   });
 });
+
+// Tarifa e iluminação alimentam a proposta (preço do kWh + taxa mínima). Precisam
+// preservar o decimal — se arredondassem, uma tarifa 0,78 viraria 1 e detonaria o cálculo.
+describe('normalizeExtraction — tarifa e iluminação pública', () => {
+  it('preserva a tarifa decimal (não arredonda)', () => {
+    const { detectado } = normalizeExtraction({ tarifa_kwh: 0.78, iluminacao_publica: 12.5 } as RawExtraction);
+    expect(detectado.tarifa_kwh).toBe(0.78);
+    expect(detectado.iluminacao_publica).toBe(12.5);
+  });
+  it('aceita string com vírgula', () => {
+    const { detectado } = normalizeExtraction({ tarifa_kwh: '0,845' } as RawExtraction);
+    expect(detectado.tarifa_kwh).toBeCloseTo(0.845);
+  });
+  it('ausente ou zero vira null', () => {
+    const { detectado } = normalizeExtraction({} as RawExtraction);
+    expect(detectado.tarifa_kwh).toBeNull();
+    expect(detectado.iluminacao_publica).toBeNull();
+  });
+});

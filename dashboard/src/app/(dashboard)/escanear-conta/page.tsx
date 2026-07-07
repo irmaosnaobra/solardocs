@@ -25,6 +25,7 @@ interface Client {
   cidade?: string;
   uf?: string;
   concessionaria?: string;
+  padrao?: string;
 }
 
 interface ScanResult {
@@ -32,6 +33,8 @@ interface ScanResult {
   detectado: {
     consumo_medio_kwh: number | null;
     historico_kwh: number[];
+    tarifa_kwh: number | null;
+    iluminacao_publica: number | null;
     cpf_mascarado: boolean;
     confianca: 'alta' | 'media' | 'baixa';
     observacoes: string;
@@ -164,11 +167,27 @@ export default function EscanearContaPage() {
   function gerarProposta() {
     try {
       const cidadeUf = [created?.cidade, created?.uf].filter(Boolean).join('/');
-      const consumo = scan?.detectado?.consumo_medio_kwh;
+      const d = scan?.detectado;
+      const consumo = d?.consumo_medio_kwh;
+      const tarifa = d?.tarifa_kwh;
+      const ilum = d?.iluminacao_publica ?? 0;
+      const padrao = created?.padrao || scan?.cliente?.padrao || '';
+      // Custo de disponibilidade (mínimo faturável ANEEL): mono 30, bi 50, tri 100 kWh.
+      const dispKwh = padrao === 'Trifásico' ? 100 : padrao === 'Bifásico' ? 50 : padrao === 'Monofásico' ? 30 : 0;
+
+      const fields: Record<string, string> = {};
+      if (consumo) fields.consumo_kwh = String(consumo);
+      if (tarifa) fields.tarifa_kwh = String(Number(tarifa.toFixed(4))).replace('.', ',');
+      // Taxa mínima = custo de disponibilidade (kWh mínimo × tarifa) + iluminação pública.
+      if (dispKwh && tarifa) {
+        const taxaMin = dispKwh * tarifa + ilum;
+        fields.taxa_minima = taxaMin.toFixed(2).replace('.', ',');
+      }
+
       localStorage.setItem('proposta-solar-draft-v1', JSON.stringify({
         clienteNome: created?.nome || '',
         cidadeUf,
-        fields: consumo ? { consumo_kwh: String(consumo) } : {},
+        fields,
       }));
     } catch { /* localStorage indisponível: segue sem prefill */ }
     logUso('gerar_proposta_prefill');
@@ -185,6 +204,11 @@ export default function EscanearContaPage() {
       {det.consumo_medio_kwh != null && (
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, color: '#fbbf24', fontWeight: 700 }}>
           <Zap size={15} strokeWidth={2.2} /> Consumo médio detectado: {det.consumo_medio_kwh.toLocaleString('pt-BR')} kWh/mês
+        </div>
+      )}
+      {det.tarifa_kwh != null && (
+        <div style={{ marginTop: 6, color: 'var(--color-text-muted, #94a3b8)' }}>
+          Tarifa detectada: R$ {det.tarifa_kwh.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}/kWh — vai pra proposta (tarifa e taxa mínima).
         </div>
       )}
       {det.cpf_mascarado && (
