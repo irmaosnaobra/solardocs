@@ -97,7 +97,7 @@ export default function ReciboPage() {
 
   if (generated) return (
     <div className={styles.page}>
-      <h1 className={styles.title}>🧾 Recibo — Preview</h1>
+      <h1 className={styles.title}>Recibo — Preview</h1>
       <DocumentPreview
         content={generated.content}
         tipo="recibo"
@@ -115,7 +115,7 @@ export default function ReciboPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>🧾 Recibo de Pagamento</h1>
+        <h1 className={styles.title}>Recibo de Pagamento</h1>
         <p className={styles.subtitle}>Comprovante de valores recebidos — calcula o saldo em aberto automaticamente</p>
       </div>
 
@@ -269,7 +269,7 @@ export default function ReciboPage() {
 
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? '⏳ Gerando...' : '📄 Gerar Recibo'}
+          {generating ? 'Gerando...' : 'Gerar Recibo'}
         </button>
       </form>
     </div>

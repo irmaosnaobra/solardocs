@@ -74,7 +74,7 @@ export default function ContratoSolarPage() {
   if (generated) {
     return (
       <div className={styles.page}>
-        <h1 className={styles.title}>☀️ Contrato Solar — Preview</h1>
+        <h1 className={styles.title}>Contrato Solar — Preview</h1>
         <DocumentPreview
           content={generated.content}
           tipo="contratoSolar"
@@ -93,7 +93,7 @@ export default function ContratoSolarPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>☀️ Contrato Solar</h1>
+        <h1 className={styles.title}>Contrato Solar</h1>
         <p className={styles.subtitle}>Contrato de instalação de sistema fotovoltaico</p>
       </div>
 
@@ -207,7 +207,7 @@ export default function ContratoSolarPage() {
         {error && <p className="error-message">{error}</p>}
 
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? '⏳ Gerando documento...' : '📄 Gerar Contrato'}
+          {generating ? 'Gerando documento...' : 'Gerar Contrato'}
         </button>
       </form>
     </div>

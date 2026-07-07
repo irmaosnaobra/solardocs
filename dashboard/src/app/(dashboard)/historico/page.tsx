@@ -70,7 +70,7 @@ export default function HistoricoPage() {
       <div className={styles.page}>
         <div className={styles.header}><h1 className={styles.title}>Meus Documentos</h1></div>
         <div className={styles.locked}>
-          <div className={styles.lockedIcon}>🔒</div>
+          
           <h2 className={styles.lockedTitle}>Disponível a partir do plano PRO</h2>
           <p className={styles.lockedDesc}>
             Acesse e baixe todos os documentos gerados nos últimos 30 dias.<br/>
@@ -108,7 +108,7 @@ export default function HistoricoPage() {
                     className={styles.downloadBtn}
                     onClick={() => handleDownloadPdf(doc)}
                   >
-                    ⬇ Baixar PDF
+                    Baixar PDF
                   </button>
                 ) : (
                   <span className={styles.noFile}>Processando...</span>

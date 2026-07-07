@@ -86,7 +86,7 @@ export default function VistoriaPage() {
 
   if (generated) return (
     <div className={styles.page}>
-      <h1 className={styles.title}>📋 Vistoria CheckList — Preview</h1>
+      <h1 className={styles.title}>Vistoria CheckList — Preview</h1>
       <DocumentPreview
         content={generated.content}
         tipo="vistoria"
@@ -165,7 +165,7 @@ export default function VistoriaPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>📋 Vistoria CheckList</h1>
+        <h1 className={styles.title}>Vistoria CheckList</h1>
         <p className={styles.subtitle}>Checklist de visita técnica solar</p>
       </div>
 
@@ -175,11 +175,11 @@ export default function VistoriaPage() {
           <h2 className={styles.sectionTitle}>Como vai usar?</h2>
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
             <button type="button" onClick={() => setField('modo', 'em_branco')} style={modeBtn(fields.modo === 'em_branco')}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>🖨️ Em branco</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Em branco</div>
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>PDF com boxes vazios pra imprimir e marcar à mão na obra</div>
             </button>
             <button type="button" onClick={() => setField('modo', 'digital')} style={modeBtn(fields.modo === 'digital')}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>📱 Preencher agora</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Preencher agora</div>
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Marca aqui no celular durante a vistoria, gera o PDF preenchido</div>
             </button>
           </div>
@@ -196,7 +196,7 @@ export default function VistoriaPage() {
               color: 'var(--color-text)', cursor: 'pointer', fontSize: 13,
               fontWeight: modoCliente === 'avulso' ? 700 : 500, textAlign: 'left',
             }}>
-              ⚡ Rápido (só nome)
+              Rápido (só nome)
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 400, marginTop: 2 }}>
                 Em cima do telhado, gerar agora
               </div>
@@ -208,7 +208,7 @@ export default function VistoriaPage() {
               color: 'var(--color-text)', cursor: 'pointer', fontSize: 13,
               fontWeight: modoCliente === 'cadastrado' ? 700 : 500, textAlign: 'left',
             }}>
-              📇 Cliente cadastrado
+              Cliente cadastrado
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 400, marginTop: 2 }}>
                 Auto-preenche endereço da visita
               </div>
@@ -350,9 +350,9 @@ export default function VistoriaPage() {
                 label="Resultado"
                 value={fields.conclusao}
                 options={[
-                  { v: 'viavel', lbl: '✅ Viável' },
-                  { v: 'ressalvas', lbl: '⚠️ Com ressalvas' },
-                  { v: 'nao_viavel', lbl: '❌ Não viável' },
+                  { v: 'viavel', lbl: 'Viável' },
+                  { v: 'ressalvas', lbl: 'Com ressalvas' },
+                  { v: 'nao_viavel', lbl: 'Não viável' },
                 ]}
                 onChange={v => setField('conclusao', v)}
               />
@@ -366,7 +366,7 @@ export default function VistoriaPage() {
 
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteOk}>
-          {generating ? '⏳ Gerando...' : isDigital ? '📱 Gerar CheckList preenchido' : '🖨️ Gerar CheckList em branco'}
+          {generating ? 'Gerando...' : isDigital ? 'Gerar CheckList preenchido' : 'Gerar CheckList em branco'}
         </button>
       </form>
     </div>

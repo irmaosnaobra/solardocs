@@ -102,7 +102,6 @@ export default function TerceirosPage() {
         <p className={styles.empty}>Carregando...</p>
       ) : terceiros.length === 0 ? (
         <div className={styles.emptyState}>
-          <span className={styles.emptyIcon}>🤝</span>
           <p>{search ? 'Nenhum terceiro encontrado.' : 'Nenhum terceiro cadastrado ainda.'}</p>
           {!search && (
             <button className="btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>
@@ -166,21 +165,21 @@ export default function TerceirosPage() {
                     {t.tipo || 'PF'}
                   </span>
                 </div>
-                {t.cpf_cnpj && <p className={styles.cardDetail}>📋 {t.cpf_cnpj}</p>}
+                {t.cpf_cnpj && <p className={styles.cardDetail}>{t.cpf_cnpj}</p>}
                 {(t.cidade || t.uf) && (
-                  <p className={styles.cardDetail}>📍 {t.cidade}{t.uf ? `/${t.uf}` : ''}</p>
+                  <p className={styles.cardDetail}>{t.cidade}{t.uf ? `/${t.uf}` : ''}</p>
                 )}
-                {t.representante_nome && <p className={styles.cardDetail}>👤 {t.representante_nome}</p>}
+                {t.representante_nome && <p className={styles.cardDetail}>{t.representante_nome}</p>}
                 <div className={styles.cardActions}>
                   <button className={styles.editBtn} onClick={() => { setEditing(t); setShowModal(true); }}>
-                    ✏️ Editar
+                    Editar
                   </button>
                   <button
                     className={styles.deleteBtn}
                     onClick={() => handleDelete(t.id)}
                     disabled={deletingId === t.id}
                   >
-                    {deletingId === t.id ? '...' : '🗑 Excluir'}
+                    {deletingId === t.id ? '...' : 'Excluir'}
                   </button>
                 </div>
               </div>

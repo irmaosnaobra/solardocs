@@ -17,7 +17,7 @@ export interface LocalCatalogo {
 export const CATALOGO: LocalCatalogo[] = [
   {
     local: 'Escritório',
-    icone: '🏢',
+    icone: '',
     materiais: [
       { nome: 'Mesa', unidade: 'un' },
       { nome: 'Cadeira', unidade: 'un' },
@@ -35,7 +35,7 @@ export const CATALOGO: LocalCatalogo[] = [
   },
   {
     local: 'Montagem',
-    icone: '🔧',
+    icone: '',
     materiais: [
       { nome: 'Parafusadeira', unidade: 'un' },
       { nome: 'Furadeira', unidade: 'un' },
@@ -57,7 +57,7 @@ export const CATALOGO: LocalCatalogo[] = [
   },
   {
     local: 'Depósito',
-    icone: '📦',
+    icone: '',
     materiais: [
       { nome: 'Cabo solar 6mm', unidade: 'm' },
       { nome: 'Cabo CA', unidade: 'm' },
@@ -77,7 +77,7 @@ export const CATALOGO: LocalCatalogo[] = [
   },
   {
     local: 'Veículos / Frota',
-    icone: '🚚',
+    icone: '',
     materiais: [
       { nome: 'Caminhonete', unidade: 'un' },
       { nome: 'Van', unidade: 'un' },
@@ -98,4 +98,4 @@ export const MARCAS_COMUNS = [
 ];
 
 // Ícone default pra locais criados fora do catálogo.
-export const ICONE_LOCAL_CUSTOM = '📍';
+export const ICONE_LOCAL_CUSTOM = '';

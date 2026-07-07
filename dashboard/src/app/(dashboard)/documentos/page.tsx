@@ -251,14 +251,14 @@ function DocumentosContent() {
           margin: '0 auto',
         }}>
           {[
-            { id: 'proposta',           icon: '⚡', label: 'Proposta Solar' },
-            { id: 'vistoria',           icon: '📋', label: 'Vistoria CheckList' },
-            { id: 'contrato-solar',     icon: '☀️', label: 'Contrato Solar' },
-            { id: 'procuracao',         icon: '📜', label: 'Procuração' },
-            { id: 'recibo',             icon: '🧾', label: 'Recibo' },
-            { id: 'proposta-bancaria',  icon: '🏦', label: 'Proposta Bancária' },
-            { id: 'prestacao-servico',  icon: '🔧', label: 'Prestação de Serviço' },
-            { id: 'contrato-pj',        icon: '🤝', label: 'Contrato Vendedor' },
+            { id: 'proposta',           label: 'Proposta Solar' },
+            { id: 'vistoria',           label: 'Vistoria CheckList' },
+            { id: 'contrato-solar',     label: 'Contrato Solar' },
+            { id: 'procuracao',         label: 'Procuração' },
+            { id: 'recibo',             label: 'Recibo' },
+            { id: 'proposta-bancaria',  label: 'Proposta Bancária' },
+            { id: 'prestacao-servico',  label: 'Prestação de Serviço' },
+            { id: 'contrato-pj',        label: 'Contrato Vendedor' },
           ].map(d => (
             <a
               key={d.id}
@@ -278,7 +278,6 @@ function DocumentosContent() {
               onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'}
               onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
             >
-              <span style={{ fontSize: '2rem' }}>{d.icon}</span>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text)' }}>{d.label}</span>
             </a>
           ))}

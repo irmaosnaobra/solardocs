@@ -24,8 +24,8 @@ export default function PesquisaDisparoPage() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-        <button style={tabBtn(tab === 'leads')} onClick={() => setTab('leads')}>🔎 Leads Google</button>
-        <button style={tabBtn(tab === 'disparos')} onClick={() => setTab('disparos')}>📤 Disparos IO</button>
+        <button style={tabBtn(tab === 'leads')} onClick={() => setTab('leads')}>Leads Google</button>
+        <button style={tabBtn(tab === 'disparos')} onClick={() => setTab('disparos')}>Disparos IO</button>
       </div>
 
       {tab === 'leads' && <LeadsGooglePanel />}

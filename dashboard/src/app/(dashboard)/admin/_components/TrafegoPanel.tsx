@@ -29,7 +29,7 @@ function fmtBRT(iso: string): string {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: '⏳ Aguardando você', confirmed: '✅ Confirmada', declined: '✖ Recusada', done: '✔ Concluída',
+  pending: 'Aguardando você', confirmed: 'Confirmada', declined: 'Recusada', done: 'Concluída',
 };
 
 export default function TrafegoPanel() {
@@ -55,20 +55,20 @@ export default function TrafegoPanel() {
   async function confirmar(r: Reuniao) {
     const link = (meetLinks[r.id] || '').trim();
     if (!/^https?:\/\//.test(link)) {
-      setMsg(m => ({ ...m, [r.id]: '⚠️ Cole o link do Meet (começando com https://)' }));
+      setMsg(m => ({ ...m, [r.id]: 'Cole o link do Meet (começando com https://)' }));
       return;
     }
     setActing(r.id); setMsg(m => ({ ...m, [r.id]: '' }));
     try {
       const { data } = await api.post('/trafego/admin/confirmar', { id: r.id, meet_link: link });
       const partes: string[] = [];
-      if (data.tinha_email) partes.push(data.email_ok ? '✓ e-mail enviado' : '✗ e-mail FALHOU');
-      if (data.tinha_whatsapp) partes.push(data.wpp_ok ? '✓ WhatsApp enviado' : '✗ WhatsApp FALHOU');
-      if (!partes.length) partes.push('⚠️ cliente sem e-mail nem WhatsApp — avise você mesmo');
+      if (data.tinha_email) partes.push(data.email_ok ? 'e-mail enviado' : 'e-mail FALHOU');
+      if (data.tinha_whatsapp) partes.push(data.wpp_ok ? 'WhatsApp enviado' : 'WhatsApp FALHOU');
+      if (!partes.length) partes.push('cliente sem e-mail nem WhatsApp — avise você mesmo');
       setMsg(m => ({ ...m, [r.id]: partes.join(' · ') }));
       await load();
     } catch {
-      setMsg(m => ({ ...m, [r.id]: '✗ Erro ao confirmar. Tenta de novo.' }));
+      setMsg(m => ({ ...m, [r.id]: 'Erro ao confirmar. Tenta de novo.' }));
     } finally { setActing(null); }
   }
 
@@ -76,7 +76,7 @@ export default function TrafegoPanel() {
     if (!confirm('Recusar essa solicitação de reunião?')) return;
     setActing(r.id);
     try { await api.post('/trafego/admin/recusar', { id: r.id }); await load(); }
-    catch { setMsg(m => ({ ...m, [r.id]: '✗ Erro ao recusar.' })); }
+    catch { setMsg(m => ({ ...m, [r.id]: 'Erro ao recusar.' })); }
     finally { setActing(null); }
   }
 
@@ -88,7 +88,7 @@ export default function TrafegoPanel() {
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>📈 Cria Funil — Tráfego Pago</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Cria Funil — Tráfego Pago</h2>
         <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
           {pendentes.length} aguardando · {all.length} no total
         </span>
@@ -132,14 +132,14 @@ export default function TrafegoPanel() {
                 />
                 <button onClick={() => confirmar(r)} disabled={acting === r.id}
                   style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#10b981', color: '#053826', fontWeight: 800, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  {acting === r.id ? '…' : '✓ Confirmar e avisar'}
+                  {acting === r.id ? '…' : 'Confirmar e avisar'}
                 </button>
                 <button onClick={() => recusar(r)} disabled={acting === r.id}
                   style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                   Recusar
                 </button>
               </div>
-              {msg[r.id] && <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: msg[r.id].includes('✗') || msg[r.id].includes('⚠️') ? 'var(--ink-red)' : 'var(--ink-green)' }}>{msg[r.id]}</div>}
+              {msg[r.id] && <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: (msg[r.id].includes('enviado') && !msg[r.id].includes('FALHOU')) ? 'var(--ink-green)' : 'var(--ink-red)' }}>{msg[r.id]}</div>}
             </div>
           ))}
 
@@ -153,7 +153,7 @@ export default function TrafegoPanel() {
                     <strong>{r.nome || '(sem nome)'}</strong> · {fmtBRT(r.slot_at)}
                     {r.status === 'confirmed' && (
                       <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
-                        {r.notify_email_ok ? '✓📧' : (r.email ? '✗📧' : '—')} {r.notify_wpp_ok ? '✓📱' : (r.whatsapp ? '✗📱' : '—')}
+                        {r.notify_email_ok ? 'e-mail ok' : (r.email ? 'e-mail falhou' : '—')} · {r.notify_wpp_ok ? 'WhatsApp ok' : (r.whatsapp ? 'WhatsApp falhou' : '—')}
                       </span>
                     )}
                   </div>

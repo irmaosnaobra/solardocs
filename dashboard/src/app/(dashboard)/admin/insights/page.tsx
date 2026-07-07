@@ -165,7 +165,7 @@ export default function InsightsPage() {
             opacity: refreshing ? 0.6 : 1,
           }}
         >
-          {refreshing ? '⏳ Atualizando…' : '🔄 Atualizar agora'}
+          {refreshing ? 'Atualizando…' : 'Atualizar agora'}
         </button>
       </div>
 
@@ -179,7 +179,7 @@ export default function InsightsPage() {
           fontSize: 13,
           color: '#DC2626',
         }}>
-          ⚠️ Algumas fontes não responderam:
+          Algumas fontes não responderam:
           <ul style={{ margin: '6px 0 0 20px', padding: 0 }}>
             {data.errors.map((e, i) => <li key={i}>{e}</li>)}
           </ul>
@@ -352,7 +352,7 @@ export default function InsightsPage() {
             color: 'var(--color-text-muted)',
             fontSize: 13,
           }}>
-            🔒 Trello board não está acessível.
+            Trello board não está acessível.
             <div style={{ marginTop: 6, fontSize: 12 }}>
               Pra liberar: abre o board no Trello → Menu → More → Settings → Visibility → <strong>Public</strong>.
             </div>

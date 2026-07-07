@@ -141,14 +141,14 @@ export default function ClientModal({ client, onClose, onSave, seed, notice }: C
               className={`${styles.tipoBtn} ${!isPJ ? styles.tipoActive : ''}`}
               onClick={() => set('tipo', 'PF')}
             >
-              👤 Pessoa Física
+              Pessoa Física
             </button>
             <button
               type="button"
               className={`${styles.tipoBtn} ${isPJ ? styles.tipoActive : ''}`}
               onClick={() => set('tipo', 'PJ')}
             >
-              🏢 Pessoa Jurídica
+              Pessoa Jurídica
             </button>
           </div>
 

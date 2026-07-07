@@ -76,9 +76,9 @@ export default function TrafegoPage() {
     return (
       <div className="traf-wrap">
         <div className="traf-sucesso">
-          <div className="traf-sucesso-icon">✅</div>
+          <div className="traf-sucesso-icon">✓</div>
           <h1>Pedido enviado!</h1>
-          <p>Assim que confirmarmos seu horário, você recebe a confirmação com o link da reunião <strong>no seu e-mail e no WhatsApp</strong>. 🚀</p>
+          <p>Assim que confirmarmos seu horário, você recebe a confirmação com o link da reunião <strong>no seu e-mail e no WhatsApp</strong>.</p>
           <a className="traf-btn-sec" href="/documentos?tipo=proposta">Voltar pra plataforma</a>
         </div>
       </div>
@@ -89,15 +89,15 @@ export default function TrafegoPage() {
     <div className="traf-wrap">
       {/* BANNER */}
       <div className="traf-hero">
-        <span className="traf-tag">📈 Tráfego Pago · SolarDoc</span>
+        <span className="traf-tag">Tráfego Pago · SolarDoc</span>
         <h1>Você tem o melhor tráfego pago da sua região?</h1>
         <p className="traf-sub">
           Quando alguém na sua cidade pesquisa <strong>“energia solar”</strong>, é o <strong>seu</strong> anúncio que aparece — ou o do concorrente?
         </p>
         <div className="traf-bullets">
-          <div className="traf-bullet"><span>🎯</span> Os leads caem <strong>direto no seu Gerador</strong>, prontos pra virar proposta</div>
-          <div className="traf-bullet"><span>💰</span> Gestão a partir de <strong>R$ 997/mês</strong> + a verba que você escolher</div>
-          <div className="traf-bullet"><span>🏆</span> Pacotes do <strong>“testar”</strong> ao <strong>“dominar a cidade”</strong></div>
+          <div className="traf-bullet"><span>•</span> Os leads caem <strong>direto no seu Gerador</strong>, prontos pra virar proposta</div>
+          <div className="traf-bullet"><span>•</span> Gestão a partir de <strong>R$ 997/mês</strong> + a verba que você escolher</div>
+          <div className="traf-bullet"><span>•</span> Pacotes do <strong>“testar”</strong> ao <strong>“dominar a cidade”</strong></div>
         </div>
       </div>
 

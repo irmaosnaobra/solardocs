@@ -75,13 +75,13 @@ interface Insights {
 // ── Configurações dos Kanbans ──────────────────────────────────────
 
 const SDR_COLS = [
-  { id: 'reativacao', label: 'Reativação', emoji: '⚡', color: 'var(--ink-purple)', bg: 'rgba(168,85,247,0.1)',   border: 'rgba(168,85,247,0.3)' },
-  { id: 'novo',       label: 'Novo',       emoji: '🆕', color: 'var(--ink-slate)', bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.3)' },
-  { id: 'frio',       label: 'Frio',       emoji: '🔵', color: 'var(--ink-blue)', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.3)' },
-  { id: 'morno',      label: 'Morno',      emoji: '🟡', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.1)',   border: 'rgba(245,158,11,0.3)' },
-  { id: 'quente',     label: 'Quente',     emoji: '🔴', color: 'var(--ink-red)', bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.3)' },
-  { id: 'fechamento', label: 'Fechado',    emoji: '✅', color: 'var(--ink-green)', bg: 'rgba(34,197,94,0.1)',    border: 'rgba(34,197,94,0.3)' },
-  { id: 'perdido',    label: 'Perdido',    emoji: '❌', color: 'var(--ink-slate)', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)' },
+  { id: 'reativacao', label: 'Reativação', emoji: '', color: 'var(--ink-purple)', bg: 'rgba(168,85,247,0.1)',   border: 'rgba(168,85,247,0.3)' },
+  { id: 'novo',       label: 'Novo',       emoji: '', color: 'var(--ink-slate)', bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.3)' },
+  { id: 'frio',       label: 'Frio',       emoji: '', color: 'var(--ink-blue)', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.3)' },
+  { id: 'morno',      label: 'Morno',      emoji: '', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.1)',   border: 'rgba(245,158,11,0.3)' },
+  { id: 'quente',     label: 'Quente',     emoji: '', color: 'var(--ink-red)', bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.3)' },
+  { id: 'fechamento', label: 'Fechado',    emoji: '', color: 'var(--ink-green)', bg: 'rgba(34,197,94,0.1)',    border: 'rgba(34,197,94,0.3)' },
+  { id: 'perdido',    label: 'Perdido',    emoji: '', color: 'var(--ink-slate)', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)' },
 ];
 
 const CONSULTORES = [
@@ -92,11 +92,11 @@ const CONSULTORES = [
 ];
 
 const PLAT_COLS = [
-  { id: 'sem_cnpj',   label: 'Sem CNPJ',           emoji: '📋', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)' },
-  { id: 'desativado', label: 'Cadastro Desativado', emoji: '😴', color: 'var(--ink-slate)', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.3)' },
-  { id: 'ativo',      label: 'Cadastro Ativo',      emoji: '⚡', color: 'var(--ink-blue)', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.3)' },
-  { id: 'pro',        label: 'PRO',                 emoji: '🚀', color: 'var(--ink-purple)', bg: 'rgba(139,92,246,0.1)',  border: 'rgba(139,92,246,0.3)' },
-  { id: 'vip',        label: 'VIP',                 emoji: '👑', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)' },
+  { id: 'sem_cnpj',   label: 'Sem CNPJ',           emoji: '', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)' },
+  { id: 'desativado', label: 'Cadastro Desativado', emoji: '', color: 'var(--ink-slate)', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.3)' },
+  { id: 'ativo',      label: 'Cadastro Ativo',      emoji: '', color: 'var(--ink-blue)', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.3)' },
+  { id: 'pro',        label: 'PRO',                 emoji: '', color: 'var(--ink-purple)', bg: 'rgba(139,92,246,0.1)',  border: 'rgba(139,92,246,0.3)' },
+  { id: 'vip',        label: 'VIP',                 emoji: '', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)' },
 ];
 
 const POLL_INTERVAL_MS = 30_000;
@@ -141,9 +141,9 @@ function timeAgo(iso?: string | null): string {
 }
 
 function canalLabel(c: string | null | undefined): string {
-  if (c === 'ligacao') return '📞 Ligação';
-  if (c === 'meet') return '🎥 Meet';
-  if (c === 'vistoria') return '🏠 Vistoria';
+  if (c === 'ligacao') return 'Ligação';
+  if (c === 'meet') return 'Meet';
+  if (c === 'vistoria') return 'Vistoria';
   return '';
 }
 
@@ -203,7 +203,7 @@ function KanbanCol({ col, children, count, onDropPhone, isDragOver, onDragEnter,
         color: col.color,
       }}>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {col.emoji} {col.label}
+          {col.label}
         </span>
         <span style={{
           fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999,
@@ -294,14 +294,14 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDe
         <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: '1 1 auto' }}>
           {lead.nome || 'Sem nome'}
         </span>
-        {isIO && <Badge color="amber" title="Linha Irmãos na Obra">☀️ IO</Badge>}
-        {fromMeta && <Badge color="blue" title="Veio de anúncio Meta">📢 Ad</Badge>}
-        {isTakeover ? <Badge color="purple" title="Humano assumiu">🤝 Humano</Badge> : <Badge color="green" title="Luma atendendo">🤖 Luma</Badge>}
-        {agendamentoProximo && <Badge color="red" title="Agendamento em &lt; 1h">⏰ Próximo!</Badge>}
+        {isIO && <Badge color="amber" title="Linha Irmãos na Obra">IO</Badge>}
+        {fromMeta && <Badge color="blue" title="Veio de anúncio Meta">Ad</Badge>}
+        {isTakeover ? <Badge color="purple" title="Humano assumiu">Humano</Badge> : <Badge color="green" title="Luma atendendo">Luma</Badge>}
+        {agendamentoProximo && <Badge color="red" title="Agendamento em &lt; 1h">Próximo!</Badge>}
       </div>
 
       <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6 }}>
-        {lead.cidade ? `📍 ${lead.cidade}${lead.estado ? `/${lead.estado}` : ''} · ` : ''}
+        {lead.cidade ? `${lead.cidade}${lead.estado ? `/${lead.estado}` : ''} · ` : ''}
         {fmtPhone(lead.phone)}
       </div>
 
@@ -311,7 +311,7 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDe
           borderRadius: 6, padding: '4px 8px', marginBottom: 6,
           fontSize: 11, fontWeight: 700, color: 'var(--ink-green)',
         }}>
-          📅 {canalLabel(lead.canal_atendimento)} · {lead.horario_atendimento}
+          {canalLabel(lead.canal_atendimento)} · {lead.horario_atendimento}
         </div>
       )}
 
@@ -360,10 +360,10 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDe
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }} onClick={e => e.stopPropagation()}>
         <a href={`https://wa.me/${stripPhoneSuffix(lead.phone)}`} target="_blank" rel="noopener noreferrer"
-          style={{ padding: '3px 8px', borderRadius: 6, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 10, textDecoration: 'none' }}>💬</a>
+          style={{ padding: '3px 8px', borderRadius: 6, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 10, textDecoration: 'none' }}>WA</a>
         <select value={lead.estagio} onChange={e => onMove(lead.phone, e.target.value)}
           style={{ fontSize: 10, padding: '2px 4px', borderRadius: 6, border: `1px solid ${col.border}`, background: col.bg, color: col.color, fontWeight: 700, cursor: 'pointer', flex: 1 }}>
-          {SDR_COLS.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+          {SDR_COLS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
         <button onClick={() => onToggleTakeover(lead.phone, !isTakeover)}
           title={isTakeover ? 'Devolver pra Luma' : 'Assumir manualmente'}
@@ -372,13 +372,13 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDe
             border: '1px solid var(--color-border)',
             background: isTakeover ? 'rgba(34,197,94,0.12)' : 'rgba(168,85,247,0.12)',
             color: isTakeover ? 'var(--ink-green)' : 'var(--ink-purple)',
-          }}>{isTakeover ? '↩️' : '🙋'}</button>
+          }}>{isTakeover ? 'Devolver' : 'Assumir'}</button>
         <button onClick={() => onDelete(lead)} title="Excluir lead"
           style={{
             padding: '3px 6px', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer',
             border: '1px solid rgba(239,68,68,0.35)',
             background: 'rgba(239,68,68,0.1)', color: 'var(--ink-red)',
-          }}>🗑️</button>
+          }}>Excluir</button>
       </div>
       <div onClick={e => e.stopPropagation()}>
         <select value={lead.consultor || ''} onChange={e => onSetConsultor(lead.phone, e.target.value || null)}
@@ -390,12 +390,12 @@ function SdrCard({ lead, onClick, onMove, onToggleTakeover, onSetConsultor, onDe
             color: consultor ? consultor.color : 'var(--color-text-muted)',
             fontWeight: 700, cursor: 'pointer',
           }}>
-          <option value="">👤 Sem consultor</option>
+          <option value="">Sem consultor</option>
           {CONSULTORES.map(c => <option key={c.id} value={c.id}>{c.inicial} · {c.nome}</option>)}
         </select>
       </div>
       <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 6 }}>
-        💬 {lead.total_mensagens}{lead.contatos ? ` · 📤 ${lead.contatos}` : ''} · {timeAgo(lead.updated_at)}
+        {lead.total_mensagens} msgs{lead.contatos ? ` · ${lead.contatos} envios` : ''} · {timeAgo(lead.updated_at)}
       </div>
     </div>
   );
@@ -517,9 +517,9 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
               {fmtPhone(lead.phone)} · {lead.cidade || 'cidade —'}
             </div>
             <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
-              {lead.instance === 'io' && <Badge color="amber">☀️ IO</Badge>}
-              {lead.ctwa_clid && <Badge color="blue">📢 Meta Ad</Badge>}
-              {lead.human_takeover ? <Badge color="purple">🤝 Humano</Badge> : <Badge color="green">🤖 Luma</Badge>}
+              {lead.instance === 'io' && <Badge color="amber">IO</Badge>}
+              {lead.ctwa_clid && <Badge color="blue">Meta Ad</Badge>}
+              {lead.human_takeover ? <Badge color="purple">Humano</Badge> : <Badge color="green">Luma</Badge>}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -534,15 +534,15 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
             background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)',
             borderRadius: 10, padding: 12, marginBottom: 16,
           }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-green)', textTransform: 'uppercase', marginBottom: 4 }}>📅 Agendamento</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-green)', textTransform: 'uppercase', marginBottom: 4 }}>Agendamento</div>
             <div style={{ fontSize: 14, color: 'var(--color-text)', fontWeight: 700 }}>
               {canalLabel(lead.canal_atendimento)} · {lead.horario_atendimento}
             </div>
             {lead.endereco_vistoria && (
-              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>📍 {lead.endereco_vistoria}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>{lead.endereco_vistoria}</div>
             )}
             {lead.lembrete_enviado_at && (
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>✓ Lembrete pré-evento já disparado</div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>Lembrete pré-evento já disparado</div>
             )}
             <button onClick={cancelarAgendamento} disabled={busy} style={{
               marginTop: 8, padding: '4px 10px', borderRadius: 6, fontSize: 11,
@@ -559,13 +559,13 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
               width: '100%', padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 700,
               background: 'rgba(99,179,237,0.1)', border: '1px solid var(--color-primary)',
               color: 'var(--color-primary)', cursor: 'pointer',
-            }}>{loadingInsights ? 'Analisando…' : '🧠 Gerar insights da IA'}</button>
+            }}>{loadingInsights ? 'Analisando…' : 'Gerar insights da IA'}</button>
           ) : (
             <div style={{
               background: 'rgba(99,179,237,0.05)', border: '1px solid var(--color-primary)',
               borderRadius: 10, padding: 12,
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: 4 }}>🧠 Análise IA</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: 4 }}>Análise IA</div>
               <p style={{ fontSize: 13, color: 'var(--color-text)', margin: '0 0 8px' }}>{insights.resumo}</p>
               {typeof insights.score === 'number' && (
                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
@@ -580,14 +580,14 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
               <button onClick={gerarInsights} disabled={loadingInsights} style={{
                 marginTop: 8, fontSize: 10, padding: '2px 8px', borderRadius: 4,
                 background: 'transparent', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', cursor: 'pointer',
-              }}>↻ Regenerar</button>
+              }}>Regenerar</button>
             </div>
           )}
         </div>
 
         {/* Valor da venda */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>💰 Valor da venda (R$)</label>
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Valor da venda (R$)</label>
           <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
             <input type="text" value={valorVenda} onChange={e => setValorVenda(e.target.value)}
               onBlur={salvarValorVenda}
@@ -604,14 +604,14 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
 
         {/* Consultor */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>👤 Consultor responsável</label>
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Consultor responsável</label>
           <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
             <button onClick={() => onSetConsultor(lead.phone, null)} style={{
               padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
               border: !lead.consultor ? '2px solid var(--color-text-muted)' : '1px solid var(--color-border)',
               background: !lead.consultor ? 'var(--color-bg)' : 'transparent',
               color: 'var(--color-text-muted)',
-            }}>👤 Sem</button>
+            }}>Sem</button>
             {CONSULTORES.map(c => {
               const ativo = lead.consultor === c.id;
               return (
@@ -641,7 +641,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
 
         {/* Notas internas */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>📝 Notas internas (não vai pro lead)</label>
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Notas internas (não vai pro lead)</label>
           <textarea value={notas} onChange={e => setNotas(e.target.value)}
             onBlur={salvarNotas}
             placeholder="Anotações da equipe sobre esse lead..."
@@ -651,7 +651,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
 
         {/* Mandar mensagem manual */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>💬 Mandar mensagem (silencia Luma)</label>
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Mandar mensagem (silencia Luma)</label>
           <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
             <input type="text" value={msgManual} onChange={e => setMsgManual(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') enviarMsg(); }}
@@ -670,12 +670,12 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
             flex: 1, padding: 8, borderRadius: 6, fontSize: 11, fontWeight: 700,
             background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)',
             color: 'var(--ink-amber)', cursor: 'pointer',
-          }}>🔁 Forçar follow-up agora</button>
+          }}>Forçar follow-up agora</button>
         </div>
 
         {/* Histórico */}
         <div>
-          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>💬 Histórico ({history.length})</label>
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Histórico ({history.length})</label>
           <div className="crm-history" style={{
             background: 'var(--color-surface)', border: '1px solid var(--color-border)',
             borderRadius: 8, padding: 10, marginTop: 4, maxHeight: 320, overflowY: 'auto',
@@ -696,7 +696,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
                   fontSize: 12, color: 'var(--color-text)', whiteSpace: 'pre-wrap',
                 }}>
                   <div style={{ fontSize: 9, fontWeight: 700, color: isUser ? 'var(--ink-slate)' : 'var(--ink-green)', marginBottom: 2 }}>
-                    {isUser ? '👤 Lead' : '🤖 Luma'}
+                    {isUser ? 'Lead' : 'Luma'}
                   </div>
                   {content}
                 </div>
@@ -820,7 +820,7 @@ export default function CrmPage() {
 
   async function paraSdr(id: string) {
     await api.post(`/admin/platform-crm/${id}/para-sdr`);
-    alert('Lead enviado para o CRM SDR Solar ☀️');
+    alert('Lead enviado para o CRM SDR Solar');
     fetchAll();
   }
 
@@ -850,14 +850,14 @@ export default function CrmPage() {
       {/* ── LINHA 1: título · ClockBadge · busca · import · refresh ── */}
       <div className="crm-row crm-row-1">
         <div className="crm-title">
-          <h1>📋 CRM</h1>
+          <h1>CRM</h1>
           <span className="crm-subtitle">
             {tab === 'solar' ? 'Pipeline IO · Luma + 4' : 'Pipeline plataforma'}
           </span>
           <ClockBadge now={now} />
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-          <input type="text" placeholder="🔍 Nome, telefone, cidade..." value={busca}
+          <input type="text" placeholder="Nome, telefone, cidade..." value={busca}
             onChange={e => setBusca(e.target.value)}
             style={{
               padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)',
@@ -869,13 +869,13 @@ export default function CrmPage() {
               padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(168,85,247,0.4)',
               background: 'rgba(168,85,247,0.12)', color: 'var(--ink-purple)',
               cursor: 'pointer', fontSize: 12, fontWeight: 700, height: 28,
-            }}>⚡ Importar</button>
+            }}>Importar</button>
           )}
           <button onClick={fetchAll} title="Atualizar agora" style={{
             padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)',
             background: 'transparent', color: 'var(--color-text-muted)',
             cursor: 'pointer', fontSize: 12, height: 28,
-          }}>🔄</button>
+          }}>Atualizar</button>
         </div>
       </div>
 
@@ -891,10 +891,10 @@ export default function CrmPage() {
             <MetricPill label="Quentes" value={metrics.por_estagio.quente || 0} color="var(--ink-red)" />
             <MetricPill label="Fechados" value={metrics.por_estagio.fechamento || 0} color="var(--ink-green)" />
             <MetricPill label="Conv. Mês" value={`${metrics.conversao_pct}%`} color="var(--ink-green)" />
-            <MetricPill label="💰 Mês" value={fmtMoney(metrics.valor_vendido_mes)} color="var(--ink-green)"
+            <MetricPill label="Vendido Mês" value={fmtMoney(metrics.valor_vendido_mes)} color="var(--ink-green)"
               progress={metrics.meta_mes ? (metrics.valor_vendido_mes / metrics.meta_mes) * 100 : undefined}
               meta={metrics.meta_mes ? `Meta ${fmtMoney(metrics.meta_mes)}` : undefined} />
-            <MetricPill label="💰 Ano" value={fmtMoney(metrics.valor_vendido_ano)} color="var(--ink-amber)" />
+            <MetricPill label="Vendido Ano" value={fmtMoney(metrics.valor_vendido_ano)} color="var(--ink-amber)" />
             <MetricPill label="Takeover" value={metrics.em_takeover} color="var(--ink-purple)" />
             <MetricPill label="Agend. 24h" value={metrics.agendados_24h.length} color="var(--ink-amber)" />
           </div>
@@ -906,20 +906,20 @@ export default function CrmPage() {
         <div className="crm-filters-strip">
           <FilterChip label="Consultor" value={filters.consultor} options={[
             { v: 'all', l: 'Todos' },
-            { v: 'sem', l: '👤 Sem' },
+            { v: 'sem', l: 'Sem' },
             ...CONSULTORES.map(c => ({ v: c.id, l: `${c.inicial} · ${c.nome}` })),
           ]} onChange={v => setFilters(f => ({ ...f, consultor: v as any }))} />
 
           <FilterChip label="Agendados" value={filters.agendados} options={[
-            { v: 'all', l: 'Todos' }, { v: 'sim', l: '📅 Sim' }, { v: 'nao', l: 'Não' },
+            { v: 'all', l: 'Todos' }, { v: 'sim', l: 'Sim' }, { v: 'nao', l: 'Não' },
           ]} onChange={v => setFilters(f => ({ ...f, agendados: v as any }))} />
 
           <FilterChip label="Origem" value={filters.origem} options={[
-            { v: 'all', l: 'Todas' }, { v: 'meta', l: '📢 Meta' }, { v: 'organico', l: 'Orgânico' },
+            { v: 'all', l: 'Todas' }, { v: 'meta', l: 'Meta' }, { v: 'organico', l: 'Orgânico' },
           ]} onChange={v => setFilters(f => ({ ...f, origem: v as any }))} />
 
           <FilterChip label="Atendimento" value={filters.takeover} options={[
-            { v: 'all', l: 'Todos' }, { v: 'luma', l: '🤖 Luma' }, { v: 'humano', l: '🤝 Humano' },
+            { v: 'all', l: 'Todos' }, { v: 'luma', l: 'Luma' }, { v: 'humano', l: 'Humano' },
           ]} onChange={v => setFilters(f => ({ ...f, takeover: v as any }))} />
 
           {algumFiltroAtivo && (
@@ -1183,7 +1183,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
         background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 12, padding: 24,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 18, color: 'var(--color-text)' }}>⚡ Importar leads pra reativação</h2>
+          <h2 style={{ margin: 0, fontSize: 18, color: 'var(--color-text)' }}>Importar leads pra reativação</h2>
           <button onClick={onClose} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer' }}>✕</button>
         </div>
 
@@ -1194,7 +1194,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
         {/* Upload Excel/CSV */}
         <div style={{ marginBottom: 14 }}>
           <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
-            📊 Upload de planilha (Excel ou CSV)
+            Upload de planilha (Excel ou CSV)
           </label>
           {!fileName ? (
             <label style={{
@@ -1208,7 +1208,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
                 accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
                 onChange={e => { const f = e.target.files?.[0]; if (f) processarArquivo(f); }}
                 style={{ display: 'none' }} />
-              📂 Clique pra selecionar arquivo (.xlsx, .xls, .csv)
+              Clique pra selecionar arquivo (.xlsx, .xls, .csv)
               <div style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>
                 Detecta colunas: Nome / Telefone / Cidade automaticamente
               </div>
@@ -1222,8 +1222,8 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
             }}>
               <div style={{ fontSize: 12 }}>
                 {fileError
-                  ? <span style={{ color: 'var(--ink-red)' }}>❌ {fileError}</span>
-                  : <span style={{ color: 'var(--ink-green)' }}>✅ <strong>{fileName}</strong> · {fileLeads.length} leads detectados</span>}
+                  ? <span style={{ color: 'var(--ink-red)' }}>{fileError}</span>
+                  : <span style={{ color: 'var(--ink-green)' }}><strong>{fileName}</strong> · {fileLeads.length} leads detectados</span>}
               </div>
               <button onClick={limparArquivo} style={{ padding: '2px 8px', borderRadius: 4, background: 'transparent', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 11 }}>✕</button>
             </div>
@@ -1276,7 +1276,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
           }}>
             {result.error ? `Erro: ${result.error}` : (
               <>
-                ✅ Importação concluída: <strong>{result.inseridos}</strong> novos
+                Importação concluída: <strong>{result.inseridos}</strong> novos
                 {result.duplicados > 0 && <> · <strong>{result.duplicados}</strong> já existiam</>}
                 {result.invalidos > 0 && <> · <strong>{result.invalidos}</strong> inválidos</>}
               </>
@@ -1312,28 +1312,28 @@ function PlatCard({ lead, colId, onMove, onParaSdr }: {
       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text)', marginBottom: 4, wordBreak: 'break-all' }}>
         {lead.empresa || lead.email}
       </div>
-      {lead.empresa && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>✉️ {lead.email}</div>}
-      {lead.cnpj && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>🏢 {lead.cnpj}</div>}
+      {lead.empresa && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>{lead.email}</div>}
+      {lead.cnpj && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>{lead.cnpj}</div>}
 
       <select value={colId} onChange={e => onMove(lead.id, e.target.value)}
         style={{ width: '100%', fontSize: 11, padding: '4px 6px', borderRadius: 6, border: `1px solid ${col.border}`, background: col.bg, color: col.color, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}>
-        {PLAT_COLS.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+        {PLAT_COLS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
       </select>
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {lead.whatsapp && (
           <a href={`https://wa.me/55${lead.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
-            style={{ padding: '4px 9px', borderRadius: 6, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 11, textDecoration: 'none' }}>💬 WA</a>
+            style={{ padding: '4px 9px', borderRadius: 6, background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 11, textDecoration: 'none' }}>WA</a>
         )}
         {lead.whatsapp && (
           <button onClick={() => onParaSdr(lead.id)}
-            style={{ padding: '4px 9px', borderRadius: 6, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: 'var(--ink-amber)', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>☀️ → SDR</button>
+            style={{ padding: '4px 9px', borderRadius: 6, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: 'var(--ink-amber)', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>→ SDR</button>
         )}
-        <span style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center' }}>📄 {lead.documentos_usados}</span>
+        <span style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center' }}>{lead.documentos_usados} docs</span>
       </div>
 
       <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 6 }}>
-        {lead.crm_estagio ? '✏️ Manual' : '🔄 Auto'} · {lead.ativo_recente ? '🟢 Ativo' : '⚪ Inativo'}
+        {lead.crm_estagio ? 'Manual' : 'Auto'} · {lead.ativo_recente ? 'Ativo' : 'Inativo'}
       </div>
     </div>
   );

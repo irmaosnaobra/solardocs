@@ -156,7 +156,7 @@ export default function LinksIoPanel() {
         </div>
         <div className={styles.headerActions}>
           <a href={PUBLIC_URL} target="_blank" rel="noopener" className={styles.btnGhost}>
-            👁️ Ver página
+            Ver página
           </a>
           <button className={styles.btnPrimary} onClick={startNew}>
             + Novo botão
@@ -233,7 +233,7 @@ export default function LinksIoPanel() {
                 <input
                   value={editing.icon}
                   onChange={e => setEditing({ ...editing, icon: e.target.value })}
-                  placeholder="💬"
+                  placeholder="opcional"
                   maxLength={4}
                 />
               </label>

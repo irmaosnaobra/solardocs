@@ -332,7 +332,7 @@ export default function LeadsGooglePage() {
 
       {/* ── Varredura por estado (varre cidade por cidade da UF) ───────────── */}
       <div style={cardStyle}>
-        <label style={{ ...labelStyle, fontSize: 15 }}>🗺️ Varredura por estado</label>
+        <label style={{ ...labelStyle, fontSize: 15 }}>Varredura por estado</label>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 12, margin: '0 0 12px' }}>
           Varre TODAS as cidades da UF (lista do IBGE) rodando “{scanCategoria.trim() || 'categoria'} cidade {scanUf}” em cada uma.
           Junta tudo numa busca só, sem repetir. Pode levar minutos — deixe a aba aberta.
@@ -384,7 +384,7 @@ export default function LeadsGooglePage() {
               <span>
                 <strong>{scanProgress.municipios_processados}</strong> / {scanProgress.municipios_total} cidades
                 {scanStatus === 'rodando' && <span style={{ color: 'var(--color-text-muted)' }}> · varrendo…</span>}
-                {scanStatus === 'concluido' && <span style={{ color: '#16a34a' }}> · concluído ✓</span>}
+                {scanStatus === 'concluido' && <span style={{ color: '#16a34a' }}> · concluído</span>}
                 {scanStatus === 'parado' && <span style={{ color: '#dc2626' }}> · parado</span>}
                 {scanStatus === 'erro' && <span style={{ color: '#dc2626' }}> · erro</span>}
               </span>
@@ -411,7 +411,7 @@ export default function LeadsGooglePage() {
 
       {/* Busca rápida (1 termo, até 60 leads) */}
       <div style={cardStyle}>
-        <label style={{ ...labelStyle, fontSize: 15 }}>⚡ Busca rápida</label>
+        <label style={{ ...labelStyle, fontSize: 15 }}>Busca rápida</label>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 12, margin: '0 0 10px' }}>
           1 termo, resultado na hora (até ~60 leads). Pra escala estadual use a varredura acima.
         </p>
@@ -548,7 +548,7 @@ export default function LeadsGooglePage() {
                   style={{ flex: 1, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text)' }}
                 >
                   <div style={{ fontSize: 14, fontWeight: 600 }}>
-                    {s.tipo === 'varredura' && <span style={{ fontSize: 11, marginRight: 6, padding: '1px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.15)', color: 'var(--color-primary, #F59E0B)' }}>🗺️ {s.uf}</span>}
+                    {s.tipo === 'varredura' && <span style={{ fontSize: 11, marginRight: 6, padding: '1px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.15)', color: 'var(--color-primary, #F59E0B)' }}>{s.uf}</span>}
                     {s.query}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>

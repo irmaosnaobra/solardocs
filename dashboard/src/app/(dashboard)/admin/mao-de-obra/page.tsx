@@ -25,9 +25,9 @@ interface Prestador {
 }
 
 const STATUS_OPCOES = [
-  { v: 'pendente', l: '⏳ Pendente', color: '#B45309' },
-  { v: 'aprovado', l: '✓ Aprovado', color: '#15803D' },
-  { v: 'suspenso', l: '⏸ Suspenso', color: '#DC2626' },
+  { v: 'pendente', l: 'Pendente', color: '#B45309' },
+  { v: 'aprovado', l: 'Aprovado', color: '#15803D' },
+  { v: 'suspenso', l: 'Suspenso', color: '#DC2626' },
 ];
 
 const ESPECIALIDADE_LABEL: Record<string, string> = {
@@ -76,7 +76,7 @@ export default function AdminMaoDeObraPage() {
   return (
     <div className="mob-wrap" style={{ maxWidth: 920 }}>
       <header className="mob-hero" style={{ marginBottom: 16 }}>
-        <h1>⚙️ Moderação de Prestadores</h1>
+        <h1>Moderação de Prestadores</h1>
         <p>Aprove, suspenda ou revise cadastros da rede de mão de obra.</p>
       </header>
 
@@ -138,7 +138,7 @@ export default function AdminMaoDeObraPage() {
                         fontSize: 11, padding: '2px 8px', borderRadius: 999,
                         background: 'var(--color-bg)', border: '1px solid var(--color-border)',
                       }}>
-                        📍 {r.cidade}/{r.estado}
+                        {r.cidade}/{r.estado}
                       </span>
                     ))}
                   </div>

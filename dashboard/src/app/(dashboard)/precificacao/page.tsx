@@ -126,7 +126,7 @@ export default function PrecificacaoPage() {
     <div className="prec-wrap">
       <header className="prec-hero">
         <span className="prec-beta">
-          ⚡ Beta · uso de teste — esta ferramenta pode ser encerrada a qualquer momento
+          Beta · uso de teste — esta ferramenta pode ser encerrada a qualquer momento
         </span>
         <h1>Calculadora de Precificação</h1>
         <p>Descubra o preço de venda certo do seu projeto solar</p>
@@ -316,7 +316,7 @@ export default function PrecificacaoPage() {
 
             {r.impossivel ? (
               <div className="prec-warn">
-                ⚠️ Margem + comissão{r.nfPct > 0 ? ' + NF' : ''} somam{' '}
+                Margem + comissão{r.nfPct > 0 ? ' + NF' : ''} somam{' '}
                 {(r.margemPct + r.comissaoPct + r.nfPct).toFixed(0)}% (≥100%). É
                 impossível precificar — reduza um deles.
               </div>

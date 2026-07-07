@@ -365,7 +365,7 @@ export default function InventarioPage() {
                         {catMats.map((m) => (
                           <option key={m.nome} value={m.nome}>{m.nome}</option>
                         ))}
-                        <option value="__outro__">✏️ Outro (digitar)…</option>
+                        <option value="__outro__">Outro (digitar)…</option>
                       </select>
                     </div>
                   )}

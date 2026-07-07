@@ -73,7 +73,7 @@ export default function PropostaBancariaPage() {
 
   if (generated) return (
     <div className={styles.page}>
-      <h1 className={styles.title}>🏦 Proposta Bancária — Preview</h1>
+      <h1 className={styles.title}>Proposta Bancária — Preview</h1>
       <DocumentPreview
         content={generated.content}
         tipo="propostaBanco"
@@ -91,7 +91,7 @@ export default function PropostaBancariaPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>🏦 Proposta Bancária</h1>
+        <h1 className={styles.title}>Proposta Bancária</h1>
         <p className={styles.subtitle}>Proposta técnica e comercial para financiamento</p>
       </div>
 
@@ -212,7 +212,7 @@ export default function PropostaBancariaPage() {
 
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? '⏳ Gerando...' : '📄 Gerar Proposta Bancária'}
+          {generating ? 'Gerando...' : 'Gerar Proposta Bancária'}
         </button>
       </form>
     </div>

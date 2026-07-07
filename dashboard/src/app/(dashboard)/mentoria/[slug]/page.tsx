@@ -27,7 +27,7 @@ export default function MentoriaPage({ params }: { params: Promise<{ slug: strin
           {produto.attention.eyebrow}
         </span>
         <h1 className="mentoria-headline">
-          {produto.emoji} {produto.attention.headline}
+          {produto.attention.headline}
         </h1>
         <p className="mentoria-sub">{produto.attention.subtitulo}</p>
       </header>
@@ -45,7 +45,7 @@ export default function MentoriaPage({ params }: { params: Promise<{ slug: strin
         <h2 className="mentoria-h2">O que está incluso</h2>
         <ul className="mentoria-bullets">
           {produto.bullets.map(b => (
-            <li key={b}><span className="mentoria-check" style={{ color: '#1D9E75' }}>✓</span>{b}</li>
+            <li key={b}><span className="mentoria-check" style={{ color: 'var(--color-text-muted)' }}>✓</span>{b}</li>
           ))}
         </ul>
       </section>
@@ -104,18 +104,18 @@ export default function MentoriaPage({ params }: { params: Promise<{ slug: strin
           rel="noopener noreferrer"
           className="mentoria-cta"
         >
-          💬 {produto.cta} → Atendimento SolarDoc
+          {produto.cta} → Atendimento SolarDoc
         </a>
 
         <div className="mentoria-microcopy">
-          <span>📱 (34) 99943-7831</span>
+          <span>(34) 99943-7831</span>
           {produto.garantiaDias > 0 && <span>· Garantia {produto.garantiaDias} dias</span>}
           <span>· 100% individual ao vivo</span>
         </div>
 
         {produto.vagasMes > 0 && (
           <div className="mentoria-urgencia">
-            ⚠ Apenas {produto.vagasMes} {produto.vagasMes === 1 ? 'vaga' : 'vagas'} {produto.vagasMes === 1 ? 'liberada' : 'liberadas'} por mês — agendamento individual ao vivo.
+            Apenas {produto.vagasMes} {produto.vagasMes === 1 ? 'vaga' : 'vagas'} {produto.vagasMes === 1 ? 'liberada' : 'liberadas'} por mês — agendamento individual ao vivo.
           </div>
         )}
       </section>
@@ -124,7 +124,7 @@ export default function MentoriaPage({ params }: { params: Promise<{ slug: strin
       {produto.crossSellCombo && (
         <section className="mentoria-cross">
           <div className="mentoria-cross-inner">
-            <span className="mentoria-cross-emoji">💡</span>
+            
             <div className="mentoria-cross-text">
               <strong>ESPERA — quer levar os dois?</strong>
               <p>No combo Planilha Mestre + Trello Homologação você economiza R$ 994.</p>

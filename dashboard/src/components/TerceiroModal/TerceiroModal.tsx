@@ -108,14 +108,14 @@ export default function TerceiroModal({ terceiro, onClose, onSave }: TerceiroMod
               className={`${styles.tipoBtn} ${isPJ ? styles.tipoActive : ''}`}
               onClick={() => set('tipo', 'PJ')}
             >
-              🏢 Pessoa Jurídica
+              Pessoa Jurídica
             </button>
             <button
               type="button"
               className={`${styles.tipoBtn} ${!isPJ ? styles.tipoActive : ''}`}
               onClick={() => set('tipo', 'PF')}
             >
-              👤 Pessoa Física
+              Pessoa Física
             </button>
           </div>
 

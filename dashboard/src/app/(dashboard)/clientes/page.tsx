@@ -141,7 +141,7 @@ export default function ClientesPage() {
               whiteSpace: 'nowrap',
             }}
           >
-            📸 Escanear Conta
+            Escanear Conta
           </Link>
           <button className="btn-primary" onClick={() => { setEditingClient(null); setShowModal(true); }}>
             + Novo Cliente
@@ -151,7 +151,7 @@ export default function ClientesPage() {
 
       {deleteError && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 14 }}>
-          ⚠️ {deleteError}
+          {deleteError}
           <button onClick={() => setDeleteError(null)} style={{ float: 'right', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>✕</button>
         </div>
       )}
@@ -170,7 +170,6 @@ export default function ClientesPage() {
         <p className={styles.empty}>Carregando...</p>
       ) : clients.length === 0 ? (
         <div className={styles.emptyState}>
-          <span className={styles.emptyIcon}>👥</span>
           <p>{search ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado ainda.'}</p>
           {!search && (
             <button className="btn-primary" onClick={() => { setEditingClient(null); setShowModal(true); }}>
@@ -240,24 +239,24 @@ export default function ClientesPage() {
                   {client.tipo || 'PF'}
                 </span>
               </div>
-              {client.cpf_cnpj && <p className={styles.cardDetail}>📋 {client.cpf_cnpj}</p>}
+              {client.cpf_cnpj && <p className={styles.cardDetail}>{client.cpf_cnpj}</p>}
               {(client.cidade || client.uf) && (
-                <p className={styles.cardDetail}>📍 {client.cidade}{client.uf ? `/${client.uf}` : ''}</p>
+                <p className={styles.cardDetail}>{client.cidade}{client.uf ? `/${client.uf}` : ''}</p>
               )}
-              {client.concessionaria && <p className={styles.cardDetail}>⚡ {client.concessionaria}</p>}
+              {client.concessionaria && <p className={styles.cardDetail}>{client.concessionaria}</p>}
               <div className={styles.cardActions}>
                 <Link href="/documentos?tipo=proposta-bancaria" className={styles.generateBtn}>
-                  🏦 Banco
+                  Banco
                 </Link>
                 <button className={styles.editBtn} onClick={() => { setEditingClient(client); setShowModal(true); }}>
-                  ✏️ Editar
+                  Editar
                 </button>
                 <button
                   className={styles.deleteBtn}
                   onClick={() => handleDelete(client.id)}
                   disabled={deletingId === client.id}
                 >
-                  {deletingId === client.id ? '...' : '🗑'}
+                  {deletingId === client.id ? '...' : 'Excluir'}
                 </button>
               </div>
             </div>

@@ -47,7 +47,6 @@ export default function GlobalError({
       fontFamily: 'Inter, sans-serif',
       textAlign: 'center',
     }}>
-      <div style={{ fontSize: 48 }}>⚠️</div>
       <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Algo deu errado</h1>
       <p style={{ fontSize: 14, color: 'var(--color-text-muted, #94A3B8)', maxWidth: 360, margin: 0 }}>
         Tenta recarregar a página. Se persistir, clica em &quot;Limpar cache&quot;.

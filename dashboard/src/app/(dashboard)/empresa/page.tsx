@@ -403,9 +403,9 @@ export default function EmpresaPage() {
   // ── CNPJ status helpers ────────────────────────────────────
   const cnpjHint =
     cnpjStatus === 'checking'    ? { color: 'var(--color-text-muted)', text: 'Consultando Receita Federal...' } :
-    cnpjStatus === 'valid'       ? { color: 'var(--ink-green)', text: '✓ CNPJ válido e encontrado na Receita Federal' } :
-    cnpjStatus === 'unverified'  ? { color: 'var(--ink-amber)', text: '✓ CNPJ aceito (não conseguimos confirmar na Receita agora — pode prosseguir)' } :
-    cnpjStatus === 'invalid'     ? { color: 'var(--ink-red)', text: `✗ ${cnpjError}` } :
+    cnpjStatus === 'valid'       ? { color: 'var(--ink-green)', text: 'CNPJ válido e encontrado na Receita Federal' } :
+    cnpjStatus === 'unverified'  ? { color: 'var(--ink-amber)', text: 'CNPJ aceito (não conseguimos confirmar na Receita agora — pode prosseguir)' } :
+    cnpjStatus === 'invalid'     ? { color: 'var(--ink-red)', text: cnpjError } :
     null;
 
   // ── EDIT ─────────────────────────────────────────────────
@@ -502,7 +502,7 @@ export default function EmpresaPage() {
 
               {logoError && (
                 <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: 'var(--ink-red)', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 8 }}>
-                  ⚠️ {logoError}
+                  {logoError}
                 </div>
               )}
 
@@ -510,7 +510,7 @@ export default function EmpresaPage() {
                 <div className={styles.logoPreviewRow}>
                   <img src={form.logo_base64} alt="Logo" className={styles.logoPreview} />
                   <div className={styles.logoPreviewInfo}>
-                    <span className={styles.logoPreviewLabel}>Logo carregada com sucesso ✓</span>
+                    <span className={styles.logoPreviewLabel}>Logo carregada com sucesso</span>
                     <div className={styles.logoPreviewActions}>
                       <label className={styles.logoChangeBtn}>
                         Trocar imagem
@@ -530,10 +530,9 @@ export default function EmpresaPage() {
                   onDrop={(e) => { e.preventDefault(); setDragging(false); handleLogoFile(e.dataTransfer.files?.[0]); }}
                 >
                   <input type="file" accept="image/*" onChange={(e) => { handleLogoFile(e.target.files?.[0]); e.target.value = ''; }} />
-                  <span className={styles.logoUploadIcon}>{logoError ? '❌' : '🖼️'}</span>
                   <span className={styles.logoUploadTitle}>{logoError ? 'Tente enviar outra imagem' : 'Clique aqui para adicionar a logo da sua empresa'}</span>
                   <span className={styles.logoUploadSub}>ou arraste a imagem para cá</span>
-                  <span className={styles.logoUploadBtn}>📁 Escolher arquivo</span>
+                  <span className={styles.logoUploadBtn}>Escolher arquivo</span>
                   <span className={styles.logoUploadSub}>Aceita JPG, PNG ou qualquer imagem · máx. 1 MB</span>
                 </label>
               )}
@@ -590,7 +589,7 @@ export default function EmpresaPage() {
                     style={{ opacity: 0.6, cursor: 'not-allowed' }}
                   />
                   <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
-                    🔒 O CNPJ não pode ser alterado. Entre em contato com o suporte se necessário.
+                    O CNPJ não pode ser alterado. Entre em contato com o suporte se necessário.
                   </span>
                 </>
               ) : (

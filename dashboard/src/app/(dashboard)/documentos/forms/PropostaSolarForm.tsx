@@ -403,7 +403,7 @@ export default function PropostaSolarPage() {
 
     const token = getToken();
     if (!token) {
-      setCopyMsg('❌ Sessão expirou. Faça login novamente.');
+      setCopyMsg('Sessão expirou. Faça login novamente.');
       setTimeout(() => setCopyMsg(''), 4000);
       return;
     }
@@ -496,21 +496,22 @@ export default function PropostaSolarPage() {
               fontSize: 13,
               fontWeight: 700,
             }}>
-              📄 {publicId}
+              {publicId}
             </span>
           )}
           <div style={{ flex: 1 }} />
-          <button type="button" onClick={handleCopyWhatsApp} style={btn('whatsapp')}>📱 Copiar WhatsApp</button>
-          <button type="button" onClick={handleCopyLink} style={btn('primary')}>🔗 Copiar link</button>
+          <button type="button" onClick={handleCopyWhatsApp} style={btn('whatsapp')}>Copiar WhatsApp</button>
+          <button type="button" onClick={handleCopyLink} style={btn('primary')}>Copiar link</button>
           <button
             type="button"
             onClick={handleDownloadPdf}
             disabled={!generated.doc_id}
             style={{ ...btn('outline'), opacity: !generated.doc_id ? 0.6 : 1, cursor: 'pointer' }}
           >
-            📥 Baixar PDF
+            Baixar PDF
           </button>
-          {copyMsg && <span style={{ color: copyMsg.startsWith('❌') ? 'var(--ink-red)' : 'var(--ink-green)', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}
+          {/* Cor do toast: vermelho só no erro de sessão; sucesso (copiado) fica verde. */}
+          {copyMsg && <span style={{ color: copyMsg.startsWith('Sessão') ? 'var(--ink-red)' : 'var(--ink-green)', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}
         </div>
         <div style={{
           background: '#F3F4F6',
@@ -551,7 +552,7 @@ export default function PropostaSolarPage() {
             }}
             title="Usa a cor de marca cadastrada em Empresa"
           >
-            🏢 Empresa
+            Empresa
           </button>
         )}
         {PALETAS.map((p) => (
@@ -594,7 +595,7 @@ export default function PropostaSolarPage() {
           }}
           title="Escolher uma cor personalizada"
         >
-          🎨 {fields.paleta === 'custom' && fields.paleta_c1 ? fields.paleta_c1.toUpperCase() : 'Personalizar'}
+          {fields.paleta === 'custom' && fields.paleta_c1 ? fields.paleta_c1.toUpperCase() : 'Personalizar'}
           <input
             type="color"
             value={fields.paleta_c1 || '#B45309'}
@@ -612,7 +613,7 @@ export default function PropostaSolarPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>⚡ Proposta Solar</h1>
+        <h1 className={styles.title}>Proposta Solar</h1>
         <p className={styles.subtitle}>Gera proposta comercial bonita pra cliente final — copia link, manda WhatsApp ou imprime</p>
       </div>
 
@@ -622,7 +623,7 @@ export default function PropostaSolarPage() {
           background: 'var(--color-accent-soft)', border: '1px solid var(--color-accent-border)',
           borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--color-text)',
         }}>
-          <span>💾 Recuperamos um rascunho que você tinha começado.</span>
+          <span>Recuperamos um rascunho que você tinha começado.</span>
           <button type="button" onClick={() => { setRestored(false); novaProposta(); }}
             style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
             Descartar e começar do zero
@@ -698,7 +699,7 @@ export default function PropostaSolarPage() {
                 alignItems: 'center',
               }}>
                 <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                  ⚡ Potência calculada (qtd × W ÷ 1000)
+                  Potência calculada (qtd × W ÷ 1000)
                 </span>
                 <strong style={{ fontSize: 18, color: 'var(--color-primary)' }}>
                   {kwpCalc > 0 ? kwpCalc.toFixed(2).replace('.', ',') + ' kWp' : '—'}
@@ -854,7 +855,7 @@ export default function PropostaSolarPage() {
                 onClick={() => setField('foto_telhado_b64', '')}
                 style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #EF4444', background: 'transparent', color: 'var(--ink-red)', cursor: 'pointer', fontSize: 13 }}
               >
-                🗑️ Remover foto
+                Remover foto
               </button>
             </div>
           ) : (
@@ -870,7 +871,7 @@ export default function PropostaSolarPage() {
               color: 'var(--color-text-muted)',
               fontSize: 14,
             }}>
-              📁 Selecionar arquivo do dispositivo
+              Selecionar arquivo do dispositivo
               <input
                 type="file"
                 accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
@@ -1074,7 +1075,7 @@ export default function PropostaSolarPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
-            <span>⚙️ Tarifa, taxa mínima e prazo</span>
+            <span>Tarifa, taxa mínima e prazo</span>
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>
               ajuste por região se preciso
             </span>
@@ -1084,7 +1085,7 @@ export default function PropostaSolarPage() {
           </p>
           <div className={styles.grid2}>
             <div className={styles.field}>
-              <label className={styles.label}>⚡ Tarifa de energia (R$/kWh)</label>
+              <label className={styles.label}>Tarifa de energia (R$/kWh)</label>
               <input type="text" inputMode="decimal" value={fields.tarifa_kwh} onChange={e => setField('tarifa_kwh', e.target.value)} placeholder="vazio = default do estado" className="input-field" />
               <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
                 Ex: MG ≈ 1,20 · SP ≈ 0,92 · BA ≈ 0,99. Olha a conta de luz do cliente pra ser exato.
@@ -1103,7 +1104,7 @@ export default function PropostaSolarPage() {
 
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteNome.trim()}>
-          {generating ? '⏳ Gerando...' : '✨ Gerar Proposta'}
+          {generating ? 'Gerando...' : 'Gerar Proposta'}
         </button>
       </form>
     </div>

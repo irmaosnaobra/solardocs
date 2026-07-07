@@ -53,7 +53,7 @@ export default function ProcuracaoPage() {
 
   if (generated) return (
     <div className={styles.page}>
-      <h1 className={styles.title}>📜 Procuração — Preview</h1>
+      <h1 className={styles.title}>Procuração — Preview</h1>
       <DocumentPreview
         content={generated.content}
         tipo="procuracao"
@@ -71,7 +71,7 @@ export default function ProcuracaoPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>📜 Procuração</h1>
+        <h1 className={styles.title}>Procuração</h1>
         <p className={styles.subtitle}>Procuração para concessionária — assinada pelo cliente</p>
       </div>
 
@@ -146,7 +146,7 @@ export default function ProcuracaoPage() {
         </div>
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? '⏳ Gerando...' : '📄 Gerar Procuração'}
+          {generating ? 'Gerando...' : 'Gerar Procuração'}
         </button>
       </form>
     </div>

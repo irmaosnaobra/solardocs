@@ -128,7 +128,7 @@
   .brandList li { animation: none; opacity: 1; }
 }
 .brandList li::before {
-  content: '✓';
+  content: '';
   flex-shrink: 0;
   width: 26px;
   height: 26px;

@@ -83,7 +83,6 @@ export default function UpgradeModal({ onClose, plano }: UpgradeModalProps) {
         <button className={styles.closeBtn} onClick={onClose}>✕</button>
 
         <div className={styles.header}>
-          <span className={styles.icon}>⚡</span>
           <h2 className={styles.title}>{plano === 'free' ? 'Seus 10 docs gratuitos acabaram' : 'Faça upgrade do seu plano'}</h2>
           <p className={styles.subtitle}>Escolha um plano e continue gerando documentos agora</p>
         </div>

@@ -90,10 +90,10 @@ function fmtWhats(w?: string | null) {
 }
 
 // Temperatura de conversão (só free). 🔥 quente = 3+ docs (alvo forte de upgrade).
-const TEMP_META: Record<'quente' | 'morno' | 'frio', { emoji: string; label: string }> = {
-  quente: { emoji: '🔥', label: 'Quente' },
-  morno:  { emoji: '🟡', label: 'Morno' },
-  frio:   { emoji: '❄️', label: 'Frio' },
+const TEMP_META: Record<'quente' | 'morno' | 'frio', { label: string }> = {
+  quente: { label: 'Quente' },
+  morno:  { label: 'Morno' },
+  frio:   { label: 'Frio' },
 };
 
 type PlanFilter = 'todos' | 'free' | 'pro' | 'ilimitado';
@@ -229,21 +229,21 @@ export default function MembrosPanel() {
           {billing && (
             <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(3,1fr)', marginTop: 12 }}>
               <div className={styles.card} style={{ borderColor: 'var(--color-primary)', borderWidth: 1, borderStyle: 'solid' }}>
-                <div className={styles.cardLabel}>💰 Acumulado recebido</div>
+                <div className={styles.cardLabel}>Acumulado recebido</div>
                 <div className={styles.cardValue} style={{ color: 'var(--color-primary)' }}>{fmtBRL(billing.recebido_total)}</div>
                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
                   Total já pago no Stripe (bruto, sem taxas) · todas as assinaturas
                 </div>
               </div>
               <div className={styles.card}>
-                <div className={styles.cardLabel}>📅 Previsão deste mês</div>
+                <div className={styles.cardLabel}>Previsão deste mês</div>
                 <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{fmtBRL(billing.previsao_mes)}</div>
                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
                   Recebido no mês ({fmtBRL(billing.recebido_mes)}) + o que ainda fatura até o fim
                 </div>
               </div>
               <div className={styles.card}>
-                <div className={styles.cardLabel}>🔮 Previsão próximo mês</div>
+                <div className={styles.cardLabel}>Previsão próximo mês</div>
                 <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{fmtBRL(billing.previsao_proximo_mes)}</div>
                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
                   {billing.assinaturas_ativas} assinatura{billing.assinaturas_ativas === 1 ? '' : 's'} ativa{billing.assinaturas_ativas === 1 ? '' : 's'}
@@ -278,7 +278,7 @@ export default function MembrosPanel() {
               </div>
             </div>
             <div className={styles.card}>
-              <div className={styles.cardLabel}>🧮 Calculadora (BETA) · abriu · calculou</div>
+              <div className={styles.cardLabel}>Calculadora (BETA) · abriu · calculou</div>
               <div className={styles.cardValue} style={{ fontSize: 20 }}>
                 <span style={{ color: 'var(--color-primary)' }}>{calc?.aberturas ?? 0}</span>
                 <span style={{ color: 'var(--color-text-muted)' }}> · </span>
@@ -287,7 +287,7 @@ export default function MembrosPanel() {
               </div>
             </div>
             <div className={styles.card}>
-              <div className={styles.cardLabel}>📦 Inventário · abriu · itens</div>
+              <div className={styles.cardLabel}>Inventário · abriu · itens</div>
               <div className={styles.cardValue} style={{ fontSize: 20 }}>
                 <span style={{ color: 'var(--color-primary)' }}>{inv?.aberturas ?? 0}</span>
                 <span style={{ color: 'var(--color-text-muted)' }}> · </span>
@@ -354,7 +354,7 @@ export default function MembrosPanel() {
                       <td className={styles.mutedCell}>
                         {u.temperatura
                           ? <span title={`${TEMP_META[u.temperatura].label} — ${u.docs_gerados ?? 0} docs gerados`} style={{ fontWeight: 700, color: 'var(--color-text)' }}>
-                              {TEMP_META[u.temperatura].emoji} {TEMP_META[u.temperatura].label}
+                              {TEMP_META[u.temperatura].label}
                             </span>
                           : <span className={styles.emptyDash}>—</span>}
                       </td>
@@ -369,13 +369,13 @@ export default function MembrosPanel() {
                               {emailAt && (
                                 <span title={`Cadência de e-mail (ativa). Último envio: ${fmtDateBR(emailAt)}`}
                                       style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text)' }}>
-                                  ✉️ E-mail · {relDateShort(emailAt).label}
+                                  E-mail · {relDateShort(emailAt).label}
                                 </span>
                               )}
                               {wpp > 0 && (
                                 <span title="Toques de WhatsApp da Carla (canal PAUSADO — histórico)"
                                       style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                                  💬 WhatsApp {wpp}× <span style={{ fontSize: 10 }}>(pausado)</span>
+                                  WhatsApp {wpp}× <span style={{ fontSize: 10 }}>(pausado)</span>
                                 </span>
                               )}
                               {temConversa && (

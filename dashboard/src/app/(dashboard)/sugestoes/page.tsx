@@ -25,9 +25,9 @@ interface Comentario {
 }
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
-  aprovada:           { label: '✓ Aprovada',       color: 'var(--ink-green)', bg: 'rgba(34,197,94,0.12)' },
-  em_desenvolvimento: { label: '🔨 Em construção', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.12)' },
-  publicada:          { label: '🚀 Publicada',     color: '#1D9E75', bg: 'rgba(29,158,117,0.15)' },
+  aprovada:           { label: 'Aprovada',       color: 'var(--ink-green)', bg: 'rgba(34,197,94,0.12)' },
+  em_desenvolvimento: { label: 'Em construção', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.12)' },
+  publicada:          { label: 'Publicada',     color: '#1D9E75', bg: 'rgba(29,158,117,0.15)' },
 };
 
 function fmtData(iso: string) {
@@ -144,16 +144,16 @@ export default function SugestoesPage() {
   return (
     <div className="sug-wrap">
       <header className="sug-hero">
-        <h1>💡 Fórum de Sugestões</h1>
+        <h1>Fórum de Sugestões</h1>
         <p>Ideias que melhoram a SolarDoc — votadas e debatidas pela comunidade VIP.</p>
         {isVip && (
           <button className="sug-btn-primary" onClick={() => setShowForm(s => !s)}>
-            {showForm ? '× Fechar' : '✨ Mandar nova ideia'}
+            {showForm ? '× Fechar' : 'Mandar nova ideia'}
           </button>
         )}
         {!isVip && (
           <p className="sug-vip-cta">
-            <a href="/conta/sugestoes">★ Liberar fórum com VIP</a>
+            <a href="/conta/sugestoes">Liberar fórum com VIP</a>
           </p>
         )}
       </header>
@@ -221,7 +221,7 @@ export default function SugestoesPage() {
                   <span>{fmtData(s.created_at)}</span>
                   <span>·</span>
                   <button className="sug-comments-toggle" onClick={() => abrirComentarios(s.id)}>
-                    💬 {s.comentarios_count} {s.comentarios_count === 1 ? 'comentário' : 'comentários'}
+                    {s.comentarios_count} {s.comentarios_count === 1 ? 'comentário' : 'comentários'}
                   </button>
                 </div>
 

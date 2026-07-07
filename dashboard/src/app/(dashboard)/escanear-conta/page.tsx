@@ -161,7 +161,7 @@ export default function EscanearContaPage() {
   // Aviso contextual dentro do modal de revisão
   const notice = det ? (
     <>
-      <strong style={{ color: '#22c55e' }}>✅ Li a conta e preenchi os campos abaixo.</strong>{' '}
+      <strong style={{ color: '#22c55e' }}>Li a conta e preenchi os campos abaixo.</strong>{' '}
       Confira e complete o que faltar.
       {det.consumo_medio_kwh != null && (
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, color: '#fbbf24', fontWeight: 700 }}>
@@ -170,7 +170,7 @@ export default function EscanearContaPage() {
       )}
       {det.cpf_mascarado && (
         <div style={{ marginTop: 6, color: '#f59e0b' }}>
-          ⚠️ O CPF/CNPJ veio <strong>mascarado</strong> na conta — digite o número completo.
+          O CPF/CNPJ veio <strong>mascarado</strong> na conta — digite o número completo.
         </div>
       )}
       {det.confianca === 'baixa' && (

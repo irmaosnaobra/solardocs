@@ -23,7 +23,7 @@ const STATUS_LABEL: Record<Indicacao['status'], string> = {
   novo: 'Novo',
   contatado: 'Contatado',
   fechado: 'Fechado',
-  pago: 'Pago ✓',
+  pago: 'Pago',
 };
 
 function fmtDate(iso: string): string {
@@ -140,7 +140,7 @@ export default function IndicacoesIoPanel() {
                   <strong>{r.indicado_nome}</strong>
                   <div className={styles.contactRow}>
                     <a href={waLink(r.indicado_telefone)} target="_blank" rel="noopener" className={styles.waBtn}>
-                      💬 {r.indicado_telefone_raw || r.indicado_telefone}
+                      {r.indicado_telefone_raw || r.indicado_telefone}
                     </a>
                   </div>
                 </div>
@@ -151,7 +151,7 @@ export default function IndicacoesIoPanel() {
                 <div className={styles.blockMain}>
                   <strong>{r.indicador_nome}</strong>
                   <button className={styles.pixBtn} onClick={() => copy(r.indicador_pix)} title="Copiar chave PIX">
-                    🔑 {r.indicador_pix} <span className={styles.copyHint}>copiar</span>
+                    {r.indicador_pix} <span className={styles.copyHint}>copiar</span>
                   </button>
                 </div>
               </div>

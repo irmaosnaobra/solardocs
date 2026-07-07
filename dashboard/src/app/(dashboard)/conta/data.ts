@@ -31,10 +31,10 @@ export const FEATURES_VIP: Record<string, FeatureVip> = {
   'documentos': {
     slug: 'documentos',
     nome: 'Documentos Salvos na Nuvem',
-    emoji: '💾',
+    emoji: '',
     tag: 'EXCLUSIVO VIP',
     attention: {
-      eyebrow: '★ INCLUSO NO PLANO VIP',
+      eyebrow: 'INCLUSO NO PLANO VIP',
       headline: 'Seus contratos somem quando troca de PC. Não acontece com VIP.',
       subtitulo: 'Todos os documentos gerados ficam salvos na nuvem. Acessa, baixa e reenvia de qualquer lugar.',
     },
@@ -61,10 +61,10 @@ export const FEATURES_VIP: Record<string, FeatureVip> = {
   'sugestoes': {
     slug: 'sugestoes',
     nome: 'Fórum de Sugestões',
-    emoji: '💡',
+    emoji: '',
     tag: 'EXCLUSIVO VIP',
     attention: {
-      eyebrow: '★ INCLUSO NO PLANO VIP',
+      eyebrow: 'INCLUSO NO PLANO VIP',
       headline: 'Toda boa ideia que você teve sobre a plataforma morreu na cabeça. Aqui ela vira realidade.',
       subtitulo: 'Mande sua sugestão, o admin aprova, vira tópico de fórum, outros VIPs comentam — e as ideias melhores entram no roadmap.',
     },
@@ -91,10 +91,10 @@ export const FEATURES_VIP: Record<string, FeatureVip> = {
   'mao-de-obra': {
     slug: 'mao-de-obra',
     nome: 'Cadastro de Mão de Obra',
-    emoji: '🔧',
+    emoji: '',
     tag: 'EXCLUSIVO VIP',
     attention: {
-      eyebrow: '★ INCLUSO NO PLANO VIP',
+      eyebrow: 'INCLUSO NO PLANO VIP',
       headline: 'Cadastra seu time. A gente capta a venda. Você instala e fatura.',
       subtitulo: 'Quando temos venda fechada na sua região, você é acionado pra executar a obra. Cliente já fechado e pago.',
     },

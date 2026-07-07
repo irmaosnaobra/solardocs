@@ -43,7 +43,7 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
           {feature.attention.eyebrow}
         </span>
         <h1 className="mentoria-headline">
-          {feature.emoji} {feature.attention.headline}
+          {feature.attention.headline}
         </h1>
         <p className="mentoria-sub">{feature.attention.subtitulo}</p>
       </header>
@@ -61,7 +61,7 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
         <h2 className="mentoria-h2">O que você desbloqueia</h2>
         <ul className="mentoria-bullets">
           {feature.bullets.map(b => (
-            <li key={b}><span className="mentoria-check" style={{ color: '#1D9E75' }}>✓</span>{b}</li>
+            <li key={b}><span className="mentoria-check" style={{ color: 'var(--color-text-muted)' }}>✓</span>{b}</li>
           ))}
         </ul>
       </section>
@@ -72,7 +72,7 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
           <>
             <div className="mentoria-precos">
               <span className="mentoria-preco-final" style={{ color: corPrimary }}>
-                ★ VIP ATIVO
+                VIP ATIVO
               </span>
               <span className="mentoria-preco-eco">Você tem acesso completo</span>
             </div>
@@ -82,12 +82,12 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
               className="mentoria-cta"
               style={{ background: 'linear-gradient(135deg, #6E56CF, #8b6fdc)', boxShadow: '0 6px 20px rgba(110,86,207,0.3)', border: 'none', cursor: 'pointer' }}
             >
-              ⚡ {feature.ctaVip} →
+              {feature.ctaVip} →
             </button>
 
             {feature.status === 'em_breve' && (
               <div className="mentoria-urgencia" style={{ color: 'var(--ink-amber)', background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.3)' }}>
-                🚧 Recurso em desenvolvimento — disponível em breve. Você será notificado.
+                Recurso em desenvolvimento — disponível em breve. Você será notificado.
               </div>
             )}
           </>
@@ -107,14 +107,14 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
               className="mentoria-cta"
               style={{ background: 'linear-gradient(135deg, #6E56CF, #8b6fdc)', boxShadow: '0 6px 20px rgba(110,86,207,0.3)' }}
             >
-              ★ {feature.ctaFree}
+              {feature.ctaFree}
             </a>
 
             <div className="mentoria-microcopy">
-              <span>★ Documentos ilimitados</span>
-              <span>· 💾 Tudo na nuvem</span>
-              <span>· 💡 Voto no roadmap</span>
-              <span>· 🔧 Rede de prestadores</span>
+              <span>Documentos ilimitados</span>
+              <span>· Tudo na nuvem</span>
+              <span>· Voto no roadmap</span>
+              <span>· Rede de prestadores</span>
             </div>
           </>
         )}

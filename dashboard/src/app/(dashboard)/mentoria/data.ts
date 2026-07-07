@@ -46,7 +46,7 @@ export const MENTORIAS: Record<string, Produto> = {
   'planilha-mestre': {
     slug: 'planilha-mestre',
     nome: 'Planilha Mestre',
-    emoji: '📊',
+    emoji: '',
     tag: 'MAIS VENDIDO',
     cor: 'gold',
     preco: 997,
@@ -82,7 +82,7 @@ export const MENTORIAS: Record<string, Produto> = {
   'trello-homologacao': {
     slug: 'trello-homologacao',
     nome: 'Trello Homologação',
-    emoji: '📌',
+    emoji: '',
     tag: 'CORAÇÃO DA ENGENHARIA',
     cor: 'purple',
     preco: 997,
@@ -118,7 +118,7 @@ export const MENTORIAS: Record<string, Produto> = {
   'gerador': {
     slug: 'gerador',
     nome: 'Gerador de Proposta',
-    emoji: '📄',
+    emoji: '',
     tag: 'PREMIUM',
     cor: 'green',
     preco: 0,
@@ -152,7 +152,7 @@ export const MENTORIAS: Record<string, Produto> = {
   'trafego': {
     slug: 'trafego',
     nome: 'Tráfego Pago Solar',
-    emoji: '📣',
+    emoji: '',
     tag: 'ACELERADOR DE LEADS',
     cor: 'gold',
     preco: 0,
@@ -186,7 +186,7 @@ export const MENTORIAS: Record<string, Produto> = {
   'parceiro-integrador': {
     slug: 'parceiro-integrador',
     nome: 'Parceiro Integrador',
-    emoji: '🎯',
+    emoji: '',
     tag: 'EXCLUSIVO',
     cor: 'coral',
     preco: 0,
@@ -221,7 +221,7 @@ export const MENTORIAS: Record<string, Produto> = {
   'combo-financeiro-engenharia': {
     slug: 'combo-financeiro-engenharia',
     nome: 'COMBO Mestre + Trello',
-    emoji: '⚡',
+    emoji: '',
     tag: 'COMBO IRRESISTÍVEL',
     cor: 'gold',
     preco: 1497,
@@ -230,7 +230,7 @@ export const MENTORIAS: Record<string, Produto> = {
     duracao: '40min + 45min + 30min bônus ao vivo',
     isCombo: true,
     attention: {
-      eyebrow: '⚡ COMBO IRRESISTÍVEL',
+      eyebrow: 'COMBO IRRESISTÍVEL',
       headline: 'Não escolha entre lucrar mais ou homologar mais rápido. Faça os dois agora e pague menos do que custaria comprar uma só.',
       subtitulo: 'Os 2 pilares de uma operação solar real — financeiro e engenharia — em um único pacote.',
     },

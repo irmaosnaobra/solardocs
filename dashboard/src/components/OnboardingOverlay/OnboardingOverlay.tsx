@@ -20,7 +20,6 @@ export default function OnboardingOverlay({ step }: OnboardingOverlayProps) {
             <div className={styles.stepDot}>2</div>
           </div>
 
-          <div className={styles.icon}>🏢</div>
           <h2 className={styles.title}>Cadastre sua empresa</h2>
           <p className={styles.desc}>
             Antes de usar a plataforma, precisamos dos dados da sua empresa.
@@ -40,12 +39,11 @@ export default function OnboardingOverlay({ step }: OnboardingOverlayProps) {
     <div className={styles.overlay}>
       <div className={styles.card}>
         <div className={styles.steps}>
-          <div className={`${styles.stepDot} ${styles.stepDotDone}`}>✓</div>
+          <div className={`${styles.stepDot} ${styles.stepDotDone}`}>1</div>
           <div className={`${styles.stepLine} ${styles.stepLineDone}`} />
           <div className={`${styles.stepDot} ${styles.stepDotActive}`}>2</div>
         </div>
 
-        <div className={styles.icon}>👥</div>
         <h2 className={styles.title}>Cadastre um cliente ou terceiro</h2>
         <p className={styles.desc}>
           Ótimo! Empresa cadastrada com sucesso. Agora adicione pelo menos um

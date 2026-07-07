@@ -46,7 +46,7 @@ export default function BaixeAppPage() {
   return (
     <div className="baixe-wrap">
       <header className="baixe-hero">
-        <span className="baixe-eyebrow">📱 INSTALAÇÃO</span>
+        <span className="baixe-eyebrow">INSTALAÇÃO</span>
         <h1 className="baixe-headline">Baixe o App</h1>
         <p className="baixe-sub">
           Instale o SolarDoc na tela inicial do seu celular ou desktop. Vira ícone como qualquer outro app,
@@ -54,17 +54,17 @@ export default function BaixeAppPage() {
         </p>
 
         {installed ? (
-          <div className="baixe-installed-badge">✓ App já instalado neste dispositivo</div>
+          <div className="baixe-installed-badge">App já instalado neste dispositivo</div>
         ) : installPrompt ? (
           <button className="baixe-install-now" onClick={handleInstall}>
-            ⚡ Instalar agora
+            Instalar agora
           </button>
         ) : null}
       </header>
 
       <div className="baixe-grid">
         <div className="baixe-card">
-          <div className="baixe-card-title">📱 Android</div>
+          <div className="baixe-card-title">Android</div>
           <div className="baixe-card-sub">Chrome ou Edge</div>
           <ol className="baixe-steps">
             <li>Abre <code>{host}</code> no Chrome</li>
@@ -74,7 +74,7 @@ export default function BaixeAppPage() {
         </div>
 
         <div className="baixe-card">
-          <div className="baixe-card-title">📱 iPhone</div>
+          <div className="baixe-card-title">iPhone</div>
           <div className="baixe-card-sub">Safari (não funciona no Chrome iOS)</div>
           <ol className="baixe-steps">
             <li>Abre o link no <strong>Safari</strong></li>
@@ -85,7 +85,7 @@ export default function BaixeAppPage() {
         </div>
 
         <div className="baixe-card">
-          <div className="baixe-card-title">💻 Desktop</div>
+          <div className="baixe-card-title">Desktop</div>
           <div className="baixe-card-sub">Chrome ou Edge</div>
           <ol className="baixe-steps">
             <li>No site, aparece um ícone <strong>⊕</strong> ao lado da estrela na barra de endereço</li>

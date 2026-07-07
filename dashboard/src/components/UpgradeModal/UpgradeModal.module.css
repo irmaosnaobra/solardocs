@@ -51,11 +51,6 @@
   text-align: center;
   margin-bottom: 36px;
 }
-.icon {
-  font-size: 40px;
-  display: block;
-  margin-bottom: 10px;
-}
 .title {
   font-size: 1.7rem;
   font-weight: 800;
@@ -184,7 +179,7 @@
   line-height: 1.4;
 }
 .planFeatures li::before {
-  content: '✓';
+  content: '•';
   position: absolute;
   left: 0;
   color: #22c55e;

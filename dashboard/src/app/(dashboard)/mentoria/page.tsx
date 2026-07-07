@@ -66,7 +66,7 @@ export default function MentoriaIndexPage() {
           rel="noopener noreferrer"
           className="mentoria-contato-btn"
         >
-          📱 (34) 99943-7831 — Atendimento SolarDoc
+          (34) 99943-7831 — Atendimento SolarDoc
         </a>
       </section>
     </div>

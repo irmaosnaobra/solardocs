@@ -159,7 +159,7 @@ export default function LoginForm() {
 
       {platform && !installed && platform !== 'other' && (
         <div className={styles.pwaHint}>
-          <div className={styles.pwaHintTitle}>📲 Use como app no seu celular</div>
+          <div className={styles.pwaHintTitle}>Use como app no seu celular</div>
           <div className={styles.pwaHintText}>
             Instale o SolarDoc Pro na tela inicial e acesse na hora — sem abrir navegador.
           </div>
@@ -188,7 +188,7 @@ export default function LoginForm() {
 
       {installed && (
         <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '13px', color: '#16a34a', fontWeight: 600 }}>
-          ✅ App instalado!
+          App instalado!
         </p>
       )}
     </div>

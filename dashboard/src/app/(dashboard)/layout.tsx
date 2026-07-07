@@ -86,7 +86,7 @@ function BillingSuspendedPage({ email }: { email: string }) {
         textAlign: 'center',
         boxShadow: '0 4px 28px rgba(251,191,36,0.15)',
       }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+        
         <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 12px', lineHeight: 1.3 }}>
           Sua conta está temporariamente suspensa
         </h1>
@@ -176,7 +176,7 @@ function UpgradePage({ email }: { email: string }) {
       padding: '40px 20px',
     }}>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <div style={{ fontSize: 44, marginBottom: 12 }}>⚡</div>
+        
         <h1 style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 8px' }}>
           Seus 10 documentos gratuitos acabaram
         </h1>
@@ -242,7 +242,7 @@ function UpgradePage({ email }: { email: string }) {
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 8px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
               {p.features.map((f) => (
                 <li key={f} style={{ fontSize: '0.88rem', color: '#cbd5e1', paddingLeft: 18, position: 'relative', lineHeight: 1.4 }}>
-                  <span style={{ position: 'absolute', left: 0, color: '#22c55e', fontWeight: 700 }}>✓</span>
+                  <span style={{ position: 'absolute', left: 0, color: 'var(--color-text-muted)', fontWeight: 700 }}>✓</span>
                   {f}
                 </li>
               ))}
@@ -407,8 +407,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             }}>
               <span style={{ fontSize: 13, color: docsRestantes <= 2 ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
                 {docsRestantes <= 2
-                  ? <>📄 Plano Gratuito — <strong>{docsRestantes} documento{docsRestantes !== 1 ? 's' : ''}</strong> restante{docsRestantes !== 1 ? 's' : ''} de 10.</>
-                  : <>📄 No plano grátis você só gera <strong>propostas</strong>. Destrave <strong>contratos, procurações e recibos</strong> no PRO.</>}
+                  ? <>Plano Gratuito — <strong>{docsRestantes} documento{docsRestantes !== 1 ? 's' : ''}</strong> restante{docsRestantes !== 1 ? 's' : ''} de 10.</>
+                  : <>No plano grátis você só gera <strong>propostas</strong>. Destrave <strong>contratos, procurações e recibos</strong> no PRO.</>}
               </span>
               <button
                 onClick={() => setShowUpgrade(true)}

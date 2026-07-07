@@ -17,9 +17,9 @@ interface Sugestao {
 
 const STATUS_OPCOES = [
   { v: 'recebido',           l: 'Recebido',          color: '#475569' },
-  { v: 'aprovada',           l: '✓ Aprovar',         color: '#15803D' },
-  { v: 'em_desenvolvimento', l: '🔨 Em construção',  color: '#B45309' },
-  { v: 'publicada',          l: '🚀 Publicada',      color: '#1D9E75' },
+  { v: 'aprovada',           l: 'Aprovar',         color: '#15803D' },
+  { v: 'em_desenvolvimento', l: 'Em construção',  color: '#B45309' },
+  { v: 'publicada',          l: 'Publicada',      color: '#1D9E75' },
   { v: 'rejeitada',          l: '× Rejeitar',        color: '#DC2626' },
 ];
 
@@ -64,7 +64,7 @@ export default function AdminSugestoesPage() {
   return (
     <div className="sug-wrap" style={{ maxWidth: 920 }}>
       <header className="sug-hero" style={{ marginBottom: 16 }}>
-        <h1>⚙️ Moderação de Sugestões</h1>
+        <h1>Moderação de Sugestões</h1>
         <p>Aprove, rejeite ou mova ideias do estágio.</p>
       </header>
 
@@ -114,7 +114,7 @@ export default function AdminSugestoesPage() {
                     <span>·</span>
                     <span>{fmtData(s.created_at)}</span>
                     <span>·</span>
-                    <span>💬 {s.comentarios_count}</span>
+                    <span>{s.comentarios_count} comentários</span>
                   </div>
 
                   {/* Botões de moderação */}

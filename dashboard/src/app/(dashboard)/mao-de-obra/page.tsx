@@ -26,9 +26,9 @@ interface Prestador {
 }
 
 const STATUS_LABEL: Record<Status, { label: string; color: string; bg: string }> = {
-  pendente: { label: '⏳ Aguardando aprovação', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.12)' },
-  aprovado: { label: '✓ Aprovado',              color: 'var(--ink-green)', bg: 'rgba(34,197,94,0.12)' },
-  suspenso: { label: '⏸ Suspenso',              color: 'var(--ink-red)', bg: 'rgba(239,68,68,0.12)' },
+  pendente: { label: 'Aguardando aprovação', color: 'var(--ink-amber)', bg: 'rgba(245,158,11,0.12)' },
+  aprovado: { label: 'Aprovado',              color: 'var(--ink-green)', bg: 'rgba(34,197,94,0.12)' },
+  suspenso: { label: 'Suspenso',              color: 'var(--ink-red)', bg: 'rgba(239,68,68,0.12)' },
 };
 
 const ESTADOS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
@@ -121,9 +121,9 @@ export default function MaoDeObraPage() {
     return (
       <div className="mob-wrap">
         <header className="mob-hero">
-          <h1>🔧 Cadastro de Mão de Obra</h1>
+          <h1>Cadastro de Mão de Obra</h1>
           <p>Recurso exclusivo do plano VIP. Cadastre seu time e receba obras prontas pra executar.</p>
-          <a href="/conta/mao-de-obra" className="mob-vip-cta">★ Liberar com VIP</a>
+          <a href="/conta/mao-de-obra" className="mob-vip-cta">Liberar com VIP</a>
         </header>
       </div>
     );
@@ -136,7 +136,7 @@ export default function MaoDeObraPage() {
   return (
     <div className="mob-wrap">
       <header className="mob-hero">
-        <h1>🔧 Cadastro de Mão de Obra</h1>
+        <h1>Cadastro de Mão de Obra</h1>
         <p>Cadastre seu time e as cidades que atende. Quando tivermos venda na sua região, você é acionado.</p>
         {prestador && STATUS_LABEL[prestador.status] && (
           <span className="mob-status" style={{
@@ -190,7 +190,7 @@ export default function MaoDeObraPage() {
         </label>
 
         <div className="mob-regioes-block">
-          <h3>📍 Cidades atendidas *</h3>
+          <h3>Cidades atendidas *</h3>
           <p className="mob-help">Adicione todas as cidades onde seu time pode executar obras.</p>
 
           <div className="mob-regiao-add">
@@ -211,7 +211,7 @@ export default function MaoDeObraPage() {
             <ul className="mob-regioes-list">
               {regioes.map((r, i) => (
                 <li key={i}>
-                  <span>📍 {r.cidade}/{r.estado}</span>
+                  <span>{r.cidade}/{r.estado}</span>
                   <button type="button" onClick={() => removerRegiao(i)} title="Remover">×</button>
                 </li>
               ))}

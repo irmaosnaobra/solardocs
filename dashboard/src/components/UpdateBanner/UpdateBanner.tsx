@@ -42,7 +42,7 @@ export default function UpdateBanner() {
         fontWeight: 600,
       }}
     >
-      <span style={{ whiteSpace: 'nowrap' }}>✨ Nova versão disponível</span>
+      <span style={{ whiteSpace: 'nowrap' }}>Nova versão disponível</span>
       <button
         type="button"
         onClick={() => window.location.reload()}

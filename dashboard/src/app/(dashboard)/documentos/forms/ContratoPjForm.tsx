@@ -55,7 +55,7 @@ export default function ContratoPJPage() {
 
   if (generated) return (
     <div className={styles.page}>
-      <h1 className={styles.title}>🤝 Contrato Vendedor — Preview</h1>
+      <h1 className={styles.title}>Contrato Vendedor — Preview</h1>
       <DocumentPreview
         content={generated.content}
         tipo="contratoPJ"
@@ -74,7 +74,7 @@ export default function ContratoPJPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>🤝 Contrato Vendedor</h1>
+        <h1 className={styles.title}>Contrato Vendedor</h1>
         <p className={styles.subtitle}>Representação comercial autônoma (PF ou PJ) — comissão por resultado + adiantamento quinzenal</p>
       </div>
 
@@ -151,7 +151,7 @@ export default function ContratoPJPage() {
           className={`btn-primary ${styles.generateBtn}`}
           disabled={generating || !terceiroId}
         >
-          {generating ? '⏳ Gerando...' : '📄 Gerar Contrato Vendedor'}
+          {generating ? 'Gerando...' : 'Gerar Contrato Vendedor'}
         </button>
       </form>
     </div>

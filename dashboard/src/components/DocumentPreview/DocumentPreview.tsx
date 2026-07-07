@@ -233,7 +233,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
           Cliente: <strong>{clienteNome}</strong>
           {editMode && (
             <span style={{ marginLeft: 12, fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>
-              ✏️ Modo edição ativo
+              Modo edição ativo
             </span>
           )}
         </span>
@@ -245,25 +245,25 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
                 onClick={handleCancelEdit}
                 style={{ borderColor: '#ef4444', color: '#ef4444' }}
               >
-                ✕ Cancelar
+                Cancelar
               </button>
               <button
                 className="btn-primary"
                 onClick={handleConfirmEdit}
                 style={{ background: '#16a34a' }}
               >
-                ✓ Confirmar Edição
+                Confirmar Edição
               </button>
             </>
           ) : (
             <>
               {saving ? (
-                <span className={styles.savedBadge} style={{color:'#f59e0b'}}>⏳ Salvando...</span>
+                <span className={styles.savedBadge} style={{color:'#f59e0b'}}>Salvando...</span>
               ) : saved ? (
-                <span className={styles.savedBadge}>✓ Arquivado</span>
+                <span className={styles.savedBadge}>Arquivado</span>
               ) : docId && userPlano !== 'free' ? (
                 <button className="btn-secondary" onClick={() => uploadHtml(docId, displayContent)}>
-                  💾 Salvar
+                  Salvar
                 </button>
               ) : null}
               <button
@@ -272,10 +272,10 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
                 title="Revisar e ajustar o documento antes de imprimir"
                 style={{ borderColor: '#f59e0b', color: '#f59e0b' }}
               >
-                ✏️ Editar
+                Editar
               </button>
               <button className={styles.pdfBtn} onClick={handleDownloadPDF} disabled={saving}>
-                {saving ? '⏳ Preparando...' : '⬇ Baixar PDF'}
+                {saving ? 'Preparando...' : 'Baixar PDF'}
               </button>
               <button className="btn-secondary" onClick={onNewGeneration}>
                 Novo documento
@@ -299,7 +299,6 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
           alignItems: 'center',
           gap: 10,
         }}>
-          <span>⚠️</span>
           <span>
             <strong>Revisão antes da impressão.</strong> Edite o texto abaixo se necessário.
             Clique em <strong>Confirmar Edição</strong> para aplicar e depois imprima normalmente.

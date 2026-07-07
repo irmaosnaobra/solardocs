@@ -578,7 +578,7 @@ export default function FunilLimpaproPanel() {
                               background: 'rgba(16,185,129,0.12)', color: 'var(--ink-green)',
                               border: '1px solid rgba(16,185,129,0.3)',
                             }}>
-                              WhatsApp{lead.telefone_suspeito ? ' ⚠' : ''}
+                              WhatsApp{lead.telefone_suspeito ? ' (suspeito)' : ''}
                             </a>
                           ) : (
                             <span style={{ color: 'var(--color-text-muted)' }}>—</span>
@@ -612,7 +612,7 @@ export default function FunilLimpaproPanel() {
                   <>
                     {' · '}
                     <b style={{ color: 'var(--ink-green)' }}>
-                      {conversas.recuperados} {conversas.recuperados === 1 ? 'venda recuperada' : 'vendas recuperadas'} 🎉
+                      {conversas.recuperados} {conversas.recuperados === 1 ? 'venda recuperada' : 'vendas recuperadas'}
                     </b>
                   </>
                 )}
@@ -623,7 +623,7 @@ export default function FunilLimpaproPanel() {
                   const isOpen = aberta === c.phone;
                   // Estado (prioridade): comprou > humano assumiu > perdido > respondeu > sem resposta.
                   const estado = c.comprou
-                    ? { txt: '✓ Comprou',      bg: 'rgba(16,185,129,0.18)', fg: 'var(--ink-green)', bd: 'rgba(16,185,129,0.45)' }
+                    ? { txt: 'Comprou',      bg: 'rgba(16,185,129,0.18)', fg: 'var(--ink-green)', bd: 'rgba(16,185,129,0.45)' }
                     : c.takeover
                     ? { txt: 'Humano assumiu', bg: 'rgba(245,158,11,0.12)', fg: 'var(--ink-amber)', bd: 'rgba(245,158,11,0.3)' }
                     : c.perdido
@@ -700,7 +700,7 @@ export default function FunilLimpaproPanel() {
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 10, lineHeight: 1.6 }}>
                 A <b>Bia</b> só conversa com quem ela abordou (quem abandonou o checkout) — cliente de energia solar
                 nunca é tocado. <b>Humano assumiu</b> = você ou alguém respondeu manualmente pelo WhatsApp e a Bia
-                parou de falar naquela conversa. ⚠️ Contém telefone e texto real de clientes — só pra contato comercial.
+                parou de falar naquela conversa. Contém telefone e texto real de clientes — só pra contato comercial.
               </div>
             </div>
             );
@@ -714,7 +714,7 @@ export default function FunilLimpaproPanel() {
             sempre completa</b>, não segue o filtro de período (lead antigo ainda dá pra recuperar) — só "Recuperados"
             segue o período. <b>R$ na mesa</b> é estimado: pros Pix usa o valor real do checkout, pros abandonos usa o
             preço do Limpa Solar Pro (R$ 47). "Recuperado" = a pessoa comprou <b>qualquer</b> item depois; se ela tinha
-            outro produto avulso abandonado, ele não aparece aqui. ⚠️ Lista com nome e telefone de clientes — só pra
+            outro produto avulso abandonado, ele não aparece aqui. Lista com nome e telefone de clientes — só pra
             contato comercial.
             <br /><br />
             <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> o funil conta <b>pessoas únicas</b>

@@ -69,7 +69,7 @@ export default function PrestacaoServicoPage() {
 
   if (generated) return (
     <div className={styles.page}>
-      <h1 className={styles.title}>🔧 Prestação de Serviço — Preview</h1>
+      <h1 className={styles.title}>Prestação de Serviço — Preview</h1>
       <DocumentPreview
         content={generated.content}
         tipo="prestacaoServico"
@@ -88,7 +88,7 @@ export default function PrestacaoServicoPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>🔧 Prestação de Serviço</h1>
+        <h1 className={styles.title}>Prestação de Serviço</h1>
         <p className={styles.subtitle}>Contrato de montagem de sistema fotovoltaico</p>
       </div>
 
@@ -255,7 +255,7 @@ export default function PrestacaoServicoPage() {
           className={`btn-primary ${styles.generateBtn}`}
           disabled={generating || !terceiroId || !clienteId}
         >
-          {generating ? '⏳ Gerando...' : '📄 Gerar Prestação de Serviço'}
+          {generating ? 'Gerando...' : 'Gerar Prestação de Serviço'}
         </button>
       </form>
     </div>

@@ -297,8 +297,8 @@ export default function AdminPage() {
         <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>Membros</button>
         {/* CRM SolarDoc: o CRM é uma página própria e pesada (/crm), então a aba
             NAVEGA pra ela (funil da plataforma) em vez de embutir. */}
-        <button className={styles.tab} onClick={()=>router.push('/crm?tab=plataforma')}>🗂️ CRM SolarDoc ↗</button>
-        <button className={tab==='trafego'?styles.tabActive:styles.tab} onClick={()=>setTab('trafego')}>📈 Tráfego Pago</button>
+        <button className={styles.tab} onClick={()=>router.push('/crm?tab=plataforma')}>CRM SolarDoc ↗</button>
+        <button className={tab==='trafego'?styles.tabActive:styles.tab} onClick={()=>setTab('trafego')}>Tráfego Pago</button>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>LP SolarDoc</button>
         {/* Aba Receita / ROAS ocultada — bloco e fetch mantidos abaixo, só removido o botão de navegação. */}
         {/* <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>Receita / ROAS</button> */}

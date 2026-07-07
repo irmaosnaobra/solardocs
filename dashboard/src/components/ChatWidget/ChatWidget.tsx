@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { MessageCircle } from 'lucide-react';
 import styles from './ChatWidget.module.css';
 
 interface Message {
@@ -22,7 +23,7 @@ const WA_URL = 'https://wa.me/5534999437831';
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'bot', text: 'Oi! Sou a assistente do SolarDoc Pro. Como posso ajudar? 😊' },
+    { role: 'bot', text: 'Oi! Sou a assistente do SolarDoc Pro. Como posso ajudar?' },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,7 +37,7 @@ export default function ChatWidget() {
   }, [messages]);
 
   function formatText(text: string) {
-    return text.replace(/(https:\/\/wa\.me\/\S+)/g, `<a href="$1" target="_blank" rel="noopener" class="${styles.waLink}">💬 Falar no WhatsApp</a>`);
+    return text.replace(/(https:\/\/wa\.me\/\S+)/g, `<a href="$1" target="_blank" rel="noopener" class="${styles.waLink}">Falar no WhatsApp</a>`);
   }
 
   async function send() {
@@ -61,7 +62,7 @@ export default function ChatWidget() {
         { role: 'assistant', content: reply },
       ]);
     } catch {
-      setMessages(prev => [...prev, { role: 'bot', text: `Ocorreu um erro. [💬 Falar no WhatsApp](${WA_URL})` }]);
+      setMessages(prev => [...prev, { role: 'bot', text: `Ocorreu um erro. [Falar no WhatsApp](${WA_URL})` }]);
     } finally {
       setLoading(false);
     }
@@ -92,13 +93,13 @@ export default function ChatWidget() {
           justifyContent: 'center',
         }}
       >
-        {open ? '✕' : '💬'}
+        {open ? '✕' : <MessageCircle size={22} strokeWidth={2} />}
       </button>
 
       {open && (
         <div className={styles.box}>
           <div className={styles.header}>
-            <span>🤖 Assistente SolarDoc</span>
+            <span>Assistente SolarDoc</span>
             <button className={styles.closeBtn} onClick={() => setOpen(false)}>✕</button>
           </div>
 

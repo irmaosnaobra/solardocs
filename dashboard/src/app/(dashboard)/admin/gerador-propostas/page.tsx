@@ -20,7 +20,7 @@ export default function AdminGeradorPropostasPage() {
         gap: 8,
       }}>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>📄 Gerador de Propostas Solar</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Gerador de Propostas Solar</h1>
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '2px 0 0' }}>
             Gerador interno — Irmãos na Obra
           </p>
@@ -38,7 +38,7 @@ export default function AdminGeradorPropostasPage() {
               cursor: 'pointer',
               fontSize: 12,
             }}
-          >🔄</button>
+          >Atualizar</button>
           <a
             href="/gerador/index.html"
             target="_blank"
