@@ -200,7 +200,7 @@ export default function ContratoSolarPage() {
           <h2 className={styles.sectionTitle}>Foro</h2>
           <div className={styles.field}>
             <label className={styles.label}>Comarca (cidade) *</label>
-            <input type="text" value={fields.foro_cidade} onChange={e => setFields({...fields, foro_cidade: e.target.value})} placeholder="Ex: Uberlândia" className="input-field" required />
+            <input type="text" value={fields.foro_cidade} onChange={e => setFields({...fields, foro_cidade: e.target.value})} placeholder="Ex: São Paulo" className="input-field" required />
           </div>
         </div>
 

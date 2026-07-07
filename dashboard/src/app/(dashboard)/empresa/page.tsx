@@ -611,7 +611,7 @@ export default function EmpresaPage() {
             <div className={styles.field}>
               <label className={styles.label}>Cidade (Foro)</label>
               <input type="text" value={form.cidade} onChange={e => set('cidade', e.target.value)}
-                placeholder="Ex: Uberlândia/MG" className="input-field" />
+                placeholder="Ex: São Paulo/SP" className="input-field" />
               <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>Usada como foro em contratos</span>
             </div>
           </div>

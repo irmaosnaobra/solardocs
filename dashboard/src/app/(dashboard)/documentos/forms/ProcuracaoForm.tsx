@@ -132,7 +132,7 @@ export default function ProcuracaoPage() {
           <div className={styles.grid2}>
             <div className={styles.field}>
               <label className={styles.label}>Unidade Consumidora (UC) *</label>
-              <input type="text" value={fields.uc} onChange={e => setFields({...fields, uc: e.target.value})} placeholder="Ex: 266.719.018.52" className="input-field" required />
+              <input type="text" value={fields.uc} onChange={e => setFields({...fields, uc: e.target.value})} placeholder="Ex: 100.200.300.40" className="input-field" required />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Concessionária *</label>
@@ -140,7 +140,7 @@ export default function ProcuracaoPage() {
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Cidade *</label>
-              <input type="text" value={fields.foro_cidade} onChange={e => setFields({...fields, foro_cidade: e.target.value})} placeholder="Ex: Uberlândia" className="input-field" required />
+              <input type="text" value={fields.foro_cidade} onChange={e => setFields({...fields, foro_cidade: e.target.value})} placeholder="Ex: São Paulo" className="input-field" required />
             </div>
           </div>
         </div>

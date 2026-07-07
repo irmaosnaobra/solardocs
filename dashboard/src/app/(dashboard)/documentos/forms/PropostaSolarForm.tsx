@@ -594,7 +594,7 @@ export default function PropostaSolarPage() {
                 type="text"
                 value={cidadeUf}
                 onChange={e => { setCidadeUf(e.target.value); clearFaltando('cidadeUf'); }}
-                placeholder="Ex: Uberlândia/MG"
+                placeholder="Ex: São Paulo/SP"
                 className="input-field"
                 required
                 {...invalidProps('cidadeUf')}

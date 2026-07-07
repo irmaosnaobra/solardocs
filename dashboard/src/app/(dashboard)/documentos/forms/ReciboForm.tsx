@@ -158,7 +158,7 @@ export default function ReciboPage() {
             <div className={styles.field}>
               <label className={styles.label}>Cidade</label>
               <input type="text" value={fields.foro_cidade} onChange={e => setField('foro_cidade', e.target.value)}
-                placeholder="Ex: Uberlândia/MG" className="input-field" />
+                placeholder="Ex: São Paulo/SP" className="input-field" />
             </div>
           </div>
           <div className={styles.fieldFull}>
@@ -247,17 +247,17 @@ export default function ReciboPage() {
             <div className={styles.field}>
               <label className={styles.label}>Banco</label>
               <input type="text" value={fields.banco} onChange={e => setField('banco', e.target.value)}
-                placeholder="Ex: Sicredi 748" className="input-field" />
+                placeholder="Ex: Banco 001" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Agência</label>
               <input type="text" value={fields.agencia} onChange={e => setField('agencia', e.target.value)}
-                placeholder="Ex: 0333" className="input-field" />
+                placeholder="Ex: 0001" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Conta corrente</label>
               <input type="text" value={fields.conta} onChange={e => setField('conta', e.target.value)}
-                placeholder="Ex: 25506-3" className="input-field" />
+                placeholder="Ex: 12345-6" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Chave Pix</label>

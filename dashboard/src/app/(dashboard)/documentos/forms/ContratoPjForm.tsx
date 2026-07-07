@@ -134,7 +134,7 @@ export default function ContratoPJPage() {
                 type="text"
                 value={fields.foro_cidade}
                 onChange={e => setFields({ ...fields, foro_cidade: e.target.value })}
-                placeholder="Ex: Uberlândia"
+                placeholder="Ex: São Paulo"
                 className="input-field"
                 required
               />

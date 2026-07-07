@@ -201,7 +201,7 @@ export default function ClientModal({ client, onClose, onSave }: ClientModalProp
                 type="text"
                 value={form.cidade}
                 onChange={e => set('cidade', e.target.value)}
-                placeholder="Ex: Uberlândia/MG"
+                placeholder="Ex: São Paulo/SP"
                 className="input-field"
               />
             </div>

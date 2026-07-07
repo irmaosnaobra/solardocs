@@ -196,7 +196,7 @@ export default function MaoDeObraPage() {
           <div className="mob-regiao-add">
             <input
               type="text"
-              placeholder="Cidade (ex: Uberlândia)"
+              placeholder="Cidade (ex: São Paulo)"
               value={novaCidade}
               onChange={e => setNovaCidade(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarRegiao(); } }}

@@ -176,7 +176,7 @@ export default function TerceiroModal({ terceiro, onClose, onSave }: TerceiroMod
               type="text"
               value={form.cidade}
               onChange={e => set('cidade', e.target.value)}
-              placeholder="Ex: Uberlândia"
+              placeholder="Ex: São Paulo"
               className="input-field"
             />
           </div>
