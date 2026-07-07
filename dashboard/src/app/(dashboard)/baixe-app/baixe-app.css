@@ -1,5 +1,5 @@
 .baixe-wrap {
-  max-width: 820px;
+  max-width: 100%;
   margin: 0 auto;
   /* lateral vem do .content do shell (26px) — evita recuo dobrado vs telas irmãs */
   padding: 4px 0 48px;

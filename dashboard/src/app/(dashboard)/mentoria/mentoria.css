@@ -1,6 +1,6 @@
 /* ── Wrapper geral da seção mentoria ────────────────────────────── */
 .mentoria-wrap {
-  max-width: 920px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 8px 0 60px;
   color: var(--color-text);

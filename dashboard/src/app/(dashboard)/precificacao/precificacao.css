@@ -1,7 +1,7 @@
 /* Calculadora de Precificação — tema light SolarZ (tokens de styles/globals.css) */
 
 .prec-wrap {
-  max-width: 960px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 8px 0 60px;
   color: var(--color-text);

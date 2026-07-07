@@ -2,7 +2,7 @@
    com o resto do dashboard em light/dark. */
 
 .ec-page {
-  max-width: 640px;
+  max-width: 100%;
   margin: 0 auto;
 }
 

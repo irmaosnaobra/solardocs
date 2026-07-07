@@ -1,4 +1,4 @@
-.page { max-width: 640px; }
+.page { max-width: 100%; }
 
 .title { font-size: 24px; font-weight: 700; color: var(--color-text); }
 .subtitle { font-size: 14px; color: var(--color-text-muted); margin: 4px 0 22px; }

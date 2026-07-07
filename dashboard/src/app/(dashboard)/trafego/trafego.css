@@ -1,7 +1,7 @@
 /* LP de Tráfego Pago — tema light + verde de destaque (consistente com o upsell) */
 
 .traf-wrap {
-  max-width: 720px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 8px 0 60px;
   color: var(--color-text);
