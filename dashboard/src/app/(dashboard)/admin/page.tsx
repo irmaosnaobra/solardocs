@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/services/api';
 import styles from './admin.module.css';
 import FunilSolarDocPanel from './_components/FunilSolarDocPanel';
@@ -187,6 +188,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'|'membros'|'trafego'>('membros');
 
   const [analytics, setAnalytics]               = useState<Analytics|null>(null);
@@ -293,6 +295,9 @@ export default function AdminPage() {
 
       <div className={styles.tabs}>
         <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>Membros</button>
+        {/* CRM SolarDoc: o CRM é uma página própria e pesada (/crm), então a aba
+            NAVEGA pra ela (funil da plataforma) em vez de embutir. */}
+        <button className={styles.tab} onClick={()=>router.push('/crm?tab=plataforma')}>🗂️ CRM SolarDoc ↗</button>
         <button className={tab==='trafego'?styles.tabActive:styles.tab} onClick={()=>setTab('trafego')}>📈 Tráfego Pago</button>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>LP SolarDoc</button>
         {/* Aba Receita / ROAS ocultada — bloco e fetch mantidos abaixo, só removido o botão de navegação. */}
