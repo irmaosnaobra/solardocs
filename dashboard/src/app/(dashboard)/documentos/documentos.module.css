@@ -61,10 +61,12 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0; /* grid item pode encolher — sem isso a 3ª coluna estoura/corta */
 }
 
 .fieldFull {
   grid-column: 1 / -1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;

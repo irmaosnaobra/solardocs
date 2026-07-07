@@ -28,6 +28,7 @@ html, body {
 /* Utilitários Globais de Formulário */
 .input-field {
   width: 100%;
+  min-width: 0; /* deixa o input encolher em grid/flex em vez de estourar/cortar a coluna */
   padding: 12px 14px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
