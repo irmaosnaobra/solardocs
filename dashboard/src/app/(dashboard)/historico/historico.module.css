@@ -1,7 +1,7 @@
 .page {
   /* padding removido: o recuo lateral vem do .content do shell (26px), igual às
      telas irmãs. O padding:32px somava 58px e deixava esta tela mais afastada. */
-  max-width: 1040px;
+  max-width: 100%;
 }
 
 .header {

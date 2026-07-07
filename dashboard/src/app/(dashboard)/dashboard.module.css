@@ -16,9 +16,14 @@
   overflow-x: hidden; /* Bloqueia overflow do pai pra forçar scroll no filho .crm-kanban-scroll */
 }
 
-/* Wrapper interno do conteúdo (depois do TopBar) — dá padding sem afetar o TopBar */
+/* Wrapper interno do conteúdo (depois do TopBar) — canvas ÚNICO de todas as abas:
+   largura consistente (estilo Kiwify), centralizado, com padding uniforme. Isso
+   padroniza o uso da tela — as páginas preenchem este canvas em vez de cada uma
+   se limitar num max-width próprio. */
 .content {
-  padding: 22px 26px 32px;
+  max-width: 1520px;
+  margin: 0 auto;
+  padding: 24px 32px 40px;
 }
 
 /* Em mobile, sidebar some, main ocupa tudo */
