@@ -185,6 +185,17 @@ export default function PropostaSolarPage() {
   // Validação inline: quais campos obrigatórios estão faltando (pra marcar de vermelho).
   const [faltando, setFaltando] = useState<Set<string>>(new Set());
 
+  // Cor de marca da empresa (cadastrada em Empresa) — habilita a paleta
+  // "Cores da empresa". Só o swatch/enable usa isso no front; a geração lê
+  // company.cor_marca direto no backend.
+  const [corEmpresa, setCorEmpresa] = useState('');
+  useEffect(() => {
+    api.get('/company').then(({ data }) => {
+      const c = data?.company?.cor_marca;
+      if (c) setCorEmpresa(String(c));
+    }).catch(() => {});
+  }, []);
+
   // ── Autosave (item 1): rascunho em localStorage, debounce 600ms. Um erro de
   // rede/timeout não apaga mais os ~40 campos. Restaura ao montar, limpa no sucesso.
   const DRAFT_KEY = 'proposta-solar-draft-v1';
@@ -524,6 +535,25 @@ export default function PropostaSolarPage() {
     <div>
       <label className={styles.label}>Cor da proposta</label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+        {/* Cores da empresa — usa a cor de marca cadastrada em Empresa (automática).
+            Só aparece quando a empresa tem cor definida. */}
+        {corEmpresa && (
+          <button
+            type="button"
+            onClick={() => setField('paleta', 'empresa')}
+            style={{
+              padding: '10px 14px', borderRadius: 10,
+              border: fields.paleta === 'empresa' ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+              background: corEmpresa,
+              color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', minWidth: 88,
+              boxShadow: fields.paleta === 'empresa' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+              textShadow: '0 1px 2px rgba(0,0,0,0.35)', transition: 'all 0.15s',
+            }}
+            title="Usa a cor de marca cadastrada em Empresa"
+          >
+            🏢 Empresa
+          </button>
+        )}
         {PALETAS.map((p) => (
           <button
             key={p.id}

@@ -11,6 +11,7 @@ interface Company {
   cnpj: string;
   endereco?: string;
   logo_base64?: string;
+  cor_marca?: string;
   socio_adm?: string;
   engenheiro_nome?: string;
   engenheiro_cpf?: string;
@@ -44,7 +45,7 @@ interface Company {
 }
 
 const emptyForm = {
-  nome: '', cnpj: '', endereco: '', cidade: '', logo_base64: '', socio_adm: '', whatsapp: '',
+  nome: '', cnpj: '', endereco: '', cidade: '', logo_base64: '', cor_marca: '', socio_adm: '', whatsapp: '',
   engenheiro_nome: '', engenheiro_cpf: '', engenheiro_crea: '',
   engenheiro_rg: '', engenheiro_nacionalidade: '', engenheiro_estado_civil: '', engenheiro_profissao: '',
   engenheiro_endereco: '',
@@ -135,7 +136,7 @@ export default function EmpresaPage() {
         setCompany(c);
         setForm({
           nome: c.nome || '', cnpj: c.cnpj || '', endereco: c.endereco || '', cidade: c.cidade || '',
-          logo_base64: c.logo_base64 || '', socio_adm: c.socio_adm || '', whatsapp: c.whatsapp || '',
+          logo_base64: c.logo_base64 || '', cor_marca: c.cor_marca || '', socio_adm: c.socio_adm || '', whatsapp: c.whatsapp || '',
           engenheiro_nome: c.engenheiro_nome || '', engenheiro_cpf: c.engenheiro_cpf || '',
           engenheiro_crea: c.engenheiro_crea || '', engenheiro_rg: c.engenheiro_rg || '',
           engenheiro_nacionalidade: c.engenheiro_nacionalidade || '', engenheiro_estado_civil: c.engenheiro_estado_civil || '',
@@ -547,6 +548,33 @@ export default function EmpresaPage() {
                 >
                   Redimensionar gratuitamente (150×100 px) →
                 </a>
+              </span>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Cor da marca</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <input
+                  type="color"
+                  value={form.cor_marca || '#B45309'}
+                  onChange={(e) => set('cor_marca', e.target.value)}
+                  style={{ width: 52, height: 40, border: '1px solid var(--color-border)', borderRadius: 8, padding: 2, cursor: 'pointer', background: 'none' }}
+                />
+                <span style={{ fontFamily: 'monospace', fontSize: 14, color: 'var(--color-text)' }}>
+                  {(form.cor_marca || '').toUpperCase() || 'Não definida'}
+                </span>
+                {form.cor_marca && (
+                  <button
+                    type="button"
+                    onClick={() => set('cor_marca', '')}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                Usada na opção “Cores da empresa” ao gerar a Proposta Solar. Cores claras são escurecidas automaticamente pra manter o texto legível.
               </span>
             </div>
 

@@ -19,6 +19,7 @@ const companySchema = z.object({
   endereco: z.string().optional(),
   cidade: z.string().optional(),
   logo_base64: z.string().optional(),
+  cor_marca: z.string().optional(), // cor de marca (hex) — paleta "Cores da empresa" na proposta
   socio_adm: z.string().optional(),
   engenheiro_nome: z.string().optional(),
   engenheiro_cpf: z.string().optional(),
