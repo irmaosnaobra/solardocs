@@ -175,6 +175,26 @@ function parseCidadeUf(input: string): { cidade: string; uf: string } {
   return { cidade: raw, uf: '' };
 }
 
+// ── Máscaras de número (pontuação automática pt-BR) ──────────────────
+const soDigitos = (s: string) => String(s ?? '').replace(/\D/g, '');
+// Moeda estilo centavos: digita 1025050 → "10.250,50"; 100 → "1,00".
+function maskMoeda(raw: string): string {
+  const d = soDigitos(raw);
+  if (!d) return '';
+  const n = parseInt(d, 10);
+  return `${Math.floor(n / 100).toLocaleString('pt-BR')},${String(n % 100).padStart(2, '0')}`;
+}
+// Inteiro com separador de milhar: 20000 → "20.000"; 1000 → "1.000".
+function maskMilhar(raw: string): string {
+  const d = soDigitos(raw);
+  if (!d) return '';
+  return parseInt(d, 10).toLocaleString('pt-BR');
+}
+// Parser robusto: "10.250,50" → 10250.5; "20.000" → 20000. Tira R$/espaço/milhar.
+function parseBRL(v: string): number {
+  return parseFloat(String(v ?? '').replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+}
+
 export default function PropostaSolarPage() {
   const [clienteNome, setClienteNome] = useState('');
   const [cidadeUf, setCidadeUf] = useState('');
@@ -268,7 +288,7 @@ export default function PropostaSolarPage() {
   // Divisor 115 gera ~10% de oversize pra cobrir degradação dos painéis (~0,5% a.a.)
   // — sem isso, no ano 2-3 o sistema já fica deficitário.
   useEffect(() => {
-    const kwh = parseFloat(fields.consumo_kwh);
+    const kwh = parseBRL(fields.consumo_kwh);
     const potMod = parseInt(fields.potencia_modulo, 10);
     if (kwh && potMod && !fields.qtd_modulos) {
       const kwpEst = kwh / 115;
@@ -280,7 +300,7 @@ export default function PropostaSolarPage() {
   // Parcelas no cartão — taxa total Elo padrão (editável por proposta).
   // Fórmula: valor parcela = (investimento × (1 + taxa%)) / N
   const invNum = (() => {
-    const v = parseFloat(String(fields.investimento).replace(',', '.'));
+    const v = parseBRL(fields.investimento);
     return v > 0 ? v : 0;
   })();
   function parseTaxa(s: string): number {
@@ -300,7 +320,7 @@ export default function PropostaSolarPage() {
   }
   // Entrada + saldo: integrador define a entrada (R$) e como/quando quitar o restante
   const entradaValor = (() => {
-    const v = parseFloat(String(fields.entrada_valor).replace(',', '.'));
+    const v = parseBRL(fields.entrada_valor);
     return v > 0 ? v : 0;
   })();
   const entradaRestante = invNum > 0 && entradaValor > 0 ? Math.max(0, invNum - entradaValor) : 0;
@@ -672,7 +692,7 @@ export default function PropostaSolarPage() {
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Consumo médio (kWh/mês) *</label>
-              <input type="text" inputMode="numeric" value={fields.consumo_kwh} onChange={e => setField('consumo_kwh', e.target.value)} placeholder="Ex: 450" className="input-field" required />
+              <input type="text" inputMode="numeric" value={fields.consumo_kwh} onChange={e => setField('consumo_kwh', maskMilhar(e.target.value))} placeholder="Ex: 450" className="input-field" required />
             </div>
           </div>
         </div>
@@ -713,8 +733,8 @@ export default function PropostaSolarPage() {
                 type="text"
                 inputMode="numeric"
                 value={fields.geracao_media_kwh}
-                onChange={e => setField('geracao_media_kwh', e.target.value)}
-                placeholder={geracaoMediaSugerida > 0 ? `Estimado: ${geracaoMediaSugerida} kWh/mês (deixe vazio pra usar)` : 'Preencha kWp e cidade pra ver estimativa'}
+                onChange={e => setField('geracao_media_kwh', maskMilhar(e.target.value))}
+                placeholder={geracaoMediaSugerida > 0 ? `Estimado: ${geracaoMediaSugerida.toLocaleString('pt-BR')} kWh/mês (deixe vazio pra usar)` : 'Preencha kWp e cidade pra ver estimativa'}
                 className="input-field"
               />
               <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
@@ -898,11 +918,11 @@ export default function PropostaSolarPage() {
           <div className={styles.grid2}>
             <div className={styles.field}>
               <label className={styles.label}>Preço do projeto (R$) *</label>
-              <input type="text" inputMode="decimal" value={fields.investimento} onChange={e => { setField('investimento', e.target.value); clearFaltando('investimento'); }} placeholder="Ex: 22000" className="input-field" required {...invalidProps('investimento')} />
+              <input type="text" inputMode="numeric" value={fields.investimento} onChange={e => { setField('investimento', maskMoeda(e.target.value)); clearFaltando('investimento'); }} placeholder="Ex: 22.000,00" className="input-field" required {...invalidProps('investimento')} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Desconto especial à vista (R$)</label>
-              <input type="text" inputMode="decimal" value={fields.preco_avista} onChange={e => setField('preco_avista', e.target.value)} placeholder="Ex: 21300 (opcional)" className="input-field" />
+              <input type="text" inputMode="numeric" value={fields.preco_avista} onChange={e => setField('preco_avista', maskMoeda(e.target.value))} placeholder="Ex: 21.300,00 (opcional)" className="input-field" />
             </div>
           </div>
           <div style={{
@@ -927,7 +947,7 @@ export default function PropostaSolarPage() {
               onToggle={(v) => setField('pag_vista', v)}
               titulo="À vista"
               valor={invNum > 0
-                ? `R$ ${(parseFloat(String(fields.preco_avista).replace(',','.')) > 0 && parseFloat(String(fields.preco_avista).replace(',','.')) < invNum ? parseFloat(String(fields.preco_avista).replace(',','.')) : invNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                ? `R$ ${(parseBRL(fields.preco_avista) > 0 && parseBRL(fields.preco_avista) < invNum ? parseBRL(fields.preco_avista) : invNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 : '—'}
             />
 
@@ -1000,10 +1020,10 @@ export default function PropostaSolarPage() {
                   <label className={styles.label} style={{ fontSize: 12 }}>Entrada (R$)</label>
                   <input
                     type="text"
-                    inputMode="decimal"
+                    inputMode="numeric"
                     value={fields.entrada_valor}
-                    onChange={(e) => setField('entrada_valor', e.target.value)}
-                    placeholder="Ex: 5000"
+                    onChange={(e) => setField('entrada_valor', maskMoeda(e.target.value))}
+                    placeholder="Ex: 5.000,00"
                     className="input-field"
                   />
                 </div>

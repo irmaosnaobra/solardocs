@@ -1750,7 +1750,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const tipoTelhado = str(f.tipo_telhado) === '___' ? (client.tipo_telhado || '') : String(f.tipo_telhado);
   const cidade = (str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade)).trim();
   const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).trim().toUpperCase();
-  const consumoKwh = parseFloat(String(f.consumo_kwh || '0')) || 0;
+  const consumoKwh = parseBRL(f.consumo_kwh);
   const qtdModulos = parseInt(String(f.qtd_modulos || '0'), 10) || 0;
   const marcaModulo = String(f.marca_modulo || '');
   const potenciaModulo = parseInt(String(f.potencia_modulo || '0'), 10) || 0;
@@ -1760,8 +1760,8 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const marcaInversor = String(f.marca_inversor || '');
   // Aceita vírgula (1,875) ou ponto (1.875) — vendedor digita em pt-BR
   const potenciaInversor = parseFloat(String(f.potencia_inversor || '0').replace(',', '.')) || 0;
-  const investimento = parseFloat(String(f.investimento || '0').toString().replace(',', '.')) || 0;
-  const precoAvistaInput = parseFloat(String(f.preco_avista || '0').toString().replace(',', '.')) || 0;
+  const investimento = parseBRL(f.investimento);
+  const precoAvistaInput = parseBRL(f.preco_avista);
   const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
   // Parcelas no cartão — 1x a 21x. Cada parcela tem taxa editável vinda do form
   // (fallback: tabela Elo padrão). Fórmula: valor = (investimento × (1+taxa%)) / N.
@@ -1796,7 +1796,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   }
   // Entrada + saldo: integrador define a entrada (R$) e como/quando quitar o restante.
   // Modo do restante: 'dias' (N dias) | 'entrega' | 'montagem' | 'liberacao'.
-  const entradaValor = parseFloat(String(f.entrada_valor || '0').toString().replace(',', '.')) || 0;
+  const entradaValor = parseBRL(f.entrada_valor);
   const entradaRestante = investimento > 0 && entradaValor > 0 ? Math.max(0, investimento - entradaValor) : 0;
   const entradaModoRaw = String(f.entrada_modo || 'dias');
   const entradaModo: 'dias' | 'entrega' | 'montagem' | 'liberacao' =
@@ -1863,7 +1863,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     ...refBase,
     tarifa: tarifaOverride > 0 ? tarifaOverride : refBase.tarifa,
   };
-  const geracaoMediaOverride = parseFloat(String(f.geracao_media_kwh || '').replace(',', '.'));
+  const geracaoMediaOverride = parseBRL(f.geracao_media_kwh);
   const mensal = geracaoMensal(kwp, uf, cidade, geracaoMediaOverride > 0 ? geracaoMediaOverride : undefined);
   const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
   const mediaMensalGerada = Math.round(geracaoAnual / 12);
