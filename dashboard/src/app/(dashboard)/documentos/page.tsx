@@ -29,6 +29,32 @@ const REQUIRE_CLIENT = new Set([
   'contrato-pj',
 ]);
 
+// Botão de atalho pro Escanear Conta (foto/PDF da conta → cria cliente na lista).
+// Usado no gate "Cadastre um cliente" e no topo do Gerador de Proposta.
+function EscanearContaLink({ variant = 'solid' }: { variant?: 'solid' | 'ghost' }) {
+  return (
+    <a
+      href="/escanear-conta"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        padding: '9px 16px',
+        borderRadius: 10,
+        fontSize: 13.5,
+        fontWeight: 700,
+        textDecoration: 'none',
+        whiteSpace: 'nowrap',
+        ...(variant === 'solid'
+          ? { color: '#0f172a', background: 'linear-gradient(135deg,#f59e0b,#fbbf24)', boxShadow: '0 4px 14px rgba(245,158,11,0.3)' }
+          : { color: 'var(--color-primary)', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.35)' }),
+      }}
+    >
+      Escanear Conta
+    </a>
+  );
+}
+
 function CompanyRequiredGate({ tipo, children }: { tipo: string | null; children: React.ReactNode }) {
   const router = useRouter();
   const [gate, setGate] = useState<CompanyGate>({ loaded: false, hasCompany: false, hasClient: false });
@@ -135,12 +161,14 @@ function CompanyRequiredGate({ tipo, children }: { tipo: string | null; children
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
           {proximo && (
             <button onClick={() => router.push(proximo.href)} className="btn-primary" style={{ minWidth: 220 }}>
               {proximo.cta} →
             </button>
           )}
+          {/* Falta só o cliente? Oferece escanear a conta de luz (cria o cliente na lista). */}
+          {needsClient && gate.hasCompany && !gate.hasClient && <EscanearContaLink variant="ghost" />}
           <button onClick={() => router.push('/documentos?tipo=proposta')} className="btn-secondary">
             Voltar
           </button>
@@ -288,7 +316,14 @@ function DocumentosContent() {
 
   return (
     <CompanyRequiredGate tipo={tipo}>
-      {formByType}
+      <>
+        {tipo === 'proposta' && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+            <EscanearContaLink />
+          </div>
+        )}
+        {formByType}
+      </>
     </CompanyRequiredGate>
   );
 }
