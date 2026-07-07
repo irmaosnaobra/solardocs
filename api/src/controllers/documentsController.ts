@@ -145,8 +145,9 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       }
     }
 
+    const tmplOut: { resumo?: string } = {};
     if (body.useTemplate) {
-      content = generateFromTemplate(body.tipo, company, entity as unknown as Client, body.fields, body.modeloNumero);
+      content = generateFromTemplate(body.tipo, company, entity as unknown as Client, body.fields, body.modeloNumero, tmplOut);
       modeloUsado = `modelo-${body.modeloNumero}`;
     } else {
       content = await generateDocumentWithAI(body.tipo, company, entity as unknown as Client, body.fields);
@@ -228,7 +229,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       return;
     }
 
-    res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: saved?.id ?? null, codigo, codigo_curto: codigoCurto, empresa_slug: empresaSlug });
+    res.json({ content, modelo_usado: modeloUsado, tipo: body.tipo, cliente_nome: entityNome, doc_id: saved?.id ?? null, codigo, codigo_curto: codigoCurto, empresa_slug: empresaSlug, resumo_whatsapp: tmplOut.resumo ?? null });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.issues[0].message });

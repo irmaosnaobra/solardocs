@@ -48,7 +48,10 @@ export function generateFromTemplate(
   company: Company,
   client: Client,
   fields: Record<string, unknown>,
-  modelo: 1 | 2 | 3 = 1
+  modelo: 1 | 2 | 3 = 1,
+  // out opcional: propostaSolar preenche out.resumo com o texto pro WhatsApp
+  // (mesmos números do PDF). Outros tipos ignoram — não afeta chamadas existentes.
+  out?: { resumo?: string }
 ): string {
   switch (type) {
     case 'contratoSolar':
@@ -77,7 +80,7 @@ export function generateFromTemplate(
     case 'vistoria':
       return vistoriaM1(company, client, fields);
     case 'propostaSolar':
-      return propostaSolarM1(company, client, fields);
+      return propostaSolarM1(company, client, fields, out);
     default:
       throw new Error(`Modelo estático não disponível para: ${type}. Use a geração por IA.`);
   }
@@ -1697,7 +1700,7 @@ function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: numbe
   return saldo * i / (1 - Math.pow(1 + i, -n));
 }
 
-function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>): string {
+function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>, out?: { resumo?: string }): string {
   // Inputs do form
   const palette = PALETTES[String(f.paleta || 'solar')] || PALETTES.solar;
   const codigoProposta = str(f.codigo) === '___' ? '' : String(f.codigo);
@@ -1861,6 +1864,62 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const contaHoje = Math.round(consumoKwh * ref.tarifa);
   const contaComSolar = taxaMinima;
   const economiaMensal = Math.max(0, contaHoje - contaComSolar);
+
+  // ── Resumo pra WhatsApp (botão Copiar do form). Montado AQUI de propósito:
+  //    usa exatamente as mesmas variáveis do PDF (geração, economia, parcelas,
+  //    garantias), então os números casam por construção — nada é recomputado.
+  //    O LINK NÃO entra aqui: o front anexa /p/<publicId> (dono do origin). Cada
+  //    campo é guardado — vazio some, não vira "0" / "x" / seção fantasma.
+  if (out) {
+    const brl2 = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const nomeCli = String(client.nome || f.cliente_nome || '').trim();
+    const localCli = [cidade, uf].filter(Boolean).join(', ');
+    // Potência do inversor: valor CRU do form (preserva 1,875 — pKwp arredondaria).
+    const potInvStr = String(f.potencia_inversor ?? '').trim().replace('.', ',');
+    // Só mostra a parte se tiver marca OU potência — quantidade sozinha ("10x")
+    // não diz nada (marca/potência são required no form; guarda defensiva).
+    const modParte = (marcaModulo || potenciaModulo > 0)
+      ? [qtdModulos > 0 ? `${qtdModulos}x` : '', marcaModulo, potenciaModulo > 0 ? `${potenciaModulo}W` : ''].filter(Boolean).join(' ')
+      : '';
+    const invParte = (marcaInversor || potInvStr)
+      ? [qtdInversores > 0 ? `${qtdInversores}x` : '', marcaInversor, potInvStr ? `${potInvStr}K` : ''].filter(Boolean).join(' ')
+      : '';
+    const sistemaItens = [modParte, invParte].filter(Boolean).join(' + ');
+
+    const L: string[] = ['☀️ PROPOSTA DE ENERGIA SOLAR', ''];
+    if (nomeCli || localCli) L.push(`👤 ${[nomeCli, localCli].filter(Boolean).join(' · ')}`, '');
+
+    const sysL: string[] = [];
+    if (sistemaItens) sysL.push(`* ${sistemaItens}`);
+    if (kwp > 0) sysL.push(`* ${pKwp(kwp)} kWp${mediaMensalGerada > 0 ? ` · gera ~${pNum(mediaMensalGerada)} kWh/mês` : ''}`);
+    if (sysL.length) L.push('🔋 SISTEMA', ...sysL, '');
+
+    if (economiaMensal > 0) L.push(`💰 Economia: ~${pBRL(economiaMensal)}/mês na conta de luz`);
+    L.push('✅ Projeto, homologação e instalação inclusos', '');
+
+    L.push('🛡️ GARANTIAS',
+      `* Módulos: ${garPaineis} anos de performance`,
+      `* Inversor: ${garInversor} anos`,
+      `* Estrutura: ${garEstrutura} anos`,
+      `* Instalação: ${garInstalacao} ${garInstalacao === 1 ? 'ano' : 'anos'}`,
+      ...garExtras.map(g => `* ${g.nome}: ${g.anos} ${g.anos === 1 ? 'ano' : 'anos'}`),
+      '');
+
+    if (investimento > 0) {
+      L.push('━━━━━━━━━━━━━━━━━━', `Investimento: R$ ${brl2(investimento)}`, '');
+      if (pagOpts.cartao) {
+        const cs: string[] = [];
+        for (let n = 1; n <= 21; n++) if (cartaoAtivo[n]) { const v = valorParcelaCartao(n); if (v > 0) cs.push(`* ${n}x: R$ ${brl2(v)}/mês`); }
+        if (cs.length) L.push('💳 Cartão de crédito:', ...cs, '');
+      }
+      if (pagOpts.fin) {
+        const fs: string[] = [];
+        for (const n of FIN_PRAZOS) if (finAtivo[n]) { const v = valorParcelaFin(n); if (v > 0) fs.push(`* ${n}x: R$ ${brl2(v)}/mês`); }
+        if (fs.length) L.push('🏦 Financiamento (120 dias de carência):', ...fs, '');
+      }
+    }
+    out.resumo = L.join('\n').trim();
+  }
 
   // Série anual acumulada pros 25 anos: conta SEM solar × conta COM solar.
   // "Sem solar" = consumo × tarifa × 12 (tarifa cresce 7%/ano histórico ANEEL)

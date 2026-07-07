@@ -5,7 +5,7 @@ import api from '@/services/api';
 import { getToken } from '@/services/auth';
 import styles from '../documentos.module.css';
 
-interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null }
+interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
 
 // Comprime imagem pra max 1200px largura, JPEG 0.82.
 // Foto de celular típica (3-5MB) cai pra ~120-180kb.
@@ -434,25 +434,33 @@ export default function PropostaSolarPage() {
   function handleCopyWhatsApp() {
     if (!publicId) return;
     const url = `${window.location.origin}/p/${publicId}`;
-    const nome = (generated?.cliente_nome || clienteNome || '').trim();
-    const sistemaLinhas: string[] = [];
-    if (kwpCalc > 0) {
-      const mod = [fields.qtd_modulos && `${fields.qtd_modulos}x`, fields.marca_modulo]
-        .filter(Boolean).join(' ');
-      sistemaLinhas.push(`🔋 ${kwpCalc.toFixed(2).replace('.', ',')} kWp${mod ? ` · ${mod}` : ''}`);
+    // Texto rico (sistema, geração, economia, garantias, cartão, financiamento)
+    // vem PRONTO do backend — mesmos números do PDF. Aqui só anexa o link.
+    let txt: string;
+    if (generated?.resumo_whatsapp) {
+      txt = `${generated.resumo_whatsapp}\n\n${url}`;
+    } else {
+      // Fallback: proposta gerada antes deste recurso → texto curto de antes.
+      const nome = (generated?.cliente_nome || clienteNome || '').trim();
+      const sistemaLinhas: string[] = [];
+      if (kwpCalc > 0) {
+        const mod = [fields.qtd_modulos && `${fields.qtd_modulos}x`, fields.marca_modulo]
+          .filter(Boolean).join(' ');
+        sistemaLinhas.push(`🔋 ${kwpCalc.toFixed(2).replace('.', ',')} kWp${mod ? ` · ${mod}` : ''}`);
+      }
+      if (invNum > 0) {
+        sistemaLinhas.push(`💰 Investimento: R$ ${invNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      }
+      txt = [
+        '☀️ *Proposta de Energia Solar*',
+        '',
+        nome ? `Olá ${nome}! Segue sua proposta:` : 'Segue sua proposta:',
+        ...(sistemaLinhas.length ? ['', ...sistemaLinhas] : []),
+        '',
+        'Proposta completa (link):',
+        url,
+      ].join('\n');
     }
-    if (invNum > 0) {
-      sistemaLinhas.push(`💰 Investimento: R$ ${invNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-    }
-    const txt = [
-      '☀️ *Proposta de Energia Solar*',
-      '',
-      nome ? `Olá ${nome}! Segue sua proposta:` : 'Segue sua proposta:',
-      ...(sistemaLinhas.length ? ['', ...sistemaLinhas] : []),
-      '',
-      'Proposta completa (link):',
-      url,
-    ].join('\n');
     navigator.clipboard.writeText(txt).then(() => {
       setCopyMsg('Mensagem copiada! Cole no WhatsApp');
       setTimeout(() => setCopyMsg(''), 2800);
