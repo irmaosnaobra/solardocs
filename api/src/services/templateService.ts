@@ -1675,6 +1675,38 @@ const PALETTES: Record<string, Palette> = {
   carbono:  { c1: '#1F2937', c2: '#F59E0B', c3: '#FAFAF9', nome: 'Carbono' },
 };
 
+// Deriva uma paleta {c1,c2,c3} de UMA cor (hex) escolhida — usada tanto pela
+// cor personalizada (color picker) quanto pela cor da empresa cadastrada.
+// CONTRASTE é a parte crítica: o template põe texto BRANCO sobre c1/c2. Uma cor
+// clara (ex: amarelo) deixaria o texto branco ilegível — então escurecemos c1
+// até a luminância ser segura pra texto branco (aceita-se aprofundar tons pálidos).
+// c2 = tom um pouco mais claro (gradiente); c3 = tint bem claro do hue (fundo).
+function _hexToRgb(hex: string): [number, number, number] {
+  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+}
+function _rgbToHex(r: number, g: number, b: number): string {
+  const h = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+function _relLum(r: number, g: number, b: number): number {
+  const f = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+function _mix(a: number, b: number, t: number): number { return a + (b - a) * t; }
+function derivePalette(hexRaw: string, nome: string): Palette {
+  const hex = String(hexRaw || '').trim().toLowerCase();
+  // Sanitiza: só #rrggbb entra no CSS/SVG do PDF (campo é POST não confiável).
+  if (!/^#[0-9a-f]{6}$/.test(hex)) return { ...PALETTES.solar, nome };
+  let [r, g, b] = _hexToRgb(hex);
+  // Escurece até luminância <= 0.18 (garante contraste AA com texto branco).
+  let guard = 0;
+  while (_relLum(r, g, b) > 0.18 && guard < 40) { r *= 0.9; g *= 0.9; b *= 0.9; guard++; }
+  const c1 = _rgbToHex(r, g, b);
+  const c2 = _rgbToHex(_mix(r, 255, 0.22), _mix(g, 255, 0.22), _mix(b, 255, 0.22)); // +claro (gradiente)
+  const c3 = _rgbToHex(_mix(r, 255, 0.93), _mix(g, 255, 0.93), _mix(b, 255, 0.93)); // tint de fundo
+  return { c1, c2, c3, nome };
+}
+
 function pBRL(n: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
 }
@@ -1702,7 +1734,11 @@ function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: numbe
 
 function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>, out?: { resumo?: string }): string {
   // Inputs do form
-  const palette = PALETTES[String(f.paleta || 'solar')] || PALETTES.solar;
+  const paletaId = String(f.paleta || 'solar');
+  const palette: Palette =
+    paletaId === 'custom'  ? derivePalette(String(f.paleta_c1 || ''), 'Personalizada') :
+    paletaId === 'empresa' ? derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa') :
+    (PALETTES[paletaId] || PALETTES.solar);
   const codigoProposta = str(f.codigo) === '___' ? '' : String(f.codigo);
   // Vendedor caiu do form — usa contato da empresa cadastrada (sócio admin / razão social + WhatsApp da empresa).
   // Se o form ainda mandar (proposta antiga ou white-label custom), prioriza o do form.

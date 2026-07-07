@@ -44,7 +44,8 @@ const PALETAS = [
 const TIPOS_TELHADO = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport'] as const;
 
 const initialFields = {
-  paleta: 'solar' as typeof PALETAS[number]['id'],
+  paleta: 'solar' as string, // 'solar'|'oceano'|... | 'custom' | 'empresa'
+  paleta_c1: '', // cor escolhida no color picker (hex) quando paleta==='custom'
   cidade: '',
   uf: '',
   consumo_kwh: '',
@@ -545,7 +546,36 @@ export default function PropostaSolarPage() {
             {p.nome}
           </button>
         ))}
+
+        {/* Cor personalizada — color picker nativo (o input fica sobreposto e
+            transparente: clicar em qualquer parte do swatch abre o seletor).
+            A escolha (paleta='custom' + hex) fica salva no rascunho automático. */}
+        <label
+          style={{
+            padding: '10px 14px', borderRadius: 10,
+            border: fields.paleta === 'custom' ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+            background: fields.paleta === 'custom' && fields.paleta_c1
+              ? fields.paleta_c1
+              : 'linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4)',
+            color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+            minWidth: 88, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            boxShadow: fields.paleta === 'custom' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+            position: 'relative', transition: 'all 0.15s',
+          }}
+          title="Escolher uma cor personalizada"
+        >
+          🎨 {fields.paleta === 'custom' && fields.paleta_c1 ? fields.paleta_c1.toUpperCase() : 'Personalizar'}
+          <input
+            type="color"
+            value={fields.paleta_c1 || '#B45309'}
+            onChange={e => { setField('paleta_c1', e.target.value); setField('paleta', 'custom'); }}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', border: 'none', padding: 0 }}
+          />
+        </label>
       </div>
+      <p style={{ fontSize: 11.5, color: 'var(--color-text-muted)', margin: '8px 0 0' }}>
+        Cores claras são escurecidas automaticamente pra manter o texto legível na proposta.
+      </p>
     </div>
   );
 
