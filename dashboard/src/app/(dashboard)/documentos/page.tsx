@@ -316,14 +316,7 @@ function DocumentosContent() {
 
   return (
     <CompanyRequiredGate tipo={tipo}>
-      <>
-        {tipo === 'proposta' && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
-            <EscanearContaLink />
-          </div>
-        )}
-        {formByType}
-      </>
+      {formByType}
     </CompanyRequiredGate>
   );
 }
