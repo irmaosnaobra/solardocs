@@ -567,10 +567,11 @@ html[data-mode="app"] .container{
   box-sizing:border-box;
   transition:margin-left .25s ease;
 }
-/* Centraliza o conteúdo no espaço restante (à direita da sidebar) sem estourar */
+/* Centraliza o conteúdo no espaço restante (à direita da sidebar) sem estourar.
+   Canvas de 1520px = mesmo padrão de largura das abas do dashboard SolarDoc. */
 html[data-mode="app"] .container > #formSection,
 html[data-mode="app"] .container > #historicoSection{
-  max-width:920px;
+  max-width:1520px;
   margin:0 auto;
 }
 #app-sidebar{
