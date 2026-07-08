@@ -661,7 +661,7 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
           <div style="padding: 32px;">
             <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 12px;">Redefinição de senha</h2>
             <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 28px;">
-              Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha. O link expira em <strong style="color: #f8fafc;">1 hora</strong>.
+              Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha. O link expira em <strong style="color: #f8fafc;">24 horas</strong>.
             </p>
             <div style="text-align: center;">
               <a href="${resetUrl}" style="display: inline-block; background: #f59e0b; color: #0f172a; font-weight: 700; font-size: 15px; padding: 14px 32px; border-radius: 10px; text-decoration: none;">

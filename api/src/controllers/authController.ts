@@ -485,7 +485,7 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
     if (!user) { res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções.' }); return; }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 horas (era 1h — cliente pagante travava em "link expirado")
 
     console.log(`[ForgotPass] Gerando token para ${email}`);
 
