@@ -16,10 +16,14 @@ const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 // Trim defensivo + fallback — env vars do Vercel as vezes vêm com \n
 const PRICE_PRO = ((process.env.STRIPE_PRICE_PRO || '').trim()) || 'price_1TKNtbCkkgzQ4IHeCr0mYSXn';
 const PRICE_VIP = ((process.env.STRIPE_PRICE_VIP || '').trim()) || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2';
+// VIP PROMO (downsell da LP, R$49/mês) — MESMO acesso ilimitado. Sem isto aqui,
+// quem compra o promo cadastra como FREE (o preço não era reconhecido).
+const PRICE_VIP_PROMO = ((process.env.STRIPE_PRICE_VIP_PROMO || '').trim()) || 'price_1TpYsLCkkgzQ4IHeSt3Oupwg';
 
 const PRICE_TO_PLAN: Record<string, { plano: string; limite: number }> = {
-  [PRICE_PRO]: { plano: 'pro',       limite: 90 },
-  [PRICE_VIP]: { plano: 'ilimitado', limite: 999999 },
+  [PRICE_PRO]:       { plano: 'pro',       limite: 90 },
+  [PRICE_VIP]:       { plano: 'ilimitado', limite: 999999 },
+  [PRICE_VIP_PROMO]: { plano: 'ilimitado', limite: 999999 },
 };
 
 async function detectStripePlan(email: string): Promise<{ plano: string; limite: number } | null> {

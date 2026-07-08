@@ -12,6 +12,8 @@ const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 const PRICE_TO_PLAN: Record<string, { plano: 'pro' | 'ilimitado'; limite: number }> = {
   [(process.env.STRIPE_PRICE_PRO || 'price_1TKNtbCkkgzQ4IHeCr0mYSXn').trim()]: { plano: 'pro',       limite: 90 },
   [(process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim()]: { plano: 'ilimitado', limite: 999999 },
+  // VIP PROMO (downsell LP, R$49) — ilimitado. Sem isto o cron REBAIXAVA esses clientes pra free.
+  [(process.env.STRIPE_PRICE_VIP_PROMO || 'price_1TpYsLCkkgzQ4IHeSt3Oupwg').trim()]: { plano: 'ilimitado', limite: 999999 },
   'price_1TKPoSCkkgzQ4IHesK6wi3Qq': { plano: 'pro', limite: 90 },  // PRO antigo (R$47)
 };
 
