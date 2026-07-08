@@ -34,7 +34,20 @@ interface InvUso { aberturas: number; itens: number; clientes: number; }
 interface UsersResponse { users: MemberRow[]; documents: Array<{ created_at: string }>; calculadora?: CalcUso; inventario?: InvUso; }
 
 // Recebimento (Stripe) — espelha o payload de GET /admin/billing.
+interface ProximaCobranca {
+  data: string;
+  valor: number;
+  produto: string;
+  cliente: string | null;
+  tipo: 'primeira' | 'renovacao' | 'atrasada';
+}
 interface BillingResponse {
+  // vendas (card-pass = venda) — batem 1:1 com a Stripe
+  vendas: number;
+  vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number };
+  past_due: number;
+  proximas_cobrancas: ProximaCobranca[];
+  // caixa (dinheiro que entrou)
   recebido_total: number;
   recebido_mes: number;
   previsao_mes: number;
@@ -225,6 +238,58 @@ export default function MembrosPanel() {
         </div>
       ) : (
         <>
+          {/* VENDAS (cartão passou = venda) — bate 1:1 com a Stripe. É o número principal. */}
+          {billing && (
+            <>
+              <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 12 }}>
+                <div className={styles.card} style={{ borderColor: 'var(--color-primary)', borderWidth: 2, borderStyle: 'solid' }}>
+                  <div className={styles.cardLabel}>Vendas (cartão passou)</div>
+                  <div className={styles.cardValue} style={{ color: 'var(--color-primary)' }}>{billing.vendas ?? 0}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                    Assinantes vivos na Stripe: trial + ativos{(billing.past_due ?? 0) > 0 ? ` + ${billing.past_due} em atraso` : ''}
+                  </div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>PRO</div>
+                  <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{billing.vendas_por_produto?.PRO ?? 0}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>R$ 27/mês</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>VIP</div>
+                  <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{billing.vendas_por_produto?.VIP ?? 0}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>R$ 67/mês</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>VIP PROMO</div>
+                  <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{billing.vendas_por_produto?.['VIP PROMO'] ?? 0}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>R$ 49/mês</div>
+                </div>
+              </div>
+
+              {/* O QUE VAI CAIR NA CONTA — próximas cobranças (fim de trial + renovações) */}
+              {(billing.proximas_cobrancas?.length ?? 0) > 0 && (
+                <div className={styles.card} style={{ marginTop: 12, padding: '16px 18px' }}>
+                  <div className={styles.cardLabel} style={{ marginBottom: 10 }}>
+                    O que vai cair na conta — {fmtBRL(billing.proximas_cobrancas.reduce((s, p) => s + p.valor, 0))} em {billing.proximas_cobrancas.length} cobranças previstas
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 340, overflowY: 'auto' }}>
+                    {billing.proximas_cobrancas.map((p, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 13, padding: '7px 10px', borderRadius: 8, background: 'rgba(148,163,184,0.10)' }}>
+                        <span style={{ minWidth: 88, color: 'var(--color-text-muted)' }}>{fmtDateBR(p.data)}</span>
+                        <span style={{ flex: 1, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.cliente || '—'}</span>
+                        <span style={{ minWidth: 78, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 11 }}>{p.produto}</span>
+                        <span style={{ minWidth: 66, textAlign: 'right', fontWeight: 700, color: p.tipo === 'atrasada' ? '#ef4444' : 'var(--color-text)' }}>{fmtBRL(p.valor)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8 }}>
+                    Fim de trial (1ª cobrança) + renovações. Vermelho = atrasada (cartão recusado na renovação).
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           {/* Recebimento (Stripe) — bruto, só assinaturas SolarDoc PRO/VIP */}
           {billing && (
             <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(3,1fr)', marginTop: 12 }}>

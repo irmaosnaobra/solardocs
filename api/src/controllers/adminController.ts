@@ -13,8 +13,22 @@ const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 const PRICE_TO_PLAN: Record<string, string> = {
   [(process.env.STRIPE_PRICE_PRO || 'price_1TKNtbCkkgzQ4IHeCr0mYSXn').trim()]: 'pro',
   [(process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim()]: 'ilimitado',
+  // VIP PROMO (downsell LP, R$49) — sem esta linha o card-pass do R$49 SUMIA do painel
+  // (recebido, assinaturas, trials e byProduct). Mesmo bug do b5cf3c7, agora no admin.
+  [(process.env.STRIPE_PRICE_VIP_PROMO || 'price_1TpYsLCkkgzQ4IHeSt3Oupwg').trim()]: 'ilimitado',
   'price_1TKPoSCkkgzQ4IHesK6wi3Qq': 'pro',  // PRO antigo (R$47)
 };
+
+// Rótulo de PRODUTO por price — os 3 produtos SolarDoc (PRO, VIP, VIP PROMO).
+// Distinto de PRICE_TO_PLAN (que agrupa VIP+VIP_PROMO em 'ilimitado' pro ACESSO):
+// aqui a VENDA é contada por PRODUTO vendido, como o dono pediu (3 produtos).
+const PRICE_VIP_ID       = (process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim();
+const PRICE_VIP_PROMO_ID = (process.env.STRIPE_PRICE_VIP_PROMO || 'price_1TpYsLCkkgzQ4IHeSt3Oupwg').trim();
+function produtoLabel(priceId: string): 'PRO' | 'VIP' | 'VIP PROMO' {
+  if (priceId === PRICE_VIP_PROMO_ID) return 'VIP PROMO';
+  if (priceId === PRICE_VIP_ID)       return 'VIP';
+  return 'PRO'; // PRO novo + PRO antigo (R$47)
+}
 
 // Início-de-período em America/Sao_Paulo. A API roda em UTC, então
 // setHours(0,0,0,0) cai em SP 21:00 do dia anterior — bugava o "Hoje" do
@@ -803,7 +817,21 @@ async function mrrForPlano(plano: string): Promise<number> {
 // Set de price IDs que SÃO SolarDoc (mesma fonte do PRICE_TO_PLAN, sem o mapa).
 const SOLARDOC_PRICE_IDS = new Set(Object.keys(PRICE_TO_PLAN));
 
+type ProximaCobranca = {
+  data: string;          // ISO — quando cai a cobrança (fim do trial ou renovação)
+  valor: number;         // R$ que cai nesse dia (bruto)
+  produto: string;       // PRO | VIP | VIP PROMO
+  cliente: string | null;// nome ou email do assinante
+  tipo: 'primeira' | 'renovacao' | 'atrasada';
+};
+
 type BillingPayload = {
+  // ── VENDAS (cartão passou = venda, como o dono quer) — bate 1:1 com a Stripe ──
+  vendas: number;               // TODO card-pass vivo (trialing + active + past_due)
+  vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number };
+  past_due: number;             // assinantes em dunning (cartão recusado na renovação)
+  proximas_cobrancas: ProximaCobranca[]; // "o que cai por dia" — ordenado por data
+  // ── CAIXA (dinheiro que de fato entrou) ──
   recebido_total: number;       // acumulado recebido (bruto, all-time)
   recebido_mes: number;         // recebido dentro do mês corrente (SP)
   previsao_mes: number;         // recebido_mes + o que ainda fatura até o fim do mês
@@ -893,19 +921,28 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
       cursor = invoices.data[invoices.data.length - 1]?.id;
     }
 
-    // ── 2) PREVISÃO: percorre as assinaturas vivas (active + trialing). ────
+    // ── 2) VENDAS + PREVISÃO: percorre as assinaturas vivas. ───────────────
+    // VENDA = cartão passou = sub SolarDoc viva (trialing + active + past_due).
+    // É a definição que o dono quer e que BATE 1:1 com a Stripe (é a Stripe).
+    // Trial NÃO é receita (R$0 agora), mas É venda — por isso conta em `vendas`
+    // e a 1ª cobrança futura entra em `proximas_cobrancas` ("o que cai por dia").
+    const toReais = (c: number) => Math.round(c) / 100;
     let mrrAtivoCents = 0;
     let trialUpsideCents = 0;
     let aFaturarAteFimMesCents = 0; // renovações/1ª cobrança que caem dentro do mês
     let nAtivas = 0;
     let nTrials = 0;
+    let nPastDue = 0;
+    let nVendas = 0;
+    const vendasPorProduto: BillingPayload['vendas_por_produto'] = { PRO: 0, VIP: 0, 'VIP PROMO': 0 };
+    const proximas: ProximaCobranca[] = [];
     let subCursor: string | undefined;
     for (let page = 0; page < 20; page++) {
       const subs = await stripe.subscriptions.list({
         status: 'all',
         limit: 100,
         starting_after: subCursor,
-        expand: ['data.items.data.price'],
+        expand: ['data.items.data.price', 'data.customer'],
       });
       const nowUnix = Math.floor(Date.now() / 1000);
       for (const s of subs.data) {
@@ -913,37 +950,49 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
         const priceId = item?.price?.id ?? '';
         if (!SOLARDOC_PRICE_IDS.has(priceId)) continue; // não é SolarDoc
         const valorCents = item?.price?.unit_amount ?? 0;
+        const produto = produtoLabel(priceId);
+        const cust = s.customer as { email?: string | null; name?: string | null; deleted?: boolean } | string;
+        const cliente = typeof cust === 'string' ? null : (cust.name || cust.email || null);
         // No SDK 22 / API 2025 o current_period_end migrou pro item da assinatura.
         // Fallback no campo legado da sub pra robustez entre versões.
         const periodEnd =
           (item as { current_period_end?: number } | undefined)?.current_period_end ??
           (s as unknown as { current_period_end?: number }).current_period_end ?? 0;
 
+        // Card-pass vivo = VENDA (as 3 fases que preservam o cartão capturado).
+        if (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due') {
+          nVendas++;
+          vendasPorProduto[produto]++;
+        }
+
         if (s.status === 'active') {
           mrrAtivoCents += valorCents;
           nAtivas++;
-          // Renovação que vence dentro deste mês e ainda não foi faturada hoje:
-          // entra na previsão do mês corrente.
-          if (periodEnd >= nowUnix && periodEnd < fimMesUnix) {
-            aFaturarAteFimMesCents += valorCents;
-          }
+          if (periodEnd >= nowUnix && periodEnd < fimMesUnix) aFaturarAteFimMesCents += valorCents;
+          if (periodEnd) proximas.push({ data: new Date(periodEnd * 1000).toISOString(), valor: toReais(valorCents), produto, cliente, tipo: 'renovacao' });
         } else if (s.status === 'trialing') {
           trialUpsideCents += valorCents;
           nTrials++;
-          // Trial que termina dentro do mês → 1ª cobrança cai neste mês (SE não
-          // cancelar). Conta como previsão do mês (otimista mas é "previsão").
           const trialEnd = s.trial_end ?? 0;
-          if (trialEnd >= nowUnix && trialEnd < fimMesUnix) {
-            aFaturarAteFimMesCents += valorCents;
-          }
+          if (trialEnd >= nowUnix && trialEnd < fimMesUnix) aFaturarAteFimMesCents += valorCents;
+          if (trialEnd) proximas.push({ data: new Date(trialEnd * 1000).toISOString(), valor: toReais(valorCents), produto, cliente, tipo: 'primeira' });
+        } else if (s.status === 'past_due') {
+          nPastDue++;
+          proximas.push({ data: new Date((periodEnd || nowUnix) * 1000).toISOString(), valor: toReais(valorCents), produto, cliente, tipo: 'atrasada' });
         }
       }
       if (!subs.has_more) break;
       subCursor = subs.data[subs.data.length - 1]?.id;
     }
 
-    const toReais = (c: number) => Math.round(c) / 100;
+    // "O que cai por dia" ordenado por data (as atrasadas — no passado — vêm primeiro).
+    proximas.sort((a, b) => a.data.localeCompare(b.data));
+
     const payload: BillingPayload = {
+      vendas:               nVendas,
+      vendas_por_produto:   vendasPorProduto,
+      past_due:             nPastDue,
+      proximas_cobrancas:   proximas,
       recebido_total:       toReais(recebidoTotalCents),
       recebido_mes:         toReais(recebidoMesCents),
       previsao_mes:         toReais(recebidoMesCents + aFaturarAteFimMesCents),
