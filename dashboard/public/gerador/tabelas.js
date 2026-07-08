@@ -80,6 +80,34 @@ const TABELAS = {
   ]
 },
 
+"SAJ-3K-PROMO": {
+  inv: "SAJ 3K", mod: "Tsun 600W", pot: 600, precoExato: true, soCartaoVista: true,
+  rows: [
+    {n:4, invs:1, g:320, kwp:2.4, descMax:6895, pVista:6895, pOrc:6895, p18x:1068.04},
+    {n:5, invs:1, g:400, kwp:3.0, descMax:7889, pVista:7889, pOrc:7889, p18x:1222.01},
+    {n:6, invs:1, g:480, kwp:3.6, descMax:8811, pVista:8811, pOrc:8811, p18x:1364.82}
+  ]
+},
+
+"SAJ-6K-PROMO": {
+  inv: "SAJ 6K", mod: "Tsun 600W", pot: 600, precoExato: true, soCartaoVista: true,
+  rows: [
+    {n:8,  invs:1, g:640,  kwp:4.8,  descMax:11358, pVista:11358, pOrc:11358, p18x:1759.35},
+    {n:9,  invs:1, g:720,  kwp:5.4,  descMax:12380, pVista:12380, pOrc:12380, p18x:1917.66},
+    {n:10, invs:1, g:800,  kwp:6.0,  descMax:12998, pVista:12998, pOrc:12998, p18x:2013.48},
+    {n:11, invs:1, g:880,  kwp:6.6,  descMax:13998, pVista:13998, pOrc:13998, p18x:2168.39},
+    {n:12, invs:1, g:960,  kwp:7.2,  descMax:15553, pVista:15553, pOrc:15553, p18x:2409.16},
+    {n:13, invs:1, g:1040, kwp:7.8,  descMax:16850, pVista:16850, pOrc:16850, p18x:2610.07},
+    {n:14, invs:1, g:1120, kwp:8.4,  descMax:17693, pVista:17693, pOrc:17693, p18x:2740.65},
+    {n:15, invs:1, g:1200, kwp:9.0,  descMax:18700, pVista:18700, pOrc:18700, p18x:2896.63},
+    {n:16, invs:1, g:1280, kwp:9.6,  descMax:19528, pVista:19528, pOrc:19528, p18x:3024.89},
+    {n:17, invs:1, g:1360, kwp:10.2, descMax:20688, pVista:20688, pOrc:20688, p18x:3204.57},
+    {n:18, invs:1, g:1440, kwp:10.8, descMax:21588, pVista:21588, pOrc:21588, p18x:3343.98},
+    {n:19, invs:1, g:1520, kwp:11.4, descMax:22653, pVista:22653, pOrc:22653, p18x:3508.95},
+    {n:20, invs:1, g:1600, kwp:12.0, descMax:22998, pVista:22998, pOrc:22998, p18x:3562.45}
+  ]
+},
+
 "SUNGROW-5K": {
   inv: "Sungrow 5K", mod: "ZNShine 600W", pot: 600, precoExato: true,
   rows: [

@@ -910,7 +910,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="MICRODEYE-TSUN600W">Micro Deye 2,25K + Tsun 600W</option>
             <option value="SAJ-2.25K-TSUN600W">Micro SAJ 2,25K + Tsun 600W</option>
             <option value="SAJ-3K">String SAJ 3K + Tsun 600W</option>
+            <option value="SAJ-3K-PROMO">String SAJ 3K PROMO + Tsun 600W</option>
             <option value="SAJ-6K">String SAJ 6K + Tsun 600W</option>
+            <option value="SAJ-6K-PROMO">String SAJ 6K PROMO + Tsun 600W</option>
             <option value="SAJ-7.5K">String SAJ 7,5K + Tsun 600W</option>
             <option value="SUNGROW-5K">String Sungrow 5K + ZNShine 600W</option>
             <option value="SUNGROW-7.5K">String Sungrow 7,5K + ZNShine 600W</option>
@@ -2768,6 +2770,17 @@ function onLinhaChange() {
     document.getElementById('f-gar-inversor').value     = isStringLinha ? '10' : '15';
     document.getElementById('f-prazo-instalacao').value = '30';
   }
+
+  // Kits PROMO (soCartaoVista): valem só pra cartão + à vista.
+  // Desmarca e trava o financiamento no form pra não confundir o consultor.
+  const kitSel = (!isManual && linha) ? TABELAS[linha] : null;
+  const soCartaoVista = !!(kitSel && kitSel.soCartaoVista);
+  ['pag-fin', 'pag-fin-36', 'pag-fin-48', 'pag-fin-60'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (soCartaoVista) el.checked = false;
+    el.disabled = soCartaoVista;
+  });
 }
 
 // ============= GERAR =============
@@ -2980,6 +2993,21 @@ async function gerar() {
     if (dcAcRatio > 1.35) dcAcWarning = `Inversor subdimensionado (ratio ${dcAcRatio.toFixed(2).replace('.',',')}). Vai perder geração nos picos — considere inversor maior.`;
   }
 
+  // Formas de pagamento. Kits marcados `soCartaoVista` (tabelas PROMO) valem
+  // SÓ pra cartão de crédito + à vista — o financiamento bancário é suprimido,
+  // independentemente do que estiver marcado no form.
+  const pagOpts = lerPagOptsDoForm() || {
+    vista: true,
+    cartao: { ativo: true, parcelas: CARTAO_PARCELAS_DEFAULT.slice() },
+    fin:    { ativo: true, p36: false, p48: true, p60: true },
+    entrada:{ ativo: false, valor: '', modo: 'dias', dias: '30' },
+    custom: ''
+  };
+  if (tab && tab.soCartaoVista) {
+    pagOpts.vista = true;
+    pagOpts.fin = { ativo: false, p36: false, p48: false, p60: false };
+  }
+
   // Guardar para o WhatsApp / link
   dadosAtual = {
     dataEmissao: editandoCodigo && originalDataEmissao ? originalDataEmissao : new Date().toISOString(),
@@ -3001,13 +3029,7 @@ async function gerar() {
     parc10x, parc12x, parc18x,
     parcelasCartao,
     fin36x, fin48x, fin60x,
-    pagOpts: lerPagOptsDoForm() || {
-      vista: true,
-      cartao: { ativo: true, parcelas: CARTAO_PARCELAS_DEFAULT.slice() },
-      fin:    { ativo: true, p36: false, p48: true, p60: true },
-      entrada:{ ativo: false, valor: '', modo: 'dias', dias: '30' },
-      custom: ''
-    },
+    pagOpts,
     acrescDist,
     consultor,
     linha,
