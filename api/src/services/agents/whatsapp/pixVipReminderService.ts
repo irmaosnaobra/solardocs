@@ -1,6 +1,7 @@
 import { supabase } from '../../../utils/supabase';
 import { sendWhatsApp } from '../zapiClient';
 import { logger } from '../../../utils/logger';
+import { PIX_DADOS } from '../../../utils/pixInfo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lembrete mensal de renovação VIP pago por Pix.
@@ -18,10 +19,6 @@ import { logger } from '../../../utils/logger';
 // qualquer falha de envio é logada e engolida (não derruba o cron master).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PIX_VIP_PHONE = '84994501564';
-const PIX_VIP_VALOR = 'R$ 67,00';
-const PIX_VIP_CHAVE = '63636043000188';
-
 // Janela do vencimento em que o lembrete dispara (dias à frente de agora).
 const JANELA_DIAS = 2;
 // Não repetir o lembrete dentro deste intervalo — cobre o mesmo ciclo mensal
@@ -30,16 +27,18 @@ const COOLDOWN_DIAS = 20;
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 
-function montarMensagem(): string {
+function montarMensagem(nome: string | null): string {
+  const oi = nome ? `Oi ${nome.split(' ')[0]}! ` : 'Oi! ';
   return [
-    'Oi! Tudo bem? 😊',
+    `${oi}Tudo bem? 😊`,
     '',
-    'Seu acesso VIP do SolarDoc está vencendo.',
-    `Pra renovar por mais um mês, é só fazer o Pix de *${PIX_VIP_VALOR}*:`,
+    'Seu acesso ao SolarDoc está *vencendo*.',
+    'Pra renovar por mais um mês, é só fazer o Pix:',
     '',
-    `🔑 Chave Pix (CNPJ): ${PIX_VIP_CHAVE}`,
+    `🔑 Chave Pix (CNPJ): *${PIX_DADOS.chave}*`,
+    `${PIX_DADOS.titular} · ${PIX_DADOS.banco} · Ag ${PIX_DADOS.agencia} · Conta ${PIX_DADOS.conta}`,
     '',
-    'Assim que cair, eu libero a renovação. Qualquer dúvida me chama por aqui!',
+    'Assim que cair, me manda o *comprovante aqui* que eu confirmo o valor e libero na hora. Qualquer dúvida me chama! 🙌',
   ].join('\n');
 }
 
@@ -50,11 +49,14 @@ export async function runPixVipReminder(): Promise<{ enviados: number; pulados: 
   const limite = new Date(agora + JANELA_DIAS * DIA_MS).toISOString();
 
   // Alvo: o cliente Pix-VIP, ainda ilimitado, com vencimento dentro da janela.
+  // Alvo GERAL: qualquer cliente Pix (plano pago + plano_expira_em setado na
+  // liberação manual) com vencimento dentro da janela. Antes era travado num
+  // único número; agora vale pra todo mundo que paga por Pix.
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, email, whatsapp, plano, plano_expira_em, pix_reminder_last_sent_at')
-    .eq('whatsapp', PIX_VIP_PHONE)
-    .eq('plano', 'ilimitado')
+    .select('id, email, nome, whatsapp, plano, plano_expira_em, pix_reminder_last_sent_at')
+    .neq('plano', 'free')
+    .not('whatsapp', 'is', null)
     .not('plano_expira_em', 'is', null)
     .lte('plano_expira_em', limite);
 
@@ -72,7 +74,7 @@ export async function runPixVipReminder(): Promise<{ enviados: number; pulados: 
     }
 
     try {
-      await sendWhatsApp(u.whatsapp, montarMensagem(), 'solardoc');
+      await sendWhatsApp(u.whatsapp, montarMensagem(u.nome), 'solardoc');
       await supabase
         .from('users')
         .update({ pix_reminder_last_sent_at: new Date().toISOString() })

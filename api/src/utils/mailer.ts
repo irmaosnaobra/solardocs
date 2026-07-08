@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { unsubToken } from '../controllers/unsubscribeController';
+import { pixBlocoEmailHtml } from './pixInfo';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -628,9 +629,10 @@ export async function sendAbandonedCartEmail(opts: { to: string; produto: string
     <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 16px;">${ola} vi que você começou a assinar o <strong style="color:#fbbf24;">SolarDoc ${opts.produto}</strong> mas o pagamento não foi concluído.</p>
     <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">Sem stress — retomar leva 1 minuto e você já começa a gerar contratos, propostas e documentos com a sua marca. Os 7 dias grátis continuam de pé.</p>
     <div style="text-align:center;margin:26px 0 8px;">
-      <a href="${opts.recoverUrl}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:17px 40px;border-radius:12px;text-decoration:none;">Retomar minha assinatura →</a>
+      <a href="${opts.recoverUrl}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:17px 40px;border-radius:12px;text-decoration:none;">Retomar pelo cartão →</a>
     </div>
-    <p style="color:#64748b;font-size:13px;margin:22px 0 0;line-height:1.6;text-align:center;">Deu algum problema no pagamento? Chama a gente no WhatsApp <strong style="color:#94a3b8;">(34) 99816-5040</strong> — a gente resolve rapidinho.</p>
+    ${pixBlocoEmailHtml()}
+    <p style="color:#64748b;font-size:13px;margin:22px 0 0;line-height:1.6;text-align:center;">Qualquer dúvida (cartão ou Pix), chama a gente no WhatsApp <strong style="color:#94a3b8;">(34) 99816-5040</strong> — a gente resolve rapidinho.</p>
   </div>
 </div>`;
   const { error } = await resend.emails.send({

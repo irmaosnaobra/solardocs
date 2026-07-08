@@ -3,6 +3,7 @@ import { supabase } from '../../../utils/supabase';
 import { handleSdrLead } from '../sdr/sdrAgentService';
 import { fmtPhone, sendHuman, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
+import { pixBlocoWhatsApp } from '../../../utils/pixInfo';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -330,8 +331,9 @@ export async function sendCheckoutRecoveryWhatsApp(phone: string, produto: strin
 
   const parts = [
     `${greeting} 🌞 Sou a Giovanna, da SolarDoc Pro. Vi que você começou a assinar o *${produto}* mas o pagamento não finalizou — deu algum problema?`,
-    `Se quiser, retomar leva 1 minutinho e seus *7 dias grátis* continuam de pé:\n\n🔗 ${recoverUrl}`,
-    `Qualquer dúvida (cartão, plano, o que for), me chama *aqui mesmo neste número* que eu te ajudo. 🙌`,
+    `Se quiser, retomar pelo cartão leva 1 minutinho e seus *7 dias grátis* continuam de pé:\n\n🔗 ${recoverUrl}`,
+    pixBlocoWhatsApp(),
+    `Qualquer dúvida (cartão, Pix, plano, o que for), me chama *aqui mesmo neste número* que eu te ajudo. 🙌`,
   ];
 
   await sendHuman(cleanPhone, parts);

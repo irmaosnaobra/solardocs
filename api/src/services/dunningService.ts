@@ -14,6 +14,7 @@ import Stripe from 'stripe';
 import { sendWhatsApp } from './agents/zapiClient';
 import { logger } from '../utils/logger';
 import { FREE_LIMIT } from './planService';
+import { pixBlocoWhatsApp, pixBlocoEmailHtml } from '../utils/pixInfo';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
@@ -263,15 +264,24 @@ async function sendDayNotification(
   if (!tplFn) return;
   const tpl = tplFn(user.nome);
 
+  // Oferece PIX como alternativa ao cartão — só nos dias de cobrança em aberto
+  // (D0-D4). No D5 (já cancelado) e no "recuperado" não faz sentido. O comprovante
+  // vai pro WhatsApp do atendimento, que confere o valor e libera 1 mês.
+  const comPix = day <= 4;
+  const htmlFinal = comPix
+    ? tpl.html.replace('<div style="margin-top:8px;">', pixBlocoEmailHtml() + '<div style="margin-top:8px;">')
+    : tpl.html;
+  const whatsappFinal = comPix ? `${tpl.whatsapp}\n\n${pixBlocoWhatsApp()}` : tpl.whatsapp;
+
   const tasks: Array<Promise<void>> = [];
   tasks.push(
-    sendEmail(user.email, tpl.subject, tpl.html).catch(err => {
+    sendEmail(user.email, tpl.subject, htmlFinal).catch(err => {
       logger.error('dunning', `email D${day} falhou pra ${user.email}`, err);
     }),
   );
   if (user.whatsapp) {
     tasks.push(
-      sendWhatsApp(user.whatsapp, tpl.whatsapp).catch(err => {
+      sendWhatsApp(user.whatsapp, whatsappFinal).catch(err => {
         logger.error('dunning', `whatsapp D${day} falhou pra ${user.whatsapp}`, err);
       }),
     );
