@@ -544,6 +544,20 @@ export async function handleIncomingWhatsApp(
     return;
   }
 
+  // Cliente SolarDoc mandou IMAGEM → pode ser COMPROVANTE de Pix (pagamento manual
+  // após o cartão falhar). A IA lê, valida (recebedor=Aioros + valor + data + dedup)
+  // e libera +1 mês SOZINHA se passar em tudo; na menor dúvida NÃO libera e avisa o
+  // Thiago pra conferir. Fail-safe: nunca libera sem as travas. Se não for
+  // comprovante (retorna false), segue o fluxo normal de atendimento.
+  if (imageSource) {
+    try {
+      const { tryProcessPixComprovante } = await import('./pixComprovanteService');
+      if (await tryProcessPixComprovante(user, imageSource, cleanPhone, originInstance)) return;
+    } catch (err) {
+      logger.error('whatsapp', 'pix-comprovante falhou (segue fluxo normal)', err);
+    }
+  }
+
   const { data: company } = await supabase
     .from('company')
     .select('nome')
