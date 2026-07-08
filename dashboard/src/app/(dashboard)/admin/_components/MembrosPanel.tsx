@@ -511,15 +511,15 @@ export default function MembrosPanel() {
                         <span style={{ fontWeight: 600, fontSize: 12, color: r.color }}>{r.label}</span>
                       </td>
                       <td>
-                        {/* Pix é só pra quem NÃO está pagando por cartão ativo (cartão
-                            falhou/suspenso/sem cartão). Cliente de cartão ativo ou em
-                            trial não precisa — some o botão pra não poluir. */}
-                        {(u.stripe_status === 'active' || u.stripe_status === 'trialing')
-                          ? <span className={styles.emptyDash}>—</span>
-                          : (
+                        {/* Pix é SÓ pra quem foi cliente e o cartão parou: recusado
+                            (past_due) ou cancelado. NÃO aparece em free (nunca pagou),
+                            ativo/trial (cartão ok) nem admin — evita poluição e o risco
+                            de liberar VIP grátis por engano num free. */}
+                        {(u.stripe_status === 'past_due' || u.stripe_status === 'canceled')
+                          ? (
                             <button
                               onClick={() => liberarPix(u.email)}
-                              title="Cliente pagou por Pix e mandou o comprovante → liberar acesso"
+                              title="Cartão recusado/cancelado → cliente pagou por Pix e mandou o comprovante → liberar acesso"
                               style={{
                                 fontSize: 11, fontWeight: 800, color: '#0f172a', background: '#22c55e',
                                 border: 'none', borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
@@ -527,7 +527,8 @@ export default function MembrosPanel() {
                               }}>
                               + Pix
                             </button>
-                          )}
+                          )
+                          : <span className={styles.emptyDash}>—</span>}
                       </td>
                     </tr>
                   );
