@@ -454,6 +454,36 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     }
   }
 
+  // ═══════════════ RECUPERAÇÃO: checkout abandonado / cartão recusado ═══════════════
+  // A sessão expirou SEM concluir (a pessoa fechou a aba, ou o cartão foi recusado e
+  // ela desistiu). O email/telefone que a Stripe já coletou são salvos em
+  // abandoned_checkouts pra uma cadência de recuperação (email + WhatsApp da Giovanna).
+  // Só checkouts públicos do SolarDoc (metadata.source), e só se temos como falar com
+  // a pessoa (email OU telefone) — bounce puro é irrecuperável. Idempotente por session.
+  // NOTA: só chega aqui se o webhook na Stripe ASSINAR checkout.session.expired.
+  if (event.type === 'checkout.session.expired') {
+    const session = event.data.object as any;
+    if (session.metadata?.source === 'public_checkout') {
+      const cd = session.customer_details as { email?: string | null; name?: string | null; phone?: string | null } | null;
+      const email = session.customer_email ?? cd?.email ?? null;
+      if (email || cd?.phone) {
+        try {
+          await supabase.from('abandoned_checkouts').upsert({
+            session_id: session.id,
+            email: email ? String(email).toLowerCase().trim() : null,
+            phone: cd?.phone ? String(cd.phone).replace(/\D/g, '') : null,
+            nome: cd?.name ?? null,
+            plano: session.metadata?.plan ?? null,
+            status: 'abandoned',
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'session_id' });
+        } catch (err) {
+          console.error('abandoned_checkouts upsert falhou:', err);
+        }
+      }
+    }
+  }
+
   // Cancelamento da assinatura (cancelou nos 7 dias, ou Stripe encerrou após
   // retentativas). Modelo SEM FREE: BLOQUEIA (suspended) — a tela de suspensão
   // pede pra reativar/atualizar o cartão. Não vira mais free.

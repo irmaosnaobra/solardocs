@@ -47,6 +47,8 @@ interface BillingResponse {
   vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number };
   past_due: number;
   proximas_cobrancas: ProximaCobranca[];
+  checkouts_abandonados?: number;
+  checkouts_recuperados?: number;
   // caixa (dinheiro que entrou)
   recebido_total: number;
   recebido_mes: number;
@@ -284,6 +286,22 @@ export default function MembrosPanel() {
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8 }}>
                     Fim de trial (1ª cobrança) + renovações. Vermelho = atrasada (cartão recusado na renovação).
+                  </div>
+                </div>
+              )}
+
+              {/* RECUPERAÇÃO — quem começou e não passou o cartão */}
+              {((billing.checkouts_abandonados ?? 0) > 0 || (billing.checkouts_recuperados ?? 0) > 0) && (
+                <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(2,1fr)', marginTop: 12 }}>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Em recuperação</div>
+                    <div className={styles.cardValue} style={{ color: '#f59e0b' }}>{billing.checkouts_abandonados ?? 0}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>Começou e não passou o cartão — recebendo email/WhatsApp pra retomar</div>
+                  </div>
+                  <div className={styles.card}>
+                    <div className={styles.cardLabel}>Recuperados</div>
+                    <div className={styles.cardValue} style={{ color: '#22c55e' }}>{billing.checkouts_recuperados ?? 0}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>Abandonaram e depois voltaram a comprar</div>
                   </div>
                 </div>
               )}

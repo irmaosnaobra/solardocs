@@ -320,6 +320,26 @@ export async function sendActivationWhatsApp(phone: string, resetUrl: string, pl
   await saveSession(cleanPhone, nome || null, [{ role: 'assistant', content: fullText }]);
 }
 
+// RECUPERAÇÃO de checkout abandonado / cartão recusado (público). A pessoa começou
+// a assinar e não concluiu. Tom gentil, oferece ajuda + link pra retomar. Best-effort:
+// o chamador envolve em try/catch e o teto anti-ban se aplica (não pode virar flood).
+export async function sendCheckoutRecoveryWhatsApp(phone: string, produto: string, recoverUrl: string, nome?: string | null): Promise<void> {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const firstName = (nome || '').trim().split(/\s+/)[0];
+  const greeting = firstName ? `Oi ${firstName}!` : 'Oi!';
+
+  const parts = [
+    `${greeting} 🌞 Sou a Giovanna, da SolarDoc Pro. Vi que você começou a assinar o *${produto}* mas o pagamento não finalizou — deu algum problema?`,
+    `Se quiser, retomar leva 1 minutinho e seus *7 dias grátis* continuam de pé:\n\n🔗 ${recoverUrl}`,
+    `Qualquer dúvida (cartão, plano, o que for), me chama *aqui mesmo neste número* que eu te ajudo. 🙌`,
+  ];
+
+  await sendHuman(cleanPhone, parts);
+
+  const fullText = parts.join(' || ');
+  await saveSession(cleanPhone, nome || null, [{ role: 'assistant', content: fullText }]);
+}
+
 // Frases que indicam vontade explicita de parar de receber automacao.
 // CUIDADO: nao usar palavras curtas ambiguas como "para" (preposicao) ou
 // "nao quero" sozinho — geram falso positivo em conversas normais.

@@ -831,6 +831,8 @@ type BillingPayload = {
   vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number };
   past_due: number;             // assinantes em dunning (cartão recusado na renovação)
   proximas_cobrancas: ProximaCobranca[]; // "o que cai por dia" — ordenado por data
+  checkouts_abandonados: number; // começou e não passou cartão (em recuperação)
+  checkouts_recuperados: number; // abandonou e depois comprou (recuperados)
   // ── CAIXA (dinheiro que de fato entrou) ──
   recebido_total: number;       // acumulado recebido (bruto, all-time)
   recebido_mes: number;         // recebido dentro do mês corrente (SP)
@@ -988,11 +990,24 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
     // "O que cai por dia" ordenado por data (as atrasadas — no passado — vêm primeiro).
     proximas.sort((a, b) => a.data.localeCompare(b.data));
 
+    // Recuperação de venda: quem começou e não passou cartão (em recuperação) e
+    // quem abandonou e depois comprou (recuperados). Fonte: abandoned_checkouts.
+    let checkoutsAbandonados = 0, checkoutsRecuperados = 0;
+    try {
+      const { data: abRows } = await supabase.from('abandoned_checkouts').select('status').limit(5000);
+      for (const r of abRows ?? []) {
+        if (r.status === 'abandoned') checkoutsAbandonados++;
+        else if (r.status === 'recovered') checkoutsRecuperados++;
+      }
+    } catch { /* tabela pode não existir em ambiente antigo — ignora */ }
+
     const payload: BillingPayload = {
       vendas:               nVendas,
       vendas_por_produto:   vendasPorProduto,
       past_due:             nPastDue,
       proximas_cobrancas:   proximas,
+      checkouts_abandonados: checkoutsAbandonados,
+      checkouts_recuperados: checkoutsRecuperados,
       recebido_total:       toReais(recebidoTotalCents),
       recebido_mes:         toReais(recebidoMesCents),
       previsao_mes:         toReais(recebidoMesCents + aFaturarAteFimMesCents),

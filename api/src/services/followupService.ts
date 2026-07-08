@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
-import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail } from '../utils/mailer';
+import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail, sendAbandonedCartEmail } from '../utils/mailer';
+import { sendCheckoutRecoveryWhatsApp } from './agents/whatsapp/whatsappAgentService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -361,6 +362,82 @@ export async function recoverOrphanCheckouts(): Promise<{ sent: number; skipped:
   }
 
   return { sent, skipped, scanned: pendings.length };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// RECUPERAÇÃO DE VENDA — checkout abandonado / cartão recusado (público)
+// ════════════════════════════════════════════════════════════════════
+// Alvo: abandoned_checkouts (status='abandoned') que o webhook gravou no
+// checkout.session.expired (a pessoa começou a assinar e não concluiu). Cadência:
+// até 3 toques, EMAIL sempre (backbone) + WhatsApp SÓ no 1º toque (anti-ban).
+// STOP-ON-RECOVER: se o email virou conta (users) OU venda (sales), marca
+// 'recovered' e para. Só age em quem deixou email/telefone. Idempotente/throttled.
+const ABANDON_GRACE_MS    = 60 * 60 * 1000;            // 1h de carência (pode ainda estar tentando)
+const ABANDON_MAX_AGE_MS  = 7 * 24 * 60 * 60 * 1000;   // até 7d
+const ABANDON_MIN_GAP_MS  = 20 * 60 * 60 * 1000;       // 20h entre toques
+const ABANDON_MAX_TOUCHES = 3;
+const ABANDON_RECOVER_URL = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim() + '/#planos';
+
+export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recovered: number; skipped: number }> {
+  const now = Date.now();
+  const graceCutoff  = new Date(now - ABANDON_GRACE_MS).toISOString();
+  const maxAgeCutoff = new Date(now - ABANDON_MAX_AGE_MS).toISOString();
+
+  const { data: rows } = await supabase
+    .from('abandoned_checkouts')
+    .select('id, email, phone, nome, plano, recovery_attempts, recovery_sent_at')
+    .eq('status', 'abandoned')
+    .lte('created_at', graceCutoff)
+    .gte('created_at', maxAgeCutoff)
+    .lt('recovery_attempts', ABANDON_MAX_TOUCHES)
+    .limit(200);
+  if (!rows?.length) return { sent: 0, recovered: 0, skipped: 0 };
+
+  // Quem desses JÁ voltou e comprou? (email virou conta OU venda) → recovered.
+  const emails = Array.from(new Set(rows.map(r => (r.email || '').toLowerCase()).filter(Boolean)));
+  const has = new Set<string>();
+  if (emails.length) {
+    const { data: us } = await supabase.from('users').select('email').in('email', emails);
+    (us ?? []).forEach((u: { email: string | null }) => has.add((u.email || '').toLowerCase()));
+    const { data: sl } = await supabase.from('sales').select('email').in('email', emails);
+    (sl ?? []).forEach((s: { email: string | null }) => has.add((s.email || '').toLowerCase()));
+  }
+
+  let sent = 0, recovered = 0, skipped = 0;
+  for (const r of rows) {
+    const email = (r.email || '').toLowerCase();
+    if (email && has.has(email)) {
+      await supabase.from('abandoned_checkouts')
+        .update({ status: 'recovered', recovered_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', r.id);
+      recovered++;
+      continue;
+    }
+    // Throttle: respeita o intervalo mínimo entre toques.
+    if (r.recovery_sent_at && (now - Date.parse(r.recovery_sent_at)) < ABANDON_MIN_GAP_MS) { skipped++; continue; }
+
+    const produto = r.plano === 'ilimitado' ? 'VIP' : 'PRO';
+    const primeiroToque = (r.recovery_attempts ?? 0) === 0;
+
+    if (r.email) {
+      try { await sendAbandonedCartEmail({ to: r.email, produto, recoverUrl: ABANDON_RECOVER_URL, nome: r.nome }); }
+      catch (e) { console.error('abandon email falhou:', e); }
+    }
+    // WhatsApp só no 1º toque (anti-ban) e best-effort.
+    if (r.phone && primeiroToque) {
+      try { await sendCheckoutRecoveryWhatsApp(r.phone, produto, ABANDON_RECOVER_URL, r.nome); }
+      catch (e) { console.error('abandon whatsapp falhou:', e); }
+    }
+
+    await supabase.from('abandoned_checkouts').update({
+      recovery_attempts: (r.recovery_attempts ?? 0) + 1,
+      recovery_sent_at:  new Date().toISOString(),
+      updated_at:        new Date().toISOString(),
+    }).eq('id', r.id);
+    sent++;
+  }
+  console.log(`[abandon] recuperação: ${sent} toques, ${recovered} recuperados, ${skipped} throttled`);
+  return { sent, recovered, skipped };
 }
 
 // ── Cadência de CONVERSÃO free->pago ───────────────────────────────────────

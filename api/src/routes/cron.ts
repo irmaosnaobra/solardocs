@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
-import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder, runCheckoutAbandonRecovery, recoverOrphanCheckouts, runUpgradeNudge } from '../services/followupService';
+import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder, runCheckoutAbandonRecovery, recoverOrphanCheckouts, runUpgradeNudge, recoverAbandonedCheckouts } from '../services/followupService';
 import { reDrivePendingPurchases } from '../services/salesLedger';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup, dispararOpenerTesteParaUser } from '../services/agents/whatsapp/carlaPlatformFollowupService';
@@ -545,6 +545,7 @@ router.get('/master', async (req: Request, res: Response) => {
   const tasks: Array<[string, () => Promise<any>]> = [
     ['checkout-recovery',           () => runCheckoutAbandonRecovery()], // 1 email pra quem cadastrou e não passou cartão (4-72h)
     ['orphan-checkout-recovery',    () => recoverOrphanCheckouts()],     // PAGOU e NÃO cadastrou: link de conclusão (carência 30min, até 6d). Template aprovado 02/06.
+    ['abandoned-checkout-recovery', () => recoverAbandonedCheckouts()],  // COMEÇOU e NÃO passou cartão (checkout.session.expired): email + WhatsApp p/ retomar
     ['followup-email-cnpj',         () => runFollowupCnpj()],            // 5 emails/30d — gerador de proposta
     // ['no-contracts-reminder',       () => runNoContractsEmailReminder()], // [PAUSED-FOLLOWUP] lembrete inativos por email
     // 2026-06-30: WhatsApp Carla RELIGADO já como UMA persona (Giovanna) que leva

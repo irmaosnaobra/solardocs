@@ -613,6 +613,36 @@ export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId:
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
 
+// Recuperação de CHECKOUT ABANDONADO (público): a pessoa começou a assinatura mas
+// não concluiu (fechou a aba / cartão recusado e desistiu). Transacional-ish, tom
+// gentil + CTA pra retomar. Suporte direto no WhatsApp. Não joga erro (best-effort).
+export async function sendAbandonedCartEmail(opts: { to: string; produto: string; recoverUrl: string; nome?: string | null }): Promise<void> {
+  const firstName = (opts.nome || '').trim().split(/\s+/)[0];
+  const ola = firstName ? `Oi ${firstName},` : 'Oi,';
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:28px 34px;">
+    <h1 style="margin:0;color:#0f172a;font-size:23px;font-weight:900;line-height:1.2;">Faltou pouco pra ativar seu SolarDoc ${opts.produto}</h1>
+  </div>
+  <div style="padding:30px 34px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 16px;">${ola} vi que você começou a assinar o <strong style="color:#fbbf24;">SolarDoc ${opts.produto}</strong> mas o pagamento não foi concluído.</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">Sem stress — retomar leva 1 minuto e você já começa a gerar contratos, propostas e documentos com a sua marca. Os 7 dias grátis continuam de pé.</p>
+    <div style="text-align:center;margin:26px 0 8px;">
+      <a href="${opts.recoverUrl}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:17px 40px;border-radius:12px;text-decoration:none;">Retomar minha assinatura →</a>
+    </div>
+    <p style="color:#64748b;font-size:13px;margin:22px 0 0;line-height:1.6;text-align:center;">Deu algum problema no pagamento? Chama a gente no WhatsApp <strong style="color:#94a3b8;">(34) 99816-5040</strong> — a gente resolve rapidinho.</p>
+  </div>
+</div>`;
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: opts.to,
+    replyTo: REPLY_TO,
+    subject: `Faltou pouco — retome sua assinatura do SolarDoc ${opts.produto}`,
+    html,
+  });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}
+
 export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   try {
     console.log(`[Mailer] Tentando enviar reset para ${email}...`);
