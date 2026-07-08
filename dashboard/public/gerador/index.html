@@ -2408,8 +2408,9 @@ const TABELA_CARTAO = {
   16: 0.1429, 17: 0.1485, 18: 0.1549, 19: 0.1639, 20: 0.1739,
   21: 0.1828
 };
-// Parcelas marcadas por padrão num novo orçamento.
-const CARTAO_PARCELAS_DEFAULT = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+// Parcelas marcadas por padrão num novo orçamento. Só a 21x vem marcada;
+// as demais (6x–20x) continuam visíveis pra marcar quando o consultor quiser.
+const CARTAO_PARCELAS_DEFAULT = [21];
 
 function calcParcelaCartao(base, n) {
   const acresc = TABELA_CARTAO[n];
