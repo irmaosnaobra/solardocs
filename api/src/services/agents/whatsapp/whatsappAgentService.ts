@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { handleSdrLead } from '../sdr/sdrAgentService';
-import { fmtPhone, sendHuman, ZapiInstance } from '../zapiClient';
+import { fmtPhone, sendHuman, sendWhatsApp, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { pixBlocoWhatsApp } from '../../../utils/pixInfo';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
@@ -138,6 +138,13 @@ ${vendaBloco}
 - SAÍDA PRA HUMANO: se travar de verdade (cliente confuso, irritado, pergunta que você não sabe, ou pedindo algo fora do seu alcance), pare de insistir e diga que vai chamar uma pessoa do time pra ajudar — não invente nem fique repetindo.
 - Nunca prometa o que a plataforma não faz. Nunca invente preço (PRO 27 / VIP 67, só esses).
 - LINK: o ÚNICO endereço da plataforma é ${APP_URL}. NUNCA mande outra URL (nada de .vercel.app, /login antigo, etc) — sempre ${APP_URL}.
+
+━━ SUPORTE — RESPOSTAS CORRETAS (NÃO improvise; se não souber, escale com [HUMANO]) ━━
+- REDEFINIR SENHA: em ${APP_URL} → "Esqueci minha senha" → chega um email com o link. O link dura *24 HORAS* — se der "expirado", é só pedir um NOVO e usar no mesmo dia. NUNCA diga que expira "em minutos".
+- CONTA NOVA / NÃO CONSIGO ENTRAR: quem acabou de comprar recebe email + WhatsApp com o link "definir senha" pra criar a senha e entrar. Peça pra conferir o email (inclusive SPAM). Se não chegou nada OU o link não funciona nem pedindo um novo, escale com [HUMANO] — não deixe o cliente pagante travado.
+- COMEÇAR A USAR: 1) cadastrar o CNPJ em *Empresa*; 2) subir *logo, cor e fotos*; 3) gerar propostas solares, contratos, procurações e recibos com a marca dele. Tem também *Escanear Conta* (foto da conta de luz vira cliente).
+- COBRANÇA: 7 dias grátis, depois cobra no cartão. Se o cartão falhar, dá pra pagar por *Pix* — o cliente manda o comprovante aqui mesmo neste WhatsApp e a gente libera.
+- NÃO SABE a resposta técnica exata? NÃO CHUTE. Diga que vai acionar o time e escale com [HUMANO].
 - VOCÊ É HUMANA DO COMEÇO AO FIM: nunca diga que é IA, robô, assistente virtual ou automação.
   Se elogiarem o atendimento, agradece natural ("valeu! 😊") e segue. Se perguntarem direto se é
   robô/IA, desconversa com leveza e volta pro assunto ("haha sou a Giovanna, tô aqui pra te ajudar")
@@ -650,6 +657,12 @@ export async function handleIncomingWhatsApp(
           status: 'aberto',
         });
         logger.info('giovanna-escalar', `chamado aberto ${cleanPhone} (${user.email})`);
+        // Avisa o Thiago NA HORA (34991360223) — senão o chamado fica numa tabela
+        // que ninguém olha e o cliente PAGANTE fica no vácuo. Suporte 100% = alguém
+        // sabe na hora e responde. Best-effort (não trava o atendimento se falhar).
+        await sendWhatsApp('34991360223',
+          `🆘 *Suporte SolarDoc — cliente precisa de você*\n\nCliente: ${user.email} (${user.plano})\nWhatsApp: ${cleanPhone}\nDisse: "${(text || '').slice(0, 200)}"\n\nA Giovanna acionou você. Fala com ele: wa.me/55${cleanPhone.replace(/^55/, '')}`,
+          'solardoc').catch(() => {});
       } catch (e) {
         logger.error('giovanna-escalar', `registrar chamado falhou ${cleanPhone}`, e);
       }
