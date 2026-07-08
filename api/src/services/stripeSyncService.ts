@@ -27,7 +27,18 @@ type StripeTruth = {
   limite: number;
   status: string;
   trial_end: Date | null;  // Date se status='trialing', null caso contrário
+  priceId: string;         // pra derivar produto (PRO/VIP/VIP PROMO) no ledger
+  valorReais: number;      // unit_amount real da Stripe (R$) — corrige chute do backfill
 };
+
+// Preços pra distinguir VIP (R$67) de VIP PROMO (R$49) no ledger de vendas.
+const SYNC_PRICE_VIP       = (process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim();
+const SYNC_PRICE_VIP_PROMO = (process.env.STRIPE_PRICE_VIP_PROMO || 'price_1TpYsLCkkgzQ4IHeSt3Oupwg').trim();
+function produtoFromPrice(priceId: string): 'PRO' | 'VIP' | 'VIP PROMO' {
+  if (priceId === SYNC_PRICE_VIP_PROMO) return 'VIP PROMO';
+  if (priceId === SYNC_PRICE_VIP)       return 'VIP';
+  return 'PRO';
+}
 
 // Varre TODAS as subscriptions do Stripe (sem janela de data), monta um mapa
 // email → plano real. Pra cada email só guarda a sub MAIS RECENTE (created desc)
@@ -61,10 +72,11 @@ async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
       const planInfo = PRICE_TO_PLAN[priceId];
       if (!planInfo) continue;
 
+      const unitAmount = s.items.data[0]?.price?.unit_amount ?? 0;
       const trialEnd = s.status === 'trialing' && s.trial_end
         ? new Date(s.trial_end * 1000)
         : null;
-      truth.set(key, { plano: planInfo.plano, limite: planInfo.limite, status: s.status, trial_end: trialEnd });
+      truth.set(key, { plano: planInfo.plano, limite: planInfo.limite, status: s.status, trial_end: trialEnd, priceId, valorReais: Math.round(unitAmount) / 100 });
       seenEmail.add(key);
     }
 
@@ -144,16 +156,20 @@ export async function syncStripePlans(): Promise<{
     const realLimite = stripeTruth?.limite ?? FREE_LIMIT;
     const realStatus = stripeTruth?.status ?? null;
 
-    // Reconcilia o LEDGER de vendas (sales) com a Stripe — mesma verdade que
-    // reconcilia users.plano. Mantém sales.status coerente (trialing→active→
-    // canceled) por email, pra o ledger nunca divergir do Stripe. .neq evita
-    // escrita quando já está igual (a maioria é no-op). Best-effort.
+    // Reconcilia o LEDGER de vendas (sales) com a Stripe — status SEMPRE; e
+    // produto + valor quando há sub viva (corrige o chute do backfill: ex. um
+    // 'ilimitado' que na verdade é VIP R$67, não VIP PROMO R$49). Assim o ledger
+    // fica 100% igual à Stripe — sem erro de registro. Best-effort.
     const salesStatus = realStatus ?? 'canceled';
+    const salesPatch: Record<string, unknown> = { status: salesStatus, updated_at: new Date().toISOString() };
+    if (stripeTruth?.priceId) {
+      salesPatch.produto = produtoFromPrice(stripeTruth.priceId);
+      if (stripeTruth.valorReais > 0) salesPatch.valor = stripeTruth.valorReais;
+    }
     await supabase
       .from('sales')
-      .update({ status: salesStatus, updated_at: new Date().toISOString() })
+      .update(salesPatch)
       .eq('email', u.email.toLowerCase())
-      .neq('status', salesStatus)
       .then(() => {}, () => {});
 
     // ── Reconcilia billing_status com Stripe (backstop pro webhook) ──
