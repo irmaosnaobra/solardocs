@@ -78,6 +78,31 @@ router.get('/conversas-limpapro', getLimpaproConversas);
 router.get('/revenue',        getRevenue);
 router.get('/billing',        getBilling);
 
+// Liberação manual por PIX: quando o cliente paga por Pix e manda o comprovante,
+// o atendimento libera N meses de acesso ilimitado. Renova SOMANDO ao que resta
+// (não zera se pagar adiantado). O guard no stripeSyncService protege contra
+// rebaixamento enquanto plano_expira_em estiver no futuro; o lembrete mensal avisa.
+router.post('/pix-liberar', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, meses } = req.body as { email?: string; meses?: number };
+    if (!email) { res.status(400).json({ error: 'email obrigatório' }); return; }
+    const n = Math.max(1, Math.min(12, Number(meses) || 1));
+    const { data: u } = await supabase.from('users').select('id, email, plano_expira_em').ilike('email', String(email).trim()).maybeSingle();
+    if (!u) { res.status(404).json({ error: 'Cliente não encontrado' }); return; }
+    const agora = Date.now();
+    const base = (u.plano_expira_em && new Date(u.plano_expira_em).getTime() > agora)
+      ? new Date(u.plano_expira_em) : new Date(agora);
+    base.setMonth(base.getMonth() + n);
+    const expira = base.toISOString();
+    await supabase.from('users').update({
+      plano: 'ilimitado', limite_documentos: 999999, billing_status: 'active', plano_expira_em: expira,
+    }).eq('id', u.id);
+    res.json({ ok: true, email: u.email, plano_expira_em: expira, meses: n });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao liberar Pix', message: String(err) });
+  }
+});
+
 // Deletar user (cascade manual). Aceita { email } OU { cnpj } no body.
 // Apaga: documents, clients, terceiros, company, e o user.
 router.post('/users/delete', async (req: Request, res: Response): Promise<void> => {

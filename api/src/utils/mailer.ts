@@ -600,7 +600,7 @@ export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId:
 
   <div style="padding:18px 36px 28px;text-align:center;">
     <p style="margin:0;color:#64748b;font-size:12px;line-height:1.6;">
-      Dúvidas? Chama a gente no WhatsApp (34) 99943-7831.
+      Dúvidas? Chama a gente no WhatsApp (34) 99816-5040.
     </p>
   </div>
 </div>`;
@@ -861,7 +861,7 @@ export async function sendWelcomeEmail(opts: { to: string; userId: string; nome:
 
   <div style="padding:24px 36px 28px;text-align:center;">
     <p style="margin:0 0 6px;color:#94a3b8;font-size:14px;">Travou em algo? Chama a gente.</p>
-    <p style="margin:0;color:#f8fafc;font-size:15px;font-weight:700;">📞 (34) 99943-7831</p>
+    <p style="margin:0;color:#f8fafc;font-size:15px;font-weight:700;">📞 (34) 99816-5040</p>
     <p style="margin:18px 0 0;color:#475569;font-size:13px;">Bom uso! 🚀<br/><span style="color:#64748b;">Equipe SolarDoc Pro</span></p>
   </div>
 

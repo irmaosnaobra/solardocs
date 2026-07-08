@@ -22,7 +22,7 @@ const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
 const FROM_EMAIL = process.env.MAIL_FROM || 'SolarDoc Pro <equipe@solardoc.app>';
 const REPLY_TO = process.env.MAIL_REPLY_TO || 'aiorosgroup@gmail.com';
 
-const SUPPORT_PHONE_LABEL = '(34) 99943-7831';
+const SUPPORT_PHONE_LABEL = '(34) 99816-5040';
 const BILLING_URL = `${APP_URL}/conta`;
 const CHECKOUT_URL = `${APP_URL}/`;
 

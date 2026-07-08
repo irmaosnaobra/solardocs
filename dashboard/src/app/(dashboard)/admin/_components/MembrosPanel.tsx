@@ -152,6 +152,21 @@ export default function MembrosPanel() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Liberação manual por Pix: cliente pagou por Pix e mandou o comprovante → libera
+  // N meses de acesso ilimitado (renova somando ao que resta). Recarrega a lista.
+  async function liberarPix(email: string) {
+    const mesesStr = window.prompt(`Liberar acesso por Pix pra ${email}\n\nQuantos meses? (comprovante confirmado)`, '1');
+    if (mesesStr === null) return;
+    const meses = Math.max(1, Math.min(12, parseInt(mesesStr, 10) || 1));
+    try {
+      const { data: r } = await api.post('/admin/pix-liberar', { email, meses });
+      alert(`Liberado! ${email} agora é VIP até ${new Date(r.plano_expira_em).toLocaleDateString('pt-BR')}.`);
+      load();
+    } catch {
+      alert('Falha ao liberar. Tenta de novo.');
+    }
+  }
+
   const all = data ?? [];
 
   // KPIs de topo
@@ -393,6 +408,7 @@ export default function MembrosPanel() {
                 <th>Follow-ups</th>
                 <th>WhatsApp</th>
                 <th>Cadastro</th>
+                <th>Pix</th>
               </tr></thead>
               <tbody>
                 {rows.map(u => {
@@ -484,11 +500,23 @@ export default function MembrosPanel() {
                       <td>
                         <span style={{ fontWeight: 600, fontSize: 12, color: r.color }}>{r.label}</span>
                       </td>
+                      <td>
+                        <button
+                          onClick={() => liberarPix(u.email)}
+                          title="Cliente pagou por Pix e mandou o comprovante → liberar acesso"
+                          style={{
+                            fontSize: 11, fontWeight: 800, color: '#0f172a', background: '#22c55e',
+                            border: 'none', borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+                            whiteSpace: 'nowrap', fontFamily: 'inherit',
+                          }}>
+                          + Pix
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
                 {rows.length === 0 && (
-                  <tr><td colSpan={9} className={styles.mutedCell} style={{ textAlign: 'center', padding: '24px 8px' }}>
+                  <tr><td colSpan={10} className={styles.mutedCell} style={{ textAlign: 'center', padding: '24px 8px' }}>
                     Nenhum membro bate com o filtro/busca.
                   </td></tr>
                 )}

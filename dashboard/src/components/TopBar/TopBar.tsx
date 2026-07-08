@@ -7,7 +7,7 @@ import { FileText, HelpCircle, User, Building2, LogOut, Smartphone, TrendingUp }
 import { removeToken } from '@/services/auth';
 import styles from './TopBar.module.css';
 
-const WA_SUPORTE = 'https://wa.me/5534999437831?text=' + encodeURIComponent('Olá! Preciso de ajuda com o SolarDoc.');
+const WA_SUPORTE = 'https://wa.me/5534998165040?text=' + encodeURIComponent('Olá! Preciso de ajuda com o SolarDoc.');
 
 interface TopBarProps {
   userEmail?: string;

@@ -1,7 +1,7 @@
 // Conteúdo das mentorias usando AIDA + SPIN.
-// Cada produto tem 1 CTA principal verde com link WhatsApp pra Thiago (34 99943-7831).
+// Cada produto tem 1 CTA principal verde com link WhatsApp pra Thiago (34 99816-5040).
 
-export const WHATSAPP_THIAGO = '5534999437831';
+export const WHATSAPP_THIAGO = '5534998165040';
 
 export type CorTema = 'gold' | 'green' | 'purple' | 'coral';
 

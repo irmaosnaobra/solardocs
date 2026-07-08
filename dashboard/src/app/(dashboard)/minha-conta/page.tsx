@@ -73,7 +73,7 @@ export default function MinhaContaPage() {
       const { data } = await api.post('/payments/billing-portal');
       window.location.href = data.url;
     } catch {
-      alert('Não foi possível abrir o portal de pagamento. Tente novamente ou fale no WhatsApp (34) 99943-7831.');
+      alert('Não foi possível abrir o portal de pagamento. Tente novamente ou fale no WhatsApp (34) 99816-5040.');
       setOpeningPortal(false);
     }
   }

@@ -56,7 +56,7 @@ function BillingSuspendedPage({ email }: { email: string }) {
       const { data } = await api.post('/payments/billing-portal');
       window.location.href = data.url;
     } catch {
-      alert('Falha ao abrir portal de pagamento. Tente novamente em instantes ou entre em contato pelo WhatsApp (34) 99943-7831.');
+      alert('Falha ao abrir portal de pagamento. Tente novamente em instantes ou entre em contato pelo WhatsApp (34) 99816-5040.');
       setLoading(false);
     }
   }
@@ -139,7 +139,7 @@ function BillingSuspendedPage({ email }: { email: string }) {
           {email}
         </p>
         <p style={{ color: '#475569', fontSize: '0.75rem', margin: '12px 0 0', lineHeight: 1.6 }}>
-          Precisa de ajuda? WhatsApp <strong style={{ color: '#94a3b8' }}>(34) 99943-7831</strong>
+          Precisa de ajuda? WhatsApp <strong style={{ color: '#94a3b8' }}>(34) 99816-5040</strong>
         </p>
       </div>
     </div>

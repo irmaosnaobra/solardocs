@@ -569,7 +569,7 @@ export default function Landing() {
             <strong>SolarDoc Pro</strong> · Documentação solar com IA · {new Date().getFullYear()}
           </div>
           <div className={styles.footerLinks}>
-            <a href="https://wa.me/5534999437831" target="_blank" rel="noopener noreferrer">Suporte WhatsApp</a>
+            <a href="https://wa.me/5534998165040" target="_blank" rel="noopener noreferrer">Suporte WhatsApp</a>
           </div>
         </div>
       </footer>

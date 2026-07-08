@@ -5,7 +5,7 @@ import { globalLimiter } from '../middleware/rateLimiter';
 const router = Router();
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const WHATSAPP_LINK = 'https://wa.me/5534999437831';
+const WHATSAPP_LINK = 'https://wa.me/5534998165040';
 
 const SYSTEM_PROMPT = `Você é a Sol, assistente especialista do SolarDoc Pro — plataforma de documentação para integradores de energia solar. Você conhece cada detalhe do sistema e dá respostas curtas, diretas e com a solução exata. Nunca enrola.
 

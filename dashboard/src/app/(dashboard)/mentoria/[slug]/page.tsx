@@ -108,7 +108,7 @@ export default function MentoriaPage({ params }: { params: Promise<{ slug: strin
         </a>
 
         <div className="mentoria-microcopy">
-          <span>(34) 99943-7831</span>
+          <span>(34) 99816-5040</span>
           {produto.garantiaDias > 0 && <span>· Garantia {produto.garantiaDias} dias</span>}
           <span>· 100% individual ao vivo</span>
         </div>

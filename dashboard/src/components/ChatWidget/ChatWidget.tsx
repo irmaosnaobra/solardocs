@@ -18,7 +18,7 @@ function chatApiUrl(): string {
   }
   return (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/chat';
 }
-const WA_URL = 'https://wa.me/5534999437831';
+const WA_URL = 'https://wa.me/5534998165040';
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);

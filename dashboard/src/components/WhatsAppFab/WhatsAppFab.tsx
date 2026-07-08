@@ -1,6 +1,6 @@
 'use client';
 
-const WA_NUMBER = '5534999437831';
+const WA_NUMBER = '5534998165040';
 const WA_MESSAGE = 'Olá! Estou usando o SolarDoc Pro e preciso de ajuda.';
 
 export default function WhatsAppFab() {

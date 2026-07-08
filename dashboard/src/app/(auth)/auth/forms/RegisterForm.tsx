@@ -248,7 +248,7 @@ function RegisterContent() {
         return;
       }
       if (code === 'PAGAMENTO_NAO_DETECTADO') {
-        setError('Não localizamos seu pagamento. Use o mesmo e-mail do cartão, ou fale com o suporte no WhatsApp (34) 99943-7831.');
+        setError('Não localizamos seu pagamento. Use o mesmo e-mail do cartão, ou fale com o suporte no WhatsApp (34) 99816-5040.');
         setLoading(false);
         return;
       }

@@ -43,7 +43,7 @@ async function zapiPut(creds: IOCreds, path: string, body: any): Promise<any> {
 router.get('/solardoc/test-send', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
   const phone = String(req.query.phone || '').replace(/\D/g, '');
-  if (!phone) { res.status(400).json({ error: 'phone obrigatorio (ex: 5534999437831)' }); return; }
+  if (!phone) { res.status(400).json({ error: 'phone obrigatorio (ex: 5534998165040)' }); return; }
   const id = process.env.ZAPI_INSTANCE_ID?.trim();
   const token = process.env.ZAPI_TOKEN?.trim();
   const client = process.env.ZAPI_CLIENT_TOKEN?.trim();
