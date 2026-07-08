@@ -1646,7 +1646,7 @@ function gerar() {
   // Preços
   const usarDescMax = document.getElementById('f-descmax').checked;
   const precoVista = usarDescMax ? item.descMax : item.pVista;
-  const precoOrcamento = Math.ceil(item.pOrc / 100) * 100;
+  const precoOrcamento = item.pOrc;   // preço exato — nunca arredonda pra centena
 
   // Parcelas em cima do preço à vista
   const parc10x = precoVista * 1.11 / 10;

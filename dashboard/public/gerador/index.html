@@ -2922,11 +2922,9 @@ async function gerar() {
   //   >= 350 km → +R$ 750,00
   //   >= 250 km → +R$ 500,00
   const acrescDist = acrescimoPorKm(distanciaKm);
-  // Tabelas marcadas com `precoExato` usam o valor do PDF como está (sem arredondar pra
-  // cima até a centena). A distância (500/750, múltiplos de 100) ainda soma por cima.
-  const precoOrcamento = (tab && tab.precoExato)
-    ? (item.pOrc + acrescDist)
-    : Math.ceil((item.pOrc + acrescDist) / 100) * 100;
+  // O gerador NUNCA arredonda: usa o preço EXATO da tabela (coluna Venda / valor do
+  // investimento). A distância (500/750, múltiplos de 100) ainda soma por cima.
+  const precoOrcamento = item.pOrc + acrescDist;
   // À vista = valor do investimento (sem desconto). Pago no ato do contrato.
   const precoVista = precoOrcamento;
 
@@ -4220,9 +4218,7 @@ function renderTabelaAtiva() {
   const statusBadge = `<span class="tbl-status ${ativo ? 'on' : 'off'}">${ativo ? 'ATIVO no gerador' : 'DESATIVADO'}</span>`;
 
   tbody.innerHTML = t.rows.map(r => {
-    const pOrc = t.precoExato                                   // = valor do investimento (igual gerador)
-      ? (r.pOrc + acresc)
-      : Math.ceil((r.pOrc + acresc) / 100) * 100;
+    const pOrc = r.pOrc + acresc;                               // preço exato (igual gerador, nunca arredonda)
     const equip = `${r.n}x ${t.mod} + ${r.invs}x ${t.inv}`;
     return `<tr>
       <td>${equip}</td>
