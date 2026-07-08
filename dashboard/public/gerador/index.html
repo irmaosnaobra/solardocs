@@ -62,7 +62,16 @@ html[data-mode="app"].leads-aberto .container{margin-left:0!important}
 html[data-mode="app"].calc-aberto #app-sidebar,
 html[data-mode="app"].calc-aberto .sb-mobile-toggle{display:none!important}
 html[data-mode="app"].calc-aberto .container{margin-left:0!important}
-#calcSection{max-width:560px;margin:0 auto}
+#calcSection{max-width:1040px;margin:0 auto}
+/* Calculadora em 2 colunas: inputs à esquerda, Resultado fixo (sticky) à direita */
+.calc-grid{display:grid;grid-template-columns:minmax(0,600px) 400px;gap:20px;align-items:start;justify-content:center}
+.calc-col-inputs{min-width:0}
+.calc-col-result{position:sticky;top:16px;min-width:0}
+@media(max-width:900px){
+  #calcSection{max-width:560px}
+  .calc-grid{grid-template-columns:1fr;gap:0}
+  .calc-col-result{position:static}
+}
 #calcSection .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:20px 18px;margin-bottom:16px}
 .calc-card-title{font-size:12px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.7px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .calc-card-title .dot{width:6px;height:6px;border-radius:50%;background:#3B82F6}
@@ -1502,6 +1511,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
     </div>
 
+    <div class="calc-grid">
+      <div class="calc-col-inputs">
     <!-- CUSTOS -->
     <div class="card">
       <div class="calc-card-title"><span class="dot"></span>Custos do projeto</div>
@@ -1566,6 +1577,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
     </div>
 
+      </div><!-- /calc-col-inputs -->
+      <div class="calc-col-result">
     <!-- RESULTADO -->
     <div class="card">
       <div class="calc-card-title"><span class="dot"></span>Resultado</div>
@@ -1594,6 +1607,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="calc-kpi"><div class="k">Comissão</div><div class="v info" id="calc-r-comissao">R$ 0,00</div></div>
       </div>
     </div>
+
+      </div><!-- /calc-col-result -->
+    </div><!-- /calc-grid -->
 
     <div class="calc-foot">
       Margem, comissão e impostos incidem <b>sobre o preço de venda</b> (padrão do mercado).<br>
