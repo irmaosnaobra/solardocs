@@ -542,9 +542,12 @@ export async function sendCnpjOngoingEmail(email: string, userId: string, varian
 // mas NÃO voltou pra concluir o cadastro — não existe linha em `users`. Sem userId,
 // então é transacional 1-a-1 (sem footer de unsub, igual ao reset de senha).
 // Disparado pelo webhook em checkout.session.completed quando o órfão é detectado.
-export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId: string; plano?: string | null }): Promise<void> {
+export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId: string; plano?: string | null; resetUrl?: string }): Promise<void> {
   const planoLabel = opts.plano === 'ilimitado' ? 'VIP' : opts.plano === 'pro' ? 'PRO' : null;
-  const completeUrl = `${APP_URL}/auth?mode=register&session=${encodeURIComponent(opts.sessionId)}`;
+  // Conta já criada no pagamento (fluxo 100% cadastro): o CTA é o link de DEFINIR
+  // SENHA (reset token) — 1 clique e entra. Fallback (resetUrl ausente): fluxo
+  // antigo de cadastro-com-session, mantido por retrocompatibilidade.
+  const completeUrl = opts.resetUrl || `${APP_URL}/auth?mode=register&session=${encodeURIComponent(opts.sessionId)}`;
   const loginUrl = `${APP_URL}/auth`;
   // Tom A (transacional / "recibo de compra"): o CTA "definir senha" é o
   // protagonista absoluto (é o único passo que destrava a conta). Abaixo dele,

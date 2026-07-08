@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
+import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { sendDunningDay0, sendDunningRecovered } from '../services/dunningService';
 import { sendCheckoutCompletionEmail } from '../utils/mailer';
+import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -219,6 +221,10 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       line_items: [{ price: planInfo.priceId, quantity: 1 }],
       // Stripe coleta o email no próprio checkout (não temos user ainda).
       billing_address_collection: 'auto',
+      // Coleta o WhatsApp no checkout → o webhook manda a boas-vindas da Giovanna
+      // pelo número certo NA HORA do pagamento (não depende do cliente voltar e
+      // preencher o cadastro). Vem em E.164 (+55...) em session.customer_details.phone.
+      phone_number_collection: { enabled: true },
       subscription_data: {
         trial_period_days: 7,
         metadata: baseMeta,
@@ -313,58 +319,95 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           .update({ plano, limite_documentos: limite, documentos_usados: 0, ...attrPatch })
           .eq('id', userId);
       } else if (email) {
-        // UPDATE com .select() pra saber se casou alguma linha. No fluxo
-        // LP→Stripe→Cadastro a conta só nasce quando a pessoa VOLTA e preenche
-        // o form — e este evento dispara NO MOMENTO do pagamento, ANTES disso.
-        // Então 0 linhas aqui é o caminho NORMAL (a pessoa ainda vai cadastrar),
-        // NÃO um órfão. Por isso NÃO mandamos email de recuperação daqui — só
-        // gravamos um marcador. O envio real é feito pelo sweep
-        // recoverOrphanCheckouts (followupService) após uma janela de carência,
-        // que confirma que a conta ainda não existe minutos depois.
+        // Normaliza p/ lowercase — o register grava e busca a conta em lowercase.
+        // O UPDATE e o INSERT abaixo PRECISAM usar o mesmo case, senão o webhook
+        // cria uma linha ("Foo@x.com") que o register não acha ("foo@x.com") e
+        // vira DUPLICATA (users.email é UNIQUE case-sensitive).
+        const emailLc = String(email).toLowerCase().trim();
+
+        // UPDATE com .select() pra saber se casou alguma linha. Se a conta JÁ existe
+        // (ex.: FREE que comprou depois), só atualiza o plano. Se 0 linhas casarem,
+        // é o fluxo LP→Stripe→cadastro em que a pessoa ainda não tem conta → o bloco
+        // abaixo (100% CADASTRO) CRIA a conta na hora e manda "defina sua senha".
         const { data: updated } = await supabase
           .from('users')
           .update({ plano, limite_documentos: limite, documentos_usados: 0, ...attrPatch })
-          .eq('email', email)
+          .eq('email', emailLc)
           .select('id');
 
         if (!updated?.length) {
-          // Fluxo LP→Stripe→Cadastro: cartão aprovado mas a conta ainda não
-          // nasceu (a pessoa volta e preenche o form depois). Manda o email de
-          // boas-vindas + link de cadastro NA HORA — purchase confirmation não é
-          // spam, e fecha o vazamento de quem fecha a aba e some.
-          const nowIso = new Date().toISOString();
+          // ═══════════════════ 100% CADASTRO ═══════════════════
+          // Pagou (sub trialing criada) mas AINDA não tem conta — fluxo
+          // LP→Stripe→cadastro em que a pessoa fecha a aba antes de voltar. Em vez
+          // de só marcar/avisar (que deixava o cliente invisível), CRIAMOS a conta
+          // AGORA, com o email e o plano que a Stripe confirmou, e mandamos "defina
+          // sua senha" por EMAIL (backbone) + WhatsApp (best-effort). Assim nenhum
+          // pagante fica sem cadastro.
+          //
+          // IDEMPOTÊNCIA: users.email é UNIQUE → re-entrega do webhook (at-least-once)
+          // ou corrida com o /register batem em 23505 e são ignoradas (não duplica
+          // conta nem reenvia). ADITIVO E À PROVA DE ERRO: todo o bloco é try/catch;
+          // qualquer falha aqui NÃO pode quebrar o Purchase/Meta abaixo nem o pagamento.
+          try {
+            const phone = ((session.customer_details as any)?.phone || '').replace(/\D/g, '') || null;
+            const nome  = ((session.customer_details as any)?.name as string | null) || null;
+            const token = crypto.randomBytes(32).toString('hex');
+            // Expiração GENEROSA (30d) — é onboarding, não recuperação de senha de 1h.
+            const expiresIso = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-          // Guarda os UTMs no marcador órfão também — se a pessoa nunca cadastrar,
-          // a atribuição da venda não se perde (fica no system_state pra auditoria).
-          const orphanUtms = utmsFromMetadata(session.metadata);
+            const { data: created, error: insErr } = await supabase
+              .from('users')
+              .insert({
+                email: emailLc,
+                password_hash: null,          // conta PENDENTE — ativa quando o cliente definir a senha
+                nome,
+                plano,
+                limite_documentos: limite,
+                documentos_usados: 0,
+                data_reset: expiresIso,
+                whatsapp: phone,
+                billing_status: 'trialing',
+                reset_token: token,
+                reset_token_expires: expiresIso,
+                ...attrPatch,
+              })
+              .select('id')
+              .single();
 
-          // O INSERT do marcador é o lock de idempotência. Stripe entrega este
-          // evento at-least-once (re-entregas por 2xx lento / retry manual / dupe).
-          // Inserindo ANTES de enviar, a 2ª entrega bate em 23505 e NÃO reenvia o
-          // email. (Sem isto, re-entrega = email duplicado pro cliente.)
-          const { error: insertErr } = await supabase
-            .from('system_state')
-            .insert({
-              key: `orphan_checkout:${session.id}`,
-              value: { email, plano, session_id: session.id, created_at: nowIso, ...orphanUtms },
-            });
+            if (insErr) {
+              // 23505 = email já existe (re-entrega OU o /register acabou de criar) →
+              // conta já tratada, não faz nada. Outro erro: loga e segue (não quebra).
+              if ((insErr as { code?: string }).code !== '23505') {
+                console.error('100%-cadastro: criação de conta no webhook falhou:', insErr);
+              }
+            } else if (created) {
+              const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+              const resetUrl = `${dashboardUrl}/auth?mode=redefinir&token=${token}`;
 
-          // insertErr (tipicamente 23505) = marcador já existe = re-entrega →
-          // email já foi tratado na 1ª vez, não reenvia.
-          if (!insertErr) {
-            try {
-              await sendCheckoutCompletionEmail({ to: email, sessionId: session.id, plano });
-              // Carimba sent_at → o sweep recoverOrphanCheckouts PULA (evita 2º toque).
-              // Mantém os utms no value (senão o rewrite apagaria a atribuição órfã).
-              await supabase
-                .from('system_state')
-                .update({ value: { email, plano, session_id: session.id, created_at: nowIso, ...orphanUtms, sent_at: new Date().toISOString() } })
-                .eq('key', `orphan_checkout:${session.id}`);
-            } catch (err) {
-              // Email falhou: sent_at fica null → o sweep recupera depois
-              // (rede de segurança intacta).
-              console.error('sendCheckoutCompletionEmail (imediato) falhou:', err);
+              // EMAIL = backbone confiável (Resend nunca é banido). Await pra garantir
+              // o envio antes de a função serverless encerrar.
+              try {
+                await sendCheckoutCompletionEmail({ to: emailLc, sessionId: session.id, plano, resetUrl });
+              } catch (err) {
+                console.error('100%-cadastro: email de ativação falhou:', err);
+              }
+
+              // WhatsApp = MELHOR-ESFORÇO (Z-API pode cair/banir). NUNCA trava a conta.
+              // Só dispara se a Stripe coletou telefone no checkout.
+              if (phone) {
+                try {
+                  await sendActivationWhatsApp(phone, resetUrl, plano, nome);
+                  await supabase
+                    .from('users')
+                    .update({ whatsapp_welcome_sent_at: new Date().toISOString() })
+                    .eq('id', created.id);
+                } catch (err) {
+                  console.error('100%-cadastro: WhatsApp de ativação falhou:', err);
+                }
+              }
             }
+          } catch (err) {
+            console.error('100%-cadastro: exceção no auto-create (pagamento intacto):', err);
           }
         }
       }

@@ -296,6 +296,30 @@ export async function sendPurchaseWhatsApp(phone: string, plano: string, nome?: 
   await saveSession(cleanPhone, nome || null, [{ role: 'assistant', content: fullText }]);
 }
 
+// ATIVAÇÃO: conta criada AUTOMATICAMENTE no pagamento (webhook), ainda SEM senha.
+// Diferente de sendWelcomeWhatsApp/sendPurchaseWhatsApp — aqui o cliente PRECISA
+// definir a senha antes de entrar, então o link é o de definição de senha (reset
+// token), não o /auth de login. Best-effort: o chamador (webhook) envolve em
+// try/catch e NUNCA deixa isto travar a criação da conta / o pagamento.
+export async function sendActivationWhatsApp(phone: string, resetUrl: string, plano: string, nome?: string | null): Promise<void> {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const firstName = (nome || '').trim().split(/\s+/)[0];
+  const greeting = firstName ? `Oi ${firstName}!` : 'Oi!';
+  const planoLabel = plano === 'ilimitado' ? 'VIP (documentos ilimitados)' : 'PRO';
+
+  const parts = [
+    `${greeting} 🌞 Sou a Giovanna, da SolarDoc Pro. Sua compra foi confirmada e seu plano *${planoLabel}* já tá ativo — muito obrigada e seja bem-vindo(a)! 🎉`,
+    `Sua conta já tá criada. Falta *1 passo* pra entrar: definir sua senha. Leva 10 segundos:\n\n🔑 ${resetUrl}`,
+    `Assim que entrar, faça isso pra deixar tudo com a sua cara:\n\n1️⃣ Cadastre o *CNPJ da sua empresa*\n2️⃣ Suba sua *logo e cor* — todo documento e proposta já sai com a sua marca ✅`,
+    `Qualquer dúvida — de verdade, qualquer uma — me chama *aqui mesmo neste número*. Eu te respondo. Bom uso e boas vendas! 🚀`,
+  ];
+
+  await sendHuman(cleanPhone, parts);
+
+  const fullText = parts.join(' || ');
+  await saveSession(cleanPhone, nome || null, [{ role: 'assistant', content: fullText }]);
+}
+
 // Frases que indicam vontade explicita de parar de receber automacao.
 // CUIDADO: nao usar palavras curtas ambiguas como "para" (preposicao) ou
 // "nao quero" sozinho — geram falso positivo em conversas normais.

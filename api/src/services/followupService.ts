@@ -319,55 +319,48 @@ const ORPHAN_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000; // até 6d (antes do trial de
 // Backlog anterior ao marcador (Lucas/Josefi/Ivan) é recuperado manualmente.
 export async function recoverOrphanCheckouts(): Promise<{ sent: number; skipped: number; scanned: number }> {
   const now = Date.now();
-  const graceCutoff = now - ORPHAN_GRACE_MS;
-  const maxAgeCutoff = now - ORPHAN_MAX_AGE_MS;
+  const graceCutoff  = new Date(now - ORPHAN_GRACE_MS).toISOString();   // criado há ≥30min (deu tempo de ativar)
+  const maxAgeCutoff = new Date(now - ORPHAN_MAX_AGE_MS).toISOString(); // criado há ≤6d (antes do trial virar cobrança)
 
-  const { data: markers } = await supabase
-    .from('system_state')
-    .select('key, value')
-    .like('key', 'orphan_checkout:%')
+  // 100% CADASTRO — REDE DE SEGURANÇA. O webhook agora CRIA a conta pendente
+  // (password_hash null) no pagamento e já manda o "defina sua senha". Este sweep
+  // reenvia o link pra quem NÃO ativou dentro da janela. Sinal trocado de
+  // "marcador órfão sem conta" → "conta pendente" (a conta agora sempre existe).
+  // Throttle de 1 reenvio por conta via system_state (activation_nudge:{id}) —
+  // o 1º toque já saiu do webhook, então aqui é no máximo +1 (nada de spam).
+  const { data: pendings } = await supabase
+    .from('users')
+    .select('id, email, plano, reset_token, created_at')
+    .is('password_hash', null)
+    .neq('plano', 'free')
+    .not('reset_token', 'is', null)
+    .lte('created_at', graceCutoff)
+    .gte('created_at', maxAgeCutoff)
     .limit(500);
 
-  if (!markers?.length) return { sent: 0, skipped: 0, scanned: 0 };
+  if (!pendings?.length) return { sent: 0, skipped: 0, scanned: 0 };
 
-  // Filtra por janela de carência (criado há ≥30min e ≤6d) e que ainda não foi enviado.
-  type Marker = { sessionId: string; email: string; plano: string; createdMs: number };
-  const pending: Marker[] = [];
-  for (const m of markers) {
-    const v = (m.value ?? {}) as { email?: string; plano?: string; session_id?: string; created_at?: string; sent_at?: string };
-    if (v.sent_at) continue;                            // já enviado
-    if (!v.email || !v.session_id) continue;
-    const createdMs = v.created_at ? Date.parse(v.created_at) : 0;
-    if (!createdMs || createdMs > graceCutoff) continue; // dentro da carência
-    if (createdMs < maxAgeCutoff) continue;              // velho demais (trial já virou cobrança/cancelou)
-    pending.push({ sessionId: v.session_id, email: v.email.toLowerCase(), plano: v.plano || 'pro', createdMs });
-  }
-
-  if (!pending.length) return { sent: 0, skipped: 0, scanned: markers.length };
-
-  // Quem desses JÁ criou conta? (voltou e cadastrou) — não é mais órfão.
-  const emails = Array.from(new Set(pending.map(p => p.email)));
-  const { data: existingUsers } = await supabase.from('users').select('email').in('email', emails);
-  const hasAccount = new Set((existingUsers ?? []).map(u => (u.email || '').toLowerCase()));
-
+  const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
   let sent = 0, skipped = 0;
-  for (const p of pending) {
-    if (hasAccount.has(p.email)) { skipped++; continue; }
+  for (const u of pendings) {
+    if (!u.reset_token) { skipped++; continue; }
+    const nudgeKey = `activation_nudge:${u.id}`;
+    // Throttle: marcador presente = já reenviamos uma vez → não reenvia de novo.
+    const { data: already } = await supabase.from('system_state').select('key').eq('key', nudgeKey).limit(1);
+    if (already?.length) { skipped++; continue; }
     try {
-      await sendCheckoutCompletionEmail({ to: p.email, sessionId: p.sessionId, plano: p.plano });
-      // Marca enviado SÓ após sucesso (não queima a chave em caso de falha).
-      await supabase
-        .from('system_state')
-        .update({ key: `orphan_checkout:${p.sessionId}`, value: { email: p.email, plano: p.plano, session_id: p.sessionId, created_at: new Date(p.createdMs).toISOString(), sent_at: new Date(now).toISOString() } })
-        .eq('key', `orphan_checkout:${p.sessionId}`);
+      const resetUrl = `${dashboardUrl}/auth?mode=redefinir&token=${u.reset_token}`;
+      await sendCheckoutCompletionEmail({ to: u.email, sessionId: u.id, plano: u.plano, resetUrl });
+      // Insere o marcador de throttle SÓ após o envio (não queima a chave se falhar).
+      await supabase.from('system_state').insert({ key: nudgeKey, value: { sent_at: new Date(now).toISOString() } });
       sent++;
     } catch (err) {
-      console.error(`recoverOrphanCheckouts: email falhou pra ${p.email}:`, err);
+      console.error(`recoverOrphanCheckouts: reenvio de ativação falhou pra ${u.email}:`, err);
       skipped++;
     }
   }
 
-  return { sent, skipped, scanned: pending.length };
+  return { sent, skipped, scanned: pendings.length };
 }
 
 // ── Cadência de CONVERSÃO free->pago ───────────────────────────────────────

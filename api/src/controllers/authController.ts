@@ -145,10 +145,19 @@ export async function register(req: Request, res: Response): Promise<void> {
   try {
     const body = registerSchema.parse(req.body);
 
+    // Normaliza o email pra lowercase — o webhook (100% cadastro) grava a conta
+    // pendente em lowercase, então o lookup e o INSERT aqui PRECISAM casar por
+    // lowercase pra ATIVAR a conta existente em vez de criar uma duplicata
+    // (users.email é UNIQUE case-sensitive). Sem isto, "Foo@x.com" na Stripe e
+    // "foo@x.com" digitado no cadastro viram duas linhas.
+    const emailLc = body.email.toLowerCase().trim();
+
     const { data: existing } = await supabase
       .from('users')
-      .select('id')
-      .eq('email', body.email)
+      // password_hash (null = conta PENDENTE criada no pagamento, ainda sem senha) +
+      // plano/limite atuais e whatsapp_welcome_sent_at pra ATIVAR sem duplicar boas-vindas.
+      .select('id, password_hash, plano, limite_documentos, whatsapp_welcome_sent_at')
+      .eq('email', emailLc)
       .single();
 
     const sessionId = body.session;
@@ -201,6 +210,73 @@ export async function register(req: Request, res: Response): Promise<void> {
     }
 
     if (existing) {
+      // ═══ ATIVAÇÃO de conta PENDENTE (criada no pagamento pelo webhook, sem senha) ═══
+      // password_hash null = o webhook já criou a conta (email+plano) no momento do
+      // pagamento e o cliente está agora DEFININDO A SENHA por este cadastro. Não é
+      // 409: setamos a senha, salvamos nome/whatsapp/cargo, confirmamos o plano e
+      // LOGAMOS (retorna token). É a peça que impede o cliente de ficar travado
+      // (não consegue logar sem senha, não consegue cadastrar por causa do 409).
+      if (existing.password_hash === null) {
+        const password_hash = await bcrypt.hash(body.password, 12);
+        // Plano: usa o que a Stripe confirmar agora; se a detecção falhar, mantém o
+        // que o webhook já gravou (não rebaixa conta paga por um hiccup de detecção).
+        const finalPlano  = stripePlan?.plano  ?? existing.plano;
+        const finalLimite = stripePlan?.limite ?? existing.limite_documentos;
+
+        const { data: activated, error: actErr } = await supabase
+          .from('users')
+          .update({
+            password_hash,
+            nome: body.nome || null,
+            cargo: body.cargo || null,
+            whatsapp: body.whatsapp || null,
+            plano: finalPlano,
+            limite_documentos: finalLimite,
+            billing_status: 'active',
+            reset_token: null,
+            reset_token_expires: null,
+            ...attribution,
+          })
+          .eq('id', existing.id)
+          .select('id, email, nome, plano, limite_documentos, documentos_usados, created_at')
+          .single();
+        if (actErr) throw actErr;
+
+        // Cria empresa se veio CNPJ (mesmo comportamento do cadastro novo).
+        if (body.cnpj || body.empresa) {
+          try {
+            await supabase.from('company').insert({
+              user_id: existing.id,
+              nome: body.empresa || null,
+              cnpj: body.cnpj || null,
+              whatsapp: body.whatsapp || null,
+            });
+          } catch {}
+        }
+
+        // Boas-vindas de compra — só se o webhook AINDA não disparou (evita 2º toque).
+        // Aqui a conta JÁ tem senha, então o copy padrão ("entre com e-mail e senha")
+        // é o correto (sendPurchase*, não a variante de ativação).
+        const tasks: Promise<unknown>[] = [];
+        let whatsappAttempted = false;
+        const jaTeveWelcome = !!existing.whatsapp_welcome_sent_at;
+        if (finalPlano !== 'free') {
+          if (body.whatsapp && !jaTeveWelcome) {
+            whatsappAttempted = true;
+            tasks.push(sendPurchaseWhatsApp(body.whatsapp, finalPlano, body.nome || null).catch(() => {}));
+          }
+          tasks.push(sendPurchaseEmail({ to: body.email, userId: existing.id, nome: body.nome || null, plano: finalPlano }).catch(() => {}));
+        }
+        await Promise.allSettled(tasks);
+        if (whatsappAttempted) {
+          await supabase.from('users').update({ whatsapp_welcome_sent_at: new Date().toISOString() }).eq('id', existing.id).then(() => {}, () => {});
+        }
+
+        const token = signToken(existing.id);
+        res.status(201).json({ token, user: activated });
+        return;
+      }
+
       // Email já tem conta. Se acabou de pagar (tem plano no Stripe), ATIVA o
       // plano na conta existente e manda fazer login — não recria, não reseta senha.
       if (stripePlan) {
@@ -242,7 +318,7 @@ export async function register(req: Request, res: Response): Promise<void> {
     const dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: user, error } = await supabase
       .from('users')
-      .insert({ email: body.email, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null, ...attribution })
+      .insert({ email: emailLc, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null, ...attribution })
       .select('id, email, nome, plano, limite_documentos, documentos_usados, created_at')
       .single();
 
@@ -363,6 +439,15 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     if (!user) {
       res.status(401).json({ error: 'Credenciais inválidas' });
+      return;
+    }
+
+    // Conta criada no pagamento (webhook) mas AINDA sem senha (password_hash null):
+    // não dá pra logar por senha. Mensagem clara (status ≠ 401/400 pro front exibir
+    // o texto) apontando o caminho de definir a senha. Sem esta guarda, o
+    // bcrypt.compare(senha, null) quebraria com 500.
+    if (!user.password_hash) {
+      res.status(409).json({ error: 'Sua conta já está criada, mas você ainda não definiu uma senha. Toque em "Esqueci minha senha" para criar sua senha e entrar.' });
       return;
     }
 
