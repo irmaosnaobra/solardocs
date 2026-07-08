@@ -172,7 +172,7 @@ function telLegivel(phone: string | null): string {
 
 export default function FunilLimpaproPanel() {
   const [subTab, setSubTab] = useState<SubTab>('funil');
-  const [period, setPeriod] = useState<Period>('7dias');
+  const [period, setPeriod] = useState<Period>('hoje');
   const [data, setData] = useState<FunnelData | null>(null);
   const [leads, setLeads] = useState<LeadsData | null>(null);
   const [conversas, setConversas] = useState<ConversasData | null>(null);

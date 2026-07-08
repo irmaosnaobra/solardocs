@@ -197,7 +197,7 @@ export default function AdminPage() {
 
   const [metaData, setMetaData]           = useState<MetaFunnelData|null>(null);
   const [loadingMeta, setLoadingMeta]     = useState(false);
-  const [visitPeriod, setVisitPeriod]     = useState<'hoje'|'ontem'|'3d'|'7dias'|'mes'|'maximo'>('7dias');
+  const [visitPeriod, setVisitPeriod]     = useState<'hoje'|'ontem'|'3d'|'7dias'|'mes'|'maximo'>('hoje');
   const [metaLoaded, setMetaLoaded]       = useState(false);
 
   const [revenue, setRevenue]             = useState<RevenueData|null>(null);
@@ -295,15 +295,15 @@ export default function AdminPage() {
 
       <div className={styles.tabs}>
         <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>Membros</button>
-        {/* CRM SolarDoc: o CRM é uma página própria e pesada (/crm), então a aba
-            NAVEGA pra ela (funil da plataforma) em vez de embutir. */}
-        <button className={styles.tab} onClick={()=>router.push('/crm?tab=plataforma')}>CRM SolarDoc ↗</button>
+        {/* CRM SolarDoc ocultada — CRM continua acessível direto em /crm?tab=plataforma. */}
+        {/* <button className={styles.tab} onClick={()=>router.push('/crm?tab=plataforma')}>CRM SolarDoc ↗</button> */}
         <button className={tab==='trafego'?styles.tabActive:styles.tab} onClick={()=>setTab('trafego')}>Tráfego Pago</button>
         <button className={tab==='visits'?styles.tabActive:styles.tab} onClick={()=>setTab('visits')}>LP SolarDoc</button>
         {/* Aba Receita / ROAS ocultada — bloco e fetch mantidos abaixo, só removido o botão de navegação. */}
         {/* <button className={tab==='receita'?styles.tabActive:styles.tab} onClick={()=>setTab('receita')}>Receita / ROAS</button> */}
         <button className={tab==='io_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('io_visits')}>LP IO</button>
-        <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>LP Pack</button>
+        {/* LP Pack ocultada — bloco e fetch mantidos abaixo, só removido o botão. */}
+        {/* <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>LP Pack</button> */}
         <button className={tab==='funil_solardoc'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_solardoc')}>Funil SolarDoc</button>
         <button className={tab==='funil_limpapro'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_limpapro')}>Funil LimpaPro</button>
       </div>
