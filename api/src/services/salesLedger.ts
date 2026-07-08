@@ -70,6 +70,30 @@ export async function sendPurchaseForSale(saleId: string): Promise<boolean> {
   const { data: sale } = await supabase.from('sales').select('*').eq('id', saleId).single();
   if (!sale) return false;
 
+  // DEDUP POR PESSOA: se já confirmamos um Purchase pra este email nos últimos 30d
+  // (a mesma pessoa fez checkout mais de uma vez — ex.: 3 tentativas), NÃO dispara
+  // outro Purchase pro Meta (evita inflar/duplicar a venda no anúncio). Marca esta
+  // linha como resolvida (não reenvia) — a pessoa já foi contabilizada 1x.
+  if (sale.email) {
+    const dupCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: dup } = await supabase.from('sales')
+      .select('id')
+      .eq('email', sale.email)
+      .eq('meta_response_ok', true)
+      .neq('id', saleId)
+      .gte('card_passed_at', dupCutoff)
+      .limit(1);
+    if (dup?.length) {
+      await supabase.from('sales').update({
+        meta_response_ok:      true,
+        meta_purchase_sent_at: new Date().toISOString(),
+        meta_event_id:         sale.checkout_session_id,
+        updated_at:            new Date().toISOString(),
+      }).eq('id', saleId);
+      return true;
+    }
+  }
+
   const nome = (sale.nome || '').trim();
   const first = nome.split(/\s+/)[0] || undefined;
   const last  = nome.split(/\s+/).slice(1).join(' ') || undefined;

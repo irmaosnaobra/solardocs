@@ -938,6 +938,11 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
     let nVendas = 0;
     const vendasPorProduto: BillingPayload['vendas_por_produto'] = { PRO: 0, VIP: 0, 'VIP PROMO': 0 };
     const proximas: ProximaCobranca[] = [];
+    // Dedup de VENDA por cliente: a mesma pessoa pode ter várias subs na Stripe
+    // (ex.: tentou o checkout 3x). Conta 1 venda por cliente (email) — número REAL.
+    // proximas_cobrancas NÃO é deduplicado de propósito: se há 3 subs, 3 cobranças
+    // vão cair de verdade (sinal pra cancelar as duplicadas na Stripe).
+    const seenVendaCliente = new Set<string>();
     let subCursor: string | undefined;
     for (let page = 0; page < 20; page++) {
       const subs = await stripe.subscriptions.list({
@@ -955,6 +960,7 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
         const produto = produtoLabel(priceId);
         const cust = s.customer as { email?: string | null; name?: string | null; deleted?: boolean } | string;
         const cliente = typeof cust === 'string' ? null : (cust.name || cust.email || null);
+        const custEmail = typeof cust === 'string' ? null : (cust.email || null);
         // No SDK 22 / API 2025 o current_period_end migrou pro item da assinatura.
         // Fallback no campo legado da sub pra robustez entre versões.
         const periodEnd =
@@ -962,9 +968,14 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
           (s as unknown as { current_period_end?: number }).current_period_end ?? 0;
 
         // Card-pass vivo = VENDA (as 3 fases que preservam o cartão capturado).
+        // Deduplicado por cliente (email) → a mesma pessoa com N subs conta 1 venda.
         if (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due') {
-          nVendas++;
-          vendasPorProduto[produto]++;
+          const dedupKey = (custEmail || cliente || s.id).toLowerCase();
+          if (!seenVendaCliente.has(dedupKey)) {
+            seenVendaCliente.add(dedupKey);
+            nVendas++;
+            vendasPorProduto[produto]++;
+          }
         }
 
         if (s.status === 'active') {
