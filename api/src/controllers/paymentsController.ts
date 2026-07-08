@@ -2,10 +2,10 @@ import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
-import { sendMetaEvent } from '../utils/metaPixel';
 import { sendDunningDay0, sendDunningRecovered } from '../services/dunningService';
 import { sendCheckoutCompletionEmail } from '../utils/mailer';
 import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
+import { upsertSale, sendPurchaseForSale } from '../services/salesLedger';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -412,15 +412,42 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         }
       }
 
-      // value = preço mensal REAL do plano comprado (PRO=27, VIP/ilimitado=67),
-      // lido do PLAN_MAP (mesma fonte do priceId). Antes havia um valorMap solto
-      // com os preços ANTIGOS (47/97) que inflava o "Valor da compra" na Meta e
-      // desalinhava ROAS/CPA. Derivar de planInfo evita defasar de novo.
-      sendMetaEvent('Purchase', {
-        eventId:    session.id,
-        email:      email ?? undefined,
-        customData: { value: valor, currency: 'BRL', content_name: plano.toUpperCase() },
-      });
+      // ═══════════════════ VENDA (fonte única) + PURCHASE ═══════════════════
+      // DURABLE-FIRST: grava a linha da venda no ledger `sales` ANTES de tentar o
+      // Meta. Se a entrega falhar (rede/token/freeze serverless), o cron
+      // reDrivePendingPurchases reenvia (idempotente por event_id = session.id →
+      // Meta faz dedup, não duplica). O Purchase leva email + TELEFONE + external_id
+      // + nome (+ fbc/fbp quando a Fase 4 popular) → correspondência forte; o email
+      // sozinho quase não casava a venda com o anúncio. value = preço REAL do plano
+      // (27/49/67) do PLAN_MAP. Aditivo e à prova de erro: nunca quebra o pagamento.
+      try {
+        const cd = session.customer_details as { name?: string | null; phone?: string | null } | null;
+        const produto = priceId === PLAN_MAP.vip_promo.priceId ? 'VIP PROMO'
+          : priceId === PLAN_MAP.ilimitado.priceId ? 'VIP' : 'PRO';
+        const meta = (session.metadata ?? {}) as Record<string, string | undefined>;
+        const saleId = await upsertSale({
+          checkout_session_id: session.id,
+          subscription_id: (session.subscription as string) ?? null,
+          customer_id: (session.customer as string) ?? null,
+          email: email ?? null,
+          nome: cd?.name ?? null,
+          phone: cd?.phone ? String(cd.phone).replace(/\D/g, '') : null,
+          plano, produto, valor,
+          status: 'trialing',
+          utm_source: meta.utm_source ?? null,
+          utm_medium: meta.utm_medium ?? null,
+          utm_campaign: meta.utm_campaign ?? null,
+          utm_content: meta.utm_content ?? null,
+          utm_term: meta.utm_term ?? null,
+          attribution_session_id: meta.lp_session ?? null,
+          fbc: meta.fbc ?? null,   // Fase 4 (LP) passa a popular
+          fbp: meta.fbp ?? null,
+          card_passed_at: new Date().toISOString(),
+        });
+        if (saleId) await sendPurchaseForSale(saleId);
+      } catch (err) {
+        console.error('ledger/Purchase falhou (pagamento intacto):', err);
+      }
     }
   }
 

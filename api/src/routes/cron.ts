@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder, runCheckoutAbandonRecovery, recoverOrphanCheckouts, runUpgradeNudge } from '../services/followupService';
+import { reDrivePendingPurchases } from '../services/salesLedger';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup, dispararOpenerTesteParaUser } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
@@ -571,6 +572,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['lembretes-agenda',            () => processarLembretesAgenda()], // backstop diário: garante confirmações que escaparam do gatilho de 15min
     ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)
+    ['meta-purchase-redrive',       () => reDrivePendingPurchases()], // reenvia Purchase que não confirmou entrega (garante Meta = card-pass)
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
     ['pix-vip-reminder',            () => runPixVipReminder()],     // avisa VIP-pix (84994501564) ~2d antes de vencer: valor + chave Pix
     ['monitor-criativos',           () => runMonitorCriativos()],   // alerta WhatsApp: criativos Meta gastando sem vender / CTR baixa

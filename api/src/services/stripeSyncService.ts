@@ -144,6 +144,18 @@ export async function syncStripePlans(): Promise<{
     const realLimite = stripeTruth?.limite ?? FREE_LIMIT;
     const realStatus = stripeTruth?.status ?? null;
 
+    // Reconcilia o LEDGER de vendas (sales) com a Stripe — mesma verdade que
+    // reconcilia users.plano. Mantém sales.status coerente (trialing→active→
+    // canceled) por email, pra o ledger nunca divergir do Stripe. .neq evita
+    // escrita quando já está igual (a maioria é no-op). Best-effort.
+    const salesStatus = realStatus ?? 'canceled';
+    await supabase
+      .from('sales')
+      .update({ status: salesStatus, updated_at: new Date().toISOString() })
+      .eq('email', u.email.toLowerCase())
+      .neq('status', salesStatus)
+      .then(() => {}, () => {});
+
     // ── Reconcilia billing_status com Stripe (backstop pro webhook) ──
     // Mapeia status real do Stripe → billing_status que queremos no Supabase.
     // active (cobrado, fora de trial) → 'active' (assinante verde)
