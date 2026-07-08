@@ -419,10 +419,26 @@ export default function MembrosPanel() {
                   return (
                     <tr key={u.id}>
                       <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                           <span style={{ fontWeight: 600 }}>
                             {u.email}{u.is_admin && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: 'var(--color-text-muted)' }}>ADMIN</span>}
                           </span>
+                          {(() => {
+                            const n = u.conversa?.mensagens?.length ?? 0;
+                            return (
+                              <button
+                                onClick={() => setConvAberta(u)}
+                                title="Ver o histórico completo da conversa no WhatsApp"
+                                style={{
+                                  alignSelf: 'flex-start', fontSize: 11, fontWeight: 700,
+                                  color: n > 0 ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                                  textDecoration: 'underline', fontFamily: 'inherit',
+                                }}>
+                                Ver conversa{n > 0 ? ` (${n})` : ''}
+                              </button>
+                            );
+                          })()}
                         </div>
                       </td>
                       <td className={styles.mutedCell}>
@@ -478,15 +494,9 @@ export default function MembrosPanel() {
                                 </span>
                               )}
                               {temConversa && (
-                                <button
-                                  onClick={() => setConvAberta(u)}
-                                  style={{
-                                    fontSize: 11, fontWeight: 700, color: 'var(--color-primary)',
-                                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                                    textDecoration: 'underline', fontFamily: 'inherit',
-                                  }}>
-                                  Ver conversa ({u.conversa!.mensagens.length})
-                                </button>
+                                <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                                  Conversa: {u.conversa!.mensagens.length} msg
+                                </span>
                               )}
                             </div>
                           );
@@ -527,7 +537,7 @@ export default function MembrosPanel() {
       )}
 
       {/* Modal: conversa real trocada no WhatsApp com o membro */}
-      {convAberta && convAberta.conversa && (
+      {convAberta && (
         <div
           onClick={() => setConvAberta(null)}
           style={{
@@ -546,7 +556,9 @@ export default function MembrosPanel() {
                   Conversa · {convAberta.empresa_nome || convAberta.email}
                 </span>
                 <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                  {convAberta.conversa.mensagens.length} mensagens · última {fmtDateBR(convAberta.conversa.atualizada_em)}
+                  {convAberta.conversa
+                    ? `${convAberta.conversa.mensagens.length} mensagens · última ${fmtDateBR(convAberta.conversa.atualizada_em)}`
+                    : 'Nenhuma conversa registrada ainda'}
                 </span>
               </div>
               <button
@@ -555,7 +567,7 @@ export default function MembrosPanel() {
                 aria-label="Fechar">×</button>
             </div>
             <div style={{ padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {convAberta.conversa.mensagens.map((m, i) => {
+              {convAberta.conversa ? convAberta.conversa.mensagens.map((m, i) => {
                 const isAgente = m.role === 'assistant'; // assistant = nós (Carla/agente)
                 return (
                   <div key={i} style={{ display: 'flex', justifyContent: isAgente ? 'flex-end' : 'flex-start' }}>
@@ -575,7 +587,12 @@ export default function MembrosPanel() {
                     </div>
                   </div>
                 );
-              })}
+              }) : (
+                <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--color-text-muted)', fontSize: 13, lineHeight: 1.7 }}>
+                  Este cliente ainda não trocou nenhuma mensagem no WhatsApp.<br />
+                  Assim que ele conversar com a Giovanna (34998165040), o histórico completo aparece aqui.
+                </div>
+              )}
             </div>
           </div>
         </div>
