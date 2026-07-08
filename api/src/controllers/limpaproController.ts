@@ -390,6 +390,136 @@ export async function getLimpaproConversas(_req: Request, res: Response): Promis
   }
 }
 
+// ── 6) Membros LimpaPro (base da Área de Membros) — GET /admin/membros-limpapro ──
+// Quem comprou o curso e tem acesso à área de membros (limpapro.solardoc.app/membros).
+// Junta limpapro_membros (conta + acesso) com limpapro_entitlements (o que cada um
+// tem direito) e o progresso salvo. Foco em "como o público age":
+//  • Attach rate — de cada comprador, quantos levaram cada extra (o número de VERDADE hoje).
+//  • Ativação — quem já criou senha / entrou no app × quem ainda nem sabe que ele existe
+//    (essa lista, com link de WhatsApp, é o alvo do "avisar os clientes").
+//  • Engajamento — aulas concluídas / terminou o principal (enche com o tempo).
+// Tabelas admin-only, sem PostgREST público: rota já é admin-gated (auth + admin).
+// PII (nome/telefone) só trafega nesta rota fechada. senha_hash NUNCA sai — vira booleano.
+
+// Rótulos amigáveis dos itens (slug técnico → nome que o Thiago reconhece).
+const LIMPAPRO_ITENS: { slug: string; label: string; tipo: 'curso' | 'extra' | 'grupo' | 'mentoria' }[] = [
+  { slug: 'curso-principal', label: 'Curso Principal',     tipo: 'curso' },
+  { slug: 'usina',           label: 'Telhados & Usinas',   tipo: 'extra' },
+  { slug: 'kit-captacao',    label: 'Kit de Captação',     tipo: 'extra' },
+  { slug: 'fidelidade',      label: 'Contrato Recorrente', tipo: 'extra' },
+  { slug: 'comunidade',      label: 'Comunidade +Sol',     tipo: 'grupo' },
+  { slug: 'formacao',        label: 'Mentoria',            tipo: 'mentoria' },
+];
+const LIMPAPRO_LABEL: Record<string, string> = Object.fromEntries(LIMPAPRO_ITENS.map(i => [i.slug, i.label]));
+// Slugs dos módulos do curso principal (chave de progresso = "<slug>#<indice>").
+// Terminou o principal = concluiu a única aula (índice 0) de cada um dos 6 módulos.
+const LIMPAPRO_MODULOS_PRINCIPAIS = ['m01', 'm02', 'm03', 'm04', 'm05', 'b00'];
+
+interface MembroRow {
+  email: string; nome: string | null; telefone: string | null;
+  ativo: boolean | null; progresso: Record<string, boolean> | null;
+  criado_em: string | null; ultimo_acesso_em: string | null; senha_hash: string | null;
+}
+interface EntRow { email: string; item: string; ativo: boolean | null; }
+
+export async function getLimpaproMembros(_req: Request, res: Response): Promise<void> {
+  try {
+    // Base pequena (dezenas) → bem abaixo do teto de 1000 do PostgREST. Duas queries
+    // em paralelo; junta por e-mail (minúsculo) em memória.
+    const [membrosRes, entsRes] = await Promise.all([
+      supabase.from('limpapro_membros')
+        .select('email, nome, telefone, ativo, progresso, criado_em, ultimo_acesso_em, senha_hash')
+        .order('criado_em', { ascending: false }),
+      supabase.from('limpapro_entitlements')
+        .select('email, item, ativo')
+        .eq('ativo', true),
+    ]);
+    if (membrosRes.error) throw membrosRes.error;
+    if (entsRes.error) throw entsRes.error;
+
+    const membros = (membrosRes.data ?? []) as MembroRow[];
+    const ents = (entsRes.data ?? []) as EntRow[];
+
+    // e-mail → itens que a pessoa tem direito.
+    const itensPorEmail = new Map<string, Set<string>>();
+    for (const e of ents) {
+      const key = (e.email || '').toLowerCase().trim();
+      if (!key || !e.item) continue;
+      (itensPorEmail.get(key) ?? itensPorEmail.set(key, new Set()).get(key)!).add(e.item);
+    }
+
+    const soDigitos = (t: string | null) => (t ? t.replace(/\D/g, '') : '');
+
+    const linhas = membros.map(m => {
+      const email = (m.email || '').toLowerCase().trim();
+      const itens = itensPorEmail.get(email) ?? new Set<string>();
+      // Ordena os itens na ordem canônica (curso primeiro, extras, grupo, mentoria).
+      const itensOrdenados = LIMPAPRO_ITENS.filter(i => itens.has(i.slug)).map(i => i.slug);
+      const extras = itensOrdenados.filter(s => s !== 'curso-principal');
+
+      const prog = (m.progresso && typeof m.progresso === 'object') ? m.progresso : {};
+      const aulasConcluidas = Object.values(prog).filter(Boolean).length;
+      const completouPrincipal = LIMPAPRO_MODULOS_PRINCIPAIS.every(s => !!prog[`${s}#0`]);
+
+      const ativou = !!m.senha_hash;                 // criou senha = configurou a conta
+      const acessou = !!m.ultimo_acesso_em;          // já entrou pelo menos uma vez
+      // Estágio de ativação: já usou > criou senha > nunca acessou (alvo de aviso).
+      const status: 'acessou' | 'ativou' | 'nao_acessou' =
+        acessou ? 'acessou' : ativou ? 'ativou' : 'nao_acessou';
+
+      const tel = soDigitos(m.telefone);
+      const telE164 = tel ? (tel.startsWith('55') ? tel : `55${tel}`) : '';
+
+      return {
+        email,
+        nome: m.nome || null,
+        telefone: tel || null,
+        whatsapp_url: telE164 ? `https://wa.me/${telE164}` : null,
+        ativo: m.ativo !== false,
+        itens: itensOrdenados,                        // slugs
+        produtos: itensOrdenados.map(s => LIMPAPRO_LABEL[s] ?? s),
+        n_extras: extras.length,
+        ativou,
+        acessou,
+        status,
+        aulas_concluidas: aulasConcluidas,
+        completou_principal: completouPrincipal,
+        criado_em: m.criado_em,
+        ultimo_acesso_em: m.ultimo_acesso_em,
+      };
+    });
+
+    // Attach rate: quantos compradores possuem cada item (base = total de membros).
+    const totalMembros = linhas.length;
+    const produtos = LIMPAPRO_ITENS.map(i => {
+      const donos = linhas.filter(l => l.itens.includes(i.slug)).length;
+      return {
+        slug: i.slug,
+        label: i.label,
+        tipo: i.tipo,
+        donos,
+        pct: totalMembros > 0 ? Math.round((donos / totalMembros) * 100) : 0,
+      };
+    });
+
+    const kpis = {
+      total: totalMembros,
+      ativos: linhas.filter(l => l.ativo).length,
+      ativaram: linhas.filter(l => l.ativou).length,          // criaram senha
+      acessaram: linhas.filter(l => l.acessou).length,        // já entraram
+      nunca_acessaram: linhas.filter(l => !l.acessou).length, // alvo de aviso
+      com_whatsapp: linhas.filter(l => l.whatsapp_url).length,
+      completaram_principal: linhas.filter(l => l.completou_principal).length,
+      total_extras_vendidos: linhas.reduce((s, l) => s + l.n_extras, 0),
+    };
+
+    res.json({ gerado_em: new Date().toISOString(), kpis, produtos, membros: linhas });
+  } catch (err) {
+    console.error('getLimpaproMembros error:', err);
+    res.status(500).json({ error: 'Erro ao carregar membros LimpaPro' });
+  }
+}
+
 // A Kiwify envia montantes já em centavos como inteiro (1200 = R$ 12,00).
 // Só normalizamos pra número inteiro — sem multiplicar por 100.
 function asCents(v: unknown): number | null {

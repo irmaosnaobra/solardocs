@@ -7,6 +7,7 @@ import styles from './admin.module.css';
 import FunilSolarDocPanel from './_components/FunilSolarDocPanel';
 import FunilLimpaproPanel from './_components/FunilLimpaproPanel';
 import MembrosPanel from './_components/MembrosPanel';
+import MembrosLimpaproPanel from './_components/MembrosLimpaproPanel';
 import TrafegoPanel from './_components/TrafegoPanel';
 
 /* ─── tipos ─────────────────────────────────────────────────── */
@@ -189,7 +190,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'|'membros'|'trafego'>('membros');
+  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'|'membros'|'membros_limpapro'|'trafego'>('membros');
 
   const [analytics, setAnalytics]               = useState<Analytics|null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -284,7 +285,7 @@ export default function AdminPage() {
           )}
           {/* Funis e Membros têm seu próprio botão Atualizar e não usam o período
               compartilhado (analytics/meta) — o refresh global não vale ali. */}
-          {tab!=='funil_solardoc' && tab!=='funil_limpapro' && tab!=='membros' && (
+          {tab!=='funil_solardoc' && tab!=='funil_limpapro' && tab!=='membros' && tab!=='membros_limpapro' && (
             <button className="btn-secondary" disabled={loadingAnalytics||loadingMeta}
               onClick={()=>{setAnalyticsLoaded(false);setMetaLoaded(false);loadAnalytics();loadMeta();}}>
               {(loadingAnalytics||loadingMeta)?'Atualizando...':'Atualizar'}
@@ -294,7 +295,8 @@ export default function AdminPage() {
       </div>
 
       <div className={styles.tabs}>
-        <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>Membros</button>
+        <button className={tab==='membros'?styles.tabActive:styles.tab} onClick={()=>setTab('membros')}>Membros SolarDoc</button>
+        <button className={tab==='membros_limpapro'?styles.tabActive:styles.tab} onClick={()=>setTab('membros_limpapro')}>Membros LimpaPro</button>
         {/* CRM SolarDoc ocultada — CRM continua acessível direto em /crm?tab=plataforma. */}
         {/* <button className={styles.tab} onClick={()=>router.push('/crm?tab=plataforma')}>CRM SolarDoc ↗</button> */}
         <button className={tab==='trafego'?styles.tabActive:styles.tab} onClick={()=>setTab('trafego')}>Tráfego Pago</button>
@@ -996,6 +998,7 @@ export default function AdminPage() {
 
       {/* ═══ ABA MEMBROS (base de usuários da plataforma) ═══════════ */}
       {tab === 'membros' && <MembrosPanel />}
+      {tab === 'membros_limpapro' && <MembrosLimpaproPanel />}
       {tab === 'trafego' && <TrafegoPanel />}
 
       {/* ═══ ABA FUNIL SOLARDOC ═════════════════════════════════ */}

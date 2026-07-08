@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
 import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel, getRevenue, getBilling } from '../controllers/adminController';
-import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas } from '../controllers/limpaproController';
+import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas, getLimpaproMembros } from '../controllers/limpaproController';
 import { supabase } from '../utils/supabase';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 
@@ -75,6 +75,7 @@ router.get('/funnel',         getFunnel);
 router.get('/funnel-limpapro', getLimpaproFunnel);
 router.get('/leads-limpapro',  getLimpaproLeads);
 router.get('/conversas-limpapro', getLimpaproConversas);
+router.get('/membros-limpapro', getLimpaproMembros);
 router.get('/revenue',        getRevenue);
 router.get('/billing',        getBilling);
 
