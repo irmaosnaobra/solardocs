@@ -16,6 +16,35 @@ const SK_SESSION = 'sd_lp_session';
 const SK_VISIT_SENT = 'sd_lp_visit_sent';
 const SK_SCROLL_REACHED = 'sd_lp_scroll_max';
 const SK_UTMS = 'sd_lp_utms';   // UTMs persistidos no 1º acesso (sobrevivem à navegação interna)
+const SK_FBC = 'sd_lp_fbc';     // _fbc (clique do anúncio) persistido
+const SK_FBP = 'sd_lp_fbp';     // _fbp (browser) persistido
+
+function getCookie(name: string): string {
+  if (typeof document === 'undefined') return '';
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+// Identificadores de clique do Meta (fbc/fbp) — é o que faz a venda CASAR com o
+// anúncio no Ads Manager. _fbp é o cookie do browser (setado pelo pixel); _fbc
+// vem do clique (parâmetro fbclid). Se o pixel ainda não gravou _fbc mas a URL
+// tem fbclid, montamos o _fbc no formato do Meta: fb.1.<timestamp>.<fbclid>.
+// Persistidos em sessionStorage pra sobreviver à navegação interna (igual UTMs).
+function extractMetaClickIds(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const out: Record<string, string> = {};
+  try {
+    let fbc = getCookie('_fbc');
+    const fbp = getCookie('_fbp');
+    const fbclid = new URLSearchParams(window.location.search).get('fbclid');
+    if (!fbc && fbclid) fbc = `fb.1.${Date.now()}.${fbclid}`;
+    if (fbc) { out.fbc = fbc; sessionStorage.setItem(SK_FBC, fbc); }
+    else { const s = sessionStorage.getItem(SK_FBC); if (s) out.fbc = s; }
+    if (fbp) { out.fbp = fbp; sessionStorage.setItem(SK_FBP, fbp); }
+    else { const s = sessionStorage.getItem(SK_FBP); if (s) out.fbp = s; }
+  } catch { /* sessionStorage/cookie indisponível — segue sem */ }
+  return out;
+}
 
 function uuid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -69,7 +98,7 @@ export function getCheckoutAttribution(): Record<string, string> {
     const sid = sessionStorage.getItem(SK_SESSION);
     if (sid) out.lp_session = sid;
   } catch {}
-  Object.assign(out, extractUtms());
+  Object.assign(out, extractUtms(), extractMetaClickIds());
   return out;
 }
 

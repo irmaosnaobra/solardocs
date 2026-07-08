@@ -54,7 +54,10 @@ function planByPrice(priceId: string) {
 
 // Campos de atribuição que viajam da LP → Stripe metadata → users.
 // lp_session = sd_lp_session (session_id da landing, casa com page_visits).
-const ATTRIBUTION_KEYS = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','lp_session'] as const;
+// fbc/fbp = identificadores de clique do Meta (o que casa a venda com o anúncio).
+// Viajam LP → Stripe metadata → webhook → user_data do Purchase (CAPI), pelo mesmo
+// caminho dos UTMs. Sem eles a atribuição ao anúncio quase não acontecia.
+const ATTRIBUTION_KEYS = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','lp_session','fbc','fbp'] as const;
 
 // Extrai só os campos de atribuição PRESENTES do body, como strings (Stripe
 // exige string e limita 500 chars/valor). Campos ausentes não entram → o
