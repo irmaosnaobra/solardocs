@@ -57,6 +57,14 @@ const initialFields = {
   qtd_inversores: '1',
   marca_inversor: '',
   potencia_inversor: '',
+  // Bateria (opcional) — só aparece na proposta se a marca estiver preenchida.
+  // Padrão render-if-filled, mesmo idioma das garantias extras (nada é persistido
+  // como "tem bateria": deriva de marca preenchida → propostas antigas intactas).
+  bateria_marca: '',
+  bateria_capacidade_kwh: '',
+  bateria_potencia_kw: '',
+  bateria_ciclos: '',
+  bateria_garantia_anos: '',
   tipo_telhado: '' as '' | typeof TIPOS_TELHADO[number],
   // Geração média mensal (kWh). Pré-preenchida com estimativa (kWp × HSP × 365 × 0.80 / 12)
   // quando o consultor preenche kWp + UF. Editável — o que vier daqui vale, e o
@@ -256,6 +264,7 @@ export default function PropostaSolarPage() {
   // digitadas, pra autocompletar via <datalist> (não redigitar toda proposta).
   const MARCAS_MOD_KEY = 'proposta-marcas-modulo';
   const MARCAS_INV_KEY = 'proposta-marcas-inversor';
+  const MARCAS_BAT_KEY = 'proposta-marcas-bateria';
   function lerMarcas(key: string): string[] {
     try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
   }
@@ -269,7 +278,8 @@ export default function PropostaSolarPage() {
   }
   const [marcasMod, setMarcasMod] = useState<string[]>([]);
   const [marcasInv, setMarcasInv] = useState<string[]>([]);
-  useEffect(() => { setMarcasMod(lerMarcas(MARCAS_MOD_KEY)); setMarcasInv(lerMarcas(MARCAS_INV_KEY)); }, []);
+  const [marcasBat, setMarcasBat] = useState<string[]>([]);
+  useEffect(() => { setMarcasMod(lerMarcas(MARCAS_MOD_KEY)); setMarcasInv(lerMarcas(MARCAS_INV_KEY)); setMarcasBat(lerMarcas(MARCAS_BAT_KEY)); }, []);
 
   // kWp deriva de qtd_modulos × potencia_modulo (verdade técnica: 10×620W = 6,2 kWp)
   const kwpCalc = (() => {
@@ -356,6 +366,9 @@ export default function PropostaSolarPage() {
       // específicos do cliente/venda — zerados:
       consumo_kwh: '', qtd_modulos: '', potencia_modulo: '',
       qtd_inversores: initialFields.qtd_inversores, potencia_inversor: '',
+      // bateria: capacidade/potência/ciclos são específicos da venda; marca e
+      // garantia ficam (template do integrador, igual marca_inversor).
+      bateria_capacidade_kwh: '', bateria_potencia_kw: '', bateria_ciclos: '',
       geracao_media_kwh: '', investimento: '', preco_avista: '',
       foto_telhado_b64: '', tipo_telhado: '',
       // marca/garantias/pagamento ficam como estão (template do integrador).
@@ -405,8 +418,10 @@ export default function PropostaSolarPage() {
       limparRascunho();
       salvarMarca(MARCAS_MOD_KEY, fields.marca_modulo);
       salvarMarca(MARCAS_INV_KEY, fields.marca_inversor);
+      salvarMarca(MARCAS_BAT_KEY, fields.bateria_marca);
       setMarcasMod(lerMarcas(MARCAS_MOD_KEY));
       setMarcasInv(lerMarcas(MARCAS_INV_KEY));
+      setMarcasBat(lerMarcas(MARCAS_BAT_KEY));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       setError(error.response?.data?.error || 'Erro ao gerar proposta');
@@ -760,6 +775,36 @@ export default function PropostaSolarPage() {
               <input type="text" inputMode="decimal" value={fields.potencia_inversor} onChange={e => setField('potencia_inversor', e.target.value)} placeholder="Ex: 1,875 ou 5" className="input-field" required />
             </div>
           </div>
+
+          {/* BATERIA (opcional) — render-if-filled: só aparece na proposta se a marca
+              estiver preenchida. Nada é persistido como "tem bateria". */}
+          <p style={{ fontSize: 11.5, color: 'var(--color-text-muted)', margin: '18px 0 6px' }}>
+            Bateria (opcional) — só aparece na proposta se preencher a marca. Sistemas sem bateria ficam intactos.
+          </p>
+          <div className={styles.grid2}>
+            <div className={styles.field}>
+              <label className={styles.label}>Marca da bateria</label>
+              <input type="text" list="marcas-bateria" value={fields.bateria_marca} onChange={e => setField('bateria_marca', e.target.value)} placeholder="Ex: BYD, Pylontech, Foxess" className="input-field" />
+              <datalist id="marcas-bateria">{marcasBat.map(m => <option key={m} value={m} />)}</datalist>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Capacidade (kWh)</label>
+              <input type="text" inputMode="decimal" value={fields.bateria_capacidade_kwh} onChange={e => setField('bateria_capacidade_kwh', e.target.value)} placeholder="Ex: 5 ou 10,24" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Potência (kW)</label>
+              <input type="text" inputMode="decimal" value={fields.bateria_potencia_kw} onChange={e => setField('bateria_potencia_kw', e.target.value)} placeholder="Ex: 5" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Ciclos de vida</label>
+              <input type="text" inputMode="numeric" value={fields.bateria_ciclos} onChange={e => setField('bateria_ciclos', e.target.value)} placeholder="Ex: 6000" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Garantia da bateria (anos)</label>
+              <input type="text" inputMode="numeric" value={fields.bateria_garantia_anos} onChange={e => setField('bateria_garantia_anos', e.target.value)} placeholder="Ex: 10" className="input-field" />
+            </div>
+          </div>
+
           <div style={{ marginTop: 16 }}>
             <label className={styles.label}>Tipo de instalação</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>

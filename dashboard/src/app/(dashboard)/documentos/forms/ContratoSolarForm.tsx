@@ -31,6 +31,14 @@ const initialFields = {
   garantia_instalacao_anos: '',
   garantia_instalacao_unidade: 'anos', // 'anos' | 'meses' — mão de obra às vezes é 6 meses
   foro_cidade: '',
+  // Bateria (opcional) — mesmos campos da proposta, mesmo helper no backend.
+  // Render-if-filled: só aparece no contrato se a marca vier preenchida.
+  // NÃO são required — contratos sem bateria seguem intactos.
+  bateria_marca: '',
+  bateria_capacidade_kwh: '',
+  bateria_potencia_kw: '',
+  bateria_ciclos: '',
+  bateria_garantia_anos: '',
 };
 
 export default function ContratoSolarPage() {
@@ -135,6 +143,35 @@ export default function ContratoSolarPage() {
               <input type="text" value={fields.valor_total} onChange={e => setFields({...fields, valor_total: e.target.value})} placeholder="Ex: 27400,00 (vírgula = decimal)" className="input-field" required />
             </div>
           </div>
+
+          {/* BATERIA (opcional) — render-if-filled: só entra no contrato se a marca
+              estiver preenchida. Campos NÃO são required. */}
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '14px 0 8px' }}>
+            Bateria (opcional) — só aparece no contrato se preencher a marca. Sem bateria, o contrato sai como antes.
+          </p>
+          <div className={styles.grid3}>
+            <div className={styles.field}>
+              <label className={styles.label}>Marca da bateria</label>
+              <input type="text" value={fields.bateria_marca} onChange={e => setFields({...fields, bateria_marca: e.target.value})} placeholder="Ex: BYD, Pylontech" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Capacidade (kWh)</label>
+              <input type="text" value={fields.bateria_capacidade_kwh} onChange={e => setFields({...fields, bateria_capacidade_kwh: e.target.value})} placeholder="Ex: 10,24" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Potência (kW)</label>
+              <input type="text" value={fields.bateria_potencia_kw} onChange={e => setFields({...fields, bateria_potencia_kw: e.target.value})} placeholder="Ex: 5" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Ciclos de vida</label>
+              <input type="text" value={fields.bateria_ciclos} onChange={e => setFields({...fields, bateria_ciclos: e.target.value})} placeholder="Ex: 6000" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Garantia (anos)</label>
+              <input type="text" value={fields.bateria_garantia_anos} onChange={e => setFields({...fields, bateria_garantia_anos: e.target.value})} placeholder="Ex: 10" className="input-field" />
+            </div>
+          </div>
+
           <div className={styles.fieldFull}>
             <label className={styles.label}>Condições de Pagamento *</label>
             <textarea

@@ -98,6 +98,7 @@ function contratoSolarM1(
   const foro = company.cidade || str(f.foro_cidade) || str(client.cidade) || '___';
   const cidade = foro;
   const endInst = str(f.endereco_instalacao) !== '___' ? str(f.endereco_instalacao) : (client.endereco || '___');
+  const bat = parseBateria(f); // opcional — só entra no contrato se a marca vier preenchida
 
   const isPJClient = (client as { tipo?: string }).tipo === 'PJ';
   const endInstCompleto = enderecoCompleto(endInst, client.bairro, client.cidade, client.uf);
@@ -126,7 +127,8 @@ Especificações do sistema contratado:
 
    Potência instalada:    ${str(f.potencia_kwp)} kWp
    Módulos:               ${str(f.quantidade_modulos)} unidade(s) — ${str(f.marca_modulos)}
-   Inversores:            ${str(f.quantidade_inversores)} unidade(s) — ${str(f.tipo_inversor)} / ${str(f.marca_inversor)}
+   Inversores:            ${str(f.quantidade_inversores)} unidade(s) — ${str(f.tipo_inversor)} / ${str(f.marca_inversor)}${bat.tem ? `
+   Bateria:               ${bat.marca}${bat.specParts.length ? ' — ' + bat.specParts.join(' · ') : ''}` : ''}
    Local de instalação:   ${endInstCompleto}
 
 O escopo completo da CONTRATADA inclui: levantamento técnico no local, elaboração do projeto elétrico, aquisição e transporte dos equipamentos, instalação dos módulos, inversores e demais componentes, realização dos testes de funcionamento (comissionamento) e encaminhamento do pedido de conexão à concessionária de energia.
@@ -194,7 +196,9 @@ a) Módulos fotovoltaicos: ${str(f.garantia_modulos_anos)} (${numExtenso(f.garan
 
 b) Inversor: ${str(f.garantia_inversor_anos)} (${numExtenso(f.garantia_inversor_anos)}) anos de garantia do fabricante, incluindo cobertura contra defeitos de funcionamento e falhas de componentes eletrônicos;
 
-c) Serviços de instalação: ${garantiaInstalacaoExtenso(f)} de garantia sobre a execução dos serviços realizados pela CONTRATADA, cobrindo exclusivamente defeitos provenientes da instalação, como infiltrações causadas pela fixação, falhas em conexões elétricas ou problemas estruturais gerados durante a obra.
+c) Serviços de instalação: ${garantiaInstalacaoExtenso(f)} de garantia sobre a execução dos serviços realizados pela CONTRATADA, cobrindo exclusivamente defeitos provenientes da instalação, como infiltrações causadas pela fixação, falhas em conexões elétricas ou problemas estruturais gerados durante a obra.${bat.tem && bat.garantia > 0 ? `
+
+d) Bateria: ${bat.garantia} (${numExtenso(bat.garantia)}) ${bat.garantia === 1 ? 'ano' : 'anos'} de garantia do fabricante, cobrindo defeitos de funcionamento e perda de capacidade fora dos parâmetros técnicos informados em manual.` : ''}
 
 Vale destacar que as garantias dos equipamentos são administradas diretamente pelos respectivos fabricantes. Nos casos em que for necessário acionar a garantia de um equipamento, a CONTRATADA prestará suporte ao CONTRATANTE no processo de acionamento junto ao fabricante, facilitando os trâmites necessários.
 
@@ -333,6 +337,7 @@ function contratoSolarM2(
   const foro = company.cidade || str(f.foro_cidade) || str(client.cidade) || '___';
   const cidade = foro;
   const endInst = str(f.endereco_instalacao) !== '___' ? str(f.endereco_instalacao) : (client.endereco || '___');
+  const bat = parseBateria(f); // opcional — só entra no contrato se a marca vier preenchida
 
   const isPJClient = (client as { tipo?: string }).tipo === 'PJ';
   const endInstCompleto = enderecoCompleto(endInst, client.bairro, client.cidade, client.uf);
@@ -353,7 +358,7 @@ e ${clienteIdent}, doravante denominado CLIENTE, tem-se ajustado o presente CONT
 
 A CONTRATADA se compromete a instalar uma usina fotovoltaica com capacidade operacional de ${str(f.potencia_kwp)} kWp, fornecendo materiais, equipamentos e executando o comissionamento.
 
-Os componentes principais incluem ${str(f.quantidade_modulos)} módulos de ${str(f.marca_modulos)}, ${str(f.quantidade_inversores)} inversor ${str(f.tipo_inversor)} ${str(f.marca_inversor)}, cabos e conectores. Todas as especificações técnicas seguirão as normas e resoluções aplicáveis da Agência Nacional de Energia Elétrica (ANEEL).
+Os componentes principais incluem ${str(f.quantidade_modulos)} módulos de ${str(f.marca_modulos)}, ${str(f.quantidade_inversores)} inversor ${str(f.tipo_inversor)} ${str(f.marca_inversor)}${bat.tem ? `, sistema de armazenamento por bateria ${bat.marca}${bat.specParts.length ? ' (' + bat.specParts.join(' · ') + ')' : ''}` : ''}, cabos e conectores. Todas as especificações técnicas seguirão as normas e resoluções aplicáveis da Agência Nacional de Energia Elétrica (ANEEL).
 
 Local de instalação: ${endInstCompleto}
 
@@ -379,7 +384,7 @@ ${str(f.condicoes_pagamento)}
 
 4. GARANTIAS E MANUTENÇÃO
 
-Equipamentos: As garantias dos equipamentos são exclusivamente do fabricante, cobrindo ${str(f.garantia_modulos_anos)} (${numExtenso(f.garantia_modulos_anos)}) anos para módulos fotovoltaicos, ${str(f.garantia_inversor_anos)} (${numExtenso(f.garantia_inversor_anos)}) anos para o inversor, e prazos específicos para demais componentes conforme manual do fabricante.
+Equipamentos: As garantias dos equipamentos são exclusivamente do fabricante, cobrindo ${str(f.garantia_modulos_anos)} (${numExtenso(f.garantia_modulos_anos)}) anos para módulos fotovoltaicos, ${str(f.garantia_inversor_anos)} (${numExtenso(f.garantia_inversor_anos)}) anos para o inversor, ${bat.tem && bat.garantia > 0 ? `${bat.garantia} (${numExtenso(bat.garantia)}) ${bat.garantia === 1 ? 'ano' : 'anos'} para a bateria, ` : ''}e prazos específicos para demais componentes conforme manual do fabricante.
 
 Instalação: A garantia de instalação é de ${garantiaInstalacaoExtenso(f)}, válida somente para defeitos de instalação devidamente constatados por laudo técnico.
 
@@ -1760,6 +1765,12 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const marcaInversor = String(f.marca_inversor || '');
   // Aceita vírgula (1,875) ou ponto (1.875) — vendedor digita em pt-BR
   const potenciaInversor = parseFloat(String(f.potencia_inversor || '0').replace(',', '.')) || 0;
+  // Bateria (opcional) — parse compartilhado (mesmo helper dos contratos).
+  const bat = parseBateria(f);
+  const temBateria = bat.tem;
+  const bateriaMarca = bat.marca;
+  const bateriaGarantia = bat.garantia;
+  const bateriaSpecParts = bat.specParts;
   const investimento = parseBRL(f.investimento);
   const precoAvistaInput = parseBRL(f.preco_avista);
   const precoAvista = precoAvistaInput > 0 && precoAvistaInput < investimento ? precoAvistaInput : 0;
@@ -1928,6 +1939,10 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     const sysL: string[] = [];
     if (sistemaItens) sysL.push(`* ${sistemaItens}`);
     if (kwp > 0) sysL.push(`* ${pKwp(kwp)} kWp${mediaMensalGerada > 0 ? ` · gera ~${pNum(mediaMensalGerada)} kWh/mês` : ''}`);
+    if (temBateria) {
+      const batParte = [bateriaMarca, ...bateriaSpecParts].filter(Boolean).join(' · ');
+      if (batParte) sysL.push(`* Bateria: ${batParte}`);
+    }
     if (sysL.length) L.push('🔋 SISTEMA', ...sysL, '');
 
     if (economiaMensal > 0) L.push(`💰 Economia: ~${pBRL(economiaMensal)}/mês na conta de luz`);
@@ -1938,6 +1953,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
       `* Inversor: ${garInversor} anos`,
       `* Estrutura: ${garEstrutura} anos`,
       `* Instalação: ${garInstalacao} ${garInstalacao === 1 ? 'ano' : 'anos'}`,
+      ...(temBateria && bateriaGarantia > 0 ? [`* Bateria: ${bateriaGarantia} ${bateriaGarantia === 1 ? 'ano' : 'anos'}`] : []),
       ...garExtras.map(g => `* ${g.nome}: ${g.anos} ${g.anos === 1 ? 'ano' : 'anos'}`),
       '');
 
@@ -2407,6 +2423,10 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
         <div class="spec-label">Inversor</div>
         <div class="spec-value">${qtdInversores}× ${pEsc(marcaInversor) || '—'}${potenciaInversor > 0 ? ' ' + potenciaInversor.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) + ' kW' : ''}</div>
       </div>
+      ${temBateria ? `<div class="spec">
+        <div class="spec-label">Bateria</div>
+        <div class="spec-value">${pEsc(bateriaMarca)}${bateriaSpecParts.length ? ' — ' + bateriaSpecParts.join(' · ') : ''}</div>
+      </div>` : ''}
       <div class="spec">
         <div class="spec-label">Localização</div>
         <div class="spec-value">${pEsc(cidade) || '—'}/${uf}</div>
@@ -2470,6 +2490,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
       <div class="garantia"><div class="garantia-num">${garInversor}</div><div class="garantia-label">${garInversor === 1 ? 'ano' : 'anos'}<br/>inversor</div></div>
       <div class="garantia"><div class="garantia-num">${garEstrutura}</div><div class="garantia-label">${garEstrutura === 1 ? 'ano' : 'anos'}<br/>estrutura</div></div>
       <div class="garantia"><div class="garantia-num">${garInstalacao}</div><div class="garantia-label">${garInstalacao === 1 ? 'ano' : 'anos'}<br/>instalação</div></div>
+      ${temBateria && bateriaGarantia > 0 ? `<div class="garantia"><div class="garantia-num">${bateriaGarantia}</div><div class="garantia-label">${bateriaGarantia === 1 ? 'ano' : 'anos'}<br/>bateria</div></div>` : ''}
       ${garExtras.map(g => `<div class="garantia"><div class="garantia-num">${g.anos}</div><div class="garantia-label">${g.anos === 1 ? 'ano' : 'anos'}<br/>${pEsc(g.nome)}</div></div>`).join('')}
     </div>
   </div>
@@ -2625,6 +2646,33 @@ function garantiaInstalacaoExtenso(f: Record<string, unknown>): string {
     ? (n === 1 ? 'mês' : 'meses')
     : (n === 1 ? 'ano' : 'anos');
   return `${str(valor)} (${numExtenso(valor)}) ${unidade}`;
+}
+
+// Bateria (opcional) — parse único usado pela proposta E pelos contratos.
+// Render-if-filled: só existe se a marca vier preenchida. Capacidade/potência
+// aceitam vírgula (10,24); ciclos e garantia são inteiros. Propostas/contratos
+// antigos (sem esses campos) seguem intactos — tem === false, tudo some.
+interface Bateria {
+  tem: boolean;
+  marca: string;
+  capacidade: number; // kWh
+  potencia: number;   // kW
+  ciclos: number;
+  garantia: number;   // anos
+  specParts: string[]; // ['10,24 kWh', '5 kW', '6.000 ciclos'] — só as preenchidas
+}
+function parseBateria(f: Record<string, unknown>): Bateria {
+  const marca = String(f.bateria_marca ?? '').trim();
+  const capacidade = parseFloat(String(f.bateria_capacidade_kwh ?? '0').replace(',', '.')) || 0;
+  const potencia = parseFloat(String(f.bateria_potencia_kw ?? '0').replace(',', '.')) || 0;
+  const ciclos = parseInt(String(f.bateria_ciclos ?? '0').replace(/\D/g, ''), 10) || 0;
+  const garantia = parseInt(String(f.bateria_garantia_anos ?? '0'), 10) || 0;
+  const specParts = [
+    capacidade > 0 ? capacidade.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh' : '',
+    potencia > 0 ? potencia.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kW' : '',
+    ciclos > 0 ? ciclos.toLocaleString('pt-BR') + ' ciclos' : '',
+  ].filter(Boolean);
+  return { tem: marca.length > 0, marca, capacidade, potencia, ciclos, garantia, specParts };
 }
 
 function extenso(v: unknown): string {
