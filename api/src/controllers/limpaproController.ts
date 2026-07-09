@@ -43,7 +43,11 @@ function sinceFromPeriod(period: string): Date {
 export async function trackLimpapro(req: Request, res: Response): Promise<void> {
   try {
     const b = req.body as Record<string, string>;
-    const eventType = b.event_type === 'checkout_click' ? 'checkout_click' : 'pageview';
+    // Aceita 'checkout_click' E variantes com plano ('checkout_click_full', '_downsell',
+    // '_basic') — a LP manda o CTA clicado no sufixo. Guardamos o tipo completo (capado)
+    // pra o funil saber QUAL card foi clicado; qualquer outra coisa vira pageview.
+    const rawType = String(b.event_type || '');
+    const eventType = /^checkout_click/.test(rawType) ? rawType.slice(0, 40) : 'pageview';
 
     const ip =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
@@ -193,8 +197,11 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
 interface LimpaproFunnelRpc {
   pv_total: number; pv_uniq: number;
   ck_total: number; ck_uniq: number;
+  ck_por_plano?: Record<string, number>;   // cliques por CTA/plano (full/downsell/basic/geral)
   co_pessoas: number; abandonos: number;
   vendas: number; clientes: number; faturamento: number; liquido: number;
+  upsell_n?: number; upsell_rev?: number;       // Usina R$197 (1-clique)
+  downsell_n?: number; downsell_rev?: number;   // Usina R$97 (1-clique)
   reembolsos: number; reembolso_valor: number; recusados: number; aguardando: number;
   produtos: { name: string; vendas: number; receita: number }[];
 }
@@ -232,19 +239,40 @@ export async function getLimpaproFunnel(req: Request, res: Response): Promise<vo
       receita: Number(p.receita),
     }));
 
+    // ── Etapas novas do funil ──────────────────────────────────────────
+    const upsellN   = Number(r.upsell_n ?? 0);
+    const upsellRev = Number(r.upsell_rev ?? 0);
+    const downsellN = Number(r.downsell_n ?? 0);
+    const downsellRev = Number(r.downsell_rev ?? 0);
+    const ckPorPlano = (r.ck_por_plano && typeof r.ck_por_plano === 'object') ? r.ck_por_plano : {};
+
+    // App: quantos ENTRARAM no app (acessaram). Filtra por ultimo_acesso no período;
+    // 'maximo' = todos. Tabela admin-only, rota já é admin-gated.
+    let appAcessos = 0;
+    try {
+      let q = supabase.from('limpapro_membros')
+        .select('email', { count: 'exact', head: true })
+        .not('ultimo_acesso_em', 'is', null);
+      if (period !== 'maximo') q = q.gte('ultimo_acesso_em', sinceIso);
+      const { count } = await q;
+      appAcessos = count ?? 0;
+    } catch { /* app access é best-effort — não derruba o funil */ }
+
     const brlSub = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
     res.json({
       period,
       since: sinceIso,
-      // Funil de 4 etapas — todas em PESSOAS únicas, então as barras nunca passam de 100%.
-      // Etapas 1-2 = sessão da LP (tracking próprio); 3-4 = pessoa na Kiwify (por e-mail).
-      // A transição 2→3 cruza dois sistemas (sessão LP × e-mail Kiwify) = aproximação.
+      // Funil completo (pessoas/eventos únicos). 1-2 = sessão da LP (tracking próprio);
+      // 3-4 = pessoa na Kiwify (e-mail); 5-6 = 1-clique pós-compra; 7 = acesso ao app.
       steps: [
-        { key: 'visita',   label: 'Visitou a LP',      count: visitas,   sub: `${visitasPV} pageviews` },
-        { key: 'clique',   label: 'Clicou no botão',   count: cliques,   sub: `${cliquesPV} cliques` },
-        { key: 'checkout', label: 'Entrou no checkout',count: coPessoas, sub: abandonos > 0 ? `${abandonos} abandonaram` : undefined },
-        { key: 'venda',    label: 'Comprou',           count: clientes,  sub: vendas > 0 ? `${vendas} pedidos · ${brlSub(faturamento)}` : undefined },
+        { key: 'visita',   label: 'Visitou a LP',       count: visitas,   sub: `${visitasPV} pageviews` },
+        { key: 'clique',   label: 'Clicou num CTA',     count: cliques,   sub: `${cliquesPV} cliques`, breakdown: ckPorPlano },
+        { key: 'checkout', label: 'Entrou no checkout', count: coPessoas, sub: abandonos > 0 ? `${abandonos} abandonaram` : undefined },
+        { key: 'venda',    label: 'Comprou o curso',    count: clientes,  sub: vendas > 0 ? `${vendas} pedidos · ${brlSub(faturamento)}` : undefined },
+        { key: 'upsell',   label: 'Upsell (Usina R$197)',   count: upsellN,   sub: upsellRev > 0 ? brlSub(upsellRev) : 'nenhuma aceita' },
+        { key: 'downsell', label: 'Downsell (R$97)',        count: downsellN, sub: downsellRev > 0 ? brlSub(downsellRev) : 'nenhuma aceita' },
+        { key: 'app',      label: 'Entrou no app',      count: appAcessos, sub: `${clientes > 0 ? Math.round((appAcessos / clientes) * 100) : 0}% dos compradores` },
       ],
       faturamento,
       liquido,
@@ -255,6 +283,11 @@ export async function getLimpaproFunnel(req: Request, res: Response): Promise<vo
         liquido,
         ticketVenda,
         ticketCliente,
+        upsellN,
+        upsellRev,
+        downsellN,
+        downsellRev,
+        appAcessos,
         reembolsos:     r.reembolsos ?? 0,
         reembolsoValor: Number(r.reembolso_valor ?? 0),
         recusados:      r.recusados ?? 0,
@@ -402,44 +435,54 @@ export async function getLimpaproConversas(_req: Request, res: Response): Promis
 // PII (nome/telefone) só trafega nesta rota fechada. senha_hash NUNCA sai — vira booleano.
 
 // Rótulos amigáveis dos itens (slug técnico → nome que o Thiago reconhece).
-const LIMPAPRO_ITENS: { slug: string; label: string; tipo: 'curso' | 'extra' | 'grupo' | 'mentoria' }[] = [
-  { slug: 'curso-principal', label: 'Curso Principal',     tipo: 'curso' },
-  { slug: 'usina',           label: 'Telhados & Usinas',   tipo: 'extra' },
-  { slug: 'kit-captacao',    label: 'Kit de Captação',     tipo: 'extra' },
-  { slug: 'kit-equipamento', label: 'Kit do Zero (Equip.)', tipo: 'extra' },
-  { slug: 'fidelidade',      label: 'Contrato Recorrente', tipo: 'extra' },
-  { slug: 'comunidade',      label: 'Comunidade +Sol',     tipo: 'grupo' },
-  { slug: 'formacao',        label: 'Mentoria',            tipo: 'mentoria' },
+const LIMPAPRO_ITENS: { slug: string; label: string; tipo: 'curso' | 'plano' | 'extra' | 'grupo' | 'mentoria' }[] = [
+  { slug: 'curso-principal', label: 'Curso Principal',        tipo: 'curso' },
+  { slug: 'premium',         label: 'Plano Completo',          tipo: 'plano' },
+  { slug: 'usina',           label: 'Telhados & Usinas',      tipo: 'extra' },
+  { slug: 'kit-captacao',    label: 'Estratégia de Dominação', tipo: 'extra' },
+  { slug: 'kit-equipamento', label: 'Kit do Zero (Equip.)',   tipo: 'extra' },
+  { slug: 'fidelidade',      label: 'Cliente Fidelizado',     tipo: 'extra' },
+  { slug: 'comunidade',      label: 'Grupo de Crescimento',   tipo: 'grupo' },
+  { slug: 'formacao',        label: 'Mentoria',               tipo: 'mentoria' },
 ];
-const LIMPAPRO_LABEL: Record<string, string> = Object.fromEntries(LIMPAPRO_ITENS.map(i => [i.slug, i.label]));
-// Slugs dos módulos do curso principal (chave de progresso = "<slug>#<indice>").
-// Terminou o principal = concluiu a única aula (índice 0) de cada um dos 6 módulos.
-const LIMPAPRO_MODULOS_PRINCIPAIS = ['m01', 'm02', 'm03', 'm04', 'm05', 'b00'];
+// Módulos do curso (5) e bônus Premium (2). Chave de progresso = "<slug>#0" (espelha o app).
+const LIMPAPRO_MODULOS = [
+  { slug: 'm01', label: 'M1 · Técnica de Limpeza' },
+  { slug: 'm02', label: 'M2 · Segurança em Altura' },
+  { slug: 'm03', label: 'M3 · Precificação' },
+  { slug: 'm04', label: 'M4 · Captação de Clientes' },
+  { slug: 'm05', label: 'M5 · Renda Recorrente' },
+];
+const LIMPAPRO_BONUS = [
+  { slug: 'scripts', label: 'Bônus · Scripts de WhatsApp' },
+  { slug: 'b00',     label: 'Bônus · Tabela de Precificação' },
+];
 
 interface MembroRow {
   email: string; nome: string | null; telefone: string | null;
   ativo: boolean | null; progresso: Record<string, boolean> | null;
-  criado_em: string | null; ultimo_acesso_em: string | null; senha_hash: string | null;
+  criado_em: string | null; atualizado_em: string | null;
+  ultimo_acesso_em: string | null; senha_hash: string | null;
 }
 interface EntRow { email: string; item: string; ativo: boolean | null; }
 
 export async function getLimpaproMembros(_req: Request, res: Response): Promise<void> {
   try {
-    // Base pequena (dezenas) → bem abaixo do teto de 1000 do PostgREST. Duas queries
-    // em paralelo; junta por e-mail (minúsculo) em memória.
-    const [membrosRes, entsRes] = await Promise.all([
+    // Base pequena (dezenas) → bem abaixo do teto de 1000 do PostgREST. Em paralelo:
+    // membros + entitlements + o FUNIL de aquisição (RPC) pra montar a jornada completa.
+    const [membrosRes, entsRes, funnelRes] = await Promise.all([
       supabase.from('limpapro_membros')
-        .select('email, nome, telefone, ativo, progresso, criado_em, ultimo_acesso_em, senha_hash')
+        .select('email, nome, telefone, ativo, progresso, criado_em, atualizado_em, ultimo_acesso_em, senha_hash')
         .order('criado_em', { ascending: false }),
-      supabase.from('limpapro_entitlements')
-        .select('email, item, ativo')
-        .eq('ativo', true),
+      supabase.from('limpapro_entitlements').select('email, item, ativo').eq('ativo', true),
+      supabase.rpc('limpapro_funnel', { since_ts: new Date(0).toISOString() }), // visitou/clicou/comprou (todo o período)
     ]);
     if (membrosRes.error) throw membrosRes.error;
     if (entsRes.error) throw entsRes.error;
 
     const membros = (membrosRes.data ?? []) as MembroRow[];
     const ents = (entsRes.data ?? []) as EntRow[];
+    const fn = (funnelRes && !funnelRes.error ? funnelRes.data : null) as { pv_uniq?: number; ck_uniq?: number; clientes?: number } | null;
 
     // e-mail → itens que a pessoa tem direito.
     const itensPorEmail = new Map<string, Set<string>>();
@@ -454,19 +497,21 @@ export async function getLimpaproMembros(_req: Request, res: Response): Promise<
     const linhas = membros.map(m => {
       const email = (m.email || '').toLowerCase().trim();
       const itens = itensPorEmail.get(email) ?? new Set<string>();
-      // Ordena os itens na ordem canônica (curso primeiro, extras, grupo, mentoria).
-      const itensOrdenados = LIMPAPRO_ITENS.filter(i => itens.has(i.slug)).map(i => i.slug);
-      const extras = itensOrdenados.filter(s => s !== 'curso-principal');
+      const premium = itens.has('premium');                       // plano COMPLETO
+      const itensExtras = LIMPAPRO_ITENS.filter(i => (i.tipo === 'extra' || i.tipo === 'grupo' || i.tipo === 'mentoria') && itens.has(i.slug)).map(i => i.slug);
 
       const prog = (m.progresso && typeof m.progresso === 'object') ? m.progresso : {};
+      const feito = (slug: string) => !!prog[`${slug}#0`];
+      const modulosFeitos = LIMPAPRO_MODULOS.filter(x => feito(x.slug)).map(x => x.slug);
+      const bonusFeitos = LIMPAPRO_BONUS.filter(x => feito(x.slug)).map(x => x.slug);
+      const completouCurso = LIMPAPRO_MODULOS.every(x => feito(x.slug));  // os 5 módulos
       const aulasConcluidas = Object.values(prog).filter(Boolean).length;
-      const completouPrincipal = LIMPAPRO_MODULOS_PRINCIPAIS.every(s => !!prog[`${s}#0`]);
 
-      const ativou = !!m.senha_hash;                 // criou senha = configurou a conta
-      const acessou = !!m.ultimo_acesso_em;          // já entrou pelo menos uma vez
-      // Estágio de ativação: já usou > criou senha > nunca acessou (alvo de aviso).
-      const status: 'acessou' | 'ativou' | 'nao_acessou' =
-        acessou ? 'acessou' : ativou ? 'ativou' : 'nao_acessou';
+      const criouSenha = !!m.senha_hash;
+      const acessou = !!m.ultimo_acesso_em;
+      const status: 'acessou' | 'ativou' | 'nao_acessou' = acessou ? 'acessou' : criouSenha ? 'ativou' : 'nao_acessou';
+      const certificado: 'liberado' | 'em_andamento' | 'bloqueado' =
+        premium ? (completouCurso ? 'liberado' : 'em_andamento') : 'bloqueado';
 
       const tel = soDigitos(m.telefone);
       const telE164 = tel ? (tel.startsWith('55') ? tel : `55${tel}`) : '';
@@ -477,44 +522,75 @@ export async function getLimpaproMembros(_req: Request, res: Response): Promise<
         telefone: tel || null,
         whatsapp_url: telE164 ? `https://wa.me/${telE164}` : null,
         ativo: m.ativo !== false,
-        itens: itensOrdenados,                        // slugs
-        produtos: itensOrdenados.map(s => LIMPAPRO_LABEL[s] ?? s),
-        n_extras: extras.length,
-        ativou,
+        premium,
+        plano: (premium ? 'completo' : 'basico') as 'completo' | 'basico',
+        itens: LIMPAPRO_ITENS.filter(i => itens.has(i.slug)).map(i => i.slug),
+        produtos: LIMPAPRO_ITENS.filter(i => itens.has(i.slug)).map(i => i.label),
+        n_extras: itensExtras.length,
+        criou_senha: criouSenha,
         acessou,
         status,
+        modulos_feitos: modulosFeitos,
+        n_modulos: LIMPAPRO_MODULOS.length,
+        completou_curso: completouCurso,
+        bonus_feitos: bonusFeitos,
+        certificado,
         aulas_concluidas: aulasConcluidas,
-        completou_principal: completouPrincipal,
         criado_em: m.criado_em,
+        atualizado_em: m.atualizado_em,
         ultimo_acesso_em: m.ultimo_acesso_em,
       };
     });
 
-    // Attach rate: quantos compradores possuem cada item (base = total de membros).
-    const totalMembros = linhas.length;
+    const total = linhas.length;
+    const completo = linhas.filter(l => l.premium).length;
+    const acessaram = linhas.filter(l => l.acessou).length;
+    const criaramSenha = linhas.filter(l => l.criou_senha).length;
+    const concluiramCurso = linhas.filter(l => l.completou_curso).length;
+    const certificados = linhas.filter(l => l.certificado === 'liberado').length;
+
+    // Acessos liberados (ownership) por produto/plano.
     const produtos = LIMPAPRO_ITENS.map(i => {
       const donos = linhas.filter(l => l.itens.includes(i.slug)).length;
-      return {
-        slug: i.slug,
-        label: i.label,
-        tipo: i.tipo,
-        donos,
-        pct: totalMembros > 0 ? Math.round((donos / totalMembros) * 100) : 0,
-      };
+      return { slug: i.slug, label: i.label, tipo: i.tipo, donos, pct: total > 0 ? Math.round((donos / total) * 100) : 0 };
     });
 
+    // Engajamento: quantos concluíram cada módulo / bônus (onde a galera trava).
+    // Bônus só contam sobre a base que PODE acessar (premium).
+    const engajamento = [
+      ...LIMPAPRO_MODULOS.map(x => ({ ...x, bonus: false })),
+      ...LIMPAPRO_BONUS.map(x => ({ ...x, bonus: true })),
+    ].map(x => {
+      const feitos = linhas.filter(l => (x.bonus ? l.bonus_feitos : l.modulos_feitos).includes(x.slug)).length;
+      const base = x.bonus ? completo : total;
+      return { slug: x.slug, label: x.label, bonus: x.bonus, feitos, base, pct: base > 0 ? Math.round((feitos / base) * 100) : 0 };
+    });
+
+    // Jornada COMPLETA: aquisição (funil) → entrada no app → conclusão → certificado.
+    const jornada = [
+      { key: 'visitou',  label: 'Visitou a LP',      value: fn?.pv_uniq ?? 0 },
+      { key: 'clicou',   label: 'Clicou em comprar', value: fn?.ck_uniq ?? 0 },
+      { key: 'comprou',  label: 'Comprou',           value: fn?.clientes ?? total },
+      { key: 'entrou',   label: 'Entrou no app',     value: acessaram },
+      { key: 'senha',    label: 'Criou senha',       value: criaramSenha },
+      { key: 'concluiu', label: 'Concluiu o curso',  value: concluiramCurso },
+      { key: 'cert',     label: 'Certificado',       value: certificados },
+    ];
+
     const kpis = {
-      total: totalMembros,
-      ativos: linhas.filter(l => l.ativo).length,
-      ativaram: linhas.filter(l => l.ativou).length,          // criaram senha
-      acessaram: linhas.filter(l => l.acessou).length,        // já entraram
-      nunca_acessaram: linhas.filter(l => !l.acessou).length, // alvo de aviso
+      total,
+      completo,
+      basico: total - completo,
+      acessaram,
+      criaram_senha: criaramSenha,
+      concluiram_curso: concluiramCurso,
+      certificados,
+      nunca_acessaram: total - acessaram,
       com_whatsapp: linhas.filter(l => l.whatsapp_url).length,
-      completaram_principal: linhas.filter(l => l.completou_principal).length,
       total_extras_vendidos: linhas.reduce((s, l) => s + l.n_extras, 0),
     };
 
-    res.json({ gerado_em: new Date().toISOString(), kpis, produtos, membros: linhas });
+    res.json({ gerado_em: new Date().toISOString(), kpis, jornada, engajamento, produtos, membros: linhas });
   } catch (err) {
     console.error('getLimpaproMembros error:', err);
     res.status(500).json({ error: 'Erro ao carregar membros LimpaPro' });

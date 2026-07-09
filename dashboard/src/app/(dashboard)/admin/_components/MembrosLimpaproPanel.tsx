@@ -1,51 +1,64 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Fragment, useEffect, useState, useCallback, useMemo, type CSSProperties } from 'react';
 import api from '@/services/api';
 import styles from '../admin.module.css';
 import { fmtDateBR, daysDiffBR } from '@/utils/brasilia';
 
 /* ─── tipos (espelham GET /admin/membros-limpapro) ──────────────── */
-interface ProdutoStat {
-  slug: string;
-  label: string;
-  tipo: 'curso' | 'extra' | 'grupo' | 'mentoria';
-  donos: number;
-  pct: number;
-}
+interface JornadaStep { key: string; label: string; value: number }
+interface Engaj { slug: string; label: string; bonus: boolean; feitos: number; base: number; pct: number }
+interface ProdutoStat { slug: string; label: string; tipo: 'curso' | 'plano' | 'extra' | 'grupo' | 'mentoria'; donos: number; pct: number }
 interface MembroLp {
   email: string;
   nome: string | null;
   telefone: string | null;
   whatsapp_url: string | null;
   ativo: boolean;
+  premium: boolean;
+  plano: 'completo' | 'basico';
   itens: string[];
   produtos: string[];
   n_extras: number;
-  ativou: boolean;      // criou senha
-  acessou: boolean;     // já entrou no app
+  criou_senha: boolean;
+  acessou: boolean;
   status: 'acessou' | 'ativou' | 'nao_acessou';
+  modulos_feitos: string[];
+  n_modulos: number;
+  completou_curso: boolean;
+  bonus_feitos: string[];
+  certificado: 'liberado' | 'em_andamento' | 'bloqueado';
   aulas_concluidas: number;
-  completou_principal: boolean;
   criado_em: string | null;
+  atualizado_em: string | null;
   ultimo_acesso_em: string | null;
 }
 interface Kpis {
-  total: number;
-  ativos: number;
-  ativaram: number;
-  acessaram: number;
-  nunca_acessaram: number;
-  com_whatsapp: number;
-  completaram_principal: number;
-  total_extras_vendidos: number;
+  total: number; completo: number; basico: number;
+  acessaram: number; criaram_senha: number; concluiram_curso: number;
+  certificados: number; nunca_acessaram: number; com_whatsapp: number; total_extras_vendidos: number;
 }
 interface MembrosLpData {
   gerado_em: string;
   kpis: Kpis;
+  jornada: JornadaStep[];
+  engajamento: Engaj[];
   produtos: ProdutoStat[];
   membros: MembroLp[];
 }
+
+/* ─── constantes de exibição (espelham o app) ───────────────────── */
+const MODS = [
+  { slug: 'm01', n: '1', label: 'Técnica de Limpeza' },
+  { slug: 'm02', n: '2', label: 'Segurança em Altura' },
+  { slug: 'm03', n: '3', label: 'Precificação' },
+  { slug: 'm04', n: '4', label: 'Captação de Clientes' },
+  { slug: 'm05', n: '5', label: 'Renda Recorrente' },
+];
+const BONS = [
+  { slug: 'scripts', label: 'Scripts de WhatsApp' },
+  { slug: 'b00', label: 'Tabela de Precificação' },
+];
 
 /* ─── helpers ───────────────────────────────────────────────────── */
 function relDateShort(d: string | null) {
@@ -56,10 +69,8 @@ function relDateShort(d: string | null) {
   if (diff <= 7) return { label: `${diff} DIAS`, color: 'var(--color-text-muted)' };
   return { label: fmtDateBR(d), color: 'var(--color-text-muted)' };
 }
-function pct(n: number, total: number) { return !total ? '—' : `${Math.round((n / total) * 100)}%`; }
+const pct = (n: number, total: number) => (!total ? '—' : `${Math.round((n / total) * 100)}%`);
 
-// Mensagem de WhatsApp pré-preenchida. Pra quem nunca entrou = convite pra acessar
-// (o alvo do "avisar os clientes"); pra quem já entrou = só abre a conversa.
 function waLink(m: MembroLp): string | null {
   if (!m.whatsapp_url) return null;
   const primeiro = (m.nome || '').trim().split(/\s+/)[0];
@@ -72,19 +83,31 @@ function waLink(m: MembroLp): string | null {
   return `${m.whatsapp_url}?text=${encodeURIComponent(msg)}`;
 }
 
-type Filtro = 'todos' | 'nao_acessou' | 'acessou' | 'extras';
+type Filtro = 'todos' | 'completo' | 'basico' | 'nao_acessou' | 'concluiram';
 
-const STATUS_META: Record<MembroLp['status'], { label: string; fg: string; bg: string; bd: string }> = {
-  acessou:     { label: 'Já entrou',      fg: 'var(--ink-green, #16a34a)', bg: 'rgba(16,185,129,0.12)', bd: 'rgba(16,185,129,0.30)' },
-  ativou:      { label: 'Criou senha',    fg: 'var(--color-text)',         bg: 'var(--color-surface-2)', bd: 'var(--color-border)' },
-  nao_acessou: { label: 'Não acessou',    fg: 'var(--ink-amber, #d97706)', bg: 'rgba(245,158,11,0.12)', bd: 'rgba(245,158,11,0.30)' },
+const CERT_META: Record<MembroLp['certificado'], { label: string; fg: string; bg: string; bd: string }> = {
+  liberado:     { label: 'Liberado',     fg: 'var(--ink-green, #16a34a)', bg: 'rgba(16,185,129,0.12)', bd: 'rgba(16,185,129,0.30)' },
+  em_andamento: { label: 'Em andamento', fg: 'var(--ink-amber, #d97706)', bg: 'rgba(245,158,11,0.12)', bd: 'rgba(245,158,11,0.30)' },
+  bloqueado:    { label: 'Só no Completo', fg: 'var(--color-text-muted)', bg: 'var(--color-surface-2)', bd: 'var(--color-border)' },
 };
 
-// Cor da barra por tipo de produto (curso = acento; extras neutros; mentoria destaque).
 function barColor(tipo: ProdutoStat['tipo']) {
-  return tipo === 'curso' ? 'var(--color-primary)'
+  return tipo === 'curso' || tipo === 'plano' ? 'var(--color-primary)'
     : tipo === 'mentoria' ? 'var(--ink-amber, #d97706)'
     : 'var(--color-text-muted)';
+}
+
+/* dot de módulo (verde = concluído) */
+function ModDot({ done, n, title }: { done: boolean; n: string; title: string }) {
+  return (
+    <span title={title} style={{
+      display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: 6,
+      fontSize: 11, fontWeight: 800,
+      background: done ? 'rgba(16,185,129,0.16)' : 'var(--color-surface-2)',
+      color: done ? 'var(--ink-green, #16a34a)' : 'var(--color-text-muted)',
+      border: `1px solid ${done ? 'rgba(16,185,129,0.4)' : 'var(--color-border)'}`,
+    }}>{done ? '✓' : n}</span>
+  );
 }
 
 export default function MembrosLimpaproPanel() {
@@ -93,46 +116,39 @@ export default function MembrosLimpaproPanel() {
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('todos');
+  const [aberto, setAberto] = useState<string | null>(null); // email do membro expandido
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
       const { data } = await api.get<MembrosLpData>('/admin/membros-limpapro');
       setData(data);
-    } catch {
-      setError('Erro ao carregar membros do LimpaPro. Tenta de novo.');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError('Erro ao carregar membros do LimpaPro. Tenta de novo.'); }
+    finally { setLoading(false); }
   }, []);
-
   useEffect(() => { load(); }, [load]);
 
   const kpis = data?.kpis;
   const membros = useMemo(() => data?.membros ?? [], [data]);
-  const produtos = data?.produtos ?? [];
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return membros.filter(m => {
+      if (filtro === 'completo' && !m.premium) return false;
+      if (filtro === 'basico' && m.premium) return false;
       if (filtro === 'nao_acessou' && m.acessou) return false;
-      if (filtro === 'acessou' && !m.acessou) return false;
-      if (filtro === 'extras' && m.n_extras === 0) return false;
+      if (filtro === 'concluiram' && !m.completou_curso) return false;
       if (!needle) return true;
-      return (
-        m.email.toLowerCase().includes(needle) ||
-        (m.nome || '').toLowerCase().includes(needle) ||
-        (m.telefone || '').includes(needle)
-      );
+      return m.email.toLowerCase().includes(needle) || (m.nome || '').toLowerCase().includes(needle) || (m.telefone || '').includes(needle);
     });
   }, [membros, q, filtro]);
 
   const FILTROS: { value: Filtro; label: string }[] = [
     { value: 'todos', label: 'Todos' },
+    { value: 'completo', label: 'Completo' },
+    { value: 'basico', label: 'Básico' },
     { value: 'nao_acessou', label: 'Não acessaram' },
-    { value: 'acessou', label: 'Já entraram' },
-    { value: 'extras', label: 'Com extras' },
+    { value: 'concluiram', label: 'Concluíram' },
   ];
 
   return (
@@ -141,107 +157,119 @@ export default function MembrosLimpaproPanel() {
       <div className={styles.filters} style={{ marginTop: 16, marginBottom: 24, alignItems: 'center', background: 'var(--color-surface-2)', padding: '12px 16px', borderRadius: 8, gap: 12, flexWrap: 'wrap' }}>
         <div className={styles.periodTabs}>
           {FILTROS.map(f => (
-            <button
-              key={f.value}
-              className={filtro === f.value ? styles.periodActive : styles.periodBtn}
-              onClick={() => setFiltro(f.value)}
-              disabled={loading}
-            >
-              {f.label}
-            </button>
+            <button key={f.value} className={filtro === f.value ? styles.periodActive : styles.periodBtn} onClick={() => setFiltro(f.value)} disabled={loading}>{f.label}</button>
           ))}
         </div>
-        <input
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          placeholder="Buscar por nome, e-mail ou WhatsApp…"
-          style={{
-            flex: '1 1 260px', minWidth: 200, padding: '8px 12px', fontSize: 13,
-            borderRadius: 8, border: '1px solid var(--color-border)',
-            background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'inherit',
-          }}
-        />
-        <button className="btn-secondary" disabled={loading} onClick={load}>
-          {loading ? 'Atualizando…' : 'Atualizar'}
-        </button>
-        <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-          {rows.length} de {membros.length} membros
-        </span>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nome, e-mail ou WhatsApp…"
+          style={{ flex: '1 1 240px', minWidth: 190, padding: '8px 12px', fontSize: 13, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'inherit' }} />
+        <button className="btn-secondary" disabled={loading} onClick={load}>{loading ? 'Atualizando…' : 'Atualizar'}</button>
+        <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>{rows.length} de {membros.length} membros</span>
       </div>
 
-      {error && (
-        <div style={{ padding: 24, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, color: 'var(--color-text)', marginBottom: 16 }}>
-          {error}
-        </div>
-      )}
+      {error && <div style={{ padding: 24, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, color: 'var(--color-text)', marginBottom: 16 }}>{error}</div>}
 
       {loading ? (
         <div className={styles.loading}>Carregando membros…</div>
       ) : !kpis || kpis.total === 0 ? (
         <div className={styles.loading} style={{ textAlign: 'center', padding: '48px 24px' }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Nenhum comprador na área de membros ainda</div>
-          <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-            Assim que alguém comprar o curso na Kiwify, ele aparece aqui automaticamente.
-          </div>
+          <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Assim que alguém comprar o curso na Kiwify, ele aparece aqui automaticamente.</div>
         </div>
       ) : (
         <>
-          {/* KPIs — o retrato honesto de hoje */}
+          {/* ═══ KPIs ═══ */}
           <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 4 }}>
             <div className={styles.card} style={{ borderColor: 'var(--color-primary)', borderWidth: 2, borderStyle: 'solid' }}>
-              <div className={styles.cardLabel}>Compradores com acesso</div>
+              <div className={styles.cardLabel}>Membros com acesso</div>
               <div className={styles.cardValue} style={{ color: 'var(--color-primary)' }}>{kpis.total}</div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                todos têm o curso principal liberado
-              </div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>{kpis.completo} Completo · {kpis.basico} Básico</div>
             </div>
             <div className={styles.card}>
               <div className={styles.cardLabel}>Já entraram no app ({pct(kpis.acessaram, kpis.total)})</div>
-              <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{kpis.acessaram}</div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                {kpis.ativaram} criaram senha
-              </div>
+              <div className={styles.cardValue}>{kpis.acessaram}</div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>{kpis.criaram_senha} criaram senha</div>
+            </div>
+            <div className={styles.card}>
+              <div className={styles.cardLabel}>Concluíram o curso</div>
+              <div className={styles.cardValue}>{kpis.concluiram_curso}</div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>{kpis.certificados} certificado(s) liberado(s)</div>
             </div>
             <div className={styles.card} style={{ borderColor: kpis.nunca_acessaram > 0 ? 'rgba(245,158,11,0.45)' : undefined, borderWidth: kpis.nunca_acessaram > 0 ? 1 : undefined, borderStyle: kpis.nunca_acessaram > 0 ? 'solid' : undefined }}>
               <div className={styles.cardLabel}>Ainda não acessaram</div>
-              <div className={styles.cardValue} style={{ color: kpis.nunca_acessaram > 0 ? 'var(--ink-amber, #d97706)' : 'var(--color-text)' }}>{kpis.nunca_acessaram}</div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                avise pelo WhatsApp (aba “Não acessaram”)
-              </div>
-            </div>
-            <div className={styles.card}>
-              <div className={styles.cardLabel}>Extras vendidos</div>
-              <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{kpis.total_extras_vendidos}</div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                order-bumps além do curso principal
-              </div>
+              <div className={styles.cardValue} style={{ color: kpis.nunca_acessaram > 0 ? 'var(--ink-amber, #d97706)' : undefined }}>{kpis.nunca_acessaram}</div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>avise pelo WhatsApp (filtro “Não acessaram”)</div>
             </div>
           </div>
 
-          {/* SEÇÃO 1 — O que o público compra (attach rate). O dado real de hoje. */}
+          {/* ═══ JORNADA COMPLETA ═══ */}
           <div style={{ marginTop: 28 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 4px' }}>O que o público compra</h3>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: '0 0 16px' }}>
-              De cada 100 compradores, quantos levam cada produto. É o comportamento de compra da sua base hoje.
-            </p>
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 4px' }}>Jornada do cliente</h3>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: '0 0 16px' }}>Da visita na página até entrar no app, concluir o curso e emitir o certificado.</p>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '10px 4px' }}>
+              {(() => {
+                const j = data!.jornada; const topo = j[0]?.value || 1;
+                return j.map((s, i) => {
+                  const prev = i > 0 ? j[i - 1].value : null;
+                  const doTopo = i === 0 ? 100 : Math.round((s.value / topo) * 100);
+                  const doAnt = prev && prev > 0 ? Math.round((s.value / prev) * 100) : null;
+                  return (
+                    <div key={s.key} style={{ display: 'grid', gridTemplateColumns: '160px 1fr 150px', gap: 14, alignItems: 'center', padding: '9px 16px', borderBottom: i < j.length - 1 ? '1px solid var(--color-border)' : 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>{i + 1}. {s.label}</div>
+                      <div style={{ background: 'var(--color-surface-2)', borderRadius: 999, height: 12, overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.max(doTopo, s.value > 0 ? 3 : 0)}%`, height: '100%', background: 'var(--color-primary)', borderRadius: 999, transition: 'width .4s ease' }} />
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: 13 }}>
+                        <span style={{ fontWeight: 800 }}>{s.value.toLocaleString('pt-BR')}</span>
+                        <span style={{ color: 'var(--color-text-muted)' }}> · {doTopo}%</span>
+                        {doAnt !== null && <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}> ({doAnt}% do passo)</span>}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 10, lineHeight: 1.6 }}>
+              Visitou/Clicou vêm do tracking da landing; do <b>Comprou</b> em diante é o app (por e-mail). O detalhe de aquisição + recuperação de checkout fica na aba <b>Funil LimpaPro</b>.
+            </div>
+          </div>
+
+          {/* ═══ ENGAJAMENTO POR MÓDULO ═══ */}
+          <div style={{ marginTop: 32 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 4px' }}>Onde a galera está no curso</h3>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: '0 0 16px' }}>Quantos concluíram cada módulo. Bônus contam sobre a base Premium (quem pode acessar).</p>
             <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '8px 4px' }}>
-              {produtos.map((p, i) => (
-                <div key={p.slug} style={{
-                  display: 'grid', gridTemplateColumns: '180px 1fr 96px', gap: 14, alignItems: 'center',
-                  padding: '11px 16px', borderBottom: i < produtos.length - 1 ? '1px solid var(--color-border)' : 0,
-                }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {data!.engajamento.map((e, i, arr) => (
+                <div key={e.slug} style={{ display: 'grid', gridTemplateColumns: '210px 1fr 96px', gap: 14, alignItems: 'center', padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--color-border)' : 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 7 }}>
+                    {e.label}
+                    {e.bonus && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '0.04em' }}>PREMIUM</span>}
+                  </div>
+                  <div style={{ background: 'var(--color-surface-2)', borderRadius: 999, height: 10, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.max(e.pct, e.feitos > 0 ? 3 : 0)}%`, height: '100%', background: e.bonus ? 'var(--ink-amber, #d97706)' : 'var(--ink-green, #16a34a)', borderRadius: 999 }} />
+                  </div>
+                  <div style={{ textAlign: 'right', fontSize: 13 }}>
+                    <span style={{ fontWeight: 800 }}>{e.feitos}</span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>/{e.base} · {e.pct}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ═══ ACESSOS LIBERADOS (ownership) ═══ */}
+          <div style={{ marginTop: 32 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 4px' }}>Acessos liberados</h3>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: '0 0 16px' }}>Quantos membros têm cada produto/plano liberado no app.</p>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '8px 4px' }}>
+              {data!.produtos.map((p, i, arr) => (
+                <div key={p.slug} style={{ display: 'grid', gridTemplateColumns: '190px 1fr 90px', gap: 14, alignItems: 'center', padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--color-border)' : 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 7 }}>
                     {p.label}
-                    {p.tipo === 'mentoria' && <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--ink-amber, #d97706)', letterSpacing: '0.04em' }}>ALTO TICKET</span>}
+                    {p.tipo === 'plano' && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-primary)' }}>PLANO</span>}
                   </div>
-                  {/* Barra */}
-                  <div style={{ background: 'var(--color-surface-2)', borderRadius: 999, height: 12, overflow: 'hidden' }}>
-                    <div style={{
-                      width: `${Math.max(p.pct, p.donos > 0 ? 3 : 0)}%`, height: '100%',
-                      background: barColor(p.tipo), borderRadius: 999, transition: 'width .4s ease',
-                    }} />
+                  <div style={{ background: 'var(--color-surface-2)', borderRadius: 999, height: 10, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.max(p.pct, p.donos > 0 ? 3 : 0)}%`, height: '100%', background: barColor(p.tipo), borderRadius: 999 }} />
                   </div>
-                  {/* Números */}
                   <div style={{ textAlign: 'right', fontSize: 13 }}>
                     <span style={{ fontWeight: 800 }}>{p.donos}</span>
                     <span style={{ color: 'var(--color-text-muted)' }}> · {p.pct}%</span>
@@ -249,122 +277,126 @@ export default function MembrosLimpaproPanel() {
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 10, lineHeight: 1.6 }}>
-              Base: quem já está na área de membros. <b>Mentoria</b> não é order-bump — é venda direta de alto ticket;
-              zero aqui é esperado até a primeira. O attach rate mostra qual extra convém empurrar mais no funil.
-            </div>
           </div>
 
-          {/* SEÇÃO 2 — Tabela de membros (ativação + engajamento). */}
+          {/* ═══ TABELA DETALHADA (linha expansível) ═══ */}
           <div style={{ marginTop: 32, marginBottom: 8, display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Base de membros</h3>
-            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-              filtre por “Não acessaram” pra avisar quem ainda não entrou
-            </span>
+            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>clique numa linha pra ver todos os detalhes</span>
           </div>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead><tr>
-                <th>Membro</th>
-                <th>Produtos</th>
-                <th>Progresso</th>
-                <th>Situação</th>
-                <th>Compra</th>
-                <th>WhatsApp</th>
+                <th>Membro</th><th>Plano</th><th>Progresso (5 módulos)</th><th>Certificado</th><th>Situação</th><th>Compra</th><th></th>
               </tr></thead>
               <tbody>
                 {rows.map(m => {
-                  const st = STATUS_META[m.status];
-                  const wa = waLink(m);
+                  const isOpen = aberto === m.email;
+                  const cert = CERT_META[m.certificado];
                   const cad = relDateShort(m.criado_em);
+                  const wa = waLink(m);
                   return (
-                    <tr key={m.email}>
-                      {/* Membro */}
-                      <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span style={{ fontWeight: 600 }}>{m.nome || '(sem nome)'}</span>
-                          <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{m.email}</span>
-                        </div>
-                      </td>
-                      {/* Produtos */}
-                      <td>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 260 }}>
-                          {m.produtos.map(p => (
-                            <span key={p} className={styles.planTag} style={{
-                              background: 'var(--color-surface-2)', color: 'var(--color-text-muted)',
-                              borderColor: 'var(--color-border)', fontSize: 10,
-                            }}>{p}</span>
-                          ))}
-                        </div>
-                      </td>
-                      {/* Progresso */}
-                      <td className={styles.mutedCell}>
-                        {m.completou_principal ? (
-                          <span style={{ color: 'var(--ink-green, #16a34a)', fontWeight: 700 }}>Concluiu o principal</span>
-                        ) : m.aulas_concluidas > 0 ? (
-                          <span>{m.aulas_concluidas} aula{m.aulas_concluidas === 1 ? '' : 's'} concluída{m.aulas_concluidas === 1 ? '' : 's'}</span>
-                        ) : (
-                          <span className={styles.emptyDash}>—</span>
-                        )}
-                      </td>
-                      {/* Situação (ativação) */}
-                      <td>
-                        <span style={{
-                          display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
-                          background: st.bg, color: st.fg, border: `1px solid ${st.bd}`,
-                        }}>{st.label}</span>
-                        {m.acessou && m.ultimo_acesso_em && (
-                          <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 3 }}>
-                            último {relDateShort(m.ultimo_acesso_em).label.toLowerCase()}
+                    <Fragment key={m.email}>
+                      <tr onClick={() => setAberto(isOpen ? null : m.email)} style={{ cursor: 'pointer', background: isOpen ? 'var(--color-surface-2)' : undefined }}>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ fontWeight: 600 }}>{m.nome || '(sem nome)'}</span>
+                            <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{m.email}</span>
                           </div>
-                        )}
-                      </td>
-                      {/* Compra (cadastro) */}
-                      <td>
-                        <span style={{ fontWeight: 600, fontSize: 12, color: cad.color }}>{cad.label}</span>
-                      </td>
-                      {/* WhatsApp */}
-                      <td>
-                        {wa ? (
-                          <a href={wa} target="_blank" rel="noopener noreferrer" style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700,
-                            padding: '6px 12px', borderRadius: 8, textDecoration: 'none',
-                            background: m.acessou ? 'var(--color-surface-2)' : 'rgba(16,185,129,0.12)',
-                            color: m.acessou ? 'var(--color-text-muted)' : 'var(--ink-green, #16a34a)',
-                            border: `1px solid ${m.acessou ? 'var(--color-border)' : 'rgba(16,185,129,0.3)'}`,
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {m.acessou ? 'Abrir' : 'Avisar'}
-                          </a>
-                        ) : (
-                          <span className={styles.emptyDash}>—</span>
-                        )}
-                      </td>
-                    </tr>
+                        </td>
+                        <td>
+                          <span className={styles.planTag} style={{
+                            background: m.premium ? 'rgba(242,101,19,0.14)' : 'var(--color-surface-2)',
+                            color: m.premium ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                            borderColor: m.premium ? 'rgba(242,101,19,0.4)' : 'var(--color-border)', fontWeight: 800,
+                          }}>{m.premium ? 'COMPLETO' : 'BÁSICO'}</span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            {MODS.map(md => <ModDot key={md.slug} n={md.n} done={m.modulos_feitos.includes(md.slug)} title={`M${md.n} · ${md.label}`} />)}
+                            <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 4 }}>{m.modulos_feitos.length}/5</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: cert.bg, color: cert.fg, border: `1px solid ${cert.bd}` }}>{cert.label}</span>
+                        </td>
+                        <td className={styles.mutedCell}>
+                          {m.acessou ? <span style={{ color: 'var(--ink-green, #16a34a)', fontWeight: 700 }}>Já entrou</span>
+                            : m.criou_senha ? 'Criou senha'
+                            : <span style={{ color: 'var(--ink-amber, #d97706)', fontWeight: 700 }}>Não acessou</span>}
+                        </td>
+                        <td><span style={{ fontWeight: 600, fontSize: 12, color: cad.color }}>{cad.label}</span></td>
+                        <td style={{ textAlign: 'center', color: 'var(--color-text-muted)', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>›</td>
+                      </tr>
+                      {isOpen && (
+                        <tr>
+                          <td colSpan={7} style={{ background: 'var(--color-surface-2)', padding: '16px 18px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 18 }}>
+                              {/* Progresso detalhado */}
+                              <div>
+                                <div style={detH}>Progresso do curso</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                  {MODS.map(md => {
+                                    const done = m.modulos_feitos.includes(md.slug);
+                                    return <div key={md.slug} style={detRow}><span>{done ? '✅' : '⬜'} M{md.n} · {md.label}</span></div>;
+                                  })}
+                                </div>
+                              </div>
+                              {/* Bônus premium */}
+                              <div>
+                                <div style={detH}>Bônus (Premium)</div>
+                                {m.premium ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                    {BONS.map(b => <div key={b.slug} style={detRow}><span>{m.bonus_feitos.includes(b.slug) ? '✅' : '⬜'} {b.label}</span></div>)}
+                                    <div style={detRow}><span>{m.certificado === 'liberado' ? '✅' : '⬜'} Certificado ({CERT_META[m.certificado].label})</span></div>
+                                  </div>
+                                ) : <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>Plano Básico — bônus e certificado bloqueados.</div>}
+                              </div>
+                              {/* Acessos + datas */}
+                              <div>
+                                <div style={detH}>Acessos liberados</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
+                                  {m.produtos.map(p => <span key={p} className={styles.planTag} style={{ background: 'var(--color-surface)', color: 'var(--color-text-muted)', borderColor: 'var(--color-border)', fontSize: 10 }}>{p}</span>)}
+                                </div>
+                                <div style={detH}>Conta & datas</div>
+                                <div style={{ fontSize: 12.5, color: 'var(--color-text)', lineHeight: 1.8 }}>
+                                  <div>Compra: <b>{m.criado_em ? fmtDateBR(m.criado_em) : '—'}</b></div>
+                                  <div>Criou senha: <b>{m.criou_senha ? 'sim' : 'não'}</b></div>
+                                  <div>Último acesso: <b>{m.ultimo_acesso_em ? fmtDateBR(m.ultimo_acesso_em) : 'nunca'}</b></div>
+                                  <div>Aulas concluídas: <b>{m.aulas_concluidas}</b></div>
+                                </div>
+                                {wa && (
+                                  <a href={wa} target="_blank" rel="noopener noreferrer" style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 12, fontSize: 12, fontWeight: 700,
+                                    padding: '7px 14px', borderRadius: 8, textDecoration: 'none',
+                                    background: m.acessou ? 'var(--color-surface)' : 'rgba(16,185,129,0.12)',
+                                    color: m.acessou ? 'var(--color-text-muted)' : 'var(--ink-green, #16a34a)',
+                                    border: `1px solid ${m.acessou ? 'var(--color-border)' : 'rgba(16,185,129,0.3)'}`,
+                                  }}>{m.acessou ? 'Abrir WhatsApp' : 'Avisar pra acessar'}</a>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
-                {rows.length === 0 && (
-                  <tr><td colSpan={6} className={styles.mutedCell} style={{ textAlign: 'center', padding: '24px 8px' }}>
-                    Nenhum membro bate com o filtro/busca.
-                  </td></tr>
-                )}
+                {rows.length === 0 && <tr><td colSpan={7} className={styles.mutedCell} style={{ textAlign: 'center', padding: '24px 8px' }}>Nenhum membro bate com o filtro/busca.</td></tr>}
               </tbody>
             </table>
           </div>
 
-          {/* Nota de rodapé — como ler + de onde vem */}
           <div style={{ marginTop: 24, padding: 20, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
-            <strong style={{ color: 'var(--color-text)' }}>Como ler:</strong> cada linha é um comprador do curso com acesso à
-            área de membros (<code style={{ padding: '0 4px' }}>limpapro.solardoc.app/membros</code>). <b>Situação</b> mostra a
-            ativação: <b>Não acessou</b> (nunca abriu — avise), <b>Criou senha</b> (configurou a conta) ou <b>Já entrou</b>.
-            <b> Progresso</b> conta as aulas marcadas como concluídas no app — enche conforme a galera estuda.
-            <br /><br />
-            <strong style={{ color: 'var(--color-text)' }}>De onde vem:</strong> compra e produtos vêm do webhook da Kiwify
-            (provisiona o acesso na hora); acesso e progresso vêm do próprio app. O botão <b>Avisar</b> abre o WhatsApp já com
-            a mensagem de convite pra quem ainda não entrou.
+            <strong style={{ color: 'var(--color-text)' }}>Área interna do app.</strong> Cada linha é um comprador com acesso a
+            <code style={{ padding: '0 4px' }}>limpapro.solardoc.app/membros</code>. <b>Plano</b>: Completo (Premium) leva bônus + certificado;
+            Básico só os 5 módulos. <b>Progresso</b> conta os módulos marcados como concluídos no app. Clique numa linha pra abrir todos os detalhes.
           </div>
         </>
       )}
     </>
   );
 }
+
+const detH: CSSProperties = { fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 8 };
+const detRow: CSSProperties = { fontSize: 12.5, color: 'var(--color-text)' };
