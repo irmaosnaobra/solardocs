@@ -406,6 +406,7 @@ const LIMPAPRO_ITENS: { slug: string; label: string; tipo: 'curso' | 'extra' | '
   { slug: 'curso-principal', label: 'Curso Principal',     tipo: 'curso' },
   { slug: 'usina',           label: 'Telhados & Usinas',   tipo: 'extra' },
   { slug: 'kit-captacao',    label: 'Kit de Captação',     tipo: 'extra' },
+  { slug: 'kit-equipamento', label: 'Kit do Zero (Equip.)', tipo: 'extra' },
   { slug: 'fidelidade',      label: 'Contrato Recorrente', tipo: 'extra' },
   { slug: 'comunidade',      label: 'Comunidade +Sol',     tipo: 'grupo' },
   { slug: 'formacao',        label: 'Mentoria',            tipo: 'mentoria' },
