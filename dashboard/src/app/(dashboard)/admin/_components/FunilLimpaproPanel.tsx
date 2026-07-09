@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import api from '@/services/api';
 import LinksIoPanel from './LinksIoPanel';
 import IndicacoesIoPanel from './IndicacoesIoPanel';
+import MembrosLimpaproPanel from './MembrosLimpaproPanel';
 
 type Period = 'hoje' | 'ontem' | '3dias' | '7dias' | 'mes' | 'maximo';
 type SubTab = 'funil' | 'links' | 'indicacoes';
@@ -765,6 +766,17 @@ export default function FunilLimpaproPanel() {
         </>
         );
       })()}
+
+      {/* ═══ ÁREA DE MEMBROS / ALUNOS — abaixo do funil, na mesma aba ═══ */}
+      <div style={{ marginTop: 48, paddingTop: 36, borderTop: '2px solid var(--color-border)' }}>
+        <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0, letterSpacing: '-0.02em' }}>
+          Área de membros · Alunos
+        </h2>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '6px 0 18px' }}>
+          Como os compradores usam o app: ativação, jornada, progresso no curso, onde travam e quem ainda não entrou.
+        </p>
+        <MembrosLimpaproPanel />
+      </div>
       </>
       )}
     </div>
