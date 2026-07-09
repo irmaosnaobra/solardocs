@@ -8,11 +8,13 @@ import IndicacoesIoPanel from './IndicacoesIoPanel';
 type Period = 'hoje' | 'ontem' | '3dias' | '7dias' | 'mes' | 'maximo';
 type SubTab = 'funil' | 'links' | 'indicacoes';
 
+type StepKey = 'visita' | 'clique' | 'checkout' | 'venda' | 'upsell' | 'downsell' | 'app';
 interface FunnelStep {
-  key: 'visita' | 'clique' | 'checkout' | 'venda';
+  key: StepKey;
   label: string;
   count: number;
   sub?: string;
+  breakdown?: Record<string, number>;  // cliques por CTA/plano (só no passo 'clique')
 }
 interface FunnelStats {
   clientes: number;
@@ -21,6 +23,11 @@ interface FunnelStats {
   liquido: number;
   ticketVenda: number;
   ticketCliente: number;
+  upsellN?: number;
+  upsellRev?: number;
+  downsellN?: number;
+  downsellRev?: number;
+  appAcessos?: number;
   reembolsos: number;
   reembolsoValor: number;
   recusados: number;
@@ -135,18 +142,29 @@ const PERIODS: { value: Period; label: string }[] = [
 
 // Monocromático: fundo + label neutros; laranja de marca fica reservado só pro
 // "% do topo" (1 acento esparso por card, não o label inteiro).
-const STEP_COLORS: Record<FunnelStep['key'], { bg: string; border: string; accent: string }> = {
-  visita:   { bg: 'var(--color-surface-2)',  border: 'var(--color-border)',  accent: 'var(--color-text)' },
-  clique:   { bg: 'var(--color-surface-2)',  border: 'var(--color-border)',  accent: 'var(--color-text)' },
-  checkout: { bg: 'var(--color-surface-2)',  border: 'var(--color-border)',  accent: 'var(--color-text)' },
-  venda:    { bg: 'var(--color-surface-2)',  border: 'var(--color-border)',  accent: 'var(--color-text)' },
+const NEUTRAL_STEP = { bg: 'var(--color-surface-2)', border: 'var(--color-border)', accent: 'var(--color-text)' };
+const STEP_COLORS: Record<StepKey, { bg: string; border: string; accent: string }> = {
+  visita: NEUTRAL_STEP, clique: NEUTRAL_STEP, checkout: NEUTRAL_STEP, venda: NEUTRAL_STEP,
+  upsell: NEUTRAL_STEP, downsell: NEUTRAL_STEP, app: NEUTRAL_STEP,
 };
 
-const STEP_DESCRIPTIONS: Record<FunnelStep['key'], string> = {
+const STEP_DESCRIPTIONS: Record<StepKey, string> = {
   visita:   'Visitaram limpapro.solardoc.app (Pixel + tracking próprio)',
-  clique:   'Clicaram no botão de compra na landing',
+  clique:   'Clicaram num CTA da landing (por card/plano abaixo)',
   checkout: 'Preencheram o checkout da Kiwify (pagaram ou abandonaram)',
   venda:    'Compradores únicos — pessoas que concluíram a compra',
+  upsell:   'Aceitaram o upsell Usina de Grande Porte (R$197, 1-clique)',
+  downsell: 'Aceitaram o downsell (R$97, 1-clique) após recusar o upsell',
+  app:      'Entraram na área de membros (app) pelo menos uma vez',
+};
+
+// Rótulos dos CTAs/planos da LP (sufixo do checkout_click_<plano>).
+const PLANO_LABELS: Record<string, string> = {
+  full: 'Completo (R$ 77)',
+  downsell: 'Oferta (R$ 60)',
+  'basic-confirm': 'Básico (R$ 47)',
+  basic: 'Básico',
+  geral: 'Clique geral',
 };
 
 function pct(num: number, den: number): string {
@@ -257,7 +275,7 @@ export default function FunilLimpaproPanel() {
             Funil LimpaPro
           </h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 14, margin: '6px 0 0' }}>
-            Curso de limpeza de placas (Kiwify) · Visitou → Clicou → Entrou no checkout → Comprou · pessoas únicas em cada etapa
+            Funil completo · Visitou → CTA → Checkout → Comprou → Upsell → Downsell → App · pessoas/eventos únicos por etapa
           </p>
         </div>
 
@@ -349,6 +367,18 @@ export default function FunilLimpaproPanel() {
                     {step.sub && (
                       <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                         {step.sub}
+                      </div>
+                    )}
+                    {step.breakdown && Object.keys(step.breakdown).length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                        {Object.entries(step.breakdown).sort((a, b) => b[1] - a[1]).map(([plano, n]) => (
+                          <span key={plano} style={{
+                            fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                            background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)',
+                          }}>
+                            {PLANO_LABELS[plano] ?? plano}: <b style={{ color: 'var(--color-text)' }}>{n}</b>
+                          </span>
+                        ))}
                       </div>
                     )}
                     <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
