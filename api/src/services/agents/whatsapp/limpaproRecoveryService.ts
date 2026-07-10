@@ -78,12 +78,11 @@ const FECHAMENTO_SENT_PREFIX = 'limpapro_fechamento_sent:';
 // Espera após o CUPOM antes do toque de fechamento (dá tempo do cupom fazer efeito).
 const FECHAMENTO_DELAY_MS = 20 * 60 * 60 * 1000; // 20h (≈ dia seguinte, sem virar madrugada)
 
-// Cupom de recuperação (2º toque). DARK até RECUP_CUPOM_ENABLED='true' E o link estar
-// setado/confirmado pelo Thiago (a Kiwify precisa aceitar ?coupon= na URL — a confirmar).
+// 2º toque (SEM desconto — decisão do Thiago: produto de qualidade recupera com bom
+// atendimento + reforço de valor, não com cupom). Usa o checkout normal. DARK até
+// RECUP_CUPOM_ENABLED='true' (nome do flag mantido pra não quebrar env existente).
 function cupomHabilitado(): boolean {
-  return recuperacaoHabilitada()
-    && process.env.RECUP_CUPOM_ENABLED === 'true'
-    && Boolean(process.env.RECUP_CUPOM_URL?.trim());
+  return recuperacaoHabilitada() && process.env.RECUP_CUPOM_ENABLED === 'true';
 }
 
 // 3º toque (fechamento). Flag PRÓPRIO — é a parte com maior risco de ban na linha
@@ -108,7 +107,11 @@ interface LeadAberto {
   horas_desde: number | null;
 }
 
-// ─── mensagem da agente (Bia), por estado ───────────────────────────
+// ─── Mensagens da Bia (recuperação) — humanizadas, curtas, sem emoji-spam ─────
+// Princípio: parece PESSOA ajudando, não robô/disparo. Bolhas curtas (1 ideia cada),
+// pergunta no 1º toque (puxa resposta), foco em ATENDIMENTO e VALOR — nunca desconto.
+
+// 1º toque — na hora. Só cuidado + pergunta. Zero pitch, zero desconto.
 export function montarMensagem(lead: LeadAberto): string[] {
   const nome = (lead.nome || '').trim().split(/\s+/)[0];
   const oi = nome ? `Oi ${nome}, tudo bem?` : 'Oi, tudo bem?';
@@ -116,56 +119,50 @@ export function montarMensagem(lead: LeadAberto): string[] {
 
   if (lead.status === 'pix_gerado' && lead.pix_ativo) {
     return [
-      `${oi} Aqui é a Bia, do Limpa Solar Pro 💧`,
-      `Vi que você gerou o Pix do *${produto}* mas ele ainda não caiu. Tá tudo certo? Se quiser eu te reenvio o link pra finalizar agora.`,
+      oi,
+      `Vi aqui que você gerou o Pix do ${produto} agora há pouco e ele ainda não caiu.`,
+      `Deu algum problema pra pagar? Se quiser eu te reenvio o link pra finalizar rapidinho.`,
     ];
   }
   if (lead.status === 'pix_gerado') {
     return [
-      `${oi} Aqui é a Bia, do Limpa Solar Pro 💧`,
-      `Você tinha gerado o Pix do *${produto}* mas ele acabou expirando. Quer que eu gere um link novo pra você concluir?`,
+      oi,
+      `Você tinha gerado o Pix do ${produto}, mas ele acabou expirando.`,
+      `Quer que eu gere um link novo pra você concluir? É rápido.`,
     ];
   }
   return [
-    `${oi} Aqui é a Bia, do Limpa Solar Pro 💧`,
-    `Vi que você começou a compra do *${produto}* e não chegou a finalizar. Posso te ajudar com alguma dúvida pra concluir?`,
+    oi,
+    `Vi que você tava garantindo o ${produto} agora há pouco e parou bem na hora de finalizar.`,
+    `Travou o pagamento ou ficou alguma dúvida? Me fala que eu resolvo com você.`,
   ];
 }
 
-// ─── 2º toque: cupom de desconto (quem não respondeu o opener em 2h) ─────────
-// O link com o cupom embutido vem de RECUP_CUPOM_URL (a confirmar se a Kiwify aplica
-// ?coupon= via URL). Mantém o tom da Bia: gentil, não insistente, com escassez leve.
+// 2º toque — algumas horas depois (sem resposta). Tira a objeção + reforça valor +
+// oferece suporte pessoal (concierge). SEM desconto. Link = checkout normal.
 export function montarMensagemCupom(lead: LeadAberto): string[] {
   const nome = (lead.nome || '').trim().split(/\s+/)[0];
-  const oi = nome ? `Oi ${nome}!` : 'Oi!';
-  const link = process.env.RECUP_CUPOM_URL?.trim() || '';
-  return [
-    `${oi} Pra te ajudar a fechar, consegui um *desconto de 30%* no Limpa Solar Pro só pra você 🎁`,
-    `É só finalizar por aqui que o desconto já vem aplicado: ${link}`,
-    `Qualquer dúvida me chama! 💧`,
+  const oi = nome ? `${nome}, ` : '';
+  const link = process.env.RECUP_CHECKOUT_URL?.trim() || '';
+  const out = [
+    `${oi}só pra te deixar tranquilo:`,
+    `Assim que o pagamento cai, o curso já libera direto aqui no seu WhatsApp — e o acesso é seu pra sempre, você assiste no seu ritmo.`,
+    `É conteúdo direto ao ponto, do jeito que se faz de verdade no campo. E qualquer dúvida depois, é só me chamar aqui que eu te ajudo.`,
   ];
+  out.push(link ? `Quer finalizar agora? É só por aqui: ${link}` : `Quer que eu te reenvie o link pra finalizar?`);
+  return out;
 }
 
-// ─── 3º toque: fechamento (última msg fria — cap de 3 toques aprovado pelo Thiago) ─────
-// Só quem tomou opener+cupom e ficou em silêncio TOTAL. Urgência honesta em cima do cupom
-// que já foi mandado (não inventa oferta nova). Se não houver link de cupom, fecha pelo
-// checkout normal. Tom: leve, respeitoso, é um "vou encerrar por aqui" — não insistência.
+// 3º toque — no dia seguinte. Fechamento com classe: última chance, sem pressão,
+// atendimento pessoal no final. SEM desconto. Link = checkout normal.
 export function montarMensagemFechamento(lead: LeadAberto): string[] {
   const nome = (lead.nome || '').trim().split(/\s+/)[0];
-  const oi = nome ? `Oi ${nome}!` : 'Oi!';
-  const link = process.env.RECUP_CUPOM_URL?.trim() || process.env.RECUP_CHECKOUT_URL?.trim() || '';
-  const temCupom = Boolean(process.env.RECUP_CUPOM_URL?.trim());
-  if (temCupom) {
-    return [
-      `${oi} Passando só pra avisar que aquele *desconto de 30%* que te mandei ainda tá de pé, mas vou precisar encerrar em breve 💧`,
-      link ? `Se ainda quiser garantir, é só finalizar por aqui que o desconto já vem aplicado: ${link}` : 'Se ainda quiser garantir, me avisa que te passo o link 😊',
-      `Se não for o momento, sem problema — é só me dizer que eu não te incomodo mais 🙏`,
-    ];
-  }
+  const oi = nome ? `${nome}, ` : '';
+  const link = process.env.RECUP_CHECKOUT_URL?.trim() || '';
   return [
-    `${oi} Passando pra saber se ainda quer concluir a compra do Limpa Solar Pro — posso te ajudar a finalizar rapidinho 💧`,
-    link ? `É só por aqui: ${link}` : '',
-    `Se não for o momento, sem problema — só me avisar que eu não te incomodo mais 🙏`,
+    `${oi}não vou te encher mais — essa é minha última mensagem sobre isso.`,
+    link ? `Se ainda quiser começar, é só finalizar por aqui: ${link}` : `Se ainda quiser começar, me chama que eu te passo o link.`,
+    `E se não for o momento, sem problema nenhum. Quando decidir, é só me chamar que eu cuido de tudo com você. 👊`,
   ].filter(Boolean);
 }
 
