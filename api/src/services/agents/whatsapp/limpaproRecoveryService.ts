@@ -296,6 +296,7 @@ async function porqueNaoEnviarLead(lead: LeadAberto): Promise<string | null> {
   if (lead.telefone_suspeito) return 'telefone_suspeito';
   if (await jaContatado(lead.email)) return 'ja_contatado';
   if (await jaPagou(lead.email)) return 'ja_pagou';        // re-check DURO no momento do envio
+  if (await foiMarcadoPerdido(lead.telefone)) return 'perdido'; // já disse não → nunca reabrir a frio
   if (await emConversa(lead.telefone)) return 'em_conversa';
   return null;
 }
