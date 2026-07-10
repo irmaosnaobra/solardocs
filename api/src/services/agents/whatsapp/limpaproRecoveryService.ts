@@ -115,7 +115,7 @@ interface LeadAberto {
 export function montarMensagem(lead: LeadAberto): string[] {
   const nome = (lead.nome || '').trim().split(/\s+/)[0];
   const oi = nome ? `Oi ${nome}, tudo bem?` : 'Oi, tudo bem?';
-  const produto = lead.produto || 'Limpa Solar Pro';
+  const produto = 'LimpaPro Solar';
 
   if (lead.status === 'pix_gerado' && lead.pix_ativo) {
     return [

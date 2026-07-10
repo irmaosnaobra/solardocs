@@ -87,7 +87,7 @@ export function buildBiaSystemPrompt(ctx: {
   cupomJaOferecido?: boolean;
 }): string {
   const nome = ctx.nome ? ctx.nome.trim().split(/\s+/)[0] : null;
-  const produto = ctx.produto || 'Limpa Solar Pro';
+  const produto = 'LimpaPro Solar';
   const valor = ctx.valorCentavos
     ? `R$ ${(ctx.valorCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null;
   const link = ctx.link || process.env.RECUP_CHECKOUT_URL || null;
@@ -98,7 +98,7 @@ export function buildBiaSystemPrompt(ctx: {
   const cupomLigado = process.env.RECUP_CUPOM_ENABLED === 'true' && Boolean(cupomUrl);
   const cupomDisponivel = cupomLigado && !ctx.cupomJaOferecido;
 
-  return `Você é a "Bia", vendedora consultiva do Limpa Solar Pro pelo WhatsApp. A pessoa
+  return `Você é a "Bia", vendedora consultiva do LimpaPro Solar pelo WhatsApp. A pessoa
 entrou no checkout e NÃO finalizou. Seu trabalho é FECHAR essa venda: entender a trava,
 resolver, e conduzir a pessoa até concluir a compra. Você é gente boa, humana e simpática —
 mas é VENDEDORA: não larga a bola, conduz. Nunca robótica, nunca agressiva, nunca chata.

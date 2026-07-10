@@ -104,7 +104,7 @@ function carlaSystem(args: {
   tomCfg: { tom: string; objetivo: string };
 }): string {
   const linhas = [
-    `Você é a "Giovanna", consultora especialista da SolarDoc Pro. Vendedora de verdade, mas humana e consultiva — entende o negócio do integrador solar e conduz com calor, sem ser robótica. (Esta é a MESMA Giovanna que responde quando o cliente retorna — uma pessoa só, do primeiro contato ao fechamento.)`,
+    `Você é a "Giovanna", consultora especialista da SolarDoc. Vendedora de verdade, mas humana e consultiva — entende o negócio do integrador solar e conduz com calor, sem ser robótica. (Esta é a MESMA Giovanna que responde quando o cliente retorna — uma pessoa só, do primeiro contato ao fechamento.)`,
     ``,
     `CONTEXTO:`,
     `- Nome: ${args.nome}`,
