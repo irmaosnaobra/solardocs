@@ -38,12 +38,15 @@ interface Kpis {
   acessaram: number; criaram_senha: number; concluiram_curso: number;
   certificados: number; nunca_acessaram: number; com_whatsapp: number; total_extras_vendidos: number;
 }
+interface CliqueAlvo { alvo: string; n: number }
+interface CliquesApp { total: number; aulas: CliqueAlvo[]; ofertas: CliqueAlvo[]; checkouts: CliqueAlvo[] }
 interface MembrosLpData {
   gerado_em: string;
   kpis: Kpis;
   jornada: JornadaStep[];
   engajamento: Engaj[];
   produtos: ProdutoStat[];
+  cliques_app?: CliquesApp;
   membros: MembroLp[];
 }
 
@@ -70,6 +73,17 @@ function relDateShort(d: string | null) {
   return { label: fmtDateBR(d), color: 'var(--color-text-muted)' };
 }
 const pct = (n: number, total: number) => (!total ? '—' : `${Math.round((n / total) * 100)}%`);
+
+// Rótulo amigável do alvo de clique ('main:m01' → 'Técnica de Limpeza'; 'usina' → 'Usina de Grande Porte').
+const OFERTA_LABELS: Record<string, string> = {
+  usina: 'Usina de Grande Porte', mentoria: 'Mentoria', 'kit-captacao': 'Kit Captação',
+  comunidade: 'Comunidade +Sol', fidelidade: 'Contrato Recorrente', 'kit-equipamento': 'Kit de Equipamento',
+};
+function labelAlvo(alvo: string): string {
+  const slug = alvo.includes(':') ? alvo.split(':')[1] : alvo;
+  const mod = MODS.find(m => m.slug === slug) || BONS.find(b => b.slug === slug);
+  return mod ? mod.label : (OFERTA_LABELS[slug] || slug);
+}
 
 function waLink(m: MembroLp): string | null {
   if (!m.whatsapp_url) return null;
@@ -278,6 +292,46 @@ export default function MembrosLimpaproPanel() {
               ))}
             </div>
           </div>
+
+          {/* ═══ MAIS CLICADOS NO APP (uso interno) ═══ */}
+          {data!.cliques_app && (
+            <div style={{ marginTop: 32 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 4px' }}>Mais clicados no app</h3>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: '0 0 16px' }}>
+                O que os alunos mais abrem e onde clicam pra comprar — pra entender o que engaja e onde melhorar.
+                {data!.cliques_app.total > 0 && <> · <b>{data!.cliques_app.total.toLocaleString('pt-BR')}</b> cliques no total</>}
+              </p>
+              {data!.cliques_app.total === 0 ? (
+                <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '20px 18px', fontSize: 13, color: 'var(--color-text-muted)' }}>
+                  Ainda não há cliques registrados. O tracking começou agora — os dados aparecem aqui conforme os alunos abrem aulas e ofertas no app.
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+                  {[
+                    { titulo: '📚 Aulas mais abertas', lista: data!.cliques_app.aulas, cor: 'var(--ink-green, #16a34a)' },
+                    { titulo: '🏷️ Ofertas mais vistas', lista: data!.cliques_app.ofertas, cor: 'var(--color-primary)' },
+                    { titulo: '🛒 Cliques em comprar', lista: data!.cliques_app.checkouts, cor: 'var(--ink-amber, #d97706)' },
+                  ].map(col => (
+                    <div key={col.titulo} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '14px 16px' }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 12 }}>{col.titulo}</div>
+                      {col.lista.length === 0 ? (
+                        <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>—</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {col.lista.map(item => (
+                            <div key={item.alvo} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{labelAlvo(item.alvo)}</span>
+                              <span style={{ fontSize: 13, fontWeight: 800, color: col.cor }}>{item.n.toLocaleString('pt-BR')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ═══ TABELA DETALHADA (linha expansível) ═══ */}
           <div style={{ marginTop: 32, marginBottom: 8, display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>

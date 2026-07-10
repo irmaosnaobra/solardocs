@@ -590,7 +590,31 @@ export async function getLimpaproMembros(_req: Request, res: Response): Promise<
       total_extras_vendidos: linhas.reduce((s, l) => s + l.n_extras, 0),
     };
 
-    res.json({ gerado_em: new Date().toISOString(), kpis, jornada, engajamento, produtos, membros: linhas });
+    // ── Cliques DENTRO do app (analytics de uso) ──────────────────────
+    // Top aulas / ofertas / checkouts clicados. Best-effort: se a tabela ainda
+    // não tiver dados (recém-criada), devolve vazio e o painel esconde a seção.
+    const cliquesApp: {
+      total: number;
+      aulas: { alvo: string; n: number }[];
+      ofertas: { alvo: string; n: number }[];
+      checkouts: { alvo: string; n: number }[];
+    } = { total: 0, aulas: [], ofertas: [], checkouts: [] };
+    try {
+      const { data: evs } = await supabase
+        .from('limpapro_app_events').select('tipo, alvo').limit(20000);
+      const rows = (evs ?? []) as { tipo: string; alvo: string }[];
+      cliquesApp.total = rows.length;
+      const topN = (t: string) => {
+        const m = new Map<string, number>();
+        for (const e of rows) if (e.tipo === t && e.alvo) m.set(e.alvo, (m.get(e.alvo) ?? 0) + 1);
+        return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([alvo, n]) => ({ alvo, n }));
+      };
+      cliquesApp.aulas     = topN('aula');
+      cliquesApp.ofertas   = topN('oferta');
+      cliquesApp.checkouts = topN('checkout');
+    } catch { /* sem dados de clique ainda */ }
+
+    res.json({ gerado_em: new Date().toISOString(), kpis, jornada, engajamento, produtos, cliques_app: cliquesApp, membros: linhas });
   } catch (err) {
     console.error('getLimpaproMembros error:', err);
     res.status(500).json({ error: 'Erro ao carregar membros LimpaPro' });
