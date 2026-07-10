@@ -457,6 +457,20 @@ const LIMPAPRO_BONUS = [
   { slug: 'scripts', label: 'Bônus · Scripts de WhatsApp' },
   { slug: 'b00',     label: 'Bônus · Tabela de Precificação' },
 ];
+const LIMPAPRO_LABEL: Record<string, string> = Object.fromEntries(LIMPAPRO_ITENS.map(i => [i.slug, i.label]));
+// product_name da Kiwify → slug (espelha mapItemNome do app). Pra atribuir vendas internas.
+function slugFromNome(name: string | null): string | null {
+  const n = (name || '').toLowerCase();
+  if (/vital|premium/.test(n)) return 'premium';
+  if (/limpa\s*solar\s*pro/.test(n)) return 'curso-principal';
+  if (/comunidade|\+\s*sol/.test(n)) return 'comunidade';
+  if (/usina|telhado/.test(n)) return 'usina';
+  if (/fidel|contrato|recorr/.test(n)) return 'fidelidade';
+  if (/equipamento|do\s*zero/.test(n)) return 'kit-equipamento';
+  if (/kit|capta|estrat|domina/.test(n)) return 'kit-captacao';
+  if (/forma|mentoria/.test(n)) return 'formacao';
+  return null;
+}
 
 interface MembroRow {
   email: string; nome: string | null; telefone: string | null;
@@ -614,7 +628,67 @@ export async function getLimpaproMembros(_req: Request, res: Response): Promise<
       cliquesApp.checkouts = topN('checkout');
     } catch { /* sem dados de clique ainda */ }
 
-    res.json({ gerado_em: new Date().toISOString(), kpis, jornada, engajamento, produtos, cliques_app: cliquesApp, membros: linhas });
+    // ── Vendas DENTRO do app (radar de monetização interna) ───────────
+    // Atribuição: quem clicou no CHECKOUT de um produto dentro do app e depois
+    // COMPROU esse produto (webhook, paid) = venda interna, com valor. Foco/melhoria.
+    const vendasInternas: {
+      hoje_valor: number; total_valor: number; total_qtd: number;
+      checkouts: number; convertidos: number; conversao_pct: number;
+      atividade: { email: string; nome: string | null; produto: string; tipo: string; comprou: boolean; valor: number; criado_em: string }[];
+    } = { hoje_valor: 0, total_valor: 0, total_qtd: 0, checkouts: 0, convertidos: 0, conversao_pct: 0, atividade: [] };
+    try {
+      const [evRes, comprasRes] = await Promise.all([
+        supabase.from('limpapro_app_events').select('email, tipo, alvo, criado_em').in('tipo', ['oferta', 'checkout']).order('criado_em', { ascending: false }).limit(5000),
+        supabase.from('limpapro_events').select('buyer_email, product_name, amount_cents, created_at').eq('event_type', 'purchase').eq('status', 'paid').limit(5000),
+      ]);
+      const evs = (evRes.data ?? []) as { email: string; tipo: string; alvo: string; criado_em: string }[];
+      const compras = (comprasRes.data ?? []) as { buyer_email: string; product_name: string | null; amount_cents: number | null; created_at: string }[];
+      const nomeMap = new Map(linhas.map(l => [l.email, l.nome]));
+      const hojeIso = spStartOfToday().toISOString();
+
+      // clique de checkout mais ANTIGO por email+slug (âncora da atribuição).
+      const cliqueCheckout = new Map<string, number>();
+      for (const e of evs) {
+        if (e.tipo !== 'checkout' || !e.alvo || !e.email) continue;
+        const key = `${e.email.toLowerCase()}|${e.alvo}`;
+        const t = new Date(e.criado_em).getTime();
+        if (!cliqueCheckout.has(key) || t < cliqueCheckout.get(key)!) cliqueCheckout.set(key, t);
+      }
+      vendasInternas.checkouts = cliqueCheckout.size;
+
+      // venda interna = compra paga de um EXTRA cujo checkout foi clicado no app ANTES.
+      const vendaKeys = new Set<string>();
+      const valorPorKey = new Map<string, number>();
+      for (const c of compras) {
+        const slug = slugFromNome(c.product_name);
+        if (!slug || slug === 'curso-principal' || slug === 'premium') continue;
+        const key = `${(c.buyer_email || '').toLowerCase()}|${slug}`;
+        valorPorKey.set(key, (c.amount_cents ?? 0) / 100);
+        const clickT = cliqueCheckout.get(key);
+        if (clickT == null || new Date(c.created_at).getTime() < clickT) continue; // comprou sem clicar no app antes
+        if (vendaKeys.has(key)) continue;                                          // 1 venda por email+produto
+        vendaKeys.add(key);
+        const valor = (c.amount_cents ?? 0) / 100;
+        vendasInternas.total_valor += valor;
+        vendasInternas.total_qtd += 1;
+        if (c.created_at >= hojeIso) vendasInternas.hoje_valor += valor;
+      }
+      vendasInternas.convertidos = vendaKeys.size;
+      vendasInternas.conversao_pct = vendasInternas.checkouts > 0 ? Math.round((vendasInternas.convertidos / vendasInternas.checkouts) * 100) : 0;
+
+      // atividade por pessoa (ofertas vistas + checkouts clicados), com conversão + valor.
+      vendasInternas.atividade = evs.slice(0, 80).map(e => {
+        const key = `${(e.email || '').toLowerCase()}|${e.alvo}`;
+        const comprou = vendaKeys.has(key);
+        return {
+          email: e.email, nome: nomeMap.get((e.email || '').toLowerCase()) ?? null,
+          produto: LIMPAPRO_LABEL[e.alvo] ?? e.alvo, tipo: e.tipo,
+          comprou, valor: comprou ? (valorPorKey.get(key) ?? 0) : 0, criado_em: e.criado_em,
+        };
+      });
+    } catch { /* sem dados ainda */ }
+
+    res.json({ gerado_em: new Date().toISOString(), kpis, jornada, engajamento, produtos, cliques_app: cliquesApp, vendas_internas: vendasInternas, membros: linhas });
   } catch (err) {
     console.error('getLimpaproMembros error:', err);
     res.status(500).json({ error: 'Erro ao carregar membros LimpaPro' });

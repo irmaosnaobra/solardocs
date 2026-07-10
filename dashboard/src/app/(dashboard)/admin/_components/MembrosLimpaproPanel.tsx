@@ -40,6 +40,8 @@ interface Kpis {
 }
 interface CliqueAlvo { alvo: string; n: number }
 interface CliquesApp { total: number; aulas: CliqueAlvo[]; ofertas: CliqueAlvo[]; checkouts: CliqueAlvo[] }
+interface VendaAtividade { email: string; nome: string | null; produto: string; tipo: string; comprou: boolean; valor: number; criado_em: string }
+interface VendasInternas { hoje_valor: number; total_valor: number; total_qtd: number; checkouts: number; convertidos: number; conversao_pct: number; atividade: VendaAtividade[] }
 interface MembrosLpData {
   gerado_em: string;
   kpis: Kpis;
@@ -47,6 +49,7 @@ interface MembrosLpData {
   engajamento: Engaj[];
   produtos: ProdutoStat[];
   cliques_app?: CliquesApp;
+  vendas_internas?: VendasInternas;
   membros: MembroLp[];
 }
 
@@ -73,6 +76,7 @@ function relDateShort(d: string | null) {
   return { label: fmtDateBR(d), color: 'var(--color-text-muted)' };
 }
 const pct = (n: number, total: number) => (!total ? '—' : `${Math.round((n / total) * 100)}%`);
+const brl = (v: number) => 'R$ ' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
 // Rótulo amigável do alvo de clique ('main:m01' → 'Técnica de Limpeza'; 'usina' → 'Usina de Grande Porte').
 const OFERTA_LABELS: Record<string, string> = {
@@ -332,6 +336,68 @@ export default function MembrosLimpaproPanel() {
               )}
             </div>
           )}
+
+          {/* ═══ VENDAS DENTRO DO APP (radar de monetização) ═══ */}
+          {data!.vendas_internas && (() => {
+            const vi = data!.vendas_internas!;
+            return (
+            <div style={{ marginTop: 32 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 4px' }}>Vendas dentro do app</h3>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: '0 0 16px' }}>
+                Dinheiro que o app gera sozinho: quem clicou pra comprar um produto por dentro da área de membros e fechou. Quem clicou e não fechou é lead quente pra recuperar.
+              </p>
+              <div className={styles.cards} style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
+                <div className={styles.card} style={{ borderColor: 'var(--color-primary)', borderWidth: 2, borderStyle: 'solid' }}>
+                  <div className={styles.cardLabel}>Vendido no app · HOJE</div>
+                  <div className={styles.cardValue} style={{ color: 'var(--color-primary)' }}>{brl(vi.hoje_valor)}</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>Vendido no app · TOTAL</div>
+                  <div className={styles.cardValue}>{brl(vi.total_valor)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>{vi.total_qtd} venda(s) interna(s) · máximo acumulado</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>Clicaram em comprar</div>
+                  <div className={styles.cardValue}>{vi.checkouts}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>{vi.convertidos} viraram venda</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>Conversão no app</div>
+                  <div className={styles.cardValue}>{vi.checkouts > 0 ? vi.conversao_pct + '%' : '—'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>clicou → comprou</div>
+                </div>
+              </div>
+              {vi.atividade.length > 0 ? (
+                <div className={styles.tableWrap} style={{ marginTop: 16 }}>
+                  <table className={styles.table}>
+                    <thead><tr><th>Membro</th><th>Produto</th><th>Ação no app</th><th>Comprou?</th><th>Valor</th><th>Quando</th></tr></thead>
+                    <tbody>
+                      {vi.atividade.map((a, i) => {
+                        const r = relDateShort(a.criado_em);
+                        return (
+                          <tr key={a.email + a.produto + a.tipo + i}>
+                            <td><div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><span style={{ fontWeight: 600 }}>{a.nome || '(sem nome)'}</span><span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{a.email}</span></div></td>
+                            <td style={{ fontWeight: 600 }}>{a.produto}</td>
+                            <td className={styles.mutedCell}>{a.tipo === 'checkout' ? '🛒 Clicou em comprar' : '👀 Viu a oferta'}</td>
+                            <td>{a.comprou
+                              ? <span style={{ color: 'var(--ink-green, #16a34a)', fontWeight: 700 }}>✓ Comprou</span>
+                              : a.tipo === 'checkout' ? <span style={{ color: 'var(--ink-amber, #d97706)', fontWeight: 700 }}>Não fechou</span> : <span className={styles.emptyDash}>—</span>}</td>
+                            <td style={{ fontWeight: 700 }}>{a.valor > 0 ? brl(a.valor) : <span className={styles.emptyDash}>—</span>}</td>
+                            <td><span style={{ fontWeight: 600, fontSize: 12, color: r.color }}>{r.label}</span></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ marginTop: 16, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '20px 18px', fontSize: 13, color: 'var(--color-text-muted)' }}>
+                  Ainda ninguém clicou pra comprar por dentro do app. Aparece aqui na hora que rolar — com valor e quem foi.
+                </div>
+              )}
+            </div>
+            );
+          })()}
 
           {/* ═══ TABELA DETALHADA (linha expansível) ═══ */}
           <div style={{ marginTop: 32, marginBottom: 8, display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
