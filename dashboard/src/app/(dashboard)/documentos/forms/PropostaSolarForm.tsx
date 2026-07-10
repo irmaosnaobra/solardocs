@@ -82,6 +82,7 @@ const initialFields = {
   garantia_inversor: '10',
   garantia_estrutura: '10',
   garantia_instalacao: '1',
+  garantia_instalacao_unidade: 'anos', // 'anos' | 'meses' — mão de obra às vezes é 6 meses
   inflacao_aa: '6',
   taxa_minima_inflacao_aa: '6',
   // Formas de pagamento — consultor escolhe o que aparece para o cliente.
@@ -781,8 +782,20 @@ export default function PropostaSolarPage() {
               <input type="text" inputMode="numeric" value={fields.garantia_estrutura} onChange={e => setField('garantia_estrutura', e.target.value)} placeholder="10" className="input-field" />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Garantia da instalação (anos)</label>
-              <input type="text" inputMode="numeric" value={fields.garantia_instalacao} onChange={e => setField('garantia_instalacao', e.target.value)} placeholder="1" className="input-field" />
+              <label className={styles.label}>Garantia da instalação (mão de obra)</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input type="text" inputMode="numeric" value={fields.garantia_instalacao} onChange={e => setField('garantia_instalacao', e.target.value)} placeholder="1" className="input-field" style={{ flex: 1, minWidth: 0 }} />
+                <select
+                  value={fields.garantia_instalacao_unidade}
+                  onChange={e => setField('garantia_instalacao_unidade', e.target.value)}
+                  className="input-field"
+                  style={{ flex: '0 0 auto', width: 'auto' }}
+                  aria-label="Unidade da garantia de instalação"
+                >
+                  <option value="anos">anos</option>
+                  <option value="meses">meses</option>
+                </select>
+              </div>
             </div>
           </div>
 

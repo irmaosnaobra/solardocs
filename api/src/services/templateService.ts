@@ -1851,6 +1851,11 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
   const garEstrutura = parseInt(String(f.garantia_estrutura || '10'), 10) || 10;
   const garInstalacao = parseInt(String(f.garantia_instalacao || '1'), 10) || 1;
+  // Mão de obra às vezes é dada em meses (ex: 6 meses). Unidade escolhida no form.
+  const garInstalacaoMeses = String(f.garantia_instalacao_unidade ?? 'anos').toLowerCase() === 'meses';
+  const garInstalacaoUnidade = garInstalacaoMeses
+    ? (garInstalacao === 1 ? 'mês' : 'meses')
+    : (garInstalacao === 1 ? 'ano' : 'anos');
   // Garantias extras (até 2) — só renderizam se nome e anos > 0 estiverem preenchidos.
   type GarExtra = { nome: string; anos: number };
   const garExtras: GarExtra[] = ([1, 2] as const).flatMap((i): GarExtra[] => {
@@ -1952,7 +1957,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
       `* Módulos: ${garPaineis} anos de performance`,
       `* Inversor: ${garInversor} anos`,
       `* Estrutura: ${garEstrutura} anos`,
-      `* Instalação: ${garInstalacao} ${garInstalacao === 1 ? 'ano' : 'anos'}`,
+      `* Instalação: ${garInstalacao} ${garInstalacaoUnidade}`,
       ...(temBateria && bateriaGarantia > 0 ? [`* Bateria: ${bateriaGarantia} ${bateriaGarantia === 1 ? 'ano' : 'anos'}`] : []),
       ...garExtras.map(g => `* ${g.nome}: ${g.anos} ${g.anos === 1 ? 'ano' : 'anos'}`),
       '');
@@ -2489,7 +2494,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
       <div class="garantia"><div class="garantia-num">${garPaineis}</div><div class="garantia-label">anos<br/>painéis</div></div>
       <div class="garantia"><div class="garantia-num">${garInversor}</div><div class="garantia-label">${garInversor === 1 ? 'ano' : 'anos'}<br/>inversor</div></div>
       <div class="garantia"><div class="garantia-num">${garEstrutura}</div><div class="garantia-label">${garEstrutura === 1 ? 'ano' : 'anos'}<br/>estrutura</div></div>
-      <div class="garantia"><div class="garantia-num">${garInstalacao}</div><div class="garantia-label">${garInstalacao === 1 ? 'ano' : 'anos'}<br/>instalação</div></div>
+      <div class="garantia"><div class="garantia-num">${garInstalacao}</div><div class="garantia-label">${garInstalacaoUnidade}<br/>instalação</div></div>
       ${temBateria && bateriaGarantia > 0 ? `<div class="garantia"><div class="garantia-num">${bateriaGarantia}</div><div class="garantia-label">${bateriaGarantia === 1 ? 'ano' : 'anos'}<br/>bateria</div></div>` : ''}
       ${garExtras.map(g => `<div class="garantia"><div class="garantia-num">${g.anos}</div><div class="garantia-label">${g.anos === 1 ? 'ano' : 'anos'}<br/>${pEsc(g.nome)}</div></div>`).join('')}
     </div>
