@@ -217,6 +217,12 @@
         </div>
 
         <div class="field">
+          <label>Seu WhatsApp (para avisarmos você) <span class="req">*</span></label>
+          <input type="tel" name="indicador_telefone" placeholder="(34) 99999-9999" maxlength="200" required>
+          <span class="hint">Você recebe uma confirmação agora e um aviso quando a indicação fechar.</span>
+        </div>
+
+        <div class="field">
           <label>Sua chave PIX (para o pagamento do prêmio) <span class="req">*</span></label>
           <input type="text" name="indicador_pix" placeholder="CPF, telefone, e-mail ou aleatória" maxlength="200" required>
         </div>
@@ -260,12 +266,13 @@
         indicado_nome: (fd.get('indicado_nome') || '').toString().trim(),
         indicado_telefone: (fd.get('indicado_telefone') || '').toString().trim(),
         indicador_nome: (fd.get('indicador_nome') || '').toString().trim(),
+        indicador_telefone: (fd.get('indicador_telefone') || '').toString().trim(),
         indicador_pix: (fd.get('indicador_pix') || '').toString().trim(),
         website: (fd.get('website') || '').toString(),
         origem: new URLSearchParams(location.search).get('utm_source') || 'link-bio',
       };
 
-      if (!payload.indicado_nome || !payload.indicado_telefone || !payload.indicador_nome || !payload.indicador_pix) {
+      if (!payload.indicado_nome || !payload.indicado_telefone || !payload.indicador_nome || !payload.indicador_telefone || !payload.indicador_pix) {
         showError('Por favor, preencha todos os campos.');
         return;
       }

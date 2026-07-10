@@ -11,6 +11,8 @@ interface Indicacao {
   indicado_telefone: string;
   indicado_telefone_raw: string | null;
   indicador_nome: string;
+  indicador_telefone: string | null;
+  indicador_telefone_raw: string | null;
   indicador_pix: string;
   status: 'novo' | 'contatado' | 'fechado' | 'pago';
   observacoes: string | null;
@@ -150,6 +152,13 @@ export default function IndicacoesIoPanel() {
                 <span className={styles.blockLabel}>Indicador (recebe o PIX)</span>
                 <div className={styles.blockMain}>
                   <strong>{r.indicador_nome}</strong>
+                  {r.indicador_telefone && (
+                    <div className={styles.contactRow}>
+                      <a href={waLink(r.indicador_telefone)} target="_blank" rel="noopener" className={styles.waBtn}>
+                        {r.indicador_telefone_raw || r.indicador_telefone}
+                      </a>
+                    </div>
+                  )}
                   <button className={styles.pixBtn} onClick={() => copy(r.indicador_pix)} title="Copiar chave PIX">
                     {r.indicador_pix} <span className={styles.copyHint}>copiar</span>
                   </button>
