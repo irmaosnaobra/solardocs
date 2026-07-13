@@ -196,11 +196,11 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     if (codigoCurto) insertPayload.codigo_curto = codigoCurto;
 
     // Retry em colisao de codigo_curto: se 2 propostas geram simultaneamente, ambas leem o
-    // mesmo MAX e tentam o mesmo número. Unique constraint (user_id, codigo_curto) bloqueia
-    // a 2ª — aí incrementa o sufixo em +1 e tenta de novo até achar livre.
+    // mesmo MAX e tentam o mesmo número. Unique parcial (user_id, codigo_curto) WHERE NOT NULL
+    // bloqueia a 2ª — aí incrementa o sufixo em +1 e tenta de novo até achar livre.
     let saved: { id: string } | null = null;
     let insertErr: { code?: string; message?: string } | null = null;
-    for (let attempt = 1; attempt <= 5; attempt++) {
+    for (let attempt = 1; attempt <= 12; attempt++) {
       const result = await supabase.from('documents').insert(insertPayload).select('id').single();
       if (!result.error) {
         saved = result.data;
@@ -208,17 +208,35 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
         break;
       }
       insertErr = result.error;
-      const isCodigoRace = codigoCurto
+      const isCodigoRace = insertPayload.codigo_curto
         && result.error.code === '23505'
         && /codigo_curto/i.test(result.error.message || '');
       if (!isCodigoRace) break;
       // Incrementa o sufixo em +1 (determinístico) em vez de recalcular pelo mesmo
       // caminho — recalcular devolveria o MESMO codigo_curto e o retry nunca convergiria.
-      const ano = String(codigoCurto).slice(0, 4);
-      const proxSeq = Number(String(codigoCurto).slice(-4)) + 1;
-      codigoCurto = `${ano}${String(proxSeq).padStart(4, '0')}`;
+      const cc = String(insertPayload.codigo_curto);
+      codigoCurto = `${cc.slice(0, 4)}${String(Number(cc.slice(-4)) + 1).padStart(4, '0')}`;
       insertPayload.codigo_curto = codigoCurto;
       logger.warn('documents', `colisao em codigo_curto, retry ${attempt} com ${codigoCurto}`);
+    }
+
+    // BLINDAGEM: emitir o documento NUNCA pode falhar por causa da numeração (cosmética).
+    // Se depois de todas as tentativas ainda colidiu, ou se o insert falhou por qualquer
+    // outra causa ligada ao codigo_curto, salva SEM numero (codigo_curto = null). A unique
+    // é parcial (WHERE codigo_curto IS NOT NULL), então linhas null nunca colidem. O doc
+    // fica 100% acessível por id/UUID (PDF, histórico, link público /p/:UUID) — só perde o
+    // link curto bonito daquele doc, que é recuperável reeditando depois.
+    if (!saved && insertPayload.codigo_curto) {
+      logger.error('documents', 'codigo_curto insistiu em colidir — salvando sem numero (blindagem)', insertErr);
+      delete insertPayload.codigo_curto;
+      codigoCurto = null;
+      const fallback = await supabase.from('documents').insert(insertPayload).select('id').single();
+      if (!fallback.error) {
+        saved = fallback.data;
+        insertErr = null;
+      } else {
+        insertErr = fallback.error;
+      }
     }
 
     if (insertErr || !saved) {
