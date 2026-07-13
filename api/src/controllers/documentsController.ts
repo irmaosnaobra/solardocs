@@ -195,9 +195,9 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     };
     if (codigoCurto) insertPayload.codigo_curto = codigoCurto;
 
-    // Retry em race de codigo_curto: se 2 propostas geram simultaneamente, ambas leem o mesmo
-    // COUNT pra calcular a sequência e tentam o mesmo número. Unique constraint
-    // (user_id, codigo_curto) bloqueia a 2ª — aí recalcula e tenta de novo.
+    // Retry em colisao de codigo_curto: se 2 propostas geram simultaneamente, ambas leem o
+    // mesmo MAX e tentam o mesmo número. Unique constraint (user_id, codigo_curto) bloqueia
+    // a 2ª — aí incrementa o sufixo em +1 e tenta de novo até achar livre.
     let saved: { id: string } | null = null;
     let insertErr: { code?: string; message?: string } | null = null;
     for (let attempt = 1; attempt <= 5; attempt++) {
@@ -212,15 +212,13 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
         && result.error.code === '23505'
         && /codigo_curto/i.test(result.error.message || '');
       if (!isCodigoRace) break;
-      try {
-        const recalc = await ensureEmpresaSlugAndCodigoCurto(req.userId, company.id);
-        codigoCurto = recalc.codigoCurto;
-        empresaSlug = recalc.slug;
-        insertPayload.codigo_curto = codigoCurto;
-        logger.warn('documents', `race em codigo_curto, retry ${attempt} com ${codigoCurto}`);
-      } catch {
-        break;
-      }
+      // Incrementa o sufixo em +1 (determinístico) em vez de recalcular pelo mesmo
+      // caminho — recalcular devolveria o MESMO codigo_curto e o retry nunca convergiria.
+      const ano = String(codigoCurto).slice(0, 4);
+      const proxSeq = Number(String(codigoCurto).slice(-4)) + 1;
+      codigoCurto = `${ano}${String(proxSeq).padStart(4, '0')}`;
+      insertPayload.codigo_curto = codigoCurto;
+      logger.warn('documents', `colisao em codigo_curto, retry ${attempt} com ${codigoCurto}`);
     }
 
     if (insertErr || !saved) {
@@ -335,21 +333,33 @@ async function ensureEmpresaSlugAndCodigoCurto(
   }
 
   const ano = new Date().getFullYear();
-  const inicioAno = `${ano}-01-01`;
 
-  // Conta propostaSolar de TODA a empresa no ano (todos os users dessa empresa).
-  // Como company.user_id é 1:1 com user atual (current model), basta filtrar por user_id.
-  // Quando suportar multi-user-por-empresa, trocar pra JOIN via company_id.
-  const { count } = await supabase
-    .from('documents')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('tipo', 'propostaSolar')
-    .gte('created_at', inicioAno);
-
-  const seq = (count || 0) + 1;
-  const codigoCurto = `${ano}${String(seq).padStart(4, '0')}`;
+  // Sequência derivada de MAX(sufixo)+1, NÃO de COUNT+1.
+  // COUNT+1 desincroniza pra sempre se qualquer proposta for apagada (ex: cleanup
+  // cron de docs PRO >30d): o count encolhe mas os codigo_curto já usados não voltam,
+  // então "próximo" cai numa faixa já ocupada e colide no unique (user_id, codigo_curto)
+  // — era exatamente o "Falha ao salvar documento". MAX+1 sempre aponta pra um livre.
+  const codigoCurto = await nextCodigoCurto(userId, ano);
   return { slug, codigoCurto };
+}
+
+// Próximo codigo_curto livre do user no ano: MAX(sufixo)+1.
+// codigo_curto é text de largura fixa (YYYY + 4 dígitos), então order desc lexical
+// == numérico pro mesmo prefixo de ano. Ano novo (0 linhas) → seq 1.
+async function nextCodigoCurto(userId: string, ano: number): Promise<string> {
+  const prefixo = String(ano);
+  const { data: maxRow } = await supabase
+    .from('documents')
+    .select('codigo_curto')
+    .eq('user_id', userId)
+    .like('codigo_curto', `${prefixo}%`)
+    .order('codigo_curto', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const atual = maxRow?.codigo_curto ? Number(String(maxRow.codigo_curto).slice(-4)) : 0;
+  const seq = (Number.isFinite(atual) ? atual : 0) + 1;
+  return `${prefixo}${String(seq).padStart(4, '0')}`;
 }
 
 export async function saveDocument(req: Request, res: Response): Promise<void> {
