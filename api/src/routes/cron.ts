@@ -28,6 +28,7 @@ import { runDunning } from '../services/dunningService';
 import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
 import { runMonitorCriativos } from '../services/agenda/monitorCriativosService';
+import { runAuxiliarTrafego } from '../services/agenda/auxiliarTrafegoService';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
 
@@ -519,6 +520,24 @@ router.get('/monitor-criativos', async (req: Request, res: Response) => {
   }
 });
 
+// Copiloto de tráfego 24h. Roda de hora em hora (master). SÓ AVISA no WhatsApp
+// do Thiago (34991360223) quando há AÇÃO: escalar (ROAS forte), pausar sangrador,
+// bateu meta (LimpaPro R$1200/dia · SolarDoc 10 clientes/dia), lembrete meia-noite.
+// Dia parado = silêncio. Madrugada segura pra 7h. NÃO mexe no Meta.
+// ?dry=1 → não envia, só loga a msg + match-rate. ?force=1 → ignora dedup/madrugada.
+router.get('/auxiliar-trafego', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry   = req.query.dry === '1' || req.query.dry === 'true';
+    const force = req.query.force === '1' || req.query.force === 'true';
+    const result = await runAuxiliarTrafego({ dry, force });
+    res.json({ ok: true, dry, force, ...result });
+  } catch (err: any) {
+    logger.error('cron', 'auxiliar-trafego falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 // Digest de estoque baixo do Inventário (aba grátis). GATED: rodar manual /
 // ?dry=1 primeiro pra conferir volume; só entra no master depois de adoção.
 // O badge in-app já é o alerta sempre-ligado — o email é reforço opcional.
@@ -577,6 +596,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
     ['pix-vip-reminder',            () => runPixVipReminder()],     // avisa VIP-pix (84994501564) ~2d antes de vencer: valor + chave Pix
     ['monitor-criativos',           () => runMonitorCriativos()],   // alerta WhatsApp: criativos Meta gastando sem vender / CTR baixa
+    ['auxiliar-trafego',            () => runAuxiliarTrafego()],    // copiloto 24h: escalar/pausar/meta/meia-noite (só avisa) — metas LimpaPro R$1200 · SolarDoc 10/dia
     // ['inventory-low-stock',         () => runInventoryLowStockAlert()], // [GATED] digest de estoque baixo — ligar após adoção do Inventário
   ];
 

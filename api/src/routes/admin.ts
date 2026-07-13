@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
 import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel, getRevenue, getBilling } from '../controllers/adminController';
 import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas, getLimpaproMembros } from '../controllers/limpaproController';
+import { getMetaAds } from '../controllers/metaAdsController';
 import { supabase } from '../utils/supabase';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 
@@ -71,6 +72,7 @@ router.post('/reset-monthly', triggerMonthlyReset);
 router.get('/visits',         getVisits);
 router.get('/analytics',      getAnalytics);
 router.get('/meta-funnel',    getMetaFunnel);
+router.get('/meta-ads',       getMetaAds);
 router.get('/funnel',         getFunnel);
 router.get('/funnel-limpapro', getLimpaproFunnel);
 router.get('/leads-limpapro',  getLimpaproLeads);

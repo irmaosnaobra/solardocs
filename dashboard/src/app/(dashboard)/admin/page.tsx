@@ -9,6 +9,7 @@ import FunilLimpaproPanel from './_components/FunilLimpaproPanel';
 import MembrosPanel from './_components/MembrosPanel';
 import MembrosLimpaproPanel from './_components/MembrosLimpaproPanel';
 import TrafegoPanel from './_components/TrafegoPanel';
+import MetaAdsPanel from './_components/MetaAdsPanel';
 
 /* ─── tipos ─────────────────────────────────────────────────── */
 interface SessionRow {
@@ -190,7 +191,7 @@ function FunnelSVG({ steps }: { steps: FunnelStep[] }) {
 /* ─── página principal ───────────────────────────────────────── */
 export default function AdminPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'|'membros'|'membros_limpapro'|'trafego'>('membros');
+  const [tab, setTab] = useState<'visits'|'receita'|'io_visits'|'pack_visits'|'funil_solardoc'|'funil_limpapro'|'membros'|'membros_limpapro'|'trafego'|'meta_ads'>('membros');
 
   const [analytics, setAnalytics]               = useState<Analytics|null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -308,6 +309,7 @@ export default function AdminPage() {
         {/* <button className={tab==='pack_visits'?styles.tabActive:styles.tab} onClick={()=>setTab('pack_visits')}>LP Pack</button> */}
         <button className={tab==='funil_solardoc'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_solardoc')}>Funil SolarDoc</button>
         <button className={tab==='funil_limpapro'?styles.tabActive:styles.tab} onClick={()=>setTab('funil_limpapro')}>Funil LimpaPro</button>
+        <button className={tab==='meta_ads'?styles.tabActive:styles.tab} onClick={()=>setTab('meta_ads')}>Meta Ads</button>
       </div>
 
       {/* ═══ ABA ACESSOS SITE IO ════════════════════════════════ */}
@@ -1006,6 +1008,7 @@ export default function AdminPage() {
 
       {/* ═══ ABA FUNIL LIMPAPRO ═════════════════════════════════ */}
       {tab === 'funil_limpapro' && <FunilLimpaproPanel />}
+      {tab === 'meta_ads' && <MetaAdsPanel />}
 
     </div>
   );
