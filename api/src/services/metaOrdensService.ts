@@ -48,9 +48,10 @@ export interface OrdemRow {
 export async function sincronizarOrdens(): Promise<{ criadas: number; jaAbertas: number }> {
   const [adsets3d, signals] = await Promise.all([
     fetchMetaEntities('adset', 'last_3d'),
-    computeAllSignals(14).catch(() => new Map()),
+    computeAllSignals(30).catch(() => new Map()),  // 30d: veredito cruzado precisa da janela longa
   ]);
-  const ordens = gerarOrdens(adsets3d).filter(o => o.tipo !== 'MANTER' && o.tipo !== 'OBSERVAR');
+  // Cérebro único: ordem = veredito multi-janela (não thresholds de 3d).
+  const ordens = gerarOrdens(adsets3d, signals).filter(o => o.tipo !== 'MANTER' && o.tipo !== 'OBSERVAR');
 
   // Anti-duplicação: pula uma chave se (a) já tem ordem PENDENTE aberta, OU
   // (b) foi marcada FEITA há menos que o cooldown do tipo. 'perdida'/'vencida'
@@ -90,7 +91,14 @@ export async function sincronizarOrdens(): Promise<{ criadas: number; jaAbertas:
       score: sig?.score ?? null, leitura: sig?.leitura ?? null,
       estado: 'pendente',
       expira_em: new Date(nowMs + prazoHoras(o.tipo) * 3600_000).toISOString(),
-      snapshot: { spend: e.spend, roas: e.roas, purchases: e.purchases, ctr: e.ctr, purchase_value: e.purchase_value },
+      // snapshot guarda as JANELAS (30d/14d/7d/3d) + veredito → a explicação
+      // persiste na ordem (escola: você vê depois por que foi decidido assim).
+      snapshot: {
+        spend: e.spend, roas: e.roas, purchases: e.purchases,
+        janelas: sig?.janelas ?? null,
+        veredito: sig?.veredito ?? null,
+        concordancia: sig?.veredito?.concordancia ?? null,
+      },
     };
   });
   // Insere UMA A UMA: se duas execuções (painel, cron, robô) sincronizarem ao
@@ -118,15 +126,16 @@ export async function expirarOrdens(): Promise<{ perdidas: number; vencidas: num
     .eq('estado', 'pendente').lt('expira_em', nowIso);
   if (!vencidas?.length) return { perdidas: 0, vencidas: 0 };
 
-  // Números atuais dos conjuntos (last_3d) pra reconferir a condição.
-  const adsets = await fetchMetaEntities('adset', 'last_3d').catch(() => []);
-  const byId = new Map(adsets.map(a => [a.id, a]));
+  // Reconfere com o MESMO cérebro que gerou a ordem: o veredito multi-janela.
+  // (Antes usava thresholds de 3d — divergiria do que criou a ordem, causando
+  // falso "perdida". A regra tem que ser a mesma na criação e no vencimento.)
+  const signals = await computeAllSignals(30).catch(() => new Map());
 
   let perdidas = 0, vencidasC = 0;
   for (const o of vencidas as OrdemRow[]) {
-    const atual = byId.get(o.adset_id);
-    // Reconfere: a condição que gerou a ordem ainda se sustenta?
-    const aindaVale = condicaoAindaVale(o, atual);
+    const v = signals.get(o.adset_id)?.veredito;
+    // A condição ainda vale se o veredito ATUAL ainda pede a MESMA ação.
+    const aindaVale = !!v && v.tipo === o.tipo;
     if (aindaVale) {
       await supabase.from('mm_ordens').update({
         estado: 'perdida', resolvida_em: nowIso,
@@ -136,26 +145,12 @@ export async function expirarOrdens(): Promise<{ perdidas: number; vencidas: num
     } else {
       await supabase.from('mm_ordens').update({
         estado: 'vencida', resolvida_em: nowIso,
-        resolucao_detalhe: atual ? 'Os números mudaram — a ordem não se aplica mais (ok).' : 'Conjunto sem entrega agora — ordem não se aplica mais.',
+        resolucao_detalhe: v ? `Os números mudaram — agora o veredito é "${v.tipo}", não se aplica mais (ok).` : 'Conjunto sem entrega agora — ordem não se aplica mais.',
       }).eq('id', o.id);
       vencidasC++;
     }
   }
   return { perdidas, vencidas: vencidasC };
-}
-
-// A condição que gerou a ordem ainda se sustenta nos números atuais?
-function condicaoAindaVale(o: OrdemRow, atual: { roas: number; purchases: number; spend: number } | undefined): boolean {
-  if (!atual) return false; // sem entrega/dados → não se aplica mais
-  const DUP_ROAS = N(process.env.AUX_DUP_ROAS, 2.5), DUP_VENDAS = N(process.env.AUX_DUP_VENDAS, 2);
-  const UP_ROAS = N(process.env.AUX_UP_ROAS, 1.8), UP_VENDAS = N(process.env.AUX_UP_VENDAS, 1);
-  const PAUSE_LIMIAR = N(process.env.AUX_TICKET, 45) * N(process.env.AUX_PAUSE_FATOR, 1.5);
-  switch (o.tipo) {
-    case 'DUPLICAR': return atual.purchases >= DUP_VENDAS && atual.roas >= DUP_ROAS;
-    case 'AUMENTAR': return atual.purchases >= UP_VENDAS && atual.roas >= UP_ROAS;
-    case 'PAUSAR':   return atual.spend >= PAUSE_LIMIAR && atual.purchases === 0;
-    default: return false;
-  }
 }
 
 // ── MARCAR FEITA + confirmar no readback ──

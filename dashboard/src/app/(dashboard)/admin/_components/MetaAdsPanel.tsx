@@ -24,6 +24,7 @@ interface MetaEntity {
   signals?: Signals | null;
 }
 // Sinais de "especialista" (do histórico diário) — ver metaSignalsService.
+interface JanelaMetrica { n_dias: number; roas: number; purchases: number; spend: number; suficiente: boolean; }
 interface Signals {
   dias_rodando: number;
   trajetoria: 'subindo' | 'caindo' | 'estavel' | 'novo';
@@ -31,6 +32,8 @@ interface Signals {
   fadiga: boolean; frequencia: number;
   melhor_roas: number; melhor_dia: string | null;
   score: number; leitura: string;
+  janelas?: { hoje: JanelaMetrica; ontem: JanelaMetrica; d3: JanelaMetrica; d7: JanelaMetrica; d14: JanelaMetrica; d30: JanelaMetrica };
+  veredito?: { tipo: string; concordancia: 'alta' | 'media' | 'baixa'; frase: string };
 }
 interface Ordem { tipo: OrdemTipo; entity: MetaEntity; motivo: string; comoFazer: string; prioridade: number; signals?: Signals | null; }
 interface Totais { spend: number; impressions: number; clicks: number; purchases: number; purchase_value: number; ctr: number; cpc: number; cpa: number; roas: number; }
@@ -57,6 +60,7 @@ interface OrdemRow {
   expira_em: string; feita_em: string | null; feita_por: string | null;
   confirmacao: string | null; confirmacao_detalhe: string | null;
   resolucao_detalhe: string | null;
+  snapshot: { janelas?: Signals['janelas']; veredito?: Signals['veredito']; concordancia?: string } | null;
 }
 interface OrdensData { pendentes: OrdemRow[]; historico: OrdemRow[]; modo: string; }
 
@@ -78,6 +82,10 @@ const ORDEM_META: Record<OrdemTipo, { emoji: string; cor: string; titulo: string
 const fmtBRL = (n: number) => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtBRLk = (n: number) => n >= 1000 ? 'R$ ' + (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: n >= 100000 ? 0 : 1 }) + 'k' : fmtBRL(n);
 const roasClass = (r: number) => r >= 2.5 ? s.roasBom : r >= 1.5 ? s.roasMed : r > 0 ? s.roasRuim : s.roasZero;
+// Horário-limite como relógio ("faça até 23h07"), em BRT.
+const horaLimite = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
+// Uma janela: "16.8x" ou "—" se dados insuficientes.
+const janelaTxt = (m?: JanelaMetrica) => (m && m.suficiente ? m.roas.toFixed(1) + 'x' : '—');
 const trajArrow = (t: Signals['trajetoria']) =>
   t === 'subindo' ? <span title="ROAS subindo" style={{ color: '#16a34a' }}>↑</span>
   : t === 'caindo' ? <span title="ROAS caindo" style={{ color: '#dc2626' }}>↓</span>
@@ -259,12 +267,32 @@ export default function MetaAdsPanel() {
                       <div className={s.filaTopo}>
                         <span className={s.ordemTipo}>{m.emoji} {m.titulo}</span>
                         <span className={s.ordemNome}>{o.adset_nome}</span>
-                        <span className={`${s.prazo} ${urgente ? s.prazoUrgente : ''}`}>
-                          ⏳ {restaH >= 1 ? `${restaH.toFixed(0)}h` : `${Math.round(restaH * 60)}min`} restantes
+                        {o.snapshot?.concordancia && (
+                          <span className={`${s.concTag} ${o.snapshot.concordancia === 'alta' ? s.concAlta : o.snapshot.concordancia === 'media' ? s.concMedia : s.concBaixa}`}>
+                            {o.snapshot.concordancia === 'alta' ? 'janelas concordam' : o.snapshot.concordancia === 'media' ? 'confirma nos próximos dias' : 'sinal fraco'}
+                          </span>
+                        )}
+                        <span className={`${s.prazo} ${urgente ? s.prazoUrgente : ''}`} title="Passou do horário = não executado, some da fila">
+                          ⏰ faça até {horaLimite(o.expira_em)}
                         </span>
                       </div>
-                      <div className={s.ordemMotivo}>{o.motivo}</div>
-                      {o.leitura && <div className={s.filaLeitura}>🧠 {o.leitura}{o.score != null && <span className={s.espScore}> {o.score}</span>}</div>}
+                      {/* Avaliação multi-janela — a base da decisão (30d→hoje) */}
+                      {o.snapshot?.janelas && (
+                        <div className={s.janelas}>
+                          {([['30d','d30'],['14d','d14'],['7d','d7'],['3d','d3'],['ontem','ontem'],['hoje','hoje']] as const).map(([lbl, k]) => {
+                            const j = o.snapshot!.janelas![k as keyof NonNullable<Signals['janelas']>];
+                            const decisora = k === 'd3' || k === 'd7';
+                            return (
+                              <span key={lbl} className={`${s.janelaCol} ${decisora ? s.janelaDecisora : ''}`} title={decisora ? 'janela que DECIDE' : k === 'hoje' || k === 'ontem' ? 'só contexto (pixel atrasa 1 dia)' : 'confirma tendência'}>
+                                <span className={s.janelaLbl}>{lbl}</span>
+                                <span className={s.janelaVal}>{janelaTxt(j)}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {/* O PORQUÊ (escola dinâmica) — explicação do cruzamento */}
+                      <div className={s.filaPorque}>🧠 {o.motivo}</div>
                       <div className={s.ordemComo}>💡 {o.como_fazer}</div>
                       <div className={s.filaAcoes}>
                         <a className={s.ordemBtn} href={gerenciadorLink(data.conta, 'adset', o.adset_id)} target="_blank" rel="noreferrer">Abrir no Gerenciador →</a>
