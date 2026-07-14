@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
 import {
-  fetchMetaEntities, fetchStatuses, gerarOrdens,
+  fetchMetaEntities, fetchStatuses, gerarOrdens, fetchBudgets,
   type MetaEntity, type MetaDatePreset, type Ordem,
 } from '../services/metaAdsFullService';
 import { computeAllSignals, type AdsetSignals } from '../services/metaSignalsService';
@@ -101,7 +101,9 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
     // Anexa os sinais de especialista em cada conjunto (tabela) e nas ordens.
     const adsetsComSinal = adsets.map(a => ({ ...a, signals: signals.get(a.id) ?? null }));
     // Cérebro único: ordens vêm do veredito multi-janela (signals), não de 3d.
-    const ordens: Ordem[] = gerarOrdens(adsets3d, signals).map(o => ({ ...o, signals: signals.get(o.entity.id) ?? null }));
+    // budgets → CBO vira 1 ordem por campanha (não duplica por conjunto).
+    const budgets = await fetchBudgets().catch(() => new Map());
+    const ordens: Ordem[] = gerarOrdens(adsets3d, signals, budgets).map(o => ({ ...o, signals: signals.get(o.entity.id) ?? null }));
     const totais = agregaTotais(campaigns);
     const escada = montaEscada(faturamento.total);
 

@@ -115,6 +115,40 @@ export async function fetchStatuses(level: MetaLevel): Promise<Record<string, st
   } catch { return {}; }
 }
 
+// ── Orçamento por conjunto: detecta ABO (orçamento no conjunto) vs CBO (na
+// campanha). Pra a ordem dizer "deixa em R$X". spend ≠ budget — usa o campo
+// budget de verdade. Retorna mapa adset_id → info de orçamento.
+export interface BudgetInfo {
+  onde: 'conjunto' | 'campanha';   // ABO = conjunto controla; CBO = campanha controla
+  diarioBRL: number | null;        // orçamento diário em R$ (null se for lifetime)
+  vitalicioBRL: number | null;     // orçamento total em R$ (lifetime)
+  nomeControla: string;            // nome do conjunto (ABO) ou da campanha (CBO)
+}
+export async function fetchBudgets(): Promise<Map<string, BudgetInfo>> {
+  const map = new Map<string, BudgetInfo>();
+  if (!TOKEN) return map;
+  const fields = 'id,name,daily_budget,lifetime_budget,campaign{id,name,daily_budget,lifetime_budget}';
+  const url = `${GRAPH}/${ACCOUNT}/adsets?fields=${fields}&limit=500&access_token=${TOKEN}`;
+  try {
+    const res = await fetch(url);
+    const json = await res.json() as { data?: any[] };
+    for (const a of (json.data ?? [])) {
+      const adDaily = a.daily_budget ? Number(a.daily_budget) / 100 : null;
+      const adLife  = a.lifetime_budget ? Number(a.lifetime_budget) / 100 : null;
+      if (adDaily || adLife) {
+        // ABO: o conjunto tem orçamento próprio.
+        map.set(String(a.id), { onde: 'conjunto', diarioBRL: adDaily, vitalicioBRL: adLife, nomeControla: String(a.name ?? '') });
+      } else if (a.campaign) {
+        // CBO: orçamento mora na campanha.
+        const cDaily = a.campaign.daily_budget ? Number(a.campaign.daily_budget) / 100 : null;
+        const cLife  = a.campaign.lifetime_budget ? Number(a.campaign.lifetime_budget) / 100 : null;
+        map.set(String(a.id), { onde: 'campanha', diarioBRL: cDaily, vitalicioBRL: cLife, nomeControla: String(a.campaign.name ?? '') });
+      }
+    }
+  } catch { /* budget é opcional — degrada sem ele */ }
+  return map;
+}
+
 // ── Ordens de comando: converte o VEREDITO MULTI-JANELA em AÇÃO ──────────────
 // CÉREBRO ÚNICO: a ordem vem do vereditoCruzado (30d/14d/7d/3d), não mais de
 // thresholds só de 3d. Assim painel, robô, fila e expiração NUNCA se contradizem
@@ -140,25 +174,39 @@ const COMO: Record<string, string> = {
   PAUSAR: 'Sem venda com esse gasto: pause o conjunto e realoque a verba nos que têm ROAS alto.',
 };
 
-// Gera ordens a partir do VEREDITO de cada conjunto. Recebe os sinais (por
-// adset_id) — sem sinal, cai pra OBSERVAR (não inventa ação sem base).
-export function gerarOrdens(adsets: MetaEntity[], sinais?: Map<string, SinalVeredito | { veredito: SinalVeredito['veredito'] }>): Ordem[] {
+// Gera ordens a partir do VEREDITO de cada conjunto. Recebe sinais (por adset_id)
+// e budgets (ABO/CBO). CBO: o orçamento é da CAMPANHA e VÁRIOS conjuntos dividem —
+// então AUMENTAR/DUPLICAR de conjuntos da MESMA campanha CBO viram UMA ordem só
+// (senão o usuário aumentaria a mesma campanha 2x = dobro, "perder dinheiro").
+export function gerarOrdens(
+  adsets: MetaEntity[],
+  sinais?: Map<string, SinalVeredito | { veredito: SinalVeredito['veredito'] }>,
+  budgets?: Map<string, BudgetInfo>,
+): Ordem[] {
   const ordens: Ordem[] = [];
+  const cboJaVisto = new Set<string>();  // campaign_id de CBO que já virou ordem de orçamento
   for (const e of adsets) {
     if (e.is_lead) continue; // lead não vira ordem de escala/pausa (métrica é lead)
 
     const v = sinais?.get(e.id)?.veredito;
     if (!v) continue; // sem veredito multi-janela → não gera ordem (evita decidir cego)
+    if (v.tipo !== 'DUPLICAR' && v.tipo !== 'AUMENTAR' && v.tipo !== 'PAUSAR') continue; // SEGURAR/OBSERVAR = "não escala ainda"
 
-    // Só DUPLICAR/AUMENTAR/PAUSAR viram ordem acionável. SEGURAR/OBSERVAR = "não escala ainda".
-    if (v.tipo === 'DUPLICAR' || v.tipo === 'AUMENTAR' || v.tipo === 'PAUSAR') {
-      ordens.push({
-        tipo: v.tipo, entity: e,
-        prioridade: v.tipo === 'PAUSAR' ? 1 : v.tipo === 'DUPLICAR' ? (v.concordancia === 'alta' ? 1 : 2) : 3,
-        motivo: v.frase,                          // a explicação do cruzamento = o "porquê" (escola)
-        comoFazer: COMO[v.tipo],
-      });
+    // CBO + ordem de ORÇAMENTO (AUMENTAR/DUPLICAR): dedup por CAMPANHA. PAUSAR é
+    // por conjunto sempre (pausa o conjunto, não a campanha).
+    const b = budgets?.get(e.id);
+    const ehOrcamento = v.tipo === 'AUMENTAR' || v.tipo === 'DUPLICAR';
+    if (b?.onde === 'campanha' && ehOrcamento && e.campaign_id) {
+      if (cboJaVisto.has(e.campaign_id)) continue; // já tem ordem pra essa campanha CBO
+      cboJaVisto.add(e.campaign_id);
     }
+
+    ordens.push({
+      tipo: v.tipo, entity: e,
+      prioridade: v.tipo === 'PAUSAR' ? 1 : v.tipo === 'DUPLICAR' ? (v.concordancia === 'alta' ? 1 : 2) : 3,
+      motivo: v.frase,                          // a explicação do cruzamento = o "porquê" (escola)
+      comoFazer: COMO[v.tipo],
+    });
   }
   return ordens.sort((a, b) => a.prioridade - b.prioridade || b.entity.spend - a.entity.spend);
 }

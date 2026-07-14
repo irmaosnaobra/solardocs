@@ -7,7 +7,7 @@
 
 import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
-import { fetchMetaEntities, gerarOrdens, type Ordem } from './metaAdsFullService';
+import { fetchMetaEntities, gerarOrdens, fetchBudgets, type Ordem } from './metaAdsFullService';
 import { computeAllSignals } from './metaSignalsService';
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
@@ -17,14 +17,22 @@ const N = (v: string | undefined, def: number) => (v != null && v !== '' && !isN
 // Prazos (env override). Escalar 24h · Pausar 12h.
 const PRAZO_ESCALAR_H = N(process.env.ORD_PRAZO_ESCALAR, 24);
 const PRAZO_PAUSAR_H  = N(process.env.ORD_PRAZO_PAUSAR, 12);
-// Cooldown pós-FEITA: não re-sugere a mesma ordem por N horas (a cópia precisa
-// juntar dados antes de valer repetir). Escalar 48h · Pausar 12h. 'perdida'/
-// 'vencida' NÃO entram no cooldown — re-emitem na próxima janela (pedido do Thiago).
-const COOLDOWN_ESCALAR_H = N(process.env.ORD_COOLDOWN_ESCALAR, 48);
-const COOLDOWN_PAUSAR_H  = N(process.env.ORD_COOLDOWN_PAUSAR, 12);
+// Cooldown pós-FEITA por TIPO (timing: não travar escala boa). AUMENTAR = 24h
+// (piso do pixel — não dá pra confirmar antes; rocket ROAS-16x reavaliado em 1 dia,
+// não 2). DUPLICAR = 48h (a cópia precisa amadurecer). PAUSAR não usa cooldown.
+// 'perdida'/'vencida' NÃO entram no cooldown — re-emitem (pausar re-emite já).
+const COOLDOWN_AUMENTAR_H = N(process.env.ORD_COOLDOWN_AUMENTAR, 24);
+const COOLDOWN_DUPLICAR_H = N(process.env.ORD_COOLDOWN_DUPLICAR, 48);
+function cooldownDoTipo(tipo: string): number {
+  return tipo === 'DUPLICAR' ? COOLDOWN_DUPLICAR_H : COOLDOWN_AUMENTAR_H;
+}
 
-function chaveDe(o: Ordem): string {
+// Chave de dedup. CBO + ordem de orçamento → keia por CAMPANHA (uma só por
+// campanha, senão aumentaria a mesma campanha 2x). ABO e PAUSAR → por conjunto.
+function chaveDe(o: Ordem, onde?: 'conjunto' | 'campanha'): string {
   const p = o.tipo === 'DUPLICAR' ? 'dup' : o.tipo === 'AUMENTAR' ? 'up' : o.tipo === 'PAUSAR' ? 'pause' : 'obs';
+  const ehOrcamento = o.tipo === 'DUPLICAR' || o.tipo === 'AUMENTAR';
+  if (onde === 'campanha' && ehOrcamento && o.entity.campaign_id) return `${p}:camp:${o.entity.campaign_id}`;
   return `${p}:${o.entity.id}`;
 }
 function prazoHoras(tipo: string): number {
@@ -46,19 +54,21 @@ export interface OrdemRow {
 // Não duplica: se já existe uma pendente pra mesma chave, mantém. Cada ordem
 // carrega o snapshot dos números + os sinais do especialista.
 export async function sincronizarOrdens(): Promise<{ criadas: number; jaAbertas: number }> {
-  const [adsets3d, signals] = await Promise.all([
+  const [adsets3d, signals, budgets] = await Promise.all([
     fetchMetaEntities('adset', 'last_3d'),
     computeAllSignals(30).catch(() => new Map()),  // 30d: veredito cruzado precisa da janela longa
+    fetchBudgets().catch(() => new Map()),          // ABO/CBO: dedup de orçamento por campanha
   ]);
   // Cérebro único: ordem = veredito multi-janela (não thresholds de 3d).
-  const ordens = gerarOrdens(adsets3d, signals).filter(o => o.tipo !== 'MANTER' && o.tipo !== 'OBSERVAR');
+  // budgets → CBO vira 1 ordem por campanha (não por conjunto).
+  const ordens = gerarOrdens(adsets3d, signals, budgets).filter(o => o.tipo !== 'MANTER' && o.tipo !== 'OBSERVAR');
 
   // Anti-duplicação: pula uma chave se (a) já tem ordem PENDENTE aberta, OU
   // (b) foi marcada FEITA há menos que o cooldown do tipo. 'perdida'/'vencida'
   // NÃO bloqueiam → re-emitem na próxima janela. Sem isto, marcar feito devolvia
   // a ordem à fila na hora (gerarOrdens recria: duplicar não baixa o ROAS do original).
   const nowMs = Date.now();
-  const maxCooldownH = Math.max(COOLDOWN_ESCALAR_H, COOLDOWN_PAUSAR_H);
+  const maxCooldownH = Math.max(COOLDOWN_AUMENTAR_H, COOLDOWN_DUPLICAR_H);
   const desde = new Date(nowMs - maxCooldownH * 3600_000).toISOString();
   // 2 queries limpas em vez de um .or() aninhado frágil (PostgREST). CHECA error:
   // se falhar e ignorássemos, bloqueadas ficaria vazio → toda ordem recria a cada
@@ -73,19 +83,21 @@ export async function sincronizarOrdens(): Promise<{ criadas: number; jaAbertas:
   const bloqueadas = new Set<string>();
   for (const r of (pendRes.data ?? [])) bloqueadas.add(r.chave);
   for (const r of (feitasRes.data ?? [])) {
-    // feita dentro do cooldown do TIPO? (Escalar 48h · Pausar 12h)
-    const cdH = r.tipo === 'PAUSAR' ? COOLDOWN_PAUSAR_H : COOLDOWN_ESCALAR_H;
+    // feita dentro do cooldown do TIPO? AUMENTAR 24h · DUPLICAR 48h (timing:
+    // não travar escala de máquina boa por 2 dias).
+    const cdH = cooldownDoTipo(r.tipo);
     if (r.feita_em && new Date(r.feita_em).getTime() > nowMs - cdH * 3600_000) bloqueadas.add(r.chave);
   }
 
-  const novas = ordens.filter(o => !bloqueadas.has(chaveDe(o)));
+  const ondeDe = (o: Ordem) => budgets.get(o.entity.id)?.onde;
+  const novas = ordens.filter(o => !bloqueadas.has(chaveDe(o, ondeDe(o))));
   if (!novas.length) return { criadas: 0, jaAbertas: bloqueadas.size };
 
   const rows = novas.map(o => {
     const sig = signals.get(o.entity.id) as any;
     const e = o.entity;
     return {
-      chave: chaveDe(o), tipo: o.tipo, adset_id: e.id,
+      chave: chaveDe(o, ondeDe(o)), tipo: o.tipo, adset_id: e.id,
       adset_nome: e.name, campanha_nome: e.campaign_name ?? null,
       motivo: o.motivo, como_fazer: o.comoFazer,
       score: sig?.score ?? null, leitura: sig?.leitura ?? null,
