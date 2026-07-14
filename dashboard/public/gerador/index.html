@@ -111,6 +111,115 @@ html[data-mode="app"].calc-aberto .container{margin-left:0!important}
 .calc-warn{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:#fca5a5;border-radius:10px;padding:12px 14px;font-size:13px;font-weight:600;text-align:center}
 .calc-foot{text-align:center;font-size:11.5px;color:#94A3B8;line-height:1.55;opacity:.85;margin-top:6px}
 .calc-foot b{color:#E5E7EB}
+/* ===== Eletroposto — Simulador de viabilidade (fullscreen, reaproveita classes .calc-*) ===== */
+html[data-mode="app"].eletro-aberto #app-sidebar,
+html[data-mode="app"].eletro-aberto .sb-mobile-toggle{display:none!important}
+html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
+#eletroSection{max-width:1180px;margin:0 auto}
+.eletro-grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start;justify-content:center}
+.eletro-col-inputs{min-width:0}
+.eletro-col-result{min-width:0}
+@media(max-width:900px){.eletro-grid{grid-template-columns:1fr;gap:0}}
+#eletroSection .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:20px 18px;margin-bottom:16px}
+.eletro-sub{text-align:center;font-size:13px;color:#94A3B8;margin:-4px 0 18px}
+/* linha de input compacta (label esquerda, valor à direita) */
+.eletro-field{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.eletro-field:last-child{margin-bottom:0}
+.eletro-field label{flex:1;font-size:13px;font-weight:600;color:#E5E7EB;line-height:1.25}
+.eletro-field .eletro-inp{position:relative;width:132px;flex-shrink:0}
+.eletro-inp .pre{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:13px;font-weight:600;pointer-events:none}
+.eletro-inp .suf{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:13px;font-weight:600;pointer-events:none}
+.eletro-inp input{width:100%;box-sizing:border-box;padding:9px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:14px;font-family:inherit;font-weight:700;text-align:right;outline:none;transition:border-color .2s}
+.eletro-inp.has-pre input{padding-left:30px}
+.eletro-inp.has-suf input{padding-right:44px;text-align:right}
+.eletro-inp input:focus{border-color:#3B82F6}
+.eletro-inp input::-webkit-outer-spin-button,.eletro-inp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+/* KPI cards de resultado (estilo planilha, borda âmbar) */
+.eletro-kgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
+@media(max-width:760px){.eletro-kgrid{grid-template-columns:repeat(2,1fr)}}
+.eletro-kcard{background:#0f1a2e;border:1px solid rgba(245,158,11,.45);border-radius:12px;padding:14px 12px;text-align:center}
+.eletro-kcard .kt{font-size:11px;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
+.eletro-kcard .kv{font-size:22px;font-weight:800;color:#E5E7EB;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.eletro-kcard .kv.grn{color:#34D399}
+.eletro-kcard .kv.red{color:#F87171}
+.eletro-sec-title{font-size:11.5px;font-weight:700;color:#F59E0B;text-transform:uppercase;letter-spacing:.7px;margin:2px 0 12px}
+/* gráfico de fluxo de caixa (waterfall — zero no meio) */
+.eletro-chart{display:flex;align-items:stretch;gap:6px;padding:6px 2px;overflow-x:auto}
+.eletro-bar-wrap{flex:1;min-width:36px;display:flex;flex-direction:column;align-items:center}
+.eletro-half{width:100%;display:flex;flex-direction:column;align-items:center;height:118px}
+.eletro-half.top{justify-content:flex-end;border-bottom:1px solid rgba(255,255,255,.22)}
+.eletro-half.bot{justify-content:flex-start}
+.eletro-bar{width:100%;max-width:44px;background:#F59E0B;transition:height .3s}
+.eletro-half.top .eletro-bar{border-radius:5px 5px 0 0}
+.eletro-half.bot .eletro-bar{border-radius:0 0 5px 5px;opacity:.85}
+.eletro-bar-val{font-size:10px;font-weight:700;color:#F59E0B;white-space:nowrap;font-variant-numeric:tabular-nums}
+.eletro-bar-lbl{font-size:10px;color:#94A3B8;margin-top:6px;font-weight:600}
+/* ===== Eletroposto — sub-abas (Simulador | Pesquisa | Mercado) ===== */
+.eletro-subnav{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:0}
+.eletro-subtab{background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;padding:10px 16px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:-1px}
+.eletro-subtab:hover{color:#E5E7EB}
+.eletro-subtab.ativa{color:#fff;border-bottom-color:#3B82F6}
+/* painéis Power BI embutidos (Pesquisa / Mercado) */
+.pesquisa-frame-wrap{position:relative;width:100%;background:#1E293B;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);overflow:hidden}
+.pesquisa-frame-wrap iframe{display:block;width:100%;height:min(82vh,880px);border:0}
+@media(max-width:760px){.pesquisa-frame-wrap iframe{height:75vh}}
+.pesquisa-info{font-size:13px;color:#cbd5e1;margin-bottom:14px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
+/* card do Mapa (PlugShare abre em nova aba) */
+.eletro-mapa-card{max-width:560px;margin:32px auto;text-align:center;background:#1E293B;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:40px 28px}
+.eletro-mapa-ic{font-size:52px;line-height:1;margin-bottom:12px}
+.eletro-mapa-card h2{font-size:22px;font-weight:800;color:#fff;margin:0 0 12px}
+.eletro-mapa-card p{font-size:14.5px;color:#cbd5e1;line-height:1.6;margin:0 0 22px}
+.eletro-mapa-btn{display:inline-block;background:#3B82F6;color:#fff;font-weight:700;font-size:15px;padding:13px 26px;border-radius:11px;text-decoration:none;transition:background .2s}
+.eletro-mapa-btn:hover{background:#2563EB}
+.eletro-mapa-obs{margin-top:16px;font-size:12px;color:#94A3B8;line-height:1.45}
+/* frase de impacto (momento uau) */
+.eletro-impacto-card{display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,rgba(52,211,153,.14),rgba(59,130,246,.12))!important;border:1px solid rgba(52,211,153,.35)!important}
+.eletro-impacto-ic{font-size:30px;line-height:1;flex-shrink:0}
+.eletro-impacto{font-size:14.5px;color:#E5E7EB;line-height:1.55}
+.eletro-impacto b{color:#fff;font-weight:800}
+/* botões de ação */
+.eletro-acoes{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.eletro-btn{flex:1;min-width:130px;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:#1E293B;color:#E5E7EB;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:border-color .2s,background .2s}
+.eletro-btn:hover{border-color:#3B82F6;background:#243349}
+.eletro-btn.primary{background:#3B82F6;border-color:#3B82F6;color:#fff}
+.eletro-btn.primary:hover{background:#2563EB}
+/* tabela de comparação */
+.eletro-cmp-scroll{overflow-x:auto}
+.eletro-cmp{width:100%;border-collapse:collapse;font-size:13px}
+.eletro-cmp th,.eletro-cmp td{padding:9px 12px;text-align:right;border-bottom:1px solid rgba(255,255,255,.08);white-space:nowrap}
+.eletro-cmp th{color:#94A3B8;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.3px}
+.eletro-cmp th.atual{color:#60A5FA}
+.eletro-cmp td.lbl,.eletro-cmp th:first-child{text-align:left;color:#94A3B8;font-weight:600}
+.eletro-cmp td{color:#E5E7EB;font-variant-numeric:tabular-nums}
+.eletro-cmp td.grn{color:#34D399;font-weight:700}
+/* ===== container de impressão (escondido na tela; a tela só aparece no print) ===== */
+#eletro-print{display:none}
+@media print{
+  /* esconde TODO o resto do fluxo (não só visibility — senão sobra altura = páginas em branco) */
+  body > *{display:none!important}
+  /* elementos position:fixed escapam do "body > *" — esconde explicitamente.
+     Especificidade alta o bastante pra vencer a regra mobile que mostra o toggle (linha ~741). */
+  html[data-mode]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .sb-mobile-toggle,
+  #app-sidebar,.sb-backdrop,#sb-backdrop,.container{display:none!important}
+  #eletro-print{display:block!important;background:#fff}
+  html,body{background:#fff!important;height:auto!important}
+  @page{margin:14mm}
+}
+.ep-doc{color:#111;font-family:Arial,Helvetica,sans-serif;max-width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #F59E0B;padding-bottom:10px;margin-bottom:16px}
+.ep-title{font-size:20px;font-weight:800;color:#111}
+.ep-date{font-size:12px;color:#666}
+.ep-impacto{background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:12px 14px;font-size:14px;color:#065f46;line-height:1.5;margin-bottom:18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-impacto b{color:#047857}
+.ep-cols{display:flex;gap:18px;margin-bottom:18px}
+.ep-box{flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:14px}
+.ep-box h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#F59E0B;margin:0 0 8px;font-weight:800}
+.ep-kv{width:100%;border-collapse:collapse;font-size:13px}
+.ep-kv td{padding:6px 0;border-bottom:1px solid #f1f1f1;color:#333}
+.ep-kv td:last-child{text-align:right;font-weight:700;color:#111;font-variant-numeric:tabular-nums}
+.ep-kv tr.hl td{color:#047857;font-weight:800}
+.ep-fluxo td{border-bottom:1px solid #f6f6f6}
+.ep-foot{margin-top:14px;font-size:10.5px;color:#999;text-align:center;line-height:1.4}
 .leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
 /* ===== CRM (sempre dark — força fundo escuro como o cockpit Redes) ===== */
 #crmSection .card{background:#1E293B!important;color:#E5E7EB!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 4px 16px rgba(0,0,0,.25)!important}
@@ -799,7 +908,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <button type="button" class="sb-item" id="nav-leads" onclick="navLeads()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span> Leads</button>
     <button type="button" class="sb-item" id="nav-tabelas" onclick="navTabelas()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span> Tabelas</button>
     <button type="button" class="sb-item" id="nav-calc" onclick="navCalc()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10"></line><line x1="12" y1="10" x2="12" y2="10"></line><line x1="16" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="16" y1="14" x2="16" y2="18"></line><line x1="8" y1="18" x2="12" y2="18"></line></svg></span> Calculadora</button>
-    <button type="button" class="sb-item" id="nav-redes" onclick="navRedes()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg></span> Redes</button>
+    <button type="button" class="sb-item" id="nav-eletroposto" onclick="navEletroposto()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline></svg></span> Eletroposto</button>
   </div>
   <div class="sb-spacer"></div>
   <div class="sb-foot">
@@ -1626,6 +1735,163 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       Preço&nbsp;=&nbsp;Custo&nbsp;÷&nbsp;(1&nbsp;−&nbsp;margem%&nbsp;−&nbsp;comissão%&nbsp;−&nbsp;impostos%)
     </div>
   </div>
+
+  <!-- ============= TELA: ELETROPOSTO (Simulador + Pesquisa + Mercado) ============= -->
+  <div id="eletroSection" style="display:none;">
+    <div class="header">
+      <div class="header-titulo">
+        <h1>🔋 Eletroposto</h1>
+      </div>
+      <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
+    </div>
+
+    <!-- sub-abas -->
+    <div class="eletro-subnav">
+      <button type="button" id="eletro-tab-simulador" class="eletro-subtab ativa" onclick="eletroSubaba('simulador')">Simulador</button>
+      <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
+      <button type="button" id="eletro-tab-mercado" class="eletro-subtab" onclick="eletroSubaba('mercado')">Mercado</button>
+      <button type="button" id="eletro-tab-postos" class="eletro-subtab" onclick="eletroSubaba('postos')">Postos</button>
+      <button type="button" id="eletro-tab-mapa" class="eletro-subtab" onclick="eletroSubaba('mapa')">Mapa</button>
+    </div>
+
+    <!-- ===== PANE: SIMULADOR ===== -->
+    <div id="eletro-pane-simulador">
+    <div class="eletro-sub">Insira os dados nas colunas laterais, simule, acompanhe e projete sobre seu empreendimento.</div>
+
+    <div class="eletro-grid">
+      <!-- COLUNA ESQUERDA: inputs -->
+      <div class="eletro-col-inputs">
+        <div class="card">
+          <div class="calc-card-title"><span class="dot"></span>Dados da operação</div>
+          <div class="eletro-field"><label>Quantidade de carros por dia / carregador</label>
+            <div class="eletro-inp"><input type="number" id="el-carros" inputmode="decimal" value="5" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Média de carga por carro</label>
+            <div class="eletro-inp has-suf"><input type="number" id="el-carga" inputmode="decimal" value="20" oninput="eletroCalc()"><span class="suf">kWh</span></div></div>
+          <div class="eletro-field"><label>Custo do kWh</label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-custokwh" inputmode="decimal" value="0.95" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Preço kWh revenda</label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-precokwh" inputmode="decimal" value="2.35" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Taxa de ativação</label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-ativacao" inputmode="decimal" value="1.20" oninput="eletroCalc()"></div></div>
+        </div>
+
+        <div class="card">
+          <div class="calc-card-title"><span class="dot"></span>Investimento</div>
+          <div class="eletro-field"><label>Quantidade de Plug <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(carregadores)</span></label>
+            <div class="eletro-inp"><input type="number" id="el-plugs" inputmode="decimal" value="2" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Investimento por carregador</label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-invest" inputmode="decimal" value="100000" oninput="eletroCalc()"></div></div>
+        </div>
+
+        <div class="card">
+          <div class="calc-card-title"><span class="dot"></span>Custos e taxas</div>
+          <div class="eletro-field"><label>Gateway</label>
+            <div class="eletro-inp has-suf"><input type="number" id="el-gateway" inputmode="decimal" value="14" oninput="eletroCalc()"><span class="suf">%</span></div></div>
+          <div class="eletro-field"><label>Arrendamento do ponto</label>
+            <div class="eletro-inp has-suf"><input type="number" id="el-arrend" inputmode="decimal" value="10" oninput="eletroCalc()"><span class="suf">%</span></div></div>
+          <div class="eletro-field"><label>Manutenção</label>
+            <div class="eletro-inp has-suf"><input type="number" id="el-manut" inputmode="decimal" value="0.1" oninput="eletroCalc()"><span class="suf">%</span></div></div>
+          <div class="eletro-field"><label>Assinatura mensal</label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-assinatura" inputmode="decimal" value="0" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Seguro | Ano | Carregador</label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-seguro" inputmode="decimal" value="2000" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Imposto — Simples Nacional</label>
+            <div class="eletro-inp has-suf"><input type="number" id="el-imposto" inputmode="decimal" value="6" oninput="eletroCalc()"><span class="suf">%</span></div></div>
+        </div>
+      </div>
+
+      <!-- COLUNA DIREITA: resultados -->
+      <div class="eletro-col-result">
+        <div class="card">
+          <div class="eletro-sec-title">Resultado por mês</div>
+          <div class="eletro-kgrid">
+            <div class="eletro-kcard"><div class="kt">Faturamento</div><div class="kv" id="el-fat-mes">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Custos + Imposto</div><div class="kv red" id="el-cus-mes">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Lucro</div><div class="kv grn" id="el-luc-mes">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Margem</div><div class="kv" id="el-margem">0%</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="eletro-sec-title">Resultado por ano</div>
+          <div class="eletro-kgrid">
+            <div class="eletro-kcard"><div class="kt">Faturamento</div><div class="kv" id="el-fat-ano">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Custos + Impostos</div><div class="kv red" id="el-cus-ano">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Lucro</div><div class="kv grn" id="el-luc-ano">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Payback</div><div class="kv" id="el-payback">—</div></div>
+          </div>
+        </div>
+
+        <!-- frase de impacto (momento uau) -->
+        <div class="card eletro-impacto-card">
+          <div class="eletro-impacto-ic">🚀</div>
+          <div class="eletro-impacto" id="el-impacto"></div>
+        </div>
+
+        <div class="card">
+          <div class="eletro-sec-title">Fluxo de caixa | anual (10 anos)</div>
+          <div class="eletro-chart" id="el-chart"></div>
+        </div>
+
+        <!-- ações -->
+        <div class="eletro-acoes">
+          <button type="button" class="eletro-btn primary" onclick="eletroImprimir()">📄 Gerar PDF</button>
+          <button type="button" class="eletro-btn" onclick="eletroWhatsApp()">📱 WhatsApp</button>
+          <button type="button" class="eletro-btn" onclick="eletroToggleComparar()">📊 Comparar cenários</button>
+        </div>
+
+        <!-- comparação de cenários (3/5/7 carros) -->
+        <div class="card eletro-comparar" id="el-comparar" style="display:none;">
+          <div class="eletro-sec-title">Comparação por carros/dia (mesmos parâmetros)</div>
+          <div class="eletro-cmp-scroll"><table class="eletro-cmp" id="el-cmp-tabela"></table></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="calc-foot">
+      Faturamento = (carros × plugs × 30) × [ carga × preço&nbsp;revenda + taxa&nbsp;de&nbsp;ativação ].
+      Seguro/mês = investimento&nbsp;por&nbsp;carregador × 0,01 ÷ 12 × plugs. Payback = investimento&nbsp;total ÷ lucro&nbsp;anual.
+    </div>
+    </div><!-- /eletro-pane-simulador -->
+
+    <!-- ===== PANE: PESQUISA (Power BI) ===== -->
+    <div id="eletro-pane-pesquisa" style="display:none;">
+      <div class="pesquisa-info">Painel de dados para consulta. Use os filtros dentro do próprio relatório para pesquisar — role e clique nos visuais normalmente.</div>
+      <div class="pesquisa-frame-wrap">
+        <iframe id="eletro-frame-pesquisa" title="Pesquisa" data-src="https://app.powerbi.com/view?r=eyJrIjoiNTY4NmYzOGYtMDExNy00NTA1LTgwZmYtNjM3NjZlZjViYjEwIiwidCI6IjFlZjViNjViLTkxYjktNGVjMS1iNmU0LTc3YTA1MzcxNTk1MyJ9" allowfullscreen loading="lazy"></iframe>
+      </div>
+    </div>
+
+    <!-- ===== PANE: MERCADO (Power BI ABVE — BI_Frota) ===== -->
+    <div id="eletro-pane-mercado" style="display:none;">
+      <div class="pesquisa-info">Dados de mercado de frotas elétricas (ABVE). Use os filtros dentro do relatório para explorar.</div>
+      <div class="pesquisa-frame-wrap">
+        <iframe id="eletro-frame-mercado" title="Mercado" data-src="https://app.powerbi.com/view?r=eyJrIjoiNWFkMjcwZjAtZThhOC00NmMxLTljZjUtNTgwM2E5MTgxODM2IiwidCI6IjQwNmMyNTc1LWM5ZDQtNGQ0NC1hNWI2LWJiNThiYzg2MDMzZSJ9" allowfullscreen loading="lazy"></iframe>
+      </div>
+    </div>
+
+    <!-- ===== PANE: POSTOS (Power BI ABVE — Eletropostos BR) ===== -->
+    <div id="eletro-pane-postos" style="display:none;">
+      <div class="pesquisa-info">Panorama dos eletropostos no Brasil (ABVE). Números, distribuição e evolução da infraestrutura de recarga.</div>
+      <div class="pesquisa-frame-wrap">
+        <iframe id="eletro-frame-postos" title="Postos" data-src="https://app.powerbi.com/view?r=eyJrIjoiZmZkODA1NmUtOGM2OC00OWZjLWE3YzMtZTJiYmJhMzcyYjI0IiwidCI6IjQwNmMyNTc1LWM5ZDQtNGQ0NC1hNWI2LWJiNThiYzg2MDMzZSJ9" allowfullscreen loading="lazy"></iframe>
+      </div>
+    </div>
+
+    <!-- ===== PANE: MAPA (PlugShare — abre em nova aba; embed bloqueado pelo domínio deles) ===== -->
+    <div id="eletro-pane-mapa" style="display:none;">
+      <div class="eletro-mapa-card">
+        <div class="eletro-mapa-ic">🗺️</div>
+        <h2>Mapa mundial de pontos de recarga</h2>
+        <p>Todos os postos de recarga existentes, em tempo real, no <b>PlugShare</b> — a maior base colaborativa de estações de carro elétrico do mundo. Busque por cidade, veja fotos, avaliações e tipos de conector.</p>
+        <a class="eletro-mapa-btn" href="https://www.plugshare.com/" target="_blank" rel="noopener">Abrir mapa PlugShare ↗</a>
+        <div class="eletro-mapa-obs">O PlugShare só permite o mapa dentro do site deles, por isso abre em uma nova aba.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- container de impressão do Eletroposto (só visível no PDF/print) -->
+  <div id="eletro-print" aria-hidden="true"></div>
 
   <!-- ============= TELA 5: TABELAS ============= -->
   <div id="tabelasSection" style="display:none;">
@@ -4175,11 +4441,11 @@ function marcarNavAtivo(id) {
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
-  ['historicoSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection'].forEach(id => {
+  ['historicoSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto');
   document.getElementById('formSection').style.display = '';
   marcarNavAtivo('nav-gerador');
   fecharSidebarMobile();
@@ -4349,18 +4615,271 @@ let calcCaTocado = false;   // vira true quando o consultor edita o C.A na mão
 function navCalc() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'redesSection', 'crmSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'eletroSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('calcSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('calc-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto');
   marcarNavAtivo('nav-calc');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   calcPreco();
+}
+
+function navEletroposto() {
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  ['tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const sec = document.getElementById('eletroSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('eletro-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto');
+  marcarNavAtivo('nav-eletroposto');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  eletroSubaba('simulador');   // sempre reabre no Simulador
+  eletroCalc();
+}
+
+// Sub-abas dentro do Eletroposto: Simulador | Pesquisa | Mercado | Postos | Mapa
+function eletroSubaba(qual) {
+  const abas = ['simulador', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  abas.forEach(a => {
+    const pane = document.getElementById('eletro-pane-' + a);
+    if (pane) pane.style.display = (a === qual) ? '' : 'none';
+    const tab = document.getElementById('eletro-tab-' + a);
+    if (tab) tab.classList.toggle('ativa', a === qual);
+  });
+  // lazy-load dos iframes Power BI: só seta o src na 1ª abertura (Mapa é um card, não iframe)
+  if (qual === 'pesquisa' || qual === 'mercado' || qual === 'postos') {
+    const frame = document.getElementById('eletro-frame-' + qual);
+    if (frame && !frame.src && frame.dataset.src) frame.src = frame.dataset.src;
+  }
+}
+
+// ===== Simulador de viabilidade — Eletropostos =====
+const elNum = id => {
+  const el = document.getElementById(id);
+  const v = parseFloat((el && el.value || '').replace(',', '.'));
+  return isFinite(v) ? v : 0;
+};
+const elMoney = n => 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR');
+// dinheiro COM centavos — pra preços unitários (kWh) onde arredondar destrói o valor
+const elMoney2 = n => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const elMoneyK = n => {
+  // formato compacto pros rótulos das barras
+  const s = n < 0 ? '-' : '';
+  return s + 'R$ ' + Math.abs(Math.round(n)).toLocaleString('pt-BR');
+};
+
+// ===== FONTE ÚNICA de cálculo — fórmulas validadas contra a planilha =====
+// Recebe os parâmetros crus (percentuais já em fração 0-1) e devolve tudo derivado.
+// Todas as features (UI ao vivo, comparar cenários, ROI, PDF, WhatsApp) chamam AQUI.
+function computeEletro(p) {
+  const DIAS = 30;
+  const kwhMes  = p.carros * p.carga * p.plugs * DIAS;
+  const sessoes = p.carros * p.plugs * DIAS;
+  const fatMes  = kwhMes * p.precoKwh + sessoes * p.ativacao;
+
+  const custoEnergia = kwhMes * p.custoKwh;
+  const seguroMes    = p.invest * 0.01 / 12 * p.plugs;  // fórmula da planilha (campo R$ 2.000 é decorativo)
+  const custosMes    = custoEnergia + fatMes * (p.gateway + p.arrend + p.manut + p.imposto) + p.assinat + seguroMes;
+
+  const lucroMes = fatMes - custosMes;
+  const margem   = fatMes > 0 ? lucroMes / fatMes : 0;
+  const fatAno    = fatMes * 12;
+  const custosAno = custosMes * 12;
+  const lucroAno  = lucroMes * 12;
+
+  const investTotal = p.invest * p.plugs;
+  const payback = lucroAno > 0 ? investTotal / lucroAno : null;
+
+  // Fluxo de caixa acumulado: fluxo(n) = -investTotal + lucroAno * n
+  const fluxo = [];
+  for (let ano = 1; ano <= 10; ano++) fluxo.push(-investTotal + lucroAno * ano);
+  const acumulado10 = fluxo[9];                 // patrimônio líquido no ano 10 (última barra)
+  const roi10 = investTotal > 0 ? acumulado10 / investTotal : 0;   // retorno sobre o investimento em 10 anos
+
+  return { ...p, kwhMes, fatMes, custosMes, lucroMes, margem, fatAno, custosAno, lucroAno,
+           investTotal, payback, fluxo, acumulado10, roi10, seguroMes };
+}
+
+// Lê os inputs do DOM e devolve os params normalizados (% → fração).
+function eletroParams() {
+  return {
+    carros: elNum('el-carros'), carga: elNum('el-carga'), custoKwh: elNum('el-custokwh'),
+    precoKwh: elNum('el-precokwh'), ativacao: elNum('el-ativacao'), plugs: elNum('el-plugs'),
+    invest: elNum('el-invest'), assinat: elNum('el-assinatura'),
+    gateway: elNum('el-gateway') / 100, arrend: elNum('el-arrend') / 100,
+    manut: elNum('el-manut') / 100, imposto: elNum('el-imposto') / 100,
+  };
+}
+
+function eletroCalc() {
+  const r = computeEletro(eletroParams());
+
+  document.getElementById('el-fat-mes').textContent = elMoney(r.fatMes);
+  document.getElementById('el-cus-mes').textContent = elMoney(r.custosMes);
+  document.getElementById('el-luc-mes').textContent = elMoney(r.lucroMes);
+  document.getElementById('el-margem').textContent  = (r.margem * 100).toFixed(2).replace('.', ',') + '%';
+  document.getElementById('el-fat-ano').textContent = elMoney(r.fatAno);
+  document.getElementById('el-cus-ano').textContent = elMoney(r.custosAno);
+  document.getElementById('el-luc-ano').textContent = elMoney(r.lucroAno);
+  document.getElementById('el-payback').textContent = r.payback ? (r.payback.toFixed(2).replace('.', ',') + ' Anos') : '—';
+
+  // Frase de impacto + ROI
+  const imp = document.getElementById('el-impacto');
+  if (imp) {
+    if (r.payback && r.acumulado10 > 0) {
+      const pb = r.payback.toFixed(1).replace('.', ',');
+      imp.innerHTML = `Cada real investido volta em <b>${pb} anos</b> e, em 10 anos, o eletroposto gera <b>${elMoney(r.acumulado10)}</b> de patrimônio líquido — um retorno de <b>${Math.round(r.roi10 * 100)}%</b> sobre o investimento.`;
+      imp.style.display = '';
+    } else {
+      imp.style.display = 'none';
+    }
+  }
+
+  renderEletroChart(r.fluxo);
+}
+
+// Gráfico de barras "waterfall" — zero no meio, negativas descem, positivas sobem.
+// Cada wrap tem 3 faixas verticais: [metade de cima] linha-zero [metade de baixo].
+function renderEletroChart(fluxo) {
+  const chart = document.getElementById('el-chart');
+  if (!chart) return;
+  const maxPos = Math.max(0, ...fluxo);
+  const maxNeg = Math.max(0, ...fluxo.map(v => -v));
+  const span = Math.max(1, maxPos, maxNeg);   // escala simétrica em torno do zero
+  const HALF = 90;                             // px por metade (topo/base)
+  const LBL = 15;                              // espaço p/ rótulo do valor
+
+  chart.innerHTML = fluxo.map((v, i) => {
+    const h = Math.max(2, Math.round(Math.abs(v) / span * HALF));
+    const neg = v < 0;
+    const pos = !neg;
+    // metade superior: barra positiva (encostada na base = linha zero) OU vazia
+    const topBar = pos
+      ? `<div class="eletro-bar-val" style="margin-bottom:2px">${elMoneyK(v)}</div>
+         <div class="eletro-bar" style="height:${h}px"></div>`
+      : `<div style="flex:1"></div>`;
+    // metade inferior: barra negativa (encostada no topo = linha zero) OU vazia
+    const botBar = neg
+      ? `<div class="eletro-bar neg" style="height:${h}px"></div>
+         <div class="eletro-bar-val" style="margin-top:2px">${elMoneyK(v)}</div>`
+      : ``;
+    return `<div class="eletro-bar-wrap">
+      <div class="eletro-half top">${topBar}</div>
+      <div class="eletro-half bot">${botBar}</div>
+      <div class="eletro-bar-lbl">${i + 1}</div>
+    </div>`;
+  }).join('');
+}
+
+// ===== Comparar cenários: mesmos parâmetros, varia só carros/dia (3/5/7) =====
+const ELETRO_CENARIOS = [3, 5, 7];
+function eletroToggleComparar() {
+  const box = document.getElementById('el-comparar');
+  if (!box) return;
+  const abrir = box.style.display === 'none';
+  box.style.display = abrir ? '' : 'none';
+  if (abrir) eletroRenderComparar();
+}
+function eletroRenderComparar() {
+  const base = eletroParams();
+  const atual = Math.round(base.carros);
+  const carrosSet = Array.from(new Set([...ELETRO_CENARIOS, atual])).sort((a, b) => a - b);
+  const cols = carrosSet.map(c => computeEletro({ ...base, carros: c }));
+  const th = ['<th>Cenário</th>', ...carrosSet.map(c =>
+    `<th class="${c === atual ? 'atual' : ''}">${c} carros/dia${c === atual ? ' •' : ''}</th>`)].join('');
+  const linha = (lbl, fn, cls = '') =>
+    `<tr><td class="lbl">${lbl}</td>${cols.map(r => `<td class="${cls}">${fn(r)}</td>`).join('')}</tr>`;
+  const rows = [
+    linha('Faturamento/mês', r => elMoney(r.fatMes)),
+    linha('Lucro/mês', r => elMoney(r.lucroMes), 'grn'),
+    linha('Margem', r => (r.margem * 100).toFixed(1).replace('.', ',') + '%'),
+    linha('Lucro/ano', r => elMoney(r.lucroAno), 'grn'),
+    linha('Payback', r => r.payback ? r.payback.toFixed(1).replace('.', ',') + ' anos' : '—'),
+    linha('Patrimônio 10 anos', r => elMoney(r.acumulado10), 'grn'),
+    linha('ROI 10 anos', r => Math.round(r.roi10 * 100) + '%'),
+  ].join('');
+  document.getElementById('el-cmp-tabela').innerHTML = `<thead><tr>${th}</tr></thead><tbody>${rows}</tbody>`;
+}
+
+// ===== WhatsApp: monta resumo e abre wa.me sem número (usuário escolhe o contato) =====
+function eletroResumoTexto() {
+  const r = computeEletro(eletroParams());
+  const pb = r.payback ? r.payback.toFixed(1).replace('.', ',') + ' anos' : '—';
+  return [
+    '*Simulação de Eletroposto*',
+    '',
+    `⚡ ${Math.round(r.carros)} carros/dia · ${Math.round(r.plugs)} carregador(es)`,
+    '',
+    `💰 Faturamento/mês: ${elMoney(r.fatMes)}`,
+    `📈 Lucro/mês: ${elMoney(r.lucroMes)}  (margem ${(r.margem * 100).toFixed(1).replace('.', ',')}%)`,
+    `🏦 Lucro/ano: ${elMoney(r.lucroAno)}`,
+    `⏱️ Payback: ${pb}`,
+    `🚀 Em 10 anos: ${elMoney(r.acumulado10)} líquidos (ROI ${Math.round(r.roi10 * 100)}%)`,
+    '',
+    `Investimento: ${elMoney(r.investTotal)}`,
+  ].join('\n');
+}
+function eletroWhatsApp() {
+  const url = 'https://wa.me/?text=' + encodeURIComponent(eletroResumoTexto());
+  window.open(url, '_blank', 'noopener');
+}
+
+// ===== PDF: container de impressão dedicado (light, tabela simples), via window.print() =====
+function eletroImprimir() {
+  const r = computeEletro(eletroParams());
+  const host = document.getElementById('eletro-print');
+  const pb = r.payback ? r.payback.toFixed(1).replace('.', ',') + ' anos' : '—';
+  const money = elMoney;
+  const linhasFluxo = r.fluxo.map((v, i) =>
+    `<tr><td>Ano ${i + 1}</td><td style="text-align:right;color:${v < 0 ? '#b91c1c' : '#15803d'}">${money(v)}</td></tr>`).join('');
+  host.innerHTML = `
+    <div class="ep-doc">
+      <div class="ep-head">
+        <div class="ep-title">Simulação de Viabilidade — Eletroposto</div>
+        <div class="ep-date">${new Date().toLocaleDateString('pt-BR')}</div>
+      </div>
+      <div class="ep-impacto">Cada real investido volta em <b>${pb}</b> e, em 10 anos, o eletroposto gera <b>${money(r.acumulado10)}</b> de patrimônio líquido — retorno de <b>${Math.round(r.roi10 * 100)}%</b>.</div>
+      <div class="ep-cols">
+        <div class="ep-box">
+          <h3>Operação</h3>
+          <table class="ep-kv">
+            <tr><td>Carros por dia / carregador</td><td>${Math.round(r.carros)}</td></tr>
+            <tr><td>Carregadores (plugs)</td><td>${Math.round(r.plugs)}</td></tr>
+            <tr><td>Média de carga por carro</td><td>${r.carga} kWh</td></tr>
+            <tr><td>Custo do kWh</td><td>${elMoney2(r.custoKwh)}</td></tr>
+            <tr><td>Preço kWh revenda</td><td>${elMoney2(r.precoKwh)}</td></tr>
+            <tr><td>Investimento total</td><td>${money(r.investTotal)}</td></tr>
+          </table>
+        </div>
+        <div class="ep-box">
+          <h3>Resultados</h3>
+          <table class="ep-kv">
+            <tr><td>Faturamento/mês</td><td>${money(r.fatMes)}</td></tr>
+            <tr><td>Custos + impostos/mês</td><td>${money(r.custosMes)}</td></tr>
+            <tr class="hl"><td>Lucro/mês</td><td>${money(r.lucroMes)}</td></tr>
+            <tr><td>Margem</td><td>${(r.margem * 100).toFixed(1).replace('.', ',')}%</td></tr>
+            <tr><td>Lucro/ano</td><td>${money(r.lucroAno)}</td></tr>
+            <tr class="hl"><td>Payback</td><td>${pb}</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="ep-box">
+        <h3>Fluxo de caixa acumulado (10 anos)</h3>
+        <table class="ep-kv ep-fluxo">${linhasFluxo}</table>
+      </div>
+      <div class="ep-foot">Simulação gerada no Gerador de Propostas. Valores estimados — não constituem garantia de resultado.</div>
+    </div>`;
+  window.print();
 }
 
 const calcFmt = n => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
