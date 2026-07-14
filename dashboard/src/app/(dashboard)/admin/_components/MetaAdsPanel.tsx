@@ -199,34 +199,41 @@ export default function MetaAdsPanel() {
             <div className={s.kpi}><div className={s.kpiLabel}>CPC</div><div className={s.kpiVal}>{fmtBRL(data.totais.cpc)}</div></div>
           </div>
 
-          {/* ── Ordens de comando ── */}
-          <div className={s.blocoTitulo}>
-            🎯 Ordens de comando <span className={s.blocoSub}>o que fazer agora (últimos 3 dias) — clique pra ir ao Gerenciador</span>
-          </div>
-          {data.ordens.length === 0 && <div className={s.vazio}>Nenhuma ação urgente. Deixa rodar. 👍</div>}
-          <div className={s.ordens}>
-            {data.ordens.filter(o => o.tipo !== 'MANTER').map((o, i) => {
-              const m = ORDEM_META[o.tipo];
-              return (
-                <div key={o.entity.id + i} className={`${s.ordem} ${m.cor}`}>
-                  <div className={s.ordemHead}>
-                    <span className={s.ordemTipo}>{m.emoji} {m.titulo}</span>
-                    <span className={s.ordemNome}>{o.entity.name}</span>
-                  </div>
-                  <div className={s.ordemCampanha}>{o.entity.campaign_name}</div>
-                  <div className={s.ordemMotivo}>{o.motivo}</div>
-                  {o.signals && (
-                    <div className={s.ordemEspecialista}>
-                      <span className={s.espScore} title="Nota de saúde 0-100">{o.signals.score}</span>
-                      🧠 {o.signals.leitura} <span className={s.espDias}>· {o.signals.dias_rodando}d rodando</span>
+          {/* ── Ordens de comando (FALLBACK): só se a fila persistida não carregou.
+                 A "Fila de execução" abaixo é a superfície principal (com prazo +
+                 marcar feito). Estes cards stateless só aparecem se /admin/ordens
+                 falhar, pra a aba nunca ficar sem as recomendações. ── */}
+          {!ordens && (
+            <>
+              <div className={s.blocoTitulo}>
+                🎯 Ordens de comando <span className={s.blocoSub}>o que fazer agora (últimos 3 dias) — clique pra ir ao Gerenciador</span>
+              </div>
+              {data.ordens.length === 0 && <div className={s.vazio}>Nenhuma ação urgente. Deixa rodar. 👍</div>}
+              <div className={s.ordens}>
+                {data.ordens.filter(o => o.tipo !== 'MANTER').map((o, i) => {
+                  const m = ORDEM_META[o.tipo];
+                  return (
+                    <div key={o.entity.id + i} className={`${s.ordem} ${m.cor}`}>
+                      <div className={s.ordemHead}>
+                        <span className={s.ordemTipo}>{m.emoji} {m.titulo}</span>
+                        <span className={s.ordemNome}>{o.entity.name}</span>
+                      </div>
+                      <div className={s.ordemCampanha}>{o.entity.campaign_name}</div>
+                      <div className={s.ordemMotivo}>{o.motivo}</div>
+                      {o.signals && (
+                        <div className={s.ordemEspecialista}>
+                          <span className={s.espScore} title="Nota de saúde 0-100">{o.signals.score}</span>
+                          🧠 {o.signals.leitura} <span className={s.espDias}>· {o.signals.dias_rodando}d rodando</span>
+                        </div>
+                      )}
+                      <div className={s.ordemComo}>💡 {o.comoFazer}</div>
+                      <a className={s.ordemBtn} href={gerenciadorLink(data.conta, 'adset', o.entity.id)} target="_blank" rel="noreferrer">Abrir no Gerenciador →</a>
                     </div>
-                  )}
-                  <div className={s.ordemComo}>💡 {o.comoFazer}</div>
-                  <a className={s.ordemBtn} href={gerenciadorLink(data.conta, 'adset', o.entity.id)} target="_blank" rel="noreferrer">Abrir no Gerenciador →</a>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
           {/* ── Fila de execução (ordens com prazo, marcar feito, manual/auto) ── */}
           {ordens && (

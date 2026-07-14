@@ -1,7 +1,7 @@
 import { sendWhatsApp } from '../agents/zapiClient';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
-import { fetchMetaEntities, gerarOrdens } from '../metaAdsFullService';
+import { sincronizarOrdens, ordensPendentesNaoAlertadas, marcarAlertadas } from '../metaOrdensService';
 
 // ─── Copiloto de tráfego 24h (alert-only) ────────────────────────────────────
 // Roda de HORA EM HORA (master cron). SÓ AVISA no WhatsApp do Thiago — nunca
@@ -176,32 +176,29 @@ export async function runAuxiliarTrafego(opts: { dry?: boolean; force?: boolean 
     logger.error('cron', 'auxiliar-trafego: placar do dia falhou (segue com ordens Meta)', err);
   }
 
-  // ── 2+3) ORDENS DE COMANDO (por conjunto, últimos 3d) ────────────────────
-  // Gatilhos vêm dos NÚMEROS DO PRÓPRIO META (compras + ROAS que o Meta calcula),
-  // não do join Supabase — que é furado na LimpaPro (utm null) e daria falso
-  // "0 vendas" na máquina que mais fatura. gerarOrdens já exclui campanhas de lead.
-  const adsets3d = await fetchMetaEntities('adset', 'last_3d');
-  matchTot = adsets3d.filter(a => !a.is_lead && a.spend > 0).length;
-  matchOk = adsets3d.filter(a => !a.is_lead && a.purchases > 0).length;
-  const ordens = gerarOrdens(adsets3d);
-
-  const escalaLinhas: string[] = [];
-  const pausaLinhas: string[] = [];
-  for (const o of ordens) {
-    const e = o.entity;
-    if (o.tipo === 'DUPLICAR' && podeAvisar(`dup:${e.id}`)) {
-      escalaLinhas.push(`🟢 *DUPLICAR:* ${e.name}\n   ${o.motivo}\n   👉 ${linkAdset(e.id)}\n   _${o.comoFazer}_`);
-      motivos.push(`dup:${e.id}`);
-    } else if (o.tipo === 'AUMENTAR' && podeAvisar(`up:${e.id}`)) {
-      escalaLinhas.push(`🔼 *AUMENTAR 30%:* ${e.name}\n   ${o.motivo}\n   👉 ${linkAdset(e.id)}\n   _${o.comoFazer}_`);
-      motivos.push(`up:${e.id}`);
-    } else if (o.tipo === 'PAUSAR' && podeAvisar(`pause:${e.id}`)) {
-      pausaLinhas.push(`🔴 *${e.name}* (${e.campaign_name})\n   ${o.motivo}\n   👉 ${linkAdset(e.id)}\n   _${o.comoFazer}_`);
-      motivos.push(`pause:${e.id}`);
+  // ── 2+3) ORDENS DE COMANDO — lidas da FILA persistida (mm_ordens) ────────
+  // Fonte da verdade ÚNICA: painel E robô leem daqui. sincronizarOrdens abre as
+  // novas (dedup + cooldown), e aqui pegamos as PENDENTES ainda não alertadas.
+  // Motivo/como/leitura vêm da linha → WhatsApp e painel dizem o MESMO. Ordem
+  // feita/perdida some da fila → nunca re-alerta. (Substitui o dedup system_state.)
+  let ordensAlertadasIds: string[] = [];
+  try {
+    await sincronizarOrdens();
+    const pend = await ordensPendentesNaoAlertadas();
+    const escalaLinhas: string[] = [];
+    const pausaLinhas: string[] = [];
+    for (const o of pend) {
+      const linkComo = `\n   ${o.motivo}${o.leitura ? `\n   🧠 ${o.leitura}` : ''}\n   👉 ${linkAdset(o.adset_id)}\n   _${o.como_fazer}_`;
+      if (o.tipo === 'DUPLICAR') { escalaLinhas.push(`🟢 *DUPLICAR:* ${o.adset_nome}${linkComo}`); ordensAlertadasIds.push(o.id); }
+      else if (o.tipo === 'AUMENTAR') { escalaLinhas.push(`🔼 *AUMENTAR 30%:* ${o.adset_nome}${linkComo}`); ordensAlertadasIds.push(o.id); }
+      else if (o.tipo === 'PAUSAR') { pausaLinhas.push(`🔴 *${o.adset_nome}* (${o.campanha_nome})${linkComo}`); ordensAlertadasIds.push(o.id); }
     }
+    if (escalaLinhas.length) { blocos.push(`📈 *Hora de escalar (ROAS forte):*\n\n` + escalaLinhas.join('\n\n')); motivos.push('fila:escalar'); }
+    if (pausaLinhas.length) { blocos.push(`🩸 *Gastando sem vender (revisar/pausar):*\n\n` + pausaLinhas.join('\n\n')); motivos.push('fila:pausar'); }
+    matchTot = pend.length; matchOk = ordensAlertadasIds.length;
+  } catch (err) {
+    logger.error('cron', 'auxiliar-trafego: fila de ordens falhou (segue)', err);
   }
-  if (escalaLinhas.length) blocos.push(`📈 *Hora de escalar (ROAS forte):*\n\n` + escalaLinhas.join('\n\n'));
-  if (pausaLinhas.length) blocos.push(`🩸 *Gastando sem vender (revisar/pausar):*\n\n` + pausaLinhas.join('\n\n'));
 
   // ── 4) LEMBRETE MEIA-NOITE (só à 0h; sempre passa a madrugada) ───────────
   if (hora === 0 && podeAvisar('meia_noite')) {
@@ -244,7 +241,12 @@ export async function runAuxiliarTrafego(opts: { dry?: boolean; force?: boolean 
 
   await sendWhatsApp(ALERT_PHONE, msg, 'solardoc');
 
-  // Carimba as chaves enviadas + poda vencidas.
+  // Carimba as ORDENS da fila como alertadas (fonte da verdade = mm_ordens) —
+  // não re-alerta e mantém painel↔robô em sincronia. Só após enviar de verdade
+  // (na madrugada retorna antes daqui, então re-alerta às 7h, como esperado).
+  if (ordensAlertadasIds.length) await marcarAlertadas(ordensAlertadasIds);
+
+  // system_state ainda cuida das chaves que NÃO são ordens (meta_batida, meia_noite).
   for (const m of motivos) dedup[m] = nowIso;
   for (const k of Object.keys(dedup)) if (new Date(dedup[k]).getTime() < cutoffMs) delete dedup[k];
   await saveDedup(dedup);

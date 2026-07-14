@@ -59,15 +59,20 @@ export async function sincronizarOrdens(): Promise<{ criadas: number; jaAbertas:
   const nowMs = Date.now();
   const maxCooldownH = Math.max(COOLDOWN_ESCALAR_H, COOLDOWN_PAUSAR_H);
   const desde = new Date(nowMs - maxCooldownH * 3600_000).toISOString();
-  const { data: recentes } = await supabase
-    .from('mm_ordens')
-    .select('chave, tipo, estado, feita_em')
-    .or(`estado.eq.pendente,and(estado.eq.feita,feita_em.gte.${desde})`);
+  // 2 queries limpas em vez de um .or() aninhado frágil (PostgREST). CHECA error:
+  // se falhar e ignorássemos, bloqueadas ficaria vazio → toda ordem recria a cada
+  // sync → "feito" voltaria pra fila silenciosamente (bug do R$0/timezone de novo).
+  const [pendRes, feitasRes] = await Promise.all([
+    supabase.from('mm_ordens').select('chave').eq('estado', 'pendente'),
+    supabase.from('mm_ordens').select('chave, tipo, feita_em').eq('estado', 'feita').gte('feita_em', desde),
+  ]);
+  if (pendRes.error)  { logger.error('ordens', 'dedup pendentes falhou', pendRes.error); throw new Error(pendRes.error.message); }
+  if (feitasRes.error){ logger.error('ordens', 'dedup feitas falhou', feitasRes.error); throw new Error(feitasRes.error.message); }
 
   const bloqueadas = new Set<string>();
-  for (const r of (recentes ?? [])) {
-    if (r.estado === 'pendente') { bloqueadas.add(r.chave); continue; }
-    // feita dentro do cooldown do tipo?
+  for (const r of (pendRes.data ?? [])) bloqueadas.add(r.chave);
+  for (const r of (feitasRes.data ?? [])) {
+    // feita dentro do cooldown do TIPO? (Escalar 48h · Pausar 12h)
     const cdH = r.tipo === 'PAUSAR' ? COOLDOWN_PAUSAR_H : COOLDOWN_ESCALAR_H;
     if (r.feita_em && new Date(r.feita_em).getTime() > nowMs - cdH * 3600_000) bloqueadas.add(r.chave);
   }
@@ -88,9 +93,18 @@ export async function sincronizarOrdens(): Promise<{ criadas: number; jaAbertas:
       snapshot: { spend: e.spend, roas: e.roas, purchases: e.purchases, ctr: e.ctr, purchase_value: e.purchase_value },
     };
   });
-  const { error } = await supabase.from('mm_ordens').insert(rows);
-  if (error) { logger.error('ordens', 'sincronizar insert falhou', error); throw new Error(error.message); }
-  return { criadas: rows.length, jaAbertas: bloqueadas.size };
+  // Insere UMA A UMA: se duas execuções (painel, cron, robô) sincronizarem ao
+  // mesmo tempo, o índice único parcial (chave WHERE pendente) faz a 2ª falhar —
+  // per-row degrada pra "pula essa", não "perde o lote todo".
+  let criadas = 0;
+  for (const row of rows) {
+    const { error } = await supabase.from('mm_ordens').insert(row);
+    if (!error) criadas++;
+    else if (!/duplicate key|unique/i.test(error.message)) {
+      logger.error('ordens', 'sincronizar insert falhou', error);
+    }
+  }
+  return { criadas, jaAbertas: bloqueadas.size };
 }
 
 // ── EXPIRAR: pega pendentes vencidas e reconfere no Meta ──
@@ -206,6 +220,25 @@ export async function listarOrdens(limitHistorico = 40): Promise<{ pendentes: Or
     getModo(),
   ]);
   return { pendentes: (pend ?? []) as OrdemRow[], historico: (hist ?? []) as OrdemRow[], modo };
+}
+
+// ── Robô WhatsApp: pega ordens PENDENTES ainda não alertadas ──
+// Fonte da verdade única: o robô lê daqui (não do gerarOrdens direto). Ordem
+// feita/perdida/vencida não é pendente → nunca re-alerta. Motivo/como/leitura
+// vêm da linha persistida → WhatsApp e painel dizem EXATAMENTE a mesma coisa.
+export async function ordensPendentesNaoAlertadas(): Promise<OrdemRow[]> {
+  const { data, error } = await supabase
+    .from('mm_ordens').select('*')
+    .eq('estado', 'pendente').is('alertado_em', null)
+    .order('criada_em', { ascending: true });
+  if (error) { logger.error('ordens', 'pendentes-nao-alertadas falhou', error); return []; }
+  return (data ?? []) as OrdemRow[];
+}
+
+// Carimba as ordens como alertadas (após enviar o WhatsApp).
+export async function marcarAlertadas(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  await supabase.from('mm_ordens').update({ alertado_em: new Date().toISOString() }).in('id', ids);
 }
 
 // ── Tick do cron: expira vencidas + sincroniza novas. Roda de hora em hora. ──
