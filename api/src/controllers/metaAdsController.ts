@@ -5,6 +5,7 @@ import {
   fetchMetaEntities, fetchStatuses, gerarOrdens,
   type MetaEntity, type MetaDatePreset, type Ordem,
 } from '../services/metaAdsFullService';
+import { computeAllSignals, type AdsetSignals } from '../services/metaSignalsService';
 
 // ─── GET /admin/meta-ads ─────────────────────────────────────────────────────
 // Payload 100% da aba "Meta Ads": campanhas + conjuntos + anúncios (com ROAS,
@@ -78,7 +79,9 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
     // sem vender, DUPLICAR se ROAS≥2,5) são calibrados em 3 dias. Se usasse o
     // período da tabela, "hoje" mandaria pausar a máquina de ROAS-10x às 15h (0
     // conversão AINDA), e "máximo" mandaria duplicar tudo. Janela fixa = ordem honesta.
-    const [campaigns, adsets, ads, adsets3d, statusCampaign, statusAdset, statusAd, faturamento] = await Promise.all([
+    // signals é o "especialista" (trajetória/fadiga/score do histórico diário).
+    // Degrada gracioso: se falhar, a aba segue sem os sinais (não derruba tudo).
+    const [campaigns, adsets, ads, adsets3d, statusCampaign, statusAdset, statusAd, faturamento, signals] = await Promise.all([
       fetchMetaEntities('campaign', preset),
       fetchMetaEntities('adset', preset),
       fetchMetaEntities('ad', preset),
@@ -87,6 +90,7 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
       fetchStatuses('adset'),
       fetchStatuses('ad'),
       faturamentoAcumulado(),
+      computeAllSignals(14).catch(err => { logger.error('meta-ads', 'signals falhou (segue sem)', err); return new Map<string, AdsetSignals>(); }),
     ]);
 
     // Carimba status em cada entidade.
@@ -94,7 +98,9 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
     for (const a of adsets)    a.status = statusAdset[a.id] ?? '';
     for (const a of ads)       a.status = statusAd[a.id] ?? '';
 
-    const ordens: Ordem[] = gerarOrdens(adsets3d);
+    // Anexa os sinais de especialista em cada conjunto (tabela) e nas ordens.
+    const adsetsComSinal = adsets.map(a => ({ ...a, signals: signals.get(a.id) ?? null }));
+    const ordens: Ordem[] = gerarOrdens(adsets3d).map(o => ({ ...o, signals: signals.get(o.entity.id) ?? null }));
     const totais = agregaTotais(campaigns);
     const escada = montaEscada(faturamento.total);
 
@@ -108,7 +114,7 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
       conta: (process.env.META_MONITOR_ACCOUNT_ID || 'act_545732112868250').replace('act_', ''),
       totais,
       campaigns,
-      adsets,
+      adsets: adsetsComSinal,
       ads,
       ordens,
       resumoOrdens,
