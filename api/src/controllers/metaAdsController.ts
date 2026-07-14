@@ -83,6 +83,58 @@ async function faturamentoPorProduto() {
   };
 }
 
+// MAPA DE ORIGEM das vendas SolarDoc (30d). Cruza sales × page_visits pela sessão
+// pra saber de onde veio cada venda (pago / orgânico / direto). HONESTO: só Google
+// e IG são origem externa CONFIRMADA; direto/interno/sem-sessão viram UMA bucket
+// "não capturada" (não são canais). Amostra baixa (<10) = NÃO é conclusão.
+// Guard: 1 visita por sessão (distinct on) pra não duplicar venda se page_visits
+// virar 1-linha-por-pageview no futuro.
+async function mapaOrigemVendas(): Promise<{ buckets: Array<{ origem: string; vendas: number; receita: number; amostraBaixa: boolean }>; totalVendas: number; limpapro: { vendas: number; cego: true } }> {
+  const desde = new Date(Date.now() - 30 * 86400_000).toISOString();
+  // Vendas SolarDoc 30d + a visita (1 por sessão).
+  const { data: vendas } = await supabase
+    .from('sales')
+    .select('valor, utm_source, utm_medium, attribution_session_id')
+    .gte('card_passed_at', desde).not('card_passed_at', 'is', null);
+
+  const sessoes = [...new Set((vendas ?? []).map(v => v.attribution_session_id).filter(Boolean))] as string[];
+  const refBySession = new Map<string, string | null>();
+  if (sessoes.length) {
+    const { data: visitas } = await supabase
+      .from('page_visits').select('session_id, referrer').in('session_id', sessoes);
+    for (const v of (visitas ?? [])) if (!refBySession.has(v.session_id)) refBySession.set(v.session_id, v.referrer ?? null); // 1ª por sessão
+  }
+
+  const classifica = (v: any): string => {
+    if (v.utm_medium === 'paid') return '🟠 Pago (Meta Ads)';
+    if (v.utm_source) return `🔵 ${v.utm_source}`;
+    const ref = (refBySession.get(v.attribution_session_id) || '').toLowerCase();
+    if (ref.includes('google')) return '🟢 Google (busca)';
+    if (ref.includes('instagram')) return '🟢 Instagram';
+    if (ref.includes('youtube')) return '🟢 YouTube';
+    // direto, interno (apresentação) e sem-sessão = origem NÃO capturada (não é canal).
+    return '⚪ Origem não capturada';
+  };
+
+  const agg = new Map<string, { vendas: number; receita: number }>();
+  for (const v of (vendas ?? [])) {
+    const k = classifica(v);
+    const cur = agg.get(k) ?? { vendas: 0, receita: 0 };
+    cur.vendas++; cur.receita += Number(v.valor) || 0;
+    agg.set(k, cur);
+  }
+  const buckets = [...agg.entries()]
+    .map(([origem, x]) => ({ origem, ...x, amostraBaixa: x.vendas < 10 }))
+    .sort((a, b) => b.vendas - a.vendas);
+
+  // LimpaPro: 0% rastreado — origem cega (honesto, não finge).
+  const { count: lpCount } = await supabase
+    .from('limpapro_events').select('*', { count: 'exact', head: true })
+    .eq('event_type', 'purchase').eq('status', 'paid').gte('created_at', desde);
+
+  return { buckets, totalVendas: (vendas ?? []).length, limpapro: { vendas: lpCount ?? 0, cego: true } };
+}
+
 function montaEscada(total: number) {
   const degrauAtualIdx = ESCADA_FATURAMENTO.findIndex(v => total < v);
   const alvo = degrauAtualIdx === -1 ? ESCADA_FATURAMENTO[ESCADA_FATURAMENTO.length - 1] : ESCADA_FATURAMENTO[degrauAtualIdx];
@@ -115,7 +167,7 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
     // conversão AINDA), e "máximo" mandaria duplicar tudo. Janela fixa = ordem honesta.
     // signals é o "especialista" (trajetória/fadiga/score do histórico diário).
     // Degrada gracioso: se falhar, a aba segue sem os sinais (não derruba tudo).
-    const [campaigns, adsets, ads, adsets3d, statusCampaign, statusAdset, statusAd, faturamento, signals] = await Promise.all([
+    const [campaigns, adsets, ads, adsets3d, statusCampaign, statusAdset, statusAd, faturamento, signals, mapaOrigem] = await Promise.all([
       fetchMetaEntities('campaign', preset),
       fetchMetaEntities('adset', preset),
       fetchMetaEntities('ad', preset),
@@ -125,6 +177,7 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
       fetchStatuses('ad'),
       faturamentoPorProduto(),
       computeAllSignals(14).catch(err => { logger.error('meta-ads', 'signals falhou (segue sem)', err); return new Map<string, AdsetSignals>(); }),
+      mapaOrigemVendas().catch(err => { logger.error('meta-ads', 'mapa origem falhou (segue sem)', err); return null; }),
     ]);
 
     // Carimba status em cada entidade.
@@ -157,6 +210,7 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
       resumoOrdens,
       faturamento,
       escada,
+      mapaOrigem,
     });
   } catch (err: any) {
     logger.error('meta-ads', 'getMetaAds falhou', err);
