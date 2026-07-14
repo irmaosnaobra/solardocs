@@ -47,7 +47,11 @@ interface MetaAdsData {
   totais: Totais;
   campaigns: MetaEntity[]; adsets: MetaEntity[]; ads: MetaEntity[];
   ordens: Ordem[]; resumoOrdens: Record<string, number>;
-  faturamento: { total: number; solardoc: number; limpapro: number; vendas: number };
+  faturamento: {
+    total: number; vendas: number;
+    solardoc: { acumulado: number; metaTipo: 'clientes'; metaAlvo: number; hoje: number; receitaHoje: number; escada: Escada };
+    limpapro: { acumulado: number; metaTipo: 'receita'; metaAlvo: number; hoje: number; vendasHoje: number; escada: Escada };
+  };
   escada: Escada;
 }
 
@@ -154,7 +158,39 @@ export default function MetaAdsPanel() {
         <button className={s.refresh} onClick={() => load(period)} disabled={loading}>{loading ? '...' : '↻ Atualizar'}</button>
       </div>
 
-      {/* ── Escada de faturamento (sempre visível — é a jornada até 1M) ── */}
+      {/* ── 2 cards por produto: meta do dia + acumulado (metas diferentes) ── */}
+      {data && (() => {
+        const sd = data.faturamento.solardoc, lp = data.faturamento.limpapro;
+        const pct = (a: number, b: number) => Math.min(100, b > 0 ? (a / b) * 100 : 0);
+        return (
+          <div className={s.produtos}>
+            {/* SolarDoc — meta em CLIENTES/dia */}
+            <div className={s.prodCard}>
+              <div className={s.prodTopo}><span className={s.prodNome}>☀️ SolarDoc</span><span className={s.prodAcum}>acum. {fmtBRL(sd.acumulado)}</span></div>
+              <div className={s.prodMetaLinha}>
+                <span className={s.prodMetaNum}>{sd.hoje}</span>
+                <span className={s.prodMetaAlvo}>/ {sd.metaAlvo} clientes hoje</span>
+                {sd.hoje >= sd.metaAlvo && <span className={s.prodOk}>✅</span>}
+              </div>
+              <div className={s.prodBarWrap}><div className={`${s.prodBar} ${s.prodBarSd}`} style={{ width: `${pct(sd.hoje, sd.metaAlvo)}%` }} /></div>
+              <div className={s.prodSub}>{sd.receitaHoje > 0 ? `${fmtBRL(sd.receitaHoje)} hoje · ` : ''}degrau {fmtBRLk(sd.escada.alvo)} (faltam {fmtBRL(sd.escada.falta)})</div>
+            </div>
+            {/* LimpaPro — meta em RECEITA/dia */}
+            <div className={s.prodCard}>
+              <div className={s.prodTopo}><span className={s.prodNome}>🧽 LimpaPro</span><span className={s.prodAcum}>acum. {fmtBRL(lp.acumulado)}</span></div>
+              <div className={s.prodMetaLinha}>
+                <span className={s.prodMetaNum}>{fmtBRL(lp.hoje)}</span>
+                <span className={s.prodMetaAlvo}>/ {fmtBRL(lp.metaAlvo)} hoje</span>
+                {lp.hoje >= lp.metaAlvo && <span className={s.prodOk}>✅</span>}
+              </div>
+              <div className={s.prodBarWrap}><div className={`${s.prodBar} ${s.prodBarLp}`} style={{ width: `${pct(lp.hoje, lp.metaAlvo)}%` }} /></div>
+              <div className={s.prodSub}>{lp.vendasHoje} vendas hoje · degrau {fmtBRLk(lp.escada.alvo)} (faltam {fmtBRL(lp.escada.falta)})</div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Escada SOMADA (a jornada total até 1M) ── */}
       {data && (
         <div className={s.escadaCard}>
           <div className={s.escadaTop}>
@@ -162,7 +198,7 @@ export default function MetaAdsPanel() {
               <div className={s.escadaLabel}>Faturamento acumulado (SolarDoc + LimpaPro)</div>
               <div className={s.escadaTotal}>{fmtBRL(data.faturamento.total)}</div>
               <div className={s.escadaBreak}>
-                SolarDoc {fmtBRL(data.faturamento.solardoc)} · LimpaPro {fmtBRL(data.faturamento.limpapro)} · {data.faturamento.vendas} vendas
+                SolarDoc {fmtBRL(data.faturamento.solardoc.acumulado)} · LimpaPro {fmtBRL(data.faturamento.limpapro.acumulado)} · {data.faturamento.vendas} vendas
               </div>
             </div>
             <div className={s.escadaAlvo}>
