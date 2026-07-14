@@ -21,8 +21,18 @@ interface MetaEntity {
   spend: number; impressions: number; clicks: number;
   ctr: number; cpc: number; cpm: number;
   purchases: number; purchase_value: number; roas: number; cpa: number; frequency: number;
+  signals?: Signals | null;
 }
-interface Ordem { tipo: OrdemTipo; entity: MetaEntity; motivo: string; comoFazer: string; prioridade: number; }
+// Sinais de "especialista" (do histórico diário) — ver metaSignalsService.
+interface Signals {
+  dias_rodando: number;
+  trajetoria: 'subindo' | 'caindo' | 'estavel' | 'novo';
+  roas_recente: number; roas_anterior: number;
+  fadiga: boolean; frequencia: number;
+  melhor_roas: number; melhor_dia: string | null;
+  score: number; leitura: string;
+}
+interface Ordem { tipo: OrdemTipo; entity: MetaEntity; motivo: string; comoFazer: string; prioridade: number; signals?: Signals | null; }
 interface Totais { spend: number; impressions: number; clicks: number; purchases: number; purchase_value: number; ctr: number; cpc: number; cpa: number; roas: number; }
 interface Escada {
   degraus: { valor: number; atingido: boolean }[];
@@ -56,6 +66,11 @@ const ORDEM_META: Record<OrdemTipo, { emoji: string; cor: string; titulo: string
 const fmtBRL = (n: number) => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtBRLk = (n: number) => n >= 1000 ? 'R$ ' + (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: n >= 100000 ? 0 : 1 }) + 'k' : fmtBRL(n);
 const roasClass = (r: number) => r >= 2.5 ? s.roasBom : r >= 1.5 ? s.roasMed : r > 0 ? s.roasRuim : s.roasZero;
+const trajArrow = (t: Signals['trajetoria']) =>
+  t === 'subindo' ? <span title="ROAS subindo" style={{ color: '#16a34a' }}>↑</span>
+  : t === 'caindo' ? <span title="ROAS caindo" style={{ color: '#dc2626' }}>↓</span>
+  : t === 'novo' ? <span title="Ainda coletando" style={{ color: '#94a3b8' }}>🌱</span>
+  : <span title="Estável" style={{ color: '#94a3b8' }}>→</span>;
 
 function gerenciadorLink(conta: string, level: Level, id: string): string {
   const edge = level === 'campaign' ? 'campaigns' : level === 'adset' ? 'adsets' : 'ads';
@@ -165,6 +180,12 @@ export default function MetaAdsPanel() {
                   </div>
                   <div className={s.ordemCampanha}>{o.entity.campaign_name}</div>
                   <div className={s.ordemMotivo}>{o.motivo}</div>
+                  {o.signals && (
+                    <div className={s.ordemEspecialista}>
+                      <span className={s.espScore} title="Nota de saúde 0-100">{o.signals.score}</span>
+                      🧠 {o.signals.leitura} <span className={s.espDias}>· {o.signals.dias_rodando}d rodando</span>
+                    </div>
+                  )}
                   <div className={s.ordemComo}>💡 {o.comoFazer}</div>
                   <a className={s.ordemBtn} href={gerenciadorLink(data.conta, 'adset', o.entity.id)} target="_blank" rel="noreferrer">Abrir no Gerenciador →</a>
                 </div>
@@ -186,7 +207,7 @@ export default function MetaAdsPanel() {
               <thead>
                 <tr>
                   <th className={s.tLeft}>Nome</th>
-                  <th>Status</th><th>Investido</th><th>Compras</th><th>Receita</th>
+                  <th>Status</th>{level === 'adset' && <th>Especialista</th>}<th>Investido</th><th>Compras</th><th>Receita</th>
                   <th>ROAS</th><th>CPA</th><th>CTR</th><th>CPC</th><th>Impr.</th><th></th>
                 </tr>
               </thead>
@@ -198,6 +219,17 @@ export default function MetaAdsPanel() {
                       {level !== 'campaign' && <div className={s.nomeSub}>{e.campaign_name}</div>}
                     </td>
                     <td><span className={`${s.status} ${e.status === 'ACTIVE' ? s.stAtivo : s.stPausado}`}>{e.status === 'ACTIVE' ? 'Ativo' : e.status ? 'Pausado' : '—'}</span></td>
+                    {level === 'adset' && (
+                      <td>
+                        {e.signals ? (
+                          <span className={s.espCell} title={e.signals.leitura}>
+                            <span className={`${s.espScoreMini} ${e.signals.score >= 80 ? s.espBom : e.signals.score >= 50 ? s.espMed : s.espRuim}`}>{e.signals.score}</span>
+                            {trajArrow(e.signals.trajetoria)}
+                            {e.signals.fadiga && <span title="Fadiga de criativo">😴</span>}
+                          </span>
+                        ) : <span className={s.mutedCell}>—</span>}
+                      </td>
+                    )}
                     <td>{fmtBRL(e.spend)}</td>
                     <td>{e.is_lead ? <span className={s.mutedCell}>lead</span> : e.purchases}</td>
                     <td>{e.is_lead ? '—' : fmtBRL(e.purchase_value)}</td>
@@ -209,7 +241,7 @@ export default function MetaAdsPanel() {
                     <td><a className={s.linkGer} href={gerenciadorLink(data.conta, level, e.id)} target="_blank" rel="noreferrer">↗</a></td>
                   </tr>
                 ))}
-                {linhas.length === 0 && <tr><td colSpan={11} className={s.vazio}>Sem dados nesse período.</td></tr>}
+                {linhas.length === 0 && <tr><td colSpan={level === 'adset' ? 12 : 11} className={s.vazio}>Sem dados nesse período.</td></tr>}
               </tbody>
             </table>
           </div>
