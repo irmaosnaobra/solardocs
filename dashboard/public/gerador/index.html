@@ -129,6 +129,7 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 .eletro-field .eletro-inp{position:relative;width:132px;flex-shrink:0}
 .eletro-field .eletro-inp.eletro-inp-wide{width:190px}
 .eletro-inp-wide input{text-align:left;font-weight:600}
+.eletro-inp-ref input{opacity:.55;cursor:default;background:#0b1526}
 .eletro-inp .pre{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:13px;font-weight:600;pointer-events:none}
 .eletro-inp .suf{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:13px;font-weight:600;pointer-events:none}
 .eletro-inp input{width:100%;box-sizing:border-box;padding:9px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:14px;font-family:inherit;font-weight:700;text-align:right;outline:none;transition:border-color .2s}
@@ -1789,8 +1790,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Dados da operação</div>
-          <div class="eletro-field"><label>Quantidade de carros por dia / carregador</label>
-            <div class="eletro-inp"><input type="number" id="el-carros" inputmode="decimal" value="5" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Quantidade de carros por dia <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(total)</span></label>
+            <div class="eletro-inp"><input type="number" id="el-carros" inputmode="decimal" value="10" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Média de carga por carro</label>
             <div class="eletro-inp has-suf"><input type="number" id="el-carga" inputmode="decimal" value="20" oninput="eletroCalc()"><span class="suf">kWh</span></div></div>
           <div class="eletro-field"><label>Custo do kWh</label>
@@ -1803,10 +1804,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Investimento</div>
-          <div class="eletro-field"><label>Quantidade de Plug <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(carregadores)</span></label>
-            <div class="eletro-inp"><input type="number" id="el-plugs" inputmode="decimal" value="2" oninput="eletroCalc()"></div></div>
-          <div class="eletro-field"><label>Investimento por carregador</label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-invest" inputmode="decimal" value="100000" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Bicos de carregamento <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(referência)</span></label>
+            <div class="eletro-inp eletro-inp-ref"><input type="number" id="el-plugs" inputmode="decimal" value="2" readonly tabindex="-1"></div></div>
+          <div class="eletro-field"><label>Investimento total</label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-invest" inputmode="decimal" value="200000" oninput="eletroCalc()"></div></div>
         </div>
 
         <div class="card">
@@ -4709,12 +4710,14 @@ const elMoneyK = n => {
 // Todas as features (UI ao vivo, comparar cenários, ROI, PDF, WhatsApp) chamam AQUI.
 function computeEletro(p) {
   const DIAS = 30;
-  const kwhMes  = p.carros * p.carga * p.plugs * DIAS;
-  const sessoes = p.carros * p.plugs * DIAS;
+  // MODELO TOTAL: 'carros' = total de carros/dia (não por bico) e 'invest' = investimento total.
+  // O nº de bicos (plugs) é apenas referência informativa — NÃO entra em nenhuma fórmula.
+  const kwhMes  = p.carros * p.carga * DIAS;
+  const sessoes = p.carros * DIAS;
   const fatMes  = kwhMes * p.precoKwh + sessoes * p.ativacao;
 
   const custoEnergia = kwhMes * p.custoKwh;
-  const seguroMes    = p.invest * 0.01 / 12 * p.plugs;  // fórmula da planilha (campo R$ 2.000 é decorativo)
+  const seguroMes    = p.invest * 0.01 / 12;  // 1% a.a. do investimento total ÷ 12 (campo R$ 2.000 é decorativo)
   const custosMes    = custoEnergia + fatMes * (p.gateway + p.arrend + p.manut + p.imposto) + p.assinat + seguroMes;
 
   const lucroMes = fatMes - custosMes;
@@ -4723,7 +4726,7 @@ function computeEletro(p) {
   const custosAno = custosMes * 12;
   const lucroAno  = lucroMes * 12;
 
-  const investTotal = p.invest * p.plugs;
+  const investTotal = p.invest;
   const payback = lucroAno > 0 ? investTotal / lucroAno : null;
 
   // Fluxo de caixa acumulado: fluxo(n) = -investTotal + lucroAno * n
@@ -4807,8 +4810,9 @@ function renderEletroChart(fluxo) {
   }).join('');
 }
 
-// ===== Comparar cenários: mesmos parâmetros, varia só carros/dia (3/5/7) =====
-const ELETRO_CENARIOS = [3, 5, 7];
+// ===== Comparar cenários: mesmos parâmetros, varia só o total de carros/dia =====
+// (6/10/14 = os antigos 3/5/7 por bico × 2 bicos — mantém o sentido dos cenários de referência)
+const ELETRO_CENARIOS = [6, 10, 14];
 function eletroToggleComparar() {
   const box = document.getElementById('el-comparar');
   if (!box) return;
@@ -4956,8 +4960,8 @@ function eletroImprimir() {
         <div class="ep-box">
           <h3>Premissas da operação</h3>
           <table class="ep-kv">
-            <tr><td>Carros por dia / carregador</td><td class="num">${Math.round(r.carros)}</td></tr>
-            <tr><td>Carregadores (plugs)</td><td class="num">${Math.round(r.plugs)}</td></tr>
+            <tr><td>Carros por dia (total)</td><td class="num">${Math.round(r.carros)}</td></tr>
+            <tr><td>Bicos de carregamento</td><td class="num">${Math.round(r.plugs)}</td></tr>
             <tr><td>Média de carga por carro</td><td class="num">${r.carga} kWh</td></tr>
             <tr><td>Custo do kWh</td><td class="num">${elMoney2(r.custoKwh)}</td></tr>
             <tr><td>Preço kWh revenda</td><td class="num">${elMoney2(r.precoKwh)}</td></tr>
