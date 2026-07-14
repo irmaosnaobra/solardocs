@@ -67,20 +67,20 @@ function extractAction(actions: any[] | undefined, matcher: (t: string) => boole
 }
 
 // Puxa o histórico diário de TODOS os conjuntos (1 request) e agrupa por adset.
-export async function fetchAdsetHistory(days: 14 | 30 = 14): Promise<Map<string, { name: string; dias: DiaAdset[] }>> {
+export async function fetchAdsetHistory(days: 14 | 30 = 14): Promise<Map<string, { name: string; campanha: string; dias: DiaAdset[] }>> {
   if (!TOKEN) throw new Error('META token ausente');
   const preset = days === 30 ? 'last_30d' : 'last_14d';
-  const fields = 'adset_id,adset_name,spend,impressions,clicks,ctr,frequency,actions,action_values';
+  const fields = 'adset_id,adset_name,campaign_name,spend,impressions,clicks,ctr,frequency,actions,action_values';
   const url = `${GRAPH}/${ACCOUNT}/insights?level=adset&time_increment=1&date_preset=${preset}&fields=${fields}&limit=1000&access_token=${TOKEN}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Meta history ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const json = await res.json() as { data?: any[] };
 
-  const map = new Map<string, { name: string; dias: DiaAdset[] }>();
+  const map = new Map<string, { name: string; campanha: string; dias: DiaAdset[] }>();
   for (const r of (json.data ?? [])) {
     const id = String(r.adset_id ?? '');
     if (!id) continue;
-    const entry = map.get(id) ?? { name: String(r.adset_name ?? '—'), dias: [] };
+    const entry = map.get(id) ?? { name: String(r.adset_name ?? '—'), campanha: String(r.campaign_name ?? ''), dias: [] };
     entry.dias.push({
       dia: String(r.date_start ?? ''),
       spend: Number(r.spend) || 0,
@@ -139,6 +139,17 @@ export interface VeredictoContexto {
   fadiga: boolean;
   diasRodando: number;
   budget?: { onde: 'conjunto' | 'campanha'; diarioBRL: number | null; nomeControla: string } | null;
+  semRastreio?: boolean;  // LimpaPro: Meta não vê as vendas (utm null) → NÃO mandar pausar
+}
+
+// LimpaPro (e "Limpeza Pro") não rastreia venda no Meta (utm null no checkout
+// Kiwify) → "0 vendas" no Meta é MENTIRA. Detecta pelo nome da campanha pra
+// aplicar o veto de pausa (decisão Thiago 14/07: não pausar LimpaPro).
+const SEM_RASTREIO_HINTS = (process.env.AUX_SEM_RASTREIO || 'limpapro,limpeza pro')
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+export function campanhaSemRastreio(nome: string): boolean {
+  const n = (nome || '').toLowerCase();
+  return SEM_RASTREIO_HINTS.some(h => n.includes(h));
 }
 
 // ── VEREDITO CRUZADO: conservador de verdade (proteger dinheiro) ─────────────
@@ -177,6 +188,13 @@ function vereditoCruzado(j: JanelasMulti, ctx?: VeredictoContexto): VeredictoCru
 
   // PAUSAR (tempo-real, key off spend magnitude — não recência): gastou e não vendeu.
   if (j.d7.spend >= PAUSE_LIMIAR && j.d7.purchases === 0) {
+    // VETO LimpaPro: o Meta não vê as vendas dela (utm null) → "0 vendas" não prova
+    // nada. NÃO manda pausar (mataria conjunto que pode estar vendendo). Vira
+    // OBSERVAR "confere no Kiwify". SolarDoc (com rastreio) pausa normal.
+    if (ctx?.semRastreio) {
+      return { tipo: 'OBSERVAR', concordancia: 'baixa',
+        frase: `Gastou R$${j.d7.spend.toFixed(0)} e o Meta marca 0 vendas — MAS a LimpaPro não rastreia venda no Meta. ⚠️ Confere no Kiwify se converteu antes de mexer (não pausa às cegas).` };
+    }
     return { tipo: 'PAUSAR', concordancia: conf !== null && conf < 1 ? 'alta' : 'media',
       frase: `🩸 Gastou R$${j.d7.spend.toFixed(0)} em 7d sem vender. ${conf !== null && conf < 1 ? 'Histórico também fraco → pausa, tá queimando dinheiro.' : 'Revisa e pausa antes de queimar mais.'}` };
   }
@@ -233,8 +251,9 @@ function vereditoCruzado(j: JanelasMulti, ctx?: VeredictoContexto): VeredictoCru
 }
 
 // Calcula todos os sinais de um conjunto a partir do histórico diário.
-// budget (opcional) alimenta o veredito: DUPLICAR só no teto + sugere o R$ alvo.
-export function computeSignals(adsetId: string, name: string, dias: DiaAdset[], budget?: VeredictoContexto['budget']): AdsetSignals {
+// budget alimenta o veredito (DUPLICAR só no teto + R$ alvo). semRastreio = LimpaPro
+// (não pausa às cegas).
+export function computeSignals(adsetId: string, name: string, dias: DiaAdset[], budget?: VeredictoContexto['budget'], semRastreio = false): AdsetSignals {
   const comEntrega = dias.filter(d => d.impressions > 0);
   const diasRodando = comEntrega.length;
 
@@ -304,7 +323,7 @@ export function computeSignals(adsetId: string, name: string, dias: DiaAdset[], 
     melhor_roas: melhorRoas, melhor_dia: melhorDia,
     score, score_breakdown: breakdown, leitura,
     janelas: jan,
-    veredito: vereditoCruzado(jan, { fadiga, diasRodando, budget }),
+    veredito: vereditoCruzado(jan, { fadiga, diasRodando, budget, semRastreio }),
   };
 }
 
@@ -318,9 +337,9 @@ export async function computeAllSignals(days: 14 | 30 = 30): Promise<Map<string,
     fetchBudgets().catch(() => new Map()),
   ]);
   const out = new Map<string, AdsetSignals>();
-  for (const [id, { name, dias }] of hist) {
+  for (const [id, { name, campanha, dias }] of hist) {
     const b = budgets.get(id);
-    out.set(id, computeSignals(id, name, dias, b ? { onde: b.onde, diarioBRL: b.diarioBRL, nomeControla: b.nomeControla } : null));
+    out.set(id, computeSignals(id, name, dias, b ? { onde: b.onde, diarioBRL: b.diarioBRL, nomeControla: b.nomeControla } : null, campanhaSemRastreio(campanha)));
   }
   return out;
 }
