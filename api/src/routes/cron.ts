@@ -29,6 +29,7 @@ import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
 import { runMonitorCriativos } from '../services/agenda/monitorCriativosService';
 import { runAuxiliarTrafego } from '../services/agenda/auxiliarTrafegoService';
+import { tickOrdens } from '../services/metaOrdensService';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
 
@@ -538,6 +539,20 @@ router.get('/auxiliar-trafego', async (req: Request, res: Response) => {
   }
 });
 
+// Disciplina das ordens de tráfego: expira as vencidas (reconferindo no Meta se
+// a condição ainda valia = perdida, ou já não vale = vencida) e abre as novas.
+// Roda de hora em hora no master. Manual: /cron/ordens-trafego-tick
+router.get('/ordens-trafego-tick', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await tickOrdens();
+    res.json({ ok: true, ...result });
+  } catch (err: any) {
+    logger.error('cron', 'ordens-trafego-tick falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 // Digest de estoque baixo do Inventário (aba grátis). GATED: rodar manual /
 // ?dry=1 primeiro pra conferir volume; só entra no master depois de adoção.
 // O badge in-app já é o alerta sempre-ligado — o email é reforço opcional.
@@ -597,6 +612,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['pix-vip-reminder',            () => runPixVipReminder()],     // avisa VIP-pix (84994501564) ~2d antes de vencer: valor + chave Pix
     ['monitor-criativos',           () => runMonitorCriativos()],   // alerta WhatsApp: criativos Meta gastando sem vender / CTR baixa
     ['auxiliar-trafego',            () => runAuxiliarTrafego()],    // copiloto 24h: escalar/pausar/meta/meia-noite (só avisa) — metas LimpaPro R$1200 · SolarDoc 10/dia
+    ['ordens-trafego-tick',         () => tickOrdens()],           // disciplina das ordens: expira vencidas (reconfere Meta) + abre novas
     // ['inventory-low-stock',         () => runInventoryLowStockAlert()], // [GATED] digest de estoque baixo — ligar após adoção do Inventário
   ];
 

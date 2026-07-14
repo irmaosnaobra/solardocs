@@ -103,6 +103,35 @@
 .espMed { color: #d97706; background: #fef3c7; }
 .espRuim { color: #dc2626; background: #fee2e2; }
 
+/* ── Fila de execução ── */
+.modoSwitch { display: flex; gap: 4px; margin-left: auto; }
+.modoBtn { background: #f1f5f9; border: none; border-radius: 7px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: #64748b; cursor: pointer; }
+.modoBtn:hover { background: #e2e8f0; }
+.modoAtivo { background: #0f172a; color: #fff; }
+.modoAtivoAuto { background: #16a34a; color: #fff; }
+
+.fila { display: flex; flex-direction: column; gap: 10px; }
+.filaItem { border: 1px solid #e2e8f0; border-left-width: 4px; border-radius: 12px; padding: 14px 16px; background: #fff; display: flex; flex-direction: column; gap: 6px; }
+.filaTopo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.prazo { margin-left: auto; font-size: 12px; font-weight: 700; color: #0369a1; background: #e0f2fe; border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
+.prazoUrgente { color: #b91c1c; background: #fee2e2; }
+.filaLeitura { font-size: 12px; color: #475569; background: #f0f9ff; border-radius: 8px; padding: 6px 10px; }
+.filaAcoes { display: flex; align-items: center; gap: 12px; margin-top: 4px; flex-wrap: wrap; }
+.btnFeito { background: #16a34a; color: #fff; border: none; border-radius: 8px; padding: 7px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.btnFeito:hover { background: #15803d; }
+.btnFeito:disabled { opacity: .5; cursor: default; }
+
+.histWrap { border: 1px solid #e2e8f0; border-radius: 12px; padding: 4px 14px; background: #fafafa; }
+.histResumo { font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; padding: 8px 0; }
+.histLista { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; }
+.histItem { display: flex; align-items: center; gap: 10px; font-size: 12px; flex-wrap: wrap; }
+.histEstado { font-weight: 700; border-radius: 5px; padding: 2px 7px; white-space: nowrap; }
+.hFeita { color: #16a34a; background: #dcfce7; }
+.hPerdida { color: #b45309; background: #fef3c7; }
+.hVencida { color: #64748b; background: #f1f5f9; }
+.histNome { font-weight: 600; color: #334155; }
+.histDet { color: #94a3b8; }
+
 .rodape { font-size: 12px; color: #94a3b8; line-height: 1.5; padding: 4px 2px; }
 
 @media (max-width: 640px) {

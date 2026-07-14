@@ -5,6 +5,7 @@ import { adminMiddleware } from '../middleware/adminAuth';
 import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel, getRevenue, getBilling } from '../controllers/adminController';
 import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas, getLimpaproMembros } from '../controllers/limpaproController';
 import { getMetaAds } from '../controllers/metaAdsController';
+import { listarOrdens, marcarFeita, setModo, sincronizarOrdens } from '../services/metaOrdensService';
 import { supabase } from '../utils/supabase';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 
@@ -73,6 +74,41 @@ router.get('/visits',         getVisits);
 router.get('/analytics',      getAnalytics);
 router.get('/meta-funnel',    getMetaFunnel);
 router.get('/meta-ads',       getMetaAds);
+
+// ── Disciplina das ordens (marcar feito, expira, manual/auto) ──
+// GET lista pendentes + histórico + modo. Sincroniza on-demand pra a lista vir
+// fresca mesmo entre ticks do cron.
+router.get('/ordens', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    await sincronizarOrdens().catch(() => {}); // best-effort: abre novas antes de listar
+    const data = await listarOrdens();
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});
+// POST marca uma ordem como feita (+ confirmação por readback no Meta).
+router.post('/ordens/:id/feita', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const quem = (req as any).userEmail || (req as any).userId || 'admin';
+    const r = await marcarFeita(String(req.params.id), String(quem));
+    if (!r) { res.status(404).json({ error: 'ordem_nao_encontrada_ou_ja_resolvida' }); return; }
+    res.json({ ok: true, ordem: r });
+  } catch (err: any) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});
+// POST troca o modo manual|automatico.
+router.post('/ordens/modo', async (req: Request, res: Response): Promise<void> => {
+  const modo = req.body?.modo;
+  if (modo !== 'manual' && modo !== 'automatico') { res.status(400).json({ error: 'modo_invalido' }); return; }
+  try {
+    await setModo(modo);
+    res.json({ ok: true, modo });
+  } catch (err: any) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});
 router.get('/funnel',         getFunnel);
 router.get('/funnel-limpapro', getLimpaproFunnel);
 router.get('/leads-limpapro',  getLimpaproLeads);
