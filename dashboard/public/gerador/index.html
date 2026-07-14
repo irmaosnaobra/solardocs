@@ -127,6 +127,9 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 .eletro-field:last-child{margin-bottom:0}
 .eletro-field label{flex:1;font-size:13px;font-weight:600;color:#E5E7EB;line-height:1.25}
 .eletro-field .eletro-inp{position:relative;width:132px;flex-shrink:0}
+.eletro-field .eletro-inp.eletro-inp-wide{width:190px}
+.eletro-inp-wide input{text-align:left;font-weight:600}
+.eletro-inp-ref input{opacity:.55;cursor:default;background:#0b1526}
 .eletro-inp .pre{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:13px;font-weight:600;pointer-events:none}
 .eletro-inp .suf{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:13px;font-weight:600;pointer-events:none}
 .eletro-inp input{width:100%;box-sizing:border-box;padding:9px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:14px;font-family:inherit;font-weight:700;text-align:right;outline:none;transition:border-color .2s}
@@ -166,7 +169,8 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 .pesquisa-info{font-size:13px;color:#cbd5e1;margin-bottom:14px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
 /* card do Mapa (PlugShare abre em nova aba) */
 .eletro-mapa-card{max-width:560px;margin:32px auto;text-align:center;background:#1E293B;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:40px 28px}
-.eletro-mapa-ic{font-size:52px;line-height:1;margin-bottom:12px}
+.eletro-mapa-ic{margin-bottom:14px;color:#60A5FA}
+.eletro-mapa-ic svg{width:46px;height:46px}
 .eletro-mapa-card h2{font-size:22px;font-weight:800;color:#fff;margin:0 0 12px}
 .eletro-mapa-card p{font-size:14.5px;color:#cbd5e1;line-height:1.6;margin:0 0 22px}
 .eletro-mapa-btn{display:inline-block;background:#3B82F6;color:#fff;font-weight:700;font-size:15px;padding:13px 26px;border-radius:11px;text-decoration:none;transition:background .2s}
@@ -174,12 +178,14 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 .eletro-mapa-obs{margin-top:16px;font-size:12px;color:#94A3B8;line-height:1.45}
 /* frase de impacto (momento uau) */
 .eletro-impacto-card{display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,rgba(52,211,153,.14),rgba(59,130,246,.12))!important;border:1px solid rgba(52,211,153,.35)!important}
-.eletro-impacto-ic{font-size:30px;line-height:1;flex-shrink:0}
+.eletro-impacto-ic{flex-shrink:0;color:#34D399}
+.eletro-impacto-ic svg{width:30px;height:30px}
 .eletro-impacto{font-size:14.5px;color:#E5E7EB;line-height:1.55}
 .eletro-impacto b{color:#fff;font-weight:800}
 /* botões de ação */
 .eletro-acoes{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
-.eletro-btn{flex:1;min-width:130px;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:#1E293B;color:#E5E7EB;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:border-color .2s,background .2s}
+.eletro-btn{flex:1;min-width:130px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:#1E293B;color:#E5E7EB;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:border-color .2s,background .2s}
+.eletro-btn-ic{width:17px;height:17px;flex-shrink:0}
 .eletro-btn:hover{border-color:#3B82F6;background:#243349}
 .eletro-btn.primary{background:#3B82F6;border-color:#3B82F6;color:#fff}
 .eletro-btn.primary:hover{background:#2563EB}
@@ -219,7 +225,22 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 .ep-kv td:last-child{text-align:right;font-weight:700;color:#111;font-variant-numeric:tabular-nums}
 .ep-kv tr.hl td{color:#047857;font-weight:800}
 .ep-fluxo td{border-bottom:1px solid #f6f6f6}
-.ep-foot{margin-top:14px;font-size:10.5px;color:#999;text-align:center;line-height:1.4}
+.ep-sub{font-size:13px;color:#555;margin-top:3px;font-weight:600}
+.ep-section{font-size:13px;font-weight:800;color:#111;text-transform:uppercase;letter-spacing:.5px;border-left:4px solid #F59E0B;padding-left:9px;margin:20px 0 12px}
+.ep-mkt{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.ep-mkt-item{border:1px solid #e5e7eb;border-radius:8px;padding:11px 12px;text-align:center;background:#fafafa;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-mkt-item .v{font-size:19px;font-weight:800;color:#b45309}
+.ep-mkt-item .k{font-size:10.5px;color:#555;line-height:1.3;margin-top:3px}
+.ep-mkt-note{font-size:10.5px;color:#666;line-height:1.5;margin-bottom:6px}
+.ep-chart{margin:2px 0 12px}
+.ep-kv .num{text-align:right;font-variant-numeric:tabular-nums}
+.ep-cmp th{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.3px;padding:6px 0;border-bottom:2px solid #e5e7eb;text-align:right}
+.ep-cmp th:first-child{text-align:left}
+.ep-cmp th.atual{color:#b45309}
+.ep-cmp td:first-child{color:#333;font-weight:400}
+.ep-cmp td.num{font-weight:700}
+.ep-avoid-break{page-break-inside:avoid;break-inside:avoid}
+.ep-foot{margin-top:14px;font-size:10px;color:#999;text-align:center;line-height:1.5;border-top:1px solid #eee;padding-top:10px}
 .leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
 /* ===== CRM (sempre dark — força fundo escuro como o cockpit Redes) ===== */
 #crmSection .card{background:#1E293B!important;color:#E5E7EB!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 4px 16px rgba(0,0,0,.25)!important}
@@ -1740,7 +1761,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <div id="eletroSection" style="display:none;">
     <div class="header">
       <div class="header-titulo">
-        <h1>🔋 Eletroposto</h1>
+        <h1>Eletroposto</h1>
       </div>
       <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
     </div>
@@ -1762,9 +1783,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <!-- COLUNA ESQUERDA: inputs -->
       <div class="eletro-col-inputs">
         <div class="card">
+          <div class="calc-card-title"><span class="dot"></span>Projeto</div>
+          <div class="eletro-field"><label>Cidade / local <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(aparece na proposta)</span></label>
+            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-cidade" placeholder="Ex: Uberlândia-MG" oninput="eletroCalc()"></div></div>
+        </div>
+
+        <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Dados da operação</div>
-          <div class="eletro-field"><label>Quantidade de carros por dia / carregador</label>
-            <div class="eletro-inp"><input type="number" id="el-carros" inputmode="decimal" value="5" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Quantidade de carros por dia <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(total)</span></label>
+            <div class="eletro-inp"><input type="number" id="el-carros" inputmode="decimal" value="10" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Média de carga por carro</label>
             <div class="eletro-inp has-suf"><input type="number" id="el-carga" inputmode="decimal" value="20" oninput="eletroCalc()"><span class="suf">kWh</span></div></div>
           <div class="eletro-field"><label>Custo do kWh</label>
@@ -1777,10 +1804,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Investimento</div>
-          <div class="eletro-field"><label>Quantidade de Plug <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(carregadores)</span></label>
-            <div class="eletro-inp"><input type="number" id="el-plugs" inputmode="decimal" value="2" oninput="eletroCalc()"></div></div>
-          <div class="eletro-field"><label>Investimento por carregador</label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-invest" inputmode="decimal" value="100000" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Bicos de carregamento <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(referência)</span></label>
+            <div class="eletro-inp eletro-inp-ref"><input type="number" id="el-plugs" inputmode="decimal" value="2" readonly tabindex="-1"></div></div>
+          <div class="eletro-field"><label>Investimento total</label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-invest" inputmode="decimal" value="200000" oninput="eletroCalc()"></div></div>
         </div>
 
         <div class="card">
@@ -1824,7 +1851,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <!-- frase de impacto (momento uau) -->
         <div class="card eletro-impacto-card">
-          <div class="eletro-impacto-ic">🚀</div>
+          <div class="eletro-impacto-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg></div>
           <div class="eletro-impacto" id="el-impacto"></div>
         </div>
 
@@ -1835,9 +1862,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <!-- ações -->
         <div class="eletro-acoes">
-          <button type="button" class="eletro-btn primary" onclick="eletroImprimir()">📄 Gerar PDF</button>
-          <button type="button" class="eletro-btn" onclick="eletroWhatsApp()">📱 WhatsApp</button>
-          <button type="button" class="eletro-btn" onclick="eletroToggleComparar()">📊 Comparar cenários</button>
+          <button type="button" class="eletro-btn primary" onclick="eletroImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Gerar proposta PDF</button>
+          <button type="button" class="eletro-btn" onclick="eletroWhatsApp()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> WhatsApp</button>
+          <button type="button" class="eletro-btn" onclick="eletroToggleComparar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparar cenários</button>
         </div>
 
         <!-- comparação de cenários (3/5/7 carros) -->
@@ -1881,7 +1908,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <!-- ===== PANE: MAPA (PlugShare — abre em nova aba; embed bloqueado pelo domínio deles) ===== -->
     <div id="eletro-pane-mapa" style="display:none;">
       <div class="eletro-mapa-card">
-        <div class="eletro-mapa-ic">🗺️</div>
+        <div class="eletro-mapa-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg></div>
         <h2>Mapa mundial de pontos de recarga</h2>
         <p>Todos os postos de recarga existentes, em tempo real, no <b>PlugShare</b> — a maior base colaborativa de estações de carro elétrico do mundo. Busque por cidade, veja fotos, avaliações e tipos de conector.</p>
         <a class="eletro-mapa-btn" href="https://www.plugshare.com/" target="_blank" rel="noopener">Abrir mapa PlugShare ↗</a>
@@ -4683,12 +4710,14 @@ const elMoneyK = n => {
 // Todas as features (UI ao vivo, comparar cenários, ROI, PDF, WhatsApp) chamam AQUI.
 function computeEletro(p) {
   const DIAS = 30;
-  const kwhMes  = p.carros * p.carga * p.plugs * DIAS;
-  const sessoes = p.carros * p.plugs * DIAS;
+  // MODELO TOTAL: 'carros' = total de carros/dia (não por bico) e 'invest' = investimento total.
+  // O nº de bicos (plugs) é apenas referência informativa — NÃO entra em nenhuma fórmula.
+  const kwhMes  = p.carros * p.carga * DIAS;
+  const sessoes = p.carros * DIAS;
   const fatMes  = kwhMes * p.precoKwh + sessoes * p.ativacao;
 
   const custoEnergia = kwhMes * p.custoKwh;
-  const seguroMes    = p.invest * 0.01 / 12 * p.plugs;  // fórmula da planilha (campo R$ 2.000 é decorativo)
+  const seguroMes    = p.invest * 0.01 / 12;  // 1% a.a. do investimento total ÷ 12 (campo R$ 2.000 é decorativo)
   const custosMes    = custoEnergia + fatMes * (p.gateway + p.arrend + p.manut + p.imposto) + p.assinat + seguroMes;
 
   const lucroMes = fatMes - custosMes;
@@ -4697,7 +4726,7 @@ function computeEletro(p) {
   const custosAno = custosMes * 12;
   const lucroAno  = lucroMes * 12;
 
-  const investTotal = p.invest * p.plugs;
+  const investTotal = p.invest;
   const payback = lucroAno > 0 ? investTotal / lucroAno : null;
 
   // Fluxo de caixa acumulado: fluxo(n) = -investTotal + lucroAno * n
@@ -4781,8 +4810,9 @@ function renderEletroChart(fluxo) {
   }).join('');
 }
 
-// ===== Comparar cenários: mesmos parâmetros, varia só carros/dia (3/5/7) =====
-const ELETRO_CENARIOS = [3, 5, 7];
+// ===== Comparar cenários: mesmos parâmetros, varia só o total de carros/dia =====
+// (6/10/14 = os antigos 3/5/7 por bico × 2 bicos — mantém o sentido dos cenários de referência)
+const ELETRO_CENARIOS = [6, 10, 14];
 function eletroToggleComparar() {
   const box = document.getElementById('el-comparar');
   if (!box) return;
@@ -4815,69 +4845,157 @@ function eletroRenderComparar() {
 function eletroResumoTexto() {
   const r = computeEletro(eletroParams());
   const pb = r.payback ? r.payback.toFixed(1).replace('.', ',') + ' anos' : '—';
-  return [
-    '*Simulação de Eletroposto*',
+  const cidade = (document.getElementById('el-cidade')?.value || '').trim();
+  const linhas = [
+    '*Simulação de viabilidade — Eletroposto*',
+  ];
+  if (cidade) linhas.push(`Projeto: ${cidade}`);
+  linhas.push(
     '',
-    `⚡ ${Math.round(r.carros)} carros/dia · ${Math.round(r.plugs)} carregador(es)`,
+    `Operação: ${Math.round(r.carros)} carros/dia · ${Math.round(r.plugs)} carregador(es)`,
     '',
-    `💰 Faturamento/mês: ${elMoney(r.fatMes)}`,
-    `📈 Lucro/mês: ${elMoney(r.lucroMes)}  (margem ${(r.margem * 100).toFixed(1).replace('.', ',')}%)`,
-    `🏦 Lucro/ano: ${elMoney(r.lucroAno)}`,
-    `⏱️ Payback: ${pb}`,
-    `🚀 Em 10 anos: ${elMoney(r.acumulado10)} líquidos (ROI ${Math.round(r.roi10 * 100)}%)`,
+    `- Faturamento/mês: ${elMoney(r.fatMes)}`,
+    `- Lucro/mês: ${elMoney(r.lucroMes)} (margem ${(r.margem * 100).toFixed(1).replace('.', ',')}%)`,
+    `- Lucro/ano: ${elMoney(r.lucroAno)}`,
+    `- Payback: ${pb}`,
+    `- Em 10 anos: ${elMoney(r.acumulado10)} líquidos (ROI ${Math.round(r.roi10 * 100)}%)`,
     '',
-    `Investimento: ${elMoney(r.investTotal)}`,
-  ].join('\n');
+    `Investimento total: ${elMoney(r.investTotal)}`,
+  );
+  return linhas.join('\n');
 }
 function eletroWhatsApp() {
   const url = 'https://wa.me/?text=' + encodeURIComponent(eletroResumoTexto());
   window.open(url, '_blank', 'noopener');
 }
 
-// ===== PDF: container de impressão dedicado (light, tabela simples), via window.print() =====
+// Panorama de mercado — dados oficiais (ABVE). Atualize aqui quando os números mudarem.
+const ELETRO_MERCADO = {
+  ano: '2025 / início 2026',
+  frotaEletrificados: '645.407',   // frota nacional acumulada (jan/2012–jan/2026), inclui híbridos
+  plugin: '181.542',               // BEV + PHEV vendidos em 2025 (os que de fato recarregam)
+  vendas2025: '223.912',           // total eletrificados vendidos em 2025
+  crescimentoVendas: '26%',        // vs 2024 (recorde da série ABVE)
+  participacao: '9,4%',            // participação nas vendas de veículos
+  postos: '21.061',                // pontos públicos/semipúblicos de recarga
+  crescimentoPostos: '42%',        // em 12 meses
+  rapidaCresc: '167%',             // crescimento da recarga rápida (DC)
+  municipios: '1.649',             // municípios com eletropostos
+  fonte: 'Fonte: ABVE (Associação Brasileira do Veículo Elétrico) e Tupi Mobilidade — dados de 2025 / fev. 2026.',
+};
+
+// Gráfico de barras do fluxo em SVG inline (imprime confiável, diferente do waterfall CSS da tela).
+function eletroFluxoSVG(fluxo) {
+  const W = 720, H = 210, padX = 28, padTop = 14, axis = 26; // 'axis' = faixa fixa embaixo p/ rótulos de ano
+  const n = fluxo.length;
+  const bw = (W - padX * 2) / n * 0.6;
+  const gap = (W - padX * 2) / n;
+  const maxAbs = Math.max(1, ...fluxo.map(v => Math.abs(v)));
+  const plot = H - padTop - axis;                    // altura útil do plot
+  const zeroY = padTop + plot * (Math.max(0, ...fluxo) / maxAbs);
+  const scale = plot / maxAbs;
+  const rotulosY = H - 8;                             // linha fixa dos números dos anos
+  let bars = '';
+  fluxo.forEach((v, i) => {
+    const x = padX + gap * i + (gap - bw) / 2;
+    const h = Math.abs(v) * scale;
+    const y = v >= 0 ? zeroY - h : zeroY;
+    const cor = v < 0 ? '#dc2626' : '#f59e0b';
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${cor}" rx="2"></rect>`;
+    bars += `<text x="${(x + bw / 2).toFixed(1)}" y="${rotulosY}" font-size="9" fill="#777" text-anchor="middle">${i + 1}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:100%"><line x1="${padX}" y1="${zeroY.toFixed(1)}" x2="${W - padX}" y2="${zeroY.toFixed(1)}" stroke="#bbb" stroke-width="1"></line>${bars}</svg>`;
+}
+
+// ===== PDF: proposta executiva completa (container light dedicado), via window.print() =====
 function eletroImprimir() {
-  const r = computeEletro(eletroParams());
+  const p = eletroParams();
+  const r = computeEletro(p);
   const host = document.getElementById('eletro-print');
   const pb = r.payback ? r.payback.toFixed(1).replace('.', ',') + ' anos' : '—';
   const money = elMoney;
+  const cidade = (document.getElementById('el-cidade')?.value || '').trim();
+  const m = ELETRO_MERCADO;
+
   const linhasFluxo = r.fluxo.map((v, i) =>
-    `<tr><td>Ano ${i + 1}</td><td style="text-align:right;color:${v < 0 ? '#b91c1c' : '#15803d'}">${money(v)}</td></tr>`).join('');
+    `<tr><td>Ano ${i + 1}</td><td class="num" style="color:${v < 0 ? '#b91c1c' : '#15803d'}">${money(v)}</td></tr>`).join('');
+
+  // comparação 3/5/7 + cenário atual
+  const carrosSet = Array.from(new Set([...ELETRO_CENARIOS, Math.round(r.carros)])).sort((a, b) => a - b);
+  const cmpCols = carrosSet.map(c => computeEletro({ ...p, carros: c }));
+  const cmpHead = carrosSet.map(c => `<th class="num${c === Math.round(r.carros) ? ' atual' : ''}">${c} carros/dia</th>`).join('');
+  const cmpRow = (lbl, fn) => `<tr><td>${lbl}</td>${cmpCols.map(x => `<td class="num">${fn(x)}</td>`).join('')}</tr>`;
+  const cmpBody = [
+    cmpRow('Lucro/mês', x => money(x.lucroMes)),
+    cmpRow('Lucro/ano', x => money(x.lucroAno)),
+    cmpRow('Payback', x => x.payback ? x.payback.toFixed(1).replace('.', ',') + ' anos' : '—'),
+    cmpRow('Patrimônio 10 anos', x => money(x.acumulado10)),
+    cmpRow('ROI 10 anos', x => Math.round(x.roi10 * 100) + '%'),
+  ].join('');
+
   host.innerHTML = `
     <div class="ep-doc">
       <div class="ep-head">
-        <div class="ep-title">Simulação de Viabilidade — Eletroposto</div>
+        <div>
+          <div class="ep-title">Estudo de Viabilidade — Eletroposto</div>
+          ${cidade ? `<div class="ep-sub">Projeto para ${cidade}</div>` : ''}
+        </div>
         <div class="ep-date">${new Date().toLocaleDateString('pt-BR')}</div>
       </div>
-      <div class="ep-impacto">Cada real investido volta em <b>${pb}</b> e, em 10 anos, o eletroposto gera <b>${money(r.acumulado10)}</b> de patrimônio líquido — retorno de <b>${Math.round(r.roi10 * 100)}%</b>.</div>
+
+      <div class="ep-impacto">Cada real investido volta em <b>${pb}</b> e, em 10 anos, o eletroposto gera <b>${money(r.acumulado10)}</b> de patrimônio líquido — um retorno de <b>${Math.round(r.roi10 * 100)}%</b> sobre o investimento.</div>
+
+      <div class="ep-section">Panorama do mercado no Brasil</div>
+      <div class="ep-mkt">
+        <div class="ep-mkt-item"><div class="v">${m.plugin}</div><div class="k">carros plug-in vendidos em ${m.ano.split(' / ')[0]}</div></div>
+        <div class="ep-mkt-item"><div class="v">+${m.crescimentoVendas}</div><div class="k">crescimento das vendas no ano</div></div>
+        <div class="ep-mkt-item"><div class="v">${m.postos}</div><div class="k">eletropostos no país</div></div>
+        <div class="ep-mkt-item"><div class="v">+${m.crescimentoPostos}</div><div class="k">de postos em 12 meses</div></div>
+        <div class="ep-mkt-item"><div class="v">+${m.rapidaCresc}</div><div class="k">recarga rápida (DC)</div></div>
+        <div class="ep-mkt-item"><div class="v">${m.municipios}</div><div class="k">municípios já atendidos</div></div>
+      </div>
+      <div class="ep-mkt-note">A frota que recarrega em poste público (elétricos + híbridos plug-in) cresce em ritmo muito acima da infraestrutura: a demanda por pontos de recarga segue represada. ${m.fonte}</div>
+
       <div class="ep-cols">
         <div class="ep-box">
-          <h3>Operação</h3>
+          <h3>Premissas da operação</h3>
           <table class="ep-kv">
-            <tr><td>Carros por dia / carregador</td><td>${Math.round(r.carros)}</td></tr>
-            <tr><td>Carregadores (plugs)</td><td>${Math.round(r.plugs)}</td></tr>
-            <tr><td>Média de carga por carro</td><td>${r.carga} kWh</td></tr>
-            <tr><td>Custo do kWh</td><td>${elMoney2(r.custoKwh)}</td></tr>
-            <tr><td>Preço kWh revenda</td><td>${elMoney2(r.precoKwh)}</td></tr>
-            <tr><td>Investimento total</td><td>${money(r.investTotal)}</td></tr>
+            <tr><td>Carros por dia (total)</td><td class="num">${Math.round(r.carros)}</td></tr>
+            <tr><td>Bicos de carregamento</td><td class="num">${Math.round(r.plugs)}</td></tr>
+            <tr><td>Média de carga por carro</td><td class="num">${r.carga} kWh</td></tr>
+            <tr><td>Custo do kWh</td><td class="num">${elMoney2(r.custoKwh)}</td></tr>
+            <tr><td>Preço kWh revenda</td><td class="num">${elMoney2(r.precoKwh)}</td></tr>
+            <tr class="hl"><td>Investimento total</td><td class="num">${money(r.investTotal)}</td></tr>
           </table>
         </div>
         <div class="ep-box">
-          <h3>Resultados</h3>
+          <h3>Resultados projetados</h3>
           <table class="ep-kv">
-            <tr><td>Faturamento/mês</td><td>${money(r.fatMes)}</td></tr>
-            <tr><td>Custos + impostos/mês</td><td>${money(r.custosMes)}</td></tr>
-            <tr class="hl"><td>Lucro/mês</td><td>${money(r.lucroMes)}</td></tr>
-            <tr><td>Margem</td><td>${(r.margem * 100).toFixed(1).replace('.', ',')}%</td></tr>
-            <tr><td>Lucro/ano</td><td>${money(r.lucroAno)}</td></tr>
-            <tr class="hl"><td>Payback</td><td>${pb}</td></tr>
+            <tr><td>Faturamento/mês</td><td class="num">${money(r.fatMes)}</td></tr>
+            <tr><td>Custos + impostos/mês</td><td class="num">${money(r.custosMes)}</td></tr>
+            <tr class="hl"><td>Lucro/mês</td><td class="num">${money(r.lucroMes)}</td></tr>
+            <tr><td>Margem</td><td class="num">${(r.margem * 100).toFixed(1).replace('.', ',')}%</td></tr>
+            <tr><td>Lucro/ano</td><td class="num">${money(r.lucroAno)}</td></tr>
+            <tr class="hl"><td>Payback</td><td class="num">${pb}</td></tr>
           </table>
         </div>
       </div>
-      <div class="ep-box">
+
+      <div class="ep-box ep-avoid-break">
         <h3>Fluxo de caixa acumulado (10 anos)</h3>
+        <div class="ep-chart">${eletroFluxoSVG(r.fluxo)}</div>
         <table class="ep-kv ep-fluxo">${linhasFluxo}</table>
       </div>
-      <div class="ep-foot">Simulação gerada no Gerador de Propostas. Valores estimados — não constituem garantia de resultado.</div>
+
+      <div class="ep-box ep-avoid-break">
+        <h3>Comparação de cenários</h3>
+        <table class="ep-kv ep-cmp">
+          <thead><tr><th>Indicador</th>${cmpHead}</tr></thead>
+          <tbody>${cmpBody}</tbody>
+        </table>
+      </div>
+
+      <div class="ep-foot">Estudo gerado no Gerador de Propostas. Valores estimados a partir das premissas informadas — não constituem garantia de resultado. ${m.fonte}</div>
     </div>`;
   window.print();
 }
