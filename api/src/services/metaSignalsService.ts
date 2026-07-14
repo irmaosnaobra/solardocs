@@ -132,60 +132,94 @@ function todasJanelas(dias: DiaAdset[]): JanelasMulti {
   };
 }
 
-// ── VEREDITO CRUZADO: a regra que te faz assertivo ──────────────────────────
-// 3d+7d DECIDEM; 14d/30d CONFIRMAM (tendência vs sorte); hoje/ontem só contexto
-// (pixel atrasa ~1 dia → subestima o recente, nunca dispara ação). Concordância
-// entre janelas = confiança. Thresholds env-configuráveis (mesmos do gerarOrdens).
-function vereditoCruzado(j: JanelasMulti): VeredictoCruzado {
-  const DUP_ROAS = N(process.env.AUX_DUP_ROAS, 2.5), UP_ROAS = N(process.env.AUX_UP_ROAS, 1.8);
+// Contexto extra pro veredito: fadiga/dias (do próprio conjunto) + orçamento
+// (pra decidir DUPLICAR só quem está no teto, e dizer o R$ alvo).
+export interface VeredictoContexto {
+  fadiga: boolean;
+  diasRodando: number;
+  budget?: { onde: 'conjunto' | 'campanha'; diarioBRL: number | null; nomeControla: string } | null;
+}
+
+// ── VEREDITO CRUZADO: conservador de verdade (proteger dinheiro) ─────────────
+// FILOSOFIA (feedback Thiago 14/07): escalar um vencedor = AUMENTAR +30% no
+// orçamento (conservador, não canibaliza). DUPLICAR é o AGRESSIVO (cópia
+// recomeça learning + compete no leilão) → RESERVADO só pras estrelas que já
+// estão NO TETO de confiança E de orçamento. Timing: escalar é limitado pelo
+// pixel (~1d), pausar é tempo-real. 3d+7d decidem, 14d/30d confirmam, hoje/ontem
+// só contexto. Concordância = confiança. "100% confiável" = TIER, não garantia.
+const UP_ROAS_MIN = N(process.env.AUX_UP_ROAS, 1.7);        // piso pra AUMENTAR (Thiago: ~1,7)
+const DUP_ROAS_MIN = N(process.env.AUX_DUP_ROAS, 3.0);      // duplicar exige ROAS bem forte
+const TETO_ORCAMENTO = N(process.env.AUX_TETO_ORCAMENTO, 100); // "no teto" = orçamento diário ≥ isso (R$)
+
+function sugereOrcamento(atual: number | null, pct: number): string {
+  if (!atual || atual <= 0) return '';
+  const novo = Math.round(atual * (1 + pct / 100));
+  return ` de R$${atual.toFixed(0)} → *R$${novo}/dia*`;
+}
+
+function vereditoCruzado(j: JanelasMulti, ctx?: VeredictoContexto): VeredictoCruzado {
   const PAUSE_LIMIAR = N(process.env.AUX_TICKET, 45) * N(process.env.AUX_PAUSE_FATOR, 1.5);
 
   const dec7 = j.d7.suficiente ? j.d7.roas : null;    // 7d = decisor principal
   const dec3 = j.d3.suficiente ? j.d3.roas : null;    // 3d = confirma o curto
   const conf = j.d14.suficiente ? j.d14.roas : (j.d30.suficiente ? j.d30.roas : null); // 14/30 = tendência
 
-  // Sem 7d confiável → não decide.
-  if (dec7 === null) return { tipo: 'OBSERVAR', concordancia: 'baixa', frase: 'Dados insuficientes nas janelas que decidem (7d). Deixa juntar mais dados.' };
+  const b = ctx?.budget;
+  const alvoNome = b?.onde === 'campanha' ? `a CAMPANHA "${b.nomeControla}"` : 'o conjunto';
 
-  // PAUSAR: 7d gastou o suficiente e não vendeu.
+  // Sem 7d confiável → não decide.
+  if (dec7 === null) return { tipo: 'OBSERVAR', concordancia: 'baixa', frase: 'Dados insuficientes nas janelas que decidem (7d). Deixa juntar mais dados antes de escalar.' };
+
+  // PAUSAR (tempo-real, key off spend magnitude — não recência): gastou e não vendeu.
   if (j.d7.spend >= PAUSE_LIMIAR && j.d7.purchases === 0) {
     return { tipo: 'PAUSAR', concordancia: conf !== null && conf < 1 ? 'alta' : 'media',
-      frase: `Gastou R$${j.d7.spend.toFixed(0)} em 7d sem vender. ${conf !== null && conf < 1 ? 'Histórico também fraco → pausa.' : 'Revisa e pausa.'}` };
+      frase: `🩸 Gastou R$${j.d7.spend.toFixed(0)} em 7d sem vender. ${conf !== null && conf < 1 ? 'Histórico também fraco → pausa, tá queimando dinheiro.' : 'Revisa e pausa antes de queimar mais.'}` };
   }
 
-  const forte7 = dec7 >= DUP_ROAS;
-  const forte3 = dec3 === null || dec3 >= DUP_ROAS * 0.8;     // 3d oscila; tolera 80%
-  const confOk = conf === null || conf >= UP_ROAS;            // histórico não contradiz
-
-  // DUPLICAR: 7d forte + 3d não contradiz + histórico sustenta → janelas concordam.
-  if (forte7 && forte3 && confOk) {
-    const conc = (conf !== null && conf >= DUP_ROAS && dec3 !== null && dec3 >= DUP_ROAS) ? 'alta' : 'media';
-    return { tipo: 'DUPLICAR', concordancia: conc,
-      frase: conc === 'alta'
-        ? `ROAS forte e consistente em 3d, 7d e ${j.d14.suficiente ? '14d' : '30d'} — janelas concordam, escala com confiança.`
-        : `7d forte (${dec7.toFixed(1)}x)${conf !== null ? `, histórico ${conf.toFixed(1)}x` : ''} — bom, mas confirma nos próximos dias.` };
+  // ── Confiança pra escalar (tier). 7d é o decisor. ──
+  const escalavel = dec7 >= UP_ROAS_MIN;
+  if (!escalavel) {
+    if (dec7 > 0) return { tipo: 'OBSERVAR', concordancia: 'baixa', frase: `ROAS ${dec7.toFixed(1)}x em 7d — abaixo de ${UP_ROAS_MIN}x, não compensa escalar. Deixa rodar e observa.` };
+    return { tipo: 'OBSERVAR', concordancia: 'baixa', frase: `Sem retorno no 7d. Observa (pode ser atribuição atrasada).` };
   }
 
-  // SEGURAR: 7d bom mas histórico fraco (pode ser pico) OU 3d despencou.
-  if (forte7 && conf !== null && conf < UP_ROAS) {
+  // 3d despencou ou histórico fraco → SEGURA (não escala em cima de pico).
+  if (dec3 !== null && dec3 < UP_ROAS_MIN) {
     return { tipo: 'SEGURAR', concordancia: 'baixa',
-      frase: `Bom no 7d (${dec7.toFixed(1)}x) mas o histórico é fraco (${conf.toFixed(1)}x) — pode ser pico. Segura antes de escalar.` };
+      frase: `7d bom (${dec7.toFixed(1)}x) mas os últimos 3 dias caíram (${dec3.toFixed(1)}x) — pode estar esfriando. NÃO escala agora, observa 1-2 dias.` };
   }
-  if (forte7 && dec3 !== null && dec3 < UP_ROAS) {
+  if (conf !== null && conf < UP_ROAS_MIN) {
     return { tipo: 'SEGURAR', concordancia: 'baixa',
-      frase: `7d bom mas os últimos 3 dias caíram (${dec3.toFixed(1)}x) — pode estar esfriando. Observa antes de escalar.` };
+      frase: `Bom no 7d (${dec7.toFixed(1)}x) mas o histórico é fraco (${conf.toFixed(1)}x) — pode ser pico, não sustentável. Segura antes de escalar.` };
   }
 
-  // AUMENTAR: ROAS ok (não forte o bastante pra duplicar).
-  if (dec7 >= UP_ROAS) {
-    return { tipo: 'AUMENTAR', concordancia: 'media', frase: `ROAS ${dec7.toFixed(1)}x em 7d — sobe o orçamento 30% e acompanha.` };
+  // ── TIER TOPO pra DUPLICAR (o agressivo, só quem é 100%-confiável-possível): ──
+  // ROAS bem forte + concordância alta (3d E histórico fortes) + volume + sem
+  // fadiga + estabelecido + JÁ NO TETO de orçamento (duplicar só faz sentido se
+  // não dá mais pra crescer aumentando). Senão → AUMENTAR (conservador).
+  const concordaAlto = conf !== null && conf >= DUP_ROAS_MIN && dec3 !== null && dec3 >= DUP_ROAS_MIN;
+  const forteDup = dec7 >= DUP_ROAS_MIN;
+  const volumeOk = j.d7.purchases >= N(process.env.AUX_DUP_VENDAS, 5);
+  const semFadiga = !ctx?.fadiga;
+  const estabelecido = (ctx?.diasRodando ?? 0) >= 5;
+  const noTeto = (b?.diarioBRL ?? 0) >= TETO_ORCAMENTO;
+
+  if (forteDup && concordaAlto && volumeOk && semFadiga && estabelecido && noTeto) {
+    return { tipo: 'DUPLICAR', concordancia: 'alta',
+      frase: `⭐ ESTRELA: ROAS ${dec7.toFixed(1)}x consistente em 3d/7d/14d, ${j.d7.purchases} vendas, sem fadiga, e já no teto de orçamento (R$${b!.diarioBRL!.toFixed(0)}/dia). Duplica pra crescer sem canibalizar${b?.onde === 'campanha' ? ' — orçamento é da campanha (CBO).' : `. Deixa a cópia em R$${b!.diarioBRL!.toFixed(0)}/dia.`}` };
   }
 
-  return { tipo: 'OBSERVAR', concordancia: 'baixa', frase: `ROAS ${dec7.toFixed(1)}x em 7d — abaixo do gatilho. Deixa rodar e observa.` };
+  // ── PADRÃO CONSERVADOR: AUMENTAR +30% (não canibaliza, escala seguro) ──
+  const pct = 30;
+  const linhaR$ = b?.diarioBRL ? sugereOrcamento(b.diarioBRL, pct) : '';
+  const porqueNaoDup = !noTeto && b?.diarioBRL ? ` (ainda dá pra crescer aumentando — só duplica no teto)` : '';
+  return { tipo: 'AUMENTAR', concordancia: forteDup && concordaAlto ? 'alta' : 'media',
+    frase: `ROAS ${dec7.toFixed(1)}x em 7d${conf !== null ? `, histórico ${conf.toFixed(1)}x` : ''} — sobe ${alvoNome}${linhaR$} (+${pct}%)${porqueNaoDup}. Espera 1-2 dias pra confirmar antes de subir de novo.` };
 }
 
 // Calcula todos os sinais de um conjunto a partir do histórico diário.
-export function computeSignals(adsetId: string, name: string, dias: DiaAdset[]): AdsetSignals {
+// budget (opcional) alimenta o veredito: DUPLICAR só no teto + sugere o R$ alvo.
+export function computeSignals(adsetId: string, name: string, dias: DiaAdset[], budget?: VeredictoContexto['budget']): AdsetSignals {
   const comEntrega = dias.filter(d => d.impressions > 0);
   const diasRodando = comEntrega.length;
 
@@ -247,22 +281,31 @@ export function computeSignals(adsetId: string, name: string, dias: DiaAdset[]):
   if (melhorRoas > roasRecente * 1.5 && roasRecente > 0) partes.push(`já fez ${melhorRoas.toFixed(0)}x`);
   const leitura = partes.length ? partes.join(' · ') : 'sem sinal forte ainda';
 
+  const jan = todasJanelas(dias);
   return {
     adset_id: adsetId, adset_name: name, dias_rodando: diasRodando,
     trajetoria, roas_recente: roasRecente, roas_anterior: roasAnterior,
     fadiga, frequencia: freqRecente, ctr_atual: ctrRecente, ctr_antes: ctrAntes,
     melhor_roas: melhorRoas, melhor_dia: melhorDia,
     score, score_breakdown: breakdown, leitura,
-    janelas: todasJanelas(dias),
-    veredito: vereditoCruzado(todasJanelas(dias)),
+    janelas: jan,
+    veredito: vereditoCruzado(jan, { fadiga, diasRodando, budget }),
   };
 }
 
 // Conveniência: sinais de todos os conjuntos, mapa por adset_id.
 // Default 30 dias — precisa da janela longa pra o veredito cruzado confirmar tendência.
+// Puxa o orçamento (ABO/CBO) em paralelo pra o veredito decidir DUPLICAR-vs-AUMENTAR.
 export async function computeAllSignals(days: 14 | 30 = 30): Promise<Map<string, AdsetSignals>> {
-  const hist = await fetchAdsetHistory(days);
+  const { fetchBudgets } = await import('./metaAdsFullService');
+  const [hist, budgets] = await Promise.all([
+    fetchAdsetHistory(days),
+    fetchBudgets().catch(() => new Map()),
+  ]);
   const out = new Map<string, AdsetSignals>();
-  for (const [id, { name, dias }] of hist) out.set(id, computeSignals(id, name, dias));
+  for (const [id, { name, dias }] of hist) {
+    const b = budgets.get(id);
+    out.set(id, computeSignals(id, name, dias, b ? { onde: b.onde, diarioBRL: b.diarioBRL, nomeControla: b.nomeControla } : null));
+  }
   return out;
 }
