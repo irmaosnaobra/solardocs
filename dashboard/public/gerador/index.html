@@ -206,9 +206,11 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
      Especificidade alta o bastante pra vencer a regra mobile que mostra o toggle (linha ~741). */
   html[data-mode]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .sb-mobile-toggle,
   #app-sidebar,.sb-backdrop,#sb-backdrop,.container{display:none!important}
-  #eletro-print{display:block!important;background:#fff}
+  #eletro-print{display:block!important;background:#fff;padding:14mm;box-sizing:border-box}
   html,body{background:#fff!important;height:auto!important}
-  @page{margin:14mm}
+  /* margem 0 no papel = o navegador não tem onde carimbar data/URL/nº de página.
+     O respiro de 14mm vira padding do container (mesmo motor de impressão, fidelidade intacta). */
+  @page{margin:0}
 }
 .ep-doc{color:#111;font-family:Arial,Helvetica,sans-serif;max-width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #F59E0B;padding-bottom:10px;margin-bottom:16px}
