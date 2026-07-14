@@ -4968,13 +4968,30 @@ function eletroImprimir() {
       </div>
       <div class="ep-mkt-note">A frota que recarrega em poste público (elétricos + híbridos plug-in) cresce em ritmo muito acima da infraestrutura: a demanda por pontos de recarga segue represada. ${m.fonte}</div>
 
-      <div class="ep-box">
-        <h3>Dados da operação</h3>
-        <table class="ep-kv ep-premissas">
-          <tr><td>Carros por dia (total)</td><td class="num">${Math.round(r.carros)}</td><td>Média de carga por carro</td><td class="num">${r.carga} kWh</td></tr>
-          <tr><td>Bicos de carregamento</td><td class="num">${Math.round(r.plugs)}</td><td>Custo do kWh</td><td class="num">${elMoney2(r.custoKwh)}</td></tr>
-          <tr><td>Preço kWh revenda</td><td class="num">${elMoney2(r.precoKwh)}</td><td class="hl">Investimento total</td><td class="num hl">${money(r.investTotal)}</td></tr>
-        </table>
+      <div class="ep-cols">
+        <div class="ep-box">
+          <h3>Dados da operação</h3>
+          <table class="ep-kv">
+            <tr><td>Carros por dia (total)</td><td class="num">${Math.round(r.carros)}</td></tr>
+            <tr><td>Bicos de carregamento</td><td class="num">${Math.round(r.plugs)}</td></tr>
+            <tr><td>Média de carga por carro</td><td class="num">${r.carga} kWh</td></tr>
+            <tr><td>Custo do kWh</td><td class="num">${elMoney2(r.custoKwh)}</td></tr>
+            <tr><td>Preço kWh revenda</td><td class="num">${elMoney2(r.precoKwh)}</td></tr>
+            <tr><td>Taxa de ativação</td><td class="num">${elMoney2(r.ativacao)}</td></tr>
+            <tr class="hl"><td>Investimento total</td><td class="num">${money(r.investTotal)}</td></tr>
+          </table>
+        </div>
+        <div class="ep-box">
+          <h3>Custos e taxas</h3>
+          <table class="ep-kv">
+            <tr><td>Gateway</td><td class="num">${(r.gateway * 100).toLocaleString('pt-BR')}%</td></tr>
+            <tr><td>Arrendamento do ponto</td><td class="num">${(r.arrend * 100).toLocaleString('pt-BR')}%</td></tr>
+            <tr><td>Manutenção</td><td class="num">${(r.manut * 100).toLocaleString('pt-BR')}%</td></tr>
+            <tr><td>Assinatura mensal</td><td class="num">${money(r.assinat)}</td></tr>
+            <tr><td>Seguro/mês</td><td class="num">${money(r.seguroMes)}</td></tr>
+            <tr><td>Imposto (Simples Nacional)</td><td class="num">${(r.imposto * 100).toLocaleString('pt-BR')}%</td></tr>
+          </table>
+        </div>
       </div>
 
       <div class="ep-avoid-break">
