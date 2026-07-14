@@ -64,7 +64,9 @@ async function fetchInsights(): Promise<AdInsight[]> {
   return rows.map(r => {
     let purchases = 0;
     for (const a of (r.actions ?? [])) {
-      if (typeof a.action_type === 'string' && a.action_type.includes('purchase')) {
+      // 'purchase' EXATO (Meta duplica a mesma compra em ~7 action_types). Aqui só
+      // importava purchases===0, então o inflar não causava dano — mas fica correto.
+      if (a.action_type === 'purchase') {
         purchases += Number(a.value) || 0;
       }
     }
