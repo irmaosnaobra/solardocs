@@ -88,8 +88,9 @@ export async function fetchAdsetHistory(days: 14 | 30 = 14): Promise<Map<string,
       clicks: Number(r.clicks) || 0,
       ctr: Number(r.ctr) || 0,
       frequency: Number(r.frequency) || 0,
-      purchases: extractAction(r.actions, t => t.includes('purchase')),
-      purchase_value: extractAction(r.action_values, t => t.includes('purchase')),
+      // 'purchase' EXATO — não includes (Meta duplica a mesma compra em ~7 types → inflava 7×).
+      purchases: extractAction(r.actions, t => t === 'purchase'),
+      purchase_value: extractAction(r.action_values, t => t === 'purchase'),
     });
     map.set(id, entry);
   }

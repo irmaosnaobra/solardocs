@@ -71,8 +71,13 @@ export async function fetchMetaEntities(level: MetaLevel, preset: MetaDatePreset
 
   const rows = (json.data ?? []).map((r): MetaEntity => {
     const spend = Number(r.spend) || 0;
-    const purchases = extractAction(r.actions, t => t.includes('purchase'));
-    const purchase_value = extractAction(r.action_values, t => t.includes('purchase'));
+    // BUG GRAVE consertado 14/07: o Meta retorna a MESMA compra sob ~7 action_types
+    // (purchase, omni_purchase, onsite_web_purchase, offsite_conversion.fb_pixel_purchase...
+    // TODOS com o mesmo valor). includes('purchase') somava os 7 → inflava 7×
+    // (39 compras viravam 273, ROAS 1,2x virava 8,7x). O certo é o 'purchase' EXATO
+    // (que casa com o Purchase da CAPI própria da LimpaPro/SolarDoc = 1 pedido).
+    const purchases = extractAction(r.actions, t => t === 'purchase');
+    const purchase_value = extractAction(r.action_values, t => t === 'purchase');
     const campaign_name = String(r.campaign_name ?? '');
     const id = level === 'campaign' ? String(r.campaign_id ?? '') : level === 'adset' ? String(r.adset_id ?? '') : String(r.ad_id ?? '');
     const name = level === 'campaign' ? campaign_name : level === 'adset' ? String(r.adset_name ?? '') : String(r.ad_name ?? '');
