@@ -141,9 +141,26 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
       asCents(product.price) ??
       null;
 
+    // A Kiwify manda o rastreio do anúncio em TrackingParameters (utm_*). O
+    // utm_content vem com o fbclid colado (…30602::PAZ…aem_…::) → corta no '::'.
+    // (Descoberto 14/07: sempre esteve no payload, o webhook só não lia.)
+    const tp = ((evt as any).TrackingParameters || (evt as any).tracking_parameters || {}) as Record<string, string>;
+    const limpaContent = (v?: string | null) => (v ? String(v).split('::')[0] : null) || null;
+
+    // Só inclui utm no row SE o payload trouxe (senão o upsert de um evento posterior
+    // sem tracking — ex: refund — apagaria a atribuição já gravada).
+    const utmCols = tp.utm_campaign ? {
+      utm_source:   tp.utm_source   || null,
+      utm_medium:   tp.utm_medium   || null,
+      utm_campaign: tp.utm_campaign,
+      utm_term:     tp.utm_term     || null,
+      utm_content:  limpaContent(tp.utm_content),
+    } : {};
+
     const row = {
       event_type:   'purchase',
       order_id:     orderId,
+      ...utmCols,
       // Abandono da Kiwify guarda o email no TOPO do raw (evt.email), não em Customer —
       // por isso o coalesce. Sem ele, buyer_email fica null no abandono e o produtor
       // real-time da Bia (gate abaixo) nunca semeia. Casa com o coalesce da RPC limpapro_leads.
