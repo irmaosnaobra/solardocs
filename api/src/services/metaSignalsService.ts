@@ -45,6 +45,19 @@ export interface AdsetSignals {
   score_breakdown: Record<string, number>;
   // Frase de especialista (o "porquê")
   leitura: string;
+  // ── Avaliação MULTI-JANELA (30d/14d/7d/3d/ontem/hoje) ──
+  janelas: JanelasMulti;
+  veredito: VeredictoCruzado;
+}
+
+// ROAS + volume por janela. n=0 → 'dados insuficientes' (não finge número).
+export interface JanelaMetrica { n_dias: number; roas: number; purchases: number; spend: number; suficiente: boolean; }
+export interface JanelasMulti { hoje: JanelaMetrica; ontem: JanelaMetrica; d3: JanelaMetrica; d7: JanelaMetrica; d14: JanelaMetrica; d30: JanelaMetrica; }
+export type VerdictoTipo = 'DUPLICAR' | 'AUMENTAR' | 'PAUSAR' | 'SEGURAR' | 'OBSERVAR';
+export interface VeredictoCruzado {
+  tipo: VerdictoTipo;
+  concordancia: 'alta' | 'media' | 'baixa';  // janelas apontam pro mesmo lado?
+  frase: string;                              // leitura em português do cruzamento
 }
 
 function extractAction(actions: any[] | undefined, matcher: (t: string) => boolean): number {
@@ -90,6 +103,85 @@ function roasDe(dias: DiaAdset[]): number {
   const spend = dias.reduce((s, d) => s + d.spend, 0);
   const val = dias.reduce((s, d) => s + d.purchase_value, 0);
   return spend > 0 ? val / spend : 0;
+}
+
+// Data-limite ISO (yyyy-mm-dd) de N dias atrás. Base no relógio do server (UTC);
+// os dias do Meta vêm em date_start yyyy-mm-dd, comparação lexical funciona.
+function limiteISO(n: number): string {
+  return new Date(Date.now() - n * 86400_000).toISOString().slice(0, 10);
+}
+// Métrica de uma janela: fatia os dias >= limite, agrega. suficiente = tem gasto
+// em ≥ MIN_DIAS dias reais (senão 'dados insuficientes' — não finge número).
+const MIN_DIAS_JANELA = N(process.env.SIG_MIN_DIAS_JANELA, 2);
+function janelaMetrica(dias: DiaAdset[], nDiasAtras: number, exigeMin = true): JanelaMetrica {
+  const lim = limiteISO(nDiasAtras);
+  const f = dias.filter(d => d.dia >= lim && d.spend > 0);
+  const spend = f.reduce((s, d) => s + d.spend, 0);
+  const purchases = f.reduce((s, d) => s + d.purchases, 0);
+  const suficiente = exigeMin ? f.length >= MIN_DIAS_JANELA : f.length >= 1;
+  return { n_dias: f.length, roas: roasDe(f), purchases, spend, suficiente };
+}
+function todasJanelas(dias: DiaAdset[]): JanelasMulti {
+  return {
+    hoje:  janelaMetrica(dias, 1, false),   // hoje/ontem: 1 dia já conta (mas é só contexto)
+    ontem: janelaMetrica(dias, 2, false),
+    d3:    janelaMetrica(dias, 3),
+    d7:    janelaMetrica(dias, 7),
+    d14:   janelaMetrica(dias, 14),
+    d30:   janelaMetrica(dias, 30),
+  };
+}
+
+// ── VEREDITO CRUZADO: a regra que te faz assertivo ──────────────────────────
+// 3d+7d DECIDEM; 14d/30d CONFIRMAM (tendência vs sorte); hoje/ontem só contexto
+// (pixel atrasa ~1 dia → subestima o recente, nunca dispara ação). Concordância
+// entre janelas = confiança. Thresholds env-configuráveis (mesmos do gerarOrdens).
+function vereditoCruzado(j: JanelasMulti): VeredictoCruzado {
+  const DUP_ROAS = N(process.env.AUX_DUP_ROAS, 2.5), UP_ROAS = N(process.env.AUX_UP_ROAS, 1.8);
+  const PAUSE_LIMIAR = N(process.env.AUX_TICKET, 45) * N(process.env.AUX_PAUSE_FATOR, 1.5);
+
+  const dec7 = j.d7.suficiente ? j.d7.roas : null;    // 7d = decisor principal
+  const dec3 = j.d3.suficiente ? j.d3.roas : null;    // 3d = confirma o curto
+  const conf = j.d14.suficiente ? j.d14.roas : (j.d30.suficiente ? j.d30.roas : null); // 14/30 = tendência
+
+  // Sem 7d confiável → não decide.
+  if (dec7 === null) return { tipo: 'OBSERVAR', concordancia: 'baixa', frase: 'Dados insuficientes nas janelas que decidem (7d). Deixa juntar mais dados.' };
+
+  // PAUSAR: 7d gastou o suficiente e não vendeu.
+  if (j.d7.spend >= PAUSE_LIMIAR && j.d7.purchases === 0) {
+    return { tipo: 'PAUSAR', concordancia: conf !== null && conf < 1 ? 'alta' : 'media',
+      frase: `Gastou R$${j.d7.spend.toFixed(0)} em 7d sem vender. ${conf !== null && conf < 1 ? 'Histórico também fraco → pausa.' : 'Revisa e pausa.'}` };
+  }
+
+  const forte7 = dec7 >= DUP_ROAS;
+  const forte3 = dec3 === null || dec3 >= DUP_ROAS * 0.8;     // 3d oscila; tolera 80%
+  const confOk = conf === null || conf >= UP_ROAS;            // histórico não contradiz
+
+  // DUPLICAR: 7d forte + 3d não contradiz + histórico sustenta → janelas concordam.
+  if (forte7 && forte3 && confOk) {
+    const conc = (conf !== null && conf >= DUP_ROAS && dec3 !== null && dec3 >= DUP_ROAS) ? 'alta' : 'media';
+    return { tipo: 'DUPLICAR', concordancia: conc,
+      frase: conc === 'alta'
+        ? `ROAS forte e consistente em 3d, 7d e ${j.d14.suficiente ? '14d' : '30d'} — janelas concordam, escala com confiança.`
+        : `7d forte (${dec7.toFixed(1)}x)${conf !== null ? `, histórico ${conf.toFixed(1)}x` : ''} — bom, mas confirma nos próximos dias.` };
+  }
+
+  // SEGURAR: 7d bom mas histórico fraco (pode ser pico) OU 3d despencou.
+  if (forte7 && conf !== null && conf < UP_ROAS) {
+    return { tipo: 'SEGURAR', concordancia: 'baixa',
+      frase: `Bom no 7d (${dec7.toFixed(1)}x) mas o histórico é fraco (${conf.toFixed(1)}x) — pode ser pico. Segura antes de escalar.` };
+  }
+  if (forte7 && dec3 !== null && dec3 < UP_ROAS) {
+    return { tipo: 'SEGURAR', concordancia: 'baixa',
+      frase: `7d bom mas os últimos 3 dias caíram (${dec3.toFixed(1)}x) — pode estar esfriando. Observa antes de escalar.` };
+  }
+
+  // AUMENTAR: ROAS ok (não forte o bastante pra duplicar).
+  if (dec7 >= UP_ROAS) {
+    return { tipo: 'AUMENTAR', concordancia: 'media', frase: `ROAS ${dec7.toFixed(1)}x em 7d — sobe o orçamento 30% e acompanha.` };
+  }
+
+  return { tipo: 'OBSERVAR', concordancia: 'baixa', frase: `ROAS ${dec7.toFixed(1)}x em 7d — abaixo do gatilho. Deixa rodar e observa.` };
 }
 
 // Calcula todos os sinais de um conjunto a partir do histórico diário.
@@ -161,11 +253,14 @@ export function computeSignals(adsetId: string, name: string, dias: DiaAdset[]):
     fadiga, frequencia: freqRecente, ctr_atual: ctrRecente, ctr_antes: ctrAntes,
     melhor_roas: melhorRoas, melhor_dia: melhorDia,
     score, score_breakdown: breakdown, leitura,
+    janelas: todasJanelas(dias),
+    veredito: vereditoCruzado(todasJanelas(dias)),
   };
 }
 
 // Conveniência: sinais de todos os conjuntos, mapa por adset_id.
-export async function computeAllSignals(days: 14 | 30 = 14): Promise<Map<string, AdsetSignals>> {
+// Default 30 dias — precisa da janela longa pra o veredito cruzado confirmar tendência.
+export async function computeAllSignals(days: 14 | 30 = 30): Promise<Map<string, AdsetSignals>> {
   const hist = await fetchAdsetHistory(days);
   const out = new Map<string, AdsetSignals>();
   for (const [id, { name, dias }] of hist) out.set(id, computeSignals(id, name, dias));

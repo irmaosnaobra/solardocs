@@ -188,10 +188,13 @@ export async function runAuxiliarTrafego(opts: { dry?: boolean; force?: boolean 
     const escalaLinhas: string[] = [];
     const pausaLinhas: string[] = [];
     for (const o of pend) {
-      const linkComo = `\n   ${o.motivo}${o.leitura ? `\n   🧠 ${o.leitura}` : ''}\n   👉 ${linkAdset(o.adset_id)}\n   _${o.como_fazer}_`;
-      if (o.tipo === 'DUPLICAR') { escalaLinhas.push(`🟢 *DUPLICAR:* ${o.adset_nome}${linkComo}`); ordensAlertadasIds.push(o.id); }
-      else if (o.tipo === 'AUMENTAR') { escalaLinhas.push(`🔼 *AUMENTAR 30%:* ${o.adset_nome}${linkComo}`); ordensAlertadasIds.push(o.id); }
-      else if (o.tipo === 'PAUSAR') { pausaLinhas.push(`🔴 *${o.adset_nome}* (${o.campanha_nome})${linkComo}`); ordensAlertadasIds.push(o.id); }
+      // Horário-limite como relógio ("faça até 23h07") — passou = não executado.
+      const ate = new Date(o.expira_em).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
+      // o.motivo já é o PORQUÊ (explicação do cruzamento de janelas = escola).
+      const linhas = `\n   ⏰ faça até *${ate}*\n   🧠 ${o.motivo}\n   👉 ${linkAdset(o.adset_id)}\n   _${o.como_fazer}_`;
+      if (o.tipo === 'DUPLICAR') { escalaLinhas.push(`🟢 *DUPLICAR:* ${o.adset_nome}${linhas}`); ordensAlertadasIds.push(o.id); }
+      else if (o.tipo === 'AUMENTAR') { escalaLinhas.push(`🔼 *AUMENTAR 30%:* ${o.adset_nome}${linhas}`); ordensAlertadasIds.push(o.id); }
+      else if (o.tipo === 'PAUSAR') { pausaLinhas.push(`🔴 *${o.adset_nome}* (${o.campanha_nome})${linhas}`); ordensAlertadasIds.push(o.id); }
     }
     if (escalaLinhas.length) { blocos.push(`📈 *Hora de escalar (ROAS forte):*\n\n` + escalaLinhas.join('\n\n')); motivos.push('fila:escalar'); }
     if (pausaLinhas.length) { blocos.push(`🩸 *Gastando sem vender (revisar/pausar):*\n\n` + pausaLinhas.join('\n\n')); motivos.push('fila:pausar'); }

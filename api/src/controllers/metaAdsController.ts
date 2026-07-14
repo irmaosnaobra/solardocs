@@ -100,7 +100,8 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
 
     // Anexa os sinais de especialista em cada conjunto (tabela) e nas ordens.
     const adsetsComSinal = adsets.map(a => ({ ...a, signals: signals.get(a.id) ?? null }));
-    const ordens: Ordem[] = gerarOrdens(adsets3d).map(o => ({ ...o, signals: signals.get(o.entity.id) ?? null }));
+    // Cérebro único: ordens vêm do veredito multi-janela (signals), não de 3d.
+    const ordens: Ordem[] = gerarOrdens(adsets3d, signals).map(o => ({ ...o, signals: signals.get(o.entity.id) ?? null }));
     const totais = agregaTotais(campaigns);
     const escada = montaEscada(faturamento.total);
 

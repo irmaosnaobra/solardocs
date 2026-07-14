@@ -115,65 +115,51 @@ export async function fetchStatuses(level: MetaLevel): Promise<Record<string, st
   } catch { return {}; }
 }
 
-// ── Ordens de comando: converte números em AÇÃO recomendada ──────────────────
+// ── Ordens de comando: converte o VEREDITO MULTI-JANELA em AÇÃO ──────────────
+// CÉREBRO ÚNICO: a ordem vem do vereditoCruzado (30d/14d/7d/3d), não mais de
+// thresholds só de 3d. Assim painel, robô, fila e expiração NUNCA se contradizem
+// (antes: card "DUPLICAR" de 3d ao lado de texto "SEGURA" de 7d). SEGURAR/OBSERVAR
+// não viram ordem acionável — são "não escala ainda". Ver metaSignalsService.
 export type OrdemTipo = 'DUPLICAR' | 'AUMENTAR' | 'PAUSAR' | 'OBSERVAR' | 'MANTER';
 export interface Ordem {
   tipo: OrdemTipo;
   entity: MetaEntity;
-  motivo: string;       // por que essa ordem
+  motivo: string;       // por que essa ordem (leitura do cruzamento de janelas)
   comoFazer: string;    // instrução em português simples
   prioridade: number;   // pra ordenar (menor = mais urgente)
 }
 
-const N = (v: string | undefined, def: number) => (v != null && v !== '' && !isNaN(Number(v)) ? Number(v) : def);
-const DUP_ROAS   = N(process.env.AUX_DUP_ROAS, 2.5);
-const DUP_VENDAS = N(process.env.AUX_DUP_VENDAS, 2);
-const UP_ROAS    = N(process.env.AUX_UP_ROAS, 1.8);
-const UP_VENDAS  = N(process.env.AUX_UP_VENDAS, 1);
-const PAUSE_TICKET = N(process.env.AUX_TICKET, 45) * N(process.env.AUX_PAUSE_FATOR, 1.5);
+// Sinal mínimo que gerarOrdens consome (o veredito cruzado do metaSignalsService).
+export interface SinalVeredito {
+  veredito: { tipo: 'DUPLICAR' | 'AUMENTAR' | 'PAUSAR' | 'SEGURAR' | 'OBSERVAR'; concordancia: string; frase: string };
+}
 
-// Gera ordens a partir dos CONJUNTOS (nível de decisão de orçamento).
-export function gerarOrdens(adsets: MetaEntity[]): Ordem[] {
+const COMO: Record<string, string> = {
+  DUPLICAR: 'Botão "..." no conjunto → Duplicar. Deixe os 2 rodando lado a lado por 3 dias.',
+  AUMENTAR: 'Editar → Orçamento → suba 30%. Não mexa em mais nada por 2 dias.',
+  PAUSAR: 'Sem venda com esse gasto: pause o conjunto e realoque a verba nos que têm ROAS alto.',
+};
+
+// Gera ordens a partir do VEREDITO de cada conjunto. Recebe os sinais (por
+// adset_id) — sem sinal, cai pra OBSERVAR (não inventa ação sem base).
+export function gerarOrdens(adsets: MetaEntity[], sinais?: Map<string, SinalVeredito | { veredito: SinalVeredito['veredito'] }>): Ordem[] {
   const ordens: Ordem[] = [];
   for (const e of adsets) {
-    // Campanha de lead: métrica é lead, não venda → só observa se gasta muito.
-    if (e.is_lead) {
-      if (e.spend >= PAUSE_TICKET * 2) {
-        ordens.push({ tipo: 'OBSERVAR', entity: e, prioridade: 5,
-          motivo: `campanha de LEAD gastou R$${e.spend.toFixed(0)} — confira custo por lead no Gerenciador`,
-          comoFazer: 'É lead, não venda: abra a coluna "Custo por resultado" e veja se o lead tá saindo caro.' });
-      }
-      continue;
-    }
-    // DUPLICAR: ROAS forte + volume.
-    if (e.purchases >= DUP_VENDAS && e.roas >= DUP_ROAS) {
-      ordens.push({ tipo: 'DUPLICAR', entity: e, prioridade: 1,
-        motivo: `ROAS ${e.roas.toFixed(1)}x · ${e.purchases} compras · CPA R$${e.cpa.toFixed(0)}`,
-        comoFazer: 'Botão "..." no conjunto → Duplicar. Deixe os 2 rodando lado a lado por 3 dias.' });
-    }
-    // AUMENTAR 30%: ROAS bom, ainda não no nível de duplicar.
-    else if (e.purchases >= UP_VENDAS && e.roas >= UP_ROAS) {
-      ordens.push({ tipo: 'AUMENTAR', entity: e, prioridade: 2,
-        motivo: `ROAS ${e.roas.toFixed(1)}x · ${e.purchases} compra(s) · CPA R$${e.cpa.toFixed(0)}`,
-        comoFazer: 'Editar → Orçamento → suba 30%. Não mexa em mais nada por 2 dias.' });
-    }
-    // PAUSAR: gastou o suficiente pra julgar e não converteu.
-    else if (e.spend >= PAUSE_TICKET && e.purchases === 0) {
-      ordens.push({ tipo: 'PAUSAR', entity: e, prioridade: 1,
-        motivo: `gastou R$${e.spend.toFixed(0)} · 0 compras · CTR ${e.ctr.toFixed(1)}%`,
-        comoFazer: 'Sem venda com esse gasto: pause o conjunto e realoque a verba nos que têm ROAS alto.' });
-    }
-    // OBSERVAR: gastou, tem venda, mas ROAS fraco (< aumentar).
-    else if (e.spend >= PAUSE_TICKET && e.roas > 0 && e.roas < UP_ROAS) {
-      ordens.push({ tipo: 'OBSERVAR', entity: e, prioridade: 3,
-        motivo: `ROAS ${e.roas.toFixed(1)}x (fraco) · CPA R$${e.cpa.toFixed(0)}`,
-        comoFazer: 'Está no limite. Segure o orçamento e troque o criativo antes de escalar.' });
-    }
-    else {
-      ordens.push({ tipo: 'MANTER', entity: e, prioridade: 4,
-        motivo: e.purchases > 0 ? `ROAS ${e.roas.toFixed(1)}x · ${e.purchases} compra(s)` : 'ainda coletando dados',
-        comoFazer: 'Deixe rodar. Sem gasto/dado suficiente pra decidir ainda.' });
+    if (e.is_lead) continue; // lead não vira ordem de escala/pausa (métrica é lead)
+
+    const v = sinais?.get(e.id)?.veredito;
+    if (!v) continue; // sem veredito multi-janela → não gera ordem (evita decidir cego)
+
+    // Só DUPLICAR/AUMENTAR/PAUSAR viram ordem acionável. SEGURAR/OBSERVAR = "não escala ainda".
+    if (v.tipo === 'DUPLICAR' || v.tipo === 'AUMENTAR' || v.tipo === 'PAUSAR') {
+      ordens.push({
+        tipo: v.tipo, entity: e,
+        prioridade: v.tipo === 'PAUSAR' ? 1 : v.tipo === 'DUPLICAR' ? (v.concordancia === 'alta' ? 1 : 2) : 3,
+        motivo: v.frase,                          // a explicação do cruzamento = o "porquê" (escola)
+        comoFazer: COMO[v.tipo],
+      });
     }
   }
   return ordens.sort((a, b) => a.prioridade - b.prioridade || b.entity.spend - a.entity.spend);
 }
+
