@@ -83,56 +83,70 @@ async function faturamentoPorProduto() {
   };
 }
 
-// MAPA DE ORIGEM das vendas SolarDoc (30d). Cruza sales × page_visits pela sessão
-// pra saber de onde veio cada venda (pago / orgânico / direto). HONESTO: só Google
-// e IG são origem externa CONFIRMADA; direto/interno/sem-sessão viram UMA bucket
-// "não capturada" (não são canais). Amostra baixa (<10) = NÃO é conclusão.
-// Guard: 1 visita por sessão (distinct on) pra não duplicar venda se page_visits
-// virar 1-linha-por-pageview no futuro.
-async function mapaOrigemVendas(): Promise<{ buckets: Array<{ origem: string; vendas: number; receita: number; amostraBaixa: boolean }>; totalVendas: number; limpapro: { vendas: number; cego: true } }> {
-  const desde = new Date(Date.now() - 30 * 86400_000).toISOString();
-  // Vendas SolarDoc 30d + a visita (1 por sessão).
-  const { data: vendas } = await supabase
-    .from('sales')
-    .select('valor, utm_source, utm_medium, attribution_session_id')
-    .gte('card_passed_at', desde).not('card_passed_at', 'is', null);
+interface OrigemBucket { origem: string; vendas: number; receita: number; amostraBaixa: boolean; }
+interface MapaProduto { buckets: OrigemBucket[]; totalVendas: number; rastreadas: number; }
 
-  const sessoes = [...new Set((vendas ?? []).map(v => v.attribution_session_id).filter(Boolean))] as string[];
-  const refBySession = new Map<string, string | null>();
-  if (sessoes.length) {
-    const { data: visitas } = await supabase
-      .from('page_visits').select('session_id, referrer').in('session_id', sessoes);
-    for (const v of (visitas ?? [])) if (!refBySession.has(v.session_id)) refBySession.set(v.session_id, v.referrer ?? null); // 1ª por sessão
-  }
-
-  const classifica = (v: any): string => {
-    if (v.utm_medium === 'paid') return '🟠 Pago (Meta Ads)';
-    if (v.utm_source) return `🔵 ${v.utm_source}`;
-    const ref = (refBySession.get(v.attribution_session_id) || '').toLowerCase();
-    if (ref.includes('google')) return '🟢 Google (busca)';
-    if (ref.includes('instagram')) return '🟢 Instagram';
-    if (ref.includes('youtube')) return '🟢 YouTube';
-    // direto, interno (apresentação) e sem-sessão = origem NÃO capturada (não é canal).
-    return '⚪ Origem não capturada';
-  };
-
+// Agrega uma lista de vendas em buckets de origem (honesto: <10 = amostra baixa).
+function aggBuckets(itens: Array<{ origem: string; receita: number }>): OrigemBucket[] {
   const agg = new Map<string, { vendas: number; receita: number }>();
-  for (const v of (vendas ?? [])) {
-    const k = classifica(v);
-    const cur = agg.get(k) ?? { vendas: 0, receita: 0 };
-    cur.vendas++; cur.receita += Number(v.valor) || 0;
-    agg.set(k, cur);
+  for (const it of itens) {
+    const cur = agg.get(it.origem) ?? { vendas: 0, receita: 0 };
+    cur.vendas++; cur.receita += it.receita;
+    agg.set(it.origem, cur);
   }
-  const buckets = [...agg.entries()]
+  return [...agg.entries()]
     .map(([origem, x]) => ({ origem, ...x, amostraBaixa: x.vendas < 10 }))
     .sort((a, b) => b.vendas - a.vendas);
+}
 
-  // LimpaPro: 0% rastreado — origem cega (honesto, não finge).
-  const { count: lpCount } = await supabase
-    .from('limpapro_events').select('*', { count: 'exact', head: true })
+// MAPA DE ORIGEM SEPARADO POR PRODUTO (30d) — nada junto (pedido Thiago 14/07).
+// SolarDoc: sales × page_visits (pago/Google/IG/não-capturada). LimpaPro: agora
+// tem utm (webhook Kiwify lê TrackingParameters) → pago/orgânico direto do utm.
+// HONESTO: só canais externos confirmados; resto vira "não capturada"; <10 = amostra baixa.
+async function mapaOrigemVendas(): Promise<{ solardoc: MapaProduto; limpapro: MapaProduto }> {
+  const desde = new Date(Date.now() - 30 * 86400_000).toISOString();
+
+  // ── SolarDoc ── (cruza com page_visits pela sessão pra pegar Google/IG orgânico)
+  const { data: sdVendas } = await supabase
+    .from('sales').select('valor, utm_source, utm_medium, attribution_session_id')
+    .gte('card_passed_at', desde).not('card_passed_at', 'is', null);
+  const sessoes = [...new Set((sdVendas ?? []).map(v => v.attribution_session_id).filter(Boolean))] as string[];
+  const refBySession = new Map<string, string | null>();
+  if (sessoes.length) {
+    const { data: visitas } = await supabase.from('page_visits').select('session_id, referrer').in('session_id', sessoes);
+    for (const v of (visitas ?? [])) if (!refBySession.has(v.session_id)) refBySession.set(v.session_id, v.referrer ?? null);
+  }
+  const sdItens = (sdVendas ?? []).map(v => {
+    let origem: string;
+    if (v.utm_medium === 'paid') origem = '🟠 Pago (Meta Ads)';
+    else if (v.utm_source) origem = `🔵 ${v.utm_source}`;
+    else {
+      const ref = (refBySession.get(v.attribution_session_id) || '').toLowerCase();
+      origem = ref.includes('google') ? '🟢 Google (busca)' : ref.includes('instagram') ? '🟢 Instagram'
+        : ref.includes('youtube') ? '🟢 YouTube' : '⚪ Origem não capturada';
+    }
+    return { origem, receita: Number(v.valor) || 0 };
+  });
+  const sdRastreadas = (sdVendas ?? []).filter(v => v.utm_source || v.utm_medium).length;
+
+  // ── LimpaPro ── (utm direto do Kiwify, sem page_visits)
+  const { data: lpVendas } = await supabase
+    .from('limpapro_events').select('amount_cents, utm_source, utm_medium')
     .eq('event_type', 'purchase').eq('status', 'paid').gte('created_at', desde);
+  const lpItens = (lpVendas ?? []).map(v => {
+    const src = (v.utm_source || '').toLowerCase();
+    let origem: string;
+    if (v.utm_medium === 'paid' && src) origem = `🟠 Pago (${src === 'ig' ? 'Instagram' : src === 'fb' ? 'Facebook' : src})`;
+    else if (src.includes('ig') || src.includes('fb') || src) origem = `🔵 ${src}`;
+    else origem = '⚪ Origem não capturada';
+    return { origem, receita: (Number(v.amount_cents) || 0) / 100 };
+  });
+  const lpRastreadas = (lpVendas ?? []).filter(v => v.utm_source || v.utm_medium).length;
 
-  return { buckets, totalVendas: (vendas ?? []).length, limpapro: { vendas: lpCount ?? 0, cego: true } };
+  return {
+    solardoc: { buckets: aggBuckets(sdItens), totalVendas: sdItens.length, rastreadas: sdRastreadas },
+    limpapro: { buckets: aggBuckets(lpItens), totalVendas: lpItens.length, rastreadas: lpRastreadas },
+  };
 }
 
 function montaEscada(total: number) {
@@ -192,7 +206,8 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
     const budgets = await fetchBudgets().catch(() => new Map());
     const ordens: Ordem[] = gerarOrdens(adsets3d, signals, budgets).map(o => ({ ...o, signals: signals.get(o.entity.id) ?? null }));
     const totais = agregaTotais(campaigns);
-    const escada = montaEscada(faturamento.total);  // escada SOMADA (jornada total) — mantida
+    // Escada por PRODUTO (nada somado — pedido Thiago). faturamento.solardoc.escada
+    // e .limpapro.escada já vêm de faturamentoPorProduto. Sem escada combinada.
 
     // Contadores de ordem pra badge no topo.
     const resumoOrdens = ordens.reduce((acc, o) => { acc[o.tipo] = (acc[o.tipo] ?? 0) + 1; return acc; }, {} as Record<string, number>);
@@ -209,7 +224,6 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
       ordens,
       resumoOrdens,
       faturamento,
-      escada,
       mapaOrigem,
     });
   } catch (err: any) {

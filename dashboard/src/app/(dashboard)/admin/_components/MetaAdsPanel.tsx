@@ -52,12 +52,14 @@ interface MetaAdsData {
     solardoc: { acumulado: number; metaTipo: 'clientes'; metaAlvo: number; hoje: number; receitaHoje: number; escada: Escada };
     limpapro: { acumulado: number; metaTipo: 'receita'; metaAlvo: number; hoje: number; vendasHoje: number; escada: Escada };
   };
-  escada: Escada;
   mapaOrigem?: {
-    buckets: Array<{ origem: string; vendas: number; receita: number; amostraBaixa: boolean }>;
-    totalVendas: number;
-    limpapro: { vendas: number; cego: true };
+    solardoc: MapaProduto;
+    limpapro: MapaProduto;
   } | null;
+}
+interface MapaProduto {
+  buckets: Array<{ origem: string; vendas: number; receita: number; amostraBaixa: boolean }>;
+  totalVendas: number; rastreadas: number;
 }
 
 // ── Disciplina das ordens (fila de execução persistida) ──
@@ -195,63 +197,74 @@ export default function MetaAdsPanel() {
         );
       })()}
 
-      {/* ── Escada SOMADA (a jornada total até 1M) ── */}
-      {data && (
-        <div className={s.escadaCard}>
-          <div className={s.escadaTop}>
-            <div>
-              <div className={s.escadaLabel}>Faturamento acumulado (SolarDoc + LimpaPro)</div>
-              <div className={s.escadaTotal}>{fmtBRL(data.faturamento.total)}</div>
-              <div className={s.escadaBreak}>
-                SolarDoc {fmtBRL(data.faturamento.solardoc.acumulado)} · LimpaPro {fmtBRL(data.faturamento.limpapro.acumulado)} · {data.faturamento.vendas} vendas
+      {/* ── Escada por PRODUTO (nada somado) — cada um sua jornada até 1M ── */}
+      {data && (() => {
+        const Escadinha = ({ nome, emoji, e }: { nome: string; emoji: string; e: Escada }) => (
+          <div className={s.escadaCard} style={{ flex: 1 }}>
+            <div className={s.escadaTop}>
+              <div>
+                <div className={s.escadaLabel}>{emoji} {nome} · acumulado</div>
+                <div className={s.escadaTotal}>{fmtBRL(e.total)}</div>
+              </div>
+              <div className={s.escadaAlvo}>
+                <div className={s.escadaAlvoLabel}>Próximo degrau</div>
+                <div className={s.escadaAlvoVal}>{fmtBRLk(e.alvo)}</div>
+                <div className={s.escadaFalta}>faltam {fmtBRL(e.falta)}</div>
               </div>
             </div>
-            <div className={s.escadaAlvo}>
-              <div className={s.escadaAlvoLabel}>Próximo degrau</div>
-              <div className={s.escadaAlvoVal}>{fmtBRLk(data.escada.alvo)}</div>
-              <div className={s.escadaFalta}>faltam {fmtBRL(data.escada.falta)}</div>
-            </div>
-          </div>
-          <div className={s.escadaBarWrap}>
-            <div className={s.escadaBar} style={{ width: `${data.escada.progresso}%` }} />
-          </div>
-          <div className={s.escadaDegraus}>
-            {data.escada.degraus.map(d => (
-              <div key={d.valor} className={`${s.degrau} ${d.atingido ? s.degrauOk : ''} ${d.valor === data.escada.alvo ? s.degrauAlvo : ''}`}>
-                {d.atingido ? '✅' : d.valor === data.escada.alvo ? '🎯' : '⬜'} {fmtBRLk(d.valor)}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Mapa de origem das vendas (SolarDoc) — de onde vem cada venda ── */}
-      {data?.mapaOrigem && data.mapaOrigem.totalVendas > 0 && (() => {
-        const mo = data.mapaOrigem!;
-        const max = Math.max(...mo.buckets.map(b => b.vendas), 1);
-        return (
-          <div className={s.escadaCard} style={{ marginTop: 12 }}>
-            <div className={s.escadaLabel}>De onde vêm as vendas · SolarDoc · últimos 30 dias ({mo.totalVendas})</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
-              {mo.buckets.map(b => (
-                <div key={b.origem} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
-                  <div style={{ width: 200, flexShrink: 0 }}>
-                    {b.origem}
-                    {b.amostraBaixa && <span style={{ color: '#eab308', fontSize: 11, marginLeft: 6 }}>⚠️ amostra baixa</span>}
-                  </div>
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,.06)', borderRadius: 4, height: 18, overflow: 'hidden' }}>
-                    <div style={{ width: `${(b.vendas / max) * 100}%`, height: '100%', background: b.origem.includes('Pago') ? '#F26513' : b.origem.includes('não capturada') ? '#64748b' : '#22c55e', borderRadius: 4 }} />
-                  </div>
-                  <div style={{ width: 130, flexShrink: 0, textAlign: 'right', color: 'var(--color-text-muted)' }}>
-                    {b.vendas} venda{b.vendas !== 1 ? 's' : ''} · {fmtBRL(b.receita)}
-                  </div>
+            <div className={s.escadaBarWrap}><div className={s.escadaBar} style={{ width: `${e.progresso}%` }} /></div>
+            <div className={s.escadaDegraus}>
+              {e.degraus.map(d => (
+                <div key={d.valor} className={`${s.degrau} ${d.atingido ? s.degrauOk : ''} ${d.valor === e.alvo ? s.degrauAlvo : ''}`}>
+                  {d.atingido ? '✅' : d.valor === e.alvo ? '🎯' : '⬜'} {fmtBRLk(d.valor)}
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 10, lineHeight: 1.5 }}>
-              ⚠️ <b>LimpaPro ({mo.limpapro.vendas} vendas) fica de fora</b> — não passa rastreio pro checkout Kiwify, origem 100% cega.
-              Canais com poucas vendas ainda <b>não são conclusão</b> — o mapa acumula ao longo do tempo pra você decidir onde investir.
+          </div>
+        );
+        return (
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <Escadinha nome="SolarDoc" emoji="☀️" e={data.faturamento.solardoc.escada} />
+            <Escadinha nome="LimpaPro" emoji="🧽" e={data.faturamento.limpapro.escada} />
+          </div>
+        );
+      })()}
+
+      {/* ── Mapa de origem SEPARADO por produto (nada junto) ── */}
+      {data?.mapaOrigem && (() => {
+        const Mapa = ({ nome, emoji, mp }: { nome: string; emoji: string; mp: MapaProduto }) => {
+          if (!mp || mp.totalVendas === 0) return null;
+          const max = Math.max(...mp.buckets.map(b => b.vendas), 1);
+          const pctRastreado = Math.round((mp.rastreadas / mp.totalVendas) * 100);
+          return (
+            <div className={s.escadaCard} style={{ flex: 1, minWidth: 320 }}>
+              <div className={s.escadaLabel}>{emoji} De onde vêm · {nome} · 30 dias ({mp.totalVendas} vendas · {pctRastreado}% rastreado)</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+                {mp.buckets.map(b => (
+                  <div key={b.origem} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+                    <div style={{ width: 170, flexShrink: 0 }}>
+                      {b.origem}
+                      {b.amostraBaixa && <span style={{ color: '#eab308', fontSize: 10.5, marginLeft: 5 }}>⚠️ pouca amostra</span>}
+                    </div>
+                    <div style={{ flex: 1, background: 'rgba(255,255,255,.06)', borderRadius: 4, height: 16, overflow: 'hidden' }}>
+                      <div style={{ width: `${(b.vendas / max) * 100}%`, height: '100%', background: b.origem.includes('Pago') ? '#F26513' : b.origem.includes('não capturada') ? '#64748b' : '#22c55e', borderRadius: 4 }} />
+                    </div>
+                    <div style={{ width: 115, flexShrink: 0, textAlign: 'right', color: 'var(--color-text-muted)' }}>
+                      {b.vendas}× · {fmtBRL(b.receita)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--color-text-muted)', marginTop: 8 }}>
+                Canais com poucas vendas ainda <b>não são conclusão</b> — o mapa acumula ao longo do tempo.
+              </div>
             </div>
+          );
+        };
+        return (
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+            <Mapa nome="SolarDoc" emoji="☀️" mp={data.mapaOrigem.solardoc} />
+            <Mapa nome="LimpaPro" emoji="🧽" mp={data.mapaOrigem.limpapro} />
           </div>
         );
       })()}
