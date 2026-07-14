@@ -53,6 +53,11 @@ interface MetaAdsData {
     limpapro: { acumulado: number; metaTipo: 'receita'; metaAlvo: number; hoje: number; vendasHoje: number; escada: Escada };
   };
   escada: Escada;
+  mapaOrigem?: {
+    buckets: Array<{ origem: string; vendas: number; receita: number; amostraBaixa: boolean }>;
+    totalVendas: number;
+    limpapro: { vendas: number; cego: true };
+  } | null;
 }
 
 // ── Disciplina das ordens (fila de execução persistida) ──
@@ -219,6 +224,37 @@ export default function MetaAdsPanel() {
           </div>
         </div>
       )}
+
+      {/* ── Mapa de origem das vendas (SolarDoc) — de onde vem cada venda ── */}
+      {data?.mapaOrigem && data.mapaOrigem.totalVendas > 0 && (() => {
+        const mo = data.mapaOrigem!;
+        const max = Math.max(...mo.buckets.map(b => b.vendas), 1);
+        return (
+          <div className={s.escadaCard} style={{ marginTop: 12 }}>
+            <div className={s.escadaLabel}>De onde vêm as vendas · SolarDoc · últimos 30 dias ({mo.totalVendas})</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+              {mo.buckets.map(b => (
+                <div key={b.origem} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+                  <div style={{ width: 200, flexShrink: 0 }}>
+                    {b.origem}
+                    {b.amostraBaixa && <span style={{ color: '#eab308', fontSize: 11, marginLeft: 6 }}>⚠️ amostra baixa</span>}
+                  </div>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,.06)', borderRadius: 4, height: 18, overflow: 'hidden' }}>
+                    <div style={{ width: `${(b.vendas / max) * 100}%`, height: '100%', background: b.origem.includes('Pago') ? '#F26513' : b.origem.includes('não capturada') ? '#64748b' : '#22c55e', borderRadius: 4 }} />
+                  </div>
+                  <div style={{ width: 130, flexShrink: 0, textAlign: 'right', color: 'var(--color-text-muted)' }}>
+                    {b.vendas} venda{b.vendas !== 1 ? 's' : ''} · {fmtBRL(b.receita)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 10, lineHeight: 1.5 }}>
+              ⚠️ <b>LimpaPro ({mo.limpapro.vendas} vendas) fica de fora</b> — não passa rastreio pro checkout Kiwify, origem 100% cega.
+              Canais com poucas vendas ainda <b>não são conclusão</b> — o mapa acumula ao longo do tempo pra você decidir onde investir.
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Seletor de período ── */}
       <div className={s.periodRow}>
