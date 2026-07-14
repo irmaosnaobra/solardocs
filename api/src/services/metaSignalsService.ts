@@ -151,6 +151,10 @@ export interface VeredictoContexto {
 const UP_ROAS_MIN = N(process.env.AUX_UP_ROAS, 1.7);        // piso pra AUMENTAR (Thiago: ~1,7)
 const DUP_ROAS_MIN = N(process.env.AUX_DUP_ROAS, 3.0);      // duplicar exige ROAS bem forte
 const TETO_ORCAMENTO = N(process.env.AUX_TETO_ORCAMENTO, 100); // "no teto" = orçamento diário ≥ isso (R$)
+// Piso de confiança: só confia no ROAS pra escalar com amostra mínima (senão 1
+// venda / R$8 = ROAS 8x sem significado). ≥3 vendas E ≥R$50 gasto em 7d.
+const MIN_VENDAS_ESCALAR = N(process.env.AUX_MIN_VENDAS_ESCALAR, 3);
+const MIN_GASTO_ESCALAR  = N(process.env.AUX_MIN_GASTO_ESCALAR, 50);
 
 function sugereOrcamento(atual: number | null, pct: number): string {
   if (!atual || atual <= 0) return '';
@@ -175,6 +179,16 @@ function vereditoCruzado(j: JanelasMulti, ctx?: VeredictoContexto): VeredictoCru
   if (j.d7.spend >= PAUSE_LIMIAR && j.d7.purchases === 0) {
     return { tipo: 'PAUSAR', concordancia: conf !== null && conf < 1 ? 'alta' : 'media',
       frase: `🩸 Gastou R$${j.d7.spend.toFixed(0)} em 7d sem vender. ${conf !== null && conf < 1 ? 'Histórico também fraco → pausa, tá queimando dinheiro.' : 'Revisa e pausa antes de queimar mais.'}` };
+  }
+
+  // ── PISO DE CONFIANÇA: não confia no ROAS pra escalar com amostra pequena. ──
+  // Bug achado 14/07: "Conj 1" fez 1 venda com R$8 de gasto → ROAS 8,7x REAL mas
+  // sem significado (1 venda não prova nada). AUMENTAR não exigia volume (só DUP
+  // exigia) → escalava ruído. Agora escalar (AUMENTAR/DUP) exige ≥ MIN vendas E
+  // ≥ MIN gasto na janela de 7d, senão OBSERVAR.
+  if (j.d7.purchases < MIN_VENDAS_ESCALAR || j.d7.spend < MIN_GASTO_ESCALAR) {
+    return { tipo: 'OBSERVAR', concordancia: 'baixa',
+      frase: `ROAS ${dec7.toFixed(1)}x mas só ${j.d7.purchases} venda(s) / R$${j.d7.spend.toFixed(0)} gasto em 7d — amostra pequena demais pra confiar. Deixa juntar mais dados antes de escalar.` };
   }
 
   // ── Confiança pra escalar (tier). 7d é o decisor. ──
