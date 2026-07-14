@@ -8,6 +8,24 @@
 .refresh:hover { background: #f8fafc; }
 .refresh:disabled { opacity: .5; cursor: default; }
 
+/* ── 2 cards por produto (meta do dia + acumulado) ── */
+.produtos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.prodCard { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px 18px; }
+.prodTopo { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.prodNome { font-size: 15px; font-weight: 700; color: #0f172a; }
+.prodAcum { font-size: 12px; color: #94a3b8; }
+.prodMetaLinha { display: flex; align-items: baseline; gap: 6px; }
+.prodMetaNum { font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -.02em; }
+.prodMetaAlvo { font-size: 13px; color: #64748b; }
+.prodOk { font-size: 15px; }
+.prodBarWrap { height: 8px; background: #f1f5f9; border-radius: 999px; overflow: hidden; margin: 8px 0 6px; }
+.prodBar { height: 100%; border-radius: 999px; transition: width .5s ease; }
+.prodBarSd { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.prodBarLp { background: linear-gradient(90deg, #0891b2, #22d3ee); }
+.prodSub { font-size: 12px; color: #94a3b8; }
+
+@media (max-width: 640px) { .produtos { grid-template-columns: 1fr; } }
+
 /* ── Escada de faturamento ── */
 .escadaCard { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 22px 24px; color: #fff; }
 .escadaTop { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }

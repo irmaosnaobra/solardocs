@@ -34,19 +34,53 @@ function agregaTotais(entities: MetaEntity[]) {
   };
 }
 
-// Faturamento acumulado REAL (fonte da verdade = nossas vendas, não pixel Meta).
-// SolarDoc: tabela sales. LimpaPro: limpapro_events. Soma tudo desde sempre.
-async function faturamentoAcumulado(): Promise<{ total: number; solardoc: number; limpapro: number; vendas: number }> {
-  const [sd, lp] = await Promise.all([
+// Metas do dia por produto (Thiago 14/07): LimpaPro R$1200 receita/dia · SolarDoc
+// 10 clientes/dia. Env override.
+const N_ENV = (v: string | undefined, def: number) => (v != null && v !== '' && !isNaN(Number(v)) ? Number(v) : def);
+const META_LIMPAPRO_DIA = N_ENV(process.env.AUX_META_LIMPAPRO, 1200);  // R$/dia
+const META_SOLARDOC_DIA  = N_ENV(process.env.AUX_META_SOLARDOC, 10);   // clientes/dia
+
+// Início do dia em BRT (ISO). en-CA + -03:00 (robusto, mesmo padrão do adminController).
+function inicioDiaBRT(): string {
+  const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  return `${ymd}T00:00:00-03:00`;
+}
+
+// Faturamento REAL por produto (fonte da verdade = nossas vendas, não pixel Meta):
+// acumulado (escada até 1M) + o DIA de hoje (meta diária). SolarDoc: sales.
+// LimpaPro: limpapro_events. Metas diferentes por produto.
+async function faturamentoPorProduto() {
+  const hoje = inicioDiaBRT();
+  const [sdTot, lpTot, sdHoje, lpHoje] = await Promise.all([
     supabase.from('sales').select('valor').not('card_passed_at', 'is', null),
     supabase.from('limpapro_events').select('amount_cents').eq('event_type', 'purchase').eq('status', 'paid'),
+    supabase.from('sales').select('valor').gte('card_passed_at', hoje).not('card_passed_at', 'is', null),
+    supabase.from('limpapro_events').select('amount_cents').eq('event_type', 'purchase').eq('status', 'paid').gte('created_at', hoje),
   ]);
-  if (sd.error) logger.error('meta-ads', 'faturamento sales falhou', sd.error);
-  if (lp.error) logger.error('meta-ads', 'faturamento limpapro falhou', lp.error);
-  const solardoc = (sd.data ?? []).reduce((s, r) => s + (Number(r.valor) || 0), 0);
-  const limpapro = (lp.data ?? []).reduce((s, r) => s + (Number(r.amount_cents) || 0) / 100, 0);
-  const vendas = (sd.data?.length ?? 0) + (lp.data?.length ?? 0);
-  return { total: solardoc + limpapro, solardoc, limpapro, vendas };
+  for (const r of [sdTot, lpTot, sdHoje, lpHoje]) if (r.error) logger.error('meta-ads', 'faturamento produto falhou', r.error);
+
+  const sdAcum = (sdTot.data ?? []).reduce((s, r) => s + (Number(r.valor) || 0), 0);
+  const lpAcum = (lpTot.data ?? []).reduce((s, r) => s + (Number(r.amount_cents) || 0) / 100, 0);
+  const sdVendasHoje = sdHoje.data?.length ?? 0;                          // SolarDoc: meta é CONTAGEM
+  const sdReceitaHoje = (sdHoje.data ?? []).reduce((s, r) => s + (Number(r.valor) || 0), 0);
+  const lpReceitaHoje = (lpHoje.data ?? []).reduce((s, r) => s + (Number(r.amount_cents) || 0) / 100, 0); // LimpaPro: meta é RECEITA
+
+  return {
+    total: sdAcum + lpAcum,
+    vendas: (sdTot.data?.length ?? 0) + (lpTot.data?.length ?? 0),
+    solardoc: {
+      acumulado: sdAcum,
+      metaTipo: 'clientes' as const, metaAlvo: META_SOLARDOC_DIA,
+      hoje: sdVendasHoje, receitaHoje: sdReceitaHoje,
+      escada: montaEscada(sdAcum),
+    },
+    limpapro: {
+      acumulado: lpAcum,
+      metaTipo: 'receita' as const, metaAlvo: META_LIMPAPRO_DIA,
+      hoje: lpReceitaHoje, vendasHoje: lpHoje.data?.length ?? 0,
+      escada: montaEscada(lpAcum),
+    },
+  };
 }
 
 function montaEscada(total: number) {
@@ -89,7 +123,7 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
       fetchStatuses('campaign'),
       fetchStatuses('adset'),
       fetchStatuses('ad'),
-      faturamentoAcumulado(),
+      faturamentoPorProduto(),
       computeAllSignals(14).catch(err => { logger.error('meta-ads', 'signals falhou (segue sem)', err); return new Map<string, AdsetSignals>(); }),
     ]);
 
@@ -105,7 +139,7 @@ export async function getMetaAds(req: Request, res: Response): Promise<void> {
     const budgets = await fetchBudgets().catch(() => new Map());
     const ordens: Ordem[] = gerarOrdens(adsets3d, signals, budgets).map(o => ({ ...o, signals: signals.get(o.entity.id) ?? null }));
     const totais = agregaTotais(campaigns);
-    const escada = montaEscada(faturamento.total);
+    const escada = montaEscada(faturamento.total);  // escada SOMADA (jornada total) — mantida
 
     // Contadores de ordem pra badge no topo.
     const resumoOrdens = ordens.reduce((acc, o) => { acc[o.tipo] = (acc[o.tipo] ?? 0) + 1; return acc; }, {} as Record<string, number>);
