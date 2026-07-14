@@ -48,6 +48,18 @@ interface MetaAdsData {
   escada: Escada;
 }
 
+// ── Disciplina das ordens (fila de execução persistida) ──
+interface OrdemRow {
+  id: string; criada_em: string; chave: string; tipo: OrdemTipo;
+  adset_id: string; adset_nome: string | null; campanha_nome: string | null;
+  motivo: string; como_fazer: string; score: number | null; leitura: string | null;
+  estado: 'pendente' | 'feita' | 'perdida' | 'vencida' | 'cancelada';
+  expira_em: string; feita_em: string | null; feita_por: string | null;
+  confirmacao: string | null; confirmacao_detalhe: string | null;
+  resolucao_detalhe: string | null;
+}
+interface OrdensData { pendentes: OrdemRow[]; historico: OrdemRow[]; modo: string; }
+
 const PERIODS: { key: Period; label: string }[] = [
   { key: 'hoje', label: 'Hoje' }, { key: 'ontem', label: 'Ontem' },
   { key: '3d', label: '3 dias' }, { key: '7dias', label: '7 dias' },
@@ -84,6 +96,9 @@ export default function MetaAdsPanel() {
   const [erro, setErro] = useState('');
   const [period, setPeriod] = useState<Period>('hoje');
   const [level, setLevel] = useState<Level>('adset');
+  // Fila de execução (ordens persistidas)
+  const [ordens, setOrdens] = useState<OrdensData | null>(null);
+  const [acting, setActing] = useState<string | null>(null);
 
   const load = useCallback(async (p: Period) => {
     setLoading(true); setErro('');
@@ -96,7 +111,27 @@ export default function MetaAdsPanel() {
     } finally { setLoading(false); }
   }, []);
 
+  const loadOrdens = useCallback(async () => {
+    try {
+      const { data } = await api.get<OrdensData>('/admin/ordens');
+      setOrdens(data);
+    } catch { /* fila é opcional — não quebra a aba */ }
+  }, []);
+
   useEffect(() => { load(period); }, [load, period]);
+  useEffect(() => { loadOrdens(); }, [loadOrdens]);
+
+  async function marcarFeita(id: string) {
+    setActing(id);
+    try {
+      await api.post(`/admin/ordens/${id}/feita`);
+      await loadOrdens();
+    } catch { /* silencioso */ } finally { setActing(null); }
+  }
+  async function trocarModo(modo: 'manual' | 'automatico') {
+    if (modo === 'automatico' && !confirm('LIGAR AUTOMÁTICO?\n\nNo automático o sistema poderá executar ações no Meta sozinho (quando essa parte estiver ligada). Por enquanto ele fica pronto mas ainda não age sozinho — você continua no controle. Confirmar?')) return;
+    try { await api.post('/admin/ordens/modo', { modo }); await loadOrdens(); } catch { /* */ }
+  }
 
   const linhas: MetaEntity[] = data ? (level === 'campaign' ? data.campaigns : level === 'adset' ? data.adsets : data.ads) : [];
 
@@ -164,34 +199,103 @@ export default function MetaAdsPanel() {
             <div className={s.kpi}><div className={s.kpiLabel}>CPC</div><div className={s.kpiVal}>{fmtBRL(data.totais.cpc)}</div></div>
           </div>
 
-          {/* ── Ordens de comando ── */}
-          <div className={s.blocoTitulo}>
-            🎯 Ordens de comando <span className={s.blocoSub}>o que fazer agora (últimos 3 dias) — clique pra ir ao Gerenciador</span>
-          </div>
-          {data.ordens.length === 0 && <div className={s.vazio}>Nenhuma ação urgente. Deixa rodar. 👍</div>}
-          <div className={s.ordens}>
-            {data.ordens.filter(o => o.tipo !== 'MANTER').map((o, i) => {
-              const m = ORDEM_META[o.tipo];
-              return (
-                <div key={o.entity.id + i} className={`${s.ordem} ${m.cor}`}>
-                  <div className={s.ordemHead}>
-                    <span className={s.ordemTipo}>{m.emoji} {m.titulo}</span>
-                    <span className={s.ordemNome}>{o.entity.name}</span>
-                  </div>
-                  <div className={s.ordemCampanha}>{o.entity.campaign_name}</div>
-                  <div className={s.ordemMotivo}>{o.motivo}</div>
-                  {o.signals && (
-                    <div className={s.ordemEspecialista}>
-                      <span className={s.espScore} title="Nota de saúde 0-100">{o.signals.score}</span>
-                      🧠 {o.signals.leitura} <span className={s.espDias}>· {o.signals.dias_rodando}d rodando</span>
+          {/* ── Ordens de comando (FALLBACK): só se a fila persistida não carregou.
+                 A "Fila de execução" abaixo é a superfície principal (com prazo +
+                 marcar feito). Estes cards stateless só aparecem se /admin/ordens
+                 falhar, pra a aba nunca ficar sem as recomendações. ── */}
+          {!ordens && (
+            <>
+              <div className={s.blocoTitulo}>
+                🎯 Ordens de comando <span className={s.blocoSub}>o que fazer agora (últimos 3 dias) — clique pra ir ao Gerenciador</span>
+              </div>
+              {data.ordens.length === 0 && <div className={s.vazio}>Nenhuma ação urgente. Deixa rodar. 👍</div>}
+              <div className={s.ordens}>
+                {data.ordens.filter(o => o.tipo !== 'MANTER').map((o, i) => {
+                  const m = ORDEM_META[o.tipo];
+                  return (
+                    <div key={o.entity.id + i} className={`${s.ordem} ${m.cor}`}>
+                      <div className={s.ordemHead}>
+                        <span className={s.ordemTipo}>{m.emoji} {m.titulo}</span>
+                        <span className={s.ordemNome}>{o.entity.name}</span>
+                      </div>
+                      <div className={s.ordemCampanha}>{o.entity.campaign_name}</div>
+                      <div className={s.ordemMotivo}>{o.motivo}</div>
+                      {o.signals && (
+                        <div className={s.ordemEspecialista}>
+                          <span className={s.espScore} title="Nota de saúde 0-100">{o.signals.score}</span>
+                          🧠 {o.signals.leitura} <span className={s.espDias}>· {o.signals.dias_rodando}d rodando</span>
+                        </div>
+                      )}
+                      <div className={s.ordemComo}>💡 {o.comoFazer}</div>
+                      <a className={s.ordemBtn} href={gerenciadorLink(data.conta, 'adset', o.entity.id)} target="_blank" rel="noreferrer">Abrir no Gerenciador →</a>
                     </div>
-                  )}
-                  <div className={s.ordemComo}>💡 {o.comoFazer}</div>
-                  <a className={s.ordemBtn} href={gerenciadorLink(data.conta, 'adset', o.entity.id)} target="_blank" rel="noreferrer">Abrir no Gerenciador →</a>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* ── Fila de execução (ordens com prazo, marcar feito, manual/auto) ── */}
+          {ordens && (
+            <>
+              <div className={s.blocoTitulo}>
+                ✅ Fila de execução
+                <span className={s.blocoSub}>marque o que fez · passou do prazo = perdeu a janela</span>
+                <div className={s.modoSwitch}>
+                  <button className={`${s.modoBtn} ${ordens.modo === 'manual' ? s.modoAtivo : ''}`} onClick={() => trocarModo('manual')}>👤 Manual</button>
+                  <button className={`${s.modoBtn} ${ordens.modo === 'automatico' ? s.modoAtivoAuto : ''}`} onClick={() => trocarModo('automatico')}>🤖 Automático</button>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+
+              {ordens.pendentes.length === 0 && <div className={s.vazio}>Nenhuma ordem na fila agora. 👍</div>}
+              <div className={s.fila}>
+                {ordens.pendentes.map(o => {
+                  const m = ORDEM_META[o.tipo];
+                  const restaMs = new Date(o.expira_em).getTime() - Date.now();
+                  const restaH = Math.max(0, restaMs / 3600000);
+                  const urgente = restaH < 4;
+                  return (
+                    <div key={o.id} className={`${s.filaItem} ${m.cor}`}>
+                      <div className={s.filaTopo}>
+                        <span className={s.ordemTipo}>{m.emoji} {m.titulo}</span>
+                        <span className={s.ordemNome}>{o.adset_nome}</span>
+                        <span className={`${s.prazo} ${urgente ? s.prazoUrgente : ''}`}>
+                          ⏳ {restaH >= 1 ? `${restaH.toFixed(0)}h` : `${Math.round(restaH * 60)}min`} restantes
+                        </span>
+                      </div>
+                      <div className={s.ordemMotivo}>{o.motivo}</div>
+                      {o.leitura && <div className={s.filaLeitura}>🧠 {o.leitura}{o.score != null && <span className={s.espScore}> {o.score}</span>}</div>}
+                      <div className={s.ordemComo}>💡 {o.como_fazer}</div>
+                      <div className={s.filaAcoes}>
+                        <a className={s.ordemBtn} href={gerenciadorLink(data.conta, 'adset', o.adset_id)} target="_blank" rel="noreferrer">Abrir no Gerenciador →</a>
+                        <button className={s.btnFeito} disabled={acting === o.id} onClick={() => marcarFeita(o.id)}>
+                          {acting === o.id ? '...' : '✓ Marcar feito'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Histórico recente: feitas / perdidas / vencidas */}
+              {ordens.historico.length > 0 && (
+                <details className={s.histWrap}>
+                  <summary className={s.histResumo}>Histórico ({ordens.historico.length}) — feitas, perdidas e vencidas</summary>
+                  <div className={s.histLista}>
+                    {ordens.historico.map(o => (
+                      <div key={o.id} className={s.histItem}>
+                        <span className={`${s.histEstado} ${o.estado === 'feita' ? s.hFeita : o.estado === 'perdida' ? s.hPerdida : s.hVencida}`}>
+                          {o.estado === 'feita' ? '✅ Feita' : o.estado === 'perdida' ? '⌛ Perdida' : '➖ Venceu'}
+                        </span>
+                        <span className={s.histNome}>{ORDEM_META[o.tipo]?.emoji} {o.adset_nome}</span>
+                        <span className={s.histDet}>{o.confirmacao_detalhe || o.resolucao_detalhe}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </>
+          )}
 
           {/* ── Tabela detalhada (nível selecionável) ── */}
           <div className={s.blocoTitulo}>
