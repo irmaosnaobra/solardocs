@@ -48,6 +48,12 @@ export interface AdsetSignals {
   // ── Avaliação MULTI-JANELA (30d/14d/7d/3d/ontem/hoje) ──
   janelas: JanelasMulti;
   veredito: VeredictoCruzado;
+  // LimpaPro (Meta não ATRIBUI as vendas — utm null no Kiwify) → NÃO entra na
+  // média de ROAS (entraria a 0x e mentiria "ROAS baixo"). Vem do nome da CAMPANHA.
+  sem_rastreio: boolean;
+  // Campanha de LEAD (Forms) → métrica é o formulário, não a venda. Estruturalmente
+  // não emite 'purchase' → ROAS 0x não é "ruim", é categoria errada. Fora da média.
+  is_lead: boolean;
 }
 
 // ROAS + volume por janela. n=0 → 'dados insuficientes' (não finge número).
@@ -152,6 +158,16 @@ export function campanhaSemRastreio(nome: string): boolean {
   return SEM_RASTREIO_HINTS.some(h => n.includes(h));
 }
 
+// Campanha de LEAD (Forms) — espelha isLeadCampaign de metaAdsFullService (mesma
+// env AUX_LEAD_HINTS) SEM import estático: metaSignalsService já evita ciclo com
+// aquele módulo (usa await import só p/ fetchBudgets). Local mantém o grafo limpo.
+const LEAD_HINTS = (process.env.AUX_LEAD_HINTS || 'forms,lead,formul')
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+function campanhaEhLead(nome: string): boolean {
+  const n = (nome || '').toLowerCase();
+  return LEAD_HINTS.some(h => n.includes(h));
+}
+
 // ── VEREDITO CRUZADO: conservador de verdade (proteger dinheiro) ─────────────
 // FILOSOFIA (feedback Thiago 14/07): escalar um vencedor = AUMENTAR +30% no
 // orçamento (conservador, não canibaliza). DUPLICAR é o AGRESSIVO (cópia
@@ -253,7 +269,7 @@ function vereditoCruzado(j: JanelasMulti, ctx?: VeredictoContexto): VeredictoCru
 // Calcula todos os sinais de um conjunto a partir do histórico diário.
 // budget alimenta o veredito (DUPLICAR só no teto + R$ alvo). semRastreio = LimpaPro
 // (não pausa às cegas).
-export function computeSignals(adsetId: string, name: string, dias: DiaAdset[], budget?: VeredictoContexto['budget'], semRastreio = false): AdsetSignals {
+export function computeSignals(adsetId: string, name: string, dias: DiaAdset[], budget?: VeredictoContexto['budget'], semRastreio = false, ehLead = false): AdsetSignals {
   const comEntrega = dias.filter(d => d.impressions > 0);
   const diasRodando = comEntrega.length;
 
@@ -324,6 +340,8 @@ export function computeSignals(adsetId: string, name: string, dias: DiaAdset[], 
     score, score_breakdown: breakdown, leitura,
     janelas: jan,
     veredito: vereditoCruzado(jan, { fadiga, diasRodando, budget, semRastreio }),
+    sem_rastreio: semRastreio,
+    is_lead: ehLead,
   };
 }
 
@@ -339,7 +357,7 @@ export async function computeAllSignals(days: 14 | 30 = 30): Promise<Map<string,
   const out = new Map<string, AdsetSignals>();
   for (const [id, { name, campanha, dias }] of hist) {
     const b = budgets.get(id);
-    out.set(id, computeSignals(id, name, dias, b ? { onde: b.onde, diarioBRL: b.diarioBRL, nomeControla: b.nomeControla } : null, campanhaSemRastreio(campanha)));
+    out.set(id, computeSignals(id, name, dias, b ? { onde: b.onde, diarioBRL: b.diarioBRL, nomeControla: b.nomeControla } : null, campanhaSemRastreio(campanha), campanhaEhLead(campanha)));
   }
   return out;
 }

@@ -2,6 +2,7 @@ import { sendWhatsApp } from '../agents/zapiClient';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { sincronizarOrdens, ordensPendentesNaoAlertadas, marcarAlertadas } from '../metaOrdensService';
+import { computeAllSignals } from '../metaSignalsService';
 
 // ─── Copiloto de tráfego 24h (alert-only) ────────────────────────────────────
 // Roda de HORA EM HORA (master cron). SÓ AVISA no WhatsApp do Thiago — nunca
@@ -40,23 +41,21 @@ const ESCADA = [1200, 1800, 2600, 3600, 5000];
 const DEDUP_KEY   = 'auxiliar_trafego:dedup';
 const DEDUP_HOURS = N(process.env.AUX_DEDUP_HOURS, 12);
 
-// Janela de silêncio da madrugada (BRT). Alertas de ação nascidos entre
-// QUIET_START e QUIET_END ficam guardados e saem no 1º tick após QUIET_END.
-// Exceção: o lembrete de meia-noite (00h) sempre sai.
-const QUIET_START = N(process.env.AUX_QUIET_START, 0);   // 0h
-const QUIET_END   = N(process.env.AUX_QUIET_END, 7);     // 7h
+// "Sempre enviar" (decisão Thiago 14/07): de hora em hora SEMPRE chega algo —
+// a instrução quando há ação, ou um RESUMO consultivo quando não há. 24h, sem
+// janela de silêncio de madrugada. Interruptor: AUX_ALWAYS_SEND=false volta ao
+// modo antigo (só fala quando há ação) sem redeploy — útil se cansar do volume
+// ou a linha Z-API tomar ban (ver feedback_zapi_ban).
+const ALWAYS_SEND = (process.env.AUX_ALWAYS_SEND ?? 'true').toLowerCase() !== 'false';
 
 // ── Tipos ──
 interface Sale { produto: string; valor: number; campaign_id: string | null; adset_id: string | null; ad_id: string | null; }
 
-// Hora atual em BRT (0-23).
+// Hora atual em BRT (0-23). Usada pelo lembrete de meia-noite e pela chave de
+// dedup horária do resumo.
 function horaBRT(): number {
   const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hour12: false }).formatToParts(new Date());
   return parseInt(p.find(x => x.type === 'hour')?.value || '0', 10);
-}
-function naMadrugada(): boolean {
-  const h = horaBRT();
-  return h >= QUIET_START && h < QUIET_END;
 }
 
 // Link direto pro Gerenciador filtrado no conjunto (1 toque pra editar/pausar).
@@ -111,6 +110,79 @@ function inicioDoDiaBRT(): string {
 function proximaMeta(receitaHoje: number): number {
   for (const nivel of ESCADA) if (receitaHoje < nivel) return nivel;
   return ESCADA[ESCADA.length - 1];
+}
+
+// ── Leitura do robô (resumo quando NÃO há ação) ──────────────────────────────
+// Só entra em tick ocioso. Camada 1 (leituraSimples): derivada só do placar já
+// buscado — zero request. Camada 2 (lerRoboSeguro): computeAllSignals p/ ROAS
+// médio + "conjunto esfriando"; se falhar/estourar, cai na 1. NUNCA lança,
+// NUNCA volta vazio (garante o "sempre envia").
+
+type LeituraCtx = { placarOk: boolean; lpHoje: { receita: number; vendas: number }; sdVendasHoje: number };
+
+// Promise.race com timeout — a leitura rica nunca segura o envio garantido.
+function comTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+}
+
+// A ressalva de LimpaPro-cega. LAG de registro (venda existe mas o webhook Kiwify
+// atrasou → limpapro_events ainda vazio) é DIFERENTE de atribuição (qual criativo
+// vendeu). Quando o placar marca R$0, isso pode ser lag — NUNCA afirmar "não
+// vendeu". Ver reference_limpapro_funil_kiwify + fccabea (LimpaPro nunca foi cega).
+function ressalvaLimpaProZero(lpReceita: number): string | null {
+  return lpReceita === 0
+    ? `_⚠️ LimpaPro em R$ 0 pode ser atraso do Kiwify (o Meta não vê a venda dela) — confere no Kiwify antes de concluir que não vendeu._`
+    : null;
+}
+
+// Camada 1: zero request novo. LimpaPro a R$0 NUNCA vira "não vendeu".
+function leituraSimples(ctx: LeituraCtx): string {
+  if (!ctx.placarOk) return `🔎 *Leitura do robô:* sem placar do banco agora — confiro de novo na próxima hora.`;
+  const { lpHoje, sdVendasHoje } = ctx;
+  const p: string[] = [];
+  if (lpHoje.receita >= META_LIMPAPRO_RECEITA) p.push(`LimpaPro já bateu a meta 🏆`);
+  else if (lpHoje.receita > 0)                 p.push(`LimpaPro em R$ ${lpHoje.receita.toFixed(0)}, subindo`);
+  else                                         p.push(`LimpaPro sem venda registrada ainda`);
+  if (sdVendasHoje >= META_SOLARDOC_VENDAS) p.push(`SolarDoc bateu a meta ✅`);
+  else if (sdVendasHoje > 0)                p.push(`SolarDoc com ${sdVendasHoje} cliente(s)`);
+  else                                      p.push(`SolarDoc ainda sem cliente hoje`);
+  const ress = ressalvaLimpaProZero(lpHoje.receita);
+  return `🔎 *Leitura do robô:* ${p.join(' · ')}. Nada pedindo ação agora.` + (ress ? `\n${ress}` : '');
+}
+
+// Camada 2: best-effort. ROAS médio SÓ dos conjuntos COM rastreio (SolarDoc);
+// LimpaPro fica de fora (o Meta não atribui as vendas dela → entraria a 0x e
+// mentiria "ROAS baixo"). Spend-weighted (não média simples) pra um conjunto
+// minúsculo a 8x não fingir "tudo saudável". Cai na camada 1 se o Meta falhar.
+async function lerRoboSeguro(ctx: LeituraCtx): Promise<string> {
+  const base = leituraSimples(ctx);
+  if (!ctx.placarOk) return base;   // banco caiu: não puxa Meta, não inventa ROAS
+
+  try {
+    const sig = await comTimeout(computeAllSignals(14), 8000);   // 1 request Meta
+    // Só conjuntos que PODEM ter ROAS de verdade: fora LimpaPro (Meta não atribui)
+    // e fora lead/Forms (estruturalmente não emitem 'purchase' → 0x não é "ruim").
+    const comRastreio = [...sig.values()].filter(s => !s.sem_rastreio && !s.is_lead && s.janelas.d7.suficiente && s.janelas.d7.spend > 0);
+    if (!comRastreio.length) return base;   // nada com venda rastreada rodando → placar simples
+
+    const spendTot   = comRastreio.reduce((a, s) => a + s.janelas.d7.spend, 0);
+    const receitaTot = comRastreio.reduce((a, s) => a + s.janelas.d7.roas * s.janelas.d7.spend, 0);
+    const roasMedio  = spendTot > 0 ? receitaTot / spendTot : 0;
+    const cegos      = [...sig.values()].filter(s => s.sem_rastreio).length;
+    const esfriando  = comRastreio.filter(s => s.trajetoria === 'caindo')
+      .sort((a, b) => b.janelas.d7.spend - a.janelas.d7.spend)[0];
+
+    const linhas: string[] = [`ROAS médio ${roasMedio.toFixed(1)}x nos ${comRastreio.length} conjunto(s) com venda rastreada.`];
+    if (esfriando) linhas.push(`⚠️ "${esfriando.adset_name}" esfriando (ROAS caindo) — de olho, ainda não é ordem.`);
+    else           linhas.push(`Nada gritando: sem conjunto esfriando. Deixa rodar.`);
+    if (cegos > 0) linhas.push(`_ℹ️ ${cegos} conj. da LimpaPro ficam de fora dessa média — o Meta não atribui as vendas dela; o R$ da LimpaPro no placar vem do Kiwify._`);
+    const ress = ressalvaLimpaProZero(ctx.lpHoje.receita);
+    if (ress) linhas.push(ress);   // R$0 do dia SEMPRE ganha a ressalva de lag, mesmo no caminho rico
+    return `🔎 *Leitura do robô:*\n${linhas.join('\n')}`;
+  } catch (err) {
+    logger.warn('cron', 'auxiliar-trafego: leitura rica indisponível (usa placar)', err);
+    return base;
+  }
 }
 
 // ── Dedup ──
@@ -211,45 +283,68 @@ export async function runAuxiliarTrafego(opts: { dry?: boolean; force?: boolean 
 
   const matchRate = `${matchOk}/${matchTot}`;
 
-  // ── Nada a dizer → silêncio (é o comportamento "só quando tem ação") ─────
+  // ── Sem ação → em vez de silêncio, monta um RESUMO consultivo (24h) ───────
+  // Fall-through: empurra a leitura SÓ em `blocos` (não em `ordensAlertadasIds`,
+  // que é de ordem). Ganha uma chave de dedup HORÁRIA própria (`resumo:dia:hora`)
+  // pra um 2º disparo do cron na mesma hora não duplicar o resumo (o master não
+  // tem lock — GitHub Action pode retentar). A chave é gravada SÓ após envio ok
+  // (mais abaixo), então falha de Z-API reenvia no próximo tick.
+  // ALWAYS_SEND=false → volta ao modo antigo (silêncio quando não há ação).
+  let ehResumo = false;
   if (blocos.length === 0) {
-    logger.info('cron', `auxiliar-trafego: nada a alertar (LP hoje R$${lpHoje.receita.toFixed(0)}/${META_LIMPAPRO_RECEITA}, SD ${sdVendasHoje}/${META_SOLARDOC_VENDAS}, match ${matchRate})`);
-    return { ...vazio, matchRate, meta: { limpapro: { receita: lpHoje.receita, alvo: META_LIMPAPRO_RECEITA }, solardoc: { vendas: sdVendasHoje, alvo: META_SOLARDOC_VENDAS } } };
+    if (!ALWAYS_SEND) {
+      logger.info('cron', `auxiliar-trafego: nada a alertar e ALWAYS_SEND off — silêncio (LP R$${lpHoje.receita.toFixed(0)}/${META_LIMPAPRO_RECEITA}, SD ${sdVendasHoje}/${META_SOLARDOC_VENDAS})`);
+      return { ...vazio, matchRate, meta: { limpapro: { receita: lpHoje.receita, alvo: META_LIMPAPRO_RECEITA }, solardoc: { vendas: sdVendasHoje, alvo: META_SOLARDOC_VENDAS } } };
+    }
+    const chaveResumo = `resumo:${inicioDoDiaBRT().slice(0, 10)}:${hora}`;
+    if (!opts.force && dedup[chaveResumo]) {
+      logger.info('cron', `auxiliar-trafego: resumo da hora ${hora} já enviado — 2º disparo ignorado`);
+      return { ...vazio, matchRate, meta: { limpapro: { receita: lpHoje.receita, alvo: META_LIMPAPRO_RECEITA }, solardoc: { vendas: sdVendasHoje, alvo: META_SOLARDOC_VENDAS } } };
+    }
+    ehResumo = true;
+    motivos.push(chaveResumo);   // entra em motivos → dedup gravado pós-envio (barra o 2º fire da hora)
+    blocos.push(await lerRoboSeguro({ placarOk, lpHoje, sdVendasHoje }));
+    logger.info('cron', `auxiliar-trafego: RESUMO hora ${hora} (LP R$${lpHoje.receita.toFixed(0)}/${META_LIMPAPRO_RECEITA}, SD ${sdVendasHoje}/${META_SOLARDOC_VENDAS})`);
   }
 
   // ── Cabeçalho com placar do dia (só se o Supabase respondeu — não mostra
-  //    "R$0/1200" falso quando o banco falhou) ──────────────────────────────
+  //    "R$0/1200" falso quando o banco falhou). LimpaPro a R$0 NÃO leva "(faltam
+  //    R$X)" afirmativo — pode ser lag do Kiwify (ver ressalvaLimpaProZero). ──
   const faltaLP = Math.max(0, META_LIMPAPRO_RECEITA - lpHoje.receita);
+  const linhaLP = lpHoje.receita === 0
+    ? `LimpaPro: R$ 0 / ${META_LIMPAPRO_RECEITA} (sem venda registrada ainda)`
+    : `LimpaPro: R$ ${lpHoje.receita.toFixed(0)} / ${META_LIMPAPRO_RECEITA}` + (faltaLP > 0 ? ` (faltam R$ ${faltaLP.toFixed(0)})` : ` ✅`);
   const cabecalho = placarOk
     ? `🤖 *Copiloto de Tráfego*\n` +
-      `LimpaPro: R$ ${lpHoje.receita.toFixed(0)} / ${META_LIMPAPRO_RECEITA}` + (faltaLP > 0 ? ` (faltam R$ ${faltaLP.toFixed(0)})` : ` ✅`) + `\n` +
+      linhaLP + `\n` +
       `SolarDoc: ${sdVendasHoje} / ${META_SOLARDOC_VENDAS} clientes` + (sdVendasHoje >= META_SOLARDOC_VENDAS ? ` ✅` : ``)
     : `🤖 *Copiloto de Tráfego*`;
-  const rodape = `\n\n_Nada foi mexido automaticamente — você decide e toca no link._`;
+  const rodape = ehResumo
+    ? `\n\n_Leitura automática do robô. Nada pedindo ação agora — só radar._`
+    : `\n\n_Nada foi mexido automaticamente — você decide e toca no link._`;
   const msg = cabecalho + `\n\n` + blocos.join('\n\n') + rodape;
 
-  // ── Silêncio de madrugada: guarda pra soltar às 7h (exceto meia-noite) ───
-  const soMeiaNoite = motivos.length === 1 && motivos[0] === 'meia_noite';
-  if (naMadrugada() && !soMeiaNoite && !opts.force) {
-    logger.info('cron', `auxiliar-trafego: madrugada (${hora}h) — segurando ${motivos.length} alerta(s) pra 7h`);
-    return { ...vazio, motivos, msg, matchRate, meta: { limpapro: { receita: lpHoje.receita, alvo: META_LIMPAPRO_RECEITA }, solardoc: { vendas: sdVendasHoje, alvo: META_SOLARDOC_VENDAS } } };
-  }
-
-  logger.info('cron', `auxiliar-trafego: ${motivos.length} alerta(s) — ${motivos.join(', ')} (match ${matchRate})`);
+  logger.info('cron', `auxiliar-trafego: ${ehResumo ? 'resumo' : 'acao'} — ${motivos.join(', ')} (match ${matchRate})`);
 
   if (opts.dry) {
-    logger.info('cron', `auxiliar-trafego DRY:\n${msg}`);
+    logger.info('cron', `auxiliar-trafego DRY [${ehResumo ? 'resumo' : 'acao'}]:\n${msg}`);
     return { enviado: false, motivos, msg, matchRate, meta: { limpapro: { receita: lpHoje.receita, alvo: META_LIMPAPRO_RECEITA }, solardoc: { vendas: sdVendasHoje, alvo: META_SOLARDOC_VENDAS } } };
   }
 
-  await sendWhatsApp(ALERT_PHONE, msg, 'solardoc');
+  // ── Envio: try/catch pra falha de Z-API (linha caída de madrugada, ban, etc)
+  //    não estourar exceção pro master cron nem marcar dedup falsamente. Falhou
+  //    → retorna enviado:false SEM carimbar → próximo tick horário reenvia. ────
+  try {
+    await sendWhatsApp(ALERT_PHONE, msg, 'solardoc');
+  } catch (err) {
+    logger.error('cron', `auxiliar-trafego: envio Z-API falhou [${ehResumo ? 'resumo' : 'acao'}] — nada marcado, retenta no próximo tick`, err);
+    return { ...vazio, motivos, msg, matchRate, meta: { limpapro: { receita: lpHoje.receita, alvo: META_LIMPAPRO_RECEITA }, solardoc: { vendas: sdVendasHoje, alvo: META_SOLARDOC_VENDAS } } };
+  }
 
-  // Carimba as ORDENS da fila como alertadas (fonte da verdade = mm_ordens) —
-  // não re-alerta e mantém painel↔robô em sincronia. Só após enviar de verdade
-  // (na madrugada retorna antes daqui, então re-alerta às 7h, como esperado).
+  // Só chega aqui se ENVIOU de verdade. Carimba as ORDENS da fila como alertadas
+  // (fonte da verdade = mm_ordens; resumo tem lista vazia → no-op). E grava o
+  // dedup system_state (meta_batida, meia_noite E a chave horária do resumo).
   if (ordensAlertadasIds.length) await marcarAlertadas(ordensAlertadasIds);
-
-  // system_state ainda cuida das chaves que NÃO são ordens (meta_batida, meia_noite).
   for (const m of motivos) dedup[m] = nowIso;
   for (const k of Object.keys(dedup)) if (new Date(dedup[k]).getTime() < cutoffMs) delete dedup[k];
   await saveDedup(dedup);
