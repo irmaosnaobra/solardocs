@@ -187,6 +187,8 @@ html[data-mode="app"].calc-aberto .container{margin-left:0!important}
 .crm-status-selo.selo-so{background:rgba(234,88,12,.2);color:#FDBA74}
 .crm-status-selo.selo-fo{background:rgba(234,179,8,.2);color:#FDE68A}
 .crm-status-selo.selo-fe{background:rgba(22,163,74,.22);color:#86EFAC}
+.crm-status-selo.selo-em{background:rgba(124,58,237,.2);color:#C4B5FD}
+.crm-status-selo.selo-pe{background:rgba(71,85,105,.28);color:#CBD5E1}
 .crm-act{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;font-size:14px;cursor:pointer;text-decoration:none;font-family:inherit}
 .crm-act:hover{background:rgba(255,255,255,.16);color:#fff}
 .crm-act-wpp:hover{background:rgba(37,211,102,.22);border-color:rgba(37,211,102,.5)}
@@ -252,6 +254,9 @@ html[data-mode="app"].calc-aberto .container{margin-left:0!important}
 .crm-btn-status.bg-so{background:#ea580c}
 .crm-btn-status.bg-fo{background:#eab308;color:#1f2937}
 .crm-btn-status.bg-fe{background:#16a34a}
+.crm-btn-status.bg-em{background:#7c3aed}
+.crm-btn-status.bg-fc{background:#92400e}
+.crm-btn-status.bg-pe{background:#475569}
 /* ações de rodapé */
 .crm-det-acoes{display:flex;gap:10px;margin-top:14px}
 .crm-det-acoes>*{flex:1;padding:12px;border-radius:10px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;text-align:center;border:none;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
@@ -272,6 +277,11 @@ html[data-mode="app"].calc-aberto .container{margin-left:0!important}
 .crm-det-x{position:absolute;top:14px;right:16px;background:rgba(255,255,255,.08);border:none;color:#CBD5E1;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center}
 .crm-det-x:hover{background:rgba(255,255,255,.16);color:#fff}
 .crm-det-head{position:relative;padding-right:36px}
+.crm-det-editar{margin-top:10px;width:100%;background:transparent;border:1px dashed rgba(148,163,184,.5);color:#94a3b8;border-radius:8px;padding:8px;font-size:13px;font-weight:600;cursor:pointer}
+.crm-det-editar:hover{background:rgba(148,163,184,.1);color:#cbd5e1}
+.crm-edit-field{margin-bottom:10px}
+.crm-edit-field label{display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:4px}
+.crm-edit-field input{width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,.35);background:rgba(15,23,42,.4);color:inherit;font-size:14px}
 /* ===== Cockpit Redes ===== */
 /* sub-abas Destaques | Criação */
 .redes-subnav{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:0}
@@ -1963,12 +1973,34 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="crm-det-sub" id="crm-det-sub"></div>
     </div>
 
-    <div class="crm-det-box">
+    <div class="crm-det-box" id="crm-det-info">
       <div class="row"><div class="label">WhatsApp</div><div class="val" id="crm-det-tel">—</div></div>
       <div class="row" id="crm-det-cid-row"><div class="label">Cidade</div><div class="val" id="crm-det-cid">—</div></div>
       <div class="row"><div class="label">Consultor</div><div class="val" id="crm-det-cons">—</div></div>
       <div class="row" id="crm-det-obs-row" style="display:none"><div class="label">Observação</div><div class="val" id="crm-det-obs"></div></div>
       <div class="row"><div class="label">Origem</div><div class="val" id="crm-det-origem">—</div></div>
+      <button type="button" class="crm-det-editar" id="crm-det-editar-btn" onclick="crmAbrirEditar()">✏️ Editar dados do cliente</button>
+    </div>
+
+    <!-- Form de edição de dados do cliente (nome / WhatsApp / cidade) -->
+    <div class="crm-det-box" id="crm-det-editar-box" style="display:none">
+      <div class="crm-edit-field">
+        <label for="crm-edit-nome">Nome</label>
+        <input type="text" id="crm-edit-nome" placeholder="Nome do cliente">
+      </div>
+      <div class="crm-edit-field">
+        <label for="crm-edit-tel">WhatsApp</label>
+        <input type="tel" id="crm-edit-tel" placeholder="(34) 99999-9999" inputmode="numeric">
+      </div>
+      <div class="crm-edit-field">
+        <label for="crm-edit-cidade">Cidade</label>
+        <input type="text" id="crm-edit-cidade" placeholder="Cidade">
+      </div>
+      <div class="crm-det-erro" id="crm-edit-erro"></div>
+      <div class="crm-det-acoes" style="margin-top:8px">
+        <button type="button" class="crm-det-agendar" id="crm-edit-salvar" onclick="crmSalvarEdicao()">Salvar</button>
+        <button type="button" class="crm-det-perdido" style="background:transparent;border:1px solid rgba(148,163,184,.4);color:#94a3b8" onclick="crmFecharEditar()">Cancelar</button>
+      </div>
     </div>
 
     <!-- Bloco completo: só aparece quando o lead tem ligação na agenda -->
@@ -1992,7 +2024,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="crm-det-status">
         <button type="button" class="crm-btn-status bg-ag" data-status="agendado"         onclick="crmAtualizarStatus('agendado')">📞 Agendada</button>
         <button type="button" class="crm-btn-status bg-na" data-status="nao_atendeu"      onclick="crmAtualizarStatus('nao_atendeu')">❌ Não atendeu</button>
+        <button type="button" class="crm-btn-status bg-em" data-status="em_atendimento"   onclick="crmAtualizarStatus('em_atendimento')" style="grid-column:span 2">🕐 Em atendimento (segura o lead)</button>
         <button type="button" class="crm-btn-status bg-si" data-status="sem_interesse"    onclick="crmAtualizarStatus('sem_interesse')" style="grid-column:span 2">🙅 Sem interesse</button>
+        <button type="button" class="crm-btn-status bg-fc" data-status="fechou_concorrente" onclick="crmAtualizarStatus('fechou_concorrente')">🏢 Fechou concorrente</button>
+        <button type="button" class="crm-btn-status bg-pe" data-status="perdido"          onclick="crmAtualizarStatus('perdido')">❌ Perdido</button>
         <button type="button" class="crm-btn-status bg-fe" data-status="fechou"           onclick="crmAtualizarStatus('fechou')" style="grid-column:span 2">✅ Fechou</button>
       </div>
     </div>
@@ -3570,6 +3605,19 @@ function crmCheckDeepLink() {
 window.crmCheckDeepLink = crmCheckDeepLink;
 window.addEventListener('DOMContentLoaded', crmCheckDeepLink);
 
+// Máscara de telefone no campo de editar cliente: (34) 99999-9999
+window.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('crm-edit-tel');
+  if (!el) return;
+  el.addEventListener('input', function(e) {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+    if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+    else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+    else if (v.length > 0) v = `(${v}`;
+    e.target.value = v;
+  });
+});
+
 // Deep-link "Gerar orçamento" vindo da Agenda (página separada): ?orc=1&nome=&tel=&cidade=
 // → abre o form do gerador já com os dados do cliente preenchidos. Espelha
 // crmCheckDeepLink: só roda autenticado, tira os params da URL pra não reabrir.
@@ -5095,6 +5143,7 @@ function voltarDosLeads() {
 const CRM_ETAPAS = {
   agendado:    { lbl: 'Agendado',          ic: '📅' },
   reagendar:   { lbl: 'Reagendar',         ic: '🔄' },
+  em_atendimento: { lbl: 'Em atendimento', ic: '🕐' },
   whatsapp:    { lbl: 'Falando WhatsApp',  ic: '💬' },
   frio:        { lbl: 'Frio',              ic: '❄️' },
   morno:       { lbl: 'Morno',             ic: '🌤️' },
@@ -5103,7 +5152,8 @@ const CRM_ETAPAS = {
   perdido:     { lbl: 'Perdido',           ic: '❌' }
 };
 // Status de agendamento que contam como "perdido" (sem interesse = perdido)
-const CRM_STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse']);
+// Inclui os status manuais 'perdido' e 'fechou_concorrente' (marcados na Agenda).
+const CRM_STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse', 'perdido', 'fechou_concorrente']);
 
 let crmClientes = [];          // lista unificada já processada
 let crmFiltroConsultor = '__todos__';
@@ -5212,6 +5262,9 @@ function crmAbrirDetalhe(key) {
   const agRec = crmAgRecente(c);
   crmDetAtual = { c, agRec };
 
+  // Garante que o form de edição começa fechado (mostra o box de info).
+  crmFecharEditar();
+
   document.getElementById('crm-det-nome').textContent = c.nome || '—';
   const etLbl = (CRM_ETAPAS[c.etapa] || {}).lbl || '';
   const etIc  = (CRM_ETAPAS[c.etapa] || {}).ic || '';
@@ -5283,6 +5336,94 @@ function crmMarcarBotaoPerdido(jaPerdido) {
 function crmFecharDetalhe() {
   document.getElementById('crm-det-bg').classList.remove('show');
   crmDetAtual = null;
+}
+
+// ============= CRM · EDITAR DADOS DO CLIENTE =============
+// Corrige nome / WhatsApp / cidade quando vieram errados. O cliente do CRM é
+// juntado por telefone (crmTelKey), e os dados moram em TODAS as linhas de
+// agendamento E propostas do cliente — então a edição precisa gravar em todas,
+// senão o card fragmenta (vira 2 cards) no próximo carregamento.
+function crmAbrirEditar() {
+  if (!crmDetAtual) return;
+  const c = crmDetAtual.c;
+  document.getElementById('crm-edit-nome').value = c.nome || '';
+  document.getElementById('crm-edit-tel').value = c.tel ? crmTelDisplay(c.tel) : '';
+  document.getElementById('crm-edit-cidade').value = c.cidade || '';
+  document.getElementById('crm-edit-erro').textContent = '';
+  document.getElementById('crm-det-info').style.display = 'none';
+  document.getElementById('crm-det-editar-box').style.display = '';
+}
+function crmFecharEditar() {
+  document.getElementById('crm-det-editar-box').style.display = 'none';
+  document.getElementById('crm-det-info').style.display = '';
+}
+async function crmSalvarEdicao() {
+  if (!crmDetAtual) return;
+  const c = crmDetAtual.c;
+  const err = document.getElementById('crm-edit-erro');
+  const btn = document.getElementById('crm-edit-salvar');
+  err.textContent = '';
+
+  const nome = document.getElementById('crm-edit-nome').value.trim();
+  const telRaw = document.getElementById('crm-edit-tel').value.trim();
+  const cidade = document.getElementById('crm-edit-cidade').value.trim();
+  if (!nome) { err.textContent = 'Informe o nome.'; return; }
+
+  // Telefone padronizado (55 + DDD + número), mesmo formato do resto do CRM.
+  // Só valida/grava se o consultor digitou algo. crmTelBonito garante o 55.
+  const telDigits = telRaw.replace(/\D/g, '');
+  if (telRaw && crmTelKey(telDigits) == null) {
+    err.textContent = 'WhatsApp inválido — confira o DDD e os dígitos.';
+    return;
+  }
+  const telNorm = telRaw ? crmTelBonito(telDigits) : '';
+
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    const agIds = (c.agends || []).map(a => a.id).filter(id => id != null);
+    const propCodigos = (c.props || []).map(p => p.codigo).filter(Boolean);
+
+    // 1) Agendamentos: uma linha por PATCH em lote (mesmo cliente, várias ligações).
+    if (agIds.length) {
+      const patch = { cliente_nome: nome };
+      if (telNorm) patch.cliente_telefone = telNorm;
+      patch.cidade = cidade || null;
+      await supaPatch(`agendamentos?id=in.(${agIds.join(',')})`, patch);
+    }
+
+    // 2) Propostas: o telefone mora dentro do JSON `dados` (não há coluna própria),
+    //    então lê-merge-grava cada uma. Nome/cidade têm coluna + espelho no dados.
+    for (const p of (c.props || [])) {
+      const d = Object.assign({}, p.dados || {});
+      d.nome = nome;
+      if (telNorm) {
+        d.telefone = crmTelDisplay(telNorm);       // formato de leitura, igual ao salvar normal
+        d.telefoneDigitos = telNorm.replace(/\D/g, '');
+      }
+      if (cidade) {
+        // dados.cidade costuma ser "Cidade, UF" — preserva a UF se já existia.
+        const ufAntiga = (String(d.cidade || '').split(',')[1] || '').trim();
+        d.cidade = ufAntiga ? `${cidade}, ${ufAntiga}` : cidade;
+      }
+      const body = { cliente_nome: nome, dados: d };
+      if (cidade) body.cliente_cidade = cidade;
+      await supaPatch(`propostas?codigo=eq.${encodeURIComponent(p.codigo)}`, body);
+    }
+
+    if (!agIds.length && !propCodigos.length) {
+      err.textContent = 'Esse lead não tem ficha (agendamento/proposta) pra editar.';
+      btn.disabled = false; btn.textContent = 'Salvar';
+      return;
+    }
+
+    crmFecharDetalhe();
+    showToast('✅ Dados do cliente atualizados');
+    await carregarCRM(true);   // recarrega: o card re-junta pela nova chave de telefone
+  } catch (e) {
+    console.error('[crmSalvarEdicao]', e);
+    err.textContent = 'Erro ao salvar. Tente de novo.';
+    btn.disabled = false; btn.textContent = 'Salvar';
+  }
 }
 
 function crmMarcarStatus(status) {
@@ -5391,10 +5532,13 @@ async function crmAtualizarStatus(novoStatus) {
     const labels = {
       agendado:         '📞 Marcado como Agendada',
       nao_atendeu:      '❌ Marcado como Não atendeu',
+      em_atendimento:   '🕐 Em atendimento — lead segurado com você',
       falando_whatsapp: '💬 Marcado como Falando no WhatsApp',
       sem_interesse:    '🙅 Marcado como Sem interesse',
       sem_orcamento:    '📋 Marcado como Sem orçamento',
       fez_orcamento:    '💰 Marcado como Fez orçamento',
+      fechou_concorrente:'🏢 Marcado como Fechou concorrente',
+      perdido:          '❌ Marcado como Perdido',
       fechou:           '✅ Marcado como Fechou',
     };
     showToast(labels[novoStatus] || 'Status atualizado');
@@ -5423,22 +5567,35 @@ function crmAgendarDoDetalhe() {
 // vindo do botão "Gerar orçamento" da Agenda (?orc=1&...). Espera o form já
 // visível e zerado (chame navGerador()/novoCliente() antes).
 // cidade pode vir "Cidade/UF" (proposta) ou só "Cidade" (agenda/lead) — separa.
-function preencherClienteNoForm({ nome, tel, cidade } = {}) {
-  let cidNome = '', uf = '';
+// Além de nome/tel/cidade, aceita os DESCRITORES do local que já foram levantados
+// num relatório/orçamento anterior (telhado, estado/UF, fase da ligação, distância,
+// excedente) — pra não redigitar o que já sabemos. Só descritores; o dimensionamento
+// (placas/inversor/preço) é sempre novo. Campos ausentes ficam em branco.
+function preencherClienteNoForm({ nome, tel, cidade, uf, telhado, fase, distanciaKm, excedente } = {}) {
+  let cidNome = '', ufDaCidade = '';
   if (cidade) {
-    const partes = String(cidade).split('/').map(s => s.trim());
+    // aceita "Cidade/UF" (agenda) ou "Cidade, UF" (proposta)
+    const partes = String(cidade).split(/[\/,]/).map(s => s.trim());
     cidNome = partes[0] || '';
-    uf = (partes[1] || '').toUpperCase().slice(0, 2);
+    ufDaCidade = (partes[1] || '').toUpperCase().slice(0, 2);
   }
+  const ufFinal = (uf || ufDaCidade || '').toUpperCase().slice(0, 2);
   const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
   set('f-nome', nome || '');
   set('f-telefone', tel || '');
   set('f-cidade', cidNome);
-  if (uf) { const ufEl = document.getElementById('f-uf'); if (ufEl) ufEl.value = uf; }
-  // Dispara o cálculo automático de distância (via cidade/UF), igual ao fluxo
-  // normal — a função só roda se o campo distância estiver vazio (novoCliente
-  // acabou de limpar). rastrearDistancia é o que os listeners blur/change usam.
-  if (cidNome && typeof rastrearDistancia === 'function') {
+  if (ufFinal) { const ufEl = document.getElementById('f-uf'); if (ufEl) ufEl.value = ufFinal; }
+  // Descritores do local (do relatório anterior) — já ganhamos, então reaproveita.
+  set('f-telhado', telhado || '');
+  set('f-fase', fase || '');
+  set('f-excedente', excedente || '');
+  // Distância: se veio salva E > 0, usa direto (evita recalcular). "0" costuma
+  // ser "nunca calculado" na proposta antiga → trata como ausente e recalcula.
+  const distNum = Number(distanciaKm);
+  if (distNum > 0) {
+    set('f-distancia', distanciaKm);
+    const st = document.getElementById('dist-status'); if (st) st.textContent = '';
+  } else if (cidNome && typeof rastrearDistancia === 'function') {
     try { rastrearDistancia(); } catch (e) {}
   }
 }
@@ -5458,6 +5615,18 @@ async function crmGerarOrcamento() {
   const telBonito = c.tel ? crmTelDisplay(c.tel) : '';   // (34) 99999-9999
   const cidade = c.cidade || '';
 
+  // Descritores do local vindos do relatório/orçamento anterior (se já ganhamos,
+  // esses dados já foram levantados uma vez). Vêm do JSON `dados` da proposta mais
+  // recente. Ausente (1º orçamento do cliente) → tudo em branco, sem erro.
+  const pd = (c.propRecente && c.propRecente.dados) || {};
+  const descritores = {
+    uf:          c.propRecente ? (c.propRecente.cliente_uf || '') : '',
+    telhado:     pd.telhado || '',
+    fase:        pd.fase || '',
+    distanciaKm: pd.distanciaKm || '',
+    excedente:   pd.excedente || '',
+  };
+
   // Marca Frio (só se ainda não estiver). crmGravarTemperatura é setter direto
   // (NÃO o toggle crmAtualizarTemperatura), grava em todas as agendas do cliente
   // e recalcula a coluna. Só roda quando há agenda onde gravar.
@@ -5469,9 +5638,12 @@ async function crmGerarOrcamento() {
   navGerador();          // esconde o CRM, mostra o form, ajusta sidebar/nav
   novoCliente();         // zera o form (não herda dados de outra proposta) e foca o nome
 
-  preencherClienteNoForm({ nome, tel: telBonito, cidade });
+  preencherClienteNoForm(Object.assign({ nome, tel: telBonito, cidade }, descritores));
 
-  showToast('📄 Dados do cliente preenchidos — complete o orçamento');
+  const temInfo = descritores.telhado || descritores.fase || descritores.uf;
+  showToast(temInfo
+    ? '📄 Dados do cliente + local preenchidos — complete o orçamento'
+    : '📄 Dados do cliente preenchidos — complete o orçamento');
 }
 
 // ============= CRM · NOVO CONTATO MANUAL =============
@@ -5676,8 +5848,14 @@ function crmUnificar(props, agends, leads) {
   }
 
   // 2) Agendamentos
+  // Mapa agendado_id → chave-de-telefone do AGENDAMENTO. Serve pra ancorar o
+  // lead do Meta na MESMA ficha quando o telefone foi corrigido na edição: o
+  // whatsapp do leads_meta é reescrito pelo sync (vem do field_data do Meta),
+  // então não dá pra confiar nele — o número "de verdade" é o do agendamento.
+  const chavePorAgendadoId = {};
   for (const a of (agends || [])) {
     const key = crmTelKey(a.cliente_telefone) || ('nm:' + (a.cliente_nome || '').trim().toLowerCase());
+    if (a.id != null) chavePorAgendadoId[a.id] = key;
     const c = ensure(key, a.cliente_nome, 3);
     if (!c.tel && a.cliente_telefone) c.tel = crmTelBonito(a.cliente_telefone);
     if (!c.cidade && a.cidade) c.cidade = a.cidade;
@@ -5691,7 +5869,12 @@ function crmUnificar(props, agends, leads) {
 
   // 3) Leads Meta
   for (const l of (leads || [])) {
-    const key = crmTelKey(l.whatsapp) || ('nm:' + (l.nome || '').trim().toLowerCase());
+    // Se o lead já virou agendamento (agendado_id), usa a chave DO AGENDAMENTO —
+    // assim, corrigir o telefone na ficha reagrupa o lead junto (não fragmenta).
+    // Senão, cai no telefone do próprio lead (ou nome).
+    const key = (l.agendado_id != null && chavePorAgendadoId[l.agendado_id])
+      || crmTelKey(l.whatsapp)
+      || ('nm:' + (l.nome || '').trim().toLowerCase());
     const c = ensure(key, l.nome, 2);
     if (!c.tel && l.whatsapp) c.tel = crmTelBonito(l.whatsapp);
     if (!c.cidade && l.cidade) c.cidade = l.cidade;
@@ -5758,6 +5941,9 @@ function crmDerivar(c) {
   const temPerdido = agOrd.some(a => CRM_STATUS_PERDIDO.has(a.status));
   // Algum em conversa ativa no WhatsApp?
   const temWhatsapp = agOrd.some(a => a.status === 'falando_whatsapp');
+  // Consultor tentou mas ainda não foi atendido — segura o lead (para o repasse
+  // automático). Só conta se for o status do agendamento MAIS RECENTE.
+  const emAtendimento = statusAg === 'em_atendimento';
   // PRECISA REAGENDAR: o consultor não deu conta do card.
   //  - não atendeu a ligação (nao_atendeu) ou não conseguiu orçar (sem_orcamento), OU
   //  - agendamento ficou "agendado" (sem ação) e o horário já passou.
@@ -5789,6 +5975,8 @@ function crmDerivar(c) {
     etapa = 'frio';
   } else if (temWhatsapp) {
     etapa = 'whatsapp';
+  } else if (emAtendimento) {
+    etapa = 'em_atendimento';
   } else if (precisaReagendar) {
     etapa = 'reagendar';
   } else {
@@ -5826,7 +6014,7 @@ function crmFiltrados() {
 }
 
 // Ordem das colunas do kanban (funil). Perdido por último.
-const CRM_KANBAN_ORDEM = ['agendado', 'reagendar', 'whatsapp', 'frio', 'morno', 'quente', 'vendido', 'perdido'];
+const CRM_KANBAN_ORDEM = ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'frio', 'morno', 'quente', 'vendido', 'perdido'];
 
 function renderCRM() {
   const board = document.getElementById('crm-kanban');
@@ -5862,10 +6050,13 @@ function renderCRM() {
   // "agendado" não vira selo (é o estado neutro/coluna padrão).
   const STATUS_SELO = {
     nao_atendeu:      { lbl: 'Não atendeu',  cls: 'na' },
+    em_atendimento:   { lbl: '🕐 Em atendimento', cls: 'em' },
     falando_whatsapp: { lbl: 'No WhatsApp',  cls: 'wp' },
     sem_interesse:    { lbl: 'Sem interesse', cls: 'si' },
     sem_orcamento:    { lbl: 'Sem orçamento', cls: 'so' },
     fez_orcamento:    { lbl: '💰 Fez orçamento', cls: 'fo' },
+    fechou_concorrente:{ lbl: '🏢 Fechou concorrente', cls: 'pe' },
+    perdido:          { lbl: '❌ Perdido', cls: 'pe' },
     fechou:           { lbl: '✅ Fechou', cls: 'fe' },
   };
   const statusBadge = (s) => {

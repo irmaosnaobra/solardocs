@@ -210,6 +210,9 @@
   .slot.status-sem_orcamento     { background: #ea580c; color: #fff; }
   .slot.status-fez_orcamento     { background: #fef3c7; color: #1f2937; }
   .slot.status-fechou            { background: #16a34a; color: #fff; }
+  .slot.status-em_atendimento    { background: #7c3aed; color: #fff; }
+  .slot.status-fechou_concorrente{ background: #92400e; color: #fff; }
+  .slot.status-perdido           { background: #475569; color: #fff; }
   .slot.passado { opacity: .55; cursor: not-allowed; }
 
   /* Slot bloqueado pelo consultor */
@@ -589,6 +592,9 @@
   .btn-status.bg-so { background: #ea580c; }
   .btn-status.bg-fo { background: #eab308; color: #1f2937; }
   .btn-status.bg-fe { background: #16a34a; }
+  .btn-status.bg-em { background: #7c3aed; }
+  .btn-status.bg-fc { background: #92400e; }
+  .btn-status.bg-pe { background: #475569; }
   .status-label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: .4px; margin-top: 14px; }
 
   /* ===== TEMPERATURA DO CLIENTE ===== */
@@ -726,6 +732,9 @@
   html[data-theme="dark"] .slot.status-sem_orcamento     { background: #ea580c; color: #fff; }
   html[data-theme="dark"] .slot.status-fez_orcamento     { background: #fef3c7; color: #1f2937; }
   html[data-theme="dark"] .slot.status-fechou            { background: #16a34a; color: #fff; }
+  html[data-theme="dark"] .slot.status-em_atendimento    { background: #7c3aed; color: #fff; }
+  html[data-theme="dark"] .slot.status-fechou_concorrente{ background: #92400e; color: #fff; }
+  html[data-theme="dark"] .slot.status-perdido           { background: #475569; color: #fff; }
   html[data-theme="dark"] .slot.bloqueado {
     background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
     color: #fff;
@@ -955,7 +964,10 @@
     <div class="status-grid">
       <button type="button" class="btn-status bg-ag" data-status="agendado"          onclick="atualizarStatus('agendado')">📞 Agendada</button>
       <button type="button" class="btn-status bg-na" data-status="nao_atendeu"       onclick="atualizarStatus('nao_atendeu')">❌ Não atendeu</button>
+      <button type="button" class="btn-status bg-em" data-status="em_atendimento"    onclick="atualizarStatus('em_atendimento')" style="grid-column: span 2;">🕐 Em atendimento (segura o lead)</button>
       <button type="button" class="btn-status bg-si" data-status="sem_interesse"     onclick="atualizarStatus('sem_interesse')" style="grid-column: span 2;">🙅 Sem interesse</button>
+      <button type="button" class="btn-status bg-fc" data-status="fechou_concorrente" onclick="atualizarStatus('fechou_concorrente')">🏢 Fechou concorrente</button>
+      <button type="button" class="btn-status bg-pe" data-status="perdido"           onclick="atualizarStatus('perdido')">❌ Perdido</button>
       <button type="button" class="btn-status bg-fe" data-status="fechou"            onclick="atualizarStatus('fechou')" style="grid-column: span 2;">✅ Fechou</button>
     </div>
 
@@ -1615,10 +1627,13 @@ async function atualizarStatus(novoStatus) {
     const labels = {
       agendado:          '📞 Marcado como Agendada',
       nao_atendeu:       '❌ Marcado como Não atendeu',
+      em_atendimento:    '🕐 Em atendimento — lead segurado com você',
       falando_whatsapp:  '💬 Marcado como Falando no WhatsApp',
       sem_interesse:     '🙅 Marcado como Sem interesse',
       sem_orcamento:     '📋 Marcado como Sem orçamento',
       fez_orcamento:     '💰 Marcado como Fez orçamento',
+      fechou_concorrente:'🏢 Marcado como Fechou concorrente',
+      perdido:           '❌ Marcado como Perdido',
       fechou:            '✅ Marcado como Fechou',
     };
     showToast(labels[novoStatus] || 'Status atualizado');
