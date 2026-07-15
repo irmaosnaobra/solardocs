@@ -206,13 +206,21 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
      Especificidade alta o bastante pra vencer a regra mobile que mostra o toggle (linha ~741). */
   html[data-mode]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .sb-mobile-toggle,
   #app-sidebar,.sb-backdrop,#sb-backdrop,.container{display:none!important}
-  #eletro-print{display:block!important;background:#fff;padding:14mm;box-sizing:border-box}
-  html,body{background:#fff!important;height:auto!important}
+  #eletro-print{display:block!important;background:#fff;padding:0;margin:0}
+  html,body{background:#fff!important;height:auto!important;margin:0!important;padding:0!important}
   /* margem 0 no papel = o navegador não tem onde carimbar data/URL/nº de página.
-     O respiro de 14mm vira padding do container (mesmo motor de impressão, fidelidade intacta). */
+     O respiro de 14mm é o padding de cada .ep-page (páginas A4 explícitas, quebra controlada). */
   @page{margin:0}
 }
 .ep-doc{color:#1a1a1a;font-family:Arial,Helvetica,sans-serif;max-width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* Páginas A4 explícitas: cada .ep-page é uma folha com margem interna própria em TODOS os lados
+   (o @page{margin:0} mata o carimbo do navegador; a margem visual vive aqui). Flex empurra o
+   rodapé de página pro pé da folha. min-height < 297mm evita folha em branco por arredondamento. */
+.ep-page{box-sizing:border-box;min-height:293mm;padding:14mm 14mm 8mm;display:flex;flex-direction:column;page-break-after:always;break-after:page}
+.ep-page:last-child{page-break-after:auto;break-after:auto}
+.ep-pagefoot{margin-top:auto;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#8a94a3}
+/* boxes filhos diretos da página mantêm altura natural (o flex:1 do .ep-box é só pro par lado-a-lado do .ep-cols) */
+.ep-page>.ep-box,.ep-page>.ep-avoid-break{flex:0 0 auto}
 .ep-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #1e3a5f;padding-bottom:10px;margin-bottom:6px}
 .ep-title{font-size:19px;font-weight:800;color:#1e3a5f}
 .ep-date{font-size:11px;color:#666;text-align:right;line-height:1.5}
@@ -5069,8 +5077,12 @@ function eletroImprimir() {
     : `O VPL de ${money(r.vpl)} à taxa adotada indica que, nestas premissas, o projeto não supera o custo de oportunidade do capital — recomenda-se revisar demanda, preço ou investimento.`;
   const execHTML = `Este estudo avalia a implantação de um eletroposto${t.cidade ? ` em <b>${t.cidade}</b>` : ''}${t.cliente ? ` para <b>${t.cliente}</b>` : ''}, com investimento total de <b>${money(r.investTotal)}</b>${t.equip ? ` (${t.equip})` : ''}. No cenário-base — <b>${Math.round(r.carros)} carros/dia em regime</b>, atingidos após rampa de ocupação de ${r.mesesRampa} meses — o projeto gera <b>${money(r.lucroMes)}/mês</b> de lucro em regime pleno, com <b>payback em ${pb}</b> e ${tirFrase}. ${vplFrase} A análise de sensibilidade, as premissas e os riscos mapeados constam nas seções seguintes.`;
 
+  // rodapé de cada folha A4 (paginação explícita — 4 páginas)
+  const pageFoot = n => `<div class="ep-pagefoot"><span>Estudo de Viabilidade — Eletroposto${t.cliente ? ' · ' + t.cliente : ''}</span><span>Página ${n} de 4</span></div>`;
+
   host.innerHTML = `
     <div class="ep-doc">
+      <div class="ep-page">
       <div class="ep-head">
         <div><div class="ep-title">Estudo de Viabilidade Técnico-Econômica — Eletroposto</div></div>
         <div class="ep-date">${hoje.toLocaleDateString('pt-BR')}<br>Validade: ${validade.toLocaleDateString('pt-BR')}</div>
@@ -5121,7 +5133,10 @@ function eletroImprimir() {
           </table>
         </div>
       </div>
+      ${pageFoot(1)}
+      </div><!-- /página 1 -->
 
+      <div class="ep-page">
       <div class="ep-avoid-break">
         <div class="ep-kpi-title">Resultado mensal (regime pleno)</div>
         <div class="ep-kpis">
@@ -5159,7 +5174,10 @@ function eletroImprimir() {
           <li>A projeção financeira parte de premissas informadas pelo responsável comercial e não constitui garantia de resultado; os dados de mercado têm fonte citada.</li>
         </ol>
       </div>
+      ${pageFoot(2)}
+      </div><!-- /página 2 -->
 
+      <div class="ep-page">
       <div class="ep-box ep-avoid-break">
         <h3>Fluxo de caixa acumulado (10 anos)</h3>
         <div class="ep-chart">${eletroFluxoSVG(r.fluxo)}</div>
@@ -5173,7 +5191,10 @@ function eletroImprimir() {
           <tbody>${cmpBody}</tbody>
         </table>
       </div>
+      ${pageFoot(3)}
+      </div><!-- /página 3 -->
 
+      <div class="ep-page">
       <div class="ep-box ep-avoid-break">
         <h3>Riscos e mitigantes</h3>
         <table class="ep-riscos">
@@ -5199,8 +5220,20 @@ function eletroImprimir() {
       </div>
 
       <div class="ep-foot">Dados de mercado: ${m.fonte} · Projeção financeira: elaborada a partir das premissas declaradas na seção "Premissas e metodologia" — valores estimados, não constituem garantia de resultado.</div>
+      ${pageFoot(4)}
+      </div><!-- /página 4 -->
     </div>`;
+
+  // Nome do arquivo no "Salvar como PDF" = título do documento na hora do print.
+  const slug = (t.cliente || t.cidade || 'Estudo')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // remove acentos (compatibilidade de arquivo)
+    .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  const tituloOriginal = document.title;
+  const restaurar = () => { document.title = tituloOriginal; };
+  document.title = slug + '_EletropostoIO';
+  window.addEventListener('afterprint', restaurar, { once: true });
   window.print();
+  setTimeout(restaurar, 2000);   // fallback caso afterprint não dispare
 }
 
 const calcFmt = n => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
