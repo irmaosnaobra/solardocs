@@ -209,7 +209,7 @@ export default function Landing() {
             <img
               src="/hero-produto.webp"
               width={1120}
-              height={666}
+              height={702}
               alt="Proposta solar gerada no SolarDoc, com a sua logo — no computador e no celular"
               loading="eager"
             />
