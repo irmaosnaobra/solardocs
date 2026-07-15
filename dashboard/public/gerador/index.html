@@ -213,15 +213,16 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
   @page{margin:0}
 }
 .ep-doc{color:#1a1a1a;font-family:Arial,Helvetica,sans-serif;max-width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-/* Páginas A4 explícitas: cada .ep-page é uma folha com margem interna própria em TODOS os lados
-   (o @page{margin:0} mata o carimbo do navegador; a margem visual vive aqui). Flex empurra o
-   rodapé de página pro pé da folha. min-height < 297mm evita folha em branco por arredondamento. */
-.ep-page{box-sizing:border-box;min-height:293mm;padding:14mm 14mm 8mm;display:flex;flex-direction:column;page-break-after:always;break-after:page;position:relative}
+/* Páginas com quebra explícita e ALTURA NATURAL (sem min-height/altura de folha fixa):
+   o conteúdo de cada página cabe em QUALQUER margem que o navegador do usuário aplicar.
+   Lição: o Chrome pode ignorar @page{margin:0} (margem persistida na caixa de impressão);
+   com altura fixa de 293mm cada página vazava e o PDF saía com o dobro de folhas. */
+.ep-page{box-sizing:border-box;padding:12mm 14mm;page-break-after:always;break-after:page;position:relative}
 .ep-page:last-child{page-break-after:auto;break-after:auto}
 /* marca d'água: arte navy centrada atrás do conteúdo de cada folha (img imprime sempre, independe de "background graphics") */
 .ep-marca{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78%;opacity:.16;z-index:0;pointer-events:none}
 .ep-page>*:not(.ep-marca){position:relative;z-index:1}
-.ep-pagefoot{margin-top:auto;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#8a94a3}
+.ep-pagefoot{margin-top:18px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#8a94a3}
 /* boxes filhos diretos da página mantêm altura natural (o flex:1 do .ep-box é só pro par lado-a-lado do .ep-cols) */
 .ep-page>.ep-box,.ep-page>.ep-avoid-break{flex:0 0 auto}
 .ep-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #1e3a5f;padding-bottom:10px;margin-bottom:6px}
@@ -4735,7 +4736,7 @@ function navEletroposto() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   eletroSubaba('simulador');   // sempre reabre no Simulador
   eletroCalc();
-  new Image().src = 'eletroposto-arte.png';   // aquece o cache da marca d'água do PDF
+  new Image().src = '/gerador/eletroposto-arte.png';   // aquece o cache da marca d'água (path ABSOLUTO: a página abre como /gerador sem barra)
 }
 
 // Sub-abas dentro do Eletroposto: Simulador | Pesquisa | Mercado | Postos | Mapa
@@ -5087,7 +5088,7 @@ function eletroImprimir() {
   host.innerHTML = `
     <div class="ep-doc">
       <div class="ep-page">
-      <img class="ep-marca" src="eletroposto-arte.png" alt="">
+      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
       <div class="ep-head">
         <div><div class="ep-title">Estudo de Viabilidade Técnico-Econômica — Eletroposto</div></div>
         <div class="ep-date">${hoje.toLocaleDateString('pt-BR')}<br>Validade: ${validade.toLocaleDateString('pt-BR')}</div>
@@ -5142,7 +5143,7 @@ function eletroImprimir() {
       </div><!-- /página 1 -->
 
       <div class="ep-page">
-      <img class="ep-marca" src="eletroposto-arte.png" alt="">
+      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
       <div class="ep-avoid-break">
         <div class="ep-kpi-title">Resultado mensal (regime pleno)</div>
         <div class="ep-kpis">
@@ -5184,7 +5185,7 @@ function eletroImprimir() {
       </div><!-- /página 2 -->
 
       <div class="ep-page">
-      <img class="ep-marca" src="eletroposto-arte.png" alt="">
+      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
       <div class="ep-box ep-avoid-break">
         <h3>Fluxo de caixa acumulado (10 anos)</h3>
         <div class="ep-chart">${eletroFluxoSVG(r.fluxo)}</div>
@@ -5202,7 +5203,7 @@ function eletroImprimir() {
       </div><!-- /página 3 -->
 
       <div class="ep-page">
-      <img class="ep-marca" src="eletroposto-arte.png" alt="">
+      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
       <div class="ep-box ep-avoid-break">
         <h3>Riscos e mitigantes</h3>
         <table class="ep-riscos">
