@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Apresentação — Eletroposto</title>
+<style>
+  :root{
+    --bg:#0b0e13; --card:#161b26; --card2:#121722; --borda:rgba(255,255,255,.07);
+    --tx:#e8eaee; --tx2:#9aa3b2; --lar:#f97316; --verde:#34d399; --vermelho:#f87171;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-snap-type:y mandatory;scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--tx);font-family:Arial,Helvetica,sans-serif;line-height:1.45}
+  .sl{min-height:100svh;scroll-snap-align:start;display:flex;flex-direction:column;padding:clamp(20px,4.5vw,64px) clamp(20px,6vw,90px) 0;position:relative;overflow:hidden}
+  .sl-corpo{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:1240px;width:100%;margin:0 auto}
+  .kicker{font-size:clamp(11px,1.1vw,14px);font-weight:700;letter-spacing:.35em;text-transform:uppercase;color:var(--lar);margin-bottom:18px}
+  .kicker.verde{color:var(--verde)}
+  h1{font-size:clamp(30px,4.6vw,62px);font-weight:800;line-height:1.12;letter-spacing:-.5px}
+  h2{font-size:clamp(24px,3.2vw,44px);font-weight:800;line-height:1.15;margin-bottom:clamp(18px,3vh,36px)}
+  .sub{color:var(--tx2);font-size:clamp(14px,1.4vw,19px);margin-top:16px;max-width:640px}
+  .quote{margin-top:clamp(20px,4vh,40px);background:var(--card);border-left:5px solid var(--lar);border-radius:12px;padding:clamp(16px,2.4vw,28px) clamp(18px,2.8vw,32px);font-style:italic;font-weight:700;font-size:clamp(16px,1.8vw,24px);max-width:720px}
+  .quote .hl{color:var(--lar)}
+  .grid{display:grid;gap:clamp(10px,1.6vw,20px)}
+  .g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:760px){.g2,.g3{grid-template-columns:1fr}}
+  .cardx{background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:clamp(14px,2vw,24px)}
+  .ic{width:clamp(38px,3.6vw,52px);height:clamp(38px,3.6vw,52px);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:clamp(17px,1.8vw,24px);margin-bottom:12px;flex-shrink:0}
+  .ic.lar{background:var(--lar)} .ic.verde{background:var(--verde)}
+  .cardx b{display:block;font-size:clamp(15px,1.5vw,20px);margin-bottom:6px}
+  .cardx p{color:var(--tx2);font-size:clamp(12.5px,1.2vw,15px)}
+  .box-dest{border:1.5px solid var(--lar);border-radius:12px;background:var(--card2);padding:clamp(14px,2vw,24px);font-style:italic;font-weight:700;font-size:clamp(15px,1.6vw,21px)}
+  .box-dest .hl{color:var(--lar)} .box-dest .hlv{color:var(--verde)}
+  .rodape{max-width:1240px;width:100%;margin:0 auto;padding:14px 0 16px;border-top:1px solid var(--borda);display:flex;justify-content:space-between;align-items:center;font-size:clamp(9px,.95vw,12px);letter-spacing:.12em;color:var(--tx2)}
+  .rodape b{color:var(--tx)} .rodape .x{color:var(--lar)}
+  .num{font-weight:700;color:#6b7280}
+  /* capa */
+  .capa-marcas{display:flex;align-items:center;gap:14px;margin-top:clamp(26px,5vh,52px);font-weight:800;letter-spacing:.22em;font-size:clamp(13px,1.5vw,19px)}
+  .capa-marcas img{height:clamp(40px,5vw,64px);width:auto}
+  .capa-marcas .x{color:var(--lar)} .capa-marcas .sm{color:var(--lar)}
+  .badge{display:inline-block;background:var(--verde);color:#06281c;font-weight:800;font-size:clamp(10px,1vw,13px);letter-spacing:.14em;padding:8px 16px;border-radius:999px}
+  .capa-cliente{margin-top:14px;color:var(--tx2);font-size:clamp(13px,1.4vw,18px)}
+  .capa-cliente b{color:var(--tx)}
+  /* KPI de cenário */
+  .cen{position:relative;background:var(--card);border:1px solid var(--borda);border-radius:16px;padding:clamp(16px,2.2vw,28px)}
+  .cen.dest{border:2px solid var(--lar)}
+  .cen .selo{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--lar);color:#231000;font-size:10.5px;font-weight:800;letter-spacing:.14em;padding:4px 14px;border-radius:999px;white-space:nowrap}
+  .cen h3{font-size:clamp(17px,1.8vw,24px);margin-bottom:2px}
+  .cen .carros{color:var(--tx2);font-size:clamp(12px,1.2vw,15px);margin-bottom:14px}
+  .cen .kt{font-size:clamp(9.5px,.95vw,12px);font-weight:700;letter-spacing:.12em;color:var(--tx2);text-transform:uppercase;margin-top:14px;border-top:1px solid var(--borda);padding-top:12px}
+  .cen .kv{font-size:clamp(19px,2.2vw,30px);font-weight:800}
+  .cen .kv.verde{color:var(--verde)} .cen .kv.lar{color:var(--lar)}
+  .cen h3.lar{color:var(--lar)}
+  /* premissas */
+  .prem td{padding:10px 0;border-bottom:1px solid var(--borda);font-size:clamp(13px,1.3vw,17px)}
+  .prem td:first-child{color:var(--tx2);font-size:clamp(10.5px,1vw,13px);letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding-right:18px}
+  .prem td:last-child{font-weight:800;text-align:right}
+  .prem .verde{color:var(--verde)}
+  .forma{background:var(--card2);border:1px solid var(--borda);border-radius:12px;padding:14px 18px;margin-bottom:12px}
+  .forma .ft{font-size:clamp(9.5px,.95vw,12px);font-weight:700;letter-spacing:.12em;color:var(--tx2);text-transform:uppercase;margin-bottom:4px}
+  .forma .fx{color:var(--tx2);font-size:clamp(12px,1.2vw,15px)}
+  .forma .fr{font-weight:800;font-size:clamp(15px,1.5vw,20px);color:var(--verde)}
+  .forma .fr.lar{color:var(--lar)}
+  /* gráfico acumulação */
+  .chartbox{background:var(--card);border:1px solid var(--borda);border-radius:16px;padding:clamp(14px,2vw,26px)}
+  .chartbox .ct{font-weight:700;font-size:clamp(13px,1.3vw,17px);margin-bottom:10px}
+  .legenda{display:flex;gap:18px;font-size:clamp(11px,1.1vw,14px);color:var(--tx2);margin-bottom:6px}
+  .legenda i{display:inline-block;width:22px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .destaque-lateral{background:var(--card);border:1.5px solid var(--verde);border-radius:16px;padding:clamp(16px,2.2vw,28px);display:flex;flex-direction:column;justify-content:center}
+  .destaque-lateral .big{font-size:clamp(30px,4vw,54px);font-weight:800;color:var(--verde);margin:8px 0}
+  .destaque-lateral p{color:var(--tx2);font-size:clamp(12.5px,1.25vw,16px)}
+  .destaque-lateral .hl{color:var(--lar);font-weight:700}
+  /* modelos de entrada */
+  .mod{position:relative}
+  .mod .mk{font-size:clamp(10px,1vw,12.5px);font-weight:700;letter-spacing:.16em;color:var(--tx2)}
+  .mod h3{font-size:clamp(20px,2.2vw,30px);margin:6px 0 2px}
+  .mod h3.verde{color:var(--verde)}
+  .mod .tag{font-weight:700;color:var(--lar);font-size:clamp(12px,1.2vw,15px);margin-bottom:12px}
+  .mod .tag.verde{color:var(--verde)}
+  .mod p{color:var(--tx2);font-size:clamp(12.5px,1.25vw,15.5px)}
+  .mod .obs{font-style:italic;margin-top:14px;font-size:clamp(11.5px,1.1vw,14px)}
+  .mod.dest{border:2px solid var(--verde)}
+  .mod .selo{position:absolute;top:-12px;right:16px;background:var(--verde);color:#06281c;font-size:10px;font-weight:800;letter-spacing:.12em;padding:4px 12px;border-radius:999px}
+  /* checklist */
+  .chk{display:flex;align-items:center;gap:12px;margin-bottom:12px;font-weight:700;font-size:clamp(13px,1.35vw,17px)}
+  .chk .ok{width:26px;height:26px;border-radius:50%;background:rgba(52,211,153,.15);border:1.5px solid var(--verde);color:var(--verde);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+  /* investimento */
+  .inv-big{font-size:clamp(40px,6vw,84px);font-weight:800;letter-spacing:-1px}
+  .inv-lbl{font-size:clamp(10px,1vw,13px);font-weight:700;letter-spacing:.2em;color:var(--tx2);text-transform:uppercase}
+  .inv-pay{font-size:clamp(26px,3.4vw,46px);font-weight:800}
+  .inv-pay .hl{color:var(--lar)}
+  /* contato final */
+  .fim{text-align:center;align-items:center}
+  .fim .marcas{font-weight:800;letter-spacing:.25em;font-size:clamp(17px,2.4vw,32px)}
+  .fim .marcas .x{color:var(--lar)}
+  .fim .frase{margin:26px auto 0;font-style:italic;font-weight:700;font-size:clamp(16px,2vw,26px);max-width:820px}
+  .fim .frase .hl{color:var(--lar)} .fim .frase .hlv{color:var(--verde)}
+  .fim .contato{margin-top:30px;color:var(--tx2);font-size:clamp(13px,1.4vw,18px)}
+  .fim .contato b{color:var(--tx);font-size:clamp(15px,1.7vw,22px)}
+  .seta{position:fixed;right:18px;bottom:18px;background:var(--card);border:1px solid var(--borda);color:var(--tx2);border-radius:999px;padding:10px 16px;font-size:12px;letter-spacing:.08em;opacity:.85;z-index:9}
+  @media print{
+    html{scroll-snap-type:none}
+    .seta{display:none}
+    .sl{min-height:0;height:186mm;page-break-after:always;break-after:page;padding:12mm 16mm 0}
+    .sl:last-child{page-break-after:auto}
+    @page{size:A4 landscape;margin:0}
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div id="deck">Carregando…</div>
+<div class="seta">▼ role para avançar</div>
+<script>
+// ===================================================================================
+// Apresentação comercial do Eletroposto — nasce dos números do simulador (/gerador).
+// Recebe os parâmetros por querystring e recalcula com AS MESMAS fórmulas do
+// computeEletro do index.html. ⚠ MANTER EM SINCRONIA se as fórmulas mudarem lá.
+// ===================================================================================
+const q = new URLSearchParams(location.search);
+const N = (k, d) => { const v = parseFloat((q.get(k) || '').replace(',', '.')); return isFinite(v) ? v : d; };
+const S = (k, d) => (q.get(k) || d || '').trim();
+
+const p = {
+  carros: N('carros', 10), carga: N('carga', 20), custoKwh: N('custokwh', 0.95),
+  precoKwh: N('precokwh', 2.35), ativacao: N('ativ', 1.20), invest: N('invest', 200000),
+  plugs: N('plugs', 2), assinat: N('assin', 0), fixos: N('fixos', 300),
+  gateway: N('gateway', 14) / 100, arrend: N('arrend', 10) / 100, manut: N('manut', 0.1) / 100,
+  imposto: N('imposto', 6) / 100, ocupIni: N('ocup', 50) / 100, mesesRampa: N('rampa', 24),
+  taxaDesc: N('taxadesc', 14.25) / 100,
+};
+const t = { cliente: S('cliente'), cidade: S('cidade'), equip: S('equip', 'SolMob DC 80 kW'), autor: S('autor'), contato: S('contato') };
+
+function computa(px) {
+  const DIAS = 30, ANOS = 10;
+  const kwhMes = px.carros * px.carga * DIAS;
+  const fatMes = kwhMes * px.precoKwh + px.carros * DIAS * px.ativacao;
+  const custoEnergia = kwhMes * px.custoKwh;
+  const taxas = px.gateway + px.arrend + px.manut + px.imposto;
+  const seguroMes = px.invest * 0.01 / 12;
+  const fixosMes = px.assinat + seguroMes + (px.fixos || 0);
+  const margemVar = fatMes - custoEnergia - fatMes * taxas;
+  const lucroMes = margemVar - fixosMes;
+  const mR = Math.max(1, Math.round(px.mesesRampa)); const oI = Math.min(1, Math.max(0, px.ocupIni));
+  const occ = m => (mR <= 1 || m >= mR) ? 1 : oI + (1 - oI) * (m - 1) / (mR - 1);
+  const fluxoAnual = [];
+  for (let a = 0; a < ANOS; a++) { let l = 0; for (let m = 1; m <= 12; m++) l += margemVar * occ(a * 12 + m) - fixosMes; fluxoAnual.push(l); }
+  const fluxo = []; let acc = -px.invest, payback = null;
+  fluxoAnual.forEach((f, i) => { const antes = acc; acc += f; fluxo.push(acc); if (payback === null && acc >= 0 && f > 0) payback = i + (0 - antes) / f; });
+  return { fatMes, fatAno: fatMes * 12, lucroMes, lucroAno: lucroMes * 12, lucroAno1: fluxoAnual[0], payback, fluxo, acumulado10: fluxo[ANOS - 1] };
+}
+const money = n => 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR');
+const anos1 = v => v == null ? '—' : v.toFixed(1).replace('.', ',') + ' anos';
+
+const base = computa(p);
+const cons = computa({ ...p, carros: Math.max(1, Math.round(p.carros * 0.6)) });
+const otim = computa({ ...p, carros: Math.round(p.carros * 1.4) });
+const carrosCons = Math.max(1, Math.round(p.carros * 0.6)), carrosOtim = Math.round(p.carros * 1.4);
+const ticket = Math.round(p.carga * p.precoKwh + p.ativacao);
+
+// gráfico de acumulação (SVG, 2 séries: base e otimista)
+function chartAcumulacao() {
+  const W = 760, H = 300, padX = 54, padY = 24;
+  const anos = [0,1,2,3,4,5,6,7,8,9];
+  const series = [ { f: otim.fluxo, cor: 'var(--verde)' }, { f: base.fluxo, cor: 'var(--lar)' } ];
+  const all = [...otim.fluxo, ...base.fluxo, -p.invest];
+  const mx = Math.max(...all), mn = Math.min(...all);
+  const X = i => padX + (W - padX - 16) * i / 9;
+  const Y = v => padY + (H - padY * 2) * (mx - v) / (mx - mn || 1);
+  let g = '';
+  // linha do zero
+  g += `<line x1="${padX}" y1="${Y(0)}" x2="${W - 10}" y2="${Y(0)}" stroke="rgba(255,255,255,.18)" stroke-dasharray="4 4"/>`;
+  g += `<text x="${padX - 8}" y="${Y(0) + 4}" fill="#9aa3b2" font-size="11" text-anchor="end">R$ 0</text>`;
+  for (const s of series) {
+    const pts = s.f.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+    g += `<polyline points="${pts}" fill="none" stroke="${s.cor}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    [0, 4, 9].forEach(i => { g += `<circle cx="${X(i)}" cy="${Y(s.f[i])}" r="5" fill="${s.cor}"/>`; });
+  }
+  [1, 5, 10].forEach((a, k) => { const i = a - 1; g += `<text x="${X(i)}" y="${H - 4}" fill="#9aa3b2" font-size="12" text-anchor="middle">Ano ${a}</text>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%">${g}</svg>`;
+}
+
+const rodape = n => `<div class="rodape"><span><b>IRMÃOS NA OBRA</b> <span class="x">×</span> <b style="color:var(--lar)">SOLMOB</b> &nbsp;|&nbsp; Proposta Comercial · Atendemos todo o Brasil · ${new Date().getFullYear()}</span><span class="num">${String(n).padStart(2, '0')}</span></div>`;
+
+document.getElementById('deck').innerHTML = `
+<!-- 1 · CAPA -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker">Oportunidade de negócio</div>
+  <h1>O Futuro da Mobilidade<br>Elétrica no Brasil</h1>
+  <div class="sub">Instalamos eletropostos em todo o país. Você transforma a localização do seu negócio em receita recorrente.</div>
+  ${t.cliente ? `<div class="capa-cliente">Preparado para <b>${t.cliente}</b>${t.cidade ? ` · <b>${t.cidade}</b>` : ''}</div>` : ''}
+  <div class="quote">“Quem ocupa os melhores pontos primeiro, <span class="hl">domina a rota</span>.”</div>
+  <div class="capa-marcas"><img src="/gerador/logo-io.png" alt="Irmãos na Obra"><span>IRMÃOS NA OBRA</span><span class="x">×</span><span class="sm">SOLMOB</span></div>
+</div>${rodape(1)}</section>
+
+<!-- 2 · POR QUE AGORA -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker">Por que agora?</div>
+  <h2>O ponto de virada da mobilidade elétrica</h2>
+  <div class="grid g3">
+    <div class="cardx"><div class="ic lar">🚗</div><b>Frota elétrica em disparada</b><p>181 mil carros plug-in vendidos em 2025 no Brasil — crescimento de 26% em um ano (ABVE).</p></div>
+    <div class="cardx"><div class="ic verde">📡</div><b>Infraestrutura em expansão</b><p>21 mil eletropostos no país, +42% em 12 meses. Quem entra cedo garante posição.</p></div>
+    <div class="cardx"><div class="ic lar">📍</div><b>Vazio a ser ocupado</b><p>Faltam carregadores rápidos DC na maior parte do país. Demanda sem oferta.</p></div>
+  </div>
+  <div class="box-dest" style="margin-top:clamp(14px,2.5vh,26px)">O mercado está no mesmo momento em que a energia solar estava em <span class="hl">2016</span>.</div>
+</div>${rodape(2)}</section>
+
+<!-- 3 · O PONTO CERTO -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker verde">O ponto certo</div>
+  <h2>Metade do negócio é a localização</h2>
+  <div class="grid g2" style="grid-template-columns:1fr 1fr 1.2fr">
+    <div style="display:grid;gap:clamp(10px,1.6vw,20px)">
+      <div class="cardx"><div class="ic verde">👥</div><b>Fluxo de pessoas</b><p>Movimento constante já é o ativo mais caro de construir.</p></div>
+      <div class="cardx"><div class="ic verde">📍</div><b>Localização de passagem</b><p>Vias, corredores e regiões de alto tráfego de veículos.</p></div>
+    </div>
+    <div style="display:grid;gap:clamp(10px,1.6vw,20px)">
+      <div class="cardx"><div class="ic lar">🕐</div><b>Tempo de permanência</b><p>Quanto mais tempo o cliente fica, mais completa é a recarga.</p></div>
+      <div class="cardx"><div class="ic lar">🚙</div><b>Público com veículo</b><p>Perfil que já dirige — e cada vez mais dirige elétrico.</p></div>
+    </div>
+    <div class="cardx" style="display:flex;flex-direction:column;justify-content:center">
+      <div class="ic verde">📍</div>
+      <b style="color:var(--verde);font-size:clamp(17px,1.8vw,24px)">Onde há fluxo, há receita.</b>
+      <p style="font-style:italic;font-weight:700;color:var(--tx);font-size:clamp(14px,1.5vw,19px);margin-top:10px">Se o seu ponto já tem movimento, a parte difícil está feita. <span style="color:var(--verde)">O resto a gente instala.</span></p>
+    </div>
+  </div>
+</div>${rodape(3)}</section>
+
+<!-- 4 · FICHA TÉCNICA -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker">Ficha técnica</div>
+  <h2>${t.equip} em detalhes</h2>
+  <div class="grid g3">
+    <div class="cardx"><div class="ic lar">⚡</div><b>80 kW</b><p>Potência de recarga em corrente contínua</p></div>
+    <div class="cardx"><div class="ic verde">🔋</div><b>2 conectores</b><p>Atendimento simultâneo · padrão CCS2</p></div>
+    <div class="cardx"><div class="ic lar">🕐</div><b>Recarga rápida</b><p>Minutos para recuperar autonomia</p></div>
+    <div class="cardx"><div class="ic verde">📱</div><b>Plataforma + App</b><p>Gestão, cobrança e monitoramento remoto</p></div>
+    <div class="cardx"><div class="ic lar">☀️</div><b>Integração solar</b><p>Pronto para consumir a energia própria</p></div>
+    <div class="cardx"><div class="ic verde">⚙️</div><b>Operação 24/7</b><p>Robustez para uso intenso e ao ar livre</p></div>
+  </div>
+</div>${rodape(4)}</section>
+
+<!-- 5 · CENÁRIOS -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker">Simulação financeira</div>
+  <h2>Três cenários, um mesmo ativo</h2>
+  <div class="grid g3" style="margin-top:8px">
+    <div class="cen">
+      <h3>Conservador</h3><div class="carros">${carrosCons} veículos/dia</div>
+      <div class="kt">Faturamento anual</div><div class="kv">${money(cons.fatAno)}</div>
+      <div class="kt">Lucro anual (pleno)</div><div class="kv verde">${money(cons.lucroAno)}</div>
+      <div class="kt">Payback</div><div class="kv">${anos1(cons.payback)}</div>
+    </div>
+    <div class="cen dest">
+      <div class="selo">RECOMENDADO</div>
+      <h3 class="lar">Realista</h3><div class="carros">${Math.round(p.carros)} veículos/dia</div>
+      <div class="kt">Faturamento anual</div><div class="kv">${money(base.fatAno)}</div>
+      <div class="kt">Lucro anual (pleno)</div><div class="kv verde">${money(base.lucroAno)}</div>
+      <div class="kt">Payback</div><div class="kv lar">${anos1(base.payback)}</div>
+    </div>
+    <div class="cen">
+      <h3>Expansão</h3><div class="carros">${carrosOtim} veículos/dia</div>
+      <div class="kt">Faturamento anual</div><div class="kv">${money(otim.fatAno)}</div>
+      <div class="kt">Lucro anual (pleno)</div><div class="kv verde">${money(otim.lucroAno)}</div>
+      <div class="kt">Payback</div><div class="kv">${anos1(otim.payback)}</div>
+    </div>
+  </div>
+  <p style="color:var(--tx2);font-size:clamp(11px,1.05vw,13.5px);margin-top:14px">Payback com rampa de ocupação (${Math.round(p.ocupIni * 100)}% → 100% em ${Math.round(p.mesesRampa)} meses) e custos fixos desde o mês 1 — projeção conservadora e defensável.</p>
+</div>${rodape(5)}</section>
+
+<!-- 6 · PREMISSAS -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker">Premissas</div>
+  <h2>De onde vêm os números</h2>
+  <div class="grid g2">
+    <div class="cardx">
+      <table class="prem" style="width:100%;border-collapse:collapse">
+        <tr><td>Preço cobrado do usuário</td><td>R$ ${p.precoKwh.toFixed(2).replace('.', ',')} / kWh</td></tr>
+        <tr><td>Energia média por recarga</td><td class="verde">~ ${p.carga} kWh</td></tr>
+        <tr><td>Ticket médio por recarga</td><td>~ R$ ${ticket}</td></tr>
+        <tr><td>Custo de energia</td><td class="verde">R$ ${p.custoKwh.toFixed(2).replace('.', ',')} / kWh</td></tr>
+        <tr><td>Ocupação (realista)</td><td>${Math.round(p.carros)} recargas / dia</td></tr>
+        <tr><td>Custos operacionais</td><td class="verde">gateway · arrendamento · software · seguro</td></tr>
+      </table>
+    </div>
+    <div>
+      <div style="color:var(--lar);font-weight:700;letter-spacing:.1em;font-size:clamp(12px,1.2vw,15px);margin-bottom:12px">COMO O NÚMERO SE FORMA</div>
+      <div class="forma"><div class="ft">Faturamento anual</div><div class="fx">${Math.round(p.carros)} recargas/dia × R$ ${ticket} × 30 × 12</div><div class="fr">= ${money(base.fatAno)}</div></div>
+      <div class="forma"><div class="ft">Lucro líquido anual (pleno)</div><div class="fx">− energia − taxas − custos fixos</div><div class="fr lar">= ${money(base.lucroAno)}</div></div>
+      <div class="forma"><div class="ft">Payback (com rampa)</div><div class="fx">${money(p.invest)} ÷ lucro acumulado</div><div class="fr">= ${anos1(base.payback)}</div></div>
+    </div>
+  </div>
+</div>${rodape(6)}</section>
+
+<!-- 7 · NOVA UNIDADE DE NEGÓCIOS -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker">Mais que recarga</div>
+  <h2>Uma nova unidade de negócios</h2>
+  <div class="grid g3">
+    <div class="cardx"><div class="ic lar">🚗</div><b>01 · Cliente chega</b><p>Atraído pelo diferencial</p></div>
+    <div class="cardx"><div class="ic verde">🔌</div><b>02 · Carrega o veículo</b><p>Recarga rápida DC 80 kW</p></div>
+    <div class="cardx"><div class="ic lar">🕐</div><b>03 · Permanece mais tempo</b><p>Espera vira permanência</p></div>
+    <div class="cardx"><div class="ic verde">🏪</div><b>04 · Consome serviços</b><p>Cantina, loja, serviços do ponto</p></div>
+    <div class="cardx"><div class="ic lar">🏆</div><b>05 · Fortalece a marca</b><p>Imagem inovadora e premium</p></div>
+    <div class="cardx"><div class="ic verde">💰</div><b>06 · Gera novas receitas</b><p>Múltiplas fontes de caixa</p></div>
+  </div>
+  <div class="box-dest" style="margin-top:clamp(14px,2.5vh,26px)">O eletroposto não é apenas um equipamento. <span class="hl">É uma nova unidade de negócios.</span></div>
+</div>${rodape(7)}</section>
+
+<!-- 8 · ACUMULAÇÃO -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker verde">Projeção de acumulação</div>
+  <h2>O resultado que se acumula no tempo</h2>
+  <div class="grid" style="grid-template-columns:1.7fr 1fr">
+    <div class="chartbox">
+      <div class="ct">Resultado líquido acumulado · após o investimento (R$)</div>
+      <div class="legenda"><span><i style="background:var(--verde)"></i>Expansão · ${carrosOtim}/dia</span><span><i style="background:var(--lar)"></i>Realista · ${Math.round(p.carros)}/dia</span></div>
+      ${chartAcumulacao()}
+    </div>
+    <div class="destaque-lateral">
+      <p>No cenário de ${carrosOtim} veículos/dia</p>
+      <div class="big">+${money(otim.acumulado10)}</div>
+      <p style="color:var(--tx);font-weight:700">acumulados em 10 anos</p>
+      <p style="margin-top:16px">Payback no <span class="hl">${otim.payback ? Math.ceil(otim.payback) + 'º ano' : '—'}</span> e caixa positivo crescente a partir daí.</p>
+    </div>
+  </div>
+</div>${rodape(8)}</section>
+
+<!-- 9 · CHAVE NA MÃO -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker">Quem instala &amp; como funciona</div>
+  <h2>Chave na mão — do projeto ao pós-venda</h2>
+  <div class="grid g2">
+    <div class="cardx">
+      <div style="color:var(--lar);font-weight:700;letter-spacing:.14em;font-size:clamp(11px,1.05vw,13px);margin-bottom:14px">QUEM INSTALA</div>
+      <div class="chk"><span class="ok">✓</span>9+ anos em energia solar — experiência real de campo</div>
+      <div class="chk"><span class="ok">✓</span>Equipe própria: projeto, obra e comissionamento</div>
+      <div class="chk"><span class="ok">✓</span>Equipamento homologado, com garantia e assistência</div>
+      <div class="chk"><span class="ok">✓</span>Obras entregues e clientes atendidos na região</div>
+    </div>
+    <div class="cardx">
+      <div style="color:var(--verde);font-weight:700;letter-spacing:.14em;font-size:clamp(11px,1.05vw,13px);margin-bottom:14px">COMO FUNCIONA DEPOIS</div>
+      <div class="chk"><span class="ok">1</span>Projeto e instalação — infraestrutura, montagem e ligação</div>
+      <div class="chk"><span class="ok">2</span>Plataforma + app — recarga pelo app, cobrança automática</div>
+      <div class="chk"><span class="ok">3</span>Monitoramento remoto — operação e faturamento ao vivo</div>
+      <div class="chk"><span class="ok">4</span>Manutenção e suporte — assistência contínua</div>
+    </div>
+  </div>
+</div>${rodape(9)}</section>
+
+<!-- 10 · INVESTIMENTO -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker">Investimento</div>
+  <h2>Tudo pronto para operar</h2>
+  <div class="grid g2">
+    <div class="cardx" style="border:2px solid var(--lar);display:flex;flex-direction:column;justify-content:center">
+      <div class="inv-lbl">Investimento total</div>
+      <div class="inv-big">${money(p.invest)}</div>
+      <div class="inv-lbl" style="margin-top:22px">Payback estimado</div>
+      <div class="inv-pay"><span class="hl">${anos1(otim.payback).replace(' anos','')}</span> a <span class="hl">${anos1(cons.payback).replace(' anos','')}</span> anos</div>
+    </div>
+    <div class="cardx" style="display:flex;flex-direction:column;justify-content:center">
+      <div style="color:var(--lar);font-weight:700;letter-spacing:.12em;font-size:clamp(11px,1.1vw,14px);margin-bottom:16px">ENTREGA CHAVE NA MÃO</div>
+      <div class="chk"><span class="ok">✓</span>${t.equip} — 2 conectores simultâneos</div>
+      <div class="chk"><span class="ok">✓</span>Projeto executivo + infraestrutura elétrica</div>
+      <div class="chk"><span class="ok">✓</span>Plataforma de gestão + app para usuários</div>
+      <div class="chk"><span class="ok">✓</span>Estação completa, instalada e operacional</div>
+      <div class="chk"><span class="ok">✓</span>Sem custos escondidos</div>
+    </div>
+  </div>
+</div>${rodape(10)}</section>
+
+<!-- 11 · MODELOS DE ENTRADA -->
+<section class="sl"><div class="sl-corpo">
+  <div class="kicker verde">Como entrar</div>
+  <h2>Não precisa ser tudo do seu bolso</h2>
+  <div class="grid g3" style="margin-top:8px">
+    <div class="cardx mod">
+      <div class="mk">MODELO 01</div><h3>Comprar</h3><div class="tag">Seja dono do ativo</div>
+      <p>Investimento único, chave na mão. A estação é sua e 100% da receita fica com você.</p>
+      <p class="obs">Pra quem quer o retorno cheio e o patrimônio no nome.</p>
+    </div>
+    <div class="cardx mod">
+      <div class="mk">MODELO 02</div><h3>Alugar</h3><div class="tag">Sem tirar do bolso</div>
+      <p>Você cede o espaço, a gente instala e opera. Você recebe todo mês, sem investir e sem risco.</p>
+      <p class="obs">Pra quem quer renda passiva, sem dor de cabeça.</p>
+    </div>
+    <div class="cardx mod dest">
+      <div class="selo">A GENTE ENTRA JUNTO</div>
+      <div class="mk">MODELO 03</div><h3 class="verde">Sociedade</h3><div class="tag verde">Investimos com você</div>
+      <p>Se o seu ponto é forte, a Irmãos na Obra põe dinheiro na mesa e divide a receita. Só entramos onde acreditamos.</p>
+      <p class="obs">Pra quem quer crescer com um sócio que investe de verdade.</p>
+    </div>
+  </div>
+</div>${rodape(11)}</section>
+
+<!-- 12 · ENCERRAMENTO -->
+<section class="sl fim"><div class="sl-corpo" style="align-items:center;text-align:center">
+  <img src="/gerador/logo-io.png" alt="Irmãos na Obra" style="height:clamp(64px,9vw,110px);margin-bottom:26px">
+  <div class="marcas">IRMÃOS NA OBRA <span class="x">×</span> <span style="color:var(--lar)">SOLMOB</span></div>
+  <div class="frase">Transformando <span class="hl">localização em patrimônio</span>, <span class="hlv">energia em receita</span> e visão em crescimento.</div>
+  <div class="contato">
+    ${t.autor ? `<b>${t.autor}</b><br>` : ''}${t.contato ? `${t.contato}<br>` : ''}
+    <span style="letter-spacing:.18em;font-size:clamp(10px,1vw,13px)">PROPOSTA COMERCIAL · ATENDEMOS TODO O BRASIL · ${new Date().getFullYear()}</span>
+  </div>
+</div>${rodape(12)}</section>`;
+
+document.title = (t.cliente ? t.cliente.replace(/\s+/g, '') + '_' : '') + 'Eletroposto_Apresentacao';
+// navegação por teclado (setas/espaço avançam por slide)
+document.addEventListener('keydown', e => {
+  const sls = [...document.querySelectorAll('.sl')];
+  const atual = Math.round(window.scrollY / window.innerHeight);
+  if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); sls[Math.min(sls.length - 1, atual + 1)]?.scrollIntoView(); }
+  if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); sls[Math.max(0, atual - 1)]?.scrollIntoView(); }
+});
+</script>
+</body>
+</html>

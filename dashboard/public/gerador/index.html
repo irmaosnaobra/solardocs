@@ -1932,6 +1932,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="eletro-btn primary" onclick="eletroImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Gerar proposta PDF</button>
           <button type="button" class="eletro-btn" onclick="eletroWhatsApp()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> WhatsApp</button>
           <button type="button" class="eletro-btn" onclick="eletroToggleComparar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparar cenários</button>
+          <button type="button" class="eletro-btn" onclick="eletroApresentacao()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg> Apresentação</button>
         </div>
 
         <!-- análise de sensibilidade (conservador / base / otimista) -->
@@ -5006,6 +5007,22 @@ function eletroResumoTexto() {
 function eletroWhatsApp() {
   const url = 'https://wa.me/?text=' + encodeURIComponent(eletroResumoTexto());
   window.open(url, '_blank', 'noopener');
+}
+
+// Apresentação comercial 16:9 (slides dark) com os números deste orçamento.
+// A página /gerador/apresentacao.html recalcula com as MESMAS fórmulas (cópia sincronizada).
+function eletroApresentacao() {
+  const t = eletroTextos();
+  const qs = new URLSearchParams({
+    cliente: t.cliente, cidade: t.cidade, equip: t.equip, autor: t.autor, contato: t.contato,
+    carros: elNum('el-carros'), carga: elNum('el-carga'), custokwh: elNum('el-custokwh'),
+    precokwh: elNum('el-precokwh'), ativ: elNum('el-ativacao'), invest: elNum('el-invest'),
+    plugs: elNum('el-plugs'), assin: elNum('el-assinatura'), fixos: elNum('el-fixos'),
+    gateway: elNum('el-gateway'), arrend: elNum('el-arrend'), manut: elNum('el-manut'),
+    imposto: elNum('el-imposto'), ocup: elNum('el-ocup'), rampa: elNum('el-rampa'),
+    taxadesc: elNum('el-taxadesc'),
+  });
+  window.open('/gerador/apresentacao.html?' + qs.toString(), '_blank', 'noopener');
 }
 
 // Panorama de mercado — dados oficiais (ABVE). Atualize aqui quando os números mudarem.
