@@ -236,6 +236,108 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* DIFERENCIAIS — feature grid (padrão gdpro.app, com a marca SolarDoc) */}
+      <section className={styles.diffs}>
+        <div className={styles.diffsInner}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Por que SolarDoc</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
+            A plataforma que <strong>fecha a venda solar</strong> — não só gera papel.
+          </h2>
+
+          <div className={styles.diffsGrid} style={{ marginTop: 40 }}>
+            <div className={styles.diffCard} data-reveal>
+              <div className={styles.diffIcon}>🎨</div>
+              <h3 className={styles.diffH}>Com a sua marca</h3>
+              <p className={styles.diffP}>
+                Sua logo, sua cor, seu nome em <b>todos os documentos</b>. O cliente abre o PDF e
+                vê a cara da sua empresa — confia antes de você falar.
+              </p>
+            </div>
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.05s' }}>
+              <div className={styles.diffIcon}>⚡</div>
+              <h3 className={styles.diffH}>Pronto em 2 minutos</h3>
+              <p className={styles.diffP}>
+                Preenche os dados do cliente e o documento sai <b>formatado e completo</b>.
+                Sem Word, sem template quebrado, sem perder a tarde.
+              </p>
+            </div>
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.1s' }}>
+              <div className={styles.diffIcon}>📄</div>
+              <h3 className={styles.diffH}>8 documentos num lugar só</h3>
+              <p className={styles.diffP}>
+                Proposta, contrato, procuração, financiamento, recibo, vistoria — <b>tudo o que o
+                integrador precisa</b> pra fechar, do orçamento à assinatura.
+              </p>
+            </div>
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.15s' }}>
+              <div className={styles.diffIcon}>🏛️</div>
+              <h3 className={styles.diffH}>Aceito nas concessionárias</h3>
+              <p className={styles.diffP}>
+                Procurações padronizadas pra passar de primeira na <b>CEMIG, Enel, CPFL, Energisa</b>
+                e nas principais do Brasil. Menos retrabalho, homologa mais rápido.
+              </p>
+            </div>
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.2s' }}>
+              <div className={styles.diffIcon}>📱</div>
+              <h3 className={styles.diffH}>Fecha no WhatsApp</h3>
+              <p className={styles.diffP}>
+                Gera e <b>manda direto pro cliente</b> no computador ou no celular. A proposta chega
+                bonita, na hora, enquanto o cliente ainda está quente.
+              </p>
+            </div>
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.25s' }}>
+              <div className={styles.diffIcon}>🙋</div>
+              <h3 className={styles.diffH}>O dono mesmo usa</h3>
+              <p className={styles.diffP}>
+                Sem advogado, sem secretária, sem escritório. Foi feito pra <b>quem toca a empresa
+                sozinho</b> — abre, cadastra, gera e envia.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* COMO FUNCIONA — 3 passos (padrão gdpro.app) */}
+      <section className={styles.how}>
+        <div className={styles.howInner}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Como funciona</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
+            Do cliente ao documento pronto em <strong>3 passos</strong>.
+          </h2>
+
+          <div className={styles.howGrid}>
+            <div className={styles.howStep} data-reveal>
+              <div className={styles.howNum}>1</div>
+              <h3 className={styles.howH}>Configure a sua marca</h3>
+              <p className={styles.howP}>
+                Sobe a logo, escolhe a cor da empresa e pronto — <b>uma vez só</b>. Todo documento
+                que você gerar já sai com a sua identidade.
+              </p>
+            </div>
+            <div className={styles.howStep} data-reveal style={{ transitionDelay: '0.1s' }}>
+              <div className={styles.howNum}>2</div>
+              <h3 className={styles.howH}>Cadastre o cliente</h3>
+              <p className={styles.howP}>
+                Preenche os dados da venda — ou <b>escaneia a conta de luz</b> e a plataforma puxa o
+                cliente pra você. Sem digitar tudo à mão.
+              </p>
+            </div>
+            <div className={styles.howStep} data-reveal style={{ transitionDelay: '0.2s' }}>
+              <div className={styles.howNum}>3</div>
+              <h3 className={styles.howH}>Gere e envie</h3>
+              <p className={styles.howP}>
+                Escolhe o documento, clica em gerar e <b>manda pro WhatsApp do cliente</b> em PDF.
+                Formatado, com a sua cara, na hora.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* DOCS */}
       <section className={styles.docs}>
         <div className={styles.docsInner}>
@@ -279,6 +381,53 @@ export default function Landing() {
             <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.35s' }}>
               <span className={styles.docCheck}>✓</span>
               <span className={styles.docName}>Vistoria Técnica</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* COMPARATIVO — com/sem SolarDoc (padrão gdpro.app) */}
+      <section className={styles.compare}>
+        <div className={styles.compareInner}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Antes e depois</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
+            A diferença entre <strong>perder e fechar</strong> a venda.
+          </h2>
+
+          <div className={styles.compareGrid}>
+            <div className={styles.compareCol} data-reveal>
+              <div className={styles.compareTitle}>No Word / à mão</div>
+              <ul className={styles.compareList}>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Template quebra e desformata toda hora</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Procuração recusada, refaz 3 vezes</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Documento sem a cara da empresa</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Meia tarde perdida por contrato</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Cliente esfria esperando o PDF</li>
+              </ul>
+            </div>
+
+            <div className={styles.compareCol} data-reveal style={{ transitionDelay: '0.08s' }}>
+              <div className={styles.compareTitle}>Com advogado</div>
+              <ul className={styles.compareList}>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Custa caro por documento</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Depende da agenda de outra pessoa</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Demora dias pra voltar</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Não conhece o padrão da concessionária</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Trava a sua venda</li>
+              </ul>
+            </div>
+
+            <div className={`${styles.compareCol} ${styles.compareColBest}`} data-reveal style={{ transitionDelay: '0.16s' }}>
+              <div className={styles.compareTitle}>Com SolarDoc</div>
+              <ul className={styles.compareList}>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Documento pronto em 2 minutos</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Procuração aceita nas concessionárias</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Tudo com a sua logo e a sua cor</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Você mesmo faz, sem depender de ninguém</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Manda no WhatsApp com o cliente quente</li>
+              </ul>
             </div>
           </div>
         </div>
