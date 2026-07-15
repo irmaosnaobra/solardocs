@@ -216,8 +216,11 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 /* Páginas A4 explícitas: cada .ep-page é uma folha com margem interna própria em TODOS os lados
    (o @page{margin:0} mata o carimbo do navegador; a margem visual vive aqui). Flex empurra o
    rodapé de página pro pé da folha. min-height < 297mm evita folha em branco por arredondamento. */
-.ep-page{box-sizing:border-box;min-height:293mm;padding:14mm 14mm 8mm;display:flex;flex-direction:column;page-break-after:always;break-after:page}
+.ep-page{box-sizing:border-box;min-height:293mm;padding:14mm 14mm 8mm;display:flex;flex-direction:column;page-break-after:always;break-after:page;position:relative}
 .ep-page:last-child{page-break-after:auto;break-after:auto}
+/* marca d'água: arte navy centrada atrás do conteúdo de cada folha (img imprime sempre, independe de "background graphics") */
+.ep-marca{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:72%;opacity:.09;z-index:0;pointer-events:none}
+.ep-page>*:not(.ep-marca){position:relative;z-index:1}
 .ep-pagefoot{margin-top:auto;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#8a94a3}
 /* boxes filhos diretos da página mantêm altura natural (o flex:1 do .ep-box é só pro par lado-a-lado do .ep-cols) */
 .ep-page>.ep-box,.ep-page>.ep-avoid-break{flex:0 0 auto}
@@ -4732,6 +4735,7 @@ function navEletroposto() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   eletroSubaba('simulador');   // sempre reabre no Simulador
   eletroCalc();
+  new Image().src = 'eletroposto-arte.png';   // aquece o cache da marca d'água do PDF
 }
 
 // Sub-abas dentro do Eletroposto: Simulador | Pesquisa | Mercado | Postos | Mapa
@@ -5083,6 +5087,7 @@ function eletroImprimir() {
   host.innerHTML = `
     <div class="ep-doc">
       <div class="ep-page">
+      <img class="ep-marca" src="eletroposto-arte.png" alt="">
       <div class="ep-head">
         <div><div class="ep-title">Estudo de Viabilidade Técnico-Econômica — Eletroposto</div></div>
         <div class="ep-date">${hoje.toLocaleDateString('pt-BR')}<br>Validade: ${validade.toLocaleDateString('pt-BR')}</div>
@@ -5137,6 +5142,7 @@ function eletroImprimir() {
       </div><!-- /página 1 -->
 
       <div class="ep-page">
+      <img class="ep-marca" src="eletroposto-arte.png" alt="">
       <div class="ep-avoid-break">
         <div class="ep-kpi-title">Resultado mensal (regime pleno)</div>
         <div class="ep-kpis">
@@ -5178,6 +5184,7 @@ function eletroImprimir() {
       </div><!-- /página 2 -->
 
       <div class="ep-page">
+      <img class="ep-marca" src="eletroposto-arte.png" alt="">
       <div class="ep-box ep-avoid-break">
         <h3>Fluxo de caixa acumulado (10 anos)</h3>
         <div class="ep-chart">${eletroFluxoSVG(r.fluxo)}</div>
@@ -5195,6 +5202,7 @@ function eletroImprimir() {
       </div><!-- /página 3 -->
 
       <div class="ep-page">
+      <img class="ep-marca" src="eletroposto-arte.png" alt="">
       <div class="ep-box ep-avoid-break">
         <h3>Riscos e mitigantes</h3>
         <table class="ep-riscos">
@@ -5232,8 +5240,15 @@ function eletroImprimir() {
   const restaurar = () => { document.title = tituloOriginal; };
   document.title = slug + '_EletropostoIO';
   window.addEventListener('afterprint', restaurar, { once: true });
-  window.print();
-  setTimeout(restaurar, 2000);   // fallback caso afterprint não dispare
+  // espera a marca d'água carregar antes de abrir a impressão (evita 1º print sem a arte)
+  const imgs = Array.from(host.querySelectorAll('img')).filter(im => !im.complete);
+  const aguarda = imgs.length
+    ? Promise.race([
+        Promise.all(imgs.map(im => new Promise(res => { im.onload = im.onerror = res; }))),
+        new Promise(res => setTimeout(res, 1500)),
+      ])
+    : Promise.resolve();
+  aguarda.then(() => { window.print(); setTimeout(restaurar, 2000); });
 }
 
 const calcFmt = n => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
