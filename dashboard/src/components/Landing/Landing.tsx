@@ -295,6 +295,22 @@ export default function Landing() {
                 sozinho</b> — abre, cadastra, gera e envia.
               </p>
             </div>
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.3s' }}>
+              <div className={styles.diffIcon}>🧮</div>
+              <h3 className={styles.diffH}>Calculadora de Precificação</h3>
+              <p className={styles.diffP}>
+                Monta o <b>preço certo da venda</b> na hora — custo do kit, margem e comissão.
+                Você para de chutar o valor e protege o seu lucro em cada proposta.
+              </p>
+            </div>
+            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.35s' }}>
+              <div className={styles.diffIcon}>📦</div>
+              <h3 className={styles.diffH}>Controle de Inventário</h3>
+              <p className={styles.diffP}>
+                Sabe <b>quanto tem de painel, inversor e material</b> em estoque a qualquer hora.
+                Entra e sai automático conforme você vende — sem planilha paralela.
+              </p>
+            </div>
           </div>
         </div>
       </section>
