@@ -5,6 +5,76 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Gerador de Proposta Solar — Irmãos na Obra</title>
 <meta name="theme-color" content="#1E3A8A">
+<!-- ═══ AUTO-RECUPERAÇÃO DE TELA BRANCA (watchdog) ═══════════════════════════
+     Se o app não sinalizar que subiu (window.__geradorBooted) dentro de ~6s, o
+     mais provável é cache/SW quebrado servindo HTML/JS incompatível (tela
+     branca). Aí desregistra os SW do /gerador/, apaga os caches 'gerador-*' e
+     recarrega UMA vez. Guard anti-loop em sessionStorage: se já tentou nos
+     últimos 60s, NÃO recarrega de novo (senão vira loop infinito) — mostra um
+     aviso amigável com botão de tentar de novo. Roda o mais cedo possível, antes
+     de qualquer CSS/JS que possa falhar. -->
+<script>
+(function(){
+  var RECOVER_KEY = 'gerador-recover-ts';
+  var GRACE_MS = 6000;      // tempo pro app subir antes de considerar quebrado
+  var COOLDOWN_MS = 60000;  // não recupera 2x dentro dessa janela (anti-loop)
+
+  function jaTentouRecente(){
+    try {
+      var ts = parseInt(sessionStorage.getItem(RECOVER_KEY) || '0', 10);
+      return ts && (Date.now() - ts) < COOLDOWN_MS;
+    } catch(e){ return false; }
+  }
+
+  function mostrarFalha(){
+    // Recuperação já foi tentada e o app AINDA não subiu → não recarrega em loop.
+    // Mostra uma tela mínima (não depende de nenhum asset externo) com retry.
+    try { document.documentElement.dataset.mode = 'recover'; } catch(e){}
+    document.body.innerHTML =
+      '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#1E3A8A;color:#fff;font-family:system-ui,-apple-system,sans-serif;padding:32px;text-align:center">'
+      + '<div style="font-size:20px;font-weight:700">Gerador de Propostas</div>'
+      + '<div style="font-size:14px;opacity:.85;max-width:320px;line-height:1.5">Não foi possível carregar. Toque em Recarregar — se persistir, feche e reabra o app.</div>'
+      + '<button onclick="(function(){try{sessionStorage.removeItem(\'' + RECOVER_KEY + '\')}catch(e){};location.reload()})()" '
+      + 'style="margin-top:8px;padding:12px 28px;border:none;border-radius:10px;background:#fff;color:#1E3A8A;font-weight:700;font-size:15px;cursor:pointer">Recarregar</button>'
+      + '</div>';
+  }
+
+  function recuperar(){
+    try { sessionStorage.setItem(RECOVER_KEY, String(Date.now())); } catch(e){}
+    var done = false;
+    var recarrega = function(){ if (done) return; done = true; location.reload(); };
+    // Desregistra SW do gerador + apaga caches 'gerador-*', depois recarrega.
+    var tarefas = [];
+    try {
+      if ('serviceWorker' in navigator) {
+        tarefas.push(navigator.serviceWorker.getRegistrations().then(function(regs){
+          return Promise.all(regs.map(function(r){
+            // só os do escopo /gerador/ (não mexe no SW do SolarDoc principal)
+            if (r.scope && r.scope.indexOf('/gerador/') !== -1) return r.unregister();
+          }));
+        }).catch(function(){}));
+      }
+      if (window.caches && caches.keys) {
+        tarefas.push(caches.keys().then(function(keys){
+          return Promise.all(keys.filter(function(k){ return k.indexOf('gerador') !== -1; })
+            .map(function(k){ return caches.delete(k); }));
+        }).catch(function(){}));
+      }
+    } catch(e){}
+    // Recarrega quando terminar (ou após 2.5s, o que vier primeiro).
+    Promise.all(tarefas).then(recarrega).catch(recarrega);
+    setTimeout(recarrega, 2500);
+  }
+
+  window.addEventListener('load', function(){
+    setTimeout(function(){
+      if (window.__geradorBooted) return;      // app subiu → nada a fazer
+      if (jaTentouRecente()) { mostrarFalha(); return; }  // já tentou → não faz loop
+      recuperar();
+    }, GRACE_MS);
+  });
+})();
+</script>
 <meta name="description" content="Gerador de propostas comerciais de energia solar — Irmãos na Obra">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2437,6 +2507,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <script src="/gerador/solar-data.js"></script>
 <script src="/gerador/tabelas.js"></script>
 <script>
+// Sinaliza pro watchdog de auto-recuperação (no <head>) que o HTML e os JS
+// externos (solar-data.js/tabelas.js) carregaram íntegros e o código principal
+// está rodando. Sem isso, o watchdog assumiria tela branca por cache/SW quebrado
+// e recarregaria limpo. Marcar aqui (início do script principal) = "os assets
+// essenciais vieram OK"; um erro lógico mais abaixo é outro tipo de bug.
+window.__geradorBooted = true;
 
 // ============= SUPABASE =============
 const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
