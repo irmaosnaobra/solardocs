@@ -1015,6 +1015,16 @@
   margin-bottom: 18px;
   box-shadow: 0 8px 20px rgba(245, 158, 11, 0.15);
 }
+.diffIcon svg {
+  width: 26px;
+  height: 26px;
+  color: var(--color-primary);
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .diffH {
   font-size: 19px;
   font-weight: 800;

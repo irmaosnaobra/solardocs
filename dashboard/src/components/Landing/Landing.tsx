@@ -248,7 +248,7 @@ export default function Landing() {
 
           <div className={styles.diffsGrid} style={{ marginTop: 40 }}>
             <div className={styles.diffCard} data-reveal>
-              <div className={styles.diffIcon}>🎨</div>
+              <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="1.2"/><circle cx="17.5" cy="10.5" r="1.2"/><circle cx="8.5" cy="7.5" r="1.2"/><circle cx="6.5" cy="12.5" r="1.2"/><path d="M12 2a10 10 0 1 0 0 20 2.5 2.5 0 0 0 2-4c-.5-.7-.3-1.7.5-2h1.5A4 4 0 0 0 22 12 10 10 0 0 0 12 2z"/></svg></div>
               <h3 className={styles.diffH}>Com a sua marca</h3>
               <p className={styles.diffP}>
                 Sua logo, sua cor, seu nome em <b>todos os documentos</b>. O cliente abre o PDF e
@@ -256,7 +256,7 @@ export default function Landing() {
               </p>
             </div>
             <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.05s' }}>
-              <div className={styles.diffIcon}>⚡</div>
+              <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 10-12h-7z"/></svg></div>
               <h3 className={styles.diffH}>Pronto em 2 minutos</h3>
               <p className={styles.diffP}>
                 Preenche os dados do cliente e o documento sai <b>formatado e completo</b>.
@@ -264,7 +264,7 @@ export default function Landing() {
               </p>
             </div>
             <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.diffIcon}>📄</div>
+              <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M8 4h7l4 4v10a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M15 4v4h4"/><path d="M5 8v11a1 1 0 0 0 1 1h9"/></svg></div>
               <h3 className={styles.diffH}>8 documentos num lugar só</h3>
               <p className={styles.diffP}>
                 Proposta, contrato, procuração, financiamento, recibo, vistoria — <b>tudo o que o
@@ -272,7 +272,7 @@ export default function Landing() {
               </p>
             </div>
             <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.15s' }}>
-              <div className={styles.diffIcon}>🏛️</div>
+              <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M4 9h16"/><path d="M12 3 4 7v2h16V7z"/><path d="M6 9v8M10 9v8M14 9v8M18 9v8"/><path d="M3 21h18"/></svg></div>
               <h3 className={styles.diffH}>Aceito nas concessionárias</h3>
               <p className={styles.diffP}>
                 Procurações padronizadas pra passar de primeira na <b>CEMIG, Enel, CPFL, Energisa</b>
@@ -280,7 +280,7 @@ export default function Landing() {
               </p>
             </div>
             <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.diffIcon}>📱</div>
+              <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M21 11.5a8 8 0 0 1-11.5 7.2L4 20l1.3-5.5A8 8 0 1 1 21 11.5z"/></svg></div>
               <h3 className={styles.diffH}>Fecha no WhatsApp</h3>
               <p className={styles.diffP}>
                 Gera e <b>manda direto pro cliente</b> no computador ou no celular. A proposta chega
@@ -288,7 +288,7 @@ export default function Landing() {
               </p>
             </div>
             <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.25s' }}>
-              <div className={styles.diffIcon}>🙋</div>
+              <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></div>
               <h3 className={styles.diffH}>O dono mesmo usa</h3>
               <p className={styles.diffP}>
                 Sem advogado, sem secretária, sem escritório. Foi feito pra <b>quem toca a empresa
@@ -296,7 +296,7 @@ export default function Landing() {
               </p>
             </div>
             <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.3s' }}>
-              <div className={styles.diffIcon}>🧮</div>
+              <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8"/><circle cx="8.5" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="18.5" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="18.5" r=".6" fill="currentColor" stroke="none"/></svg></div>
               <h3 className={styles.diffH}>Calculadora de Precificação</h3>
               <p className={styles.diffP}>
                 Monta o <b>preço certo da venda</b> na hora — custo do kit, margem e comissão.
@@ -304,7 +304,7 @@ export default function Landing() {
               </p>
             </div>
             <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.35s' }}>
-              <div className={styles.diffIcon}>📦</div>
+              <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M3 7 12 3l9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></div>
               <h3 className={styles.diffH}>Controle de Inventário</h3>
               <p className={styles.diffP}>
                 Sabe <b>quanto tem de painel, inversor e material</b> em estoque a qualquer hora.
