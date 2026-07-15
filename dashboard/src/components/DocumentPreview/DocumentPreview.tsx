@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Download, Pencil, Save, Check, X, FilePlus } from 'lucide-react';
 import styles from './DocumentPreview.module.css';
 import api from '@/services/api';
-import { getToken } from '@/services/auth';
+import { downloadDocumentPdf } from '@/services/downloadPdf';
 interface Company {
   nome: string;
   cnpj: string;
@@ -200,29 +200,12 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
       return;
     }
 
-    const token = getToken();
-    if (!token) {
-      alert('Sessão expirou. Faça login novamente.');
-      return;
-    }
-
     // Server-side PDF (Puppeteer/Chromium) com margens A4 fixas — mais confiável
-    // que html2pdf.js no browser.
-    //
-    // Download via navegação MESMA-ORIGEM (/_api em produção). Crítico pra
-    // mobile: iOS Safari frequentemente ignora o download via blob
-    // (createObjectURL + a.click()) — abre em aba ou não faz nada ("nada
-    // acontece"). A navegação direta pra uma URL com Content-Disposition:
-    // attachment funciona no iOS (renderiza inline / salva), e mesma-origem
-    // evita o problema de cross-origin do solardocs-api.vercel.app. O token vai
-    // na query porque navegação não manda header Authorization (a rota
-    // /documents/:id/pdf aceita ?token= via downloadAuth). Esta plataforma
-    // depende de o cliente conseguir baixar — priorizamos confiabilidade em
-    // TODO dispositivo sobre esconder o token da URL.
-    const base = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
-      ? '/_api'
-      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
-    window.location.href = `${base}/documents/${docId}/pdf?token=${encodeURIComponent(token)}`;
+    // que html2pdf.js no browser. Download via iframe oculto (não prende o PWA
+    // no iOS). Ver downloadPdf.ts.
+    if (downloadDocumentPdf(docId) === 'no-token') {
+      alert('Sessão expirou. Faça login novamente.');
+    }
   }
 
   return (

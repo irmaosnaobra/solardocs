@@ -2074,7 +2074,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   // Logo da empresa: usa logo_base64 se tiver, senão texto
   const empresaCompany = company as Company & { logo_base64?: string };
   const logoHtml = empresaCompany.logo_base64
-    ? `<img src="${empresaCompany.logo_base64}" alt="${pEsc(company.nome)}" style="max-height: 56px; max-width: 220px; object-fit: contain;"/>`
+    ? `<img src="${empresaCompany.logo_base64}" alt="${pEsc(company.nome)}" style="max-height: 100px; max-width: 340px; object-fit: contain;"/>`
     : `<div style="font-size: 24px; font-weight: 800; letter-spacing: -1px;">${pEsc(company.nome)}</div>`;
 
   // Bloco de pagamento: monta os cards que o consultor marcou no form
