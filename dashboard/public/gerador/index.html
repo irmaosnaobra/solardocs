@@ -225,9 +225,13 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 .ep-pagefoot{margin-top:18px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#8a94a3}
 /* boxes filhos diretos da página mantêm altura natural (o flex:1 do .ep-box é só pro par lado-a-lado do .ep-cols) */
 .ep-page>.ep-box,.ep-page>.ep-avoid-break{flex:0 0 auto}
+/* logo minimalista no topo da página 1 (monograma navy + wordmark espaçada) */
+.ep-brand{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.ep-brand-mark{width:26px;height:26px;border-radius:7px;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11.5px;letter-spacing:.5px}
+.ep-brand-name{font-size:10.5px;font-weight:700;letter-spacing:3px;color:#1e3a5f;text-transform:uppercase}
 .ep-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #1e3a5f;padding-bottom:10px;margin-bottom:6px}
 .ep-title{font-size:19px;font-weight:800;color:#1e3a5f}
-.ep-date{font-size:11px;color:#666;text-align:right;line-height:1.5}
+.ep-date{font-size:11px;color:#666;text-align:right;line-height:1.5;white-space:nowrap}
 .ep-meta{display:flex;justify-content:space-between;gap:14px;font-size:12px;color:#444;margin-bottom:16px;padding:8px 0;border-bottom:1px solid #e5e7eb}
 .ep-meta b{color:#1a1a1a}
 .ep-exec{border:1px solid #d3dce6;border-left:4px solid #1e3a5f;border-radius:6px;background:#f6f8fb;padding:13px 16px;font-size:12.5px;color:#2a3947;line-height:1.65;margin-bottom:18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -5053,7 +5057,7 @@ function eletroImprimir() {
   const pb = elAnos1(r.payback);
   const txPct = (r.taxaDesc * 100).toFixed(2).replace('.', ',') + '% a.a.';
   const hoje = new Date();
-  const validade = new Date(hoje.getTime() + 30 * 24 * 3600 * 1000);
+  const validade = new Date(hoje.getTime() + 7 * 24 * 3600 * 1000);
 
   const linhasFluxo = r.fluxo.map((v, i) =>
     `<tr><td>Ano ${i + 1}${i === 0 ? ' (rampa de ocupação)' : ''}</td><td class="num" style="color:${v < 0 ? '#b91c1c' : '#15803d'}">${money(v)}</td></tr>`).join('');
@@ -5089,9 +5093,10 @@ function eletroImprimir() {
     <div class="ep-doc">
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
+      <div class="ep-brand"><div class="ep-brand-mark">IO</div><div class="ep-brand-name">Irmãos na Obra</div></div>
       <div class="ep-head">
         <div><div class="ep-title">Estudo de Viabilidade Técnico-Econômica — Eletroposto</div></div>
-        <div class="ep-date">${hoje.toLocaleDateString('pt-BR')}<br>Validade: ${validade.toLocaleDateString('pt-BR')}</div>
+        <div class="ep-date">${hoje.toLocaleDateString('pt-BR')}<br>Validade: ${validade.toLocaleDateString('pt-BR')} (7 dias)</div>
       </div>
       <div class="ep-meta">
         <span>${t.cliente ? `Preparado para: <b>${t.cliente}</b>` : ''}${t.cliente && t.cidade ? ' · ' : ''}${t.cidade ? `Local: <b>${t.cidade}</b>` : ''}</span>
@@ -5234,12 +5239,14 @@ function eletroImprimir() {
     </div>`;
 
   // Nome do arquivo no "Salvar como PDF" = título do documento na hora do print.
-  const slug = (t.cliente || t.cidade || 'Estudo')
+  // Padrão: NomeCliente_Eletroposto_Cidade (sem acentos/espaços/símbolos).
+  const limpa = s => (s || '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')   // remove acentos (compatibilidade de arquivo)
     .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  const nomeArq = [limpa(t.cliente) || 'Estudo', 'Eletroposto', limpa(t.cidade)].filter(Boolean).join('_');
   const tituloOriginal = document.title;
   const restaurar = () => { document.title = tituloOriginal; };
-  document.title = slug + '_EletropostoIO';
+  document.title = nomeArq;
   window.addEventListener('afterprint', restaurar, { once: true });
   // espera a marca d'água carregar antes de abrir a impressão (evita 1º print sem a arte)
   const imgs = Array.from(host.querySelectorAll('img')).filter(im => !im.complete);
