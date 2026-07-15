@@ -129,6 +129,11 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 .eletro-field .eletro-inp{position:relative;width:132px;flex-shrink:0}
 .eletro-field .eletro-inp.eletro-inp-wide{width:190px}
 .eletro-inp-wide input{text-align:left;font-weight:600}
+/* histórico de orçamentos do eletroposto */
+.ehist th{text-align:right}
+.ehist td{white-space:nowrap}
+.ehist-btn{padding:5px 10px;font-size:12px;border-radius:8px;margin-left:4px}
+.ehist-x{color:#fca5a5;border-color:rgba(248,113,113,.35)}
 .eletro-inp .pre{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:13px;font-weight:600;pointer-events:none}
 .eletro-inp .suf{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:13px;font-weight:600;pointer-events:none}
 .eletro-inp input{width:100%;box-sizing:border-box;padding:9px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:14px;font-family:inherit;font-weight:700;text-align:right;outline:none;transition:border-color .2s}
@@ -1806,6 +1811,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <!-- sub-abas -->
     <div class="eletro-subnav">
       <button type="button" id="eletro-tab-simulador" class="eletro-subtab ativa" onclick="eletroSubaba('simulador')">Simulador</button>
+      <button type="button" id="eletro-tab-historico" class="eletro-subtab" onclick="eletroSubaba('historico')">Histórico</button>
       <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
       <button type="button" id="eletro-tab-mercado" class="eletro-subtab" onclick="eletroSubaba('mercado')">Mercado</button>
       <button type="button" id="eletro-tab-postos" class="eletro-subtab" onclick="eletroSubaba('postos')">Postos</button>
@@ -1852,7 +1858,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-field"><label>Bicos de carregamento <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(aparece na proposta)</span></label>
             <div class="eletro-inp"><input type="number" id="el-plugs" inputmode="decimal" min="1" value="2" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Investimento total</label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-invest" inputmode="decimal" value="200000" oninput="eletroCalc()"></div></div>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-invest" inputmode="decimal" value="180000" oninput="eletroCalc()"></div></div>
         </div>
 
         <div class="card">
@@ -1948,6 +1954,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       Ano&nbsp;1 aplica a rampa de ocupação; custos fixos correm desde o mês&nbsp;1. VPL/TIR sobre o fluxo anual de 10&nbsp;anos à taxa de desconto informada.
     </div>
     </div><!-- /eletro-pane-simulador -->
+
+    <!-- ===== PANE: HISTÓRICO (orçamentos de eletroposto salvos) ===== -->
+    <div id="eletro-pane-historico" style="display:none;">
+      <div class="pesquisa-info">Todo orçamento com <b>cliente preenchido</b> é salvo aqui automaticamente ao gerar a proposta PDF ou a apresentação. Clique em <b>Abrir</b> pra recarregar os números no simulador.</div>
+      <div class="card">
+        <div class="eletro-sec-title">Orçamentos gerados</div>
+        <div class="eletro-cmp-scroll"><table class="eletro-cmp ehist" id="el-hist-tabela"><tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody></table></div>
+      </div>
+    </div>
 
     <!-- ===== PANE: PESQUISA (Power BI) ===== -->
     <div id="eletro-pane-pesquisa" style="display:none;">
@@ -4744,9 +4759,10 @@ function navEletroposto() {
   new Image().src = '/gerador/logo-io.png';            // aquece a logo do cabeçalho do PDF
 }
 
-// Sub-abas dentro do Eletroposto: Simulador | Pesquisa | Mercado | Postos | Mapa
+// Sub-abas dentro do Eletroposto: Simulador | Histórico | Pesquisa | Mercado | Postos | Mapa
 function eletroSubaba(qual) {
-  const abas = ['simulador', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  const abas = ['simulador', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  if (qual === 'historico') eletroHistCarregar();
   abas.forEach(a => {
     const pane = document.getElementById('eletro-pane-' + a);
     if (pane) pane.style.display = (a === qual) ? '' : 'none';
@@ -5012,6 +5028,7 @@ function eletroWhatsApp() {
 // Apresentação comercial 16:9 (slides dark) com os números deste orçamento.
 // A página /gerador/apresentacao.html recalcula com as MESMAS fórmulas (cópia sincronizada).
 function eletroApresentacao() {
+  eletroSalvarHistorico();   // registra o orçamento no histórico (fire-and-forget)
   const t = eletroTextos();
   const qs = new URLSearchParams({
     cliente: t.cliente, cidade: t.cidade, equip: t.equip, autor: t.autor, contato: t.contato,
@@ -5023,6 +5040,113 @@ function eletroApresentacao() {
     taxadesc: elNum('el-taxadesc'),
   });
   window.open('/gerador/apresentacao.html?' + qs.toString(), '_blank', 'noopener');
+}
+
+// ===== Histórico de orçamentos do eletroposto (tabela eletroposto_propostas) =====
+// Salva automaticamente ao gerar PDF/apresentação, se o cliente estiver preenchido.
+// 1 linha por (cliente|cidade|consultor); regerar atualiza a linha e conta em `geracoes`.
+function eletroInputsCrus() {
+  const ids = ['carros','carga','custokwh','precokwh','ativacao','plugs','invest','assinatura','fixos','gateway','arrend','manut','imposto','ocup','rampa','taxadesc'];
+  const o = {};
+  ids.forEach(id => { o[id] = elNum('el-' + id); });
+  return o;
+}
+function eletroConsultorLogado() {
+  try { return (JSON.parse(localStorage.getItem(AUTH_KEY) || '{}').consultor || '').trim(); } catch (e) { return ''; }
+}
+async function eletroSalvarHistorico() {
+  const t = eletroTextos();
+  if (!t.cliente) return;   // orçamento sem cliente é rascunho — não polui o histórico
+  try {
+    const r = computeEletro(eletroParams());
+    const consultor = eletroConsultorLogado();
+    const chave = [t.cliente, t.cidade, consultor].map(s => (s || '').toLowerCase()).join('|');
+    const linha = {
+      consultor, cliente: t.cliente, cidade: t.cidade, equip: t.equip, chave,
+      inputs: eletroInputsCrus(), textos: t,
+      resultados: { fatAno: Math.round(r.fatAno), lucroAno: Math.round(r.lucroAno),
+                    lucroAno1: Math.round(r.lucroAno1), payback: r.payback, tir: r.tir,
+                    vpl: Math.round(r.vpl), roi10: r.roi10, invest: r.investTotal },
+      updated_at: new Date().toISOString(),
+    };
+    const jaExiste = await supaGet(`eletroposto_propostas?chave=eq.${encodeURIComponent(chave)}&select=id,geracoes`);
+    if (jaExiste.length) {
+      await supaPatch(`eletroposto_propostas?id=eq.${jaExiste[0].id}`, { ...linha, geracoes: (jaExiste[0].geracoes || 0) + 1 });
+    } else {
+      await supaInsert('eletroposto_propostas', linha);
+    }
+  } catch (e) { console.warn('histórico eletroposto não salvo:', e.message); }
+}
+async function eletroHistCarregar() {
+  const tb = document.getElementById('el-hist-tabela');
+  if (!tb) return;
+  try {
+    const rows = await supaGet('eletroposto_propostas?select=*&order=updated_at.desc&limit=200');
+    if (!rows.length) {
+      tb.innerHTML = '<tbody><tr><td style="color:#94A3B8;padding:18px">Nenhum orçamento salvo ainda — preencha o cliente no simulador e gere uma proposta.</td></tr></tbody>';
+      return;
+    }
+    const th = '<thead><tr><th style="text-align:left">Cliente</th><th style="text-align:left">Cidade</th><th style="text-align:left">Consultor</th><th>Investimento</th><th>Lucro/ano</th><th>Payback</th><th>TIR</th><th>Gerações</th><th>Atualizado</th><th></th></tr></thead>';
+    const linhas = rows.map(r => {
+      const res = r.resultados || {};
+      const dt = new Date(r.updated_at).toLocaleDateString('pt-BR');
+      return `<tr>
+        <td class="lbl" style="font-weight:700">${escapeHtml(r.cliente || '')}</td>
+        <td class="lbl">${escapeHtml(r.cidade || '')}</td>
+        <td class="lbl">${escapeHtml(r.consultor || '')}</td>
+        <td>${elMoney(res.invest)}</td>
+        <td class="grn">${elMoney(res.lucroAno)}</td>
+        <td>${elAnos1(res.payback)}</td>
+        <td>${res.tir == null ? '—' : elPct1(res.tir)}</td>
+        <td>${r.geracoes}×</td>
+        <td>${dt}</td>
+        <td style="white-space:nowrap">
+          <button type="button" class="eletro-btn ehist-btn" onclick='eletroHistAbrir(${r.id})'>Abrir</button>
+          <button type="button" class="eletro-btn ehist-btn" onclick='eletroHistDeck(${r.id})'>Apresentação</button>
+          <button type="button" class="eletro-btn ehist-btn ehist-x" onclick='eletroHistExcluir(${r.id})' title="Excluir">×</button>
+        </td>
+      </tr>`;
+    }).join('');
+    tb.innerHTML = th + '<tbody>' + linhas + '</tbody>';
+    tb.dataset.rows = JSON.stringify(rows.map(r => ({ id: r.id, inputs: r.inputs, textos: r.textos })));
+  } catch (e) {
+    tb.innerHTML = `<tbody><tr><td style="color:#fca5a5;padding:18px">Erro ao carregar histórico: ${escapeHtml(e.message)}</td></tr></tbody>`;
+  }
+}
+function eletroHistRow(id) {
+  const tb = document.getElementById('el-hist-tabela');
+  return (JSON.parse(tb?.dataset.rows || '[]')).find(r => r.id === id);
+}
+function eletroHistAbrir(id) {
+  const row = eletroHistRow(id);
+  if (!row) return;
+  Object.entries(row.inputs || {}).forEach(([k, v]) => {
+    const el = document.getElementById('el-' + k);
+    if (el) el.value = v;
+  });
+  const t = row.textos || {};
+  [['el-cliente', t.cliente], ['el-cidade', t.cidade], ['el-equip', t.equip], ['el-autor', t.autor], ['el-contato', t.contato]]
+    .forEach(([id2, v]) => { const el = document.getElementById(id2); if (el) el.value = v || ''; });
+  eletroSubaba('simulador');
+  eletroCalc();
+  if (typeof showToast === 'function') showToast('Orçamento carregado no simulador');
+}
+function eletroHistDeck(id) {
+  const row = eletroHistRow(id);
+  if (!row) return;
+  const i = row.inputs || {}, t = row.textos || {};
+  const qs = new URLSearchParams({
+    cliente: t.cliente || '', cidade: t.cidade || '', equip: t.equip || '', autor: t.autor || '', contato: t.contato || '',
+    carros: i.carros, carga: i.carga, custokwh: i.custokwh, precokwh: i.precokwh, ativ: i.ativacao,
+    invest: i.invest, plugs: i.plugs, assin: i.assinatura, fixos: i.fixos, gateway: i.gateway,
+    arrend: i.arrend, manut: i.manut, imposto: i.imposto, ocup: i.ocup, rampa: i.rampa, taxadesc: i.taxadesc,
+  });
+  window.open('/gerador/apresentacao.html?' + qs.toString(), '_blank', 'noopener');
+}
+async function eletroHistExcluir(id) {
+  if (!confirm('Excluir este orçamento do histórico?')) return;
+  try { await supaDelete(`eletroposto_propostas?id=eq.${id}`); eletroHistCarregar(); }
+  catch (e) { alert('Erro ao excluir: ' + e.message); }
 }
 
 // Panorama de mercado — dados oficiais (ABVE). Atualize aqui quando os números mudarem.
@@ -5065,6 +5189,7 @@ function eletroFluxoSVG(fluxo) {
 
 // ===== PDF: estudo de viabilidade técnico-econômica (container light dedicado), via window.print() =====
 function eletroImprimir() {
+  eletroSalvarHistorico();   // registra o orçamento no histórico (fire-and-forget)
   const p = eletroParams();
   const r = computeEletro(p);
   const t = eletroTextos();
