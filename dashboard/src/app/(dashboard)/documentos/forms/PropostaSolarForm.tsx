@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine } from 'lucide-react';
 import api from '@/services/api';
-import { downloadDocumentPdf } from '@/services/downloadPdf';
+import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
@@ -208,6 +208,9 @@ export default function PropostaSolarPage() {
   const [copyMsg, setCopyMsg] = useState('');
   // Validação inline: quais campos obrigatórios estão faltando (pra marcar de vermelho).
   const [faltando, setFaltando] = useState<Set<string>>(new Set());
+  // PDF pré-aquecido pro compartilhamento nativo do iOS (ver downloadPdf.ts).
+  const [pdfAsset, setPdfAsset] = useState<PdfAsset | null>(null);
+  const [pdfWarming, setPdfWarming] = useState(false);
 
   // Cor de marca da empresa (cadastrada em Empresa) — habilita a paleta
   // "Cores da empresa". Só o swatch/enable usa isso no front; a geração lê
@@ -424,12 +427,39 @@ export default function PropostaSolarPage() {
     }
   }
 
-  function handleDownloadPdf() {
+  // Pré-aquece o PDF quando a proposta fica pronta, pro navigator.share disparar
+  // no clique sem await (transient activation do iOS). Ver downloadPdf.ts.
+  useEffect(() => {
+    const id = generated?.doc_id;
+    if (!id) { setPdfAsset(null); return; }
+    setPdfWarming(true);
+    let cancelled = false;
+    prewarmPdf(id)
+      .then(asset => { if (!cancelled) { setPdfAsset(asset); } })
+      .catch(() => { if (!cancelled) setPdfAsset(null); })
+      .finally(() => { if (!cancelled) setPdfWarming(false); });
+    return () => { cancelled = true; };
+  }, [generated?.doc_id]);
+
+  async function handleDownloadPdf() {
     if (!generated?.doc_id) return;
-    // Download via iframe oculto (não prende o PWA no iOS). Ver downloadPdf.ts.
-    if (downloadDocumentPdf(generated.doc_id) === 'no-token') {
-      setCopyMsg('Sessão expirou. Faça login novamente.');
-      setTimeout(() => setCopyMsg(''), 4000);
+    // Caminho feliz: PDF pré-aquecido → folha de compartilhamento nativa do iOS
+    // no gesto (não prende o PWA). Ver downloadPdf.ts.
+    if (pdfAsset) {
+      await sharePrewarmedPdf(pdfAsset);
+      return;
+    }
+    // Ainda aquecendo/falhou: busca agora (fallback baixa se o share não rolar).
+    setCopyMsg('Preparando PDF...');
+    try {
+      const asset = await prewarmPdf(generated.doc_id);
+      setPdfAsset(asset);
+      await sharePrewarmedPdf(asset);
+      setCopyMsg('');
+    } catch (err) {
+      const e = err as { response?: { status?: number } };
+      setCopyMsg(e?.response?.status === 401 ? 'Sessão expirou. Faça login novamente.' : 'Não foi possível gerar o PDF. Tente de novo.');
+      setTimeout(() => setCopyMsg(''), 5000);
     }
   }
 
@@ -516,10 +546,10 @@ export default function PropostaSolarPage() {
           <button
             type="button"
             onClick={handleDownloadPdf}
-            disabled={!generated.doc_id}
-            style={{ ...btn('outline'), opacity: !generated.doc_id ? 0.6 : 1, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            disabled={!generated.doc_id || pdfWarming}
+            style={{ ...btn('outline'), opacity: (!generated.doc_id || pdfWarming) ? 0.6 : 1, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            <Download size={15} /> Baixar PDF
+            <Download size={15} /> {pdfWarming ? 'Preparando...' : 'Baixar / Enviar PDF'}
           </button>
           {/* Cor do toast: vermelho só no erro de sessão; sucesso (copiado) fica verde. */}
           {copyMsg && <span style={{ color: copyMsg.startsWith('Sessão') ? 'var(--ink-red)' : 'var(--ink-green)', fontSize: 13, fontWeight: 600 }}>{copyMsg}</span>}

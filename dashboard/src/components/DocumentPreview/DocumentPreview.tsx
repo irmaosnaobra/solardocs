@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, Pencil, Save, Check, X, FilePlus } from 'lucide-react';
 import styles from './DocumentPreview.module.css';
 import api from '@/services/api';
-import { downloadDocumentPdf } from '@/services/downloadPdf';
+import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 interface Company {
   nome: string;
   cnpj: string;
@@ -102,6 +102,13 @@ export default function DocumentPreview({
   const docRef = useRef<HTMLDivElement>(null);
   const uploadedRef = useRef(false);
 
+  // PDF pré-aquecido pro compartilhamento nativo do iOS. Precisa estar PRONTO
+  // antes do clique — navigator.share só roda no gesto, sem await antes (senão
+  // o iOS derruba a "transient activation"). Ver downloadPdf.ts.
+  const [pdfAsset, setPdfAsset] = useState<PdfAsset | null>(null);
+  const [pdfState, setPdfState] = useState<'idle' | 'warming' | 'ready' | 'error'>('idle');
+  const [shareMsg, setShareMsg] = useState('');
+
   useEffect(() => {
     api.get('/company').then(({ data }) => {
       if (data.company) setCompany(data.company);
@@ -115,6 +122,21 @@ export default function DocumentPreview({
     uploadHtml(docId, displayContent);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [company, docId]);
+
+  // Pré-aquece o PDF assim que o doc está arquivado (HTML no Storage). O File
+  // fica pronto pro navigator.share disparar no clique sem await. Re-aquece a
+  // cada novo docId / após re-salvar (uploadedRef reseta e saved volta a true).
+  const warmPdf = useCallback((id: string) => {
+    setPdfState('warming');
+    prewarmPdf(id)
+      .then(asset => { setPdfAsset(asset); setPdfState('ready'); })
+      .catch(() => { setPdfAsset(null); setPdfState('error'); });
+  }, []);
+
+  useEffect(() => {
+    if (!docId || !saved) return;
+    warmPdf(docId);
+  }, [docId, saved, warmPdf]);
 
   const blocks = parseContent(displayContent);
   const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
@@ -200,11 +222,29 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
       return;
     }
 
-    // Server-side PDF (Puppeteer/Chromium) com margens A4 fixas — mais confiável
-    // que html2pdf.js no browser. Download via iframe oculto (não prende o PWA
-    // no iOS). Ver downloadPdf.ts.
-    if (downloadDocumentPdf(docId) === 'no-token') {
-      alert('Sessão expirou. Faça login novamente.');
+    // CAMINHO FELIZ (iOS incluso): PDF já pré-aquecido → dispara a folha de
+    // compartilhamento nativa SÍNCRONO no gesto (sem await antes), preservando a
+    // transient activation. A folha nativa ("Salvar em Arquivos"/WhatsApp) abre
+    // POR CIMA do app e devolve o controle ao fechar — impossível prender o PWA.
+    if (pdfState === 'ready' && pdfAsset) {
+      const r = await sharePrewarmedPdf(pdfAsset);
+      if (r === 'shared' || r === 'downloaded') { setShareMsg(''); }
+      return;
+    }
+
+    // PDF ainda aquecendo ou falhou: busca agora (no iOS o await pode derrubar a
+    // ativação e o share cair no download — ainda funciona, sem prender). Mostra
+    // "Preparando" pra dar feedback.
+    setShareMsg('Preparando PDF...');
+    try {
+      const asset = await prewarmPdf(docId);
+      setPdfAsset(asset); setPdfState('ready');
+      await sharePrewarmedPdf(asset);
+      setShareMsg('');
+    } catch (err) {
+      const e = err as { response?: { status?: number } };
+      setShareMsg(e?.response?.status === 401 ? 'Sessão expirou. Faça login novamente.' : 'Não foi possível gerar o PDF. Tente de novo.');
+      setTimeout(() => setShareMsg(''), 5000);
     }
   }
 
@@ -258,8 +298,11 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
               >
                 <Pencil size={15} /> Editar
               </button>
-              <button className={styles.pdfBtn} onClick={handleDownloadPDF} disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <Download size={15} /> {saving ? 'Preparando...' : 'Baixar PDF'}
+              {/* Desabilitado enquanto aquece o PDF: força o iOS ao caminho
+                  pré-aquecido (share síncrono no gesto) em vez do fallback com
+                  await, que derrubaria a transient activation → download frágil. */}
+              <button className={styles.pdfBtn} onClick={handleDownloadPDF} disabled={saving || pdfState === 'warming'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, opacity: (saving || pdfState === 'warming') ? 0.7 : 1 }}>
+                <Download size={15} /> {saving ? 'Arquivando...' : pdfState === 'warming' ? 'Preparando...' : 'Baixar / Enviar'}
               </button>
               <button className="btn-secondary" onClick={onNewGeneration} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <FilePlus size={15} /> Novo documento
@@ -267,6 +310,11 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
             </>
           )}
         </div>
+        {shareMsg && (
+          <div style={{ width: '100%', fontSize: 13, color: shareMsg.includes('Sessão') || shareMsg.includes('Não foi') ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
+            {shareMsg}
+          </div>
+        )}
       </div>
 
       {/* ── Edit mode banner ──────────────────────────── */}

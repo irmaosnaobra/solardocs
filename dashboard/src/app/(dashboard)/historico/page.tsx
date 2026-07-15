@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Download, Lock } from 'lucide-react';
 import api from '@/services/api';
-import { downloadDocumentPdf } from '@/services/downloadPdf';
+import { shareOrDownloadPdf } from '@/services/downloadPdf';
 import styles from './historico.module.css';
 import { fmtDateBR } from '@/utils/brasilia';
 
@@ -33,6 +33,7 @@ export default function HistoricoPage() {
   const [loading, setLoading] = useState(true);
   const [historico, setHistorico] = useState(false);
   const [plano, setPlano] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     api.get('/documents/list').then(({ data }) => {
@@ -42,10 +43,16 @@ export default function HistoricoPage() {
     }).finally(() => setLoading(false));
   }, []);
 
-  function handleDownloadPdf(doc: Doc) {
-    // Download via iframe oculto (não prende o PWA no iOS). Ver downloadPdf.ts.
-    if (downloadDocumentPdf(doc.id) === 'no-token') {
-      alert('Sessão expirou. Faça login novamente.');
+  async function handleDownloadPdf(doc: Doc) {
+    // Busca o PDF e abre a folha de compartilhamento nativa do iOS (ou baixa no
+    // desktop/Android). Não prende o PWA. Ver downloadPdf.ts.
+    setBusyId(doc.id);
+    try {
+      const r = await shareOrDownloadPdf(doc.id);
+      if (r === 'no-token') alert('Sessão expirou. Faça login novamente.');
+      else if (r === 'error') alert('Não foi possível gerar o PDF. Tente de novo.');
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -93,9 +100,10 @@ export default function HistoricoPage() {
                   <button
                     className={styles.downloadBtn}
                     onClick={() => handleDownloadPdf(doc)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    disabled={busyId === doc.id}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, opacity: busyId === doc.id ? 0.6 : 1 }}
                   >
-                    <Download size={15} /> Baixar PDF
+                    <Download size={15} /> {busyId === doc.id ? 'Preparando...' : 'Baixar / Enviar'}
                   </button>
                 ) : (
                   <span className={styles.noFile}>Processando...</span>
