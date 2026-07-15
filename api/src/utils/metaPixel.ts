@@ -2,6 +2,81 @@ const PIXEL_ID     = '824905216831401';
 const ACCESS_TOKEN = process.env.META_PIXEL_TOKEN || '';
 const API_URL      = `https://graph.facebook.com/v19.0/${PIXEL_ID}/events`;
 
+// ── Conversions API for CRM (conversão de leads) ─────────────────────────────
+// Fluxo DIFERENTE do pixel acima: aqui avisamos o Meta que um LEAD dos Forms
+// (Irmãos na Obra / Ékent solar) virou CONTRATO. O Meta aprende o perfil de quem
+// fecha e busca mais gente parecida (-15% custo/lead bom, +44% conversão, dado
+// Meta). Doc: developers.facebook.com/docs/marketing-api/conversions-api/
+//   conversion-leads-integration/payload-specification
+// Chave = lead_id (leadgen_id) em TEXTO PURO (não hash), action_source=
+// system_generated. Dataset = pixel do funil de leads solar (Ékent Energia
+// Solar), NÃO o Solardocs do pixel acima. Token = System User (acessa a conta
+// de leads act_...250); cai pro META_PIXEL_TOKEN se o SU não estiver setado.
+const LEADS_DATASET_ID = process.env.META_LEADS_DATASET_ID || '446093469730871'; // "Pixel de Ékent Energia Solar"
+const LEADS_CAPI_TOKEN = process.env.META_SYSTEM_USER_TOKEN || process.env.META_PIXEL_TOKEN || '';
+
+export interface CrmLeadEventResult { ok: boolean; status: number; error?: string; received?: number }
+
+// Envia um evento de conversão-de-lead (CRM) ao Meta.
+// - leadId: o leadgen_id do Lead Ads (leads_meta.lead_id), texto puro.
+// - eventName: estágio do CRM ("Converted" = fechou a venda; ou "Sales Opportunity" etc).
+// - value/currency: opcional — valor do contrato (custom_data), pra medir ROAS real.
+// - eventTime: unix (s) — pra retroativo, a data ORIGINAL do fechamento.
+// Best-effort: retorna {ok,status}; nunca lança (o cron trata o resultado).
+export async function sendCrmLeadEvent(
+  leadId: string,
+  eventName: string,
+  opts: {
+    value?: number;
+    currency?: string;
+    eventTime?: number;
+    leadEventSource?: string;   // rótulo da origem do CRM (ex: "Gerador IO")
+    eventId?: string;           // idempotência no lado do Meta (dedup)
+  } = {},
+): Promise<CrmLeadEventResult> {
+  if (!LEADS_CAPI_TOKEN) return { ok: false, status: 0, error: 'no_token' };
+  if (!leadId || !/^\d{6,20}$/.test(leadId)) return { ok: false, status: 0, error: 'lead_id_invalido' };
+
+  const event: Record<string, unknown> = {
+    event_name:    eventName,
+    event_time:    opts.eventTime ?? Math.floor(Date.now() / 1000),
+    action_source: 'system_generated',           // OBRIGATÓRIO p/ conversion-leads
+    // lead_id em texto puro (NÃO hash) e COMO STRING: ids do Meta têm até 17
+    // dígitos e Number() estoura MAX_SAFE_INTEGER (~9e15) → corromperia os
+    // últimos dígitos ("...198" vira "...200") → o Meta nunca casaria a venda.
+    // Verificado ao vivo: o dataset aceita lead_id string (events_received:1).
+    user_data:     { lead_id: leadId },
+    custom_data: {
+      lead_event_source: opts.leadEventSource || 'Gerador IO',
+      event_source:      'crm',
+      ...(opts.value != null ? { value: opts.value, currency: opts.currency || 'BRL' } : {}),
+    },
+  };
+  if (opts.eventId) event.event_id = opts.eventId;
+
+  try {
+    const url = `https://graph.facebook.com/v21.0/${LEADS_DATASET_ID}/events?access_token=${LEADS_CAPI_TOKEN}`;
+    const res = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ data: [event] }),
+      signal:  AbortSignal.timeout(6000),
+    });
+    const body = await res.text().catch(() => '');
+    if (!res.ok) {
+      console.error(`Meta CRM-CAPI ${eventName} FALHOU: HTTP ${res.status} — ${body.slice(0, 300)}`);
+      return { ok: false, status: res.status, error: body.slice(0, 300) };
+    }
+    let received: number | undefined;
+    try { received = JSON.parse(body).events_received; } catch { /* ignore */ }
+    return { ok: true, status: res.status, received };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Meta CRM-CAPI ${eventName} erro de rede/timeout:`, msg);
+    return { ok: false, status: 0, error: msg };
+  }
+}
+
 async function sha256(text: string): Promise<string> {
   const { createHash } = await import('crypto');
   return createHash('sha256').update(text.trim().toLowerCase()).digest('hex');
