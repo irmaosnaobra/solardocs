@@ -225,10 +225,9 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 .ep-pagefoot{margin-top:18px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#8a94a3}
 /* boxes filhos diretos da página mantêm altura natural (o flex:1 do .ep-box é só pro par lado-a-lado do .ep-cols) */
 .ep-page>.ep-box,.ep-page>.ep-avoid-break{flex:0 0 auto}
-/* logo minimalista no topo da página 1 (monograma navy + wordmark espaçada) */
-.ep-brand{display:flex;align-items:center;gap:9px;margin-bottom:14px}
-.ep-brand-mark{width:26px;height:26px;border-radius:7px;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11.5px;letter-spacing:.5px}
-.ep-brand-name{font-size:10.5px;font-weight:700;letter-spacing:3px;color:#1e3a5f;text-transform:uppercase}
+/* logo oficial no topo da página 1 (badge circular Irmãos na Obra) */
+.ep-brand{display:flex;align-items:center;margin-bottom:12px}
+.ep-brand-img{height:17mm;width:auto}
 .ep-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #1e3a5f;padding-bottom:10px;margin-bottom:6px}
 .ep-title{font-size:19px;font-weight:800;color:#1e3a5f}
 .ep-date{font-size:11px;color:#666;text-align:right;line-height:1.5;white-space:nowrap}
@@ -4741,6 +4740,7 @@ function navEletroposto() {
   eletroSubaba('simulador');   // sempre reabre no Simulador
   eletroCalc();
   new Image().src = '/gerador/eletroposto-arte.png';   // aquece o cache da marca d'água (path ABSOLUTO: a página abre como /gerador sem barra)
+  new Image().src = '/gerador/logo-io.png';            // aquece a logo do cabeçalho do PDF
 }
 
 // Sub-abas dentro do Eletroposto: Simulador | Pesquisa | Mercado | Postos | Mapa
@@ -5093,7 +5093,7 @@ function eletroImprimir() {
     <div class="ep-doc">
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      <div class="ep-brand"><div class="ep-brand-mark">IO</div><div class="ep-brand-name">Irmãos na Obra</div></div>
+      <div class="ep-brand"><img class="ep-brand-img" src="/gerador/logo-io.png" alt="Irmãos na Obra"></div>
       <div class="ep-head">
         <div><div class="ep-title">Estudo de Viabilidade Técnico-Econômica — Eletroposto</div></div>
         <div class="ep-date">${hoje.toLocaleDateString('pt-BR')}<br>Validade: ${validade.toLocaleDateString('pt-BR')} (7 dias)</div>
