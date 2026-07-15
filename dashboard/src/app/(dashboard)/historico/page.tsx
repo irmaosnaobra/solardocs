@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Download, Lock } from 'lucide-react';
 import api from '@/services/api';
-import { getToken } from '@/services/auth';
+import { downloadDocumentPdf } from '@/services/downloadPdf';
 import styles from './historico.module.css';
 import { fmtDateBR } from '@/utils/brasilia';
 
@@ -43,25 +43,10 @@ export default function HistoricoPage() {
   }, []);
 
   function handleDownloadPdf(doc: Doc) {
-    const token = getToken();
-    if (!token) {
+    // Download via iframe oculto (não prende o PWA no iOS). Ver downloadPdf.ts.
+    if (downloadDocumentPdf(doc.id) === 'no-token') {
       alert('Sessão expirou. Faça login novamente.');
-      return;
     }
-
-    // Download via navegação MESMA-ORIGEM (/_api em produção) — mesmo padrão do
-    // DocumentPreview e da Proposta Solar. Crítico pra mobile: iOS Safari
-    // frequentemente ignora o download via blob (createObjectURL + a.click()) —
-    // abre em aba ou "nada acontece". A navegação direta pra uma URL com
-    // Content-Disposition: attachment funciona no iOS, e mesma-origem evita o
-    // cross-origin do solardocs-api.vercel.app. O token vai na query porque
-    // navegação não manda header Authorization (a rota /documents/:id/pdf aceita
-    // ?token= via downloadAuth). Se o PDF falhar, o backend responde a mensagem
-    // de erro na própria aba — trade-off aceitável frente a não baixar no iPhone.
-    const base = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
-      ? '/_api'
-      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
-    window.location.href = `${base}/documents/${doc.id}/pdf?token=${encodeURIComponent(token)}`;
   }
 
   if (loading) return <div className={styles.page}><p className={styles.empty}>Carregando...</p></div>;

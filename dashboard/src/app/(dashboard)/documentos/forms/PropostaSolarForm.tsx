@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine } from 'lucide-react';
 import api from '@/services/api';
-import { getToken } from '@/services/auth';
+import { downloadDocumentPdf } from '@/services/downloadPdf';
 import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
@@ -426,26 +426,11 @@ export default function PropostaSolarPage() {
 
   function handleDownloadPdf() {
     if (!generated?.doc_id) return;
-
-    const token = getToken();
-    if (!token) {
+    // Download via iframe oculto (não prende o PWA no iOS). Ver downloadPdf.ts.
+    if (downloadDocumentPdf(generated.doc_id) === 'no-token') {
       setCopyMsg('Sessão expirou. Faça login novamente.');
       setTimeout(() => setCopyMsg(''), 4000);
-      return;
     }
-
-    // Download via navegação MESMA-ORIGEM (/_api em produção) — mesmo padrão do
-    // DocumentPreview. Crítico pra mobile: iOS Safari frequentemente ignora o
-    // download via blob (createObjectURL + a.click()) — abre em aba ou "nada
-    // acontece". A navegação direta pra uma URL com Content-Disposition:
-    // attachment funciona no iOS, e mesma-origem evita o cross-origin do
-    // solardocs-api.vercel.app. O token vai na query porque navegação não manda
-    // header Authorization (a rota /documents/:id/pdf aceita ?token= via
-    // downloadAuth).
-    const base = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
-      ? '/_api'
-      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
-    window.location.href = `${base}/documents/${generated.doc_id}/pdf?token=${encodeURIComponent(token)}`;
   }
 
   // Identificador público preferencial:
