@@ -105,9 +105,13 @@
   .inp.has-pre input{padding-left:38px}
   .inp .pre{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:14px;font-weight:700;pointer-events:none}
   .inp input:focus,.inp select:focus{border-color:var(--neon)}
+  /* a lista aberta do select é pintada pelo SO — força claro-no-escuro */
+  .inp select option{background:#0a1604;color:var(--cream)}
+  .inp input::placeholder{color:rgba(247,251,242,.42)}
   .inp input::-webkit-outer-spin-button,.inp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .rng{width:100%;accent-color:var(--neon);margin-top:4px}
   .rngRow{display:flex;justify-content:space-between;color:var(--mut);font-size:11.5px;font-weight:700;margin-top:5px}
+  .cfgNota{color:var(--neon-b);font-size:12px;font-weight:700;margin-top:8px;line-height:1.4}
 
   .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   .kpi{background:#0a1604;border:1px solid rgba(125,209,23,.4);border-radius:14px;padding:18px 16px;text-align:center}
@@ -130,12 +134,13 @@
   .agBox{background:var(--card);border:1.5px solid rgba(125,209,23,.45);border-radius:20px;padding:28px}
   .step{margin-bottom:18px}
   .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:9px;margin-top:10px}
-  .slot{background:#0a1604;border:1.5px solid var(--line);border-radius:11px;padding:12px 8px;text-align:center;cursor:pointer;transition:.15s;font-family:inherit}
-  .slot:hover{border-color:var(--neon)}
+  /* botão NÃO herda color — sem isto o texto sai preto no fundo escuro (ilegível) */
+  .slot{background:#0a1604;border:1.5px solid var(--line);border-radius:11px;padding:12px 8px;text-align:center;cursor:pointer;transition:.15s;font-family:inherit;color:var(--cream)}
+  .slot:hover{border-color:var(--neon);background:#0f2206}
   .slot.on{background:var(--neon);border-color:var(--neon);color:var(--dk)}
-  .slot .d{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;opacity:.8}
-  .slot .h{font-size:16px;font-weight:900;margin-top:3px}
-  .slot.on .d{opacity:.75}
+  .slot .d{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--neon-b)}
+  .slot .h{font-size:17px;font-weight:900;margin-top:3px;color:var(--cream)}
+  .slot.on .d,.slot.on .h{color:var(--dk)}
   .agMsg{margin-top:14px;padding:13px 16px;border-radius:11px;font-size:13.5px;font-weight:700;display:none}
   .agMsg.err{background:rgba(244,63,94,.14);border:1px solid rgba(244,63,94,.45);color:#fda4af;display:block}
   .ok{text-align:center;padding:30px 10px;display:none}
@@ -187,10 +192,9 @@
   <section style="padding-top:0">
     <div class="invest">
       <div class="l">
-        <div class="h">Projeto recomendado · 80 kW · 2 bicos</div>
-        <div class="v">R$ 180.000</div>
-        <div class="d">Dois bicos atendem dois carros ao mesmo tempo — o dobro de disponibilidade e nenhuma fila no horário de pico. Equipamento, instalação, homologação e suporte inclusos.<br>
-        <b style="color:var(--cream)">Dá para começar menor:</b> entrada de <b style="color:var(--neon-b)">R$ 85 mil</b> (40&nbsp;kW, 1 bico) — mesma operação, metade da capacidade.</div>
+        <div class="h">Investimento</div>
+        <div class="v">A partir de R$ 85.000</div>
+        <div class="d">É o quanto custa ter o seu eletroposto. O valor final depende da configuração ideal para o seu ponto — definimos isso juntos na reunião, com equipamento, instalação, homologação e suporte inclusos.</div>
       </div>
       <div class="cond">
         <div class="c"><div class="cl">Cartão</div><div class="cv">24x</div></div>
@@ -242,21 +246,20 @@
     <div class="simGrid">
       <div class="panel">
         <div class="fld">
-          <label>Carros por dia <span class="hint">(estimativa)</span></label>
+          <label>Carros por dia <span class="hint">(estimativa do seu ponto)</span></label>
           <input type="range" class="rng" id="s-carros" min="3" max="30" step="1" value="10" oninput="calc()">
-          <div class="rngRow"><span>3</span><span id="s-carros-v" style="color:var(--neon-b)">10 carros/dia</span><span>30</span></div>
+          <div class="rngRow"><span>3</span><span id="s-carros-v" style="color:var(--neon-b)">10 carros/dia</span><span id="s-carros-max">30</span></div>
         </div>
         <div class="fld">
-          <label>Configuração</label>
+          <label>Configuração do carregador</label>
           <div class="inp"><select id="s-config" onchange="setConfig()">
-            <option value="180000" selected>80 kW · 2 bicos — R$ 180.000 (recomendado)</option>
-            <option value="85000">40 kW · 1 bico — R$ 85.000 (entrada)</option>
-            <option value="custom">Outro valor…</option>
+            <option value="40">40 kW · 1 bico — entrada</option>
+            <option value="60">60 kW · 2 bicos</option>
+            <option value="80" selected>80 kW · 2 bicos — recomendado</option>
+            <option value="120">120 kW · 2 bicos</option>
+            <option value="160">160 kW · 2 bicos</option>
           </select></div>
-        </div>
-        <div class="fld" id="fld-invest" style="display:none">
-          <label>Investimento total</label>
-          <div class="inp has-pre"><span class="pre">R$</span><input type="number" id="s-invest" value="180000" step="5000" oninput="calc()"></div>
+          <div class="cfgNota" id="cfg-nota"></div>
         </div>
         <div class="fld">
           <label>Preço de revenda <span class="hint">(kWh)</span></label>
@@ -345,11 +348,11 @@
           </div>
         </div>
         <div class="fld">
-          <label>Quanto você pretende investir <span class="hint">(projeto completo R$ 180 mil · entrada a partir de R$ 85 mil)</span></label>
+          <label>Quanto você pretende investir <span class="hint">(o projeto parte de R$ 85 mil)</span></label>
           <div class="inp"><select id="f-capital">
             <option value="">Selecione…</option>
-            <option value="180_mais">R$ 180 mil ou mais — quero o projeto completo</option>
-            <option value="85_180">R$ 85 mil a R$ 180 mil</option>
+            <option value="180_mais">Acima de R$ 180 mil</option>
+            <option value="85_180">Entre R$ 85 mil e R$ 180 mil</option>
             <option value="financiar">Pretendo financiar / usar carência</option>
             <option value="abaixo_85">Menos de R$ 85 mil</option>
             <option value="pesquisando">Ainda estou pesquisando</option>
@@ -457,6 +460,7 @@ function compute(p){
 }
 function params(){
   const carros = +document.getElementById('s-carros').value;
+  const cfg = CONFIGS[document.getElementById('s-config').value];
   return {
     carros, carga:20,
     precoKwh:+document.getElementById('s-revenda').value || 0,
@@ -464,22 +468,32 @@ function params(){
     // Premissas idênticas às do Estudo de Viabilidade oficial (PDF 15/07): gateway 14%,
     // arrendamento 10%, manutenção 0,1%, imposto 6% (Simples), rampa 50%→100% em 24 meses.
     // Validado contra o PDF: 10 carros/200k ⇒ lucro R$ 3.941, margem 27,3%, payback 4,8 anos.
-    ativacao:1.20, invest:+document.getElementById('s-invest').value || 0,
+    ativacao:1.20, invest:cfg.invest,
     gateway:.14, arrend:.10, manut:.001, imposto:.06,
     assinat:0, fixos:300, ocupIni:.5, mesesRampa:24,
   };
 }
-// Troca de configuração: 80kW/2 bicos (10 carros/dia, 5 por bico) x 40kW/1 bico (5 carros/dia).
-// A capacidade acompanha o nº de bicos — por isso o de entrada atende metade.
+// Linha de carregadores. `max` = teto de carros/dia da configuração (limite físico de
+// atendimento); `invest` alimenta o cálculo mas NÃO é exibido — preço é assunto da reunião.
+// Linha de carregadores. `max` = teto FÍSICO de atendimento da configuração; `base` = fluxo
+// realista de partida (o PDF do estudo usa 10 carros/dia no 80 kW e chama 14 de "otimista",
+// então o slider abre no base — nunca no teto, que produziria payback irreal).
+// `invest` alimenta o cálculo mas NÃO é exibido: preço é assunto da reunião.
+const CONFIGS = {
+  40:  { invest: 85000, bicos:1, max:10, base:5,  nota:'Porta de entrada — 1 bico, até 10 carros/dia.' },
+  60:  { invest:140000, bicos:2, max:20, base:8,  nota:'Dois bicos, até 20 carros/dia.' },
+  80:  { invest:180000, bicos:2, max:30, base:10, nota:'Recarga rápida e 2 bicos, até 30 carros/dia — é a que indicamos na maioria dos pontos.' },
+  120: { invest:220000, bicos:2, max:40, base:14, nota:'Ultrarrápido, até 40 carros/dia — para pontos de alto fluxo.' },
+  160: { invest:280000, bicos:2, max:50, base:18, nota:'Topo da linha, até 50 carros/dia — para grandes operações.' },
+};
 function setConfig(){
-  const v = document.getElementById('s-config').value;
-  const fld = document.getElementById('fld-invest');
-  if(v === 'custom'){ fld.style.display = ''; }
-  else {
-    fld.style.display = 'none';
-    document.getElementById('s-invest').value = v;
-    document.getElementById('s-carros').value = (v === '85000') ? 5 : 10;
-  }
+  const kw = document.getElementById('s-config').value;
+  const c  = CONFIGS[kw];
+  const sl = document.getElementById('s-carros');
+  sl.max = c.max;
+  sl.value = c.base;                    // ancora no cenário realista, não no teto
+  document.getElementById('s-carros-max').textContent = c.max;
+  document.getElementById('cfg-nota').textContent = c.nota;
   calc();
 }
 function calc(){
