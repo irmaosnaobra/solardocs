@@ -209,7 +209,33 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
    A cor de acento vem de --kpi-cor, setada por quem monta a tela. */
 .eletro-kgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
 @media(max-width:760px){.eletro-kgrid{grid-template-columns:repeat(2,1fr)}}
-.eletro-kcard{background:#0f1a2e;border:1px solid var(--kpi-borda,rgba(125,209,23,.45));border-radius:12px;padding:14px 12px;text-align:center}
+.eletro-kcard{background:#0f1a2e;border:1px solid var(--kpi-borda,rgba(125,209,23,.45));border-radius:12px;padding:14px 12px;text-align:center;position:relative}
+
+/* ===== Tooltip explicativo (hover no desktop, toque no mobile via :focus) =====
+   Uso: <span class="el-tip" data-tip="texto" tabindex="0">?</span>
+   O balão é filho do .el-tip, que é position:relative; os cards ganharam
+   position:relative só pra ancorar o clamp de largura em telas estreitas. */
+.el-tip{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;
+  border-radius:50%;border:1px solid #64748B;color:#94A3B8;background:transparent;
+  font-size:9.5px;font-weight:700;line-height:1;cursor:help;position:relative;
+  margin-left:5px;vertical-align:middle;flex:none;-webkit-tap-highlight-color:transparent;
+  font-family:inherit;text-transform:none;letter-spacing:0;outline:none}
+.el-tip:hover,.el-tip:focus{border-color:#7DD117;color:#7DD117}
+.el-tip::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;
+  transform:translateX(-50%);width:max-content;max-width:min(260px,70vw);
+  background:#0B1220;color:#E5E7EB;border:1px solid #7DD117;border-radius:8px;
+  padding:8px 10px;font-size:11.5px;font-weight:500;line-height:1.45;text-align:left;
+  text-transform:none;letter-spacing:0;white-space:normal;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);opacity:0;visibility:hidden;transition:opacity .12s;
+  pointer-events:none;z-index:60}
+.el-tip::before{content:"";position:absolute;bottom:calc(100% + 3px);left:50%;
+  transform:translateX(-50%);border:5px solid transparent;border-top-color:#7DD117;
+  opacity:0;visibility:hidden;transition:opacity .12s;pointer-events:none;z-index:61}
+.el-tip:hover::after,.el-tip:focus::after,
+.el-tip:hover::before,.el-tip:focus::before{opacity:1;visibility:visible}
+/* Cards das pontas: ancora o balão pra dentro pra não sair da tela */
+.eletro-kgrid>.eletro-kcard:first-child .el-tip::after{left:0;transform:none}
+.eletro-kgrid>.eletro-kcard:last-child .el-tip::after{left:auto;right:0;transform:none}
 .eletro-kcard .kt{font-size:11px;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
 .eletro-kcard .kv{font-size:22px;font-weight:800;color:#E5E7EB;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
 .eletro-kcard .kv.grn{color:#34D399}
@@ -1912,65 +1938,66 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="eletro-col-inputs">
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Projeto</div>
-          <div class="eletro-field"><label>Preparado para <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(cliente/empresa)</span></label>
+          <div class="eletro-field"><label>Preparado para</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-cliente" placeholder="Ex: Grupo Andrade" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
           <div class="eletro-field"><label>Cidade / local</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-cidade" placeholder="Ex: Uberlândia-MG" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
           <div class="eletro-field"><label>Potência Carregador</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-equip" placeholder="Ex: DC 80 kW" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
-          <div class="eletro-field"><label>Elaborado por <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(consultor/empresa)</span></label>
+          <div class="eletro-field"><label>Elaborado por</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-autor" placeholder="Ex: João Silva — Solars Energias" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
-          <div class="eletro-field"><label>Contato <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(telefone/e-mail)</span></label>
+          <div class="eletro-field"><label>Contato</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-contato" placeholder="Ex: (34) 99999-0000" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
         </div>
 
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Dados da operação</div>
-          <div class="eletro-field"><label>Quantidade de carros por dia <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(total)</span></label>
+          <div class="eletro-field"><label>Quantidade de carros por dia<span class="el-tip" tabindex="0" data-tip="Quantos carros abastecem no posto por dia, somando todos os carregadores. É o motor de toda a conta: mais carros, mais faturamento.">?</span></label>
             <div class="eletro-inp"><input type="number" id="el-carros" inputmode="decimal" value="10" oninput="eletroCalc()"></div></div>
-          <div class="eletro-field"><label>Média de carga por carro</label>
+          <div class="eletro-field"><label>Média de carga por carro<span class="el-tip" tabindex="0" data-tip="Quanta energia cada carro leva por parada, em kWh. Referência: 20 kWh dão cerca de 100 a 140 km de autonomia — a recarga típica de rua, não o tanque cheio.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-carga" inputmode="decimal" value="20" oninput="eletroCalc()"><span class="suf">kWh</span></div></div>
-          <div class="eletro-field"><label>Custo do kWh</label>
+          <div class="eletro-field"><label>Custo do kWh<span class="el-tip" tabindex="0" data-tip="Quanto você paga por kWh na conta da concessionária. É o custo da mercadoria que o posto revende.">?</span></label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-custokwh" inputmode="decimal" value="0.95" oninput="eletroCalc()"></div></div>
-          <div class="eletro-field"><label>Preço kWh revenda</label>
+          <div class="eletro-field"><label>Preço kWh revenda<span class="el-tip" tabindex="0" data-tip="Quanto o motorista paga por kWh no seu carregador. A diferença entre este preço e o custo da concessionária é o seu ganho por kWh.">?</span></label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-precokwh" inputmode="decimal" value="2.35" oninput="eletroCalc()"></div></div>
-          <div class="eletro-field"><label>Taxa de ativação</label>
+          <div class="eletro-field"><label>Taxa de ativação<span class="el-tip" tabindex="0" data-tip="Valor fixo cobrado a cada recarga, independente da energia levada. Entra no faturamento junto com a venda de energia.">?</span></label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-ativacao" inputmode="decimal" value="1.20" oninput="eletroCalc()"></div></div>
         </div>
 
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Investimento</div>
-          <div class="eletro-field"><label>Quantidade de carregadores <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(R$ 200.000 cada)</span></label>
+          <div class="eletro-field"><label>Quantidade de carregadores<span class="el-tip" tabindex="0" data-tip="Quantos equipamentos serão instalados. Cada um sugere R$ 200.000 no investimento total — valor que você pode ajustar na negociação.">?</span></label>
             <div class="eletro-inp"><input type="number" id="el-qtd" inputmode="decimal" min="1" value="1" oninput="eletroQtdChange()"></div></div>
-          <div class="eletro-field"><label>Bicos de carregamento <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(aparece na proposta)</span></label>
+          <div class="eletro-field"><label>Bicos de carregamento<span class="el-tip" tabindex="0" data-tip="Quantos carros o posto atende ao mesmo tempo. É informativo: aparece na proposta, mas não altera os números — quem manda no cálculo é a quantidade de carros por dia.">?</span></label>
             <div class="eletro-inp"><input type="number" id="el-plugs" inputmode="decimal" min="1" value="2" oninput="eletroCalc()"></div></div>
-          <div class="eletro-field"><label>Investimento total <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(sugerido pela quantidade — editável)</span></label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-invest" inputmode="decimal" value="180000" oninput="eletroInvestDirty()"></div></div>
+          <div class="eletro-field"><label>Investimento total<span class="el-tip" tabindex="0" data-tip="Todo o dinheiro necessário para o posto abrir: equipamento, obra, entrada de energia, projeto, homologação e capital de giro. É a base do payback, do VPL e do ROI. Sugerido pela quantidade de carregadores, mas editável.">?</span></label>
+            <!-- type=text: number nao aceita o ponto de milhar. Ler SEMPRE com elMilhar() -->
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="el-invest" inputmode="numeric" value="180.000" oninput="eletroInvestDirty()"></div></div>
         </div>
 
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Custos e taxas</div>
-          <div class="eletro-field"><label>Gateway</label>
+          <div class="eletro-field"><label>Gateway<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento que fica com a plataforma de pagamento e o aplicativo que controla as recargas. Sai de cada venda, como a taxa da maquininha do cartão.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-gateway" inputmode="decimal" value="14" oninput="eletroCalc()"><span class="suf">%</span></div></div>
-          <div class="eletro-field"><label>Arrendamento do ponto</label>
+          <div class="eletro-field"><label>Arrendamento do ponto<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento pago ao dono do local (posto, mercado, shopping) pela cessão do espaço. Como é percentual, ele só ganha quando você fatura.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-arrend" inputmode="decimal" value="10" oninput="eletroCalc()"><span class="suf">%</span></div></div>
-          <div class="eletro-field"><label>Manutenção</label>
+          <div class="eletro-field"><label>Manutenção<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento reservado para manter o equipamento funcionando: limpeza, reparos e assistência técnica.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-manut" inputmode="decimal" value="0.1" oninput="eletroCalc()"><span class="suf">%</span></div></div>
-          <div class="eletro-field"><label>Assinatura mensal</label>
+          <div class="eletro-field"><label>Assinatura mensal<span class="el-tip" tabindex="0" data-tip="Mensalidade fixa de algum serviço ou plano, se houver. Diferente das taxas em %, ela é cobrada mesmo em um mês parado.">?</span></label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-assinatura" inputmode="decimal" value="0" oninput="eletroCalc()"></div></div>
-          <div class="eletro-field"><label>Seguro | Ano <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(1% do investimento — automático)</span></label>
+          <div class="eletro-field"><label>Seguro | Ano<span class="el-tip" tabindex="0" data-tip="Seguro do equipamento, calculado sozinho como 1% ao ano do investimento e diluído nos meses. Este campo é só demonstrativo: mexer no investimento já atualiza o valor.">?</span></label>
             <div class="eletro-inp has-pre eletro-inp-lock"><span class="pre">R$</span><input type="text" id="el-seguro" value="2.000" readonly tabindex="-1"></div></div>
-          <div class="eletro-field"><label>Imposto — Simples Nacional</label>
+          <div class="eletro-field"><label>Imposto — Simples Nacional<span class="el-tip" tabindex="0" data-tip="Alíquota de imposto sobre o faturamento, no regime do Simples Nacional. Confirme a faixa com o contador do cliente, porque ela varia conforme o faturamento da empresa.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-imposto" inputmode="decimal" value="6" oninput="eletroCalc()"><span class="suf">%</span></div></div>
-          <div class="eletro-field"><label>Outros custos fixos/mês <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(software, 4G, demanda)</span></label>
+          <div class="eletro-field"><label>Outros custos fixos/mês<span class="el-tip" tabindex="0" data-tip="Contas que chegam todo mês independentemente do movimento: software de gestão, internet 4G do carregador e demanda contratada de energia.">?</span></label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-fixos" inputmode="decimal" value="300" oninput="eletroCalc()"></div></div>
         </div>
 
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Modelagem financeira</div>
-          <div class="eletro-field"><label>Ocupação inicial <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(mês 1 — posto novo começa vazio)</span></label>
+          <div class="eletro-field"><label>Ocupação inicial<span class="el-tip" tabindex="0" data-tip="Quanto do movimento o posto já tem no primeiro mês. Um posto novo não abre cheio: 50% significa que ele começa com metade dos carros previstos e vai crescendo.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-ocup" inputmode="decimal" min="0" max="100" value="50" oninput="eletroCalc()"><span class="suf">%</span></div></div>
-          <div class="eletro-field"><label>Meses até ocupação plena <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(rampa de crescimento)</span></label>
+          <div class="eletro-field"><label>Meses até ocupação plena<span class="el-tip" tabindex="0" data-tip="Em quantos meses o posto sai da ocupação inicial e chega ao movimento normal. É o que torna a projeção honesta: as contas fixas correm desde o dia 1, mesmo com o posto ainda enchendo.">?</span></label>
             <div class="eletro-inp"><input type="number" id="el-rampa" inputmode="decimal" min="1" value="24" oninput="eletroCalc()"></div></div>
         </div>
       </div>
@@ -1978,32 +2005,32 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <!-- COLUNA DIREITA: resultados -->
       <div class="eletro-col-result">
         <div class="card">
-          <div class="eletro-sec-title">Resultado por mês (regime pleno)</div>
+          <div class="eletro-sec-title">Resultado por mês (regime pleno)<span class="el-tip" tabindex="0" data-tip="&quot;Regime pleno&quot; = o posto já com o movimento normal do dia a dia, depois da fase inicial de conquistar clientes.">?</span></div>
           <div class="eletro-kgrid">
-            <div class="eletro-kcard"><div class="kt">Faturamento</div><div class="kv" id="el-fat-mes">R$ 0</div></div>
-            <div class="eletro-kcard"><div class="kt">Custos + Imposto</div><div class="kv red" id="el-cus-mes">R$ 0</div></div>
-            <div class="eletro-kcard"><div class="kt">Lucro</div><div class="kv grn" id="el-luc-mes">R$ 0</div></div>
-            <div class="eletro-kcard"><div class="kt">Margem</div><div class="kv" id="el-margem">0%</div></div>
+            <div class="eletro-kcard"><div class="kt">Faturamento<span class="el-tip" tabindex="0" data-tip="Tudo o que o posto recebe em um mês cheio: a energia vendida aos carros mais a taxa de ativação de cada recarga. É a receita bruta, antes de descontar qualquer custo.">?</span></div><div class="kv" id="el-fat-mes">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Custos + Imposto<span class="el-tip" tabindex="0" data-tip="Tudo o que sai por mês: a energia comprada da concessionária, os percentuais sobre a venda (gateway, arrendamento, manutenção e imposto) e os custos fixos (assinatura, seguro, software/4G).">?</span></div><div class="kv red" id="el-cus-mes">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Lucro<span class="el-tip" tabindex="0" data-tip="O que sobra no bolso no fim do mês: faturamento menos todos os custos e impostos. É o dinheiro que o posto realmente gera.">?</span></div><div class="kv grn" id="el-luc-mes">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Margem<span class="el-tip" tabindex="0" data-tip="Quanto de cada R$ 100 faturados vira lucro. Margem de 27%, por exemplo, significa que R$ 27 de cada R$ 100 ficam com você.">?</span></div><div class="kv" id="el-margem">0%</div></div>
           </div>
         </div>
 
         <div class="card">
-          <div class="eletro-sec-title">Resultado por ano (regime pleno)</div>
+          <div class="eletro-sec-title">Resultado por ano (regime pleno)<span class="el-tip" tabindex="0" data-tip="Os números anuais com o posto já maduro. A única exceção é o card &quot;Lucro ano 1&quot;, que mostra o primeiro ano real, ainda em crescimento.">?</span></div>
           <div class="eletro-kgrid">
-            <div class="eletro-kcard"><div class="kt">Faturamento</div><div class="kv" id="el-fat-ano">R$ 0</div></div>
-            <div class="eletro-kcard"><div class="kt">Custos + Impostos</div><div class="kv red" id="el-cus-ano">R$ 0</div></div>
-            <div class="eletro-kcard"><div class="kt">Lucro</div><div class="kv grn" id="el-luc-ano">R$ 0</div></div>
-            <div class="eletro-kcard"><div class="kt">Lucro ano 1 (rampa)</div><div class="kv" id="el-luc-ano1">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Faturamento<span class="el-tip" tabindex="0" data-tip="A receita de um mês cheio multiplicada por 12. Representa um ano com o posto já maduro, rodando no movimento normal.">?</span></div><div class="kv" id="el-fat-ano">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Custos + Impostos<span class="el-tip" tabindex="0" data-tip="Todos os custos e impostos de um mês cheio multiplicados por 12, com o posto já no movimento normal.">?</span></div><div class="kv red" id="el-cus-ano">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Lucro<span class="el-tip" tabindex="0" data-tip="O lucro de um ano com o posto já maduro. É o patamar que o negócio alcança depois de conquistar o movimento — não o que ele entrega logo no começo.">?</span></div><div class="kv grn" id="el-luc-ano">R$ 0</div></div>
+            <div class="eletro-kcard"><div class="kt">Lucro ano 1 (rampa)<span class="el-tip" tabindex="0" data-tip="O lucro real do primeiro ano, menor de propósito: um posto novo começa vazio e vai ganhando movimento aos poucos, enquanto as contas fixas já correm desde o primeiro dia. É o número honesto para o cliente esperar no início.">?</span></div><div class="kv" id="el-luc-ano1">R$ 0</div></div>
           </div>
         </div>
 
         <div class="card">
           <div class="eletro-sec-title">Retorno do investimento</div>
           <div class="eletro-kgrid">
-            <div class="eletro-kcard"><div class="kt">TIR</div><div class="kv" id="el-tir">—</div></div>
-            <div class="eletro-kcard"><div class="kt">VPL <span id="el-vpl-taxa" style="font-weight:400"></span></div><div class="kv" id="el-vpl">—</div></div>
-            <div class="eletro-kcard"><div class="kt">Payback</div><div class="kv" id="el-payback">—</div></div>
-            <div class="eletro-kcard"><div class="kt">ROI 10 anos</div><div class="kv" id="el-roi10">—</div></div>
+            <div class="eletro-kcard"><div class="kt">TIR<span class="el-tip" tabindex="0" data-tip="A rentabilidade do projeto em % ao ano, para comparar com outros investimentos. Se a TIR é maior que o rendimento de uma aplicação financeira, o posto rende mais que deixar o dinheiro no banco.">?</span></div><div class="kv" id="el-tir">—</div></div>
+            <div class="eletro-kcard"><div class="kt">VPL <span id="el-vpl-taxa" style="font-weight:400"></span><span class="el-tip" tabindex="0" data-tip="Quanto o projeto cria de riqueza hoje, em reais, já descontado o que o mesmo dinheiro renderia numa aplicação segura. VPL positivo = vale mais a pena que deixar o dinheiro rendendo parado.">?</span></div><div class="kv" id="el-vpl">—</div></div>
+            <div class="eletro-kcard"><div class="kt">Payback<span class="el-tip" tabindex="0" data-tip="Em quanto tempo o lucro acumulado devolve todo o valor investido. A partir daí, o que o posto gera é retorno.">?</span></div><div class="kv" id="el-payback">—</div></div>
+            <div class="eletro-kcard"><div class="kt">ROI 10 anos<span class="el-tip" tabindex="0" data-tip="Em 10 anos, quanto o posto devolve em relação ao que foi investido. ROI de 149% significa que, além de recuperar o investimento, sobra quase 1,5 vez o valor aplicado.">?</span></div><div class="kv" id="el-roi10">—</div></div>
           </div>
         </div>
 
@@ -4876,6 +4903,15 @@ const elNum = id => {
   const v = parseFloat((el && el.value || '').replace(',', '.'));
   return isFinite(v) ? v : 0;
 };
+// Campo em milhares (investimento): mostra "200.000" e devolve 200000.
+// NUNCA usar elNum aqui — parseFloat('200.000') = 200 e a conta inteira sairia
+// com R$ 200 em vez de R$ 200 mil, sem erro nenhum na tela.
+const elMilhar = id => {
+  const el = document.getElementById(id);
+  const d = (el && el.value || '').replace(/\D/g, '');
+  return d ? parseInt(d, 10) : 0;
+};
+const fmtMilhar = v => Math.round(v || 0).toLocaleString('pt-BR');
 const elMoney = n => 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR');
 // dinheiro COM centavos — pra preços unitários (kWh) onde arredondar destrói o valor
 const elMoney2 = n => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -4964,7 +5000,7 @@ function eletroParams() {
   return {
     carros: elNum('el-carros'), carga: elNum('el-carga'), custoKwh: elNum('el-custokwh'),
     precoKwh: elNum('el-precokwh'), ativacao: elNum('el-ativacao'), plugs: elNum('el-plugs'),
-    invest: elNum('el-invest'), assinat: elNum('el-assinatura'), fixos: elNum('el-fixos'),
+    invest: elMilhar('el-invest'), assinat: elNum('el-assinatura'), fixos: elNum('el-fixos'),
     gateway: elNum('el-gateway') / 100, arrend: elNum('el-arrend') / 100,
     manut: elNum('el-manut') / 100, imposto: elNum('el-imposto') / 100,
     ocupIni: elNum('el-ocup') / 100, mesesRampa: elNum('el-rampa'),
@@ -4986,11 +5022,25 @@ const elAnos1 = v => v == null ? '—' : v.toFixed(1).replace('.', ',') + ' anos
 // padrão do investDirty da proposta solar). Mexer na quantidade re-assume o controle.
 const VALOR_CARREGADOR = 200000;
 let elInvestDirty = false;
-function eletroInvestDirty() { elInvestDirty = true; eletroCalc(); }
+function eletroInvestDirty() {
+  const el = document.getElementById('el-invest');
+  if (el) {
+    // formata enquanto digita e devolve o cursor ao mesmo dígito (senão ele
+    // pula pro fim toda vez que um ponto entra e editar o meio fica impossível)
+    const digitosAntes = el.value.slice(0, el.selectionStart).replace(/\D/g, '').length;
+    const raw = el.value.replace(/\D/g, '');
+    el.value = raw ? fmtMilhar(parseInt(raw, 10)) : '';
+    let pos = 0, n = 0;
+    while (pos < el.value.length && n < digitosAntes) { if (/\d/.test(el.value[pos])) n++; pos++; }
+    el.setSelectionRange(pos, pos);
+  }
+  elInvestDirty = true;
+  eletroCalc();
+}
 function eletroQtdChange() {
   elInvestDirty = false;
   const inv = document.getElementById('el-invest');
-  if (inv) inv.value = Math.max(1, Math.round(elNum('el-qtd') || 1)) * VALOR_CARREGADOR;
+  if (inv) inv.value = fmtMilhar(Math.max(1, Math.round(elNum('el-qtd') || 1)) * VALOR_CARREGADOR);
   eletroCalc();
 }
 
@@ -5144,7 +5194,7 @@ function eletroApresentacao() {
   const qs = new URLSearchParams({
     cliente: t.cliente, cidade: t.cidade, equip: t.equip, autor: t.autor, contato: t.contato,
     carros: elNum('el-carros'), carga: elNum('el-carga'), custokwh: elNum('el-custokwh'),
-    precokwh: elNum('el-precokwh'), ativ: elNum('el-ativacao'), invest: elNum('el-invest'),
+    precokwh: elNum('el-precokwh'), ativ: elNum('el-ativacao'), invest: elMilhar('el-invest'),
     plugs: elNum('el-plugs'), assin: elNum('el-assinatura'), fixos: elNum('el-fixos'),
     gateway: elNum('el-gateway'), arrend: elNum('el-arrend'), manut: elNum('el-manut'),
     imposto: elNum('el-imposto'), ocup: elNum('el-ocup'), rampa: elNum('el-rampa'),
