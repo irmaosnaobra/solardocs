@@ -168,16 +168,7 @@ html[data-mode="app"].calc-aberto .container{margin-left:0!important}
 .calc-brow .val{font-weight:700;color:#E5E7EB;font-variant-numeric:tabular-nums}
 .calc-brow.total{border-top:1px solid rgba(255,255,255,.14);border-bottom:none;margin-top:4px;padding-top:13px}
 .calc-brow.total .lbl{color:#fff;font-weight:700}
-.calc-price-box{background:#0f1a2e;border:1px solid #3B82F6;border-radius:12px;padding:18px;text-align:center;margin-bottom:14px}
-.calc-price-box .cap{font-size:11.5px;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
-.calc-price-box .big{font-size:33px;font-weight:800;color:#60A5FA;margin:6px 0 2px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
-.calc-price-box .small{font-size:12.5px;color:#94A3B8}
-.calc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.calc-kpi{background:#0f1a2e;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:13px 14px}
-.calc-kpi .k{font-size:11px;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
-.calc-kpi .v{font-size:18px;font-weight:800;margin-top:4px;color:#E5E7EB;font-variant-numeric:tabular-nums}
-.calc-kpi .v.grn{color:#34D399}
-.calc-kpi .v.info{color:#60A5FA}
+.calc-price-sub{font-size:12.5px;color:#94A3B8;text-align:center;margin-top:10px}
 .calc-warn{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:#fca5a5;border-radius:10px;padding:12px 14px;font-size:13px;font-weight:600;text-align:center}
 .calc-foot{text-align:center;font-size:11.5px;color:#94A3B8;line-height:1.55;opacity:.85;margin-top:6px}
 .calc-foot b{color:#E5E7EB}
@@ -210,16 +201,30 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 .eletro-inp.has-pre input{padding-left:30px}
 .eletro-inp.has-suf input{padding-right:44px;text-align:right}
 .eletro-inp input:focus{border-color:#3B82F6}
+/* campo derivado (seguro): mostra o valor da conta, não aceita digitação */
+.eletro-inp-lock input{background:rgba(255,255,255,.04);color:#CBD5E1;cursor:default;border-style:dashed}
+.eletro-inp-lock input:focus{border-color:rgba(255,255,255,.14)}
 .eletro-inp input::-webkit-outer-spin-button,.eletro-inp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-/* KPI cards de resultado (estilo planilha, borda âmbar) */
+/* KPI cards de resultado — sistema compartilhado (Eletroposto: verde | Calculadora: azul).
+   A cor de acento vem de --kpi-cor, setada por quem monta a tela. */
 .eletro-kgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
 @media(max-width:760px){.eletro-kgrid{grid-template-columns:repeat(2,1fr)}}
-.eletro-kcard{background:#0f1a2e;border:1px solid rgba(125,209,23,.45);border-radius:12px;padding:14px 12px;text-align:center}
+.eletro-kcard{background:#0f1a2e;border:1px solid var(--kpi-borda,rgba(125,209,23,.45));border-radius:12px;padding:14px 12px;text-align:center}
 .eletro-kcard .kt{font-size:11px;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
 .eletro-kcard .kv{font-size:22px;font-weight:800;color:#E5E7EB;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
 .eletro-kcard .kv.grn{color:#34D399}
 .eletro-kcard .kv.red{color:#F87171}
-.eletro-sec-title{font-size:11.5px;font-weight:700;color:#7DD117;text-transform:uppercase;letter-spacing:.7px;margin:2px 0 12px}
+.eletro-sec-title{font-size:11.5px;font-weight:700;color:var(--kpi-cor,#7DD117);text-transform:uppercase;letter-spacing:.7px;margin:2px 0 12px}
+/* Calculadora solar: mesmo sistema, acento azul da marca.
+   Valores COM centavos são mais largos que os do eletroposto → tipo menor e sem quebra. */
+#calcSection{--kpi-cor:#60A5FA;--kpi-borda:rgba(96,165,250,.45)}
+#calcSection .eletro-kgrid{grid-template-columns:repeat(2,1fr)}
+#calcSection .eletro-kcard .kv{font-size:19px;white-space:nowrap}
+#calcSection .eletro-kcard .kt{white-space:nowrap}
+/* card de destaque do KPI principal (preço de venda) */
+.eletro-kcard.hero{grid-column:1/-1;background:linear-gradient(135deg,rgba(96,165,250,.14),rgba(59,130,246,.06));border-width:1.5px;padding:18px 12px}
+.eletro-kcard.hero .kv{font-size:34px;color:#fff}
+.eletro-kcard.hero .kt{font-size:11.5px;color:#BFDBFE}
 /* gráfico de fluxo de caixa (waterfall — zero no meio) */
 .eletro-chart{display:flex;align-items:stretch;gap:6px;padding:6px 2px;overflow-x:auto}
 .eletro-bar-wrap{flex:1;min-width:36px;display:flex;flex-direction:column;align-items:center}
@@ -1760,7 +1765,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <div id="calcSection" style="display:none;">
     <div class="header">
       <div class="header-titulo">
-        <h1>🧮 Calculadora de precificação</h1>
+        <h1>Calculadora de precificação</h1>
       </div>
       <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
     </div>
@@ -1835,30 +1840,38 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="calc-col-result">
     <!-- RESULTADO -->
     <div class="card">
-      <div class="calc-card-title"><span class="dot"></span>Resultado</div>
+      <div class="eletro-sec-title">Preço de venda</div>
+      <div class="eletro-kgrid">
+        <div class="eletro-kcard hero">
+          <div class="kt">Preço de venda sugerido</div>
+          <div class="kv" id="calc-r-preco">R$ 0,00</div>
+        </div>
+      </div>
+      <div class="calc-price-sub" id="calc-r-sub">Defina os custos acima</div>
+      <div id="calc-r-warn" class="calc-warn" style="display:none;"></div>
+    </div>
 
-      <div style="margin-bottom:18px">
+    <div class="card">
+      <div class="eletro-sec-title">Resultado da venda</div>
+      <div class="eletro-kgrid">
+        <div class="eletro-kcard"><div class="kt">Custo total</div><div class="kv red" id="calc-b-custo">R$ 0,00</div></div>
+        <div class="eletro-kcard"><div class="kt">Lucro líquido</div><div class="kv grn" id="calc-r-lucro">R$ 0,00</div></div>
+        <div class="eletro-kcard"><div class="kt">Margem real</div><div class="kv" id="calc-r-margem">0%</div></div>
+        <div class="eletro-kcard"><div class="kt">Comissão</div><div class="kv" id="calc-r-comissao">R$ 0,00</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eletro-sec-title">Composição do custo</div>
+      <div style="margin-bottom:2px">
         <div class="calc-brow"><span class="lbl">Kit</span><span class="val" id="calc-b-kit">R$ 0,00</span></div>
         <div class="calc-brow"><span class="lbl">Material C.A</span><span class="val" id="calc-b-ca">R$ 0,00</span></div>
         <div class="calc-brow"><span class="lbl">Mão de obra</span><span class="val" id="calc-b-mao">R$ 0,00</span></div>
         <div class="calc-brow"><span class="lbl">Deslocamento</span><span class="val" id="calc-b-desl">R$ 0,00</span></div>
         <div class="calc-brow"><span class="lbl">Homologação</span><span class="val" id="calc-b-homolog">R$ 0,00</span></div>
         <div class="calc-brow"><span class="lbl">ART</span><span class="val" id="calc-b-art">R$ 0,00</span></div>
-        <div class="calc-brow total"><span class="lbl">Custo total</span><span class="val" id="calc-b-custo">R$ 0,00</span></div>
+        <div class="calc-brow total"><span class="lbl">Custo total</span><span class="val" id="calc-b-custo2">R$ 0,00</span></div>
         <div class="calc-brow" id="calc-b-nf-row" style="display:none;"><span class="lbl" id="calc-b-nf-lbl">Nota fiscal</span><span class="val" id="calc-b-nf">R$ 0,00</span></div>
-      </div>
-
-      <div class="calc-price-box">
-        <div class="cap">Preço de venda sugerido</div>
-        <div class="big" id="calc-r-preco">R$ 0,00</div>
-        <div class="small" id="calc-r-sub">Defina os custos acima</div>
-      </div>
-
-      <div id="calc-r-warn" class="calc-warn" style="display:none;"></div>
-
-      <div class="calc-kpis" id="calc-r-kpis">
-        <div class="calc-kpi"><div class="k">Lucro líquido</div><div class="v grn" id="calc-r-lucro">R$ 0,00</div></div>
-        <div class="calc-kpi"><div class="k">Comissão</div><div class="v info" id="calc-r-comissao">R$ 0,00</div></div>
       </div>
     </div>
 
@@ -1903,8 +1916,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-cliente" placeholder="Ex: Grupo Andrade"></div></div>
           <div class="eletro-field"><label>Cidade / local</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-cidade" placeholder="Ex: Uberlândia-MG"></div></div>
-          <div class="eletro-field"><label>Equipamento <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(tipo/potência)</span></label>
-            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-equip" placeholder="Ex: 2× DC 60 kW"></div></div>
+          <div class="eletro-field"><label>Potência Carregador</label>
+            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-equip" placeholder="Ex: DC 80 kW"></div></div>
           <div class="eletro-field"><label>Elaborado por <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(consultor/empresa)</span></label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-autor" placeholder="Ex: João Silva — Solars Energias"></div></div>
           <div class="eletro-field"><label>Contato <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(telefone/e-mail)</span></label>
@@ -1927,10 +1940,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Investimento</div>
+          <div class="eletro-field"><label>Quantidade de carregadores <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(R$ 200.000 cada)</span></label>
+            <div class="eletro-inp"><input type="number" id="el-qtd" inputmode="decimal" min="1" value="1" oninput="eletroQtdChange()"></div></div>
           <div class="eletro-field"><label>Bicos de carregamento <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(aparece na proposta)</span></label>
             <div class="eletro-inp"><input type="number" id="el-plugs" inputmode="decimal" min="1" value="2" oninput="eletroCalc()"></div></div>
-          <div class="eletro-field"><label>Investimento total</label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-invest" inputmode="decimal" value="180000" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Investimento total <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(sugerido pela quantidade — editável)</span></label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-invest" inputmode="decimal" value="200000" oninput="eletroInvestDirty()"></div></div>
         </div>
 
         <div class="card">
@@ -1938,13 +1953,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-field"><label>Gateway</label>
             <div class="eletro-inp has-suf"><input type="number" id="el-gateway" inputmode="decimal" value="14" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Arrendamento do ponto</label>
-            <div class="eletro-inp has-suf"><input type="number" id="el-arrend" inputmode="decimal" value="10" oninput="eletroCalc()"><span class="suf">%</span></div></div>
+            <div class="eletro-inp has-suf"><input type="number" id="el-arrend" inputmode="decimal" value="0" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Manutenção</label>
             <div class="eletro-inp has-suf"><input type="number" id="el-manut" inputmode="decimal" value="0.1" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Assinatura mensal</label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-assinatura" inputmode="decimal" value="0" oninput="eletroCalc()"></div></div>
-          <div class="eletro-field"><label>Seguro | Ano | Carregador</label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-seguro" inputmode="decimal" value="2000" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Seguro | Ano <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(1% do investimento — automático)</span></label>
+            <div class="eletro-inp has-pre eletro-inp-lock"><span class="pre">R$</span><input type="text" id="el-seguro" value="2.000" readonly tabindex="-1"></div></div>
           <div class="eletro-field"><label>Imposto — Simples Nacional</label>
             <div class="eletro-inp has-suf"><input type="number" id="el-imposto" inputmode="decimal" value="6" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Outros custos fixos/mês <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(software, 4G, demanda)</span></label>
@@ -1956,7 +1971,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-field"><label>Ocupação inicial <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(mês 1 — posto novo começa vazio)</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-ocup" inputmode="decimal" min="0" max="100" value="50" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Meses até ocupação plena <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(rampa de crescimento)</span></label>
-            <div class="eletro-inp"><input type="number" id="el-rampa" inputmode="decimal" min="1" value="24" oninput="eletroCalc()"></div></div>
+            <div class="eletro-inp"><input type="number" id="el-rampa" inputmode="decimal" min="1" value="6" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Taxa de desconto <span style="font-weight:400;color:#94A3B8;font-size:11.5px">(a.a. — ref: Selic)</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-taxadesc" inputmode="decimal" min="0" value="14.25" oninput="eletroCalc()"><span class="suf">%</span></div></div>
         </div>
@@ -4965,9 +4980,26 @@ function eletroTextos() {
 const elPct1  = v => v == null ? '—' : (v * 100).toFixed(1).replace('.', ',') + '%';
 const elAnos1 = v => v == null ? '—' : v.toFixed(1).replace('.', ',') + ' anos';
 
+// Investimento sugerido = qtd de carregadores × VALOR_CARREGADOR. O consultor pode
+// sobrescrever pra negociar preço; elInvestDirty trava a sugestão a partir daí (mesmo
+// padrão do investDirty da proposta solar). Mexer na quantidade re-assume o controle.
+const VALOR_CARREGADOR = 200000;
+let elInvestDirty = false;
+function eletroInvestDirty() { elInvestDirty = true; eletroCalc(); }
+function eletroQtdChange() {
+  elInvestDirty = false;
+  const inv = document.getElementById('el-invest');
+  if (inv) inv.value = Math.max(1, Math.round(elNum('el-qtd') || 1)) * VALOR_CARREGADOR;
+  eletroCalc();
+}
+
 function eletroCalc() {
   const r = computeEletro(eletroParams());
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  // Seguro é derivado (1% a.a. do investimento) — campo travado, só reflete a conta.
+  const seg = document.getElementById('el-seguro');
+  if (seg) seg.value = Math.round(r.seguroMes * 12).toLocaleString('pt-BR');
 
   set('el-fat-mes', elMoney(r.fatMes));
   set('el-cus-mes', elMoney(r.custosMes));
@@ -5124,7 +5156,7 @@ function eletroApresentacao() {
 // Salva automaticamente ao gerar PDF/apresentação, se o cliente estiver preenchido.
 // 1 linha por (cliente|cidade|consultor); regerar atualiza a linha e conta em `geracoes`.
 function eletroInputsCrus() {
-  const ids = ['carros','carga','custokwh','precokwh','ativacao','plugs','invest','assinatura','fixos','gateway','arrend','manut','imposto','ocup','rampa','taxadesc'];
+  const ids = ['carros','carga','custokwh','precokwh','ativacao','qtd','plugs','invest','assinatura','fixos','gateway','arrend','manut','imposto','ocup','rampa','taxadesc'];
   const o = {};
   ids.forEach(id => { o[id] = elNum('el-' + id); });
   return o;
@@ -5530,21 +5562,22 @@ function calcPreco() {
   document.getElementById('calc-b-homolog').textContent = calcFmt(homolog);
   document.getElementById('calc-b-art').textContent     = calcFmt(art);
   document.getElementById('calc-b-custo').textContent   = calcFmt(custo);
+  document.getElementById('calc-b-custo2').textContent  = calcFmt(custo);
 
   const elPreco = document.getElementById('calc-r-preco');
   const elSub   = document.getElementById('calc-r-sub');
   const elWarn  = document.getElementById('calc-r-warn');
   const elLucro = document.getElementById('calc-r-lucro');
   const elComis = document.getElementById('calc-r-comissao');
-  const elKpis  = document.getElementById('calc-r-kpis');
+  const elMarg  = document.getElementById('calc-r-margem');
 
   if (custo <= 0) {
     elPreco.textContent = 'R$ 0,00';
     elSub.textContent = 'Defina os custos acima';
     elWarn.style.display = 'none';
-    elKpis.style.display = 'grid';
     elLucro.textContent = calcFmt(0);
     elComis.textContent = calcFmt(0);
+    elMarg.textContent  = '0%';
     document.getElementById('calc-b-nf-row').style.display = 'none';
     return;
   }
@@ -5556,9 +5589,11 @@ function calcPreco() {
   if (denom <= 0) {
     elPreco.textContent = '—';
     elSub.textContent = 'Reveja os percentuais';
-    elWarn.textContent = '⚠️ Margem + comissão + impostos + NF somam ' + somaPct.toFixed(0) + '% (≥100%). É impossível precificar — reduza algum deles.';
+    elWarn.textContent = 'Margem + comissão + impostos + NF somam ' + somaPct.toFixed(0) + '% (≥100%). É impossível precificar — reduza algum deles.';
     elWarn.style.display = 'block';
-    elKpis.style.display = 'none';
+    elLucro.textContent = '—';
+    elComis.textContent = '—';
+    elMarg.textContent  = '—';
     document.getElementById('calc-b-nf-row').style.display = 'none';
     return;
   }
@@ -5584,9 +5619,9 @@ function calcPreco() {
   elPreco.textContent = calcFmt(preco);
   elSub.textContent = 'Margem real de ' + margemPct.toFixed(0) + '% garantida';
   elWarn.style.display = 'none';
-  elKpis.style.display = 'grid';
   elLucro.textContent = calcFmt(lucro);
   elComis.textContent = calcFmt(comissao);
+  elMarg.textContent  = margemPct.toFixed(0).replace('.', ',') + '%';
 }
 
 const nfmt = n => (n == null ? '—' : Number(n).toLocaleString('pt-BR'));
