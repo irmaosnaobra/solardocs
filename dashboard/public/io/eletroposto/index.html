@@ -196,14 +196,16 @@
   .optb:hover{border-color:var(--neon);background:#0f2206}
   .optb.on{background:var(--neon);border-color:var(--neon);color:var(--dk)}
   .step{margin-bottom:18px}
-  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:9px;margin-top:10px}
+  .slots{margin-top:10px;display:flex;flex-direction:column;gap:14px}
+  .agLoad{color:var(--mut);font-size:13.5px;font-weight:700;padding:14px 0}
+  .dia .diaH{color:var(--neon-b);font-size:12px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px}
+  .diaS{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
+  @media(max-width:520px){.diaS{grid-template-columns:repeat(4,1fr)}}
   /* botão NÃO herda color — sem isto o texto sai preto no fundo escuro (ilegível) */
-  .slot{background:#0a1604;border:1.5px solid var(--line);border-radius:11px;padding:12px 8px;text-align:center;cursor:pointer;transition:.15s;font-family:inherit;color:var(--cream)}
+  .slot{background:#0a1604;border:1.5px solid var(--line);border-radius:10px;padding:11px 6px;text-align:center;
+    cursor:pointer;transition:.15s;font-family:inherit;color:var(--cream);font-size:15px;font-weight:800}
   .slot:hover{border-color:var(--neon);background:#0f2206}
   .slot.on{background:var(--neon);border-color:var(--neon);color:var(--dk)}
-  .slot .d{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--neon-b)}
-  .slot .h{font-size:17px;font-weight:900;margin-top:3px;color:var(--cream)}
-  .slot.on .d,.slot.on .h{color:var(--dk)}
   .agMsg{margin-top:14px;padding:13px 16px;border-radius:11px;font-size:13.5px;font-weight:700;display:none}
   .agMsg.err{background:rgba(244,63,94,.14);border:1px solid rgba(244,63,94,.45);color:#fda4af;display:block}
   .ok{text-align:center;padding:30px 10px;display:none}
@@ -617,9 +619,68 @@ function calc(){
   }).join('');
 }
 
-// ===== AGENDA — próximos dias úteis =====
+// ===== AGENDA =====
+// Regras: 3 dias rolantes a partir de HOJE (hoje/amanhã/depois), pulando domingo e
+// feriado. Seg–Sex 09:00–12:00 e 13:00–18:00; Sáb 09:00–11:00; slots de 30 min.
+// Fecha o que já passou e o que já está ocupado na agenda do Thiago/Diego.
 let slotSel = null;
 let pontoSel = null;   // 'sim' | 'nao'
+let ocupados = new Set();   // ISO dos horários já tomados
+
+// Enquanto Thiago e Diego apresentam JUNTOS, 1 reunião por horário: se qualquer um
+// estiver ocupado, o slot fecha. Quando separarem as agendas, vire para 2.
+const REUNIOES_POR_HORARIO = 1;
+
+// Feriados nacionais (data BR). Ponto facultativo não entra — só o que fecha mesmo.
+const FERIADOS = new Set([
+  '2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21','2026-05-01',
+  '2026-06-04','2026-09-07','2026-10-12','2026-11-02','2026-11-15','2026-11-20','2026-12-25',
+  '2027-01-01','2027-02-08','2027-02-09','2027-03-26','2027-04-21','2027-05-01',
+  '2027-05-27','2027-09-07','2027-10-12','2027-11-02','2027-11-15','2027-11-20','2027-12-25',
+]);
+
+// "agora" e as datas SEMPRE no fuso de Brasília, nunca no relógio do visitante.
+const TZ_BR = 'America/Sao_Paulo';
+function partesBR(d = new Date()){
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: TZ_BR, year:'numeric', month:'2-digit',
+    day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false });
+  const p = Object.fromEntries(f.formatToParts(d).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+  return { ymd:`${p.year}-${p.month}-${p.day}`, hhmm:`${p.hour}:${p.minute}` };
+}
+const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
+
+// Grade do dia conforme o dia da semana (0=dom … 6=sáb)
+function gradeDoDia(ymd){
+  const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
+  if(dow === 0) return [];                                  // domingo: fechado
+  if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
+  const faixas = dow === 6 ? [[9,11]] : [[9,12],[13,18]];   // sáb 9–11; seg–sex 9–12 e 13–18
+  const out = [];
+  for(const [ini,fim] of faixas)
+    for(let m = ini*60; m < fim*60; m += 30)
+      out.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
+  return out;
+}
+
+// Busca o que já está ocupado na agenda do Thiago/Diego na janela exibida.
+async function carregarOcupados(deYmd, ateYmd){
+  try{
+    const de  = isoDe(deYmd, '00:00');
+    const ate = new Date(new Date(isoDe(ateYmd,'23:59')).getTime()).toISOString();
+    const q = `agendamentos?select=quando,vendedor_nome&quando=gte.${de}&quando=lte.${ate}`
+            + `&vendedor_nome=in.(Thiago,Diego)&status=not.in.(cancelado,sem_interesse)`;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
+      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
+    const rows = await r.json();
+    const cont = {};
+    (Array.isArray(rows)?rows:[]).forEach(a=>{
+      if(!a.quando) return;
+      const k = new Date(a.quando).toISOString();
+      cont[k] = (cont[k]||0) + 1;
+    });
+    ocupados = new Set(Object.keys(cont).filter(k => cont[k] >= REUNIOES_POR_HORARIO));
+  }catch(e){ ocupados = new Set(); }   // falhou: não trava a agenda, valida no envio
+}
 
 // Rodízio Thiago/Diego: alterna pelo nº de reuniões da LP já marcadas.
 // `vendedor_nome` é NOT NULL e tem FK para `consultores` — só nomes existentes.
@@ -641,29 +702,53 @@ function setPonto(v){
   document.getElementById('box-semponto').style.display = v === 'nao' ? '' : 'none';
   track('ponto_' + v);
 }
-const HORAS = ['09:00','11:00','14:00','16:00'];
-function montarSlots(){
-  const el = document.getElementById('slots');
-  const out = [];
-  const d = new Date(); d.setHours(0,0,0,0);
-  let achados = 0;
-  while(achados < 3){
-    d.setDate(d.getDate()+1);
-    const dow = d.getDay();
-    if(dow===0 || dow===6) continue;          // pula fim de semana
-    achados++;
-    const dia = d.toLocaleDateString('pt-BR',{weekday:'short', day:'2-digit', month:'2-digit'});
-    HORAS.forEach(h=>{
-      // O horário é SEMPRE de Brasília (UTC-3), não do relógio do visitante: um lead
-      // noutro fuso escolheria "14:00" e cairia noutra hora na agenda do consultor.
-      // -03:00 fixo — o Brasil não tem horário de verão desde 2019.
-      const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const iso = new Date(`${ymd}T${h}:00-03:00`).toISOString();
-      out.push(`<button type="button" class="slot" data-iso="${iso}" data-label="${dia} às ${h}" onclick="pick(this)">
-        <div class="d">${dia}</div><div class="h">${h}</div></button>`);
-    });
+// Os 3 próximos dias COM atendimento, a partir de hoje (pula domingo/feriado e o dia
+// que já não tem horário livre). Ex: numa sexta → sex, sáb, seg.
+function proximosDias(){
+  const hoje = partesBR().ymd;
+  const dias = [];
+  let d = new Date(`${hoje}T12:00:00-03:00`);
+  for(let i=0; i<21 && dias.length<3; i++){
+    const ymd = partesBR(d).ymd;
+    if(gradeDoDia(ymd).length && livresDoDia(ymd).length) dias.push(ymd);
+    d = new Date(d.getTime() + 86400000);
   }
-  el.innerHTML = out.join('');
+  return dias;
+}
+// Horários do dia que ainda dá pra marcar: tira o que passou (hoje) e o que está ocupado
+function livresDoDia(ymd){
+  const agora = partesBR();
+  return gradeDoDia(ymd).filter(h=>{
+    if(ymd === agora.ymd && h <= agora.hhmm) return false;   // já passou (sem antecedência mínima)
+    return !ocupados.has(isoDe(ymd, h));
+  });
+}
+const rotuloDia = ymd => new Date(`${ymd}T12:00:00-03:00`)
+  .toLocaleDateString('pt-BR',{ timeZone:TZ_BR, weekday:'short', day:'2-digit', month:'2-digit' });
+
+async function montarSlots(){
+  const el = document.getElementById('slots');
+  el.innerHTML = '<div class="agLoad">Carregando horários…</div>';
+  // janela ampla p/ buscar ocupados de uma vez (3 dias úteis podem cair em até ~10 dias)
+  const hoje = partesBR().ymd;
+  const ate  = partesBR(new Date(Date.now() + 12*86400000)).ymd;
+  await carregarOcupados(hoje, ate);
+
+  const dias = proximosDias();
+  if(!dias.length){
+    el.innerHTML = '<div class="agLoad">Sem horários nos próximos dias — fale com a gente no WhatsApp que a gente encaixa.</div>';
+    return;
+  }
+  el.innerHTML = dias.map(ymd=>{
+    const livres = livresDoDia(ymd);
+    return `<div class="dia">
+      <div class="diaH">${rotuloDia(ymd)}</div>
+      <div class="diaS">${livres.map(h=>{
+        const iso = isoDe(ymd,h);
+        return `<button type="button" class="slot" data-iso="${iso}" data-label="${rotuloDia(ymd)} às ${h}" onclick="pick(this)">${h}</button>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
 }
 function pick(b){
   document.querySelectorAll('.slot').forEach(s=>s.classList.remove('on'));
@@ -715,6 +800,18 @@ async function agendar(){
   ].join('\n');
 
   try{
+    // Corrida: alguém pode ter marcado esse horário enquanto o lead preenchia o form.
+    // Revalida contra o banco ANTES de gravar e devolve a agenda atualizada.
+    await carregarOcupados(partesBR().ymd, partesBR(new Date(Date.now()+12*86400000)).ymd);
+    const passou = new Date(slotSel).getTime() < Date.now();
+    if(ocupados.has(slotSel) || passou){
+      slotSel = null;
+      await montarSlots();
+      btn.disabled = false; btn.textContent = 'Confirmar agendamento →';
+      document.getElementById('slots').scrollIntoView({behavior:'smooth', block:'center'});
+      return erro(passou ? 'Esse horário já passou. Escolha outro acima — a agenda foi atualizada.'
+                         : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
+    }
     const dono = await proximoDono();
     await supaInsert('agendamentos', {
       vendedor_nome:    dono,               // NOT NULL + FK consultores → rodízio Thiago/Diego
@@ -750,7 +847,9 @@ async function agendar(){
 }
 
 montarSlots();
-calc();
+setConfig();   // aplica a config default (80 kW) e calcula
+// a aba pode ficar aberta horas: ao voltar pra ela, refaz a agenda (horário que passou some)
+document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
 </script>
 </body>
 </html>
