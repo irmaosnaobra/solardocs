@@ -1972,7 +1972,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <div class="eletro-inp"><input type="number" id="el-plugs" inputmode="decimal" min="1" value="2" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Investimento total<span class="el-tip" tabindex="0" data-tip="Todo o dinheiro necessário para o posto abrir: equipamento, obra, entrada de energia, projeto, homologação e capital de giro. É a base do payback, do VPL e do ROI. Sugerido pela quantidade de carregadores, mas editável.">?</span></label>
             <!-- type=text: number nao aceita o ponto de milhar. Ler SEMPRE com elMilhar() -->
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="el-invest" inputmode="numeric" value="180.000" oninput="eletroInvestDirty()"></div></div>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="el-invest" inputmode="numeric" value="" placeholder="0" oninput="eletroInvestDirty()"></div></div>
         </div>
 
         <div class="card">
@@ -5060,18 +5060,21 @@ function eletroCalc() {
   set('el-cus-ano', elMoney(r.custosAno));
   set('el-luc-ano', elMoney(r.lucroAno));
   set('el-luc-ano1', elMoney(r.lucroAno1));
-  set('el-tir', r.tir == null ? '—' : elPct1(r.tir) + ' a.a.');
-  set('el-vpl', elMoney(r.vpl));
+  // Investimento em branco: os indicadores de RETORNO não existem ainda. Sem este
+  // guard eles mostram "0,0 anos" e "0%", que o consultor lê como resultado real.
+  const semInvest = !(r.investTotal > 0);
+  set('el-tir', semInvest || r.tir == null ? '—' : elPct1(r.tir) + ' a.a.');
+  set('el-vpl', semInvest ? '—' : elMoney(r.vpl));
   set('el-vpl-taxa', '@ ' + (r.taxaDesc * 100).toFixed(2).replace('.', ',') + '%');
-  set('el-payback', elAnos1(r.payback));
-  set('el-roi10', Math.round(r.roi10 * 100) + '%');
+  set('el-payback', semInvest ? '—' : elAnos1(r.payback));
+  set('el-roi10', semInvest ? '—' : Math.round(r.roi10 * 100) + '%');
   const vplEl = document.getElementById('el-vpl');
-  if (vplEl) vplEl.classList.toggle('grn', r.vpl > 0), vplEl.classList.toggle('red', r.vpl < 0);
+  if (vplEl) vplEl.classList.toggle('grn', !semInvest && r.vpl > 0), vplEl.classList.toggle('red', !semInvest && r.vpl < 0);
 
   // Frase de impacto — honesta: só compara com a taxa quando de fato supera
   const imp = document.getElementById('el-impacto');
   if (imp) {
-    if (r.payback && r.acumulado10 > 0) {
+    if (!semInvest && r.payback && r.acumulado10 > 0) {
       const pb = elAnos1(r.payback);
       const txPct = (r.taxaDesc * 100).toFixed(2).replace('.', ',') + '% a.a.';
       const tirTxt = r.tir != null
