@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Invista em Eletropostos — Irmãos na Obra</title>
 <meta name="description" content="Transforme sua vaga ociosa em renda recorrente. Simule o retorno do seu ponto e agende uma reunião com nossa equipe.">
+<link rel="icon" type="image/svg+xml" href="/io/eletroposto/img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/io/eletroposto/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/io/eletroposto/img/favicon-16.png">
+<link rel="apple-touch-icon" href="/io/eletroposto/img/apple-touch-icon.png">
+<meta name="theme-color" content="#0B2003">
+<meta property="og:title" content="Invista em Eletropostos — Irmãos na Obra">
+<meta property="og:description" content="Sua vaga parada pode virar renda recorrente. Simule o retorno do seu ponto e agende uma reunião.">
+<meta property="og:image" content="https://solardoc.app/io/eletroposto/img/og.jpg">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://solardoc.app/io/eletroposto/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" as="image" href="/io/eletroposto/img/hero.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap" rel="stylesheet">
@@ -39,8 +51,29 @@
   .navCta{background:var(--neon);color:var(--dk);font-weight:900;font-size:13.5px;padding:11px 18px;border-radius:60px;text-decoration:none;white-space:nowrap}
   @media(max-width:520px){.brand .t{font-size:14px}.navCta{font-size:12.5px;padding:10px 14px}}
 
-  /* ===== hero ===== */
-  .hero{padding:52px 0 44px}
+  /* ===== hero =====
+     Foto sangra pela direita e some num gradiente — no mobile ela vira faixa
+     no topo e o texto desce, pra nunca competir com a leitura. */
+  .heroWrap{position:relative;overflow:hidden}
+  .heroImg{
+    position:absolute;top:0;right:0;width:58%;height:100%;
+    background:url('/io/eletroposto/img/carregador-rua.webp') center 35%/cover no-repeat;
+    /* dupla máscara: apaga à esquerda (encontro com o texto) e no rodapé */
+    -webkit-mask-image:linear-gradient(90deg, transparent 0%, #000 42%), linear-gradient(180deg, #000 62%, transparent 100%);
+    -webkit-mask-composite:source-in; mask-composite:intersect;
+    opacity:.85;
+  }
+  .heroWrap::after{ /* véu para garantir contraste do texto em qualquer viewport */
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(90deg, rgba(6,15,2,.96) 30%, rgba(6,15,2,.5) 58%, transparent 78%);
+  }
+  .hero{padding:52px 0 44px;position:relative;z-index:2}
+  @media(max-width:880px){
+    .heroImg{position:relative;width:100%;height:220px;
+      -webkit-mask-image:linear-gradient(180deg, #000 55%, transparent 100%);mask-composite:add;opacity:.75}
+    .heroWrap::after{display:none}
+    .hero{padding:22px 0 36px}
+  }
   .kicker{display:inline-flex;align-items:center;gap:9px;background:rgba(125,209,23,.14);border:1px solid rgba(125,209,23,.42);color:var(--neon-b);font-size:12.5px;font-weight:900;letter-spacing:1.8px;text-transform:uppercase;padding:9px 17px;border-radius:999px}
   h1{margin-top:20px;font-size:clamp(38px,6.4vw,72px);font-weight:900;line-height:.95;letter-spacing:-2.4px}
   h1 .n{color:var(--neon-b);display:block}
@@ -92,6 +125,25 @@
   .mkc .l{color:var(--mut);font-size:12.5px;font-weight:700;margin-top:9px;line-height:1.35}
   .mkFonte{color:rgba(247,251,242,.4);font-size:11.5px;font-weight:600;line-height:1.6;margin-top:14px}
 
+  /* ===== vitrine do equipamento (foto em gradiente + texto) ===== */
+  .showcase{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;
+    background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+  .showcase .scImg{min-height:320px;
+    background:url('/io/eletroposto/img/carregador-wall.webp') center/cover no-repeat;
+    -webkit-mask-image:linear-gradient(90deg, #000 55%, transparent 100%);
+    mask-image:linear-gradient(90deg, #000 55%, transparent 100%);}
+  .showcase .scTxt{padding:28px 30px 28px 0}
+  .showcase h3{font-size:clamp(20px,2.6vw,27px);font-weight:900;letter-spacing:-.8px;line-height:1.15}
+  .showcase p{color:var(--mut);font-size:15px;font-weight:600;line-height:1.6;margin:12px 0 20px}
+  .showcase p b{color:var(--cream);font-weight:800}
+  @media(max-width:760px){
+    .showcase{grid-template-columns:1fr;gap:0}
+    .showcase .scImg{min-height:230px;
+      -webkit-mask-image:linear-gradient(180deg, #000 60%, transparent 100%);
+      mask-image:linear-gradient(180deg, #000 60%, transparent 100%)}
+    .showcase .scTxt{padding:4px 22px 26px}
+  }
+
   /* ===== simulador ===== */
   .simGrid{display:grid;grid-template-columns:340px 1fr;gap:18px}
   @media(max-width:880px){.simGrid{grid-template-columns:1fr}}
@@ -132,6 +184,17 @@
 
   /* ===== agendamento ===== */
   .agBox{background:var(--card);border:1.5px solid rgba(125,209,23,.45);border-radius:20px;padding:28px}
+  /* par de campos: 2 colunas no desktop, empilha no celular (era style inline, que
+     vencia a media query e espremia os campos no mobile) */
+  .f2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.f2{grid-template-columns:1fr;gap:0}.agBox{padding:20px 16px}}
+  /* par de botões tenho/não tenho o ponto */
+  .opt2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:520px){.opt2{grid-template-columns:1fr}}
+  .optb{background:#0a1604;border:1.5px solid var(--line);border-radius:11px;padding:14px 12px;
+    color:var(--cream);font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;transition:.15s}
+  .optb:hover{border-color:var(--neon);background:#0f2206}
+  .optb.on{background:var(--neon);border-color:var(--neon);color:var(--dk)}
   .step{margin-bottom:18px}
   .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:9px;margin-top:10px}
   /* botão NÃO herda color — sem isto o texto sai preto no fundo escuro (ilegível) */
@@ -170,8 +233,9 @@
   </div>
 </div>
 
+<div class="heroWrap">
+<div class="heroImg" role="img" aria-label="Carro elétrico carregando em eletroposto"></div>
 <div class="wrap">
-
   <!-- HERO -->
   <section class="hero">
     <div class="kicker">Renda passiva com energia</div>
@@ -187,7 +251,10 @@
       <div class="hn"><div class="v" id="h-roi">—</div><div class="l">ROI em 10 anos</div></div>
     </div>
   </section>
+</div>
+</div>
 
+<div class="wrap">
   <!-- INVESTIMENTO DECLARADO -->
   <section style="padding-top:0">
     <div class="invest">
@@ -309,6 +376,15 @@
       <div class="mkc"><div class="v">1.649</div><div class="l">municípios já atendidos</div></div>
     </div>
     <div class="mkFonte">A frota que recarrega em ponto público (elétricos + híbridos plug-in) cresce em ritmo acima da infraestrutura instalada. Fonte: ABVE (Associação Brasileira do Veículo Elétrico) e Tupi Mobilidade — dados de 2025 / fev. 2026.</div>
+
+    <div class="showcase">
+      <div class="scImg" role="img" aria-label="Carregador DC com display de carregamento"></div>
+      <div class="scTxt">
+        <h3>Equipamento que o seu cliente confia</h3>
+        <p>Conector <b>CCS2</b>, o padrão do mercado brasileiro. Display com o status da recarga, pagamento pelo app e monitoramento remoto — você acompanha tudo pelo celular, de onde estiver.</p>
+        <a href="#agendar" class="btn ghost" onclick="track('cta_showcase')">Ver a configuração ideal pro meu ponto →</a>
+      </div>
+    </div>
   </section>
 
   <!-- AGENDAMENTO -->
@@ -324,11 +400,11 @@
           <div class="slots" id="slots"></div>
         </div>
 
-        <div class="simGrid" style="grid-template-columns:1fr 1fr;gap:14px">
+        <div class="f2">
           <div class="fld"><label>Seu nome</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
           <div class="fld"><label>WhatsApp</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this)"></div></div>
         </div>
-        <div class="simGrid" style="grid-template-columns:1fr 1fr;gap:14px">
+        <div class="f2">
           <div class="fld"><label>Cidade</label><div class="inp"><input type="text" id="f-cidade" placeholder="Ex: Uberlândia-MG"></div></div>
           <div class="fld">
             <label>Seu perfil</label>
@@ -351,11 +427,34 @@
           <label>Quanto você pretende investir <span class="hint">(o projeto parte de R$ 85 mil)</span></label>
           <div class="inp"><select id="f-capital">
             <option value="">Selecione…</option>
-            <option value="180_mais">Acima de R$ 180 mil</option>
-            <option value="85_180">Entre R$ 85 mil e R$ 180 mil</option>
+            <option value="85_140">De R$ 85 mil a R$ 140 mil</option>
+            <option value="140_260">De R$ 140 mil a R$ 260 mil</option>
+            <option value="acima_260">Acima de R$ 260 mil</option>
             <option value="financiar">Pretendo financiar / usar carência</option>
-            <option value="abaixo_85">Menos de R$ 85 mil</option>
             <option value="pesquisando">Ainda estou pesquisando</option>
+          </select></div>
+        </div>
+
+        <div class="fld">
+          <label>Você já tem o ponto para instalar?</label>
+          <div class="opt2">
+            <button type="button" class="optb" id="pt-sim" onclick="setPonto('sim')">Já tenho o ponto</button>
+            <button type="button" class="optb" id="pt-nao" onclick="setPonto('nao')">Ainda não tenho</button>
+          </div>
+        </div>
+
+        <div class="fld" id="box-endereco" style="display:none">
+          <label>Endereço completo do ponto <span class="hint">(rua, nº, bairro, cidade)</span></label>
+          <div class="inp"><input type="text" id="f-endereco" placeholder="Ex: Av. João Naves de Ávila, 1200 — Santa Mônica, Uberlândia-MG"></div>
+        </div>
+
+        <div class="fld" id="box-semponto" style="display:none">
+          <label>Como pretende obter o ponto?</label>
+          <div class="inp"><select id="f-obter">
+            <option value="">Selecione…</option>
+            <option value="alugar">Pretendo alugar um local</option>
+            <option value="adquirir">Pretendo adquirir um local</option>
+            <option value="ajuda">Quero ajuda da equipe para encontrar o ponto</option>
           </select></div>
         </div>
 
@@ -520,6 +619,28 @@ function calc(){
 
 // ===== AGENDA — próximos dias úteis =====
 let slotSel = null;
+let pontoSel = null;   // 'sim' | 'nao'
+
+// Rodízio Thiago/Diego: alterna pelo nº de reuniões da LP já marcadas.
+// `vendedor_nome` é NOT NULL e tem FK para `consultores` — só nomes existentes.
+const DONOS = ['Thiago', 'Diego'];
+async function proximoDono(){
+  try{
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/agendamentos?select=id&created_by=eq.lp_eletroposto`,
+      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, Prefer:'count=exact', Range:'0-0' } });
+    const total = parseInt((r.headers.get('content-range')||'*/0').split('/')[1], 10) || 0;
+    return DONOS[total % DONOS.length];
+  }catch(e){ return DONOS[0]; }   // falhou a contagem: cai no primeiro, nunca deixa sem dono
+}
+
+function setPonto(v){
+  pontoSel = v;
+  document.getElementById('pt-sim').classList.toggle('on', v === 'sim');
+  document.getElementById('pt-nao').classList.toggle('on', v === 'nao');
+  document.getElementById('box-endereco').style.display = v === 'sim' ? '' : 'none';
+  document.getElementById('box-semponto').style.display = v === 'nao' ? '' : 'none';
+  track('ponto_' + v);
+}
 const HORAS = ['09:00','11:00','14:00','16:00'];
 function montarSlots(){
   const el = document.getElementById('slots');
@@ -533,8 +654,12 @@ function montarSlots(){
     achados++;
     const dia = d.toLocaleDateString('pt-BR',{weekday:'short', day:'2-digit', month:'2-digit'});
     HORAS.forEach(h=>{
-      const iso = new Date(d.getFullYear(), d.getMonth(), d.getDate(), +h.slice(0,2), 0, 0).toISOString();
-      out.push(`<button type="button" class="slot" data-iso="${iso}" onclick="pick(this)">
+      // O horário é SEMPRE de Brasília (UTC-3), não do relógio do visitante: um lead
+      // noutro fuso escolheria "14:00" e cairia noutra hora na agenda do consultor.
+      // -03:00 fixo — o Brasil não tem horário de verão desde 2019.
+      const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const iso = new Date(`${ymd}T${h}:00-03:00`).toISOString();
+      out.push(`<button type="button" class="slot" data-iso="${iso}" data-label="${dia} às ${h}" onclick="pick(this)">
         <div class="d">${dia}</div><div class="h">${h}</div></button>`);
     });
   }
@@ -564,35 +689,43 @@ async function agendar(){
   const capital = document.getElementById('f-capital').value;
   const btn     = document.getElementById('ag-btn');
 
+  const endereco = document.getElementById('f-endereco').value.trim();
+  const obter    = document.getElementById('f-obter').value;
+
   if(!slotSel)            return erro('Escolha um horário acima.');
   if(nome.length < 3)     return erro('Informe seu nome completo.');
   if(telRaw.length < 10)  return erro('Informe um WhatsApp válido com DDD.');
   if(!perfil)             return erro('Selecione seu perfil.');
-  if(!capital)            return erro('Selecione a faixa de capital.');
+  if(!capital)            return erro('Selecione a faixa de investimento.');
+  if(!pontoSel)           return erro('Informe se você já tem o ponto.');
+  if(pontoSel === 'sim' && endereco.length < 8) return erro('Informe o endereço completo do ponto.');
+  if(pontoSel === 'nao' && !obter)              return erro('Informe como pretende obter o ponto.');
 
   btn.disabled = true; btn.textContent = 'Agendando…';
   const p = params(), r = compute(p);
   const tel = '55' + telRaw;
+  const kw  = document.getElementById('s-config').value;
   const obs = [
-    `LP Eletroposto — ${perfil}`,
-    `Capital: ${document.getElementById('f-capital').selectedOptions[0].text}`,
-    `Simulou: ${p.carros} carros/dia, invest ${money(p.invest)}`,
-    `→ payback ${r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—'}, lucro ${money(r.lucroMes)}/mês`,
+    `LP ELETROPOSTO — ${perfil}`,
+    `Investimento pretendido: ${document.getElementById('f-capital').selectedOptions[0].text}`,
+    pontoSel === 'sim' ? `PONTO: já tem — ${endereco}`
+                       : `PONTO: não tem — ${document.getElementById('f-obter').selectedOptions[0].text}`,
+    `Simulou ${kw} kW com ${p.carros} carros/dia`,
+    `→ payback ${r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—'} · lucro ${money(r.lucroMes)}/mês`,
   ].join('\n');
 
   try{
+    const dono = await proximoDono();
     await supaInsert('agendamentos', {
-      vendedor_nome:    null,               // sem dono ainda → rodízio/distribuição no CRM
+      vendedor_nome:    dono,               // NOT NULL + FK consultores → rodízio Thiago/Diego
       quando:           slotSel,
-      titulo:           'Reunião Eletroposto — ' + nome,
       cliente_nome:     nome,
       cliente_telefone: tel,
       cidade:           cidade || null,
       status:           'agendado',
-      tipo:             'eletroposto',
-      // quente = alvo do projeto completo (180k+); morno = entrada 85-180k ou financia; frio = resto
-      temperatura:      capital === '180_mais' ? 'quente'
-                        : (capital === '85_180' || capital === 'financiar') ? 'morno' : 'frio',
+      // quente = tem o ponto e capital do topo; morno = tem ponto OU financia; frio = resto
+      temperatura:      (pontoSel === 'sim' && (capital === '140_260' || capital === 'acima_260')) ? 'quente'
+                        : (pontoSel === 'sim' || capital === 'financiar' || capital === '85_140') ? 'morno' : 'frio',
       observacao:       obs,
       created_by:       'lp_eletroposto',
     });
@@ -601,8 +734,9 @@ async function agendar(){
     try{ fbq('track','Schedule',{content_name:'Reuniao Eletroposto', content_category:perfil}); }catch(e){}
 
     const dt = new Date(slotSel);
+    const TZ = { timeZone:'America/Sao_Paulo' };   // exibe no fuso do Brasil, não no do visitante
     document.getElementById('ok-txt').textContent =
-      `Sua reunião ficou para ${dt.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})} às ${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}. Nossa equipe confirma pelo WhatsApp.`;
+      `Sua reunião ficou para ${dt.toLocaleDateString('pt-BR',{...TZ,weekday:'long',day:'2-digit',month:'long'})} às ${dt.toLocaleTimeString('pt-BR',{...TZ,hour:'2-digit',minute:'2-digit'})} (horário de Brasília). Nossa equipe confirma pelo WhatsApp.`;
     document.getElementById('ok-zap').href =
       `https://wa.me/5534998165040?text=${encodeURIComponent('Olá! Acabei de agendar uma reunião sobre eletroposto pelo site.')}`;
     document.getElementById('ag-form').style.display = 'none';

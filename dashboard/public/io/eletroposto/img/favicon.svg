@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Favicon Eletropostos IO: a silhueta de um plug CCS2 cujo corpo é um raio.
+       Lido em 16px: mancha verde arredondada com um corte diagonal claro. -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9BEE38"/>
+      <stop offset="1" stop-color="#5DA80D"/>
+    </linearGradient>
+  </defs>
+  <!-- corpo arredondado (o conector) -->
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="#0B2003"/>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="none" stroke="url(#g)" stroke-width="3"/>
+  <!-- os dois pinos DC do CCS2, no topo -->
+  <circle cx="24" cy="19" r="4.2" fill="url(#g)"/>
+  <circle cx="40" cy="19" r="4.2" fill="url(#g)"/>
+  <!-- o raio: desce do meio, corta na diagonal e vira a "haste" do plug -->
+  <path d="M35.5 27 L22 43.5 h8.5 L28.5 57 L43 39 h-8.8 z" fill="url(#g)"/>
+</svg>
