@@ -575,15 +575,15 @@ function compute(p){
     }
     fluxoAnual.push(luc);
   }
-  let acc = -p.invest; const fluxo=[];
-  fluxoAnual.forEach(f=>{ acc+=f; fluxo.push(acc); });
+  // Fluxo acumulado + payback interpolado DENTRO do ano — cópia exata do
+  // computeEletro do /gerador. Não trocar por contagem mês a mês: dá ~1 mês
+  // a mais e a LP passa a divergir do estudo que o consultor abre na reunião.
+  let acc = -p.invest, pb = null; const fluxo=[];
+  fluxoAnual.forEach((f,i)=>{
+    const antes = acc; acc += f; fluxo.push(acc);
+    if(pb === null && acc >= 0 && f > 0) pb = i + (0 - antes) / f;
+  });
   const acumulado10 = fluxo[ANOS-1];
-  // payback com rampa
-  let pb=null, run=-p.invest;
-  for(let m=1;m<=ANOS*12;m++){
-    run += (margemVar*occ(m)) - fixosMes;
-    if(run>=0 && pb===null){ pb = m/12; break; }
-  }
   const roi10 = p.invest>0 ? acumulado10/p.invest : 0;
   return { fatMes, lucroMes, margem, payback:pb, fluxo, roi10 };
 }
