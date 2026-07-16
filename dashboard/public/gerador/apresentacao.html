@@ -284,7 +284,7 @@ document.getElementById('deck').innerHTML = `
     <div class="sub rv">Instalamos eletropostos em todo o país. Você transforma a localização do seu negócio em receita recorrente.</div>
     ${t.cliente ? `<div class="capa-cliente rv">Preparado para <b>${t.cliente}</b>${t.cidade ? ` · <b>${t.cidade}</b>` : ''}</div>` : ''}
     <div class="quote rv">“Quem ocupa os melhores pontos primeiro, <span class="hl">domina a rota</span>.”</div>
-    <div class="capa-marcas rv"><img src="/gerador/logo-io.png" alt=""><span>IRMÃOS NA OBRA</span><span class="sm" style="font-size:.72em;letter-spacing:.3em;color:var(--tx2)">MOBILIDADE ELÉTRICA</span></div>
+    <div class="capa-marcas rv"><img src="/gerador/logo-eletroposto.png" alt=""><span>IRMÃOS NA OBRA</span><span class="sm" style="font-size:.72em;letter-spacing:.3em;color:var(--tx2)">MOBILIDADE ELÉTRICA</span></div>
   </div>
   <div class="capa-mapa rv"><img src="/gerador/apresentacao-mapa.jpg" alt="Cobertura nacional"><div class="capa-badge">COBERTURA NACIONAL</div></div>
 </div></div>${rodape(1)}</section>
@@ -582,7 +582,7 @@ ${rodape(15)}</section>
 
 <!-- 16 · ENCERRAMENTO -->
 <section class="sl fim"><div class="sl-corpo" style="align-items:center;text-align:center">
-  <img class="rv" src="/gerador/logo-io.png" alt="" style="height:clamp(60px,8.5vw,104px);margin-bottom:24px">
+  <img class="rv" src="/gerador/logo-eletroposto.png" alt="" style="height:clamp(60px,8.5vw,104px);margin-bottom:24px">
   <div class="marcas rv">IRMÃOS NA OBRA</div>
   <div class="frase rv">Transformando <span class="hl">localização em patrimônio</span>, <span class="hlv">energia em receita</span> e visão em crescimento.</div>
   <div class="contato rv">
@@ -620,7 +620,7 @@ async function baixarPPTX() {
       return new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(bl); });
     };
     const [IMG_LOGO, IMG_MAPA, IMG_CARR] = await Promise.all([
-      imgData('/gerador/logo-io.png'), imgData('/gerador/apresentacao-mapa.jpg'), imgData('/gerador/apresentacao-carregador.jpg'),
+      imgData('/gerador/logo-eletroposto.png'), imgData('/gerador/apresentacao-mapa.jpg'), imgData('/gerador/apresentacao-carregador.jpg'),
     ]);
     const pptx = new PptxGenJS();
     pptx.defineLayout({ name: 'W169', width: 13.333, height: 7.5 });
