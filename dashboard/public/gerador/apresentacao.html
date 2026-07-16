@@ -9,7 +9,7 @@
   :root{
     /* paleta da marca: navy profundo + dourado da logo Irmãos na Obra (verde só pra dinheiro/positivo) */
     --bg:#0a0e16; --card:#131a28; --card2:#0f1522; --borda:rgba(255,255,255,.07);
-    --tx:#eceef2; --tx2:#98a1b0; --lar:#e2b25a; --verde:#34d399;
+    --tx:#eceef2; --tx2:#98a1b0; --lar:#7dd117; --verde:#7dd117;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-snap-type:y mandatory;scroll-behavior:smooth}
@@ -65,7 +65,7 @@
   /* cenários */
   .cen{position:relative;background:var(--card);border:1px solid var(--borda);border-radius:16px;padding:clamp(15px,2vw,26px)}
   .cen.dest{border:2px solid var(--lar)}
-  .cen .selo{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--lar);color:#231000;font-size:10px;font-weight:800;letter-spacing:.14em;padding:4px 14px;border-radius:999px;white-space:nowrap}
+  .cen .selo{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--lar);color:#0b2003;font-size:10px;font-weight:800;letter-spacing:.14em;padding:4px 14px;border-radius:999px;white-space:nowrap}
   .cen h3{font-size:clamp(16px,1.7vw,23px)} .cen h3.lar{color:var(--lar)}
   .cen .carros{color:var(--tx2);font-size:clamp(11.5px,1.15vw,14px);margin-bottom:10px}
   .cen .kt{font-size:clamp(9px,.9vw,11.5px);font-weight:700;letter-spacing:.12em;color:var(--tx2);text-transform:uppercase;margin-top:12px;border-top:1px solid var(--borda);padding-top:10px}
@@ -125,7 +125,7 @@
   .fim .contato{margin-top:26px;color:var(--tx2);font-size:clamp(12.5px,1.35vw,17px)}
   .fim .contato b{color:var(--tx);font-size:clamp(14px,1.6vw,21px)}
   .setahint{position:fixed;right:16px;bottom:16px;background:var(--card);border:1px solid var(--borda);color:var(--tx2);border-radius:999px;padding:9px 15px;font-size:11.5px;letter-spacing:.08em;opacity:.85;z-index:9}
-  .btn-ppt{position:fixed;right:16px;top:16px;background:var(--lar);border:none;color:#241a05;border-radius:999px;padding:10px 18px;font-size:12.5px;font-weight:800;letter-spacing:.06em;cursor:pointer;z-index:9;font-family:inherit}
+  .btn-ppt{position:fixed;right:16px;top:16px;background:var(--lar);border:none;color:#0b2003;border-radius:999px;padding:10px 18px;font-size:12.5px;font-weight:800;letter-spacing:.06em;cursor:pointer;z-index:9;font-family:inherit}
   .btn-ppt:disabled{opacity:.6;cursor:wait}
   @media print{.btn-ppt{display:none}}
   @media print{
@@ -232,17 +232,17 @@ function chartAdocao() {
   const labels = anos.map((a, i) => `<text x="${pts[i][0]}" y="${H - 12}" fill="#98a1b0" font-size="12" text-anchor="middle">${a}</text>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" width="100%">
     <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#e2b25a" stop-opacity=".85"/><stop offset="1" stop-color="#e2b25a" stop-opacity=".08"/>
+      <stop offset="0" stop-color="#7dd117" stop-opacity=".85"/><stop offset="1" stop-color="#7dd117" stop-opacity=".08"/>
     </linearGradient></defs>
     <line x1="${padX}" y1="${H - padB}" x2="${W - padX}" y2="${H - padB}" stroke="rgba(255,255,255,.16)"/>
     <path d="${area}" fill="url(#ga)"/>
-    <path d="${d}" fill="none" stroke="#e2b25a" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="${d}" fill="none" stroke="#7dd117" stroke-width="3.5" stroke-linejoin="round"/>
     ${labels}</svg>`;
 }
 // ---- gráfico: acumulação 10 anos (2 séries) ----
 function chartAcumulacao() {
   const W = 720, H = 300, padX = 56, padY = 24, padB = 30;
-  const series = [{ f: otim.fluxo, cor: '#34d399' }, { f: base.fluxo, cor: '#e2b25a' }];
+  const series = [{ f: otim.fluxo, cor: '#7dd117' }, { f: base.fluxo, cor: '#f5a623' }];
   const all = [...otim.fluxo, ...base.fluxo];
   const mx = Math.max(...all), mn = Math.min(...all);
   const X = i => padX + (W - padX - 18) * i / 9;
@@ -265,7 +265,7 @@ function chartSolar() {
   const h1 = hmax * semS / comS, h2 = hmax;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%">
     <rect x="${x0}" y="${base0 - h1}" width="${bw}" height="${h1}" rx="6" fill="#9aa3b2"/>
-    <rect x="${x0 + bw + gap}" y="${base0 - h2}" width="${bw}" height="${h2}" rx="6" fill="#34d399"/>
+    <rect x="${x0 + bw + gap}" y="${base0 - h2}" width="${bw}" height="${h2}" rx="6" fill="#7dd117"/>
     <text x="${x0 + bw / 2}" y="${base0 - h1 - 12}" fill="#eceef2" font-size="17" font-weight="700" text-anchor="middle">${money(semS)}</text>
     <text x="${x0 + bw + gap + bw / 2}" y="${base0 - h2 - 12}" fill="#eceef2" font-size="17" font-weight="700" text-anchor="middle">${money(comS)}</text>
     <text x="${x0 + bw / 2}" y="${base0 + 24}" fill="#98a1b0" font-size="14" text-anchor="middle">Sem solar</text>
@@ -459,7 +459,7 @@ document.getElementById('deck').innerHTML = `
   <div class="grid rv" style="grid-template-columns:1.7fr 1fr;display:grid">
     <div class="chartbox">
       <div class="ct">Resultado líquido acumulado · após o investimento (R$)</div>
-      <div class="legenda"><span><i style="background:var(--verde)"></i>Expansão · ${carrosOtim}/dia</span><span><i style="background:var(--lar)"></i>Realista · ${Math.round(p.carros)}/dia</span></div>
+      <div class="legenda"><span><i style="background:var(--verde)"></i>Expansão · ${carrosOtim}/dia</span><span><i style="background:#f5a623"></i>Realista · ${Math.round(p.carros)}/dia</span></div>
       ${chartAcumulacao()}
     </div>
     <div class="destaque-lateral">
@@ -571,7 +571,7 @@ document.getElementById('deck').innerHTML = `
 <section class="sl visao">
   <div class="orb"></div>
   <svg class="skyline" viewBox="0 0 1200 240" preserveAspectRatio="xMidYMax slice">
-    ${[...Array(16)].map((_, i) => { const w = 46 + (i * 37) % 60, h = 60 + (i * 53) % 150, x = i * 78, y = 240 - h; return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="#131a26" stroke="rgba(255,255,255,.05)"/>` + [...Array(5)].map((__, j) => `<rect x="${x + 8 + (j * 17) % (w - 14)}" y="${y + 12 + (j * 31) % (h - 24)}" width="4" height="4" fill="${j % 3 ? '#34d399' : '#e2b25a'}" opacity=".8"/>`).join(''); }).join('')}
+    ${[...Array(16)].map((_, i) => { const w = 46 + (i * 37) % 60, h = 60 + (i * 53) % 150, x = i * 78, y = 240 - h; return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="#131a26" stroke="rgba(255,255,255,.05)"/>` + [...Array(5)].map((__, j) => `<rect x="${x + 8 + (j * 17) % (w - 14)}" y="${y + 12 + (j * 31) % (h - 24)}" width="4" height="4" fill="${j % 3 ? '#7dd117' : '#7dd117'}" opacity=".8"/>`).join(''); }).join('')}
   </svg>
   <div class="sl-corpo">
     <div class="kicker rv">Visão de futuro</div>
@@ -598,7 +598,7 @@ const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting
 document.querySelectorAll('.rv').forEach(el => io.observe(el));
 
 // ===== Exportação PowerPoint (.pptx editável, mesmos números do orçamento) =====
-const PAL = { BG:'0A0E16', CARD:'131A28', CARD2:'0F1522', LINHA:'283245', GOLD:'E2B25A', GREEN:'34D399', TX:'ECEEF2', TX2:'98A1B0', DK:'241A05', RED:'F87171', CINZA:'9AA3B2' };
+const PAL = { BG:'0A0E16', CARD:'131A28', CARD2:'0F1522', LINHA:'283245', GOLD:'7DD117', GREEN:'7DD117', TX:'ECEEF2', TX2:'98A1B0', DK:'0B2003', RED:'F87171', CINZA:'9AA3B2' };
 const FF = 'Arial';
 function carregarPptxLib() {
   return new Promise((res, rej) => {
@@ -870,7 +870,7 @@ async function baixarPPTX() {
     s.addChart(pptx.ChartType.line, [
       { name: `Expansão · ${carrosOtim}/dia`, labels: Array.from({ length: 10 }, (_, i) => 'Ano ' + (i + 1)), values: otim.fluxo.map(v => Math.round(v)) },
       { name: `Realista · ${Math.round(p.carros)}/dia`, labels: Array.from({ length: 10 }, (_, i) => 'Ano ' + (i + 1)), values: base.fluxo.map(v => Math.round(v)) },
-    ], { x: .75, y: 2.35, w: 7.4, h: 3.8, chartColors: [PAL.GREEN, PAL.GOLD], lineSize: 3, lineSmooth: true,
+    ], { x: .75, y: 2.35, w: 7.4, h: 3.8, chartColors: [PAL.GREEN, 'F5A623'], lineSize: 3, lineSmooth: true,
          showLegend: true, legendPos: 't', legendColor: PAL.TX2, legendFontSize: 10,
          catAxisLabelColor: PAL.TX2, catAxisLabelFontSize: 9, valAxisLabelColor: PAL.TX2, valAxisLabelFontSize: 9,
          valAxisLabelFormatCode: '#,##0;-#,##0', valGridLine: { color: '1E2636', style: 'solid', size: .5 }, catGridLine: { style: 'none' }, fontFace: FF });
