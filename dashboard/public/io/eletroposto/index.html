@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Invista em Eletropostos — Irmãos na Obra</title>
+<meta name="description" content="Transforme sua vaga ociosa em renda recorrente. Simule o retorno do seu ponto e agende uma reunião com nossa equipe.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --neon:#7DD117; --neon-b:#9BEE38; --dk:#0B2003; --deep:#050d02;
+    --cream:#F7FBF2; --mut:rgba(247,251,242,.62); --line:rgba(125,209,23,.28);
+    --card:rgba(11,32,3,.72);
+  }
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Plus Jakarta Sans',sans-serif;color:var(--cream);
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(125,209,23,.14), transparent 55%),
+      radial-gradient(ellipse at 90% 100%, rgba(125,209,23,.08), transparent 50%),
+      linear-gradient(180deg,#060f02 0%, #0a1704 40%, var(--deep) 100%);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  section{padding:56px 0}
+  @media(max-width:760px){section{padding:40px 0}}
+
+  /* ===== topo ===== */
+  .nav{position:sticky;top:0;z-index:50;background:rgba(5,13,2,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .nav .in{max-width:1080px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .brand{display:flex;align-items:center;gap:11px}
+  .brand img{width:42px;height:42px;border-radius:9px;object-fit:contain;display:block}
+  .brand .t{font-weight:800;font-size:16px;line-height:1.05}
+  .brand .t span{display:block;font-size:9.5px;font-weight:700;color:var(--neon);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px}
+  .navCta{background:var(--neon);color:var(--dk);font-weight:900;font-size:13.5px;padding:11px 18px;border-radius:60px;text-decoration:none;white-space:nowrap}
+  @media(max-width:520px){.brand .t{font-size:14px}.navCta{font-size:12.5px;padding:10px 14px}}
+
+  /* ===== hero ===== */
+  .hero{padding:52px 0 44px}
+  .kicker{display:inline-flex;align-items:center;gap:9px;background:rgba(125,209,23,.14);border:1px solid rgba(125,209,23,.42);color:var(--neon-b);font-size:12.5px;font-weight:900;letter-spacing:1.8px;text-transform:uppercase;padding:9px 17px;border-radius:999px}
+  h1{margin-top:20px;font-size:clamp(38px,6.4vw,72px);font-weight:900;line-height:.95;letter-spacing:-2.4px}
+  h1 .n{color:var(--neon-b);display:block}
+  .lead{margin-top:20px;font-size:clamp(16px,2.1vw,20px);color:var(--mut);font-weight:600;line-height:1.55;max-width:640px}
+  .lead b{color:var(--cream);font-weight:800}
+  .heroCta{margin-top:28px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  .btn{background:linear-gradient(180deg,var(--neon-b) 0%,var(--neon) 58%,#5da80d 100%);color:var(--dk);font-weight:900;font-size:17px;padding:18px 30px;border-radius:60px;text-decoration:none;display:inline-flex;align-items:center;gap:10px;border:2px solid rgba(255,255,255,.2);box-shadow:0 14px 34px rgba(125,209,23,.34);cursor:pointer;font-family:inherit}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;color:var(--cream);border:1.5px solid var(--line);box-shadow:none;font-size:15px;padding:16px 24px}
+  .heroNums{margin-top:34px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:620px}
+  .hn{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 14px;text-align:center}
+  .hn .v{color:var(--neon-b);font-size:clamp(20px,3.4vw,28px);font-weight:900;letter-spacing:-1px;line-height:1}
+  .hn .l{color:var(--mut);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-top:7px;line-height:1.25}
+
+  /* ===== investimento declarado (o filtro) ===== */
+  .invest{background:linear-gradient(90deg,rgba(125,209,23,.16),rgba(125,209,23,.04));border:1.5px solid rgba(125,209,23,.5);border-radius:20px;padding:26px 28px;display:flex;flex-wrap:wrap;align-items:center;gap:20px}
+  .invest .l{flex:1;min-width:260px}
+  .invest .h{font-size:12px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--neon)}
+  .invest .v{font-size:clamp(30px,4.6vw,44px);font-weight:900;letter-spacing:-1.6px;margin-top:6px}
+  .invest .d{color:var(--mut);font-size:14px;font-weight:600;margin-top:8px;line-height:1.5;max-width:520px}
+  .invest .cond{display:flex;gap:10px;flex-wrap:wrap}
+  .invest .c{background:rgba(5,13,2,.5);border:1px solid var(--line);border-radius:12px;padding:11px 16px;text-align:center;min-width:104px}
+  .invest .c .cl{color:var(--mut);font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
+  .invest .c .cv{color:var(--neon-b);font-size:22px;font-weight:900;letter-spacing:-.8px;margin-top:3px}
+
+  /* ===== títulos de seção ===== */
+  .sh{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+  .sh .tt{font-size:12px;font-weight:900;letter-spacing:2.2px;text-transform:uppercase;color:var(--neon);white-space:nowrap}
+  .sh .ln{flex:1;height:1px;background:var(--line)}
+  h2{font-size:clamp(26px,3.8vw,40px);font-weight:900;letter-spacing:-1.4px;line-height:1.05;margin-bottom:14px}
+  h2 .n{color:var(--neon-b)}
+  .sub{color:var(--mut);font-size:16px;font-weight:600;line-height:1.55;max-width:660px}
+
+  /* ===== benefícios ===== */
+  .bens{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:860px){.bens{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.bens{grid-template-columns:1fr}}
+  .ben{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px}
+  .ben .ic{width:42px;height:42px;border-radius:11px;background:rgba(125,209,23,.14);border:1px solid rgba(125,209,23,.4);display:grid;place-items:center;margin-bottom:14px}
+  .ben .ic svg{width:21px;height:21px;stroke:var(--neon-b);fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+  .ben .t{font-size:17px;font-weight:800;letter-spacing:-.3px}
+  .ben .d{color:var(--mut);font-size:13.5px;font-weight:600;margin-top:6px;line-height:1.45}
+
+  /* ===== panorama de mercado (dados ABVE — mesmos do Estudo de Viabilidade) ===== */
+  .mk{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:760px){.mk{grid-template-columns:repeat(2,1fr)}}
+  .mkc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 16px;text-align:center}
+  .mkc .v{color:var(--neon-b);font-size:clamp(26px,3.6vw,34px);font-weight:900;letter-spacing:-1.4px;line-height:1}
+  .mkc .l{color:var(--mut);font-size:12.5px;font-weight:700;margin-top:9px;line-height:1.35}
+  .mkFonte{color:rgba(247,251,242,.4);font-size:11.5px;font-weight:600;line-height:1.6;margin-top:14px}
+
+  /* ===== simulador ===== */
+  .simGrid{display:grid;grid-template-columns:340px 1fr;gap:18px}
+  @media(max-width:880px){.simGrid{grid-template-columns:1fr}}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px}
+  .fld{margin-bottom:16px}
+  .fld:last-child{margin-bottom:0}
+  .fld label{display:block;font-size:13px;font-weight:700;color:var(--cream);margin-bottom:7px}
+  .fld .hint{color:var(--mut);font-weight:600;font-size:11.5px}
+  .inp{position:relative}
+  .inp input,.inp select{width:100%;padding:13px 14px;background:#0a1604;border:1px solid rgba(255,255,255,.16);border-radius:11px;color:#fff;font-size:16px;font-family:inherit;font-weight:700;outline:none;transition:border-color .2s}
+  .inp.has-pre input{padding-left:38px}
+  .inp .pre{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:14px;font-weight:700;pointer-events:none}
+  .inp input:focus,.inp select:focus{border-color:var(--neon)}
+  .inp input::-webkit-outer-spin-button,.inp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .rng{width:100%;accent-color:var(--neon);margin-top:4px}
+  .rngRow{display:flex;justify-content:space-between;color:var(--mut);font-size:11.5px;font-weight:700;margin-top:5px}
+
+  .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .kpi{background:#0a1604;border:1px solid rgba(125,209,23,.4);border-radius:14px;padding:18px 16px;text-align:center}
+  .kpi .k{color:var(--mut);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
+  .kpi .v{font-size:clamp(22px,3.2vw,30px);font-weight:900;letter-spacing:-1.2px;margin-top:7px;color:var(--neon-b);font-variant-numeric:tabular-nums}
+  .kpi .v.w{color:var(--cream)}
+  .simObs{color:rgba(247,251,242,.45);font-size:11.5px;font-weight:600;margin-top:14px;line-height:1.5}
+
+  /* fluxo */
+  .chart{margin-top:16px;display:flex;align-items:stretch;gap:5px;height:150px}
+  .bw{flex:1;display:flex;flex-direction:column;align-items:center}
+  .bh{width:100%;display:flex;flex-direction:column;height:62px}
+  .bh.top{justify-content:flex-end;border-bottom:1px solid rgba(255,255,255,.2)}
+  .bh.bot{justify-content:flex-start}
+  .bar{width:100%;max-width:34px;margin:0 auto;background:var(--neon);border-radius:4px 4px 0 0;transition:height .3s}
+  .bh.bot .bar{border-radius:0 0 4px 4px;background:#F43F5E}
+  .bl{font-size:9.5px;color:var(--mut);margin-top:5px;font-weight:700}
+
+  /* ===== agendamento ===== */
+  .agBox{background:var(--card);border:1.5px solid rgba(125,209,23,.45);border-radius:20px;padding:28px}
+  .step{margin-bottom:18px}
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:9px;margin-top:10px}
+  .slot{background:#0a1604;border:1.5px solid var(--line);border-radius:11px;padding:12px 8px;text-align:center;cursor:pointer;transition:.15s;font-family:inherit}
+  .slot:hover{border-color:var(--neon)}
+  .slot.on{background:var(--neon);border-color:var(--neon);color:var(--dk)}
+  .slot .d{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;opacity:.8}
+  .slot .h{font-size:16px;font-weight:900;margin-top:3px}
+  .slot.on .d{opacity:.75}
+  .agMsg{margin-top:14px;padding:13px 16px;border-radius:11px;font-size:13.5px;font-weight:700;display:none}
+  .agMsg.err{background:rgba(244,63,94,.14);border:1px solid rgba(244,63,94,.45);color:#fda4af;display:block}
+  .ok{text-align:center;padding:30px 10px;display:none}
+  .ok .ic{width:70px;height:70px;border-radius:50%;background:rgba(125,209,23,.16);border:2px solid var(--neon);display:grid;place-items:center;margin:0 auto 18px}
+  .ok .ic svg{width:34px;height:34px;stroke:var(--neon-b);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+  .ok h3{font-size:26px;font-weight:900;letter-spacing:-.8px}
+  .ok p{color:var(--mut);font-size:15px;font-weight:600;margin-top:10px;line-height:1.55}
+  .ok .zap{margin-top:20px}
+
+  /* ===== rodapé ===== */
+  footer{border-top:1px solid var(--line);padding:34px 0;margin-top:20px}
+  .fRow{display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}
+  .fc{display:flex;align-items:center;gap:9px;color:var(--mut);font-size:14px;font-weight:700}
+  .fc svg{width:16px;height:16px;stroke:var(--neon-b);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .fLegal{color:rgba(247,251,242,.4);font-size:11.5px;font-weight:600;line-height:1.6;margin-top:18px}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="in">
+    <div class="brand">
+      <img src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra Eletropostos">
+      <div class="t">Irmãos na Obra<span>Mobilidade Elétrica</span></div>
+    </div>
+    <a href="#agendar" class="navCta" onclick="track('cta_topo')">Agende sua reunião</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="kicker">Renda passiva com energia</div>
+    <h1>Invista em<span class="n">Eletropostos</span></h1>
+    <div class="lead">O carro elétrico já chegou — e eles precisam carregar em algum lugar. Quem instalar o ponto primeiro fica com o cliente e com a <b>receita de cada recarga</b>.</div>
+    <div class="heroCta">
+      <a href="#simulador" class="btn" onclick="track('cta_simular')">Simular meu retorno →</a>
+      <a href="#agendar" class="btn ghost" onclick="track('cta_hero_agendar')">Agendar reunião</a>
+    </div>
+    <div class="heroNums">
+      <div class="hn"><div class="v" id="h-pb">—</div><div class="l">Payback estimado</div></div>
+      <div class="hn"><div class="v" id="h-mg">—</div><div class="l">Margem operacional</div></div>
+      <div class="hn"><div class="v" id="h-roi">—</div><div class="l">ROI em 10 anos</div></div>
+    </div>
+  </section>
+
+  <!-- INVESTIMENTO DECLARADO -->
+  <section style="padding-top:0">
+    <div class="invest">
+      <div class="l">
+        <div class="h">Projeto recomendado · 80 kW · 2 bicos</div>
+        <div class="v">R$ 180.000</div>
+        <div class="d">Dois bicos atendem dois carros ao mesmo tempo — o dobro de disponibilidade e nenhuma fila no horário de pico. Equipamento, instalação, homologação e suporte inclusos.<br>
+        <b style="color:var(--cream)">Dá para começar menor:</b> entrada de <b style="color:var(--neon-b)">R$ 85 mil</b> (40&nbsp;kW, 1 bico) — mesma operação, metade da capacidade.</div>
+      </div>
+      <div class="cond">
+        <div class="c"><div class="cl">Cartão</div><div class="cv">24x</div></div>
+        <div class="c"><div class="cl">Financiamento</div><div class="cv">72x</div></div>
+        <div class="c"><div class="cl">Carência</div><div class="cv">90 dias</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BENEFÍCIOS -->
+  <section>
+    <div class="sh"><span class="tt">Por que eletroposto</span><span class="ln"></span></div>
+    <h2>Um ativo que trabalha <span class="n">sem você</span></h2>
+    <div class="sub" style="margin-bottom:26px">Você já tem o espaço. Nós cuidamos do resto — e a operação roda sozinha.</div>
+    <div class="bens">
+      <div class="ben">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2zM9 21h6M10 19h4"/></svg></div>
+        <div class="t">100% autônomo</div><div class="d">Não precisa de funcionário. O motorista chega, carrega e paga pelo app.</div>
+      </div>
+      <div class="ben">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div class="t">Renda recorrente</div><div class="d">Faturamento previsível, todo mês, de cada recarga feita no seu ponto.</div>
+      </div>
+      <div class="ben">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M21 7v6h-6"/></svg></div>
+        <div class="t">Mercado em alta</div><div class="d">A frota elétrica cresce todo mês e a rede de recarga não acompanha.</div>
+      </div>
+      <div class="ben">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></div>
+        <div class="t">Baixa manutenção</div><div class="d">Operação simples, monitorada remotamente pela nossa equipe.</div>
+      </div>
+      <div class="ben">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="t">Suporte total</div><div class="d">Do estudo de viabilidade à primeira recarga — e depois dela também.</div>
+      </div>
+      <div class="ben">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></div>
+        <div class="t">Energia limpa</div><div class="d">Um ativo sustentável que valoriza a marca do seu negócio.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIMULADOR -->
+  <section id="simulador">
+    <div class="sh"><span class="tt">Simulador</span><span class="ln"></span></div>
+    <h2>Quanto <span class="n">o seu ponto</span> devolve?</h2>
+    <div class="sub" style="margin-bottom:26px">Mesma calculadora que usamos na reunião. Mexa nos números do seu caso — o resultado muda na hora.</div>
+
+    <div class="simGrid">
+      <div class="panel">
+        <div class="fld">
+          <label>Carros por dia <span class="hint">(estimativa)</span></label>
+          <input type="range" class="rng" id="s-carros" min="3" max="30" step="1" value="10" oninput="calc()">
+          <div class="rngRow"><span>3</span><span id="s-carros-v" style="color:var(--neon-b)">10 carros/dia</span><span>30</span></div>
+        </div>
+        <div class="fld">
+          <label>Configuração</label>
+          <div class="inp"><select id="s-config" onchange="setConfig()">
+            <option value="180000" selected>80 kW · 2 bicos — R$ 180.000 (recomendado)</option>
+            <option value="85000">40 kW · 1 bico — R$ 85.000 (entrada)</option>
+            <option value="custom">Outro valor…</option>
+          </select></div>
+        </div>
+        <div class="fld" id="fld-invest" style="display:none">
+          <label>Investimento total</label>
+          <div class="inp has-pre"><span class="pre">R$</span><input type="number" id="s-invest" value="180000" step="5000" oninput="calc()"></div>
+        </div>
+        <div class="fld">
+          <label>Preço de revenda <span class="hint">(kWh)</span></label>
+          <div class="inp has-pre"><span class="pre">R$</span><input type="number" id="s-revenda" value="2.35" step="0.05" oninput="calc()"></div>
+        </div>
+        <div class="fld">
+          <label>Custo da energia <span class="hint">(kWh)</span></label>
+          <div class="inp has-pre"><span class="pre">R$</span><input type="number" id="s-custo" value="0.95" step="0.05" oninput="calc()"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="kpis">
+          <div class="kpi"><div class="k">Faturamento / mês</div><div class="v w" id="k-fat">—</div></div>
+          <div class="kpi"><div class="k">Lucro líquido / mês</div><div class="v" id="k-luc">—</div></div>
+          <div class="kpi"><div class="k">Payback</div><div class="v w" id="k-pb">—</div></div>
+          <div class="kpi"><div class="k">ROI em 10 anos</div><div class="v" id="k-roi">—</div></div>
+        </div>
+        <div class="chart" id="chart"></div>
+        <div class="simObs">
+          Mesmas premissas do nosso Estudo de Viabilidade: rampa de ocupação de 50% a 100% em 24 meses,
+          gateway 14%, arrendamento 10%, imposto 6% (Simples) e custos fixos (seguro 1% a.a. + software/4G)
+          correndo desde o mês&nbsp;1. <b style="color:rgba(247,251,242,.6)">Os números podem variar para cima ou para baixo
+          conforme as características do ponto comercial</b> — fluxo de veículos, tarifa de energia e localização.
+          Valores estimados, não constituem garantia de resultado. Na reunião entregamos o estudo completo,
+          com VPL, TIR, sensibilidade e análise de riscos do seu ponto.
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:26px">
+      <a href="#agendar" class="btn" onclick="track('cta_pos_sim')">Quero o estudo do meu ponto →</a>
+    </div>
+  </section>
+
+  <!-- JANELA DE MERCADO -->
+  <section>
+    <div class="sh"><span class="tt">O mercado</span><span class="ln"></span></div>
+    <h2>A frota cresce mais rápido que <span class="n">a rede de recarga</span></h2>
+    <div class="sub" style="margin-bottom:26px">Não é opinião nossa — são os números do setor. Cada ponto instalado hoje atende uma demanda que só aumenta.</div>
+    <div class="mk">
+      <div class="mkc"><div class="v">181.542</div><div class="l">carros plug-in vendidos em 2025</div></div>
+      <div class="mkc"><div class="v">+26%</div><div class="l">crescimento das vendas no ano</div></div>
+      <div class="mkc"><div class="v">21.061</div><div class="l">eletropostos no país</div></div>
+      <div class="mkc"><div class="v">+42%</div><div class="l">de postos em 12 meses</div></div>
+      <div class="mkc"><div class="v">+167%</div><div class="l">crescimento da recarga rápida (DC)</div></div>
+      <div class="mkc"><div class="v">1.649</div><div class="l">municípios já atendidos</div></div>
+    </div>
+    <div class="mkFonte">A frota que recarrega em ponto público (elétricos + híbridos plug-in) cresce em ritmo acima da infraestrutura instalada. Fonte: ABVE (Associação Brasileira do Veículo Elétrico) e Tupi Mobilidade — dados de 2025 / fev. 2026.</div>
+  </section>
+
+  <!-- AGENDAMENTO -->
+  <section id="agendar">
+    <div class="sh"><span class="tt">Agende</span><span class="ln"></span></div>
+    <h2>Escolha o melhor <span class="n">horário</span></h2>
+    <div class="sub" style="margin-bottom:26px">30 minutos, on-line, com um especialista. Levamos o estudo de viabilidade do seu ponto pronto.</div>
+
+    <div class="agBox">
+      <div id="ag-form">
+        <div class="step">
+          <label style="display:block;font-size:13px;font-weight:800;margin-bottom:8px">Horários disponíveis</label>
+          <div class="slots" id="slots"></div>
+        </div>
+
+        <div class="simGrid" style="grid-template-columns:1fr 1fr;gap:14px">
+          <div class="fld"><label>Seu nome</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
+          <div class="fld"><label>WhatsApp</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this)"></div></div>
+        </div>
+        <div class="simGrid" style="grid-template-columns:1fr 1fr;gap:14px">
+          <div class="fld"><label>Cidade</label><div class="inp"><input type="text" id="f-cidade" placeholder="Ex: Uberlândia-MG"></div></div>
+          <div class="fld">
+            <label>Seu perfil</label>
+            <div class="inp"><select id="f-perfil">
+              <option value="">Selecione…</option>
+              <option>Dono de posto de combustível</option>
+              <option>Mercado / supermercado</option>
+              <option>Restaurante / lanchonete</option>
+              <option>Academia</option>
+              <option>Farmácia</option>
+              <option>Hotel / pousada</option>
+              <option>Estacionamento</option>
+              <option>Condomínio</option>
+              <option>Investidor</option>
+              <option>Outro</option>
+            </select></div>
+          </div>
+        </div>
+        <div class="fld">
+          <label>Quanto você pretende investir <span class="hint">(projeto completo R$ 180 mil · entrada a partir de R$ 85 mil)</span></label>
+          <div class="inp"><select id="f-capital">
+            <option value="">Selecione…</option>
+            <option value="180_mais">R$ 180 mil ou mais — quero o projeto completo</option>
+            <option value="85_180">R$ 85 mil a R$ 180 mil</option>
+            <option value="financiar">Pretendo financiar / usar carência</option>
+            <option value="abaixo_85">Menos de R$ 85 mil</option>
+            <option value="pesquisando">Ainda estou pesquisando</option>
+          </select></div>
+        </div>
+
+        <button class="btn" style="width:100%;justify-content:center;margin-top:6px" id="ag-btn" onclick="agendar()">Confirmar agendamento →</button>
+        <div class="agMsg" id="ag-msg"></div>
+        <div style="color:rgba(247,251,242,.4);font-size:11.5px;font-weight:600;text-align:center;margin-top:12px">
+          Seus dados são usados só para esta reunião. Sem spam.
+        </div>
+      </div>
+
+      <div class="ok" id="ag-ok">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>Reunião agendada!</h3>
+        <p id="ok-txt">Nossa equipe vai te confirmar pelo WhatsApp.</p>
+        <div class="zap"><a href="#" class="btn" id="ok-zap" target="_blank" rel="noopener">Falar agora no WhatsApp →</a></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="fRow">
+      <div class="brand">
+        <img src="/gerador/logo-eletroposto.png" alt="">
+        <div class="t">Irmãos na Obra<span>Mobilidade Elétrica</span></div>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div class="fc"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/></svg>(34) 99816-5040</div>
+        <div class="fc"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg>@irmaosnaobra__</div>
+      </div>
+    </div>
+    <div class="fLegal">
+      Os valores apresentados no simulador são estimativas de referência, calculadas a partir dos parâmetros informados por você, e não constituem promessa ou garantia de rendimento. O resultado real varia conforme fluxo de veículos, tarifa de energia, localização e condições de operação. © Irmãos na Obra — Mobilidade Elétrica.
+    </div>
+  </div>
+</footer>
+
+<script>
+// ===== Meta Pixel (Eletroposto) =====
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', 'PIXEL_ELETROPOSTO_ID');   // <<< TROCAR pelo ID do conjunto de dados "Eletroposto"
+fbq('track', 'PageView');
+function track(tag){ try{ fbq('trackCustom','LP_'+tag); }catch(e){} }
+
+// ===== Supabase (mesmo projeto do /gerador) =====
+const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
+async function supaInsert(table, body){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method:'POST',
+    headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`,
+              'Content-Type':'application/json', Prefer:'return=representation' },
+    body: JSON.stringify(body)
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ===== SIMULADOR — mesmas fórmulas do /gerador (computeEletro) =====
+const money = n => 'R$ ' + Math.round(n||0).toLocaleString('pt-BR');
+function compute(p){
+  const DIAS=30, ANOS=10;
+  const kwhMes  = p.carros * p.carga * DIAS;
+  const sessoes = p.carros * DIAS;
+  const fatMes  = kwhMes * p.precoKwh + sessoes * p.ativacao;
+  const custoEnergia = kwhMes * p.custoKwh;
+  const taxasPct = p.gateway + p.arrend + p.manut + p.imposto;
+  const seguroMes = p.invest * 0.01 / 12;
+  const fixosMes  = p.assinat + seguroMes + p.fixos;
+  const margemVar = fatMes - custoEnergia - fatMes * taxasPct;
+  const lucroMes  = margemVar - fixosMes;
+  const margem    = fatMes > 0 ? lucroMes/fatMes : 0;
+  // rampa de ocupação
+  const ocupIni = p.ocupIni, mRampa = p.mesesRampa;
+  const occ = m => (mRampa<=1 || m>=mRampa) ? 1 : ocupIni + (1-ocupIni)*(m-1)/(mRampa-1);
+  const fluxoAnual = [];
+  for(let a=0;a<ANOS;a++){
+    let luc=0;
+    for(let m=1;m<=12;m++){
+      const o = occ(a*12+m);
+      luc += (margemVar*o) - fixosMes;
+    }
+    fluxoAnual.push(luc);
+  }
+  let acc = -p.invest; const fluxo=[];
+  fluxoAnual.forEach(f=>{ acc+=f; fluxo.push(acc); });
+  const acumulado10 = fluxo[ANOS-1];
+  // payback com rampa
+  let pb=null, run=-p.invest;
+  for(let m=1;m<=ANOS*12;m++){
+    run += (margemVar*occ(m)) - fixosMes;
+    if(run>=0 && pb===null){ pb = m/12; break; }
+  }
+  const roi10 = p.invest>0 ? acumulado10/p.invest : 0;
+  return { fatMes, lucroMes, margem, payback:pb, fluxo, roi10 };
+}
+function params(){
+  const carros = +document.getElementById('s-carros').value;
+  return {
+    carros, carga:20,
+    precoKwh:+document.getElementById('s-revenda').value || 0,
+    custoKwh:+document.getElementById('s-custo').value || 0,
+    // Premissas idênticas às do Estudo de Viabilidade oficial (PDF 15/07): gateway 14%,
+    // arrendamento 10%, manutenção 0,1%, imposto 6% (Simples), rampa 50%→100% em 24 meses.
+    // Validado contra o PDF: 10 carros/200k ⇒ lucro R$ 3.941, margem 27,3%, payback 4,8 anos.
+    ativacao:1.20, invest:+document.getElementById('s-invest').value || 0,
+    gateway:.14, arrend:.10, manut:.001, imposto:.06,
+    assinat:0, fixos:300, ocupIni:.5, mesesRampa:24,
+  };
+}
+// Troca de configuração: 80kW/2 bicos (10 carros/dia, 5 por bico) x 40kW/1 bico (5 carros/dia).
+// A capacidade acompanha o nº de bicos — por isso o de entrada atende metade.
+function setConfig(){
+  const v = document.getElementById('s-config').value;
+  const fld = document.getElementById('fld-invest');
+  if(v === 'custom'){ fld.style.display = ''; }
+  else {
+    fld.style.display = 'none';
+    document.getElementById('s-invest').value = v;
+    document.getElementById('s-carros').value = (v === '85000') ? 5 : 10;
+  }
+  calc();
+}
+function calc(){
+  const p = params(), r = compute(p);
+  document.getElementById('s-carros-v').textContent = p.carros + ' carros/dia';
+  document.getElementById('k-fat').textContent = money(r.fatMes);
+  document.getElementById('k-luc').textContent = money(r.lucroMes);
+  document.getElementById('k-pb').textContent  = r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—';
+  document.getElementById('k-roi').textContent = (r.roi10*100).toFixed(0)+'%';
+  document.getElementById('h-pb').textContent  = r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—';
+  document.getElementById('h-mg').textContent  = (r.margem*100).toFixed(0)+'%';
+  document.getElementById('h-roi').textContent = (r.roi10*100).toFixed(0)+'%';
+  // gráfico waterfall
+  const span = Math.max(1, ...r.fluxo.map(v=>Math.abs(v)));
+  document.getElementById('chart').innerHTML = r.fluxo.map((v,i)=>{
+    const h = Math.max(2, Math.round(Math.abs(v)/span*62));
+    const neg = v<0;
+    return `<div class="bw">
+      <div class="bh top">${neg?'':`<div class="bar" style="height:${h}px"></div>`}</div>
+      <div class="bh bot">${neg?`<div class="bar" style="height:${h}px"></div>`:''}</div>
+      <div class="bl">${i+1}</div></div>`;
+  }).join('');
+}
+
+// ===== AGENDA — próximos dias úteis =====
+let slotSel = null;
+const HORAS = ['09:00','11:00','14:00','16:00'];
+function montarSlots(){
+  const el = document.getElementById('slots');
+  const out = [];
+  const d = new Date(); d.setHours(0,0,0,0);
+  let achados = 0;
+  while(achados < 3){
+    d.setDate(d.getDate()+1);
+    const dow = d.getDay();
+    if(dow===0 || dow===6) continue;          // pula fim de semana
+    achados++;
+    const dia = d.toLocaleDateString('pt-BR',{weekday:'short', day:'2-digit', month:'2-digit'});
+    HORAS.forEach(h=>{
+      const iso = new Date(d.getFullYear(), d.getMonth(), d.getDate(), +h.slice(0,2), 0, 0).toISOString();
+      out.push(`<button type="button" class="slot" data-iso="${iso}" onclick="pick(this)">
+        <div class="d">${dia}</div><div class="h">${h}</div></button>`);
+    });
+  }
+  el.innerHTML = out.join('');
+}
+function pick(b){
+  document.querySelectorAll('.slot').forEach(s=>s.classList.remove('on'));
+  b.classList.add('on'); slotSel = b.dataset.iso;
+  track('slot_escolhido');
+}
+function maskTel(i){
+  let v = i.value.replace(/\D/g,'').slice(0,11);
+  if(v.length>6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+  else if(v.length>2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+  i.value = v;
+}
+function erro(txt){
+  const m = document.getElementById('ag-msg');
+  m.textContent = txt; m.className = 'agMsg err';
+}
+
+async function agendar(){
+  const nome    = document.getElementById('f-nome').value.trim();
+  const telRaw  = document.getElementById('f-tel').value.replace(/\D/g,'');
+  const cidade  = document.getElementById('f-cidade').value.trim();
+  const perfil  = document.getElementById('f-perfil').value;
+  const capital = document.getElementById('f-capital').value;
+  const btn     = document.getElementById('ag-btn');
+
+  if(!slotSel)            return erro('Escolha um horário acima.');
+  if(nome.length < 3)     return erro('Informe seu nome completo.');
+  if(telRaw.length < 10)  return erro('Informe um WhatsApp válido com DDD.');
+  if(!perfil)             return erro('Selecione seu perfil.');
+  if(!capital)            return erro('Selecione a faixa de capital.');
+
+  btn.disabled = true; btn.textContent = 'Agendando…';
+  const p = params(), r = compute(p);
+  const tel = '55' + telRaw;
+  const obs = [
+    `LP Eletroposto — ${perfil}`,
+    `Capital: ${document.getElementById('f-capital').selectedOptions[0].text}`,
+    `Simulou: ${p.carros} carros/dia, invest ${money(p.invest)}`,
+    `→ payback ${r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—'}, lucro ${money(r.lucroMes)}/mês`,
+  ].join('\n');
+
+  try{
+    await supaInsert('agendamentos', {
+      vendedor_nome:    null,               // sem dono ainda → rodízio/distribuição no CRM
+      quando:           slotSel,
+      titulo:           'Reunião Eletroposto — ' + nome,
+      cliente_nome:     nome,
+      cliente_telefone: tel,
+      cidade:           cidade || null,
+      status:           'agendado',
+      tipo:             'eletroposto',
+      // quente = alvo do projeto completo (180k+); morno = entrada 85-180k ou financia; frio = resto
+      temperatura:      capital === '180_mais' ? 'quente'
+                        : (capital === '85_180' || capital === 'financiar') ? 'morno' : 'frio',
+      observacao:       obs,
+      created_by:       'lp_eletroposto',
+    });
+
+    // Evento de conversão — é ESTE que a campanha otimiza
+    try{ fbq('track','Schedule',{content_name:'Reuniao Eletroposto', content_category:perfil}); }catch(e){}
+
+    const dt = new Date(slotSel);
+    document.getElementById('ok-txt').textContent =
+      `Sua reunião ficou para ${dt.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})} às ${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}. Nossa equipe confirma pelo WhatsApp.`;
+    document.getElementById('ok-zap').href =
+      `https://wa.me/5534998165040?text=${encodeURIComponent('Olá! Acabei de agendar uma reunião sobre eletroposto pelo site.')}`;
+    document.getElementById('ag-form').style.display = 'none';
+    document.getElementById('ag-ok').style.display = 'block';
+    document.getElementById('ag-ok').scrollIntoView({behavior:'smooth', block:'center'});
+  }catch(e){
+    console.error(e);
+    erro('Não consegui agendar agora. Chame no WhatsApp (34) 99816-5040 que a gente marca na hora.');
+    btn.disabled = false; btn.textContent = 'Confirmar agendamento →';
+  }
+}
+
+montarSlots();
+calc();
+</script>
+</body>
+</html>
