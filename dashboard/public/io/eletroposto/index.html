@@ -503,9 +503,14 @@ n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', 'PIXEL_ELETROPOSTO_ID');   // <<< TROCAR pelo ID do conjunto de dados "Eletroposto"
+fbq('init', '26788759654130722');   // conjunto de dados "Eletroposto"
 fbq('track', 'PageView');
 function track(tag){ try{ fbq('trackCustom','LP_'+tag); }catch(e){} }
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=26788759654130722&ev=PageView&noscript=1"
+/></noscript>
+<script>
 
 // ===== Supabase (mesmo projeto do /gerador) =====
 const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
@@ -654,7 +659,7 @@ function gradeDoDia(ymd){
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   if(dow === 0) return [];                                  // domingo: fechado
   if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
-  const faixas = dow === 6 ? [[9,11]] : [[9,12],[13,18]];   // sáb 9–11; seg–sex 9–12 e 13–18
+  const faixas = dow === 6 ? [[9,13]] : [[9,12],[13,18]];   // sáb 9–13; seg–sex 9–12 e 13–18
   const out = [];
   for(const [ini,fim] of faixas)
     for(let m = ini*60; m < fim*60; m += 30)
