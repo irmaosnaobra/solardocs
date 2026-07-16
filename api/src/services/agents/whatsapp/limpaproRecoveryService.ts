@@ -111,6 +111,23 @@ interface LeadAberto {
 // Princípio: parece PESSOA ajudando, não robô/disparo. Bolhas curtas (1 ideia cada),
 // pergunta no 1º toque (puxa resposta), foco em ATENDIMENTO e VALOR — nunca desconto.
 
+// Link de checkout com UTMs de recuperação — a venda recuperada sai do "não trackeado"
+// da UTMify/painel e o utm_content diz qual toque converteu.
+function linkRecuperacao(touch: 'cupom' | 'fechamento' | 'conversa'): string {
+  const raw = process.env.RECUP_CHECKOUT_URL?.trim() || '';
+  if (!raw) return '';
+  try {
+    const u = new URL(raw);
+    u.searchParams.set('utm_source', 'whatsapp');
+    u.searchParams.set('utm_medium', 'recuperacao');
+    u.searchParams.set('utm_campaign', 'bia');
+    u.searchParams.set('utm_content', touch);
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
 // 1º toque — na hora. Só cuidado + pergunta. Zero pitch, zero desconto.
 export function montarMensagem(lead: LeadAberto): string[] {
   const nome = (lead.nome || '').trim().split(/\s+/)[0];
@@ -143,7 +160,7 @@ export function montarMensagem(lead: LeadAberto): string[] {
 export function montarMensagemCupom(lead: LeadAberto): string[] {
   const nome = (lead.nome || '').trim().split(/\s+/)[0];
   const oi = nome ? `${nome}, ` : '';
-  const link = process.env.RECUP_CHECKOUT_URL?.trim() || '';
+  const link = linkRecuperacao('cupom');
   const out = [
     `${oi}só pra te deixar tranquilo:`,
     `Assim que o pagamento cai, o curso já libera direto aqui no seu WhatsApp — e o acesso é seu pra sempre, você assiste no seu ritmo.`,
@@ -158,7 +175,7 @@ export function montarMensagemCupom(lead: LeadAberto): string[] {
 export function montarMensagemFechamento(lead: LeadAberto): string[] {
   const nome = (lead.nome || '').trim().split(/\s+/)[0];
   const oi = nome ? `${nome}, ` : '';
-  const link = process.env.RECUP_CHECKOUT_URL?.trim() || '';
+  const link = linkRecuperacao('fechamento');
   return [
     `${oi}não vou te encher mais — essa é minha última mensagem sobre isso.`,
     link ? `Se ainda quiser começar, é só finalizar por aqui: ${link}` : `Se ainda quiser começar, me chama que eu te passo o link.`,
@@ -311,7 +328,7 @@ async function enviarParaLead(lead: LeadAberto): Promise<void> {
     messages: [{ role: 'assistant', content: montarMensagem(lead).join(' ') }],
     lead_data: {
       email: lead.email, produto: lead.produto, status: lead.status,
-      valor_centavos: lead.valor_centavos, link: process.env.RECUP_CHECKOUT_URL || null,
+      valor_centavos: lead.valor_centavos, link: linkRecuperacao('conversa') || null,
     },
     updated_at: new Date().toISOString(),
   }, { onConflict: 'phone,tipo' });
