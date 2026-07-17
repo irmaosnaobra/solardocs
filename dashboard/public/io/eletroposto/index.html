@@ -848,9 +848,11 @@ async function agendar(){
       cliente_telefone: tel,
       cidade:           cidade || null,
       status:           'agendado',
-      // quente = tem o ponto e capital do topo; morno = tem ponto OU financia; frio = resto
-      temperatura:      (pontoSel === 'sim' && (capital === '140_260' || capital === 'acima_260')) ? 'quente'
-                        : (pontoSel === 'sim' || capital === 'financiar' || capital === '85_140') ? 'morno' : 'frio',
+      // Quem qualifica é o CAPITAL — é ele que compra. Não ter o ponto ainda é venda
+      // mais longa, não lead ruim (a própria LP oferece ajuda pra achar o local).
+      // quente = tem o dinheiro do projeto foco (180k) · morno = entrada ou financia
+      temperatura:      (capital === '140_260' || capital === 'acima_260') ? 'quente'
+                        : (capital === '85_140' || capital === 'financiar') ? 'morno' : 'frio',
       observacao:       obs,
       created_by:       'lp_eletroposto',
     });
