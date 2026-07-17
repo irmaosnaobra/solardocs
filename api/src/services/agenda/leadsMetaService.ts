@@ -1,5 +1,14 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { sendWhatsApp } from '../agents/zapiClient';
+import { montarObservacaoSolar, organizarFicha, medirTemperatura } from './leadSolarFicha';
+
+// Telefone de cada consultor do rodízio (mesmo mapa que a Luma usa pra chamar consultor).
+const TEL_CONSULTOR: Record<string, string> = {
+  thiago: '34991360223',
+  diego: '34991360172',
+  nilce: '34991516846',
+};
 
 // Puxa leads dos formulários (Lead Ads) da página "Irmãos na Obra" no Meta,
 // distribui no rodízio Thiago→Diego→Nilce e cria um card na agenda pra cada lead.
@@ -269,17 +278,49 @@ function dataBaseDaFaixa(faixa: string): { y: number; m: number; d: number; h: n
   return { ...prox, h: horaIni };
 }
 
+// A ficha (ordem fixa + temperatura) vive em leadSolarFicha — ver o porquê lá.
 function montarObservacao(fields: FieldItem[]): string {
-  // monta um resumo legível do questionário, omitindo campos já mapeados
-  const skip = new Set(['first_name', 'full_name', 'email', 'whatsapp_number', 'phone_number', 'city', 'inbox_url']);
-  const linhas: string[] = [];
-  for (const f of fields) {
-    const nm = f.name.toLowerCase();
-    if (skip.has(nm)) continue;
-    if (nm.includes('horário') || nm.includes('horario') || nm.includes('hoario')) continue;
-    if (f.values && f.values[0]) linhas.push(`${f.name}: ${f.values[0]}`);
+  return montarObservacaoSolar(fields as any).replace(/^\[Lead Instagram\]\n?/, '');
+}
+
+/** Avisa o consultor da vez no WhatsApp, com a ficha organizada e a temperatura. */
+async function avisarConsultor(consultor: string, lead: {
+  nome: string; whatsapp: string; cidade: string; quando: Date; fields: FieldItem[];
+}): Promise<void> {
+  const numero = TEL_CONSULTOR[consultor.toLowerCase()];
+  if (!numero) { logger.error('leads-meta-alerta', `sem telefone pro consultor ${consultor}`); return; }
+
+  const t = medirTemperatura(lead.fields as any);
+  const ficha = organizarFicha(lead.fields as any);
+  const selo = t.nivel === 'quente' ? '*LEAD QUENTE*' : t.nivel === 'morno' ? 'Lead morno' : 'Lead frio';
+  const quando = lead.quando.toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+
+  const msg = [
+    `*NOVO LEAD — ENERGIA SOLAR*`,
+    selo,
+    ...(t.porque.length ? [`_${t.porque.join(' · ')}_`] : []),
+    ``,
+    `*Contato em:* ${quando}`,
+    ``,
+    `*Cliente:* ${lead.nome}`,
+    `*WhatsApp:* wa.me/${(lead.whatsapp || '').replace(/\D/g, '')}`,
+    `*Cidade:* ${lead.cidade || '—'}`,
+    ``,
+    ...ficha.map(l => `*${l.rotulo}:* ${l.valor}`),
+    ``,
+    `_Veja no CRM: solardoc.app/gerador_`,
+  ].join('\n');
+
+  try {
+    await sendWhatsApp(numero, msg, 'io');
+    logger.info('leads-meta-alerta', `${consultor} avisado do lead ${lead.nome} (${t.nivel}, ${t.pontos}pts)`);
+  } catch (err) {
+    // Alerta é conveniência: o lead JÁ está no CRM. Falha aqui não derruba o sync.
+    logger.error('leads-meta-alerta', `falha avisando ${consultor} do lead ${lead.nome}`, err);
   }
-  return linhas.join(' · ');
 }
 
 export async function syncLeadsMeta(): Promise<{ novos: number; agendados: number; erros: number }> {
@@ -331,7 +372,7 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
         const faixa = fieldContains(fields, 'horário', 'horario', 'hoario');
 
         const naArea = await dentroDaArea(cidade, whatsapp);
-        const obs = montarObservacao(fields);
+        const obs = montarObservacaoSolar(fields);
 
         let agendadoId: number | null = null;
         let consultor: string | null = null;
@@ -353,7 +394,7 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
               cliente_nome: nome,
               cliente_telefone: whatsapp,
               cidade: cidade || null,
-              observacao: obs ? `[Lead Instagram] ${obs}` : '[Lead Instagram]',
+              observacao: obs,   // ficha já vem pronta e em ordem fixa (leadSolarFicha)
               status: 'agendado',
               created_by: 'lead-meta',
             })
@@ -362,7 +403,14 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
 
           agendadoId = agErr ? null : (agIns as any)?.id ?? null;
           if (agErr) { logger.error('leads-meta', 'erro criar agendamento', agErr); erros++; }
-          else agendados++;
+          else {
+            agendados++;
+            // Avisa o consultor da vez. Fire-and-forget: o lead já está no CRM,
+            // um WhatsApp que falha não pode derrubar o sync dos outros leads.
+            void avisarConsultor(consultor, {
+              nome, whatsapp, cidade, quando: slot, fields,
+            });
+          }
           // confirmação no WhatsApp: enviada pelo cron processarLembretesAgenda
           // (com retry até entregar) — não inline, pra "sem falhar".
         }
