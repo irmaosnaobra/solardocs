@@ -224,7 +224,7 @@
   .ok .ic svg{width:34px;height:34px;stroke:var(--neon-b);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
   .ok h3{font-size:26px;font-weight:900;letter-spacing:-.8px}
   .ok p{color:var(--mut);font-size:15px;font-weight:600;margin-top:10px;line-height:1.55}
-  .ok .zap{margin-top:20px}
+  .ok .okObs{color:rgba(247,251,242,.45);font-size:13.5px;font-weight:600;margin-top:16px;max-width:420px;margin-left:auto;margin-right:auto}
 
   /* ===== rodapé ===== */
   footer{border-top:1px solid var(--line);padding:34px 0;margin-top:20px}
@@ -494,7 +494,9 @@
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
         <h3>Reunião agendada!</h3>
         <p id="ok-txt">Nossa equipe vai te confirmar pelo WhatsApp.</p>
-        <div class="zap"><a href="#" class="btn" id="ok-zap" target="_blank" rel="noopener">Falar agora no WhatsApp →</a></div>
+        <!-- Sem botão de "falar agora": a agenda flui pela reunião marcada. Quem
+             cai no WhatsApp na hora fura a agenda e vira atendimento avulso. -->
+        <p class="okObs">Você vai receber a confirmação no WhatsApp que informou. Até lá, é só aguardar — já está tudo marcado.</p>
       </div>
     </div>
   </section>
@@ -841,7 +843,7 @@ async function agendar(){
                          : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
     }
     const dono = await proximoDono();
-    await supaInsert('agendamentos', {
+    const novo = await supaInsert('agendamentos', {
       vendedor_nome:    dono,               // NOT NULL + FK consultores → rodízio Thiago/Diego
       quando:           slotSel,
       cliente_nome:     nome,
@@ -864,8 +866,13 @@ async function agendar(){
     const TZ = { timeZone:'America/Sao_Paulo' };   // exibe no fuso do Brasil, não no do visitante
     document.getElementById('ok-txt').textContent =
       `Sua reunião ficou para ${dt.toLocaleDateString('pt-BR',{...TZ,weekday:'long',day:'2-digit',month:'long'})} às ${dt.toLocaleTimeString('pt-BR',{...TZ,hour:'2-digit',minute:'2-digit'})} (horário de Brasília). Nossa equipe confirma pelo WhatsApp.`;
-    document.getElementById('ok-zap').href =
-      `https://wa.me/5534998165040?text=${encodeURIComponent('Olá! Acabei de agendar uma reunião sobre eletroposto pelo site.')}`;
+    // Avisa a equipe no WhatsApp na hora (fire-and-forget: se falhar, o lead já
+    // está gravado no CRM — o alerta é conveniência, não pode derrubar o agendamento)
+    fetch('/_api/io/eletroposto/alerta', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: novo && novo[0] && novo[0].id }),
+    }).catch(() => {});
+
     document.getElementById('ag-form').style.display = 'none';
     document.getElementById('ag-ok').style.display = 'block';
     document.getElementById('ag-ok').scrollIntoView({behavior:'smooth', block:'center'});

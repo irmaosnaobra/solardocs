@@ -30,6 +30,7 @@ import dashboardsRoutes from './routes/dashboards';
 import geradorRoutes from './routes/gerador';
 import ioLinksRoutes from './routes/ioLinks';
 import ioIndicacoesRoutes from './routes/ioIndicacoes';
+import ioEletropostoRoutes from './routes/ioEletroposto';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
@@ -111,6 +112,7 @@ app.use('/dashboards', dashboardsRoutes);
 app.use('/gerador', geradorRoutes);
 app.use('/io-links', ioLinksRoutes);
 app.use('/io-indicacoes', ioIndicacoesRoutes);
+app.use('/io/eletroposto', ioEletropostoRoutes);
 
 // Error handler global — nunca expõe stack trace em produção
 app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
