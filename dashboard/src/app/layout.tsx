@@ -1,7 +1,17 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
+import { Nunito_Sans } from 'next/font/google';
 import '@/styles/globals.css';
 import UpdateBanner from '@/components/UpdateBanner/UpdateBanner';
+
+// Self-hosted de propósito: um <link> pro fonts.googleapis.com é render-blocking
+// cross-origin e custa ~1.5s de FCP no mobile. Não voltar pro <link>.
+const nunitoSans = Nunito_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-nunito',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'SolarDoc Pro',
@@ -20,20 +30,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" data-theme="light">
+    <html lang="pt-BR" data-theme="light" className={nunitoSans.variable}>
       <head>
         {/* Light mode fixo (estilo SolarZ). Preferência antiga em localStorage é ignorada. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `try{document.documentElement.dataset.theme='light';localStorage.removeItem('sd-theme');}catch(e){}`,
           }}
-        />
-        {/* Preconnect para Google Fonts — não bloqueia render em Android antigo */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap"
         />
         {/* Cache-buster: garante que cliente nunca trave em chunk antigo após deploy */}
         <script
@@ -125,7 +128,12 @@ export default function RootLayout({
             });
           } catch(e) {}
         `}</Script>
-        <Script id="meta-pixel" strategy="afterInteractive">{`
+        {/* lazyOnload, não afterInteractive: os 164KB do fbevents disputam main thread
+            com a pintura do H1 e custam ~15 pontos de PageSpeed mobile.
+            Contrapartida: o pixel só inicializa no idle pós-load, então quem clica no
+            CTA em ~1s vindo de anúncio pode sair sem _fbc/_fbp, o que piora o match
+            do CAPI nessa sessão. Se isso doer, inicializar no 1º scroll/toque. */}
+        <Script id="meta-pixel" strategy="lazyOnload">{`
           !function(f,b,e,v,n,t,s)
           {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
           n.callMethod.apply(n,arguments):n.queue.push(arguments)};

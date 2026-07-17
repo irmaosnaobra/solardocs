@@ -1,4 +1,4 @@
-/* Fonte carregada via <link> no layout.tsx para não bloquear o render */
+/* --font-nunito vem do next/font (self-hosted) no layout.tsx */
 
 :root {
   /* ── Acento laranja estilo SolarZ (mais vermelho/quente que o amber antigo) ── */
@@ -71,7 +71,7 @@
   --text-2xl: 24px;
 
   --sidebar-width: 260px;
-  --font-sans: 'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: var(--font-nunito), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color-scheme: light;
 }
 
