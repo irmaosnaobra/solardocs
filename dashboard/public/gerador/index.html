@@ -6809,6 +6809,43 @@ window.preencherClienteNoForm = preencherClienteNoForm;
 
 // "Gerar orçamento" → abre o gerador de propostas já com os dados do cliente
 // (nome, WhatsApp, cidade/UF) pré-preenchidos, pra adiantar.
+// ── Telhado e padrão que o LEAD respondeu no formulário do Meta ──────────────
+// O lead responde isso no anúncio, mas o vocabulário do formulário não é o do
+// gerador ("Ceramico" → "Cerâmico", "Bi" → "Bifásica"). Sem esse De-Para o
+// consultor pergunta de novo o que o cliente já respondeu.
+// Fonte: a observação do card, que a API grava em ordem fixa ("Telhado: X").
+const LEAD_TELHADO = [
+  [/ceram|cerâm|colonial|barro/, 'Cerâmico'],
+  [/laje|concreto/,              'Laje'],
+  [/solo|ch[ãa]o|terra/,         'Solo'],
+  [/fibro|amianto|brasilit/,     'Fibrocimento'],   // fibromadeira, fibrometal, cimento
+  [/metal|met[áa]lic|zinc|galv/, 'Metálico'],
+  [/^cimento$/,                  'Fibrocimento'],
+];
+const LEAD_FASE = [
+  [/^mono|monof/, 'Monofásica'],
+  [/^bi|bif/,     'Bifásica'],
+  [/^tri|trif/,   'Trifásica'],
+];
+function descritoresDoLead(c) {
+  // Pega a observação mais recente entre as agendas do cliente.
+  const obs = ((c.agends || []).map(a => a.observacao).filter(Boolean).pop()) || '';
+  if (!obs) return {};
+  const campo = rot => {
+    const m = obs.match(new RegExp('^' + rot + ':\\s*(.+)$', 'im'));
+    return m ? m[1].trim().toLowerCase() : '';
+  };
+  const dePara = (valor, mapa) => {
+    if (!valor || /n[ãa]o sei|nao_sei/.test(valor)) return '';   // "Não sei" não vira chute
+    const hit = mapa.find(([re]) => re.test(valor));
+    return hit ? hit[1] : '';
+  };
+  return {
+    telhado: dePara(campo('Telhado'), LEAD_TELHADO),
+    fase:    dePara(campo('Padrão de entrada') || campo('Padrão'), LEAD_FASE),
+  };
+}
+
 // Gerar orçamento JÁ classifica o lead como Frio (era o antigo botão "Fez
 // orçamento", removido): o card cai na coluna Frio do kanban e sai do alvo do
 // followup automático (que pula qualquer lead com temperatura). Best-effort:
@@ -6825,10 +6862,14 @@ async function crmGerarOrcamento() {
   // esses dados já foram levantados uma vez). Vêm do JSON `dados` da proposta mais
   // recente. Ausente (1º orçamento do cliente) → tudo em branco, sem erro.
   const pd = (c.propRecente && c.propRecente.dados) || {};
+  // 1º orçamento do cliente? Não existe proposta anterior, mas o LEAD já respondeu
+  // telhado e padrão no formulário do Meta — aproveita e poupa o consultor de
+  // perguntar de novo. Proposta anterior sempre ganha (foi levantada no local).
+  const doLead = descritoresDoLead(c);
   const descritores = {
     uf:          c.propRecente ? (c.propRecente.cliente_uf || '') : '',
-    telhado:     pd.telhado || '',
-    fase:        pd.fase || '',
+    telhado:     pd.telhado || doLead.telhado || '',
+    fase:        pd.fase || doLead.fase || '',
     distanciaKm: pd.distanciaKm || '',
     excedente:   pd.excedente || '',
   };
