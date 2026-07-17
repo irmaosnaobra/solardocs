@@ -222,9 +222,18 @@
   .ok{text-align:center;padding:30px 10px;display:none}
   .ok .ic{width:70px;height:70px;border-radius:50%;background:rgba(125,209,23,.16);border:2px solid var(--neon);display:grid;place-items:center;margin:0 auto 18px}
   .ok .ic svg{width:34px;height:34px;stroke:var(--neon-b);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
-  .ok h3{font-size:26px;font-weight:900;letter-spacing:-.8px}
-  .ok p{color:var(--mut);font-size:15px;font-weight:600;margin-top:10px;line-height:1.55}
-  .ok .okObs{color:rgba(247,251,242,.45);font-size:13.5px;font-weight:600;margin-top:16px;max-width:420px;margin-left:auto;margin-right:auto}
+  .ok h3{font-size:clamp(24px,3.4vw,30px);font-weight:900;letter-spacing:-.8px}
+  .ok #ok-txt{color:var(--neon-b);font-size:clamp(15px,2vw,18px);font-weight:800;margin-top:10px;line-height:1.5}
+  .okCard{margin:24px auto 0;max-width:520px;text-align:left;display:flex;flex-direction:column;gap:16px;
+    background:rgba(5,13,2,.5);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .okRow{display:flex;gap:14px;align-items:flex-start}
+  .okIc{width:38px;height:38px;border-radius:10px;background:rgba(125,209,23,.14);border:1px solid rgba(125,209,23,.4);
+    display:grid;place-items:center;flex:0 0 auto}
+  .okIc svg{width:19px;height:19px;stroke:var(--neon-b);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .okTx{color:var(--mut);font-size:14px;font-weight:600;line-height:1.5}
+  .okTx b{display:block;color:var(--cream);font-weight:800;font-size:15px;margin-bottom:3px}
+  .ok .okObs{color:rgba(247,251,242,.5);font-size:14px;font-weight:700;margin-top:22px}
+  .ok .okObs #ok-dia{color:var(--neon-b)}
 
   /* ===== rodapé ===== */
   footer{border-top:1px solid var(--line);padding:34px 0;margin-top:20px}
@@ -490,13 +499,38 @@
         </div>
       </div>
 
+      <!-- Sem botão de "falar agora": a agenda flui pela reunião marcada. Quem cai
+           no WhatsApp na hora fura a agenda e vira atendimento avulso. -->
       <div class="ok" id="ag-ok">
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
-        <h3>Reunião agendada!</h3>
-        <p id="ok-txt">Nossa equipe vai te confirmar pelo WhatsApp.</p>
-        <!-- Sem botão de "falar agora": a agenda flui pela reunião marcada. Quem
-             cai no WhatsApp na hora fura a agenda e vira atendimento avulso. -->
-        <p class="okObs">Você vai receber a confirmação no WhatsApp que informou. Até lá, é só aguardar — já está tudo marcado.</p>
+        <h3>Está marcado!</h3>
+        <p id="ok-txt">—</p>
+
+        <div class="okCard">
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="m23 7-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
+            <div class="okTx">
+              <b>A conversa é por vídeo.</b>
+              Enviamos o link no seu WhatsApp antes do horário. Você entra pelo próprio celular ou computador — não precisa instalar nada.
+            </div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
+            <div class="okTx">
+              <b>Vamos preparar tudo antes.</b>
+              Até lá, montamos o estudo de viabilidade do seu ponto — o mesmo que você simulou aqui, agora com os números do seu caso na mão.
+            </div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01"/><path d="M21 12a9 9 0 0 1-9 9 8.9 8.9 0 0 1-4.3-1.1L3 21l1.1-4.7A8.9 8.9 0 0 1 3 12a9 9 0 1 1 18 0z"/></svg></div>
+            <div class="okTx">
+              <b>Traga suas dúvidas.</b>
+              Fluxo do seu ponto, energia, obra, prazo, formas de pagamento — é a hora de perguntar tudo.
+            </div>
+          </div>
+        </div>
+
+        <p class="okObs">Obrigado pela confiança. A gente se vê <span id="ok-dia">na reunião</span>!</p>
       </div>
     </div>
   </section>
@@ -864,8 +898,10 @@ async function agendar(){
 
     const dt = new Date(slotSel);
     const TZ = { timeZone:'America/Sao_Paulo' };   // exibe no fuso do Brasil, não no do visitante
+    const diaSemana = dt.toLocaleDateString('pt-BR',{...TZ, weekday:'long'});
     document.getElementById('ok-txt').textContent =
-      `Sua reunião ficou para ${dt.toLocaleDateString('pt-BR',{...TZ,weekday:'long',day:'2-digit',month:'long'})} às ${dt.toLocaleTimeString('pt-BR',{...TZ,hour:'2-digit',minute:'2-digit'})} (horário de Brasília). Nossa equipe confirma pelo WhatsApp.`;
+      `${diaSemana}, ${dt.toLocaleDateString('pt-BR',{...TZ,day:'2-digit',month:'long'})} às ${dt.toLocaleTimeString('pt-BR',{...TZ,hour:'2-digit',minute:'2-digit'})} — horário de Brasília`;
+    document.getElementById('ok-dia').textContent = diaSemana;
     // Avisa a equipe no WhatsApp na hora (fire-and-forget: se falhar, o lead já
     // está gravado no CRM — o alerta é conveniência, não pode derrubar o agendamento)
     fetch('/_api/io/eletroposto/alerta', {
