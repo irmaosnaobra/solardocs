@@ -6818,9 +6818,12 @@ const LEAD_TELHADO = [
   [/ceram|cerâm|colonial|barro/, 'Cerâmico'],
   [/laje|concreto/,              'Laje'],
   [/solo|ch[ãa]o|terra/,         'Solo'],
-  [/fibro|amianto|brasilit/,     'Fibrocimento'],   // fibromadeira, fibrometal, cimento
+  [/fibro|amianto|brasilit|etern/, 'Fibrocimento'],   // fibromadeira, fibrometal, eternit
   [/metal|met[áa]lic|zinc|galv/, 'Metálico'],
-  [/^cimento$/,                  'Fibrocimento'],
+  // "Cimento" (25 leads) fica de FORA de propósito: telha de cimento NÃO é
+  // fibrocimento (esse é o eternit) e o gerador não tem opção pra ela. Mapear
+  // pro parecido colocaria o telhado errado numa proposta que o cliente lê.
+  // Em branco → o consultor escolhe. Melhor vazio que errado.
 ];
 const LEAD_FASE = [
   [/^mono|monof/, 'Monofásica'],
