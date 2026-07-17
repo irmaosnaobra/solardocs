@@ -46,8 +46,12 @@ function montarMensagem(a: any): string {
   const perfil = (obs[0] || '').replace('LP ELETROPOSTO — ', '') || '—';
   const linha = (rot: string) => obs.find(l => l.startsWith(rot))?.replace(rot, '').trim() || '—';
 
-  const temp = String(a.temperatura || '').toUpperCase();
-  const selo = temp === 'QUENTE' ? '*LEAD QUENTE*' : temp === 'MORNO' ? 'Lead morno' : 'Lead frio';
+  // Reciclagem = eletroposto (a energia solar usa ☀️): dá pra saber a linha e a
+  // temperatura batendo o olho na notificação, sem abrir a mensagem.
+  const temp = String(a.temperatura || '').toLowerCase();
+  const REC: Record<string, string> = { quente: '♻️♻️♻️', morno: '♻️♻️', frio: '♻️' };
+  const NOME: Record<string, string> = { quente: '*LEAD QUENTE*', morno: '*Lead morno*', frio: '*Lead frio*' };
+  const selo = `${REC[temp] || '♻️'} ${NOME[temp] || '*Lead*'}`;
 
   return [
     `*NOVA REUNIÃO — ELETROPOSTO*`,

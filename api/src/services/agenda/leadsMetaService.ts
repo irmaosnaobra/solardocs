@@ -292,7 +292,11 @@ async function avisarConsultor(consultor: string, lead: {
 
   const t = medirTemperatura(lead.fields as any);
   const ficha = organizarFicha(lead.fields as any);
-  const selo = t.nivel === 'quente' ? '*LEAD QUENTE*' : t.nivel === 'morno' ? 'Lead morno' : 'Lead frio';
+  // Sol = energia solar (o eletroposto usa ♻️): dá pra saber a linha e a
+  // temperatura batendo o olho na notificação, sem abrir a mensagem.
+  const SOL: Record<string, string> = { quente: '☀️☀️☀️', morno: '☀️☀️', frio: '☀️' };
+  const NOME: Record<string, string> = { quente: '*LEAD QUENTE*', morno: '*Lead morno*', frio: '*Lead frio*' };
+  const selo = `${SOL[t.nivel]} ${NOME[t.nivel]}`;
   const quando = lead.quando.toLocaleString('pt-BR', {
     timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit',
     hour: '2-digit', minute: '2-digit',
