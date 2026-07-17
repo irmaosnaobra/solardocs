@@ -35,6 +35,23 @@ const PDF_MIME = 'application/pdf';
 
 export type PdfAsset = { file: File; blob: Blob; filename: string };
 
+/**
+ * navigator.share só é o gesto CERTO no iOS, que não tem download-pra-pasta e
+ * quebra <a download> no PWA standalone. Em DESKTOP (Windows/Mac) e Android o
+ * navigator.canShare({files}) também retorna true, mas aí o share abre a folha
+ * "Compartilhar" do SO (inútil pra salvar arquivo — Thiago viu no notebook: o
+ * cliente clicou baixar e abriu o "Compartilhar" do Windows, sem baixar nada).
+ * Por isso o share fica RESTRITO ao iOS; todo o resto baixa por <a download>.
+ * Inclui iPadOS 13+, que se identifica como "MacIntel" + touch.
+ */
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  if (/iP(hone|od|ad)/.test(ua)) return true;
+  // iPadOS 13+ mente que é Mac desktop; só o touch o denuncia.
+  return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+}
+
 // Deriva o nome do arquivo do header Content-Disposition (o backend manda
 // tipoSlug_clienteSlug.pdf); fallback pro docId.
 function filenameFromDisposition(disposition: string | undefined, docId: string): string {
@@ -73,9 +90,11 @@ export async function prewarmPdf(docId: string): Promise<PdfAsset> {
 export async function sharePrewarmedPdf(asset: PdfAsset): Promise<'shared' | 'downloaded' | 'cancelled'> {
   const { file, blob, filename } = asset;
 
-  // Caminho iOS/mobile: folha de compartilhamento nativa com o arquivo.
+  // Caminho iOS: folha de compartilhamento nativa com o arquivo. SÓ no iOS —
+  // em desktop/Android o canShare também é true, mas lá o share abre a folha
+  // do SO em vez de baixar (bug do notebook Windows). Ver isIOS() acima.
   const nav = typeof navigator !== 'undefined' ? navigator : undefined;
-  if (nav?.canShare && nav.canShare({ files: [file] })) {
+  if (isIOS() && nav?.canShare && nav.canShare({ files: [file] })) {
     try {
       await nav.share({ files: [file], title: filename });
       return 'shared';
