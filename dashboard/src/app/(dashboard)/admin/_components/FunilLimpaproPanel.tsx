@@ -612,7 +612,21 @@ export default function FunilLimpaproPanel() {
                               WhatsApp{lead.telefone_suspeito ? ' (suspeito)' : ''}
                             </a>
                           ) : (
-                            <span style={{ color: 'var(--color-text-muted)' }}>—</span>
+                            // Sem link de WhatsApp: em vez de um "—" seco, diz POR QUE a IA não
+                            // conseguiu contatar. Praticamente sempre é telefone ausente/inválido
+                            // no checkout da Kiwify (o gate `sem_telefone`/`telefone_suspeito` da Bia),
+                            // então não há como mandar mensagem — precisa de contato manual.
+                            <span
+                              title="A Kiwify não trouxe um telefone válido neste checkout, então a IA não consegue enviar WhatsApp. Recupere o contato pelo pedido na Kiwify."
+                              style={{
+                                display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '3px 9px',
+                                borderRadius: 999, cursor: 'help',
+                                background: 'rgba(239,68,68,0.10)', color: '#f87171',
+                                border: '1px solid rgba(239,68,68,0.28)',
+                              }}
+                            >
+                              Sem telefone válido
+                            </span>
                           )}
                         </div>
                       </div>
