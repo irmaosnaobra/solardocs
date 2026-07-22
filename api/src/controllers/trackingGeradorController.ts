@@ -77,11 +77,17 @@ export async function trackEvent(req: Request, res: Response): Promise<void> {
     }
 
     // Notifica consultor via Z-API IO — só pra eventos de "engajamento" e com debounce 2h.
-    // Não bloqueia a resposta: dispara em background, erros caem em console.
+    // IMPORTANTE: precisa de AWAIT. Em serverless (Vercel) a função é congelada assim
+    // que respondemos; um fire-and-forget aqui morre antes de chamar a RPC/WhatsApp
+    // (era exatamente por isso que a notificação de "cliente abriu proposta" não chegava).
+    // O custo é ~1-2s a mais nesta request de tracking — imperceptível pro cliente.
+    // try/catch garante que uma falha de notificação nunca derruba o tracking.
     if (ev === 'abertura' || ev === 'click_wpp_cta' || ev === 'click_wpp_expirado') {
-      notificarConsultor(codigo, ev, cidade, uf).catch((err) => {
+      try {
+        await notificarConsultor(codigo, ev, cidade, uf);
+      } catch (err) {
         console.error('[track] notif consultor falhou:', err);
-      });
+      }
     }
 
     res.json({ ok: true });
