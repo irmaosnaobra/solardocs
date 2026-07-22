@@ -17,7 +17,7 @@ const GRAPH = 'https://graph.facebook.com/v21.0';
 const PAGE_ID = process.env.META_LEADS_PAGE_ID || '704395102766155';
 const SU_TOKEN = process.env.META_SYSTEM_USER_TOKEN || '';
 
-const CONSULTORES_RODIZIO = ['Thiago', 'Diego', 'Nilce'];
+export const CONSULTORES_RODIZIO = ['Thiago', 'Diego', 'Nilce'];
 const HORA_INI = 8;   // agenda abre 08:00
 const HORA_FIM = 20;  // fecha 20:00
 
@@ -114,7 +114,7 @@ const DDDS_AREA = new Set(['34', '64', '16']);
 
 // Padroniza celular BR → 55 + DDD + 9 + 8 dígitos (13). Mantém como veio se não
 // for celular reconhecível (fixo/curto). Mesma regra do front (agenda/CRM).
-function normalizeTelBR(raw: string): string {
+export function normalizeTelBR(raw: string): string {
   let d = (raw || '').replace(/\D/g, '');
   if (d.startsWith('55') && d.length >= 12) d = d.slice(2);
   if (d.length === 11) return '55' + d;
@@ -133,7 +133,7 @@ function dddDoWhatsapp(whatsapp: string): string {
 
 // True se o lead está na área: cidade na tabela cidades_atendimento OU,
 // quando a cidade vem errada/abreviada/fora da lista, DDD 34/64/16.
-async function dentroDaArea(cidade: string, whatsapp: string): Promise<boolean> {
+export async function dentroDaArea(cidade: string, whatsapp: string): Promise<boolean> {
   const norm = normalizarCidade(cidade);
   if (norm) {
     const { data } = await supabaseGerador
@@ -235,7 +235,7 @@ function slotDisponivel(t: number, agoraMs: number, occ: { ocupados: Set<number>
 
 // Slot livre pra um consultor FIXO. Respeita bloqueios/ocupação dele,
 // achando outro horário livre se o pedido estiver indisponível.
-async function slotLivreConsultor(consultor: string, base: { y: number; m: number; d: number; h: number }): Promise<Date> {
+export async function slotLivreConsultor(consultor: string, base: { y: number; m: number; d: number; h: number }): Promise<Date> {
   const agora = new Date();
   const occ = await carregarOcupacao(consultor, agora.toISOString());
   let { y, m, d } = base;
@@ -264,7 +264,7 @@ async function slotLivreConsultor(consultor: string, base: { y: number; m: numbe
 //   chegou 18:01, faixa 15-18 → amanhã, base 15h  (janela fechou)
 // A precisão de minutos ("chegou 15:10 → marca 15:15") sai de graça do
 // slotLivreConsultor, que pula slots já no passado na grade de 15min.
-function dataBaseDaFaixa(faixa: string): { y: number; m: number; d: number; h: number } {
+export function dataBaseDaFaixa(faixa: string): { y: number; m: number; d: number; h: number } {
   const horaIni = horaDaFaixa(faixa);
   const horaFim = horaFimDaFaixa(faixa);
   const n = nowSP();

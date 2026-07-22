@@ -5,6 +5,7 @@ import { gerarIdeiasSociais, roteirizarTema, roteirizarUpload } from '../service
 import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStudioStubs';
 import { gerarProdutosVirais, redispararVideoProduto } from '../services/agenda/produtosViraisService';
 import { processarWebhook, reconciliarStatusProduto, animarProduto } from '../services/agenda/higgsfieldService';
+import { ingestManychatLead } from '../services/agenda/manychatLeadService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -16,6 +17,32 @@ router.get('/pdf/:codigo', generateGeradorPdf);
 
 // Tracking server-side de acessos e cliques (lê IP + UA da request, resolve geo).
 router.post('/track', trackEvent);
+
+// Webhook do ManyChat (Instagram DM): recebe o lead QUENTE já qualificado da
+// boas-vindas e deposita no CRM/agenda do Gerador — rodízio de consultor + aviso
+// no WhatsApp, igual ao Meta Lead Ads. Só solar e eletroposto caem aqui (SolarDoc
+// e LimpaPro vão pro WhatsApp 34998165040 via link wa.me, sem backend).
+//
+// AUTH: confia no CORPO (não há card pré-escrito pra reler), então exige secret.
+// Fail-closed: sem MANYCHAT_LEAD_SECRET configurado, responde 503 — deployar
+// antes do secret existir é seguro (ninguém injeta lead/spam no WhatsApp).
+router.post('/manychat-lead', async (req: Request, res: Response) => {
+  const secret = (process.env.MANYCHAT_LEAD_SECRET || '').trim();
+  if (!secret) { res.status(503).json({ error: 'endpoint não configurado' }); return; }
+
+  const auth = String(req.headers['authorization'] || '');
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  const provided = bearer || String(req.headers['x-manychat-secret'] || '').trim();
+  if (provided !== secret) { res.status(401).json({ error: 'não autorizado' }); return; }
+
+  try {
+    const r = await ingestManychatLead(req.body || {});
+    res.status(r.ok ? 200 : 400).json(r);
+  } catch (err: any) {
+    logger.error('gerador', 'manychat-lead falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
 
 // IA: ideias de Reels/vídeos de energia solar, ancoradas nos posts reais que
 // mais performaram (aba "Redes" do gerador). Chamado via rewrite /_api/* do dashboard.
