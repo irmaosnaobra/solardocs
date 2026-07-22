@@ -251,10 +251,13 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
     if (agErr) { logger.error('manychat-lead', 'erro criar agendamento solar', agErr); }
     else {
       agendadoId = (agIns as any)?.id ?? null;
-      void avisarSolar(consultor, { nome, whatsapp, cidade, quando, fields }, temperatura);
+      // AWAIT (não fire-and-forget): serverless congela o processo após a resposta,
+      // então um void aqui derrubaria o aviso do consultor. avisarSolar já engole
+      // o próprio erro, então awaitar não trava o fluxo se o WhatsApp falhar.
+      await avisarSolar(consultor, { nome, whatsapp, cidade, quando, fields }, temperatura);
     }
   } else {
-    void avisarForaArea('solar', nome, whatsapp, cidade);
+    await avisarForaArea('solar', nome, whatsapp, cidade);
   }
 
   await supabaseGerador.from('leads_meta').insert({
@@ -330,7 +333,8 @@ async function ingestEletroposto(p: ManychatLeadPayload, nome: string, whatsapp:
 
   if (agErr) { logger.error('manychat-lead', 'erro criar agendamento eletroposto', agErr); return { ok: false, motivo: 'erro ao gravar' }; }
 
-  void avisarEletroposto({ nome, whatsapp, cidade: cidadePonto, capital, perfil, quando, temperatura, dono });
+  // AWAIT: serverless congela após a resposta; avisarEletroposto engole erros.
+  await avisarEletroposto({ nome, whatsapp, cidade: cidadePonto, capital, perfil, quando, temperatura, dono });
 
   logger.info('manychat-lead', `eletroposto: ${nome} (${temperatura}) → ${dono}`);
   return { ok: true, produto: 'eletroposto', destino: 'GERADOR', consultor: dono, quando: quando.toISOString(), temperatura };
