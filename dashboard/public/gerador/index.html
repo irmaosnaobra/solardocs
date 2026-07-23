@@ -7161,9 +7161,11 @@ function crmDerivar(c) {
   const agRecente = agOrd[0] || null;
   const agFuturo = agOrd.find(a => stamp(a.quando) >= agora && !CRM_STATUS_PERDIDO.has(a.status)) || null;
   const statusAg = agRecente ? agRecente.status : null;
-  // O consultor do card = quem vai ATENDER. O agendamento mais recente manda
-  // (uma transferência na agenda reflete na hora); proposta/lead são só fallback.
-  if (agRecente && agRecente.vendedor_nome) c.consultor = agRecente.vendedor_nome;
+  // O consultor do card = quem vai ATENDER. O agendamento NÃO-CANCELADO mais
+  // recente manda (uma transferência na agenda reflete na hora); um cancelado não
+  // pode "roubar" o dono. Proposta/lead são só fallback.
+  const agDono = agOrd.find(a => a.status !== 'cancelado' && a.vendedor_nome) || agRecente;
+  if (agDono && agDono.vendedor_nome) c.consultor = agDono.vendedor_nome;
   // id do agendamento mais recente — usado pelo botão "Reagendar" do card.
   c.agId = agRecente ? agRecente.id : null;
   // status do agendamento mais recente — vira o selo de status no card.

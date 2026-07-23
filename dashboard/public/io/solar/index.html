@@ -799,6 +799,29 @@ async function proximoDono(){
     return DONOS[total % DONOS.length];
   }catch(e){ return DONOS[0]; }
 }
+// Cliente que JÁ tem dono fica com ele — nunca aparece sob 2 consultores e não
+// entra no rodízio. Chave = DDD + últimos 8 dígitos (tolera o "9" e o 55), a
+// mesma do CRM/backend (donoDoTelefone).
+function telkeyLP(raw){
+  const dd = String(raw||'').replace(/\D/g,'').replace(/^55/,'');
+  if(dd.length < 10) return null;
+  return dd.slice(0,2) + dd.slice(-8);
+}
+async function donoDoTelefone(tel){
+  const alvo = telkeyLP(tel);
+  if(!alvo) return null;
+  try{
+    const q = `agendamentos?select=vendedor_nome,cliente_telefone,quando&status=neq.cancelado`
+            + `&cliente_telefone=ilike.*${alvo.slice(-8)}&order=quando.desc&limit=20`;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
+      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
+    const rows = await r.json();
+    for(const a of (Array.isArray(rows)?rows:[])){
+      if(a.vendedor_nome && telkeyLP(a.cliente_telefone) === alvo) return a.vendedor_nome;
+    }
+  }catch(e){}
+  return null;
+}
 function proximosDias(){
   const hoje = partesBR().ymd;
   const dias = [];
@@ -928,7 +951,7 @@ async function agendar(){
       return erro(passou ? 'Esse horário já passou. Escolha outro acima — a agenda foi atualizada.'
                          : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
     }
-    const dono = await proximoDono();
+    const dono = (await donoDoTelefone(tel)) || (await proximoDono());
     const novo = await supaInsert('agendamentos', {
       vendedor_nome:    dono,
       quando:           slotSel,

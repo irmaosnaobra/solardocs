@@ -147,6 +147,42 @@ export async function dentroDaArea(cidade: string, whatsapp: string): Promise<bo
   return DDDS_AREA.has(dddDoWhatsapp(whatsapp));
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DONO do telefone — um cliente NUNCA pode aparecer sob 2 consultores.
+// Antes de girar o rodízio, olha se esse telefone já tem um agendamento ATIVO
+// (não-cancelado). Se tiver, o lead que volta fica com o MESMO consultor e o
+// rodízio NÃO avança — só lead de fato novo consome uma vez do rodízio.
+// Como uma transferência é um PATCH na própria linha (a agenda já move o card
+// no lugar), o "dono" é sempre o vendedor do agendamento mais recente: depois de
+// repassar, o lead que retorna gruda em quem recebeu, não no consultor original.
+// Chave = DDD + últimos 8 dígitos (mesma do CRM: tolera o "9" do celular e o 55).
+// ─────────────────────────────────────────────────────────────────────────────
+function telkeyBR(raw: string): string | null {
+  const dd = (raw || '').replace(/\D/g, '').replace(/^55/, '');
+  if (dd.length < 10) return null;
+  return dd.slice(0, 2) + dd.slice(-8);
+}
+
+export async function donoDoTelefone(whatsapp: string): Promise<string | null> {
+  const alvo = telkeyBR(whatsapp);
+  if (!alvo) return null;
+  // PostgREST não normaliza telefone; filtra pelos últimos 8 dígitos (ilike com
+  // curinga à esquerda) e confirma o DDD no código pra não cruzar clientes de
+  // cidades diferentes que terminem igual.
+  const { data, error } = await supabaseGerador
+    .from('agendamentos')
+    .select('vendedor_nome, cliente_telefone, quando')
+    .neq('status', 'cancelado')
+    .ilike('cliente_telefone', `%${alvo.slice(-8)}`)
+    .order('quando', { ascending: false })
+    .limit(20);
+  if (error || !data) return null;
+  for (const a of data as Array<{ vendedor_nome: string | null; cliente_telefone: string | null }>) {
+    if (a.vendedor_nome && telkeyBR(a.cliente_telefone || '') === alvo) return a.vendedor_nome;
+  }
+  return null;
+}
+
 // Deriva o Page Access Token na hora (SU token é permanente; page token derivado não expira na prática)
 async function getPageToken(): Promise<string> {
   const r = await fetch(`${GRAPH}/${PAGE_ID}?fields=access_token&access_token=${SU_TOKEN}`);
@@ -382,11 +418,18 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
         let consultor: string | null = null;
 
         if (naArea) {
-          // Rodízio SEMPRE em ordem (Thiago→Diego→Nilce), sem pular ninguém.
-          // O consultor da vez é fixo; se bloqueado/ocupado no horário pedido,
-          // agenda ele em OUTRO horário livre dele (não passa pro próximo).
-          consultor = CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length];
-          rodizioIdx++;
+          // Cliente que JÁ tem dono fica com ele — não vira duplicado sob outro
+          // consultor e não gasta uma vez do rodízio. Só lead realmente novo gira.
+          const dono = await donoDoTelefone(whatsapp);
+          if (dono) {
+            consultor = dono;
+          } else {
+            // Rodízio SEMPRE em ordem (Thiago→Diego→Nilce), sem pular ninguém.
+            // O consultor da vez é fixo; se bloqueado/ocupado no horário pedido,
+            // agenda ele em OUTRO horário livre dele (não passa pro próximo).
+            consultor = CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length];
+            rodizioIdx++;
+          }
           const base = dataBaseDaFaixa(faixa);
           const slot = await slotLivreConsultor(consultor, base);
 

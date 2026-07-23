@@ -31,6 +31,7 @@ import {
   dentroDaArea,
   dataBaseDaFaixa,
   slotLivreConsultor,
+  donoDoTelefone,
   CONSULTORES_RODIZIO,
 } from './leadsMetaService';
 import { montarObservacaoSolar, organizarFicha, FieldItem } from './leadSolarFicha';
@@ -218,15 +219,22 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
   let quando: Date | null = null;
 
   if (naArea) {
-    // Rodízio: compartilha o contador com o cron do Meta (leads_meta_state) —
-    // um lead é um lead, os consultores recebem em rodízio justo, venha da
-    // onde vier. Read-modify-write não-atômico (mesmo risco/volume do cron).
-    const { data: stateRows } = await supabaseGerador
-      .from('leads_meta_state').select('rodizio_idx').eq('id', 1).limit(1);
-    const idx = (stateRows && stateRows[0]?.rodizio_idx) || 0;
-    consultor = CONSULTORES_RODIZIO[idx % CONSULTORES_RODIZIO.length];
-    await supabaseGerador.from('leads_meta_state')
-      .update({ rodizio_idx: idx + 1, updated_at: new Date().toISOString() }).eq('id', 1);
+    // Cliente que JÁ tem dono fica com ele — nunca vira 2 consultores e não gasta
+    // uma vez do rodízio. Só lead realmente novo gira o contador.
+    const dono = await donoDoTelefone(whatsapp);
+    if (dono) {
+      consultor = dono;
+    } else {
+      // Rodízio: compartilha o contador com o cron do Meta (leads_meta_state) —
+      // um lead é um lead, os consultores recebem em rodízio justo, venha da
+      // onde vier. Read-modify-write não-atômico (mesmo risco/volume do cron).
+      const { data: stateRows } = await supabaseGerador
+        .from('leads_meta_state').select('rodizio_idx').eq('id', 1).limit(1);
+      const idx = (stateRows && stateRows[0]?.rodizio_idx) || 0;
+      consultor = CONSULTORES_RODIZIO[idx % CONSULTORES_RODIZIO.length];
+      await supabaseGerador.from('leads_meta_state')
+        .update({ rodizio_idx: idx + 1, updated_at: new Date().toISOString() }).eq('id', 1);
+    }
 
     const base = dataBaseDaFaixa(p.faixa_horario || '');
     quando = await slotLivreConsultor(consultor, base);
@@ -298,11 +306,15 @@ async function ingestEletroposto(p: ManychatLeadPayload, nome: string, whatsapp:
     return { ok: true, duplicado: true, produto: 'eletroposto', destino: 'GERADOR' };
   }
 
-  // Rodízio Thiago/Diego pela contagem de cards de eletroposto (LP + ManyChat).
-  const { count } = await supabaseGerador
-    .from('agendamentos').select('id', { count: 'exact', head: true })
-    .in('created_by', ['lp_eletroposto', 'manychat_eletroposto']);
-  const dono = DONOS_ELETRO[(count || 0) % DONOS_ELETRO.length];
+  // Cliente que já tem dono fica com ele (nunca 2 consultores). Só cliente novo
+  // entra no rodízio Thiago/Diego pela contagem de cards de eletroposto (LP + ManyChat).
+  let dono = await donoDoTelefone(whatsapp);
+  if (!dono) {
+    const { count } = await supabaseGerador
+      .from('agendamentos').select('id', { count: 'exact', head: true })
+      .in('created_by', ['lp_eletroposto', 'manychat_eletroposto']);
+    dono = DONOS_ELETRO[(count || 0) % DONOS_ELETRO.length];
+  }
 
   const base = dataBaseDaFaixa('');
   const quando = await slotLivreConsultor(dono, base);
