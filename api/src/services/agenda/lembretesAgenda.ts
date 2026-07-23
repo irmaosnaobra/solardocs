@@ -93,7 +93,7 @@ async function enviarParCliente(
 }
 
 // 1) AO MARCAR — mensagem que já vende, cliente vislumbra ter energia solar.
-async function dispararConfirmacao(ag: Agendamento, vendedorWpp: string | null) {
+async function dispararConfirmacao(ag: Agendamento) {
   const nomeCli = primeiroNome(ag.cliente_nome);
   const dia = diaSemanaSP(ag.quando);
   const quandoTxt = formatDataHora(ag.quando);
@@ -105,15 +105,10 @@ async function dispararConfirmacao(ag: Agendamento, vendedorWpp: string | null) 
     `A ligação chega neste mesmo número. Se precisar remarcar, é só me avisar por aqui. 👍\n\n` +
     `_Irmãos na Obra ☀️_`;
 
-  const msgV =
-    `✅ *Novo agendamento!*\n` +
-    `Cliente: *${ag.cliente_nome}*\n` +
-    `Quando: *${dia}, ${quandoTxt}*\n` +
-    `Tel: ${telExibicao(ag.cliente_telefone)}` +
-    (ag.cidade ? `\nCidade: ${ag.cidade}` : '') +
-    (ag.observacao ? `\n_Obs: ${ag.observacao}_` : '');
-
-  await enviarParCliente(ag, vendedorWpp, msgC, msgV);
+  // SÓ o cliente recebe a confirmação. O consultor já foi avisado do lead na hora
+  // que ele chegou (alerta "NOVO LEAD — ENERGIA SOLAR" do leadsMetaService) —
+  // repetir "✅ Novo agendamento!" aqui era aviso dobrado no WhatsApp da equipe.
+  await sendWhatsApp(ag.cliente_telefone, msgC, ZAPI_INSTANCE);
 
   // Figurinha logo abaixo do texto — SÓ pro cliente, best-effort.
   // try/catch isolado de propósito: se o sticker falhar, NÃO pode travar o
@@ -209,7 +204,7 @@ export async function processarLembretesAgenda(): Promise<{
     // ── Confirmação ao marcar (só leads do Instagram; agendamento manual não dispara blast) ──
     if (!ag.confirmacao_at && ag.created_by === 'lead-meta') {
       try {
-        await dispararConfirmacao(ag, vendedorWpp);
+        await dispararConfirmacao(ag);
         conf++;
       } catch (e) {
         logger.error('agenda', 'falha confirmação', { id: ag.id, erro: String(e) });
