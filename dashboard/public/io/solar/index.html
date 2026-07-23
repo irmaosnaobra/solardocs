@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Energia Solar — Pare de alugar a sua energia | Irmãos na Obra</title>
+<meta name="description" content="Você paga a conta de luz a vida toda e nunca fica com nada. Com energia solar, a parcela cabe no lugar da conta — e em pouco mais de 2 anos o sistema é seu. Agende uma vistoria técnica gratuita.">
+<link rel="icon" type="image/png" href="/io/img/logoio.png">
+<link rel="apple-touch-icon" href="/io/img/logoio.png">
+<meta name="theme-color" content="#0F2A52">
+<meta property="og:title" content="Pare de alugar a sua energia — Irmãos na Obra Energia Solar">
+<meta property="og:description" content="A parcela cabe no lugar da conta de luz. Em pouco mais de 2 anos o sistema é seu e a energia vira quase de graça por 25 anos. Agende sua vistoria técnica.">
+<meta property="og:image" content="https://solardoc.app/io/img/logoio.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://solardoc.app/io/solar/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,600..800;1,9..144,600..700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --navy:#0F2A52; --navy-2:#1A3A6B; --gold:#C28A2C; --gold-2:#a8761f; --gold-soft:#E6B860;
+    --bg:#FBFAF7; --surface:#ffffff; --border:#E7E3DB; --line:#EEE9DF;
+    --text:#1A1F2E; --mut:#5C6478; --soft:#8B92A5; --success:#1E7A4A; --danger:#C0492F;
+    --peach:#FFF6E9;
+    --sh-sm:0 2px 10px rgba(15,42,82,.06);
+    --sh-md:0 16px 40px -12px rgba(15,42,82,.14), 0 6px 16px rgba(194,138,44,.06);
+  }
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--text);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+  img{display:block;max-width:100%}
+  a{color:inherit;text-decoration:none}
+  .serif{font-family:'Fraunces',Georgia,serif}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+  section{padding:64px 0}
+  @media(max-width:760px){section{padding:44px 0}}
+  .sh{max-width:680px;margin:0 auto 34px;text-align:center}
+  .eyebrow{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+  h2{font-family:'Fraunces',Georgia,serif;font-size:clamp(28px,4.2vw,44px);font-weight:700;color:var(--navy);line-height:1.08;letter-spacing:-.01em}
+  h2 em{font-style:italic;color:var(--gold)}
+  .sub{color:var(--mut);font-size:17px;line-height:1.6;margin-top:14px}
+
+  /* ===== topbar ===== */
+  .topbar{background:var(--navy);color:rgba(255,255,255,.86);font-size:12.5px}
+  .topbar .in{max-width:1120px;margin:0 auto;padding:9px 22px;display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .topbar b{color:#fff;font-weight:700}
+  .topbar .r{display:flex;gap:18px;flex-wrap:wrap}
+  @media(max-width:600px){.topbar .in{justify-content:center;text-align:center;gap:6px 16px}}
+
+  /* ===== nav ===== */
+  .nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.96);backdrop-filter:saturate(160%) blur(10px);border-bottom:1px solid var(--border)}
+  .nav .in{max-width:1120px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .brand{display:flex;align-items:center;gap:11px}
+  .brand img{width:46px;height:46px;border-radius:50%;object-fit:cover;box-shadow:0 4px 12px rgba(15,42,82,.18)}
+  .brand .t{line-height:1.05}
+  .brand .t .l1{font-weight:800;font-size:15.5px;color:var(--navy)}
+  .brand .t .l2{font-size:9.5px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-top:2px}
+  .navCta{background:var(--navy);color:#fff;font-weight:800;font-size:13px;padding:12px 20px;border-radius:10px;white-space:nowrap;min-height:44px;display:inline-flex;align-items:center;transition:.2s}
+  .navCta:hover{background:var(--navy-2)}
+  @media(max-width:520px){.brand .t .l1{font-size:14px}.navCta{font-size:12px;padding:11px 15px}}
+
+  /* ===== hero ===== */
+  .hero{position:relative;overflow:hidden;background:
+    radial-gradient(circle 620px at 10% 95%, rgba(242,166,90,.20), transparent 60%),
+    radial-gradient(circle 720px at 92% -8%, rgba(194,138,44,.16), transparent 55%),
+    linear-gradient(180deg, var(--bg) 0%, #FFF6E9 100%);}
+  .hero::before{content:'';position:absolute;inset:0;pointer-events:none;background-image:
+    radial-gradient(circle at 7% 24%, rgba(194,138,44,.16) 0 6px, transparent 7px),
+    radial-gradient(circle at 94% 68%, rgba(242,166,90,.20) 0 9px, transparent 10px),
+    radial-gradient(circle at 72% 16%, rgba(15,42,82,.07) 0 4px, transparent 5px);}
+  .heroIn{position:relative;display:grid;grid-template-columns:1.1fr .9fr;gap:52px;align-items:center;padding:58px 0 72px}
+  @media(max-width:900px){.heroIn{grid-template-columns:1fr;gap:34px;padding:36px 0 48px}}
+  .tag{display:inline-flex;align-items:center;gap:9px;background:rgba(15,42,82,.05);border:1px solid rgba(15,42,82,.12);padding:7px 15px;border-radius:999px;font-size:12px;font-weight:700;color:var(--navy);letter-spacing:.05em;margin-bottom:22px}
+  .tag .dot{width:8px;height:8px;background:var(--success);border-radius:50%;box-shadow:0 0 0 4px rgba(30,122,74,.18)}
+  h1{font-family:'Fraunces',Georgia,serif;font-weight:700;font-size:clamp(38px,5.6vw,64px);line-height:1.02;letter-spacing:-.025em;color:var(--navy)}
+  h1 em{font-style:italic;color:var(--gold)}
+  .lead{font-size:clamp(16px,2vw,19px);color:var(--mut);line-height:1.62;max-width:560px;margin-top:22px}
+  .lead b{color:var(--navy);font-weight:800}
+  .heroCta{margin-top:30px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .btn{background:linear-gradient(135deg,var(--gold) 0%,var(--gold-soft) 100%);color:#fff;font-weight:800;font-size:16px;padding:18px 28px;border-radius:13px;display:inline-flex;align-items:center;gap:10px;border:0;cursor:pointer;font-family:inherit;box-shadow:0 12px 30px rgba(194,138,44,.4);transition:transform .15s,box-shadow .2s}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(194,138,44,.52)}
+  .btn:active{transform:translateY(0)}
+  .btn.ghost{background:transparent;color:var(--navy);border:1.6px solid rgba(15,42,82,.2);box-shadow:none;font-size:15px;padding:16px 22px}
+  .btn.navy{background:var(--navy);box-shadow:0 12px 30px rgba(15,42,82,.28)}
+  .btn.navy:hover{background:var(--navy-2)}
+  .heroStats{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:34px;padding:22px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);max-width:560px}
+  .hs .n{font-family:'Fraunces',Georgia,serif;font-size:clamp(26px,3.4vw,34px);font-weight:800;color:var(--navy);line-height:1}
+  .hs .n em{font-style:normal;color:var(--gold)}
+  .hs .l{margin-top:6px;font-size:10.5px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.1em;line-height:1.3}
+
+  /* hero visual: comparativo conta vs dono */
+  .heroCard{background:var(--surface);border:1px solid var(--border);border-radius:24px;box-shadow:var(--sh-md);padding:26px;position:relative}
+  .heroCard .ct{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);text-align:center;margin-bottom:16px}
+  .vsRow{display:flex;align-items:stretch;gap:12px}
+  .vsBox{flex:1;border-radius:16px;padding:18px 16px;text-align:center}
+  .vsBox.bad{background:#FBF1EE;border:1px solid #F0D9D2}
+  .vsBox.good{background:var(--peach);border:1px solid #F3E2C4}
+  .vsBox .h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+  .vsBox.bad .h{color:var(--danger)}
+  .vsBox.good .h{color:var(--gold-2)}
+  .vsBox .big{font-family:'Fraunces',Georgia,serif;font-weight:800;font-size:26px;line-height:1;color:var(--navy)}
+  .vsBox .sm{font-size:11.5px;color:var(--mut);font-weight:600;margin-top:7px;line-height:1.35}
+  .vsMid{display:flex;align-items:center;font-weight:900;color:var(--soft);font-size:13px}
+  .heroCard .foot{margin-top:16px;background:var(--navy);color:#fff;border-radius:13px;padding:13px 16px;font-size:13px;font-weight:700;text-align:center;line-height:1.4}
+  .heroCard .foot em{font-style:normal;color:var(--gold-soft)}
+
+  /* ===== manifesto (navy band) ===== */
+  .manifesto{background:var(--navy);border-radius:28px;padding:40px 38px;color:#fff;text-align:center;position:relative;overflow:hidden}
+  .manifesto::after{content:'';position:absolute;inset:0;background:
+    radial-gradient(circle 400px at 90% 10%, rgba(194,138,44,.28), transparent 60%),
+    radial-gradient(circle 360px at 5% 100%, rgba(242,166,90,.18), transparent 60%);pointer-events:none}
+  .manifesto .eyebrow{color:var(--gold-soft)}
+  .manifesto h2{color:#fff;position:relative}
+  .manifesto h2 em{color:var(--gold-soft)}
+  .manifesto p{position:relative;color:rgba(255,255,255,.82);font-size:17px;line-height:1.62;max-width:720px;margin:16px auto 0}
+  .manifesto p b{color:#fff;font-weight:800}
+
+  /* ===== comparativo aluguel ===== */
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){.compare{grid-template-columns:1fr}}
+  .cc{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:28px 26px;box-shadow:var(--sh-sm)}
+  .cc.bad{background:#FCF4F1;border-color:#F0DBD3}
+  .cc.good{border-color:#F0DFBE;box-shadow:var(--sh-md);position:relative}
+  .cc .badge{position:absolute;top:-13px;left:26px;background:var(--gold);color:#fff;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:999px}
+  .cc .ch{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .cc .cic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto}
+  .cc.bad .cic{background:#F6E2DB}
+  .cc.good .cic{background:var(--peach)}
+  .cc .cic svg{width:23px;height:23px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .cc.bad .cic svg{stroke:var(--danger)}
+  .cc.good .cic svg{stroke:var(--gold-2)}
+  .cc .ct{font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:700;color:var(--navy);line-height:1.1}
+  .cc ul{list-style:none;display:flex;flex-direction:column;gap:12px;margin-top:4px}
+  .cc li{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;color:var(--mut);font-weight:600;line-height:1.45}
+  .cc li svg{width:19px;height:19px;flex:0 0 auto;margin-top:1px;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  .cc.bad li svg{stroke:#C88}
+  .cc.good li svg{stroke:var(--success)}
+  .cc li b{color:var(--navy);font-weight:800}
+
+  /* ===== simulador ===== */
+  .simGrid{display:grid;grid-template-columns:380px 1fr;gap:20px}
+  @media(max-width:900px){.simGrid{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:26px;box-shadow:var(--sh-sm)}
+  .fld{margin-bottom:20px}
+  .fld:last-child{margin-bottom:0}
+  .fld label{display:block;font-size:13.5px;font-weight:800;color:var(--navy);margin-bottom:9px}
+  .fld .hint{color:var(--soft);font-weight:600;font-size:11.5px}
+  .rng{width:100%;accent-color:var(--gold);height:44px;-webkit-appearance:none;background:transparent;cursor:pointer}
+  .rng:focus{outline:none}
+  .rng::-webkit-slider-runnable-track{height:8px;border-radius:99px;background:#EFE7D6}
+  .rng::-moz-range-track{height:8px;border-radius:99px;background:#EFE7D6}
+  .rng::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--gold);border:3px solid #fff;margin-top:-10px;box-shadow:0 2px 10px rgba(194,138,44,.5)}
+  .rng::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:var(--gold);border:3px solid #fff;box-shadow:0 2px 10px rgba(194,138,44,.5)}
+  .rngRow{display:flex;justify-content:space-between;color:var(--soft);font-size:11.5px;font-weight:700;margin-top:5px}
+  .rngRow .cur{color:var(--gold-2);font-weight:800}
+  .contaBig{text-align:center;font-family:'Fraunces',Georgia,serif;font-weight:800;font-size:32px;color:var(--navy);margin:2px 0 6px}
+  .chips{display:flex;flex-wrap:wrap;gap:9px}
+  .chip{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:11px 13px;font-size:13px;font-weight:700;color:var(--mut);cursor:pointer;font-family:inherit;transition:.15s;display:inline-flex;align-items:center;gap:7px;min-height:44px}
+  .chip:hover{border-color:var(--gold-soft)}
+  .chip.on{background:var(--peach);border-color:var(--gold);color:var(--gold-2)}
+  .chip .x{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--soft);display:grid;place-items:center;font-size:11px;line-height:1}
+  .chip.on .x{background:var(--gold);border-color:var(--gold);color:#fff}
+
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 16px;text-align:center}
+  .kpi.hl{background:linear-gradient(135deg,#fff 0%,var(--peach) 100%);border-color:#F0DFBE}
+  .kpi .k{color:var(--soft);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.09em}
+  .kpi .v{font-family:'Fraunces',Georgia,serif;font-size:clamp(22px,3vw,30px);font-weight:800;color:var(--navy);margin-top:7px;line-height:1;font-variant-numeric:tabular-nums}
+  .kpi .v.gold{color:var(--gold-2)}
+  .kpi .u{font-size:11px;color:var(--mut);font-weight:600;margin-top:5px}
+
+  .cmpBar{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px}
+  .cmpBar .ct{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:14px;text-align:center}
+  .cbRow{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .cbRow .lbl{width:96px;flex:0 0 auto;font-size:12px;font-weight:800;color:var(--navy);line-height:1.15}
+  .cbTrack{flex:1;background:#F3EFE6;border-radius:99px;height:34px;position:relative;overflow:hidden}
+  .cbFill{height:100%;border-radius:99px;display:flex;align-items:center;justify-content:flex-end;padding:0 12px;font-size:13px;font-weight:800;color:#fff;white-space:nowrap;transition:width .5s}
+  .cbFill.bad{background:linear-gradient(90deg,#C0492F,#d76b52)}
+  .cbFill.good{background:linear-gradient(90deg,var(--gold),var(--gold-soft))}
+  .cbTag{position:absolute;top:50%;transform:translateY(-50%);left:24%;font-size:12.5px;font-weight:800;color:var(--gold-2);white-space:nowrap;pointer-events:none}
+  .simObs{color:var(--soft);font-size:12px;font-weight:600;margin-top:14px;line-height:1.5;text-align:center}
+  .simObs b{color:var(--gold-2)}
+
+  /* ===== faixa 21x ===== */
+  .band21{background:var(--surface);border:1px solid #F0DFBE;border-radius:24px;box-shadow:var(--sh-md);padding:34px 34px;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center}
+  @media(max-width:680px){.band21{grid-template-columns:1fr;gap:18px;text-align:center;padding:28px 22px}}
+  .b21n{font-family:'Fraunces',Georgia,serif;font-weight:800;font-size:clamp(60px,11vw,96px);line-height:.85;color:var(--gold);white-space:nowrap}
+  .b21n small{display:block;font-size:16px;color:var(--navy);letter-spacing:.02em}
+  .b21t h3{font-family:'Fraunces',Georgia,serif;font-size:clamp(22px,3vw,30px);font-weight:700;color:var(--navy);line-height:1.12}
+  .b21t p{color:var(--mut);font-size:15.5px;line-height:1.6;margin-top:10px}
+  .b21t p b{color:var(--navy);font-weight:800}
+  .b21pills{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  @media(max-width:680px){.b21pills{justify-content:center}}
+  .b21pill{background:var(--peach);border:1px solid #F0DFBE;color:var(--gold-2);font-size:12.5px;font-weight:800;padding:9px 15px;border-radius:999px}
+
+  /* ===== qualidade ===== */
+  .qcards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:860px){.qcards{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.qcards{grid-template-columns:1fr}}
+  .qc{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 22px;box-shadow:var(--sh-sm)}
+  .qc .ic{width:48px;height:48px;border-radius:13px;background:var(--peach);display:grid;place-items:center;margin-bottom:15px}
+  .qc .ic svg{width:24px;height:24px;stroke:var(--gold-2);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .qc .t{font-family:'Fraunces',Georgia,serif;font-size:19px;font-weight:700;color:var(--navy);line-height:1.15}
+  .qc .d{color:var(--mut);font-size:14px;font-weight:600;margin-top:8px;line-height:1.5}
+
+  /* ===== prova/empresa ===== */
+  .trust{background:var(--navy);border-radius:28px;padding:44px 38px;color:#fff;text-align:center;position:relative;overflow:hidden}
+  .trust::after{content:'';position:absolute;inset:0;background:radial-gradient(circle 420px at 88% 0%, rgba(194,138,44,.26), transparent 60%);pointer-events:none}
+  .trust h2{color:#fff;position:relative}
+  .trust h2 em{color:var(--gold-soft)}
+  .trust .tg{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:30px}
+  @media(max-width:720px){.trust .tg{grid-template-columns:repeat(2,1fr);gap:26px 18px}}
+  .tg .n{font-family:'Fraunces',Georgia,serif;font-size:clamp(30px,4.4vw,42px);font-weight:800;color:var(--gold-soft);line-height:1}
+  .tg .l{margin-top:8px;font-size:12px;font-weight:700;color:rgba(255,255,255,.78);text-transform:uppercase;letter-spacing:.08em;line-height:1.35}
+
+  /* ===== agendamento ===== */
+  .agBox{background:var(--surface);border:1px solid var(--border);border-radius:24px;box-shadow:var(--sh-md);padding:30px}
+  @media(max-width:600px){.agBox{padding:22px 16px}}
+  .step{margin-bottom:20px}
+  .slots{display:flex;flex-direction:column;gap:14px;margin-top:10px}
+  .agLoad{color:var(--mut);font-size:13.5px;font-weight:700;padding:14px 0}
+  .dia .diaH{color:var(--gold-2);font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+  .diaS{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
+  @media(max-width:520px){.diaS{grid-template-columns:repeat(4,1fr)}}
+  .slot{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:12px 6px;text-align:center;cursor:pointer;transition:.15s;font-family:inherit;color:var(--navy);font-size:15px;font-weight:800;min-height:46px}
+  .slot:hover{border-color:var(--gold);background:var(--peach)}
+  .slot.on{background:var(--gold);border-color:var(--gold);color:#fff}
+  .f2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:600px){.f2{grid-template-columns:1fr;gap:0}}
+  .fld2{margin-bottom:16px}
+  .fld2 label{display:block;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:7px}
+  .fld2 .hint{color:var(--soft);font-weight:600;font-size:11.5px}
+  .inp{position:relative}
+  .inp input,.inp select{width:100%;padding:14px;background:#fff;border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-size:16px;font-family:inherit;font-weight:600;outline:none;transition:border-color .2s}
+  .inp input:focus,.inp select:focus{border-color:var(--gold)}
+  .inp input::placeholder{color:#B7BCC7}
+  .opt2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:440px){.opt2{grid-template-columns:1fr}}
+  .optb{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:14px 12px;min-height:48px;color:var(--navy);font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;transition:.15s}
+  .optb:hover{border-color:var(--gold)}
+  .optb.on{background:var(--gold);border-color:var(--gold);color:#fff}
+  .agMsg{margin-top:14px;padding:13px 16px;border-radius:11px;font-size:13.5px;font-weight:700;display:none}
+  .agMsg.err{background:#FBF0ED;border:1px solid #F0D2C9;color:var(--danger);display:block}
+  .fineprint{color:var(--soft);font-size:11.5px;font-weight:600;text-align:center;margin-top:12px}
+  .ok{text-align:center;padding:24px 8px;display:none}
+  .ok .ic{width:72px;height:72px;border-radius:50%;background:var(--peach);border:2px solid var(--gold);display:grid;place-items:center;margin:0 auto 18px}
+  .ok .ic svg{width:34px;height:34px;stroke:var(--gold-2);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+  .ok h3{font-family:'Fraunces',Georgia,serif;font-size:clamp(24px,3.4vw,30px);font-weight:700;color:var(--navy)}
+  .ok #ok-txt{color:var(--gold-2);font-size:clamp(15px,2vw,18px);font-weight:800;margin-top:10px;line-height:1.5}
+  .okCard{margin:24px auto 0;max-width:520px;text-align:left;display:flex;flex-direction:column;gap:16px;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:22px}
+  .okRow{display:flex;gap:14px;align-items:flex-start}
+  .okIc{width:38px;height:38px;border-radius:10px;background:var(--peach);display:grid;place-items:center;flex:0 0 auto}
+  .okIc svg{width:19px;height:19px;stroke:var(--gold-2);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .okTx{color:var(--mut);font-size:14px;font-weight:600;line-height:1.5}
+  .okTx b{display:block;color:var(--navy);font-weight:800;font-size:15px;margin-bottom:3px}
+  .okObs{color:var(--soft);font-size:14px;font-weight:700;margin-top:22px}
+  .okObs #ok-dia{color:var(--gold-2)}
+
+  /* ===== rodapé ===== */
+  footer{border-top:1px solid var(--border);padding:34px 0;margin-top:10px}
+  .fRow{display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}
+  .fc{display:flex;align-items:center;gap:9px;color:var(--mut);font-size:14px;font-weight:700}
+  .fc svg{width:16px;height:16px;stroke:var(--gold-2);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .fLegal{color:var(--soft);font-size:11.5px;font-weight:600;line-height:1.6;margin-top:18px}
+  .cta-center{text-align:center;margin-top:30px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="in">
+    <div><b>Irmãos na Obra</b> · Energia Solar — Uberlândia/MG e região</div>
+    <div class="r"><span>☎ (34) 99816-5040</span><span>Engenharia certificada · 25 anos de garantia</span></div>
+  </div>
+</div>
+
+<div class="nav">
+  <div class="in">
+    <div class="brand">
+      <img src="/io/img/logoio.png" alt="Irmãos na Obra Energia Solar">
+      <div class="t"><div class="l1">Irmãos na Obra</div><div class="l2">Energia Solar</div></div>
+    </div>
+    <a href="#agendar" class="navCta" onclick="track('cta_topo')">Agendar vistoria grátis</a>
+  </div>
+</div>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="heroIn">
+      <div>
+        <div class="tag"><span class="dot"></span>MAIS DE 500 FAMÍLIAS JÁ SÃO DONAS DA PRÓPRIA ENERGIA</div>
+        <h1>Pare de <em>alugar</em> a sua energia.</h1>
+        <p class="lead">Todo mês você paga a conta de luz — e nunca fica com nada. Com energia solar, a parcela no cartão fica <b>na faixa da sua conta de hoje</b>. A diferença: em pouco mais de <b>2 anos o sistema é seu</b> e a luz vira quase de graça pelos próximos 25 anos.<br><br>Se o dono do seu aluguel te oferecesse a casa pela parcela quase igual ao aluguel — você não compraria?</p>
+        <div class="heroCta">
+          <a href="#simulador" class="btn" onclick="track('cta_simular')">Simular minha economia →</a>
+          <a href="#agendar" class="btn ghost" onclick="track('cta_hero_agendar')">Agendar vistoria</a>
+        </div>
+        <div class="heroStats">
+          <div class="hs"><div class="n">500<em>+</em></div><div class="l">Famílias atendidas</div></div>
+          <div class="hs"><div class="n">25<em> anos</em></div><div class="l">De garantia</div></div>
+          <div class="hs"><div class="n">~90<em>%</em></div><div class="l">De economia na conta</div></div>
+        </div>
+      </div>
+      <div class="heroCard">
+        <div class="ct">A conta que você já paga</div>
+        <div class="vsRow">
+          <div class="vsBox bad">
+            <div class="h">Alugando (hoje)</div>
+            <div class="big">Pra sempre</div>
+            <div class="sm">Você paga a conta todo mês, ela só sobe, e nunca é sua.</div>
+          </div>
+          <div class="vsMid">→</div>
+          <div class="vsBox good">
+            <div class="h">Sendo dono</div>
+            <div class="big">~2 anos</div>
+            <div class="sm">A parcela cabe no lugar da conta. Depois, a energia é sua.</div>
+          </div>
+        </div>
+        <div class="foot">Em 25 anos, isso vira <em>uma casa a mais</em> em economia.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- MANIFESTO -->
+  <section>
+    <div class="manifesto">
+      <div class="eyebrow">Não é só energia solar</div>
+      <h2>É a sua <em>independência</em> da conta de luz.</h2>
+      <p>A gente não vende placa. A gente entrega um sistema que <b>trabalha por você todos os dias</b> — projetado por engenharia, instalado com material de primeira e monitorado pelo celular. O que a concessionária te cobra a vida inteira, o sol te dá de graça. <b>Você troca uma despesa eterna por um patrimônio que ainda valoriza o seu imóvel.</b></p>
+    </div>
+  </section>
+
+  <!-- COMPARATIVO ALUGUEL -->
+  <section>
+    <div class="sh">
+      <div class="eyebrow">A conta que ninguém te faz</div>
+      <h2>Alugar a energia <em>ou</em> ser dono dela</h2>
+      <p class="sub">A mesma escolha de morar de aluguel a vida toda ou comprar a casa. Só que aqui a parcela é quase igual — e o prazo é curto.</p>
+    </div>
+    <div class="compare">
+      <div class="cc bad">
+        <div class="ch">
+          <div class="cic"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg></div>
+          <div class="ct">Continuar alugando</div>
+        </div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Paga a conta <b>todo mês, pra sempre</b> — e nunca fica com nada.</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>A tarifa <b>só sobe</b>: reajuste, bandeira vermelha, impostos.</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Depois de 25 anos você gastou o valor de <b>uma casa</b> — em luz.</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Seu imóvel <b>não vale um centavo a mais</b> por isso.</span></li>
+        </ul>
+      </div>
+      <div class="cc good">
+        <div class="badge">O jeito certo</div>
+        <div class="ch">
+          <div class="cic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></div>
+          <div class="ct">Ter o seu solar</div>
+        </div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>A parcela no cartão <b>cabe no lugar da conta</b> que você já paga.</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Em pouco mais de <b>2 anos</b> você termina de pagar — e acabou.</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Depois disso, energia <b>quase de graça por 25 anos</b>.</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Vira <b>patrimônio</b> e valoriza o seu imóvel.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIMULADOR -->
+  <section id="simulador">
+    <div class="sh">
+      <div class="eyebrow">Simulador</div>
+      <h2>Quanto o sol <em>devolve</em> pra você?</h2>
+      <p class="sub">Mexa nos números do seu caso — o resultado muda na hora. Sem cadastro pra ver, sem preço escondido: o valor exato a gente fecha na vistoria, com o seu telhado na frente.</p>
+    </div>
+    <div class="simGrid">
+      <div class="panel">
+        <div class="fld">
+          <label>Quanto vem a sua conta de luz por mês?</label>
+          <div class="contaBig" id="s-conta-v">R$ 500</div>
+          <input type="range" class="rng" id="s-conta" min="200" max="4000" step="50" value="500" oninput="calc()">
+          <div class="rngRow"><span>R$ 200</span><span class="cur" id="s-conta-lbl">média da casa</span><span>R$ 4.000+</span></div>
+        </div>
+        <div class="fld">
+          <label>Tipo de imóvel</label>
+          <div class="inp"><select id="s-tipo" onchange="calc()">
+            <option value="Residência">Residência</option>
+            <option value="Comércio">Comércio</option>
+            <option value="Rural / Chácara">Rural / Chácara</option>
+            <option value="Indústria">Indústria</option>
+          </select></div>
+        </div>
+        <div class="fld">
+          <label>Vai aumentar o consumo? <span class="hint">(a gente já dimensiona pra isso)</span></label>
+          <div class="chips" id="s-extras">
+            <button type="button" class="chip" data-kwh="150" data-nome="ar-condicionado" onclick="toggleExtra(this)"><span class="x"></span>Ar-condicionado</button>
+            <button type="button" class="chip" data-kwh="250" data-nome="carro elétrico" onclick="toggleExtra(this)"><span class="x"></span>Carro elétrico</button>
+            <button type="button" class="chip" data-kwh="130" data-nome="piscina" onclick="toggleExtra(this)"><span class="x"></span>Piscina</button>
+            <button type="button" class="chip" data-kwh="120" data-nome="chuveiro/forno elétrico" onclick="toggleExtra(this)"><span class="x"></span>Chuveiro elétrico</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="kpis">
+          <div class="kpi hl"><div class="k">Economia estimada / mês</div><div class="v gold" id="k-eco">—</div><div class="u">~90% da sua conta</div></div>
+          <div class="kpi hl"><div class="k">Economia em 25 anos</div><div class="v gold" id="k-eco25">—</div><div class="u">com a tarifa subindo</div></div>
+          <div class="kpi"><div class="k">Tamanho do sistema</div><div class="v" id="k-kwp">—</div><div class="u" id="k-paineis">— painéis</div></div>
+          <div class="kpi"><div class="k">CO₂ que deixa de emitir</div><div class="v" id="k-co2">—</div><div class="u">em 25 anos</div></div>
+        </div>
+
+        <div class="cmpBar">
+          <div class="ct">O que você gasta em energia nos próximos 25 anos</div>
+          <div class="cbRow">
+            <div class="lbl">Sem solar</div>
+            <div class="cbTrack"><div class="cbFill bad" id="cb-sem" style="width:100%">—</div></div>
+          </div>
+          <div class="cbRow">
+            <div class="lbl">Com solar</div>
+            <div class="cbTrack"><div class="cbFill good" id="cb-com" style="width:16%"></div><span class="cbTag">~2 anos e pronto</span></div>
+          </div>
+          <div class="simObs"><b>A parcela no cartão 21x fica na faixa da sua conta de hoje</b> — e some depois de ~2 anos. O valor exato do seu kit a gente fecha na vistoria técnica gratuita.<br>Valores estimados a partir do que você informou; não constituem proposta. O resultado real depende do telhado, da região e do seu consumo.</div>
+        </div>
+      </div>
+    </div>
+    <div class="cta-center">
+      <a href="#agendar" class="btn" onclick="track('cta_pos_sim')">Quero a vistoria do meu telhado →</a>
+    </div>
+  </section>
+
+  <!-- FAIXA 21x -->
+  <section>
+    <div class="band21">
+      <div class="b21n">21x<small>no cartão</small></div>
+      <div class="b21t">
+        <h3>O seu projeto pago em pouco mais de <em class="serif" style="font-style:italic;color:var(--gold)">2 anos</em>.</h3>
+        <p>Parcela em até <b>21x no cartão</b>, sem entrada. A conta de luz que ia embora todo mês passa a <b>quitar o que é seu</b>. Terminou de pagar? A energia vira quase de graça pelos <b>25 anos</b> seguintes — com garantia.</p>
+        <div class="b21pills">
+          <span class="b21pill">Sem entrada</span>
+          <span class="b21pill">Também no financiamento</span>
+          <span class="b21pill">A parcela ≈ sua conta</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUALIDADE -->
+  <section>
+    <div class="sh">
+      <div class="eyebrow">Feito pra durar 25 anos</div>
+      <h2>Onde os baratos <em>economizam</em>, a gente reforça</h2>
+      <p class="sub">Um sistema fica exposto ao sol e à chuva por 25 anos. O que segura ele de pé é o que ninguém vê — e é exatamente aí que a gente não abre mão.</p>
+    </div>
+    <div class="qcards">
+      <div class="qc">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4-8 4-8-4zM4 8v8l8 4 8-4V8"/></svg></div>
+        <div class="t">Estrutura de alumínio e inox</div>
+        <div class="d">Fixação que não enferruja nem afrouxa. Nada de estrutura barata que corrói e solta a placa na primeira chuva forte.</div>
+      </div>
+      <div class="qc">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M4 12h4l3-8 4 16 3-8h2"/></svg></div>
+        <div class="t">Cabos de primeira linha</div>
+        <div class="d">Cabo solar certificado, dimensionado pra não perder energia nem esquentar. É o que evita perda de geração e risco no telhado.</div>
+      </div>
+      <div class="qc">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M2 12h20M6 12V8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4M9 12v4M15 12v4"/></svg></div>
+        <div class="t">Tubulação de PVC embutida</div>
+        <div class="d">Fiação protegida por conduíte, com acabamento limpo. Instalação organizada, sem gambiarra exposta ao tempo.</div>
+      </div>
+      <div class="qc">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2zM9 21h6M10 19h4"/></svg></div>
+        <div class="t">Mão de obra qualificada</div>
+        <div class="d">Equipe própria e treinada, com projeto e responsável técnico (ART). Nada de instalador improvisado no seu telhado.</div>
+      </div>
+      <div class="qc">
+        <div class="ic"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></div>
+        <div class="t">App de monitoramento 24h</div>
+        <div class="d">Você acompanha a geração pelo celular, em tempo real. Se algo cair, a gente vê antes de você sentir na conta.</div>
+      </div>
+      <div class="qc">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <div class="t">Pós-venda e garantia real</div>
+        <div class="d">Homologação na concessionária, suporte de gente de verdade e até 25 anos de garantia. A relação começa na entrega, não termina nela.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROVA / EMPRESA -->
+  <section>
+    <div class="trust">
+      <div class="eyebrow">Quem vai no seu telhado</div>
+      <h2>Uma empresa de <em>obra</em>, que entende de estrutura</h2>
+      <div class="tg">
+        <div><div class="n">500+</div><div class="l">Famílias já são donas da energia</div></div>
+        <div><div class="n">25 anos</div><div class="l">De garantia de geração</div></div>
+        <div><div class="n">100%</div><div class="l">Homologado na concessionária</div></div>
+        <div><div class="n">Uberlândia</div><div class="l">E toda a região</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENDAMENTO -->
+  <section id="agendar">
+    <div class="sh">
+      <div class="eyebrow">Vistoria técnica gratuita</div>
+      <h2>Escolha o melhor <em>horário</em></h2>
+      <p class="sub">Um técnico vai até você, mede o seu telhado e o padrão de energia, e volta com o <b>valor exato</b> e o projeto na mão. Sem custo e sem compromisso.</p>
+    </div>
+
+    <div class="agBox">
+      <div id="ag-form">
+        <div class="step">
+          <label style="display:block;font-size:13px;font-weight:800;color:var(--navy);margin-bottom:8px">Horários disponíveis</label>
+          <div class="slots" id="slots"></div>
+        </div>
+
+        <div class="f2">
+          <div class="fld2"><label>Seu nome</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
+          <div class="fld2"><label>WhatsApp</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this)"></div></div>
+        </div>
+        <div class="fld2">
+          <label>Endereço do imóvel da vistoria <span class="hint">(rua, nº, bairro, cidade)</span></label>
+          <div class="inp"><input type="text" id="f-endereco" placeholder="Ex: Rua das Acácias, 250 — Santa Mônica, Uberlândia-MG"></div>
+        </div>
+        <div class="f2">
+          <div class="fld2">
+            <label>O imóvel é</label>
+            <div class="inp"><select id="f-posse">
+              <option value="">Selecione…</option>
+              <option value="Próprio">Próprio</option>
+              <option value="Alugado">Alugado</option>
+              <option value="Em construção">Em construção</option>
+            </select></div>
+          </div>
+          <div class="fld2">
+            <label>Tipo de telhado</label>
+            <div class="inp"><select id="f-telhado">
+              <option value="">Selecione…</option>
+              <option>Cerâmico (telha de barro)</option>
+              <option>Fibrocimento / Eternit</option>
+              <option>Metálico</option>
+              <option>Laje</option>
+              <option>Solo / estrutura no chão</option>
+              <option>Não sei</option>
+            </select></div>
+          </div>
+        </div>
+        <div class="f2">
+          <div class="fld2">
+            <label>Padrão de energia</label>
+            <div class="inp"><select id="f-padrao">
+              <option value="">Selecione…</option>
+              <option>Monofásico</option>
+              <option>Bifásico</option>
+              <option>Trifásico</option>
+              <option>Não sei</option>
+            </select></div>
+          </div>
+          <div class="fld2">
+            <label>Quando pretende instalar?</label>
+            <div class="inp"><select id="f-urgencia">
+              <option value="">Selecione…</option>
+              <option value="imediato">O quanto antes</option>
+              <option value="30d">Nos próximos 30 dias</option>
+              <option value="90d">Em 1 a 3 meses</option>
+              <option value="pesquisando">Só pesquisando por enquanto</option>
+            </select></div>
+          </div>
+        </div>
+        <div class="f2">
+          <div class="fld2">
+            <label>Como prefere investir?</label>
+            <div class="inp"><select id="f-pagamento">
+              <option value="">Selecione…</option>
+              <option value="cartao">Cartão em até 21x</option>
+              <option value="avista">À vista (com desconto)</option>
+              <option value="financiamento">Financiamento</option>
+              <option value="decidindo">Ainda estou decidindo</option>
+            </select></div>
+          </div>
+          <div class="fld2">
+            <label>A decisão de instalar é</label>
+            <div class="inp"><select id="f-decisor">
+              <option value="">Selecione…</option>
+              <option value="sou">Sua (você decide)</option>
+              <option value="conjunto">Sua e de mais alguém</option>
+              <option value="nao">De outra pessoa</option>
+            </select></div>
+          </div>
+        </div>
+
+        <button class="btn navy" style="width:100%;justify-content:center;margin-top:6px" id="ag-btn" onclick="agendar()">Confirmar minha vistoria →</button>
+        <div class="agMsg" id="ag-msg"></div>
+        <div class="fineprint">Seus dados são usados só para agendar esta vistoria. Sem spam.</div>
+      </div>
+
+      <div class="ok" id="ag-ok">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>Vistoria agendada!</h3>
+        <p id="ok-txt">—</p>
+        <div class="okCard">
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+            <div class="okTx"><b>Um técnico vai até você.</b>A vistoria é presencial e gratuita — a gente mede o telhado e o padrão de energia no seu endereço.</div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg></div>
+            <div class="okTx"><b>Você recebe o valor exato.</b>Depois da vistoria entregamos a proposta fechada — projeto, potência, garantia e a parcela no cartão 21x.</div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01"/><path d="M21 12a9 9 0 0 1-9 9 8.9 8.9 0 0 1-4.3-1.1L3 21l1.1-4.7A8.9 8.9 0 0 1 3 12a9 9 0 1 1 18 0z"/></svg></div>
+            <div class="okTx"><b>Confirmamos pelo WhatsApp.</b>Enviamos a confirmação e um lembrete antes do horário. Qualquer coisa, é só responder por lá.</div>
+          </div>
+        </div>
+        <p class="okObs">Obrigado pela confiança. A gente se vê <span id="ok-dia">na vistoria</span>!</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="fRow">
+      <div class="brand">
+        <img src="/io/img/logoio.png" alt="">
+        <div class="t"><div class="l1">Irmãos na Obra</div><div class="l2">Energia Solar</div></div>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div class="fc"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/></svg>(34) 99816-5040</div>
+        <div class="fc"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg>@irmaosnaobra__</div>
+      </div>
+    </div>
+    <div class="fLegal">
+      Os valores apresentados no simulador são estimativas de referência, calculadas a partir dos parâmetros informados por você, e não constituem proposta ou garantia de resultado. O resultado real varia conforme o telhado, a região, o consumo e as condições da instalação. © Irmãos na Obra — Energia Solar · Uberlândia/MG.
+    </div>
+  </div>
+</footer>
+
+<script>
+// ===== Meta Pixel (Solar) =====
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '446093469730871');   // pixel "Energia Solar"
+fbq('track', 'PageView');
+function track(tag){ try{ fbq('trackCustom','LPsolar_'+tag); }catch(e){} }
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></noscript>
+
+<script>
+// ===== Supabase (mesmo projeto do /gerador — CRM/agenda) =====
+const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
+async function supaInsert(table, body){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method:'POST',
+    headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`,
+              'Content-Type':'application/json', Prefer:'return=representation' },
+    body: JSON.stringify(body)
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ===== SIMULADOR SOLAR =====
+// Sem preço final de propósito: o simulador é funil de interação e confiança.
+// Mostra economia, tamanho do sistema e impacto — o valor do kit fecha na vistoria.
+const TARIFA = 1.05;   // R$/kWh cheia (média com impostos)
+const HSP    = 5.2;    // horas de sol pleno/dia (região)
+const PR     = 0.80;   // performance ratio
+const PAINEL_W = 590;  // W por painel
+const OFFSET = 0.90;   // % da conta que o solar zera (taxa mínima permanece)
+const INFLA  = 0.08;   // reajuste médio anual da tarifa
+const money  = n => 'R$ ' + Math.round(n||0).toLocaleString('pt-BR');
+const moneyK = n => n >= 1000 ? 'R$ ' + (Math.round(n/1000)).toLocaleString('pt-BR') + ' mil' : money(n);
+
+let extrasKwh = 0;
+function toggleExtra(b){
+  b.classList.toggle('on');
+  extrasKwh = [...document.querySelectorAll('#s-extras .chip.on')]
+    .reduce((s,el)=> s + (+el.dataset.kwh||0), 0);
+  track('extra_'+(b.dataset.nome||'').replace(/\s/g,'_'));
+  calc();
+}
+function extrasNomes(){
+  return [...document.querySelectorAll('#s-extras .chip.on')].map(el=>el.dataset.nome);
+}
+
+function computeSolar(){
+  const conta = +document.getElementById('s-conta').value;
+  const consumoKwh = conta / TARIFA + extrasKwh;
+  const kwp = consumoKwh / (HSP*30*PR);
+  const paineis = Math.max(2, Math.ceil(kwp*1000/PAINEL_W));
+  const geracao = kwp*HSP*30*PR;                 // kWh/mês
+  const economiaMes = conta*OFFSET + (extrasKwh*TARIFA*OFFSET);
+  // 25 anos com a tarifa subindo
+  let eco25=0, m=economiaMes, gasto25=0, c=conta + extrasKwh*TARIFA;
+  for(let y=0;y<25;y++){ eco25 += m*12; m*=(1+INFLA); gasto25 += c*12; c*=(1+INFLA); }
+  const co2 = geracao*12*25*0.0817/1000;         // toneladas de CO₂ evitadas
+  return { conta, consumoKwh, kwp, paineis, geracao, economiaMes, eco25, gasto25, co2 };
+}
+function calc(){
+  const r = computeSolar();
+  document.getElementById('s-conta-v').textContent = money(r.conta);
+  document.getElementById('s-conta-lbl').textContent =
+    r.conta < 400 ? 'casa menor' : r.conta < 900 ? 'média da casa' : r.conta < 2000 ? 'casa grande / comércio' : 'alto consumo';
+  document.getElementById('k-eco').textContent   = money(r.economiaMes);
+  document.getElementById('k-eco25').textContent = moneyK(r.eco25);
+  document.getElementById('k-kwp').textContent   = r.kwp.toFixed(1).replace('.',',') + ' kWp';
+  document.getElementById('k-paineis').textContent = r.paineis + ' painéis';
+  document.getElementById('k-co2').textContent   = r.co2.toFixed(1).replace('.',',') + ' t';
+  // barras comparativas — solar fixado num traço curto pra mostrar "paga e acaba"
+  document.getElementById('cb-sem').style.width = '100%';
+  document.getElementById('cb-sem').textContent = moneyK(r.gasto25);
+  document.getElementById('cb-com').style.width = '18%';
+}
+
+// ===== TEMPERATURA (mesma lógica do CRM solar) =====
+// urgência e pagamento definidos separam quem compra; alugado pune; consumo vale pouco.
+function medirTemperatura(conta, urgencia, pagamento, decisor, posse){
+  let p = 0;
+  if(urgencia === 'imediato') p += 3;
+  else if(urgencia === '30d') p += 1;
+  if(pagamento && pagamento !== 'decidindo') p += 3;
+  if(decisor === 'nao') p -= 1; else if(decisor === 'sou') p += 1;
+  if(posse === 'Alugado') p -= 3;
+  if(conta >= 700) p += 1;
+  if(extrasKwh > 0) p += 1;
+  return p >= 5 ? 'quente' : p >= 3 ? 'morno' : 'frio';
+}
+
+// ===== AGENDA (vistoria presencial) =====
+// 3 dias rolantes a partir de HOJE, pulando fim de semana e feriado.
+// Seg–Sex 08:00–11:00 e 13:00–17:00; slots de 30 min. Mesma tabela/rodízio do
+// eletroposto (Thiago/Diego) — os horários ocupados de qualquer linha fecham o slot.
+let slotSel = null;
+let ocupados = new Set();
+const REUNIOES_POR_HORARIO = 1;
+
+const FERIADOS = new Set([
+  '2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21','2026-05-01',
+  '2026-06-04','2026-09-07','2026-10-12','2026-11-02','2026-11-15','2026-11-20','2026-12-25',
+  '2027-01-01','2027-02-08','2027-02-09','2027-03-26','2027-04-21','2027-05-01',
+  '2027-05-27','2027-09-07','2027-10-12','2027-11-02','2027-11-15','2027-11-20','2027-12-25',
+]);
+const TZ_BR = 'America/Sao_Paulo';
+function partesBR(d = new Date()){
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: TZ_BR, year:'numeric', month:'2-digit',
+    day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false });
+  const p = Object.fromEntries(f.formatToParts(d).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+  return { ymd:`${p.year}-${p.month}-${p.day}`, hhmm:`${p.hour}:${p.minute}` };
+}
+const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
+
+function gradeDoDia(ymd){
+  const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
+  if(dow === 0 || dow === 6) return [];        // fim de semana: fechado
+  if(FERIADOS.has(ymd)) return [];             // feriado: fechado
+  const faixas = [[8,11],[13,17]];             // seg–sex: manhã e tarde
+  const out = [];
+  for(const [ini,fim] of faixas)
+    for(let m = ini*60; m < fim*60; m += 30)
+      out.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
+  return out;
+}
+async function carregarOcupados(deYmd, ateYmd){
+  try{
+    const de  = isoDe(deYmd, '00:00');
+    const ate = isoDe(ateYmd,'23:59');
+    const q = `agendamentos?select=quando,vendedor_nome&quando=gte.${de}&quando=lte.${ate}`
+            + `&vendedor_nome=in.(Thiago,Diego)&status=not.in.(cancelado,sem_interesse)`;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
+      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
+    const rows = await r.json();
+    const cont = {};
+    (Array.isArray(rows)?rows:[]).forEach(a=>{
+      if(!a.quando) return;
+      const k = new Date(a.quando).toISOString();
+      cont[k] = (cont[k]||0) + 1;
+    });
+    ocupados = new Set(Object.keys(cont).filter(k => cont[k] >= REUNIOES_POR_HORARIO));
+  }catch(e){ ocupados = new Set(); }
+}
+const DONOS = ['Thiago', 'Diego'];
+async function proximoDono(){
+  try{
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/agendamentos?select=id&created_by=eq.lp_solar`,
+      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, Prefer:'count=exact', Range:'0-0' } });
+    const total = parseInt((r.headers.get('content-range')||'*/0').split('/')[1], 10) || 0;
+    return DONOS[total % DONOS.length];
+  }catch(e){ return DONOS[0]; }
+}
+function proximosDias(){
+  const hoje = partesBR().ymd;
+  const dias = [];
+  let d = new Date(`${hoje}T12:00:00-03:00`);
+  for(let i=0; i<21 && dias.length<3; i++){
+    const ymd = partesBR(d).ymd;
+    if(gradeDoDia(ymd).length && livresDoDia(ymd).length) dias.push(ymd);
+    d = new Date(d.getTime() + 86400000);
+  }
+  return dias;
+}
+function livresDoDia(ymd){
+  const agora = partesBR();
+  return gradeDoDia(ymd).filter(h=>{
+    if(ymd === agora.ymd && h <= agora.hhmm) return false;
+    return !ocupados.has(isoDe(ymd, h));
+  });
+}
+const rotuloDia = ymd => new Date(`${ymd}T12:00:00-03:00`)
+  .toLocaleDateString('pt-BR',{ timeZone:TZ_BR, weekday:'short', day:'2-digit', month:'2-digit' });
+
+async function montarSlots(){
+  const el = document.getElementById('slots');
+  el.innerHTML = '<div class="agLoad">Carregando horários…</div>';
+  const hoje = partesBR().ymd;
+  const ate  = partesBR(new Date(Date.now() + 12*86400000)).ymd;
+  await carregarOcupados(hoje, ate);
+  const dias = proximosDias();
+  if(!dias.length){
+    el.innerHTML = '<div class="agLoad">Sem horários nos próximos dias — chame no WhatsApp que a gente encaixa.</div>';
+    return;
+  }
+  el.innerHTML = dias.map(ymd=>{
+    const livres = livresDoDia(ymd);
+    return `<div class="dia">
+      <div class="diaH">${rotuloDia(ymd)}</div>
+      <div class="diaS">${livres.map(h=>{
+        const iso = isoDe(ymd,h);
+        return `<button type="button" class="slot" data-iso="${iso}" data-label="${rotuloDia(ymd)} às ${h}" onclick="pick(this)">${h}</button>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
+}
+function pick(b){
+  document.querySelectorAll('.slot').forEach(s=>s.classList.remove('on'));
+  b.classList.add('on'); slotSel = b.dataset.iso;
+  track('slot_escolhido');
+}
+function maskTel(i){
+  let v = i.value.replace(/\D/g,'').slice(0,11);
+  if(v.length>6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+  else if(v.length>2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+  i.value = v;
+}
+function erro(txt){
+  const m = document.getElementById('ag-msg');
+  m.textContent = txt; m.className = 'agMsg err';
+  m.scrollIntoView({behavior:'smooth', block:'center'});
+}
+const txtSel = id => { const s = document.getElementById(id); return s.selectedOptions[0] ? s.selectedOptions[0].text : ''; };
+
+async function agendar(){
+  const nome     = document.getElementById('f-nome').value.trim();
+  const telRaw   = document.getElementById('f-tel').value.replace(/\D/g,'');
+  const endereco = document.getElementById('f-endereco').value.trim();
+  const posse    = document.getElementById('f-posse').value;
+  const telhado  = document.getElementById('f-telhado').value;
+  const padrao   = document.getElementById('f-padrao').value;
+  const urgencia = document.getElementById('f-urgencia').value;
+  const pagamento= document.getElementById('f-pagamento').value;
+  const decisor  = document.getElementById('f-decisor').value;
+  const btn      = document.getElementById('ag-btn');
+
+  if(!slotSel)            return erro('Escolha um horário acima.');
+  if(nome.length < 3)     return erro('Informe seu nome completo.');
+  if(telRaw.length < 10)  return erro('Informe um WhatsApp válido com DDD.');
+  if(endereco.length < 8) return erro('Informe o endereço do imóvel da vistoria.');
+  if(!posse)              return erro('Informe se o imóvel é próprio ou alugado.');
+  if(!telhado)            return erro('Selecione o tipo de telhado.');
+  if(!urgencia)           return erro('Informe quando pretende instalar.');
+  if(!pagamento)          return erro('Informe como prefere investir.');
+  if(!decisor)            return erro('Informe de quem é a decisão.');
+
+  btn.disabled = true; btn.textContent = 'Agendando…';
+  const r = computeSolar();
+  const tel = '55' + telRaw;
+  // extrai a cidade do fim do endereço (heurística leve; a ficha completa vai na observação)
+  const cidade = (endereco.split(/[—,-]/).pop() || '').trim() || null;
+  const extras = extrasNomes();
+  const obs = [
+    `LP SOLAR — ${document.getElementById('s-tipo').value}`,
+    `Conta de luz: ${money(r.conta)}/mês`,
+    `Imóvel: ${posse}`,
+    `Telhado: ${telhado}`,
+    `Padrão: ${padrao || '—'}`,
+    `Urgência: ${txtSel('f-urgencia')}`,
+    `Pagamento: ${txtSel('f-pagamento')}`,
+    `Decisor: ${txtSel('f-decisor')}`,
+    `Endereço: ${endereco}`,
+    `Simulou: economia ${money(r.economiaMes)}/mês · sistema ${r.kwp.toFixed(1).replace('.',',')} kWp (${r.paineis} painéis)`
+      + (extras.length ? ` · vai aumentar: ${extras.join(', ')}` : ''),
+  ].join('\n');
+
+  try{
+    await carregarOcupados(partesBR().ymd, partesBR(new Date(Date.now()+12*86400000)).ymd);
+    const passou = new Date(slotSel).getTime() < Date.now();
+    if(ocupados.has(slotSel) || passou){
+      slotSel = null;
+      await montarSlots();
+      btn.disabled = false; btn.textContent = 'Confirmar minha vistoria →';
+      document.getElementById('slots').scrollIntoView({behavior:'smooth', block:'center'});
+      return erro(passou ? 'Esse horário já passou. Escolha outro acima — a agenda foi atualizada.'
+                         : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
+    }
+    const dono = await proximoDono();
+    const novo = await supaInsert('agendamentos', {
+      vendedor_nome:    dono,
+      quando:           slotSel,
+      cliente_nome:     nome,
+      cliente_telefone: tel,
+      cidade:           cidade,
+      status:           'agendado',
+      temperatura:      medirTemperatura(r.conta, urgencia, pagamento, decisor, posse),
+      observacao:       obs,
+      created_by:       'lp_solar',
+    });
+
+    try{ fbq('track','Schedule',{content_name:'Vistoria Solar', content_category:document.getElementById('s-tipo').value}); }catch(e){}
+
+    const dt = new Date(slotSel);
+    const TZ = { timeZone:'America/Sao_Paulo' };
+    const diaSemana = dt.toLocaleDateString('pt-BR',{...TZ, weekday:'long'});
+    document.getElementById('ok-txt').textContent =
+      `${diaSemana}, ${dt.toLocaleDateString('pt-BR',{...TZ,day:'2-digit',month:'long'})} às ${dt.toLocaleTimeString('pt-BR',{...TZ,hour:'2-digit',minute:'2-digit'})} — horário de Brasília`;
+    document.getElementById('ok-dia').textContent = diaSemana;
+
+    // Avisa a equipe no WhatsApp (fire-and-forget: o lead já está no CRM)
+    fetch('/_api/io/solar/alerta', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: novo && novo[0] && novo[0].id }),
+    }).catch(() => {});
+
+    document.getElementById('ag-form').style.display = 'none';
+    document.getElementById('ag-ok').style.display = 'block';
+    document.getElementById('ag-ok').scrollIntoView({behavior:'smooth', block:'center'});
+  }catch(e){
+    console.error(e);
+    erro('Não consegui agendar agora. Chame no WhatsApp (34) 99816-5040 que a gente marca na hora.');
+    btn.disabled = false; btn.textContent = 'Confirmar minha vistoria →';
+  }
+}
+
+montarSlots();
+calc();
+document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
+</script>
+</body>
+</html>
