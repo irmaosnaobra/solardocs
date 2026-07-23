@@ -816,7 +816,7 @@ function calc(){
 
 // ===== AGENDA =====
 // Regras: 3 dias rolantes a partir de HOJE (hoje/amanhã/depois), pulando fim de
-// semana e feriado. Seg–Sex 10:00–12:00 e 13:00–17:00; slots de 30 min.
+// semana e feriado. Seg–Sex 13:00–17:00; slots de 30 min.
 // Fecha o que já passou e o que já está ocupado na agenda do Thiago/Diego.
 let slotSel = null;
 let pontoSel = null;   // 'sim' | 'nao'
@@ -849,7 +849,7 @@ function gradeDoDia(ymd){
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   if(dow === 0 || dow === 6) return [];                     // fim de semana: fechado
   if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
-  const faixas = [[10,12],[13,17]];                         // seg–sex: 10–12 e 13–17
+  const faixas = [[13,17]];                                 // seg–sex: 13–17
   const out = [];
   for(const [ini,fim] of faixas)
     for(let m = ini*60; m < fim*60; m += 30)
