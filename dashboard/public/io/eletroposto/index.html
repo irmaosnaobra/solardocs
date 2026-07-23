@@ -253,6 +253,34 @@
     .eletro-bar-lbl,.bl{font-size:10.5px}
     .mkc .l{font-size:12px}
   }
+
+  /* ===== manifesto / filtro forte (chave na mão) ===== */
+  .manifesto{background:linear-gradient(135deg,rgba(125,209,23,.18),rgba(125,209,23,.03));border:1.5px solid rgba(125,209,23,.55);border-radius:22px;padding:34px}
+  .manifesto .mk2{display:inline-flex;align-items:center;gap:9px;background:rgba(5,13,2,.45);border:1px solid rgba(125,209,23,.42);color:var(--neon-b);font-size:11.5px;font-weight:900;letter-spacing:1.8px;text-transform:uppercase;padding:8px 15px;border-radius:999px}
+  .manifesto h2{font-size:clamp(23px,4vw,40px);font-weight:900;letter-spacing:-1.5px;line-height:1.08;margin:16px 0 0}
+  .manifesto h2 .n{color:var(--neon-b)}
+  .manifesto .sub{color:rgba(247,251,242,.9);font-size:clamp(15px,1.9vw,17px);font-weight:600;line-height:1.55;max-width:720px;margin-top:14px}
+  .manifesto .sub b{color:var(--neon-b);font-weight:800}
+  .manifesto .filtro{margin-top:20px;display:flex;gap:13px;align-items:flex-start;background:rgba(5,13,2,.5);border:1px solid var(--line);border-left:3px solid var(--neon);border-radius:12px;padding:16px 18px}
+  .manifesto .filtro svg{width:22px;height:22px;stroke:var(--neon-b);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;margin-top:1px}
+  .manifesto .filtro p{font-size:14.5px;font-weight:700;line-height:1.5;color:var(--cream)}
+  .manifesto .filtro b{color:var(--neon-b)}
+  @media(max-width:520px){.manifesto{padding:24px 18px}}
+
+  /* ===== entrega turnkey (o que você recebe) ===== */
+  .entrega{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  @media(max-width:760px){.entrega{grid-template-columns:1fr}}
+  .fase{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px}
+  .fase .fh{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+  .fase .fn{width:30px;height:30px;flex:0 0 auto;border-radius:9px;background:rgba(125,209,23,.16);border:1px solid rgba(125,209,23,.4);color:var(--neon-b);font-size:14px;font-weight:900;display:grid;place-items:center}
+  .fase .ft{font-size:16px;font-weight:800;letter-spacing:-.3px;line-height:1.15}
+  .fase ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+  .fase li{display:flex;gap:10px;align-items:flex-start;color:var(--mut);font-size:13.5px;font-weight:600;line-height:1.4}
+  .fase li svg{width:16px;height:16px;stroke:var(--neon);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;margin-top:2px}
+  .fase li b{color:var(--cream);font-weight:700}
+  .entregaEnd{margin-top:20px;text-align:center;background:linear-gradient(90deg,rgba(125,209,23,.14),rgba(125,209,23,.03));border:1px solid rgba(125,209,23,.45);border-radius:16px;padding:24px 22px}
+  .entregaEnd p{font-size:clamp(16px,2.2vw,20px);font-weight:800;letter-spacing:-.4px;line-height:1.35;max-width:640px;margin:0 auto}
+  .entregaEnd .n{color:var(--neon-b)}
 </style>
 </head>
 <body>
@@ -289,6 +317,19 @@
 </div>
 
 <div class="wrap">
+  <!-- MANIFESTO / FILTRO — chave na mão (afasta integrador e curioso de equipamento avulso) -->
+  <section>
+    <div class="manifesto">
+      <span class="mk2">Chave na mão</span>
+      <h2>Nós não vendemos carregador. Entregamos o seu eletroposto <span class="n">ligado, homologado e fazendo a primeira recarga.</span></h2>
+      <p class="sub">Aqui o produto não é a caixa — é o ponto <b>rodando e faturando</b>. Do estudo do local à primeira recarga na tomada, é tudo nosso. Você entra com o ponto e o capital; a gente entrega a operação de pé.</p>
+      <div class="filtro">
+        <svg viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+        <p><b>Não atendemos quem quer só o preço do carregador para montar por conta.</b> Se o seu plano é comprar o equipamento e se virar com projeto, obra, concessionária e software, não somos para você. Atendemos quem quer um ativo pronto, funcionando e sem dor de cabeça.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- INVESTIMENTO DECLARADO -->
   <section style="padding-top:0">
     <div class="invest">
@@ -335,6 +376,96 @@
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></div>
         <div class="t">Energia limpa</div><div class="d">Um ativo sustentável que valoriza a marca do seu negócio.</div>
       </div>
+    </div>
+  </section>
+
+  <!-- ENTREGA TURNKEY — o que você recebe (prova de que não é só o equipamento) -->
+  <section>
+    <div class="sh"><span class="tt">A entrega</span><span class="ln"></span></div>
+    <h2>Tudo o que entra na sua <span class="n">chave na mão</span></h2>
+    <div class="sub" style="margin-bottom:26px">Comprar o carregador é só 20% do trabalho. Os outros 80% — onde a maioria trava — a gente entrega pronto. São 26 frentes, do estudo do ponto à primeira recarga.</div>
+
+    <div class="entrega">
+      <div class="fase">
+        <div class="fh"><span class="fn">1</span><span class="ft">Inteligência do ponto</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Estudo de região — frota elétrica, rotas e concorrência</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Estratégia de ponto — ou ajuda para achar e negociar o local</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Estudo de viabilidade do seu ponto — payback, VPL e TIR</span></li>
+        </ul>
+      </div>
+
+      <div class="fase">
+        <div class="fh"><span class="fn">2</span><span class="ft">Engenharia e regularização</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Projeto elétrico com <b>ART</b> de engenheiro habilitado</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Parecer de acesso e homologação na concessionária</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Adequação de carga e do padrão de entrada</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Aterramento, SPDA e dispositivos de proteção</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Segurança contra incêndio e botão de emergência</span></li>
+        </ul>
+      </div>
+
+      <div class="fase">
+        <div class="fh"><span class="fn">3</span><span class="ft">Equipamento e logística</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Carregador <b>CCS2</b> homologado, pronta entrega e com garantia</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Transporte, seguro de carga e entrega no ponto</span></li>
+        </ul>
+      </div>
+
+      <div class="fase">
+        <div class="fh"><span class="fn">4</span><span class="ft">Obra e instalação</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Base, fundação e proteção física do equipamento</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Montagem por equipe especializada em recarga rápida</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Comissionamento, energização e testes de carga</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Pintura padrão e comunicação visual do ponto</span></li>
+        </ul>
+      </div>
+
+      <div class="fase">
+        <div class="fh"><span class="fn">5</span><span class="ft">Software e operação</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Plataforma <b>OCPP</b> com pagamento pelo app</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Gateway de pagamento e conciliação financeira</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Monitoramento remoto 24h pelo celular</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Cadastro nos apps e mapas de recarga</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Precificação calibrada da tarifa de recarga</span></li>
+        </ul>
+      </div>
+
+      <div class="fase">
+        <div class="fh"><span class="fn">6</span><span class="ft">Legal e contábil</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Orientação contábil — CNAE, regime e <b>ICMS&nbsp;x&nbsp;ISS</b></span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Enquadramento como serviço de recarga (ANEEL 1.000/2021)</span></li>
+        </ul>
+      </div>
+
+      <div class="fase">
+        <div class="fh"><span class="fn">7</span><span class="ft">Geração de demanda</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Estratégia de tráfego e divulgação local</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Sinalização e captação de clientes no ponto</span></li>
+        </ul>
+      </div>
+
+      <div class="fase">
+        <div class="fh"><span class="fn">8</span><span class="ft">Pós-entrega</span></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Suporte técnico e manutenção contínua</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Garantia do equipamento e reposição de peças</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Treinamento de operação e acompanhamento inicial</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="entregaEnd">
+      <p>Só consideramos entregue quando o seu eletroposto faz a <span class="n">primeira recarga.</span></p>
+    </div>
+    <div style="text-align:center;margin-top:22px">
+      <a href="#agendar" class="btn" onclick="track('cta_entrega')">Quero meu eletroposto de chave na mão →</a>
     </div>
   </section>
 
@@ -684,8 +815,8 @@ function calc(){
 }
 
 // ===== AGENDA =====
-// Regras: 3 dias rolantes a partir de HOJE (hoje/amanhã/depois), pulando domingo e
-// feriado. Seg–Sex 09:00–12:00 e 13:00–18:00; Sáb 09:00–11:00; slots de 30 min.
+// Regras: 3 dias rolantes a partir de HOJE (hoje/amanhã/depois), pulando fim de
+// semana e feriado. Seg–Sex 10:00–12:00 e 13:00–17:00; slots de 30 min.
 // Fecha o que já passou e o que já está ocupado na agenda do Thiago/Diego.
 let slotSel = null;
 let pontoSel = null;   // 'sim' | 'nao'
@@ -716,9 +847,9 @@ const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 // Grade do dia conforme o dia da semana (0=dom … 6=sáb)
 function gradeDoDia(ymd){
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
-  if(dow === 0) return [];                                  // domingo: fechado
+  if(dow === 0 || dow === 6) return [];                     // fim de semana: fechado
   if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
-  const faixas = dow === 6 ? [[9,13]] : [[9,12],[13,18]];   // sáb 9–13; seg–sex 9–12 e 13–18
+  const faixas = [[10,12],[13,17]];                         // seg–sex: 10–12 e 13–17
   const out = [];
   for(const [ini,fim] of faixas)
     for(let m = ini*60; m < fim*60; m += 30)
@@ -767,7 +898,7 @@ function setPonto(v){
   track('ponto_' + v);
 }
 // Os 3 próximos dias COM atendimento, a partir de hoje (pula domingo/feriado e o dia
-// que já não tem horário livre). Ex: numa sexta → sex, sáb, seg.
+// que já não tem horário livre). Ex: numa sexta à tarde → sex, seg, ter.
 function proximosDias(){
   const hoje = partesBR().ymd;
   const dias = [];
