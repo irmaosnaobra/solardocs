@@ -18,6 +18,7 @@ import { logger } from '../utils/logger';
 const router = Router();
 
 const EQUIPE: Record<string, string> = {
+  nilce: '34991516846',
   thiago: '34991360223',
   diego: '34991360172',
 };
