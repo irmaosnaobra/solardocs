@@ -3,11 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  Sparkles, Users, ClipboardCheck, FileSignature, ScrollText, Banknote,
-  Receipt, Calculator, Briefcase, Wrench, Handshake, Boxes, ArrowRight,
-  type LucideIcon,
-} from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { isAuthenticated } from '@/services/auth';
 import api from '@/services/api';
 import Logo from '@/components/Logo/Logo';
@@ -19,23 +15,22 @@ import './inicio.css';
 // Dá pra intercalar: "Plataforma" entra no app; o botão de grade no topo do app
 // (mobileHeader) volta pra cá.
 
-interface Tile { href: string; label: string; icon: LucideIcon }
+interface Tile { href: string; label: string }
 
-// Rotas reais da plataforma (mesmas do menu). Os labels seguem a plataforma;
-// "Contrato PJ / Vendedor" e "Prestação de Serviço" são os 2 docs de terceiro.
+// Rotas reais da plataforma (mesmas do menu). Só os nomes, sem ícone.
 const TILES: Tile[] = [
-  { href: '/documentos?tipo=proposta',          label: 'Gerador de Proposta', icon: Sparkles },
-  { href: '/clientes',                          label: 'Cadastro Cliente',    icon: Users },
-  { href: '/vistoria',                          label: 'Vistoria',            icon: ClipboardCheck },
-  { href: '/documentos?tipo=contrato-solar',    label: 'Contrato Solar',      icon: FileSignature },
-  { href: '/documentos?tipo=procuracao',        label: 'Procuração',          icon: ScrollText },
-  { href: '/documentos?tipo=proposta-bancaria', label: 'Proposta de Banco',   icon: Banknote },
-  { href: '/documentos?tipo=recibo',            label: 'Recibo',              icon: Receipt },
-  { href: '/precificacao',                      label: 'Precificação',        icon: Calculator },
-  { href: '/documentos?tipo=contrato-pj',       label: 'Contrato Vendedor',   icon: Briefcase },
-  { href: '/documentos?tipo=prestacao-servico', label: 'Prestação de Serviço', icon: Wrench },
-  { href: '/terceiros',                         label: 'Cadastro Terceiro',   icon: Handshake },
-  { href: '/inventario',                        label: 'Inventário',          icon: Boxes },
+  { href: '/documentos?tipo=proposta',          label: 'Gerador de Proposta' },
+  { href: '/clientes',                          label: 'Cadastro Cliente' },
+  { href: '/vistoria',                          label: 'Vistoria' },
+  { href: '/documentos?tipo=contrato-solar',    label: 'Contrato Solar' },
+  { href: '/documentos?tipo=procuracao',        label: 'Procuração' },
+  { href: '/documentos?tipo=proposta-bancaria', label: 'Proposta de Banco' },
+  { href: '/documentos?tipo=recibo',            label: 'Recibo' },
+  { href: '/precificacao',                      label: 'Precificação' },
+  { href: '/documentos?tipo=contrato-pj',       label: 'Contrato Vendedor' },
+  { href: '/documentos?tipo=prestacao-servico', label: 'Prestação de Serviço' },
+  { href: '/terceiros',                         label: 'Cadastro Terceiro' },
+  { href: '/inventario',                        label: 'Inventário' },
 ];
 
 // Entrada padrão da plataforma (o Gerador é o carro-chefe).
@@ -85,7 +80,6 @@ export default function InicioPage() {
       <main className="ini-grid">
         {TILES.map((t) => (
           <Link key={t.label} href={t.href} className="ini-tile">
-            <span className="ini-tileIcon"><t.icon size={26} strokeWidth={1.9} /></span>
             <span className="ini-tileLabel">{t.label}</span>
           </Link>
         ))}

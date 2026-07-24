@@ -10,9 +10,10 @@ export default function manifest(): MetadataRoute.Manifest {
     // instaladas migram quando o manifest é relido.
     start_url: '/inicio',
     display: 'standalone',
-    // Splash alinhado ao app (navy escuro) pra não piscar cinza→escuro no cold open.
-    background_color: '#0b1120',
-    theme_color: '#0b1120',
+    // Splash alinhado à tela de atalho (branca) pra não piscar no cold open.
+    // theme_color = laranja da marca SolarDoc.
+    background_color: '#ffffff',
+    theme_color: '#F26513',
     orientation: 'portrait',
     icons: [
       {
