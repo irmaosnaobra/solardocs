@@ -28,15 +28,13 @@
 
 /* Hero: logo/avatar da empresa + nome */
 .ini-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 26px 0 22px; }
+/* Logo solta, sem quadrado/fundo. ~30% maior que antes. */
 .ini-avatar {
-  width: 84px; height: 84px; border-radius: 24px; overflow: hidden;
+  width: 110px; height: 110px;
   display: flex; align-items: center; justify-content: center;
-  background: #ffffff;
-  border: 1px solid #eceff3;
-  box-shadow: 0 8px 24px rgba(17, 17, 17, 0.10);
 }
-.ini-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.ini-logoSvg { width: 56px; height: 56px; }
+.ini-avatar img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.ini-logoSvg { width: 74px; height: 74px; }
 .ini-empresa { font-size: 22px; font-weight: 800; margin: 14px 0 0; letter-spacing: -0.01em; color: #111111; }
 
 /* Grade de atalhos: 3 colunas, botões laranja só com o nome */
@@ -48,8 +46,8 @@
 }
 .ini-tile {
   display: flex; align-items: center; justify-content: center; text-align: center;
-  aspect-ratio: 1 / 1;
-  padding: 10px 8px;
+  min-height: 104px;               /* cresce conforme o texto (labels de 2+ palavras usam mais linhas) */
+  padding: 12px 8px;
   border-radius: 20px;
   text-decoration: none;
   background: #F26513;
@@ -59,7 +57,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 .ini-tile:active { transform: scale(0.95); background: #d4530f; }
-.ini-tileLabel { font-size: 13.5px; font-weight: 800; line-height: 1.2; color: #111111; }
+/* Fonte maior; quebra em várias linhas por palavra (nomes com 2+ palavras). */
+.ini-tileLabel { font-size: 16px; font-weight: 800; line-height: 1.25; color: #111111; }
 
 /* Loading */
 .ini-loading { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; background: #ffffff; }
