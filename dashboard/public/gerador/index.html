@@ -2359,6 +2359,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="auto-tabs">
       <button type="button" class="auto-tab" id="auto-tab-disparos" onclick="automacaoSubaba('disparos')">Disparos</button>
       <button type="button" class="auto-tab" id="auto-tab-sequencias" onclick="automacaoSubaba('sequencias')">Sequências</button>
+      <button type="button" class="auto-tab" id="auto-tab-instagram" onclick="automacaoSubaba('instagram')">Instagram</button>
     </div>
 
     <div id="auto-pane-disparos">
@@ -2425,6 +2426,56 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span> Inscrições recentes</div>
         <div id="auto-seq-inscricoes" class="auto-list"><p class="auto-mini">—</p></div>
+      </div>
+    </div>
+
+    <div id="auto-pane-instagram" style="display:none">
+      <div class="auto-warn">📸 Automação nativa do Instagram: comentário com palavra-chave vira <b>DM automática com seu link</b> (substitui o ManyChat). Se a pessoa mandar o WhatsApp na DM, o lead cai direto no seu CRM/rodízio. Requer conectar a conta + app da Meta aprovado (App Review).</div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Conexão</div>
+        <div id="auto-ig-status"><p class="auto-mini">Carregando…</p></div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Nova automação</div>
+        <label class="auto-lbl">Nome</label>
+        <input class="auto-inp" id="auto-ig-nome" placeholder="Ex: Post kit solar → link">
+        <label class="auto-lbl" style="margin-top:12px">Gatilhos</label>
+        <div class="auto-row">
+          <label class="auto-chip" style="cursor:pointer"><input type="checkbox" id="auto-ig-g-comment" checked style="margin-right:6px">Comentário</label>
+          <label class="auto-chip" style="cursor:pointer"><input type="checkbox" id="auto-ig-g-story" style="margin-right:6px">Resposta de story</label>
+          <label class="auto-chip" style="cursor:pointer"><input type="checkbox" id="auto-ig-g-dm" style="margin-right:6px">DM direta</label>
+        </div>
+        <div class="auto-row" style="margin-top:12px">
+          <div style="flex:1;min-width:200px"><label class="auto-lbl">Palavras-chave (separadas por vírgula)</label><input class="auto-inp" id="auto-ig-kw" placeholder="quero, eu quero, link"></div>
+          <div><label class="auto-lbl">Match</label><select class="auto-sel" style="width:auto" id="auto-ig-match"><option value="contem">Contém</option><option value="exato">Exato</option><option value="qualquer">Qualquer</option></select></div>
+        </div>
+        <label class="auto-lbl" style="margin-top:12px">Post específico (opcional) <span style="color:#64748b">— vazio = vale em todos</span></label>
+        <div class="auto-row">
+          <input class="auto-inp" id="auto-ig-post" placeholder="ID do post/reels" style="flex:1;min-width:180px">
+          <button type="button" class="auto-btn ghost" onclick="autoIgCarregarPosts()">Ver meus posts</button>
+        </div>
+        <div id="auto-ig-posts" class="auto-chips"></div>
+        <label class="auto-lbl" style="margin-top:12px">Respostas públicas ao comentário (uma por linha — sorteia uma)</label>
+        <textarea class="auto-ta" id="auto-ig-pub" placeholder="Te chamei na DM!&#10;Prontinho, olha lá no direct 👀"></textarea>
+        <label class="auto-lbl" style="margin-top:12px">DM de boas-vindas</label>
+        <textarea class="auto-ta" id="auto-ig-dm" placeholder="Oi! Aqui está o link que você pediu 👇"></textarea>
+        <div class="auto-row" style="margin-top:12px">
+          <div><label class="auto-lbl">Rótulo do botão</label><input class="auto-inp" id="auto-ig-btn" placeholder="Quero saber mais" style="width:180px"></div>
+          <div style="flex:1;min-width:200px"><label class="auto-lbl">Link do botão</label><input class="auto-inp" id="auto-ig-link" placeholder="https://..."></div>
+        </div>
+        <div class="auto-row" style="margin-top:12px">
+          <div style="flex:1;min-width:200px"><label class="auto-lbl">Lembrete por tempo (opcional)</label><input class="auto-inp" id="auto-ig-lembrete" placeholder="Ainda dá tempo, quer ajuda?"></div>
+          <div><label class="auto-lbl">Após (horas)</label><input class="auto-inp" type="number" id="auto-ig-lembrete-h" value="24" min="1" style="width:100px"></div>
+        </div>
+        <button type="button" class="auto-btn" style="margin-top:14px" onclick="autoIgSalvar()">Salvar automação</button>
+        <span id="auto-ig-msg" class="auto-mini"></span>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Automações do Instagram</div>
+        <div id="auto-ig-lista" class="auto-list"><p class="auto-mini">—</p></div>
       </div>
     </div>
   </div>
@@ -9171,14 +9222,84 @@ if ('serviceWorker' in navigator) {
     automacaoSubaba('disparos');
   }
   function automacaoSubaba(qual){
-    ['disparos','sequencias'].forEach(function(a){
+    ['disparos','sequencias','instagram'].forEach(function(a){
       const pane=document.getElementById('auto-pane-'+a); if(pane) pane.style.display=(a===qual)?'':'none';
       const tab=document.getElementById('auto-tab-'+a); if(tab) tab.classList.toggle('ativa', a===qual);
     });
+    if(qual==='instagram'){ autoIgStatus(); autoIgCarregarAutomacoes(); }
+  }
+
+  // ---- Instagram ----
+  async function autoIgStatus(){
+    const c=document.getElementById('auto-ig-status'); if(!c) return;
+    try{
+      const s=await (await fetch('/_api/instagram/status')).json();
+      if(!s.configurado){ c.innerHTML='<p class="auto-mini">⚙️ O app do Instagram ainda não foi configurado no servidor (falta o App da Meta + variáveis IG_*). Configure e conecte pra ativar.</p>'; return; }
+      if(s.conectado){
+        const img=s.profile_picture_url?'<img src="'+s.profile_picture_url+'" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px">':'';
+        const venc=s.token_expires_at?(' · token válido até '+new Date(s.token_expires_at).toLocaleDateString('pt-BR')):'';
+        c.innerHTML='<div>'+img+'<b>Conectado</b> como @'+autoEsc(s.username||'')+(s.ligado?'':' <span style="color:#fcd34d">(motor desligado — falta IG_AUTOMACAO_ENABLED)</span>')+'<span class="auto-mini">'+venc+'</span></div>';
+      } else {
+        c.innerHTML='<p class="auto-mini" style="margin-bottom:10px">Ainda não conectado.</p><a class="auto-btn" href="/_api/instagram/oauth/start">Conectar Instagram</a>';
+      }
+    }catch(e){ c.innerHTML='<p class="auto-mini">Erro: '+autoEsc(e.message)+'</p>'; }
+  }
+  async function autoIgCarregarPosts(){
+    const box=document.getElementById('auto-ig-posts'); box.innerHTML='<span class="auto-mini">Carregando…</span>';
+    try{
+      const j=await (await fetch('/_api/instagram/media')).json();
+      const posts=j.data||[];
+      if(!posts.length){ box.innerHTML='<span class="auto-mini">Nenhum post (conecte a conta primeiro).</span>'; return; }
+      box.innerHTML=posts.map(function(p){
+        const thumb=p.thumbnail_url||p.media_url||'';
+        const cap=(p.caption||'').slice(0,30);
+        return '<span class="auto-chip" onclick="document.getElementById(\'auto-ig-post\').value=\''+p.id+'\'" title="'+autoEsc(cap)+'">'+(thumb?'<img src="'+thumb+'" style="width:26px;height:26px;border-radius:5px;object-fit:cover">':'📄')+' <small>'+p.id.slice(-6)+'</small></span>';
+      }).join('');
+    }catch(e){ box.innerHTML='<span class="auto-mini">Erro: '+autoEsc(e.message)+'</span>'; }
+  }
+  async function autoIgSalvar(){
+    const nome=val('auto-ig-nome').trim();
+    if(!nome){ alert('Dê um nome à automação.'); return; }
+    const gatilhos={ comment:document.getElementById('auto-ig-g-comment').checked, story:document.getElementById('auto-ig-g-story').checked, dm:document.getElementById('auto-ig-g-dm').checked };
+    const palavras=val('auto-ig-kw').split(',').map(s=>s.trim()).filter(Boolean);
+    const match=val('auto-ig-match');
+    if(match!=='qualquer' && !palavras.length){ alert('Adicione ao menos uma palavra-chave (ou use match Qualquer).'); return; }
+    const pubs=val('auto-ig-pub').split('\n').map(s=>s.trim()).filter(Boolean);
+    const rec={
+      criado_por:autoConsultor(), nome, ativo:true, gatilhos,
+      palavras_chave:palavras, match_tipo:match,
+      post_id:val('auto-ig-post').trim()||null,
+      respostas_publicas:pubs,
+      dm_boas_vindas:val('auto-ig-dm').trim()||null,
+      botao_rotulo:val('auto-ig-btn').trim()||null,
+      link_url:val('auto-ig-link').trim()||null,
+      lembrete_texto:val('auto-ig-lembrete').trim()||null,
+      lembrete_horas:+val('auto-ig-lembrete-h')||24,
+    };
+    try{
+      await supaInsert('ig_automations', rec);
+      ['auto-ig-nome','auto-ig-kw','auto-ig-post','auto-ig-pub','auto-ig-dm','auto-ig-btn','auto-ig-link','auto-ig-lembrete'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+      document.getElementById('auto-ig-msg').textContent=' Automação salva!';
+      autoIgCarregarAutomacoes();
+    }catch(e){ document.getElementById('auto-ig-msg').textContent=' Erro: '+e.message; }
+  }
+  async function autoIgCarregarAutomacoes(){
+    const c=document.getElementById('auto-ig-lista'); if(!c) return;
+    try{
+      const rows=await supaGet('ig_automations?select=id,nome,ativo,gatilhos,palavras_chave&order=criado_em.desc&limit=30');
+      c.innerHTML = rows.length? rows.map(function(a){
+        const g=[]; if(a.gatilhos&&a.gatilhos.comment)g.push('comentário'); if(a.gatilhos&&a.gatilhos.story)g.push('story'); if(a.gatilhos&&a.gatilhos.dm)g.push('dm');
+        const cor=a.ativo?'#22c55e':'#64748b';
+        return '<div class="auto-item"><div class="top"><span class="auto-badge" style="background:'+cor+'">'+(a.ativo?'ativa':'pausada')+'</span><b>'+autoEsc(a.nome)+'</b><span class="auto-mini">'+g.join(', ')+' · '+((a.palavras_chave||[]).join(', ')||'qualquer')+'</span><button type="button" class="auto-btn ghost" style="padding:4px 10px" onclick="autoIgToggle(\''+a.id+'\','+(!a.ativo)+')">'+(a.ativo?'pausar':'ativar')+'</button></div></div>';
+      }).join('') : '<p class="auto-mini">Nenhuma automação ainda.</p>';
+    }catch(e){ c.innerHTML='<p class="auto-mini">Erro: '+autoEsc(e.message)+'</p>'; }
+  }
+  async function autoIgToggle(id, ativo){
+    try{ await supaPatch('ig_automations?id=eq.'+id,{ativo}); autoIgCarregarAutomacoes(); }catch(e){ alert('Erro: '+e.message); }
   }
 
   // expõe os handlers usados por onclick/onchange no HTML
-  Object.assign(window,{ navAutomacao, automacaoSubaba, autoDispararTudo, autoPararDisparo, autoUpload, autoCarregarCRM, autoPadronizar, autoToggleDDD, autoAddPasso, autoRenumerarPassos, autoSalvarSequencia, autoToggleSequencia, autoInscrever });
+  Object.assign(window,{ navAutomacao, automacaoSubaba, autoDispararTudo, autoPararDisparo, autoUpload, autoCarregarCRM, autoPadronizar, autoToggleDDD, autoAddPasso, autoRenumerarPassos, autoSalvarSequencia, autoToggleSequencia, autoInscrever, autoIgCarregarPosts, autoIgSalvar, autoIgToggle });
 })();
 </script>
 

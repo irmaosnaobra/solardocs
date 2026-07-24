@@ -20,6 +20,7 @@ import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sd
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
+import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda/leadsMetaService';
@@ -223,7 +224,7 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupConsumerResult, biaPollResult, geradorSeqResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -241,6 +242,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runLimpaproRecoveryConsumer(),   // recuperação LimpaPro (Bia): drena marcadores prontos
       pollBiaRecuperacao(),            // inbound da Bia (poll IO; webhook IO não entrega texto)
       runGeradorSequenciasConsumer(),  // Central de Automação: drip de sequências (gated por kill-switch)
+      drainIgQueue(),                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
     ]);
     res.json({
       ok: true,
@@ -254,6 +256,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       recup_consumer: recupConsumerResult.status === 'fulfilled' ? recupConsumerResult.value : { error: String((recupConsumerResult as any).reason) },
       bia_poll:       biaPollResult.status === 'fulfilled' ? biaPollResult.value : { error: String((biaPollResult as any).reason) },
       gerador_seq:    geradorSeqResult.status === 'fulfilled' ? geradorSeqResult.value : { error: String((geradorSeqResult as any).reason) },
+      ig_drain:       igDrainResult.status === 'fulfilled' ? igDrainResult.value : { error: String((igDrainResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
@@ -477,6 +480,19 @@ router.get('/gerador-broadcast-tick', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'gerador-broadcast-tick falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Renovação semanal do token do Instagram (dura 60d; renova quando falta <14d).
+// Apontar o pinger semanal (GitHub Actions) pra cá. Gated por kill-switch.
+router.get('/instagram-refresh-token', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await refreshIgToken();
+    res.json(result);
+  } catch (err) {
+    logger.error('cron', 'instagram-refresh-token falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });

@@ -30,6 +30,7 @@ import vistoriasRoutes from './routes/vistorias';
 import publicVistoriaRoutes from './routes/publicVistoria';
 import dashboardsRoutes from './routes/dashboards';
 import geradorRoutes from './routes/gerador';
+import instagramRoutes from './routes/instagram';
 import ioLinksRoutes from './routes/ioLinks';
 import ioIndicacoesRoutes from './routes/ioIndicacoes';
 import ioEletropostoRoutes from './routes/ioEletroposto';
@@ -74,6 +75,8 @@ app.use(cors({
 app.use('/payments/webhook', express.raw({ type: 'application/json' }));
 // Webhook WhatsApp — aceita JSON bruto ou texto
 app.use('/webhook', express.text({ type: '*/*' }));
+// Webhook Instagram — corpo cru (Buffer) pra validar o HMAC X-Hub-Signature-256
+app.use('/instagram/webhook', express.raw({ type: '*/*' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -115,6 +118,7 @@ app.use('/vistorias', vistoriasRoutes);
 app.use('/v', publicVistoriaRoutes);
 app.use('/dashboards', dashboardsRoutes);
 app.use('/gerador', geradorRoutes);
+app.use('/instagram', instagramRoutes);
 app.use('/io-links', ioLinksRoutes);
 app.use('/io-indicacoes', ioIndicacoesRoutes);
 app.use('/io/eletroposto', ioEletropostoRoutes);
