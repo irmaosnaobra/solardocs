@@ -77,6 +77,11 @@ async function getOwned(id: string, userId: string) {
 
 const fotosDe = (i: ItemVistoria): Foto[] => (Array.isArray(i.fotos) ? i.fotos : []);
 
+async function ehAdmin(userId: string): Promise<boolean> {
+  const { data } = await supabase.from('users').select('is_admin').eq('id', userId).maybeSingle();
+  return !!data?.is_admin;
+}
+
 // ── POST /vistorias — cria a vistoria (opcionalmente grudada num cliente) ──────
 const createSchema = z.object({
   cliente_id: z.string().uuid().optional().nullable(),
@@ -91,17 +96,16 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
   }
   const { cliente_id, cliente_nome } = parsed.data;
 
-  // Se veio cliente_id, confirma que é do usuário e puxa o nome real — assim a
-  // vistoria fica grudada no cadastro do cliente (armazenada junto dele).
+  // Se veio cliente_id, confirma e puxa o nome real — assim a vistoria fica
+  // grudada no cadastro do cliente (armazenada junto dele). Conta comum só
+  // anexa cliente PRÓPRIO; admin (Aioros) pode anexar cliente de qualquer empresa.
   let nome = cliente_nome || null;
   let clienteId: string | null = null;
   if (cliente_id) {
-    const { data: cli } = await supabase
-      .from('clients')
-      .select('id, nome')
-      .eq('id', cliente_id)
-      .eq('user_id', req.userId)
-      .maybeSingle();
+    const admin = await ehAdmin(req.userId);
+    let q = supabase.from('clients').select('id, nome').eq('id', cliente_id);
+    if (!admin) q = q.eq('user_id', req.userId);
+    const { data: cli } = await q.maybeSingle();
     if (cli) {
       clienteId = cli.id;
       nome = cli.nome;
@@ -157,6 +161,38 @@ router.get('/list', authMiddleware, async (req: Request, res: Response): Promise
     };
   });
   res.json(lista);
+});
+
+// ── GET /vistorias/clientes — clientes prontos, AGRUPADOS por empresa ──────────
+// Conta comum vê só os PRÓPRIOS clientes (1 grupo, a empresa dela); admin (Aioros)
+// vê TODAS as empresas com seus clientes. Isolamento por tenant preservado.
+router.get('/clientes', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const admin = await ehAdmin(req.userId);
+
+  let compQ = supabase.from('company').select('user_id, nome');
+  let cliQ = supabase.from('clients').select('id, nome, user_id').order('nome', { ascending: true });
+  if (!admin) {
+    compQ = compQ.eq('user_id', req.userId);
+    cliQ = cliQ.eq('user_id', req.userId);
+  }
+  const [{ data: comps }, { data: clis, error }] = await Promise.all([compQ, cliQ.limit(5000)]);
+  if (error) {
+    logger.error('vistorias', 'falha carregando clientes agrupados', error);
+    res.status(500).json({ error: 'Não consegui carregar os clientes.' });
+    return;
+  }
+
+  const nomeEmpresa = new Map<string, string>((comps ?? []).map((c: { user_id: string; nome: string }) => [c.user_id, c.nome]));
+  const grupos = new Map<string, { id: string; nome: string }[]>();
+  for (const cl of (clis ?? []) as { id: string; nome: string; user_id: string }[]) {
+    const emp = nomeEmpresa.get(cl.user_id) || '— Sem empresa —';
+    if (!grupos.has(emp)) grupos.set(emp, []);
+    grupos.get(emp)!.push({ id: cl.id, nome: cl.nome });
+  }
+  const out = [...grupos.entries()]
+    .map(([empresa, clientes]) => ({ empresa, clientes }))
+    .sort((a, b) => a.empresa.localeCompare(b.empresa, 'pt-BR'));
+  res.json(out);
 });
 
 // ── GET /vistorias/:id — detalhe (com signed urls pra revisar no dashboard) ─────

@@ -15,6 +15,7 @@ function logUso(event_type: string) {
 }
 
 interface Client { id: string; nome: string }
+interface Grupo { empresa: string; clientes: Client[] }
 
 // Uma foto/arquivo no estado do cliente. `url` só existe depois de subir.
 interface Foto {
@@ -76,8 +77,8 @@ function apiError(err: unknown): string {
 type Modo = 'nome' | 'cadastrado' | 'novo';
 
 export default function VistoriaPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [modo, setModo] = useState<Modo>('nome');
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
+  const [modo, setModo] = useState<Modo>('cadastrado');
   const [clienteId, setClienteId] = useState('');
   const [clienteNome, setClienteNome] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -93,10 +94,14 @@ export default function VistoriaPage() {
   const obsTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const opened = useRef(false);
 
+  const carregarGrupos = useCallback(() => {
+    api.get('/vistorias/clientes').then((r) => setGrupos(r.data || [])).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!opened.current) { opened.current = true; logUso('open'); }
-    api.get('/clients').then((r) => setClients(r.data || [])).catch(() => {});
-  }, []);
+    carregarGrupos();
+  }, [carregarGrupos]);
 
   // ── Mutação de estado: mexe nas fotos de um item ──
   function setItemFotos(itemKey: string, fn: (fotos: Foto[]) => Foto[]) {
@@ -124,10 +129,10 @@ export default function VistoriaPage() {
   // Cliente novo cadastrado no modal → seleciona e vira modo "cadastrado".
   function onClienteCriado(c: Client) {
     setModalOpen(false);
-    setClients((prev) => [c, ...prev.filter((x) => x.id !== c.id)]);
     setClienteId(c.id);
     setClienteNome(c.nome);
     setModo('cadastrado');
+    carregarGrupos(); // recarrega a lista agrupada já com o novo cliente
   }
 
   const addArquivo = useCallback(async (itemKey: string, file: File) => {
@@ -226,24 +231,28 @@ export default function VistoriaPage() {
         <div className="vst-card">
           <label className="vst-label">Cliente</label>
           <div className="vst-seg">
-            <button className={`vst-segBtn ${modo === 'nome' ? 'on' : ''}`} onClick={() => setModo('nome')}>Só nome</button>
-            <button className={`vst-segBtn ${modo === 'cadastrado' ? 'on' : ''}`} onClick={() => setModo('cadastrado')}>Já cadastrado</button>
-            <button className={`vst-segBtn ${modo === 'novo' ? 'on' : ''}`} onClick={() => { setModo('novo'); setModalOpen(true); }}>Cadastrar</button>
+            <button className={`vst-segBtn ${modo === 'novo' ? 'on' : ''}`} onClick={() => { setModo('novo'); setModalOpen(true); }}>Cadastrar Cliente</button>
+            <button className={`vst-segBtn ${modo === 'cadastrado' ? 'on' : ''}`} onClick={() => setModo('cadastrado')}>Cliente Cadastrado</button>
+            <button className={`vst-segBtn ${modo === 'nome' ? 'on' : ''}`} onClick={() => setModo('nome')}>Apenas Nome</button>
           </div>
 
+          {modo === 'cadastrado' && (
+            grupos.some((g) => g.clientes.length > 0) ? (
+              <select className="vst-select" value={clienteId} onChange={(e) => setClienteId(e.target.value)} style={{ marginBottom: 14 }}>
+                <option value="">— Escolha um cliente —</option>
+                {grupos.filter((g) => g.clientes.length > 0).map((g) => (
+                  <optgroup key={g.empresa} label={g.empresa}>
+                    {g.clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            ) : (
+              <p className="vst-heroSub" style={{ marginBottom: 14 }}>Nenhum cliente cadastrado ainda. Use “Cadastrar Cliente” ou “Apenas Nome”.</p>
+            )
+          )}
           {modo === 'nome' && (
             <input className="vst-input" placeholder="Nome do cliente ou do imóvel (opcional)"
               value={clienteNome} onChange={(e) => setClienteNome(e.target.value)} style={{ marginBottom: 14 }} />
-          )}
-          {modo === 'cadastrado' && (
-            clients.length > 0 ? (
-              <select className="vst-select" value={clienteId} onChange={(e) => setClienteId(e.target.value)} style={{ marginBottom: 14 }}>
-                <option value="">— Escolha um cliente —</option>
-                {clients.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
-            ) : (
-              <p className="vst-heroSub" style={{ marginBottom: 14 }}>Nenhum cliente cadastrado ainda. Use “Cadastrar” ou “Só nome”.</p>
-            )
           )}
           {modo === 'novo' && (
             <div style={{ marginBottom: 14 }}>
