@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  ClipboardCheck, Camera, Check, X, RefreshCw, Share2, Copy, Plus,
+  ClipboardCheck, Camera, Paperclip, Check, X, RefreshCw, Share2, Copy, Plus, Trash2, FileText,
 } from 'lucide-react';
 import api from '@/services/api';
+import ClientModal from '@/components/ClientModal/ClientModal';
 import './vistoria.css';
 
 // Telemetria de uso (não abate crédito — vistoria é ferramenta de campo).
@@ -15,26 +16,24 @@ function logUso(event_type: string) {
 
 interface Client { id: string; nome: string }
 
-interface Item {
-  key: string;
-  label: string;
-  dica: string;
-  foto_url: string | null;
-  obs: string;
-  ts: string | null;
+// Uma foto/arquivo no estado do cliente. `url` só existe depois de subir.
+interface Foto {
+  cid: string;                 // id client-side (chave de render/estado)
+  url?: string;                // caminho no Storage (vem do servidor)
+  signed?: string | null;      // signed url pra exibir (vem do servidor)
+  preview?: string;            // data URL local (imagem) pra mostrar na hora
+  tipo: 'image' | 'file';
+  nome?: string;
+  uploading?: boolean;
+  error?: boolean;
 }
 
-interface Vistoria {
-  id: string;
-  cliente_nome: string | null;
-  status: string;
-  itens: Item[];
-}
+interface Item { key: string; label: string; dica: string; obs: string; fotos: Foto[] }
+interface Vistoria { id: string; cliente_id: string | null; cliente_nome: string | null; status: string; itens: Item[] }
 
-// Status de upload por item (client-side, não vem do banco).
-type UpState = 'idle' | 'uploading' | 'ok' | 'error';
-
-const MAX_DIM = 1568; // maior lado; mantém a foto leve pra subir rápido no campo
+const MAX_DIM = 1568;
+let CID = 0;
+const novoCid = () => `f${Date.now()}_${CID++}`;
 
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -45,7 +44,7 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
-// Redimensiona e recomprime pra JPEG leve. Devolve base64 (sem prefixo) + preview.
+// Imagem: redimensiona e recomprime pra JPEG leve. Devolve base64 + preview.
 async function compress(file: File): Promise<{ base64: string; preview: string }> {
   const dataUrl = await readAsDataUrl(file);
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -58,8 +57,7 @@ async function compress(file: File): Promise<{ base64: string; preview: string }
   let h = img.naturalHeight || img.height;
   if (Math.max(w, h) > MAX_DIM) {
     const s = MAX_DIM / Math.max(w, h);
-    w = Math.round(w * s);
-    h = Math.round(h * s);
+    w = Math.round(w * s); h = Math.round(h * s);
   }
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
@@ -75,20 +73,23 @@ function apiError(err: unknown): string {
   return e?.response?.data?.error || '';
 }
 
+type Modo = 'nome' | 'cadastrado' | 'novo';
+
 export default function VistoriaPage() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [modo, setModo] = useState<Modo>('nome');
   const [clienteId, setClienteId] = useState('');
   const [clienteNome, setClienteNome] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+
   const [vistoria, setVistoria] = useState<Vistoria | null>(null);
-  const [previews, setPreviews] = useState<Record<string, string>>({});
-  const [upStates, setUpStates] = useState<Record<string, UpState>>({});
   const [starting, setStarting] = useState(false);
   const [concluida, setConcluida] = useState(false);
   const [erro, setErro] = useState('');
   const [copiado, setCopiado] = useState(false);
+  const [lightbox, setLightbox] = useState<{ itemKey: string; foto: Foto } | null>(null);
 
-  // Um input de câmera por item (ref por key).
-  const camRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const obsTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const opened = useRef(false);
 
@@ -97,15 +98,21 @@ export default function VistoriaPage() {
     api.get('/clients').then((r) => setClients(r.data || [])).catch(() => {});
   }, []);
 
+  // ── Mutação de estado: mexe nas fotos de um item ──
+  function setItemFotos(itemKey: string, fn: (fotos: Foto[]) => Foto[]) {
+    setVistoria((v) => v && ({ ...v, itens: v.itens.map((it) => it.key === itemKey ? { ...it, fotos: fn(it.fotos) } : it) }));
+  }
+
   async function iniciar() {
-    setErro('');
-    setStarting(true);
+    setErro(''); setStarting(true);
     try {
-      const body = clienteId
-        ? { cliente_id: clienteId }
-        : { cliente_nome: clienteNome.trim() || null };
+      const body =
+        modo === 'nome' ? { cliente_nome: clienteNome.trim() || null } :
+        clienteId ? { cliente_id: clienteId } : { cliente_nome: null };
       const r = await api.post('/vistorias', body);
-      setVistoria(r.data);
+      const v = r.data as Vistoria;
+      v.itens = v.itens.map((it) => ({ ...it, fotos: [] }));
+      setVistoria(v);
       logUso('start');
     } catch (err) {
       setErro(apiError(err) || 'Não consegui iniciar a vistoria. Tente de novo.');
@@ -114,47 +121,65 @@ export default function VistoriaPage() {
     }
   }
 
-  const enviarFoto = useCallback(async (item: Item, file: File) => {
+  // Cliente novo cadastrado no modal → seleciona e vira modo "cadastrado".
+  function onClienteCriado(c: Client) {
+    setModalOpen(false);
+    setClients((prev) => [c, ...prev.filter((x) => x.id !== c.id)]);
+    setClienteId(c.id);
+    setClienteNome(c.nome);
+    setModo('cadastrado');
+  }
+
+  const addArquivo = useCallback(async (itemKey: string, file: File) => {
+    if (!vistoria) return;
     setErro('');
-    let payload: { base64: string; preview: string };
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const cid = novoCid();
+    let base64 = ''; let preview = ''; let media_type = 'image/jpeg';
     try {
-      payload = await compress(file);
+      if (isPdf) {
+        base64 = (await readAsDataUrl(file)).split(',')[1] || '';
+        media_type = 'application/pdf';
+      } else {
+        const c = await compress(file);
+        base64 = c.base64; preview = c.preview;
+      }
     } catch {
-      setErro('Não consegui processar essa foto. Tente outra.');
+      setErro('Não consegui processar esse arquivo. Tente outro.');
       return;
     }
-    // Preview local imediato (o técnico vê a foto na hora, mesmo antes de subir).
-    setPreviews((p) => ({ ...p, [item.key]: payload.preview }));
-    setUpStates((s) => ({ ...s, [item.key]: 'uploading' }));
-
+    // Otimista: mostra na hora, marcado como subindo.
+    setItemFotos(itemKey, (f) => [...f, { cid, preview, tipo: isPdf ? 'file' : 'image', nome: file.name, uploading: true }]);
     try {
-      const r = await api.post(`/vistorias/${vistoria!.id}/foto`, {
-        item_key: item.key,
-        base64: payload.base64,
-        media_type: 'image/jpeg',
-      });
-      const fotoUrl = r.data?.foto_url ?? 'set';
-      setUpStates((s) => ({ ...s, [item.key]: 'ok' }));
-      setVistoria((v) => v && ({
-        ...v,
-        itens: v.itens.map((it) => it.key === item.key ? { ...it, foto_url: fotoUrl } : it),
-      }));
+      const r = await api.post(`/vistorias/${vistoria.id}/foto`, { item_key: itemKey, base64, media_type, nome: file.name });
+      const foto = r.data.foto as { url: string; signed: string | null; tipo: 'image' | 'file'; nome?: string };
+      setItemFotos(itemKey, (f) => f.map((x) => x.cid === cid
+        ? { ...x, url: foto.url, signed: foto.signed, tipo: foto.tipo, nome: foto.nome, uploading: false }
+        : x));
     } catch (err) {
-      setUpStates((s) => ({ ...s, [item.key]: 'error' }));
-      setErro(apiError(err) || 'Uma foto não subiu. Toque em "tentar de novo" no item.');
+      setItemFotos(itemKey, (f) => f.map((x) => x.cid === cid ? { ...x, uploading: false, error: true } : x));
+      setErro(apiError(err) || 'Um arquivo não subiu. Toque no X pra remover e tente de novo.');
     }
   }, [vistoria]);
 
-  function onPick(item: Item, files: FileList | null) {
-    const f = files?.[0];
-    if (f) enviarFoto(item, f);
+  function onPick(itemKey: string, files: FileList | null) {
+    if (!files) return;
+    Array.from(files).forEach((f) => addArquivo(itemKey, f));
   }
 
-  function salvarObs(item: Item, obs: string) {
-    setVistoria((v) => v && ({ ...v, itens: v.itens.map((it) => it.key === item.key ? { ...it, obs } : it) }));
-    clearTimeout(obsTimers.current[item.key]);
-    obsTimers.current[item.key] = setTimeout(() => {
-      api.patch(`/vistorias/${vistoria!.id}/item`, { item_key: item.key, obs }).catch(() => {});
+  async function removeFoto(itemKey: string, foto: Foto) {
+    setItemFotos(itemKey, (f) => f.filter((x) => x.cid !== foto.cid));
+    setLightbox(null);
+    if (foto.url && vistoria) {
+      api.delete(`/vistorias/${vistoria.id}/foto`, { data: { item_key: itemKey, url: foto.url } }).catch(() => {});
+    }
+  }
+
+  function salvarObs(itemKey: string, obs: string) {
+    setVistoria((v) => v && ({ ...v, itens: v.itens.map((it) => it.key === itemKey ? { ...it, obs } : it) }));
+    clearTimeout(obsTimers.current[itemKey]);
+    obsTimers.current[itemKey] = setTimeout(() => {
+      if (vistoria) api.patch(`/vistorias/${vistoria.id}/item`, { item_key: itemKey, obs }).catch(() => {});
     }, 700);
   }
 
@@ -170,65 +195,66 @@ export default function VistoriaPage() {
   }
 
   function reset() {
-    setVistoria(null); setPreviews({}); setUpStates({}); setConcluida(false);
-    setClienteId(''); setClienteNome(''); setErro('');
+    setVistoria(null); setConcluida(false); setErro('');
+    setModo('nome'); setClienteId(''); setClienteNome('');
   }
 
   const total = vistoria?.itens.length ?? 0;
-  const feitos = vistoria?.itens.filter((i) => i.foto_url).length ?? 0;
+  const feitos = vistoria?.itens.filter((i) => i.fotos.length > 0).length ?? 0;
   const pct = total ? Math.round((feitos / total) * 100) : 0;
-
-  const reportUrl = vistoria && typeof window !== 'undefined'
-    ? `${window.location.origin}/v/${vistoria.id}`
-    : '';
+  const reportUrl = vistoria && typeof window !== 'undefined' ? `${window.location.origin}/v/${vistoria.id}` : '';
 
   function copiar() {
     if (!reportUrl) return;
-    navigator.clipboard?.writeText(reportUrl).then(() => {
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
-    }).catch(() => {});
+    navigator.clipboard?.writeText(reportUrl).then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 2000); }).catch(() => {});
   }
+  const waMsg = encodeURIComponent(`Vistoria${vistoria?.cliente_nome ? ' de ' + vistoria.cliente_nome : ''} — relatório com as fotos:\n${reportUrl}`);
 
-  const waMsg = encodeURIComponent(
-    `Vistoria${vistoria?.cliente_nome ? ' de ' + vistoria.cliente_nome : ''} — relatório com as fotos:\n${reportUrl}`,
-  );
-
-  // ── Tela inicial: escolher cliente e iniciar ──
+  // ── Tela inicial ──
   if (!vistoria) {
     return (
       <div className="vst-page">
+        {modalOpen && <ClientModal client={null} onClose={() => setModalOpen(false)} onSave={onClienteCriado} />}
         <header className="vst-hero">
           <div className="vst-heroBadge"><ClipboardCheck size={16} strokeWidth={2.2} /> Vistoria Solar</div>
           <h1 className="vst-heroTitle">Faça a vistoria pelo celular, foto por foto</h1>
           <p className="vst-heroSub">
-            Cada item abre a câmera e a foto sobe na hora. No fim, você recebe um link com o relatório completo pra mandar no WhatsApp.
+            Cada item abre a câmera (ou anexa arquivo do PC). Tudo sobe na hora e no fim você recebe um link com o relatório pra mandar no WhatsApp.
           </p>
         </header>
 
         <div className="vst-card">
-          <label className="vst-label">Cliente (opcional)</label>
-          {clients.length > 0 && (
-            <select
-              className="vst-select"
-              value={clienteId}
-              onChange={(e) => { setClienteId(e.target.value); setClienteNome(''); }}
-              style={{ marginBottom: 10 }}
-            >
-              <option value="">— Sem cliente / avulsa —</option>
-              {clients.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
+          <label className="vst-label">Cliente</label>
+          <div className="vst-seg">
+            <button className={`vst-segBtn ${modo === 'nome' ? 'on' : ''}`} onClick={() => setModo('nome')}>Só nome</button>
+            <button className={`vst-segBtn ${modo === 'cadastrado' ? 'on' : ''}`} onClick={() => setModo('cadastrado')}>Já cadastrado</button>
+            <button className={`vst-segBtn ${modo === 'novo' ? 'on' : ''}`} onClick={() => { setModo('novo'); setModalOpen(true); }}>Cadastrar</button>
+          </div>
+
+          {modo === 'nome' && (
+            <input className="vst-input" placeholder="Nome do cliente ou do imóvel (opcional)"
+              value={clienteNome} onChange={(e) => setClienteNome(e.target.value)} style={{ marginBottom: 14 }} />
           )}
-          {!clienteId && (
-            <input
-              className="vst-input"
-              placeholder="Ou digite o nome do cliente/imóvel"
-              value={clienteNome}
-              onChange={(e) => setClienteNome(e.target.value)}
-              style={{ marginBottom: 14 }}
-            />
+          {modo === 'cadastrado' && (
+            clients.length > 0 ? (
+              <select className="vst-select" value={clienteId} onChange={(e) => setClienteId(e.target.value)} style={{ marginBottom: 14 }}>
+                <option value="">— Escolha um cliente —</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            ) : (
+              <p className="vst-heroSub" style={{ marginBottom: 14 }}>Nenhum cliente cadastrado ainda. Use “Cadastrar” ou “Só nome”.</p>
+            )
           )}
-          <button className="vst-primaryBtn" onClick={iniciar} disabled={starting}>
+          {modo === 'novo' && (
+            <div style={{ marginBottom: 14 }}>
+              {clienteId
+                ? <p className="vst-heroSub">Selecionado: <strong>{clienteNome}</strong></p>
+                : <button className="vst-ghostBtn" onClick={() => setModalOpen(true)}><Plus size={15} /> Cadastrar novo cliente</button>}
+            </div>
+          )}
+
+          <button className="vst-primaryBtn" onClick={iniciar}
+            disabled={starting || (modo === 'cadastrado' && !clienteId) || (modo === 'novo' && !clienteId)}>
             {starting ? 'Iniciando…' : <><Plus size={18} strokeWidth={2.4} /> Iniciar vistoria</>}
           </button>
           {erro && <p className="vst-err">{erro}</p>}
@@ -237,30 +263,22 @@ export default function VistoriaPage() {
     );
   }
 
-  // ── Tela de conclusão: link + WhatsApp ──
+  // ── Tela de conclusão ──
   if (concluida) {
     return (
       <div className="vst-page">
         <div className="vst-card" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 44 }}>✅</div>
           <h1 className="vst-heroTitle" style={{ marginTop: 8 }}>Vistoria concluída!</h1>
-          <p className="vst-heroSub">{feitos} de {total} itens fotografados.</p>
-
+          <p className="vst-heroSub">{feitos} de {total} itens registrados{vistoria.cliente_nome ? ` — ${vistoria.cliente_nome}` : ''}.</p>
           <div className="vst-linkBox">
             <input className="vst-input" readOnly value={reportUrl} onFocus={(e) => e.target.select()} />
             <button className="vst-copyBtn" onClick={copiar}><Copy size={15} /></button>
           </div>
           {copiado && <p className="vst-toast">Link copiado!</p>}
-
-          <a className="vst-wa" href={`https://wa.me/?text=${waMsg}`} target="_blank" rel="noopener noreferrer">
-            <Share2 size={18} /> Enviar no WhatsApp
-          </a>
-          <a className="vst-ghostBtn" href={reportUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 10 }}>
-            Abrir relatório
-          </a>
-          <button className="vst-ghostBtn" onClick={reset} style={{ marginTop: 10 }}>
-            <RefreshCw size={15} /> Nova vistoria
-          </button>
+          <a className="vst-wa" href={`https://wa.me/?text=${waMsg}`} target="_blank" rel="noopener noreferrer"><Share2 size={18} /> Enviar no WhatsApp</a>
+          <a className="vst-ghostBtn" href={reportUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 10 }}>Abrir relatório</a>
+          <button className="vst-ghostBtn" onClick={reset} style={{ marginTop: 10 }}><RefreshCw size={15} /> Nova vistoria</button>
         </div>
       </div>
     );
@@ -269,60 +287,73 @@ export default function VistoriaPage() {
   // ── Tela do checklist ──
   return (
     <div className="vst-page">
+      {lightbox && (
+        <div className="vst-lightbox" onClick={() => setLightbox(null)}>
+          {lightbox.foto.tipo === 'image'
+            ? <img src={lightbox.foto.signed || lightbox.foto.preview} alt="Conferência" onClick={(e) => e.stopPropagation()} />
+            : <div className="vst-card" onClick={(e) => e.stopPropagation()}><FileText size={48} /><p>{lightbox.foto.nome || 'Arquivo'}</p></div>}
+          <div className="vst-lbActions" onClick={(e) => e.stopPropagation()}>
+            <button className="vst-lbBtn vst-lbDel" onClick={() => removeFoto(lightbox.itemKey, lightbox.foto)}><Trash2 size={15} /> Não ficou boa</button>
+            <button className="vst-lbBtn vst-lbClose" onClick={() => setLightbox(null)}>Fechar</button>
+          </div>
+        </div>
+      )}
+
       <header className="vst-hero" style={{ paddingBottom: 4 }}>
         <div className="vst-heroBadge"><ClipboardCheck size={16} strokeWidth={2.2} /> Vistoria Solar</div>
-        <h1 className="vst-heroTitle" style={{ fontSize: 20 }}>
-          {vistoria.cliente_nome || 'Vistoria avulsa'}
-        </h1>
+        <h1 className="vst-heroTitle" style={{ fontSize: 20 }}>{vistoria.cliente_nome || 'Vistoria avulsa'}</h1>
       </header>
 
       <div className="vst-progressWrap">
         <div className="vst-progressHead">
           <strong>{feitos}/{total} itens</strong>
-          <span>Toque na foto de cada item</span>
+          <span>Câmera ou arquivo · várias por item</span>
         </div>
         <div className="vst-progressBar"><div className="vst-progressFill" style={{ width: `${pct}%` }} /></div>
       </div>
 
       <div className="vst-items">
-        {vistoria.itens.map((item) => {
-          const up = upStates[item.key] ?? (item.foto_url ? 'ok' : 'idle');
-          const preview = previews[item.key];
-          const done = up === 'ok' || (!!item.foto_url && up !== 'uploading' && up !== 'error');
+        {vistoria.itens.map((item, idx) => {
+          const done = item.fotos.some((f) => f.url);
           return (
-            <div key={item.key} className={`vst-item ${done ? 'vst-done' : ''}`}>
-              <input
-                ref={(el) => { camRefs.current[item.key] = el; }}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                style={{ display: 'none' }}
-                onChange={(e) => { onPick(item, e.target.files); e.target.value = ''; }}
-              />
-              <div className="vst-thumb" onClick={() => camRefs.current[item.key]?.click()}>
-                {preview ? <img src={preview} alt={item.label} /> : (
-                  <span className="vst-thumbCam"><Camera size={20} strokeWidth={1.8} />foto</span>
-                )}
-                {up === 'uploading' && <span className="vst-thumbSpinner"><span className="vst-spin" /></span>}
-                {up === 'ok' && <span className="vst-thumbBadge ok"><Check size={13} strokeWidth={3} /></span>}
-                {up === 'error' && <span className="vst-thumbBadge err"><X size={13} strokeWidth={3} /></span>}
+            <div key={item.key} className={`vst-item2 ${done ? 'vst-done' : ''}`}>
+              {/* inputs escondidos: câmera (mobile) e arquivo (PC/galeria + PDF) */}
+              <input ref={(el) => { inputRefs.current[`${item.key}-cam`] = el; }} type="file" accept="image/*" capture="environment"
+                style={{ display: 'none' }} onChange={(e) => { onPick(item.key, e.target.files); e.target.value = ''; }} />
+              <input ref={(el) => { inputRefs.current[`${item.key}-file`] = el; }} type="file" accept="image/*,application/pdf" multiple
+                style={{ display: 'none' }} onChange={(e) => { onPick(item.key, e.target.files); e.target.value = ''; }} />
+
+              <div className="vst-itemTitle">
+                <span className={`vst-itemNum ${done ? 'done' : ''}`}>{done ? <Check size={13} strokeWidth={3} /> : idx + 1}</span>
+                {item.label}
+              </div>
+              <p className="vst-itemDica">{item.dica}</p>
+
+              {item.fotos.length > 0 && (
+                <div className="vst-gallery">
+                  {item.fotos.map((foto) => (
+                    <div key={foto.cid} className="vst-photo"
+                      onClick={() => { if (!foto.uploading && !foto.error) setLightbox({ itemKey: item.key, foto }); }}>
+                      {foto.tipo === 'image'
+                        ? <img src={foto.signed || foto.preview} alt={item.label} />
+                        : <div className="vst-fileChip"><FileText size={22} />{foto.nome?.slice(0, 18) || 'arquivo'}</div>}
+                      {foto.uploading && <div className="vst-photoUp"><span className="vst-spin" /></div>}
+                      {foto.error && <div className="vst-photoErr">falhou</div>}
+                      {!foto.uploading && (
+                        <button className="vst-photoDel" onClick={(e) => { e.stopPropagation(); removeFoto(item.key, foto); }}><X size={13} /></button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="vst-addBtns">
+                <button className="vst-addBtn" onClick={() => inputRefs.current[`${item.key}-cam`]?.click()}><Camera size={16} /> Câmera</button>
+                <button className="vst-addBtn" onClick={() => inputRefs.current[`${item.key}-file`]?.click()}><Paperclip size={16} /> Arquivo</button>
               </div>
 
-              <div className="vst-itemBody">
-                <div className="vst-itemTitle">{item.label}</div>
-                <p className="vst-itemDica">{item.dica}</p>
-                <textarea
-                  className="vst-obs"
-                  placeholder="Observação (opcional)"
-                  defaultValue={item.obs}
-                  onChange={(e) => salvarObs(item, e.target.value)}
-                />
-                {up === 'error' && (
-                  <button className="vst-retry" onClick={() => camRefs.current[item.key]?.click()}>
-                    Não subiu — tentar de novo
-                  </button>
-                )}
-              </div>
+              <textarea className="vst-obs" placeholder="Observação (opcional)" defaultValue={item.obs}
+                onChange={(e) => salvarObs(item.key, e.target.value)} style={{ marginTop: 10 }} />
             </div>
           );
         })}
@@ -331,9 +362,7 @@ export default function VistoriaPage() {
       {erro && <p className="vst-err">{erro}</p>}
 
       <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <button className="vst-primaryBtn" onClick={concluir}>
-          <Check size={18} strokeWidth={2.4} /> Concluir e gerar link
-        </button>
+        <button className="vst-primaryBtn" onClick={concluir}><Check size={18} strokeWidth={2.4} /> Concluir e gerar link</button>
         <Link href="/clientes" className="vst-ghostBtn">Sair sem concluir</Link>
       </div>
     </div>

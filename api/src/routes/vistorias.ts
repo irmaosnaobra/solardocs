@@ -5,15 +5,16 @@ import { authMiddleware } from '../middleware/auth';
 import { logger } from '../utils/logger';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Vistoria de energia solar — checklist de campo com foto por item.
+// Vistoria de energia solar — checklist de campo com VÁRIAS fotos/arquivos por item.
 //
 // O técnico está no telhado, muitas vezes com sinal ruim: cada foto sobe NA HORA
 // que é tirada (POST /:id/foto). Se a conexão cair, ele perde só a foto que
 // faltou, não a vistoria inteira. Por isso o estado é incremental no servidor.
 //
-// Acesso: TODOS os planos, foto sempre salva no Storage, NÃO abate cota de
-// documentos (é ferramenta de campo, não geração de doc).
+// Cada item guarda um ARRAY `fotos` — dá pra tirar mais de uma foto, anexar
+// arquivo (PDF/imagem do PC ou da galeria) e remover a que não ficou boa.
 //
+// Acesso: TODOS os planos, sempre salvo no Storage, NÃO abate cota de documentos.
 // Storage: reusa o bucket `documentos` (privado), pasta vistorias/<user>/<id>/.
 // O link público (/v/:id) gera signed URL fresca de cada foto a cada abertura —
 // nunca guarda URL que expira; guarda só o caminho.
@@ -24,32 +25,40 @@ const router = Router();
 // Itens padrão da vistoria. `key` é estável (usado no caminho do Storage e no
 // item_key das requisições); `label` é o texto exibido e fica gravado no jsonb.
 export const CHECKLIST_VISTORIA: { key: string; label: string; dica: string }[] = [
-  { key: 'conta_luz',      label: 'Conta de luz',                dica: 'Página com o consumo (kWh) e a titularidade' },
-  { key: 'padrao_medidor', label: 'Padrão de entrada / relógio', dica: 'O medidor (relógio) e a caixa do padrão' },
-  { key: 'disjuntor',      label: 'Disjuntor geral / quadro',    dica: 'Quadro de distribuição aberto, com o disjuntor geral' },
-  { key: 'telhado_geral',  label: 'Telhado — visão geral',       dica: 'O telhado inteiro, de onde dá pra ver a área' },
-  { key: 'tipo_telha',     label: 'Tipo de telha (de perto)',    dica: 'Foto aproximada de uma telha' },
-  { key: 'estrutura',      label: 'Estrutura / vão dos painéis', dica: 'Onde os painéis vão ficar' },
-  { key: 'inversores',     label: 'Local dos inversores',        dica: 'Parede/área onde o inversor será instalado' },
-  { key: 'cabeamento',     label: 'Caminho do cabeamento',       dica: 'Trajeto do telhado até o quadro' },
-  { key: 'sombreamento',   label: 'Sombreamento',                dica: 'Árvores, prédios, caixa d’água que fazem sombra' },
-  { key: 'fachada',        label: 'Fachada / número da casa',    dica: 'Frente do imóvel com o número' },
+  { key: 'conta_luz',           label: 'Conta de luz',                       dica: 'Página com o consumo (kWh) e a titularidade' },
+  { key: 'documento_pessoal',   label: 'CNH / Identidade',                   dica: 'Documento com foto do titular da conta' },
+  { key: 'padrao',              label: 'Padrão de entrada',                  dica: 'A caixa do padrão de entrada de energia' },
+  { key: 'medidor',             label: 'Medidor / Relógio',                  dica: 'O relógio medidor da concessionária' },
+  { key: 'disjuntor_padrao',    label: 'Disjuntor do padrão',                dica: 'O disjuntor geral, no padrão de entrada' },
+  { key: 'quadro_distribuicao', label: 'Quadro de distribuição',             dica: 'Quadro de disjuntores interno, aberto' },
+  { key: 'inversores',          label: 'Local dos inversores / Disjuntor C.A', dica: 'Parede/área do inversor e do disjuntor CA' },
+  { key: 'telhado',             label: 'Telhado',                            dica: 'Visão geral do telhado' },
+  { key: 'tipo_telha',          label: 'Tipo de telha',                      dica: 'Foto aproximada de uma telha' },
+  { key: 'estrutura',           label: 'Estrutura apropriada',               dica: 'Onde a estrutura dos painéis será fixada' },
+  { key: 'cabeamento',          label: 'Caminho do cabeamento',              dica: 'Trajeto do telhado até o quadro' },
+  { key: 'sombreamento',        label: 'Sombreamento',                       dica: 'Árvores, prédios, caixa d’água que fazem sombra' },
 ];
+
+type Foto = {
+  url: string;          // caminho no Storage (NUNCA a signed url)
+  ts: string;
+  tipo: 'image' | 'file';
+  nome?: string;        // nome original do arquivo (só pra 'file')
+};
 
 type ItemVistoria = {
   key: string;
   label: string;
   dica: string;
-  foto_url: string | null; // caminho no Storage (NUNCA a signed url)
   obs: string;
-  ts: string | null;
+  fotos: Foto[];
 };
 
 const BUCKET = 'documentos';
 
 function seedItens(): ItemVistoria[] {
   return CHECKLIST_VISTORIA.map((c) => ({
-    key: c.key, label: c.label, dica: c.dica, foto_url: null, obs: '', ts: null,
+    key: c.key, label: c.label, dica: c.dica, obs: '', fotos: [],
   }));
 }
 
@@ -57,14 +66,16 @@ function seedItens(): ItemVistoria[] {
 async function getOwned(id: string, userId: string) {
   const { data } = await supabase
     .from('vistorias')
-    .select('id, user_id, cliente_nome, status, itens, created_at')
+    .select('id, user_id, cliente_id, cliente_nome, status, itens, created_at')
     .eq('id', id)
     .eq('user_id', userId)
     .maybeSingle();
   return data as
-    | { id: string; user_id: string; cliente_nome: string | null; status: string; itens: ItemVistoria[]; created_at: string }
+    | { id: string; user_id: string; cliente_id: string | null; cliente_nome: string | null; status: string; itens: ItemVistoria[]; created_at: string }
     | null;
 }
+
+const fotosDe = (i: ItemVistoria): Foto[] => (Array.isArray(i.fotos) ? i.fotos : []);
 
 // ── POST /vistorias — cria a vistoria (opcionalmente grudada num cliente) ──────
 const createSchema = z.object({
@@ -80,7 +91,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
   }
   const { cliente_id, cliente_nome } = parsed.data;
 
-  // Se veio cliente_id, confirma que é do usuário e puxa o nome real.
+  // Se veio cliente_id, confirma que é do usuário e puxa o nome real — assim a
+  // vistoria fica grudada no cadastro do cliente (armazenada junto dele).
   let nome = cliente_nome || null;
   let clienteId: string | null = null;
   if (cliente_id) {
@@ -105,7 +117,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
       status: 'em_andamento',
       itens: seedItens(),
     })
-    .select('id, cliente_nome, status, itens, created_at')
+    .select('id, cliente_id, cliente_nome, status, itens, created_at')
     .single();
 
   if (error || !data) {
@@ -121,7 +133,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
 router.get('/list', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const { data, error } = await supabase
     .from('vistorias')
-    .select('id, cliente_nome, status, itens, created_at')
+    .select('id, cliente_id, cliente_nome, status, itens, created_at')
     .eq('user_id', req.userId)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -132,14 +144,15 @@ router.get('/list', authMiddleware, async (req: Request, res: Response): Promise
     return;
   }
 
-  const lista = (data ?? []).map((v: { id: string; cliente_nome: string | null; status: string; itens: ItemVistoria[]; created_at: string }) => {
+  const lista = (data ?? []).map((v: { id: string; cliente_id: string | null; cliente_nome: string | null; status: string; itens: ItemVistoria[]; created_at: string }) => {
     const itens = Array.isArray(v.itens) ? v.itens : [];
     return {
       id: v.id,
+      cliente_id: v.cliente_id,
       cliente_nome: v.cliente_nome,
       status: v.status,
       total: itens.length,
-      preenchidos: itens.filter((i) => i.foto_url).length,
+      preenchidos: itens.filter((i) => fotosDe(i).length > 0).length,
       created_at: v.created_at,
     };
   });
@@ -157,12 +170,13 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<
   res.json({ ...v, itens });
 });
 
-// ── POST /vistorias/:id/foto — sobe a foto de UM item ──────────────────────────
-// Frontend manda a imagem já comprimida (jpeg base64). Guardamos só o caminho.
+// ── POST /vistorias/:id/foto — ADICIONA uma foto/arquivo ao item ───────────────
+// Aceita imagem (câmera ou galeria/PC, já comprimida no cliente) ou arquivo (PDF).
 const fotoSchema = z.object({
   item_key: z.string().min(1).max(40),
   base64: z.string().min(10),
-  media_type: z.enum(['image/jpeg', 'image/png', 'image/webp']).default('image/jpeg'),
+  media_type: z.enum(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']).default('image/jpeg'),
+  nome: z.string().max(255).optional(),
 });
 
 router.post('/:id/foto', authMiddleware, async (req: Request, res: Response): Promise<void> => {
@@ -171,7 +185,7 @@ router.post('/:id/foto', authMiddleware, async (req: Request, res: Response): Pr
     res.status(400).json({ error: 'Dados da foto inválidos' });
     return;
   }
-  const { item_key, base64, media_type } = parsed.data;
+  const { item_key, base64, media_type, nome } = parsed.data;
 
   const v = await getOwned(String(req.params.id), req.userId);
   if (!v) {
@@ -179,57 +193,91 @@ router.post('/:id/foto', authMiddleware, async (req: Request, res: Response): Pr
     return;
   }
   const itens = Array.isArray(v.itens) ? v.itens : [];
-  const idx = itens.findIndex((i) => i.key === item_key);
-  if (idx === -1) {
+  if (!itens.some((i) => i.key === item_key)) {
     res.status(400).json({ error: 'Item desconhecido.' });
     return;
   }
 
-  // Decodifica e sobe pro Storage.
   let buffer: Buffer;
   try {
     buffer = Buffer.from(base64, 'base64');
   } catch {
-    res.status(400).json({ error: 'Imagem inválida.' });
+    res.status(400).json({ error: 'Arquivo inválido.' });
     return;
   }
-  if (buffer.length > 8_000_000) {
-    res.status(413).json({ error: 'Foto muito grande. Tente novamente.' });
+  if (buffer.length > 9_000_000) {
+    res.status(413).json({ error: 'Arquivo muito grande (máx ~9MB). Tente de novo.' });
     return;
   }
-  const ext = media_type === 'image/png' ? 'png' : media_type === 'image/webp' ? 'webp' : 'jpg';
-  const path = `vistorias/${req.userId}/${v.id}/${item_key}-${Date.now()}.${ext}`;
-  const anterior = itens[idx].foto_url;
+
+  const isPdf = media_type === 'application/pdf';
+  const ext = isPdf ? 'pdf' : media_type === 'image/png' ? 'png' : media_type === 'image/webp' ? 'webp' : 'jpg';
+  const path = `vistorias/${req.userId}/${v.id}/${item_key}-${Date.now()}-${Math.round(buffer.length % 100000)}.${ext}`;
 
   const { error: upErr } = await supabase.storage
     .from(BUCKET)
     .upload(path, buffer, { contentType: media_type, upsert: false });
   if (upErr) {
     logger.error('vistorias', 'upload da foto falhou', upErr);
-    res.status(502).json({ error: 'Não consegui salvar a foto. Tente de novo.' });
+    res.status(502).json({ error: 'Não consegui salvar. Tente de novo.' });
     return;
   }
 
-  // Update ATÔMICO via função Postgres: um único UPDATE mescla só este item, então
-  // dois uploads concorrentes (itens diferentes) nunca se sobrescrevem.
-  const { error: updErr } = await supabase.rpc('vistoria_patch_item', {
-    p_id: v.id,
-    p_user: req.userId,
-    p_key: item_key,
-    p_patch: { foto_url: path, ts: new Date().toISOString() },
+  const foto: Foto = { url: path, ts: new Date().toISOString(), tipo: isPdf ? 'file' : 'image', nome };
+  // Append ATÔMICO: um único UPDATE acrescenta ao array deste item — dois uploads
+  // concorrentes (mesmo item ou itens diferentes) nunca se sobrescrevem.
+  const { data: rows, error: updErr } = await supabase.rpc('vistoria_add_foto', {
+    p_id: v.id, p_user: req.userId, p_key: item_key, p_foto: foto,
   });
   if (updErr) {
-    logger.error('vistorias', 'falha gravando item', updErr);
-    res.status(500).json({ error: 'Foto subiu mas não consegui registrar. Tente de novo.' });
+    logger.error('vistorias', 'falha gravando foto', updErr);
+    res.status(500).json({ error: 'Subiu mas não consegui registrar. Tente de novo.' });
+    return;
+  }
+  if (rows === -1) {
+    res.status(404).json({ error: 'Vistoria não encontrada.' });
     return;
   }
 
-  // Best-effort: apaga a foto antiga que acabou de ser substituída.
-  if (anterior && anterior !== path) {
-    supabase.storage.from(BUCKET).remove([anterior]).catch(() => {});
+  const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
+  res.json({ ok: true, item_key, foto: { ...foto, signed: signed?.signedUrl ?? null } });
+});
+
+// ── DELETE /vistorias/:id/foto — remove UMA foto/arquivo do item ───────────────
+const removeSchema = z.object({
+  item_key: z.string().min(1).max(40),
+  url: z.string().min(1),
+});
+
+router.delete('/:id/foto', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const parsed = removeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Dados inválidos' });
+    return;
+  }
+  const { item_key, url } = parsed.data;
+  const v = await getOwned(String(req.params.id), req.userId);
+  if (!v) {
+    res.status(404).json({ error: 'Vistoria não encontrada.' });
+    return;
+  }
+  // Segurança: só remove um caminho que pertence a ESTA vistoria (prefixo do path).
+  if (!url.startsWith(`vistorias/${req.userId}/${v.id}/`)) {
+    res.status(400).json({ error: 'Arquivo inválido.' });
+    return;
   }
 
-  res.json({ ok: true, item_key, foto_url: path });
+  const { error: updErr } = await supabase.rpc('vistoria_remove_foto', {
+    p_id: v.id, p_user: req.userId, p_key: item_key, p_url: url,
+  });
+  if (updErr) {
+    logger.error('vistorias', 'falha removendo foto', updErr);
+    res.status(500).json({ error: 'Não consegui remover.' });
+    return;
+  }
+  // Best-effort: apaga o arquivo do Storage.
+  supabase.storage.from(BUCKET).remove([url]).catch(() => {});
+  res.json({ ok: true });
 });
 
 // ── PATCH /vistorias/:id/item — atualiza a observação de um item ───────────────
@@ -284,13 +332,20 @@ router.post('/:id/concluir', authMiddleware, async (req: Request, res: Response)
   res.json({ ok: true, id: v.id });
 });
 
-// Troca cada foto_url (caminho) por uma signed url temporária pra exibição.
-export async function withSignedUrls(itens: ItemVistoria[]): Promise<(ItemVistoria & { foto_signed?: string | null })[]> {
+// Troca cada caminho de foto por uma signed url temporária pra exibição.
+export type FotoSigned = Foto & { signed: string | null };
+export async function withSignedUrls(
+  itens: ItemVistoria[],
+): Promise<(Omit<ItemVistoria, 'fotos'> & { fotos: FotoSigned[] })[]> {
   return Promise.all(
     itens.map(async (i) => {
-      if (!i.foto_url) return { ...i, foto_signed: null };
-      const { data } = await supabase.storage.from(BUCKET).createSignedUrl(i.foto_url, 3600);
-      return { ...i, foto_signed: data?.signedUrl ?? null };
+      const fotos = await Promise.all(
+        fotosDe(i).map(async (f) => {
+          const { data } = await supabase.storage.from(BUCKET).createSignedUrl(f.url, 3600);
+          return { ...f, signed: data?.signedUrl ?? null };
+        }),
+      );
+      return { ...i, fotos };
     }),
   );
 }

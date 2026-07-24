@@ -96,3 +96,34 @@
 }
 .vst-toast { font-size: 13px; color: #34d399; margin-top: 8px; text-align: center; }
 .vst-err { color: #f87171; font-size: 14px; margin-top: 10px; text-align: center; }
+
+/* Seletor de cliente: 3 modos */
+.vst-seg { display: flex; gap: 6px; margin-bottom: 12px; background: var(--color-bg, #0f172a); padding: 4px; border-radius: 12px; border: 1px solid var(--color-border, #334155); }
+.vst-segBtn { flex: 1; padding: 9px 6px; border: none; border-radius: 9px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--color-text-muted, #94a3b8); background: transparent; }
+.vst-segBtn.on { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #0f172a; }
+
+/* Item com galeria (novo layout: vertical) */
+.vst-item2 { background: var(--color-surface, #1e293b); border: 1px solid var(--color-border, #334155); border-radius: 14px; padding: 14px; }
+.vst-item2.vst-done { border-color: #16a34a66; }
+.vst-itemNum { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 7px; background: var(--color-bg, #0f172a); border: 1px solid var(--color-border, #334155); font-size: 12px; font-weight: 700; color: var(--color-text-muted, #94a3b8); }
+.vst-itemNum.done { background: #16a34a; border-color: #16a34a; color: #fff; }
+
+.vst-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 10px; }
+.vst-photo { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; border: 1px solid var(--color-border, #334155); cursor: pointer; background: var(--color-bg, #0f172a); }
+.vst-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vst-fileChip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; color: var(--color-text-muted, #cbd5e1); font-size: 10px; padding: 4px; word-break: break-word; }
+.vst-photoDel { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(15,23,42,.8); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.vst-photoUp { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,.6); }
+.vst-photoErr { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(127,29,29,.75); color: #fff; font-size: 11px; text-align: center; padding: 4px; }
+
+.vst-addBtns { display: flex; gap: 8px; margin-top: 10px; }
+.vst-addBtn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: inherit; background: var(--color-bg, #0f172a); border: 1px solid var(--color-border, #334155); }
+.vst-addBtn:hover { border-color: #f59e0b; }
+
+/* Lightbox de conferência */
+.vst-lightbox { position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,.9); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+.vst-lightbox img { max-width: 100%; max-height: 78vh; border-radius: 12px; object-fit: contain; }
+.vst-lbActions { display: flex; gap: 12px; margin-top: 16px; }
+.vst-lbBtn { padding: 12px 22px; border-radius: 12px; border: none; cursor: pointer; font-size: 14px; font-weight: 700; }
+.vst-lbClose { background: #334155; color: #fff; }
+.vst-lbDel { background: #dc2626; color: #fff; }
