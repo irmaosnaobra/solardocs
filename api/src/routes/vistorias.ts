@@ -165,7 +165,7 @@ router.get('/list', authMiddleware, async (req: Request, res: Response): Promise
 // dela. Isolamento por tenant total.
 router.get('/clientes', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const compQ = supabase.from('company').select('user_id, nome').eq('user_id', req.userId);
-  const cliQ = supabase.from('clients').select('id, nome, user_id')
+  const cliQ = supabase.from('clients').select('id, nome, user_id, documentos')
     .eq('user_id', req.userId).order('nome', { ascending: true });
   const [{ data: comps }, { data: clis, error }] = await Promise.all([compQ, cliQ.limit(5000)]);
   if (error) {
@@ -175,11 +175,13 @@ router.get('/clientes', authMiddleware, async (req: Request, res: Response): Pro
   }
 
   const nomeEmpresa = new Map<string, string>((comps ?? []).map((c: { user_id: string; nome: string }) => [c.user_id, c.nome]));
-  const grupos = new Map<string, { id: string; nome: string }[]>();
-  for (const cl of (clis ?? []) as { id: string; nome: string; user_id: string }[]) {
+  const grupos = new Map<string, { id: string; nome: string; docs: string[] }[]>();
+  for (const cl of (clis ?? []) as { id: string; nome: string; user_id: string; documentos: { tipo: string }[] | null }[]) {
     const emp = nomeEmpresa.get(cl.user_id) || '— Sem empresa —';
     if (!grupos.has(emp)) grupos.set(emp, []);
-    grupos.get(emp)!.push({ id: cl.id, nome: cl.nome });
+    // docs = tipos distintos já arquivados (conta_luz / identidade)
+    const docs = [...new Set((Array.isArray(cl.documentos) ? cl.documentos : []).map((d) => d.tipo))];
+    grupos.get(emp)!.push({ id: cl.id, nome: cl.nome, docs });
   }
   const out = [...grupos.entries()]
     .map(([empresa, clientes]) => ({ empresa, clientes }))

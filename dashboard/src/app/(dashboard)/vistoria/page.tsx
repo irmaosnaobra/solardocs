@@ -14,8 +14,12 @@ function logUso(event_type: string) {
   api.post('/feature-events', { feature: 'vistoria', event_type }).catch(() => {});
 }
 
-interface Client { id: string; nome: string }
+interface Client { id: string; nome: string; docs?: string[] }
 interface Grupo { empresa: string; clientes: Client[] }
+
+// Documento escaneado que será arquivado no cliente após o cadastro.
+type DocTipo = 'conta_luz' | 'identidade';
+interface DocPendente { base64: string; media_type: string; nome: string }
 
 // Uma foto/arquivo no estado do cliente. `url` só existe depois de subir.
 interface Foto {
@@ -94,6 +98,9 @@ export default function VistoriaPage() {
   // pré-preenchem o ClientModal. scanBusy = leitura em andamento.
   const [seedNovo, setSeedNovo] = useState<Record<string, string>>({});
   const [scanBusy, setScanBusy] = useState<'' | 'conta' | 'documento'>('');
+  // Arquivos escaneados guardados pra arquivar no cliente após o cadastro.
+  const [docsPendentes, setDocsPendentes] = useState<Partial<Record<DocTipo, DocPendente>>>({});
+  const docsPendentesRef = useRef<Partial<Record<DocTipo, DocPendente>>>({});
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const scanRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -132,18 +139,29 @@ export default function VistoriaPage() {
     }
   }
 
-  // Cliente novo cadastrado no modal → seleciona e vira modo "cadastrado".
-  function onClienteCriado(c: Client) {
+  function guardarPendente(tipo: DocTipo, doc: DocPendente) {
+    setDocsPendentes((prev) => { const n = { ...prev, [tipo]: doc }; docsPendentesRef.current = n; return n; });
+  }
+
+  // Cliente novo cadastrado no modal → arquiva os documentos lidos NELE, seleciona
+  // e vira modo "cadastrado".
+  async function onClienteCriado(c: Client) {
     setModalOpen(false);
-    setSeedNovo({});
+    const pend = docsPendentesRef.current;
+    // Arquiva conta de luz / identidade no cliente recém-criado (best-effort).
+    await Promise.all((Object.keys(pend) as DocTipo[]).map((tipo) => {
+      const d = pend[tipo]!;
+      return api.post(`/clients/${c.id}/documento`, { tipo, base64: d.base64, media_type: d.media_type, nome: d.nome }).catch(() => {});
+    }));
+    setSeedNovo({}); setDocsPendentes({}); docsPendentesRef.current = {};
     setClienteId(c.id);
     setClienteNome(c.nome);
     setModo('cadastrado');
-    carregarGrupos(); // recarrega a lista agrupada já com o novo cliente
+    carregarGrupos(); // recarrega a lista agrupada já com o novo cliente + docs
   }
 
-  // Lê um documento (conta de luz ou RG/CNH) via IA e mescla os campos no seed
-  // que pré-preenche o cadastro. Campos vazios não sobrescrevem o que já veio.
+  // Lê um documento (conta de luz ou RG/CNH) via IA, mescla os campos no seed do
+  // cadastro E guarda o arquivo pra arquivar no cliente. Vazio não sobrescreve.
   async function scanDoc(kind: 'conta' | 'documento', file: File) {
     setErro(''); setScanBusy(kind);
     try {
@@ -163,6 +181,8 @@ export default function VistoriaPage() {
         if (typeof v === 'string' && v.trim()) limpos[k] = v;
       }
       setSeedNovo((prev) => ({ ...prev, ...limpos }));
+      // Guarda o arquivo pra ser arquivado no cliente ao cadastrar.
+      guardarPendente(kind === 'conta' ? 'conta_luz' : 'identidade', { base64, media_type, nome: file.name });
     } catch (err) {
       setErro(apiError(err) || 'Não consegui ler o documento. Tente uma foto mais nítida.');
     } finally {
@@ -173,6 +193,17 @@ export default function VistoriaPage() {
   function onPickScan(kind: 'conta' | 'documento', files: FileList | null) {
     const f = files?.[0];
     if (f) scanDoc(kind, f);
+  }
+
+  // Antes de escanear: se já existe esse tipo, avisa (evita redundância) e deixa
+  // decidir se adiciona/substitui.
+  function tentarScan(kind: 'conta' | 'documento') {
+    const tipo: DocTipo = kind === 'conta' ? 'conta_luz' : 'identidade';
+    if (docsPendentes[tipo]) {
+      const nome = kind === 'conta' ? 'uma conta de luz' : 'um documento';
+      if (!window.confirm(`Você já adicionou ${nome}. Deseja substituir pelo novo?`)) return;
+    }
+    scanRefs.current[kind]?.click();
   }
 
   const addArquivo = useCallback(async (itemKey: string, file: File) => {
@@ -242,6 +273,7 @@ export default function VistoriaPage() {
   function reset() {
     setVistoria(null); setConcluida(false); setErro('');
     setModo('cadastrado'); setClienteId(''); setClienteNome(''); setSeedNovo({});
+    setDocsPendentes({}); docsPendentesRef.current = {};
   }
 
   const total = vistoria?.itens.length ?? 0;
@@ -278,14 +310,27 @@ export default function VistoriaPage() {
 
           {modo === 'cadastrado' && (
             grupos.some((g) => g.clientes.length > 0) ? (
-              <select className="vst-select" value={clienteId} onChange={(e) => setClienteId(e.target.value)} style={{ marginBottom: 14 }}>
-                <option value="">— Escolha um cliente —</option>
-                {grupos.filter((g) => g.clientes.length > 0).map((g) => (
-                  <optgroup key={g.empresa} label={g.empresa}>
-                    {g.clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                  </optgroup>
-                ))}
-              </select>
+              <>
+                <select className="vst-select" value={clienteId} onChange={(e) => setClienteId(e.target.value)} style={{ marginBottom: clienteId ? 8 : 14 }}>
+                  <option value="">— Escolha um cliente —</option>
+                  {grupos.filter((g) => g.clientes.length > 0).map((g) => (
+                    <optgroup key={g.empresa} label={g.empresa}>
+                      {g.clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+                {(() => {
+                  const sel = clienteId ? grupos.flatMap((g) => g.clientes).find((c) => c.id === clienteId) : null;
+                  const docs = sel?.docs || [];
+                  if (!clienteId) return null;
+                  return (
+                    <div className="vst-docBadges">
+                      <span className={`vst-docBadge ${docs.includes('conta_luz') ? 'on' : ''}`}>{docs.includes('conta_luz') ? '✓' : '○'} Conta de luz</span>
+                      <span className={`vst-docBadge ${docs.includes('identidade') ? 'on' : ''}`}>{docs.includes('identidade') ? '✓' : '○'} Documento</span>
+                    </div>
+                  );
+                })()}
+              </>
             ) : (
               <p className="vst-heroSub" style={{ marginBottom: 14 }}>Nenhum cliente cadastrado ainda. Use “Cadastrar Cliente” ou “Apenas Nome”.</p>
             )
@@ -310,20 +355,25 @@ export default function VistoriaPage() {
                     Envie os documentos que a IA preenche o cadastro sozinha (opcional):
                   </p>
                   <div className="vst-addBtns">
-                    <button className="vst-addBtn" disabled={!!scanBusy} onClick={() => scanRefs.current.conta?.click()}>
-                      {scanBusy === 'conta' ? <span className="vst-spin" /> : <FileText size={16} />} Conta de luz
+                    <button className="vst-addBtn" disabled={!!scanBusy} onClick={() => tentarScan('conta')}>
+                      {scanBusy === 'conta' ? <span className="vst-spin" /> : docsPendentes.conta_luz ? <Check size={16} color="#16a34a" /> : <FileText size={16} />} Conta de luz
                     </button>
-                    <button className="vst-addBtn" disabled={!!scanBusy} onClick={() => scanRefs.current.documento?.click()}>
-                      {scanBusy === 'documento' ? <span className="vst-spin" /> : <Paperclip size={16} />} Identidade / CNH
+                    <button className="vst-addBtn" disabled={!!scanBusy} onClick={() => tentarScan('documento')}>
+                      {scanBusy === 'documento' ? <span className="vst-spin" /> : docsPendentes.identidade ? <Check size={16} color="#16a34a" /> : <Paperclip size={16} />} Identidade / CNH
                     </button>
                   </div>
 
-                  {(seedNovo.nome || seedNovo.cpf_cnpj || seedNovo.endereco) && (
+                  {(seedNovo.nome || seedNovo.cpf_cnpj || seedNovo.endereco || docsPendentes.conta_luz || docsPendentes.identidade) && (
                     <div className="vst-scanInfo">
                       <strong>Dados lidos:</strong>
                       {seedNovo.nome ? <span>👤 {seedNovo.nome}</span> : null}
                       {seedNovo.cpf_cnpj ? <span>🪪 {seedNovo.cpf_cnpj}</span> : null}
                       {seedNovo.endereco ? <span>📍 {seedNovo.endereco}</span> : null}
+                      {(docsPendentes.conta_luz || docsPendentes.identidade) && (
+                        <span style={{ color: '#34d399' }}>
+                          📎 Será arquivado no cliente: {[docsPendentes.conta_luz && 'conta de luz', docsPendentes.identidade && 'documento'].filter(Boolean).join(' + ')}
+                        </span>
+                      )}
                     </div>
                   )}
 

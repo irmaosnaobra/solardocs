@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listClients, createClient, updateClient, deleteClient } from '../controllers/clientsController';
+import { listClients, createClient, updateClient, deleteClient, addClientDocumento } from '../controllers/clientsController';
 import { scanConta, scanDocumento } from '../controllers/contaScanController';
 import { authMiddleware } from '../middleware/auth';
 import { aiLimiter } from '../middleware/rateLimiter';
@@ -17,5 +17,7 @@ router.post('/scan', aiLimiter, scanConta);
 router.post('/scan-documento', aiLimiter, scanDocumento);
 router.put('/:id', updateClient);
 router.delete('/:id', deleteClient);
+// Arquivar documento (conta de luz / identidade) no cliente.
+router.post('/:id/documento', addClientDocumento);
 
 export default router;

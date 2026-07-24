@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS clients (
   cep       VARCHAR(9)
 );
 
+-- Documentos arquivados do cliente (conta de luz, identidade/CNH do cadastro)
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS documentos JSONB NOT NULL DEFAULT '[]'::jsonb;
+
 -- Tabela documents
 CREATE TABLE IF NOT EXISTS documents (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

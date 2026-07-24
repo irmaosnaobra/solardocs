@@ -114,3 +114,71 @@ export async function deleteClient(req: Request, res: Response): Promise<void> {
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 }
+
+// ── Arquivar documento do cliente (conta de luz / identidade) ──────────────────
+// Guarda o arquivo no Storage e registra em clients.documentos, pra ficar
+// arquivado junto do cliente e o app saber que já existe (evita redundância).
+const docSchema = z.object({
+  tipo: z.enum(['conta_luz', 'identidade']),
+  base64: z.string().min(10),
+  media_type: z.enum(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']).default('image/jpeg'),
+  nome: z.string().max(255).optional(),
+});
+
+export async function addClientDocumento(req: Request, res: Response): Promise<void> {
+  let body: z.infer<typeof docSchema>;
+  try {
+    body = docSchema.parse(req.body);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.issues[0].message });
+      return;
+    }
+    res.status(400).json({ error: 'Requisição inválida' });
+    return;
+  }
+  const { id } = req.params;
+
+  // Confere que o cliente é do usuário.
+  const { data: cli } = await supabase
+    .from('clients').select('id').eq('id', id).eq('user_id', req.userId).maybeSingle();
+  if (!cli) {
+    res.status(404).json({ error: 'Cliente não encontrado' });
+    return;
+  }
+
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(body.base64, 'base64');
+  } catch {
+    res.status(400).json({ error: 'Arquivo inválido.' });
+    return;
+  }
+  if (buffer.length > 9_000_000) {
+    res.status(413).json({ error: 'Arquivo muito grande (máx ~9MB).' });
+    return;
+  }
+
+  const isPdf = body.media_type === 'application/pdf';
+  const ext = isPdf ? 'pdf' : body.media_type === 'image/png' ? 'png' : body.media_type === 'image/webp' ? 'webp' : 'jpg';
+  const path = `clientes/${req.userId}/${id}/${body.tipo}-${Date.now()}.${ext}`;
+
+  const { error: upErr } = await supabase.storage
+    .from('documentos').upload(path, buffer, { contentType: body.media_type, upsert: false });
+  if (upErr) {
+    console.error('addClientDocumento upload error:', upErr);
+    res.status(502).json({ error: 'Não consegui arquivar. Tente de novo.' });
+    return;
+  }
+
+  const documento = { tipo: body.tipo, url: path, ts: new Date().toISOString(), nome: body.nome ?? null };
+  const { error: rpcErr } = await supabase.rpc('client_add_documento', {
+    p_id: id, p_user: req.userId, p_doc: documento,
+  });
+  if (rpcErr) {
+    console.error('addClientDocumento rpc error:', rpcErr);
+    res.status(500).json({ error: 'Arquivo subiu mas não consegui registrar.' });
+    return;
+  }
+  res.json({ ok: true, documento });
+}
