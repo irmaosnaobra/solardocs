@@ -6,6 +6,7 @@ import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStud
 import { gerarProdutosVirais, redispararVideoProduto } from '../services/agenda/produtosViraisService';
 import { processarWebhook, reconciliarStatusProduto, animarProduto } from '../services/agenda/higgsfieldService';
 import { ingestManychatLead } from '../services/agenda/manychatLeadService';
+import { runGeradorBroadcastTick } from '../services/io/geradorAutomacaoService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -40,6 +41,21 @@ router.post('/manychat-lead', async (req: Request, res: Response) => {
     res.status(r.ok ? 200 : 400).json(r);
   } catch (err: any) {
     logger.error('gerador', 'manychat-lead falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// Central de Automação (Disparos): "kick" opcional pra disparar um tick na hora,
+// pro 1º envio não esperar até 60s pelo cron. É idempotente e passa por TODAS as
+// travas do motor (kill-switch, allow-list de CRM, supressão, caps, lock de linha).
+// Como o enqueue já é aberto (chave publishable pública), este endpoint não precisa
+// de auth pesada — no pior caso só faz o que o cron faria. O globalLimiter cobre.
+router.post('/automacao/kick', async (_req: Request, res: Response) => {
+  try {
+    const result = await runGeradorBroadcastTick();
+    res.json({ ok: true, ...result });
+  } catch (err: any) {
+    logger.error('gerador', 'automacao/kick falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });

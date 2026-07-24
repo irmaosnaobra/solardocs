@@ -1,8 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
+import { MediaType, sleep, humanizar, enviarZapiIO, carregarSupressao, adquirirLockBlast, liberarLockBlast } from './ioSend';
 
-type MediaType = 'image' | 'video' | 'audio';
 interface Mensagem {
   slot: number;
   base: string;
@@ -24,92 +23,27 @@ interface Broadcast {
 
 interface EnvioEnviado { phone: string; slot: number }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function humanizar(base: string, contexto: string | null): Promise<string> {
-  const key = process.env.ANTHROPIC_API_KEY?.trim();
-  if (!key) return base;
-  const anthropic = new Anthropic({ apiKey: key });
-  const ctx = (contexto || '').trim();
-  const systemPrompt = [
-    'Voce reformula uma mensagem-base do WhatsApp para soar como um humano brasileiro real escrevendo, nao como robo.',
-    'Regras absolutas:',
-    '- Mantenha o significado e a intencao da mensagem-base.',
-    '- Frases curtas, naturais, coloquiais.',
-    '- NUNCA use travessao (—) nem em-dash. Use virgula, ponto, ou simplesmente quebre a frase.',
-    '- Sem emoji.',
-    '- Variar sutilmente entre reformulacoes: ora "tudo bem?", ora vai direto; ora "Boa tarde", ora "Oi".',
-    '- Nao adicione informacao nova que nao esteja na base.',
-    '- Saida: APENAS a mensagem reformulada, sem aspas, sem prefixo, sem explicacao.',
-    '',
-    'Exemplo de reformulacao no tom certo:',
-    'Base: Boa tarde, aqui e a Giovanna',
-    'Saida: Boa tarde, e a Giovanna falando',
-    ctx ? `\nContexto adicional do disparo: ${ctx}` : '',
-  ].filter(Boolean).join('\n');
-
-  const r = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 200,
-    temperature: 0.9,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: `Mensagem-base: ${base}\n\nReformule.` }],
-  });
-  const c = r.content[0];
-  if (c?.type === 'text') return c.text.trim().replace(/^["']|["']$/g, '') || base;
-  return base;
-}
-
-async function enviarZapiIO(
-  phone: string,
-  message: string,
-  mediaUrl?: string | null,
-  mediaType?: MediaType | null,
-): Promise<{ ok: boolean; zaapId?: string; messageId?: string; erro?: string }> {
-  const id = process.env.ZAPI_INSTANCE_ID_IO?.trim();
-  const token = process.env.ZAPI_TOKEN_IO?.trim();
-  const client = (process.env.ZAPI_CLIENT_TOKEN_IO || process.env.ZAPI_CLIENT_TOKEN)?.trim();
-  if (!id || !token || !client) return { ok: false, erro: 'creds Z-API IO ausentes' };
-
-  const cleanPhone = phone.replace(/\D/g, '');
-
-  let path = 'send-text';
-  let body: Record<string, unknown> = { phone: cleanPhone, message };
-  if (mediaUrl && mediaType === 'image') {
-    path = 'send-image';
-    body = { phone: cleanPhone, image: mediaUrl, caption: message };
-  } else if (mediaUrl && mediaType === 'video') {
-    path = 'send-video';
-    body = { phone: cleanPhone, video: mediaUrl, caption: message };
-  } else if (mediaUrl && mediaType === 'audio') {
-    // send-audio nao aceita caption: o audio vai sozinho, como nota de voz
-    // "gravada so pra aquela pessoa" (waveform exibe as ondas sonoras).
-    path = 'send-audio';
-    body = { phone: cleanPhone, audio: mediaUrl, waveform: true };
-  }
-
-  const r = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Client-Token': client },
-    body: JSON.stringify(body),
-  });
-  const txt = await r.text();
-  if (!r.ok) return { ok: false, erro: `HTTP ${r.status}: ${txt.slice(0, 200)}` };
-  try {
-    const parsed = JSON.parse(txt) as { zaapId?: string; messageId?: string; id?: string };
-    return { ok: true, zaapId: parsed.zaapId, messageId: parsed.messageId || parsed.id };
-  } catch {
-    return { ok: true };
-  }
-}
-
 const MAX_ENVIOS_POR_TICK = 10;
 const TICK_MAX_DURATION_MS = 240000; // 4 min (deixa 60s de buffer pro Vercel 300s)
 const LOCK_DURATION_MS = 5 * 60 * 1000;
 
-export async function runIoBroadcastTick(): Promise<{ processed: number; broadcast_id?: string; status?: string; reason?: string }> {
+type TickResult = { processed: number; broadcast_id?: string; status?: string; reason?: string };
+
+// Wrapper: pega o lock de linha compartilhado (owner 'admin') antes de blastar.
+// Se o motor do Gerador estiver com a linha, cede o tick — evita dois blasts
+// simultâneos na mesma linha (risco de ban).
+export async function runIoBroadcastTick(): Promise<TickResult> {
+  if (!(await adquirirLockBlast('admin', LOCK_DURATION_MS))) {
+    return { processed: 0, reason: 'linha_ocupada_outro_motor' };
+  }
+  try {
+    return await runIoBroadcastTickInner();
+  } finally {
+    await liberarLockBlast('admin');
+  }
+}
+
+async function runIoBroadcastTickInner(): Promise<TickResult> {
   const nowIso = new Date().toISOString();
 
   // 1. Encontra broadcast candidato (rodando, sem lock ativo). Ordena por ultimo_envio_em
@@ -162,18 +96,7 @@ export async function runIoBroadcastTick(): Promise<{ processed: number; broadca
     //      contatado (opt-out/denúncia). É o que impede re-contatar alguém cujo
     //      número foi raspado de novo do Google Maps. Casa por sufixo de 10 dígitos
     //      (com/sem 9º dígito/DDI). Anti-denúncia de verdade.
-    const sufBloqueados = new Set<string>();
-    {
-      const { data: supRows } = await supabase.from('whatsapp_suppression').select('phone');
-      for (const r of supRows ?? []) {
-        const d = String(r.phone || '').replace(/\D/g, '');
-        if (d.length >= 10) sufBloqueados.add(d.slice(-10));
-      }
-    }
-    const estaBloqueado = (phone: string): boolean => {
-      const d = String(phone || '').replace(/\D/g, '');
-      return d.length >= 10 && sufBloqueados.has(d.slice(-10));
-    };
+    const estaBloqueado = await carregarSupressao();
 
     // 4. Constrói fila de pendentes (mensagens × contatos - enviados)
     const pendentes: Array<{ phone: string; slot: number; base: string; mediaUrl: string | null; mediaType: MediaType | null }> = [];

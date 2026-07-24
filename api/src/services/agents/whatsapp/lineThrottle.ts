@@ -34,6 +34,7 @@ const BOT_SENT_PREFIXES = [
   'limpapro_cupom_sent:',
   'limpapro_fechamento_sent:',
   'gerador_followup:',
+  'gerador_seq:',            // sequências da Central de Automação (drip do Gerador)
 ] as const;
 
 /**

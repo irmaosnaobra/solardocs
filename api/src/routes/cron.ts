@@ -19,6 +19,7 @@ import { runCarlaMorningBroadcast } from '../services/agents/sdr/sdrB2bMorningHo
 import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
+import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda/leadsMetaService';
@@ -27,7 +28,6 @@ import { gerarProdutosVirais } from '../services/agenda/produtosViraisService';
 import { runDunning } from '../services/dunningService';
 import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
-import { runMonitorCriativos } from '../services/agenda/monitorCriativosService';
 import { runAuxiliarTrafego } from '../services/agenda/auxiliarTrafegoService';
 import { runCapiLeads } from '../services/agenda/capiLeadsService';
 import { tickOrdens } from '../services/metaOrdensService';
@@ -223,7 +223,7 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupConsumerResult, biaPollResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupConsumerResult, biaPollResult, geradorSeqResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -240,6 +240,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       processarLembretesAgenda(),      // lembretes 5min/3h da agenda /gerador
       runLimpaproRecoveryConsumer(),   // recuperação LimpaPro (Bia): drena marcadores prontos
       pollBiaRecuperacao(),            // inbound da Bia (poll IO; webhook IO não entrega texto)
+      runGeradorSequenciasConsumer(),  // Central de Automação: drip de sequências (gated por kill-switch)
     ]);
     res.json({
       ok: true,
@@ -252,6 +253,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       agenda:     agendaResult.status === 'fulfilled' ? agendaResult.value : { error: String((agendaResult as any).reason) },
       recup_consumer: recupConsumerResult.status === 'fulfilled' ? recupConsumerResult.value : { error: String((recupConsumerResult as any).reason) },
       bia_poll:       biaPollResult.status === 'fulfilled' ? biaPollResult.value : { error: String((biaPollResult as any).reason) },
+      gerador_seq:    geradorSeqResult.status === 'fulfilled' ? geradorSeqResult.value : { error: String((geradorSeqResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
@@ -464,6 +466,21 @@ router.get('/io-broadcast-tick', async (req: Request, res: Response) => {
   }
 });
 
+// Tick dedicado da Central de Automação do Gerador (disparos). Espelha o
+// io-broadcast-tick: um blast pode levar até 4 min, então não roda dentro do
+// /process-messages. Apontar o mesmo pinger de 1 min (Cloudflare Worker / GitHub
+// Actions) pra cá. Gated por CRON_SECRET + kill-switch GERADOR_AUTOMACAO_ENABLED.
+router.get('/gerador-broadcast-tick', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runGeradorBroadcastTick();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'gerador-broadcast-tick falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // Reconcilia users.plano com Stripe real (varre todas subs, pagina, e ajusta
 // plano + limite por email). Disparado pelo master horário (.github/workflows/cron.yml).
 // NÃO toca billing_status / past_due_since / dunning_last_day_sent — webhook é dono.
@@ -503,22 +520,6 @@ router.get('/dunning', async (req: Request, res: Response) => {
   } catch (err) {
     logger.error('cron', 'dunning falhou', err);
     res.status(500).json({ error: 'Cron failed' });
-  }
-});
-
-// Monitor de criativos ruins no Meta (conta Ekent- Pré Paga). Alerta no WhatsApp
-// do Thiago (34991360223) quando um anúncio gasta sem vender (sangrador) ou tem
-// CTR baixa + CPC alto (criativo fraco). NÃO pausa — só avisa com link pra pausar.
-// ?dry=1 → não envia WhatsApp, só loga o que enviaria (conferência).
-router.get('/monitor-criativos', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const dry = req.query.dry === '1' || req.query.dry === 'true';
-    const result = await runMonitorCriativos({ dry });
-    res.json({ ok: true, dry, ...result });
-  } catch (err: any) {
-    logger.error('cron', 'monitor-criativos falhou', err);
-    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
 
@@ -626,7 +627,6 @@ router.get('/master', async (req: Request, res: Response) => {
     ['meta-purchase-redrive',       () => reDrivePendingPurchases()], // reenvia Purchase que não confirmou entrega (garante Meta = card-pass)
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
     ['pix-vip-reminder',            () => runPixVipReminder()],     // avisa VIP-pix (84994501564) ~2d antes de vencer: valor + chave Pix
-    ['monitor-criativos',           () => runMonitorCriativos()],   // alerta WhatsApp: criativos Meta gastando sem vender / CTR baixa
     // ['auxiliar-trafego',            () => runAuxiliarTrafego()],    // [COPILOTO-OFF 23/07] Thiago pediu pra desligar — não quer mais os avisos horários. Rota manual /cron/auxiliar-trafego segue existindo (só dispara se chamada à mão). Reativar = descomentar.
     ['ordens-trafego-tick',         () => tickOrdens()],           // disciplina das ordens: expira vencidas (reconfere Meta) + abre novas
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)

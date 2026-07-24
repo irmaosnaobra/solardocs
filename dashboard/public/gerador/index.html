@@ -183,6 +183,48 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 @media(max-width:900px){.eletro-grid{grid-template-columns:1fr;gap:0}}
 #eletroSection .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:20px 18px;margin-bottom:16px}
 .eletro-sub{text-align:center;font-size:13px;color:#94A3B8;margin:-4px 0 18px}
+/* ===== Central de Automação (Disparos + Sequências) — fullscreen, reaproveita .calc-* ===== */
+html[data-mode="app"].automacao-aberto #app-sidebar,
+html[data-mode="app"].automacao-aberto .sb-mobile-toggle{display:none!important}
+html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
+#automacaoSection{max-width:920px;margin:0 auto}
+#automacaoSection .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:20px 18px;margin-bottom:16px}
+.auto-head{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.auto-head h2{font-size:20px;font-weight:800;margin:0;color:#fff}
+.auto-back{background:#0f1a2e;border:1px solid rgba(255,255,255,.14);color:#E5E7EB;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.auto-back:hover{border-color:#3B82F6}
+.auto-sub{font-size:13px;color:#94A3B8;margin:0 0 16px}
+.auto-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.auto-tab{background:#0f1a2e;border:1px solid rgba(255,255,255,.14);color:#94A3B8;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer}
+.auto-tab.ativa{background:rgba(59,130,246,.15);border-color:#3B82F6;color:#fff}
+.auto-lbl{display:block;font-size:13px;font-weight:600;color:#E5E7EB;margin-bottom:7px}
+.auto-inp,.auto-ta,.auto-sel{width:100%;padding:11px 13px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#fff;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+.auto-ta{min-height:70px;resize:vertical}
+.auto-inp:focus,.auto-ta:focus,.auto-sel:focus{border-color:#3B82F6}
+.auto-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.auto-msg{border-top:1px dashed rgba(255,255,255,.12);margin-top:16px;padding-top:14px}
+.auto-msg:first-of-type{border-top:none;margin-top:0;padding-top:0}
+.auto-media-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.auto-mini{font-size:11.5px;color:#94A3B8;margin:6px 0 0}
+.auto-btn{background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;border:none;border-radius:10px;padding:11px 20px;font-size:14px;font-weight:800;cursor:pointer}
+.auto-btn:disabled{opacity:.5;cursor:not-allowed}
+.auto-btn.ghost{background:#0f1a2e;border:1px solid rgba(255,255,255,.14);color:#E5E7EB;font-weight:600}
+.auto-btn.danger{background:#dc2626}
+.auto-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.auto-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:#0f1a2e;font-size:13px;color:#E5E7EB;cursor:pointer}
+.auto-chip.on{border-color:#f59e0b;background:rgba(245,158,11,.1)}
+.auto-chip small{color:#94A3B8}
+.auto-prog{width:100%;height:8px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden;margin-top:8px}
+.auto-prog>div{height:100%;background:linear-gradient(135deg,#f59e0b,#f97316);width:0;transition:width .3s}
+.auto-log{max-height:300px;overflow:auto;background:#0b1220;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.6}
+.auto-log .ok{color:#86efac}.auto-log .err{color:#fca5a5}.auto-log .skip{color:#fcd34d}.auto-log .muted{color:#64748b}
+.auto-list{display:flex;flex-direction:column;gap:8px}
+.auto-item{border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;font-size:13px}
+.auto-item .top{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.auto-badge{padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;color:#fff}
+.auto-passo{border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px;margin-top:10px}
+.auto-passo .ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.auto-warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);color:#fcd34d;border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.5;margin-bottom:16px}
 /* linha de input compacta (label esquerda, valor à direita) */
 .eletro-field{display:flex;align-items:center;gap:10px;margin-bottom:11px}
 .eletro-field:last-child{margin-bottom:0}
@@ -1142,6 +1184,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <button type="button" class="sb-item" id="nav-tabelas" onclick="navTabelas()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span> Tabelas</button>
     <button type="button" class="sb-item" id="nav-calc" onclick="navCalc()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10"></line><line x1="12" y1="10" x2="12" y2="10"></line><line x1="16" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="16" y1="14" x2="16" y2="18"></line><line x1="8" y1="18" x2="12" y2="18"></line></svg></span> Calculadora</button>
     <button type="button" class="sb-item" id="nav-eletroposto" onclick="navEletroposto()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline></svg></span> Eletroposto</button>
+    <button type="button" class="sb-item" id="nav-automacao" onclick="navAutomacao()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></span> Automação</button>
   </div>
   <div class="sb-spacer"></div>
   <div class="sb-foot">
@@ -2302,6 +2345,85 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <div id="eletro-print" aria-hidden="true"></div>
 
   <!-- ============= TELA 5: TABELAS ============= -->
+  <div id="automacaoSection" style="display:none;">
+    <div class="auto-head">
+      <button type="button" class="auto-back" onclick="navGerador()">← Voltar</button>
+      <h2>Central de Automação</h2>
+    </div>
+    <p class="auto-sub">Disparos e sequências de WhatsApp pela linha Irmãos na Obra. O servidor processa em background — pode fechar a aba que continua.</p>
+    <div class="auto-tabs">
+      <button type="button" class="auto-tab" id="auto-tab-disparos" onclick="automacaoSubaba('disparos')">Disparos</button>
+      <button type="button" class="auto-tab" id="auto-tab-sequencias" onclick="automacaoSubaba('sequencias')">Sequências</button>
+    </div>
+
+    <div id="auto-pane-disparos">
+      <div class="auto-warn">🔒 Por segurança, o envio só vai para <b>contatos que já existem no seu CRM</b> (leads e agendamentos) — igual ao ManyChat, você fala com a sua audiência. Números fora do CRM são descartados automaticamente pelo servidor.</div>
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Mensagens</div>
+        <div id="auto-disp-msgs"></div>
+      </div>
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Contatos (do seu CRM)</div>
+        <div id="auto-disp-picker"></div>
+      </div>
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Humanização e cadência</div>
+        <label class="auto-lbl" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="auto-disp-ia" checked onchange="document.getElementById('auto-disp-ia-box').style.display=this.checked?'':'none'"> Reescrever cada mensagem com IA (anti-robô)</label>
+        <div id="auto-disp-ia-box" style="margin-top:10px">
+          <label class="auto-lbl">Contexto pra IA</label>
+          <textarea class="auto-ta" id="auto-disp-contexto">Sou consultor(a) da Irmãos na Obra Energia Solar, falando com quem já demonstrou interesse. Tom simpático, direto, sem ser invasivo.</textarea>
+        </div>
+        <div class="auto-row" style="margin-top:12px">
+          <div><label class="auto-lbl">Cadência mín (seg)</label><input class="auto-inp" style="width:90px" type="number" id="auto-disp-cadmin" value="4" min="1" max="60"></div>
+          <div><label class="auto-lbl">Cadência máx (seg)</label><input class="auto-inp" style="width:90px" type="number" id="auto-disp-cadmax" value="8" min="1" max="120"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="auto-row" style="justify-content:space-between">
+          <button type="button" class="auto-btn" id="auto-disp-enviar" onclick="autoDispararTudo()">Disparar</button>
+          <button type="button" class="auto-btn danger" id="auto-disp-parar" style="display:none" onclick="autoPararDisparo()">Parar disparo</button>
+          <span id="auto-disp-prog-txt" class="auto-mini"></span>
+        </div>
+        <div class="auto-prog" id="auto-disp-prog" style="display:none"><div id="auto-disp-prog-bar"></div></div>
+        <div id="auto-disp-log" class="auto-log" style="display:none;margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Campanhas recentes</div>
+        <div id="auto-disp-hist" class="auto-list"><p class="auto-mini">Carregando…</p></div>
+      </div>
+    </div>
+
+    <div id="auto-pane-sequencias" style="display:none">
+      <div class="auto-warn">🔒 Sequências também só enviam para contatos do CRM e respeitam o teto anti-ban da linha. Cada passo sai no intervalo (em horas) que você definir a partir do anterior.</div>
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Nova sequência</div>
+        <label class="auto-lbl">Nome da sequência</label>
+        <input class="auto-inp" id="auto-seq-nome" placeholder="Ex: Boas-vindas lead solar">
+        <div id="auto-seq-passos" style="margin-top:14px"></div>
+        <div class="auto-row" style="margin-top:12px">
+          <button type="button" class="auto-btn ghost" onclick="autoAddPasso()">+ Adicionar passo</button>
+          <button type="button" class="auto-btn" onclick="autoSalvarSequencia()">Salvar sequência</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Sequências salvas</div>
+        <div id="auto-seq-lista" class="auto-list"><p class="auto-mini">Carregando…</p></div>
+      </div>
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Inscrever contatos numa sequência</div>
+        <label class="auto-lbl">Sequência</label>
+        <select class="auto-sel" id="auto-seq-inscrever-sel"></select>
+        <div style="margin-top:12px" id="auto-seq-picker"></div>
+        <button type="button" class="auto-btn" style="margin-top:12px" onclick="autoInscrever()">Inscrever contatos</button>
+        <span id="auto-seq-inscrever-msg" class="auto-mini"></span>
+      </div>
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span> Inscrições recentes</div>
+        <div id="auto-seq-inscricoes" class="auto-list"><p class="auto-mini">—</p></div>
+      </div>
+    </div>
+  </div>
+
   <div id="tabelasSection" style="display:none;">
     <div class="header">
       <div class="header-titulo">
@@ -4855,11 +4977,11 @@ function marcarNavAtivo(id) {
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
-  ['historicoSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection'].forEach(id => {
+  ['historicoSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
   document.getElementById('formSection').style.display = '';
   marcarNavAtivo('nav-gerador');
   fecharSidebarMobile();
@@ -5029,14 +5151,14 @@ let calcCaTocado = false;   // vira true quando o consultor edita o C.A na mão
 function navCalc() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'eletroSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('calcSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('calc-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto', 'automacao-aberto');
   marcarNavAtivo('nav-calc');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -5046,14 +5168,14 @@ function navCalc() {
 function navEletroposto() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('eletroSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('eletro-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'automacao-aberto');
   marcarNavAtivo('nav-eletroposto');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -8720,6 +8842,328 @@ if ('serviceWorker' in navigator) {
     }).catch(e => console.error('SW falhou:', e));
   });
 }
+</script>
+
+<!-- ============= CENTRAL DE AUTOMAÇÃO (Disparos + Sequências) ============= -->
+<script>
+(function(){
+  const AUTO_BUCKET = 'automacao-media';
+  const val = id => (document.getElementById(id)?.value || '');
+  const autoEsc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function autoConsultor(){ try { return (JSON.parse(localStorage.getItem(AUTH_KEY)||'{}').consultor)||''; } catch(e){ return ''; } }
+
+  // ---- normalização de telefones (E.164 BR) — portado do DisparosPanel ----
+  function autoNormalizarTels(raw){
+    const lines = String(raw||'').split(/[\n,;\s]+/).map(s=>s.trim()).filter(Boolean);
+    const validos=[], invalidos=[];
+    for(const line of lines){
+      const digits=line.replace(/\D/g,''); if(!digits) continue; let e164=null;
+      if(digits.length===13 && digits.startsWith('55')) e164=digits;
+      else if(digits.length===12 && digits.startsWith('55')) e164='55'+digits.slice(2,4)+'9'+digits.slice(4);
+      else if(digits.length===11) e164='55'+digits;
+      else if(digits.length===10) e164='55'+digits.slice(0,2)+'9'+digits.slice(2);
+      else { invalidos.push(line); continue; }
+      if(!validos.includes(e164)) validos.push(e164);
+    }
+    const porDDD={}; for(const v of validos){ const d=v.slice(2,4); (porDDD[d]=porDDD[d]||[]).push(v); }
+    return {validos,invalidos,porDDD};
+  }
+
+  // ---- editor de mensagens ----
+  function autoRenderMsgs(containerId, prefix, n){
+    const c=document.getElementById(containerId); if(!c) return; c.innerHTML='';
+    const ph=['Ex: Boa tarde, aqui é a Giovanna','Ex: A energia solar é prioridade pra você?','Ex: Quero marcar uma ligação, qual o melhor dia?'];
+    for(let i=0;i<n;i++){
+      const d=document.createElement('div'); d.className='auto-msg';
+      d.innerHTML =
+        '<label class="auto-lbl">Mensagem '+(i+1)+' '+(i===0?'(obrigatória)':'(opcional)')+'</label>'+
+        '<textarea class="auto-ta" id="'+prefix+'-texto-'+i+'" placeholder="'+autoEsc(ph[i]||'')+'"></textarea>'+
+        '<div class="auto-media-row">'+
+          '<select class="auto-sel" style="width:auto" id="'+prefix+'-mtype-'+i+'" onchange="document.getElementById(\''+prefix+'-murlrow-'+i+'\').style.display=this.value?\'flex\':\'none\'">'+
+            '<option value="">Só texto</option><option value="image">+ Imagem</option><option value="video">+ Vídeo</option><option value="audio">Áudio (voz)</option>'+
+          '</select>'+
+          '<span class="auto-media-row" id="'+prefix+'-murlrow-'+i+'" style="display:none;flex:1;min-width:180px">'+
+            '<input class="auto-inp" id="'+prefix+'-murl-'+i+'" placeholder="URL pública ou faça upload" style="flex:1;min-width:140px">'+
+            '<label class="auto-btn ghost" style="cursor:pointer;padding:8px 12px">Upload<input type="file" style="display:none" onchange="autoUpload(this,\''+prefix+'\','+i+')"></label>'+
+          '</span>'+
+        '</div>';
+      c.appendChild(d);
+    }
+  }
+  async function autoUpload(inputEl, prefix, i){
+    const file = inputEl.files && inputEl.files[0]; inputEl.value='';
+    if(!file) return;
+    if(file.size > 15*1024*1024){ alert('Arquivo grande demais (máx 15 MB).'); return; }
+    const urlInput = document.getElementById(prefix+'-murl-'+i);
+    try{
+      urlInput.placeholder='Enviando…';
+      const nome='auto_'+Date.now()+'_'+(file.name||'m').replace(/[^a-zA-Z0-9._-]/g,'');
+      const up=await fetch(SUPABASE_URL+'/storage/v1/object/'+AUTO_BUCKET+'/'+nome,{
+        method:'POST', headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'}, body:file });
+      if(!up.ok){ alert('Falha no upload ('+up.status+'). Confira se o bucket "'+AUTO_BUCKET+'" existe e é público.'); urlInput.placeholder='URL pública ou faça upload'; return; }
+      urlInput.value = SUPABASE_URL+'/storage/v1/object/public/'+AUTO_BUCKET+'/'+nome;
+      urlInput.placeholder='URL pública ou faça upload';
+    }catch(e){ alert('Erro no upload: '+e.message); urlInput.placeholder='URL pública ou faça upload'; }
+  }
+  function autoColetarMsgs(prefix, n){
+    const out=[];
+    for(let i=0;i<n;i++){
+      const t=(document.getElementById(prefix+'-texto-'+i)?.value||'').trim();
+      const mt=document.getElementById(prefix+'-mtype-'+i)?.value||'';
+      const mu=(document.getElementById(prefix+'-murl-'+i)?.value||'').trim();
+      const media_type=(mt==='image'||mt==='video'||mt==='audio')?mt:null;
+      const media_url=media_type&&mu?mu:null;
+      if(!t && !media_url) continue;
+      out.push({slot:i+1, base:t, media_url, media_type});
+    }
+    return out;
+  }
+
+  // ---- seletor de contatos (do CRM) ----
+  const autoPicker={};
+  function autoRenderPicker(containerId, prefix){
+    const c=document.getElementById(containerId); if(!c) return;
+    c.innerHTML =
+      '<div class="auto-row">'+
+        '<div><label class="auto-lbl">Fonte</label><select class="auto-sel" style="width:auto" id="'+prefix+'-fonte">'+
+          '<option value="agendamentos">Agendamentos (CRM)</option><option value="leads_meta">Leads (leads_meta)</option></select></div>'+
+        '<div><label class="auto-lbl">Consultor</label><input class="auto-inp" id="'+prefix+'-consultor" placeholder="(todos)" style="width:130px"></div>'+
+        '<div><label class="auto-lbl">Temperatura</label><select class="auto-sel" style="width:auto" id="'+prefix+'-temp"><option value="">(todas)</option><option value="quente">Quente</option><option value="morno">Morno</option><option value="frio">Frio</option></select></div>'+
+        '<div><label class="auto-lbl">Cidade contém</label><input class="auto-inp" id="'+prefix+'-cidade" placeholder="(qualquer)" style="width:130px"></div>'+
+        '<button type="button" class="auto-btn ghost" onclick="autoCarregarCRM(\''+prefix+'\')">Carregar do CRM</button>'+
+      '</div>'+
+      '<label class="auto-lbl" style="margin-top:12px">Números (vêm do CRM; se colar, só valem os que já estão no CRM)</label>'+
+      '<textarea class="auto-ta" id="'+prefix+'-raw" style="font-family:ui-monospace,monospace;min-height:80px"></textarea>'+
+      '<div class="auto-row" style="margin-top:8px"><button type="button" class="auto-btn ghost" onclick="autoPadronizar(\''+prefix+'\')">Padronizar</button><span class="auto-mini" id="'+prefix+'-count"></span></div>'+
+      '<div class="auto-chips" id="'+prefix+'-chips"></div>';
+  }
+  async function autoCarregarCRM(prefix){
+    const fonte=val(prefix+'-fonte'), consultor=val(prefix+'-consultor').trim(), temp=val(prefix+'-temp'), cidade=val(prefix+'-cidade').trim();
+    try{
+      let phones=[];
+      if(fonte==='agendamentos'){
+        let q='agendamentos?select=cliente_telefone&status=eq.agendado';
+        if(consultor) q+='&vendedor_nome=eq.'+encodeURIComponent(consultor);
+        if(temp) q+='&temperatura=eq.'+temp;
+        if(cidade) q+='&cidade=ilike.*'+encodeURIComponent(cidade)+'*';
+        q+='&limit=5000';
+        phones=(await supaGet(q)).map(r=>r.cliente_telefone);
+      } else {
+        let q='leads_meta?select=whatsapp&fora_area=eq.false';
+        if(consultor) q+='&consultor=eq.'+encodeURIComponent(consultor);
+        if(cidade) q+='&cidade=ilike.*'+encodeURIComponent(cidade)+'*';
+        q+='&limit=5000';
+        phones=(await supaGet(q)).map(r=>r.whatsapp);
+      }
+      document.getElementById(prefix+'-raw').value = phones.filter(Boolean).join('\n');
+      autoPadronizar(prefix);
+    }catch(e){ alert('Erro carregando CRM: '+e.message); }
+  }
+  function autoPadronizar(prefix){
+    const parsed=autoNormalizarTels(val(prefix+'-raw'));
+    const ativos={}; Object.keys(parsed.porDDD).forEach(d=>ativos[d]=true);
+    autoPicker[prefix]={parsed,ativos};
+    autoRenderChips(prefix);
+  }
+  function autoRenderChips(prefix){
+    const st=autoPicker[prefix]; if(!st) return;
+    const chips=document.getElementById(prefix+'-chips'); if(!chips) return;
+    const entries=Object.entries(st.parsed.porDDD).sort((a,b)=>b[1].length-a[1].length);
+    chips.innerHTML=entries.map(function(e){ return '<span class="auto-chip '+(st.ativos[e[0]]?'on':'')+'" onclick="autoToggleDDD(\''+prefix+'\',\''+e[0]+'\')">'+e[0]+' <small>('+e[1].length+')</small></span>'; }).join('');
+    document.getElementById(prefix+'-count').textContent = autoContatosFinais(prefix).length+' selecionados · '+st.parsed.invalidos.length+' inválidos';
+  }
+  function autoToggleDDD(prefix,ddd){ const st=autoPicker[prefix]; if(!st) return; st.ativos[ddd]=!st.ativos[ddd]; autoRenderChips(prefix); }
+  function autoContatosFinais(prefix){ const st=autoPicker[prefix]; if(!st) return []; return st.parsed.validos.filter(v=>st.ativos[v.slice(2,4)]!==false); }
+
+  // ---- disparos ----
+  let autoDispId=null, autoDispTimer=null, autoDispSeen=new Set(), autoDispLastTs=null;
+  function autoDispProgresso(f,t){
+    document.getElementById('auto-disp-prog-txt').textContent = t?(f+' / '+t+' envios'):'';
+    const bar=document.getElementById('auto-disp-prog-bar'); if(bar && t) bar.style.width=Math.min(100,(f/t)*100)+'%';
+  }
+  function autoDispLog(cls,txt){
+    const el=document.getElementById('auto-disp-log'); if(!el) return; el.style.display='';
+    const line=document.createElement('div'); line.className=cls; line.textContent='['+new Date().toLocaleTimeString('pt-BR')+'] '+txt;
+    el.insertBefore(line, el.firstChild);
+  }
+  function autoDispIniciar(id,total){
+    autoDispId=id; autoDispSeen=new Set(); autoDispLastTs=null;
+    document.getElementById('auto-disp-log').innerHTML='';
+    document.getElementById('auto-disp-prog').style.display='';
+    document.getElementById('auto-disp-enviar').style.display='none';
+    document.getElementById('auto-disp-parar').style.display='';
+    autoDispProgresso(0,total||0);
+    autoDispLog('muted','Campanha criada. O servidor está disparando…');
+    if(autoDispTimer) clearInterval(autoDispTimer);
+    autoPollDisparo(); autoDispTimer=setInterval(autoPollDisparo,3000);
+  }
+  function autoDispEncerrar(){
+    if(autoDispTimer) clearInterval(autoDispTimer); autoDispTimer=null; autoDispId=null;
+    document.getElementById('auto-disp-enviar').style.display='';
+    document.getElementById('auto-disp-parar').style.display='none';
+    autoCarregarHistorico();
+  }
+  async function autoPollDisparo(){
+    const id=autoDispId; if(!id) return;
+    try{
+      const b=(await supaGet('gerador_broadcasts?id=eq.'+id+'&select=*'))[0];
+      let q='gerador_broadcast_envios?broadcast_id=eq.'+id+'&select=id,enviado_em,phone,slot,mensagem_final,status,erro&order=enviado_em.desc&limit=50';
+      if(autoDispLastTs) q+='&enviado_em=gt.'+encodeURIComponent(autoDispLastTs);
+      const envios=await supaGet(q);
+      if(b) autoDispProgresso((b.sucesso||0)+(b.falha||0), b.total||0);
+      envios.slice().sort((a,c)=>a.enviado_em.localeCompare(c.enviado_em)).forEach(function(e){
+        if(autoDispSeen.has(e.id)) return; autoDispSeen.add(e.id); autoDispLastTs=e.enviado_em;
+        autoDispLog(e.status==='ok'?'ok':'err', e.phone+' R'+e.slot+' '+(e.status==='ok'?('→ "'+(e.mensagem_final||'').slice(0,60)+'"'):('Erro: '+(e.erro||'?'))));
+      });
+      if(b && ['concluido','parado','erro'].indexOf(b.status)>=0){
+        autoDispLog(b.status==='concluido'?'ok':'skip','DISPARO '+b.status.toUpperCase()+' · '+b.sucesso+'/'+b.total);
+        autoDispEncerrar();
+      }
+    }catch(e){ /* tenta no próximo tick */ }
+  }
+  async function autoDispararTudo(){
+    const msgs=autoColetarMsgs('auto-disp',3);
+    if(!msgs.length){ alert('Adicione ao menos a Mensagem 1.'); return; }
+    const contatos=autoContatosFinais('auto-disp');
+    if(!contatos.length){ alert('Nenhum contato. Carregue do CRM e clique Padronizar.'); return; }
+    const cadMin=+val('auto-disp-cadmin')||4, cadMax=+val('auto-disp-cadmax')||8;
+    if(cadMin>cadMax){ alert('Cadência mín deve ser ≤ máx.'); return; }
+    const usouIA=document.getElementById('auto-disp-ia').checked;
+    const total=msgs.length*contatos.length;
+    if(!confirm('Disparar '+msgs.length+' mensagem(ns) para '+contatos.length+' contato(s)?\nTotal: '+total+' envios. Só números do CRM recebem.')) return;
+    try{
+      const rows=await supaInsert('gerador_broadcasts',{ criado_por:autoConsultor(), mensagens:msgs, contatos, total, contexto_ai:usouIA?val('auto-disp-contexto'):null, usou_ia:usouIA, cadencia_min:cadMin, cadencia_max:cadMax, status:'rodando' });
+      const id=Array.isArray(rows)?(rows[0]&&rows[0].id):(rows&&rows.id);
+      if(!id) throw new Error('o banco não retornou id (confira as tabelas/RLS)');
+      autoDispIniciar(id,total);
+      fetch('/_api/gerador/automacao/kick',{method:'POST'}).catch(()=>{});
+    }catch(e){ alert('Erro criando campanha: '+e.message); }
+  }
+  async function autoPararDisparo(){
+    if(!autoDispId) return;
+    if(!confirm('Parar disparo? Os já enviados ficam; os restantes não vão.')) return;
+    try{ await supaPatch('gerador_broadcasts?id=eq.'+autoDispId,{status:'parado'}); autoDispLog('skip','Parando… aguardando o servidor confirmar.'); }
+    catch(e){ alert('Falha ao parar: '+e.message); }
+  }
+  async function autoCarregarHistorico(){
+    const c=document.getElementById('auto-disp-hist'); if(!c) return;
+    try{
+      const rows=await supaGet('gerador_broadcasts?select=id,criado_em,mensagens,total,sucesso,falha,status&order=criado_em.desc&limit=20');
+      if(!rows.length){ c.innerHTML='<p class="auto-mini">Nenhuma campanha ainda.</p>'; return; }
+      const rodando=rows.find(r=>r.status==='rodando');
+      if(rodando && !autoDispId) autoDispIniciar(rodando.id, rodando.total);
+      c.innerHTML=rows.map(function(b){
+        const cor={concluido:'#22c55e',parado:'#f59e0b',rodando:'#3b82f6',erro:'#dc2626'}[b.status]||'#64748b';
+        const data=new Date(b.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+        const prev=((b.mensagens&&b.mensagens[0]&&b.mensagens[0].base)||'').slice(0,50);
+        return '<div class="auto-item"><div class="top"><span class="auto-badge" style="background:'+cor+'">'+b.status+'</span><span class="auto-mini">'+data+'</span><b>'+b.sucesso+'/'+b.total+'</b></div><div class="auto-mini" style="margin-top:6px">"'+autoEsc(prev)+'"</div></div>';
+      }).join('');
+    }catch(e){ c.innerHTML='<p class="auto-mini">Erro ao carregar: '+autoEsc(e.message)+'</p>'; }
+  }
+
+  // ---- sequências ----
+  function autoAddPasso(data){
+    data=data||{};
+    const c=document.getElementById('auto-seq-passos'); if(!c) return;
+    const d=document.createElement('div'); d.className='auto-passo';
+    d.innerHTML=
+      '<div class="ph"><b>Passo '+(c.children.length+1)+'</b><button type="button" class="auto-btn ghost" style="padding:4px 10px" onclick="this.closest(\'.auto-passo\').remove();autoRenumerarPassos()">remover</button></div>'+
+      '<label class="auto-lbl">Enviar após (horas do passo anterior) <span style="color:#64748b">— o 1º passo sai na hora da inscrição</span></label>'+
+      '<input class="auto-inp seq-int" type="number" min="0" step="1" value="'+(data.intervalo_horas!=null?data.intervalo_horas:0)+'" style="width:120px">'+
+      '<label class="auto-lbl" style="margin-top:10px">Mensagem</label>'+
+      '<textarea class="auto-ta seq-txt">'+autoEsc(data.texto||'')+'</textarea>';
+    c.appendChild(d);
+  }
+  function autoRenumerarPassos(){ document.querySelectorAll('#auto-seq-passos .auto-passo .ph b').forEach(function(b,i){ b.textContent='Passo '+(i+1); }); }
+  function autoColetarPassos(){
+    const arr=[]; document.querySelectorAll('#auto-seq-passos .auto-passo').forEach(function(d,i){
+      const texto=(d.querySelector('.seq-txt')?.value||'').trim();
+      const horas=Number(d.querySelector('.seq-int')?.value||0);
+      if(!texto) return;
+      arr.push({ordem:i+1, intervalo_horas:horas, texto, media_url:null, media_type:null});
+    });
+    return arr;
+  }
+  async function autoSalvarSequencia(){
+    const nome=val('auto-seq-nome').trim(); const passos=autoColetarPassos();
+    if(!nome){ alert('Dê um nome à sequência.'); return; }
+    if(!passos.length){ alert('Adicione ao menos um passo com texto.'); return; }
+    try{
+      await supaInsert('sequencias',{criado_por:autoConsultor(), nome, passos, linha:'io', ativo:true});
+      document.getElementById('auto-seq-nome').value=''; document.getElementById('auto-seq-passos').innerHTML=''; autoAddPasso({intervalo_horas:0});
+      await autoCarregarSequencias(); alert('Sequência salva!');
+    }catch(e){ alert('Erro ao salvar: '+e.message); }
+  }
+  async function autoCarregarSequencias(){
+    const lista=document.getElementById('auto-seq-lista'); const sel=document.getElementById('auto-seq-inscrever-sel');
+    try{
+      const rows=await supaGet('sequencias?select=id,nome,passos,ativo,criado_em&order=criado_em.desc&limit=30');
+      if(sel) sel.innerHTML = rows.length?rows.map(s=>'<option value="'+s.id+'">'+autoEsc(s.nome)+'</option>').join(''):'<option value="">(nenhuma)</option>';
+      if(lista) lista.innerHTML = rows.length? rows.map(function(s){
+        return '<div class="auto-item"><div class="top"><b>'+autoEsc(s.nome)+'</b><span class="auto-mini">'+((s.passos&&s.passos.length)||0)+' passo(s)</span><button type="button" class="auto-btn ghost" style="padding:4px 10px" onclick="autoToggleSequencia(\''+s.id+'\','+(!s.ativo)+')">'+(s.ativo?'pausar':'ativar')+'</button></div></div>';
+      }).join('') : '<p class="auto-mini">Nenhuma sequência ainda.</p>';
+    }catch(e){ if(lista) lista.innerHTML='<p class="auto-mini">Erro: '+autoEsc(e.message)+'</p>'; }
+  }
+  async function autoToggleSequencia(id, ativo){
+    try{ await supaPatch('sequencias?id=eq.'+id,{ativo}); autoCarregarSequencias(); }catch(e){ alert('Erro: '+e.message); }
+  }
+  async function autoInscrever(){
+    const seqId=val('auto-seq-inscrever-sel'); if(!seqId){ alert('Escolha uma sequência.'); return; }
+    const contatos=autoContatosFinais('auto-seq'); if(!contatos.length){ alert('Nenhum contato. Carregue do CRM e Padronize.'); return; }
+    const now=new Date().toISOString();
+    const rows=contatos.map(p=>({sequencia_id:seqId, phone:p, proximo_envio_em:now, status:'ativo', passo_atual:0}));
+    const msg=document.getElementById('auto-seq-inscrever-msg');
+    try{
+      const r=await fetch(SUPABASE_URL+'/rest/v1/sequencia_inscricoes?on_conflict=sequencia_id,phone',{method:'POST', headers:Object.assign({}, supaHeaders(), {'Prefer':'resolution=ignore-duplicates,return=minimal'}), body:JSON.stringify(rows)});
+      if(!r.ok) throw new Error(await r.text());
+      msg.textContent=' '+contatos.length+' contato(s) inscrito(s).';
+      autoCarregarInscricoes();
+    }catch(e){ msg.textContent=' Erro: '+e.message; }
+  }
+  async function autoCarregarInscricoes(){
+    const c=document.getElementById('auto-seq-inscricoes'); if(!c) return;
+    try{
+      const rows=await supaGet('sequencia_inscricoes?select=phone,status,passo_atual,criado_em,sequencias(nome)&order=criado_em.desc&limit=30');
+      c.innerHTML = rows.length? rows.map(function(r){
+        const cor={ativo:'#3b82f6',concluido:'#22c55e',parado:'#f59e0b'}[r.status]||'#64748b';
+        return '<div class="auto-item"><div class="top"><span class="auto-badge" style="background:'+cor+'">'+r.status+'</span><b>'+autoEsc(r.phone)+'</b><span class="auto-mini">'+autoEsc((r.sequencias&&r.sequencias.nome)||'')+' · passo '+r.passo_atual+'</span></div></div>';
+      }).join('') : '<p class="auto-mini">Nenhuma inscrição ainda.</p>';
+    }catch(e){ c.innerHTML='<p class="auto-mini">Erro: '+autoEsc(e.message)+'</p>'; }
+  }
+
+  // ---- navegação / init ----
+  let autoInited=false;
+  function autoInit(){
+    if(autoInited) return; autoInited=true;
+    autoRenderMsgs('auto-disp-msgs','auto-disp',3);
+    autoRenderPicker('auto-disp-picker','auto-disp');
+    autoRenderPicker('auto-seq-picker','auto-seq');
+    autoAddPasso({intervalo_horas:0});
+    autoCarregarHistorico(); autoCarregarSequencias(); autoCarregarInscricoes();
+  }
+  function navAutomacao(){
+    document.getElementById('formSection').style.display='none';
+    document.getElementById('historicoSection').style.display='none';
+    ['tabelasSection','leadsSection','redesSection','crmSection','calcSection','eletroSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
+    const sec=document.getElementById('automacaoSection'); if(sec) sec.style.display='';
+    document.documentElement.classList.add('automacao-aberto');
+    document.documentElement.classList.remove('historico-aberto','tabelas-aberta','leads-aberto','redes-aberto','crm-aberto','calc-aberto','eletro-aberto');
+    marcarNavAtivo('nav-automacao');
+    fecharSidebarMobile();
+    window.scrollTo({top:0,behavior:'smooth'});
+    autoInit();
+    automacaoSubaba('disparos');
+  }
+  function automacaoSubaba(qual){
+    ['disparos','sequencias'].forEach(function(a){
+      const pane=document.getElementById('auto-pane-'+a); if(pane) pane.style.display=(a===qual)?'':'none';
+      const tab=document.getElementById('auto-tab-'+a); if(tab) tab.classList.toggle('ativa', a===qual);
+    });
+  }
+
+  // expõe os handlers usados por onclick/onchange no HTML
+  Object.assign(window,{ navAutomacao, automacaoSubaba, autoDispararTudo, autoPararDisparo, autoUpload, autoCarregarCRM, autoPadronizar, autoToggleDDD, autoAddPasso, autoRenumerarPassos, autoSalvarSequencia, autoToggleSequencia, autoInscrever });
+})();
 </script>
 
 </body>
