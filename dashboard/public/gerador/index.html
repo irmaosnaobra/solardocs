@@ -480,6 +480,11 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-venc td{padding:6px 9px;border-bottom:1px solid #f1f1f1;color:#333}
 .ep-venc td.num{text-align:right;font-variant-numeric:tabular-nums}
 .ep-obs{font-size:10px;color:#666;line-height:1.6;margin-top:14px;white-space:pre-line;border-top:1px solid #eee;padding-top:10px}
+/* formas de pagamento — caixas marcáveis (tela) */
+.orc-pg-formas{display:flex;flex-wrap:wrap;gap:8px}
+.orc-pg-forma{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:#CBD5E1;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 14px;cursor:pointer;transition:border-color .2s,color .2s}
+.orc-pg-forma:has(input:checked){border-color:#3B82F6;color:#fff}
+.orc-pg-forma input{accent-color:#3B82F6;width:16px;height:16px;cursor:pointer;flex:none}
 /* cartão — grade de parcelas (tela) */
 .orc-cartao-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:8px}
 .orc-parc{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#CBD5E1;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:8px 10px;cursor:pointer;transition:border-color .2s,color .2s}
@@ -2255,30 +2260,30 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <!-- PAGAMENTO -->
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Condição de pagamento</div>
-        <div class="eletro-field"><label>Forma</label>
-          <div class="eletro-inp eletro-inp-wide"><select id="orc-pgmodo" onchange="orcPgModo()" style="width:100%;box-sizing:border-box;padding:9px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:14px;font-family:inherit;font-weight:700;outline:none">
-            <option value="avista">À vista</option>
-            <option value="cartao">Cartão de crédito</option>
-            <option value="financiamento">Financiamento bancário</option>
-          </select></div></div>
+        <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">Marque <b>todas</b> as formas que quer mostrar no orçamento — elas aparecem juntas.</div>
+        <div class="orc-pg-formas">
+          <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-avista" checked onchange="orcPgToggle()"> À vista</label>
+          <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-cartao" onchange="orcPgToggle()"> Cartão de crédito</label>
+          <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-fin" onchange="orcPgToggle()"> Financiamento</label>
+        </div>
 
         <!-- À vista: data do vencimento -->
         <div class="orc-pg-cond" id="orc-pg-data">
-          <div class="eletro-field"><label>Data do vencimento</label>
+          <div class="eletro-field" style="margin-top:14px"><label>Data do vencimento (à vista)</label>
             <div class="eletro-inp eletro-inp-wide"><input type="date" id="orc-parc-data"></div></div>
         </div>
 
         <!-- Cartão: escolhe quais parcelas entram na proposta (a taxa NÃO aparece pro cliente) -->
         <div class="orc-pg-cond" id="orc-pg-cartao" style="display:none">
-          <div class="orc-note" style="margin-top:2px;margin-bottom:8px">Marque as parcelas que entram no orçamento. A taxa do cartão fica embutida no valor da parcela — <b>não aparece pro cliente</b>. Padrão: 12x e 21x.</div>
+          <div class="orc-note" style="margin-top:14px;margin-bottom:8px"><b>Cartão de crédito.</b> Marque as parcelas que entram no orçamento. A taxa do cartão fica embutida no valor da parcela — <b>não aparece pro cliente</b>. Padrão: 12x e 21x.</div>
           <div class="orc-cartao-grid" id="orc-cartao-grid" onchange="orcCalc()"></div>
         </div>
 
         <!-- Financiamento: só a mensagem destacada -->
         <div class="orc-pg-cond" id="orc-pg-fin" style="display:none">
-          <div class="orc-fin-aviso">
+          <div class="orc-fin-aviso" style="margin-top:14px">
             <span class="ic">★</span>
-            <p><b>Financiamento bancário em até 72×.</b> As parcelas e as condições são definidas mediante simulação com os documentos do cliente, sujeito à análise de crédito. Fale com nosso time e simulamos as melhores condições pro seu perfil.</p>
+            <p><b>Financiamento bancário em até 72×.</b> Financia <b>apenas o carregador</b> (o equipamento); os demais itens do projeto seguem em condição própria. As parcelas e as condições são definidas mediante simulação com os documentos do cliente, sujeito à análise de crédito.</p>
           </div>
         </div>
       </div>
@@ -5978,38 +5983,49 @@ function orcRenderCartaoGrid() {
   ).join('');
 }
 
-// Mostra só os campos da forma de pagamento escolhida
-function orcPgModo() {
-  const modo = orcVal('orc-pgmodo');
-  const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
-  show('orc-pg-data', modo === 'avista');
-  show('orc-pg-cartao', modo === 'cartao');
-  show('orc-pg-fin', modo === 'financiamento');
+// Mostra os campos de cada forma marcada (várias podem ficar ligadas ao mesmo tempo)
+function orcPgToggle() {
+  const on = id => !!document.getElementById(id)?.checked;
+  const show = (id, v) => { const el = document.getElementById(id); if (el) el.style.display = v ? '' : 'none'; };
+  show('orc-pg-data', on('orc-pg-ck-avista'));
+  show('orc-pg-cartao', on('orc-pg-ck-cartao'));
+  show('orc-pg-fin', on('orc-pg-ck-fin'));
 }
 
-// Bloco de pagamento para o PDF
+// Bloco de pagamento para o PDF — junta TODAS as formas marcadas
 function orcPagamentoHTML(total) {
-  const modo = orcVal('orc-pgmodo');
+  const on = id => !!document.getElementById(id)?.checked;
   const br = d => d.toLocaleDateString('pt-BR');
+  const blocos = [];
 
-  if (modo === 'cartao') {
+  if (on('orc-pg-ck-avista')) {
+    const d = orcVal('orc-parc-data'); const base = d ? new Date(d + 'T00:00:00') : new Date();
+    blocos.push(
+      `<div class="ep-sub" style="font-size:12px;margin-bottom:6px">À vista</div>` +
+      `<table class="ep-venc"><thead><tr><th>Parcela</th><th>Vencimento</th><th class="num">Valor</th></tr></thead>` +
+      `<tbody><tr><td>1 — à vista</td><td>${br(base)}</td><td class="num">${ORC_MONEY(total)}</td></tr></tbody></table>`);
+  }
+
+  if (on('orc-pg-ck-cartao')) {
     const ns = [];
     document.querySelectorAll('#orc-cartao-grid input[type="checkbox"]:checked').forEach(c => { const n = Number(c.dataset.n); if (n) ns.push(n); });
     ns.sort((a, b) => a - b);
-    if (!ns.length) return `<div class="ep-sub" style="font-size:12px">Cartão de crédito — selecione as parcelas no formulário.</div>`;
-    // sem coluna de taxa: o cliente vê só o valor de cada parcela
-    const rows = ns.map(n => `<tr><td>${n}x</td><td class="num">${ORC_MONEY(orcParcelaCartao(total, n))}</td></tr>`).join('');
-    return `<div class="ep-sub" style="font-size:12px;margin-bottom:6px">Cartão de crédito — parcelamos em:</div>` +
-      `<table class="ep-venc"><thead><tr><th>Parcelas</th><th class="num">Valor da parcela</th></tr></thead><tbody>${rows}</tbody></table>`;
+    if (ns.length) {
+      // sem coluna de taxa: o cliente vê só o valor de cada parcela
+      const rows = ns.map(n => `<tr><td>${n}x</td><td class="num">${ORC_MONEY(orcParcelaCartao(total, n))}</td></tr>`).join('');
+      blocos.push(
+        `<div class="ep-sub" style="font-size:12px;margin:10px 0 6px">Cartão de crédito — parcelamos em:</div>` +
+        `<table class="ep-venc"><thead><tr><th>Parcelas</th><th class="num">Valor da parcela</th></tr></thead><tbody>${rows}</tbody></table>`);
+    }
   }
-  if (modo === 'financiamento') {
-    return `<div class="ep-fin-destaque"><div class="ep-fin-ic">★</div>` +
-      `<div><b>Financiamento bancário em até 72×.</b> As parcelas e as condições são definidas mediante simulação com os documentos do cliente, sujeito à análise de crédito. Fale com nosso time e simulamos as melhores condições para o seu perfil.</div></div>`;
+
+  if (on('orc-pg-ck-fin')) {
+    blocos.push(
+      `<div class="ep-fin-destaque" style="margin-top:10px"><div class="ep-fin-ic">★</div>` +
+      `<div><b>Financiamento bancário em até 72×.</b> Financia <b>apenas o carregador</b> (o equipamento); os demais itens do projeto seguem em condição própria. As parcelas e as condições são definidas mediante simulação com os documentos do cliente, sujeito à análise de crédito.</div></div>`);
   }
-  // à vista
-  const d = orcVal('orc-parc-data'); const base = d ? new Date(d + 'T00:00:00') : new Date();
-  return `<table class="ep-venc"><thead><tr><th>Parcela</th><th>Vencimento</th><th class="num">Valor</th></tr></thead>` +
-    `<tbody><tr><td>1 — à vista</td><td>${br(base)}</td><td class="num">${ORC_MONEY(total)}</td></tr></tbody></table>`;
+
+  return blocos.length ? blocos.join('') : `<div class="ep-sub" style="font-size:12px">Condição de pagamento a combinar.</div>`;
 }
 
 // Emitente (sua empresa) — persistência no navegador
@@ -6046,7 +6062,7 @@ function orcInit() {
   // primeiro item, com a potência do simulador se houver
   if (!document.querySelector('#orc-itens .orc-item')) orcAddItem(simEq ? 'Carregador ' + simEq : 'Carregador DC — eletroposto', '8504.40.10', 1, '');
   orcRenderCartaoGrid();
-  orcPgModo();
+  orcPgToggle();
   orcCalc();
 }
 
