@@ -5,10 +5,14 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'SolarDoc Pro',
     short_name: 'SolarDoc',
     description: 'Documentação solar com IA',
-    start_url: '/auth',
+    // Abre na tela de atalho (launcher). No celular mostra os atalhos; no PC ela
+    // redireciona pra plataforma normal. Instalações NOVAS pegam na hora; as já
+    // instaladas migram quando o manifest é relido.
+    start_url: '/inicio',
     display: 'standalone',
-    background_color: '#EEF1F4',
-    theme_color: '#F26513',
+    // Splash alinhado ao app (navy escuro) pra não piscar cinza→escuro no cold open.
+    background_color: '#0b1120',
+    theme_color: '#0b1120',
     orientation: 'portrait',
     icons: [
       {

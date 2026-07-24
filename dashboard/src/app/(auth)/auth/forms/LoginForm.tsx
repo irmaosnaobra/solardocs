@@ -63,7 +63,9 @@ export default function LoginForm() {
       const { data } = await api.post('/auth/login', { email, password });
       setToken(data.token);
       setUser(data.user);
-      router.push('/empresa');
+      // Celular cai na tela de atalho (launcher); PC segue igual, pra empresa.
+      const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+      router.push(isMobile ? '/inicio' : '/empresa');
     } catch (err: unknown) {
       const error = err as { response?: { status?: number; data?: { error?: string } } };
       // Mensagem genérica por segurança (não dizer qual dos campos errou)

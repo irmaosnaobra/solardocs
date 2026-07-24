@@ -9,7 +9,7 @@ import {
   Banknote, ScrollText, FileSignature, Receipt,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
   Boxes, Save, GraduationCap, Smartphone,
-  Send, LogOut, TrendingUp,
+  Send, LogOut, TrendingUp, LayoutGrid,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -347,6 +347,16 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
           <button onClick={onUpgradeClick} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} title="Disponível no plano VIP">
             <Logo className={styles.mobileLogoImg} />
           </button>
+        )}
+        {/* Voltar pra tela de atalho (launcher) — só faz sentido com empresa pronta.
+            Sem empresa, um espaçador mantém o logo centralizado. */}
+        {hasCompany ? (
+          <Link href="/inicio" aria-label="Tela de atalho"
+            style={{ display: 'flex', alignItems: 'center', padding: 4, color: '#fbbf24' }}>
+            <LayoutGrid size={22} strokeWidth={2} />
+          </Link>
+        ) : (
+          <span style={{ width: 30 }} />
         )}
       </div>
 
