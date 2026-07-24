@@ -77,11 +77,6 @@ async function getOwned(id: string, userId: string) {
 
 const fotosDe = (i: ItemVistoria): Foto[] => (Array.isArray(i.fotos) ? i.fotos : []);
 
-async function ehAdmin(userId: string): Promise<boolean> {
-  const { data } = await supabase.from('users').select('is_admin').eq('id', userId).maybeSingle();
-  return !!data?.is_admin;
-}
-
 // ── POST /vistorias — cria a vistoria (opcionalmente grudada num cliente) ──────
 const createSchema = z.object({
   cliente_id: z.string().uuid().optional().nullable(),
@@ -96,16 +91,18 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
   }
   const { cliente_id, cliente_nome } = parsed.data;
 
-  // Se veio cliente_id, confirma e puxa o nome real — assim a vistoria fica
-  // grudada no cadastro do cliente (armazenada junto dele). Conta comum só
-  // anexa cliente PRÓPRIO; admin (Aioros) pode anexar cliente de qualquer empresa.
+  // Se veio cliente_id, confirma que é do usuário e puxa o nome real — assim a
+  // vistoria fica grudada no cadastro do cliente (armazenada junto dele). Cada
+  // conta (inclusive admin) só anexa cliente PRÓPRIO.
   let nome = cliente_nome || null;
   let clienteId: string | null = null;
   if (cliente_id) {
-    const admin = await ehAdmin(req.userId);
-    let q = supabase.from('clients').select('id, nome').eq('id', cliente_id);
-    if (!admin) q = q.eq('user_id', req.userId);
-    const { data: cli } = await q.maybeSingle();
+    const { data: cli } = await supabase
+      .from('clients')
+      .select('id, nome')
+      .eq('id', cliente_id)
+      .eq('user_id', req.userId)
+      .maybeSingle();
     if (cli) {
       clienteId = cli.id;
       nome = cli.nome;
@@ -164,17 +161,12 @@ router.get('/list', authMiddleware, async (req: Request, res: Response): Promise
 });
 
 // ── GET /vistorias/clientes — clientes prontos, AGRUPADOS por empresa ──────────
-// Conta comum vê só os PRÓPRIOS clientes (1 grupo, a empresa dela); admin (Aioros)
-// vê TODAS as empresas com seus clientes. Isolamento por tenant preservado.
+// Cada conta (inclusive admin) vê só os PRÓPRIOS clientes — 1 grupo, a empresa
+// dela. Isolamento por tenant total.
 router.get('/clientes', authMiddleware, async (req: Request, res: Response): Promise<void> => {
-  const admin = await ehAdmin(req.userId);
-
-  let compQ = supabase.from('company').select('user_id, nome');
-  let cliQ = supabase.from('clients').select('id, nome, user_id').order('nome', { ascending: true });
-  if (!admin) {
-    compQ = compQ.eq('user_id', req.userId);
-    cliQ = cliQ.eq('user_id', req.userId);
-  }
+  const compQ = supabase.from('company').select('user_id, nome').eq('user_id', req.userId);
+  const cliQ = supabase.from('clients').select('id, nome, user_id')
+    .eq('user_id', req.userId).order('nome', { ascending: true });
   const [{ data: comps }, { data: clis, error }] = await Promise.all([compQ, cliQ.limit(5000)]);
   if (error) {
     logger.error('vistorias', 'falha carregando clientes agrupados', error);
