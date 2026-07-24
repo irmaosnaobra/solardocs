@@ -61,8 +61,26 @@ CREATE TABLE IF NOT EXISTS suggestions (
   created_at     TIMESTAMP DEFAULT NOW()
 );
 
+-- Tabela vistorias (vistoria de energia solar: checklist de campo com fotos)
+-- Convenção do projeto: RLS off, acesso só via service key (backend).
+CREATE TABLE IF NOT EXISTS vistorias (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  cliente_id    UUID REFERENCES clients(id) ON DELETE SET NULL,
+  cliente_nome  VARCHAR(255),
+  codigo_curto  VARCHAR(12),           -- YYYYNNNN, escopo user-ano, pro link publico
+  status        VARCHAR(20) NOT NULL DEFAULT 'em_andamento', -- em_andamento | concluida
+  itens         JSONB NOT NULL DEFAULT '[]'::jsonb,          -- [{key,label,foto_url,obs,ts}]
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_vistorias_user_codigo
+  ON vistorias(user_id, codigo_curto) WHERE codigo_curto IS NOT NULL;
+
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
+CREATE INDEX IF NOT EXISTS idx_vistorias_user_id ON vistorias(user_id);
+CREATE INDEX IF NOT EXISTS idx_vistorias_cliente_id ON vistorias(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_clients_user_id ON clients(user_id);
 CREATE INDEX IF NOT EXISTS idx_company_user_id ON company(user_id);
 

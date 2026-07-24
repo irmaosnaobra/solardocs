@@ -63,6 +63,9 @@ const baseAdminItems: NavItem[] = [
 // Mascote e Baixe o App foram pra topbar (ícones). Sidebar só com o Gerador.
 const topoItems: NavItem[] = [
   { href: '/documentos?tipo=proposta', icon: Sparkles,    label: 'Gerador de Proposta', requireCompany: true },
+  // Vistoria Solar: ferramenta de campo (foto por item do checklist). Liberada
+  // pra todos os planos, sem exigir empresa — igual Precificação/Inventário.
+  { href: '/vistoria',                 icon: ClipboardCheck, label: 'Vistoria Solar' },
   // Escanear Conta NÃO fica no menu — só dentro da aba Clientes (botão no header),
   // que é o contexto natural (é lá que se cadastra cliente). Rota /escanear-conta viva.
   // Precificação: ferramenta grátis (isca de retenção) — sem requireCompany, free também vê.
