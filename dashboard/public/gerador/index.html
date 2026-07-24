@@ -386,6 +386,58 @@ html[data-mode="app"].eletro-aberto .container{margin-left:0!important}
 .ep-sign .who b{display:block;font-size:13px;color:#2f6b10}
 .ep-avoid-break{page-break-inside:avoid;break-inside:avoid}
 .ep-foot{margin-top:14px;font-size:9.5px;color:#999;text-align:center;line-height:1.5;border-top:1px solid #eee;padding-top:10px}
+/* ===== Orçamento — formulário na tela (UI dark, reaproveita .card/.eletro-inp) ===== */
+.orc-wrap{max-width:780px;margin:0 auto}
+.orc-note{font-size:11.5px;color:#94A3B8;margin-top:8px;line-height:1.45}
+.orc-head-row{display:grid;grid-template-columns:1fr 96px 54px 116px 112px 30px;gap:8px;padding:0 2px 6px;font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.orc-itens{display:flex;flex-direction:column;gap:8px}
+.orc-item{display:grid;grid-template-columns:1fr 96px 54px 116px 112px 30px;gap:8px;align-items:center}
+.orc-item input{width:100%;box-sizing:border-box;padding:9px 10px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13.5px;font-family:inherit;font-weight:600;outline:none;transition:border-color .2s}
+.orc-item input:focus{border-color:#3B82F6}
+.orc-item input.orc-qtd,.orc-item input.orc-unit{text-align:right}
+.orc-item input.orc-ncm{text-align:center;font-size:12.5px}
+.orc-rowtot{font-size:13px;font-weight:700;color:#E5E7EB;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.orc-del{background:none;border:1px solid rgba(248,113,113,.3);color:#fca5a5;border-radius:8px;width:28px;height:34px;cursor:pointer;font-size:13px;line-height:1;flex:none}
+.orc-del:hover{background:rgba(248,113,113,.12)}
+@media(max-width:640px){
+  .orc-head-row{display:none}
+  .orc-item{grid-template-columns:1fr 1fr auto;grid-auto-rows:auto}
+  .orc-item .orc-desc{grid-column:1/-1}
+  .orc-item .orc-ncm{grid-column:1/2}
+  .orc-rowtot{grid-column:1/2}
+}
+.orc-tot{margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.orc-tot-row{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;color:#CBD5E1}
+.orc-tot-row .v{font-variant-numeric:tabular-nums;font-weight:700;color:#E5E7EB}
+.orc-tot-row.big{font-size:19px;font-weight:800;color:#fff;border-top:1px solid rgba(255,255,255,.12);padding-top:9px;margin-top:2px}
+.orc-tot-row.big .v{color:#34D399;font-size:22px}
+.orc-pg-cond{margin-top:4px}
+.orc-pg-cond .eletro-field .eletro-inp{width:120px}
+.orc-pg-cond .eletro-field .eletro-inp.eletro-inp-wide{width:170px}
+/* ===== Orçamento — documento de impressão (modela a proposta comercial) ===== */
+.ep-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:4px}
+.ep-emit{font-size:10.5px;color:#555;line-height:1.55;text-align:right}
+.ep-emit b{color:#2f6b10;font-size:12.5px}
+.ep-cliente-box{display:flex;gap:20px;flex-wrap:wrap;font-size:11.5px;color:#333;line-height:1.65;border:1px solid #e5e7eb;border-left:4px solid #2f6b10;border-radius:6px;background:#f6f8fb;padding:12px 15px;margin-bottom:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-cliente-box .col{flex:1;min-width:210px}
+.ep-cliente-box b{color:#1a1a1a}
+.ep-cliente-box .nm{font-size:13px;color:#2f6b10;font-weight:800}
+.ep-itens{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:2px}
+.ep-itens thead th{background:#2f6b10;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.3px;padding:8px 8px;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-itens thead th.num{text-align:right}
+.ep-itens tbody td{padding:8px 8px;border-bottom:1px solid #eee;color:#333;vertical-align:top;line-height:1.4}
+.ep-itens tbody td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ep-itens tbody tr:nth-child(even) td{background:#f7f9f5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-totais{margin:12px 0 4px auto;width:290px;border-collapse:collapse;font-size:12px}
+.ep-totais td{padding:5px 8px;color:#444}
+.ep-totais td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:#1a1a1a}
+.ep-totais tr.tot td{border-top:2px solid #2f6b10;font-size:15.5px;color:#2f6b10;font-weight:800;padding-top:9px}
+.ep-venc{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px}
+.ep-venc th{background:#f0f4ec;color:#2f6b10;font-size:10px;text-transform:uppercase;letter-spacing:.3px;padding:6px 9px;text-align:left;border-bottom:1px solid #dfe7d6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-venc th.num{text-align:right}
+.ep-venc td{padding:6px 9px;border-bottom:1px solid #f1f1f1;color:#333}
+.ep-venc td.num{text-align:right;font-variant-numeric:tabular-nums}
+.ep-obs{font-size:10px;color:#666;line-height:1.6;margin-top:14px;white-space:pre-line;border-top:1px solid #eee;padding-top:10px}
 .leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
 /* ===== CRM (sempre dark — força fundo escuro como o cockpit Redes) ===== */
 #crmSection .card{background:#1E293B!important;color:#E5E7EB!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 4px 16px rgba(0,0,0,.25)!important}
@@ -1922,6 +1974,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <!-- sub-abas -->
     <div class="eletro-subnav">
       <button type="button" id="eletro-tab-simulador" class="eletro-subtab ativa" onclick="eletroSubaba('simulador')">Simulador</button>
+      <button type="button" id="eletro-tab-orcamento" class="eletro-subtab" onclick="eletroSubaba('orcamento')">Orçamento</button>
       <button type="button" id="eletro-tab-historico" class="eletro-subtab" onclick="eletroSubaba('historico')">Histórico</button>
       <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
       <button type="button" id="eletro-tab-mercado" class="eletro-subtab" onclick="eletroSubaba('mercado')">Mercado</button>
@@ -2066,6 +2119,123 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       Ano&nbsp;1 aplica a rampa de ocupação; custos fixos correm desde o mês&nbsp;1. VPL/TIR sobre o fluxo anual de 10&nbsp;anos à taxa de desconto informada.
     </div>
     </div><!-- /eletro-pane-simulador -->
+
+    <!-- ===== PANE: ORÇAMENTO (proposta comercial — modela o PDF, calcula tudo) ===== -->
+    <div id="eletro-pane-orcamento" style="display:none;">
+    <div class="pesquisa-info">Preencha os dados, adicione os itens e clique em <b>Gerar orçamento PDF</b>. Subtotal, total e vencimentos são calculados automaticamente. Os dados da sua empresa ficam salvos no navegador.</div>
+    <div class="orc-wrap">
+
+      <!-- SUA EMPRESA (emitente) -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Sua empresa (emitente)</div>
+        <div class="eletro-field"><label>Nome / marca</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-nome" placeholder="Irmãos na Obra — Mobilidade Elétrica" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>Endereço</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-end" placeholder="Rua, nº, bairro" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>Cidade / UF</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-cidade" placeholder="Uberlândia/MG" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>Telefone</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-tel" placeholder="(34) 99816-5040" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>E-mail</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-email" placeholder="contato@irmaosnaobra.com.br" oninput="orcEmitSalvar()"></div></div>
+        <div class="orc-note">Sem CNPJ, como você pediu. Preencha uma vez — fica salvo para os próximos orçamentos.</div>
+      </div>
+
+      <!-- DADOS DA PROPOSTA -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Dados da proposta</div>
+        <div class="eletro-field"><label>Nº da proposta</label>
+          <div class="eletro-inp"><input type="text" id="orc-num" placeholder="897"></div></div>
+        <div class="eletro-field"><label>Data de emissão</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="date" id="orc-data"></div></div>
+        <div class="eletro-field"><label>Validade (dias)</label>
+          <div class="eletro-inp"><input type="number" id="orc-validade" inputmode="numeric" value="7" min="1"></div></div>
+      </div>
+
+      <!-- CLIENTE -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Cliente</div>
+        <div class="eletro-field"><label>Nome / razão social</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-nome" placeholder="Ex: J A Alves Ltda" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>CNPJ / CPF</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-doc" placeholder="00.000.000/0000-00" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Inscrição Estadual</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-ie" placeholder="Opcional" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Endereço</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-end" placeholder="Rua, nº, bairro" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Cidade / UF</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-cidade" placeholder="Ex: Bocaina/PI" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>CEP</label>
+          <div class="eletro-inp"><input type="text" id="orc-cli-cep" placeholder="00000-000" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Telefone</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-tel" placeholder="(00) 00000-0000" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>E-mail</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-email" placeholder="cliente@email.com" autocomplete="off"></div></div>
+      </div>
+
+      <!-- ITENS -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Itens da proposta</div>
+        <div class="orc-head-row"><span>Descrição</span><span>NCM</span><span style="text-align:right">Qtd.</span><span style="text-align:right">Valor unit.</span><span style="text-align:right">Total</span><span></span></div>
+        <div class="orc-itens" id="orc-itens"></div>
+        <button type="button" class="eletro-btn" style="margin-top:12px;flex:0 0 auto" onclick="orcAddItem()">+ Adicionar item</button>
+
+        <div class="eletro-field" style="margin-top:16px"><label>Frete</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-frete" inputmode="decimal" value="0" step="0.01" oninput="orcCalc()"></div></div>
+        <div class="eletro-field"><label>Desconto</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-desc" inputmode="decimal" value="0" step="0.01" oninput="orcCalc()"></div></div>
+
+        <div class="orc-tot">
+          <div class="orc-tot-row"><span>Subtotal</span><span class="v" id="orc-t-sub">R$ 0,00</span></div>
+          <div class="orc-tot-row"><span>Frete</span><span class="v" id="orc-t-frete">R$ 0,00</span></div>
+          <div class="orc-tot-row"><span>Desconto</span><span class="v" id="orc-t-desc">R$ 0,00</span></div>
+          <div class="orc-tot-row big"><span>Total</span><span class="v" id="orc-t-total">R$ 0,00</span></div>
+        </div>
+      </div>
+
+      <!-- PAGAMENTO -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Condição de pagamento</div>
+        <div class="eletro-field"><label>Forma</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="orc-pgmodo" onchange="orcPgModo()" style="width:100%;box-sizing:border-box;padding:9px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:14px;font-family:inherit;font-weight:700;outline:none">
+            <option value="avista">À vista</option>
+            <option value="parcelado">Parcelado (boleto/Nx)</option>
+            <option value="cartao">Cartão de crédito</option>
+            <option value="financiamento">Financiamento bancário</option>
+          </select></div></div>
+
+        <div class="orc-pg-cond" id="orc-pg-data">
+          <div class="eletro-field"><label>Data do 1º vencimento</label>
+            <div class="eletro-inp eletro-inp-wide"><input type="date" id="orc-parc-data"></div></div>
+        </div>
+        <div class="orc-pg-cond" id="orc-pg-parc" style="display:none">
+          <div class="eletro-field"><label>Nº de parcelas</label>
+            <div class="eletro-inp"><input type="number" id="orc-parc-n" inputmode="numeric" value="12" min="1" oninput="orcCalc()"></div></div>
+        </div>
+        <div class="orc-pg-cond" id="orc-pg-cartao" style="display:none">
+          <div class="eletro-field"><label>Nº de vezes no cartão</label>
+            <div class="eletro-inp"><input type="number" id="orc-cartao-n" inputmode="numeric" value="24" min="1" oninput="orcCalc()"></div></div>
+        </div>
+        <div class="orc-pg-cond" id="orc-pg-fin" style="display:none">
+          <div class="eletro-field"><label>Nº de parcelas</label>
+            <div class="eletro-inp"><input type="number" id="orc-fin-n" inputmode="numeric" value="72" min="1"></div></div>
+          <div class="eletro-field"><label>Carência (dias)</label>
+            <div class="eletro-inp"><input type="number" id="orc-fin-car" inputmode="numeric" value="90" min="0"></div></div>
+        </div>
+      </div>
+
+      <!-- OBSERVAÇÕES / GARANTIA -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Observações e garantia</div>
+        <textarea id="orc-obs" rows="5" style="width:100%;box-sizing:border-box;padding:11px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13.5px;font-family:inherit;font-weight:500;line-height:1.5;outline:none;resize:vertical"></textarea>
+        <div class="orc-note">Texto padrão editável. Ele aparece no rodapé do orçamento.</div>
+      </div>
+
+      <div class="eletro-acoes">
+        <button type="button" class="eletro-btn primary" onclick="orcImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Gerar orçamento PDF</button>
+      </div>
+    </div>
+    </div><!-- /eletro-pane-orcamento -->
 
     <!-- ===== PANE: HISTÓRICO (orçamentos de eletroposto salvos) ===== -->
     <div id="eletro-pane-historico" style="display:none;">
@@ -4879,8 +5049,9 @@ function navEletroposto() {
 
 // Sub-abas dentro do Eletroposto: Simulador | Histórico | Pesquisa | Mercado | Postos | Mapa
 function eletroSubaba(qual) {
-  const abas = ['simulador', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  const abas = ['simulador', 'orcamento', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
   if (qual === 'historico') eletroHistCarregar();
+  if (qual === 'orcamento') orcInit();
   abas.forEach(a => {
     const pane = document.getElementById('eletro-pane-' + a);
     if (pane) pane.style.display = (a === qual) ? '' : 'none';
@@ -5556,6 +5727,261 @@ function eletroImprimir() {
   document.title = nomeArq;
   window.addEventListener('afterprint', restaurar, { once: true });
   // espera a marca d'água carregar antes de abrir a impressão (evita 1º print sem a arte)
+  const imgs = Array.from(host.querySelectorAll('img')).filter(im => !im.complete);
+  const aguarda = imgs.length
+    ? Promise.race([
+        Promise.all(imgs.map(im => new Promise(res => { im.onload = im.onerror = res; }))),
+        new Promise(res => setTimeout(res, 1500)),
+      ])
+    : Promise.resolve();
+  aguarda.then(() => { window.print(); setTimeout(restaurar, 2000); });
+}
+
+// ===================================================================
+// ===== ORÇAMENTO — proposta comercial (modela o PDF, calcula tudo) =====
+// ===================================================================
+const ORC_MONEY = n => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const orcEsc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const orcVal = id => (document.getElementById(id)?.value || '').trim();
+const ORC_EMIT_KEY = 'orc_emit_v1';
+const ORC_OBS_PADRAO =
+  'Garantia de 24 meses a partir da emissão da nota fiscal. ' +
+  'Escopo chave na mão: equipamento, projeto, instalação, homologação e suporte conforme acordado. ' +
+  'Valores válidos durante o prazo desta proposta. ' +
+  'Eventual DIFAL em operações interestaduais, quando aplicável, é de responsabilidade do comprador.';
+
+// Data de hoje em yyyy-mm-dd, respeitando o fuso local (não usar toISOString: volta em UTC)
+function orcHojeISO() {
+  const d = new Date();
+  const off = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - off).toISOString().slice(0, 10);
+}
+
+function orcAddItem(desc, ncm, qtd, unit) {
+  const box = document.getElementById('orc-itens');
+  if (!box) return;
+  const row = document.createElement('div');
+  row.className = 'orc-item';
+  row.innerHTML =
+    '<input type="text" class="orc-desc" placeholder="Descrição do item (ex: Carregador DC 240 kW)" autocomplete="off">' +
+    '<input type="text" class="orc-ncm" placeholder="NCM" autocomplete="off">' +
+    '<input type="number" class="orc-qtd" inputmode="decimal" min="0" step="1" value="1">' +
+    '<input type="number" class="orc-unit" inputmode="decimal" min="0" step="0.01" placeholder="0,00">' +
+    '<span class="orc-rowtot">R$ 0,00</span>' +
+    '<button type="button" class="orc-del" title="Remover" onclick="orcDelItem(this)">✕</button>';
+  row.querySelector('.orc-desc').value = desc || '';
+  row.querySelector('.orc-ncm').value = ncm || '8504.40.10';
+  if (qtd != null) row.querySelector('.orc-qtd').value = qtd;
+  if (unit != null) row.querySelector('.orc-unit').value = unit;
+  row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', orcCalc));
+  box.appendChild(row);
+  orcCalc();
+}
+
+function orcDelItem(btn) {
+  const box = document.getElementById('orc-itens');
+  const row = btn.closest('.orc-item');
+  if (row) row.remove();
+  if (box && !box.querySelector('.orc-item')) orcAddItem();   // nunca deixa a lista vazia
+  orcCalc();
+}
+
+// Lê os itens da tela → [{desc, ncm, qtd, unit, total}] e devolve também os agregados
+function orcLerItens() {
+  const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; };
+  const itens = [];
+  document.querySelectorAll('#orc-itens .orc-item').forEach(row => {
+    const desc = row.querySelector('.orc-desc').value.trim();
+    const ncm = row.querySelector('.orc-ncm').value.trim();
+    const qtd = num(row.querySelector('.orc-qtd').value);
+    const unit = num(row.querySelector('.orc-unit').value);
+    const total = qtd * unit;
+    row.querySelector('.orc-rowtot').textContent = ORC_MONEY(total);
+    // linha em branco (sem descrição e sem valor) não entra no documento
+    if (desc || total > 0) itens.push({ desc, ncm, qtd, unit, total });
+  });
+  const subtotal = itens.reduce((s, i) => s + i.total, 0);
+  const frete = num(document.getElementById('orc-frete')?.value);
+  const desconto = num(document.getElementById('orc-desc')?.value);
+  const total = Math.max(0, subtotal + frete - desconto);
+  return { itens, subtotal, frete, desconto, total };
+}
+
+function orcCalc() {
+  const r = orcLerItens();
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('orc-t-sub', ORC_MONEY(r.subtotal));
+  set('orc-t-frete', ORC_MONEY(r.frete));
+  set('orc-t-desc', (r.desconto > 0 ? '- ' : '') + ORC_MONEY(r.desconto));
+  set('orc-t-total', ORC_MONEY(r.total));
+}
+
+// Mostra só os campos da forma de pagamento escolhida
+function orcPgModo() {
+  const modo = orcVal('orc-pgmodo');
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+  show('orc-pg-data', modo === 'avista' || modo === 'parcelado');
+  show('orc-pg-parc', modo === 'parcelado');
+  show('orc-pg-cartao', modo === 'cartao');
+  show('orc-pg-fin', modo === 'financiamento');
+}
+
+// Bloco de pagamento para o PDF (vencimentos calculados)
+function orcPagamentoHTML(total) {
+  const modo = orcVal('orc-pgmodo');
+  const dataBase = () => { const d = orcVal('orc-parc-data'); return d ? new Date(d + 'T00:00:00') : new Date(); };
+  const addMes = (base, i) => { const d = new Date(base); d.setMonth(d.getMonth() + i); return d; };
+  const br = d => d.toLocaleDateString('pt-BR');
+
+  if (modo === 'parcelado') {
+    const n = Math.max(1, Math.round(parseFloat(orcVal('orc-parc-n')) || 1));
+    const base = dataBase(), val = total / n;
+    let rows = '';
+    for (let i = 0; i < n; i++) rows += `<tr><td>${i + 1}/${n}</td><td>${br(addMes(base, i))}</td><td class="num">${ORC_MONEY(val)}</td></tr>`;
+    return `<div class="ep-sub" style="font-size:12px;margin-bottom:6px">Parcelado em <b>${n}x</b> de <b>${ORC_MONEY(val)}</b></div>` +
+      `<table class="ep-venc"><thead><tr><th>Parcela</th><th>Vencimento</th><th class="num">Valor</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  if (modo === 'cartao') {
+    const n = Math.max(1, Math.round(parseFloat(orcVal('orc-cartao-n')) || 1));
+    return `<table class="ep-venc"><thead><tr><th>Forma</th><th>Parcelas</th><th class="num">Valor da parcela</th></tr></thead>` +
+      `<tbody><tr><td>Cartão de crédito</td><td>${n}x</td><td class="num">${ORC_MONEY(total / n)}</td></tr></tbody></table>` +
+      `<div class="ep-obs" style="border:0;padding-top:6px;margin-top:6px">Parcelamento no cartão sujeito às taxas da operadora.</div>`;
+  }
+  if (modo === 'financiamento') {
+    const n = Math.max(1, Math.round(parseFloat(orcVal('orc-fin-n')) || 72));
+    const car = Math.max(0, Math.round(parseFloat(orcVal('orc-fin-car')) || 0));
+    return `<div class="ep-sub" style="font-size:12px">Financiamento bancário em até <b>${n}x</b>${car ? `, com até <b>${car} dias</b> de carência para a 1ª parcela` : ''}.</div>` +
+      `<div class="ep-obs" style="border:0;padding-top:6px;margin-top:6px">Valor da parcela conforme taxa e prazo aprovados pela instituição financeira. Sujeito à análise de crédito.</div>`;
+  }
+  // à vista
+  return `<table class="ep-venc"><thead><tr><th>Parcela</th><th>Vencimento</th><th class="num">Valor</th></tr></thead>` +
+    `<tbody><tr><td>1 — à vista</td><td>${br(dataBase())}</td><td class="num">${ORC_MONEY(total)}</td></tr></tbody></table>`;
+}
+
+// Emitente (sua empresa) — persistência no navegador
+function orcEmitCampos() { return ['nome', 'end', 'cidade', 'tel', 'email']; }
+function orcEmitSalvar() {
+  const o = {};
+  orcEmitCampos().forEach(k => { o[k] = orcVal('orc-emit-' + k); });
+  try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {}
+}
+function orcEmitCarregar() {
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}; } catch (e) {}
+  // defaults da marca (só quando ainda não há nada salvo)
+  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: '', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br' };
+  orcEmitCampos().forEach(k => {
+    const el = document.getElementById('orc-emit-' + k);
+    if (el) el.value = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
+  });
+}
+
+// Primeira abertura do pane: prepara datas, item padrão, emitente e observações
+let orcIniciado = false;
+function orcInit() {
+  if (orcIniciado) { orcCalc(); return; }
+  orcIniciado = true;
+  orcEmitCarregar();
+  const dEmis = document.getElementById('orc-data'); if (dEmis && !dEmis.value) dEmis.value = orcHojeISO();
+  const dVenc = document.getElementById('orc-parc-data'); if (dVenc && !dVenc.value) dVenc.value = orcHojeISO();
+  const obs = document.getElementById('orc-obs'); if (obs && !obs.value.trim()) obs.value = ORC_OBS_PADRAO;
+  // pré-preenche cliente/equipamento a partir do simulador, se o consultor já digitou lá
+  const simCli = orcVal('el-cliente'), simCid = orcVal('el-cidade'), simEq = orcVal('el-equip');
+  const cliNome = document.getElementById('orc-cli-nome'); if (cliNome && !cliNome.value && simCli) cliNome.value = simCli;
+  const cliCid = document.getElementById('orc-cli-cidade'); if (cliCid && !cliCid.value && simCid) cliCid.value = simCid;
+  // primeiro item, com a potência do simulador se houver
+  if (!document.querySelector('#orc-itens .orc-item')) orcAddItem(simEq ? 'Carregador ' + simEq : 'Carregador DC — eletroposto', '8504.40.10', 1, '');
+  orcPgModo();
+  orcCalc();
+}
+
+function orcImprimir() {
+  const r = orcLerItens();
+  if (!r.itens.length) { alert('Adicione ao menos um item com valor para gerar o orçamento.'); return; }
+
+  const emit = {};
+  orcEmitCampos().forEach(k => { emit[k] = orcVal('orc-emit-' + k); });
+  const cli = {
+    nome: orcVal('orc-cli-nome'), doc: orcVal('orc-cli-doc'), ie: orcVal('orc-cli-ie'),
+    end: orcVal('orc-cli-end'), cidade: orcVal('orc-cli-cidade'), cep: orcVal('orc-cli-cep'),
+    tel: orcVal('orc-cli-tel'), email: orcVal('orc-cli-email'),
+  };
+  const num = orcVal('orc-num');
+  const dEmisISO = orcVal('orc-data') || orcHojeISO();
+  const dEmis = new Date(dEmisISO + 'T00:00:00');
+  const dias = Math.max(1, Math.round(parseFloat(orcVal('orc-validade')) || 7));
+  const dVal = new Date(dEmis.getTime() + dias * 86400000);
+  const obs = orcVal('orc-obs') || ORC_OBS_PADRAO;
+
+  const linhasItens = r.itens.map(i =>
+    `<tr><td>${orcEsc(i.desc) || '—'}</td><td>${orcEsc(i.ncm)}</td><td class="num">${(+i.qtd).toLocaleString('pt-BR')}</td><td class="num">${ORC_MONEY(i.unit)}</td><td class="num">${ORC_MONEY(i.total)}</td></tr>`
+  ).join('');
+
+  const emitHTML = [
+    emit.nome ? `<b>${orcEsc(emit.nome)}</b>` : '',
+    emit.end ? orcEsc(emit.end) : '',
+    emit.cidade ? orcEsc(emit.cidade) : '',
+    [emit.tel && orcEsc(emit.tel), emit.email && orcEsc(emit.email)].filter(Boolean).join(' · '),
+  ].filter(Boolean).join('<br>');
+
+  const cliColA = [
+    cli.nome ? `<span class="nm">${orcEsc(cli.nome)}</span>` : '<span class="nm">Cliente</span>',
+    cli.doc ? `CNPJ/CPF: <b>${orcEsc(cli.doc)}</b>` : '',
+    cli.ie ? `Inscrição Estadual: ${orcEsc(cli.ie)}` : '',
+  ].filter(Boolean).join('<br>');
+  const cliColB = [
+    cli.end ? orcEsc(cli.end) : '',
+    [cli.cidade && orcEsc(cli.cidade), cli.cep && ('CEP: ' + orcEsc(cli.cep))].filter(Boolean).join(' · '),
+    cli.tel ? 'Telefone: ' + orcEsc(cli.tel) : '',
+    cli.email ? 'E-mail: ' + orcEsc(cli.email) : '',
+  ].filter(Boolean).join('<br>');
+
+  const host = document.getElementById('eletro-print');
+  host.innerHTML = `
+    <div class="ep-doc">
+      <div class="ep-page">
+      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
+      <div class="ep-topo">
+        <div class="ep-brand" style="margin-bottom:0"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"></div>
+        <div class="ep-emit">${emitHTML}</div>
+      </div>
+      <div class="ep-head">
+        <div><div class="ep-title">Proposta Comercial${num ? ' Nº ' + orcEsc(num) : ''}</div></div>
+        <div class="ep-date">Emissão: ${dEmis.toLocaleDateString('pt-BR')}<br>Validade: ${dVal.toLocaleDateString('pt-BR')} (${dias} dias)</div>
+      </div>
+
+      <div class="ep-section">Informações do cliente</div>
+      <div class="ep-cliente-box">
+        <div class="col">${cliColA}</div>
+        ${cliColB ? `<div class="col">${cliColB}</div>` : ''}
+      </div>
+
+      <div class="ep-section">Itens da proposta</div>
+      <table class="ep-itens">
+        <thead><tr><th>Descrição</th><th>NCM</th><th class="num">Qtd.</th><th class="num">Valor unit.</th><th class="num">Valor total</th></tr></thead>
+        <tbody>${linhasItens}</tbody>
+      </table>
+      <table class="ep-totais">
+        <tr><td>Subtotal</td><td>${ORC_MONEY(r.subtotal)}</td></tr>
+        ${r.frete > 0 ? `<tr><td>Frete</td><td>${ORC_MONEY(r.frete)}</td></tr>` : ''}
+        ${r.desconto > 0 ? `<tr><td>Desconto</td><td>- ${ORC_MONEY(r.desconto)}</td></tr>` : ''}
+        <tr class="tot"><td>Total</td><td>${ORC_MONEY(r.total)}</td></tr>
+      </table>
+
+      <div class="ep-section">Condição de pagamento</div>
+      ${orcPagamentoHTML(r.total)}
+
+      <div class="ep-obs">${orcEsc(obs)}</div>
+      <div class="ep-foot">Proposta comercial gerada por ${orcEsc(emit.nome || 'Irmãos na Obra')} · Documento sem valor fiscal — a nota fiscal é emitida no faturamento.</div>
+      </div><!-- /página única -->
+    </div>`;
+
+  const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  const nomeArq = ['Orcamento', limpa(cli.nome) || 'Cliente', num ? 'N' + limpa(num) : ''].filter(Boolean).join('_');
+  const tituloOriginal = document.title;
+  const restaurar = () => { document.title = tituloOriginal; };
+  document.title = nomeArq;
+  window.addEventListener('afterprint', restaurar, { once: true });
   const imgs = Array.from(host.querySelectorAll('img')).filter(im => !im.complete);
   const aguarda = imgs.length
     ? Promise.race([
