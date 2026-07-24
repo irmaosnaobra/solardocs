@@ -6,7 +6,7 @@
   "rewrites": [
     { "source": "/_api/:path*", "destination": "https://api.solardoc.app/:path*" },
     { "source": "/p/:id", "destination": "https://api.solardoc.app/p/:id" },
-    { "source": "/v/:id", "destination": "https://api.solardoc.app/v/:id" }
+    { "source": "/v/:path*", "destination": "https://api.solardoc.app/v/:path*" }
   ],
   "headers": [
     {

@@ -1,6 +1,17 @@
 import { Router, Request, Response } from 'express';
+import JSZip from 'jszip';
 import { supabase } from '../utils/supabase';
 import { withSignedUrls } from './vistorias';
+
+const BUCKET = 'documentos';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Nome de arquivo seguro: sem acento, minúsculo, só a-z0-9 e hífen.
+function slugify(s: string): string {
+  return String(s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'item';
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /v/:id — relatório PÚBLICO da vistoria solar (sem auth).
@@ -34,7 +45,7 @@ function paginaErro(res: Response): void {
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id || '');
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    if (!UUID_RE.test(id)) {
       paginaErro(res);
       return;
     }
@@ -53,6 +64,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     const itens = await withSignedUrls(Array.isArray(v.itens) ? v.itens : []);
     const comFoto = itens.filter((i) => i.fotos.length > 0);
     const faltando = itens.filter((i) => i.fotos.length === 0).map((i) => esc(i.label));
+    const totalFotos = itens.reduce((n, i) => n + i.fotos.length, 0);
 
     const data = new Date(v.created_at).toLocaleDateString('pt-BR', {
       timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric',
@@ -109,12 +121,14 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   .faltando{margin-top:24px;padding:12px 14px;background:#3F1D1D;border:1px solid #7F1D1D;border-radius:12px;font-size:13px;color:#FCA5A5}
   footer{text-align:center;color:#64748B;font-size:12px;margin-top:28px}
   .empty{margin-top:24px;padding:24px;text-align:center;color:#94A3B8;background:#1E293B;border-radius:14px}
+  .dlBtn{display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:12px 18px;border-radius:12px;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#0f172a;font-weight:800;font-size:14px;text-decoration:none}
 </style>
 </head><body>
 <header><div class="wrap">
   <p class="eyebrow">☀️ Vistoria de Energia Solar</p>
   <h1>${v.cliente_nome ? esc(v.cliente_nome) : 'Vistoria técnica'}</h1>
   <div class="meta"><span>📅 ${data}</span><span>✅ ${comFoto.length} de ${itens.length} itens</span><span>${v.status === 'concluida' ? 'Concluída' : 'Em andamento'}</span></div>
+  ${totalFotos > 0 ? `<a class="dlBtn" href="/v/${esc(v.id)}/fotos.zip" download>⬇️ Baixar todas as fotos (${totalFotos})</a>` : ''}
 </div></header>
 <main class="wrap">
   ${comFoto.length ? blocos : `<div class="empty">Nenhum registro ainda.</div>`}
@@ -125,6 +139,67 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   } catch (err) {
     console.error('[public-vistoria] erro:', err);
     res.status(500).type('text/plain').send('Erro ao carregar a vistoria.');
+  }
+});
+
+// ── GET /v/:id/fotos.zip — baixa TODAS as fotos/arquivos num ZIP organizado ─────
+// Público (é o link que a engenharia recebe). Nomes prefixados pela ordem do item
+// (01-conta-de-luz-1.jpg …) pra chegar organizado e ordenável na engenharia.
+router.get('/:id/fotos.zip', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id || '');
+    if (!UUID_RE.test(id)) {
+      res.status(404).type('text/plain').send('Vistoria não encontrada.');
+      return;
+    }
+
+    const { data: v } = await supabase
+      .from('vistorias')
+      .select('id, cliente_nome, itens')
+      .eq('id', id)
+      .maybeSingle();
+    if (!v) {
+      res.status(404).type('text/plain').send('Vistoria não encontrada.');
+      return;
+    }
+
+    type Foto = { url: string; tipo: 'image' | 'file'; nome?: string };
+    type Item = { label: string; fotos?: Foto[] };
+    const itens = (Array.isArray(v.itens) ? v.itens : []) as Item[];
+
+    // Baixa cada arquivo do Storage e adiciona ao zip com nome organizado.
+    const zip = new JSZip();
+    let adicionados = 0;
+    await Promise.all(
+      itens.flatMap((item, i) => {
+        const fotos = Array.isArray(item.fotos) ? item.fotos : [];
+        const ordem = String(i + 1).padStart(2, '0');
+        const base = slugify(item.label);
+        return fotos.map(async (f, j) => {
+          const { data: blob, error } = await supabase.storage.from(BUCKET).download(f.url);
+          if (error || !blob) return;
+          const buf = Buffer.from(await blob.arrayBuffer());
+          const ext = (f.url.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+          zip.file(`${ordem}-${base}-${j + 1}.${ext}`, buf);
+          adicionados++;
+        });
+      }),
+    );
+
+    if (adicionados === 0) {
+      res.status(404).type('text/plain').send('Esta vistoria ainda não tem fotos.');
+      return;
+    }
+
+    const content = await zip.generateAsync({ type: 'nodebuffer', compression: 'STORE' });
+    const fname = `vistoria-${slugify(v.cliente_nome || 'solar')}.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(content);
+  } catch (err) {
+    console.error('[public-vistoria-zip] erro:', err);
+    res.status(500).type('text/plain').send('Erro ao gerar o ZIP.');
   }
 });
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  ClipboardCheck, Camera, Paperclip, Check, X, RefreshCw, Share2, Copy, Plus, Trash2, FileText,
+  ClipboardCheck, Camera, Paperclip, Check, X, RefreshCw, Share2, Copy, Plus, Trash2, FileText, Download,
 } from 'lucide-react';
 import api from '@/services/api';
 import ClientModal from '@/components/ClientModal/ClientModal';
@@ -277,6 +277,7 @@ export default function VistoriaPage() {
           </div>
           {copiado && <p className="vst-toast">Link copiado!</p>}
           <a className="vst-wa" href={`https://wa.me/?text=${waMsg}`} target="_blank" rel="noopener noreferrer"><Share2 size={18} /> Enviar no WhatsApp</a>
+          <a className="vst-primaryBtn" href={`${reportUrl}/fotos.zip`} style={{ marginTop: 10, textDecoration: 'none' }}><Download size={18} strokeWidth={2.4} /> Baixar todas as fotos</a>
           <a className="vst-ghostBtn" href={reportUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 10 }}>Abrir relatório</a>
           <button className="vst-ghostBtn" onClick={reset} style={{ marginTop: 10 }}><RefreshCw size={15} /> Nova vistoria</button>
         </div>
