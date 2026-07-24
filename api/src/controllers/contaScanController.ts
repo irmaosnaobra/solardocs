@@ -294,3 +294,126 @@ export function normalizeExtraction(raw: RawExtraction) {
 
   return { cliente, detectado };
 }
+
+// ── Escanear Documento (RG / CNH / CIN) ────────────────────────────────────────
+// Lê um documento de identidade e devolve os campos do cadastro (nome, CPF,
+// nacionalidade). Complementa a conta de luz: a fatura costuma mascarar o CPF,
+// e o documento traz o CPF completo + nome confirmado. Mesma plumbing de visão.
+
+interface RawDoc {
+  doc_valido?: boolean;
+  tipo_doc?: string;
+  nome?: string;
+  cpf?: string;
+  nacionalidade?: string;
+  confianca?: string;
+  observacoes?: string;
+}
+
+export const DOC_EXTRACT_TOOL: Anthropic.Tool = {
+  name: 'registrar_dados_documento',
+  description:
+    'Registra os dados extraídos de um documento de identidade brasileiro (RG, CNH ou CIN/novo RG) para cadastro de cliente.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      doc_valido: { type: 'boolean', description: 'true se é um documento de identidade brasileiro (RG, CNH, CIN/novo RG, carteira funcional com foto); false caso contrário.' },
+      tipo_doc: { type: 'string', enum: ['RG', 'CNH', 'CIN', 'outro'], description: 'Tipo do documento identificado.' },
+      nome: { type: 'string', description: 'Nome completo do titular, exatamente como no documento.' },
+      cpf: { type: 'string', description: 'CPF do titular, só os 11 dígitos. Se não houver ou estiver ilegível, omita.' },
+      nacionalidade: { type: 'string', description: 'Nacionalidade se constar (ex: brasileiro/brasileira).' },
+      confianca: { type: 'string', enum: ['alta', 'media', 'baixa'], description: 'Sua confiança na leitura.' },
+      observacoes: { type: 'string', description: 'Campos duvidosos/ilegíveis pra conferência. Curto.' },
+    },
+    required: ['doc_valido'],
+  },
+};
+
+export const DOC_SYSTEM_PROMPT =
+  'Você extrai dados de documentos de identidade brasileiros (RG antigo, CNH, CIN/novo documento de identidade e carteiras funcionais com foto). ' +
+  'Leia a imagem/PDF e chame a ferramenta registrar_dados_documento com o NOME COMPLETO e o CPF do titular. ' +
+  'Regras: (1) Não invente dados — se um campo não está legível ou não existe, omita-o. ' +
+  '(2) CPF: só os 11 dígitos, sem pontos/traço. ' +
+  '(3) Se a imagem tiver frente e verso, use os dois. ' +
+  '(4) Se não for um documento de identidade, marque doc_valido=false.';
+
+export async function scanDocumento(req: Request, res: Response): Promise<void> {
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!apiKey) {
+    res.status(503).json({ error: 'Leitura de documento indisponível no momento.' });
+    return;
+  }
+
+  let body: z.infer<typeof scanSchema>;
+  try {
+    body = scanSchema.parse(req.body);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.issues[0].message });
+      return;
+    }
+    res.status(400).json({ error: 'Requisição inválida' });
+    return;
+  }
+
+  const approxBytes = Math.floor((body.file_base64.length * 3) / 4);
+  if (approxBytes > 5 * 1024 * 1024) {
+    res.status(413).json({ error: 'Arquivo muito grande. Envie uma foto mais leve (até ~4MB).' });
+    return;
+  }
+
+  const isPdf = body.media_type === 'application/pdf';
+  const imgMime = body.media_type as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+  const block: Anthropic.ContentBlockParam = isPdf
+    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: body.file_base64 } }
+    : { type: 'image', source: { type: 'base64', media_type: imgMime, data: body.file_base64 } };
+
+  let raw: RawDoc;
+  try {
+    const anthropic = new Anthropic({ apiKey });
+    const response = await anthropic.messages.create({
+      model: VISION_MODEL,
+      max_tokens: 1024,
+      temperature: 0,
+      system: DOC_SYSTEM_PROMPT,
+      tools: [DOC_EXTRACT_TOOL],
+      tool_choice: { type: 'tool', name: DOC_EXTRACT_TOOL.name },
+      messages: [
+        {
+          role: 'user',
+          content: [block, { type: 'text', text: 'Extraia o nome e o CPF deste documento para cadastro do cliente.' }],
+        },
+      ],
+    });
+
+    const toolBlock = response.content.find((b) => b.type === 'tool_use');
+    if (!toolBlock || toolBlock.type !== 'tool_use') {
+      res.status(422).json({ error: 'Não consegui ler o documento. Tente uma foto mais nítida.' });
+      return;
+    }
+    raw = toolBlock.input as RawDoc;
+  } catch (err) {
+    console.error('[scanDocumento] Anthropic error:', err);
+    res.status(502).json({ error: 'Falha ao ler o documento. Tente novamente em instantes.' });
+    return;
+  }
+
+  if (raw.doc_valido === false) {
+    res.status(422).json({ error: 'Isso não parece um documento de identidade. Envie o RG, a CNH ou a CIN.' });
+    return;
+  }
+
+  const conf = raw.confianca;
+  const cliente = {
+    tipo: 'PF' as const,
+    nome: toStr(raw.nome),
+    cpf_cnpj: fmtCpfCnpj(raw.cpf, 'PF'),
+    nacionalidade: toStr(raw.nacionalidade) || 'brasileiro(a)',
+  };
+  const detectado = {
+    tipo_doc: toStr(raw.tipo_doc),
+    confianca: conf === 'alta' || conf === 'media' || conf === 'baixa' ? conf : 'media',
+    observacoes: toStr(raw.observacoes),
+  };
+  res.json({ cliente, detectado });
+}

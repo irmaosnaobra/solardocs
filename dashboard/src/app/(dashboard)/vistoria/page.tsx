@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type ComponentProps } from 'react';
 import Link from 'next/link';
 import {
   ClipboardCheck, Camera, Paperclip, Check, X, RefreshCw, Share2, Copy, Plus, Trash2, FileText, Download,
@@ -90,7 +90,13 @@ export default function VistoriaPage() {
   const [copiado, setCopiado] = useState(false);
   const [lightbox, setLightbox] = useState<{ itemKey: string; foto: Foto } | null>(null);
 
+  // "Cadastrar Cliente": dados lidos dos documentos (conta de luz + RG/CNH) que
+  // pré-preenchem o ClientModal. scanBusy = leitura em andamento.
+  const [seedNovo, setSeedNovo] = useState<Record<string, string>>({});
+  const [scanBusy, setScanBusy] = useState<'' | 'conta' | 'documento'>('');
+
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const scanRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const obsTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const opened = useRef(false);
 
@@ -129,10 +135,44 @@ export default function VistoriaPage() {
   // Cliente novo cadastrado no modal → seleciona e vira modo "cadastrado".
   function onClienteCriado(c: Client) {
     setModalOpen(false);
+    setSeedNovo({});
     setClienteId(c.id);
     setClienteNome(c.nome);
     setModo('cadastrado');
     carregarGrupos(); // recarrega a lista agrupada já com o novo cliente
+  }
+
+  // Lê um documento (conta de luz ou RG/CNH) via IA e mescla os campos no seed
+  // que pré-preenche o cadastro. Campos vazios não sobrescrevem o que já veio.
+  async function scanDoc(kind: 'conta' | 'documento', file: File) {
+    setErro(''); setScanBusy(kind);
+    try {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      let base64 = ''; let media_type = 'image/jpeg';
+      if (isPdf) {
+        base64 = (await readAsDataUrl(file)).split(',')[1] || '';
+        media_type = 'application/pdf';
+      } else {
+        base64 = (await compress(file)).base64;
+      }
+      const url = kind === 'conta' ? '/clients/scan' : '/clients/scan-documento';
+      const r = await api.post(url, { file_base64: base64, media_type });
+      const cli = (r.data?.cliente || {}) as Record<string, unknown>;
+      const limpos: Record<string, string> = {};
+      for (const [k, v] of Object.entries(cli)) {
+        if (typeof v === 'string' && v.trim()) limpos[k] = v;
+      }
+      setSeedNovo((prev) => ({ ...prev, ...limpos }));
+    } catch (err) {
+      setErro(apiError(err) || 'Não consegui ler o documento. Tente uma foto mais nítida.');
+    } finally {
+      setScanBusy('');
+    }
+  }
+
+  function onPickScan(kind: 'conta' | 'documento', files: FileList | null) {
+    const f = files?.[0];
+    if (f) scanDoc(kind, f);
   }
 
   const addArquivo = useCallback(async (itemKey: string, file: File) => {
@@ -201,7 +241,7 @@ export default function VistoriaPage() {
 
   function reset() {
     setVistoria(null); setConcluida(false); setErro('');
-    setModo('nome'); setClienteId(''); setClienteNome('');
+    setModo('cadastrado'); setClienteId(''); setClienteNome(''); setSeedNovo({});
   }
 
   const total = vistoria?.itens.length ?? 0;
@@ -219,7 +259,7 @@ export default function VistoriaPage() {
   if (!vistoria) {
     return (
       <div className="vst-page">
-        {modalOpen && <ClientModal client={null} onClose={() => setModalOpen(false)} onSave={onClienteCriado} />}
+        {modalOpen && <ClientModal client={null} seed={seedNovo as ComponentProps<typeof ClientModal>['seed']} onClose={() => setModalOpen(false)} onSave={onClienteCriado} />}
         <header className="vst-hero">
           <div className="vst-heroBadge"><ClipboardCheck size={16} strokeWidth={2.2} /> Vistoria Solar</div>
           <h1 className="vst-heroTitle">Faça a vistoria pelo celular, foto por foto</h1>
@@ -231,7 +271,7 @@ export default function VistoriaPage() {
         <div className="vst-card">
           <label className="vst-label">Cliente</label>
           <div className="vst-seg">
-            <button className={`vst-segBtn ${modo === 'novo' ? 'on' : ''}`} onClick={() => { setModo('novo'); setModalOpen(true); }}>Cadastrar Cliente</button>
+            <button className={`vst-segBtn ${modo === 'novo' ? 'on' : ''}`} onClick={() => setModo('novo')}>Cadastrar Cliente</button>
             <button className={`vst-segBtn ${modo === 'cadastrado' ? 'on' : ''}`} onClick={() => setModo('cadastrado')}>Cliente Cadastrado</button>
             <button className={`vst-segBtn ${modo === 'nome' ? 'on' : ''}`} onClick={() => setModo('nome')}>Apenas Nome</button>
           </div>
@@ -256,9 +296,42 @@ export default function VistoriaPage() {
           )}
           {modo === 'novo' && (
             <div style={{ marginBottom: 14 }}>
-              {clienteId
-                ? <p className="vst-heroSub">Selecionado: <strong>{clienteNome}</strong></p>
-                : <button className="vst-ghostBtn" onClick={() => setModalOpen(true)}><Plus size={15} /> Cadastrar novo cliente</button>}
+              {/* inputs escondidos: aceitam foto (câmera/galeria) OU PDF, do celular ou PC */}
+              <input ref={(el) => { scanRefs.current.conta = el; }} type="file" accept="image/*,application/pdf"
+                style={{ display: 'none' }} onChange={(e) => { onPickScan('conta', e.target.files); e.target.value = ''; }} />
+              <input ref={(el) => { scanRefs.current.documento = el; }} type="file" accept="image/*,application/pdf"
+                style={{ display: 'none' }} onChange={(e) => { onPickScan('documento', e.target.files); e.target.value = ''; }} />
+
+              {clienteId ? (
+                <p className="vst-heroSub">Cliente cadastrado: <strong>{clienteNome}</strong> ✅</p>
+              ) : (
+                <>
+                  <p className="vst-heroSub" style={{ marginBottom: 10 }}>
+                    Envie os documentos que a IA preenche o cadastro sozinha (opcional):
+                  </p>
+                  <div className="vst-addBtns">
+                    <button className="vst-addBtn" disabled={!!scanBusy} onClick={() => scanRefs.current.conta?.click()}>
+                      {scanBusy === 'conta' ? <span className="vst-spin" /> : <FileText size={16} />} Conta de luz
+                    </button>
+                    <button className="vst-addBtn" disabled={!!scanBusy} onClick={() => scanRefs.current.documento?.click()}>
+                      {scanBusy === 'documento' ? <span className="vst-spin" /> : <Paperclip size={16} />} Identidade / CNH
+                    </button>
+                  </div>
+
+                  {(seedNovo.nome || seedNovo.cpf_cnpj || seedNovo.endereco) && (
+                    <div className="vst-scanInfo">
+                      <strong>Dados lidos:</strong>
+                      {seedNovo.nome ? <span>👤 {seedNovo.nome}</span> : null}
+                      {seedNovo.cpf_cnpj ? <span>🪪 {seedNovo.cpf_cnpj}</span> : null}
+                      {seedNovo.endereco ? <span>📍 {seedNovo.endereco}</span> : null}
+                    </div>
+                  )}
+
+                  <button className="vst-ghostBtn" style={{ marginTop: 12 }} onClick={() => setModalOpen(true)}>
+                    <Plus size={15} /> {Object.keys(seedNovo).length ? 'Revisar e cadastrar' : 'Cadastrar manualmente'}
+                  </button>
+                </>
+              )}
             </div>
           )}
 
