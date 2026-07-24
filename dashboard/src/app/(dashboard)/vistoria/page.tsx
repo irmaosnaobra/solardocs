@@ -371,7 +371,7 @@ export default function VistoriaPage() {
 
       {erro && <p className="vst-err">{erro}</p>}
 
-      <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 560, marginInline: 'auto' }}>
         <button className="vst-primaryBtn" onClick={concluir}><Check size={18} strokeWidth={2.4} /> Concluir e gerar link</button>
         <Link href="/clientes" className="vst-ghostBtn">Sair sem concluir</Link>
       </div>

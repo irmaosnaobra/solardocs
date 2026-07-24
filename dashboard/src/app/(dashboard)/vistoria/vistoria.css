@@ -1,5 +1,8 @@
-/* Vistoria Solar — checklist de campo com foto por item */
-.vst-page { max-width: 820px; margin: 0 auto; padding: 8px 0 64px; }
+/* Vistoria Solar — checklist de campo com foto por item.
+   Segue o padrão das demais abas: página ocupa 100% do canvas (.content do
+   layout, max 1520px). Cards de formulário (início/conclusão) ficam centralizados
+   e o checklist vira grid pra preencher a largura, como as outras telas. */
+.vst-page { max-width: 100%; }
 
 .vst-hero { padding: 4px 4px 18px; }
 .vst-heroBadge {
@@ -15,6 +18,7 @@
   background: var(--color-surface, #1e293b);
   border: 1px solid var(--color-border, #334155);
   border-radius: 16px; padding: 18px; margin-top: 16px;
+  max-width: 560px; /* formulário legível, centralizado (padrão escanear-conta) */
 }
 .vst-label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 8px; color: var(--color-text-muted, #94a3b8); }
 .vst-select, .vst-input {
@@ -46,8 +50,8 @@
 .vst-progressBar { height: 8px; border-radius: 999px; background: var(--color-border, #334155); overflow: hidden; }
 .vst-progressFill { height: 100%; background: linear-gradient(90deg, #fbbf24, #f59e0b); transition: width .3s ease; }
 
-/* Lista de itens */
-.vst-items { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+/* Lista de itens — grid responsivo pra preencher a largura como as demais abas */
+.vst-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; margin-top: 8px; align-items: start; }
 .vst-item {
   display: flex; gap: 14px; align-items: flex-start;
   background: var(--color-surface, #1e293b);
