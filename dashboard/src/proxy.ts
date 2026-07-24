@@ -20,8 +20,13 @@ export function proxy(request: NextRequest) {
 
   // Usuário logado tentando ver login/cadastro → manda pra dentro do app.
   // A landing pública (/) NÃO entra nesse redirect — fica acessível mesmo logado.
+  // O app tem que abrir SEMPRE na tela de atalho: no celular, todo acesso logado
+  // via /auth (start_url antigo de instalações já existentes, ou pós-login) cai
+  // no launcher /inicio. No PC segue pra plataforma como antes.
   if (token && pathname.startsWith('/auth')) {
-    return NextResponse.redirect(new URL('/empresa', request.url));
+    const ua = request.headers.get('user-agent') || '';
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+    return NextResponse.redirect(new URL(isMobile ? '/inicio' : '/empresa', request.url));
   }
 
   return NextResponse.next();
