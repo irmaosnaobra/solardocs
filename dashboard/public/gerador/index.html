@@ -1130,6 +1130,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   </div>
   <div class="sb-spacer"></div>
   <div class="sb-foot">
+    <button type="button" class="sb-item" id="sb-atualizar" onclick="forcarAtualizar(this)"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></span> Atualizar</button>
     <button type="button" class="sb-item" onclick="sairGerador()"><span class="sb-ic">↩</span> Sair</button>
   </div>
 </nav>
@@ -8634,6 +8635,29 @@ function sairGerador() {
   const ls = document.getElementById('login-senha');
   if (ls) ls.value = '';
   window.scrollTo({ top: 0 });
+}
+
+// ============= Botão "Atualizar" — força a versão nova sem fechar o app =============
+// Limpa os caches do PWA e recarrega. Com o SW em network-first + HTML no-store,
+// o reload já traz o index.html fresco do servidor.
+let atualizando = false;
+async function forcarAtualizar(btn) {
+  if (atualizando) return;
+  atualizando = true;
+  const original = btn ? btn.innerHTML : '';
+  if (btn) { btn.innerHTML = '<span class="sb-ic">⏳</span> Atualizando…'; btn.disabled = true; }
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.update().catch(() => {})));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) { /* segue pro reload de qualquer forma */ }
+  // reload forçado ignorando o cache do próprio navegador
+  window.location.reload(true);
 }
 
 // ============= PWA — Service Worker + auto-update =============
