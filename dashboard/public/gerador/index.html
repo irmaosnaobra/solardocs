@@ -2300,8 +2300,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-pg-cond" id="orc-pg-data">
           <div class="eletro-field" style="margin-top:14px"><label>Data do vencimento (à vista)</label>
             <div class="eletro-inp eletro-inp-wide"><input type="date" id="orc-parc-data"></div></div>
-          <div class="eletro-field"><label>Desconto à vista<span class="el-tip" tabindex="0" data-tip="Percentual de desconto aplicado SÓ no pagamento à vista. Aparece em destaque no orçamento (ex: à vista R$ X, 5% off). Vale pro Orçamento básico e completo.">?</span></label>
-            <div class="eletro-inp has-suf"><input type="number" id="orc-desc-avista" inputmode="decimal" min="0" max="90" value="0" oninput="orcCalc()"><span class="suf">%</span></div></div>
         </div>
 
         <!-- Cartão: escolhe quais parcelas entram na proposta (a taxa NÃO aparece pro cliente) -->
@@ -6284,34 +6282,22 @@ function orcImprimir() {
   aguarda.then(() => { window.print(); setTimeout(restaurar, 2000); });
 }
 
-// ===== Desconto à vista + WhatsApp do orçamento (compartilhados básico/completo) =====
-function orcDescAvistaPct() {
-  const v = parseFloat((document.getElementById('orc-desc-avista')?.value || '').replace(',', '.'));
-  return isFinite(v) && v > 0 ? Math.min(90, v) : 0;
-}
-// Bloco "À vista" com desconto opcional em destaque (usado no básico e no completo)
+// ===== WhatsApp do orçamento (compartilhado básico/completo) =====
+// Bloco "À vista" — sempre o valor cheio (usado no básico e no completo)
 function epAvistaBloco(total, dataStr) {
-  const d = orcDescAvistaPct();
-  const val = total * (1 - d / 100);
-  const pct = d.toLocaleString('pt-BR');
-  const head = d > 0
-    ? `<div class="ep-sub" style="font-size:12px;margin-bottom:6px">À vista <span style="color:#2f6b10;font-weight:800">— ${ORC_MONEY(val)} · ${pct}% de desconto</span></div>`
-    : `<div class="ep-sub" style="font-size:12px;margin-bottom:6px">À vista</div>`;
-  return head +
+  return `<div class="ep-sub" style="font-size:12px;margin-bottom:6px">À vista</div>` +
     `<table class="ep-venc"><thead><tr><th>Parcela</th><th>Vencimento</th><th class="num">Valor</th></tr></thead>` +
-    `<tbody><tr><td>1 — à vista${d > 0 ? ` (−${pct}%)` : ''}</td><td>${dataStr}</td><td class="num">${ORC_MONEY(val)}</td></tr></tbody></table>`;
+    `<tbody><tr><td>1 — à vista</td><td>${dataStr}</td><td class="num">${ORC_MONEY(total)}</td></tr></tbody></table>`;
 }
 // Texto do orçamento pronto pro WhatsApp (valor + formas de pagamento)
 function epWhatsTextoOrcamento(total) {
   const t = eletroTextos();
   const emp = epEmitGet();
-  const d = orcDescAvistaPct();
-  const vistaVal = total * (1 - d / 100);
   const L = ['*Orçamento — Eletroposto*'];
   if (t.cliente) L.push(`Cliente: ${t.cliente}`);
   if (t.equip) L.push(`Equipamento: Carregador ${t.equip}`);
   L.push('', `*Valor: ${elMoney(total)}* — chave na mão`, '', 'Formas de pagamento:',
-    `• À vista: ${elMoney(vistaVal)}${d > 0 ? ` (${d.toLocaleString('pt-BR')}% off)` : ''}`,
+    `• À vista: ${elMoney(total)}`,
     `• Cartão 12x de ${elMoney2(orcParcelaCartao(total, 12))}`,
     `• Cartão 21x de ${elMoney2(orcParcelaCartao(total, 21))}`,
     '• Financiamento em até 72x (mediante análise de crédito)',
@@ -6445,7 +6431,7 @@ function orcSnapTake() {
   return {
     num: v('orc-num'), data: v('orc-data'), validade: v('orc-validade'),
     doc: v('orc-cli-doc'), ie: v('orc-cli-ie'), end: v('orc-cli-end'), cep: v('orc-cli-cep'), tel: v('orc-cli-tel'), email: v('orc-cli-email'),
-    frete: v('orc-frete'), desc: v('orc-desc'), descAv: v('orc-desc-avista'), obs: v('orc-obs'), parcData: v('orc-parc-data'),
+    frete: v('orc-frete'), desc: v('orc-desc'), obs: v('orc-obs'), parcData: v('orc-parc-data'),
     pgA: ck('orc-pg-ck-avista'), pgC: ck('orc-pg-ck-cartao'), pgF: ck('orc-pg-ck-fin'), cart, items,
   };
 }
@@ -6456,7 +6442,7 @@ function orcSnapApply(s) {
   const setck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
   set('orc-num', s.num); set('orc-data', s.data); set('orc-validade', s.validade);
   set('orc-cli-doc', s.doc); set('orc-cli-ie', s.ie); set('orc-cli-end', s.end); set('orc-cli-cep', s.cep); set('orc-cli-tel', s.tel); set('orc-cli-email', s.email);
-  set('orc-frete', s.frete); set('orc-desc', s.desc); set('orc-desc-avista', s.descAv); set('orc-obs', s.obs); set('orc-parc-data', s.parcData);
+  set('orc-frete', s.frete); set('orc-desc', s.desc); set('orc-obs', s.obs); set('orc-parc-data', s.parcData);
   setck('orc-pg-ck-avista', s.pgA); setck('orc-pg-ck-cartao', s.pgC); setck('orc-pg-ck-fin', s.pgF);
   const box = document.getElementById('orc-itens');
   if (box) { box.innerHTML = ''; (s.items || []).forEach(it => orcAddItem(it.desc, it.ncm, it.qtd, it.unit)); if (!box.children.length) orcAddItem(); }
