@@ -236,3 +236,10 @@
     padding: 16px 8px;
   }
 }
+
+/* ── Marca d'água sutil + rodapé de marca (toque discreto da empresa) ── */
+.page { position: relative; }
+.companyHeader, .docBody, .footer, .brandFoot { position: relative; z-index: 1; }
+.docWatermark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; pointer-events: none; opacity: 0.06; }
+.docWatermark img { width: 62%; max-width: 360px; object-fit: contain; }
+.brandFoot { margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--doc-accent, #ccc); font-family: Arial, sans-serif; font-size: 8pt; color: #9a9a9a; text-align: center; letter-spacing: 0.02em; }

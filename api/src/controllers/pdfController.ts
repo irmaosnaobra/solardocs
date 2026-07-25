@@ -102,7 +102,11 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
     // (top 2 / bottom 2.5), deixando o conteúdo apertado e desbalanceado. Usa um
     // conjunto mais enxuto e simétrico (espelha o da proposta solar, equilibrada).
     // Demais documentos mantêm o padrão 2/2.5/2/2 que já estava bom.
-    const margin = tipoSlug === 'propostabanco'
+    // Proposta solar é desenhada full-bleed (faixas coloridas até a borda) — o
+    // próprio HTML controla o espaçamento interno, então margem 0.
+    const margin = tipoSlug === 'propostasolar'
+      ? { top: '0', bottom: '0', left: '0', right: '0' }
+      : tipoSlug === 'propostabanco'
       ? { top: '1.5cm', bottom: '1.5cm', left: '1.5cm', right: '1.5cm' }
       : { top: '2cm', bottom: '2.5cm', left: '2cm', right: '2cm' };
 

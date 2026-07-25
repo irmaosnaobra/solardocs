@@ -13,6 +13,7 @@ interface Company {
   endereco?: string;
   logo_base64?: string;
   cor_marca?: string;
+  cor_secundaria?: string;
   socio_adm?: string;
   engenheiro_nome?: string;
   engenheiro_cpf?: string;
@@ -46,7 +47,7 @@ interface Company {
 }
 
 const emptyForm = {
-  nome: '', cnpj: '', endereco: '', cidade: '', logo_base64: '', cor_marca: '', socio_adm: '', whatsapp: '',
+  nome: '', cnpj: '', endereco: '', cidade: '', logo_base64: '', cor_marca: '', cor_secundaria: '', socio_adm: '', whatsapp: '',
   engenheiro_nome: '', engenheiro_cpf: '', engenheiro_crea: '',
   engenheiro_rg: '', engenheiro_nacionalidade: '', engenheiro_estado_civil: '', engenheiro_profissao: '',
   engenheiro_endereco: '',
@@ -137,7 +138,7 @@ export default function EmpresaPage() {
         setCompany(c);
         setForm({
           nome: c.nome || '', cnpj: c.cnpj || '', endereco: c.endereco || '', cidade: c.cidade || '',
-          logo_base64: c.logo_base64 || '', cor_marca: c.cor_marca || '', socio_adm: c.socio_adm || '', whatsapp: c.whatsapp || '',
+          logo_base64: c.logo_base64 || '', cor_marca: c.cor_marca || '', cor_secundaria: c.cor_secundaria || '', socio_adm: c.socio_adm || '', whatsapp: c.whatsapp || '',
           engenheiro_nome: c.engenheiro_nome || '', engenheiro_cpf: c.engenheiro_cpf || '',
           engenheiro_crea: c.engenheiro_crea || '', engenheiro_rg: c.engenheiro_rg || '',
           engenheiro_nacionalidade: c.engenheiro_nacionalidade || '', engenheiro_estado_civil: c.engenheiro_estado_civil || '',
@@ -552,26 +553,38 @@ export default function EmpresaPage() {
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label}>Cor da marca<InfoHint>Usada na opção “Cores da empresa” ao gerar a Proposta Solar. Cores claras são escurecidas automaticamente pra manter o texto legível.</InfoHint></label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <input
-                  type="color"
-                  value={form.cor_marca || '#B45309'}
-                  onChange={(e) => set('cor_marca', e.target.value)}
-                  style={{ width: 52, height: 40, border: '1px solid var(--color-border)', borderRadius: 8, padding: 2, cursor: 'pointer', background: 'none' }}
-                />
-                <span style={{ fontFamily: 'monospace', fontSize: 14, color: 'var(--color-text)' }}>
-                  {(form.cor_marca || '').toUpperCase() || 'Não definida'}
-                </span>
-                {form.cor_marca && (
-                  <button
-                    type="button"
-                    onClick={() => set('cor_marca', '')}
-                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
-                  >
-                    Limpar
+              <label className={styles.label}>Cores da empresa<InfoHint>O toque de marca nos documentos: a principal vai em títulos e bordas; a de destaque nos realces da proposta. Cores claras são escurecidas automaticamente pra manter a legibilidade.</InfoHint></label>
+              {/* 2 opções prontas — clica e usa; edita à vontade nos seletores abaixo */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                {[
+                  { nome: 'Laranja + Azul', c1: '#F26513', c2: '#14235B' },
+                  { nome: 'Azul + Âmbar', c1: '#14235B', c2: '#F7B500' },
+                ].map((p) => (
+                  <button key={p.nome} type="button" onClick={() => { set('cor_marca', p.c1); set('cor_secundaria', p.c2); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 999, border: '1px solid var(--color-border)', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: 12.5, fontWeight: 600 }}>
+                    <span style={{ width: 14, height: 14, borderRadius: '50%', background: p.c1 }} />
+                    <span style={{ width: 14, height: 14, borderRadius: '50%', background: p.c2 }} />
+                    {p.nome}
                   </button>
-                )}
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Principal</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="color" value={form.cor_marca || '#F26513'} onChange={(e) => set('cor_marca', e.target.value)}
+                      style={{ width: 48, height: 38, border: '1px solid var(--color-border)', borderRadius: 8, padding: 2, cursor: 'pointer', background: 'none' }} />
+                    <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{(form.cor_marca || '').toUpperCase() || '—'}</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Destaque</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="color" value={form.cor_secundaria || '#F7B500'} onChange={(e) => set('cor_secundaria', e.target.value)}
+                      style={{ width: 48, height: 38, border: '1px solid var(--color-border)', borderRadius: 8, padding: 2, cursor: 'pointer', background: 'none' }} />
+                    <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{(form.cor_secundaria || '').toUpperCase() || '—'}</span>
+                  </div>
+                </div>
               </div>
             </div>
 

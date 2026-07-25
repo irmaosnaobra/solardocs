@@ -1,4 +1,15 @@
 import { getRef, geracaoMensal, MESES_ABREV } from './propostaSolarData';
+import qrcode from 'qrcode-generator';
+
+// QR (SVG) de um link — usado no rodapé da proposta (WhatsApp do vendedor).
+function qrSvg(text: string): string {
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    return qr.createSvgTag({ cellSize: 3, margin: 0 });
+  } catch { return ''; }
+}
 
 interface Company {
   nome: string;
@@ -1750,9 +1761,14 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   // Resumo do WhatsApp: reusa 100% a lógica do Moderno (números idênticos).
   if (out) propostaSolarM1(company, client, f, out);
 
-  // ── Paleta: SEMPRE a cor de marca da empresa (cor_marca). Sem cor definida,
-  //    derivePalette cai no padrão Solar. Não há mais escolha de cor na proposta. ──
+  // ── Cores: principal = cor_marca (via derivePalette); acento = cor_secundaria
+  //    da empresa (fallback âmbar). Texto sobre o acento vira branco/escuro
+  //    conforme a luminância, pra sempre ler bem. ──
   const p: Palette = derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa');
+  const secRaw = String((company as { cor_secundaria?: string }).cor_secundaria || '').trim();
+  const accent = /^#?[0-9a-fA-F]{6}$/.test(secRaw) ? (secRaw.startsWith('#') ? secRaw : '#' + secRaw) : '#F7B500';
+  const accentLum = (() => { const m = /^#([0-9a-fA-F]{6})$/.exec(accent); if (!m) return 1; const r = parseInt(m[1].slice(0, 2), 16), g = parseInt(m[1].slice(2, 4), 16), b = parseInt(m[1].slice(4, 6), 16); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; })();
+  const accentText = accentLum < 0.5 ? '#ffffff' : p.c1;
 
   // ── Inputs ──
   const cidade = (str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade)).trim();
@@ -1846,12 +1862,12 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=794, user-scalable=yes"/>
 <title>Orçamento Solar — ${pEsc(client.nome)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{ --c1:${p.c1}; --c2:${p.c2}; --c3:${p.c3}; --accent:#F7B500; --ink:#161A22; --muted:#5C6470; --row:#F2F4F8; --line:#E4E8F0; }
+:root{ --c1:${p.c1}; --c2:${p.c2}; --c3:${p.c3}; --accent:${accent}; --accent-text:${accentText}; --ink:#161A22; --muted:#5C6470; --row:#F2F4F8; --line:#E4E8F0; }
 @page{ size:A4; margin:0; }
 *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
 html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; color:var(--ink); background:#EEF1F5; -webkit-font-smoothing:antialiased; }
@@ -1867,10 +1883,10 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 .ficha .t{ font-size:12px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; opacity:.85; }
 .ficha .rowf{ display:flex; justify-content:space-between; gap:12px; font-size:12px; border-bottom:1px solid rgba(255,255,255,.16); padding-bottom:6px; }
 .ficha .rowf span:first-child{ opacity:.7; font-weight:600; }
-.ficha .valid{ margin-top:2px; font-size:10.5px; font-weight:800; color:var(--c1); background:var(--accent); align-self:flex-start; padding:4px 10px; border-radius:999px; letter-spacing:.3px; }
+.ficha .valid{ margin-top:2px; font-size:10.5px; font-weight:800; color:var(--accent-text); background:var(--accent); align-self:flex-start; padding:4px 10px; border-radius:999px; letter-spacing:.3px; }
 /* Faixa de seção — barra amarela com o título na cor da marca (estilo da referência) */
 .band{ display:flex; align-items:center; background:var(--accent); margin-top:2px; }
-.band .tab{ color:var(--c1); font-size:12.5px; font-weight:800; letter-spacing:1.3px; text-transform:uppercase; padding:9px 20px; }
+.band .tab{ color:var(--accent-text); font-size:12.5px; font-weight:800; letter-spacing:1.3px; text-transform:uppercase; padding:9px 20px; }
 .band .bar{ flex:1; }
 .sec{ padding:13px 26px 4px; }
 .tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
@@ -1893,9 +1909,9 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 .heroL .v{ font-size:32px; font-weight:900; line-height:1.05; margin-top:3px; }
 .heroL .s{ font-size:11px; opacity:.8; margin-top:3px; }
 .heroR{ background:var(--accent); border-radius:14px; padding:16px 18px; display:flex; flex-direction:column; justify-content:center; }
-.heroR .k{ font-size:10.5px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--c1); opacity:.75; }
-.heroR .v{ font-size:27px; font-weight:900; line-height:1.05; margin-top:2px; color:var(--c1); }
-.heroR .s{ font-size:11.5px; font-weight:800; margin-top:3px; color:var(--c1); opacity:.85; }
+.heroR .k{ font-size:10.5px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--accent-text); opacity:.8; }
+.heroR .v{ font-size:27px; font-weight:900; line-height:1.05; margin-top:2px; color:var(--accent-text); }
+.heroR .s{ font-size:11.5px; font-weight:800; margin-top:3px; color:var(--accent-text); opacity:.9; }
 .finGrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
 .fc{ border:1px solid var(--line); border-radius:12px; padding:10px 13px; }
 .fc .k{ font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); }
@@ -1910,6 +1926,10 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 .card .l:last-child{ border-bottom:none; }
 .card .l span:first-child{ opacity:.65; font-weight:600; }
 .card .l span:last-child{ font-weight:700; text-align:right; }
+.qr{ display:flex; align-items:center; gap:9px; margin-top:10px; }
+.qrbox{ width:54px; height:54px; background:#fff; border-radius:6px; padding:3px; flex-shrink:0; }
+.qrbox svg{ width:100%; height:100%; display:block; }
+.qr span{ font-size:9.5px; line-height:1.3; opacity:.7; }
 </style></head><body>
 <div class="page">
   <div class="head">
@@ -1973,6 +1993,7 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
         <div class="l"><span>Nome</span><span>${pEsc(vendedor || '—')}</span></div>
         ${vendEmail ? `<div class="l"><span>E-mail</span><span>${pEsc(vendEmail)}</span></div>` : ''}
         ${vendWhats ? `<div class="l"><span>Contato</span><span class="num">${pEsc(vendWhats)}</span></div>` : ''}
+        ${vendWhats ? `<div class="qr"><div class="qrbox">${qrSvg('https://wa.me/' + (vendWhats.startsWith('55') ? vendWhats : '55' + vendWhats))}</div><span>Aponte a câmera<br/>e fale no WhatsApp</span></div>` : ''}
       </div>
       <div class="card">
         <h4>Empresa</h4>

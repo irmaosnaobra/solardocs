@@ -220,13 +220,21 @@ export default function PropostaSolarPage() {
   // Cor de marca da empresa (cadastrada em Empresa) — habilita a paleta
   // "Cores da empresa". Só o swatch/enable usa isso no front; a geração lê
   // company.cor_marca direto no backend.
-  const [corEmpresa, setCorEmpresa] = useState('');
+  const [corEmpresa, setCorEmpresa] = useState('');   // cor principal (cor_marca)
+  const [corSec, setCorSec] = useState('');           // cor de destaque (cor_secundaria)
   useEffect(() => {
     api.get('/company').then(({ data }) => {
-      const c = data?.company?.cor_marca;
-      if (c) setCorEmpresa(String(c));
+      setCorEmpresa(String(data?.company?.cor_marca || ''));
+      setCorSec(String(data?.company?.cor_secundaria || ''));
     }).catch(() => {});
   }, []);
+  // Edita a cor aqui mesmo e salva direto no cadastro da empresa (PUT parcial).
+  const corTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  function salvarCor(campo: 'cor_marca' | 'cor_secundaria', valor: string) {
+    if (campo === 'cor_marca') setCorEmpresa(valor); else setCorSec(valor);
+    clearTimeout(corTimer.current);
+    corTimer.current = setTimeout(() => { api.put('/company', { [campo]: valor }).catch(() => {}); }, 500);
+  }
 
   // ── Autosave (item 1): rascunho em localStorage, debounce 600ms. Um erro de
   // rede/timeout não apaga mais os ~40 campos. Restaura ao montar, limpa no sucesso.
@@ -746,9 +754,25 @@ export default function PropostaSolarPage() {
             ))}
           </div>
 
-          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
-            As cores seguem a marca da sua empresa.<InfoHint>Definida em Empresa → cor de marca. Cores claras são escurecidas pra manter o texto legível na proposta.</InfoHint>
-          </p>
+          <label className={styles.label} style={{ marginTop: 4 }}>Suas cores<InfoHint>O toque de marca na proposta: principal nos títulos, destaque nos realces. Edita aqui que já salva na sua empresa. Cor clara é escurecida pra manter a legibilidade.</InfoHint></label>
+          <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 6 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Principal</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="color" value={corEmpresa || '#F26513'} onChange={e => salvarCor('cor_marca', e.target.value)}
+                  style={{ width: 44, height: 36, border: '1px solid var(--color-border)', borderRadius: 8, padding: 2, cursor: 'pointer', background: 'none' }} />
+                <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{(corEmpresa || '').toUpperCase() || '—'}</span>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Destaque</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="color" value={corSec || '#F7B500'} onChange={e => salvarCor('cor_secundaria', e.target.value)}
+                  style={{ width: 44, height: 36, border: '1px solid var(--color-border)', borderRadius: 8, padding: 2, cursor: 'pointer', background: 'none' }} />
+                <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{(corSec || '').toUpperCase() || '—'}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* CLIENTE */}

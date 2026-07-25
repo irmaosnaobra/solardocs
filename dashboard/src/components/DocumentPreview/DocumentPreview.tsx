@@ -164,7 +164,11 @@ export default function DocumentPreview({
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: #fff; }
 body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.45; color: #1a1a1a; orphans: 3; widows: 3; }
-.${s.page} { width: 100%; padding: 1.5cm 2cm; min-height: 297mm; display: flex; flex-direction: column; }
+.${s.page} { width: 100%; padding: 1.5cm 2cm; min-height: 297mm; display: flex; flex-direction: column; position: relative; }
+.${s.companyHeader}, .${s.docBody}, .${s.footer}, .${s.brandFoot} { position: relative; z-index: 1; }
+.${s.docWatermark} { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; pointer-events: none; opacity: 0.06; }
+.${s.docWatermark} img { width: 62%; max-width: 360px; object-fit: contain; }
+.${s.brandFoot} { margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--doc-accent, #ccc); font-family: Arial, sans-serif; font-size: 7.5pt; color: #9a9a9a; text-align: center; letter-spacing: 0.02em; }
 .${s.companyHeader} { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
 .${s.logo} { height: 48px; width: auto; object-fit: contain; flex-shrink: 0; }
 .${s.companyInfo} { display: flex; flex-direction: column; gap: 1px; }
@@ -382,6 +386,13 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
         <div className={styles.pageWrapper} ref={docRef}>
           <div className={styles.page} style={{ ['--doc-accent' as string]: docAccent }}>
 
+            {/* Marca d'água sutil da logo — toque de marca discreto no fundo */}
+            {company?.logo_base64 && (
+              <div className={styles.docWatermark} aria-hidden="true">
+                <img src={company.logo_base64} alt="" />
+              </div>
+            )}
+
             {/* Company header */}
             <header className={styles.companyHeader}>
               {company?.logo_base64 && (
@@ -439,6 +450,11 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
               <span>Emitido em {today} · {company?.nome || ''}</span>
               <span>Pág. 1</span>
             </footer>
+
+            {/* Rodapé de marca — linha fina na cor da empresa + assinatura discreta */}
+            <div className={styles.brandFoot} aria-hidden="true">
+              gerado por {company?.nome || 'sua empresa'} · solardoc
+            </div>
           </div>
         </div>
       )}
