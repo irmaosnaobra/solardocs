@@ -376,8 +376,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 /* boxes filhos diretos da página mantêm altura natural (o flex:1 do .ep-box é só pro par lado-a-lado do .ep-cols) */
 .ep-page>.ep-box,.ep-page>.ep-avoid-break{flex:0 0 auto}
 /* logo oficial no topo da página 1 (badge circular Irmãos na Obra) */
-.ep-brand{display:flex;align-items:center;margin-bottom:12px}
-.ep-brand-img{height:17mm;width:auto}
+.ep-brand{display:flex;align-items:center;gap:13px;margin-bottom:12px}
+.ep-brand-img{height:21mm;width:auto}
+.ep-brand-tx{font-size:21px;font-weight:900;color:#2f6b10;line-height:1.03;letter-spacing:-.4px}
+.ep-brand-tx span{display:block;font-size:9.5px;font-weight:800;letter-spacing:2.4px;text-transform:uppercase;color:#8a94a3;margin-top:5px}
 .ep-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #2f6b10;padding-bottom:10px;margin-bottom:6px}
 .ep-title{font-size:19px;font-weight:800;color:#2f6b10}
 .ep-date{font-size:11px;color:#666;text-align:right;line-height:1.5;white-space:nowrap}
@@ -6166,7 +6168,7 @@ function epEmitGet() {
 // Cabeçalho: logo à esquerda + caixa "TÍTULO · Data" à direita (modelo da proposta).
 function epTopoHTML(titulo, dataStr, corpoLinhas, rodapeVal) {
   return `<div class="ep-topo">
-      <div class="ep-brand" style="margin-bottom:0"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"></div>
+      <div class="ep-brand" style="margin-bottom:0"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>
       <div class="ep-propbox">
         <div class="t">${titulo}</div>
         <div class="rowf"><span>Data</span><span>${dataStr}</span></div>
