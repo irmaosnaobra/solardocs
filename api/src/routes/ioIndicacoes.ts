@@ -89,6 +89,26 @@ router.post('/', indicacaoLimiter, async (req: Request, res: Response) => {
     });
     if (error) throw error;
 
+    // AVISO DO TIME (Thiago) — cada indicado chega no WhatsApp pra atendimento
+    // PERSONALIZADO (é o pedido explícito do dono; indicação é lead quente).
+    // Best-effort e isolado: a indicação já está salva, WhatsApp não pode derrubar.
+    try {
+      const NOTIFY = (process.env.IO_INDICACOES_NOTIFY || '34991360223').trim();
+      const digitos = indicado_telefone.replace(/\D/g, '');
+      await sendWhatsApp(
+        NOTIFY,
+        `*NOVA INDICAÇÃO* 🌞 (Irmãos na Obra)\n\n` +
+        `*Indicado:* ${indicado_nome}\n` +
+        `*WhatsApp:* wa.me/${digitos}\n\n` +
+        `*Indicado por:* ${indicador_nome}` +
+        (origem ? `\n*Origem:* ${origem}` : '') +
+        `\n\n_Atendimento personalizado — chamar o quanto antes._`,
+        'io',
+      );
+    } catch (waErr: any) {
+      logger.error('io-indicacoes', 'WhatsApp aviso do time falhou (indicação salva)', String(waErr?.message || waErr));
+    }
+
     // Confirmação por WhatsApp pro indicador — ele acabou de enviar o form e está
     // esperando isto (opt-in explícito, 1 mensagem, sem risco de ban). Isolado:
     // a indicação já está salva, então uma falha da Z-API (ou o cooldown do
