@@ -72,8 +72,11 @@ async function enqueue(item: { tipo: string; automation_id: string; recipient: s
 }
 
 function welcomePayload(a: Automation): any {
-  const text = a.dm_boas_vindas || 'Oi! Aqui está o que você pediu 👇';
-  if (a.link_url) return { text, button: { url: a.link_url, title: a.botao_rotulo || 'Abrir link' } };
+  // Primeira mensagem (resposta privada a comentário / DM inicial) = TEXTO PURO
+  // com o link embutido. Botão/template costuma dar erro genérico no 1º contato
+  // do Instagram; texto é universalmente aceito.
+  let text = a.dm_boas_vindas || 'Oi! Aqui está o que você pediu 👇';
+  if (a.link_url) text += '\n\n' + (a.botao_rotulo ? a.botao_rotulo + ': ' : '') + a.link_url;
   return { text };
 }
 function enqueueReminderIfAny(a: Automation, recipient: string): Promise<void> | null {
