@@ -391,10 +391,12 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-kv{width:100%;border-collapse:collapse;font-size:12.5px}
 .ep-kv td{padding:6px 0;border-bottom:1px solid #f1f1f1;color:#333}
 .ep-kv td:last-child{text-align:right;font-weight:700;color:#1a1a1a;font-variant-numeric:tabular-nums}
-.ep-kv tr.hl td{color:#2f6b10;font-weight:800}
+.ep-kv tr:nth-child(even) td{background:#f3f6ee;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-kv tr.hl td{color:#2f6b10;font-weight:800;background:#eaf3dc}
 .ep-fluxo td{border-bottom:1px solid #f6f6f6}
 .ep-sub{font-size:13px;color:#555;margin-top:3px;font-weight:600}
-.ep-section{font-size:12.5px;font-weight:800;color:#2f6b10;text-transform:uppercase;letter-spacing:.5px;border-left:4px solid #2f6b10;padding-left:9px;margin:18px 0 12px}
+/* barra de seção — cheia, verde vivo com texto escuro (papel das barras amarelas do modelo) */
+.ep-section{background:#7DD117;color:#14300c;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:7px 12px;border-radius:3px;margin:16px 0 11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-mkt{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
 .ep-mkt-item{border:1px solid #e5e7eb;border-radius:8px;padding:11px 12px;text-align:center;background:#fafafa;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-mkt-item .v{font-size:18px;font-weight:800;color:#2f6b10}
@@ -480,6 +482,23 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-venc td{padding:6px 9px;border-bottom:1px solid #f1f1f1;color:#333}
 .ep-venc td.num{text-align:right;font-variant-numeric:tabular-nums}
 .ep-obs{font-size:10px;color:#666;line-height:1.6;margin-top:14px;white-space:pre-line;border-top:1px solid #eee;padding-top:10px}
+/* caixa de proposta no topo direito (modelo "PROPOSTA COMERCIAL / Data") */
+.ep-propbox{min-width:250px;max-width:300px;border:1.5px solid #2f6b10;border-radius:5px;overflow:hidden;font-size:11px;color:#333}
+.ep-propbox .h{background:#2f6b10;color:#fff;font-weight:800;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px;display:flex;justify-content:space-between;gap:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-propbox .b{padding:8px 10px;line-height:1.5}
+.ep-propbox .b .nm{font-weight:800;color:#1a1a1a;font-size:12px}
+.ep-propbox .b .val{margin-top:6px;padding-top:6px;border-top:1px dashed #cfe0b6;color:#2f6b10;font-weight:700;font-size:10.5px}
+/* rótulo + rodapé escuro (vendedor | empresa) */
+.ep-forma-label{font-size:11px;font-weight:800;color:#2f6b10;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
+.ep-footer-block{display:flex;border-radius:7px;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-fb-col{flex:1;background:#14300c;color:#e8f2df;padding:15px 18px;font-size:11px;line-height:1.5}
+.ep-fb-col.vend{background:#1d4212;position:relative}
+.ep-fb-col .t{font-size:11px;font-weight:800;color:#9BEE38;text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px}
+.ep-fb-row{display:flex;gap:8px;margin-top:4px}
+.ep-fb-row .k{color:#9db892;min-width:66px;flex:none}
+.ep-fb-row .v{color:#fff;font-weight:600}
+.ep-fb-ic{position:absolute;top:15px;right:16px;width:30px;height:30px;border-radius:50%;background:#7DD117;display:flex;align-items:center;justify-content:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-fb-ic svg{width:16px;height:16px;stroke:#14300c;fill:none;stroke-width:2.2}
 /* formas de pagamento — caixas marcáveis (tela) */
 .orc-pg-formas{display:flex;flex-wrap:wrap;gap:8px}
 .orc-pg-forma{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:#CBD5E1;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 14px;cursor:pointer;transition:border-color .2s,color .2s}
@@ -2203,6 +2222,18 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>E-mail</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-email" placeholder="contato@irmaosnaobra.com.br" oninput="orcEmitSalvar()"></div></div>
         <div class="orc-note">Sem CNPJ, como você pediu. Preencha uma vez — fica salvo para os próximos orçamentos.</div>
+      </div>
+
+      <!-- VENDEDOR (aparece no rodapé do PDF, ao lado da empresa) -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Vendedor</div>
+        <div class="eletro-field"><label>Nome</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-vend-nome" placeholder="Nome do vendedor" oninput="orcVendSalvar()" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>E-mail</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-vend-email" placeholder="vendedor@email.com" oninput="orcVendSalvar()" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Contato</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-vend-contato" placeholder="(00) 00000-0000" oninput="orcVendSalvar()" autocomplete="off"></div></div>
+        <div class="orc-note">Fica salvo no navegador. Aparece no rodapé do orçamento, ao lado dos dados da empresa.</div>
       </div>
 
       <!-- DADOS DA PROPOSTA -->
@@ -5765,15 +5796,11 @@ function eletroImprimir() {
     <div class="ep-doc">
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      <div class="ep-brand"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"></div>
-      <div class="ep-head">
-        <div><div class="ep-title">Estudo de Viabilidade Técnico-Econômica — Eletroposto</div></div>
-        <div class="ep-date">${hoje.toLocaleDateString('pt-BR')}<br>Validade: ${validade.toLocaleDateString('pt-BR')} (7 dias)</div>
-      </div>
-      <div class="ep-meta">
-        <span>${t.cliente ? `Preparado para: <b>${t.cliente}</b>` : ''}${t.cliente && t.cidade ? ' · ' : ''}${t.cidade ? `Local: <b>${t.cidade}</b>` : ''}</span>
-        <span>${t.autor ? `Elaborado por: <b>${t.autor}</b>` : ''}</span>
-      </div>
+      ${epTopoHTML('Estudo de Viabilidade — Eletroposto', hoje.toLocaleDateString('pt-BR'),
+        [`<div class="nm">${t.cliente ? orcEsc(t.cliente) : 'Estudo de Viabilidade'}</div>`,
+         t.cidade ? 'Local: ' + orcEsc(t.cidade) : '',
+         t.autor ? 'Elaborado por: ' + orcEsc(t.autor) : ''].filter(Boolean).join('<br>'),
+        'Validade: ' + validade.toLocaleDateString('pt-BR') + ' (7 dias)')}
 
       <div class="ep-section">Sumário executivo</div>
       <div class="ep-exec">${execHTML}</div>
@@ -5902,9 +5929,9 @@ function eletroImprimir() {
           <li>Orçar equipamento, obra civil e conexão com a concessionária — consolidando o investimento total.</li>
           <li>Agendar visita técnica e revisar este estudo com os dados reais do local.</li>
         </ol>
-        ${t.autor || t.contato ? `<div class="ep-sign"><div class="who">${t.autor ? `<b>${t.autor}</b>` : ''}${t.contato ? `<span>${t.contato}</span>` : ''}</div><div>${hoje.toLocaleDateString('pt-BR')}</div></div>` : ''}
       </div>
 
+      ${epFooterBlockHTML({ nome: t.autor, contato: t.contato })}
       <div class="ep-foot">Dados de mercado: ${m.fonte} · Projeção financeira: elaborada a partir das premissas declaradas na seção "Premissas e metodologia" — valores estimados, não constituem garantia de resultado.</div>
       ${pageFoot(4)}
       </div><!-- /página 4 -->
@@ -6079,6 +6106,23 @@ function orcPagamentoHTML(total) {
   return blocos.length ? blocos.join('') : `<div class="ep-sub" style="font-size:12px">Condição de pagamento a combinar.</div>`;
 }
 
+// Vendedor — persistência no navegador (aparece no rodapé do PDF)
+const ORC_VEND_KEY = 'orc_vend_v1';
+function orcVendCampos() { return ['nome', 'email', 'contato']; }
+function orcVendSalvar() {
+  const o = {};
+  orcVendCampos().forEach(k => { o[k] = orcVal('orc-vend-' + k); });
+  try { localStorage.setItem(ORC_VEND_KEY, JSON.stringify(o)); } catch (e) {}
+}
+function orcVendCarregar() {
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(ORC_VEND_KEY) || '{}') || {}; } catch (e) {}
+  orcVendCampos().forEach(k => { const el = document.getElementById('orc-vend-' + k); if (el && !el.value) el.value = o[k] || ''; });
+}
+function orcVendGet() {
+  return { nome: orcVal('orc-vend-nome'), email: orcVal('orc-vend-email'), contato: orcVal('orc-vend-contato') };
+}
+
 // Emitente (sua empresa) — persistência no navegador
 function orcEmitCampos() { return ['nome', 'end', 'cidade', 'tel', 'email']; }
 function orcEmitSalvar() {
@@ -6103,6 +6147,7 @@ function orcInit() {
   if (orcIniciado) { orcCalc(); return; }
   orcIniciado = true;
   orcEmitCarregar();
+  orcVendCarregar();
   const dEmis = document.getElementById('orc-data'); if (dEmis && !dEmis.value) dEmis.value = orcHojeISO();
   const dVenc = document.getElementById('orc-parc-data'); if (dVenc && !dVenc.value) dVenc.value = orcHojeISO();
   const obs = document.getElementById('orc-obs'); if (obs && !obs.value.trim()) obs.value = ORC_OBS_PADRAO;
@@ -6115,6 +6160,40 @@ function orcInit() {
   orcRenderCartaoGrid();
   orcPgToggle();
   orcCalc();
+}
+
+// ===== Componentes compartilhados dos PDFs do eletroposto (padrão único) =====
+// Empresa (emitente) — localStorage salvo no Orçamento OU defaults da marca.
+function epEmitGet() {
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}; } catch (e) {}
+  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: '', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br' };
+  const out = {};
+  ['nome', 'end', 'cidade', 'tel', 'email'].forEach(k => out[k] = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || ''));
+  return out;
+}
+// Cabeçalho: logo à esquerda + caixa "TÍTULO · Data" à direita (modelo da proposta).
+function epTopoHTML(titulo, dataStr, corpoLinhas, rodapeVal) {
+  return `<div class="ep-topo">
+      <div class="ep-brand" style="margin-bottom:0"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"></div>
+      <div class="ep-propbox">
+        <div class="h"><span>${titulo}</span><span>${dataStr}</span></div>
+        <div class="b">${corpoLinhas}${rodapeVal ? `<div class="val">${rodapeVal}</div>` : ''}</div>
+      </div>
+    </div>`;
+}
+// Rodapé escuro: Vendedor | Empresa (mesmo bloco nos dois documentos).
+function epFooterBlockHTML(vend) {
+  vend = vend || {};
+  const emp = epEmitGet();
+  const row = (k, v) => v ? `<div class="ep-fb-row"><span class="k">${k}</span><span class="v">${orcEsc(v)}</span></div>` : '';
+  const endEmp = [emp.end, emp.cidade].filter(Boolean).join(' · ');
+  const fone = `<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/></svg>`;
+  return `<div class="ep-forma-label">Contato</div>
+    <div class="ep-footer-block ep-avoid-break">
+      <div class="ep-fb-col vend"><div class="ep-fb-ic">${fone}</div><div class="t">Vendedor</div>${row('Nome', vend.nome)}${row('E-mail', vend.email)}${row('Contato', vend.contato)}</div>
+      <div class="ep-fb-col"><div class="t">Empresa</div>${row('Nome', emp.nome)}${row('Endereço', endEmp)}${row('Contato', emp.tel)}${row('E-mail', emp.email)}</div>
+    </div>`;
 }
 
 function orcImprimir() {
@@ -6139,12 +6218,7 @@ function orcImprimir() {
     `<tr><td>${orcEsc(i.desc) || '—'}</td><td>${orcEsc(i.ncm)}</td><td class="num">${(+i.qtd).toLocaleString('pt-BR')}</td><td class="num">${ORC_MONEY(i.unit)}</td><td class="num">${ORC_MONEY(i.total)}</td></tr>`
   ).join('');
 
-  const emitHTML = [
-    emit.nome ? `<b>${orcEsc(emit.nome)}</b>` : '',
-    emit.end ? orcEsc(emit.end) : '',
-    emit.cidade ? orcEsc(emit.cidade) : '',
-    [emit.tel && orcEsc(emit.tel), emit.email && orcEsc(emit.email)].filter(Boolean).join(' · '),
-  ].filter(Boolean).join('<br>');
+  const vend = orcVendGet();
 
   const cliColA = [
     cli.nome ? `<span class="nm">${orcEsc(cli.nome)}</span>` : '<span class="nm">Cliente</span>',
@@ -6158,19 +6232,19 @@ function orcImprimir() {
     cli.email ? 'E-mail: ' + orcEsc(cli.email) : '',
   ].filter(Boolean).join('<br>');
 
+  // corpo da caixa de proposta (topo direito, modelo)
+  const propCorpo = [
+    `<div class="nm">${cli.nome ? orcEsc(cli.nome) : 'Cliente'}</div>`,
+    cli.doc ? `CNPJ/CPF: ${orcEsc(cli.doc)}` : '',
+    [cli.end && orcEsc(cli.end), cli.cidade && orcEsc(cli.cidade)].filter(Boolean).join(' — '),
+  ].filter(Boolean).join('<br>');
+
   const host = document.getElementById('eletro-print');
   host.innerHTML = `
     <div class="ep-doc">
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      <div class="ep-topo">
-        <div class="ep-brand" style="margin-bottom:0"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"></div>
-        <div class="ep-emit">${emitHTML}</div>
-      </div>
-      <div class="ep-head">
-        <div><div class="ep-title">Proposta Comercial${num ? ' Nº ' + orcEsc(num) : ''}</div></div>
-        <div class="ep-date">Emissão: ${dEmis.toLocaleDateString('pt-BR')}<br>Validade: ${dVal.toLocaleDateString('pt-BR')} (${dias} dias)</div>
-      </div>
+      ${epTopoHTML('Proposta Comercial' + (num ? ' Nº ' + orcEsc(num) : ''), dEmis.toLocaleDateString('pt-BR'), propCorpo, 'Válido por ' + dias + ' dias — até ' + dVal.toLocaleDateString('pt-BR'))}
 
       <div class="ep-section">Informações do cliente</div>
       <div class="ep-cliente-box">
@@ -6194,7 +6268,8 @@ function orcImprimir() {
       ${orcPagamentoHTML(r.total)}
 
       <div class="ep-obs">${orcEsc(obs)}</div>
-      <div class="ep-foot">Proposta comercial gerada por ${orcEsc(emit.nome || 'Irmãos na Obra')} · Documento sem valor fiscal — a nota fiscal é emitida no faturamento.</div>
+      ${epFooterBlockHTML(vend)}
+      <div class="ep-foot">Documento sem valor fiscal — a nota fiscal é emitida no faturamento.</div>
       </div><!-- /página única -->
     </div>`;
 
