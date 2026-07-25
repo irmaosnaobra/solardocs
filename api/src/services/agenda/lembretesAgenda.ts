@@ -89,7 +89,12 @@ async function enviarParCliente(
   ag: Agendamento, vendedorWpp: string | null, msgCliente: string, msgVendedor: string,
 ) {
   await sendWhatsApp(ag.cliente_telefone, msgCliente, ZAPI_INSTANCE);
-  if (vendedorWpp) await sendWhatsApp(vendedorWpp, msgVendedor, ZAPI_INSTANCE);
+  // [LEMBRETE-VENDEDOR-OFF 25/07] Thiago pediu pra não receber mais os pings
+  // "🔔 Em 1 hora / 📞 Em 5 minutos: ligação com...". O CLIENTE segue recebendo
+  // o aviso (mantém o lead quente / evita no-show) — só o lembrete que caía no
+  // WhatsApp do vendedor foi pausado. Reativar = descomentar a linha abaixo.
+  // if (vendedorWpp) await sendWhatsApp(vendedorWpp, msgVendedor, ZAPI_INSTANCE);
+  void vendedorWpp; void msgVendedor;
 }
 
 // 1) AO MARCAR — mensagem que já vende, cliente vislumbra ter energia solar.
