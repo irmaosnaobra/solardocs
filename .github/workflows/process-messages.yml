@@ -18,3 +18,8 @@ jobs:
           curl -X GET "https://api.solardoc.app/cron/process-messages" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --max-time 120 -sS -w "\nHTTP %{http_code}\n"
+      - name: Tick de disparo do Gerador (Central de Automacao)
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/gerador-broadcast-tick" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 120 -sS -w "\nHTTP %{http_code}\n"

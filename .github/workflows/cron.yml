@@ -13,3 +13,7 @@ jobs:
         run: |
           curl -X GET "https://api.solardoc.app/cron/master" \
           -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+      - name: Refresh do token do Instagram (renova quando falta <14d)
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/instagram-refresh-token" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" -sS -w "\nHTTP %{http_code}\n"
