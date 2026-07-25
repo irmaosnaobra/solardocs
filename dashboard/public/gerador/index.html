@@ -433,6 +433,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 /* ===== Orçamento — formulário na tela (UI dark, reaproveita .card/.eletro-inp) ===== */
 .orc-wrap{max-width:780px;margin:0 auto}
 .orc-note{font-size:11.5px;color:#94A3B8;margin-top:8px;line-height:1.45}
+.orc-cli-banner{font-size:12.5px;color:#bfdbfe;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.28);border-radius:9px;padding:9px 12px;margin-bottom:12px;line-height:1.45}
+.orc-cli-banner b{color:#eaf2ff}
+.orc-link{background:none;border:none;color:#60A5FA;font-weight:700;font-family:inherit;font-size:12.5px;cursor:pointer;padding:0;text-decoration:underline}
+.orc-link:hover{color:#93C5FD}
 .orc-head-row{display:grid;grid-template-columns:1fr 96px 54px 116px 112px 30px;gap:8px;padding:0 2px 6px;font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
 .orc-itens{display:flex;flex-direction:column;gap:8px}
 .orc-item{display:grid;grid-template-columns:1fr 96px 54px 116px 112px 30px;gap:8px;align-items:center}
@@ -2080,10 +2084,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-cidade" placeholder="Ex: Uberlândia-MG" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
           <div class="eletro-field"><label>Potência Carregador</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-equip" placeholder="Ex: DC 80 kW" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
-          <div class="eletro-field"><label>Elaborado por</label>
-            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-autor" placeholder="Ex: João Silva — Solars Energias" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
-          <div class="eletro-field"><label>Contato</label>
+          <div class="eletro-field"><label>Vendedor</label>
+            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-autor" placeholder="Ex: João Silva" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
+          <div class="eletro-field"><label>Contato do vendedor</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-contato" placeholder="Ex: (34) 99999-0000" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
+          <div class="eletro-field"><label>E-mail do vendedor</label>
+            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-email" placeholder="Ex: joao@irmaosnaobra.com.br" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
+          <div class="orc-note" style="margin-top:6px">Cliente e vendedor valem para os <b>3 documentos</b> (Estudo, Orçamento básico e completo). Digite uma vez só aqui.</div>
         </div>
 
         <div class="card">
@@ -2183,7 +2190,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <!-- ações -->
         <div class="eletro-acoes">
-          <button type="button" class="eletro-btn primary" onclick="eletroImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Gerar proposta PDF</button>
+          <button type="button" class="eletro-btn primary" onclick="eletroImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Estudo de Viabilidade</button>
+          <button type="button" class="eletro-btn primary" onclick="epBasicoImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Orçamento básico</button>
+          <button type="button" class="eletro-btn" onclick="eletroSubaba('orcamento')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Orçamento completo</button>
           <button type="button" class="eletro-btn" onclick="eletroWhatsApp()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> WhatsApp</button>
           <button type="button" class="eletro-btn" onclick="eletroToggleComparar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparar cenários</button>
           <button type="button" class="eletro-btn" onclick="eletroApresentacao()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg> Apresentação</button>
@@ -2224,18 +2233,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-note">Sem CNPJ, como você pediu. Preencha uma vez — fica salvo para os próximos orçamentos.</div>
       </div>
 
-      <!-- VENDEDOR (aparece no rodapé do PDF, ao lado da empresa) -->
-      <div class="card">
-        <div class="calc-card-title"><span class="dot"></span>Vendedor</div>
-        <div class="eletro-field"><label>Nome</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-vend-nome" placeholder="Nome do vendedor" oninput="orcVendSalvar()" autocomplete="off"></div></div>
-        <div class="eletro-field"><label>E-mail</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-vend-email" placeholder="vendedor@email.com" oninput="orcVendSalvar()" autocomplete="off"></div></div>
-        <div class="eletro-field"><label>Contato</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-vend-contato" placeholder="(00) 00000-0000" oninput="orcVendSalvar()" autocomplete="off"></div></div>
-        <div class="orc-note">Fica salvo no navegador. Aparece no rodapé do orçamento, ao lado dos dados da empresa.</div>
-      </div>
-
       <!-- DADOS DA PROPOSTA -->
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Dados da proposta</div>
@@ -2247,19 +2244,16 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp"><input type="number" id="orc-validade" inputmode="numeric" value="7" min="1"></div></div>
       </div>
 
-      <!-- CLIENTE -->
+      <!-- CLIENTE (nome/cidade vêm do Simulador; aqui só o detalhe fiscal) -->
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Cliente</div>
-        <div class="eletro-field"><label>Nome / razão social</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-nome" placeholder="Ex: J A Alves Ltda" autocomplete="off"></div></div>
+        <div class="orc-cli-banner" id="orc-cli-banner">Cliente e cidade vêm do Simulador. <button type="button" class="orc-link" onclick="eletroSubaba('simulador')">Ajustar no Simulador →</button></div>
         <div class="eletro-field"><label>CNPJ / CPF</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-doc" placeholder="00.000.000/0000-00" autocomplete="off"></div></div>
         <div class="eletro-field"><label>Inscrição Estadual</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-ie" placeholder="Opcional" autocomplete="off"></div></div>
         <div class="eletro-field"><label>Endereço</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-end" placeholder="Rua, nº, bairro" autocomplete="off"></div></div>
-        <div class="eletro-field"><label>Cidade / UF</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-cidade" placeholder="Ex: Bocaina/PI" autocomplete="off"></div></div>
         <div class="eletro-field"><label>CEP</label>
           <div class="eletro-inp"><input type="text" id="orc-cli-cep" placeholder="00000-000" autocomplete="off"></div></div>
         <div class="eletro-field"><label>Telefone</label>
@@ -5407,7 +5401,7 @@ function eletroParams() {
 function eletroTextos() {
   const g = id => (document.getElementById(id)?.value || '').trim();
   return { cliente: g('el-cliente'), cidade: g('el-cidade'), equip: g('el-equip'),
-           autor: g('el-autor'), contato: g('el-contato') };
+           autor: g('el-autor'), contato: g('el-contato'), email: g('el-email') };
 }
 // Formatadores dos indicadores
 const elPct1  = v => v == null ? '—' : (v * 100).toFixed(1).replace('.', ',') + '%';
@@ -5931,7 +5925,7 @@ function eletroImprimir() {
         </ol>
       </div>
 
-      ${epFooterBlockHTML({ nome: t.autor, contato: t.contato })}
+      ${epFooterBlockHTML({ nome: t.autor, email: t.email, contato: t.contato })}
       <div class="ep-foot">Dados de mercado: ${m.fonte} · Projeção financeira: elaborada a partir das premissas declaradas na seção "Premissas e metodologia" — valores estimados, não constituem garantia de resultado.</div>
       ${pageFoot(4)}
       </div><!-- /página 4 -->
@@ -6106,22 +6100,7 @@ function orcPagamentoHTML(total) {
   return blocos.length ? blocos.join('') : `<div class="ep-sub" style="font-size:12px">Condição de pagamento a combinar.</div>`;
 }
 
-// Vendedor — persistência no navegador (aparece no rodapé do PDF)
-const ORC_VEND_KEY = 'orc_vend_v1';
-function orcVendCampos() { return ['nome', 'email', 'contato']; }
-function orcVendSalvar() {
-  const o = {};
-  orcVendCampos().forEach(k => { o[k] = orcVal('orc-vend-' + k); });
-  try { localStorage.setItem(ORC_VEND_KEY, JSON.stringify(o)); } catch (e) {}
-}
-function orcVendCarregar() {
-  let o = {};
-  try { o = JSON.parse(localStorage.getItem(ORC_VEND_KEY) || '{}') || {}; } catch (e) {}
-  orcVendCampos().forEach(k => { const el = document.getElementById('orc-vend-' + k); if (el && !el.value) el.value = o[k] || ''; });
-}
-function orcVendGet() {
-  return { nome: orcVal('orc-vend-nome'), email: orcVal('orc-vend-email'), contato: orcVal('orc-vend-contato') };
-}
+// (Vendedor agora vem do Simulador — el-autor / el-email / el-contato. Sem card próprio no Orçamento.)
 
 // Emitente (sua empresa) — persistência no navegador
 function orcEmitCampos() { return ['nome', 'end', 'cidade', 'tel', 'email']; }
@@ -6143,19 +6122,23 @@ function orcEmitCarregar() {
 
 // Primeira abertura do pane: prepara datas, item padrão, emitente e observações
 let orcIniciado = false;
+function orcCliBanner() {
+  const el = document.getElementById('orc-cli-banner');
+  if (!el) return;
+  const quem = [orcVal('el-cliente'), orcVal('el-cidade')].filter(Boolean).join(' · ');
+  el.innerHTML = (quem ? `<b>${orcEsc(quem)}</b> — vem do Simulador. ` : 'Defina o cliente no Simulador. ') +
+    `<button type="button" class="orc-link" onclick="eletroSubaba('simulador')">Ajustar →</button>`;
+}
 function orcInit() {
+  orcCliBanner();   // sempre reflete o cliente atual do Simulador
   if (orcIniciado) { orcCalc(); return; }
   orcIniciado = true;
   orcEmitCarregar();
-  orcVendCarregar();
   const dEmis = document.getElementById('orc-data'); if (dEmis && !dEmis.value) dEmis.value = orcHojeISO();
   const dVenc = document.getElementById('orc-parc-data'); if (dVenc && !dVenc.value) dVenc.value = orcHojeISO();
   const obs = document.getElementById('orc-obs'); if (obs && !obs.value.trim()) obs.value = ORC_OBS_PADRAO;
-  // pré-preenche cliente/equipamento a partir do simulador, se o consultor já digitou lá
-  const simCli = orcVal('el-cliente'), simCid = orcVal('el-cidade'), simEq = orcVal('el-equip');
-  const cliNome = document.getElementById('orc-cli-nome'); if (cliNome && !cliNome.value && simCli) cliNome.value = simCli;
-  const cliCid = document.getElementById('orc-cli-cidade'); if (cliCid && !cliCid.value && simCid) cliCid.value = simCid;
   // primeiro item, com a potência do simulador se houver
+  const simEq = orcVal('el-equip');
   if (!document.querySelector('#orc-itens .orc-item')) orcAddItem(simEq ? 'Carregador ' + simEq : 'Carregador DC — eletroposto', '8504.40.10', 1, '');
   orcRenderCartaoGrid();
   orcPgToggle();
@@ -6203,8 +6186,8 @@ function orcImprimir() {
   const emit = {};
   orcEmitCampos().forEach(k => { emit[k] = orcVal('orc-emit-' + k); });
   const cli = {
-    nome: orcVal('orc-cli-nome'), doc: orcVal('orc-cli-doc'), ie: orcVal('orc-cli-ie'),
-    end: orcVal('orc-cli-end'), cidade: orcVal('orc-cli-cidade'), cep: orcVal('orc-cli-cep'),
+    nome: orcVal('el-cliente'), doc: orcVal('orc-cli-doc'), ie: orcVal('orc-cli-ie'),
+    end: orcVal('orc-cli-end'), cidade: orcVal('el-cidade'), cep: orcVal('orc-cli-cep'),
     tel: orcVal('orc-cli-tel'), email: orcVal('orc-cli-email'),
   };
   const num = orcVal('orc-num');
@@ -6218,7 +6201,7 @@ function orcImprimir() {
     `<tr><td>${orcEsc(i.desc) || '—'}</td><td>${orcEsc(i.ncm)}</td><td class="num">${(+i.qtd).toLocaleString('pt-BR')}</td><td class="num">${ORC_MONEY(i.unit)}</td><td class="num">${ORC_MONEY(i.total)}</td></tr>`
   ).join('');
 
-  const vend = orcVendGet();
+  const vend = { nome: orcVal('el-autor'), email: orcVal('el-email'), contato: orcVal('el-contato') };
 
   const cliColA = [
     cli.nome ? `<span class="nm">${orcEsc(cli.nome)}</span>` : '<span class="nm">Cliente</span>',
@@ -6287,6 +6270,85 @@ function orcImprimir() {
       ])
     : Promise.resolve();
   aguarda.then(() => { window.print(); setTimeout(restaurar, 2000); });
+}
+
+// ===== ORÇAMENTO BÁSICO — 1 clique do Simulador (equipamento + valor + pagamento) =====
+// Formas de pagamento padrão (à vista + cartão 12x/21x + financiamento), sem digitar nada.
+function epPagamentoBasico(total) {
+  const d = new Date(orcHojeISO() + 'T00:00:00');
+  const cart = [12, 21].map(n => `<tr><td>${n}x</td><td class="num">${ORC_MONEY(orcParcelaCartao(total, n))}</td></tr>`).join('');
+  return `
+      <div class="ep-sub" style="font-size:12px;margin-bottom:6px">À vista</div>
+      <table class="ep-venc"><thead><tr><th>Parcela</th><th>Vencimento</th><th class="num">Valor</th></tr></thead>
+        <tbody><tr><td>1 — à vista</td><td>${d.toLocaleDateString('pt-BR')}</td><td class="num">${ORC_MONEY(total)}</td></tr></tbody></table>
+      <div class="ep-sub" style="font-size:12px;margin:10px 0 6px">Cartão de crédito — parcelamos em:</div>
+      <table class="ep-venc"><thead><tr><th>Parcelas</th><th class="num">Valor da parcela</th></tr></thead><tbody>${cart}</tbody></table>
+      <div class="ep-fin-destaque" style="margin-top:10px"><div class="ep-fin-ic">★</div>
+        <div><b>Financiamento bancário em até 72×.</b> Financia <b>apenas o carregador</b> (o equipamento); os demais itens do projeto seguem em condição própria. As parcelas e as condições são definidas mediante simulação com os documentos do cliente, sujeito à análise de crédito.</div></div>`;
+}
+
+// Disparo de impressão compartilhado (troca título -> nome do arquivo, espera imagens, print)
+function epPrint(host, nomeArq) {
+  const tituloOriginal = document.title;
+  const restaurar = () => { document.title = tituloOriginal; };
+  document.title = nomeArq;
+  window.addEventListener('afterprint', restaurar, { once: true });
+  const imgs = Array.from(host.querySelectorAll('img')).filter(im => !im.complete);
+  const aguarda = imgs.length
+    ? Promise.race([
+        Promise.all(imgs.map(im => new Promise(res => { im.onload = im.onerror = res; }))),
+        new Promise(res => setTimeout(res, 1500)),
+      ])
+    : Promise.resolve();
+  aguarda.then(() => { window.print(); setTimeout(restaurar, 2000); });
+}
+
+function epBasicoImprimir() {
+  const p = eletroParams();
+  const r = computeEletro(p);
+  const t = eletroTextos();
+  const total = r.investTotal;
+  if (!(total > 0)) { alert('Defina o "Investimento total" no Simulador para gerar o orçamento básico.'); return; }
+
+  const hoje = new Date();
+  const dias = 7;
+  const dVal = new Date(hoje.getTime() + dias * 86400000);
+  const qtd = Math.max(1, Math.round(elNum('el-qtd') || 1));
+  const unit = total / qtd;
+  const equipDesc = t.equip ? 'Eletroposto chave na mão — Carregador ' + orcEsc(t.equip) : 'Eletroposto chave na mão — carregador DC';
+
+  const propCorpo = [
+    `<div class="nm">${t.cliente ? orcEsc(t.cliente) : 'Cliente'}</div>`,
+    t.cidade ? orcEsc(t.cidade) : '',
+  ].filter(Boolean).join('<br>');
+
+  const host = document.getElementById('eletro-print');
+  host.innerHTML = `
+    <div class="ep-doc">
+      <div class="ep-page">
+      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
+      ${epTopoHTML('Orçamento — Eletroposto', hoje.toLocaleDateString('pt-BR'), propCorpo, 'Válido por ' + dias + ' dias — até ' + dVal.toLocaleDateString('pt-BR'))}
+
+      <div class="ep-section">Investimento</div>
+      <table class="ep-itens">
+        <thead><tr><th>Descrição</th><th class="num">Qtd.</th><th class="num">Valor unit.</th><th class="num">Valor total</th></tr></thead>
+        <tbody><tr><td>${equipDesc} — projeto, instalação, homologação e suporte inclusos</td><td class="num">${qtd.toLocaleString('pt-BR')}</td><td class="num">${ORC_MONEY(unit)}</td><td class="num">${ORC_MONEY(total)}</td></tr></tbody>
+      </table>
+      <table class="ep-totais">
+        <tr class="tot"><td>Investimento total</td><td>${ORC_MONEY(total)}</td></tr>
+      </table>
+
+      <div class="ep-section">Condição de pagamento</div>
+      ${epPagamentoBasico(total)}
+
+      <div class="ep-obs">${orcEsc(ORC_OBS_PADRAO)}</div>
+      ${epFooterBlockHTML({ nome: t.autor, email: t.email, contato: t.contato })}
+      <div class="ep-foot">Orçamento de referência — chave na mão. Documento sem valor fiscal; a nota fiscal é emitida no faturamento.</div>
+      </div><!-- /página única -->
+    </div>`;
+
+  const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  epPrint(host, ['Orcamento', 'Basico', limpa(t.cliente) || 'Cliente'].filter(Boolean).join('_'));
 }
 
 const calcFmt = n => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
