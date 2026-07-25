@@ -1750,12 +1750,9 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   // Resumo do WhatsApp: reusa 100% a lógica do Moderno (números idênticos).
   if (out) propostaSolarM1(company, client, f, out);
 
-  // ── Paleta (mesma resolução do Moderno) ──
-  const paletaId = String(f.paleta || 'solar');
-  const p: Palette =
-    paletaId === 'custom'  ? derivePalette(String(f.paleta_c1 || ''), 'Personalizada') :
-    paletaId === 'empresa' ? derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa') :
-    (PALETTES[paletaId] || PALETTES.solar);
+  // ── Paleta: SEMPRE a cor de marca da empresa (cor_marca). Sem cor definida,
+  //    derivePalette cai no padrão Solar. Não há mais escolha de cor na proposta. ──
+  const p: Palette = derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa');
 
   // ── Inputs ──
   const cidade = (str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade)).trim();
@@ -1993,11 +1990,8 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 
 function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>, out?: { resumo?: string }): string {
   // Inputs do form
-  const paletaId = String(f.paleta || 'solar');
-  const palette: Palette =
-    paletaId === 'custom'  ? derivePalette(String(f.paleta_c1 || ''), 'Personalizada') :
-    paletaId === 'empresa' ? derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa') :
-    (PALETTES[paletaId] || PALETTES.solar);
+  // Paleta: SEMPRE a cor de marca da empresa (sem escolha de cor na proposta).
+  const palette: Palette = derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa');
   const codigoProposta = str(f.codigo) === '___' ? '' : String(f.codigo);
   // Vendedor caiu do form — usa contato da empresa cadastrada (sócio admin / razão social + WhatsApp da empresa).
   // Se o form ainda mandar (proposta antiga ou white-label custom), prioriza o do form.

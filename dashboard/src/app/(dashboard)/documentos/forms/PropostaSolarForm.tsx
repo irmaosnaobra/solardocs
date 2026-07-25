@@ -745,7 +745,9 @@ export default function PropostaSolarPage() {
             ))}
           </div>
 
-          {PaletaPicker}
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
+            As cores da proposta seguem automaticamente a <strong>cor de marca da sua empresa</strong> (cadastrada em Empresa). Cores claras são escurecidas pra manter o texto legível.
+          </p>
         </div>
 
         {/* CLIENTE */}
