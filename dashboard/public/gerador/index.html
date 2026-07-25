@@ -487,11 +487,14 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-venc td.num{text-align:right;font-variant-numeric:tabular-nums}
 .ep-obs{font-size:10px;color:#666;line-height:1.6;margin-top:14px;white-space:pre-line;border-top:1px solid #eee;padding-top:10px}
 /* caixa de proposta no topo direito (modelo "PROPOSTA COMERCIAL / Data") */
-.ep-propbox{min-width:250px;max-width:300px;border:1.5px solid #2f6b10;border-radius:5px;overflow:hidden;font-size:11px;color:#333}
-.ep-propbox .h{background:#2f6b10;color:#fff;font-weight:800;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;padding:6px 10px;display:flex;justify-content:space-between;gap:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ep-propbox .b{padding:8px 10px;line-height:1.5}
-.ep-propbox .b .nm{font-weight:800;color:#1a1a1a;font-size:12px}
-.ep-propbox .b .val{margin-top:6px;padding-top:6px;border-top:1px dashed #cfe0b6;color:#2f6b10;font-weight:700;font-size:10.5px}
+/* ficha do cliente no topo (mesma linguagem da proposta solar — bloco colorido + selo de validade) */
+.ep-propbox{min-width:252px;max-width:312px;background:#2f6b10;color:#fff;border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:7px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-propbox .t{font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;opacity:.86}
+.ep-propbox .rowf{display:flex;justify-content:space-between;gap:12px;font-size:12px;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:6px}
+.ep-propbox .rowf span:first-child{opacity:.72;font-weight:600}
+.ep-propbox .b{font-size:12px;line-height:1.5}
+.ep-propbox .b .nm{font-weight:800;color:#fff;font-size:13px}
+.ep-valid{align-self:flex-start;background:#7DD117;color:#14300c;font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:4px 11px;border-radius:999px;margin-top:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 /* rótulo + rodapé escuro (vendedor | empresa) */
 .ep-forma-label{font-size:11px;font-weight:800;color:#2f6b10;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
 .ep-footer-block{display:flex;border-radius:7px;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -5794,7 +5797,7 @@ function eletroImprimir() {
         [`<div class="nm">${t.cliente ? orcEsc(t.cliente) : 'Estudo de Viabilidade'}</div>`,
          t.cidade ? 'Local: ' + orcEsc(t.cidade) : '',
          t.autor ? 'Elaborado por: ' + orcEsc(t.autor) : ''].filter(Boolean).join('<br>'),
-        'Validade: ' + validade.toLocaleDateString('pt-BR') + ' (7 dias)')}
+        'Válido por 7 dias')}
 
       <div class="ep-section">Sumário executivo</div>
       <div class="ep-exec">${execHTML}</div>
@@ -6160,8 +6163,10 @@ function epTopoHTML(titulo, dataStr, corpoLinhas, rodapeVal) {
   return `<div class="ep-topo">
       <div class="ep-brand" style="margin-bottom:0"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"></div>
       <div class="ep-propbox">
-        <div class="h"><span>${titulo}</span><span>${dataStr}</span></div>
-        <div class="b">${corpoLinhas}${rodapeVal ? `<div class="val">${rodapeVal}</div>` : ''}</div>
+        <div class="t">${titulo}</div>
+        <div class="rowf"><span>Data</span><span>${dataStr}</span></div>
+        <div class="b">${corpoLinhas}</div>
+        ${rodapeVal ? `<div class="ep-valid">${rodapeVal}</div>` : ''}
       </div>
     </div>`;
 }
@@ -6227,7 +6232,7 @@ function orcImprimir() {
     <div class="ep-doc">
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      ${epTopoHTML('Proposta Comercial' + (num ? ' Nº ' + orcEsc(num) : ''), dEmis.toLocaleDateString('pt-BR'), propCorpo, 'Válido por ' + dias + ' dias — até ' + dVal.toLocaleDateString('pt-BR'))}
+      ${epTopoHTML('Proposta Comercial' + (num ? ' Nº ' + orcEsc(num) : ''), dEmis.toLocaleDateString('pt-BR'), propCorpo, 'Válido por ' + dias + ' dias')}
 
       <div class="ep-section">Informações do cliente</div>
       <div class="ep-cliente-box">
@@ -6327,7 +6332,7 @@ function epBasicoImprimir() {
     <div class="ep-doc">
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      ${epTopoHTML('Orçamento — Eletroposto', hoje.toLocaleDateString('pt-BR'), propCorpo, 'Válido por ' + dias + ' dias — até ' + dVal.toLocaleDateString('pt-BR'))}
+      ${epTopoHTML('Orçamento — Eletroposto', hoje.toLocaleDateString('pt-BR'), propCorpo, 'Válido por ' + dias + ' dias')}
 
       <div class="ep-section">Investimento</div>
       <table class="ep-itens">
