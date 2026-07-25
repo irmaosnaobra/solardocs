@@ -10,6 +10,22 @@ interface Company {
   cnpj: string;
   endereco?: string;
   logo_base64?: string;
+  cor_marca?: string;
+}
+
+// Acento do documento = cor de marca da empresa. Cor clara é escurecida pra
+// manter os detalhes (divisória/título/seções) legíveis sobre o branco.
+// Sem cor definida, cai no azul-marinho neutro de sempre.
+function accentFromBrand(hex?: string): string {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec((hex || '').trim());
+  if (!m) return '#1a1a2e';
+  let r = parseInt(m[1].slice(0, 2), 16);
+  let g = parseInt(m[1].slice(2, 4), 16);
+  let b = parseInt(m[1].slice(4, 6), 16);
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  if (lum > 0.5) { const f = 0.42 / lum; r = Math.round(r * f); g = Math.round(g * f); b = Math.round(b * f); }
+  const h = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0');
+  return `#${h(r)}${h(g)}${h(b)}`;
 }
 
 interface DocumentPreviewProps {
@@ -139,6 +155,7 @@ export default function DocumentPreview({
   }, [docId, saved, warmPdf]);
 
   const blocks = parseContent(displayContent);
+  const docAccent = accentFromBrand(company?.cor_marca);
   const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
 
   function buildHtml(pageEl: HTMLElement): string {
@@ -153,10 +170,10 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
 .${s.companyInfo} { display: flex; flex-direction: column; gap: 1px; }
 .${s.companyName} { font-size: 12pt; font-weight: 700; color: #1a1a1a; font-family: Arial, sans-serif; }
 .${s.companyDetail} { font-size: 8pt; color: #555; font-family: Arial, sans-serif; }
-.${s.headerDivider} { border: none; border-top: 2px solid #1a1a2e; margin: 8px 0 16px 0; }
+.${s.headerDivider} { border: none; border-top: 2px solid var(--doc-accent, #1a1a2e); margin: 8px 0 16px 0; }
 .${s.docBody} { flex: 1; }
-.${s.docTitle} { font-size: 12pt; font-weight: 700; text-align: center; text-transform: uppercase; color: #1a1a2e; margin: 0 0 16px 0; page-break-after: avoid; break-after: avoid; }
-.${s.sectionHeader} { font-size: 9.5pt; font-weight: 700; text-transform: uppercase; color: #1a1a2e; margin: 12px 0 6px 0; padding-bottom: 2px; border-bottom: 1px solid #ccc; page-break-after: avoid; break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
+.${s.docTitle} { font-size: 12pt; font-weight: 700; text-align: center; text-transform: uppercase; color: var(--doc-accent, #1a1a2e); margin: 0 0 16px 0; page-break-after: avoid; break-after: avoid; }
+.${s.sectionHeader} { font-size: 9.5pt; font-weight: 700; text-transform: uppercase; color: var(--doc-accent, #1a1a2e); margin: 12px 0 6px 0; padding-bottom: 2px; border-bottom: 1px solid var(--doc-accent, #ccc); page-break-after: avoid; break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
 .${s.separator} { border: none; border-top: 1px solid #ccc; margin: 10px 0; }
 .${s.bodyText} { margin: 0 0 5px 0; text-align: justify; color: #222; }
 .${s.listItem} { margin: 3px 0 3px 18px; text-align: justify; color: #222; }
@@ -363,7 +380,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
         </div>
       ) : (
         <div className={styles.pageWrapper} ref={docRef}>
-          <div className={styles.page}>
+          <div className={styles.page} style={{ ['--doc-accent' as string]: docAccent }}>
 
             {/* Company header */}
             <header className={styles.companyHeader}>
