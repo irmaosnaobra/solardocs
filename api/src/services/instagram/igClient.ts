@@ -15,7 +15,7 @@ const GRAPH = 'https://graph.instagram.com/v25.0';
 const GRAPH_ROOT = 'https://graph.instagram.com';           // token exchange/refresh
 const OAUTH_TOKEN = 'https://api.instagram.com/oauth/access_token';
 
-export const IG_SCOPES = 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments';
+export const IG_SCOPES = 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_manage_insights';
 
 export interface IgConfig {
   ig_user_id?: string; username?: string; name?: string;
@@ -108,6 +108,20 @@ export async function subscribeApps(igUserId: string, token: string): Promise<vo
 /** Salva/atualiza a config da conta (após OAuth). */
 export async function saveIgConfig(cfg: IgConfig): Promise<void> {
   await supabase.from('ig_config').upsert({ id: 1, ...cfg, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+}
+
+/** Métricas da conta: perfil (seguidores/posts) + alcance (precisa scope insights). */
+export async function getInsights(igUserId: string, token: string): Promise<any> {
+  const pf = new URLSearchParams({ fields: 'followers_count,media_count,username', access_token: token });
+  let profile: any = null;
+  try { profile = await (await fetch(`${GRAPH}/me?${pf.toString()}`)).json(); }
+  catch (err) { logger.error('ig', 'getInsights perfil falhou', err); }
+  let alcance: any = null;
+  try {
+    const ip = new URLSearchParams({ metric: 'reach', period: 'day', metric_type: 'total_value', access_token: token });
+    alcance = await (await fetch(`${GRAPH}/${igUserId}/insights?${ip.toString()}`)).json();
+  } catch (err) { logger.error('ig', 'getInsights alcance falhou (falta reconectar com scope insights?)', err); }
+  return { profile, alcance };
 }
 
 /** Posts recentes pro seletor visual do painel. */

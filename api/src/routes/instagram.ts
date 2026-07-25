@@ -8,7 +8,7 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../utils/logger';
 import {
   igEnv, verifyHmac, authorizeUrl, exchangeCode, exchangeLongToken, getMe,
-  saveIgConfig, subscribeApps, getIgConfig, getMedia,
+  saveIgConfig, subscribeApps, getIgConfig, getMedia, getInsights,
 } from '../services/instagram/igClient';
 import { handleComment, handleMessage, drainIgQueue } from '../services/instagram/igEngine';
 
@@ -95,6 +95,14 @@ router.get('/status', async (_req: Request, res: Response): Promise<void> => {
     profile_picture_url: cfg?.profile_picture_url || null,
     token_expires_at: cfg?.token_expires_at || null,
   });
+});
+
+// Métricas da conta (seguidores, posts, alcance).
+router.get('/insights', async (_req: Request, res: Response): Promise<void> => {
+  const cfg = await getIgConfig();
+  if (!cfg?.access_token || !cfg.ig_user_id) { res.json({ error: 'sem conta' }); return; }
+  try { res.json(await getInsights(cfg.ig_user_id, cfg.access_token)); }
+  catch (err: any) { res.status(500).json({ error: String(err?.message || err) }); }
 });
 
 // Posts recentes pro seletor visual (usa o token no servidor).
