@@ -231,6 +231,8 @@ export default function PropostaSolarPage() {
   // rede/timeout não apaga mais os ~40 campos. Restaura ao montar, limpa no sucesso.
   const DRAFT_KEY = 'proposta-solar-draft-v1';
   const draftLoaded = useRef(false);
+  const temRascunho = useRef(false);           // havia rascunho neste aparelho?
+  const [clientesHist, setClientesHist] = useState<string[]>([]); // clientes com histórico
 
   // Restaura rascunho ao montar (1x).
   useEffect(() => {
@@ -239,6 +241,7 @@ export default function PropostaSolarPage() {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
+      temRascunho.current = true;
       const d = JSON.parse(raw);
       if (d.clienteNome) setClienteNome(d.clienteNome);
       if (d.cidadeUf) setCidadeUf(d.cidadeUf);
@@ -281,6 +284,36 @@ export default function PropostaSolarPage() {
   const [marcasInv, setMarcasInv] = useState<string[]>([]);
   const [marcasBat, setMarcasBat] = useState<string[]>([]);
   useEffect(() => { setMarcasMod(lerMarcas(MARCAS_MOD_KEY)); setMarcasInv(lerMarcas(MARCAS_INV_KEY)); setMarcasBat(lerMarcas(MARCAS_BAT_KEY)); }, []);
+
+  // ── Auto-preenchimento (servidor) ──
+  // Kit do vendedor (marcas/garantias/taxas/paleta da última proposta) pré-preenche
+  // todo doc novo — só quando NÃO há rascunho local (o rascunho já traz o kit).
+  // Também carrega a lista de clientes com histórico pro seletor.
+  useEffect(() => {
+    api.get('/documents/proposta-prefill').then(({ data }) => {
+      setClientesHist(Array.isArray(data?.clientes) ? data.clientes : []);
+      if (!temRascunho.current && data?.kit && Object.keys(data.kit).length) {
+        setFields(f => ({ ...f, ...data.kit }));
+      }
+    }).catch(() => { /* sem histórico ainda — ignora */ });
+  }, []);
+
+  // Carrega a última proposta de um cliente (histórico por cliente) e preenche tudo.
+  const [carregandoCliente, setCarregandoCliente] = useState(false);
+  async function carregarCliente(nome: string) {
+    if (!nome.trim()) return;
+    setCarregandoCliente(true);
+    try {
+      const { data } = await api.get('/documents/proposta-prefill', { params: { cliente_nome: nome } });
+      const c = data?.cliente;
+      if (c && Object.keys(c).length) {
+        setFields(f => ({ ...f, ...c }));
+        setClienteNome(nome);
+        const cid = String(c.cidade || '').trim(), uf = String(c.uf || '').trim();
+        if (cid || uf) setCidadeUf([cid, uf].filter(Boolean).join(' - '));
+      }
+    } catch { /* ignora */ } finally { setCarregandoCliente(false); }
+  }
 
   // kWp deriva de qtd_modulos × potencia_modulo (verdade técnica: 10×620W = 6,2 kWp)
   const kwpCalc = (() => {
@@ -721,6 +754,26 @@ export default function PropostaSolarPage() {
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: -4, marginBottom: 10 }}>
             Seu nome e WhatsApp já vêm do cadastro da empresa.
           </p>
+
+          {/* Histórico por cliente: recarrega tudo que foi usado na última proposta dele */}
+          {clientesHist.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <label className={styles.label}>Cliente com histórico (auto-preenche)</label>
+              <select
+                className="input-field"
+                value=""
+                disabled={carregandoCliente}
+                onChange={e => { if (e.target.value) carregarCliente(e.target.value); }}
+              >
+                <option value="">{carregandoCliente ? 'Carregando…' : '↺ Carregar dados de um cliente…'}</option>
+                {clientesHist.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                Traz de volta tudo da última proposta desse cliente (consumo, kWp, tarifa, marcas…).
+              </span>
+            </div>
+          )}
+
           <div className={styles.grid2}>
             <div className={styles.fieldFull}>
               <label className={styles.label}>Nome do cliente *</label>

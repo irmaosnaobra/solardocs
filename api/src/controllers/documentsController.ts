@@ -564,6 +564,64 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
   }
 }
 
+// ── Auto-preenchimento da proposta ────────────────────────────────────────────
+// Reaproveita o histórico já salvo (documents.dados_json). Devolve:
+//  - kit: campos NÃO específicos do cliente (marcas, garantias, taxas, paleta) da
+//    proposta mais recente do usuário → pré-preenche todo doc novo (kit do vendedor).
+//  - clientes: nomes recentes com histórico de proposta (pro seletor).
+//  - cliente: a proposta mais recente de um cliente (por nome) → tudo dele volta.
+const CLIENTE_ONLY = new Set<string>([
+  'cliente_nome', 'codigo', 'cidade', 'uf', 'endereco', 'consumo_kwh', 'qtd_modulos',
+  'geracao_media_kwh', 'geracao_media', 'hsp', 'tarifa_kwh', 'investimento', 'preco_avista',
+  'entrada_valor', 'entrada_modo', 'entrada_dias', 'pag_custom', 'tipo_telhado',
+  'bateria_capacidade_kwh', 'bateria_potencia_kw', 'bateria_ciclos', 'bateria_marca', 'bateria_garantia', 'bateria_tem',
+]);
+const STRIP_ALWAYS = new Set<string>(['foto_telhado_b64', 'foto_logo_b64']);
+
+function limpaDados(d: Record<string, unknown>, soKit: boolean): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(d || {})) {
+    if (STRIP_ALWAYS.has(k)) continue;
+    if (soKit && CLIENTE_ONLY.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+export async function propostaPrefill(req: Request, res: Response): Promise<void> {
+  const nome = String(req.query.cliente_nome || '').trim();
+  const { data, error } = await supabase
+    .from('documents')
+    .select('cliente_nome, dados_json, created_at')
+    .eq('user_id', req.userId)
+    .eq('tipo', 'propostaSolar')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) {
+    logger.error('documents', 'prefill falhou', error);
+    res.status(500).json({ error: 'Não consegui carregar o histórico.' });
+    return;
+  }
+  const docs = (data ?? []) as { cliente_nome: string | null; dados_json: Record<string, unknown> | null; created_at: string }[];
+
+  const kit = docs.length && docs[0].dados_json ? limpaDados(docs[0].dados_json, true) : {};
+
+  const vistos = new Set<string>();
+  const clientes: string[] = [];
+  for (const d of docs) {
+    const n = (d.cliente_nome || '').trim();
+    if (n && !vistos.has(n.toLowerCase())) { vistos.add(n.toLowerCase()); clientes.push(n); }
+  }
+
+  let cliente: Record<string, unknown> | null = null;
+  if (nome) {
+    const hit = docs.find((d) => (d.cliente_nome || '').trim().toLowerCase() === nome.toLowerCase());
+    if (hit?.dados_json) cliente = limpaDados(hit.dados_json, false);
+  }
+
+  res.json({ kit, clientes: clientes.slice(0, 50), cliente });
+}
+
 export async function cleanupProDocuments(): Promise<void> {
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 

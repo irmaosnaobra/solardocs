@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { generateDocument, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml } from '../controllers/documentsController';
+import { generateDocument, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml, propostaPrefill } from '../controllers/documentsController';
 import { generatePdf } from '../controllers/pdfController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -32,6 +32,8 @@ router.post('/generate', authMiddleware, generateDocument);
 router.post('/save', authMiddleware, saveDocument);
 router.patch('/:id/file', authMiddleware, updateDocumentFile);
 router.get('/list', authMiddleware, listDocuments);
+// Auto-preenchimento: kit do vendedor + histórico por cliente (reusa dados_json).
+router.get('/proposta-prefill', authMiddleware, propostaPrefill);
 router.get('/:id/pdf', downloadAuth, generatePdf);
 router.get('/:id/html', downloadAuth, renderDocumentHtml);
 
