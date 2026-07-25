@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine } from 'lucide-react';
 import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
+import InfoHint from '@/components/InfoHint/InfoHint';
 import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
@@ -746,7 +747,7 @@ export default function PropostaSolarPage() {
           </div>
 
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
-            As cores da proposta seguem automaticamente a <strong>cor de marca da sua empresa</strong> (cadastrada em Empresa). Cores claras são escurecidas pra manter o texto legível.
+            As cores seguem a marca da sua empresa.<InfoHint>Definida em Empresa → cor de marca. Cores claras são escurecidas pra manter o texto legível na proposta.</InfoHint>
           </p>
         </div>
 
@@ -760,7 +761,7 @@ export default function PropostaSolarPage() {
           {/* Histórico por cliente: recarrega tudo que foi usado na última proposta dele */}
           {clientesHist.length > 0 && (
             <div style={{ marginBottom: 14 }}>
-              <label className={styles.label}>Cliente com histórico (auto-preenche)</label>
+              <label className={styles.label}>Cliente com histórico<InfoHint>Traz de volta tudo da última proposta desse cliente: consumo, kWp, tarifa, marcas…</InfoHint></label>
               <select
                 className="input-field"
                 value=""
@@ -770,9 +771,6 @@ export default function PropostaSolarPage() {
                 <option value="">{carregandoCliente ? 'Carregando…' : '↺ Carregar dados de um cliente…'}</option>
                 {clientesHist.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
-                Traz de volta tudo da última proposta desse cliente (consumo, kWp, tarifa, marcas…).
-              </span>
             </div>
           )}
 
@@ -839,7 +837,7 @@ export default function PropostaSolarPage() {
               </div>
             </div>
             <div className={styles.fieldFull}>
-              <label className={styles.label}>Geração média mensal (kWh)</label>
+              <label className={styles.label}>Geração média mensal (kWh)<InfoHint>Vira a média anual da proposta. Vazio = o sistema calcula pelo HSP da cidade. O gráfico aplica a sazonalidade da região em cima desse valor.</InfoHint></label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -848,23 +846,17 @@ export default function PropostaSolarPage() {
                 placeholder={geracaoMediaSugerida > 0 ? `Estimado: ${geracaoMediaSugerida.toLocaleString('pt-BR')} kWh/mês (deixe vazio pra usar)` : 'Preencha kWp e cidade pra ver estimativa'}
                 className="input-field"
               />
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                O que você colocar aqui vira a média anual da proposta. Vazio = sistema calcula via HSP da cidade. O gráfico aplica a sazonalidade da região em cima desse valor.
-              </span>
             </div>
             <div className={styles.fieldFull}>
-              <label className={styles.label}>HSP — horas de sol pleno (opcional)</label>
+              <label className={styles.label}>HSP — horas de sol pleno<InfoHint>Vazio = usa o HSP padrão da cidade/estado. Preencha pra usar o seu valor no cálculo. Se a “Geração média” acima estiver preenchida, ela tem prioridade.</InfoHint></label>
               <input
                 type="text"
                 inputMode="decimal"
                 value={fields.hsp}
                 onChange={e => setField('hsp', e.target.value.replace(/[^0-9.,]/g, ''))}
-                placeholder="Ex: 5,2 — deixe vazio pra usar o padrão da sua região"
+                placeholder="Ex: 5,2 — deixe vazio pra usar o padrão da região"
                 className="input-field"
               />
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                Vazio = o sistema usa o HSP padrão da cidade/estado. Preencha pra usar o seu valor no cálculo da geração. (Se a “Geração média” acima estiver preenchida, ela tem prioridade.)
-              </span>
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Marca dos módulos *</label>
