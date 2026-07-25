@@ -80,7 +80,10 @@ export function generateFromTemplate(
     case 'vistoria':
       return vistoriaM1(company, client, fields);
     case 'propostaSolar':
-      return propostaSolarM1(company, client, fields, out);
+      // Modelo 1 (padrão) = "1 Página"; Modelo 2 = "Moderno" (o completo).
+      return modelo === 2
+        ? propostaSolarM1(company, client, fields, out)
+        : propostaSolar1Pagina(company, client, fields, out);
     default:
       throw new Error(`Modelo estático não disponível para: ${type}. Use a geração por IA.`);
   }
@@ -1735,6 +1738,256 @@ function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: numbe
   if (!pv || pv <= 0) return 0;
   const saldo = pv * Math.pow(1 + i, carenciaMeses);
   return saldo * i / (1 - Math.pow(1 + i, -n));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// PROPOSTA SOLAR — MODELO "1 PÁGINA" (orçamento A4 compacto, todos os dados)
+// Reaproveita o resumo de WhatsApp do modelo Moderno (mesmos números, garantido:
+// chama M1 só pro side-effect de out.resumo e descarta o HTML). As cores saem da
+// paleta da empresa (c1/c2/c3, mesmo esquema do Moderno).
+// ════════════════════════════════════════════════════════════════════════════
+function propostaSolar1Pagina(company: Company, client: Client, f: Record<string, unknown>, out?: { resumo?: string }): string {
+  // Resumo do WhatsApp: reusa 100% a lógica do Moderno (números idênticos).
+  if (out) propostaSolarM1(company, client, f, out);
+
+  // ── Paleta (mesma resolução do Moderno) ──
+  const paletaId = String(f.paleta || 'solar');
+  const p: Palette =
+    paletaId === 'custom'  ? derivePalette(String(f.paleta_c1 || ''), 'Personalizada') :
+    paletaId === 'empresa' ? derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa') :
+    (PALETTES[paletaId] || PALETTES.solar);
+
+  // ── Inputs ──
+  const cidade = (str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade)).trim();
+  const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).trim().toUpperCase();
+  const consumoKwh = parseBRL(f.consumo_kwh);
+  const qtdModulos = parseInt(String(f.qtd_modulos || '0'), 10) || 0;
+  const potenciaModulo = parseInt(String(f.potencia_modulo || '0'), 10) || 0;
+  const marcaModulo = String(f.marca_modulo || '').trim();
+  const qtdInversores = parseInt(String(f.qtd_inversores || '1'), 10) || 1;
+  const marcaInversor = String(f.marca_inversor || '').trim();
+  const potInvStr = String(f.potencia_inversor ?? '').trim().replace('.', ',');
+  const kwp = (qtdModulos * potenciaModulo) / 1000;
+  const investimento = parseBRL(f.investimento);
+  const taxaMinima = parseFloat(String(f.taxa_minima || '90').replace(',', '.')) || 90;
+  const garPaineis = parseInt(String(f.garantia_paineis || '25'), 10) || 25;
+  const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
+
+  const vendedorForm = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome).trim();
+  const vendedor = vendedorForm || String(company.socio_adm || company.nome || '').trim();
+  const vendWhats = ((str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '') || String((company as { whatsapp?: string }).whatsapp || '').replace(/\D/g, ''));
+  const vendEmail = String(f.vendedor_email || '').trim() || String((company as { email?: string }).email || '').trim();
+  const logo = (str(f.foto_logo_b64) === '___' ? '' : String((company as { logo_base64?: string }).logo_base64 || '')).trim();
+
+  // ── Cálculos (mesmas fórmulas do Moderno) ──
+  const refBase = getRef(uf, cidade);
+  const tarifaOverride = parseFloat(String(f.tarifa_kwh || '').replace(',', '.'));
+  const ref = { ...refBase, tarifa: tarifaOverride > 0 ? tarifaOverride : refBase.tarifa };
+  const geracaoMediaOverride = parseBRL(f.geracao_media_kwh);
+  const mensal = geracaoMensal(kwp, uf, cidade, geracaoMediaOverride > 0 ? geracaoMediaOverride : undefined);
+  const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
+  const mediaMensalGerada = Math.round(geracaoAnual / 12);
+  const autonomia = consumoKwh > 0 ? Math.min(130, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;
+  const areaM2 = qtdModulos > 0 ? Math.round(qtdModulos * 2.5 * 10) / 10 : 0;
+
+  const inflacao = (parseFloat(String(f.inflacao_aa || '6').replace(',', '.')) || 6) / 100;
+  const inflacaoMin = (parseFloat(String(f.taxa_minima_inflacao_aa || '6').replace(',', '.')) || 6) / 100;
+
+  const paybackMeses = (() => {
+    if (investimento <= 0 || consumoKwh <= 0) return 0;
+    let acum = 0;
+    for (let a = 1; a <= 25; a++) {
+      const economiaAno = consumoKwh * 12 * ref.tarifa * Math.pow(1 + inflacao, a - 1) - taxaMinima * 12 * Math.pow(1 + inflacaoMin, a - 1);
+      if (acum + economiaAno >= investimento) return (a - 1) * 12 + Math.ceil(((investimento - acum) / economiaAno) * 12);
+      acum += economiaAno;
+    }
+    return 0;
+  })();
+  const paybackTexto = (() => {
+    if (!paybackMeses) return '—';
+    const anos = Math.floor(paybackMeses / 12), meses = paybackMeses % 12;
+    if (anos === 0) return `${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+    if (meses === 0) return `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
+    return `${anos} ${anos === 1 ? 'ano' : 'anos'} e ${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+  })();
+
+  let economia25 = 0;
+  { let sem = 0, com = 0;
+    for (let a = 1; a <= 25; a++) { sem += consumoKwh * 12 * ref.tarifa * Math.pow(1 + inflacao, a - 1); com += taxaMinima * 12 * Math.pow(1 + inflacaoMin, a - 1); }
+    economia25 = Math.round(sem - com);
+  }
+  const contaHoje = Math.round(consumoKwh * ref.tarifa);
+  const economiaMensal = Math.max(0, contaHoje - taxaMinima);
+
+  // Parcela representativa: financiamento mais longo ativo; senão cartão mais longo ativo.
+  const TAXA_CARTAO_DEF: Record<number, number> = { 1:3.99,2:5.30,3:5.99,4:6.68,5:7.35,6:8.02,7:9.47,8:10.13,9:10.78,10:11.43,11:12.06,12:12.70,13:13.32,14:13.94,15:14.56,16:15.17,17:15.77,18:16.37,19:16.97,20:17.57,21:18.17 };
+  const finTaxa = (n: number) => { const v = parseFloat(String(f[`taxa_fin_${n}`] || '').replace(',', '.')); return v > 0 ? v : 2.20; };
+  const cartaoTaxa = (n: number) => { const v = parseFloat(String(f[`taxa_cartao_${n}`] || '').replace(',', '.')); return v > 0 ? v : (TAXA_CARTAO_DEF[n] ?? 0); };
+  let parcelaLabel = '';
+  const finAtivos = [36, 48, 60, 84].filter((n) => f[`pag_fin_${n}`] === true);
+  const cartaoAtivos = Array.from({ length: 21 }, (_, i) => i + 1).filter((n) => f[`pag_cartao_${n}`] === true);
+  if (investimento > 0 && f.pag_fin !== false && finAtivos.length) {
+    const n = Math.max(...finAtivos);
+    parcelaLabel = `ou ${n}× de ${brl(Math.ceil(pmtPriceCarencia(investimento, finTaxa(n) / 100, n, 4)))}`;
+  } else if (investimento > 0 && f.pag_cartao !== false && cartaoAtivos.length) {
+    const n = Math.max(...cartaoAtivos);
+    parcelaLabel = `ou ${n}× de ${brl(Math.ceil((investimento * (1 + cartaoTaxa(n) / 100)) / n))}`;
+  }
+
+  // ── Helpers de formatação ──
+  function brl(n: number): string { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+  function n1(n: number): string { return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+  const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const marcaMod = [marcaModulo, potenciaModulo > 0 ? `${potenciaModulo}W` : ''].filter(Boolean).join(' · ');
+  const marcaInv = [marcaInversor, potInvStr ? `${potInvStr} kW` : ''].filter(Boolean).join(' · ');
+  const enderecoCli = (str(f.endereco) === '___' ? (client.endereco || '') : String(f.endereco || client.endereco || '')).trim();
+
+  const linhaMk = (label: string, marca: string, right: string) =>
+    `<div class="r"><span class="lab">${pEsc(label)}${marca ? ` <em class="mkq">${pEsc(marca)}</em>` : ''}</span><span class="inc">${pEsc(right)}</span></div>`;
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Orçamento Solar — ${pEsc(client.nome)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{ --c1:${p.c1}; --c2:${p.c2}; --c3:${p.c3}; --accent:#F7B500; --ink:#161A22; --muted:#5C6470; --row:#F2F4F8; --line:#E4E8F0; }
+@page{ size:A4; margin:0; }
+*,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; color:var(--ink); background:#EEF1F5; -webkit-font-smoothing:antialiased; }
+.num{ font-variant-numeric:tabular-nums; }
+.page{ width:794px; min-height:1123px; margin:0 auto; background:#fff; display:flex; flex-direction:column; }
+/* Cabeçalho */
+.head{ display:grid; grid-template-columns:1fr 1fr; }
+.brand{ padding:24px 26px; display:flex; flex-direction:column; justify-content:center; gap:8px; }
+.brand img{ max-width:190px; max-height:74px; object-fit:contain; }
+.brand .mk{ font-size:26px; font-weight:900; letter-spacing:-.5px; color:var(--c1); line-height:1.05; }
+.brand .mk small{ display:block; font-size:10px; font-weight:700; letter-spacing:3px; color:var(--muted); margin-top:5px; }
+.ficha{ background:var(--c1); color:#fff; padding:20px 24px; display:flex; flex-direction:column; gap:8px; }
+.ficha .t{ font-size:12px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; opacity:.85; }
+.ficha .rowf{ display:flex; justify-content:space-between; gap:12px; font-size:12px; border-bottom:1px solid rgba(255,255,255,.16); padding-bottom:6px; }
+.ficha .rowf span:first-child{ opacity:.7; font-weight:600; }
+.ficha .valid{ margin-top:2px; font-size:10.5px; font-weight:800; color:var(--c1); background:var(--accent); align-self:flex-start; padding:4px 10px; border-radius:999px; letter-spacing:.3px; }
+/* Faixa de seção — barra amarela com o título na cor da marca (estilo da referência) */
+.band{ display:flex; align-items:center; background:var(--accent); margin-top:2px; }
+.band .tab{ color:var(--c1); font-size:12.5px; font-weight:800; letter-spacing:1.3px; text-transform:uppercase; padding:9px 20px; }
+.band .bar{ flex:1; }
+.sec{ padding:13px 26px 4px; }
+.tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
+.tile{ border:1px solid var(--line); border-bottom:3px solid var(--c1); border-radius:12px; padding:11px 13px; }
+.tile .k{ font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); }
+.tile .v{ font-size:22px; font-weight:900; color:var(--c1); line-height:1.1; margin-top:3px; }
+.tile .v u{ font-size:12px; font-weight:700; color:var(--muted); text-decoration:none; margin-left:2px; }
+.rows{ display:flex; flex-direction:column; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+.r{ display:flex; justify-content:space-between; gap:16px; padding:8px 14px; font-size:12px; align-items:center; }
+.r:nth-child(odd){ background:var(--row); }
+.r .lab{ color:#39404C; font-weight:600; }
+.r .val{ font-weight:800; }
+.r .inc{ color:#127A3E; font-weight:800; font-size:10.5px; letter-spacing:.4px; text-transform:uppercase; }
+.mkq{ display:inline-block; font-style:normal; font-size:10px; font-weight:800; letter-spacing:.3px; color:var(--c1); background:var(--c3); padding:1px 7px; border-radius:6px; margin-left:8px; vertical-align:middle; }
+/* Financeiro */
+.fin{ padding:13px 26px 6px; }
+.hero{ display:grid; grid-template-columns:1.25fr 1fr; gap:12px; margin-bottom:11px; }
+.heroL{ background:linear-gradient(135deg,var(--c1),var(--c2)); color:#fff; border-radius:14px; padding:16px 18px; }
+.heroL .k{ font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; opacity:.85; }
+.heroL .v{ font-size:32px; font-weight:900; line-height:1.05; margin-top:3px; }
+.heroL .s{ font-size:11px; opacity:.8; margin-top:3px; }
+.heroR{ background:var(--accent); border-radius:14px; padding:16px 18px; display:flex; flex-direction:column; justify-content:center; }
+.heroR .k{ font-size:10.5px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--c1); opacity:.75; }
+.heroR .v{ font-size:27px; font-weight:900; line-height:1.05; margin-top:2px; color:var(--c1); }
+.heroR .s{ font-size:11.5px; font-weight:800; margin-top:3px; color:var(--c1); opacity:.85; }
+.finGrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.fc{ border:1px solid var(--line); border-radius:12px; padding:10px 13px; }
+.fc .k{ font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); }
+.fc .v{ font-size:17px; font-weight:900; color:var(--c1); margin-top:3px; }
+/* Rodapé */
+.foot{ margin-top:auto; background:var(--c1); color:#fff; padding:16px 26px 20px; }
+.foot .pg{ font-size:11px; font-weight:800; letter-spacing:1.3px; text-transform:uppercase; opacity:.85; margin-bottom:11px; }
+.cols{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.card{ background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:12px 15px; }
+.card h4{ margin:0 0 8px; font-size:10.5px; font-weight:800; letter-spacing:1px; text-transform:uppercase; opacity:.9; }
+.card .l{ display:flex; justify-content:space-between; gap:10px; font-size:11.5px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,.10); }
+.card .l:last-child{ border-bottom:none; }
+.card .l span:first-child{ opacity:.65; font-weight:600; }
+.card .l span:last-child{ font-weight:700; text-align:right; }
+</style></head><body>
+<div class="page">
+  <div class="head">
+    <div class="brand">
+      ${logo ? `<img src="${logo}" alt="${pEsc(company.nome)}"/>` : `<div class="mk">${pEsc(company.nome || 'Sua Marca')}<small>ENERGIA SOLAR</small></div>`}
+    </div>
+    <div class="ficha">
+      <div class="t">Proposta Comercial</div>
+      <div class="rowf"><span>Data</span><span class="num">${hoje}</span></div>
+      <div class="rowf"><span>Cliente</span><span>${pEsc(client.nome || '—')}</span></div>
+      ${enderecoCli ? `<div class="rowf"><span>Endereço</span><span>${pEsc(enderecoCli)}</span></div>` : ''}
+      <div class="valid">VÁLIDO POR 15 DIAS</div>
+    </div>
+  </div>
+
+  <div class="band"><div class="tab">Detalhamento do Projeto</div><div class="bar"></div></div>
+  <div class="sec">
+    <div class="tiles">
+      <div class="tile"><div class="k">Potência instalada</div><div class="v num">${pKwp(kwp)}<u>kWp</u></div></div>
+      <div class="tile"><div class="k">Produção média/mês</div><div class="v num">${pNum(mediaMensalGerada)}<u>kWh</u></div></div>
+      <div class="tile"><div class="k">Autonomia</div><div class="v num">${autonomia}<u>%</u></div></div>
+    </div>
+    <div class="rows">
+      <div class="r"><span class="lab">Consumo médio mensal</span><span class="val num">${pNum(consumoKwh)} kWh</span></div>
+      <div class="r"><span class="lab">Quantidade de módulos fotovoltaicos</span><span class="val num">${qtdModulos}</span></div>
+      ${areaM2 > 0 ? `<div class="r"><span class="lab">Área mínima necessária</span><span class="val num">${n1(areaM2)} m²</span></div>` : ''}
+      <div class="r"><span class="lab">Tarifa de energia</span><span class="val num">${brl(ref.tarifa)} /kWh</span></div>
+    </div>
+  </div>
+
+  <div class="band"><div class="tab">Composição do Sistema</div><div class="bar"></div></div>
+  <div class="sec">
+    <div class="rows">
+      ${linhaMk('Módulos fotovoltaicos', marcaMod, qtdModulos > 0 ? `Incluído · ${qtdModulos} un` : 'Incluído')}
+      ${linhaMk('Inversor', marcaInv, `Incluído · ${qtdInversores} un`)}
+      ${linhaMk('Estrutura e materiais elétricos', '', 'Incluído')}
+      ${linhaMk('Projeto de engenharia e conexão à rede', '', 'Incluído')}
+      ${linhaMk('Serviço de instalação', '', 'Incluído')}
+      ${linhaMk(`Garantias (painéis ${garPaineis} anos · inversor ${garInversor} anos)`, '', 'Incluído')}
+    </div>
+  </div>
+
+  <div class="band"><div class="tab">Análise Financeira</div><div class="bar"></div></div>
+  <div class="fin">
+    <div class="hero">
+      <div class="heroL"><div class="k">Economia em 25 anos</div><div class="v num">${brl(economia25)}</div><div class="s">com o sistema quitado gerando energia própria</div></div>
+      <div class="heroR"><div class="k">Investimento</div><div class="v num">${brl(investimento)}</div>${parcelaLabel ? `<div class="s num">${pEsc(parcelaLabel)}</div>` : ''}</div>
+    </div>
+    <div class="finGrid">
+      <div class="fc"><div class="k">Economia mensal</div><div class="v num">${brl(economiaMensal)}</div></div>
+      <div class="fc"><div class="k">Conta após instalação</div><div class="v num">${brl(taxaMinima)}</div></div>
+      <div class="fc"><div class="k">Tempo de retorno</div><div class="v num">${paybackTexto}</div></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="pg">Forma de pagamento &amp; contato</div>
+    <div class="cols">
+      <div class="card">
+        <h4>Vendedor</h4>
+        <div class="l"><span>Nome</span><span>${pEsc(vendedor || '—')}</span></div>
+        ${vendEmail ? `<div class="l"><span>E-mail</span><span>${pEsc(vendEmail)}</span></div>` : ''}
+        ${vendWhats ? `<div class="l"><span>Contato</span><span class="num">${pEsc(vendWhats)}</span></div>` : ''}
+      </div>
+      <div class="card">
+        <h4>Empresa</h4>
+        <div class="l"><span>Razão</span><span>${pEsc(company.nome || '—')}</span></div>
+        ${company.cnpj ? `<div class="l"><span>CNPJ</span><span class="num">${pEsc(company.cnpj)}</span></div>` : ''}
+        ${company.endereco ? `<div class="l"><span>Endereço</span><span>${pEsc(company.endereco)}</span></div>` : ''}
+        ${(company as { whatsapp?: string }).whatsapp ? `<div class="l"><span>Contato</span><span class="num">${pEsc(String((company as { whatsapp?: string }).whatsapp))}</span></div>` : ''}
+        ${(company as { email?: string }).email ? `<div class="l"><span>E-mail</span><span>${pEsc(String((company as { email?: string }).email))}</span></div>` : ''}
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>`;
 }
 
 function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>, out?: { resumo?: string }): string {

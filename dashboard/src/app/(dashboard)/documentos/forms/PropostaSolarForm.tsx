@@ -201,6 +201,8 @@ export default function PropostaSolarPage() {
   const [clienteNome, setClienteNome] = useState('');
   const [cidadeUf, setCidadeUf] = useState('');
   const [fields, setFields] = useState(initialFields);
+  // Modelo da proposta: 1 = "1 Página" (padrão) · 2 = "Moderno" (completo).
+  const [modelo, setModelo] = useState<1 | 2>(1);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
@@ -406,7 +408,7 @@ export default function PropostaSolarPage() {
         tipo: 'propostaSolar',
         fields: { ...fields, cidade, uf },
         useTemplate: true,
-        modeloNumero: 1,
+        modeloNumero: modelo,
         cliente_nome_avulso: clienteNome.trim(),
       };
       const { data } = await api.post('/documents/generate', payload);
@@ -680,6 +682,34 @@ export default function PropostaSolarPage() {
         {/* PALETA */}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Visual</h2>
+
+          {/* Modelo da proposta: 1 Página (padrão) ou Moderno (completo) */}
+          <label className={styles.label}>Modelo da proposta</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 6, marginBottom: 16 }}>
+            {([
+              { m: 1 as const, nome: '1 Página', desc: 'Orçamento A4 compacto, tudo numa página' },
+              { m: 2 as const, nome: 'Moderno', desc: 'Completo, com gráfico de 25 anos' },
+            ]).map((opt) => (
+              <button
+                key={opt.m}
+                type="button"
+                onClick={() => setModelo(opt.m)}
+                style={{
+                  textAlign: 'left', padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                  border: modelo === opt.m ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+                  background: modelo === opt.m ? 'var(--color-surface-2, #1e293b)' : 'transparent',
+                  color: 'inherit', transition: 'all 0.15s',
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {modelo === opt.m ? '●' : '○'} {opt.nome}
+                  {opt.m === 1 && <span style={{ fontSize: 10, fontWeight: 700, color: '#0f172a', background: '#fbbf24', padding: '1px 7px', borderRadius: 999 }}>PADRÃO</span>}
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--color-text-muted)', marginTop: 3 }}>{opt.desc}</div>
+              </button>
+            ))}
+          </div>
+
           {PaletaPicker}
         </div>
 
