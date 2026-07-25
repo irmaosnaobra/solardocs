@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
+import { supabaseGerador } from '../utils/supabaseGerador';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
 import { indicacaoLimiter } from '../middleware/rateLimiter';
 import { sendWhatsApp } from '../services/agents/zapiClient';
+import { slotLivreConsultor, dataBaseDaFaixa } from '../services/agenda/leadsMetaService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -107,6 +109,31 @@ router.post('/', indicacaoLimiter, async (req: Request, res: Response) => {
       );
     } catch (waErr: any) {
       logger.error('io-indicacoes', 'WhatsApp aviso do time falhou (indicação salva)', String(waErr?.message || waErr));
+    }
+
+    // Espelha o indicado na AGENDA/CRM com TARJA INDICADO, atribuído ao Thiago
+    // (atendimento personalizado). Best-effort e isolado da resposta do form.
+    try {
+      const quando = await slotLivreConsultor('Thiago', dataBaseDaFaixa(''));
+      const obs = [
+        '🎁 INDICADO',
+        `Indicado por: ${indicador_nome} (${indicador_telefone})`,
+        `PIX do indicador: ${indicador_pix}`,
+        origem ? `Origem: ${origem}` : '',
+        '→ Atendimento personalizado',
+      ].filter(Boolean).join('\n');
+      await supabaseGerador.from('agendamentos').insert({
+        vendedor_nome: 'Thiago',
+        quando: quando.toISOString(),
+        cliente_nome: indicado_nome,
+        cliente_telefone: indicado_telefone,
+        temperatura: 'quente',
+        observacao: obs,
+        status: 'agendado',
+        created_by: 'indicacao',
+      });
+    } catch (agErr: any) {
+      logger.error('io-indicacoes', 'agendamento do indicado falhou (indicação salva)', String(agErr?.message || agErr));
     }
 
     // Confirmação por WhatsApp pro indicador — ele acabou de enviar o form e está
