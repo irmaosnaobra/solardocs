@@ -465,7 +465,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc-pg-cond .eletro-field .eletro-inp{width:120px}
 .orc-pg-cond .eletro-field .eletro-inp.eletro-inp-wide{width:170px}
 /* ===== Orçamento — documento de impressão (modela a proposta comercial) ===== */
-.ep-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:4px}
+.ep-topo{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;margin-bottom:8px}
 .ep-emit{font-size:10.5px;color:#555;line-height:1.55;text-align:right}
 .ep-emit b{color:#2f6b10;font-size:12.5px}
 .ep-cliente-box{display:flex;gap:20px;flex-wrap:wrap;font-size:11.5px;color:#333;line-height:1.65;border:1px solid #e5e7eb;border-left:4px solid #2f6b10;border-radius:6px;background:#f6f8fb;padding:12px 15px;margin-bottom:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -490,12 +490,11 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-obs{font-size:10px;color:#666;line-height:1.6;margin-top:14px;white-space:pre-line;border-top:1px solid #eee;padding-top:10px}
 /* caixa de proposta no topo direito (modelo "PROPOSTA COMERCIAL / Data") */
 /* ficha do cliente no topo (mesma linguagem da proposta solar — bloco colorido + selo de validade) */
-.ep-propbox{min-width:252px;max-width:312px;background:#2f6b10;color:#fff;border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:7px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ep-propbox .t{font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;opacity:.86}
-.ep-propbox .rowf{display:flex;justify-content:space-between;gap:12px;font-size:12px;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:6px}
-.ep-propbox .rowf span:first-child{opacity:.72;font-weight:600}
-.ep-propbox .b{font-size:12px;line-height:1.5}
-.ep-propbox .b .nm{font-weight:800;color:#fff;font-size:13px}
+.ep-propbox{background:#2f6b10;color:#fff;border-radius:6px;padding:16px 20px;display:flex;flex-direction:column;gap:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-propbox .t{font-size:12.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;opacity:.86;margin-bottom:2px}
+.ep-propbox .rowf{display:flex;justify-content:space-between;gap:12px;font-size:12px;border-bottom:1px solid rgba(255,255,255,.16);padding-bottom:7px}
+.ep-propbox .rowf span:first-child{opacity:.7;font-weight:600}
+.ep-propbox .rowf .v{font-weight:700;text-align:right}
 .ep-valid{align-self:flex-start;background:#7DD117;color:#14300c;font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:4px 11px;border-radius:999px;margin-top:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 /* rótulo + rodapé escuro (vendedor | empresa) */
 .ep-forma-label{font-size:11px;font-weight:800;color:#2f6b10;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
@@ -5804,9 +5803,9 @@ function eletroImprimir() {
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
       ${epTopoHTML('Estudo de Viabilidade — Eletroposto', hoje.toLocaleDateString('pt-BR'),
-        [`<div class="nm">${t.cliente ? orcEsc(t.cliente) : 'Estudo de Viabilidade'}</div>`,
-         t.cidade ? 'Local: ' + orcEsc(t.cidade) : '',
-         t.autor ? 'Elaborado por: ' + orcEsc(t.autor) : ''].filter(Boolean).join('<br>'),
+        [['Cliente', t.cliente ? orcEsc(t.cliente) : ''],
+         ['Local', t.cidade ? orcEsc(t.cidade) : ''],
+         ['Elaborado por', t.autor ? orcEsc(t.autor) : '']],
         'Válido por 7 dias')}
 
       <div class="ep-section">Sumário executivo</div>
@@ -6166,13 +6165,15 @@ function epEmitGet() {
   return out;
 }
 // Cabeçalho: logo à esquerda + caixa "TÍTULO · Data" à direita (modelo da proposta).
-function epTopoHTML(titulo, dataStr, corpoLinhas, rodapeVal) {
+function epTopoHTML(titulo, dataStr, rows, rodapeVal) {
+  const rowsHTML = (rows || []).filter(r => r && r[1])
+    .map(r => `<div class="rowf"><span>${r[0]}</span><span class="v">${r[1]}</span></div>`).join('');
   return `<div class="ep-topo">
-      <div class="ep-brand" style="margin-bottom:0"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>
+      <div class="ep-brand"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>
       <div class="ep-propbox">
         <div class="t">${titulo}</div>
-        <div class="rowf"><span>Data</span><span>${dataStr}</span></div>
-        <div class="b">${corpoLinhas}</div>
+        <div class="rowf"><span>Data</span><span class="v">${dataStr}</span></div>
+        ${rowsHTML}
         ${rodapeVal ? `<div class="ep-valid">${rodapeVal}</div>` : ''}
       </div>
     </div>`;
@@ -6228,18 +6229,18 @@ function orcImprimir() {
   ].filter(Boolean).join('<br>');
 
   // corpo da caixa de proposta (topo direito, modelo)
-  const propCorpo = [
-    `<div class="nm">${cli.nome ? orcEsc(cli.nome) : 'Cliente'}</div>`,
-    cli.doc ? `CNPJ/CPF: ${orcEsc(cli.doc)}` : '',
-    [cli.end && orcEsc(cli.end), cli.cidade && orcEsc(cli.cidade)].filter(Boolean).join(' — '),
-  ].filter(Boolean).join('<br>');
+  const propRows = [
+    ['Cliente', cli.nome ? orcEsc(cli.nome) : ''],
+    ['CNPJ/CPF', cli.doc ? orcEsc(cli.doc) : ''],
+    ['Endereço', [cli.end && orcEsc(cli.end), cli.cidade && orcEsc(cli.cidade)].filter(Boolean).join(' — ')],
+  ];
 
   const host = document.getElementById('eletro-print');
   host.innerHTML = `
     <div class="ep-doc">
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      ${epTopoHTML('Proposta Comercial' + (num ? ' Nº ' + orcEsc(num) : ''), dEmis.toLocaleDateString('pt-BR'), propCorpo, 'Válido por ' + dias + ' dias')}
+      ${epTopoHTML('Proposta Comercial' + (num ? ' Nº ' + orcEsc(num) : ''), dEmis.toLocaleDateString('pt-BR'), propRows, 'Válido por ' + dias + ' dias')}
 
       <div class="ep-section">Informações do cliente</div>
       <div class="ep-cliente-box">
@@ -6358,17 +6359,17 @@ function epBasicoImprimir() {
   const unit = total / qtd;
   const equipDesc = t.equip ? 'Eletroposto chave na mão — Carregador ' + orcEsc(t.equip) : 'Eletroposto chave na mão — carregador DC';
 
-  const propCorpo = [
-    `<div class="nm">${t.cliente ? orcEsc(t.cliente) : 'Cliente'}</div>`,
-    t.cidade ? orcEsc(t.cidade) : '',
-  ].filter(Boolean).join('<br>');
+  const propRows = [
+    ['Cliente', t.cliente ? orcEsc(t.cliente) : ''],
+    ['Local', t.cidade ? orcEsc(t.cidade) : ''],
+  ];
 
   const host = document.getElementById('eletro-print');
   host.innerHTML = `
     <div class="ep-doc">
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      ${epTopoHTML('Orçamento — Eletroposto', hoje.toLocaleDateString('pt-BR'), propCorpo, 'Válido por ' + dias + ' dias')}
+      ${epTopoHTML('Orçamento — Eletroposto', hoje.toLocaleDateString('pt-BR'), propRows, 'Válido por ' + dias + ' dias')}
 
       <div class="ep-section">Investimento</div>
       <table class="ep-itens">
