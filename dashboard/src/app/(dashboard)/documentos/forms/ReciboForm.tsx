@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import ClientSelector from '@/components/ClientSelector/ClientSelector';
 import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
+import InfoHint from '@/components/InfoHint/InfoHint';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
@@ -148,12 +149,9 @@ export default function ReciboPage() {
                 placeholder="Ex: 08/05/2026" className="input-field" />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Valor total do contrato (R$)</label>
+              <label className={styles.label}>Valor total do contrato (R$)<InfoHint>Usado para calcular o saldo em aberto. Deixe vazio se for recibo de quitação total.</InfoHint></label>
               <input type="text" value={fields.valor_contrato} onChange={e => setField('valor_contrato', e.target.value)}
                 placeholder="Ex: 20.500,00 (vírgula = decimal)" className="input-field" />
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>
-                Usado para calcular o saldo em aberto. Deixe vazio se for recibo de quitação total.
-              </span>
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Cidade</label>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/services/api';
+import InfoHint from '@/components/InfoHint/InfoHint';
 import styles from './empresa.module.css';
 
 interface Company {
@@ -551,7 +552,7 @@ export default function EmpresaPage() {
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label}>Cor da marca</label>
+              <label className={styles.label}>Cor da marca<InfoHint>Usada na opção “Cores da empresa” ao gerar a Proposta Solar. Cores claras são escurecidas automaticamente pra manter o texto legível.</InfoHint></label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <input
                   type="color"
@@ -572,9 +573,6 @@ export default function EmpresaPage() {
                   </button>
                 )}
               </div>
-              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
-                Usada na opção “Cores da empresa” ao gerar a Proposta Solar. Cores claras são escurecidas automaticamente pra manter o texto legível.
-              </span>
             </div>
 
             <div className={styles.field}>
@@ -625,10 +623,9 @@ export default function EmpresaPage() {
                 placeholder="Nome do sócio administrador" className="input-field" />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>WhatsApp do Responsável *</label>
+              <label className={styles.label}>WhatsApp do Responsável *<InfoHint>Usado para contato e suporte.</InfoHint></label>
               <input type="tel" value={form.whatsapp} onChange={e => set('whatsapp', e.target.value)}
                 placeholder="Ex: (34) 99999-0000" className="input-field" required />
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>Usado para contato e suporte</span>
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Endereço Completo</label>
@@ -636,10 +633,9 @@ export default function EmpresaPage() {
                 placeholder="Ex: Rua das Flores, 123, Centro" className="input-field" />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Cidade (Foro)</label>
+              <label className={styles.label}>Cidade (Foro)<InfoHint>Usada como foro em contratos.</InfoHint></label>
               <input type="text" value={form.cidade} onChange={e => set('cidade', e.target.value)}
                 placeholder="Ex: São Paulo/SP" className="input-field" />
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>Usada como foro em contratos</span>
             </div>
           </div>
         </section>

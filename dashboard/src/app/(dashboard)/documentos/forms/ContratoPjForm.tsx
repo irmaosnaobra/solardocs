@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import TerceiroSelector from '@/components/TerceiroSelector/TerceiroSelector';
 import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
+import InfoHint from '@/components/InfoHint/InfoHint';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
@@ -106,7 +107,7 @@ export default function ContratoPJPage() {
               />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Adiantamento quinzenal (R$) *</label>
+              <label className={styles.label}>Adiantamento quinzenal (R$) *<InfoHint>Pago nos dias 5 e 20 de cada mês; suspende automático se ficar 30 dias sem venda.</InfoHint></label>
               <input
                 type="text"
                 value={fields.adiantamento_quinzenal}
@@ -140,9 +141,6 @@ export default function ContratoPJPage() {
               />
             </div>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>
-            Pago nos dias 5 e 20 de cada mês. Suspende automático se ficar 30 dias sem venda.
-          </p>
         </div>
 
         {error && <p className="error-message">{error}</p>}
