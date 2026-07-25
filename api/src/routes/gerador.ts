@@ -60,6 +60,26 @@ router.post('/automacao/kick', async (_req: Request, res: Response) => {
   }
 });
 
+// Formulário público de simulação solar (link mandado na DM do Instagram).
+// Ao enviar, cria o lead no CRM via ingestManychatLead → rodízio de consultor +
+// aviso no WhatsApp, exatamente como o lead do ManyChat/Meta. Honeypot anti-bot.
+router.post('/form-solar', async (req: Request, res: Response) => {
+  const b = (req.body || {}) as Record<string, string>;
+  if (b.website) { res.json({ ok: true, ignored: true }); return; } // bot preencheu o campo escondido
+  try {
+    const r = await ingestManychatLead({
+      produto: 'solar',
+      nome: b.nome, whatsapp: b.whatsapp, cidade: b.cidade,
+      valor_conta: b.valor_conta, tipo_telhado: b.tipo_telhado, faixa_horario: b.faixa_horario,
+      contact_id: 'form_' + String(b.whatsapp || '').replace(/\D/g, ''),
+    });
+    res.status(r.ok ? 200 : 400).json(r);
+  } catch (err: any) {
+    logger.error('gerador', 'form-solar falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
 // IA: ideias de Reels/vídeos de energia solar, ancoradas nos posts reais que
 // mais performaram (aba "Redes" do gerador). Chamado via rewrite /_api/* do dashboard.
 router.post('/social/ideias', async (req: Request, res: Response) => {

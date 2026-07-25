@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Simule sua economia com energia solar — Irmãos na Obra</title>
+<meta name="description" content="Descubra em 30 segundos quanto você economiza com energia solar. Um especialista te manda a simulação no WhatsApp.">
+<style>
+  :root{
+    --bg:#0d1b12;--card:#12241a;--line:rgba(255,255,255,.1);--ink:#eaf2ec;--soft:#a7b7ac;
+    --grn:#22c55e;--grn2:#16a34a;--sun:#f5b301;--field:#0b1a12;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%, #1a3a26 0%, var(--bg) 60%);color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55;min-height:100vh}
+  .wrap{max-width:520px;margin:0 auto;padding:28px 18px 60px}
+  .brand{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:22px}
+  .brand .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--sun),#f97316);display:grid;place-items:center;font-size:20px}
+  .brand b{font-size:15px;letter-spacing:.02em}
+  .brand small{display:block;color:var(--soft);font-size:11px;font-weight:500}
+  h1{font-size:1.7rem;font-weight:800;line-height:1.15;text-align:center;margin:0 0 8px}
+  h1 .hl{color:var(--sun)}
+  .sub{text-align:center;color:var(--soft);font-size:.98rem;margin:0 0 24px}
+  form{display:flex;flex-direction:column;gap:18px}
+  label.q{font-size:.95rem;font-weight:700;margin-bottom:8px;display:block}
+  label.q .req{color:var(--sun)}
+  input[type=text],input[type=tel]{width:100%;padding:14px 15px;background:var(--field);border:1px solid var(--line);
+    border-radius:12px;color:#fff;font-size:16px;font-family:inherit;outline:none;transition:border-color .15s}
+  input:focus{border-color:var(--grn)}
+  input::placeholder{color:#5a6b60}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .opts.one{grid-template-columns:1fr}
+  .opt{position:relative}
+  .opt input{position:absolute;opacity:0;pointer-events:none}
+  .opt span{display:block;padding:12px 12px;text-align:center;background:var(--field);border:1px solid var(--line);
+    border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s;color:var(--ink)}
+  .opt input:checked + span{border-color:var(--grn);background:rgba(34,197,94,.14);color:#fff}
+  .hp{position:absolute;left:-9999px;opacity:0}
+  button.go{margin-top:6px;padding:16px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--grn),var(--grn2));
+    color:#03170c;font-size:17px;font-weight:800;cursor:pointer;transition:transform .1s}
+  button.go:active{transform:scale(.99)}
+  button.go:disabled{opacity:.6;cursor:not-allowed}
+  .foot{text-align:center;color:var(--soft);font-size:12px;margin-top:16px;line-height:1.5}
+  .err{color:#fca5a5;font-size:13px;text-align:center;min-height:18px}
+  /* sucesso */
+  .done{display:none;text-align:center;padding:30px 10px}
+  .done .ok{width:74px;height:74px;border-radius:50%;background:rgba(34,197,94,.15);border:2px solid var(--grn);
+    display:grid;place-items:center;margin:0 auto 18px;font-size:38px}
+  .done h2{font-size:1.5rem;margin:0 0 8px}
+  .done p{color:var(--soft);margin:0 0 22px}
+  .wpp{display:inline-flex;align-items:center;gap:9px;background:#25d366;color:#04160b;padding:14px 22px;border-radius:12px;
+    font-weight:800;font-size:16px;text-decoration:none}
+  body.enviado form,body.enviado .sub,body.enviado h1{display:none}
+  body.enviado .done{display:block}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <span class="logo">☀️</span>
+      <div><b>Irmãos na Obra</b><small>Energia Solar · Uberlândia e região</small></div>
+    </div>
+
+    <h1>Descubra quanto você <span class="hl">economiza</span> ⚡</h1>
+    <p class="sub">Preencha em 30 segundos. Um especialista te manda a simulação personalizada no WhatsApp.</p>
+
+    <form id="f" autocomplete="on">
+      <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+      <div>
+        <label class="q" for="nome">Seu nome <span class="req">*</span></label>
+        <input type="text" id="nome" name="nome" placeholder="Como podemos te chamar?" required>
+      </div>
+
+      <div>
+        <label class="q" for="whatsapp">WhatsApp <span class="req">*</span></label>
+        <input type="tel" id="whatsapp" name="whatsapp" placeholder="(34) 99999-9999" required inputmode="tel">
+      </div>
+
+      <div>
+        <label class="q" for="cidade">Cidade</label>
+        <input type="text" id="cidade" name="cidade" placeholder="Onde você mora">
+      </div>
+
+      <div>
+        <label class="q">Quanto vem sua conta de luz por mês? <span class="req">*</span></label>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="valor_conta" value="Até R$ 200"><span>Até R$ 200</span></label>
+          <label class="opt"><input type="radio" name="valor_conta" value="R$ 200 a R$ 400"><span>R$ 200–400</span></label>
+          <label class="opt"><input type="radio" name="valor_conta" value="R$ 400 a R$ 800"><span>R$ 400–800</span></label>
+          <label class="opt"><input type="radio" name="valor_conta" value="R$ 800 a R$ 1.500"><span>R$ 800–1.500</span></label>
+          <label class="opt" style="grid-column:1/-1"><input type="radio" name="valor_conta" value="Mais de R$ 1.500"><span>Mais de R$ 1.500</span></label>
+        </div>
+      </div>
+
+      <div>
+        <label class="q">Onde seria a instalação?</label>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="tipo_telhado" value="Casa"><span>🏠 Casa</span></label>
+          <label class="opt"><input type="radio" name="tipo_telhado" value="Apartamento"><span>🏢 Apartamento</span></label>
+          <label class="opt"><input type="radio" name="tipo_telhado" value="Empresa/comércio"><span>🏬 Empresa</span></label>
+          <label class="opt"><input type="radio" name="tipo_telhado" value="Rural/agro"><span>🌾 Rural/agro</span></label>
+        </div>
+      </div>
+
+      <div>
+        <label class="q">Melhor horário pra falar com você?</label>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="faixa_horario" value="manhã"><span>☀️ Manhã</span></label>
+          <label class="opt"><input type="radio" name="faixa_horario" value="tarde"><span>🌤️ Tarde</span></label>
+          <label class="opt"><input type="radio" name="faixa_horario" value="noite"><span>🌙 Noite</span></label>
+          <label class="opt"><input type="radio" name="faixa_horario" value="qualquer"><span>⏰ Qualquer</span></label>
+        </div>
+      </div>
+
+      <div class="err" id="err"></div>
+      <button type="submit" class="go" id="go">Quero minha simulação grátis ⚡</button>
+      <p class="foot">Seus dados são usados só para o contato do especialista. Nada de spam.</p>
+    </form>
+
+    <div class="done">
+      <div class="ok">✅</div>
+      <h2>Prontinho! 🎉</h2>
+      <p>Recebemos seus dados. Um especialista da Irmãos na Obra já vai te chamar com a sua simulação de economia.</p>
+      <a class="wpp" href="https://wa.me/5534998165040?text=Oi!%20Acabei%20de%20preencher%20a%20simula%C3%A7%C3%A3o%20de%20energia%20solar" target="_blank" rel="noopener">💬 Falar agora no WhatsApp</a>
+    </div>
+  </div>
+
+<script>
+  var f=document.getElementById('f'), go=document.getElementById('go'), err=document.getElementById('err');
+  f.addEventListener('submit', async function(e){
+    e.preventDefault();
+    err.textContent='';
+    var data=Object.fromEntries(new FormData(f).entries());
+    if(!data.nome || !data.whatsapp){ err.textContent='Preencha nome e WhatsApp.'; return; }
+    if(String(data.whatsapp).replace(/\D/g,'').length < 10){ err.textContent='Confira o número do WhatsApp (com DDD).'; return; }
+    if(!data.valor_conta){ err.textContent='Escolha a faixa da sua conta de luz.'; return; }
+    go.disabled=true; go.textContent='Enviando…';
+    try{
+      var r=await fetch('/_api/gerador/form-solar', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+      if(!r.ok){ throw new Error('falha'); }
+      document.body.classList.add('enviado');
+      window.scrollTo({top:0,behavior:'smooth'});
+    }catch(ex){
+      err.textContent='Ops, algo falhou. Tenta de novo ou chama a gente no WhatsApp.';
+      go.disabled=false; go.textContent='Quero minha simulação grátis ⚡';
+    }
+  });
+</script>
+</body>
+</html>
