@@ -111,4 +111,22 @@ router.post('/drain', async (_req: Request, res: Response): Promise<void> => {
   catch (err: any) { res.status(500).json({ error: String(err?.message || err) }); }
 });
 
+// Callback de desautorização (Meta chama quando o usuário remove o app). Exigido
+// pelas configurações de login da empresa antes do App Review. Responde 200.
+router.post('/deauth', (_req: Request, res: Response): void => {
+  logger.info('ig', 'deauthorize recebido');
+  res.sendStatus(200);
+});
+router.get('/deauth', (_req: Request, res: Response): void => { res.sendStatus(200); });
+
+// Callback de exclusão de dados (spec da Meta): responde JSON com URL de status +
+// código de confirmação. A página pública de instruções é /exclusao-de-dados.
+router.post('/data-deletion', (_req: Request, res: Response): void => {
+  const code = 'del_' + Date.now().toString(36);
+  res.json({ url: 'https://solardoc.app/exclusao-de-dados', confirmation_code: code });
+});
+router.get('/data-deletion', (_req: Request, res: Response): void => {
+  res.redirect('https://solardoc.app/exclusao-de-dados');
+});
+
 export default router;
