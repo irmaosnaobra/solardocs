@@ -2000,8 +2000,7 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
       </div>
       <div class="card">
         <h4>Empresa</h4>
-        <div class="l"><span>Razão</span><span>${pEsc(company.nome || '—')}</span></div>
-        ${company.cnpj ? `<div class="l"><span>CNPJ</span><span class="num">${pEsc(company.cnpj)}</span></div>` : ''}
+        <div class="l"><span>Nome</span><span>${pEsc(displayNome || '—')}</span></div>
         ${company.endereco ? `<div class="l"><span>Endereço</span><span>${pEsc(company.endereco)}</span></div>` : ''}
         ${(company as { whatsapp?: string }).whatsapp ? `<div class="l"><span>Contato</span><span class="num">${pEsc(String((company as { whatsapp?: string }).whatsapp))}</span></div>` : ''}
         ${(company as { email?: string }).email ? `<div class="l"><span>E-mail</span><span>${pEsc(String((company as { email?: string }).email))}</span></div>` : ''}
