@@ -871,17 +871,6 @@ export default function PropostaSolarPage() {
                 className="input-field"
               />
             </div>
-            <div className={styles.fieldFull}>
-              <label className={styles.label}>HSP — horas de sol pleno<InfoHint>Vazio = usa o HSP padrão da cidade/estado. Preencha pra usar o seu valor no cálculo. Se a “Geração média” acima estiver preenchida, ela tem prioridade.</InfoHint></label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={fields.hsp}
-                onChange={e => setField('hsp', e.target.value.replace(/[^0-9.,]/g, ''))}
-                placeholder="Ex: 5,2 — deixe vazio pra usar o padrão da região"
-                className="input-field"
-              />
-            </div>
             <div className={styles.field}>
               <label className={styles.label}>Marca dos módulos *</label>
               <input type="text" list="marcas-modulo" value={fields.marca_modulo} onChange={e => setField('marca_modulo', e.target.value)} placeholder="Ex: Canadian Solar" className="input-field" required />
