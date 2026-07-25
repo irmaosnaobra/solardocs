@@ -7,6 +7,7 @@ import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 interface Company {
   nome: string;
+  nome_fantasia?: string;
   cnpj: string;
   endereco?: string;
   logo_base64?: string;
@@ -403,7 +404,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
                 />
               )}
               <div className={styles.companyInfo}>
-                <span className={styles.companyName}>{company?.nome || ''}</span>
+                <span className={styles.companyName}>{company?.nome_fantasia || company?.nome || ''}</span>
                 {company?.cnpj && (
                   <span className={styles.companyDetail}>CNPJ: {company.cnpj}</span>
                 )}
@@ -453,7 +454,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
 
             {/* Rodapé de marca — linha fina na cor da empresa + assinatura discreta */}
             <div className={styles.brandFoot} aria-hidden="true">
-              gerado por {company?.nome || 'sua empresa'} · solardoc
+              gerado por {company?.nome_fantasia || company?.nome || 'sua empresa'} · solardoc
             </div>
           </div>
         </div>

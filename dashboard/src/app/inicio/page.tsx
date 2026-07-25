@@ -57,7 +57,7 @@ export default function InicioPage() {
     api.get('/company').then(({ data }) => {
       const c = data?.company;
       if (!c?.cnpj) { router.replace('/empresa'); return; }
-      setEmpresa(c.nome || 'Minha Empresa');
+      setEmpresa(c.nome_fantasia || c.nome || 'Minha Empresa');
       setLogo(c.logo_base64 || null);
       setReady(true);
     }).catch(() => { router.replace('/empresa'); });

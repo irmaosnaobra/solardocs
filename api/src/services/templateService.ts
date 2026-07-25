@@ -1790,7 +1790,9 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const vendedor = vendedorForm || String(company.socio_adm || company.nome || '').trim();
   const vendWhats = ((str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '') || String((company as { whatsapp?: string }).whatsapp || '').replace(/\D/g, ''));
   const vendEmail = String(f.vendedor_email || '').trim() || String((company as { email?: string }).email || '').trim();
-  const logo = (str(f.foto_logo_b64) === '___' ? '' : String((company as { logo_base64?: string }).logo_base64 || '')).trim();
+  const logo = String((company as { logo_base64?: string }).logo_base64 || '').trim();
+  // Nome exibido = nome fantasia (marca) se houver; senão a razão social.
+  const displayNome = String((company as { nome_fantasia?: string }).nome_fantasia || company.nome || '').trim();
 
   // ── Cálculos (mesmas fórmulas do Moderno) ──
   const refBase = getRef(uf, cidade);
@@ -1934,7 +1936,7 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 <div class="page">
   <div class="head">
     <div class="brand">
-      ${logo ? `<img src="${logo}" alt="${pEsc(company.nome)}"/>` : `<div class="mk">${pEsc(company.nome || 'Sua Marca')}<small>ENERGIA SOLAR</small></div>`}
+      ${logo ? `<img src="${logo}" alt="${pEsc(displayNome)}"/>` : `<div class="mk">${pEsc(displayNome || 'Sua Marca')}<small>ENERGIA SOLAR</small></div>`}
     </div>
     <div class="ficha">
       <div class="t">Proposta Comercial</div>
@@ -2341,11 +2343,12 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
 </g>`;
   }).join('\n');
 
-  // Logo da empresa: usa logo_base64 se tiver, senão texto
-  const empresaCompany = company as Company & { logo_base64?: string };
+  // Logo da empresa: usa logo_base64 se tiver, senão o nome (fantasia se houver).
+  const empresaCompany = company as Company & { logo_base64?: string; nome_fantasia?: string };
+  const displayNomeM = String(empresaCompany.nome_fantasia || company.nome || '').trim();
   const logoHtml = empresaCompany.logo_base64
-    ? `<img src="${empresaCompany.logo_base64}" alt="${pEsc(company.nome)}" style="max-height: 100px; max-width: 340px; object-fit: contain;"/>`
-    : `<div style="font-size: 24px; font-weight: 800; letter-spacing: -1px;">${pEsc(company.nome)}</div>`;
+    ? `<img src="${empresaCompany.logo_base64}" alt="${pEsc(displayNomeM)}" style="max-height: 100px; max-width: 340px; object-fit: contain;"/>`
+    : `<div style="font-size: 24px; font-weight: 800; letter-spacing: -1px;">${pEsc(displayNomeM)}</div>`;
 
   // Bloco de pagamento: monta os cards que o consultor marcou no form
   const cards: string[] = [];

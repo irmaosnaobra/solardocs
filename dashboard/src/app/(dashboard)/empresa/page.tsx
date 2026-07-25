@@ -7,6 +7,7 @@ import InfoHint from '@/components/InfoHint/InfoHint';
 import styles from './empresa.module.css';
 
 interface Company {
+  nome_fantasia?: string;
   id: string;
   nome: string;
   cnpj: string;
@@ -47,7 +48,7 @@ interface Company {
 }
 
 const emptyForm = {
-  nome: '', cnpj: '', endereco: '', cidade: '', logo_base64: '', cor_marca: '', cor_secundaria: '', socio_adm: '', whatsapp: '',
+  nome: '', nome_fantasia: '', cnpj: '', endereco: '', cidade: '', logo_base64: '', cor_marca: '', cor_secundaria: '', socio_adm: '', whatsapp: '',
   engenheiro_nome: '', engenheiro_cpf: '', engenheiro_crea: '',
   engenheiro_rg: '', engenheiro_nacionalidade: '', engenheiro_estado_civil: '', engenheiro_profissao: '',
   engenheiro_endereco: '',
@@ -137,7 +138,7 @@ export default function EmpresaPage() {
         const c = data.company;
         setCompany(c);
         setForm({
-          nome: c.nome || '', cnpj: c.cnpj || '', endereco: c.endereco || '', cidade: c.cidade || '',
+          nome: c.nome || '', nome_fantasia: c.nome_fantasia || '', cnpj: c.cnpj || '', endereco: c.endereco || '', cidade: c.cidade || '',
           logo_base64: c.logo_base64 || '', cor_marca: c.cor_marca || '', cor_secundaria: c.cor_secundaria || '', socio_adm: c.socio_adm || '', whatsapp: c.whatsapp || '',
           engenheiro_nome: c.engenheiro_nome || '', engenheiro_cpf: c.engenheiro_cpf || '',
           engenheiro_crea: c.engenheiro_crea || '', engenheiro_rg: c.engenheiro_rg || '',
@@ -628,6 +629,11 @@ export default function EmpresaPage() {
               <label className={styles.label}>Razão Social *</label>
               <input type="text" value={form.nome} onChange={e => set('nome', e.target.value)}
                 placeholder="Preenchido automaticamente após validar o CNPJ" className="input-field" required />
+            </div>
+            <div className={styles.fieldFull}>
+              <label className={styles.label}>Nome fantasia<InfoHint>É o nome que aparece nos documentos e no app (na logo, no cabeçalho da proposta, etc.). Vazio = usa a razão social. Ex.: razão social “Aioros”, nome fantasia “Irmãos na Obra”.</InfoHint></label>
+              <input type="text" value={form.nome_fantasia} onChange={e => set('nome_fantasia', e.target.value)}
+                placeholder="Ex: Irmãos na Obra (deixe vazio pra usar a razão social)" className="input-field" />
             </div>
 
             <div className={styles.field}>

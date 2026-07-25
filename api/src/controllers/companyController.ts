@@ -5,6 +5,7 @@ import { sendMetaEvent } from '../utils/metaPixel';
 
 const companySchema = z.object({
   nome: z.string().min(1, 'Razão Social obrigatória'),
+  nome_fantasia: z.string().optional(), // nome de marca — usado na exibição/documentos
   cnpj: z.string().refine((v) => {
     const c = v.replace(/\D/g, '');
     if (c.length !== 14 || /^(\d)\1{13}$/.test(c)) return false;
