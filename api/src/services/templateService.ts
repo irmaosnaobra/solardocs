@@ -1878,7 +1878,7 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 /* Cabeçalho */
 .head{ display:grid; grid-template-columns:1fr 1fr; }
 .brand{ padding:20px 24px; display:flex; flex-direction:row; align-items:center; gap:16px; }
-.brand img{ width:92px; height:92px; object-fit:contain; flex-shrink:0; }
+.brand img{ width:110px; height:110px; object-fit:contain; flex-shrink:0; }
 .brand .mk{ font-size:27px; font-weight:900; letter-spacing:-.6px; color:var(--c1); line-height:1.02; }
 .brand .mk small{ display:block; font-size:9.5px; font-weight:700; letter-spacing:3px; color:var(--muted); margin-top:6px; }
 .ficha{ background:var(--c1); color:#fff; padding:20px 24px; display:flex; flex-direction:column; gap:8px; }
