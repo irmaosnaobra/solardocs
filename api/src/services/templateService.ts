@@ -1877,10 +1877,10 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 .page{ width:794px; min-height:1123px; margin:0 auto; background:#fff; display:flex; flex-direction:column; }
 /* Cabeçalho */
 .head{ display:grid; grid-template-columns:1fr 1fr; }
-.brand{ padding:24px 26px; display:flex; flex-direction:column; justify-content:center; gap:8px; }
-.brand img{ max-width:190px; max-height:74px; object-fit:contain; }
-.brand .mk{ font-size:26px; font-weight:900; letter-spacing:-.5px; color:var(--c1); line-height:1.05; }
-.brand .mk small{ display:block; font-size:10px; font-weight:700; letter-spacing:3px; color:var(--muted); margin-top:5px; }
+.brand{ padding:20px 24px; display:flex; flex-direction:row; align-items:center; gap:16px; }
+.brand img{ width:92px; height:92px; object-fit:contain; flex-shrink:0; }
+.brand .mk{ font-size:27px; font-weight:900; letter-spacing:-.6px; color:var(--c1); line-height:1.02; }
+.brand .mk small{ display:block; font-size:9.5px; font-weight:700; letter-spacing:3px; color:var(--muted); margin-top:6px; }
 .ficha{ background:var(--c1); color:#fff; padding:20px 24px; display:flex; flex-direction:column; gap:8px; }
 .ficha .t{ font-size:12px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; opacity:.85; }
 .ficha .rowf{ display:flex; justify-content:space-between; gap:12px; font-size:12px; border-bottom:1px solid rgba(255,255,255,.16); padding-bottom:6px; }
@@ -1936,7 +1936,8 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 <div class="page">
   <div class="head">
     <div class="brand">
-      ${logo ? `<img src="${logo}" alt="${pEsc(displayNome)}"/>` : `<div class="mk">${pEsc(displayNome || 'Sua Marca')}<small>ENERGIA SOLAR</small></div>`}
+      ${logo ? `<img src="${logo}" alt="${pEsc(displayNome)}"/>` : ''}
+      <div class="mk">${pEsc(displayNome || 'Sua Marca')}<small>ENERGIA SOLAR</small></div>
     </div>
     <div class="ficha">
       <div class="t">Proposta Comercial</div>
