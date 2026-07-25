@@ -70,6 +70,8 @@ const initialFields = {
   // quando o consultor preenche kWp + UF. Editável — o que vier daqui vale, e o
   // gráfico aplica a sazonalidade da região por cima preservando essa média.
   geracao_media_kwh: '',
+  // HSP (horas de sol pleno): vazio = usa o padrão da região; preenchido = override.
+  hsp: '',
   investimento: '',
   preco_avista: '',
   foto_telhado_b64: '', // dataURL JPEG comprimido
@@ -368,7 +370,7 @@ export default function PropostaSolarPage() {
       // bateria: capacidade/potência/ciclos são específicos da venda; marca e
       // garantia ficam (template do integrador, igual marca_inversor).
       bateria_capacidade_kwh: '', bateria_potencia_kw: '', bateria_ciclos: '',
-      geracao_media_kwh: '', investimento: '', preco_avista: '',
+      geracao_media_kwh: '', hsp: '', investimento: '', preco_avista: '',
       foto_telhado_b64: '', tipo_telhado: '',
       // marca/garantias/pagamento ficam como estão (template do integrador).
     }));
@@ -793,6 +795,20 @@ export default function PropostaSolarPage() {
               />
               <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
                 O que você colocar aqui vira a média anual da proposta. Vazio = sistema calcula via HSP da cidade. O gráfico aplica a sazonalidade da região em cima desse valor.
+              </span>
+            </div>
+            <div className={styles.fieldFull}>
+              <label className={styles.label}>HSP — horas de sol pleno (opcional)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={fields.hsp}
+                onChange={e => setField('hsp', e.target.value.replace(/[^0-9.,]/g, ''))}
+                placeholder="Ex: 5,2 — deixe vazio pra usar o padrão da sua região"
+                className="input-field"
+              />
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                Vazio = o sistema usa o HSP padrão da cidade/estado. Preencha pra usar o seu valor no cálculo da geração. (Se a “Geração média” acima estiver preenchida, ela tem prioridade.)
               </span>
             </div>
             <div className={styles.field}>

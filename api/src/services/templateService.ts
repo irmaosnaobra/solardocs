@@ -1784,7 +1784,8 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const tarifaOverride = parseFloat(String(f.tarifa_kwh || '').replace(',', '.'));
   const ref = { ...refBase, tarifa: tarifaOverride > 0 ? tarifaOverride : refBase.tarifa };
   const geracaoMediaOverride = parseBRL(f.geracao_media_kwh);
-  const mensal = geracaoMensal(kwp, uf, cidade, geracaoMediaOverride > 0 ? geracaoMediaOverride : undefined);
+  const hspOverride = parseFloat(String(f.hsp || '').replace(',', '.')) || 0;
+  const mensal = geracaoMensal(kwp, uf, cidade, geracaoMediaOverride > 0 ? geracaoMediaOverride : undefined, hspOverride > 0 ? hspOverride : undefined);
   const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
   const mediaMensalGerada = Math.round(geracaoAnual / 12);
   const autonomia = consumoKwh > 0 ? Math.min(130, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;
@@ -2133,7 +2134,8 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     tarifa: tarifaOverride > 0 ? tarifaOverride : refBase.tarifa,
   };
   const geracaoMediaOverride = parseBRL(f.geracao_media_kwh);
-  const mensal = geracaoMensal(kwp, uf, cidade, geracaoMediaOverride > 0 ? geracaoMediaOverride : undefined);
+  const hspOverride = parseFloat(String(f.hsp || '').replace(',', '.')) || 0;
+  const mensal = geracaoMensal(kwp, uf, cidade, geracaoMediaOverride > 0 ? geracaoMediaOverride : undefined, hspOverride > 0 ? hspOverride : undefined);
   const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
   const mediaMensalGerada = Math.round(geracaoAnual / 12);
   const economiaPercent = consumoKwh > 0 ? Math.min(100, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;

@@ -134,7 +134,9 @@ export const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set
 // Eficiência típica de sistema (perdas inversor + cabeamento + sujeira): 80%
 // Se mediaOverride > 0, ignora kWp/HSP e usa esse valor como média mensal,
 // aplicando a sazonalidade da região por cima (normalizada pra média bater exato).
-export function geracaoMensal(kwp: number, uf: string, cidade?: string, mediaOverride?: number): number[] {
+// Se hspOverride > 0 (e sem mediaOverride), usa o HSP que o vendedor digitou no
+// lugar do padrão da região.
+export function geracaoMensal(kwp: number, uf: string, cidade?: string, mediaOverride?: number, hspOverride?: number): number[] {
   const variacao = variacaoMensal(uf);
   if (mediaOverride && mediaOverride > 0) {
     const somaVar = variacao.reduce((a, b) => a + b, 0);
@@ -142,8 +144,9 @@ export function geracaoMensal(kwp: number, uf: string, cidade?: string, mediaOve
     return variacao.map((v) => Math.round(v * fator));
   }
   const ref = getRef(uf, cidade);
+  const hsp = hspOverride && hspOverride > 0 ? hspOverride : ref.hsp;
   const efic = 0.80;
-  const baseAnual = kwp * ref.hsp * 365 * efic; // kWh/ano
+  const baseAnual = kwp * hsp * 365 * efic; // kWh/ano
   const mediaMensal = baseAnual / 12;
   return variacao.map((v) => Math.round(mediaMensal * v));
 }
