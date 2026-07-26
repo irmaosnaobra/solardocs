@@ -9,7 +9,7 @@ import {
   Banknote, ScrollText, FileSignature, Receipt,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
   Boxes, Save, GraduationCap, Smartphone,
-  Send, LogOut, TrendingUp, LayoutGrid,
+  Send, LogOut, TrendingUp, LayoutGrid, Tags,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -53,6 +53,7 @@ const baseAdminItems: NavItem[] = [
   // /admin/funil e /admin/funil-limpapro seguem vivas (acesso pela aba / URL).
   { href: '/admin/pesquisa-disparo', icon: Send,   label: 'Pesquisa/Disparo IO' },
   { href: '/admin/insights',     icon: BarChart3,  label: 'Insights IO' },
+  { href: '/admin/leads-origem', icon: Tags,       label: 'Leads por Origem' },
   // Link na Bio IO e Indicações IO viraram sub-abas dentro do Funil LimpaPro
   // (Painel SolarDoc → aba Funil LimpaPro) — saíram daqui pra não duplicar.
   // Rotas /admin/links-io e /admin/indicacoes-io seguem vivas (acesso por URL).

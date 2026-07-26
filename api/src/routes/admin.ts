@@ -7,6 +7,8 @@ import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas, getLimpaproM
 import { getMetaAds } from '../controllers/metaAdsController';
 import { listarOrdens, marcarFeita, setModo, sincronizarOrdens } from '../services/metaOrdensService';
 import { supabase } from '../utils/supabase';
+import { supabaseGerador } from '../utils/supabaseGerador';
+import { etiquetaDeLead, ETIQUETAS_ORDEM } from '../services/agenda/origemEtiqueta';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 
 const router = Router();
@@ -116,6 +118,83 @@ router.get('/conversas-limpapro', getLimpaproConversas);
 router.get('/membros-limpapro', getLimpaproMembros);
 router.get('/revenue',        getRevenue);
 router.get('/billing',        getBilling);
+
+// ── Leads por Origem (etiqueta) ──────────────────────────────────────────────
+// Fonte única: os agendamentos do GERADOR (é onde TODO lead cai — Meta, LP,
+// automação do IG, indicação, cadastro manual). Deriva a etiqueta de cada lead
+// (produto × canal) de forma DINÂMICA e devolve a série diária + os totais.
+// O bucket do dia é feito no fuso de São Paulo (created_at é UTC), senão o lead
+// da noite cai no dia errado — que é justo o "leads de hoje" que o dono lê de manhã.
+// Etiquetas NÃO são lista fixa: público novo → etiqueta nova, sem tocar no código.
+router.get('/leads-origem', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [{ data: ags, error: e1 }, { data: cons }] = await Promise.all([
+      supabaseGerador
+        .from('agendamentos')
+        .select('created_at, created_by, src')
+        .order('created_at', { ascending: true })
+        .limit(50000),
+      supabaseGerador.from('consultores').select('nome'),
+    ]);
+    if (e1) throw e1;
+
+    const consultores = new Set<string>(
+      (cons ?? []).map((c: { nome?: string | null }) => (c.nome ?? '').toString().trim().toLowerCase()).filter(Boolean),
+    );
+
+    // created_at (UTC) → data no fuso de São Paulo, formato YYYY-MM-DD (en-CA).
+    const fmtSP = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+    });
+    const diaSP = (iso: string): string => fmtSP.format(new Date(iso));
+
+    const porDia = new Map<string, Map<string, number>>();
+    const totais = new Map<string, number>();
+    const presentes = new Set<string>();
+
+    for (const a of (ags ?? []) as Array<{ created_at: string; created_by: string | null; src: string | null }>) {
+      if (!a.created_at) continue;
+      const dia = diaSP(a.created_at);
+      const et = etiquetaDeLead(a.created_by, a.src, consultores);
+      presentes.add(et);
+      totais.set(et, (totais.get(et) ?? 0) + 1);
+      if (!porDia.has(dia)) porDia.set(dia, new Map());
+      const m = porDia.get(dia)!;
+      m.set(et, (m.get(et) ?? 0) + 1);
+    }
+
+    // Ordem estável (base primeiro), etiquetas novas/desconhecidas depois (alfabética).
+    const extras = [...presentes].filter((e) => !ETIQUETAS_ORDEM.includes(e)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const etiquetas = [...ETIQUETAS_ORDEM.filter((e) => presentes.has(e)), ...extras];
+
+    const dias = [...porDia.keys()].sort().map((dia) => {
+      const m = porDia.get(dia)!;
+      const row: Record<string, string | number> = { dia };
+      let total = 0;
+      for (const et of etiquetas) {
+        const n = m.get(et) ?? 0;
+        row[et] = n;
+        total += n;
+      }
+      row.total = total;
+      return row;
+    });
+
+    const totaisObj: Record<string, number> = {};
+    for (const et of etiquetas) totaisObj[et] = totais.get(et) ?? 0;
+
+    res.json({
+      ok: true,
+      etiquetas,
+      dias,
+      totais: totaisObj,
+      totalGeral: (ags ?? []).length,
+      hoje: diaSP(new Date().toISOString()),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});
 
 // Liberação manual por PIX: quando o cliente paga por Pix e manda o comprovante,
 // o atendimento libera N meses de acesso ilimitado. Renova SOMANDO ao que resta

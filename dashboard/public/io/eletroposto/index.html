@@ -879,6 +879,16 @@ async function carregarOcupados(deYmd, ateYmd){
 
 // Rodízio Thiago/Diego: alterna pelo nº de reuniões da LP já marcadas.
 // `vendedor_nome` é NOT NULL e tem FK para `consultores` — só nomes existentes.
+// Marcador de canal (tipo UTM): a automação do Instagram manda o link com ?src=ig
+// → o dashboard "Leads por Origem" conta como EP Organic. Anúncio Meta cai sem src
+// (= EP Tráfego). NÃO mexe no created_by (alerta da equipe e rodízio dependem dele).
+function leadSrc(){
+  try{
+    const s = (new URLSearchParams(location.search).get('src')||'').trim().toLowerCase();
+    return /^[a-z0-9_-]{1,20}$/.test(s) ? s : null;
+  }catch(e){ return null; }
+}
+
 const DONOS = ['Thiago', 'Diego'];
 async function proximoDono(){
   try{
@@ -1046,6 +1056,7 @@ async function agendar(){
                         : (capital === '85_140' || capital === 'financiar') ? 'morno' : 'frio',
       observacao:       obs,
       created_by:       'lp_eletroposto',
+      src:              leadSrc(),   // ?src=ig (automação do IG) → EP Organic; sem src = EP Tráfego
     });
 
     // Evento de conversão — é ESTE que a campanha otimiza
