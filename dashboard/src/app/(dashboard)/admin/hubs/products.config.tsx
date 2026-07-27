@@ -17,6 +17,8 @@ import LpVendaPanel from './_panels/LpVendaPanel';
 // Fase 2 — Followup + Conversas (endpoint /admin/hub-followup)
 import FollowupPanel from './_panels/FollowupPanel';
 import ConversasPanel from './_panels/ConversasPanel';
+// Fase 3 — Visão Geral / Pulso (agrega endpoints existentes)
+import VisaoGeralPanel from './_panels/VisaoGeralPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -40,7 +42,7 @@ export const PRODUCTS: Product[] = [
   {
     id: 'limpapro', nome: 'LimpaPro', emoji: '🧴', cor: '#2C9C67',
     tabs: [
-      { key: 'visao',     label: 'Visão Geral',      status: 'construir', nota: 'Pulso do dia — agrega funil + vendas Kiwify + alertas.' },
+      { key: 'visao',     label: 'Visão Geral',      status: 'pronto',    Comp: () => <VisaoGeralPanel produto="limpapro" /> },
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: FunilLimpaproPanel },
       { key: 'membros',   label: 'Membros',          status: 'pronto',    Comp: MembrosLimpaproPanel },
       { key: 'lp',        label: 'Página de Venda',   status: 'parcial',  nota: 'limpapro_events já captura; consolidar visão visita→checkout.' },
@@ -53,7 +55,7 @@ export const PRODUCTS: Product[] = [
   {
     id: 'solardoc', nome: 'SolarDoc', emoji: '☀️', cor: '#B4801E',
     tabs: [
-      { key: 'visao',     label: 'Visão Geral',      status: 'construir', nota: 'Pulso do dia — agrega funnel/billing/revenue.' },
+      { key: 'visao',     label: 'Visão Geral',      status: 'pronto',    Comp: () => <VisaoGeralPanel produto="solardoc" /> },
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: FunilSolarDocPanel },
       { key: 'membros',   label: 'Membros',          status: 'pronto',    Comp: MembrosPanel },
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: LpVendaPanel },
@@ -67,7 +69,7 @@ export const PRODUCTS: Product[] = [
   {
     id: 'solar', nome: 'Solar', emoji: '🔆', cor: '#3E6C9E',
     tabs: [
-      { key: 'visao',     label: 'Visão Geral',      status: 'construir', nota: 'Pulso do dia (Supabase Gerador).' },
+      { key: 'visao',     label: 'Visão Geral',      status: 'parcial',   Comp: () => <VisaoGeralPanel produto="solar" /> },
       { key: 'funil',     label: 'Funil',            status: 'parcial',   nota: 'agendamentos created_by=lp_solar (Gerador) — consolidar visita→reunião→venda.' },
       { key: 'membros',   label: 'Leads',            status: 'parcial',   nota: 'agendamentos + CRM SDR (sdr_leads / Luma).' },
       { key: 'lp',        label: 'Página de Venda',   status: 'parcial',  nota: '/io/* em page_visits + site institucional /io.' },
