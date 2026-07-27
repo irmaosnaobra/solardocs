@@ -20,6 +20,8 @@ import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sd
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
+import { runSequenciaStopOnReply } from '../services/io/sequenciaStopOnReply';
+import { runZapiHealthCheck } from '../services/io/zapiHealthMonitor';
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
@@ -224,6 +226,11 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
+    // Trava de segurança (stop-on-reply): PARA as sequências de quem respondeu ANTES
+    // de rodar o drip deste tick — evita mandar o próximo passo por cima da resposta
+    // do cliente. Awaited de propósito (roda antes do runGeradorSequenciasConsumer).
+    const stopReplyResult = await runSequenciaStopOnReply().catch((e) => ({ error: String(e) }));
+
     const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
@@ -246,6 +253,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     ]);
     res.json({
       ok: true,
+      stop_on_reply: stopReplyResult,
       queue:      queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },
       poll:       pollResult.status  === 'fulfilled' ? pollResult.value  : { error: String((pollResult as any).reason) },
       poll_io:    pollIoResult.status === 'fulfilled' ? pollIoResult.value : { error: String((pollIoResult as any).reason) },
@@ -646,6 +654,7 @@ router.get('/master', async (req: Request, res: Response) => {
     // ['auxiliar-trafego',            () => runAuxiliarTrafego()],    // [COPILOTO-OFF 23/07] Thiago pediu pra desligar — não quer mais os avisos horários. Rota manual /cron/auxiliar-trafego segue existindo (só dispara se chamada à mão). Reativar = descomentar.
     ['ordens-trafego-tick',         () => tickOrdens()],           // disciplina das ordens: expira vencidas (reconfere Meta) + abre novas
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
+    ['zapi-health',                 () => runZapiHealthCheck()],   // monitor: linha IO caída → 1 email pro Thiago (2 checagens seguidas). Toda a mensageria depende dela.
     // ['inventory-low-stock',         () => runInventoryLowStockAlert()], // [GATED] digest de estoque baixo — ligar após adoção do Inventário
   ];
 

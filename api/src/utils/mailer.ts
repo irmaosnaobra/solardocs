@@ -37,6 +37,20 @@ async function sendMarketingEmail(opts: { to: string; userId: string; subject: s
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
 
+// Alerta OPERACIONAL pro dono (transacional: sem footer de unsub, sem userId) —
+// coisas de sistema tipo "a linha WhatsApp caiu". Vai pro OPS_ALERT_EMAIL (fallback
+// reply-to → aiorosgroup). Best-effort: quem chama isola com .catch.
+export async function sendOpsAlert(subject: string, htmlBody: string): Promise<void> {
+  const to = (process.env.OPS_ALERT_EMAIL || REPLY_TO || 'aiorosgroup@gmail.com').trim();
+  const html = `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a;font-size:15px;line-height:1.7;">
+    <h2 style="font-size:18px;margin:0 0 12px;">${subject}</h2>
+    ${htmlBody}
+    <p style="color:#94a3b8;font-size:12px;margin:18px 0 0;">Alerta automático do SolarDoc (monitor de operação).</p>
+  </div>`;
+  const { error } = await resend.emails.send({ from: FROM_EMAIL, to, replyTo: REPLY_TO, subject, html });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}
+
 const followupEmails: Record<number, { subject: string; html: string }> = {
   // Cadência (2026-05-21): 13 emails ao longo de 365 dias, foco no Gerador de Proposta Personalizado.
   // 7 templates onboarding (idx 1-7) + 5 variantes ongoing (cnpjOngoingEmails) cicladas via modulo.
