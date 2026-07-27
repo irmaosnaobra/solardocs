@@ -194,16 +194,21 @@ router.get('/hub-config', (req: Request, res: Response): void => {
 // ── Funil + Leads por produto do Gerador (Solar / Eletroposto) — READ-ONLY ───────
 // Lê agendamentos (supabaseGerador) filtrando por created_by e devolve funil por
 // status + lista de leads recentes. Alimenta as abas Funil e Membros/Leads.
-const HUB_GERADOR_CB: Record<string, string> = { solar: 'lp_solar', eletroposto: 'lp_eletroposto' };
+// created_by que compõem cada PRODUTO (mesmo agrupamento do "Leads por Origem"):
+// Solar = Meta Lead Ads + LP solar + organic; Eletroposto = LP EP + tráfego + organic.
+const HUB_GERADOR_CB: Record<string, string[]> = {
+  solar:       ['lead-meta', 'leads-meta', 'lp_solar', 'manychat'],
+  eletroposto: ['lp_eletroposto', 'ep-trafego', 'manychat_eletroposto'],
+};
 router.get('/hub-gerador', async (req: Request, res: Response): Promise<void> => {
   try {
     const produto = String(req.query.produto || '').toLowerCase();
-    const cb = HUB_GERADOR_CB[produto];
-    if (!cb) { res.status(400).json({ error: 'produto inválido' }); return; }
+    const cbs = HUB_GERADOR_CB[produto];
+    if (!cbs) { res.status(400).json({ error: 'produto inválido' }); return; }
     const { data, error } = await supabaseGerador
       .from('agendamentos')
       .select('cliente_nome, cliente_telefone, cidade, status, temperatura, quando, vendedor_nome, created_at')
-      .eq('created_by', cb)
+      .in('created_by', cbs)
       .order('created_at', { ascending: false })
       .limit(500);
     if (error) throw error;
