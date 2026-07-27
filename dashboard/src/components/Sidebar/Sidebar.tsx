@@ -48,6 +48,7 @@ interface NavItem {
 
 const baseAdminItems: NavItem[] = [
   { href: '/admin',              icon: Settings,   label: 'Painel SolarDoc' },
+  { href: '/admin/hubs',         icon: LayoutGrid, label: 'Hubs de Produto' },
   // CRM SolarDoc, Funil SolarDoc e Funil LimpaPro viraram abas dentro do Painel
   // SolarDoc (/admin) — saíram daqui pra não duplicar. Rotas /crm/solardoc,
   // /admin/funil e /admin/funil-limpapro seguem vivas (acesso pela aba / URL).
