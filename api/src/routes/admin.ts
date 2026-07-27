@@ -147,6 +147,89 @@ router.get('/hub-followup', async (req: Request, res: Response): Promise<void> =
   }
 });
 
+// ── Config & Alertas por produto (Hubs) — READ-ONLY ────────────────────────────
+// Mostra o ESTADO dos kill-switches (liga/desliga por env) + saúde básica. NÃO
+// escreve flag nenhuma (togglar pagamento ao vivo é mudança manual de env, de
+// propósito fora da tela). Só expõe o nome do flag + on/off, nunca segredos.
+function featAtivo(name: string, opts: { defaultOn: boolean; inverted?: boolean }): boolean {
+  const v = (process.env[name] ?? '').trim().toLowerCase();
+  const set = v === 'true' || v === '1' ? true : (v === 'false' || v === '0' ? false : null);
+  const base = set === null ? opts.defaultOn : set;
+  return opts.inverted ? !base : base; // flag "..._OFF"=true → feature desligada
+}
+interface HubFlag { label: string; ativo: boolean; detalhe: string; }
+interface HubSaude { item: string; ok: boolean; detalhe: string; }
+const HUB_CONFIG: Record<string, () => { flags: HubFlag[]; saude: HubSaude[] }> = {
+  solardoc: () => ({
+    flags: [
+      { label: 'Auto-liberar Pix por comprovante', ativo: featAtivo('PIX_AUTO_LIBERAR', { defaultOn: true }), detalhe: 'PIX_AUTO_LIBERAR (padrão ligado)' },
+      { label: 'Cobrança mensal por Pix', ativo: featAtivo('PIX_MENSAL_OFF', { defaultOn: true, inverted: true }), detalhe: 'PIX_MENSAL_OFF' },
+      { label: 'Enviar vendas p/ UTMify', ativo: featAtivo('UTMIFY_ORDERS_OFF', { defaultOn: true, inverted: true }) && Boolean(process.env.UTMIFY_API_TOKEN), detalhe: 'UTMIFY_ORDERS_OFF + token' },
+    ],
+    saude: [{ item: 'Stripe configurado', ok: Boolean(process.env.STRIPE_SECRET_KEY), detalhe: 'STRIPE_SECRET_KEY' }],
+  }),
+  limpapro: () => ({
+    flags: [],
+    saude: [{ item: 'Linha IO (WhatsApp) configurada', ok: Boolean(process.env.ZAPI_INSTANCE_ID_IO), detalhe: 'ZAPI_INSTANCE_ID_IO' }],
+  }),
+  solar: () => ({
+    flags: [
+      { label: 'Follow-up de leads solar', ativo: featAtivo('GERADOR_FOLLOWUP_ENABLED', { defaultOn: false }), detalhe: 'GERADOR_FOLLOWUP_ENABLED (padrão desligado)' },
+      { label: 'Alerta lead quente sem proposta', ativo: featAtivo('ALERTA_LEAD_QUENTE_ENABLED', { defaultOn: false }), detalhe: 'ALERTA_LEAD_QUENTE_ENABLED' },
+    ],
+    saude: [{ item: 'Linha IO (WhatsApp) configurada', ok: Boolean(process.env.ZAPI_INSTANCE_ID_IO), detalhe: 'ZAPI_INSTANCE_ID_IO' }],
+  }),
+  eletroposto: () => ({
+    flags: [],
+    saude: [{ item: 'Linha IO (WhatsApp) configurada', ok: Boolean(process.env.ZAPI_INSTANCE_ID_IO), detalhe: 'ZAPI_INSTANCE_ID_IO' }],
+  }),
+};
+router.get('/hub-config', (req: Request, res: Response): void => {
+  const produto = String(req.query.produto || '').toLowerCase();
+  const fn = HUB_CONFIG[produto];
+  if (!fn) { res.status(400).json({ error: 'produto inválido' }); return; }
+  res.json({ produto, readonly: true, ...fn() });
+});
+
+// ── Funil + Leads por produto do Gerador (Solar / Eletroposto) — READ-ONLY ───────
+// Lê agendamentos (supabaseGerador) filtrando por created_by e devolve funil por
+// status + lista de leads recentes. Alimenta as abas Funil e Membros/Leads.
+const HUB_GERADOR_CB: Record<string, string> = { solar: 'lp_solar', eletroposto: 'lp_eletroposto' };
+router.get('/hub-gerador', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const produto = String(req.query.produto || '').toLowerCase();
+    const cb = HUB_GERADOR_CB[produto];
+    if (!cb) { res.status(400).json({ error: 'produto inválido' }); return; }
+    const { data, error } = await supabaseGerador
+      .from('agendamentos')
+      .select('cliente_nome, cliente_telefone, cidade, status, temperatura, quando, vendedor_nome, created_at')
+      .eq('created_by', cb)
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    const rows = (data ?? []) as Array<{
+      cliente_nome: string | null; cliente_telefone: string | null; cidade: string | null;
+      status: string | null; temperatura: string | null; quando: string | null;
+      vendedor_nome: string | null; created_at: string | null;
+    }>;
+    const porStatus: Record<string, number> = {};
+    let comTemp = 0;
+    for (const r of rows) {
+      const st = String(r.status ?? '—');
+      porStatus[st] = (porStatus[st] || 0) + 1;
+      if (r.temperatura) comTemp++;
+    }
+    const leads = rows.slice(0, 60).map((r) => ({
+      nome: r.cliente_nome, telefone: r.cliente_telefone, cidade: r.cidade,
+      status: r.status, temperatura: r.temperatura, quando: r.quando,
+      consultor: r.vendedor_nome, created_at: r.created_at,
+    }));
+    res.json({ produto, total: rows.length, por_status: porStatus, com_temperatura: comTemp, leads });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 // ── Disciplina das ordens (marcar feito, expira, manual/auto) ──
 // GET lista pendentes + histórico + modo. Sincroniza on-demand pra a lista vir
 // fresca mesmo entre ticks do cron.

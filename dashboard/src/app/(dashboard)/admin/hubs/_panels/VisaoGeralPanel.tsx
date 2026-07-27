@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import api from '@/services/api';
 import styles from '../../admin.module.css';
 import type { HubFollowup } from './hubFollowup.types';
+import type { HubGerador } from './hubGerador.types';
 
 interface Analytics {
   total: number; today: number;
@@ -59,6 +60,21 @@ export default function VisaoGeralPanel({ produto }: { produto: string }) {
           { label: 'Visitas LP', value: fmtN(step('visita')) },
           { label: 'Checkout', value: fmtN(step('checkout')), sub: `${lf?.stats?.abandonos ?? 0} abandonos` },
           { label: 'Bia em conversa', value: fmtN(f?.summary?.em_conversa ?? 0), sub: `${f?.summary?.handoff ?? 0} handoff`, color: '#2C9C67' },
+        ]);
+      }).finally(() => setLoading(false));
+    } else if (produto === 'solar' || produto === 'eletroposto') {
+      Promise.all([
+        api.get(`/admin/hub-gerador?produto=${encodeURIComponent(produto)}`).then((r) => r.data as HubGerador).catch(() => null),
+        fu,
+      ]).then(([g, f]) => {
+        const st = (k: string) => g?.por_status?.[k] ?? 0;
+        setTiles([
+          { label: 'Total de leads', value: fmtN(g?.total ?? 0), color: 'var(--color-primary)' },
+          { label: 'Quentes 🔥', value: fmtN(g?.com_temperatura ?? 0), color: '#C87A1E' },
+          { label: 'Agendados', value: fmtN(st('agendado')) },
+          { label: 'Não atendeu', value: fmtN(st('nao_atendeu')) },
+          { label: 'Vendidos', value: fmtN(st('vendido')) },
+          { label: 'Agente em conversa', value: fmtN(f?.summary?.em_conversa ?? 0), sub: `${f?.summary?.total ?? 0} sessões`, color: '#2C9C67' },
         ]);
       }).finally(() => setLoading(false));
     } else {

@@ -19,6 +19,10 @@ import FollowupPanel from './_panels/FollowupPanel';
 import ConversasPanel from './_panels/ConversasPanel';
 // Fase 3 — Visão Geral / Pulso (agrega endpoints existentes)
 import VisaoGeralPanel from './_panels/VisaoGeralPanel';
+// Fase 4 — Config & Alertas (read-only) + Funil/Leads de Solar/Eletroposto (Gerador)
+import ConfigAlertasPanel from './_panels/ConfigAlertasPanel';
+import GeradorFunilPanel from './_panels/GeradorFunilPanel';
+import GeradorLeadsPanel from './_panels/GeradorLeadsPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -49,7 +53,7 @@ export const PRODUCTS: Product[] = [
       { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="limpapro" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="bia" /> },
       { key: 'conversas', label: 'Conversas',        status: 'pronto',    Comp: () => <ConversasPanel produto="limpapro" /> },
-      { key: 'config',    label: 'Config & Alertas', status: 'construir', nota: 'kill-switches, preço, links de checkout + saúde (LP viva? venda parada?).' },
+      { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="limpapro" /> },
     ],
   },
   {
@@ -63,31 +67,31 @@ export const PRODUCTS: Product[] = [
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="giovanna" /> },
       { key: 'receita',   label: 'Receita/ROAS',     status: 'pronto',    Comp: ReceitaPanel },
       { key: 'conversas', label: 'Conversas',        status: 'pronto',    Comp: () => <ConversasPanel produto="solardoc" /> },
-      { key: 'config',    label: 'Config & Alertas', status: 'construir', nota: 'kill-switches (Pix/dunning), planos, links + saúde.' },
+      { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="solardoc" /> },
     ],
   },
   {
     id: 'solar', nome: 'Solar', emoji: '🔆', cor: '#3E6C9E',
     tabs: [
       { key: 'visao',     label: 'Visão Geral',      status: 'parcial',   Comp: () => <VisaoGeralPanel produto="solar" /> },
-      { key: 'funil',     label: 'Funil',            status: 'parcial',   nota: 'agendamentos created_by=lp_solar (Gerador) — consolidar visita→reunião→venda.' },
-      { key: 'membros',   label: 'Leads',            status: 'parcial',   nota: 'agendamentos + CRM SDR (sdr_leads / Luma).' },
+      { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: () => <GeradorFunilPanel produto="solar" /> },
+      { key: 'membros',   label: 'Leads',            status: 'pronto',    Comp: () => <GeradorLeadsPanel produto="solar" /> },
       { key: 'lp',        label: 'Página de Venda',   status: 'parcial',  nota: '/io/* em page_visits + site institucional /io.' },
       { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solar" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="luma" /> },
-      { key: 'config',    label: 'Config & Alertas', status: 'construir', nota: 'Extras do hub: Leads por Origem, Link na Bio, Indicações + saúde.' },
+      { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="solar" /> },
     ],
   },
   {
     id: 'eletroposto', nome: 'Eletroposto', emoji: '🔌', cor: '#8B857A',
     tabs: [
-      { key: 'visao',     label: 'Visão Geral',      status: 'construir', nota: 'Greenfield — sobe quando houver funil.' },
-      { key: 'funil',     label: 'Funil',            status: 'construir', nota: 'Sem funil ainda — construir.' },
-      { key: 'membros',   label: 'Leads',            status: 'parcial',   nota: 'agendamentos created_by=lp_eletroposto (sem segmentação própria).' },
+      { key: 'visao',     label: 'Visão Geral',      status: 'pronto',    Comp: () => <VisaoGeralPanel produto="eletroposto" /> },
+      { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: () => <GeradorFunilPanel produto="eletroposto" /> },
+      { key: 'membros',   label: 'Leads',            status: 'pronto',    Comp: () => <GeradorLeadsPanel produto="eletroposto" /> },
       { key: 'lp',        label: 'Página de Venda',   status: 'construir', nota: 'Hoje só Meta Pixel — construir beacon → page_visits.' },
       { key: 'followup',  label: 'Followup',         status: 'construir', nota: 'Só alerta à equipe hoje.' },
       { key: 'agente',    label: 'Agente',           status: 'parcial',   Comp: () => <AgentePanel agent="none" /> },
-      { key: 'config',    label: 'Config & Alertas', status: 'construir', nota: 'kill-switches + saúde quando o pipe existir.' },
+      { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="eletroposto" /> },
     ],
   },
 ];
