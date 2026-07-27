@@ -205,7 +205,7 @@ router.post('/pix-liberar', async (req: Request, res: Response): Promise<void> =
     const { email, meses } = req.body as { email?: string; meses?: number };
     if (!email) { res.status(400).json({ error: 'email obrigatório' }); return; }
     const n = Math.max(1, Math.min(12, Number(meses) || 1));
-    const { data: u } = await supabase.from('users').select('id, email, plano_expira_em').ilike('email', String(email).trim()).maybeSingle();
+    const { data: u } = await supabase.from('users').select('id, email, plano_expira_em, billing_status').ilike('email', String(email).trim()).maybeSingle();
     if (!u) { res.status(404).json({ error: 'Cliente não encontrado' }); return; }
     const agora = Date.now();
     const base = (u.plano_expira_em && new Date(u.plano_expira_em).getTime() > agora)
@@ -214,8 +214,17 @@ router.post('/pix-liberar', async (req: Request, res: Response): Promise<void> =
     const expira = base.toISOString();
     await supabase.from('users').update({
       plano: 'ilimitado', limite_documentos: 999999, billing_status: 'active', plano_expira_em: expira,
+      past_due_since: null, dunning_last_day_sent: null,
     }).eq('id', u.id);
-    res.json({ ok: true, email: u.email, plano_expira_em: expira, meses: n });
+    // Estava em dunning? cancela a sub de cartão falhando no Stripe (anti-cobrança-dupla —
+    // senão o Smart Retries cobra o cartão além do Pix). O guard do webhook subscription.deleted
+    // não re-suspende porque plano_expira_em acabou de ir pro futuro.
+    let subsCanceladas = 0;
+    if (u.billing_status === 'past_due' || u.billing_status === 'suspended') {
+      const { cancelStripeSubsForEmail } = await import('../services/dunningService');
+      subsCanceladas = await cancelStripeSubsForEmail(u.email);
+    }
+    res.json({ ok: true, email: u.email, plano_expira_em: expira, meses: n, subs_canceladas: subsCanceladas });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao liberar Pix', message: String(err) });
   }

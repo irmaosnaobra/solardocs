@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail, sendAbandonedCartEmail } from '../utils/mailer';
-import { sendCheckoutRecoveryWhatsApp } from './agents/whatsapp/whatsappAgentService';
+import { enviarOpenerRecuperacao } from './agents/whatsapp/pixRecoveryAgentService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -372,10 +372,21 @@ export async function recoverOrphanCheckouts(): Promise<{ sent: number; skipped:
 // até 3 toques, EMAIL sempre (backbone) + WhatsApp SÓ no 1º toque (anti-ban).
 // STOP-ON-RECOVER: se o email virou conta (users) OU venda (sales), marca
 // 'recovered' e para. Só age em quem deixou email/telefone. Idempotente/throttled.
-const ABANDON_GRACE_MS    = 60 * 60 * 1000;            // 1h de carência (pode ainda estar tentando)
-const ABANDON_MAX_AGE_MS  = 7 * 24 * 60 * 60 * 1000;   // até 7d
-const ABANDON_MIN_GAP_MS  = 20 * 60 * 60 * 1000;       // 20h entre toques
-const ABANDON_MAX_TOUCHES = 3;
+// Cadência conversacional de recuperação: minutos após o toque anterior (ou após o
+// abandono, pro T1) antes de disparar cada toque. Sequência de 6 toques em ~12 dias —
+// a Giovanna conversa em TODOS, cada um com um ângulo diferente (ver OBJETIVOS_OPENER).
+// Fácil de afrouxar/apertar: é só mexer nos números (Thiago pediu "sem medo de ban").
+const ABANDON_INTERVALS_MIN = [
+  60,      // T1: ~1h após o abandono — se apresenta, "foi o cartão?"   (~dia 0)
+  1440,    // T2: +1 dia  — oferece o Pix                                (~dia 1)
+  2880,    // T3: +2 dias — contorna hesitação                          (~dia 3)
+  4320,    // T4: +3 dias — valor/uso real                              (~dia 6)
+  5760,    // T5: +4 dias — "o que travou?"                             (~dia 10)
+  5760,    // T6: +4 dias — despedida (Pix fica disponível)             (~dia 14)
+];
+const ABANDON_MAX_TOUCHES = ABANDON_INTERVALS_MIN.length;
+const ABANDON_GRACE_MS    = 60 * 60 * 1000;            // 1h de carência (T1 só após isso)
+const ABANDON_MAX_AGE_MS  = 18 * 24 * 60 * 60 * 1000;  // janela de 18d (cobre o T6 no ~dia 14 + folga)
 const ABANDON_RECOVER_URL = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim() + '/#planos';
 
 export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recovered: number; skipped: number }> {
@@ -385,7 +396,7 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
 
   const { data: rows } = await supabase
     .from('abandoned_checkouts')
-    .select('id, email, phone, nome, plano, recovery_attempts, recovery_sent_at')
+    .select('id, email, phone, nome, plano, recovery_attempts, recovery_sent_at, created_at')
     .eq('status', 'abandoned')
     .lte('created_at', graceCutoff)
     .gte('created_at', maxAgeCutoff)
@@ -413,20 +424,27 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
       recovered++;
       continue;
     }
-    // Throttle: respeita o intervalo mínimo entre toques.
-    if (r.recovery_sent_at && (now - Date.parse(r.recovery_sent_at)) < ABANDON_MIN_GAP_MS) { skipped++; continue; }
+    // Cadência: cada toque tem seu intervalo (medido do abandono no T1, ou do último
+    // toque nos seguintes). Só dispara quando o intervalo do toque atual foi atingido.
+    const attempts = r.recovery_attempts ?? 0;
+    const gapMin = ABANDON_INTERVALS_MIN[attempts] ?? Number.MAX_SAFE_INTEGER;
+    const anchor = attempts === 0
+      ? Date.parse(r.created_at)
+      : (r.recovery_sent_at ? Date.parse(r.recovery_sent_at) : now);
+    if ((now - anchor) < gapMin * 60_000) { skipped++; continue; }
 
     const produto = r.plano === 'ilimitado' ? 'VIP' : 'PRO';
-    const primeiroToque = (r.recovery_attempts ?? 0) === 0;
 
     if (r.email) {
       try { await sendAbandonedCartEmail({ to: r.email, produto, recoverUrl: ABANDON_RECOVER_URL, nome: r.nome }); }
       catch (e) { console.error('abandon email falhou:', e); }
     }
-    // WhatsApp só no 1º toque (anti-ban) e best-effort.
-    if (r.phone && primeiroToque) {
-      try { await sendCheckoutRecoveryWhatsApp(r.phone, produto, ABANDON_RECOVER_URL, r.nome); }
-      catch (e) { console.error('abandon whatsapp falhou:', e); }
+    // WhatsApp: GIOVANNA conversacional de recuperação — se apresenta, puxa papo e manda
+    // o Pix no momento certo (não é blast fixo). O toque vem de recovery_attempts+1.
+    // "Sem medo de ban" (Thiago 25/jul/2026) → manda em TODO toque. Best-effort.
+    if (r.phone) {
+      try { await enviarOpenerRecuperacao(r.phone, r.nome, (r.recovery_attempts ?? 0) + 1); }
+      catch (e) { console.error('abandon giovanna opener falhou:', e); }
     }
 
     await supabase.from('abandoned_checkouts').update({

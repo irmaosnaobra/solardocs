@@ -14,7 +14,7 @@ import Stripe from 'stripe';
 import { sendWhatsApp } from './agents/zapiClient';
 import { logger } from '../utils/logger';
 import { FREE_LIMIT } from './planService';
-import { pixBlocoWhatsApp, pixBlocoEmailHtml } from '../utils/pixInfo';
+import { pixBlocoEmailHtml } from '../utils/pixInfo';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
@@ -271,20 +271,31 @@ async function sendDayNotification(
   const htmlFinal = comPix
     ? tpl.html.replace('<div style="margin-top:8px;">', pixBlocoEmailHtml() + '<div style="margin-top:8px;">')
     : tpl.html;
-  const whatsappFinal = comPix ? `${tpl.whatsapp}\n\n${pixBlocoWhatsApp()}` : tpl.whatsapp;
 
   const tasks: Array<Promise<void>> = [];
+  // Email = aviso formal (backbone; cobre quem só tem email).
   tasks.push(
     sendEmail(user.email, tpl.subject, htmlFinal).catch(err => {
       logger.error('dunning', `email D${day} falhou pra ${user.email}`, err);
     }),
   );
+  // WhatsApp: D0-D4 → Giovanna CONVERSACIONAL (reativação por Pix, tom humano). D5 (já
+  // cancelado) → aviso scriptado. Sem whatsapp → só email.
   if (user.whatsapp) {
-    tasks.push(
-      sendWhatsApp(user.whatsapp, whatsappFinal).catch(err => {
-        logger.error('dunning', `whatsapp D${day} falhou pra ${user.whatsapp}`, err);
-      }),
-    );
+    if (comPix) {
+      tasks.push(
+        (async () => {
+          const { enviarOpenerDunning } = await import('./agents/whatsapp/pixRecoveryAgentService');
+          await enviarOpenerDunning(user, day);
+        })().catch(err => logger.error('dunning', `giovanna dunning D${day} falhou pra ${user.whatsapp}`, err)),
+      );
+    } else {
+      tasks.push(
+        sendWhatsApp(user.whatsapp, tpl.whatsapp).catch(err => {
+          logger.error('dunning', `whatsapp D${day} falhou pra ${user.whatsapp}`, err);
+        }),
+      );
+    }
   }
   await Promise.allSettled(tasks);
 }
@@ -333,7 +344,7 @@ export async function sendDunningRecovered(userId: string): Promise<void> {
 
 // Cancela TODAS subs ativas/past_due desse email no Stripe. Idempotente —
 // se já estiver canceled, Stripe retorna sem efeito. Chamado no D5.
-async function cancelStripeSubsForEmail(email: string): Promise<number> {
+export async function cancelStripeSubsForEmail(email: string): Promise<number> {
   let canceled = 0;
   try {
     const customers = await stripe.customers.list({ email, limit: 5 });
@@ -389,6 +400,14 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
     // Dia 5 → cancela sub no Stripe + rebaixa pra free ANTES de notificar
     // (pra mensagem refletir o novo estado).
     if (dayToSend === 5) {
+      // Race guard: se um pagamento por Pix reativou o cliente durante este cron (a
+      // seleção foi no início do loop), NÃO rebaixa nem cancela — re-checa o estado atual.
+      const { data: fresh } = await supabase
+        .from('users').select('plano_expira_em').eq('id', u.id).maybeSingle();
+      if (fresh?.plano_expira_em && new Date(fresh.plano_expira_em).getTime() > now) {
+        logger.info('dunning', `${u.email}: D5 pulado — reativado por Pix durante o cron`);
+        continue;
+      }
       const cancelCount = await cancelStripeSubsForEmail(u.email);
       await supabase
         .from('users')

@@ -6,6 +6,7 @@ import { sendDunningDay0, sendDunningRecovered } from '../services/dunningServic
 import { sendCheckoutCompletionEmail } from '../utils/mailer';
 import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { upsertSale, sendPurchaseForSale } from '../services/salesLedger';
+import { sendUtmifyOrder } from '../services/utmifyOrders';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -428,6 +429,10 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         const produto = priceId === PLAN_MAP.vip_promo.priceId ? 'VIP PROMO'
           : priceId === PLAN_MAP.ilimitado.priceId ? 'VIP' : 'PRO';
         const meta = (session.metadata ?? {}) as Record<string, string | undefined>;
+        // T0 da venda — usado no ledger E no createdAt da UTMify (tem que ser o
+        // MESMO instante nos dois envios waiting_payment→paid, senão a UTMify recusa
+        // a atualização por createdAt divergente).
+        const cardPassedAt = new Date().toISOString();
         const saleId = await upsertSale({
           checkout_session_id: session.id,
           subscription_id: (session.subscription as string) ?? null,
@@ -445,9 +450,30 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           attribution_session_id: meta.lp_session ?? null,
           fbc: meta.fbc ?? null,   // Fase 4 (LP) passa a popular
           fbp: meta.fbp ?? null,
-          card_passed_at: new Date().toISOString(),
+          card_passed_at: cardPassedAt,
         });
         if (saleId) await sendPurchaseForSale(saleId);
+
+        // Espelha a venda na UTMify como 'waiting_payment' (trial começou, ainda sem
+        // cobrança). orderId = subscription_id → o invoice.payment_succeeded depois
+        // ATUALIZA pra 'paid'. Mesmos UTMs do metadata → o painel casa o SolarDoc com
+        // o anúncio. Não bloqueia nem quebra (sendUtmifyOrder engole o próprio erro).
+        await sendUtmifyOrder({
+          orderId: (session.subscription as string) || session.id,
+          status: 'waiting_payment',
+          createdAt: cardPassedAt,
+          email: email ?? null,
+          name: cd?.name ?? null,
+          phone: cd?.phone ? String(cd.phone).replace(/\D/g, '') : null,
+          productId: plano,
+          productName: produto,
+          priceInReais: valor,
+          utm_source: meta.utm_source ?? null,
+          utm_medium: meta.utm_medium ?? null,
+          utm_campaign: meta.utm_campaign ?? null,
+          utm_content: meta.utm_content ?? null,
+          utm_term: meta.utm_term ?? null,
+        });
       } catch (err) {
         console.error('ledger/Purchase falhou (pagamento intacto):', err);
       }
@@ -492,6 +518,12 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     const custId = sub.customer as string;
     const customer = await stripe.customers.retrieve(custId) as any;
     if (customer.email) {
+      // GUARD PIX: NÃO suspende quem tem acesso Pix ATIVO (plano_expira_em no futuro).
+      // Caso real: cliente em dunning paga por Pix → a gente CANCELA a sub de cartão no
+      // Stripe (anti-cobrança-dupla) → este evento dispara. Sem o guard, re-suspendia o
+      // pagante (fica trancado fora do app). Só suspende quando o acesso Pix é nulo ou já
+      // venceu — aí o cancelamento de cartão é fim de acesso de verdade (ex.: D5 do dunning).
+      const nowIso = new Date().toISOString();
       await supabase
         .from('users')
         .update({
@@ -499,7 +531,8 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           documentos_usados: 0,
           dunning_last_day_sent: null,
         })
-        .eq('email', customer.email);
+        .eq('email', customer.email)
+        .or(`plano_expira_em.is.null,plano_expira_em.lt.${nowIso}`);
     }
   }
 
@@ -590,6 +623,45 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           await sendDunningRecovered(userBefore.id).catch(err =>
             console.error('sendDunningRecovered falhou:', err),
           );
+        }
+      }
+
+      // Espelha o pagamento REAL na UTMify → 'paid' (trial converteu ou renovou).
+      // Reusa a venda já gravada em `sales` pelo subscription_id: mesmo orderId,
+      // mesmos UTMs e o MESMO createdAt do envio 'waiting_payment' → a UTMify só
+      // troca o status do pedido (não cria outro) e o SolarDoc passa a contar como
+      // venda aprovada, atribuída ao anúncio. À prova de erro (não quebra o webhook).
+      if ((invoice.amount_paid ?? 0) > 0 && invoice.subscription) {
+        try {
+          const subId = invoice.subscription as string;
+          const { data: rows } = await supabase
+            .from('sales')
+            .select('*')
+            .eq('subscription_id', subId)
+            .order('updated_at', { ascending: false })
+            .limit(1);
+          const sale = rows?.[0];
+          if (sale) {
+            await sendUtmifyOrder({
+              orderId: subId,
+              status: 'paid',
+              createdAt: sale.card_passed_at || sale.updated_at || new Date().toISOString(),
+              approvedDate: new Date(),
+              email: sale.email ?? null,
+              name: sale.nome ?? null,
+              phone: sale.phone ?? null,
+              productId: sale.plano ?? 'solardoc',
+              productName: sale.produto ?? 'SolarDoc',
+              priceInReais: Number(sale.valor) || 0,
+              utm_source: sale.utm_source ?? null,
+              utm_medium: sale.utm_medium ?? null,
+              utm_campaign: sale.utm_campaign ?? null,
+              utm_content: sale.utm_content ?? null,
+              utm_term: sale.utm_term ?? null,
+            });
+          }
+        } catch (err) {
+          console.error('utmify paid falhou (pagamento intacto):', err);
         }
       }
     }

@@ -17,7 +17,7 @@ const INSTANCE_ID_IO = '3F26F6ECE67D72BB7FCA6244BF24326C';
 // ─── system prompt ───────────────────────────────────────────────
 
 export function buildSystemPrompt(user: {
-  email: string; plano: string; nome_empresa?: string; tem_cnpj: boolean; nome?: string;
+  email: string; plano: string; nome_empresa?: string; tem_cnpj: boolean; nome?: string; billing_status?: string | null;
 }, promoCtx?: { ativadoAgora?: boolean; jaAtivado?: boolean; email?: string }): string {
   const planoLabel: Record<string, string> = { free: 'Gratuito', pro: 'PRO', ilimitado: 'VIP' };
   const nomeUsuario = user.nome ? user.nome.split(' ')[0] : null;
@@ -105,6 +105,22 @@ Este usuário já é VIP (plano máximo). NÃO ofereça upgrade. Foque em suport
 e em ajudá-lo a extrair o máximo da plataforma.`;
   }
 
+  // Reativação por Pix: acesso pausado por falha de pagamento (past_due/suspended) →
+  // a prioridade é ACOLHER e reativar, de preferência pelo Pix (cai na hora). Vem ANTES
+  // da missão de venda por plano.
+  let dunningBloco = '';
+  if (user.billing_status === 'past_due' || user.billing_status === 'suspended') {
+    dunningBloco = `
+
+━━ ⚠️ ACESSO PAUSADO — PRIORIDADE: REATIVAR (isto vem ANTES de qualquer venda) ━━
+O acesso deste cliente está PAUSADO porque o pagamento no cartão não passou. Ele JÁ é cliente — não é hora de vender do zero, é hora de ACOLHER e reativar.
+- Reconheça com leveza ("vi que seu acesso pausou — foi o cartão que não passou?").
+- Ofereça o caminho mais fácil: reativar na hora pelo *Pix* (R$ 67, plano completo, cai na hora). Alternativa: atualizar o cartão em ${APP_URL}.
+- Quando ele topar o Pix / perguntar como paga / disser "pode mandar" → termine a resposta com a tag literal [[ENVIAR_PIX]] (o sistema anexa o código copia-e-cola sozinho — NÃO escreva o código você mesma).
+- Depois que ele pagar, é só mandar o *comprovante aqui mesmo* que reativa na hora.
+- Nada de tom de cobrança formal — você é a Giovanna, humana, do lado dele.`;
+  }
+
   return `Você é a "Giovanna", consultora especialista da SolarDoc Pro. Vendedora de verdade,
 mas humana e consultiva — entende o negócio do integrador solar e conduz pra solução.
 Calorosa, segura, sem ser chata nem robótica.
@@ -151,7 +167,7 @@ ${vendaBloco}
   — curto, sem confirmar nem fazer discurso de "sou humana" (afirmar demais entrega o jogo).
 
 ━━ FORMATO ━━
-Máximo 2 bolhas separadas por ||. Frases curtas.${promoBloco}`;
+Máximo 2 bolhas separadas por ||. Frases curtas.${promoBloco}${dunningBloco}`;
 }
 
 // ─── histórico ───────────────────────────────────────────────────
@@ -455,15 +471,39 @@ export async function handleIncomingWhatsApp(
     addNine(c55).replace(/^55/, ''),
   ];
 
-  let user: { id: string; email: string; plano: string } | null = null;
+  let user: { id: string; email: string; plano: string; billing_status?: string | null } | null = null;
   for (const variant of phoneVariants) {
-    const { data } = await supabase.from('users').select('id, email, plano').eq('whatsapp', variant).single();
+    const { data } = await supabase.from('users').select('id, email, plano, billing_status').eq('whatsapp', variant).single();
     if (data) { user = data; break; }
   }
 
   // Número não cadastrado na plataforma → roteia pra SDR B2B (Carla/SolarDoc)
   // ou SDR B2C (Luma/Irmãos na Obra) com base em sinais
   if (!user) {
+    // Comprovante de Pix de um lead que ABANDONOU o checkout (ainda sem conta):
+    // cruza o telefone com abandoned_checkouts, valida o comprovante e cria/ativa
+    // a conta na hora. Se não for comprovante/lead conhecido, segue o roteamento SDR.
+    if (imageSource) {
+      try {
+        const { tryProcessAbandonedPixComprovante } = await import('./pixComprovanteService');
+        if (await tryProcessAbandonedPixComprovante(cleanPhone, imageSource, originInstance)) return;
+      } catch (err) {
+        logger.error('whatsapp', 'pix-abandono-comprovante falhou (segue fluxo)', err);
+      }
+    }
+
+    // Resposta (texto) de um lead em conversa de recuperação com a Giovanna → responde
+    // conversacionalmente. Sem sessão de recuperação, o handler retorna false e cai no
+    // roteamento SDR normal (não "rouba" leads que não são de recuperação).
+    if (text && text.trim()) {
+      try {
+        const { handleRecoveryReply } = await import('./pixRecoveryAgentService');
+        if (await handleRecoveryReply(cleanPhone, text, senderName ?? null, originInstance)) return;
+      } catch (err) {
+        logger.error('whatsapp', 'giovanna-recovery reply falhou (segue fluxo)', err);
+      }
+    }
+
     const lowerText = text.trim().toLowerCase();
 
     // B2C signals (Irmãos na Obra) — frases dos anúncios Meta de energia solar
@@ -581,6 +621,7 @@ export async function handleIncomingWhatsApp(
     nome_empresa: company?.nome,
     tem_cnpj: !!company,
     nome: nome || undefined,
+    billing_status: user.billing_status ?? undefined,
   };
 
   // Promo Gerador (27/05/2026): se o user recebeu a promo nas últimas 48h
@@ -638,10 +679,24 @@ export async function handleIncomingWhatsApp(
   // Giovanna diz que vai chamar o time, o código REGISTRA de fato o chamado — senão o cliente
   // (pagante!) ficava no vácuo. Detecção == strip (simétrico) pra a tag NUNCA vazar pro cliente.
   const pedeHumano = /\[HUMANO\]/i.test(raw);
-  const limpo = raw.replace(/\[HUMANO\]/ig, '').trim();
+  const pedePix = /\[\[\s*ENVIAR_PIX\s*\]\]/i.test(raw);
+  const limpo = raw.replace(/\[HUMANO\]/ig, '').replace(/\[\[\s*ENVIAR_PIX\s*\]\]/ig, '').trim();
   const parts = limpo.split('||').map(p => p.trim()).filter(Boolean);
 
   await sendHuman(cleanPhone, parts, originInstance);  // responde pela linha que o cliente contatou
+
+  // Giovanna decidiu mandar o Pix (reativação de acesso pausado) → anexa o copia-e-cola
+  // R$67 + instrução do comprovante. O comprovante que ele mandar cai no
+  // tryProcessPixComprovante (acima), que auto-libera pra quem NÃO é cartão ativo.
+  if (pedePix) {
+    try {
+      const { gerarPixCopiaECola } = await import('../../../utils/pixBrCode');
+      const copia = gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' });
+      await sendHuman(cleanPhone, [copia, 'Assim que pagar, me manda o *comprovante aqui mesmo* que eu reativo seu acesso na hora! 🙌'], originInstance).catch(() => {});
+    } catch (err) {
+      logger.error('whatsapp', 'enviar Pix (reativação) falhou', err);
+    }
+  }
 
   if (pedeHumano) {
     // Guard: 1 chamado por sessão (senão um modelo tagarela re-emite [HUMANO] e spamma

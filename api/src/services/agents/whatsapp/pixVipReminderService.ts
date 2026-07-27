@@ -1,7 +1,7 @@
 import { supabase } from '../../../utils/supabase';
-import { sendWhatsApp } from '../zapiClient';
+import { sendHuman } from '../zapiClient';
 import { logger } from '../../../utils/logger';
-import { PIX_DADOS } from '../../../utils/pixInfo';
+import { gerarPixCopiaECola } from '../../../utils/pixBrCode';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lembrete mensal de renovação VIP pago por Pix.
@@ -27,23 +27,31 @@ const COOLDOWN_DIAS = 20;
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 
-function montarMensagem(nome: string | null): string {
+// Valor da renovação mensal por Pix (plano completo). Espelha a oferta do abandono.
+const PIX_RENOVACAO_VALOR = 67;
+
+// Partes da mensagem de renovação: pitch + copia-e-cola (sozinho, fácil de copiar) +
+// instrução do comprovante. O cliente paga e manda o comprovante → pixComprovanteService
+// lê, valida e empurra o plano_expira_em +1 mês na hora.
+function montarPartes(nome: string | null): string[] {
   const oi = nome ? `Oi ${nome.split(' ')[0]}! ` : 'Oi! ';
+  const copia = gerarPixCopiaECola({ valor: PIX_RENOVACAO_VALOR, txid: 'SOLARDOCVIP' });
   return [
-    `${oi}Tudo bem? 😊`,
-    '',
-    'Seu acesso ao SolarDoc está *vencendo*.',
-    'Pra renovar por mais um mês, é só fazer o Pix:',
-    '',
-    `🔑 Chave Pix (CNPJ): *${PIX_DADOS.chave}*`,
-    `${PIX_DADOS.titular} · ${PIX_DADOS.banco} · Ag ${PIX_DADOS.agencia} · Conta ${PIX_DADOS.conta}`,
-    '',
-    'Assim que cair, me manda o *comprovante aqui* que eu confirmo o valor e libero na hora. Qualquer dúvida me chama! 🙌',
-  ].join('\n');
+    `${oi}Tudo bem? 😊 Seu acesso ao SolarDoc está *vencendo*.`,
+    `Pra renovar por mais um mês (R$ ${PIX_RENOVACAO_VALOR}, plano completo), é só copiar o Pix abaixo e pagar no app do seu banco 👇`,
+    copia,
+    'Assim que pagar, me manda o *comprovante aqui* que eu confirmo e libero na hora. Qualquer dúvida me chama! 🙌',
+  ];
 }
 
 export async function runPixVipReminder(): Promise<{ enviados: number; pulados: number; erros: number }> {
   let enviados = 0, pulados = 0, erros = 0;
+
+  // Kill-switch: PIX_MENSAL_OFF=true pausa a cobrança mensal por Pix sem deploy.
+  if ((process.env.PIX_MENSAL_OFF || '').toLowerCase() === 'true') {
+    logger.info('pix-vip-reminder', 'PIX_MENSAL_OFF=true — cobrança mensal por Pix pausada');
+    return { enviados, pulados, erros };
+  }
 
   const agora = Date.now();
   const limite = new Date(agora + JANELA_DIAS * DIA_MS).toISOString();
@@ -74,7 +82,7 @@ export async function runPixVipReminder(): Promise<{ enviados: number; pulados: 
     }
 
     try {
-      await sendWhatsApp(u.whatsapp, montarMensagem(u.nome), 'solardoc');
+      await sendHuman(u.whatsapp, montarPartes(u.nome), 'solardoc');
       await supabase
         .from('users')
         .update({ pix_reminder_last_sent_at: new Date().toISOString() })

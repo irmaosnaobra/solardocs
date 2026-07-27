@@ -13,6 +13,7 @@ export const PIX_DADOS = {
   agencia:  '0333',
   conta:    '25506-3',
   chave:    '63636043000188',      // chave Pix = CNPJ (só dígitos)
+  cidade:   'UBERLANDIA',          // ⚠️ CONFIRMAR cidade real do recebedor — vai no BR Code (campo 60, ≤15 ASCII). Cosmético p/ roteamento, mas parte do padrão.
   whatsapp: '34998165040',         // destino do comprovante (Giovanna / atendimento)
   whatsappLabel: '(34) 99816-5040',
 };
