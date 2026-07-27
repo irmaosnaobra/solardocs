@@ -22,6 +22,7 @@ import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
 import { runSequenciaStopOnReply } from '../services/io/sequenciaStopOnReply';
 import { runZapiHealthCheck } from '../services/io/zapiHealthMonitor';
+import { runAlertaLeadQuenteSemProposta } from '../services/agenda/leadQuenteSemPropostaService';
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
@@ -655,6 +656,8 @@ router.get('/master', async (req: Request, res: Response) => {
     ['ordens-trafego-tick',         () => tickOrdens()],           // disciplina das ordens: expira vencidas (reconfere Meta) + abre novas
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
     ['zapi-health',                 () => runZapiHealthCheck()],   // monitor: linha IO caída → 1 email pro Thiago (2 checagens seguidas). Toda a mensageria depende dela.
+    ['alerta-lead-quente',          () => runAlertaLeadQuenteSemProposta()], // DARK (ALERTA_LEAD_QUENTE_ENABLED): lead quente sem proposta +48h → avisa o consultor dono 1×
+
     // ['inventory-low-stock',         () => runInventoryLowStockAlert()], // [GATED] digest de estoque baixo — ligar após adoção do Inventário
   ];
 
