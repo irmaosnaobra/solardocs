@@ -14,6 +14,9 @@ import MembrosPanel from '../_components/MembrosPanel';
 import AgentePanel from './_panels/AgentePanel';
 import ReceitaPanel from './_panels/ReceitaPanel';
 import LpVendaPanel from './_panels/LpVendaPanel';
+// Fase 2 — Followup + Conversas (endpoint /admin/hub-followup)
+import FollowupPanel from './_panels/FollowupPanel';
+import ConversasPanel from './_panels/ConversasPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -41,9 +44,9 @@ export const PRODUCTS: Product[] = [
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: FunilLimpaproPanel },
       { key: 'membros',   label: 'Membros',          status: 'pronto',    Comp: MembrosLimpaproPanel },
       { key: 'lp',        label: 'Página de Venda',   status: 'parcial',  nota: 'limpapro_events já captura; consolidar visão visita→checkout.' },
-      { key: 'followup',  label: 'Followup',         status: 'parcial',   nota: 'Bia (biaInbound / limpaproRecovery) — expor fila, toques e handoffs (precisa endpoint).' },
+      { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="limpapro" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="bia" /> },
-      { key: 'conversas', label: 'Conversas',        status: 'parcial',   nota: '/admin/conversas-limpapro já existe — generalizar no padrão.' },
+      { key: 'conversas', label: 'Conversas',        status: 'pronto',    Comp: () => <ConversasPanel produto="limpapro" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'construir', nota: 'kill-switches, preço, links de checkout + saúde (LP viva? venda parada?).' },
     ],
   },
@@ -54,10 +57,10 @@ export const PRODUCTS: Product[] = [
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: FunilSolarDocPanel },
       { key: 'membros',   label: 'Membros',          status: 'pronto',    Comp: MembrosPanel },
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: LpVendaPanel },
-      { key: 'followup',  label: 'Followup',         status: 'parcial',   nota: 'Giovanna (dunning / winback / recuperação Pix) — expor fila/toques (precisa endpoint).' },
+      { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solardoc" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="giovanna" /> },
       { key: 'receita',   label: 'Receita/ROAS',     status: 'pronto',    Comp: ReceitaPanel },
-      { key: 'conversas', label: 'Conversas',        status: 'construir', nota: 'Threads Giovanna ↔ cliente (whatsapp_sessions).' },
+      { key: 'conversas', label: 'Conversas',        status: 'pronto',    Comp: () => <ConversasPanel produto="solardoc" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'construir', nota: 'kill-switches (Pix/dunning), planos, links + saúde.' },
     ],
   },
@@ -68,7 +71,7 @@ export const PRODUCTS: Product[] = [
       { key: 'funil',     label: 'Funil',            status: 'parcial',   nota: 'agendamentos created_by=lp_solar (Gerador) — consolidar visita→reunião→venda.' },
       { key: 'membros',   label: 'Leads',            status: 'parcial',   nota: 'agendamentos + CRM SDR (sdr_leads / Luma).' },
       { key: 'lp',        label: 'Página de Venda',   status: 'parcial',  nota: '/io/* em page_visits + site institucional /io.' },
-      { key: 'followup',  label: 'Followup',         status: 'parcial',   nota: 'geradorFollowup / reagendarDigest / Luma — expor fila (precisa endpoint).' },
+      { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solar" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="luma" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'construir', nota: 'Extras do hub: Leads por Origem, Link na Bio, Indicações + saúde.' },
     ],

@@ -77,6 +77,76 @@ router.get('/analytics',      getAnalytics);
 router.get('/meta-funnel',    getMetaFunnel);
 router.get('/meta-ads',       getMetaAds);
 
+// ── Followup / Conversas por produto (Hubs /admin/hubs) — READ-ONLY ──────────────
+// Rastreia a atividade dos agentes (Giovanna/Bia/Luma) em whatsapp_sessions, filtrada
+// pelo(s) tipo(s) de sessão de cada produto. Alimenta a aba Followup (summary + fila)
+// E a aba Conversas (threads). Só exibe — não dispara nem altera nada.
+const HUB_FOLLOWUP_TIPOS: Record<string, string[]> = {
+  limpapro:    ['recuperacao'],          // Bia (recuperação de checkout do curso)
+  solardoc:    ['recovery', 'platform'], // Giovanna (abandono Pix + plataforma)
+  solar:       ['gerador_followup'],     // follow-up de leads solar (Luma/gerador)
+  eletroposto: [],                       // sem agente ainda
+};
+router.get('/hub-followup', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const produto = String(req.query.produto || '').toLowerCase();
+    const tipos = HUB_FOLLOWUP_TIPOS[produto];
+    if (!tipos) { res.status(400).json({ error: 'produto inválido' }); return; }
+    const emptySummary = { total: 0, em_conversa: 0, handoff: 0, opt_out: 0, ultimas24h: 0, ultimos7d: 0 };
+    if (tipos.length === 0) { res.json({ produto, tipos, summary: emptySummary, sessions: [] }); return; }
+
+    const { data, error } = await supabase
+      .from('whatsapp_sessions')
+      .select('phone, nome, tipo, messages, lead_data, updated_at')
+      .in('tipo', tipos)
+      .order('updated_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+
+    const now = Date.now();
+    const D1 = 24 * 3600e3, D7 = 7 * D1;
+    let em_conversa = 0, handoff = 0, opt_out = 0, ultimas24h = 0, ultimos7d = 0;
+
+    const sessions = (data ?? []).map((s: {
+      phone: string; nome: string | null; tipo: string;
+      messages: unknown; lead_data: Record<string, unknown> | null; updated_at: string | null;
+    }) => {
+      const ld = (s.lead_data ?? {}) as Record<string, unknown>;
+      const msgs = (Array.isArray(s.messages) ? s.messages : []) as { role?: string; content?: string }[];
+      const temUser = msgs.some((m) => m?.role === 'user');
+      const temAssist = msgs.some((m) => m?.role === 'assistant');
+      const handed = Boolean(ld.handed_off) || Boolean(ld.human_takeover);
+      const status = String(ld.status ?? '');
+      const optout = status === 'perdido' || status === 'opted_out' || Boolean(ld.opted_out);
+      const upMs = s.updated_at ? new Date(s.updated_at).getTime() : 0;
+
+      if (temUser && temAssist) em_conversa++;
+      if (handed) handoff++;
+      if (optout) opt_out++;
+      if (upMs && now - upMs < D1) ultimas24h++;
+      if (upMs && now - upMs < D7) ultimos7d++;
+
+      const last = msgs[msgs.length - 1];
+      return {
+        phone: s.phone, nome: s.nome ?? null, tipo: s.tipo, updated_at: s.updated_at,
+        handed_off: handed, opt_out: optout, status: status || null,
+        msgs_count: msgs.length,
+        last_role: last?.role ?? null,
+        last_msg: last?.content ? String(last.content).slice(0, 160) : null,
+        messages: msgs.slice(-24).map((m) => ({ role: m?.role ?? '?', content: String(m?.content ?? '').slice(0, 800) })),
+      };
+    });
+
+    res.json({
+      produto, tipos,
+      summary: { total: sessions.length, em_conversa, handoff, opt_out, ultimas24h, ultimos7d },
+      sessions: sessions.slice(0, 60),
+    });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 // ── Disciplina das ordens (marcar feito, expira, manual/auto) ──
 // GET lista pendentes + histórico + modo. Sincroniza on-demand pra a lista vir
 // fresca mesmo entre ticks do cron.
