@@ -23,6 +23,8 @@ import VisaoGeralPanel from './_panels/VisaoGeralPanel';
 import ConfigAlertasPanel from './_panels/ConfigAlertasPanel';
 import GeradorFunilPanel from './_panels/GeradorFunilPanel';
 import GeradorLeadsPanel from './_panels/GeradorLeadsPanel';
+// Fase 5 (resíduos) — LP de Solar/Eletroposto (page_visits via beacon novo)
+import IoLpPanel from './_panels/IoLpPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -73,10 +75,10 @@ export const PRODUCTS: Product[] = [
   {
     id: 'solar', nome: 'Solar', emoji: '🔆', cor: '#3E6C9E',
     tabs: [
-      { key: 'visao',     label: 'Visão Geral',      status: 'parcial',   Comp: () => <VisaoGeralPanel produto="solar" /> },
+      { key: 'visao',     label: 'Visão Geral',      status: 'pronto',    Comp: () => <VisaoGeralPanel produto="solar" /> },
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: () => <GeradorFunilPanel produto="solar" /> },
       { key: 'membros',   label: 'Leads',            status: 'pronto',    Comp: () => <GeradorLeadsPanel produto="solar" /> },
-      { key: 'lp',        label: 'Página de Venda',   status: 'parcial',  nota: '/io/* em page_visits + site institucional /io.' },
+      { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: () => <IoLpPanel match="/io/solar" /> },
       { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solar" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="luma" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="solar" /> },
@@ -88,7 +90,7 @@ export const PRODUCTS: Product[] = [
       { key: 'visao',     label: 'Visão Geral',      status: 'pronto',    Comp: () => <VisaoGeralPanel produto="eletroposto" /> },
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: () => <GeradorFunilPanel produto="eletroposto" /> },
       { key: 'membros',   label: 'Leads',            status: 'pronto',    Comp: () => <GeradorLeadsPanel produto="eletroposto" /> },
-      { key: 'lp',        label: 'Página de Venda',   status: 'construir', nota: 'Hoje só Meta Pixel — construir beacon → page_visits.' },
+      { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: () => <IoLpPanel match="/io/eletroposto" /> },
       { key: 'followup',  label: 'Followup',         status: 'construir', nota: 'Só alerta à equipe hoje.' },
       { key: 'agente',    label: 'Agente',           status: 'parcial',   Comp: () => <AgentePanel agent="none" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="eletroposto" /> },

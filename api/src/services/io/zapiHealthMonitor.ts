@@ -45,6 +45,9 @@ export async function checarConexaoZapi(c: { id: string; token: string; client: 
     if (!r.ok || !body || typeof body !== 'object') return 'unknown';
     if (body.connected === true || body.smartphoneConnected === true) return 'up';
     if (body.connected === false) { logger.error('zapi-health', 'linha IO reportou connected=false', body); return 'down'; }
+    // Shape inesperado → NÃO alarma; loga o corpo cru pra a gente ver o formato real
+    // do /status na 1ª rodada em produção e ajustar o parse se o campo tiver outro nome.
+    logger.info('zapi-health', 'status shape inesperado (sem alarme) — corpo cru', body);
     return 'unknown';
   } catch (err) {
     logger.error('zapi-health', 'fetch /status falhou (inconclusivo, sem alarme)', err);
