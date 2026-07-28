@@ -62,20 +62,14 @@
 }
 
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  text-align: left;
-  padding: 22px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 16px;
-  cursor: pointer;
+  overflow: hidden;
   transition: border-color 0.2s ease, transform 0.2s ease;
-  font: inherit;
-  color: inherit;
-  width: 100%;
 }
 
 .card:hover {
@@ -83,20 +77,71 @@
   transform: translateY(-2px);
 }
 
-.card:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+.cardBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  padding: 0 22px 22px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  width: 100%;
 }
 
-.cardTop {
+.cardBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* Capa do módulo: faixa com o número grande e o ícone. Dá cara de "material"
+   em vez de lista de links, e é o que o comprador vê primeiro. */
+.cardCapa {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
+  width: calc(100% + 44px);
+  margin: 0 -22px 16px;
+  padding: 20px 22px 18px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(245, 158, 11, 0.04));
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cardNum {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-primary);
+  opacity: 0.45;
+  font-variant-numeric: tabular-nums;
 }
 
 .cardIcon {
   color: var(--color-primary);
+}
+
+.cardBaixar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin: 0 22px 18px;
+  padding: 7px 13px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+.cardBaixar:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .selo {
@@ -184,6 +229,120 @@
   font-size: 12px;
   color: var(--color-text-muted);
   margin-top: 16px;
+}
+
+/* ── Extras baixáveis ────────────────────────────────────── */
+.extras {
+  margin-top: 34px;
+  padding-top: 26px;
+  border-top: 1px solid var(--color-border);
+}
+
+.extrasTitulo {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 14px;
+}
+
+.extrasGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.extra,
+.planilha {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: border-color 0.2s ease;
+}
+
+.planilha {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.06);
+  margin-bottom: 4px;
+}
+
+.extra:hover,
+.planilha:hover {
+  border-color: var(--color-primary);
+}
+
+.extra strong,
+.planilha strong {
+  display: block;
+  font-size: 14.5px;
+  color: var(--color-text);
+  margin-bottom: 2px;
+}
+
+.extra span,
+.planilha span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.extraIcon {
+  color: var(--color-primary);
+  flex: none;
+}
+
+.extraSeta {
+  color: var(--color-text-muted);
+  flex: none;
+  margin-left: auto;
+}
+
+/* ── Cabeçalho do módulo aberto ──────────────────────────── */
+.moduloHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+
+.moduloHeadTxt {
+  flex: 1 1 320px;
+}
+
+.moduloTag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 6px;
+}
+
+.btnBaixar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btnBaixar:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 /* ── Leitura do módulo ───────────────────────────────────── */
