@@ -25,6 +25,8 @@ import GeradorFunilPanel from './_panels/GeradorFunilPanel';
 import GeradorLeadsPanel from './_panels/GeradorLeadsPanel';
 // Fase 5 (resíduos) — LP de Solar/Eletroposto (page_visits via beacon novo)
 import IoLpPanel from './_panels/IoLpPanel';
+// Kit de Fechamento (isca R$27 → plataforma) — funil da isca até virar assinante
+import KitPanel from './_panels/KitPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -67,6 +69,7 @@ export const PRODUCTS: Product[] = [
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: LpVendaPanel },
       { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solardoc" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="giovanna" /> },
+      { key: 'kit',       label: 'Kit / Isca R$27',  status: 'pronto',    Comp: KitPanel },
       { key: 'receita',   label: 'Receita/ROAS',     status: 'pronto',    Comp: ReceitaPanel },
       { key: 'conversas', label: 'Conversas',        status: 'pronto',    Comp: () => <ConversasPanel produto="solardoc" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="solardoc" /> },

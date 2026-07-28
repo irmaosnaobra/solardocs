@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular'];
+// '/kit' = LP de venda do Kit de Fechamento (public/kit/index.html). É página de
+// venda para quem AINDA não tem conta — sem isto o proxy manda o visitante do
+// anúncio direto pro login e a isca não vende nada.
+const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;

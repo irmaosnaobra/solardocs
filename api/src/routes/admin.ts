@@ -235,6 +235,77 @@ router.get('/hub-gerador', async (req: Request, res: Response): Promise<void> =>
   }
 });
 
+// ── Funil do Kit de Fechamento (isca R$27 → plataforma) — READ-ONLY ─────────────
+// Mede a régua que decide a operação: quantos cliques viram compra, quantos
+// compradores criam conta e quantos viram assinante pagante. Visitas vêm de
+// page_visits (beacon da LP /kit), vendas de kit_pedidos.
+router.get('/kit-funil', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const desde = new Date(Date.now() - 30 * 86400_000).toISOString();
+
+    const [visitasQ, pedidosQ] = await Promise.all([
+      supabase
+        .from('page_visits')
+        .select('session_id, utm_source, utm_campaign, created_at')
+        .gte('created_at', desde)
+        .like('landing_url', '%/kit%'),
+      supabase
+        .from('kit_pedidos')
+        .select('email, nome, produto, itens, bump_vip, valor, status, user_id, conta_criada, trial_vip_ate, utm_campaign, criado_em')
+        .gte('criado_em', desde)
+        .order('criado_em', { ascending: false }),
+    ]);
+
+    const visitas = (visitasQ.data ?? []) as Array<{ session_id: string | null }>;
+    const pedidos = (pedidosQ.data ?? []) as Array<{
+      email: string; nome: string | null; produto: string; itens: string[];
+      bump_vip: boolean; valor: number; status: string; user_id: string | null;
+      conta_criada: boolean; trial_vip_ate: string | null; utm_campaign: string | null; criado_em: string;
+    }>;
+
+    const pagos = pedidos.filter((p) => p.status === 'paid');
+    const compradores = new Set(pagos.filter((p) => (p.itens || []).includes('kit')).map((p) => p.email.toLowerCase()));
+    const comBump = new Set(pagos.filter((p) => p.bump_vip).map((p) => p.email.toLowerCase()));
+    const pendentes = pedidos.filter((p) => p.status === 'waiting_payment');
+
+    // Quantos compradores já viram assinante pagante de verdade (sem contar o
+    // trial do bump — pack_trial_until ativo não é receita).
+    let assinantes = 0;
+    if (compradores.size) {
+      const { data: users } = await supabase
+        .from('users')
+        .select('email, plano, pack_trial_until, billing_status')
+        .in('email', Array.from(compradores));
+      assinantes = (users ?? []).filter((u: { plano: string; pack_trial_until: string | null }) => {
+        const trialAtivo = !!u.pack_trial_until && new Date(u.pack_trial_until) > new Date();
+        return (u.plano === 'pro' || u.plano === 'ilimitado') && !trialAtivo;
+      }).length;
+    }
+
+    const receita = pagos.reduce((s, p) => s + Number(p.valor || 0), 0);
+    const sessoes = new Set(visitas.map((v) => v.session_id).filter(Boolean)).size;
+
+    res.json({
+      periodo: '30d',
+      visitas: visitas.length,
+      sessoes,
+      compradores: compradores.size,
+      bump_vip: comBump.size,
+      contas_criadas: pagos.filter((p) => p.conta_criada).length,
+      assinantes,
+      pix_pendente: pendentes.length,
+      receita,
+      // As duas taxas que decidem se a isca escala.
+      conv_visita_compra: sessoes ? +((compradores.size / sessoes) * 100).toFixed(2) : null,
+      conv_comprador_assinante: compradores.size ? +((assinantes / compradores.size) * 100).toFixed(1) : null,
+      take_rate_bump: compradores.size ? +((comBump.size / compradores.size) * 100).toFixed(1) : null,
+      pedidos: pedidos.slice(0, 60),
+    });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 // ── Disciplina das ordens (marcar feito, expira, manual/auto) ──
 // GET lista pendentes + histórico + modo. Sincroniza on-demand pra a lista vir
 // fresca mesmo entre ticks do cron.

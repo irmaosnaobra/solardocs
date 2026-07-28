@@ -1,0 +1,166 @@
+'use client';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KIT / ISCA (R$27) — a régua que decide se a isca escala.
+// Lê /admin/kit-funil (30d). Duas taxas mandam: visita→compra (a mídia se paga?)
+// e comprador→assinante (a ponte funciona?). O resto é contexto.
+// ─────────────────────────────────────────────────────────────────────────────
+import { useCallback, useEffect, useState } from 'react';
+import api from '@/services/api';
+import styles from '../../admin.module.css';
+
+interface Pedido {
+  email: string;
+  nome: string | null;
+  produto: string;
+  itens: string[];
+  bump_vip: boolean;
+  valor: number;
+  status: string;
+  conta_criada: boolean;
+  trial_vip_ate: string | null;
+  utm_campaign: string | null;
+  criado_em: string;
+}
+
+interface KitFunil {
+  periodo: string;
+  visitas: number;
+  sessoes: number;
+  compradores: number;
+  bump_vip: number;
+  contas_criadas: number;
+  assinantes: number;
+  pix_pendente: number;
+  receita: number;
+  conv_visita_compra: number | null;
+  conv_comprador_assinante: number | null;
+  take_rate_bump: number | null;
+  pedidos: Pedido[];
+}
+
+const brl = (n: number) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pct = (n: number | null) => (n == null ? '—' : `${n}%`);
+const dia = (s: string) => new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+// Metas do plano aprovado: 5,9% é onde a mídia empata a R$27; 20% de
+// comprador→assinante é o que faz o funil valer mais que o tráfego direto.
+const META_CONV = 5.9;
+const META_ASSINANTE = 20;
+
+export default function KitPanel() {
+  const [data, setData] = useState<KitFunil | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    api.get('/admin/kit-funil').then((r) => setData(r.data as KitFunil)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const conv = data?.conv_visita_compra ?? null;
+  const convAss = data?.conv_comprador_assinante ?? null;
+  const corConv = conv == null ? undefined : conv >= META_CONV ? '#2F7A4F' : conv >= 3 ? '#C87A1E' : '#A53B29';
+  const corAss = convAss == null ? undefined : convAss >= META_ASSINANTE ? '#2F7A4F' : '#C87A1E';
+
+  const etapas: Array<[string, number]> = [
+    ['Visitas na LP', data?.sessoes ?? 0],
+    ['Compraram o kit', data?.compradores ?? 0],
+    ['Conta criada', data?.contas_criadas ?? 0],
+    ['Levaram o bump VIP', data?.bump_vip ?? 0],
+    ['Viraram assinante', data?.assinantes ?? 0],
+  ];
+  const maxEtapa = etapas.reduce((m, [, n]) => Math.max(m, n), 0);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ fontSize: 12, opacity: 0.7 }}>Últimos 30 dias · LP solardoc.app/kit</span>
+        <button className={styles.periodBtn} disabled={loading} onClick={load}>{loading ? 'Atualizando…' : '↻ Atualizar'}</button>
+      </div>
+
+      <div className={styles.cards}>
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Visita → compra</div>
+          <div className={styles.cardValue} style={{ color: corConv }}>{pct(conv)}</div>
+          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>a mídia empata em {META_CONV}%</div>
+        </div>
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Comprador → assinante</div>
+          <div className={styles.cardValue} style={{ color: corAss }}>{pct(convAss)}</div>
+          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>precisa de {META_ASSINANTE}%</div>
+        </div>
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Compradores</div>
+          <div className={styles.cardValue}>{(data?.compradores ?? 0).toLocaleString('pt-BR')}</div>
+        </div>
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Receita do kit</div>
+          <div className={styles.cardValue} style={{ color: '#C87A1E' }}>{brl(data?.receita ?? 0)}</div>
+        </div>
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Take do bump VIP</div>
+          <div className={styles.cardValue}>{pct(data?.take_rate_bump ?? null)}</div>
+        </div>
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Pix pendente</div>
+          <div className={styles.cardValue} style={{ color: (data?.pix_pendente ?? 0) > 0 ? '#C87A1E' : undefined }}>
+            {(data?.pix_pendente ?? 0).toLocaleString('pt-BR')}
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.card} style={{ marginTop: 14 }}>
+        <div style={{ fontWeight: 700, marginBottom: 12 }}>Do clique ao assinante</div>
+        {etapas.map(([label, n]) => (
+          <div key={label} style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+              <span>{label}</span>
+              <strong>{n.toLocaleString('pt-BR')}</strong>
+            </div>
+            <div style={{ height: 8, background: 'rgba(148,163,184,.15)', borderRadius: 999 }}>
+              <div style={{
+                width: maxEtapa ? `${Math.max(2, (n / maxEtapa) * 100)}%` : '2%',
+                height: '100%', background: '#C87A1E', borderRadius: 999,
+              }} />
+            </div>
+          </div>
+        ))}
+        {!data?.sessoes && (
+          <div style={{ fontSize: 12, opacity: 0.65, marginTop: 10 }}>
+            Sem visita registrada ainda — a LP começa a preencher isto assim que o tráfego chegar.
+          </div>
+        )}
+      </div>
+
+      <div className={styles.card} style={{ marginTop: 14 }}>
+        <div style={{ fontWeight: 700, marginBottom: 12 }}>Pedidos recentes</div>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Quando</th><th>Comprador</th><th>Produto</th><th>Status</th><th>Conta</th><th>VIP</th><th>Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.pedidos ?? []).map((p, i) => (
+                <tr key={`${p.email}-${i}`}>
+                  <td>{dia(p.criado_em)}</td>
+                  <td>{p.nome || p.email}</td>
+                  <td>{p.produto}</td>
+                  <td style={{ color: p.status === 'paid' ? '#2F7A4F' : '#C87A1E' }}>{p.status}</td>
+                  <td>{p.conta_criada ? 'criada' : '—'}</td>
+                  <td>{p.bump_vip ? '30d' : '—'}</td>
+                  <td>{brl(p.valor)}</td>
+                </tr>
+              ))}
+              {!data?.pedidos?.length && (
+                <tr><td colSpan={7} style={{ opacity: 0.6 }}>Nenhuma venda ainda.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
