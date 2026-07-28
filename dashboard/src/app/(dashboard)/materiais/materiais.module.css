@@ -300,8 +300,10 @@
   color: var(--color-primary);
 }
 
+/* Verde escuro o bastante para ler no tema claro (o #4ade80 sumia sobre o
+   fundo verde de 6%) e ainda visível no escuro. */
 .rotuloZap {
-  color: #4ade80;
+  color: #16915c;
 }
 
 .script {
