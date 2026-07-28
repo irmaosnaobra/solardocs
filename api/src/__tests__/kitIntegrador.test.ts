@@ -52,7 +52,10 @@ function query(table: string) {
       db[table] = db[table].filter((r) => !alvos.has(r));
       return { data: null, error: null };
     }
-    return { data: linhas(), error: null };
+    // Cópia rasa: a rede devolve JSON, não referência. Sem isso um upsert
+    // posterior mutaria a linha que o chamador já tinha lido — e o teste
+    // acreditaria num comportamento que produção não tem.
+    return { data: linhas().map((r) => ({ ...r })), error: null };
   }
 
   const q: any = {
@@ -64,6 +67,8 @@ function query(table: string) {
     update: (p: Row) => { modo = 'update'; patch = p; return q; },
     delete: () => { modo = 'delete'; return q; },
     eq: (col: string, val: any) => { filtros.push((r) => String(r[col]) === String(val)); return q; },
+    // ISO em string compara lexicograficamente na ordem certa
+    gt: (col: string, val: any) => { filtros.push((r) => r[col] != null && String(r[col]) > String(val)); return q; },
     order: () => q,
     // .or('user_id.eq.X,email.eq.Y')
     or: (expr: string) => {
@@ -170,6 +175,40 @@ describe('processarEventoKit — compra do kit', () => {
     expect(enviados).toHaveLength(1);
     expect(enviados[0].to).toBe(EMAIL);
     expect(enviados[0].resetUrl).toContain('mode=redefinir');
+  });
+
+  // Este é o caminho de ~80% da receita (Pix): a Kiwify manda waiting_payment
+  // quando o código é gerado e paid quando cai. Se o e-mail fosse gateado por
+  // "pedido novo", quem paga no Pix nunca receberia o link de acesso.
+  it('Pix: waiting_payment e depois paid no MESMO pedido manda o e-mail', async () => {
+    await processarEventoKit(evento({ status: 'waiting_payment' }));
+    expect(enviados).toHaveLength(0);
+    expect(db.users).toHaveLength(0);
+
+    const r = await processarEventoKit(evento({ status: 'paid' }));
+    expect(r.acao).toBe('acesso_liberado');
+    expect(r.contaCriada).toBe(true);
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0].resetUrl).toContain('mode=redefinir');
+  });
+
+  it('Pix aprovado e reentregue não manda o e-mail duas vezes', async () => {
+    await processarEventoKit(evento({ status: 'waiting_payment' }));
+    await processarEventoKit(evento({ status: 'paid' }));
+    const r = await processarEventoKit(evento({ status: 'paid' }));
+
+    expect(r.acao).toBe('ja_processado');
+    expect(enviados).toHaveLength(1);
+    expect(db.users).toHaveLength(1);
+  });
+
+  it('reembolso do bump revoga o trial que estava correndo', async () => {
+    await processarEventoKit(evento());
+    await processarEventoKit(evento({ orderId: 'ORDER-2', item: 'bump_vip' }));
+    expect(db.users[0].pack_trial_until).toBeTruthy();
+
+    await processarEventoKit(evento({ orderId: 'ORDER-2', item: 'bump_vip', status: 'refunded' }));
+    expect(db.users[0].pack_trial_until).toBeNull();
   });
 
   it('reentrega do mesmo pedido não duplica conta nem reenvia e-mail', async () => {

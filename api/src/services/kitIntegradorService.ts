@@ -104,12 +104,15 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   const pago = evt.status === 'paid';
 
   // 1) Pedido novo? (idempotência por order_id)
-  type PedidoExistente = { id: string; user_id: string | null; trial_vip_ate: string | null; status: string };
+  type PedidoExistente = {
+    id: string; user_id: string | null; trial_vip_ate: string | null;
+    status: string; acesso_email_em: string | null;
+  };
   let pedidoExistente: PedidoExistente | null = null;
   if (evt.orderId) {
     const { data } = await supabase
       .from('kit_pedidos')
-      .select('id, user_id, trial_vip_ate, status')
+      .select('id, user_id, trial_vip_ate, status, acesso_email_em')
       .eq('order_id', evt.orderId)
       .maybeSingle();
     pedidoExistente = (data as unknown as PedidoExistente) ?? null;
@@ -153,6 +156,18 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   }
 
   if (!pago) {
+    // Reembolso/chargeback: o material se tranca sozinho (acessoDoUsuario só olha
+    // pedido 'paid'), mas o trial do bump continuaria rodando 30 dias. Limpa o
+    // carimbo — quem tiver assinatura de verdade é restaurado pelo stripeSync.
+    const revogar = /refund|chargeback/.test(String(evt.status));
+    if (revogar && pedidoExistente?.trial_vip_ate && pedidoExistente.user_id) {
+      await supabase
+        .from('users')
+        .update({ pack_trial_until: null })
+        .eq('id', pedidoExistente.user_id)
+        .gt('pack_trial_until', new Date().toISOString());
+      console.info(`[kit] trial revogado por ${evt.status} · pedido ${evt.orderId}`);
+    }
     return { ok: true, acao: 'registrado', detalhe: `status ${evt.status}` };
   }
 
@@ -175,22 +190,14 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
     trialVip = await concederTrialVip(userId);
   }
 
-  await supabase
-    .from('kit_pedidos')
-    .update({
-      user_id: userId,
-      conta_criada: contaCriada,
-      ...(trialVip
-        ? { trial_vip_ate: new Date(Date.now() + KIT_BUMP_TRIAL_DIAS * 86400_000).toISOString() }
-        : {}),
-      atualizado_em: new Date().toISOString(),
-    })
-    .eq('id', pedido.id);
-
-  // 4) E-mail de acesso — só no pedido NOVO do produto principal (bump que chega
-  //    depois, em pedido separado, não dispara um segundo e-mail de boas-vindas).
-  const jaTinhaPedido = !!pedidoExistente;
-  if (!jaTinhaPedido && evt.item === 'kit') {
+  // 4) E-mail de acesso — o gate é o CARIMBO, não "o pedido é novo". No Pix a
+  //    Kiwify manda dois webhooks (waiting_payment e depois paid): quando o pago
+  //    chega, o pedido JÁ existe. Gatear por "pedido novo" deixaria quem paga no
+  //    Pix — 80% da receita — sem receber o link de acesso. Bump em pedido
+  //    separado também não dispara e-mail (só o produto principal manda).
+  const jaMandouEmail = !!pedidoExistente?.acesso_email_em;
+  let emailEnviadoAgora = false;
+  if (!jaMandouEmail && evt.item === 'kit') {
     try {
       await sendKitAcessoEmail({
         to: email,
@@ -199,14 +206,32 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
         comVip: trialVip,
         dias: KIT_BUMP_TRIAL_DIAS,
       });
+      emailEnviadoAgora = true;
     } catch (err) {
+      // Não carimba: a próxima reentrega da Kiwify tenta de novo.
       console.error('[kit] e-mail de acesso falhou (acesso já está liberado):', err);
     }
   }
 
+  await supabase
+    .from('kit_pedidos')
+    .update({
+      user_id: userId,
+      conta_criada: contaCriada,
+      ...(trialVip
+        ? { trial_vip_ate: new Date(Date.now() + KIT_BUMP_TRIAL_DIAS * 86400_000).toISOString() }
+        : {}),
+      ...(emailEnviadoAgora ? { acesso_email_em: new Date().toISOString() } : {}),
+      atualizado_em: new Date().toISOString(),
+    })
+    .eq('id', pedido.id);
+
+  // 'ja_processado' só quando o pedido JÁ estava pago antes — reentrega pura.
+  const jaEstavaPago = pedidoExistente?.status === 'paid';
+
   return {
     ok: true,
-    acao: jaTinhaPedido ? 'ja_processado' : 'acesso_liberado',
+    acao: jaEstavaPago ? 'ja_processado' : 'acesso_liberado',
     userId,
     contaCriada,
     trialVip,
@@ -327,14 +352,23 @@ export type AcessoKit = {
 
 /** O que este usuário comprou do kit (usado pela aba /materiais). */
 export async function acessoDoUsuario(userId: string, email: string): Promise<AcessoKit> {
-  const { data } = await supabase
-    .from('kit_pedidos')
-    .select('itens, status, criado_em, trial_vip_ate, user_id, email')
-    .or(`user_id.eq.${userId},email.eq.${email.toLowerCase()}`)
-    .eq('status', 'paid')
-    .order('criado_em', { ascending: true });
+  // Duas queries em vez de .or(): endereço com '+' (gmail+tag) quebra dentro do
+  // filtro do PostgREST — o '+' vira espaço e o comprador some da própria compra.
+  const colunas = 'order_id, itens, status, criado_em, trial_vip_ate, user_id, email';
+  const [porUser, porEmail] = await Promise.all([
+    supabase.from('kit_pedidos').select(colunas).eq('user_id', userId).eq('status', 'paid'),
+    supabase.from('kit_pedidos').select(colunas).eq('email', email.toLowerCase()).eq('status', 'paid'),
+  ]);
 
-  const linhas = (data || []) as Array<{ itens: ItemKit[]; criado_em: string; trial_vip_ate: string | null }>;
+  type Linha = { order_id: string; itens: ItemKit[]; criado_em: string; trial_vip_ate: string | null; email: string };
+  const vistos = new Set<string>();
+  const linhas = ([...(porUser.data || []), ...(porEmail.data || [])] as unknown as Linha[])
+    .filter((l) => {
+      if (vistos.has(l.order_id)) return false;   // a mesma linha vem nas duas queries
+      vistos.add(l.order_id);
+      return true;
+    })
+    .sort((a, b) => a.criado_em.localeCompare(b.criado_em));
   if (!linhas.length) return { temKit: false, itens: [], compradoEm: null, trialVipAte: null };
 
   const itens = Array.from(new Set(linhas.flatMap((l) => l.itens || []))) as ItemKit[];

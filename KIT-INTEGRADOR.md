@@ -109,6 +109,17 @@ mais barato. Por isso o teste é de R$ 700, não de R$ 5.000.
 
 ---
 
+## Detalhes que já estão tratados
+
+- **Pix manda dois webhooks** (`waiting_payment` e depois `paid`). O e-mail de acesso é
+  gateado por carimbo (`kit_pedidos.acesso_email_em`), não por "pedido novo" — quem paga
+  no Pix recebe o link igual a quem paga no cartão, e reentrega não manda duas vezes.
+- **Reembolso/chargeback:** o material se tranca sozinho (só pedido `paid` dá acesso) e o
+  trial de 30 dias do bump é revogado. Quem tiver assinatura de verdade é restaurado pelo
+  `stripeSyncService` no ciclo seguinte.
+- **Produto do LimpaPro no mesmo webhook** continua indo para o funil do LimpaPro e não
+  cria conta no SolarDoc. Testado em produção.
+
 ## Onde mexer depois
 
 | Quero mudar | Arquivo |

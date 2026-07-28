@@ -430,8 +430,13 @@ src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1"/></n
     const a = e.target.closest('.cta');
     if (!a) return;
     const onde = a.dataset.cta || 'cta';
-    try { fbq('track', 'InitiateCheckout', { content_name: 'Kit Fechamento Integrador', value: 27, currency: 'BRL' }); } catch (_) {}
-    try { evtLP('cta_click', { label: onde }); } catch (_) {}
+    // Os botões do topo/barra só ROLAM até a oferta — disparar InitiateCheckout
+    // neles inflaria o evento e envenenaria a otimização da campanha.
+    const vaiPraCompra = (a.getAttribute('href') || '') !== '#comprar';
+    if (vaiPraCompra) {
+      try { fbq('track', 'InitiateCheckout', { content_name: 'Kit Fechamento Integrador', value: 27, currency: 'BRL' }); } catch (_) {}
+    }
+    try { evtLP('cta_click', { label: onde, tipo: vaiPraCompra ? 'checkout' : 'rolagem' }); } catch (_) {}
   }, true);
 })();
 </script>

@@ -43,9 +43,12 @@ const brl = (n: number) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFra
 const pct = (n: number | null) => (n == null ? '—' : `${n}%`);
 const dia = (s: string) => new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
-// Metas do plano aprovado: 5,9% é onde a mídia empata a R$27; 20% de
-// comprador→assinante é o que faz o funil valer mais que o tráfego direto.
-const META_CONV = 5.9;
+// A régua do plano (5,9% pra mídia empatar a R$27) é sobre CLIQUE do anúncio.
+// Aqui o denominador é sessão do beacon da LP, que fica em torno de 70-85% dos
+// cliques (JS bloqueado, saída antes do beacon, prefetch) — ou seja, a taxa
+// medida nesta tela sai OTIMISTA. Por isso o verde só acende em 7%, que é a
+// mesma coisa vista pelo outro lado. O número de cliques vem do gerenciador.
+const META_CONV_SESSAO = 7;
 const META_ASSINANTE = 20;
 
 export default function KitPanel() {
@@ -60,7 +63,7 @@ export default function KitPanel() {
 
   const conv = data?.conv_visita_compra ?? null;
   const convAss = data?.conv_comprador_assinante ?? null;
-  const corConv = conv == null ? undefined : conv >= META_CONV ? '#2F7A4F' : conv >= 3 ? '#C87A1E' : '#A53B29';
+  const corConv = conv == null ? undefined : conv >= META_CONV_SESSAO ? '#2F7A4F' : conv >= 4 ? '#C87A1E' : '#A53B29';
   const corAss = convAss == null ? undefined : convAss >= META_ASSINANTE ? '#2F7A4F' : '#C87A1E';
 
   const etapas: Array<[string, number]> = [
@@ -81,9 +84,12 @@ export default function KitPanel() {
 
       <div className={styles.cards}>
         <div className={styles.card}>
-          <div className={styles.cardLabel}>Visita → compra</div>
+          <div className={styles.cardLabel}>Sessão na LP → compra</div>
           <div className={styles.cardValue} style={{ color: corConv }}>{pct(conv)}</div>
-          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>a mídia empata em {META_CONV}%</div>
+          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+            verde em {META_CONV_SESSAO}% — a régua de 5,9% é sobre cliques do anúncio, e sessão
+            conta menos que clique
+          </div>
         </div>
         <div className={styles.card}>
           <div className={styles.cardLabel}>Comprador → assinante</div>
