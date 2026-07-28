@@ -1,0 +1,349 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Kit de Fechamento do Integrador — a PONTE entre a isca de R$27 e a plataforma.
+//
+// Mecânica: o integrador compra o kit na Kiwify → este service cria a conta no
+// SolarDoc (pendente, sem senha) → o comprador define a senha e consome o
+// material DENTRO da plataforma (/materiais) → vê o gerador de documentos
+// funcionando todo dia → assina o VIP.
+//
+// O que este arquivo NÃO faz: rota nova. O webhook da Kiwify que já existe
+// (POST /webhook/kiwify) roteia pra cá quando o produto é do universo do kit —
+// assim o Thiago não precisa configurar nada além do produto na Kiwify.
+//
+// Idempotência: kit_pedidos.order_id é UNIQUE. Reentrega da Kiwify não duplica
+// conta, não reenvia e-mail e não estende trial (trial_vip_ate só é gravado uma
+// vez por pedido; a concessão só roda quando o pedido é NOVO e está pago).
+// ═══════════════════════════════════════════════════════════════════════════
+
+import crypto from 'crypto';
+import { supabase } from '../utils/supabase';
+import { sendKitAcessoEmail } from '../utils/mailer';
+
+/** Dias de VIP concedidos por quem leva o order bump. */
+export const KIT_BUMP_TRIAL_DIAS = 30;
+
+/** Itens que o comprador pode ter. `kit` = produto principal. */
+export type ItemKit = 'kit' | 'bump_vip' | 'bump_prospeccao';
+
+// ── Identificação do produto ────────────────────────────────────────────────
+// Preferência: IDs de produto da Kiwify via env (exato, à prova de renomeação).
+// Fallback: regex no nome do produto — funciona no dia 1, antes de alguém
+// preencher env var nenhuma. É de propósito: o pior cenário é o webhook chegar
+// e o comprador ficar sem acesso porque faltou configuração.
+const idsDoEnv = (nome: string): string[] =>
+  (process.env[nome] || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const RE_KIT = /kit\s*(de\s*)?fechamento|fechamento\s*(do\s*)?integrador/i;
+const RE_BUMP_VIP = /30\s*dias.*vip|vip.*30\s*dias|solardoc\s*vip|acesso\s*vip/i;
+const RE_BUMP_PROSPECCAO = /prospec/i;
+
+/** Classifica o produto de um evento da Kiwify. null = não é do kit. */
+export function classificarProdutoKit(
+  productName: string | null | undefined,
+  productId: string | null | undefined,
+): ItemKit | null {
+  const id = (productId || '').trim();
+  if (id) {
+    if (idsDoEnv('KIT_KIWIFY_PRODUCT_IDS').includes(id)) return 'kit';
+    if (idsDoEnv('KIT_KIWIFY_BUMP_VIP_IDS').includes(id)) return 'bump_vip';
+    if (idsDoEnv('KIT_KIWIFY_BUMP_PROSPECCAO_IDS').includes(id)) return 'bump_prospeccao';
+  }
+  const nome = (productName || '').trim();
+  if (!nome) return null;
+  if (RE_BUMP_VIP.test(nome)) return 'bump_vip';
+  if (RE_BUMP_PROSPECCAO.test(nome)) return 'bump_prospeccao';
+  if (RE_KIT.test(nome)) return 'kit';
+  return null;
+}
+
+// ── Entrada normalizada (o webhook faz o parse, este service faz a regra) ────
+export type EventoKit = {
+  orderId: string | null;
+  email: string;
+  nome: string | null;
+  telefone: string | null;
+  produto: string;
+  item: ItemKit;
+  /** 'paid' | 'refunded' | 'waiting_payment' | … (já normalizado pelo webhook) */
+  status: string | null;
+  valorCentavos: number | null;
+  utm: {
+    utm_source?: string | null;
+    utm_medium?: string | null;
+    utm_campaign?: string | null;
+    utm_content?: string | null;
+    utm_term?: string | null;
+  };
+  payload: Record<string, unknown>;
+};
+
+export type ResultadoKit = {
+  ok: boolean;
+  acao: 'ignorado' | 'registrado' | 'acesso_liberado' | 'ja_processado';
+  userId?: string;
+  contaCriada?: boolean;
+  trialVip?: boolean;
+  detalhe?: string;
+};
+
+const DASHBOARD_URL = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+
+/**
+ * Processa um evento de compra do kit: grava o pedido, cria/vincula a conta,
+ * concede o trial VIP do bump e dispara o e-mail de acesso.
+ */
+export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> {
+  const email = evt.email.toLowerCase().trim();
+  if (!email) return { ok: false, acao: 'ignorado', detalhe: 'sem email' };
+
+  // Só libera acesso em pedido PAGO. Pix aguardando/abandono é só registro —
+  // a recuperação desses casos é do fluxo de checkout, não daqui.
+  const pago = evt.status === 'paid';
+
+  // 1) Pedido novo? (idempotência por order_id)
+  type PedidoExistente = { id: string; user_id: string | null; trial_vip_ate: string | null; status: string };
+  let pedidoExistente: PedidoExistente | null = null;
+  if (evt.orderId) {
+    const { data } = await supabase
+      .from('kit_pedidos')
+      .select('id, user_id, trial_vip_ate, status')
+      .eq('order_id', evt.orderId)
+      .maybeSingle();
+    pedidoExistente = (data as unknown as PedidoExistente) ?? null;
+  }
+
+  const utmCols = evt.utm.utm_campaign
+    ? {
+        utm_source: evt.utm.utm_source || null,
+        utm_medium: evt.utm.utm_medium || null,
+        utm_campaign: evt.utm.utm_campaign,
+        utm_content: evt.utm.utm_content || null,
+        utm_term: evt.utm.utm_term || null,
+      }
+    : {};
+
+  const linha = {
+    order_id: evt.orderId || `sem-order-${crypto.randomUUID()}`,
+    email,
+    nome: evt.nome,
+    telefone: evt.telefone,
+    produto: evt.produto,
+    itens: [evt.item],
+    bump_vip: evt.item === 'bump_vip',
+    bump_prospeccao: evt.item === 'bump_prospeccao',
+    valor: evt.valorCentavos != null ? evt.valorCentavos / 100 : 0,
+    status: evt.status || 'unknown',
+    payload: evt.payload,
+    atualizado_em: new Date().toISOString(),
+    ...utmCols,
+  };
+
+  const { data: pedido, error: upErr } = await supabase
+    .from('kit_pedidos')
+    .upsert(linha, { onConflict: 'order_id' })
+    .select('id, user_id, trial_vip_ate')
+    .single();
+
+  if (upErr) {
+    console.error('[kit] upsert kit_pedidos falhou:', upErr);
+    return { ok: false, acao: 'ignorado', detalhe: 'falha ao gravar pedido' };
+  }
+
+  if (!pago) {
+    return { ok: true, acao: 'registrado', detalhe: `status ${evt.status}` };
+  }
+
+  // 2) Conta: cria pendente (sem senha) ou vincula a existente.
+  const { userId, contaCriada, resetUrl } = await garantirConta({
+    email,
+    nome: evt.nome,
+    telefone: evt.telefone,
+    utm: evt.utm,
+  });
+
+  if (!userId) {
+    return { ok: false, acao: 'registrado', detalhe: 'não consegui criar/achar a conta' };
+  }
+
+  // 3) Bump do VIP: 30 dias de acesso ilimitado. Só concede uma vez por pedido.
+  let trialVip = false;
+  const jaConcedeuNessePedido = !!pedidoExistente?.trial_vip_ate;
+  if (evt.item === 'bump_vip' && !jaConcedeuNessePedido) {
+    trialVip = await concederTrialVip(userId);
+  }
+
+  await supabase
+    .from('kit_pedidos')
+    .update({
+      user_id: userId,
+      conta_criada: contaCriada,
+      ...(trialVip
+        ? { trial_vip_ate: new Date(Date.now() + KIT_BUMP_TRIAL_DIAS * 86400_000).toISOString() }
+        : {}),
+      atualizado_em: new Date().toISOString(),
+    })
+    .eq('id', pedido.id);
+
+  // 4) E-mail de acesso — só no pedido NOVO do produto principal (bump que chega
+  //    depois, em pedido separado, não dispara um segundo e-mail de boas-vindas).
+  const jaTinhaPedido = !!pedidoExistente;
+  if (!jaTinhaPedido && evt.item === 'kit') {
+    try {
+      await sendKitAcessoEmail({
+        to: email,
+        nome: evt.nome,
+        resetUrl,
+        comVip: trialVip,
+        dias: KIT_BUMP_TRIAL_DIAS,
+      });
+    } catch (err) {
+      console.error('[kit] e-mail de acesso falhou (acesso já está liberado):', err);
+    }
+  }
+
+  return {
+    ok: true,
+    acao: jaTinhaPedido ? 'ja_processado' : 'acesso_liberado',
+    userId,
+    contaCriada,
+    trialVip,
+  };
+}
+
+// ── Conta ───────────────────────────────────────────────────────────────────
+// Espelha o fluxo "100% cadastro" do webhook do Stripe (paymentsController):
+// conta criada com password_hash null + reset_token, e o cliente define a senha
+// pelo link. authController.register detecta password_hash null e ATIVA a conta.
+async function garantirConta(opts: {
+  email: string;
+  nome: string | null;
+  telefone: string | null;
+  utm: EventoKit['utm'];
+}): Promise<{ userId: string | null; contaCriada: boolean; resetUrl: string }> {
+  const { email } = opts;
+
+  const { data: existente } = await supabase
+    .from('users')
+    .select('id, password_hash')
+    .eq('email', email)
+    .maybeSingle();
+
+  // Já tem conta (é assinante, ou comprou o kit antes): não mexe em plano nem
+  // em senha. Só devolve o link de login.
+  if (existente?.id) {
+    return { userId: existente.id, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth` };
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expira = new Date(Date.now() + 7 * 86400_000).toISOString();
+  const telefone = (opts.telefone || '').replace(/\D/g, '') || null;
+
+  const attr: Record<string, string> = {};
+  for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const) {
+    const v = opts.utm[k];
+    if (typeof v === 'string' && v.trim()) attr[k] = v.trim();
+  }
+  if (Object.keys(attr).length) attr.attribution_captured_at = new Date().toISOString();
+
+  const { data: criado, error } = await supabase
+    .from('users')
+    .insert({
+      email,
+      password_hash: null, // conta PENDENTE — ativa quando o cliente definir a senha
+      nome: opts.nome,
+      plano: 'free',
+      limite_documentos: 10,
+      documentos_usados: 0,
+      whatsapp: telefone,
+      billing_status: 'active',
+      reset_token: token,
+      reset_token_expires: expira,
+      // Origem: é isso que faz o funil do kit aparecer separado no /admin.
+      utm_source: attr.utm_source || 'kiwify',
+      utm_medium: attr.utm_medium || 'isca-integrador',
+      ...attr,
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    // 23505 = corrida (o /register criou a conta no meio do caminho). Busca de novo.
+    if ((error as { code?: string }).code === '23505') {
+      const { data: agora } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
+      return { userId: agora?.id ?? null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth` };
+    }
+    console.error('[kit] criação de conta falhou:', error);
+    return { userId: null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth` };
+  }
+
+  return {
+    userId: criado.id,
+    contaCriada: true,
+    resetUrl: `${DASHBOARD_URL}/auth?mode=redefinir&token=${token}`,
+  };
+}
+
+// ── Trial VIP do bump ───────────────────────────────────────────────────────
+// pack_trial_until já é respeitado pelo stripeSyncService (não rebaixa enquanto
+// o carimbo estiver no futuro; limpa sozinho quando vence). Aqui só carimbamos.
+async function concederTrialVip(userId: string): Promise<boolean> {
+  const ate = new Date(Date.now() + KIT_BUMP_TRIAL_DIAS * 86400_000).toISOString();
+
+  const { data: atual } = await supabase
+    .from('users')
+    .select('plano, pack_trial_until')
+    .eq('id', userId)
+    .maybeSingle();
+
+  // Já é assinante pagante: não mexe (não faz sentido "dar" o que ele já paga).
+  if (atual?.plano === 'pro' || atual?.plano === 'ilimitado') return false;
+
+  const { error } = await supabase
+    .from('users')
+    .update({
+      plano: 'ilimitado',
+      limite_documentos: 999999,
+      pack_trial_until: ate,
+    })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('[kit] concessão de trial VIP falhou:', error);
+    return false;
+  }
+  return true;
+}
+
+// ── Leitura para a plataforma ───────────────────────────────────────────────
+export type AcessoKit = {
+  temKit: boolean;
+  itens: ItemKit[];
+  compradoEm: string | null;
+  trialVipAte: string | null;
+};
+
+/** O que este usuário comprou do kit (usado pela aba /materiais). */
+export async function acessoDoUsuario(userId: string, email: string): Promise<AcessoKit> {
+  const { data } = await supabase
+    .from('kit_pedidos')
+    .select('itens, status, criado_em, trial_vip_ate, user_id, email')
+    .or(`user_id.eq.${userId},email.eq.${email.toLowerCase()}`)
+    .eq('status', 'paid')
+    .order('criado_em', { ascending: true });
+
+  const linhas = (data || []) as Array<{ itens: ItemKit[]; criado_em: string; trial_vip_ate: string | null }>;
+  if (!linhas.length) return { temKit: false, itens: [], compradoEm: null, trialVipAte: null };
+
+  const itens = Array.from(new Set(linhas.flatMap((l) => l.itens || []))) as ItemKit[];
+  const trial = linhas.map((l) => l.trial_vip_ate).filter(Boolean).sort().pop() || null;
+
+  return {
+    temKit: itens.includes('kit'),
+    itens,
+    compradoEm: linhas[0].criado_em,
+    trialVipAte: trial,
+  };
+}

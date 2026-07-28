@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- noindex até o checkout da Kiwify estar ligado e o texto aprovado.
+     Trocar por index,follow no lançamento (uma linha, abaixo). -->
+<meta name="robots" content="noindex, nofollow">
+<title>Kit de Fechamento do Integrador — feche mesmo quando o cliente diz que achou mais barato</title>
+<meta name="description" content="20+ respostas prontas para as objeções que travam venda de energia solar, o roteiro da visita até a assinatura e os documentos gerados com a sua marca. R$ 27.">
+<link rel="icon" href="/logo.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0b1120;
+    --surface: #0f172a;
+    --surface2: #172033;
+    --line: rgba(148,163,184,.16);
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --amber: #f59e0b;
+    --amber-soft: rgba(245,158,11,.1);
+    --green: #4ade80;
+  }
+
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+    line-height: 1.65;
+    font-size: 17px;
+    overflow-x: hidden;
+  }
+
+  .wrap { width: 100%; max-width: 860px; margin: 0 auto; padding: 0 22px; }
+
+  section { padding: 60px 0; }
+
+  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; text-wrap: balance; }
+  h1 { font-size: clamp(29px, 6.2vw, 46px); font-weight: 800; }
+  h2 { font-size: clamp(23px, 4.4vw, 32px); font-weight: 800; margin-bottom: 14px; }
+  h3 { font-size: 19px; font-weight: 700; }
+  p { margin-bottom: 14px; }
+  strong { color: #fff; font-weight: 700; }
+  .amber { color: var(--amber); }
+
+  .eyebrow {
+    display: inline-block;
+    font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--amber); background: var(--amber-soft);
+    padding: 7px 14px; border-radius: 999px; margin-bottom: 20px;
+  }
+
+  /* ── Hero ─────────────────────────────────────────── */
+  .hero {
+    padding: 56px 0 52px;
+    background:
+      radial-gradient(900px 420px at 50% -120px, rgba(245,158,11,.15), transparent 70%),
+      var(--bg);
+    text-align: center;
+  }
+  .hero .quote {
+    font-size: clamp(19px, 3.6vw, 24px);
+    font-style: italic;
+    color: var(--muted);
+    margin: 0 auto 18px;
+    max-width: 22ch;
+  }
+  .hero p.sub {
+    color: var(--muted);
+    font-size: clamp(16px, 2.6vw, 18.5px);
+    max-width: 56ch;
+    margin: 22px auto 0;
+  }
+
+  .cta {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--amber); color: #0b1120;
+    font-weight: 800; font-size: 17px;
+    padding: 18px 38px; border-radius: 12px;
+    text-decoration: none;
+    box-shadow: 0 8px 26px -8px rgba(245,158,11,.6);
+    transition: transform .15s ease, box-shadow .15s ease;
+    border: none; cursor: pointer; font-family: inherit;
+    text-align: center;
+  }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 30px -8px rgba(245,158,11,.7); }
+  .cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .ctaWrap { margin-top: 30px; }
+  .ctaNota { display: block; font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+  /* ── Blocos ───────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 26px;
+  }
+  .grid { display: grid; gap: 16px; }
+  .grid2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
+  .falas { display: grid; gap: 12px; margin-top: 24px; }
+  .fala {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid #f87171;
+    border-radius: 0 12px 12px 0; padding: 16px 20px;
+    font-size: 17px; font-style: italic; color: #e2e8f0;
+  }
+
+  .mod { display: flex; gap: 16px; align-items: flex-start; }
+  .modNum {
+    flex: none; width: 34px; height: 34px; border-radius: 10px;
+    background: var(--amber-soft); color: var(--amber);
+    display: grid; place-items: center; font-weight: 800; font-size: 15px;
+  }
+  .modTxt p { color: var(--muted); font-size: 15.5px; margin: 4px 0 0; }
+
+  ul.check { list-style: none; display: grid; gap: 10px; margin-top: 6px; }
+  ul.check li { position: relative; padding-left: 30px; color: #cbd5e1; font-size: 15.5px; }
+  ul.check li::before {
+    content: '✓'; position: absolute; left: 0; top: -1px;
+    color: var(--green); font-weight: 800; font-size: 17px;
+  }
+
+  .destaque {
+    background: linear-gradient(180deg, rgba(245,158,11,.09), rgba(245,158,11,.03));
+    border: 1px solid rgba(245,158,11,.3);
+    border-radius: 18px; padding: 30px 28px;
+  }
+
+  /* ── Preço ────────────────────────────────────────── */
+  .preco { text-align: center; }
+  .precoValor {
+    font-size: clamp(48px, 11vw, 70px); font-weight: 900; color: var(--amber);
+    line-height: 1; letter-spacing: -0.03em; margin: 6px 0 4px;
+  }
+  .precoValor small { font-size: .38em; font-weight: 700; letter-spacing: 0; }
+  .precoNota { color: var(--muted); font-size: 15px; max-width: 46ch; margin: 0 auto; }
+
+  .garantia {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: var(--surface2); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px 22px; margin-top: 26px; text-align: left;
+  }
+  .garantia .selo { font-size: 26px; line-height: 1; flex: none; }
+  .garantia p { margin: 0; font-size: 14.5px; color: var(--muted); }
+
+  /* ── FAQ ──────────────────────────────────────────── */
+  details {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px 22px; margin-bottom: 12px;
+  }
+  details summary {
+    cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none;
+    display: flex; justify-content: space-between; gap: 16px; align-items: center;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after { content: '+'; color: var(--amber); font-size: 22px; font-weight: 400; flex: none; }
+  details[open] summary::after { content: '−'; }
+  details p { color: var(--muted); font-size: 15.5px; margin: 12px 0 0; }
+
+  footer { padding: 40px 0 60px; text-align: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  footer a { color: var(--muted); }
+
+  .barra {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: rgba(11,17,32,.94); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    padding: 12px 16px; display: none;
+  }
+  .barra .cta { width: 100%; justify-content: center; padding: 15px 20px; font-size: 16px; }
+  @media (max-width: 720px) {
+    section { padding: 46px 0; }
+    .barra { display: block; }
+    body { padding-bottom: 78px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Para integrador e vendedor de energia solar</span>
+    <p class="quote">&ldquo;Achei mais barato com outra empresa.&rdquo;</p>
+    <h1>Você tem <span class="amber">15 segundos</span> para responder isso — e a resposta decide a venda</h1>
+    <p class="sub">
+      O Kit de Fechamento tem a fala pronta para essa e para outras 25 objeções que travam venda de
+      energia solar. Sem teoria: é o que dizer, na ordem, quando o cliente empaca.
+    </p>
+    <div class="ctaWrap">
+      <a href="#comprar" class="cta" data-cta="hero">Quero o kit por R$ 27 →</a>
+      <span class="ctaNota">Acesso imediato · 7 dias de garantia</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Três frases que fazem você perder venda toda semana</h2>
+    <p style="color:var(--muted)">
+      Não é falta de técnica no telhado. É o que acontece nos cinco minutos depois de entregar a proposta:
+    </p>
+    <div class="falas">
+      <div class="fala">&ldquo;Vou pensar e te retorno.&rdquo;</div>
+      <div class="fala">&ldquo;Manda no WhatsApp que depois eu vejo.&rdquo;</div>
+      <div class="fala">&ldquo;Meu vizinho pagou bem menos num sistema parecido.&rdquo;</div>
+    </div>
+    <p style="margin-top:22px;color:var(--muted)">
+      Quem não tem resposta pronta faz uma de duas coisas: <strong>dá desconto</strong> — e queima a margem
+      da obra inteira — ou <strong>fica no aguardo</strong>, que é como a proposta morre em silêncio.
+    </p>
+  </div>
+</section>
+
+<section style="background:var(--surface)">
+  <div class="wrap">
+    <h2>O que você recebe</h2>
+    <div class="grid grid2" style="margin-top:26px">
+
+      <div class="card mod">
+        <span class="modNum">1</span>
+        <div class="modTxt">
+          <h3>26 respostas de objeção</h3>
+          <p>Preço, concorrência, medo, enrolação e hora de assinar. Cada uma com o que o cliente
+             realmente quis dizer, o erro que quase todo mundo comete e a fala pronta — mais a
+             versão curta para mandar no WhatsApp.</p>
+        </div>
+      </div>
+
+      <div class="card mod">
+        <span class="modNum">2</span>
+        <div class="modTxt">
+          <h3>Roteiro da visita até a assinatura</h3>
+          <p>As 6 etapas, da qualificação por telefone ao pós-assinatura. O que fazer em cada uma,
+             o que falar e a armadilha que mata a venda naquele ponto específico.</p>
+        </div>
+      </div>
+
+      <div class="card mod">
+        <span class="modNum">3</span>
+        <div class="modTxt">
+          <h3>Estrutura de custo e margem</h3>
+          <p>Para onde vai cada real do orçamento, as faixas de referência de cada linha, as quatro
+             regras que protegem a margem e o checklist de 10 itens antes de mandar a proposta.</p>
+        </div>
+      </div>
+
+      <div class="card mod">
+        <span class="modNum">4</span>
+        <div class="modTxt">
+          <h3>Contrato, procuração e vistoria</h3>
+          <p>Não são modelos em branco: você gera cada documento já com o CNPJ, o endereço e a logo
+             da sua empresa, prontos para o cliente assinar.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="destaque">
+      <span class="eyebrow" style="margin-bottom:14px">A diferença que importa</span>
+      <h2 style="margin-bottom:12px">Não é um PDF que some no seu e-mail</h2>
+      <p style="color:#cbd5e1">
+        O material fica dentro do <strong>SolarDoc</strong> — a plataforma de documentos que integradores
+        de todo o país já usam. Você entra com seu login e lê na mesma tela em que gera contrato,
+        procuração, proposta e recibo.
+      </p>
+      <ul class="check">
+        <li>Acesso pelo celular ou pelo computador, quando precisar, na hora da visita</li>
+        <li>Os documentos saem com a marca da sua empresa, não com a nossa</li>
+        <li>Marca o que já leu e continua de onde parou</li>
+        <li>O kit fica seu — não some quando fecha a aba</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="comprar" style="background:var(--surface)">
+  <div class="wrap preco">
+    <span class="eyebrow">Acesso imediato</span>
+    <h2>Um kit de fechamento custa menos que uma visita perdida</h2>
+    <div class="precoValor">R$ 27<small> à vista</small></div>
+    <p class="precoNota">
+      Pagamento único no Pix ou cartão. Você recebe o acesso por e-mail em minutos.
+    </p>
+    <div class="ctaWrap">
+      <a href="#" class="cta" id="btn-comprar" data-cta="oferta">Quero o kit por R$ 27 →</a>
+      <span class="ctaNota">Compra segura · Pix ou cartão</span>
+    </div>
+
+    <div class="garantia">
+      <span class="selo">🛡️</span>
+      <p>
+        <strong>7 dias de garantia.</strong> Leu, aplicou e achou que não serve para o seu dia a dia?
+        Escreve para a gente dentro de 7 dias e devolvemos o valor integral. Sem formulário, sem justificativa.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Perguntas que todo mundo faz</h2>
+
+    <details>
+      <summary>Serve para quem está começando agora?</summary>
+      <p>Serve, e é onde ajuda mais. As objeções são as mesmas para quem vende há dez anos e para quem
+         vendeu ontem — a diferença é que o veterano já apanhou o suficiente para ter as respostas. O kit
+         encurta esse caminho.</p>
+    </details>
+
+    <details>
+      <summary>Como recebo o acesso?</summary>
+      <p>Assim que o pagamento é aprovado, você recebe um e-mail com o link para definir sua senha. O
+         material fica na sua conta do SolarDoc, na aba <strong>Meus Materiais</strong>. Se o e-mail não
+         chegar em 10 minutos, olhe o spam ou chame a gente no WhatsApp (34) 99816-5040.</p>
+    </details>
+
+    <details>
+      <summary>Preciso pagar mensalidade depois?</summary>
+      <p>Não. O kit é pagamento único e o acesso ao material é seu. A plataforma tem planos pagos para
+         quem quer gerar documentos sem limite, mas isso é opcional — dá para usar o material sem
+         assinar nada.</p>
+    </details>
+
+    <details>
+      <summary>Meu cliente sempre acha um mais barato. Vai funcionar mesmo assim?</summary>
+      <p>O kit não faz o cliente parar de pesquisar preço — isso não existe. O que ele faz é te dar a
+         resposta que muda a conversa de "quanto custa" para "o que está incluído", que é a única
+         comparação em que você tem chance de ganhar sem dar desconto.</p>
+    </details>
+
+    <details>
+      <summary>É um curso em vídeo? Vou ter que assistir horas de aula?</summary>
+      <p>Não. É material de consulta, escrito para ser lido em pedaços e usado na hora. Você abre no
+         celular antes de entrar na casa do cliente, lê a resposta da objeção que ele acabou de te dar
+         e volta para a conversa.</p>
+    </details>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap" style="text-align:center">
+    <h2>A próxima objeção você já sabe responder</h2>
+    <p style="color:var(--muted);max-width:50ch;margin:0 auto 26px">
+      R$ 27, uma vez. Se não te servir em 7 dias, você pede o dinheiro de volta.
+    </p>
+    <a href="#" class="cta" data-cta="final" data-checkout>Quero o kit por R$ 27 →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p style="margin-bottom:6px"><strong style="color:var(--text)">SolarDoc Pro</strong> — documentos e ferramentas para integradores solares</p>
+    <p style="margin:0">Dúvidas: <a href="https://wa.me/5534998165040">WhatsApp (34) 99816-5040</a></p>
+  </div>
+</footer>
+
+<div class="barra">
+  <a href="#comprar" class="cta" data-cta="barra">Quero o kit por R$ 27 →</a>
+</div>
+
+<!-- ═══ Meta Pixel (SolarDoc B2B — o mesmo que mede a assinatura, para o público
+     do kit alimentar o lookalike de quem assina) ═══ -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '542698941724217');
+fbq('track', 'PageView');
+fbq('trackCustom', 'LPkit_view');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1"/></noscript>
+
+<!-- ═══ Checkout + UTMs ═══
+     TROQUE A LINHA ABAIXO pelo link do produto na Kiwify quando ele existir.
+     Enquanto estiver com o valor placeholder, os botões caem no WhatsApp — a
+     página vende do mesmo jeito, só que atendida à mão. -->
+<script>
+(() => {
+  const CHECKOUT_URL = 'CONFIGURAR_KIWIFY';         // ex.: https://pay.kiwify.com.br/xxxxxxx
+  const WHATS = 'https://wa.me/5534998165040?text=' +
+    encodeURIComponent('Quero o Kit de Fechamento do Integrador (R$ 27)');
+
+  // UTMs: captura da URL, persiste (o cara pode voltar direto depois) e cola no
+  // checkout — inclusive no sck, que é como a Kiwify devolve a atribuição.
+  const KEY = 'kit_utms';
+  const CAMPOS = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','utm_id','fbclid'];
+  const params = new URLSearchParams(location.search);
+  let utms = {};
+  try { utms = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { utms = {}; }
+  let novo = false;
+  CAMPOS.forEach(k => { const v = params.get(k); if (v) { utms[k] = v; novo = true; } });
+  if (novo) { try { localStorage.setItem(KEY, JSON.stringify(utms)); } catch (_) {} }
+
+  function linkCheckout() {
+    if (!CHECKOUT_URL || CHECKOUT_URL === 'CONFIGURAR_KIWIFY') return WHATS;
+    const u = new URL(CHECKOUT_URL);
+    CAMPOS.forEach(k => { if (utms[k]) u.searchParams.set(k, utms[k]); });
+    const sck = [utms.utm_source, utms.utm_campaign, utms.utm_medium, utms.utm_content, utms.utm_term]
+      .map(v => v || '').join('|');
+    if (sck.replace(/\|/g, '')) u.searchParams.set('sck', sck);
+    return u.toString();
+  }
+
+  const destino = linkCheckout();
+  document.querySelectorAll('.cta').forEach(a => {
+    const alvo = a.getAttribute('href');
+    // Os botões que rolam pra oferta continuam rolando; o de compra vai pro checkout.
+    if (alvo === '#comprar') return;
+    a.setAttribute('href', destino);
+    if (destino !== WHATS) { a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener'); }
+  });
+
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('.cta');
+    if (!a) return;
+    const onde = a.dataset.cta || 'cta';
+    try { fbq('track', 'InitiateCheckout', { content_name: 'Kit Fechamento Integrador', value: 27, currency: 'BRL' }); } catch (_) {}
+    try { evtLP('cta_click', { label: onde }); } catch (_) {}
+  }, true);
+})();
+</script>
+
+<!-- ═══ Tracking page_visits (mesmo beacon das outras LPs → aba LP no /admin) ═══ -->
+<script>
+(() => {
+  const KEY = 'kit_sd_session', SENT = 'kit_sd_visit_sent';
+  function uuid() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3)|0x8; return v.toString(16); });
+  }
+  let sid = '';
+  try { sid = sessionStorage.getItem(KEY) || ''; if (!sid) { sid = uuid(); sessionStorage.setItem(KEY, sid); } } catch (_) { sid = uuid(); }
+  const url = (typeof window !== 'undefined' && window.location.hostname !== 'localhost') ? '/_api' : 'http://localhost:3001';
+  const params = new URLSearchParams(location.search); const utms = {};
+  ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(k => { const v = params.get(k); if (v) utms[k] = v; });
+  function send(path, body) { try { fetch(url + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), keepalive: true }).catch(()=>{}); } catch (_) {} }
+  try { if (!sessionStorage.getItem(SENT)) { send('/_t/v', { session_id: sid, landing_url: location.href, referrer: document.referrer || null, ...utms }); sessionStorage.setItem(SENT, '1'); } } catch (_) {}
+  window.evtLP = function (type, data) { send('/_t/e', { session_id: sid, event_type: type, event_data: data || null }); };
+  let max = 0;
+  window.addEventListener('scroll', () => { const h = document.documentElement, docH = h.scrollHeight - window.innerHeight; if (docH <= 0) return; const pct = Math.round(((window.scrollY || h.scrollTop) / docH) * 100); [25,50,75,100].forEach(m => { if (pct >= m && max < m) { max = m; window.evtLP('scroll', { depth: m }); } }); }, { passive: true });
+  const start = Date.now();
+  window.addEventListener('beforeunload', () => { const s = Math.round((Date.now()-start)/1000); if (s < 3) return; try { navigator.sendBeacon(url + '/_t/e', new Blob([JSON.stringify({ session_id: sid, event_type: 'time_on_page', event_data: { seconds: s } })], { type: 'application/json' })); } catch (_) {} });
+})();
+</script>
+
+</body>
+</html>

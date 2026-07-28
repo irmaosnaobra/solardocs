@@ -1,0 +1,623 @@
+/* Kit de Fechamento — área de leitura dentro da plataforma.
+   Segue o padrão das telas irmãs: .page sem largura própria, o recuo lateral
+   vem do .content do shell. */
+
+.page {
+  max-width: 100%;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  max-width: 70ch;
+  line-height: 1.6;
+}
+
+/* ── Progresso ───────────────────────────────────────────── */
+.progressoWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.progressoBar {
+  flex: 1;
+  max-width: 320px;
+  height: 6px;
+  background: var(--color-surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressoFill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.progressoLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Grid de módulos ─────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  padding: 22px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+}
+
+.card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.cardIcon {
+  color: var(--color-primary);
+}
+
+.selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.cardTitulo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.3;
+  margin: 4px 0 0;
+}
+
+.cardResumo {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.cardMeta {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* ── Estado bloqueado (free sem kit) ─────────────────────── */
+.locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 56px 32px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  max-width: 560px;
+}
+
+.lockedIcon {
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+}
+
+.lockedTitle {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 10px;
+}
+
+.lockedText {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  margin-bottom: 24px;
+  max-width: 52ch;
+}
+
+.lockedCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-primary);
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 13px 26px;
+  border-radius: 10px;
+  text-decoration: none;
+}
+
+.lockedNota {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 16px;
+}
+
+/* ── Leitura do módulo ───────────────────────────────────── */
+.voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 0 16px;
+  font-family: inherit;
+}
+
+.voltar:hover {
+  color: var(--color-primary);
+}
+
+.conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: 860px;
+}
+
+.secao {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.secaoTitulo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.secaoDesc {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  max-width: 72ch;
+}
+
+.texto {
+  font-size: 14px;
+  color: var(--color-text);
+  line-height: 1.7;
+  opacity: 0.92;
+}
+
+.nota {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+}
+
+.linkInline {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.linkInline:hover {
+  text-decoration: underline;
+}
+
+/* ── Objeção ─────────────────────────────────────────────── */
+.objecao {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+
+.gatilho {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.linha {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rotulo,
+.rotuloErro,
+.rotuloScript,
+.rotuloZap {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.rotulo {
+  color: var(--color-text-muted);
+}
+
+.rotuloErro {
+  color: #f87171;
+}
+
+.rotuloScript {
+  color: var(--color-primary);
+}
+
+.rotuloZap {
+  color: #4ade80;
+}
+
+.script {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 16px 18px;
+  background: rgba(245, 158, 11, 0.07);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 10px 10px 0;
+}
+
+.scriptTexto {
+  font-size: 14.5px;
+  color: var(--color-text);
+  line-height: 1.75;
+}
+
+.zap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  background: rgba(74, 222, 128, 0.06);
+  border-left: 3px solid #4ade80;
+  border-radius: 0 10px 10px 0;
+}
+
+.zapTexto {
+  font-size: 14px;
+  color: var(--color-text);
+  line-height: 1.65;
+  opacity: 0.95;
+}
+
+/* ── Roteiro ─────────────────────────────────────────────── */
+.passo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+
+.passoHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.passoNum {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-primary);
+  opacity: 0.45;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  padding-top: 4px;
+}
+
+.passoFase {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+.passoTitulo {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.35;
+}
+
+.lista,
+.listaNum,
+.checklist {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 14px;
+  color: var(--color-text);
+  line-height: 1.65;
+  opacity: 0.92;
+}
+
+.checklist {
+  list-style: none;
+  padding-left: 0;
+}
+
+.checklist li {
+  position: relative;
+  padding-left: 26px;
+}
+
+.checklist li::before {
+  content: '☐';
+  position: absolute;
+  left: 0;
+  color: var(--color-primary);
+  font-size: 15px;
+}
+
+/* ── Precificação ────────────────────────────────────────── */
+.tabelaWrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.tabela th,
+.tabela td {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  line-height: 1.6;
+  vertical-align: top;
+}
+
+.tabela th {
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tabela tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tdItem {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.atencao {
+  display: block;
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.regra {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 18px 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.regraTitulo {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* ── Documentos ──────────────────────────────────────────── */
+.docCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: border-color 0.2s ease;
+}
+
+.docCard:hover {
+  border-color: var(--color-primary);
+}
+
+.docTitulo {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 3px;
+}
+
+.docCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── Rodapé do módulo ────────────────────────────────────── */
+.rodapeModulo {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.btnMarcar,
+.btnFeito {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s ease;
+}
+
+.btnMarcar {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.btnMarcar:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btnFeito {
+  background: rgba(34, 197, 94, 0.14);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+}
+
+/* ── Convite pro VIP ─────────────────────────────────────── */
+.convite {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-top: 28px;
+  padding: 22px 24px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 14px;
+  max-width: 860px;
+}
+
+.conviteIcon {
+  color: var(--color-primary);
+  flex: none;
+  margin-top: 2px;
+}
+
+.conviteTitulo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 6px;
+  line-height: 1.35;
+}
+
+.conviteTexto {
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  margin-bottom: 14px;
+  max-width: 64ch;
+}
+
+.conviteCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-primary);
+  color: #0f172a;
+  border: none;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 11px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .docCard {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

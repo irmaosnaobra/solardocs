@@ -628,6 +628,75 @@ export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId:
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
 
+// Entrega do KIT DE FECHAMENTO DO INTEGRADOR (isca R$27 comprada na Kiwify).
+// Transacional puro: é a entrega do produto. O CTA é definir a senha — sem isso
+// o comprador não acessa o material, então ele é o único protagonista do email.
+// O que a plataforma tem ALÉM do kit aparece de propósito no rodapé: é o motivo
+// de ele voltar amanhã (e, no fim, de assinar).
+export async function sendKitAcessoEmail(opts: {
+  to: string;
+  nome?: string | null;
+  resetUrl: string;
+  comVip?: boolean;
+  dias?: number;
+}): Promise<void> {
+  const primeiro = (opts.nome || '').trim().split(/\s+/)[0];
+  const ola = primeiro ? `${primeiro}, ` : '';
+  const dias = opts.dias ?? 30;
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:32px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Kit de Fechamento</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:26px;font-weight:900;line-height:1.2;letter-spacing:-0.5px;">
+      Compra confirmada — seu acesso está aqui ✅
+    </h1>
+  </div>
+  <div style="padding:32px 36px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">
+      ${ola}seu material está liberado dentro da plataforma do SolarDoc. Falta só <strong style="color:#fbbf24;">definir sua senha</strong> — leva 10 segundos:
+    </p>
+    <div style="text-align:center;margin:28px 0 8px;">
+      <a href="${opts.resetUrl}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:18px 40px;border-radius:12px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(245,158,11,0.4);">
+        Definir senha e acessar o kit →
+      </a>
+    </div>
+    ${
+      opts.comVip
+        ? `<p style="color:#fbbf24;font-size:15px;line-height:1.7;margin:24px 0 0;text-align:center;">
+             🎁 Você levou o acesso VIP: <strong>${dias} dias de documentos ilimitados</strong> já estão ativos na sua conta.
+           </p>`
+        : ''
+    }
+  </div>
+
+  <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;"></div></div>
+
+  <div style="padding:26px 36px 6px;">
+    <p style="margin:0 0 4px;color:#fbbf24;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">O que tem lá dentro</p>
+    <p style="margin:0;color:#cbd5e1;font-size:14px;line-height:1.8;">
+      📘 20 respostas de objeção — começando por "achei mais barato"<br/>
+      🗺️ Roteiro da visita técnica até a assinatura<br/>
+      💰 Estrutura de custo e margem, com checklist de orçamento<br/>
+      📄 Contrato, procuração e termo de vistoria prontos pra gerar no seu nome
+    </p>
+  </div>
+
+  <div style="padding:18px 36px 28px;text-align:center;">
+    <p style="margin:0;color:#64748b;font-size:12px;line-height:1.6;">
+      Dúvidas? Chama a gente no WhatsApp (34) 99816-5040.
+    </p>
+  </div>
+</div>`;
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: opts.to,
+    replyTo: REPLY_TO,
+    subject: '✅ Kit de Fechamento liberado — defina sua senha e acesse',
+    html,
+  });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}
+
 // Recuperação de CHECKOUT ABANDONADO (público): a pessoa começou a assinatura mas
 // não concluiu (fechou a aba / cartão recusado e desistiu). Transacional-ish, tom
 // gentil + CTA pra retomar. Suporte direto no WhatsApp. Não joga erro (best-effort).

@@ -73,6 +73,10 @@ const topoItems: NavItem[] = [
   { href: '/precificacao',             icon: Calculator,  label: 'Precificação' },
   // Inventário: ferramenta grátis (isca de retenção) — controle de patrimônio/estoque.
   { href: '/inventario',               icon: Boxes,       label: 'Inventário' },
+  // Meus Materiais: Kit de Fechamento (isca de R$27) + conteúdo incluso pra quem
+  // assina. Fica visível pra todos de propósito — o free que não comprou vê a
+  // oferta, o comprador vê o material, o assinante vê como bônus do plano.
+  { href: '/materiais',                icon: GraduationCap, label: 'Meus Materiais' },
 ];
 
 // Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.

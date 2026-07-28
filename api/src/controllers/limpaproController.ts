@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
 import { agendarRecuperacaoRealtime } from '../services/agents/whatsapp/limpaproRecoveryService';
+import { classificarProdutoKit, processarEventoKit } from '../services/kitIntegradorService';
 
 // ── Funil do produto LimpaPro (curso de limpeza de placas, vendido na Kiwify) ──
 // Totalmente isolado do funil SolarDoc: grava em limpapro_events, nunca em page_visits.
@@ -156,6 +157,45 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
       utm_term:     tp.utm_term     || null,
       utm_content:  limpaContent(tp.utm_content),
     } : {};
+
+    // ── DESVIO: Kit de Fechamento do Integrador (isca R$27 → plataforma) ──
+    // Mesmo webhook, produto diferente. Se o pedido é do universo do kit, quem
+    // trata é o kitIntegradorService (cria conta no SolarDoc, libera material,
+    // concede o VIP do bump) e o evento NÃO entra em limpapro_events — senão
+    // poluiria o funil do LimpaPro, que é outro negócio.
+    const emailComprador = (buyer.email || evt.email || '').toLowerCase() || '';
+    const nomeProduto = product.product_name || product.name || evt.product_name || null;
+    const idProduto = (product as { product_id?: string }).product_id || null;
+    const itemKit = classificarProdutoKit(nomeProduto, idProduto);
+    if (itemKit && emailComprador) {
+      try {
+        const r = await processarEventoKit({
+          orderId,
+          email: emailComprador,
+          nome: buyer.full_name || buyer.name || null,
+          telefone: (buyer as { mobile?: string; phone?: string }).mobile
+            || (buyer as { mobile?: string; phone?: string }).phone
+            || null,
+          produto: nomeProduto || 'Kit de Fechamento',
+          item: itemKit,
+          status,
+          valorCentavos: amountCents,
+          utm: {
+            utm_source:   tp.utm_source   || null,
+            utm_medium:   tp.utm_medium   || null,
+            utm_campaign: tp.utm_campaign || null,
+            utm_content:  limpaContent(tp.utm_content),
+            utm_term:     tp.utm_term     || null,
+          },
+          payload: evt as unknown as Record<string, unknown>,
+        });
+        console.info(`[kiwify:kit] ${itemKit} · ${emailComprador} · ${r.acao}`);
+      } catch (e) {
+        console.error('[kiwify:kit] processamento falhou (payload auditado):', e);
+      }
+      res.status(200).json({ ok: true, kit: true });
+      return;
+    }
 
     const row = {
       event_type:   'purchase',
