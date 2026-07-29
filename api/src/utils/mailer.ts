@@ -1123,7 +1123,12 @@ export async function sendCampanhaCursoVipEmail(
 ): Promise<void> {
   const t = CAMPANHA_CURSO[Math.min(Math.max(toque, 1), CAMPANHA_CURSO.length) - 1];
   const primeiro = (nome || '').trim().split(/\s+/)[0];
-  const ola = primeiro ? `${primeiro}, ` : '';
+  // Saudação em linha PRÓPRIA. Colada no corpo saía "Thiago, O Kit de
+  // Fechamento…" — maiúscula depois de vírgula, que é como e-mail automático se
+  // denuncia. Em linha separada funciona com ou sem nome.
+  const ola = primeiro
+    ? `<p style="color:#e2e8f0;font-size:15.5px;line-height:1.75;margin:0 0 14px;">${primeiro},</p>`
+    : '';
   // Quem é PRO já paga: o argumento dele é o teto de 90 documentos, não o preço.
   const linhaPlano = plano === 'pro'
     ? '<p style="color:#94a3b8;font-size:14px;line-height:1.7;margin:18px 0 0;">Você está no PRO: são 90 documentos por mês. No VIP o teto some — e o curso vem junto.</p>'
@@ -1136,7 +1141,8 @@ export async function sendCampanhaCursoVipEmail(
     <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.25;letter-spacing:-0.5px;">${t.titulo}</h1>
   </div>
   <div style="padding:30px 34px;">
-    <p style="color:#e2e8f0;font-size:15.5px;line-height:1.75;margin:0;">${ola}${t.corpo}</p>
+    ${ola}
+    <p style="color:#e2e8f0;font-size:15.5px;line-height:1.75;margin:0;">${t.corpo}</p>
     ${linhaPlano}
     <div style="text-align:center;margin:28px 0 6px;">
       <a href="${APP_URL}/oferta/vip-curso" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:15.5px;padding:17px 34px;border-radius:11px;text-decoration:none;">
