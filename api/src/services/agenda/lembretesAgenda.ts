@@ -24,6 +24,20 @@ type Agendamento = {
 
 type Consultor = { nome: string; whatsapp: string | null };
 
+// [AVISOS-AGENDA-OFF 28/07] Thiago: "nenhum lead precisa de avisos — pode cessar
+// todos". Cortado na porta de saída, não em cada mensagem: enquanto for false o
+// cron nem lê a agenda e NADA sai pro cliente (confirmação + figurinha + 1h +
+// 5min). O ping do vendedor já estava off desde 25/07, então o módulo inteiro
+// fica mudo. Religar = pôr true.
+//
+// ATENÇÃO a quem religar: as 3 mensagens são escritas em cima de ENERGIA SOLAR,
+// mas esta MESMA agenda atende ELETROPOSTO (created_by lp_eletroposto /
+// manychat_eletroposto / ep-*). Foi isso que fez o lead #584 responder "não
+// solicitei nenhum serviço de energia solar" (28/07) — e o lead de eletroposto
+// ainda por cima nunca recebeu a confirmação, porque ela é travada em
+// created_by='lead-meta'. Religar sem separar a copy por produto repete o erro.
+const AVISOS_CLIENTE_ATIVOS = false;
+
 const ZAPI_INSTANCE = 'io' as const;
 
 const BRT_TZ = 'America/Sao_Paulo';
@@ -179,6 +193,9 @@ export async function processarLembretesAgenda(): Promise<{
   enviados_5min: number;
   erros: number;
 }> {
+  // Kill-switch (ver AVISOS_CLIENTE_ATIVOS). Sai antes de qualquer leitura/envio.
+  if (!AVISOS_CLIENTE_ATIVOS) return { confirmacoes: 0, enviados_1h: 0, enviados_5min: 0, erros: 0 };
+
   const now = new Date();
   const nowMs = now.getTime();
 

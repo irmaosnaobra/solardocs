@@ -246,7 +246,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       cleanupMessageDedup(),
       // enviarRelatorioDiario(),       // [LUMA-IO-OFF] relatório diário IO
       retryCardsPendentes(),
-      processarLembretesAgenda(),      // lembretes 5min/3h da agenda /gerador
+      processarLembretesAgenda(),      // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
       runLimpaproRecoveryConsumer(),   // recuperação LimpaPro (Bia): drena marcadores prontos
       pollBiaRecuperacao(),            // inbound da Bia (poll IO; webhook IO não entrega texto)
       runGeradorSequenciasConsumer(),  // Central de Automação: drip de sequências (gated por kill-switch)
@@ -646,7 +646,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],
-    ['lembretes-agenda',            () => processarLembretesAgenda()], // backstop diário: garante confirmações que escaparam do gatilho de 15min
+    ['lembretes-agenda',            () => processarLembretesAgenda()], // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
     ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)
     ['meta-purchase-redrive',       () => reDrivePendingPurchases()], // reenvia Purchase que não confirmou entrega (garante Meta = card-pass)
