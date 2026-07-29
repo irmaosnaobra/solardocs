@@ -151,19 +151,39 @@ export async function register(req: Request, res: Response): Promise<void> {
     // um criaria conta free sem CNPJ só mandando fromCheckout=true.
     const corpo = req.body as Record<string, unknown>;
     const emailCru = String(corpo?.email || '').toLowerCase().trim();
+    // 'kit' NÃO libera nada — só diz de qual página a pessoa veio, pra escolher a
+    // mensagem de erro certa. Quem decide é o pedido no banco, logo abaixo.
+    const veioDoKit = String(corpo?.origem || '') === 'kit';
     let compradorKit = false;
     if (emailCru && !corpo?.session) {
       // Termina em .limit(1) e olha o array: maybeSingle() estouraria quando o
       // comprador tem dois pedidos pagos (o kit e o bump são pedidos separados).
       const { data: pedidosKit } = await supabase
         .from('kit_pedidos')
-        .select('id')
+        .select('id, status')
         .eq('email', emailCru)
-        .eq('status', 'paid')
-        .limit(1);
-      if (Array.isArray(pedidosKit) && pedidosKit.length > 0) {
+        .order('criado_em', { ascending: false })
+        .limit(5);
+      const pedidos = Array.isArray(pedidosKit) ? pedidosKit : [];
+      if (pedidos.some((p) => p.status === 'paid')) {
         compradorKit = true;
         corpo.fromCheckout = true;
+      } else if (veioDoKit) {
+        // Veio da página de obrigado num formulário que nem pediu CNPJ/WhatsApp:
+        // deixar o Zod responder "WhatsApp deve ter DDD" seria mentir sobre um
+        // campo que não existe na tela. Duas situações reais chegam aqui:
+        //
+        // 1. Pix/boleto — a Kiwify manda 'waiting_payment' e só depois 'paid'.
+        //    Quem paga no Pix clica no botão antes da confirmação cair.
+        // 2. E-mail diferente do usado na compra (ou webhook ainda não chegou).
+        const pendente = pedidos.some((p) => p.status === 'waiting_payment');
+        res.status(402).json({
+          error: pendente ? 'COMPRA_PENDENTE' : 'COMPRA_NAO_ENCONTRADA',
+          mensagem: pendente
+            ? 'Seu pagamento ainda está sendo confirmado (Pix e boleto levam alguns minutos). Assim que cair, o acesso é liberado e o link chega no seu e-mail — ou volte aqui e tente de novo.'
+            : 'Não encontramos uma compra com esse e-mail. Use o mesmo e-mail que você digitou na Kiwify. Se foi esse mesmo, chame no WhatsApp (34) 99816-5040 que a gente libera na hora.',
+        });
+        return;
       }
     }
 

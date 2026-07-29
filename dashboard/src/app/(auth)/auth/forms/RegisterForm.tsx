@@ -213,6 +213,13 @@ function RegisterContent() {
       // sugere cadastrar empresa sem obrigar). NÃO manda pra /empresa: re-muraria com
       // o CNPJ que acabamos de tirar do form. Gatilho é isPaidCheckout (sessionId),
       // não planFromStripe — assim funciona mesmo se o checkout-info tiver falhado.
+      // Comprou o kit → cai direto na trilha do curso, que é o que ele pagou pra
+      // ver. O gerador fica ao lado no menu (é ele que converte pro VIP).
+      if (refOrigem === 'kit') {
+        router.push('/cursos/kit-fechamento?welcome=1');
+        return;
+      }
+
       if (isPaidCheckout) {
         router.push('/documentos?welcome=1');
         return;
@@ -238,8 +245,16 @@ function RegisterContent() {
       // pode ir direto pro gerador.
       router.push('/documentos?tipo=proposta&welcome=1');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string; planoAtivado?: string } } };
+      const e = err as { response?: { data?: { error?: string; planoAtivado?: string; mensagem?: string } } };
       const code = e.response?.data?.error;
+      // Comprador do kit sem pedido pago achado: Pix ainda confirmando, ou e-mail
+      // diferente do da Kiwify. O backend manda o texto pronto — o formulário
+      // curto não tem campo de CNPJ pra apontar erro nele.
+      if (code === 'COMPRA_PENDENTE' || code === 'COMPRA_NAO_ENCONTRADA') {
+        setError(e.response?.data?.mensagem || 'Não encontramos sua compra com esse e-mail.');
+        setLoading(false);
+        return;
+      }
       // Pós-Stripe com email que já tinha conta: o backend ativou o plano na
       // conta existente. Manda fazer login (não recria, não reseta senha).
       if (code === 'JA_TEM_CONTA_PLANO_ATIVADO') {
@@ -248,7 +263,11 @@ function RegisterContent() {
         return;
       }
       if (code === 'Email já cadastrado') {
-        setError('Esse email já tem conta. Faça login pra continuar.');
+        // Cliente antigo que comprou o kit: a conta dele já tem senha, o kit foi
+        // liberado nela pelo webhook. Não é erro de cadastro — é só entrar.
+        setError(refOrigem === 'kit'
+          ? 'Você já tem conta no SolarDoc com esse e-mail. Entre com a sua senha — o kit já está liberado lá dentro.'
+          : 'Esse email já tem conta. Faça login pra continuar.');
         setLoading(false);
         return;
       }

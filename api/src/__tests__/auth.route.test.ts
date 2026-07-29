@@ -14,6 +14,7 @@ vi.mock('../utils/supabase', () => ({
       // O register consulta kit_pedidos (comprador do kit é pós-pago e não
       // precisa de CNPJ). Sem compra, devolve lista vazia — o fluxo free
       // orgânico segue exigindo CNPJ, que é o que estes testes cobrem.
+      order:  vi.fn().mockReturnThis(),
       limit:  mockLimit,
       insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnThis(), single: mockSingle }),
       // update().eq() precisa resolver numa Promise (o register chama .then()
@@ -95,17 +96,45 @@ describe('POST /auth/register', () => {
   // sem senha. Exigir CNPJ aqui travaria justo o comprador — o backend confirma
   // o pedido pago pelo e-mail (nunca por um campo que o cliente manda).
   it('comprador do kit cadastra sem CNPJ (pedido pago confirmado no servidor)', async () => {
-    mockLimit.mockResolvedValueOnce({ data: [{ id: 'pedido-1' }], error: null }); // kit_pedidos
+    mockLimit.mockResolvedValueOnce({ data: [{ id: 'pedido-1', status: 'paid' }], error: null });
     mockSingle
       .mockResolvedValueOnce({ data: null })                       // users: não existe ainda
       .mockResolvedValueOnce({ data: { id: 'uid-kit' } });         // insert -> select().single()
 
     const res = await request(app)
       .post('/auth/register')
-      .send({ email: 'comprador@kit.com', password: 'senha123' });
+      .send({ email: 'comprador@kit.com', password: 'senha123', origem: 'kit' });
 
     expect(res.status).not.toBe(400);
     expect(res.status).not.toBe(402);
+  });
+
+  // Pix/boleto: a Kiwify manda 'waiting_payment' e só depois 'paid'. Quem paga no
+  // Pix clica em "criar senha" antes da confirmação — e o formulário da página de
+  // obrigado nem tem campo de WhatsApp pra reclamar. Precisa de mensagem própria.
+  it('Pix ainda confirmando → COMPRA_PENDENTE (não erro de WhatsApp)', async () => {
+    mockLimit.mockResolvedValueOnce({ data: [{ id: 'p-1', status: 'waiting_payment' }], error: null });
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ email: 'pix@kit.com', password: 'senha123', origem: 'kit' });
+
+    expect(res.status).toBe(402);
+    expect(res.body.error).toBe('COMPRA_PENDENTE');
+    expect(res.body.mensagem).toMatch(/pix/i);
+  });
+
+  // E-mail diferente do usado na Kiwify (ou webhook que não chegou).
+  it('sem pedido nenhum vindo do kit → COMPRA_NAO_ENCONTRADA', async () => {
+    mockLimit.mockResolvedValueOnce({ data: [], error: null });
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ email: 'outro@kit.com', password: 'senha123', origem: 'kit' });
+
+    expect(res.status).toBe(402);
+    expect(res.body.error).toBe('COMPRA_NAO_ENCONTRADA');
+    expect(res.body.mensagem).toMatch(/mesmo e-mail/i);
   });
 
   it('retorna 400 no free sem CNPJ/WhatsApp', async () => {
