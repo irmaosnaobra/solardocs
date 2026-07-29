@@ -105,8 +105,23 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   const email = evt.email.toLowerCase().trim();
   if (!email) return { ok: false, acao: 'ignorado', detalhe: 'sem email' };
 
-  // Só libera acesso em pedido PAGO. Pix aguardando/abandono é só registro —
-  // a recuperação desses casos é do fluxo de checkout, não daqui.
+  // Abandono de carrinho NÃO é pedido — e gravá-lo custou uma venda fantasma.
+  // A Kiwify manda esse evento com payload ACHATADO onde `id` é a SESSÃO de
+  // checkout, não o pedido: o upsert por order_id não acha a compra e cria linha
+  // nova. Em 29/07 o abandono chegou 57min DEPOIS da venda paga do mesmo
+  // comprador (mesmo checkout_link) e o painel passou a mostrar dois pedidos
+  // para uma venda só. Ninguém lê 'abandoned' daqui — o material olha 'paid', o
+  // Pix pendente olha 'waiting_payment', o /register olha 'paid'/'waiting_payment'
+  // — e o payload cru fica no audit log do webhook, então o certo é não gravar.
+  // (O abandono do LimpaPro é outra coisa: vive em limpapro_events, depois do
+  // desvio do kit. Este return não passa por lá.)
+  if (/abandon/i.test(String(evt.status || ''))) {
+    console.info(`[kit] abandono de carrinho ignorado (não é pedido) · ${email}`);
+    return { ok: true, acao: 'ignorado', detalhe: 'abandono de carrinho' };
+  }
+
+  // Só libera acesso em pedido PAGO. Pix aguardando é só registro — a
+  // recuperação desses casos é do fluxo de checkout, não daqui.
   const pago = evt.status === 'paid';
 
   // 1) Pedido novo? (idempotência por order_id)
@@ -134,6 +149,16 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
       }
     : {};
 
+  // Nunca REBAIXA um pedido que já está pago. A Kiwify pode reentregar o
+  // 'waiting_payment' do Pix depois do 'paid' (entrega fora de ordem) e o upsert
+  // trancaria o material de quem já pagou. Reembolso e chargeback continuam
+  // passando — são estados finais de verdade e precisam revogar o acesso.
+  const statusEntrada = evt.status || 'unknown';
+  const statusGravado =
+    pedidoExistente?.status === 'paid' && !/paid|refund|chargeback/.test(statusEntrada)
+      ? 'paid'
+      : statusEntrada;
+
   const linha = {
     order_id: evt.orderId || `sem-order-${crypto.randomUUID()}`,
     email,
@@ -144,7 +169,7 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
     bump_vip: evt.item === 'bump_vip',
     bump_prospeccao: false, // coluna legada: o bump de prospecção deixou de existir
     valor: evt.valorCentavos != null ? evt.valorCentavos / 100 : 0,
-    status: evt.status || 'unknown',
+    status: statusGravado,
     payload: evt.payload,
     atualizado_em: new Date().toISOString(),
     // Qual checkout/oferta gerou a venda. É o que separa o link da LP do link

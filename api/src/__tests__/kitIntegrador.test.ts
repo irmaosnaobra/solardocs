@@ -211,6 +211,33 @@ describe('processarEventoKit — compra do kit', () => {
     expect(db.users).toHaveLength(1);
   });
 
+  // A venda fantasma de 29/07: a Kiwify manda "carrinho abandonado" com um id de
+  // SESSÃO de checkout (não de pedido), então o upsert por order_id criava uma
+  // segunda linha para o MESMO comprador — e o painel mostrava dois pedidos para
+  // uma venda só. Abandono não é pedido: não grava.
+  it('abandono de carrinho não cria pedido (nem depois de uma venda paga)', async () => {
+    await processarEventoKit(evento());
+    expect(db.kit_pedidos).toHaveLength(1);
+
+    // Chega ~1h depois, com o id da sessão de checkout e status 'abandoned'.
+    const r = await processarEventoKit(evento({ orderId: '1gb0n8kpm689i9q21a', status: 'abandoned', valorCentavos: null }));
+
+    expect(r.acao).toBe('ignorado');
+    expect(db.kit_pedidos).toHaveLength(1);
+    expect(db.kit_pedidos[0].status).toBe('paid');
+    expect(enviados).toHaveLength(1);
+  });
+
+  // Entrega fora de ordem: se o 'waiting_payment' do Pix chegar DEPOIS do 'paid',
+  // rebaixar o status trancaria o material de quem já pagou.
+  it('waiting_payment atrasado não rebaixa um pedido já pago', async () => {
+    await processarEventoKit(evento({ status: 'paid' }));
+    await processarEventoKit(evento({ status: 'waiting_payment' }));
+
+    expect(db.kit_pedidos).toHaveLength(1);
+    expect(db.kit_pedidos[0].status).toBe('paid');
+  });
+
   it('reembolso do bump revoga o trial que estava correndo', async () => {
     await processarEventoKit(evento());
     await processarEventoKit(evento({ orderId: 'ORDER-2', item: 'bump_vip' }));

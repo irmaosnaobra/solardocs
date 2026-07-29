@@ -568,6 +568,21 @@ export async function runCampanhaCursoVip(opts?: { limite?: number; secoDeTeste?
   if (eUsers) throw new Error(`campanha-curso: leitura da audiência falhou — ${eUsers.message}`);
   if (!users || users.length === 0) return { enviados: 0, pulados: 0, elegiveis: 0 };
 
+  // Quem JÁ COMPROU o kit sai fora. O assunto é "o curso que vendemos por R$27 já
+  // é seu no VIP" — para quem pagou os R$27, isso lê como "você não precisava ter
+  // pagado". Aconteceu de verdade: o primeiro comprador real recebeu este e-mail
+  // 2h23 depois de comprar (29/07). Ele não é público errado pro VIP; é público
+  // errado pra ESTA copy — e o convite do VIP dentro do curso já fala com ele,
+  // no contexto certo.
+  const { data: pedidosPagos, error: ePedidos } = await supabase
+    .from('kit_pedidos')
+    .select('email')
+    .eq('status', 'paid');
+  if (ePedidos) throw new Error(`campanha-curso: leitura de kit_pedidos falhou — ${ePedidos.message}`);
+  const compradoresDoKit = new Set(
+    (pedidosPagos ?? []).map((p: { email: string }) => String(p.email || '').toLowerCase().trim()),
+  );
+
   const agora = new Date();
   let enviados = 0, pulados = 0, elegiveis = 0;
 
@@ -576,6 +591,7 @@ export async function runCampanhaCursoVip(opts?: { limite?: number; secoDeTeste?
     if (!u.email) { pulados++; continue; }
     if (u.email_opt_out) { pulados++; continue; }
     if (u.followup_abandoned) { pulados++; continue; }
+    if (compradoresDoKit.has(String(u.email).toLowerCase().trim())) { pulados++; continue; }
     // Trial VIP do bump correndo: ele JÁ tem tudo o que a campanha oferece.
     const trialAtivo = !!u.pack_trial_until && new Date(u.pack_trial_until as string) > agora;
     if (trialAtivo) { pulados++; continue; }
