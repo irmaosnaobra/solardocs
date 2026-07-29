@@ -4,8 +4,8 @@ Isca de R$ 27 para integrador solar: ele compra na Kiwify, **recebe um login** (
 PDF), consome o material **dentro do SolarDoc** e vê o gerador de documentos funcionando
 ao lado todo dia — que é o que converte para o VIP de R$ 67.
 
-Construído e no ar em 28-29/jul/2026. **Falta uma coisa só para vender: apontar o
-webhook no produto da Kiwify** (passo 2 abaixo).
+Construído e no ar em 28-29/jul/2026. **Faltam dois campos no painel da Kiwify: o
+webhook (passo 2) e a página de obrigado (passo 4).** O resto está funcionando.
 
 ---
 
@@ -17,7 +17,8 @@ webhook no produto da Kiwify** (passo 2 abaixo).
 | Compra | `pay.kiwify.com.br/TGvxMl0` — Kit Fechamento - SolarDoc, R$ 27 | ligado na LP |
 | Webhook da venda | `POST api.solardoc.app/webhook/kiwify` | no ar (o mesmo do LimpaPro) |
 | Conta criada + material liberado | `api/src/services/kitIntegradorService.ts` | no ar |
-| E-mail de acesso | `sendKitAcessoEmail` (Resend) | no ar |
+| Página de obrigado → cadastro | `solardoc.app/kit/obrigado` | no ar — falta colar na Kiwify |
+| E-mail de acesso (plano B) | `sendKitAcessoEmail` (Resend) | no ar |
 | Consumo | `solardoc.app/cursos/kit-fechamento` (seção Cursos) | no ar — 6 módulos + bônus, 20 lições |
 | Convite para o VIP | fim de cada módulo (abre o UpgradeModal) | no ar |
 | Medição | `/admin` → hub SolarDoc → aba **Kit / Isca R$27** | no ar |
@@ -72,19 +73,47 @@ para o fluxo do kit e **não entra** no funil do LimpaPro.
 o **824905216831401** e ela está `index, follow`. Os botões levam ao checkout com os
 UTMs da visita colados na URL e no `sck` (verificado em produção).
 
-### 4. (Opcional) Assinar o webhook
+### 4. Página de obrigado na Kiwify — cole esta URL
 
-Se ainda não existir, defina `KIWIFY_WEBHOOK_TOKEN` na Vercel com o token do webhook da
-Kiwify. Sem ele o endpoint aceita mesmo assim, com aviso no log.
+```
+https://solardoc.app/kit/obrigado
+```
+
+Na Kiwify: produto do kit → **Configurações → Página de obrigado** (URL própria).
+
+Ela **não** manda o comprador esperar e-mail: o botão leva direto para
+`/auth?mode=register&ref=kit`, onde o formulário pede só e-mail e senha. O e-mail de
+acesso continua saindo, mas virou plano B.
+
+Por que o formulário encurta: o cadastro normal exige CNPJ e WhatsApp. O servidor
+confere se existe pedido **pago** em `kit_pedidos` com aquele e-mail e libera a versão
+curta — a checagem é no backend de propósito, senão qualquer um criaria conta sem CNPJ.
+Se a Kiwify passar o e-mail na URL, ele já vai preenchido.
+
+A página dispara o `Purchase` no pixel **824905216831401** com `eventID` = pedido, então
+se o pixel da própria Kiwify também disparar o Meta deduplica em vez de contar 2 vendas.
+
+### 5. (Opcional) Assinar o webhook
+
+Defina `KIWIFY_WEBHOOK_TOKEN` na Vercel com o token do webhook (`q43d7qb073g`). A
+validação já está no ar em **modo observação**: confere a assinatura e registra o
+resultado em `webhook_debug`, mas não recusa nada. Depois de ver `assinatura: ok` numa
+compra real, ponha `KIWIFY_WEBHOOK_STRICT=1` para passar a recusar as inválidas.
 
 ---
 
 ## Como testar antes de anunciar
 
 1. Crie um cupom de 100% na Kiwify e compre o kit com um e-mail que você tenha acesso.
-2. Confira o e-mail "Kit de Fechamento liberado".
-3. Clique em definir senha → entra na plataforma → seção **Cursos** com a trilha dos 6 módulos.
-4. `/admin` → hub SolarDoc → aba **Kit / Isca R$27** deve mostrar 1 comprador.
+2. Na página de obrigado, clique em **Criar minha senha e entrar**.
+3. Cadastre com o **mesmo e-mail da compra** (só e-mail + senha) → entra na plataforma →
+   seção **Cursos** com a trilha dos 6 módulos e os 30 dias de VIP valendo.
+4. Confira também o e-mail "Kit de Fechamento liberado" (o caminho alternativo).
+5. `/admin` → hub SolarDoc → aba **Kit / Isca R$27** deve mostrar 1 comprador.
+
+Já verificado em produção com pedido de teste (criado e apagado): conta pendente do
+webhook + pedido pago → define senha, entra, `temKit: true`, trial de 30 dias intacto.
+Quem **não** comprou continua caindo na exigência de CNPJ/WhatsApp.
 
 Se algo não chegar, o payload cru fica em `webhook_debug` (busque por `_route: /webhook/kiwify`).
 
