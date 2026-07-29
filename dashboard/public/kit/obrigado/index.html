@@ -273,7 +273,10 @@ src="https://www.facebook.com/tr?id=824905216831401&ev=PageView&noscript=1"/></n
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     prompt = e;
-    btn.textContent = 'Instalar o app';
+    // No iPhone o texto continua sendo o do passo a passo: se algum navegador
+    // disparar este evento lá, "Instalar o app" prometeria um botão que o
+    // sistema não tem.
+    if (!ios) btn.textContent = 'Instalar o app';
     btn.hidden = false;
   });
 
