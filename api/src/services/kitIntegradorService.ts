@@ -22,8 +22,11 @@ import { sendKitAcessoEmail } from '../utils/mailer';
 /** Dias de VIP concedidos por quem leva o order bump. */
 export const KIT_BUMP_TRIAL_DIAS = 30;
 
-/** Itens que o comprador pode ter. `kit` = produto principal. */
-export type ItemKit = 'kit' | 'bump_vip' | 'bump_prospeccao';
+/** Itens que o comprador pode ter. `kit` = produto principal.
+ *  Só existe UM bump: 30 dias de VIP. O "Kit de Prospecção" que era o bump 2
+ *  virou o módulo 5 do curso (já está incluso nos R$27) — vendê-lo à parte seria
+ *  cobrar duas vezes pela mesma coisa. */
+export type ItemKit = 'kit' | 'bump_vip';
 
 // ── Identificação do produto ────────────────────────────────────────────────
 // Preferência: IDs de produto da Kiwify via env (exato, à prova de renomeação).
@@ -38,7 +41,6 @@ const idsDoEnv = (nome: string): string[] =>
 
 const RE_KIT = /kit\s*(de\s*)?fechamento|fechamento\s*(do\s*)?integrador/i;
 const RE_BUMP_VIP = /30\s*dias.*vip|vip.*30\s*dias|solardoc\s*vip|acesso\s*vip/i;
-const RE_BUMP_PROSPECCAO = /prospec/i;
 
 /** Classifica o produto de um evento da Kiwify. null = não é do kit. */
 export function classificarProdutoKit(
@@ -49,12 +51,10 @@ export function classificarProdutoKit(
   if (id) {
     if (idsDoEnv('KIT_KIWIFY_PRODUCT_IDS').includes(id)) return 'kit';
     if (idsDoEnv('KIT_KIWIFY_BUMP_VIP_IDS').includes(id)) return 'bump_vip';
-    if (idsDoEnv('KIT_KIWIFY_BUMP_PROSPECCAO_IDS').includes(id)) return 'bump_prospeccao';
   }
   const nome = (productName || '').trim();
   if (!nome) return null;
   if (RE_BUMP_VIP.test(nome)) return 'bump_vip';
-  if (RE_BUMP_PROSPECCAO.test(nome)) return 'bump_prospeccao';
   if (RE_KIT.test(nome)) return 'kit';
   return null;
 }
@@ -136,7 +136,7 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
     produto: evt.produto,
     itens: [evt.item],
     bump_vip: evt.item === 'bump_vip',
-    bump_prospeccao: evt.item === 'bump_prospeccao',
+    bump_prospeccao: false, // coluna legada: o bump de prospecção deixou de existir
     valor: evt.valorCentavos != null ? evt.valorCentavos / 100 : 0,
     status: evt.status || 'unknown',
     payload: evt.payload,

@@ -138,7 +138,8 @@ describe('classificarProdutoKit', () => {
     expect(classificarProdutoKit('Kit de Fechamento do Integrador', null)).toBe('kit');
     expect(classificarProdutoKit('kit fechamento', null)).toBe('kit');
     expect(classificarProdutoKit('SolarDoc VIP — 30 dias', null)).toBe('bump_vip');
-    expect(classificarProdutoKit('Kit de Prospecção', null)).toBe('bump_prospeccao');
+    // 'Kit de Prospecção' virou o módulo 5 do curso — não é mais produto vendável.
+    expect(classificarProdutoKit('Kit de Prospecção', null)).toBeNull();
   });
 
   it('NÃO captura produtos do LimpaPro (que é outro negócio, outro funil)', () => {
@@ -277,7 +278,7 @@ describe('acessoDoUsuario', () => {
   it('junta os itens de pedidos separados e só conta os pagos', async () => {
     await processarEventoKit(evento());
     await processarEventoKit(evento({ orderId: 'ORDER-2', item: 'bump_vip' }));
-    await processarEventoKit(evento({ orderId: 'ORDER-3', item: 'bump_prospeccao', status: 'waiting_payment' }));
+    await processarEventoKit(evento({ orderId: 'ORDER-3', item: 'bump_vip', status: 'waiting_payment' }));
 
     const userId = db.users[0].id;
     const acesso = await acessoDoUsuario(userId, EMAIL);
@@ -285,7 +286,7 @@ describe('acessoDoUsuario', () => {
     expect(acesso.temKit).toBe(true);
     expect(acesso.itens).toContain('kit');
     expect(acesso.itens).toContain('bump_vip');
-    expect(acesso.itens).not.toContain('bump_prospeccao'); // não foi pago
+    expect(acesso.itens.filter((i) => i === 'bump_vip')).toHaveLength(1); // o pendente não entrou
     expect(acesso.trialVipAte).toBeTruthy();
   });
 

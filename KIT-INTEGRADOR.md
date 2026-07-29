@@ -33,13 +33,15 @@ reconhece o produto pelo nome (regex), então mantenha as palavras-chave.
 | O que | Nome sugerido (mantenha as palavras) | Preço |
 |---|---|---|
 | Produto principal | **Kit de Fechamento do Integrador** | R$ 27 |
-| Order bump 1 | **SolarDoc VIP — 30 dias** | R$ 19 |
-| Order bump 2 | **Kit de Prospecção** | R$ 37 |
+| Order bump (único) | **SolarDoc VIP — 30 dias** | R$ 19 |
 
 Palavras que o classificador procura (`kitIntegradorService.ts`):
 - principal → `kit fechamento` ou `fechamento integrador`
 - bump VIP → `30 dias … vip`, `vip … 30 dias`, `solardoc vip` ou `acesso vip`
-- bump prospecção → `prospec`
+
+> **Um bump só.** O "Kit de Prospecção" que seria o bump 2 virou o módulo 5 do
+> curso — já está incluso nos R$ 27, e vendê-lo à parte seria cobrar duas vezes.
+> Para o AOV, o caminho é o upsell pós-compra (VIP trimestral na página de obrigado).
 
 **Mais seguro que depender do nome:** copie os IDs dos produtos na Kiwify e coloque nas
 env vars do projeto `api` na Vercel (aí o nome pode mudar à vontade):
@@ -47,7 +49,6 @@ env vars do projeto `api` na Vercel (aí o nome pode mudar à vontade):
 ```
 KIT_KIWIFY_PRODUCT_IDS=<id-do-principal>
 KIT_KIWIFY_BUMP_VIP_IDS=<id-do-bump-vip>
-KIT_KIWIFY_BUMP_PROSPECCAO_IDS=<id-do-bump-prospeccao>
 ```
 
 ### 2. Apontar o webhook no produto novo

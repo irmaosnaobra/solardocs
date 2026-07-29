@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   MessageSquareQuote, Map, Calculator, FileSignature, Send, Repeat,
@@ -12,9 +13,9 @@ import api from '@/services/api';
 import styles from '../curso.module.css';
 import ConteudoLicao from '../_componentes/ConteudoLicao';
 import {
-  getCurso, licoesDo, xpTotalDo, minutosDo,
-  conquistasDo, calcularProgresso, nivelPorXp,
-  type ModuloCurso, type Licao, type NomeIcone,
+  getCurso, licoesDo, licoesBase, xpTotalDo, minutosDo,
+  conquistasDo, calcularProgresso, nivelPorXp, bonusLiberado,
+  type ModuloCurso, type Licao, type NomeIcone, type Missoes,
 } from '../_conteudo/cursos.config';
 
 // A área de curso é DELIBERADAMENTE escura, diferente do resto do app (que é
@@ -47,6 +48,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
   const CONQUISTAS = conquistasDo(curso);
 
   const [acesso, setAcesso] = useState<Acesso | null>(null);
+  const [missoes, setMissoes] = useState<Missoes | null>(null);
   const [loading, setLoading] = useState(true);
   const [feitos, setFeitos] = useState<string[]>([]);
   const [licaoAberta, setLicaoAberta] = useState<string | null>(null);
@@ -57,6 +59,8 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
       .then(({ data }) => { setAcesso(data); setFeitos(data.progresso ?? []); })
       .catch(() => setAcesso(null))
       .finally(() => setLoading(false));
+    // Missões da plataforma (empresa, cliente, documento) destravam o bônus.
+    api.get('/kit/missoes').then(({ data }) => setMissoes(data)).catch(() => {});
   }, []);
 
   useEffect(() => { window.scrollTo({ top: 0 }); }, [licaoAberta]);
@@ -69,6 +73,9 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
 
   const prog = calcularProgresso(curso, feitos);
   const nivel = nivelPorXp(curso, prog.xp);
+  const liberadoBonus = (m: ModuloCurso) => bonusLiberado(m, curso, prog.feitos, missoes);
+  // "Continuar" nunca aponta para lição de módulo bônus ainda travado.
+  const proxima = prog.proxima && !liberadoBonus(prog.proxima.modulo) ? null : prog.proxima;
   const liberado = !!acesso && (acesso.temKit || acesso.plano === 'pro' || acesso.plano === 'ilimitado');
   const emTrial = !!acesso?.packTrialUntil && new Date(acesso.packTrialUntil) > new Date();
 
@@ -197,8 +204,8 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
           <h1 className={styles.heroTitulo}>{curso.nome}</h1>
           <p className={styles.heroChamada}>{curso.descricao}</p>
 
-          {prog.proxima ? (
-            <button className={styles.btnPrimario} onClick={() => setLicaoAberta(prog.proxima!.licao.id)}>
+          {proxima ? (
+            <button className={styles.btnPrimario} onClick={() => setLicaoAberta(proxima.licao.id)}>
               <Play size={16} />
               {prog.licoesFeitas === 0 ? 'Começar o curso' : 'Continuar de onde parei'}
             </button>
@@ -207,9 +214,9 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
               <Trophy size={20} /> Curso concluído — {prog.xp} XP
             </div>
           )}
-          {prog.proxima && (
+          {proxima && (
             <span className={styles.proximaLabel}>
-              Próxima: {prog.proxima.licao.titulo}
+              Próxima: {proxima.licao.titulo}
             </span>
           )}
         </div>
@@ -248,10 +255,69 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
           const completo = feitasNoModulo === m.licoes.length;
           const emAndamento = feitasNoModulo > 0 && !completo;
 
+          // ── Módulo bônus ainda travado: mostra as missões que faltam ──
+          if (m.bonus && !liberadoBonus(m)) {
+            const feitoReq = (id: string) => {
+              if (id === 'licoes') return licoesBase(curso).every((l) => prog.feitos.has(l.id));
+              if (id === 'empresa') return !!missoes?.empresa;
+              if (id === 'cliente') return (missoes?.clientes ?? 0) > 0;
+              if (id === 'documento') return (missoes?.documentos ?? 0) > 0;
+              return false;
+            };
+            const reqs = m.requisitos ?? [];
+            const prontos = reqs.filter((r) => feitoReq(r.id)).length;
+
+            return (
+              <article key={m.slug} className={styles.moduloBonus} style={{ ['--cor' as string]: m.cor }}>
+                <div className={styles.bonusTopo}>
+                  <span className={styles.bonusCadeado}><Lock size={20} strokeWidth={1.9} /></span>
+                  <div>
+                    <span className={styles.bonusTag}>Módulo bônus · bloqueado</span>
+                    <h3 className={styles.moduloTitulo}>{m.titulo}</h3>
+                    <p className={styles.moduloSub}>{m.subtitulo}</p>
+                  </div>
+                  <span className={styles.bonusContador}>{prontos}/{reqs.length}</span>
+                </div>
+
+                <p className={styles.bonusIntro}>
+                  Este módulo libera quando você terminar o curso <strong>e</strong> estiver usando a
+                  plataforma de verdade. São {m.licoes.length} lições sobre vender para empresa —
+                  o projeto que vale por três residenciais.
+                </p>
+
+                <ul className={styles.missoes}>
+                  {reqs.map((r) => {
+                    const ok = feitoReq(r.id);
+                    return (
+                      <li key={r.id} className={ok ? styles.missaoOk : ''}>
+                        <span className={styles.missaoCheck}>
+                          {ok ? <Check size={13} strokeWidth={3} /> : <span className={styles.missaoVazio} />}
+                        </span>
+                        <span className={styles.missaoTexto}>
+                          <strong>{r.label}</strong>
+                          <span>{r.dica}</span>
+                        </span>
+                        {!ok && r.href && (
+                          <Link href={r.href} className={styles.missaoIr}>
+                            fazer <ArrowRight size={13} />
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                <div className={styles.bonusRodape}>
+                  <span className={styles.bonus}>Ao destravar: <b>+{m.bonusXp} XP</b> e a conquista {m.conquista.nome}</span>
+                </div>
+              </article>
+            );
+          }
+
           return (
             <article
               key={m.slug}
-              className={`${styles.modulo} ${completo ? styles.moduloCompleto : ''} ${emAndamento ? styles.moduloAtual : ''}`}
+              className={`${styles.modulo} ${completo ? styles.moduloCompleto : ''} ${emAndamento ? styles.moduloAtual : ''} ${m.bonus ? styles.moduloDestravado : ''}`}
               style={{ ['--cor' as string]: m.cor }}
             >
               <div className={styles.moduloBarra} />
@@ -259,7 +325,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
                 <span className={styles.moduloIcone}><Icone size={22} strokeWidth={1.7} /></span>
                 <div className={styles.moduloTxt}>
                   <span className={styles.moduloNum}>
-                    Módulo {String(m.numero).padStart(2, '0')}
+                    {m.bonus ? 'Módulo bônus · liberado' : `Módulo ${String(m.numero).padStart(2, '0')}`}
                     {completo && <span className={styles.seloCompleto}><Check size={11} /> completo</span>}
                   </span>
                   <h3 className={styles.moduloTitulo}>{m.titulo}</h3>

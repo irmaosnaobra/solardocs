@@ -163,5 +163,72 @@ export const KIT_FECHAMENTO: Curso = {
         },
       ],
     },
+
+    // ── BÔNUS ──────────────────────────────────────────────────────────────
+    // Travado até o aluno terminar o curso E estar usando a plataforma de
+    // verdade. É a recompensa que puxa para dentro do produto: o cara só
+    // destrava depois de cadastrar empresa, cliente e gerar um documento.
+    {
+      slug: 'bonus-pj',
+      numero: 7,
+      titulo: 'Bônus: o projeto que vale por três',
+      subtitulo: 'Vender para empresa — ticket maior, mesmo esforço de visita',
+      icone: 'TrendingUp',
+      cor: '#ffd166',
+      bonusXp: 300,
+      conquista: { nome: 'Caçador de PJ', icone: 'Crown' },
+      bonus: true,
+      requisitos: [
+        {
+          id: 'licoes',
+          label: 'Concluir as 17 lições do curso',
+          dica: 'Os 6 módulos, do primeiro ao último',
+        },
+        {
+          id: 'empresa',
+          label: 'Cadastrar sua empresa',
+          dica: 'CNPJ e logo — é o que assina seus documentos',
+          href: '/empresa',
+        },
+        {
+          id: 'cliente',
+          label: 'Cadastrar um cliente',
+          dica: 'Pode ser o próximo orçamento que você for fazer',
+          href: '/clientes',
+        },
+        {
+          id: 'documento',
+          label: 'Gerar um documento',
+          dica: 'Uma proposta ou um contrato, com a sua marca',
+          href: '/documentos?tipo=proposta',
+        },
+      ],
+      licoes: [
+        {
+          id: 'bonus:prospeccao-pj',
+          titulo: 'Quem decide e como chegar nele',
+          resumo: 'Achar quem assina antes de gastar a visita — e ler a conta de empresa direito',
+          minutos: 9,
+          xp: XP.leitura,
+          tipo: 'leitura',
+        },
+        {
+          id: 'bonus:proposta-pj',
+          titulo: 'A proposta para empresário',
+          resumo: 'Retorno em vez de economia, e o fechamento com contrato PJ na hora',
+          minutos: 8,
+          xp: XP.leitura,
+          tipo: 'leitura',
+        },
+        {
+          id: 'bonus:checklist-pj',
+          titulo: 'Checklist da visita PJ',
+          resumo: 'Os 10 itens que separam a proposta que fecha da que fica "em análise"',
+          minutos: 5,
+          xp: XP.ferramenta,
+          tipo: 'ferramenta',
+        },
+      ],
+    },
   ],
 };

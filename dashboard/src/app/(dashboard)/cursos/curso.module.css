@@ -22,14 +22,33 @@
     radial-gradient(760px 380px at 96% 4%, rgba(56, 130, 220, 0.16), transparent 60%),
     var(--ct-bg);
 
-  /* Sangria: come o padding do .content (24px 32px 40px) e estica o fundo até as
-     bordas da tela com box-shadow + clip-path — sem 100vw, que criaria barra de
-     rolagem horizontal. Resultado: nenhuma moldura clara em volta do curso. */
+  /* Sangria: come o padding do .content e estica o fundo até as bordas.
+     O padding do .content MUDA por breakpoint (24/32/40 no desktop, 16/16/32 no
+     mobile) — a margem negativa precisa acompanhar, senão o canvas fica mais
+     largo que a tela e o overflow-x:hidden global trava o scroll vertical no
+     celular. Foi exatamente esse o bug. */
   margin: -24px -32px -40px;
   padding: 34px 32px 52px;
   min-height: calc(100vh - var(--topbar-height, 56px));
-  box-shadow: 0 0 0 100vmax var(--ct-bg);
-  clip-path: inset(0 -100vmax);
+}
+
+/* box-shadow gigante + clip-path só no desktop: no celular não são necessários
+   (o content já ocupa a tela inteira) e clip-path em container que rola tem
+   histórico de quebrar o scroll no Safari iOS. */
+@media (min-width: 769px) {
+  .canvas {
+    box-shadow: 0 0 0 100vmax var(--ct-bg);
+    clip-path: inset(0 -100vmax);
+  }
+}
+
+@media (max-width: 768px) {
+  .canvas {
+    margin: -16px -16px -32px;
+    padding: 22px 16px 40px;
+    /* dvh acompanha a barra do navegador no iOS; vh estoura a viewport */
+    min-height: calc(100dvh - 56px);
+  }
 }
 
 .carregando { color: var(--ct-muted); padding: 60px 0; text-align: center; }
@@ -265,6 +284,71 @@
 }
 .baixarPdf:hover { color: var(--ct-amber); border-color: var(--ct-amber); }
 
+/* ── Módulo bônus ──────────────────────────────────────── */
+.moduloBonus {
+  position: relative;
+  border-radius: 18px;
+  padding: 22px 24px 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 209, 102, 0.09), rgba(255, 209, 102, 0.02)),
+    var(--ct-surface);
+  border: 1px dashed rgba(255, 209, 102, 0.45);
+}
+
+.bonusTopo { display: flex; align-items: flex-start; gap: 15px; margin-bottom: 14px; }
+.bonusCadeado {
+  flex: none; width: 46px; height: 46px; border-radius: 13px;
+  display: grid; place-items: center;
+  color: #ffd166; background: rgba(255, 209, 102, 0.12);
+  border: 1px solid rgba(255, 209, 102, 0.32);
+}
+.bonusTag {
+  display: block; font-size: 11px; font-weight: 800;
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: #ffd166; margin-bottom: 4px;
+}
+.bonusContador {
+  margin-left: auto; flex: none;
+  font-size: 15px; font-weight: 800; color: #ffd166;
+  font-variant-numeric: tabular-nums;
+}
+.bonusIntro { font-size: 14px; color: var(--ct-muted); line-height: 1.65; margin-bottom: 16px; max-width: 74ch; }
+
+.missoes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.missoes li {
+  display: flex; align-items: center; gap: 13px;
+  background: var(--ct-surface2); border: 1px solid transparent;
+  border-radius: 12px; padding: 12px 15px;
+}
+.missaoCheck {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(148, 163, 184, 0.14); border: 1px solid var(--ct-line);
+  color: var(--ct-green);
+}
+.missaoVazio { width: 8px; height: 8px; border-radius: 50%; background: rgba(148, 163, 184, 0.4); }
+.missaoOk .missaoCheck { background: rgba(74, 222, 128, 0.18); border-color: rgba(74, 222, 128, 0.45); }
+.missaoOk { border-color: rgba(74, 222, 128, 0.25); }
+.missaoOk .missaoTexto strong { color: var(--ct-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.missaoTexto { flex: 1 1 auto; min-width: 0; }
+.missaoTexto strong { display: block; font-size: 14.5px; font-weight: 650; }
+.missaoTexto span { display: block; font-size: 12.5px; color: var(--ct-muted); line-height: 1.45; }
+.missaoIr {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12.5px; font-weight: 700; color: #ffd166;
+  border: 1px solid rgba(255, 209, 102, 0.4); border-radius: 9px;
+  padding: 7px 13px; text-decoration: none;
+}
+.missaoIr:hover { background: rgba(255, 209, 102, 0.12); }
+
+.bonusRodape { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--ct-line); }
+
+/* Bônus já destravado: mesma casca dos outros, com brilho dourado */
+.moduloDestravado {
+  border-color: rgba(255, 209, 102, 0.45);
+  background: linear-gradient(180deg, rgba(255, 209, 102, 0.07), transparent 60%), var(--ct-surface);
+}
+
 /* ── Conquistas ────────────────────────────────────────── */
 .conquistas { margin-bottom: 34px; }
 .medalhas { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
@@ -492,17 +576,62 @@
   .heroCurso { grid-template-columns: 1fr; gap: 26px; }
 }
 
-@media (max-width: 720px) {
-  .canvas { padding: 24px 18px 40px; }
-  .licao { flex-wrap: wrap; gap: 10px; }
-  .licaoMeta { width: 100%; padding-left: 44px; }
-  .moduloHead { flex-wrap: wrap; }
-  .moduloProg { text-align: left; }
-  .licaoRodape { flex-direction: column; align-items: stretch; }
+/* ── Celular: alvo de toque grande, número grande, nada apertado ─────────── */
+@media (max-width: 768px) {
+  .heroTitulo { font-size: 27px; }
+  .heroTag { font-size: 10px; padding: 6px 11px; }
+  .heroChamada { font-size: 14.5px; }
+
+  /* O painel de nível vem ANTES da trilha no celular: é o placar, e placar
+     precisa estar visível de cara. */
+  .painelNivel { padding: 18px 18px 20px; }
+  .nivelIcone { width: 42px; height: 42px; }
+  .statsGrid b { font-size: 20px; }
+
+  .btnPrimario { width: 100%; padding: 16px 22px; font-size: 16px; }
+  .concluido { width: 100%; justify-content: center; }
+
+  .modulo { padding: 18px 16px 16px 20px; border-radius: 16px; }
+  .moduloIcone { width: 40px; height: 40px; border-radius: 11px; }
+  .moduloTitulo { font-size: 16px; }
+  .moduloSub { font-size: 12.5px; }
+  .moduloHead { flex-wrap: wrap; gap: 12px; }
+  .moduloProg { text-align: left; order: 3; width: 100%; display: flex; align-items: center; gap: 10px; }
+  .moduloProgBar { width: 100%; margin-top: 0; }
+
+  /* Lição: bolha grande à esquerda, texto no meio, meta embaixo. Alvo de toque
+     de 64px de altura — dedo grosso em telhado também clica. */
+  .licao { flex-wrap: wrap; gap: 10px 12px; padding: 14px 14px; min-height: 64px; }
+  .licaoBolha { width: 34px; height: 34px; font-size: 14px; }
+  .licaoInfo { flex: 1 1 60%; }
+  .licaoInfo strong { font-size: 15px; }
+  .licaoMeta { width: 100%; padding-left: 46px; gap: 8px; }
+
+  .medalhas { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .medalha { padding: 15px 10px; }
+  .medalhaIcone { width: 40px; height: 40px; }
+  .medalha strong { font-size: 12.5px; }
+
+  .conviteVip { flex-direction: column; gap: 12px; padding: 20px; }
+  .conviteVip .btnPrimario { width: 100%; }
+
+  .moduloBonus { padding: 18px 16px 16px; border-radius: 16px; }
+  .bonusTopo { flex-wrap: wrap; gap: 12px; }
+  .bonusCadeado { width: 40px; height: 40px; }
+  .bonusContador { font-size: 14px; }
+  .missoes li { flex-wrap: wrap; gap: 10px 12px; }
+  .missaoIr { margin-left: 39px; }
+
+  /* Lição aberta */
+  .licaoTitulo { font-size: 24px; }
+  .licaoRodape { flex-direction: column; align-items: stretch; gap: 12px; }
   .licaoNav { justify-content: space-between; }
-  .toast { left: 18px; right: 18px; bottom: 96px; }
-  .gatilho { padding-right: 0; }
+  .licaoNav .btnSecundario { flex: 1; justify-content: center; }
+  .cardConteudo { padding: 18px 16px; border-radius: 14px; }
+  .gatilho { padding-right: 0; font-size: 17px; }
   .contador { position: static; display: block; }
+  .script, .zap { padding: 14px 15px; }
+  .toast { left: 16px; right: 16px; bottom: 96px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

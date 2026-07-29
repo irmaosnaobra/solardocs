@@ -11,6 +11,7 @@ import { ROTEIRO, CINCO_PERGUNTAS } from '../_conteudo/roteiro';
 import { ESTRUTURA_CUSTO, REGRAS_DE_MARGEM, CHECKLIST_ORCAMENTO } from '../_conteudo/precificacao';
 import { PROSPECCAO } from '../_conteudo/prospeccao';
 import { POS_VENDA, GARANTIAS } from '../_conteudo/posvenda';
+import { PJ_PROSPECCAO, CHECKLIST_PJ } from '../_conteudo/bonus-pj';
 
 export default function ConteudoLicao({ id }: { id: string }) {
   const [modulo, parte] = id.split(':');
@@ -235,6 +236,57 @@ export default function ConteudoLicao({ id }: { id: string }) {
             <Bloco rotulo="Risco de pular esta etapa" texto={e.risco} tom="erro" />
           </article>
         ))}
+      </div>
+    );
+  }
+
+  if (id === 'bonus:prospeccao-pj' || id === 'bonus:proposta-pj') {
+    const passos = id === 'bonus:prospeccao-pj' ? PJ_PROSPECCAO.slice(0, 2) : PJ_PROSPECCAO.slice(2);
+    return (
+      <div className={styles.leitura}>
+        <p className={styles.intro}>
+          {id === 'bonus:prospeccao-pj'
+            ? 'Uma venda comercial dá o mesmo trabalho de visita que uma residencial e vale três. O que muda é quem decide e como se lê a conta.'
+            : 'Dono de empresa não compra economia: compra retorno. E trava por burocracia, não por preço — quem chega com o contrato pronto fecha antes.'}
+        </p>
+        {passos.map((p) => (
+          <article key={p.id} className={styles.cardConteudo}>
+            <span className={styles.etapaFase}>{p.fase}</span>
+            <h3 className={styles.etapaTitulo}>{p.titulo}</h3>
+            <p className={styles.texto}>{p.texto}</p>
+            <ul className={styles.lista}>
+              {p.acoes.map((a, j) => <li key={j}>{a}</li>)}
+            </ul>
+            {p.fala && <Destaque rotulo="Fala pronta" texto={p.fala} copiar />}
+            <Bloco rotulo="Armadilha" texto={p.armadilha} tom="erro" />
+          </article>
+        ))}
+      </div>
+    );
+  }
+
+  if (id === 'bonus:checklist-pj') {
+    return (
+      <div className={styles.leitura}>
+        <p className={styles.intro}>
+          Leve isto na primeira visita comercial. Cada item que falta é uma chance de a decisão escorregar
+          para a próxima reunião — e reunião adiada em empresa costuma virar reunião esquecida.
+        </p>
+        <div className={styles.cardConteudo}>
+          <h3 className={styles.etapaTitulo} style={{ marginBottom: 14 }}>Checklist da visita PJ</h3>
+          <ul className={styles.checklist}>
+            {CHECKLIST_PJ.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </div>
+        <Link href="/documentos?tipo=contrato-pj" className={styles.docCard}>
+          <div>
+            <h3 className={styles.etapaTitulo}>Contrato PJ</h3>
+            <p className={styles.texto} style={{ marginTop: 6 }}>
+              Gere aqui, com a razão social do cliente e a sua marca, no momento do sim.
+            </p>
+          </div>
+          <span className={styles.docCta}>Gerar <ArrowRight size={15} /></span>
+        </Link>
       </div>
     );
   }

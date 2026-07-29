@@ -34,6 +34,14 @@ export type Licao = {
   tipo: TipoLicao;
 };
 
+/** Missão da PLATAFORMA (não do curso) que destrava um módulo bônus. */
+export type Requisito = {
+  id: 'licoes' | 'empresa' | 'cliente' | 'documento';
+  label: string;
+  dica: string;
+  href?: string;
+};
+
 export type ModuloCurso = {
   slug: string;
   numero: number;
@@ -45,7 +53,34 @@ export type ModuloCurso = {
   /** Conquista que o aluno ganha ao completar o módulo inteiro */
   conquista: { nome: string; icone: NomeIcone };
   licoes: Licao[];
+  /** Módulo bônus: fica travado até o aluno cumprir os requisitos abaixo. */
+  bonus?: boolean;
+  requisitos?: Requisito[];
 };
+
+/** O que o aluno já fez na plataforma (GET /kit/missoes). */
+export type Missoes = { empresa: boolean; clientes: number; documentos: number };
+
+/** Um módulo bônus está liberado? Regra única, usada na trilha e na lição. */
+export function bonusLiberado(
+  m: ModuloCurso,
+  c: Curso,
+  feitos: Set<string>,
+  missoes: Missoes | null,
+): boolean {
+  if (!m.bonus) return true;
+  const reqs = m.requisitos ?? [];
+  return reqs.every((r) => {
+    if (r.id === 'licoes') {
+      // todas as lições dos módulos NÃO-bônus
+      return c.modulos.filter((x) => !x.bonus).every((x) => x.licoes.every((l) => feitos.has(l.id)));
+    }
+    if (r.id === 'empresa') return !!missoes?.empresa;
+    if (r.id === 'cliente') return (missoes?.clientes ?? 0) > 0;
+    if (r.id === 'documento') return (missoes?.documentos ?? 0) > 0;
+    return false;
+  });
+}
 
 export type Curso = {
   slug: string;
@@ -65,6 +100,10 @@ export const XP_POR_TIPO: Record<TipoLicao, number> = {
 
 // ── Derivações ──────────────────────────────────────────────────────────────
 export const licoesDo = (c: Curso): Licao[] => c.modulos.flatMap((m) => m.licoes);
+
+/** Só as lições do curso base — o bônus é extra e não entra no "100% do curso". */
+export const licoesBase = (c: Curso): Licao[] =>
+  c.modulos.filter((m) => !m.bonus).flatMap((m) => m.licoes);
 
 export const xpTotalDo = (c: Curso): number =>
   licoesDo(c).reduce((s, l) => s + l.xp, 0) + c.modulos.reduce((s, m) => s + m.bonusXp, 0);
@@ -122,28 +161,28 @@ export type Conquista = {
 };
 
 export function conquistasDo(c: Curso): Conquista[] {
-  const licoes = licoesDo(c);
+  const base = licoesBase(c);
   return [
     {
       id: 'primeira',
       nome: 'Primeira lição',
       icone: 'Target',
       comoGanha: 'Concluir qualquer lição',
-      ganhou: (f) => licoes.some((l) => f.has(l.id)),
+      ganhou: (f) => licoesDo(c).some((l) => f.has(l.id)),
     },
     ...c.modulos.map((m) => ({
       id: `modulo-${m.slug}`,
       nome: m.conquista.nome,
       icone: m.conquista.icone,
-      comoGanha: `Concluir o módulo ${m.numero} inteiro`,
+      comoGanha: m.bonus ? 'Concluir o módulo bônus' : `Concluir o módulo ${m.numero} inteiro`,
       ganhou: (f: Set<string>) => m.licoes.every((l) => f.has(l.id)),
     })),
     {
       id: 'completo',
       nome: 'Curso completo',
       icone: 'Trophy',
-      comoGanha: `Concluir as ${licoes.length} lições`,
-      ganhou: (f) => licoes.every((l) => f.has(l.id)),
+      comoGanha: `Concluir as ${base.length} lições`,
+      ganhou: (f) => base.every((l) => f.has(l.id)),
     },
   ];
 }
@@ -179,12 +218,14 @@ export function calcularProgresso(c: Curso, chaves: string[]): Progresso {
     if (l) { proxima = { modulo: m, licao: l }; break; }
   }
 
-  const total = licoesDo(c).length;
+  // % do curso mede o BASE (o bônus é extra, senão ninguém chega a 100%).
+  const base = licoesBase(c);
+  const feitasBase = base.filter((l) => feitos.has(l.id)).length;
   return {
     feitos,
     xp,
     licoesFeitas,
-    pctCurso: total ? Math.round((licoesFeitas / total) * 100) : 0,
+    pctCurso: base.length ? Math.round((feitasBase / base.length) * 100) : 0,
     modulosCompletos,
     conquistas: conquistasDo(c).filter((q) => q.ganhou(feitos)),
     proxima,

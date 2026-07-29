@@ -39,6 +39,29 @@ export async function meuAcesso(req: Request, res: Response): Promise<void> {
   }
 }
 
+// GET /kit/missoes — o que o aluno já fez NA PLATAFORMA (não no curso).
+// É o que destrava o módulo bônus: empresa cadastrada, cliente cadastrado e
+// documento gerado. Só contagem, nada de dado sensível.
+export async function missoes(req: Request, res: Response): Promise<void> {
+  try {
+    const [empresa, clientes, documentos] = await Promise.all([
+      supabase.from('company').select('id', { count: 'exact', head: true }).eq('user_id', req.userId),
+      supabase.from('clients').select('id', { count: 'exact', head: true }).eq('user_id', req.userId),
+      supabase.from('documents').select('id', { count: 'exact', head: true }).eq('user_id', req.userId),
+    ]);
+
+    res.json({
+      empresa: (empresa.count ?? 0) > 0,
+      clientes: clientes.count ?? 0,
+      documentos: documentos.count ?? 0,
+    });
+  } catch (err) {
+    console.error('missoes error:', err);
+    // Falha aqui não pode esconder o curso: devolve tudo zerado.
+    res.json({ empresa: false, clientes: 0, documentos: 0 });
+  }
+}
+
 const progressoSchema = z.object({
   modulo: z.string().min(1).max(60),
   concluido: z.boolean().optional(),
