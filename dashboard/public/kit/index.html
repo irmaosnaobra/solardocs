@@ -3,25 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- noindex até o checkout da Kiwify estar ligado e o texto aprovado.
-     Trocar por index,follow no lançamento (uma linha, abaixo). -->
+<!-- noindex até o checkout da Kiwify estar ligado. Trocar por "index, follow" no lançamento. -->
 <meta name="robots" content="noindex, nofollow">
 <title>Kit de Fechamento do Integrador — feche mesmo quando o cliente diz que achou mais barato</title>
-<meta name="description" content="20+ respostas prontas para as objeções que travam venda de energia solar, o roteiro da visita até a assinatura e os documentos gerados com a sua marca. R$ 27.">
-<link rel="icon" href="/logo.png">
+<meta name="description" content="26 respostas prontas para as objeções que travam venda de energia solar, 15 mensagens de prospecção, o roteiro da visita até a assinatura e os documentos gerados com a sua marca. R$ 27, acesso imediato.">
+<!-- icon-192 (15 KB) e não logo.png (1,4 MB): o favicon era o recurso mais pesado da página. -->
+<link rel="icon" href="/icon-192.png">
+<meta property="og:title" content="Kit de Fechamento do Integrador — R$ 27">
+<meta property="og:description" content="O que responder quando o cliente diz que achou mais barato. 6 módulos, 5 PDFs e a planilha de precificação, dentro da plataforma que gera seus contratos.">
+<meta property="og:image" content="https://solardoc.app/kit/img/tela-materiais.webp">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #0b1120;
-    --surface: #0f172a;
-    --surface2: #172033;
+    --bg: #080d18;
+    --bg2: #0d1424;
+    --surface: #121b2e;
     --line: rgba(148,163,184,.16);
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --amber: #f59e0b;
-    --amber-soft: rgba(245,158,11,.1);
+    --line2: rgba(148,163,184,.26);
+    --text: #f4f7fb;
+    --muted: #93a3b8;
+    --amber: #f7a41c;
+    --amber-d: #d9860a;
     --green: #4ade80;
+    --radius: 18px;
   }
 
   html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
@@ -29,153 +34,237 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
     line-height: 1.65;
     font-size: 17px;
     overflow-x: hidden;
   }
 
-  .wrap { width: 100%; max-width: 860px; margin: 0 auto; padding: 0 22px; }
+  img { max-width: 100%; height: auto; display: block; }
 
-  section { padding: 60px 0; }
+  .wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  .narrow { max-width: 760px; margin: 0 auto; }
 
-  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; text-wrap: balance; }
-  h1 { font-size: clamp(29px, 6.2vw, 46px); font-weight: 800; }
-  h2 { font-size: clamp(23px, 4.4vw, 32px); font-weight: 800; margin-bottom: 14px; }
+  section { padding: 74px 0; }
+
+  h1, h2, h3 { line-height: 1.16; letter-spacing: -.022em; text-wrap: balance; }
+  h1 { font-size: clamp(31px, 5.6vw, 52px); font-weight: 800; }
+  h2 { font-size: clamp(25px, 4vw, 36px); font-weight: 800; margin-bottom: 16px; }
   h3 { font-size: 19px; font-weight: 700; }
-  p { margin-bottom: 14px; }
+  p { margin-bottom: 15px; }
   strong { color: #fff; font-weight: 700; }
   .amber { color: var(--amber); }
+  .muted { color: var(--muted); }
 
   .eyebrow {
     display: inline-block;
-    font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
-    color: var(--amber); background: var(--amber-soft);
-    padding: 7px 14px; border-radius: 999px; margin-bottom: 20px;
+    font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--amber); background: rgba(247,164,28,.1);
+    border: 1px solid rgba(247,164,28,.28);
+    padding: 7px 15px; border-radius: 999px; margin-bottom: 22px;
   }
 
-  /* ── Hero ─────────────────────────────────────────── */
+  /* ── Barra do topo ───────────────────────────────── */
+  .topo {
+    border-bottom: 1px solid var(--line);
+    background: rgba(8,13,24,.9);
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 40;
+  }
+  .topo .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; }
+  .marca { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .marca span { color: var(--amber); }
+  .topoSelo { font-size: 12.5px; color: var(--muted); }
+
+  /* ── Hero ────────────────────────────────────────── */
   .hero {
-    padding: 56px 0 52px;
+    padding: 64px 0 56px;
     background:
-      radial-gradient(900px 420px at 50% -120px, rgba(245,158,11,.15), transparent 70%),
+      radial-gradient(1100px 520px at 12% -10%, rgba(247,164,28,.16), transparent 62%),
+      radial-gradient(900px 480px at 92% 8%, rgba(56,110,180,.16), transparent 60%),
       var(--bg);
-    text-align: center;
   }
-  .hero .quote {
-    font-size: clamp(19px, 3.6vw, 24px);
-    font-style: italic;
-    color: var(--muted);
-    margin: 0 auto 18px;
-    max-width: 22ch;
+  .heroGrid { display: grid; grid-template-columns: 1.02fr .98fr; gap: 52px; align-items: center; }
+  .heroAspas {
+    font-size: clamp(19px, 2.6vw, 23px); font-style: italic; color: var(--muted);
+    border-left: 3px solid var(--amber); padding-left: 16px; margin-bottom: 20px;
   }
-  .hero p.sub {
-    color: var(--muted);
-    font-size: clamp(16px, 2.6vw, 18.5px);
-    max-width: 56ch;
-    margin: 22px auto 0;
+  .heroSub { color: var(--muted); font-size: clamp(16px, 1.7vw, 18.5px); margin: 20px 0 26px; max-width: 52ch; }
+  ul.bullets { list-style: none; display: grid; gap: 11px; margin-bottom: 30px; }
+  ul.bullets li { position: relative; padding-left: 30px; font-size: 15.5px; color: #d5deea; }
+  ul.bullets li::before {
+    content: ''; position: absolute; left: 0; top: 7px; width: 17px; height: 17px; border-radius: 50%;
+    background: rgba(74,222,128,.16); border: 1px solid rgba(74,222,128,.5);
+  }
+  ul.bullets li::after {
+    content: ''; position: absolute; left: 5.5px; top: 11px; width: 6px; height: 3px;
+    border-left: 2px solid var(--green); border-bottom: 2px solid var(--green);
+    transform: rotate(-45deg);
   }
 
   .cta {
-    display: inline-flex; align-items: center; gap: 10px;
-    background: var(--amber); color: #0b1120;
-    font-weight: 800; font-size: 17px;
-    padding: 18px 38px; border-radius: 12px;
-    text-decoration: none;
-    box-shadow: 0 8px 26px -8px rgba(245,158,11,.6);
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    background: linear-gradient(180deg, var(--amber), var(--amber-d));
+    color: #0a0f1a; font-weight: 800; font-size: 17px;
+    padding: 18px 34px; border-radius: 13px; text-decoration: none;
+    box-shadow: 0 10px 30px -10px rgba(247,164,28,.65);
     transition: transform .15s ease, box-shadow .15s ease;
-    border: none; cursor: pointer; font-family: inherit;
-    text-align: center;
+    border: none; cursor: pointer; font-family: inherit; text-align: center;
   }
-  .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 30px -8px rgba(245,158,11,.7); }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -10px rgba(247,164,28,.75); }
   .cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-  .ctaWrap { margin-top: 30px; }
-  .ctaNota { display: block; font-size: 13px; color: var(--muted); margin-top: 12px; }
+  .ctaNota { display: block; font-size: 13px; color: var(--muted); margin-top: 13px; }
 
-  /* ── Blocos ───────────────────────────────────────── */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: 26px;
+  /* Moldura de "janela do app" em volta das telas reais */
+  .janela {
+    background: var(--surface); border: 1px solid var(--line2); border-radius: 14px;
+    overflow: hidden; box-shadow: 0 30px 70px -30px rgba(0,0,0,.9);
   }
-  .grid { display: grid; gap: 16px; }
-  .grid2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .janelaBarra {
+    display: flex; align-items: center; gap: 7px;
+    padding: 11px 14px; background: #0e1728; border-bottom: 1px solid var(--line);
+  }
+  .janelaBarra i { width: 9px; height: 9px; border-radius: 50%; background: #33415c; display: block; }
+  .janelaUrl { margin-left: 8px; font-size: 11.5px; color: #64768f; font-family: ui-monospace, Menlo, Consolas, monospace; }
 
-  .falas { display: grid; gap: 12px; margin-top: 24px; }
+  .heroArte { position: relative; }
+  .heroCel {
+    position: absolute; right: 5%; bottom: -30px; width: 27%; max-width: 158px;
+    border-radius: 18px; border: 5px solid #1b2740; box-shadow: 0 26px 54px -18px rgba(0,0,0,.95);
+  }
+
+  /* ── Faixa de números ────────────────────────────── */
+  .faixa { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg2); }
+  .faixaGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 26px 0; text-align: center; }
+  .faixaGrid b { display: block; font-size: clamp(21px, 3vw, 28px); color: var(--amber); font-weight: 800; letter-spacing: -.02em; }
+  .faixaGrid span { font-size: 12.5px; color: var(--muted); line-height: 1.45; display: block; margin-top: 3px; }
+
+  /* ── Falas do problema ───────────────────────────── */
+  .falas { display: grid; gap: 13px; margin-top: 26px; }
   .fala {
     background: var(--surface); border: 1px solid var(--line);
-    border-left: 3px solid #f87171;
-    border-radius: 0 12px 12px 0; padding: 16px 20px;
-    font-size: 17px; font-style: italic; color: #e2e8f0;
+    border-left: 3px solid #ef6a5a; border-radius: 0 12px 12px 0; padding: 17px 21px;
+    font-size: 17.5px; font-style: italic; color: #dfe6f0;
   }
 
-  .mod { display: flex; gap: 16px; align-items: flex-start; }
-  .modNum {
-    flex: none; width: 34px; height: 34px; border-radius: 10px;
-    background: var(--amber-soft); color: var(--amber);
-    display: grid; place-items: center; font-weight: 800; font-size: 15px;
+  /* ── Módulos ─────────────────────────────────────── */
+  .mods { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 18px; margin-top: 34px; }
+  .mod {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px 24px; position: relative; overflow: hidden;
   }
-  .modTxt p { color: var(--muted); font-size: 15.5px; margin: 4px 0 0; }
-
-  ul.check { list-style: none; display: grid; gap: 10px; margin-top: 6px; }
-  ul.check li { position: relative; padding-left: 30px; color: #cbd5e1; font-size: 15.5px; }
-  ul.check li::before {
-    content: '✓'; position: absolute; left: 0; top: -1px;
-    color: var(--green); font-weight: 800; font-size: 17px;
+  .mod::before {
+    content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+    background: linear-gradient(90deg, var(--amber), transparent 70%);
   }
-
-  .destaque {
-    background: linear-gradient(180deg, rgba(245,158,11,.09), rgba(245,158,11,.03));
-    border: 1px solid rgba(245,158,11,.3);
-    border-radius: 18px; padding: 30px 28px;
+  .modNum { font-size: 12px; font-weight: 800; letter-spacing: .16em; color: var(--amber); display: block; margin-bottom: 9px; }
+  .mod h3 { margin-bottom: 8px; }
+  .mod p { color: var(--muted); font-size: 15px; margin: 0 0 12px; }
+  .modTag {
+    display: inline-block; font-size: 11.5px; font-weight: 700; color: #cbd5e1;
+    background: rgba(148,163,184,.12); padding: 4px 11px; border-radius: 999px;
   }
 
-  /* ── Preço ────────────────────────────────────────── */
-  .preco { text-align: center; }
-  .precoValor {
-    font-size: clamp(48px, 11vw, 70px); font-weight: 900; color: var(--amber);
-    line-height: 1; letter-spacing: -0.03em; margin: 6px 0 4px;
+  /* ── Galeria "por dentro" ────────────────────────── */
+  .peca { display: grid; grid-template-columns: 1fr 1fr; gap: 46px; align-items: center; margin-bottom: 64px; }
+  .peca:last-child { margin-bottom: 0; }
+  .peca.inverso .pecaArte { order: -1; }
+  .pecaTxt h3 { font-size: 23px; margin-bottom: 12px; }
+  .pecaTxt p { color: var(--muted); font-size: 16px; }
+  .pecaSelo {
+    display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--amber); margin-bottom: 10px;
   }
-  .precoValor small { font-size: .38em; font-weight: 700; letter-spacing: 0; }
-  .precoNota { color: var(--muted); font-size: 15px; max-width: 46ch; margin: 0 auto; }
+
+  /* ── Comparativo ─────────────────────────────────── */
+  .comp { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px; }
+  .compCard { border-radius: var(--radius); padding: 26px 24px; border: 1px solid var(--line); background: var(--surface); }
+  .compCard.mau { opacity: .78; }
+  .compCard.bom { border-color: rgba(247,164,28,.4); background: linear-gradient(180deg, rgba(247,164,28,.1), rgba(247,164,28,.02)); }
+  .compCard h3 { font-size: 17px; margin-bottom: 14px; }
+  .compCard ul { list-style: none; display: grid; gap: 10px; }
+  .compCard li { font-size: 14.5px; color: #cbd5e1; padding-left: 26px; position: relative; }
+  .compCard.mau li::before { content: '✕'; position: absolute; left: 0; color: #ef6a5a; font-weight: 700; }
+  .compCard.bom li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+
+  /* ── Arquivos ────────────────────────────────────── */
+  .arquivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 30px; }
+  .arq {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; display: flex; gap: 14px; align-items: flex-start;
+  }
+  .arqIcone {
+    flex: none; width: 38px; height: 46px; border-radius: 4px 8px 4px 4px;
+    background: linear-gradient(160deg, #1d2a44, #141d31); border: 1px solid var(--line2);
+    display: grid; place-items: center; font-size: 10px; font-weight: 800; color: var(--amber); letter-spacing: .04em;
+  }
+  .arq strong { display: block; font-size: 15px; margin-bottom: 3px; }
+  .arq span { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+
+  /* ── Oferta ──────────────────────────────────────── */
+  .oferta { background: var(--bg2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .ofertaBox {
+    background: var(--surface); border: 1px solid rgba(247,164,28,.34); border-radius: 22px;
+    padding: 42px 38px; text-align: center; max-width: 760px; margin: 0 auto;
+    box-shadow: 0 30px 80px -40px rgba(247,164,28,.5);
+  }
+  .preco { font-size: clamp(52px, 10vw, 74px); font-weight: 900; color: var(--amber); line-height: 1; letter-spacing: -.035em; margin: 8px 0 6px; }
+  .preco small { font-size: .34em; font-weight: 700; letter-spacing: 0; color: var(--muted); }
+  .ofertaLista { list-style: none; display: grid; gap: 11px; text-align: left; max-width: 480px; margin: 26px auto 30px; }
+  .ofertaLista li { position: relative; padding-left: 28px; font-size: 15.5px; color: #d5deea; }
+  .ofertaLista li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 800; }
 
   .garantia {
-    display: flex; gap: 14px; align-items: flex-start;
-    background: var(--surface2); border: 1px solid var(--line);
-    border-radius: 14px; padding: 20px 22px; margin-top: 26px; text-align: left;
+    display: flex; gap: 15px; align-items: flex-start; text-align: left;
+    background: rgba(148,163,184,.07); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px 22px; margin-top: 28px;
   }
-  .garantia .selo { font-size: 26px; line-height: 1; flex: none; }
+  .garantia .selo { font-size: 26px; line-height: 1.2; flex: none; }
   .garantia p { margin: 0; font-size: 14.5px; color: var(--muted); }
 
-  /* ── FAQ ──────────────────────────────────────────── */
+  /* ── FAQ ─────────────────────────────────────────── */
   details {
     background: var(--surface); border: 1px solid var(--line);
-    border-radius: 12px; padding: 18px 22px; margin-bottom: 12px;
+    border-radius: 13px; padding: 19px 23px; margin-bottom: 12px;
   }
-  details summary {
+  details[open] { border-color: var(--line2); }
+  summary {
     cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none;
     display: flex; justify-content: space-between; gap: 16px; align-items: center;
   }
-  details summary::-webkit-details-marker { display: none; }
-  details summary::after { content: '+'; color: var(--amber); font-size: 22px; font-weight: 400; flex: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; color: var(--amber); font-size: 23px; font-weight: 400; flex: none; line-height: 1; }
   details[open] summary::after { content: '−'; }
-  details p { color: var(--muted); font-size: 15.5px; margin: 12px 0 0; }
+  details p { color: var(--muted); font-size: 15.5px; margin: 13px 0 0; }
 
-  footer { padding: 40px 0 60px; text-align: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  footer { padding: 44px 0 66px; text-align: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
   footer a { color: var(--muted); }
 
   .barra {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
-    background: rgba(11,17,32,.94); backdrop-filter: blur(10px);
-    border-top: 1px solid var(--line);
-    padding: 12px 16px; display: none;
+    background: rgba(8,13,24,.96); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line2); padding: 11px 16px; display: none;
   }
-  .barra .cta { width: 100%; justify-content: center; padding: 15px 20px; font-size: 16px; }
+  .barra .cta { width: 100%; padding: 15px 20px; font-size: 16px; }
+
+  @media (max-width: 900px) {
+    .heroGrid, .peca { grid-template-columns: 1fr; gap: 34px; }
+    .peca.inverso .pecaArte { order: 0; }
+    .comp { grid-template-columns: 1fr; }
+    .faixaGrid { grid-template-columns: repeat(3, 1fr); gap: 18px 6px; }
+    .heroCel { display: none; }
+  }
   @media (max-width: 720px) {
-    section { padding: 46px 0; }
+    section { padding: 52px 0; }
     .barra { display: block; }
-    body { padding-bottom: 78px; }
+    body { padding-bottom: 80px; }
+    .ofertaBox { padding: 32px 22px; }
+
+    /* Captura de tela de desktop no celular vira texto de formiga. Amplia e
+       corta pela direita: o comprador enxerga o conteúdo de verdade em vez de
+       adivinhar uma miniatura. */
+    .peca .janela img { width: 178%; max-width: none; }
+    .peca .janela { overflow: hidden; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -186,26 +275,58 @@
 </head>
 <body>
 
-<header class="hero">
+<div class="topo">
   <div class="wrap">
-    <span class="eyebrow">Para integrador e vendedor de energia solar</span>
-    <p class="quote">&ldquo;Achei mais barato com outra empresa.&rdquo;</p>
-    <h1>Você tem <span class="amber">15 segundos</span> para responder isso — e a resposta decide a venda</h1>
-    <p class="sub">
-      O Kit de Fechamento tem a fala pronta para essa e para outras 25 objeções que travam venda de
-      energia solar. Sem teoria: é o que dizer, na ordem, quando o cliente empaca.
-    </p>
-    <div class="ctaWrap">
+    <span class="marca">SolarDoc <span>Pro</span></span>
+    <span class="topoSelo">Acesso imediato · 7 dias de garantia</span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap heroGrid">
+    <div>
+      <span class="eyebrow">Para integrador e vendedor de energia solar</span>
+      <p class="heroAspas">&ldquo;Achei mais barato com outra empresa.&rdquo;</p>
+      <h1>Você tem <span class="amber">15 segundos</span> para responder isso — e a resposta decide a venda</h1>
+      <p class="heroSub">
+        O Kit de Fechamento tem a fala pronta para essa e para outras 25 objeções que travam venda de
+        energia solar. Sem teoria: é o que dizer, na ordem, quando o cliente empaca.
+      </p>
+      <ul class="bullets">
+        <li>26 respostas de objeção, com a versão curta para o WhatsApp</li>
+        <li>15 mensagens de prospecção, follow-up e reativação</li>
+        <li>Contrato, procuração e vistoria gerados com a sua marca</li>
+      </ul>
       <a href="#comprar" class="cta" data-cta="hero">Quero o kit por R$ 27 →</a>
-      <span class="ctaNota">Acesso imediato · 7 dias de garantia</span>
+      <span class="ctaNota">Pagamento único · Pix ou cartão · acesso em minutos</span>
+    </div>
+
+    <div class="heroArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/materiais</span></div>
+        <img src="/kit/img/tela-materiais.webp" width="1200" height="903"
+             alt="Área Meus Materiais dentro da plataforma SolarDoc, com os seis módulos do Kit de Fechamento e os botões de download em PDF" fetchpriority="high">
+      </div>
+      <img class="heroCel" src="/kit/img/tela-celular.webp" width="520" height="1064" loading="lazy"
+           alt="O mesmo material aberto no celular, mostrando a resposta pronta para a objeção de preço">
     </div>
   </div>
 </header>
 
+<div class="faixa">
+  <div class="wrap faixaGrid">
+    <div><b>26</b><span>respostas de objeção</span></div>
+    <div><b>15</b><span>mensagens prontas</span></div>
+    <div><b>6</b><span>módulos</span></div>
+    <div><b>5</b><span>PDFs para baixar</span></div>
+    <div><b>1</b><span>planilha de preço</span></div>
+  </div>
+</div>
+
 <section>
-  <div class="wrap">
+  <div class="wrap narrow">
     <h2>Três frases que fazem você perder venda toda semana</h2>
-    <p style="color:var(--muted)">
+    <p class="muted">
       Não é falta de técnica no telhado. É o que acontece nos cinco minutos depois de entregar a proposta:
     </p>
     <div class="falas">
@@ -213,104 +334,230 @@
       <div class="fala">&ldquo;Manda no WhatsApp que depois eu vejo.&rdquo;</div>
       <div class="fala">&ldquo;Meu vizinho pagou bem menos num sistema parecido.&rdquo;</div>
     </div>
-    <p style="margin-top:22px;color:var(--muted)">
+    <p style="margin-top:26px" class="muted">
       Quem não tem resposta pronta faz uma de duas coisas: <strong>dá desconto</strong> — e queima a margem
       da obra inteira — ou <strong>fica no aguardo</strong>, que é como a proposta morre em silêncio.
     </p>
   </div>
 </section>
 
-<section style="background:var(--surface)">
+<section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
   <div class="wrap">
-    <h2>O que você recebe</h2>
-    <div class="grid grid2" style="margin-top:26px">
-
-      <div class="card mod">
-        <span class="modNum">1</span>
-        <div class="modTxt">
-          <h3>26 respostas de objeção</h3>
-          <p>Preço, concorrência, medo, enrolação e hora de assinar. Cada uma com o que o cliente
-             realmente quis dizer, o erro que quase todo mundo comete e a fala pronta — mais a
-             versão curta para mandar no WhatsApp.</p>
-        </div>
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">O que você recebe</span>
+      <h2>Seis módulos, do primeiro contato à indicação</h2>
+    </div>
+    <div class="mods">
+      <div class="mod">
+        <span class="modNum">MÓDULO 01</span>
+        <h3>As objeções que travam a venda</h3>
+        <p>Preço, concorrência, medo, enrolação e hora de assinar. Cada uma com o que o cliente realmente
+           quis dizer, o erro que quase todo mundo comete e a fala pronta.</p>
+        <span class="modTag">26 respostas</span>
       </div>
-
-      <div class="card mod">
-        <span class="modNum">2</span>
-        <div class="modTxt">
-          <h3>Roteiro da visita até a assinatura</h3>
-          <p>As 6 etapas, da qualificação por telefone ao pós-assinatura. O que fazer em cada uma,
-             o que falar e a armadilha que mata a venda naquele ponto específico.</p>
-        </div>
+      <div class="mod">
+        <span class="modNum">MÓDULO 02</span>
+        <h3>Da primeira ligação à assinatura</h3>
+        <p>As 6 etapas da visita: como qualificar por telefone, o que falar nos primeiros 10 minutos, como
+           conduzir a vistoria e como pedir a assinatura com data de obra na mesa.</p>
+        <span class="modTag">6 etapas + as 5 perguntas</span>
       </div>
-
-      <div class="card mod">
-        <span class="modNum">3</span>
-        <div class="modTxt">
-          <h3>Estrutura de custo e margem</h3>
-          <p>Para onde vai cada real do orçamento, as faixas de referência de cada linha, as quatro
-             regras que protegem a margem e o checklist de 10 itens antes de mandar a proposta.</p>
-        </div>
+      <div class="mod">
+        <span class="modNum">MÓDULO 03</span>
+        <h3>Preço e margem sem chute</h3>
+        <p>Para onde vai cada real do orçamento, as quatro regras que protegem a margem e o checklist de
+           10 itens antes de mandar a proposta. Com planilha.</p>
+        <span class="modTag">8 linhas de custo + planilha</span>
       </div>
-
-      <div class="card mod">
-        <span class="modNum">4</span>
-        <div class="modTxt">
-          <h3>Contrato, procuração e vistoria</h3>
-          <p>Não são modelos em branco: você gera cada documento já com o CNPJ, o endereço e a logo
-             da sua empresa, prontos para o cliente assinar.</p>
-        </div>
+      <div class="mod">
+        <span class="modNum">MÓDULO 04</span>
+        <h3>Contrato, procuração e vistoria</h3>
+        <p>Não são modelos em branco: você gera cada documento já com o CNPJ, o endereço e a logo da sua
+           empresa, prontos para o cliente assinar.</p>
+        <span class="modTag">gerados na plataforma</span>
       </div>
-
+      <div class="mod">
+        <span class="modNum">MÓDULO 05</span>
+        <h3>Prospecção e follow-up</h3>
+        <p>Mensagens para indicação, lead de anúncio, comércio e porta a porta; os 4 toques de follow-up
+           depois da proposta; e como reativar orçamento antigo.</p>
+        <span class="modTag">15 mensagens prontas</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">MÓDULO 06</span>
+        <h3>Pós-venda, garantia e recorrência</h3>
+        <p>As cinco janelas depois do sim, o que dizer em cada uma, como separar as três garantias que o
+           cliente pergunta e como transformar cliente em manutenção e indicação.</p>
+        <span class="modTag">5 janelas + garantias</span>
+      </div>
     </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <div class="destaque">
-      <span class="eyebrow" style="margin-bottom:14px">A diferença que importa</span>
-      <h2 style="margin-bottom:12px">Não é um PDF que some no seu e-mail</h2>
-      <p style="color:#cbd5e1">
-        O material fica dentro do <strong>SolarDoc</strong> — a plataforma de documentos que integradores
-        de todo o país já usam. Você entra com seu login e lê na mesma tela em que gera contrato,
-        procuração, proposta e recibo.
-      </p>
-      <ul class="check">
-        <li>Acesso pelo celular ou pelo computador, quando precisar, na hora da visita</li>
-        <li>Os documentos saem com a marca da sua empresa, não com a nossa</li>
-        <li>Marca o que já leu e continua de onde parou</li>
-        <li>O kit fica seu — não some quando fecha a aba</li>
-      </ul>
+    <div class="narrow" style="text-align:center;margin-bottom:44px">
+      <span class="eyebrow">Por dentro</span>
+      <h2>É assim que o material chega para você</h2>
+      <p class="muted">Nada de PDF perdido no e-mail: você entra com seu login e o kit está lá, na mesma
+         tela em que gera os documentos dos seus clientes.</p>
+    </div>
+
+    <div class="peca">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Módulo 1 · aberto</span>
+        <h3>A resposta pronta, na hora em que o cliente fala</h3>
+        <p>Cada objeção vem em quatro partes: o que ele realmente quis dizer, o erro que quase todo
+           integrador comete, a fala pronta para a visita e a versão curta para colar no WhatsApp.</p>
+      </div>
+      <div class="pecaArte">
+        <div class="janela">
+          <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">objeção &ldquo;achei mais barato&rdquo;</span></div>
+          <img src="/kit/img/tela-objecao.webp" width="1200" height="903" loading="lazy"
+               alt="Tela do módulo de objeções mostrando a resposta pronta e a versão para WhatsApp da objeção achei mais barato">
+        </div>
+      </div>
+    </div>
+
+    <div class="peca inverso">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Módulo 5 · aberto</span>
+        <h3>Mensagem pronta para copiar, colar e mandar</h3>
+        <p>Da primeira mensagem para um lead de anúncio ao follow-up que não parece cobrança. Cada uma
+           traz o momento certo de usar e o motivo de funcionar — porque quem entende o porquê adapta.</p>
+      </div>
+      <div class="pecaArte">
+        <div class="janela">
+          <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">prospecção e follow-up</span></div>
+          <img src="/kit/img/tela-prospeccao.webp" width="1200" height="903" loading="lazy"
+               alt="Tela do módulo de prospecção com mensagens prontas de primeiro contato e follow-up">
+        </div>
+      </div>
+    </div>
+
+    <div class="peca">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Módulo 3 · aberto</span>
+        <h3>Saber quanto sobra antes de dar desconto</h3>
+        <p>A estrutura de custo linha por linha, com as faixas de referência de cada uma — e a planilha
+           que devolve o preço de venda já com imposto, taxa de cartão, comissão e a sua margem.</p>
+      </div>
+      <div class="pecaArte">
+        <div class="janela">
+          <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">preço e margem</span></div>
+          <img src="/kit/img/tela-preco.webp" width="1200" height="903" loading="lazy"
+               alt="Tela do módulo de preço com a tabela de estrutura de custo e o botão para baixar a planilha">
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="comprar" style="background:var(--surface)">
-  <div class="wrap preco">
-    <span class="eyebrow">Acesso imediato</span>
-    <h2>Um kit de fechamento custa menos que uma visita perdida</h2>
-    <div class="precoValor">R$ 27<small> à vista</small></div>
-    <p class="precoNota">
-      Pagamento único no Pix ou cartão. Você recebe o acesso por e-mail em minutos.
-    </p>
-    <div class="ctaWrap">
+<section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">A diferença que importa</span>
+      <h2>Um kit que mora dentro da ferramenta que você usa</h2>
+    </div>
+    <div class="comp">
+      <div class="compCard mau">
+        <h3>Material comum de R$ 27</h3>
+        <ul>
+          <li>Chega por e-mail e some na quinta página da caixa de entrada</li>
+          <li>Modelo de contrato em branco, para você preencher à mão</li>
+          <li>Some quando você troca de celular</li>
+          <li>Fica desatualizado no dia seguinte ao lançamento</li>
+        </ul>
+      </div>
+      <div class="compCard bom">
+        <h3>Kit de Fechamento</h3>
+        <ul>
+          <li>Fica na sua conta, acessível do celular na porta do cliente</li>
+          <li>Contrato, procuração e vistoria saem com o CNPJ e a logo da SUA empresa</li>
+          <li>PDF para baixar e usar offline, quando não tiver sinal</li>
+          <li>Atualizou o material, você já vê a versão nova ao entrar</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top:46px" class="narrow">
+      <img src="/hero-produto.webp" width="2240" height="1404" loading="lazy"
+           style="border-radius:14px;border:1px solid var(--line)"
+           alt="A plataforma SolarDoc gerando uma proposta comercial com a marca do integrador, no computador e no celular">
+      <p class="muted" style="text-align:center;font-size:14px;margin-top:14px">
+        A mesma plataforma que emite os documentos dos seus clientes — é nela que o kit fica guardado.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <span class="eyebrow">Para levar para a rua</span>
+    <h2>O que dá para baixar no primeiro minuto</h2>
+    <p class="muted">Você lê na plataforma quando está no escritório e leva o arquivo quando está na estrada.</p>
+    <div class="arquivos">
+      <div class="arq">
+        <span class="arqIcone">PDF</span>
+        <div><strong>Objeções</strong><span>26 respostas, com fala pronta e versão de WhatsApp.</span></div>
+      </div>
+      <div class="arq">
+        <span class="arqIcone">PDF</span>
+        <div><strong>Roteiro da visita</strong><span>As 6 etapas até a assinatura, com as armadilhas de cada uma.</span></div>
+      </div>
+      <div class="arq">
+        <span class="arqIcone">PDF</span>
+        <div><strong>Preço e margem</strong><span>Estrutura de custo, regras de margem e checklist.</span></div>
+      </div>
+      <div class="arq">
+        <span class="arqIcone">PDF</span>
+        <div><strong>Prospecção</strong><span>15 mensagens para contato, follow-up e reativação.</span></div>
+      </div>
+      <div class="arq">
+        <span class="arqIcone">PDF</span>
+        <div><strong>Pós-venda</strong><span>As 5 janelas depois do sim e as três garantias.</span></div>
+      </div>
+      <div class="arq">
+        <span class="arqIcone">XLS</span>
+        <div><strong>Planilha de preço</strong><span>Abre no Excel e no Google Sheets, com as fórmulas prontas.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="oferta" id="comprar">
+  <div class="wrap">
+    <div class="ofertaBox">
+      <span class="eyebrow">Acesso imediato</span>
+      <h2 style="margin-bottom:6px">Um kit de fechamento custa menos que uma visita perdida</h2>
+      <div class="preco">R$ 27<small> à vista</small></div>
+      <p class="muted" style="max-width:44ch;margin:0 auto">Pagamento único. Sem mensalidade, sem renovação.</p>
+
+      <ul class="ofertaLista">
+        <li>Os 6 módulos completos dentro da plataforma</li>
+        <li>5 PDFs para baixar e usar sem internet</li>
+        <li>Planilha de precificação com as fórmulas prontas</li>
+        <li>Contrato, procuração e vistoria gerados com a sua marca</li>
+        <li>Atualizações do material sem custo adicional</li>
+      </ul>
+
       <a href="#" class="cta" id="btn-comprar" data-cta="oferta">Quero o kit por R$ 27 →</a>
       <span class="ctaNota">Compra segura · Pix ou cartão</span>
-    </div>
 
-    <div class="garantia">
-      <span class="selo">🛡️</span>
-      <p>
-        <strong>7 dias de garantia.</strong> Leu, aplicou e achou que não serve para o seu dia a dia?
-        Escreve para a gente dentro de 7 dias e devolvemos o valor integral. Sem formulário, sem justificativa.
-      </p>
+      <div class="garantia">
+        <span class="selo">🛡️</span>
+        <p>
+          <strong style="color:#fff">7 dias de garantia.</strong> Leu, aplicou e achou que não serve para o
+          seu dia a dia? Escreve para a gente dentro de 7 dias e devolvemos o valor integral. Sem
+          formulário, sem justificativa.
+        </p>
+      </div>
     </div>
   </div>
 </section>
 
 <section>
-  <div class="wrap">
+  <div class="wrap narrow">
     <h2>Perguntas que todo mundo faz</h2>
 
     <details>
@@ -330,7 +577,7 @@
     <details>
       <summary>Preciso pagar mensalidade depois?</summary>
       <p>Não. O kit é pagamento único e o acesso ao material é seu. A plataforma tem planos pagos para
-         quem quer gerar documentos sem limite, mas isso é opcional — dá para usar o material sem
+         quem quer gerar documentos sem limite mensal, mas isso é opcional — dá para usar o material sem
          assinar nada.</p>
     </details>
 
@@ -342,21 +589,27 @@
     </details>
 
     <details>
-      <summary>É um curso em vídeo? Vou ter que assistir horas de aula?</summary>
+      <summary>É curso em vídeo? Vou ter que assistir horas de aula?</summary>
       <p>Não. É material de consulta, escrito para ser lido em pedaços e usado na hora. Você abre no
-         celular antes de entrar na casa do cliente, lê a resposta da objeção que ele acabou de te dar
-         e volta para a conversa.</p>
+         celular antes de entrar na casa do cliente, lê a resposta da objeção que ele acabou de te dar e
+         volta para a conversa.</p>
+    </details>
+
+    <details>
+      <summary>Funciona no celular?</summary>
+      <p>Funciona. A plataforma abre no navegador do celular e dá para instalar como aplicativo na tela
+         inicial. E os PDFs ficam salvos no aparelho, para quando não houver sinal no telhado.</p>
     </details>
   </div>
 </section>
 
 <section style="padding-top:0">
-  <div class="wrap" style="text-align:center">
+  <div class="wrap narrow" style="text-align:center">
     <h2>A próxima objeção você já sabe responder</h2>
-    <p style="color:var(--muted);max-width:50ch;margin:0 auto 26px">
+    <p class="muted" style="max-width:48ch;margin:0 auto 28px">
       R$ 27, uma vez. Se não te servir em 7 dias, você pede o dinheiro de volta.
     </p>
-    <a href="#" class="cta" data-cta="final" data-checkout>Quero o kit por R$ 27 →</a>
+    <a href="#" class="cta" data-cta="final">Quero o kit por R$ 27 →</a>
   </div>
 </section>
 
@@ -419,9 +672,8 @@ src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1"/></n
 
   const destino = linkCheckout();
   document.querySelectorAll('.cta').forEach(a => {
-    const alvo = a.getAttribute('href');
-    // Os botões que rolam pra oferta continuam rolando; o de compra vai pro checkout.
-    if (alvo === '#comprar') return;
+    // Os botões que rolam até a oferta continuam rolando; os de compra vão pro checkout.
+    if (a.getAttribute('href') === '#comprar') return;
     a.setAttribute('href', destino);
     if (destino !== WHATS) { a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener'); }
   });
@@ -430,13 +682,13 @@ src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1"/></n
     const a = e.target.closest('.cta');
     if (!a) return;
     const onde = a.dataset.cta || 'cta';
-    // Os botões do topo/barra só ROLAM até a oferta — disparar InitiateCheckout
-    // neles inflaria o evento e envenenaria a otimização da campanha.
+    // Botão que só rola até a oferta não dispara InitiateCheckout — inflaria o
+    // evento e envenenaria a otimização da campanha.
     const vaiPraCompra = (a.getAttribute('href') || '') !== '#comprar';
     if (vaiPraCompra) {
       try { fbq('track', 'InitiateCheckout', { content_name: 'Kit Fechamento Integrador', value: 27, currency: 'BRL' }); } catch (_) {}
     }
-    try { evtLP('cta_click', { label: onde, tipo: vaiPraCompra ? 'checkout' : 'rolagem' }); } catch (_) {}
+    try { window.evtLP('cta_click', { label: onde, tipo: vaiPraCompra ? 'checkout' : 'rolagem' }); } catch (_) {}
   }, true);
 })();
 </script>
