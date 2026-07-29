@@ -244,7 +244,18 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   // 'membro' = já tinha conta com senha (base própria comprando o curso);
   // 'lp'     = conta nova vinda de campanha (tem utm_campaign);
   // 'direto' = conta nova sem rastro de campanha (orgânico, indicação, WhatsApp).
-  const segmento = jaEraMembro ? 'membro' : evt.utm.utm_campaign ? 'lp' : 'direto';
+  // Só carimba na PRIMEIRA vez. Numa reentrega da Kiwify a conta já existe com
+  // senha (o comprador definiu), então jaEraMembro viria true e o pedido de um
+  // comprador NOVO seria reclassificado como 'membro' — poluindo o funil que
+  // decide se a mídia se paga.
+  const { data: pedidoAtual } = await supabase
+    .from('kit_pedidos')
+    .select('segmento')
+    .eq('id', pedido.id)
+    .maybeSingle();
+  const segmentoJaGravado = (pedidoAtual as { segmento?: string | null } | null)?.segmento;
+  const segmento = segmentoJaGravado
+    || (jaEraMembro ? 'membro' : evt.utm.utm_campaign ? 'lp' : 'direto');
 
   await supabase
     .from('kit_pedidos')

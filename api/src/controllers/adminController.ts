@@ -626,8 +626,11 @@ export async function getAnalytics(req: Request, res: Response): Promise<void> {
 }
 
 export async function getMetaFunnel(req: Request, res: Response): Promise<void> {
-  const token     = process.env.META_PIXEL_TOKEN   || '';
-  const accountId = process.env.META_AD_ACCOUNT_ID || '';
+  // .trim() nos dois: o log de produção mostra 5 falhas com o ID
+  // 'act_545732112868250 ' — com espaço no fim, do paste no painel da Vercel. O
+  // Meta responde "objeto não existe" e o painel fica vazio sem dizer por quê.
+  const token     = (process.env.META_PIXEL_TOKEN   || '').trim();
+  const accountId = (process.env.META_AD_ACCOUNT_ID || '').trim();
 
   if (!token || !accountId) {
     res.json({ available: false, reason: 'Configure META_PIXEL_TOKEN e META_AD_ACCOUNT_ID nas variáveis de ambiente.' });

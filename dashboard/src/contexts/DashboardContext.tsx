@@ -15,6 +15,9 @@ interface User {
   /** Comprou o kit na Kiwify. Vem do /auth/me — o layout usa pra não empurrar
    *  quem pagou por um CURSO pra tela de CNPJ do gerador. */
   tem_kit?: boolean;
+  /** Já instalou o app em algum aparelho. Diferente de "está em standalone
+   *  agora": quem instalou e abriu pelo navegador não precisa do convite. */
+  app_instalado?: boolean;
 }
 
 interface DashboardContextType {

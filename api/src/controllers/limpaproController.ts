@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
 import { agendarRecuperacaoRealtime } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { classificarProdutoKit, processarEventoKit } from '../services/kitIntegradorService';
+import { sendOpsAlert } from '../utils/mailer';
 
 // ── Funil do produto LimpaPro (curso de limpeza de placas, vendido na Kiwify) ──
 // Totalmente isolado do funil SolarDoc: grava em limpapro_events, nunca em page_visits.
@@ -117,6 +118,20 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
 
   if (assinatura !== 'ok' && assinatura !== 'sem-token') {
     console.warn(`[kiwify] assinatura ${assinatura}${estrito ? ' — rejeitando' : ' — seguindo (modo observação)'}`);
+    // Em modo observação o POST inválido PASSA — e passar calado é o problema:
+    // as entregas reais da Kiwify vêm todas com 'ok', então uma assinatura
+    // inválida aqui é ou alguém forjando venda (acesso pago de graça), ou a
+    // Kiwify trocando o esquema (e aí ligar o estrito derrubaria as vendas de
+    // verdade). Nos dois casos alguém precisa saber no mesmo dia.
+    sendOpsAlert(
+      `Kiwify: webhook com assinatura ${assinatura}`,
+      `Um POST chegou em /webhook/kiwify com assinatura ${assinatura}.\n\n` +
+      `Modo estrito está ${estrito ? 'LIGADO — o POST foi recusado' : 'DESLIGADO — o POST foi ACEITO'}.\n\n` +
+      `Se você não estava testando: alguém pode estar forjando venda pra ganhar acesso.\n` +
+      `Se as vendas reais também começarem a falhar, a Kiwify mudou a assinatura — nesse caso\n` +
+      `desligue KIWIFY_WEBHOOK_STRICT antes de investigar, senão nenhuma venda entra.\n\n` +
+      `O payload cru está em webhook_debug.`,
+    ).catch(() => {});
     if (estrito) {
       res.status(401).json({ error: 'invalid signature' });
       return;

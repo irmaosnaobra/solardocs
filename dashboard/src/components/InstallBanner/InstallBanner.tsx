@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePwaInstall, comoInstalarManual } from '@/hooks/usePwaInstall';
 import api from '@/services/api';
+import { useDashboard } from '@/contexts/DashboardContext';
 
 /**
  * Convite pra instalar o app.
@@ -28,10 +29,16 @@ const VISITAS_ATE_CONVIDAR = 3;
 
 export default function InstallBanner() {
   const { instalado, podeInstalarDireto, plataforma, instalar } = usePwaInstall();
+  // O hook só sabe se ESTA aba está em modo app. Quem instalou no celular e
+  // abriu no desktop (ou pelo navegador) voltaria a ver o convite todo dia —
+  // por isso o servidor também opina.
+  const { user } = useDashboard();
+  const jaInstalouAntes = !!user?.app_instalado;
   const [aberto, setAberto] = useState(false);
   const [mostrarPasso, setMostrarPasso] = useState(false);
 
   useEffect(() => {
+    if (jaInstalouAntes) return;
     if (instalado) {
       // Rodando instalado: registra uma vez só, pra dar pra medir se o empurrão
       // funcionou sem depender do evento 'appinstalled' (que o iPhone não manda).
@@ -61,9 +68,9 @@ export default function InstallBanner() {
       const t = setTimeout(() => setAberto(true), 1200);
       return () => clearTimeout(t);
     }
-  }, [instalado]);
+  }, [instalado, jaInstalouAntes]);
 
-  if (!aberto || instalado) return null;
+  if (!aberto || instalado || jaInstalouAntes) return null;
 
   function dispensar() {
     try { localStorage.setItem(CHAVE_DISPENSOU, '1'); } catch { /* segue */ }

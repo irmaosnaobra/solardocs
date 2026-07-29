@@ -643,7 +643,7 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
       .from('users')
       .update({ nome: nomeLimpo })
       .eq('id', req.userId)
-      .select('id, email, nome, plano, limite_documentos, documentos_usados, is_admin, billing_status')
+      .select('id, email, nome, plano, limite_documentos, documentos_usados, is_admin, billing_status, app_instalado_em')
       .single();
 
     if (error || !user) { res.status(500).json({ error: 'Falha ao atualizar perfil' }); return; }
@@ -660,7 +660,11 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
       console.error('[updateProfile] acessoDoUsuario falhou:', e);
     }
 
-    res.json({ user: { ...user, tem_kit: temKit } });
+    // app_instalado (booleano) em vez da data: o front só precisa saber se deve
+    // parar de oferecer. Sem isso o banner reaparecia pra quem instalou e um dia
+    // abriu pelo navegador — standalone diz "estou rodando como app AGORA", não
+    // "esta pessoa já instalou".
+    res.json({ user: { ...user, tem_kit: temKit, app_instalado: !!user.app_instalado_em } });
   } catch (err) {
     console.error('UpdateProfile error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
@@ -671,7 +675,7 @@ export async function getMe(req: Request, res: Response): Promise<void> {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, nome, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status, past_due_since')
+      .select('id, email, nome, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status, past_due_since, app_instalado_em')
       .eq('id', req.userId)
       .single();
 
@@ -693,7 +697,11 @@ export async function getMe(req: Request, res: Response): Promise<void> {
       console.error('[getMe] acessoDoUsuario falhou:', e);
     }
 
-    res.json({ user: { ...user, tem_kit: temKit } });
+    // app_instalado (booleano) em vez da data: o front só precisa saber se deve
+    // parar de oferecer. Sem isso o banner reaparecia pra quem instalou e um dia
+    // abriu pelo navegador — standalone diz "estou rodando como app AGORA", não
+    // "esta pessoa já instalou".
+    res.json({ user: { ...user, tem_kit: temKit, app_instalado: !!user.app_instalado_em } });
   } catch (err) {
     console.error('GetMe error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
