@@ -85,31 +85,42 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
   // O app monta /webhook com express.text({ type: '*/*' }) → req.body é string crua.
   const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
 
-  // 1. Audit log síncrono ANTES de qualquer parse — garante captura do 1º evento real
-  //    mesmo se o mapeamento de campos estiver errado (não conhecemos o payload ainda).
-  try {
-    await supabase.from('webhook_debug').insert({
-      payload: { _route: '/webhook/kiwify', raw: rawBody.slice(0, 20000) },
-    });
-  } catch (err) {
-    console.error('[kiwify] audit log falhou:', err);
-  }
-
-  // 2. Valida assinatura HMAC-SHA1 (se token configurado).
+  // 1. Valida a assinatura HMAC-SHA1 — em MODO OBSERVAÇÃO por padrão.
+  //    Rejeitar de cara é perigoso: se a Kiwify assinar de um jeito diferente do
+  //    que este código espera, TODAS as vendas (inclusive as do LimpaPro, que
+  //    roda de verdade) seriam recusadas em silêncio. Então: confere, registra o
+  //    resultado no audit log e só bloqueia quando KIWIFY_WEBHOOK_STRICT=1 —
+  //    ligar isso depois de ver 'assinatura: ok' nos eventos reais.
   const token = process.env.KIWIFY_WEBHOOK_TOKEN?.trim();
+  const estrito = process.env.KIWIFY_WEBHOOK_STRICT === '1';
+  let assinatura: 'ok' | 'invalida' | 'ausente' | 'sem-token' = 'sem-token';
+
   if (token) {
     const sig =
       (req.query.signature as string) ||
       (req.headers['x-kiwify-signature'] as string) ||
       '';
-    const expected = crypto.createHmac('sha1', token).update(rawBody).digest('hex');
-    if (!sig || sig !== expected) {
-      console.warn('[kiwify] assinatura inválida — rejeitando');
+    const esperado = crypto.createHmac('sha1', token).update(rawBody).digest('hex');
+    assinatura = !sig ? 'ausente' : sig === esperado ? 'ok' : 'invalida';
+  }
+
+  // 2. Audit log síncrono ANTES de qualquer parse — garante captura do evento
+  //    mesmo se o mapeamento de campos estiver errado. Leva junto o veredito da
+  //    assinatura, que é como a gente confere se dá pra ligar o modo estrito.
+  try {
+    await supabase.from('webhook_debug').insert({
+      payload: { _route: '/webhook/kiwify', assinatura, estrito, raw: rawBody.slice(0, 20000) },
+    });
+  } catch (err) {
+    console.error('[kiwify] audit log falhou:', err);
+  }
+
+  if (assinatura !== 'ok' && assinatura !== 'sem-token') {
+    console.warn(`[kiwify] assinatura ${assinatura}${estrito ? ' — rejeitando' : ' — seguindo (modo observação)'}`);
+    if (estrito) {
       res.status(401).json({ error: 'invalid signature' });
       return;
     }
-  } else {
-    console.warn('[kiwify] KIWIFY_WEBHOOK_TOKEN ausente — aceitando sem validar assinatura');
   }
 
   // 3. Parse + persistência da venda.
