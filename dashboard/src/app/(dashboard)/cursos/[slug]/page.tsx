@@ -12,6 +12,7 @@ import {
 import api from '@/services/api';
 import styles from '../curso.module.css';
 import ConteudoLicao from '../_componentes/ConteudoLicao';
+import Avaliacao, { type MinhaAvaliacao } from '../_componentes/Avaliacao';
 import {
   getCurso, licoesDo, licoesBase, xpTotalDo, minutosDo,
   conquistasDo, calcularProgresso, nivelPorXp, bonusLiberado,
@@ -53,6 +54,9 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
   const [feitos, setFeitos] = useState<string[]>([]);
   const [licaoAberta, setLicaoAberta] = useState<string | null>(null);
   const [ganhou, setGanhou] = useState<{ xp: number; conquista?: string } | null>(null);
+  const [avaliacoes, setAvaliacoes] = useState<MinhaAvaliacao[]>([]);
+  /** slug do módulo que acabou de ser concluído — abre a avaliação dele */
+  const [avaliarModulo, setAvaliarModulo] = useState<string | null>(null);
 
   useEffect(() => {
     api.get('/kit/meu-acesso')
@@ -61,7 +65,10 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
       .finally(() => setLoading(false));
     // Missões da plataforma (empresa, cliente, documento) destravam o bônus.
     api.get('/kit/missoes').then(({ data }) => setMissoes(data)).catch(() => {});
-  }, []);
+    api.get(`/kit/avaliacoes?curso=${slug}`)
+      .then(({ data }) => setAvaliacoes(data.avaliacoes ?? []))
+      .catch(() => {});
+  }, [slug]);
 
   useEffect(() => { window.scrollTo({ top: 0 }); }, [licaoAberta]);
 
@@ -88,9 +95,16 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
     const antes = new Set(feitos);
     const depois = new Set(novos);
     const nova = CONQUISTAS.find((c) => !c.ganhou(antes) && c.ganhou(depois));
-    const bonus = modulo.licoes.every((l) => depois.has(l.id)) ? modulo.bonusXp : 0;
+    const fechouModulo = modulo.licoes.every((l) => depois.has(l.id));
+    const bonus = fechouModulo ? modulo.bonusXp : 0;
     setGanhou({ xp: licao.xp + bonus, conquista: nova?.nome });
-  }, [feitos, CONQUISTAS]);
+
+    // Fechou o módulo? É a hora de perguntar o que ele achou — no pico da
+    // sensação de "consegui", não uma semana depois por e-mail.
+    if (fechouModulo && !avaliacoes.some((a) => a.modulo_slug === modulo.slug)) {
+      setAvaliarModulo(modulo.slug);
+    }
+  }, [feitos, CONQUISTAS, avaliacoes]);
 
   if (loading) {
     return <div className={styles.canvas}><div className={styles.carregando}>Carregando seu curso…</div></div>;
@@ -187,6 +201,16 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
             )}
           </div>
         </div>
+
+        {avaliarModulo === modulo.slug && (
+          <Avaliacao
+            cursoSlug={curso.slug}
+            moduloSlug={modulo.slug}
+            titulo={`Módulo ${modulo.numero} concluído. O que você achou?`}
+            subtitulo="Leva 5 segundos e é o que faz o material melhorar."
+            onSalvo={(a) => setAvaliacoes((prev) => [...prev.filter((x) => x.modulo_slug !== a.modulo_slug), a])}
+          />
+        )}
       </div>
     );
   }
@@ -373,6 +397,18 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
           );
         })}
       </section>
+
+      {/* Curso concluído e ainda sem avaliação: pede AQUI, no topo da trilha,
+          onde ele volta depois de fechar a última lição. */}
+      {prog.pctCurso === 100 && !avaliacoes.some((a) => a.modulo_slug === '') && (
+        <Avaliacao
+          cursoSlug={curso.slug}
+          titulo="Você concluiu o curso. Vale 5 estrelas?"
+          subtitulo="Sua avaliação ajuda outro integrador a decidir — e nos diz o que melhorar."
+          pedirAutorizacao
+          onSalvo={(a) => setAvaliacoes((prev) => [...prev.filter((x) => x.modulo_slug !== ''), a])}
+        />
+      )}
 
       <section className={styles.conquistas}>
         <h2 className={styles.secaoTitulo}>

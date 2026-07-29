@@ -237,6 +237,18 @@
   details[open] summary::after { content: '−'; }
   details p { color: var(--muted); font-size: 15.5px; margin: 13px 0 0; }
 
+  /* ── Depoimentos (preenchidos em runtime) ────────── */
+  .depoGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+  .depo {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 24px 22px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .depoEstrelas { display: flex; gap: 3px; color: var(--amber); }
+  .depoTexto { font-size: 15.5px; line-height: 1.7; color: #dfe6f0; margin: 0; }
+  .depoAutor { font-size: 13px; color: var(--muted); margin: 0; }
+  .depoAutor b { color: var(--text); font-weight: 700; display: block; font-size: 14px; }
+
   footer { padding: 44px 0 66px; text-align: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
   footer a { color: var(--muted); }
 
@@ -533,6 +545,19 @@
   </div>
 </section>
 
+<!-- Depoimentos: preenchido em runtime com o que foi APROVADO no /admin. Sem
+     nada aprovado, a seção nem aparece — nada de prova social inventada. -->
+<section id="depoimentos" style="display:none">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center;margin-bottom:34px">
+      <span class="eyebrow">Quem já fez</span>
+      <h2>O que os integradores dizem do curso</h2>
+      <p class="muted" id="depoimentos-resumo"></p>
+    </div>
+    <div class="depoGrid" id="depoimentos-lista"></div>
+  </div>
+</section>
+
 <section class="oferta" id="comprar">
   <div class="wrap">
     <div class="ofertaBox">
@@ -704,6 +729,44 @@ src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1"/></n
     }
     try { window.evtLP('cta_click', { label: onde, tipo: vaiPraCompra ? 'checkout' : 'rolagem' }); } catch (_) {}
   }, true);
+})();
+</script>
+
+<!-- ═══ Depoimentos aprovados ═══
+     Busca o que o Thiago liberou no /admin. Nada aprovado = seção não aparece.
+     Nunca há texto de exemplo aqui: prova social ou é real, ou não existe. -->
+<script>
+(() => {
+  const base = (typeof window !== 'undefined' && window.location.hostname !== 'localhost') ? '/_api' : 'http://localhost:3001';
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const estrela = (cheia) =>
+    `<svg width="15" height="15" viewBox="0 0 24 24" fill="${cheia ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+       <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+
+  fetch(base + '/kit/depoimentos?curso=kit-fechamento')
+    .then((r) => (r.ok ? r.json() : { depoimentos: [] }))
+    .then(({ depoimentos }) => {
+      if (!Array.isArray(depoimentos) || !depoimentos.length) return;
+
+      const secao = document.getElementById('depoimentos');
+      const lista = document.getElementById('depoimentos-lista');
+      const resumo = document.getElementById('depoimentos-resumo');
+
+      lista.innerHTML = depoimentos.map((d) => `
+        <article class="depo">
+          <div class="depoEstrelas">${[1,2,3,4,5].map((n) => estrela(n <= d.estrelas)).join('')}</div>
+          <p class="depoTexto">&ldquo;${esc(d.comentario)}&rdquo;</p>
+          <p class="depoAutor"><b>${esc(d.nome || 'Integrador')}</b>${
+            [d.empresa, d.cidade].filter(Boolean).map(esc).join(' · ')
+          }</p>
+        </article>`).join('');
+
+      const media = depoimentos.reduce((s, d) => s + (d.estrelas || 0), 0) / depoimentos.length;
+      resumo.textContent = `Nota média ${media.toFixed(1).replace('.', ',')} de 5, de quem concluiu o curso e autorizou a publicação.`;
+
+      secao.style.display = '';
+    })
+    .catch(() => {});
 })();
 </script>
 

@@ -27,6 +27,8 @@ import GeradorLeadsPanel from './_panels/GeradorLeadsPanel';
 import IoLpPanel from './_panels/IoLpPanel';
 // Kit de Fechamento (isca R$27 → plataforma) — funil da isca até virar assinante
 import KitPanel from './_panels/KitPanel';
+// Banco de comentários do curso — o que vira depoimento na LP sai daqui
+import ComentariosCursoPanel from './_panels/ComentariosCursoPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -70,6 +72,7 @@ export const PRODUCTS: Product[] = [
       { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solardoc" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="giovanna" /> },
       { key: 'kit',       label: 'Kit / Isca R$27',  status: 'pronto',    Comp: KitPanel },
+      { key: 'comentarios', label: 'Comentários do Curso', status: 'pronto', Comp: ComentariosCursoPanel },
       { key: 'receita',   label: 'Receita/ROAS',     status: 'pronto',    Comp: ReceitaPanel },
       { key: 'conversas', label: 'Conversas',        status: 'pronto',    Comp: () => <ConversasPanel produto="solardoc" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="solardoc" /> },

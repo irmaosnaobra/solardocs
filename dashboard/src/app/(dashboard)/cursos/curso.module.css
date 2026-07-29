@@ -349,6 +349,57 @@
   background: linear-gradient(180deg, rgba(255, 209, 102, 0.07), transparent 60%), var(--ct-surface);
 }
 
+/* ── Avaliação (estrelas + comentário) ─────────────────── */
+.avaliacao {
+  margin-top: 26px;
+  padding: 24px 26px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 209, 102, 0.09), rgba(255, 209, 102, 0.02)), var(--ct-surface);
+  border: 1px solid rgba(255, 209, 102, 0.32);
+  max-width: 860px;
+}
+.avaliacaoTitulo { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 5px; }
+.avaliacaoSub { font-size: 13.5px; color: var(--ct-muted); line-height: 1.6; margin-bottom: 16px; }
+
+.estrelas { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.estrela {
+  background: none; border: none; padding: 3px; cursor: pointer; line-height: 0;
+  color: rgba(148, 163, 184, 0.45); transition: transform 0.12s ease, color 0.12s ease;
+}
+.estrela:hover { transform: scale(1.12); }
+.estrela:focus-visible { outline: 2px solid var(--ct-amber); outline-offset: 2px; border-radius: 6px; }
+.estrelaAtiva { color: #ffd166; filter: drop-shadow(0 3px 10px rgba(255, 209, 102, 0.45)); }
+.estrelaLabel { font-size: 13px; font-weight: 700; color: #ffd166; margin-left: 8px; }
+
+.avaliacaoForm { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.avaliacaoTexto,
+.avaliacaoInput {
+  width: 100%; font-family: inherit; font-size: 14.5px; color: var(--ct-text);
+  background: var(--ct-surface2); border: 1px solid var(--ct-line);
+  border-radius: 12px; padding: 13px 15px; line-height: 1.6; resize: vertical;
+}
+.avaliacaoTexto::placeholder,
+.avaliacaoInput::placeholder { color: rgba(148, 165, 189, 0.7); }
+.avaliacaoTexto:focus,
+.avaliacaoInput:focus { outline: none; border-color: var(--ct-amber); }
+
+.avaliacaoCampos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+.avaliacaoAutoriza {
+  display: flex; gap: 11px; align-items: flex-start;
+  font-size: 13px; color: var(--ct-muted); line-height: 1.55; cursor: pointer;
+}
+.avaliacaoAutoriza input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--ct-amber); flex: none; }
+
+.avaliacaoOk {
+  display: flex; gap: 14px; align-items: flex-start;
+  margin-top: 26px; padding: 20px 24px; border-radius: 16px; max-width: 860px;
+  background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.35);
+}
+.avaliacaoOk svg { color: var(--ct-green); flex: none; margin-top: 2px; }
+.avaliacaoOk strong { display: block; font-size: 15px; margin-bottom: 3px; }
+.avaliacaoOk span { display: block; font-size: 13.5px; color: var(--ct-muted); line-height: 1.6; }
+
 /* ── Conquistas ────────────────────────────────────────── */
 .conquistas { margin-bottom: 34px; }
 .medalhas { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
@@ -614,6 +665,11 @@
 
   .conviteVip { flex-direction: column; gap: 12px; padding: 20px; }
   .conviteVip .btnPrimario { width: 100%; }
+
+  .avaliacao { padding: 20px 16px; border-radius: 16px; }
+  .avaliacaoCampos { grid-template-columns: 1fr; }
+  .estrela svg { width: 34px; height: 34px; }
+  .estrelaLabel { width: 100%; margin: 4px 0 0; }
 
   .moduloBonus { padding: 18px 16px 16px; border-radius: 16px; }
   .bonusTopo { flex-wrap: wrap; gap: 12px; }

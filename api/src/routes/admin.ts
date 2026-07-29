@@ -306,6 +306,71 @@ router.get('/kit-funil', async (_req: Request, res: Response): Promise<void> => 
   }
 });
 
+// ── Banco de comentários do curso (moderação) ──────────────────────────────
+// Lista TUDO que os alunos avaliaram; o Thiago escolhe o que vira depoimento na
+// página de venda. Só entra na LP o que for aprovado AQUI e tiver autorização
+// do aluno.
+router.get('/kit-avaliacoes', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('curso_avaliacoes')
+      .select('id, user_id, curso_slug, modulo_slug, estrelas, comentario, nome_exibicao, empresa, cidade, autoriza_publicar, aprovado, criado_em')
+      .order('criado_em', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+
+    const linhas = (data ?? []) as Array<{
+      id: string; user_id: string; curso_slug: string; modulo_slug: string;
+      estrelas: number; comentario: string | null; nome_exibicao: string | null;
+      empresa: string | null; cidade: string | null;
+      autoriza_publicar: boolean; aprovado: boolean; criado_em: string;
+    }>;
+
+    // Nome/email de quem avaliou (a tela precisa saber de quem é o comentário).
+    const ids = Array.from(new Set(linhas.map((l) => l.user_id)));
+    const donos: Record<string, { email: string; nome: string | null }> = {};
+    if (ids.length) {
+      const { data: users } = await supabase.from('users').select('id, email, nome').in('id', ids);
+      for (const u of (users ?? []) as Array<{ id: string; email: string; nome: string | null }>) {
+        donos[u.id] = { email: u.email, nome: u.nome };
+      }
+    }
+
+    const comNota = linhas.filter((l) => l.estrelas > 0);
+    const media = comNota.length
+      ? +(comNota.reduce((s, l) => s + l.estrelas, 0) / comNota.length).toFixed(2)
+      : null;
+
+    res.json({
+      total: linhas.length,
+      media,
+      com_comentario: linhas.filter((l) => (l.comentario ?? '').trim()).length,
+      autorizados: linhas.filter((l) => l.autoriza_publicar).length,
+      aprovados: linhas.filter((l) => l.aprovado).length,
+      avaliacoes: linhas.map((l) => ({ ...l, autor: donos[l.user_id] ?? null })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// PATCH /admin/kit-avaliacoes/:id — aprova ou tira da vitrine.
+// Única escrita destes painéis: o efeito é publicar (ou despublicar) um
+// depoimento na página de venda, então fica explícita e reversível.
+router.patch('/kit-avaliacoes/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const aprovado = req.body?.aprovado === true;
+    const { error } = await supabase
+      .from('curso_avaliacoes')
+      .update({ aprovado, aprovado_em: aprovado ? new Date().toISOString() : null })
+      .eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true, aprovado });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 // ── Disciplina das ordens (marcar feito, expira, manual/auto) ──
 // GET lista pendentes + histórico + modo. Sincroniza on-demand pra a lista vir
 // fresca mesmo entre ticks do cron.
