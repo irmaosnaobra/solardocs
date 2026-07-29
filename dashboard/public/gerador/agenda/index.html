@@ -703,6 +703,9 @@
     .topbar { padding: 12px 14px; }
     .topbar .brand { font-size: 14px; }
     .topbar .brand small { display: none; }
+    /* no celular a topbar tem 3 botões: o "Atualizar app" fica só com o ícone */
+    .topbar .lbl-versao { display: none; }
+    .topbar #btn-versao { width: 36px; padding: 8px 0; }
   }
 
   /* Botão tema (mesmo estilo do .btn-volta) */
@@ -831,7 +834,8 @@
 <div class="topbar">
   <div class="brand">📅 Agenda <small>· Irmãos na Obra</small></div>
   <div class="actions">
-    <button class="btn-volta" id="btn-refresh" onclick="atualizarAgenda()" title="Atualizar agenda" style="width:36px;padding:8px 0">↻</button>
+    <button class="btn-volta" id="btn-refresh" onclick="atualizarAgenda()" title="Recarregar os dados da agenda" style="width:36px;padding:8px 0">↻</button>
+    <button class="btn-volta" id="btn-versao" onclick="forcarAtualizarApp(this)" title="Baixar a versão nova do app (limpa o cache do PWA)">⬇<span class="lbl-versao"> Atualizar app</span></button>
     <button class="btn-volta" onclick="location.href='/gerador'">← Voltar</button>
   </div>
 </div>
@@ -1964,6 +1968,58 @@ async function processarDeepLinkAgenda() {
     if (nome) document.getElementById('m-nome').value = nome;
     if (tel) document.getElementById('m-tel').value = formatTelBR(tel);
   }
+}
+
+// ============= PWA — versão nova sem fechar o app =============
+// Esta página fica DENTRO do scope do service worker do gerador (/gerador/),
+// mas nunca pedia atualização pra ele: quem só usava a agenda podia ficar dias
+// numa versão velha sem perceber (foi o que aconteceu no dia em que a etiqueta
+// "não apareceu"). Aqui ela passa a se atualizar sozinha, igual ao /gerador.
+if ('serviceWorker' in navigator) {
+  let recarregando = false;
+  const agendarReload = () => {
+    if (recarregando) return;
+    recarregando = true;
+    const tentar = () => {
+      const ae = document.activeElement;
+      const digitando = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable);
+      // não recarrega no meio de um agendamento sendo digitado, nem em aba oculta
+      if (digitando || document.visibilityState !== 'visible') { setTimeout(tentar, 3000); return; }
+      window.location.reload();
+    };
+    tentar();
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', agendarReload);
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/gerador/sw.js', { scope: '/gerador/' }).then(reg => {
+      const checar = () => reg.update().catch(() => {});
+      checar();
+      setInterval(checar, 60000);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checar(); });
+    }).catch(e => console.error('SW falhou:', e));
+  });
+}
+
+// Botão manual — o ↻ do lado recarrega os DADOS da agenda; este baixa a VERSÃO
+// nova do app (limpa os caches do PWA e recarrega ignorando cache).
+let atualizandoApp = false;
+async function forcarAtualizarApp(btn) {
+  if (atualizandoApp) return;
+  atualizandoApp = true;
+  const original = btn ? btn.textContent : '';
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.update().catch(() => {})));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) { /* segue pro reload de qualquer forma */ }
+  window.location.reload(true);
 }
 
 // ============= BOOT =============
