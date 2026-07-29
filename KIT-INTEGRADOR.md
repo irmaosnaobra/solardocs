@@ -4,8 +4,9 @@ Isca de R$ 27 para integrador solar: ele compra na Kiwify, **recebe um login** (
 PDF), consome o material **dentro do SolarDoc** e vê o gerador de documentos funcionando
 ao lado todo dia — que é o que converte para o VIP de R$ 67.
 
-Construído e no ar em 28-29/jul/2026. **Faltam dois campos no painel da Kiwify: o
-webhook (passo 2) e a página de obrigado (passo 4).** O resto está funcionando.
+Construído e no ar em 28-29/jul/2026. O webhook **já está entregando** (vendas reais do
+LimpaPro chegaram por ele). **Falta um campo só no painel da Kiwify: a página de
+obrigado (passo 4).**
 
 ---
 
@@ -15,14 +16,16 @@ webhook (passo 2) e a página de obrigado (passo 4).** O resto está funcionando
 |---|---|---|
 | Anúncio → LP de venda | `solardoc.app/kit` | no ar, indexável, com as telas do curso |
 | Compra | `pay.kiwify.com.br/TGvxMl0` — Kit Fechamento - SolarDoc, R$ 27 | ligado na LP |
-| Webhook da venda | `POST api.solardoc.app/webhook/kiwify` | no ar (o mesmo do LimpaPro) |
+| Webhook da venda | `POST api.solardoc.app/webhook/kiwify` | no ar e entregando; assinatura conferida em modo observação |
 | Conta criada + material liberado | `api/src/services/kitIntegradorService.ts` | no ar |
 | Página de obrigado → cadastro | `solardoc.app/kit/obrigado` | no ar — falta colar na Kiwify |
+| Instalação do app | banner no 1º acesso + botão na página de obrigado | no ar; medido em `users.app_instalado_em` |
 | E-mail de acesso (plano B) | `sendKitAcessoEmail` (Resend) | no ar |
 | Consumo | `solardoc.app/cursos/kit-fechamento` (seção Cursos) | no ar — 6 módulos + bônus, 20 lições |
 | Convite para o VIP | fim de cada módulo (abre o UpgradeModal) | no ar |
 | Medição | `/admin` → hub SolarDoc → aba **Kit / Isca R$27** | no ar |
 | Depoimentos | aba **Comentários do Curso** → publicar → aparece na LP | no ar |
+| Oferta pra base | `solardoc.app/oferta/vip-curso` + campanha por e-mail | no ar — o disparo é você quem manda rodar |
 
 ---
 
@@ -124,6 +127,77 @@ Já verificado em produção com pedidos de teste (criados e apagados):
 Ao criar a senha, o comprador cai direto em **Cursos → Kit de Fechamento**.
 
 Se algo não chegar, o payload cru fica em `webhook_debug` (busque por `_route: /webhook/kiwify`).
+
+
+---
+
+## O que mudou na madrugada de 29/jul
+
+Três defeitos que só apareceram lendo o código inteiro, e que teriam aparecido como
+"a isca não converte":
+
+1. **O comprador batia num muro de CNPJ.** Ele é criado no plano free, e o layout
+   empurrava todo free sem CNPJ pra `/empresa` — ou seja, pagava, criava a senha e caía
+   numa tela pedindo CNPJ. Agora `/auth/me` devolve `tem_kit` e quem comprou navega
+   livre; o cadastro da empresa virou convite (banner), não portão.
+2. **Assinante que comprava o bump pagava e não recebia nada** — o código se recusa (com
+   razão) a mexer em plano pago, e o caso morria no log. Agora grava
+   `bump_aplicado=false`, alerta o dono e aparece em vermelho no painel.
+3. **O gate do curso vivia numa linha de React.** Foi pro servidor: quem comprou tem
+   acesso pela COMPRA, não pelo plano — senão quem levou só o bump perderia o curso no
+   dia 31, depois de ter pago.
+
+### Segmentos da compra
+
+Todo pedido é carimbado com `segmento`, derivado de quem a pessoa **era antes** de
+comprar (`password_hash`, não "a conta existe" — senão o bump chegando primeiro marcaria
+comprador novo como membro antigo):
+
+| Segmento | Quem é | Pra que serve |
+|---|---|---|
+| `lp` | conta nova vinda de campanha | mede a mídia |
+| `membro` | já tinha conta com senha | é a base própria comprando |
+| `direto` | conta nova sem rastro de campanha | orgânico, indicação, WhatsApp |
+
+### O link sem order bump
+
+Crie um **segundo checkout** na Kiwify, no mesmo produto, sem o order bump — e use esse
+link pra base própria. Motivo: quem já assina não pode receber "30 dias de VIP", então
+pagaria R$19 por nada. O código não precisa de nada: a Kiwify manda `checkout_link` e
+`product_offer_id`, que já são gravados no pedido.
+
+**Mire nos 109 usuários free.** Os 51 assinantes (PRO e VIP) já têm o curso liberado
+pelo plano — vender pra eles é vender o que já é deles.
+
+### Oferta pra quem já está dentro
+
+`solardoc.app/oferta/vip-curso` — VIP a R$67 com o curso incluso e **cobrança imediata**
+(sem os 7 dias). A campanha por e-mail tem 3 toques e cadência própria; dispara com:
+
+```
+GET /cron/campanha-curso-vip?seco=1     → só conta quem receberia (não manda nada)
+GET /cron/campanha-curso-vip?limite=50  → manda pra 50
+```
+
+Audiência hoje: **121 pessoas** (96 free + 25 PRO). Quem está no trial de 30 dias do
+bump fica de fora — pra esse a conversa é "não perca", não "ganhe".
+
+### Antes de prospectar frio
+
+A linha de WhatsApp já foi banida uma vez. Os freios agora existem e são env var, então
+dá pra apertar sem deploy:
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `IO_BLAST_OFF=1` | — | congela todo disparo da linha |
+| `IO_BLAST_HORA_INICIO` / `_FIM` | 9 / 20 | janela de envio (horário de Brasília) |
+| `IO_BLAST_TETO_DIA` | 150 | teto por dia na LINHA, somando campanhas |
+| `IO_BLAST_DIAS_DEDUP` | 45 | não recontatar o mesmo número, mesmo em campanha diferente |
+
+E quem responde a um disparo deixou de cair no vazio: quem pede pra parar sai sozinho da
+lista (entra na supressão no mesmo tick), e o resto vira fila no `/admin` → **Disparos**,
+com o texto que a pessoa escreveu e botão pra abrir a conversa. O atendimento é humano —
+não coloquei robô pra conversar com lead frio.
 
 ---
 
