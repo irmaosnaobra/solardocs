@@ -36,7 +36,9 @@ export default function MinhaContaPage() {
     setNomeMsg(null);
     try {
       const { data } = await api.patch('/auth/profile', { nome });
-      setUser(data.user);
+      // Mescla em vez de substituir: a resposta deste endpoint traz menos campos
+      // que o /auth/me, e trocar o objeto inteiro apagava o resto do estado.
+      setUser({ ...(user ?? {}), ...data.user });
       setNomeMsg({ ok: true, text: 'Nome atualizado!' });
     } catch (err: any) {
       setNomeMsg({ ok: false, text: err?.response?.data?.error ?? 'Erro ao salvar' });

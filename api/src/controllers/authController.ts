@@ -647,7 +647,20 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
       .single();
 
     if (error || !user) { res.status(500).json({ error: 'Falha ao atualizar perfil' }); return; }
-    res.json({ user });
+
+    // tem_kit vai junto porque o front SUBSTITUI o usuário do contexto com esta
+    // resposta. Sem o campo, o comprador do kit que troca o nome em Minha Conta
+    // volta a "não ter kit" na mesma hora — e o layout o empurra pra tela de
+    // CNPJ, que é justamente o muro que este funil existe pra não ter.
+    let temKit = false;
+    try {
+      const acesso = await acessoDoUsuario(user.id, user.email);
+      temKit = acesso.temKit || acesso.itens.length > 0;
+    } catch (e) {
+      console.error('[updateProfile] acessoDoUsuario falhou:', e);
+    }
+
+    res.json({ user: { ...user, tem_kit: temKit } });
   } catch (err) {
     console.error('UpdateProfile error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });

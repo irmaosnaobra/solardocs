@@ -162,12 +162,20 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     const customer = customers.data[0];
     if (customer) {
+      // 'all' e não 'active': quem está nos 7 dias grátis fica em 'trialing' e
+      // quem atrasou fica em 'past_due'. Filtrar só por 'active' fazia essas
+      // duas assinaturas SUMIREM daqui — o upgrade caía no checkout novo e
+      // criava uma SEGUNDA assinatura, sob um Customer novo, cobrando os dois
+      // planos. Com a oferta sem trial isso vira débito imediato, e a perna
+      // antiga fica invisível no portal de cobrança (que lista 1 customer).
       const subs = await stripe.subscriptions.list({
         customer: customer.id,
-        status: 'active',
-        limit: 1,
+        status: 'all',
+        limit: 10,
       });
-      const activeSub = subs.data[0];
+      const activeSub = subs.data.find(
+        (s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due',
+      );
       if (activeSub && activeSub.items.data[0]) {
         await stripe.subscriptions.update(activeSub.id, {
           items: [{ id: activeSub.items.data[0].id, price: priceId }],

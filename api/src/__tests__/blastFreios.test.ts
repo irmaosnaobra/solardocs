@@ -50,6 +50,23 @@ async function rodar() {
 }
 
 describe('freios do disparo em massa', () => {
+  // O defeito que este teste tranca: Number('') e' 0, e 0 passa em isFinite e em
+  // >= 0. Sem o teste de string vazia, env var AUSENTE virava 0 — janela 0..0
+  // (sempre fechada) e teto 0 — e o disparo parava calado, sem erro nenhum.
+  it('sem NENHUMA env var configurada, os padroes valem e o disparo funciona', async () => {
+    delete process.env.IO_BLAST_OFF;
+    delete process.env.IO_BLAST_HORA_INICIO;
+    delete process.env.IO_BLAST_HORA_FIM;
+    delete process.env.IO_BLAST_TETO_DIA;
+    delete process.env.IO_BLAST_DIAS_DEDUP;
+
+    const r = await rodar();
+    // Fora do horario comercial o motivo legitimo e' a janela; dentro, e'
+    // 'nada_rodando'. O que NAO pode acontecer e' teto_diario com zero envios.
+    expect(r.reason).not.toBe('teto_diario');
+    expect(['nada_rodando', 'fora_da_janela_horaria']).toContain(r.reason);
+  });
+
   it('kill-switch congela tudo', async () => {
     process.env.IO_BLAST_OFF = '1';
     expect((await rodar()).reason).toBe('blast_desligado');

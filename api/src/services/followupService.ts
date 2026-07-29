@@ -558,11 +558,14 @@ export async function runCampanhaCursoVip(opts?: { limite?: number; secoDeTeste?
   const limite = opts?.limite ?? 200;
   const seco = opts?.secoDeTeste === true;
 
-  const { data: users } = await supabase
+  const { data: users, error: eUsers } = await supabase
     .from('users')
-    .select('id, email, nome, plano, email_opt_out, followup_abandoned, pack_trial_until, campanha_curso_count, campanha_curso_last_sent_at')
+    .select('id, email, nome, plano, billing_status, email_opt_out, followup_abandoned, pack_trial_until, campanha_curso_count, campanha_curso_last_sent_at')
     .in('plano', ['free', 'pro']);
 
+  // Erro engolido aqui reportava "0 enviados, tudo certo" quando na verdade a
+  // campanha não rodou. Falha explícita: quem chamou precisa saber.
+  if (eUsers) throw new Error(`campanha-curso: leitura da audiência falhou — ${eUsers.message}`);
   if (!users || users.length === 0) return { enviados: 0, pulados: 0, elegiveis: 0 };
 
   const agora = new Date();
@@ -576,6 +579,14 @@ export async function runCampanhaCursoVip(opts?: { limite?: number; secoDeTeste?
     // Trial VIP do bump correndo: ele JÁ tem tudo o que a campanha oferece.
     const trialAtivo = !!u.pack_trial_until && new Date(u.pack_trial_until as string) > agora;
     if (trialAtivo) { pulados++; continue; }
+    // Assinatura Stripe VIVA (nos 7 dias grátis, ou atrasada) — plano continua
+    // 'pro' nesses estados. Mandar a oferta pra eles é convidar a assinar de
+    // novo por cima da assinatura que já existe: viram dois planos cobrados,
+    // e quem está atrasado precisa é regularizar, não comprar outro.
+    const assinaturaViva = u.billing_status === 'trialing'
+      || u.billing_status === 'past_due'
+      || u.billing_status === 'suspended';
+    if (assinaturaViva) { pulados++; continue; }
 
     elegiveis++;
 
@@ -583,9 +594,15 @@ export async function runCampanhaCursoVip(opts?: { limite?: number; secoDeTeste?
     if (count >= CAMPANHA_CURSO_MAX) { pulados++; continue; }
 
     if (u.campanha_curso_last_sent_at) {
-      const ultimo = new Date((u.campanha_curso_last_sent_at as string).replace(' ', 'T') + 'Z');
+      // A coluna é timestamptz: o valor JÁ vem com fuso. O idioma
+      // .replace(' ','T')+'Z' usado pelas colunas irmãs (que são 'timestamp
+      // without time zone') produzia "…+00Z" → Invalid Date → NaN → a comparação
+      // dava sempre falsa e o gap NUNCA bloqueava: bastava rodar o cron duas
+      // vezes pra mesma pessoa receber dois e-mails seguidos.
+      const ultimo = new Date(u.campanha_curso_last_sent_at as string);
       const gap = (CAMPANHA_CURSO_GAP_DIAS[count] ?? 6) * DAY_MS;
-      if (agora.getTime() - ultimo.getTime() < Math.max(MIN_GAP_MS, gap)) { pulados++; continue; }
+      if (Number.isFinite(ultimo.getTime())
+          && agora.getTime() - ultimo.getTime() < Math.max(MIN_GAP_MS, gap)) { pulados++; continue; }
     }
 
     if (seco) { enviados++; continue; }  // ensaio: conta quem receberia, não manda

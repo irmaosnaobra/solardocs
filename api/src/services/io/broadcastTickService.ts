@@ -34,7 +34,13 @@ const LOCK_DURATION_MS = 5 * 60 * 1000;
 //
 // Todos são env var: dá pra apertar sem deploy, no meio de uma campanha.
 const num = (nome: string, padrao: number) => {
-  const v = Number((process.env[nome] || '').trim());
+  // Number('') e' 0, e 0 passa em isFinite e em >= 0 — sem o teste de string
+  // vazia, env var AUSENTE virava 0 e o padrao nunca era usado. Na pratica isso
+  // deixava a janela 0..0 (sempre fechada) e o teto em 0: o disparo inteiro
+  // parava calado. Quem confere isso e' o teste blastFreios ('sem env var').
+  const cru = (process.env[nome] || '').trim();
+  if (cru === '') return padrao;
+  const v = Number(cru);
   return Number.isFinite(v) && v >= 0 ? v : padrao;
 };
 
@@ -59,10 +65,14 @@ function foraDaJanela(): boolean {
   return h < JANELA_INICIO_H || h >= JANELA_FIM_H;
 }
 
-/** Quantos envios a linha já fez hoje (todas as campanhas somadas). */
+/** Quantos envios a linha já fez hoje (todas as campanhas somadas).
+ *  "Hoje" é o dia de BRASÍLIA, igual à janela de horário — cortar em 00:00 UTC
+ *  (21:00 daqui) zeraria o teto no meio da noite anterior. */
 async function enviadosHoje(): Promise<number> {
-  const inicioDoDia = new Date();
-  inicioDoDia.setUTCHours(0, 0, 0, 0);
+  const agoraBr = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const inicioDoDia = new Date(Date.now() - (
+    agoraBr.getHours() * 3600_000 + agoraBr.getMinutes() * 60_000 + agoraBr.getSeconds() * 1000
+  ));
   const { count } = await supabase
     .from('io_broadcast_envios')
     .select('id', { count: 'exact', head: true })
@@ -156,11 +166,18 @@ async function runIoBroadcastTickInner(): Promise<TickResult> {
     const cortePorDedup = new Date(Date.now() - DIAS_DEDUP * 86400_000).toISOString();
     const jaTocados = new Set<string>();
     if (DIAS_DEDUP > 0) {
-      const { data: recentes } = await supabase
+      const { data: recentes, error: eDedup } = await supabase
         .from('io_broadcast_envios')
         .select('phone, broadcast_id')
         .in('phone', broadcast.contatos)
         .gte('enviado_em', cortePorDedup);
+      // Erro aqui NÃO pode passar batido: sem a lista, todo mundo parece novo e a
+      // campanha inteira re-contata quem já recebeu. Falhar fechado é mais barato
+      // que uma denúncia — o disparo espera o próximo tick.
+      if (eDedup) {
+        logger.error('broadcast-tick', 'dedup global falhou — pulando o tick por segurança', eDedup);
+        return { processed: 0, broadcast_id: broadcast.id, reason: 'dedup_indisponivel' };
+      }
       for (const r of (recentes ?? []) as Array<{ phone: string; broadcast_id: string }>) {
         if (r.broadcast_id !== broadcast.id) jaTocados.add(r.phone);
       }

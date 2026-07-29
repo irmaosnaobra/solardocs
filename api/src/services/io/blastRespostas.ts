@@ -33,9 +33,45 @@ function telKey(raw: string | null | undefined): string | null {
   return d.slice(0, 2) + d.slice(-8);
 }
 
-// Pedido de parada. Deliberadamente amplo: falso positivo aqui custa um contato
-// a menos; falso negativo custa uma denúncia — e a linha já foi banida uma vez.
-const RE_PARE = /\b(pare|para de|parar|nao quero|não quero|nao tenho interesse|não tenho interesse|sem interesse|remove|remover|descadastr|sair da lista|me tira|nao me manda|não me manda|nao perturbe|não perturbe|spam|denunc|bloquear|me exclu)/i;
+// Pedido de parada.
+//
+// As fronteiras \b no FIM são o detalhe que importa. A primeira versão tinha \b
+// só na abertura, e aí "pare" casava dentro de "parece" e "parede": "esse preço
+// me parece alto" — um lead interessado, discutindo preço — era bloqueado
+// global e permanentemente. Testado contra 20 respostas plausíveis, metade das
+// quais NÃO pode suprimir ("quanto custa?", "me manda o link", "parabéns").
+const RE_PARE = new RegExp(
+  [
+    '\\b(pare|parar|para)\\b\\s*(de|com)?\\s*(me\\s*)?(mandar|enviar|manda|envia|receber)?',
+    '\\bn[ãa]o\\s+(quero|tenho\\s+interesse|me\\s+mand|me\\s+envi|perturbe)',
+    '\\bsem\\s+interesse\\b',
+    '\\b(remove|remover|remova)\\b',
+    'descadastr',
+    '\\bsair\\s+da\\s+lista\\b',
+    '\\bme\\s+(tira|exclu|remov)',
+    '\\bspam\\b',
+    'denunc',
+    '\\bbloquear\\b',
+  ].join('|'),
+  'i',
+);
+
+/** Normaliza pro MESMO formato da lista de disparo (55 + DDD + 9 + 8 dígitos).
+ *
+ *  carregarSupressao (ioSend.ts) casa por sufixo de 10 dígitos, e o 9º dígito
+ *  desloca esse sufixo: gravar o telefone cru do inbound — que a Z-API às vezes
+ *  entrega sem o 9 — produzia uma chave que nunca casava com o contato da lista.
+ *  Resultado: a pessoa pedia "pare", entrava na supressão, e continuava
+ *  recebendo. É exatamente o caminho da denúncia que a supressão existe pra
+ *  evitar. */
+function normalizarParaSupressao(raw: string): string | null {
+  const d = String(raw || '').replace(/\D/g, '').replace(/^55/, '');
+  if (d.length < 10) return null;
+  return '55' + d.slice(0, 2) + '9' + d.slice(-8);
+}
+
+/** Exposto só pra teste: o regex é a peça que decide silenciar alguém pra sempre. */
+export const RE_PARE_TESTE = RE_PARE;
 
 export type ResultadoRespostas = {
   inbound: number;
@@ -87,8 +123,18 @@ export async function runBlastRespostas(): Promise<ResultadoRespostas> {
     const k = telKey(phone);
     if (!k || !porChave.has(k)) continue;                      // não recebeu disparo: outra conversa
 
+    // Legenda de imagem/vídeo/documento conta: "me tira da lista" escrito em
+    // cima de uma foto é o mesmo pedido, e passava batido.
     const texto = String(
-      p.text?.message ?? p.message?.text ?? p.body ?? p.caption ?? '',
+      p.text?.message
+        ?? p.message?.text
+        ?? p.image?.caption
+        ?? p.video?.caption
+        ?? p.document?.caption
+        ?? p.audio?.caption
+        ?? p.body
+        ?? p.caption
+        ?? '',
     ).slice(0, 900);
 
     if (!respostas.has(k)) {
@@ -98,17 +144,29 @@ export async function runBlastRespostas(): Promise<ResultadoRespostas> {
 
   if (respostas.size === 0) return vazio;
 
+  // A janela de leitura do inbound (6 min) é maior que o tick (5 min), então a
+  // MESMA resposta aparece em dois ticks seguidos. O índice único não segura
+  // isso — respondido_em tem default now(), então cada tick gera uma chave nova.
+  // A checagem é aqui: uma linha por pessoa por dia.
+  const desde24h = new Date(Date.now() - 24 * 3600_000).toISOString();
+  const { data: jaRegistradas } = await supabase
+    .from('io_blast_respostas')
+    .select('tel_key')
+    .gte('respondido_em', desde24h);
+  const jaTem = new Set((jaRegistradas ?? []).map((x: { tel_key: string }) => x.tel_key));
+
   let suprimidos = 0;
   let paraAtender = 0;
 
   for (const r of respostas.values()) {
+    if (jaTem.has(r.chave)) continue;
     const querParar = RE_PARE.test(r.texto);
 
     if (querParar) {
       // Entra na MESMA lista que o motor de disparo já consulta antes de mandar.
       const { error } = await supabase.from('whatsapp_suppression').upsert(
         {
-          phone: r.phone,
+          phone: normalizarParaSupressao(r.phone) ?? r.phone,
           motivo: 'pediu para parar (resposta a disparo)',
           origem: 'blast-io',
         },
