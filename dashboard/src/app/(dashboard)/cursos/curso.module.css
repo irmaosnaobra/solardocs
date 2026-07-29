@@ -77,9 +77,13 @@
 }
 
 .nivelTopo { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
-.nivelEmoji {
-  font-size: 30px; line-height: 1; flex: none;
-  filter: drop-shadow(0 4px 12px rgba(247, 164, 28, 0.4));
+.nivelIcone {
+  flex: none; width: 46px; height: 46px; border-radius: 14px;
+  display: grid; place-items: center;
+  color: var(--ct-amber);
+  background: rgba(247, 164, 28, 0.13);
+  border: 1px solid rgba(247, 164, 28, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .nivelNome { display: block; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
 .nivelDesc { display: block; font-size: 12.5px; color: var(--ct-muted); line-height: 1.45; }
@@ -263,15 +267,26 @@
   background: var(--ct-surface); border: 1px solid var(--ct-line);
   border-radius: 15px; padding: 17px 15px; text-align: center; opacity: 0.5;
 }
-.medalha strong { display: block; font-size: 13.5px; margin: 8px 0 3px; }
+.medalha strong { display: block; font-size: 13.5px; margin: 9px 0 3px; }
 .medalha > span:last-child { display: block; font-size: 11.5px; color: var(--ct-muted); line-height: 1.45; }
-.medalhaEmoji { font-size: 27px; line-height: 1; display: block; filter: grayscale(1); }
+.medalhaIcone {
+  width: 44px; height: 44px; margin: 0 auto; border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--ct-muted);
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid var(--ct-line);
+}
 .medalhaGanha {
   opacity: 1;
   border-color: rgba(247, 164, 28, 0.4);
   background: linear-gradient(180deg, rgba(247, 164, 28, 0.1), rgba(247, 164, 28, 0.02)), var(--ct-surface);
 }
-.medalhaGanha .medalhaEmoji { filter: none; }
+.medalhaGanha .medalhaIcone {
+  color: #0d1424;
+  background: linear-gradient(180deg, #ffd166, #f0a01e);
+  border-color: rgba(255, 209, 102, 0.7);
+  box-shadow: 0 6px 18px -8px rgba(247, 164, 28, 0.9);
+}
 
 /* ── Convite VIP ───────────────────────────────────────── */
 .conviteVip {
@@ -460,7 +475,7 @@
 }
 .toastXp { font-size: 20px; font-weight: 900; color: var(--ct-amber); letter-spacing: -0.02em; }
 .toastMsg { font-size: 12.5px; color: var(--ct-muted); }
-.toastConq { font-size: 13px; font-weight: 700; color: #ffd88a; }
+.toastConq { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #ffd88a; }
 
 @keyframes sobe {
   from { opacity: 0; transform: translateY(16px) scale(0.96); }

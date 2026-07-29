@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import {
   MessageSquareQuote, Map, Calculator, FileSignature, Send, Repeat,
   Check, ChevronLeft, ChevronRight, Lock, Play, Download, Trophy, Zap, Clock, ArrowRight, Sparkles,
+  Sprout, Flame, Crown, Target, ShieldCheck, Coins, FileCheck2, Medal,
 } from 'lucide-react';
 import api from '@/services/api';
 import styles from '../curso.module.css';
@@ -21,6 +22,13 @@ import {
 // ferramenta e entrou no treinamento. Cores fixas, não tokens, por isso mesmo.
 
 const ICONES = { MessageSquareQuote, Map, Calculator, FileSignature, Send, Repeat };
+
+// Níveis e conquistas usam a MESMA família de ícones do resto do app (lucide).
+// Emoji colorido destoa da interface e some no tema escuro do curso.
+const ICONES_GAME = {
+  Sprout, Zap, Flame, Crown,
+  Target, ShieldCheck, Map, Coins, FileCheck2, Send, Repeat, Trophy,
+};
 
 interface Acesso {
   temKit: boolean;
@@ -208,7 +216,9 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
 
         <div className={styles.painelNivel}>
           <div className={styles.nivelTopo}>
-            <span className={styles.nivelEmoji}>{nivel.atual.emoji}</span>
+            <span className={styles.nivelIcone}>
+              {(() => { const I = ICONES_GAME[nivel.atual.icone]; return <I size={24} strokeWidth={1.9} />; })()}
+            </span>
             <div>
               <strong className={styles.nivelNome}>{nivel.atual.nome}</strong>
               <span className={styles.nivelDesc}>{nivel.atual.descricao}</span>
@@ -312,9 +322,12 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
         <div className={styles.medalhas}>
           {CONQUISTAS.map((c) => {
             const ganha = prog.conquistas.some((x) => x.id === c.id);
+            const I = ICONES_GAME[c.icone];
             return (
               <div key={c.id} className={`${styles.medalha} ${ganha ? styles.medalhaGanha : ''}`} title={c.comoGanha}>
-                <span className={styles.medalhaEmoji}>{ganha ? c.emoji : '🔒'}</span>
+                <span className={styles.medalhaIcone}>
+                  {ganha ? <I size={22} strokeWidth={1.9} /> : <Lock size={20} strokeWidth={1.9} />}
+                </span>
                 <strong>{c.nome}</strong>
                 <span>{c.comoGanha}</span>
               </div>
@@ -352,7 +365,7 @@ function ToastXp({ ganhou }: { ganhou: { xp: number; conquista?: string } }) {
     <div className={styles.toast} role="status">
       <span className={styles.toastXp}>+{ganhou.xp} XP</span>
       {ganhou.conquista
-        ? <span className={styles.toastConq}>🏅 Conquista: {ganhou.conquista}</span>
+        ? <span className={styles.toastConq}><Medal size={14} strokeWidth={2} /> Conquista: {ganhou.conquista}</span>
         : <span className={styles.toastMsg}>boa! seguindo pra próxima</span>}
     </div>
   );

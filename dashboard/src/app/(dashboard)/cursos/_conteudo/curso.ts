@@ -199,13 +199,19 @@ export const XP_TOTAL =
 export const MINUTOS_TOTAL = TODAS_LICOES.reduce((s, l) => s + l.minutos, 0);
 
 // ── Níveis ──────────────────────────────────────────────────────────────────
-export type Nivel = { nome: string; de: number; emoji: string; descricao: string };
+// `icone` é nome de ícone lucide (mesma família do resto do app) — nada de
+// emoji colorido, que destoa da interface.
+export type NomeIcone =
+  | 'Sprout' | 'Zap' | 'Flame' | 'Crown'
+  | 'Target' | 'ShieldCheck' | 'Map' | 'Coins' | 'FileCheck2' | 'Send' | 'Repeat' | 'Trophy';
+
+export type Nivel = { nome: string; de: number; icone: NomeIcone; descricao: string };
 
 export const NIVEIS: Nivel[] = [
-  { nome: 'Aprendiz', de: 0, emoji: '🌱', descricao: 'Começou a montar o repertório' },
-  { nome: 'Vendedor', de: 700, emoji: '⚡', descricao: 'Já tem resposta para o que mais aparece' },
-  { nome: 'Fechador', de: 1600, emoji: '🔥', descricao: 'Conduz a visita inteira sem improviso' },
-  { nome: 'Mestre do Fechamento', de: 2600, emoji: '👑', descricao: 'Domina da prospecção à indicação' },
+  { nome: 'Aprendiz', de: 0, icone: 'Sprout', descricao: 'Começou a montar o repertório' },
+  { nome: 'Vendedor', de: 700, icone: 'Zap', descricao: 'Já tem resposta para o que mais aparece' },
+  { nome: 'Fechador', de: 1600, icone: 'Flame', descricao: 'Conduz a visita inteira sem improviso' },
+  { nome: 'Mestre do Fechamento', de: 2600, icone: 'Crown', descricao: 'Domina da prospecção à indicação' },
 ];
 
 export function nivelPorXp(xp: number): { atual: Nivel; proximo: Nivel | null; faltam: number; pct: number } {
@@ -224,7 +230,7 @@ export function nivelPorXp(xp: number): { atual: Nivel; proximo: Nivel | null; f
 export type Conquista = {
   id: string;
   nome: string;
-  emoji: string;
+  icone: NomeIcone;
   comoGanha: string;
   ganhou: (feitos: Set<string>) => boolean;
 };
@@ -238,56 +244,56 @@ export const CONQUISTAS: Conquista[] = [
   {
     id: 'primeira',
     nome: 'Primeira lição',
-    emoji: '🎯',
+    icone: 'Target',
     comoGanha: 'Concluir qualquer lição',
     ganhou: (f) => TODAS_LICOES.some((l) => f.has(l.id)),
   },
   {
     id: 'escudo',
     nome: 'Escudo anti-objeção',
-    emoji: '🛡️',
+    icone: 'ShieldCheck',
     comoGanha: 'Concluir o módulo 1 inteiro',
     ganhou: moduloCompleto('objecoes'),
   },
   {
     id: 'roteirista',
     nome: 'Visita sem improviso',
-    emoji: '🗺️',
+    icone: 'Map',
     comoGanha: 'Concluir o módulo 2 inteiro',
     ganhou: moduloCompleto('roteiro'),
   },
   {
     id: 'margem',
     nome: 'Margem protegida',
-    emoji: '💰',
+    icone: 'Coins',
     comoGanha: 'Concluir o módulo 3 inteiro',
     ganhou: moduloCompleto('preco'),
   },
   {
     id: 'documento',
     nome: 'Documento com a sua marca',
-    emoji: '📄',
+    icone: 'FileCheck2',
     comoGanha: 'Fazer a missão prática do módulo 4',
     ganhou: (f) => f.has('documentos:gerar'),
   },
   {
     id: 'prospector',
     nome: 'Agenda cheia',
-    emoji: '📨',
+    icone: 'Send',
     comoGanha: 'Concluir o módulo 5 inteiro',
     ganhou: moduloCompleto('prospeccao'),
   },
   {
     id: 'recorrencia',
     nome: 'Cliente que volta',
-    emoji: '🔁',
+    icone: 'Repeat',
     comoGanha: 'Concluir o módulo 6 inteiro',
     ganhou: moduloCompleto('posvenda'),
   },
   {
     id: 'completo',
     nome: 'Kit completo',
-    emoji: '🏆',
+    icone: 'Trophy',
     comoGanha: 'Concluir as 17 lições do curso',
     ganhou: (f) => TODAS_LICOES.every((l) => f.has(l.id)),
   },

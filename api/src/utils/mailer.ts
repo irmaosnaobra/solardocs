@@ -663,7 +663,7 @@ export async function sendKitAcessoEmail(opts: {
     ${
       opts.comVip
         ? `<p style="color:#fbbf24;font-size:15px;line-height:1.7;margin:24px 0 0;text-align:center;">
-             🎁 Você levou o acesso VIP: <strong>${dias} dias de documentos ilimitados</strong> já estão ativos na sua conta.
+             Você levou o acesso VIP: <strong>${dias} dias de documentos ilimitados</strong> já estão ativos na sua conta.
            </p>`
         : ''
     }
@@ -673,12 +673,12 @@ export async function sendKitAcessoEmail(opts: {
 
   <div style="padding:26px 36px 6px;">
     <p style="margin:0 0 4px;color:#fbbf24;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">O que te espera em Cursos</p>
-    <p style="margin:0;color:#cbd5e1;font-size:14px;line-height:1.8;">
-      📘 26 respostas de objeção — começando por "achei mais barato"<br/>
-      🗺️ O roteiro da visita técnica até a assinatura<br/>
-      💰 Estrutura de custo e margem, com planilha pronta<br/>
-      📨 15 mensagens de prospecção e follow-up<br/>
-      📄 Contrato, procuração e vistoria gerados no seu nome
+    <p style="margin:0;color:#cbd5e1;font-size:14px;line-height:1.9;">
+      <span style="color:#fbbf24;">&#9679;</span> 26 respostas de objeção — começando por "achei mais barato"<br/>
+      <span style="color:#fbbf24;">&#9679;</span> O roteiro da visita técnica até a assinatura<br/>
+      <span style="color:#fbbf24;">&#9679;</span> Estrutura de custo e margem, com planilha pronta<br/>
+      <span style="color:#fbbf24;">&#9679;</span> 15 mensagens de prospecção e follow-up<br/>
+      <span style="color:#fbbf24;">&#9679;</span> Contrato, procuração e vistoria gerados no seu nome
     </p>
     <p style="margin:12px 0 0;color:#94a3b8;font-size:13px;line-height:1.7;">
       São 17 lições com XP e conquistas — dá pra fazer uma por dia, no celular, antes da visita.
