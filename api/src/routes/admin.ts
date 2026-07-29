@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
+import { runCampanhaCursoVip } from '../services/followupService';
 import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel, getRevenue, getBilling } from '../controllers/adminController';
 import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas, getLimpaproMembros } from '../controllers/limpaproController';
 import { getMetaAds } from '../controllers/metaAdsController';
@@ -1178,6 +1179,48 @@ router.post('/io/send-text', async (req: Request, res: Response): Promise<void> 
 });
 
 // Cria registro de auditoria de um disparo. Retorna id pra cliente referenciar.
+// ── Campanha "o curso entra junto no VIP" ──────────────────────────────────
+// Disparo pela tela, não por cron: campanha tem começo e fim, e quem decide
+// mandar é uma pessoa olhando o número. Todas as rotas deste arquivo já passam
+// por authMiddleware + adminMiddleware (linhas 70-71).
+//
+// `seco: true` NÃO manda nada — só conta quem receberia. É o passo que sempre
+// vem antes: e-mail em massa não tem botão de desfazer.
+router.post('/campanha-curso-vip', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const seco = req.body?.seco !== false;
+    const limite = Math.min(Math.max(Number(req.body?.limite) || 25, 1), 300);
+    const r = await runCampanhaCursoVip({ limite, secoDeTeste: seco });
+    res.json({ ok: true, seco, limite, ...r });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// Quantos já receberam cada toque — pra saber onde a campanha parou.
+router.get('/campanha-curso-vip', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('campanha_curso_count, campanha_curso_last_sent_at')
+      .gt('campanha_curso_count', 0);
+    if (error) throw error;
+    const linhas = (data ?? []) as Array<{ campanha_curso_count: number; campanha_curso_last_sent_at: string | null }>;
+    const porToque: Record<string, number> = {};
+    let ultimo: string | null = null;
+    for (const l of linhas) {
+      const k = String(l.campanha_curso_count);
+      porToque[k] = (porToque[k] ?? 0) + 1;
+      if (l.campanha_curso_last_sent_at && (!ultimo || l.campanha_curso_last_sent_at > ultimo)) {
+        ultimo = l.campanha_curso_last_sent_at;
+      }
+    }
+    res.json({ jaReceberam: linhas.length, porToque, ultimoEnvio: ultimo });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 // ── Respostas ao disparo (fila de atendimento humano) ──────────────────────
 // Quem responde a um blast hoje cai no vazio: o agente de SDR ignora a linha IO
 // e o próprio disparo cala os bots. Esta é a fila que torna a resposta visível.

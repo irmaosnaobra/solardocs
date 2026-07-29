@@ -54,6 +54,116 @@ const dia = (s: string) => new Date(s).toLocaleDateString('pt-BR', { day: '2-dig
 const META_CONV_SESSAO = 7;
 const META_ASSINANTE = 20;
 
+// ── Campanha "o curso entra junto no VIP" ──────────────────────────────────
+// O ensaio vem antes do envio, sempre: e-mail em massa não tem desfazer. O
+// número que aparece aqui é a audiência REAL da regra (opt-out, cadência e
+// assinatura viva já descontados), não uma estimativa.
+function CampanhaCursoVip() {
+  type Resultado = { seco: boolean; enviados: number; pulados: number; elegiveis: number };
+  type Estado = { jaReceberam: number; porToque: Record<string, number>; ultimoEnvio: string | null };
+
+  const [estado, setEstado] = useState<Estado | null>(null);
+  const [res, setRes] = useState<Resultado | null>(null);
+  const [limite, setLimite] = useState(25);
+  const [ocupado, setOcupado] = useState<'seco' | 'envio' | null>(null);
+  const [erro, setErro] = useState('');
+
+  const carregar = useCallback(() => {
+    api.get('/admin/campanha-curso-vip').then((r) => setEstado(r.data)).catch(() => {});
+  }, []);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  async function rodar(seco: boolean) {
+    if (!seco) {
+      const ok = window.confirm(
+        `Enviar o e-mail da campanha para até ${limite} pessoas agora?
+
+` +
+        'Isso sai de verdade e não tem como desfazer.',
+      );
+      if (!ok) return;
+    }
+    setErro('');
+    setOcupado(seco ? 'seco' : 'envio');
+    try {
+      const { data } = await api.post('/admin/campanha-curso-vip', { seco, limite });
+      setRes(data);
+      if (!seco) carregar();
+    } catch (e) {
+      setErro((e as { response?: { data?: { error?: string } } }).response?.data?.error || 'Falhou. Tente de novo.');
+    } finally {
+      setOcupado(null);
+    }
+  }
+
+  return (
+    <div className={styles.card} style={{ marginTop: 14 }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>Campanha: o curso entra junto no VIP</div>
+      <div style={{ fontSize: 11.5, opacity: 0.62, marginBottom: 12, lineHeight: 1.6 }}>
+        Vai pra quem está no free e no PRO. Fica de fora: quem se descadastrou, quem está no trial
+        de 30 dias do bump, quem tem assinatura em teste ou em atraso, e quem já recebeu os 3 toques.
+        O link leva pro VIP com cobrança imediata (sem os 7 dias) — é o que paga o curso ir junto.
+      </div>
+
+      {estado && estado.jaReceberam > 0 && (
+        <div style={{ fontSize: 12.5, marginBottom: 10, opacity: 0.85 }}>
+          Já receberam: <strong>{estado.jaReceberam}</strong> pessoas
+          {' · '}
+          {Object.entries(estado.porToque).sort().map(([toque, n]) => `${n} no toque ${toque}`).join(' · ')}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button className={styles.periodBtn} disabled={!!ocupado} onClick={() => rodar(true)}>
+          {ocupado === 'seco' ? 'Contando…' : 'Ver quantos receberiam'}
+        </button>
+
+        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}>
+          enviar até
+          <input
+            type="number" min={1} max={300} value={limite}
+            onChange={(e) => setLimite(Math.max(1, Math.min(300, Number(e.target.value) || 1)))}
+            style={{
+              width: 68, padding: '5px 8px', borderRadius: 7,
+              border: '1px solid var(--color-border)', background: 'var(--color-bg)',
+              color: 'var(--color-text)', fontFamily: 'inherit', fontSize: 13,
+            }}
+          />
+          pessoas
+        </label>
+
+        <button
+          disabled={!!ocupado}
+          onClick={() => rodar(false)}
+          style={{
+            background: '#C87A1E', color: '#fff', border: 'none', borderRadius: 8,
+            padding: '8px 16px', fontWeight: 700, fontSize: 13,
+            cursor: ocupado ? 'wait' : 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          {ocupado === 'envio' ? 'Enviando…' : 'Enviar agora'}
+        </button>
+      </div>
+
+      {res && (
+        <div style={{ fontSize: 13, marginTop: 12, lineHeight: 1.7 }}>
+          {res.seco ? (
+            <>
+              <strong>{res.enviados}</strong> pessoas receberiam agora
+              {' '}(de <strong>{res.elegiveis}</strong> na audiência; {res.pulados} fora por
+              descadastro, cadência ou assinatura ativa). Nada foi enviado.
+            </>
+          ) : (
+            <>Enviado para <strong>{res.enviados}</strong> pessoas. {res.pulados} pulados.</>
+          )}
+        </div>
+      )}
+
+      {erro && <div style={{ fontSize: 13, marginTop: 10, color: '#A53B29' }}>{erro}</div>}
+    </div>
+  );
+}
+
 export default function KitPanel() {
   const [data, setData] = useState<KitFunil | null>(null);
   const [loading, setLoading] = useState(false);
@@ -154,6 +264,8 @@ export default function KitPanel() {
           ))}
         </div>
       </div>
+
+      <CampanhaCursoVip />
 
       <div className={styles.card} style={{ marginTop: 14 }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>Do clique ao assinante</div>
