@@ -202,6 +202,27 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* Etiqueta de origem no card: verde fluorescente = eletroposto, laranja
+     fluorescente = solar. Pill sólida porque o fundo do slot muda com o status
+     (azul, vermelho, roxo…) — texto colorido sumiria em alguns deles. */
+  .tag-pill {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .2px;
+    vertical-align: middle;
+    background: rgba(255,255,255,.22);
+    color: #fff;
+  }
+  .tag-pill.tag-ep    { background: #39FF14; color: #06210A; box-shadow: 0 0 6px rgba(57,255,20,.55); }
+  .tag-pill.tag-solar { background: #FF9100; color: #2A1200; box-shadow: 0 0 6px rgba(255,145,0,.55); }
+  /* No modal (fundo claro) a pill neutra precisa de contraste próprio */
+  .detalhe-box .tag-pill { font-size: 11px; padding: 1px 8px; background: #e5e7eb; color: #374151; }
+  .detalhe-box .tag-pill.tag-ep    { background: #39FF14; color: #06210A; }
+  .detalhe-box .tag-pill.tag-solar { background: #FF9100; color: #2A1200; }
+
   /* Status coloridos */
   .slot.status-agendado          { background: #0d2d5e; color: #fff; }
   .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
@@ -950,6 +971,7 @@
       <div class="row"><div class="label">Cliente</div><div class="val" id="d-nome"></div></div>
       <div class="row"><div class="label">WhatsApp</div><div class="val" id="d-tel"></div></div>
       <div class="row" id="d-obs-row" style="display:none"><div class="label">Observação</div><div class="val" id="d-obs"></div></div>
+      <div class="row"><div class="label">Etiqueta de origem</div><div class="val" id="d-etiqueta"></div></div>
       <div class="row"><div class="label">Marcado por</div><div class="val" id="d-criador"></div></div>
     </div>
 
@@ -1029,6 +1051,7 @@
 
 <div id="toast"></div>
 
+<script src="/gerador/etiqueta.js"></script>
 <script>
 // ============= CONFIG =============
 const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
@@ -1036,6 +1059,15 @@ const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
 const AUTH_KEY     = 'irmaos-na-obra-auth-v1';
 
 const VENDEDORES = ['Diego', 'Giovanna', 'Nilce', 'Thiago'];
+
+// Etiqueta de origem do lead — vem de /gerador/etiqueta.js (mesmo arquivo do
+// CRM, espelho de api/src/services/agenda/origemEtiqueta.ts). Wrapper defensivo:
+// se o arquivo não carregar, o slot fica sem etiqueta em vez de a grade inteira
+// deixar de renderizar.
+function etqDeLead(createdBy, src) {
+  try { return typeof etiquetaDeLead === 'function' ? etiquetaDeLead(createdBy, src) : ''; }
+  catch (e) { return ''; }
+}
 const SLOT_MIN = 15;
 const HORA_INI = 8;   // 08:00
 const HORA_FIM = 20;  // até 20:00 (último slot começa às 19:45)
@@ -1277,11 +1309,19 @@ function renderGrid() {
           const tempLabel = ag.temperatura === 'frio'   ? 'FRIO'
                           : ag.temperatura === 'morno'  ? 'MORNO'
                           : ag.temperatura === 'quente' ? 'QUENTE' : '';
+          // Cidade e etiqueta dividem a MESMA linha: o slot tem altura fixa
+          // (overflow hidden) e uma 4ª linha seria cortada.
+          const etq = etqDeLead(ag.created_by, ag.src);
+          const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
+          const rodape = [
+            ag.cidade ? `📍 ${escapeHtml(ag.cidade)}` : '',
+            etq ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : '',
+          ].filter(Boolean).join(' ');
           html += `<div class="slot ocupado ${stCls}${tempCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
             ${tempLabel ? `<div class="temp-mark">${tempLabel}</div>` : ''}
             <div class="nome">${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}</div>
-            ${ag.cidade ? `<div class="cidade">📍 ${escapeHtml(ag.cidade)}</div>` : ''}
+            ${rodape ? `<div class="cidade">${rodape}</div>` : ''}
           </div>`;
         } else if (bloq) {
           // Mostra texto do motivo só no primeiro slot do bloqueio (pro slot inicial casar exato)
@@ -1546,6 +1586,11 @@ function abrirDetalhes(id) {
   } else {
     document.getElementById('d-obs-row').style.display = 'none';
   }
+  const dEtq = etqDeLead(ag.created_by, ag.src);
+  const dEtqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(dEtq) : '');
+  document.getElementById('d-etiqueta').innerHTML = dEtq
+    ? `<span class="tag-pill${dEtqCls ? ' tag-' + dEtqCls : ''}">${escapeHtml(dEtq)}</span>`
+    : '—';
   document.getElementById('d-criador').textContent = ag.created_by || '—';
   document.getElementById('d-btn-wpp').href = `https://wa.me/${formatTelDigits(ag.cliente_telefone)}`;
   document.getElementById('d-erro').textContent = '';

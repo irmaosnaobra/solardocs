@@ -1,12 +1,13 @@
 // Service Worker do gerador hospedado em /gerador/ (subpath do dashboard)
 // Scope limitado a /gerador/ pra não interferir no resto do app.
-const CACHE = 'gerador-propostas-v58';
+const CACHE = 'gerador-propostas-v59';
 const PRECACHE = [
   '/gerador/',
   '/gerador/index.html',
   '/gerador/style.css',
   '/gerador/tabelas.js',
   '/gerador/solar-data.js',
+  '/gerador/etiqueta.js',
   '/gerador/manifest.webmanifest',
   '/gerador/icon-192.png',
   '/gerador/icon-512.png'
