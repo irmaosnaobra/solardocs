@@ -619,7 +619,10 @@
   .bonusTopo { flex-wrap: wrap; gap: 12px; }
   .bonusCadeado { width: 40px; height: 40px; }
   .bonusContador { font-size: 14px; }
-  .missoes li { flex-wrap: wrap; gap: 10px 12px; }
+  /* check e texto ficam SEMPRE na mesma linha; só o botão "fazer" cai embaixo */
+  .missoes li { flex-wrap: wrap; gap: 10px 12px; align-items: flex-start; }
+  .missaoCheck { margin-top: 2px; }
+  .missaoTexto { flex: 1 1 70%; }
   .missaoIr { margin-left: 39px; }
 
   /* Lição aberta */
