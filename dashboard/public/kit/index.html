@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- noindex até o checkout da Kiwify estar ligado. Trocar por "index, follow" no lançamento. -->
-<meta name="robots" content="noindex, nofollow">
+<!-- Checkout ligado em 29/jul. Liberado para busca: o tráfego principal vem de
+     anúncio, mas não há motivo para esconder a página do Google. -->
+<meta name="robots" content="index, follow">
 <title>Kit de Fechamento do Integrador — feche mesmo quando o cliente diz que achou mais barato</title>
 <meta name="description" content="26 respostas prontas para as objeções que travam venda de energia solar, 15 mensagens de prospecção, o roteiro da visita até a assinatura e os documentos gerados com a sua marca. R$ 27, acesso imediato.">
 <!-- icon-192 (15 KB) e não logo.png (1,4 MB): o favicon era o recurso mais pesado da página. -->
@@ -663,20 +664,19 @@
   <a href="#comprar" class="cta" data-cta="barra">Quero o kit por R$ 27 →</a>
 </div>
 
-<!-- ═══ Meta Pixel (SolarDoc B2B — o mesmo que mede a assinatura, para o público
-     do kit alimentar o lookalike de quem assina) ═══ -->
+<!-- ═══ Meta Pixel do kit (824905216831401) ═══ -->
 <script>
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '542698941724217');
+fbq('init', '824905216831401');
 fbq('track', 'PageView');
 fbq('trackCustom', 'LPkit_view');
 </script>
 <noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1"/></noscript>
+src="https://www.facebook.com/tr?id=824905216831401&ev=PageView&noscript=1"/></noscript>
 
 <!-- ═══ Checkout + UTMs ═══
      TROQUE A LINHA ABAIXO pelo link do produto na Kiwify quando ele existir.
@@ -684,7 +684,7 @@ src="https://www.facebook.com/tr?id=542698941724217&ev=PageView&noscript=1"/></n
      página vende do mesmo jeito, só que atendida à mão. -->
 <script>
 (() => {
-  const CHECKOUT_URL = 'CONFIGURAR_KIWIFY';         // ex.: https://pay.kiwify.com.br/xxxxxxx
+  const CHECKOUT_URL = 'https://pay.kiwify.com.br/TGvxMl0';   // Kit Fechamento - SolarDoc · R$ 27
   const WHATS = 'https://wa.me/5534998165040?text=' +
     encodeURIComponent('Quero o Kit de Fechamento do Integrador (R$ 27)');
 
