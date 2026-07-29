@@ -27,6 +27,49 @@ const MAX_ENVIOS_POR_TICK = 10;
 const TICK_MAX_DURATION_MS = 240000; // 4 min (deixa 60s de buffer pro Vercel 300s)
 const LOCK_DURATION_MS = 5 * 60 * 1000;
 
+// ── Freios do disparo ───────────────────────────────────────────────────────
+// A linha IO já foi banida uma vez (mai/2026). Prospecção fria multiplica esse
+// risco: número novo, volume alto, gente que não pediu contato. Estes três
+// freios existem pra que "mandar mais" nunca vire uma decisão de última hora.
+//
+// Todos são env var: dá pra apertar sem deploy, no meio de uma campanha.
+const num = (nome: string, padrao: number) => {
+  const v = Number((process.env[nome] || '').trim());
+  return Number.isFinite(v) && v >= 0 ? v : padrao;
+};
+
+/** Kill-switch geral. IO_BLAST_OFF=1 congela todo disparo da linha. */
+const blastDesligado = () => (process.env.IO_BLAST_OFF || '').trim() === '1';
+/** Janela de envio em horário de Brasília. Fora dela, ninguém recebe nada. */
+const JANELA_INICIO_H = num('IO_BLAST_HORA_INICIO', 9);
+const JANELA_FIM_H = num('IO_BLAST_HORA_FIM', 20);
+/** Teto por dia na LINHA (soma de todas as campanhas), não por campanha. */
+const TETO_DIA = num('IO_BLAST_TETO_DIA', 150);
+/** Não recontatar o mesmo número em N dias, mesmo em campanha diferente. */
+const DIAS_DEDUP = num('IO_BLAST_DIAS_DEDUP', 45);
+
+/** Hora atual em Brasília — o servidor roda em UTC. */
+function horaBrasilia(): number {
+  const s = new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo', hour12: false, hour: '2-digit' });
+  return Number(s);
+}
+
+function foraDaJanela(): boolean {
+  const h = horaBrasilia();
+  return h < JANELA_INICIO_H || h >= JANELA_FIM_H;
+}
+
+/** Quantos envios a linha já fez hoje (todas as campanhas somadas). */
+async function enviadosHoje(): Promise<number> {
+  const inicioDoDia = new Date();
+  inicioDoDia.setUTCHours(0, 0, 0, 0);
+  const { count } = await supabase
+    .from('io_broadcast_envios')
+    .select('id', { count: 'exact', head: true })
+    .gte('enviado_em', inicioDoDia.toISOString());
+  return count ?? 0;
+}
+
 type TickResult = { processed: number; broadcast_id?: string; status?: string; reason?: string };
 
 // Wrapper: pega o lock de linha compartilhado (owner 'admin') antes de blastar.
@@ -45,6 +88,15 @@ export async function runIoBroadcastTick(): Promise<TickResult> {
 
 async function runIoBroadcastTickInner(): Promise<TickResult> {
   const nowIso = new Date().toISOString();
+
+  if (blastDesligado()) return { processed: 0, reason: 'blast_desligado' };
+  if (foraDaJanela()) return { processed: 0, reason: 'fora_da_janela_horaria' };
+
+  const jaHoje = await enviadosHoje();
+  if (jaHoje >= TETO_DIA) {
+    logger.info('broadcast-tick', `teto diário da linha atingido (${jaHoje}/${TETO_DIA})`);
+    return { processed: 0, reason: 'teto_diario' };
+  }
 
   // 1. Encontra broadcast candidato (rodando, sem lock ativo). Ordena por ultimo_envio_em
   //    pra dar fairness se múltiplos ativos.
@@ -98,6 +150,25 @@ async function runIoBroadcastTickInner(): Promise<TickResult> {
     //      (com/sem 9º dígito/DDI). Anti-denúncia de verdade.
     const estaBloqueado = await carregarSupressao();
 
+    // 3.6. Dedup GLOBAL: enviadosSet acima é por broadcast_id, então listas que se
+    //      sobrepõem (o mesmo integrador aparecendo em duas raspagens) batiam no
+    //      mesmo número de novo. Aqui olhamos a linha inteira nos últimos N dias.
+    const cortePorDedup = new Date(Date.now() - DIAS_DEDUP * 86400_000).toISOString();
+    const jaTocados = new Set<string>();
+    if (DIAS_DEDUP > 0) {
+      const { data: recentes } = await supabase
+        .from('io_broadcast_envios')
+        .select('phone, broadcast_id')
+        .in('phone', broadcast.contatos)
+        .gte('enviado_em', cortePorDedup);
+      for (const r of (recentes ?? []) as Array<{ phone: string; broadcast_id: string }>) {
+        if (r.broadcast_id !== broadcast.id) jaTocados.add(r.phone);
+      }
+      if (jaTocados.size) {
+        logger.info('broadcast-tick', `${jaTocados.size} contato(s) pulado(s): já receberam mensagem nos últimos ${DIAS_DEDUP} dias`);
+      }
+    }
+
     // 4. Constrói fila de pendentes (mensagens × contatos - enviados)
     const pendentes: Array<{ phone: string; slot: number; base: string; mediaUrl: string | null; mediaType: MediaType | null }> = [];
     let bloqueadosPulados = 0;
@@ -106,6 +177,7 @@ async function runIoBroadcastTickInner(): Promise<TickResult> {
       const mu = mt && m.media_url ? m.media_url : null;
       for (const phone of broadcast.contatos) {
         if (estaBloqueado(phone)) { bloqueadosPulados++; continue; } // nunca re-contatar
+        if (jaTocados.has(phone)) { bloqueadosPulados++; continue; }  // já falamos com ele há pouco
         if (!enviadosSet.has(`${phone}|${m.slot}`)) {
           pendentes.push({ phone, slot: m.slot, base: m.base, mediaUrl: mu, mediaType: mt });
         }
@@ -135,8 +207,12 @@ async function runIoBroadcastTickInner(): Promise<TickResult> {
       }
     }
 
-    // 6. Processa até MAX_ENVIOS_POR_TICK respeitando timeout
-    for (let i = 0; i < Math.min(MAX_ENVIOS_POR_TICK, pendentes.length); i++) {
+    // 6. Processa até MAX_ENVIOS_POR_TICK respeitando timeout.
+    //    O teto do dia entra AQUI também: se faltam 3 pro limite, o tick manda 3
+    //    — checar só na entrada deixaria passar um tick inteiro de 10 por cima.
+    const cabeHoje = Math.max(0, TETO_DIA - jaHoje);
+    const limiteDoTick = Math.min(MAX_ENVIOS_POR_TICK, pendentes.length, cabeHoje);
+    for (let i = 0; i < limiteDoTick; i++) {
       if (Date.now() - tickStart > TICK_MAX_DURATION_MS) break;
 
       const item = pendentes[i];

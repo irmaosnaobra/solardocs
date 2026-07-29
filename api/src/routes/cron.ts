@@ -21,6 +21,7 @@ import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendame
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
 import { runSequenciaStopOnReply } from '../services/io/sequenciaStopOnReply';
+import { runBlastRespostas } from '../services/io/blastRespostas';
 import { runZapiHealthCheck } from '../services/io/zapiHealthMonitor';
 import { runAlertaLeadQuenteSemProposta } from '../services/agenda/leadQuenteSemPropostaService';
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
@@ -249,6 +250,12 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // do cliente. Awaited de propósito (roda antes do runGeradorSequenciasConsumer).
     const stopReplyResult = await runSequenciaStopOnReply().catch((e) => ({ error: String(e) }));
 
+    // Respostas a DISPARO: quem pediu pra parar entra na supressão antes de
+    // qualquer envio deste tick; o resto vira fila de atendimento humano no
+    // /admin. Também awaited — a supressão precisa valer pro tick que vem logo
+    // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
+    const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
+
     const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
@@ -272,6 +279,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     res.json({
       ok: true,
       stop_on_reply: stopReplyResult,
+      blast_respostas: blastRespResult,
       queue:      queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },
       poll:       pollResult.status  === 'fulfilled' ? pollResult.value  : { error: String((pollResult as any).reason) },
       poll_io:    pollIoResult.status === 'fulfilled' ? pollIoResult.value : { error: String((pollIoResult as any).reason) },

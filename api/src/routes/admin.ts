@@ -1178,6 +1178,47 @@ router.post('/io/send-text', async (req: Request, res: Response): Promise<void> 
 });
 
 // Cria registro de auditoria de um disparo. Retorna id pra cliente referenciar.
+// ── Respostas ao disparo (fila de atendimento humano) ──────────────────────
+// Quem responde a um blast hoje cai no vazio: o agente de SDR ignora a linha IO
+// e o próprio disparo cala os bots. Esta é a fila que torna a resposta visível.
+// Quem pediu pra parar já foi pra supressão sozinho — aparece aqui só como
+// informação (diz se a copy está irritando as pessoas).
+router.get('/io/blast-respostas', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const soPendentes = req.query.pendentes === '1';
+    let q = supabase
+      .from('io_blast_respostas')
+      .select('id, phone, texto, classificacao, atendido, respondido_em, broadcast_id')
+      .order('respondido_em', { ascending: false })
+      .limit(200);
+    if (soPendentes) q = q.eq('atendido', false).eq('classificacao', 'atender');
+    const { data, error } = await q;
+    if (error) throw error;
+    const linhas = data ?? [];
+    res.json({
+      respostas: linhas,
+      pendentes: linhas.filter((r: { atendido: boolean; classificacao: string }) => !r.atendido && r.classificacao === 'atender').length,
+      negativas: linhas.filter((r: { classificacao: string }) => r.classificacao === 'negativa').length,
+    });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// Marca como atendido (some da fila). Só isso — a conversa acontece no WhatsApp.
+router.patch('/io/blast-respostas/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('io_blast_respostas')
+      .update({ atendido: req.body?.atendido !== false, atendido_em: new Date().toISOString() })
+      .eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 router.post('/io/broadcasts', async (req: Request, res: Response): Promise<void> => {
   try {
     const { mensagens, contatos, contexto_ai, usou_ia, cadencia_min, cadencia_max, total } = req.body as {

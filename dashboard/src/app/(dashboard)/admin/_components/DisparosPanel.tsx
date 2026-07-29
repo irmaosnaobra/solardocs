@@ -99,6 +99,109 @@ function sleep(ms: number) {
 
 const mensagemVazia = (): MensagemEditor => ({ texto: '', mediaType: '', mediaUrl: '', uploading: false });
 
+// Estilos próprios: os do painel principal são declarados dentro da função dele,
+// fora do alcance deste componente. Mesmos tokens, para não destoar.
+const cardFila: React.CSSProperties = {
+  background: 'var(--color-surface)',
+  border: '1px solid var(--color-border)',
+  borderRadius: 12,
+  padding: 16,
+};
+const btnFila: React.CSSProperties = {
+  background: 'transparent',
+  color: 'var(--color-text)',
+  border: '1px solid var(--color-border)',
+  borderRadius: 8,
+  padding: '8px 14px',
+  fontWeight: 500,
+  cursor: 'pointer',
+  fontSize: 13,
+};
+
+// ── Quem respondeu ao disparo ──────────────────────────────────────────────
+// A resposta a um blast não chega em lugar nenhum hoje: o agente de SDR ignora
+// esta linha e o disparo cala os bots. Esta fila é o que faz a pessoa que
+// respondeu existir para alguém — o atendimento em si é humano, no WhatsApp.
+function RespostasDoDisparo() {
+  type Resposta = {
+    id: string; phone: string; texto: string | null;
+    classificacao: 'atender' | 'negativa'; atendido: boolean; respondido_em: string;
+  };
+  const [linhas, setLinhas] = useState<Resposta[]>([]);
+  const [carregando, setCarregando] = useState(false);
+
+  const carregar = useCallback(() => {
+    setCarregando(true);
+    api.get('/admin/io/blast-respostas')
+      .then((r) => setLinhas(r.data?.respostas ?? []))
+      .catch(() => {})
+      .finally(() => setCarregando(false));
+  }, []);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  async function marcar(id: string) {
+    setLinhas((atual) => atual.map((l) => (l.id === id ? { ...l, atendido: true } : l)));
+    api.patch(`/admin/io/blast-respostas/${id}`, { atendido: true }).catch(carregar);
+  }
+
+  const pendentes = linhas.filter((l) => !l.atendido && l.classificacao === 'atender');
+  const negativas = linhas.filter((l) => l.classificacao === 'negativa');
+
+  if (!carregando && linhas.length === 0) return null;
+
+  return (
+    <div style={{ ...cardFila, marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <strong style={{ fontSize: 15 }}>
+          Responderam ao disparo{pendentes.length > 0 ? ` · ${pendentes.length} pra atender` : ''}
+        </strong>
+        <button style={btnFila} onClick={carregar} disabled={carregando}>
+          {carregando ? 'Atualizando…' : '↻ Atualizar'}
+        </button>
+      </div>
+
+      {negativas.length > 0 && (
+        <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)', margin: '0 0 10px' }}>
+          {negativas.length} pediram pra parar — já saíram da lista sozinhos. Se esse número
+          crescer, o problema é a copy, não a lista.
+        </p>
+      )}
+
+      <div style={{ display: 'grid', gap: 8 }}>
+        {pendentes.map((l) => (
+          <div key={l.id} style={{
+            display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between',
+            padding: '10px 12px', borderRadius: 10, background: 'rgba(148,163,184,0.06)',
+            border: '1px solid rgba(148,163,184,0.14)',
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace' }}>{l.phone}</div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 2, wordBreak: 'break-word' }}>
+                {l.texto || '(mensagem sem texto — áudio ou mídia)'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flex: 'none' }}>
+              <a
+                href={`https://wa.me/${l.phone.replace(/\D/g, '')}`}
+                target="_blank" rel="noopener"
+                style={{ ...btnFila, textDecoration: 'none', whiteSpace: 'nowrap' }}
+              >
+                Abrir conversa
+              </a>
+              <button style={btnFila} onClick={() => marcar(l.id)}>Atendido</button>
+            </div>
+          </div>
+        ))}
+        {pendentes.length === 0 && (
+          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
+            Nenhuma resposta pendente.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DisparosPage() {
   const [msgs, setMsgs] = useState<MensagemEditor[]>([mensagemVazia(), mensagemVazia(), mensagemVazia()]);
   const [contatosRaw, setContatosRaw] = useState('');
@@ -371,6 +474,8 @@ export default function DisparosPage() {
           Linha 34998165040 · servidor processa em background — pode fechar a aba que continua.
         </p>
       </header>
+
+      <RespostasDoDisparo />
 
       {/* Retomar pendente */}
       {!broadcastAtivoId && pendenteDoHistorico && (
