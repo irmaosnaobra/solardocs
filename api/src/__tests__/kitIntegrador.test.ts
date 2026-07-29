@@ -138,6 +138,10 @@ describe('classificarProdutoKit', () => {
     expect(classificarProdutoKit('Kit de Fechamento do Integrador', null)).toBe('kit');
     expect(classificarProdutoKit('kit fechamento', null)).toBe('kit');
     expect(classificarProdutoKit('SolarDoc VIP — 30 dias', null)).toBe('bump_vip');
+    // O nome é digitado à mão na Kiwify: com espaço, sem espaço, com ou sem "30 dias".
+    expect(classificarProdutoKit('Solar Doc VIP', null)).toBe('bump_vip');
+    expect(classificarProdutoKit('SolarDoc VIP', null)).toBe('bump_vip');
+    expect(classificarProdutoKit('Acesso VIP 30 dias', null)).toBe('bump_vip');
     // 'Kit de Prospecção' virou o módulo 5 do curso — não é mais produto vendável.
     expect(classificarProdutoKit('Kit de Prospecção', null)).toBeNull();
   });

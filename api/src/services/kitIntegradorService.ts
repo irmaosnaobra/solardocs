@@ -40,7 +40,9 @@ const idsDoEnv = (nome: string): string[] =>
     .filter(Boolean);
 
 const RE_KIT = /kit\s*(de\s*)?fechamento|fechamento\s*(do\s*)?integrador/i;
-const RE_BUMP_VIP = /30\s*dias.*vip|vip.*30\s*dias|solardoc\s*vip|acesso\s*vip/i;
+// 'solar\s*doc' aceita "SolarDoc VIP" e "Solar Doc VIP" — o nome é digitado à
+// mão no painel da Kiwify, e um espaço a mais deixaria o comprador sem o trial.
+const RE_BUMP_VIP = /30\s*dias.*vip|vip.*30\s*dias|solar\s*doc\s*vip|acesso\s*vip|vip\s*30/i;
 
 /** Classifica o produto de um evento da Kiwify. null = não é do kit. */
 export function classificarProdutoKit(
