@@ -6,6 +6,13 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Compra confirmada — Kit de Fechamento do Integrador</title>
 <link rel="icon" href="/icon-192.png">
+<!-- Esta página é HTML puro em /public: não passa pelo <head> do Next, então o
+     manifest, o service worker e o ícone do iOS precisam ser declarados aqui na
+     mão. Sem os três, o Chrome nem considera a página instalável e o
+     beforeinstallprompt nunca dispara. -->
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-icon.png">
+<meta name="theme-color" content="#F26513">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -99,6 +106,24 @@
     width: 6px; height: 6px; border-radius: 50%; background: var(--amber);
   }
 
+  .appBox {
+    margin-top: 14px; padding: 18px 20px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  }
+  .appTop { display: flex; gap: 14px; align-items: flex-start; }
+  .appIco {
+    flex: none; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+    background: rgba(247,164,28,.14); border: 1px solid rgba(247,164,28,.36);
+  }
+  .appBox h3 { font-size: 15.5px; font-weight: 700; margin-bottom: 4px; }
+  .appBox p { font-size: 14px; color: var(--muted); margin: 0; }
+  .appBtn {
+    width: 100%; margin-top: 14px; padding: 13px 18px; border-radius: 11px;
+    border: 1px solid rgba(247,164,28,.42); background: rgba(247,164,28,.12);
+    color: var(--amber); font-weight: 700; font-size: 15px; font-family: inherit; cursor: pointer;
+  }
+  .appBtn[hidden] { display: none; }
+
   footer { text-align: center; margin-top: 34px; font-size: 13px; color: var(--muted); }
   footer a { color: var(--muted); }
 </style>
@@ -144,6 +169,25 @@
     Falar no WhatsApp
   </a>
   <a class="btnSec" href="https://solardoc.app/auth">Já tenho senha — entrar na plataforma</a>
+
+  <!-- Instalação do app. Fica DEPOIS do CTA de propósito: criar a senha é o
+       passo que não pode ser perdido. Mas o ícone na tela é o que faz a pessoa
+       voltar amanhã, então também não pode ficar só no final da página. -->
+  <div class="appBox" id="app-box" hidden>
+    <div class="appTop">
+      <div class="appIco" aria-hidden="true">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#f7a41c" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+        </svg>
+      </div>
+      <div>
+        <h3>Deixe o SolarDoc na tela do celular</h3>
+        <p id="app-txt">Abre igual app: você faz o contrato na casa do cliente, sem procurar o site nem digitar senha.</p>
+      </div>
+    </div>
+    <button type="button" id="app-btn" class="appBtn">Instalar o app</button>
+  </div>
 
   <div class="oQueVem">
     <h3>O que te espera lá dentro</h3>
@@ -198,6 +242,70 @@ fbq('track', 'PageView');
 </script>
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=824905216831401&ev=PageView&noscript=1"/></noscript>
+
+<!-- ═══ Instalação do app ═══
+     Aqui não dá pra importar o componente React da plataforma — esta página é
+     HTML servido de /public. É a mesma lógica escrita na mão: registrar o SW
+     (requisito pra instalabilidade), capturar o beforeinstallprompt e, no
+     iPhone, mostrar o passo a passo, porque lá não existe prompt nenhum. -->
+<script>
+(() => {
+  const caixa = document.getElementById('app-box');
+  const btn   = document.getElementById('app-btn');
+  const txt   = document.getElementById('app-txt');
+  if (!caixa || !btn || !txt) return;
+
+  // Já está rodando instalado: não oferece.
+  const standalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+  if (standalone) return;
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
+  }
+
+  const ua = navigator.userAgent;
+  const ios = /iphone|ipad|ipod/i.test(ua);
+  const iosOutro = ios && /CriOS|FxiOS|EdgiOS/i.test(ua);
+  const android = /android/i.test(ua);
+
+  let prompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    prompt = e;
+    btn.textContent = 'Instalar o app';
+    btn.hidden = false;
+  });
+
+  const passoAPasso = iosOutro
+    ? 'No iPhone a instalação só acontece pelo Safari: abra solardoc.app no Safari, toque em Compartilhar e depois em "Adicionar à Tela de Início".'
+    : ios
+      ? 'Toque em Compartilhar (o quadrado com a seta pra cima) e depois em "Adicionar à Tela de Início".'
+      : android
+        ? 'Toque no menu do navegador (⋮) e escolha "Instalar app" ou "Adicionar à tela inicial".'
+        : 'No Chrome ou Edge, clique no ícone de instalar na barra de endereço, à direita.';
+
+  // iPhone nunca dispara beforeinstallprompt — o botão vira "como instalar".
+  if (ios) btn.textContent = 'Como instalar no iPhone';
+
+  btn.addEventListener('click', async () => {
+    if (prompt) {
+      prompt.prompt();
+      const escolha = await prompt.userChoice;
+      prompt = null;
+      if (escolha && escolha.outcome === 'accepted') {
+        txt.textContent = 'Pronto. O ícone do SolarDoc já está na sua tela.';
+        btn.hidden = true;
+      }
+      return;
+    }
+    txt.textContent = passoAPasso;
+    btn.hidden = true;
+  });
+
+  caixa.hidden = false;
+})();
+</script>
 
 <!-- ═══ Beacon: a compra aparece no funil do /admin ═══ -->
 <script>

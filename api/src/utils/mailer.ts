@@ -671,7 +671,16 @@ export async function sendKitAcessoEmail(opts: {
 
   <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;"></div></div>
 
-  <div style="padding:26px 36px 6px;">
+  <div style="padding:24px 36px 0;">
+    <p style="margin:0 0 6px;color:#fbbf24;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">Deixe na tela do celular</p>
+    <p style="margin:0;color:#cbd5e1;font-size:14px;line-height:1.7;">
+      Depois de entrar, aceite o convite pra <strong style="color:#e2e8f0;">instalar o app</strong>. Ele abre sem
+      navegador e sem digitar senha — é assim que dá pra fechar o contrato na casa do cliente.
+      No iPhone: Compartilhar &rarr; "Adicionar à Tela de Início".
+    </p>
+  </div>
+
+  <div style="padding:22px 36px 6px;">
     <p style="margin:0 0 4px;color:#fbbf24;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">O que te espera em Cursos</p>
     <p style="margin:0;color:#cbd5e1;font-size:14px;line-height:1.9;">
       <span style="color:#fbbf24;">&#9679;</span> 26 respostas de objeção — começando por "achei mais barato"<br/>

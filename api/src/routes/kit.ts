@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import {
   meuAcesso, marcarProgresso, missoes,
-  salvarAvaliacao, minhasAvaliacoes, depoimentosPublicos,
+  salvarAvaliacao, minhasAvaliacoes, depoimentosPublicos, marcarAppInstalado,
 } from '../controllers/kitController';
 
 const router = Router();
@@ -21,5 +21,7 @@ router.get('/missoes', missoes);
 // Avaliação (5 estrelas + comentário) por módulo e do curso.
 router.post('/avaliacao', salvarAvaliacao);
 router.get('/avaliacoes', minhasAvaliacoes);
+// Instalou o app no aparelho (PWA) — usado pra medir se o convite funciona.
+router.post('/app-instalado', marcarAppInstalado);
 
 export default router;

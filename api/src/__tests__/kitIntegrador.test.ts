@@ -278,7 +278,7 @@ describe('processarEventoKit — bump do VIP', () => {
     // O silêncio aqui é que era o problema: R$19 cobrados sem entrega nenhuma.
     expect(alertas).toHaveLength(1);
     expect(alertas[0].corpo).toContain(EMAIL);
-    const pedido = db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-9');
+    const pedido = db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-9')!;
     expect(pedido.bump_aplicado).toBe(false);
   });
 
@@ -288,13 +288,13 @@ describe('processarEventoKit — bump do VIP', () => {
 
     await processarEventoKit(evento({ orderId: 'ORDER-M' }));
 
-    const pedido = db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-M');
+    const pedido = db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-M')!;
     expect(pedido.segmento).toBe('membro');
   });
 
   it('carimba segmento "lp" para conta nova vinda de campanha e "direto" sem campanha', async () => {
     await processarEventoKit(evento({ orderId: 'ORDER-LP', utm: { utm_campaign: '123', utm_source: 'fb' } } as any));
-    expect(db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-LP').segmento).toBe('lp');
+    expect(db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-LP')!.segmento).toBe('lp');
 
     db.users.length = 0; emails.clear();
     // sem utm_campaign = chegou sem rastro de anúncio (orgânico, indicação, link solto)
@@ -303,7 +303,7 @@ describe('processarEventoKit — bump do VIP', () => {
       email: 'outro@teste.com',
       utm: { utm_source: null, utm_campaign: null, utm_medium: null, utm_content: null, utm_term: null },
     } as any));
-    expect(db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-DIR').segmento).toBe('direto');
+    expect(db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-DIR')!.segmento).toBe('direto');
   });
 
   it('bump que chega sozinho (webhook separado) não dispara o e-mail de boas-vindas', async () => {

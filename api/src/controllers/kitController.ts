@@ -216,3 +216,22 @@ export async function marcarProgresso(req: Request, res: Response): Promise<void
     res.status(204).end();
   }
 }
+
+// POST /kit/app-instalado — a pessoa instalou o app (PWA) no aparelho.
+// Chamado pelo InstallBanner: quando ela aceita o prompt nativo e também no
+// primeiro carregamento já em modo standalone — o iPhone não dispara evento de
+// instalação, e sem esse segundo caminho o número do iOS ficaria sempre zero.
+// Só carimba a PRIMEIRA vez: o que interessa é quando virou app, não quantas
+// vezes abriu. Erro aqui é silencioso — medição nunca pode atrapalhar o uso.
+export async function marcarAppInstalado(req: Request, res: Response): Promise<void> {
+  try {
+    await supabase
+      .from('users')
+      .update({ app_instalado_em: new Date().toISOString() })
+      .eq('id', req.userId)
+      .is('app_instalado_em', null);
+  } catch (err) {
+    console.error('marcarAppInstalado error:', err);
+  }
+  res.status(204).send();
+}

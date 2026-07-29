@@ -9,6 +9,10 @@ export default function manifest(): MetadataRoute.Manifest {
     // redireciona pra plataforma normal. Instalações NOVAS pegam na hora; as já
     // instaladas migram quando o manifest é relido.
     start_url: '/inicio',
+    // Explícito porque a página de obrigado da Kiwify (/kit/obrigado) também
+    // oferece a instalação. Sem `scope`, o padrão é derivado do start_url e fica
+    // na interpretação de cada navegador — com '/' toda a plataforma entra.
+    scope: '/',
     display: 'standalone',
     // Splash alinhado à tela de atalho (branca) pra não piscar no cold open.
     // theme_color = laranja da marca SolarDoc.

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import TopBar from '@/components/TopBar/TopBar';
 import UpgradeModal from '@/components/UpgradeModal/UpgradeModal';
+import InstallBanner from '@/components/InstallBanner/InstallBanner';
 import WhatsAppFab from '@/components/WhatsAppFab/WhatsAppFab';
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
 import { isAuthenticated, removeToken } from '@/services/auth';
@@ -456,6 +457,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       </main>
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} plano={user.plano} />}
       <WhatsAppFab />
+      {/* Convite pra instalar o app: aparece no primeiro acesso (?welcome=1) ou na
+          3a visita. É dentro do (dashboard) porque só faz sentido pra quem entrou. */}
+      <InstallBanner />
     </div>
   );
 }
