@@ -211,6 +211,7 @@
   .slot.status-fez_orcamento     { background: #fef3c7; color: #1f2937; }
   .slot.status-fechou            { background: #16a34a; color: #fff; }
   .slot.status-em_atendimento    { background: #7c3aed; color: #fff; }
+  .slot.status-proposta_apresentada { background: #0ea5e9; color: #fff; }
   .slot.status-fechou_concorrente{ background: #92400e; color: #fff; }
   .slot.status-perdido           { background: #475569; color: #fff; }
   .slot.passado { opacity: .55; cursor: not-allowed; }
@@ -543,6 +544,7 @@
   .sw-si     { background: #64748b; }
   .sw-so     { background: #ea580c; }
   .sw-fo     { background: #fef3c7; border-color: #d1d5db; }
+  .sw-pa     { background: #0ea5e9; }
   .sw-fe     { background: #16a34a; }
 
   /* Botões de status no modal de detalhes */
@@ -595,6 +597,9 @@
   .btn-status.bg-em { background: #7c3aed; }
   .btn-status.bg-fc { background: #92400e; }
   .btn-status.bg-pe { background: #475569; }
+  .btn-status.bg-pa { background: #0ea5e9; }
+  .prop-atual { font-size: 12px; color: #0369a1; margin-top: 8px; line-height: 1.4; }
+  html[data-theme="dark"] .prop-atual { color: #7DD3FC; }
   .status-label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: .4px; margin-top: 14px; }
 
   /* ===== TEMPERATURA DO CLIENTE ===== */
@@ -733,6 +738,7 @@
   html[data-theme="dark"] .slot.status-fez_orcamento     { background: #fef3c7; color: #1f2937; }
   html[data-theme="dark"] .slot.status-fechou            { background: #16a34a; color: #fff; }
   html[data-theme="dark"] .slot.status-em_atendimento    { background: #7c3aed; color: #fff; }
+  html[data-theme="dark"] .slot.status-proposta_apresentada { background: #0ea5e9; color: #fff; }
   html[data-theme="dark"] .slot.status-fechou_concorrente{ background: #92400e; color: #fff; }
   html[data-theme="dark"] .slot.status-perdido           { background: #475569; color: #fff; }
   html[data-theme="dark"] .slot.bloqueado {
@@ -830,6 +836,7 @@
     <div class="item"><div class="sw sw-si"></div> Sem interesse</div>
     <div class="item"><div class="sw sw-so"></div> Sem orçamento</div>
     <div class="item"><div class="sw sw-fo"></div> Fez orçamento</div>
+    <div class="item"><div class="sw sw-pa"></div> Proposta apresentada</div>
     <div class="item"><div class="sw sw-fe"></div> Fechou</div>
     <div class="item"><div class="sw" style="background:repeating-linear-gradient(45deg,#6b7280,#6b7280 4px,#525c6a 4px,#525c6a 8px)"></div> Bloqueado</div>
     <div class="item" style="margin-left:8px;padding-left:12px;border-left:1px solid #d1d5db">❄️ <div class="sw sw-tf"></div> Frio</div>
@@ -969,6 +976,14 @@
       <button type="button" class="btn-status bg-fc" data-status="fechou_concorrente" onclick="atualizarStatus('fechou_concorrente')">🏢 Fechou concorrente</button>
       <button type="button" class="btn-status bg-pe" data-status="perdido"           onclick="atualizarStatus('perdido')">❌ Perdido</button>
       <button type="button" class="btn-status bg-fe" data-status="fechou"            onclick="atualizarStatus('fechou')" style="grid-column: span 2;">✅ Fechou</button>
+    </div>
+
+    <!-- Eletroposto: quem REALMENTE apresentou a proposta. Só aparece em card de
+         eletroposto (o lead circula entre Thiago e Diego a cada 12h sem ação). -->
+    <div id="d-prop-wrap" style="display:none">
+      <div class="status-label">📑 Proposta apresentada — quem fez?</div>
+      <div class="status-grid" id="d-prop-grid"></div>
+      <div class="prop-atual" id="d-prop-atual"></div>
     </div>
 
     <div class="modal-erro" id="d-erro"></div>
@@ -1538,8 +1553,75 @@ function abrirDetalhes(id) {
   document.getElementById('d-nota').value = '';
   marcarStatusAtualNosBotoes(ag.status || 'agendado');
   marcarTemperaturaAtualNosBotoes(ag.temperatura || null);
+  renderPropostaEP(ag);
   fecharReagendar();
   document.getElementById('modal-det').classList.add('show');
+}
+
+// ===== ELETROPOSTO · PROPOSTA APRESENTADA ===================================
+// O lead de eletroposto roda entre Thiago e Diego (repasse de 12h sem ação),
+// então quem termina com o card nem sempre é quem apresentou a proposta. Estes
+// botões gravam o crédito na mão (proposta_por/proposta_em). Marcar também põe
+// o status em proposta_apresentada, e isso zera o repassar_em no banco (trigger):
+// proposta já apresentada não fica mais pulando de consultor.
+const EP_TIME = ['Thiago', 'Diego'];
+const ehCardEletroposto = (ag) => String((ag && ag.created_by) || '').includes('eletroposto');
+
+function renderPropostaEP(ag) {
+  const wrap = document.getElementById('d-prop-wrap');
+  if (!wrap) return;
+  const ehEp = ehCardEletroposto(ag);
+  wrap.style.display = ehEp ? '' : 'none';
+  if (!ehEp) return;
+
+  const logado = consultorLogado();
+  document.getElementById('d-prop-grid').innerHTML = EP_TIME.map(nome => {
+    const atual = ag.proposta_por === nome ? ' is-atual' : '';
+    const eu = nome === logado ? ' (você)' : '';
+    return `<button type="button" class="btn-status bg-pa${atual}" onclick="marcarPropostaEP('${nome}')">📑 ${escapeHtml(nome)}${eu}</button>`;
+  }).join('');
+
+  let quando = '';
+  if (ag.proposta_em) {
+    const d = new Date(ag.proposta_em);
+    if (!isNaN(d.getTime())) quando = ` em ${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}h${pad(d.getMinutes())}`;
+  }
+  document.getElementById('d-prop-atual').textContent = ag.proposta_por
+    ? `Apresentada por ${ag.proposta_por}${quando} — clique no outro nome pra corrigir, ou nesse mesmo pra desmarcar.`
+    : 'Clique em quem realmente apresentou a proposta pro cliente.';
+}
+
+async function marcarPropostaEP(quem) {
+  if (!detalheAtual) return;
+  const ag = detalheAtual;
+  // Toggle igual ao da temperatura: clicar em quem já está marcado desmarca
+  // (conserta clique errado). Desmarcar devolve o card pro fluxo normal —
+  // status 'agendado' religa o relógio do repasse, como era antes da marcação.
+  const desmarcar = ag.proposta_por === quem;
+  const agora = new Date();
+  const autor = consultorLogado() || '—';
+  const ts = `${pad(agora.getDate())}/${pad(agora.getMonth()+1)} ${pad(agora.getHours())}h${pad(agora.getMinutes())}`;
+  const entrada = desmarcar
+    ? `[${ts} · ${autor}] 📑 Marcação de proposta apresentada removida.`
+    : `[${ts} · ${autor}] 📑 Proposta apresentada por ${quem}.`;
+  const historico = ag.historico ? `${entrada}\n\n${ag.historico}` : entrada;
+  const patch = desmarcar
+    ? { status: 'agendado', proposta_por: null, proposta_em: null, historico }
+    : { status: 'proposta_apresentada', proposta_por: quem, proposta_em: agora.toISOString(), historico };
+  try {
+    await supaPatch(`agendamentos?id=eq.${ag.id}`, patch);
+    Object.assign(ag, patch);
+    const idx = agendamentosCache.findIndex(a => a.id === ag.id);
+    if (idx >= 0) Object.assign(agendamentosCache[idx], patch);
+    document.getElementById('d-hist').textContent = historico;
+    marcarStatusAtualNosBotoes(patch.status);
+    renderPropostaEP(ag);
+    showToast(desmarcar ? '📑 Marcação de proposta removida' : `📑 Proposta apresentada por ${quem}`);
+    renderGrid();
+  } catch (e) {
+    document.getElementById('d-erro').textContent = 'Erro ao marcar a proposta.';
+    console.error(e);
+  }
 }
 
 // "Gerar orçamento" → volta pro gerador (página separada) já com os dados do
@@ -1632,6 +1714,7 @@ async function atualizarStatus(novoStatus) {
       sem_interesse:     '🙅 Marcado como Sem interesse',
       sem_orcamento:     '📋 Marcado como Sem orçamento',
       fez_orcamento:     '💰 Marcado como Fez orçamento',
+      proposta_apresentada: '📑 Marcado como Proposta apresentada',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:           '❌ Marcado como Perdido',
       fechou:            '✅ Marcado como Fechou',

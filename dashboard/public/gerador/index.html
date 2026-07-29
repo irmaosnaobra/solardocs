@@ -591,6 +591,8 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-card-meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:#94A3B8}
 .crm-card-cons{color:#cbd5e1;font-weight:600}
 .crm-card-cid,.crm-card-ag{color:#94A3B8}
+/* etiqueta de origem — pill neutra (o texto é que diferencia, não a cor) */
+.crm-card-tag{background:rgba(148,163,184,.16);color:#CBD5E1;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;white-space:nowrap}
 .crm-card-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:1px}
 .crm-card-val{font-size:14px;font-weight:800;color:#6EE7B7}
 .crm-card-acoes{display:flex;gap:5px;margin-left:auto}
@@ -605,6 +607,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-status-selo.selo-fe{background:rgba(22,163,74,.22);color:#86EFAC}
 .crm-status-selo.selo-em{background:rgba(124,58,237,.2);color:#C4B5FD}
 .crm-status-selo.selo-pe{background:rgba(71,85,105,.28);color:#CBD5E1}
+.crm-status-selo.selo-pa{background:rgba(14,165,233,.2);color:#7DD3FC}
 .crm-act{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;font-size:14px;cursor:pointer;text-decoration:none;font-family:inherit}
 .crm-act:hover{background:rgba(255,255,255,.16);color:#fff}
 .crm-act-wpp:hover{background:rgba(37,211,102,.22);border-color:rgba(37,211,102,.5)}
@@ -673,6 +676,8 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-btn-status.bg-em{background:#7c3aed}
 .crm-btn-status.bg-fc{background:#92400e}
 .crm-btn-status.bg-pe{background:#475569}
+.crm-btn-status.bg-pa{background:#0ea5e9}
+.crm-det-prop-atual{font-size:12px;color:#7DD3FC;margin-top:8px;min-height:1px}
 /* ações de rodapé */
 .crm-det-acoes{display:flex;gap:10px;margin-top:14px}
 .crm-det-acoes>*{flex:1;padding:12px;border-radius:10px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;text-align:center;border:none;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
@@ -2867,7 +2872,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="row" id="crm-det-cid-row"><div class="label">Cidade</div><div class="val" id="crm-det-cid">—</div></div>
       <div class="row"><div class="label">Consultor</div><div class="val" id="crm-det-cons">—</div></div>
       <div class="row" id="crm-det-obs-row" style="display:none"><div class="label">Observação</div><div class="val" id="crm-det-obs"></div></div>
-      <div class="row"><div class="label">Origem</div><div class="val" id="crm-det-origem">—</div></div>
+      <div class="row"><div class="label">Etiqueta de origem</div><div class="val" id="crm-det-etiqueta">—</div></div>
+      <!-- "Fontes" = em quais tabelas esse cliente aparece (Agenda/Anúncio/Proposta).
+           Não confundir com a etiqueta acima, que é de onde o LEAD veio. -->
+      <div class="row"><div class="label">Fontes</div><div class="val" id="crm-det-origem">—</div></div>
       <button type="button" class="crm-det-editar" id="crm-det-editar-btn" onclick="crmAbrirEditar()">✏️ Editar dados do cliente</button>
     </div>
 
@@ -2918,6 +2926,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="crm-btn-status bg-fc" data-status="fechou_concorrente" onclick="crmAtualizarStatus('fechou_concorrente')">🏢 Fechou concorrente</button>
         <button type="button" class="crm-btn-status bg-pe" data-status="perdido"          onclick="crmAtualizarStatus('perdido')">❌ Perdido</button>
         <button type="button" class="crm-btn-status bg-fe" data-status="fechou"           onclick="crmAtualizarStatus('fechou')" style="grid-column:span 2">✅ Fechou</button>
+      </div>
+
+      <!-- Eletroposto: quem REALMENTE apresentou a proposta. Só aparece em card
+           de eletroposto (o lead circula entre Thiago e Diego, então o dono do
+           card nem sempre é quem fez a apresentação). -->
+      <div id="crm-det-prop-wrap" style="display:none">
+        <span class="crm-det-lbl">📑 Proposta apresentada — quem fez?</span>
+        <div class="crm-det-status" id="crm-det-prop-grid"></div>
+        <div class="crm-det-prop-atual" id="crm-det-prop-atual"></div>
       </div>
     </div>
 
@@ -7294,6 +7311,55 @@ function crmConsultorLogado() {
   return CRM_CONSULTORES_VALIDOS.includes(nome) ? nome : '';
 }
 
+// ===== ETIQUETA DE ORIGEM DO LEAD ==========================================
+// ESPELHO de api/src/services/agenda/origemEtiqueta.ts (o mesmo cálculo que a
+// aba "Leads por Origem" do admin usa). Mudou lá → muda aqui.
+//
+// A etiqueta é DERIVADA na leitura, não gravada no lead: quando a regra é
+// corrigida (já aconteceu — lp_solar era Organic e virou Tráfego), TODOS os
+// cards antigos se acertam sozinhos, sem backfill.
+//
+// REGRA DO THIAGO: fonte nova gera etiqueta nova sozinha. Por isso um
+// created_by desconhecido vira a PRÓPRIA etiqueta (title-case) em vez de cair
+// num "Outros" — ninguém precisa mexer no código quando surge um público novo.
+const ETIQUETA_MAPA = {
+  'lead-meta': 'Solar Tráfego',
+  'leads-meta': 'Solar Tráfego',
+  'lp_solar': 'Solar Tráfego',          // LP io/solar tem pixel → é anúncio
+  'manychat': 'Solar Organic',          // form /simular (link da DM do Instagram)
+  'lp_eletroposto': 'EP Tráfego',
+  'ep-trafego': 'EP Tráfego',
+  'manychat_eletroposto': 'EP Organic',
+  'ep-organic': 'EP Organic',
+  'crm-bulk': 'Import',
+  'import': 'Import',
+  'indicacao': 'Indicado',
+};
+// ?src que marca canal ORGÂNICO. O mesmo intake pode servir os dois canais (a LP
+// do eletroposto recebe anúncio E o link da automação do IG) — o src separa.
+const ETIQUETA_SRC_ORGANIC = new Set(['ig', 'instagram', 'organico', 'organic', 'dm']);
+
+function etiquetaDeLead(createdBy, src) {
+  const cb = String(createdBy == null ? '' : createdBy).trim().toLowerCase();
+  const s  = String(src == null ? '' : src).trim().toLowerCase();
+
+  // Vazio ou nome de consultor → cadastro na mão.
+  if (!cb) return 'Manual';
+  if (CRM_CONSULTORES_VALIDOS.some(n => n.toLowerCase() === cb)) return 'Manual';
+
+  // O src organic flipa o canal ANTES do mapa fixo (mesmo intake, dois canais).
+  if (ETIQUETA_SRC_ORGANIC.has(s)) {
+    if (cb.includes('eletroposto') || cb.indexOf('ep') === 0) return 'EP Organic';
+    if (cb.includes('solar') || cb === 'lead-meta' || cb === 'manychat') return 'Solar Organic';
+  }
+
+  if (ETIQUETA_MAPA[cb]) return ETIQUETA_MAPA[cb];
+
+  // Fonte nova → etiqueta nova, auto-gerada.
+  return cb.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+    .split(' ').map(w => w ? w[0].toUpperCase() + w.slice(1) : w).join(' ');
+}
+
 let crmFiltroIniciado = false;  // só aplica o default-do-logado na 1ª abertura
 
 function navCRM(opts) {
@@ -7352,11 +7418,27 @@ function crmAgRecente(c) {
   return ord[0] || null;
 }
 
+// Card de eletroposto = ficha criada pela LP (lp_eletroposto) ou pelo ManyChat
+// (manychat_eletroposto). Casa por "eletroposto" no created_by pra uma origem
+// nova de EP entrar sozinha, sem precisar mexer aqui.
+function crmEhEletroposto(ag) {
+  return String((ag && ag.created_by) || '').includes('eletroposto');
+}
+// O agendamento de eletroposto mais recente do cliente. Um mesmo telefone pode
+// ter ficha de solar E de EP — a marcação de proposta tem que cair na linha do
+// EP, não na mais recente qualquer.
+function crmAgEletroposto(c) {
+  const stamp = (iso) => iso ? new Date(iso).getTime() : 0;
+  const eps = (c.agends || []).filter(crmEhEletroposto)
+    .sort((x, y) => stamp(y.quando) - stamp(x.quando));
+  return eps[0] || null;
+}
+
 function crmAbrirDetalhe(key) {
   const c = crmClientes.find(x => x.key === key);
   if (!c) return;
   const agRec = crmAgRecente(c);
-  crmDetAtual = { c, agRec };
+  crmDetAtual = { c, agRec, agEp: crmAgEletroposto(c) };
 
   // Garante que o form de edição começa fechado (mostra o box de info).
   crmFecharEditar();
@@ -7377,6 +7459,7 @@ function crmAbrirDetalhe(key) {
   else { cidRow.style.display = 'none'; }
 
   document.getElementById('crm-det-cons').textContent = c.consultor || '—';
+  document.getElementById('crm-det-etiqueta').textContent = c.etiqueta ? `🏷️ ${c.etiqueta}` : '—';
   document.getElementById('crm-det-origem').textContent = (c.origem || []).join(' · ') || '—';
 
   // Observação (do agendamento mais recente, se houver)
@@ -7412,6 +7495,7 @@ function crmAbrirDetalhe(key) {
     // Temperatura é sempre liberada (botões nunca opacos, classificação opcional).
     crmAplicarGateTemp(c, c.temperatura || agRec.temperatura || null);
   }
+  crmRenderPropostaEP();
 
   // Perdido/Reativar só pra lead SEM ficha (com ficha usa o status "Sem interesse").
   const perdidoWrap = document.getElementById('crm-det-perdido-wrap');
@@ -7633,6 +7717,7 @@ async function crmAtualizarStatus(novoStatus) {
       sem_interesse:    '🙅 Marcado como Sem interesse',
       sem_orcamento:    '📋 Marcado como Sem orçamento',
       fez_orcamento:    '💰 Marcado como Fez orçamento',
+      proposta_apresentada: '📑 Marcado como Proposta apresentada',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:          '❌ Marcado como Perdido',
       fechou:           '✅ Marcado como Fechou',
@@ -7642,6 +7727,76 @@ async function crmAtualizarStatus(novoStatus) {
     renderCRM();                       // re-render local: card migra/ganha selo, sem refetch
   } catch (e) {
     document.getElementById('crm-det-erro').textContent = 'Erro ao atualizar status.';
+    console.error(e);
+  }
+}
+
+// ===== ELETROPOSTO · PROPOSTA APRESENTADA =====================================
+// O lead de eletroposto circula entre Thiago e Diego (repasse de 12h), então
+// quem está com o card no fim NÃO é necessariamente quem apresentou a proposta.
+// Estes botões gravam o crédito na mão: proposta_por/proposta_em na linha do
+// agendamento de EP. Marcar também muda o status pra proposta_apresentada, o
+// que zera o repassar_em no banco (trigger) — proposta apresentada não fica
+// mais pulando de consultor.
+const CRM_EP_TIME = ['Thiago', 'Diego'];
+
+function crmRenderPropostaEP() {
+  const wrap = document.getElementById('crm-det-prop-wrap');
+  if (!wrap) return;
+  const det = crmDetAtual;
+  const ag = det && det.agEp;
+  wrap.style.display = ag ? '' : 'none';
+  if (!ag) return;
+
+  const c = det.c;
+  const logado = crmConsultorLogado();
+  document.getElementById('crm-det-prop-grid').innerHTML = CRM_EP_TIME.map(nome => {
+    const atual = ag.proposta_por === nome ? ' is-atual' : '';
+    const eu = nome === logado ? ' (você)' : '';
+    return `<button type="button" class="crm-btn-status bg-pa${atual}" onclick="crmMarcarPropostaEP('${nome}')">📑 ${escapeHtml(nome)}${eu}</button>`;
+  }).join('');
+
+  const p2 = n => String(n).padStart(2, '0');
+  let quando = '';
+  if (ag.proposta_em) {
+    const d = new Date(ag.proposta_em);
+    if (!isNaN(d.getTime())) quando = ` em ${p2(d.getDate())}/${p2(d.getMonth()+1)} ${p2(d.getHours())}h${p2(d.getMinutes())}`;
+  }
+  document.getElementById('crm-det-prop-atual').textContent = ag.proposta_por
+    ? `Apresentada por ${ag.proposta_por}${quando} — clique no outro nome pra corrigir, ou nesse mesmo pra desmarcar.`
+    : 'Clique em quem realmente apresentou a proposta pro cliente.';
+}
+
+async function crmMarcarPropostaEP(quem) {
+  if (!crmDetAtual || !crmDetAtual.agEp) return;
+  const { c, agEp: ag } = crmDetAtual;
+  // Toggle igual ao da temperatura: clicar em quem já está marcado desmarca
+  // (conserta clique errado). Desmarcar devolve o card pro fluxo normal —
+  // status 'agendado' religa o relógio do repasse, como era antes da marcação.
+  const desmarcar = ag.proposta_por === quem;
+  const agora = new Date();
+  const p2 = n => String(n).padStart(2, '0');
+  const autor = crmConsultorLogado() || '—';
+  const ts = `${p2(agora.getDate())}/${p2(agora.getMonth()+1)} ${p2(agora.getHours())}h${p2(agora.getMinutes())}`;
+  const entrada = desmarcar
+    ? `[${ts} · ${autor}] 📑 Marcação de proposta apresentada removida.`
+    : `[${ts} · ${autor}] 📑 Proposta apresentada por ${quem}.`;
+  const historico = ag.historico ? `${entrada}\n\n${ag.historico}` : entrada;
+  const patch = desmarcar
+    ? { status: 'agendado', proposta_por: null, proposta_em: null, historico }
+    : { status: 'proposta_apresentada', proposta_por: quem, proposta_em: agora.toISOString(), historico };
+  try {
+    await supaPatch(`agendamentos?id=eq.${ag.id}`, patch);
+    Object.assign(ag, patch);          // espelha na linha em memória
+    crmDerivar(c);                     // recalcula selo/etapa do card
+    crmMarcarStatus(ag.status);
+    crmRenderPropostaEP();
+    const hist = document.getElementById('crm-det-hist');
+    if (hist && crmDetAtual.agRec && crmDetAtual.agRec.id === ag.id) hist.textContent = historico;
+    showToast(desmarcar ? '📑 Marcação de proposta removida' : `📑 Proposta apresentada por ${quem}`);
+    renderCRM();                       // re-render local, sem refetch
+  } catch (e) {
+    document.getElementById('crm-det-erro').textContent = 'Erro ao marcar a proposta.';
     console.error(e);
   }
 }
@@ -7930,7 +8085,7 @@ async function carregarCRM(forcar) {
   try {
     [props, agends, leads] = await Promise.all([
       supaGet('propostas?select=codigo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
-      supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at&order=quando.desc&limit=1000'),
+      supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at,created_by,src,proposta_por,proposta_em&order=quando.desc&limit=1000'),
       supaGet('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc&limit=1000')
     ]);
   } catch (e) {
@@ -8061,6 +8216,22 @@ function crmDerivar(c) {
   // status do agendamento mais recente — vira o selo de status no card.
   c.statusAg = statusAg;
   c.temperatura = (agOrd.find(a => a.temperatura) || {}).temperatura || null;
+
+  // Etiqueta de origem do lead (Solar Tráfego, EP Organic, Import…). Sai da
+  // MESMA ficha que define o dono do card, pra não misturar produto/canal quando
+  // o cliente tem mais de uma. Sem ficha, sobra o lead do Meta (que é sempre
+  // anúncio de solar).
+  const agEt = agDono || agRecente;
+  c.etiqueta = agEt ? etiquetaDeLead(agEt.created_by, agEt.src)
+             : ((c.leads && c.leads.length) ? 'Solar Tráfego' : null);
+
+  // Card de eletroposto? (LP ou ManyChat) — libera o botão "Proposta apresentada".
+  c.ehEletroposto = agOrd.some(a => crmEhEletroposto(a));
+  // Quem REALMENTE apresentou a proposta. Sobrevive a repasse e a mudança de
+  // status: o crédito é de quem fez, não de quem está com o card agora.
+  const agProp = agOrd.find(a => a.proposta_por);
+  c.propPor = agProp ? agProp.proposta_por : null;
+  c.propEm  = agProp ? agProp.proposta_em : null;
 
   // Valor: venda fechada > preço à vista da proposta mais recente
   let valor = 0;
@@ -8197,6 +8368,7 @@ function renderCRM() {
     sem_interesse:    { lbl: 'Sem interesse', cls: 'si' },
     sem_orcamento:    { lbl: 'Sem orçamento', cls: 'so' },
     fez_orcamento:    { lbl: '💰 Fez orçamento', cls: 'fo' },
+    proposta_apresentada:{ lbl: '📑 Proposta apresentada', cls: 'pa' },
     fechou_concorrente:{ lbl: '🏢 Fechou concorrente', cls: 'pe' },
     perdido:          { lbl: '❌ Perdido', cls: 'pe' },
     fechou:           { lbl: '✅ Fechou', cls: 'fe' },
@@ -8205,6 +8377,11 @@ function renderCRM() {
     const def = STATUS_SELO[s];
     return def ? `<span class="crm-status-selo selo-${def.cls}">${escapeHtml(def.lbl)}</span>` : '';
   };
+  // Quem apresentou a proposta fica no card com NOME — é a pergunta que o selo
+  // genérico não responde ("apresentada", mas por quem?) depois de um repasse.
+  const propBadge = (c) => c.propPor
+    ? `<span class="crm-status-selo selo-pa" title="Proposta apresentada por ${escapeHtml(c.propPor)}">📑 Proposta: ${escapeHtml(c.propPor)}</span>`
+    : '';
 
   // Agrupa por etapa
   const porEtapa = {};
@@ -8223,6 +8400,10 @@ function renderCRM() {
     const linhaCidade = c.cidade ? `<span class="crm-card-cid">📍 ${escapeHtml(c.cidade)}</span>` : '';
     const linhaAg = c.agFuturo ? `<span class="crm-card-ag">📅 ${dataCurta(c.agFuturo)}</span>` : '';
     const cons = c.consultor ? `<span class="crm-card-cons">${escapeHtml(c.consultor)}</span>` : '';
+    // Etiqueta de origem: pill neutra com o texto da tag. Sem cor por tag de
+    // propósito — fonte nova inventa etiqueta nova, e não dá pra ter cor pronta
+    // pra uma etiqueta que ainda não existe.
+    const tag = c.etiqueta ? `<span class="crm-card-tag" title="Origem do lead">🏷️ ${escapeHtml(c.etiqueta)}</span>` : '';
     const telLinha = c.tel
       ? `<a class="crm-card-tel" href="tel:${escapeHtml(c.tel)}" onclick="event.stopPropagation()" title="Ligar">📱 ${escapeHtml(crmTelDisplay(c.tel))}</a>`
       : '';
@@ -8232,8 +8413,8 @@ function renderCRM() {
         ${tempBadge(c.temperatura)}
       </div>
       ${telLinha}
-      <div class="crm-card-meta">${cons}${linhaCidade}${linhaAg}</div>
-      ${statusBadge(c.statusAg)}
+      <div class="crm-card-meta">${cons}${tag}${linhaCidade}${linhaAg}</div>
+      ${propBadge(c)}${(c.statusAg === 'proposta_apresentada' && c.propPor) ? '' : statusBadge(c.statusAg)}
       <div class="crm-card-foot">
         ${valorTxt}
         <span class="crm-card-acoes">${reagBtn}${wpp}${verProp}</span>
