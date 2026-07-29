@@ -80,7 +80,12 @@ function RegisterContent() {
   // JÁ passou o cartão → form mínimo (só email + senha), entra na plataforma na hora.
   // WhatsApp/CNPJ ficam pra depois (/empresa). Usamos sessionId — não planFromStripe —
   // porque o gatilho precisa valer ANTES do checkout-info responder (e mesmo se falhar).
-  const isPaidCheckout = !!sessionId;
+  //
+  // ?ref=kit tem o mesmo efeito: é o comprador vindo da página de obrigado da
+  // Kiwify, que também já pagou. Aqui isso só ENCURTA o formulário; quem decide
+  // de verdade é o backend, que confirma o pedido pago pelo e-mail antes de
+  // dispensar o CNPJ (o parâmetro da URL sozinho não libera nada).
+  const isPaidCheckout = !!sessionId || refOrigem === 'kit';
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');

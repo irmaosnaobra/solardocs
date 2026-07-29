@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Compra confirmada — Kit de Fechamento do Integrador</title>
+<link rel="icon" href="/icon-192.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080d18;
+    --surface: #121b2e;
+    --surface2: #172138;
+    --line: rgba(148,163,184,.16);
+    --text: #f4f7fb;
+    --muted: #93a3b8;
+    --amber: #f7a41c;
+    --green: #4ade80;
+  }
+
+  body {
+    background:
+      radial-gradient(900px 460px at 50% -80px, rgba(247,164,28,.16), transparent 65%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+    line-height: 1.65;
+    font-size: 17px;
+    min-height: 100vh;
+    padding: 0 20px 70px;
+  }
+
+  .wrap { width: 100%; max-width: 640px; margin: 0 auto; }
+
+  header { text-align: center; padding: 56px 0 36px; }
+  .selo {
+    width: 66px; height: 66px; margin: 0 auto 22px;
+    border-radius: 50%; display: grid; place-items: center;
+    background: rgba(74,222,128,.14); border: 1px solid rgba(74,222,128,.45);
+  }
+  h1 {
+    font-size: clamp(27px, 5.5vw, 38px); font-weight: 800;
+    line-height: 1.15; letter-spacing: -.02em; text-wrap: balance; margin-bottom: 12px;
+  }
+  .sub { color: var(--muted); font-size: 16.5px; max-width: 46ch; margin: 0 auto; }
+
+  .passos { display: flex; flex-direction: column; gap: 12px; margin: 8px 0 30px; }
+  .passo {
+    display: flex; gap: 16px; align-items: flex-start;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 20px 22px;
+  }
+  .passo b {
+    flex: none; width: 34px; height: 34px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 15px; font-weight: 800;
+    background: rgba(247,164,28,.14); color: var(--amber);
+    border: 1px solid rgba(247,164,28,.34);
+  }
+  .passo h2 { font-size: 17px; font-weight: 700; margin-bottom: 4px; letter-spacing: -.01em; }
+  .passo p { font-size: 14.5px; color: var(--muted); margin: 0; }
+  .passo p strong { color: var(--text); font-weight: 700; }
+
+  .aviso {
+    background: var(--surface2); border: 1px solid var(--line);
+    border-left: 3px solid var(--amber); border-radius: 0 14px 14px 0;
+    padding: 18px 22px; margin-bottom: 26px;
+  }
+  .aviso h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .aviso p { font-size: 14px; color: var(--muted); margin: 0; }
+
+  .btnPrincipal {
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    background: linear-gradient(180deg, #f7a41c, #d9860a); color: #0a0f1a;
+    font-weight: 800; font-size: 17px; padding: 18px 26px; border-radius: 13px;
+    text-decoration: none; margin-bottom: 12px;
+    box-shadow: 0 10px 30px -10px rgba(247,164,28,.65);
+  }
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    background: #25d366; color: #06281a; font-weight: 800; font-size: 16px;
+    padding: 16px 26px; border-radius: 13px; text-decoration: none;
+  }
+  .btnSec {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 12px; padding: 15px 24px; border-radius: 13px;
+    border: 1px solid var(--line); color: var(--text);
+    text-decoration: none; font-size: 15px; font-weight: 600;
+  }
+  .btnSec:hover { border-color: var(--amber); color: var(--amber); }
+
+  .oQueVem { margin: 34px 0 0; padding-top: 26px; border-top: 1px solid var(--line); }
+  .oQueVem h3 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  ul { list-style: none; display: grid; gap: 9px; }
+  li { position: relative; padding-left: 26px; font-size: 14.5px; color: #cbd5e1; }
+  li::before {
+    content: ''; position: absolute; left: 2px; top: 8px;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--amber);
+  }
+
+  footer { text-align: center; margin-top: 34px; font-size: 13px; color: var(--muted); }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="selo" aria-hidden="true">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.4"
+           stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+    </div>
+    <h1>Compra confirmada. Falta só criar sua senha.</h1>
+    <p class="sub">Leva 10 segundos e você já entra no curso.</p>
+  </header>
+
+  <div class="passos">
+    <div class="passo">
+      <b>1</b>
+      <div>
+        <h2>Crie sua senha</h2>
+        <p>Use <strong>o mesmo e-mail da compra</strong>. Sua conta já existe — você só escolhe a senha.</p>
+      </div>
+    </div>
+    <div class="passo">
+      <b>2</b>
+      <div>
+        <h2>Entre no curso</h2>
+        <p>Ele abre em <strong>Cursos → Kit de Fechamento</strong>. A lição 1 é a objeção "achei mais barato".</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="aviso">
+    <h3>Também mandamos por e-mail</h3>
+    <p>Se preferir, o link de acesso está no e-mail da compra (olhe o spam e a aba "Promoções"). Qualquer coisa, chama no WhatsApp que a gente libera na hora.</p>
+  </div>
+
+  <a class="btnPrincipal" id="btn-acesso" href="https://solardoc.app/auth?mode=register&ref=kit">Criar minha senha e entrar &rarr;</a>
+
+  <a class="btn" href="https://wa.me/5534998165040?text=Comprei%20o%20Kit%20de%20Fechamento%20e%20preciso%20do%20acesso" target="_blank" rel="noopener">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.47 14.38c-.3-.15-1.74-.86-2-.95-.27-.1-.46-.15-.66.14-.2.3-.76.95-.93 1.15-.17.2-.34.22-.63.07-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.47-1.75-1.64-2.04-.17-.3-.02-.46.13-.6.13-.14.3-.35.44-.53.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.66-1.6-.9-2.18-.24-.57-.48-.5-.66-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.03 1-1.03 2.45s1.06 2.85 1.2 3.04c.15.2 2.08 3.18 5.04 4.46.7.3 1.25.48 1.68.62.7.22 1.35.19 1.86.12.57-.09 1.74-.71 1.99-1.4.24-.69.24-1.28.17-1.4-.07-.13-.27-.2-.56-.35M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2"/></svg>
+    Falar no WhatsApp
+  </a>
+  <a class="btnSec" href="https://solardoc.app/auth">Já tenho senha — entrar na plataforma</a>
+
+  <div class="oQueVem">
+    <h3>O que te espera lá dentro</h3>
+    <ul>
+      <li>26 respostas de objeção, com a versão curta pro WhatsApp</li>
+      <li>15 mensagens de prospecção, follow-up e reativação</li>
+      <li>O roteiro da visita, do primeiro contato à assinatura</li>
+      <li>Contrato, procuração e vistoria com o CNPJ e a logo da sua empresa</li>
+      <li>Um módulo bônus que destrava quando você usar a plataforma</li>
+    </ul>
+  </div>
+
+  <footer>
+    <p><strong style="color:var(--text)">SolarDoc Pro</strong> · WhatsApp <a href="https://wa.me/5534998165040">(34) 99816-5040</a></p>
+  </footer>
+</div>
+
+<!-- ═══ Pixel: Purchase ═══
+     Dispara a compra com o mesmo pixel da LP. O eventID usa o pedido que a
+     Kiwify manda na URL da página de obrigado — assim, se o pixel da própria
+     Kiwify também disparar, o Meta deduplica em vez de contar duas vendas. -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '824905216831401');
+fbq('track', 'PageView');
+
+// Se a Kiwify passar o e-mail do comprador na URL, ele já vai preenchido no
+// cadastro — um campo a menos entre pagar e entrar.
+(() => {
+  const q = new URLSearchParams(location.search);
+  const mail = q.get('email') || q.get('customer_email') || q.get('buyer_email') || '';
+  if (mail) {
+    const a = document.getElementById('btn-acesso');
+    if (a) a.href = 'https://solardoc.app/auth?mode=register&ref=kit&email=' + encodeURIComponent(mail);
+  }
+})();
+
+(() => {
+  const p = new URLSearchParams(location.search);
+  const pedido = p.get('order_id') || p.get('orderId') || p.get('order') || p.get('id') || '';
+  const valor = parseFloat((p.get('price') || p.get('value') || '27').replace(',', '.')) || 27;
+  const opts = { content_name: 'Kit Fechamento Integrador', value: valor, currency: 'BRL' };
+  try {
+    if (pedido) fbq('track', 'Purchase', opts, { eventID: 'kiwify-' + pedido });
+    else fbq('track', 'Purchase', opts);
+  } catch (_) {}
+})();
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=824905216831401&ev=PageView&noscript=1"/></noscript>
+
+<!-- ═══ Beacon: a compra aparece no funil do /admin ═══ -->
+<script>
+(() => {
+  const base = (location.hostname !== 'localhost') ? '/_api' : 'http://localhost:3001';
+  const uuid = () => (crypto?.randomUUID ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3)|0x8; return v.toString(16); }));
+  let sid = '';
+  try { sid = sessionStorage.getItem('kit_sd_session') || uuid(); } catch (_) { sid = uuid(); }
+  try {
+    fetch(base + '/_t/e', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+      body: JSON.stringify({ session_id: sid, event_type: 'kit_obrigado', event_data: { url: location.href } }),
+    }).catch(() => {});
+  } catch (_) {}
+})();
+</script>
+
+</body>
+</html>

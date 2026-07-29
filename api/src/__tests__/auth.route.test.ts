@@ -4,12 +4,17 @@ import request from 'supertest';
 // ─── mocks antes do import de app ───────────────────────────────────
 const mockInsert  = vi.fn();
 const mockSingle  = vi.fn();
+const mockLimit   = vi.fn();
 
 vi.mock('../utils/supabase', () => ({
   supabase: {
     from: vi.fn(() => ({
       select: vi.fn().mockReturnThis(),
       eq:     vi.fn().mockReturnThis(),
+      // O register consulta kit_pedidos (comprador do kit é pós-pago e não
+      // precisa de CNPJ). Sem compra, devolve lista vazia — o fluxo free
+      // orgânico segue exigindo CNPJ, que é o que estes testes cobrem.
+      limit:  mockLimit,
       insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnThis(), single: mockSingle }),
       // update().eq() precisa resolver numa Promise (o register chama .then()
       // pra registrar whatsapp_welcome_sent_at). eq isolado pra não afetar o
@@ -71,6 +76,7 @@ beforeEach(() => {
 describe('POST /auth/register', () => {
   // Fluxo FREE orgânico: exige CNPJ + WhatsApp válidos (gate de conta "ativa").
   it('cria usuário free e retorna token (com CNPJ + WhatsApp)', async () => {
+    mockLimit.mockResolvedValue({ data: [], error: null });
     mockSingle
       .mockResolvedValueOnce({ data: null })          // email não existe
       .mockResolvedValueOnce({ data: { id: 'uid-1', email: 'a@a.com', plano: 'free', limite_documentos: 10, documentos_usados: 0, created_at: new Date().toISOString() }, error: null });
@@ -85,6 +91,23 @@ describe('POST /auth/register', () => {
   });
 
   // Fluxo free orgânico SEM CNPJ → barrado pelo schema (gate de onboarding).
+  // Quem comprou o kit na Kiwify já pagou e a conta dele foi criada pelo webhook
+  // sem senha. Exigir CNPJ aqui travaria justo o comprador — o backend confirma
+  // o pedido pago pelo e-mail (nunca por um campo que o cliente manda).
+  it('comprador do kit cadastra sem CNPJ (pedido pago confirmado no servidor)', async () => {
+    mockLimit.mockResolvedValueOnce({ data: [{ id: 'pedido-1' }], error: null }); // kit_pedidos
+    mockSingle
+      .mockResolvedValueOnce({ data: null })                       // users: não existe ainda
+      .mockResolvedValueOnce({ data: { id: 'uid-kit' } });         // insert -> select().single()
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ email: 'comprador@kit.com', password: 'senha123' });
+
+    expect(res.status).not.toBe(400);
+    expect(res.status).not.toBe(402);
+  });
+
   it('retorna 400 no free sem CNPJ/WhatsApp', async () => {
     const res = await request(app)
       .post('/auth/register')

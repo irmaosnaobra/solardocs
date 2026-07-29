@@ -143,6 +143,30 @@ const loginSchema = z.object({
 
 export async function register(req: Request, res: Response): Promise<void> {
   try {
+    // ── Comprador do kit (Kiwify) também é pós-pago ────────────────────────
+    // Ele acabou de pagar e a conta dele já existe (criada pelo webhook, sem
+    // senha). Exigir CNPJ aqui — regra do cadastro FREE orgânico — travaria
+    // justo quem pagou. A confirmação é feita no SERVIDOR (existe pedido pago
+    // com este e-mail?), nunca por um campo que o cliente manda: senão qualquer
+    // um criaria conta free sem CNPJ só mandando fromCheckout=true.
+    const corpo = req.body as Record<string, unknown>;
+    const emailCru = String(corpo?.email || '').toLowerCase().trim();
+    let compradorKit = false;
+    if (emailCru && !corpo?.session) {
+      // Termina em .limit(1) e olha o array: maybeSingle() estouraria quando o
+      // comprador tem dois pedidos pagos (o kit e o bump são pedidos separados).
+      const { data: pedidosKit } = await supabase
+        .from('kit_pedidos')
+        .select('id')
+        .eq('email', emailCru)
+        .eq('status', 'paid')
+        .limit(1);
+      if (Array.isArray(pedidosKit) && pedidosKit.length > 0) {
+        compradorKit = true;
+        corpo.fromCheckout = true;
+      }
+    }
+
     const body = registerSchema.parse(req.body);
 
     // Normaliza o email pra lowercase — o webhook (100% cadastro) grava a conta
@@ -204,7 +228,11 @@ export async function register(req: Request, res: Response): Promise<void> {
     // relaxa o CNPJ no schema. Sem isso, um POST com session sem plano detectável
     // criaria uma conta free SEM CNPJ, furando o gate do fluxo orgânico.
     const fromPaidCheckout = !!sessionId || fromCheckout;
-    if (fromPaidCheckout && !stripePlan && !existing) {
+    // compradorKit fica de fora do gate: o pagamento dele está confirmado em
+    // kit_pedidos, não na Stripe. É também a rede de segurança se o webhook
+    // tiver falhado em criar a conta — ele mesmo cria aqui, em vez de bater
+    // num 402 depois de ter pago.
+    if (fromPaidCheckout && !stripePlan && !existing && !compradorKit) {
       res.status(402).json({ error: 'PAGAMENTO_NAO_DETECTADO' });
       return;
     }
