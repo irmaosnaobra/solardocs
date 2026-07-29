@@ -4,7 +4,8 @@ Isca de R$ 27 para integrador solar: ele compra na Kiwify, **recebe um login** (
 PDF), consome o material **dentro do SolarDoc** e vê o gerador de documentos funcionando
 ao lado todo dia — que é o que converte para o VIP de R$ 67.
 
-Construído e no ar em 28/jul/2026. Commits `764ec03` e `7a6ab86`.
+Construído e no ar em 28-29/jul/2026. **Falta uma coisa só para vender: apontar o
+webhook no produto da Kiwify** (passo 2 abaixo).
 
 ---
 
@@ -12,23 +13,25 @@ Construído e no ar em 28/jul/2026. Commits `764ec03` e `7a6ab86`.
 
 | Etapa | Onde vive | Estado |
 |---|---|---|
-| Anúncio → LP de venda | `solardoc.app/kit` (`dashboard/public/kit/index.html`) | no ar, `noindex` |
-| Compra | Checkout da Kiwify | **falta criar o produto** |
+| Anúncio → LP de venda | `solardoc.app/kit` | no ar, indexável, com as telas do curso |
+| Compra | `pay.kiwify.com.br/TGvxMl0` — Kit Fechamento - SolarDoc, R$ 27 | ligado na LP |
 | Webhook da venda | `POST api.solardoc.app/webhook/kiwify` | no ar (o mesmo do LimpaPro) |
 | Conta criada + material liberado | `api/src/services/kitIntegradorService.ts` | no ar |
 | E-mail de acesso | `sendKitAcessoEmail` (Resend) | no ar |
-| Consumo do material | `solardoc.app/cursos/kit-fechamento` (seção Cursos) | no ar — 6 módulos, 17 lições |
+| Consumo | `solardoc.app/cursos/kit-fechamento` (seção Cursos) | no ar — 6 módulos + bônus, 20 lições |
 | Convite para o VIP | fim de cada módulo (abre o UpgradeModal) | no ar |
 | Medição | `/admin` → hub SolarDoc → aba **Kit / Isca R$27** | no ar |
+| Depoimentos | aba **Comentários do Curso** → publicar → aparece na LP | no ar |
 
 ---
 
 ## O que só você pode fazer (15 minutos)
 
-### 1. Criar o produto na Kiwify
+### 1. Produto na Kiwify — FEITO
 
-Crie **um produto principal** e **dois order bumps**. Os nomes importam: o backend
-reconhece o produto pelo nome (regex), então mantenha as palavras-chave.
+Produto **Kit Fechamento - SolarDoc** (R$ 27) criado e ligado na LP. Order bump
+**SolarDoc VIP** cadastrado. Os nomes importam porque o backend reconhece o produto
+pelo nome (regex) — os dois batem.
 
 | O que | Nome sugerido (mantenha as palavras) | Preço |
 |---|---|---|
@@ -51,7 +54,7 @@ KIT_KIWIFY_PRODUCT_IDS=<id-do-principal>
 KIT_KIWIFY_BUMP_VIP_IDS=<id-do-bump-vip>
 ```
 
-### 2. Apontar o webhook no produto novo
+### 2. Apontar o webhook — **É O QUE FALTA**
 
 Na Kiwify, no produto do kit (e em cada bump — a Kiwify manda **um webhook por
 produto**, order bump vem em pedido separado):
@@ -63,20 +66,11 @@ https://api.solardoc.app/webhook/kiwify
 É o mesmo endereço que o LimpaPro já usa. Um produto do kit chegando ali é desviado
 para o fluxo do kit e **não entra** no funil do LimpaPro.
 
-### 3. Ligar o checkout na landing
+### 3. Ligar o checkout na landing — FEITO
 
-Em `dashboard/public/kit/index.html`, duas linhas:
-
-```js
-const CHECKOUT_URL = 'CONFIGURAR_KIWIFY';   // ← cole o link pay.kiwify.com.br do produto
-```
-
-```html
-<meta name="robots" content="noindex, nofollow">   <!-- ← trocar por index, follow -->
-```
-
-Enquanto `CHECKOUT_URL` estiver com o placeholder, **os botões caem no seu WhatsApp** —
-a página vende do mesmo jeito, só que atendida à mão. Nada quebra.
+`CHECKOUT_URL` aponta para `https://pay.kiwify.com.br/TGvxMl0`, o pixel da página é
+o **824905216831401** e ela está `index, follow`. Os botões levam ao checkout com os
+UTMs da visita colados na URL e no `sck` (verificado em produção).
 
 ### 4. (Opcional) Assinar o webhook
 
