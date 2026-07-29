@@ -111,9 +111,17 @@ compra real, ponha `KIWIFY_WEBHOOK_STRICT=1` para passar a recusar as inválidas
 4. Confira também o e-mail "Kit de Fechamento liberado" (o caminho alternativo).
 5. `/admin` → hub SolarDoc → aba **Kit / Isca R$27** deve mostrar 1 comprador.
 
-Já verificado em produção com pedido de teste (criado e apagado): conta pendente do
-webhook + pedido pago → define senha, entra, `temKit: true`, trial de 30 dias intacto.
-Quem **não** comprou continua caindo na exigência de CNPJ/WhatsApp.
+Já verificado em produção com pedidos de teste (criados e apagados):
+
+| Situação | O que acontece |
+|---|---|
+| Conta pendente do webhook + pedido pago | define a senha, entra, `temKit: true`, trial de 30 dias intacto |
+| Pix/boleto ainda confirmando | mensagem "seu pagamento está sendo confirmado" — **não** erro de WhatsApp |
+| E-mail diferente do usado na Kiwify | "use o mesmo e-mail da compra" + WhatsApp do suporte |
+| Cliente antigo que compra o kit | "entre com sua senha, o kit já está lá dentro" |
+| Cadastro orgânico (sem compra) | continua exigindo CNPJ + WhatsApp |
+
+Ao criar a senha, o comprador cai direto em **Cursos → Kit de Fechamento**.
 
 Se algo não chegar, o payload cru fica em `webhook_debug` (busque por `_route: /webhook/kiwify`).
 
