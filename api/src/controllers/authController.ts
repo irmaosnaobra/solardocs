@@ -367,7 +367,12 @@ export async function register(req: Request, res: Response): Promise<void> {
     const dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: user, error } = await supabase
       .from('users')
-      .insert({ email: emailLc, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null, ...attribution })
+      .insert({ email: emailLc, password_hash, nome: body.nome || null, cargo: body.cargo || null, plano, limite_documentos, documentos_usados: 0, data_reset: dataReset, whatsapp: body.whatsapp || null, ...attribution,
+        // Comprador do kit que chega aqui ANTES do webhook (Pix confirmado
+        // rápido, ou reentrega atrasada da Kiwify): sem este carimbo ele
+        // ficaria sem origem, e é justamente o caminho principal agora que a
+        // página de obrigado manda direto pro cadastro.
+        ...(compradorKit ? { origem_aquisicao: 'kit-integrador' } : {}) })
       .select('id, email, nome, plano, limite_documentos, documentos_usados, created_at')
       .single();
 
