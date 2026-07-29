@@ -672,12 +672,16 @@ export async function sendKitAcessoEmail(opts: {
   <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;"></div></div>
 
   <div style="padding:26px 36px 6px;">
-    <p style="margin:0 0 4px;color:#fbbf24;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">O que tem lá dentro</p>
+    <p style="margin:0 0 4px;color:#fbbf24;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">O que te espera em Cursos</p>
     <p style="margin:0;color:#cbd5e1;font-size:14px;line-height:1.8;">
-      📘 20 respostas de objeção — começando por "achei mais barato"<br/>
-      🗺️ Roteiro da visita técnica até a assinatura<br/>
-      💰 Estrutura de custo e margem, com checklist de orçamento<br/>
-      📄 Contrato, procuração e termo de vistoria prontos pra gerar no seu nome
+      📘 26 respostas de objeção — começando por "achei mais barato"<br/>
+      🗺️ O roteiro da visita técnica até a assinatura<br/>
+      💰 Estrutura de custo e margem, com planilha pronta<br/>
+      📨 15 mensagens de prospecção e follow-up<br/>
+      📄 Contrato, procuração e vistoria gerados no seu nome
+    </p>
+    <p style="margin:12px 0 0;color:#94a3b8;font-size:13px;line-height:1.7;">
+      São 17 lições com XP e conquistas — dá pra fazer uma por dia, no celular, antes da visita.
     </p>
   </div>
 

@@ -8,7 +8,7 @@ import path from 'path';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const puppeteer = require('../../node_modules/puppeteer');
 
-const BASE = path.resolve(__dirname, '../../dashboard/src/app/(dashboard)/materiais/_conteudo');
+const BASE = path.resolve(__dirname, '../../dashboard/src/app/(dashboard)/cursos/_conteudo');
 const OUT = path.resolve(__dirname, '../../dashboard/public/kit/downloads');
 
 /* eslint-disable @typescript-eslint/no-var-requires */

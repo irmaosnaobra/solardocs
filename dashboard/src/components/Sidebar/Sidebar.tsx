@@ -73,10 +73,15 @@ const topoItems: NavItem[] = [
   { href: '/precificacao',             icon: Calculator,  label: 'Precificação' },
   // Inventário: ferramenta grátis (isca de retenção) — controle de patrimônio/estoque.
   { href: '/inventario',               icon: Boxes,       label: 'Inventário' },
-  // Meus Materiais: Kit de Fechamento (isca de R$27) + conteúdo incluso pra quem
-  // assina. Fica visível pra todos de propósito — o free que não comprou vê a
-  // oferta, o comprador vê o material, o assinante vê como bônus do plano.
-  { href: '/materiais',                icon: GraduationCap, label: 'Meus Materiais' },
+];
+
+// ── Cursos ──────────────────────────────────────────────────────────────────
+// Seção própria ACIMA do Menu: o treinamento não é uma ferramenta a mais, é o
+// lugar pra onde o comprador da isca volta todo dia. Fica visível pra todos de
+// propósito — quem não tem vê a oferta, o comprador vê a trilha, o assinante vê
+// como bônus do plano.
+const cursosItems: NavItem[] = [
+  { href: '/cursos/kit-fechamento', icon: GraduationCap, label: 'Kit de Fechamento' },
 ];
 
 // Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.
@@ -245,6 +250,14 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
             </div>
           </>
         )}
+
+        {/* ── Cursos: fica ACIMA do Menu de propósito (treinamento em primeiro) ── */}
+        <div className={styles.navDivider}>
+          <span className={styles.navDividerLabel}>Cursos</span>
+        </div>
+        <div className={styles.navSection}>
+          {cursosItems.map(renderItem)}
+        </div>
 
         {/* ── Menu: Dashboard, Gerador (destaque), Baixe o App ── */}
         <div className={styles.navDivider}>
