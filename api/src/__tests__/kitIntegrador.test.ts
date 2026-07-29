@@ -96,8 +96,12 @@ function query(table: string) {
 vi.mock('../utils/supabase', () => ({ supabase: { from: (t: string) => query(t) } }));
 
 const enviados: any[] = [];
+const alertas: any[] = [];
 vi.mock('../utils/mailer', () => ({
   sendKitAcessoEmail: vi.fn(async (opts: any) => { enviados.push(opts); }),
+  // Assinante que compra o bump paga e não recebe nada — o service avisa o dono
+  // em vez de deixar o caso morrer no log.
+  sendOpsAlert: vi.fn(async (assunto: string, corpo: string) => { alertas.push({ assunto, corpo }); }),
 }));
 
 import {
@@ -263,13 +267,43 @@ describe('processarEventoKit — bump do VIP', () => {
     expect(db.users[0].pack_trial_until).toBe(validade);
   });
 
-  it('não "dá" VIP para quem já paga assinatura', async () => {
+  it('não "dá" VIP para quem já paga assinatura — e avisa o dono, porque a pessoa pagou por nada', async () => {
     db.users.push({ id: 'u1', email: EMAIL, password_hash: 'x', plano: 'ilimitado', pack_trial_until: null });
     emails.add(EMAIL);
 
     const r = await processarEventoKit(evento({ orderId: 'ORDER-9', item: 'bump_vip' }));
     expect(r.trialVip).toBe(false);
     expect(db.users[0].pack_trial_until).toBeNull();
+
+    // O silêncio aqui é que era o problema: R$19 cobrados sem entrega nenhuma.
+    expect(alertas).toHaveLength(1);
+    expect(alertas[0].corpo).toContain(EMAIL);
+    const pedido = db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-9');
+    expect(pedido.bump_aplicado).toBe(false);
+  });
+
+  it('carimba segmento "membro" quando quem compra já tinha conta com senha', async () => {
+    db.users.push({ id: 'u1', email: EMAIL, password_hash: 'x', plano: 'free', pack_trial_until: null });
+    emails.add(EMAIL);
+
+    await processarEventoKit(evento({ orderId: 'ORDER-M' }));
+
+    const pedido = db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-M');
+    expect(pedido.segmento).toBe('membro');
+  });
+
+  it('carimba segmento "lp" para conta nova vinda de campanha e "direto" sem campanha', async () => {
+    await processarEventoKit(evento({ orderId: 'ORDER-LP', utm: { utm_campaign: '123', utm_source: 'fb' } } as any));
+    expect(db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-LP').segmento).toBe('lp');
+
+    db.users.length = 0; emails.clear();
+    // sem utm_campaign = chegou sem rastro de anúncio (orgânico, indicação, link solto)
+    await processarEventoKit(evento({
+      orderId: 'ORDER-DIR',
+      email: 'outro@teste.com',
+      utm: { utm_source: null, utm_campaign: null, utm_medium: null, utm_content: null, utm_term: null },
+    } as any));
+    expect(db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-DIR').segmento).toBe('direto');
   });
 
   it('bump que chega sozinho (webhook separado) não dispara o e-mail de boas-vindas', async () => {

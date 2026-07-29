@@ -12,6 +12,9 @@ interface User {
   is_admin?: boolean;
   billing_status?: 'active' | 'past_due' | 'suspended';
   past_due_since?: string | null;
+  /** Comprou o kit na Kiwify. Vem do /auth/me — o layout usa pra não empurrar
+   *  quem pagou por um CURSO pra tela de CNPJ do gerador. */
+  tem_kit?: boolean;
 }
 
 interface DashboardContextType {

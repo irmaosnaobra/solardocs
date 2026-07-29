@@ -364,7 +364,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // O limite do plano free é só no volume (10 docs/mês), não nas features.
   const isFree = user.plano === 'free';
   const isAdminUser = !!user.is_admin;
-  if (isFree && !isAdminUser) {
+  // Comprador do kit (Kiwify) fica FORA deste muro. Ele pagou por um curso, não
+  // pelo gerador: cair numa tela de CNPJ logo depois de criar a senha é o jeito
+  // mais rápido de perder alguém que acabou de comprar. Ele navega livre e recebe
+  // o convite pra cadastrar a empresa como banner (logo abaixo), não como portão
+  // — o CNPJ volta a ser obrigatório na hora de gerar documento, onde faz sentido.
+  const compradorKit = !!user.tem_kit;
+  if (isFree && !isAdminUser && !compradorKit) {
     if (!hasCompany && pathname !== '/empresa') {
       router.replace('/empresa?welcome=1&plan=free');
       return null;
@@ -392,6 +398,33 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <main className={styles.main}>
         <TopBar userEmail={user.email} companyLogo={companyLogo} />
         <div className={styles.content}>
+          {/* Comprador do kit sem empresa: convite, não portão. É o que substitui
+              o redirect pra /empresa — ele precisa da empresa cadastrada pros
+              modelos saírem com a marca dele, mas descobre isso navegando. */}
+          {compradorKit && !hasCompany && pathname !== '/empresa' && (
+            <div style={{
+              background: 'rgba(247,164,28,0.08)',
+              border: '1px solid rgba(247,164,28,0.3)',
+              borderRadius: 10,
+              padding: '10px 16px',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 8,
+            }}>
+              <span style={{ fontSize: 13, color: '#f59e0b', fontWeight: 600 }}>
+                Cadastre sua empresa para os <strong>contratos e procurações do kit</strong> saírem com seu CNPJ e sua logo.
+              </span>
+              <button
+                onClick={() => router.push('/empresa?from=kit')}
+                style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b', textDecoration: 'underline', whiteSpace: 'nowrap', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+              >
+                Cadastrar agora →
+              </button>
+            </div>
+          )}
           {isFree && docsRestantes !== null && docsRestantes > 0 && (
             <div style={{
               background: docsRestantes <= 2 ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',

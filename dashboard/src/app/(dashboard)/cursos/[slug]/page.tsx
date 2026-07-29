@@ -35,6 +35,10 @@ const ICONES: Record<NomeIcone, typeof MessageSquareQuote> = {
 
 interface Acesso {
   temKit: boolean;
+  /** Quem decide é o servidor (GET /kit/meu-acesso). O `??` abaixo é só ponte
+   *  pro caso de a API antiga responder antes do deploy novo subir. */
+  liberado?: boolean;
+  itens?: string[];
   plano: string;
   packTrialUntil: string | null;
   progresso: string[];
@@ -83,7 +87,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
   const liberadoBonus = (m: ModuloCurso) => bonusLiberado(m, curso, prog.feitos, missoes);
   // "Continuar" nunca aponta para lição de módulo bônus ainda travado.
   const proxima = prog.proxima && !liberadoBonus(prog.proxima.modulo) ? null : prog.proxima;
-  const liberado = !!acesso && (acesso.temKit || acesso.plano === 'pro' || acesso.plano === 'ilimitado');
+  const liberado = !!acesso && (acesso.liberado ?? (acesso.temKit || acesso.plano === 'pro' || acesso.plano === 'ilimitado'));
   const emTrial = !!acesso?.packTrialUntil && new Date(acesso.packTrialUntil) > new Date();
 
   const concluir = useCallback((licao: Licao, modulo: ModuloCurso) => {

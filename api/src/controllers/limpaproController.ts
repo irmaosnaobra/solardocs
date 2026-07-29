@@ -198,6 +198,11 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
             utm_content:  limpaContent(tp.utm_content),
             utm_term:     tp.utm_term     || null,
           },
+          // Qual checkout gerou a venda: a Kiwify manda o código do link em
+          // `checkout_link` e a oferta em `Product.product_offer_id`. É assim que
+          // o link SEM order bump (o da base própria) se separa do link da LP.
+          checkoutLink: (evt as { checkout_link?: string }).checkout_link || null,
+          ofertaId: (product as { product_offer_id?: string }).product_offer_id || null,
           payload: evt as unknown as Record<string, unknown>,
         });
         console.info(`[kiwify:kit] ${itemKit} · ${emailComprador} · ${r.acao}`);

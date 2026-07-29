@@ -27,8 +27,23 @@ export async function meuAcesso(req: Request, res: Response): Promise<void> {
       .select('modulo, concluido_em')
       .eq('user_id', req.userId);
 
+    // Quem pode abrir o curso — decidido AQUI, não na tela. Três motivos:
+    //
+    // 1. COMPRA (itens.length > 0): vale pra sempre. Inclui quem levou só o
+    //    order bump: ele fica 'ilimitado' por 30 dias e temKit=false, então um
+    //    gate por plano tiraria o curso dele no dia 31 depois de ter pago.
+    // 2. ASSINATURA (pro/ilimitado): o curso é entrega do plano — está escrito na
+    //    tela do curso e na oferta do VIP.
+    //
+    // A tela continua desenhando o cadeado, mas quem decide é o servidor: assim a
+    // regra muda num lugar só e não depende de o front estar atualizado.
+    const assinante = user.plano === 'pro' || user.plano === 'ilimitado';
+    const liberado = acesso.itens.length > 0 || assinante;
+
     res.json({
       ...acesso,
+      liberado,
+      motivoAcesso: acesso.itens.length > 0 ? 'compra' : assinante ? 'assinatura' : null,
       plano: user.plano,
       packTrialUntil: user.pack_trial_until,
       progresso: (prog || []).map((p: { modulo: string }) => p.modulo),

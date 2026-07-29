@@ -10,6 +10,7 @@ import { sendPasswordResetEmail } from '../utils/mailer';
 import { sendWelcomeWhatsApp, sendPurchaseWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { sendWelcomeEmail, sendPurchaseEmail } from '../utils/mailer';
 import { FREE_LIMIT } from '../services/planService';
+import { acessoDoUsuario } from '../services/kitIntegradorService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -661,7 +662,20 @@ export async function getMe(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    res.json({ user });
+    // tem_kit vai junto porque o LAYOUT precisa dele, não só a tela do curso:
+    // o comprador do kit é criado no plano free e o layout empurra todo free sem
+    // CNPJ pra /empresa. Sem este campo, quem paga R$27 bate num muro de CNPJ
+    // logo depois de criar a senha — ele comprou um curso, não o gerador.
+    // Falha aqui não pode esconder o app: no erro, segue como se não tivesse kit.
+    let temKit = false;
+    try {
+      const acesso = await acessoDoUsuario(user.id, user.email);
+      temKit = acesso.temKit || acesso.itens.length > 0;
+    } catch (e) {
+      console.error('[getMe] acessoDoUsuario falhou:', e);
+    }
+
+    res.json({ user: { ...user, tem_kit: temKit } });
   } catch (err) {
     console.error('GetMe error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });

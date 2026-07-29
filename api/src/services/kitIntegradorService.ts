@@ -17,7 +17,7 @@
 
 import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
-import { sendKitAcessoEmail } from '../utils/mailer';
+import { sendKitAcessoEmail, sendOpsAlert } from '../utils/mailer';
 
 /** Dias de VIP concedidos por quem leva o order bump. */
 export const KIT_BUMP_TRIAL_DIAS = 30;
@@ -79,6 +79,10 @@ export type EventoKit = {
     utm_content?: string | null;
     utm_term?: string | null;
   };
+  /** Código do checkout usado (Kiwify manda em `checkout_link`). */
+  checkoutLink?: string | null;
+  /** Oferta do produto (Kiwify manda em `Product.product_offer_id`). */
+  ofertaId?: string | null;
   payload: Record<string, unknown>;
 };
 
@@ -143,6 +147,10 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
     status: evt.status || 'unknown',
     payload: evt.payload,
     atualizado_em: new Date().toISOString(),
+    // Qual checkout/oferta gerou a venda. É o que separa o link da LP do link
+    // sem order bump (o da base própria) sem depender de env var configurada.
+    checkout_link: evt.checkoutLink || null,
+    oferta_id: evt.ofertaId || null,
     ...utmCols,
   };
 
@@ -174,7 +182,7 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   }
 
   // 2) Conta: cria pendente (sem senha) ou vincula a existente.
-  const { userId, contaCriada, resetUrl } = await garantirConta({
+  const { userId, contaCriada, resetUrl, jaEraMembro } = await garantirConta({
     email,
     nome: evt.nome,
     telefone: evt.telefone,
@@ -187,9 +195,26 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
 
   // 3) Bump do VIP: 30 dias de acesso ilimitado. Só concede uma vez por pedido.
   let trialVip = false;
+  let bumpAplicado: boolean | null = null;
   const jaConcedeuNessePedido = !!pedidoExistente?.trial_vip_ate;
   if (evt.item === 'bump_vip' && !jaConcedeuNessePedido) {
-    trialVip = await concederTrialVip(userId);
+    const r = await concederTrialVip(userId);
+    trialVip = r.aplicado;
+    bumpAplicado = r.aplicado;
+    // Assinante que compra o bump PAGA E NÃO RECEBE: o código se recusa (com
+    // razão) a mexer num plano pago, e 30 dias de VIP em cima de quem já é VIP
+    // não é entrega nenhuma. Não dá pra desfazer a cobrança daqui — então vira
+    // aviso pro dono resolver (reembolso ou crédito) em vez de sumir no log.
+    if (r.motivo === 'ja_assinante') {
+      console.warn(`[kit] bump comprado por assinante ${email} — nada a conceder (pedido ${evt.orderId})`);
+      sendOpsAlert(
+        'Kit: assinante comprou o bump de 30 dias',
+        `${email} comprou o bump "SolarDoc VIP" (pedido ${evt.orderId}) mas já é assinante ${r.planoAtual}.\n\n` +
+        `Ele pagou e não recebeu nada — o sistema não rebaixa nem duplica plano pago.\n` +
+        `Resolva na Kiwify: reembolso do bump, ou crédito de um mês.\n\n` +
+        `Pra não repetir: mande a base própria pro checkout SEM order bump.`,
+      ).catch(() => {});
+    }
   }
 
   // 4) E-mail de acesso — o gate é o CARIMBO, não "o pedido é novo". No Pix a
@@ -215,11 +240,19 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
     }
   }
 
+  // Segmento: derivado de QUEM a pessoa era antes de comprar, não de config.
+  // 'membro' = já tinha conta com senha (base própria comprando o curso);
+  // 'lp'     = conta nova vinda de campanha (tem utm_campaign);
+  // 'direto' = conta nova sem rastro de campanha (orgânico, indicação, WhatsApp).
+  const segmento = jaEraMembro ? 'membro' : evt.utm.utm_campaign ? 'lp' : 'direto';
+
   await supabase
     .from('kit_pedidos')
     .update({
       user_id: userId,
       conta_criada: contaCriada,
+      segmento,
+      ...(bumpAplicado !== null ? { bump_aplicado: bumpAplicado } : {}),
       ...(trialVip
         ? { trial_vip_ate: new Date(Date.now() + KIT_BUMP_TRIAL_DIAS * 86400_000).toISOString() }
         : {}),
@@ -249,7 +282,7 @@ async function garantirConta(opts: {
   nome: string | null;
   telefone: string | null;
   utm: EventoKit['utm'];
-}): Promise<{ userId: string | null; contaCriada: boolean; resetUrl: string }> {
+}): Promise<{ userId: string | null; contaCriada: boolean; resetUrl: string; jaEraMembro: boolean }> {
   const { email } = opts;
 
   const { data: existente } = await supabase
@@ -260,8 +293,16 @@ async function garantirConta(opts: {
 
   // Já tem conta (é assinante, ou comprou o kit antes): não mexe em plano nem
   // em senha. Só devolve o link de login.
+  // jaEraMembro olha password_hash, não "a conta existe": conta PENDENTE (sem
+  // senha) é criada pelo próprio webhook, então usá-la como sinal marcaria
+  // comprador novo como membro antigo quando o bump chega antes do kit.
   if (existente?.id) {
-    return { userId: existente.id, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth` };
+    return {
+      userId: existente.id,
+      contaCriada: false,
+      resetUrl: `${DASHBOARD_URL}/auth`,
+      jaEraMembro: existente.password_hash !== null,
+    };
   }
 
   const token = crypto.randomBytes(32).toString('hex');
@@ -292,6 +333,9 @@ async function garantirConta(opts: {
       utm_source: attr.utm_source || 'kiwify',
       utm_medium: attr.utm_medium || 'isca-integrador',
       ...attr,
+      // Marcador DURÁVEL: utm_source acima é sobrescrito pelo ...attr quando a
+      // pessoa vem de anúncio, e aí some justo o rastro de quem veio pela isca.
+      origem_aquisicao: 'kit-integrador',
     })
     .select('id')
     .single();
@@ -300,23 +344,30 @@ async function garantirConta(opts: {
     // 23505 = corrida (o /register criou a conta no meio do caminho). Busca de novo.
     if ((error as { code?: string }).code === '23505') {
       const { data: agora } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
-      return { userId: agora?.id ?? null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth` };
+      return { userId: agora?.id ?? null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth`, jaEraMembro: false };
     }
     console.error('[kit] criação de conta falhou:', error);
-    return { userId: null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth` };
+    return { userId: null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth`, jaEraMembro: false };
   }
 
   return {
     userId: criado.id,
     contaCriada: true,
     resetUrl: `${DASHBOARD_URL}/auth?mode=redefinir&token=${token}`,
+    jaEraMembro: false,
   };
 }
 
 // ── Trial VIP do bump ───────────────────────────────────────────────────────
 // pack_trial_until já é respeitado pelo stripeSyncService (não rebaixa enquanto
 // o carimbo estiver no futuro; limpa sozinho quando vence). Aqui só carimbamos.
-async function concederTrialVip(userId: string): Promise<boolean> {
+type ResultadoTrial = {
+  aplicado: boolean;
+  motivo: 'ok' | 'ja_assinante' | 'erro';
+  planoAtual?: string;
+};
+
+async function concederTrialVip(userId: string): Promise<ResultadoTrial> {
   const ate = new Date(Date.now() + KIT_BUMP_TRIAL_DIAS * 86400_000).toISOString();
 
   const { data: atual } = await supabase
@@ -326,7 +377,10 @@ async function concederTrialVip(userId: string): Promise<boolean> {
     .maybeSingle();
 
   // Já é assinante pagante: não mexe (não faz sentido "dar" o que ele já paga).
-  if (atual?.plano === 'pro' || atual?.plano === 'ilimitado') return false;
+  // O chamador transforma isso em alerta — a pessoa pagou por nada.
+  if (atual?.plano === 'pro' || atual?.plano === 'ilimitado') {
+    return { aplicado: false, motivo: 'ja_assinante', planoAtual: atual.plano };
+  }
 
   const { error } = await supabase
     .from('users')
@@ -339,9 +393,9 @@ async function concederTrialVip(userId: string): Promise<boolean> {
 
   if (error) {
     console.error('[kit] concessão de trial VIP falhou:', error);
-    return false;
+    return { aplicado: false, motivo: 'erro' };
   }
-  return true;
+  return { aplicado: true, motivo: 'ok' };
 }
 
 // ── Leitura para a plataforma ───────────────────────────────────────────────
