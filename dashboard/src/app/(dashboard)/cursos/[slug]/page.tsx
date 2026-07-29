@@ -435,15 +435,25 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
         </div>
       </section>
 
-      {(acesso?.plano === 'free' || emTrial) && (
+      {/* PRO entra aqui também: ele paga R$27 e tem teto de 90 documentos — o
+          convite pro VIP é legítimo pra ele, e antes só free e trial viam. */}
+      {(acesso?.plano === 'free' || acesso?.plano === 'pro' || emTrial) && (
         <div className={styles.conviteVip}>
           <Sparkles size={20} />
           <div>
-            <h3>{emTrial ? 'Seu acesso VIP está correndo' : 'O contrato da lição 4, sem limite mensal'}</h3>
+            <h3>
+              {emTrial
+                ? 'Seu acesso VIP está correndo'
+                : acesso?.plano === 'pro'
+                  ? 'Você tem teto de 90 documentos por mês'
+                  : 'O contrato da lição 4, sem limite mensal'}
+            </h3>
             <p>
               {emTrial
                 ? 'Enquanto durar, seus documentos são ilimitados. Assinando o VIP por R$ 67/mês você não perde o acesso nem o que já gerou.'
-                : 'No VIP você gera contrato, procuração, recibo e proposta sem teto, todos com a logo e o CNPJ da sua empresa.'}
+                : acesso?.plano === 'pro'
+                  ? 'No mês em que a venda engrenar, o teto aparece. O VIP tira o limite por R$ 67/mês — e o curso continua seu.'
+                  : 'No VIP você gera contrato, procuração, recibo e proposta sem teto, todos com a logo e o CNPJ da sua empresa.'}
             </p>
             <button onClick={() => window.dispatchEvent(new CustomEvent('limit-reached'))} className={styles.btnPrimario}>
               Ver o plano VIP <ArrowRight size={15} />

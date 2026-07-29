@@ -81,6 +81,10 @@ export async function runAlertaLeadQuenteSemProposta(opts: { dry?: boolean } = {
   const candidatos: Cand[] = [];
   for (const [tk, lista] of porTel) {
     if (comProposta.has(tk)) continue;                       // já tem proposta
+    // Eletroposto: a proposta é o deck da apresentação, não sai do gerador — então
+    // nunca cria linha em `propostas`. O card marcado "proposta apresentada" É a
+    // prova de que o lead recebeu proposta; cobrar de novo seria alerta falso.
+    if (lista.some((a) => a.status === 'proposta_apresentada')) continue;
     if (lista.some((a) => STATUS_PERDIDO.has(a.status))) continue; // perdido
     const quentes = lista.filter((a) => a.temperatura === 'quente');
     if (!quentes.length) continue;

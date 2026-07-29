@@ -17,7 +17,12 @@ function envPrice(key: string, fallback: string): string {
   return v || fallback;
 }
 
-const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number; valor: number; descricao: string }> = {
+// trialDias ausente = 7 (o padrão que sempre valeu). Uma oferta pode zerar:
+// é o caso do 'vip_curso', usado na campanha em que o curso entra junto — ali a
+// contrapartida é cobrança imediata, sem os 7 dias.
+const TRIAL_PADRAO_DIAS = 7;
+
+const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number; valor: number; descricao: string; trialDias?: number }> = {
   pro: {
     priceId: envPrice('STRIPE_PRICE_PRO', 'price_1TKNtbCkkgzQ4IHeCr0mYSXn'),
     plano: 'pro',
@@ -31,6 +36,18 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
     limite: 999999,
     valor: 67, // preço mensal real (R$) — espelha PRICES.vip da Landing. Usado no value do Purchase (Meta CAPI).
     descricao: '📄 Documentos ilimitados  •  Indicado para +20 vendas mensais  •  Dashboard completo  •  Acesso a toda expansão da plataforma  •  Suporte prioritário',
+  },
+  // VIP da campanha "o curso entra junto": MESMO price do VIP (R$67/mês), sem os
+  // 7 dias. O curso já é liberado por ser assinante — não há nada a "conceder"
+  // aqui, o que muda é só a cobrança começar na hora. planByPrice resolve pelo
+  // price, então esta chave não cria plano novo: continua sendo 'ilimitado'.
+  vip_curso: {
+    priceId: envPrice('STRIPE_PRICE_VIP', 'price_1TUh2yCkkgzQ4IHeZqy52Zu2'),
+    plano: 'ilimitado',
+    limite: 999999,
+    valor: 67,
+    trialDias: 0,
+    descricao: '📄 Documentos ilimitados  •  Curso Kit de Fechamento incluso  •  Dashboard completo  •  Suporte prioritário',
   },
   // Downsell da LP: MESMO acesso ilimitado (VIP), preço promocional R$ 49/mês.
   // Oferecido no popup ao clicar no Pro. planByPrice() resolve isto pra plano
@@ -105,6 +122,7 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
   // Aceita 'vip' (alias do landing) → 'ilimitado'
   const planKey = plan === 'vip' ? 'ilimitado' : plan;
   const planInfo = PLAN_MAP[planKey];
+  const trialDias = planInfo?.trialDias ?? TRIAL_PADRAO_DIAS;
 
   if (!planInfo) {
     res.status(400).json({ error: 'Plano inválido' });
@@ -180,7 +198,8 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     customer_email: user.email,
     metadata: { userId: req.userId! },
     subscription_data: {
-      trial_period_days: 7,
+      // trialDias: 0 = cobra agora (oferta sem trial). undefined = os 7 de sempre.
+      ...(trialDias > 0 ? { trial_period_days: trialDias } : {}),
       metadata: { userId: req.userId! },
     },
     // Pós-pagamento: cai em /documentos pra ele ver os tipos de doc, conhecer
@@ -204,6 +223,7 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
   const { plan } = req.body as { plan: string };
   const planKey = plan === 'vip' ? 'ilimitado' : plan;
   const planInfo = PLAN_MAP[planKey];
+  const trialDias = planInfo?.trialDias ?? TRIAL_PADRAO_DIAS;
 
   if (!planInfo) {
     res.status(400).json({ error: 'Plano inválido' });
@@ -230,7 +250,7 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       // preencher o cadastro). Vem em E.164 (+55...) em session.customer_details.phone.
       phone_number_collection: { enabled: true },
       subscription_data: {
-        trial_period_days: 7,
+        ...(trialDias > 0 ? { trial_period_days: trialDias } : {}),
         metadata: baseMeta,
       },
       metadata: baseMeta,
@@ -311,6 +331,12 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     if (planInfo) {
       const { plano, limite, valor } = planInfo;
 
+      // Com trial, o Stripe devolve 'no_payment_required' (nada foi cobrado) e a
+      // assinatura nasce 'trialing'. Sem trial, vem 'paid' e o dinheiro já entrou.
+      // Os três estados abaixo (conta, ledger, UTMify) derivam daqui em vez de
+      // assumir que todo checkout começa em trial.
+      const cobrouAgora = session.payment_status === 'paid';
+
       // Atribuição forward-only: lê os UTMs que createPublicCheckout gravou no
       // metadata. Só keys NÃO-vazias entram no patch — uma re-entrega do webhook
       // sem UTM (improvável, mas at-least-once) nunca zera o que já foi gravado.
@@ -370,7 +396,9 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
                 documentos_usados: 0,
                 data_reset: expiresIso,
                 whatsapp: phone,
-                billing_status: 'trialing',
+                // Sem trial a assinatura já nasce cobrada — gravar 'trialing'
+                // fixo colocaria o cliente num estado que ele nunca esteve.
+                billing_status: cobrouAgora ? 'active' : 'trialing',
                 reset_token: token,
                 reset_token_expires: expiresIso,
                 ...attrPatch,
@@ -441,7 +469,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           nome: cd?.name ?? null,
           phone: cd?.phone ? String(cd.phone).replace(/\D/g, '') : null,
           plano, produto, valor,
-          status: 'trialing',
+          status: cobrouAgora ? 'paid' : 'trialing',
           utm_source: meta.utm_source ?? null,
           utm_medium: meta.utm_medium ?? null,
           utm_campaign: meta.utm_campaign ?? null,
@@ -460,7 +488,10 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         // o anúncio. Não bloqueia nem quebra (sendUtmifyOrder engole o próprio erro).
         await sendUtmifyOrder({
           orderId: (session.subscription as string) || session.id,
-          status: 'waiting_payment',
+          // A UTMify NÃO se auto-corrige (o ledger interno sim, pelo stripeSync).
+          // Se a venda sem trial nascesse como 'waiting_payment' e o 'paid' nunca
+          // viesse, a atribuição de mídia ficava errada pra sempre.
+          status: cobrouAgora ? 'paid' : 'waiting_payment',
           createdAt: cardPassedAt,
           email: email ?? null,
           name: cd?.name ?? null,
@@ -598,7 +629,13 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
   // notifica o cliente.
   if (event.type === 'invoice.payment_succeeded') {
     const invoice = event.data.object as any;
-    if (invoice.billing_reason === 'subscription_cycle' || invoice.billing_reason === 'subscription_update') {
+    // 'subscription_create' entrou por causa da oferta SEM trial: nela a primeira
+    // fatura chega com esse motivo, e sem ele o espelho 'paid' na UTMify nunca
+    // dispararia pra esses clientes — a atribuição de mídia ficaria errada pra
+    // sempre (a UTMify não se auto-corrige como o ledger interno).
+    if (invoice.billing_reason === 'subscription_cycle'
+        || invoice.billing_reason === 'subscription_update'
+        || invoice.billing_reason === 'subscription_create') {
       const custId   = invoice.customer as string;
       const customer = await stripe.customers.retrieve(custId) as any;
       if (customer.email) {

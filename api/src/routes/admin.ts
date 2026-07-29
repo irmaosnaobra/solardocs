@@ -251,7 +251,7 @@ router.get('/kit-funil', async (_req: Request, res: Response): Promise<void> => 
         .like('landing_url', '%/kit%'),
       supabase
         .from('kit_pedidos')
-        .select('email, nome, produto, itens, bump_vip, valor, status, user_id, conta_criada, trial_vip_ate, utm_campaign, criado_em')
+        .select('email, nome, produto, itens, bump_vip, bump_aplicado, segmento, checkout_link, valor, status, user_id, conta_criada, trial_vip_ate, utm_campaign, criado_em')
         .gte('criado_em', desde)
         .order('criado_em', { ascending: false }),
     ]);
@@ -259,14 +259,36 @@ router.get('/kit-funil', async (_req: Request, res: Response): Promise<void> => 
     const visitas = (visitasQ.data ?? []) as Array<{ session_id: string | null }>;
     const pedidos = (pedidosQ.data ?? []) as Array<{
       email: string; nome: string | null; produto: string; itens: string[];
-      bump_vip: boolean; valor: number; status: string; user_id: string | null;
+      bump_vip: boolean; bump_aplicado: boolean | null; segmento: string | null;
+      checkout_link: string | null;
+      valor: number; status: string; user_id: string | null;
       conta_criada: boolean; trial_vip_ate: string | null; utm_campaign: string | null; criado_em: string;
     }>;
 
     const pagos = pedidos.filter((p) => p.status === 'paid');
     const compradores = new Set(pagos.filter((p) => (p.itens || []).includes('kit')).map((p) => p.email.toLowerCase()));
-    const comBump = new Set(pagos.filter((p) => p.bump_vip).map((p) => p.email.toLowerCase()));
+    // O bump só conta quando o MESMO comprador está na janela. Sem isso a taxa
+    // passa de 100%: um bump pago dentro dos 30 dias cujo pedido principal ficou
+    // fora entrava no numerador sem entrar no denominador.
+    const comBump = new Set(
+      pagos.filter((p) => p.bump_vip)
+        .map((p) => p.email.toLowerCase())
+        .filter((e) => compradores.has(e)),
+    );
+    // Bump cobrado de quem já era assinante: pagou e não recebeu nada. Vira fila
+    // de reembolso, não métrica de sucesso.
+    const bumpSemEntrega = pagos
+      .filter((p) => p.bump_vip && p.bump_aplicado === false)
+      .map((p) => p.email.toLowerCase());
     const pendentes = pedidos.filter((p) => p.status === 'waiting_payment');
+
+    // Segmentos, sempre em PESSOAS (e-mails distintos) — a mesma unidade do
+    // resto do funil. Pedido antigo (anterior ao carimbo) cai em 'direto'.
+    const porSegmento = { lp: new Set<string>(), membro: new Set<string>(), direto: new Set<string>() };
+    for (const p of pagos) {
+      const chave = (p.segmento === 'membro' ? 'membro' : p.segmento === 'lp' ? 'lp' : 'direto') as keyof typeof porSegmento;
+      porSegmento[chave].add(p.email.toLowerCase());
+    }
 
     // Quantos compradores já viram assinante pagante de verdade (sem contar o
     // trial do bump — pack_trial_until ativo não é receita).
@@ -291,7 +313,17 @@ router.get('/kit-funil', async (_req: Request, res: Response): Promise<void> => 
       sessoes,
       compradores: compradores.size,
       bump_vip: comBump.size,
-      contas_criadas: pagos.filter((p) => p.conta_criada).length,
+      bump_sem_entrega: bumpSemEntrega.length,
+      bump_sem_entrega_emails: bumpSemEntrega.slice(0, 20),
+      // PESSOAS com conta criada pela compra — antes contava PEDIDOS pagos, o que
+      // misturava unidades com 'compradores' e inflava o funil de quem levou bump
+      // (bump vem em pedido separado, então a mesma pessoa contava duas vezes).
+      contas_criadas: new Set(pagos.filter((p) => p.conta_criada).map((p) => p.email.toLowerCase())).size,
+      segmentos: {
+        lp: porSegmento.lp.size,
+        membro: porSegmento.membro.size,
+        direto: porSegmento.direto.size,
+      },
       assinantes,
       pix_pendente: pendentes.length,
       receita,

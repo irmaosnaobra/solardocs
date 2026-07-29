@@ -36,6 +36,9 @@ interface KitFunil {
   conv_visita_compra: number | null;
   conv_comprador_assinante: number | null;
   take_rate_bump: number | null;
+  bump_sem_entrega: number;
+  bump_sem_entrega_emails: string[];
+  segmentos: { lp: number; membro: number; direto: number };
   pedidos: Pedido[];
 }
 
@@ -113,6 +116,42 @@ export default function KitPanel() {
           <div className={styles.cardValue} style={{ color: (data?.pix_pendente ?? 0) > 0 ? '#C87A1E' : undefined }}>
             {(data?.pix_pendente ?? 0).toLocaleString('pt-BR')}
           </div>
+        </div>
+      </div>
+
+      {(data?.bump_sem_entrega ?? 0) > 0 && (
+        <div className={styles.card} style={{ marginTop: 14, borderLeft: '3px solid #A53B29' }}>
+          <div style={{ fontWeight: 700, marginBottom: 6, color: '#A53B29' }}>
+            {data!.bump_sem_entrega} bump cobrado de quem já era assinante
+          </div>
+          <div style={{ fontSize: 12.5, opacity: 0.75, lineHeight: 1.6 }}>
+            Essas pessoas pagaram os R$19 e não receberam nada — 30 dias de VIP em cima de
+            uma assinatura ativa não é entrega. Reembolse na Kiwify ou dê um mês de crédito.
+            Para não repetir: mande a base própria pro checkout <strong>sem order bump</strong>.
+          </div>
+          <div style={{ fontSize: 12, marginTop: 8, fontFamily: 'monospace', opacity: 0.9 }}>
+            {(data?.bump_sem_entrega_emails ?? []).join(' · ')}
+          </div>
+        </div>
+      )}
+
+      <div className={styles.card} style={{ marginTop: 14 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>De onde vieram os compradores</div>
+        <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 12 }}>
+          Pessoas, não pedidos. Compra anterior a 29/07 aparece como “direto” — o carimbo é novo.
+        </div>
+        <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap' }}>
+          {([
+            ['Anúncio / LP', data?.segmentos?.lp ?? 0, 'chegaram pela campanha'],
+            ['Base própria', data?.segmentos?.membro ?? 0, 'já tinham conta quando compraram'],
+            ['Direto', data?.segmentos?.direto ?? 0, 'sem rastro de campanha'],
+          ] as Array<[string, number, string]>).map(([rotulo, valor, nota]) => (
+            <div key={rotulo}>
+              <div style={{ fontSize: 12, opacity: 0.7 }}>{rotulo}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{valor.toLocaleString('pt-BR')}</div>
+              <div style={{ fontSize: 11, opacity: 0.55 }}>{nota}</div>
+            </div>
+          ))}
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
-import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail, sendAbandonedCartEmail } from '../utils/mailer';
+import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail, sendAbandonedCartEmail, sendCampanhaCursoVipEmail } from '../utils/mailer';
 import { enviarOpenerRecuperacao } from './agents/whatsapp/pixRecoveryAgentService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
@@ -537,4 +537,71 @@ export async function runUpgradeNudge(): Promise<{ sent: number; skipped: number
   }
 
   return { sent, skipped, eligiveis };
+}
+
+// ── Campanha "o curso entra junto no VIP" ───────────────────────────────────
+// Público: quem JÁ está dentro e não é VIP — free e PRO. 3 toques, cadência
+// própria (não usa upgrade_nudge_*, cujo teto a base já consumiu).
+//
+// Regras que valem pra qualquer campanha nova daqui pra frente:
+//  · sendMarketingEmail NÃO filtra opt-out — o filtro é aqui, explícito;
+//  · carimbo antes do próximo toque, senão uma reexecução do cron dispara tudo
+//    de novo no mesmo dia;
+//  · quem já é 'ilimitado' nunca entra (inclusive quem está no trial de 30 dias
+//    do bump — pra esse a conversa é "não perca", que é outra campanha).
+const CAMPANHA_CURSO_MAX = 3;
+const CAMPANHA_CURSO_GAP_DIAS = [0, 4, 6];
+
+export async function runCampanhaCursoVip(opts?: { limite?: number; secoDeTeste?: boolean }): Promise<{
+  enviados: number; pulados: number; elegiveis: number;
+}> {
+  const limite = opts?.limite ?? 200;
+  const seco = opts?.secoDeTeste === true;
+
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, email, nome, plano, email_opt_out, followup_abandoned, pack_trial_until, campanha_curso_count, campanha_curso_last_sent_at')
+    .in('plano', ['free', 'pro']);
+
+  if (!users || users.length === 0) return { enviados: 0, pulados: 0, elegiveis: 0 };
+
+  const agora = new Date();
+  let enviados = 0, pulados = 0, elegiveis = 0;
+
+  for (const u of users) {
+    if (enviados >= limite) break;
+    if (!u.email) { pulados++; continue; }
+    if (u.email_opt_out) { pulados++; continue; }
+    if (u.followup_abandoned) { pulados++; continue; }
+    // Trial VIP do bump correndo: ele JÁ tem tudo o que a campanha oferece.
+    const trialAtivo = !!u.pack_trial_until && new Date(u.pack_trial_until as string) > agora;
+    if (trialAtivo) { pulados++; continue; }
+
+    elegiveis++;
+
+    const count = (u.campanha_curso_count as number | null) ?? 0;
+    if (count >= CAMPANHA_CURSO_MAX) { pulados++; continue; }
+
+    if (u.campanha_curso_last_sent_at) {
+      const ultimo = new Date((u.campanha_curso_last_sent_at as string).replace(' ', 'T') + 'Z');
+      const gap = (CAMPANHA_CURSO_GAP_DIAS[count] ?? 6) * DAY_MS;
+      if (agora.getTime() - ultimo.getTime() < Math.max(MIN_GAP_MS, gap)) { pulados++; continue; }
+    }
+
+    if (seco) { enviados++; continue; }  // ensaio: conta quem receberia, não manda
+
+    try {
+      await sendCampanhaCursoVipEmail(u.email, u.id, count + 1, (u.nome as string | null) ?? null, u.plano as string);
+      await supabase.from('users').update({
+        campanha_curso_count: count + 1,
+        campanha_curso_last_sent_at: agora.toISOString(),
+      }).eq('id', u.id);
+      enviados++;
+    } catch (err) {
+      console.error(`[campanha-curso] falhou pra ${u.email} (toque ${count + 1}):`, err);
+      pulados++;
+    }
+  }
+
+  return { enviados, pulados, elegiveis };
 }
