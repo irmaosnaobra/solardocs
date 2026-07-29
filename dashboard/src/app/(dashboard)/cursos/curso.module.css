@@ -447,8 +447,10 @@
 .baixarModulo:hover { color: var(--ct-amber); }
 
 /* ── Toast de XP ───────────────────────────────────────── */
+/* bottom alto de propósito: o FAB do WhatsApp mora no canto inferior direito e
+   cobria a linha da conquista. */
 .toast {
-  position: fixed; right: 26px; bottom: 26px; z-index: 200;
+  position: fixed; right: 26px; bottom: 104px; z-index: 200;
   display: flex; flex-direction: column; gap: 3px;
   background: linear-gradient(180deg, #1b2947, #131d33);
   border: 1px solid rgba(247, 164, 28, 0.5);
@@ -478,7 +480,7 @@
   .moduloProg { text-align: left; }
   .licaoRodape { flex-direction: column; align-items: stretch; }
   .licaoNav { justify-content: space-between; }
-  .toast { left: 18px; right: 18px; bottom: 18px; }
+  .toast { left: 18px; right: 18px; bottom: 96px; }
   .gatilho { padding-right: 0; }
   .contador { position: static; display: block; }
 }
