@@ -1,33 +1,34 @@
 'use client';
 
 import { use, useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   MessageSquareQuote, Map, Calculator, FileSignature, Send, Repeat,
-  Check, ChevronLeft, ChevronRight, Lock, Play, Download, Trophy, Zap, Clock, ArrowRight, Sparkles,
+  Check, ChevronLeft, ChevronRight, Lock, Play, Trophy, Zap, Clock, ArrowRight, Sparkles,
   Sprout, Flame, Crown, Target, ShieldCheck, Coins, FileCheck2, Medal,
+  Wrench, Lightbulb, Users, ClipboardCheck, TrendingUp,
 } from 'lucide-react';
 import api from '@/services/api';
 import styles from '../curso.module.css';
 import ConteudoLicao from '../_componentes/ConteudoLicao';
 import {
-  CURSO, MODULOS, TODAS_LICOES, XP_TOTAL, MINUTOS_TOTAL,
-  CONQUISTAS, calcularProgresso, nivelPorXp,
-  type ModuloCurso, type Licao,
-} from '../_conteudo/curso';
+  getCurso, licoesDo, xpTotalDo, minutosDo,
+  conquistasDo, calcularProgresso, nivelPorXp,
+  type ModuloCurso, type Licao, type NomeIcone,
+} from '../_conteudo/cursos.config';
 
 // A área de curso é DELIBERADAMENTE escura, diferente do resto do app (que é
 // claro): é o "modo imersão" — quando o integrador entra aqui, ele saiu da
 // ferramenta e entrou no treinamento. Cores fixas, não tokens, por isso mesmo.
+//
+// Esta tela serve QUALQUER curso do registro (cursos.config.ts). Curso novo não
+// precisa de página nova.
 
-const ICONES = { MessageSquareQuote, Map, Calculator, FileSignature, Send, Repeat };
-
-// Níveis e conquistas usam a MESMA família de ícones do resto do app (lucide).
-// Emoji colorido destoa da interface e some no tema escuro do curso.
-const ICONES_GAME = {
+const ICONES: Record<NomeIcone, typeof MessageSquareQuote> = {
+  MessageSquareQuote, Map, Calculator, FileSignature, Send, Repeat,
   Sprout, Zap, Flame, Crown,
-  Target, ShieldCheck, Map, Coins, FileCheck2, Send, Repeat, Trophy,
+  Target, ShieldCheck, Coins, FileCheck2, Trophy,
+  Wrench, Lightbulb, Users, ClipboardCheck, TrendingUp,
 };
 
 interface Acesso {
@@ -39,7 +40,11 @@ interface Acesso {
 
 export default function CursoPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  if (slug !== CURSO.slug) notFound();
+  const curso = getCurso(slug);
+  if (!curso) notFound();
+
+  const TODAS_LICOES = licoesDo(curso);
+  const CONQUISTAS = conquistasDo(curso);
 
   const [acesso, setAcesso] = useState<Acesso | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,8 +67,8 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
     return () => clearTimeout(t);
   }, [ganhou]);
 
-  const prog = calcularProgresso(feitos);
-  const nivel = nivelPorXp(prog.xp);
+  const prog = calcularProgresso(curso, feitos);
+  const nivel = nivelPorXp(curso, prog.xp);
   const liberado = !!acesso && (acesso.temKit || acesso.plano === 'pro' || acesso.plano === 'ilimitado');
   const emTrial = !!acesso?.packTrialUntil && new Date(acesso.packTrialUntil) > new Date();
 
@@ -73,13 +78,12 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
     setFeitos(novos);
     api.post('/kit/progresso', { modulo: licao.id, concluido: true }).catch(() => {});
 
-    // Ganhou conquista com esta lição? Compara antes x depois.
     const antes = new Set(feitos);
     const depois = new Set(novos);
     const nova = CONQUISTAS.find((c) => !c.ganhou(antes) && c.ganhou(depois));
     const bonus = modulo.licoes.every((l) => depois.has(l.id)) ? modulo.bonusXp : 0;
     setGanhou({ xp: licao.xp + bonus, conquista: nova?.nome });
-  }, [feitos]);
+  }, [feitos, CONQUISTAS]);
 
   if (loading) {
     return <div className={styles.canvas}><div className={styles.carregando}>Carregando seu curso…</div></div>;
@@ -92,7 +96,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
           <Lock size={38} strokeWidth={1.5} />
           <h1>Este curso ainda não está na sua conta</h1>
           <p>
-            O {CURSO.nome} tem {TODAS_LICOES.length} lições sobre o que responder quando o cliente
+            O {curso.nome} tem {TODAS_LICOES.length} lições sobre o que responder quando o cliente
             trava a venda — das objeções de preço à indicação depois da obra.
           </p>
           <a href="https://solardoc.app/kit" target="_blank" rel="noopener noreferrer" className={styles.btnPrimario}>
@@ -106,7 +110,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
 
   // ── Vista: uma lição aberta ───────────────────────────────────────────────
   if (licaoAberta) {
-    const modulo = MODULOS.find((m) => m.licoes.some((l) => l.id === licaoAberta))!;
+    const modulo = curso.modulos.find((m) => m.licoes.some((l) => l.id === licaoAberta))!;
     const idx = modulo.licoes.findIndex((l) => l.id === licaoAberta);
     const licao = modulo.licoes[idx];
     const feito = feitos.includes(licao.id);
@@ -176,26 +180,22 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
             )}
           </div>
         </div>
-
-        {modulo.pdf && (
-          <a className={styles.baixarModulo} href={`/kit/downloads/${modulo.pdf}`} download>
-            <Download size={15} /> Baixar o módulo {modulo.numero} em PDF
-          </a>
-        )}
       </div>
     );
   }
 
   // ── Vista: trilha do curso ────────────────────────────────────────────────
+  const IconeNivel = ICONES[nivel.atual.icone];
+
   return (
     <div className={styles.canvas}>
       {ganhou && <ToastXp ganhou={ganhou} />}
 
       <header className={styles.heroCurso}>
         <div className={styles.heroTxt}>
-          <span className={styles.heroTag}>Curso · {TODAS_LICOES.length} lições · {MINUTOS_TOTAL} min</span>
-          <h1 className={styles.heroTitulo}>{CURSO.nome}</h1>
-          <p className={styles.heroChamada}>{CURSO.descricao}</p>
+          <span className={styles.heroTag}>Curso · {TODAS_LICOES.length} lições · {minutosDo(curso)} min</span>
+          <h1 className={styles.heroTitulo}>{curso.nome}</h1>
+          <p className={styles.heroChamada}>{curso.descricao}</p>
 
           {prog.proxima ? (
             <button className={styles.btnPrimario} onClick={() => setLicaoAberta(prog.proxima!.licao.id)}>
@@ -216,9 +216,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
 
         <div className={styles.painelNivel}>
           <div className={styles.nivelTopo}>
-            <span className={styles.nivelIcone}>
-              {(() => { const I = ICONES_GAME[nivel.atual.icone]; return <I size={24} strokeWidth={1.9} />; })()}
-            </span>
+            <span className={styles.nivelIcone}><IconeNivel size={24} strokeWidth={1.9} /></span>
             <div>
               <strong className={styles.nivelNome}>{nivel.atual.nome}</strong>
               <span className={styles.nivelDesc}>{nivel.atual.descricao}</span>
@@ -235,7 +233,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
 
           <div className={styles.statsGrid}>
             <div><b>{prog.licoesFeitas}/{TODAS_LICOES.length}</b><span>lições</span></div>
-            <div><b>{prog.modulosCompletos}/{MODULOS.length}</b><span>módulos</span></div>
+            <div><b>{prog.modulosCompletos}/{curso.modulos.length}</b><span>módulos</span></div>
             <div><b>{prog.pctCurso}%</b><span>do curso</span></div>
           </div>
         </div>
@@ -244,7 +242,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
       <section className={styles.trilha}>
         <h2 className={styles.secaoTitulo}>Sua trilha</h2>
 
-        {MODULOS.map((m) => {
+        {curso.modulos.map((m) => {
           const Icone = ICONES[m.icone];
           const feitasNoModulo = m.licoes.filter((l) => prog.feitos.has(l.id)).length;
           const completo = feitasNoModulo === m.licoes.length;
@@ -304,11 +302,6 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
 
               <div className={styles.moduloRodape}>
                 <span className={styles.bonus}>Módulo completo: <b>+{m.bonusXp} XP</b> de bônus</span>
-                {m.pdf && (
-                  <a className={styles.baixarPdf} href={`/kit/downloads/${m.pdf}`} download>
-                    <Download size={14} /> PDF
-                  </a>
-                )}
               </div>
             </article>
           );
@@ -322,7 +315,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
         <div className={styles.medalhas}>
           {CONQUISTAS.map((c) => {
             const ganha = prog.conquistas.some((x) => x.id === c.id);
-            const I = ICONES_GAME[c.icone];
+            const I = ICONES[c.icone];
             return (
               <div key={c.id} className={`${styles.medalha} ${ganha ? styles.medalhaGanha : ''}`} title={c.comoGanha}>
                 <span className={styles.medalhaIcone}>
@@ -354,7 +347,8 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
       )}
 
       <p className={styles.rodapeCurso}>
-        {XP_TOTAL} XP no total · {TODAS_LICOES.length} lições · material atualizado sem custo adicional
+        {xpTotalDo(curso)} XP no total · {TODAS_LICOES.length} lições · o material fica na sua conta e é
+        atualizado sem custo adicional
       </p>
     </div>
   );

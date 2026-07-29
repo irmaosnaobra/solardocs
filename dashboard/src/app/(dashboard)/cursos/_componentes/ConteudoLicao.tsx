@@ -4,7 +4,7 @@
 // O texto vem dos arquivos de _conteudo — este componente só decide o formato.
 
 import Link from 'next/link';
-import { Download, FileSpreadsheet, ArrowRight, Building2 } from 'lucide-react';
+import { ArrowRight, Building2, Calculator } from 'lucide-react';
 import styles from '../curso.module.css';
 import { OBJECOES } from '../_conteudo/objecoes';
 import { ROTEIRO, CINCO_PERGUNTAS } from '../_conteudo/roteiro';
@@ -124,21 +124,21 @@ export default function ConteudoLicao({ id }: { id: string }) {
     );
   }
 
-  if (id === 'preco:planilha') {
+  if (id === 'preco:calculadora') {
     return (
       <div className={styles.leitura}>
-        <p className={styles.intro}>
-          Baixe a planilha, troque os valores da coluna VALOR pelos seus e ela devolve o preço de venda já
-          com imposto, taxa de pagamento, comissão e a margem que você pediu.
-        </p>
-        <a className={styles.ferramenta} href="/kit/downloads/planilha-precificacao-solar.csv" download>
-          <FileSpreadsheet size={26} />
-          <div>
-            <strong>Planilha de precificação solar</strong>
-            <span>Abre no Excel e no Google Sheets · 44 linhas com as fórmulas prontas</span>
-          </div>
-          <Download size={18} />
-        </a>
+        <div className={styles.missao}>
+          <span className={styles.missaoTag}>Missão prática</span>
+          <h3 className={styles.missaoTitulo}>Refaça o seu último orçamento na calculadora</h3>
+          <p className={styles.texto}>
+            Pegue o orçamento que você mandou por último e lance os custos na calculadora da plataforma.
+            Ela devolve o preço de venda já com imposto, taxa de pagamento, comissão e a sua margem — e
+            mostra quanto sobrou de verdade naquele projeto.
+          </p>
+          <Link href="/precificacao" className={styles.missaoCta}>
+            <Calculator size={16} /> Abrir a calculadora
+          </Link>
+        </div>
         <div className={styles.cardConteudo}>
           <h3 className={styles.etapaTitulo} style={{ marginBottom: 14 }}>Confira antes de mandar a proposta</h3>
           <ul className={styles.checklist}>

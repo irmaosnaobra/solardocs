@@ -16,15 +16,20 @@
   --ct-green: #4ade80;
 
   position: relative;
-  border-radius: 22px;
-  padding: 30px 30px 40px;
   color: var(--ct-text);
   background:
     radial-gradient(900px 420px at 8% -6%, rgba(247, 164, 28, 0.16), transparent 62%),
     radial-gradient(760px 380px at 96% 4%, rgba(56, 130, 220, 0.16), transparent 60%),
     var(--ct-bg);
-  box-shadow: 0 24px 60px -34px rgba(8, 15, 30, 0.9);
-  overflow: hidden;
+
+  /* Sangria: come o padding do .content (24px 32px 40px) e estica o fundo até as
+     bordas da tela com box-shadow + clip-path — sem 100vw, que criaria barra de
+     rolagem horizontal. Resultado: nenhuma moldura clara em volta do curso. */
+  margin: -24px -32px -40px;
+  padding: 34px 32px 52px;
+  min-height: calc(100vh - var(--topbar-height, 56px));
+  box-shadow: 0 0 0 100vmax var(--ct-bg);
+  clip-path: inset(0 -100vmax);
 }
 
 .carregando { color: var(--ct-muted); padding: 60px 0; text-align: center; }
@@ -488,7 +493,7 @@
 }
 
 @media (max-width: 720px) {
-  .canvas { padding: 22px 18px 32px; border-radius: 18px; }
+  .canvas { padding: 24px 18px 40px; }
   .licao { flex-wrap: wrap; gap: 10px; }
   .licaoMeta { width: 100%; padding-left: 44px; }
   .moduloHead { flex-wrap: wrap; }

@@ -17,8 +17,7 @@ Construído e no ar em 28/jul/2026. Commits `764ec03` e `7a6ab86`.
 | Webhook da venda | `POST api.solardoc.app/webhook/kiwify` | no ar (o mesmo do LimpaPro) |
 | Conta criada + material liberado | `api/src/services/kitIntegradorService.ts` | no ar |
 | E-mail de acesso | `sendKitAcessoEmail` (Resend) | no ar |
-| Consumo do material | `solardoc.app/materiais` (aba "Meus Materiais") | no ar — 6 módulos |
-| Downloads (5 PDFs + planilha) | `dashboard/public/kit/downloads/` | no ar |
+| Consumo do material | `solardoc.app/cursos/kit-fechamento` (seção Cursos) | no ar — 6 módulos, 17 lições |
 | Convite para o VIP | fim de cada módulo (abre o UpgradeModal) | no ar |
 | Medição | `/admin` → hub SolarDoc → aba **Kit / Isca R$27** | no ar |
 
@@ -89,7 +88,7 @@ Kiwify. Sem ele o endpoint aceita mesmo assim, com aviso no log.
 
 1. Crie um cupom de 100% na Kiwify e compre o kit com um e-mail que você tenha acesso.
 2. Confira o e-mail "Kit de Fechamento liberado".
-3. Clique em definir senha → entra na plataforma → aba **Meus Materiais** com os 4 módulos.
+3. Clique em definir senha → entra na plataforma → seção **Cursos** com a trilha dos 6 módulos.
 4. `/admin` → hub SolarDoc → aba **Kit / Isca R$27** deve mostrar 1 comprador.
 
 Se algo não chegar, o payload cru fica em `webhook_debug` (busque por `_route: /webhook/kiwify`).
@@ -125,31 +124,29 @@ mais barato. Por isso o teste é de R$ 700, não de R$ 5.000.
 
 | Quero mudar | Arquivo |
 |---|---|
-| Texto das objeções | `dashboard/src/app/(dashboard)/materiais/_conteudo/objecoes.ts` |
+| Texto das objeções | `dashboard/src/app/(dashboard)/cursos/_conteudo/objecoes.ts` |
 | Roteiro da visita | `.../_conteudo/roteiro.ts` |
 | Custos e margem | `.../_conteudo/precificacao.ts` |
 | Mensagens de prospecção | `.../_conteudo/prospeccao.ts` |
 | Pós-venda e garantias | `.../_conteudo/posvenda.ts` |
-| Tela do material | `.../materiais/page.tsx` |
+| Estrutura do curso (módulos, lições, XP) | `.../cursos/_conteudo/kit-fechamento.ts` |
+| Tela do curso | `.../cursos/[slug]/page.tsx` |
+| Conteúdo de cada lição | `.../cursos/_componentes/ConteudoLicao.tsx` |
 | Página de venda | `dashboard/public/kit/index.html` |
-| Planilha baixável | `dashboard/public/kit/downloads/planilha-precificacao-solar.csv` |
 | Regra da ponte (conta, trial, e-mail) | `api/src/services/kitIntegradorService.ts` |
 | Dias de VIP do bump | `KIT_BUMP_TRIAL_DIAS` no mesmo arquivo (hoje 30) |
 | E-mail de entrega | `sendKitAcessoEmail` em `api/src/utils/mailer.ts` |
 
-> ⚠️ **Mexeu no texto de um módulo? Regere os PDFs.** Eles são arquivos gerados e
-> commitados — sem isso a plataforma mostra o texto novo e o download entrega o
-> antigo, em silêncio:
-> ```
-> cd api && npx ts-node --transpile-only scripts/gerar-pdfs-kit.ts
-> git add dashboard/public/kit/downloads && git commit -m "chore(kit): regera PDFs"
-> ```
+> **Sem download, de propósito.** O curso não tem PDF nem planilha para baixar: o
+> conteúdo mora na plataforma, porque é a visita diária dele que vende o VIP. Quando
+> uma lição precisa de ferramenta, ela aponta para a que já existe aqui (calculadora,
+> gerador de documentos).
 
-**Sobre os downloads serem públicos:** `/kit/downloads/*.pdf` fica acessível a
-quem tiver o link (a LP precisa da pasta pública). Para um produto de R$ 27 isso é
-aceitável e a tese continua de pé — o valor está no consumo dentro da plataforma,
-não no arquivo. Se um dia incomodar, é trocar para uma rota autenticada.
+> **Curso novo?** O padrão está travado em
+> `dashboard/src/app/(dashboard)/cursos/COMO-ADICIONAR-CURSO.md` — declara módulos e
+> lições no registro e a casca entrega trilha, XP, níveis e conquistas prontos.
 
-Testes: `cd api && npx vitest run src/__tests__/kitIntegrador.test.ts` (12 casos —
+
+Testes: `cd api && npx vitest run src/__tests__/kitIntegrador.test.ts` (15 casos —
 idempotência, conta pendente, trial que não estende na reentrega, assinante que não é
 rebaixado).
