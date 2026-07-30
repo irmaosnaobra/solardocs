@@ -42,7 +42,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
     const ownIgId = cfg?.ig_user_id || '';
     for (const entry of body.entry || []) {
       for (const change of entry.changes || []) {
-        if (change.field === 'comments' && change.value) await handleComment(change.value);
+        if (change.field === 'comments' && change.value) await handleComment(change.value, ownIgId);
       }
       for (const msg of entry.messaging || []) {
         await handleMessage(msg, ownIgId);
