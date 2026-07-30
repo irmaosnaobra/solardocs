@@ -81,6 +81,9 @@ const initialFields = {
   tarifa_kwh: '',
   taxa_minima: '90',
   prazo_instalacao_dias: '45',
+  // Validade da proposta em dias corridos. Vazio = 7 (default do servidor).
+  // Vai no kit do vendedor, então a escolha se repete nas próximas propostas.
+  validade_dias: '7',
   garantia_paineis: '25',
   garantia_inversor: '10',
   garantia_estrutura: '10',
@@ -377,6 +380,19 @@ export default function PropostaSolarPage() {
     return v > 0 ? v : 0;
   })();
   const entradaRestante = invNum > 0 && entradaValor > 0 ? Math.max(0, invNum - entradaValor) : 0;
+
+  // Validade: mostra o texto exato que vai sair no cabeçalho da proposta.
+  // Calculado só depois de montar (a data depende do fuso do aparelho — no SSR
+  // daria hidratação divergente na virada do dia).
+  const [validadeLabel, setValidadeLabel] = useState('');
+  useEffect(() => {
+    // String(...) porque o valor pode voltar do kit (dados_json) como número.
+    const n = parseInt(String(fields.validade_dias ?? '').replace(/\D/g, ''), 10);
+    const dias = n > 0 ? n : 7;
+    const ate = new Date(Date.now() + dias * 86400000).toLocaleDateString('pt-BR');
+    setValidadeLabel(`Válido por ${dias} ${dias === 1 ? 'dia' : 'dias'} · até ${ate}`);
+  }, [fields.validade_dias]);
+
   function setField<K extends keyof typeof fields>(k: K, v: (typeof fields)[K]) {
     setFields(f => ({ ...f, [k]: v }));
   }
@@ -1217,7 +1233,7 @@ export default function PropostaSolarPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
-            <span>Tarifa, taxa mínima e prazo</span>
+            <span>Tarifa, taxa mínima, prazo e validade</span>
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>
               ajuste por região se preciso
             </span>
@@ -1240,6 +1256,13 @@ export default function PropostaSolarPage() {
             <div className={styles.field}>
               <label className={styles.label}>Prazo de instalação (dias úteis)</label>
               <input type="text" inputMode="numeric" value={fields.prazo_instalacao_dias} onChange={e => setField('prazo_instalacao_dias', e.target.value)} placeholder="45" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Validade da proposta (dias)<InfoHint>Dias corridos que a proposta vale, contados da emissão. Aparece no cabeçalho com a data limite e congela ali — proposta antiga não se renova sozinha. Vazio = 7 dias.</InfoHint></label>
+              <input type="text" inputMode="numeric" maxLength={4} value={fields.validade_dias} onChange={e => setField('validade_dias', e.target.value.replace(/\D/g, ''))} placeholder="7" className="input-field" />
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                {validadeLabel ? `Sai na proposta: "${validadeLabel}"` : 'Vazio = 7 dias.'}
+              </span>
             </div>
           </div>
         </details>

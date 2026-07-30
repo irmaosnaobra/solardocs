@@ -1751,6 +1751,30 @@ function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: numbe
   return saldo * i / (1 - Math.pow(1 + i, -n));
 }
 
+// Validade da proposta: dias corridos a partir da emissão (padrão 7, editável no
+// form). O HTML é renderizado uma vez na geração e servido salvo em /p/:id, então
+// a data de vencimento congela no dia do envio — proposta antiga não "renova".
+// Fica num só lugar pros dois modelos não divergirem no texto.
+function propostaValidade(f: Record<string, unknown>): { dias: number; curto: string; longo: string } {
+  const n = parseInt(String(f.validade_dias ?? '').replace(/\D/g, ''), 10);
+  const dias = n > 0 ? n : 7;
+  const ate = new Date(Date.now() + dias * 86400000);
+  const plural = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
+  // Nº absurdo (14 dígitos) estoura o range do Date — aí sai só "Válido por N dias",
+  // sem a data. Nunca um "Invalid Date" no PDF que vai pro cliente.
+  const ateOk = !Number.isNaN(ate.getTime());
+  const comData = (opts?: Intl.DateTimeFormatOptions) => ateOk
+    ? `Válido por ${plural} · até ${ate.toLocaleDateString('pt-BR', { ...opts, timeZone: 'America/Sao_Paulo' })}`
+    : `Válido por ${plural}`;
+  return {
+    dias,
+    // dd/mm/aaaa — combina com o cabeçalho do modelo "1 Página"
+    curto: comData(),
+    // "6 de agosto de 2026" — combina com o dateBR() do modelo Moderno
+    longo: comData({ day: '2-digit', month: 'long', year: 'numeric' }),
+  };
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // PROPOSTA SOLAR — MODELO "1 PÁGINA" (orçamento A4 compacto, todos os dados)
 // Reaproveita o resumo de WhatsApp do modelo Moderno (mesmos números, garantido:
@@ -1854,6 +1878,7 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   function brl(n: number): string { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   function n1(n: number): string { return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
   const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const validade = propostaValidade(f);
   const marcaMod = [marcaModulo, potenciaModulo > 0 ? `${potenciaModulo}W` : ''].filter(Boolean).join(' · ');
   const marcaInv = [marcaInversor, potInvStr ? `${potInvStr} kW` : ''].filter(Boolean).join(' · ');
   const enderecoCli = (str(f.endereco) === '___' ? (client.endereco || '') : String(f.endereco || client.endereco || '')).trim();
@@ -1944,7 +1969,7 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
       <div class="rowf"><span>Data</span><span class="num">${hoje}</span></div>
       <div class="rowf"><span>Cliente</span><span>${pEsc(client.nome || '—')}</span></div>
       ${enderecoCli ? `<div class="rowf"><span>Endereço</span><span>${pEsc(enderecoCli)}</span></div>` : ''}
-      <div class="valid">VÁLIDO POR 15 DIAS</div>
+      <div class="valid">${pEsc(validade.curto.toUpperCase())}</div>
     </div>
   </div>
 
@@ -2414,6 +2439,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const investCardsCount = cards.length;
 
   const today = dateBR();
+  const validade = propostaValidade(f);
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -2432,6 +2458,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 /* Topo com logo */
 .topbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #F3F4F6; }
 .topbar .meta { font-size: 12px; color: var(--c-muted); text-align: right; }
+.topbar .meta .validade { font-weight: 700; color: var(--c1); white-space: nowrap; }
 /* Hero */
 .hero { background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%); color: white; padding: 56px 40px; text-align: center; position: relative; overflow: hidden; }
 .hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%); pointer-events: none; }
@@ -2592,6 +2619,8 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 @media (max-width: 640px) {
   .topbar { padding: 12px 20px; flex-direction: column; gap: 8px; align-items: flex-start; }
   .topbar .meta { text-align: left; }
+  /* Em tela estreita a linha da validade pode quebrar — melhor que estourar a lateral. */
+  .topbar .meta .validade { white-space: normal; }
   .hero { padding: 40px 20px; }
   .hero h1 { font-size: 22px; }
   .hero .subtitle { font-size: 13px; margin-bottom: 24px; }
@@ -2620,7 +2649,8 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
     ${logoHtml}
     <div class="meta">
       ${codigoProposta ? `Proposta <strong style="font-family: monospace; color: var(--c-text);">${pEsc(codigoProposta)}</strong>` : `Proposta nº ${Date.now().toString().slice(-6)}`}<br/>
-      ${today}
+      ${today}<br/>
+      <span class="validade">${pEsc(validade.longo)}</span>
     </div>
   </div>
 
