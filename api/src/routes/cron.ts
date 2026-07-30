@@ -6,6 +6,7 @@ import { reDrivePendingPurchases } from '../services/salesLedger';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup, dispararOpenerTesteParaUser } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
+import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntradaBroadcast';
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
@@ -400,6 +401,26 @@ router.get('/sdr-b2b-followup', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'sdr-b2b-followup falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Campanha de reconquista com a entrada de R$19 (curso + 30 dias de plataforma).
+// Público: FREE, inadimplente e quem cancelou. 3 toques; para quando ele responde.
+//
+// `?seco=1` NÃO envia e NÃO grava — devolve a prévia das mensagens. É como se
+// revisa a campanha antes de ela tocar em alguém real. Use sempre antes de ligar.
+// `?limite=N` limita os envios deste tick (o teto anti-ban ainda manda em cima).
+router.get('/curso-entrada-19', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const seco = req.query.seco === '1' || req.query.seco === 'true';
+    const limiteRaw = Number(req.query.limite);
+    const limite = Number.isFinite(limiteRaw) && limiteRaw > 0 ? limiteRaw : undefined;
+    const result = await runCursoEntradaBroadcast({ seco, limite });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'curso-entrada-19 falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
