@@ -143,27 +143,36 @@ function buildMessage(p: MsgPayload): any {
   return { text: p.text || '' };
 }
 
+/** Resposta da Meta a um envio. message_id só vem quando ela ACEITOU e criou a mensagem. */
+export interface EnvioResposta { message_id?: string; recipient_id?: string; id?: string; [k: string]: any }
+
 /** DM privada em resposta a um comentário (fura a janela de 24h). recipient=comment_id. */
-export async function sendPrivateReply(igUserId: string, commentId: string, payload: MsgPayload, token: string): Promise<void> {
-  await sendMessageRaw(igUserId, { comment_id: commentId }, buildMessage(payload), token);
+export async function sendPrivateReply(igUserId: string, commentId: string, payload: MsgPayload, token: string): Promise<EnvioResposta> {
+  return sendMessageRaw(igUserId, { comment_id: commentId }, buildMessage(payload), token);
 }
 
 /** DM normal (conversa já aberta). recipient=ig_user_id da pessoa. */
-export async function sendDM(igUserId: string, recipientIgsid: string, payload: MsgPayload, token: string): Promise<void> {
-  await sendMessageRaw(igUserId, { id: recipientIgsid }, buildMessage(payload), token);
+export async function sendDM(igUserId: string, recipientIgsid: string, payload: MsgPayload, token: string): Promise<EnvioResposta> {
+  return sendMessageRaw(igUserId, { id: recipientIgsid }, buildMessage(payload), token);
 }
 
-async function sendMessageRaw(igUserId: string, recipient: Record<string, string>, message: any, token: string): Promise<void> {
+// Devolve o corpo da resposta (message_id/recipient_id). Sem isso, "enviado" seria
+// só "o HTTP deu 200" — que não prova que a mensagem existe do lado da Meta.
+async function sendMessageRaw(igUserId: string, recipient: Record<string, string>, message: any, token: string): Promise<EnvioResposta> {
   const r = await fetch(`${GRAPH}/${igUserId}/messages`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipient, message, access_token: token }),
   });
-  if (!r.ok) { const t = await r.text(); throw new Error(`sendMessage ${r.status}: ${t.slice(0, 200)}`); }
+  const t = await r.text();
+  if (!r.ok) throw new Error(`sendMessage ${r.status}: ${t.slice(0, 200)}`);
+  try { return JSON.parse(t) as EnvioResposta; } catch { return {}; }
 }
 
 /** Resposta pública ao comentário. */
-export async function replyToComment(commentId: string, message: string, token: string): Promise<void> {
+export async function replyToComment(commentId: string, message: string, token: string): Promise<EnvioResposta> {
   const form = new URLSearchParams({ message, access_token: token });
   const r = await fetch(`${GRAPH}/${commentId}/replies`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form.toString() });
-  if (!r.ok) { const t = await r.text(); throw new Error(`replyToComment ${r.status}: ${t.slice(0, 200)}`); }
+  const t = await r.text();
+  if (!r.ok) throw new Error(`replyToComment ${r.status}: ${t.slice(0, 200)}`);
+  try { return JSON.parse(t) as EnvioResposta; } catch { return {}; }
 }

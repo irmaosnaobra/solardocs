@@ -8,6 +8,14 @@
 //   • DM/followup só saem com a janela de 24h ABERTA (needs_window=true).
 //   • Teto ~200 DMs/h e ~2/s (anti-derrubada de conta).
 // Gate: IG_AUTOMACAO_ENABLED='true' + conta conectada (ig_config com token).
+//
+// ESCOLHA DA AUTOMAÇÃO (não é mais "a primeira que casar"):
+//   1) automação fixada na mídia/anúncio do comentário ganha de todas;
+//   2) depois, menor `prioridade`;
+//   3) empate: palavra-chave mais específica (a mais longa que casou).
+// Se nada casar e o comentário veio de ANÚNCIO com sinal de interesse (ou com
+// telefone), entra a automação marcada como `fallback` — tráfego pago é caro
+// demais pra deixar comentário sem resposta. Piada em post orgânico não recebe DM.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
@@ -30,23 +38,90 @@ interface Automation {
   respostas_publicas: string[]; dm_boas_vindas: string | null;
   botao_rotulo: string | null; link_url: string | null;
   lembrete_texto: string | null; lembrete_horas: number;
+  prioridade: number; midias: string[]; fallback: boolean; produto: string | null;
 }
+
+type Gatilho = 'comment' | 'story' | 'dm';
 
 function ligado(): boolean { return igEnv().enabled; }
 const pick = <T,>(arr: T[]): T | null => (arr && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
 
-function matchKeyword(text: string, kws: string[], tipo: string): boolean {
-  const t = (text || '').toLowerCase().trim();
-  if (tipo === 'qualquer') return true;
-  const lista = (kws || []).map(k => (k || '').toLowerCase().trim()).filter(Boolean);
-  if (!lista.length) return false;
-  if (tipo === 'exato') return lista.includes(t);
-  return lista.some(k => t.includes(k));           // contem (default)
+/** minúsculas + sem acento — "orçamento" e "orcamento" viram a mesma coisa. */
+const ACENTOS = new RegExp('[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g');
+const norm = (s: string): string => (s || '').toLowerCase().normalize('NFD').replace(ACENTOS, '').trim();
+
+// Sinais de que a pessoa quer atendimento (usado só pro fallback de anúncio).
+const SINAIS_INTERESSE = [
+  'interess', 'quanto', 'preco', 'valor', 'orcament', 'informac', 'info',
+  'como funciona', 'quero', 'gostaria', 'manda', 'whats', 'zap', 'contato', 'saber mais',
+  'desconto', 'a vista', 'financia', 'parcel', 'custa', 'disponi', 'me chama', 'simula',
+  'tem como', 'instala', 'consegue', 'aceita',
+];
+
+const RE_TELEFONE = /(?:\+?55)?\s*\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}/;
+const telefoneDe = (texto: string): string | null => {
+  const m = (texto || '').match(RE_TELEFONE);
+  if (!m) return null;
+  const digits = m[0].replace(/\D/g, '');
+  return digits.length >= 10 ? digits : null;
+};
+
+/** Casou? E com que especificidade (tamanho da palavra que casou — pro desempate). */
+function matchKeyword(text: string, kws: string[], tipo: string): { ok: boolean; peso: number } {
+  const t = norm(text);
+  if (tipo === 'qualquer') return { ok: true, peso: 0 };
+  const lista = (kws || []).map(norm).filter(Boolean);
+  if (!lista.length) return { ok: false, peso: 0 };
+  if (tipo === 'exato') return { ok: lista.includes(t), peso: t.length };
+  let peso = 0;
+  for (const k of lista) if (t.includes(k) && k.length > peso) peso = k.length;
+  return { ok: peso > 0, peso };
 }
 
 async function loadAutomations(): Promise<Automation[]> {
   const { data } = await supabaseGerador.from('ig_automations').select('*').eq('ativo', true);
-  return (data as Automation[]) || [];
+  return ((data as Automation[]) || []).map(a => ({
+    ...a,
+    prioridade: Number.isFinite(Number(a.prioridade)) ? Number(a.prioridade) : 100,
+    midias: a.midias || [],
+    fallback: !!a.fallback,
+  }));
+}
+
+/** Melhor automação pro texto/mídia — ver regra no cabeçalho. */
+function escolher(autos: Automation[], gatilho: Gatilho, texto: string, mediaId?: string | null, adId?: string | null): Automation | null {
+  let melhor: Automation | null = null;
+  let melhorScore = -1;
+  for (const a of autos) {
+    if (a.fallback) continue;                                   // fallback só entra se nada casar
+    if (!a.gatilhos?.[gatilho]) continue;
+    const alvos = [a.post_id, ...(a.midias || [])].filter(Boolean) as string[];
+    const casaAlvo = alvos.some(x => x === mediaId || x === adId);
+    if (alvos.length && !casaAlvo) continue;                    // fixada em OUTRA mídia
+    const { ok, peso } = matchKeyword(texto, a.palavras_chave, a.match_tipo);
+    if (!ok) continue;
+    const score = (casaAlvo ? 1_000_000 : 0) + (1000 - Math.min(a.prioridade, 999)) * 1000 + peso;
+    if (score > melhorScore) { melhorScore = score; melhor = a; }
+  }
+  return melhor;
+}
+
+/**
+ * Decisão completa pra um comentário: qual automação responde (ou nenhuma).
+ * Exportada pra ter teste — é a regra que faz lead virar ou não atendimento.
+ */
+export function decidirComentario(
+  autos: Automation[],
+  c: { texto: string; mediaId?: string | null; adId?: string | null; ehAnuncio?: boolean },
+): Automation | null {
+  const direto = escolher(autos, 'comment', c.texto, c.mediaId, c.adId);
+  if (direto) return direto;
+  const temTel = !!telefoneDe(c.texto);
+  const temSinal = SINAIS_INTERESSE.some(k => norm(c.texto).includes(k));
+  if (temTel || (c.ehAnuncio && temSinal)) {
+    return autos.find(x => x.fallback && x.gatilhos?.comment) || null;
+  }
+  return null;
 }
 
 async function jaVisto(ref: string): Promise<boolean> {
@@ -86,32 +161,44 @@ function enqueueReminderIfAny(a: Automation, recipient: string): Promise<void> |
 }
 
 // ── COMENTÁRIO ────────────────────────────────────────────────────────────────
-export async function handleComment(value: any): Promise<void> {
+export async function handleComment(value: any, ownIgId?: string): Promise<void> {
   const commentId = value?.id;
   const text = value?.text || '';
   const fromId = value?.from?.id;
   const username = value?.from?.username || null;
   const mediaId = value?.media?.id || value?.media_id || null;
+  const adId = value?.media?.ad_id || null;
+  const ehAnuncio = (value?.media?.media_product_type || '') === 'AD' || !!adId;
   if (!commentId || !fromId) return;
   if (await jaVisto(commentId)) return;
   await logEvent('comment', commentId, value);
 
-  const autos = await loadAutomations();
-  for (const a of autos) {
-    if (!a.gatilhos?.comment) continue;
-    if (a.post_id && mediaId && a.post_id !== mediaId) continue;
-    if (!matchKeyword(text, a.palavras_chave, a.match_tipo)) continue;
+  // Anti-eco: a conta comenta no próprio post ("Digita ELETROPOSTO nos comentários")
+  // e isso batia palavra-chave — o robô respondia a si mesmo e ainda postava
+  // "Te chamei na DM!" embaixo do comentário do dono, escondendo quem ficou sem resposta.
+  if (ownIgId && String(fromId) === String(ownIgId)) return;
 
-    await upsertContact(fromId, username, a.id, false);
-    // DM privada (fura a janela de 24h) com a mensagem + botão do link.
-    await enqueue({ tipo: 'private_reply', automation_id: a.id, recipient: commentId, payload: welcomePayload(a), needs_window: false });
-    // Resposta pública opcional (sorteia variação).
-    const pub = pick(a.respostas_publicas || []);
-    if (pub) await enqueue({ tipo: 'public_reply', automation_id: a.id, recipient: commentId, payload: { text: pub }, needs_window: false });
-    // Lembrete por tempo (só sai se a pessoa responder → janela aberta).
-    await enqueueReminderIfAny(a, fromId);
-    break;
-  }
+  const autos = await loadAutomations();
+  const tel = telefoneDe(text);
+  const a = decidirComentario(autos, { texto: text, mediaId, adId, ehAnuncio });
+  if (!a) return;
+
+  await upsertContact(fromId, username, a.id, false);
+  // DM privada (fura a janela de 24h). A resposta PÚBLICA só é enfileirada depois
+  // que a DM sair de verdade (drainIgQueue) — senão a gente anuncia "olha no
+  // direct" pra quem nunca recebeu nada.
+  await enqueue({
+    tipo: 'private_reply', automation_id: a.id, recipient: commentId, needs_window: false,
+    payload: {
+      ...welcomePayload(a),
+      pub_ok: pick(a.respostas_publicas || []),
+      pub_fail: username ? `@${username} me chama no direct que eu te mando tudo 👉` : null,
+    },
+  });
+  await enqueueReminderIfAny(a, fromId);
+
+  // Telefone no COMENTÁRIO também vira card no CRM (antes só DM depositava lead).
+  if (tel) await depositarLead(fromId, tel, a, username);
 }
 
 // ── MENSAGEM (story reply / DM) ────────────────────────────────────────────────
@@ -130,29 +217,31 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
   await upsertContact(senderId, null, null, true);
 
   const autos = await loadAutomations();
-  for (const a of autos) {
-    const gatilhoOn = isStory ? a.gatilhos?.story : a.gatilhos?.dm;
-    if (!gatilhoOn) continue;
-    if (!matchKeyword(text, a.palavras_chave, a.match_tipo)) continue;
+  const a = escolher(autos, isStory ? 'story' : 'dm', text);
+  if (a) {
     await upsertContact(senderId, null, a.id, false);
     // Conversa já aberta → DM direta (não precisa de janela).
     await enqueue({ tipo: 'dm', automation_id: a.id, recipient: senderId, payload: welcomePayload(a), needs_window: false });
     await enqueueReminderIfAny(a, senderId);
-    break;
   }
 
   // Integração com o CRM: se a pessoa mandou um WhatsApp na DM, deposita o lead
   // no rodízio/agenda (reaproveita ingestManychatLead → avisa o consultor).
-  await maybeDepositLead(senderId, text);
+  const tel = telefoneDe(text);
+  if (tel) await depositarLead(senderId, tel, a, null);
 }
 
-async function maybeDepositLead(igUserId: string, text: string): Promise<void> {
-  const m = (text || '').match(/(?:\+?55)?\s*\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}/);
-  if (!m) return;
-  const digits = m[0].replace(/\D/g, '');
-  if (digits.length < 10) return;
+/** Card no CRM com o produto certo (a automação sabe qual é; no escuro, solar). */
+async function depositarLead(igUserId: string, telefone: string, a: Automation | null, username: string | null): Promise<void> {
+  const link = a?.link_url || '';
+  const produto = a?.produto || (link.includes('/io/eletroposto') ? 'eletroposto' : 'solar');
   try {
-    await ingestManychatLead({ produto: 'solar', nome: 'Lead Instagram', whatsapp: digits, contact_id: 'ig_' + igUserId });
+    await ingestManychatLead({
+      produto,
+      nome: username ? '@' + username : 'Lead Instagram',
+      whatsapp: telefone,
+      contact_id: 'ig_' + igUserId,
+    });
   } catch (err) { logger.error('ig', 'deposito CRM falhou', err); }
 }
 
@@ -189,16 +278,27 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
     }
 
     try {
-      if (item.tipo === 'private_reply') await sendPrivateReply(cfg.ig_user_id, item.recipient, item.payload, cfg.access_token);
-      else if (item.tipo === 'public_reply') await replyToComment(item.recipient, item.payload?.text || '', cfg.access_token);
-      else await sendDM(cfg.ig_user_id, item.recipient, item.payload, cfg.access_token); // dm | followup
-      await supabase.from('ig_queue').update({ status: 'sent' }).eq('id', item.id);
+      let resp: any = {};
+      if (item.tipo === 'private_reply') resp = await sendPrivateReply(cfg.ig_user_id, item.recipient, item.payload, cfg.access_token);
+      else if (item.tipo === 'public_reply') resp = await replyToComment(item.recipient, item.payload?.text || '', cfg.access_token);
+      else resp = await sendDM(cfg.ig_user_id, item.recipient, item.payload, cfg.access_token); // dm | followup
+      // message_id é a prova de que a Meta criou a mensagem (200 sozinho não é).
+      await supabase.from('ig_queue').update({ status: 'sent', message_id: resp?.message_id || resp?.id || null, resposta: resp || null }).eq('id', item.id);
       await supabase.from('system_state').upsert({ key: 'ig_sent:' + item.id, value: '1', updated_at: new Date().toISOString() }, { onConflict: 'key' });
-      await logEvent('sent', item.id, { tipo: item.tipo, recipient: item.recipient });
+      await logEvent('sent', item.id, { tipo: item.tipo, recipient: item.recipient, message_id: resp?.message_id || null });
       enviados++;
+      // Só agora avisa publicamente "olha no direct" — a DM realmente saiu.
+      if (item.tipo === 'private_reply' && item.payload?.pub_ok) {
+        await enqueue({ tipo: 'public_reply', automation_id: item.automation_id, recipient: item.recipient, payload: { text: item.payload.pub_ok }, needs_window: false });
+      }
     } catch (err: any) {
       await supabase.from('ig_queue').update({ status: 'failed', erro: String(err?.message || err).slice(0, 300) }).eq('id', item.id);
       logger.error('ig', `envio ${item.tipo} falhou`, err);
+      // DM não entrou (comentário de anúncio costuma barrar): pede publicamente
+      // pra pessoa chamar no direct, que aí a janela abre pelo lado dela.
+      if (item.tipo === 'private_reply' && item.payload?.pub_fail) {
+        await enqueue({ tipo: 'public_reply', automation_id: item.automation_id, recipient: item.recipient, payload: { text: item.payload.pub_fail }, needs_window: false });
+      }
     }
     await new Promise(r => setTimeout(r, SPACING_MS));
   }
