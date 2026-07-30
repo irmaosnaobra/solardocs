@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { generateDocument, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml, propostaPrefill } from '../controllers/documentsController';
+import { generateDocument, regenerateDocument, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml, propostaPrefill } from '../controllers/documentsController';
 import { generatePdf } from '../controllers/pdfController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -29,6 +29,8 @@ function downloadAuth(req: Request, res: Response, next: NextFunction): void {
 }
 
 router.post('/generate', authMiddleware, generateDocument);
+// Reemite um doc existente com os campos corrigidos (mesmo link, mesmo número).
+router.post('/:id/regenerate', authMiddleware, regenerateDocument);
 router.post('/save', authMiddleware, saveDocument);
 router.patch('/:id/file', authMiddleware, updateDocumentFile);
 router.get('/list', authMiddleware, listDocuments);

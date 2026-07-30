@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 
 const CLIENT_UUID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const DOC_UUID    = 'b1ffc99a-9c0b-4ef8-bb6d-6bb9bd380a22';
 const mockSingle  = vi.fn();
+// Spies compartilhados do Storage: o regenerate PRECISA trocar o arquivo, porque
+// /p/:id e o PDF leem o arquivo_url antes do content.
+const mockUpload  = vi.fn().mockResolvedValue({ error: null });
+const mockRemove  = vi.fn().mockResolvedValue({ error: null });
 
 // ─── mocks antes do import de app ───────────────────────────────────
 vi.mock('../utils/supabase', () => ({
@@ -21,7 +26,7 @@ vi.mock('../utils/supabase', () => ({
       not:    vi.fn().mockReturnThis(),
       lte:    vi.fn().mockReturnThis(),
     })),
-    storage: { from: vi.fn(() => ({ upload: vi.fn().mockResolvedValue({ error: null }), remove: vi.fn() })) },
+    storage: { from: vi.fn(() => ({ upload: mockUpload, remove: mockRemove })) },
   },
 }));
 vi.mock('../utils/logger',    () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
@@ -107,6 +112,74 @@ describe('POST /documents/generate', () => {
       .post('/documents/generate')
       .send({ tipo: 'contratoSolar', cliente_id: CLIENT_UUID, fields: {} });
 
+    expect(res.status).toBe(401);
+  });
+});
+
+// ─── POST /documents/:id/regenerate ──────────────────────────────────
+// Botão "Editar esta proposta": corrige e reemite o MESMO doc.
+describe('POST /documents/:id/regenerate', () => {
+  const docAvulso = {
+    id: DOC_UUID, tipo: 'propostaSolar', cliente_id: null, terceiro_id: null,
+    cliente_nome: 'Adelides', arquivo_url: null, codigo_curto: '20260035',
+    dados_json: { codigo: '202600010035', investimento: '20.000,00' },
+  };
+  const empresa = { data: { nome: 'Empresa', cnpj: '00.000.000/0001-00', slug: 'aiorosgroup' } };
+
+  function post(id = DOC_UUID, body: Record<string, unknown> = {}) {
+    return request(app)
+      .post(`/documents/${id}/regenerate`)
+      .set('Authorization', AUTH)
+      .send({ fields: { investimento: '22.000,00' }, useTemplate: true, modeloNumero: 1, cliente_nome_avulso: 'Adelides', ...body });
+  }
+
+  it('mantem id, codigo e codigo_curto — o link ja enviado continua valendo', async () => {
+    // Só 3 chamadas .single(): 1. documents  2. company  3. users(free-check).
+    // Não existe 4ª: reeditar não passa por checkLimit/incrementUsed (não gasta cota).
+    mockSingle
+      .mockResolvedValueOnce({ data: docAvulso })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+
+    const res = await post();
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      doc_id: DOC_UUID, codigo: '202600010035', codigo_curto: '20260035',
+      empresa_slug: 'aiorosgroup', cliente_nome: 'Adelides', modelo_usado: 'modelo-1',
+    });
+    expect(mockSingle).toHaveBeenCalledTimes(3);
+  });
+
+  it('troca o HTML no Storage: sobe o novo e apaga o antigo', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { ...docAvulso, arquivo_url: 'user-123/antigo.html' } })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'ilimitado', is_admin: true } });
+
+    const res = await post();
+
+    expect(res.status).toBe(200);
+    expect(mockUpload).toHaveBeenCalledTimes(1);
+    expect(mockRemove).toHaveBeenCalledWith(['user-123/antigo.html']);
+  });
+
+  it('retorna 404 pra doc de outro usuario', async () => {
+    mockSingle.mockResolvedValueOnce({ data: null });
+    const res = await post();
+    expect(res.status).toBe(404);
+  });
+
+  it('recusa prestacaoServico (a geracao injeta o cliente final)', async () => {
+    mockSingle.mockResolvedValueOnce({ data: { ...docAvulso, tipo: 'prestacaoServico' } });
+    const res = await post();
+    expect(res.status).toBe(400);
+  });
+
+  it('retorna 401 sem token', async () => {
+    const res = await request(app)
+      .post(`/documents/${DOC_UUID}/regenerate`)
+      .send({ fields: {} });
     expect(res.status).toBe(401);
   });
 });

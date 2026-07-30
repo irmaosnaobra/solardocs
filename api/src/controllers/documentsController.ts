@@ -21,6 +21,15 @@ const generateSchema = z.object({
 // Tipos que aceitam modo rapido (so nome do cliente, sem cadastro)
 const TIPOS_MODO_RAPIDO = ['vistoria', 'propostaSolar'];
 
+// Reemissão de um doc que já existe (botão "Editar proposta"). Mesmo formato do
+// generate menos o tipo/cliente — esses vêm da linha salva, não do cliente HTTP.
+const regenerateSchema = z.object({
+  fields: z.record(z.string(), z.unknown()),
+  useTemplate: z.boolean().optional().default(true),
+  modeloNumero: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional().default(1),
+  cliente_nome_avulso: z.string().min(2).optional(),
+});
+
 const saveSchema = z.object({
   tipo: z.string().min(1),
   cliente_id: z.string().uuid().optional(),
@@ -263,6 +272,150 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
 function injectPrint(html: string): string {
   const script = `<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>`;
   return html.includes('window.print') ? html : html.replace('</body>', script + '</body>');
+}
+
+// POST /documents/:id/regenerate — reemite um documento que JÁ existe com os campos
+// corrigidos ("achei um erro na proposta pronta"). Mantém id, codigo e codigo_curto:
+// o link /p/{slug}.{codigo} e o PDF continuam os mesmos, porque o consultor pode já
+// ter mandado o link antes de ver o erro. E não consome cota do plano — corrigir um
+// typo não é emitir documento novo.
+export async function regenerateDocument(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const body = regenerateSchema.parse(req.body);
+
+    const { data: doc } = await supabase
+      .from('documents')
+      .select('id, tipo, cliente_id, terceiro_id, cliente_nome, arquivo_url, dados_json, codigo_curto')
+      .eq('id', id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (!doc) throw new ApiError(404, 'Documento não encontrado');
+
+    // prestacaoServico injeta dados do cliente final na geração (ver generateDocument).
+    // Reemitir sem repetir essa injeção sairia com o contrato pela metade, então fica
+    // de fora até alguém precisar — os outros tipos são função pura dos fields.
+    if (doc.tipo === 'prestacaoServico') {
+      throw new ApiError(400, 'Esse tipo de documento ainda não pode ser reeditado. Gere um novo.');
+    }
+
+    const { data: company } = await supabase
+      .from('company')
+      .select('*')
+      .eq('user_id', req.userId)
+      .single();
+
+    if (!company || !company.cnpj) {
+      throw new ApiError(400, 'Cadastre sua empresa (CNPJ obrigatório) antes de gerar documentos');
+    }
+
+    // Mesmo portão do generate: free só mexe em proposta.
+    const { data: planUser } = await supabase
+      .from('users').select('plano, is_admin').eq('id', req.userId).single();
+    if (planUser && !planUser.is_admin && planUser.plano === 'free' && doc.tipo !== 'propostaSolar') {
+      throw new ApiError(402, 'Faça upgrade pra editar esse tipo de documento. O plano gratuito libera só o Gerador de Proposta.');
+    }
+
+    // A entidade vem da linha salva. Só o avulso (proposta/vistoria sem cadastro)
+    // aceita nome novo — é lá que mora o typo no nome do cliente.
+    let entity: Record<string, unknown>;
+    let entityNome: string;
+
+    if (doc.terceiro_id) {
+      const { data: terceiro } = await supabase
+        .from('terceiros').select('*').eq('id', doc.terceiro_id).eq('user_id', req.userId).single();
+      if (!terceiro) throw new ApiError(404, 'Terceiro não encontrado');
+      entity = terceiro;
+      entityNome = terceiro.nome;
+    } else if (doc.cliente_id) {
+      const { data: client } = await supabase
+        .from('clients').select('*').eq('id', doc.cliente_id).eq('user_id', req.userId).single();
+      if (!client) throw new ApiError(404, 'Cliente não encontrado');
+      entity = client;
+      entityNome = client.nome;
+    } else {
+      entityNome = (body.cliente_nome_avulso || doc.cliente_nome || '').trim();
+      if (!entityNome) throw new ApiError(400, 'Informe o nome do cliente');
+      entity = { nome: entityNome };
+    }
+
+    // O número da proposta vive no dados_json (o generate injeta antes do template).
+    // Reeditar não renumera: o cabeçalho e o link precisam bater com o que já foi enviado.
+    const dadosAntigos = (doc.dados_json ?? {}) as Record<string, unknown>;
+    const fields: Record<string, unknown> = { ...body.fields };
+    if (dadosAntigos.codigo && !fields.codigo) fields.codigo = dadosAntigos.codigo;
+
+    const tmplOut: { resumo?: string } = {};
+    let content: string;
+    let modeloUsado: string;
+    if (body.useTemplate) {
+      content = generateFromTemplate(doc.tipo, company, entity as unknown as Client, fields, body.modeloNumero, tmplOut);
+      modeloUsado = `modelo-${body.modeloNumero}`;
+    } else {
+      content = await generateDocumentWithAI(doc.tipo, company, entity as unknown as Client, fields);
+      modeloUsado = process.env.OPENAI_API_KEY ? 'gpt-4o' : 'claude-opus-4-6';
+    }
+
+    const updates: Record<string, unknown> = {
+      content,
+      dados_json: fields,
+      cliente_nome: entityNome,
+      modelo_usado: modeloUsado,
+    };
+
+    // O /p/:id e o PDF leem o Storage PRIMEIRO (arquivo_url) e só caem no content
+    // como fallback. Quem tem arquivo salvo precisa do arquivo trocado, senão o link
+    // público serviria a versão errada pra sempre. O antigo só sai depois que o novo
+    // sobe — se o upload falhar, larga o content (já corrigido) como fonte.
+    if (doc.arquivo_url) {
+      const fileName = `${req.userId}/${id}-${Date.now()}.html`;
+      const { error: uploadError } = await supabase.storage
+        .from('documentos')
+        .upload(fileName, Buffer.from(injectPrint(content), 'utf-8'), {
+          contentType: 'text/html; charset=utf-8',
+          upsert: false,
+        });
+      if (uploadError) {
+        logger.error('documents', 'regenerate: upload do HTML falhou — caindo pro content', uploadError);
+        updates.arquivo_url = null;
+      } else {
+        updates.arquivo_url = fileName;
+      }
+      await supabase.storage.from('documentos').remove([doc.arquivo_url]);
+    }
+
+    const { error: updErr } = await supabase
+      .from('documents').update(updates).eq('id', id).eq('user_id', req.userId);
+    if (updErr) {
+      logger.error('documents', 'UPDATE documents falhou', updErr);
+      res.status(500).json({ error: 'Falha ao atualizar o documento', detail: updErr.message });
+      return;
+    }
+
+    res.json({
+      content,
+      modelo_usado: modeloUsado,
+      tipo: doc.tipo,
+      cliente_nome: entityNome,
+      doc_id: doc.id,
+      codigo: (dadosAntigos.codigo as string) ?? null,
+      codigo_curto: doc.codigo_curto ?? null,
+      empresa_slug: company.slug ?? null,
+      resumo_whatsapp: tmplOut.resumo ?? null,
+    });
+  } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.issues[0].message });
+      return;
+    }
+    if (err instanceof ApiError) {
+      res.status(err.statusCode).json({ error: err.message });
+      return;
+    }
+    logger.error('documents', 'regenerateDocument falhou', err);
+    res.status(500).json({ error: 'Erro ao atualizar documento' });
+  }
 }
 
 // Atribui numero_seq ao user se ainda não tem (lazy, no 1º código gerado)
