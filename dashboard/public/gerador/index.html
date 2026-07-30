@@ -348,7 +348,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .eletro-cmp td{color:#E5E7EB;font-variant-numeric:tabular-nums}
 .eletro-cmp td.grn{color:#34D399;font-weight:700}
 /* ===== container de impressão (escondido na tela; a tela só aparece no print) ===== */
-#eletro-print{display:none}
+#eletro-print,#doc-print{display:none}
 @media print{
   /* esconde TODO o resto do fluxo (não só visibility — senão sobra altura = páginas em branco) */
   body > *{display:none!important}
@@ -356,7 +356,12 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
      Especificidade alta o bastante pra vencer a regra mobile que mostra o toggle (linha ~741). */
   html[data-mode]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .sb-mobile-toggle,
   #app-sidebar,.sb-backdrop,#sb-backdrop,.container{display:none!important}
-  #eletro-print{display:block!important;background:#fff;padding:0;margin:0}
+  /* QUEM vai pro papel é decidido por uma classe no <body>, posta por quem dispara
+     a impressão. Sem isso o "body > *{display:none!important}" ganhava do inline
+     style="display:block" do #propostaSection (regra important > inline normal) e o
+     PDF da proposta solar saía em branco — inclusive o /gerador/pdf/:codigo. */
+  body.print-proposta #propostaSection{display:block!important}
+  body.print-doc #eletro-print,body.print-doc #doc-print{display:block!important;background:#fff;padding:0;margin:0}
   html,body{background:#fff!important;height:auto!important;margin:0!important;padding:0!important}
   /* margem 0 no papel = o navegador não tem onde carimbar data/URL/nº de página.
      O respiro de 14mm é o padding de cada .ep-page (páginas A4 explícitas, quebra controlada). */
@@ -439,22 +444,23 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc-cli-banner b{color:#eaf2ff}
 .orc-link{background:none;border:none;color:#60A5FA;font-weight:700;font-family:inherit;font-size:12.5px;cursor:pointer;padding:0;text-decoration:underline}
 .orc-link:hover{color:#93C5FD}
-.orc-head-row{display:grid;grid-template-columns:1fr 96px 54px 116px 112px 30px;gap:8px;padding:0 2px 6px;font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
-.orc-itens{display:flex;flex-direction:column;gap:8px}
-.orc-item{display:grid;grid-template-columns:1fr 96px 54px 116px 112px 30px;gap:8px;align-items:center}
-.orc-item input{width:100%;box-sizing:border-box;padding:9px 10px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13.5px;font-family:inherit;font-weight:600;outline:none;transition:border-color .2s}
-.orc-item input:focus{border-color:#3B82F6}
-.orc-item input.orc-qtd,.orc-item input.orc-unit{text-align:right}
-.orc-item input.orc-ncm{text-align:center;font-size:12.5px}
-.orc-rowtot{font-size:13px;font-weight:700;color:#E5E7EB;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-.orc-del{background:none;border:1px solid rgba(248,113,113,.3);color:#fca5a5;border-radius:8px;width:28px;height:34px;cursor:pointer;font-size:13px;line-height:1;flex:none}
-.orc-del:hover{background:rgba(248,113,113,.12)}
+/* kit travado do eletroposto: marca o item, ajusta o preço se precisar negociar.
+   O cliente nunca vê estes valores — no documento cada item vira "INCLUÍDO". */
+.orc-kit{display:flex;flex-direction:column;gap:8px}
+.orc-kit-row{display:grid;grid-template-columns:22px 1fr 118px 132px;gap:10px;align-items:center;background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:9px 12px}
+.orc-kit-row.on{border-color:#3B82F6}
+.orc-kit-row.off{opacity:.5}
+.orc-kit-row input[type="checkbox"]{accent-color:#3B82F6;width:17px;height:17px;cursor:pointer}
+.orc-kit-nome{font-size:13.5px;font-weight:700;color:#CBD5E1}
+.orc-kit-row.on .orc-kit-nome{color:#fff}
+.orc-kit-opt,.orc-kit-preco{width:100%;box-sizing:border-box;padding:8px 10px;background:#0b1524;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;font-family:inherit;font-weight:700}
+.orc-kit-preco{text-align:right;font-variant-numeric:tabular-nums}
+.orc-kit-opt:focus,.orc-kit-preco:focus{border-color:#3B82F6}
+.orc-kit-vazio{grid-column:3/4}
 @media(max-width:640px){
-  .orc-head-row{display:none}
-  .orc-item{grid-template-columns:1fr 1fr auto;grid-auto-rows:auto}
-  .orc-item .orc-desc{grid-column:1/-1}
-  .orc-item .orc-ncm{grid-column:1/2}
-  .orc-rowtot{grid-column:1/2}
+  .orc-kit-row{grid-template-columns:22px 1fr;grid-auto-rows:auto;row-gap:8px}
+  .orc-kit-opt,.orc-kit-preco{grid-column:2/3}
+  .orc-kit-vazio{display:none}
 }
 .orc-tot{margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px;display:flex;flex-direction:column;gap:6px}
 .orc-tot-row{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;color:#CBD5E1}
@@ -527,6 +533,119 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-fin-destaque .ep-fin-ic{flex:none;color:#2f6b10;font-size:22px;font-weight:800;line-height:1}
 .ep-fin-destaque div{font-size:12px;color:#333;line-height:1.6}
 .ep-fin-destaque b{color:#2f6b10}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ORÇAMENTO "1 PÁGINA" — clone do propostaSolar1Pagina do SolarDoc Pro.
+   Mesmo documento pro Solar e pro Eletroposto: só troca o bloco de variáveis
+   (.orc1.solar / .orc1.ep), a logo e o texto da marca. Tudo escopado em .orc1
+   pra não vazar no painel nem brigar com o .ep-doc (que é Arial de propósito).
+   Larguras em mm: o Chrome pode ignorar @page{margin:0} quando o usuário deixou
+   margem salva na caixa de impressão — com px fixo (794) o documento vazava pra
+   uma segunda folha. Com width:100% ele encolhe pra caixa que sobrar.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.orc1{
+  --ink:#161A22; --muted:#5C6470; --row:#F2F4F8; --line:#E4E8F0;
+  width:100%;max-width:210mm;margin:0 auto;background:#fff;
+  display:flex;flex-direction:column;
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  /* line-height fica no "normal" do navegador de propósito: é o que o template do
+     SolarDoc usa, e é o que faz o documento fechar em UMA folha A4. */
+  color:var(--ink);-webkit-font-smoothing:antialiased;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.orc1.solar{ --c1:#1E3A8A; --c2:#1D4ED8; --c3:#EFF6FF; --accent:#F5C518; --accent-text:#1E3A8A; }
+.orc1.ep{    --c1:#2F6B10; --c2:#3E8A16; --c3:#F0F7EA; --accent:#7DD117; --accent-text:#14300C; }
+.orc1 *{box-sizing:border-box;margin:0;padding:0}
+.orc1 .num{font-variant-numeric:tabular-nums}
+/* Cabeçalho */
+.orc1 .head{display:grid;grid-template-columns:1fr 1fr}
+.orc1 .brand{padding:20px 24px;display:flex;flex-direction:row;align-items:center;gap:16px}
+.orc1 .brand img{width:110px;height:110px;object-fit:contain;flex-shrink:0}
+.orc1 .brand .mk{font-size:27px;font-weight:900;letter-spacing:-.6px;color:var(--c1);line-height:1.02}
+.orc1 .brand .mk small{display:block;font-size:9.5px;font-weight:700;letter-spacing:3px;color:var(--muted);margin-top:6px}
+.orc1 .ficha{background:var(--c1);color:#fff;padding:20px 24px;display:flex;flex-direction:column;gap:8px}
+.orc1 .ficha .t{font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;opacity:.85}
+.orc1 .ficha .rowf{display:flex;justify-content:space-between;gap:12px;font-size:12px;border-bottom:1px solid rgba(255,255,255,.16);padding-bottom:6px}
+.orc1 .ficha .rowf span:first-child{opacity:.7;font-weight:600}
+.orc1 .ficha .rowf span:last-child{text-align:right}
+.orc1 .ficha .valid{margin-top:2px;font-size:10.5px;font-weight:800;color:var(--accent-text);background:var(--accent);align-self:flex-start;padding:4px 10px;border-radius:999px;letter-spacing:.3px}
+/* Faixa de seção — barra de acento com o título na cor da marca */
+.orc1 .band{display:flex;align-items:center;background:var(--accent);margin-top:2px}
+.orc1 .band .tab{color:var(--accent-text);font-size:12.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;padding:9px 20px}
+.orc1 .band .bar{flex:1}
+.orc1 .sec{padding:13px 26px 4px}
+.orc1 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.orc1 .tile{border:1px solid var(--line);border-bottom:3px solid var(--c1);border-radius:12px;padding:11px 13px}
+.orc1 .tile .k{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.orc1 .tile .v{font-size:22px;font-weight:900;color:var(--c1);line-height:1.1;margin-top:3px}
+.orc1 .tile .v u{font-size:12px;font-weight:700;color:var(--muted);text-decoration:none;margin-left:2px}
+.orc1 .rows{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.orc1 .r{display:flex;justify-content:space-between;gap:16px;padding:8px 14px;font-size:12px;align-items:center}
+.orc1 .r:nth-child(odd){background:var(--row)}
+.orc1 .r .lab{color:#39404C;font-weight:600}
+.orc1 .r .val{font-weight:800}
+.orc1 .r .inc{color:#127A3E;font-weight:800;font-size:10.5px;letter-spacing:.4px;text-transform:uppercase}
+.orc1 .mkq{display:inline-block;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.3px;color:var(--c1);background:var(--c3);padding:1px 7px;border-radius:6px;margin-left:8px;vertical-align:middle}
+/* Financeiro */
+.orc1 .fin{padding:13px 26px 6px}
+.orc1 .hero{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-bottom:11px}
+.orc1 .heroL{background:linear-gradient(135deg,var(--c1),var(--c2));color:#fff;border-radius:14px;padding:16px 18px}
+.orc1 .heroL .k{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;opacity:.85}
+.orc1 .heroL .v{font-size:32px;font-weight:900;line-height:1.05;margin-top:3px}
+.orc1 .heroL .s{font-size:11px;opacity:.8;margin-top:3px}
+.orc1 .heroR{background:var(--accent);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;justify-content:center}
+.orc1 .heroR .k{font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--accent-text);opacity:.8}
+.orc1 .heroR .v{font-size:27px;font-weight:900;line-height:1.05;margin-top:2px;color:var(--accent-text)}
+.orc1 .heroR .s{font-size:11.5px;font-weight:800;margin-top:3px;color:var(--accent-text);opacity:.9}
+.orc1 .finGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.orc1 .fc{border:1px solid var(--line);border-radius:12px;padding:10px 13px}
+.orc1 .fc .k{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.orc1 .fc .v{font-size:17px;font-weight:900;color:var(--c1);margin-top:3px}
+.orc1 .obs{padding:10px 26px 0;font-size:9.5px;color:var(--muted);line-height:1.6}
+/* Rodapé */
+.orc1 .foot{margin-top:auto;background:var(--c1);color:#fff;padding:16px 26px 20px}
+.orc1 .foot .pg{font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;opacity:.85;margin-bottom:11px}
+.orc1 .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.orc1 .card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px 15px}
+.orc1 .card h4{margin:0 0 8px;font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.9}
+.orc1 .card .l{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.10)}
+.orc1 .card .l:last-child{border-bottom:none}
+.orc1 .card .l span:first-child{opacity:.65;font-weight:600}
+.orc1 .card .l span:last-child{font-weight:700;text-align:right}
+.orc1 .qr{display:flex;align-items:center;gap:9px;margin-top:10px}
+.orc1 .qrbox{width:54px;height:54px;background:#fff;border-radius:6px;padding:3px;flex-shrink:0}
+.orc1 .qrbox svg{width:100%;height:100%;display:block}
+.orc1 .qr span{font-size:9.5px;line-height:1.3;opacity:.7}
+/* Condições de pagamento dentro da faixa do rodapé (a faixa se chama "forma de
+   pagamento & contato" — no solar ela só tem contato, no eletroposto tem as duas) */
+.orc1 .pags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.orc1 .pag{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:7px 12px;font-size:11px}
+.orc1 .pag b{display:block;font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.6;margin-bottom:2px}
+.orc1 .pag span{font-weight:700;font-variant-numeric:tabular-nums}
+/* ===== Orçamento aberto por link (tela do cliente) =====
+   A folha tem largura de papel (210mm) e o celular tem 360px. Em vez de deixar a
+   página rolar pro lado, a folha é escalada por transform e o palco reserva a
+   altura que sobra — assim o documento chega igualzinho ao PDF em qualquer tela. */
+#orcViewSection{padding:16px 12px 28px;background:#EEF1F5;min-height:100vh}
+.orcview-palco{position:relative;margin:0 auto;max-width:210mm;overflow:hidden}
+/* largura de PAPEL, sempre: é isso que faz o desenho chegar idêntico ao PDF.
+   Sem width fixo o .orc1 (width:100%) espremeria no celular em vez de escalar. */
+.orcview-folha{width:210mm;transform-origin:top left;box-shadow:0 10px 40px rgba(15,23,42,.16);border-radius:4px;overflow:hidden;background:#fff}
+.orcview-acoes{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:18px auto 0;max-width:210mm}
+.orcview-wpp,.orcview-pdf{flex:1 1 200px;text-align:center;padding:14px 18px;border-radius:12px;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;border:none;text-decoration:none}
+.orcview-wpp{background:linear-gradient(135deg,#1ebd5b,#25D366);color:#fff}
+.orcview-pdf{background:#1E3A8A;color:#fff}
+@media print{ #orcViewSection .orcview-acoes{display:none!important} }
+
+/* No papel: os dois documentos fecham em UMA folha A4 (o encaixe fica no
+   orc1Imprimir). Estas regras são a rede de segurança pra impressora do
+   consultor: se algo escapar, quebra entre blocos e nunca no meio de um. */
+@media print{
+  .orc1{max-width:100%;min-height:0}
+  .orc1 .head,.orc1 .fin,.orc1 .foot,.orc1 .rows,.orc1 .hero,.orc1 .tiles,.orc1 .finGrid{break-inside:avoid;page-break-inside:avoid}
+  .orc1 .r{break-inside:avoid;page-break-inside:avoid}
+  .orc1 .band{break-after:avoid;page-break-after:avoid} /* título nunca fecha a folha sozinho */
+}
 .leads-info{font-size:13px;color:#cbd5e1;margin-bottom:16px;line-height:1.5;padding:12px 14px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);border-radius:10px}
 /* ===== CRM (sempre dark — força fundo escuro como o cockpit Redes) ===== */
 #crmSection .card{background:#1E293B!important;color:#E5E7EB!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 4px 16px rgba(0,0,0,.25)!important}
@@ -1818,6 +1937,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <!-- AÇÕES DO CONSULTOR (fora visualmente, escondidas no print pelo @media print) -->
     <div class="acoes">
       <button class="btn-wpp" onclick="copiarWhatsApp()">📱 Copiar pra WhatsApp</button>
+      <button class="btn-pdf" onclick="orcSolarImprimir()">📄 Orçamento em PDF</button>
+      <button class="btn-link" onclick="orcSolarLink()">🔗 Link do orçamento</button>
     </div>
 
     <div class="botoes-rodape" id="btn-nova">
@@ -1904,6 +2025,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <thead>
             <tr>
               <th>Código</th>
+              <th>Produto</th>
               <th>Criado</th>
               <th>Telefone</th>
               <th>Cliente</th>
@@ -1926,7 +2048,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             </tr>
           </thead>
           <tbody id="historico-tbody">
-            <tr><td colspan="20" class="historico-vazio">Carregando...</td></tr>
+            <tr><td colspan="21" class="historico-vazio">Carregando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -2275,12 +2397,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-email" placeholder="cliente@email.com" autocomplete="off"></div></div>
       </div>
 
-      <!-- ITENS -->
+      <!-- ITENS — kit travado: marca o que entra, o cliente só vê o preço final -->
       <div class="card">
-        <div class="calc-card-title"><span class="dot"></span>Itens da proposta</div>
-        <div class="orc-head-row"><span>Descrição</span><span>NCM</span><span style="text-align:right">Qtd.</span><span style="text-align:right">Valor unit.</span><span style="text-align:right">Total</span><span></span></div>
-        <div class="orc-itens" id="orc-itens"></div>
-        <button type="button" class="eletro-btn" style="margin-top:12px;flex:0 0 auto" onclick="orcAddItem()">+ Adicionar item</button>
+        <div class="calc-card-title"><span class="dot"></span>Itens do orçamento</div>
+        <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">Marque o que entra no projeto. No orçamento do cliente cada item sai como <b>INCLUÍDO</b> — os preços por item ficam só aqui.</div>
+        <div class="orc-kit" id="orc-kit"></div>
 
         <div class="eletro-field" style="margin-top:16px"><label>Frete</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-frete" inputmode="decimal" value="0" step="0.01" oninput="orcCalc()"></div></div>
@@ -2335,6 +2456,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
       <div class="eletro-acoes">
         <button type="button" class="eletro-btn primary" onclick="orcImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Gerar orçamento PDF</button>
+        <button type="button" class="eletro-btn primary" onclick="orcEpLink()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Gerar link do orçamento</button>
         <button type="button" class="eletro-btn" onclick="epWhatsOrcamento(orcLerItens().total)"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> Enviar no WhatsApp</button>
       </div>
     </div>
@@ -2391,6 +2513,18 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
   <!-- container de impressão do Eletroposto (só visível no PDF/print) -->
   <div id="eletro-print" aria-hidden="true"></div>
+
+  <!-- container de impressão do orçamento de 1 página (solar e eletroposto) -->
+  <div id="doc-print" aria-hidden="true"></div>
+
+  <!-- ============= TELA: ORÇAMENTO ABERTO POR LINK (cliente) ============= -->
+  <div id="orcViewSection" style="display:none;">
+    <div class="orcview-palco"><div class="orcview-folha" id="orcview-folha"></div></div>
+    <div class="orcview-acoes">
+      <a class="orcview-wpp" id="orcview-wpp" href="#" target="_blank" rel="noopener noreferrer">Falar no WhatsApp</a>
+      <button type="button" class="orcview-pdf" onclick="orcViewImprimir()">Baixar em PDF</button>
+    </div>
+  </div>
 
   <!-- ============= TELA 5: TABELAS ============= -->
   <div id="automacaoSection" style="display:none;">
@@ -2842,6 +2976,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <label>Cidade</label>
       <input type="text" id="nc-cidade" placeholder="Ex: Uberlândia (opcional)" autocomplete="off">
     </div>
+    <div class="field">
+      <label>Consultor que vai atender *</label>
+      <select id="nc-consultor"></select>
+    </div>
     <div id="nc-erro" style="color:#F87171;font-size:13px;min-height:18px;margin-top:4px;"></div>
     <div class="modal-acoes">
       <button class="secondary" onclick="fecharNovoContato()">Cancelar</button>
@@ -2970,6 +3108,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <script src="/gerador/solar-data.js"></script>
 <script src="/gerador/tabelas.js"></script>
 <script src="/gerador/etiqueta.js"></script>
+<!-- QR do WhatsApp no rodapé do orçamento de 1 página (qrcode-generator, MIT).
+     Vendorizado porque o documento é impresso offline pelo PWA — CDN não serve. -->
+<script src="/gerador/qrcode.js"></script>
 <script>
 // Sinaliza pro watchdog de auto-recuperação (no <head>) que o HTML e os JS
 // externos (solar-data.js/tabelas.js) carregaram íntegros e o código principal
@@ -3091,6 +3232,30 @@ function _propostaRowFromDados(d) {
 
 async function salvarPropostaSupabase(d) {
   const arr = await supaInsert('propostas', _propostaRowFromDados(d));
+  return arr[0].codigo;
+}
+
+// Linha de ORÇAMENTO DE ELETROPOSTO na mesma tabela `propostas`.
+// Builder separado de propósito: o _propostaRowFromDados lê d.item.g / d.tab.inv /
+// d.qtdInv, que não existem no eletroposto — e ele também é usado no UPDATE do
+// solar, então "proteger com fallback" apagaria coluna de proposta solar na edição.
+// Duas funções, uma tabela.
+function _orcamentoEpRowFromDados(d) {
+  const cidade = (d.cidade || '').trim();
+  const partes = cidade.split(',').map(s => s.trim()).filter(Boolean);
+  return {
+    tipo: 'eletroposto',
+    dados: d,
+    consultor_nome: d.consultor || null,
+    cliente_nome: d.nome || null,
+    cliente_cidade: partes[0] || null,
+    cliente_uf: partes[1] || null,
+    // colunas de solar ficam nulas — o `dados` carrega o orçamento inteiro
+  };
+}
+
+async function salvarOrcamentoEpSupabase(d) {
+  const arr = await supaInsert('propostas', _orcamentoEpRowFromDados(d));
   return arr[0].codigo;
 }
 
@@ -3930,7 +4095,10 @@ async function gerar() {
   const paybackAnos = modelo.paybackAnos > 0 ? modelo.paybackAnos.toFixed(1).replace('.', ',') : '—';
 
   // Cálculos
-  const areaReal = (item.kwp * 1000 / tab.pot * 2.1).toFixed(1);
+  // 2,5 m² por módulo — mesmo padrão do SolarDoc Pro, pra proposta e orçamento
+  // não mostrarem áreas diferentes pro mesmo sistema (era 2,1 aqui até 30/07/2026).
+  // Propostas já salvas guardam o areaReal antigo e não mudam de valor.
+  const areaReal = (item.kwp * 1000 / tab.pot * 2.5).toFixed(1);
   const economia = Math.max(Math.round(mediaMensalGerada * tarifa - taxaMin), 0);
   const economia25 = modelo.economia25;
   const payback = paybackAnos;
@@ -4345,6 +4513,7 @@ async function carregarDeURL() {
     let d, dataEmissao;
     const vendedor = ehVendedor();
     const isPdfMode = url.searchParams.get('pdf') === '1';
+    const querOrc = url.searchParams.get('v') === 'orc';
 
     // Caminho 0 — PDF mode com dados injetados pelo backend (Puppeteer).
     // O backend pré-carrega __INJECTED_PROPOSAL via evaluateOnNewDocument, então
@@ -4355,6 +4524,7 @@ async function carregarDeURL() {
       d.dataEmissao = inj.created_at;
       d.codigo = inj.codigo;
       dadosAtual = d;
+      if (orcViewTalvez(d, querOrc)) return;
       renderProposta(d, true);
       return;
     }
@@ -4383,6 +4553,7 @@ async function carregarDeURL() {
       d.dataEmissao = row.created_at;
       d.codigo = row.codigo;
       dadosAtual = d;
+      if (orcViewTalvez(d, querOrc)) return;
       renderProposta(d, false); // mostra controles do consultor
       return;
     }
@@ -4413,6 +4584,7 @@ async function carregarDeURL() {
     }).catch(e => console.error('track falhou:', e));
 
     dadosAtual = d;
+    if (orcViewTalvez(d, querOrc)) return;
     renderProposta(d, true); // viaLink=true esconde controles do consultor
   } catch (e) {
     console.error('Erro ao carregar proposta da URL:', e);
@@ -4431,6 +4603,78 @@ async function carregarDeURL() {
       const c2 = document.getElementById('exp-cta-fallback'); if (c2) c2.style.display = 'none';
     }
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VIEWER DO ORÇAMENTO POR LINK — mesmo desenho do PDF, na tela do cliente
+//
+// Solar: é a MESMA linha da proposta (?p=CODIGO&v=orc). Não grava nada novo e o
+// rastreio de abertura que já existe conta igual — o cliente abriu, o consultor vê.
+// Eletroposto: linha própria com tipo='eletroposto', mesmo caminho de link.
+// ═══════════════════════════════════════════════════════════════════════════
+let orcViewPayload = null;
+
+// Um link, dois documentos. Decide se o que abre é o orçamento de 1 página:
+//   ?v=orc            → o consultor mandou o orçamento (vale pro solar)
+//   dados.produto=ep  → eletroposto não tem proposta longa, é sempre o orçamento
+// Lê de `dados` e não da coluna `tipo` porque o get_proposta_pub (caminho do
+// cliente) devolve só o jsonb — assim os dois caminhos decidem igual.
+function orcViewTalvez(d, querOrc) {
+  if (!d) return false;
+  const ehEp = d.produto === 'eletroposto';
+  if (!ehEp && !querOrc) return false;
+  if (ehEp) {
+    orcViewRender(orcEpDocHTML(d), (d.vendedor && d.vendedor.contato) || (d.empresa && d.empresa.contato));
+  } else {
+    orcViewRender(orcSolarDocHTML(d), ORC1_EMPRESA.contato);
+  }
+  return true;
+}
+
+function orcViewRender(html, whatsapp) {
+  orcViewPayload = html;
+  document.documentElement.dataset.mode = 'viewer';
+  ['formSection', 'propostaSection', 'expiradoSection'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  const sec = document.getElementById('orcViewSection');
+  const folha = document.getElementById('orcview-folha');
+  folha.innerHTML = html;
+  sec.style.display = '';
+
+  const wpp = document.getElementById('orcview-wpp');
+  const tel = String(whatsapp || '').replace(/\D/g, '');
+  if (tel.length >= 10) {
+    wpp.href = 'https://wa.me/' + (tel.startsWith('55') ? tel : '55' + tel);
+    wpp.style.display = '';
+  } else {
+    wpp.style.display = 'none';
+  }
+
+  orcViewAjustar();
+  window.addEventListener('resize', orcViewAjustar);
+}
+
+// Escala a folha pra caber na largura da tela e reserva a altura resultante.
+// Sem reservar, o transform deixaria um buraco embaixo (transform não afeta layout).
+function orcViewAjustar() {
+  const palco = document.querySelector('.orcview-palco');
+  const folha = document.getElementById('orcview-folha');
+  if (!palco || !folha || !folha.firstElementChild) return;
+  folha.style.transform = 'none';
+  const larguraFolha = folha.offsetWidth;          // 210mm — fixo no CSS
+  const disponivel = palco.clientWidth;
+  if (!larguraFolha || !disponivel) return;
+  const escala = Math.min(1, disponivel / larguraFolha);
+  folha.style.transform = `scale(${escala})`;
+  palco.style.height = (folha.offsetHeight * escala) + 'px';
+}
+
+// Botão "Baixar em PDF" do cliente: reusa o host de impressão, sem encaixe de
+// zoom (o documento já foi montado no tamanho certo por quem gerou o link).
+function orcViewImprimir() {
+  if (!orcViewPayload) return;
+  orc1Imprimir(orcViewPayload, 'Orcamento', { umaPagina: true, piso: 0.74 });
 }
 
 // Tracking de cliques no WhatsApp (cliente clicou pra falar com consultor).
@@ -4486,7 +4730,9 @@ function mostrarExpirado(d) {
   if (d.consultor && tel.length >= 10) {
     const numero = tel.length === 11 || tel.length === 10 ? `55${tel}` : tel;
     const nomeCli = d.nome ? ` Sou ${d.nome}.` : '';
-    const msg = `Oi ${d.consultor}!${nomeCli} Minha proposta de energia solar expirou — pode me enviar uma atualizada?`;
+    // O eletroposto usa a mesma tela de expirado; só o nome do produto muda.
+    const oQue = d.produto === 'eletroposto' ? 'Meu orçamento de eletroposto' : 'Minha proposta de energia solar';
+    const msg = `Oi ${d.consultor}!${nomeCli} ${oQue} expirou — pode me enviar um atualizado?`;
     const link = `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`;
 
     document.getElementById('exp-consultor-nome').textContent = d.consultor;
@@ -4888,7 +5134,7 @@ function renderHistoricoTbody() {
   const pageRows = rowsFiltradas.slice(start, start + HISTORICO_PER_PAGE);
 
   if (pageRows.length === 0 && historicoRows.length > 0) {
-    tbody.innerHTML = `<tr><td colspan="20" class="historico-vazio">Nenhuma proposta no filtro "${filtroStatus}".</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="21" class="historico-vazio">Nenhuma proposta no filtro "${filtroStatus}".</td></tr>`;
     if (pag) pag.style.display = 'none';
     return;
   }
@@ -4918,22 +5164,29 @@ function renderHistoricoTbody() {
     const tel = r.dados && (r.dados.telefone || r.dados.telefoneDigitos);
     const telCell = tel ? escapeHtml(tel) : `<span style="color:${corMuted}">-</span>`;
 
+    // Orçamento de eletroposto divide a tabela com a proposta solar: as colunas
+    // técnicas do solar (kWp, placas, inversor…) saem em branco em vez de mentir
+    // um zero, e a coluna Produto diz de qual dos dois a linha é.
+    const ehEp = r.tipo === 'eletroposto' || (r.dados && r.dados.produto === 'eletroposto');
+    const soSolar = v => ehEp ? `<span style="color:${corMuted}">—</span>` : (v || '-');
+
     return `
     <tr>
       <td class="codigo">${escapeHtml(r.codigo)}</td>
+      <td>${ehEp ? '⚡ Eletroposto' : '☀️ Solar'}</td>
       <td>${formatDataBR(r.created_at)}</td>
       <td>${telCell}</td>
       <td>${escapeHtml(r.cliente_nome) || '-'}</td>
       <td>${escapeHtml(r.consultor_nome) || '-'}</td>
       <td>${escapeHtml(r.cliente_cidade) || '-'}</td>
       <td>${escapeHtml(r.cliente_uf) || '-'}</td>
-      <td>${r.kwp || '-'}</td>
-      <td>${r.geracao_kwh ? r.geracao_kwh + ' kWh' : '-'}</td>
-      <td>${r.qtd_placas || '-'}</td>
-      <td>${escapeHtml(r.inversor) || '-'}</td>
-      <td>${r.qtd_inversor || '-'}</td>
-      <td>${escapeHtml(r.telhado) || '-'}</td>
-      <td>${escapeHtml(r.fase) || '-'}</td>
+      <td>${soSolar(r.kwp)}</td>
+      <td>${soSolar(r.geracao_kwh ? r.geracao_kwh + ' kWh' : '')}</td>
+      <td>${soSolar(r.qtd_placas)}</td>
+      <td>${soSolar(escapeHtml(r.inversor))}</td>
+      <td>${soSolar(r.qtd_inversor)}</td>
+      <td>${soSolar(escapeHtml(r.telhado))}</td>
+      <td>${soSolar(escapeHtml(r.fase))}</td>
       <td>${enviadoCell}</td>
       <td><strong>${r.acessos || 0}</strong>${acessoNovo(r) ? ' <span class="badge-novo" title="Acesso novo desde sua última visita">🔴</span>' : ''}</td>
       <td>${r.ultimo_acesso ? formatDataBR(r.ultimo_acesso) : `<span style="color:${corMuted}">nunca</span>`}</td>
@@ -4994,7 +5247,7 @@ async function abrirHistorico() {
   const rk = document.getElementById('ranking-mes');
   const gr = document.getElementById('grafico-mes');
   const filtros = document.getElementById('historico-filtros');
-  tbody.innerHTML = '<tr><td colspan="20" class="historico-vazio">Carregando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="21" class="historico-vazio">Carregando...</td></tr>';
   statsBox.innerHTML = '';
   if (pag) pag.style.display = 'none';
   if (rk) rk.style.display = 'none';
@@ -5006,7 +5259,7 @@ async function abrirHistorico() {
     await carregarConsultoresFotos();
     const rows = await supaGet('propostas?select=*&order=created_at.desc&limit=500');
     if (!rows || rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="20" class="historico-vazio">Nenhuma proposta gerada ainda. Volte e gere a primeira!</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="21" class="historico-vazio">Nenhuma proposta gerada ainda. Volte e gere a primeira!</td></tr>';
       return;
     }
 
@@ -5072,7 +5325,7 @@ async function abrirHistorico() {
     setTimeout(marcarVisitaHistorico, 500);
   } catch (e) {
     console.error(e);
-    tbody.innerHTML = `<tr><td colspan="20" class="historico-vazio">Erro ao carregar: ${escapeHtml(e.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="21" class="historico-vazio">Erro ao carregar: ${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
@@ -5970,19 +6223,8 @@ function eletroImprimir() {
     .normalize('NFD').replace(/[̀-ͯ]/g, '')   // remove acentos (compatibilidade de arquivo)
     .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
   const nomeArq = [limpa(t.cliente) || 'Estudo', 'Eletroposto', limpa(t.cidade)].filter(Boolean).join('_');
-  const tituloOriginal = document.title;
-  const restaurar = () => { document.title = tituloOriginal; };
-  document.title = nomeArq;
-  window.addEventListener('afterprint', restaurar, { once: true });
-  // espera a marca d'água carregar antes de abrir a impressão (evita 1º print sem a arte)
-  const imgs = Array.from(host.querySelectorAll('img')).filter(im => !im.complete);
-  const aguarda = imgs.length
-    ? Promise.race([
-        Promise.all(imgs.map(im => new Promise(res => { im.onload = im.onerror = res; }))),
-        new Promise(res => setTimeout(res, 1500)),
-      ])
-    : Promise.resolve();
-  aguarda.then(() => { window.print(); setTimeout(restaurar, 2000); });
+  // epPrint espera a marca d'água carregar antes de abrir a impressão (evita 1º print sem a arte)
+  epPrint(host, nomeArq);
 }
 
 // ===================================================================
@@ -6005,48 +6247,73 @@ function orcHojeISO() {
   return new Date(d.getTime() - off).toISOString().slice(0, 10);
 }
 
-function orcAddItem(desc, ncm, qtd, unit) {
-  const box = document.getElementById('orc-itens');
-  if (!box) return;
-  const row = document.createElement('div');
-  row.className = 'orc-item';
-  row.innerHTML =
-    '<input type="text" class="orc-desc" placeholder="Descrição do item (ex: Carregador DC 240 kW)" autocomplete="off">' +
-    '<input type="text" class="orc-ncm" placeholder="NCM" autocomplete="off">' +
-    '<input type="number" class="orc-qtd" inputmode="decimal" min="0" step="1" value="1">' +
-    '<input type="number" class="orc-unit" inputmode="decimal" min="0" step="0.01" placeholder="0,00">' +
-    '<span class="orc-rowtot">R$ 0,00</span>' +
-    '<button type="button" class="orc-del" title="Remover" onclick="orcDelItem(this)">✕</button>';
-  row.querySelector('.orc-desc').value = desc || '';
-  row.querySelector('.orc-ncm').value = ncm || '8504.40.10';
-  if (qtd != null) row.querySelector('.orc-qtd').value = qtd;
-  if (unit != null) row.querySelector('.orc-unit').value = unit;
-  row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', orcCalc));
-  box.appendChild(row);
+// ═══ KIT TRAVADO DO ELETROPOSTO ═══
+// A lista é fixa: o consultor marca o que entra e, se precisar negociar, mexe no
+// preço. O cliente não vê preço de item nenhum — o documento lista tudo como
+// "INCLUÍDO" e mostra um preço final só (foi assim que o Thiago pediu, 30/07/2026).
+// O carregador é o único com variação de potência; trocar a potência repuxa o
+// preço de tabela, a não ser que o consultor já tenha digitado outro valor.
+const EP_KIT = [
+  { id: 'proj',   nome: 'Projeto de engenharia especializada', preco: 8000 },
+  { id: 'mao',    nome: 'Mão de obra especializada',           preco: 20000 },
+  { id: 'padrao', nome: 'Padrão de entrada 200A',              preco: 12000 },
+  { id: 'carreg', nome: 'Carregador',                          preco: 35000,
+    opcoes: [{ rot: '40 kW', preco: 35000 }, { rot: '60 kW', preco: 55000 }, { rot: '80 kW', preco: 80000 }] },
+  { id: 'trafo',  nome: 'Transformador 220/380',               preco: 10000 },
+  { id: 'cabo',   nome: 'Cabeamento',                          preco: 10000 },
+  { id: 'civil',  nome: 'Obra civil',                          preco: 10000 },
+  { id: 'cobert', nome: 'Cobertura',                           preco: 10000 },
+];
+
+function orcKitRender() {
+  const box = document.getElementById('orc-kit');
+  if (!box || box.children.length) return;   // só monta uma vez (preserva o que foi marcado)
+  box.innerHTML = EP_KIT.map(it => {
+    const opt = it.opcoes
+      ? `<select class="orc-kit-opt" data-id="${it.id}" onchange="orcKitOpcao(this)">${it.opcoes.map((o, i) => `<option value="${i}">${o.rot}</option>`).join('')}</select>`
+      : '<span class="orc-kit-vazio"></span>';
+    return `<label class="orc-kit-row on" data-id="${it.id}">
+        <input type="checkbox" checked onchange="orcKitToggle(this)">
+        <span class="orc-kit-nome">${orcEsc(it.nome)}</span>
+        ${opt}
+        <input type="number" class="orc-kit-preco" inputmode="decimal" min="0" step="100" value="${it.preco}" oninput="orcKitPrecoEditado(this)">
+      </label>`;
+  }).join('');
+}
+
+function orcKitToggle(chk) {
+  const row = chk.closest('.orc-kit-row');
+  if (row) { row.classList.toggle('on', chk.checked); row.classList.toggle('off', !chk.checked); }
   orcCalc();
 }
 
-function orcDelItem(btn) {
-  const box = document.getElementById('orc-itens');
-  const row = btn.closest('.orc-item');
-  if (row) row.remove();
-  if (box && !box.querySelector('.orc-item')) orcAddItem();   // nunca deixa a lista vazia
+// Trocar a potência do carregador repuxa o preço — a menos que o consultor já
+// tenha digitado um valor próprio (aí manda o dele, senão a negociação se perde).
+function orcKitOpcao(sel) {
+  const row = sel.closest('.orc-kit-row');
+  const it = EP_KIT.find(k => k.id === sel.dataset.id);
+  const campo = row && row.querySelector('.orc-kit-preco');
+  if (it && it.opcoes && campo && campo.dataset.tocado !== '1') {
+    campo.value = it.opcoes[Number(sel.value) || 0].preco;
+  }
   orcCalc();
 }
 
-// Lê os itens da tela → [{desc, ncm, qtd, unit, total}] e devolve também os agregados
+function orcKitPrecoEditado(inp) { inp.dataset.tocado = '1'; orcCalc(); }
+
+// Lê o kit → [{desc, total}] + agregados. Mesma assinatura que o documento espera.
 function orcLerItens() {
   const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; };
   const itens = [];
-  document.querySelectorAll('#orc-itens .orc-item').forEach(row => {
-    const desc = row.querySelector('.orc-desc').value.trim();
-    const ncm = row.querySelector('.orc-ncm').value.trim();
-    const qtd = num(row.querySelector('.orc-qtd').value);
-    const unit = num(row.querySelector('.orc-unit').value);
-    const total = qtd * unit;
-    row.querySelector('.orc-rowtot').textContent = ORC_MONEY(total);
-    // linha em branco (sem descrição e sem valor) não entra no documento
-    if (desc || total > 0) itens.push({ desc, ncm, qtd, unit, total });
+  document.querySelectorAll('#orc-kit .orc-kit-row').forEach(row => {
+    if (!row.querySelector('input[type="checkbox"]').checked) return;
+    const it = EP_KIT.find(k => k.id === row.dataset.id);
+    const sel = row.querySelector('.orc-kit-opt');
+    const rot = sel && it && it.opcoes ? it.opcoes[Number(sel.value) || 0].rot : '';
+    itens.push({
+      desc: it ? it.nome : '', variante: rot,
+      total: num(row.querySelector('.orc-kit-preco').value),
+    });
   });
   const subtotal = itens.reduce((s, i) => s + i.total, 0);
   const frete = num(document.getElementById('orc-frete')?.value);
@@ -6097,39 +6364,6 @@ function orcPgToggle() {
   show('orc-pg-fin', on('orc-pg-ck-fin'));
 }
 
-// Bloco de pagamento para o PDF — junta TODAS as formas marcadas
-function orcPagamentoHTML(total) {
-  const on = id => !!document.getElementById(id)?.checked;
-  const br = d => d.toLocaleDateString('pt-BR');
-  const blocos = [];
-
-  if (on('orc-pg-ck-avista')) {
-    const d = orcVal('orc-parc-data'); const base = d ? new Date(d + 'T00:00:00') : new Date();
-    blocos.push(epAvistaBloco(total, br(base)));
-  }
-
-  if (on('orc-pg-ck-cartao')) {
-    const ns = [];
-    document.querySelectorAll('#orc-cartao-grid input[type="checkbox"]:checked').forEach(c => { const n = Number(c.dataset.n); if (n) ns.push(n); });
-    ns.sort((a, b) => a - b);
-    if (ns.length) {
-      // sem coluna de taxa: o cliente vê só o valor de cada parcela
-      const rows = ns.map(n => `<tr><td>${n}x</td><td class="num">${ORC_MONEY(orcParcelaCartao(total, n))}</td></tr>`).join('');
-      blocos.push(
-        `<div class="ep-sub" style="font-size:12px;margin:10px 0 6px">Cartão de crédito — parcelamos em:</div>` +
-        `<table class="ep-venc"><thead><tr><th>Parcelas</th><th class="num">Valor da parcela</th></tr></thead><tbody>${rows}</tbody></table>`);
-    }
-  }
-
-  if (on('orc-pg-ck-fin')) {
-    blocos.push(
-      `<div class="ep-fin-destaque" style="margin-top:10px"><div class="ep-fin-ic">★</div>` +
-      `<div><b>Financiamento bancário em até 72×.</b> Financia <b>apenas o carregador</b> (o equipamento); os demais itens do projeto seguem em condição própria. As parcelas e as condições são definidas mediante simulação com os documentos do cliente, sujeito à análise de crédito.</div></div>`);
-  }
-
-  return blocos.length ? blocos.join('') : `<div class="ep-sub" style="font-size:12px">Condição de pagamento a combinar.</div>`;
-}
-
 // (Vendedor agora vem do Simulador — el-autor / el-email / el-contato. Sem card próprio no Orçamento.)
 
 // Emitente (sua empresa) — persistência no navegador
@@ -6167,12 +6401,174 @@ function orcInit() {
   const dEmis = document.getElementById('orc-data'); if (dEmis && !dEmis.value) dEmis.value = orcHojeISO();
   const dVenc = document.getElementById('orc-parc-data'); if (dVenc && !dVenc.value) dVenc.value = orcHojeISO();
   const obs = document.getElementById('orc-obs'); if (obs && !obs.value.trim()) obs.value = ORC_OBS_PADRAO;
-  // primeiro item, com a potência do simulador se houver
-  const simEq = orcVal('el-equip');
-  if (!document.querySelector('#orc-itens .orc-item')) orcAddItem(simEq ? 'Carregador ' + simEq : 'Carregador DC — eletroposto', '8504.40.10', 1, '');
+  orcKitRender();
   orcRenderCartaoGrid();
   orcPgToggle();
   orcCalc();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ORÇAMENTO "1 PÁGINA" — documento único do Solar e do Eletroposto
+//
+// Clone do propostaSolar1Pagina do SolarDoc Pro: cabeçalho (logo | ficha),
+// três faixas de seção (Detalhamento · Composição · Análise Financeira) e o
+// rodapé escuro Vendedor | Empresa com QR do WhatsApp. Os dois produtos usam
+// EXATAMENTE a mesma estrutura — o que muda é a logo, o bloco de cores
+// (.orc1.solar / .orc1.ep) e o conteúdo de cada faixa.
+//
+// Os formatadores são portados do template do SolarDoc de propósito: se o
+// gerador usasse o fmt() dele, os números arredondariam diferente e o mesmo
+// orçamento sairia com valores diferentes nos dois lugares.
+// ═══════════════════════════════════════════════════════════════════════════
+const ORC1_EMPRESA = {
+  nome: 'Irmãos na Obra',
+  endereco: 'Avenida Ana Godoy de Sousa, 890, Santa Mônica - Uberlândia MG',
+  contato: '34998165040',
+};
+
+const o1Esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const o1BRL = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const o1Num = n => Math.round(Number(n) || 0).toLocaleString('pt-BR');
+const o1N1  = n => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+// kWp: inteiro sai sem decimal (5 → "5"), quebrado sai com vírgula (14,26)
+function o1Kwp(n) {
+  n = Number(n) || 0;
+  if (Math.abs(n - Math.round(n)) < 0.01) return String(Math.round(n));
+  return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',');
+}
+// Selo de validade: "VÁLIDO POR 7 DIAS · ATÉ 06/08/2026" (a data congela na emissão)
+function o1Validade(dias, base) {
+  dias = Math.max(1, Math.round(Number(dias) || 7));
+  const ini = base instanceof Date && !isNaN(base) ? base : new Date();
+  const ate = new Date(ini.getTime() + dias * 86400000);
+  const plural = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
+  return isNaN(ate.getTime())
+    ? `Válido por ${plural}`
+    : `Válido por ${plural} · até ${ate.toLocaleDateString('pt-BR')}`;
+}
+// QR do WhatsApp do rodapé. Sem a lib (cache velho do PWA) o bloco some inteiro
+// em vez de imprimir um quadrado vazio.
+function o1Qr(texto) {
+  try {
+    if (typeof qrcode !== 'function') return '';
+    const q = qrcode(0, 'M');
+    q.addData(texto);
+    q.make();
+    return q.createSvgTag({ cellSize: 3, margin: 0 });
+  } catch (e) { return ''; }
+}
+// Linha da Composição do Sistema: rótulo + etiqueta da marca + "INCLUÍDO · N UN"
+function o1LinhaInc(label, marca, direita) {
+  return `<div class="r"><span class="lab">${o1Esc(label)}${marca ? ` <em class="mkq">${o1Esc(marca)}</em>` : ''}</span><span class="inc">${o1Esc(direita)}</span></div>`;
+}
+
+// Monta o documento. d = {
+//   tema:'solar'|'ep', logo, marca, sub, titulo, data, fichaRows:[[k,v]], validade,
+//   tiles:[{k,v,u}], linhas:[[k,v]], compTab, compHTML,
+//   heroL:{k,v,s}, heroR:{k,v,s}, fin:[{k,v}], obs,
+//   vendedor:{nome,email,contato}, empresa:{nome,endereco,contato,email} }
+function orc1HTML(d) {
+  const emp = d.empresa || ORC1_EMPRESA;
+  const vend = d.vendedor || {};
+  const wa = String(vend.contato || emp.contato || '').replace(/\D/g, '');
+  const waLink = wa ? 'https://wa.me/' + (wa.startsWith('55') ? wa : '55' + wa) : '';
+  const qr = waLink ? o1Qr(waLink) : '';
+
+  const rowf = (k, v) => v ? `<div class="rowf"><span>${o1Esc(k)}</span><span>${o1Esc(v)}</span></div>` : '';
+  const tile = t => `<div class="tile"><div class="k">${o1Esc(t.k)}</div><div class="v num">${o1Esc(t.v)}${t.u ? `<u>${o1Esc(t.u)}</u>` : ''}</div></div>`;
+  const linha = l => `<div class="r"><span class="lab">${o1Esc(l[0])}</span><span class="val num">${o1Esc(l[1])}</span></div>`;
+  const fc = f => `<div class="fc"><div class="k">${o1Esc(f.k)}</div><div class="v num">${o1Esc(f.v)}</div></div>`;
+  const cardL = (k, v) => v ? `<div class="l"><span>${o1Esc(k)}</span><span>${o1Esc(v)}</span></div>` : '';
+
+  return `<div class="orc1 ${d.tema === 'ep' ? 'ep' : 'solar'}">
+  <div class="head">
+    <div class="brand">
+      ${d.logo ? `<img src="${o1Esc(d.logo)}" alt="${o1Esc(d.marca)}"/>` : ''}
+      <div class="mk">${o1Esc(d.marca)}<small>${o1Esc(d.sub)}</small></div>
+    </div>
+    <div class="ficha">
+      <div class="t">${o1Esc(d.titulo || 'Proposta Comercial')}</div>
+      ${rowf('Data', d.data)}
+      ${(d.fichaRows || []).map(r => rowf(r[0], r[1])).join('')}
+      ${d.validade ? `<div class="valid">${o1Esc(String(d.validade).toUpperCase())}</div>` : ''}
+    </div>
+  </div>
+
+  <div class="band"><div class="tab">${o1Esc(d.detTitulo || 'Detalhamento do Projeto')}</div><div class="bar"></div></div>
+  <div class="sec">
+    <div class="tiles">${(d.tiles || []).map(tile).join('')}</div>
+    <div class="rows">${(d.linhas || []).map(linha).join('')}</div>
+  </div>
+
+  <div class="band"><div class="tab">${o1Esc(d.compTitulo || 'Composição do Sistema')}</div><div class="bar"></div></div>
+  <div class="sec">${d.compHTML || ''}</div>
+
+  <div class="band"><div class="tab">Análise Financeira</div><div class="bar"></div></div>
+  <div class="fin">
+    <div class="hero">
+      <div class="heroL"><div class="k">${o1Esc(d.heroL.k)}</div><div class="v num">${o1Esc(d.heroL.v)}</div>${d.heroL.s ? `<div class="s">${o1Esc(d.heroL.s)}</div>` : ''}</div>
+      <div class="heroR"><div class="k">${o1Esc(d.heroR.k)}</div><div class="v num">${o1Esc(d.heroR.v)}</div>${d.heroR.s ? `<div class="s num">${o1Esc(d.heroR.s)}</div>` : ''}</div>
+    </div>
+    <div class="finGrid">${(d.fin || []).map(fc).join('')}</div>
+  </div>
+  ${d.obs ? `<div class="obs">${o1Esc(d.obs)}</div>` : ''}
+
+  <div class="foot">
+    <div class="pg">Forma de pagamento &amp; contato</div>
+    ${d.pagHTML || ''}
+    <div class="cols">
+      <div class="card">
+        <h4>Vendedor</h4>
+        ${cardL('Nome', vend.nome || '—')}
+        ${cardL('E-mail', vend.email)}
+        ${cardL('Contato', vend.contato)}
+        ${qr ? `<div class="qr"><div class="qrbox">${qr}</div><span>Aponte a câmera<br/>e fale no WhatsApp</span></div>` : ''}
+      </div>
+      <div class="card">
+        <h4>Empresa</h4>
+        ${cardL('Nome', emp.nome)}
+        ${cardL('Endereço', emp.endereco)}
+        ${cardL('Contato', emp.contato)}
+        ${cardL('E-mail', emp.email)}
+      </div>
+    </div>
+  </div>
+</div>`;
+}
+
+// Monta no host e manda pra impressora (nome do arquivo = título da aba).
+// opts.umaPagina encaixa o documento em UMA folha A4 — a promessa dos dois
+// orçamentos. Nome/endereço comprido, bateria no solar ou o kit inteiro marcado no
+// eletroposto passam de A4 por alguns milímetros; aí o documento encolhe em vez de
+// vazar pra segunda folha. Os dois conteúdos são LIMITADOS (solar: composição fixa;
+// eletroposto: no máximo os 8 itens do EP_KIT), então o pior caso é conhecido e o
+// piso existe só como trava de segurança — medido: solar 0,95 e eletroposto 0,80.
+// O encolhimento é tudo-ou-nada: abaixo do piso não encolhe nada e deixa paginar em
+// tamanho cheio, senão daria letra miúda E duas folhas do mesmo jeito.
+// zoom (e não transform:scale) porque só o zoom muda o layout que a paginação lê.
+function orc1Imprimir(html, nomeArq, opts) {
+  const host = document.getElementById('doc-print');
+  if (!host) return;
+  host.innerHTML = html;
+
+  const el = host.querySelector('.orc1');
+  if (el && opts && opts.umaPagina) {
+    const estiloAntes = host.getAttribute('style');
+    // mede fora da tela na largura real do papel (a tela esconde o host)
+    host.style.cssText = 'display:block;position:absolute;left:-10000px;top:0;width:210mm';
+    const regua = document.createElement('div');
+    regua.style.cssText = 'position:absolute;visibility:hidden;height:291mm';  // 297 − 6 de folga
+    document.body.appendChild(regua);
+    const limite = regua.offsetHeight;
+    regua.remove();
+    const alt = el.scrollHeight;
+    const piso = opts.piso || 0.82;
+    const fator = limite > 0 && alt > 0 ? limite / alt : 1;
+    if (fator < 1 && fator >= piso) el.style.zoom = String(fator.toFixed(4));
+    if (estiloAntes == null) host.removeAttribute('style'); else host.setAttribute('style', estiloAntes);
+  }
+
+  epPrint(host, nomeArq);
 }
 
 // ===== Componentes compartilhados dos PDFs do eletroposto (padrão único) =====
@@ -6213,108 +6609,207 @@ function epFooterBlockHTML(vend) {
     </div>`;
 }
 
-function orcImprimir() {
+// Lê a tela inteira e devolve o orçamento como DADOS puros — sem DOM.
+// É esse objeto que vira PDF agora e que é gravado no banco pro link: o cliente
+// que abre o link amanhã não tem o Simulador preenchido, então tudo que o
+// documento precisa mostrar tem que estar congelado aqui dentro.
+// nome/consultor/telefone/telefoneDigitos ficam na RAIZ porque é isso que o
+// get_proposta_pub devolve quando o link expira e o mostrarExpirado lê.
+function orcEpPayload() {
   const r = orcLerItens();
-  if (!r.itens.length) { alert('Adicione ao menos um item com valor para gerar o orçamento.'); return; }
+  if (!r.itens.length) return null;
 
-  const emit = {};
-  orcEmitCampos().forEach(k => { emit[k] = orcVal('orc-emit-' + k); });
-  const cli = {
-    nome: orcVal('el-cliente'), doc: orcVal('orc-cli-doc'), ie: orcVal('orc-cli-ie'),
-    end: orcVal('orc-cli-end'), cidade: orcVal('el-cidade'), cep: orcVal('orc-cli-cep'),
-    tel: orcVal('orc-cli-tel'), email: orcVal('orc-cli-email'),
-  };
-  const num = orcVal('orc-num');
+  const on = id => !!document.getElementById(id)?.checked;
+  const cartaoNs = [];
+  if (on('orc-pg-ck-cartao')) {
+    document.querySelectorAll('#orc-cartao-grid input[type="checkbox"]:checked')
+      .forEach(c => { const n = Number(c.dataset.n); if (n) cartaoNs.push(n); });
+  }
+
   const dEmisISO = orcVal('orc-data') || orcHojeISO();
-  const dEmis = new Date(dEmisISO + 'T00:00:00');
-  const dias = Math.max(1, Math.round(parseFloat(orcVal('orc-validade')) || 7));
-  const dVal = new Date(dEmis.getTime() + dias * 86400000);
-  const obs = orcVal('orc-obs') || ORC_OBS_PADRAO;
+  const telCli = orcVal('orc-cli-tel');
 
-  const linhasItens = r.itens.map(i =>
-    `<tr><td>${orcEsc(i.desc) || '—'}</td><td>${orcEsc(i.ncm)}</td><td class="num">${(+i.qtd).toLocaleString('pt-BR')}</td><td class="num">${ORC_MONEY(i.unit)}</td><td class="num">${ORC_MONEY(i.total)}</td></tr>`
-  ).join('');
+  return {
+    produto: 'eletroposto',
+    // raiz — lida pela tela de expirado e pelo histórico
+    nome: orcVal('el-cliente'),
+    consultor: orcVal('el-autor'),
+    telefone: telCli,
+    telefoneDigitos: telCli.replace(/\D/g, ''),
+    cidade: orcVal('el-cidade'),
+    // documento
+    num: orcVal('orc-num'),
+    dataEmissao: new Date(dEmisISO + 'T00:00:00').toISOString(),
+    validadeDias: Math.max(1, Math.round(parseFloat(orcVal('orc-validade')) || 7)),
+    doc: orcVal('orc-cli-doc'),
+    endereco: orcVal('orc-cli-end'),
+    titulo: 'Proposta Comercial',
+    itens: r.itens.map(i => ({ desc: i.desc, variante: i.variante || '' })),
+    total: r.total, subtotal: r.subtotal, frete: r.frete, desconto: r.desconto,
+    obs: orcVal('orc-obs') || ORC_OBS_PADRAO,
+    tiles: orc1EpTiles(),
+    linhas: orc1EpLinhas(),
+    fin: orc1EpFinanceiro(r.total),
+    pag: { vista: on('orc-pg-ck-avista'), cartaoNs, fin: on('orc-pg-ck-fin') },
+    vendedor: { nome: orcVal('el-autor'), email: orcVal('el-email'), contato: orcVal('el-contato') },
+    empresa: orc1EpEmpresa(),
+  };
+}
 
-  const vend = { nome: orcVal('el-autor'), email: orcVal('el-email'), contato: orcVal('el-contato') };
+// Payload → HTML do documento. Não toca no DOM: serve pra impressão e pro viewer.
+function orcEpDocHTML(d) {
+  const dEmis = d.dataEmissao ? new Date(d.dataEmissao) : new Date();
+  return orc1HTML({
+    tema: 'ep',
+    logo: '/gerador/logo-eletroposto.png',
+    marca: 'Irmãos na Obra',
+    sub: 'MOBILIDADE ELÉTRICA',
+    titulo: (d.titulo || 'Proposta Comercial') + (d.num ? ' Nº ' + d.num : ''),
+    data: dEmis.toLocaleDateString('pt-BR'),
+    fichaRows: [
+      ['Cliente', d.nome],
+      ['CNPJ/CPF', d.doc],
+      ['Endereço', [d.endereco, d.cidade].filter(Boolean).join(' — ')],
+    ],
+    validade: o1Validade(d.validadeDias || 7, dEmis),
+    detTitulo: 'Detalhamento do Projeto',
+    tiles: d.tiles || [],
+    linhas: d.linhas || [],
+    compTitulo: 'Composição do Sistema',
+    compHTML: orc1EpMateriais({ itens: d.itens || [] }),
+    heroL: d.fin.heroL, heroR: d.fin.heroR, fin: d.fin.fin,
+    obs: d.obs,
+    pagHTML: orc1PagChips({ total: d.total, ...(d.pag || {}) }),
+    vendedor: d.vendedor,
+    empresa: d.empresa,
+  });
+}
 
-  const cliColA = [
-    cli.nome ? `<span class="nm">${orcEsc(cli.nome)}</span>` : '<span class="nm">Cliente</span>',
-    cli.doc ? `CNPJ/CPF: <b>${orcEsc(cli.doc)}</b>` : '',
-    cli.ie ? `Inscrição Estadual: ${orcEsc(cli.ie)}` : '',
-  ].filter(Boolean).join('<br>');
-  const cliColB = [
-    cli.end ? orcEsc(cli.end) : '',
-    [cli.cidade && orcEsc(cli.cidade), cli.cep && ('CEP: ' + orcEsc(cli.cep))].filter(Boolean).join(' · '),
-    cli.tel ? 'Telefone: ' + orcEsc(cli.tel) : '',
-    cli.email ? 'E-mail: ' + orcEsc(cli.email) : '',
-  ].filter(Boolean).join('<br>');
+const orcEpArquivo = d => {
+  const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  return ['Orcamento', limpa(d.nome) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_');
+};
 
-  // corpo da caixa de proposta (topo direito, modelo)
-  const propRows = [
-    ['Cliente', cli.nome ? orcEsc(cli.nome) : ''],
-    ['CNPJ/CPF', cli.doc ? orcEsc(cli.doc) : ''],
-    ['Endereço', [cli.end && orcEsc(cli.end), cli.cidade && orcEsc(cli.cidade)].filter(Boolean).join(' — ')],
+function orcImprimir() {
+  const d = orcEpPayload();
+  if (!d) { alert('Marque ao menos um item do kit para gerar o orçamento.'); return; }
+  if (d.nome) epHistOrcSave({ id: epId(), tipo: 'Completo', cliente: d.nome, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() });
+  orc1Imprimir(orcEpDocHTML(d), orcEpArquivo(d), { umaPagina: true, piso: 0.74 });
+}
+
+// Link do orçamento de eletroposto. Aqui SIM grava linha nova em `propostas`
+// (tipo='eletroposto'), porque o eletroposto não tem proposta longa pra reusar —
+// e é essa linha que dá código, expiração de 7 dias, rastreio e histórico.
+async function orcEpLink() {
+  const d = orcEpPayload();
+  if (!d) { alert('Marque ao menos um item do kit para gerar o orçamento.'); return; }
+  if (!d.nome) { alert('Informe o cliente no Simulador antes de gerar o link.'); return; }
+  showToast('⏳ Gerando link...');
+  try {
+    const codigo = await salvarOrcamentoEpSupabase(d);
+    epHistOrcSave({ id: epId(), tipo: 'Completo', cliente: d.nome, valor: d.total, codigo,
+                    data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() });
+    const link = `${window.location.origin}${window.location.pathname}?p=${codigo}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try { await navigator.clipboard.writeText(link); showToast(`🔗 Link ${codigo} copiado!`); return; } catch (e) {}
+    }
+    fallbackCopy(link);
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Erro ao gerar o link');
+  }
+}
+
+// ═══════ Peças do orçamento de 1 página do ELETROPOSTO ═══════
+// A empresa do documento é a mesma cadastrada no pane (localStorage), só
+// remapeada pros nomes que o orc1HTML espera.
+function orc1EpEmpresa() {
+  const e = epEmitGet();
+  return {
+    nome: e.nome || ORC1_EMPRESA.nome,
+    endereco: [e.end, e.cidade].filter(Boolean).join(' · ') || ORC1_EMPRESA.endereco,
+    contato: e.tel || ORC1_EMPRESA.contato,
+    email: e.email,
+  };
+}
+
+// Os três números do topo. Sem simulação preenchida, cai pra quantidade de
+// carregadores do orçamento — nunca mostra "0" como se fosse resultado.
+function orc1EpTiles() {
+  const p = eletroParams();
+  const r = computeEletro(p);
+  const qtd = Math.max(1, Math.round(elNum('el-qtd') || 1));
+  const sessoes = p.carros * 30;
+  return [
+    { k: 'Pontos de recarga', v: String(qtd), u: 'un' },
+    { k: 'Sessões/mês', v: sessoes > 0 ? o1Num(sessoes) : '—', u: sessoes > 0 ? 'recargas' : '' },
+    { k: 'Energia/mês', v: r.kwhMes > 0 ? o1Num(r.kwhMes) : '—', u: r.kwhMes > 0 ? 'kWh' : '' },
   ];
+}
 
-  const host = document.getElementById('eletro-print');
-  host.innerHTML = `
-    <div class="ep-doc">
-      <div class="ep-page">
-      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      ${epTopoHTML('Proposta Comercial' + (num ? ' Nº ' + orcEsc(num) : ''), dEmis.toLocaleDateString('pt-BR'), propRows, 'Válido por ' + dias + ' dias')}
+// Ficha técnica da operação (o "detalhamento" do solar). Linha some quando o
+// dado não existe — orçamento sem simulador não fica com um monte de zero.
+function orc1EpLinhas() {
+  const p = eletroParams();
+  const t = eletroTextos();
+  const L = [];
+  if (t.equip) L.push(['Equipamento', 'Carregador ' + t.equip]);
+  // O local não repete aqui — já sai no Endereço da ficha do topo, e cada linha a
+  // mais empurra o documento pra fora da folha única.
+  if (p.carros > 0) L.push(['Carros por dia (regime pleno)', o1Num(p.carros)]);
+  if (p.carga > 0) L.push(['Carga média por sessão', `${o1Num(p.carga)} kWh`]);
+  if (p.precoKwh > 0) L.push(['Preço ao motorista', `${o1BRL(p.precoKwh)} /kWh`]);
+  if (p.ativacao > 0) L.push(['Taxa de ativação por sessão', o1BRL(p.ativacao)]);
+  if (!L.length) L.push(['Escopo', 'Chave na mão — equipamento, projeto, instalação e homologação']);
+  return L;
+}
 
-      <div class="ep-section">Informações do cliente</div>
-      <div class="ep-cliente-box">
-        <div class="col">${cliColA}</div>
-        ${cliColB ? `<div class="col">${cliColB}</div>` : ''}
-      </div>
+// Composição = os itens marcados no kit, cada um como "INCLUÍDO" — igualzinho ao
+// solar. Preço de item NÃO sai no documento: o cliente vê um preço final só.
+function orc1EpMateriais(r) {
+  const linhas = r.itens.map(i => o1LinhaInc(i.desc, i.variante || '', 'Incluído')).join('');
+  return `<div class="rows">${linhas}</div>`;
+}
 
-      <div class="ep-section">Itens da proposta</div>
-      <table class="ep-itens">
-        <thead><tr><th>Descrição</th><th>NCM</th><th class="num">Qtd.</th><th class="num">Valor unit.</th><th class="num">Valor total</th></tr></thead>
-        <tbody>${linhasItens}</tbody>
-      </table>
-      <table class="ep-totais">
-        <tr><td>Subtotal</td><td>${ORC_MONEY(r.subtotal)}</td></tr>
-        ${r.frete > 0 ? `<tr><td>Frete</td><td>${ORC_MONEY(r.frete)}</td></tr>` : ''}
-        ${r.desconto > 0 ? `<tr><td>Desconto</td><td>- ${ORC_MONEY(r.desconto)}</td></tr>` : ''}
-        <tr class="tot"><td>Total</td><td>${ORC_MONEY(r.total)}</td></tr>
-      </table>
+// Bloco financeiro: o retorno estimado (quando o Simulador tem números) de um
+// lado, o investimento do outro, e os três indicadores da operação embaixo.
+function orc1EpFinanceiro(total) {
+  const r = computeEletro(eletroParams());
+  const temSim = r.investTotal > 0 && r.fatMes > 0;
+  return {
+    heroL: temSim
+      ? { k: 'Lucro acumulado em 10 anos', v: o1BRL(r.acumulado10), s: 'já descontados energia, taxas, custos fixos e a rampa de ocupação' }
+      : { k: 'Escopo', v: 'Chave na mão', s: 'equipamento, projeto, instalação, homologação e suporte inclusos' },
+    heroR: { k: 'Investimento', v: o1BRL(total), s: '' },
+    fin: temSim
+      ? [
+          { k: 'Faturamento/mês', v: o1BRL(r.fatMes) },
+          { k: 'Lucro/mês', v: o1BRL(r.lucroMes) },
+          { k: 'Tempo de retorno', v: r.payback == null ? '—' : elAnos1(r.payback) },
+        ]
+      : [
+          { k: 'Garantia', v: '24 meses' },
+          { k: 'Homologação', v: 'Inclusa' },
+          { k: 'Suporte', v: 'Incluso' },
+        ],
+  };
+}
 
-      <div class="ep-section">Condição de pagamento</div>
-      ${orcPagamentoHTML(r.total)}
-
-      <div class="ep-obs">${orcEsc(obs)}</div>
-      ${epFooterBlockHTML(vend)}
-      <div class="ep-foot">Documento sem valor fiscal — a nota fiscal é emitida no faturamento.</div>
-      </div><!-- /página única -->
-    </div>`;
-
-  if (cli.nome) epHistOrcSave({ id: epId(), tipo: 'Completo', cliente: cli.nome, valor: r.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() });
-
-  const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
-  const nomeArq = ['Orcamento', limpa(cli.nome) || 'Cliente', num ? 'N' + limpa(num) : ''].filter(Boolean).join('_');
-  const tituloOriginal = document.title;
-  const restaurar = () => { document.title = tituloOriginal; };
-  document.title = nomeArq;
-  window.addEventListener('afterprint', restaurar, { once: true });
-  const imgs = Array.from(host.querySelectorAll('img')).filter(im => !im.complete);
-  const aguarda = imgs.length
-    ? Promise.race([
-        Promise.all(imgs.map(im => new Promise(res => { im.onload = im.onerror = res; }))),
-        new Promise(res => setTimeout(res, 1500)),
-      ])
-    : Promise.resolve();
-  aguarda.then(() => { window.print(); setTimeout(restaurar, 2000); });
+// Chips de condição de pagamento na faixa do rodapé.
+function orc1PagChips(o) {
+  const chips = [];
+  if (o.vista) chips.push(`<div class="pag"><b>À vista</b><span>${o1BRL(o.total)}</span></div>`);
+  const ns = (o.cartaoNs || []).slice().sort((a, b) => a - b);
+  if (ns.length) {
+    const maior = ns[ns.length - 1];
+    chips.push(`<div class="pag"><b>Cartão de crédito</b><span>até ${maior}× de ${o1BRL(orcParcelaCartao(o.total, maior))}</span></div>`);
+  }
+  if (o.fin) chips.push(`<div class="pag"><b>Financiamento bancário</b><span>até 72× (só o carregador, sujeito a análise)</span></div>`);
+  return chips.length ? `<div class="pags">${chips.join('')}</div>` : '';
 }
 
 // ===== WhatsApp do orçamento (compartilhado básico/completo) =====
-// Bloco "À vista" — sempre o valor cheio (usado no básico e no completo)
-function epAvistaBloco(total, dataStr) {
-  return `<div class="ep-sub" style="font-size:12px;margin-bottom:6px">À vista</div>` +
-    `<table class="ep-venc"><thead><tr><th>Parcela</th><th>Vencimento</th><th class="num">Valor</th></tr></thead>` +
-    `<tbody><tr><td>1 — à vista</td><td>${dataStr}</td><td class="num">${ORC_MONEY(total)}</td></tr></tbody></table>`;
-}
 // Texto do orçamento pronto pro WhatsApp (valor + formas de pagamento)
 function epWhatsTextoOrcamento(total) {
   const t = eletroTextos();
@@ -6337,24 +6832,21 @@ function epWhatsOrcamento(total) {
   window.open('https://wa.me/?text=' + encodeURIComponent(epWhatsTextoOrcamento(total)), '_blank', 'noopener');
 }
 
-// ===== ORÇAMENTO BÁSICO — 1 clique do Simulador (equipamento + valor + pagamento) =====
-// Formas de pagamento padrão (à vista + cartão 12x/21x + financiamento), sem digitar nada.
-function epPagamentoBasico(total) {
-  const d = new Date(orcHojeISO() + 'T00:00:00');
-  const cart = [12, 21].map(n => `<tr><td>${n}x</td><td class="num">${ORC_MONEY(orcParcelaCartao(total, n))}</td></tr>`).join('');
-  return `
-      ${epAvistaBloco(total, d.toLocaleDateString('pt-BR'))}
-      <div class="ep-sub" style="font-size:12px;margin:10px 0 6px">Cartão de crédito — parcelamos em:</div>
-      <table class="ep-venc"><thead><tr><th>Parcelas</th><th class="num">Valor da parcela</th></tr></thead><tbody>${cart}</tbody></table>
-      <div class="ep-fin-destaque" style="margin-top:10px"><div class="ep-fin-ic">★</div>
-        <div><b>Financiamento bancário em até 72×.</b> Financia <b>apenas o carregador</b> (o equipamento); os demais itens do projeto seguem em condição própria. As parcelas e as condições são definidas mediante simulação com os documentos do cliente, sujeito à análise de crédito.</div></div>`;
-}
-
-// Disparo de impressão compartilhado (troca título -> nome do arquivo, espera imagens, print)
+// Disparo de impressão compartilhado (troca título -> nome do arquivo, espera imagens, print).
+// A classe print-doc no <body> é o que diz pro CSS "o que vai pro papel é o host de
+// documento, não a tela". Sem ela nada sai — e sem tirá-la depois o Ctrl+P seguinte
+// imprimiria o documento velho em vez da proposta na tela.
 function epPrint(host, nomeArq) {
+  // Só um documento por impressão: os dois hosts ficam visíveis sob print-doc, então
+  // o que sobrou do documento anterior sairia grudado neste no mesmo PDF.
+  ['eletro-print', 'doc-print'].forEach(id => {
+    const h = document.getElementById(id);
+    if (h && h !== host) h.innerHTML = '';
+  });
   const tituloOriginal = document.title;
-  const restaurar = () => { document.title = tituloOriginal; };
+  const restaurar = () => { document.title = tituloOriginal; document.body.classList.remove('print-doc'); };
   document.title = nomeArq;
+  document.body.classList.add('print-doc');
   window.addEventListener('afterprint', restaurar, { once: true });
   const imgs = Array.from(host.querySelectorAll('img')).filter(im => !im.complete);
   const aguarda = imgs.length
@@ -6375,45 +6867,42 @@ function epBasicoImprimir() {
 
   const hoje = new Date();
   const dias = 7;
-  const dVal = new Date(hoje.getTime() + dias * 86400000);
-  const qtd = Math.max(1, Math.round(elNum('el-qtd') || 1));
-  const unit = total / qtd;
-  const equipDesc = t.equip ? 'Eletroposto chave na mão — Carregador ' + orcEsc(t.equip) : 'Eletroposto chave na mão — carregador DC';
 
-  const propRows = [
-    ['Cliente', t.cliente ? orcEsc(t.cliente) : ''],
-    ['Local', t.cidade ? orcEsc(t.cidade) : ''],
-  ];
+  // O básico sai do Simulador, sem passar pelo kit: então lista o escopo fechado
+  // em vez de itens marcados. Nada aqui promete item que o consultor não escolheu.
+  const itensBasico = { itens: [
+    { desc: 'Carregador', variante: t.equip || '' },
+    { desc: 'Projeto de engenharia e homologação na concessionária', variante: '' },
+    { desc: 'Mão de obra e instalação', variante: '' },
+    { desc: 'Infraestrutura elétrica e civil', variante: '' },
+    { desc: 'Suporte e garantia de 24 meses', variante: '' },
+  ], subtotal: total, frete: 0, desconto: 0, total };
 
-  const host = document.getElementById('eletro-print');
-  host.innerHTML = `
-    <div class="ep-doc">
-      <div class="ep-page">
-      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      ${epTopoHTML('Orçamento — Eletroposto', hoje.toLocaleDateString('pt-BR'), propRows, 'Válido por ' + dias + ' dias')}
-
-      <div class="ep-section">Investimento</div>
-      <table class="ep-itens">
-        <thead><tr><th>Descrição</th><th class="num">Qtd.</th><th class="num">Valor unit.</th><th class="num">Valor total</th></tr></thead>
-        <tbody><tr><td>${equipDesc} — projeto, instalação, homologação e suporte inclusos</td><td class="num">${qtd.toLocaleString('pt-BR')}</td><td class="num">${ORC_MONEY(unit)}</td><td class="num">${ORC_MONEY(total)}</td></tr></tbody>
-      </table>
-      <table class="ep-totais">
-        <tr class="tot"><td>Investimento total</td><td>${ORC_MONEY(total)}</td></tr>
-      </table>
-
-      <div class="ep-section">Condição de pagamento</div>
-      ${epPagamentoBasico(total)}
-
-      <div class="ep-obs">${orcEsc(ORC_OBS_PADRAO)}</div>
-      ${epFooterBlockHTML({ nome: t.autor, email: t.email, contato: t.contato })}
-      <div class="ep-foot">Orçamento de referência — chave na mão. Documento sem valor fiscal; a nota fiscal é emitida no faturamento.</div>
-      </div><!-- /página única -->
-    </div>`;
+  const html = orc1HTML({
+    tema: 'ep',
+    logo: '/gerador/logo-eletroposto.png',
+    marca: 'Irmãos na Obra',
+    sub: 'MOBILIDADE ELÉTRICA',
+    titulo: 'Orçamento — Eletroposto',
+    data: hoje.toLocaleDateString('pt-BR'),
+    fichaRows: [['Cliente', t.cliente], ['Local', t.cidade]],
+    validade: o1Validade(dias, hoje),
+    detTitulo: 'Detalhamento do Projeto',
+    tiles: orc1EpTiles(),
+    linhas: orc1EpLinhas({ cidade: t.cidade }),
+    compTitulo: 'Composição do Sistema',
+    compHTML: orc1EpMateriais(itensBasico),
+    ...orc1EpFinanceiro(total),
+    obs: ORC_OBS_PADRAO,
+    pagHTML: orc1PagChips({ total, vista: true, cartaoNs: ORC_CARTAO_DEFAULT, fin: true }),
+    vendedor: { nome: t.autor, email: t.email, contato: t.contato },
+    empresa: orc1EpEmpresa(),
+  });
 
   if (t.cliente) epHistOrcSave({ id: epId(), tipo: 'Básico', cliente: t.cliente, valor: total, data: new Date().toLocaleDateString('pt-BR') });
 
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
-  epPrint(host, ['Orcamento', 'Basico', limpa(t.cliente) || 'Cliente'].filter(Boolean).join('_'));
+  orc1Imprimir(html, ['Orcamento', 'Basico', limpa(t.cliente) || 'Cliente'].filter(Boolean).join('_'), { umaPagina: true, piso: 0.74 });
 }
 
 // ===== Histórico de orçamentos (neste dispositivo, localStorage) =====
@@ -6447,18 +6936,24 @@ function epHistOrcAbrir(id) {
 function orcSnapTake() {
   const v = id => (document.getElementById(id)?.value) || '';
   const ck = id => !!document.getElementById(id)?.checked;
-  const items = [];
-  document.querySelectorAll('#orc-itens .orc-item').forEach(row => items.push({
-    desc: row.querySelector('.orc-desc').value, ncm: row.querySelector('.orc-ncm').value,
-    qtd: row.querySelector('.orc-qtd').value, unit: row.querySelector('.orc-unit').value,
-  }));
+  const kit = [];
+  document.querySelectorAll('#orc-kit .orc-kit-row').forEach(row => {
+    const sel = row.querySelector('.orc-kit-opt');
+    kit.push({
+      id: row.dataset.id,
+      on: row.querySelector('input[type="checkbox"]').checked,
+      preco: row.querySelector('.orc-kit-preco').value,
+      opt: sel ? sel.value : null,
+      tocado: row.querySelector('.orc-kit-preco').dataset.tocado === '1',
+    });
+  });
   const cart = [];
   document.querySelectorAll('#orc-cartao-grid input[type="checkbox"]:checked').forEach(c => cart.push(Number(c.dataset.n)));
   return {
     num: v('orc-num'), data: v('orc-data'), validade: v('orc-validade'),
     doc: v('orc-cli-doc'), ie: v('orc-cli-ie'), end: v('orc-cli-end'), cep: v('orc-cli-cep'), tel: v('orc-cli-tel'), email: v('orc-cli-email'),
     frete: v('orc-frete'), desc: v('orc-desc'), obs: v('orc-obs'), parcData: v('orc-parc-data'),
-    pgA: ck('orc-pg-ck-avista'), pgC: ck('orc-pg-ck-cartao'), pgF: ck('orc-pg-ck-fin'), cart, items,
+    pgA: ck('orc-pg-ck-avista'), pgC: ck('orc-pg-ck-cartao'), pgF: ck('orc-pg-ck-fin'), cart, kit,
   };
 }
 function orcSnapApply(s) {
@@ -6470,8 +6965,22 @@ function orcSnapApply(s) {
   set('orc-cli-doc', s.doc); set('orc-cli-ie', s.ie); set('orc-cli-end', s.end); set('orc-cli-cep', s.cep); set('orc-cli-tel', s.tel); set('orc-cli-email', s.email);
   set('orc-frete', s.frete); set('orc-desc', s.desc); set('orc-obs', s.obs); set('orc-parc-data', s.parcData);
   setck('orc-pg-ck-avista', s.pgA); setck('orc-pg-ck-cartao', s.pgC); setck('orc-pg-ck-fin', s.pgF);
-  const box = document.getElementById('orc-itens');
-  if (box) { box.innerHTML = ''; (s.items || []).forEach(it => orcAddItem(it.desc, it.ncm, it.qtd, it.unit)); if (!box.children.length) orcAddItem(); }
+  // Kit: reaplica marcação, potência do carregador e preços negociados.
+  // Orçamento salvo antes do kit travado (s.items) não tem o que restaurar aqui —
+  // o kit fica no padrão e o consultor remarca; melhor isso do que quebrar o histórico.
+  (s.kit || []).forEach(k => {
+    const row = document.querySelector(`#orc-kit .orc-kit-row[data-id="${k.id}"]`);
+    if (!row) return;
+    const chk = row.querySelector('input[type="checkbox"]');
+    chk.checked = !!k.on;
+    row.classList.toggle('on', chk.checked);
+    row.classList.toggle('off', !chk.checked);
+    const sel = row.querySelector('.orc-kit-opt');
+    if (sel && k.opt != null) sel.value = k.opt;
+    const preco = row.querySelector('.orc-kit-preco');
+    if (k.preco != null) preco.value = k.preco;
+    if (k.tocado) preco.dataset.tocado = '1'; else delete preco.dataset.tocado;
+  });
   const cset = new Set(s.cart || []);
   document.querySelectorAll('#orc-cartao-grid input[type="checkbox"]').forEach(c => { c.checked = cset.has(Number(c.dataset.n)); });
   orcPgToggle(); orcCalc();
@@ -7920,6 +8429,17 @@ function abrirNovoContato() {
   document.getElementById('nc-tel').value = '';
   document.getElementById('nc-cidade').value = '';
   document.getElementById('nc-erro').textContent = '';
+  // Dono do card = quem VAI ATENDER, não necessariamente quem está cadastrando:
+  // indicação que chega pra um consultor costuma ser cliente de outro. Vem
+  // pré-marcado no logado (caso comum) e é trocável no ato.
+  const sel = document.getElementById('nc-consultor');
+  if (sel) {
+    const meu = crmConsultorLogado();
+    sel.innerHTML = CRM_CONSULTORES_VALIDOS
+      .map(n => `<option value="${n}"${n === meu ? ' selected' : ''}>${n}${n === meu ? ' (você)' : ''}</option>`)
+      .join('');
+    if (!meu) sel.insertAdjacentHTML('afterbegin', '<option value="" selected>Selecione…</option>');
+  }
   document.getElementById('modal-novo-contato').classList.add('show');
   setTimeout(() => document.getElementById('nc-nome').focus(), 50);
 }
@@ -7953,30 +8473,45 @@ async function salvarNovoContato() {
   }
   delete erro.dataset.confirmado;
 
-  const consultor = getConsultorAtual();
-  if (!consultor) { erro.textContent = 'Sessão sem consultor. Recarregue e entre de novo.'; return; }
+  // DONO = quem vai atender (escolhido no modal) — é ele que manda na carteira
+  // do board. CRIADOR = quem está cadastrando; fica só no created_by, como
+  // rastro de quem digitou. Cair no logado/prefs quando o select não responder.
+  const dono = (document.getElementById('nc-consultor')?.value || '').trim()
+            || crmConsultorLogado() || getConsultorAtual();
+  if (!dono) { erro.textContent = 'Escolha o consultor que vai atender.'; return; }
+  const criador = crmConsultorLogado() || getConsultorAtual() || dono;
 
   btn.disabled = true;
   const txtOrig = btn.textContent;
   btn.textContent = 'Criando…';
   try {
     await supaInsert('agendamentos', {
-      vendedor_nome:    consultor,
+      vendedor_nome:    dono,                 // quem vai atender = dono do card
       quando:           null,                 // sem data — contato solto
       cliente_nome:     nome,
       cliente_telefone: crmTelBonito(telDigits), // 55 + DDD + número
       cidade:           cidade || null,
       status:           'falando_whatsapp',   // cai na coluna Falando WhatsApp
-      created_by:       consultor,
+      created_by:       criador,              // rastro de quem cadastrou (vira etiqueta "Manual")
     });
     fecharNovoContato();
-    showToast('✅ Contato criado');
+    // O board abre filtrado pela carteira de UM consultor (navCRM) e ainda filtra
+    // pela busca. Se o contato nasce na carteira de outro — ou sobrou texto na
+    // busca — ele some de todas as colunas e parece que não foi criado. Então
+    // aponta o board pra onde o card caiu ANTES de recarregar.
+    if (crmFiltroConsultor !== '__todos__' && crmFiltroConsultor !== dono) {
+      crmFiltroConsultor = dono;
+    }
+    const inBusca = document.getElementById('crm-busca');
+    if (inBusca) inBusca.value = '';
+    showToast(`✅ Contato criado na carteira de ${dono}`);
     await carregarCRM(true);
+    crmScrollToCol('whatsapp');   // rola até a coluna onde ele caiu e pisca
   } catch (e) {
     // vendedor_nome tem FK pra `consultores` — se o nome da sessão não casar, é esse o erro.
     const msg = String((e && e.message) || e);
     erro.textContent = /foreign key|consultores|fkey/i.test(msg)
-      ? `Consultor "${consultor}" não está cadastrado. Recarregue e entre de novo.`
+      ? `Consultor "${dono}" não está cadastrado. Recarregue e entre de novo.`
       : 'Erro ao criar. Tente de novo.';
     console.error('novo contato', e);
   } finally {
@@ -8053,7 +8588,11 @@ async function carregarCRM(forcar) {
   let props = [], agends = [], leads = [], perdidos = [];
   try {
     [props, agends, leads] = await Promise.all([
-      supaGet('propostas?select=codigo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
+      // tipo=eq.solar: o CRM é o funil do solar. Orçamento de eletroposto agora
+      // divide a tabela `propostas`, e sem este filtro ele entraria aqui como
+      // cliente — pior, o chaveCliente dedupa por telefone e fundiria o card do
+      // eletroposto com o do solar do mesmo cliente.
+      supaGet('propostas?tipo=eq.solar&select=codigo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
       supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at,created_by,src,proposta_por,proposta_em&order=quando.desc&limit=1000'),
       supaGet('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc&limit=1000')
     ]);
@@ -8497,7 +9036,7 @@ function exportarHistoricoCSV() {
   }
   const rows = getRowsFiltradas();
   const headers = [
-    'Código','Criado','Telefone','Cliente','Consultor','Cidade','UF',
+    'Código','Produto','Criado','Telefone','Cliente','Consultor','Cidade','UF',
     'kWp','Geração (kWh)','Placas','Inversor','Qtd Inv','Telhado','Fase',
     'Status','Orçamento (R$)','Valor vendido (R$)','Forma pgto','Vendido em','Vendido por','Obs venda',
     'Aberturas','Último acesso','Links enviados','WhatsApp enviados'
@@ -8510,10 +9049,10 @@ function exportarHistoricoCSV() {
   const lines = [headers.join(';')];
   for (const r of rows) {
     const tel = (r.dados && (r.dados.telefone || r.dados.telefoneDigitos)) || '';
-    const valor = (r.dados && r.dados.precoVista) || 0;
+    const valor = (r.dados && (r.dados.precoVista != null ? r.dados.precoVista : r.dados.total)) || 0;
     const status = r.vendido ? 'Vendido' : 'Pendente';
     lines.push([
-      r.codigo, formatDataBR(r.created_at), tel, r.cliente_nome || '', r.consultor_nome || '',
+      r.codigo, (r.tipo === 'eletroposto' ? 'Eletroposto' : 'Solar'), formatDataBR(r.created_at), tel, r.cliente_nome || '', r.consultor_nome || '',
       r.cliente_cidade || '', r.cliente_uf || '',
       r.kwp || '', r.geracao_kwh || '', r.qtd_placas || '', r.inversor || '', r.qtd_inversor || '',
       r.telhado || '', r.fase || '',
@@ -9063,8 +9602,114 @@ function cancelarEdicao() {
 }
 
 // ============= PDF =============
+// Imprime a proposta longa (tela 2) — é o mesmo alvo do /gerador/pdf/:codigo.
+// A classe print-proposta é obrigatória: o CSS de impressão esconde tudo por
+// padrão pra não misturar a tela com os documentos montados nos hosts de print.
 function gerarPDF() {
+  const restaurar = () => document.body.classList.remove('print-proposta');
+  document.body.classList.add('print-proposta');
+  window.addEventListener('afterprint', restaurar, { once: true });
   window.print();
+  setTimeout(restaurar, 2000);
+}
+
+// ===== ORÇAMENTO SOLAR EM 1 PÁGINA (A4) =====
+// Mesmo documento do eletroposto (orc1HTML), com a logo e a paleta do solar.
+// Recebe o mesmo objeto `dados` que a proposta longa usa — nenhum número é
+// recalculado aqui, senão o PDF e a proposta poderiam divergir. Por isso o link
+// do orçamento é o MESMO ?p=CODIGO da proposta, só com &v=orc: a linha no banco
+// já tem tudo, não precisa de registro novo nem de rastreio separado.
+function orcSolarDocHTML(d) {
+  const emissao = d.dataEmissao ? new Date(d.dataEmissao) : new Date();
+  const qtdMod = d.item.n;
+  const marcaMod = [d.tab.mod, d.tab.pot ? d.tab.pot + 'W' : ''].filter(Boolean).join(' · ');
+  const marcaInv = String(d.tab.inv || '').trim();
+
+  // Investimento: mesma leitura da tela (headline = valor do orçamento; a linha de
+  // baixo mostra o à vista quando essa forma está ligada, senão a maior parcela).
+  const po = d.pagOpts || {};
+  let sub = '';
+  if ((po.vista == null || po.vista) && d.precoVista > 0 && d.precoVista !== d.precoOrcamento) {
+    sub = 'à vista ' + o1BRL(d.precoVista);
+  } else {
+    const parcs = (po.cartao && po.cartao.ativo && po.cartao.parcelas) ? po.cartao.parcelas.slice() : [];
+    const maior = parcs.length ? Math.max.apply(null, parcs) : 0;
+    const mapa = d.parcelasCartao || {};
+    if (maior && mapa[maior] > 0) sub = `ou ${maior}× de ${o1BRL(mapa[maior])}`;
+  }
+
+  const linhas = [];
+  if (d.consumoKwh > 0) linhas.push(['Consumo médio mensal', `${o1Num(d.consumoKwh)} kWh`]);
+  linhas.push(['Quantidade de módulos fotovoltaicos', String(qtdMod)]);
+  if (parseFloat(d.areaReal) > 0) linhas.push(['Área mínima necessária', `${o1N1(parseFloat(d.areaReal))} m²`]);
+  linhas.push(['Tarifa de energia', `${o1BRL(d.tarifa)} /kWh`]);
+
+  const comp = [
+    o1LinhaInc('Módulos fotovoltaicos', marcaMod, `Incluído · ${qtdMod} un`),
+    o1LinhaInc('Inversor', marcaInv, `Incluído · ${d.qtdInv} un`),
+    (d.bateria && d.bateria.incluir) ? o1LinhaInc('Bateria', [d.bateria.modelo, d.bateria.capacidade > 0 ? String(d.bateria.capacidade).replace('.', ',') + ' kWh' : ''].filter(Boolean).join(' · '), `Incluído · ${d.bateria.qtd || 1} un`) : '',
+    o1LinhaInc('Estrutura e materiais elétricos', '', 'Incluído'),
+    o1LinhaInc('Projeto de engenharia e conexão à rede', '', 'Incluído'),
+    o1LinhaInc('Serviço de instalação', '', 'Incluído'),
+    o1LinhaInc(`Garantias (painéis ${d.garPaineis} anos · inversor ${d.garInv} anos)`, '', 'Incluído'),
+  ].filter(Boolean).join('');
+
+  return orc1HTML({
+    tema: 'solar',
+    logo: '/gerador/logo.png',
+    marca: 'Irmãos na Obra',
+    sub: 'ENERGIA SOLAR',
+    titulo: 'Proposta Comercial',
+    data: emissao.toLocaleDateString('pt-BR'),
+    fichaRows: [['Cliente', d.nome], ['Endereço', d.cidade]],
+    validade: o1Validade(7, emissao),
+    detTitulo: 'Detalhamento do Projeto',
+    tiles: [
+      { k: 'Potência instalada', v: o1Kwp(d.item.kwp), u: 'kWp' },
+      { k: 'Produção média/mês', v: o1Num(d.mediaMensalGerada || d.item.g), u: 'kWh' },
+      { k: 'Autonomia', v: String(d.economiaPercent != null ? d.economiaPercent : 100), u: '%' },
+    ],
+    linhas,
+    compTitulo: 'Composição do Sistema',
+    compHTML: `<div class="rows">${comp}</div>`,
+    heroL: { k: 'Economia em 25 anos', v: o1BRL(d.economia25), s: 'com o sistema quitado gerando energia própria' },
+    heroR: { k: 'Investimento', v: o1BRL(d.precoOrcamento), s: sub },
+    fin: [
+      { k: 'Economia mensal', v: o1BRL(d.economia) },
+      { k: 'Conta após instalação', v: o1BRL(d.taxaMin) },
+      { k: 'Tempo de retorno', v: d.paybackTextoLong || (d.payback + ' anos') },
+    ],
+    vendedor: { nome: d.consultor || '', contato: ORC1_EMPRESA.contato },
+    empresa: ORC1_EMPRESA,
+  });
+}
+
+// Botão "Orçamento em PDF" da tela da proposta.
+function orcSolarImprimir() {
+  if (!dadosAtual) { showToast('Gere a proposta primeiro'); return; }
+  const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  orc1Imprimir(orcSolarDocHTML(dadosAtual), ['Orcamento', 'Solar', limpa(dadosAtual.nome) || 'Cliente'].filter(Boolean).join('_'), { umaPagina: true });
+}
+
+// Link do orçamento solar. NÃO cria registro novo: é a mesma proposta no banco,
+// só com &v=orc pra abrir no desenho de 1 página. O rastreio de abertura e a
+// contagem de acessos são os mesmos da proposta — um cliente, um código.
+async function orcSolarLink() {
+  if (!dadosAtual) { showToast('Gere a proposta primeiro'); return; }
+  showToast('⏳ Gerando link...');
+  try {
+    const codigo = await garantirCodigo();
+    supaRpc('marcar_enviado_link', { p_codigo: codigo }).catch(e => console.error(e));
+    const link = `${window.location.origin}${window.location.pathname}?p=${codigo}&v=orc`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try { await navigator.clipboard.writeText(link); showToast('🔗 Link do orçamento copiado!'); return; } catch (e) {}
+    }
+    fallbackCopy(link);
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Erro ao gerar o link');
+  }
 }
 
 // Monta o bloco "Formas de pagamento" do texto do WhatsApp respeitando d.pagOpts

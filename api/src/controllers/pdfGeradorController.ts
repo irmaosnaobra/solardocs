@@ -63,10 +63,16 @@ export async function generateGeradorPdf(req: Request, res: Response): Promise<v
     stage = 'wait-render';
     // Função passada como string — executa no contexto do browser via Puppeteer,
     // evita TypeScript reclamando do `document` global.
+    // Duas telas podem ser o alvo: a proposta longa do solar e o orçamento de 1
+    // página (?v=orc, e sempre no eletroposto). Esperar só pela proposta faria o
+    // orçamento estourar timeout — a tela dele nunca aparece.
     await page.waitForFunction(
       `(() => {
-        const el = document.getElementById('propostaSection');
-        return !!el && el.style.display !== 'none' && el.offsetHeight > 400;
+        const visivel = (id, min) => {
+          const el = document.getElementById(id);
+          return !!el && el.style.display !== 'none' && el.offsetHeight > min;
+        };
+        return visivel('propostaSection', 400) || visivel('orcViewSection', 200);
       })()`,
       { timeout: 20000 }
     );
@@ -74,6 +80,20 @@ export async function generateGeradorPdf(req: Request, res: Response): Promise<v
     await new Promise((r) => setTimeout(r, 800));
 
     stage = 'emulate-media';
+    // O CSS de impressão do gerador esconde TUDO por padrão e só libera o alvo
+    // marcado no <body> — senão a tela e os documentos montados nos hosts de
+    // print sairiam juntos. Sem esta classe o PDF vem em branco.
+    // No orçamento de 1 página, o alvo é o host de documento: monta o mesmo HTML
+    // que está na tela dentro dele e imprime por ali.
+    await page.evaluate(`(() => {
+      const orc = document.getElementById('orcViewSection');
+      const folha = document.getElementById('orcview-folha');
+      if (orc && orc.style.display !== 'none' && folha && folha.innerHTML) {
+        const host = document.getElementById('doc-print');
+        if (host) { host.innerHTML = folha.innerHTML; document.body.classList.add('print-doc'); return; }
+      }
+      document.body.classList.add('print-proposta');
+    })()`);
     await page.emulateMediaType('print');
 
     stage = 'render-pdf';
