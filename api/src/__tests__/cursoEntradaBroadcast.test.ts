@@ -91,6 +91,34 @@ function user(over: Row = {}): Row {
 beforeEach(() => {
   db.users = []; db.kit_pedidos = []; db.system_state = [];
   enviados.length = 0; marcados.length = 0; tetoLiberado = true;
+  // Os testes de público/cadência assumem a campanha LIGADA. A trava em si tem
+  // o bloco próprio abaixo, que desliga de novo.
+  process.env.CAMPANHA_CURSO19_ON = 'true';
+});
+
+describe('trava de ligar (disparo em massa não começa sozinho)', () => {
+  it('sem CAMPANHA_CURSO19_ON não envia nada, mesmo com público elegível', async () => {
+    delete process.env.CAMPANHA_CURSO19_ON;
+    db.users = [user()];
+    const r = await runCursoEntradaBroadcast();
+    expect(r.enviados).toBe(0);
+    expect(enviados).toHaveLength(0);
+    expect(r.motivo).toMatch(/desligada/);
+  });
+
+  it('o modo seco funciona mesmo desligada — é assim que se revisa antes de ligar', async () => {
+    delete process.env.CAMPANHA_CURSO19_ON;
+    db.users = [user()];
+    const r = await runCursoEntradaBroadcast({ seco: true });
+    expect(r.previa).toHaveLength(1);
+    expect(enviados).toHaveLength(0);
+  });
+
+  it('um deploy não liga a campanha: o padrão é desligado', async () => {
+    delete process.env.CAMPANHA_CURSO19_ON;
+    db.users = [user({ id: 'a' }), user({ id: 'b', whatsapp: '5534988887777', email: 'b@t.com' })];
+    expect((await runCursoEntradaBroadcast()).enviados).toBe(0);
+  });
 });
 
 describe('quem entra na campanha', () => {

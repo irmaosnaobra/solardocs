@@ -680,6 +680,12 @@ router.get('/master', async (req: Request, res: Response) => {
     //   2026-06-30: ARRANQUE controlado — guard dentroDaJanelaDeEnvio só deixa
     //   disparar HOJE entre 18:30–20:00 BRT (≈4 pessoas no tick das 19h). A partir
     //   de 01/jul o guard expira sozinho e a cadência volta 24/7 (4/h, ~96/dia).
+    // Reconquista com a entrada de R$19 (curso + 30 dias). NÃO dispara sozinha:
+    // exige CAMPANHA_CURSO19_ON=true no Vercel — disparo em massa não pode começar
+    // só porque um deploy subiu. Sem a variável, este tick é no-op barato.
+    // Divide o MESMO teto anti-ban (4/h) com as duas cadências da Carla abaixo.
+    // Prévia sem enviar: GET /cron/curso-entrada-19?seco=1
+    ['curso-entrada-19',            () => runCursoEntradaBroadcast()],    // 3 toques; para quando o lead responde
     ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // follow-up Giovanna — 3 toques 30d
     ['carla-inativo',               () => runCarlaInativoFollowup()],     // follow-up Giovanna — 5 toques 60d
     // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [PAUSED-FOLLOWUP] broadcast matinal

@@ -35,8 +35,15 @@ import { registrarMsgProativa } from './whatsappAgentService';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-/** Kill-switch: CAMPANHA_CURSO19_OFF=true para o disparo sem precisar de deploy. */
-const DESLIGADA = (process.env.CAMPANHA_CURSO19_OFF || '').toLowerCase() === 'true';
+// OPT-IN EXPLÍCITO, não kill-switch. Disparo em massa não pode começar sozinho
+// só porque um deploy subiu: quem liga é o dono, setando CAMPANHA_CURSO19_ON=true
+// no Vercel — sem code change e sem novo deploy. Desligar é remover a variável.
+//
+// O modo seco IGNORA esta trava de propósito: revisar a campanha em produção
+// antes de ligar é justamente o que a gente quer que seja fácil.
+// Lida em tempo de CHAMADA, não no import: assim ligar/desligar no Vercel vale
+// no próximo tick, sem esperar a função serverless reciclar.
+const campanhaLigada = () => (process.env.CAMPANHA_CURSO19_ON || '').toLowerCase() === 'true';
 
 const CHAVE = (userId: string) => `curso19:${userId}`;
 const GAP_ENTRE_ENVIOS_MS = 4000;
@@ -200,7 +207,9 @@ export async function runCursoEntradaBroadcast(
   const agora = new Date();
   const base: ResultadoCampanha = { enviados: 0, encerrados: 0, elegiveis: 0, pulados: 0, seco };
 
-  if (DESLIGADA) return { ...base, motivo: 'campanha_desligada' };
+  if (!campanhaLigada() && !seco) {
+    return { ...base, motivo: 'campanha_desligada (defina CAMPANHA_CURSO19_ON=true)' };
+  }
   // O modo seco ignora a janela: revisar a campanha às 3 da manhã é legítimo,
   // enviar não é.
   if (!seco && !dentroDaJanelaDeEnvio(agora)) return { ...base, motivo: 'fora_da_janela' };
