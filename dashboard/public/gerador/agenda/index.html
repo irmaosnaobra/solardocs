@@ -451,6 +451,11 @@
   .btn-orcamento:hover { background: #D97706; }
   html[data-theme="dark"] .btn-orcamento { background: #F59E0B; color: #1A1205; }
   html[data-theme="dark"] .btn-orcamento:hover { background: #FBBF24; }
+  /* o de eletroposto usa o verde da marca dele, pra não haver dúvida de qual é qual */
+  .btn-orcamento.ep { background: #2F6B10; color: #fff; }
+  .btn-orcamento.ep:hover { background: #3E8A16; }
+  html[data-theme="dark"] .btn-orcamento.ep { background: #7DD117; color: #0d1f04; }
+  html[data-theme="dark"] .btn-orcamento.ep:hover { background: #93E62A; }
 
   .detalhe-box {
     background: #f9fafb;
@@ -1041,7 +1046,10 @@
       <a class="btn-wpp" id="d-btn-wpp" target="_blank" rel="noopener">💬 WhatsApp</a>
     </div>
     <div class="modal-acoes" style="margin-top:8px">
-      <button type="button" class="btn-orcamento" id="d-btn-orcamento" onclick="gerarOrcamentoDoDetalhe()">📄 Gerar orçamento</button>
+      <button type="button" class="btn-orcamento" id="d-btn-orcamento" onclick="gerarOrcamentoDoDetalhe('solar')">☀️ Orçamento Solar</button>
+    </div>
+    <div class="modal-acoes" style="margin-top:8px">
+      <button type="button" class="btn-orcamento ep" id="d-btn-orcamento-ep" onclick="gerarOrcamentoDoDetalhe('eletroposto')">⚡ Orçamento Eletroposto</button>
     </div>
     <div class="modal-acoes" style="margin-top:8px">
       <button class="btn-reagendar" id="d-btn-reagendar" onclick="abrirReagendar()">📅 Reagendar</button>
@@ -1680,7 +1688,7 @@ async function marcarPropostaEP(quem) {
 // orçamento", removido): quem recebeu orçamento entra na coluna Frio do CRM e
 // sai do alvo do followup automático (que pula qualquer lead com temperatura).
 // A gravação é best-effort — se falhar, ainda navega (não trava o consultor).
-async function gerarOrcamentoDoDetalhe() {
+async function gerarOrcamentoDoDetalhe(produto) {
   if (!detalheAtual) return;
   const ag = detalheAtual;
   // Gerar orçamento marca DUAS coisas (best-effort, independentes):
@@ -1706,6 +1714,9 @@ async function gerarOrcamentoDoDetalhe() {
   if (ag.cliente_nome)      p.set('nome', ag.cliente_nome);
   if (ag.cliente_telefone)  p.set('tel', formatTelBR(ag.cliente_telefone));
   if (ag.cidade)            p.set('cidade', ag.cidade);
+  // Sem produto (link velho do digest, por exemplo) o gerador cai no solar,
+  // que era o único destino que existia — nada quebra retroativamente.
+  if (produto === 'eletroposto') p.set('produto', 'eletroposto');
   location.href = `/gerador?${p.toString()}`;
 }
 

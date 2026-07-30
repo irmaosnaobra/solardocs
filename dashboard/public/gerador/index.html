@@ -4783,9 +4783,11 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Deep-link "Gerar orçamento" vindo da Agenda (página separada): ?orc=1&nome=&tel=&cidade=
-// → abre o form do gerador já com os dados do cliente preenchidos. Espelha
+// Deep-link "Gerar orçamento" vindo da Agenda (página separada):
+//   ?orc=1&nome=&tel=&cidade=[&produto=eletroposto]
+// → abre o destino certo já com os dados do cliente preenchidos. Espelha
 // crmCheckDeepLink: só roda autenticado, tira os params da URL pra não reabrir.
+// Sem `produto` cai no solar — é o que os links antigos (digest, WhatsApp) mandam.
 function orcCheckDeepLink() {
   if (document.documentElement.dataset.mode !== 'app') return;
   const q = new URLSearchParams(location.search);
@@ -4793,11 +4795,25 @@ function orcCheckDeepLink() {
   const nome   = q.get('nome')   || '';
   const tel    = q.get('tel')    || '';
   const cidade = q.get('cidade') || '';
+  const produto = q.get('produto') || 'solar';
   history.replaceState(null, '', location.pathname);
+
+  if (produto === 'eletroposto') {
+    navEletroposto();
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    set('el-cliente', nome);
+    set('el-cidade', cidade);
+    set('orc-cli-tel', tel);
+    eletroSubaba('orcamento');
+    if (typeof orcInit === 'function') orcInit();
+    if (typeof showToast === 'function') showToast('⚡ Cliente preenchido — marque os itens do kit');
+    return;
+  }
+
   navGerador();          // garante o form visível (caso tenha aberto noutra tela)
   novoCliente();         // zera o form pra não herdar dados de outra proposta
   preencherClienteNoForm({ nome, tel, cidade });
-  if (typeof showToast === 'function') showToast('📄 Dados do cliente preenchidos — complete o orçamento');
+  if (typeof showToast === 'function') showToast('☀️ Dados do cliente preenchidos — complete o orçamento');
 }
 window.orcCheckDeepLink = orcCheckDeepLink;
 window.addEventListener('DOMContentLoaded', orcCheckDeepLink);
