@@ -17,19 +17,25 @@
 -- 1. A flag. Default false: conta nova não ganha curso.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS curso_vitalicio BOOLEAN NOT NULL DEFAULT false;
 
--- 2. Backfill A — quem tem acesso HOJE pelo plano.
---    É a foto do momento da virada: todo assinante ativo agora fica com o curso.
+-- 2. Backfill A — quem tem acesso HOJE pelo plano E já pagou por ele.
+--    É a foto do momento da virada. Quem está nos 7 dias grátis do Stripe fica de
+--    FORA: ainda não pagou nada, e cancelar no dia 6 levando curso vitalício é
+--    exatamente o buraco que não queremos abrir. 'past_due' e 'suspended' entram —
+--    essa gente pagou, só falhou uma cobrança depois.
 UPDATE users
    SET curso_vitalicio = true
  WHERE plano IN ('pro', 'ilimitado')
+   AND coalesce(billing_status, '') <> 'trialing'
    AND curso_vitalicio = false;
 
 -- 3. Backfill B — quem já estava estudando, mesmo que hoje esteja no free.
---    Pega o ex-assinante que concluiu lição e depois caiu pro freemium.
+--    Pega o ex-assinante que concluiu lição e depois caiu pro freemium. Mesma
+--    régua do trial: estudar durante os 7 dias grátis não compra o curso.
 UPDATE users u
    SET curso_vitalicio = true
   FROM (SELECT DISTINCT user_id FROM kit_progresso) p
  WHERE u.id = p.user_id
+   AND coalesce(u.billing_status, '') <> 'trialing'
    AND u.curso_vitalicio = false;
 
 -- 4. Conferência — rode depois e guarde o número.
@@ -37,5 +43,6 @@ UPDATE users u
 SELECT
   count(*) FILTER (WHERE curso_vitalicio)                              AS liberados_por_flag,
   count(*) FILTER (WHERE plano IN ('pro','ilimitado'))                 AS assinantes_hoje,
+  count(*) FILTER (WHERE billing_status = 'trialing')                  AS em_teste_ficaram_de_fora,
   count(*) FILTER (WHERE coalesce(campanha_curso_count, 0) > 0)        AS receberam_campanha_antiga
 FROM users;

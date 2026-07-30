@@ -46,28 +46,31 @@ export async function meuAcesso(req: Request, res: Response): Promise<void> {
     // 1. COMPRA (itens.length > 0): vale pra sempre. Inclui quem levou só o
     //    order bump: ele fica 'ilimitado' por 30 dias e temKit=false, então um
     //    gate por plano tiraria o curso dele no dia 31 depois de ter pago.
-    // 2. VITALÍCIO: o grandfather da virada. A migration carimbou todo assinante
-    //    que tinha o curso naquele dia, inclusive quem assinou POR CAUSA da
-    //    campanha antiga. Tirar deles seria quebrar promessa já paga.
-    // 3. HISTÓRICO: rede de segurança pra quem concluiu lição e escapou do
-    //    backfill (ex-assinante que caiu pro free entre o SQL e o deploy).
-    // 4. LEGADO: a migration ainda não rodou — mantém a regra antiga em vez de
+    // 2. VITALÍCIO: o grandfather da virada. A migration carimbou quem tinha o
+    //    curso naquele dia — assinante pagante e quem já estava estudando —
+    //    inclusive quem assinou POR CAUSA da campanha antiga. Tirar deles seria
+    //    quebrar promessa já paga. Quem está nos 7 dias grátis NÃO entrou.
+    // 3. LEGADO: a migration ainda não rodou — mantém a regra antiga em vez de
     //    trancar todo mundo. Some sozinho quando o SQL subir.
+    //
+    // kit_progresso NÃO libera nada. Foi tentador usar "já tem progresso" como
+    // prova de que a pessoa estudava, mas POST /kit/progresso não checa acesso:
+    // qualquer usuário logado gravaria uma linha e se daria o curso de graça.
+    // Quem estudava de verdade foi carimbado pelo backfill B da migration — uma
+    // foto do passado, que ninguém consegue forjar depois.
     //
     // A tela continua desenhando o cadeado, mas quem decide é o servidor: assim a
     // regra muda num lugar só e não depende de o front estar atualizado.
     const comprou = acesso.itens.length > 0;
     const vitalicio = (user as { curso_vitalicio?: boolean }).curso_vitalicio === true;
-    const jaComecou = (prog?.length ?? 0) > 0;
     const legado = semColuna && (user.plano === 'pro' || user.plano === 'ilimitado');
-    const liberado = comprou || vitalicio || jaComecou || legado;
+    const liberado = comprou || vitalicio || legado;
 
     res.json({
       ...acesso,
       liberado,
       motivoAcesso: comprou ? 'compra'
         : vitalicio ? 'vitalicio'
-        : jaComecou ? 'historico'
         : legado ? 'legado'
         : null,
       plano: user.plano,

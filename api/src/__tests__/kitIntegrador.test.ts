@@ -418,18 +418,27 @@ describe('meuAcesso — gate do curso', () => {
     expect(body.motivoAcesso).toBe('compra');
   });
 
-  it('assinante que JÁ estava fazendo o curso não perde o acesso', async () => {
-    const id = usuario('ilimitado');
+  // O buraco: POST /kit/progresso não checa acesso. Se progresso liberasse o
+  // curso, qualquer um gravava uma linha e se dava o produto de graça. Quem
+  // estudava de verdade foi carimbado pelo backfill da migration.
+  it('gravar progresso NÃO libera o curso sozinho', async () => {
+    const id = usuario('free');
     db.kit_progresso.push({ user_id: id, modulo: 'obj-1', concluido_em: new Date().toISOString() });
     const { body } = await abrir(id);
-    expect(body.liberado).toBe(true);
-    expect(body.motivoAcesso).toBe('historico');
+    expect(body.liberado).toBe(false);
   });
 
-  // O caso que a derivação por kit_progresso NÃO cobria: quem tinha o curso pelo
-  // plano, abriu, leu, e nunca clicou em "concluir lição" — não existe linha de
-  // progresso pra ele. É o grosso dos assinantes, e é por isso que o grandfather
-  // virou coluna carimbada pela migration em vez de dedução.
+  it('nem para assinante: progresso sem a flag continua trancado', async () => {
+    const id = usuario('ilimitado');
+    db.users.find((u) => u.id === id)!.curso_vitalicio = false;
+    db.kit_progresso.push({ user_id: id, modulo: 'obj-1', concluido_em: new Date().toISOString() });
+    const { body } = await abrir(id);
+    expect(body.liberado).toBe(false);
+  });
+
+  // Quem tinha o curso pelo plano, abriu, leu, e nunca clicou em "concluir lição"
+  // não tem linha de progresso nenhuma. É o grosso dos assinantes — e é por isso
+  // que o grandfather é coluna carimbada pela migration, não dedução.
   it('assinante grandfathered SEM lição concluída mantém o acesso', async () => {
     const id = usuario('ilimitado');
     db.users.find((u) => u.id === id)!.curso_vitalicio = true;
