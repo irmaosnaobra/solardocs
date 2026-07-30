@@ -63,6 +63,7 @@ function montarMensagem(a: any): string {
     `*Cliente:* ${a.cliente_nome || '—'}`,
     `*WhatsApp:* wa.me/${soDigitos(a.cliente_telefone)}`,
     `*Cidade:* ${a.cidade || '—'}`,
+    `*Endereço:* ${linha('Endereço:')}`,
     `*Perfil:* ${perfil}`,
     ``,
     `*Investimento pretendido:* ${linha('Investimento pretendido:')}`,

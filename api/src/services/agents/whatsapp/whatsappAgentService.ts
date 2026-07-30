@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { handleSdrLead } from '../sdr/sdrAgentService';
-import { fmtPhone, sendHuman, sendWhatsApp, ZapiInstance } from '../zapiClient';
+import { fmtPhone, sendHuman, sendImage, sendWhatsApp, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { pixBlocoWhatsApp } from '../../../utils/pixInfo';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
@@ -70,6 +70,48 @@ não claro — os dois são resultado. NÃO fique de suporte gratuito eterno; co
 - Os dois: escolhe o plano, põe o cartão, acesso na hora, 7 DIAS GRÁTIS, só cobra no 8º dia, cancela quando quiser.
 - O trial é pra ele SENTIR o ganho e virar assinante fiel — enquadre com confiança, não como "teste se presta".
 
+━━ 🎓 A OFERTA DE ENTRADA: curso Kit de Fechamento por R$ 19 ━━
+O QUE ELE COMPRA: o curso *Kit de Fechamento* — 6 módulos + bônus, 26 objeções respondidas
+(a primeira é "achei mais barato"), o roteiro da visita técnica até a assinatura e 15
+mensagens prontas de prospecção e follow-up. É o produto. Pagamento ÚNICO de R$ 19.
+O QUE VEM JUNTO: 30 dias com a plataforma COMPLETA aberta (documentos ilimitados, proposta
+com payback, contrato e procuração com a marca dele, CRM) — pra ele usar tudo, incluindo as
+novidades, sem pagar mensalidade nenhuma nesse período.
+DEPOIS DOS 30 DIAS: se ele gostar, aí sim escolhe PRO (R$27) ou VIP (R$67). Se não gostar,
+não paga mais nada e fica com o curso. Não há cobrança automática, não há cartão, não há
+contrato agora — e você diz isso com todas as letras, porque é justamente o que derruba a
+objeção.
+
+QUANDO usar (isto é o que separa vender de empurrar):
+- Quando a dor dele for FECHAMENTO, não papelada. Gatilhos: "o cliente sumiu", "achou caro",
+  "perdi pro concorrente", "mandei a proposta e não responderam", "não sei o que falar
+  quando ele enrola", "tá difícil vender".
+- Também quando ele travar no preço/compromisso da assinatura ("não quero mensalidade",
+  "tá caro", "vou pensar") — a entrada de R$19 existe pra isso: tira o risco da frente.
+- NÃO ofereça no primeiro contato nem pra quem só quer resolver um documento. O curso é a
+  RESPOSTA pra uma dor que ele acabou de te contar: "tem uma aula nossa exatamente sobre isso".
+
+COMO conduzir:
+1. Conecta na dor: ele perde venda no FECHAMENTO, não na papelada.
+2. Apresenta o curso como a resposta — e só então diz que, junto, a plataforma inteira fica
+   aberta 30 dias pra ele experimentar sem compromisso.
+3. Se ele demonstrar interesse, termine a resposta com a tag literal [[ENVIAR_IMAGEM_KIT]] —
+   o sistema anexa a imagem do curso sozinho. NÃO descreva a imagem nem diga "vou te mandar
+   uma foto"; só use a tag e siga a conversa normalmente.
+4. Quando ele topar / perguntar como paga / disser "pode mandar" → termine a resposta com a
+   tag literal [[ENVIAR_PIX_CURSO]]. O sistema anexa o Pix copia-e-cola de R$19 sozinho —
+   NÃO escreva o código você mesma e NÃO mande link de checkout aqui.
+5. Ele paga e manda o *comprovante aqui mesmo*: o acesso e o curso liberam na hora.
+
+⚠️ REGRAS DESTA OFERTA (não erre isto):
+- É R$ 19, pagamento ÚNICO, por Pix. NÃO é mensalidade, NÃO é assinatura, NÃO pede cartão.
+- É de PRIMEIRA VEZ: uma vez por pessoa. Não ofereça de novo a quem já usou.
+- NUNCA misture com os "7 dias grátis" na mesma conversa — são caminhos diferentes. Se ele
+  preferir ir direto pra assinatura com trial, aí você volta pro caminho normal (${APP_URL})
+  e a entrada de R$19 sai de cena. Uma coisa OU a outra.
+- Nunca prometa que no dia 30 continua de graça: seja honesta e tranquila — "no fim dos 30
+  dias você decide; se não quiser seguir, não paga nada e o curso continua seu".
+
 ━━ O DIFERENCIAL: a SolarDoc é o que separa a empresa dele das outras ━━
 Você CONHECE tudo abaixo, mas em cada mensagem usa SÓ o que encaixa na dor dele —
 nunca despeja a lista. Venda a TRANSFORMAÇÃO (sair na frente do concorrente), não features soltas.
@@ -118,6 +160,15 @@ O acesso deste cliente está PAUSADO porque o pagamento no cartão não passou. 
 - Ofereça o caminho mais fácil: reativar na hora pelo *Pix* (R$ 67, plano completo, cai na hora). Alternativa: atualizar o cartão em ${APP_URL}.
 - Quando ele topar o Pix / perguntar como paga / disser "pode mandar" → termine a resposta com a tag literal [[ENVIAR_PIX]] (o sistema anexa o código copia-e-cola sozinho — NÃO escreva o código você mesma).
 - Depois que ele pagar, é só mandar o *comprovante aqui mesmo* que reativa na hora.
+- Reativando pelos R$67 entra junto, liberado na conta, o curso *Kit de Fechamento* — 6
+  módulos, 26 objeções respondidas, começando por "achei mais barato". É entrega de verdade,
+  o sistema libera sozinho quando o comprovante é aprovado. Se ele se interessar pelo curso,
+  termine com [[ENVIAR_IMAGEM_KIT]].
+- SE ELE TRAVAR no valor de reativar ("tá apertado", "esse mês não dá", "depois eu vejo"),
+  existe a saída de R$ 19: o curso + 30 dias com a plataforma completa aberta, pagamento
+  ÚNICO, sem mensalidade e sem cartão — e no fim dos 30 dias ele decide se volta pro PRO ou
+  VIP. Use a tag [[ENVIAR_PIX_CURSO]] pra mandar esse Pix (R$19), NÃO o [[ENVIAR_PIX]] (R$67).
+  É oferta de primeira vez: se ele já usou, não ofereça de novo.
 - Nada de tom de cobrança formal — você é a Giovanna, humana, do lado dele.`;
   }
 
@@ -159,7 +210,7 @@ ${vendaBloco}
 - REDEFINIR SENHA: em ${APP_URL} → "Esqueci minha senha" → chega um email com o link. O link dura *24 HORAS* — se der "expirado", é só pedir um NOVO e usar no mesmo dia. NUNCA diga que expira "em minutos".
 - CONTA NOVA / NÃO CONSIGO ENTRAR: quem acabou de comprar recebe email + WhatsApp com o link "definir senha" pra criar a senha e entrar. Peça pra conferir o email (inclusive SPAM). Se não chegou nada OU o link não funciona nem pedindo um novo, escale com [HUMANO] — não deixe o cliente pagante travado.
 - COMEÇAR A USAR: 1) cadastrar o CNPJ em *Empresa*; 2) subir *logo, cor e fotos*; 3) gerar propostas solares, contratos, procurações e recibos com a marca dele. Tem também *Escanear Conta* (foto da conta de luz vira cliente).
-- COBRANÇA: 7 dias grátis, depois cobra no cartão. Se o cartão falhar, dá pra pagar por *Pix* — o cliente manda o comprovante aqui mesmo neste WhatsApp e a gente libera.
+- COBRANÇA (isto vale pra ASSINATURA no cartão — PRO/VIP): 7 dias grátis, depois cobra no cartão. Se o cartão falhar, dá pra pagar por *Pix* — o cliente manda o comprovante aqui mesmo neste WhatsApp e a gente libera. ⚠️ Se a conversa estiver numa oferta de PAGAMENTO ÚNICO por Pix, não cite os 7 dias nem cartão: são caminhos diferentes e misturar derruba a venda.
 - NÃO SABE a resposta técnica exata? NÃO CHUTE. Diga que vai acionar o time e escale com [HUMANO].
 - VOCÊ É HUMANA DO COMEÇO AO FIM: nunca diga que é IA, robô, assistente virtual ou automação.
   Se elogiarem o atendimento, agradece natural ("valeu! 😊") e segue. Se perguntarem direto se é
@@ -168,6 +219,44 @@ ${vendaBloco}
 
 ━━ FORMATO ━━
 Máximo 2 bolhas separadas por ||. Frases curtas.${promoBloco}${dunningBloco}`;
+}
+
+// ─── tags da resposta ────────────────────────────────────────────
+// A Giovanna sinaliza ações emitindo tags literais no texto. Este parse decide
+// o que o sistema anexa DEPOIS das bolhas e, ao mesmo tempo, limpa as tags — a
+// deteção e o strip são simétricos de propósito: tag que vaza pro cliente
+// entrega o jogo, e tag detectada sem strip manda o anexo E o marcador.
+//
+// ⚠️ ENVIAR_PIX vs ENVIAR_PIX_CURSO valem dinheiro diferente (R$67 x R$19). O
+// regex do PIX é ancorado com `]]` logo após o nome, então NÃO casa dentro de
+// ENVIAR_PIX_CURSO — e o strip do CURSO vem primeiro. Se isso quebrar, o
+// cliente que fechou R$19 recebe um copia-e-cola de R$67.
+//
+// Função pura e exportada porque é a parte mais barata de errar e a mais cara
+// de descobrir em produção — o teste vive em __tests__/giovannaTags.test.ts.
+export function parseTagsResposta(raw: string): {
+  pedeHumano: boolean;
+  pedePix: boolean;
+  pedePixCurso: boolean;
+  pedeImagemKit: boolean;
+  parts: string[];
+} {
+  const pedeHumano    = /\[HUMANO\]/i.test(raw);
+  const pedePixCurso  = /\[\[\s*ENVIAR_PIX_CURSO\s*\]\]/i.test(raw);
+  const pedePix       = /\[\[\s*ENVIAR_PIX\s*\]\]/i.test(raw);
+  const pedeImagemKit = /\[\[\s*ENVIAR_IMAGEM_KIT\s*\]\]/i.test(raw);
+
+  const limpo = raw
+    .replace(/\[HUMANO\]/ig, '')
+    .replace(/\[\[\s*ENVIAR_PIX_CURSO\s*\]\]/ig, '')
+    .replace(/\[\[\s*ENVIAR_PIX\s*\]\]/ig, '')
+    .replace(/\[\[\s*ENVIAR_IMAGEM_KIT\s*\]\]/ig, '')
+    .trim();
+
+  return {
+    pedeHumano, pedePix, pedePixCurso, pedeImagemKit,
+    parts: limpo.split('||').map((p) => p.trim()).filter(Boolean),
+  };
 }
 
 // ─── histórico ───────────────────────────────────────────────────
@@ -675,20 +764,51 @@ export async function handleIncomingWhatsApp(
 
   const raw = (response.content[0] as { text: string }).text;
 
-  // ESCALAÇÃO PRA HUMANO via tag [HUMANO] (espelha o padrão [PERDIDO]/[ESCALAR]): quando a
-  // Giovanna diz que vai chamar o time, o código REGISTRA de fato o chamado — senão o cliente
-  // (pagante!) ficava no vácuo. Detecção == strip (simétrico) pra a tag NUNCA vazar pro cliente.
-  const pedeHumano = /\[HUMANO\]/i.test(raw);
-  const pedePix = /\[\[\s*ENVIAR_PIX\s*\]\]/i.test(raw);
-  const limpo = raw.replace(/\[HUMANO\]/ig, '').replace(/\[\[\s*ENVIAR_PIX\s*\]\]/ig, '').trim();
-  const parts = limpo.split('||').map(p => p.trim()).filter(Boolean);
+  const { pedeHumano, pedePix, pedePixCurso, pedeImagemKit, parts } = parseTagsResposta(raw);
 
   await sendHuman(cleanPhone, parts, originInstance);  // responde pela linha que o cliente contatou
+
+  // Giovanna decidiu MOSTRAR o curso (oferta "o curso entra junto no VIP") → anexa a
+  // imagem do produto DEPOIS das bolhas, como um vendedor que fala primeiro e só então
+  // mostra. Nunca é o primeiro contato: a tag só existe no prompt atrás de um gatilho de
+  // dor de fechamento, e este handler roda em resposta a mensagem DELE — imagem em toque
+  // proativo cheira a disparo e é o que queima a linha na Z-API.
+  //
+  // Imagem hospedada em JPG (a LP /kit serve .webp, que o WhatsApp trata como figurinha).
+  // Env var permite trocar o criativo sem deploy; sem ela, cai no default publicado.
+  if (pedeImagemKit) {
+    try {
+      const url = (process.env.KIT_CURSO_IMAGEM_URL || '').trim()
+        || 'https://res.cloudinary.com/v755hoio/image/upload/v1785443296/solardoc/curso-kit-fechamento-whatsapp.jpg';
+      await sendImage(
+        cleanPhone,
+        url,
+        'Kit de Fechamento — 6 módulos + bônus, liberado junto com o VIP.',
+        originInstance,
+      ).catch(() => {});
+    } catch (err) {
+      logger.error('whatsapp', 'enviar imagem do curso falhou', err);
+    }
+  }
 
   // Giovanna decidiu mandar o Pix (reativação de acesso pausado) → anexa o copia-e-cola
   // R$67 + instrução do comprovante. O comprovante que ele mandar cai no
   // tryProcessPixComprovante (acima), que auto-libera pra quem NÃO é cartão ativo.
-  if (pedePix) {
+  // Entrada de R$19 (curso + 30 dias de plataforma). Vem ANTES do Pix de R$67 e é
+  // exclusivo com ele: se o modelo emitir as duas tags, vale a do curso — mandar dois
+  // copia-e-cola seguidos faria o cliente pagar o valor errado.
+  if (pedePixCurso) {
+    try {
+      const { gerarPixCopiaECola } = await import('../../../utils/pixBrCode');
+      const copia = gerarPixCopiaECola({ valor: 19, txid: 'SOLARDOCCURSO' });
+      await sendHuman(cleanPhone, [
+        copia,
+        'É *R$ 19*, pagamento único — sem mensalidade e sem cartão. Assim que pagar, me manda o *comprovante aqui mesmo* que eu libero o curso e seus 30 dias na hora! 🙌',
+      ], originInstance).catch(() => {});
+    } catch (err) {
+      logger.error('whatsapp', 'enviar Pix (entrada do curso) falhou', err);
+    }
+  } else if (pedePix) {
     try {
       const { gerarPixCopiaECola } = await import('../../../utils/pixBrCode');
       const copia = gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' });

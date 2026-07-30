@@ -38,6 +38,23 @@ describe('validade da proposta solar', () => {
     expect(html).not.toMatch(/INVALID DATE/i);
   });
 
+  // Reeditar uma proposta antiga (/histórico) manda o emitido_em original: o prazo
+  // que o cliente já viu não pode renovar sozinho porque alguém corrigiu um typo.
+  it('emitido_em ancora a validade na emissao, nao no dia da correcao', () => {
+    const emitido = new Date(Date.now() - 3 * 86400000);
+    const esperado = new Date(emitido.getTime() + 7 * 86400000)
+      .toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const html = render(1, { emitido_em: emitido.toISOString(), validade_dias: '7' });
+    expect(html).toContain(`ATÉ ${esperado}`);
+  });
+
+  it('emitido_em invalido ou vazio cai em hoje', () => {
+    const hoje7 = new Date(Date.now() + 7 * 86400000)
+      .toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    expect(render(1, { emitido_em: 'nada disso', validade_dias: '7' })).toContain(`ATÉ ${hoje7}`);
+    expect(render(1, { emitido_em: '', validade_dias: '7' })).toContain(`ATÉ ${hoje7}`);
+  });
+
   it('a data limite e hoje + N dias', () => {
     const esperado = new Date(Date.now() + 30 * 86400000)
       .toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });

@@ -1755,10 +1755,26 @@ function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: numbe
 // form). O HTML é renderizado uma vez na geração e servido salvo em /p/:id, então
 // a data de vencimento congela no dia do envio — proposta antiga não "renova".
 // Fica num só lugar pros dois modelos não divergirem no texto.
-function propostaValidade(f: Record<string, unknown>): { dias: number; curto: string; longo: string } {
+// Dias corridos de validade (padrão 7). Exportado porque o reemissor precisa saber
+// se a proposta antiga ainda está no prazo antes de decidir se congela a data.
+export function propostaDiasValidade(f: Record<string, unknown>): number {
   const n = parseInt(String(f.validade_dias ?? '').replace(/\D/g, ''), 10);
-  const dias = n > 0 ? n : 7;
-  const ate = new Date(Date.now() + dias * 86400000);
+  return n > 0 ? n : 7;
+}
+
+// Data de emissão da proposta. Reeditar um doc antigo (pelo /histórico) manda o
+// emitido_em original: cabeçalho e validade continuam os do dia do envio, em vez de
+// renovarem sozinhos porque alguém corrigiu um typo. Vazio = agora (emissão normal).
+function propostaEmissao(f: Record<string, unknown>): Date {
+  const raw = String(f.emitido_em ?? '').trim();
+  if (!raw) return new Date();
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
+
+function propostaValidade(f: Record<string, unknown>): { dias: number; curto: string; longo: string } {
+  const dias = propostaDiasValidade(f);
+  const ate = new Date(propostaEmissao(f).getTime() + dias * 86400000);
   const plural = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
   // Nº absurdo (14 dígitos) estoura o range do Date — aí sai só "Válido por N dias",
   // sem a data. Nunca um "Invalid Date" no PDF que vai pro cliente.
@@ -1877,7 +1893,7 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   // ── Helpers de formatação ──
   function brl(n: number): string { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   function n1(n: number): string { return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
-  const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const hoje = propostaEmissao(f).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const validade = propostaValidade(f);
   const marcaMod = [marcaModulo, potenciaModulo > 0 ? `${potenciaModulo}W` : ''].filter(Boolean).join(' · ');
   const marcaInv = [marcaInversor, potInvStr ? `${potInvStr} kW` : ''].filter(Boolean).join(' · ');
@@ -2438,7 +2454,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
 
   const investCardsCount = cards.length;
 
-  const today = dateBR();
+  const today = dateBR(propostaEmissao(f));
   const validade = propostaValidade(f);
 
   return `<!DOCTYPE html>
@@ -2858,8 +2874,10 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 // ════════════════════════════════════════════════════════════
 // Helpers
 // ════════════════════════════════════════════════════════════
-function dateBR(): string {
-  return new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
+// Sem argumento = hoje (todos os contratos). A proposta passa a data de emissão
+// quando está sendo reeditada, pra não trocar o "30 de julho" que o cliente já viu.
+function dateBR(base: Date = new Date()): string {
+  return base.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
 }
 
 function str(v: unknown): string {

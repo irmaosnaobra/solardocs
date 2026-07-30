@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendWhatsApp, sendHuman, sendImage, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
+import { concederCursoPorAssinatura } from '../../kitIntegradorService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Confirmação de Pix por COMPROVANTE (cliente SolarDoc).
@@ -28,14 +29,25 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const AUTO_LIBERAR = (process.env.PIX_AUTO_LIBERAR ?? 'true').toLowerCase() !== 'false';
 const THIAGO_PHONE = '34991360223';     // confirmação + comprovante vão pro WhatsApp do dono
 const AIOROS_CNPJ  = '63636043000188';  // recebedor esperado (só dígitos)
-const PLANOS_VALIDOS = [27, 49, 67];    // valores EXATOS dos planos SolarDoc (PRO/VIP PROMO/VIP)
+// Valores EXATOS aceitos. 19 é a ENTRADA (curso + 30 dias de plataforma completa);
+// 27/49/67 são os planos (PRO / VIP PROMO / VIP).
+const PLANOS_VALIDOS = [19, 27, 49, 67];
 
-// Valor pago → plano concedido. Oferta do Pix hoje é R$67 = completo (ilimitado).
-const PLANO_POR_VALOR: Record<number, { plano: string; limite: number }> = {
+/** Entrada de R$19: o curso é o produto, os 30 dias de VIP são a experiência. */
+export const VALOR_ENTRADA_CURSO = 19;
+
+// Valor pago → plano concedido. Os R$19 dão o MESMO acesso do VIP, mas por 30 dias
+// e sem recorrência: é o "usa tudo por um mês e decide depois" — a assinatura
+// (PRO ou VIP) só entra em cena no fim desses 30 dias.
+export const PLANO_POR_VALOR: Record<number, { plano: string; limite: number }> = {
+  19: { plano: 'ilimitado',  limite: 999999 },
   27: { plano: 'pro',        limite: 90 },
   49: { plano: 'ilimitado',  limite: 999999 },
   67: { plano: 'ilimitado',  limite: 999999 },
 };
+
+/** Chave que marca que este telefone JÁ usou a entrada de R$19 (é de primeira vez). */
+const chaveEntrada = (identity: string) => `pix19_entrada:${identity.replace(/\D/g, '')}`;
 
 const brl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
@@ -83,7 +95,10 @@ async function lerComprovante(img: ImgSrc): Promise<Comprovante | null> {
 // Valida as travas de um comprovante lido. `identity` = telefone normalizado — usado
 // como base do dedupKey (MESMO valor nos dois paths → dedup consistente mesmo sem
 // id_transacao). Retorna se passou + o motivo (pra log/aviso).
-async function validarComprovante(c: Comprovante, identity: string): Promise<{ passou: boolean; motivo: string; valor: number; dedupKey: string }> {
+//
+// Exportada para teste: é a função que decide se dinheiro vira acesso. Testá-la
+// direto evita ter que simular a IA de visão só pra exercitar as travas.
+export async function validarComprovante(c: Comprovante, identity: string): Promise<{ passou: boolean; motivo: string; valor: number; dedupKey: string }> {
   const doc   = (c.recebedor_documento || '').replace(/\D/g, '');
   const nome  = (c.recebedor_nome || '').toLowerCase();
   const valor = Number(c.valor) || 0;
@@ -102,18 +117,32 @@ async function validarComprovante(c: Comprovante, identity: string): Promise<{ p
   // Como `passou` exige data recente legível, aqui a data está sempre preenchida.
   const dedupKey = `pix_comprov:${identity.replace(/\D/g, '')}:${valor}:${c.data || ''}`;
   const { data: usado } = await supabase.from('system_state').select('key').eq('key', dedupKey).limit(1);
-  const passou = recebedorOk && valorOk && dataOk && !(usado?.length);
+
+  // Trava da ENTRADA: os R$19 são oferta de primeira vez. Sem isto o dedup (que é
+  // por telefone+valor+DATA) deixaria a pessoa pagar R$19 todo mês por Pix e nunca
+  // assinar — R$19 recorrente no lugar de R$67. Repetição não auto-liberamos: cai
+  // no aviso ao Thiago, que decide caso a caso.
+  let entradaRepetida = false;
+  if (Math.round(valor) === VALOR_ENTRADA_CURSO) {
+    const { data: entrada } = await supabase
+      .from('system_state').select('key').eq('key', chaveEntrada(identity)).limit(1);
+    entradaRepetida = !!entrada?.length;
+  }
+
+  const passou = recebedorOk && valorOk && dataOk && !(usado?.length) && !entradaRepetida;
 
   const motivo = usado?.length ? 'comprovante já usado antes (reenvio?)'
     : !recebedorOk ? 'recebedor NÃO parece ser a Aioros'
-    : !valorOk ? 'valor não bate com plano (27/49/67)'
+    : !valorOk ? 'valor não bate com plano (19/27/49/67)'
     : !dataOk ? 'data ausente ou fora da janela'
+    : entradaRepetida ? 'entrada de R$19 já usada por este número (é oferta de primeira vez)'
     : 'ok';
   return { passou, motivo, valor, dedupKey };
 }
 
 // Empurra plano_expira_em +1 mês (base = vencimento atual se ainda no futuro, senão agora).
-async function liberarAcessoPix(
+// Exportada para teste: é aqui que o pagamento vira acesso + curso.
+export async function liberarAcessoPix(
   userId: string, planoExpiraEmAtual: string | null, plano: string, limite: number,
 ): Promise<Date> {
   const now = Date.now();
@@ -123,6 +152,21 @@ async function liberarAcessoPix(
   await supabase.from('users').update({
     plano, limite_documentos: limite, documentos_usados: 0, billing_status: 'active', plano_expira_em: base.toISOString(),
   }).eq('id', userId);
+
+  // Acesso completo por Pix → o curso entra junto. Vale para os DOIS casos:
+  // a entrada de R$19 (onde o curso é o produto principal) e a reativação de
+  // R$67. Sem isto a Giovanna prometeria o curso e o sistema não entregaria —
+  // desde 30/jul/2026 o plano sozinho não abre mais o curso, quem abre é o
+  // pedido pago que concederCursoPorAssinatura grava.
+  if (plano === 'ilimitado') {
+    try {
+      const { data: u } = await supabase.from('users').select('email').eq('id', userId).maybeSingle();
+      const email = (u as { email?: string } | null)?.email;
+      if (email) await concederCursoPorAssinatura(userId, email);
+    } catch (err) {
+      console.error('[pix] concessão do curso na reativação falhou (acesso já liberado):', err);
+    }
+  }
   return base;
 }
 
@@ -225,9 +269,38 @@ export async function tryProcessPixComprovante(
     // Estava em dunning? cancela o cartão falhando no Stripe (evita cobrança dupla).
     await encerrarDunningPix(user.id, user.email, uRow?.billing_status);
 
+    // Queima a entrada de R$19: a partir daqui, outro Pix de R$19 deste número não
+    // auto-libera (vira aviso pro Thiago). É o que impede a oferta de primeira vez
+    // de virar mensalidade de R$19 no lugar da assinatura.
+    const eEntrada = Math.round(valor) === VALOR_ENTRADA_CURSO;
+    if (eEntrada) {
+      // Falha aqui NÃO pode ser silenciosa: se o marcador não grava, a trava da
+      // entrada nunca dispara e a pessoa segue pagando R$19 por mês no lugar de
+      // assinar. Não bloqueia a liberação (ele já pagou), mas grita no log.
+      const { error: marcaErr } = await supabase.from('system_state').insert({
+        key: chaveEntrada(cleanPhone),
+        value: { user_id: user.id, email: user.email, at: new Date().toISOString(), vence: venc.toISOString() },
+      });
+      if (marcaErr) {
+        logger.error(
+          'pix-comprovante',
+          `ENTRADA R$19 NÃO MARCADA (${user.email}) — a trava de uma-vez-só não vai pegar neste número`,
+          marcaErr,
+        );
+      }
+    }
+
     // Orienta o cliente. Conta pendente (pagou no abandono, sem senha) → link pra definir senha.
     const pendente = !uRow?.password_hash;
-    const linhas = ['Pagamento confirmado! ✅ Seu acesso ao SolarDoc está *liberado* 🌞'];
+    // Na entrada, o que ele comprou foi o CURSO — os 30 dias de plataforma são a
+    // experiência. A mensagem diz as duas coisas e já planta a decisão do dia 30,
+    // sem cobrar nada agora: é assim que a oferta foi vendida no WhatsApp.
+    const linhas = eEntrada
+      ? [
+          'Pagamento confirmado! ✅ Seu *Kit de Fechamento* está liberado 🎓',
+          `E já deixei a plataforma COMPLETA aberta pra você até ${venc.toLocaleDateString('pt-BR')} — documentos ilimitados, proposta com payback, contrato com a sua marca. Usa tudo sem compromisso; lá no fim a gente conversa se vale continuar. 🌞`,
+        ]
+      : ['Pagamento confirmado! ✅ Seu acesso ao SolarDoc está *liberado* 🌞'];
     if (pendente && uRow?.reset_token) {
       linhas.push(`Pra entrar, é só definir sua senha aqui: ${dashboardUrl}/auth?mode=redefinir&token=${uRow.reset_token}`);
     } else {

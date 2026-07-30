@@ -8,6 +8,9 @@ const PRECACHE = [
   '/gerador/tabelas.js',
   '/gerador/solar-data.js',
   '/gerador/etiqueta.js',
+  '/gerador/qrcode.js',
+  '/gerador/logo.png',
+  '/gerador/logo-eletroposto.png',
   '/gerador/manifest.webmanifest',
   '/gerador/icon-192.png',
   '/gerador/icon-512.png'

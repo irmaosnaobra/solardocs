@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { generateDocument, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml, propostaPrefill } from '../controllers/documentsController';
+import { generateDocument, regenerateDocument, getDocumentForEdit, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml, propostaPrefill } from '../controllers/documentsController';
 import { generatePdf } from '../controllers/pdfController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -29,11 +29,15 @@ function downloadAuth(req: Request, res: Response, next: NextFunction): void {
 }
 
 router.post('/generate', authMiddleware, generateDocument);
+// Reemite um doc existente com os campos corrigidos (mesmo link, mesmo número).
+router.post('/:id/regenerate', authMiddleware, regenerateDocument);
 router.post('/save', authMiddleware, saveDocument);
 router.patch('/:id/file', authMiddleware, updateDocumentFile);
 router.get('/list', authMiddleware, listDocuments);
 // Auto-preenchimento: kit do vendedor + histórico por cliente (reusa dados_json).
 router.get('/proposta-prefill', authMiddleware, propostaPrefill);
+// Reabre um doc salvo no formulário (botão "Editar" do /histórico).
+router.get('/:id/edit', authMiddleware, getDocumentForEdit);
 router.get('/:id/pdf', downloadAuth, generatePdf);
 router.get('/:id/html', downloadAuth, renderDocumentHtml);
 

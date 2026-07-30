@@ -198,7 +198,9 @@
   /* par de campos: 2 colunas no desktop, empilha no celular (era style inline, que
      vencia a media query e espremia os campos no mobile) */
   .f2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  @media(max-width:640px){.f2{grid-template-columns:1fr;gap:0}.agBox{padding:20px 16px}}
+  /* empilhado o gap vira 0 e o `.fld:last-child{margin-bottom:0}` colava o 2º campo
+     do par no bloco de baixo — devolve o respiro só no mobile */
+  @media(max-width:640px){.f2{grid-template-columns:1fr;gap:0}.f2 .fld:last-child{margin-bottom:16px}.agBox{padding:20px 16px}}
   /* par de botões tenho/não tenho o ponto */
   .opt2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   @media(max-width:520px){.opt2{grid-template-columns:1fr}}
@@ -219,6 +221,26 @@
   .slot.on{background:var(--neon);border-color:var(--neon);color:var(--dk)}
   .agMsg{margin-top:14px;padding:13px 16px;border-radius:11px;font-size:13.5px;font-weight:700;display:none}
   .agMsg.err{background:rgba(244,63,94,.14);border:1px solid rgba(244,63,94,.45);color:#fda4af;display:block}
+  .agMsg.info{background:rgba(125,209,23,.12);border:1px solid rgba(125,209,23,.4);color:var(--neon-b);display:block}
+
+  /* ===== portão de presença ===== */
+  /* z-index acima do .nav (50), que é sticky e passaria por cima do overlay */
+  .cfBg{position:fixed;inset:0;z-index:200;background:rgba(3,8,1,.84);backdrop-filter:blur(6px);
+    display:none;align-items:center;justify-content:center;padding:20px}
+  .cfBg.on{display:flex}
+  .cf{background:linear-gradient(180deg,#0d2405 0%,#081a03 100%);border:1.5px solid rgba(125,209,23,.5);
+    border-radius:20px;padding:30px 26px;max-width:460px;width:100%;text-align:center;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);max-height:92vh;overflow-y:auto}
+  .cf .ic{width:52px;height:52px;border-radius:14px;margin:0 auto 16px;background:rgba(125,209,23,.14);
+    border:1px solid rgba(125,209,23,.45);display:grid;place-items:center}
+  .cf .ic svg{width:26px;height:26px;stroke:var(--neon-b);fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+  .cf h3{font-size:23px;font-weight:900;letter-spacing:-.8px;line-height:1.15}
+  .cf .quando{margin-top:12px;background:rgba(125,209,23,.12);border:1px solid rgba(125,209,23,.4);
+    border-radius:12px;padding:12px 14px;color:var(--neon-b);font-size:15px;font-weight:800;line-height:1.35}
+  .cf p{color:var(--mut);font-size:14px;font-weight:600;line-height:1.5;margin-top:14px}
+  .cf p b{color:var(--cream);font-weight:800}
+  .cfBtns{display:grid;gap:10px;margin-top:22px}
+  .cfBtns .btn{width:100%;justify-content:center}
   .ok{text-align:center;padding:30px 10px;display:none}
   .ok .ic{width:70px;height:70px;border-radius:50%;background:rgba(125,209,23,.16);border:2px solid var(--neon);display:grid;place-items:center;margin:0 auto 18px}
   .ok .ic svg{width:34px;height:34px;stroke:var(--neon-b);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
@@ -569,24 +591,41 @@
           <div class="fld"><label>Seu nome</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
           <div class="fld"><label>WhatsApp</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this)"></div></div>
         </div>
+        <!-- Endereço completo e OBRIGATÓRIO: a equipe leva o estudo de viabilidade
+             pronto pra reunião e ele depende do local (concessionária, fluxo da via,
+             distância da entrada de energia). Quem ainda não tem o ponto informa o
+             próprio endereço — é a partir dele que a equipe garimpa local na região. -->
+        <div class="fld" style="margin-bottom:0">
+          <label>Endereço completo <span class="hint">(onde pretende instalar — se ainda não tem o ponto, o seu)</span></label>
+        </div>
         <div class="f2">
-          <div class="fld"><label>Cidade</label><div class="inp"><input type="text" id="f-cidade" placeholder="Ex: Uberlândia-MG"></div></div>
-          <div class="fld">
-            <label>Seu perfil</label>
-            <div class="inp"><select id="f-perfil">
-              <option value="">Selecione…</option>
-              <option>Dono de posto de combustível</option>
-              <option>Mercado / supermercado</option>
-              <option>Restaurante / lanchonete</option>
-              <option>Academia</option>
-              <option>Farmácia</option>
-              <option>Hotel / pousada</option>
-              <option>Estacionamento</option>
-              <option>Condomínio</option>
-              <option>Investidor</option>
-              <option>Outro</option>
-            </select></div>
-          </div>
+          <div class="fld"><label>CEP <span class="hint" id="cep-st">(opcional — completa o endereço)</span></label><div class="inp"><input type="text" id="f-cep" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" oninput="maskCep(this)"></div></div>
+          <div class="fld"><label>Cidade / UF</label><div class="inp"><input type="text" id="f-cidade" placeholder="Ex: Uberlândia-MG"></div></div>
+        </div>
+        <div class="f2">
+          <div class="fld"><label>Rua / Avenida</label><div class="inp"><input type="text" id="f-rua" placeholder="Ex: Av. João Naves de Ávila"></div></div>
+          <div class="fld"><label>Número</label><div class="inp"><input type="text" id="f-numero" placeholder="Ex: 1200" inputmode="numeric"></div></div>
+        </div>
+        <div class="f2">
+          <div class="fld"><label>Bairro</label><div class="inp"><input type="text" id="f-bairro" placeholder="Ex: Santa Mônica"></div></div>
+          <div class="fld"><label>Complemento / referência <span class="hint">(opcional)</span></label><div class="inp"><input type="text" id="f-compl" placeholder="Loja, galpão, ponto de referência"></div></div>
+        </div>
+
+        <div class="fld">
+          <label>Seu perfil</label>
+          <div class="inp"><select id="f-perfil">
+            <option value="">Selecione…</option>
+            <option>Dono de posto de combustível</option>
+            <option>Mercado / supermercado</option>
+            <option>Restaurante / lanchonete</option>
+            <option>Academia</option>
+            <option>Farmácia</option>
+            <option>Hotel / pousada</option>
+            <option>Estacionamento</option>
+            <option>Condomínio</option>
+            <option>Investidor</option>
+            <option>Outro</option>
+          </select></div>
         </div>
         <div class="fld">
           <label>Quanto você pretende investir <span class="hint">(o projeto parte de R$ 85 mil)</span></label>
@@ -606,11 +645,6 @@
             <button type="button" class="optb" id="pt-sim" onclick="setPonto('sim')">Já tenho o ponto</button>
             <button type="button" class="optb" id="pt-nao" onclick="setPonto('nao')">Ainda não tenho</button>
           </div>
-        </div>
-
-        <div class="fld" id="box-endereco" style="display:none">
-          <label>Endereço completo do ponto <span class="hint">(rua, nº, bairro, cidade)</span></label>
-          <div class="inp"><input type="text" id="f-endereco" placeholder="Ex: Av. João Naves de Ávila, 1200 — Santa Mônica, Uberlândia-MG"></div>
         </div>
 
         <div class="fld" id="box-semponto" style="display:none">
@@ -665,6 +699,24 @@
       </div>
     </div>
   </section>
+
+  <!-- Portão de presença: último passo antes de gravar. A ficha só vai pro banco
+       depois do "Sim" — quem responde "Não" não chega a ocupar horário nenhum.
+       É esse o ponto: o problema não era marcar demais, era horário bloqueado por
+       quem não aparece. Filtrar ANTES da gravação é o que devolve a agenda. -->
+  <div class="cfBg" id="cf-bg" onclick="if(event.target===this) confirmarNao()">
+    <div class="cf" role="dialog" aria-modal="true" aria-labelledby="cf-tit">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="m23 7-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
+      <h3 id="cf-tit">Você vai mesmo participar?</h3>
+      <div class="quando" id="cf-quando">—</div>
+      <p>É uma reunião <b>por vídeo, de 30 minutos</b>, com um especialista — que monta o estudo de viabilidade do seu ponto antes de entrar na chamada.</p>
+      <p>A procura está alta e <b>cada horário bloqueia um especialista</b>. Confirme só se você vai estar.</p>
+      <div class="cfBtns">
+        <button type="button" class="btn" id="cf-sim" onclick="confirmarSim()">Sim, vou participar</button>
+        <button type="button" class="btn ghost" onclick="confirmarNao()">Não vou conseguir</button>
+      </div>
+    </div>
+  </div>
 
 </div>
 
@@ -927,7 +979,6 @@ function setPonto(v){
   pontoSel = v;
   document.getElementById('pt-sim').classList.toggle('on', v === 'sim');
   document.getElementById('pt-nao').classList.toggle('on', v === 'nao');
-  document.getElementById('box-endereco').style.display = v === 'sim' ? '' : 'none';
   document.getElementById('box-semponto').style.display = v === 'nao' ? '' : 'none';
   track('ponto_' + v);
 }
@@ -990,43 +1041,167 @@ function maskTel(i){
   else if(v.length>2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
   i.value = v;
 }
+// ViaCEP: com o CEP completo, rua/bairro/cidade se preenchem sozinhos — são 3 dos 4
+// campos obrigatórios de endereço que o lead não precisa digitar. É CONVENIÊNCIA, não
+// dependência: se a API cair, expirar ou o CEP não existir, o lead preenche na mão e o
+// agendamento segue igual (o CEP em si continua opcional e nada aqui bloqueia o envio).
+const CEP_HINT = '(opcional — completa o endereço)';
+let cepSeq = 0;
+function cepStatus(txt, bad){
+  const s = document.getElementById('cep-st');
+  s.textContent = txt;
+  s.style.color = bad ? '#fda4af' : '';
+}
+async function buscaCep(digitos){
+  const seq = ++cepSeq;
+  cepStatus('buscando…', false);
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 6000);   // sem isto, rede ruim trava o "buscando…" pra sempre
+  try{
+    const r = await fetch(`https://viacep.com.br/ws/${digitos}/json/`, {signal: ctrl.signal});
+    // digitou outro CEP enquanto esta resposta vinha: ela é velha, não pode pintar o form
+    if(seq !== cepSeq) return;
+    if(!r.ok) return cepStatus('CEP não encontrado — preencha abaixo', true);
+    const d = await r.json();
+    if(seq !== cepSeq) return;
+    if(d.erro)  return cepStatus('CEP não encontrado — preencha abaixo', true);
+
+    // busca que deu certo SUBSTITUI o bloco inteiro, inclusive com vazio. Preencher só
+    // o que veio misturava endereços: quem corrige 38408-100 (Uberlândia) por 38660-000
+    // (Buritis, que não tem logradouro) ficaria com a rua da cidade antiga sob a cidade
+    // nova — os 4 campos preenchidos, validação passando e a equipe indo no lugar errado.
+    const set = (id, v) => { document.getElementById(id).value = v || ''; };
+    set('f-rua',    d.logradouro);
+    set('f-bairro', d.bairro);
+    set('f-cidade', d.localidade && d.uf ? `${d.localidade}-${d.uf}` : '');
+    cepStatus(CEP_HINT, false);
+    // CEP de cidade inteira não traz logradouro — joga o foco no campo que ficou faltando
+    document.getElementById(d.logradouro ? 'f-numero' : 'f-rua').focus();
+  }catch(e){
+    // rede fora ou timeout: volta ao normal sem alarme — os campos continuam editáveis
+    if(seq === cepSeq) cepStatus(CEP_HINT, false);
+  }finally{
+    clearTimeout(t);
+  }
+}
+function maskCep(i){
+  let v = i.value.replace(/\D/g,'').slice(0,8);
+  if(v.length>5) v = `${v.slice(0,5)}-${v.slice(5)}`;
+  i.value = v;
+  const dig = v.replace(/\D/g,'');
+  if(dig.length === 8) buscaCep(dig);
+  else { cepSeq++; cepStatus(CEP_HINT, false); }   // apagou/editou: invalida a busca em voo
+}
 function erro(txt){
   const m = document.getElementById('ag-msg');
   m.textContent = txt; m.className = 'agMsg err';
+  // com o endereço o form ficou longo: sem isto o aviso nasce fora da tela
+  m.scrollIntoView({behavior:'smooth', block:'center'});
 }
 
 async function agendar(){
   const nome    = document.getElementById('f-nome').value.trim();
   const telRaw  = document.getElementById('f-tel').value.replace(/\D/g,'');
+  const cep     = document.getElementById('f-cep').value.trim();
   const cidade  = document.getElementById('f-cidade').value.trim();
+  const rua     = document.getElementById('f-rua').value.trim();
+  const numero  = document.getElementById('f-numero').value.trim();
+  const bairro  = document.getElementById('f-bairro').value.trim();
+  const compl   = document.getElementById('f-compl').value.trim();
   const perfil  = document.getElementById('f-perfil').value;
   const capital = document.getElementById('f-capital').value;
   const btn     = document.getElementById('ag-btn');
 
-  const endereco = document.getElementById('f-endereco').value.trim();
   const obter    = document.getElementById('f-obter').value;
 
   if(!slotSel)            return erro('Escolha um horário acima.');
   if(nome.length < 3)     return erro('Informe seu nome completo.');
   if(telRaw.length < 10)  return erro('Informe um WhatsApp válido com DDD.');
+  if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
+  if(rua.length < 3)      return erro('Informe a rua ou avenida do endereço.');
+  if(!numero)             return erro('Informe o número do endereço.');
+  if(bairro.length < 2)   return erro('Informe o bairro.');
   if(!perfil)             return erro('Selecione seu perfil.');
   if(!capital)            return erro('Selecione a faixa de investimento.');
   if(!pontoSel)           return erro('Informe se você já tem o ponto.');
-  if(pontoSel === 'sim' && endereco.length < 8) return erro('Informe o endereço completo do ponto.');
-  if(pontoSel === 'nao' && !obter)              return erro('Informe como pretende obter o ponto.');
+  if(pontoSel === 'nao' && !obter) return erro('Informe como pretende obter o ponto.');
 
-  btn.disabled = true; btn.textContent = 'Agendando…';
   const p = params(), r = compute(p);
   const tel = '55' + telRaw;
   const kw  = document.getElementById('s-config').value;
+  // endereço completo montado a partir dos campos (a ficha vai na observação)
+  const endereco = [`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '', compl ? `ref.: ${compl}` : '']
+    .filter(Boolean).join(' — ');
   const obs = [
     `LP ELETROPOSTO — ${perfil}`,
     `Investimento pretendido: ${document.getElementById('f-capital').selectedOptions[0].text}`,
-    pontoSel === 'sim' ? `PONTO: já tem — ${endereco}`
+    `Endereço: ${endereco}${pontoSel === 'nao' ? ' (endereço do lead — ainda sem ponto)' : ''}`,
+    pontoSel === 'sim' ? `PONTO: já tem`
                        : `PONTO: não tem — ${document.getElementById('f-obter').selectedOptions[0].text}`,
     `Simulou ${kw} kW com ${p.carros} carros/dia`,
     `→ payback ${r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—'} · lucro ${money(r.lucroMes)}/mês`,
   ].join('\n');
+
+  // Ficha pronta, mas NÃO gravada: quem grava é o "Sim" do portão de presença.
+  pendente = { nome, tel, cidade, capital, perfil, obs };
+  document.getElementById('ag-msg').className = 'agMsg';   // limpa aviso de tentativa anterior
+  abrirConfirma();
+}
+
+// ── Portão de presença ───────────────────────────────────────────────────────
+// Marcar é barato pro curioso e caro pra agenda: cada horário bloqueia um
+// especialista por 30 min. O portão cobra a intenção ANTES de reservar — quem
+// responde "Não" não deixa ficha nem horário ocupado, só vai embora.
+let pendente = null;
+
+function rotuloSlot(iso){
+  const dt = new Date(iso);
+  const TZ = { timeZone:'America/Sao_Paulo' };   // exibe no fuso do Brasil, não no do visitante
+  const diaSemana = dt.toLocaleDateString('pt-BR',{...TZ, weekday:'long'});
+  return {
+    diaSemana,
+    completo: `${diaSemana}, ${dt.toLocaleDateString('pt-BR',{...TZ,day:'2-digit',month:'long'})}`
+            + ` às ${dt.toLocaleTimeString('pt-BR',{...TZ,hour:'2-digit',minute:'2-digit'})}`,
+  };
+}
+function abrirConfirma(){
+  document.getElementById('cf-quando').textContent = `${rotuloSlot(slotSel).completo} — horário de Brasília`;
+  document.getElementById('cf-bg').classList.add('on');
+  document.body.style.overflow = 'hidden';   // sem isto o fundo rola atrás do overlay no celular
+  // o overlay tapa o botão pro mouse, mas não pro teclado: sem desabilitar, um Tab +
+  // Enter reabre o portão por cima dele mesmo
+  document.getElementById('ag-btn').disabled = true;
+  document.getElementById('cf-sim').focus();
+  track('portao_presenca');
+}
+function fecharConfirma(){
+  document.getElementById('cf-bg').classList.remove('on');
+  document.body.style.overflow = '';
+}
+function confirmarSim(){
+  fecharConfirma();
+  track('presenca_sim');
+  gravarAgendamento();
+}
+function confirmarNao(){
+  fecharConfirma();
+  track('presenca_nao');   // é por aqui que se mede quanto curioso o portão segurou
+  pendente = null;
+  document.getElementById('ag-btn').disabled = false;   // pode voltar atrás e confirmar
+  const m = document.getElementById('ag-msg');
+  m.textContent = 'Tudo bem — nada foi agendado e o horário continua livre pra quem puder ir. Quando conseguir reservar os 30 minutos, é só confirmar aqui.';
+  m.className = 'agMsg info';
+  m.scrollIntoView({behavior:'smooth', block:'center'});
+}
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && document.getElementById('cf-bg').classList.contains('on')) confirmarNao();
+});
+
+async function gravarAgendamento(){
+  if(!pendente || !slotSel) return;
+  const { nome, tel, cidade, capital, perfil, obs } = pendente;
+  const btn = document.getElementById('ag-btn');
+  btn.disabled = true; btn.textContent = 'Agendando…';
 
   try{
     // Corrida: alguém pode ter marcado esse horário enquanto o lead preenchia o form.
@@ -1034,7 +1209,9 @@ async function agendar(){
     await carregarOcupados(partesBR().ymd, partesBR(new Date(Date.now()+12*86400000)).ymd);
     const passou = new Date(slotSel).getTime() < Date.now();
     if(ocupados.has(slotSel) || passou){
-      slotSel = null;
+      // zera a ficha junto com o horário: ela é de um slot que não existe mais, e
+      // ficha velha esperando é exatamente o jeito de gravar o dado errado depois
+      slotSel = null; pendente = null;
       await montarSlots();
       btn.disabled = false; btn.textContent = 'Confirmar agendamento →';
       document.getElementById('slots').scrollIntoView({behavior:'smooth', block:'center'});
@@ -1062,12 +1239,9 @@ async function agendar(){
     // Evento de conversão — é ESTE que a campanha otimiza
     try{ fbq('track','Schedule',{content_name:'Reuniao Eletroposto', content_category:perfil}); }catch(e){}
 
-    const dt = new Date(slotSel);
-    const TZ = { timeZone:'America/Sao_Paulo' };   // exibe no fuso do Brasil, não no do visitante
-    const diaSemana = dt.toLocaleDateString('pt-BR',{...TZ, weekday:'long'});
-    document.getElementById('ok-txt').textContent =
-      `${diaSemana}, ${dt.toLocaleDateString('pt-BR',{...TZ,day:'2-digit',month:'long'})} às ${dt.toLocaleTimeString('pt-BR',{...TZ,hour:'2-digit',minute:'2-digit'})} — horário de Brasília`;
-    document.getElementById('ok-dia').textContent = diaSemana;
+    const rot = rotuloSlot(slotSel);   // mesma formatação que o portão mostrou
+    document.getElementById('ok-txt').textContent = `${rot.completo} — horário de Brasília`;
+    document.getElementById('ok-dia').textContent = rot.diaSemana;
     // Avisa a equipe no WhatsApp na hora (fire-and-forget: se falhar, o lead já
     // está gravado no CRM — o alerta é conveniência, não pode derrubar o agendamento)
     fetch('/_api/io/eletroposto/alerta', {

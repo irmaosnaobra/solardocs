@@ -434,6 +434,76 @@ async function concederTrialVip(userId: string): Promise<ResultadoTrial> {
   return { aplicado: true, motivo: 'ok' };
 }
 
+// ── Concessão do curso pela oferta "VIP com o curso junto" ──────────────────
+// Desde que o plano deixou de liberar o curso sozinho (kitController), ser
+// assinante não basta mais: o acesso é sempre uma linha PAGA em kit_pedidos.
+// Quem entra pela oferta `vip_curso` — a que a Giovanna faz no WhatsApp e a que
+// o e-mail da campanha aponta — foi PROMETIDO o curso, então precisa receber de
+// fato. Sem isto ele paga os R$67, abre o curso e bate no cadeado.
+//
+// Por que gravar em kit_pedidos em vez de uma flag no user: é a MESMA fonte que
+// a Kiwify alimenta, então `acessoDoUsuario` (e portanto /kit/meu-acesso)
+// continua com uma regra só. De quebra, a campanha de e-mail já pula quem tem
+// pedido pago — quem recebeu o curso para de ser convidado a comprá-lo.
+//
+// Idempotência de graça: order_id é UNIQUE e aqui ele é DERIVADO do userId, não
+// aleatório. Webhook reentregue (at-least-once), upgrade repetido, ou o cliente
+// cancelando e assinando de novo — tudo cai na mesma linha.
+//
+// Diferente de concederTrialVip: aquele se RECUSA a mexer em quem já é pagante
+// (dar 30 dias de VIP a quem já paga não entrega nada). Aqui é o oposto — quem
+// está pagando é exatamente quem tem que receber.
+export async function concederCursoPorAssinatura(
+  userId: string,
+  email: string,
+): Promise<{ concedido: boolean; jaTinha: boolean }> {
+  const emailLc = (email || '').toLowerCase().trim();
+  if (!userId || !emailLc) return { concedido: false, jaTinha: false };
+
+  const orderId = `assinatura-vip-curso-${userId}`;
+
+  const { data: existente } = await supabase
+    .from('kit_pedidos')
+    .select('id')
+    .eq('order_id', orderId)
+    .maybeSingle();
+
+  const { error } = await supabase.from('kit_pedidos').upsert(
+    {
+      order_id: orderId,
+      email: emailLc,
+      produto: 'Curso Kit de Fechamento (incluso na assinatura VIP)',
+      itens: ['kit'] as ItemKit[],
+      bump_vip: false,
+      bump_prospeccao: false,
+      // Receita ZERO: o dinheiro desta pessoa é a assinatura recorrente, que já
+      // é contada pela Stripe. Somar R$27 aqui inventaria faturamento que não
+      // existe no funil da isca.
+      valor: 0,
+      status: 'paid',
+      user_id: userId,
+      conta_criada: false,
+      // Marcador que separa concessão de VENDA. O /kit-funil do admin filtra por
+      // ele — sem isso, cada assinante entraria no funil da isca como comprador
+      // e derrubaria a taxa de conversão da LP /kit.
+      segmento: 'assinatura',
+      payload: { origem: 'oferta_vip_curso' },
+      atualizado_em: new Date().toISOString(),
+    },
+    { onConflict: 'order_id' },
+  );
+
+  if (error) {
+    console.error('[kit] concessão do curso por assinatura falhou:', error);
+    return { concedido: false, jaTinha: !!existente };
+  }
+
+  if (!existente) {
+    console.info(`[kit] curso concedido pela oferta vip_curso · ${emailLc}`);
+  }
+  return { concedido: true, jaTinha: !!existente };
+}
+
 // ── Leitura para a plataforma ───────────────────────────────────────────────
 export type AcessoKit = {
   temKit: boolean;

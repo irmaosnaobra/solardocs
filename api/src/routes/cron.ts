@@ -6,6 +6,7 @@ import { reDrivePendingPurchases } from '../services/salesLedger';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup, dispararOpenerTesteParaUser } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
+import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntradaBroadcast';
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
@@ -387,6 +388,26 @@ router.get('/sdr-b2b-followup', async (req: Request, res: Response) => {
   }
 });
 
+// Campanha de reconquista com a entrada de R$19 (curso + 30 dias de plataforma).
+// Público: FREE, inadimplente e quem cancelou. 3 toques; para quando ele responde.
+//
+// `?seco=1` NÃO envia e NÃO grava — devolve a prévia das mensagens. É como se
+// revisa a campanha antes de ela tocar em alguém real. Use sempre antes de ligar.
+// `?limite=N` limita os envios deste tick (o teto anti-ban ainda manda em cima).
+router.get('/curso-entrada-19', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const seco = req.query.seco === '1' || req.query.seco === 'true';
+    const limiteRaw = Number(req.query.limite);
+    const limite = Number.isFinite(limiteRaw) && limiteRaw > 0 ? limiteRaw : undefined;
+    const result = await runCursoEntradaBroadcast({ seco, limite });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'curso-entrada-19 falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // Carla — usuários da plataforma sem CNPJ. 3 toques em 30d (D+2, D+10, D+30).
 router.get('/carla-sem-cnpj', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
@@ -642,6 +663,12 @@ router.get('/master', async (req: Request, res: Response) => {
     //   2026-06-30: ARRANQUE controlado — guard dentroDaJanelaDeEnvio só deixa
     //   disparar HOJE entre 18:30–20:00 BRT (≈4 pessoas no tick das 19h). A partir
     //   de 01/jul o guard expira sozinho e a cadência volta 24/7 (4/h, ~96/dia).
+    // Reconquista com a entrada de R$19 (curso + 30 dias). NÃO dispara sozinha:
+    // exige CAMPANHA_CURSO19_ON=true no Vercel — disparo em massa não pode começar
+    // só porque um deploy subiu. Sem a variável, este tick é no-op barato.
+    // Divide o MESMO teto anti-ban (4/h) com as duas cadências da Carla abaixo.
+    // Prévia sem enviar: GET /cron/curso-entrada-19?seco=1
+    ['curso-entrada-19',            () => runCursoEntradaBroadcast()],    // 3 toques; para quando o lead responde
     ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // follow-up Giovanna — 3 toques 30d
     ['carla-inativo',               () => runCarlaInativoFollowup()],     // follow-up Giovanna — 5 toques 60d
     // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [PAUSED-FOLLOWUP] broadcast matinal

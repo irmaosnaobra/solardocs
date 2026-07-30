@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine, Pencil } from 'lucide-react';
 import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
@@ -211,6 +212,9 @@ export default function PropostaSolarPage() {
   const [modelo, setModelo] = useState<1 | 2>(1);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
+  // Corrigindo uma proposta JÁ emitida: volta pro form com tudo preenchido e o
+  // submit reemite o mesmo documento (mesmo link, mesmo número) em vez de criar outro.
+  const [editando, setEditando] = useState(false);
   const [error, setError] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [copyMsg, setCopyMsg] = useState('');
@@ -219,6 +223,17 @@ export default function PropostaSolarPage() {
   // PDF pré-aquecido pro compartilhamento nativo do iOS (ver downloadPdf.ts).
   const [pdfAsset, setPdfAsset] = useState<PdfAsset | null>(null);
   const [pdfWarming, setPdfWarming] = useState(false);
+  // Reemitir mantém o doc_id, então o pré-aquecimento não reagiria sozinho e o botão
+  // mandaria o PDF de antes da correção. Esse contador força buscar o PDF novo.
+  const [pdfVersion, setPdfVersion] = useState(0);
+
+  // ?doc=<id> — veio do botão "Editar" do /histórico: abre a proposta salva já em
+  // modo edição, em vez de um formulário em branco.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const docParam = searchParams.get('doc');
+  const docCarregado = useRef(false);
+  const [carregandoDoc, setCarregandoDoc] = useState(false);
 
   // Cor de marca da empresa (cadastrada em Empresa) — habilita a paleta
   // "Cores da empresa". Só o swatch/enable usa isso no front; a geração lê
@@ -246,9 +261,11 @@ export default function PropostaSolarPage() {
   const temRascunho = useRef(false);           // havia rascunho neste aparelho?
   const [clientesHist, setClientesHist] = useState<string[]>([]); // clientes com histórico
 
-  // Restaura rascunho ao montar (1x).
+  // Restaura rascunho ao montar (1x). Abrindo pra editar um doc salvo (?doc=), o
+  // rascunho de outra proposta não pode entrar por cima — nem ser sobrescrito por
+  // esta edição (o autosave abaixo só liga quando draftLoaded vira true).
   useEffect(() => {
-    if (draftLoaded.current) return;
+    if (docParam || draftLoaded.current) return;
     draftLoaded.current = true;
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -259,7 +276,9 @@ export default function PropostaSolarPage() {
       if (d.cidadeUf) setCidadeUf(d.cidadeUf);
       if (d.fields) setFields(f => ({ ...f, ...d.fields }));
     } catch { /* rascunho corrompido — ignora */ }
-  }, []);
+    // Roda de novo quando o ?doc= sai da URL ("Nova proposta" depois de uma edição):
+    // é o que religa o autosave, que fica desligado durante a edição.
+  }, [docParam]);
 
   // Salva o rascunho (debounce). Só depois do load inicial pra não sobrescrever.
   useEffect(() => {
@@ -304,11 +323,48 @@ export default function PropostaSolarPage() {
   useEffect(() => {
     api.get('/documents/proposta-prefill').then(({ data }) => {
       setClientesHist(Array.isArray(data?.clientes) ? data.clientes : []);
-      if (!temRascunho.current && data?.kit && Object.keys(data.kit).length) {
+      // Editando um doc salvo, o kit não entra: os dois chegam por rede e o kit
+      // poderia aterrissar depois, trocando as marcas/taxas daquela proposta.
+      if (!docParam && !temRascunho.current && data?.kit && Object.keys(data.kit).length) {
         setFields(f => ({ ...f, ...data.kit }));
       }
     }).catch(() => { /* sem histórico ainda — ignora */ });
-  }, []);
+  }, [docParam]);
+
+  // Abre a proposta salva já no modo edição (veio do /histórico).
+  useEffect(() => {
+    if (!docParam || docCarregado.current) return;
+    docCarregado.current = true;
+    setCarregandoDoc(true);
+    api.get(`/documents/${docParam}/edit`).then(({ data }) => {
+      const d = data?.document;
+      if (!d) throw new Error('sem documento');
+      const dados = (d.dados_json ?? {}) as Record<string, string>;
+      // Proposta sem os dados do formulário salvos (doc antigo/importado): reemitir
+      // por cima escreveria um formulário em branco em cima de uma proposta boa.
+      if (!Object.keys(dados).length) throw new Error('sem dados do formulário');
+      setFields(f => ({ ...f, ...dados }));
+      setClienteNome(String(d.cliente_nome || ''));
+      const cid = String(dados.cidade || '').trim(), uf = String(dados.uf || '').trim();
+      if (cid || uf) setCidadeUf([cid, uf].filter(Boolean).join(' - '));
+      setModelo(d.modelo_numero === 2 ? 2 : 1);
+      setGenerated({
+        content: String(d.content || ''),
+        modelo_usado: `modelo-${d.modelo_numero}`,
+        cliente_nome: String(d.cliente_nome || ''),
+        doc_id: d.doc_id,
+        codigo: d.codigo ?? null,
+        codigo_curto: d.codigo_curto ?? null,
+        empresa_slug: d.empresa_slug ?? null,
+        // O resumo de WhatsApp é calculado na emissão e não fica salvo — depois de
+        // atualizar ele volta; até lá o botão usa o texto curto de fallback.
+        resumo_whatsapp: null,
+      });
+      setEditando(true);
+    }).catch(() => {
+      setError('Não consegui abrir essa proposta pra edição. Ela pode ter sido removida, ou é antiga demais e não guardou os dados do formulário.');
+    }).finally(() => setCarregandoDoc(false));
+  }, [docParam]);
 
   // Carrega a última proposta de um cliente (histórico por cliente) e preenche tudo.
   const [carregandoCliente, setCarregandoCliente] = useState(false);
@@ -416,6 +472,7 @@ export default function PropostaSolarPage() {
   // template reutilizável (garantias, taxas, formas de pagamento, paleta).
   function novaProposta() {
     setGenerated(null);
+    setEditando(false);
     setError('');
     setFaltando(new Set());
     setClienteNome('');
@@ -433,6 +490,29 @@ export default function PropostaSolarPage() {
       // marca/garantias/pagamento ficam como estão (template do integrador).
     }));
     limparRascunho();
+    // Veio do /histórico (?doc=): tira o parâmetro pra proposta nova não ficar
+    // amarrada ao doc antigo (e o efeito do rascunho religa o autosave).
+    if (docParam) router.replace('/documentos?tipo=proposta');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // "Editar proposta": volta pro formulário com tudo que gerou esta proposta ainda
+  // preenchido (nada limpa os fields na emissão). O PDF antigo é descartado aqui pra
+  // ninguém compartilhar a versão errada no meio da correção.
+  function editarProposta() {
+    setEditando(true);
+    setError('');
+    setCopyMsg('');
+    setPdfAsset(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Desistiu da correção: volta pra proposta como estava (nada foi reemitido).
+  function cancelarEdicao() {
+    setEditando(false);
+    setError('');
+    setFaltando(new Set());
+    setPdfVersion(v => v + 1); // re-aquece o PDF que foi descartado ao entrar na edição
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -471,8 +551,21 @@ export default function PropostaSolarPage() {
         modeloNumero: modelo,
         cliente_nome_avulso: clienteNome.trim(),
       };
-      const { data } = await api.post('/documents/generate', payload);
+      // Editando: reemite o MESMO documento (mesmo link /p/:id, mesmo número, sem
+      // consumir cota) em vez de criar uma proposta nova ao lado da errada.
+      const editandoId = editando ? generated?.doc_id : null;
+      const { data } = editandoId
+        ? await api.post(`/documents/${editandoId}/regenerate`, payload)
+        : await api.post('/documents/generate', payload);
       setGenerated(data);
+      setEditando(false);
+      if (editandoId) {
+        // Link e PDF apontam pro mesmo doc: força buscar o PDF corrigido.
+        setPdfAsset(null);
+        setPdfVersion(v => v + 1);
+        setCopyMsg('Proposta atualizada — mesmo link e mesmo número.');
+        setTimeout(() => setCopyMsg(''), 4000);
+      }
       // Sucesso: limpa o rascunho e lembra as marcas usadas (itens 1 e 2).
       limparRascunho();
       salvarMarca(MARCAS_MOD_KEY, fields.marca_modulo);
@@ -483,7 +576,7 @@ export default function PropostaSolarPage() {
       setMarcasBat(lerMarcas(MARCAS_BAT_KEY));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
-      setError(error.response?.data?.error || 'Erro ao gerar proposta');
+      setError(error.response?.data?.error || (editando ? 'Erro ao atualizar a proposta' : 'Erro ao gerar proposta'));
     } finally {
       setGenerating(false);
     }
@@ -501,7 +594,7 @@ export default function PropostaSolarPage() {
       .catch(() => { if (!cancelled) setPdfAsset(null); })
       .finally(() => { if (!cancelled) setPdfWarming(false); });
     return () => { cancelled = true; };
-  }, [generated?.doc_id]);
+  }, [generated?.doc_id, pdfVersion]);
 
   async function handleDownloadPdf() {
     if (!generated?.doc_id) return;
@@ -582,11 +675,26 @@ export default function PropostaSolarPage() {
     });
   }
 
+  // Abrindo do /histórico: segura a tela até os dados chegarem, senão o consultor
+  // veria um formulário em branco e começaria a digitar por cima.
+  if (carregandoDoc) {
+    return (
+      <div className={styles.page}>
+        <p style={{ padding: '48px 0', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+          Abrindo a proposta pra edição...
+        </p>
+      </div>
+    );
+  }
+
   // Quando preview ativo, fica fullscreen com iframe + ações
-  if (generated) {
+  if (generated && !editando) {
     return (
       <div className={styles.page}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
+          {/* Achou erro na proposta pronta? Corrige e reemite a MESMA (mesmo link).
+              Fica antes do "Nova proposta" porque esse zera os dados do cliente. */}
+          <button type="button" onClick={editarProposta} style={{ ...btn('outline'), display: 'inline-flex', alignItems: 'center', gap: 6 }}><Pencil size={15} /> Editar esta proposta</button>
           <button type="button" onClick={novaProposta} style={{ ...btn('ghost'), display: 'inline-flex', alignItems: 'center', gap: 6 }}><RotateCcw size={15} /> Nova proposta</button>
           {publicId && (
             <span style={{
@@ -716,9 +824,31 @@ export default function PropostaSolarPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Proposta Solar</h1>
-        <p className={styles.subtitle}>Gera proposta comercial bonita pra cliente final — copia link, manda WhatsApp ou imprime</p>
+        <h1 className={styles.title}>{editando ? 'Editar proposta' : 'Proposta Solar'}</h1>
+        <p className={styles.subtitle}>
+          {editando
+            ? 'Corrija o que estiver errado e atualize — a proposta é reemitida no mesmo link, com o mesmo número.'
+            : 'Gera proposta comercial bonita pra cliente final — copia link, manda WhatsApp ou imprime'}
+        </p>
       </div>
+
+      {/* Modo edição: deixa explícito que NÃO nasce proposta nova e dá a saída sem alterar. */}
+      {editando && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          marginBottom: 16, padding: '12px 16px', borderRadius: 12,
+          background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.35)',
+        }}>
+          <Pencil size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+          <span style={{ fontSize: 13, color: 'var(--color-text)', flex: 1, minWidth: 200 }}>
+            Editando a proposta {publicId ? <strong style={{ fontFamily: 'monospace' }}>{publicId}</strong> : 'atual'}.
+            O link já enviado passa a mostrar a versão corrigida — e não conta como proposta nova.
+          </span>
+          <button type="button" onClick={cancelarEdicao} style={{ ...btn('ghost'), whiteSpace: 'nowrap' }}>
+            Voltar sem alterar
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
         <Link
@@ -1269,7 +1399,9 @@ export default function PropostaSolarPage() {
 
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteNome.trim()}>
-          {generating ? 'Gerando...' : 'Gerar Proposta'}
+          {editando
+            ? (generating ? 'Atualizando...' : 'Atualizar Proposta')
+            : (generating ? 'Gerando...' : 'Gerar Proposta')}
         </button>
       </form>
     </div>

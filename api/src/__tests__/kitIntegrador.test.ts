@@ -108,6 +108,7 @@ import {
   classificarProdutoKit,
   processarEventoKit,
   acessoDoUsuario,
+  concederCursoPorAssinatura,
   type EventoKit,
 } from '../services/kitIntegradorService';
 import { meuAcesso } from '../controllers/kitController';
@@ -452,5 +453,57 @@ describe('meuAcesso — gate do curso', () => {
     db.users.find((u) => u.id === id)!.curso_vitalicio = false;
     const { body } = await abrir(id);
     expect(body.liberado).toBe(false);
+  });
+});
+
+// ── Concessão pela oferta "VIP com o curso junto" ───────────────────────────
+// Desde 30/jul/2026 o plano não abre mais o curso — quem abre é o pedido pago.
+// Se esta concessão falhar, o cliente paga os R$67 prometidos pela Giovanna e
+// bate no cadeado: é o modo de falha mais caro do fluxo, então tem teste.
+describe('concederCursoPorAssinatura', () => {
+  const ALUNO = 'aluno-vip@teste.com';
+
+  it('libera o curso para quem entrou pela oferta', async () => {
+    const r = await concederCursoPorAssinatura('user-1', ALUNO);
+    expect(r.concedido).toBe(true);
+    expect(r.jaTinha).toBe(false);
+
+    const acesso = await acessoDoUsuario('user-1', ALUNO);
+    expect(acesso.temKit).toBe(true);
+    expect(acesso.itens).toContain('kit');
+  });
+
+  it('é idempotente — webhook reentregue não duplica pedido', async () => {
+    await concederCursoPorAssinatura('user-1', ALUNO);
+    const segunda = await concederCursoPorAssinatura('user-1', ALUNO);
+
+    expect(segunda.jaTinha).toBe(true);
+    expect(db.kit_pedidos).toHaveLength(1);
+  });
+
+  it('não entra no funil da isca como venda', async () => {
+    await concederCursoPorAssinatura('user-1', ALUNO);
+    const linha = db.kit_pedidos[0];
+
+    // valor 0: o dinheiro dele é a assinatura recorrente (Stripe), não os R$27.
+    expect(linha.valor).toBe(0);
+    // segmento 'assinatura' é o marcador que o /kit-funil do admin filtra —
+    // sem ele, cada assinante viraria "comprador" e afundaria a conversão da LP.
+    expect(linha.segmento).toBe('assinatura');
+    expect(linha.status).toBe('paid');
+  });
+
+  it('ignora chamada sem usuário ou sem email', async () => {
+    expect((await concederCursoPorAssinatura('', ALUNO)).concedido).toBe(false);
+    expect((await concederCursoPorAssinatura('user-1', '')).concedido).toBe(false);
+    expect(db.kit_pedidos).toHaveLength(0);
+  });
+
+  it('normaliza o email — a leitura do acesso casa por email em lowercase', async () => {
+    await concederCursoPorAssinatura('user-2', 'Aluno.VIP@Teste.com');
+    expect(db.kit_pedidos[0].email).toBe('aluno.vip@teste.com');
+
+    const acesso = await acessoDoUsuario('user-2', 'Aluno.VIP@Teste.com');
+    expect(acesso.temKit).toBe(true);
   });
 });

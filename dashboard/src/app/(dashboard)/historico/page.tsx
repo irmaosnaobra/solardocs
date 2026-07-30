@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Lock } from 'lucide-react';
+import Link from 'next/link';
+import { Download, Lock, Pencil } from 'lucide-react';
 import api from '@/services/api';
 import { shareOrDownloadPdf } from '@/services/downloadPdf';
 import styles from './historico.module.css';
@@ -69,7 +70,7 @@ export default function HistoricoPage() {
             Acesse e baixe todos os documentos gerados nos últimos 30 dias.<br/>
             No VIP, o histórico é ilimitado.
           </p>
-          <a href="/#planos" className={styles.upgradeBtn}>Ver planos →</a>
+          <Link href="/#planos" className={styles.upgradeBtn}>Ver planos →</Link>
         </div>
       </div>
     );
@@ -96,6 +97,18 @@ export default function HistoricoPage() {
                 <span className={styles.docData}>{fmtDateBR(doc.created_at)}</span>
               </div>
               <div className={styles.cardActions}>
+                {/* Só proposta solar: é o único tipo que o formulário sabe reabrir
+                    (os outros nem sempre têm todos os campos no dados_json). Corrige
+                    e reemite no MESMO link — não nasce proposta nova. */}
+                {doc.tipo === 'propostaSolar' && (
+                  <Link
+                    href={`/documentos?tipo=proposta&doc=${doc.id}`}
+                    className={styles.downloadBtn}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+                  >
+                    <Pencil size={15} /> Editar
+                  </Link>
+                )}
                 {doc.signed_url ? (
                   <button
                     className={styles.downloadBtn}

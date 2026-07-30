@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
+import { stripPrint } from '../utils/printHtml';
 
 const router = Router();
 
@@ -75,8 +76,16 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Proposta antiga subiu pro Storage com o script de impressão dentro (o arquivo
+    // era compartilhado com o "abrir pra imprimir"). Sem tirar aqui, o cliente que
+    // abre o link leva uma caixa de impressão e a aba tentando se fechar sozinha.
+    html = stripPrint(html);
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
+    // 60s e não 300: o consultor pode reeditar a proposta depois de já ter aberto o
+    // link (o que popula o cache) e mandado pro cliente. Cache curto limita a janela
+    // em que o cliente ainda veria o valor errado.
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60');
     res.send(html);
   } catch (err) {
     console.error('[public-proposta] erro:', err);
