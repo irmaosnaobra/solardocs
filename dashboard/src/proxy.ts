@@ -7,7 +7,10 @@ import type { NextRequest } from 'next/server';
 // '/kit' = LP de venda do Kit de Fechamento (public/kit/index.html). É página de
 // venda para quem AINDA não tem conta — sem isto o proxy manda o visitante do
 // anúncio direto pro login e a isca não vende nada.
-const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta'];
+// '/orc/' é o link do orçamento que o consultor manda pro cliente — quem abre
+// não tem conta nenhuma. Sem estar aqui, o proxy devolve 307 pro /auth e o
+// crawler do WhatsApp lê a tela de login em vez das og: tags do produto.
+const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;

@@ -6439,6 +6439,15 @@ function orcInit() {
 // gerador usasse o fmt() dele, os números arredondariam diferente e o mesmo
 // orçamento sairia com valores diferentes nos dois lugares.
 // ═══════════════════════════════════════════════════════════════════════════
+// Link que vai pro cliente. Aponta pro /orc/CODIGO da API (via rewrite do
+// dashboard), que devolve as og: tags do produto certo e redireciona pro app na
+// hora. Sem esse desvio, a prévia do WhatsApp sairia com o título do solar em
+// TODO link — o crawler dele lê o HTML e não roda JavaScript, e o /gerador é um
+// arquivo estático só. O ?p=CODIGO continua valendo pra quem já recebeu link.
+function orcLinkPublico(codigo) {
+  return `${window.location.origin}/orc/${encodeURIComponent(codigo)}`;
+}
+
 const ORC1_EMPRESA = {
   nome: 'Irmãos na Obra',
   endereco: 'Avenida Ana Godoy de Sousa, 890, Santa Mônica - Uberlândia MG',
@@ -6647,12 +6656,16 @@ function orcEpPayload() {
 
   const dEmisISO = orcVal('orc-data') || orcHojeISO();
   const telCli = orcVal('orc-cli-tel');
+  // "Elaborado por" vazio no Simulador deixava o card do Vendedor com um "—" no
+  // documento que vai pro cliente. Cai no consultor logado, que é quem está
+  // gerando — dá pra sobrescrever no campo quando o orçamento é de outro.
+  const vendNome = orcVal('el-autor') || (typeof crmConsultorLogado === 'function' ? crmConsultorLogado() : '');
 
   return {
     produto: 'eletroposto',
     // raiz — lida pela tela de expirado e pelo histórico
     nome: orcVal('el-cliente'),
-    consultor: orcVal('el-autor'),
+    consultor: vendNome,
     telefone: telCli,
     telefoneDigitos: telCli.replace(/\D/g, ''),
     cidade: orcVal('el-cidade'),
@@ -6670,7 +6683,7 @@ function orcEpPayload() {
     linhas: orc1EpLinhas(),
     fin: orc1EpFinanceiro(r.total),
     pag: { vista: on('orc-pg-ck-avista'), cartaoNs, fin: on('orc-pg-ck-fin') },
-    vendedor: { nome: orcVal('el-autor'), email: orcVal('el-email'), contato: orcVal('el-contato') },
+    vendedor: { nome: vendNome, email: orcVal('el-email'), contato: orcVal('el-contato') },
     empresa: orc1EpEmpresa(),
   };
 }
@@ -6729,7 +6742,7 @@ async function orcEpLink() {
     const codigo = await salvarOrcamentoEpSupabase(d);
     epHistOrcSave({ id: epId(), tipo: 'Completo', cliente: d.nome, valor: d.total, codigo,
                     data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() });
-    const link = `${window.location.origin}${window.location.pathname}?p=${codigo}`;
+    const link = orcLinkPublico(codigo);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try { await navigator.clipboard.writeText(link); showToast(`🔗 Link ${codigo} copiado!`); return; } catch (e) {}
     }
@@ -9741,7 +9754,7 @@ async function orcSolarLink() {
   try {
     const codigo = await garantirCodigo();
     supaRpc('marcar_enviado_link', { p_codigo: codigo }).catch(e => console.error(e));
-    const link = `${window.location.origin}${window.location.pathname}?p=${codigo}&v=orc`;
+    const link = orcLinkPublico(codigo);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try { await navigator.clipboard.writeText(link); showToast('🔗 Link do orçamento copiado!'); return; } catch (e) {}
     }

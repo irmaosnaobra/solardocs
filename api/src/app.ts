@@ -27,6 +27,7 @@ import zapiAdminRoutes from './routes/zapiAdmin';
 import mcpRoutes from './routes/mcp';
 import unsubscribeRoutes from './routes/unsubscribe';
 import publicPropostaRoutes from './routes/publicProposta';
+import orcamentoShareRoutes from './routes/orcamentoShare';
 import vistoriasRoutes from './routes/vistorias';
 import publicVistoriaRoutes from './routes/publicVistoria';
 import dashboardsRoutes from './routes/dashboards';
@@ -116,6 +117,8 @@ app.use('/zapi-admin', zapiAdminRoutes);
 app.use('/mcp', mcpRoutes);
 app.use('/unsubscribe', unsubscribeRoutes);
 app.use('/p', publicPropostaRoutes);
+// Prévia do WhatsApp pro link do orçamento do Gerador (og: tags por produto).
+app.use('/orc', orcamentoShareRoutes);
 app.use('/vistorias', vistoriasRoutes);
 app.use('/v', publicVistoriaRoutes);
 app.use('/dashboards', dashboardsRoutes);
