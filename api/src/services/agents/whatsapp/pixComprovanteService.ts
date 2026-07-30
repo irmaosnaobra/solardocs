@@ -270,10 +270,20 @@ export async function tryProcessPixComprovante(
     // de virar mensalidade de R$19 no lugar da assinatura.
     const eEntrada = Math.round(valor) === VALOR_ENTRADA_CURSO;
     if (eEntrada) {
-      await supabase.from('system_state').insert({
+      // Falha aqui NÃO pode ser silenciosa: se o marcador não grava, a trava da
+      // entrada nunca dispara e a pessoa segue pagando R$19 por mês no lugar de
+      // assinar. Não bloqueia a liberação (ele já pagou), mas grita no log.
+      const { error: marcaErr } = await supabase.from('system_state').insert({
         key: chaveEntrada(cleanPhone),
         value: { user_id: user.id, email: user.email, at: new Date().toISOString(), vence: venc.toISOString() },
-      }).then(undefined, () => {});
+      });
+      if (marcaErr) {
+        logger.error(
+          'pix-comprovante',
+          `ENTRADA R$19 NÃO MARCADA (${user.email}) — a trava de uma-vez-só não vai pegar neste número`,
+          marcaErr,
+        );
+      }
     }
 
     // Orienta o cliente. Conta pendente (pagou no abandono, sem senha) → link pra definir senha.
