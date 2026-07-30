@@ -104,9 +104,16 @@ Em `dashboard/src/components/Sidebar/Sidebar.tsx`, adicione ao array
 ```
 
 ### 6. Quem pode ver
-Hoje o acesso é o do Kit (comprou o kit **ou** assina PRO/VIP), lido de
+Hoje o acesso é o do Kit: **teve pedido pago** (`kit_pedidos`), lido de
 `GET /kit/meu-acesso`. Se o curso novo tiver regra própria, é aí que muda — a tela
 usa um único booleano `liberado`.
+
+Assinar **não** libera (mudou em 30/jul/2026): o curso voltou a ser produto vendido à
+parte, e assinante que clica nele cai na tela bloqueada com CTA de compra. A única
+inclusão que existe é a oferta `vip_curso` — e ali o acesso é **entregue de fato** por
+`concederCursoPorAssinatura()`, que grava o pedido pago que este gate lê. O mesmo vale
+pra reativação por Pix de R$67. Se você prometer o curso em alguma oferta nova, chame
+essa função no fechamento dela: prometer sem gravar o pedido = cliente pago no cadeado.
 
 ## O que você NÃO precisa fazer
 

@@ -27,23 +27,24 @@ export async function meuAcesso(req: Request, res: Response): Promise<void> {
       .select('modulo, concluido_em')
       .eq('user_id', req.userId);
 
-    // Quem pode abrir o curso — decidido AQUI, não na tela. Três motivos:
+    // Quem pode abrir o curso — decidido AQUI, não na tela.
     //
-    // 1. COMPRA (itens.length > 0): vale pra sempre. Inclui quem levou só o
-    //    order bump: ele fica 'ilimitado' por 30 dias e temKit=false, então um
-    //    gate por plano tiraria o curso dele no dia 31 depois de ter pago.
-    // 2. ASSINATURA (pro/ilimitado): o curso é entrega do plano — está escrito na
-    //    tela do curso e na oferta do VIP.
+    // REGRA ÚNICA: teve pedido PAGO (itens.length > 0). Vale pra sempre, e inclui
+    // quem levou só o order bump — ele fica 'ilimitado' por 30 dias e temKit=false,
+    // então um gate por plano tiraria o curso dele no dia 31 depois de ter pago.
     //
-    // A tela continua desenhando o cadeado, mas quem decide é o servidor: assim a
-    // regra muda num lugar só e não depende de o front estar atualizado.
-    const assinante = user.plano === 'pro' || user.plano === 'ilimitado';
-    const liberado = acesso.itens.length > 0 || assinante;
+    // O PLANO NÃO LIBERA MAIS (mudança de 30/jul/2026). O curso voltou a ser
+    // produto vendido à parte: assinante que clica nele vai para a página de venda.
+    // A inclusão "o curso vem junto" passou a existir só na oferta `vip_curso` —
+    // e ali ela é ENTREGUE de fato, via concederCursoPorAssinatura(), que grava o
+    // pedido pago que esta linha lê. Quem entra pela oferta continua com acesso;
+    // quem assina VIP pela LP, não — nunca foi prometido a ele.
+    const liberado = acesso.itens.length > 0;
 
     res.json({
       ...acesso,
       liberado,
-      motivoAcesso: acesso.itens.length > 0 ? 'compra' : assinante ? 'assinatura' : null,
+      motivoAcesso: liberado ? 'compra' : null,
       plano: user.plano,
       packTrialUntil: user.pack_trial_until,
       progresso: (prog || []).map((p: { modulo: string }) => p.modulo),

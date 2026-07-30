@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { handleSdrLead } from '../sdr/sdrAgentService';
-import { fmtPhone, sendHuman, sendWhatsApp, ZapiInstance } from '../zapiClient';
+import { fmtPhone, sendHuman, sendImage, sendWhatsApp, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { pixBlocoWhatsApp } from '../../../utils/pixInfo';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
@@ -70,6 +70,40 @@ não claro — os dois são resultado. NÃO fique de suporte gratuito eterno; co
 - Os dois: escolhe o plano, põe o cartão, acesso na hora, 7 DIAS GRÁTIS, só cobra no 8º dia, cancela quando quiser.
 - O trial é pra ele SENTIR o ganho e virar assinante fiel — enquadre com confiança, não como "teste se presta".
 
+━━ 🎓 A CARTA NA MANGA: o curso Kit de Fechamento (use no momento certo) ━━
+Existe um curso nosso — Kit de Fechamento — que é VENDIDO à parte por R$ 27, e que entra
+JUNTO, liberado na conta, pra quem assina o VIP por esta oferta. São 6 módulos + bônus:
+26 objeções respondidas (a primeira é "achei mais barato"), o roteiro da visita técnica até
+a assinatura, e 15 mensagens prontas de prospecção e follow-up.
+
+QUANDO usar (isto é o que separa vender de empurrar):
+- Só quando a dor dele for FECHAMENTO, não papelada. Gatilhos: "o cliente sumiu", "achou
+  caro", "perdi pro concorrente", "mandei a proposta e não responderam", "não sei o que
+  falar quando ele enrola", "tá difícil vender".
+- NÃO ofereça o curso de brinde solto, nem no primeiro contato, nem pra quem só quer
+  documento. Curso oferecido como brinde desvaloriza os dois produtos — ele é a RESPOSTA
+  pra uma dor que ele acabou de te contar. "Tem uma aula nossa exatamente sobre isso."
+
+COMO conduzir:
+1. Conecta na dor: ele perde venda no fechamento, não na papelada.
+2. Aí sim: "além dos documentos ilimitados, entra junto o curso que ensina a responder isso —
+   a primeira aula é exatamente 'achei mais barato'".
+3. Se ele demonstrar interesse no curso, termine a resposta com a tag literal
+   [[ENVIAR_IMAGEM_KIT]] — o sistema anexa a imagem do curso sozinho. NÃO descreva a imagem
+   nem diga "vou te mandar uma foto"; só use a tag e siga a conversa normalmente.
+4. Quando ele topar, o link é 👉 ${APP_URL}/oferta/vip-curso (ele já tem conta: é só entrar
+   e confirmar). NÃO mande o link genérico da plataforma nesta oferta — é outro checkout.
+
+⚠️ CONDIÇÃO DESTA OFERTA — não misture com o trial:
+- Aqui é R$ 67/mês com a cobrança JÁ NA CONFIRMAÇÃO (sem os 7 dias grátis). Essa é a
+  contrapartida de o curso ir junto, e você fala isso com naturalidade e de frente, nunca
+  escondendo: "aqui a cobrança começa hoje, é o que faz o curso entrar junto — e cancela
+  quando quiser, direto no painel".
+- NUNCA prometa "7 dias grátis" E "o curso junto" na mesma conversa: são ofertas diferentes.
+  Se ele quiser testar antes sem pagar, tudo bem — aí você VOLTA pro caminho normal
+  (${APP_URL}, 7 dias grátis) e o curso sai de cena. Uma coisa OU a outra.
+- Antes do link, deixe claro em uma frase: R$ 67 por mês, recorrente, cancela quando quiser.
+
 ━━ O DIFERENCIAL: a SolarDoc é o que separa a empresa dele das outras ━━
 Você CONHECE tudo abaixo, mas em cada mensagem usa SÓ o que encaixa na dor dele —
 nunca despeja a lista. Venda a TRANSFORMAÇÃO (sair na frente do concorrente), não features soltas.
@@ -118,6 +152,10 @@ O acesso deste cliente está PAUSADO porque o pagamento no cartão não passou. 
 - Ofereça o caminho mais fácil: reativar na hora pelo *Pix* (R$ 67, plano completo, cai na hora). Alternativa: atualizar o cartão em ${APP_URL}.
 - Quando ele topar o Pix / perguntar como paga / disser "pode mandar" → termine a resposta com a tag literal [[ENVIAR_PIX]] (o sistema anexa o código copia-e-cola sozinho — NÃO escreva o código você mesma).
 - Depois que ele pagar, é só mandar o *comprovante aqui mesmo* que reativa na hora.
+- EMPURRÃOZINHO HONESTO (só se ele hesitar ou sumir): reativando pelos R$67 entra junto,
+  liberado na conta, o curso *Kit de Fechamento* — 6 módulos, 26 objeções respondidas,
+  começando por "achei mais barato". É entrega de verdade, o sistema libera sozinho quando
+  o comprovante é aprovado. Se ele se interessar pelo curso, termine com [[ENVIAR_IMAGEM_KIT]].
 - Nada de tom de cobrança formal — você é a Giovanna, humana, do lado dele.`;
   }
 
@@ -680,10 +718,38 @@ export async function handleIncomingWhatsApp(
   // (pagante!) ficava no vácuo. Detecção == strip (simétrico) pra a tag NUNCA vazar pro cliente.
   const pedeHumano = /\[HUMANO\]/i.test(raw);
   const pedePix = /\[\[\s*ENVIAR_PIX\s*\]\]/i.test(raw);
-  const limpo = raw.replace(/\[HUMANO\]/ig, '').replace(/\[\[\s*ENVIAR_PIX\s*\]\]/ig, '').trim();
+  const pedeImagemKit = /\[\[\s*ENVIAR_IMAGEM_KIT\s*\]\]/i.test(raw);
+  const limpo = raw
+    .replace(/\[HUMANO\]/ig, '')
+    .replace(/\[\[\s*ENVIAR_PIX\s*\]\]/ig, '')
+    .replace(/\[\[\s*ENVIAR_IMAGEM_KIT\s*\]\]/ig, '')
+    .trim();
   const parts = limpo.split('||').map(p => p.trim()).filter(Boolean);
 
   await sendHuman(cleanPhone, parts, originInstance);  // responde pela linha que o cliente contatou
+
+  // Giovanna decidiu MOSTRAR o curso (oferta "o curso entra junto no VIP") → anexa a
+  // imagem do produto DEPOIS das bolhas, como um vendedor que fala primeiro e só então
+  // mostra. Nunca é o primeiro contato: a tag só existe no prompt atrás de um gatilho de
+  // dor de fechamento, e este handler roda em resposta a mensagem DELE — imagem em toque
+  // proativo cheira a disparo e é o que queima a linha na Z-API.
+  //
+  // Imagem hospedada em JPG (a LP /kit serve .webp, que o WhatsApp trata como figurinha).
+  // Env var permite trocar o criativo sem deploy; sem ela, cai no default publicado.
+  if (pedeImagemKit) {
+    try {
+      const url = (process.env.KIT_CURSO_IMAGEM_URL || '').trim()
+        || 'https://res.cloudinary.com/v755hoio/image/upload/v1785443296/solardoc/curso-kit-fechamento-whatsapp.jpg';
+      await sendImage(
+        cleanPhone,
+        url,
+        'Kit de Fechamento — 6 módulos + bônus, liberado junto com o VIP.',
+        originInstance,
+      ).catch(() => {});
+    } catch (err) {
+      logger.error('whatsapp', 'enviar imagem do curso falhou', err);
+    }
+  }
 
   // Giovanna decidiu mandar o Pix (reativação de acesso pausado) → anexa o copia-e-cola
   // R$67 + instrução do comprovante. O comprovante que ele mandar cai no

@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendWhatsApp, sendHuman, sendImage, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
+import { concederCursoPorAssinatura } from '../../kitIntegradorService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Confirmação de Pix por COMPROVANTE (cliente SolarDoc).
@@ -123,6 +124,20 @@ async function liberarAcessoPix(
   await supabase.from('users').update({
     plano, limite_documentos: limite, documentos_usados: 0, billing_status: 'active', plano_expira_em: base.toISOString(),
   }).eq('id', userId);
+
+  // Reativou no VIP (R$67) → o curso entra junto, igual à oferta vip_curso. Sem
+  // isto a Giovanna prometeria no dunning uma coisa que o sistema não entrega:
+  // desde 30/jul/2026 o plano sozinho não abre mais o curso, quem abre é o
+  // pedido pago que concederCursoPorAssinatura grava.
+  if (plano === 'ilimitado') {
+    try {
+      const { data: u } = await supabase.from('users').select('email').eq('id', userId).maybeSingle();
+      const email = (u as { email?: string } | null)?.email;
+      if (email) await concederCursoPorAssinatura(userId, email);
+    } catch (err) {
+      console.error('[pix] concessão do curso na reativação falhou (acesso já liberado):', err);
+    }
+  }
   return base;
 }
 

@@ -44,8 +44,11 @@ export default function OfertaVipCurso() {
       setErro('Não consegui abrir o pagamento. Tente de novo em instantes.');
     } catch (e) {
       const resp = (e as { response?: { data?: { error?: string } } }).response?.data?.error;
+      // Quem JÁ é VIP não consegue usar esta oferta (o checkout recusa "mesmo
+      // plano") — e desde 30/jul/2026 ser VIP também não libera o curso. Mandá-lo
+      // pra "Cursos, no menu", como dizia antes, era mandar direto pro cadeado.
       setErro(resp === 'Você já está nesse plano'
-        ? 'Você já é VIP — o curso está em Cursos, no menu.'
+        ? 'Você já é VIP. O curso é vendido à parte — pegue o seu em solardoc.app/kit'
         : 'Não consegui abrir o pagamento. Se persistir, chame no WhatsApp (34) 99816-5040.');
       setCarregando(false);
     }

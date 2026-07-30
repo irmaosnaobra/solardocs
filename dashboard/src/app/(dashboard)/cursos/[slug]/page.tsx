@@ -87,7 +87,11 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
   const liberadoBonus = (m: ModuloCurso) => bonusLiberado(m, curso, prog.feitos, missoes);
   // "Continuar" nunca aponta para lição de módulo bônus ainda travado.
   const proxima = prog.proxima && !liberadoBonus(prog.proxima.modulo) ? null : prog.proxima;
-  const liberado = !!acesso && (acesso.liberado ?? (acesso.temKit || acesso.plano === 'pro' || acesso.plano === 'ilimitado'));
+  // Quem decide é o servidor (`liberado`). O fallback existe só pra API antiga
+  // respondendo antes do deploy novo — e por isso NÃO pode olhar plano: desde
+  // 30/jul/2026 assinar não libera o curso, então um fallback por plano abriria
+  // o cadeado justo pra quem deveria ver a página de venda.
+  const liberado = !!acesso && (acesso.liberado ?? acesso.temKit);
   const emTrial = !!acesso?.packTrialUntil && new Date(acesso.packTrialUntil) > new Date();
 
   const concluir = useCallback((licao: Licao, modulo: ModuloCurso) => {
@@ -125,9 +129,13 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
             trava a venda — das objeções de preço à indicação depois da obra.
           </p>
           <a href="https://solardoc.app/kit" target="_blank" rel="noopener noreferrer" className={styles.btnPrimario}>
-            Ver o curso <ArrowRight size={16} />
+            Comprar o curso <ArrowRight size={16} />
           </a>
-          <span className={styles.bloqueadoNota}>Já é assinante PRO ou VIP? O curso entra junto no seu plano.</span>
+          {/* A nota antiga dizia "assinante PRO ou VIP? o curso entra junto no seu
+              plano" — deixou de ser verdade em 30/jul/2026, quando o curso voltou a
+              ser produto à parte. Prometer aqui o que o servidor não libera era
+              mandar o assinante bater na porta trancada. */}
+          <span className={styles.bloqueadoNota}>Compra única — depois de liberado, o curso fica na sua conta pra sempre.</span>
         </div>
       </div>
     );

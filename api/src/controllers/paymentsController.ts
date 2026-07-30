@@ -7,6 +7,7 @@ import { sendCheckoutCompletionEmail } from '../utils/mailer';
 import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { upsertSale, sendPurchaseForSale } from '../services/salesLedger';
 import { sendUtmifyOrder } from '../services/utmifyOrders';
+import { concederCursoPorAssinatura } from '../services/kitIntegradorService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -188,6 +189,16 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
           .update({ plano: planInfo.plano, limite_documentos: planInfo.limite, documentos_usados: 0 })
           .eq('id', req.userId);
 
+        // Oferta "o curso vem junto": este caminho NÃO gera webhook (a Stripe só
+        // atualiza a assinatura existente), então a concessão do curso tem que
+        // acontecer AQUI. Sem isto o PRO que aceita a oferta é cobrado na hora e
+        // continua batendo no cadeado do curso.
+        if (planKey === 'vip_curso') {
+          await concederCursoPorAssinatura(req.userId!, user.email).catch((e) => {
+            console.error('[vip_curso] concessão do curso no upgrade in-place falhou:', e);
+          });
+        }
+
         res.json({ upgraded: true, plano: planInfo.plano });
         return;
       }
@@ -204,11 +215,14 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     payment_method_types: ['card'],
     line_items: [{ price: priceId, quantity: 1 }],
     customer_email: user.email,
-    metadata: { userId: req.userId! },
+    // `oferta` é o que separa vip_curso de um VIP comum no webhook. Os dois usam
+    // o MESMO price (STRIPE_PRICE_VIP), então planByPrice() não distingue — sem
+    // este carimbo, ou ninguém recebe o curso, ou todo VIP recebe.
+    metadata: { userId: req.userId!, ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : {}) },
     subscription_data: {
       // trialDias: 0 = cobra agora (oferta sem trial). undefined = os 7 de sempre.
       ...(trialDias > 0 ? { trial_period_days: trialDias } : {}),
-      metadata: { userId: req.userId! },
+      metadata: { userId: req.userId!, ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : {}) },
     },
     // Pós-pagamento: cai em /documentos pra ele ver os tipos de doc, conhecer
     // a plataforma. Banner sugere (não obriga) cadastrar empresa. CompanyRequiredGate
@@ -449,6 +463,36 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           } catch (err) {
             console.error('100%-cadastro: exceção no auto-create (pagamento intacto):', err);
           }
+        }
+      }
+
+      // ═══════════════════ CURSO DA OFERTA "VIP COM O CURSO JUNTO" ═══════════
+      // Só quem veio pela oferta `vip_curso` recebe — o carimbo está no metadata
+      // porque vip_curso e o VIP comum compartilham o price, e planByPrice() não
+      // os separa. VIP vindo da LP continua sem o curso (nunca foi prometido a
+      // ele): pra esse, a tela do curso leva à página de venda.
+      //
+      // Aditivo e à prova de erro, como os blocos vizinhos: se falhar, o
+      // pagamento e o Purchase seguem intactos e o cliente é recuperável pelo log.
+      if ((session.metadata as Record<string, string | undefined> | null)?.oferta === 'vip_curso') {
+        try {
+          let alunoId = userId as string | undefined;
+          const alunoEmail = String(email || '').toLowerCase().trim();
+          if (!alunoId && alunoEmail) {
+            const { data: u } = await supabase
+              .from('users')
+              .select('id')
+              .eq('email', alunoEmail)
+              .maybeSingle();
+            alunoId = (u as { id?: string } | null)?.id;
+          }
+          if (alunoId && alunoEmail) {
+            await concederCursoPorAssinatura(alunoId, alunoEmail);
+          } else {
+            console.error('[vip_curso] não consegui resolver o aluno pra conceder o curso', { userId, email });
+          }
+        } catch (err) {
+          console.error('[vip_curso] concessão do curso no webhook falhou:', err);
         }
       }
 

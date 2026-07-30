@@ -266,7 +266,12 @@ router.get('/kit-funil', async (_req: Request, res: Response): Promise<void> => 
       conta_criada: boolean; trial_vip_ate: string | null; utm_campaign: string | null; criado_em: string;
     }>;
 
-    const pagos = pedidos.filter((p) => p.status === 'paid');
+    // segmento 'assinatura' NÃO é venda: é a concessão do curso a quem entrou
+    // pela oferta vip_curso (concederCursoPorAssinatura). Elas moram em
+    // kit_pedidos porque o acesso ao curso é lido de lá, mas contá-las aqui
+    // inflaria os compradores da isca e derrubaria a conversão da LP /kit —
+    // dinheiro que na verdade entrou como assinatura recorrente na Stripe.
+    const pagos = pedidos.filter((p) => p.status === 'paid' && p.segmento !== 'assinatura');
     const compradores = new Set(pagos.filter((p) => (p.itens || []).includes('kit')).map((p) => p.email.toLowerCase()));
     // O bump só conta quando o MESMO comprador está na janela. Sem isso a taxa
     // passa de 100%: um bump pago dentro dos 30 dias cujo pedido principal ficou
