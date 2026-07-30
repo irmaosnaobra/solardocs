@@ -622,28 +622,6 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc1 .pag{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:7px 12px;font-size:11px}
 .orc1 .pag b{display:block;font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.6;margin-bottom:2px}
 .orc1 .pag span{font-weight:700;font-variant-numeric:tabular-nums}
-/* ===== Tela "Gerar orçamento": escolhe o produto ===== */
-.orc-escolha{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:6px}
-.orc-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;padding:26px 24px;
-  border-radius:18px;border:2px solid #e5e7eb;background:#fff;cursor:pointer;font-family:inherit;
-  transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
-.orc-card:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(15,23,42,.10)}
-.orc-card img{width:76px;height:76px;object-fit:contain}
-.orc-card-t{font-size:21px;font-weight:900;letter-spacing:-.5px}
-.orc-card-s{font-size:13.5px;color:#64748b;font-weight:600;line-height:1.5}
-.orc-card-cta{margin-top:6px;font-size:14px;font-weight:800}
-.orc-card.solar{border-color:rgba(30,58,138,.2)}
-.orc-card.solar:hover{border-color:#1E3A8A}
-.orc-card.solar .orc-card-t,.orc-card.solar .orc-card-cta{color:#1E3A8A}
-.orc-card.ep{border-color:rgba(47,107,16,.2)}
-.orc-card.ep:hover{border-color:#2F6B10}
-.orc-card.ep .orc-card-t,.orc-card.ep .orc-card-cta{color:#2F6B10}
-.orc-escolha-rodape{margin-top:18px;font-size:13px;color:#64748b;font-weight:600;line-height:1.6}
-html[data-theme="dark"] .orc-card{background:#0f1a2e;border-color:#334155}
-html[data-theme="dark"] .orc-card-s,html[data-theme="dark"] .orc-escolha-rodape{color:#94A3B8}
-html[data-theme="dark"] .orc-card.solar .orc-card-t,html[data-theme="dark"] .orc-card.solar .orc-card-cta{color:#93C5FD}
-html[data-theme="dark"] .orc-card.ep .orc-card-t,html[data-theme="dark"] .orc-card.ep .orc-card-cta{color:#9BEE38}
-
 /* ===== Orçamento aberto por link (tela do cliente) =====
    A folha tem largura de papel (210mm) e o celular tem 360px. Em vez de deixar a
    página rolar pro lado, a folha é escalada por transform e o palco reserva a
@@ -831,6 +809,8 @@ html[data-theme="dark"] .orc-card.ep .orc-card-t,html[data-theme="dark"] .orc-ca
 .crm-det-agendar:hover{filter:brightness(1.08)}
 .crm-det-orcamento{background:linear-gradient(135deg,#F59E0B,#D97706);color:#1f2937;font-size:15px}
 .crm-det-orcamento:hover{filter:brightness(1.06)}
+/* o de eletroposto usa o verde da marca dele, pra não haver dúvida de qual é qual */
+.crm-det-orcamento.ep{background:linear-gradient(135deg,#7DD117,#2F6B10);color:#0d1f04}
 .crm-det-fechar{background:#1c2c47;color:#CBD5E1;border:1px solid rgba(255,255,255,.14)}
 .crm-det-fechar:hover{background:#243046;color:#fff}
 .crm-det-perdido{background:rgba(248,113,113,.14);color:#FCA5A5;border:1px solid rgba(248,113,113,.4)}
@@ -1365,7 +1345,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <button type="button" class="sb-item" id="nav-tabelas" onclick="navTabelas()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span> Tabelas</button>
     <button type="button" class="sb-item" id="nav-calc" onclick="navCalc()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10"></line><line x1="12" y1="10" x2="12" y2="10"></line><line x1="16" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="16" y1="14" x2="16" y2="18"></line><line x1="8" y1="18" x2="12" y2="18"></line></svg></span> Calculadora</button>
     <button type="button" class="sb-item" id="nav-eletroposto" onclick="navEletroposto()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline></svg></span> Eletroposto</button>
-    <button type="button" class="sb-item" id="nav-orcamentos" onclick="navOrcamentos()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="15" x2="15" y2="15"></line><line x1="9" y1="18" x2="13" y2="18"></line></svg></span> Orçamentos</button>
     <button type="button" class="sb-item" id="nav-automacao" onclick="navAutomacao()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></span> Automação</button>
   </div>
   <div class="sb-spacer"></div>
@@ -2540,33 +2519,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <!-- container de impressão do orçamento de 1 página (solar e eletroposto) -->
   <div id="doc-print" aria-hidden="true"></div>
 
-  <!-- ============= TELA: ORÇAMENTOS (escolha do produto) ============= -->
-  <div id="orcamentosSection" style="display:none;">
-    <div class="header">
-      <div class="header-titulo"><h1>Gerar orçamento</h1></div>
-      <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
-    </div>
-    <div class="orc-escolha">
-      <button type="button" class="orc-card solar" onclick="orcIrSolar()">
-        <img src="/gerador/logo.png" alt="">
-        <div class="orc-card-t">Energia Solar</div>
-        <div class="orc-card-s">Preencha o cliente e o kit; o orçamento sai na tela da proposta, em PDF ou link.</div>
-        <span class="orc-card-cta">Começar →</span>
-      </button>
-      <button type="button" class="orc-card ep" onclick="orcIrEletroposto()">
-        <img src="/gerador/logo-eletroposto.png" alt="">
-        <div class="orc-card-t">Eletroposto</div>
-        <div class="orc-card-s">Marque os itens do kit; o preço final sai em PDF ou link, sem preço por item.</div>
-        <span class="orc-card-cta">Começar →</span>
-      </button>
-    </div>
-    <div class="orc-escolha-rodape">
-      Todo orçamento gerado — dos dois produtos — aparece no
-      <button type="button" class="orc-link" onclick="abrirHistorico()">Histórico</button>,
-      com as aberturas do cliente contadas.
-    </div>
-  </div>
-
   <!-- ============= TELA: ORÇAMENTO ABERTO POR LINK (cliente) ============= -->
   <div id="orcViewSection" style="display:none;">
     <div class="orcview-palco"><div class="orcview-folha" id="orcview-folha"></div></div>
@@ -3137,7 +3089,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="crm-det-erro" id="crm-det-erro"></div>
 
     <div class="crm-det-acoes" style="margin-top:14px">
-      <button type="button" class="crm-det-orcamento" id="crm-det-orcamento" onclick="crmGerarOrcamento()">📄 Gerar orçamento</button>
+      <button type="button" class="crm-det-orcamento" id="crm-det-orcamento" onclick="crmGerarOrcamento('solar')">☀️ Orçamento Solar</button>
+      <button type="button" class="crm-det-orcamento ep" id="crm-det-orcamento-ep" onclick="crmGerarOrcamento('eletroposto')">⚡ Orçamento Eletroposto</button>
     </div>
     <div class="crm-det-acoes" style="margin-top:8px">
       <a class="crm-det-wpp" id="crm-det-wpp" target="_blank" rel="noopener" style="display:none">💬 WhatsApp</a>
@@ -5391,11 +5344,6 @@ function marcarNavAtivo(id) {
   document.querySelectorAll('#app-sidebar .sb-item').forEach(b => b.classList.remove('ativo'));
   const el = document.getElementById(id);
   if (el) el.classList.add('ativo');
-  // A tela de Orçamentos se esconde sozinha ao navegar pra qualquer outra. Cada
-  // nav* esconde uma lista própria (e nenhuma igual à outra) — em vez de mexer
-  // nas sete, engancha aqui, que é por onde todas passam.
-  const orc = document.getElementById('orcamentosSection');
-  if (orc && id !== 'nav-orcamentos') orc.style.display = 'none';
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
@@ -5585,46 +5533,6 @@ function navCalc() {
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   calcPreco();
-}
-
-// ===== TELA "GERAR ORÇAMENTO" — porta de entrada única dos dois produtos =====
-// Existe porque os dois orçamentos moram em lugares diferentes (o solar só aparece
-// depois da proposta gerada; o do eletroposto vive numa sub-aba), e sem uma porta
-// só ninguém acha nenhum dos dois.
-function navOrcamentos() {
-  document.getElementById('formSection').style.display = 'none';
-  document.getElementById('historicoSection').style.display = 'none';
-  ['propostaSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection',
-   'calcSection', 'eletroSection', 'automacaoSection'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto');
-  marcarNavAtivo('nav-orcamentos');
-  document.getElementById('orcamentosSection').style.display = '';
-  fecharSidebarMobile();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-// Solar: o orçamento sai do que a proposta calculou. Com proposta na tela, vai
-// direto pros botões; sem proposta, manda preencher o formulário (não dá pra
-// orçar antes de escolher kit e consumo).
-function orcIrSolar() {
-  if (dadosAtual) {
-    document.getElementById('orcamentosSection').style.display = 'none';
-    renderProposta(dadosAtual, false);
-    marcarNavAtivo('nav-gerador');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast('Os botões do orçamento estão no fim da proposta');
-    return;
-  }
-  navGerador();
-  showToast('Preencha e gere a proposta — o orçamento sai na tela seguinte');
-}
-
-function orcIrEletroposto() {
-  navEletroposto();
-  eletroSubaba('orcamento');
 }
 
 function navEletroposto() {
@@ -8471,7 +8379,11 @@ function descritoresDoLead(c) {
 // orçamento", removido): o card cai na coluna Frio do kanban e sai do alvo do
 // followup automático (que pula qualquer lead com temperatura). Best-effort:
 // se a gravação falhar, ainda preenche o form (não trava o consultor).
-async function crmGerarOrcamento() {
+//
+// O card tem um botão por produto. O lead é o mesmo — quem chegou pelo anúncio
+// de solar pode fechar eletroposto e vice-versa —, então os dois caminhos saem
+// daqui: marcam Frio igual e mudam só o destino e o que sabem preencher.
+async function crmGerarOrcamento(produto) {
   if (!crmDetAtual) return;
   // Captura ANTES de fechar (crmFecharDetalhe zera crmDetAtual).
   const c = crmDetAtual.c;
@@ -8503,6 +8415,23 @@ async function crmGerarOrcamento() {
   }
 
   crmFecharDetalhe();
+
+  if (produto === 'eletroposto') {
+    // Vai direto pro Orçamento do Eletroposto com o cliente já preenchido. O
+    // Simulador é a fonte do cliente/cidade nesse fluxo (o pane do Orçamento só
+    // reflete), por isso o preenchimento é lá — e o telefone entra na ficha do
+    // documento. Os descritores do solar (telhado, fase, padrão) não servem aqui.
+    navEletroposto();
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    set('el-cliente', nome);
+    set('el-cidade', cidade);
+    set('orc-cli-tel', telBonito);
+    eletroSubaba('orcamento');
+    if (typeof orcInit === 'function') orcInit();
+    showToast('⚡ Cliente preenchido — marque os itens do kit');
+    return;
+  }
+
   navGerador();          // esconde o CRM, mostra o form, ajusta sidebar/nav
   novoCliente();         // zera o form (não herda dados de outra proposta) e foca o nome
 
@@ -8510,8 +8439,8 @@ async function crmGerarOrcamento() {
 
   const temInfo = descritores.telhado || descritores.fase || descritores.uf;
   showToast(temInfo
-    ? '📄 Dados do cliente + local preenchidos — complete o orçamento'
-    : '📄 Dados do cliente preenchidos — complete o orçamento');
+    ? '☀️ Dados do cliente + local preenchidos — complete o orçamento'
+    : '☀️ Dados do cliente preenchidos — complete o orçamento');
 }
 
 // ============= CRM · NOVO CONTATO MANUAL =============
