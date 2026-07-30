@@ -61,13 +61,16 @@ update ig_automations
        link_url = 'https://solardoc.app/simular?utm_source=instagram&utm_medium=dm&utm_campaign=solar&utm_content=comentario'
  where nome like 'Solar%';
 
--- ?src=ig era parâmetro inventado: a LP descarta e a venda cai como "não
--- trackeada" na UTMify. utm_* de verdade.
+-- Link do eletroposto: ?src=ig NÃO pode sair — a LP lê esse marcador pra
+-- classificar o lead como "EP Organic" (sem ele vira "EP Tráfego" e a origem
+-- fica errada). Os utm_* entram JUNTO, que é o que a UTMify enxerga.
+-- "posto" saiu das palavras-chave: pegava "postou"/"posto de gasolina" e, com
+-- prioridade 30, roubava comentário de anúncio de solar.
 update ig_automations
-   set palavras_chave = array['eletroposto','carregador','recarga','carro eletrico','carro elétrico','ponto de recarga','investir','investimento','aporte','retorno','posto'],
+   set palavras_chave = array['eletroposto','carregador','recarga','carro eletrico','carro elétrico','ponto de recarga','investir','investimento','aporte','retorno'],
        produto = 'eletroposto',
        respostas_publicas = array['Te chamei no direct ⚡ (olha também em Solicitações)','Manda ver no direct 👀 (se não achar, confere em Solicitações)'],
-       link_url = 'https://solardoc.app/io/eletroposto?utm_source=instagram&utm_medium=dm&utm_campaign=eletroposto&utm_content=comentario'
+       link_url = 'https://solardoc.app/io/eletroposto?src=ig&utm_source=instagram&utm_medium=dm&utm_campaign=eletroposto&utm_content=comentario'
  where nome like 'Eletroposto%';
 
 update ig_automations set produto = 'kit'   where nome like 'Kit de Fechamento%';
