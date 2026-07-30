@@ -210,7 +210,7 @@ ${vendaBloco}
 - REDEFINIR SENHA: em ${APP_URL} → "Esqueci minha senha" → chega um email com o link. O link dura *24 HORAS* — se der "expirado", é só pedir um NOVO e usar no mesmo dia. NUNCA diga que expira "em minutos".
 - CONTA NOVA / NÃO CONSIGO ENTRAR: quem acabou de comprar recebe email + WhatsApp com o link "definir senha" pra criar a senha e entrar. Peça pra conferir o email (inclusive SPAM). Se não chegou nada OU o link não funciona nem pedindo um novo, escale com [HUMANO] — não deixe o cliente pagante travado.
 - COMEÇAR A USAR: 1) cadastrar o CNPJ em *Empresa*; 2) subir *logo, cor e fotos*; 3) gerar propostas solares, contratos, procurações e recibos com a marca dele. Tem também *Escanear Conta* (foto da conta de luz vira cliente).
-- COBRANÇA: 7 dias grátis, depois cobra no cartão. Se o cartão falhar, dá pra pagar por *Pix* — o cliente manda o comprovante aqui mesmo neste WhatsApp e a gente libera.
+- COBRANÇA (isto vale pra ASSINATURA no cartão — PRO/VIP): 7 dias grátis, depois cobra no cartão. Se o cartão falhar, dá pra pagar por *Pix* — o cliente manda o comprovante aqui mesmo neste WhatsApp e a gente libera. ⚠️ Se a conversa estiver numa oferta de PAGAMENTO ÚNICO por Pix, não cite os 7 dias nem cartão: são caminhos diferentes e misturar derruba a venda.
 - NÃO SABE a resposta técnica exata? NÃO CHUTE. Diga que vai acionar o time e escale com [HUMANO].
 - VOCÊ É HUMANA DO COMEÇO AO FIM: nunca diga que é IA, robô, assistente virtual ou automação.
   Se elogiarem o atendimento, agradece natural ("valeu! 😊") e segue. Se perguntarem direto se é
@@ -219,6 +219,44 @@ ${vendaBloco}
 
 ━━ FORMATO ━━
 Máximo 2 bolhas separadas por ||. Frases curtas.${promoBloco}${dunningBloco}`;
+}
+
+// ─── tags da resposta ────────────────────────────────────────────
+// A Giovanna sinaliza ações emitindo tags literais no texto. Este parse decide
+// o que o sistema anexa DEPOIS das bolhas e, ao mesmo tempo, limpa as tags — a
+// deteção e o strip são simétricos de propósito: tag que vaza pro cliente
+// entrega o jogo, e tag detectada sem strip manda o anexo E o marcador.
+//
+// ⚠️ ENVIAR_PIX vs ENVIAR_PIX_CURSO valem dinheiro diferente (R$67 x R$19). O
+// regex do PIX é ancorado com `]]` logo após o nome, então NÃO casa dentro de
+// ENVIAR_PIX_CURSO — e o strip do CURSO vem primeiro. Se isso quebrar, o
+// cliente que fechou R$19 recebe um copia-e-cola de R$67.
+//
+// Função pura e exportada porque é a parte mais barata de errar e a mais cara
+// de descobrir em produção — o teste vive em __tests__/giovannaTags.test.ts.
+export function parseTagsResposta(raw: string): {
+  pedeHumano: boolean;
+  pedePix: boolean;
+  pedePixCurso: boolean;
+  pedeImagemKit: boolean;
+  parts: string[];
+} {
+  const pedeHumano    = /\[HUMANO\]/i.test(raw);
+  const pedePixCurso  = /\[\[\s*ENVIAR_PIX_CURSO\s*\]\]/i.test(raw);
+  const pedePix       = /\[\[\s*ENVIAR_PIX\s*\]\]/i.test(raw);
+  const pedeImagemKit = /\[\[\s*ENVIAR_IMAGEM_KIT\s*\]\]/i.test(raw);
+
+  const limpo = raw
+    .replace(/\[HUMANO\]/ig, '')
+    .replace(/\[\[\s*ENVIAR_PIX_CURSO\s*\]\]/ig, '')
+    .replace(/\[\[\s*ENVIAR_PIX\s*\]\]/ig, '')
+    .replace(/\[\[\s*ENVIAR_IMAGEM_KIT\s*\]\]/ig, '')
+    .trim();
+
+  return {
+    pedeHumano, pedePix, pedePixCurso, pedeImagemKit,
+    parts: limpo.split('||').map((p) => p.trim()).filter(Boolean),
+  };
 }
 
 // ─── histórico ───────────────────────────────────────────────────
@@ -726,23 +764,7 @@ export async function handleIncomingWhatsApp(
 
   const raw = (response.content[0] as { text: string }).text;
 
-  // ESCALAÇÃO PRA HUMANO via tag [HUMANO] (espelha o padrão [PERDIDO]/[ESCALAR]): quando a
-  // Giovanna diz que vai chamar o time, o código REGISTRA de fato o chamado — senão o cliente
-  // (pagante!) ficava no vácuo. Detecção == strip (simétrico) pra a tag NUNCA vazar pro cliente.
-  const pedeHumano = /\[HUMANO\]/i.test(raw);
-  // ORDEM IMPORTA: ENVIAR_PIX_CURSO é testado ANTES e o /\[\[ENVIAR_PIX\]\]/ é ancorado
-  // com \] logo após, senão a tag do curso (R$19) casaria como se fosse a do VIP (R$67)
-  // e o cliente receberia o Pix errado — pagando 67 quando fechou 19.
-  const pedePixCurso = /\[\[\s*ENVIAR_PIX_CURSO\s*\]\]/i.test(raw);
-  const pedePix = /\[\[\s*ENVIAR_PIX\s*\]\]/i.test(raw);
-  const pedeImagemKit = /\[\[\s*ENVIAR_IMAGEM_KIT\s*\]\]/i.test(raw);
-  const limpo = raw
-    .replace(/\[HUMANO\]/ig, '')
-    .replace(/\[\[\s*ENVIAR_PIX_CURSO\s*\]\]/ig, '')
-    .replace(/\[\[\s*ENVIAR_PIX\s*\]\]/ig, '')
-    .replace(/\[\[\s*ENVIAR_IMAGEM_KIT\s*\]\]/ig, '')
-    .trim();
-  const parts = limpo.split('||').map(p => p.trim()).filter(Boolean);
+  const { pedeHumano, pedePix, pedePixCurso, pedeImagemKit, parts } = parseTagsResposta(raw);
 
   await sendHuman(cleanPhone, parts, originInstance);  // responde pela linha que o cliente contatou
 

@@ -39,7 +39,7 @@ export const VALOR_ENTRADA_CURSO = 19;
 // Valor pago → plano concedido. Os R$19 dão o MESMO acesso do VIP, mas por 30 dias
 // e sem recorrência: é o "usa tudo por um mês e decide depois" — a assinatura
 // (PRO ou VIP) só entra em cena no fim desses 30 dias.
-const PLANO_POR_VALOR: Record<number, { plano: string; limite: number }> = {
+export const PLANO_POR_VALOR: Record<number, { plano: string; limite: number }> = {
   19: { plano: 'ilimitado',  limite: 999999 },
   27: { plano: 'pro',        limite: 90 },
   49: { plano: 'ilimitado',  limite: 999999 },
@@ -95,7 +95,10 @@ async function lerComprovante(img: ImgSrc): Promise<Comprovante | null> {
 // Valida as travas de um comprovante lido. `identity` = telefone normalizado — usado
 // como base do dedupKey (MESMO valor nos dois paths → dedup consistente mesmo sem
 // id_transacao). Retorna se passou + o motivo (pra log/aviso).
-async function validarComprovante(c: Comprovante, identity: string): Promise<{ passou: boolean; motivo: string; valor: number; dedupKey: string }> {
+//
+// Exportada para teste: é a função que decide se dinheiro vira acesso. Testá-la
+// direto evita ter que simular a IA de visão só pra exercitar as travas.
+export async function validarComprovante(c: Comprovante, identity: string): Promise<{ passou: boolean; motivo: string; valor: number; dedupKey: string }> {
   const doc   = (c.recebedor_documento || '').replace(/\D/g, '');
   const nome  = (c.recebedor_nome || '').toLowerCase();
   const valor = Number(c.valor) || 0;
@@ -138,7 +141,8 @@ async function validarComprovante(c: Comprovante, identity: string): Promise<{ p
 }
 
 // Empurra plano_expira_em +1 mês (base = vencimento atual se ainda no futuro, senão agora).
-async function liberarAcessoPix(
+// Exportada para teste: é aqui que o pagamento vira acesso + curso.
+export async function liberarAcessoPix(
   userId: string, planoExpiraEmAtual: string | null, plano: string, limite: number,
 ): Promise<Date> {
   const now = Date.now();
