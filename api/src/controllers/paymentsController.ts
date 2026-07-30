@@ -17,9 +17,8 @@ function envPrice(key: string, fallback: string): string {
   return v || fallback;
 }
 
-// trialDias ausente = 7 (o padrão que sempre valeu). Uma oferta pode zerar:
-// é o caso do 'vip_curso', usado na campanha em que o curso entra junto — ali a
-// contrapartida é cobrança imediata, sem os 7 dias.
+// trialDias ausente = 7 (o padrão que sempre valeu). Uma oferta pode zerar com
+// trialDias: 0 quando a contrapartida for cobrança imediata — hoje nenhuma usa.
 const TRIAL_PADRAO_DIAS = 7;
 
 const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number; valor: number; descricao: string; trialDias?: number }> = {
@@ -37,18 +36,12 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
     valor: 67, // preço mensal real (R$) — espelha PRICES.vip da Landing. Usado no value do Purchase (Meta CAPI).
     descricao: '📄 Documentos ilimitados  •  Indicado para +20 vendas mensais  •  Dashboard completo  •  Acesso a toda expansão da plataforma  •  Suporte prioritário',
   },
-  // VIP da campanha "o curso entra junto": MESMO price do VIP (R$67/mês), sem os
-  // 7 dias. O curso já é liberado por ser assinante — não há nada a "conceder"
-  // aqui, o que muda é só a cobrança começar na hora. planByPrice resolve pelo
-  // price, então esta chave não cria plano novo: continua sendo 'ilimitado'.
-  vip_curso: {
-    priceId: envPrice('STRIPE_PRICE_VIP', 'price_1TUh2yCkkgzQ4IHeZqy52Zu2'),
-    plano: 'ilimitado',
-    limite: 999999,
-    valor: 67,
-    trialDias: 0,
-    descricao: '📄 Documentos ilimitados  •  Curso Kit de Fechamento incluso  •  Dashboard completo  •  Suporte prioritário',
-  },
+  // Removido em 30/07/2026: 'vip_curso' era o VIP da campanha "o curso entra
+  // junto", com cobrança imediata como contrapartida. Assinatura não libera mais
+  // o curso, então a oferta deixou de existir. Assinaturas já criadas por ali
+  // continuam válidas: o price era o MESMO do VIP, e planByPrice resolve pela
+  // entrada 'ilimitado' acima.
+  //
   // Downsell da LP: MESMO acesso ilimitado (VIP), preço promocional R$ 49/mês.
   // Oferecido no popup ao clicar no Pro. planByPrice() resolve isto pra plano
   // 'ilimitado' (libera VIP na plataforma) e valor 49 entra no Purchase da Meta

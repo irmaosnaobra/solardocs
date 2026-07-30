@@ -9,11 +9,21 @@ import { acessoDoUsuario } from '../services/kitIntegradorService';
 // GET /kit/meu-acesso — o que este usuário comprou e o que já consumiu.
 export async function meuAcesso(req: Request, res: Response): Promise<void> {
   try {
-    const { data: user } = await supabase
-      .from('users')
-      .select('email, plano, pack_trial_until')
-      .eq('id', req.userId)
-      .maybeSingle();
+    // `curso_vitalicio` (MIGRATION_curso_vitalicio.sql) é o grandfather de quem
+    // já tinha o curso pelo plano. Se a migration ainda NÃO rodou, o Postgres
+    // devolve 42703 (coluna inexistente) — aí caímos no comportamento antigo em
+    // vez de trancar a base inteira. Deploy antes da migration não machuca: o
+    // curso simplesmente continua liberado pra assinante até o SQL rodar.
+    const COLUNAS = 'email, plano, pack_trial_until, curso_vitalicio';
+    let { data: user, error: eUser } = await supabase
+      .from('users').select(COLUNAS).eq('id', req.userId).maybeSingle();
+    const semColuna = !!eUser && (eUser.code === '42703' || /curso_vitalicio/.test(eUser.message || ''));
+    if (semColuna) {
+      ({ data: user } = await supabase
+        .from('users').select('email, plano, pack_trial_until').eq('id', req.userId).maybeSingle());
+    } else if (eUser) {
+      throw eUser;
+    }
 
     if (!user) {
       res.status(404).json({ error: 'Usuário não encontrado' });
@@ -27,23 +37,39 @@ export async function meuAcesso(req: Request, res: Response): Promise<void> {
       .select('modulo, concluido_em')
       .eq('user_id', req.userId);
 
-    // Quem pode abrir o curso — decidido AQUI, não na tela. Três motivos:
+    // Quem pode abrir o curso — decidido AQUI, não na tela.
+    //
+    // ASSINATURA NÃO LIBERA MAIS (30/07/2026): o curso virou produto à parte,
+    // quem quiser compra. A campanha "o curso entra junto no VIP" foi removida
+    // junto — não sobrou promessa de inclusão em nenhuma tela.
     //
     // 1. COMPRA (itens.length > 0): vale pra sempre. Inclui quem levou só o
     //    order bump: ele fica 'ilimitado' por 30 dias e temKit=false, então um
     //    gate por plano tiraria o curso dele no dia 31 depois de ter pago.
-    // 2. ASSINATURA (pro/ilimitado): o curso é entrega do plano — está escrito na
-    //    tela do curso e na oferta do VIP.
+    // 2. VITALÍCIO: o grandfather da virada. A migration carimbou todo assinante
+    //    que tinha o curso naquele dia, inclusive quem assinou POR CAUSA da
+    //    campanha antiga. Tirar deles seria quebrar promessa já paga.
+    // 3. HISTÓRICO: rede de segurança pra quem concluiu lição e escapou do
+    //    backfill (ex-assinante que caiu pro free entre o SQL e o deploy).
+    // 4. LEGADO: a migration ainda não rodou — mantém a regra antiga em vez de
+    //    trancar todo mundo. Some sozinho quando o SQL subir.
     //
     // A tela continua desenhando o cadeado, mas quem decide é o servidor: assim a
     // regra muda num lugar só e não depende de o front estar atualizado.
-    const assinante = user.plano === 'pro' || user.plano === 'ilimitado';
-    const liberado = acesso.itens.length > 0 || assinante;
+    const comprou = acesso.itens.length > 0;
+    const vitalicio = (user as { curso_vitalicio?: boolean }).curso_vitalicio === true;
+    const jaComecou = (prog?.length ?? 0) > 0;
+    const legado = semColuna && (user.plano === 'pro' || user.plano === 'ilimitado');
+    const liberado = comprou || vitalicio || jaComecou || legado;
 
     res.json({
       ...acesso,
       liberado,
-      motivoAcesso: acesso.itens.length > 0 ? 'compra' : assinante ? 'assinatura' : null,
+      motivoAcesso: comprou ? 'compra'
+        : vitalicio ? 'vitalicio'
+        : jaComecou ? 'historico'
+        : legado ? 'legado'
+        : null,
       plano: user.plano,
       packTrialUntil: user.pack_trial_until,
       progresso: (prog || []).map((p: { modulo: string }) => p.modulo),

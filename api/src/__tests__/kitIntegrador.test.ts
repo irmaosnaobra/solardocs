@@ -110,6 +110,7 @@ import {
   acessoDoUsuario,
   type EventoKit,
 } from '../services/kitIntegradorService';
+import { meuAcesso } from '../controllers/kitController';
 
 const EMAIL = 'integrador@teste.com';
 
@@ -359,5 +360,88 @@ describe('acessoDoUsuario', () => {
     const acesso = await acessoDoUsuario('nao-existe', 'ninguem@teste.com');
     expect(acesso.temKit).toBe(false);
     expect(acesso.itens).toHaveLength(0);
+  });
+});
+
+// ── Quem abre o curso (GET /kit/meu-acesso) ─────────────────────────────────
+// Desde 30/07/2026 assinatura NÃO libera o curso: ele é produto à parte. Estes
+// testes existem porque uma regressão aqui não quebra nada visível — só entrega
+// o curso de graça pra base inteira, calada.
+describe('meuAcesso — gate do curso', () => {
+  function res() {
+    const out: { status: number; body: any } = { status: 200, body: null };
+    const r: any = {
+      status(c: number) { out.status = c; return r; },
+      json(b: any) { out.body = b; return r; },
+      end() { return r; },
+      out,
+    };
+    return r;
+  }
+
+  async function abrir(userId: string) {
+    const r = res();
+    await meuAcesso({ userId } as any, r);
+    return r.out;
+  }
+
+  function usuario(plano: string): string {
+    const id = 'u-' + plano + '-' + db.users.length;
+    db.users.push({ id, email: `${id}@teste.com`, plano, pack_trial_until: null });
+    return id;
+  }
+
+  it('assinante VIP sem compra NÃO abre o curso', async () => {
+    const { body } = await abrir(usuario('ilimitado'));
+    expect(body.liberado).toBe(false);
+    expect(body.motivoAcesso).toBe(null);
+  });
+
+  it('assinante PRO sem compra NÃO abre o curso', async () => {
+    const { body } = await abrir(usuario('pro'));
+    expect(body.liberado).toBe(false);
+  });
+
+  it('free sem compra NÃO abre o curso', async () => {
+    const { body } = await abrir(usuario('free'));
+    expect(body.liberado).toBe(false);
+  });
+
+  it('quem comprou abre, mesmo no plano free', async () => {
+    const id = usuario('free');
+    db.kit_pedidos.push({
+      order_id: 'ORDER-CURSO', user_id: id, email: `${id}@teste.com`,
+      itens: ['kit'], status: 'paid', criado_em: new Date().toISOString(), trial_vip_ate: null,
+    });
+    const { body } = await abrir(id);
+    expect(body.liberado).toBe(true);
+    expect(body.motivoAcesso).toBe('compra');
+  });
+
+  it('assinante que JÁ estava fazendo o curso não perde o acesso', async () => {
+    const id = usuario('ilimitado');
+    db.kit_progresso.push({ user_id: id, modulo: 'obj-1', concluido_em: new Date().toISOString() });
+    const { body } = await abrir(id);
+    expect(body.liberado).toBe(true);
+    expect(body.motivoAcesso).toBe('historico');
+  });
+
+  // O caso que a derivação por kit_progresso NÃO cobria: quem tinha o curso pelo
+  // plano, abriu, leu, e nunca clicou em "concluir lição" — não existe linha de
+  // progresso pra ele. É o grosso dos assinantes, e é por isso que o grandfather
+  // virou coluna carimbada pela migration em vez de dedução.
+  it('assinante grandfathered SEM lição concluída mantém o acesso', async () => {
+    const id = usuario('ilimitado');
+    db.users.find((u) => u.id === id)!.curso_vitalicio = true;
+    const { body } = await abrir(id);
+    expect(body.liberado).toBe(true);
+    expect(body.motivoAcesso).toBe('vitalicio');
+  });
+
+  it('assinante novo (curso_vitalicio false) continua trancado', async () => {
+    const id = usuario('ilimitado');
+    db.users.find((u) => u.id === id)!.curso_vitalicio = false;
+    const { body } = await abrir(id);
+    expect(body.liberado).toBe(false);
   });
 });

@@ -25,7 +25,7 @@ obrigado (passo 4).**
 | Convite para o VIP | fim de cada módulo (abre o UpgradeModal) | no ar |
 | Medição | `/admin` → hub SolarDoc → aba **Kit / Isca R$27** | no ar |
 | Depoimentos | aba **Comentários do Curso** → publicar → aparece na LP | no ar |
-| Oferta pra base | `solardoc.app/oferta/vip-curso` + campanha por e-mail | no ar — o disparo é você quem manda rodar |
+| Oferta pra base | — | removida em 30/07/2026: curso não entra em plano, quem quiser compra |
 
 ---
 
@@ -166,21 +166,26 @@ link pra base própria. Motivo: quem já assina não pode receber "30 dias de VI
 pagaria R$19 por nada. O código não precisa de nada: a Kiwify manda `checkout_link` e
 `product_offer_id`, que já são gravados no pedido.
 
-**Mire nos 109 usuários free.** Os 51 assinantes (PRO e VIP) já têm o curso liberado
-pelo plano — vender pra eles é vender o que já é deles.
+**A base inteira é público.** Desde 30/07/2026 assinatura não libera o curso: ele é
+produto à parte, e PRO/VIP compram como qualquer um. Não existe mais "vender o que já
+é deles".
 
-### Oferta pra quem já está dentro
+### O curso não entra em plano nenhum (30/07/2026)
 
-`solardoc.app/oferta/vip-curso` — VIP a R$67 com o curso incluso e **cobrança imediata**
-(sem os 7 dias). A campanha por e-mail tem 3 toques e cadência própria; dispara com:
+Regra antiga: assinante PRO/VIP abria o curso pelo plano, e havia uma oferta
+(`/oferta/vip-curso`, VIP com cobrança imediata) + campanha de e-mail de 3 toques
+vendendo o VIP com "o curso entra junto".
 
-```
-GET /cron/campanha-curso-vip?seco=1     → só conta quem receberia (não manda nada)
-GET /cron/campanha-curso-vip?limite=50  → manda pra 50
-```
+Tudo isso foi removido: a página, o checkout `vip_curso`, a campanha, as rotas de
+disparo, o painel no admin e as frases de "curso incluso" no modal de upgrade e na tela
+do curso. Quem abre o curso hoje, em `GET /kit/meu-acesso`:
 
-Audiência hoje: **121 pessoas** (96 free + 25 PRO). Quem está no trial de 30 dias do
-bump fica de fora — pra esse a conversa é "não perca", não "ganhe".
+1. **comprou** (`kit_pedidos.status = 'paid'`) — vale pra sempre;
+2. **já estava fazendo** quando era entrega do plano — tem linha em `kit_progresso`, não
+   perde o que abriu. Assinante que nunca abriu uma lição passou a ver o cadeado.
+
+As colunas `campanha_curso_count` / `campanha_curso_last_sent_at` continuam em `users`,
+sem uso — ficaram como registro de quem recebeu a campanha antiga.
 
 ### Antes de prospectar frio
 

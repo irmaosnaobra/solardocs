@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
-import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder, runCheckoutAbandonRecovery, recoverOrphanCheckouts, runUpgradeNudge, recoverAbandonedCheckouts, runCampanhaCursoVip } from '../services/followupService';
+import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder, runCheckoutAbandonRecovery, recoverOrphanCheckouts, runUpgradeNudge, recoverAbandonedCheckouts } from '../services/followupService';
 import { reDrivePendingPurchases } from '../services/salesLedger';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup, dispararOpenerTesteParaUser } from '../services/agents/whatsapp/carlaPlatformFollowupService';
@@ -157,23 +157,6 @@ router.get('/upgrade-nudge', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'upgrade-nudge falhou', err);
-    res.status(500).json({ error: 'Cron failed' });
-  }
-});
-
-// Campanha "o curso entra junto no VIP" — free e PRO, 3 toques.
-// NÃO entra no /cron/master de propósito: campanha tem começo e fim, e o master
-// roda todo dia. Dispara na mão (?limite= pra fatiar, ?seco=1 pra só contar
-// quantos receberiam sem mandar nada).
-router.get('/campanha-curso-vip', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const limite = Math.min(Number(req.query.limite) || 200, 500);
-    const seco = req.query.seco === '1';
-    const result = await runCampanhaCursoVip({ limite, secoDeTeste: seco });
-    res.json({ ok: true, seco, ...result });
-  } catch (err) {
-    logger.error('cron', 'campanha-curso-vip falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
