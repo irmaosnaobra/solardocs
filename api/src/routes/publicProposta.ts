@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
+import { stripPrint } from '../utils/printHtml';
 
 const router = Router();
 
@@ -74,6 +75,11 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       res.status(500).type('text/plain').send('Proposta indisponível.');
       return;
     }
+
+    // Proposta antiga subiu pro Storage com o script de impressão dentro (o arquivo
+    // era compartilhado com o "abrir pra imprimir"). Sem tirar aqui, o cliente que
+    // abre o link leva uma caixa de impressão e a aba tentando se fechar sozinha.
+    html = stripPrint(html);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     // 60s e não 300: o consultor pode reeditar a proposta depois de já ter aberto o

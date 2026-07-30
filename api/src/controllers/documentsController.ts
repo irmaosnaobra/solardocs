@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { ApiError } from '../utils/apiError';
 import { generateDocumentWithAI } from '../services/aiService';
-import { generateFromTemplate, type Client } from '../services/templateService';
+import { generateFromTemplate, propostaDiasValidade, type Client } from '../services/templateService';
 import { checkLimit, incrementUsed } from '../services/planService';
+import { injectPrint } from '../utils/printHtml';
 import { logger } from '../utils/logger';
 
 const generateSchema = z.object({
@@ -131,6 +132,10 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     let content: string;
     let modeloUsado: string;
 
+    // emitido_em só existe pra congelar a data de uma reemissão (ver regenerate).
+    // Doc novo nasce hoje — e o prefill do kit/cliente pode arrastar o campo antigo.
+    delete body.fields.emitido_em;
+
     await checkLimit(req.userId);
 
     // Pra propostaSolar, gera o código ANTES do template pra injetar no HTML
@@ -177,7 +182,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       const fileName = `${req.userId}/${body.tipo}-${safeName || 'doc'}-${Date.now()}.html`;
       const { error: uploadError } = await supabase.storage
         .from('documentos')
-        .upload(fileName, Buffer.from(injectPrint(content), 'utf-8'), {
+        .upload(fileName, Buffer.from(content, 'utf-8'), {
           contentType: 'text/html; charset=utf-8',
           upsert: false,
         });
@@ -269,10 +274,6 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
   }
 }
 
-function injectPrint(html: string): string {
-  const script = `<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>`;
-  return html.includes('window.print') ? html : html.replace('</body>', script + '</body>');
-}
 
 // POST /documents/:id/regenerate — reemite um documento que JÁ existe com os campos
 // corrigidos ("achei um erro na proposta pronta"). Mantém id, codigo e codigo_curto:
@@ -286,7 +287,7 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
 
     const { data: doc } = await supabase
       .from('documents')
-      .select('id, tipo, cliente_id, terceiro_id, cliente_nome, arquivo_url, dados_json, codigo_curto')
+      .select('id, tipo, cliente_id, terceiro_id, cliente_nome, arquivo_url, dados_json, codigo_curto, created_at')
       .eq('id', id)
       .eq('user_id', req.userId)
       .single();
@@ -346,6 +347,20 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     const fields: Record<string, unknown> = { ...body.fields };
     if (dadosAntigos.codigo && !fields.codigo) fields.codigo = dadosAntigos.codigo;
 
+    // Corrigir uma proposta de dias atrás não pode renovar o prazo dela sozinho: o
+    // cabeçalho e a validade ficam ancorados no dia da emissão (o cliente já viu
+    // aquela data). Exceção: se a validade JÁ venceu, a reedição vale como reemissão
+    // e tudo volta a contar de hoje — melhor que entregar proposta nascendo vencida.
+    const emitidoEm = new Date(doc.created_at);
+    const venceEm = emitidoEm.getTime() + propostaDiasValidade(fields) * 86400000;
+    if (!Number.isNaN(emitidoEm.getTime()) && venceEm > Date.now()) {
+      fields.emitido_em = doc.created_at;
+    } else {
+      // O front devolve o dados_json inteiro, então o emitido_em antigo pode vir
+      // junto — tem que sair, senão a proposta vencida congela na data velha.
+      delete fields.emitido_em;
+    }
+
     const tmplOut: { resumo?: string } = {};
     let content: string;
     let modeloUsado: string;
@@ -372,7 +387,7 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
       const fileName = `${req.userId}/${id}-${Date.now()}.html`;
       const { error: uploadError } = await supabase.storage
         .from('documentos')
-        .upload(fileName, Buffer.from(injectPrint(content), 'utf-8'), {
+        .upload(fileName, Buffer.from(content, 'utf-8'), {
           contentType: 'text/html; charset=utf-8',
           upsert: false,
         });
@@ -533,6 +548,48 @@ async function nextCodigoCurto(userId: string, ano: number): Promise<string> {
   return `${prefixo}${String(seq).padStart(4, '0')}`;
 }
 
+// GET /documents/:id/edit — devolve um doc salvo no formato que o formulário
+// precisa pra reabrir a edição (botão "Editar" do /histórico). O content vem junto
+// pro "Voltar sem alterar" mostrar a proposta como ela está hoje.
+export async function getDocumentForEdit(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    const { data: doc } = await supabase
+      .from('documents')
+      .select('id, tipo, cliente_nome, dados_json, modelo_usado, content, codigo_curto, created_at')
+      .eq('id', id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (!doc) { res.status(404).json({ error: 'Documento não encontrado' }); return; }
+
+    const { data: company } = await supabase
+      .from('company').select('slug').eq('user_id', req.userId).single();
+
+    const dados = (doc.dados_json ?? {}) as Record<string, unknown>;
+    res.json({
+      document: {
+        doc_id: doc.id,
+        tipo: doc.tipo,
+        cliente_nome: doc.cliente_nome,
+        dados_json: dados,
+        // 'modelo-2' → 2. Sem isso a reedição cairia sempre no modelo padrão e
+        // trocaria o layout da proposta que o cliente já tinha aberto.
+        modelo_numero: Number(String(doc.modelo_usado || '').replace(/\D/g, '')) === 2 ? 2 : 1,
+        content: doc.content ?? '',
+        codigo: (dados.codigo as string) ?? null,
+        codigo_curto: doc.codigo_curto ?? null,
+        empresa_slug: company?.slug ?? null,
+        created_at: doc.created_at,
+      },
+    });
+  } catch (err) {
+    logger.error('documents', 'getDocumentForEdit falhou', err);
+    res.status(500).json({ error: 'Erro ao carregar documento' });
+  }
+}
+
 export async function saveDocument(req: Request, res: Response): Promise<void> {
   try {
     const body = saveSchema.parse(req.body);
@@ -544,7 +601,7 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
       const fileName = `${req.userId}/${body.tipo}-${body.cliente_nome?.replace(/\s+/g, '-').toLowerCase() ?? 'doc'}-${Date.now()}.html`;
       const { error: uploadError } = await supabase.storage
         .from('documentos')
-        .upload(fileName, Buffer.from(injectPrint(htmlContent), 'utf-8'), { contentType: 'text/html; charset=utf-8', upsert: false });
+        .upload(fileName, Buffer.from(htmlContent, 'utf-8'), { contentType: 'text/html; charset=utf-8', upsert: false });
 
       if (!uploadError) {
         arquivo_url = fileName;
@@ -607,7 +664,7 @@ export async function updateDocumentFile(req: Request, res: Response): Promise<v
       const fileName = `${req.userId}/${id}-${Date.now()}.html`;
       const { error: uploadError } = await supabase.storage
         .from('documentos')
-        .upload(fileName, Buffer.from(injectPrint(htmlContent), 'utf-8'), { contentType: 'text/html; charset=utf-8', upsert: false });
+        .upload(fileName, Buffer.from(htmlContent, 'utf-8'), { contentType: 'text/html; charset=utf-8', upsert: false });
       if (!uploadError) updates.arquivo_url = fileName;
     }
 
@@ -655,7 +712,10 @@ export async function renderDocumentHtml(req: Request, res: Response): Promise<v
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.send(html);
+    // Este endpoint É o "abrir pra imprimir": o script de impressão entra aqui, na
+    // hora de servir. O arquivo guardado fica limpo, senão o /p/:id (que serve o
+    // mesmo arquivo) abriria a caixa de impressão na cara do cliente.
+    res.send(injectPrint(html));
   } catch (err) {
     logger.error('documents', 'renderDocumentHtml falhou', err);
     res.status(500).type('text/html').send('<h1>Erro ao buscar documento</h1>');
@@ -729,7 +789,9 @@ const CLIENTE_ONLY = new Set<string>([
   'entrada_valor', 'entrada_modo', 'entrada_dias', 'pag_custom', 'tipo_telhado',
   'bateria_capacidade_kwh', 'bateria_potencia_kw', 'bateria_ciclos', 'bateria_marca', 'bateria_garantia', 'bateria_tem',
 ]);
-const STRIP_ALWAYS = new Set<string>(['foto_telhado_b64', 'foto_logo_b64']);
+// emitido_em pertence ao doc reemitido, nunca ao próximo: prefill que o arrastasse
+// faria a proposta nova nascer com a data da anterior.
+const STRIP_ALWAYS = new Set<string>(['foto_telhado_b64', 'foto_logo_b64', 'emitido_em']);
 
 function limpaDados(d: Record<string, unknown>, soKit: boolean): Record<string, unknown> {
   const out: Record<string, unknown> = {};

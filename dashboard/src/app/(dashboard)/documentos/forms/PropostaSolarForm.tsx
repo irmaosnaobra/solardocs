@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine, Pencil } from 'lucide-react';
 import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
@@ -226,6 +227,14 @@ export default function PropostaSolarPage() {
   // mandaria o PDF de antes da correção. Esse contador força buscar o PDF novo.
   const [pdfVersion, setPdfVersion] = useState(0);
 
+  // ?doc=<id> — veio do botão "Editar" do /histórico: abre a proposta salva já em
+  // modo edição, em vez de um formulário em branco.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const docParam = searchParams.get('doc');
+  const docCarregado = useRef(false);
+  const [carregandoDoc, setCarregandoDoc] = useState(false);
+
   // Cor de marca da empresa (cadastrada em Empresa) — habilita a paleta
   // "Cores da empresa". Só o swatch/enable usa isso no front; a geração lê
   // company.cor_marca direto no backend.
@@ -252,9 +261,11 @@ export default function PropostaSolarPage() {
   const temRascunho = useRef(false);           // havia rascunho neste aparelho?
   const [clientesHist, setClientesHist] = useState<string[]>([]); // clientes com histórico
 
-  // Restaura rascunho ao montar (1x).
+  // Restaura rascunho ao montar (1x). Abrindo pra editar um doc salvo (?doc=), o
+  // rascunho de outra proposta não pode entrar por cima — nem ser sobrescrito por
+  // esta edição (o autosave abaixo só liga quando draftLoaded vira true).
   useEffect(() => {
-    if (draftLoaded.current) return;
+    if (docParam || draftLoaded.current) return;
     draftLoaded.current = true;
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -265,7 +276,9 @@ export default function PropostaSolarPage() {
       if (d.cidadeUf) setCidadeUf(d.cidadeUf);
       if (d.fields) setFields(f => ({ ...f, ...d.fields }));
     } catch { /* rascunho corrompido — ignora */ }
-  }, []);
+    // Roda de novo quando o ?doc= sai da URL ("Nova proposta" depois de uma edição):
+    // é o que religa o autosave, que fica desligado durante a edição.
+  }, [docParam]);
 
   // Salva o rascunho (debounce). Só depois do load inicial pra não sobrescrever.
   useEffect(() => {
@@ -310,11 +323,48 @@ export default function PropostaSolarPage() {
   useEffect(() => {
     api.get('/documents/proposta-prefill').then(({ data }) => {
       setClientesHist(Array.isArray(data?.clientes) ? data.clientes : []);
-      if (!temRascunho.current && data?.kit && Object.keys(data.kit).length) {
+      // Editando um doc salvo, o kit não entra: os dois chegam por rede e o kit
+      // poderia aterrissar depois, trocando as marcas/taxas daquela proposta.
+      if (!docParam && !temRascunho.current && data?.kit && Object.keys(data.kit).length) {
         setFields(f => ({ ...f, ...data.kit }));
       }
     }).catch(() => { /* sem histórico ainda — ignora */ });
-  }, []);
+  }, [docParam]);
+
+  // Abre a proposta salva já no modo edição (veio do /histórico).
+  useEffect(() => {
+    if (!docParam || docCarregado.current) return;
+    docCarregado.current = true;
+    setCarregandoDoc(true);
+    api.get(`/documents/${docParam}/edit`).then(({ data }) => {
+      const d = data?.document;
+      if (!d) throw new Error('sem documento');
+      const dados = (d.dados_json ?? {}) as Record<string, string>;
+      // Proposta sem os dados do formulário salvos (doc antigo/importado): reemitir
+      // por cima escreveria um formulário em branco em cima de uma proposta boa.
+      if (!Object.keys(dados).length) throw new Error('sem dados do formulário');
+      setFields(f => ({ ...f, ...dados }));
+      setClienteNome(String(d.cliente_nome || ''));
+      const cid = String(dados.cidade || '').trim(), uf = String(dados.uf || '').trim();
+      if (cid || uf) setCidadeUf([cid, uf].filter(Boolean).join(' - '));
+      setModelo(d.modelo_numero === 2 ? 2 : 1);
+      setGenerated({
+        content: String(d.content || ''),
+        modelo_usado: `modelo-${d.modelo_numero}`,
+        cliente_nome: String(d.cliente_nome || ''),
+        doc_id: d.doc_id,
+        codigo: d.codigo ?? null,
+        codigo_curto: d.codigo_curto ?? null,
+        empresa_slug: d.empresa_slug ?? null,
+        // O resumo de WhatsApp é calculado na emissão e não fica salvo — depois de
+        // atualizar ele volta; até lá o botão usa o texto curto de fallback.
+        resumo_whatsapp: null,
+      });
+      setEditando(true);
+    }).catch(() => {
+      setError('Não consegui abrir essa proposta pra edição. Ela pode ter sido removida, ou é antiga demais e não guardou os dados do formulário.');
+    }).finally(() => setCarregandoDoc(false));
+  }, [docParam]);
 
   // Carrega a última proposta de um cliente (histórico por cliente) e preenche tudo.
   const [carregandoCliente, setCarregandoCliente] = useState(false);
@@ -440,6 +490,9 @@ export default function PropostaSolarPage() {
       // marca/garantias/pagamento ficam como estão (template do integrador).
     }));
     limparRascunho();
+    // Veio do /histórico (?doc=): tira o parâmetro pra proposta nova não ficar
+    // amarrada ao doc antigo (e o efeito do rascunho religa o autosave).
+    if (docParam) router.replace('/documentos?tipo=proposta');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -620,6 +673,18 @@ export default function PropostaSolarPage() {
       setCopyMsg('Mensagem copiada! Cole no WhatsApp');
       setTimeout(() => setCopyMsg(''), 2800);
     });
+  }
+
+  // Abrindo do /histórico: segura a tela até os dados chegarem, senão o consultor
+  // veria um formulário em branco e começaria a digitar por cima.
+  if (carregandoDoc) {
+    return (
+      <div className={styles.page}>
+        <p style={{ padding: '48px 0', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+          Abrindo a proposta pra edição...
+        </p>
+      </div>
+    );
   }
 
   // Quando preview ativo, fica fullscreen com iframe + ações
