@@ -53,6 +53,10 @@ vi.mock('../services/followupService', () => ({
   runCheckoutAbandonRecovery: vi.fn().mockResolvedValue({ sent: 0, skipped: 0 }),
   recoverOrphanCheckouts:     vi.fn().mockResolvedValue({ sent: 0, skipped: 0, scanned: 0 }),
   runUpgradeNudge:            vi.fn().mockResolvedValue({ sent: 0, skipped: 0, eligiveis: 0 }),
+  recoverAbandonedCheckouts:  vi.fn().mockResolvedValue({ sent: 0, recovered: 0, skipped: 0 }),
+  // Importado pelo cron.ts mesmo com a tarefa pausada no /master: sem o mock, o
+  // import do módulo já entra incompleto.
+  runNoContractsEmailReminder: vi.fn().mockResolvedValue({ sent: 0, skipped: 0 }),
 }));
 
 import app from '../app';
