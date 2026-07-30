@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
       // ainda apontam pra ela → 404. A seção de planos vive na home (#planos).
       // Redirect resgata TODOS de uma vez, inclusive emails já disparados.
       { source: '/planos', destination: '/#planos', permanent: false },
+      // Mesma história da /planos: a campanha "o curso entra junto no VIP" foi
+      // desligada em 30/07/2026 (curso virou produto à parte) e a página de
+      // oferta saiu. Só que os e-mails já disparados continuam na caixa de
+      // entrada apontando pra cá. Manda pra LP do curso, que é onde a pessoa
+      // consegue comprar o que o e-mail prometeu — em vez de bater num 404.
+      { source: '/oferta/vip-curso', destination: '/kit', permanent: false },
     ];
   },
   async headers() {
