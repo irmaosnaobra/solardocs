@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
-import { sendZAPI as sendWA, type ZapiInstance } from '../zapiClient';
+import { sendHuman, type ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { isLumaWorkingNow } from './sdrAgentService';
 import { detectarRecusaNaUltimaMsg } from './detectarRecusa';
@@ -257,7 +257,9 @@ export async function runSdrFollowups(): Promise<{ enviados: number; perdidos: n
 
       const msg = await gerarFollowupContextual(lead, proximasTentativas);
       const instance: ZapiInstance = lead.instance === 'io' ? 'io' : 'solardoc';
-      await sendWA(lead.phone, msg, instance);
+      // Bolha a bolha: o prompt pede "máximo 2 bolhas separadas por ||" e este
+      // envio mandava o texto CRU — o lead recebia o "||" literal na mensagem.
+      await sendHuman(lead.phone, [msg], instance);
 
       // Salva a mensagem de follow-up no histórico de sessão pra Luma manter contexto
       try {

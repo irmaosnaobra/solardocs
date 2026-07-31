@@ -12,6 +12,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendHuman, sleep } from '../zapiClient';
+import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import { gerarPixCopiaECola } from '../../../utils/pixBrCode';
 import { registrarMsgProativa } from './whatsappAgentService';
@@ -104,10 +105,6 @@ async function gerarResposta(system: string, messages: Msg[], instrucaoFinal: st
 
 // ─── ENVIO (parseia bolhas + marcadores, manda o Pix quando pedido) ──────────
 
-function splitBolhas(raw: string): string[] {
-  return raw.split('||').map(s => s.trim()).filter(Boolean);
-}
-
 // Envia o texto da Giovanna; se tiver [[ENVIAR_PIX]], anexa o copia-e-cola + instrução
 // do comprovante. Retorna o que foi enviado (pra salvar na sessão) e os marcadores.
 async function enviarComMarcadores(phone: string, raw: string): Promise<{ enviado: string[]; encerrar: boolean }> {
@@ -115,7 +112,7 @@ async function enviarComMarcadores(phone: string, raw: string): Promise<{ enviad
   const encerrar = /\[\[\s*ENCERRAR\s*\]\]/i.test(raw);
   const limpo = raw.replace(/\[\[\s*ENVIAR_PIX\s*\]\]/ig, '').replace(/\[\[\s*ENCERRAR\s*\]\]/ig, '').trim();
 
-  const bolhas = splitBolhas(limpo);
+  const bolhas = porBarras(limpo);
   const enviado: string[] = [];
   if (bolhas.length) {
     await sendHuman(phone, bolhas, 'solardoc');

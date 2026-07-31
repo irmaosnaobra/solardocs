@@ -1,3 +1,5 @@
+import { emBolhas } from './bolhas';
+
 // Suporte a múltiplas instâncias Z-API.
 // 'solardoc' = linha B2B da SolarDoc (Carla + Giovanna)
 // 'io'       = linha B2C Irmãos na Obra (humanos + Bia de recuperação LimpaPro)
@@ -142,7 +144,12 @@ export async function sendImage(phone: string, image: string, caption = '', inst
   await zapiPost('send-image', { phone: fmtPhone(phone), image, caption }, 2, instance);
 }
 
-export async function sendHuman(phone: string, parts: string[], instance: ZapiInstance = 'solardoc', opts?: { slow?: boolean }): Promise<void> {
+export async function sendHuman(
+  phone: string,
+  parts: string[],
+  instance: ZapiInstance = 'solardoc',
+  opts?: { slow?: boolean; max?: number; maxBolhas?: number },
+): Promise<void> {
   // slow=true → simula leitura+digitação ~15s por bolha (B2B Carla, vendedora humana).
   // Default: rápido (até 2.5s) — agentes de suporte/operacional.
   const minMs = opts?.slow ? 8000  : 800;
@@ -150,7 +157,15 @@ export async function sendHuman(phone: string, parts: string[], instance: ZapiIn
   const perChar = opts?.slow ? 80   : 40;
   const gapMs = opts?.slow ? 1200 : 300;
 
-  for (const part of parts) {
+  // Ninguém escreve parágrafo pra outro humano no WhatsApp. Aqui é o ÚLTIMO
+  // ponto antes da linha, e o ÚNICO que fatia — vale mesmo quando a IA ignora o
+  // prompt ou quando o chamador passa o texto inteiro como uma parte só. As
+  // partes viram um texto só (o || é a mesma fronteira) pra que o teto de bolhas
+  // conte a MENSAGEM inteira, não cada parte. `emBolhas` nunca trunca: Pix
+  // copia-e-cola e URL saem inteiros.
+  const bolhas = emBolhas(parts.join('||'), { max: opts?.max, maxBolhas: opts?.maxBolhas });
+
+  for (const part of bolhas) {
     const typingMs = Math.min(Math.max(part.length * perChar, minMs), maxMs);
     await showTyping(phone, typingMs, instance);
     await sendWhatsApp(phone, part, instance);

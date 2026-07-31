@@ -23,6 +23,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { supabaseGerador } from '../../../utils/supabaseGerador';
 import { sendHuman, sendWhatsApp, fmtPhone } from '../zapiClient';
+import { porBarras } from '../bolhas';
 import { tryClaimMessage } from '../sdr/sdrAgentService';
 import { logger } from '../../../utils/logger';
 import { followupHabilitado } from './geradorFollowupService';
@@ -192,7 +193,7 @@ export async function handleSolarInbound(rawPhone: string, text: string, senderN
     raw = 'Que bom que respondeu! || Já passei seu contato pro nosso consultor, ele vai te chamar aqui em seguida 😊';
   }
 
-  const parts = raw.split('||').map(p => p.trim()).filter(Boolean).slice(0, 2);
+  const parts = porBarras(raw).slice(0, 2);
   if (parts.length) await sendHuman(session.phoneCanonico, parts, INSTANCE);
 
   // handed_off=true + consultor_notificado=true → bot CALA. Daqui é humano.

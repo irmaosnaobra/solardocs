@@ -66,7 +66,11 @@ vi.mock('@anthropic-ai/sdk', () => ({
   default: class { messages = { create: vi.fn(async () => { throw new Error('sem IA no teste'); }) }; },
 }));
 vi.mock('../services/agents/zapiClient', () => ({
-  sendZAPI: vi.fn(async (phone: string, msg: string) => { enviados.push({ phone, msg }); }),
+  // O envio é bolha a bolha (sendHuman). Pro teste, o que importa é o texto que
+  // saiu — junta as bolhas de volta pra checar conteúdo, e o `||` já foi consumido.
+  sendHuman: vi.fn(async (phone: string, partes: string[]) => {
+    enviados.push({ phone, msg: partes.join(' ') });
+  }),
   sleep: vi.fn(async () => {}),
 }));
 vi.mock('../services/agents/whatsapp/carlaThrottle', () => ({

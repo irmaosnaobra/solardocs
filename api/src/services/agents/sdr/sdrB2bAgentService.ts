@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendMetaEvent } from '../../../utils/metaPixel';
 import { sendHuman, ZapiInstance } from '../zapiClient';
+import { porBarras } from '../bolhas';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -551,7 +552,7 @@ export async function handleSolarDocB2bLead(
   }
 
   const { text: cleanText, estagio } = extractEstagio(finalText);
-  const parts = cleanText.split('||').map(p => p.trim()).filter(Boolean);
+  const parts = porBarras(cleanText);
 
   await sendHuman(cleanPhone, parts, originInstance, { slow: true });
 
