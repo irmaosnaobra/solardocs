@@ -28,6 +28,35 @@ export type GrupoObjecoes = {
   itens: Objecao[];
 };
 
+// ── O Fio B, sem data escrita à mão ──────────────────────────────────────────
+// Lei 14.300, art. 27: o percentual da parcela de distribuição cobrado sobre a
+// energia injetada sobe por ANO-CALENDÁRIO, e vale para todo mundo que
+// protocolou o pedido de acesso depois de 06/01/2023. Quem protocolou até essa
+// data está fora até 2045 (art. 26) — é a regra que o vizinho do cliente pegou.
+//
+// Isto existe porque a versão anterior deste material dizia, em texto fixo, que
+// "quem homologa antes entra numa regra de transição melhor". Não entra: a porta
+// fechou em 2023. O integrador repetia isso na frente de um cliente que confere
+// no celular. Percentual escrito à mão vira a mesma armadilha todo 1º de janeiro,
+// então ele passou a sair do calendário.
+const CRONOGRAMA_FIO_B: Record<number, number> = {
+  2023: 15, 2024: 30, 2025: 45, 2026: 60, 2027: 75, 2028: 90,
+};
+
+const ANO_ATUAL = new Date().getFullYear();
+
+/** A frase inteira da escada, só com os anos que ainda estão à frente. */
+const escadaFioB = (): string => {
+  const anos = Object.keys(CRONOGRAMA_FIO_B).map(Number).filter((a) => a >= ANO_ATUAL).sort((a, b) => a - b);
+  if (!anos.length) {
+    return 'Desde 2029 vale a regra cheia definida pela ANEEL: a energia injetada não abate mais a parcela de distribuição';
+  }
+  const [atual, ...resto] = anos;
+  const futuro = resto.map((a) => `${CRONOGRAMA_FIO_B[a]}% em ${a}`);
+  const cauda = futuro.length ? `, e sobe para ${futuro.join(' e ')}` : '';
+  return `Em ${atual} é ${CRONOGRAMA_FIO_B[atual]}% dessa parcela${cauda}`;
+};
+
 export const OBJECOES: GrupoObjecoes[] = [
   {
     slug: 'preco',
@@ -217,9 +246,9 @@ export const OBJECOES: GrupoObjecoes[] = [
         erro:
           'Dizer "isso é fake news" — ou prometer uma regra de transição que não existe mais para quem entra hoje. A porta do direito adquirido fechou em 6 de janeiro de 2023, e o cliente confere isso em dois cliques no celular.',
         script:
-          'Mudou, e já está valendo — é a Lei 14.300. Vou te falar exatamente como está: sobre a energia que SOBRA e vai para a rede você paga uma parte da tarifa de distribuição, o Fio B. Em 2026 é 60% dessa parcela, sobe para 75% em 2027 e 90% em 2028. Quem protocolou o pedido de acesso até 6 de janeiro de 2023 ficou fora dessa conta até 2045 — essa porta fechou, e eu não vou te prometer transição que não existe mais. O que muda no seu caso é outra coisa: a sua proposta já está calculada com a lei aplicada. O retorno de [X] anos que está ali é COM a taxa dentro, não sem ela. Quer que eu te mostre a linha?',
+          `Mudou, e já está valendo — é a Lei 14.300. Vou te falar exatamente como está: sobre a energia que SOBRA e vai para a rede você paga uma parte da tarifa de distribuição, o Fio B. ${escadaFioB()}. Quem protocolou o pedido de acesso até 6 de janeiro de 2023 ficou fora dessa conta até 2045 — essa porta fechou, e eu não vou te prometer transição que não existe mais. O que muda no seu caso é outra coisa: a sua proposta já está calculada com a lei aplicada. O retorno de [X] anos que está ali é COM a taxa dentro, não sem ela. Quer que eu te mostre a linha?`,
         whatsapp:
-          'Mudou sim, Lei 14.300. Hoje o Fio B é 60% da parcela de distribuição, e só sobre o que sobra e vai pra rede — o que você usa na hora não paga nada. Sobe pra 75% em 2027 e 90% em 2028. Sua proposta já está calculada COM isso: retorno em [X] anos. Te mostro a linha?',
+          `Mudou sim, Lei 14.300. Ele incide só sobre o que sobra e vai pra rede — o que você usa na hora não paga nada. ${escadaFioB()}. Sua proposta já está calculada COM isso: retorno em [X] anos. Te mostro a linha?`,
       },
       {
         id: 'vender-casa',
@@ -253,11 +282,10 @@ export const OBJECOES: GrupoObjecoes[] = [
       },
     ],
   },
-  // ATENÇÃO, REVISAR EM JANEIRO: este grupo e a objeção `lei-mudar` (grupo
-  // 'confianca') citam o percentual do Fio B do ano corrente — 60% em 2026, 75%
-  // em 2027, 90% em 2028, e depois disso o que a ANEEL definir. Em 1º de janeiro
-  // as duas ficam erradas dentro de um produto pago. São os únicos textos do
-  // curso presos ao calendário; o resto não envelhece.
+  // O percentual do FioB aqui e na `lei-mudar` sai de escadaFioB(), então vira
+  // sozinho na virada do ano. O que continua carimbado é só o TÍTULO deste grupo
+  // (e o "Atualizado para 2026" da LP /kit): são recado de frescor, não fato —
+  // trocar é decisão de marketing, não correção.
   {
     slug: 'mercado-2026',
     titulo: 'O mercado de 2026: taxa, assinatura e bateria',
@@ -272,9 +300,9 @@ export const OBJECOES: GrupoObjecoes[] = [
         erro:
           'Dizer que "quase não muda". Ele vai ver a linha na conta depois da obra e lembrar que você minimizou — é assim que se perde indicação.',
         script:
-          'Tem sim, e eu vou te mostrar exatamente quanto. Chama Fio B: você paga uma parte da tarifa de rede sobre a energia que SOBRA e vai para a rede. Sobre a que você consome na hora em que gera, não incide nada. Hoje é 60% dessa parcela, em 2027 vai para 75% e em 2028 para 90%. Na sua proposta isso já está calculado: o retorno de [X] anos é com a taxa dentro. E tem um detalhe que quase ninguém te conta: quanto mais você usa energia no mesmo horário em que gera, menos sobra e menos Fio B você paga. Foi por isso que eu dimensionei do jeito que dimensionei.',
+          `Tem sim, e eu vou te mostrar exatamente quanto. Chama Fio B: você paga uma parte da tarifa de rede sobre a energia que SOBRA e vai para a rede. Sobre a que você consome na hora em que gera, não incide nada. ${escadaFioB()}. Na sua proposta isso já está calculado: o retorno de [X] anos é com a taxa dentro. E tem um detalhe que quase ninguém te conta: quanto mais você usa energia no mesmo horário em que gera, menos sobra e menos Fio B você paga. Foi por isso que eu dimensionei do jeito que dimensionei.`,
         whatsapp:
-          'Tem sim, chama Fio B. Só que ele incide sobre o que SOBRA e vai pra rede — o que você usa na hora que gera não paga nada. Hoje é 60% dessa parcela. Sua proposta já está calculada COM a taxa: retorno em [X] anos. Te mostro a linha?',
+          `Tem sim, chama Fio B. Só que ele incide sobre o que SOBRA e vai pra rede — o que você usa na hora que gera não paga nada. ${escadaFioB()}. Sua proposta já está calculada COM a taxa: retorno em [X] anos. Te mostro a linha?`,
       },
       {
         id: 'vizinho-isento',
