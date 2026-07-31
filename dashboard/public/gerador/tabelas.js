@@ -85,13 +85,15 @@ const TABELAS = {
   rows: [
     {n:4, invs:1, g:320, kwp:2.4, descMax:6895, pVista:6895, pOrc:6895, p18x:1068.04},
     {n:5, invs:1, g:400, kwp:3.0, descMax:7889, pVista:7889, pOrc:7889, p18x:1222.01},
-    {n:6, invs:1, g:480, kwp:3.6, descMax:8811, pVista:8811, pOrc:8811, p18x:1364.82}
+    {n:6, invs:1, g:480, kwp:3.6, descMax:8811, pVista:8811, pOrc:8811, p18x:1364.82},
+    {n:7, invs:1, g:560, kwp:4.2, descMax:9988, pVista:9988, pOrc:9988, p18x:1547.14}
   ]
 },
 
 "SAJ-6K-PROMO": {
   inv: "SAJ 6K", mod: "Tsun 600W", pot: 600, precoExato: true, soCartaoVista: true,
   rows: [
+    {n:7,  invs:1, g:560,  kwp:4.2,  descMax:10497, pVista:10497, pOrc:10497, p18x:1625.98},
     {n:8,  invs:1, g:640,  kwp:4.8,  descMax:11358, pVista:11358, pOrc:11358, p18x:1759.35},
     {n:9,  invs:1, g:720,  kwp:5.4,  descMax:12380, pVista:12380, pOrc:12380, p18x:1917.66},
     {n:10, invs:1, g:800,  kwp:6.0,  descMax:12998, pVista:12998, pOrc:12998, p18x:2013.48},
