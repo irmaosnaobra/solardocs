@@ -15,7 +15,7 @@ import api from '@/services/api';
 
 const BENEFICIOS = [
   'Curso Kit de Fechamento completo — 6 módulos e o módulo bônus',
-  '26 objeções respondidas, começando pela "achei mais barato"',
+  '32 objeções respondidas, começando pela "achei mais barato"',
   'O roteiro da visita técnica até a assinatura',
   '15 mensagens prontas de prospecção e follow-up',
   'Documentos ilimitados — sem teto mensal',

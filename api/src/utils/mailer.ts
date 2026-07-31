@@ -683,14 +683,14 @@ export async function sendKitAcessoEmail(opts: {
   <div style="padding:22px 36px 6px;">
     <p style="margin:0 0 4px;color:#fbbf24;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">O que te espera em Cursos</p>
     <p style="margin:0;color:#cbd5e1;font-size:14px;line-height:1.9;">
-      <span style="color:#fbbf24;">&#9679;</span> 26 respostas de objeção — começando por "achei mais barato"<br/>
+      <span style="color:#fbbf24;">&#9679;</span> 32 respostas de objeção — começando por "achei mais barato"<br/>
       <span style="color:#fbbf24;">&#9679;</span> O roteiro da visita técnica até a assinatura<br/>
       <span style="color:#fbbf24;">&#9679;</span> Estrutura de custo e margem, com planilha pronta<br/>
       <span style="color:#fbbf24;">&#9679;</span> 15 mensagens de prospecção e follow-up<br/>
       <span style="color:#fbbf24;">&#9679;</span> Contrato, procuração e vistoria gerados no seu nome
     </p>
     <p style="margin:12px 0 0;color:#94a3b8;font-size:13px;line-height:1.7;">
-      São 17 lições com XP e conquistas — dá pra fazer uma por dia, no celular, antes da visita.
+      São 18 lições com XP e conquistas — dá pra fazer uma por dia, no celular, antes da visita.
     </p>
   </div>
 
@@ -1084,7 +1084,7 @@ const CAMPANHA_CURSO = [
     subject: 'O curso de fechamento que vendemos por R$27 já é seu no VIP',
     titulo: 'Você paga por documento. O que fecha a venda vem junto.',
     corpo: `O <strong>Kit de Fechamento do Integrador</strong> é vendido por R$ 27 fora daqui: 6 módulos,
-            26 objeções respondidas (começando por "achei mais barato"), o roteiro da visita e as
+            32 objeções respondidas (começando por "achei mais barato"), o roteiro da visita e as
             15 mensagens de prospecção e follow-up.
             <br/><br/>
             Quem assina o VIP não compra: <strong>já entra com ele liberado</strong>, junto com os

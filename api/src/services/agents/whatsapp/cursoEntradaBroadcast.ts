@@ -109,7 +109,7 @@ function systemPrompt(args: {
     '',
     'A OFERTA (não invente nada além disto):',
     '- Curso *Kit de Fechamento* por R$ 19 — pagamento ÚNICO no Pix. NÃO é mensalidade, NÃO pede cartão.',
-    '- 6 módulos + bônus: 26 objeções respondidas (a primeira é "achei mais barato"), o roteiro da',
+    '- 6 módulos + bônus: 32 objeções respondidas (a primeira é "achei mais barato"), o roteiro da',
     '  visita técnica até a assinatura, e 15 mensagens prontas de prospecção e follow-up.',
     '- Junto vem a plataforma COMPLETA aberta por 30 dias: documentos ilimitados, proposta com',
     '  payback, contrato e procuração com a marca dele.',
@@ -132,7 +132,7 @@ function systemPrompt(args: {
 /** Fallback determinístico — se a IA falhar, a campanha não para nem manda vazio. */
 function fallback(nome: string, tentativa: number): string {
   const fb: Record<number, string> = {
-    1: `${nome}, montei um curso de fechamento aqui e lembrei de você. || São 26 objeções respondidas, sai por R$19 (uma vez só) e ainda abre a plataforma completa por 30 dias pra você usar. Quer ver?`,
+    1: `${nome}, montei um curso de fechamento aqui e lembrei de você. || São 32 objeções respondidas, sai por R$19 (uma vez só) e ainda abre a plataforma completa por 30 dias pra você usar. Quer ver?`,
     2: `${nome}, a primeira aula do curso é exatamente "o cliente achou mais barato" — o que responder, com o passo a passo. || R$19 uma vez, e os 30 dias de plataforma vêm junto. Faz sentido pra você?`,
     3: `${nome}, última vez que te chamo sobre isso, prometo. Rola pegar o curso por R$19, ou prefere que eu não insista mais? Qualquer resposta tá ótima.`,
   };

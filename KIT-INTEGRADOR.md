@@ -21,7 +21,7 @@ obrigado (passo 4).**
 | Página de obrigado → cadastro | `solardoc.app/kit/obrigado` | no ar — falta colar na Kiwify |
 | Instalação do app | banner no 1º acesso + botão na página de obrigado | no ar; medido em `users.app_instalado_em` |
 | E-mail de acesso (plano B) | `sendKitAcessoEmail` (Resend) | no ar |
-| Consumo | `solardoc.app/cursos/kit-fechamento` (seção Cursos) | no ar — 6 módulos + bônus, 20 lições |
+| Consumo | `solardoc.app/cursos/kit-fechamento` (seção Cursos) | no ar — 6 módulos + bônus, 21 lições |
 | Convite para o VIP | fim de cada módulo (abre o UpgradeModal) | no ar |
 | Medição | `/admin` → hub SolarDoc → aba **Kit / Isca R$27** | no ar |
 | Depoimentos | aba **Comentários do Curso** → publicar → aparece na LP | no ar |

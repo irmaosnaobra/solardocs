@@ -1,6 +1,11 @@
-// Conteúdo do Kit de Fechamento do Integrador — Módulo 1: 20 objeções.
-// Texto é produto: entregue ao comprador do kit (R$27) dentro da plataforma.
+// Conteúdo do Kit de Fechamento do Integrador — Módulo 1.
+// Texto é produto: entregue ao comprador do kit dentro da plataforma.
 // Editar aqui altera o material para todos os compradores (sem redeploy de dados).
+//
+// A CONTAGEM NÃO SE ESCREVE À MÃO em lugar nenhum: cada grupo vira uma lição e o
+// total sai de TOTAL_OBJECOES (fim do arquivo), que o kit-fechamento.ts usa no
+// subtítulo do módulo. Já teve "20 objeções" escrito aqui quando eram 26 — número
+// de copy que envelhece sozinho é promessa que o cliente confere e não bate.
 
 export type Objecao = {
   id: string;
@@ -207,12 +212,14 @@ export const OBJECOES: GrupoObjecoes[] = [
       {
         id: 'lei-mudar',
         gatilho: 'Ouvi dizer que vão mudar a lei e acabar com a economia.',
-        traducao: 'Ele viu manchete sobre a Lei 14.300 e não sabe como ela funciona.',
-        erro: 'Dizer "isso é fake news". Você trata o cliente como desinformado e ele fecha.',
+        traducao:
+          'Ele viu manchete de "taxação do sol" e não sabe separar o que já mudou do que ainda vai mudar.',
+        erro:
+          'Dizer "isso é fake news" — ou prometer uma regra de transição que não existe mais para quem entra hoje. A porta do direito adquirido fechou em 6 de janeiro de 2023, e o cliente confere isso em dois cliques no celular.',
         script:
-          'Você ouviu certo, mudou mesmo — a Lei 14.300 criou uma cobrança gradual sobre a energia injetada na rede. Duas coisas importantes: primeiro, quem homologa o sistema entra numa regra de transição que garante condição melhor por anos; segundo, essa cobrança é sobre o excedente, não sobre o que você consome direto. É por isso, aliás, que quanto antes homologar, melhor a sua regra. Quer que eu te mostre na proposta como a lei já está calculada no seu retorno?',
+          'Mudou, e já está valendo — é a Lei 14.300. Vou te falar exatamente como está: sobre a energia que SOBRA e vai para a rede você paga uma parte da tarifa de distribuição, o Fio B. Em 2026 é 60% dessa parcela, sobe para 75% em 2027 e 90% em 2028. Quem protocolou o pedido de acesso até 6 de janeiro de 2023 ficou fora dessa conta até 2045 — essa porta fechou, e eu não vou te prometer transição que não existe mais. O que muda no seu caso é outra coisa: a sua proposta já está calculada com a lei aplicada. O retorno de [X] anos que está ali é COM a taxa dentro, não sem ela. Quer que eu te mostre a linha?',
         whatsapp:
-          'Mudou sim, é a Lei 14.300. Mas quem homologa antes entra na regra de transição, e a cobrança é só sobre o excedente injetado. Sua proposta já está calculada com a lei — te mostro onde?',
+          'Mudou sim, Lei 14.300. Hoje o Fio B é 60% da parcela de distribuição, e só sobre o que sobra e vai pra rede — o que você usa na hora não paga nada. Sobe pra 75% em 2027 e 90% em 2028. Sua proposta já está calculada COM isso: retorno em [X] anos. Te mostro a linha?',
       },
       {
         id: 'vender-casa',
@@ -243,6 +250,79 @@ export const OBJECOES: GrupoObjecoes[] = [
           'O módulo tem garantia de performance de [X] anos — significa que o fabricante garante que ele ainda vai gerar pelo menos [Y]% no fim desse prazo. Ele não para de funcionar, só perde eficiência bem devagar. O que costuma ser trocado uma vez na vida do sistema é o inversor, por volta do [Z]º ano, e isso já está considerado no cálculo de retorno que eu te mostrei. Ou seja: mesmo trocando o inversor, o payback é o que está ali.',
         whatsapp:
           'Módulo tem garantia de performance de [X] anos ([Y]% no fim do prazo) — não para, só perde eficiência devagar. O inversor costuma ser trocado uma vez, lá pelo ano [Z], e isso já está no cálculo de retorno que te mandei.',
+      },
+    ],
+  },
+  // ATENÇÃO, REVISAR EM JANEIRO: este grupo e a objeção `lei-mudar` (grupo
+  // 'confianca') citam o percentual do Fio B do ano corrente — 60% em 2026, 75%
+  // em 2027, 90% em 2028, e depois disso o que a ANEEL definir. Em 1º de janeiro
+  // as duas ficam erradas dentro de um produto pago. São os únicos textos do
+  // curso presos ao calendário; o resto não envelhece.
+  {
+    slug: 'mercado-2026',
+    titulo: 'O mercado de 2026: taxa, assinatura e bateria',
+    descricao:
+      'Objeções que não existiam há três anos. O cliente chega com elas já tendo lido alguma coisa — quase sempre pela metade. Quem explica primeiro, e explica direito, fica com a confiança.',
+    itens: [
+      {
+        id: 'fio-b-taxa',
+        gatilho: 'Agora tem taxa, né? A conta não zera mais.',
+        traducao:
+          'Ele viu "taxação do sol" em algum lugar e acha que a economia inteira foi embora.',
+        erro:
+          'Dizer que "quase não muda". Ele vai ver a linha na conta depois da obra e lembrar que você minimizou — é assim que se perde indicação.',
+        script:
+          'Tem sim, e eu vou te mostrar exatamente quanto. Chama Fio B: você paga uma parte da tarifa de rede sobre a energia que SOBRA e vai para a rede. Sobre a que você consome na hora em que gera, não incide nada. Hoje é 60% dessa parcela, em 2027 vai para 75% e em 2028 para 90%. Na sua proposta isso já está calculado: o retorno de [X] anos é com a taxa dentro. E tem um detalhe que quase ninguém te conta: quanto mais você usa energia no mesmo horário em que gera, menos sobra e menos Fio B você paga. Foi por isso que eu dimensionei do jeito que dimensionei.',
+        whatsapp:
+          'Tem sim, chama Fio B. Só que ele incide sobre o que SOBRA e vai pra rede — o que você usa na hora que gera não paga nada. Hoje é 60% dessa parcela. Sua proposta já está calculada COM a taxa: retorno em [X] anos. Te mostro a linha?',
+      },
+      {
+        id: 'vizinho-isento',
+        gatilho: 'Meu vizinho instalou antes e não paga essa taxa.',
+        traducao:
+          'Ele está certo, e está sentindo que perdeu o bonde. Se você negar, perde a confiança na hora.',
+        erro:
+          'Fingir que a regra é igual para todo mundo. Ele confirma com o vizinho no mesmo dia e você vira o vendedor que mentiu.',
+        script:
+          'Ele está certo, e é justo você saber: quem protocolou o pedido de acesso até 6 de janeiro de 2023 ficou com a regra antiga — 1 kWh injetado vale 1 kWh consumido — até 2045. Essa porta fechou e não volta. Agora repara no que isso muda de verdade para você: mesmo pagando o Fio B, o seu retorno é de [X] anos, e depois dele são mais de quinze anos de energia que você não paga. A pergunta não é se você conseguiu a regra do vizinho. É se, com a regra de hoje, ainda se paga. E se paga — está tudo na proposta, pode conferir comigo linha por linha.',
+        whatsapp:
+          'Ele tá certo: quem protocolou até 06/01/2023 ficou na regra antiga até 2045, e essa porta fechou. Mas veja o que importa pro seu caso: mesmo com o Fio B, seu retorno é [X] anos e depois são 15+ anos sem pagar energia. Confere comigo linha por linha?',
+      },
+      {
+        id: 'assinatura-sem-investir',
+        gatilho: 'Me ofereceram desconto na conta sem investir nada. Por que eu compraria?',
+        traducao:
+          'Ele comparou "20% de desconto de graça" com "R$ [preço] do meu bolso" e a conta pareceu óbvia.',
+        erro:
+          'Falar mal da empresa de assinatura. São modelos diferentes, e o cliente percebe na hora que você fugiu da comparação.',
+        script:
+          'É um modelo legítimo, e eu até te digo quando ele é melhor: quem aluga o imóvel, quem não tem telhado, quem não quer investir agora. Mas compara na régua certa, em dois pontos. Primeiro: aquele desconto incide só sobre a parcela de consumo da conta, não sobre a conta cheia — 20% anunciado costuma virar de 12% a 18% de verdade quando chega o boleto. Segundo, e é o que pesa: é desconto para sempre. Você paga todo mês, para sempre, e no fim não é dono de nada. O sistema tem fim: em [X] anos ele está pago, a economia passa a ser 100% sua e o imóvel valorizou. Faz o seguinte, pede o contrato deles e me manda. Eu monto os dois lado a lado em 25 anos. Se o deles ganhar no seu caso, eu mesmo te falo.',
+        whatsapp:
+          'Modelo legítimo — serve bem pra quem aluga ou não quer investir. Só compara certo: o desconto deles incide só sobre a parcela de consumo (20% anunciado vira 12-18% na conta cheia) e é pra sempre, você nunca fica dono. O seu sistema se paga em [X] anos e depois a economia é 100% sua. Me manda o contrato deles que eu comparo os dois em 25 anos.',
+      },
+      {
+        id: 'so-com-bateria',
+        gatilho: 'Só faço se vier com bateria.',
+        traducao:
+          'Ou ele quer autonomia no apagão, ou ouviu que bateria é o futuro e não quer comprar algo que já nasce velho.',
+        erro:
+          'Vender bateria só para não perder a venda. Você quase dobra o orçamento, estoura o payback e perde o cliente pelo preço — depois de ter tido o sim.',
+        script:
+          'Dá para fazer, e eu te mando as duas propostas. Antes me responde uma coisa: você quer bateria para não ficar sem luz quando cai, ou para economizar mais? Se for para não ficar sem luz, a gente dimensiona só para o essencial — geladeira, luz, internet, bomba — e sai bem mais barato do que segurar a casa inteira. Se for para economizar, eu vou ser honesto com você: na maioria dos casos a bateria ainda não se paga sozinha, o retorno dela fica entre 7 e 10 anos e só fecha bem em tarifa alta. Meu conselho é fazer o sistema agora e deixar o inversor preparado para receber bateria depois — o preço dela caiu quase 40% em um ano, e você compra quando fizer sentido, não agora.',
+        whatsapp:
+          'Dá pra fazer e te mando as duas propostas. Só me diz: bateria pra não ficar sem luz na queda, ou pra economizar mais? Pra não ficar sem luz dá pra dimensionar só o essencial (geladeira, luz, internet) e sai bem mais barato. Pra economizar, hoje ela ainda não se paga sozinha na maioria dos casos.',
+      },
+      {
+        id: 'queda-de-energia',
+        gatilho: 'Se faltar luz na rua, minha casa continua acesa, né?',
+        traducao:
+          'Quase todo cliente acha que sim. E se você deixar ele achar, a primeira queda de energia vira reclamação.',
+        erro:
+          'Deixar passar ou responder por cima. Essa é a decepção número um do pós-obra, e é 100% evitável em trinta segundos de visita.',
+        script:
+          'Não, e é muito melhor você saber isso hoje do que no primeiro apagão. Sistema conectado à rede desliga junto quando a energia cai, por segurança: se ele continuasse injetando, colocaria em risco o eletricista que está consertando o poste. É norma, vale para qualquer instalador, não é limitação do meu sistema. Para continuar com luz na queda existem duas saídas: bateria com inversor híbrido, ou gerador. Se isso é importante para você, eu já te faço a proposta com a bateria dimensionada só para o essencial. Se não for, você economiza esse dinheiro e a gente segue.',
+        whatsapp:
+          'Não — e é melhor saber hoje do que no primeiro apagão. Sistema ligado na rede desliga junto por segurança (pra não eletrocutar quem está consertando o poste). Vale pra qualquer instalador. Pra ter luz na queda, só com bateria ou gerador. Quer a proposta com bateria só pro essencial?',
       },
     ],
   },
@@ -292,6 +372,18 @@ export const OBJECOES: GrupoObjecoes[] = [
           'Vamos conferir juntos. Sua conta é de R$ [valor]. Em dez anos, só com o reajuste médio da [distribuidora], isso vira algo perto de R$ [total]. O sistema que atende você custa R$ [preço]. Mesmo com conta baixa, o retorno sai em [X] anos — e depois disso são mais de quinze anos de energia que você não paga. Conta baixa não é motivo para não fazer; é motivo para fazer um sistema menor.',
         whatsapp:
           'Vamos conferir: R$ [valor] por mês vira ~R$ [total] em 10 anos com reajuste. O sistema pro seu perfil custa R$ [preço] e se paga em [X] anos. Conta baixa não é motivo pra não fazer, é motivo pra fazer menor.',
+      },
+      {
+        id: 'imovel-alugado',
+        gatilho: 'A casa não é minha, eu alugo.',
+        traducao:
+          'Ele quer, mas acha que investir no telhado dos outros é jogar dinheiro fora. Do jeito que ele pensou, é mesmo.',
+        erro:
+          'Descartar o cliente na hora. Ele quase sempre tem outro imóvel no nome — ou te abre a porta do proprietário, que é quem você deveria estar visitando.',
+        script:
+          'Você tem razão em não querer investir no telhado de terceiro. Mas tem três caminhos aqui, e um deles quase sempre serve. Primeiro: você tem outro imóvel no seu nome? Como a compensação vale para o mesmo titular dentro da mesma distribuidora, dá para instalar lá e abater a conta daqui. Segundo: se você pretende ficar anos nesse endereço, o sistema é desinstalável — quando sair, vai com você, o custo é de mão de obra. Terceiro, o mais comum: eu converso com o proprietário. Sistema instalado valoriza o imóvel dele e ele pode compor parte do valor no aluguel — é uma conversa que muito locador já topou. Quer que eu prepare os números para você mostrar para ele?',
+        whatsapp:
+          'Certo em não investir no telhado de terceiro. Três saídas: (1) tem outro imóvel no seu nome? dá pra instalar lá e abater a conta daqui, mesma distribuidora; (2) o sistema é desinstalável e vai com você; (3) eu falo com o proprietário — valoriza o imóvel dele e ele pode compor no aluguel. Quer que eu prepare os números?',
       },
     ],
   },
