@@ -41,7 +41,8 @@ function montarMensagem(a: any): string {
       })
     : 'sem horário';
 
-  // A observação já vem estruturada da LP: perfil, capital, ponto e a simulação.
+  // A observação já vem estruturada da LP: perfil, forma de investir, ponto,
+  // modelo de negócio e a simulação.
   const obs: string[] = String(a.observacao || '').split('\n').filter(Boolean);
   const perfil = (obs[0] || '').replace('LP ELETROPOSTO — ', '') || '—';
   const linha = (rot: string) => obs.find(l => l.startsWith(rot))?.replace(rot, '').trim() || '—';
@@ -65,8 +66,9 @@ function montarMensagem(a: any): string {
     `*Cidade:* ${a.cidade || '—'}`,
     `*Endereço:* ${linha('Endereço:')}`,
     `*Perfil:* ${perfil}`,
+    `*Modelo:* ${linha('Modelo:')}`,
     ``,
-    `*Investimento pretendido:* ${linha('Investimento pretendido:')}`,
+    `*Como pretende investir:* ${linha('Como pretende investir:')}`,
     `*Ponto:* ${linha('PONTO:')}`,
     `*Simulou:* ${linha('Simulou')}`,
     `*Resultado:* ${(obs.find(l => l.startsWith('→')) || '—').replace('→', '').trim()}`,
