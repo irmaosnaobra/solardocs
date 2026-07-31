@@ -605,7 +605,9 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 /* Rodapé */
 .orc1 .foot{margin-top:auto;background:var(--c1);color:#fff;padding:16px 26px 20px}
 .orc1 .foot .pg{font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;opacity:.85;margin-bottom:11px}
-.orc1 .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+/* align-items:start pra caixa da Empresa não esticar: ela tem só o nome agora,
+   e esticada até a altura do Vendedor (com QR) parecia caixa vazia. */
+.orc1 .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .orc1 .card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px 15px}
 .orc1 .card h4{margin:0 0 8px;font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.9}
 .orc1 .card .l{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.10)}
@@ -3206,16 +3208,34 @@ async function purgarPropostasExpiradas() {
 
 // Fotos dos consultores (carregadas do banco; cache por sessão)
 let consultoresFotos = {};
+// nome do consultor → WhatsApp real (tabela `consultores`). É o que faz o
+// orçamento sair com o telefone de QUEM vendeu, em vez do número da empresa
+// pra todo mundo — o cliente responde direto pro dono do atendimento.
+let consultoresWhats = {};
 async function carregarConsultoresFotos() {
   try {
-    const rows = await supaGet('consultores?select=nome,foto_url');
+    const rows = await supaGet('consultores?select=nome,foto_url,whatsapp');
     consultoresFotos = {};
+    consultoresWhats = {};
     for (const r of (rows || [])) {
-      if (r.nome && r.foto_url) consultoresFotos[r.nome] = r.foto_url;
+      if (!r.nome) continue;
+      if (r.foto_url) consultoresFotos[r.nome] = r.foto_url;
+      if (r.whatsapp) consultoresWhats[r.nome] = String(r.whatsapp);
     }
   } catch (e) {
-    console.error('Falha ao carregar fotos dos consultores:', e);
+    console.error('Falha ao carregar consultores:', e);
   }
+}
+
+// Telefone do consultor pro documento. Sem cadastro (nome novo, cache ainda não
+// carregado), devolve vazio — e aí o card do Vendedor mostra só o nome, que é
+// melhor do que mandar o cliente pro número de outra pessoa.
+function whatsDoConsultor(nome) {
+  const n = String(nome || '').trim();
+  if (!n) return '';
+  if (consultoresWhats[n]) return consultoresWhats[n];
+  const achado = Object.keys(consultoresWhats).find(k => k.toLowerCase() === n.toLowerCase());
+  return achado ? consultoresWhats[achado] : '';
 }
 function avatarConsultorHtml(nome) {
   const foto = consultoresFotos[nome];
@@ -4185,6 +4205,10 @@ async function gerar() {
     pagOpts,
     acrescDist,
     consultor,
+    // Congela o WhatsApp do consultor na proposta. O link do orçamento é montado
+    // no navegador do CLIENTE, que não está logado e não tem o cadastro de
+    // consultores — sem isso o rodapé e o QR ficariam sem telefone pra ele.
+    consultorWhats: whatsDoConsultor(consultor),
     linha,
     modoEntrada: manualInputs ? 'manual' : modo,
     consumoKwh: consumoKwhInput,
@@ -4644,7 +4668,7 @@ function orcViewTalvez(d, querOrc) {
   if (ehEp) {
     orcViewRender(orcEpDocHTML(d), (d.vendedor && d.vendedor.contato) || (d.empresa && d.empresa.contato));
   } else {
-    orcViewRender(orcSolarDocHTML(d), ORC1_EMPRESA.contato);
+    orcViewRender(orcSolarDocHTML(d), d.consultorWhats || whatsDoConsultor(d.consultor));
   }
   return true;
 }
@@ -4832,6 +4856,15 @@ function orcCheckDeepLink() {
 }
 window.orcCheckDeepLink = orcCheckDeepLink;
 window.addEventListener('DOMContentLoaded', orcCheckDeepLink);
+
+// Cadastro dos consultores (nome → WhatsApp) na entrada do app. Fica aqui e não
+// só no fazerLogin porque quem já está logado entra pelo script do <head>, que
+// marca o modo 'app' direto e nunca passa pelo login — e aí o orçamento sairia
+// sem o telefone do vendedor.
+window.addEventListener('DOMContentLoaded', () => {
+  if (document.documentElement.dataset.mode !== 'app') return;
+  if (typeof carregarConsultoresFotos === 'function') carregarConsultoresFotos();
+});
 
 // ============= HISTÓRICO =============
 function formatDataBR(iso) {
@@ -6469,11 +6502,11 @@ function orcLinkPublico(codigo) {
   return `${window.location.origin}/orc/${encodeURIComponent(codigo)}`;
 }
 
-const ORC1_EMPRESA = {
-  nome: 'Irmãos na Obra',
-  endereco: 'Avenida Ana Godoy de Sousa, 890, Santa Mônica - Uberlândia MG',
-  contato: '34998165040',
-};
+// A empresa entra no documento só com o NOME — a logo já está no cabeçalho e é
+// ela que identifica a marca. Endereço e telefone da empresa saíram a pedido:
+// quem o cliente tem que procurar é o vendedor que atendeu, e é o telefone dele
+// que fica no rodapé e no QR.
+const ORC1_EMPRESA = { nome: 'Irmãos na Obra' };
 
 const o1Esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const o1BRL = n => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -6523,6 +6556,10 @@ function orc1HTML(d) {
   const waLink = wa ? 'https://wa.me/' + (wa.startsWith('55') ? wa : '55' + wa) : '';
   const qr = waLink ? o1Qr(waLink) : '';
 
+  // O telefone vem do cadastro com DDI ("5534993396255"). No documento que vai
+  // pro cliente ele sai legível; o QR e o wa.me continuam usando os dígitos.
+  const telBonito = t => (typeof crmTelDisplay === 'function' ? crmTelDisplay(t) : String(t || ''));
+
   const rowf = (k, v) => v ? `<div class="rowf"><span>${o1Esc(k)}</span><span>${o1Esc(v)}</span></div>` : '';
   const tile = t => `<div class="tile"><div class="k">${o1Esc(t.k)}</div><div class="v num">${o1Esc(t.v)}${t.u ? `<u>${o1Esc(t.u)}</u>` : ''}</div></div>`;
   const linha = l => `<div class="r"><span class="lab">${o1Esc(l[0])}</span><span class="val num">${o1Esc(l[1])}</span></div>`;
@@ -6570,15 +6607,12 @@ function orc1HTML(d) {
         <h4>Vendedor</h4>
         ${cardL('Nome', vend.nome || '—')}
         ${cardL('E-mail', vend.email)}
-        ${cardL('Contato', vend.contato)}
+        ${cardL('Contato', vend.contato ? telBonito(vend.contato) : '')}
         ${qr ? `<div class="qr"><div class="qrbox">${qr}</div><span>Aponte a câmera<br/>e fale no WhatsApp</span></div>` : ''}
       </div>
       <div class="card">
         <h4>Empresa</h4>
         ${cardL('Nome', emp.nome)}
-        ${cardL('Endereço', emp.endereco)}
-        ${cardL('Contato', emp.contato)}
-        ${cardL('E-mail', emp.email)}
       </div>
     </div>
   </div>
@@ -6681,6 +6715,9 @@ function orcEpPayload() {
   // documento que vai pro cliente. Cai no consultor logado, que é quem está
   // gerando — dá pra sobrescrever no campo quando o orçamento é de outro.
   const vendNome = orcVal('el-autor') || (typeof crmConsultorLogado === 'function' ? crmConsultorLogado() : '');
+  // Telefone: o que ele digitou manda; senão, o WhatsApp real do cadastro. Fica
+  // gravado no payload porque o cliente que abre o link não tem esse cadastro.
+  const vendTel = orcVal('el-contato') || whatsDoConsultor(vendNome);
 
   return {
     produto: 'eletroposto',
@@ -6704,7 +6741,7 @@ function orcEpPayload() {
     linhas: orc1EpLinhas(),
     fin: orc1EpFinanceiro(r.total),
     pag: { vista: on('orc-pg-ck-avista'), cartaoNs, fin: on('orc-pg-ck-fin') },
-    vendedor: { nome: vendNome, email: orcVal('el-email'), contato: orcVal('el-contato') },
+    vendedor: { nome: vendNome, email: orcVal('el-email'), contato: vendTel },
     empresa: orc1EpEmpresa(),
   };
 }
@@ -6785,12 +6822,10 @@ function orcEpQtdCarregadores() {
 
 function orc1EpEmpresa() {
   const e = epEmitGet();
-  return {
-    nome: e.nome || ORC1_EMPRESA.nome,
-    endereco: [e.end, e.cidade].filter(Boolean).join(' · ') || ORC1_EMPRESA.endereco,
-    contato: e.tel || ORC1_EMPRESA.contato,
-    email: e.email,
-  };
+  // Só o nome vai pro documento. Endereço, telefone e e-mail da empresa
+  // continuam no cadastro do pane (servem pro estudo de viabilidade), mas não
+  // saem mais no orçamento — o contato do cliente é o vendedor.
+  return { nome: e.nome || ORC1_EMPRESA.nome };
 }
 
 // Os três números do topo. Sem simulação preenchida, cai pra quantidade de
@@ -9808,7 +9843,8 @@ function orcSolarDocHTML(d) {
       { k: 'Conta após instalação', v: o1BRL(d.taxaMin) },
       { k: 'Tempo de retorno', v: d.paybackTextoLong || (d.payback + ' anos') },
     ],
-    vendedor: { nome: d.consultor || '', contato: ORC1_EMPRESA.contato },
+    // Telefone real de quem vendeu (cadastro `consultores`), não o da empresa.
+    vendedor: { nome: d.consultor || '', contato: d.consultorWhats || whatsDoConsultor(d.consultor) },
     empresa: ORC1_EMPRESA,
   });
 }
@@ -10011,6 +10047,10 @@ function fazerLogin(ev) {
 
   document.documentElement.dataset.mode = 'app';
   document.getElementById('login-senha').value = '';
+  // Carrega o cadastro dos consultores já na entrada: o telefone de quem vende
+  // vai pro rodapé do orçamento, e o documento pode ser gerado antes de alguém
+  // abrir o Histórico (que era o único lugar que carregava isso).
+  if (typeof carregarConsultoresFotos === 'function') carregarConsultoresFotos();
   // Se veio de um link do digest (?crm=reagendar...), abre direto a lista.
   if (typeof crmCheckDeepLink === 'function') crmCheckDeepLink();
   // Se veio do "Gerar orçamento" da Agenda (?orc=1...), pré-preenche o form.
