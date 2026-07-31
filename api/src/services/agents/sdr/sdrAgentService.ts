@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendMetaEvent } from '../../../utils/metaPixel';
 import { fmtPhone, sendHuman, sendToGroup, deleteGroupMessage, sendWhatsApp, type ZapiInstance } from '../zapiClient';
+import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -1380,7 +1381,7 @@ export async function handleSdrLead(
   }
 
   const { text: cleanText, estagio } = extractEstagio(finalText);
-  const parts = cleanText.split('||').map(p => p.trim()).filter(Boolean);
+  const parts = porBarras(cleanText);
 
   await sendHuman(cleanPhone, parts, instance);
 
@@ -1516,7 +1517,7 @@ export async function initiateSdrConversation(
   });
 
   const raw = (response.content[0] as { text: string }).text;
-  const parts = raw.split('||').map(p => p.trim()).filter(Boolean);
+  const parts = porBarras(raw);
 
   await sendHuman(cleanPhone, parts);
 

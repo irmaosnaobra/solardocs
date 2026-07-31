@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
-import { sendZAPI as sendWA } from '../zapiClient';
+import { sendHuman } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { detectarRecusaNaUltimaMsg } from './detectarRecusa';
 
@@ -202,7 +202,8 @@ export async function runSdrB2bFollowups(): Promise<{ enviados: number; perdidos
 
     try {
       const msg = await gerarFollowupCarla(lead, proximasTentativas);
-      await sendWA(lead.phone, msg, 'solardoc');
+      // Bolha a bolha (o "||" do prompt ia cru pro lead antes disto).
+      await sendHuman(lead.phone, [msg], 'solardoc');
 
       // Salva no histórico da sessão B2B
       try {

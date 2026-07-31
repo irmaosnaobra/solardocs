@@ -20,7 +20,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
-import { sendZAPI, sleep } from '../zapiClient';
+import { sendHuman, sleep } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { dentroDoTetoCarla, marcarEnvioCarla, dentroDaJanelaDeEnvio } from './carlaThrottle';
 import { registrarMsgProativa } from './whatsappAgentService';
@@ -253,7 +253,8 @@ export async function runCarlaSemCnpjFollowup(): Promise<{ enviados: number; enc
         diasDesdeSignup,
         tomCfg: TONS_SEM_CNPJ[proxima],
       });
-      await sendZAPI(u.whatsapp, msg, 'solardoc');
+      // Bolha a bolha (o "||" do prompt ia cru pro cliente antes disto).
+      await sendHuman(u.whatsapp, [msg], 'solardoc');
       await marcarEnvioCarla(u.id);  // alimenta o teto anti-ban
       // Salva o opener na sessão (por user_id) pra Giovanna ter contexto no reply.
       await registrarMsgProativa({ userId: u.id, phone: u.whatsapp, content: msg, nome: u.nome });
@@ -346,7 +347,8 @@ export async function runCarlaInativoFollowup(): Promise<{ enviados: number; enc
         totalDocs: totalDocs[u.id] ?? 0,
         tomCfg: TONS_INATIVO[proxima],
       });
-      await sendZAPI(u.whatsapp, msg, 'solardoc');
+      // Bolha a bolha (o "||" do prompt ia cru pro cliente antes disto).
+      await sendHuman(u.whatsapp, [msg], 'solardoc');
       await marcarEnvioCarla(u.id);  // alimenta o teto anti-ban
       // Salva o opener na sessão (por user_id) pra Giovanna ter contexto no reply.
       await registrarMsgProativa({ userId: u.id, phone: u.whatsapp, content: msg, nome: u.nome });
@@ -402,7 +404,7 @@ export async function dispararOpenerTesteParaUser(userId: string): Promise<{ ok:
     tomCfg: TONS_INATIVO[proxima] ?? TONS_INATIVO[1],
   });
 
-  await sendZAPI(u.whatsapp as string, msg, 'solardoc');
+  await sendHuman(u.whatsapp as string, [msg], 'solardoc');
   await marcarEnvioCarla(u.id as string);
   // Salva o opener por user_id → Giovanna lê o contexto quando o cliente responder.
   await registrarMsgProativa({ userId: u.id as string, phone: u.whatsapp as string, content: msg, nome: u.nome as string | null });

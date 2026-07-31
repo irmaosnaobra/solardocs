@@ -28,7 +28,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
-import { sendZAPI, sleep } from '../zapiClient';
+import { sendHuman, sleep } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { dentroDoTetoCarla, marcarEnvioCarla, dentroDaJanelaDeEnvio } from './carlaThrottle';
 import { registrarMsgProativa } from './whatsappAgentService';
@@ -291,7 +291,8 @@ export async function runCursoEntradaBroadcast(
     }
 
     try {
-      await sendZAPI(u.whatsapp, msg, 'solardoc');
+      // Bolha a bolha (o "||" do prompt ia cru pro cliente antes disto).
+      await sendHuman(u.whatsapp, [msg], 'solardoc');
       await marcarEnvioCarla(u.id);   // alimenta o teto da LINHA
       // Deixa o opener na sessão pra Giovanna ter contexto quando ele responder —
       // sem isso ela recebe um "quanto é?" sem saber do que ele está falando.

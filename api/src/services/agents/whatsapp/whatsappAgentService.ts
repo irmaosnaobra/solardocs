@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { handleSdrLead } from '../sdr/sdrAgentService';
 import { fmtPhone, sendHuman, sendImage, sendWhatsApp, ZapiInstance } from '../zapiClient';
+import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import { pixBlocoWhatsApp } from '../../../utils/pixInfo';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
@@ -255,7 +256,7 @@ export function parseTagsResposta(raw: string): {
 
   return {
     pedeHumano, pedePix, pedePixCurso, pedeImagemKit,
-    parts: limpo.split('||').map((p) => p.trim()).filter(Boolean),
+    parts: porBarras(limpo),
   };
 }
 

@@ -23,6 +23,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendHuman, fmtPhone } from '../zapiClient';
+import { porBarras } from '../bolhas';
 import { tryClaimMessage } from '../sdr/sdrAgentService';
 import { logger } from '../../../utils/logger';
 
@@ -247,8 +248,7 @@ export async function handleBiaInbound(rawPhone: string, text: string, senderNam
   // Tags de controle (removidas antes de enviar): [ESCALAR] → humano · [PERDIDO] → para de vender.
   const escalar = /\[ESCALAR\]/i.test(raw);
   const perdido = /\[PERDIDO\]/i.test(raw);
-  const parts = raw.replace(/\[ESCALAR\]/ig, '').replace(/\[PERDIDO\]/ig, '').trim()
-    .split('||').map(p => p.trim()).filter(Boolean).slice(0, 2);
+  const parts = porBarras(raw.replace(/\[ESCALAR\]/ig, '').replace(/\[PERDIDO\]/ig, '')).slice(0, 2);
   if (parts.length) await sendHuman(phone, parts, INSTANCE);
 
   // Rate-limit do cupom: se a Bia mandou o link com cupom nesta resposta, trava a próxima oferta.
