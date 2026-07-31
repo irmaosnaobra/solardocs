@@ -524,7 +524,7 @@
         </div>
         <div class="fld">
           <label>Custo da energia <span class="hint">(kWh)</span></label>
-          <div class="inp has-pre"><span class="pre">R$</span><input type="number" id="s-custo" value="0.95" step="0.05" oninput="calc()"></div>
+          <div class="inp has-pre"><span class="pre">R$</span><input type="number" id="s-custo" value="0.70" step="0.05" oninput="calc()"></div>
         </div>
       </div>
 
@@ -538,8 +538,10 @@
         <div class="chart" id="chart"></div>
         <div class="simObs">
           Mesmas premissas do nosso Estudo de Viabilidade: rampa de ocupação de 50% a 100% em 24 meses,
-          gateway 14%, arrendamento 10%, imposto 6% (Simples) e custos fixos (seguro 1% a.a. + software/4G)
-          correndo desde o mês&nbsp;1. <b style="color:rgba(247,251,242,.6)">Os números podem variar para cima ou para baixo
+          gateway 14%, imposto 6% (Simples) e custos fixos (seguro 1% a.a. + software/4G)
+          correndo desde o mês&nbsp;1. A conta assume que <b style="color:rgba(247,251,242,.6)">o ponto é seu</b> —
+          quem for alugar o local desconta o aluguel do lucro (na nossa régua, cerca de 10% do faturamento).
+          <b style="color:rgba(247,251,242,.6)">Os números podem variar para cima ou para baixo
           conforme as características do ponto comercial</b> — fluxo de veículos, tarifa de energia e localização.
           Valores estimados, não constituem garantia de resultado. Na reunião entregamos o estudo completo,
           com VPL, TIR, sensibilidade e análise de riscos do seu ponto.
@@ -829,11 +831,16 @@ function params(){
     carros, carga:20,
     precoKwh:+document.getElementById('s-revenda').value || 0,
     custoKwh:+document.getElementById('s-custo').value || 0,
-    // Premissas idênticas às do Estudo de Viabilidade oficial (PDF 15/07): gateway 14%,
-    // arrendamento 10%, manutenção 0,1%, imposto 6% (Simples), rampa 50%→100% em 24 meses.
-    // Validado contra o PDF: 10 carros/200k ⇒ lucro R$ 3.941, margem 27,3%, payback 4,8 anos.
+    // Premissas idênticas às do Estudo de Viabilidade que o consultor abre na reunião:
+    // gateway 14%, manutenção 0,1%, imposto 6% (Simples), rampa 50%→100% em 24 meses.
+    // ARRENDAMENTO = 0 de propósito. O estudo cobra aluguel do ponto só quando o local é
+    // de terceiro; o público desta LP (posto, mercado, academia, condomínio…) em geral já
+    // é dono do espaço, e cobrar 10% de quem paga a si mesmo derrubava margem e payback
+    // sozinho. Quem vai alugar desconta o aluguel — está dito na letra miúda do simulador.
+    // Validado contra o estudo (31/07, 10 carros · custo 0,70 · sem arrendamento):
+    // 160k ⇒ lucro R$ 6.920, margem 47,86%, payback 2,5 anos, ROI 391% — ao centavo.
     ativacao:1.20, invest:cfg.invest,
-    gateway:.14, arrend:.10, manut:.001, imposto:.06,
+    gateway:.14, arrend:0, manut:.001, imposto:.06,
     assinat:0, fixos:300, ocupIni:.5, mesesRampa:24,
   };
 }

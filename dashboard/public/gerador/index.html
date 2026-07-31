@@ -2247,7 +2247,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-field"><label>Média de carga por carro<span class="el-tip" tabindex="0" data-tip="Quanta energia cada carro leva por parada, em kWh. Referência: 20 kWh dão cerca de 100 a 140 km de autonomia — a recarga típica de rua, não o tanque cheio.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-carga" inputmode="decimal" value="20" oninput="eletroCalc()"><span class="suf">kWh</span></div></div>
           <div class="eletro-field"><label>Custo do kWh<span class="el-tip" tabindex="0" data-tip="Quanto você paga por kWh na conta da concessionária. É o custo da mercadoria que o posto revende.">?</span></label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-custokwh" inputmode="decimal" value="0.95" oninput="eletroCalc()"></div></div>
+            <!-- 0,70 é a tarifa de referência da casa e o mesmo default da LP /io/eletroposto.
+                 As duas contas TÊM que abrir iguais: o lead simula lá e o consultor abre isto
+                 na reunião — divergir aqui vira desconto na frente do cliente. -->
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-custokwh" inputmode="decimal" value="0.70" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Preço kWh revenda<span class="el-tip" tabindex="0" data-tip="Quanto o motorista paga por kWh no seu carregador. A diferença entre este preço e o custo da concessionária é o seu ganho por kWh.">?</span></label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-precokwh" inputmode="decimal" value="2.35" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Taxa de ativação<span class="el-tip" tabindex="0" data-tip="Valor fixo cobrado a cada recarga, independente da energia levada. Entra no faturamento junto com a venda de energia.">?</span></label>
@@ -2270,7 +2273,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-field"><label>Gateway<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento que fica com a plataforma de pagamento e o aplicativo que controla as recargas. Sai de cada venda, como a taxa da maquininha do cartão.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-gateway" inputmode="decimal" value="14" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Arrendamento do ponto<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento pago ao dono do local (posto, mercado, shopping) pela cessão do espaço. Como é percentual, ele só ganha quando você fatura.">?</span></label>
-            <div class="eletro-inp has-suf"><input type="number" id="el-arrend" inputmode="decimal" value="10" oninput="eletroCalc()"><span class="suf">%</span></div></div>
+            <!-- Abre em 0: o caso comum é o cliente instalar no espaço DELE, e cobrar
+                 arrendamento de quem paga a si mesmo afunda margem e payback. Local de
+                 terceiro? o consultor põe o % combinado aqui — o estudo recalcula. -->
+            <div class="eletro-inp has-suf"><input type="number" id="el-arrend" inputmode="decimal" value="0" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Manutenção<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento reservado para manter o equipamento funcionando: limpeza, reparos e assistência técnica.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-manut" inputmode="decimal" value="0.1" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Assinatura mensal<span class="el-tip" tabindex="0" data-tip="Mensalidade fixa de algum serviço ou plano, se houver. Diferente das taxas em %, ela é cobrada mesmo em um mês parado.">?</span></label>
