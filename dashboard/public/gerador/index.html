@@ -807,6 +807,15 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-det-wpp:hover{filter:brightness(1.08)}
 .crm-det-agendar{background:#3B82F6;color:#fff}
 .crm-det-agendar:hover{filter:brightness(1.08)}
+/* lista de orçamentos do cliente dentro do detalhe (um por produto) */
+.crm-det-orcs{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.crm-det-orc{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border-radius:10px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);color:#E5E7EB;font-family:inherit;cursor:pointer}
+.crm-det-orc:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2)}
+.crm-det-orc .ic{font-size:18px;flex:none}
+.crm-det-orc .tx{display:flex;flex-direction:column;gap:2px;font-size:13.5px;font-weight:700}
+.crm-det-orc .tx small{font-size:11px;font-weight:600;color:#94A3B8}
+.crm-det-orc .tx em{font-style:normal}
 .crm-det-orcamento{background:linear-gradient(135deg,#F59E0B,#D97706);color:#1f2937;font-size:15px}
 .crm-det-orcamento:hover{filter:brightness(1.06)}
 /* o de eletroposto usa o verde da marca dele, pra não haver dúvida de qual é qual */
@@ -3085,6 +3094,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="crm-det-sem-ag" class="crm-det-aviso" style="display:none">
       Esse lead ainda não tem ligação na agenda. Agende uma ligação pra começar a classificar (temperatura, resultado, anotações).
     </div>
+
+    <!-- Orçamentos que este cliente já tem, um por produto -->
+    <div class="crm-det-orcs" id="crm-det-orcs" style="display:none"></div>
 
     <div class="crm-det-erro" id="crm-det-erro"></div>
 
@@ -7986,6 +7998,26 @@ function crmAbrirDetalhe(key) {
   if (c.cidade) { cidRow.style.display = ''; document.getElementById('crm-det-cid').textContent = c.cidade; }
   else { cidRow.style.display = 'none'; }
 
+  // Orçamentos do cliente, um por produto. É aqui que o consultor descobre que
+  // o cliente do solar também recebeu um de eletroposto (e vice-versa).
+  const orcsEl = document.getElementById('crm-det-orcs');
+  if (orcsEl) {
+    const brl = v => 'R$ ' + Math.round(v || 0).toLocaleString('pt-BR');
+    const preco = p => (p && p.dados) ? Number(p.dados.precoVista || p.dados.precoOrcamento || p.dados.total || 0) : 0;
+    const linha = (p, ic, rot) => {
+      if (!p) return '';
+      const v = preco(p);
+      const abertura = p.acessos > 0 ? `<em>${p.acessos} abertura${p.acessos > 1 ? 's' : ''}</em>` : '<em>não abriu</em>';
+      return `<button type="button" class="crm-det-orc" onclick="abrirProposta('${escapeHtml(p.codigo)}')" title="Abrir ${escapeHtml(p.codigo)}">
+          <span class="ic">${ic}</span>
+          <span class="tx"><span><b>${rot}</b>${v > 0 ? ' · ' + brl(v) : ''}</span><small>${escapeHtml(p.codigo)} · ${abertura}</small></span>
+        </button>`;
+    };
+    const html = linha(c.propSolar, '☀️', 'Solar') + linha(c.propEp, '⚡', 'Eletroposto');
+    orcsEl.innerHTML = html ? `<span class="crm-det-lbl">📄 Orçamentos deste cliente</span>${html}` : '';
+    orcsEl.style.display = html ? '' : 'none';
+  }
+
   document.getElementById('crm-det-cons').textContent = c.consultor || '—';
   const etCor = c.etiqueta && typeof etiquetaCor === 'function' ? etiquetaCor(c.etiqueta) : '';
   document.getElementById('crm-det-etiqueta').innerHTML = c.etiqueta
@@ -8662,11 +8694,12 @@ async function carregarCRM(forcar) {
   let props = [], agends = [], leads = [], perdidos = [];
   try {
     [props, agends, leads] = await Promise.all([
-      // tipo=eq.solar: o CRM é o funil do solar. Orçamento de eletroposto agora
-      // divide a tabela `propostas`, e sem este filtro ele entraria aqui como
-      // cliente — pior, o chaveCliente dedupa por telefone e fundiria o card do
-      // eletroposto com o do solar do mesmo cliente.
-      supaGet('propostas?tipo=eq.solar&select=codigo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
+      // Sem filtro de tipo: o mesmo cliente costuma ter os DOIS produtos (o José
+      // Horácio tem um solar e um eletroposto, e "terão muitos assim"). O card é
+      // um por CLIENTE e mostra os dois orçamentos — dividir por produto criaria
+      // um card de eletroposto órfão, porque coluna do kanban, temperatura e
+      // follow-up saem todos do agendamento, e agendamento não tem produto.
+      supaGet('propostas?select=codigo,tipo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
       supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at,created_by,src,proposta_por,proposta_em&order=quando.desc&limit=1000'),
       supaGet('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc&limit=1000')
     ]);
@@ -8815,14 +8848,30 @@ function crmDerivar(c) {
   c.propPor = agProp ? agProp.proposta_por : null;
   c.propEm  = agProp ? agProp.proposta_em : null;
 
-  // Valor: venda fechada > preço à vista da proposta mais recente
+  // Valor: venda fechada > preço da proposta mais recente que tenha preço.
+  // O eletroposto guarda em dados.total (é outro produto, com outra conta).
+  const precoDaProp = p => p && p.dados
+    ? Number(p.dados.precoVista || p.dados.precoOrcamento || p.dados.total || 0) : 0;
   let valor = 0;
   if (vendida && vendida.valor_vendido != null) valor = Number(vendida.valor_vendido);
   else {
-    const pComPreco = c.props.find(p => p.dados && (p.dados.precoVista || p.dados.precoOrcamento));
-    if (pComPreco) valor = Number(pComPreco.dados.precoVista || pComPreco.dados.precoOrcamento || 0);
+    // Cliente com os dois produtos tem dois preços e o card só mostra um: vale o
+    // do orçamento MAIS RECENTE, que é a negociação em curso. Ordena explícito —
+    // depender da ordem do array daria valores diferentes conforme a consulta.
+    const comPreco = [...c.props].filter(p => precoDaProp(p) > 0)
+      .sort((x, y) => stamp(y.created_at) - stamp(x.created_at));
+    if (comPreco.length) valor = precoDaProp(comPreco[0]);
   }
   c.valor = valor;
+
+  // Propostas por produto. O mesmo cliente fecha solar e eletroposto, e o card
+  // precisa dizer os dois — senão quem abre o card do cliente não fica sabendo
+  // que existe um orçamento do outro produto.
+  const ehProdEp = p => p.tipo === 'eletroposto' || (p.dados && p.dados.produto === 'eletroposto');
+  const maisNovo = arr => arr.length
+    ? [...arr].sort((x, y) => stamp(y.created_at) - stamp(x.created_at))[0] : null;
+  c.propSolar = maisNovo(c.props.filter(p => !ehProdEp(p)));
+  c.propEp    = maisNovo(c.props.filter(ehProdEp));
 
   // Proposta mais recente (pra abrir / código)
   c.propRecente = c.props.length
@@ -8974,8 +9023,14 @@ function renderCRM() {
   const card = (c) => {
     const valorTxt = c.valor ? '<span class="crm-card-val">R$ ' + Math.round(c.valor).toLocaleString('pt-BR') + '</span>' : '';
     const wpp = c.tel ? `<a class="crm-act crm-act-wpp" href="https://wa.me/${c.tel}" target="_blank" rel="noopener" title="WhatsApp" onclick="event.stopPropagation()">💬</a>` : '';
-    const verProp = c.propRecente
-      ? `<button class="crm-act" onclick="event.stopPropagation();abrirProposta('${escapeHtml(c.propRecente.codigo)}')" title="Abrir proposta ${escapeHtml(c.propRecente.codigo)}">📄</button>`
+    // Um botão por produto que o cliente tem. Com os dois, aparecem os dois — é
+    // como o consultor descobre, batendo o olho, que o cliente também recebeu
+    // orçamento do outro lado.
+    const btnProp = (p, icone, rot) => p
+      ? `<button class="crm-act" onclick="event.stopPropagation();abrirProposta('${escapeHtml(p.codigo)}')" title="Abrir orçamento ${rot} ${escapeHtml(p.codigo)}">${icone}</button>`
+      : '';
+    const verProp = (c.propSolar || c.propEp)
+      ? btnProp(c.propSolar, '☀️', 'solar') + btnProp(c.propEp, '⚡', 'de eletroposto')
       : '';
     // Reagendar: leva pra Agenda. Se tem agendamento, abre ele; senão cria pré-preenchido.
     const reagBtn = `<button class="crm-act crm-act-reag" onclick='event.stopPropagation();crmReagendar(${JSON.stringify({ agId: c.agId, nome: c.nome, tel: c.tel, consultor: c.consultor })})' title="Reagendar na agenda">🔄</button>`;
