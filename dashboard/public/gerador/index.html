@@ -3177,16 +3177,19 @@ async function supaDelete(query) {
   return true;
 }
 
-// Apaga propostas NÃO vendidas que passaram de 168h (7 dias).
-// Vendas ficam pra sempre — preservam histórico, ranking e relatórios.
+// NÃO apaga mais nada. Até 30/07/2026 esta função deletava toda proposta não
+// vendida com mais de 168h, e rodava a cada abertura do Histórico.
+//
+// Isso passou a custar caro quando o orçamento de eletroposto entrou na mesma
+// tabela: o ciclo de decisão de um posto é de meses, e o registro sumia em 7
+// dias — junto com o link que o cliente tinha em mãos. O mesmo valia pro solar
+// que demorava a fechar.
+//
+// A validade de 7 dias do LINK continua existindo, e é outra coisa: mora no
+// get_proposta_pub, que devolve a tela de expirado sem entregar os valores. O
+// cliente para de ver os números; o consultor não perde o histórico.
 async function purgarPropostasExpiradas() {
-  try {
-    const cutoff = new Date(Date.now() - 168 * 60 * 60 * 1000).toISOString();
-    const q = `propostas?created_at=lt.${encodeURIComponent(cutoff)}&or=(vendido.is.null,vendido.eq.false)`;
-    await supaDelete(q);
-  } catch (e) {
-    console.error('Falha ao purgar propostas expiradas (>168h):', e);
-  }
+  /* mantida como no-op pra não quebrar quem chama; ver comentário acima. */
 }
 
 // Fotos dos consultores (carregadas do banco; cache por sessão)
@@ -5170,7 +5173,10 @@ function renderHistoricoTbody() {
     else if (w > 0) enviadoCell = `<span title="Apenas WhatsApp">📱 ${w}x</span>`;
     else enviadoCell = `<span style="color:${corMuted}">-</span>`;
 
-    const precoVista = r.dados && r.dados.precoVista;
+    // São dois produtos diferentes e cada um guarda o valor no seu campo: o solar
+    // em precoVista, o eletroposto no total do kit. Lendo só precoVista, a linha
+    // de eletroposto mostrava "-" na tela enquanto o CSV exportava o valor certo.
+    const precoVista = r.dados && (r.dados.precoVista != null ? r.dados.precoVista : r.dados.total);
     let valorCell;
     if (r.vendido && r.valor_vendido != null) {
       const diff = precoVista && Math.abs(r.valor_vendido - precoVista) > 0.01;
@@ -6331,6 +6337,9 @@ function orcLerItens() {
     const rot = sel && it && it.opcoes ? it.opcoes[Number(sel.value) || 0].rot : '';
     itens.push({
       desc: it ? it.nome : '', variante: rot,
+      // Só o carregador tem quantidade (1 ponto de recarga costuma ter 2). Sai no
+      // documento como "Incluído · N un" pra não parecer que o preço é de um só.
+      qtd: row.dataset.id === 'carreg' ? orcEpQtdCarregadores() : 1,
       total: num(row.querySelector('.orc-kit-preco').value),
     });
   });
@@ -6676,7 +6685,7 @@ function orcEpPayload() {
     doc: orcVal('orc-cli-doc'),
     endereco: orcVal('orc-cli-end'),
     titulo: 'Proposta Comercial',
-    itens: r.itens.map(i => ({ desc: i.desc, variante: i.variante || '' })),
+    itens: r.itens.map(i => ({ desc: i.desc, variante: i.variante || '', qtd: i.qtd || 1 })),
     total: r.total, subtotal: r.subtotal, frete: r.frete, desconto: r.desconto,
     obs: orcVal('orc-obs') || ORC_OBS_PADRAO,
     tiles: orc1EpTiles(),
@@ -6756,6 +6765,12 @@ async function orcEpLink() {
 // ═══════ Peças do orçamento de 1 página do ELETROPOSTO ═══════
 // A empresa do documento é a mesma cadastrada no pane (localStorage), só
 // remapeada pros nomes que o orc1HTML espera.
+// Quantidade de carregadores do projeto — vem do Simulador ("Quantidade de
+// carregadores"), que é onde ela já alimenta o investimento sugerido.
+function orcEpQtdCarregadores() {
+  return Math.max(1, Math.round(elNum('el-qtd') || 1));
+}
+
 function orc1EpEmpresa() {
   const e = epEmitGet();
   return {
@@ -6771,10 +6786,13 @@ function orc1EpEmpresa() {
 function orc1EpTiles() {
   const p = eletroParams();
   const r = computeEletro(p);
-  const qtd = Math.max(1, Math.round(elNum('el-qtd') || 1));
+  const qtd = orcEpQtdCarregadores();
   const sessoes = p.carros * 30;
   return [
-    { k: 'Pontos de recarga', v: String(qtd), u: 'un' },
+    // "Carregadores", não "pontos de recarga": um ponto de recarga tem mais de um
+    // carregador (o padrão da casa é 1 ponto com 2). O campo do Simulador que
+    // alimenta isso se chama "Quantidade de carregadores" — o rótulo agora bate.
+    { k: 'Carregadores', v: String(qtd), u: 'un' },
     { k: 'Sessões/mês', v: sessoes > 0 ? o1Num(sessoes) : '—', u: sessoes > 0 ? 'recargas' : '' },
     { k: 'Energia/mês', v: r.kwhMes > 0 ? o1Num(r.kwhMes) : '—', u: r.kwhMes > 0 ? 'kWh' : '' },
   ];
@@ -6787,6 +6805,7 @@ function orc1EpLinhas() {
   const t = eletroTextos();
   const L = [];
   if (t.equip) L.push(['Equipamento', 'Carregador ' + t.equip]);
+  if (p.plugs > 0) L.push(['Bicos de carregamento', `${o1Num(p.plugs)} — carros atendidos ao mesmo tempo`]);
   // O local não repete aqui — já sai no Endereço da ficha do topo, e cada linha a
   // mais empurra o documento pra fora da folha única.
   if (p.carros > 0) L.push(['Carros por dia (regime pleno)', o1Num(p.carros)]);
@@ -6800,7 +6819,9 @@ function orc1EpLinhas() {
 // Composição = os itens marcados no kit, cada um como "INCLUÍDO" — igualzinho ao
 // solar. Preço de item NÃO sai no documento: o cliente vê um preço final só.
 function orc1EpMateriais(r) {
-  const linhas = r.itens.map(i => o1LinhaInc(i.desc, i.variante || '', 'Incluído')).join('');
+  const linhas = r.itens.map(i =>
+    o1LinhaInc(i.desc, i.variante || '', i.qtd > 1 ? `Incluído · ${i.qtd} un` : 'Incluído')
+  ).join('');
   return `<div class="rows">${linhas}</div>`;
 }
 
