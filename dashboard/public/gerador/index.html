@@ -2643,9 +2643,14 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div style="flex:1;min-width:200px"><label class="auto-lbl">Palavras-chave (separadas por vírgula)</label><input class="auto-inp" id="auto-ig-kw" placeholder="quero, eu quero, link"></div>
           <div><label class="auto-lbl">Match</label><select class="auto-sel" style="width:auto" id="auto-ig-match"><option value="contem">Contém</option><option value="exato">Exato</option><option value="qualquer">Qualquer</option></select></div>
         </div>
-        <label class="auto-lbl" style="margin-top:12px">Post específico (opcional) <span style="color:#64748b">— vazio = vale em todos</span></label>
+        <div class="auto-row" style="margin-top:12px">
+          <div><label class="auto-lbl">Prioridade <span style="color:#64748b">— menor ganha o empate</span></label><input class="auto-inp" type="number" id="auto-ig-prio" value="100" min="1" max="999" style="width:120px"></div>
+          <div><label class="auto-lbl">Produto (card no CRM)</label><select class="auto-sel" style="width:auto" id="auto-ig-produto"><option value="">— não vira card —</option><option value="solar">Solar</option><option value="eletroposto">Eletroposto</option></select></div>
+          <label class="auto-chip" style="cursor:pointer;align-self:flex-end" title="Só entra quando NENHUMA outra automação casou, e só em comentário de anúncio com sinal de interesse"><input type="checkbox" id="auto-ig-fallback" style="margin-right:6px">Rede de segurança</label>
+        </div>
+        <label class="auto-lbl" style="margin-top:12px">Posts/anúncios específicos (opcional) <span style="color:#64748b">— vazio = vale em todos · separe por vírgula · ganha de qualquer prioridade</span></label>
         <div class="auto-row">
-          <input class="auto-inp" id="auto-ig-post" placeholder="ID do post/reels" style="flex:1;min-width:180px">
+          <input class="auto-inp" id="auto-ig-post" placeholder="ID do post/reels ou do anúncio" style="flex:1;min-width:180px">
           <button type="button" class="auto-btn ghost" onclick="autoIgCarregarPosts()">Ver meus posts</button>
         </div>
         <div id="auto-ig-posts" class="auto-chips"></div>
@@ -10461,9 +10466,17 @@ if ('serviceWorker' in navigator) {
       box.innerHTML=posts.map(function(p){
         const thumb=p.thumbnail_url||p.media_url||'';
         const cap=(p.caption||'').slice(0,30);
-        return '<span class="auto-chip" onclick="document.getElementById(\'auto-ig-post\').value=\''+p.id+'\'" title="'+autoEsc(cap)+'">'+(thumb?'<img src="'+thumb+'" style="width:26px;height:26px;border-radius:5px;object-fit:cover">':'📄')+' <small>'+p.id.slice(-6)+'</small></span>';
+        // acumula (o campo aceita vários IDs separados por vírgula)
+        return '<span class="auto-chip" onclick="autoIgAddMidia(\''+p.id+'\')" title="'+autoEsc(cap)+'">'+(thumb?'<img src="'+thumb+'" style="width:26px;height:26px;border-radius:5px;object-fit:cover">':'📄')+' <small>'+p.id.slice(-6)+'</small></span>';
       }).join('');
     }catch(e){ box.innerHTML='<span class="auto-mini">Erro: '+autoEsc(e.message)+'</span>'; }
+  }
+  // O campo de mídia aceita vários IDs; clicar num post ACRESCENTA em vez de trocar.
+  function autoIgAddMidia(id){
+    const el=document.getElementById('auto-ig-post'); if(!el) return;
+    const atuais=el.value.split(',').map(s=>s.trim()).filter(Boolean);
+    if(atuais.indexOf(id)<0) atuais.push(id);
+    el.value=atuais.join(', ');
   }
   async function autoIgSalvar(){
     const nome=val('auto-ig-nome').trim();
@@ -10471,12 +10484,19 @@ if ('serviceWorker' in navigator) {
     const gatilhos={ comment:document.getElementById('auto-ig-g-comment').checked, story:document.getElementById('auto-ig-g-story').checked, dm:document.getElementById('auto-ig-g-dm').checked };
     const palavras=val('auto-ig-kw').split(',').map(s=>s.trim()).filter(Boolean);
     const match=val('auto-ig-match');
-    if(match!=='qualquer' && !palavras.length){ alert('Adicione ao menos uma palavra-chave (ou use match Qualquer).'); return; }
+    const fallback=document.getElementById('auto-ig-fallback').checked;
+    // A rede de segurança não usa palavra-chave (ela é justamente o "não casou nada").
+    if(!fallback && match!=='qualquer' && !palavras.length){ alert('Adicione ao menos uma palavra-chave (ou use match Qualquer).'); return; }
+    if(fallback && !gatilhos.comment){ alert('A rede de segurança só vale pra comentário — marque o gatilho Comentário.'); return; }
     const pubs=val('auto-ig-pub').split('\n').map(s=>s.trim()).filter(Boolean);
+    const midias=val('auto-ig-post').split(',').map(s=>s.trim()).filter(Boolean);
     const rec={
       criado_por:autoConsultor(), nome, ativo:true, gatilhos,
-      palavras_chave:palavras, match_tipo:match,
-      post_id:val('auto-ig-post').trim()||null,
+      palavras_chave:palavras, match_tipo:fallback?'qualquer':match,
+      post_id:null, midias,
+      prioridade:+val('auto-ig-prio')||100,
+      fallback,
+      produto:val('auto-ig-produto')||null,
       respostas_publicas:pubs,
       dm_boas_vindas:val('auto-ig-dm').trim()||null,
       botao_rotulo:val('auto-ig-btn').trim()||null,
@@ -10487,6 +10507,9 @@ if ('serviceWorker' in navigator) {
     try{
       await supaInsert('ig_automations', rec);
       ['auto-ig-nome','auto-ig-kw','auto-ig-post','auto-ig-pub','auto-ig-dm','auto-ig-btn','auto-ig-link','auto-ig-lembrete'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+      document.getElementById('auto-ig-prio').value='100';
+      document.getElementById('auto-ig-fallback').checked=false;
+      document.getElementById('auto-ig-produto').value='';
       document.getElementById('auto-ig-msg').textContent=' Automação salva!';
       autoIgCarregarAutomacoes();
     }catch(e){ document.getElementById('auto-ig-msg').textContent=' Erro: '+e.message; }
@@ -10494,11 +10517,15 @@ if ('serviceWorker' in navigator) {
   async function autoIgCarregarAutomacoes(){
     const c=document.getElementById('auto-ig-lista'); if(!c) return;
     try{
-      const rows=await supaGet('ig_automations?select=id,nome,ativo,gatilhos,palavras_chave&order=criado_em.desc&limit=30');
+      // ordenado por prioridade: a lista mostra a MESMA ordem que o motor usa pra decidir
+      const rows=await supaGet('ig_automations?select=id,nome,ativo,gatilhos,palavras_chave,prioridade,fallback,produto,midias&order=prioridade.asc&limit=30');
       c.innerHTML = rows.length? rows.map(function(a){
         const g=[]; if(a.gatilhos&&a.gatilhos.comment)g.push('comentário'); if(a.gatilhos&&a.gatilhos.story)g.push('story'); if(a.gatilhos&&a.gatilhos.dm)g.push('dm');
         const cor=a.ativo?'#22c55e':'#64748b';
-        return '<div class="auto-item"><div class="top"><span class="auto-badge" style="background:'+cor+'">'+(a.ativo?'ativa':'pausada')+'</span><b>'+autoEsc(a.nome)+'</b><span class="auto-mini">'+g.join(', ')+' · '+((a.palavras_chave||[]).join(', ')||'qualquer')+'</span><button type="button" class="auto-btn ghost" style="padding:4px 10px" onclick="autoIgToggle(\''+a.id+'\','+(!a.ativo)+')">'+(a.ativo?'pausar':'ativar')+'</button></div></div>';
+        const kw=a.fallback?'rede de segurança (só quando nada casa)':((a.palavras_chave||[]).join(', ')||'qualquer');
+        const fixada=(a.midias||[]).length?' · 📌 '+a.midias.length+(a.midias.length>1?' mídias':' mídia'):'';
+        const prod=a.produto?' · '+autoEsc(a.produto):'';
+        return '<div class="auto-item"><div class="top"><span class="auto-badge" style="background:'+cor+'">'+(a.ativo?'ativa':'pausada')+'</span><span class="auto-badge" style="background:#334155" title="prioridade — menor ganha o empate">#'+(a.prioridade==null?100:a.prioridade)+'</span><b>'+autoEsc(a.nome)+'</b><span class="auto-mini">'+g.join(', ')+' · '+autoEsc(kw)+fixada+prod+'</span><button type="button" class="auto-btn ghost" style="padding:4px 10px" onclick="autoIgToggle(\''+a.id+'\','+(!a.ativo)+')">'+(a.ativo?'pausar':'ativar')+'</button></div></div>';
       }).join('') : '<p class="auto-mini">Nenhuma automação ainda.</p>';
     }catch(e){ c.innerHTML='<p class="auto-mini">Erro: '+autoEsc(e.message)+'</p>'; }
   }
@@ -10507,7 +10534,7 @@ if ('serviceWorker' in navigator) {
   }
 
   // expõe os handlers usados por onclick/onchange no HTML
-  Object.assign(window,{ navAutomacao, automacaoSubaba, autoDispararTudo, autoPararDisparo, autoUpload, autoCarregarCRM, autoPadronizar, autoToggleDDD, autoAddPasso, autoRenumerarPassos, autoSalvarSequencia, autoToggleSequencia, autoInscrever, autoIgCarregarPosts, autoIgSalvar, autoIgToggle });
+  Object.assign(window,{ navAutomacao, automacaoSubaba, autoDispararTudo, autoPararDisparo, autoUpload, autoCarregarCRM, autoPadronizar, autoToggleDDD, autoAddPasso, autoRenumerarPassos, autoSalvarSequencia, autoToggleSequencia, autoInscrever, autoIgCarregarPosts, autoIgAddMidia, autoIgSalvar, autoIgToggle });
 })();
 </script>
 

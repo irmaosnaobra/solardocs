@@ -34,7 +34,6 @@ const PLANOS_DATA = [
     indicado: 'Indicado para +20 vendas/mês',
     features: [
       'Documentos ilimitados — sem teto mensal',
-      'Curso Kit de Fechamento incluso — 6 módulos, 32 objeções respondidas',
       'Todos os 8 tipos de documento',
       'Modelos prontos pro setor solar',
       'Contratos com a logomarca da sua empresa',

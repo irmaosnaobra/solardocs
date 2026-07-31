@@ -35,8 +35,10 @@ const ICONES: Record<NomeIcone, typeof MessageSquareQuote> = {
 
 interface Acesso {
   temKit: boolean;
-  /** Quem decide é o servidor (GET /kit/meu-acesso). O `??` abaixo é só ponte
-   *  pro caso de a API antiga responder antes do deploy novo subir. */
+  /** Quem decide é o servidor (GET /kit/meu-acesso), sem fallback no front: a
+   *  ponte antiga liberava por plano, e plano não libera mais o curso. Se a API
+   *  não responder `liberado`, a tela mostra o cadeado — errar pro lado de
+   *  trancar é recuperável; errar pro lado de abrir dá o produto de graça. */
   liberado?: boolean;
   itens?: string[];
   plano: string;
@@ -87,11 +89,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
   const liberadoBonus = (m: ModuloCurso) => bonusLiberado(m, curso, prog.feitos, missoes);
   // "Continuar" nunca aponta para lição de módulo bônus ainda travado.
   const proxima = prog.proxima && !liberadoBonus(prog.proxima.modulo) ? null : prog.proxima;
-  // Quem decide é o servidor (`liberado`). O fallback existe só pra API antiga
-  // respondendo antes do deploy novo — e por isso NÃO pode olhar plano: desde
-  // 30/jul/2026 assinar não libera o curso, então um fallback por plano abriria
-  // o cadeado justo pra quem deveria ver a página de venda.
-  const liberado = !!acesso && (acesso.liberado ?? acesso.temKit);
+  const liberado = acesso?.liberado === true;
   const emTrial = !!acesso?.packTrialUntil && new Date(acesso.packTrialUntil) > new Date();
 
   const concluir = useCallback((licao: Licao, modulo: ModuloCurso) => {
@@ -129,13 +127,9 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
             trava a venda — das objeções de preço à indicação depois da obra.
           </p>
           <a href="https://solardoc.app/kit" target="_blank" rel="noopener noreferrer" className={styles.btnPrimario}>
-            Comprar o curso <ArrowRight size={16} />
+            Ver o curso <ArrowRight size={16} />
           </a>
-          {/* A nota antiga dizia "assinante PRO ou VIP? o curso entra junto no seu
-              plano" — deixou de ser verdade em 30/jul/2026, quando o curso voltou a
-              ser produto à parte. Prometer aqui o que o servidor não libera era
-              mandar o assinante bater na porta trancada. */}
-          <span className={styles.bloqueadoNota}>Compra única — depois de liberado, o curso fica na sua conta pra sempre.</span>
+          <span className={styles.bloqueadoNota}>Compra única, sem mensalidade — o curso fica na sua conta pra sempre.</span>
         </div>
       </div>
     );
@@ -460,7 +454,7 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
               {emTrial
                 ? 'Enquanto durar, seus documentos são ilimitados. Assinando o VIP por R$ 67/mês você não perde o acesso nem o que já gerou.'
                 : acesso?.plano === 'pro'
-                  ? 'No mês em que a venda engrenar, o teto aparece. O VIP tira o limite por R$ 67/mês — e o curso continua seu.'
+                  ? 'No mês em que a venda engrenar, o teto aparece. O VIP tira o limite por R$ 67/mês.'
                   : 'No VIP você gera contrato, procuração, recibo e proposta sem teto, todos com a logo e o CNPJ da sua empresa.'}
             </p>
             <button onClick={() => window.dispatchEvent(new CustomEvent('limit-reached'))} className={styles.btnPrimario}>
