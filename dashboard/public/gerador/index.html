@@ -366,7 +366,36 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   /* margem 0 no papel = o navegador não tem onde carimbar data/URL/nº de página.
      O respiro de 14mm é o padding de cada .ep-page (páginas A4 explícitas, quebra controlada). */
   @page{margin:0}
+  /* Foto da tela do simulador: a folha INTEIRA fica escura, sem moldura branca em
+     volta do retrato. Sem estado em JS pra limpar depois — quem decide é o que está
+     dentro do host: só a foto tem .simshot, os documentos .ep-* seguem no branco. */
+  body.print-doc #eletro-print:has(.simshot){background:#0F172A!important}
+  html:has(#eletro-print .simshot),html:has(#eletro-print .simshot) body{background:#0F172A!important}
 }
+
+/* ===== FOTO DO SIMULADOR — a tela inteira encolhida em UMA folha A4 =====
+   Não é o Estudo de Viabilidade (aquele é documento formatado, 4 páginas). Aqui o
+   consultor leva no papel exatamente o que o cliente viu na reunião: campos, KPIs
+   e gráfico. Sai pelo mesmo epPrint() dos documentos, no host #eletro-print. */
+.simshot{width:190mm;height:271mm;margin:0 auto;box-sizing:border-box;padding:7mm 6mm;background:#0F172A;color:#E5E7EB;display:flex;flex-direction:column;font-family:inherit;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.simshot-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1px solid rgba(255,255,255,.16);padding-bottom:6px;margin-bottom:8px}
+.simshot-head b{font-size:13px;font-weight:800;color:#fff;white-space:nowrap}
+.simshot-head span{font-size:9.5px;color:#94A3B8;text-align:right}
+/* O clip é a área útil da folha. O bloco escalado sai do fluxo (position:absolute)
+   de propósito: transform NÃO encolhe a caixa de layout — em fluxo, a altura cheia
+   do simulador empurraria duas folhas em branco atrás da foto. */
+.simshot-clip{position:relative;flex:1;overflow:hidden}
+.simshot-scale{position:absolute;top:0;left:0;width:1180px;transform-origin:top left}
+/* A grade do simulador é responsiva por VIEWPORT (não por container): no celular do
+   consultor ela colapsaria em 1 coluna e a foto sairia comprida e ilegível. Aqui é
+   sempre 2 colunas, igual à tela do desktop. */
+.simshot .eletro-grid{grid-template-columns:minmax(0,340px) minmax(0,1fr)!important;gap:20px!important}
+/* .card é escuro só dentro de #eletroSection — fora dele o .card global é branco. */
+.simshot .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:none;padding:20px 18px;margin-bottom:16px}
+.simshot .eletro-chart{overflow:visible}
+/* na tela a linha de instrução sobe 4px (margin-top negativo) e aqui ela ficaria
+   cortada pela borda de cima do clip — dentro da foto ela começa no zero. */
+.simshot .eletro-sub{margin:0 0 12px}
 .ep-doc{color:#1a1a1a;font-family:Arial,Helvetica,sans-serif;max-width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 /* Páginas com quebra explícita e ALTURA NATURAL (sem min-height/altura de folha fixa):
    o conteúdo de cada página cabe em QUALQUER margem que o navegador do usuário aplicar.
@@ -2344,10 +2373,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <!-- ações -->
         <div class="eletro-acoes">
           <button type="button" class="eletro-btn primary" onclick="eletroImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Estudo de Viabilidade</button>
+          <button type="button" class="eletro-btn" onclick="eletroTelaA4()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Simulador em PDF</button>
           <button type="button" class="eletro-btn primary" onclick="epBasicoImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Orçamento básico</button>
           <button type="button" class="eletro-btn" onclick="eletroSubaba('orcamento')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Orçamento completo</button>
-          <button type="button" class="eletro-btn" onclick="epWhatsOrcamento(computeEletro(eletroParams()).investTotal)"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> Orçamento no zap</button>
-          <button type="button" class="eletro-btn" onclick="eletroWhatsApp()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> WhatsApp</button>
           <button type="button" class="eletro-btn" onclick="eletroToggleComparar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparar cenários</button>
           <button type="button" class="eletro-btn" onclick="eletroApresentacao()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg> Apresentação</button>
         </div>
@@ -6967,6 +6995,79 @@ function epPrint(host, nomeArq) {
       ])
     : Promise.resolve();
   aguarda.then(() => { window.print(); setTimeout(restaurar, 2000); });
+}
+
+// ===== FOTO DO SIMULADOR: a tela como ela está, inteira, em UMA folha A4 =====
+// Complementa o Estudo de Viabilidade (documento formatado). Aqui é o retrato da
+// reunião: os mesmos campos, KPIs e gráfico que o cliente viu na tela.
+function eletroTelaA4() {
+  const pane = document.getElementById('eletro-pane-simulador');
+  const host = document.getElementById('eletro-print');
+  if (!pane || !host) return;
+
+  const t = eletroTextos();
+  const clone = pane.cloneNode(true);
+
+  // cloneNode copia o ATRIBUTO value, não o que foi digitado (isso é propriedade).
+  // Sem esta cópia, a foto sairia com os valores de fábrica — e o "Seguro | Ano",
+  // escrito só por .value, sairia vazio. Casa por índice: a árvore é a mesma.
+  const orig = pane.querySelectorAll('input,select,textarea');
+  const copia = clone.querySelectorAll('input,select,textarea');
+  orig.forEach((o, i) => {
+    const c = copia[i];
+    if (!c) return;
+    if (o.type === 'checkbox' || o.type === 'radio') {
+      c.checked = o.checked;
+      if (o.checked) c.setAttribute('checked', ''); else c.removeAttribute('checked');
+      return;
+    }
+    if (o.tagName === 'SELECT') {
+      Array.from(c.options).forEach((op, j) => {
+        const sel = j === o.selectedIndex;
+        op.selected = sel;
+        if (sel) op.setAttribute('selected', ''); else op.removeAttribute('selected');
+      });
+      return;
+    }
+    c.setAttribute('value', o.value);
+    c.value = o.value;
+  });
+
+  // id duplicado no documento faz o getElementById do simulador VIVO cair no clone.
+  clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+  clone.removeAttribute('id');
+  // fora da foto: os botões de ação e as bolinhas de ajuda (só servem no clique)
+  clone.querySelectorAll('.eletro-acoes,.el-tip').forEach(el => el.remove());
+
+  const cab = [t.cliente, t.cidade, t.equip].filter(Boolean).join(' · ');
+  const page = document.createElement('div');
+  page.className = 'simshot';
+  const head = document.createElement('div');
+  head.className = 'simshot-head';
+  const b = document.createElement('b'); b.textContent = 'Simulador — Eletroposto';
+  const sp = document.createElement('span');
+  sp.textContent = (cab ? cab + ' · ' : '') + new Date().toLocaleDateString('pt-BR');
+  head.append(b, sp);
+  const clip = document.createElement('div'); clip.className = 'simshot-clip';
+  const escala = document.createElement('div'); escala.className = 'simshot-scale';
+  escala.appendChild(clone);
+  clip.appendChild(escala);
+  page.append(head, clip);
+  host.innerHTML = '';
+  host.appendChild(page);
+
+  // Mede fora da tela e acha a escala que faz TUDO caber na folha. A largura do
+  // bloco é fixa (1180px = o max-width do #eletroSection), então só a altura varia.
+  host.style.cssText = 'display:block;position:fixed;left:-20000px;top:0;z-index:-1';
+  const cx = clip.getBoundingClientRect();
+  const alvo = escala.getBoundingClientRect();
+  const k = Math.min(cx.width / Math.max(1, alvo.width), cx.height / Math.max(1, alvo.height)) * 0.985;
+  escala.style.transform = `scale(${k})`;
+  const sobra = cx.width - alvo.width * k;
+  if (sobra > 1) escala.style.left = (sobra / 2).toFixed(1) + 'px';   // centraliza na folha
+  host.style.cssText = '';
+
+  epPrint(host, `Simulador Eletroposto${t.cliente ? ' - ' + t.cliente : ''}`);
 }
 
 function epBasicoImprimir() {
