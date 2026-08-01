@@ -93,7 +93,7 @@ Estudo de viabilidade completo antes da call. Meta: proposta assinada ou visita 
 | Nome | Cidade | Data/hora | Resp. | PONTO/CAP/PERFIL/DEC | Total |
 |---|---|---|---|---|---|
 | **Irineu de Almeida Bastos** | Boquira-BA | 05/08 qua 13:30 | Diego | 3/3/3/1 | **10** |
-| **Adonei Aguiat** | Guaraí-TO | 05/08 qua 15:00 | Diego | 3/2/3/1 | **9** |
+| **Adonei Aguiat** | Guaraí-TO | 05/08 qua 15:00 | Thiago | 3/2/3/1 | **9** |
 
 Irineu é dono de posto de combustível com ponto definido e recurso próprio + financiamento.
 É o lead mais completo da base inteira.
@@ -106,16 +106,16 @@ Reunião de **definição de ponto**, não de orçamento. Oferecer Programa Pont
 | Nome | Cidade | Data/hora | Resp. | PONTO/CAP/PERFIL/DEC | Total | Flags |
 |---|---|---|---|---|---|---|
 | João Carlos Nunes da Cruz | Mascote-BA | 04/08 ter 13:00 | Thiago | 3/1/3/1 | **8** | 📍 · ~cap |
-| Fabio lucas | João Pessoa-PB | 04/08 ter 15:30 | Diego | 3/1/3/1 | **8** | 📍 · ~cap |
-| **Denilson F Teixeira** | Arcos-MG | 04/08 ter 18:30 | Diego | 3/2/2/1 | **8** | **BR-354** · ~cap |
+| Fabio lucas | João Pessoa-PB | 04/08 ter 15:30 | Thiago | 3/1/3/1 | **8** | 📍 · ~cap |
+| **Denilson F Teixeira** | Arcos-MG | **03/08 seg 13:30** | Diego | 3/2/2/1 | **8** | **BR-354** · ~cap |
 | Paulo Andrade | Itaporanga-SP | 05/08 qua 16:00 | Diego | 3/1/3/1 | **8** | 📍 · ~cap |
 | Wlisses | Serrinha-BA | 04/08 ter 15:00 | Diego | 3/2/1/1 | **7** | ~cap |
 | Ewerton Barcelos | Vitória-ES | 05/08 qua 13:00 | Thiago | 3/1/2/1 | **7** | 📍 · ~cap |
 | Edgar Paulo Rodrigues silva | Recife-PE | 05/08 qua 14:00 | Diego | 3/1/2/1 | **7** | 📍 |
 | Hudson Lourenço | Cariacica-ES | 03/08 seg 13:00 | Thiago | 3/1/1/1 | **6** | 📍 · ~cap |
 | Eliel Júlio Soares da Silva | Petrolina-PE | 03/08 seg 15:00 | Diego | 3/2/0/1 | **6** | ~cap |
-| Guilherme | Campos dos Goytacazes-RJ | 03/08 seg 14:30 | Diego | 3/1/0/1 | **5** | 📍 · ~cap |
-| Rafael Da Col | Campinas-SP | 06/08 qui 13:00 | Diego | 3/1/0/1 | **5** | 📍 · ~cap |
+| Guilherme | Campos dos Goytacazes-RJ | 03/08 seg 14:30 | Thiago | 3/1/0/1 | **5** | 📍 · ~cap |
+| Rafael Da Col | Campinas-SP | **03/08 seg 14:00** | Thiago | 3/1/0/1 | **5** | 📍 · ~cap |
 
 `~cap` = nota de capital aproximada (ver Limitações).
 
