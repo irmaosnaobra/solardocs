@@ -2,8 +2,8 @@
 // Teto anti-ban ÚNICO da linha física IO (34998165040).
 //
 // A linha IO é COMPARTILHADA por mais de um agente automático:
-//   • Bia (recuperação LimpaPro): prefixos `limpapro_recovery:`, `limpapro_cupom_sent:`
-//     e `limpapro_fechamento_sent:` (opener, cupom e fechamento — os 3 toques)
+//   • Bia (recuperação LimpaPro): prefixos `limpapro_recovery:`, `limpapro_cupom_sent:`,
+//     `limpapro_fechamento_sent:` e `limpapro_grupo_sent:` (os 4 toques)
 //   • Followup do /gerador (energia solar): prefixo `gerador_followup:`
 //
 // TODOS esses envios saem pelo MESMO número. Se cada agente tivesse seu próprio teto,
@@ -27,12 +27,14 @@ export const MAX_POR_HORA = 12;
 //   limpapro_recovery:<email>        → opener da Bia enviado
 //   limpapro_cupom_sent:<email>      → cupom da Bia enviado
 //   limpapro_fechamento_sent:<email> → 3º toque (fechamento) da Bia enviado
+//   limpapro_grupo_sent:<email>      → 4º toque (grupo pago) da Bia enviado
 //   gerador_followup:<chave>         → toque do followup solar enviado
 // (os `_pending` usam `_` no lugar do `:`, então não casam estes LIKE — provado no banco).
 const BOT_SENT_PREFIXES = [
   'limpapro_recovery:',
   'limpapro_cupom_sent:',
   'limpapro_fechamento_sent:',
+  'limpapro_grupo_sent:',
   'gerador_followup:',
   'gerador_seq:',            // sequências da Central de Automação (drip do Gerador)
 ] as const;

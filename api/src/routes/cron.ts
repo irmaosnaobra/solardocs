@@ -10,7 +10,7 @@ import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntra
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
-import { runLimpaproRecoveryConsumer, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
+import { runLimpaproRecoveryConsumer, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, seedLimpaproGrupoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundService';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
@@ -347,6 +347,20 @@ router.get('/limpapro-fechamento-seed', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await seedLimpaproFechamentoBacklog({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'limpapro-fechamento-seed falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+// 4º toque (grupo pago) pro backlog — convite pra Comunidade +Sol pra quem tomou os 3 toques
+// do curso e nunca respondeu. One-shot manual ao ligar o grupo. ?dry=1 confere sem semear.
+// ?todos=1 abre pra TODO abandono em aberto (inclusive quem nunca ouviu a Bia).
+router.get('/limpapro-grupo-seed', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    const todos = req.query.todos === '1' || req.query.todos === 'true';
+    res.json({ ok: true, dry, todos, ...(await seedLimpaproGrupoBacklog({ dry, todos })) });
+  } catch (err: any) {
+    logger.error('cron', 'limpapro-grupo-seed falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });

@@ -19,6 +19,7 @@
 //   2. CLAIM atômico: 2 execuções concorrentes do consumidor (process-messages é
 //      batido por 2 crons) não enviam 2x pro mesmo lead.
 //   3. IDEMPOTÊNCIA: mark-before-send + cooldown 30d (jaContatado). 1 toque por lead.
+//      Os toques 2/3/4 (cupom, fechamento, grupo) têm marcador PRÓPRIO — 1 envio cada.
 //   4. THROTTLE horário + cap por tick (anti-ban da linha nova).
 //   5. BACKOFF: sessão criada no envio + inbound da Bia faz emConversa()=true → para.
 //
@@ -78,6 +79,15 @@ const FECHAMENTO_SENT_PREFIX = 'limpapro_fechamento_sent:';
 // Espera após o CUPOM antes do toque de fechamento (dá tempo do cupom fazer efeito).
 const FECHAMENTO_DELAY_MS = 20 * 60 * 60 * 1000; // 20h (≈ dia seguinte, sem virar madrugada)
 
+// 4º toque (GRUPO PAGO) — quem tomou os 3 toques do CURSO e nunca respondeu. Não insiste
+// no mesmo produto: troca a OFERTA. Convida pra Comunidade +Sol (grupo de WhatsApp pago,
+// R$57 / 6x R$10,69). Fila e marcador próprios, como os outros toques.
+const GRUPO_PENDING_PREFIX = 'limpapro_grupo_pending:';
+const GRUPO_SENT_PREFIX = 'limpapro_grupo_sent:';
+// Espera após o FECHAMENTO. Longa de propósito: o 3º toque termina com "não vou te encher
+// mais", então o convite do grupo só faz sentido depois de um respiro — e como assunto novo.
+const GRUPO_DELAY_MS = 48 * 60 * 60 * 1000; // 2 dias
+
 // 2º toque (SEM desconto — decisão do Thiago: produto de qualidade recupera com bom
 // atendimento + reforço de valor, não com cupom). Usa o checkout normal. DARK até
 // RECUP_CUPOM_ENABLED='true' (nome do flag mantido pra não quebrar env existente).
@@ -92,7 +102,16 @@ function fechamentoHabilitado(): boolean {
   return recuperacaoHabilitada() && process.env.RECUP_FECHAMENTO_ENABLED === 'true';
 }
 
-type Origem = 'backlog' | 'realtime' | 'cupom' | 'fechamento';
+// 4º toque (grupo pago). Flag PRÓPRIO, DARK por padrão: RECUP_GRUPO_ENABLED='true'.
+function grupoHabilitado(): boolean {
+  return recuperacaoHabilitada() && process.env.RECUP_GRUPO_ENABLED === 'true';
+}
+
+// Checkout do grupo (Comunidade +Sol). Default = o link que a área de membros já usa;
+// RECUP_GRUPO_URL sobrescreve sem deploy se o Thiago criar outra oferta.
+const GRUPO_CHECKOUT_PADRAO = 'https://pay.kiwify.com.br/ARkG8Hd';
+
+type Origem = 'backlog' | 'realtime' | 'cupom' | 'fechamento' | 'grupo';
 interface PendingMarker { origem: Origem; ready_at: string; seeded_at: string; nome?: string | null; }
 
 interface LeadAberto {
@@ -114,7 +133,15 @@ interface LeadAberto {
 // Link de checkout com UTMs de recuperação — a venda recuperada sai do "não trackeado"
 // da UTMify/painel e o utm_content diz qual toque converteu.
 function linkRecuperacao(touch: 'cupom' | 'fechamento' | 'conversa'): string {
-  const raw = process.env.RECUP_CHECKOUT_URL?.trim() || '';
+  return comUtms(process.env.RECUP_CHECKOUT_URL?.trim() || '', touch);
+}
+
+// Link do GRUPO pago (produto diferente → checkout diferente do curso).
+export function linkGrupo(): string {
+  return comUtms(process.env.RECUP_GRUPO_URL?.trim() || GRUPO_CHECKOUT_PADRAO, 'grupo');
+}
+
+function comUtms(raw: string, touch: string): string {
   if (!raw) return '';
   try {
     const u = new URL(raw);
@@ -163,7 +190,7 @@ export function montarMensagemCupom(lead: LeadAberto): string[] {
   const link = linkRecuperacao('cupom');
   const out = [
     `${oi}só pra te deixar tranquilo:`,
-    `Assim que o pagamento cai, o curso já libera direto aqui no seu WhatsApp — e o acesso é seu pra sempre, você assiste no seu ritmo.`,
+    `Assim que o pagamento cai, o acesso ao app do curso já libera no seu e-mail — e é seu pra sempre, você faz no seu ritmo, direto do celular.`,
     `É conteúdo direto ao ponto, do jeito que se faz de verdade no campo. E qualquer dúvida depois, é só me chamar aqui que eu te ajudo.`,
   ];
   out.push(link ? `Quer finalizar agora? É só por aqui: ${link}` : `Quer que eu te reenvie o link pra finalizar?`);
@@ -181,6 +208,42 @@ export function montarMensagemFechamento(lead: LeadAberto): string[] {
     link ? `Se ainda quiser começar, é só finalizar por aqui: ${link}` : `Se ainda quiser começar, me chama que eu te passo o link.`,
     `E se não for o momento, sem problema nenhum. Quando decidir, é só me chamar que eu cuido de tudo com você. 👊`,
   ].filter(Boolean);
+}
+
+// 4º toque — 2 dias depois do fechamento, pra quem NUNCA respondeu nenhum dos 3.
+// Não é insistência: é OFERTA DIFERENTE. O curso ele já ignorou 3x; aqui o convite é pro
+// grupo pago (Comunidade +Sol), que resolve outra dor — estar acompanhado, não estudar.
+//
+// ⚠️ OS DOIS FATOS DA COPY SÃO CONFERIDOS — se algum mudar, a mensagem vira mentira:
+//  • PREÇO: o checkout ARkG8Hd responde 5700 ("Comunidade +Sol", active) — R$57 à vista.
+//    O 6x de R$10,69 (=R$64,14) é o parcelado com juros da Kiwify; bate com a razão observada
+//    nas vendas 6x do mesmo produto (3039/2700 no bump de R$27 → 5700×1,1256/6 = 10,69).
+//  • CURSO JUNTO: o webhook libera `curso-principal` pra QUALQUER compra do funil LimpaPro —
+//    ver limpapro/api/webhook-compra.js (grantItem(email,'curso-principal',orderId), roda antes
+//    de mapear o produto). Confirmado nos 3 compradores avulsos do grupo: todos têm
+//    `comunidade` + `curso-principal` em limpapro_entitlements. Quem paga R$57 leva o R$47 junto.
+//
+// DUAS ABERTURAS. A de cima ("essa aqui não é sobre o curso") pressupõe conversa anterior —
+// mandar ela pra quem nunca ouviu a Bia soa como mensagem trocada. Quem nunca recebeu o
+// opener leva a variante de PRIMEIRO CONTATO, que se apresenta antes de oferecer.
+export function montarMensagemGrupo(lead: LeadAberto, opts: { primeiroContato?: boolean } = {}): string[] {
+  const nome = (lead.nome || '').trim().split(/\s+/)[0];
+  const oi = nome ? `${nome}, ` : '';
+  const link = linkGrupo();
+  const out = opts.primeiroContato
+    ? [
+        nome ? `Oi ${nome}, aqui é a Bia do LimpaPro Solar.` : 'Oi, aqui é a Bia do LimpaPro Solar.',
+        `Você entrou no checkout do curso esses dias e não chegou a finalizar — mas não vim cobrar isso não, é outra coisa.`,
+      ]
+    : [
+        `${oi}essa aqui não é sobre o curso — é outra coisa, e eu lembrei de você.`,
+      ];
+  out.push(
+    `A gente tem um grupo fechado no WhatsApp com quem já vive de limpar placa: preço que o pessoal está cobrando na região, indicação de serviço e resposta na hora quando alguém empaca.`,
+    `São 6x de R$ 10,69 (R$ 57 à vista) — e quem entra pelo grupo leva o curso junto, sem pagar nada a mais.`,
+  );
+  out.push(link ? `Se fizer sentido pra você: ${link}` : `Quer que eu te mande o link?`);
+  return out;
 }
 
 // ─── idempotência via system_state (envios efetivados) ──────────────
@@ -201,6 +264,24 @@ async function jaMandeiFechamento(email: string): Promise<boolean> {
 async function marcarFechamentoEnviado(email: string): Promise<void> {
   await supabase.from('system_state').upsert({
     key: fechamentoSentKey(email),
+    value: { sent_at: new Date().toISOString() },
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'key' });
+}
+function grupoPendingKey(email: string): string {
+  return `${GRUPO_PENDING_PREFIX}${email.toLowerCase().trim()}`;
+}
+function grupoSentKey(email: string): string {
+  return `${GRUPO_SENT_PREFIX}${email.toLowerCase().trim()}`;
+}
+async function jaMandeiGrupo(email: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('system_state').select('key').eq('key', grupoSentKey(email)).maybeSingle();
+  return Boolean(data);
+}
+async function marcarGrupoEnviado(email: string): Promise<void> {
+  await supabase.from('system_state').upsert({
+    key: grupoSentKey(email),
     value: { sent_at: new Date().toISOString() },
     updated_at: new Date().toISOString(),
   }, { onConflict: 'key' });
@@ -298,6 +379,26 @@ async function clienteRespondeu(telefone: string): Promise<boolean> {
   if (ld.human_takeover === true) return true; // humano assumiu → Bia não insiste com cupom
   const msgs = (data.messages as { role?: string }[]) || [];
   return msgs.some(m => m?.role === 'user');
+}
+
+// A conversa está VIVA agora? Gate específico do 4º toque (grupo). Diferente de
+// clienteRespondeu(): lá, ter respondido UMA vez na vida bloqueia pra sempre — regra certa
+// pros toques 2 e 3, que insistem no MESMO produto. O grupo é assunto NOVO, então quem
+// respondeu sobre o curso semanas atrás é candidato legítimo; o que não pode é cair no meio
+// de um papo em andamento (inclusive de humano que assumiu). Janela: últimas 48h.
+const CONVERSA_VIVA_MS = 48 * 60 * 60 * 1000;
+async function conversaViva(telefone: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('whatsapp_sessions').select('messages, lead_data, updated_at')
+    .in('phone', phoneVariants(telefone)).eq('tipo', 'recuperacao')
+    .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  if (!data) return false;
+  const ld = (data.lead_data ?? {}) as { human_takeover?: boolean };
+  const msgs = (data.messages as { role?: string }[]) || [];
+  const houveGente = ld.human_takeover === true || msgs.some(m => m?.role === 'user');
+  if (!houveGente) return false;
+  const quando = data.updated_at ? new Date(data.updated_at as string).getTime() : 0;
+  return Date.now() - quando < CONVERSA_VIVA_MS;
 }
 
 // ─── throttle por hora (anti-ban) ───────────────────────────────────
@@ -400,6 +501,43 @@ async function enviarFechamento(lead: LeadAberto): Promise<void> {
 
   await sendHuman(lead.telefone!, montarMensagemFechamento(lead), INSTANCE);  // 2. SEND
   logger.info('limpapro-recovery', `fechamento enviado ${lead.email} via ${lead.telefone}`);
+
+  // 3. AGENDA o 4º toque (grupo pago) pra +GRUPO_DELAY. Só se habilitado e ainda não enviado.
+  if (grupoHabilitado() && !(await jaMandeiGrupo(lead.email))) {
+    await supabase.from('system_state').upsert({
+      key: grupoPendingKey(lead.email),
+      value: { origem: 'grupo', ready_at: new Date(Date.now() + GRUPO_DELAY_MS).toISOString(),
+               seeded_at: new Date().toISOString(), nome: lead.nome } as PendingMarker,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'key' });
+  }
+}
+
+// ─── envio do 4º toque (grupo pago). Gates de SEND rodam no consumidor, não aqui. ──
+// Grava `grupo_oferecido` + `grupo_link` no lead_data pra Bia INBOUND saber que a oferta
+// em cima da mesa agora é o GRUPO — senão ela responde "quero" com o link do curso.
+async function enviarGrupo(lead: LeadAberto): Promise<void> {
+  await marcarGrupoEnviado(lead.email);                     // 1. MARK (idempotência própria)
+  // Nunca tomou o opener? Então a Bia está se apresentando agora — abertura diferente.
+  const primeiroContato = (await quandoContatado(lead.email)) === null;
+  const msg = montarMensagemGrupo(lead, { primeiroContato });
+  const phone = fmtPhone(lead.telefone!);
+  const texto = msg.join(' ');
+  const { data: sess } = await supabase
+    .from('whatsapp_sessions').select('messages, lead_data').in('phone', phoneVariants(lead.telefone!))
+    .eq('tipo', 'recuperacao').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  const hist = ((sess?.messages as unknown[]) || []).concat([{ role: 'assistant', content: texto }]);
+  const ldMerged = {
+    ...((sess?.lead_data as Record<string, unknown>) || {}),
+    grupo_oferecido: true, grupo_link: linkGrupo() || null,
+  };
+  await supabase.from('whatsapp_sessions').upsert({
+    phone, tipo: 'recuperacao', nome: lead.nome, messages: hist, lead_data: ldMerged,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'phone,tipo' });
+
+  await sendHuman(lead.telefone!, msg, INSTANCE);           // 2. SEND
+  logger.info('limpapro-recovery', `grupo enviado ${lead.email} via ${lead.telefone}${primeiroContato ? ' (1o contato)' : ''}`);
 }
 
 // Lead marcado PERDIDO (recusou explícito)? Guarda dura contra mandar QUALQUER toque frio
@@ -422,6 +560,19 @@ async function porqueNaoEnviarFechamento(lead: LeadAberto): Promise<string | nul
   if (await jaPagou(lead.email)) return 'ja_pagou';
   if (await foiMarcadoPerdido(lead.telefone)) return 'perdido';         // já disse não → nunca insiste
   if (await clienteRespondeu(lead.telefone)) return 'cliente_respondeu'; // conversa viva → não insiste a frio
+  return null;
+}
+
+// ─── elegibilidade do GRUPO (4º toque) ──────────────────────────────
+// Travas duras iguais às dos outros toques, MENOS o "respondeu uma vez" — ver conversaViva().
+// Quem disse não ([PERDIDO]) continua intocável; quem está em papo ativo também.
+async function porqueNaoEnviarGrupo(lead: LeadAberto): Promise<string | null> {
+  if (!lead.telefone) return 'sem_telefone';
+  if (lead.telefone_suspeito) return 'telefone_suspeito';
+  if (await jaMandeiGrupo(lead.email)) return 'grupo_ja_enviado';
+  if (await jaPagou(lead.email)) return 'ja_pagou';
+  if (await foiMarcadoPerdido(lead.telefone)) return 'perdido';
+  if (await conversaViva(lead.telefone)) return 'conversa_viva';
   return null;
 }
 
@@ -628,6 +779,64 @@ export async function seedLimpaproFechamentoBacklog(opts: { dry?: boolean } = {}
 }
 
 // ═════════════════════════════════════════════════════════════════════
+// SEED DO GRUPO (4º toque) PRO BACKLOG — quem JÁ tomou o fechamento e segue em silêncio.
+// Mesma lacuna dos anteriores: quem recebeu os 3 toques antes desta feature existir nunca
+// teve marcador de grupo. Idempotente. É a única mensagem fria DEPOIS do "não te encho mais",
+// e por isso troca de oferta em vez de repetir o curso.
+// ═════════════════════════════════════════════════════════════════════
+// MODO `todos`: em vez de só quem tomou os 3 toques, semeia TODO abandono em aberto —
+// inclusive quem nunca ouviu a Bia (esses levam a abertura de primeiro contato). Continuam
+// de pé as travas duras: sem telefone, telefone suspeito, já pagou, marcado perdido e
+// já respondeu (esse está em conversa — quem cuida é a Bia inbound, não uma msg fria).
+export async function seedLimpaproGrupoBacklog(opts: { dry?: boolean; todos?: boolean } = {}): Promise<{
+  semeados: number; pulados: number; motivo_skip: Record<string, number>;
+}> {
+  const motivo: Record<string, number> = {};
+  const bump = (k: string) => { motivo[k] = (motivo[k] || 0) + 1; };
+  if (!grupoHabilitado()) return { semeados: 0, pulados: 0, motivo_skip: { grupo_desabilitado: 1 } };
+
+  const leads = await lerLeadsAbertos();
+  leads.sort((a, b) => (b.horas_desde ?? 0) - (a.horas_desde ?? 0));
+
+  const { data: pend } = await supabase
+    .from('system_state').select('key').like('key', `${GRUPO_PENDING_PREFIX}%`);
+  const jaPendGrupo = new Set((pend ?? []).map(r => r.key.slice(GRUPO_PENDING_PREFIX.length)));
+
+  const novos: { key: string; value: PendingMarker; updated_at: string }[] = [];
+  const base = Date.now();
+  let semeados = 0;
+
+  for (const lead of leads) {
+    const e = lead.email.toLowerCase().trim();
+    if (!lead.telefone)                 { bump('sem_telefone'); continue; }
+    if (lead.telefone_suspeito)         { bump('telefone_suspeito'); continue; }
+    if (jaPendGrupo.has(e))             { bump('grupo_ja_agendado'); continue; }
+    if (await jaMandeiGrupo(e))         { bump('grupo_ja_enviado'); continue; }
+    // Sem `todos`: só 4º toque pra quem teve o 3º. Com `todos`: qualquer abandono aberto.
+    if (!opts.todos && !(await jaMandeiFechamento(e))) { bump('sem_fechamento_ainda'); continue; }
+    if (await jaPagou(e))               { bump('ja_pagou'); continue; }
+    if (await foiMarcadoPerdido(lead.telefone)) { bump('perdido'); continue; }
+    if (await conversaViva(lead.telefone)) { bump('conversa_viva'); continue; }
+
+    // Todos caem pra "agora" + stagger (o fechamento do backlog já foi há dias). Anti-rajada
+    // pelo stagger + cap por tick + teto horário no consumidor.
+    const readyAt = base + semeados * SEED_STAGGER_MS;
+    novos.push({
+      key: grupoPendingKey(e),
+      value: { origem: 'grupo', ready_at: new Date(readyAt).toISOString(),
+               seeded_at: new Date().toISOString(), nome: lead.nome },
+      updated_at: new Date().toISOString(),
+    });
+    semeados++;
+  }
+
+  if (!opts.dry && novos.length) {
+    await supabase.from('system_state').upsert(novos, { onConflict: 'key', ignoreDuplicates: true });
+  }
+  return { semeados, pulados: leads.length - semeados, motivo_skip: motivo };
+}
+
+// ═════════════════════════════════════════════════════════════════════
 // CONSUMIDOR ÚNICO — drena marcadores prontos. Roda no tick de /process-messages.
 // Seguro sob execuções concorrentes via CLAIM por DELETE…RETURNING.
 // Ordem de gates load-bearing:
@@ -642,12 +851,12 @@ export async function runLimpaproRecoveryConsumer(opts: { dry?: boolean } = {}):
   const out = { enviados: 0, resolvidos: 0, pulados: 0, mantidos: 0, motivo };
   if (!recuperacaoHabilitada()) { bump('desabilitado'); return out; }
 
-  // 1. Marcadores prontos — opener, cupom E fechamento na mesma fila, ramifica por prefixo
-  //    no loop. (poucas linhas → filtra/ordena em JS; sem operador-seta JSON no filtro, que é
-  //    sintaxe não-exercitada no repo → risco de no-op silencioso).
+  // 1. Marcadores prontos — opener, cupom, fechamento E grupo na mesma fila, ramifica por
+  //    prefixo no loop. (poucas linhas → filtra/ordena em JS; sem operador-seta JSON no filtro,
+  //    que é sintaxe não-exercitada no repo → risco de no-op silencioso).
   const { data: rows, error: stErr } = await supabase
     .from('system_state').select('key, value')
-    .or(`key.like.${PENDING_PREFIX}%,key.like.${CUPOM_PENDING_PREFIX}%,key.like.${FECHAMENTO_PENDING_PREFIX}%`).limit(200);
+    .or(`key.like.${PENDING_PREFIX}%,key.like.${CUPOM_PENDING_PREFIX}%,key.like.${FECHAMENTO_PENDING_PREFIX}%,key.like.${GRUPO_PENDING_PREFIX}%`).limit(200);
   if (stErr) { logger.error('limpapro-recovery', 'consumer: ler markers falhou', stErr); bump('erro_markers'); return out; }
 
   const now = Date.now();
@@ -668,14 +877,19 @@ export async function runLimpaproRecoveryConsumer(opts: { dry?: boolean } = {}):
 
   let enviadosTick = 0;
   for (const r of prontos) {
-    // Tipo do marcador pelo prefixo: opener (toque 1), cupom (toque 2) ou fechamento (toque 3).
+    // Tipo do marcador pelo prefixo: opener (1), cupom (2), fechamento (3) ou grupo (4).
+    // ORDEM IMPORTA: os específicos ANTES do PENDING_PREFIX, que é o fallback.
+    const ehGrupo = r.key.startsWith(GRUPO_PENDING_PREFIX);
     const ehFechamento = r.key.startsWith(FECHAMENTO_PENDING_PREFIX);
     const ehCupom = r.key.startsWith(CUPOM_PENDING_PREFIX);
-    const prefixo = ehFechamento ? FECHAMENTO_PENDING_PREFIX : ehCupom ? CUPOM_PENDING_PREFIX : PENDING_PREFIX;
+    const prefixo = ehGrupo ? GRUPO_PENDING_PREFIX
+      : ehFechamento ? FECHAMENTO_PENDING_PREFIX : ehCupom ? CUPOM_PENDING_PREFIX : PENDING_PREFIX;
     const email = r.key.slice(prefixo.length);
-    const gate = ehFechamento ? porqueNaoEnviarFechamento : ehCupom ? porqueNaoEnviarCupom : porqueNaoEnviarLead;
-    const enviar = ehFechamento ? enviarFechamento : ehCupom ? enviarCupom : enviarParaLead;
-    const tag = ehFechamento ? 'fechamento' : ehCupom ? 'cupom' : 'opener';
+    const gate = ehGrupo ? porqueNaoEnviarGrupo
+      : ehFechamento ? porqueNaoEnviarFechamento : ehCupom ? porqueNaoEnviarCupom : porqueNaoEnviarLead;
+    const enviar = ehGrupo ? enviarGrupo
+      : ehFechamento ? enviarFechamento : ehCupom ? enviarCupom : enviarParaLead;
+    const tag = ehGrupo ? 'grupo' : ehFechamento ? 'fechamento' : ehCupom ? 'cupom' : 'opener';
 
     // ── GATES PRÉ-CLAIM (break → marcador sobrevive pro próximo tick) ──
     if (enviadosTick >= MAX_ENVIOS_POR_TICK) { out.mantidos++; bump('cap_tick'); break; }
@@ -683,6 +897,7 @@ export async function runLimpaproRecoveryConsumer(opts: { dry?: boolean } = {}):
     // Toque desligado mas há marcador pendente: deixa quieto pro próximo tick (não claima).
     if (ehCupom && !cupomHabilitado()) { out.mantidos++; bump('cupom_desabilitado'); continue; }
     if (ehFechamento && !fechamentoHabilitado()) { out.mantidos++; bump('fechamento_desabilitado'); continue; }
+    if (ehGrupo && !grupoHabilitado()) { out.mantidos++; bump('grupo_desabilitado'); continue; }
 
     if (opts.dry) { // simula sem claimar/enviar/deletar
       const lead = porEmail.get(email);

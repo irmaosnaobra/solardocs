@@ -71,6 +71,10 @@ interface BiaLeadData {
   valor_centavos?: number | null; link?: string | null; pix_code?: string | null; human_takeover?: boolean;
   // Fechamento: cupom LIMPA30 é oferta ÚNICA por conversa (não vira leilão de desconto).
   cupom_oferecido?: boolean;
+  // 4º toque: o grupo pago (Comunidade +Sol) já foi oferecido a frio. Se a pessoa responde
+  // DEPOIS disso, ela está respondendo ao GRUPO — a Bia precisa do link certo em mãos.
+  grupo_oferecido?: boolean;
+  grupo_link?: string | null;
   // Marcado quando o cliente recusou explicitamente ([PERDIDO]) — Bia para de vender.
   perdido_em?: string;
 }
@@ -86,6 +90,7 @@ export function buildBiaSystemPrompt(ctx: {
   nome?: string | null; produto?: string | null; status?: 'pix_gerado' | 'abandonou' | 'perdido' | null;
   valorCentavos?: number | null; link?: string | null; pixCode?: string | null;
   cupomJaOferecido?: boolean;
+  grupoJaOferecido?: boolean; grupoLink?: string | null;
 }): string {
   const nome = ctx.nome ? ctx.nome.trim().split(/\s+/)[0] : null;
   const produto = 'LimpaPro Solar';
@@ -98,6 +103,10 @@ export function buildBiaSystemPrompt(ctx: {
   const cupomUrl = process.env.RECUP_CUPOM_URL?.trim() || null;
   const cupomLigado = process.env.RECUP_CUPOM_ENABLED === 'true' && Boolean(cupomUrl);
   const cupomDisponivel = cupomLigado && !ctx.cupomJaOferecido;
+  // Grupo pago: só entra no prompt se a Bia JÁ ofereceu a frio (4º toque). Fora disso ela
+  // não sai vendendo grupo por conta própria — a missão dela continua sendo o curso.
+  const grupoLink = ctx.grupoLink?.trim() || null;
+  const grupoNaMesa = ctx.grupoJaOferecido === true;
 
   return `Você é a "Bia", ESPECIALISTA em vendas do LimpaPro Solar pelo WhatsApp. A pessoa
 entrou no checkout e NÃO finalizou. Seu trabalho é FECHAR essa venda: entender a trava,
@@ -113,9 +122,19 @@ ${link ? `- ÚNICO LINK OFICIAL (use SEMPRE este, nunca outro): ${link}` : '- LI
 ${cupomUrl ? `- LINK COM CUPOM 30% OFF (sua alavanca de fechamento): ${cupomUrl}` : ''}
 ${ctx.pixCode ? '- PIX copia-e-cola disponível (use exatamente como está)' : ''}
 
-━━ O QUE É O PRODUTO ━━
-- Curso em VIDEOAULAS de limpeza profissional de placas solares. Acessa no celular ou
-  computador, no seu tempo, sem prazo pra terminar. Acesso liberado na hora do pagamento.
+━━ O QUE É O PRODUTO (formato REAL — leia com atenção, aqui já se errou) ━━
+- Curso de limpeza profissional de placas solares entregue num APP (a área de membros do
+  LimpaPro). A pessoa entra com e-mail e senha, pelo CELULAR ou pelo computador, sem
+  instalar nada e sem prazo pra terminar.
+- NÃO É VIDEOAULA. Não tem vídeo pra assistir, nem aula gravada, nem live. Se perguntarem
+  "como é o curso?", "é vídeo?", "é PDF?" → é um APP com o passo a passo escrito: aulas
+  curtas e diretas (6 a 11 min de leitura cada), e o app vai marcando o que já foi
+  concluído. NUNCA prometa vídeo.
+- São 5 módulos: 1) Técnica de Limpeza · 2) Segurança em Altura · 3) Precificação ·
+  4) Captação de Clientes · 5) Renda Recorrente.
+- Acesso liberado na hora do pagamento e os dados chegam no e-mail. O módulo 5 e os bônus
+  abrem 7 dias depois da compra — se perguntarem, diga isso com naturalidade; NÃO prometa
+  tudo aberto de cara.
 - Se perguntarem algo que você NÃO sabe de fato, não invente: diga que confirma e siga.
 
 ━━ SEUS ARGUMENTOS DE VALOR (por que isso AGREGA DEMAIS — use de verdade, com convicção) ━━
@@ -154,6 +173,18 @@ ${cupomDisponivel ? `
 ━━ DESCONTO ━━
 - Você NÃO tem cupom disponível agora. Se pedirem desconto, diga que vai verificar com o time
   e siga vendendo pelo valor cheio. NUNCA invente cupom, desconto, brinde ou parcelamento.`}
+
+${grupoNaMesa ? `
+━━ ATENÇÃO — A ÚLTIMA COISA QUE VOCÊ OFERECEU FOI O GRUPO, NÃO O CURSO ━━
+- Sua última mensagem convidou essa pessoa pro GRUPO DE CRESCIMENTO (Comunidade +Sol):
+  grupo fechado de WhatsApp com quem já vive de limpar placa — preço praticado na região,
+  indicação de serviço e ajuda na hora que alguém empaca. 6x de R$ 10,69 (R$ 57 à vista).
+- QUEM ENTRA PELO GRUPO LEVA O CURSO JUNTO, sem pagar nada a mais. É a real — pode falar.
+${grupoLink ? `- LINK DO GRUPO (use ESTE se ela quiser o grupo, NUNCA o link do curso): ${grupoLink}`
+            : '- LINK DO GRUPO: indisponível — diga que você manda em seguida e NÃO invente link.'}
+- Se ela responder com interesse ("quanto é?", "como funciona?", "quero"), está falando do
+  GRUPO. Responda sobre o grupo e mande o LINK DO GRUPO. Não volte a empurrar o curso sozinho.
+- Se ela preferir só o curso, tudo bem: aí sim use o LINK OFICIAL do curso.` : ''}
 
 ━━ REGRAS DURAS — NUNCA ━━
 - NUNCA invente preço, link, código pix ou política. Use SÓ o que está no CONTEXTO.
@@ -237,6 +268,8 @@ export async function handleBiaInbound(rawPhone: string, text: string, senderNam
         nome, produto: session.lead_data.produto, status: session.lead_data.status,
         valorCentavos: session.lead_data.valor_centavos, link: session.lead_data.link, pixCode: session.lead_data.pix_code,
         cupomJaOferecido: session.lead_data.cupom_oferecido === true,
+        grupoJaOferecido: session.lead_data.grupo_oferecido === true,
+        grupoLink: session.lead_data.grupo_link ?? null,
       }),
       messages,
     });
