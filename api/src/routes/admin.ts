@@ -295,17 +295,29 @@ router.get('/kit-funil', async (_req: Request, res: Response): Promise<void> => 
       porSegmento[chave].add(p.email.toLowerCase());
     }
 
-    // Quantos compradores já viram assinante pagante de verdade (sem contar o
-    // trial do bump — pack_trial_until ativo não é receita).
+    // Quantos compradores já viram assinante pagante de verdade. Concessão não é
+    // receita — e ela chega por DUAS colunas diferentes no user:
+    //   - bump legado (bump_vip)      → pack_trial_until
+    //   - entrada de 30 dias (R$19)   → plano_expira_em
+    // A segunda é indistinguível de um assinante Pix olhando só a tabela users.
+    // Quem separa é o PEDIDO: kit_pedidos.trial_vip_ate no futuro = acesso que veio
+    // da compra do bump, não de assinatura. Sem isto, todo comprador da entrada
+    // entraria como assinante e inflaria a conversão do funil da isca.
+    const comConcessaoAtiva = new Set(
+      pedidos
+        .filter((p) => p.status === 'paid' && p.trial_vip_ate && new Date(p.trial_vip_ate) > new Date())
+        .map((p) => p.email.toLowerCase()),
+    );
     let assinantes = 0;
     if (compradores.size) {
       const { data: users } = await supabase
         .from('users')
         .select('email, plano, pack_trial_until, billing_status')
         .in('email', Array.from(compradores));
-      assinantes = (users ?? []).filter((u: { plano: string; pack_trial_until: string | null }) => {
+      assinantes = (users ?? []).filter((u: { email: string; plano: string; pack_trial_until: string | null }) => {
         const trialAtivo = !!u.pack_trial_until && new Date(u.pack_trial_until) > new Date();
-        return (u.plano === 'pro' || u.plano === 'ilimitado') && !trialAtivo;
+        const concessaoAtiva = comConcessaoAtiva.has(u.email.toLowerCase());
+        return (u.plano === 'pro' || u.plano === 'ilimitado') && !trialAtivo && !concessaoAtiva;
       }).length;
     }
 
