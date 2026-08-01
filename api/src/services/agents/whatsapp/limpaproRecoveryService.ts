@@ -518,14 +518,16 @@ async function enviarFechamento(lead: LeadAberto): Promise<void> {
 // em cima da mesa agora é o GRUPO — senão ela responde "quero" com o link do curso.
 async function enviarGrupo(lead: LeadAberto): Promise<void> {
   await marcarGrupoEnviado(lead.email);                     // 1. MARK (idempotência própria)
-  // Nunca tomou o opener? Então a Bia está se apresentando agora — abertura diferente.
-  const primeiroContato = (await quandoContatado(lead.email)) === null;
-  const msg = montarMensagemGrupo(lead, { primeiroContato });
   const phone = fmtPhone(lead.telefone!);
-  const texto = msg.join(' ');
   const { data: sess } = await supabase
     .from('whatsapp_sessions').select('messages, lead_data').in('phone', phoneVariants(lead.telefone!))
     .eq('tipo', 'recuperacao').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  // Primeiro contato = a Bia NUNCA falou com essa pessoa. A verdade está na SESSÃO, não na
+  // chave `limpapro_recovery:` — tem lead com conversa aberta cujo opener saiu por outro
+  // caminho (blast antigo), e esse não pode ouvir "aqui é a Bia do LimpaPro" de novo.
+  const primeiroContato = ((sess?.messages as unknown[]) || []).length === 0;
+  const msg = montarMensagemGrupo(lead, { primeiroContato });
+  const texto = msg.join(' ');
   const hist = ((sess?.messages as unknown[]) || []).concat([{ role: 'assistant', content: texto }]);
   const ldMerged = {
     ...((sess?.lead_data as Record<string, unknown>) || {}),
