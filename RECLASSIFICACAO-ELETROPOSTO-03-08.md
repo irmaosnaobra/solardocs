@@ -48,15 +48,18 @@ LP só anunciava manhã desde 30/07.
 
 | Dia | Thiago | Diego |
 |---|---|---|
-| **03/08 seg** | Hudson 13:00 · Guilherme 14:30 | Eliel 15:00 |
-| **04/08 ter** | João Carlos 13:00 · Fabio 15:30 | Wlisses 15:00 · Denilson 16:30 |
-| **05/08 qua** | Ewerton 13:00 · **Adonei 15:00** 🟢 · Rafael 16:30 | **Irineu 13:30** 🟢 · Edgar 14:00 · Paulo 16:00 |
+| **03/08 seg** | Hudson 13:00 · **Rafael 14:00** · Guilherme 14:30 | **Denilson 13:30** · Eliel 15:00 |
+| **04/08 ter** | João Carlos 13:00 · Fabio 15:30 | Wlisses 15:00 |
+| **05/08 qua** | Ewerton 13:00 · **Adonei 15:00** 🟢 | **Irineu 13:30** 🟢 · Edgar 14:00 · Paulo 16:00 |
 
 **7 Thiago × 6 Diego**, um NOTA 3 para cada, sem colisão de horário.
 
 **Dois clientes mudaram de horário e precisam ser avisados:**
-- **Denilson** — ter 18:30 → **ter 16:30** (18:30 não existia em grade nenhuma)
-- **Rafael Da Col** — qui 13:00 → **qua 16:30** (quinta saiu; era o único fora de seg-qua)
+- **Denilson** — ter 18:30 → **seg 03/08 13:30**
+- **Rafael Da Col** — qui 13:00 → **seg 03/08 14:00** (3 dias antes do combinado — o mais urgente)
+
+Segunda ficou com 5 reuniões seguidas (13:00–15:00) e a semana equilibrou em **5 / 3 / 5**.
+Texto dos dois avisos pronto em [MSG-ELETROPOSTO-GRUPO-02-08.md](MSG-ELETROPOSTO-GRUPO-02-08.md).
 
 ### Disponibilidade para vender
 

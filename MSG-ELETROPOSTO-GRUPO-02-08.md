@@ -14,6 +14,37 @@ Link: `https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M`
 
 ---
 
+# ⚠️ ANTES DE TUDO: 2 avisos de mudança de horário
+
+Os dois foram remanejados para **segunda 03/08** e ainda não sabem. Se não forem avisados
+hoje, não aparecem — e os dois estão entre os melhores da agenda.
+
+### Rafael Da Col — `5519999292246` — remetente: **Thiago**
+Era **quinta 06/08 13:00** → agora **segunda 03/08 14:00**. Três dias antes do combinado,
+com um fim de semana no meio. É o mais urgente da lista inteira.
+
+> Oi Rafael, aqui é o Thiago da Irmãos na Obra.
+
+> Reorganizamos a agenda desta semana e a nossa conversa saiu de quinta às 13:00 para **segunda-feira (03/08) às 14:00**.
+
+> Sei que é antes do que a gente tinha combinado. Se segunda não der pra você, me avisa que eu acho outro horário sem problema.
+
+> Confirmando, eu já levo o estudo do seu ponto pronto.
+
+### Denilson F Teixeira — `5537999251984` — remetente: **Diego**
+Era **terça 04/08 18:30** → agora **segunda 03/08 13:30**. Melhor lead do quadro (ponto na
+BR-354, 8 pts).
+
+> Oi Denilson, aqui é o Diego da Irmãos na Obra.
+
+> Reorganizamos a agenda da semana e consegui te trazer pra um horário comercial: em vez de terça às 18:30, ficou **segunda-feira (03/08) às 13:30**.
+
+> Fecha pra você? Se não der, me fala que eu remarco.
+
+> Vou levar o estudo do seu ponto na BR-354 pronto pra conversa.
+
+---
+
 ## Modelo (substituir `[nome]`, `[remetente]`, `[dia]`)
 
 > Oi [nome], aqui é o [remetente] da Irmãos na Obra.
