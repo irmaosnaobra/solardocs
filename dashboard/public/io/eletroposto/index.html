@@ -666,8 +666,17 @@
             <option value="estacionamento">Estacionamento</option>
             <option value="condominio">Condomínio</option>
             <option value="investidor">Investidor</option>
-            <option value="outro">Outro</option>
+            <option value="outro">Outro — digitar o meu</option>
           </select></div>
+        </div>
+
+        <!-- "Outro" sozinho não dizia nada, e era o que 1 em cada 4 leads marcava —
+             a equipe não ficava sabendo que segmento estava entrando. Agora ele
+             digita, e o que vier vai inteiro pra ficha e pro alerta no WhatsApp. -->
+        <div class="fld" id="box-outro" style="display:none">
+          <label>Qual é o seu segmento?</label>
+          <div class="inp"><input type="text" id="f-outro" maxlength="60"
+            placeholder="Ex: oficina mecânica, lava-jato, loja de conveniência"></div>
         </div>
 
         <!-- Investidor e "outro" não trazem fluxo próprio (um posto ou um mercado já
@@ -1160,7 +1169,17 @@ function pontuar(f){
 // A rota de passagem só faz sentido pra quem não traz fluxo próprio.
 function onPerfil(){
   const v = document.getElementById('f-perfil').value;
-  document.getElementById('box-rota').style.display = PERFIL_SEM_FLUXO.has(v) ? '' : 'none';
+  document.getElementById('box-rota').style.display  = PERFIL_SEM_FLUXO.has(v) ? '' : 'none';
+  document.getElementById('box-outro').style.display = v === 'outro' ? '' : 'none';
+}
+// O que o lead digitou em "Outro" substitui a palavra "Outro" em tudo que a equipe
+// lê: ficha, alerta no WhatsApp e evento do pixel. A PONTUAÇÃO não muda — quem
+// digita continua valendo 0 de perfil + o bônus de rota, como qualquer "Outro".
+// Casar texto livre com a lista ("posto de gasolina" → 3 pts) seria fácil de burlar.
+function perfilTexto(sel){
+  if(sel.value !== 'outro') return (sel.selectedOptions[0] || {}).text || '—';
+  const t = document.getElementById('f-outro').value.trim();
+  return t ? `Outro: ${t}` : 'Outro';
 }
 // Os 3 próximos dias COM atendimento, a partir de hoje (pula fim de semana, feriado,
 // qui/sex fora do transbordo e o dia que já não tem horário livre). É isto que faz o
@@ -1319,6 +1338,8 @@ async function agendar(){
   if(!numero)             return erro('Informe o número do endereço.');
   if(bairro.length < 2)   return erro('Informe o bairro.');
   if(!perfil.value)       return erro('Selecione seu perfil.');
+  if(perfil.value === 'outro' && document.getElementById('f-outro').value.trim().length < 3)
+                          return erro('Escreva qual é o seu segmento.');
   if(PERFIL_SEM_FLUXO.has(perfil.value) && !rota.value)
                           return erro('Informe se o local fica em rota de passagem.');
   if(!ponto.value)        return erro('Informe como está o seu ponto hoje.');
@@ -1349,7 +1370,7 @@ async function agendar(){
   // aqui vira uma linha da mensagem no WhatsApp. Renomear rótulo = mexer lá também.
   // A marcação do investidor vai sem acento de propósito, pra casar entre os arquivos.
   const obs = [
-    `LP ELETROPOSTO — ${txt(perfil)}`,
+    `LP ELETROPOSTO — ${perfilTexto(perfil)}`,
     `NOTA ${q.nota} · ${q.pts}/11 pts${q.corte ? ' (corte: sem ponto e sem capital)' : ''}`,
     pontoParaInvestidor ? 'PONTO DISPONIVEL PARA INVESTIDOR' : '',
     `Endereço: ${endereco}${pontoDefinido ? '' : ' (endereço do lead — ponto ainda não definido)'}`,
@@ -1366,7 +1387,7 @@ async function agendar(){
   // Ficha pronta, mas NÃO gravada: quem grava é o "Sim" do portão de presença.
   // A temperatura do CRM agora vem da nota (era da forma de pagamento, que mudou de
   // valores — mantê-la no `forma` faria todo lead virar morno em silêncio).
-  pendente = { nome, tel, cidade, perfil:txt(perfil), obs,
+  pendente = { nome, tel, cidade, perfil:perfilTexto(perfil), obs,
                temperatura: q.nota === 3 ? 'quente' : 'morno', pontoDefinido };
   document.getElementById('ag-msg').className = 'agMsg';   // limpa aviso de tentativa anterior
   abrirConfirma();
