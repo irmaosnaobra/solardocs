@@ -39,14 +39,47 @@ próprio + financiamento"), mas **Adonei** é 9 pts só porque interpretei a fai
 mil" como 2. Se ele responder *"ainda não consultei o banco"*, cai para 8 → NOTA 2, e o
 pipeline vira R$ 160.000.
 
-### Como ficou cada dia
+### A agenda final (após a remanejada de 01/08)
 
-| Dia | Mantidas | Liberadas |
+Decisão do Thiago: os 13 que ficaram vão todos para **seg/ter/qua à tarde**, divididos
+igualmente entre os dois. E a **tarde voltou para a grade da LP** (`FAIXAS` com `[13,17]`,
+commit `4d14813`) — sem isso, horário que vagava à tarde não voltava para venda, porque a
+LP só anunciava manhã desde 30/07.
+
+| Dia | Thiago | Diego |
 |---|---|---|
-| 03/08 seg | 3 | **5** |
-| 04/08 ter | 4 | **5** |
-| 05/08 qua | 5 | **4** |
-| 06/08 qui | 1 | 0 |
+| **03/08 seg** | Hudson 13:00 · Guilherme 14:30 | Eliel 15:00 |
+| **04/08 ter** | João Carlos 13:00 · Fabio 15:30 | Wlisses 15:00 · Denilson 16:30 |
+| **05/08 qua** | Ewerton 13:00 · **Adonei 15:00** 🟢 · Rafael 16:30 | **Irineu 13:30** 🟢 · Edgar 14:00 · Paulo 16:00 |
+
+**7 Thiago × 6 Diego**, um NOTA 3 para cada, sem colisão de horário.
+
+**Dois clientes mudaram de horário e precisam ser avisados:**
+- **Denilson** — ter 18:30 → **ter 16:30** (18:30 não existia em grade nenhuma)
+- **Rafael Da Col** — qui 13:00 → **qua 16:30** (quinta saiu; era o único fora de seg-qua)
+
+### Disponibilidade para vender
+
+Com a tarde de volta: **14 slots/dia × 3 dias = 42 por semana** (era 18).
+
+| Dia | Manhã livre | Tarde livre | Total |
+|---|---|---|---|
+| 03/08 seg | 6 de 6 | 5 de 8 | **11** |
+| 04/08 ter | 6 de 6 | 4 de 8 | **10** |
+| 05/08 qua | 6 de 6 | 2 de 8 | **8** |
+
+### Sobre "remover os leads da agenda"
+
+As 14 fichas **já estavam fora da agenda** — não foi preciso apagar nada:
+
+- **Na LP:** a query de ocupados filtra `status not.in.(cancelado,sem_interesse)`. Testado
+  contra a API pública: retorna `[]` para os 14. Nunca bloquearam slot nenhum.
+- **No CRM:** `cancelado` está dentro de `CRM_STATUS_PERDIDO`, então não contam como
+  reunião futura (`agFuturo`) e caem na coluna Perdido.
+
+O que travava a tarde não eram eles — era a grade não vender tarde. As fichas seguem com a
+tag `🔴 NOTA 1 — NUTRIÇÃO` para remarketing, como o briefing pediu. Para apagar de vez:
+`delete from agendamentos where id in (622,624,629,630,631,635,637,638,644,645,647,652,654,656);`
 
 ---
 

@@ -1,4 +1,8 @@
-# Mensagem de realinhamento — 14 leads · domingo 02/08, a partir das 9h
+# Mensagem de realinhamento — 14 leads
+
+**Liberado para sair hoje (sábado 01/08).** O texto não muda: ele diz "nossa conversa
+estava marcada pra [dia]", que funciona igual sendo enviado hoje ou amanhã. Sair hoje só
+melhora — quem tinha reunião segunda passa de ~24h para ~48h de aviso.
 
 Grupo posicionado como **network e oportunidades**: é onde as pontas se encontram (quem tem
 local, quem tem capital, quem já opera). Não é grupo de conteúdo nem consolo — é a etapa
