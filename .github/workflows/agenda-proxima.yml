@@ -1,0 +1,20 @@
+name: Próxima agenda (clientes marcados → WhatsApp do Thiago e do Diego)
+
+# 3× por dia: 09h, 16h e 20h BRT (= 12h, 19h e 23h UTC; o Brasil não tem
+# horário de verão desde 2019). Manda pros dois a lista GERAL de clientes
+# marcados no próximo dia que tem agenda — numa sexta, os três disparos (e os
+# de sábado e domingo) mostram a agenda de segunda.
+on:
+  schedule:
+    - cron: '0 12,19,23 * * *'
+  workflow_dispatch:
+
+jobs:
+  agenda-proxima:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar digest da próxima agenda
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/agenda-proxima" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 120 -sS -w "\nHTTP %{http_code}\n"

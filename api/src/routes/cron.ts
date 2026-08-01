@@ -28,6 +28,7 @@ import { runAlertaLeadQuenteSemProposta } from '../services/agenda/leadQuenteSem
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
+import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
 import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda/leadsMetaService';
 import { syncSocialWindsor } from '../services/agenda/socialWindsorService';
 import { gerarProdutosVirais } from '../services/agenda/produtosViraisService';
@@ -83,6 +84,23 @@ router.get('/reagendar-diario', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...r });
   } catch (err: any) {
     logger.error('cron', 'reagendar-diario falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// 3×/dia (09h, 16h e 20h BRT) — manda pro Thiago e pro Diego a lista GERAL dos
+// clientes marcados na PRÓXIMA agenda (primeiro dia depois de hoje que tem
+// cliente marcado). Numa sexta, os 3 disparos + sábado + domingo caem todos na
+// segunda — que é o pedido. NÃO entra no /cron/master (roda de hora em hora).
+// ?dry=1 → não envia, devolve a mensagem que sairia.
+router.get('/agenda-proxima', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    const r = await enviarAgendaProxima({ dry });
+    res.json({ ok: true, dry, ...r });
+  } catch (err: any) {
+    logger.error('cron', 'agenda-proxima falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });

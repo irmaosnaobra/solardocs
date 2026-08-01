@@ -94,8 +94,13 @@
   .invest{background:linear-gradient(90deg,rgba(125,209,23,.16),rgba(125,209,23,.04));border:1.5px solid rgba(125,209,23,.5);border-radius:20px;padding:26px 28px;display:flex;flex-wrap:wrap;align-items:center;gap:20px}
   .invest .l{flex:1;min-width:260px}
   .invest .h{font-size:12px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--neon)}
-  .invest .v{font-size:clamp(30px,4.6vw,44px);font-weight:900;letter-spacing:-1.6px;margin-top:6px}
+  /* a faixa é bem mais longa que a âncora antiga ("a partir de X"): o teto caiu de 44
+     para 38px pra caber numa linha no desktop, e os valores levam nowrap pra nunca
+     quebrarem no meio de "R$ 120.000" quando ela empilha no celular. */
+  .invest .v{font-size:clamp(28px,4vw,38px);font-weight:900;letter-spacing:-1.6px;margin-top:6px}
+  .invest .v .nb{white-space:nowrap}
   .invest .d{color:var(--mut);font-size:14px;font-weight:600;margin-top:8px;line-height:1.5;max-width:520px}
+  .invest .d b{color:var(--cream);font-weight:800}
   .invest .cond{display:flex;gap:10px;flex-wrap:wrap}
   .invest .c{background:rgba(5,13,2,.5);border:1px solid var(--line);border-radius:12px;padding:11px 16px;text-align:center;min-width:104px}
   .invest .c .cl{color:var(--mut);font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
@@ -180,6 +185,9 @@
 
   .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   .kpi{background:#0a1604;border:1px solid rgba(125,209,23,.4);border-radius:14px;padding:18px 16px;text-align:center}
+  /* o investimento ocupa a linha inteira: é a âncora que os outros 4 números
+     respondem, e um 5º card meio a meio deixaria um órfão na grade de 2 colunas */
+  .kpi.full{grid-column:1/-1;background:linear-gradient(90deg,rgba(125,209,23,.16),rgba(125,209,23,.04));border-color:rgba(125,209,23,.55)}
   .kpi .k{color:var(--mut);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
   .kpi .v{font-size:clamp(22px,3.2vw,30px);font-weight:900;letter-spacing:-1.2px;margin-top:7px;color:var(--neon-b);font-variant-numeric:tabular-nums}
   .kpi .v.w{color:var(--cream)}
@@ -203,16 +211,6 @@
   /* empilhado o gap vira 0 e o `.fld:last-child{margin-bottom:0}` colava o 2º campo
      do par no bloco de baixo — devolve o respiro só no mobile */
   @media(max-width:640px){.f2{grid-template-columns:1fr;gap:0}.f2 .fld:last-child{margin-bottom:16px}.agBox{padding:20px 16px}}
-  /* par de botões tenho/não tenho o ponto */
-  .opt2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  @media(max-width:520px){.opt2{grid-template-columns:1fr}}
-  .optb{background:#0a1604;border:1.5px solid var(--line);border-radius:11px;padding:14px 12px;min-height:48px;
-    color:var(--cream);font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;transition:.15s}
-  .optb:hover{border-color:var(--neon);background:#0f2206}
-  .optb.on{background:var(--neon);border-color:var(--neon);color:var(--dk)}
-  /* linha de apoio dentro do botão: opacidade sobre a cor HERDADA, nunca --mut —
-     no estado .on o texto vira escuro sobre neon e um cinza claro sumiria */
-  .optb .sb{display:block;font-size:11.5px;font-weight:700;line-height:1.35;margin-top:5px;opacity:.66}
   .step{margin-bottom:18px}
   .slots{margin-top:10px;display:flex;flex-direction:column;gap:14px}
   .agLoad{color:var(--mut);font-size:13.5px;font-weight:700;padding:14px 0}
@@ -261,6 +259,23 @@
   .okTx b{display:block;color:var(--cream);font-weight:800;font-size:15px;margin-bottom:3px}
   .ok .okObs{color:rgba(247,251,242,.5);font-size:14px;font-weight:700;margin-top:22px}
   .ok .okObs #ok-dia{color:var(--neon-b)}
+  /* parágrafo extra do lead NOTA 2: a reunião dele começa pelo local, não pelo preço */
+  .ok #ok-nota2{max-width:520px;margin-left:auto;margin-right:auto}
+
+  /* ===== convite do grupo (NOTA 1) =====
+     Não é tela de recusa: é a etapa ANTERIOR. Herda o bloco .ok (mesma moldura da
+     confirmação) pra não parecer prêmio de consolação em layout de segunda classe. */
+  .grpTxt{max-width:560px;margin:14px auto 0;text-align:left}
+  .grpTxt p{color:var(--mut);font-size:15px;font-weight:600;line-height:1.6;margin-top:12px}
+  .grpTxt p b{color:var(--cream);font-weight:800}
+  .grpFree{display:inline-block;margin-top:20px;background:rgba(125,209,23,.14);border:1px solid rgba(125,209,23,.45);
+    color:var(--neon-b);font-size:12.5px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;padding:10px 18px;border-radius:999px}
+  #ag-grupo .btn{margin-top:22px}
+  /* saída discreta de propósito: quem tem ponto definido volta e corrige a resposta,
+     mas o caminho principal continua sendo o grupo */
+  .grpBack{display:block;margin:14px auto 0;background:none;border:none;color:var(--mut);font-family:inherit;
+    font-size:13.5px;font-weight:700;text-decoration:underline;cursor:pointer;padding:10px;min-height:44px}
+  .grpBack:hover{color:var(--cream)}
 
   /* ===== rodapé ===== */
   footer{border-top:1px solid var(--line);padding:34px 0;margin-top:20px}
@@ -368,8 +383,11 @@
     <div class="invest">
       <div class="l">
         <div class="h">Investimento</div>
-        <div class="v">A partir de R$ 85.000</div>
-        <div class="d">É o quanto custa ter o seu eletroposto. O valor final depende da configuração ideal para o seu ponto — definimos isso juntos na reunião, com equipamento, instalação, homologação e suporte inclusos.</div>
+        <!-- Os 3 valores são reescritos pelo JS a partir do CONFIGS do simulador (ver
+             pintarAncora): reajustar preço num lugar só deixaria a âncora mentindo.
+             O texto abaixo é o fallback sem JS — mantenha igual ao CONFIGS. -->
+        <div class="v">De <span class="nb" id="anc-min">R$ 120.000</span> a <span class="nb" id="anc-max">R$ 220.000</span></div>
+        <div class="d">O valor depende da potência e da infraestrutura elétrica do seu ponto. A configuração de 80 kW — a mais indicada para a maioria dos pontos — fica na faixa de <b id="anc-rec">R$ 160.000</b>.</div>
       </div>
       <div class="cond">
         <div class="c"><div class="cl">Cartão</div><div class="cv">24x</div></div>
@@ -518,7 +536,6 @@
         <div class="fld">
           <label>Configuração do carregador</label>
           <div class="inp"><select id="s-config" onchange="setConfig()">
-            <option value="40">40 kW · 1 bico — entrada</option>
             <option value="60">60 kW · 2 bicos</option>
             <option value="80" selected>80 kW · 2 bicos — recomendado</option>
             <option value="120">120 kW · 2 bicos</option>
@@ -538,6 +555,7 @@
 
       <div class="panel">
         <div class="kpis">
+          <div class="kpi full"><div class="k">Investimento estimado</div><div class="v" id="k-inv">—</div></div>
           <div class="kpi"><div class="k">Faturamento / mês</div><div class="v w" id="k-fat">—</div></div>
           <div class="kpi"><div class="k">Lucro líquido / mês</div><div class="v" id="k-luc">—</div></div>
           <div class="kpi"><div class="k">Payback</div><div class="v w" id="k-pb">—</div></div>
@@ -553,6 +571,8 @@
           conforme as características do ponto comercial</b> — fluxo de veículos, tarifa de energia e localização.
           Valores estimados, não constituem garantia de resultado. Na reunião entregamos o estudo completo,
           com VPL, TIR, sensibilidade e análise de riscos do seu ponto.
+          <b style="color:rgba(247,251,242,.6)">Valor de referência para equipamento e instalação padrão.
+          Adequação do padrão de entrada e eventual transformador dedicado são orçados após a visita técnica.</b>
         </div>
       </div>
     </div>
@@ -625,33 +645,56 @@
           <div class="fld"><label>Complemento / referência <span class="hint">(opcional)</span></label><div class="inp"><input type="text" id="f-compl" placeholder="Loja, galpão, ponto de referência"></div></div>
         </div>
 
+        <!-- ── Qualificação ──────────────────────────────────────────────────────
+             Cada resposta abaixo tem peso (ver PESOS no script). O lead NUNCA vê a
+             pontuação: os rótulos são neutros e nenhuma opção se anuncia como "a
+             certa" — do contrário o lead aprende a marcar o que destrava a agenda.
+             O campo "modelo de negócio" (chave na mão x consultoria) saiu: a própria
+             página diz que não atende quem quer montar por conta, então oferecer a
+             consultoria ali contradizia o filtro e canibalizava o ticket. Todo lead
+             daqui em diante é tratado como chave na mão. -->
         <div class="fld">
           <label>Seu perfil</label>
-          <div class="inp"><select id="f-perfil">
+          <div class="inp"><select id="f-perfil" onchange="onPerfil()">
             <option value="">Selecione…</option>
-            <option>Dono de posto de combustível</option>
-            <option>Mercado / supermercado</option>
-            <option>Restaurante / lanchonete</option>
-            <option>Academia</option>
-            <option>Farmácia</option>
-            <option>Hotel / pousada</option>
-            <option>Estacionamento</option>
-            <option>Condomínio</option>
-            <option>Investidor</option>
-            <option>Outro</option>
+            <option value="posto">Dono de posto de combustível</option>
+            <option value="mercado">Mercado / supermercado</option>
+            <option value="restaurante">Restaurante / lanchonete</option>
+            <option value="academia">Academia</option>
+            <option value="farmacia">Farmácia</option>
+            <option value="hotel">Hotel / pousada</option>
+            <option value="estacionamento">Estacionamento</option>
+            <option value="condominio">Condomínio</option>
+            <option value="investidor">Investidor</option>
+            <option value="outro">Outro</option>
           </select></div>
         </div>
-        <!-- Modelo de negócio: separa quem quer a obra pronta de quem quer ser
-             conduzido pra executar. São entregas e tickets diferentes — sem esta
-             resposta o consultor descobre isso no meio da reunião. -->
+
+        <!-- Investidor e "outro" não trazem fluxo próprio (um posto ou um mercado já
+             tem carro parando na porta). Pra esses dois, quem responde pelo movimento
+             é a rota — por isso a pergunta só aparece aqui. -->
+        <div class="fld" id="box-rota" style="display:none">
+          <label>O local que você tem em vista fica em rota de passagem?</label>
+          <div class="inp"><select id="f-rota">
+            <option value="">Selecione…</option>
+            <option value="rodovia">Sim, fica em rodovia ou corredor de tráfego</option>
+            <option value="comercial">Fica em área comercial movimentada</option>
+            <option value="naosei">Não sei estimar o movimento</option>
+          </select></div>
+        </div>
+
+        <!-- Substitui o par sim/não + o condicional "como pretende obter o ponto":
+             entre "já tenho" e "não tenho" existiam três estágios diferentes de venda,
+             e o binário jogava todos no mesmo balde. -->
         <div class="fld">
-          <label>Qual modelo de negócio você prefere?</label>
-          <div class="opt2">
-            <button type="button" class="optb" id="mod-turnkey" onclick="setModelo('turnkey')">Eletroposto completo (chave na mão)
-              <span class="sb">A gente faz tudo: projeto, homologação, obra e operação.</span></button>
-            <button type="button" class="optb" id="mod-consultoria" onclick="setModelo('consultoria')">Consultoria Completa
-              <span class="sb">Você executa e a gente conduz cada fase junto com você.</span></button>
-          </div>
+          <label>Como está o seu ponto hoje?</label>
+          <div class="inp"><select id="f-ponto">
+            <option value="">Selecione…</option>
+            <option value="definido">Já tenho o ponto definido</option>
+            <option value="negociando">Tenho um local em negociação com o proprietário</option>
+            <option value="em_vista">Tenho um local em vista, mas ainda não conversei</option>
+            <option value="sem_ideia">Não tenho ideia de onde instalar</option>
+          </select></div>
         </div>
 
         <div class="fld">
@@ -659,28 +702,34 @@
           <div class="inp"><select id="f-invest">
             <option value="">Selecione…</option>
             <option value="proprio">Recurso próprio</option>
-            <option value="proprio_cartao">Recurso próprio + cartão de crédito</option>
-            <option value="proprio_financiamento">Recurso próprio + financiamento</option>
-            <option value="cartao">Cartão de crédito</option>
-            <option value="financiamento">Financiamento total</option>
+            <option value="proprio_credito">Recurso próprio + cartão ou financiamento</option>
+            <option value="fin_aprovado">Financiamento — já tenho crédito pré-aprovado</option>
+            <option value="fin_cnpj">Financiamento — empresa com CNPJ e faturamento</option>
+            <option value="fin_banco">Financiamento — ainda não consultei o banco</option>
+            <option value="naosei">Ainda não sei como vou pagar</option>
           </select></div>
         </div>
 
         <div class="fld">
-          <label>Você já tem o ponto para instalar?</label>
-          <div class="opt2">
-            <button type="button" class="optb" id="pt-sim" onclick="setPonto('sim')">Já tenho o ponto</button>
-            <button type="button" class="optb" id="pt-nao" onclick="setPonto('nao')">Ainda não tenho</button>
-          </div>
+          <label>Quem decide o investimento?</label>
+          <div class="inp"><select id="f-decisor">
+            <option value="">Selecione…</option>
+            <option value="eu">Eu decido</option>
+            <option value="socio">Eu e meu sócio/cônjuge — participa da reunião</option>
+            <option value="terceiros">Preciso aprovar com terceiros</option>
+          </select></div>
         </div>
 
-        <div class="fld" id="box-semponto" style="display:none">
-          <label>Como pretende obter o ponto?</label>
-          <div class="inp"><select id="f-obter">
+        <!-- Não pontua: serve pro especialista chegar na reunião sabendo o tamanho do
+             risco de adequação elétrica (padrão de entrada, transformador dedicado). -->
+        <div class="fld">
+          <label>A entrada de energia do local é trifásica? <span class="hint">(ajuda a equipe a preparar o estudo)</span></label>
+          <div class="inp"><select id="f-trifasica">
             <option value="">Selecione…</option>
-            <option value="alugar">Pretendo alugar um local</option>
-            <option value="adquirir">Pretendo adquirir um local</option>
-            <option value="ajuda">Quero ajuda da equipe para encontrar o ponto</option>
+            <option value="sim">Sim</option>
+            <option value="nao">Não</option>
+            <option value="naosei">Não sei</option>
+            <option value="sem_local">Ainda não tenho local</option>
           </select></div>
         </div>
 
@@ -697,6 +746,9 @@
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
         <h3>Está marcado!</h3>
         <p id="ok-txt">—</p>
+        <!-- Só para quem ainda não tem o ponto definido: ajusta a expectativa antes da
+             reunião, senão o lead chega esperando orçamento e ouve "onde vai ser?". -->
+        <p id="ok-nota2" style="display:none">Como o seu ponto ainda não está definido, essa primeira conversa vai focar em encontrar e validar o melhor local para você. O orçamento vem depois, quando soubermos onde.</p>
 
         <div class="okCard">
           <div class="okRow">
@@ -723,6 +775,24 @@
         </div>
 
         <p class="okObs">Obrigado pela confiança. A gente se vê <span id="ok-dia">na reunião</span>!</p>
+      </div>
+
+      <!-- NOTA 1: não vê horário e não agenda. Não é recusa — é a etapa anterior.
+           Sem produto pago aqui: cobrar de quem ainda não sabe onde instalar é
+           vender estudo pra um endereço que não existe. -->
+      <div class="ok" id="ag-grupo">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <h3>Antes do orçamento, vem o ponto</h3>
+
+        <div class="grpTxt">
+          <p>Pelo que você respondeu, o próximo passo ainda não é o orçamento — é definir onde. Em um carregador de 80 kW, a infraestrutura elétrica e o fluxo do local mudam o resultado em <b>dezenas de milhares de reais</b>. Qualquer número que a gente te passasse agora seria chute.</p>
+          <p>Criamos um grupo para quem está nessa fase. Lá a gente publica os pontos que instalamos, o faturamento real de cada um, como avaliar um local e o caminho do financiamento. Quem tem local e quem tem capital também se encontram por lá.</p>
+        </div>
+
+        <div class="grpFree">Entrada gratuita</div>
+
+        <div><a class="btn" href="https://wa.me/5534998165040?text=Ol%C3%A1!%20Quero%20entrar%20no%20grupo%20do%20Eletroposto." target="_blank" rel="noopener" data-source="grupo_eletroposto" onclick="track('grupo_whatsapp')">Quero entrar no grupo →</a></div>
+        <button type="button" class="grpBack" onclick="voltarAoForm()">Já tenho um ponto definido — quero agendar</button>
       </div>
     </div>
   </section>
@@ -853,19 +923,33 @@ function params(){
     assinat:0, fixos:300, ocupIni:.5, mesesRampa:24,
   };
 }
-// Linha de carregadores. `max` = teto de carros/dia da configuração (limite físico de
-// atendimento); `invest` alimenta o cálculo mas NÃO é exibido — preço é assunto da reunião.
 // Linha de carregadores. `max` = teto FÍSICO de atendimento da configuração; `base` = fluxo
 // realista de partida (o PDF do estudo usa 10 carros/dia no 80 kW e chama 14 de "otimista",
 // então o slider abre no base — nunca no teto, que produziria payback irreal).
-// `invest` alimenta o cálculo mas NÃO é exibido: preço é assunto da reunião.
+//
+// `invest` AGORA É EXIBIDO (card "Investimento estimado") e é o MESMO número que alimenta o
+// cálculo — era essa a divergência: o 80 kW calculava sobre 180k enquanto o comercial pratica
+// 160k, e a LP anunciava "a partir de 85.000". Preço escondido virava pedido de preço
+// discriminado na reunião; preço divergente do cálculo quebra o estudo quando o cliente refaz
+// a conta. Os dois passam a ser o mesmo valor — se um mudar, o outro muda junto.
+// A entrada de 40 kW saiu: potência insuficiente pra recarga rápida competitiva e a âncora de
+// preço dela não bate com o ticket real.
+// Validado contra o estudo (31/07, 80 kW · 10 carros/dia · custo 0,70 · sem arrendamento):
+// 160k ⇒ lucro R$ 6.920/mês, margem 47,86%, payback 2,5 anos, ROI 391% — ao centavo.
 const CONFIGS = {
-  40:  { invest: 85000, bicos:1, max:10, base:5,  nota:'Porta de entrada — 1 bico, até 10 carros/dia.' },
-  60:  { invest:140000, bicos:2, max:20, base:8,  nota:'Dois bicos, até 20 carros/dia.' },
-  80:  { invest:180000, bicos:2, max:30, base:10, nota:'Recarga rápida e 2 bicos, até 30 carros/dia — é a que indicamos na maioria dos pontos.' },
-  120: { invest:220000, bicos:2, max:40, base:14, nota:'Ultrarrápido, até 40 carros/dia — para pontos de alto fluxo.' },
-  160: { invest:280000, bicos:2, max:50, base:18, nota:'Topo da linha, até 50 carros/dia — para grandes operações.' },
+  60:  { invest:120000, bicos:2, max:20, base:8,  nota:'Dois bicos, até 20 carros/dia.' },
+  80:  { invest:160000, bicos:2, max:30, base:10, nota:'Recarga rápida e 2 bicos, até 30 carros/dia — é a que indicamos na maioria dos pontos.' },
+  120: { invest:190000, bicos:2, max:40, base:14, nota:'Ultrarrápido, até 40 carros/dia — para pontos de alto fluxo.' },
+  160: { invest:220000, bicos:2, max:50, base:18, nota:'Topo da linha, até 50 carros/dia — para grandes operações.' },
 };
+// Faixa anunciada lá em cima = mínimo e máximo do CONFIGS, mais a recomendada.
+// Derivar em vez de repetir é o que impede a âncora de envelhecer sozinha.
+function pintarAncora(){
+  const vals = Object.values(CONFIGS).map(c => c.invest);
+  document.getElementById('anc-min').textContent = money(Math.min(...vals));
+  document.getElementById('anc-max').textContent = money(Math.max(...vals));
+  document.getElementById('anc-rec').textContent = money(CONFIGS[80].invest);
+}
 function setConfig(){
   const kw = document.getElementById('s-config').value;
   const c  = CONFIGS[kw];
@@ -879,6 +963,7 @@ function setConfig(){
 function calc(){
   const p = params(), r = compute(p);
   document.getElementById('s-carros-v').textContent = p.carros + ' carros/dia';
+  document.getElementById('k-inv').textContent = money(p.invest);
   document.getElementById('k-fat').textContent = money(r.fatMes);
   document.getElementById('k-luc').textContent = money(r.lucroMes);
   document.getElementById('k-pb').textContent  = r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—';
@@ -907,8 +992,6 @@ function calc(){
 // Fecha o que já passou, o que está a menos de 2h daqui e o que já está ocupado
 // na agenda do Thiago/Diego.
 let slotSel = null;
-let pontoSel = null;   // 'sim' | 'nao'
-let modeloSel = null;  // 'turnkey' | 'consultoria'
 let ocupados = new Set();   // ISO dos horários já tomados
 
 // Enquanto Thiago e Diego apresentam JUNTOS, 1 reunião por horário: se qualquer um
@@ -1040,22 +1123,42 @@ async function donoDoTelefone(tel){
   return null;
 }
 
-const MODELO_TXT = {
-  turnkey:    'Eletroposto completo (chave na mão)',
-  consultoria:'Consultoria completa',
+// ── Qualificação por pontuação ───────────────────────────────────────────────
+// O que qualifica é a combinação de TER ONDE e TER COM QUÊ. Um sozinho não fecha:
+// quem tem o ponto e não tem capital não compra, e quem tem capital e não sabe
+// onde instalar consome a reunião inteira procurando local — que é justamente o
+// que estava lotando a agenda do especialista.
+//
+// Máximo possível: 11 pts (perfil 3 + ponto 3 + investimento 3 + decisor 2).
+// A rota só entra pra investidor/outro, que valem 0 em perfil — o teto continua 11.
+const PESO_PERFIL = {
+  posto:3, mercado:3, estacionamento:3, hotel:3,          // fluxo próprio na porta
+  restaurante:2, academia:2, farmacia:2, condominio:2,    // fluxo menor, mas existe
+  investidor:0, outro:0,                                  // sem fluxo próprio → pergunta a rota
 };
-function setModelo(v){
-  modeloSel = v;
-  document.getElementById('mod-turnkey').classList.toggle('on', v === 'turnkey');
-  document.getElementById('mod-consultoria').classList.toggle('on', v === 'consultoria');
-  track('modelo_' + v);
+const PESO_PONTO   = { definido:3, negociando:2, em_vista:1, sem_ideia:0 };
+const PESO_INVEST  = { proprio:3, proprio_credito:3, fin_aprovado:2, fin_cnpj:2, fin_banco:1, naosei:0 };
+const PESO_DECISOR = { eu:2, socio:1, terceiros:0 };
+const PESO_ROTA    = { rodovia:2, comercial:1, naosei:0 };
+// Perfis sem fluxo próprio: são estes que abrem a pergunta da rota de passagem.
+const PERFIL_SEM_FLUXO = new Set(['investidor', 'outro']);
+
+function pontuar(f){
+  let pts = (PESO_PERFIL[f.perfil] || 0) + (PESO_PONTO[f.ponto] || 0)
+          + (PESO_INVEST[f.invest] || 0) + (PESO_DECISOR[f.decisor] || 0);
+  if(PERFIL_SEM_FLUXO.has(f.perfil)) pts += (PESO_ROTA[f.rota] || 0);
+  // Corte automático: sem ideia de onde instalar E sem ideia de como pagar não é
+  // reunião, some o que somar no resto. Sem esta regra um dono de posto que decide
+  // sozinho chega a 5 pts (= NOTA 2) sem ter ponto nem dinheiro.
+  const corte = f.ponto === 'sem_ideia' && f.invest === 'naosei';
+  const nota  = corte ? 1 : (pts >= 9 ? 3 : pts >= 5 ? 2 : 1);
+  return { pts, nota, corte };
 }
-function setPonto(v){
-  pontoSel = v;
-  document.getElementById('pt-sim').classList.toggle('on', v === 'sim');
-  document.getElementById('pt-nao').classList.toggle('on', v === 'nao');
-  document.getElementById('box-semponto').style.display = v === 'nao' ? '' : 'none';
-  track('ponto_' + v);
+
+// A rota de passagem só faz sentido pra quem não traz fluxo próprio.
+function onPerfil(){
+  const v = document.getElementById('f-perfil').value;
+  document.getElementById('box-rota').style.display = PERFIL_SEM_FLUXO.has(v) ? '' : 'none';
 }
 // Os 3 próximos dias COM atendimento, a partir de hoje (pula fim de semana, feriado,
 // qui/sex fora do transbordo e o dia que já não tem horário livre). É isto que faz o
@@ -1195,46 +1298,96 @@ async function agendar(){
   const numero  = document.getElementById('f-numero').value.trim();
   const bairro  = document.getElementById('f-bairro').value.trim();
   const compl   = document.getElementById('f-compl').value.trim();
-  const perfil  = document.getElementById('f-perfil').value;
-  const forma   = document.getElementById('f-invest').value;
   const btn     = document.getElementById('ag-btn');
 
-  const obter    = document.getElementById('f-obter').value;
+  const perfil  = document.getElementById('f-perfil');
+  const rota    = document.getElementById('f-rota');
+  const ponto   = document.getElementById('f-ponto');
+  const invest  = document.getElementById('f-invest');
+  const decisor = document.getElementById('f-decisor');
+  const trif    = document.getElementById('f-trifasica');
+  const txt     = el => (el.selectedOptions[0] || {}).text || '—';
 
-  if(!slotSel)            return erro('Escolha um horário acima.');
+  // A qualificação é validada ANTES do horário de propósito: quem cai em NOTA 1 não
+  // vai agendar, então não faz sentido cobrar dele a escolha de um slot primeiro.
   if(nome.length < 3)     return erro('Informe seu nome completo.');
   if(telRaw.length < 10)  return erro('Informe um WhatsApp válido com DDD.');
   if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
   if(rua.length < 3)      return erro('Informe a rua ou avenida do endereço.');
   if(!numero)             return erro('Informe o número do endereço.');
   if(bairro.length < 2)   return erro('Informe o bairro.');
-  if(!perfil)             return erro('Selecione seu perfil.');
-  if(!modeloSel)          return erro('Escolha o modelo de negócio que você prefere.');
-  if(!forma)              return erro('Informe como pretende investir.');
-  if(!pontoSel)           return erro('Informe se você já tem o ponto.');
-  if(pontoSel === 'nao' && !obter) return erro('Informe como pretende obter o ponto.');
+  if(!perfil.value)       return erro('Selecione seu perfil.');
+  if(PERFIL_SEM_FLUXO.has(perfil.value) && !rota.value)
+                          return erro('Informe se o local fica em rota de passagem.');
+  if(!ponto.value)        return erro('Informe como está o seu ponto hoje.');
+  if(!invest.value)       return erro('Informe como pretende investir.');
+  if(!decisor.value)      return erro('Informe quem decide o investimento.');
+  if(!trif.value)         return erro('Informe se a entrada de energia do local é trifásica.');
+
+  const q = pontuar({ perfil:perfil.value, rota:rota.value, ponto:ponto.value,
+                      invest:invest.value, decisor:decisor.value });
+
+  // NOTA 1 não vê horário e não grava ficha: o próximo passo dele é achar o ponto.
+  if(q.nota === 1){ mostrarGrupo(); return; }
+
+  if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');
 
   const p = params(), r = compute(p);
   const tel = '55' + telRaw;
   const kw  = document.getElementById('s-config').value;
+  const pontoDefinido = ponto.value === 'definido';
+  // Ponto na mão mas sem capital: é candidato a parceria com quem tem o dinheiro.
+  // Vale em QUALQUER nota — "não sei como pagar" vale 0, então esse lead quase nunca
+  // chega aos 9 pts da NOTA 3; se a marcação só valesse lá, nunca apareceria.
+  const pontoParaInvestidor = invest.value === 'naosei' && pontoDefinido;
   // endereço completo montado a partir dos campos (a ficha vai na observação)
   const endereco = [`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '', compl ? `ref.: ${compl}` : '']
     .filter(Boolean).join(' — ');
+  // Formato lido pelo alerta da equipe (api/src/routes/ioEletroposto.ts): cada rótulo
+  // aqui vira uma linha da mensagem no WhatsApp. Renomear rótulo = mexer lá também.
+  // A marcação do investidor vai sem acento de propósito, pra casar entre os arquivos.
   const obs = [
-    `LP ELETROPOSTO — ${perfil}`,
-    `Como pretende investir: ${document.getElementById('f-invest').selectedOptions[0].text}`,
-    `Endereço: ${endereco}${pontoSel === 'nao' ? ' (endereço do lead — ainda sem ponto)' : ''}`,
-    pontoSel === 'sim' ? `PONTO: já tem`
-                       : `PONTO: não tem — ${document.getElementById('f-obter').selectedOptions[0].text}`,
-    `Modelo: ${MODELO_TXT[modeloSel]}`,
+    `LP ELETROPOSTO — ${txt(perfil)}`,
+    `NOTA ${q.nota} · ${q.pts}/11 pts${q.corte ? ' (corte: sem ponto e sem capital)' : ''}`,
+    pontoParaInvestidor ? 'PONTO DISPONIVEL PARA INVESTIDOR' : '',
+    `Endereço: ${endereco}${pontoDefinido ? '' : ' (endereço do lead — ponto ainda não definido)'}`,
+    `Ponto: ${txt(ponto)}`,
+    PERFIL_SEM_FLUXO.has(perfil.value) ? `Rota de passagem: ${txt(rota)}` : '',
+    `Como pretende investir: ${txt(invest)}`,
+    `Decisor: ${txt(decisor)}`,
+    `Entrada trifásica: ${txt(trif)}`,
     `Simulou ${kw} kW com ${p.carros} carros/dia`,
+    `Investimento estimado: ${money(p.invest)}`,
     `→ payback ${r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—'} · lucro ${money(r.lucroMes)}/mês`,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   // Ficha pronta, mas NÃO gravada: quem grava é o "Sim" do portão de presença.
-  pendente = { nome, tel, cidade, forma, perfil, obs };
+  // A temperatura do CRM agora vem da nota (era da forma de pagamento, que mudou de
+  // valores — mantê-la no `forma` faria todo lead virar morno em silêncio).
+  pendente = { nome, tel, cidade, perfil:txt(perfil), obs,
+               temperatura: q.nota === 3 ? 'quente' : 'morno', pontoDefinido };
   document.getElementById('ag-msg').className = 'agMsg';   // limpa aviso de tentativa anterior
   abrirConfirma();
+}
+
+// ── Convite do grupo (NOTA 1) ────────────────────────────────────────────────
+function mostrarGrupo(){
+  document.getElementById('ag-msg').className = 'agMsg';
+  document.getElementById('ag-form').style.display = 'none';
+  const g = document.getElementById('ag-grupo');
+  g.style.display = 'block';
+  g.scrollIntoView({behavior:'smooth', block:'center'});
+  track('nota1_grupo');
+}
+// Saída de emergência: quem marcou errado volta e corrige a resposta do ponto —
+// é ela que decide a nota na esmagadora maioria dos casos.
+function voltarAoForm(){
+  document.getElementById('ag-grupo').style.display = 'none';
+  document.getElementById('ag-form').style.display = '';
+  track('grupo_voltar');
+  const f = document.getElementById('f-ponto');
+  f.scrollIntoView({behavior:'smooth', block:'center'});
+  f.focus();
 }
 
 // ── Portão de presença ───────────────────────────────────────────────────────
@@ -1288,7 +1441,7 @@ document.addEventListener('keydown', e => {
 
 async function gravarAgendamento(){
   if(!pendente || !slotSel) return;
-  const { nome, tel, cidade, forma, perfil, obs } = pendente;
+  const { nome, tel, cidade, perfil, obs, temperatura, pontoDefinido } = pendente;
   const btn = document.getElementById('ag-btn');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
@@ -1315,13 +1468,10 @@ async function gravarAgendamento(){
       cliente_telefone: tel,
       cidade:           cidade || null,
       status:           'agendado',
-      // Quem qualifica é o DINHEIRO — é ele que compra. Não ter o ponto ainda é venda
-      // mais longa, não lead ruim (a própria LP oferece ajuda pra achar o local).
-      // quente = tem recurso próprio na mão (fecha sem depender de ninguém aprovar)
-      // morno  = depende de crédito — banco ou limite de cartão — pra sair do papel.
-      // A pergunta virou COMO investe (não mais quanto), então não existe mais 'frio':
-      // quem responde qualquer uma dessas cinco já declarou como pretende pagar.
-      temperatura:      (forma === 'proprio' || forma === 'proprio_cartao') ? 'quente' : 'morno',
+      // Vem da pontuação, não de um campo só: quente = NOTA 3 (9-11 pts, tem onde,
+      // tem com quê e decide sozinho), morno = NOTA 2 (5-8, falta uma das pernas).
+      // 'frio' não aparece aqui porque NOTA 1 nem chega a gravar ficha — vai pro grupo.
+      temperatura,
       observacao:       obs,
       created_by:       'lp_eletroposto',
       src:              leadSrc(),   // ?src=ig (automação do IG) → EP Organic; sem src = EP Tráfego
@@ -1333,6 +1483,9 @@ async function gravarAgendamento(){
     const rot = rotuloSlot(slotSel);   // mesma formatação que o portão mostrou
     document.getElementById('ok-txt').textContent = `${rot.completo} — horário de Brasília`;
     document.getElementById('ok-dia').textContent = rot.diaSemana;
+    // O parágrafo fala do ponto indefinido — quem já tem o ponto e caiu em NOTA 2 por
+    // outro motivo (crédito, decisor) não pode ler que o dele "ainda não está definido".
+    document.getElementById('ok-nota2').style.display = pontoDefinido ? 'none' : 'block';
     // Avisa a equipe no WhatsApp na hora (fire-and-forget: se falhar, o lead já
     // está gravado no CRM — o alerta é conveniência, não pode derrubar o agendamento)
     fetch('/_api/io/eletroposto/alerta', {
@@ -1351,7 +1504,9 @@ async function gravarAgendamento(){
 }
 
 montarSlots();
-setConfig();   // aplica a config default (80 kW) e calcula
+setConfig();      // aplica a config default (80 kW) e calcula
+pintarAncora();   // faixa de investimento da seção de cima = min/max do CONFIGS
+onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bfcache)
 // a aba pode ficar aberta horas: ao voltar pra ela, refaz a agenda (horário que passou some)
 document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
 </script>
