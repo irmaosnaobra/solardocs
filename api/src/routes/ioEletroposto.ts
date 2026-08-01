@@ -41,22 +41,35 @@ function montarMensagem(a: any): string {
       })
     : 'sem horário';
 
-  // A observação já vem estruturada da LP: perfil, forma de investir, ponto,
-  // modelo de negócio e a simulação.
+  // A observação já vem estruturada da LP: perfil, nota, ponto, forma de investir,
+  // decisor, entrada trifásica e a simulação. Cada rótulo aqui é o mesmo string que a
+  // LP escreve em `obs` (dashboard/public/io/eletroposto/index.html) — renomear um lado
+  // sem o outro faz a linha virar "—" em silêncio.
   const obs: string[] = String(a.observacao || '').split('\n').filter(Boolean);
   const perfil = (obs[0] || '').replace('LP ELETROPOSTO — ', '') || '—';
   const linha = (rot: string) => obs.find(l => l.startsWith(rot))?.replace(rot, '').trim() || '—';
+  const tem = (rot: string) => obs.some(l => l.startsWith(rot));
 
-  // Reciclagem = eletroposto (a energia solar usa ☀️): dá pra saber a linha e a
-  // temperatura batendo o olho na notificação, sem abrir a mensagem.
+  // A nota (1-3) substitui os ♻️: ela carrega o que o consultor precisa decidir antes
+  // de abrir a agenda — prioridade, o que falta e quanto o lead pontuou.
+  // Vem da própria ficha (`NOTA 3 · 10/11 pts`); a temperatura é só o plano B, caso
+  // a linha não venha (ficha antiga ou formato mudado).
+  const m = String(a.observacao || '').match(/^NOTA ([123])\s*·\s*(\d+\/\d+ pts.*)$/m);
   const temp = String(a.temperatura || '').toLowerCase();
-  const REC: Record<string, string> = { quente: '♻️♻️♻️', morno: '♻️♻️', frio: '♻️' };
-  const NOME: Record<string, string> = { quente: '*LEAD QUENTE*', morno: '*Lead morno*', frio: '*Lead frio*' };
-  const selo = `${REC[temp] || '♻️'} ${NOME[temp] || '*Lead*'}`;
+  const nota = m ? Number(m[1]) : (temp === 'quente' ? 3 : temp === 'morno' ? 2 : 1);
+  const SELO: Record<number, string> = {
+    3: '🟢 *NOTA 3 — PRIORIDADE*',
+    2: '🟡 *NOTA 2 — DEFINIR PONTO*',
+    1: '🔴 *NOTA 1 — NUTRIÇÃO*',
+  };
+  const selo = `${SELO[nota] || SELO[1]}${m ? `  (${m[2]})` : ''}`;
+  // Tem onde instalar e não tem como pagar: o par que fecha com quem tem o contrário.
+  const paraInvestidor = tem('PONTO DISPONIVEL PARA INVESTIDOR');
 
   return [
     `*NOVA REUNIÃO — ELETROPOSTO*`,
     `${selo}`,
+    ...(paraInvestidor ? [`📍 *PONTO DISPONÍVEL PARA INVESTIDOR*`] : []),
     ``,
     `*Quando:* ${quando}`,
     `*Com:* ${a.vendedor_nome || '—'}`,
@@ -66,11 +79,15 @@ function montarMensagem(a: any): string {
     `*Cidade:* ${a.cidade || '—'}`,
     `*Endereço:* ${linha('Endereço:')}`,
     `*Perfil:* ${perfil}`,
-    `*Modelo:* ${linha('Modelo:')}`,
+    ...(tem('Rota de passagem:') ? [`*Rota de passagem:* ${linha('Rota de passagem:')}`] : []),
     ``,
+    `*Ponto:* ${linha('Ponto:')}`,
     `*Como pretende investir:* ${linha('Como pretende investir:')}`,
-    `*Ponto:* ${linha('PONTO:')}`,
+    `*Decisor:* ${linha('Decisor:')}`,
+    `*Entrada trifásica:* ${linha('Entrada trifásica:')}`,
+    ``,
     `*Simulou:* ${linha('Simulou')}`,
+    `*Investimento estimado:* ${linha('Investimento estimado:')}`,
     `*Resultado:* ${(obs.find(l => l.startsWith('→')) || '—').replace('→', '').trim()}`,
     ``,
     `_Veja no CRM: solardoc.app/gerador_`,
