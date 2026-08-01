@@ -125,6 +125,8 @@
   .mkc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 16px;text-align:center}
   .mkc .v{color:var(--neon-b);font-size:clamp(26px,3.6vw,34px);font-weight:900;letter-spacing:-1.4px;line-height:1}
   .mkc .l{color:var(--mut);font-size:12.5px;font-weight:700;margin-top:9px;line-height:1.35}
+  .mkFato{background:rgba(125,209,23,.1);border:1px solid rgba(125,209,23,.34);border-radius:14px;padding:15px 18px;margin-top:14px;color:var(--cream);font-size:14.5px;font-weight:600;line-height:1.5}
+  .mkFato b{color:var(--neon-b);font-weight:800}
   .mkFonte{color:rgba(247,251,242,.4);font-size:11.5px;font-weight:600;line-height:1.6;margin-top:14px}
 
   /* ===== vitrine do equipamento (foto em gradiente + texto) ===== */
@@ -566,14 +568,15 @@
     <h2>A frota cresce mais rápido que <span class="n">a rede de recarga</span></h2>
     <div class="sub" style="margin-bottom:26px">Não é opinião nossa — são os números do setor. Cada ponto instalado hoje atende uma demanda que só aumenta.</div>
     <div class="mk">
-      <div class="mkc"><div class="v">181.542</div><div class="l">carros plug-in vendidos em 2025</div></div>
-      <div class="mkc"><div class="v">+26%</div><div class="l">crescimento das vendas no ano</div></div>
+      <div class="mkc"><div class="v">167.026</div><div class="l">carros plug-in no 1º sem. de 2026</div></div>
+      <div class="mkc"><div class="v">17,6%</div><div class="l">dos carros novos vendidos já plugam na tomada</div></div>
       <div class="mkc"><div class="v">21.061</div><div class="l">eletropostos no país</div></div>
       <div class="mkc"><div class="v">+42%</div><div class="l">de postos em 12 meses</div></div>
       <div class="mkc"><div class="v">+167%</div><div class="l">crescimento da recarga rápida (DC)</div></div>
       <div class="mkc"><div class="v">1.649</div><div class="l">municípios já atendidos</div></div>
     </div>
-    <div class="mkFonte">A frota que recarrega em ponto público (elétricos + híbridos plug-in) cresce em ritmo acima da infraestrutura instalada. Fonte: ABVE (Associação Brasileira do Veículo Elétrico) e Tupi Mobilidade — dados de 2025 / fev. 2026.</div>
+    <div class="mkFato">Pela primeira vez na história, <b>três carros 100% elétricos entraram juntos no top 10 de vendas do Brasil</b> — BYD Song, BYD Dolphin Mini e Geely EX2.</div>
+    <div class="mkFonte">A frota que recarrega em ponto público (100% elétricos + híbridos plug-in) cresce em ritmo acima da infraestrutura instalada. No 1º semestre de 2026 foram 90.626 elétricos + 76.400 híbridos plug-in — quase todo o volume de 2025 em metade do tempo. O percentual é da 1ª quinzena de julho de 2026 e considera só quem pluga na tomada: híbrido comum fica de fora da conta. Fonte: ABVE (Associação Brasileira do Veículo Elétrico) e Tupi Mobilidade — dados de fev. a jul. de 2026.</div>
 
     <div class="showcase">
       <div class="scImg" role="img" aria-label="Carregador DC com display de carregamento"></div>
@@ -897,8 +900,9 @@ function calc(){
 
 // ===== AGENDA =====
 // Regras: 3 dias rolantes a partir de HOJE (hoje/amanhã/depois), pulando fim de
-// semana e feriado. Seg–Sex 13:00–17:00; slots de 30 min.
-// Fecha o que já passou e o que já está ocupado na agenda do Thiago/Diego.
+// semana e feriado. Seg–Sex 09:00–12:00 e 13:00–17:00; slots de 30 min.
+// Fecha o que já passou, o que está a menos de 2h daqui e o que já está ocupado
+// na agenda do Thiago/Diego.
 let slotSel = null;
 let pontoSel = null;   // 'sim' | 'nao'
 let modeloSel = null;  // 'turnkey' | 'consultoria'
@@ -931,7 +935,7 @@ function gradeDoDia(ymd){
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   if(dow === 0 || dow === 6) return [];                     // fim de semana: fechado
   if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
-  const faixas = [[13,17]];                                 // seg–sex: 13–17
+  const faixas = [[9,12],[13,17]];                          // seg–sex: 9–12 e 13–17
   const out = [];
   for(const [ini,fim] of faixas)
     for(let m = ini*60; m < fim*60; m += 30)
@@ -1035,12 +1039,19 @@ function proximosDias(){
   }
   return dias;
 }
-// Horários do dia que ainda dá pra marcar: tira o que passou (hoje) e o que está ocupado
+// Horários do dia que ainda dá pra marcar: tira o que já passou, o que está dentro
+// da antecedência mínima e o que está ocupado.
+// A reunião não é conversa: o especialista monta o estudo de viabilidade do ponto
+// ANTES de entrar na chamada. Sem folga, o lead que cai na LP às 8h55 marca 9h e o
+// consultor entra sem estudo — que é justamente o que a LP promete.
+// Compara em timestamp (não em texto "HH:MM") porque a folga atravessa a virada do dia.
+const ANTECEDENCIA_MIN_MS = 2 * 60 * 60 * 1000;   // 2h
 function livresDoDia(ymd){
-  const agora = partesBR();
+  const limite = Date.now() + ANTECEDENCIA_MIN_MS;
   return gradeDoDia(ymd).filter(h=>{
-    if(ymd === agora.ymd && h <= agora.hhmm) return false;   // já passou (sem antecedência mínima)
-    return !ocupados.has(isoDe(ymd, h));
+    const iso = isoDe(ymd, h);
+    if(new Date(iso).getTime() < limite) return false;   // passou ou é cedo demais
+    return !ocupados.has(iso);
   });
 }
 const rotuloDia = ymd => new Date(`${ymd}T12:00:00-03:00`)
