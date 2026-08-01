@@ -899,8 +899,11 @@ function calc(){
 }
 
 // ===== AGENDA =====
-// Regras: 3 dias rolantes a partir de HOJE (hoje/amanhã/depois), pulando fim de
-// semana e feriado. Seg–Sex 09:00–12:00 e 13:00–17:00; slots de 30 min.
+// Regras: só as manhãs de SEG, TER e QUA — 09:00 às 11:30, slots de 30 min.
+// Thiago e Diego apresentam JUNTOS: concentrar a semana em 3 manhãs vale mais
+// que espalhar reunião por 5 dias. QUI e SEX são transbordo, não grade fixa:
+// quinta só abre quando a segunda da mesma semana lota, sexta quando a terça lota.
+// A vitrine mostra 3 dias rolantes — o dia que lota sai e o próximo entra.
 // Fecha o que já passou, o que está a menos de 2h daqui e o que já está ocupado
 // na agenda do Thiago/Diego.
 let slotSel = null;
@@ -930,17 +933,45 @@ function partesBR(d = new Date()){
 }
 const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 
-// Grade do dia conforme o dia da semana (0=dom … 6=sáb)
-function gradeDoDia(ymd){
-  const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
-  if(dow === 0 || dow === 6) return [];                     // fim de semana: fechado
-  if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
-  const faixas = [[9,12],[13,17]];                          // seg–sex: 9–12 e 13–17
+// Manhã de 09:00 a 11:30 — os 6 horários que a operação abriu.
+const FAIXAS = [[9,12]];
+function horariosDaManha(){
   const out = [];
-  for(const [ini,fim] of faixas)
+  for(const [ini,fim] of FAIXAS)
     for(let m = ini*60; m < fim*60; m += 30)
       out.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
   return out;
+}
+
+// Dias que a agenda abre (0=dom … 6=sáb). Seg/ter/qua são fixos; qui e sex são
+// transbordo e ficam fechados até o dia-gatilho da MESMA semana lotar.
+const DIAS_FIXOS  = new Set([1, 2, 3]);          // seg, ter, qua
+const TRANSBORDO  = { 4: 1, 5: 2 };              // qui ← seg lotada · sex ← ter lotada
+
+// O ymd do dia-alvo dentro da MESMA semana (segunda a sexta). Só é chamado com
+// alvo ANTERIOR ao dia em questão (qui→seg, sex→ter), então nunca pula de semana.
+function mesmaSemana(ymd, alvoDow){
+  const d = new Date(`${ymd}T12:00:00-03:00`);
+  return partesBR(new Date(d.getTime() + (alvoDow - d.getUTCDay()) * 86400000)).ymd;
+}
+
+// "Lotado" = dia que ainda vai acontecer e não tem mais nenhum horário pra marcar.
+// Dia que JÁ PASSOU não conta: senão a quinta e a sexta da semana corrente abririam
+// sozinhas assim que a segunda virasse passado — o oposto de concentrar a semana.
+function diaLotado(ymd){
+  if(ymd < partesBR().ymd) return false;
+  return livresDoDia(ymd).length === 0;
+}
+
+// Grade do dia. Sem recursão: só qui/sex consultam outro dia, e consultam seg/ter,
+// que são fixos e nunca voltam a perguntar.
+function gradeDoDia(ymd){
+  const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
+  if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
+  if(DIAS_FIXOS.has(dow)) return horariosDaManha();         // seg/ter/qua: sempre
+  const gatilho = TRANSBORDO[dow];                          // qui/sex: só no transbordo
+  if(gatilho === undefined) return [];                      // sáb/dom: fechado
+  return diaLotado(mesmaSemana(ymd, gatilho)) ? horariosDaManha() : [];
 }
 
 // Busca o que já está ocupado na agenda do Thiago/Diego na janela exibida.
@@ -1026,8 +1057,10 @@ function setPonto(v){
   document.getElementById('box-semponto').style.display = v === 'nao' ? '' : 'none';
   track('ponto_' + v);
 }
-// Os 3 próximos dias COM atendimento, a partir de hoje (pula domingo/feriado e o dia
-// que já não tem horário livre). Ex: numa sexta à tarde → sex, seg, ter.
+// Os 3 próximos dias COM atendimento, a partir de hoje (pula fim de semana, feriado,
+// qui/sex fora do transbordo e o dia que já não tem horário livre). É isto que faz o
+// "lotou a segunda, abre a quinta": a segunda cheia some da vitrine e o próximo dia
+// aberto entra no lugar dela. Ex: numa quinta → seg, ter, qua da semana que vem.
 function proximosDias(){
   const hoje = partesBR().ymd;
   const dias = [];
@@ -1060,9 +1093,12 @@ const rotuloDia = ymd => new Date(`${ymd}T12:00:00-03:00`)
 async function montarSlots(){
   const el = document.getElementById('slots');
   el.innerHTML = '<div class="agLoad">Carregando horários…</div>';
-  // janela ampla p/ buscar ocupados de uma vez (3 dias úteis podem cair em até ~10 dias)
+  // Janela ampla p/ buscar ocupados de uma vez. Tem que cobrir os mesmos 21 dias que
+  // o proximosDias() varre: só seg/ter/qua abrem, então numa quinta os 3 dias já caem
+  // na semana seguinte — e com feriado no meio, na outra. Janela curta = dia sem
+  // ocupação carregada = horário já vendido aparecendo livre.
   const hoje = partesBR().ymd;
-  const ate  = partesBR(new Date(Date.now() + 12*86400000)).ymd;
+  const ate  = partesBR(new Date(Date.now() + 21*86400000)).ymd;
   await carregarOcupados(hoje, ate);
 
   const dias = proximosDias();
