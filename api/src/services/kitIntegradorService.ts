@@ -23,10 +23,14 @@ import { sendKitAcessoEmail, sendOpsAlert } from '../utils/mailer';
 export const KIT_BUMP_TRIAL_DIAS = 30;
 
 /** Itens que o comprador pode ter. `kit` = produto principal.
- *  Só existe UM bump: 30 dias de VIP. O "Kit de Prospecção" que era o bump 2
- *  virou o módulo 5 do curso (já está incluso nos R$27) — vendê-lo à parte seria
- *  cobrar duas vezes pela mesma coisa. */
-export type ItemKit = 'kit' | 'bump_vip';
+ *  O "Kit de Prospecção" que era o bump 2 virou o módulo 5 do curso (já está
+ *  incluso nos R$27) — vendê-lo à parte seria cobrar duas vezes pela mesma coisa.
+ *
+ *  Dois bumps de acesso convivem, e a diferença NÃO é cosmética:
+ *  - `bump_vip`    — trial de 30 dias (legado). Carimba pack_trial_until.
+ *  - `entrada_30d` — "SolarDoc - 30 dias", R$19 PAGO. Acesso completo comprado,
+ *                    não trial. Carimba plano_expira_em (ver concederEntrada30Dias). */
+export type ItemKit = 'kit' | 'bump_vip' | 'entrada_30d';
 
 // ── Identificação do produto ────────────────────────────────────────────────
 // Preferência: IDs de produto da Kiwify via env (exato, à prova de renomeação).
@@ -43,6 +47,13 @@ const RE_KIT = /kit\s*(de\s*)?fechamento|fechamento\s*(do\s*)?integrador/i;
 // 'solar\s*doc' aceita "SolarDoc VIP" e "Solar Doc VIP" — o nome é digitado à
 // mão no painel da Kiwify, e um espaço a mais deixaria o comprador sem o trial.
 const RE_BUMP_VIP = /30\s*dias.*vip|vip.*30\s*dias|solar\s*doc\s*vip|acesso\s*vip|vip\s*30/i;
+// "SolarDoc - 30 dias" (R$19) — o bump ATUAL do checkout do kit. Em 01/ago/2026 o
+// produto foi renomeado na Kiwify e perdeu o "VIP": a RE_BUMP_VIP parou de casar,
+// classificarProdutoKit passou a devolver null e o pedido pago sumia sem virar
+// acesso (1 comprador atingido, grilosolar@gmail.com, corrigido na mão).
+// Exige 'solardoc' COLADO em '30 dias' (só separadores no meio) pra não engolir
+// produto de outro funil que por acaso venda "30 dias".
+const RE_ENTRADA_30D = /solar\s*doc\s*[-–—:]*\s*30\s*dias/i;
 
 /** Classifica o produto de um evento da Kiwify. null = não é do kit. */
 export function classificarProdutoKit(
@@ -53,10 +64,14 @@ export function classificarProdutoKit(
   if (id) {
     if (idsDoEnv('KIT_KIWIFY_PRODUCT_IDS').includes(id)) return 'kit';
     if (idsDoEnv('KIT_KIWIFY_BUMP_VIP_IDS').includes(id)) return 'bump_vip';
+    if (idsDoEnv('KIT_KIWIFY_ENTRADA_30D_IDS').includes(id)) return 'entrada_30d';
   }
   const nome = (productName || '').trim();
   if (!nome) return null;
+  // VIP primeiro: "SolarDoc VIP — 30 dias" é o bump legado e não pode cair na
+  // entrada (que é compra paga, com colunas diferentes).
   if (RE_BUMP_VIP.test(nome)) return 'bump_vip';
+  if (RE_ENTRADA_30D.test(nome)) return 'entrada_30d';
   if (RE_KIT.test(nome)) return 'kit';
   return null;
 }
@@ -166,7 +181,10 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
     telefone: evt.telefone,
     produto: evt.produto,
     itens: [evt.item],
-    bump_vip: evt.item === 'bump_vip',
+    // Coluna do FUNIL: "este pedido foi o order bump do checkout do kit". Os dois
+    // itens de acesso entram, senão a taxa de attach do bump ficaria zerada desde
+    // que o produto virou "SolarDoc - 30 dias".
+    bump_vip: evt.item === 'bump_vip' || evt.item === 'entrada_30d',
     bump_prospeccao: false, // coluna legada: o bump de prospecção deixou de existir
     valor: evt.valorCentavos != null ? evt.valorCentavos / 100 : 0,
     status: statusGravado,
@@ -196,12 +214,17 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
     // carimbo — quem tiver assinatura de verdade é restaurado pelo stripeSync.
     const revogar = /refund|chargeback/.test(String(evt.status));
     if (revogar && pedidoExistente?.trial_vip_ate && pedidoExistente.user_id) {
+      // Cada item carimba uma coluna diferente, então a revogação tem que bater
+      // com a concessão: entrada_30d vive em plano_expira_em, o bump legado em
+      // pack_trial_until. Zerar a coluna basta — o stripeSync rebaixa na sequência
+      // (e restaura quem tiver assinatura de verdade).
+      const coluna = evt.item === 'entrada_30d' ? 'plano_expira_em' : 'pack_trial_until';
       await supabase
         .from('users')
-        .update({ pack_trial_until: null })
+        .update({ [coluna]: null })
         .eq('id', pedidoExistente.user_id)
-        .gt('pack_trial_until', new Date().toISOString());
-      console.info(`[kit] trial revogado por ${evt.status} · pedido ${evt.orderId}`);
+        .gt(coluna, new Date().toISOString());
+      console.info(`[kit] acesso revogado por ${evt.status} (${coluna}) · pedido ${evt.orderId}`);
     }
     return { ok: true, acao: 'registrado', detalhe: `status ${evt.status}` };
   }
@@ -242,20 +265,33 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
     }
   }
 
+  // 3b) Entrada de 30 dias ("SolarDoc - 30 dias", R$19). NÃO é trial: é acesso
+  //     completo COMPRADO, e por isso não passa por concederTrialVip.
+  let acessoAte: Date | null = null;
+  if (evt.item === 'entrada_30d' && !jaConcedeuNessePedido) {
+    acessoAte = await concederEntrada30Dias(userId, email);
+    if (acessoAte) bumpAplicado = true;
+  }
+
   // 4) E-mail de acesso — o gate é o CARIMBO, não "o pedido é novo". No Pix a
   //    Kiwify manda dois webhooks (waiting_payment e depois paid): quando o pago
   //    chega, o pedido JÁ existe. Gatear por "pedido novo" deixaria quem paga no
   //    Pix — 80% da receita — sem receber o link de acesso. Bump em pedido
   //    separado também não dispara e-mail (só o produto principal manda).
+  // A entrada também manda, mas SÓ quando a conta acabou de nascer neste pedido:
+  // é o caso de quem compra os 30 dias sem o kit (checkout próprio) e ficaria sem
+  // nenhum link de acesso. No fluxo normal (bump em cima do kit) a conta já existe
+  // quando a entrada chega, então contaCriada é false e quem manda é o kit — sem
+  // e-mail duplicado.
   const jaMandouEmail = !!pedidoExistente?.acesso_email_em;
   let emailEnviadoAgora = false;
-  if (!jaMandouEmail && evt.item === 'kit') {
+  if (!jaMandouEmail && (evt.item === 'kit' || (evt.item === 'entrada_30d' && contaCriada))) {
     try {
       await sendKitAcessoEmail({
         to: email,
         nome: evt.nome,
         resetUrl,
-        comVip: trialVip,
+        comVip: trialVip || acessoAte !== null,
         dias: KIT_BUMP_TRIAL_DIAS,
       });
       emailEnviadoAgora = true;
@@ -289,9 +325,13 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
       conta_criada: contaCriada,
       segmento,
       ...(bumpAplicado !== null ? { bump_aplicado: bumpAplicado } : {}),
+      // trial_vip_ate é o carimbo de "este pedido já concedeu, até quando" — vale
+      // para os dois bumps e é o que segura a idempotência (jaConcedeuNessePedido).
       ...(trialVip
         ? { trial_vip_ate: new Date(Date.now() + KIT_BUMP_TRIAL_DIAS * 86400_000).toISOString() }
-        : {}),
+        : acessoAte
+          ? { trial_vip_ate: acessoAte.toISOString() }
+          : {}),
       ...(emailEnviadoAgora ? { acesso_email_em: new Date().toISOString() } : {}),
       atualizado_em: new Date().toISOString(),
     })
@@ -432,6 +472,68 @@ async function concederTrialVip(userId: string): Promise<ResultadoTrial> {
     return { aplicado: false, motivo: 'erro' };
   }
   return { aplicado: true, motivo: 'ok' };
+}
+
+// ── Entrada de 30 dias ("SolarDoc - 30 dias", R$19) ─────────────────────────
+// Espelha `liberarAcessoPix` (pixComprovanteService.ts:145) — que é a função
+// CANÔNICA de "acesso pago liberado" e trata o MESMO valor de R$19 quando o Pix
+// vem manual pelo WhatsApp (PLANO_POR_VALOR[19] = ilimitado/999999). Duplicamos
+// as colunas em vez de importar porque pixComprovanteService já importa daqui
+// (concederCursoPorAssinatura) e o import de volta fecharia um ciclo.
+//
+// Por que plano_expira_em e NÃO pack_trial_until (que é o que o bump legado usa):
+// stripeSyncService.ts:130-141 pega quem tem pack_trial_until vigente e FORÇA
+// pro/90 — o comprador pagaria por acesso completo e acordaria no PRO na próxima
+// rodada do sync. O ramo do plano_expira_em (linha 147) só faz `continue`, então
+// o 'ilimitado' sobrevive. O vencimento continua automático: passada a data,
+// pixAccessActive vira false, realPlano cai pra 'free' (linha 155) e o sync
+// rebaixa sozinho.
+const ENTRADA_30D_DIAS = 30;
+
+async function concederEntrada30Dias(userId: string, email: string): Promise<Date | null> {
+  const ate = new Date(Date.now() + ENTRADA_30D_DIAS * 86400_000);
+
+  const { data: atual } = await supabase
+    .from('users')
+    .select('plano_expira_em')
+    .eq('id', userId)
+    .maybeSingle();
+
+  // Já tem acesso pago em curso (renovação Pix, ou comprou a entrada duas vezes):
+  // empilha em cima do que resta em vez de encurtar. Mesma regra do liberarAcessoPix.
+  const atualExpira = (atual as { plano_expira_em?: string | null } | null)?.plano_expira_em;
+  const base = atualExpira && new Date(atualExpira).getTime() > Date.now()
+    ? new Date(new Date(atualExpira).getTime() + ENTRADA_30D_DIAS * 86400_000)
+    : ate;
+
+  const { error } = await supabase
+    .from('users')
+    .update({
+      plano: 'ilimitado',
+      limite_documentos: 999999,
+      documentos_usados: 0,
+      billing_status: 'active',
+      plano_expira_em: base.toISOString(),
+    })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('[kit] concessão da entrada de 30 dias falhou:', error);
+    return null;
+  }
+
+  // O produto vendido é "curso + 30 dias de plataforma" (cursoEntradaBroadcast.ts:114).
+  // Desde 30/jul/2026 o plano sozinho não abre mais o curso — quem abre é a linha
+  // paga em kit_pedidos. Sem isto, quem leva só a entrada (sem o kit de R$27) paga
+  // pelo curso e bate no cadeado.
+  try {
+    await concederCursoPorAssinatura(userId, email);
+  } catch (err) {
+    console.error('[kit] curso da entrada de 30 dias falhou (acesso já liberado):', err);
+  }
+
+  console.info(`[kit] entrada de 30 dias liberada · ${email} · até ${base.toISOString()}`);
+  return base;
 }
 
 // ── Concessão do curso pela oferta "VIP com o curso junto" ──────────────────

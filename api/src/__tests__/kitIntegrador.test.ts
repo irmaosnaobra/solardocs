@@ -271,6 +271,71 @@ describe('processarEventoKit — compra do kit', () => {
   });
 });
 
+// ── Entrada de 30 dias ("SolarDoc - 30 dias", R$19) ─────────────────────────
+// Em 01/ago/2026 o produto foi renomeado na Kiwify e perdeu o "VIP":
+// classificarProdutoKit passou a devolver null, o pedido PAGO nunca chegou em
+// processarEventoKit e o comprador ficou no plano free. Estes testes travam as
+// DUAS metades do conserto — reconhecer o produto, e conceder na coluna certa.
+describe('processarEventoKit — entrada de 30 dias (R$19)', () => {
+  const entrada = (over: Partial<EventoKit> = {}) => evento({
+    orderId: 'ORDER-19', item: 'entrada_30d', produto: 'SolarDoc - 30 dias',
+    valorCentavos: 1900, ...over,
+  });
+
+  it('reconhece o nome atual do produto, sem "VIP"', () => {
+    expect(classificarProdutoKit('SolarDoc - 30 dias', null)).toBe('entrada_30d');
+    expect(classificarProdutoKit('SolarDoc 30 dias', null)).toBe('entrada_30d');
+    expect(classificarProdutoKit('Solar Doc — 30 dias', null)).toBe('entrada_30d');
+  });
+
+  it('o bump legado continua caindo em bump_vip — as colunas são outras', () => {
+    expect(classificarProdutoKit('SolarDoc VIP — 30 dias', null)).toBe('bump_vip');
+  });
+
+  it('não engole produto de outro funil que por acaso venda "30 dias"', () => {
+    expect(classificarProdutoKit('Limpa Solar Pro', null)).toBeNull();
+    expect(classificarProdutoKit('Comunidade +Sol — 30 dias', null)).toBeNull();
+  });
+
+  it('libera acesso completo em plano_expira_em — NUNCA em pack_trial_until', async () => {
+    await processarEventoKit(evento());
+    await processarEventoKit(entrada());
+
+    const user = db.users[0];
+    expect(user.plano).toBe('ilimitado');
+    expect(user.limite_documentos).toBe(999999);
+    expect(user.billing_status).toBe('active');
+    // O CORAÇÃO do teste: com pack_trial_until o stripeSyncService (linha 130-141)
+    // força pro/90 na rodada seguinte — o cara paga por acesso completo e acorda
+    // no PRO. Se alguém "simplificar" isto de volta pro concederTrialVip, quebra aqui.
+    expect(user.pack_trial_until ?? null).toBeNull();
+    const dias = Math.round((new Date(user.plano_expira_em).getTime() - Date.now()) / 86400000);
+    expect(dias).toBe(30);
+  });
+
+  it('entrega o curso junto — o produto é "curso + 30 dias", não só plataforma', async () => {
+    await processarEventoKit(entrada());
+    const acesso = await acessoDoUsuario(db.users[0].id, EMAIL);
+    expect(acesso.temKit).toBe(true);
+  });
+
+  it('reentrega da Kiwify NÃO estende o acesso', async () => {
+    await processarEventoKit(entrada());
+    const validade = db.users[0].plano_expira_em;
+
+    await processarEventoKit(entrada());
+    expect(db.users[0].plano_expira_em).toBe(validade);
+  });
+
+  it('reembolso revoga o acesso pago, não o carimbo do trial legado', async () => {
+    await processarEventoKit(entrada());
+    expect(db.users[0].plano_expira_em).toBeTruthy();
+
+    await processarEventoKit(entrada({ status: 'refunded' }));
+    expect(db.users[0].plano_expira_em).toBeNull();
+  });
+});
+
 describe('processarEventoKit — bump do VIP', () => {
   it('concede 30 dias de ilimitado', async () => {
     await processarEventoKit(evento());

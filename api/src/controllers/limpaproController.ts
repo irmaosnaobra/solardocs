@@ -228,6 +228,28 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // ── REDE DE SEGURANÇA: produto do SolarDoc que não foi reconhecido ──
+    // Foi exatamente assim que se perdeu uma venda: "SolarDoc VIP — 30 dias" virou
+    // "SolarDoc - 30 dias" na Kiwify, a regex parou de casar, o pedido PAGO caiu
+    // aqui e virou linha em limpapro_events que ninguém lê. Um produto com
+    // "SolarDoc" no nome que não classificou como item do kit é dinheiro sem
+    // destino — grita em vez de sumir no log. Só em pedido PAGO: waiting_payment e
+    // abandono não acordam ninguém.
+    if (status === 'paid' && /solar\s*doc/i.test(nomeProduto || '')) {
+      console.error(`[kiwify] PAGO e não classificado: "${nomeProduto}" (${idProduto}) · ${emailComprador}`);
+      sendOpsAlert(
+        'Kiwify: venda SolarDoc paga que o sistema não reconheceu',
+        `Pedido ${orderId} de ${emailComprador || '(sem email)'} foi PAGO e o produto ` +
+        `"${nomeProduto}" (product_id ${idProduto}) não casou com nenhum item do kit.\n\n` +
+        `Ele NÃO recebeu acesso. Isso acontece quando o produto é renomeado na Kiwify ` +
+        `e o nome deixa de bater com as regex do classificarProdutoKit.\n\n` +
+        `Conserto definitivo: põe o product_id na env var certa (KIT_KIWIFY_PRODUCT_IDS, ` +
+        `KIT_KIWIFY_BUMP_VIP_IDS ou KIT_KIWIFY_ENTRADA_30D_IDS) — o ID não muda quando ` +
+        `alguém renomeia o produto.\n\n` +
+        `Enquanto isso, libera o acesso na mão pelo /admin.`,
+      ).catch(() => {});
+    }
+
     const row = {
       event_type:   'purchase',
       order_id:     orderId,
