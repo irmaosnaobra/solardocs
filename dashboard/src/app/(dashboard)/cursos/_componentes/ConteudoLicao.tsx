@@ -3,6 +3,7 @@
 // Renderiza o conteúdo de UMA lição a partir do id ('modulo:licao').
 // O texto vem dos arquivos de _conteudo — este componente só decide o formato.
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Building2, Calculator } from 'lucide-react';
 import styles from '../curso.module.css';
@@ -28,8 +29,8 @@ export default function ConteudoLicao({ id }: { id: string }) {
             <p className={styles.gatilho}>&ldquo;{o.gatilho}&rdquo;</p>
             <Bloco rotulo="O que ele quer dizer" texto={o.traducao} />
             <Bloco rotulo="Erro comum" texto={o.erro} tom="erro" />
-            <Destaque rotulo="Fala pronta" texto={o.script} />
-            <Destaque rotulo="No WhatsApp" texto={o.whatsapp} tom="zap" />
+            <Destaque rotulo="Fala pronta" texto={o.script} copiar />
+            <Destaque rotulo="No WhatsApp" texto={o.whatsapp} tom="zap" copiar />
           </article>
         ))}
       </div>
@@ -322,15 +323,29 @@ function Bloco({ rotulo, texto, tom }: { rotulo: string; texto: string; tom?: 'e
 function Destaque({
   rotulo, texto, tom, copiar,
 }: { rotulo: string; texto: string; tom?: 'zap'; copiar?: boolean }) {
+  // O aviso de "copiado" não é enfeite: o integrador está com o cliente esperando
+  // resposta. Sem retorno na tela ele clica de novo, não sabe se pegou, e cola
+  // duas vezes no WhatsApp.
+  const [copiado, setCopiado] = useState(false);
+
   function copiarTexto() {
-    navigator.clipboard?.writeText(texto).catch(() => {});
+    navigator.clipboard?.writeText(texto).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    }).catch(() => {});
   }
   return (
     <div className={tom === 'zap' ? styles.zap : styles.script}>
       <div className={styles.destaqueTopo}>
         <span className={tom === 'zap' ? styles.rotuloZap : styles.rotuloScript}>{rotulo}</span>
         {copiar && (
-          <button className={styles.btnCopiar} onClick={copiarTexto} type="button">copiar</button>
+          <button
+            className={copiado ? `${styles.btnCopiar} ${styles.btnCopiado}` : styles.btnCopiar}
+            onClick={copiarTexto}
+            type="button"
+          >
+            {copiado ? 'copiado!' : 'copiar'}
+          </button>
         )}
       </div>
       <p className={styles.destaqueTexto}>{texto}</p>
