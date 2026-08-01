@@ -1,6 +1,8 @@
 # Mensagem de realinhamento — 14 leads
 
-**Liberado para sair hoje (sábado 01/08).**
+**ENVIADA em 01/08/2026 (sábado).** Os 14 + Breno (id 658) receberam as 8 bolhas pela linha
+Irmãos na Obra; os 2 avisos de horário (Rafael e Denilson) saíram antes de tudo, como manda a
+seção abaixo. Nada aqui está pendente — mantido como referência da copy.
 
 **A mensagem não dispensa ninguém — ela convida.** Reescrita em 01/08 a pedido do Thiago:
 começa pela janela de mercado, o grupo é a oferta, e o horário liberado só aparece na

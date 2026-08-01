@@ -800,7 +800,12 @@
 
         <div class="grpFree">Entrada gratuita</div>
 
-        <div><a class="btn" href="https://wa.me/5534998165040?text=Ol%C3%A1!%20Quero%20entrar%20no%20grupo%20do%20Eletroposto." target="_blank" rel="noopener" data-source="grupo_eletroposto" onclick="track('grupo_whatsapp')">Quero entrar no grupo →</a></div>
+        <!-- Link do grupo, não wa.me: um clique e ele já está dentro. O wa.me obrigava
+             mandar mensagem e esperar alguém responder — os dois primeiros esperaram 3h
+             e 6h. O convite também sai no WhatsApp dele automaticamente (endpoint
+             /io/eletroposto/nota1), então quem fechar a página sem clicar não se perde. -->
+        <div><a class="btn" href="https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M" target="_blank" rel="noopener" data-source="grupo_eletroposto" onclick="track('grupo_entrar')">Entrar no grupo agora →</a></div>
+        <p class="grpTxt" style="margin-top:10px;font-size:14px;opacity:.85">Também acabamos de te mandar o convite no WhatsApp.</p>
         <button type="button" class="grpBack" onclick="voltarAoForm()">Já tenho um ponto definido — quero agendar</button>
       </div>
     </div>
@@ -1158,10 +1163,12 @@ function pontuar(f){
   let pts = (PESO_PERFIL[f.perfil] || 0) + (PESO_PONTO[f.ponto] || 0)
           + (PESO_INVEST[f.invest] || 0) + (PESO_DECISOR[f.decisor] || 0);
   if(PERFIL_SEM_FLUXO.has(f.perfil)) pts += (PESO_ROTA[f.rota] || 0);
-  // Corte automático: sem ideia de onde instalar E sem ideia de como pagar não é
-  // reunião, some o que somar no resto. Sem esta regra um dono de posto que decide
-  // sozinho chega a 5 pts (= NOTA 2) sem ter ponto nem dinheiro.
-  const corte = f.ponto === 'sem_ideia' && f.invest === 'naosei';
+  // Corte automático (régua de 01/08): sem local definido não é reunião, some o que
+  // somar no resto — sem endereço não há o que orçar, estudar nem dimensionar.
+  // Quem tem capital e não tem onde é investidor, e o lugar dele é o grupo: é lá que
+  // ele encontra o ponto. Até 01/08 o corte exigia TAMBÉM não ter dinheiro, e por
+  // isso um investidor sem local marcava reunião com 6 pts (= NOTA 2).
+  const corte = f.ponto === 'sem_ideia';
   const nota  = corte ? 1 : (pts >= 9 ? 3 : pts >= 5 ? 2 : 1);
   return { pts, nota, corte };
 }
@@ -1350,8 +1357,34 @@ async function agendar(){
   const q = pontuar({ perfil:perfil.value, rota:rota.value, ponto:ponto.value,
                       invest:invest.value, decisor:decisor.value });
 
-  // NOTA 1 não vê horário e não grava ficha: o próximo passo dele é achar o ponto.
-  if(q.nota === 1){ mostrarGrupo(); return; }
+  // NOTA 1 não vê horário: o próximo passo dele é achar o ponto, não o orçamento.
+  // Mas a ficha VAI pro banco (`eletroposto_nota1`) e o convite do grupo sai sozinho
+  // no WhatsApp dele — até 01/08 nada disso era gravado, e quem não clicasse no botão
+  // sumia sem deixar rastro. O envio é fire-and-forget: a tela do grupo não espera.
+  if(q.nota === 1){
+    try {
+      fetch('/_api/io/eletroposto/nota1', {
+        method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
+        body: JSON.stringify({
+          nome, telefone:'55'+telRaw, cidade,
+          endereco: [`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '', compl ? `ref.: ${compl}` : '']
+            .filter(Boolean).join(' — '),
+          perfil: perfilTexto(perfil), ponto: txt(ponto), invest: txt(invest),
+          decisor: txt(decisor), rota: PERFIL_SEM_FLUXO.has(perfil.value) ? txt(rota) : '',
+          trifasica: txt(trif), pts: q.pts,
+          ficha: [
+            `LP ELETROPOSTO — ${perfilTexto(perfil)}`,
+            `NOTA 1 · ${q.pts}/11 pts (sem local definido)`,
+            `Ponto: ${txt(ponto)}`,
+            `Como pretende investir: ${txt(invest)}`,
+            `Decisor: ${txt(decisor)}`,
+            `Entrada trifásica: ${txt(trif)}`,
+          ].join('\n'),
+        }),
+      }).catch(()=>{});
+    } catch(_){}
+    mostrarGrupo(); return;
+  }
 
   if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');
 

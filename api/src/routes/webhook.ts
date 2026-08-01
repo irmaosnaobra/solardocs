@@ -3,6 +3,8 @@ import { handleIncomingWhatsApp } from '../services/agents/whatsapp/whatsappAgen
 import { handleSdrLead, tryClaimMessage } from '../services/agents/sdr/sdrAgentService';
 import { handleGroupMessage } from '../services/agents/sdr/sdrGroupAgent';
 import { supabase } from '../utils/supabase';
+import { supabaseGerador } from '../utils/supabaseGerador';
+import { EQUIPE } from './ioEletroposto';
 import { transcribeAudio, downloadImageAsAnthropicSource } from '../utils/mediaProcessor';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { kiwifyWebhook } from '../controllers/limpaproController';
@@ -194,6 +196,58 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
     const incomingGroupId = String(body.phone || body.chatId || body.groupId || '');
     // Compara só os dígitos do JID — Z-API alterna entre "120363xxx-group", "120363xxx@g.us", etc.
     const baseId = (s: string) => s.replace(/\D/g, '').slice(0, 20);
+
+    // ── ENTROU NO GRUPO DO ELETROPOSTO → avisa a equipe ──
+    // O Z-API entrega a entrada como notificação (GROUP_PARTICIPANT_INVITE quando a
+    // pessoa usa o link, ADD quando alguém adiciona), com o telefone em
+    // notificationParameters. Sem texto — por isso é tratado ANTES do filtro de
+    // conteúdo lá embaixo, senão cai fora em silêncio.
+    const notif = String(body.notification || '');
+    const grupoEletroposto = process.env.IO_GRUPO_ELETROPOSTO_ID?.trim() || '120363410228854732-group';
+    if (/GROUP_PARTICIPANT_(INVITE|ADD)/.test(notif) && baseId(incomingGroupId) === baseId(grupoEletroposto)) {
+      const params = Array.isArray(body.notificationParameters) ? body.notificationParameters : [];
+      (async () => {
+        for (const p of params) {
+          const tel = String(p).replace(/\D/g, '');
+          if (!tel) continue;
+          try {
+            // Quem é? A ficha do NOTA 1 tem tudo; se não achar, o CRM ainda pode ter.
+            // Casa pelo final do número porque o 9º dígito vai e volta entre as fontes.
+            const cauda = tel.slice(-8);
+            const { data: fichas } = await supabaseGerador
+              .from('eletroposto_nota1')
+              .select('nome, cidade, ponto, invest')
+              .like('telefone', `%${cauda}`)
+              .order('created_at', { ascending: false })
+              .limit(1);
+            const f = fichas?.[0];
+            let nome = f?.nome || '';
+            if (!nome) {
+              const { data: ags } = await supabaseGerador
+                .from('agendamentos')
+                .select('cliente_nome, cidade')
+                .like('cliente_telefone', `%${cauda}`)
+                .order('created_at', { ascending: false })
+                .limit(1);
+              nome = ags?.[0]?.cliente_nome || '';
+            }
+            const aviso = [
+              '🟢 *ENTROU NO GRUPO — Eletroposto*',
+              '',
+              `*Nome:* ${nome || '_não identificado na base_'}`,
+              `*WhatsApp:* wa.me/${tel}`,
+              ...(f?.cidade ? [`*Cidade:* ${f.cidade}`] : []),
+              ...(f?.ponto ? [`*Ponto:* ${f.ponto}`] : []),
+              ...(f?.invest ? [`*Investe com:* ${f.invest}`] : []),
+            ].join('\n');
+            await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
+          } catch (err) {
+            console.error('[webhook:io] aviso de entrada no grupo falhou:', err);
+          }
+        }
+      })();
+      return;
+    }
     if (!baseId(incomingGroupId) || baseId(incomingGroupId) !== baseId(groupId)) return;
 
     const text = extractText(body);
@@ -261,6 +315,37 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
       console.info(`[webhook:io] mensagem ${messageId} já processada — pulando`);
       return;
     }
+  }
+
+  // ── CONVITE DO GRUPO DO ELETROPOSTO ──
+  // Quem cai em NOTA 1 na LP não vê agenda: vê a tela do grupo, cujo CTA é um wa.me
+  // com este texto fixo. O link é constante — deixar isso na fila humana custou 3h e
+  // 6h de espera pros dois primeiros (01/08), com o lead parado esperando um copiar-colar.
+  // Responde e encerra: sem isso a mensagem seguia pra Luma, que não conhece o grupo.
+  const textoGrupo = String(text || '').toLowerCase();
+  if (/quero entrar no grupo do eletroposto/.test(textoGrupo)) {
+    const link = process.env.IO_GRUPO_ELETROPOSTO_LINK?.trim()
+      || 'https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M';
+    const primeiroNome = String(body.senderName || body.pushname || '').trim().split(/\s+/)[0];
+    const bolhas = [
+      primeiroNome
+        ? `Oi ${primeiroNome}! Aqui é da Irmãos na Obra. Vi que você pediu pra entrar no grupo do Eletroposto.`
+        : 'Oi! Aqui é da Irmãos na Obra. Vi que você pediu pra entrar no grupo do Eletroposto.',
+      `Entrada gratuita, é só entrar por aqui:\n${link}`,
+      'Lá dentro a gente publica o faturamento real de cada ponto que instala, como avaliar um local antes de fechar e o caminho do financiamento com 90 dias de carência.',
+      'Se você já tem um local em vista, me conta qual é que eu te ajudo a avaliar.',
+    ];
+    (async () => {
+      try {
+        for (const b of bolhas) {
+          await sendWhatsApp(String(phone).replace(/\D/g, ''), b, 'io');
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      } catch (err) {
+        console.error('[webhook:io] convite do grupo falhou:', err);
+      }
+    })();
+    return;
   }
 
   // ── ROTEAMENTO BIA (recuperação LimpaPro) ──

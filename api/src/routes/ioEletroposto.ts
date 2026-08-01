@@ -23,7 +23,7 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
-const EQUIPE: Record<string, string> = {
+export const EQUIPE: Record<string, string> = {
   thiago: '34991360223',
   diego: '34991360172',
 };
@@ -132,6 +132,170 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
     logger.error('io-eletroposto-alerta', `erro no lead #${id}`, err);
     res.status(500).json({ error: 'falha' });
   }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTA 1 — captura + convite automático do grupo.
+//
+// Até 01/08/2026 o lead NOTA 1 era descartado: a LP mostrava a tela do grupo e
+// jogava fora nome, telefone e ficha. Quem não clicasse no botão do WhatsApp
+// sumia sem deixar rastro, e quem clicasse esperava horas por um link que é
+// constante (os dois primeiros esperaram 3h e 6h).
+//
+// Aqui a LP entrega a ficha no momento em que a nota sai. O lead é gravado SEMPRE
+// (é isso que fecha o vazamento) e o convite sai sozinho no WhatsApp dele.
+//
+// Endpoint público, como o /alerta — a LP é HTML e não guarda segredo. O que ele
+// não pode virar é uma máquina de mandar mensagem pra número de estranho:
+//   1. Valida formato (telefone BR com DDD, nome de gente).
+//   2. Mesmo telefone só recebe convite uma vez a cada 24h.
+//   3. Teto global por hora — passou do teto, grava o lead e NÃO manda.
+// Gravar nunca é bloqueado por esses limites: perder o lead é o erro pior.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GRUPO_LINK = process.env.IO_GRUPO_ELETROPOSTO_LINK?.trim()
+  || 'https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M';
+
+const CONVITE_TETO_HORA = 40;
+let conviteJanela = { hora: -1, enviados: 0 };
+
+function cabeNoTeto(): boolean {
+  const hora = Math.floor(Date.now() / 3_600_000);
+  if (conviteJanela.hora !== hora) conviteJanela = { hora, enviados: 0 };
+  if (conviteJanela.enviados >= CONVITE_TETO_HORA) return false;
+  conviteJanela.enviados++;
+  return true;
+}
+
+// Capital de verdade declarado: é o investidor sem local — o outro lado do
+// casamento com quem tem ponto e não tem dinheiro. Ganha selo no alerta.
+const INVEST_COM_CAPITAL = new Set(['Recurso próprio', 'Recurso próprio + financiamento', 'Financiamento já aprovado']);
+
+function bolhasConvite(primeiroNome: string): string[] {
+  return [
+    `Oi ${primeiroNome}! Aqui é da Irmãos na Obra — você acabou de fazer a simulação do eletroposto no nosso site.`,
+    'Pelo que você respondeu, o próximo passo ainda não é o orçamento: é definir o local. É ele que decide a entrada de energia, o fluxo e, no fim, o seu retorno.',
+    `Por isso já te levo pro grupo que a gente abriu pra quem está nessa fase. Entrada gratuita:\n${GRUPO_LINK}`,
+    'Lá a gente publica o faturamento real de cada ponto que instala, como avaliar um local antes de fechar e o caminho do financiamento com 90 dias de carência. Quem tem local e quem tem capital também se encontram por lá.',
+    'Quando o seu ponto estiver encaminhado, me chama aqui que eu marco a conversa e levo o estudo completo do seu caso.',
+  ];
+}
+
+router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
+  const b = req.body || {};
+  const nome = String(b.nome || '').trim();
+  const telefone = soDigitos(String(b.telefone || ''));
+  if (nome.length < 3)   { res.status(400).json({ error: 'nome invalido' }); return; }
+  if (telefone.length < 12 || telefone.length > 13 || !telefone.startsWith('55')) {
+    res.status(400).json({ error: 'telefone invalido' }); return;
+  }
+
+  const lead = {
+    nome,
+    telefone,
+    cidade:    String(b.cidade    || '').trim().slice(0, 120) || null,
+    endereco:  String(b.endereco  || '').trim().slice(0, 300) || null,
+    perfil:    String(b.perfil    || '').trim().slice(0, 80)  || null,
+    ponto:     String(b.ponto     || '').trim().slice(0, 120) || null,
+    invest:    String(b.invest    || '').trim().slice(0, 120) || null,
+    decisor:   String(b.decisor   || '').trim().slice(0, 80)  || null,
+    rota:      String(b.rota      || '').trim().slice(0, 120) || null,
+    trifasica: String(b.trifasica || '').trim().slice(0, 40)  || null,
+    pts:       Number.isFinite(Number(b.pts)) ? Number(b.pts) : null,
+    ficha:     String(b.ficha     || '').trim().slice(0, 4000) || null,
+  };
+
+  let id: number | null = null;
+  try {
+    const { data, error } = await supabaseGerador
+      .from('eletroposto_nota1').insert(lead).select('id').single();
+    if (error) throw error;
+    id = data?.id ?? null;
+  } catch (err) {
+    // Falhou a gravação: ainda assim seguimos pro convite. Um lead com o link na
+    // mão vale mais que um lead numa tabela — e o log guarda a ficha.
+    logger.error('io-eletroposto-nota1', `falha gravando ${telefone}`, err);
+  }
+
+  // Já convidado nas últimas 24h? Não repete. Vale pro caso de o lead preencher
+  // o formulário duas vezes (acontece: ele volta pra corrigir o ponto).
+  let convidar = true;
+  try {
+    const desde = new Date(Date.now() - 24 * 3600_000).toISOString();
+    const { data: repetido } = await supabaseGerador
+      .from('eletroposto_nota1')
+      .select('id')
+      .eq('telefone', telefone)
+      .not('convite_enviado_at', 'is', null)
+      .gte('convite_enviado_at', desde)
+      .limit(1);
+    if (repetido && repetido.length) convidar = false;
+  } catch { /* na dúvida, convida — o teto por hora segura o estrago */ }
+
+  // `teste: true` grava e não manda — é assim que se confere o endpoint em produção
+  // sem disparar 5 bolhas pro WhatsApp de alguém.
+  if (b.teste === true) convidar = false;
+
+  if (convidar && !cabeNoTeto()) {
+    convidar = false;
+    logger.error('io-eletroposto-nota1', `teto de ${CONVITE_TETO_HORA}/h estourado — ${telefone} gravado sem convite`);
+  }
+
+  res.json({ ok: true, id, convite: convidar });
+
+  if (!convidar) return;
+
+  // Envio em background: a LP não espera o WhatsApp pra mostrar a tela do grupo.
+  (async () => {
+    const primeiroNome = nome.split(/\s+/)[0];
+    try {
+      for (const bolha of bolhasConvite(primeiroNome)) {
+        await sendWhatsApp(telefone, bolha, 'io');
+        await new Promise(r => setTimeout(r, 1500));
+      }
+      if (id) {
+        await supabaseGerador.from('eletroposto_nota1')
+          .update({ convite_enviado_at: new Date().toISOString() }).eq('id', id);
+      }
+      logger.info('io-eletroposto-nota1', `convite do grupo enviado pra ${nome} (${telefone})`);
+    } catch (err) {
+      logger.error('io-eletroposto-nota1', `convite falhou pra ${telefone}`, err);
+      if (id) {
+        await supabaseGerador.from('eletroposto_nota1')
+          .update({ convite_erro: String(err).slice(0, 400) }).eq('id', id)
+          .then(undefined, () => {});
+      }
+    }
+
+    // TODO NOTA 1 é avisado no WhatsApp da equipe, mesmo sem agendar (pedido do
+    // Thiago em 01/08). Ele não ocupa agenda, mas continua sendo lead: quem tem
+    // capital e não tem local é o par de quem tem ponto e não tem dinheiro, e é a
+    // equipe que faz esse casamento. Uma mensagem só, não as 5 do convite.
+    // Fora do try do convite de propósito: convite que falha não pode esconder o
+    // lead da equipe — é justamente aí que alguém precisa ir atrás na mão.
+    try {
+      const comCapital = !!(lead.invest && INVEST_COM_CAPITAL.has(lead.invest));
+      const aviso = [
+        comCapital ? '💰 *NOTA 1 COM CAPITAL — investidor sem local*' : '🔴 *NOTA 1 — foi pro grupo, não agendou*',
+        '',
+        `*Nome:* ${nome}`,
+        `*WhatsApp:* wa.me/${telefone}`,
+        `*Cidade:* ${lead.cidade || '—'}`,
+        `*Perfil:* ${lead.perfil || '—'}`,
+        `*Ponto:* ${lead.ponto || '—'}`,
+        `*Como pretende investir:* ${lead.invest || '—'}`,
+        `*Decisor:* ${lead.decisor || '—'}`,
+        `*Pontuação:* ${lead.pts ?? '—'}/11`,
+        '',
+        comCapital
+          ? '_Tem com quê e não tem onde: é o par de quem tem ponto e não tem dinheiro. Convite do grupo já enviado._'
+          : '_Sem local definido não há o que orçar. Convite do grupo já enviado._',
+      ].join('\n');
+      await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
+    } catch (err) {
+      logger.error('io-eletroposto-nota1', `aviso da equipe falhou pra ${telefone}`, err);
+    }
+  })();
 });
 
 export default router;

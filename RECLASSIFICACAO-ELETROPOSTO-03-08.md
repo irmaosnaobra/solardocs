@@ -4,7 +4,9 @@ Fonte: `agendamentos` (Supabase gerador-propostas), `created_by = 'lp_eletropost
 `quando >= 03/08/2026`. **27 reuniões.** Nenhum lead de eletroposto entrou por outra origem.
 
 **Executado em 01/08/2026: 14 reuniões canceladas, 7h de agenda liberadas.**
-**As mensagens de realinhamento NÃO foram enviadas** — ver "Pendência crítica".
+**Mensagens de realinhamento enviadas em 01/08/2026** — os 14, mais o Breno (id 658, que
+entrou depois pela LP com nota 2 e caiu na régua). Também saíram no mesmo dia os 2 avisos de
+mudança de horário (Rafael e Denilson).
 
 ## Régua aplicada
 
@@ -158,10 +160,14 @@ Texto pronto, em bolhas, com remetente e dia conferidos lead a lead:
 Grupo posicionado como **network e oportunidades** — onde quem tem local encontra quem tem
 capital. Entrada gratuita.
 
-Envio manual: o Z-Api está sem autenticação, então não há como disparar daqui. Ordem de
-prioridade: os 5 de **segunda** primeiro (Wladimir, Silney, Lucio, Rogério, Marco Aurelio),
-depois os 5 de terça, depois os 4 de quarta. Enviando domingo 9h, os de segunda recebem com
-~24h de antecedência da reunião que foi liberada.
+**Enviada em 01/08/2026 (sábado, ~14h).** Saiu pela linha Irmãos na Obra via
+`POST /zapi-admin/io/send-text` — o MCP do Z-Api está sem autenticação, mas as credenciais da
+linha IO vivem na Vercel e esse endpoint da própria API usa elas. Ordem: os 5 de segunda
+primeiro (Wladimir, Silney, Lucio, Rogério, Marco Aurelio), depois terça, depois quarta.
+8 bolhas por lead, 45–90s entre pessoas. 15/15 confirmados, nenhuma falha.
+
+A observação de cada ficha registra a data do envio (`Mensagem de realinhamento enviada em
+01/08/2026`) — é lá que se confere se saiu, não aqui.
 
 ---
 
