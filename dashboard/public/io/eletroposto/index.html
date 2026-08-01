@@ -984,9 +984,9 @@ function calc(){
 }
 
 // ===== AGENDA =====
-// Regras: só as manhãs de SEG, TER e QUA — 09:00 às 11:30, slots de 30 min.
+// Regras: SEG, TER e QUA — manhã 09:00–11:30 e tarde 13:00–16:30, slots de 30 min.
 // Thiago e Diego apresentam JUNTOS: concentrar a semana em 3 manhãs vale mais
-// que espalhar reunião por 5 dias. QUI e SEX são transbordo, não grade fixa:
+// que espalhar reunião por 5 dias — os dois turnos rodam nesses mesmos 3 dias. QUI e SEX são transbordo, não grade fixa:
 // quinta só abre quando a segunda da mesma semana lota, sexta quando a terça lota.
 // A vitrine mostra 3 dias rolantes — o dia que lota sai e o próximo entra.
 // Fecha o que já passou, o que está a menos de 2h daqui e o que já está ocupado
@@ -1016,9 +1016,11 @@ function partesBR(d = new Date()){
 }
 const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 
-// Manhã de 09:00 a 11:30 — os 6 horários que a operação abriu.
-const FAIXAS = [[9,12]];
-function horariosDaManha(){
+// Manhã 09:00–11:30 e tarde 13:00–16:30 — 14 horários por dia, slots de 30 min.
+// A tarde voltou em 01/08: com a agenda só de manhã, os horários que vagavam à tarde
+// não voltavam pra venda — ficavam livres num turno que a LP nem anunciava.
+const FAIXAS = [[9,12],[13,17]];
+function horariosDoDia(){
   const out = [];
   for(const [ini,fim] of FAIXAS)
     for(let m = ini*60; m < fim*60; m += 30)
@@ -1051,10 +1053,10 @@ function diaLotado(ymd){
 function gradeDoDia(ymd){
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
-  if(DIAS_FIXOS.has(dow)) return horariosDaManha();         // seg/ter/qua: sempre
+  if(DIAS_FIXOS.has(dow)) return horariosDoDia();         // seg/ter/qua: sempre
   const gatilho = TRANSBORDO[dow];                          // qui/sex: só no transbordo
   if(gatilho === undefined) return [];                      // sáb/dom: fechado
-  return diaLotado(mesmaSemana(ymd, gatilho)) ? horariosDaManha() : [];
+  return diaLotado(mesmaSemana(ymd, gatilho)) ? horariosDoDia() : [];
 }
 
 // Busca o que já está ocupado na agenda do Thiago/Diego na janela exibida.
