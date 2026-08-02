@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prospecção — Irmãos na Obra</title>
+<meta name="theme-color" content="#0B1220">
+<link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
+<script>
+  // Mesma auth do /gerador. Sem sessão → manda pra tela de login.
+  (function(){
+    var AUTH_KEY = 'irmaos-na-obra-auth-v1';
+    var authed = false;
+    try { authed = !!localStorage.getItem(AUTH_KEY); } catch(e){}
+    if (!authed) location.replace('/gerador');
+    document.documentElement.dataset.theme = 'dark';   // gerador é escuro, tema único
+  })();
+</script>
+<style>
+:root{
+  --navy:#1E3A8A; --navy-d:#0B1220; --navy-l:#2E4FA8;
+  --bg:#0F172A; --card:#1E293B; --card-2:#172033; --line:#334155; --line-s:#475569;
+  --txt:#E5E7EB; --dim:#94A3B8; --faint:#64748B;
+  --ok:#22C55E; --warn:#F59E0B; --bad:#F87171; --blue:#60A5FA;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);min-height:100vh;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:13.5px;
+  -webkit-font-smoothing:antialiased}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.mono{font-variant-numeric:tabular-nums}
+.spacer{flex:1}
+a{color:var(--blue)}
+
+/* ===== TOPO (mesmo padrão da Agenda) ===== */
+.topbar{background:#0B1220;color:#fff;padding:14px 22px;display:flex;justify-content:space-between;
+  align-items:center;border-bottom:4px solid #f5c518}
+.topbar .brand{font-size:17px;font-weight:800;letter-spacing:.3px}
+.topbar .brand small{font-weight:500;opacity:.8;margin-left:6px}
+.topbar .actions{display:flex;gap:10px}
+.topbar button{padding:8px 14px;border:none;border-radius:99px;font-weight:700;font-size:13px;
+  cursor:pointer;font-family:inherit;background:#1E293B;color:#93C5FD}
+.topbar button:hover{opacity:.9}
+
+/* ===== FAIXA DO TURNO ===== */
+.strip{background:#152238;border-bottom:1px solid var(--line);padding:9px 18px;display:flex;
+  align-items:center;gap:0;flex-wrap:wrap}
+.sv{padding:2px 16px;border-right:1px solid var(--line);text-align:center}
+.sv:first-child{padding-left:0}
+.sv .n{font-size:16px;font-weight:800;line-height:1.2}
+.sv .l{font-size:8.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim);font-weight:700}
+.meter{padding:2px 0 2px 16px;min-width:190px}
+.meter .t{display:flex;justify-content:space-between;font-size:8.5px;font-weight:800;
+  letter-spacing:.6px;color:var(--dim)}
+.meter .b{height:5px;background:#0B1220;border-radius:3px;overflow:hidden;margin-top:5px}
+.meter .b i{display:block;height:100%;transition:width .3s,background .3s}
+.meter .sub{font-size:8.5px;color:var(--faint);margin-top:3px;font-weight:700;letter-spacing:.4px}
+.who{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
+.who select{background:#0F172A;border:1px solid var(--line-s);color:var(--txt);padding:5px 9px;
+  border-radius:7px;font-size:12.5px;font-family:inherit}
+
+/* ===== ABAS ===== */
+.tabs{background:var(--card-2);border-bottom:1px solid var(--line);display:flex;padding:0 16px;
+  overflow-x:auto}
+.tab{padding:11px 15px;font-size:13px;color:var(--dim);cursor:pointer;font-weight:600;border:none;
+  background:none;border-bottom:3px solid transparent;white-space:nowrap;display:flex;
+  align-items:center;gap:7px}
+.tab:hover{color:#fff}
+.tab.on{color:#fff;border-bottom-color:var(--blue)}
+.tab .cnt{background:#0B1220;color:var(--dim);padding:1px 7px;border-radius:10px;font-size:10.5px}
+.tab.on .cnt{background:rgba(96,165,250,.18);color:var(--blue)}
+
+/* ===== BANCADA ===== */
+.bench{display:grid;grid-template-columns:250px minmax(0,1fr) 360px;gap:12px;padding:14px 16px 24px;
+  align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ch{padding:10px 13px;border-bottom:1px solid var(--line);font-size:11px;font-weight:800;
+  color:var(--dim);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;
+  gap:8px;background:var(--card-2)}
+.qs{padding:8px 10px;border-bottom:1px solid var(--line);display:flex;gap:6px}
+.qs input,.qs select{background:#0F172A;border:1px solid var(--line-s);border-radius:7px;
+  padding:6px 9px;font-size:12.5px;color:var(--txt);font-family:inherit;min-width:0}
+.qs input{flex:1}
+.fila{max-height:520px;overflow-y:auto}
+.fq{width:100%;text-align:left;padding:9px 11px;border:none;border-bottom:1px solid var(--line);
+  background:none;cursor:pointer;display:flex;align-items:center;gap:9px;color:inherit}
+.fq:hover{background:#233047}
+.fq.on{background:rgba(30,58,138,.35);box-shadow:inset 3px 0 0 var(--blue)}
+.fq.done{opacity:.42}
+.fq-i{width:20px;height:20px;border-radius:6px;background:#0B1220;font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;color:var(--faint);flex-shrink:0}
+.fq.done .fq-i{background:rgba(34,197,94,.18);color:var(--ok)}
+.fq-n{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  display:block}
+.fq-c{font-size:10px;color:var(--dim);margin-top:1px;display:block}
+.owned{display:flex;gap:3px;margin-left:auto;flex-shrink:0}
+.owned i{width:6px;height:6px;border-radius:2px;display:block}
+.fila-foot{padding:9px 10px;border-top:1px solid var(--line)}
+
+/* ===== FOCO ===== */
+.foco{padding:16px 18px 18px}
+.foco h2{margin:0;font-size:21px;font-weight:700;letter-spacing:-.4px;line-height:1.2}
+.meta{font-size:12px;color:var(--dim);margin-top:7px;display:flex;gap:8px;flex-wrap:wrap;
+  align-items:center}
+.meta .sep{color:var(--line-s)}
+.cart{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;align-items:center}
+.sq{padding:6px 11px;border-radius:8px;font-size:11.5px;font-weight:700;display:flex;
+  align-items:center;gap:5px;cursor:pointer;border:1.5px solid transparent;background:#0B1220;
+  color:var(--faint)}
+.sq:disabled{cursor:default}
+.sect{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.st{font-size:11px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;
+  margin-bottom:9px;display:flex;align-items:center;gap:7px}
+.st .hint{font-weight:600;text-transform:none;letter-spacing:0;color:var(--faint)}
+.hl{display:flex;gap:9px;padding:5px 0;font-size:12px;align-items:flex-start;line-height:1.45}
+.hl .d{color:var(--faint);width:74px;flex-shrink:0;font-size:11px;padding-top:1px}
+.hl .b{width:7px;height:7px;border-radius:50%;margin-top:4.5px;flex-shrink:0}
+.hl .v{margin-left:auto;color:var(--ok);font-weight:800;font-size:11.5px}
+.virgin{font-size:12.5px;color:var(--dim);padding:9px 12px;background:#0B1220;
+  border:1px dashed var(--line-s);border-radius:8px}
+.desf{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.dbtn{padding:10px 6px;border-radius:9px;border:1.5px solid var(--line-s);background:#0B1220;
+  cursor:pointer;text-align:center;font-size:11.5px;font-weight:700;color:var(--txt);line-height:1.3}
+.dbtn:hover{filter:brightness(1.25)}
+.dbtn .k{display:block;font-size:9px;color:var(--faint);margin-top:3px;font-weight:800}
+
+/* ===== OFERTA ===== */
+.ofr{padding:12px 13px 14px}
+.pchip{width:100%;text-align:left;padding:9px 11px;border-radius:9px;margin-bottom:7px;cursor:pointer;
+  border:1.5px solid var(--line);background:#0B1220;color:inherit;display:flex;align-items:center;gap:10px}
+.pchip:disabled{opacity:.45;cursor:default}
+.pn{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px}
+.pt{font-size:10.5px;color:var(--dim);margin-top:1px;display:block}
+.pv{margin-left:auto;font-size:12.5px;font-weight:800;white-space:nowrap}
+.sug{font-size:8.5px;font-weight:800;color:#0B1220;padding:2px 5px;border-radius:4px;letter-spacing:.3px}
+.script{background:#0B1220;border:1px solid var(--line);border-radius:9px;padding:12px;font-size:12.5px;
+  line-height:1.62;white-space:pre-wrap;max-height:200px;overflow-y:auto;color:#CBD5E1}
+.acts{display:flex;gap:7px;margin-top:9px}
+.btn{background:#0B1220;border:1.5px solid var(--line-s);color:var(--txt);padding:8px 13px;
+  border-radius:8px;font-size:12.5px;cursor:pointer;font-weight:600;display:inline-flex;
+  align-items:center;justify-content:center;gap:6px}
+.btn:hover{filter:brightness(1.3)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+.btn.primary:hover{background:var(--navy-l)}
+.btn.wa{background:#25D366;border-color:#20BD5A;color:#06301A}
+.btn.sm{padding:5px 10px;font-size:11.5px}
+.btn.full{width:100%}
+.kbd{font-size:9.5px;background:#0B1220;border:1px solid var(--line-s);border-radius:4px;padding:1px 5px;
+  color:var(--faint);margin-left:5px;font-weight:800}
+.why{margin-top:11px;padding:10px 12px;background:rgba(30,58,138,.28);border:1px solid #2E4FA8;
+  border-radius:9px;font-size:12px;line-height:1.55;color:#DBEAFE}
+.why b{font-weight:800}
+
+/* ===== PÁGINAS ===== */
+.page{padding:16px}
+.bar{display:flex;gap:8px;align-items:center;margin-bottom:13px;flex-wrap:wrap}
+.inp,.sel{border:1px solid var(--line-s);border-radius:8px;padding:7px 11px;font-size:12.5px;
+  background:#0B1220;color:var(--txt);font-family:inherit}
+.inp{min-width:210px}
+.tw{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);
+  font-weight:800;padding:10px 11px;border-bottom:1px solid var(--line);background:var(--card-2);
+  white-space:nowrap}
+td{padding:10px 11px;border-bottom:1px solid var(--line);font-size:12.5px}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#233047}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2.5px 9px;border-radius:20px;font-size:11px;
+  font-weight:700;white-space:nowrap}
+.dot{width:6px;height:6px;border-radius:50%}
+.prog{height:6px;background:#0B1220;border-radius:3px;overflow:hidden;display:flex;min-width:92px}
+.prog i{display:block;height:100%}
+.cell{width:27px;height:27px;border-radius:7px;display:inline-flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:800;cursor:pointer;border:1.5px solid transparent}
+.note{padding:13px 15px;background:rgba(30,58,138,.22);border:1px solid #2E4FA8;border-radius:11px;
+  font-size:12.5px;line-height:1.7;color:#DBEAFE;margin-top:14px}
+.note b{font-weight:800}
+.mini{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px}
+.vazio{padding:44px 20px;text-align:center;color:var(--dim);line-height:1.7}
+.vazio .big{font-size:40px;margin-bottom:10px}
+
+/* ===== MODAIS ===== */
+.ov{position:fixed;inset:0;background:rgba(2,6,23,.72);display:none;align-items:center;
+  justify-content:center;z-index:70;padding:18px}
+.ov.on{display:flex}
+.mo{background:var(--card);border:1px solid var(--line);border-radius:14px;width:100%;max-width:560px;
+  max-height:88vh;overflow-y:auto;padding:18px 20px 20px}
+.mo h3{margin:0 0 4px;font-size:17px;font-weight:800}
+.mo p.sub{margin:0 0 14px;color:var(--dim);font-size:12.5px;line-height:1.55}
+.fld{margin-bottom:11px}
+.fld label{display:block;font-size:11px;font-weight:800;color:var(--dim);text-transform:uppercase;
+  letter-spacing:.5px;margin-bottom:5px}
+.fld input,.fld select,.fld textarea{width:100%;background:#0B1220;border:1px solid var(--line-s);
+  color:var(--txt);border-radius:8px;padding:9px 11px;font-size:13px;font-family:inherit}
+.fld textarea{min-height:90px;resize:vertical;line-height:1.5}
+.mo-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.prodrow{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);
+  cursor:pointer}
+.prodrow.on{background:#233047}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0B1220;color:#fff;
+  padding:11px 15px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:80;
+  border:1px solid var(--line-s);box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;
+  align-items:center;gap:14px;max-width:92vw}
+#toast.show{display:flex}
+#toast .undo{background:none;border:none;color:#93C5FD;font-weight:800;cursor:pointer;font-size:12.5px;
+  text-decoration:underline;padding:0}
+@media(max-width:1180px){.bench{grid-template-columns:1fr}.fila{max-height:240px}}
+@media(max-width:640px){.topbar{padding:12px 14px}.strip{padding:9px 12px}.sv{padding:2px 10px}
+  .bench{padding:12px 10px}.page{padding:12px 10px}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">🎯 Prospecção <small>· Irmãos na Obra</small></div>
+  <div class="actions">
+    <button id="btn-refresh" onclick="recarregar()" title="Recarregar os dados" style="width:36px;padding:8px 0">↻</button>
+    <button onclick="forcarAtualizarApp(this)" title="Baixar a versão nova do app (limpa o cache do PWA)">⬇</button>
+    <button onclick="location.href='/gerador'">← Voltar</button>
+  </div>
+</div>
+
+<div class="strip">
+  <div class="sv"><div class="n mono" id="m-toques">0</div><div class="l">Toques hoje</div></div>
+  <div class="sv"><div class="n mono" id="m-resp">0</div><div class="l">Respostas</div></div>
+  <div class="sv"><div class="n mono" id="m-vendas">0</div><div class="l">Vendas</div></div>
+  <div class="sv"><div class="n mono" id="m-receita">R$ 0</div><div class="l">No turno</div></div>
+  <div class="meter">
+    <div class="t"><span>TETO DE TOQUES DO DIA</span><span class="mono" id="m-teto">0/200</span></div>
+    <div class="b"><i id="m-bar" style="width:0%;background:#4ADE80"></i></div>
+    <div class="sub" id="m-teto-sub">SÓ O QUE FOI REGISTRADO NESTA TELA</div>
+  </div>
+  <div class="who">
+    <span>Consultor</span>
+    <select id="sel-consultor" onchange="trocarConsultor(this.value)"></select>
+  </div>
+</div>
+
+<div class="tabs" id="tabs"></div>
+<div id="conteudo"><div class="vazio">Carregando…</div></div>
+
+<!-- ===== MODAL VENDA ===== -->
+<div class="ov" id="ov-venda">
+  <div class="mo">
+    <h3>Registrar venda</h3>
+    <p class="sub" id="venda-sub">—</p>
+    <div class="fld"><label>Valor recebido (R$)</label>
+      <input type="number" id="venda-valor" step="0.01" min="0"></div>
+    <div class="fld"><label>Observação</label>
+      <input type="text" id="venda-obs" placeholder="anual à vista, indicação, desconto…"></div>
+    <div class="mo-acts">
+      <button class="btn" onclick="fecharModal('ov-venda')">Cancelar</button>
+      <button class="btn primary" onclick="confirmarVenda()">Registrar venda</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL IMPORTAR LISTA ===== -->
+<div class="ov" id="ov-import">
+  <div class="mo">
+    <h3>Lançar lista</h3>
+    <p class="sub">CSV com cabeçalho. Colunas reconhecidas: <b>empresa</b> (ou nome/title),
+      <b>telefone</b> (phone/whatsapp), cidade, uf, nota (rating), avaliacoes (reviews), site.
+      Telefone que já existe em qualquer outra lista é descartado na importação —
+      ninguém aborda o mesmo integrador duas vezes.</p>
+    <div class="fld"><label>Nome da lista</label><input type="text" id="imp-nome" placeholder="Solares BA — Google Maps"></div>
+    <div class="fld"><label>Origem</label><input type="text" id="imp-origem" placeholder="Apify · Maps"></div>
+    <div class="fld"><label>Custo da lista (R$) — pro ROI</label><input type="number" id="imp-custo" step="0.01" min="0" value="0"></div>
+    <div class="fld"><label>Arquivo CSV</label><input type="file" id="imp-file" accept=".csv,text/csv,text/plain" onchange="lerArquivoCsv(this)"></div>
+    <div class="fld"><label>…ou cole o CSV aqui</label><textarea id="imp-txt" placeholder="empresa,telefone,cidade,uf,nota,avaliacoes,site"></textarea></div>
+    <div class="fld"><label>Distribuir entre</label><select class="sel" id="imp-dist" style="width:100%"></select></div>
+    <div class="mo-acts">
+      <button class="btn" onclick="fecharModal('ov-import')">Cancelar</button>
+      <button class="btn primary" id="imp-btn" onclick="importarLista()">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL PRODUTOS ===== -->
+<div class="ov" id="ov-prod">
+  <div class="mo">
+    <h3>Produtos e scripts</h3>
+    <p class="sub">O preço aqui é a <b>sugestão</b> que aparece na tela e nos scripts. O valor que entra
+      no faturamento é o que você digita na hora de registrar a venda.</p>
+    <div id="prod-lista"></div>
+    <div id="prod-edit" style="margin-top:14px"></div>
+    <div class="mo-acts">
+      <button class="btn" onclick="fecharModal('ov-prod')">Fechar</button>
+      <button class="btn" onclick="novoProduto()">+ Novo produto</button>
+      <button class="btn primary" onclick="salvarProduto()">Salvar produto</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============= CONFIG =============
+const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
+const AUTH_KEY     = 'irmaos-na-obra-auth-v1';
+
+// Teto de toques manuais por dia/consultor. É política nossa (anti-ban da linha),
+// não medição do WhatsApp: o contador conta o que foi REGISTRADO nesta tela.
+const TETO_DIA = 200;
+// Quanto a tela carrega de uma vez. Se a base passar disso, os totais desta tela
+// passariam a mentir em silêncio — por isso a carga é contada e o aviso aparece.
+const LIMITE_CARGA = 5000;
+
+const DESFECHOS = [
+  { k:'1', id:'enviei',        label:'Enviei',        cor:'#60A5FA' },
+  { k:'2', id:'respondeu',     label:'Respondeu',     cor:'#38BDF8' },
+  { k:'3', id:'interessado',   label:'Interessado',   cor:'#F59E0B' },
+  { k:'4', id:'vendeu',        label:'Vendeu',        cor:'#22C55E' },
+  { k:'5', id:'sem_interesse', label:'Sem interesse', cor:'#94A3B8' },
+  { k:'6', id:'nao_perturbar', label:'Não perturbar', cor:'#F87171' },
+];
+const RESP_POSITIVA = ['respondeu','interessado','vendeu'];
+
+// ============= ESTADO =============
+let produtos = [], scripts = {}, listas = [], contatos = [], toques = [];
+let consultores = [];
+let consultorAtivo = consultorLogado();   // quem está logado no gerador já entra selecionado
+let aba = 'fila';
+let filaIds = [], filaLimite = 20, idx = 0, soMeus = true, busca = '';
+let produtoEscolhido = null, variacao = 0;
+let vendaPendente = null, prodEditando = null, truncado = null;
+let fHist = { lista:'', consultor:'', produto:'', resultado:'', q:'' };
+
+// ============= UTILS =============
+const supaHeaders = () => ({
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+});
+async function supaGet(q){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`, { headers: supaHeaders() });
+  if (!r.ok) throw new Error(`GET ${q}: ${r.status}`);
+  return r.json();
+}
+// Igual ao supaGet, mas devolve também QUANTAS linhas existem no servidor.
+// É o que permite avisar quando a carga bateu no teto — sem isso a tela mostraria
+// número errado em silêncio, que é pior do que não mostrar.
+async function supaGetContado(q){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`, {
+    headers: { ...supaHeaders(), 'Prefer': 'count=exact' },
+  });
+  if (!r.ok) throw new Error(`GET ${q}: ${r.status}`);
+  const rows = await r.json();
+  const cr = r.headers.get('content-range') || '';
+  const total = parseInt((cr.split('/')[1] || '').trim(), 10);
+  return { rows, total: isNaN(total) ? rows.length : total };
+}
+async function supaInsert(table, body, extra){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method:'POST',
+    headers:{ ...supaHeaders(), 'Prefer': 'return=representation' + (extra ? ','+extra : '') },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text() || `POST ${table}: ${r.status}`);
+  return r.json();
+}
+async function supaPatch(query, body){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, {
+    method:'PATCH',
+    headers:{ ...supaHeaders(), 'Prefer':'return=representation' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text() || `PATCH ${query}: ${r.status}`);
+  return r.json();
+}
+async function supaDelete(query){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, { method:'DELETE', headers: supaHeaders() });
+  if (!r.ok) throw new Error(`DELETE ${query}: ${r.status}`);
+}
+function getAuth(){ try { return JSON.parse(localStorage.getItem(AUTH_KEY) || '{}'); } catch { return {}; } }
+function consultorLogado(){ return getAuth().consultor || ''; }
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const brl = n => {
+  const cent = Number(n||0) % 1 !== 0;                 // R$ 1.234,50 não pode virar "1.234,5"
+  return 'R$ ' + Number(n||0).toLocaleString('pt-BR',
+    { minimumFractionDigits: cent?2:0, maximumFractionDigits: cent?2:0 });
+};
+function fmtDataHora(iso){
+  const d = new Date(iso), h = new Date();
+  const hoje = d.toDateString() === h.toDateString();
+  const hh = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  if (hoje) return 'hoje ' + hh;
+  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + ' ' + hh;
+}
+function ehHoje(iso){ return new Date(iso).toDateString() === new Date().toDateString(); }
+function formatTelDigits(raw){ return (raw||'').replace(/\D/g,''); }
+// Padroniza celular BR → 55 + DDD + 9 + 8 dígitos. Não inventa dígito em fixo/estrangeiro.
+function normalizeTelBR(raw){
+  let d = (raw||'').replace(/\D/g,'');
+  if (d.startsWith('55') && d.length >= 12) d = d.slice(2);
+  if (d.length === 11) return '55' + d;
+  if (d.length === 10 && '6789'.includes(d[2])) return '55' + d.slice(0,2) + '9' + d.slice(2);
+  return (raw||'').replace(/\D/g,'');
+}
+function formatTelBR(raw){
+  const d = formatTelDigits(raw);
+  const s = d.length >= 12 ? d.slice(2) : d;
+  if (s.length === 11) return `(${s.slice(0,2)}) ${s.slice(2,7)}-${s.slice(7)}`;
+  if (s.length === 10) return `(${s.slice(0,2)}) ${s.slice(2,6)}-${s.slice(6)}`;
+  return raw || '';
+}
+let toastUndo = null;
+function showToast(msg, undo){
+  const t = document.getElementById('toast');
+  toastUndo = undo || null;
+  t.innerHTML = `<span>${esc(msg)}</span>` + (undo ? `<button class="undo" onclick="rodarUndo()">desfazer</button>` : '');
+  t.classList.add('show');
+  clearTimeout(showToast._h);
+  showToast._h = setTimeout(()=>t.classList.remove('show'), undo ? 6000 : 2800);
+}
+function rodarUndo(){
+  const f = toastUndo; toastUndo = null;
+  document.getElementById('toast').classList.remove('show');
+  if (f) f();
+}
+function abrirModal(id){ document.getElementById(id).classList.add('on'); }
+function fecharModal(id){ document.getElementById(id).classList.remove('on'); }
+async function forcarAtualizarApp(btn){
+  const orig = btn ? btn.textContent : '';
+  if (btn){ btn.textContent = '⏳'; btn.disabled = true; }
+  try {
+    if ('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.update().catch(()=>{})));
+    }
+    if (window.caches){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch(e){}
+  window.location.reload(true);
+}
+
+// ============= DERIVAÇÕES (a verdade é o log de toques) =============
+const prodById   = id => produtos.find(p => p.id === id) || null;
+const listaById  = id => listas.find(l => l.id === id) || null;
+const contatoById= id => contatos.find(c => c.id === id) || null;
+let toquesPorContato = new Map();
+function indexarToques(){
+  toquesPorContato = new Map();
+  // toques chega em ordem decrescente; guarda crescente (mais antigo primeiro)
+  for (let i = toques.length - 1; i >= 0; i--){
+    const t = toques[i];
+    if (!toquesPorContato.has(t.contato_id)) toquesPorContato.set(t.contato_id, []);
+    toquesPorContato.get(t.contato_id).push(t);
+  }
+}
+const toquesDe = id => toquesPorContato.get(id) || [];
+function statusProduto(contatoId, produtoId){
+  const ts = toquesDe(contatoId).filter(t => t.produto_id === produtoId);
+  if (ts.some(t => t.resultado === 'vendeu')) return 'comprado';
+  if (ts.length) return 'proposta';
+  return 'none';
+}
+const ltvDe = id => toquesDe(id).filter(t => t.resultado === 'vendeu')
+                                .reduce((s,t) => s + Number(t.valor||0), 0);
+const tocadoHoje = id => toquesDe(id).some(t => ehHoje(t.criado_em));
+function ultimoToqueEm(id){
+  const ts = toquesDe(id);
+  return ts.length ? new Date(ts[ts.length-1].criado_em).getTime() : 0;
+}
+const produtosAtivos = () => produtos.filter(p => p.ativo).sort((a,b)=>a.ordem-b.ordem);
+function precoLabel(p){
+  const mensal = /mensal|assinatura|m[êe]s/i.test(p.sub || '');
+  return brl(p.preco) + (mensal ? '/mês' : '');
+}
+
+// ============= CARGA =============
+async function carregar(){
+  const [pr, sc, li, co, to, cs] = await Promise.all([
+    supaGet('prospeccao_produtos?select=*&order=ordem.asc'),
+    supaGet('prospeccao_scripts?select=*&order=produto_id.asc,ordem.asc'),
+    supaGet('prospeccao_listas?select=*&order=criada_em.desc'),
+    supaGetContado(`prospeccao_contatos?select=*&order=criado_em.asc&limit=${LIMITE_CARGA}`),
+    supaGetContado(`prospeccao_toques?select=*&order=criado_em.desc&limit=${LIMITE_CARGA}`),
+    supaGet('consultores?select=nome&order=nome.asc').catch(()=>[]),
+  ]);
+  produtos = pr; listas = li; contatos = co.rows; toques = to.rows;
+  truncado = (co.total > co.rows.length || to.total > to.rows.length)
+    ? { contatos: co.total, toques: to.total } : null;
+  scripts = {};
+  sc.forEach(s => { (scripts[s.produto_id] = scripts[s.produto_id] || []).push(s.texto); });
+  consultores = (cs || []).map(c => c.nome).filter(Boolean);
+  if (!consultores.length) consultores = ['Diego','Giovanna','Nilce','Thiago'];
+  if (!consultores.includes(consultorAtivo)) consultorAtivo = consultores[0];
+  indexarToques();
+  montarFila();
+}
+async function recarregar(){
+  const b = document.getElementById('btn-refresh');
+  b.style.transition = 'transform .5s'; b.style.transform = 'rotate(360deg)';
+  try { await carregar(); renderTudo(); showToast('🔄 Atualizado'); }
+  catch(e){ showToast('Falha ao atualizar: ' + e.message); }
+  setTimeout(()=>{ b.style.transition='none'; b.style.transform='rotate(0deg)'; }, 520);
+}
+
+// ============= FILA DO DIA =============
+function elegivel(c){
+  if (c.bloqueado) return false;
+  const l = listaById(c.lista_id);
+  if (!l || l.status !== 'ativa') return false;
+  if (soMeus && c.consultor && c.consultor !== consultorAtivo) return false;
+  if (tocadoHoje(c.id)) return false;
+  return true;
+}
+function montarFila(){
+  // quem já foi trabalhado hoje continua na fila marcado com ✓ (mostra o progresso);
+  // por isso a fila só CRESCE dentro do dia — nunca remove o que já entrou.
+  filaIds = filaIds.filter(id => contatoById(id));
+  const eleg = contatos.filter(elegivel).sort((a,b)=>{
+    const ta = ultimoToqueEm(a.id), tb = ultimoToqueEm(b.id);
+    if (ta !== tb) return ta - tb;               // nunca tocado (0) primeiro
+    return a.empresa.localeCompare(b.empresa);
+  });
+  for (const c of eleg){
+    if (filaIds.length >= filaLimite) break;
+    if (!filaIds.includes(c.id)) filaIds.push(c.id);
+  }
+  if (idx >= filaIds.length) idx = Math.max(0, filaIds.length - 1);
+}
+function filaVisivel(){
+  const q = busca.trim().toLowerCase();
+  return filaIds.map(contatoById).filter(Boolean).filter(c => !q ||
+    c.empresa.toLowerCase().includes(q) || (c.cidade||'').toLowerCase().includes(q));
+}
+const focoAtual = () => contatoById(filaIds[idx]) || null;
+function proximo(){
+  const n = filaIds.findIndex((id,i) => i > idx && !tocadoHoje(id));
+  const alt = filaIds.findIndex(id => !tocadoHoje(id));
+  idx = n >= 0 ? n : (alt >= 0 ? alt : idx);
+  produtoEscolhido = null; variacao = 0;
+  renderTudo();
+}
+function irPara(i){ idx = i; produtoEscolhido = null; variacao = 0; renderTudo(); }
+function puxarMais(){ filaLimite += 20; montarFila(); renderTudo(); }
+
+// O que oferecer agora. Regra, nesta ordem:
+//  1) conversa aberta — o produto do toque mais recente que ficou em pé
+//     (enviei/respondeu/interessado). Follow-up do mesmo assunto vale mais que
+//     trocar de produto no meio da conversa.
+//  2) escada — o primeiro produto que nunca foi ofertado (o mais barato primeiro,
+//     porque a ordem do catálogo é a escada de oferta).
+// Quem disse "sem interesse" naquele produto não volta a recebê-lo como sugestão.
+function sugeridoPara(c){
+  if (!c) return null;
+  const ativos = produtosAtivos();
+  const ultimoPorProduto = new Map();
+  toquesDe(c.id).forEach(t => ultimoPorProduto.set(t.produto_id, t));
+  let aberta = null;
+  for (const p of ativos){
+    const t = ultimoPorProduto.get(p.id);
+    if (!t || !['enviei','respondeu','interessado'].includes(t.resultado)) continue;
+    if (statusProduto(c.id, p.id) === 'comprado') continue;
+    if (!aberta || new Date(t.criado_em) > new Date(aberta.t.criado_em)) aberta = { p, t };
+  }
+  if (aberta) return aberta.p.id;
+  const novo = ativos.find(p => statusProduto(c.id, p.id) === 'none');
+  return novo ? novo.id : null;
+}
+function alvoAtual(){
+  const c = focoAtual(); if (!c) return null;
+  const ativos = produtosAtivos();
+  if (produtoEscolhido && ativos.some(p => p.id === produtoEscolhido)) return produtoEscolhido;
+  const sug = sugeridoPara(c);
+  if (sug) return sug;
+  // já ofertei tudo pelo menos uma vez: cai no primeiro que ele AINDA NÃO COMPROU —
+  // nunca no que já é dele (senão o script vende o que o cara já tem).
+  const pendente = ativos.find(p => statusProduto(c.id, p.id) !== 'comprado');
+  return pendente ? pendente.id : (ativos[0] ? ativos[0].id : null);
+}
+function mensagemAtual(){
+  const c = focoAtual(), pid = alvoAtual();
+  if (!c || !pid) return '';
+  const p = prodById(pid), vars = scripts[pid] || [];
+  if (!vars.length) return `(Sem script cadastrado para ${p ? p.nome : pid}. Cadastre em Listas → Produtos.)`;
+  return vars[variacao % vars.length]
+    .replaceAll('{empresa}', c.empresa)
+    .replaceAll('{cidade}', c.cidade || '')
+    .replaceAll('{consultor}', consultorAtivo)
+    .replaceAll('{preco}', precoLabel(p));
+}
+
+// ============= REGISTRO DE TOQUE =============
+async function registrar(desf){
+  const c = focoAtual(), pid = alvoAtual();
+  if (!c || !pid) return;
+  if (desf.id === 'vendeu'){
+    vendaPendente = { contato: c, produtoId: pid };
+    const p = prodById(pid);
+    document.getElementById('venda-sub').textContent = `${p.nome} para ${c.empresa}`;
+    document.getElementById('venda-valor').value = p.preco;
+    document.getElementById('venda-obs').value = '';
+    abrirModal('ov-venda');
+    setTimeout(()=>document.getElementById('venda-valor').focus(), 60);
+    return;
+  }
+  await gravarToque(c, pid, desf, 0, desf.id === 'nao_perturbar' ? 'Bloqueado em todas as listas.' : '');
+}
+async function confirmarVenda(){
+  if (!vendaPendente) return;
+  const valor = Number(document.getElementById('venda-valor').value || 0);
+  const obs = document.getElementById('venda-obs').value.trim();
+  fecharModal('ov-venda');
+  const { contato, produtoId } = vendaPendente; vendaPendente = null;
+  await gravarToque(contato, produtoId, DESFECHOS.find(d=>d.id==='vendeu'), valor, obs);
+}
+async function gravarToque(c, pid, desf, valor, obs){
+  try {
+    const [novo] = await supaInsert('prospeccao_toques', {
+      contato_id: c.id, lista_id: c.lista_id, produto_id: pid,
+      consultor: consultorAtivo, resultado: desf.id, valor: valor || 0, obs: obs || null,
+    });
+    toques.unshift(novo);
+    let bloqueou = false;
+    if (desf.id === 'nao_perturbar' && !c.bloqueado){
+      await supaPatch(`prospeccao_contatos?id=eq.${c.id}`, { bloqueado: true });
+      c.bloqueado = true; bloqueou = true;
+    }
+    indexarToques();
+    const p = prodById(pid);
+    showToast(`${c.empresa} → ${desf.label}${valor ? ' · ' + brl(valor) : ''} (${p ? p.nome : ''})`,
+      () => desfazerToque(novo.id, c, bloqueou));
+    proximo();
+  } catch(e){
+    showToast('Não gravou: ' + e.message);
+  }
+}
+async function desfazerToque(toqueId, c, desbloquear){
+  try {
+    await supaDelete(`prospeccao_toques?id=eq.${toqueId}`);
+    toques = toques.filter(t => t.id !== toqueId);
+    if (desbloquear){
+      await supaPatch(`prospeccao_contatos?id=eq.${c.id}`, { bloqueado: false });
+      c.bloqueado = false;
+    }
+    indexarToques();
+    idx = Math.max(0, filaIds.indexOf(c.id));
+    renderTudo();
+    showToast('Desfeito');
+  } catch(e){ showToast('Falha ao desfazer: ' + e.message); }
+}
+
+// ============= AÇÕES DA OFERTA =============
+function escolherProduto(pid){
+  const c = focoAtual();
+  if (!c || statusProduto(c.id, pid) === 'comprado') return;
+  produtoEscolhido = pid; variacao = 0; renderTudo();
+}
+function trocarVariacao(){
+  const vars = scripts[alvoAtual()] || [];
+  if (vars.length < 2){ showToast('Só há 1 variação cadastrada pra esse produto'); return; }
+  variacao++; renderTudo();
+  showToast('Outra variação — evita texto repetido em massa');
+}
+function abrirWhats(){
+  const c = focoAtual(); if (!c) return;
+  const tel = formatTelDigits(c.telefone);
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensagemAtual())}`, '_blank');
+  showToast('WhatsApp aberto — registre o resultado com as teclas 1 a 6');
+}
+function copiarMsg(){
+  const m = mensagemAtual();
+  if (navigator.clipboard) navigator.clipboard.writeText(m).catch(()=>{});
+  showToast('Mensagem copiada');
+}
+function trocarConsultor(nome){ consultorAtivo = nome; filaIds = []; idx = 0; montarFila(); renderTudo(); }
+function trocarEscopo(v){ soMeus = v === 'meus'; filaIds = []; idx = 0; montarFila(); renderTudo(); }
+function setBusca(v){ busca = v; renderFila(); }
+
+// ============= RENDER =============
+function renderTudo(){
+  renderStrip(); renderTabs(); renderConteudo();
+}
+function renderStrip(){
+  const meus = toques.filter(t => ehHoje(t.criado_em) && t.consultor === consultorAtivo);
+  const resp = meus.filter(t => RESP_POSITIVA.includes(t.resultado)).length;
+  const vendas = meus.filter(t => t.resultado === 'vendeu');
+  const receita = vendas.reduce((s,t)=>s+Number(t.valor||0),0);
+  document.getElementById('m-toques').textContent = meus.length;
+  document.getElementById('m-resp').textContent = resp;
+  document.getElementById('m-vendas').textContent = vendas.length;
+  document.getElementById('m-receita').textContent = brl(receita);
+  const pct = Math.min(100, 100*meus.length/TETO_DIA);
+  document.getElementById('m-teto').textContent = `${meus.length}/${TETO_DIA}`;
+  const bar = document.getElementById('m-bar');
+  bar.style.width = pct + '%';
+  bar.style.background = pct > 85 ? '#F87171' : pct > 70 ? '#FBBF24' : '#4ADE80';
+  const sel = document.getElementById('sel-consultor');
+  if (sel.options.length !== consultores.length){
+    sel.innerHTML = consultores.map(n => `<option>${esc(n)}</option>`).join('');
+  }
+  sel.value = consultorAtivo;
+}
+function renderTabs(){
+  const naFila = filaIds.filter(id => !tocadoHoje(id)).length;
+  const carteira = contatos.filter(c => toquesDe(c.id).some(t => t.resultado === 'vendeu')).length;
+  const abas = [
+    ['fila','Fila de hoje', naFila],
+    ['listas','Listas', listas.length],
+    ['historico','Histórico', toques.length],
+    ['carteira','Carteira', carteira],
+    ['resultados','Resultados', null],
+  ];
+  document.getElementById('tabs').innerHTML = abas.map(([k,l,n]) =>
+    `<button class="tab${aba===k?' on':''}" onclick="irAba('${k}')">${l}` +
+    (n === null ? '' : `<span class="cnt">${n}</span>`) + `</button>`).join('');
+}
+function irAba(k){ aba = k; renderTudo(); }
+// Aviso honesto quando a base é maior do que a tela consegue carregar de uma vez:
+// sem isto, Listas/Carteira/Resultados mostrariam números menores que a realidade
+// sem ninguém perceber.
+function bannerTruncado(){
+  if (!truncado) return '';
+  return `<div style="margin:12px 16px 0;padding:11px 14px;background:rgba(245,158,11,.14);
+    border:1px solid #B45309;border-radius:10px;font-size:12.5px;line-height:1.6;color:#FDE68A">
+    <b>Base maior do que esta tela carrega de uma vez.</b> Carregados os ${LIMITE_CARGA} mais recentes de
+    ${truncado.contatos} contatos e ${truncado.toques} toques — os totais de Listas, Carteira e
+    Resultados contam só o que foi carregado. Encerre listas velhas (elas somem da carga) pra voltar a ver o número cheio.</div>`;
+}
+function renderConteudo(){
+  const el = document.getElementById('conteudo');
+  const b = bannerTruncado();
+  if (aba === 'fila')       el.innerHTML = b + htmlFila();
+  else if (aba === 'listas')     el.innerHTML = b + htmlListas();
+  else if (aba === 'historico')  el.innerHTML = b + htmlHistorico();
+  else if (aba === 'carteira')   el.innerHTML = b + htmlCarteira();
+  else if (aba === 'resultados') el.innerHTML = b + htmlResultados();
+}
+function renderFila(){ if (aba === 'fila') renderConteudo(); }
+
+// ---------- FILA ----------
+function htmlFila(){
+  if (!contatos.length){
+    return `<div class="vazio"><div class="big">📥</div>
+      <div style="font-size:17px;font-weight:700;color:var(--txt);margin-bottom:6px">Nenhum contato ainda</div>
+      A prospecção começa por uma lista. Importe um CSV do Google Maps (ou de onde vier)
+      e a fila do dia se monta sozinha.<br><br>
+      <button class="btn primary" onclick="irAba('listas')">Ir pra Listas</button></div>`;
+  }
+  const c = focoAtual();
+  if (!c){
+    const meus = toques.filter(t => ehHoje(t.criado_em) && t.consultor === consultorAtivo);
+    const vendas = meus.filter(t => t.resultado === 'vendeu');
+    return `<div class="vazio"><div class="big">☀️</div>
+      <div style="font-size:17px;font-weight:700;color:var(--txt);margin-bottom:6px">Fila do dia concluída</div>
+      ${meus.length} toques · ${vendas.length} vendas ·
+      ${brl(vendas.reduce((s,t)=>s+Number(t.valor||0),0))} fechados.<br>
+      Ainda cabem ${Math.max(0, TETO_DIA - meus.length)} toques no teto do dia.<br><br>
+      <button class="btn primary" onclick="puxarMais()">Puxar mais 20 da lista</button></div>`;
+  }
+  const ativos = produtosAtivos();
+  if (!ativos.length){
+    return `<div class="vazio"><div class="big">🏷️</div>
+      <div style="font-size:17px;font-weight:700;color:var(--txt);margin-bottom:6px">Nenhum produto ativo</div>
+      Sem produto não há o que oferecer. Cadastre em Listas → Produtos e scripts.<br><br>
+      <button class="btn primary" onclick="irAba('listas')">Ir pra Listas</button></div>`;
+  }
+  const alvo = alvoAtual(), sug = sugeridoPara(c);
+  const ltv = ltvDe(c.id);
+  const hist = toquesDe(c.id).slice().reverse();
+
+  return `<div class="bench">
+    <div class="card">
+      <div class="ch">Fila<span class="spacer"></span>
+        <span class="mono" style="color:var(--blue)">${filaIds.filter(tocadoHoje).length}/${filaIds.length}</span></div>
+      <div class="qs">
+        <input placeholder="Filtrar empresa ou cidade…" value="${esc(busca)}" oninput="setBusca(this.value)">
+        <select onchange="trocarEscopo(this.value)">
+          <option value="meus"${soMeus?' selected':''}>Meus</option>
+          <option value="todos"${!soMeus?' selected':''}>Todos</option>
+        </select>
+      </div>
+      <div class="fila">
+        ${filaVisivel().map(f => {
+          const i = filaIds.indexOf(f.id), feito = tocadoHoje(f.id);
+          const donos = ativos.filter(p => statusProduto(f.id, p.id) === 'comprado');
+          return `<button class="fq${i===idx?' on':''}${feito?' done':''}" onclick="irPara(${i})">
+            <span class="fq-i">${feito?'✓':(i+1)}</span>
+            <span style="min-width:0">
+              <span class="fq-n">${esc(f.empresa)}</span>
+              <span class="fq-c">${esc(f.cidade||'—')}${f.nota?' · '+f.nota+'★':''}${f.avaliacoes?' '+f.avaliacoes:''}</span>
+            </span>
+            <span class="owned">${donos.map(p=>`<i style="background:${esc(p.cor)}"></i>`).join('')}</span>
+          </button>`;
+        }).join('') || '<div style="padding:14px;color:var(--dim);font-size:12.5px">Nada com esse filtro.</div>'}
+      </div>
+      <div class="fila-foot"><button class="btn sm full" onclick="puxarMais()">Puxar mais 20</button></div>
+    </div>
+
+    <div class="card">
+      <div class="ch">Contato em foco<span class="spacer"></span>
+        <button class="btn sm" onclick="irPara(${Math.max(0,idx-1)})">← <span class="kbd">↑</span></button>
+        <button class="btn sm" onclick="proximo()">pular <span class="kbd">↓</span></button>
+      </div>
+      <div class="foco">
+        <h2>${esc(c.empresa)}</h2>
+        <div class="meta">
+          <span>${esc(c.cidade||'—')}${c.uf?', '+esc(c.uf):''}</span><span class="sep">·</span>
+          <span class="mono">${esc(formatTelBR(c.telefone))}</span>
+          ${c.nota?`<span class="sep">·</span><span style="color:var(--warn);font-weight:700">${c.nota}★ ${c.avaliacoes||0} avaliações</span>`:''}
+          <span class="sep">·</span>
+          <span style="color:${c.site?'var(--dim)':'var(--bad)'};font-weight:${c.site?400:700}">${esc(c.site||'sem site')}</span>
+          ${c.consultor?`<span class="sep">·</span><span>${esc(c.consultor)}</span>`:''}
+        </div>
+
+        <div class="cart">
+          ${ativos.map(p => {
+            const s = statusProduto(c.id, p.id);
+            const st = s === 'comprado' ? `background:${p.cor};color:#0B1220;border-color:${p.cor}`
+              : s === 'proposta' ? `background:transparent;color:${p.cor};border-color:${p.cor};border-style:dashed`
+              : `border-color:${alvo===p.id?p.cor:'transparent'}`;
+            return `<button class="sq" ${s==='comprado'?'disabled':''} style="${st}"
+              onclick="escolherProduto('${p.id}')">${s==='comprado'?'✓':s==='proposta'?'◷':'+'} ${esc(p.sigla)}</button>`;
+          }).join('')}
+          <div class="spacer"></div>
+          <span style="font-size:12px;color:var(--dim)">LTV
+            <b class="mono" style="color:var(--ok)">${brl(ltv)}</b></span>
+        </div>
+
+        <div class="sect">
+          <div class="st">Histórico com a gente</div>
+          ${hist.length ? hist.map(t => {
+            const d = DESFECHOS.find(x=>x.id===t.resultado), p = prodById(t.produto_id);
+            return `<div class="hl"><span class="d">${fmtDataHora(t.criado_em)}</span>
+              <i class="b" style="background:${d?d.cor:'#94A3B8'}"></i>
+              <span>${esc(p?p.nome:'—')} — ${esc(d?d.label:t.resultado)}${t.consultor?' · '+esc(t.consultor):''}
+              ${t.obs?`<span style="color:var(--faint)"> · ${esc(t.obs)}</span>`:''}</span>
+              ${Number(t.valor)?`<span class="v">${brl(t.valor)}</span>`:''}</div>`;
+          }).join('') : '<div class="virgin">Primeiro contato. Nunca foi abordado por ninguém da equipe.</div>'}
+        </div>
+
+        <div class="sect">
+          <div class="st">Resultado do contato<span class="hint">— tecla 1 a 6, avança sozinho</span></div>
+          <div class="desf">
+            ${DESFECHOS.map(d=>`<button class="dbtn" onclick="registrarPorId('${d.id}')"
+              style="border-color:${d.cor}66;color:${d.cor}">${d.label}<span class="k">${d.k}</span></button>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch">O que oferecer<span class="spacer"></span>
+        <span style="font-weight:700;text-transform:none;letter-spacing:0;color:var(--faint)">Q W E R</span></div>
+      <div class="ofr">
+        ${ativos.map(p => {
+          const dono = statusProduto(c.id, p.id) === 'comprado';
+          const on = alvo === p.id && !dono;
+          return `<button class="pchip" ${dono?'disabled':''} onclick="escolherProduto('${p.id}')"
+            style="${on?`border-color:${p.cor};background:${p.cor}1A`:''}">
+            <i style="width:10px;height:10px;border-radius:3px;background:${esc(p.cor)};flex-shrink:0;display:block"></i>
+            <span style="min-width:0">
+              <span class="pn">${esc(p.nome)}${p.id===sug?`<span class="sug" style="background:${esc(p.cor)}">SUGERIDO</span>`:''}</span>
+              <span class="pt">${dono?'já é cliente':esc(p.sub||'')}</span>
+            </span>
+            <span class="pv" style="color:${esc(p.cor)}">${precoLabel(p)}</span>
+          </button>`;
+        }).join('')}
+
+        <div class="st" style="margin:14px 0 8px">Mensagem<span class="spacer"></span>
+          <span class="hint">variação ${((variacao)%Math.max(1,(scripts[alvo]||[]).length))+1}/${Math.max(1,(scripts[alvo]||[]).length)}</span></div>
+        <div class="script">${esc(mensagemAtual())}</div>
+
+        <div class="acts">
+          <button class="btn wa" style="flex:1" onclick="abrirWhats()">Abrir no WhatsApp</button>
+          <button class="btn" onclick="copiarMsg()">Copiar</button>
+        </div>
+        <button class="btn full" style="margin-top:7px" onclick="trocarVariacao()">Trocar variação</button>
+
+        <div class="why"><b>Por que este produto:</b> ${porQue(c, alvo)}</div>
+      </div>
+    </div>
+  </div>`;
+}
+function registrarPorId(id){ registrar(DESFECHOS.find(d=>d.id===id)); }
+function porQue(c, pid){
+  const p = prodById(pid); if (!p) return '—';
+  const comprados = produtosAtivos().filter(x => statusProduto(c.id, x.id) === 'comprado');
+  const jaOfertado = toquesDe(c.id).filter(t => t.produto_id === pid);
+  if (jaOfertado.length && !comprados.some(x=>x.id===pid)){
+    const ult = jaOfertado[jaOfertado.length-1];
+    return `já foi ofertado ${fmtDataHora(ult.criado_em)} e não fechou — ${jaOfertado.length} toque(s) ` +
+      `neste produto. Insistir é normal: troque o ângulo em "Trocar variação" ou desça pro produto de entrada. ` +
+      `A aba Resultados mostra quantos toques a SUA operação leva até a venda.`;
+  }
+  if (!comprados.length){
+    // a escada é a ORDEM do catálogo (editável em Produtos); "menor barreira" é PREÇO.
+    // Os dois nem sempre coincidem — então cada frase fala do que é verdade.
+    const ativos = produtosAtivos();
+    const entrada = ativos[0];
+    const barato = ativos.slice().sort((a,b)=>a.preco-b.preco)[0];
+    if (entrada && entrada.id === pid){
+      return 'nunca comprou nada. É o primeiro degrau da escada' +
+        (barato.id === pid ? ' e o de menor preço — decide sozinho, fecha no mesmo dia.'
+                           : `. Se travar no preço, o ${barato.nome} (${precoLabel(barato)}) é a barreira mais baixa.`);
+    }
+    return `nunca comprou nada. Se travar no preço, ofereça o ${barato.nome} (${precoLabel(barato)}) — ` +
+      `é a menor barreira do catálogo — e volte neste depois.`;
+  }
+  return `já comprou ${comprados.map(x=>x.nome).join(', ')} (LTV ${brl(ltvDe(c.id))}). ` +
+    `Quem já passou o cartão responde o WhatsApp e confia — é o dinheiro mais barato da operação.`;
+}
+
+// ---------- LISTAS ----------
+function statsLista(l){
+  const cs = contatos.filter(c => c.lista_id === l.id);
+  const ids = new Set(cs.map(c=>c.id));
+  const ts = toques.filter(t => ids.has(t.contato_id));
+  const trabalhados = new Set(ts.map(t=>t.contato_id)).size;
+  const responderam = new Set(ts.filter(t=>RESP_POSITIVA.includes(t.resultado)).map(t=>t.contato_id)).size;
+  const vendas = {}; let receita = 0; const clientes = new Set();
+  ts.filter(t=>t.resultado==='vendeu').forEach(t => {
+    vendas[t.produto_id] = (vendas[t.produto_id]||0) + 1;
+    receita += Number(t.valor||0);
+    clientes.add(t.contato_id);
+  });
+  return { total: cs.length, trabalhados, responderam, vendas, receita,
+           clientes: clientes.size,
+           qtdVendas: Object.values(vendas).reduce((a,b)=>a+b,0) };
+}
+function htmlListas(){
+  return `<div class="page">
+    <div class="bar">
+      <div class="spacer"></div>
+      <button class="btn" onclick="abrirProdutos()">Produtos e scripts</button>
+      <button class="btn primary" onclick="abrirImport()">📥 Lançar lista (CSV)</button>
+    </div>
+    ${listas.length ? `<div class="tw"><table>
+      <thead><tr><th>Lista</th><th>Origem</th><th>Progresso</th><th>Resp.</th><th>Vendas</th>
+        <th>Receita</th><th>ROI</th><th>Status</th><th></th></tr></thead>
+      <tbody>${listas.map(l => {
+        const s = statsLista(l);
+        const cor = l.status==='ativa'?'#22C55E':l.status==='pausada'?'#F59E0B':'#94A3B8';
+        const pctV = s.total ? 100*s.clientes/s.total : 0;
+        const pctT = s.total ? 100*Math.max(0,s.trabalhados-s.clientes)/s.total : 0;
+        return `<tr>
+          <td><div style="font-weight:700">${esc(l.nome)}</div>
+            <div style="font-size:11px;color:var(--dim);margin-top:2px">
+              ${new Date(l.criada_em).toLocaleDateString('pt-BR')} · ${s.total} contatos
+              ${Number(l.custo)?' · custo '+brl(l.custo):''}</div></td>
+          <td style="font-size:12px;color:var(--dim)">${esc(l.origem||'—')}</td>
+          <td><div class="prog"><i style="width:${pctV}%;background:var(--ok)"></i>
+              <i style="width:${pctT}%;background:var(--navy-l)"></i></div>
+            <div style="font-size:10.5px;color:var(--dim);margin-top:4px">${s.trabalhados}/${s.total} trabalhados</div></td>
+          <td class="mono" style="color:var(--blue);font-weight:700">
+            ${s.trabalhados ? Math.round(100*s.responderam/s.trabalhados)+'%' : '—'}</td>
+          <td><div style="display:flex;gap:4px;flex-wrap:wrap">${
+            Object.entries(s.vendas).map(([pid,n]) => { const p = prodById(pid);
+              return `<span class="pill" title="${esc(p?p.nome:pid)}" style="background:${p?p.cor:'#334155'}2E;color:${p?p.cor:'#94A3B8'}">${esc(p?p.sigla:'?')} ${n}</span>`;
+            }).join('') || '<span style="color:var(--faint)">—</span>'}</div></td>
+          <td class="mono" style="font-weight:700">${brl(s.receita)}</td>
+          <td class="mono" style="color:var(--ok);font-weight:800">
+            ${Number(l.custo) ? (s.receita/Number(l.custo)).toFixed(1)+'x' : '—'}</td>
+          <td><span class="pill" style="background:${cor}2E;color:${cor}">
+            <i class="dot" style="background:${cor}"></i>${l.status}</span></td>
+          <td style="white-space:nowrap">
+            ${l.status!=='encerrada' ? `<button class="btn sm primary" onclick="trabalharLista('${l.id}')">Trabalhar</button>` : ''}
+            ${l.status==='ativa' ? `<button class="btn sm" onclick="mudarStatusLista('${l.id}','pausada')">Pausar</button>` : ''}
+            ${l.status==='pausada' ? `<button class="btn sm" onclick="mudarStatusLista('${l.id}','ativa')">Retomar</button>` : ''}
+            ${l.status!=='encerrada' ? `<button class="btn sm" onclick="mudarStatusLista('${l.id}','encerrada')">Encerrar</button>` : ''}
+          </td></tr>`;
+      }).join('')}</tbody></table></div>` :
+      `<div class="vazio"><div class="big">📋</div>
+        <div style="font-size:17px;font-weight:700;color:var(--txt);margin-bottom:6px">Nenhuma lista ainda</div>
+        Lance a primeira lista com um CSV. Telefone repetido é descartado na importação.</div>`}
+    <div class="note">
+      <b>Lançar lista</b> importa o CSV, descarta telefone que já existe em qualquer outra lista
+      e distribui a fila entre os consultores. Só lista <b>ativa</b> alimenta a fila do dia —
+      pausar tira da fila sem apagar nada, e o histórico continua contando pro ROI.
+    </div>
+  </div>`;
+}
+async function mudarStatusLista(id, status){
+  try {
+    await supaPatch(`prospeccao_listas?id=eq.${id}`, { status });
+    const l = listaById(id); if (l) l.status = status;
+    filaIds = []; montarFila(); renderTudo();
+    showToast('Lista ' + status);
+  } catch(e){ showToast('Falhou: ' + e.message); }
+}
+function trabalharLista(id){
+  const l = listaById(id);
+  if (l && l.status !== 'ativa'){ showToast('Lista não está ativa — retome primeiro'); return; }
+  soMeus = false; filaIds = []; idx = 0;
+  const eleg = contatos.filter(c => c.lista_id === id && elegivel(c))
+    .sort((a,b)=>ultimoToqueEm(a.id)-ultimoToqueEm(b.id));
+  filaIds = eleg.slice(0, filaLimite).map(c=>c.id);
+  aba = 'fila'; renderTudo();
+}
+
+// ---------- HISTÓRICO ----------
+function toquesFiltrados(){
+  const q = fHist.q.trim().toLowerCase();
+  return toques.filter(t => {
+    const c = contatoById(t.contato_id); if (!c) return false;
+    if (fHist.lista && t.lista_id !== fHist.lista) return false;
+    if (fHist.consultor && t.consultor !== fHist.consultor) return false;
+    if (fHist.produto && t.produto_id !== fHist.produto) return false;
+    if (fHist.resultado && t.resultado !== fHist.resultado) return false;
+    if (q && !(c.empresa.toLowerCase().includes(q) || (c.telefone||'').includes(q) ||
+               (t.obs||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+function setHist(k, v){ fHist[k] = v; renderConteudo(); }
+function htmlHistorico(){
+  const rows = toquesFiltrados();
+  return `<div class="page">
+    <div class="bar">
+      <input class="inp" placeholder="Buscar empresa, telefone ou palavra…" value="${esc(fHist.q)}"
+        oninput="setHist('q', this.value)">
+      <select class="sel" onchange="setHist('lista', this.value)">
+        <option value="">Todas as listas</option>
+        ${listas.map(l=>`<option value="${l.id}"${fHist.lista===l.id?' selected':''}>${esc(l.nome)}</option>`).join('')}</select>
+      <select class="sel" onchange="setHist('consultor', this.value)">
+        <option value="">Todos os consultores</option>
+        ${consultores.map(n=>`<option${fHist.consultor===n?' selected':''}>${esc(n)}</option>`).join('')}</select>
+      <select class="sel" onchange="setHist('produto', this.value)">
+        <option value="">Todos os produtos</option>
+        ${produtos.map(p=>`<option value="${p.id}"${fHist.produto===p.id?' selected':''}>${esc(p.nome)}</option>`).join('')}</select>
+      <select class="sel" onchange="setHist('resultado', this.value)">
+        <option value="">Todos os resultados</option>
+        ${DESFECHOS.map(d=>`<option value="${d.id}"${fHist.resultado===d.id?' selected':''}>${d.label}</option>`).join('')}</select>
+      <div class="spacer"></div>
+      <button class="btn" onclick="exportarCsv()">📥 Exportar CSV</button>
+    </div>
+    ${rows.length ? `<div class="tw"><table>
+      <thead><tr><th>Quando</th><th>Empresa</th><th>Consultor</th><th>Produto</th><th>Resultado</th>
+        <th>Valor</th><th>Observação</th></tr></thead>
+      <tbody>${rows.slice(0,400).map(t => {
+        const c = contatoById(t.contato_id), d = DESFECHOS.find(x=>x.id===t.resultado), p = prodById(t.produto_id);
+        const l = listaById(t.lista_id);
+        return `<tr>
+          <td style="color:var(--dim);font-size:12px;white-space:nowrap">${fmtDataHora(t.criado_em)}</td>
+          <td><div style="font-weight:700">${esc(c.empresa)}</div>
+            <div style="font-size:10.5px;color:var(--faint)">${esc(l?l.nome:'—')}</div></td>
+          <td style="font-size:12px">${esc(t.consultor||'—')}</td>
+          <td>${p?`<span class="pill" style="background:${p.cor}2E;color:${p.cor}">${esc(p.nome)}</span>`:'—'}</td>
+          <td><span style="font-weight:800;font-size:12px;color:${d?d.cor:'var(--dim)'}">${esc(d?d.label:t.resultado)}</span></td>
+          <td class="mono" style="color:${Number(t.valor)?'var(--ok)':'var(--faint)'};font-weight:${Number(t.valor)?800:400}">
+            ${Number(t.valor)?brl(t.valor):'—'}</td>
+          <td style="font-size:12px;color:var(--dim)">${esc(t.obs||'—')}</td>
+        </tr>`;
+      }).join('')}</tbody></table>
+      ${rows.length>400?`<div style="padding:10px;color:var(--faint);font-size:11.5px">Mostrando os 400 mais recentes dos ${rows.length} carregados. O CSV exporta os ${rows.length}.</div>`:''}
+      </div>` :
+      `<div class="vazio"><div class="big">🗒️</div>
+        Nenhum toque registrado ainda${toques.length?' com esse filtro':''}.<br>
+        Trabalhe a fila e as linhas nascem aqui.</div>`}
+    <div class="note">
+      Cada linha é <b>um toque</b>, não um contato. A mesma empresa aparece várias vezes, com produtos e
+      resultados diferentes — é assim que se mede quantos toques até a venda e qual produto abre a porta.
+    </div>
+  </div>`;
+}
+function exportarCsv(){
+  const rows = toquesFiltrados();
+  const head = ['quando','empresa','telefone','cidade','uf','lista','consultor','produto','resultado','valor','observacao'];
+  const linhas = rows.map(t => {
+    const c = contatoById(t.contato_id) || {}, l = listaById(t.lista_id), p = prodById(t.produto_id);
+    const d = DESFECHOS.find(x=>x.id===t.resultado);
+    return [new Date(t.criado_em).toLocaleString('pt-BR'), c.empresa, c.telefone, c.cidade, c.uf,
+            l?l.nome:'', t.consultor, p?p.nome:'', d?d.label:t.resultado,
+            String(Number(t.valor||0)).replace('.',','), t.obs||''];
+  });
+  const csv = [head, ...linhas].map(r => r.map(v =>
+    `"${String(v==null?'':v).replaceAll('"','""')}"`).join(';')).join('\r\n');
+  const url = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'}));
+  const a = document.createElement('a');
+  a.href = url; a.download = 'prospeccao-toques.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  showToast(`${rows.length} toques exportados`);
+}
+
+// ---------- CARTEIRA ----------
+function htmlCarteira(){
+  const ativos = produtosAtivos();
+  const cs = contatos.filter(c => toquesDe(c.id).length)
+    .sort((a,b)=>ltvDe(b.id)-ltvDe(a.id) || a.empresa.localeCompare(b.empresa));
+  return `<div class="page">
+    ${cs.length ? `<div class="tw"><table>
+      <thead><tr><th style="width:32%">Contato</th>
+        ${ativos.map(p=>`<th style="color:${p.cor};text-align:center">${esc(p.nome)}</th>`).join('')}
+        <th>LTV</th><th>Próxima oferta</th></tr></thead>
+      <tbody>${cs.map(c => {
+        const gapId = sugeridoPara(c), gap = gapId ? prodById(gapId) : null;
+        return `<tr>
+          <td><div style="font-weight:700">${esc(c.empresa)}</div>
+            <div style="font-size:11px;color:var(--dim)">${esc(c.cidade||'—')}${c.bloqueado?' · <span style="color:var(--bad)">não perturbar</span>':''}</div></td>
+          ${ativos.map(p => { const s = statusProduto(c.id, p.id);
+            const st = s==='comprado' ? `background:${p.cor};color:#0B1220`
+              : s==='proposta' ? `background:transparent;color:${p.cor};border-color:${p.cor};border-style:dashed`
+              : `background:#0B1220;color:var(--faint)`;
+            return `<td style="text-align:center"><button class="cell" style="${st}" title="${esc(p.nome)}"
+              onclick="abrirNaFila('${c.id}','${p.id}')">${s==='comprado'?'✓':s==='proposta'?'◷':'+'}</button></td>`;
+          }).join('')}
+          <td class="mono" style="color:var(--ok);font-weight:800">${brl(ltvDe(c.id))}</td>
+          <td style="font-size:12px">${gap?`<span style="color:${gap.cor};font-weight:700">${esc(gap.nome)}</span>`
+            :'<span style="color:var(--ok);font-weight:700">carteira completa</span>'}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div>` :
+      `<div class="vazio"><div class="big">💼</div>
+        A carteira se preenche sozinha conforme você registra os toques.<br>
+        Quem já comprou aparece aqui com os quadrados do que ainda falta oferecer.</div>`}
+    <div class="note">
+      <b>Aqui está o dinheiro mais barato da operação.</b> Quem já comprou responde o WhatsApp,
+      já confia e já passou o cartão. Clica num quadrado vazio e o contato abre na fila com aquele
+      produto já selecionado.
+    </div>
+  </div>`;
+}
+function abrirNaFila(contatoId, produtoId){
+  if (!filaIds.includes(contatoId)) filaIds.unshift(contatoId);
+  idx = filaIds.indexOf(contatoId);
+  const jaComprou = statusProduto(contatoId, produtoId) === 'comprado';
+  produtoEscolhido = jaComprou ? null : produtoId;   // não reabre oferta do que já é dele
+  variacao = 0; aba = 'fila';
+  renderTudo();
+  const p = prodById(produtoId), c = contatoById(contatoId);
+  showToast(jaComprou ? `${c?c.empresa:''} já tem ${p?p.nome:''} — abri no próximo produto`
+                      : `${p?p.nome:''} para ${c?c.empresa:''}`);
+}
+
+// ---------- RESULTADOS ----------
+function htmlResultados(){
+  const vendas = toques.filter(t => t.resultado === 'vendeu');
+  const ativos = produtosAtivos();
+
+  // 1) produto que abre a porta = produto da PRIMEIRA venda de cada contato
+  const primeira = {};
+  contatos.forEach(c => {
+    const v = toquesDe(c.id).find(t => t.resultado === 'vendeu');
+    if (v) primeira[v.produto_id] = (primeira[v.produto_id]||0) + 1;
+  });
+  const totalPrim = Object.values(primeira).reduce((a,b)=>a+b,0);
+
+  // 2) toques até a venda = quantos toques daquele contato até a venda (inclusive)
+  const buckets = {1:0,2:0,3:0,4:0};
+  vendas.forEach(v => {
+    const ts = toquesDe(v.contato_id);
+    const n = ts.filter(t => new Date(t.criado_em) <= new Date(v.criado_em)).length;
+    buckets[Math.min(4, Math.max(1,n))]++;
+  });
+  const totalV = vendas.length;
+
+  // 3) consultores hoje
+  const hoje = toques.filter(t => ehHoje(t.criado_em));
+  const porCons = {};
+  hoje.forEach(t => {
+    const k = t.consultor || '—';
+    porCons[k] = porCons[k] || { t:0, v:0, r:0 };
+    porCons[k].t++;
+    if (t.resultado === 'vendeu'){ porCons[k].v++; porCons[k].r += Number(t.valor||0); }
+  });
+
+  const receitaTotal = vendas.reduce((s,t)=>s+Number(t.valor||0),0);
+  const custoTotal = listas.reduce((s,l)=>s+Number(l.custo||0),0);
+  const trabalhados = new Set(toques.map(t=>t.contato_id)).size;
+
+  const cores = ['#3B82F6','#22C55E','#F59E0B','#C026D3','#F87171'];
+  return `<div class="page">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:13px">
+
+      <div class="mini">
+        <div class="st">Resumo da operação</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+          ${[['Contatos na base', contatos.length],['Trabalhados', trabalhados],
+             ['Vendas', totalV],['Receita', brl(receitaTotal)],
+             ['Custo das listas', brl(custoTotal)],
+             ['ROI', custoTotal ? (receitaTotal/custoTotal).toFixed(1)+'x' : '—']].map(([l,v])=>
+            `<div><div style="font-size:19px;font-weight:800" class="mono">${v}</div>
+             <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;font-weight:700">${l}</div></div>`).join('')}
+        </div>
+        <div style="font-size:12px;color:var(--dim);margin-top:12px;line-height:1.6">
+          Tudo aqui sai do log de toques — nada é digitado à mão nem estimado.
+        </div>
+      </div>
+
+      <div class="mini">
+        <div class="st">Produto que abre a porta</div>
+        ${totalPrim ? ativos.map(p => {
+          const n = primeira[p.id]||0, pc = Math.round(100*n/totalPrim);
+          return `<div style="margin-bottom:11px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12.5px">
+              <span style="font-weight:600">${esc(p.nome)}</span>
+              <span class="mono" style="font-weight:800">${pc}% <span style="color:var(--faint)">(${n})</span></span></div>
+            <div style="height:8px;background:#0B1220;border-radius:4px">
+              <i style="display:block;height:100%;width:${pc}%;background:${p.cor};border-radius:4px"></i></div>
+          </div>`;
+        }).join('') + `<div style="font-size:12px;color:var(--dim);margin-top:12px;line-height:1.6">
+          Primeira compra de cada cliente, de ${totalPrim} cliente${totalPrim>1?'s':''}. É o produto que quebra o gelo.</div>`
+        : `<div style="font-size:12.5px;color:var(--dim);line-height:1.6">
+            Sem venda registrada ainda. Assim que a primeira entrar, este gráfico se monta sozinho.</div>`}
+      </div>
+
+      <div class="mini">
+        <div class="st">Toques até a venda</div>
+        ${totalV ? [['1º toque',1],['2º toque',2],['3º toque',3],['4º ou +',4]].map(([l,k])=>{
+          const pc = Math.round(100*buckets[k]/totalV);
+          return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+            <div style="width:62px;font-size:12px;color:var(--dim)">${l}</div>
+            <div style="flex:1;height:21px;background:#0B1220;border-radius:5px">
+              <i style="display:block;height:100%;width:${pc}%;background:var(--navy-l);border-radius:5px"></i></div>
+            <div class="mono" style="width:38px;text-align:right;font-size:12px;font-weight:700">${pc}%</div></div>`;
+        }).join('') + `<div style="font-size:12px;color:var(--dim);margin-top:12px;line-height:1.6">
+          ${Math.round(100*(totalV-buckets[1])/totalV)}% das vendas vieram do 2º toque em diante
+          (${totalV} venda${totalV>1?'s':''}). Quem desiste no primeiro silêncio joga fora esse pedaço.</div>`
+        : `<div style="font-size:12.5px;color:var(--dim);line-height:1.6">
+            Sem venda registrada ainda — nada a contar aqui.</div>`}
+      </div>
+
+      <div class="mini">
+        <div class="st">Consultores hoje</div>
+        ${Object.keys(porCons).length ? Object.entries(porCons)
+          .sort((a,b)=>b[1].v-a[1].v || b[1].t-a[1].t).map(([n,s],i)=>`
+          <div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--line)">
+            <i style="width:26px;height:26px;border-radius:50%;background:${cores[i%cores.length]};color:#0B1220;
+              font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
+              font-style:normal;flex-shrink:0">${esc(n[0])}</i>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:700">${esc(n)}</div>
+              <div style="font-size:11px;color:var(--dim)">${s.t} toques · ${s.v} vendas · ${brl(s.r)}</div></div>
+            <div class="mono" style="font-size:14px;font-weight:800;color:${cores[i%cores.length]}">
+              ${(100*s.v/s.t).toFixed(1)}%</div>
+          </div>`).join('') + `<div style="font-size:12px;color:var(--dim);margin-top:12px;line-height:1.6">
+            O rodízio da Agenda distribui lead quente. Aqui é o contrário: lista fria dividida por
+            região, cada um com sua fila.</div>`
+        : `<div style="font-size:12.5px;color:var(--dim);line-height:1.6">
+            Nenhum toque hoje ainda.</div>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ============= IMPORTAÇÃO DE LISTA =============
+function abrirImport(){
+  document.getElementById('imp-dist').innerHTML =
+    `<option value="">Todos os consultores (rodízio)</option>` +
+    consultores.map(n=>`<option>${esc(n)}</option>`).join('');
+  abrirModal('ov-import');
+}
+function lerArquivoCsv(input){
+  const f = input.files && input.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => { document.getElementById('imp-txt').value = e.target.result; };
+  r.readAsText(f, 'utf-8');
+}
+function parseCsv(texto){
+  const sep = (texto.split('\n')[0].match(/;/g)||[]).length >
+              (texto.split('\n')[0].match(/,/g)||[]).length ? ';' : ',';
+  const linhas = []; let campo = '', linha = [], aspas = false;
+  for (let i = 0; i < texto.length; i++){
+    const ch = texto[i];
+    if (aspas){
+      if (ch === '"' && texto[i+1] === '"'){ campo += '"'; i++; }
+      else if (ch === '"') aspas = false;
+      else campo += ch;
+    } else if (ch === '"') aspas = true;
+    else if (ch === sep){ linha.push(campo); campo = ''; }
+    else if (ch === '\n'){ linha.push(campo); linhas.push(linha); linha = []; campo = ''; }
+    else if (ch !== '\r') campo += ch;
+  }
+  if (campo.length || linha.length){ linha.push(campo); linhas.push(linha); }
+  return linhas.filter(l => l.some(v => String(v).trim()));
+}
+const COLS = {
+  empresa:    ['empresa','nome','name','title','razao','razão','estabelecimento'],
+  telefone:   ['telefone','phone','whatsapp','celular','fone','telefone1','phone_number','international_phone_number'],
+  cidade:     ['cidade','city','municipio','município'],
+  uf:         ['uf','estado','state'],
+  nota:       ['nota','rating','avaliacao','avaliação','stars'],
+  avaliacoes: ['avaliacoes','avaliações','reviews','user_ratings_total','total_reviews','review_count'],
+  site:       ['site','website','url','web'],
+};
+function mapearColunas(header){
+  const norm = h => String(h||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const map = {};
+  header.forEach((h,i) => {
+    const n = norm(h);
+    for (const [k, alts] of Object.entries(COLS)){
+      if (map[k] === undefined && alts.some(a => norm(a) === n)) map[k] = i;
+    }
+  });
+  return map;
+}
+async function importarLista(){
+  const btn = document.getElementById('imp-btn');
+  const nome = document.getElementById('imp-nome').value.trim();
+  const origem = document.getElementById('imp-origem').value.trim();
+  const custo = Number(document.getElementById('imp-custo').value || 0);
+  const dist = document.getElementById('imp-dist').value;
+  const texto = document.getElementById('imp-txt').value;
+  if (!nome){ showToast('Dá um nome pra lista'); return; }
+  if (!texto.trim()){ showToast('Cole o CSV ou escolha o arquivo'); return; }
+
+  const linhas = parseCsv(texto);
+  if (linhas.length < 2){ showToast('CSV precisa de cabeçalho + pelo menos 1 linha'); return; }
+  const map = mapearColunas(linhas[0]);
+  if (map.empresa === undefined || map.telefone === undefined){
+    showToast('CSV sem coluna de empresa ou de telefone reconhecível');
+    return;
+  }
+  const donos = dist ? [dist] : consultores;
+  const vistos = new Set(); let semTel = 0; const novos = [];
+  linhas.slice(1).forEach((l, i) => {
+    // normalizeTelBR não mexe em fixo (não inventa o 9). Aqui só garantimos o DDI,
+    // senão o link do wa.me sai quebrado pra número de telefone fixo da lista.
+    let tel = normalizeTelBR(l[map.telefone]);
+    if (tel.length === 10 || tel.length === 11) tel = '55' + tel;
+    const empresa = String(l[map.empresa]||'').trim();
+    if (!empresa) return;
+    if (tel.length < 10){ semTel++; return; }
+    if (vistos.has(tel)){ return; }
+    vistos.add(tel);
+    novos.push({
+      empresa,
+      telefone: tel,
+      cidade: map.cidade !== undefined ? String(l[map.cidade]||'').trim() || null : null,
+      uf:     map.uf     !== undefined ? String(l[map.uf]||'').trim().toUpperCase().slice(0,2) || null : null,
+      nota:   map.nota   !== undefined ? (parseFloat(String(l[map.nota]||'').replace(',','.')) || null) : null,
+      avaliacoes: map.avaliacoes !== undefined ? (parseInt(String(l[map.avaliacoes]||'').replace(/\D/g,'')) || null) : null,
+      site:   map.site   !== undefined ? String(l[map.site]||'').trim() || null : null,
+      consultor: donos[novos.length % donos.length],
+    });
+  });
+  if (!novos.length){ showToast('Nenhuma linha com telefone válido'); return; }
+
+  btn.disabled = true; btn.textContent = 'Importando…';
+  try {
+    const [lista] = await supaInsert('prospeccao_listas', { nome, origem: origem || null, custo });
+    let inseridos = 0;
+    for (let i = 0; i < novos.length; i += 200){
+      const lote = novos.slice(i, i+200).map(c => ({ ...c, lista_id: lista.id }));
+      // ignore-duplicates contra o índice único de telefone: quem já existe em
+      // QUALQUER lista é descartado aqui — ninguém é abordado duas vezes.
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/prospeccao_contatos?on_conflict=telefone`, {
+        method:'POST',
+        headers:{ ...supaHeaders(), 'Prefer':'return=representation,resolution=ignore-duplicates' },
+        body: JSON.stringify(lote),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      inseridos += (await r.json()).length;
+    }
+    fecharModal('ov-import');
+    document.getElementById('imp-txt').value = '';
+    document.getElementById('imp-file').value = '';
+    document.getElementById('imp-nome').value = '';
+    await carregar(); renderTudo();
+    const dup = novos.length - inseridos;
+    showToast(`${inseridos} contatos importados` +
+      (dup ? ` · ${dup} descartados (já existiam)` : '') +
+      (semTel ? ` · ${semTel} sem telefone válido` : ''));
+  } catch(e){
+    showToast('Importação falhou: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Importar';
+  }
+}
+
+// ============= PRODUTOS E SCRIPTS =============
+function abrirProdutos(){ prodEditando = produtos[0] ? produtos[0].id : null; renderProdutos(); abrirModal('ov-prod'); }
+function renderProdutos(){
+  document.getElementById('prod-lista').innerHTML = produtos.map(p =>
+    `<div class="prodrow${prodEditando===p.id?' on':''}" onclick="editarProduto('${p.id}')">
+      <i style="width:11px;height:11px;border-radius:3px;background:${esc(p.cor)};display:block"></i>
+      <div style="flex:1"><div style="font-weight:700;font-size:13px">${esc(p.nome)} ${p.ativo?'':'<span style="color:var(--faint);font-weight:600">(inativo)</span>'}</div>
+        <div style="font-size:11px;color:var(--dim)">${esc(p.sigla)} · ${precoLabel(p)} · ${esc(p.sub||'')}</div></div>
+    </div>`).join('');
+  const p = produtos.find(x => x.id === prodEditando) || { id:'', nome:'', sigla:'', cor:'#3B82F6', preco:0, sub:'', ordem:(produtos.length+1), ativo:true };
+  const vars = (scripts[p.id] || []).join('\n---\n');
+  document.getElementById('prod-edit').innerHTML = `
+    <div class="fld"><label>Nome</label><input id="pe-nome" value="${esc(p.nome)}"></div>
+    <div style="display:flex;gap:9px">
+      <div class="fld" style="flex:1"><label>Sigla</label><input id="pe-sigla" maxlength="3" value="${esc(p.sigla)}"></div>
+      <div class="fld" style="flex:1"><label>Preço (R$)</label><input id="pe-preco" type="number" step="0.01" value="${p.preco}"></div>
+      <div class="fld" style="flex:1"><label>Cor</label><input id="pe-cor" value="${esc(p.cor)}"></div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <div class="fld" style="flex:2"><label>Legenda</label><input id="pe-sub" value="${esc(p.sub||'')}" placeholder="curso · venda única / assinatura · mensal"></div>
+      <div class="fld" style="flex:1"><label>Ordem</label><input id="pe-ordem" type="number" value="${p.ordem}"></div>
+      <div class="fld" style="flex:1"><label>Ativo</label>
+        <select id="pe-ativo"><option value="1"${p.ativo?' selected':''}>Sim</option><option value="0"${!p.ativo?' selected':''}>Não</option></select></div>
+    </div>
+    <div class="fld"><label>Scripts — separe as variações com uma linha <b>---</b></label>
+      <textarea id="pe-scripts" style="min-height:150px" placeholder="Placeholders: {empresa} {cidade} {consultor} {preco}">${esc(vars)}</textarea></div>
+    <input type="hidden" id="pe-id" value="${esc(p.id)}">`;
+}
+function editarProduto(id){ prodEditando = id; renderProdutos(); }
+function novoProduto(){ prodEditando = null; renderProdutos(); document.getElementById('pe-nome').focus(); }
+function slugify(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'').slice(0,24) || ('p' + Date.now().toString(36));
+}
+async function salvarProduto(){
+  const nome = document.getElementById('pe-nome').value.trim();
+  if (!nome){ showToast('Falta o nome do produto'); return; }
+  const id = document.getElementById('pe-id').value || slugify(nome);
+  const body = {
+    id, nome,
+    sigla: (document.getElementById('pe-sigla').value.trim() || nome.slice(0,2)).toUpperCase(),
+    preco: Number(document.getElementById('pe-preco').value || 0),
+    cor:   document.getElementById('pe-cor').value.trim() || '#3B82F6',
+    sub:   document.getElementById('pe-sub').value.trim() || null,
+    ordem: Number(document.getElementById('pe-ordem').value || 0),
+    ativo: document.getElementById('pe-ativo').value === '1',
+  };
+  const textos = document.getElementById('pe-scripts').value
+    .split(/^\s*---\s*$/m).map(s => s.trim()).filter(Boolean);
+  try {
+    const existe = produtos.some(p => p.id === id);
+    if (existe) await supaPatch(`prospeccao_produtos?id=eq.${id}`, body);
+    else        await supaInsert('prospeccao_produtos', body);
+    await supaDelete(`prospeccao_scripts?produto_id=eq.${id}`);
+    if (textos.length) await supaInsert('prospeccao_scripts',
+      textos.map((t,i)=>({ produto_id:id, ordem:i+1, texto:t })));
+    await carregar();
+    prodEditando = id; renderProdutos(); renderTudo();
+    showToast('Produto salvo');
+  } catch(e){ showToast('Não salvou: ' + e.message); }
+}
+
+// ============= TECLADO =============
+window.addEventListener('keydown', ev => {
+  if (aba !== 'fila') return;
+  if (['INPUT','SELECT','TEXTAREA'].includes(ev.target.tagName)) return;
+  if (document.querySelector('.ov.on')) return;
+  const d = DESFECHOS.find(x => x.k === ev.key);
+  if (d){ ev.preventDefault(); registrar(d); return; }
+  if (ev.key === 'ArrowDown'){ ev.preventDefault(); proximo(); return; }
+  if (ev.key === 'ArrowUp'){ ev.preventDefault(); irPara(Math.max(0, idx-1)); return; }
+  const i = ['q','w','e','r','t'].indexOf(ev.key.toLowerCase());
+  if (i >= 0){
+    const p = produtosAtivos()[i];
+    if (p) escolherProduto(p.id);
+  }
+});
+document.querySelectorAll('.ov').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('on'); });
+});
+
+// ============= BOOT =============
+carregar()
+  .then(renderTudo)
+  .catch(e => {
+    document.getElementById('conteudo').innerHTML =
+      `<div class="vazio"><div class="big">⚠️</div>Não deu pra carregar: ${esc(e.message)}<br>
+       <button class="btn" style="margin-top:12px" onclick="location.reload()">Tentar de novo</button></div>`;
+  });
+</script>
+
+</body>
+</html>
