@@ -174,6 +174,17 @@ describe('o que ele fala', () => {
     }
   });
 
+  // O pedido de SIM é a única alavanca real contra o no-show. Ele é a 5ª de 6
+  // partes da confirmação, e o sendHuman re-fatia tudo com teto de 5 bolhas — se
+  // um dia esse reagrupamento passar a cortar, é ESTA linha que se perde primeiro.
+  it('o pedido de SIM sobrevive ao fatiamento em bolhas do envio', async () => {
+    const { emBolhas } = await import('../services/agents/bolhas');
+    const { bolhasConfirmacao } = await mod();
+    const saida = emBolhas(bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego').join('||'));
+    expect(saida.join(' ')).toContain('*SIM*');
+    expect(saida.join(' ')).toContain('05/08 às 15h30');
+  });
+
   it('sem nome utilizável, a mensagem não sai quebrada', async () => {
     const { bolhas5min } = await mod();
     expect(bolhas5min('lead', '2026-08-05T18:30:00.000Z', null)[0]).toMatch(/^É agora!/);
