@@ -277,9 +277,7 @@ function fechamentoSentKey(email: string): string {
   return `${FECHAMENTO_SENT_PREFIX}${email.toLowerCase().trim()}`;
 }
 async function jaMandeiFechamento(email: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('system_state').select('key').eq('key', fechamentoSentKey(email)).maybeSingle();
-  return Boolean(data);
+  return marcadorRecente(fechamentoSentKey(email));
 }
 async function marcarFechamentoEnviado(email: string): Promise<void> {
   await supabase.from('system_state').upsert({
@@ -295,9 +293,7 @@ function grupoSentKey(email: string): string {
   return `${GRUPO_SENT_PREFIX}${email.toLowerCase().trim()}`;
 }
 async function jaMandeiGrupo(email: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('system_state').select('key').eq('key', grupoSentKey(email)).maybeSingle();
-  return Boolean(data);
+  return marcadorRecente(grupoSentKey(email));
 }
 async function marcarGrupoEnviado(email: string): Promise<void> {
   await supabase.from('system_state').upsert({
@@ -317,9 +313,7 @@ function cupomSentKey(email: string): string {
 }
 
 async function jaMandeiCupom(email: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('system_state').select('key').eq('key', cupomSentKey(email)).maybeSingle();
-  return Boolean(data);
+  return marcadorRecente(cupomSentKey(email));
 }
 async function marcarCupomEnviado(email: string): Promise<void> {
   await supabase.from('system_state').upsert({
@@ -375,14 +369,32 @@ function phoneVariants(raw: string): string[] {
 
 async function emConversa(telefone: string): Promise<boolean> {
   const { data } = await supabase
-    .from('whatsapp_sessions').select('messages, lead_data')
+    .from('whatsapp_sessions').select('messages, lead_data, updated_at')
     .in('phone', phoneVariants(telefone))
     .eq('tipo', 'recuperacao')
     .order('updated_at', { ascending: false }).limit(1).maybeSingle();
   if (!data) return false;
+  // JANELA (Thiago 03/ago: "reentrada sim, sempre"): a conversa só bloqueia enquanto está
+  // DENTRO do cooldown. Sem esta janela quem falou com a Bia uma vez nunca mais voltava
+  // pra esteira — era o oposto do pedido, e foi o efeito colateral do guard que pus no
+  // seeder mais cedo hoje. Quem disse NÃO continua barrado pra sempre pelo
+  // foiMarcadoPerdido, que NÃO tem janela nenhuma — é a trava que não pode expirar.
+  const quando = data.updated_at ? new Date(data.updated_at as string).getTime() : 0;
+  if (Date.now() - quando >= COOLDOWN_MS) return false;
   const msgs = (data.messages as unknown[]) || [];
   const ld = (data.lead_data ?? {}) as { human_takeover?: boolean };
   return msgs.length > 0 || ld.human_takeover === true;
+}
+
+// Marcador de toque já enviado — vale só DENTRO do cooldown, senão a reentrada daria
+// apenas o 1º toque e a sequência 2/3/4 ficaria travada pra sempre pelo marcador antigo.
+async function marcadorRecente(key: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('system_state').select('value').eq('key', key).maybeSingle();
+  if (!data) return false;
+  const v = (data.value ?? {}) as { sent_at?: string };
+  if (!v.sent_at) return true;                    // marcador antigo sem data: trata como válido
+  return Date.now() - new Date(v.sent_at).getTime() < COOLDOWN_MS;
 }
 
 // O CLIENTE respondeu (ou um humano assumiu)? Diferente de emConversa(): aqui ignoramos
