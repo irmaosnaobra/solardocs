@@ -1,0 +1,21 @@
+# robots.txt — solardoc.app
+#
+# Existe porque /robots.txt caía no catch-all de autenticação do Next e
+# respondia 307 para /auth?mode=login. O Google pedia o arquivo e recebia
+# uma tela de login. Arquivo estático em /public tem precedência sobre a
+# rota, então isso resolve.
+#
+# Política: liberar o site inteiro e barrar só o que é área logada ou API.
+# Nada aqui remove página do índice — robots.txt bloqueia rastreio, não
+# indexação. Para tirar algo do Google use noindex na própria página.
+
+User-agent: *
+Allow: /
+
+Disallow: /auth
+Disallow: /api/
+Disallow: /_api/
+Disallow: /admin
+Disallow: /minha-conta
+
+Sitemap: https://solardoc.app/sitemap.xml

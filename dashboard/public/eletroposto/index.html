@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Instalação de Eletroposto e Carregador para Carro Elétrico | Irmãos na Obra</title>
+<meta name="description" content="Instalação de eletroposto chave na mão em todo o Brasil: projeto elétrico, parecer de acesso na concessionária, obra, carregador DC de 40 a 160 kW e wallbox AC, comissionamento e operação com app próprio.">
+<meta name="keywords" content="eletroposto, instalação de eletroposto, carregador para carro elétrico, estação de recarga, carregador DC, wallbox, ponto de recarga, mobilidade elétrica">
+<link rel="canonical" href="https://solardoc.app/eletroposto">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="author" content="Irmãos na Obra Mobilidade Elétrica">
+<meta name="geo.region" content="BR-MG">
+<link rel="icon" type="image/svg+xml" href="/eletroposto/img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/eletroposto/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/eletroposto/img/favicon-16.png">
+<link rel="apple-touch-icon" href="/eletroposto/img/apple-touch-icon.png">
+<meta name="theme-color" content="#0B2003">
+<meta property="og:title" content="Irmãos na Obra — Mobilidade Elétrica">
+<meta property="og:description" content="Eletropostos chave na mão: projeto, homologação, obra, comissionamento e operação. Atendemos todo o Brasil.">
+<meta property="og:image" content="https://solardoc.app/eletroposto/img/capa.jpg">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://solardoc.app/eletroposto">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="Irmãos na Obra Mobilidade Elétrica">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" as="image" href="/eletroposto/img/capa.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════════════
+   /eletroposto — site institucional da Irmãos na Obra Mobilidade Elétrica
+   Conteúdo vindo da apresentação comercial
+   (Desktop/EletroPosto/Apresentacao-IrmaosNaObra).
+
+   Tokens e fonte são os MESMOS do /io/eletroposto de propósito: quem visita
+   os dois precisa ver a mesma empresa, não dois projetos diferentes.
+
+   NÃO tem simulador, agenda nem tabela de preço aqui — decisão do Thiago (03/08).
+   O simulador é papel do /io/eletroposto: duplicar criaria duas portas de entrada
+   gravando no mesmo `agendamentos` com created_by diferente, e a análise de
+   reclassificação quebra. Preço só na conversa, depois da visita técnica.
+   O CTA daqui é sempre o WhatsApp.
+   ══════════════════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --neon:#7DD117; --neon-b:#9BEE38; --dk:#0B2003; --deep:#050d02;
+  --cream:#F7FBF2; --mut:rgba(247,251,242,.62); --line:rgba(125,209,23,.28);
+  --card:rgba(11,32,3,.72);
+  --wrap:1180px;
+}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--deep);color:var(--cream);font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+  line-height:1.6;overflow-x:hidden}
+img{max-width:100%;display:block}
+a{color:inherit}
+
+.wrap{width:100%;max-width:var(--wrap);margin:0 auto;padding:0 22px}
+section{padding:88px 0;position:relative}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.28em;color:var(--neon);
+  text-transform:uppercase;margin-bottom:16px}
+h1{font-size:clamp(34px,6.4vw,62px);font-weight:900;line-height:1.06;letter-spacing:-.02em}
+h2{font-size:clamp(27px,4.4vw,44px);font-weight:800;line-height:1.14;letter-spacing:-.015em}
+h3{font-size:clamp(19px,2.6vw,24px);font-weight:800;line-height:1.25}
+p.lead{font-size:clamp(16px,2vw,19px);color:var(--mut);font-weight:500;margin-top:16px;max-width:64ch}
+.mark{background:var(--neon);color:#08160A;padding:0 12px 3px;display:inline-block;
+  border-radius:3px;line-height:1.1}
+.g{color:var(--neon)}
+
+/* ---------- topo ---------- */
+header{position:sticky;top:0;z-index:60;background:rgba(5,13,2,.86);
+  backdrop-filter:blur(12px);border-bottom:1px solid rgba(125,209,23,.14)}
+.bar{display:flex;align-items:center;justify-content:space-between;height:70px}
+.lock{display:flex;align-items:center;gap:12px;text-decoration:none}
+.lock img{width:42px;height:42px;border-radius:50%;object-fit:cover;
+  box-shadow:0 0 0 2px rgba(125,209,23,.5)}
+.lock .n1{font-size:14px;font-weight:800;letter-spacing:.14em;line-height:1.1}
+.lock .n2{font-size:9.5px;font-weight:600;letter-spacing:.26em;color:var(--neon)}
+nav{display:flex;gap:26px;align-items:center}
+nav a{font-size:14px;font-weight:600;color:var(--mut);text-decoration:none;transition:color .18s}
+nav a:hover{color:var(--cream)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  background:var(--neon);color:#08160A;font-weight:800;font-size:15px;
+  padding:13px 24px;border-radius:11px;text-decoration:none;transition:transform .16s,filter .16s}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.06)}
+.btn.ghost{background:transparent;color:var(--cream);border:1.5px solid var(--line)}
+@media(max-width:880px){ nav{display:none} .bar{height:62px} }
+@media(max-width:520px){
+  /* no telefone o lockup inteiro espremia o botão em três linhas */
+  .lock .n2{display:none}
+  .lock .n1{font-size:12.5px;letter-spacing:.08em;white-space:nowrap}
+  .lock img{width:36px;height:36px}
+  .btn{padding:11px 16px;font-size:14px}
+  section{padding:62px 0}
+}
+/* o header é fixo: âncora sem isso para embaixo dele */
+section[id]{scroll-margin-top:78px}
+
+/* ---------- hero ---------- */
+.hero{min-height:min(88vh,760px);display:flex;align-items:center;padding:0;overflow:hidden}
+.hero .bg{position:absolute;inset:0;background:url('/eletroposto/img/capa.jpg') center/cover;z-index:0}
+.hero .sc{position:absolute;inset:0;z-index:1;background:
+  linear-gradient(90deg,rgba(5,13,2,.96) 0%,rgba(5,13,2,.86) 42%,rgba(5,13,2,.35) 78%,rgba(5,13,2,.6) 100%)}
+.hero .wrap{position:relative;z-index:2;padding-top:80px;padding-bottom:80px}
+.hero p.lead{max-width:52ch}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+
+/* ---------- blocos ---------- */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:54px;align-items:center}
+.split.rev > .fig{order:2}
+.fig{border-radius:20px;overflow:hidden;border:1px solid var(--line);
+  box-shadow:0 26px 60px rgba(0,0,0,.5)}
+.fig img{width:100%;height:100%;object-fit:cover;aspect-ratio:4/3}
+@media(max-width:880px){ .split{grid-template-columns:1fr;gap:30px} .split.rev > .fig{order:0} }
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-top:38px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px 24px}
+.card h3{margin-bottom:9px}
+.card p{font-size:15px;color:var(--mut);font-weight:500}
+.card .n{font-size:12px;font-weight:800;letter-spacing:.2em;color:var(--neon);margin-bottom:12px}
+
+ul.ticks{list-style:none;margin-top:24px}
+ul.ticks li{position:relative;padding-left:30px;margin-bottom:15px;font-size:16px;
+  color:var(--mut);font-weight:500}
+ul.ticks li b{color:var(--cream);font-weight:800}
+ul.ticks li::before{content:"";position:absolute;left:4px;top:10px;width:9px;height:9px;
+  border-radius:50%;background:var(--neon)}
+
+/* ---------- números do mercado ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px;margin-top:38px}
+.stat{border-left:4px solid var(--neon);padding-left:20px}
+.stat .n{font-size:clamp(30px,4.6vw,44px);font-weight:900;line-height:1}
+.stat .t{font-size:14.5px;color:var(--mut);margin-top:7px;font-weight:500}
+.fonte{font-size:12.5px;color:rgba(247,251,242,.42);margin-top:22px;font-weight:500}
+
+/* ---------- produto ---------- */
+.prod{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center;
+  background:var(--card);border:1px solid var(--line);border-radius:22px;padding:30px;margin-top:26px}
+.prod .ph{border-radius:16px;overflow:hidden;background:#F2F5F1}
+.prod .ph img{width:100%;aspect-ratio:3/4;object-fit:cover}
+.prod dl{font-size:16px}
+.prod dt{font-weight:800;font-size:12px;letter-spacing:.18em;color:var(--neon);margin-top:16px}
+.prod dd{font-weight:700;font-size:17px}
+@media(max-width:880px){ .prod{grid-template-columns:1fr;gap:24px;padding:22px} .prod .ph img{aspect-ratio:4/3} }
+
+/* ---------- faixa de investimento ---------- */
+.invest{background:linear-gradient(120deg,rgba(125,209,23,.16),rgba(125,209,23,.04));
+  border:1.5px solid var(--neon);border-radius:22px;padding:38px 34px;margin-top:34px}
+.invest .v{font-size:clamp(26px,4.6vw,42px);font-weight:900;letter-spacing:-.02em;margin-top:8px}
+.invest .v .nb{white-space:nowrap}
+.invest .d{font-size:15.5px;color:var(--mut);margin-top:14px;font-weight:500;max-width:70ch}
+.cond{display:flex;gap:26px;flex-wrap:wrap;margin-top:24px}
+.cond div{font-size:13px;color:var(--mut);font-weight:600}
+.cond b{display:block;font-size:22px;color:var(--cream);font-weight:900}
+
+/* ---------- tipos de ponto ---------- */
+.pontos{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:38px}
+.ponto{position:relative;border-radius:18px;overflow:hidden;min-height:250px;
+  display:flex;align-items:flex-end;border:1px solid var(--line)}
+.ponto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.5)}
+.ponto .lb{position:relative;z-index:2;padding:20px}
+.ponto .lb .t{font-size:19px;font-weight:800}
+.ponto .lb .k{font-size:13px;font-weight:800;color:#08160A;background:var(--neon);
+  display:inline-block;padding:2px 10px;border-radius:4px;margin-top:8px}
+
+/* ---------- responsabilidades ---------- */
+.resp{display:grid;grid-template-columns:1fr 1fr;gap:4px 44px;margin-top:30px;
+  font-size:15.5px;color:var(--mut);font-weight:500;line-height:2}
+@media(max-width:880px){ .resp{grid-template-columns:1fr} }
+
+/* ---------- contato ---------- */
+.contato{background:url('/eletroposto/img/carro-por-do-sol.jpg') center/cover;position:relative}
+.contato .sc{position:absolute;inset:0;background:
+  linear-gradient(90deg,rgba(5,13,2,.95) 0%,rgba(5,13,2,.82) 50%,rgba(5,13,2,.5) 100%)}
+.contato .wrap{position:relative;z-index:2}
+.vias{display:flex;gap:30px;flex-wrap:wrap;margin-top:26px;font-size:17px;font-weight:600}
+.vias a{text-decoration:none;color:var(--cream);display:flex;gap:10px;align-items:center}
+.vias a:hover{color:var(--neon)}
+
+footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
+  color:rgba(247,251,242,.42);font-weight:500}
+.foot-in{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+.only-lg{display:inline}.only-sm{display:none}
+@media(max-width:520px){.only-lg{display:none}.only-sm{display:inline}}
+.sep{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "ProfessionalService", "@id": "https://solardoc.app/eletroposto#empresa", "name": "Irmãos na Obra Mobilidade Elétrica", "description": "Instalação de eletropostos e estações de recarga para veículos elétricos em todo o Brasil: projeto elétrico, parecer de acesso, obra, comissionamento e operação.", "url": "https://solardoc.app/eletroposto", "image": "https://solardoc.app/eletroposto/img/capa.jpg", "logo": "https://solardoc.app/eletroposto/img/logo-io.png", "telephone": "+5534998165040", "areaServed": {"@type": "Country", "name": "Brasil"}, "address": {"@type": "PostalAddress", "addressRegion": "MG", "addressCountry": "BR"}, "sameAs": ["https://instagram.com/irmaosnaobra__"], "knowsAbout": ["eletroposto", "estação de recarga", "carregador para carro elétrico", "carregador DC", "wallbox", "mobilidade elétrica"], "hasOfferCatalog": {"@type": "OfferCatalog", "name": "Serviços de mobilidade elétrica", "itemListElement": [{"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Instalação de eletroposto chave na mão"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Carregador rápido DC de 40 a 160 kW"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Carregador AC wallbox de 7,3 a 22 kW"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Projeto elétrico e ART no CREA"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Parecer de acesso na concessionária"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Manutenção e suporte de estações de recarga"}}]}}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "O que é um eletroposto?", "acceptedAnswer": {"@type": "Answer", "text": "É uma estação de recarga para veículos elétricos instalada num ponto comercial ou privado. O motorista conecta o carro, a recarga é liberada pelo aplicativo e o dono do ponto recebe pela energia vendida."}}, {"@type": "Question", "name": "O que está incluso na instalação de um eletroposto?", "acceptedAnswer": {"@type": "Answer", "text": "Visita técnica, estudo de viabilidade, projeto elétrico e executivo, entrada de energia, parecer de acesso na concessionária, obra civil, infraestrutura elétrica, instalação do carregador, sinalização das vagas, configuração da plataforma e comissionamento."}}, {"@type": "Question", "name": "Preciso de parecer de acesso da concessionária para instalar um eletroposto?", "acceptedAnswer": {"@type": "Answer", "text": "Sim, na maioria dos casos. A representação junto à distribuidora é feita pela Irmãos na Obra, com ART registrada no CREA."}}, {"@type": "Question", "name": "Qual potência de carregador escolher?", "acceptedAnswer": {"@type": "Answer", "text": "Depende do tempo que o veículo fica parado no ponto. Posto e rodovia pedem recarga rápida DC; hotel, supermercado e shopping funcionam bem com potência intermediária; condomínio e estacionamento de longa permanência resolvem com wallbox AC."}}, {"@type": "Question", "name": "Vocês instalam eletroposto em todo o Brasil?", "acceptedAnswer": {"@type": "Answer", "text": "Sim. A base fica no Triângulo Mineiro e atendemos projetos em todo o território nacional."}}, {"@type": "Question", "name": "E se o equipamento apresentar defeito?", "acceptedAnswer": {"@type": "Answer", "text": "O equipamento é nacionalizado e fica em estoque no Brasil, assim como a peça de reposição, então a troca não depende de importação. Os wallbox têm 2 anos de garantia de fábrica e a manutenção é feita por equipe própria."}}, {"@type": "Question", "name": "Quanto custa uma estação de recarga?", "acceptedAnswer": {"@type": "Answer", "text": "Depende da potência que o ponto pede e da infraestrutura elétrica existente. A Irmãos na Obra faz o estudo de viabilidade do endereço e apresenta o orçamento fechado, com opções de cartão, financiamento e carência."}}, {"@type": "Question", "name": "Preciso investir para ter uma estação no meu ponto?", "acceptedAnswer": {"@type": "Answer", "text": "Não necessariamente. No modelo de locação de espaço, a Irmãos na Obra custeia 100% da implantação e o dono do ponto recebe aluguel fixo pelas vagas ou percentual do faturamento da operação."}}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebPage", "name": "Instalação de Eletroposto e Carregador para Carro Elétrico", "url": "https://solardoc.app/eletroposto", "inLanguage": "pt-BR", "isPartOf": {"@type": "WebSite", "name": "Irmãos na Obra Mobilidade Elétrica", "url": "https://solardoc.app/eletroposto"}}</script>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a class="lock" href="#topo">
+      <img src="/eletroposto/img/logo-io.png" alt="Irmãos na Obra">
+      <div><div class="n1">IRMÃOS NA OBRA</div><div class="n2">MOBILIDADE ELÉTRICA</div></div>
+    </a>
+    <nav>
+      <a href="#empresa">A empresa</a>
+      <a href="#servicos">Serviços</a>
+      <a href="#mercado">Mercado</a>
+      <a href="#entrega">O que entregamos</a>
+      <a href="#equipamento">Equipamento</a>
+      <a href="#modelos">Modelos</a>
+      <a href="#faq">Dúvidas</a>
+      <a href="#contato">Contato</a>
+    </nav>
+    <a class="btn" href="#contato"><span class="only-lg">Falar com a gente</span><span class="only-sm">Contato</span></a>
+  </div>
+</header>
+
+<!-- ══════════ HERO ══════════ -->
+<section class="hero" id="topo">
+  <div class="bg"></div><div class="sc"></div>
+  <div class="wrap">
+    <div class="eyebrow">Eletropostos · chave na mão</div>
+    <h1>Instalação de eletroposto<br><span class="mark">chave na mão</span></h1>
+    <p style="font-size:clamp(17px,2.2vw,22px);font-weight:600;margin-top:18px;color:var(--cream)">
+      Do projeto elétrico à primeira recarga na tomada — em todo o Brasil.</p>
+    <p class="lead">
+      A Irmãos na Obra é mais do que uma revendedora de carregadores: entregamos o eletroposto
+      inteiro — projeto elétrico, parecer de acesso na concessionária, obra civil, instalação,
+      comissionamento e operação. Atendemos todo o Brasil.
+    </p>
+    <div class="cta">
+      <a class="btn" href="#contato">Quero um estudo do meu ponto</a>
+      <a class="btn ghost" href="#entrega">O que está incluso →</a>
+    </div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- ══════════ A EMPRESA ══════════ -->
+<section id="empresa">
+  <div class="wrap split">
+    <div>
+      <div class="eyebrow">A empresa</div>
+      <h2>Uma empresa <span class="g">100% brasileira</span> focada em eletropostos de alta potência</h2>
+      <p class="lead">
+        Nascemos para acelerar a mobilidade elétrica no interior do Brasil, entregando a estação
+        inteira e cuidando dela depois que ela liga. Cada ponto é projetado com o máximo de
+        eficiência, segurança e lucratividade para o dono do espaço.
+      </p>
+      <ul class="ticks">
+        <li data-opcional="estacoes"><b data-d="estacoes"></b> estações de recarga entregues e em operação</li>
+        <li>Atuação no <b>Triângulo Mineiro</b> e atendimento em <b>todo o Brasil</b></li>
+        <li>Engenharia própria com <b>ART no CREA</b> — a responsabilidade técnica não é terceirizada</li>
+        <li><b>Equipamento com pronta entrega no Brasil</b> e peça de reposição aqui, sem fila de importação</li>
+      </ul>
+    </div>
+    <div class="fig"><img src="/eletroposto/img/estacao-plaza.jpg" alt="Estação de recarga para veículos elétricos instalada pela Irmãos na Obra" loading="lazy"></div>
+  </div>
+</section>
+
+<!-- ══════════ SERVIÇOS — o que trabalhamos ══════════ -->
+<section id="servicos">
+  <div class="wrap">
+    <div class="eyebrow">O que trabalhamos</div>
+    <h2>Serviços de <span class="g">mobilidade elétrica</span></h2>
+    <p class="lead">Tudo o que um ponto de recarga precisa, do estudo do local à operação — com
+      responsabilidade técnica assinada.</p>
+    <div class="cards">
+      <div class="card"><h3>Instalação de eletroposto</h3>
+        <p>Estação de recarga completa para empresas, postos, hotéis, supermercados, shoppings,
+        condomínios e estacionamentos. Obra chave na mão.</p></div>
+      <div class="card"><h3>Carregador rápido DC</h3>
+        <p>Carregadores de corrente contínua de 40 a 160 kW, conector CCS2, um ou dois veículos
+        simultâneos — para quem precisa devolver autonomia em minutos.</p></div>
+      <div class="card"><h3>Carregador AC / wallbox</h3>
+        <p>Wallbox de 7,3, 11 e 22 kW com conector Tipo 2, parede ou pedestal — para longa
+        permanência, frota e uso residencial.</p></div>
+      <div class="card"><h3>Projeto elétrico e ART</h3>
+        <p>Projeto elétrico, projeto executivo, entrada de energia e ART registrada no CREA por
+        engenheiro do nosso quadro.</p></div>
+      <div class="card"><h3>Parecer de acesso</h3>
+        <p>Representação junto à concessionária: o parecer de acesso é o gargalo que trava a
+        maioria dos projetos, e ele é nosso.</p></div>
+      <div class="card"><h3>Obra civil e infraestrutura</h3>
+        <p>Base, infraestrutura elétrica, transformador quando necessário, quadro de proteção,
+        internet, CFTV, pintura e sinalização das vagas.</p></div>
+      <div class="card"><h3>Plataforma e aplicativo</h3>
+        <p>Gestão, cobrança e monitoramento remoto com o nosso app — o motorista localiza a
+        estação, ativa a recarga e paga pelo celular.</p></div>
+      <div class="card"><h3>Manutenção e suporte</h3>
+        <p>Manutenção preventiva e corretiva com equipe própria, peça de reposição no Brasil e
+        contrato de SLA após a garantia.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ MERCADO ══════════ -->
+<section id="mercado" style="background:rgba(11,32,3,.4)">
+  <div class="wrap">
+    <div class="eyebrow">O momento do mercado</div>
+    <h2>A frota cresceu. <span class="g">A infraestrutura não acompanhou.</span></h2>
+    <div class="stats">
+      <div class="stat">
+        <div class="n">181 mil</div>
+        <div class="t">veículos plug-in vendidos no Brasil em 2025 — crescimento de <b>26%</b> em um ano.</div>
+      </div>
+      <div class="stat">
+        <div class="n">21 mil</div>
+        <div class="t">pontos de recarga no país inteiro — alta de <b>42%</b> em 12 meses.</div>
+      </div>
+      <div class="stat">
+        <div class="n">1 para 8,6</div>
+        <div class="t">são <b>8,6 veículos vendidos em 2025</b> para cada ponto de recarga que existe.</div>
+      </div>
+    </div>
+    <p class="lead" style="margin-top:32px">
+      Quem dirige elétrico <b style="color:var(--cream)">planeja o trajeto pelo ponto de recarga</b>.
+      Hotéis, postos, shoppings e supermercados viraram destino por causa disso — quem tem o
+      carregador entra na rota do motorista.
+    </p>
+    <div class="fonte">Fonte: ABVE — abve.org.br/bi-geral</div>
+  </div>
+</section>
+
+<!-- ══════════ BENEFÍCIOS ══════════ -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Para o dono do ponto</div>
+    <h2>O que uma estação faz pelo <span class="mark">seu negócio</span></h2>
+    <div class="cards">
+      <div class="card"><div class="n">01</div><h3>Atração de clientela</h3>
+        <p>A estação atrai usuários de carros elétricos, aumenta o fluxo e impulsiona o faturamento.
+        É um público das classes A e B, com alto poder de consumo.</p></div>
+      <div class="card"><div class="n">02</div><h3>Receita adicional</h3>
+        <p>O carregador gera receita pela venda de energia e pela cessão do espaço — e a taxa de
+        ociosidade também entra no caixa do ponto.</p></div>
+      <div class="card"><div class="n">03</div><h3>Taxa de ocupação</h3>
+        <p>Ter ponto de recarga torna o estabelecimento a escolha natural de quem dirige elétrico,
+        e aumenta o tempo de permanência dentro dele.</p></div>
+      <div class="card"><div class="n">04</div><h3>Fidelização e ESG</h3>
+        <p>Fortalece a imagem sustentável do negócio e alinha a marca às práticas de ESG que o
+        mercado passou a cobrar.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ O QUE ENTREGAMOS ══════════ -->
+<section id="entrega" style="background:rgba(11,32,3,.4)">
+  <div class="wrap split rev">
+    <div class="fig"><img src="/eletroposto/img/painel-eletrico.jpg" alt="Quadro de distribuição e proteção de eletroposto executado pela equipe da Irmãos na Obra" loading="lazy"></div>
+    <div>
+      <div class="eyebrow">Responsabilidade técnica</div>
+      <h2>A obra inteira é nossa —<br>inclusive o que trava</h2>
+      <p class="lead">
+        Comprar o carregador é a parte fácil. O que segura um eletroposto é o projeto elétrico, o
+        parecer de acesso na concessionária e o comissionamento. Isso é nosso, com ART assinada.
+      </p>
+      <div class="resp">
+        <div>1. Visita técnica e estudo de viabilidade</div><div>10. Infraestrutura de internet</div>
+        <div>2. Projeto elétrico</div><div>11. Infraestrutura de CFTV</div>
+        <div>3. Projeto executivo</div><div>12. Obra civil</div>
+        <div>4. Projeto de entrada de energia</div><div>13. Instalação do padrão de entrada</div>
+        <div>5. Parecer de acesso na concessionária</div><div>14. Pintura e sinalização das vagas</div>
+        <div>6. Quadro de distribuição e proteção</div><div>15. Layout e comunicação visual</div>
+        <div>7. Infraestrutura elétrica</div><div>16. Configuração do carregador e da plataforma</div>
+        <div>8. Instalação de transformador</div><div>17. Comissionamento e treinamento</div>
+        <div>9. Conexões elétricas</div><div>18. Logística de materiais e do carregador</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ NORMAS ══════════ -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Protocolo de instalação</div>
+    <h2>Normas que a instalação <span class="g">precisa cumprir</span></h2>
+    <ul class="ticks" style="columns:2;column-gap:44px">
+      <li>Regulamentos e normas brasileiras</li>
+      <li>Regulamentos da <b>ANEEL (REN 1.000/2021)</b> e das distribuidoras (NDU 042)</li>
+      <li>Regulamentos do Corpo de Bombeiros do Estado</li>
+      <li><b>NBR 5410</b> — instalações elétricas de baixa tensão</li>
+      <li><b>NBR 17019</b> — alimentação de veículos elétricos</li>
+      <li>Série <b>NBR IEC 61851</b></li>
+      <li><b>NBR 14039</b> — média tensão, de 1,0 kV a 36,2 kV</li>
+    </ul>
+    <p class="lead" style="margin-top:26px">
+      Adotamos referências internacionais adaptadas à realidade brasileira, criando um protocolo
+      de instalação próprio que supera as normas vigentes.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════ EQUIPAMENTO ══════════ -->
+<section id="equipamento" style="background:rgba(11,32,3,.4)">
+  <div class="wrap">
+    <div class="eyebrow">Equipamento</div>
+    <h2>Linha <span class="g">SunMob</span> — AC e DC, com pronta entrega no Brasil</h2>
+
+    <div class="prod">
+      <div class="ph"><img src="/eletroposto/img/produto-dc.jpg" alt="Carregador DC SunMob de recarga rápida para carro elétrico, de 40 a 160 kW" loading="lazy"></div>
+      <div>
+        <h3>Fast Charge — DC</h3>
+        <p class="lead" style="margin-top:10px">Recarga rápida em corrente contínua, para quem
+          precisa devolver autonomia em minutos.</p>
+        <dl>
+          <dt>Potência</dt><dd>40 a 160 kW</dd>
+          <dt>Conectores</dt><dd>1 e 2 plugs CCS2</dd>
+          <dt>Refrigeração</dt><dd>Ativa</dd>
+          <dt>Comunicação</dt><dd>OCPP 1.6J</dd>
+          <dt>Marca</dt><dd class="g">SunMob</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="prod">
+      <div class="ph"><img src="/eletroposto/img/produto-ac.jpg" alt="Wallbox AC SunMob Livoltek com conector Tipo 2, de 7,3 a 22 kW" loading="lazy"></div>
+      <div>
+        <h3>Wallbox — AC</h3>
+        <p class="lead" style="margin-top:10px">Carga lenta para longa permanência: condomínio,
+          estacionamento, frota e uso residencial.</p>
+        <dl>
+          <dt>Potência</dt><dd>7,3 · 11 · 22 kW</dd>
+          <dt>Conector</dt><dd>1 plug Tipo 2</dd>
+          <dt>Instalação</dt><dd>Parede ou pedestal</dd>
+          <dt>Comunicação</dt><dd>OCPP 1.6J</dd>
+          <dt>Marca</dt><dd class="g">SunMob · Livoltek</dd>
+        </dl>
+      </div>
+    </div>
+
+    <ul class="ticks" style="margin-top:30px">
+      <li><b>Pronta entrega no Brasil</b> — o carregador sai do nosso estoque, sem fila de importação.</li>
+      <li><b>Peça de reposição no país</b> e garantia de fábrica (2 anos nos wallbox): a estação não
+        fica parada esperando contêiner.</li>
+      <li><b>Plataforma de gestão e cobrança</b> integrada e o <b>nosso aplicativo</b> (iOS e
+        Android) — o motorista localiza a estação, ativa a recarga, paga via PIX ou cartão e vê o
+        histórico. Todo ponto que entregamos entra no mapa do app.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════ MODELOS DE NEGÓCIO ══════════ -->
+<section id="modelos">
+  <div class="wrap">
+    <div class="eyebrow">Modelos de negócio</div>
+    <h2>Dois caminhos para ter<br>uma estação no seu ponto</h2>
+    <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+      <div class="card">
+        <div class="n">Modelo 1</div>
+        <h3>Investimento próprio — 100% seu</h3>
+        <ul class="ticks" style="margin-top:16px">
+          <li>Você financia a infraestrutura e o equipamento.</li>
+          <li>Fica com <b>100% do faturamento</b> e define a própria tarifa por kWh.</li>
+          <li>Entra junto toda a nossa inteligência de mercado, o estudo de viabilidade do ponto e
+            a plataforma de gestão.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="n">Modelo 2</div>
+        <h3>Locação de espaço</h3>
+        <ul class="ticks" style="margin-top:16px">
+          <li>Investimento <b>100% custeado pela Irmãos na Obra</b>, após estudo de viabilidade do local.</li>
+          <li>Aluguel mensal fixo pelas vagas <b>ou</b> 10% do faturamento líquido da operação.</li>
+          <li><b>Risco zero e custo zero</b> para você — e atração de cliente qualificado enquanto o
+            veículo recarrega.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="invest">
+      <div class="eyebrow" style="margin-bottom:6px">Investimento</div>
+      <div class="v">Cada ponto tem um número</div>
+      <div class="d">
+        O valor da estação depende da potência que o seu ponto pede e da infraestrutura elétrica que
+        ele já tem — e é isso que a visita técnica responde. Fazemos o <b>estudo de viabilidade do
+        seu endereço</b> e apresentamos o orçamento fechado: equipamento, projeto e instalação.
+        Trabalhamos com <b>cartão, financiamento e carência</b>.
+      </div>
+      <a class="btn" style="margin-top:26px"
+         href="https://api.whatsapp.com/send?phone=5534998165040&amp;text=Ol%C3%A1!%20Quero%20o%20estudo%20de%20viabilidade%20do%20meu%20ponto."
+         target="_blank" rel="noopener">Quero o estudo do meu ponto</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ TIPOS DE PONTO ══════════ -->
+<section style="background:rgba(11,32,3,.4)">
+  <div class="wrap">
+    <div class="eyebrow">Onde uma estação faz sentido</div>
+    <h2>Cada ponto pede uma <span class="g">potência diferente</span></h2>
+    <div class="pontos">
+      <div class="ponto"><img src="/eletroposto/img/caso-posto.jpg" alt="Eletroposto de recarga rápida em posto de combustível e conveniência" loading="lazy">
+        <div class="lb"><div class="t">Posto e conveniência</div><div class="k">160 kW</div></div></div>
+      <div class="ponto"><img src="/eletroposto/img/caso-hotel.jpg" alt="Carregador para carro elétrico instalado em hotel e pousada" loading="lazy">
+        <div class="lb"><div class="t">Hotel e pousada</div><div class="k">60 kW</div></div></div>
+      <div class="ponto"><img src="/eletroposto/img/caso-mercado.jpg" alt="Estação de recarga em estacionamento de supermercado e shopping" loading="lazy">
+        <div class="lb"><div class="t">Supermercado e shopping</div><div class="k">80 kW</div></div></div>
+      <div class="ponto"><img src="/eletroposto/img/caso-condominio.jpg" alt="Wallbox de recarga em garagem de condomínio e estacionamento" loading="lazy">
+        <div class="lb"><div class="t">Condomínio e estacionamento</div><div class="k">22 kW AC</div></div></div>
+    </div>
+    <div class="fonte">Imagens ilustrativas de projeto.</div>
+  </div>
+</section>
+
+<!-- ══════════ PERGUNTAS FREQUENTES ══════════ -->
+<section id="faq">
+  <div class="wrap">
+    <div class="eyebrow">Perguntas frequentes</div>
+    <h2>Dúvidas de quem está <span class="g">avaliando um ponto</span></h2>
+    <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+      <div class="card"><h3>O que é um eletroposto?</h3>
+        <p>É uma estação de recarga para veículos elétricos instalada num ponto comercial ou
+        privado. O motorista conecta o carro, a recarga é liberada pelo aplicativo e o dono do
+        ponto recebe pela energia vendida.</p></div>
+      <div class="card"><h3>O que está incluso na instalação?</h3>
+        <p>Visita técnica, estudo de viabilidade, projeto elétrico e executivo, entrada de energia,
+        parecer de acesso na concessionária, obra civil, infraestrutura elétrica, instalação do
+        carregador, sinalização das vagas, configuração da plataforma e comissionamento.</p></div>
+      <div class="card"><h3>Preciso de parecer de acesso da concessionária?</h3>
+        <p>Sim, na maioria dos casos — e é o que mais trava projeto de eletroposto. A
+        representação junto à distribuidora é nossa, com ART registrada no CREA.</p></div>
+      <div class="card"><h3>Qual potência escolher?</h3>
+        <p>Depende do tempo que o veículo fica parado no seu ponto. Posto e rodovia pedem recarga
+        rápida DC; hotel, supermercado e shopping funcionam bem com potência intermediária;
+        condomínio e estacionamento de longa permanência resolvem com wallbox AC.</p></div>
+      <div class="card"><h3>Vocês atendem em todo o Brasil?</h3>
+        <p>Sim. A base fica no Triângulo Mineiro e atendemos projetos em todo o território
+        nacional.</p></div>
+      <div class="card"><h3>E se o equipamento apresentar defeito?</h3>
+        <p>O equipamento é nacionalizado e fica em estoque no Brasil, assim como a peça de
+        reposição — a troca não depende de importação. Os wallbox têm 2 anos de garantia de
+        fábrica, e a manutenção é feita por equipe própria.</p></div>
+      <div class="card"><h3>Quanto custa uma estação?</h3>
+        <p>Depende da potência que o ponto pede e da infraestrutura elétrica que ele já tem. Fazemos
+        o estudo de viabilidade do seu endereço e apresentamos o orçamento fechado, com opções de
+        cartão, financiamento e carência.</p></div>
+      <div class="card"><h3>Preciso investir para ter uma estação?</h3>
+        <p>Não necessariamente. No modelo de locação de espaço, a Irmãos na Obra custeia 100% da
+        implantação e o dono do ponto recebe aluguel fixo pelas vagas ou percentual do faturamento
+        da operação.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ CONTATO ══════════ -->
+<section class="contato" id="contato">
+  <div class="sc"></div>
+  <div class="wrap">
+    <div class="eyebrow">Fale com a gente</div>
+    <h2>Vamos conversar?</h2>
+    <p class="lead">
+      Faça o estudo de viabilidade do seu ponto sem compromisso — a gente calcula o payback com os
+      números reais do seu endereço.
+    </p>
+    <div class="vias">
+      <a href="https://api.whatsapp.com/send?phone=5534998165040" target="_blank" rel="noopener">
+        <span class="g">WhatsApp</span> (34) 99816-5040</a>
+      <a href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener">
+        <span class="g">Instagram</span> @irmaosnaobra__</a>
+    </div>
+    <div class="cta">
+      <a class="btn" href="https://api.whatsapp.com/send?phone=5534998165040&text=Ol%C3%A1!%20Quero%20falar%20sobre%20eletroposto."
+         target="_blank" rel="noopener">Chamar no WhatsApp</a>
+      <a class="btn ghost" href="#empresa">Conhecer a empresa</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-in">
+    <div>IRMÃOS NA OBRA · MOBILIDADE ELÉTRICA · <span data-d="ano"></span></div>
+    <div>Atendemos todo o Brasil</div>
+  </div>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   DADOS — mesma lógica da apresentação: enquanto o número não existe,
+   a linha que dependia dele some da página em vez de sair "[[ ... ]]"
+   impresso na frente de quem visita.
+   ══════════════════════════════════════════════════════════════════════ */
+const DADOS = {
+  ano: String(new Date().getFullYear()),
+  // —— AINDA FALTA ——
+  estacoes: '[[ nº de estações entregues ]]',
+};
+document.querySelectorAll('[data-d]').forEach(el => {
+  const v = DADOS[el.dataset.d];
+  if (v !== undefined) el.textContent = v;
+});
+document.querySelectorAll('[data-opcional]').forEach(el => {
+  const v = DADOS[el.dataset.opcional];
+  if (v === undefined || String(v).trim().startsWith('[[')) el.remove();
+});
+</script>
+</body>
+</html>
