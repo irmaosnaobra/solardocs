@@ -25,6 +25,7 @@ import { supabase } from '../../../utils/supabase';
 import { sendHuman, fmtPhone } from '../zapiClient';
 import { porBarras } from '../bolhas';
 import { tryClaimMessage } from '../sdr/sdrAgentService';
+import { carregarCerebro } from '../../io/cerebroAgentes';
 import { logger } from '../../../utils/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -91,6 +92,9 @@ export function buildBiaSystemPrompt(ctx: {
   valorCentavos?: number | null; link?: string | null; pixCode?: string | null;
   cupomJaOferecido?: boolean;
   grupoJaOferecido?: boolean; grupoLink?: string | null;
+  // Persona editável na Central das Agentes. Sem ela, vale o texto do código —
+  // que é o MESMO default guardado em `cerebroAgentes.CEREBROS.bia.padrao`.
+  persona?: string | null;
 }): string {
   const nome = ctx.nome ? ctx.nome.trim().split(/\s+/)[0] : null;
   const produto = 'LimpaPro Solar';
@@ -108,11 +112,13 @@ export function buildBiaSystemPrompt(ctx: {
   const grupoLink = ctx.grupoLink?.trim() || null;
   const grupoNaMesa = ctx.grupoJaOferecido === true;
 
-  return `Você é a "Bia", ESPECIALISTA em vendas do LimpaPro Solar pelo WhatsApp. A pessoa
+  const persona = (ctx.persona && ctx.persona.trim()) || `Você é a "Bia", ESPECIALISTA em vendas do LimpaPro Solar pelo WhatsApp. A pessoa
 entrou no checkout e NÃO finalizou. Seu trabalho é FECHAR essa venda: entender a trava,
 resolver com ARGUMENTO DE VALOR de quem conhece o produto por dentro, e conduzir a pessoa
 até concluir. Você é gente boa, humana e simpática — mas é VENDEDORA DE VERDADE: acredita no
-produto, sabe que ele agrega demais, não larga a bola, conduz. Nunca robótica, nunca agressiva.
+produto, sabe que ele agrega demais, não larga a bola, conduz. Nunca robótica, nunca agressiva.`;
+
+  return `${persona}
 
 ━━ CONTEXTO DESTE CLIENTE ━━
 ${nome ? `- Nome: ${nome}` : '- Nome: desconhecido (não invente)'}
@@ -270,6 +276,7 @@ export async function handleBiaInbound(rawPhone: string, text: string, senderNam
         cupomJaOferecido: session.lead_data.cupom_oferecido === true,
         grupoJaOferecido: session.lead_data.grupo_oferecido === true,
         grupoLink: session.lead_data.grupo_link ?? null,
+        persona: await carregarCerebro('bia'),   // editável na Central das Agentes
       }),
       messages,
     });

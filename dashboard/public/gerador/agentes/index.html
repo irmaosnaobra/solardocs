@@ -118,6 +118,47 @@ a{color:var(--blue)}
 .rodape{padding:10px 16px;background:var(--card-2);border-top:1px solid var(--line);
   font-size:10.5px;color:var(--faint);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 
+/* ===== ROSTO + AÇÕES ===== */
+.ag .l1{align-items:center}
+.rosto{width:52px;height:52px;border-radius:50%;object-fit:cover;flex:0 0 52px;
+  border:2px solid var(--line-s);background:var(--card-2)}
+.ident{display:flex;gap:11px;align-items:center;min-width:0}
+.acoes{display:flex;gap:7px;padding:0 16px 12px}
+.acoes button{flex:1;background:var(--card-2);border:1px solid var(--line-s);color:var(--txt);
+  padding:7px 10px;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer}
+.acoes button:hover{border-color:var(--blue);color:var(--blue)}
+
+/* ===== MODAL ===== */
+.modal{position:fixed;inset:0;background:rgba(2,6,23,.72);display:none;z-index:50;
+  align-items:center;justify-content:center;padding:18px}
+.modal.on{display:flex}
+.mbox{background:var(--card);border:1px solid var(--line-s);border-radius:14px;width:min(920px,100%);
+  max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+.mhd{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
+.mhd .rosto{width:40px;height:40px;flex:0 0 40px}
+.mhd .tit{font-weight:800;font-size:14px}
+.mhd .sub{font-size:11px;color:var(--dim);margin-top:2px}
+.mhd .x{margin-left:auto;background:none;border:none;color:var(--dim);font-size:22px;cursor:pointer;line-height:1}
+.mtabs{display:flex;border-bottom:1px solid var(--line)}
+.mtabs button{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);
+  padding:10px;font-size:12.5px;font-weight:700;cursor:pointer}
+.mtabs button.on{color:var(--txt);border-bottom-color:#f5c518}
+.mbody{padding:14px 16px;overflow:auto;flex:1;min-height:260px}
+.chat{display:flex;flex-direction:column;gap:9px}
+.bolha{max-width:78%;padding:9px 12px;border-radius:12px;font-size:12.5px;line-height:1.5;white-space:pre-wrap}
+.bolha.eu{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:3px}
+.bolha.ela{align-self:flex-start;background:var(--card-2);border:1px solid var(--line);border-bottom-left-radius:3px}
+.bolha.sys{align-self:center;background:none;color:var(--faint);font-size:11px;text-align:center;max-width:100%}
+.mft{padding:11px 16px;border-top:1px solid var(--line);display:flex;gap:8px}
+.mft input,.mft textarea{flex:1;background:#0F172A;border:1px solid var(--line-s);color:var(--txt);
+  padding:9px 11px;border-radius:8px;font-size:12.5px;font-family:inherit}
+.mft button{background:var(--navy);border:none;color:#fff;padding:9px 16px;border-radius:8px;
+  font-weight:700;font-size:12.5px;cursor:pointer}
+.mft button.sec{background:var(--card-2);border:1px solid var(--line-s);color:var(--dim)}
+.cerebro-txt{width:100%;min-height:300px;background:#0F172A;border:1px solid var(--line-s);color:var(--txt);
+  padding:12px;border-radius:10px;font-size:12.5px;line-height:1.6;font-family:inherit;resize:vertical}
+.aviso{font-size:11.5px;color:var(--dim);line-height:1.55;margin-bottom:10px}
+.aviso b{color:var(--txt)}
 .vazio-tela{padding:60px 20px;text-align:center;color:var(--faint)}
 .erro{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#FCA5A5;
   padding:14px 16px;border-radius:10px;font-size:12.5px;line-height:1.6}
@@ -152,10 +193,54 @@ a{color:var(--blue)}
   <div id="conteudo"><div class="vazio-tela">Carregando as agentes…</div></div>
 </div>
 
+<div class="modal" id="modal" onclick="if(event.target===this) fecharModal()">
+  <div class="mbox">
+    <div class="mhd">
+      <img class="rosto" id="m-rosto" src="" alt="">
+      <div>
+        <div class="tit" id="m-tit">—</div>
+        <div class="sub" id="m-sub"></div>
+      </div>
+      <button class="x" onclick="fecharModal()" title="Fechar">×</button>
+    </div>
+    <div class="mtabs">
+      <button id="tab-chat" class="on" onclick="trocarAba('chat')">💬 Conversar</button>
+      <button id="tab-cerebro" onclick="trocarAba('cerebro')">🧠 Cérebro</button>
+    </div>
+
+    <div class="mbody" id="corpo-chat">
+      <div class="chat" id="chat"></div>
+    </div>
+    <div class="mft" id="rodape-chat">
+      <input id="msg" placeholder="Escreve como se fosse o cliente…" onkeydown="if(event.key==='Enter') enviarMsg()">
+      <button onclick="enviarMsg()" id="btn-enviar">Enviar</button>
+      <button class="sec" onclick="limparChat()">Limpar</button>
+    </div>
+
+    <div class="mbody" id="corpo-cerebro" style="display:none">
+      <div class="aviso">
+        Aqui você muda <b>quem ela é</b>: o jeito de falar, o que ela persegue, o que ela evita.
+        O resto do prompt — nome do cliente, valor, link, o que ela não pode inventar e o formato
+        das bolhas — continua no código, porque é o que impede a IA de prometer besteira.
+        <br>Salvou, vale no próximo envio (até 1 min de atraso). Teste na aba de conversa antes.
+      </div>
+      <textarea class="cerebro-txt" id="cerebro-txt"></textarea>
+    </div>
+    <div class="mft" id="rodape-cerebro" style="display:none">
+      <button onclick="salvarCerebro()" id="btn-salvar">Salvar</button>
+      <button class="sec" onclick="testarRascunho()">Testar sem salvar</button>
+      <button class="sec" onclick="restaurarCerebro()">Voltar ao original</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = '/_api/gerador/agentes';
 let dados = null;
 let filtro = 'todas';
+let cerebros = [];
+let atual = null;          // cérebro aberto no modal
+let conversa = [];         // [{role, content}]
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num = v => (v === null || v === undefined) ? '—' : Number(v).toLocaleString('pt-BR');
@@ -178,6 +263,7 @@ function quando(iso){
 async function carregar(){
   const btn = document.getElementById('btn-refresh');
   if (btn) btn.textContent = '⏳';
+  await carregarCerebros();
   try {
     const r = await fetch(API, { cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -254,10 +340,16 @@ function cardAgente(a){
       <div class="c">${esc(t.copy)}</div>
     </div>`).join('');
 
+  const cerebro = cerebroDoAgente(a.id);
+
   return `<div class="ag ${esc(a.estado)}">
     <div class="hd">
       <div class="l1">
-        <div class="nome">${esc(a.nome)}</div>
+        <div class="ident">
+          <img class="rosto" src="/gerador/agentes/rostos/${esc(a.id)}.jpg" alt="" loading="lazy"
+               onerror="this.style.visibility='hidden'">
+          <div class="nome">${esc(a.nome)}</div>
+        </div>
         <div class="pill ${esc(a.estado)}">${ROTULO_ESTADO[a.estado] || a.estado}</div>
       </div>
       <div class="papel">${esc(a.papel)}</div>
@@ -268,6 +360,10 @@ function cardAgente(a){
         ${(a.fila !== null && a.fila !== undefined) ? `<span class="tag">${num(a.fila)} na fila</span>` : ''}
       </div>
     </div>
+    ${cerebro ? `<div class="acoes">
+      <button onclick="abrirModal('${esc(cerebro.id)}','chat')">💬 Conversar</button>
+      <button onclick="abrirModal('${esc(cerebro.id)}','cerebro')">🧠 Cérebro${cerebro.editado ? ' ✎' : ''}</button>
+    </div>` : ''}
     ${a.alerta ? `<div class="alerta">⚠ ${esc(a.alerta)}</div>` : ''}
     ${a.motivo ? `<div class="motivo">${esc(a.motivo)}</div>` : ''}
     <div class="mets">${mets}</div>
@@ -280,6 +376,141 @@ function cardAgente(a){
       <span>${esc(a.id)}</span>
     </div>
   </div>`;
+}
+
+// ============= CÉREBRO + CONVERSA =============
+// O token fica no navegador: ler a central é aberto, mas mudar o que a agente
+// vai falar com cliente (ou gastar crédito de IA) exige a chave.
+const TOKEN_KEY = 'central-agentes-token';
+function pegarToken(){
+  let t = '';
+  try { t = localStorage.getItem(TOKEN_KEY) || ''; } catch(e){}
+  if (!t) {
+    t = (prompt('Token da Central (só na primeira vez neste aparelho):') || '').trim();
+    if (t) { try { localStorage.setItem(TOKEN_KEY, t); } catch(e){} }
+  }
+  return t;
+}
+function esqueceToken(){ try { localStorage.removeItem(TOKEN_KEY); } catch(e){} }
+
+const cerebroDoAgente = id => cerebros.find(c => c.agente_id === id) || null;
+
+async function carregarCerebros(){
+  try {
+    const r = await fetch(API + '/cerebros', { cache:'no-store' });
+    const j = await r.json();
+    cerebros = j.cerebros || [];
+  } catch(e){ cerebros = []; }
+}
+
+function abrirModal(id, aba){
+  atual = cerebros.find(c => c.id === id);
+  if (!atual) return;
+  conversa = [];
+  document.getElementById('m-tit').textContent = atual.nome;
+  document.getElementById('m-sub').textContent =
+    (atual.editado ? 'cérebro editado' : 'cérebro original do código') + ' · ' + atual.onde;
+  document.getElementById('m-rosto').src = `/gerador/agentes/rostos/${atual.agente_id}.jpg`;
+  document.getElementById('cerebro-txt').value = atual.texto;
+  document.getElementById('chat').innerHTML =
+    `<div class="bolha sys">${esc(atual.descricao)}<br>Nada daqui vai pro WhatsApp de ninguém.</div>`;
+  document.getElementById('modal').classList.add('on');
+  trocarAba(aba || 'chat');
+}
+function fecharModal(){ document.getElementById('modal').classList.remove('on'); }
+
+function trocarAba(aba){
+  const chat = aba === 'chat';
+  document.getElementById('tab-chat').classList.toggle('on', chat);
+  document.getElementById('tab-cerebro').classList.toggle('on', !chat);
+  document.getElementById('corpo-chat').style.display = chat ? '' : 'none';
+  document.getElementById('rodape-chat').style.display = chat ? '' : 'none';
+  document.getElementById('corpo-cerebro').style.display = chat ? 'none' : '';
+  document.getElementById('rodape-cerebro').style.display = chat ? 'none' : '';
+  if (chat) setTimeout(() => document.getElementById('msg').focus(), 50);
+}
+
+function pintarChat(){
+  document.getElementById('chat').innerHTML =
+    `<div class="bolha sys">${esc(atual.descricao)}<br>Nada daqui vai pro WhatsApp de ninguém.</div>` +
+    conversa.map(m => `<div class="bolha ${m.role === 'user' ? 'eu' : 'ela'}">${esc(m.content)}</div>`).join('');
+  const c = document.getElementById('corpo-chat');
+  c.scrollTop = c.scrollHeight;
+}
+function limparChat(){ conversa = []; pintarChat(); }
+
+async function enviarMsg(rascunho){
+  const inp = document.getElementById('msg');
+  const txt = (inp.value || '').trim();
+  if (!txt || !atual) return;
+  const token = pegarToken();
+  if (!token) return;
+
+  conversa.push({ role:'user', content: txt });
+  inp.value = '';
+  pintarChat();
+
+  const btn = document.getElementById('btn-enviar');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await fetch(`${API}/conversar/${atual.id}`, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'x-central-token': token },
+      body: JSON.stringify({ mensagens: conversa, rascunho: rascunho || undefined }),
+    });
+    const j = await r.json();
+    if (!r.ok) {
+      if (r.status === 401) esqueceToken();
+      conversa.push({ role:'assistant', content:`[erro] ${j.error || r.status}` });
+    } else {
+      conversa.push({ role:'assistant', content: j.resposta });
+    }
+  } catch(e){
+    conversa.push({ role:'assistant', content:`[erro] ${e.message}` });
+  }
+  btn.disabled = false; btn.textContent = 'Enviar';
+  pintarChat();
+}
+
+function testarRascunho(){
+  trocarAba('chat');
+  const rascunho = document.getElementById('cerebro-txt').value;
+  const inp = document.getElementById('msg');
+  if (!inp.value.trim()) inp.value = 'oi, tudo bem?';
+  enviarMsg(rascunho);
+}
+
+async function salvarCerebro(){
+  if (!atual) return;
+  const token = pegarToken(); if (!token) return;
+  const texto = document.getElementById('cerebro-txt').value;
+  const btn = document.getElementById('btn-salvar');
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    const r = await fetch(`${API}/cerebro/${atual.id}`, {
+      method:'PUT',
+      headers:{ 'Content-Type':'application/json', 'x-central-token': token },
+      body: JSON.stringify({ texto }),
+    });
+    const j = await r.json();
+    if (!r.ok) { if (r.status === 401) esqueceToken(); alert(j.error || 'não salvou'); }
+    else { cerebros = j.cerebros; atual = cerebros.find(c => c.id === atual.id); alert('Salvo. Vale no próximo envio.'); render(); }
+  } catch(e){ alert(e.message); }
+  btn.disabled = false; btn.textContent = 'Salvar';
+}
+
+async function restaurarCerebro(){
+  if (!atual || !confirm('Voltar ao texto original do código?')) return;
+  const token = pegarToken(); if (!token) return;
+  try {
+    const r = await fetch(`${API}/cerebro/${atual.id}`, { method:'DELETE', headers:{ 'x-central-token': token } });
+    const j = await r.json();
+    if (!r.ok) { if (r.status === 401) esqueceToken(); alert(j.error || 'não deu'); return; }
+    cerebros = j.cerebros;
+    atual = cerebros.find(c => c.id === atual.id);
+    document.getElementById('cerebro-txt').value = atual.texto;
+    render();
+  } catch(e){ alert(e.message); }
 }
 
 async function forcarAtualizarApp(btn){

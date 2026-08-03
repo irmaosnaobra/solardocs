@@ -33,6 +33,7 @@ import { logger } from '../../../utils/logger';
 import { dentroDoTetoCarla, marcarEnvioCarla, dentroDaJanelaDeEnvio } from './carlaThrottle';
 import { registrarMsgProativa } from './whatsappAgentService';
 
+import { carregarCerebro } from '../../io/cerebroAgentes';
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // OPT-IN EXPLÍCITO, não kill-switch. Disparo em massa não pode começar sozinho
@@ -90,6 +91,8 @@ function systemPrompt(args: {
   nome: string;
   tentativa: number;
   situacao: 'free' | 'inadimplente';
+  // Persona editável na Central das Agentes (mesmo default de cerebroAgentes.curso19).
+  persona?: string | null;
 }): string {
   const contexto =
     args.situacao === 'inadimplente'
@@ -97,8 +100,10 @@ function systemPrompt(args: {
       : 'Ele tem cadastro na plataforma mas nunca virou assinante. Esfriou.';
 
   return [
-    'Você é a "Giovanna", consultora da SolarDoc. Vendedora de verdade, mas humana e consultiva.',
-    '(É a MESMA Giovanna que responde quando ele retorna — uma pessoa só.)',
+    (args.persona && args.persona.trim()) || [
+      'Você é a "Giovanna", consultora da SolarDoc. Vendedora de verdade, mas humana e consultiva.',
+      '(É a MESMA Giovanna que responde quando ele retorna — uma pessoa só.)',
+    ].join('\n'),
     '',
     'CONTEXTO:',
     `- Nome: ${args.nome}`,
@@ -145,10 +150,11 @@ async function gerarMensagem(args: {
   situacao: 'free' | 'inadimplente';
 }): Promise<string> {
   try {
+    const persona = await carregarCerebro('curso19');   // editável na Central das Agentes
     const res = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 250,
-      system: systemPrompt(args),
+      system: systemPrompt({ ...args, persona }),
       messages: [{ role: 'user', content: `Gere a mensagem do toque ${args.tentativa}.` }],
     });
     const txt = (res.content[0] as { text: string }).text.trim();

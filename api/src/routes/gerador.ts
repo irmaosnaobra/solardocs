@@ -10,6 +10,7 @@ import { runGeradorBroadcastTick } from '../services/io/geradorAutomacaoService'
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { montarBusca } from '../services/io/prospeccaoBriefService';
 import { montarCentralAgentes } from '../services/io/centralAgentes';
+import { listarCerebros, salvarCerebro, restaurarCerebro, conversarComAgente, ehCerebroValido } from '../services/io/cerebroAgentes';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -242,6 +243,71 @@ router.get('/agentes', async (_req: Request, res: Response) => {
   } catch (err: any) {
     logger.error('gerador', 'central de agentes falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// ── Cérebro das agentes ─────────────────────────────────────────────────────
+// LER é público como o resto do /gerador. ESCREVER e CONVERSAR exigem token: um
+// muda o que a agente vai falar com cliente de verdade, o outro gasta crédito de
+// IA. Sem CENTRAL_AGENTES_TOKEN configurado, os dois ficam FECHADOS — o painel
+// mostra o motivo em vez de abrir a porta.
+function tokenDaCentral(req: Request, res: Response): boolean {
+  const esperado = (process.env.CENTRAL_AGENTES_TOKEN || '').trim();
+  if (!esperado) {
+    res.status(503).json({ error: 'CENTRAL_AGENTES_TOKEN não configurado na Vercel — edição desligada' });
+    return false;
+  }
+  const veio = String(req.headers['x-central-token'] || '').trim();
+  if (veio !== esperado) { res.status(401).json({ error: 'token da central inválido' }); return false; }
+  return true;
+}
+
+router.get('/agentes/cerebros', async (_req: Request, res: Response) => {
+  try {
+    res.json({ ok: true, cerebros: await listarCerebros() });
+  } catch (err: any) {
+    logger.error('gerador', 'listar cérebros falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+router.put('/agentes/cerebro/:id', async (req: Request, res: Response) => {
+  if (!tokenDaCentral(req, res)) return;
+  const id = String(req.params.id);
+  if (!ehCerebroValido(id)) { res.status(404).json({ error: 'agente sem cérebro editável' }); return; }
+  try {
+    await salvarCerebro(id, String(req.body?.texto || ''), 'central');
+    res.json({ ok: true, cerebros: await listarCerebros() });
+  } catch (err: any) {
+    res.status(400).json({ error: String(err?.message || err) });
+  }
+});
+
+router.delete('/agentes/cerebro/:id', async (req: Request, res: Response) => {
+  if (!tokenDaCentral(req, res)) return;
+  const id = String(req.params.id);
+  if (!ehCerebroValido(id)) { res.status(404).json({ error: 'agente sem cérebro editável' }); return; }
+  try {
+    await restaurarCerebro(id);
+    res.json({ ok: true, cerebros: await listarCerebros() });
+  } catch (err: any) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});
+
+// Conversa de TESTE: roda o cérebro vigente (ou o rascunho que está na tela) e
+// devolve a resposta. Nada daqui sai no WhatsApp de ninguém.
+router.post('/agentes/conversar/:id', async (req: Request, res: Response) => {
+  if (!tokenDaCentral(req, res)) return;
+  const id = String(req.params.id);
+  if (!ehCerebroValido(id)) { res.status(404).json({ error: 'agente sem conversa de teste' }); return; }
+  try {
+    const mensagens = Array.isArray(req.body?.mensagens) ? req.body.mensagens : [];
+    const resposta = await conversarComAgente(id, mensagens, req.body?.rascunho);
+    res.json({ ok: true, resposta });
+  } catch (err: any) {
+    logger.error('gerador', `conversa de teste com ${id} falhou`, err);
+    res.status(400).json({ error: String(err?.message || err) });
   }
 });
 

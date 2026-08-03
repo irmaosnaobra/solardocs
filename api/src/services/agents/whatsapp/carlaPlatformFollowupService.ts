@@ -25,6 +25,7 @@ import { logger } from '../../../utils/logger';
 import { dentroDoTetoCarla, marcarEnvioCarla, dentroDaJanelaDeEnvio } from './carlaThrottle';
 import { registrarMsgProativa } from './whatsappAgentService';
 
+import { carregarCerebro } from '../../io/cerebroAgentes';
 // Espaçamento mínimo entre dois envios da Carla no MESMO ciclo (anti-ráfaga).
 const GAP_ENTRE_ENVIOS_MS = 4000;
 
@@ -102,9 +103,11 @@ function carlaSystem(args: {
   diasInativo?: number;
   totalDocs?: number;
   tomCfg: { tom: string; objetivo: string };
+  // Persona editável na Central das Agentes (mesmo default de cerebroAgentes.giovanna).
+  persona?: string | null;
 }): string {
   const linhas = [
-    `Você é a "Giovanna", consultora especialista da SolarDoc. Vendedora de verdade, mas humana e consultiva — entende o negócio do integrador solar e conduz com calor, sem ser robótica. (Esta é a MESMA Giovanna que responde quando o cliente retorna — uma pessoa só, do primeiro contato ao fechamento.)`,
+    (args.persona && args.persona.trim()) || `Você é a "Giovanna", consultora especialista da SolarDoc. Vendedora de verdade, mas humana e consultiva — entende o negócio do integrador solar e conduz com calor, sem ser robótica. (Esta é a MESMA Giovanna que responde quando o cliente retorna — uma pessoa só, do primeiro contato ao fechamento.)`,
     ``,
     `CONTEXTO:`,
     `- Nome: ${args.nome}`,
@@ -149,10 +152,11 @@ function carlaSystem(args: {
 
 async function gerarMsgCarla(args: Parameters<typeof carlaSystem>[0]): Promise<string> {
   try {
+    const persona = await carregarCerebro('giovanna');   // editável na Central das Agentes
     const res = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 200,
-      system: carlaSystem(args),
+      system: carlaSystem({ ...args, persona }),
       messages: [{ role: 'user', content: `Gere a mensagem de follow-up tentativa ${args.tentativa}.` }],
     });
     const txt = (res.content[0] as { text: string }).text.trim();
