@@ -55,7 +55,15 @@ function recuperacaoHabilitada(): boolean {
 // Cooldown: não recontatar o mesmo lead dentro deste intervalo (1 toque por lead).
 const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
 // Debounce: atraso entre o sinal de "aberto" e o contato (deixa a compra cair primeiro).
-export const DEBOUNCE_MS = 8 * 60 * 1000; // 8 min
+// 8min -> 5min em 03/ago/2026 (Thiago: "quando abandonar já entrar com followup agressivo").
+// MEDIDO antes de mexer, nos 60 dias de quem abriu checkout e DEPOIS pagou (n=11): o mais
+// rápido levou 21 min, mediana ~20h, e NENHUM pagou em menos de 8 min. Ou seja, o debounce
+// nunca esteve atropelando venda que ia acontecer sozinha — dava pra ser mais rápido.
+// Não desci mais que isso de propósito: no 'pix_created' o webhook chega no instante em que
+// a pessoa gera o Pix, e escrever 2min depois ("vi que você gerou agora há pouco") enquanto
+// ela ainda está com o QR na tela passa vigilância, não atendimento.
+// Somado ao tick de ~5min do /process-messages, o 1º contato cai em 5–10 min.
+export const DEBOUNCE_MS = 5 * 60 * 1000; // 5 min
 // Escalonamento do backlog: 5 min entre leads (cadência pedida pelo Thiago).
 const SEED_STAGGER_MS = 5 * 60 * 1000;
 // Anti-rajada intra-tick: no máximo N envios por execução do consumidor.
