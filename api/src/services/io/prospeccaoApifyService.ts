@@ -293,8 +293,11 @@ async function processarUma(prazo: number, jaVistas: Set<string>): Promise<TickR
     .select('*')
     .in('status', ['pedida', 'rodando', 'importando'])
     .or(`locked_until.is.null,locked_until.lt.${agora.toISOString()}`)
+    // janela maior que a fila de uma varredura nacional (27 UFs): com janela
+    // curta, as últimas da fila nunca apareciam e ficavam esperando as primeiras
+    // saírem — o Roraima da vida só rodava no fim de tudo.
     .order('criada_em', { ascending: true })
-    .limit(15);
+    .limit(60);
 
   const busca = ((pendentes ?? []) as BuscaRow[]).find(b => !jaVistas.has(b.id));
   if (!busca) return { ok: true, ociosa: true };
