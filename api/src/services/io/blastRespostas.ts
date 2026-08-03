@@ -102,14 +102,16 @@ export async function runBlastRespostas(): Promise<ResultadoRespostas> {
   // de saída que não funciona é pior que não prometer. Ela não passa por
   // io_broadcast_envios (não é disparo de lista), então entra aqui pela chave de
   // estado dela: quem foi tocado nas últimas horas conta como destinatário.
-  const { data: semente } = await supabase
-    .from('system_state').select('key, value')
-    .like('key', 'semente:%')
-    .gte('updated_at', desdeEnvio)
-    .limit(2000);
-  for (const s of semente ?? []) {
-    const k = String(s.key).slice('semente:'.length);
-    if (k && !porChave.has(k)) porChave.set(k, 'semente');
+  for (const [prefixo, rotulo] of [['semente:', 'semente'], ['ep_grupo_frio:', 'grupo-eletroposto']] as const) {
+    const { data: tocados } = await supabase
+      .from('system_state').select('key')
+      .like('key', `${prefixo}%`)
+      .gte('updated_at', desdeEnvio)
+      .limit(2000);
+    for (const s of tocados ?? []) {
+      const k = String(s.key).slice(prefixo.length);
+      if (k && !porChave.has(k)) porChave.set(k, rotulo);
+    }
   }
 
   // Ninguém recebeu nada na janela: não há o que cruzar e o tick sai barato

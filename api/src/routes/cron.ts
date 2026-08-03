@@ -32,6 +32,7 @@ import { runRepescagemTick, semearRepescagem } from '../services/io/eletropostoR
 import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
 import { runConviteNota1Garantido } from '../services/io/eletropostoConviteGarantido';
 import { runSementeTick, publicoSemente, bolhasSemente } from '../services/io/sementeSolarService';
+import { runGrupoFriosTick, publicoGrupoFrio, bolhasGrupoFrio } from '../services/io/eletropostoGrupoFrios';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
@@ -264,7 +265,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, repescagemResult, conviteResult, sementeResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -287,6 +288,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runRepescagemTick(),             // eletroposto: 1 pessoa do apagão a cada 20min, 07h–20h
       runConviteNota1Garantido(),      // eletroposto: TODO nota 1 entra no grupo — rede embaixo do envio da LP
       runSementeTick(),                // semente: nutrição de quem pediu orçamento de solar e não fechou
+      runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
     ]);
     res.json({
       ok: true,
@@ -307,6 +309,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ep_repescagem:  repescagemResult.status === 'fulfilled' ? repescagemResult.value : { error: String((repescagemResult as any).reason) },
       ep_convite:     conviteResult.status === 'fulfilled' ? conviteResult.value : { error: String((conviteResult as any).reason) },
       semente:        sementeResult.status === 'fulfilled' ? sementeResult.value : { error: String((sementeResult as any).reason) },
+      ep_grupo_frio:  grupoFrioResult.status === 'fulfilled' ? grupoFrioResult.value : { error: String((grupoFrioResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
@@ -351,6 +354,24 @@ router.get('/eletroposto-repescagem', async (req: Request, res: Response) => {
 // ?dry=1 mostra QUEM entraria e a mensagem que sairia, sem enviar nada — é o
 // jeito de revisar a campanha em produção antes de ligar (SEMENTE_ON=true).
 // Sem parâmetro, roda um tick à mão; o normal é rodar no /process-messages.
+// ── Convite do grupo pra quem esfriou no eletroposto (não atendeu / sem interesse)
+// ?publico=1 lista quem entraria e a mensagem, sem enviar.
+router.get('/eletroposto-grupo-frios', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    if (req.query.publico === '1') {
+      const p = await publicoGrupoFrio();
+      res.json({ ok: true, total: p.length, amostra: p.slice(0, 20), exemplo: p[0] ? bolhasGrupoFrio(p[0].status, p[0].nome) : [] });
+      return;
+    }
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runGrupoFriosTick({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-grupo-frios falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 router.get('/semente-solar', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {

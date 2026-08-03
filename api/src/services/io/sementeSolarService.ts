@@ -138,7 +138,7 @@ export async function publicoSemente(): Promise<CandidatoSemente[]> {
   const agora = Date.now();
   const { data: fichas, error } = await supabaseGerador
     .from('agendamentos')
-    .select('cliente_nome, cliente_telefone, status, quando, created_at')
+    .select('cliente_nome, cliente_telefone, status, quando, created_at, created_by')
     .gte('created_at', new Date(agora - IDADE_MAXIMA_MS).toISOString())
     .order('created_at', { ascending: false })
     .limit(3000);
@@ -164,6 +164,9 @@ export async function publicoSemente(): Promise<CandidatoSemente[]> {
     const status = String(f.status || '');
     if (!alvo.has(status) || NUNCA.has(status)) continue;
     if (temFuturo.has(chave)) continue;                       // tem conversa marcada
+    // Lead de ELETROPOSTO não pode ouvir "a gente conversou sobre energia solar":
+    // é outro produto e outra conversa. Esses têm o convite do grupo, não a semente.
+    if (String(f.created_by || '') === 'lp_eletroposto') continue;
 
     const idade = agora - new Date(f.created_at).getTime();
     if (idade < IDADE_MINIMA_MS || idade > IDADE_MAXIMA_MS) continue;
