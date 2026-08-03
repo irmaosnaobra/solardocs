@@ -132,7 +132,7 @@ interface LeadAberto {
 
 // Link de checkout com UTMs de recuperação — a venda recuperada sai do "não trackeado"
 // da UTMify/painel e o utm_content diz qual toque converteu.
-function linkRecuperacao(touch: 'cupom' | 'fechamento' | 'conversa'): string {
+function linkRecuperacao(touch: 'abertura' | 'cupom' | 'fechamento' | 'conversa'): string {
   return comUtms(process.env.RECUP_CHECKOUT_URL?.trim() || '', touch);
 }
 
@@ -155,30 +155,42 @@ function comUtms(raw: string, touch: string): string {
   }
 }
 
-// 1º toque — na hora. Só cuidado + pergunta. Zero pitch, zero desconto.
+// 1º toque — na hora. Cuidado + pergunta + O LINK.
+// Ordem do Thiago (03/ago/2026): "sempre enviar o link do checkout da kiwify" — antes o
+// 1º toque só OFERECIA ("quer que eu te reenvie?"), o que custava uma ida e volta e morria
+// se a pessoa não respondesse. O link vai em bolha PRÓPRIA, depois da pergunta: a pergunta
+// puxa resposta e o link resolve quem já estava decidido.
+// NOTA: o link NÃO é o código Pix (que expira) — é o checkout, que gera um Pix novo na hora.
 export function montarMensagem(lead: LeadAberto): string[] {
   const nome = (lead.nome || '').trim().split(/\s+/)[0];
   const oi = nome ? `Oi ${nome}, tudo bem?` : 'Oi, tudo bem?';
   const produto = 'LimpaPro Solar';
+  const link = linkRecuperacao('abertura');
 
   if (lead.status === 'pix_gerado' && lead.pix_ativo) {
     return [
       oi,
       `Vi aqui que você gerou o Pix do ${produto} agora há pouco e ele ainda não caiu.`,
-      `Deu algum problema pra pagar? Se quiser eu te reenvio o link pra finalizar rapidinho.`,
+      `Deu algum problema pra pagar?`,
+      ...(link
+        ? [`Se quiser, é só finalizar por aqui que ele gera um Pix novo na hora:`, link]
+        : [`Se quiser eu te reenvio o link pra finalizar rapidinho.`]),
     ];
   }
   if (lead.status === 'pix_gerado') {
     return [
       oi,
       `Você tinha gerado o Pix do ${produto}, mas ele acabou expirando.`,
-      `Quer que eu gere um link novo pra você concluir? É rápido.`,
+      ...(link
+        ? [`Já te mando um link novo pra concluir — esse aqui gera o Pix na hora:`, link]
+        : [`Quer que eu gere um link novo pra você concluir? É rápido.`]),
     ];
   }
   return [
     oi,
     `Vi que você tava garantindo o ${produto} agora há pouco e parou bem na hora de finalizar.`,
     `Travou o pagamento ou ficou alguma dúvida? Me fala que eu resolvo com você.`,
+    ...(link ? [`E se quiser retomar de onde parou, é por aqui:`, link] : []),
   ];
 }
 
