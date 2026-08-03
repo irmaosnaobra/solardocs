@@ -188,7 +188,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     contarGerador('agendamentos', (q: any) => q.eq('created_by', 'lp_eletroposto').gte('created_at', desde30)),
     contarGerador('eletroposto_nota1', (q: any) => q.gte('created_at', desde30)),
     contarGerador('eletroposto_nota1', (q: any) => q.is('convite_enviado_at', null)),
-    contar('io_indicacoes', (q: any) => q.gte('criado_em', desde30)),
+    contar('io_indicacoes', (q: any) => q.gte('created_at', desde30)),
     contar('io_blast_respostas', (q: any) => q.eq('atendido', false)),
     contarGerador('prospeccao_contatos', (q: any) => q),
     contarGerador('prospeccao_toques', (q: any) => q),
