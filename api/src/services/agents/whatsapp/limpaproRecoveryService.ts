@@ -953,6 +953,55 @@ export async function runLimpaproRecoveryConsumer(opts: { dry?: boolean } = {}):
   return out;
 }
 
+// ═════════════════════════════════════════════════════════════════════
+// CADÊNCIA AUTOMÁTICA — roda os 4 seeders sozinha, 1x por hora.
+// Thiago 03/ago/2026: "começa a cadência e segue sempre".
+//
+// O que já era automático: o webhook semeia o 1º toque em tempo real, cada toque
+// semeia o próximo no envio (1→2→3→4), e o consumidor drena a cada tick de ~5min.
+// O que NÃO era: os 4 seeders de BACKLOG — só existiam como rota manual. Quem ficou
+// pra trás (marcador perdido, toque ligado depois que a pessoa já tinha passado, falha
+// de envio) só voltava pra esteira se alguém chamasse a rota na mão. Era esse o furo.
+//
+// Gate por relógio NÃO serve (o tick do GitHub Actions atrasa e pularia a janela):
+// usa marca em system_state + intervalo mínimo. Idempotente por natureza — os seeders
+// já pulam quem tem marcador, quem já recebeu e quem está em cooldown.
+//
+// CONSEQUÊNCIA que vale saber: com isso rodando pra sempre, quem abandonou e nunca
+// comprou volta pra esteira depois do COOLDOWN_MS (30 dias). É 1 sequência por mês
+// por lead, não um loop apertado — mas é reentrada, não era o comportamento antes.
+// ═════════════════════════════════════════════════════════════════════
+const SEEDS_KEY = 'limpapro_recovery_last_seed';
+const SEEDS_INTERVALO_MS = 55 * 60 * 1000; // ~1x por hora, tolerante a tick atrasado
+
+export async function runLimpaproRecoverySeeds(): Promise<Record<string, unknown>> {
+  if (!recuperacaoHabilitada()) return { pulado: 'desabilitado' };
+
+  const { data: marca } = await supabase
+    .from('system_state').select('value').eq('key', SEEDS_KEY).maybeSingle();
+  const ultimo = Number((marca?.value as { at?: number } | null)?.at ?? 0);
+  if (Date.now() - ultimo < SEEDS_INTERVALO_MS) return { pulado: 'intervalo' };
+
+  // Marca ANTES de semear: se um seeder explodir, o próximo tick não re-tenta em loop.
+  await supabase.from('system_state').upsert(
+    { key: SEEDS_KEY, value: { at: Date.now() }, updated_at: new Date().toISOString() },
+    { onConflict: 'key' },
+  );
+
+  const [abertura, cupom, fechamento, grupo] = await Promise.allSettled([
+    seedLimpaproRecoveryBacklog(),
+    seedLimpaproCupomBacklog(),
+    seedLimpaproFechamentoBacklog(),
+    seedLimpaproGrupoBacklog(),
+  ]);
+  const val = (r: PromiseSettledResult<unknown>) =>
+    r.status === 'fulfilled' ? r.value : { erro: String((r as PromiseRejectedResult).reason) };
+
+  const out = { abertura: val(abertura), cupom: val(cupom), fechamento: val(fechamento), grupo: val(grupo) };
+  logger.info('limpapro-recovery', `seeds automaticos: ${JSON.stringify(out)}`);
+  return out;
+}
+
 // ─── TESTE: manda o 1º toque pra UM número específico (valida o ciclo completo) ──
 // Cria a sessão de recuperação (faz ehLeadRecuperacao=true → backoff/inbound funcionam)
 // e manda o opener pela linha IO. Lead sintético — NÃO passa pela RPC/seed (o número de

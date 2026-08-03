@@ -10,7 +10,7 @@ import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntra
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
-import { runLimpaproRecoveryConsumer, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, seedLimpaproGrupoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
+import { runLimpaproRecoveryConsumer, runLimpaproRecoverySeeds, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, seedLimpaproGrupoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundService';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
@@ -261,7 +261,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, repescagemResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, repescagemResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -276,6 +276,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       // enviarRelatorioDiario(),       // [LUMA-IO-OFF] relatório diário IO
       retryCardsPendentes(),
       processarLembretesAgenda(),      // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
+      runLimpaproRecoverySeeds(),      // recuperação LimpaPro (Bia): põe gente na esteira (1x/h, auto-gated)
       runLimpaproRecoveryConsumer(),   // recuperação LimpaPro (Bia): drena marcadores prontos
       pollBiaRecuperacao(),            // inbound da Bia (poll IO; webhook IO não entrega texto)
       runGeradorSequenciasConsumer(),  // Central de Automação: drip de sequências (gated por kill-switch)
@@ -293,6 +294,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       dedup_cleanup: dedupCleanupResult.status === 'fulfilled' ? dedupCleanupResult.value : { error: String((dedupCleanupResult as any).reason) },
       card_retry: cardRetryResult.status === 'fulfilled' ? cardRetryResult.value : { error: String((cardRetryResult as any).reason) },
       agenda:     agendaResult.status === 'fulfilled' ? agendaResult.value : { error: String((agendaResult as any).reason) },
+      recup_seeds:    recupSeedsResult.status === 'fulfilled' ? recupSeedsResult.value : { error: String((recupSeedsResult as any).reason) },
       recup_consumer: recupConsumerResult.status === 'fulfilled' ? recupConsumerResult.value : { error: String((recupConsumerResult as any).reason) },
       bia_poll:       biaPollResult.status === 'fulfilled' ? biaPollResult.value : { error: String((biaPollResult as any).reason) },
       gerador_seq:    geradorSeqResult.status === 'fulfilled' ? geradorSeqResult.value : { error: String((geradorSeqResult as any).reason) },
