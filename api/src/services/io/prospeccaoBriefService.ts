@@ -187,7 +187,9 @@ export async function montarBusca(brief: string): Promise<PlanoBusca> {
     ? String((bruto.input as Record<string, unknown> || {}).municipio_nome || '').trim() || undefined
     : undefined;
   const soCelular = fonte === 'receita_cnpj' ? false : bruto.so_celular !== false;
-  if (fonte === 'receita_cnpj') {
+  // o aviso do telefone fixo é obrigatório — mas o modelo quase sempre já dá o
+  // recado. Repetir com outras palavras faz a lista de avisos parecer descuidada.
+  if (fonte === 'receita_cnpj' && !avisos.some(a => /fixo/i.test(a))) {
     avisos.push('Telefone da Receita costuma ser fixo (escritório ou contador) — serve pra ligar, não pra WhatsApp.');
   }
 
