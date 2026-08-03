@@ -20,6 +20,7 @@
 
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { codigoIbge } from './prospeccaoBriefService';
 
 const LOG = 'prospeccao-apify';
 const APIFY = 'https://api.apify.com/v2';
@@ -92,20 +93,42 @@ export function normalizarUf(raw: unknown): string | null {
 // apelidos existem pro "actor livre": qualquer actor que devolva algo parecido
 // com empresa+telefone vira lista sem precisar de código novo.
 const CAMPOS = {
-  empresa:    ['title', 'name', 'companyName', 'businessName', 'empresa', 'nome', 'fullName', 'username'],
-  telefone:   ['phoneUnformatted', 'phone', 'phoneNumber', 'telephone', 'telefone', 'celular',
-               'whatsapp', 'contactPhone', 'public_phone_number', 'mobile'],
-  cidade:     ['city', 'cidade', 'locality', 'addressLocality'],
+  empresa:    ['title', 'name', 'companyName', 'businessName', 'empresa', 'nome',
+               'nome_fantasia', 'razao_social', 'fullName', 'username'],
+  telefone:   ['phoneUnformatted', 'phone', 'phoneNumber', 'telephone', 'telefone', 'telefone1',
+               'celular', 'whatsapp', 'contactPhone', 'public_phone_number', 'mobile', 'ddd_telefone_1'],
+  cidade:     ['city', 'cidade', 'municipio', 'locality', 'addressLocality'],
   uf:         ['state', 'uf', 'estado', 'region', 'addressRegion'],
   site:       ['website', 'site', 'websiteUrl', 'domain', 'externalUrl'],
   nota:       ['totalScore', 'rating', 'stars', 'score'],
   avaliacoes: ['reviewsCount', 'userRatingsTotal', 'reviewCount', 'totalReviews', 'ratingCount'],
-  endereco:   ['address', 'endereco', 'street', 'fullAddress', 'streetAddress'],
+  endereco:   ['address', 'endereco', 'street', 'logradouro', 'fullAddress', 'streetAddress'],
   bairro:     ['neighborhood', 'bairro', 'district'],
   cep:        ['postalCode', 'cep', 'zip', 'zipCode'],
-  categoria:  ['categoryName', 'categoria', 'category', 'ramo', 'businessType'],
+  categoria:  ['categoryName', 'categoria', 'category', 'cnae_principal_descricao', 'ramo', 'businessType'],
   email:      ['email', 'emails', 'contactEmail', 'publicEmail'],
+  cnpj:       ['cnpj', 'taxId', 'documento'],
 };
+
+// O QSA da Receita vem como lista ("FULANO DE TAL — Sócio-Administrador" ou
+// {nome_socio, qualificacao_socio}, depende do actor). Quem manda no posto é o
+// administrador; na falta dele, o primeiro sócio. É esse nome que abre a porta.
+export function extrairSocio(item: Record<string, unknown>): string | null {
+  const qsa = (item.qsa || item.socios || item.partners) as unknown;
+  if (!Array.isArray(qsa) || !qsa.length) return null;
+  const nomeDe = (s: unknown): string => {
+    if (typeof s === 'string') return s.split(/\s[—–-]\s|\s{2,}/)[0].trim();
+    const o = (s || {}) as Record<string, unknown>;
+    return String(o.nome_socio || o.nome || o.name || '').trim();
+  };
+  const ehAdmin = (s: unknown): boolean => {
+    const txt = typeof s === 'string' ? s : JSON.stringify(s || {});
+    return /administrador/i.test(txt);
+  };
+  const escolhido = qsa.find(ehAdmin) ?? qsa[0];
+  const nome = nomeDe(escolhido);
+  return nome ? nome.slice(0, 160) : null;
+}
 function pegar(item: Record<string, unknown>, chaves: string[]): unknown {
   for (const k of chaves) {
     const v = item[k];
@@ -149,6 +172,7 @@ export interface ContatoMapeado {
   categoria: string | null; email: string | null;
   lat: number | null; lng: number | null;
   maps_url: string | null; place_id: string | null;
+  socio: string | null; cnpj: string | null;
   dados: Record<string, unknown>;
 }
 export function mapearItem(item: Record<string, unknown>): ContatoMapeado | null {
@@ -180,6 +204,8 @@ export function mapearItem(item: Record<string, unknown>): ContatoMapeado | null
     lng: typeof loc.lng === 'number' ? loc.lng : numero(item.lng),
     maps_url: txt(item.url, 500),
     place_id: txt(item.placeId, 120),
+    socio: extrairSocio(item),                                  // o dono, quando a fonte tem QSA
+    cnpj: (String(pegar(item, CAMPOS.cnpj) ?? '').replace(/\D/g, '') || null),
     dados: payload(item),
   };
 }
@@ -296,11 +322,27 @@ async function iniciar(busca: BuscaRow): Promise<TickResult> {
   }
 
   const limite = Math.max(1, Math.min(MAX_LEADS, Number(busca.limite) || 50));
-  const input = { ...(busca.input || {}) };
+  const input: Record<string, unknown> = { ...(busca.input || {}) };
   if (busca.actor_id === ACTOR_GOOGLE_MAPS) {
     input.maxCrawledPlacesPerSearch = limite;
     input.language = input.language || 'pt-BR';
     input.countryCode = input.countryCode || 'br';
+  } else {
+    if (input.maxItems === undefined) input.maxItems = limite;
+    // A Receita filtra município por CÓDIGO IBGE. A tela manda o NOME (é o que o
+    // consultor sabe); a conversão é aqui, contra a API do IBGE — nome que não
+    // existe vira busca do estado inteiro, e não busca da cidade errada.
+    const nome = String(input.municipio_nome || '').trim();
+    if (nome) {
+      delete input.municipio_nome;
+      if (/^\d+$/.test(nome)) {
+        input.municipio = nome;                       // já veio o código, não precisa consultar
+      } else {
+        const codigo = await codigoIbge(String(input.uf || ''), nome);
+        if (codigo) input.municipio = codigo;
+        else logger.warn(LOG, `município "${nome}" não achado no IBGE — busca vai pelo estado`, { busca: busca.id });
+      }
+    }
   }
 
   const actorPath = busca.actor_id.replace('/', '~');

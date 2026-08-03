@@ -8,6 +8,7 @@ import { processarWebhook, reconciliarStatusProduto, animarProduto } from '../se
 import { ingestManychatLead } from '../services/agenda/manychatLeadService';
 import { runGeradorBroadcastTick } from '../services/io/geradorAutomacaoService';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
+import { montarBusca } from '../services/io/prospeccaoBriefService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -199,6 +200,20 @@ router.post('/social/produto-regerar', async (req: Request, res: Response) => {
   } catch (err: any) {
     logger.error('gerador', 'produto-regerar falhou', err);
     res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
+  }
+});
+
+// Prospecção: o consultor descreve a lista em português e a IA monta a busca.
+// NÃO dispara nada e NÃO gasta na Apify: devolve um plano que a tela preenche no
+// formulário pro humano conferir. O gasto continua atrás do motor e dos tetos.
+router.post('/prospeccao/montar', async (req: Request, res: Response) => {
+  try {
+    const plano = await montarBusca(String(req.body?.brief || ''));
+    res.json({ ok: true, plano });
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    logger.warn('gerador', 'prospeccao/montar falhou', msg);
+    res.status(400).json({ error: msg });
   }
 });
 

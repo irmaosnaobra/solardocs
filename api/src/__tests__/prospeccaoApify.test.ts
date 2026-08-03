@@ -75,7 +75,7 @@ function query(table: string) {
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: (t: string) => query(t) } }));
 
 import {
-  runProspeccaoApifyTick, mapearItem, normalizarTelefone, normalizarUf, ehCelular,
+  runProspeccaoApifyTick, mapearItem, normalizarTelefone, normalizarUf, ehCelular, extrairSocio,
 } from '../services/io/prospeccaoApifyService';
 
 // ── util de teste ───────────────────────────────────────────────────────────
@@ -162,6 +162,29 @@ describe('mapeamento do lead', () => {
     const c = mapearItem(lugar({ website: '', url: 'https://maps.google.com/?cid=9' }))!;
     expect(c.site).toBeNull();
     expect(c.maps_url).toBe('https://maps.google.com/?cid=9');
+  });
+
+  it('lê a empresa da Receita e tira o dono do quadro de sócios', () => {
+    const c = mapearItem({
+      razao_social: 'POSTO SAO JORGE LTDA', nome_fantasia: 'Posto São Jorge',
+      telefone1: '3432145678', municipio: 'UBERLANDIA', uf: 'MG', bairro: 'Centro',
+      cep: '38400-000', logradouro: 'AV JOAO NAVES DE AVILA', email: 'contato@posto.com.br',
+      cnae_principal_descricao: 'Comércio varejista de combustíveis', cnpj: '12.345.678/0001-90',
+      qsa: ['JORGE MENDES DA SILVA — Sócio-Administrador', 'MARIA MENDES — Sócio'],
+    })!;
+    expect(c.empresa).toBe('Posto São Jorge');      // nome fantasia na frente da razão social
+    expect(c.telefone).toBe('553432145678');        // fixo ganha DDI, não ganha o 9
+    expect(c.socio).toBe('JORGE MENDES DA SILVA');  // o administrador, não o primeiro da lista
+    expect(c.cnpj).toBe('12345678000190');
+    expect(c).toMatchObject({ cidade: 'UBERLANDIA', uf: 'MG', categoria: 'Comércio varejista de combustíveis' });
+  });
+
+  it('QSA em objeto também entrega o dono, e sem QSA fica nulo', () => {
+    expect(extrairSocio({ qsa: [{ nome_socio: 'ANA SOUZA', qualificacao_socio: 'Sócio' },
+                                { nome_socio: 'PEDRO LIMA', qualificacao_socio: 'Administrador' }] }))
+      .toBe('PEDRO LIMA');
+    expect(extrairSocio({ qsa: [] })).toBeNull();
+    expect(extrairSocio({ title: 'Alfa Solar' })).toBeNull();
   });
 
   it('item gigante é podado em vez de estourar a linha', () => {

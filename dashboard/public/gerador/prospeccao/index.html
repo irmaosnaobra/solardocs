@@ -287,17 +287,68 @@ tbody tr:hover{background:#233047}
       Telefone repetido de qualquer outra lista é descartado, e por padrão só entra
       número de celular — fixo não recebe WhatsApp.</p>
 
+    <div class="fld" style="background:rgba(30,58,138,.22);border:1px solid #2E4FA8;border-radius:10px;padding:11px 12px">
+      <label style="color:#DBEAFE">Descreva a lista que você quer</label>
+      <textarea id="bs-brief" style="min-height:64px"
+        placeholder="Ex: postos de combustível em Uberlândia e região, quero falar com o dono. Ou: integradores solares na Bahia com nota 4+ e sem site."></textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <button class="btn primary" id="bs-ia" onclick="montarComIA()">✨ Montar busca</button>
+        <span style="font-size:11.5px;color:var(--dim);line-height:1.5">
+          A IA escolhe a fonte e preenche os filtros abaixo. Você confere antes de disparar.</span>
+      </div>
+      <div id="bs-ia-out" style="display:none;margin-top:10px;font-size:12px;line-height:1.6;color:#DBEAFE"></div>
+    </div>
+
     <div class="fld"><label>De onde</label>
       <select id="bs-fonte" onchange="trocarFonteBusca()">
-        <option value="google_maps">Google Maps — empresas por atividade e região</option>
+        <option value="google_maps">Google Maps — telefone de WhatsApp, nota, endereço</option>
+        <option value="receita_cnpj">Receita Federal — CNPJ e o NOME DO DONO (sócios)</option>
         <option value="actor">Outro robô da Apify (avançado)</option>
       </select></div>
 
+    <div id="bs-receita" style="display:none">
+      <div style="display:flex;gap:9px">
+        <div class="fld" style="flex:1.4"><label>Ramo (CNAE)</label>
+          <input type="text" id="bs-cnae" list="cnaes" placeholder="4731800" oninput="estimarBusca()">
+          <datalist id="cnaes">
+            <option value="4731800">4731800 — Postos de combustível</option>
+            <option value="4520001">4520001 — Oficina mecânica</option>
+            <option value="4711302">4711302 — Supermercado</option>
+            <option value="5611201">5611201 — Restaurante</option>
+            <option value="4741500">4741500 — Material de construção</option>
+            <option value="4321500">4321500 — Instalação elétrica</option>
+            <option value="4322301">4322301 — Instalação hidráulica</option>
+          </datalist></div>
+        <div class="fld" style="flex:.6"><label>UF</label>
+          <input type="text" id="bs-uf" maxlength="2" placeholder="MG" style="text-transform:uppercase"></div>
+      </div>
+      <div style="display:flex;gap:9px">
+        <div class="fld" style="flex:1"><label>Município (nome — vazio = estado inteiro)</label>
+          <input type="text" id="bs-municipio" placeholder="Uberlândia"></div>
+        <div class="fld" style="flex:1"><label>CPF do sócio (acha todas as empresas dele)</label>
+          <input type="text" id="bs-cpfsocio" placeholder="***123456**"></div>
+      </div>
+      <div style="font-size:11.5px;color:var(--faint);line-height:1.55;margin:-4px 0 11px">
+        Aqui vem o <b>nome do dono</b> — mas o telefone do cadastro costuma ser fixo (escritório
+        ou contador). Serve pra ligar sabendo o nome; o WhatsApp você pega no Maps.
+      </div>
+    </div>
+
     <div id="bs-maps">
-      <div class="fld"><label>O que procurar</label>
-        <input type="text" id="bs-termo" placeholder="energia solar" oninput="estimarBusca()"></div>
+      <div class="fld"><label>O que procurar (vírgula separa mais de um termo)</label>
+        <input type="text" id="bs-termo" placeholder="energia solar, integrador fotovoltaico" oninput="estimarBusca()"></div>
       <div class="fld"><label>Onde (cidade, estado ou o estado inteiro)</label>
         <input type="text" id="bs-local" placeholder="Bahia, Brasil"></div>
+      <div style="display:flex;gap:9px">
+        <div class="fld" style="flex:1"><label>Categorias do Google (custa mais)</label>
+          <input type="text" id="bs-categorias" placeholder="deixe vazio pra não filtrar" oninput="estimarBusca()"></div>
+        <div class="fld" style="flex:1"><label>Nome tem que bater (custa mais)</label>
+          <select id="bs-match" onchange="estimarBusca()">
+            <option value="all">Qualquer resultado parecido</option>
+            <option value="only_includes">Nome contém o termo</option>
+            <option value="only_exact">Nome exato</option>
+          </select></div>
+      </div>
       <div class="fld"><label>Ficha completa (cada um custa +US$ 0,002 por lugar)</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt);
           text-transform:none;letter-spacing:0;font-weight:500;margin-bottom:5px">
@@ -670,10 +721,14 @@ function mensagemAtual(){
   if (!c || !pid) return '';
   const p = prodById(pid), vars = scripts[pid] || [];
   if (!vars.length) return `(Sem script cadastrado para ${p ? p.nome : pid}. Cadastre em Listas → Produtos.)`;
+  // {socio} vira o primeiro nome do dono quando a lista veio da Receita; sem ele,
+  // vira "você" — nunca um espaço vazio no meio da frase.
+  const primeiroNome = (c.socio || '').trim().split(/\s+/)[0] || '';
   return vars[variacao % vars.length]
     .replaceAll('{empresa}', c.empresa)
     .replaceAll('{cidade}', c.cidade || '')
     .replaceAll('{consultor}', consultorAtivo)
+    .replaceAll('{socio}', primeiroNome ? capitalizar(primeiroNome) : 'você')
     .replaceAll('{preco}', precoLabel(p));
 }
 
@@ -1006,8 +1061,15 @@ function horarioDeHoje(c){
   const hoje = h.find(x => x && (norm(x.day) === norm(d.en) || norm(x.day) === norm(d.pt)));
   return hoje && hoje.hours ? `${d.curto}: ${hoje.hours}` : null;
 }
+// A Receita devolve o nome do sócio em CAIXA ALTA. Mandar "OI JORGE" no WhatsApp
+// parece robô — e é justamente o que a gente está tentando não parecer.
+function capitalizar(s){
+  return String(s||'').toLowerCase().replace(/(^|[\s'-])([a-zà-ú])/g, (m,a,b)=>a+b.toUpperCase());
+}
 function htmlFicha(c){
   const linhas = [];
+  if (c.socio) linhas.push(['Dono', `<b>${esc(capitalizar(c.socio))}</b>`]);
+  if (c.cnpj) linhas.push(['CNPJ', esc(c.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5'))]);
   // o endereço do Google já costuma trazer o bairro dentro; só acrescenta se faltar
   const temBairro = c.bairro && c.endereco &&
     c.endereco.toLowerCase().includes(String(c.bairro).toLowerCase());
@@ -1417,25 +1479,101 @@ function abrirBusca(){
   estimarBusca();
   abrirModal('ov-busca');
 }
+const ACTOR_CNPJ = 'epicscrapers/brazil-cnpj-scraper';
+const CUSTO_REGISTRO_CNPJ = 0.0009;   // US$ por empresa na Receita
+function fonteBusca(){ return document.getElementById('bs-fonte').value; }
 function trocarFonteBusca(){
-  const maps = document.getElementById('bs-fonte').value === 'google_maps';
-  document.getElementById('bs-maps').style.display = maps ? '' : 'none';
-  document.getElementById('bs-actor').style.display = maps ? 'none' : '';
+  const f = fonteBusca();
+  document.getElementById('bs-maps').style.display    = f === 'google_maps' ? '' : 'none';
+  document.getElementById('bs-receita').style.display = f === 'receita_cnpj' ? '' : 'none';
+  document.getElementById('bs-actor').style.display   = f === 'actor' ? '' : 'none';
+  // Receita não devolve celular: manter "só celular" jogaria a lista inteira fora.
+  if (f === 'receita_cnpj') document.getElementById('bs-celular').value = '0';
+  if (f === 'google_maps')  document.getElementById('bs-celular').value = '1';
   estimarBusca();
 }
 function filtrosLigados(){
-  if (document.getElementById('bs-fonte').value !== 'google_maps') return 0;
+  if (fonteBusca() !== 'google_maps') return 0;
   let n = 0;
   if (document.getElementById('bs-nota').value) n++;
   if (document.getElementById('bs-site').value !== 'allPlaces') n++;
+  if (document.getElementById('bs-categorias').value.trim()) n++;
+  if (document.getElementById('bs-match').value !== 'all') n++;
   return n;
+}
+
+// ── IA monta a busca ────────────────────────────────────────────────────────
+// A tela não fala com modelo nenhum: manda o texto pro servidor, que responde um
+// PLANO. O plano preenche o formulário — quem dispara continua sendo o humano.
+async function montarComIA(){
+  const btn = document.getElementById('bs-ia');
+  const out = document.getElementById('bs-ia-out');
+  const brief = document.getElementById('bs-brief').value.trim();
+  if (brief.length < 8){ showToast('Escreve com um pouco mais de detalhe o que você quer'); return; }
+  btn.disabled = true; btn.textContent = '✨ Montando…';
+  out.style.display = 'block';
+  out.innerHTML = '<span style="color:var(--dim)">Pensando na melhor fonte pra esse pedido…</span>';
+  try {
+    const r = await fetch('/_api/gerador/prospeccao/montar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ brief }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'falhou');
+    aplicarPlano(j.plano);
+    out.innerHTML =
+      `<b>${j.plano.fonte === 'receita_cnpj' ? 'Receita Federal' : 'Google Maps'}</b> — ${esc(j.plano.explicacao)}` +
+      (j.plano.avisos.length
+        ? `<ul style="margin:7px 0 0;padding-left:18px">${j.plano.avisos.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>`
+        : '') +
+      `<div style="margin-top:7px;color:var(--dim)">Confere os campos abaixo e dispara quando quiser.</div>`;
+  } catch(e){
+    out.innerHTML = `<span style="color:var(--bad)">Não deu: ${esc(e.message)}</span>` +
+      `<div style="color:var(--dim);margin-top:5px">Dá pra montar na mão nos filtros abaixo.</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = '✨ Montar busca';
+  }
+}
+function aplicarPlano(p){
+  const i = p.input || {};
+  document.getElementById('bs-fonte').value = p.fonte === 'receita_cnpj' ? 'receita_cnpj' : 'google_maps';
+  trocarFonteBusca();
+  if (p.fonte === 'receita_cnpj'){
+    document.getElementById('bs-cnae').value = i.cnae || '';
+    document.getElementById('bs-uf').value = i.uf || '';
+    // mostra o NOME da cidade; o código IBGE já resolvido volta no input e não
+    // precisa aparecer pro consultor (nem voltar como se fosse nome)
+    document.getElementById('bs-municipio').value =
+      p.municipio_label || i.municipio_nome || (String(i.municipio||'').match(/\D/) ? i.municipio : '') || '';
+    document.getElementById('bs-cpfsocio').value = i.partnerCpf || '';
+  } else {
+    document.getElementById('bs-termo').value = (i.searchStringsArray || []).join(', ');
+    document.getElementById('bs-local').value = i.locationQuery || '';
+    document.getElementById('bs-categorias').value = (i.categoryFilterWords || []).join(', ');
+    document.getElementById('bs-match').value = i.searchMatching || 'all';
+    document.getElementById('bs-nota').value = i.placeMinimumStars || '';
+    document.getElementById('bs-site').value = i.website || 'allPlaces';
+    document.getElementById('bs-detalhe').checked = !!i.scrapePlaceDetailPage;
+    document.getElementById('bs-contatos').checked = !!i.scrapeContacts;
+  }
+  const sel = document.getElementById('bs-limite');
+  const op = [...sel.options].find(o => Number(o.value) >= p.limite) || sel.options[sel.options.length-1];
+  sel.value = op.value;
+  document.getElementById('bs-celular').value = p.so_celular ? '1' : '0';
+  document.getElementById('bs-lista').value = p.lista_nome || '';
+  estimarBusca();
 }
 function estimarBusca(){
   const lim = Number(document.getElementById('bs-limite').value || 0);
-  const maps = document.getElementById('bs-fonte').value === 'google_maps';
+  const fonte = fonteBusca();
   const f = filtrosLigados();
   const el = document.getElementById('bs-custo');
-  if (!maps){
+  if (fonte === 'receita_cnpj'){
+    const est = lim * CUSTO_REGISTRO_CNPJ + 0.00005;
+    el.innerHTML = `<b>Estimativa: US$ ${est.toFixed(2)}</b> — ${lim} empresas a US$ ${CUSTO_REGISTRO_CNPJ.toFixed(4)} ` +
+      `cada na Receita Federal. Vem CNPJ, endereço, e-mail do cadastro e o quadro de sócios.`;
+    return;
+  }
+  if (fonte === 'actor'){
     el.innerHTML = '<b>Custo:</b> depende do robô escolhido — a Apify cobra pela tabela dele. ' +
       'O gasto real desta busca aparece na lista abaixo quando terminar.';
     return;
@@ -1458,19 +1596,41 @@ async function dispararBusca(){
   let actorId = ACTOR_MAPS, input = {}, origem = 'Apify · Google Maps';
 
   if (fonte === 'google_maps'){
-    const termo = document.getElementById('bs-termo').value.trim();
+    const termos = document.getElementById('bs-termo').value.split(',').map(s=>s.trim()).filter(Boolean);
     const local = document.getElementById('bs-local').value.trim();
-    if (!termo){ showToast('Escreve o que procurar (ex: energia solar)'); return; }
+    if (!termos.length){ showToast('Escreve o que procurar (ex: energia solar)'); return; }
     if (!local){ showToast('Escreve onde procurar'); return; }
-    input = { searchStringsArray: [termo], locationQuery: local, language: 'pt-BR', countryCode: 'br' };
+    input = { searchStringsArray: termos, locationQuery: local, language: 'pt-BR', countryCode: 'br' };
     const nota = document.getElementById('bs-nota').value;
     const site = document.getElementById('bs-site').value;
+    const cats = document.getElementById('bs-categorias').value.split(',').map(s=>s.trim()).filter(Boolean);
+    const match = document.getElementById('bs-match').value;
     if (nota) input.placeMinimumStars = nota;
     if (site !== 'allPlaces') input.website = site;
+    if (cats.length) input.categoryFilterWords = cats;
+    if (match !== 'all') input.searchMatching = match;
     // ficha completa: horário/notas detalhadas e e-mail+redes tirados do site
     if (document.getElementById('bs-detalhe').checked) input.scrapePlaceDetailPage = true;
     if (document.getElementById('bs-contatos').checked) input.scrapeContacts = true;
-    if (!nomeLista) nomeLista = `${termo} — ${local}`;
+    if (!nomeLista) nomeLista = `${termos[0]} — ${local}`;
+  } else if (fonte === 'receita_cnpj'){
+    const cnae = document.getElementById('bs-cnae').value.replace(/\D/g,'');
+    const uf = document.getElementById('bs-uf').value.trim().toUpperCase().slice(0,2);
+    const municipio = document.getElementById('bs-municipio').value.trim();
+    const cpf = document.getElementById('bs-cpfsocio').value.trim();
+    if (!cnae && !cpf){ showToast('Diz o ramo (CNAE) ou o CPF do sócio'); return; }
+    actorId = ACTOR_CNPJ;
+    origem = 'Apify · Receita Federal';
+    input = { maxItems: limite };
+    if (cnae) input.cnae = cnae;
+    if (uf) input.uf = uf;
+    // nome vai como nome (servidor converte no IBGE); código vai como código
+    if (municipio) {
+      if (/^\d+$/.test(municipio)) input.municipio = municipio;
+      else input.municipio_nome = municipio;
+    }
+    if (cpf) input.partnerCpf = cpf;
+    if (!nomeLista) nomeLista = `${cnae || 'sócio'} — ${municipio || uf || 'Brasil'} (Receita)`;
   } else {
     actorId = document.getElementById('bs-actorid').value.trim();
     if (!actorId.includes('/')){ showToast('Actor no formato usuario/nome'); return; }
