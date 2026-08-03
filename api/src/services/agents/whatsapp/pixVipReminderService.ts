@@ -27,18 +27,26 @@ const COOLDOWN_DIAS = 20;
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 
-// Valor da renovação mensal por Pix (plano completo). Espelha a oferta do abandono.
-const PIX_RENOVACAO_VALOR = 67;
+// Valor da renovação mensal por Pix, POR PLANO. O alvo do lembrete é qualquer
+// plano pago, então mandar 67 fixo cobrava R$67 de quem tem PRO de R$27 — a
+// pessoa pagaria a mais ou (mais provável) não pagaria nada. O comprovante já
+// aceita 27 e 67, então só o pedido estava errado.
+const PIX_VALOR_POR_PLANO: Record<string, number> = { pro: 27, ilimitado: 67 };
+const PIX_VALOR_PADRAO = 67;
+
+function valorDoPlano(plano: string | null): number {
+  return PIX_VALOR_POR_PLANO[(plano || '').toLowerCase()] ?? PIX_VALOR_PADRAO;
+}
 
 // Partes da mensagem de renovação: pitch + copia-e-cola (sozinho, fácil de copiar) +
 // instrução do comprovante. O cliente paga e manda o comprovante → pixComprovanteService
 // lê, valida e empurra o plano_expira_em +1 mês na hora.
-function montarPartes(nome: string | null): string[] {
+function montarPartes(nome: string | null, valor: number): string[] {
   const oi = nome ? `Oi ${nome.split(' ')[0]}! ` : 'Oi! ';
-  const copia = gerarPixCopiaECola({ valor: PIX_RENOVACAO_VALOR, txid: 'SOLARDOCVIP' });
+  const copia = gerarPixCopiaECola({ valor, txid: 'SOLARDOCVIP' });
   return [
     `${oi}Tudo bem? 😊 Seu acesso ao SolarDoc está *vencendo*.`,
-    `Pra renovar por mais um mês (R$ ${PIX_RENOVACAO_VALOR}, plano completo), é só copiar o Pix abaixo e pagar no app do seu banco 👇`,
+    `Pra renovar por mais um mês (R$ ${valor}, seu plano atual), é só copiar o Pix abaixo e pagar no app do seu banco 👇`,
     copia,
     'Assim que pagar, me manda o *comprovante aqui* que eu confirmo e libero na hora. Qualquer dúvida me chama! 🙌',
   ];
@@ -82,7 +90,7 @@ export async function runPixVipReminder(): Promise<{ enviados: number; pulados: 
     }
 
     try {
-      await sendHuman(u.whatsapp, montarPartes(u.nome), 'solardoc');
+      await sendHuman(u.whatsapp, montarPartes(u.nome, valorDoPlano(u.plano)), 'solardoc');
       await supabase
         .from('users')
         .update({ pix_reminder_last_sent_at: new Date().toISOString() })
