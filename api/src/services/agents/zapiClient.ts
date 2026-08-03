@@ -27,6 +27,32 @@ function getCreds(instance: ZapiInstance): ZapiCreds {
   };
 }
 
+// ─── Desvio de linha (plano B pra quando a B2B cai) ──────────────────────────
+// A linha B2B já parou duas vezes levando junto follow-up da Giovanna, curso de
+// R$19 e cobrança de Pix — tudo em silêncio. Com `ZAPI_SOLARDOC_VIA_IO=1` TODO
+// envio dela passa a sair pela linha IO (34998165040) sem tocar em serviço
+// nenhum; tirar a env var volta ao normal.
+//
+// O que NÃO muda: o inbound. Os pollers leem `ZAPI_*_IO` direto, então a
+// resposta do cliente chega na linha IO — onde nenhum agente atende sozinho
+// (`handleSdrLead` tem early-return pra 'io'), ou seja, cai pra humano.
+// Ligar isto SÓ com a B2B fora: o teto anti-ban da linha passa a ser dividido
+// (ver `carlaThrottle`/`lineThrottle`) e o cliente recebe de um número que não
+// conhece.
+export function solardocViaIo(): boolean {
+  return (process.env.ZAPI_SOLARDOC_VIA_IO || '').trim() === '1';
+}
+
+/** Linha FÍSICA que vai levar o envio — aplica o desvio quando ligado. */
+function linhaFisica(instance: ZapiInstance): ZapiInstance {
+  return instance === 'solardoc' && solardocViaIo() ? 'io' : instance;
+}
+
+/** Etiqueta de log: mostra o desvio quando ele acontece (`solardoc→io`). */
+function tagLinha(instance: ZapiInstance, linha: ZapiInstance): string {
+  return instance === linha ? instance : `${instance}→${linha}`;
+}
+
 export function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
@@ -56,16 +82,20 @@ export async function zapiPost(
   retries = 2,
   instance: ZapiInstance = 'solardoc',
 ): Promise<any> {
-  const { id, token, client } = getCreds(instance);
+  // Linha física: com o desvio ligado, um envio pedido pra 'solardoc' sai pela IO.
+  const linha = linhaFisica(instance);
+  const tag = tagLinha(instance, linha);
+  const { id, token, client } = getCreds(linha);
   if (!id || !token || !client) {
-    throw new Error(`[zapi:${instance}] credenciais Z-API ausentes (verifique ZAPI_INSTANCE_ID${instance === 'io' ? '_IO' : ''}, ZAPI_TOKEN${instance === 'io' ? '_IO' : ''}, ZAPI_CLIENT_TOKEN)`);
+    throw new Error(`[zapi:${tag}] credenciais Z-API ausentes (verifique ZAPI_INSTANCE_ID${linha === 'io' ? '_IO' : ''}, ZAPI_TOKEN${linha === 'io' ? '_IO' : ''}, ZAPI_CLIENT_TOKEN)`);
   }
 
   // Circuit-breaker: se esta instância falhou há pouco (instância fora), nem
-  // toca a rede — evita o flood de 60 falhas/min por tick de cron.
-  const cd = instanceCooldownUntil[instance];
+  // toca a rede — evita o flood de 60 falhas/min por tick de cron. Chaveado pela
+  // linha FÍSICA: com o desvio ligado, os dois canais compartilham a mesma.
+  const cd = instanceCooldownUntil[linha];
   if (cd && Date.now() < cd) {
-    throw new Error(`[zapi:${instance}] em cooldown (instância indisponível há <60s) — pulando envio`);
+    throw new Error(`[zapi:${tag}] em cooldown (instância indisponível há <60s) — pulando envio`);
   }
 
   let lastErr: Error | null = null;
@@ -85,7 +115,7 @@ export async function zapiPost(
         try { return JSON.parse(txt); } catch { return txt; }
       }
       const txt = await res.text().catch(() => res.status.toString());
-      lastErr = new Error(`[zapi:${instance}] HTTP ${res.status} — ${txt}`);
+      lastErr = new Error(`[zapi:${tag}] HTTP ${res.status} — ${txt}`);
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err));
     }
@@ -93,12 +123,12 @@ export async function zapiPost(
     // — retentar "not found" só multiplica o flood. Cobre falha via HTTP (body
     // "Instance not found") E via exceção de rede que contenha a mesma marca.
     if (PERMANENT_ERR.test(lastErr.message)) {
-      instanceCooldownUntil[instance] = Date.now() + COOLDOWN_MS;
+      instanceCooldownUntil[linha] = Date.now() + COOLDOWN_MS;
       throw lastErr;
     }
     if (attempt < retries) await sleep(1000 * (attempt + 1));
   }
-  throw lastErr ?? new Error(`[zapi:${instance}] falha desconhecida`);
+  throw lastErr ?? new Error(`[zapi:${tag}] falha desconhecida`);
 }
 
 // DELETE /messages?phone=X&messageId=Y&owner=true — usado pra apagar
@@ -108,9 +138,10 @@ export async function zapiDelete(
   query: Record<string, string>,
   instance: ZapiInstance = 'solardoc',
 ): Promise<void> {
-  const { id, token, client } = getCreds(instance);
+  const linha = linhaFisica(instance);
+  const { id, token, client } = getCreds(linha);
   if (!id || !token || !client) {
-    throw new Error(`[zapi:${instance}] credenciais Z-API ausentes`);
+    throw new Error(`[zapi:${tagLinha(instance, linha)}] credenciais Z-API ausentes`);
   }
   const qs = new URLSearchParams(query).toString();
   const res = await fetch(

@@ -18,6 +18,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../../utils/supabase';
+import { solardocViaIo } from '../zapiClient';
 
 // Cap de segurança por hora na linha física (anti-ban). Compartilhado por todos os bots.
 export const MAX_POR_HORA = 12;
@@ -39,13 +40,23 @@ const BOT_SENT_PREFIXES = [
   'gerador_seq:',            // sequências da Central de Automação (drip do Gerador)
 ] as const;
 
+// Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
+// R$19 e cobrança de Pix estão saindo POR AQUI e entram no MESMO orçamento —
+// senão a linha manda 12/h desta lista + 4/h da Carla e leva ban de novo. Os três
+// carimbam `carla_sent:<user>` (carlaThrottle.marcarEnvioCarla), então uma chave só
+// cobre os três. Lido a cada chamada de propósito: a env var muda sem redeploy do
+// módulo em memória.
+function prefixosDaLinha(): string[] {
+  return solardocViaIo() ? [...BOT_SENT_PREFIXES, 'carla_sent:'] : [...BOT_SENT_PREFIXES];
+}
+
 /**
  * Há folga no teto anti-ban da linha na última hora? Conta os envios de TODOS os bots.
  * `true` = pode enviar; `false` = estourou, segura pro próximo tick.
  */
 export async function dentroDoTetoHorarioLinha(): Promise<boolean> {
   const desde = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const orFilter = BOT_SENT_PREFIXES.map(p => `key.like.${p}%`).join(',');
+  const orFilter = prefixosDaLinha().map(p => `key.like.${p}%`).join(',');
   const { data } = await supabase
     .from('system_state').select('key')
     .or(orFilter)
