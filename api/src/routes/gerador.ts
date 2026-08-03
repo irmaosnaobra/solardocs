@@ -9,6 +9,7 @@ import { ingestManychatLead } from '../services/agenda/manychatLeadService';
 import { runGeradorBroadcastTick } from '../services/io/geradorAutomacaoService';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { montarBusca } from '../services/io/prospeccaoBriefService';
+import { montarCentralAgentes } from '../services/io/centralAgentes';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -228,6 +229,18 @@ router.post('/prospeccao/kick', async (_req: Request, res: Response) => {
     res.json(result);
   } catch (err: any) {
     logger.error('gerador', 'prospeccao/kick falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// Central das Agentes: estado, volume e conversão de cada robô da casa, numa
+// resposta só. Público como o resto do /gerador — por isso o serviço devolve
+// AGREGADO, nunca telefone, nome de cliente ou texto de conversa.
+router.get('/agentes', async (_req: Request, res: Response) => {
+  try {
+    res.json(await montarCentralAgentes());
+  } catch (err: any) {
+    logger.error('gerador', 'central de agentes falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });

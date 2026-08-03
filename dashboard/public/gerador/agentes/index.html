@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Central das Agentes — Irmãos na Obra</title>
+<meta name="theme-color" content="#0B1220">
+<link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
+<script>
+  // Mesma auth do /gerador. Sem sessão → manda pra tela de login.
+  (function(){
+    var AUTH_KEY = 'irmaos-na-obra-auth-v1';
+    var authed = false;
+    try { authed = !!localStorage.getItem(AUTH_KEY); } catch(e){}
+    if (!authed) location.replace('/gerador');
+    document.documentElement.dataset.theme = 'dark';
+  })();
+</script>
+<style>
+:root{
+  --navy:#1E3A8A; --navy-d:#0B1220;
+  --bg:#0F172A; --card:#1E293B; --card-2:#172033; --line:#334155; --line-s:#475569;
+  --txt:#E5E7EB; --dim:#94A3B8; --faint:#64748B;
+  --ok:#22C55E; --warn:#F59E0B; --bad:#F87171; --blue:#60A5FA; --roxo:#A78BFA;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);min-height:100vh;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:13.5px;
+  -webkit-font-smoothing:antialiased}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.mono{font-variant-numeric:tabular-nums}
+a{color:var(--blue)}
+
+/* ===== TOPO (mesmo padrão da Agenda e da Prospecção) ===== */
+.topbar{background:#0B1220;color:#fff;padding:14px 22px;display:flex;justify-content:space-between;
+  align-items:center;border-bottom:4px solid #f5c518}
+.topbar .brand{font-size:17px;font-weight:800;letter-spacing:.3px}
+.topbar .brand small{font-weight:500;opacity:.8;margin-left:6px}
+.topbar .actions{display:flex;gap:10px}
+.topbar button{padding:8px 14px;border:none;border-radius:99px;font-weight:700;font-size:13px;
+  cursor:pointer;font-family:inherit;background:#1E293B;color:#93C5FD}
+.topbar button:hover{opacity:.9}
+
+/* ===== FAIXA DE RESUMO ===== */
+.strip{background:#152238;border-bottom:1px solid var(--line);padding:9px 18px;display:flex;
+  align-items:center;gap:0;flex-wrap:wrap}
+.sv{padding:2px 16px;border-right:1px solid var(--line);text-align:center}
+.sv:first-child{padding-left:0}
+.sv .n{font-size:16px;font-weight:800;line-height:1.2}
+.sv .l{font-size:8.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim);font-weight:700}
+.atualizado{margin-left:auto;font-size:11px;color:var(--faint)}
+
+.page{padding:18px 22px;max-width:100%}
+
+/* ===== LINHAS FÍSICAS ===== */
+.linhas{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-bottom:18px}
+.linha{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px;
+  border-left:4px solid var(--faint)}
+.linha.ok{border-left-color:var(--ok)}
+.linha.caida{border-left-color:var(--bad)}
+.linha .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.linha .nome{font-weight:800;font-size:13.5px}
+.linha .num{font-size:11.5px;color:var(--dim);font-weight:700}
+.linha .det{font-size:11.5px;color:var(--dim);margin-top:5px;line-height:1.45}
+.teto{margin-top:9px}
+.teto .t{display:flex;justify-content:space-between;font-size:9px;font-weight:800;letter-spacing:.5px;color:var(--dim)}
+.teto .b{height:6px;background:#0B1220;border-radius:3px;overflow:hidden;margin-top:4px}
+.teto .b i{display:block;height:100%;background:var(--ok);transition:width .3s}
+.teto .b i.cheio{background:var(--warn)}
+
+/* ===== FILTROS ===== */
+.filtros{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.filtros button{background:var(--card-2);border:1px solid var(--line);color:var(--dim);
+  padding:6px 13px;border-radius:99px;font-size:12px;font-weight:700;cursor:pointer}
+.filtros button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+
+/* ===== CARDS DAS AGENTES ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(390px,1fr));gap:14px;align-items:start}
+.ag{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  border-top:3px solid var(--faint)}
+.ag.ativo{border-top-color:var(--ok)}
+.ag.desligado{border-top-color:var(--bad)}
+.ag.dark{border-top-color:var(--warn)}
+.ag.sem_agente{border-top-color:var(--roxo)}
+.ag .hd{padding:14px 16px 12px}
+.ag .l1{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.ag .nome{font-size:14.5px;font-weight:800;line-height:1.3}
+.ag .papel{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5}
+.pill{font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:4px 9px;
+  border-radius:99px;white-space:nowrap}
+.pill.ativo{background:rgba(34,197,94,.14);color:var(--ok)}
+.pill.desligado{background:rgba(248,113,113,.14);color:var(--bad)}
+.pill.dark{background:rgba(245,158,11,.14);color:var(--warn)}
+.pill.sem_agente{background:rgba(167,139,250,.14);color:var(--roxo)}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tag{font-size:10px;font-weight:700;color:var(--dim);background:var(--card-2);border:1px solid var(--line);
+  padding:3px 8px;border-radius:6px}
+.alerta{margin:0 16px 12px;padding:9px 11px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+  border-radius:8px;font-size:11.5px;color:#FCD34D;line-height:1.5}
+.motivo{margin:0 16px 12px;font-size:11.5px;color:var(--faint);line-height:1.5}
+
+.mets{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:1px;background:var(--line);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.met{background:var(--card-2);padding:11px 12px}
+.met .n{font-size:19px;font-weight:800;line-height:1.15}
+.met .n.vazio{color:var(--faint);font-weight:600}
+.met .l{font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim);font-weight:700;margin-top:4px}
+.met .s{font-size:10px;color:var(--faint);margin-top:3px;line-height:1.4}
+
+.toques{padding:12px 16px 14px}
+.toques h4{margin:0 0 9px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--faint)}
+.tq{padding:8px 0;border-bottom:1px dashed var(--line)}
+.tq:last-child{border-bottom:none;padding-bottom:0}
+.tq .t{font-size:12.5px;font-weight:700}
+.tq .q{font-size:10.5px;color:var(--blue);font-weight:700;margin-top:2px}
+.tq .c{font-size:11.5px;color:var(--dim);margin-top:4px;line-height:1.5}
+.rodape{padding:10px 16px;background:var(--card-2);border-top:1px solid var(--line);
+  font-size:10.5px;color:var(--faint);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+
+.vazio-tela{padding:60px 20px;text-align:center;color:var(--faint)}
+.erro{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#FCA5A5;
+  padding:14px 16px;border-radius:10px;font-size:12.5px;line-height:1.6}
+@media(max-width:640px){
+  .topbar{padding:12px 14px}.strip{padding:9px 12px}.sv{padding:2px 10px}
+  .page{padding:12px 10px}.grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">🤖 Central das Agentes <small>· Irmãos na Obra</small></div>
+  <div class="actions">
+    <button id="btn-refresh" onclick="carregar()" title="Recarregar os dados" style="width:36px;padding:8px 0">↻</button>
+    <button onclick="forcarAtualizarApp(this)" title="Baixar a versão nova do app (limpa o cache do PWA)">⬇</button>
+    <button onclick="location.href='/gerador'">← Voltar</button>
+  </div>
+</div>
+
+<div class="strip">
+  <div class="sv"><div class="n mono" id="m-ativos">–</div><div class="l">Ligadas</div></div>
+  <div class="sv"><div class="n mono" id="m-off">–</div><div class="l">Desligadas</div></div>
+  <div class="sv"><div class="n mono" id="m-24h">–</div><div class="l">Mensagens 24h</div></div>
+  <div class="sv"><div class="n mono" id="m-7d">–</div><div class="l">Mensagens 7 dias</div></div>
+  <div class="atualizado" id="atualizado">carregando…</div>
+</div>
+
+<div class="page">
+  <div class="linhas" id="linhas"></div>
+  <div class="filtros" id="filtros"></div>
+  <div id="conteudo"><div class="vazio-tela">Carregando as agentes…</div></div>
+</div>
+
+<script>
+const API = '/_api/gerador/agentes';
+let dados = null;
+let filtro = 'todas';
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = v => (v === null || v === undefined) ? '—' : Number(v).toLocaleString('pt-BR');
+
+const ROTULO_ESTADO = {
+  ativo: 'ligada', desligado: 'desligada', dark: 'sem fila', sem_agente: 'só escuta',
+};
+const ROTULO_CANAL = { whatsapp: 'WhatsApp', instagram: 'Instagram', email: 'E-mail', painel: 'Painel' };
+
+function quando(iso){
+  if (!iso) return 'sem registro';
+  const d = new Date(iso), min = Math.round((Date.now() - d.getTime()) / 60000);
+  if (min < 1) return 'agora';
+  if (min < 60) return `há ${min} min`;
+  if (min < 60 * 24) return `há ${Math.round(min/60)}h`;
+  const dias = Math.round(min / 1440);
+  return dias === 1 ? 'ontem' : `há ${dias} dias`;
+}
+
+async function carregar(){
+  const btn = document.getElementById('btn-refresh');
+  if (btn) btn.textContent = '⏳';
+  try {
+    const r = await fetch(API, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    dados = await r.json();
+    render();
+  } catch (e) {
+    document.getElementById('conteudo').innerHTML =
+      `<div class="erro"><strong>Não consegui ler o estado das agentes.</strong><br>${esc(e.message)}<br>
+       Isso é falha da API, não das agentes — elas seguem rodando pelo cron.</div>`;
+  }
+  if (btn) btn.textContent = '↻';
+}
+
+function render(){
+  if (!dados) return;
+  document.getElementById('m-ativos').textContent = dados.resumo.ativos;
+  document.getElementById('m-off').textContent = dados.resumo.desligados;
+  document.getElementById('m-24h').textContent = num(dados.resumo.enviados_24h);
+  document.getElementById('m-7d').textContent = num(dados.resumo.enviados_7d);
+  document.getElementById('atualizado').textContent = 'atualizado ' + quando(dados.gerado_em);
+
+  document.getElementById('linhas').innerHTML = (dados.linhas || []).map(l => {
+    const pct = (l.usados_na_hora === null || !l.teto_hora) ? 0
+      : Math.min(100, Math.round((l.usados_na_hora / l.teto_hora) * 100));
+    return `<div class="linha ${esc(l.estado)}">
+      <div class="top">
+        <div class="nome">${esc(l.nome)}</div>
+        <div class="num">${l.numero ? esc(l.numero) : ''}</div>
+      </div>
+      <div class="det">${esc(l.detalhe)}</div>
+      <div class="teto">
+        <div class="t"><span>USO NA ÚLTIMA HORA</span><span>${num(l.usados_na_hora)} / ${l.teto_hora}</span></div>
+        <div class="b"><i class="${pct >= 100 ? 'cheio' : ''}" style="width:${pct}%"></i></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const grupos = [
+    ['todas', 'Todas'],
+    ['ativo', 'Ligadas'],
+    ['desligado', 'Desligadas'],
+    ['whatsapp', 'WhatsApp'],
+    ['instagram', 'Instagram'],
+    ['email', 'E-mail'],
+  ];
+  document.getElementById('filtros').innerHTML = grupos.map(([k, r]) =>
+    `<button class="${filtro === k ? 'on' : ''}" onclick="setFiltro('${k}')">${r}</button>`).join('');
+
+  const lista = (dados.agentes || []).filter(a => {
+    if (filtro === 'todas') return true;
+    if (filtro === 'ativo' || filtro === 'desligado') return a.estado === filtro;
+    return a.canal === filtro;
+  });
+
+  document.getElementById('conteudo').innerHTML = lista.length
+    ? `<div class="grid">${lista.map(cardAgente).join('')}</div>`
+    : '<div class="vazio-tela">Nenhuma agente nesse filtro.</div>';
+}
+
+function setFiltro(f){ filtro = f; render(); }
+
+function cardAgente(a){
+  const mets = (a.metricas || []).map(m => `
+    <div class="met">
+      <div class="n mono ${m.valor === null ? 'vazio' : ''}">${num(m.valor)}</div>
+      <div class="l">${esc(m.label)}</div>
+      ${m.sub ? `<div class="s">${esc(m.sub)}</div>` : ''}
+    </div>`).join('');
+
+  const toques = (a.toques || []).map(t => `
+    <div class="tq">
+      <div class="t">${esc(t.titulo)}</div>
+      <div class="q">${esc(t.quando)}</div>
+      <div class="c">${esc(t.copy)}</div>
+    </div>`).join('');
+
+  return `<div class="ag ${esc(a.estado)}">
+    <div class="hd">
+      <div class="l1">
+        <div class="nome">${esc(a.nome)}</div>
+        <div class="pill ${esc(a.estado)}">${ROTULO_ESTADO[a.estado] || a.estado}</div>
+      </div>
+      <div class="papel">${esc(a.papel)}</div>
+      <div class="tags">
+        <span class="tag">${ROTULO_CANAL[a.canal] || a.canal}</span>
+        ${a.linha ? `<span class="tag">linha ${esc(a.linha)}</span>` : ''}
+        ${a.chave ? `<span class="tag">${esc(a.chave)}</span>` : ''}
+        ${(a.fila !== null && a.fila !== undefined) ? `<span class="tag">${num(a.fila)} na fila</span>` : ''}
+      </div>
+    </div>
+    ${a.alerta ? `<div class="alerta">⚠ ${esc(a.alerta)}</div>` : ''}
+    ${a.motivo ? `<div class="motivo">${esc(a.motivo)}</div>` : ''}
+    <div class="mets">${mets}</div>
+    <div class="toques">
+      <h4>Mensagens que ela manda</h4>
+      ${toques}
+    </div>
+    <div class="rodape">
+      <span>Último envio: ${quando(a.ultima_atividade)}</span>
+      <span>${esc(a.id)}</span>
+    </div>
+  </div>`;
+}
+
+async function forcarAtualizarApp(btn){
+  const orig = btn ? btn.textContent : '';
+  if (btn){ btn.textContent = '⏳'; btn.disabled = true; }
+  try {
+    if ('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.update().catch(()=>{})));
+    }
+    if (window.caches){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch(e){}
+  window.location.reload(true);
+}
+
+carregar();
+// A tela é de vigilância: sozinha ela se atualiza de 2 em 2 minutos.
+setInterval(carregar, 120000);
+</script>
+</body>
+</html>
