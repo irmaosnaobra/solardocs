@@ -317,6 +317,16 @@ async function processarUma(prazo: number, jaVistas: Set<string>): Promise<TickR
     return { ok: true, ociosa: true };
   } catch (err: any) {
     const detalhe = String(err?.message || err).slice(0, 500);
+    // Tropeço passageiro (limite de runs simultâneas, instabilidade, timeout de
+    // rede) NÃO queima a busca: com 27 estados na fila, um 429 no meio apagaria
+    // metade da varredura e ninguém ia entender por quê. Só erro de verdade —
+    // input inválido, actor inexistente — vira 'erro'.
+    const passageiro = /Apify (429|5\d\d)|fetch failed|ETIMEDOUT|ECONNRESET|socket hang up/i.test(detalhe);
+    if (passageiro) {
+      logger.warn(LOG, `busca ${busca.id} tropeçou, vai tentar de novo`, detalhe);
+      await marcar(busca.id, { erro: `Tentando de novo: ${detalhe}`, locked_until: null });
+      return { ok: false, busca: busca.id, status: busca.status, detalhe };
+    }
     logger.error(LOG, `busca ${busca.id} falhou`, err);
     await marcar(busca.id, { status: 'erro', erro: detalhe, locked_until: null });
     return { ok: false, busca: busca.id, status: 'erro', detalhe };

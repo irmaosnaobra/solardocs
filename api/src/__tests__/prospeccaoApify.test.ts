@@ -330,6 +330,25 @@ describe('caminho feliz: pedida → rodando → importando → concluída', () =
     expect(n).toBe(3);
   });
 
+  it('429 da Apify não queima a busca — ela continua na fila', async () => {
+    process.env.APIFY_TOKEN = 'tok';
+    const b = enfileirar();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('rate limit exceeded', { status: 429 })));
+    await runProspeccaoApifyTick();
+    const linha = db.prospeccao_buscas.find(x => x.id === b.id)!;
+    expect(linha.status).toBe('pedida');                 // não virou 'erro'
+    expect(linha.erro).toMatch(/tentando de novo/i);
+    expect(linha.locked_until).toBeNull();               // e a trava saiu
+  });
+
+  it('erro de verdade (input inválido) vira erro mesmo', async () => {
+    process.env.APIFY_TOKEN = 'tok';
+    const b = enfileirar();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('actor not found', { status: 404 })));
+    await runProspeccaoApifyTick();
+    expect(db.prospeccao_buscas.find(x => x.id === b.id)!.status).toBe('erro');
+  });
+
   it('cancelar aborta a run na Apify — senão o gasto continua', async () => {
     process.env.APIFY_TOKEN = 'tok';
     const b = enfileirar({ status: 'cancelada', run_id: 'run7', dataset_id: 'ds7' });
