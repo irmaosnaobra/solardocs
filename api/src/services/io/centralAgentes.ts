@@ -133,24 +133,28 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   const desde30 = new Date(agora - 30 * D).toISOString();
 
   const emailsBia = new Set(bia1.chaves.map(k => k.key.slice('limpapro_recovery:'.length).toLowerCase()));
-  let vendasBia: number | null = null;
-  try {
-    const { data } = await supabase
-      .from('limpapro_events').select('buyer_email')
-      .eq('event_type', 'purchase').eq('status', 'paid')
-      .gte('created_at', desde30).limit(2000);
-    vendasBia = (data ?? []).filter(v => emailsBia.has(String(v.buyer_email || '').toLowerCase())).length;
-  } catch (err) { logger.error('central-agentes', 'vendas da Bia falharam', err); }
-
   const usersCurso = new Set(curso.chaves.map(k => k.key.slice('curso19:'.length)));
-  let vendasCurso: number | null = null;
-  try {
-    const { data } = await supabase
-      .from('kit_pedidos').select('user_id, status, criado_em')
-      .gte('criado_em', desde30).limit(2000);
-    vendasCurso = (data ?? []).filter(p => p.user_id && usersCurso.has(String(p.user_id))
-      && ['paid', 'aprovado', 'approved', 'pago'].includes(String(p.status || '').toLowerCase())).length;
-  } catch (err) { logger.error('central-agentes', 'vendas do curso falharam', err); }
+
+  const [vendasBia, vendasCurso] = await Promise.all([
+    (async (): Promise<number | null> => {
+      try {
+        const { data } = await supabase
+          .from('limpapro_events').select('buyer_email')
+          .eq('event_type', 'purchase').eq('status', 'paid')
+          .gte('created_at', desde30).limit(2000);
+        return (data ?? []).filter(v => emailsBia.has(String(v.buyer_email || '').toLowerCase())).length;
+      } catch (err) { logger.error('central-agentes', 'vendas da Bia falharam', err); return null; }
+    })(),
+    (async (): Promise<number | null> => {
+      try {
+        const { data } = await supabase
+          .from('kit_pedidos').select('user_id, status, criado_em')
+          .gte('criado_em', desde30).limit(2000);
+        return (data ?? []).filter(p => p.user_id && usersCurso.has(String(p.user_id))
+          && ['paid', 'aprovado', 'approved', 'pago'].includes(String(p.status || '').toLowerCase())).length;
+      } catch (err) { logger.error('central-agentes', 'vendas do curso falharam', err); return null; }
+    })(),
+  ]);
 
   const contar = async (tabela: string, filtros: (q: any) => any): Promise<number | null> => {
     try {
@@ -165,34 +169,28 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     } catch { return null; }
   };
 
-  const igEnviadas30 = await contar('ig_queue', (q: any) => q.eq('status', 'sent').gte('criado_em', desde30));
-  const igRespostas30 = await contar('ig_contacts', (q: any) => q.gte('last_reply_at', desde30));
-  const inbound24 = await contar('sdr_message_dedup', (q: any) => q.gte('processed_at', new Date(agora - D).toISOString()));
-  const inbound7 = await contar('sdr_message_dedup', (q: any) => q.gte('processed_at', new Date(agora - 7 * D).toISOString()));
-
-  const fichasEletro30 = await contarGerador('agendamentos', (q: any) =>
-    q.eq('created_by', 'lp_eletroposto').gte('created_at', desde30));
-  const nota1_30 = await contarGerador('eletroposto_nota1', (q: any) => q.gte('created_at', desde30));
-  const nota1SemConvite = await contarGerador('eletroposto_nota1', (q: any) => q.is('convite_enviado_at', null));
-  const indicacoes30 = await contar('io_indicacoes', (q: any) => q.gte('criado_em', desde30));
-  const respostasBlast = await contar('io_blast_respostas', (q: any) => q.eq('atendido', false));
-  const prospTotal = await contarGerador('prospeccao_contatos', () => supabaseGerador.from('prospeccao_contatos').select('id', { count: 'exact', head: true }));
-  const prospToques = await contarGerador('prospeccao_toques', () => supabaseGerador.from('prospeccao_toques').select('id', { count: 'exact', head: true }));
-
-  let seqAtivas: number | null = null;
-  let disparosRodando: number | null = null;
-  try {
-    const { count: s } = await supabaseGerador.from('sequencias').select('id', { count: 'exact', head: true }).eq('ativo', true);
-    seqAtivas = s ?? 0;
-    const { count: b } = await supabaseGerador.from('gerador_broadcasts').select('id', { count: 'exact', head: true }).eq('status', 'rodando');
-    disparosRodando = b ?? 0;
-  } catch { /* deixa null */ }
-
-  let igAutomacoes: number | null = null;
-  try {
-    const { count } = await supabaseGerador.from('ig_automations').select('id', { count: 'exact', head: true }).eq('ativo', true);
-    igAutomacoes = count ?? 0;
-  } catch { /* null */ }
+  // Tudo em paralelo: são ~12 contagens independentes e a tela recarrega sozinha
+  // a cada 2 min. Em série isso custava 6s de espera pro dono olhar a tela.
+  const [
+    igEnviadas30, igRespostas30, inbound24, inbound7,
+    fichasEletro30, nota1_30, nota1SemConvite, indicacoes30, respostasBlast,
+    prospTotal, prospToques, seqAtivas, disparosRodando, igAutomacoes,
+  ] = await Promise.all([
+    contar('ig_queue', (q: any) => q.eq('status', 'sent').gte('criado_em', desde30)),
+    contar('ig_contacts', (q: any) => q.gte('last_reply_at', desde30)),
+    contar('sdr_message_dedup', (q: any) => q.gte('processed_at', new Date(agora - D).toISOString())),
+    contar('sdr_message_dedup', (q: any) => q.gte('processed_at', new Date(agora - 7 * D).toISOString())),
+    contarGerador('agendamentos', (q: any) => q.eq('created_by', 'lp_eletroposto').gte('created_at', desde30)),
+    contarGerador('eletroposto_nota1', (q: any) => q.gte('created_at', desde30)),
+    contarGerador('eletroposto_nota1', (q: any) => q.is('convite_enviado_at', null)),
+    contar('io_indicacoes', (q: any) => q.gte('criado_em', desde30)),
+    contar('io_blast_respostas', (q: any) => q.eq('atendido', false)),
+    contarGerador('prospeccao_contatos', (q: any) => q),
+    contarGerador('prospeccao_toques', (q: any) => q),
+    contarGerador('sequencias', (q: any) => q.eq('ativo', true)),
+    contarGerador('gerador_broadcasts', (q: any) => q.eq('status', 'rodando')),
+    contarGerador('ig_automations', (q: any) => q.eq('ativo', true)),
+  ]);
 
   // ── 3. Estado das linhas físicas ───────────────────────────────────────────
   const linhaIoCaida = (saude?.downStreak ?? 0) >= 2 && !!saude?.alertadoEm;
