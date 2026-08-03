@@ -18,6 +18,21 @@ vi.mock('../utils/supabase', () => ({
     storage: { from: vi.fn(() => ({ remove: vi.fn() })) },
   },
 }));
+// O banco do Gerador também precisa ser fake: várias tarefas do /master e do
+// /process-messages leem dele (agenda do eletroposto, prospecção, grupo diário).
+// Sem este mock o teste abre conexão de verdade e estoura o timeout de 5s — o
+// que reprova a rota por causa da rede, não por causa do código.
+vi.mock('../utils/supabaseGerador', () => {
+  const q: any = new Proxy({}, {
+    get(_t, prop: string) {
+      if (prop === 'then') return undefined;                       // não é promise
+      if (prop === 'single' || prop === 'maybeSingle') return vi.fn().mockResolvedValue({ data: null, error: null });
+      if (prop === 'limit') return vi.fn().mockResolvedValue({ data: [], error: null });
+      return vi.fn(() => q);                                       // select/eq/in/gte/order/update/insert…
+    },
+  });
+  return { supabaseGerador: { from: vi.fn(() => q) } };
+});
 vi.mock('../utils/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));

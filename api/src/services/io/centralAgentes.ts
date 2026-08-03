@@ -22,6 +22,7 @@ import { logger } from '../../utils/logger';
 import { MAX_POR_HORA } from '../agents/whatsapp/lineThrottle';
 import { MAX_CARLA_POR_HORA } from '../agents/whatsapp/carlaThrottle';
 import { solardocViaIo } from '../agents/zapiClient';
+import { EP_ORIGENS, EP_AGENDA_INICIO } from './eletropostoAgenda';
 
 type Estado = 'ativo' | 'desligado' | 'dark' | 'sem_agente';
 type Canal = 'whatsapp' | 'instagram' | 'email' | 'painel';
@@ -176,10 +177,14 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
 
   // Tudo em paralelo: são ~12 contagens independentes e a tela recarrega sozinha
   // a cada 2 min. Em série isso custava 6s de espera pro dono olhar a tela.
+  const agoraIso = new Date(agora).toISOString();
+  // Janela de 30d do agente de agendamento, mas nunca antes de ele existir.
+  const epDesde = desde30 > EP_AGENDA_INICIO ? desde30 : EP_AGENDA_INICIO;
   const [
     igEnviadas30, igRespostas30, inbound24, inbound7,
     fichasEletro30, nota1_30, nota1SemConvite, indicacoes30, respostasBlast,
     prospTotal, prospToques, seqAtivas, disparosRodando, igAutomacoes,
+    epReunioesFuturas, epFuturasConfirmadas, epLembretes5min30d, epUltimoToque,
   ] = await Promise.all([
     contar('ig_queue', (q: any) => q.eq('status', 'sent').gte('criado_em', desde30)),
     contar('ig_contacts', (q: any) => q.gte('last_reply_at', desde30)),
@@ -195,6 +200,25 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     contarGerador('sequencias', (q: any) => q.eq('ativo', true)),
     contarGerador('gerador_broadcasts', (q: any) => q.eq('status', 'rodando')),
     contarGerador('ig_automations', (q: any) => q.eq('ativo', true)),
+    // Agente de agendamento do eletroposto: a régua dele mora nas 3 colunas de
+    // flag da própria ficha, então a métrica é contagem direta — sem system_state.
+    contarGerador('agendamentos', (q: any) => q.in('created_by', EP_ORIGENS).eq('status', 'agendado').gte('quando', agoraIso)),
+    contarGerador('agendamentos', (q: any) => q.in('created_by', EP_ORIGENS).eq('status', 'agendado').gte('quando', agoraIso).not('confirmacao_at', 'is', null)),
+    // Piso em EP_AGENDA_INICIO: as mesmas colunas foram usadas pelo módulo solar
+    // até 28/07. Sem o piso, a tela credita a este agente envio que não é dele.
+    contarGerador('agendamentos', (q: any) => q.in('created_by', EP_ORIGENS)
+      .gte('lembrete_5min_at', epDesde)),
+    (async (): Promise<string | null> => {
+      try {
+        const { data } = await supabaseGerador
+          .from('agendamentos').select('confirmacao_at, lembrete_1h_at, lembrete_5min_at')
+          .in('created_by', EP_ORIGENS).gte('quando', new Date(agora - 30 * D).toISOString()).limit(500);
+        const todos = (data ?? [])
+          .flatMap(r => [r.confirmacao_at, r.lembrete_1h_at, r.lembrete_5min_at])
+          .filter(v => !!v && String(v) >= EP_AGENDA_INICIO) as string[];
+        return todos.sort().pop() ?? null;
+      } catch (err) { logger.error('central-agentes', 'último toque da agenda EP falhou', err); return null; }
+    })(),
   ]);
 
   // ── 3. Estado das linhas físicas ───────────────────────────────────────────
@@ -376,6 +400,29 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { titulo: 'aviso da equipe', quando: 'assim que a ficha entra', copy: 'Card com selo da nota, pontuação e dados do ponto pro WhatsApp do Thiago e do Diego.' },
       ],
       alerta: (nota1SemConvite ?? 0) > 0 ? `${nota1SemConvite} lead(s) nota 1 estão sem o convite do grupo.` : undefined,
+    },
+    {
+      id: 'agenda_eletroposto',
+      nome: 'Agendamento do eletroposto — confirmação e presença',
+      papel: 'Agente de agendamento: assim que alguém marca na LP, ele confirma o horário no WhatsApp, avisa 1 hora antes que o link está vindo e chama de novo 5 minutos antes. Existe por causa de quem marca e some.',
+      canal: 'whatsapp', linha: 'io',
+      estado: envLigado('EP_LEMBRETES_OFF') ? 'desligado' : 'ativo',
+      chave: 'EP_LEMBRETES_OFF',
+      ultima_atividade: epUltimoToque,
+      metricas: [
+        { label: 'Reuniões futuras', valor: epReunioesFuturas, sub: 'status agendado, daqui pra frente' },
+        { label: 'Já confirmadas por ele', valor: epFuturasConfirmadas, sub: 'mensagem de confirmação entregue' },
+        { label: 'Chamados de 5 min (30d)', valor: epLembretes5min30d },
+        { label: 'Quem respondeu SIM', valor: null, sub: 'a resposta cai no 5040 e nenhum robô lê — sai no digest de entrada (12h/18h)' },
+      ],
+      toques: [
+        { titulo: '1º · ao marcar', quando: 'segundos depois de escolher o horário na LP', copy: 'Confirma dia e hora com o nome do consultor, explica que é por vídeo e que o link cai neste chat. Pede um "SIM" e oferece remarcar.' },
+        { titulo: '2º · 1 hora antes', quando: '45 a 75 min antes da reunião', copy: 'Avisa que o link está vindo, pede internet e sinal, e abre a porta do remarcar de novo.' },
+        { titulo: '3º · 5 minutos antes', quando: 'nos 12 min que antecedem o horário', copy: '"É agora, o consultor já está te esperando" — manda ficar de olho no chat porque o link cai a qualquer momento.' },
+      ],
+      alerta: (epReunioesFuturas ?? 0) > 0 && (epFuturasConfirmadas ?? 0) < (epReunioesFuturas ?? 0)
+        ? `${(epReunioesFuturas ?? 0) - (epFuturasConfirmadas ?? 0)} reunião(ões) futura(s) ainda sem a mensagem de confirmação — a fila de atraso sai 1 por rodada, das 08h às 20h.`
+        : undefined,
     },
     {
       id: 'indicacao',
