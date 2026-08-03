@@ -16,7 +16,9 @@ import { logger } from '../../utils/logger';
 
 const LOG = 'prospeccao-brief';
 const MODELO = 'claude-sonnet-4-6';           // mesmo modelo do resto da casa
-const MAX_LEADS = Number(process.env.PROSPECCAO_MAX_LEADS || 300);
+const MAX_LEADS = Number(process.env.PROSPECCAO_MAX_LEADS || 300);            // Maps
+const MAX_LEADS_CNPJ = Number(process.env.PROSPECCAO_MAX_LEADS_CNPJ || 5000); // Receita (registro 4,4× mais barato)
+const teto = (fonte: string) => (fonte === 'receita_cnpj' ? MAX_LEADS_CNPJ : MAX_LEADS);
 
 export const ACTOR_MAPS = 'compass/crawler-google-places';
 export const ACTOR_CNPJ = 'epicscrapers/brazil-cnpj-scraper';
@@ -152,7 +154,7 @@ export async function montarBusca(brief: string): Promise<PlanoBusca> {
   const input: Record<string, unknown> = { ...(bruto.input as Record<string, unknown> || {}) };
   PROIBIDOS.forEach(k => delete input[k]);
 
-  const limite = Math.max(1, Math.min(MAX_LEADS, Number(bruto.limite) || 50));
+  const limite = Math.max(1, Math.min(teto(fonte), Number(bruto.limite) || 50));
   const avisos: string[] = Array.isArray(bruto.avisos)
     ? (bruto.avisos as unknown[]).map(a => String(a)).slice(0, 3) : [];
 

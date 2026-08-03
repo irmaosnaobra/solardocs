@@ -25,8 +25,17 @@ import { codigoIbge } from './prospeccaoBriefService';
 const LOG = 'prospeccao-apify';
 const APIFY = 'https://api.apify.com/v2';
 
-const MAX_LEADS       = Number(process.env.PROSPECCAO_MAX_LEADS || 300);
-const MAX_BUSCAS_DIA  = Number(process.env.PROSPECCAO_MAX_BUSCAS_DIA || 5);
+// Teto por FONTE, porque o preço por registro é diferente e o teto é de GASTO,
+// não de vaidade: Maps custa US$0,004 por lugar, a Receita custa US$0,0009 —
+// 4,4× mais barato. 300 lugares no Maps (US$1,20) e 5.000 empresas na Receita
+// (US$4,50) são pedidos de tamanho parecido em dinheiro.
+const MAX_LEADS       = Number(process.env.PROSPECCAO_MAX_LEADS || 300);        // Maps e actor livre
+const MAX_LEADS_CNPJ  = Number(process.env.PROSPECCAO_MAX_LEADS_CNPJ || 5000);  // Receita Federal
+export const MAX_BUSCAS_DIA = Number(process.env.PROSPECCAO_MAX_BUSCAS_DIA || 30); // dá pra varrer o Brasil (27 UFs) num dia
+export const ACTOR_CNPJ_ID = 'epicscrapers/brazil-cnpj-scraper';
+export function tetoDaFonte(actorId: string): number {
+  return actorId === ACTOR_CNPJ_ID ? MAX_LEADS_CNPJ : MAX_LEADS;
+}
 const LOCK_MS         = 4 * 60 * 1000;   // lease do tick
 const RUN_TIMEOUT_S   = 900;             // 15 min de teto na run (a Apify mata sozinha)
 const DATASET_PAGINA  = 500;
@@ -47,7 +56,7 @@ interface BuscaRow {
   id: string; criada_em: string; criada_por: string | null;
   fonte: string; actor_id: string; input: Record<string, unknown>;
   limite: number; so_celular: boolean;
-  lista_nome: string; lista_origem: string | null; lista_id: string | null;
+  lista_nome: string; lista_origem: string | null; lista_id: string | null; lista_status: string | null;
   status: string; run_id: string | null; dataset_id: string | null;
   encontrados: number; importados: number; dup: number; sem_telefone: number;
   custo_usd: number; erro: string | null; cursor_offset: number | null;
@@ -321,7 +330,7 @@ async function iniciar(busca: BuscaRow): Promise<TickResult> {
     return { ok: false, busca: busca.id, status: 'erro', detalhe: 'cap diário' };
   }
 
-  const limite = Math.max(1, Math.min(MAX_LEADS, Number(busca.limite) || 50));
+  const limite = Math.max(1, Math.min(tetoDaFonte(busca.actor_id), Number(busca.limite) || 50));
   const input: Record<string, unknown> = { ...(busca.input || {}) };
   if (busca.actor_id === ACTOR_GOOGLE_MAPS) {
     input.maxCrawledPlacesPerSearch = limite;
@@ -396,8 +405,9 @@ async function importar(busca: BuscaRow): Promise<TickResult> {
   let semTelefone = Number(busca.sem_telefone || 0);
   let listaId     = busca.lista_id;
   let fim         = false;
+  const teto      = tetoDaFonte(busca.actor_id) * 2;   // dataset pode trazer mais que o pedido
 
-  while (!fim) {
+  while (!fim && offset < teto) {
     const pagina = await apify(
       `/datasets/${busca.dataset_id}/items?clean=true&offset=${offset}&limit=${DATASET_PAGINA}`,
     );
@@ -425,7 +435,11 @@ async function importar(busca: BuscaRow): Promise<TickResult> {
       if (!listaId) {
         const { data: lista, error } = await supabaseGerador
           .from('prospeccao_listas')
-          .insert({ nome: busca.lista_nome, origem: busca.lista_origem || 'Apify', custo: 0 })
+          .insert({
+            nome: busca.lista_nome, origem: busca.lista_origem || 'Apify', custo: 0,
+            // varredura grande nasce pausada: guarda o dado sem despejar tudo na fila
+            status: busca.lista_status === 'pausada' ? 'pausada' : 'ativa',
+          })
           .select('id').single();
         if (error) throw new Error(`erro criando lista: ${error.message}`);
         listaId = lista!.id as string;

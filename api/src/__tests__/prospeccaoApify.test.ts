@@ -75,7 +75,7 @@ function query(table: string) {
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: (t: string) => query(t) } }));
 
 import {
-  runProspeccaoApifyTick, mapearItem, normalizarTelefone, normalizarUf, ehCelular, extrairSocio,
+  runProspeccaoApifyTick, mapearItem, normalizarTelefone, normalizarUf, ehCelular, extrairSocio, MAX_BUSCAS_DIA, tetoDaFonte,
 } from '../services/io/prospeccaoApifyService';
 
 // ── util de teste ───────────────────────────────────────────────────────────
@@ -219,11 +219,17 @@ describe('travas de gasto', () => {
     expect(linha.erro).toContain('APIFY_TOKEN');
   });
 
+  it('teto por lugar é maior na Receita, porque o registro é 4,4× mais barato', () => {
+    expect(tetoDaFonte('compass/crawler-google-places')).toBe(300);      // US$1,20 por busca
+    expect(tetoDaFonte('epicscrapers/brazil-cnpj-scraper')).toBe(5000);  // US$4,50 por busca
+    expect(tetoDaFonte('qualquer/outro-actor')).toBe(300);               // desconhecido = teto conservador
+  });
+
   it('respeita o teto de buscas por dia', async () => {
     process.env.APIFY_TOKEN = 'tok';
-    // teto padrão = 5 buscas/dia (PROSPECCAO_MAX_BUSCAS_DIA); com 5 já gastas hoje,
-    // a sexta não pode sair — é o teto de gasto, não a autenticação.
-    for (let i = 0; i < 5; i++) enfileirar({ status: 'concluida' });
+    // com o teto do dia já gasto, a próxima não sai — é o teto de GASTO, não a
+    // autenticação. Lê o teto configurado pra não quebrar quando ele mudar.
+    for (let i = 0; i < MAX_BUSCAS_DIA; i++) enfileirar({ status: 'concluida' });
     const b = enfileirar();
     vi.stubGlobal('fetch', vi.fn());
     await runProspeccaoApifyTick();

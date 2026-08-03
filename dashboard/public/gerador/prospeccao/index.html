@@ -328,6 +328,17 @@ tbody tr:hover{background:#233047}
         <div class="fld" style="flex:1"><label>CPF do sócio (acha todas as empresas dele)</label>
           <input type="text" id="bs-cpfsocio" placeholder="***123456**"></div>
       </div>
+      <div class="fld" style="margin-bottom:7px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt);
+          text-transform:none;letter-spacing:0;font-weight:500">
+          <input type="checkbox" id="bs-brasil" onchange="trocarBrasil()" style="width:15px;height:15px;accent-color:#1E3A8A">
+          <b>Brasil inteiro</b> — dispara uma busca por estado (27 no total)</label>
+      </div>
+      <div class="fld" id="bs-status-wrap" style="display:none"><label>As listas nascem</label>
+        <select id="bs-lista-status">
+          <option value="pausada" selected>Pausadas — guarda o dado, você ativa estado por estado</option>
+          <option value="ativa">Ativas — tudo cai na fila de uma vez</option>
+        </select></div>
       <div style="font-size:11.5px;color:var(--faint);line-height:1.55;margin:-4px 0 11px">
         Aqui vem o <b>nome do dono</b> — mas o telefone do cadastro costuma ser fixo (escritório
         ou contador). Serve pra ligar sabendo o nome; o WhatsApp você pega no Maps.
@@ -1476,11 +1487,32 @@ const buscaAtiva = b => ['pedida','rodando','importando'].includes(b.status);
 
 function abrirBusca(){
   document.getElementById('bs-lista').value = '';
-  estimarBusca();
+  trocarFonteBusca();          // normaliza opções, teto e visibilidade de cada fonte
   abrirModal('ov-busca');
 }
 const ACTOR_CNPJ = 'epicscrapers/brazil-cnpj-scraper';
 const CUSTO_REGISTRO_CNPJ = 0.0009;   // US$ por empresa na Receita
+const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE',
+             'PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
+// O teto por busca é por FONTE (Maps 300 lugares = US$1,20; Receita 5.000
+// registros = US$4,50). As opções de quantidade seguem o teto da fonte, senão o
+// teto novo ficaria inalcançável pela tela.
+const LIMITES = { google_maps:[25,50,100,200,300], receita_cnpj:[100,500,1000,2500,5000], actor:[25,50,100,200,300] };
+function opcoesDeLimite(){
+  const sel = document.getElementById('bs-limite');
+  const atual = Number(sel.value || 0);
+  const lista = LIMITES[fonteBusca()] || LIMITES.actor;
+  sel.innerHTML = lista.map(n =>
+    `<option value="${n}">${n.toLocaleString('pt-BR')}${n===lista[0]?' — teste':''}${n===lista[lista.length-1]?' (teto)':''}</option>`).join('');
+  sel.value = String(lista.reduce((a,b)=>Math.abs(b-atual)<Math.abs(a-atual)?b:a, lista[1]));
+}
+function trocarBrasil(){
+  const on = document.getElementById('bs-brasil').checked;
+  document.getElementById('bs-status-wrap').style.display = on ? '' : 'none';
+  document.getElementById('bs-uf').disabled = on;
+  document.getElementById('bs-municipio').disabled = on;
+  estimarBusca();
+}
 function fonteBusca(){ return document.getElementById('bs-fonte').value; }
 function trocarFonteBusca(){
   const f = fonteBusca();
@@ -1490,6 +1522,8 @@ function trocarFonteBusca(){
   // Receita não devolve celular: manter "só celular" jogaria a lista inteira fora.
   if (f === 'receita_cnpj') document.getElementById('bs-celular').value = '0';
   if (f === 'google_maps')  document.getElementById('bs-celular').value = '1';
+  if (f !== 'receita_cnpj'){ document.getElementById('bs-brasil').checked = false; trocarBrasil(); }
+  opcoesDeLimite();
   estimarBusca();
 }
 function filtrosLigados(){
@@ -1568,9 +1602,14 @@ function estimarBusca(){
   const f = filtrosLigados();
   const el = document.getElementById('bs-custo');
   if (fonte === 'receita_cnpj'){
-    const est = lim * CUSTO_REGISTRO_CNPJ + 0.00005;
-    el.innerHTML = `<b>Estimativa: US$ ${est.toFixed(2)}</b> — ${lim} empresas a US$ ${CUSTO_REGISTRO_CNPJ.toFixed(4)} ` +
-      `cada na Receita Federal. Vem CNPJ, endereço, e-mail do cadastro e o quadro de sócios.`;
+    const brasil = document.getElementById('bs-brasil').checked;
+    const n = brasil ? lim * UFS.length : lim;
+    const est = n * CUSTO_REGISTRO_CNPJ + 0.00005 * (brasil ? UFS.length : 1);
+    el.innerHTML = `<b>Estimativa: US$ ${est.toFixed(2)}</b> — até ${n.toLocaleString('pt-BR')} empresas a ` +
+      `US$ ${CUSTO_REGISTRO_CNPJ.toFixed(4)} cada na Receita Federal` +
+      (brasil ? ` (${lim.toLocaleString('pt-BR')} por estado × ${UFS.length} estados)` : '') +
+      `. Vem CNPJ, endereço, e-mail do cadastro e o quadro de sócios.` +
+      (brasil ? ` <b>Roda uma busca por vez</b>, na fila — pode fechar a aba.` : '');
     return;
   }
   if (fonte === 'actor'){
@@ -1642,15 +1681,29 @@ async function dispararBusca(){
 
   btn.disabled = true; btn.textContent = 'Enfileirando…';
   try {
-    await supaInsert('prospeccao_buscas', {
-      criada_por: consultorAtivo, fonte, actor_id: actorId, input,
-      limite, so_celular: soCelular, lista_nome: nomeLista, lista_origem: origem,
-    });
+    const brasil = fonte === 'receita_cnpj' && document.getElementById('bs-brasil').checked;
+    if (brasil){
+      // Uma busca por estado: o motor roda uma de cada vez, então a fila não vira
+      // 40 mil contatos de uma vez nem estoura o tempo de um tick só.
+      const statusLista = document.getElementById('bs-lista-status').value;
+      const base = { ...input }; delete base.uf; delete base.municipio_nome; delete base.municipio;
+      await supaInsert('prospeccao_buscas', UFS.map(uf => ({
+        criada_por: consultorAtivo, fonte, actor_id: actorId,
+        input: { ...base, uf }, limite, so_celular: soCelular,
+        lista_nome: `${nomeLista} · ${uf}`, lista_origem: origem, lista_status: statusLista,
+      })));
+    } else {
+      await supaInsert('prospeccao_buscas', {
+        criada_por: consultorAtivo, fonte, actor_id: actorId, input,
+        limite, so_celular: soCelular, lista_nome: nomeLista, lista_origem: origem,
+      });
+    }
     // kick: o cron pegaria em até 5 min; isto começa agora. O servidor é quem
     // decide se pode rodar — o kick não passa parâmetro nenhum.
     fetch('/_api/gerador/prospeccao/kick', { method:'POST' }).catch(()=>{});
     fecharModal('ov-busca');
-    showToast('Busca na fila — o resultado cai aqui sozinho');
+    showToast(brasil ? `${UFS.length} buscas na fila (uma por estado) — rodam uma de cada vez`
+                     : 'Busca na fila — o resultado cai aqui sozinho');
     setTimeout(recarregarBuscas, 2500);
   } catch(e){
     showToast('Não deu pra enfileirar: ' + e.message);
