@@ -2,6 +2,9 @@ import { Router, Request, Response } from 'express';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
+// A copy do convite mora no serviço de repescagem (é a MESMA mensagem nos dois
+// caminhos: LP em tempo real e fila de quem ficou sem resposta no apagão).
+import { bolhasConvite } from '../services/io/eletropostoRepescagem';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -153,9 +156,6 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
 // Gravar nunca é bloqueado por esses limites: perder o lead é o erro pior.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GRUPO_LINK = process.env.IO_GRUPO_ELETROPOSTO_LINK?.trim()
-  || 'https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M';
-
 const CONVITE_TETO_HORA = 40;
 let conviteJanela = { hora: -1, enviados: 0 };
 
@@ -170,16 +170,6 @@ function cabeNoTeto(): boolean {
 // Capital de verdade declarado: é o investidor sem local — o outro lado do
 // casamento com quem tem ponto e não tem dinheiro. Ganha selo no alerta.
 const INVEST_COM_CAPITAL = new Set(['Recurso próprio', 'Recurso próprio + financiamento', 'Financiamento já aprovado']);
-
-function bolhasConvite(primeiroNome: string): string[] {
-  return [
-    `Oi ${primeiroNome}! Aqui é da Irmãos na Obra — você acabou de fazer a simulação do eletroposto no nosso site.`,
-    'Pelo que você respondeu, o próximo passo ainda não é o orçamento: é definir o local. É ele que decide a entrada de energia, o fluxo e, no fim, o seu retorno.',
-    `Por isso já te levo pro grupo que a gente abriu pra quem está nessa fase. Entrada gratuita:\n${GRUPO_LINK}`,
-    'Lá a gente publica o faturamento real de cada ponto que instala, como avaliar um local antes de fechar e o caminho do financiamento com 90 dias de carência. Quem tem local e quem tem capital também se encontram por lá.',
-    'Quando o seu ponto estiver encaminhado, me chama aqui que eu marco a conversa e levo o estudo completo do seu caso.',
-  ];
-}
 
 router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
   const b = req.body || {};

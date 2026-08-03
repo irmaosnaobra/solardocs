@@ -28,6 +28,7 @@ import { runZapiHealthCheck } from '../services/io/zapiHealthMonitor';
 import { runAlertaLeadQuenteSemProposta } from '../services/agenda/leadQuenteSemPropostaService';
 import { runGrupoEletropostoDiario } from '../services/io/grupoEletropostoDiario';
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
+import { runRepescagemTick, semearRepescagem } from '../services/io/eletropostoRepescagem';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
@@ -260,7 +261,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, repescagemResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -279,6 +280,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       pollBiaRecuperacao(),            // inbound da Bia (poll IO; webhook IO não entrega texto)
       runGeradorSequenciasConsumer(),  // Central de Automação: drip de sequências (gated por kill-switch)
       drainIgQueue(),                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
+      runRepescagemTick(),             // eletroposto: 1 pessoa do apagão a cada 20min, 07h–20h
     ]);
     res.json({
       ok: true,
@@ -295,6 +297,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       bia_poll:       biaPollResult.status === 'fulfilled' ? biaPollResult.value : { error: String((biaPollResult as any).reason) },
       gerador_seq:    geradorSeqResult.status === 'fulfilled' ? geradorSeqResult.value : { error: String((geradorSeqResult as any).reason) },
       ig_drain:       igDrainResult.status === 'fulfilled' ? igDrainResult.value : { error: String((igDrainResult as any).reason) },
+      ep_repescagem:  repescagemResult.status === 'fulfilled' ? repescagemResult.value : { error: String((repescagemResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
@@ -314,6 +317,24 @@ router.get('/limpapro-recovery-consume', async (req: Request, res: Response) => 
     res.json({ ok: true, dry, ...(await runLimpaproRecoveryConsumer({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'limpapro-recovery-consume falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+// ── Repescagem do eletroposto: quem chegou no apagão de 01–03/ago e ficou sem resposta.
+// Semeia a fila UMA vez (?semear=1); ?dry=1 mostra quem entraria sem gravar nada.
+// Sem parâmetro, roda um tick à mão — o consumo normal é no /process-messages,
+// 1 pessoa a cada 20min entre 07h e 20h.
+router.get('/eletroposto-repescagem', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    if (dry || req.query.semear === '1') {
+      res.json({ ok: true, dry, ...(await semearRepescagem({ dry })) });
+      return;
+    }
+    res.json({ ok: true, ...(await runRepescagemTick()) });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-repescagem falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });

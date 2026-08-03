@@ -38,6 +38,7 @@ const BOT_SENT_PREFIXES = [
   'limpapro_grupo_sent:',
   'gerador_followup:',
   'gerador_seq:',            // sequências da Central de Automação (drip do Gerador)
+  'ep_repescagem_sent:',     // repescagem do eletroposto (quem ficou sem resposta no apagão)
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
