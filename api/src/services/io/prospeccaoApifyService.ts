@@ -20,7 +20,7 @@
 
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { codigoIbge } from './prospeccaoBriefService';
+import { codigoIbge, geocodificar, circuloGeoJson } from './prospeccaoBriefService';
 
 const LOG = 'prospeccao-apify';
 const APIFY = 'https://api.apify.com/v2';
@@ -306,12 +306,17 @@ export async function runProspeccaoApifyTick(): Promise<TickResult> {
 
 async function iniciar(busca: BuscaRow): Promise<TickResult> {
   if (!token()) {
+    // Falta de token é problema de CONFIGURAÇÃO do servidor, não do pedido. Se
+    // marcasse 'erro', quem enfileirou 27 estados perderia os 27 e teria que
+    // refazer tudo depois de cadastrar a chave. Fica 'pedida' com o recado na
+    // tela e sai sozinha assim que o token existir — retentar não custa nada.
     await marcar(busca.id, {
-      status: 'erro', locked_until: null,
-      erro: 'APIFY_TOKEN não configurado no servidor. Console da Apify → Settings → ' +
-            'Integrations → API token, e cadastre como APIFY_TOKEN no projeto solardocs-api.',
+      locked_until: null,
+      erro: 'Esperando o APIFY_TOKEN no servidor. Console da Apify → Settings → ' +
+            'Integrations → API token, e cadastre como APIFY_TOKEN no projeto solardocs-api. ' +
+            'Assim que existir, esta busca sai sozinha.',
     });
-    return { ok: false, busca: busca.id, status: 'erro', detalhe: 'sem APIFY_TOKEN' };
+    return { ok: false, busca: busca.id, status: 'pedida', detalhe: 'sem APIFY_TOKEN' };
   }
 
   // cap de buscas por dia: conta as que já GASTARAM (começaram a rodar) hoje
@@ -336,6 +341,20 @@ async function iniciar(busca: BuscaRow): Promise<TickResult> {
     input.maxCrawledPlacesPerSearch = limite;
     input.language = input.language || 'pt-BR';
     input.countryCode = input.countryCode || 'br';
+    // "300 km de Uberlândia" vira polígono: o Maps não entende raio, entende área.
+    const raio = Number(input.raio_km || 0);
+    const centro = String(input.centro || '').trim();
+    delete input.raio_km; delete input.centro;
+    if (raio > 0 && centro) {
+      const ponto = await geocodificar(centro);
+      if (ponto) {
+        input.customGeolocation = circuloGeoJson(ponto.lat, ponto.lng, raio);
+        delete input.locationQuery;      // a área manda; texto junto confunde o actor
+        logger.info(LOG, `raio de ${raio}km em ${centro}`, { ...ponto, busca: busca.id });
+      } else {
+        logger.warn(LOG, `não achei "${centro}" no mapa — busca segue pelo texto do local`, { busca: busca.id });
+      }
+    }
   } else {
     if (input.maxItems === undefined) input.maxItems = limite;
     // A Receita filtra município por CÓDIGO IBGE. A tela manda o NOME (é o que o

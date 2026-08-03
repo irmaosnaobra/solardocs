@@ -9,7 +9,7 @@ vi.mock('@anthropic-ai/sdk', () => ({
   default: class { messages = { create: criar }; constructor(_o: unknown) {} },
 }));
 
-import { montarBusca, codigoIbge, custoEstimado, ACTOR_CNPJ, ACTOR_MAPS } from '../services/io/prospeccaoBriefService';
+import { montarBusca, codigoIbge, custoEstimado, circuloGeoJson, ACTOR_CNPJ, ACTOR_MAPS } from '../services/io/prospeccaoBriefService';
 
 const MUNICIPIOS_MG = [
   { id: 3170206, nome: 'Uberlândia' },
@@ -117,6 +117,42 @@ describe('brief → plano de busca', () => {
   it('brief curto demais nem chega no modelo', async () => {
     await expect(montarBusca('oi')).rejects.toThrow(/detalhe/i);
     expect(criar).not.toHaveBeenCalled();
+  });
+});
+
+describe('raio', () => {
+  it('vira raio_km + centro, com aviso e teto de 500 km', async () => {
+    respostaDoModelo = JSON.stringify({
+      fonte: 'google_maps',
+      input: { searchStringsArray: ['posto de combustível'], raio_km: 9000, centro: 'Uberlândia, MG' },
+      limite: 200, lista_nome: 'Postos 300km', explicacao: 'raio pedido', avisos: [],
+    });
+    const p = await montarBusca('postos de combustível num raio de 300 km de Uberlândia');
+    expect(p.input.raio_km).toBe(500);                  // teto
+    expect(p.input.centro).toBe('Uberlândia, MG');
+    expect(p.avisos.join(' ')).toMatch(/área circular/i);
+  });
+
+  it('raio sem centro é descartado, e sem lugar nenhum a busca nem sai', async () => {
+    respostaDoModelo = JSON.stringify({
+      fonte: 'google_maps', input: { searchStringsArray: ['posto'], raio_km: 100 },
+      limite: 50, lista_nome: 'x', explicacao: '', avisos: [],
+    });
+    await expect(montarBusca('postos num raio grande')).rejects.toThrow(/onde buscar/i);
+  });
+
+  it('círculo sai em GeoJSON com [longitude, latitude] e fechado', () => {
+    const c = circuloGeoJson(-18.9186, -48.2772, 300) as any;   // Uberlândia
+    expect(c.type).toBe('Polygon');
+    const anel = c.coordinates[0];
+    expect(anel.length).toBe(33);                                // 32 lados + fecha
+    expect(anel[0]).toEqual(anel[anel.length - 1]);
+    const [lng, lat] = anel[0];
+    expect(lng).toBeLessThan(-40);                               // longitude do Brasil é negativa e < -40
+    expect(lat).toBeGreaterThan(-25);                            // latitude de Uberlândia, não do oceano
+    // ~300 km ≈ 2,7° de latitude
+    const lats = anel.map((p: number[]) => p[1]);
+    expect(Math.max(...lats) - Math.min(...lats)).toBeCloseTo(2 * 300 / 111.32, 1);
   });
 });
 

@@ -65,6 +65,10 @@ Campos de input que você pode usar:
 - skipClosedPlaces: booleano (custa mais; nós já descartamos fechados de graça, então deixe false).
 - scrapePlaceDetailPage: booleano (+US$0,002/lugar) — horário, distribuição das notas.
 - scrapeContacts: booleano (+US$0,002/lugar) — e-mail e redes sociais tirados do site da empresa.
+- raio_km + centro: use QUANDO o pedido falar em raio/distância ("300 km de Uberlândia", "num raio
+  de 150 km de Barreiras"). raio_km é o número em quilômetros e centro é a cidade ou endereço de
+  origem. Nós geocodificamos e desenhamos a área — não invente coordenada nem polígono. Quando usar
+  raio, não precisa de locationQuery.
 
 FONTE 2 — "receita_cnpj" (actor epicscrapers/brazil-cnpj-scraper)
 Entrega: razão social, nome fantasia, CNPJ, endereço completo, e-mail e telefone do cadastro,
@@ -102,6 +106,41 @@ function extrairJson(texto: string): Record<string, unknown> {
   const i = t.indexOf('{'), f = t.lastIndexOf('}');
   if (i >= 0 && f > i) return JSON.parse(t.slice(i, f + 1));
   throw new Error('a IA não devolveu JSON');
+}
+
+// ── Raio ────────────────────────────────────────────────────────────────────
+// O Maps não aceita "300 km de Uberlândia": aceita um POLÍGONO. Então a gente
+// geocodifica o centro (Nominatim, de graça) e desenha o círculo. Fazer isso no
+// servidor — e não pedir coordenada pro modelo — é o mesmo princípio do IBGE:
+// coordenada errada devolveria leads de outro estado sem ninguém perceber.
+export async function geocodificar(lugar: string): Promise<{ lat: number; lng: number } | null> {
+  const q = String(lugar || '').trim();
+  if (!q) return null;
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q='
+      + encodeURIComponent(q);
+    const r = await fetch(url, { headers: { 'User-Agent': 'IrmaosNaObra-Prospeccao/1.0 (contato@irmaosnaobra.com.br)' } });
+    if (!r.ok) return null;
+    const j = await r.json() as { lat: string; lon: string }[];
+    if (!j.length) return null;
+    return { lat: Number(j[0].lat), lng: Number(j[0].lon) };
+  } catch (err) {
+    logger.warn(LOG, 'geocodificação falhou', err);
+    return null;
+  }
+}
+
+// Círculo em GeoJSON. A ordem é [longitude, latitude] — trocar isso joga a busca
+// no meio do oceano, então fica escrito aqui e testado no vitest.
+export function circuloGeoJson(lat: number, lng: number, raioKm: number, lados = 32): Record<string, unknown> {
+  const dLat = raioKm / 111.32;
+  const dLng = raioKm / (111.32 * Math.max(0.05, Math.cos(lat * Math.PI / 180)));
+  const pts: number[][] = [];
+  for (let i = 0; i <= lados; i++) {
+    const a = (2 * Math.PI * i) / lados;
+    pts.push([Number((lng + dLng * Math.cos(a)).toFixed(6)), Number((lat + dLat * Math.sin(a)).toFixed(6))]);
+  }
+  return { type: 'Polygon', coordinates: [pts] };
 }
 
 // Código IBGE do município — resolvido AQUI, contra a API do IBGE, porque código
@@ -165,6 +204,15 @@ export async function montarBusca(brief: string): Promise<PlanoBusca> {
     input.skipClosedPlaces = false;            // fechado a gente descarta de graça no import
     if (!Array.isArray(input.searchStringsArray) || !input.searchStringsArray.length) {
       throw new Error('a IA não definiu o que buscar — descreva o ramo e a região');
+    }
+    // raio só vale com centro; sem um dos dois, cai no local em texto
+    if (input.raio_km && !input.centro) delete input.raio_km;
+    if (input.raio_km) {
+      input.raio_km = Math.max(1, Math.min(500, Number(input.raio_km) || 0));
+      avisos.push(`Área circular de ${input.raio_km} km em volta de ${input.centro} — o Maps varre a região inteira, cruzando divisa de cidade e de estado.`);
+    }
+    if (!input.locationQuery && !input.raio_km) {
+      throw new Error('a IA não definiu onde buscar — diga a cidade, o estado ou o raio');
     }
   } else {
     input.maxItems = limite;

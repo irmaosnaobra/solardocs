@@ -215,7 +215,9 @@ describe('travas de gasto', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(r.ok).toBe(false);
     const linha = db.prospeccao_buscas.find(x => x.id === b.id)!;
-    expect(linha.status).toBe('erro');
+    // fica PEDIDA: falta de token é config do servidor, não erro do pedido. Quem
+    // enfileirou 27 estados não pode perder os 27 porque a chave chegou depois.
+    expect(linha.status).toBe('pedida');
     expect(linha.erro).toContain('APIFY_TOKEN');
   });
 

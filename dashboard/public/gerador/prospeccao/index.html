@@ -351,6 +351,16 @@ tbody tr:hover{background:#233047}
       <div class="fld"><label>Onde (cidade, estado ou o estado inteiro)</label>
         <input type="text" id="bs-local" placeholder="Bahia, Brasil"></div>
       <div style="display:flex;gap:9px">
+        <div class="fld" style="flex:.55"><label>Raio (km) — opcional</label>
+          <input type="number" id="bs-raio" min="1" max="500" placeholder="300" oninput="trocarRaio()"></div>
+        <div class="fld" style="flex:1.45"><label>A partir de (cidade ou endereço)</label>
+          <input type="text" id="bs-centro" placeholder="Uberlândia, MG"></div>
+      </div>
+      <div id="bs-raio-nota" style="display:none;font-size:11.5px;color:var(--faint);line-height:1.55;margin:-4px 0 11px">
+        Com raio, o campo <b>Onde</b> é ignorado: a busca vira uma área circular em volta desse ponto
+        e cruza divisa de cidade e de estado — que é o que interessa pra quem vende na beira da estrada.
+      </div>
+      <div style="display:flex;gap:9px">
         <div class="fld" style="flex:1"><label>Categorias do Google (custa mais)</label>
           <input type="text" id="bs-categorias" placeholder="deixe vazio pra não filtrar" oninput="estimarBusca()"></div>
         <div class="fld" style="flex:1"><label>Nome tem que bater (custa mais)</label>
@@ -1512,6 +1522,11 @@ function opcoesDeLimite(){
     `<option value="${n}">${n.toLocaleString('pt-BR')}${n===lista[0]?' — teste':''}${n===lista[lista.length-1]?' (teto)':''}</option>`).join('');
   sel.value = String(lista.reduce((a,b)=>Math.abs(b-atual)<Math.abs(a-atual)?b:a, lista[1]));
 }
+function trocarRaio(){
+  const raio = Number(document.getElementById('bs-raio').value || 0);
+  document.getElementById('bs-raio-nota').style.display = raio > 0 ? '' : 'none';
+  document.getElementById('bs-local').disabled = raio > 0;
+}
 function trocarBrasil(){
   const on = document.getElementById('bs-brasil').checked;
   document.getElementById('bs-status-wrap').style.display = on ? '' : 'none';
@@ -1588,6 +1603,9 @@ function aplicarPlano(p){
   } else {
     document.getElementById('bs-termo').value = (i.searchStringsArray || []).join(', ');
     document.getElementById('bs-local').value = i.locationQuery || '';
+    document.getElementById('bs-raio').value = i.raio_km || '';
+    document.getElementById('bs-centro').value = i.centro || '';
+    trocarRaio();
     document.getElementById('bs-categorias').value = (i.categoryFilterWords || []).join(', ');
     document.getElementById('bs-match').value = i.searchMatching || 'all';
     document.getElementById('bs-nota').value = i.placeMinimumStars || '';
@@ -1643,9 +1661,15 @@ async function dispararBusca(){
   if (fonte === 'google_maps'){
     const termos = document.getElementById('bs-termo').value.split(',').map(s=>s.trim()).filter(Boolean);
     const local = document.getElementById('bs-local').value.trim();
+    const raio = Number(document.getElementById('bs-raio').value || 0);
+    const centro = document.getElementById('bs-centro').value.trim();
     if (!termos.length){ showToast('Escreve o que procurar (ex: energia solar)'); return; }
-    if (!local){ showToast('Escreve onde procurar'); return; }
-    input = { searchStringsArray: termos, locationQuery: local, language: 'pt-BR', countryCode: 'br' };
+    if (raio > 0 && !centro){ showToast('Diz a partir de onde é o raio'); return; }
+    if (!raio && !local){ showToast('Escreve onde procurar (ou use o raio)'); return; }
+    input = { searchStringsArray: termos, language: 'pt-BR', countryCode: 'br' };
+    // raio manda no local: o servidor geocodifica o centro e desenha a área
+    if (raio > 0) { input.raio_km = Math.min(500, raio); input.centro = centro; }
+    else input.locationQuery = local;
     const nota = document.getElementById('bs-nota').value;
     const site = document.getElementById('bs-site').value;
     const cats = document.getElementById('bs-categorias').value.split(',').map(s=>s.trim()).filter(Boolean);
@@ -1657,7 +1681,7 @@ async function dispararBusca(){
     // ficha completa: horário/notas detalhadas e e-mail+redes tirados do site
     if (document.getElementById('bs-detalhe').checked) input.scrapePlaceDetailPage = true;
     if (document.getElementById('bs-contatos').checked) input.scrapeContacts = true;
-    if (!nomeLista) nomeLista = `${termos[0]} — ${local}`;
+    if (!nomeLista) nomeLista = raio > 0 ? `${termos[0]} — ${raio}km de ${centro}` : `${termos[0]} — ${local}`;
   } else if (fonte === 'receita_cnpj'){
     const cnae = document.getElementById('bs-cnae').value.replace(/\D/g,'');
     const uf = document.getElementById('bs-uf').value.trim().toUpperCase().slice(0,2);
