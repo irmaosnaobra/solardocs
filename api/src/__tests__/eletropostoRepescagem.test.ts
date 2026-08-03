@@ -167,6 +167,43 @@ describe('repescagem do eletroposto', () => {
     expect(texto).toContain('chat.whatsapp.com');
   });
 
+  it('quem preencheu HOJE não ouve "fora do ar por dois dias"', async () => {
+    vi.setSystemTime(DENTRO);
+    store.set(`${PEND}5511999990009`, {
+      key: `${PEND}5511999990009`,
+      value: { tipo: 'consultor', nome: 'Fulano', dono: 'Diego', ficha_em: DENTRO.toISOString(), ready_at: '2026-08-04T14:00:00.000Z', tentativas: 0 },
+      updated_at: '2026-08-04T14:00:00.000Z',
+    });
+
+    await tick();
+    const texto = enviadas[0].bolhas.join(' ');
+    expect(texto).toContain('hoje de manhã');
+    expect(texto).not.toContain('dois dias');
+  });
+
+  it('resposta de quem foi repescado é reconhecida uma vez só (e sem o 9º dígito)', async () => {
+    vi.setSystemTime(DENTRO);
+    const mod = await import('../services/io/eletropostoRepescagem');
+    store.set('ep_repescagem_sent:5511999990001', {
+      key: 'ep_repescagem_sent:5511999990001',
+      value: { sent_at: DENTRO.toISOString(), tipo: 'consultor', nome: 'Victor' },
+      updated_at: DENTRO.toISOString(),
+    });
+
+    // inbound chega sem o 9 e sem DDI — tem que casar mesmo assim
+    const r1 = await mod.respostaPendenteRepescagem('1199990001');
+    expect(r1?.nome).toBe('Victor');
+
+    await mod.marcarRespostaAvisada(r1!.telefone, 'quero sim');
+    expect(await mod.respostaPendenteRepescagem('5511999990001')).toBeNull();
+  });
+
+  it('quem nunca recebeu a repescagem não vira aviso', async () => {
+    vi.setSystemTime(DENTRO);
+    const mod = await import('../services/io/eletropostoRepescagem');
+    expect(await mod.respostaPendenteRepescagem('5511988887777')).toBeNull();
+  });
+
   it('os horários da fila caem de 20 em 20min dentro da janela', async () => {
     vi.setSystemTime(DENTRO);
     const mod = await import('../services/io/eletropostoRepescagem');

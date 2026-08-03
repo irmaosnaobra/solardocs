@@ -22,6 +22,8 @@ import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
 import { handleSdrLead, tryClaimMessage, hasRecentWebhookClaim, isLumaWorkingNow } from './sdrAgentService';
 import { sendToGroup, sendWhatsApp, type ZapiInstance } from '../zapiClient';
+import { respostaPendenteRepescagem, marcarRespostaAvisada } from '../../io/eletropostoRepescagem';
+import { EQUIPE } from '../../../routes/ioEletroposto';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -97,6 +99,30 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
     if (!(await tryClaimMessage(synthId, phone, 'poll'))) {
       skipped++;
       continue;
+    }
+
+    // RESPOSTA DA REPESCAGEM — não é lead novo do anúncio: é gente respondendo uma
+    // mensagem NOSSA (apagão de 01–03/ago). Ninguém atende automático nesta linha,
+    // então o que salva a resposta é o dono saber na hora. Um aviso por pessoa.
+    try {
+      const resp = await respostaPendenteRepescagem(phone);
+      if (resp) {
+        const aviso = [
+          '💬 *RESPONDEU A REPESCAGEM DO ELETROPOSTO*',
+          `${resp.nome} — wa.me/${resp.telefone}`,
+          resp.tipo === 'convite'
+            ? 'Recebeu o convite do grupo (era NOTA 1).'
+            : 'Recebeu o toque do consultor (ficha da LP que ficou sem aviso).',
+          'Ninguém responde por robô nessa linha — atende no WhatsApp.',
+        ].join('\n');
+        await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
+        await marcarRespostaAvisada(resp.telefone, chat.lastMessage ?? null);
+        logger.info('sdr-io-poll', `resposta da repescagem avisada: ${resp.nome} (${phone})`);
+        processed++;
+        continue;
+      }
+    } catch (err) {
+      logger.error('sdr-io-poll', `aviso de resposta da repescagem falhou pra ${phone}`, err);
     }
 
     // Lead NOVO — dispara fluxo da Luma com frase padrao do anuncio

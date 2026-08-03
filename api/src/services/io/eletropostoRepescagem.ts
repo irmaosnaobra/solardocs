@@ -82,10 +82,28 @@ function primeiroNome(nome: string): string {
   return String(nome || '').trim().split(/\s+/)[0] || 'tudo bem';
 }
 
+/** Dia (BRT) de uma data ISO — pra saber se a ficha é de hoje. */
+function diaBrt(d: Date): string {
+  return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+
+function ehHoje(iso?: string | null): boolean {
+  return !!iso && diaBrt(new Date(iso)) === diaBrt(new Date());
+}
+
+/** "hoje" ou "dia 02/08" — dizer "dia 03/08" pra quem preencheu hoje de manhã soa errado. */
 function dataCurta(iso?: string | null): string {
   if (!iso) return 'esses dias';
+  if (ehHoje(iso)) return 'hoje';
   const d = new Date(iso);
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+  return `dia ${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })}`;
+}
+
+/** A desculpa tem que caber no relógio de quem lê: quem preencheu hoje não ficou dois dias esperando. */
+function desculpaDemora(iso?: string | null): string {
+  return ehHoje(iso)
+    ? 'Nosso WhatsApp ficou fora do ar hoje de manhã e o seu contato ficou parado aqui. Desculpa a demora.'
+    : 'Nosso WhatsApp ficou fora do ar por dois dias e o seu contato ficou parado aqui. Desculpa a demora.';
 }
 
 // ─── as duas mensagens ───────────────────────────────────────────────────────
@@ -107,8 +125,8 @@ export function bolhasConvite(nome: string): string[] {
 function bolhasConviteAtrasado(nome: string, quando?: string | null): string[] {
   const p = primeiroNome(nome);
   return [
-    `Oi ${p}! Aqui é da Irmãos na Obra — você fez a simulação do eletroposto no nosso site dia ${dataCurta(quando)}.`,
-    'Nosso WhatsApp ficou fora do ar por dois dias e a sua mensagem não chegou na hora. Desculpa a demora.',
+    `Oi ${p}! Aqui é da Irmãos na Obra — você fez a simulação do eletroposto no nosso site ${dataCurta(quando)}.`,
+    desculpaDemora(quando),
     'Pelo que você respondeu, o próximo passo ainda não é o orçamento: é definir o local. É ele que decide a entrada de energia, o fluxo e, no fim, o seu retorno.',
     `Por isso te levo pro grupo que a gente abriu pra quem está nessa fase. Entrada gratuita:\n${GRUPO_LINK}`,
     'Lá sai o faturamento real de cada ponto que a gente instala, como avaliar um local antes de fechar e o caminho do financiamento com 90 dias de carência. Quando seu ponto estiver encaminhado, me chama aqui que eu levo o estudo do seu caso.',
@@ -120,8 +138,8 @@ function bolhasConsultor(nome: string, dono?: string | null, quando?: string | n
   const p = primeiroNome(nome);
   const quem = dono ? `O ${dono}` : 'A gente';
   return [
-    `Oi ${p}! Aqui é da Irmãos na Obra — você fez a simulação do eletroposto no nosso site dia ${dataCurta(quando)}.`,
-    'Nosso WhatsApp ficou fora do ar por dois dias e o seu contato ficou parado aqui. Desculpa a demora.',
+    `Oi ${p}! Aqui é da Irmãos na Obra — você fez a simulação do eletroposto no nosso site ${dataCurta(quando)}.`,
+    desculpaDemora(quando),
     `${quem} é quem cuida do seu caso: leva o estudo do seu ponto, o faturamento real dos carregadores que a gente já tem instalados e o financiamento com 90 dias de carência.`,
     'Ainda faz sentido pra você? Me diz um horário bom que eu já passo pra ele.',
   ];
@@ -221,6 +239,63 @@ export async function semearRepescagem(opts: { dry?: boolean } = {}): Promise<{
   };
 }
 
+// ─── resposta de quem foi repescado ──────────────────────────────────────────
+// A mensagem do consultor termina pedindo horário — ou seja, a gente PROVOCA
+// resposta. Nesta linha nenhum agente atende (handleSdrLead tem early-return pra
+// 'io') e essa pessoa não vira card de lead novo, então a resposta morreria no
+// aplicativo até alguém abrir. Aqui a gente só reconhece o telefone e devolve os
+// dados; quem avisa a equipe é o poller da linha (sdrIoPolling), que já tem o
+// contato dos donos. Um aviso por pessoa.
+
+const RESPOSTA_PREFIX = 'ep_repescagem_resposta:';
+
+/** DDD + últimos 8 — o Z-API às vezes entrega o inbound sem o 9º dígito. */
+function chaveTel(raw: string): string | null {
+  const d = String(raw || '').replace(/\D/g, '').replace(/^55/, '');
+  if (d.length < 10) return null;
+  return d.slice(0, 2) + d.slice(-8);
+}
+
+export interface RespostaRepescagem { telefone: string; nome: string; tipo: TipoToque }
+
+/** Esse telefone recebeu a repescagem e ainda não teve resposta avisada? */
+export async function respostaPendenteRepescagem(phone: string): Promise<RespostaRepescagem | null> {
+  const alvo = chaveTel(phone);
+  if (!alvo) return null;
+
+  const { data } = await supabase
+    .from('system_state').select('key, value')
+    .or(`key.like.${EP_REPESCAGEM_SENT_PREFIX}%,key.like.${RESPOSTA_PREFIX}%`)
+    .limit(500);
+  if (!data?.length) return null;
+
+  const jaAvisado = data.some(r => r.key.startsWith(RESPOSTA_PREFIX) && chaveTel(r.key.slice(RESPOSTA_PREFIX.length)) === alvo);
+  if (jaAvisado) return null;
+
+  const enviado = data.find(r => r.key.startsWith(EP_REPESCAGEM_SENT_PREFIX)
+    && chaveTel(r.key.slice(EP_REPESCAGEM_SENT_PREFIX.length)) === alvo);
+  if (!enviado) return null;
+
+  const v = (enviado.value ?? {}) as { nome?: string; tipo?: TipoToque };
+  return {
+    telefone: enviado.key.slice(EP_REPESCAGEM_SENT_PREFIX.length),
+    nome: v.nome ?? 'sem nome',
+    tipo: v.tipo ?? 'consultor',
+  };
+}
+
+/** Marca que a equipe já foi avisada dessa resposta (1 aviso por pessoa). */
+export async function marcarRespostaAvisada(telefone: string, texto?: string | null): Promise<void> {
+  await supabase.from('system_state').upsert(
+    {
+      key: `${RESPOSTA_PREFIX}${telefone}`,
+      value: { avisado_at: new Date().toISOString(), texto: (texto ?? '').slice(0, 300) },
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'key' },
+  );
+}
+
 // ─── consumidor ──────────────────────────────────────────────────────────────
 
 type TickResult = { enviados: number; motivo?: string; restam?: number };
@@ -283,6 +358,18 @@ export async function runRepescagemTick(): Promise<TickResult> {
       },
       { onConflict: 'key' },
     );
+    // Fecha o registro na fonte da verdade: sem isto `eletroposto_nota1` segue dizendo
+    // que essa pessoa nunca foi convidada, e o próximo seed (ou qualquer relatório que
+    // leia a coluna) a trata como pendente e manda de novo.
+    if (marcador.tipo === 'convite') {
+      const { error: eUp } = await supabaseGerador
+        .from('eletroposto_nota1')
+        .update({ convite_enviado_at: new Date().toISOString() })
+        .eq('telefone', telefone)
+        .is('convite_enviado_at', null);
+      if (eUp) logger.error('ep-repescagem', `convite enviado mas nao marcado em eletroposto_nota1 (${telefone})`, eUp);
+    }
+
     logger.info('ep-repescagem', `${marcador.tipo} enviado pra ${marcador.nome} (${telefone})`);
     return { enviados: 1, restam: rows.length - 1 };
   } catch (err) {
