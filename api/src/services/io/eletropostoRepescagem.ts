@@ -121,6 +121,14 @@ export function bolhasConvite(nome: string): string[] {
   ];
 }
 
+/** Escolhe a versão certa do convite pelo relógio: recém-preenchido ganha o convite
+ *  normal; ficha de horas atrás ganha a versão que reconhece a demora. É o que
+ *  garante que TODO nota 1 receba o convite sem a copy soar mentirosa. */
+export function bolhasConviteParaFicha(nome: string, criadoEm?: string | null): string[] {
+  const idadeMs = criadoEm ? Date.now() - new Date(criadoEm).getTime() : 0;
+  return idadeMs > 2 * 60 * 60 * 1000 ? bolhasConviteAtrasado(nome, criadoEm) : bolhasConvite(nome);
+}
+
 /** Versão do convite pra quem preencheu HÁ DIAS — o "acabou de fazer" viraria mentira. */
 function bolhasConviteAtrasado(nome: string, quando?: string | null): string[] {
   const p = primeiroNome(nome);

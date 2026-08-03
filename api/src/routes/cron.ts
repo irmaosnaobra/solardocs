@@ -30,6 +30,7 @@ import { runGrupoEletropostoDiario } from '../services/io/grupoEletropostoDiario
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
 import { runRepescagemTick, semearRepescagem } from '../services/io/eletropostoRepescagem';
 import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
+import { runConviteNota1Garantido } from '../services/io/eletropostoConviteGarantido';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
@@ -262,7 +263,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, repescagemResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, repescagemResult, conviteResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -283,6 +284,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runGeradorSequenciasConsumer(),  // Central de Automação: drip de sequências (gated por kill-switch)
       drainIgQueue(),                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
       runRepescagemTick(),             // eletroposto: 1 pessoa do apagão a cada 20min, 07h–20h
+      runConviteNota1Garantido(),      // eletroposto: TODO nota 1 entra no grupo — rede embaixo do envio da LP
     ]);
     res.json({
       ok: true,
@@ -301,6 +303,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       gerador_seq:    geradorSeqResult.status === 'fulfilled' ? geradorSeqResult.value : { error: String((geradorSeqResult as any).reason) },
       ig_drain:       igDrainResult.status === 'fulfilled' ? igDrainResult.value : { error: String((igDrainResult as any).reason) },
       ep_repescagem:  repescagemResult.status === 'fulfilled' ? repescagemResult.value : { error: String((repescagemResult as any).reason) },
+      ep_convite:     conviteResult.status === 'fulfilled' ? conviteResult.value : { error: String((conviteResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
