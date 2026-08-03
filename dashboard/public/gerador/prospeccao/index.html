@@ -619,6 +619,9 @@ function ultimoToqueEm(id){
 }
 const produtosAtivos = () => produtos.filter(p => p.ativo).sort((a,b)=>a.ordem-b.ordem);
 function precoLabel(p){
+  // Produto consultivo (eletroposto) não tem preço de tabela: o que se vende no
+  // WhatsApp é a reunião. Mostrar "R$ 0" faria a tela parecer quebrada.
+  if (!Number(p.preco)) return 'sob medida';
   const mensal = /mensal|assinatura|m[êe]s/i.test(p.sub || '');
   return brl(p.preco) + (mensal ? '/mês' : '');
 }
