@@ -14,6 +14,9 @@ const IG_ACCOUNT = process.env.WINDSOR_IG_ACCOUNT || '17841475845665007';
 
 interface WindsorRow { [k: string]: any; }
 
+/** Resposta 200 que na verdade é "seu plano acabou" travestida de dado. */
+const LIMITE_DO_PLANO = /connected more accounts than your|upgrade here|onboard\.windsor\.ai\/app\/pricing/i;
+
 // GET genérico na REST da Windsor. Retorna o array `data` (ou [] em erro).
 async function windsor(connector: string, fields: string[], extra: Record<string, string> = {}): Promise<WindsorRow[]> {
   if (!API_KEY) throw new Error('WINDSOR_API_KEY ausente no ambiente');
@@ -25,7 +28,18 @@ async function windsor(connector: string, fields: string[], extra: Record<string
     throw new Error(`Windsor ${connector} HTTP ${r.status}: ${body.slice(0, 200)}`);
   }
   const j = (await r.json()) as { data?: WindsorRow[] };
-  return Array.isArray(j.data) ? j.data : [];
+  const rows = Array.isArray(j.data) ? j.data : [];
+
+  // A Windsor não devolve erro quando o plano estoura: devolve 200 com a MENSAGEM
+  // DE UPGRADE dentro dos campos ("Uh-oh! You've connected more accounts than your
+  // Free plan allows"). Sem este filtro, esse texto ia pro upsert e virava erro de
+  // timestamp — 22 falhas por dia no log desde 28/jun, escondendo erro de verdade.
+  // Agora: dado congelado é dado congelado, e o log diz isso uma vez por conector.
+  if (rows.some(row => Object.values(row).some(v => typeof v === 'string' && LIMITE_DO_PLANO.test(v)))) {
+    logger.warn('social-windsor', `${connector}: plano da Windsor estourado — sem dado novo, sync ignorado`);
+    return [];
+  }
+  return rows;
 }
 
 const num = (v: any): number | null => {

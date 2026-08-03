@@ -29,6 +29,7 @@ import { runAlertaLeadQuenteSemProposta } from '../services/agenda/leadQuenteSem
 import { runGrupoEletropostoDiario } from '../services/io/grupoEletropostoDiario';
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
 import { runRepescagemTick, semearRepescagem } from '../services/io/eletropostoRepescagem';
+import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
@@ -765,6 +766,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['zapi-health',                 () => runZapiHealthCheck()],   // monitor: linha IO caída → 1 email pro Thiago (2 checagens seguidas). Toda a mensageria depende dela.
     ['alerta-lead-quente',          () => runAlertaLeadQuenteSemProposta()], // DARK (ALERTA_LEAD_QUENTE_ENABLED): lead quente sem proposta +48h → avisa o consultor dono 1×
     ['grupo-eletroposto-diario',    () => runGrupoEletropostoDiario()], // 1 publicação/dia no grupo (fila io_grupo_pauta); fila vazia avisa a equipe
+    ['entrada-io-digest',           () => runEntradaIoDigest()],       // 12h e 18h: quem escreveu no 5040 hoje (ninguém responde por robô nessa linha)
 
     // ['inventory-low-stock',         () => runInventoryLowStockAlert()], // [GATED] digest de estoque baixo — ligar após adoção do Inventário
   ];
