@@ -368,7 +368,7 @@ export async function cancelStripeSubsForEmail(email: string): Promise<number> {
 export async function runDunning(): Promise<{ scanned: number; notified: number; canceled: number }> {
   const { data: users, error } = await supabase
     .from('users')
-    .select('id, email, nome, whatsapp, past_due_since, dunning_last_day_sent, billing_status')
+    .select('id, email, nome, whatsapp, past_due_since, dunning_last_day_sent, billing_status, plano_expira_em')
     .in('billing_status', ['past_due', 'suspended'])
     .not('past_due_since', 'is', null);
 
@@ -382,6 +382,14 @@ export async function runDunning(): Promise<{ scanned: number; notified: number;
   const now = Date.now();
 
   for (const u of users ?? []) {
+    // Pagou por Pix: o cartão até pode estar falhando no Stripe, mas o acesso
+    // está quitado até plano_expira_em. Cobrar de novo é errado — e o cliente
+    // Pix é justamente quem NÃO tem cartão com limite. O guard do D5 já existia
+    // lá embaixo; aqui ele vale pros avisos D0..D4 também.
+    if (u.plano_expira_em && new Date(u.plano_expira_em).getTime() > now) {
+      logger.info('dunning', `${u.email}: pulado — acesso pago por Pix até ${u.plano_expira_em}`);
+      continue;
+    }
     const past = u.past_due_since ? new Date(u.past_due_since).getTime() : 0;
     if (!past) continue;
     const daysElapsed = Math.floor((now - past) / 86_400_000);

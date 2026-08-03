@@ -178,15 +178,28 @@ export async function syncStripePlans(): Promise<{
     // trialing                        → 'trialing' (em teste, ainda não cobrado)
     // past_due                        → 'past_due' (cobrança falhou, em dunning)
     // sem sub ativa                   → 'active' (free, livre, não em dunning)
+    // Acesso pago por Pix manda no status: enquanto plano_expira_em está no
+    // futuro o cliente está em dia, mesmo com uma sub de cartão morrendo no
+    // Stripe. Sem isto o Caso D reescrevia 'past_due' toda manhã e o cliente
+    // aparecia como inadimplente no painel depois de ter pago.
     const desiredBillingStatus =
-      realStatus === 'trialing' ? 'trialing' :
-      realStatus === 'past_due' ? 'past_due' :
+      pixAccessActive              ? 'active'   :
+      realStatus === 'trialing'    ? 'trialing' :
+      realStatus === 'past_due'    ? 'past_due' :
       'active';
     const desiredTrialExpiresAt = stripeTruth?.trial_end?.toISOString() ?? null;
 
     // Caso A: Stripe diz past_due mas Supabase diz active → webhook perdeu o
     // invoice.payment_failed. Marca past_due_since=agora e dispara D0.
-    if (realStatus === 'past_due' && u.billing_status !== 'past_due' && !u.past_due_since) {
+    //
+    // MENOS quando o acesso está pago por Pix (plano_expira_em no futuro): aí o
+    // cartão falhando no Stripe é justamente o motivo de o cliente ter migrado
+    // pro Pix — vários não têm limite. Sem este guard o sync desfazia a liberação
+    // manual toda manhã e mandava "sua cobrança falhou" pra quem tinha acabado de
+    // pagar. O guard do Pix lá em cima não pega este caso porque a sub ainda
+    // existe no Stripe (stripeTruth preenchido); o certo é cancelar a sub, mas
+    // enquanto ela viver o cliente não pode ser cobrado nem rebaixado.
+    if (realStatus === 'past_due' && !pixAccessActive && u.billing_status !== 'past_due' && !u.past_due_since) {
       await supabase
         .from('users')
         .update({
