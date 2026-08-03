@@ -71,6 +71,9 @@ const PLANO_COLOR: Record<string, string> = { free: '#64748b', pro: '#64748b', i
 
 // Tradução amigável do status do Stripe. Trial e ativo = receita viva; o resto sinaliza atrito.
 const STRIPE_LABEL: Record<string, string> = {
+  // 'pix' não é status da Stripe: é o cliente que paga por Pix todo mês (a sub de
+  // cartão dele é cancelada de propósito, pra não cobrar duas vezes). Receita viva.
+  pix:                'Pix em dia',
   trialing:           'Em trial',
   active:             'Ativo',
   past_due:           'Pagamento atrasado',
@@ -81,6 +84,7 @@ const STRIPE_LABEL: Record<string, string> = {
   paused:             'Pausado',
 };
 const STRIPE_COLOR: Record<string, string> = {
+  pix:                'var(--color-text)',
   trialing:           'var(--color-text)',
   active:             'var(--color-text)',
   past_due:           'var(--color-text-muted)',

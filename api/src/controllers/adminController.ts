@@ -62,6 +62,9 @@ type UserRow = {
   created_at: string;
   is_admin: boolean;
   whatsapp: string | null;
+  // Acesso pago por Pix: enquanto estiver no futuro, o cliente está em dia mesmo
+  // sem assinatura viva na Stripe.
+  plano_expira_em: string | null;
   followup_started_at: string | null;
   // Status do follow-up de EMAIL (cadência CNPJ — o canal que está ATIVO).
   followup_email_last_sent_at: string | null;
@@ -81,7 +84,7 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('id, email, plano, documentos_usados, limite_documentos, created_at, is_admin, whatsapp, followup_started_at, followup_email_last_sent_at, carla_inativo_count, carla_sem_cnpj_count, contract_reminder_count')
+      .select('id, email, plano, documentos_usados, limite_documentos, created_at, is_admin, whatsapp, plano_expira_em, followup_started_at, followup_email_last_sent_at, carla_inativo_count, carla_sem_cnpj_count, contract_reminder_count')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -198,7 +201,13 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
         empresa_nome:     companyMap.get(u.id)?.nome     ?? null,
         empresa_cnpj:     companyMap.get(u.id)?.cnpj     ?? null,
         empresa_whatsapp: companyMap.get(u.id)?.whatsapp ?? null,
-        stripe_status:    stripe?.status ?? null,
+        // Cliente que paga por Pix não tem assinatura viva na Stripe — a sub de
+        // cartão é justamente cancelada pra não cobrar duas vezes. Sem isto o
+        // painel mostrava "Cancelado" pra quem está pagando em dia, e o churn
+        // contava ele como perdido. A verdade dele é plano_expira_em.
+        stripe_status:    (u.plano_expira_em && new Date(u.plano_expira_em).getTime() > Date.now())
+                            ? 'pix'
+                            : (stripe?.status ?? null),
         stripe_plan:      stripe?.plan   ?? null,
         docs_gerados:     docsGerados,
         // followup_toques: mantido por compat (= toques WhatsApp, canal pausado).
