@@ -156,18 +156,23 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     })(),
   ]);
 
-  const contar = async (tabela: string, filtros: (q: any) => any): Promise<number | null> => {
-    try {
-      const { count } = await filtros(supabase.from(tabela).select('id', { count: 'exact', head: true }));
-      return count ?? 0;
-    } catch { return null; }
-  };
-  const contarGerador = async (tabela: string, filtros: (q: any) => any): Promise<number | null> => {
-    try {
-      const { count } = await filtros(supabaseGerador.from(tabela).select('id', { count: 'exact', head: true }));
-      return count ?? 0;
-    } catch { return null; }
-  };
+  // `select('*')` e não `select('id')`: tabela sem coluna `id` (sdr_message_dedup,
+  // ig_contacts) devolvia ERRO, e o erro virava 0 na tela — número inventado, que é
+  // justamente o que esta central não pode ter. Erro agora vira `null` → a tela
+  // escreve "—" e a gente sabe que não sabe.
+  const contarEm = (cliente: typeof supabase) =>
+    async (tabela: string, filtros: (q: any) => any): Promise<number | null> => {
+      try {
+        const { count, error } = await filtros(cliente.from(tabela).select('*', { count: 'exact', head: true }));
+        if (error) { logger.error('central-agentes', `contagem de ${tabela} falhou`, error); return null; }
+        return count ?? null;
+      } catch (err) {
+        logger.error('central-agentes', `contagem de ${tabela} explodiu`, err);
+        return null;
+      }
+    };
+  const contar = contarEm(supabase);
+  const contarGerador = contarEm(supabaseGerador);
 
   // Tudo em paralelo: são ~12 contagens independentes e a tela recarrega sozinha
   // a cada 2 min. Em série isso custava 6s de espera pro dono olhar a tela.
