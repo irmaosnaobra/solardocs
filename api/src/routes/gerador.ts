@@ -7,6 +7,7 @@ import { gerarProdutosVirais, redispararVideoProduto } from '../services/agenda/
 import { processarWebhook, reconciliarStatusProduto, animarProduto } from '../services/agenda/higgsfieldService';
 import { ingestManychatLead } from '../services/agenda/manychatLeadService';
 import { runGeradorBroadcastTick } from '../services/io/geradorAutomacaoService';
+import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -198,6 +199,21 @@ router.post('/social/produto-regerar', async (req: Request, res: Response) => {
   } catch (err: any) {
     logger.error('gerador', 'produto-regerar falhou', err);
     res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
+  }
+});
+
+// Prospecção: "kick" da busca de lead, pra tela não esperar até 5 min pelo cron.
+// Não decide nada nem recebe parâmetro: só roda o MESMO tick que o cron rodaria,
+// e o tick lê o pedido que já está no Supabase. Todas as travas de gasto
+// (kill-switch, cap por busca, cap por dia, fail-closed sem APIFY_TOKEN) vivem
+// dentro do motor — este endpoint não consegue passar por cima de nenhuma.
+router.post('/prospeccao/kick', async (_req: Request, res: Response) => {
+  try {
+    const result = await runProspeccaoApifyTick();
+    res.json(result);
+  } catch (err: any) {
+    logger.error('gerador', 'prospeccao/kick falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });
 

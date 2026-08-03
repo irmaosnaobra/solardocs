@@ -21,6 +21,7 @@ import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sd
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
+import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { runSequenciaStopOnReply } from '../services/io/sequenciaStopOnReply';
 import { runBlastRespostas } from '../services/io/blastRespostas';
 import { runZapiHealthCheck } from '../services/io/zapiHealthMonitor';
@@ -551,6 +552,21 @@ router.get('/gerador-broadcast-tick', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'gerador-broadcast-tick falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Prospecção: motor das buscas de lead na Apify. A tela /gerador/prospeccao só
+// enfileira o pedido em prospeccao_buscas; QUEM GASTA é este tick, com kill-switch
+// (PROSPECCAO_APIFY_OFF), cap de leads por busca e cap de buscas por dia.
+// Uma busca por tick: a run é assíncrona, então tick inicia, tick acompanha, tick importa.
+router.get('/prospeccao-tick', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const result = await runProspeccaoApifyTick();
+    res.json(result);
+  } catch (err) {
+    logger.error('cron', 'prospeccao-tick falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });

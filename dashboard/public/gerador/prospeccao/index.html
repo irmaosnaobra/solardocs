@@ -279,6 +279,91 @@ tbody tr:hover{background:#233047}
   </div>
 </div>
 
+<!-- ===== MODAL BUSCAR LEADS (APIFY) ===== -->
+<div class="ov" id="ov-busca">
+  <div class="mo">
+    <h3>Buscar leads</h3>
+    <p class="sub">A busca roda no servidor pela Apify e cai aqui como lista pronta.
+      Telefone repetido de qualquer outra lista é descartado, e por padrão só entra
+      número de celular — fixo não recebe WhatsApp.</p>
+
+    <div class="fld"><label>De onde</label>
+      <select id="bs-fonte" onchange="trocarFonteBusca()">
+        <option value="google_maps">Google Maps — empresas por atividade e região</option>
+        <option value="actor">Outro robô da Apify (avançado)</option>
+      </select></div>
+
+    <div id="bs-maps">
+      <div class="fld"><label>O que procurar</label>
+        <input type="text" id="bs-termo" placeholder="energia solar" oninput="estimarBusca()"></div>
+      <div class="fld"><label>Onde (cidade, estado ou o estado inteiro)</label>
+        <input type="text" id="bs-local" placeholder="Bahia, Brasil"></div>
+      <div class="fld"><label>Ficha completa (cada um custa +US$ 0,002 por lugar)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt);
+          text-transform:none;letter-spacing:0;font-weight:500;margin-bottom:5px">
+          <input type="checkbox" id="bs-detalhe" onchange="estimarBusca()" style="width:15px;height:15px;accent-color:#1E3A8A">
+          Horário de funcionamento, horários de pico e distribuição das notas</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt);
+          text-transform:none;letter-spacing:0;font-weight:500">
+          <input type="checkbox" id="bs-contatos" onchange="estimarBusca()" style="width:15px;height:15px;accent-color:#1E3A8A">
+          E-mail e redes sociais (ele entra no site da empresa e extrai)</label>
+      </div>
+      <div style="display:flex;gap:9px">
+        <div class="fld" style="flex:1"><label>Nota mínima (custa mais)</label>
+          <select id="bs-nota" onchange="estimarBusca()">
+            <option value="">Qualquer nota</option>
+            <option value="three">3★ ou mais</option>
+            <option value="four">4★ ou mais</option>
+            <option value="fourAndHalf">4,5★ ou mais</option>
+          </select></div>
+        <div class="fld" style="flex:1"><label>Site (custa mais)</label>
+          <select id="bs-site" onchange="estimarBusca()">
+            <option value="allPlaces">Tanto faz</option>
+            <option value="withoutWebsite">Só quem NÃO tem site</option>
+            <option value="withWebsite">Só quem tem site</option>
+          </select></div>
+      </div>
+    </div>
+
+    <div id="bs-actor" style="display:none">
+      <div class="fld"><label>Actor da Apify</label>
+        <input type="text" id="bs-actorid" placeholder="usuario/nome-do-actor"></div>
+      <div class="fld"><label>Input do actor (JSON)</label>
+        <textarea id="bs-input" placeholder='{"search": "..." }'></textarea></div>
+      <div style="font-size:11.5px;color:var(--faint);line-height:1.55;margin:-4px 0 11px">
+        O que voltar é lido por apelido de campo (title/name, phone/whatsapp, city, state,
+        website, rating, reviews). Quem não tiver telefone é descartado — e o relatório diz quantos.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:9px">
+      <div class="fld" style="flex:1"><label>Quantos leads</label>
+        <select id="bs-limite" onchange="estimarBusca()">
+          <option value="25">25 — teste</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+          <option value="300">300 (teto)</option>
+        </select></div>
+      <div class="fld" style="flex:1"><label>Telefone</label>
+        <select id="bs-celular">
+          <option value="1" selected>Só celular</option>
+          <option value="0">Aceitar fixo também</option>
+        </select></div>
+    </div>
+    <div class="fld"><label>Nome da lista que vai nascer</label>
+      <input type="text" id="bs-lista" placeholder="Solares BA — Google Maps"></div>
+
+    <div style="padding:10px 12px;background:rgba(245,158,11,.12);border:1px solid #B45309;
+      border-radius:9px;font-size:12px;line-height:1.6;color:#FDE68A" id="bs-custo">—</div>
+
+    <div class="mo-acts">
+      <button class="btn" onclick="fecharModal('ov-busca')">Cancelar</button>
+      <button class="btn primary" id="bs-btn" onclick="dispararBusca()">Buscar leads</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== MODAL PRODUTOS ===== -->
 <div class="ov" id="ov-prod">
   <div class="mo">
@@ -321,7 +406,7 @@ const DESFECHOS = [
 const RESP_POSITIVA = ['respondeu','interessado','vendeu'];
 
 // ============= ESTADO =============
-let produtos = [], scripts = {}, listas = [], contatos = [], toques = [];
+let produtos = [], scripts = {}, listas = [], contatos = [], toques = [], buscas = [];
 let consultores = [];
 let consultorAtivo = consultorLogado();   // quem está logado no gerador já entra selecionado
 let aba = 'fila';
@@ -478,15 +563,16 @@ function precoLabel(p){
 
 // ============= CARGA =============
 async function carregar(){
-  const [pr, sc, li, co, to, cs] = await Promise.all([
+  const [pr, sc, li, co, to, cs, bu] = await Promise.all([
     supaGet('prospeccao_produtos?select=*&order=ordem.asc'),
     supaGet('prospeccao_scripts?select=*&order=produto_id.asc,ordem.asc'),
     supaGet('prospeccao_listas?select=*&order=criada_em.desc'),
     supaGetContado(`prospeccao_contatos?select=*&order=criado_em.asc&limit=${LIMITE_CARGA}`),
     supaGetContado(`prospeccao_toques?select=*&order=criado_em.desc&limit=${LIMITE_CARGA}`),
     supaGet('consultores?select=nome&order=nome.asc').catch(()=>[]),
+    supaGet('prospeccao_buscas?select=*&order=criada_em.desc&limit=30').catch(()=>[]),
   ]);
-  produtos = pr; listas = li; contatos = co.rows; toques = to.rows;
+  produtos = pr; listas = li; contatos = co.rows; toques = to.rows; buscas = bu || [];
   truncado = (co.total > co.rows.length || to.total > to.rows.length)
     ? { contatos: co.total, toques: to.total } : null;
   scripts = {};
@@ -532,7 +618,7 @@ function montarFila(){
 function filaVisivel(){
   const q = busca.trim().toLowerCase();
   return filaIds.map(contatoById).filter(Boolean).filter(c => !q ||
-    c.empresa.toLowerCase().includes(q) || (c.cidade||'').toLowerCase().includes(q));
+    [c.empresa, c.cidade, c.bairro, c.categoria].some(v => (v||'').toLowerCase().includes(q)));
 }
 const focoAtual = () => contatoById(filaIds[idx]) || null;
 function proximo(){
@@ -775,7 +861,7 @@ function htmlFila(){
       <div class="ch">Fila<span class="spacer"></span>
         <span class="mono" style="color:var(--blue)">${filaIds.filter(tocadoHoje).length}/${filaIds.length}</span></div>
       <div class="qs">
-        <input placeholder="Filtrar empresa ou cidade…" value="${esc(busca)}" oninput="setBusca(this.value)">
+        <input placeholder="Empresa, cidade, bairro ou categoria…" value="${esc(busca)}" oninput="setBusca(this.value)">
         <select onchange="trocarEscopo(this.value)">
           <option value="meus"${soMeus?' selected':''}>Meus</option>
           <option value="todos"${!soMeus?' selected':''}>Todos</option>
@@ -810,7 +896,17 @@ function htmlFila(){
           <span class="mono">${esc(formatTelBR(c.telefone))}</span>
           ${c.nota?`<span class="sep">·</span><span style="color:var(--warn);font-weight:700">${c.nota}★ ${c.avaliacoes||0} avaliações</span>`:''}
           <span class="sep">·</span>
-          <span style="color:${c.site?'var(--dim)':'var(--bad)'};font-weight:${c.site?400:700}">${esc(c.site||'sem site')}</span>
+          ${(() => {
+            // "sem site" só é INFORMAÇÃO quando alguém foi olhar. Busca da Apify pergunta
+            // ao Google, então ausência ali é ausência de verdade (e é gancho de venda do
+            // Site). Lista de planilha não traz a coluna — aí é "não cadastrado", e o
+            // script pergunta em vez de afirmar.
+            if (c.site) return `<span style="color:var(--dim)">${esc(c.site)}</span>`;
+            const l = listaById(c.lista_id);
+            return /apify/i.test((l && l.origem) || '')
+              ? `<span style="color:var(--bad);font-weight:700">sem site</span>`
+              : `<span style="color:var(--faint)">site não cadastrado</span>`;
+          })()}
           ${c.consultor?`<span class="sep">·</span><span>${esc(c.consultor)}</span>`:''}
         </div>
 
@@ -827,6 +923,8 @@ function htmlFila(){
           <span style="font-size:12px;color:var(--dim)">LTV
             <b class="mono" style="color:var(--ok)">${brl(ltv)}</b></span>
         </div>
+
+        ${htmlFicha(c)}
 
         <div class="sect">
           <div class="st">Histórico com a gente</div>
@@ -884,6 +982,57 @@ function htmlFila(){
   </div>`;
 }
 function registrarPorId(id){ registrar(DESFECHOS.find(d=>d.id===id)); }
+
+// Ficha do Google: só aparece o que EXISTE naquele contato. Lista de planilha
+// mostra pouco; lista da Apify mostra endereço, categoria, horário e e-mail.
+// O resto do que veio na busca fica em `dados` (jsonb) — nada foi jogado fora.
+// O actor devolve o dia no idioma da busca: em inglês se rodou em 'en', em português
+// se rodou em 'pt-BR' (que é o nosso padrão). Aceita os dois — senão a linha "Hoje"
+// some justamente nas buscas feitas do jeito certo.
+const DIAS = [
+  { en:'Sunday',    pt:'domingo',       curto:'dom' },
+  { en:'Monday',    pt:'segunda-feira', curto:'seg' },
+  { en:'Tuesday',   pt:'terça-feira',   curto:'ter' },
+  { en:'Wednesday', pt:'quarta-feira',  curto:'qua' },
+  { en:'Thursday',  pt:'quinta-feira',  curto:'qui' },
+  { en:'Friday',    pt:'sexta-feira',   curto:'sex' },
+  { en:'Saturday',  pt:'sábado',        curto:'sáb' },
+];
+function horarioDeHoje(c){
+  const h = c.dados && c.dados.openingHours;
+  if (!Array.isArray(h) || !h.length) return null;
+  const d = DIAS[new Date().getDay()];
+  const norm = s => String(s||'').trim().toLowerCase();
+  const hoje = h.find(x => x && (norm(x.day) === norm(d.en) || norm(x.day) === norm(d.pt)));
+  return hoje && hoje.hours ? `${d.curto}: ${hoje.hours}` : null;
+}
+function htmlFicha(c){
+  const linhas = [];
+  // o endereço do Google já costuma trazer o bairro dentro; só acrescenta se faltar
+  const temBairro = c.bairro && c.endereco &&
+    c.endereco.toLowerCase().includes(String(c.bairro).toLowerCase());
+  const end = [c.endereco, temBairro ? null : c.bairro].filter(Boolean).join(' · ');
+  if (end) linhas.push(['Endereço', esc(end)]);
+  if (c.categoria) linhas.push(['Categoria', esc(c.categoria)]);
+  const hoje = horarioDeHoje(c);
+  if (hoje) linhas.push(['Hoje', esc(hoje)]);
+  if (c.email) linhas.push(['E-mail', esc(c.email)]);
+  const d = c.dados || {};
+  const redes = ['instagrams','facebooks','linkedIns'].flatMap(k => Array.isArray(d[k]) ? d[k] : []).slice(0,2);
+  if (redes.length) linhas.push(['Redes', redes.map(u =>
+    `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(String(u).replace(/^https?:\/\/(www\.)?/,'').slice(0,42))}</a>`).join(' · ')]);
+  if (!linhas.length && !c.maps_url) return '';
+
+  return `<div class="sect">
+    <div class="st">Ficha do Google<span class="spacer"></span>
+      ${c.maps_url?`<a href="${esc(c.maps_url)}" target="_blank" rel="noopener"
+        style="font-weight:600;text-transform:none;letter-spacing:0;font-size:11.5px">ver no Maps ↗</a>`:''}
+      ${c.lat&&c.lng?`<a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}"
+        target="_blank" rel="noopener" style="font-weight:600;text-transform:none;letter-spacing:0;font-size:11.5px;margin-left:9px">rota ↗</a>`:''}
+    </div>
+    ${linhas.map(([k,v])=>`<div class="hl"><span class="d">${k}</span><span>${v}</span></div>`).join('')}
+  </div>`;
+}
 function porQue(c, pid){
   const p = prodById(pid); if (!p) return '—';
   const comprados = produtosAtivos().filter(x => statusProduto(c.id, x.id) === 'comprado');
@@ -934,8 +1083,10 @@ function htmlListas(){
     <div class="bar">
       <div class="spacer"></div>
       <button class="btn" onclick="abrirProdutos()">Produtos e scripts</button>
-      <button class="btn primary" onclick="abrirImport()">📥 Lançar lista (CSV)</button>
+      <button class="btn" onclick="abrirImport()">📥 Lançar lista (CSV)</button>
+      <button class="btn primary" onclick="abrirBusca()">🔎 Buscar leads</button>
     </div>
+    ${htmlBuscas()}
     ${listas.length ? `<div class="tw"><table>
       <thead><tr><th>Lista</th><th>Origem</th><th>Progresso</th><th>Resp.</th><th>Vendas</th>
         <th>Receita</th><th>ROI</th><th>Status</th><th></th></tr></thead>
@@ -1243,6 +1394,171 @@ function htmlResultados(){
   </div>`;
 }
 
+// ============= BUSCA DE LEAD (APIFY) =============
+// A tela NÃO fala com a Apify. Ela grava o pedido em prospeccao_buscas e chama o
+// kick; quem tem o token e os tetos de gasto é o motor no servidor
+// (api/src/services/io/prospeccaoApifyService.ts).
+const ACTOR_MAPS = 'compass/crawler-google-places';
+const CUSTO_LUGAR = 0.004;    // US$ por lugar entregue (tabela free da Apify)
+const CUSTO_FILTRO = 0.001;   // US$ por lugar, POR filtro ligado
+const CUSTO_ADDON = 0.002;    // US$ por lugar, por add-on de ficha (detalhe / contatos)
+const ST_BUSCA = {
+  pedida:     { l:'na fila',     c:'#94A3B8' },
+  rodando:    { l:'buscando',    c:'#60A5FA' },
+  importando: { l:'importando',  c:'#F59E0B' },
+  concluida:  { l:'concluída',   c:'#22C55E' },
+  erro:       { l:'erro',        c:'#F87171' },
+  cancelada:  { l:'cancelada',   c:'#64748B' },
+};
+const buscaAtiva = b => ['pedida','rodando','importando'].includes(b.status);
+
+function abrirBusca(){
+  document.getElementById('bs-lista').value = '';
+  estimarBusca();
+  abrirModal('ov-busca');
+}
+function trocarFonteBusca(){
+  const maps = document.getElementById('bs-fonte').value === 'google_maps';
+  document.getElementById('bs-maps').style.display = maps ? '' : 'none';
+  document.getElementById('bs-actor').style.display = maps ? 'none' : '';
+  estimarBusca();
+}
+function filtrosLigados(){
+  if (document.getElementById('bs-fonte').value !== 'google_maps') return 0;
+  let n = 0;
+  if (document.getElementById('bs-nota').value) n++;
+  if (document.getElementById('bs-site').value !== 'allPlaces') n++;
+  return n;
+}
+function estimarBusca(){
+  const lim = Number(document.getElementById('bs-limite').value || 0);
+  const maps = document.getElementById('bs-fonte').value === 'google_maps';
+  const f = filtrosLigados();
+  const el = document.getElementById('bs-custo');
+  if (!maps){
+    el.innerHTML = '<b>Custo:</b> depende do robô escolhido — a Apify cobra pela tabela dele. ' +
+      'O gasto real desta busca aparece na lista abaixo quando terminar.';
+    return;
+  }
+  const addons = (document.getElementById('bs-detalhe').checked ? 1 : 0) +
+                 (document.getElementById('bs-contatos').checked ? 1 : 0);
+  const est = lim * (CUSTO_LUGAR + f*CUSTO_FILTRO + addons*CUSTO_ADDON) + 0.00005;
+  el.innerHTML = `<b>Estimativa: US$ ${est.toFixed(2)}</b> — ${lim} lugares a US$ ${CUSTO_LUGAR.toFixed(3)}` +
+    (f ? ` + ${f} filtro(s) a US$ ${CUSTO_FILTRO.toFixed(3)}` : '') +
+    (addons ? ` + ${addons} ficha(s) a US$ ${CUSTO_ADDON.toFixed(3)}` : '') +
+    (f || addons ? ' por lugar' : '') +
+    `. Cobra por lugar entregue; se vier menos, custa menos. O valor REAL da run aparece aqui embaixo no fim.`;
+}
+async function dispararBusca(){
+  const btn = document.getElementById('bs-btn');
+  const fonte = document.getElementById('bs-fonte').value;
+  const limite = Number(document.getElementById('bs-limite').value || 50);
+  const soCelular = document.getElementById('bs-celular').value === '1';
+  let nomeLista = document.getElementById('bs-lista').value.trim();
+  let actorId = ACTOR_MAPS, input = {}, origem = 'Apify · Google Maps';
+
+  if (fonte === 'google_maps'){
+    const termo = document.getElementById('bs-termo').value.trim();
+    const local = document.getElementById('bs-local').value.trim();
+    if (!termo){ showToast('Escreve o que procurar (ex: energia solar)'); return; }
+    if (!local){ showToast('Escreve onde procurar'); return; }
+    input = { searchStringsArray: [termo], locationQuery: local, language: 'pt-BR', countryCode: 'br' };
+    const nota = document.getElementById('bs-nota').value;
+    const site = document.getElementById('bs-site').value;
+    if (nota) input.placeMinimumStars = nota;
+    if (site !== 'allPlaces') input.website = site;
+    // ficha completa: horário/notas detalhadas e e-mail+redes tirados do site
+    if (document.getElementById('bs-detalhe').checked) input.scrapePlaceDetailPage = true;
+    if (document.getElementById('bs-contatos').checked) input.scrapeContacts = true;
+    if (!nomeLista) nomeLista = `${termo} — ${local}`;
+  } else {
+    actorId = document.getElementById('bs-actorid').value.trim();
+    if (!actorId.includes('/')){ showToast('Actor no formato usuario/nome'); return; }
+    try { input = JSON.parse(document.getElementById('bs-input').value || '{}'); }
+    catch(e){ showToast('O JSON do input está inválido'); return; }
+    origem = 'Apify · ' + actorId;
+    if (!nomeLista) nomeLista = actorId;
+  }
+
+  btn.disabled = true; btn.textContent = 'Enfileirando…';
+  try {
+    await supaInsert('prospeccao_buscas', {
+      criada_por: consultorAtivo, fonte, actor_id: actorId, input,
+      limite, so_celular: soCelular, lista_nome: nomeLista, lista_origem: origem,
+    });
+    // kick: o cron pegaria em até 5 min; isto começa agora. O servidor é quem
+    // decide se pode rodar — o kick não passa parâmetro nenhum.
+    fetch('/_api/gerador/prospeccao/kick', { method:'POST' }).catch(()=>{});
+    fecharModal('ov-busca');
+    showToast('Busca na fila — o resultado cai aqui sozinho');
+    setTimeout(recarregarBuscas, 2500);
+  } catch(e){
+    showToast('Não deu pra enfileirar: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Buscar leads';
+  }
+}
+let pollBuscasTimer = null;
+async function recarregarBuscas(){
+  try {
+    const novas = await supaGet('prospeccao_buscas?select=*&order=criada_em.desc&limit=30');
+    const virou = novas.some(n => {
+      const velha = buscas.find(b => b.id === n.id);
+      return velha && velha.status !== n.status && n.status === 'concluida';
+    });
+    buscas = novas;
+    if (virou){ await carregar(); renderTudo(); showToast('Lista nova importada da busca'); }
+    else if (aba === 'listas') renderConteudo();
+    agendarPollBuscas();
+  } catch(e){ /* silencioso: é polling */ }
+}
+function agendarPollBuscas(){
+  clearTimeout(pollBuscasTimer);
+  if (buscas.some(buscaAtiva)) pollBuscasTimer = setTimeout(recarregarBuscas, 6000);
+}
+async function cancelarBusca(id){
+  try {
+    await supaPatch(`prospeccao_buscas?id=eq.${id}`, { status:'cancelada' });
+    // cancelar no banco não para a Apify — quem aborta a run (e o gasto) é o motor.
+    fetch('/_api/gerador/prospeccao/kick', { method:'POST' }).catch(()=>{});
+    await recarregarBuscas();
+    showToast('Cancelada — abortando a run na Apify');
+  } catch(e){ showToast('Não deu pra cancelar: ' + e.message); }
+}
+function htmlBuscas(){
+  if (!buscas.length) return '';
+  const linhas = buscas.slice(0, 8);
+  return `<div class="tw" style="margin-bottom:13px">
+    <table><thead><tr><th>Busca</th><th>Status</th><th>Encontrados</th><th>Importados</th>
+      <th>Descartados</th><th>Custo</th><th></th></tr></thead>
+    <tbody>${linhas.map(b => {
+      const st = ST_BUSCA[b.status] || { l:b.status, c:'#94A3B8' };
+      const termo = (b.input && b.input.searchStringsArray ? b.input.searchStringsArray.join(', ') : b.actor_id);
+      const local = (b.input && b.input.locationQuery) || '';
+      return `<tr>
+        <td><div style="font-weight:700">${esc(b.lista_nome)}</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px">
+            ${esc(termo)}${local?' · '+esc(local):''} · ${b.limite} pedidos ·
+            ${fmtDataHora(b.criada_em)}${b.criada_por?' · '+esc(b.criada_por):''}</div>
+          ${b.erro?`<div style="font-size:11px;color:var(--bad);margin-top:3px;line-height:1.45">${esc(b.erro)}</div>`:''}</td>
+        <td><span class="pill" style="background:${st.c}2E;color:${st.c}">
+          <i class="dot" style="background:${st.c}"></i>${st.l}</span></td>
+        <td class="mono">${b.encontrados || '—'}</td>
+        <td class="mono" style="color:var(--ok);font-weight:700">${b.importados || '—'}</td>
+        <td class="mono" style="font-size:11.5px;color:var(--dim)"
+          title="Repetidos: telefone que já existe em outra lista. Descartados: sem telefone utilizável, fixo (quando a busca é só celular) ou lugar fechado.">
+          ${b.dup?b.dup+' repetidos':''}${b.dup&&b.sem_telefone?' · ':''}${b.sem_telefone?b.sem_telefone+' descartados':''}${!b.dup&&!b.sem_telefone?'—':''}</td>
+        <td class="mono">${Number(b.custo_usd)?'US$ '+Number(b.custo_usd).toFixed(2):'—'}</td>
+        <td>${buscaAtiva(b)?`<button class="btn sm" onclick="cancelarBusca('${b.id}')">Cancelar</button>`:''}</td>
+      </tr>`;
+    }).join('')}</tbody></table>
+    <div style="padding:9px 11px;font-size:11.5px;color:var(--faint);line-height:1.6;border-top:1px solid var(--line)">
+      A busca roda no servidor: pode fechar a aba. O resultado vira lista sozinho e o custo
+      mostrado é o que a Apify cobrou de verdade pela run, não estimativa.
+    </div>
+  </div>`;
+}
+
 // ============= IMPORTAÇÃO DE LISTA =============
 function abrirImport(){
   document.getElementById('imp-dist').innerHTML =
@@ -1257,6 +1573,9 @@ function lerArquivoCsv(input){
   r.readAsText(f, 'utf-8');
 }
 function parseCsv(texto){
+  // BOM do Excel/Sheets: sem tirar, o cabeçalho vira "\uFEFFEmpresa" e a coluna
+  // empresa some — o import morre dizendo que o CSV não tem empresa.
+  texto = String(texto || '').replace(/^\uFEFF/, '');
   const sep = (texto.split('\n')[0].match(/;/g)||[]).length >
               (texto.split('\n')[0].match(/,/g)||[]).length ? ';' : ',';
   const linhas = []; let campo = '', linha = [], aspas = false;
@@ -1282,6 +1601,10 @@ const COLS = {
   nota:       ['nota','rating','avaliacao','avaliação','stars'],
   avaliacoes: ['avaliacoes','avaliações','reviews','user_ratings_total','total_reviews','review_count'],
   site:       ['site','website','url','web'],
+  endereco:   ['endereco','endereço','address','rua','logradouro'],
+  bairro:     ['bairro','neighborhood','district'],
+  categoria:  ['categoria','category','ramo','segmento','atividade'],
+  email:      ['email','e-mail','mail'],
 };
 function mapearColunas(header){
   const norm = h => String(h||'').trim().toLowerCase()
@@ -1332,6 +1655,10 @@ async function importarLista(){
       nota:   map.nota   !== undefined ? (parseFloat(String(l[map.nota]||'').replace(',','.')) || null) : null,
       avaliacoes: map.avaliacoes !== undefined ? (parseInt(String(l[map.avaliacoes]||'').replace(/\D/g,'')) || null) : null,
       site:   map.site   !== undefined ? String(l[map.site]||'').trim() || null : null,
+      endereco:  map.endereco  !== undefined ? String(l[map.endereco]||'').trim() || null : null,
+      bairro:    map.bairro    !== undefined ? String(l[map.bairro]||'').trim() || null : null,
+      categoria: map.categoria !== undefined ? String(l[map.categoria]||'').trim() || null : null,
+      email:     map.email     !== undefined ? String(l[map.email]||'').trim() || null : null,
       consultor: donos[novos.length % donos.length],
     });
   });
@@ -1452,7 +1779,7 @@ document.querySelectorAll('.ov').forEach(ov => {
 
 // ============= BOOT =============
 carregar()
-  .then(renderTudo)
+  .then(() => { renderTudo(); agendarPollBuscas(); })
   .catch(e => {
     document.getElementById('conteudo').innerHTML =
       `<div class="vazio"><div class="big">⚠️</div>Não deu pra carregar: ${esc(e.message)}<br>

@@ -23,3 +23,10 @@ jobs:
           curl -X GET "https://api.solardoc.app/cron/gerador-broadcast-tick" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --max-time 120 -sS -w "\nHTTP %{http_code}\n"
+      # Busca de lead na Apify (Prospeccao). A tela enfileira o pedido e da um kick;
+      # este tick e a rede de seguranca (aba fechada, kick perdido, run demorada).
+      - name: Tick de busca de lead (Prospeccao/Apify)
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/prospeccao-tick" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 120 -sS -w "\nHTTP %{http_code}\n"
