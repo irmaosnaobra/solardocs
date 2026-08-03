@@ -31,6 +31,7 @@ const APIFY = 'https://api.apify.com/v2';
 // (US$4,50) são pedidos de tamanho parecido em dinheiro.
 const MAX_LEADS       = Number(process.env.PROSPECCAO_MAX_LEADS || 300);        // Maps e actor livre
 const MAX_LEADS_CNPJ  = Number(process.env.PROSPECCAO_MAX_LEADS_CNPJ || 5000);  // Receita Federal
+const MAX_RUNS_SIMULTANEAS = Number(process.env.PROSPECCAO_MAX_RUNS || 3);  // teto de memória da conta Apify
 export const MAX_BUSCAS_DIA = Number(process.env.PROSPECCAO_MAX_BUSCAS_DIA || 30); // dá pra varrer o Brasil (27 UFs) num dia
 export const ACTOR_CNPJ_ID = 'epicscrapers/brazil-cnpj-scraper';
 export function tetoDaFonte(actorId: string): number {
@@ -324,7 +325,9 @@ async function processarUma(prazo: number, jaVistas: Set<string>): Promise<TickR
     // rede) NÃO queima a busca: com 27 estados na fila, um 429 no meio apagaria
     // metade da varredura e ninguém ia entender por quê. Só erro de verdade —
     // input inválido, actor inexistente — vira 'erro'.
-    const passageiro = /Apify (429|5\d\d)|fetch failed|ETIMEDOUT|ECONNRESET|socket hang up/i.test(detalhe);
+    // 402 de memória é o teto de runs SIMULTÂNEAS da conta (16 GB): passa assim
+    // que uma run termina. Tratar como erro apagaria metade da varredura.
+    const passageiro = /Apify (402|429|5\d\d)|memory-limit-exceeded|fetch failed|ETIMEDOUT|ECONNRESET|socket hang up/i.test(detalhe);
     if (passageiro) {
       logger.warn(LOG, `busca ${busca.id} tropeçou, vai tentar de novo`, detalhe);
       await marcar(busca.id, { erro: `Tentando de novo: ${detalhe}`, locked_until: null });
@@ -365,6 +368,18 @@ async function iniciar(busca: BuscaRow): Promise<TickResult> {
             `PROSPECCAO_MAX_BUSCAS_DIA no servidor.`,
     });
     return { ok: false, busca: busca.id, status: 'erro', detalhe: 'cap diário' };
+  }
+
+  // Teto de runs simultâneas: a conta tem limite de memória total (16 GB ≈ 4 runs).
+  // Sem esta trava, uma varredura de 27 estados dispara tudo de uma vez e a Apify
+  // devolve 402 pras excedentes. Melhor não pedir do que pedir e levar não.
+  const { count: rodandoAgora } = await supabaseGerador
+    .from('prospeccao_buscas')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'rodando');
+  if ((rodandoAgora ?? 0) >= MAX_RUNS_SIMULTANEAS) {
+    await marcar(busca.id, { locked_until: null, erro: `Na fila — ${rodandoAgora} buscas rodando (teto da conta Apify).` });
+    return { ok: true, busca: busca.id, status: 'pedida', detalhe: 'aguardando vaga' };
   }
 
   const limite = Math.max(1, Math.min(tetoDaFonte(busca.actor_id), Number(busca.limite) || 50));
