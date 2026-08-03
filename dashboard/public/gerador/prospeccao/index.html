@@ -735,10 +735,13 @@ function mensagemAtual(){
   if (!c || !pid) return '';
   const p = prodById(pid), vars = scripts[pid] || [];
   if (!vars.length) return `(Sem script cadastrado para ${p ? p.nome : pid}. Cadastre em Listas → Produtos.)`;
-  // {socio} vira o primeiro nome do dono quando a lista veio da Receita; sem ele,
-  // vira "você" — nunca um espaço vazio no meio da frase.
+  // {socio} vira o primeiro nome do dono quando a lista veio da Receita. Sem dono,
+  // o vocativo inteiro some ("Oi, {socio}!" → "Oi!") em vez de virar "Oi, você!",
+  // que é a cara de mensagem automática que a gente está tentando não ter.
   const primeiroNome = (c.socio || '').trim().split(/\s+/)[0] || '';
-  return vars[variacao % vars.length]
+  let txt = vars[variacao % vars.length];
+  if (!primeiroNome) txt = txt.replaceAll(', {socio}', '').replaceAll('{socio}', 'você');
+  return txt
     .replaceAll('{empresa}', c.empresa)
     .replaceAll('{cidade}', c.cidade || '')
     .replaceAll('{consultor}', consultorAtivo)
