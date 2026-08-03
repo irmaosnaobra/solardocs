@@ -260,15 +260,33 @@ async function abortarCanceladas(): Promise<void> {
 
 // ── tick ────────────────────────────────────────────────────────────────────
 export interface TickResult {
-  ok: boolean; off?: boolean; ociosa?: boolean;
+  ok: boolean; off?: boolean; ociosa?: boolean; processadas?: number;
   busca?: string; status?: string; detalhe?: string;
 }
 
+// Varredura nacional são 27 buscas, e cada uma precisa de pelo menos três passadas
+// (começar, acompanhar, importar). Uma busca por tick de 5 min levaria a madrugada
+// inteira. Então o tick trabalha até acabar o orçamento de tempo — sem nunca
+// tocar duas vezes na mesma busca no mesmo tick, que só queimaria chamada à Apify
+// perguntando de novo se a run já acabou.
 export async function runProspeccaoApifyTick(): Promise<TickResult> {
   if (desligado()) return { ok: true, off: true };
-
   await abortarCanceladas();
 
+  const prazo = Date.now() + TICK_MAX_MS;
+  const jaVistas = new Set<string>();
+  let ultimo: TickResult = { ok: true, ociosa: true };
+  let processadas = 0;
+
+  while (Date.now() < prazo - 20000 && processadas < 12) {
+    const r = await processarUma(prazo, jaVistas);
+    if (r.ociosa) break;
+    ultimo = r; processadas++;
+  }
+  return processadas ? { ...ultimo, processadas } : { ok: true, ociosa: true };
+}
+
+async function processarUma(prazo: number, jaVistas: Set<string>): Promise<TickResult> {
   const agora = new Date();
   const { data: pendentes } = await supabaseGerador
     .from('prospeccao_buscas')
@@ -276,10 +294,11 @@ export async function runProspeccaoApifyTick(): Promise<TickResult> {
     .in('status', ['pedida', 'rodando', 'importando'])
     .or(`locked_until.is.null,locked_until.lt.${agora.toISOString()}`)
     .order('criada_em', { ascending: true })
-    .limit(1);
+    .limit(15);
 
-  const busca = (pendentes ?? [])[0] as BuscaRow | undefined;
+  const busca = ((pendentes ?? []) as BuscaRow[]).find(b => !jaVistas.has(b.id));
   if (!busca) return { ok: true, ociosa: true };
+  jaVistas.add(busca.id);
 
   // lease: se outro tick pegou nesse meio tempo, o update não acha a linha
   const lease = new Date(Date.now() + LOCK_MS).toISOString();
@@ -294,7 +313,7 @@ export async function runProspeccaoApifyTick(): Promise<TickResult> {
   try {
     if (busca.status === 'pedida')    return await iniciar(busca);
     if (busca.status === 'rodando')   return await acompanhar(busca);
-    if (busca.status === 'importando')return await importar(busca);
+    if (busca.status === 'importando')return await importar(busca, prazo);
     return { ok: true, ociosa: true };
   } catch (err: any) {
     const detalhe = String(err?.message || err).slice(0, 500);
@@ -413,9 +432,8 @@ async function acompanhar(busca: BuscaRow): Promise<TickResult> {
 // Importa o dataset em páginas, com CURSOR. Se o orçamento do tick acabar no meio,
 // sai deixando a busca em 'importando' com o cursor salvo — o tick seguinte continua
 // de onde parou, em vez de morrer no timeout do Vercel ou reimportar tudo.
-async function importar(busca: BuscaRow): Promise<TickResult> {
+async function importar(busca: BuscaRow, prazo: number): Promise<TickResult> {
   if (!busca.dataset_id) throw new Error('busca sem dataset_id');
-  const t0 = Date.now();
 
   let offset      = Number(busca.cursor_offset || 0);
   let encontrados = Number(busca.encontrados || 0);
@@ -482,7 +500,7 @@ async function importar(busca: BuscaRow): Promise<TickResult> {
       encontrados, importados, dup, sem_telefone: semTelefone,
     });
 
-    if (!fim && Date.now() - t0 > TICK_MAX_MS) {
+    if (!fim && Date.now() > prazo) {
       await marcar(busca.id, { locked_until: null });   // continua no próximo tick
       logger.info(LOG, `busca ${busca.id} pausada no cursor ${offset}`, { importados });
       return { ok: true, busca: busca.id, status: 'importando', detalhe: `cursor ${offset}` };

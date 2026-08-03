@@ -313,6 +313,23 @@ describe('caminho feliz: pedida → rodando → importando → concluída', () =
     expect(db.prospeccao_listas).toHaveLength(0);
   });
 
+  it('um tick só toca em várias buscas — 27 estados não podem levar a madrugada', async () => {
+    process.env.APIFY_TOKEN = 'tok';
+    const ufs = ['MG', 'BA', 'GO'];
+    ufs.forEach(uf => enfileirar({ actor_id: 'epicscrapers/brazil-cnpj-scraper',
+      input: { cnae: '4731800', uf }, lista_nome: `Postos · ${uf}` }));
+    let n = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      n++;
+      return new Response(JSON.stringify({ data: { id: 'run' + n, defaultDatasetId: 'ds' + n } }), { status: 201 });
+    }));
+    const r = await runProspeccaoApifyTick();
+    expect(r.processadas).toBe(3);
+    expect(db.prospeccao_buscas.every(b => b.status === 'rodando')).toBe(true);
+    // e nenhuma foi tocada duas vezes no mesmo tick (3 buscas = 3 chamadas)
+    expect(n).toBe(3);
+  });
+
   it('cancelar aborta a run na Apify — senão o gasto continua', async () => {
     process.env.APIFY_TOKEN = 'tok';
     const b = enfileirar({ status: 'cancelada', run_id: 'run7', dataset_id: 'ds7' });
