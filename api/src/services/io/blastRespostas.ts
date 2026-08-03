@@ -91,13 +91,30 @@ export async function runBlastRespostas(): Promise<ResultadoRespostas> {
     .gte('enviado_em', desdeEnvio)
     .limit(5000);
   if (eEnvios) { logger.error('blast-resp', 'ler envios falhou', eEnvios); return vazio; }
-  if (!envios || envios.length === 0) return vazio;
 
   const porChave = new Map<string, string>();  // telKey → broadcast_id
-  for (const e of envios as Array<{ phone: string; broadcast_id: string }>) {
+  for (const e of (envios ?? []) as Array<{ phone: string; broadcast_id: string }>) {
     const k = telKey(e.phone);
     if (k && !porChave.has(k)) porChave.set(k, e.broadcast_id);
   }
+
+  // A nutrição da SEMENTE também promete "responde PARAR que eu paro" — e promessa
+  // de saída que não funciona é pior que não prometer. Ela não passa por
+  // io_broadcast_envios (não é disparo de lista), então entra aqui pela chave de
+  // estado dela: quem foi tocado nas últimas horas conta como destinatário.
+  const { data: semente } = await supabase
+    .from('system_state').select('key, value')
+    .like('key', 'semente:%')
+    .gte('updated_at', desdeEnvio)
+    .limit(2000);
+  for (const s of semente ?? []) {
+    const k = String(s.key).slice('semente:'.length);
+    if (k && !porChave.has(k)) porChave.set(k, 'semente');
+  }
+
+  // Ninguém recebeu nada na janela: não há o que cruzar e o tick sai barato
+  // (é o caso de todo dia sem campanha).
+  if (porChave.size === 0) return vazio;
 
   // 2) Inbound real da linha nos últimos ~6 min (janela maior que o tick de 5).
   const desdeInbound = new Date(Date.now() - 6 * 60 * 1000).toISOString();
