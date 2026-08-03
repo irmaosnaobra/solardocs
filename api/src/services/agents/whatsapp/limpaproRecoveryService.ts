@@ -674,6 +674,12 @@ export async function seedLimpaproRecoveryBacklog(opts: { dry?: boolean } = {}):
     if (lead.telefone_suspeito) { bump('telefone_suspeito'); continue; }
     if (jaTemMarker.has(e))     { bump('ja_tem_marker'); continue; }
     if (await jaContatado(e))   { bump('ja_contatado'); continue; }
+    // O marcador `limpapro_recovery:` PODE FALTAR — os leads da varredura de 01–02/ago
+    // ficaram sem ele, e o seeder automático (03/ago) re-enfileirou 22 pessoas que já
+    // tinham tomado o opener. Ninguém recebeu msg repetida porque o `emConversa` do
+    // porqueNaoEnviarLead barrou na hora do envio, mas a fila enchia toda hora à toa.
+    // A sessão de recuperação é a verdade mais durável de "já falei com essa pessoa".
+    if (await emConversa(lead.telefone)) { bump('ja_tem_conversa'); continue; }
 
     novos.push({
       key: pendingKey(e),
