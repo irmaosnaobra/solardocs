@@ -460,8 +460,14 @@ async function acompanhar(busca: BuscaRow): Promise<TickResult> {
 // Importa o dataset em páginas, com CURSOR. Se o orçamento do tick acabar no meio,
 // sai deixando a busca em 'importando' com o cursor salvo — o tick seguinte continua
 // de onde parou, em vez de morrer no timeout do Vercel ou reimportar tudo.
+async function carregarConsultores(): Promise<string[]> {
+  const { data } = await supabaseGerador.from('consultores').select('nome').order('nome');
+  return ((data ?? []) as { nome: string }[]).map(c => c.nome).filter(Boolean);
+}
+
 async function importar(busca: BuscaRow, prazo: number): Promise<TickResult> {
   if (!busca.dataset_id) throw new Error('busca sem dataset_id');
+  let equipe: string[] = [];
 
   let offset      = Number(busca.cursor_offset || 0);
   let encontrados = Number(busca.encontrados || 0);
@@ -509,8 +515,14 @@ async function importar(busca: BuscaRow, prazo: number): Promise<TickResult> {
         if (error) throw new Error(`erro criando lista: ${error.message}`);
         listaId = lista!.id as string;
       }
+      // Rodízio na importação: 1 telefone = 1 consultor. Sem dono, os quatro veem
+      // o mesmo posto na fila e dois mandam mensagem pro mesmo dono no mesmo dia.
+      if (!equipe.length) equipe = await carregarConsultores();
       for (let i = 0; i < contatos.length; i += 200) {
-        const lote = contatos.slice(i, i + 200).map(c => ({ ...c, lista_id: listaId }));
+        const lote = contatos.slice(i, i + 200).map((c, j) => ({
+          ...c, lista_id: listaId,
+          consultor: equipe.length ? equipe[(importados + i + j) % equipe.length] : null,
+        }));
         // ignora telefone que já existe em QUALQUER lista (índice único)
         const { data, error } = await supabaseGerador
           .from('prospeccao_contatos')
