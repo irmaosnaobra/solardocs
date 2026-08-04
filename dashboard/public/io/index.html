@@ -9,10 +9,13 @@
 <meta property="og:description" content="Energia solar com engenharia certificada em Uberlândia e região. Mais de 500 famílias atendidas.">
 <meta property="og:type" content="website">
 <title>Irmãos na Obra Energia Solar · Uberlândia/MG</title>
-<link rel="icon" type="image/png" href="/io/img/logoio.png">
-<link rel="shortcut icon" type="image/png" href="/io/img/logoio.png">
-<link rel="apple-touch-icon" href="/io/img/logoio.png">
-<meta property="og:image" content="/io/img/logoio.png">
+<!-- Ícones em tamanho de ícone. Antes os 4 apontavam pro logoio.png de 500x500
+     (468 KB) e o navegador baixava o arquivo TRÊS vezes (icon + shortcut +
+     apple-touch são requisições separadas): 1,4 MB só de favicon. -->
+<link rel="icon" type="image/png" sizes="96x96" href="/io/img/logoio-96.png">
+<link rel="shortcut icon" type="image/png" href="/io/img/logoio-96.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/io/img/logoio-180.png">
+<meta property="og:image" content="/io/img/logoio-og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght,SOFT@9..144,600..800,30..100&display=swap" rel="stylesheet">
@@ -1610,7 +1613,7 @@
 <nav class="nav">
   <div class="container nav-inner">
     <a href="#" class="brand">
-      <img src="/io/img/logoio.png" alt="Irmãos na Obra Energia Solar" class="brand-mark">
+      <img src="/io/img/logoio.webp" alt="Irmãos na Obra Energia Solar" class="brand-mark" width="200" height="200" style="height:auto">
       <div class="brand-text">
         <div class="l1">Irmãos na Obra</div>
         <div class="l2">Energia Solar</div>
@@ -1670,7 +1673,7 @@
 
     <form id="heroForm" class="hero-form-card" autocomplete="on">
       <div class="hero-mascot-float" aria-hidden="true">
-        <img src="/io/img/mascote.png" alt="">
+        <img src="/io/img/mascote.webp" alt="" loading="lazy" width="960" height="960" style="height:auto">
       </div>
       <div class="hero-form-eyebrow">Resposta em até 5 minutos</div>
       <h3>Solicite seu atendimento</h3>
@@ -1731,7 +1734,7 @@
   <div class="container about-inner">
     <div class="about-photo">
       <div class="about-medallion">
-        <img src="/io/img/mascote.png" alt="Os irmãos da Irmãos na Obra Energia Solar">
+        <img src="/io/img/mascote.webp" alt="Os irmãos da Irmãos na Obra Energia Solar" loading="lazy" width="960" height="960" style="height:auto">
       </div>
       <div class="about-quote">Energia solar não é tecnologia. É liberdade financeira.</div>
       <div class="about-tag">Os irmãos por trás de cada obra</div>
@@ -2464,7 +2467,7 @@
     <div class="ft-grid">
       <div class="ft-col ft-brand">
         <a href="#" class="brand">
-          <img src="/io/img/logoio.png" alt="Irmãos na Obra Energia Solar" class="brand-mark">
+          <img src="/io/img/logoio.webp" alt="Irmãos na Obra Energia Solar" class="brand-mark" width="200" height="200" style="height:auto">
           <div class="brand-text">
             <div class="l1">Irmãos na Obra</div>
             <div class="l2">Energia Solar</div>
@@ -2797,5 +2800,6 @@
   });
 </script>
 
+  <script src="/lib/telemetria.js" defer></script>
 </body>
 </html>

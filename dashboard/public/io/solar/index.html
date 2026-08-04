@@ -1158,5 +1158,6 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && !sl
     window.addEventListener('beforeunload', () => { const s = Math.round((Date.now()-start)/1000); if (s < 3) return; try { navigator.sendBeacon(url + '/_t/e', new Blob([JSON.stringify({ session_id: sid, event_type: 'time_on_page', event_data: { seconds: s } })], { type: 'application/json' })); } catch (_) {} });
   })();
   </script>
+  <script src="/lib/telemetria.js" defer></script>
 </body>
 </html>

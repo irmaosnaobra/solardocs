@@ -4,3 +4,6 @@ dist/
 *.log
 
 .vercel
+
+# Sobra de rodar next na pasta errada — nunca vai pro repo.
+.next/

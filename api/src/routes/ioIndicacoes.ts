@@ -3,7 +3,7 @@ import { supabase } from '../utils/supabase';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
-import { indicacaoLimiter } from '../middleware/rateLimiter';
+import { indicacaoRateLimit } from '../middleware/indicacaoRateLimit';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { slotLivreConsultor, dataBaseDaFaixa } from '../services/agenda/leadsMetaService';
 import { logger } from '../utils/logger';
@@ -37,7 +37,7 @@ function normalizePhone(raw: string): string {
 // PÚBLICO — formulário de indicação. WRITE público: validação dura + rate-limit
 // dedicado + honeypot. Chamado via /_api/io-indicacoes do dashboard.
 // ──────────────────────────────────────────────────────────────────────────
-router.post('/', indicacaoLimiter, async (req: Request, res: Response) => {
+router.post('/', indicacaoRateLimit, async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
 

@@ -23,6 +23,7 @@ import { MAX_POR_HORA } from '../agents/whatsapp/lineThrottle';
 import { MAX_CARLA_POR_HORA } from '../agents/whatsapp/carlaThrottle';
 import { solardocViaIo } from '../agents/zapiClient';
 import { EP_ORIGENS, EP_AGENDA_INICIO } from './eletropostoAgenda';
+import { SOLAR_ORIGENS, SOLAR_BOASVINDAS_INICIO } from './solarBoasVindas';
 
 type Estado = 'ativo' | 'desligado' | 'dark' | 'sem_agente';
 type Canal = 'whatsapp' | 'instagram' | 'email' | 'painel';
@@ -76,6 +77,7 @@ const PREFIXOS = [
   'gerador_followup:', 'gerador_seq:', 'carla_sent:', 'curso19:', 'ig_sent',
   'ep_repescagem_sent:', 'ep_repescagem_pending:', 'ep_repescagem_resposta:',
   'ep_resposta:',
+  'solar_resposta:',
   'zapi_io_health',
 ];
 
@@ -117,6 +119,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   const curso = resumo(chaves, 'curso19:');
   const ig = resumo(chaves, 'ig_sent');
   const epResp = resumo(chaves, 'ep_resposta:');
+  const solarResp = resumo(chaves, 'solar_resposta:');
   const repesc = resumo(chaves, 'ep_repescagem_sent:');
   const repescFila = resumo(chaves, 'ep_repescagem_pending:').total;
   const repescResp = resumo(chaves, 'ep_repescagem_resposta:').total;
@@ -187,6 +190,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     fichasEletro30, nota1_30, nota1SemConvite, indicacoes30, respostasBlast,
     prospTotal, prospToques, seqAtivas, disparosRodando, igAutomacoes,
     epReunioesFuturas, epFuturasConfirmadas, epPresencaConfirmada, epLembretes5min30d, epUltimoToque,
+    solarCadastros30, solarBoasVindas30, solarUltimoToque,
   ] = await Promise.all([
     // Só a 1ª DM de cada comentário (private_reply). Contar todo 'sent'
     // triplicaria o número desde o porteiro (pede → segue → link) sem um lead a
@@ -225,6 +229,22 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
           .filter(v => !!v && String(v) >= EP_AGENDA_INICIO) as string[];
         return todos.sort().pop() ?? null;
       } catch (err) { logger.error('central-agentes', 'último toque da agenda EP falhou', err); return null; }
+    })(),
+    // Boas-vindas do solar: cadastros que entraram × cadastros que receberam o
+    // recibo. A diferença entre os dois números É o alerta — cliente que se
+    // cadastrou e ficou no escuro.
+    contarGerador('agendamentos', (q: any) => q.in('created_by', SOLAR_ORIGENS).gte('created_at', desde30)),
+    contarGerador('agendamentos', (q: any) => q.in('created_by', SOLAR_ORIGENS)
+      .gte('created_at', desde30).not('boas_vindas_at', 'is', null)),
+    (async (): Promise<string | null> => {
+      try {
+        const { data } = await supabaseGerador
+          .from('agendamentos').select('boas_vindas_at')
+          .in('created_by', SOLAR_ORIGENS).gte('created_at', desde30).limit(500);
+        const todos = (data ?? []).map(r => r.boas_vindas_at)
+          .filter(v => !!v && String(v) >= SOLAR_BOASVINDAS_INICIO) as string[];
+        return todos.sort().pop() ?? null;
+      } catch (err) { logger.error('central-agentes', 'último toque das boas-vindas do solar falhou', err); return null; }
     })(),
   ]);
 
@@ -442,6 +462,28 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ],
       alerta: (epReunioesFuturas ?? 0) > 0 && (epFuturasConfirmadas ?? 0) < (epReunioesFuturas ?? 0)
         ? `${(epReunioesFuturas ?? 0) - (epFuturasConfirmadas ?? 0)} reunião(ões) futura(s) ainda sem a mensagem de confirmação — a fila de atraso sai 1 por rodada, das 08h às 20h.`
+        : undefined,
+    },
+    {
+      id: 'solar_boas_vindas',
+      nome: 'Boas-vindas do solar — recibo do cadastro',
+      papel: 'Assim que alguém se cadastra em energia solar (LP, /simular ou Lead Ads), fala com o cliente: diz quem é o consultor dele, passa o WhatsApp desse consultor, avisa que NÓS entramos em contato e faz UMA pergunta — o consumo atual. Não fala de horário — de propósito.',
+      canal: 'whatsapp', linha: 'io',
+      estado: envLigado('SOLAR_BOASVINDAS_ON') ? 'ativo' : 'desligado',
+      chave: 'SOLAR_BOASVINDAS_ON',
+      ultima_atividade: solarUltimoToque,
+      metricas: [
+        { label: 'Cadastros de solar (30d)', valor: solarCadastros30, sub: 'LP solar + /simular + Lead Ads' },
+        { label: 'Receberam as boas-vindas', valor: solarBoasVindas30, sub: 'só conta ficha criada depois de o agente existir' },
+        { label: 'Responderam', valor: solarResp.total, sub: `${solarResp.h24} nas últimas 24h · recado vai pro consultor dono da ficha` },
+      ],
+      toques: [
+        { titulo: 'único · no cadastro', quando: 'até 5 min depois de a ficha entrar', copy: 'Seis bolhas: quem é o consultor + o WhatsApp dele, "nós entramos em contato", "pode escrever agora que estamos aguardando", e uma pergunta só — qual o consumo atual (aceita foto da conta de luz). Só ficha com até 1 hora de vida — o backlog nunca é tocado.' },
+        { titulo: '↩ resposta do cliente', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro cliente: é o recado com o que a pessoa escreveu, indo pro consultor DONO da ficha (e cópia pro Thiago). Kill-switch SOLAR_RESPOSTAS_OFF.' },
+      ],
+      alerta: envLigado('SOLAR_BOASVINDAS_ON')
+        && (solarCadastros30 ?? 0) > 0 && (solarBoasVindas30 ?? 0) === 0
+        ? 'Nenhum cadastro de solar recebeu boas-vindas nos últimos 30 dias, com o agente ligado — confira o cron e a linha IO.'
         : undefined,
     },
     {

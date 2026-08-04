@@ -96,7 +96,7 @@
   .invest .h{font-size:12px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--neon)}
   /* a faixa é bem mais longa que a âncora antiga ("a partir de X"): o teto caiu de 44
      para 38px pra caber numa linha no desktop, e os valores levam nowrap pra nunca
-     quebrarem no meio de "R$ 120.000" quando ela empilha no celular. */
+     quebrarem no meio de "R$ 141.673,00" quando ela empilha no celular. */
   .invest .v{font-size:clamp(28px,4vw,38px);font-weight:900;letter-spacing:-1.6px;margin-top:6px}
   .invest .v .nb{white-space:nowrap}
   .invest .d{color:var(--mut);font-size:14px;font-weight:600;margin-top:8px;line-height:1.5;max-width:520px}
@@ -386,8 +386,8 @@
         <!-- Os 3 valores são reescritos pelo JS a partir do CONFIGS do simulador (ver
              pintarAncora): reajustar preço num lugar só deixaria a âncora mentindo.
              O texto abaixo é o fallback sem JS — mantenha igual ao CONFIGS. -->
-        <div class="v">De <span class="nb" id="anc-min">R$ 120.000</span> a <span class="nb" id="anc-max">R$ 220.000</span></div>
-        <div class="d">O valor depende da potência e da infraestrutura elétrica do seu ponto. A configuração de 80 kW — a mais indicada para a maioria dos pontos — fica na faixa de <b id="anc-rec">R$ 160.000</b>.</div>
+        <div class="v">De <span class="nb" id="anc-min">R$ 141.673,00</span> a <span class="nb" id="anc-max">R$ 229.436,00</span></div>
+        <div class="d">O valor depende da potência e da infraestrutura elétrica do seu ponto. A configuração de 80 kW — a mais indicada para a maioria dos pontos — fica na faixa de <b id="anc-rec">R$ 144.595,00</b>.</div>
       </div>
       <div class="cond">
         <div class="c"><div class="cl">Cartão</div><div class="cv">24x</div></div>
@@ -881,6 +881,10 @@ async function supaInsert(table, body){
 
 // ===== SIMULADOR — mesmas fórmulas do /gerador (computeEletro) =====
 const money = n => 'R$ ' + Math.round(n||0).toLocaleString('pt-BR');
+// O investimento é PREÇO, não estimativa: sai com centavos e sem arredondar, igual à
+// apresentação comercial. Faturamento e lucro continuam no money() redondo — ali arredondar
+// é honesto, é projeção.
+const moneyC = n => 'R$ ' + (n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 function compute(p){
   const DIAS=30, ANOS=10;
   const kwhMes  = p.carros * p.carga * DIAS;
@@ -926,12 +930,19 @@ function params(){
     custoKwh:+document.getElementById('s-custo').value || 0,
     // Premissas idênticas às do Estudo de Viabilidade que o consultor abre na reunião:
     // gateway 14%, manutenção 0,1%, imposto 6% (Simples), rampa 50%→100% em 24 meses.
+    // NÃO MEXER sem refazer a conferência abaixo — a fórmula é a mesma do computeEletro
+    // do /gerador, e é ela que faz a LP bater com o PDF do estudo.
     // ARRENDAMENTO = 0 de propósito. O estudo cobra aluguel do ponto só quando o local é
     // de terceiro; o público desta LP (posto, mercado, academia, condomínio…) em geral já
     // é dono do espaço, e cobrar 10% de quem paga a si mesmo derrubava margem e payback
     // sozinho. Quem vai alugar desconta o aluguel — está dito na letra miúda do simulador.
-    // Validado contra o estudo (31/07, 10 carros · custo 0,70 · sem arrendamento):
-    // 160k ⇒ lucro R$ 6.920, margem 47,86%, payback 2,5 anos, ROI 391% — ao centavo.
+    // Conferência (10 carros/dia · revenda 2,35 · custo 0,70 · sem arrendamento):
+    //   R$ 160.000 ⇒ lucro R$ 6.920 · margem 47,86% · payback 2,46 anos · ROI 391%
+    //     ↑ é este o cenário validado ao centavo contra o Estudo de Viabilidade de 31/07.
+    //   R$ 144.595 ⇒ lucro R$ 6.933 · margem 47,95% · payback 2,27 anos · ROI 445%
+    //     ↑ é o que a LP mostra desde 02/08, quando o preço passou a seguir a apresentação.
+    // O estudo em PDF continua feito sobre R$ 160.000: quem comparar os dois vê payback
+    // diferente. Refazer o estudo antes de mandar junto com o deck novo.
     ativacao:1.20, invest:cfg.invest,
     gateway:.14, arrend:0, manut:.001, imposto:.06,
     assinat:0, fixos:300, ocupIni:.5, mesesRampa:24,
@@ -941,28 +952,33 @@ function params(){
 // realista de partida (o PDF do estudo usa 10 carros/dia no 80 kW e chama 14 de "otimista",
 // então o slider abre no base — nunca no teto, que produziria payback irreal).
 //
-// `invest` AGORA É EXIBIDO (card "Investimento estimado") e é o MESMO número que alimenta o
-// cálculo — era essa a divergência: o 80 kW calculava sobre 180k enquanto o comercial pratica
-// 160k, e a LP anunciava "a partir de 85.000". Preço escondido virava pedido de preço
-// discriminado na reunião; preço divergente do cálculo quebra o estudo quando o cliente refaz
-// a conta. Os dois passam a ser o mesmo valor — se um mudar, o outro muda junto.
-// A entrada de 40 kW saiu: potência insuficiente pra recarga rápida competitiva e a âncora de
-// preço dela não bate com o ticket real.
-// Validado contra o estudo (31/07, 80 kW · 10 carros/dia · custo 0,70 · sem arrendamento):
-// 160k ⇒ lucro R$ 6.920/mês, margem 47,86%, payback 2,5 anos, ROI 391% — ao centavo.
+// `invest` É EXIBIDO (card "Investimento estimado") e é o MESMO número que alimenta o
+// cálculo. Preço escondido virava pedido de preço discriminado na reunião; preço divergente
+// do cálculo quebra o estudo quando o cliente refaz a conta. Os dois são o mesmo valor —
+// se um mudar, o outro muda junto.
+// A entrada de 40 kW saiu do simulador: potência insuficiente pra recarga rápida competitiva.
+// Ela existe na tabela de preço da apresentação (R$ 109.685), só não é oferecida aqui.
+// 02/08/2026 — PREÇO PADRONIZADO COM A APRESENTAÇÃO COMERCIAL. A tabela agora é a mesma de
+// Desktop/EletroPosto/Apresentacao-IrmaosNaObra (slide "Orçamento completo: Estação +
+// Instalação"). Antes o simulador rodava 120/160/190/220k e o deck 141,9/144,9/203,9/229,9k —
+// Preço quebrado (03/08): valores redondos leem como tabela de balcão; quebrado lê como
+// orçamento calculado. Trocar aqui exige trocar na apresentação — os dois são o mesmo número.
+// o lead que simulava e depois recebia o PDF via a diferença. Mexeu num, mexe no outro.
+// Efeito colateral conhecido: 60 e 80 kW ficaram a R$ 3.000 um do outro (a escada veio assim
+// da tabela de origem), então o 60 kW praticamente não tem mais razão de ser escolhido.
 const CONFIGS = {
-  60:  { invest:120000, bicos:2, max:20, base:8,  nota:'Dois bicos, até 20 carros/dia.' },
-  80:  { invest:160000, bicos:2, max:30, base:10, nota:'Recarga rápida e 2 bicos, até 30 carros/dia — é a que indicamos na maioria dos pontos.' },
-  120: { invest:190000, bicos:2, max:40, base:14, nota:'Ultrarrápido, até 40 carros/dia — para pontos de alto fluxo.' },
-  160: { invest:220000, bicos:2, max:50, base:18, nota:'Topo da linha, até 50 carros/dia — para grandes operações.' },
+  60:  { invest:141673, bicos:2, max:20, base:8,  nota:'Dois bicos, até 20 carros/dia.' },
+  80:  { invest:144595, bicos:2, max:30, base:10, nota:'Recarga rápida e 2 bicos, até 30 carros/dia — é a que indicamos na maioria dos pontos.' },
+  120: { invest:203548, bicos:2, max:40, base:14, nota:'Ultrarrápido, até 40 carros/dia — para pontos de alto fluxo.' },
+  160: { invest:229436, bicos:2, max:50, base:18, nota:'Topo da linha, até 50 carros/dia — para grandes operações.' },
 };
 // Faixa anunciada lá em cima = mínimo e máximo do CONFIGS, mais a recomendada.
 // Derivar em vez de repetir é o que impede a âncora de envelhecer sozinha.
 function pintarAncora(){
   const vals = Object.values(CONFIGS).map(c => c.invest);
-  document.getElementById('anc-min').textContent = money(Math.min(...vals));
-  document.getElementById('anc-max').textContent = money(Math.max(...vals));
-  document.getElementById('anc-rec').textContent = money(CONFIGS[80].invest);
+  document.getElementById('anc-min').textContent = moneyC(Math.min(...vals));
+  document.getElementById('anc-max').textContent = moneyC(Math.max(...vals));
+  document.getElementById('anc-rec').textContent = moneyC(CONFIGS[80].invest);
 }
 function setConfig(){
   const kw = document.getElementById('s-config').value;
@@ -977,7 +993,7 @@ function setConfig(){
 function calc(){
   const p = params(), r = compute(p);
   document.getElementById('s-carros-v').textContent = p.carros + ' carros/dia';
-  document.getElementById('k-inv').textContent = money(p.invest);
+  document.getElementById('k-inv').textContent = moneyC(p.invest);
   document.getElementById('k-fat').textContent = money(r.fatMes);
   document.getElementById('k-luc').textContent = money(r.lucroMes);
   document.getElementById('k-pb').textContent  = r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—';
@@ -1413,7 +1429,7 @@ async function agendar(){
     `Decisor: ${txt(decisor)}`,
     `Entrada trifásica: ${txt(trif)}`,
     `Simulou ${kw} kW com ${p.carros} carros/dia`,
-    `Investimento estimado: ${money(p.invest)}`,
+    `Investimento estimado: ${moneyC(p.invest)}`,
     `→ payback ${r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—'} · lucro ${money(r.lucroMes)}/mês`,
   ].filter(Boolean).join('\n');
 
@@ -1589,5 +1605,6 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && !sl
     window.addEventListener('beforeunload', () => { const s = Math.round((Date.now()-start)/1000); if (s < 3) return; try { navigator.sendBeacon(url + '/_t/e', new Blob([JSON.stringify({ session_id: sid, event_type: 'time_on_page', event_data: { seconds: s } })], { type: 'application/json' })); } catch (_) {} });
   })();
   </script>
+  <script src="/lib/telemetria.js" defer></script>
 </body>
 </html>

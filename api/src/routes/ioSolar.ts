@@ -17,7 +17,10 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
-const EQUIPE: Record<string, string> = {
+// Exportada porque o solarRespostas.ts precisa do número do dono (thiago) como
+// rede: quando a ficha não tem consultor com WhatsApp cadastrado, a resposta do
+// cliente ainda tem que cair na mão de alguém.
+export const EQUIPE: Record<string, string> = {
   nilce: '34991516846',
   thiago: '34991360223',
   diego: '34991360172',

@@ -1,5 +1,6 @@
-import dotenv from 'dotenv';
-dotenv.config(); // DEVE ser o primeiro a executar
+// DEVE ser o primeiro import: o instrument.ts carrega o dotenv e sobe o Sentry
+// antes de qualquer rota entrar em memória (senão o Sentry não instrumenta nada).
+import { Sentry, flushSentry } from './instrument';
 
 import express from 'express';
 import cors from 'cors';
@@ -129,12 +130,19 @@ app.use('/io-indicacoes', ioIndicacoesRoutes);
 app.use('/io/eletroposto', ioEletropostoRoutes);
 app.use('/io/solar', ioSolarRoutes);
 
+// Sentry entra DEPOIS das rotas e ANTES do nosso handler: ele só observa e passa
+// o erro adiante, quem responde ao cliente continua sendo o handler abaixo.
+// No-op enquanto SENTRY_DSN não estiver definida.
+Sentry.setupExpressErrorHandler(app);
+
 // Error handler global — nunca expõe stack trace em produção
-app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use(async (err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const statusCode = err.statusCode || 500;
   const message = process.env.NODE_ENV === 'production' && statusCode === 500
     ? 'Erro interno do servidor'
     : err.message;
+  // Esvazia antes de responder: na Vercel a instância congela logo em seguida.
+  await flushSentry();
   res.status(statusCode).json({ error: message });
 });
 

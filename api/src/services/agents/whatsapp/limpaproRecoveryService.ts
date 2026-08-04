@@ -46,6 +46,10 @@ const INSTANCE = 'io' as const;
 // Habilitado? A linha IO já está configurada (instância 'io' em produção). Um flag
 // de env (RECUP_ENABLED) permite ligar/desligar a recuperação sem mexer em código —
 // fica DESLIGADA por padrão até o Thiago mandar ativar (merge dark seguro).
+//
+// NOTA (04/ago/2026): a ordem de "não mandar WhatsApp do curso" vale SÓ pro link de
+// acesso PÓS-COMPRA (que passou a sair só por e-mail, no app do curso). A recuperação
+// de carrinho segue por WhatsApp, normal — confirmado pelo Thiago no mesmo dia.
 function recuperacaoHabilitada(): boolean {
   const id = process.env.ZAPI_INSTANCE_ID_IO?.trim();
   const token = process.env.ZAPI_TOKEN_IO?.trim();

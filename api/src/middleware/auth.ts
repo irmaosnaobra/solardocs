@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
 import { ApiError } from '../utils/apiError';
+import { clerkAtivo, resolverUsuarioDoClerk } from './clerkAuth';
 
 declare global {
   namespace Express {
@@ -10,7 +11,7 @@ declare global {
   }
 }
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -18,6 +19,18 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     }
 
     const token = authHeader.split(' ')[1];
+
+    // Clerk só entra se estiver ligado E o usuário já estiver amarrado. Sem
+    // CLERK_SECRET_KEY nem sequer é chamado: o caminho abaixo é o de sempre.
+    if (clerkAtivo) {
+      const userIdClerk = await resolverUsuarioDoClerk(token);
+      if (userIdClerk) {
+        req.userId = userIdClerk;
+        next();
+        return;
+      }
+    }
+
     const { userId } = verifyToken(token);
     req.userId = userId;
     next();

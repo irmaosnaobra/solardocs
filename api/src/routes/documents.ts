@@ -9,7 +9,10 @@ const router = Router();
 function downloadAuth(req: Request, res: Response, next: NextFunction): void {
   // 1. Header já presente (fetch com Authorization)
   if (req.headers.authorization?.startsWith('Bearer ')) {
-    return authMiddleware(req, res, next);
+    // authMiddleware virou async (checa Clerk antes do JWT); quem responde é ele,
+    // aqui só paramos. O void deixa explícito que a promise é dele, não nossa.
+    void authMiddleware(req, res, next);
+    return;
   }
 
   // 2. req.query (Express parser)

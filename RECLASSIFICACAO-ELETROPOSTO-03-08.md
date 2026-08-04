@@ -34,12 +34,22 @@ Demais eixos conforme o briefing: PONTO 0–3, CAPITAL 0–3, PERFIL/FLUXO 0–3
 **Agenda liberada: 14 slots × 30 min = 7h de calendário — ~21h de sócio** (prep + reunião +
 follow-up a 1,5h por reunião, régua do próprio ECOSSISTEMA).
 
-**Pipeline NOTA 3: 2 × R$ 160.000 = R$ 320.000** · margem bruta 2 × R$ 60.000 = R$ 120.000.
+**Pipeline NOTA 3: 2 × R$ 144.595 = R$ 289.190.**
+
+> **Reprecificado em 02/08/2026.** Este documento foi escrito com o 80 kW a R$ 160.000
+> (pipeline R$ 320.000). O preço passou a seguir a apresentação comercial e o 80 kW caiu
+> para R$ 144.595 — o pipeline perde R$ 30.810 sem nenhum lead ter saído.
+>
+> **Margem: não recalculei.** Se o custo por unidade não mudou, os R$ 60.000 de margem
+> bruta viram **R$ 44.900** — queda de 25%, de R$ 120.000 para R$ 89.800 nos dois negócios.
+> Só que a origem dos R$ 60.000 não está registrada em lugar nenhum, e margem por unidade
+> é exatamente a pergunta 1 da Parte 7 do `ECOSSISTEMA-ELETROPOSTO.md`, ainda sem resposta.
+> **Confirmar antes de usar esse número em qualquer decisão.**
 
 Metade desse pipeline é contingente: Irineu tem capital declarado de verdade ("Recurso
 próprio + financiamento"), mas **Adonei** é 9 pts só porque interpretei a faixa "R$ 140–260
 mil" como 2. Se ele responder *"ainda não consultei o banco"*, cai para 8 → NOTA 2, e o
-pipeline vira R$ 160.000.
+pipeline vira R$ 144.595.
 
 ### A agenda final (após a remanejada de 01/08)
 
@@ -183,8 +193,14 @@ reprocessam a nota.
 > 2. O local que você tem em vista já tem entrada de energia trifásica?
 > 3. Você já chegou a consultar banco ou financiamento?
 
-A **pergunta 3 é a mais valiosa da lista** — vale R$ 160.000 de pipeline (Adonei) e pode
+A **pergunta 3 é a mais valiosa da lista** — vale R$ 144.595 de pipeline (Adonei) e pode
 promover vários dos 14 leads presos na faixa "R$ 85–140 mil".
+
+> **Atenção depois da reprecificação de 02/08:** a faixa "R$ 85–140 mil" **não compra mais
+> nada** — a configuração de entrada passou a custar R$ 141.673,00. Esses 14 leads não são
+> mais "quase lá": ou entram por financiamento (a LP oferece 72x, cartão 24x e carência de
+> 90 dias), ou não são cliente de obra. A pergunta 3 deixou de ser útil e virou obrigatória
+> para esse grupo.
 
 **2. Reposicionamento de consultoria — nenhum pendente.** O único lead que marcou
 "Consultoria Completa" era o Bruno Acorroni, que caiu na regra de corte. Se você reativar

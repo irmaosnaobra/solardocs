@@ -17,7 +17,10 @@ import type { NextRequest } from 'next/server';
 // '/robots.txt' e '/sitemap.xml' pelo mesmo motivo, e é pior: o Google PEDE os
 // dois e recebia 307 pra tela de login. Arquivo estático de /public só é
 // entregue se o proxy deixar passar.
-const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/robots.txt', '/sitemap.xml'];
+// '/lib' = scripts compartilhados das páginas estáticas (telemetria.js). Toda LP
+// pública pede esse arquivo deslogada; fora daqui o proxy responde 307 pro /auth
+// e o <script> quebra calado em TODA página pública ao mesmo tempo.
+const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/lib', '/robots.txt', '/sitemap.xml'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;

@@ -89,7 +89,10 @@ describe('GET /cron/master', () => {
     expect(res.body.ok).toBe(true);
     // /master retorna results como ARRAY de {task, status, ...} — não objeto com 'executed'.
     expect(Array.isArray(res.body.results)).toBe(true);
-  });
+    // 20s, não os 5s padrão: o /master percorre ~40 tarefas em série e o import do
+    // Sentry/OpenTelemetry (instrument.ts) deixou tudo mais lento sob teste. Mede
+    // ~6s aqui — o limite de 5s reprovava a rota por relógio, não por defeito.
+  }, 20_000);
 
   it('retorna 401 sem token', async () => {
     const res = await request(app).get('/cron/master');
