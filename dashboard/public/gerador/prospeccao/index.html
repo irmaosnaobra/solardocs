@@ -222,8 +222,10 @@ tbody tr:hover{background:#233047}
   .bench > .card:nth-child(3){order:2}      /* mensagem + oferta */
   .fila{max-height:300px}
   body{padding-bottom:132px}
+  /* opaca de verdade: translúcida deixa o conteúdo aparecer atrás dos botões */
+  .sect-desf{display:none}          /* os desfechos vivem na barra, não duplicados no card */
   .mbar{display:block;position:fixed;left:0;right:0;bottom:0;z-index:50;
-    background:rgba(11,18,32,.97);border-top:1px solid var(--line-s);
+    background:#0B1220;border-top:1px solid var(--line-s);
     padding:8px 10px calc(8px + env(safe-area-inset-bottom));
     box-shadow:0 -8px 24px rgba(0,0,0,.45)}
   .mbar .linha1{display:flex;gap:7px;margin-bottom:7px}
@@ -1054,7 +1056,7 @@ function htmlFila(){
           }).join('') : '<div class="virgin">Primeiro contato. Nunca foi abordado por ninguém da equipe.</div>'}
         </div>
 
-        <div class="sect">
+        <div class="sect sect-desf">
           <div class="st">Resultado do contato<span class="hint">— tecla 1 a 6, avança sozinho</span></div>
           <div class="desf">
             ${DESFECHOS.map(d=>`<button class="dbtn" onclick="registrarPorId('${d.id}')"
