@@ -47,6 +47,16 @@ vi.mock('../utils/supabaseGerador', () => ({
   },
 }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
+// Teto anti-ban da linha IO — compartilhado com a Bia e o resto. Foi ele que
+// faltava nos dois agentes de ficha quando o 5040 bloqueou em 04/08.
+let tetoLivre = true;
+const carimbos: string[] = [];
+vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
+  dentroDoTetoHorarioLinha: vi.fn(async () => tetoLivre),
+}));
+vi.mock('../utils/supabase', () => ({
+  supabase: { from: () => ({ upsert: async (r: any) => { carimbos.push(String(r.key)); return { error: null }; } }) },
+}));
 vi.mock('../services/agents/zapiClient', () => ({
   sendHuman: vi.fn(async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); }),
 }));
@@ -66,6 +76,7 @@ function ficha(over: Partial<any> = {}) {
 const envOriginal = { ...process.env };
 beforeEach(() => {
   enviadas.length = 0; updates.length = 0; erroDoUpdate = null;
+  carimbos.length = 0; tetoLivre = true;
   fichas = [ficha()];
   consultores = [{ nome: 'Nilce', whatsapp: '5534991516846' }, { nome: 'Diego', whatsapp: '5534991360172' }];
   delete process.env.SOLAR_BOASVINDAS_OFF;   // no ar por padrão desde a aprovação de 04/08
@@ -158,6 +169,28 @@ describe('o backlog não vira rajada', () => {
     enviadas.length = 0;
     await tick();
     expect(enviadas).toHaveLength(0);
+  });
+});
+
+// O 5040 bloqueou 2× (01–03/ago e 04/08). Na segunda foi a fila de atraso do
+// eletroposto soltando 8 pessoas numa hora, 37 mensagens, num teto de 12 — os
+// dois agentes de ficha estavam FORA do teto por decisão.
+describe('teto anti-ban da linha', () => {
+  it('teto estourado segura o envio pro próximo tick', async () => {
+    tetoLivre = false;
+    expect((await tick()).enviadas).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('cada envio deixa carimbo, senão o agente fura o teto em silêncio', async () => {
+    await tick();
+    expect(carimbos).toEqual(['solar_boasvindas_sent:1']);
+  });
+
+  it('o dry não consulta o teto nem carimba nada', async () => {
+    tetoLivre = false;
+    expect((await tick({ dry: true })).enviadas).toBe(1);
+    expect(carimbos).toHaveLength(0);
   });
 });
 

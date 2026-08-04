@@ -44,6 +44,16 @@ vi.mock('../utils/supabaseGerador', () => ({
   },
 }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
+// Teto anti-ban da linha IO. Faltava aqui: em 04/08 a fila de atraso soltou 8
+// pessoas na mesma hora (37 mensagens, teto 12) e o 5040 bloqueou.
+let tetoLivre = true;
+const carimbos: string[] = [];
+vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
+  dentroDoTetoHorarioLinha: vi.fn(async () => tetoLivre),
+}));
+vi.mock('../utils/supabase', () => ({
+  supabase: { from: () => ({ upsert: async (r: any) => { carimbos.push(String(r.key)); return { error: null }; } }) },
+}));
 vi.mock('../services/agents/zapiClient', () => ({
   sendHuman: vi.fn(async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); }),
 }));
@@ -64,6 +74,7 @@ function ficha(over: Partial<any> = {}) {
 const envOriginal = { ...process.env };
 beforeEach(() => {
   enviadas.length = 0; updates.length = 0;
+  carimbos.length = 0; tetoLivre = true;
   fichas = [ficha()];
   consultores = [{ nome: 'Diego', whatsapp: '5534991360172' }, { nome: 'Thiago', whatsapp: '5534991360223' }];
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
@@ -134,6 +145,29 @@ describe('confirmação ao marcar', () => {
   it('backlog antigo entra em fila lenta: 1 por rodada', async () => {
     fichas = [1, 2, 3].map(id => ficha({ id, quando: emMinutos(3 * 24 * 60), cliente_telefone: `553499111000${id}` }));
     expect((await tick()).confirmacoes).toBe(1);
+  });
+
+  // Foi exatamente isto que bloqueou o 5040 em 04/08: às 08h BRT a janela abriu
+  // com a fila acumulada da noite e a drenagem soltou 8 pessoas na mesma hora —
+  // 37 mensagens numa linha cujo teto é 12, porque este agente não consultava o teto.
+  it('backlog respeita o teto anti-ban da linha', async () => {
+    tetoLivre = false;
+    fichas = [ficha({ quando: emMinutos(3 * 24 * 60) })];
+    expect((await tick()).confirmacoes).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  // A outra metade da regra: reunião acontecendo AGORA fura o teto de propósito.
+  // Segurar o "é agora, o consultor está te esperando" por teto é perder a reunião.
+  it('mas o chamado de 5 minutos fura o teto', async () => {
+    tetoLivre = false;
+    fichas = [ficha({ quando: emMinutos(5), lembrete_1h_at: '2026-08-04T15:00:00.000Z' })];
+    expect((await tick()).lembretes_5min).toBe(1);
+  });
+
+  it('todo envio deixa carimbo pro teto enxergar', async () => {
+    await tick();
+    expect(carimbos).toEqual(['ep_agenda_sent:1:1h']);
   });
 
   it('backlog não é confirmado de madrugada', async () => {

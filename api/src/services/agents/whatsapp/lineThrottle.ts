@@ -40,6 +40,14 @@ const BOT_SENT_PREFIXES = [
   'gerador_seq:',            // sequências da Central de Automação (drip do Gerador)
   'ep_repescagem_sent:',     // repescagem do eletroposto (quem ficou sem resposta no apagão)
   'ep_convite_sent:',        // convite do grupo garantido (nota 1 que a LP não conseguiu convidar)
+  // [04/08] Os dois agentes de ficha estavam FORA do teto por decisão ("é
+  // transacional, quem preencheu está esperando") — e foi essa decisão que
+  // bloqueou a linha pela 2ª vez. Às 08h BRT de 04/08 a fila de atraso do
+  // eletroposto soltou 8 pessoas na mesma hora, 37 mensagens, num teto de 12.
+  // Transacional continua saindo na hora; o que passa a ser contado (e barrado)
+  // é a DRENAGEM de fila, que é o que vira rajada.
+  'ep_agenda_sent:',         // agente de agendamento do eletroposto
+  'solar_boasvindas_sent:',  // boas-vindas do cadastro de solar
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de

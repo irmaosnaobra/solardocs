@@ -51,9 +51,14 @@
 // Kill-switch: EP_LEMBRETES_OFF=1.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
+import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
+
+/** Marcador de envio efetivado, pro teto anti-ban da linha enxergar este agente. */
+export const EP_AGENDA_PREFIX = 'ep_agenda_sent:';
 
 /** As duas origens de eletroposto que caem na tabela `agendamentos`. */
 export const EP_ORIGENS = ['lp_eletroposto', 'manychat_eletroposto'];
@@ -296,7 +301,14 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       return;
     }
     await sendHuman(tel, bolhas, 'io');
-    await supabaseGerador.from('agendamentos').update({ [campo]: new Date().toISOString() }).eq('id', ag.id);
+    // Carimbo pro teto anti-ban da linha (lineThrottle: `ep_agenda_sent:`). Este
+    // agente vivia FORA do teto, e em 04/08 a fila de atraso soltou 8 pessoas na
+    // mesma hora — 37 mensagens numa linha cujo teto é 12. A linha bloqueou.
+    const agoraIso = new Date().toISOString();
+    await supabase.from('system_state')
+      .upsert({ key: `${EP_AGENDA_PREFIX}${ag.id}:${toque}`, value: { em: agoraIso }, updated_at: agoraIso }, { onConflict: 'key' })
+      .then(undefined, (e: unknown) => logger.error('ep-agenda', 'carimbo do teto da linha falhou', { id: ag.id, erro: String(e) }));
+    await supabaseGerador.from('agendamentos').update({ [campo]: agoraIso }).eq('id', ag.id);
   };
 
   for (const ag of data as Ficha[]) {
@@ -337,6 +349,15 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     if (!fresca) {
       // Backlog: fila lenta, horário civilizado e só se a reunião ainda está longe.
       if (foraDeHorario || backlog >= BACKLOG_POR_TICK || minutos < BACKLOG_ANTECEDENCIA_MIN) continue;
+      // E dentro do teto anti-ban da linha. Faltava isto: em 04/08, às 08h BRT,
+      // a janela abriu com fila acumulada da noite e ESTA drenagem soltou 8
+      // pessoas na mesma hora — 37 mensagens, teto de 12, linha bloqueada pela
+      // 2ª vez. Ficha FRESCA e os avisos de 1h/5min seguem furando o teto de
+      // propósito: são de reunião acontecendo agora. Backlog não é urgente.
+      if (!opts.dry && !(await dentroDoTetoHorarioLinha())) {
+        logger.info('ep-agenda', 'teto da linha estourado — fila de atraso espera o próximo tick');
+        continue;
+      }
       backlog++;
     }
     try {

@@ -51,10 +51,16 @@
 // dos agentes que já estão no ar (EP_LEMBRETES_OFF, EP_RESPOSTAS_OFF).
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
+import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { telefoneBonito } from './eletropostoAgenda';
+
+/** Marcador de envio efetivado. É por ele que o teto anti-ban da linha enxerga
+ *  este agente — sem isto ele fura o teto em silêncio (ver lineThrottle.ts). */
+export const SOLAR_BV_PREFIX = 'solar_boasvindas_sent:';
 
 /** As origens que caem na tabela `agendamentos` como ENERGIA SOLAR.
  *  Mesmo agrupamento do "Leads por Origem" do /admin (admin.ts:200).
@@ -256,6 +262,15 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     candidatos++;
     if (enviadas >= MAX_POR_TICK) continue;   // conta o que sobrou pro log de corte
 
+    // Teto anti-ban da linha, compartilhado com a Bia, o followup e o resto.
+    // Este agente ficava FORA dele ("é transacional") — mesma decisão que, no
+    // agente do eletroposto, bloqueou o 5040 pela 2ª vez em 04/08. Uma pessoa
+    // aqui custa 6 mensagens; estourar o teto é barato e sai caro.
+    if (!opts.dry && !(await dentroDoTetoHorarioLinha())) {
+      logger.info('solar-boas-vindas', 'teto da linha estourado — fica pro próximo tick', { esperando: candidatos - enviadas });
+      break;
+    }
+
     const telDoConsultor = telPorConsultor.get(String(ficha.vendedor_nome || '')) ?? null;
     const bolhas = bolhasBoasVindas(ficha.cliente_nome, ficha.vendedor_nome, telDoConsultor);
 
@@ -286,6 +301,15 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     jaTocadas.add(ficha.id);
     if (jaTocadas.size > 500) jaTocadas.clear();
     enviadas++;
+
+    // Carimbo pro teto da linha. Vai ANTES da flag da ficha e sem try/catch de
+    // parada: se este marcador falhar, o agente segue — mas o teto passa a
+    // subestimar a hora, então o erro é logado alto.
+    const nowIso = new Date().toISOString();
+    await supabase.from('system_state')
+      .upsert({ key: `${SOLAR_BV_PREFIX}${ficha.id}`, value: { em: nowIso }, updated_at: nowIso }, { onConflict: 'key' })
+      .then(undefined, (e: unknown) =>
+        logger.error('solar-boas-vindas', 'carimbo do teto da linha falhou', { id: ficha.id, erro: String(e) }));
     try {
       await marcarTocada(ficha.id);
     } catch (e) {
