@@ -393,6 +393,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { titulo: '1º toque — pede o clique', quando: 'quando alguém comenta', copy: '"Clica no botão abaixo (ou responde LINK aqui) que eu já te mando o link". Quick reply, não link: o toque vem como resposta e abre a janela de 24h.' },
         { titulo: '2º toque — pede o seguir', quando: 'assim que a pessoa responde', copy: '"Esse link é especial pra quem me segue. Me segue e toca no botão (ou responde SEGUINDO)".' },
         { titulo: '3º toque — o link', quando: 'na 2ª resposta', copy: 'Aí vai a copy da automação com o link. Quem já seguiu uma vez recebe direto no 1º toque. A copy é editada no painel do Gerador; IG_GATE_OFF desliga o porteiro.' },
+        { titulo: 'lembrete', quando: '1h depois da 1ª DM sair', copy: 'Quem parou no "me segue" recebe o nudge; quem já pegou o link recebe "conseguiu abrir?". Quem NUNCA respondeu não recebe — DM exige janela de 24h aberta, e é a resposta que abre. Um por pessoa, mesmo que ela comente três vezes. IG_LEMBRETE_1H_OFF desliga.' },
       ],
     },
     {

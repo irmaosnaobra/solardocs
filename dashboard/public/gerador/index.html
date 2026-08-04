@@ -2719,6 +2719,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div style="flex:1;min-width:200px"><label class="auto-lbl">Lembrete por tempo (opcional)</label><input class="auto-inp" id="auto-ig-lembrete" placeholder="Ainda dá tempo, quer ajuda?"></div>
           <div><label class="auto-lbl">Após (horas)</label><input class="auto-inp" type="number" id="auto-ig-lembrete-h" value="24" min="1" style="width:100px"></div>
         </div>
+        <div class="auto-row" style="margin-top:12px">
+          <div style="flex:1;min-width:220px"><label class="auto-lbl">Lembrete de 1 hora <span style="color:#64748b">— sai 1h depois da 1ª DM; vazio = copy padrão</span></label><input class="auto-inp" id="auto-ig-l1h" placeholder="Conseguiu abrir o link? 👀"></div>
+          <label class="auto-chip" style="cursor:pointer;align-self:flex-end" title="Quem não passou pelo porteiro recebe o 'faltou me seguir' no lugar. Quem nunca respondeu não recebe nada — regra da Meta (janela de 24h)."><input type="checkbox" id="auto-ig-l1h-off" style="margin-right:6px">Sem lembrete de 1h</label>
+        </div>
         <button type="button" class="auto-btn" style="margin-top:14px" onclick="autoIgSalvar()">Salvar automação</button>
         <span id="auto-ig-msg" class="auto-mini"></span>
       </div>
@@ -10635,13 +10639,16 @@ if ('serviceWorker' in navigator) {
       gate_pedir_botao:val('auto-ig-gate-pedir-btn').trim()||null,
       gate_seguir_texto:val('auto-ig-gate-seguir').trim()||null,
       gate_seguir_botao:val('auto-ig-gate-seguir-btn').trim()||null,
+      lembrete_1h_texto:val('auto-ig-l1h').trim()||null,
+      lembrete_1h_off:document.getElementById('auto-ig-l1h-off').checked,
     };
     try{
       await supaInsert('ig_automations', rec);
-      ['auto-ig-nome','auto-ig-kw','auto-ig-post','auto-ig-pub','auto-ig-dm','auto-ig-btn','auto-ig-link','auto-ig-lembrete','auto-ig-gate-pedir','auto-ig-gate-pedir-btn','auto-ig-gate-seguir','auto-ig-gate-seguir-btn'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+      ['auto-ig-nome','auto-ig-kw','auto-ig-post','auto-ig-pub','auto-ig-dm','auto-ig-btn','auto-ig-link','auto-ig-lembrete','auto-ig-gate-pedir','auto-ig-gate-pedir-btn','auto-ig-gate-seguir','auto-ig-gate-seguir-btn','auto-ig-l1h'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
       document.getElementById('auto-ig-prio').value='100';
       document.getElementById('auto-ig-fallback').checked=false;
       document.getElementById('auto-ig-gate-off').checked=false;
+      document.getElementById('auto-ig-l1h-off').checked=false;
       document.getElementById('auto-ig-produto').value='';
       document.getElementById('auto-ig-msg').textContent=' Automação salva!';
       autoIgCarregarAutomacoes();
@@ -10673,5 +10680,6 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
+  <script src="/lib/telemetria.js" defer></script>
 </body>
 </html>

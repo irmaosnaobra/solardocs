@@ -39,6 +39,8 @@ export interface GateAuto {
   gate_pedir_botao?: string | null;
   gate_seguir_texto?: string | null;
   gate_seguir_botao?: string | null;
+  lembrete_1h_texto?: string | null;
+  lembrete_1h_off?: boolean | null;
 }
 
 /** Estado guardado em ig_contacts (projeto MAIN). */
@@ -129,3 +131,34 @@ export function payloadSeguir(a: GateAuto): GatePayload {
  * passou pelo porteiro transforma o porteiro em quebra-molas.
  */
 export function nudgeGate(_a: GateAuto): string { return NUDGE; }
+
+// ── LEMBRETE DE 1 HORA ───────────────────────────────────────────────────────
+// Sai 1h depois de a PRIMEIRA DM ter saído de verdade (não do comentário: o
+// relógio começa no envio confirmado pela Meta).
+//
+// Limite que não é nosso: DM só sai com a janela de 24h aberta, e quem abre a
+// janela é a RESPOSTA da pessoa. Então quem nunca respondeu a primeira DM não
+// recebe lembrete nenhum — a fila marca 'janela_24h_fechada' e pula. O lembrete
+// pega quem respondeu: parou no "me segue" (vai o nudge) ou já pegou o link
+// (vai o "conseguiu abrir?").
+export const L1H_ATRASO_MS = 3600_000;
+
+const L1H_COM_LINK = 'Passei só pra saber: conseguiu abrir o link? 👀\n\nSe quiser, é por aqui:';
+const L1H_SEM_LINK = 'Passei só pra saber se você viu o que eu te mandei 👀\n\nQualquer dúvida, me chama por aqui!';
+
+export interface Lembrete1h {
+  to: string;                 // ig_user_id (a fila do private_reply guarda o comment_id)
+  text: string;
+  gate_nudge?: string;        // usado se a pessoa ainda não passou pelo porteiro
+}
+
+/** null = automação com o lembrete de 1h desligado. */
+export function lembrete1h(a: GateAuto, to: string): Lembrete1h | null {
+  if ((process.env.IG_LEMBRETE_1H_OFF || '').trim() === 'true') return null;
+  if (a.lembrete_1h_off) return null;
+  const link = (a.link_url || '').trim();
+  const padrao = link ? `${L1H_COM_LINK}\n${link}` : L1H_SEM_LINK;
+  const item: Lembrete1h = { to, text: txt(a.lembrete_1h_texto, padrao) };
+  if (gateAtivo(a)) item.gate_nudge = NUDGE;
+  return item;
+}

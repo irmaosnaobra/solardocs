@@ -31,7 +31,7 @@ import {
 } from './igClient';
 import {
   GateEstado, GateEtapa, GateAcao, gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta,
-  etapaDepois, payloadPedido, payloadSeguir, nudgeGate,
+  etapaDepois, payloadPedido, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS,
 } from './igGate';
 
 const IG_MAX_POR_HORA = Number(process.env.IG_MAX_POR_HORA || 180);
@@ -50,6 +50,7 @@ interface Automation {
   gate_off?: boolean | null;
   gate_pedir_texto?: string | null; gate_pedir_botao?: string | null;
   gate_seguir_texto?: string | null; gate_seguir_botao?: string | null;
+  lembrete_1h_texto?: string | null; lembrete_1h_off?: boolean | null;
 }
 
 type Gatilho = 'comment' | 'story' | 'dm';
@@ -150,7 +151,7 @@ async function upsertContact(igUserId: string, username: string | null, automati
   if (reply) patch.last_reply_at = new Date().toISOString();
   await supabase.from('ig_contacts').upsert(patch, { onConflict: 'ig_user_id' });
 }
-async function enqueue(item: { tipo: string; automation_id: string; recipient: string; payload: any; needs_window: boolean; enviar_apos?: string }): Promise<void> {
+async function enqueue(item: { tipo: string; automation_id: string | null; recipient: string; payload: any; needs_window: boolean; enviar_apos?: string }): Promise<void> {
   await supabase.from('ig_queue').insert({
     tipo: item.tipo, automation_id: item.automation_id, recipient: item.recipient,
     payload: item.payload, needs_window: item.needs_window, enviar_apos: item.enviar_apos || new Date().toISOString(),
@@ -254,6 +255,9 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
       ...(acao === 'pedir' ? payloadPedido(a) : acao === 'seguir' ? payloadSeguir(a) : welcomePayload(a)),
       pub_ok: pick(a.respostas_publicas || []),
       pub_fail: username ? `@${username} me chama no direct que eu te mando tudo 👉` : null,
+      // O relógio do lembrete de 1h começa quando ESTA DM sair (a fila enfileira
+      // o lembrete depois do envio confirmado, não agora).
+      l1h: lembrete1h(a, fromId),
     },
   });
   await enqueueReminderIfAny(a, fromId);
@@ -308,7 +312,8 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
     const acao = acaoNaAbertura(a, estado);
     if (acao === 'pedir') await abrirGate(senderId, a.id);
     // Conversa já aberta → DM direta (não precisa de janela).
-    const payload = acao === 'pedir' ? payloadPedido(a) : welcomePayload(a);
+    const payload: any = acao === 'pedir' ? payloadPedido(a) : welcomePayload(a);
+    payload.l1h = lembrete1h(a, senderId);
     await enqueue({ tipo: 'dm', automation_id: a.id, recipient: senderId, payload, needs_window: false });
     await enqueueReminderIfAny(a, senderId);
   }
@@ -330,6 +335,22 @@ async function depositarLead(igUserId: string, telefone: string, a: Automation |
       contact_id: 'ig_' + igUserId,
     });
   } catch (err) { logger.error('ig', 'deposito CRM falhou', err); }
+}
+
+/**
+ * Lembrete 1h depois da primeira DM. Tipo próprio ('followup_1h') pra não
+ * misturar com o lembrete longo da automação — e é ele que dá o dedup: quem
+ * comenta três vezes no mesmo anúncio recebe UM lembrete, não três.
+ */
+async function agendarLembrete1h(automationId: string | null, l1h: { to: string; text: string; gate_nudge?: string }): Promise<void> {
+  const { data: pendente } = await supabase.from('ig_queue').select('id')
+    .eq('tipo', 'followup_1h').eq('recipient', l1h.to).eq('status', 'pending').limit(1);
+  if (pendente && pendente.length) return;
+  await enqueue({
+    tipo: 'followup_1h', automation_id: automationId, recipient: l1h.to,
+    payload: { text: l1h.text, ...(l1h.gate_nudge ? { gate_nudge: l1h.gate_nudge } : {}) },
+    needs_window: true, enviar_apos: new Date(Date.now() + L1H_ATRASO_MS).toISOString(),
+  });
 }
 
 // ── DRENAGEM DA FILA ────────────────────────────────────────────────────────────
@@ -371,7 +392,7 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
     // Lembrete de quem parou no porteiro não pode levar o link (o texto da
     // automação traz a URL crua) — vai o nudge pedindo pra seguir.
     let payload: any = item.payload;
-    if (item.tipo === 'followup' && payload?.gate_nudge && !contato?.gate_liberado_em) {
+    if (String(item.tipo).startsWith('followup') && payload?.gate_nudge && !contato?.gate_liberado_em) {
       payload = { text: payload.gate_nudge };
     }
 
@@ -399,6 +420,9 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
       if (item.tipo === 'private_reply' && item.payload?.pub_ok) {
         await enqueue({ tipo: 'public_reply', automation_id: item.automation_id, recipient: item.recipient, payload: { text: item.payload.pub_ok }, needs_window: false });
       }
+      // …e agora começa a contar 1h pro lembrete. Aqui, e não no comentário,
+      // porque o pedido do dono é "1h depois que a DM foi enviada".
+      if (item.payload?.l1h?.to) await agendarLembrete1h(item.automation_id, item.payload.l1h);
     } catch (err: any) {
       await supabase.from('ig_queue').update({ status: 'failed', erro: String(err?.message || err).slice(0, 300) }).eq('id', item.id);
       logger.error('ig', `envio ${item.tipo} falhou`, err);

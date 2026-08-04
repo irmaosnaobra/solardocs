@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 // igGate é puro (nada de supabase) — dá pra testar a máquina de estados direto.
 import {
   gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta, etapaDepois,
-  payloadPedido, payloadSeguir, nudgeGate, GATE_VALIDADE_MS,
+  payloadPedido, payloadSeguir, nudgeGate, lembrete1h, GATE_VALIDADE_MS, L1H_ATRASO_MS,
 } from '../services/instagram/igGate';
 
 const comLink = { id: 'eletro', link_url: 'https://solardoc.app/io/eletroposto?src=ig' };
@@ -11,7 +11,7 @@ const semLink = { id: 'menu', link_url: null };           // Menu / rede de segu
 const AGORA = new Date('2026-08-04T12:00:00Z').getTime();
 const haMinutos = (m: number) => new Date(AGORA - m * 60000).toISOString();
 
-beforeEach(() => { delete process.env.IG_GATE_OFF; });
+beforeEach(() => { delete process.env.IG_GATE_OFF; delete process.env.IG_LEMBRETE_1H_OFF; });
 
 describe('porteiro do link — quem passa pelo fluxo', () => {
   it('automação com link entra no porteiro; sem link, não', () => {
@@ -100,6 +100,34 @@ describe('porteiro do link — o link não escapa', () => {
   it('rótulo do botão respeita o limite de 20 caracteres da Meta', () => {
     const longo = { ...comLink, gate_pedir_botao: 'Me manda esse link agora por favor' };
     expect(payloadPedido(longo).quick_replies?.[0].title.length).toBe(20);
+  });
+
+  it('o lembrete de 1h leva o link só pra quem já passou pelo porteiro', () => {
+    const l = lembrete1h(comLink, '178001')!;
+    expect(l.to).toBe('178001');
+    // texto de quem passou: pode levar o link
+    expect(l.text).toContain(comLink.link_url);
+    // e o alternativo pra quem parou no meio NÃO leva
+    expect(l.gate_nudge).toBeTruthy();
+    expect(l.gate_nudge).not.toContain('http');
+    expect(L1H_ATRASO_MS).toBe(3600_000);
+  });
+
+  it('automação sem porteiro não carrega alternativa de nudge', () => {
+    const l = lembrete1h(semLink, '178001')!;
+    expect(l.gate_nudge).toBeUndefined();
+    expect(l.text).not.toContain('http');
+  });
+
+  it('lembrete de 1h desliga por automação e por ambiente', () => {
+    expect(lembrete1h({ ...comLink, lembrete_1h_off: true }, '1')).toBeNull();
+    process.env.IG_LEMBRETE_1H_OFF = 'true';
+    expect(lembrete1h(comLink, '1')).toBeNull();
+  });
+
+  it('copy do lembrete de 1h pode ser trocada no painel', () => {
+    const l = lembrete1h({ ...comLink, lembrete_1h_texto: 'Ó o link aí 👇' }, '1')!;
+    expect(l.text).toBe('Ó o link aí 👇');
   });
 
   it('copy da automação sobrescreve o padrão', () => {
