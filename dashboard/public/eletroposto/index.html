@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+<script>document.documentElement.className="js"</script>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -228,6 +229,17 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
   body{padding-bottom:86px}
 }
 
+/* ---------- animação de entrada ----------
+   Só existe com JS ligado (html.js) e só para quem não pediu menos movimento.
+   Sem JS a página aparece inteira e normal: conteúdo nunca depende de script. */
+html.js .reveal{opacity:0;transform:translateY(26px)}
+@media(prefers-reduced-motion:reduce){ html.js .reveal{opacity:1;transform:none} }
+
+/* tela WebGL do hero (three.js) — atrás da foto, nunca por cima do texto */
+#tela3d{position:absolute;inset:0;z-index:1;opacity:.5;pointer-events:none}
+.hero .sc{z-index:2}
+.hero .wrap{z-index:3}
+
 .sep{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
 </style>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "ProfessionalService", "@id": "https://solardoc.app/eletroposto#empresa", "name": "Irmãos na Obra Mobilidade Elétrica", "description": "Instalação de eletropostos e estações de recarga para veículos elétricos em todo o Brasil: projeto elétrico, parecer de acesso, obra, comissionamento e operação.", "url": "https://solardoc.app/eletroposto", "image": "https://solardoc.app/eletroposto/img/capa.jpg", "logo": "https://solardoc.app/eletroposto/img/logo-io.png", "telephone": "+5534998165040", "areaServed": {"@type": "Country", "name": "Brasil"}, "address": {"@type": "PostalAddress", "addressRegion": "MG", "addressCountry": "BR"}, "sameAs": ["https://instagram.com/irmaosnaobra__"], "knowsAbout": ["eletroposto", "estação de recarga", "carregador para carro elétrico", "carregador DC", "wallbox", "mobilidade elétrica"], "hasOfferCatalog": {"@type": "OfferCatalog", "name": "Serviços de mobilidade elétrica", "itemListElement": [{"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Instalação de eletroposto chave na mão"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Carregador rápido DC de 40 a 160 kW"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Carregador AC wallbox de 7,3 a 22 kW"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Projeto elétrico e ART no CREA"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Parecer de acesso na concessionária"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Manutenção e suporte de estações de recarga"}}]}}</script>
@@ -256,7 +268,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
 
 <!-- ══════════ HERO ══════════ -->
 <section class="hero" id="topo">
-  <div class="bg"></div><div class="sc"></div>
+  <div class="bg"></div><canvas id="tela3d"></canvas><div class="sc"></div>
   <div class="wrap">
     <div class="eyebrow">Eletropostos · chave na mão</div>
     <h1>Instalação de eletroposto<br><span class="mark">chave na mão</span></h1>
@@ -316,28 +328,28 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <p class="lead">Tudo o que um ponto de recarga precisa, do estudo do local à operação — com
       responsabilidade técnica assinada.</p>
     <div class="cards">
-      <div class="card"><h3>Instalação de eletroposto</h3>
+      <div class="card reveal"><h3>Instalação de eletroposto</h3>
         <p>Estação de recarga completa para empresas, postos, hotéis, supermercados, shoppings,
         condomínios e estacionamentos. Obra chave na mão.</p></div>
-      <div class="card"><h3>Carregador rápido DC</h3>
+      <div class="card reveal"><h3>Carregador rápido DC</h3>
         <p>Carregadores de corrente contínua de 40 a 160 kW, conector CCS2, um ou dois veículos
         simultâneos — para quem precisa devolver autonomia em minutos.</p></div>
-      <div class="card"><h3>Carregador AC / wallbox</h3>
+      <div class="card reveal"><h3>Carregador AC / wallbox</h3>
         <p>Wallbox de 7,3, 11 e 22 kW com conector Tipo 2, parede ou pedestal — para longa
         permanência, frota e uso residencial.</p></div>
-      <div class="card"><h3>Projeto elétrico e ART</h3>
+      <div class="card reveal"><h3>Projeto elétrico e ART</h3>
         <p>Projeto elétrico, projeto executivo, entrada de energia e ART registrada no CREA por
         engenheiro do nosso quadro.</p></div>
-      <div class="card"><h3>Parecer de acesso</h3>
+      <div class="card reveal"><h3>Parecer de acesso</h3>
         <p>Representação junto à concessionária: o parecer de acesso é o gargalo que trava a
         maioria dos projetos, e ele é nosso.</p></div>
-      <div class="card"><h3>Obra civil e infraestrutura</h3>
+      <div class="card reveal"><h3>Obra civil e infraestrutura</h3>
         <p>Base, infraestrutura elétrica, transformador quando necessário, quadro de proteção,
         internet, CFTV, pintura e sinalização das vagas.</p></div>
-      <div class="card"><h3>Plataforma e aplicativo</h3>
+      <div class="card reveal"><h3>Plataforma e aplicativo</h3>
         <p>Gestão, cobrança e monitoramento remoto com o nosso app — o motorista localiza a
         estação, ativa a recarga e paga pelo celular.</p></div>
-      <div class="card"><h3>Manutenção e suporte</h3>
+      <div class="card reveal"><h3>Manutenção e suporte</h3>
         <p>Manutenção preventiva e corretiva com equipe própria, peça de reposição no Brasil e
         contrato de SLA após a garantia.</p></div>
     </div>
@@ -356,15 +368,15 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <div class="eyebrow">O momento do mercado</div>
     <h2>A frota cresceu. <span class="g">A infraestrutura não acompanhou.</span></h2>
     <div class="stats">
-      <div class="stat">
+      <div class="stat reveal">
         <div class="n">181 mil</div>
         <div class="t">veículos plug-in vendidos no Brasil em 2025 — crescimento de <b>26%</b> em um ano.</div>
       </div>
-      <div class="stat">
+      <div class="stat reveal">
         <div class="n">21 mil</div>
         <div class="t">pontos de recarga no país inteiro — alta de <b>42%</b> em 12 meses.</div>
       </div>
-      <div class="stat">
+      <div class="stat reveal">
         <div class="n">1 para 8,6</div>
         <div class="t">são <b>8,6 veículos vendidos em 2025</b> para cada ponto de recarga que existe.</div>
       </div>
@@ -384,16 +396,16 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <div class="eyebrow">Para o dono do ponto</div>
     <h2>O que uma estação faz pelo <span class="mark">seu negócio</span></h2>
     <div class="cards">
-      <div class="card"><div class="n">01</div><h3>Atração de clientela</h3>
+      <div class="card reveal"><div class="n">01</div><h3>Atração de clientela</h3>
         <p>A estação atrai usuários de carros elétricos, aumenta o fluxo e impulsiona o faturamento.
         É um público das classes A e B, com alto poder de consumo.</p></div>
-      <div class="card"><div class="n">02</div><h3>Receita adicional</h3>
+      <div class="card reveal"><div class="n">02</div><h3>Receita adicional</h3>
         <p>O carregador gera receita pela venda de energia e pela cessão do espaço — e a taxa de
         ociosidade também entra no caixa do ponto.</p></div>
-      <div class="card"><div class="n">03</div><h3>Taxa de ocupação</h3>
+      <div class="card reveal"><div class="n">03</div><h3>Taxa de ocupação</h3>
         <p>Ter ponto de recarga torna o estabelecimento a escolha natural de quem dirige elétrico,
         e aumenta o tempo de permanência dentro dele.</p></div>
-      <div class="card"><div class="n">04</div><h3>Fidelização e ESG</h3>
+      <div class="card reveal"><div class="n">04</div><h3>Fidelização e ESG</h3>
         <p>Fortalece a imagem sustentável do negócio e alinha a marca às práticas de ESG que o
         mercado passou a cobrar.</p></div>
     </div>
@@ -467,7 +479,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <div class="eyebrow">Equipamento</div>
     <h2>Linha <span class="g">SunMob</span> — AC e DC, com pronta entrega no Brasil</h2>
 
-    <div class="prod">
+    <div class="prod reveal">
       <div class="ph"><img src="/eletroposto/img/produto-dc.jpg" width="1040" height="1418" alt="Carregador DC SunMob de recarga rápida para carro elétrico, de 40 a 160 kW" loading="lazy"></div>
       <div>
         <h3>Fast Charge — DC</h3>
@@ -483,7 +495,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
       </div>
     </div>
 
-    <div class="prod">
+    <div class="prod reveal">
       <div class="ph"><img src="/eletroposto/img/produto-ac.jpg" width="520" height="1121" alt="Wallbox AC SunMob Livoltek com conector Tipo 2, de 7,3 a 22 kW" loading="lazy"></div>
       <div>
         <h3>Wallbox — AC</h3>
@@ -516,7 +528,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <div class="eyebrow">Modelos de negócio</div>
     <h2>Dois caminhos para ter<br>uma estação no seu ponto</h2>
     <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
-      <div class="card">
+      <div class="card reveal">
         <div class="n">Modelo 1</div>
         <h3>Investimento próprio — 100% seu</h3>
         <ul class="ticks" style="margin-top:16px">
@@ -526,7 +538,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
             a plataforma de gestão.</li>
         </ul>
       </div>
-      <div class="card">
+      <div class="card reveal">
         <div class="n">Modelo 2</div>
         <h3>Locação de espaço</h3>
         <ul class="ticks" style="margin-top:16px">
@@ -538,7 +550,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
       </div>
     </div>
 
-    <div class="invest">
+    <div class="invest reveal">
       <div class="eyebrow" style="margin-bottom:6px">Investimento</div>
       <div class="v">Cada ponto tem um número</div>
       <div class="d">
@@ -558,13 +570,13 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <div class="eyebrow">Onde uma estação faz sentido</div>
     <h2>Cada ponto pede uma <span class="g">potência diferente</span></h2>
     <div class="pontos">
-      <div class="ponto"><img src="/eletroposto/img/caso-posto.jpg" width="620" height="349" alt="Eletroposto de recarga rápida em posto de combustível e conveniência" loading="lazy">
+      <div class="ponto reveal"><img src="/eletroposto/img/caso-posto.jpg" width="620" height="349" alt="Eletroposto de recarga rápida em posto de combustível e conveniência" loading="lazy">
         <div class="lb"><div class="t">Posto e conveniência</div><div class="k">160 kW</div></div></div>
-      <div class="ponto"><img src="/eletroposto/img/caso-hotel.jpg" width="620" height="318" alt="Carregador para carro elétrico instalado em hotel e pousada" loading="lazy">
+      <div class="ponto reveal"><img src="/eletroposto/img/caso-hotel.jpg" width="620" height="318" alt="Carregador para carro elétrico instalado em hotel e pousada" loading="lazy">
         <div class="lb"><div class="t">Hotel e pousada</div><div class="k">60 kW</div></div></div>
-      <div class="ponto"><img src="/eletroposto/img/caso-mercado.jpg" width="620" height="349" alt="Estação de recarga em estacionamento de supermercado e shopping" loading="lazy">
+      <div class="ponto reveal"><img src="/eletroposto/img/caso-mercado.jpg" width="620" height="349" alt="Estação de recarga em estacionamento de supermercado e shopping" loading="lazy">
         <div class="lb"><div class="t">Supermercado e shopping</div><div class="k">80 kW</div></div></div>
-      <div class="ponto"><img src="/eletroposto/img/caso-condominio.jpg" width="620" height="349" alt="Wallbox de recarga em garagem de condomínio e estacionamento" loading="lazy">
+      <div class="ponto reveal"><img src="/eletroposto/img/caso-condominio.jpg" width="620" height="349" alt="Wallbox de recarga em garagem de condomínio e estacionamento" loading="lazy">
         <div class="lb"><div class="t">Condomínio e estacionamento</div><div class="k">22 kW AC</div></div></div>
     </div>
     <div class="fonte">Imagens ilustrativas de projeto.</div>
@@ -580,33 +592,33 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <div class="eyebrow">Perguntas frequentes</div>
     <h2>Dúvidas de quem está <span class="g">avaliando um ponto</span></h2>
     <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
-      <div class="card"><h3>O que é um eletroposto?</h3>
+      <div class="card reveal"><h3>O que é um eletroposto?</h3>
         <p>É uma estação de recarga para veículos elétricos instalada num ponto comercial ou
         privado. O motorista conecta o carro, a recarga é liberada pelo aplicativo e o dono do
         ponto recebe pela energia vendida.</p></div>
-      <div class="card"><h3>O que está incluso na instalação?</h3>
+      <div class="card reveal"><h3>O que está incluso na instalação?</h3>
         <p>Visita técnica, estudo de viabilidade, projeto elétrico e executivo, entrada de energia,
         parecer de acesso na concessionária, obra civil, infraestrutura elétrica, instalação do
         carregador, sinalização das vagas, configuração da plataforma e comissionamento.</p></div>
-      <div class="card"><h3>Preciso de parecer de acesso da concessionária?</h3>
+      <div class="card reveal"><h3>Preciso de parecer de acesso da concessionária?</h3>
         <p>Sim, na maioria dos casos — e é o que mais trava projeto de eletroposto. A
         representação junto à distribuidora é nossa, com ART registrada no CREA.</p></div>
-      <div class="card"><h3>Qual potência escolher?</h3>
+      <div class="card reveal"><h3>Qual potência escolher?</h3>
         <p>Depende do tempo que o veículo fica parado no seu ponto. Posto e rodovia pedem recarga
         rápida DC; hotel, supermercado e shopping funcionam bem com potência intermediária;
         condomínio e estacionamento de longa permanência resolvem com wallbox AC.</p></div>
-      <div class="card"><h3>Vocês atendem em todo o Brasil?</h3>
+      <div class="card reveal"><h3>Vocês atendem em todo o Brasil?</h3>
         <p>Sim. A base fica no Triângulo Mineiro e atendemos projetos em todo o território
         nacional.</p></div>
-      <div class="card"><h3>E se o equipamento apresentar defeito?</h3>
+      <div class="card reveal"><h3>E se o equipamento apresentar defeito?</h3>
         <p>O equipamento é nacionalizado e fica em estoque no Brasil, assim como a peça de
         reposição — a troca não depende de importação. Os wallbox têm 2 anos de garantia de
         fábrica, e a manutenção é feita por equipe própria.</p></div>
-      <div class="card"><h3>Quanto custa uma estação?</h3>
+      <div class="card reveal"><h3>Quanto custa uma estação?</h3>
         <p>Depende da potência que o ponto pede e da infraestrutura elétrica que ele já tem. Fazemos
         o estudo de viabilidade do seu endereço e apresentamos o orçamento fechado, com opções de
         cartão, financiamento e carência.</p></div>
-      <div class="card"><h3>Preciso investir para ter uma estação?</h3>
+      <div class="card reveal"><h3>Preciso investir para ter uma estação?</h3>
         <p>Não necessariamente. No modelo de locação de espaço, a Irmãos na Obra custeia 100% da
         implantação e o dono do ponto recebe aluguel fixo pelas vagas ou percentual do faturamento
         da operação.</p></div>
@@ -669,5 +681,125 @@ document.querySelectorAll('[data-opcional]').forEach(el => {
   <a class="btn" href="/io/eletroposto#agendar">Agendar reunião — sem compromisso</a>
 </div>
 
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     ANIMAÇÃO — as quatro bibliotecas
+     Todas carregam DEPOIS da página pintar (defer/dinâmico), então nenhuma
+     atrasa o primeiro paint nem o CTA. Se qualquer uma falhar, a página
+     continua inteira e clicável: nada de conteúdo depende de script.
+     ══════════════════════════════════════════════════════════════════════ -->
+<script defer src="https://cdn.jsdelivr.net/npm/motion@11/dist/motion.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script>
+window.addEventListener('load', () => {
+  const menosMovimento = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const noCelular = innerWidth < 880;
+  const mostrarTudo = () => document.querySelectorAll('.reveal')
+      .forEach(el => { el.style.opacity = 1; el.style.transform = 'none'; });
+
+  if (menosMovimento) { mostrarTudo(); return; }
+
+  /* ── MOTION (21 KB) — revela cada bloco quando ele entra na tela ── */
+  const fixar = el => { el.style.opacity = 1; el.style.transform = 'none'; };
+  if (window.Motion) {
+    Motion.inView('.reveal', ({ target }) => {
+      Motion.animate(target, { opacity: [0, 1], y: [26, 0] },
+        { duration: .55, easing: [.22, 1, .36, 1] })
+        .finished.then(() => fixar(target)).catch(() => fixar(target));
+    }, { margin: '0px 0px -12% 0px' });
+  } else { mostrarTudo(); }
+
+  /* REDE DE SEGURANÇA. Bloco animado que por qualquer motivo não recebeu o
+     estado final ficaria invisível PARA SEMPRE — o cliente rolaria por cima de
+     um buraco. Passados 4s, tudo que ainda estiver escondido aparece.
+     Conteúdo nunca pode depender de uma animação ter dado certo. */
+  setTimeout(() => document.querySelectorAll('.reveal').forEach(el => {
+    if (parseFloat(getComputedStyle(el).opacity) < .9) fixar(el);
+  }), 4000);
+
+  /* ── ANIME.JS (26 KB) — os números do mercado contam até o valor ── */
+  import('https://cdn.jsdelivr.net/npm/animejs@4.0.2/lib/anime.esm.min.js')
+    .then(({ animate }) => {
+      document.querySelectorAll('.stat .n').forEach(el => {
+        const bruto = el.textContent.trim();
+        // aceita só "181 mil" / "21 mil" / "42". "1 para 8,6" tem dois números:
+        // fica como está, senão o contador embaralha os dois.
+        const m = bruto.match(/^([\d.,]+)\s*([^\d]*)$/);
+        if (!m) return;
+        const num = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+        if (!isFinite(num)) return;
+        const sufixo = m[2].trim();
+        const alvo = { v: 0 };
+        new IntersectionObserver((es, o) => es.forEach(e => {
+          if (!e.isIntersecting) return;
+          o.unobserve(el);
+          animate(alvo, { v: num, duration: 1400, ease: 'outExpo',
+            onUpdate: () => {
+              const d = num % 1 ? 1 : 0;
+              el.textContent = alvo.v.toFixed(d).replace('.', ',') + (sufixo ? ' ' + sufixo : '');
+            }});
+        }), { threshold: .6 }).observe(el);
+      });
+    }).catch(() => {});
+
+  /* ── GSAP + ScrollTrigger (44 KB) — parallax nos fundos das faixas ── */
+  if (window.gsap && window.ScrollTrigger && !noCelular) {
+    gsap.registerPlugin(ScrollTrigger);
+    document.querySelectorAll('.faixa .bg, #mercado .bg, .contato').forEach(el => {
+      gsap.to(el, {
+        backgroundPositionY: '30%', ease: 'none',
+        scrollTrigger: { trigger: el, start: 'top bottom', end: 'bottom top', scrub: .6 },
+      });
+    });
+    gsap.to('.trust .in', {
+      scrollTrigger: { trigger: '.trust', start: 'top 90%' },
+      opacity: [0, 1], duration: .6, stagger: .08,
+    });
+  }
+
+  /* ── THREE.JS (166 KB) — malha de pontos atrás do hero.
+       Só no desktop: é a maior das quatro e no celular custaria bateria
+       e dados por um efeito que a pessoa mal vê. ── */
+  const tela = document.getElementById('tela3d');
+  if (tela && !noCelular) {
+    import('https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js').then(THREE => {
+      // sem WebGL (VM, GPU antiga, driver bloqueado) não há efeito nenhum a fazer
+      const teste = document.createElement('canvas');
+      if (!(teste.getContext('webgl') || teste.getContext('experimental-webgl'))) {
+        tela.remove(); return;
+      }
+      const cena = new THREE.Scene();
+      const cam = new THREE.PerspectiveCamera(60, 1, 1, 1000); cam.position.z = 340;
+      const rend = new THREE.WebGLRenderer({ canvas: tela, alpha: true, antialias: true });
+      const N = 900, pos = new Float32Array(N * 3);
+      for (let i = 0; i < N * 3; i++) pos[i] = (Math.random() - .5) * 900;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const pontos = new THREE.Points(geo, new THREE.PointsMaterial(
+        { color: 0x7DD117, size: 2.2, transparent: true, opacity: .75 }));
+      cena.add(pontos);
+
+      const medir = () => {
+        const r = tela.getBoundingClientRect();
+        rend.setPixelRatio(Math.min(devicePixelRatio, 2));
+        rend.setSize(r.width, r.height, false);
+        cam.aspect = r.width / r.height; cam.updateProjectionMatrix();
+      };
+      medir(); addEventListener('resize', medir);
+
+      let visivel = true;
+      new IntersectionObserver(([e]) => visivel = e.isIntersecting).observe(tela);
+      (function anima() {
+        requestAnimationFrame(anima);
+        if (!visivel || document.hidden) return;   // parado fora da tela = zero CPU à toa
+        pontos.rotation.y += .0006; pontos.rotation.x += .0002;
+        rend.render(cena, cam);
+      })();
+    }).catch(() => { tela.remove(); });
+  }
+});
+</script>
+  <script src="/lib/telemetria.js" defer></script>
 </body>
 </html>
