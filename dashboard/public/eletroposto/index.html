@@ -240,6 +240,47 @@ html.js .reveal{opacity:0;transform:translateY(26px)}
 .hero .sc{z-index:2}
 .hero .wrap{z-index:3}
 
+/* ---------- tela do app (mockup desenhado, não é print) ----------
+   Feito em HTML pelo mesmo motivo do deck: fica nítido em qualquer tamanho e
+   não carrega a marca do Google Maps que aparece no print do app real.
+   Os balões são a rede pública; o pino verde é a estação do cliente. */
+.fone{width:330px;height:672px;border-radius:44px;background:#0D1712;flex-shrink:0;
+  border:10px solid #1C2A22;box-shadow:0 34px 70px rgba(0,0,0,.6);overflow:hidden;position:relative}
+.fone .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);
+  width:104px;height:21px;background:#1C2A22;border-radius:11px;z-index:5}
+.app{position:absolute;inset:0;overflow:hidden;font-size:0}
+.app-map{position:absolute;inset:-4% -10%;background:url('/eletroposto/img/mapa-brasil.jpg') center/cover;opacity:.92}
+.app-scrim{position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 40%,rgba(6,20,12,0),rgba(4,12,8,.55))}
+.app-top{position:absolute;top:40px;left:14px;right:14px;display:flex;gap:6px;z-index:3}
+.app-search{flex:1;background:#fff;border-radius:20px;padding:10px 14px;font-size:12px;
+  color:#5A6B60;font-weight:600;display:flex;align-items:center;gap:7px}
+.app-chip{width:40px;background:#fff;border-radius:20px;display:flex;align-items:center;
+  justify-content:center;font-size:11px;color:#5A6B60}
+.app-side{position:absolute;right:14px;top:100px;z-index:3;background:#fff;border-radius:13px;overflow:hidden}
+.app-btn{width:37px;height:37px;display:flex;align-items:center;justify-content:center;
+  font-size:15px;color:#3E5147;border-bottom:1px solid #E6ECE8}
+.app-btn:last-child{border-bottom:0}
+.clu{position:absolute;z-index:3;width:45px;height:45px;border-radius:50%;display:flex;
+  align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;
+  transform:translate(-50%,-50%);box-shadow:0 5px 13px rgba(0,0,0,.45)}
+.clu.blue{background:#1E86C4}.clu.orange{background:#F0801F}.clu.olive{background:#78A81C}
+.app-pin{position:absolute;left:47%;top:57%;z-index:4;transform:translate(-50%,-50%);text-align:center}
+.app-pin-dot{width:20px;height:20px;border-radius:50%;background:var(--neon);margin:0 auto;
+  box-shadow:0 0 0 6px rgba(125,209,23,.3),0 0 0 13px rgba(125,209,23,.14)}
+.app-pin-lbl{margin-top:7px;background:var(--neon);color:#08160A;font-size:9px;font-weight:800;
+  letter-spacing:.09em;padding:3px 8px;border-radius:4px;white-space:nowrap}
+.app-lista{position:absolute;right:14px;bottom:82px;z-index:3;background:#14201A;color:#fff;
+  font-size:12px;font-weight:600;padding:10px 17px;border-radius:10px}
+.app-nav{position:absolute;left:0;right:0;bottom:0;height:74px;z-index:4;background:#fff;
+  display:flex;align-items:center;justify-content:space-around;padding:0 6px 9px}
+.app-nav > div{font-size:9px;color:#93A39A;font-weight:600;text-align:center;line-height:1.9}
+.app-nav > div b{display:block;font-size:12px}
+.app-nav > div.on{color:#14201A}
+.app-nav .qr{width:48px;height:48px;border-radius:50%;background:#14201A;color:var(--neon);
+  display:flex;align-items:center;justify-content:center;font-size:19px;margin-top:-17px;
+  box-shadow:0 0 0 4px #fff,0 6px 15px rgba(0,0,0,.45)}
+@media(max-width:880px){ .fone{width:290px;height:590px;margin:0 auto} }
+
 /* ---------- acessibilidade ----------
    Quem navega por teclado precisa ver ONDE está. Sem isto o foco anda
    invisível pela página inteira e o site fica inutilizável sem mouse. */
@@ -271,6 +312,7 @@ html.js .reveal{opacity:0;transform:translateY(26px)}
       <a href="#servicos">Serviços</a>
       <a href="#entrega">O que entregamos</a>
       <a href="#equipamento">Equipamento</a>
+      <a href="#app">Aplicativo</a>
       <a href="#modelos">Modelos</a>
       <a href="#faq">Dúvidas</a>
     </nav>
@@ -532,6 +574,64 @@ html.js .reveal{opacity:0;transform:translateY(26px)}
         histórico. Todo ponto que entregamos entra no mapa do app.</li>
     </ul>
   </div>
+</section>
+
+<!-- ══════════ O APLICATIVO ══════════ -->
+<section id="app">
+  <div class="wrap split">
+    <div>
+      <div class="eyebrow">O aplicativo</div>
+      <h2>Sua estação no mapa do <span class="g">nosso aplicativo</span></h2>
+      <p class="lead">
+        Todo ponto que entregamos entra no nosso aplicativo e nos mapas de recarga que os
+        motoristas de elétrico usam. A pessoa encontra o seu estabelecimento antes de sair de
+        casa, ativa a recarga pelo celular e paga por ali — sem funcionário no ponto.
+      </p>
+      <ul class="ticks">
+        <li>Localiza a estação, vê se está livre e ativa a recarga <b>pelo QR Code</b></li>
+        <li>Pagamento por <b>PIX ou cartão</b>, com histórico de cada recarga</li>
+        <li>Você acompanha faturamento, consumo e status <b>em tempo real</b>, e define a própria
+          tarifa por kWh</li>
+        <li><b>Taxa de ociosidade</b> automática: carro que fica parado depois de carregar continua
+          gerando receita</li>
+      </ul>
+      <div class="cta" style="margin-top:28px">
+        <a class="btn" href="/io/eletroposto#agendar">Agendar reunião</a>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center">
+      <div class="fone reveal">
+        <div class="notch"></div>
+        <div class="app">
+          <div class="app-map"></div><div class="app-scrim"></div>
+          <div class="app-top">
+            <div class="app-search"><span aria-hidden="true">&#9906;</span> Buscar endereço</div>
+            <div class="app-chip" aria-hidden="true">&#9662;</div>
+          </div>
+          <div class="app-side" aria-hidden="true">
+            <div class="app-btn">&#9678;</div><div class="app-btn">&#9673;</div><div class="app-btn">&#9636;</div>
+          </div>
+          <div class="clu blue"  style="left:26%;top:26%">10+</div>
+          <div class="clu blue"  style="left:60%;top:23%;width:34px;height:34px;font-size:12px">5</div>
+          <div class="clu blue"  style="left:80%;top:31%">10+</div>
+          <div class="clu orange" style="left:44%;top:47%;width:57px;height:57px;font-size:16px">100+</div>
+          <div class="clu olive" style="left:76%;top:46%">50+</div>
+          <div class="clu olive" style="left:56%;top:63%">50+</div>
+          <div class="app-pin"><div class="app-pin-dot"></div><div class="app-pin-lbl">SUA ESTAÇÃO</div></div>
+          <div class="app-lista" aria-hidden="true">&#9776; Lista</div>
+          <div class="app-nav" aria-hidden="true">
+            <div class="on"><b>&#9679;</b>Mapa</div><div><b>&#9601;&#9603;&#9605;</b>Consumo</div>
+            <div class="qr"><span>&#9638;</span></div>
+            <div><b>$</b>Carteira</div><div><b>&#9679;</b>Perfil</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="wrap"><div class="fonte" style="margin-top:20px">
+    Tela do nosso aplicativo. Os agrupamentos são a rede pública de recarga do Brasil; o pino verde
+    é a estação do cliente.
+  </div></div>
 </section>
 
 <!-- ══════════ MODELOS DE NEGÓCIO ══════════ -->
