@@ -716,6 +716,14 @@ function puxarMais(){ filaLimite += 20; montarFila(); renderTudo(); }
 function sugeridoPara(c){
   if (!c) return null;
   const ativos = produtosAtivos();
+  // 0) o produto DA LISTA vem antes da escada do catálogo. Lista de posto de
+  // combustível é eletroposto; abrir com curso de limpeza de painel solar seria
+  // queimar o contato na primeira frase.
+  const lista = listaById(c.lista_id);
+  if (lista && lista.produto_id && statusProduto(c.id, lista.produto_id) !== 'comprado'
+      && ativos.some(p => p.id === lista.produto_id)) {
+    return lista.produto_id;
+  }
   const ultimoPorProduto = new Map();
   toquesDe(c.id).forEach(t => ultimoPorProduto.set(t.produto_id, t));
   let aberta = null;
