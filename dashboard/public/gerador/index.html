@@ -1543,9 +1543,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </div>
 
         <div class="field">
-          <label>Validade da proposta (dias)</label>
-          <input type="number" id="f-validade" min="1" max="365" value="2" inputmode="numeric">
-          <div style="font-size:11px;color:#64748b;margin-top:4px;">Depois disso o link para de mostrar os valores e abre a tela pra falar com você.</div>
+          <label>Validade da proposta</label>
+          <select id="f-validade-modo" onchange="validadeUiAtualizar()">
+            <option value="sexta">Até sexta-feira, 18h</option>
+            <option value="dias">Prazo em dias</option>
+          </select>
+          <input type="number" id="f-validade" min="1" max="365" value="2" inputmode="numeric" style="display:none;margin-top:8px;" oninput="validadeUiAtualizar()">
+          <div id="f-validade-hint" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
         </div>
 
         <details class="opt-block" style="margin-top:8px;">
@@ -2431,8 +2435,14 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp"><input type="text" id="orc-num" placeholder="897"></div></div>
         <div class="eletro-field"><label>Data de emissão</label>
           <div class="eletro-inp eletro-inp-wide"><input type="date" id="orc-data"></div></div>
-        <div class="eletro-field"><label>Validade (dias)</label>
-          <div class="eletro-inp"><input type="number" id="orc-validade" inputmode="numeric" value="2" min="1" max="365"></div></div>
+        <div class="eletro-field"><label>Validade</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="orc-validade-modo" onchange="validadeUiAtualizar()">
+            <option value="sexta">Até sexta-feira, 18h</option>
+            <option value="dias">Prazo em dias</option>
+          </select></div></div>
+        <div class="eletro-field" id="orc-validade-dias" style="display:none;"><label>Prazo (dias)</label>
+          <div class="eletro-inp"><input type="number" id="orc-validade" inputmode="numeric" value="2" min="1" max="365" oninput="validadeUiAtualizar()"></div></div>
+        <div class="orc-note" id="orc-validade-hint"></div>
       </div>
 
       <!-- CLIENTE (nome/cidade vêm do Simulador; aqui só o detalhe fiscal) -->
@@ -3334,9 +3344,10 @@ function _propostaRowFromDados(d) {
     inversor: d.tab.inv,
     qtd_inversor: d.qtdInv,
     qtd_placas: d.item.n,
-    // Espelho do dados.validadeDias em coluna: é por ela que o CRM e o
+    // Espelho em coluna do prazo que mora no `dados`: é por ele que o CRM e o
     // get_proposta_pub sabem até quando o link mostra os valores.
-    validade_dias: Number(d.validadeDias) || null
+    validade_dias: Number(d.validadeDias) || null,
+    expira_em: d.expiraEmISO || null
   };
 }
 
@@ -3361,6 +3372,7 @@ function _orcamentoEpRowFromDados(d) {
     cliente_cidade: partes[0] || null,
     cliente_uf: partes[1] || null,
     validade_dias: Number(d.validadeDias) || null,
+    expira_em: d.expiraEmISO || null,
     // colunas de solar ficam nulas — o `dados` carrega o orçamento inteiro
   };
 }
@@ -4229,11 +4241,11 @@ async function gerar() {
   const garInstalacao = (document.getElementById('f-gar-instalacao').value || '1').trim() || '1';
   const prazoInstalacao = (document.getElementById('f-prazo-instalacao').value || '45').trim() || '45';
 
-  // Validade do LINK e do selo do orçamento. Padrão 2 dias: proposta que fica
-  // semanas no ar vira preço velho (equipamento e tarifa mudam todo mês) e tira
-  // a urgência de fechar. Teto de 365 pra bater com o clamp do get_proposta_pub —
-  // número maior que isso lá vira 365 e o documento mentiria a data.
-  const validadeDias = Math.min(365, Math.max(1, Math.round(parseFloat(document.getElementById('f-validade').value) || 2)));
+  // Validade do LINK e do selo do orçamento. Padrão: próxima sexta às 18h —
+  // prazo que todo mundo entende e que fecha a semana comercial. Proposta que
+  // fica semanas no ar vira preço velho (equipamento e tarifa mudam todo mês) e
+  // tira a urgência de fechar.
+  const validade = lerValidade('f-validade-modo', 'f-validade');
 
   // DC/AC ratio (kWp painéis / kW inversores). Padrão de mercado 1,05-1,30.
   // Tenta extrair kW do nome do inversor (ex: "Growatt 5K" → 5). Se não conseguir, pula o aviso.
@@ -4275,7 +4287,7 @@ async function gerar() {
     hspRef: refSolar.hsp,
     qtdInv, garInv,
     garPaineis, garEstrutura, garInstalacao, prazoInstalacao,
-    validadeDias,
+    ...validade,
     fotoTelhado: fotoTelhadoB64 || '',
     dcAcRatio, dcAcWarning,
     precoVista, precoOrcamento,
@@ -4331,9 +4343,12 @@ function renderProposta(d, viaLink) {
   // com 7 dias — é esse o número que o cliente delas viu.
   const validDias = Math.max(1, Math.round(Number(d.validadeDias) || 7));
   const validAte = new Date(dataEmissao.getTime() + validDias * 86400000);
+  const validTxt = (d.expiraEmISO && prazoExtenso(d.expiraEmISO))
+    ? `Válida até ${prazoExtenso(d.expiraEmISO)}`
+    : `Válida por ${validDias} ${validDias === 1 ? 'dia' : 'dias'}`
+      + (isNaN(validAte.getTime()) ? '' : ` · até ${validAte.toLocaleDateString('pt-BR')}`);
   document.getElementById('prop-data').textContent =
-    `Gerada em ${meses[dataEmissao.getMonth()]} de ${dataEmissao.getFullYear()} · Válida por ${validDias} ${validDias === 1 ? 'dia' : 'dias'}`
-    + (isNaN(validAte.getTime()) ? '' : ` · até ${validAte.toLocaleDateString('pt-BR')}`);
+    `Gerada em ${meses[dataEmissao.getMonth()]} de ${dataEmissao.getFullYear()} · ${validTxt}`;
 
   document.getElementById('avatar').textContent = initials(d.nome);
   document.getElementById('cli-nome').textContent = d.nome;
@@ -4602,10 +4617,13 @@ function novoCliente() {
   if (ctrlQtdEl) ctrlQtdEl.value = 1;
   const estrEl = document.getElementById('f-estrutura');
   if (estrEl) estrEl.value = '';
-  // Cliente novo volta pro padrão: sair de uma proposta antiga (reaberta com 7)
-  // não pode contaminar a próxima.
+  // Cliente novo volta pro padrão: sair de uma proposta antiga (reaberta com o
+  // prazo dela) não pode contaminar a próxima.
   const valEl = document.getElementById('f-validade');
   if (valEl) valEl.value = '2';
+  const valModoEl = document.getElementById('f-validade-modo');
+  if (valModoEl) valModoEl.value = 'sexta';
+  validadeUiAtualizar();
   removerFotoTelhado();
   onLinhaChange();
   hideErro();
@@ -4867,20 +4885,27 @@ function mostrarExpirado(d) {
   const ehEp = d.produto === 'eletroposto';
   const oQue = ehEp ? 'Meu orçamento de eletroposto' : 'Minha proposta de energia solar';
 
-  // Prazo e data de vencimento, direto do que o get_proposta_pub calculou.
+  // Prazo e vencimento, direto do que o get_proposta_pub calculou.
+  // Prazo de data cravada fala a data por extenso ("venceu sexta, 07/08, às 18h");
+  // proposta antiga, que era contagem de dias, mantém a frase de dias.
   const dias = Math.max(1, Math.round(Number(d.validadeDias) || 0));
   const venceu = d.expiraEm ? new Date(d.expiraEm) : null;
-  const dataVenc = (venceu && !isNaN(venceu.getTime())) ? venceu.toLocaleDateString('pt-BR') : '';
+  const temData = !!(venceu && !isNaN(venceu.getTime()));
+  const dataVenc = temData ? venceu.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
+  const porExtenso = (d.validadeModo === 'sexta' && temData) ? prazoExtenso(venceu) : '';
+
   const subEl = document.getElementById('exp-sub');
   if (subEl) {
-    subEl.textContent = dias
-      ? `Passou da validade de ${dias} ${dias === 1 ? 'dia' : 'dias'}${dataVenc ? ` · venceu em ${dataVenc}` : ''}`
-      : 'Este orçamento passou da validade';
+    subEl.textContent = porExtenso
+      ? `Venceu ${porExtenso}`
+      : (dias
+        ? `Passou da validade de ${dias} ${dias === 1 ? 'dia' : 'dias'}${dataVenc ? ` · venceu em ${dataVenc}` : ''}`
+        : 'Este orçamento passou da validade');
   }
   const txtEl = document.getElementById('exp-texto');
   if (txtEl) {
     const doQue = ehEp ? 'Seu orçamento de eletroposto' : 'Sua proposta de energia solar';
-    const quando = dataVenc ? ` em ${dataVenc}` : '';
+    const quando = porExtenso ? ` ${porExtenso}` : (dataVenc ? ` em ${dataVenc}` : '');
     txtEl.textContent = `${doQue} venceu${quando}. Os preços de equipamentos e a tarifa de energia mudam todo mês — pra te dar o valor certo, precisamos refazer.`;
   }
 
@@ -4924,6 +4949,9 @@ function mostrarExpirado(d) {
 }
 
 window.addEventListener('DOMContentLoaded', carregarDeURL);
+// Escreve a data do prazo padrão embaixo dos dois campos de validade assim que a
+// tela abre — o consultor precisa ver "vence sexta, 07/08, às 18h" sem clicar.
+window.addEventListener('DOMContentLoaded', validadeUiAtualizar);
 
 // Deep-link do digest 17h: ?crm=reagendar&consultor=Nome → abre o CRM já
 // filtrado no consultor e rolado até a coluna pedida. Só roda se autenticado
@@ -6650,6 +6678,96 @@ function o1Kwp(n) {
   if (Math.abs(n - Math.round(n)) < 0.01) return String(Math.round(n));
   return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',');
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// PRAZO DO ORÇAMENTO — padrão: próxima sexta às 18h
+//
+// Deixou de ser contagem de dias porque "vence sexta às 18h" não cabe em número
+// de dias: o mesmo orçamento gerado segunda e quinta precisaria de 4 e 1 dia pra
+// vencer na mesma hora. Agora o navegador crava o instante e o banco só compara.
+//
+// O Brasil não tem horário de verão desde 2019, então 18h de Brasília é sempre
+// 21h UTC — dá pra fazer a conta deslocando o relógio, sem depender do fuso da
+// máquina do consultor (celular em roaming não muda o prazo do cliente).
+// ═══════════════════════════════════════════════════════════════════════════
+const SP_OFFSET_MS = 3 * 3600 * 1000;
+
+function proximaSexta18(base) {
+  const agora = (base instanceof Date && !isNaN(base)) ? base : new Date();
+  const sp = new Date(agora.getTime() - SP_OFFSET_MS);  // relógio de Brasília lido em UTC
+  const faltam = (5 - sp.getUTCDay() + 7) % 7;          // 5 = sexta
+  let alvo = Date.UTC(sp.getUTCFullYear(), sp.getUTCMonth(), sp.getUTCDate() + faltam, 21, 0, 0);
+  // Sexta que vem a menos de 24h: pula pra seguinte. Orçamento com meia dúzia de
+  // horas de vida não dá tempo do cliente ler, quanto mais decidir.
+  if (alvo - agora.getTime() < 86400000) alvo += 7 * 86400000;
+  return new Date(alvo);
+}
+
+// "sexta, 07/08/2026, às 18h"
+function prazoExtenso(quando) {
+  const dt = (quando instanceof Date) ? quando : new Date(quando);
+  if (isNaN(dt.getTime())) return '';
+  const tz = { timeZone: 'America/Sao_Paulo' };
+  const semana = dt.toLocaleDateString('pt-BR', { ...tz, weekday: 'long' }).replace('-feira', '');
+  const dia = dt.toLocaleDateString('pt-BR', tz);
+  const hora = dt.toLocaleTimeString('pt-BR', { ...tz, hour: '2-digit', minute: '2-digit' }).replace(':00', 'h');
+  return `${semana}, ${dia}, às ${hora}`;
+}
+
+// Lê a escolha de validade de um formulário (solar ou eletroposto).
+// Devolve sempre os três campos: o modo, a data cravada (quando houver) e um
+// número de dias equivalente — o histórico e o CRM leem "quantos dias durou", e
+// é o que sobra se o expiraEmISO se perder no meio do caminho.
+function lerValidade(idModo, idDias) {
+  const elModo = document.getElementById(idModo);
+  const elDias = document.getElementById(idDias);
+  const modo = (elModo && elModo.value === 'dias') ? 'dias' : 'sexta';
+  const dias = Math.min(365, Math.max(1, Math.round(parseFloat(elDias && elDias.value) || 2)));
+  if (modo === 'dias') return { validadeModo: 'dias', validadeDias: dias, expiraEmISO: null };
+  const ate = proximaSexta18();
+  return {
+    validadeModo: 'sexta',
+    validadeDias: Math.max(1, Math.ceil((ate.getTime() - Date.now()) / 86400000)),
+    expiraEmISO: ate.toISOString(),
+  };
+}
+
+// Mostra/esconde o campo de dias e escreve embaixo a data exata que o cliente vai
+// ver. O prazo é calculado, então o consultor precisa ler o resultado ANTES de
+// mandar — não adianta o padrão ser bom se ninguém sabe qual data saiu.
+function validadeUiAtualizar() {
+  [['f-validade-modo', 'f-validade', 'f-validade-hint', null],
+   ['orc-validade-modo', 'orc-validade', 'orc-validade-hint', 'orc-validade-dias']]
+  .forEach(([idModo, idDias, idHint, idWrap]) => {
+    if (!document.getElementById(idModo)) return;
+    const v = lerValidade(idModo, idDias);
+    const alvo = document.getElementById(idWrap || idDias);
+    if (alvo) alvo.style.display = (v.validadeModo === 'dias') ? '' : 'none';
+    const hint = document.getElementById(idHint);
+    if (!hint) return;
+    hint.textContent = (v.validadeModo === 'sexta'
+      ? `Vence ${prazoExtenso(v.expiraEmISO)}`
+      : o1Validade(v.validadeDias, new Date()))
+      + '. Depois disso o link para de mostrar os valores e abre a tela pra falar com você.';
+  });
+}
+
+// Selo quando o prazo é data cravada: "VÁLIDO ATÉ SEXTA, 07/08/2026, ÀS 18H"
+function o1ValidadeAte(quando) {
+  const txt = prazoExtenso(quando);
+  return txt ? `Válido até ${txt}` : '';
+}
+
+// Texto de validade de qualquer documento. Data cravada ganha da contagem;
+// `padraoDias` é só pro orçamento antigo, que não tem nem um nem outro.
+function validadeTexto(d, emissao, padraoDias) {
+  const ate = d && d.expiraEmISO;
+  if (ate) {
+    const txt = o1ValidadeAte(ate);
+    if (txt) return txt;
+  }
+  return o1Validade((d && d.validadeDias) || padraoDias, emissao);
+}
+
 // Selo de validade: "VÁLIDO POR 2 DIAS · ATÉ 06/08/2026" (a data congela na emissão)
 function o1Validade(dias, base) {
   dias = Math.max(1, Math.round(Number(dias) || 2));
@@ -6862,7 +6980,7 @@ function orcEpPayload() {
     // documento
     num: orcVal('orc-num'),
     dataEmissao: new Date(dEmisISO + 'T00:00:00').toISOString(),
-    validadeDias: Math.min(365, Math.max(1, Math.round(parseFloat(orcVal('orc-validade')) || 2))),
+    ...lerValidade('orc-validade-modo', 'orc-validade'),
     doc: orcVal('orc-cli-doc'),
     endereco: orcVal('orc-cli-end'),
     titulo: 'Proposta Comercial',
@@ -6893,7 +7011,7 @@ function orcEpDocHTML(d) {
       ['CNPJ/CPF', d.doc],
       ['Endereço', [d.endereco, d.cidade].filter(Boolean).join(' — ')],
     ],
-    validade: o1Validade(d.validadeDias || 2, dEmis),
+    validade: validadeTexto(d, dEmis, 2),
     detTitulo: 'Detalhamento do Projeto',
     tiles: d.tiles || [],
     linhas: d.linhas || [],
@@ -7171,7 +7289,7 @@ function epBasicoImprimir() {
   if (!(total > 0)) { alert('Defina o "Investimento total" no Simulador para gerar o orçamento básico.'); return; }
 
   const hoje = new Date();
-  const dias = Math.min(365, Math.max(1, Math.round(parseFloat(orcVal('orc-validade')) || 2)));
+  const val = lerValidade('orc-validade-modo', 'orc-validade');
 
   // O básico sai do Simulador, sem passar pelo kit: então lista o escopo fechado
   // em vez de itens marcados. Nada aqui promete item que o consultor não escolheu.
@@ -7191,7 +7309,7 @@ function epBasicoImprimir() {
     titulo: 'Orçamento — Eletroposto',
     data: hoje.toLocaleDateString('pt-BR'),
     fichaRows: [['Cliente', t.cliente], ['Local', t.cidade]],
-    validade: o1Validade(dias, hoje),
+    validade: validadeTexto(val, hoje, 2),
     detTitulo: 'Detalhamento do Projeto',
     tiles: orc1EpTiles(),
     linhas: orc1EpLinhas({ cidade: t.cidade }),
@@ -7255,7 +7373,7 @@ function orcSnapTake() {
   const cart = [];
   document.querySelectorAll('#orc-cartao-grid input[type="checkbox"]:checked').forEach(c => cart.push(Number(c.dataset.n)));
   return {
-    num: v('orc-num'), data: v('orc-data'), validade: v('orc-validade'),
+    num: v('orc-num'), data: v('orc-data'), validade: v('orc-validade'), validadeModo: v('orc-validade-modo'),
     doc: v('orc-cli-doc'), ie: v('orc-cli-ie'), end: v('orc-cli-end'), cep: v('orc-cli-cep'), tel: v('orc-cli-tel'), email: v('orc-cli-email'),
     frete: v('orc-frete'), desc: v('orc-desc'), obs: v('orc-obs'), parcData: v('orc-parc-data'),
     pgA: ck('orc-pg-ck-avista'), pgC: ck('orc-pg-ck-cartao'), pgF: ck('orc-pg-ck-fin'), cart, kit,
@@ -7267,6 +7385,10 @@ function orcSnapApply(s) {
   const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
   const setck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
   set('orc-num', s.num); set('orc-data', s.data); set('orc-validade', s.validade);
+  // Orçamento salvo antes do seletor não tem modo: cai em "dias", que é como ele
+  // foi gerado — reabrir não pode trocar o prazo por baixo do consultor.
+  set('orc-validade-modo', s.validadeModo || 'dias');
+  validadeUiAtualizar();
   set('orc-cli-doc', s.doc); set('orc-cli-ie', s.ie); set('orc-cli-end', s.end); set('orc-cli-cep', s.cep); set('orc-cli-tel', s.tel); set('orc-cli-email', s.email);
   set('orc-frete', s.frete); set('orc-desc', s.desc); set('orc-obs', s.obs); set('orc-parc-data', s.parcData);
   setck('orc-pg-ck-avista', s.pgA); setck('orc-pg-ck-cartao', s.pgC); setck('orc-pg-ck-fin', s.pgF);
@@ -9880,7 +10002,12 @@ async function editarProposta(codigo) {
     document.getElementById('f-gar-instalacao').value   = d.garInstalacao || '1';
     // Proposta antiga não tinha o campo: reabre com 7, que é o prazo sob o qual
     // ela foi enviada (mesma âncora do backfill em propostas.validade_dias).
+    // Reabrir em modo sexta RECALCULA a sexta — e é de propósito: o consultor
+    // está reemitindo o documento, e o hint embaixo do campo mostra a data nova
+    // antes de ele gerar. Prazo que muda escondido é que seria problema.
     document.getElementById('f-validade').value         = d.validadeDias || '7';
+    document.getElementById('f-validade-modo').value    = (d.validadeModo === 'sexta') ? 'sexta' : 'dias';
+    validadeUiAtualizar();
     if (d.fotoTelhado) {
       fotoTelhadoB64 = d.fotoTelhado;
       document.getElementById('foto-img').src = d.fotoTelhado;
@@ -10037,7 +10164,7 @@ function orcSolarDocHTML(d) {
     fichaRows: [['Cliente', d.nome], ['Endereço', d.cidade]],
     // Propostas anteriores ao campo saíram com 7 dias — o selo não pode encurtar
     // um prazo que o cliente já tem impresso.
-    validade: o1Validade(d.validadeDias || 7, emissao),
+    validade: validadeTexto(d, emissao, 7),
     detTitulo: 'Detalhamento do Projeto',
     tiles: [
       { k: 'Potência instalada', v: o1Kwp(d.item.kwp), u: 'kWp' },
