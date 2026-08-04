@@ -76,20 +76,21 @@ p.lead{font-size:clamp(16px,2vw,19px);color:var(--mut);font-weight:500;margin-to
 header{position:sticky;top:0;z-index:60;background:rgba(5,13,2,.86);
   backdrop-filter:blur(12px);border-bottom:1px solid rgba(125,209,23,.14)}
 .bar{display:flex;align-items:center;justify-content:space-between;height:70px}
-.lock{display:flex;align-items:center;gap:12px;text-decoration:none}
+.lock{display:flex;align-items:center;gap:12px;text-decoration:none;flex-shrink:0}
 .lock img{width:42px;height:42px;border-radius:50%;object-fit:cover;
   box-shadow:0 0 0 2px rgba(125,209,23,.5)}
-.lock .n1{font-size:14px;font-weight:800;letter-spacing:.14em;line-height:1.1}
-.lock .n2{font-size:9.5px;font-weight:600;letter-spacing:.26em;color:var(--neon)}
-nav{display:flex;gap:26px;align-items:center}
-nav a{font-size:14px;font-weight:600;color:var(--mut);text-decoration:none;transition:color .18s}
+.lock .n1{font-size:14px;font-weight:800;letter-spacing:.14em;line-height:1.1;white-space:nowrap}
+.lock .n2{font-size:9.5px;font-weight:600;letter-spacing:.26em;color:var(--neon);white-space:nowrap}
+nav{display:flex;gap:20px;align-items:center;flex-shrink:0}
+nav a{font-size:13.5px;font-weight:600;white-space:nowrap;color:var(--mut);text-decoration:none;transition:color .18s}
 nav a:hover{color:var(--cream)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;
   background:var(--neon);color:#08160A;font-weight:800;font-size:15px;
   padding:13px 24px;border-radius:11px;text-decoration:none;transition:transform .16s,filter .16s}
 .btn:hover{transform:translateY(-2px);filter:brightness(1.06)}
 .btn.ghost{background:transparent;color:var(--cream);border:1.5px solid var(--line)}
-@media(max-width:880px){ nav{display:none} .bar{height:62px} }
+@media(max-width:1080px){ nav{display:none} }
+@media(max-width:880px){ .bar{height:62px} }
 @media(max-width:520px){
   /* no telefone o lockup inteiro espremia o botão em três linhas */
   .lock .n2{display:none}
@@ -188,6 +189,40 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
 
 .only-lg{display:inline}.only-sm{display:none}
 @media(max-width:520px){.only-lg{display:none}.only-sm{display:inline}}
+/* ---------- faixa de confiança (logo abaixo do hero) ---------- */
+.trust{background:rgba(11,32,3,.55);border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);padding:0}
+.trust .in{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.trust div.it{padding:22px 18px;font-size:14px;font-weight:700;color:var(--cream);
+  display:flex;align-items:center;gap:10px;border-left:1px solid rgba(125,209,23,.14);line-height:1.3}
+.trust div.it:first-child{border-left:0}
+.trust div.it span{color:var(--neon);font-size:17px;flex-shrink:0}
+@media(max-width:880px){
+  .trust .in{grid-template-columns:1fr 1fr}
+  .trust div.it{font-size:12.5px;padding:15px 12px}
+  .trust div.it:nth-child(3){border-left:0}
+  .trust div.it:nth-child(n+3){border-top:1px solid rgba(125,209,23,.14)}
+}
+
+/* ---------- faixa de chamada no meio da página ---------- */
+.faixa{position:relative;overflow:hidden;padding:80px 0}
+.faixa .bg{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0}
+.faixa .sc{position:absolute;inset:0;z-index:1;background:
+  linear-gradient(90deg,rgba(5,13,2,.94) 0%,rgba(5,13,2,.8) 55%,rgba(5,13,2,.45) 100%)}
+.faixa .wrap{position:relative;z-index:2}
+
+/* ---------- barra fixa de agendamento no celular ---------- */
+.barraFixa{display:none}
+@media(max-width:880px){
+  .barraFixa{display:block;position:fixed;left:0;right:0;bottom:0;z-index:55;
+    background:rgba(5,13,2,.95);backdrop-filter:blur(12px);
+    border-top:1px solid var(--line);
+    padding:11px 16px calc(11px + env(safe-area-inset-bottom))}
+  .barraFixa .btn{width:100%;padding:15px 20px;font-size:16px}
+  /* sem isso a barra cobre o fim da página */
+  body{padding-bottom:86px}
+}
+
 .sep{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
 </style>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "ProfessionalService", "@id": "https://solardoc.app/eletroposto#empresa", "name": "Irmãos na Obra Mobilidade Elétrica", "description": "Instalação de eletropostos e estações de recarga para veículos elétricos em todo o Brasil: projeto elétrico, parecer de acesso, obra, comissionamento e operação.", "url": "https://solardoc.app/eletroposto", "image": "https://solardoc.app/eletroposto/img/capa.jpg", "logo": "https://solardoc.app/eletroposto/img/logo-io.png", "telephone": "+5534998165040", "areaServed": {"@type": "Country", "name": "Brasil"}, "address": {"@type": "PostalAddress", "addressRegion": "MG", "addressCountry": "BR"}, "sameAs": ["https://instagram.com/irmaosnaobra__"], "knowsAbout": ["eletroposto", "estação de recarga", "carregador para carro elétrico", "carregador DC", "wallbox", "mobilidade elétrica"], "hasOfferCatalog": {"@type": "OfferCatalog", "name": "Serviços de mobilidade elétrica", "itemListElement": [{"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Instalação de eletroposto chave na mão"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Carregador rápido DC de 40 a 160 kW"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Carregador AC wallbox de 7,3 a 22 kW"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Projeto elétrico e ART no CREA"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Parecer de acesso na concessionária"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Manutenção e suporte de estações de recarga"}}]}}</script>
@@ -199,18 +234,16 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
 <header>
   <div class="wrap bar">
     <a class="lock" href="#topo">
-      <img src="/eletroposto/img/logo-io.png" alt="Irmãos na Obra">
+      <img src="/eletroposto/img/logo-io.png" alt="Irmãos na Obra Mobilidade Elétrica" width="120" height="120">
       <div><div class="n1">IRMÃOS NA OBRA</div><div class="n2">MOBILIDADE ELÉTRICA</div></div>
     </a>
     <nav>
       <a href="#empresa">A empresa</a>
       <a href="#servicos">Serviços</a>
-      <a href="#mercado">Mercado</a>
       <a href="#entrega">O que entregamos</a>
       <a href="#equipamento">Equipamento</a>
       <a href="#modelos">Modelos</a>
       <a href="#faq">Dúvidas</a>
-      <a href="#contato">Contato</a>
     </nav>
     <a class="btn" href="/io/eletroposto#agendar"><span class="only-lg">Agendar reunião</span><span class="only-sm">Agendar</span></a>
   </div>
@@ -236,7 +269,17 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
   </div>
 </section>
 
-<div class="sep"></div>
+<!-- ══════════ FAIXA DE CONFIANÇA ══════════ -->
+<section class="trust" style="padding:0">
+  <div class="wrap" style="padding:0">
+    <div class="in">
+      <div class="it"><span>◉</span>Atendemos<br>todo o Brasil</div>
+      <div class="it"><span>◈</span>ART no CREA<br>por engenheiro próprio</div>
+      <div class="it"><span>▣</span>Equipamento<br>em estoque no Brasil</div>
+      <div class="it"><span>✔</span>Garantia de fábrica<br>e peça de reposição aqui</div>
+    </div>
+  </div>
+</section>
 
 <!-- ══════════ A EMPRESA ══════════ -->
 <section id="empresa">
@@ -256,7 +299,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
         <li><b>Equipamento com pronta entrega no Brasil</b> e peça de reposição aqui, sem fila de importação</li>
       </ul>
     </div>
-    <div class="fig"><img src="/eletroposto/img/estacao-plaza.jpg" alt="Estação de recarga para veículos elétricos instalada pela Irmãos na Obra" loading="lazy"></div>
+    <div class="fig"><img src="/eletroposto/img/estacao-plaza.jpg" width="1120" height="630" alt="Estação de recarga para veículos elétricos instalada pela Irmãos na Obra" loading="lazy"></div>
   </div>
 </section>
 
@@ -293,12 +336,18 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
         <p>Manutenção preventiva e corretiva com equipe própria, peça de reposição no Brasil e
         contrato de SLA após a garantia.</p></div>
     </div>
+    <div class="cta" style="margin-top:34px">
+      <a class="btn" href="/io/eletroposto#agendar">Agendar reunião</a>
+      <a class="btn ghost" href="#faq">Tirar uma dúvida antes →</a>
+    </div>
   </div>
 </section>
 
 <!-- ══════════ MERCADO ══════════ -->
 <section id="mercado" style="background:rgba(11,32,3,.4)">
-  <div class="wrap">
+  <div class="bg" style="position:absolute;inset:0;background:url('/eletroposto/img/frota-eletricos.jpg') center/cover;opacity:.30"></div>
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,13,2,.9),rgba(5,13,2,.75),rgba(5,13,2,.95))"></div>
+  <div class="wrap" style="position:relative;z-index:2">
     <div class="eyebrow">O momento do mercado</div>
     <h2>A frota cresceu. <span class="g">A infraestrutura não acompanhou.</span></h2>
     <div class="stats">
@@ -346,10 +395,24 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
   </div>
 </section>
 
+<!-- ══════════ FAIXA DE CHAMADA ══════════ -->
+<section class="faixa">
+  <div class="bg" style="background-image:url('/eletroposto/img/plug-carro.jpg')"></div>
+  <div class="sc"></div>
+  <div class="wrap">
+    <h2 style="max-width:20ch">Descubra se o <span class="mark">seu ponto</span> comporta uma estação</h2>
+    <p class="lead" style="max-width:56ch">
+      A gente faz o estudo de viabilidade do seu endereço — fluxo, rede elétrica disponível,
+      potência indicada e retorno estimado. <b style="color:var(--cream)">Sem compromisso.</b>
+    </p>
+    <div class="cta"><a class="btn" href="/io/eletroposto#agendar">Agendar reunião</a></div>
+  </div>
+</section>
+
 <!-- ══════════ O QUE ENTREGAMOS ══════════ -->
 <section id="entrega" style="background:rgba(11,32,3,.4)">
   <div class="wrap split rev">
-    <div class="fig"><img src="/eletroposto/img/painel-eletrico.jpg" alt="Quadro de distribuição e proteção de eletroposto executado pela equipe da Irmãos na Obra" loading="lazy"></div>
+    <div class="fig"><img src="/eletroposto/img/painel-eletrico.jpg" width="1120" height="1115" alt="Quadro de distribuição e proteção de eletroposto executado pela equipe da Irmãos na Obra" loading="lazy"></div>
     <div>
       <div class="eyebrow">Responsabilidade técnica</div>
       <h2>A obra inteira é nossa —<br>inclusive o que trava</h2>
@@ -400,7 +463,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <h2>Linha <span class="g">SunMob</span> — AC e DC, com pronta entrega no Brasil</h2>
 
     <div class="prod">
-      <div class="ph"><img src="/eletroposto/img/produto-dc.jpg" alt="Carregador DC SunMob de recarga rápida para carro elétrico, de 40 a 160 kW" loading="lazy"></div>
+      <div class="ph"><img src="/eletroposto/img/produto-dc.jpg" width="1040" height="1418" alt="Carregador DC SunMob de recarga rápida para carro elétrico, de 40 a 160 kW" loading="lazy"></div>
       <div>
         <h3>Fast Charge — DC</h3>
         <p class="lead" style="margin-top:10px">Recarga rápida em corrente contínua, para quem
@@ -416,7 +479,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     </div>
 
     <div class="prod">
-      <div class="ph"><img src="/eletroposto/img/produto-ac.jpg" alt="Wallbox AC SunMob Livoltek com conector Tipo 2, de 7,3 a 22 kW" loading="lazy"></div>
+      <div class="ph"><img src="/eletroposto/img/produto-ac.jpg" width="1040" height="922" alt="Wallbox AC SunMob Livoltek com conector Tipo 2, de 7,3 a 22 kW" loading="lazy"></div>
       <div>
         <h3>Wallbox — AC</h3>
         <p class="lead" style="margin-top:10px">Carga lenta para longa permanência: condomínio,
@@ -490,16 +553,19 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <div class="eyebrow">Onde uma estação faz sentido</div>
     <h2>Cada ponto pede uma <span class="g">potência diferente</span></h2>
     <div class="pontos">
-      <div class="ponto"><img src="/eletroposto/img/caso-posto.jpg" alt="Eletroposto de recarga rápida em posto de combustível e conveniência" loading="lazy">
+      <div class="ponto"><img src="/eletroposto/img/caso-posto.jpg" width="620" height="349" alt="Eletroposto de recarga rápida em posto de combustível e conveniência" loading="lazy">
         <div class="lb"><div class="t">Posto e conveniência</div><div class="k">160 kW</div></div></div>
-      <div class="ponto"><img src="/eletroposto/img/caso-hotel.jpg" alt="Carregador para carro elétrico instalado em hotel e pousada" loading="lazy">
+      <div class="ponto"><img src="/eletroposto/img/caso-hotel.jpg" width="620" height="349" alt="Carregador para carro elétrico instalado em hotel e pousada" loading="lazy">
         <div class="lb"><div class="t">Hotel e pousada</div><div class="k">60 kW</div></div></div>
-      <div class="ponto"><img src="/eletroposto/img/caso-mercado.jpg" alt="Estação de recarga em estacionamento de supermercado e shopping" loading="lazy">
+      <div class="ponto"><img src="/eletroposto/img/caso-mercado.jpg" width="620" height="349" alt="Estação de recarga em estacionamento de supermercado e shopping" loading="lazy">
         <div class="lb"><div class="t">Supermercado e shopping</div><div class="k">80 kW</div></div></div>
-      <div class="ponto"><img src="/eletroposto/img/caso-condominio.jpg" alt="Wallbox de recarga em garagem de condomínio e estacionamento" loading="lazy">
+      <div class="ponto"><img src="/eletroposto/img/caso-condominio.jpg" width="620" height="349" alt="Wallbox de recarga em garagem de condomínio e estacionamento" loading="lazy">
         <div class="lb"><div class="t">Condomínio e estacionamento</div><div class="k">22 kW AC</div></div></div>
     </div>
     <div class="fonte">Imagens ilustrativas de projeto.</div>
+    <div class="cta" style="margin-top:34px">
+      <a class="btn" href="/io/eletroposto#agendar">Qual faz sentido no meu ponto?</a>
+    </div>
   </div>
 </section>
 
@@ -594,5 +660,9 @@ document.querySelectorAll('[data-opcional]').forEach(el => {
   if (v === undefined || String(v).trim().startsWith('[[')) el.remove();
 });
 </script>
+<div class="barraFixa">
+  <a class="btn" href="/io/eletroposto#agendar">Agendar reunião — sem compromisso</a>
+</div>
+
 </body>
 </html>
