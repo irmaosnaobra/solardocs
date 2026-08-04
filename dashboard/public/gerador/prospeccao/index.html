@@ -506,7 +506,7 @@ const DESFECHOS = [
 const RESP_POSITIVA = ['respondeu','interessado','vendeu'];
 
 // ============= ESTADO =============
-let produtos = [], scripts = {}, listas = [], contatos = [], toques = [], buscas = [];
+let produtos = [], scripts = {}, listas = [], contatos = [], toques = [], buscas = [], respostas = [];
 let consultores = [];
 let consultorAtivo = consultorLogado();   // quem está logado no gerador já entra selecionado
 let aba = 'fila';
@@ -678,8 +678,15 @@ async function carregar(){
   produtos = pr; listas = li; contatos = co.rows; toques = to.rows; buscas = bu || [];
   truncado = (co.total > co.rows.length || to.total > to.rows.length)
     ? { contatos: co.total, toques: to.total } : null;
-  scripts = {};
-  sc.forEach(s => { (scripts[s.produto_id] = scripts[s.produto_id] || []).push(s.texto); });
+  // aberturas ficam no rodízio da caixa de mensagem; o resto vira resposta pronta
+  scripts = {}; respostas = [];
+  sc.forEach(s => {
+    if ((s.tipo || 'abertura') === 'abertura' && s.produto_id) {
+      (scripts[s.produto_id] = scripts[s.produto_id] || []).push(s.texto);
+    } else if ((s.tipo || 'abertura') !== 'abertura') {
+      respostas.push(s);
+    }
+  });
   consultores = (cs || []).map(c => c.nome).filter(Boolean);
   if (!consultores.length) consultores = ['Diego','Giovanna','Nilce','Thiago'];
   if (!consultores.includes(consultorAtivo)) consultorAtivo = consultores[0];
@@ -853,6 +860,72 @@ async function desfazerToque(toqueId, c, desbloquear){
     renderTudo();
     showToast('Desfeito');
   } catch(e){ showToast('Falha ao desfazer: ' + e.message); }
+}
+
+// ============= RESPOSTAS PRONTAS =============
+// A conversa não acaba na abertura. Estas são as falas do meio: quebra-gelo,
+// objeção ("tá caro", "vou pensar"), retomada de quem sumiu e fechamento.
+// Vêm do banco já personalizadas com empresa, dono e preço do produto na tela.
+const GRUPOS = [
+  { tipo:'quebra_gelo', nome:'Quebra-gelo', cor:'#60A5FA' },
+  { tipo:'objecao',     nome:'Objeções',    cor:'#F59E0B' },
+  { tipo:'follow',      nome:'Sumiu',       cor:'#94A3B8' },
+  { tipo:'fechamento',  nome:'Fechamento',  cor:'#22C55E' },
+];
+function textoResposta(s){
+  const c = focoAtual(), p = prodById(alvoAtual());
+  if (!c) return s.texto;
+  const nome = (c.socio || '').trim().split(/\s+/)[0] || '';
+  let t = s.texto;
+  if (!nome) t = t.replaceAll('{socio}, ', '').replaceAll(', {socio}', '').replaceAll('{socio}', 'você');
+  return t.replaceAll('{empresa}', c.empresa)
+    .replaceAll('{cidade}', c.cidade || '')
+    .replaceAll('{consultor}', consultorAtivo)
+    .replaceAll('{socio}', nome ? capitalizar(nome) : 'você')
+    .replaceAll('{preco}', p ? precoLabel(p) : '');
+}
+let respostaAberta = null;
+function abrirResposta(id){
+  respostaAberta = respostaAberta === id ? null : id;
+  renderConteudo();
+}
+function copiarResposta(id){
+  const s = respostas.find(x => x.id === id); if (!s) return;
+  const t = textoResposta(s);
+  if (navigator.clipboard) navigator.clipboard.writeText(t).catch(()=>{});
+  showToast('Copiado: ' + (s.rotulo || s.tipo));
+}
+function mandarResposta(id){
+  const s = respostas.find(x => x.id === id), c = focoAtual(); if (!s || !c) return;
+  window.open(`https://wa.me/${formatTelDigits(c.telefone)}?text=${encodeURIComponent(textoResposta(s))}`, '_blank');
+}
+function htmlRespostas(){
+  if (!respostas.length) return '';
+  const pid = alvoAtual();
+  const doProduto = s => !s.produto_id || s.produto_id === pid;
+  return `<div class="sect">
+    <div class="st">Respostas prontas<span class="hint">— pro meio da conversa</span></div>
+    ${GRUPOS.map(g => {
+      const itens = respostas.filter(s => s.tipo === g.tipo && doProduto(s))
+        .sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+      if (!itens.length) return '';
+      return `<div style="margin-bottom:9px">
+        <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:${g.cor};margin-bottom:5px">
+          ${g.nome.toUpperCase()}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          ${itens.map(s => `<button class="btn sm" onclick="abrirResposta('${s.id}')"
+            style="border-color:${g.cor}66;color:${g.cor}${respostaAberta===s.id?';background:'+g.cor+'1A':''}">
+            ${esc(s.rotulo || g.nome)}</button>`).join('')}
+        </div>
+        ${itens.filter(s => s.id === respostaAberta).map(s => `
+          <div class="script" style="margin-top:7px">${esc(textoResposta(s))}</div>
+          <div class="acts">
+            <button class="btn wa" style="flex:1" onclick="mandarResposta('${s.id}')">Mandar no WhatsApp</button>
+            <button class="btn" onclick="copiarResposta('${s.id}')">Copiar</button>
+          </div>`).join('')}
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 // ============= AÇÕES DA OFERTA =============
@@ -1095,6 +1168,8 @@ function htmlFila(){
         <button class="btn full" style="margin-top:7px" onclick="trocarVariacao()">Trocar variação</button>
 
         <div class="why"><b>Por que este produto:</b> ${porQue(c, alvo)}</div>
+
+        ${htmlRespostas()}
       </div>
     </div>
   </div>
