@@ -40,7 +40,12 @@
    O simulador é papel do /io/eletroposto: duplicar criaria duas portas de entrada
    gravando no mesmo `agendamentos` com created_by diferente, e a análise de
    reclassificação quebra. Preço só na conversa, depois da visita técnica.
-   O CTA daqui é sempre o WhatsApp.
+
+   TODO botão leva para /io/eletroposto#agendar — a agenda da LP, direto na
+   seção de agendamento, pulando o simulador. Não mandar CTA para o WhatsApp:
+   a própria LP registra o porquê ("quem cai no WhatsApp na hora fura a agenda
+   e vira atendimento avulso"). O telefone continua listado no contato, como
+   informação institucional, mas não como botão.
    ══════════════════════════════════════════════════════════════════════ */
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -207,7 +212,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
       <a href="#faq">Dúvidas</a>
       <a href="#contato">Contato</a>
     </nav>
-    <a class="btn" href="#contato"><span class="only-lg">Falar com a gente</span><span class="only-sm">Contato</span></a>
+    <a class="btn" href="/io/eletroposto#agendar"><span class="only-lg">Agendar reunião</span><span class="only-sm">Agendar</span></a>
   </div>
 </header>
 
@@ -225,7 +230,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
       comissionamento e operação. Atendemos todo o Brasil.
     </p>
     <div class="cta">
-      <a class="btn" href="#contato">Quero um estudo do meu ponto</a>
+      <a class="btn" href="/io/eletroposto#agendar">Agendar reunião</a>
       <a class="btn ghost" href="#entrega">O que está incluso →</a>
     </div>
   </div>
@@ -474,9 +479,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
         seu endereço</b> e apresentamos o orçamento fechado: equipamento, projeto e instalação.
         Trabalhamos com <b>cartão, financiamento e carência</b>.
       </div>
-      <a class="btn" style="margin-top:26px"
-         href="https://api.whatsapp.com/send?phone=5534998165040&amp;text=Ol%C3%A1!%20Quero%20o%20estudo%20de%20viabilidade%20do%20meu%20ponto."
-         target="_blank" rel="noopener">Quero o estudo do meu ponto</a>
+      <a class="btn" style="margin-top:26px" href="/io/eletroposto#agendar">Agendar o estudo do meu ponto</a>
     </div>
   </div>
 </section>
@@ -548,7 +551,8 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <h2>Vamos conversar?</h2>
     <p class="lead">
       Faça o estudo de viabilidade do seu ponto sem compromisso — a gente calcula o payback com os
-      números reais do seu endereço.
+      números reais do seu endereço. <b style="color:var(--cream)">Agende uma reunião</b> e escolha
+      o melhor horário na nossa agenda.
     </p>
     <div class="vias">
       <a href="https://api.whatsapp.com/send?phone=5534998165040" target="_blank" rel="noopener">
@@ -557,8 +561,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
         <span class="g">Instagram</span> @irmaosnaobra__</a>
     </div>
     <div class="cta">
-      <a class="btn" href="https://api.whatsapp.com/send?phone=5534998165040&text=Ol%C3%A1!%20Quero%20falar%20sobre%20eletroposto."
-         target="_blank" rel="noopener">Chamar no WhatsApp</a>
+      <a class="btn" href="/io/eletroposto#agendar">Agendar reunião</a>
       <a class="btn ghost" href="#empresa">Conhecer a empresa</a>
     </div>
   </div>
