@@ -134,13 +134,25 @@ export async function getMedia(igUserId: string, token: string): Promise<any[]> 
 }
 
 // ── Envio de mensagens ───────────────────────────────────────────────────────
-type MsgPayload = { text?: string; button?: { url: string; title: string } };
+type QuickReply = { title: string; payload?: string };
+type MsgPayload = { text?: string; button?: { url: string; title: string }; quick_replies?: QuickReply[] };
 
 function buildMessage(p: MsgPayload): any {
   if (p.button) {
     return { attachment: { type: 'template', payload: { template_type: 'button', text: p.text || '', buttons: [{ type: 'web_url', url: p.button.url, title: p.button.title }] } } };
   }
-  return { text: p.text || '' };
+  const msg: any = { text: p.text || '' };
+  // Quick reply (e não botão de template/postback): o toque volta como mensagem
+  // NORMAL com message.text = rótulo, então cai no handleMessage que já existe.
+  // Limites da Meta: 13 opções, título de 20 caracteres.
+  if (p.quick_replies?.length) {
+    msg.quick_replies = p.quick_replies.slice(0, 13).map(q => ({
+      content_type: 'text',
+      title: String(q.title || '').slice(0, 20),
+      payload: q.payload || q.title,
+    }));
+  }
+  return msg;
 }
 
 /** Resposta da Meta a um envio. message_id só vem quando ela ACEITOU e criou a mensagem. */

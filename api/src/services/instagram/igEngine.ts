@@ -16,6 +16,9 @@
 // Se nada casar e o comentário veio de ANÚNCIO com sinal de interesse (ou com
 // telefone), entra a automação marcada como `fallback` — tráfego pago é caro
 // demais pra deixar comentário sem resposta. Piada em post orgânico não recebe DM.
+//
+// PORTEIRO DO LINK (04/08/2026): automação com link não entrega no primeiro
+// toque. Pede o clique → pede o seguir → só então manda o link (ver igGate.ts).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
@@ -26,6 +29,10 @@ import {
   igEnv, getIgConfig, sendPrivateReply, sendDM, replyToComment,
   refreshLongToken, saveIgConfig,
 } from './igClient';
+import {
+  GateEstado, GateEtapa, GateAcao, gateAtivo, acaoNaAbertura, acaoNaResposta,
+  etapaDepois, payloadPedido, payloadSeguir, nudgeGate,
+} from './igGate';
 
 const IG_MAX_POR_HORA = Number(process.env.IG_MAX_POR_HORA || 180);
 const MAX_POR_TICK = 15;
@@ -39,6 +46,10 @@ interface Automation {
   botao_rotulo: string | null; link_url: string | null;
   lembrete_texto: string | null; lembrete_horas: number;
   prioridade: number; midias: string[]; fallback: boolean; produto: string | null;
+  // Porteiro (igGate): copy opcional por automação; nulo = usa o padrão.
+  gate_off?: boolean | null;
+  gate_pedir_texto?: string | null; gate_pedir_botao?: string | null;
+  gate_seguir_texto?: string | null; gate_seguir_botao?: string | null;
 }
 
 type Gatilho = 'comment' | 'story' | 'dm';
@@ -146,6 +157,34 @@ async function enqueue(item: { tipo: string; automation_id: string; recipient: s
   });
 }
 
+// ── ESTADO DO PORTEIRO (ig_contacts, projeto MAIN) ────────────────────────────
+async function lerGate(igUserId: string): Promise<GateEstado | null> {
+  const { data } = await supabase.from('ig_contacts')
+    .select('gate_etapa, gate_automation_id, gate_em, gate_liberado_em')
+    .eq('ig_user_id', igUserId).maybeSingle();
+  return (data as GateEstado) || null;
+}
+async function abrirGate(igUserId: string, automationId: string): Promise<void> {
+  const agora = new Date().toISOString();
+  await supabase.from('ig_contacts')
+    .update({ gate_etapa: 'pedido', gate_automation_id: automationId, gate_em: agora, gate_liberado_em: null, updated_at: agora })
+    .eq('ig_user_id', igUserId);
+}
+/**
+ * Avança a etapa SÓ se ninguém avançou antes. Dois toques no mesmo botão chegam
+ * como duas mensagens (mids diferentes, então `jaVisto` não pega) e as duas leem
+ * a mesma etapa — sem esta trava a pessoa recebe o mesmo texto duas vezes, que é
+ * exatamente o bug que apareceu no print do ManyChat.
+ */
+async function claimGate(igUserId: string, de: GateEtapa, acao: GateAcao): Promise<boolean> {
+  const agora = new Date().toISOString();
+  const patch: any = { gate_etapa: etapaDepois(acao), gate_em: agora, updated_at: agora };
+  if (acao === 'entregar') patch.gate_liberado_em = agora;   // seguiu: nunca pedir de novo
+  const { data } = await supabase.from('ig_contacts').update(patch)
+    .eq('ig_user_id', igUserId).eq('gate_etapa', de).select('ig_user_id');
+  return !!(data && data.length);
+}
+
 function welcomePayload(a: Automation): any {
   // Primeira mensagem (resposta privada a comentário / DM inicial) = TEXTO PURO
   // com o link embutido. Botão/template costuma dar erro genérico no 1º contato
@@ -157,7 +196,11 @@ function welcomePayload(a: Automation): any {
 function enqueueReminderIfAny(a: Automation, recipient: string): Promise<void> | null {
   if (!a.lembrete_texto) return null;
   const apos = new Date(Date.now() + (Number(a.lembrete_horas) || 24) * 3600 * 1000).toISOString();
-  return enqueue({ tipo: 'followup', automation_id: a.id, recipient, payload: { text: a.lembrete_texto }, needs_window: true, enviar_apos: apos });
+  const payload: any = { text: a.lembrete_texto };
+  // O texto do lembrete costuma trazer o link cru. Quem não passou pelo porteiro
+  // recebe o nudge no lugar (a troca é feita na drenagem, com o estado na mão).
+  if (gateAtivo(a)) payload.gate_nudge = nudgeGate(a);
+  return enqueue({ tipo: 'followup', automation_id: a.id, recipient, payload, needs_window: true, enviar_apos: apos });
 }
 
 // ── COMENTÁRIO ────────────────────────────────────────────────────────────────
@@ -184,13 +227,19 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
   if (!a) return;
 
   await upsertContact(fromId, username, a.id, false);
+
+  // Porteiro: automação com link pede o clique antes de entregar. Quem já seguiu
+  // (gate_liberado_em) recebe direto — ninguém é obrigado a seguir duas vezes.
+  const acao = acaoNaAbertura(a, await lerGate(fromId));
+  if (acao === 'pedir') await abrirGate(fromId, a.id);
+
   // DM privada (fura a janela de 24h). A resposta PÚBLICA só é enfileirada depois
   // que a DM sair de verdade (drainIgQueue) — senão a gente anuncia "olha no
   // direct" pra quem nunca recebeu nada.
   await enqueue({
     tipo: 'private_reply', automation_id: a.id, recipient: commentId, needs_window: false,
     payload: {
-      ...welcomePayload(a),
+      ...(acao === 'pedir' ? payloadPedido(a) : welcomePayload(a)),
       pub_ok: pick(a.respostas_publicas || []),
       pub_fail: username ? `@${username} me chama no direct que eu te mando tudo 👉` : null,
     },
@@ -215,19 +264,42 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
 
   // Toda mensagem recebida ABRE a janela de 24h.
   await upsertContact(senderId, null, null, true);
+  const tel = telefoneDe(text);
+
+  // ── Porteiro aberto? Então esta resposta é o próximo toque do fluxo, seja ela
+  // o clique no botão ("Me envie o link") ou texto digitado. Não volta pro
+  // roteamento por palavra-chave: o fluxo em andamento manda.
+  const estado = await lerGate(senderId);
+  const passo = acaoNaResposta(estado);
+  if (passo) {
+    const autos = await loadAutomations();
+    const dona = autos.find(x => x.id === estado?.gate_automation_id) || null;
+    if (dona) {
+      if (await claimGate(senderId, estado!.gate_etapa as GateEtapa, passo)) {
+        const payload = passo === 'seguir' ? payloadSeguir(dona) : welcomePayload(dona);
+        await enqueue({ tipo: 'dm', automation_id: dona.id, recipient: senderId, payload, needs_window: false });
+      }
+      if (tel) await depositarLead(senderId, tel, dona, null);
+      return;
+    }
+    // Automação pausada no meio do fluxo: cai no roteamento normal abaixo.
+  }
 
   const autos = await loadAutomations();
   const a = escolher(autos, isStory ? 'story' : 'dm', text);
   if (a) {
     await upsertContact(senderId, null, a.id, false);
+    // DM fria também passa pelo porteiro (o link é o mesmo, a regra é a mesma).
+    const acao = acaoNaAbertura(a, estado);
+    if (acao === 'pedir') await abrirGate(senderId, a.id);
     // Conversa já aberta → DM direta (não precisa de janela).
-    await enqueue({ tipo: 'dm', automation_id: a.id, recipient: senderId, payload: welcomePayload(a), needs_window: false });
+    const payload = acao === 'pedir' ? payloadPedido(a) : welcomePayload(a);
+    await enqueue({ tipo: 'dm', automation_id: a.id, recipient: senderId, payload, needs_window: false });
     await enqueueReminderIfAny(a, senderId);
   }
 
   // Integração com o CRM: se a pessoa mandou um WhatsApp na DM, deposita o lead
   // no rodízio/agenda (reaproveita ingestManychatLead → avisa o consultor).
-  const tel = telefoneDe(text);
   if (tel) await depositarLead(senderId, tel, a, null);
 }
 
@@ -250,6 +322,7 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
   if (!ligado()) return { enviados: 0, pulados: 0, reason: 'desligado' };
   const cfg = await getIgConfig();
   if (!cfg?.access_token || !cfg.ig_user_id) return { enviados: 0, pulados: 0, reason: 'sem_conta' };
+  const igId = cfg.ig_user_id, token = cfg.access_token;   // locais: o envio virou closure
 
   // Teto anti-ban por hora.
   const desde = new Date(Date.now() - 3600 * 1000).toISOString();
@@ -270,18 +343,38 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
       .eq('id', item.id).eq('status', 'pending').select('id');
     if (!claimed || !claimed.length) continue;
 
-    // Janela de 24h.
+    // Janela de 24h + estado do porteiro (a mesma linha serve pras duas coisas).
+    let contato: any = null;
     if (item.needs_window) {
-      const { data: c } = await supabase.from('ig_contacts').select('last_reply_at').eq('ig_user_id', item.recipient).maybeSingle();
+      const { data: c } = await supabase.from('ig_contacts')
+        .select('last_reply_at, gate_etapa, gate_liberado_em').eq('ig_user_id', item.recipient).maybeSingle();
+      contato = c || null;
       const aberta = c?.last_reply_at && (Date.now() - new Date(c.last_reply_at).getTime()) < 24 * 3600 * 1000;
       if (!aberta) { await supabase.from('ig_queue').update({ status: 'skipped', erro: 'janela_24h_fechada' }).eq('id', item.id); pulados++; continue; }
     }
 
+    // Lembrete de quem parou no porteiro não pode levar o link (o texto da
+    // automação traz a URL crua) — vai o nudge pedindo pra seguir.
+    let payload: any = item.payload;
+    if (item.tipo === 'followup' && payload?.gate_nudge && !contato?.gate_liberado_em) {
+      payload = { text: payload.gate_nudge };
+    }
+
     try {
+      const enviar = (p: any): Promise<any> =>
+        item.tipo === 'private_reply' ? sendPrivateReply(igId, item.recipient, p, token)
+        : item.tipo === 'public_reply' ? replyToComment(item.recipient, p?.text || '', token)
+        : sendDM(igId, item.recipient, p, token);                   // dm | followup
       let resp: any = {};
-      if (item.tipo === 'private_reply') resp = await sendPrivateReply(cfg.ig_user_id, item.recipient, item.payload, cfg.access_token);
-      else if (item.tipo === 'public_reply') resp = await replyToComment(item.recipient, item.payload?.text || '', cfg.access_token);
-      else resp = await sendDM(cfg.ig_user_id, item.recipient, item.payload, cfg.access_token); // dm | followup
+      try { resp = await enviar(payload); }
+      catch (err) {
+        if (!payload?.quick_replies) throw err;
+        // A Meta às vezes recusa quick_replies (sobretudo no 1º contato).
+        // Reenvia o MESMO texto sem botão — a copy já ensina a responder
+        // digitando. Retry aqui dentro pra não disparar o "me chama no direct".
+        logger.error('ig', 'quick_replies recusado, reenviando texto puro', err);
+        resp = await enviar({ text: payload.text });
+      }
       // message_id é a prova de que a Meta criou a mensagem (200 sozinho não é).
       await supabase.from('ig_queue').update({ status: 'sent', message_id: resp?.message_id || resp?.id || null, resposta: resp || null }).eq('id', item.id);
       await supabase.from('system_state').upsert({ key: 'ig_sent:' + item.id, value: '1', updated_at: new Date().toISOString() }, { onConflict: 'key' });

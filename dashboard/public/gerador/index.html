@@ -2658,7 +2658,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
 
     <div id="auto-pane-instagram" style="display:none">
-      <div class="auto-warn">📸 Automação nativa do Instagram: comentário com palavra-chave vira <b>DM automática com seu link</b> (substitui o ManyChat). Se a pessoa mandar o WhatsApp na DM, o lead cai direto no seu CRM/rodízio. Requer conectar a conta + app da Meta aprovado (App Review).</div>
+      <div class="auto-warn">📸 Automação nativa do Instagram: comentário com palavra-chave vira <b>DM automática</b> (substitui o ManyChat). O link não sai de graça — a DM <b>pede pra clicar, depois pra seguir, e só então manda o link</b> 🚪. Se a pessoa mandar o WhatsApp na DM, o lead cai direto no seu CRM/rodízio. Requer conectar a conta + app da Meta aprovado (App Review).</div>
 
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span> Conexão</div>
@@ -2692,12 +2692,29 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div id="auto-ig-posts" class="auto-chips"></div>
         <label class="auto-lbl" style="margin-top:12px">Respostas públicas ao comentário (uma por linha — sorteia uma)</label>
         <textarea class="auto-ta" id="auto-ig-pub" placeholder="Te chamei na DM!&#10;Prontinho, olha lá no direct 👀"></textarea>
-        <label class="auto-lbl" style="margin-top:12px">DM de boas-vindas</label>
+        <label class="auto-lbl" style="margin-top:12px">DM com o link <span style="color:#64748b">— só vai no 3º toque, depois do porteiro</span></label>
         <textarea class="auto-ta" id="auto-ig-dm" placeholder="Oi! Aqui está o link que você pediu 👇"></textarea>
         <div class="auto-row" style="margin-top:12px">
           <div><label class="auto-lbl">Rótulo do botão</label><input class="auto-inp" id="auto-ig-btn" placeholder="Quero saber mais" style="width:180px"></div>
           <div style="flex:1;min-width:200px"><label class="auto-lbl">Link do botão</label><input class="auto-inp" id="auto-ig-link" placeholder="https://..."></div>
         </div>
+
+        <!-- Porteiro: 2 toques antes do link (o fluxo do print do ManyChat). Ligado
+             sozinho em toda automação que tenha link — os campos são só override. -->
+        <div style="margin-top:16px;padding:12px;border:1px dashed #334155;border-radius:10px">
+          <label class="auto-lbl" style="margin:0">🚪 Porteiro do link <span style="color:#64748b">— pede pra clicar, depois pra seguir, e só então manda o link</span></label>
+          <p class="auto-mini" style="margin:6px 0 10px">Ligado por padrão em toda automação com link. Cada toque é uma resposta da pessoa — é ela que abre a janela de 24h da Meta e gera engajamento no post. Quem já seguiu uma vez recebe o link direto. Deixe os campos vazios pra usar a copy padrão.</p>
+          <label class="auto-chip" style="cursor:pointer" title="Entrega o link no primeiro toque, como antes"><input type="checkbox" id="auto-ig-gate-off" style="margin-right:6px">Pular o porteiro nesta automação</label>
+          <div class="auto-row" style="margin-top:12px">
+            <div style="flex:1;min-width:220px"><label class="auto-lbl">1º toque — pede o clique</label><input class="auto-inp" id="auto-ig-gate-pedir" placeholder="Opa, e aí, beleza? 👋 Clica no botão abaixo (ou responde LINK aqui)…"></div>
+            <div><label class="auto-lbl">Botão (até 20)</label><input class="auto-inp" id="auto-ig-gate-pedir-btn" placeholder="Me envie o link" maxlength="20" style="width:150px"></div>
+          </div>
+          <div class="auto-row" style="margin-top:12px">
+            <div style="flex:1;min-width:220px"><label class="auto-lbl">2º toque — pede o seguir</label><input class="auto-inp" id="auto-ig-gate-seguir" placeholder="Quase lá! Esse link é especial pra quem me segue ✨…"></div>
+            <div><label class="auto-lbl">Botão (até 20)</label><input class="auto-inp" id="auto-ig-gate-seguir-btn" placeholder="Seguindo" maxlength="20" style="width:150px"></div>
+          </div>
+        </div>
+
         <div class="auto-row" style="margin-top:12px">
           <div style="flex:1;min-width:200px"><label class="auto-lbl">Lembrete por tempo (opcional)</label><input class="auto-inp" id="auto-ig-lembrete" placeholder="Ainda dá tempo, quer ajuda?"></div>
           <div><label class="auto-lbl">Após (horas)</label><input class="auto-inp" type="number" id="auto-ig-lembrete-h" value="24" min="1" style="width:100px"></div>
@@ -10612,12 +10629,19 @@ if ('serviceWorker' in navigator) {
       link_url:val('auto-ig-link').trim()||null,
       lembrete_texto:val('auto-ig-lembrete').trim()||null,
       lembrete_horas:+val('auto-ig-lembrete-h')||24,
+      // Porteiro: vazio = copy padrão do motor (não é "sem porteiro").
+      gate_off:document.getElementById('auto-ig-gate-off').checked,
+      gate_pedir_texto:val('auto-ig-gate-pedir').trim()||null,
+      gate_pedir_botao:val('auto-ig-gate-pedir-btn').trim()||null,
+      gate_seguir_texto:val('auto-ig-gate-seguir').trim()||null,
+      gate_seguir_botao:val('auto-ig-gate-seguir-btn').trim()||null,
     };
     try{
       await supaInsert('ig_automations', rec);
-      ['auto-ig-nome','auto-ig-kw','auto-ig-post','auto-ig-pub','auto-ig-dm','auto-ig-btn','auto-ig-link','auto-ig-lembrete'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+      ['auto-ig-nome','auto-ig-kw','auto-ig-post','auto-ig-pub','auto-ig-dm','auto-ig-btn','auto-ig-link','auto-ig-lembrete','auto-ig-gate-pedir','auto-ig-gate-pedir-btn','auto-ig-gate-seguir','auto-ig-gate-seguir-btn'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
       document.getElementById('auto-ig-prio').value='100';
       document.getElementById('auto-ig-fallback').checked=false;
+      document.getElementById('auto-ig-gate-off').checked=false;
       document.getElementById('auto-ig-produto').value='';
       document.getElementById('auto-ig-msg').textContent=' Automação salva!';
       autoIgCarregarAutomacoes();
@@ -10627,14 +10651,16 @@ if ('serviceWorker' in navigator) {
     const c=document.getElementById('auto-ig-lista'); if(!c) return;
     try{
       // ordenado por prioridade: a lista mostra a MESMA ordem que o motor usa pra decidir
-      const rows=await supaGet('ig_automations?select=id,nome,ativo,gatilhos,palavras_chave,prioridade,fallback,produto,midias&order=prioridade.asc&limit=30');
+      const rows=await supaGet('ig_automations?select=id,nome,ativo,gatilhos,palavras_chave,prioridade,fallback,produto,midias,link_url,gate_off&order=prioridade.asc&limit=30');
       c.innerHTML = rows.length? rows.map(function(a){
         const g=[]; if(a.gatilhos&&a.gatilhos.comment)g.push('comentário'); if(a.gatilhos&&a.gatilhos.story)g.push('story'); if(a.gatilhos&&a.gatilhos.dm)g.push('dm');
         const cor=a.ativo?'#22c55e':'#64748b';
         const kw=a.fallback?'rede de segurança (só quando nada casa)':((a.palavras_chave||[]).join(', ')||'qualquer');
         const fixada=(a.midias||[]).length?' · 📌 '+a.midias.length+(a.midias.length>1?' mídias':' mídia'):'';
         const prod=a.produto?' · '+autoEsc(a.produto):'';
-        return '<div class="auto-item"><div class="top"><span class="auto-badge" style="background:'+cor+'">'+(a.ativo?'ativa':'pausada')+'</span><span class="auto-badge" style="background:#334155" title="prioridade — menor ganha o empate">#'+(a.prioridade==null?100:a.prioridade)+'</span><b>'+autoEsc(a.nome)+'</b><span class="auto-mini">'+g.join(', ')+' · '+autoEsc(kw)+fixada+prod+'</span><button type="button" class="auto-btn ghost" style="padding:4px 10px" onclick="autoIgToggle(\''+a.id+'\','+(!a.ativo)+')">'+(a.ativo?'pausar':'ativar')+'</button></div></div>';
+        // Porteiro é automático: quem tem link e não pulou passa pelos 2 toques.
+        const porteiro=(a.link_url&&!a.gate_off)?' · 🚪 porteiro':(a.link_url?' · link no 1º toque':'');
+        return '<div class="auto-item"><div class="top"><span class="auto-badge" style="background:'+cor+'">'+(a.ativo?'ativa':'pausada')+'</span><span class="auto-badge" style="background:#334155" title="prioridade — menor ganha o empate">#'+(a.prioridade==null?100:a.prioridade)+'</span><b>'+autoEsc(a.nome)+'</b><span class="auto-mini">'+g.join(', ')+' · '+autoEsc(kw)+fixada+prod+porteiro+'</span><button type="button" class="auto-btn ghost" style="padding:4px 10px" onclick="autoIgToggle(\''+a.id+'\','+(!a.ativo)+')">'+(a.ativo?'pausar':'ativar')+'</button></div></div>';
       }).join('') : '<p class="auto-mini">Nenhuma automação ainda.</p>';
     }catch(e){ c.innerHTML='<p class="auto-mini">Erro: '+autoEsc(e.message)+'</p>'; }
   }
