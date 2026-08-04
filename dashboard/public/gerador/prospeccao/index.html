@@ -901,8 +901,15 @@ function mandarResposta(id){
 }
 function htmlRespostas(){
   if (!respostas.length) return '';
-  const pid = alvoAtual();
-  const doProduto = s => !s.produto_id || s.produto_id === pid;
+  const pid = alvoAtual(), prod = prodById(pid);
+  const temPreco = !!Number(prod && prod.preco);
+  const especifico = new Set(respostas.filter(s => s.produto_id === pid).map(s => s.rotulo));
+  const doProduto = s => {
+    if (s.produto_id) return s.produto_id === pid;          // escrito pra este produto
+    if (especifico.has(s.rotulo)) return false;             // já existe versão específica, a genérica sai
+    if (!temPreco && s.texto.includes('{preco}')) return false; // "sob medida é uma vez" não é frase
+    return true;
+  };
   return `<div class="sect">
     <div class="st">Respostas prontas<span class="hint">— pro meio da conversa</span></div>
     ${GRUPOS.map(g => {
