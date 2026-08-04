@@ -240,6 +240,17 @@ html.js .reveal{opacity:0;transform:translateY(26px)}
 .hero .sc{z-index:2}
 .hero .wrap{z-index:3}
 
+/* ---------- acessibilidade ----------
+   Quem navega por teclado precisa ver ONDE está. Sem isto o foco anda
+   invisível pela página inteira e o site fica inutilizável sem mouse. */
+:focus-visible{outline:3px solid var(--neon);outline-offset:3px;border-radius:4px}
+.pula{position:absolute;left:-9999px;top:0;z-index:200;background:var(--neon);
+  color:#08160A;font-weight:800;padding:14px 22px;border-radius:0 0 10px 0;text-decoration:none}
+.pula:focus{left:0}
+/* texto pequeno estava em 42% de opacidade — abaixo do contraste mínimo */
+.fonte{color:rgba(247,251,242,.58)}
+.ilustra{color:rgba(247,251,242,.58)}
+
 .sep{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
 </style>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "ProfessionalService", "@id": "https://solardoc.app/eletroposto#empresa", "name": "Irmãos na Obra Mobilidade Elétrica", "description": "Instalação de eletropostos e estações de recarga para veículos elétricos em todo o Brasil: projeto elétrico, parecer de acesso, obra, comissionamento e operação.", "url": "https://solardoc.app/eletroposto", "image": "https://solardoc.app/eletroposto/img/capa.jpg", "logo": "https://solardoc.app/eletroposto/img/logo-io.png", "telephone": "+5534998165040", "areaServed": {"@type": "Country", "name": "Brasil"}, "address": {"@type": "PostalAddress", "addressRegion": "MG", "addressCountry": "BR"}, "sameAs": ["https://instagram.com/irmaosnaobra__"], "knowsAbout": ["eletroposto", "estação de recarga", "carregador para carro elétrico", "carregador DC", "wallbox", "mobilidade elétrica"], "hasOfferCatalog": {"@type": "OfferCatalog", "name": "Serviços de mobilidade elétrica", "itemListElement": [{"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Instalação de eletroposto chave na mão"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Carregador rápido DC de 40 a 160 kW"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Carregador AC wallbox de 7,3 a 22 kW"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Projeto elétrico e ART no CREA"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Parecer de acesso na concessionária"}}, {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Manutenção e suporte de estações de recarga"}}]}}</script>
@@ -247,14 +258,15 @@ html.js .reveal{opacity:0;transform:translateY(26px)}
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebPage", "name": "Instalação de Eletroposto e Carregador para Carro Elétrico", "url": "https://solardoc.app/eletroposto", "inLanguage": "pt-BR", "isPartOf": {"@type": "WebSite", "name": "Irmãos na Obra Mobilidade Elétrica", "url": "https://solardoc.app/eletroposto"}}</script>
 </head>
 <body>
+<a class="pula" href="#topo">Pular para o conteúdo</a>
 
-<header>
+<header role="banner">
   <div class="wrap bar">
     <a class="lock" href="#topo">
       <img src="/eletroposto/img/logo-io.png" alt="Irmãos na Obra Mobilidade Elétrica" width="120" height="120">
       <div><div class="n1">IRMÃOS NA OBRA</div><div class="n2">MOBILIDADE ELÉTRICA</div></div>
     </a>
-    <nav>
+    <nav aria-label="Navegação principal">
       <a href="#empresa">A empresa</a>
       <a href="#servicos">Serviços</a>
       <a href="#entrega">O que entregamos</a>
@@ -268,7 +280,7 @@ html.js .reveal{opacity:0;transform:translateY(26px)}
 
 <!-- ══════════ HERO ══════════ -->
 <section class="hero" id="topo">
-  <div class="bg"></div><canvas id="tela3d"></canvas><div class="sc"></div>
+  <div class="bg"></div><canvas id="tela3d" aria-hidden="true"></canvas><div class="sc"></div>
   <div class="wrap">
     <div class="eyebrow">Eletropostos · chave na mão</div>
     <h1>Instalação de eletroposto<br><span class="mark">chave na mão</span></h1>
@@ -290,10 +302,10 @@ html.js .reveal{opacity:0;transform:translateY(26px)}
 <section class="trust" style="padding:0">
   <div class="wrap" style="padding:0">
     <div class="in">
-      <div class="it"><span>◉</span>Atendemos<br>todo o Brasil</div>
-      <div class="it"><span>◈</span>ART no CREA<br>por engenheiro próprio</div>
-      <div class="it"><span>▣</span>Equipamento<br>em estoque no Brasil</div>
-      <div class="it"><span>✔</span>Garantia de fábrica<br>e peça de reposição aqui</div>
+      <div class="it"><span aria-hidden="true">◉</span>Atendemos<br>todo o Brasil</div>
+      <div class="it"><span aria-hidden="true">◈</span>ART no CREA<br>por engenheiro próprio</div>
+      <div class="it"><span aria-hidden="true">▣</span>Equipamento<br>em estoque no Brasil</div>
+      <div class="it"><span aria-hidden="true">✔</span>Garantia de fábrica<br>e peça de reposição aqui</div>
     </div>
   </div>
 </section>
@@ -650,7 +662,7 @@ html.js .reveal{opacity:0;transform:translateY(26px)}
   </div>
 </section>
 
-<footer>
+<footer role="contentinfo">
   <div class="wrap foot-in">
     <div>IRMÃOS NA OBRA · MOBILIDADE ELÉTRICA · <span data-d="ano"></span></div>
     <div>Atendemos todo o Brasil</div>
@@ -677,7 +689,7 @@ document.querySelectorAll('[data-opcional]').forEach(el => {
   if (v === undefined || String(v).trim().startsWith('[[')) el.remove();
 });
 </script>
-<div class="barraFixa">
+<div class="barraFixa" role="complementary" aria-label="Agendar">
   <a class="btn" href="/io/eletroposto#agendar">Agendar reunião — sem compromisso</a>
 </div>
 
@@ -801,5 +813,60 @@ window.addEventListener('load', () => {
 });
 </script>
   <script src="/lib/telemetria.js" defer></script>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     MEDIÇÃO — sem isto nao da pra saber se a pagina converte 0% ou 5%.
+     Pixel do Meta no MESMO conjunto de dados da LP (26788759654130722),
+     entao quem visita o institucional entra no publico de remarketing junto
+     com quem visita a LP. E telemetria.js, que so faz requisicao depois que
+     alguem colar a chave do PostHog — ate la custa zero.
+     ══════════════════════════════════════════════════════════════════════ -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init','26788759654130722');   // mesmo conjunto de dados da LP
+fbq('track','PageView');
+
+/* marca(nome, extra) — dispara no Meta e no PostHog de uma vez.
+   Se algum dos dois nao estiver ligado, some calado. */
+window.marca = function (nome, extra) {
+  try { fbq('trackCustom', 'SITE_' + nome, extra || {}); } catch (e) {}
+  try { window.evento && window.evento(nome, extra || {}); } catch (e) {}
+};
+
+window.addEventListener('load', function () {
+  // 1) todo clique que leva pra agenda, com a secao de onde saiu
+  document.querySelectorAll('a[href*="#agendar"]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var sec = a.closest('section');
+      marca('clique_agendar', {
+        origem: (sec && sec.id) || (a.closest('.barraFixa') ? 'barra_fixa' : 'topo'),
+        texto: a.innerText.trim().slice(0, 40),
+      });
+    });
+  });
+
+  // 2) profundidade de leitura: onde a pessoa desiste
+  var marcos = [25, 50, 75, 100], vistos = {};
+  addEventListener('scroll', function () {
+    var h = document.body.scrollHeight - innerHeight;
+    var pct = h > 0 ? Math.round(scrollY / h * 100) : 100;
+    marcos.forEach(function (m) {
+      if (pct >= m && !vistos[m]) { vistos[m] = 1; marca('rolou_' + m); }
+    });
+  }, { passive: true });
+
+  // 3) quem chega no fim da pagina e nao clicou em nada
+  var clicou = false;
+  document.addEventListener('click', function (e) { if (e.target.closest('a.btn')) clicou = true; });
+  addEventListener('beforeunload', function () {
+    if (!clicou && vistos[75]) marca('leu_e_saiu_sem_clicar');
+  });
+});
+</script>
+<script src="/lib/telemetria.js" defer></script>
 </body>
 </html>
