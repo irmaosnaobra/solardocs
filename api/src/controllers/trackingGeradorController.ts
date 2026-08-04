@@ -38,7 +38,12 @@ function clientIp(req: Request): string {
   return (req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
 }
 
-const EVENTOS_VALIDOS = new Set(['abertura', 'click_wpp_cta', 'click_wpp_expirado', 'click_wpp_consultor', 'click_pdf']);
+// 'abertura_expirada' é a abertura de um link que já venceu: o cliente ainda
+// está olhando, só não vê mais os valores. Fica fora de 'abertura' de propósito —
+// o contador de acessos da proposta não deve subir com quem viu a tela de
+// expirado, senão o consultor lê "5 visualizações" de uma proposta que ninguém
+// mais consegue ler.
+const EVENTOS_VALIDOS = new Set(['abertura', 'abertura_expirada', 'click_wpp_cta', 'click_wpp_expirado', 'click_wpp_consultor', 'click_pdf']);
 
 export async function trackEvent(req: Request, res: Response): Promise<void> {
   try {
@@ -82,7 +87,7 @@ export async function trackEvent(req: Request, res: Response): Promise<void> {
     // (era exatamente por isso que a notificação de "cliente abriu proposta" não chegava).
     // O custo é ~1-2s a mais nesta request de tracking — imperceptível pro cliente.
     // try/catch garante que uma falha de notificação nunca derruba o tracking.
-    if (ev === 'abertura' || ev === 'click_wpp_cta' || ev === 'click_wpp_expirado') {
+    if (ev === 'abertura' || ev === 'abertura_expirada' || ev === 'click_wpp_cta' || ev === 'click_wpp_expirado') {
       try {
         await notificarConsultor(codigo, ev, cidade, uf);
       } catch (err) {
@@ -113,9 +118,14 @@ async function notificarConsultor(codigo: string, evento: string, cidade?: strin
     msg = `🟢 *${cli}* abriu sua proposta agora${local}.\n\nCódigo: ${codigo}`;
   } else if (evento === 'click_wpp_cta') {
     msg = `🔥 *${cli}* clicou no botão "Quero fechar — WhatsApp" da proposta ${codigo}${local}. Pode chegar mensagem dele agora.`;
-  } else {
-    // click_wpp_expirado
+  } else if (evento === 'abertura_expirada') {
+    // Abriu, mas o prazo já tinha passado — ele viu a tela de expirado, não os
+    // valores. Branch próprio: cair no texto de "clicou no botão" seria mentira.
+    msg = `⏰ *${cli}* abriu a proposta ${codigo}${local}, mas ela já estava vencida — ele viu a tela de expirado. Vale refazer e reenviar.`;
+  } else if (evento === 'click_wpp_expirado') {
     msg = `⏰ *${cli}* tentou abrir uma proposta expirada (${codigo}) e clicou no botão pra falar com você. Refaça a proposta!`;
+  } else {
+    msg = `👀 *${cli}* interagiu com a proposta ${codigo}${local} (${evento}).`;
   }
   await sendWhatsApp(row.consultor_telefone, msg, 'io');
 }
