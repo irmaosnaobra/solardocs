@@ -10,7 +10,14 @@ import type { NextRequest } from 'next/server';
 // '/orc/' é o link do orçamento que o consultor manda pro cliente — quem abre
 // não tem conta nenhuma. Sem estar aqui, o proxy devolve 307 pro /auth e o
 // crawler do WhatsApp lê a tela de login em vez das og: tags do produto.
-const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta'];
+// '/eletroposto' = site institucional da Irmãos na Obra Mobilidade Elétrica
+// (public/eletroposto/index.html). Existe pra ser achado no Google por quem
+// nunca ouviu falar da empresa — sem estar aqui, o visitante e o robô do Google
+// caem no /auth e a página não indexa nunca.
+// '/robots.txt' e '/sitemap.xml' pelo mesmo motivo, e é pior: o Google PEDE os
+// dois e recebia 307 pra tela de login. Arquivo estático de /public só é
+// entregue se o proxy deixar passar.
+const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/robots.txt', '/sitemap.xml'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;
