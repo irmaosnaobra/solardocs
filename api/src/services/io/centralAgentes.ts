@@ -469,8 +469,8 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       nome: 'Boas-vindas do solar — recibo do cadastro',
       papel: 'Assim que alguém se cadastra em energia solar (LP, /simular ou Lead Ads), fala com o cliente: diz quem é o consultor dele, passa o WhatsApp desse consultor, avisa que NÓS entramos em contato e faz UMA pergunta — o consumo atual. Não fala de horário — de propósito.',
       canal: 'whatsapp', linha: 'io',
-      estado: envLigado('SOLAR_BOASVINDAS_ON') ? 'ativo' : 'desligado',
-      chave: 'SOLAR_BOASVINDAS_ON',
+      estado: envLigado('SOLAR_BOASVINDAS_OFF') ? 'desligado' : 'ativo',
+      chave: 'SOLAR_BOASVINDAS_OFF',
       ultima_atividade: solarUltimoToque,
       metricas: [
         { label: 'Cadastros de solar (30d)', valor: solarCadastros30, sub: 'LP solar + /simular + Lead Ads' },
@@ -481,7 +481,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { titulo: 'único · no cadastro', quando: 'até 5 min depois de a ficha entrar', copy: 'Seis bolhas: quem é o consultor + o WhatsApp dele, "nós entramos em contato", "pode escrever agora que estamos aguardando", e uma pergunta só — qual o consumo atual (aceita foto da conta de luz). Só ficha com até 1 hora de vida — o backlog nunca é tocado.' },
         { titulo: '↩ resposta do cliente', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro cliente: é o recado com o que a pessoa escreveu, indo pro consultor DONO da ficha (e cópia pro Thiago). Kill-switch SOLAR_RESPOSTAS_OFF.' },
       ],
-      alerta: envLigado('SOLAR_BOASVINDAS_ON')
+      alerta: !envLigado('SOLAR_BOASVINDAS_OFF')
         && (solarCadastros30 ?? 0) > 0 && (solarBoasVindas30 ?? 0) === 0
         ? 'Nenhum cadastro de solar recebeu boas-vindas nos últimos 30 dias, com o agente ligado — confira o cron e a linha IO.'
         : undefined,

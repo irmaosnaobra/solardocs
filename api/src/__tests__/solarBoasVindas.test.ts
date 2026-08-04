@@ -68,7 +68,7 @@ beforeEach(() => {
   enviadas.length = 0; updates.length = 0; erroDoUpdate = null;
   fichas = [ficha()];
   consultores = [{ nome: 'Nilce', whatsapp: '5534991516846' }, { nome: 'Diego', whatsapp: '5534991360172' }];
-  process.env.SOLAR_BOASVINDAS_ON = 'true';
+  delete process.env.SOLAR_BOASVINDAS_OFF;   // no ar por padrão desde a aprovação de 04/08
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
 afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.resetModules(); });
@@ -149,14 +149,14 @@ describe('o backlog não vira rajada', () => {
 });
 
 describe('o switch', () => {
-  it('sem SOLAR_BOASVINDAS_ON=true não sai nada', async () => {
-    delete process.env.SOLAR_BOASVINDAS_ON;
+  it('SOLAR_BOASVINDAS_OFF=1 cala o agente', async () => {
+    process.env.SOLAR_BOASVINDAS_OFF = '1';
     expect(await tick()).toMatchObject({ enviadas: 0, motivo: 'desligado' });
     expect(enviadas).toHaveLength(0);
   });
 
-  it('mas o dry funciona desligado — é assim que a copy é aprovada antes de ligar', async () => {
-    delete process.env.SOLAR_BOASVINDAS_ON;
+  it('mas o dry funciona desligado — é assim que a copy é revisada sem tocar em ninguém', async () => {
+    process.env.SOLAR_BOASVINDAS_OFF = '1';
     const r = await tick({ dry: true });
     expect(r.enviadas).toBe(1);
     expect(r.previa?.[0].bolhas.length).toBeGreaterThan(0);

@@ -44,8 +44,10 @@
 // opt-out antigo. Isto é o recibo do cadastro DELE, não abordagem fria. Pelo mesmo
 // motivo não há janela de horário: quem cadastra às 23h está esperando resposta.
 //
-// Opt-in explícito: SOLAR_BOASVINDAS_ON=true. Sem isso o tick é no-op — mensagem
-// pro cliente não começa a sair só porque um deploy subiu.
+// Kill-switch: SOLAR_BOASVINDAS_OFF=1 (desliga este toque E o solarRespostas).
+// Nasceu como opt-in (SOLAR_BOASVINDAS_ON) justamente pra copy nenhuma sair antes
+// de o dono ler; aprovada em 04/08, virou switch de desligar — mesma convenção
+// dos agentes que já estão no ar (EP_LEMBRETES_OFF, EP_RESPOSTAS_OFF).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabaseGerador } from '../../utils/supabaseGerador';
@@ -74,7 +76,7 @@ const MAX_POR_TICK = 5;
 const BOLHA_MAX = 260;
 const BOLHA_TETO = 7;
 
-const ligado = () => (process.env.SOLAR_BOASVINDAS_ON || '').trim().toLowerCase() === 'true';
+export const desligado = () => (process.env.SOLAR_BOASVINDAS_OFF || '').trim() === '1';
 
 /** Segunda rede, em memória: ficha que JÁ recebeu nesta instância não recebe de
  *  novo nem se a gravação da flag falhar. A primeira rede é a coluna no banco —
@@ -197,9 +199,9 @@ async function carregarConsultores(): Promise<Map<string, string>> {
  * flag — é assim que se confere a copy contra ficha real antes de ligar.
  */
 export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Promise<ResultadoBoasVindas> {
-  // No dry a checagem do switch é pulada: a conferência tem que funcionar com o
-  // agente ainda desligado, senão não dá pra aprovar a copy antes de ligar.
-  if (!opts.dry && !ligado()) return zero('desligado');
+  // No dry a checagem do switch é pulada: a conferência da copy tem que funcionar
+  // mesmo com o agente desligado — é como se revisa o texto sem tocar em ninguém.
+  if (!opts.dry && desligado()) return zero('desligado');
 
   const agora = Date.now();
   const janela = new Date(agora - JANELA_MS).toISOString();

@@ -34,8 +34,8 @@
 //     "e é casa" em dois recados separados.
 //   • Teto de avisos por rodada.
 //
-// Vive atrás do MESMO opt-in do primeiro toque (SOLAR_BOASVINDAS_ON=true): ligar
-// a boca sem ligar o ouvido não é uma configuração que faça sentido existir.
+// Morre junto com o primeiro toque (SOLAR_BOASVINDAS_OFF=1): boca ligada com
+// ouvido desligado não é uma configuração que faça sentido existir.
 // Kill-switch só desta metade: SOLAR_RESPOSTAS_OFF=1.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { EQUIPE } from '../../routes/ioSolar';
-import { SOLAR_ORIGENS } from './solarBoasVindas';
+import { SOLAR_ORIGENS, desligado as boasVindasDesligado } from './solarBoasVindas';
 
 const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
 
@@ -57,7 +57,6 @@ const LOOKBACK_MAX_MS = 3 * 24 * 3600_000;
 const FICHA_MAX_MS = 7 * 24 * 3600_000;
 const MAX_AVISOS_POR_TICK = 5;
 
-const ligado = () => (process.env.SOLAR_BOASVINDAS_ON || '').trim().toLowerCase() === 'true';
 const desligado = () => (process.env.SOLAR_RESPOSTAS_OFF || '').trim() === '1';
 
 /** Mesma chave do CRM e do blastRespostas: DDD + últimos 8 (ignora 9º dígito e DDI). */
@@ -159,7 +158,7 @@ export function destinatarios(consultorTel: string | null | undefined): string[]
 }
 
 export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promise<ResultadoSolarRespostas> {
-  if (!opts.dry && (!ligado() || desligado())) return zero('desligado');
+  if (!opts.dry && (boasVindasDesligado() || desligado())) return zero('desligado');
 
   const agora = Date.now();
 
