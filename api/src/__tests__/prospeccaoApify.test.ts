@@ -6,7 +6,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // do tick. Sem isso, testar dedup e "não roda a mesma busca duas vezes" seria fé.
 
 type Row = Record<string, any>;
-const db: Record<string, Row[]> = { prospeccao_buscas: [], prospeccao_listas: [], prospeccao_contatos: [] };
+const db: Record<string, Row[]> = { prospeccao_buscas: [], prospeccao_listas: [], prospeccao_contatos: [],
+  // a equipe existe no banco de verdade; o motor le daqui pra fazer o rodizio
+  consultores: [{ nome: 'Diego' }, { nome: 'Giovanna' }, { nome: 'Nilce' }, { nome: 'Thiago' }] };
 const telefonesUsados = new Set<string>();
 
 function novoId(p: string) { return p + '-' + Math.random().toString(36).slice(2, 8); }
@@ -99,6 +101,7 @@ const lugar = (o: Row = {}) => ({
 
 beforeEach(() => {
   db.prospeccao_buscas = []; db.prospeccao_listas = []; db.prospeccao_contatos = [];
+  db.consultores = [{ nome: 'Diego' }, { nome: 'Giovanna' }, { nome: 'Nilce' }, { nome: 'Thiago' }];
   telefonesUsados.clear();
   delete process.env.APIFY_TOKEN;
   delete process.env.PROSPECCAO_APIFY_OFF;
@@ -299,6 +302,8 @@ describe('caminho feliz: pedida → rodando → importando → concluída', () =
     expect(db.prospeccao_listas[0].nome).toBe('Solares BA');
     expect(db.prospeccao_contatos.map(c => c.empresa).sort()).toEqual(['Alfa Solar', 'Beta Energia']);
     expect(db.prospeccao_contatos[0]).toMatchObject({ uf: 'BA', cidade: 'Barreiras', nota: 4.9, avaliacoes: 115 });
+    // 1 telefone = 1 consultor: cada contato importado ja nasce com dono
+    expect(db.prospeccao_contatos.map(c => c.consultor)).toEqual(['Diego', 'Giovanna']);
   });
 
   it('run que falhou vira erro com link do console, sem criar lista', async () => {
