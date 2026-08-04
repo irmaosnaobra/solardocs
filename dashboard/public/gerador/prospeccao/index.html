@@ -208,6 +208,32 @@ tbody tr:hover{background:#233047}
 #toast .undo{background:none;border:none;color:#93C5FD;font-weight:800;cursor:pointer;font-size:12.5px;
   text-decoration:underline;padding:0}
 @media(max-width:1180px){.bench{grid-template-columns:1fr}.fila{max-height:240px}}
+
+/* ===== CELULAR: o trabalho é com o WhatsApp na outra mão ===== */
+/* No telefone não existe atalho de teclado, então os dois gestos do ofício —
+   mandar a mensagem e marcar o desfecho — viram barra fixa no rodapé. Sem isso
+   o consultor rola 1.800px pra cada contato. E a fila desce pro fim: no celular
+   ela é consulta, o que importa é o contato em foco. */
+.mbar{display:none}
+@media(max-width:760px){
+  .bench{display:flex;flex-direction:column;padding-bottom:8px}
+  .bench > .card:nth-child(1){order:3}      /* fila por último */
+  .bench > .card:nth-child(2){order:1}      /* contato em foco */
+  .bench > .card:nth-child(3){order:2}      /* mensagem + oferta */
+  .fila{max-height:300px}
+  body{padding-bottom:132px}
+  .mbar{display:block;position:fixed;left:0;right:0;bottom:0;z-index:50;
+    background:rgba(11,18,32,.97);border-top:1px solid var(--line-s);
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+    box-shadow:0 -8px 24px rgba(0,0,0,.45)}
+  .mbar .linha1{display:flex;gap:7px;margin-bottom:7px}
+  .mbar .linha1 .btn{flex:1;padding:11px 8px;font-size:13.5px}
+  .mbar .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+  .mbar .grid button{padding:9px 2px;border-radius:8px;border:1.5px solid var(--line-s);
+    background:#0B1220;color:var(--txt);font-size:10.5px;font-weight:700;line-height:1.15;font-family:inherit}
+  .mbar .quem{font-size:10.5px;color:var(--faint);text-align:center;margin-bottom:6px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
 @media(max-width:640px){.topbar{padding:12px 14px}.strip{padding:9px 12px}.sv{padding:2px 10px}
   .bench{padding:12px 10px}.page{padding:12px 10px}}
 </style>
@@ -1068,6 +1094,18 @@ function htmlFila(){
 
         <div class="why"><b>Por que este produto:</b> ${porQue(c, alvo)}</div>
       </div>
+    </div>
+  </div>
+
+  <div class="mbar">
+    <div class="quem">${esc(c.empresa)} · ${esc(prodById(alvo) ? prodById(alvo).nome : '')}</div>
+    <div class="linha1">
+      <button class="btn wa" onclick="abrirWhats()">Abrir no WhatsApp</button>
+      <button class="btn" style="flex:0 0 92px" onclick="proximo()">pular →</button>
+    </div>
+    <div class="grid">
+      ${DESFECHOS.map(d=>`<button onclick="registrarPorId('${d.id}')"
+        style="border-color:${d.cor}66;color:${d.cor}">${d.label.replace(' ','<br>')}</button>`).join('')}
     </div>
   </div>`;
 }
