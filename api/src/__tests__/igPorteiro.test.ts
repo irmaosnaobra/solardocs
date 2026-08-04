@@ -51,7 +51,21 @@ describe('porteiro do link — os três toques', () => {
 
   it('quem já seguiu uma vez recebe o link direto no próximo comentário', () => {
     const veterano = { gate_etapa: 'entregue', gate_liberado_em: haMinutos(60 * 24 * 30) };
-    expect(acaoNaAbertura(comLink, veterano)).toBe('entregar');
+    expect(acaoNaAbertura(comLink, veterano, AGORA)).toBe('entregar');
+    // …inclusive numa automação DIFERENTE: seguir a conta é uma coisa só.
+    expect(acaoNaAbertura({ id: 'solar', link_url: 'https://solardoc.app/simular' }, veterano, AGORA)).toBe('entregar');
+  });
+
+  it('comentar de novo no meio do fluxo repete o toque parado, não volta pro começo', () => {
+    // Comentar 2–3 vezes no mesmo anúncio é comum. Quem já clicou e está no
+    // "me segue" não pode ouvir "clica no botão" outra vez.
+    const noSeguir = { gate_etapa: 'seguir', gate_automation_id: 'eletro', gate_em: haMinutos(5) };
+    expect(acaoNaAbertura(comLink, noSeguir, AGORA)).toBe('seguir');
+    // Ainda no 1º toque: repete o 1º toque mesmo.
+    const noPedido = { ...noSeguir, gate_etapa: 'pedido' };
+    expect(acaoNaAbertura(comLink, noPedido, AGORA)).toBe('pedir');
+    // Fluxo de OUTRA automação (mudou de produto): começa do zero na nova.
+    expect(acaoNaAbertura({ id: 'solar', link_url: 'https://solardoc.app/simular' }, noSeguir, AGORA)).toBe('pedir');
   });
 
   it('porteiro esquecido expira — quem volta dias depois não fica preso no fluxo', () => {

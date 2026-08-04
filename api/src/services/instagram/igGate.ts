@@ -85,9 +85,13 @@ export function gateAberto(e: GateEstado | null | undefined, agora: number = Dat
 }
 
 /** Comentário novo (ou DM fria): abre o porteiro ou entrega direto. */
-export function acaoNaAbertura(a: GateAuto, e: GateEstado | null | undefined): GateAcao {
+export function acaoNaAbertura(a: GateAuto, e: GateEstado | null | undefined, agora: number = Date.now()): GateAcao {
   if (!gateAtivo(a)) return 'entregar';
   if (e?.gate_liberado_em) return 'entregar';   // já seguiu uma vez, não pede de novo
+  // Comentar 2–3 vezes no mesmo anúncio é comum. Se o fluxo desta automação já
+  // está andando, repete o toque em que ele PAROU — voltar pro começo zeraria a
+  // etapa de quem já clicou.
+  if (gateAberto(e, agora) && e!.gate_automation_id === a.id && e!.gate_etapa === 'seguir') return 'seguir';
   return 'pedir';
 }
 

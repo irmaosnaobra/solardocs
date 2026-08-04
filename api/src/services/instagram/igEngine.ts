@@ -30,7 +30,7 @@ import {
   refreshLongToken, saveIgConfig,
 } from './igClient';
 import {
-  GateEstado, GateEtapa, GateAcao, gateAtivo, acaoNaAbertura, acaoNaResposta,
+  GateEstado, GateEtapa, GateAcao, gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta,
   etapaDepois, payloadPedido, payloadSeguir, nudgeGate,
 } from './igGate';
 
@@ -164,10 +164,18 @@ async function lerGate(igUserId: string): Promise<GateEstado | null> {
     .eq('ig_user_id', igUserId).maybeSingle();
   return (data as GateEstado) || null;
 }
+// gate_liberado_em NUNCA é limpo aqui: quem já seguiu não passa pelo porteiro de
+// novo, e quem decide isso é `acaoNaAbertura` antes de chegar nesta função.
 async function abrirGate(igUserId: string, automationId: string): Promise<void> {
   const agora = new Date().toISOString();
   await supabase.from('ig_contacts')
-    .update({ gate_etapa: 'pedido', gate_automation_id: automationId, gate_em: agora, gate_liberado_em: null, updated_at: agora })
+    .update({ gate_etapa: 'pedido', gate_automation_id: automationId, gate_em: agora, updated_at: agora })
+    .eq('ig_user_id', igUserId);
+}
+/** Automação saiu do ar no meio do fluxo — solta a pessoa em vez de prender. */
+async function limparGate(igUserId: string): Promise<void> {
+  await supabase.from('ig_contacts')
+    .update({ gate_etapa: null, gate_automation_id: null, gate_em: null, updated_at: new Date().toISOString() })
     .eq('ig_user_id', igUserId);
 }
 /**
@@ -230,8 +238,12 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
 
   // Porteiro: automação com link pede o clique antes de entregar. Quem já seguiu
   // (gate_liberado_em) recebe direto — ninguém é obrigado a seguir duas vezes.
-  const acao = acaoNaAbertura(a, await lerGate(fromId));
-  if (acao === 'pedir') await abrirGate(fromId, a.id);
+  const estadoC = await lerGate(fromId);
+  const acao = acaoNaAbertura(a, estadoC);
+  // Reabrir um fluxo que já anda zeraria o gate_em e poderia devolver a etapa
+  // pra 'pedido' entre o clique da pessoa e a drenagem — o mesmo texto duas vezes.
+  const jaAberto = gateAberto(estadoC) && estadoC?.gate_automation_id === a.id;
+  if (acao !== 'entregar' && !jaAberto) await abrirGate(fromId, a.id);
 
   // DM privada (fura a janela de 24h). A resposta PÚBLICA só é enfileirada depois
   // que a DM sair de verdade (drainIgQueue) — senão a gente anuncia "olha no
@@ -239,7 +251,7 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
   await enqueue({
     tipo: 'private_reply', automation_id: a.id, recipient: commentId, needs_window: false,
     payload: {
-      ...(acao === 'pedir' ? payloadPedido(a) : welcomePayload(a)),
+      ...(acao === 'pedir' ? payloadPedido(a) : acao === 'seguir' ? payloadSeguir(a) : welcomePayload(a)),
       pub_ok: pick(a.respostas_publicas || []),
       pub_fail: username ? `@${username} me chama no direct que eu te mando tudo 👉` : null,
     },
@@ -282,7 +294,10 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
       if (tel) await depositarLead(senderId, tel, dona, null);
       return;
     }
-    // Automação pausada no meio do fluxo: cai no roteamento normal abaixo.
+    // Automação pausada no meio do fluxo: solta a pessoa antes de cair no
+    // roteamento normal, senão o texto do botão ("Me envie o link") ficaria
+    // preso num fluxo que não existe mais.
+    await limparGate(senderId);
   }
 
   const autos = await loadAutomations();
