@@ -202,6 +202,16 @@ describe('o que ele fala', () => {
     }
   });
 
+  // Bug real, visto em produção em 04/08: a reunião das 14:00 virou "14h0" na
+  // mensagem do lead. `minute: '2-digit'` sozinho é ignorado pela spec do Intl.
+  it('hora e minuto sempre com dois dígitos', async () => {
+    const { horaCurta, quandoPorExtenso } = await mod();
+    expect(horaCurta('2026-08-04T17:00:00.000Z')).toBe('14h00');   // o caso que quebrou
+    expect(horaCurta('2026-08-04T12:05:00.000Z')).toBe('09h05');   // hora e minuto de 1 dígito
+    expect(horaCurta('2026-08-04T03:00:00.000Z')).toBe('00h00');   // meia-noite não é "24h"
+    expect(quandoPorExtenso('2026-08-04T17:00:00.000Z')).toBe('terça-feira, 04/08 às 14h00');
+  });
+
   it('sem nome utilizável, a mensagem não sai quebrada', async () => {
     const { bolhas5min } = await mod();
     expect(bolhas5min('lead', '2026-08-05T18:30:00.000Z', null)[0]).toMatch(/^É agora!/);

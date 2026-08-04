@@ -100,11 +100,23 @@ function partesBRT(iso: string) {
   const pega = (opt: Intl.DateTimeFormatOptions, tipo: string) =>
     new Intl.DateTimeFormat('pt-BR', { ...opt, timeZone: BRT_TZ })
       .formatToParts(d).find(p => p.type === tipo)?.value ?? '';
+
+  // Hora e minuto saem JUNTOS, do en-GB, e ainda levam padStart.
+  // Por quê: `minute: '2-digit'` sozinho é ignorado pela spec do Intl (vira
+  // numérico), e o resultado foi a reunião das 14:00 virar "14h0" na mensagem
+  // que o lead recebeu em 04/08. en-GB garante o relógio de 24h com zero à
+  // esquerda — pt-BR com hour12:false chega a devolver "24" pra meia-noite.
+  const hm = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: BRT_TZ,
+  }).formatToParts(d);
+  const parte = (t: string) => (hm.find(p => p.type === t)?.value ?? '').padStart(2, '0');
+  const hora = parte('hour');
+
   return {
     dia: pega({ day: '2-digit' }, 'day'),
     mes: pega({ month: '2-digit' }, 'month'),
-    hora: pega({ hour: '2-digit', hour12: false }, 'hour'),
-    minuto: pega({ minute: '2-digit' }, 'minute'),
+    hora: hora === '24' ? '00' : hora,
+    minuto: parte('minute'),
     semana: pega({ weekday: 'long' }, 'weekday'),
   };
 }
