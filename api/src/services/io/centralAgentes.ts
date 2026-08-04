@@ -183,13 +183,17 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   // Janela de 30d do agente de agendamento, mas nunca antes de ele existir.
   const epDesde = desde30 > EP_AGENDA_INICIO ? desde30 : EP_AGENDA_INICIO;
   const [
-    igEnviadas30, igRespostas30, inbound24, inbound7,
+    igEnviadas30, igRespostas30, igLinks30, inbound24, inbound7,
     fichasEletro30, nota1_30, nota1SemConvite, indicacoes30, respostasBlast,
     prospTotal, prospToques, seqAtivas, disparosRodando, igAutomacoes,
-    epReunioesFuturas, epFuturasConfirmadas, epLembretes5min30d, epUltimoToque,
+    epReunioesFuturas, epFuturasConfirmadas, epPresencaConfirmada, epLembretes5min30d, epUltimoToque,
   ] = await Promise.all([
-    contar('ig_queue', (q: any) => q.eq('status', 'sent').gte('criado_em', desde30)),
+    // Só a 1ª DM de cada comentário (private_reply). Contar todo 'sent'
+    // triplicaria o número desde o porteiro (pede → segue → link) sem um lead a
+    // mais — número inflado é o que esta central não pode ter.
+    contar('ig_queue', (q: any) => q.eq('status', 'sent').eq('tipo', 'private_reply').gte('criado_em', desde30)),
     contar('ig_contacts', (q: any) => q.gte('last_reply_at', desde30)),
+    contar('ig_contacts', (q: any) => q.gte('gate_liberado_em', desde30)),
     contar('sdr_message_dedup', (q: any) => q.gte('processed_at', new Date(agora - D).toISOString())),
     contar('sdr_message_dedup', (q: any) => q.gte('processed_at', new Date(agora - 7 * D).toISOString())),
     contarGerador('agendamentos', (q: any) => q.eq('created_by', 'lp_eletroposto').gte('created_at', desde30)),
@@ -206,6 +210,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     // flag da própria ficha, então a métrica é contagem direta — sem system_state.
     contarGerador('agendamentos', (q: any) => q.in('created_by', EP_ORIGENS).eq('status', 'agendado').gte('quando', agoraIso)),
     contarGerador('agendamentos', (q: any) => q.in('created_by', EP_ORIGENS).eq('status', 'agendado').gte('quando', agoraIso).not('confirmacao_at', 'is', null)),
+    contarGerador('agendamentos', (q: any) => q.in('created_by', EP_ORIGENS).eq('status', 'agendado').gte('quando', agoraIso).not('presenca_confirmada_at', 'is', null)),
     // Piso em EP_AGENDA_INICIO: as mesmas colunas foram usadas pelo módulo solar
     // até 28/07. Sem o piso, a tela credita a este agente envio que não é dele.
     contarGerador('agendamentos', (q: any) => q.in('created_by', EP_ORIGENS)
@@ -380,10 +385,15 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ultima_atividade: ig.ultima,
       metricas: [
         { label: 'Automações ativas', valor: igAutomacoes },
-        { label: 'DMs entregues (30d)', valor: igEnviadas30 },
+        { label: 'DMs de comentário (30d)', valor: igEnviadas30 },
         { label: 'Quem respondeu (30d)', valor: igRespostas30 },
+        { label: 'Links liberados (30d)', valor: igLinks30, sub: 'passou pelo porteiro' },
       ],
-      toques: [{ titulo: 'DM por palavra-chave', quando: 'quando alguém comenta', copy: 'Texto puro com link inline (botão/template quebra no 1º contato). A copy de cada automação é editada no painel do Gerador.' }],
+      toques: [
+        { titulo: '1º toque — pede o clique', quando: 'quando alguém comenta', copy: '"Clica no botão abaixo (ou responde LINK aqui) que eu já te mando o link". Quick reply, não link: o toque vem como resposta e abre a janela de 24h.' },
+        { titulo: '2º toque — pede o seguir', quando: 'assim que a pessoa responde', copy: '"Esse link é especial pra quem me segue. Me segue e toca no botão (ou responde SEGUINDO)".' },
+        { titulo: '3º toque — o link', quando: 'na 2ª resposta', copy: 'Aí vai a copy da automação com o link. Quem já seguiu uma vez recebe direto no 1º toque. A copy é editada no painel do Gerador; IG_GATE_OFF desliga o porteiro.' },
+      ],
     },
     {
       id: 'eletroposto',
@@ -413,11 +423,15 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ultima_atividade: epUltimoToque,
       metricas: [
         { label: 'Reuniões futuras', valor: epReunioesFuturas, sub: 'status agendado, daqui pra frente' },
-        { label: 'Já confirmadas por ele', valor: epFuturasConfirmadas, sub: 'mensagem de confirmação entregue' },
-        { label: 'Chamados de 5 min (30d)', valor: epLembretes5min30d },
-        // "Responderam", não "confirmaram": "quanto vou gastar" é resposta e não é
-        // presença. Presença exige campo próprio e definição — não existe ainda.
+        // As três são coisas DIFERENTES e ficam separadas de propósito: a gente
+        // avisou / a pessoa escreveu / a pessoa disse que vem.
+        { label: 'Avisadas por ele', valor: epFuturasConfirmadas, sub: 'mensagem de confirmação entregue' },
         { label: 'Responderam', valor: epResp.total, sub: `${epResp.h24} nas últimas 24h · recado vai pro Thiago e pro Diego na hora` },
+        {
+          label: 'Confirmaram presença', valor: epPresencaConfirmada,
+          sub: 'disse que vem, em mensagem. Pediu pra remarcar depois? Sai da conta.',
+        },
+        { label: 'Chamados de 5 min (30d)', valor: epLembretes5min30d },
       ],
       toques: [
         { titulo: '1º · ao marcar', quando: 'segundos depois de escolher o horário na LP', copy: 'Confirma dia e hora com o nome e o WhatsApp do consultor, explica que é por vídeo. Pede um "SIM" e pede o material do ponto — foto, localização, conta de luz, o que já orçou.' },

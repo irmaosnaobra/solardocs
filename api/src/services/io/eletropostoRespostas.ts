@@ -65,15 +65,44 @@ function telKey(raw: string | null | undefined): string | null {
   return d.slice(0, 2) + d.slice(-8);
 }
 
-const RE_CONFIRMA = /\b(sim|confirmo|confirmado|confirmada|combinado|estarei|vou estar|pode ser|tô dentro|to dentro|beleza|ok)\b/i;
-const RE_REMARCAR = /\b(remarcar|remarca|adiar|cancelar|cancela|desmarcar|n[ãa]o vou|n[ãa]o consigo|n[ãa]o poderei|outro dia|outro hor[áa]rio|nesse hor[áa]rio n[ãa]o)\b/i;
+const RE_REMARCAR = /\b(remarcar|remarca|adiar|cancelar|cancela|desmarcar|n[ãa]o vou|n[ãa]o consigo|n[ãa]o poderei|n[ãa]o vai dar|outro dia|outro hor[áa]rio|nesse hor[áa]rio n[ãa]o)\b/i;
 
-/** O selo é uma LEITURA, não um veredito: "ok" pode ser confirmação ou desdém.
- *  Por isso o texto da pessoa vai inteiro no aviso — quem decide é quem lê. */
+// ── O que conta como CONFIRMAR MESMO ────────────────────────────────────────
+// Regra do dono (04/08): "confirmaram quando confirmar mesmo". Então o campo
+// presenca_confirmada_at é apertado de propósito, em dois caminhos:
+//
+//   1. A mensagem INTEIRA é uma afirmativa. "Sim", "ok", "👍" respondendo ao
+//      pedido de confirmação é confirmação. O `$` no fim é o que separa isso de
+//      "ok, mas quanto vou gastar?" — que é pergunta, não presença.
+//   2. Verbo explícito de confirmar em qualquer lugar da frase.
+//
+// Nada de "beleza" solto no meio de um parágrafo: contar isso como presença
+// enche o painel de gente que não vai aparecer, que é exatamente o problema que
+// o agente existe pra resolver.
+const RE_AFIRMATIVA_INTEIRA = /^(sim+|isso|ok|okay|okey|blz|beleza|certo|combinado|confirmo|confirmado|confirmada|positivo|claro|perfeito|show|t[áa]|t[áa] bom|ta bom|vou sim|estarei|estou|t[ôo] dentro|com certeza)[\s!.,👍✅🙏😊🤝👌]*$/i;
+const RE_CONFIRMA_EXPLICITA = /\b(confirmo|confirmado|confirmada|confirmando|estarei presente|estarei sim|estarei l[áa]|vou estar|pode contar comigo|pode deixar que eu estarei)\b/i;
+/** Emoji sozinho também é resposta — e "👍" pra "responde SIM" é sim. */
+const RE_SO_EMOJI_POSITIVO = /^[\s👍✅🙏😊🤝👌❤️😀]+$/;
+
+/** Confirmou de verdade? Pedido de remarcar sempre ganha: "ok, mas preciso
+ *  remarcar" é o contrário de presença, por mais que comece com "ok". */
+export function confirmouMesmo(textos: string[]): boolean {
+  const limpos = textos.map(t => t.trim()).filter(Boolean);
+  if (!limpos.length) return false;
+  if (limpos.some(t => RE_REMARCAR.test(t))) return false;
+  return limpos.some(t =>
+    RE_AFIRMATIVA_INTEIRA.test(t) || RE_SO_EMOJI_POSITIVO.test(t) || RE_CONFIRMA_EXPLICITA.test(t));
+}
+
+export function pediuRemarcar(textos: string[]): boolean {
+  return textos.some(t => RE_REMARCAR.test(t));
+}
+
+/** O selo é uma LEITURA pro humano — o texto da pessoa vai inteiro logo abaixo.
+ *  O que ele NÃO faz é inventar presença: só sobe pra ✅ quem confirmou mesmo. */
 export function selo(textos: string[]): { icone: string; titulo: string } {
-  const t = textos.join(' \n ');
-  if (RE_REMARCAR.test(t)) return { icone: '⚠️', titulo: 'PODE QUERER REMARCAR' };
-  if (RE_CONFIRMA.test(t)) return { icone: '✅', titulo: 'RESPONDEU CONFIRMANDO' };
+  if (pediuRemarcar(textos)) return { icone: '⚠️', titulo: 'PODE QUERER REMARCAR' };
+  if (confirmouMesmo(textos)) return { icone: '✅', titulo: 'CONFIRMOU PRESENÇA' };
   return { icone: '💬', titulo: 'RESPONDEU' };
 }
 
@@ -248,6 +277,19 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
       { key: `${EP_RESPOSTA_PREFIX}${id}`, value: { ate, avisado_em: nowIso }, updated_at: nowIso },
       { onConflict: 'key' },
     );
+
+    // Presença na ficha: só sobe quem confirmou mesmo, e CAI quem depois pediu
+    // pra remarcar. Sem essa segunda metade o painel guardaria pra sempre um
+    // "confirmou" de quem já avisou que não vem.
+    const textosDaVez = lista.map(m => m.texto).filter(Boolean);
+    const marcarPresenca = confirmouMesmo(textosDaVez);
+    const desmarcarPresenca = pediuRemarcar(textosDaVez);
+    if (marcarPresenca || desmarcarPresenca) {
+      await supabaseGerador.from('agendamentos')
+        .update({ presenca_confirmada_at: marcarPresenca ? nowIso : null })
+        .eq('id', id)
+        .then(undefined, (e: unknown) => logger.error('ep-respostas', 'gravar presença falhou', { id, erro: String(e) }));
+    }
 
     try {
       const envios = await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));

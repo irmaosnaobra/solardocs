@@ -8,6 +8,7 @@ const state = new Map<string, { key: string; value: any; updated_at: string }>()
 let fichas: any[] = [];
 let inbound: any[] = [];
 const avisos: Array<{ phone: string; texto: string }> = [];
+const presencas: Array<{ id: number; valor: string | null }> = [];
 
 vi.mock('../utils/supabase', () => ({
   supabase: {
@@ -37,8 +38,13 @@ vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
     from: () => {
       const q: any = {
-        select() { return q; }, in() { return q; }, eq() { return q; },
-        gte() { return q; }, or() { return q; },
+        _update: null as any,
+        select() { return q; }, in() { return q; }, gte() { return q; }, or() { return q; },
+        update(patch: any) { q._update = patch; return q; },
+        eq(_c: string, v: any) {
+          if (q._update) { presencas.push({ id: v, valor: q._update.presenca_confirmada_at }); return Promise.resolve({ error: null }); }
+          return q;
+        },
         limit() { return Promise.resolve({ data: fichas, error: null }); },
       };
       return q;
@@ -69,7 +75,7 @@ function msg(over: Partial<any> = {}) {
 
 const envOriginal = { ...process.env };
 beforeEach(() => {
-  state.clear(); avisos.length = 0;
+  state.clear(); avisos.length = 0; presencas.length = 0;
   fichas = [ficha()]; inbound = [msg()];
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
@@ -131,17 +137,48 @@ describe('quem vira recado', () => {
   });
 });
 
+// "Confirmaram quando confirmar mesmo" (regra do dono, 04/08). O risco aqui é o
+// painel encher de gente que não vai aparecer.
+describe('o que conta como confirmar mesmo', () => {
+  it('afirmativa inteira conta', async () => {
+    const { confirmouMesmo } = await mod();
+    for (const t of ['Sim', 'sim!', 'Ok', 'blz', 'combinado', '👍', 'Confirmado', 'Perfeito 👍', 'estarei']) {
+      expect(confirmouMesmo([t]), t).toBe(true);
+    }
+  });
+
+  it('verbo explícito conta mesmo no meio da frase', async () => {
+    const { confirmouMesmo } = await mod();
+    expect(confirmouMesmo(['Bom dia, confirmo a reunião de quarta'])).toBe(true);
+    expect(confirmouMesmo(['pode deixar que eu vou estar lá'])).toBe(true);
+  });
+
+  it('afirmativa que vira pergunta NÃO conta', async () => {
+    const { confirmouMesmo } = await mod();
+    for (const t of ['ok, mas quanto vou gastar?', 'sim, e o financiamento?', 'certo. me manda o valor']) {
+      expect(confirmouMesmo([t]), t).toBe(false);
+    }
+  });
+
+  it('pedido de remarcar derruba a confirmação, mesmo começando com ok', async () => {
+    const { confirmouMesmo, selo } = await mod();
+    expect(confirmouMesmo(['ok', 'mas preciso remarcar'])).toBe(false);
+    expect(selo(['ok, mas preciso remarcar']).titulo).toBe('PODE QUERER REMARCAR');
+  });
+
+  it('pergunta pura não é presença', async () => {
+    const { confirmouMesmo } = await mod();
+    expect(confirmouMesmo(['quanto vou gastar?'])).toBe(false);
+    expect(confirmouMesmo(['tenho um terreno na BR-354'])).toBe(false);
+  });
+});
+
 describe('o que o recado diz', () => {
   it('lê a intenção sem decidir por ela', async () => {
     const { selo } = await mod();
-    expect(selo(['Sim, confirmado']).titulo).toBe('RESPONDEU CONFIRMANDO');
+    expect(selo(['Sim']).titulo).toBe('CONFIRMOU PRESENÇA');
     expect(selo(['não vou conseguir, dá pra remarcar?']).titulo).toBe('PODE QUERER REMARCAR');
     expect(selo(['quanto vou gastar?']).titulo).toBe('RESPONDEU');
-  });
-
-  it('remarcar ganha da confirmação quando os dois aparecem', async () => {
-    const { selo } = await mod();
-    expect(selo(['ok, mas preciso remarcar']).titulo).toBe('PODE QUERER REMARCAR');
   });
 
   it('o recado leva reunião, consultor e link do WhatsApp', async () => {
@@ -162,6 +199,28 @@ describe('o que o recado diz', () => {
     expect(avisos[0].texto).toContain('1 áudio');
     expect(avisos[0].texto).toContain('2 imagens');
     expect(avisos[0].texto).toContain('só mídia, sem texto');
+  });
+});
+
+describe('presença na ficha', () => {
+  it('quem confirma sobe o campo', async () => {
+    await tick();
+    expect(presencas).toEqual([{ id: 1, valor: expect.any(String) }]);
+  });
+
+  it('quem só pergunta não sobe nada', async () => {
+    inbound = [msg({ texto: 'quanto vou gastar?' })];
+    await tick();
+    expect(presencas).toHaveLength(0);
+  });
+
+  it('quem confirmou e depois pediu remarcar CAI da conta', async () => {
+    await tick();
+    expect(presencas[0].valor).toEqual(expect.any(String));
+    presencas.length = 0;
+    inbound.push(msg({ texto: 'preciso remarcar, não vou conseguir', momment: antes(1) }));
+    await tick();
+    expect(presencas).toEqual([{ id: 1, valor: null }]);
   });
 });
 
