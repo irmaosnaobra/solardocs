@@ -142,12 +142,15 @@ ul.ticks li::before{content:"";position:absolute;left:4px;top:10px;width:9px;hei
 /* ---------- produto ---------- */
 .prod{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center;
   background:var(--card);border:1px solid var(--line);border-radius:22px;padding:30px;margin-top:26px}
-.prod .ph{border-radius:16px;overflow:hidden;background:#F2F5F1}
-.prod .ph img{width:100%;aspect-ratio:3/4;object-fit:cover}
+/* foto de produto aparece INTEIRA: contain, nunca cover. Com cover o gabinete
+   perdia topo e laterais e o card virava um recorte aleatório da máquina. */
+.prod .ph{border-radius:16px;overflow:hidden;background:linear-gradient(160deg,#F4F7F3,#E2E9E0);
+  height:440px;display:flex;align-items:center;justify-content:center;padding:20px}
+.prod .ph img{width:auto;height:100%;max-width:100%;object-fit:contain}
 .prod dl{font-size:16px}
 .prod dt{font-weight:800;font-size:12px;letter-spacing:.18em;color:var(--neon);margin-top:16px}
 .prod dd{font-weight:700;font-size:17px}
-@media(max-width:880px){ .prod{grid-template-columns:1fr;gap:24px;padding:22px} .prod .ph img{aspect-ratio:4/3} }
+@media(max-width:880px){ .prod{grid-template-columns:1fr;gap:24px;padding:20px} .prod .ph{height:340px;padding:14px} }
 
 /* ---------- faixa de investimento ---------- */
 .invest{background:linear-gradient(120deg,rgba(125,209,23,.16),rgba(125,209,23,.04));
@@ -163,7 +166,9 @@ ul.ticks li::before{content:"";position:absolute;left:4px;top:10px;width:9px;hei
 .pontos{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:38px}
 .ponto{position:relative;border-radius:18px;overflow:hidden;min-height:250px;
   display:flex;align-items:flex-end;border:1px solid var(--line)}
-.ponto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.5)}
+.ponto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.78) saturate(1.05)}
+.ponto::after{content:"";position:absolute;inset:0;z-index:1;
+  background:linear-gradient(180deg,rgba(5,13,2,0) 35%,rgba(5,13,2,.55) 62%,rgba(5,13,2,.94) 100%)}
 .ponto .lb{position:relative;z-index:2;padding:20px}
 .ponto .lb .t{font-size:19px;font-weight:800}
 .ponto .lb .k{font-size:13px;font-weight:800;color:#08160A;background:var(--neon);
@@ -479,7 +484,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     </div>
 
     <div class="prod">
-      <div class="ph"><img src="/eletroposto/img/produto-ac.jpg" width="1040" height="922" alt="Wallbox AC SunMob Livoltek com conector Tipo 2, de 7,3 a 22 kW" loading="lazy"></div>
+      <div class="ph"><img src="/eletroposto/img/produto-ac.jpg" width="520" height="1121" alt="Wallbox AC SunMob Livoltek com conector Tipo 2, de 7,3 a 22 kW" loading="lazy"></div>
       <div>
         <h3>Wallbox — AC</h3>
         <p class="lead" style="margin-top:10px">Carga lenta para longa permanência: condomínio,
@@ -555,7 +560,7 @@ footer{border-top:1px solid rgba(125,209,23,.14);padding:30px 0;font-size:13px;
     <div class="pontos">
       <div class="ponto"><img src="/eletroposto/img/caso-posto.jpg" width="620" height="349" alt="Eletroposto de recarga rápida em posto de combustível e conveniência" loading="lazy">
         <div class="lb"><div class="t">Posto e conveniência</div><div class="k">160 kW</div></div></div>
-      <div class="ponto"><img src="/eletroposto/img/caso-hotel.jpg" width="620" height="349" alt="Carregador para carro elétrico instalado em hotel e pousada" loading="lazy">
+      <div class="ponto"><img src="/eletroposto/img/caso-hotel.jpg" width="620" height="318" alt="Carregador para carro elétrico instalado em hotel e pousada" loading="lazy">
         <div class="lb"><div class="t">Hotel e pousada</div><div class="k">60 kW</div></div></div>
       <div class="ponto"><img src="/eletroposto/img/caso-mercado.jpg" width="620" height="349" alt="Estação de recarga em estacionamento de supermercado e shopping" loading="lazy">
         <div class="lb"><div class="t">Supermercado e shopping</div><div class="k">80 kW</div></div></div>
