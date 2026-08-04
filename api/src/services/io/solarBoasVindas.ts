@@ -28,9 +28,10 @@
 //     cumpre é pior que nenhum prazo.
 //
 // ── Travas (a linha IO foi bloqueada em 01–03/ago; ela não aguenta rajada) ──
-//   • JANELA DE IDADE: só ficha criada na última hora. Quem cadastrou ontem não
-//     recebe "recebi seu cadastro agora" — e, mais importante, ligar o
-//     kill-switch NÃO dispara pro backlog inteiro de uma vez.
+//   • JANELA DE IDADE: só ficha criada nas últimas 6 horas. Quem cadastrou
+//     ontem não recebe recibo de cadastro — e, mais importante, ligar o
+//     kill-switch NÃO dispara pro backlog inteiro de uma vez. (Por que 6h e não
+//     1h: o cron real roda de ~2 em ~2 horas, ver JANELA_MS.)
 //   • PISO DE DATA: nada anterior a SOLAR_BOASVINDAS_INICIO, aconteça o que
 //     acontecer com a janela.
 //   • TETO POR RODADA: o sync do Meta insere várias fichas de uma vez; o tick é
@@ -65,9 +66,22 @@ export const SOLAR_ORIGENS = ['lead-meta', 'leads-meta', 'lp_solar', 'manychat']
  *  é o que impede o backlog de virar rajada no dia em que o switch for ligado. */
 export const SOLAR_BOASVINDAS_INICIO = '2026-08-04T00:00:00.000Z';
 
-/** Ficha "nova": o cadastro acabou de acontecer e a pessoa ainda está com a
- *  página aberta na cabeça. Uma hora cobre atraso de cron e do sync do Meta. */
-const JANELA_MS = 60 * 60 * 1000;
+/**
+ * Ficha "nova" o bastante pra receber o recibo do cadastro.
+ *
+ * Era 1 hora, e 1 hora estava ERRADO. Medido em 04/08 sobre 20 rodadas seguidas:
+ * o workflow `process-messages.yml` pede pra rodar a cada 5 minutos, mas o
+ * GitHub Actions dispara de **70 a 216 minutos** (mediana ~2h) — ele descarta a
+ * maioria das execuções agendadas. Com janela de 1h, o cadastro envelhecia ANTES
+ * de qualquer tick olhar pra ele: a pessoa não recebia nada e nada aparecia no
+ * log, porque ficha fora da janela nem é lida.
+ *
+ * 6 horas cobre o pior gap medido (3h36) com folga de 2×. A copy aguenta a
+ * defasagem porque nunca diz "agora": "seu cadastro chegou pra mim" continua
+ * verdade 4 horas depois. O que segura o volume não é esta janela — é o teto
+ * por rodada + a flag no banco.
+ */
+const JANELA_MS = 6 * 60 * 60 * 1000;
 const MAX_POR_TICK = 5;
 
 /** Bolha maior que o padrão (160) de propósito: sem isso as frases longas se

@@ -109,6 +109,19 @@ describe('o backlog não vira rajada', () => {
     expect(enviadas).toHaveLength(0);
   });
 
+  // O cron promete 5 min e entrega ~2h (medido em 04/08: gaps de 70 a 216 min).
+  // Uma janela de 1h fazia o cadastro envelhecer antes do primeiro tick — e a
+  // pessoa não recebia nada, sem nem virar log.
+  it('cadastro de 3 horas atrás ainda recebe — o cron real atrasa horas', async () => {
+    fichas = [ficha({ created_at: minutosAtras(180) })];
+    expect((await tick()).enviadas).toBe(1);
+  });
+
+  it('mas 7 horas já é tarde demais', async () => {
+    fichas = [ficha({ created_at: minutosAtras(420) })];
+    expect((await tick()).enviadas).toBe(0);
+  });
+
   it('ficha anterior ao dia em que o agente existiu nunca recebe', async () => {
     vi.setSystemTime(new Date('2026-08-04T00:20:00.000Z'));   // piso ainda manda
     fichas = [ficha({ created_at: '2026-08-03T23:50:00.000Z' })];
