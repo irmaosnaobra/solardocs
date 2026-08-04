@@ -183,9 +183,23 @@ describe('o que ele fala', () => {
   it('o pedido de SIM sobrevive ao fatiamento em bolhas do envio', async () => {
     const { emBolhas } = await import('../services/agents/bolhas');
     const { bolhasConfirmacao } = await mod();
-    const saida = emBolhas(bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego').join('||'));
+    const saida = emBolhas(bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego', '5534991360172').join('||'));
     expect(saida.join(' ')).toContain('*SIM*');
     expect(saida.join(' ')).toContain('05/08 às 15h30');
+    // Não basta sobreviver: tem que dar pra ler. Se o pedido de SIM for engolido
+    // por um parágrafo de 400 caracteres, ninguém responde e a alavanca some.
+    const bolhaDoSim = saida.find(b => b.includes('*SIM*'))!;
+    expect(bolhaDoSim.length).toBeLessThan(260);
+  });
+
+  // Pedido do dono: a primeira reunião rende muito mais se o lead já mandar o
+  // que tem. Sem isso o consultor gasta a hora perguntando onde é o ponto.
+  it('a confirmação pede o material do eletroposto', async () => {
+    const { bolhasConfirmacao } = await mod();
+    const txt = bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego').join(' ');
+    for (const pedaco of ['onde é', 'conta de luz', 'pesquisou', 'áudio']) {
+      expect(txt).toContain(pedaco);
+    }
   });
 
   it('sem nome utilizável, a mensagem não sai quebrada', async () => {

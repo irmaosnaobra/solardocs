@@ -34,6 +34,7 @@ import { runConviteNota1Garantido } from '../services/io/eletropostoConviteGaran
 import { runSementeTick, publicoSemente, bolhasSemente } from '../services/io/sementeSolarService';
 import { runGrupoFriosTick, publicoGrupoFrio, bolhasGrupoFrio } from '../services/io/eletropostoGrupoFrios';
 import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
+import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
@@ -266,7 +267,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -291,6 +292,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runSementeTick(),                // semente: nutrição de quem pediu orçamento de solar e não fechou
       runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
       runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + lembrete 1h + 5min (anti no-show)
+      runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
     ]);
     res.json({
       ok: true,
@@ -313,6 +315,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       semente:        sementeResult.status === 'fulfilled' ? sementeResult.value : { error: String((sementeResult as any).reason) },
       ep_grupo_frio:  grupoFrioResult.status === 'fulfilled' ? grupoFrioResult.value : { error: String((grupoFrioResult as any).reason) },
       ep_agenda:      epAgendaResult.status === 'fulfilled' ? epAgendaResult.value : { error: String((epAgendaResult as any).reason) },
+      ep_respostas:   epRespostasResult.status === 'fulfilled' ? epRespostasResult.value : { error: String((epRespostasResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
@@ -385,6 +388,19 @@ router.get('/eletroposto-agenda', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await runEletropostoAgendaTick({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'eletroposto-agenda falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── Respostas à automação da agenda → recado pro Thiago e pro Diego ──────────
+// ?dry=1 mostra o aviso que sairia, sem mandar (e sem gravar o marcador).
+router.get('/eletroposto-respostas', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runEletropostoRespostasTick({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-respostas falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
@@ -820,6 +836,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['process-message-queue',       () => processMessageQueue()],
     ['lembretes-agenda',            () => processarLembretesAgenda()], // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
     ['eletroposto-agenda',          () => runEletropostoAgendaTick()], // eletroposto: confirma ao marcar, avisa 1h e 5min antes (anti no-show)
+    ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
     ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)
     ['meta-purchase-redrive',       () => reDrivePendingPurchases()], // reenvia Purchase que não confirmou entrega (garante Meta = card-pass)

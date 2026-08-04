@@ -152,8 +152,12 @@ export function bolhasConfirmacao(
     `Sua reunião com o *${quem}* está confirmada: *${quandoPorExtenso(quandoIso)}* (horário de Brasília).`,
     ...seTelefone(tel, t => `O WhatsApp do ${quem} é *${t}* — salva esse contato, é de lá que ele fala com você.`),
     'É por vídeo, pelo celular mesmo ou pelo computador. O link cai aqui neste chat pouco antes do horário — você não precisa instalar nada.',
-    'Esse horário fica reservado só pra você, e até lá a gente monta o estudo do seu ponto.',
-    'Por isso me confirma: responde *SIM* que eu travo o horário no seu nome. 👍',
+    'O horário fica reservado só pra você, e até lá a gente monta o estudo do seu ponto. Então me confirma: responde *SIM* que eu travo no seu nome. 👍',
+    // O pedido de material é o que transforma a primeira reunião: sem isso o
+    // consultor descobre na call que não tem ponto, não tem conta de luz e não
+    // sabe o consumo — e a hora vira entrevista em vez de proposta.
+    'E já me conta o que você tem sobre o seu eletroposto: onde é (ou onde está pensando), foto ou localização do ponto, conta de luz, e o que você já pesquisou ou orçou. Pode mandar tudo aqui, por texto, foto ou áudio.',
+    'Quanto mais eu souber antes, mais a reunião rende — a gente já entra falando de número em vez de gastar a hora perguntando.',
     'E se o dia ou a hora não der mais, me fala aqui que eu remarco na hora — sem problema nenhum.',
   ];
 }

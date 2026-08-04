@@ -75,6 +75,7 @@ const PREFIXOS = [
   'limpapro_recovery_pending:', 'limpapro_cupom_pending:', 'limpapro_fechamento_pending:', 'limpapro_grupo_pending:',
   'gerador_followup:', 'gerador_seq:', 'carla_sent:', 'curso19:', 'ig_sent',
   'ep_repescagem_sent:', 'ep_repescagem_pending:', 'ep_repescagem_resposta:',
+  'ep_resposta:',
   'zapi_io_health',
 ];
 
@@ -115,6 +116,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   const carla = resumo(chaves, 'carla_sent:');
   const curso = resumo(chaves, 'curso19:');
   const ig = resumo(chaves, 'ig_sent');
+  const epResp = resumo(chaves, 'ep_resposta:');
   const repesc = resumo(chaves, 'ep_repescagem_sent:');
   const repescFila = resumo(chaves, 'ep_repescagem_pending:').total;
   const repescResp = resumo(chaves, 'ep_repescagem_resposta:').total;
@@ -413,12 +415,15 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Reuniões futuras', valor: epReunioesFuturas, sub: 'status agendado, daqui pra frente' },
         { label: 'Já confirmadas por ele', valor: epFuturasConfirmadas, sub: 'mensagem de confirmação entregue' },
         { label: 'Chamados de 5 min (30d)', valor: epLembretes5min30d },
-        { label: 'Quem respondeu SIM', valor: null, sub: 'a resposta cai no 5040 e nenhum robô lê — sai no digest de entrada (12h/18h)' },
+        // "Responderam", não "confirmaram": "quanto vou gastar" é resposta e não é
+        // presença. Presença exige campo próprio e definição — não existe ainda.
+        { label: 'Responderam', valor: epResp.total, sub: `${epResp.h24} nas últimas 24h · recado vai pro Thiago e pro Diego na hora` },
       ],
       toques: [
-        { titulo: '1º · ao marcar', quando: 'segundos depois de escolher o horário na LP', copy: 'Confirma dia e hora com o nome do consultor, explica que é por vídeo e que o link cai neste chat. Pede um "SIM" e oferece remarcar.' },
+        { titulo: '1º · ao marcar', quando: 'segundos depois de escolher o horário na LP', copy: 'Confirma dia e hora com o nome e o WhatsApp do consultor, explica que é por vídeo. Pede um "SIM" e pede o material do ponto — foto, localização, conta de luz, o que já orçou.' },
         { titulo: '2º · 1 hora antes', quando: '45 a 75 min antes da reunião', copy: 'Avisa que o link está vindo, pede internet e sinal, e abre a porta do remarcar de novo.' },
         { titulo: '3º · 5 minutos antes', quando: 'nos 12 min que antecedem o horário', copy: '"É agora, o consultor já está te esperando" — manda ficar de olho no chat porque o link cai a qualquer momento.' },
+        { titulo: '↩ resposta do lead', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro lead: é o recado que vai pro Thiago e pro Diego com o que a pessoa escreveu, a hora da reunião e de quem ela é. Kill-switch EP_RESPOSTAS_OFF.' },
       ],
       alerta: (epReunioesFuturas ?? 0) > 0 && (epFuturasConfirmadas ?? 0) < (epReunioesFuturas ?? 0)
         ? `${(epReunioesFuturas ?? 0) - (epFuturasConfirmadas ?? 0)} reunião(ões) futura(s) ainda sem a mensagem de confirmação — a fila de atraso sai 1 por rodada, das 08h às 20h.`
