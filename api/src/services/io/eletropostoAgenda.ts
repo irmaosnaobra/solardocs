@@ -123,17 +123,34 @@ export function horaCurta(iso: string): string {
 
 const comNome = (n: string) => (n ? `, ${n}` : '');
 
+/** "5534991360172" → "(34) 99136-0172". Devolve '' pra qualquer coisa que não
+ *  seja telefone BR completo — número torto na mensagem é pior que nenhum. */
+export function telefoneBonito(raw: string | null | undefined): string {
+  const d = String(raw || '').replace(/\D/g, '').replace(/^55/, '');
+  if (d.length !== 10 && d.length !== 11) return '';
+  const ddd = d.slice(0, 2);
+  const resto = d.slice(2);
+  return `(${ddd}) ${resto.slice(0, resto.length - 4)}-${resto.slice(-4)}`;
+}
+
+/** A bolha do telefone só existe se o número existir. Consultor sem WhatsApp
+ *  cadastrado faz a frase sumir inteira — nunca sai "(  ) -" nem "—". */
+const seTelefone = (tel: string, frase: (t: string) => string): string[] => (tel ? [frase(tel)] : []);
+
 // ── 1. AO MARCAR ────────────────────────────────────────────────────────────
 // Serve pra ficha nova E pra backlog: nada aqui diz "acabei de receber", então a
 // mesma copy funciona 30 segundos ou 3 dias depois do agendamento.
 export function bolhasConfirmacao(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
+  telVendedor?: string | null,
 ): string[] {
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nosso consultor';
+  const tel = telefoneBonito(telVendedor);
   return [
     `Oi${comNome(n)}! Aqui é da *Irmãos na Obra* — sou eu que cuido da agenda das reuniões de eletroposto. ⚡`,
     `Sua reunião com o *${quem}* está confirmada: *${quandoPorExtenso(quandoIso)}* (horário de Brasília).`,
+    ...seTelefone(tel, t => `O WhatsApp do ${quem} é *${t}* — salva esse contato, é de lá que ele fala com você.`),
     'É por vídeo, pelo celular mesmo ou pelo computador. O link cai aqui neste chat pouco antes do horário — você não precisa instalar nada.',
     'Esse horário fica reservado só pra você, e até lá a gente monta o estudo do seu ponto.',
     'Por isso me confirma: responde *SIM* que eu travo o horário no seu nome. 👍',
@@ -144,12 +161,15 @@ export function bolhasConfirmacao(
 // ── 2. 1 HORA ANTES ─────────────────────────────────────────────────────────
 export function bolhas1h(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
+  telVendedor?: string | null,
 ): string[] {
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nosso consultor';
+  const tel = telefoneBonito(telVendedor);
   return [
     `Oi${comNome(n)}! Falta *1 hora* pra sua reunião com o *${quem}*, às ${horaCurta(quandoIso)}. ⏰`,
     'Daqui a pouco eu te mando o link aqui neste chat — é só clicar na hora.',
+    ...seTelefone(tel, t => `O ${quem} também pode te chamar do *${t}* — é o WhatsApp dele.`),
     'Deixa separado um cantinho com internet e sinal, que a conversa é por vídeo.',
     'Se aconteceu algum imprevisto, me avisa agora que eu remarco pra outro dia. Se está de pé, me responde *SIM*. 👍',
   ];
@@ -158,13 +178,16 @@ export function bolhas1h(
 // ── 3. 5 MINUTOS ANTES ──────────────────────────────────────────────────────
 export function bolhas5min(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
+  telVendedor?: string | null,
 ): string[] {
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nosso consultor';
+  const tel = telefoneBonito(telVendedor);
   return [
     `${n ? n + ', é' : 'É'} agora! Sua reunião começa às ${horaCurta(quandoIso)}. 📹`,
     `O *${quem}* já está aqui te esperando.`,
     'Fica de olho neste chat: o link da chamada cai aqui a qualquer momento — é só clicar e entrar.',
+    ...seTelefone(tel, t => `Qualquer coisa, chama ele direto no *${t}*.`),
     'Até já! ⚡',
   ];
 }
@@ -191,6 +214,21 @@ export type ResultadoAgendaEp = {
   motivo?: string;
   previa?: ToquePrevisto[];
 };
+
+/** nome do consultor → WhatsApp dele, direto do cadastro do CRM. */
+async function carregarConsultores(): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>();
+  try {
+    const { data, error } = await supabaseGerador.from('consultores').select('nome, whatsapp').limit(100);
+    if (error) throw error;
+    for (const c of data ?? []) {
+      if (c?.nome && c?.whatsapp) mapa.set(String(c.nome), String(c.whatsapp));
+    }
+  } catch (err) {
+    logger.error('ep-agenda', 'ler consultores falhou — aviso sai sem o telefone', err);
+  }
+  return mapa;
+}
 
 const zero = (motivo?: string): ResultadoAgendaEp =>
   ({ confirmacoes: 0, lembretes_1h: 0, lembretes_5min: 0, erros: 0, ...(motivo ? { motivo } : {}) });
@@ -225,6 +263,11 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   }
   if (!data?.length) return zero('nenhuma_reuniao');
 
+  // Telefone do consultor: fonte é a tabela `consultores` (a mesma que o CRM usa),
+  // não uma lista fixa aqui — número trocado no cadastro tem que valer na mensagem
+  // seguinte. Falhou a leitura? A frase do telefone some e o resto do aviso sai.
+  const telPorConsultor = await carregarConsultores();
+
   const foraDeHorario = foraDaJanela();
   let confirmacoes = 0, l1h = 0, l5min = 0, erros = 0, backlog = 0, toques = 0;
   const previa: ToquePrevisto[] = [];
@@ -246,11 +289,12 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     if (!tel || !ag.quando) continue;
 
     const minutos = (new Date(ag.quando).getTime() - agora) / 60_000;
+    const telDoConsultor = telPorConsultor.get(String(ag.vendedor_nome || '')) ?? null;
 
     // ── 5 minutos antes ──
     if (!ag.lembrete_5min_at && minutos <= MIN_5MIN.ate && minutos >= MIN_5MIN.de) {
       try {
-        await entregar(ag, '5min', tel, bolhas5min(ag.cliente_nome, ag.quando, ag.vendedor_nome), 'lembrete_5min_at');
+        await entregar(ag, '5min', tel, bolhas5min(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), 'lembrete_5min_at');
         l5min++; toques++;
       } catch (e) {
         logger.error('ep-agenda', 'falha no toque de 5min', { id: ag.id, erro: String(e) });
@@ -262,7 +306,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     // ── 1 hora antes ──
     if (!ag.lembrete_1h_at && minutos <= MIN_1H.ate && minutos >= MIN_1H.de) {
       try {
-        await entregar(ag, '1h', tel, bolhas1h(ag.cliente_nome, ag.quando, ag.vendedor_nome), 'lembrete_1h_at');
+        await entregar(ag, '1h', tel, bolhas1h(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), 'lembrete_1h_at');
         l1h++; toques++;
       } catch (e) {
         logger.error('ep-agenda', 'falha no toque de 1h', { id: ag.id, erro: String(e) });
@@ -280,7 +324,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       backlog++;
     }
     try {
-      await entregar(ag, 'confirmacao', tel, bolhasConfirmacao(ag.cliente_nome, ag.quando, ag.vendedor_nome), 'confirmacao_at');
+      await entregar(ag, 'confirmacao', tel, bolhasConfirmacao(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), 'confirmacao_at');
       confirmacoes++; toques++;
     } catch (e) {
       logger.error('ep-agenda', 'falha na confirmação', { id: ag.id, erro: String(e) });

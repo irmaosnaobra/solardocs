@@ -5,12 +5,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // de 01/08) e prometer um link que quem manda é gente.
 
 let fichas: any[] = [];
+let consultores: any[] = [];
 const enviadas: Array<{ phone: string; bolhas: string[] }> = [];
 const updates: Array<{ id: number; campo: string }> = [];
 
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
-    from: () => {
+    from: (tabela: string) => {
       const q: any = {
         _filtros: {} as Record<string, any>,
         _update: null as any,
@@ -25,6 +26,7 @@ vi.mock('../utils/supabaseGerador', () => ({
         order() { return q; },
         update(patch: any) { q._update = patch; return q; },
         limit() {
+          if (tabela === 'consultores') return Promise.resolve({ data: consultores, error: null });
           const origens: string[] = q._filtros['created_by'] ?? [];
           const status = q._filtros['status'];
           const piso = new Date(q._filtros['gte_quando']).getTime();
@@ -63,6 +65,7 @@ const envOriginal = { ...process.env };
 beforeEach(() => {
   enviadas.length = 0; updates.length = 0;
   fichas = [ficha()];
+  consultores = [{ nome: 'Diego', whatsapp: '5534991360172' }, { nome: 'Thiago', whatsapp: '5534991360223' }];
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
 afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.resetModules(); });
@@ -188,6 +191,45 @@ describe('o que ele fala', () => {
   it('sem nome utilizável, a mensagem não sai quebrada', async () => {
     const { bolhas5min } = await mod();
     expect(bolhas5min('lead', '2026-08-05T18:30:00.000Z', null)[0]).toMatch(/^É agora!/);
+  });
+});
+
+// O lead precisa saber de qual número o consultor fala com ele — foi por não
+// saber disso que a régua de solar virou "não solicitei nenhum serviço".
+describe('telefone do consultor', () => {
+  it('os três toques levam o WhatsApp do consultor, formatado', async () => {
+    const { bolhasConfirmacao, bolhas1h, bolhas5min } = await mod();
+    const q = '2026-08-05T18:30:00.000Z';
+    for (const b of [
+      bolhasConfirmacao('Irineu', q, 'Diego', '5534991360172'),
+      bolhas1h('Irineu', q, 'Diego', '5534991360172'),
+      bolhas5min('Irineu', q, 'Diego', '5534991360172'),
+    ]) {
+      expect(b.join(' ')).toContain('(34) 99136-0172');
+    }
+  });
+
+  it('o número sai do cadastro `consultores`, casando pelo nome do vendedor', async () => {
+    fichas = [ficha({ vendedor_nome: 'Thiago' })];
+    await tick();
+    expect(enviadas[0].bolhas.join(' ')).toContain('(34) 99136-0223');
+  });
+
+  it('consultor sem WhatsApp cadastrado: a frase some, não vira número quebrado', async () => {
+    consultores = [{ nome: 'Diego', whatsapp: null }];
+    await tick();
+    const txt = enviadas[0].bolhas.join(' ');
+    expect(txt).toContain('1 hora');
+    expect(txt).not.toContain('()');
+    expect(txt).not.toMatch(/WhatsApp dele é \*\*/);
+  });
+
+  it('número torto no cadastro não vira mensagem', async () => {
+    const { telefoneBonito } = await mod();
+    expect(telefoneBonito('5534991360172')).toBe('(34) 99136-0172');
+    expect(telefoneBonito('3499136017')).toBe('(34) 9913-6017');
+    expect(telefoneBonito('123')).toBe('');
+    expect(telefoneBonito(null)).toBe('');
   });
 });
 
