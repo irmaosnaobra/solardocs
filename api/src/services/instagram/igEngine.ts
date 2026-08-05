@@ -388,6 +388,10 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
  * mesmo destinatário em 24h não repete.
  */
 async function responderDmFria(senderId: string, texto: string): Promise<void> {
+  // O AVISO sai sempre — é ele que faz o atendimento manual acontecer. Sem
+  // isso, "responder manualmente" vira "ninguém viu": a mensagem cai numa
+  // caixa que o dono não abre, que foi como 11 conversas morreram em 7 dias.
+  await avisarDmFria(senderId, texto);
   if ((process.env.IG_DM_MENU_ON || '').trim() !== 'true') return;
   const autos = await loadAutomations();
   const menu = autos.find(x => x.fallback) || autos.find(x => !x.link_url && x.gatilhos?.dm) || null;
@@ -399,8 +403,20 @@ async function responderDmFria(senderId: string, texto: string): Promise<void> {
   if (jaFoi && jaFoi.length) return;
 
   await enqueue({ tipo: 'dm', automation_id: menu.id, recipient: senderId, payload: welcomePayload(menu), needs_window: false });
+}
 
-  // O menu segura; quem fecha é gente. O time recebe o texto no WhatsApp.
+/**
+ * Chama o humano pra DM que o robô não entendeu. UM por pessoa por dia — a
+ * pessoa manda três bolhas seguidas e não pode virar três WhatsApps no celular
+ * do dono. Desliga com IG_DM_AVISO_OFF (mas aí ninguém fica sabendo).
+ */
+async function avisarDmFria(senderId: string, texto: string): Promise<void> {
+  if ((process.env.IG_DM_AVISO_OFF || '').trim() === 'true') return;
+  const chave = `ig_dm_aviso:${senderId}:${new Date().toISOString().slice(0, 10)}`;
+  const { data: ja } = await supabase.from('system_state').select('key').eq('key', chave).limit(1);
+  if (ja && ja.length) return;
+  await supabase.from('system_state').upsert({ key: chave, value: '1', updated_at: new Date().toISOString() }, { onConflict: 'key' });
+
   try {
     const { data: c } = await supabase.from('ig_contacts').select('username').eq('ig_user_id', senderId).maybeSingle();
     await sendWhatsApp(
@@ -408,7 +424,7 @@ async function responderDmFria(senderId: string, texto: string): Promise<void> {
       `*MENSAGEM NO INSTAGRAM* (Irmãos na Obra)\n\n` +
       `*De:* ${c?.username ? '@' + c.username : 'sem @ (chegou por DM)'}\n` +
       `*Disse:* ${texto.slice(0, 300)}\n\n` +
-      `_O robô mandou o menu. Se for atendimento, responder pelo direct._`,
+      `_O robô não reconheceu o assunto. Responder pelo direct._`,
       'io',
     );
   } catch (err) { logger.error('ig', 'aviso do time (DM fria) falhou', err); }
