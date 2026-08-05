@@ -108,7 +108,9 @@ function matchKeyword(text: string, kws: string[], tipo: string): { ok: boolean;
   return { ok: peso > 0, peso };
 }
 
-async function loadAutomations(): Promise<Automation[]> {
+/** As automações ativas. Exportada porque o Facebook (fbComentarios) roteia
+ *  comentário pelas MESMAS regras — é o mesmo funil, só muda a rede social. */
+export async function loadAutomations(): Promise<Automation[]> {
   const { data } = await supabaseGerador.from('ig_automations').select('*').eq('ativo', true);
   return ((data as Automation[]) || []).map(a => ({
     ...a,

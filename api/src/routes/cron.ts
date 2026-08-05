@@ -28,6 +28,7 @@ import { runZapiHealthCheck } from '../services/io/zapiHealthMonitor';
 import { runAlertaLeadQuenteSemProposta } from '../services/agenda/leadQuenteSemPropostaService';
 import { runGrupoEletropostoDiario } from '../services/io/grupoEletropostoDiario';
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
+import { varrerComentariosFacebook } from '../services/instagram/fbComentarios';
 import { runRepescagemTick, semearRepescagem } from '../services/io/eletropostoRepescagem';
 import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
 import { runConviteNota1Garantido } from '../services/io/eletropostoConviteGarantido';
@@ -269,7 +270,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, solarBvResult, solarRespResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, fbComentResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, solarBvResult, solarRespResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -289,6 +290,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       pollBiaRecuperacao(),            // inbound da Bia (poll IO; webhook IO não entrega texto)
       runGeradorSequenciasConsumer(),  // Central de Automação: drip de sequências (gated por kill-switch)
       drainIgQueue(),                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
+      varrerComentariosFacebook(),     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)
       runRepescagemTick(),             // eletroposto: 1 pessoa do apagão a cada 20min, 07h–20h
       runConviteNota1Garantido(),      // eletroposto: TODO nota 1 entra no grupo — rede embaixo do envio da LP
       runSementeTick(),                // semente: nutrição de quem pediu orçamento de solar e não fechou
@@ -314,6 +316,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       bia_poll:       biaPollResult.status === 'fulfilled' ? biaPollResult.value : { error: String((biaPollResult as any).reason) },
       gerador_seq:    geradorSeqResult.status === 'fulfilled' ? geradorSeqResult.value : { error: String((geradorSeqResult as any).reason) },
       ig_drain:       igDrainResult.status === 'fulfilled' ? igDrainResult.value : { error: String((igDrainResult as any).reason) },
+      fb_comentarios: fbComentResult.status === 'fulfilled' ? fbComentResult.value : { error: String((fbComentResult as any).reason) },
       ep_repescagem:  repescagemResult.status === 'fulfilled' ? repescagemResult.value : { error: String((repescagemResult as any).reason) },
       ep_convite:     conviteResult.status === 'fulfilled' ? conviteResult.value : { error: String((conviteResult as any).reason) },
       semente:        sementeResult.status === 'fulfilled' ? sementeResult.value : { error: String((sementeResult as any).reason) },
@@ -719,6 +722,19 @@ router.get('/instagram-refresh-token', async (req: Request, res: Response) => {
     res.json(result);
   } catch (err) {
     logger.error('cron', 'instagram-refresh-token falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Facebook: varredura manual dos comentários (a automática roda no
+// /process-messages a cada 5min). Serve pra conferir na hora depois de um
+// comentário de teste, sem esperar o tick.
+router.get('/facebook-comentarios', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    res.json(await varrerComentariosFacebook());
+  } catch (err) {
+    logger.error('cron', 'facebook-comentarios falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
