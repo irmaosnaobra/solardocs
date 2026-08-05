@@ -553,11 +553,6 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc-pg-forma{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:#CBD5E1;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 14px;cursor:pointer;transition:border-color .2s,color .2s}
 .orc-pg-forma:has(input:checked){border-color:#3B82F6;color:#fff}
 .orc-pg-forma input{accent-color:#3B82F6;width:16px;height:16px;cursor:pointer;flex:none}
-/* cartão — grade de parcelas (tela) */
-.orc-cartao-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:8px}
-.orc-parc{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#CBD5E1;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:8px 10px;cursor:pointer;transition:border-color .2s,color .2s}
-.orc-parc:has(input:checked){border-color:#3B82F6;color:#fff}
-.orc-parc input{accent-color:#3B82F6;width:15px;height:15px;cursor:pointer;flex:none}
 /* financiamento — aviso destacado (tela) */
 .orc-fin-aviso{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(135deg,rgba(59,130,246,.16),rgba(96,165,250,.05));border:1px solid rgba(96,165,250,.45);border-radius:12px;padding:14px 16px}
 .orc-fin-aviso .ic{flex:none;color:#60A5FA;font-size:20px;line-height:1.2}
@@ -2495,8 +2490,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-pg-formas">
           <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-avista" checked onchange="orcPgToggle()"> À vista</label>
           <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-entrada" onchange="orcPgToggle()"> Entrada + cartão</label>
-          <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-cartao" onchange="orcPgToggle()"> Cartão de crédito</label>
-          <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-fin" onchange="orcPgToggle()"> Financiamento</label>
+          <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-fin" onchange="orcPgToggle()"> Entrada + financiamento</label>
         </div>
 
         <!-- À vista: valor (editável) + data do vencimento -->
@@ -2520,18 +2514,20 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="orc-ent-prev" id="orc-ent-preview">—</div>
         </div>
 
-        <!-- Cartão: escolhe quais parcelas entram na proposta (a taxa NÃO aparece pro cliente) -->
-        <div class="orc-pg-cond" id="orc-pg-cartao" style="display:none">
-          <div class="orc-note" style="margin-top:14px;margin-bottom:8px"><b>Cartão de crédito.</b> Marque as parcelas que entram no orçamento. A taxa do cartão fica embutida no valor da parcela — <b>não aparece pro cliente</b>. Padrão: 12x e 21x.</div>
-          <div class="orc-cartao-grid" id="orc-cartao-grid" onchange="orcCalc()"></div>
-        </div>
-
-        <!-- Financiamento: só a mensagem destacada -->
+        <!-- Entrada + financiamento: a parcela vem da simulação do banco, digitada.
+             Não dá pra calcular por aqui: taxa de banco não é o acréscimo da casa. -->
         <div class="orc-pg-cond" id="orc-pg-fin" style="display:none">
-          <div class="orc-fin-aviso" style="margin-top:14px">
+          <div class="orc-fin-aviso" style="margin-top:14px;margin-bottom:12px">
             <span class="ic">★</span>
-            <p><b>Financiamento bancário em até 72×.</b> Financia <b>apenas o carregador</b> (o equipamento); os demais itens do projeto seguem em condição própria. As parcelas e as condições são definidas mediante simulação com os documentos do cliente, sujeito à análise de crédito.</p>
+            <p><b>Financiamento bancário em até 72x.</b> Financia <b>apenas o carregador</b> (o equipamento); os demais itens do projeto seguem em condição própria. Sempre sujeito à análise de crédito.</p>
           </div>
+          <div class="eletro-field"><label>Entrada</label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-fin-valor" inputmode="decimal" step="0.01" min="0" value="0" oninput="orcCalc()"></div></div>
+          <div class="eletro-field"><label>Parcelas do banco</label>
+            <div class="eletro-inp has-suf"><input type="number" id="orc-fin-parc" inputmode="numeric" step="1" min="1" max="120" value="72" oninput="orcCalc()"><span class="suf">x</span></div></div>
+          <div class="eletro-field"><label>Valor da parcela</label>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-fin-parcela" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="orcCalc()"></div></div>
+          <div class="orc-ent-prev" id="orc-fin-preview">—</div>
         </div>
       </div>
 
@@ -6607,6 +6603,19 @@ function orcEntradaCalc(total) {
   return { entrada, parcelas, juros, restante, parcela: orcEntradaParcela(restante, parcelas, juros) };
 }
 
+// ═══ ENTRADA + FINANCIAMENTO ═══
+// Aqui a parcela é DIGITADA, não calculada: quem dá o número é a simulação do
+// banco, com a taxa dele e a análise de crédito do cliente. Aplicar o acréscimo
+// da casa a 72x seria inventar uma condição que o banco não aprovou.
+const ORC_FIN_PARC = 72;   // parcelas padrão (é o "até 72x" que a casa já anuncia)
+function orcFinCalc(total) {
+  if (total == null) total = orcLerItens().total;
+  const entrada = Math.max(0, Math.min(orcNum(orcVal('orc-fin-valor')), total));
+  const parcelas = Math.max(1, Math.round(orcNum(orcVal('orc-fin-parc')) || ORC_FIN_PARC));
+  const parcela = Math.max(0, orcNum(orcVal('orc-fin-parcela')));
+  return { entrada, parcelas, parcela, financiado: Math.max(0, total - entrada) };
+}
+
 // À vista acompanha o total sozinho até o consultor digitar um valor próprio —
 // é ali que mora o desconto à vista. Mesma regra do preço de item do kit.
 function orcVistaEditado(inp) { inp.dataset.tocado = '1'; orcCalc(); }
@@ -6624,13 +6633,30 @@ function orcPgSync(total) {
   const vista = document.getElementById('orc-pg-vista-valor');
   if (vista && vista.dataset.tocado !== '1') vista.value = total > 0 ? total.toFixed(2) : '';
   const prev = document.getElementById('orc-ent-preview');
-  if (!prev) return;
-  if (!(total > 0)) { prev.innerHTML = '<span class="alerta">Marque os itens do kit para calcular a parcela.</span>'; return; }
-  const e = orcEntradaCalc(total);
-  prev.innerHTML = e.restante > 0
-    ? `Entrada de <b>${ORC_MONEY(e.entrada)}</b> + <b>${e.parcelas}x de ${ORC_MONEY(e.parcela)}</b> no cartão` +
-      `<span class="det">Restante de ${ORC_MONEY(e.restante)} com ${String(e.juros).replace('.', ',')}% de acréscimo · o cliente paga ${ORC_MONEY(e.entrada + e.parcela * e.parcelas)} no fim</span>`
-    : '<span class="alerta">A entrada cobre o total — não sobra nada para o cartão.</span>';
+  const prevF = document.getElementById('orc-fin-preview');
+  if (!(total > 0)) {
+    const aviso = '<span class="alerta">Marque os itens do kit para calcular a parcela.</span>';
+    if (prev) prev.innerHTML = aviso;
+    if (prevF) prevF.innerHTML = aviso;
+    return;
+  }
+  if (prev) {
+    const e = orcEntradaCalc(total);
+    prev.innerHTML = e.restante > 0
+      ? `Entrada de <b>${ORC_MONEY(e.entrada)}</b> + <b>${e.parcelas}x de ${ORC_MONEY(e.parcela)}</b> no cartão` +
+        `<span class="det">Restante de ${ORC_MONEY(e.restante)} com ${String(e.juros).replace('.', ',')}% de acréscimo · o cliente paga ${ORC_MONEY(e.entrada + e.parcela * e.parcelas)} no fim</span>`
+      : '<span class="alerta">A entrada cobre o total — não sobra nada para o cartão.</span>';
+  }
+  if (prevF) {
+    const f = orcFinCalc(total);
+    prevF.innerHTML = f.financiado <= 0
+      ? '<span class="alerta">A entrada cobre o total — não sobra nada para financiar.</span>'
+      : f.parcela > 0
+      ? `Entrada de <b>${ORC_MONEY(f.entrada)}</b> + <b>${f.parcelas}x de ${ORC_MONEY(f.parcela)}</b> no banco` +
+        `<span class="det">Financia ${ORC_MONEY(f.financiado)} · o cliente paga ${ORC_MONEY(f.entrada + f.parcela * f.parcelas)} no fim · sempre sujeito à análise de crédito</span>`
+      : `<span class="alerta">Sem o valor da parcela</span>` +
+        `<span class="det">Rode a simulação no banco e digite o que veio. Em branco, o orçamento sai só com "até ${f.parcelas}x, sujeito a análise" — sem número nenhum.</span>`;
+  }
 }
 
 // Lê o card de pagamento inteiro e devolve o que o documento e o WhatsApp
@@ -6639,45 +6665,39 @@ function orcPgSync(total) {
 function orcPgLer(total) {
   const on = id => !!document.getElementById(id)?.checked;
   if (total == null) total = orcLerItens().total;
-  const cartaoNs = [];
-  if (on('orc-pg-ck-cartao')) {
-    document.querySelectorAll('#orc-cartao-grid input[type="checkbox"]:checked')
-      .forEach(c => { const n = Number(c.dataset.n); if (n) cartaoNs.push(n); });
-  }
   const vistaEl = document.getElementById('orc-pg-vista-valor');
   const vistaValor = vistaEl && vistaEl.dataset.tocado === '1' ? orcNum(vistaEl.value) : 0;
   const e = orcEntradaCalc(total);
+  const f = orcFinCalc(total);
   return {
     vista: on('orc-pg-ck-avista'),
     vistaValor: vistaValor > 0 ? vistaValor : null,
-    cartaoNs,
+    // cartaoNs morreu com a grade de parcelas; vai vazio pra que orçamento novo
+    // nunca misture a tabela antiga com os 22,5% do campo.
+    cartaoNs: [],
     entrada: on('orc-pg-ck-entrada') ? { valor: e.entrada, parcelas: e.parcelas, juros: e.juros } : null,
-    fin: on('orc-pg-ck-fin'),
+    fin: on('orc-pg-ck-fin') ? { valor: f.entrada, parcelas: f.parcelas, parcela: f.parcela } : null,
   };
 }
 
 // Tabela de taxas do cartão (% acréscimo por nº de parcelas). A taxa é ARREDONDADA
 // (ex: 3,99 → 4; 5,30 → 5) e NÃO aparece pro cliente — só embute no valor da parcela.
+//
+// ⚠ APOSENTADA na tela (05/08/2026). A grade de 1x a 21x saiu do card de pagamento:
+// a casa passou a trabalhar com uma condição só, 18x com 22,5%, editável no campo.
+// A tabela e o orcParcelaCartao ficam de pé porque orçamento gerado ANTES disso já
+// está na mão do cliente com `cartaoNs` no payload — sem eles, reabrir aquele link
+// mostraria o rodapé sem a condição que o cliente leu.
 const ORC_TAXA_CARTAO = {
   1: 3.99, 2: 5.30, 3: 5.99, 4: 6.68, 5: 7.35, 6: 8.02, 7: 9.47,
   8: 10.13, 9: 10.78, 10: 11.43, 11: 12.06, 12: 12.70, 13: 13.32, 14: 13.94,
   15: 14.56, 16: 15.17, 17: 15.77, 18: 16.37, 19: 16.97, 20: 17.57, 21: 18.17,
 };
-const ORC_CARTAO_DEFAULT = [12, 21];   // parcelas marcadas por padrão
 function orcParcelaCartao(total, n) {
   const t = ORC_TAXA_CARTAO[n];
   if (!(total > 0) || t == null) return 0;
   const taxa = Math.round(t);          // arredonda a taxa antes de embutir
   return total * (1 + taxa / 100) / n;
-}
-// Monta a grade de parcelas 1x–21x (só na 1ª vez; preserva o que o consultor marcou)
-function orcRenderCartaoGrid() {
-  const grid = document.getElementById('orc-cartao-grid');
-  if (!grid || grid.children.length) return;
-  const marc = new Set(ORC_CARTAO_DEFAULT);
-  grid.innerHTML = Object.keys(ORC_TAXA_CARTAO).map(Number).sort((a, b) => a - b).map(n =>
-    `<label class="orc-parc"><input type="checkbox" data-n="${n}"${marc.has(n) ? ' checked' : ''}> ${n}x</label>`
-  ).join('');
 }
 
 // Mostra os campos de cada forma marcada (várias podem ficar ligadas ao mesmo tempo)
@@ -6686,7 +6706,6 @@ function orcPgToggle() {
   const show = (id, v) => { const el = document.getElementById(id); if (el) el.style.display = v ? '' : 'none'; };
   show('orc-pg-data', on('orc-pg-ck-avista'));
   show('orc-pg-entrada', on('orc-pg-ck-entrada'));
-  show('orc-pg-cartao', on('orc-pg-ck-cartao'));
   show('orc-pg-fin', on('orc-pg-ck-fin'));
 }
 
@@ -6728,7 +6747,6 @@ function orcInit() {
   const dVenc = document.getElementById('orc-parc-data'); if (dVenc && !dVenc.value) dVenc.value = orcHojeISO();
   const obs = document.getElementById('orc-obs'); if (obs && !obs.value.trim()) obs.value = ORC_OBS_PADRAO;
   orcKitRender();
-  orcRenderCartaoGrid();
   orcPgToggle();
   orcCalc();
 }
@@ -7262,12 +7280,27 @@ function orc1PagChips(o) {
         : `<div class="pag"><b>Cartão parcelado</b><span>${n}x de ${o1BRL(parcela)}</span></div>`);
     }
   }
+  // Legado: orçamento gerado com a grade de 1x–21x, já na mão do cliente.
   const ns = (o.cartaoNs || []).slice().sort((a, b) => a - b);
   if (ns.length) {
     const maior = ns[ns.length - 1];
     chips.push(`<div class="pag"><b>Cartão de crédito</b><span>até ${maior}× de ${o1BRL(orcParcelaCartao(o.total, maior))}</span></div>`);
   }
-  if (o.fin) chips.push(`<div class="pag"><b>Financiamento bancário</b><span>até 72× (só o carregador, sujeito a análise)</span></div>`);
+  const f = o.fin;
+  if (f) {
+    // fin === true é o formato antigo (só a mensagem, sem número nenhum). O novo é
+    // objeto com a parcela que veio da simulação do banco; sem ela, cai na mensagem.
+    const p = (f === true) ? 0 : Math.max(0, orcNum(f.parcela));
+    const ent = (f === true) ? 0 : Math.min(Math.max(0, orcNum(f.valor)), o.total || 0);
+    const financiado = Math.max(0, (o.total || 0) - ent);
+    if (p > 0 && financiado > 0) {
+      const n = Math.max(1, Math.round(orcNum(f.parcelas) || ORC_FIN_PARC));
+      chips.push(`<div class="pag"><b>Entrada + financiamento</b><span>${ent > 0 ? o1BRL(ent) + ' + ' : ''}${n}x de ${o1BRL(p)} · sob análise</span></div>`);
+    } else if (financiado > 0) {
+      const n = (f === true) ? ORC_FIN_PARC : Math.max(1, Math.round(orcNum(f.parcelas) || ORC_FIN_PARC));
+      chips.push(`<div class="pag"><b>Financiamento bancário</b><span>até ${n}x (só o carregador, sujeito a análise)</span></div>`);
+    }
+  }
   return chips.length ? `<div class="pags">${chips.join('')}</div>` : '';
 }
 
@@ -7292,7 +7325,12 @@ function epWhatsTextoOrcamento(total) {
       : `• Cartão ${pg.entrada.parcelas}x de ${parcela}`);
   }
   pg.cartaoNs.slice().sort((a, b) => a - b).forEach(n => formas.push(`• Cartão ${n}x de ${elMoney2(orcParcelaCartao(total, n))}`));
-  if (pg.fin) formas.push('• Financiamento em até 72x (mediante análise de crédito)');
+  if (pg.fin) {
+    const f = pg.fin;
+    formas.push(f.parcela > 0
+      ? `• ${f.valor > 0 ? `Entrada de ${elMoney(f.valor)} + ` : ''}${f.parcelas}x de ${elMoney2(f.parcela)} no financiamento (mediante análise de crédito)`
+      : `• Financiamento em até ${f.parcelas}x (mediante análise de crédito)`);
+  }
   // Nada marcado (ou WhatsApp disparado antes de abrir o card): manda o à vista.
   if (!formas.length) formas.push(`• À vista: ${elMoney(total)}`);
   L.push('', `*Valor: ${elMoney(total)}* — chave na mão`, '', 'Formas de pagamento:',
@@ -7442,7 +7480,9 @@ function epBasicoImprimir() {
     compHTML: orc1EpMateriais(itensBasico),
     ...orc1EpFinanceiro(total),
     obs: ORC_OBS_PADRAO,
-    pagHTML: orc1PagChips({ total, vista: true, cartaoNs: ORC_CARTAO_DEFAULT, fin: true }),
+    // O básico sai do Simulador, sem card de pagamento: usa a condição padrão da
+    // casa (18x com 22,5%) pra não quotar cartão diferente do orçamento completo.
+    pagHTML: orc1PagChips({ total, vista: true, entrada: { valor: 0, parcelas: ORC_ENTRADA_PARC, juros: ORC_ENTRADA_JUROS }, fin: true }),
     vendedor: { nome: t.autor, email: t.email, contato: t.contato },
     empresa: orc1EpEmpresa(),
   });
@@ -7495,18 +7535,17 @@ function orcSnapTake() {
       tocado: row.querySelector('.orc-kit-preco').dataset.tocado === '1',
     });
   });
-  const cart = [];
-  document.querySelectorAll('#orc-cartao-grid input[type="checkbox"]:checked').forEach(c => cart.push(Number(c.dataset.n)));
   return {
     num: v('orc-num'), data: v('orc-data'), validade: v('orc-validade'), validadeModo: v('orc-validade-modo'),
     doc: v('orc-cli-doc'), ie: v('orc-cli-ie'), end: v('orc-cli-end'), cep: v('orc-cli-cep'), tel: v('orc-cli-tel'), email: v('orc-cli-email'),
     frete: v('orc-frete'), desc: v('orc-desc'), obs: v('orc-obs'), parcData: v('orc-parc-data'),
-    pgA: ck('orc-pg-ck-avista'), pgC: ck('orc-pg-ck-cartao'), pgF: ck('orc-pg-ck-fin'), cart, kit,
-    // à vista com valor próprio + entrada/cartão
+    pgA: ck('orc-pg-ck-avista'), pgF: ck('orc-pg-ck-fin'), kit,
+    // à vista com valor próprio + entrada/cartão + entrada/financiamento
     pgE: ck('orc-pg-ck-entrada'),
     vistaValor: v('orc-pg-vista-valor'),
     vistaTocado: document.getElementById('orc-pg-vista-valor')?.dataset.tocado === '1',
     entValor: v('orc-ent-valor'), entParc: v('orc-ent-parc'), entJuros: v('orc-ent-juros'),
+    finValor: v('orc-fin-valor'), finParc: v('orc-fin-parc'), finParcela: v('orc-fin-parcela'),
   };
 }
 function orcSnapApply(s) {
@@ -7521,11 +7560,14 @@ function orcSnapApply(s) {
   validadeUiAtualizar();
   set('orc-cli-doc', s.doc); set('orc-cli-ie', s.ie); set('orc-cli-end', s.end); set('orc-cli-cep', s.cep); set('orc-cli-tel', s.tel); set('orc-cli-email', s.email);
   set('orc-frete', s.frete); set('orc-desc', s.desc); set('orc-obs', s.obs); set('orc-parc-data', s.parcData);
-  setck('orc-pg-ck-avista', s.pgA); setck('orc-pg-ck-cartao', s.pgC); setck('orc-pg-ck-fin', s.pgF);
-  // Entrada + cartão. Orçamento salvo antes destes campos não traz nada: o set()
-  // ignora null e os defaults (18x / 22,5%) ficam de pé.
+  setck('orc-pg-ck-avista', s.pgA); setck('orc-pg-ck-fin', s.pgF);
+  // Entrada + cartão e entrada + financiamento. Orçamento salvo antes destes campos
+  // não traz nada: o set() ignora null e os defaults (18x/22,5% e 72x) ficam de pé.
+  // s.pgC/s.cart (a grade velha de 1x–21x) não são reaplicados: a grade não existe
+  // mais na tela, e o consultor remarca a condição no campo.
   setck('orc-pg-ck-entrada', s.pgE);
   set('orc-ent-valor', s.entValor); set('orc-ent-parc', s.entParc); set('orc-ent-juros', s.entJuros);
+  set('orc-fin-valor', s.finValor); set('orc-fin-parc', s.finParc); set('orc-fin-parcela', s.finParcela);
   const vistaEl = document.getElementById('orc-pg-vista-valor');
   if (vistaEl) {
     if (s.vistaTocado) { vistaEl.dataset.tocado = '1'; if (s.vistaValor != null) vistaEl.value = s.vistaValor; }
@@ -7547,8 +7589,6 @@ function orcSnapApply(s) {
     if (k.preco != null) preco.value = k.preco;
     if (k.tocado) preco.dataset.tocado = '1'; else delete preco.dataset.tocado;
   });
-  const cset = new Set(s.cart || []);
-  document.querySelectorAll('#orc-cartao-grid input[type="checkbox"]').forEach(c => { c.checked = cset.has(Number(c.dataset.n)); });
   orcPgToggle(); orcCalc();
 }
 
