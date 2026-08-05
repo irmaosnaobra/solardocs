@@ -2,12 +2,13 @@
 // Porteiro do link — padrão em TODA automação do Instagram (04/08/2026).
 //
 // Antes: comentário → DM com o link. Um toque só, e a pessoa saía sem seguir.
-// Agora, igual ao fluxo do ManyChat que o Thiago mandou copiar:
-//   1) "clica no botão que eu te mando o link"   → a pessoa responde
-//   2) "esse link é pra quem me segue"           → a pessoa responde
-//   3) link.
-// Cada toque é uma RESPOSTA da pessoa, e resposta abre a janela de 24h da Meta
-// (todo followup depende dela) além de contar como interação pro alcance.
+// Fluxo atual (05/08/2026, pedido do Thiago — era um toque a mais):
+//   1) "me segue e toca no botão que eu libero o link"  → a pessoa responde
+//   2) link;
+//   3) 1h depois, o followup.
+// A resposta da pessoa é o que abre a janela de 24h da Meta (todo followup
+// depende dela) e ainda conta como interação pro alcance. O toque "clica no
+// botão que eu te mando o link", que vinha antes deste, foi removido.
 //
 // Só entra em automação que TEM link (`link_url`). O Menu e a rede de segurança
 // não têm — a resposta deles ("SOLAR"/"ELETROPOSTO") precisa continuar caindo no
@@ -27,16 +28,14 @@
 
 export type GateEtapa = 'pedido' | 'seguir' | 'entregue';
 
-/** O que mandar agora: pedir o clique, pedir o seguir, ou entregar o link. */
-export type GateAcao = 'pedir' | 'seguir' | 'entregar';
+/** O que mandar agora: pedir o seguir, ou entregar o link. */
+export type GateAcao = 'seguir' | 'entregar';
 
 /** Só o que o porteiro precisa saber da automação. */
 export interface GateAuto {
   id: string;
   link_url?: string | null;
   gate_off?: boolean | null;
-  gate_pedir_texto?: string | null;
-  gate_pedir_botao?: string | null;
   gate_seguir_texto?: string | null;
   gate_seguir_botao?: string | null;
   lembrete_1h_texto?: string | null;
@@ -61,9 +60,9 @@ export const GATE_VALIDADE_MS = 72 * 3600 * 1000;
 
 // Copy padrão (a automação pode sobrescrever no painel). O "(ou responde …)"
 // não é enfeite: é o caminho de quem não vê o botão.
-const PEDIR_TEXTO = 'Opa, e aí, beleza? 👋\n\nClica no botão abaixo (ou responde LINK aqui) que eu já te mando o link ✨';
-const PEDIR_BOTAO = 'Me envie o link';
-const SEGUIR_TEXTO = 'Quase lá! Esse link é especial pra quem me segue ✨\n\nMe segue aqui e toca no botão abaixo (ou responde SEGUINDO) que eu libero na hora 🎉';
+// Este é o PRIMEIRO toque desde 05/08 — abre falando com quem acabou de
+// comentar, então não pode começar com "quase lá".
+const SEGUIR_TEXTO = 'Opa, e aí, beleza? 👋\n\nEsse link é especial pra quem me segue ✨ Me segue aqui e toca no botão abaixo (ou responde SEGUINDO) que eu mando na hora 🎉';
 const SEGUIR_BOTAO = 'Seguindo';
 const NUDGE = 'Faltou só um passo pro seu link 👀\n\nMe segue aqui e responde SEGUINDO que eu mando na hora ✨';
 
@@ -87,50 +86,43 @@ export function gateAberto(e: GateEstado | null | undefined, agora: number = Dat
 }
 
 /** Comentário novo (ou DM fria): abre o porteiro ou entrega direto. */
-export function acaoNaAbertura(a: GateAuto, e: GateEstado | null | undefined, agora: number = Date.now()): GateAcao {
+export function acaoNaAbertura(a: GateAuto, e: GateEstado | null | undefined, _agora: number = Date.now()): GateAcao {
   if (!gateAtivo(a)) return 'entregar';
   if (e?.gate_liberado_em) return 'entregar';   // já seguiu uma vez, não pede de novo
-  // Comentar 2–3 vezes no mesmo anúncio é comum. Se o fluxo desta automação já
-  // está andando, repete o toque em que ele PAROU — voltar pro começo zeraria a
-  // etapa de quem já clicou.
-  if (gateAberto(e, agora) && e!.gate_automation_id === a.id && e!.gate_etapa === 'seguir') return 'seguir';
-  return 'pedir';
+  return 'seguir';                              // toque único: pede o seguir e pronto
 }
 
 /**
- * O "clica no botão" desta automação já está de pé pra esta pessoa?
+ * O toque que sairia agora é o MESMO que já saiu pra esta pessoa?
  *
  * Comentar duas ou três vezes no mesmo reel antes de abrir a DM é comum, e cada
  * comentário chega com id próprio — o dedup por comentário não pega. Sem esta
- * pergunta, cada comentário rende um "Opa, e aí, beleza?" novo (foi o print de
- * 05/08). Quem já passou pelo porteiro (`gate_liberado_em`) não entra aqui:
- * essa pessoa recebe o link direto, e link repetido não é bizarrice.
+ * pergunta, cada comentário rende um "me segue" novo (foi o print de 05/08).
+ * Quem já passou pelo porteiro (`gate_liberado_em`) não entra aqui: essa pessoa
+ * recebe o link direto, e link repetido não é bizarrice.
+ *
+ * Quem ficou parado na etapa 'pedido' é do fluxo antigo, de dois toques: pra
+ * essa pessoa o "me segue" ainda é mensagem nova, então não é silêncio.
  */
-export function jaPediu(a: GateAuto, e: GateEstado | null | undefined, agora: number = Date.now()): boolean {
+export function repetiriaOToque(a: GateAuto, e: GateEstado | null | undefined, agora: number = Date.now()): boolean {
   if (!gateAtivo(a)) return false;
   if (e?.gate_liberado_em) return false;
-  return gateAberto(e, agora) && e!.gate_automation_id === a.id && e!.gate_etapa === 'pedido';
+  return gateAberto(e, agora) && e!.gate_automation_id === a.id && e!.gate_etapa === 'seguir';
 }
 
 /** Resposta na DM com o porteiro aberto. null = deixa o roteamento normal agir. */
 export function acaoNaResposta(e: GateEstado | null | undefined, agora: number = Date.now()): GateAcao | null {
   if (!gateAberto(e, agora)) return null;
+  // 'pedido' é herança do fluxo de dois toques: quem estava parado nele responde
+  // e recebe o "me segue" — o mesmo lugar onde todo mundo entra agora.
   if (e!.gate_etapa === 'pedido') return 'seguir';
   return 'entregar';                            // gateAberto só deixa passar pedido|seguir
 }
 
 /** Etapa que fica gravada depois de executar a ação. */
 export function etapaDepois(acao: GateAcao): GateEtapa {
-  if (acao === 'pedir') return 'pedido';
   if (acao === 'seguir') return 'seguir';
   return 'entregue';
-}
-
-export function payloadPedido(a: GateAuto): GatePayload {
-  return {
-    text: txt(a.gate_pedir_texto, PEDIR_TEXTO),
-    quick_replies: [{ title: rotulo(a.gate_pedir_botao, PEDIR_BOTAO), payload: 'IG_GATE_LINK' }],
-  };
 }
 
 export function payloadSeguir(a: GateAuto): GatePayload {

@@ -17,8 +17,9 @@
 // telefone), entra a automação marcada como `fallback` — tráfego pago é caro
 // demais pra deixar comentário sem resposta. Piada em post orgânico não recebe DM.
 //
-// PORTEIRO DO LINK (04/08/2026): automação com link não entrega no primeiro
-// toque. Pede o clique → pede o seguir → só então manda o link (ver igGate.ts).
+// PORTEIRO DO LINK (04/08, encurtado em 05/08): automação com link não entrega
+// no primeiro toque. Pede pra seguir → a pessoa responde → link → followup 1h
+// depois (ver igGate.ts). O toque "clica no botão" que abria isso foi removido.
 //
 // ENVIO INCERTO (05/08/2026): a Meta devolve 500/code 1 e entrega a mensagem
 // assim mesmo. Erro nesse formato não vira reenvio nem resposta pública — vira
@@ -35,7 +36,7 @@ import {
 } from './igClient';
 import {
   GateEstado, GateEtapa, GateAcao, gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta,
-  etapaDepois, payloadPedido, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS, jaPediu,
+  etapaDepois, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS, repetiriaOToque,
 } from './igGate';
 import { classificarFalha } from './igFalha';
 
@@ -175,7 +176,7 @@ async function lerGate(igUserId: string): Promise<GateEstado | null> {
 async function abrirGate(igUserId: string, automationId: string): Promise<void> {
   const agora = new Date().toISOString();
   await supabase.from('ig_contacts')
-    .update({ gate_etapa: 'pedido', gate_automation_id: automationId, gate_em: agora, updated_at: agora })
+    .update({ gate_etapa: 'seguir', gate_automation_id: automationId, gate_em: agora, updated_at: agora })
     .eq('ig_user_id', igUserId);
 }
 /** Automação saiu do ar no meio do fluxo — solta a pessoa em vez de prender. */
@@ -242,22 +243,22 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
 
   await upsertContact(fromId, username, a.id, false);
 
-  // Porteiro: automação com link pede o clique antes de entregar. Quem já seguiu
-  // (gate_liberado_em) recebe direto — ninguém é obrigado a seguir duas vezes.
+  // Porteiro: automação com link pede pra seguir antes de entregar. Quem já
+  // seguiu (gate_liberado_em) recebe direto — ninguém segue duas vezes.
   const estadoC = await lerGate(fromId);
 
-  // Comentou de novo antes de responder a DM? O "clica no botão" já está de pé
-  // (cada comentário tem id próprio, então o dedup por comentário não pega).
-  // Repetir o mesmo pedido é a bizarrice em dobro: fica em silêncio — nem DM,
-  // nem resposta pública. O telefone, se veio, continua virando lead.
-  if (jaPediu(a, estadoC)) {
+  // Comentou de novo antes de responder a DM? O "me segue" já está de pé (cada
+  // comentário tem id próprio, então o dedup por comentário não pega). Repetir
+  // o mesmo toque é a bizarrice em dobro: fica em silêncio — nem DM, nem
+  // resposta pública. O telefone, se veio, continua virando lead.
+  if (repetiriaOToque(a, estadoC)) {
     if (tel) await depositarLead(fromId, tel, a, username);
     return;
   }
 
   const acao = acaoNaAbertura(a, estadoC);
   // Reabrir um fluxo que já anda zeraria o gate_em e poderia devolver a etapa
-  // pra 'pedido' entre o clique da pessoa e a drenagem — o mesmo texto duas vezes.
+  // pro começo entre o clique da pessoa e a drenagem — o mesmo texto duas vezes.
   const jaAberto = gateAberto(estadoC) && estadoC?.gate_automation_id === a.id;
   if (acao !== 'entregar' && !jaAberto) await abrirGate(fromId, a.id);
 
@@ -267,7 +268,7 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
   await enqueue({
     tipo: 'private_reply', automation_id: a.id, recipient: commentId, needs_window: false,
     payload: {
-      ...(acao === 'pedir' ? payloadPedido(a) : acao === 'seguir' ? payloadSeguir(a) : welcomePayload(a)),
+      ...(acao === 'seguir' ? payloadSeguir(a) : welcomePayload(a)),
       pub_ok: pick(a.respostas_publicas || []),
       pub_fail: username ? `@${username} me chama no direct que eu te mando tudo 👉` : null,
       // O relógio do lembrete de 1h começa quando ESTA DM sair (a fila enfileira
@@ -298,8 +299,8 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
   const tel = telefoneDe(text);
 
   // ── Porteiro aberto? Então esta resposta é o próximo toque do fluxo, seja ela
-  // o clique no botão ("Me envie o link") ou texto digitado. Não volta pro
-  // roteamento por palavra-chave: o fluxo em andamento manda.
+  // o clique no botão ("Seguindo") ou texto digitado. Não volta pro roteamento
+  // por palavra-chave: o fluxo em andamento manda.
   const estado = await lerGate(senderId);
   const passo = acaoNaResposta(estado);
   if (passo) {
@@ -314,8 +315,8 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
       return;
     }
     // Automação pausada no meio do fluxo: solta a pessoa antes de cair no
-    // roteamento normal, senão o texto do botão ("Me envie o link") ficaria
-    // preso num fluxo que não existe mais.
+    // roteamento normal, senão o texto do botão ("Seguindo") ficaria preso
+    // num fluxo que não existe mais.
     await limparGate(senderId);
   }
 
@@ -325,9 +326,9 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
     await upsertContact(senderId, null, a.id, false);
     // DM fria também passa pelo porteiro (o link é o mesmo, a regra é a mesma).
     const acao = acaoNaAbertura(a, estado);
-    if (acao === 'pedir') await abrirGate(senderId, a.id);
+    if (acao === 'seguir') await abrirGate(senderId, a.id);
     // Conversa já aberta → DM direta (não precisa de janela).
-    const payload: any = acao === 'pedir' ? payloadPedido(a) : welcomePayload(a);
+    const payload: any = acao === 'seguir' ? payloadSeguir(a) : welcomePayload(a);
     payload.l1h = lembrete1h(a, senderId);
     await enqueue({ tipo: 'dm', automation_id: a.id, recipient: senderId, payload, needs_window: false });
     await enqueueReminderIfAny(a, senderId);

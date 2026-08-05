@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 // igGate é puro (nada de supabase) — dá pra testar a máquina de estados direto.
 import {
   gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta, etapaDepois,
-  payloadPedido, payloadSeguir, nudgeGate, lembrete1h, jaPediu, GATE_VALIDADE_MS, L1H_ATRASO_MS,
+  payloadSeguir, nudgeGate, lembrete1h, repetiriaOToque, GATE_VALIDADE_MS, L1H_ATRASO_MS,
 } from '../services/instagram/igGate';
 
 const comLink = { id: 'eletro', link_url: 'https://solardoc.app/io/eletroposto?src=ig' };
@@ -29,18 +29,23 @@ describe('porteiro do link — quem passa pelo fluxo', () => {
   });
 });
 
-describe('porteiro do link — os três toques', () => {
-  it('comentário novo pede o clique em vez de mandar o link', () => {
-    expect(acaoNaAbertura(comLink, null)).toBe('pedir');
-    expect(payloadPedido(comLink).quick_replies?.[0].title).toBe('Me envie o link');
+describe('porteiro do link — os dois toques', () => {
+  it('comentário novo pede pra seguir em vez de mandar o link', () => {
+    expect(acaoNaAbertura(comLink, null)).toBe('seguir');
+    expect(payloadSeguir(comLink).quick_replies?.[0].title).toBe('Seguindo');
   });
 
-  it('a resposta do 1º toque pede pra seguir, e a do 2º entrega o link', () => {
+  it('a resposta ao "me segue" entrega o link', () => {
+    const seguir = { gate_etapa: 'seguir', gate_automation_id: 'eletro', gate_em: haMinutos(1) };
+    expect(acaoNaResposta(seguir, AGORA)).toBe('entregar');
+  });
+
+  it('quem ficou no fluxo antigo de dois toques cai no "me segue" e segue o jogo', () => {
+    // Ninguém entra mais em 'pedido', mas quem estava parado nele quando o
+    // toque a mais saiu (05/08) não pode ficar preso.
     const pedido = { gate_etapa: 'pedido', gate_automation_id: 'eletro', gate_em: haMinutos(1) };
     expect(acaoNaResposta(pedido, AGORA)).toBe('seguir');
-    const seguir = { ...pedido, gate_etapa: 'seguir' };
-    expect(acaoNaResposta(seguir, AGORA)).toBe('entregar');
-    expect(payloadSeguir(comLink).quick_replies?.[0].title).toBe('Seguindo');
+    expect(repetiriaOToque(comLink, pedido, AGORA)).toBe(false);
   });
 
   it('depois de entregue o porteiro sai do caminho (roteamento normal volta)', () => {
@@ -56,36 +61,22 @@ describe('porteiro do link — os três toques', () => {
     expect(acaoNaAbertura({ id: 'solar', link_url: 'https://solardoc.app/simular' }, veterano, AGORA)).toBe('entregar');
   });
 
-  it('comentar de novo no meio do fluxo repete o toque parado, não volta pro começo', () => {
-    // Comentar 2–3 vezes no mesmo anúncio é comum. Quem já clicou e está no
-    // "me segue" não pode ouvir "clica no botão" outra vez.
-    const noSeguir = { gate_etapa: 'seguir', gate_automation_id: 'eletro', gate_em: haMinutos(5) };
-    expect(acaoNaAbertura(comLink, noSeguir, AGORA)).toBe('seguir');
-    // Ainda no 1º toque: repete o 1º toque mesmo.
-    const noPedido = { ...noSeguir, gate_etapa: 'pedido' };
-    expect(acaoNaAbertura(comLink, noPedido, AGORA)).toBe('pedir');
-    // Fluxo de OUTRA automação (mudou de produto): começa do zero na nova.
-    expect(acaoNaAbertura({ id: 'solar', link_url: 'https://solardoc.app/simular' }, noSeguir, AGORA)).toBe('pedir');
-  });
-
-  it('comentário repetido no 1º toque fica em silêncio, não manda o pedido de novo', () => {
+  it('comentário repetido fica em silêncio, não manda o "me segue" de novo', () => {
     // 05/08: um comentário rendeu duas DMs iguais. Comentário repetido renderia
     // uma por comentário — mesma bizarrice, outro caminho.
-    const noPedido = { gate_etapa: 'pedido', gate_automation_id: 'eletro', gate_em: haMinutos(5) };
-    expect(jaPediu(comLink, noPedido, AGORA)).toBe(true);
-    // Quem está no 2º toque recebe o "me segue" (é o toque que ele parou), e
-    // quem mudou de produto entra no fluxo novo: nenhum dos dois é silêncio.
-    expect(jaPediu(comLink, { ...noPedido, gate_etapa: 'seguir' }, AGORA)).toBe(false);
-    expect(jaPediu({ id: 'solar', link_url: 'https://solardoc.app/simular' }, noPedido, AGORA)).toBe(false);
+    const noSeguir = { gate_etapa: 'seguir', gate_automation_id: 'eletro', gate_em: haMinutos(5) };
+    expect(repetiriaOToque(comLink, noSeguir, AGORA)).toBe(true);
+    // Quem mudou de produto entra no fluxo da automação nova: não é repetição.
+    expect(repetiriaOToque({ id: 'solar', link_url: 'https://solardoc.app/simular' }, noSeguir, AGORA)).toBe(false);
     // Primeiro comentário da vida: fala normalmente.
-    expect(jaPediu(comLink, null, AGORA)).toBe(false);
-    // Pedido velho (72h) já expirou — pode pedir de novo.
-    const velho = { ...noPedido, gate_em: new Date(AGORA - GATE_VALIDADE_MS - 1000).toISOString() };
-    expect(jaPediu(comLink, velho, AGORA)).toBe(false);
+    expect(repetiriaOToque(comLink, null, AGORA)).toBe(false);
+    // Toque velho (72h) já expirou — pode pedir de novo.
+    const velho = { ...noSeguir, gate_em: new Date(AGORA - GATE_VALIDADE_MS - 1000).toISOString() };
+    expect(repetiriaOToque(comLink, velho, AGORA)).toBe(false);
     // Veterano recebe o LINK a cada comentário; link repetido não é bizarrice.
-    expect(jaPediu(comLink, { ...noPedido, gate_liberado_em: haMinutos(60) }, AGORA)).toBe(false);
+    expect(repetiriaOToque(comLink, { ...noSeguir, gate_liberado_em: haMinutos(60) }, AGORA)).toBe(false);
     // Automação sem porteiro (Menu) entrega o texto sempre.
-    expect(jaPediu(semLink, noPedido, AGORA)).toBe(false);
+    expect(repetiriaOToque(semLink, noSeguir, AGORA)).toBe(false);
   });
 
   it('porteiro esquecido expira — quem volta dias depois não fica preso no fluxo', () => {
@@ -100,7 +91,6 @@ describe('porteiro do link — os três toques', () => {
   });
 
   it('etapa gravada depois de cada ação (é ela que trava o clique duplo)', () => {
-    expect(etapaDepois('pedir')).toBe('pedido');
     expect(etapaDepois('seguir')).toBe('seguir');
     expect(etapaDepois('entregar')).toBe('entregue');
   });
@@ -108,18 +98,17 @@ describe('porteiro do link — os três toques', () => {
 
 describe('porteiro do link — o link não escapa', () => {
   it('nenhum dos toques do porteiro carrega a URL', () => {
-    const textos = [payloadPedido(comLink).text, payloadSeguir(comLink).text, nudgeGate(comLink)];
+    const textos = [payloadSeguir(comLink).text, nudgeGate(comLink)];
     for (const t of textos) expect(t).not.toContain('http');
   });
 
   it('a copy sempre ensina a responder digitando (a Meta pode engolir o botão)', () => {
-    expect(payloadPedido(comLink).text.toUpperCase()).toContain('LINK');
     expect(payloadSeguir(comLink).text.toUpperCase()).toContain('SEGUINDO');
   });
 
   it('rótulo do botão respeita o limite de 20 caracteres da Meta', () => {
-    const longo = { ...comLink, gate_pedir_botao: 'Me manda esse link agora por favor' };
-    expect(payloadPedido(longo).quick_replies?.[0].title.length).toBe(20);
+    const longo = { ...comLink, gate_seguir_botao: 'Ja segui voce agora mesmo' };
+    expect(payloadSeguir(longo).quick_replies?.[0].title.length).toBe(20);
   });
 
   it('o lembrete de 1h leva o link só pra quem já passou pelo porteiro', () => {
@@ -151,8 +140,8 @@ describe('porteiro do link — o link não escapa', () => {
   });
 
   it('copy da automação sobrescreve o padrão', () => {
-    const custom = { ...comLink, gate_pedir_texto: 'Toca aqui ⚡', gate_seguir_botao: 'Já segui' };
-    expect(payloadPedido(custom).text).toBe('Toca aqui ⚡');
+    const custom = { ...comLink, gate_seguir_texto: 'Me segue ⚡', gate_seguir_botao: 'Já segui' };
+    expect(payloadSeguir(custom).text).toBe('Me segue ⚡');
     expect(payloadSeguir(custom).quick_replies?.[0].title).toBe('Já segui');
   });
 });
