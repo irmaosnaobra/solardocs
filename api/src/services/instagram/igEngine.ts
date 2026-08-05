@@ -13,9 +13,10 @@
 //   1) automação fixada na mídia/anúncio do comentário ganha de todas;
 //   2) depois, menor `prioridade`;
 //   3) empate: palavra-chave mais específica (a mais longa que casou).
-// Se nada casar e o comentário veio de ANÚNCIO com sinal de interesse (ou com
-// telefone), entra a automação marcada como `fallback` — tráfego pago é caro
-// demais pra deixar comentário sem resposta. Piada em post orgânico não recebe DM.
+// Se nada casar e o comentário tiver sinal de interesse (ou telefone), entra a
+// automação marcada como `fallback`. Em anúncio a régua é larga — o clique já
+// foi pago; em post orgânico só passa quem pede preço/contato, pra piada e
+// elogio continuarem sem DM.
 //
 // PORTEIRO DO LINK (04/08, encurtado em 05/08): automação com link não entrega
 // no primeiro toque. Pede pra seguir → a pessoa responde → link → followup 1h
@@ -67,12 +68,24 @@ const pick = <T,>(arr: T[]): T | null => (arr && arr.length ? arr[Math.floor(Mat
 const ACENTOS = new RegExp('[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g');
 const norm = (s: string): string => (s || '').toLowerCase().normalize('NFD').replace(ACENTOS, '').trim();
 
-// Sinais de que a pessoa quer atendimento (usado só pro fallback de anúncio).
+// Sinais de que a pessoa quer atendimento (alimentam a rede de segurança).
+// Em ANÚNCIO a lista é larga: o clique já foi pago, não dá pra deixar passar.
 const SINAIS_INTERESSE = [
   'interess', 'quanto', 'preco', 'valor', 'orcament', 'informac', 'info',
   'como funciona', 'quero', 'gostaria', 'manda', 'whats', 'zap', 'contato', 'saber mais',
   'desconto', 'a vista', 'financia', 'parcel', 'custa', 'disponi', 'me chama', 'simula',
   'tem como', 'instala', 'consegue', 'aceita',
+];
+// Em post ORGÂNICO a régua é mais dura — ali passa piada, elogio e conversa de
+// amigo, e "quanto tempo demorou isso?" não é pedido de orçamento. Só entra
+// quem pede preço, contato ou diz que quer. (05/08: as regras da Meta, que
+// respondiam comentário no orgânico também, foram desligadas — a rede de
+// segurança passou a cobrir esse chão, senão o comentário ficava órfão.)
+const SINAIS_FORTES = [
+  'interess', 'quanto custa', 'quanto fica', 'quanto sai', 'custa', 'preco', 'valor',
+  'orcament', 'informac', 'como funciona', 'saber mais', 'quero', 'gostaria',
+  'me chama', 'whats', 'zap', 'contato', 'simula', 'financia', 'parcel',
+  'a vista', 'desconto', 'disponi', 'instala',
 ];
 
 const RE_TELEFONE = /(?:\+?55)?\s*\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}/;
@@ -133,9 +146,10 @@ export function decidirComentario(
 ): Automation | null {
   const direto = escolher(autos, 'comment', c.texto, c.mediaId, c.adId);
   if (direto) return direto;
+  const t = norm(c.texto);
   const temTel = !!telefoneDe(c.texto);
-  const temSinal = SINAIS_INTERESSE.some(k => norm(c.texto).includes(k));
-  if (temTel || (c.ehAnuncio && temSinal)) {
+  const temSinal = (c.ehAnuncio ? SINAIS_INTERESSE : SINAIS_FORTES).some(k => t.includes(k));
+  if (temTel || temSinal) {
     return autos.find(x => x.fallback && x.gatilhos?.comment) || null;
   }
   return null;

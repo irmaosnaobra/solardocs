@@ -109,6 +109,23 @@ describe('roteamento de comentário do Instagram', () => {
     expect(emAnuncio('kkkkk')).toBeNull();
   });
 
+  it('post orgânico com pedido claro entra na rede de segurança', () => {
+    // 05/08: as regras da Meta (que respondiam comentário no orgânico também)
+    // foram desligadas — quem pede preço ou contato num reel não pode ficar
+    // órfão só porque o post não é anúncio.
+    expect(organico('Quanto custa?')?.id).toBe('menu');        // casa palavra-chave: melhor ainda
+    expect(organico('Me passa o zap')?.id).toBe('fallback');
+    expect(organico('Vocês instalam aqui?')?.id).toBe('fallback');
+  });
+
+  it('no orgânico a régua é mais dura que no anúncio', () => {
+    // "quanto tempo demorou" não é orçamento; em anúncio 'quanto' basta, aqui não.
+    expect(organico('Quanto tempo demorou pra ficar pronto?')).toBeNull();
+    expect(emAnuncio('Quanto tempo demorou pra ficar pronto?')?.id).toBe('fallback');
+    expect(organico('Manda mais vídeo assim')).toBeNull();
+    expect(organico('Que trabalho lindo, parabéns!')).toBeNull();
+  });
+
   it('automação fixada numa mídia ganha de todas', () => {
     const fixada = { ...base, id: 'campanha', nome: 'Campanha X', prioridade: 500, produto: 'solar',
       gatilhos: soComentario, palavras_chave: [], match_tipo: 'qualquer', midias: ['m9'] };
