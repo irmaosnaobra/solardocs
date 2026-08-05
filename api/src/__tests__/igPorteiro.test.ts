@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 // igGate é puro (nada de supabase) — dá pra testar a máquina de estados direto.
 import {
   gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta, etapaDepois,
-  payloadSeguir, nudgeGate, lembrete1h, repetiriaOToque, GATE_VALIDADE_MS, L1H_ATRASO_MS,
+  payloadSeguir, nudgeGate, lembrete1h, repetiriaOToque, conviteSeguir, GATE_VALIDADE_MS, L1H_ATRASO_MS,
 } from '../services/instagram/igGate';
 
 const comLink = { id: 'eletro', link_url: 'https://solardoc.app/io/eletroposto?src=ig' };
@@ -120,6 +120,14 @@ describe('porteiro do link — o link não escapa', () => {
     expect(l.gate_nudge).toBeTruthy();
     expect(l.gate_nudge).not.toContain('http');
     expect(L1H_ATRASO_MS).toBe(3600_000);
+  });
+
+  it('sem porteiro, o pedido de seguir vai junto do link — e sem URL nele', () => {
+    // 05/08: o porteiro saiu porque entregava 1 link a cada 23 DMs. O pedido
+    // continua; o bloqueio é que acabou.
+    const convite = conviteSeguir();
+    expect(convite.toLowerCase()).toContain('segue');
+    expect(convite).not.toContain('http');
   });
 
   it('automação sem porteiro não carrega alternativa de nudge', () => {

@@ -2709,7 +2709,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div id="auto-ig-posts" class="auto-chips"></div>
         <label class="auto-lbl" style="margin-top:12px">Respostas públicas ao comentário (uma por linha — sorteia uma)</label>
         <textarea class="auto-ta" id="auto-ig-pub" placeholder="Te chamei na DM!&#10;Prontinho, olha lá no direct 👀"></textarea>
-        <label class="auto-lbl" style="margin-top:12px">DM com o link <span style="color:#64748b">— só vai no 2º toque, depois do porteiro</span></label>
+        <label class="auto-lbl" style="margin-top:12px">DM com o link <span style="color:#64748b">— vai no primeiro toque</span></label>
         <textarea class="auto-ta" id="auto-ig-dm" placeholder="Oi! Aqui está o link que você pediu 👇"></textarea>
         <div class="auto-row" style="margin-top:12px">
           <div><label class="auto-lbl">Rótulo do botão</label><input class="auto-inp" id="auto-ig-btn" placeholder="Quero saber mais" style="width:180px"></div>
@@ -2719,9 +2719,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <!-- Porteiro: 1 toque antes do link (encurtado em 05/08). Ligado sozinho
              em toda automação que tenha link — o campo é só override da copy. -->
         <div style="margin-top:16px;padding:12px;border:1px dashed #334155;border-radius:10px">
-          <label class="auto-lbl" style="margin:0">🚪 Porteiro do link <span style="color:#64748b">— pede pra seguir e só então manda o link</span></label>
-          <p class="auto-mini" style="margin:6px 0 10px">Ligado por padrão em toda automação com link. A resposta da pessoa é o que abre a janela de 24h da Meta e gera engajamento no post. Quem já seguiu uma vez recebe o link direto. Deixe o campo vazio pra usar a copy padrão.</p>
-          <label class="auto-chip" style="cursor:pointer" title="Entrega o link no primeiro toque, sem pedir pra seguir"><input type="checkbox" id="auto-ig-gate-off" style="margin-right:6px">Pular o porteiro nesta automação</label>
+          <label class="auto-lbl" style="margin:0">🚪 Porteiro do link <span style="color:#64748b">— DESLIGADO desde 05/08: o link vai no primeiro toque</span></label>
+          <p class="auto-mini" style="margin:6px 0 10px">O porteiro segurava o link até a pessoa responder pedindo pra seguir. Em 30 dias ele entregou o link pra <b>1 pessoa a cada 23 DMs</b>: quem não responde nunca mais pode ser tocado, porque a janela de 24h da Meta só abre com a resposta. Hoje o link vai de uma vez e o convite pra seguir vai junto dele. Só religue se topar perder a maioria dos cliques.</p>
+          <label class="auto-chip" style="cursor:pointer" title="Deixe marcado: o link vai no primeiro toque"><input type="checkbox" id="auto-ig-gate-off" style="margin-right:6px" checked>Pular o porteiro nesta automação</label>
           <div class="auto-row" style="margin-top:12px">
             <div style="flex:1;min-width:220px"><label class="auto-lbl">1º toque — pede o seguir</label><input class="auto-inp" id="auto-ig-gate-seguir" placeholder="Opa, e aí, beleza? 👋 Esse link é especial pra quem me segue ✨…"></div>
             <div><label class="auto-lbl">Botão (até 20)</label><input class="auto-inp" id="auto-ig-gate-seguir-btn" placeholder="Seguindo" maxlength="20" style="width:150px"></div>

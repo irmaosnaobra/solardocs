@@ -38,7 +38,7 @@ import {
 } from './igClient';
 import {
   GateEstado, GateEtapa, GateAcao, gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta,
-  etapaDepois, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS, repetiriaOToque,
+  etapaDepois, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS, repetiriaOToque, conviteSeguir,
 } from './igGate';
 import { classificarFalha } from './igFalha';
 
@@ -226,11 +226,16 @@ function welcomePayload(a: Automation): any {
   // pessoa toca e vai direto pro link, sem copiar URL. É o caso da bike, onde
   // a negociação é na hora e cada toque a menos conta.
   if (a.link_url && a.botao_rotulo && text.length <= CARD_MAX) {
+    // No card não cabe convite: título e subtítulo somam 160 caracteres.
     return { text, button: { url: a.link_url, title: a.botao_rotulo } };
   }
   // Sem rótulo (ou copy longa): texto puro com o link embutido — o Instagram
   // deixa o link clicável do mesmo jeito.
-  return { text: a.link_url ? text + '\n\n' + a.link_url : text };
+  if (!a.link_url) return { text };
+  // Porteiro desligado: o pedido de seguir vai junto do link, em vez de na
+  // frente dele. Quem tem porteiro ativo já recebe o pedido no toque anterior.
+  const convite = gateAtivo(a) ? '' : '\n\n' + conviteSeguir();
+  return { text: text + '\n\n' + a.link_url + convite };
 }
 function enqueueReminderIfAny(a: Automation, recipient: string): Promise<void> | null {
   if (!a.lembrete_texto) return null;

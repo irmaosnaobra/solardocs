@@ -125,6 +125,18 @@ export function etapaDepois(acao: GateAcao): GateEtapa {
   return 'entregue';
 }
 
+/**
+ * Convite pra seguir que vai JUNTO do link, quando o porteiro está desligado.
+ *
+ * 05/08: o porteiro entregou o link pra 1 pessoa em 23 DMs, porque quem não
+ * responde nunca mais pode ser tocado (a janela de 24h da Meta só abre com a
+ * resposta). Decisão do dono: entrega o link pra todo mundo e pede o seguir
+ * na mesma mensagem — pedido continua, bloqueio não.
+ */
+export function conviteSeguir(): string {
+  return 'Ah, e me segue aqui que eu aviso quando tiver novidade.';
+}
+
 export function payloadSeguir(a: GateAuto): GatePayload {
   return {
     text: txt(a.gate_seguir_texto, SEGUIR_TEXTO),
