@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 // igGate é puro (nada de supabase) — dá pra testar a máquina de estados direto.
 import {
   gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta, etapaDepois,
-  payloadPedido, payloadSeguir, nudgeGate, lembrete1h, GATE_VALIDADE_MS, L1H_ATRASO_MS,
+  payloadPedido, payloadSeguir, nudgeGate, lembrete1h, jaPediu, GATE_VALIDADE_MS, L1H_ATRASO_MS,
 } from '../services/instagram/igGate';
 
 const comLink = { id: 'eletro', link_url: 'https://solardoc.app/io/eletroposto?src=ig' };
@@ -66,6 +66,26 @@ describe('porteiro do link — os três toques', () => {
     expect(acaoNaAbertura(comLink, noPedido, AGORA)).toBe('pedir');
     // Fluxo de OUTRA automação (mudou de produto): começa do zero na nova.
     expect(acaoNaAbertura({ id: 'solar', link_url: 'https://solardoc.app/simular' }, noSeguir, AGORA)).toBe('pedir');
+  });
+
+  it('comentário repetido no 1º toque fica em silêncio, não manda o pedido de novo', () => {
+    // 05/08: um comentário rendeu duas DMs iguais. Comentário repetido renderia
+    // uma por comentário — mesma bizarrice, outro caminho.
+    const noPedido = { gate_etapa: 'pedido', gate_automation_id: 'eletro', gate_em: haMinutos(5) };
+    expect(jaPediu(comLink, noPedido, AGORA)).toBe(true);
+    // Quem está no 2º toque recebe o "me segue" (é o toque que ele parou), e
+    // quem mudou de produto entra no fluxo novo: nenhum dos dois é silêncio.
+    expect(jaPediu(comLink, { ...noPedido, gate_etapa: 'seguir' }, AGORA)).toBe(false);
+    expect(jaPediu({ id: 'solar', link_url: 'https://solardoc.app/simular' }, noPedido, AGORA)).toBe(false);
+    // Primeiro comentário da vida: fala normalmente.
+    expect(jaPediu(comLink, null, AGORA)).toBe(false);
+    // Pedido velho (72h) já expirou — pode pedir de novo.
+    const velho = { ...noPedido, gate_em: new Date(AGORA - GATE_VALIDADE_MS - 1000).toISOString() };
+    expect(jaPediu(comLink, velho, AGORA)).toBe(false);
+    // Veterano recebe o LINK a cada comentário; link repetido não é bizarrice.
+    expect(jaPediu(comLink, { ...noPedido, gate_liberado_em: haMinutos(60) }, AGORA)).toBe(false);
+    // Automação sem porteiro (Menu) entrega o texto sempre.
+    expect(jaPediu(semLink, noPedido, AGORA)).toBe(false);
   });
 
   it('porteiro esquecido expira — quem volta dias depois não fica preso no fluxo', () => {

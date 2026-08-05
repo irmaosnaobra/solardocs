@@ -97,6 +97,21 @@ export function acaoNaAbertura(a: GateAuto, e: GateEstado | null | undefined, ag
   return 'pedir';
 }
 
+/**
+ * O "clica no botão" desta automação já está de pé pra esta pessoa?
+ *
+ * Comentar duas ou três vezes no mesmo reel antes de abrir a DM é comum, e cada
+ * comentário chega com id próprio — o dedup por comentário não pega. Sem esta
+ * pergunta, cada comentário rende um "Opa, e aí, beleza?" novo (foi o print de
+ * 05/08). Quem já passou pelo porteiro (`gate_liberado_em`) não entra aqui:
+ * essa pessoa recebe o link direto, e link repetido não é bizarrice.
+ */
+export function jaPediu(a: GateAuto, e: GateEstado | null | undefined, agora: number = Date.now()): boolean {
+  if (!gateAtivo(a)) return false;
+  if (e?.gate_liberado_em) return false;
+  return gateAberto(e, agora) && e!.gate_automation_id === a.id && e!.gate_etapa === 'pedido';
+}
+
 /** Resposta na DM com o porteiro aberto. null = deixa o roteamento normal agir. */
 export function acaoNaResposta(e: GateEstado | null | undefined, agora: number = Date.now()): GateAcao | null {
   if (!gateAberto(e, agora)) return null;

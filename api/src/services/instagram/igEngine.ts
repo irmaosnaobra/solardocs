@@ -35,7 +35,7 @@ import {
 } from './igClient';
 import {
   GateEstado, GateEtapa, GateAcao, gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta,
-  etapaDepois, payloadPedido, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS,
+  etapaDepois, payloadPedido, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS, jaPediu,
 } from './igGate';
 import { classificarFalha } from './igFalha';
 
@@ -245,6 +245,16 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
   // Porteiro: automação com link pede o clique antes de entregar. Quem já seguiu
   // (gate_liberado_em) recebe direto — ninguém é obrigado a seguir duas vezes.
   const estadoC = await lerGate(fromId);
+
+  // Comentou de novo antes de responder a DM? O "clica no botão" já está de pé
+  // (cada comentário tem id próprio, então o dedup por comentário não pega).
+  // Repetir o mesmo pedido é a bizarrice em dobro: fica em silêncio — nem DM,
+  // nem resposta pública. O telefone, se veio, continua virando lead.
+  if (jaPediu(a, estadoC)) {
+    if (tel) await depositarLead(fromId, tel, a, username);
+    return;
+  }
+
   const acao = acaoNaAbertura(a, estadoC);
   // Reabrir um fluxo que já anda zeraria o gate_em e poderia devolver a etapa
   // pra 'pedido' entre o clique da pessoa e a drenagem — o mesmo texto duas vezes.
