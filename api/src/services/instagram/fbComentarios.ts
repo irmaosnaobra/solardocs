@@ -97,11 +97,16 @@ async function postsParaVarrer(token: string): Promise<Alvo[]> {
       const act = String(c.id).startsWith('act_') ? String(c.id) : 'act_' + c.id;
       try {
         const ads = await graph(
-          `${act}/ads?fields=effective_status,creative{effective_object_story_id,object_story_spec}&limit=200`,
+          `${act}/ads?fields=effective_status,updated_time,creative{effective_object_story_id,object_story_spec}&limit=200`,
           SU_TOKEN,
         );
         for (const a of ads.data || []) {
-          if (a.effective_status !== 'ACTIVE') continue;
+          // Pausado recente entra também: o anúncio do Kit foi pausado há 6
+          // dias e tem dois "Fechamento." de 4 dias esperando resposta — dentro
+          // da janela de 7 dias da Meta. Pausado antigo fica de fora (a janela
+          // já venceu e varrer 167 posts a cada 5 min estouraria o rate limit).
+          const mexidoHa = a.updated_time ? Date.now() - new Date(a.updated_time).getTime() : Infinity;
+          if (a.effective_status !== 'ACTIVE' && mexidoHa > JANELA_DIAS * 24 * 3600 * 1000) continue;
           const sid: string = a?.creative?.effective_object_story_id || '';
           // O id do post é "{pagina}_{post}". Anúncio de OUTRA página (a casa
           // tem mais de uma) não é nosso assunto e nem temos token dele.
