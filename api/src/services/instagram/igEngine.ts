@@ -31,6 +31,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { ingestManychatLead } from '../agenda/manychatLeadService';
+import { sendWhatsApp } from '../agents/zapiClient';
 import {
   igEnv, getIgConfig, sendPrivateReply, sendDM, replyToComment,
   refreshLongToken, saveIgConfig,
@@ -355,11 +356,53 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
     payload.l1h = lembrete1h(a, senderId);
     await enqueue({ tipo: 'dm', automation_id: a.id, recipient: senderId, payload, needs_window: false });
     await enqueueReminderIfAny(a, senderId);
+  } else if (text.trim()) {
+    // NENHUMA palavra-chave casou. Era aqui que o lead morria: 11 das 12
+    // conversas de DM dos últimos 7 dias ficaram sem uma linha de resposta,
+    // incluindo um "Me passa seu zap". Vai o menu (a pergunta "qual serviço
+    // você procura", que o dono pediu) UMA vez por pessoa, e o humano é
+    // avisado — quem fecha venda é gente, o menu só segura a pessoa.
+    await responderDmFria(senderId, text);
   }
 
   // Integração com o CRM: se a pessoa mandou um WhatsApp na DM, deposita o lead
   // no rodízio/agenda (reaproveita ingestManychatLead → avisa o consultor).
   if (tel) await depositarLead(senderId, tel, a, null);
+}
+
+/**
+ * DM sem palavra-chave: manda o menu UMA vez e chama o humano.
+ *
+ * "Uma vez" é a parte que importa — a pessoa costuma escrever três linhas
+ * seguidas ("Bom dia" / "Firme" / "Me passa seu zap") e três menus seriam pior
+ * que o silêncio. A trava é a própria fila: já saiu menu pra essa pessoa nas
+ * últimas 24h, não sai de novo. Desliga com IG_DM_MENU_OFF.
+ */
+async function responderDmFria(senderId: string, texto: string): Promise<void> {
+  if ((process.env.IG_DM_MENU_OFF || '').trim() === 'true') return;
+  const autos = await loadAutomations();
+  const menu = autos.find(x => x.fallback) || autos.find(x => !x.link_url && x.gatilhos?.dm) || null;
+  if (!menu) return;
+
+  const desde = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { data: jaFoi } = await supabase.from('ig_queue').select('id')
+    .eq('recipient', senderId).eq('automation_id', menu.id).gte('criado_em', desde).limit(1);
+  if (jaFoi && jaFoi.length) return;
+
+  await enqueue({ tipo: 'dm', automation_id: menu.id, recipient: senderId, payload: welcomePayload(menu), needs_window: false });
+
+  // O menu segura; quem fecha é gente. O time recebe o texto no WhatsApp.
+  try {
+    const { data: c } = await supabase.from('ig_contacts').select('username').eq('ig_user_id', senderId).maybeSingle();
+    await sendWhatsApp(
+      (process.env.IO_INDICACOES_NOTIFY || '34991360223').trim(),
+      `*MENSAGEM NO INSTAGRAM* (Irmãos na Obra)\n\n` +
+      `*De:* ${c?.username ? '@' + c.username : 'sem @ (chegou por DM)'}\n` +
+      `*Disse:* ${texto.slice(0, 300)}\n\n` +
+      `_O robô mandou o menu. Se for atendimento, responder pelo direct._`,
+      'io',
+    );
+  } catch (err) { logger.error('ig', 'aviso do time (DM fria) falhou', err); }
 }
 
 /** Card no CRM com o produto certo (a automação sabe qual é; no escuro, solar). */

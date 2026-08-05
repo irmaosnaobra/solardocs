@@ -29,6 +29,7 @@ import { runAlertaLeadQuenteSemProposta } from '../services/agenda/leadQuenteSem
 import { runGrupoEletropostoDiario } from '../services/io/grupoEletropostoDiario';
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
 import { varrerComentariosFacebook } from '../services/instagram/fbComentarios';
+import { varrerInboxFacebook } from '../services/instagram/fbMensagens';
 import { runRepescagemTick, semearRepescagem } from '../services/io/eletropostoRepescagem';
 import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
 import { runConviteNota1Garantido } from '../services/io/eletropostoConviteGarantido';
@@ -270,7 +271,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, fbComentResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, solarBvResult, solarRespResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, solarBvResult, solarRespResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -291,6 +292,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runGeradorSequenciasConsumer(),  // Central de Automação: drip de sequências (gated por kill-switch)
       drainIgQueue(),                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
       varrerComentariosFacebook(),     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)
+      varrerInboxFacebook(),           // Facebook: inbox do Messenger — responde, manda o menu e chama o humano (FB_INBOX_OFF desliga)
       runRepescagemTick(),             // eletroposto: 1 pessoa do apagão a cada 20min, 07h–20h
       runConviteNota1Garantido(),      // eletroposto: TODO nota 1 entra no grupo — rede embaixo do envio da LP
       runSementeTick(),                // semente: nutrição de quem pediu orçamento de solar e não fechou
@@ -317,6 +319,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       gerador_seq:    geradorSeqResult.status === 'fulfilled' ? geradorSeqResult.value : { error: String((geradorSeqResult as any).reason) },
       ig_drain:       igDrainResult.status === 'fulfilled' ? igDrainResult.value : { error: String((igDrainResult as any).reason) },
       fb_comentarios: fbComentResult.status === 'fulfilled' ? fbComentResult.value : { error: String((fbComentResult as any).reason) },
+      fb_inbox:       fbInboxResult.status === 'fulfilled' ? fbInboxResult.value : { error: String((fbInboxResult as any).reason) },
       ep_repescagem:  repescagemResult.status === 'fulfilled' ? repescagemResult.value : { error: String((repescagemResult as any).reason) },
       ep_convite:     conviteResult.status === 'fulfilled' ? conviteResult.value : { error: String((conviteResult as any).reason) },
       semente:        sementeResult.status === 'fulfilled' ? sementeResult.value : { error: String((sementeResult as any).reason) },
