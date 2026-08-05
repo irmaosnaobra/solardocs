@@ -201,6 +201,17 @@ async function sendMessageRaw(igUserId: string, recipient: Record<string, string
   try { return JSON.parse(t) as EnvioResposta; } catch { return {}; }
 }
 
+/**
+ * Oculta um comentário (some pra todo mundo menos pro autor). É reversível —
+ * `hide=false` traz de volta. Usado no filtro de hostilidade: xingamento na
+ * vitrine de um anúncio pago é a primeira coisa que o próximo lead lê.
+ */
+export async function ocultarComentario(commentId: string, token: string): Promise<void> {
+  const form = new URLSearchParams({ hide: 'true', access_token: token });
+  const r = await fetch(`${GRAPH}/${commentId}?${form.toString()}`, { method: 'POST' });
+  if (!r.ok) throw new Error(`ocultarComentario ${r.status}: ${(await r.text()).slice(0, 200)}`);
+}
+
 /** Resposta pública ao comentário. */
 export async function replyToComment(commentId: string, message: string, token: string): Promise<EnvioResposta> {
   const form = new URLSearchParams({ message, access_token: token });

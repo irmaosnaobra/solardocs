@@ -34,13 +34,14 @@ import { ingestManychatLead } from '../agenda/manychatLeadService';
 import { sendWhatsApp } from '../agents/zapiClient';
 import {
   igEnv, getIgConfig, sendPrivateReply, sendDM, replyToComment,
-  refreshLongToken, saveIgConfig,
+  refreshLongToken, saveIgConfig, ocultarComentario,
 } from './igClient';
 import {
   GateEstado, GateEtapa, GateAcao, gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta,
   etapaDepois, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS, repetiriaOToque, conviteSeguir,
 } from './igGate';
 import { classificarFalha } from './igFalha';
+import { classificarHostil } from './igHostil';
 
 const IG_MAX_POR_HORA = Number(process.env.IG_MAX_POR_HORA || 180);
 const MAX_POR_TICK = 15;
@@ -265,6 +266,15 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
   // "Te chamei na DM!" embaixo do comentário do dono, escondendo quem ficou sem resposta.
   if (ownIgId && String(fromId) === String(ownIgId)) return;
 
+  // Hostil não recebe DM de venda. As automações fixadas em anúncio casam com
+  // QUALQUER texto, então sem este corte "vocês são picaretas" ganhava um
+  // "Show! O Eletroposto é uma oportunidade…" de resposta.
+  const hostil = classificarHostil(text);
+  if (hostil.hostil) {
+    await tratarHostil({ canal: 'Instagram', commentId, quem: username ? '@' + username : 'sem @', texto: text, h: hostil });
+    return;
+  }
+
   const autos = await loadAutomations();
   const tel = telefoneDe(text);
   const a = decidirComentario(autos, { texto: text, mediaId, adId, ehAnuncio });
@@ -428,6 +438,48 @@ async function avisarDmFria(senderId: string, texto: string): Promise<void> {
       'io',
     );
   } catch (err) { logger.error('ig', 'aviso do time (DM fria) falhou', err); }
+}
+
+/**
+ * Comentário hostil: não recebe DM, vira aviso pro dono e — se o dono ligar o
+ * IG_OCULTAR_HOSTIL — some do post.
+ *
+ * Ocultar nasce DESLIGADO de propósito: o filtro erra pra menos por desenho
+ * ("é golpe?" é lead com medo, não hater), mas esconder o comentário de um
+ * cliente de verdade é pior do que deixar um xingamento à mostra. Ligar é uma
+ * variável; a ação é reversível pelo próprio Instagram/Facebook.
+ *
+ * Exportada porque o Facebook usa o mesmo caminho — muda só quem oculta.
+ */
+export async function tratarHostil(p: {
+  canal: string; commentId: string; quem: string; texto: string;
+  h: { tipo?: string; termo?: string };
+  ocultar?: (commentId: string) => Promise<void>;
+}): Promise<void> {
+  await logEvent('hostil', p.commentId, { canal: p.canal, quem: p.quem, texto: p.texto, tipo: p.h.tipo, termo: p.h.termo });
+
+  let ocultado = false;
+  if ((process.env.IG_OCULTAR_HOSTIL || '').trim() === 'true') {
+    try {
+      if (p.ocultar) { await p.ocultar(p.commentId); ocultado = true; }
+      else {
+        const cfg = await getIgConfig();
+        if (cfg?.access_token) { await ocultarComentario(p.commentId, cfg.access_token); ocultado = true; }
+      }
+    } catch (err) { logger.error('ig', 'ocultar comentário falhou', err); }
+  }
+
+  try {
+    await sendWhatsApp(
+      (process.env.IO_INDICACOES_NOTIFY || '34991360223').trim(),
+      `*COMENTÁRIO HOSTIL* (${p.canal})\n\n` +
+      `*De:* ${p.quem}\n` +
+      `*Disse:* ${p.texto.slice(0, 300)}\n` +
+      `*Tipo:* ${p.h.tipo || 'hostil'}${p.h.termo ? ` ("${p.h.termo}")` : ''}\n\n` +
+      (ocultado ? '_Comentário ocultado e sem DM._' : '_Sem DM de venda. Ocultar está desligado (IG_OCULTAR_HOSTIL)._'),
+      'io',
+    );
+  } catch (err) { logger.error('ig', 'aviso de hostil falhou', err); }
 }
 
 /**

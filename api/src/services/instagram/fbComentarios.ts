@@ -23,7 +23,8 @@
 
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
-import { loadAutomations, decidirComentario, depositarOuAvisar } from './igEngine';
+import { loadAutomations, decidirComentario, depositarOuAvisar, tratarHostil } from './igEngine';
+import { classificarHostil } from './igHostil';
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 const PAGE_ID = process.env.META_LEADS_PAGE_ID || '704395102766155';        // Irmãos Na Obra
@@ -177,6 +178,15 @@ async function responderPrivado(commentId: string, texto: string, token: string)
   try { return JSON.parse(t); } catch { return {}; }
 }
 
+/** Oculta o comentário no Facebook (reversível pelo painel da Página). */
+async function ocultarComentarioFb(commentId: string, token: string): Promise<void> {
+  const r = await fetch(`${GRAPH}/${commentId}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_hidden: true, access_token: token }),
+  });
+  if (!r.ok) throw new Error(`ocultar ${r.status}: ${(await r.text()).slice(0, 200)}`);
+}
+
 async function responderPublico(commentId: string, texto: string, token: string): Promise<void> {
   try {
     await fetch(`${GRAPH}/${commentId}/comments`, {
@@ -220,6 +230,17 @@ export async function varrerComentariosFacebook(): Promise<{ respondidos: number
       if (new Date(c.created_time).getTime() < limite) continue;             // fora da janela de 7 dias
       vistos++;
       if (await jaRespondido(c.id)) continue;
+
+      // Hostil não recebe DM de venda — e no anúncio, onde o destino manda,
+      // seria justamente o xingamento ganhando a copy de vendas inteira.
+      const h = classificarHostil(c.message);
+      if (h.hostil) {
+        await tratarHostil({
+          canal: 'Facebook', commentId: c.id, quem: c.fromName || 'sem nome', texto: c.message, h,
+          ocultar: (id) => ocultarComentarioFb(id, token),
+        });
+        continue;
+      }
 
       // Destino do anúncio ganha do texto (é a mesma regra do Instagram, onde
       // automação fixada na mídia ganha do roteamento por palavra-chave).
