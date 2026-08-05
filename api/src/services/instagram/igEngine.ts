@@ -54,7 +54,6 @@ interface Automation {
   prioridade: number; midias: string[]; fallback: boolean; produto: string | null;
   // Porteiro (igGate): copy opcional por automação; nulo = usa o padrão.
   gate_off?: boolean | null;
-  gate_pedir_texto?: string | null; gate_pedir_botao?: string | null;
   gate_seguir_texto?: string | null; gate_seguir_botao?: string | null;
   lembrete_1h_texto?: string | null; lembrete_1h_off?: boolean | null;
 }
