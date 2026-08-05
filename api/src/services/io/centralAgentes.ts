@@ -195,7 +195,9 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     // Só a 1ª DM de cada comentário (private_reply). Contar todo 'sent'
     // triplicaria o número desde o porteiro (pede → segue → link) sem um lead a
     // mais — número inflado é o que esta central não pode ter.
-    contar('ig_queue', (q: any) => q.eq('status', 'sent').eq('tipo', 'private_reply').gte('criado_em', desde30)),
+    // 'incerto' entra junto: é a DM que a Meta devolveu 500 e entregou assim
+    // mesmo (igFalha.ts). Deixar de fora subcontaria ~1 de cada 4 DMs.
+    contar('ig_queue', (q: any) => q.in('status', ['sent', 'incerto']).eq('tipo', 'private_reply').gte('criado_em', desde30)),
     contar('ig_contacts', (q: any) => q.gte('last_reply_at', desde30)),
     contar('ig_contacts', (q: any) => q.gte('gate_liberado_em', desde30)),
     contar('sdr_message_dedup', (q: any) => q.gte('processed_at', new Date(agora - D).toISOString())),

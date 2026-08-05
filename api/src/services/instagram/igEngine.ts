@@ -19,6 +19,10 @@
 //
 // PORTEIRO DO LINK (04/08/2026): automação com link não entrega no primeiro
 // toque. Pede o clique → pede o seguir → só então manda o link (ver igGate.ts).
+//
+// ENVIO INCERTO (05/08/2026): a Meta devolve 500/code 1 e entrega a mensagem
+// assim mesmo. Erro nesse formato não vira reenvio nem resposta pública — vira
+// status 'incerto' (ver igFalha.ts). Era o que dobrava a DM do lead.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
@@ -33,6 +37,7 @@ import {
   GateEstado, GateEtapa, GateAcao, gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta,
   etapaDepois, payloadPedido, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS,
 } from './igGate';
+import { classificarFalha } from './igFalha';
 
 const IG_MAX_POR_HORA = Number(process.env.IG_MAX_POR_HORA || 180);
 const MAX_POR_TICK = 15;
@@ -354,7 +359,7 @@ async function agendarLembrete1h(automationId: string | null, l1h: { to: string;
 }
 
 // ── DRENAGEM DA FILA ────────────────────────────────────────────────────────────
-export async function drainIgQueue(): Promise<{ enviados: number; pulados: number; reason?: string }> {
+export async function drainIgQueue(): Promise<{ enviados: number; pulados: number; incertos?: number; reason?: string }> {
   if (!ligado()) return { enviados: 0, pulados: 0, reason: 'desligado' };
   const cfg = await getIgConfig();
   if (!cfg?.access_token || !cfg.ig_user_id) return { enviados: 0, pulados: 0, reason: 'sem_conta' };
@@ -371,7 +376,7 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
     .order('criado_em', { ascending: true }).limit(MAX_POR_TICK);
   if (!fila || fila.length === 0) return { enviados: 0, pulados: 0, reason: 'fila_vazia' };
 
-  let enviados = 0, pulados = 0;
+  let enviados = 0, pulados = 0, incertos = 0;
   for (const item of fila as any[]) {
     // Claim atômico.
     const { data: claimed } = await supabase.from('ig_queue')
@@ -402,15 +407,45 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
         : item.tipo === 'public_reply' ? replyToComment(item.recipient, p?.text || '', token)
         : sendDM(igId, item.recipient, p, token);                   // dm | followup
       let resp: any = {};
+      let incerto: string | null = null;                            // saiu? a Meta não disse (ver igFalha.ts)
       try { resp = await enviar(payload); }
-      catch (err) {
-        if (!payload?.quick_replies) throw err;
-        // A Meta às vezes recusa quick_replies (sobretudo no 1º contato).
-        // Reenvia o MESMO texto sem botão — a copy já ensina a responder
-        // digitando. Retry aqui dentro pra não disparar o "me chama no direct".
-        logger.error('ig', 'quick_replies recusado, reenviando texto puro', err);
-        resp = await enviar({ text: payload.text });
+      catch (err: any) {
+        const msg = String(err?.message || err);
+        const falha = classificarFalha(msg);
+        if (falha === 'sem_botao' && payload?.quick_replies) {
+          // A Meta recusou o quick reply com todas as letras. Reenvia o MESMO
+          // texto sem botão — a copy já ensina a responder digitando.
+          logger.error('ig', 'quick_replies recusado, reenviando texto puro', err);
+          try { resp = await enviar({ text: payload.text }); }
+          catch (err2: any) {
+            const msg2 = String(err2?.message || err2);
+            if (classificarFalha(msg2) !== 'incerto') throw err2;
+            incerto = msg2;
+          }
+        } else if (falha === 'incerto') {
+          // NÃO reenvia: o 500/code 1 da Meta já entregou mensagem antes, e o
+          // reenvio é que colocou a mesma DM duas vezes no celular do lead.
+          incerto = msg;
+        } else {
+          throw err;
+        }
       }
+
+      if (incerto) {
+        // Nem 'sent' (seria mentira na métrica) nem 'failed' (dispararia o
+        // "me chama no direct" público pra quem provavelmente JÁ recebeu).
+        await supabase.from('ig_queue').update({ status: 'incerto', erro: incerto.slice(0, 300) }).eq('id', item.id);
+        // Conta no teto anti-ban: pro Instagram, provavelmente saiu mesmo.
+        await supabase.from('system_state').upsert({ key: 'ig_sent:' + item.id, value: '1', updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        await logEvent('incerto', item.id, { tipo: item.tipo, recipient: item.recipient, erro: incerto.slice(0, 300) });
+        incertos++;
+        // O lembrete continua agendado: ele exige janela de 24h aberta, então só
+        // sai se a pessoa responder — e responder é a prova de que a DM chegou.
+        if (item.payload?.l1h?.to) await agendarLembrete1h(item.automation_id, item.payload.l1h);
+        await new Promise(r => setTimeout(r, SPACING_MS));
+        continue;
+      }
+
       // message_id é a prova de que a Meta criou a mensagem (200 sozinho não é).
       await supabase.from('ig_queue').update({ status: 'sent', message_id: resp?.message_id || resp?.id || null, resposta: resp || null }).eq('id', item.id);
       await supabase.from('system_state').upsert({ key: 'ig_sent:' + item.id, value: '1', updated_at: new Date().toISOString() }, { onConflict: 'key' });
@@ -434,7 +469,7 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
     }
     await new Promise(r => setTimeout(r, SPACING_MS));
   }
-  return { enviados, pulados };
+  return { enviados, pulados, incertos };
 }
 
 // ── REFRESH DO TOKEN (semanal) ──────────────────────────────────────────────────
