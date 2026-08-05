@@ -21,9 +21,8 @@
 
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
-import { ingestManychatLead } from '../agenda/manychatLeadService';
 import { sendWhatsApp } from '../agents/zapiClient';
-import { loadAutomations } from './igEngine';
+import { loadAutomations, depositarOuAvisar } from './igEngine';
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 const PAGE_ID = process.env.META_LEADS_PAGE_ID || '704395102766155';
@@ -191,14 +190,13 @@ export async function varrerInboxFacebook(): Promise<{ respondidos: number; novo
 
     const tel = telefoneDe(texto);
     if (tel) {
-      try {
-        await ingestManychatLead({
-          produto: escolhida.produto || (String(escolhida.link_url || '').includes('/io/eletroposto') ? 'eletroposto' : 'solar'),
-          nome: nome || 'Lead Facebook',
-          whatsapp: tel,
-          contact_id: 'fbm_' + psid,
-        });
-      } catch (err) { logger.error('fb-inbox', 'depósito no CRM falhou', err); }
+      await depositarOuAvisar({
+        produto: escolhida.produto || (String(escolhida.link_url || '').includes('/io/eletroposto') ? 'eletroposto' : 'solar'),
+        nome: nome || 'Lead Facebook',
+        whatsapp: tel,
+        contact_id: 'fbm_' + psid,
+        origem: 'Messenger',
+      });
     }
 
     await new Promise(r => setTimeout(r, SPACING_MS));

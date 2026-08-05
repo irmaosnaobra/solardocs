@@ -430,18 +430,55 @@ async function avisarDmFria(senderId: string, texto: string): Promise<void> {
   } catch (err) { logger.error('ig', 'aviso do time (DM fria) falhou', err); }
 }
 
+/**
+ * Telefone vira card no CRM — e quando NÃO vira, vira WhatsApp pro dono.
+ *
+ * O rodízio só conhece solar e eletroposto. Um telefone num comentário de
+ * LimpaPro (ou de qualquer produto novo) era recusado em silêncio: `ok:false`
+ * não é exceção, então o catch não pegava e ninguém ficava sabendo. Lead com
+ * telefone na mão é o mais caro de todos pra perder.
+ *
+ * Usada pelos três canais (comentário do IG, comentário do FB e Messenger).
+ */
+export async function depositarOuAvisar(p: {
+  produto: string; nome: string; whatsapp: string; contact_id: string; origem: string;
+}): Promise<void> {
+  let motivo = '';
+  try {
+    const r: any = await ingestManychatLead({
+      produto: p.produto, nome: p.nome, whatsapp: p.whatsapp, contact_id: p.contact_id,
+    });
+    if (r?.ok) return;
+    motivo = String(r?.motivo || 'recusado pelo CRM');
+  } catch (err: any) {
+    motivo = String(err?.message || err).slice(0, 200);
+    logger.error('ig', 'deposito CRM falhou', err);
+  }
+  try {
+    await sendWhatsApp(
+      (process.env.IO_INDICACOES_NOTIFY || '34991360223').trim(),
+      `*LEAD COM TELEFONE FORA DO CRM* (${p.origem})\n\n` +
+      `*Nome:* ${p.nome}\n` +
+      `*WhatsApp:* wa.me/${p.whatsapp.replace(/\D/g, '')}\n` +
+      `*Produto:* ${p.produto}\n` +
+      `*Motivo:* ${motivo}\n\n` +
+      `_Não entrou no rodízio. Chamar na mão._`,
+      'io',
+    );
+  } catch (err) { logger.error('ig', 'aviso de lead sem CRM falhou', err); }
+}
+
 /** Card no CRM com o produto certo (a automação sabe qual é; no escuro, solar). */
 async function depositarLead(igUserId: string, telefone: string, a: Automation | null, username: string | null): Promise<void> {
   const link = a?.link_url || '';
   const produto = a?.produto || (link.includes('/io/eletroposto') ? 'eletroposto' : 'solar');
-  try {
-    await ingestManychatLead({
-      produto,
-      nome: username ? '@' + username : 'Lead Instagram',
-      whatsapp: telefone,
-      contact_id: 'ig_' + igUserId,
-    });
-  } catch (err) { logger.error('ig', 'deposito CRM falhou', err); }
+  await depositarOuAvisar({
+    produto,
+    nome: username ? '@' + username : 'Lead Instagram',
+    whatsapp: telefone,
+    contact_id: 'ig_' + igUserId,
+    origem: 'comentário/DM do Instagram',
+  });
 }
 
 /**

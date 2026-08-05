@@ -23,8 +23,7 @@
 
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
-import { ingestManychatLead } from '../agenda/manychatLeadService';
-import { loadAutomations, decidirComentario } from './igEngine';
+import { loadAutomations, decidirComentario, depositarOuAvisar } from './igEngine';
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 const PAGE_ID = process.env.META_LEADS_PAGE_ID || '704395102766155';        // Irmãos Na Obra
@@ -88,7 +87,7 @@ function chaveUrl(u: string | null | undefined): string {
 async function postsParaVarrer(token: string): Promise<Alvo[]> {
   const alvos = new Map<string, Alvo>();
   try {
-    const feed = await graph(`${PAGE_ID}/published_posts?fields=id&limit=15`, token);
+    const feed = await graph(`${PAGE_ID}/published_posts?fields=id&limit=25`, token);
     for (const p of feed.data || []) alvos.set(p.id, { id: p.id, ehAnuncio: false, destino: '' });
   } catch (err) { logger.error('fb', 'feed da página falhou', err); }
   try {
@@ -253,14 +252,13 @@ export async function varrerComentariosFacebook(): Promise<{ respondidos: number
 
       const tel = telefoneDe(c.message);
       if (tel) {
-        try {
-          await ingestManychatLead({
-            produto: a.produto || (String(a.link_url || '').includes('/io/eletroposto') ? 'eletroposto' : 'solar'),
-            nome: c.fromName || 'Lead Facebook',
-            whatsapp: tel,
-            contact_id: 'fb_' + (c.fromId || c.id),
-          });
-        } catch (err) { logger.error('fb', 'depósito no CRM falhou', err); }
+        await depositarOuAvisar({
+          produto: a.produto || (String(a.link_url || '').includes('/io/eletroposto') ? 'eletroposto' : 'solar'),
+          nome: c.fromName || 'Lead Facebook',
+          whatsapp: tel,
+          contact_id: 'fb_' + (c.fromId || c.id),
+          origem: 'comentário no Facebook',
+        });
       }
 
       await new Promise(r => setTimeout(r, SPACING_MS));
