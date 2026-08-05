@@ -357,11 +357,10 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
     await enqueue({ tipo: 'dm', automation_id: a.id, recipient: senderId, payload, needs_window: false });
     await enqueueReminderIfAny(a, senderId);
   } else if (text.trim()) {
-    // NENHUMA palavra-chave casou. Era aqui que o lead morria: 11 das 12
-    // conversas de DM dos últimos 7 dias ficaram sem uma linha de resposta,
-    // incluindo um "Me passa seu zap". Vai o menu (a pergunta "qual serviço
-    // você procura", que o dono pediu) UMA vez por pessoa, e o humano é
-    // avisado — quem fecha venda é gente, o menu só segura a pessoa.
+    // NENHUMA palavra-chave casou — é aqui que o lead morria (11 das 12
+    // conversas de DM dos últimos 7 dias sem uma linha de resposta, incluindo
+    // um "Me passa seu zap"). O menu automático existe mas nasce DESLIGADO:
+    // a DM direta é atendimento manual por decisão do dono (05/08).
     await responderDmFria(senderId, text);
   }
 
@@ -373,13 +372,18 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
 /**
  * DM sem palavra-chave: manda o menu UMA vez e chama o humano.
  *
- * "Uma vez" é a parte que importa — a pessoa costuma escrever três linhas
- * seguidas ("Bom dia" / "Firme" / "Me passa seu zap") e três menus seriam pior
- * que o silêncio. A trava é a própria fila: já saiu menu pra essa pessoa nas
- * últimas 24h, não sai de novo. Desliga com IG_DM_MENU_OFF.
+ * NASCE DESLIGADO de propósito: em 05/08 o dono disse "nesse caso de DM direta
+ * vamos responder manualmente por enquanto". O código fica pronto pro dia em
+ * que ele quiser ligar — `IG_DM_MENU_ON=true` na Vercel — e até lá a DM fria
+ * continua sendo assunto de gente.
+ *
+ * Quando ligado, "uma vez" é a parte que importa: a pessoa costuma escrever
+ * três linhas seguidas ("Bom dia" / "Firme" / "Me passa seu zap") e três menus
+ * seriam pior que o silêncio. A trava é a própria fila — mesma automação pro
+ * mesmo destinatário em 24h não repete.
  */
 async function responderDmFria(senderId: string, texto: string): Promise<void> {
-  if ((process.env.IG_DM_MENU_OFF || '').trim() === 'true') return;
+  if ((process.env.IG_DM_MENU_ON || '').trim() !== 'true') return;
   const autos = await loadAutomations();
   const menu = autos.find(x => x.fallback) || autos.find(x => !x.link_url && x.gatilhos?.dm) || null;
   if (!menu) return;

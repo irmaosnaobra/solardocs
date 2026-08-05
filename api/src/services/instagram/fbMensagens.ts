@@ -82,9 +82,15 @@ function escolherPorTexto(autos: any[], texto: string): any | null {
   return melhor;
 }
 
-/** O menu ("SOLAR / ELETROPOSTO / BIKE") — a pergunta que o dono pediu. */
+/**
+ * O menu ("SOLAR / ELETROPOSTO / BIKE") — a pergunta que o dono pediu.
+ * Prefere a linha de MENU (a que atende DM) e só cai na rede de segurança se
+ * ela não existir: as duas têm a mesma copy, mas a rede é de comentário.
+ */
 function menuDe(autos: any[]): any | null {
-  return autos.find(a => a.fallback) || autos.find(a => !a.link_url && a.gatilhos?.dm) || null;
+  return autos.find(a => a.gatilhos?.dm && !a.link_url && !a.fallback)
+    || autos.find(a => a.fallback)
+    || null;
 }
 
 async function responder(psid: string, texto: string, token: string): Promise<any> {
@@ -97,8 +103,17 @@ async function responder(psid: string, texto: string, token: string): Promise<an
   try { return JSON.parse(t); } catch { return {}; }
 }
 
-/** Aviso pro humano: lead que o robô não soube responder não pode morrer no inbox. */
-async function avisarTime(nome: string, texto: string): Promise<void> {
+/**
+ * Aviso pro humano: lead que o robô não soube responder não pode morrer no
+ * inbox. UM por pessoa por dia — sem essa trava, uma falha de leitura no meio
+ * da varredura vira enxurrada de WhatsApp no celular do dono.
+ */
+async function avisarTime(nome: string, texto: string, psid?: string): Promise<void> {
+  if (psid) {
+    const chave = `fb_aviso:${psid}:${new Date().toISOString().slice(0, 10)}`;
+    if (await jaVisto(chave)) return;
+    await supabase.from('ig_events').insert({ tipo: 'fb_aviso', ref: chave, raw: { psid, nome } });
+  }
   try {
     await sendWhatsApp(
       NOTIFY,
@@ -168,10 +183,10 @@ export async function varrerInboxFacebook(): Promise<{ respondidos: number; novo
       });
       // Sem palavra-chave = o robô não sabe o produto. O menu já foi, mas quem
       // fecha venda é gente: o Thiago recebe o texto no WhatsApp.
-      if (!a) await avisarTime(nome, texto);
+      if (!a) await avisarTime(nome, texto, psid);
     } catch (err) {
       logger.error('fb-inbox', `resposta a ${psid} falhou`, err);
-      await avisarTime(nome, texto);                 // não conseguiu responder: humano assume
+      await avisarTime(nome, texto, psid);           // não conseguiu responder: humano assume
     }
 
     const tel = telefoneDe(texto);
