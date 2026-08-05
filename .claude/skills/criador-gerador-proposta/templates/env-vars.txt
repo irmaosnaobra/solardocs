@@ -1,0 +1,39 @@
+# Variáveis de ambiente — projeto Vercel do tenant
+# Aplicar via `vercel env add` ou no painel Vercel
+
+# === IDENTIFICAÇÃO DO TENANT ===
+NEXT_PUBLIC_TENANT_ID=                 # UUID gerado na criação do registro em tenants
+NEXT_PUBLIC_TENANT_SLUG=               # slug curto (ex: solarsenergias)
+NEXT_PUBLIC_TENANT_NOME=               # nome de exibição
+
+# === SUPABASE (compartilhado entre tenants) ===
+NEXT_PUBLIC_SUPABASE_URL=https://qdpfwncyzuztibpujlbq.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=         # chave pública (anon)
+SUPABASE_SERVICE_ROLE=                 # chave admin (NUNCA expor no client)
+
+# === RESEND ===
+RESEND_API_KEY=                        # API key da conta Aioros
+RESEND_FROM=propostas@{dominio_cliente}
+RESEND_FROM_NOME={nome_cliente}
+RESEND_REPLY_TO={email_cliente}
+
+# === DOMÍNIO E SEGURANÇA ===
+NEXT_PUBLIC_BASE_URL=https://propostas.{dominio_cliente}
+NEXTAUTH_URL=https://propostas.{dominio_cliente}
+JWT_SECRET=                            # gerar aleatório (openssl rand -base64 32)
+
+# === STORAGE ===
+NEXT_PUBLIC_STORAGE_BUCKET=tenant-assets
+NEXT_PUBLIC_STORAGE_PREFIX={tenant_slug}/
+
+# === OBSERVABILIDADE ===
+SENTRY_DSN=                            # opcional
+NEXT_PUBLIC_VERCEL_ANALYTICS=true
+
+# === LIMITES (sobrescreve defaults do tenant_settings) ===
+TENANT_MAX_VENDEDORES=96
+TENANT_MAX_PROPOSTAS_MES=3000
+
+# === MODO DE OPERAÇÃO ===
+NODE_ENV=production
+NEXT_PUBLIC_ENV=production             # production | staging

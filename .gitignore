@@ -16,3 +16,8 @@ node_modules/
 **/.claude/settings.local.json
 /landing
 
+
+# Skills de terceiros instaladas por gerenciador (npx skills add) — sao
+# reinstalaveis e sao 220+ arquivos. Igual node_modules: nao versionar.
+.claude/skills/remotion-*/
+

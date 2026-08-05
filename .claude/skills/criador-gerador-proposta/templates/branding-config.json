@@ -1,0 +1,46 @@
+{
+  "logo_url": "https://storage.solardoc.app/tenants/{TENANT_SLUG}/logo.png",
+  "logo_dark_url": "https://storage.solardoc.app/tenants/{TENANT_SLUG}/logo-dark.png",
+  "favicon_url": "https://storage.solardoc.app/tenants/{TENANT_SLUG}/favicon.ico",
+  "og_image_url": "https://storage.solardoc.app/tenants/{TENANT_SLUG}/og.png",
+  "cores": {
+    "primaria": "#FAC775",
+    "primaria_hover": "#E8B45A",
+    "secundaria": "#1A1A2E",
+    "sucesso": "#10B981",
+    "alerta": "#EF4444",
+    "aviso": "#F59E0B",
+    "info": "#3B82F6",
+    "texto": "#1F2937",
+    "texto_secundario": "#6B7280",
+    "fundo": "#FFFFFF",
+    "fundo_secundario": "#F9FAFB",
+    "borda": "#E5E7EB"
+  },
+  "tipografia": {
+    "principal": "Inter",
+    "principal_url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap",
+    "titulos": "Inter",
+    "titulos_peso": 800,
+    "tamanho_base_px": 14
+  },
+  "nome_exibicao": "Empresa LTDA",
+  "tagline": "Energia limpa pra sua casa e seu bolso.",
+  "telefone_contato": "(34) 0000-0000",
+  "whatsapp_contato": "5534999990000",
+  "email_from": "propostas@empresa.com.br",
+  "email_from_nome": "Empresa Propostas",
+  "email_reply_to": "comercial@empresa.com.br",
+  "cnpj_exibicao": "00.000.000/0001-00",
+  "endereco_exibicao": "Rua Tal, 123 — Uberlândia/MG",
+  "site_oficial": "https://www.empresa.com.br",
+  "redes_sociais": {
+    "instagram": "https://instagram.com/empresa",
+    "linkedin": "",
+    "facebook": ""
+  },
+  "rodape": {
+    "mostrar_powered_by": false,
+    "texto_legal": "© 2026 Empresa LTDA — todos os direitos reservados"
+  }
+}

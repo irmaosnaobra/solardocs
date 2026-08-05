@@ -1,0 +1,17 @@
+categoria,marca,modelo,potencia_w,potencia_kw,tipo,preco_unitario,unidade
+modulo,Canadian Solar,HiKu7 CS7N-665MS,665,,,820.00,unidade
+modulo,Trina Solar,Vertex S+ TSM-NEG18R.28,560,,,690.00,unidade
+modulo,JA Solar,JAM72D30-580/LB,580,,,725.00,unidade
+modulo,Jinko,Tiger Neo 615W,615,,,775.00,unidade
+inversor,Growatt,MIN 5000TL-XH,,5.000,string,3850.00,unidade
+inversor,Growatt,MIN 8000TL-XH,,8.000,string,5400.00,unidade
+inversor,Deye,SUN-12K-SG04LP3,,12.000,hibrido,9200.00,unidade
+inversor,Huawei,SUN2000-10KTL-M1,,10.000,string,7100.00,unidade
+inversor,Hoymiles,HMS-2000-4T,,2.000,microinversor,2950.00,unidade
+estrutura,Romagnole,Romastruct,,,ceramica,180.00,unidade
+estrutura,Romagnole,Romastruct fibrocimento,,,fibrocimento,165.00,unidade
+estrutura,Solar Group,Solo trapezoidal,,,solo,420.00,unidade
+mao_obra,Próprio,Instalação completa,,,instalacao,400.00,kwp
+mao_obra,Próprio,Projeto e homologação,,,projeto,250.00,kwp
+outros,Clamper,String Box 1000V 2E/2S,,,protecao,650.00,unidade
+outros,Multicabos,Cabo solar 6mm vermelho/preto,,,cabeamento,12.00,unidade
