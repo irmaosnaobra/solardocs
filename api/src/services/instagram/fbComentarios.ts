@@ -69,27 +69,73 @@ async function pageToken(): Promise<string | null> {
  * `act_` é obrigatório no Graph — sem ele a chamada devolve lista vazia em
  * silêncio, que foi o que quase me fez concluir "não tem anúncio ativo".
  */
-async function postsParaVarrer(token: string): Promise<{ id: string; ehAnuncio: boolean }[]> {
-  const alvos = new Map<string, boolean>();
+interface Alvo { id: string; ehAnuncio: boolean; destino: string }
+
+// Destinos que não dizem nada sobre o produto (anúncio de clique-pra-Messenger).
+const DESTINO_VAZIO = ['fb.me', 'm.me', 'facebook.com', 'instagram.com'];
+
+/** host + caminho, sem query — é assim que o link do anúncio casa com o da automação. */
+function chaveUrl(u: string | null | undefined): string {
+  const s = String(u || '').trim();
+  if (!s) return '';
+  try {
+    const x = new URL(s.startsWith('http') ? s : 'https://' + s);
+    if (DESTINO_VAZIO.some(d => x.hostname.endsWith(d))) return '';
+    return (x.hostname + x.pathname).replace(/\/+$/, '').toLowerCase();
+  } catch { return ''; }
+}
+
+async function postsParaVarrer(token: string): Promise<Alvo[]> {
+  const alvos = new Map<string, Alvo>();
   try {
     const feed = await graph(`${PAGE_ID}/published_posts?fields=id&limit=15`, token);
-    for (const p of feed.data || []) alvos.set(p.id, false);
+    for (const p of feed.data || []) alvos.set(p.id, { id: p.id, ehAnuncio: false, destino: '' });
   } catch (err) { logger.error('fb', 'feed da página falhou', err); }
   try {
     const contas = await graph('me/adaccounts?fields=id&limit=10', SU_TOKEN);
     for (const c of contas.data || []) {
       const act = String(c.id).startsWith('act_') ? String(c.id) : 'act_' + c.id;
       try {
-        const ads = await graph(`${act}/ads?fields=effective_status,creative{effective_object_story_id}&limit=200`, SU_TOKEN);
+        const ads = await graph(
+          `${act}/ads?fields=effective_status,creative{effective_object_story_id,object_story_spec}&limit=200`,
+          SU_TOKEN,
+        );
         for (const a of ads.data || []) {
           if (a.effective_status !== 'ACTIVE') continue;
-          const sid = a?.creative?.effective_object_story_id;
-          if (sid) alvos.set(sid, true);      // anúncio ganha do orgânico no mesmo post
+          const sid: string = a?.creative?.effective_object_story_id || '';
+          // O id do post é "{pagina}_{post}". Anúncio de OUTRA página (a casa
+          // tem mais de uma) não é nosso assunto e nem temos token dele.
+          if (!sid || !sid.startsWith(PAGE_ID + '_')) continue;
+          const spec = a?.creative?.object_story_spec || {};
+          const destino = spec?.link_data?.link
+            || spec?.video_data?.call_to_action?.value?.link
+            || spec?.link_data?.call_to_action?.value?.link || '';
+          alvos.set(sid, { id: sid, ehAnuncio: true, destino });   // anúncio ganha do orgânico
         }
       } catch (err) { logger.error('fb', `anúncios de ${act} falharam`, err); }
     }
   } catch (err) { logger.error('fb', 'lista de contas de anúncio falhou', err); }
-  return [...alvos].map(([id, ehAnuncio]) => ({ id, ehAnuncio }));
+  return [...alvos.values()];
+}
+
+/**
+ * Anúncio manda no produto. Metade dos anúncios ativos da Página é LimpaPro
+ * (limpapro.solardoc.app), que NÃO tem automação aqui — responder aqueles
+ * comentários com o menu "SOLAR / ELETROPOSTO / BIKE" seria falar de outro
+ * produto com quem perguntou de limpeza.
+ *
+ * Devolve: a automação do destino, `null` quando o destino não diz nada (o
+ * roteamento por palavra-chave decide), ou 'pular' quando o destino é de um
+ * produto que não é atendido aqui.
+ */
+export function automacaoDoDestino(destino: string, autos: any[]): any | null | 'pular' {
+  const alvo = chaveUrl(destino);
+  if (!alvo) return null;                                  // fb.me, vazio: sem pista
+  for (const a of autos) {
+    const l = chaveUrl(a.link_url);
+    if (l && (alvo === l || alvo.startsWith(l) || l.startsWith(alvo))) return a;
+  }
+  return 'pular';                                          // produto sem automação (LimpaPro)
 }
 
 async function comentariosDoPost(postId: string, ehAnuncio: boolean, token: string): Promise<Comentario[]> {
@@ -139,7 +185,7 @@ async function responderPublico(commentId: string, texto: string, token: string)
 const pick = <T,>(arr: T[]): T | null => (arr && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
 
 /** Varredura completa. Chamada pelo cron; devolve o que fez pro painel/log. */
-export async function varrerComentariosFacebook(): Promise<{ respondidos: number; vistos: number; reason?: string }> {
+export async function varrerComentariosFacebook(): Promise<{ respondidos: number; vistos: number; posts_pulados?: number; reason?: string }> {
   if (desligado()) return { respondidos: 0, vistos: 0, reason: 'desligado' };
   if (!SU_TOKEN) return { respondidos: 0, vistos: 0, reason: 'sem_token' };
 
@@ -150,9 +196,15 @@ export async function varrerComentariosFacebook(): Promise<{ respondidos: number
   const posts = await postsParaVarrer(token);
   const limite = Date.now() - JANELA_DIAS * 24 * 3600 * 1000;
 
-  let vistos = 0, respondidos = 0;
+  let vistos = 0, respondidos = 0, pulados = 0;
   for (const post of posts) {
     if (respondidos >= MAX_POR_RODADA) break;
+
+    // Produto do anúncio antes de tudo: se o destino é de um produto que não
+    // tem automação aqui, o post inteiro fica de fora.
+    const doDestino = automacaoDoDestino(post.destino, autos);
+    if (doDestino === 'pular') { pulados++; continue; }
+
     let comentarios: Comentario[] = [];
     try { comentarios = await comentariosDoPost(post.id, post.ehAnuncio, token); }
     catch (err) { logger.error('fb', `comentários de ${post.id} falharam`, err); continue; }
@@ -165,7 +217,9 @@ export async function varrerComentariosFacebook(): Promise<{ respondidos: number
       vistos++;
       if (await jaRespondido(c.id)) continue;
 
-      const a = decidirComentario(autos, { texto: c.message, mediaId: post.id, ehAnuncio: post.ehAnuncio });
+      // Destino do anúncio ganha do texto (é a mesma regra do Instagram, onde
+      // automação fixada na mídia ganha do roteamento por palavra-chave).
+      const a = doDestino || decidirComentario(autos, { texto: c.message, mediaId: post.id, ehAnuncio: post.ehAnuncio });
       if (!a) continue;
 
       // Sem porteiro: no Facebook não existe "me segue" que valha o toque a
@@ -180,7 +234,7 @@ export async function varrerComentariosFacebook(): Promise<{ respondidos: number
           raw: { post: post.id, ehAnuncio: post.ehAnuncio, de: c.fromName, texto: c.message, automacao: a.id, resposta: resp },
         });
         respondidos++;
-        const pub = pick(a.respostas_publicas || []);
+        const pub = pick<string>(a.respostas_publicas || []);
         if (pub) await responderPublico(c.id, pub, token);
       } catch (err: any) {
         // Não marca como respondido: erro aqui costuma ser janela vencida ou
@@ -212,5 +266,5 @@ export async function varrerComentariosFacebook(): Promise<{ respondidos: number
     { key: CHAVE_ESTADO, value: new Date().toISOString(), updated_at: new Date().toISOString() },
     { onConflict: 'key' },
   );
-  return { respondidos, vistos };
+  return { respondidos, vistos, posts_pulados: pulados };
 }
