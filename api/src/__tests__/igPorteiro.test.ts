@@ -122,12 +122,18 @@ describe('porteiro do link — o link não escapa', () => {
     expect(L1H_ATRASO_MS).toBe(3600_000);
   });
 
-  it('sem porteiro, o pedido de seguir vai junto do link — e sem URL nele', () => {
-    // 05/08: o porteiro saiu porque entregava 1 link a cada 23 DMs. O pedido
-    // continua; o bloqueio é que acabou.
+  it('o "me segue" é cobrado no lembrete de 1h, não na entrega', () => {
+    // 05/08: entrega vem limpa ("não estamos dando nada em troca"); o pedido
+    // aparece depois que a pessoa já recebeu o que veio buscar.
     const convite = conviteSeguir();
     expect(convite.toLowerCase()).toContain('segue');
     expect(convite).not.toContain('http');
+    expect(lembrete1h(comLink, '1')!.text).toContain(convite);
+  });
+
+  it('copy de lembrete escrita no painel manda — não recebe enxerto', () => {
+    const l = lembrete1h({ ...comLink, lembrete_1h_texto: 'Conseguiu abrir?' }, '1')!;
+    expect(l.text).toBe('Conseguiu abrir?');
   });
 
   it('automação sem porteiro não carrega alternativa de nudge', () => {

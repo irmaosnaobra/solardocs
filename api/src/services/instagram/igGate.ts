@@ -126,15 +126,16 @@ export function etapaDepois(acao: GateAcao): GateEtapa {
 }
 
 /**
- * Convite pra seguir que vai JUNTO do link, quando o porteiro está desligado.
+ * Convite pra seguir — vai no LEMBRETE DE 1H, nunca junto do link.
  *
- * 05/08: o porteiro entregou o link pra 1 pessoa em 23 DMs, porque quem não
- * responde nunca mais pode ser tocado (a janela de 24h da Meta só abre com a
- * resposta). Decisão do dono: entrega o link pra todo mundo e pede o seguir
- * na mesma mensagem — pedido continua, bloqueio não.
+ * 05/08, decisão do dono em duas etapas: primeiro o porteiro caiu (entregava o
+ * link pra 1 pessoa em 23 DMs, porque quem não responde nunca mais pode ser
+ * tocado); depois o pedido saiu também da mensagem de entrega — "não estamos
+ * dando nada em troca". Primeiro entrega o que a pessoa pediu; cobrar o seguir
+ * vem depois, no toque de 1h.
  */
 export function conviteSeguir(): string {
-  return 'Ah, e me segue aqui que eu aviso quando tiver novidade.';
+  return 'E me segue aqui que eu aviso quando tiver novidade.';
 }
 
 export function payloadSeguir(a: GateAuto): GatePayload {
@@ -155,11 +156,14 @@ export function nudgeGate(_a: GateAuto): string { return NUDGE; }
 // Sai 1h depois de a PRIMEIRA DM ter saído de verdade (não do comentário: o
 // relógio começa no envio confirmado pela Meta).
 //
+// É AQUI que o "me segue" é cobrado (05/08): a entrega vem limpa, e o pedido
+// só aparece depois que a pessoa já recebeu o que veio buscar.
+//
 // Limite que não é nosso: DM só sai com a janela de 24h aberta, e quem abre a
 // janela é a RESPOSTA da pessoa. Então quem nunca respondeu a primeira DM não
-// recebe lembrete nenhum — a fila marca 'janela_24h_fechada' e pula. O lembrete
-// pega quem respondeu: parou no "me segue" (vai o nudge) ou já pegou o link
-// (vai o "conseguiu abrir?").
+// recebe lembrete nenhum — a fila marca 'janela_24h_fechada' e pula. Sem o
+// porteiro, isso vira a regra e não a exceção: quem só clicou no link não
+// recebe o pedido. É o preço de entregar primeiro, e foi decisão consciente.
 export const L1H_ATRASO_MS = 3600_000;
 
 const L1H_COM_LINK = 'Passei só pra saber: conseguiu abrir o link?\n\nSe quiser, é por aqui:';
@@ -176,7 +180,10 @@ export function lembrete1h(a: GateAuto, to: string): Lembrete1h | null {
   if ((process.env.IG_LEMBRETE_1H_OFF || '').trim() === 'true') return null;
   if (a.lembrete_1h_off) return null;
   const link = (a.link_url || '').trim();
-  const padrao = link ? `${L1H_COM_LINK}\n${link}` : L1H_SEM_LINK;
+  const base = link ? `${L1H_COM_LINK}\n${link}` : L1H_SEM_LINK;
+  // O pedido de seguir entra aqui, no fim — só na copy padrão. Copy escrita à
+  // mão no painel manda: se o dono escreveu o texto, é o texto dele que sai.
+  const padrao = `${base}\n\n${conviteSeguir()}`;
   const item: Lembrete1h = { to, text: txt(a.lembrete_1h_texto, padrao) };
   if (gateAtivo(a)) item.gate_nudge = NUDGE;
   return item;

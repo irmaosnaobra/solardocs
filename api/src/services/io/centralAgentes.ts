@@ -412,7 +412,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Links liberados (30d)', valor: igLinks30, sub: 'passou pelo porteiro' },
       ],
       toques: [
-        { titulo: '1º toque — o link', quando: 'quando alguém comenta', copy: 'A copy da automação com o link vai de uma vez, e o pedido de seguir vai junto ("me segue que eu aviso quando tiver novidade"). O porteiro que segurava o link foi removido em 05/08: ele entregava pra 1 pessoa a cada 23 DMs, porque quem não responde nunca mais pode ser tocado.' },
+        { titulo: '1º toque — o link', quando: 'quando alguém comenta', copy: 'A copy da automação com o link vai de uma vez, limpo, sem pedir nada em troca; o "me segue" é cobrado no lembrete de 1h. O porteiro que segurava o link foi removido em 05/08: ele entregava pra 1 pessoa a cada 23 DMs, porque quem não responde nunca mais pode ser tocado.' },
         { titulo: 'bike', quando: 'no mesmo toque', copy: 'A bike entrega card com botão "Falar no WhatsApp" — negociação é na hora.' },
         { titulo: 'lembrete', quando: '1h depois da 1ª DM sair', copy: 'Quem parou no "me segue" recebe o nudge; quem já pegou o link recebe "conseguiu abrir?". Quem NUNCA respondeu não recebe — DM exige janela de 24h aberta, e é a resposta que abre. Um por pessoa, mesmo que ela comente três vezes. IG_LEMBRETE_1H_OFF desliga.' },
       ],

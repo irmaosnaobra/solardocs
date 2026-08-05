@@ -232,10 +232,10 @@ function welcomePayload(a: Automation): any {
   // Sem rótulo (ou copy longa): texto puro com o link embutido — o Instagram
   // deixa o link clicável do mesmo jeito.
   if (!a.link_url) return { text };
-  // Porteiro desligado: o pedido de seguir vai junto do link, em vez de na
-  // frente dele. Quem tem porteiro ativo já recebe o pedido no toque anterior.
-  const convite = gateAtivo(a) ? '' : '\n\n' + conviteSeguir();
-  return { text: text + '\n\n' + a.link_url + convite };
+  // Link limpo, sem pedir nada em troca (decisão do dono, 05/08: "não estamos
+  // dando nada em troca"). O "me segue" foi pro lembrete de 1h, depois que a
+  // pessoa já recebeu o que pediu.
+  return { text: text + '\n\n' + a.link_url };
 }
 function enqueueReminderIfAny(a: Automation, recipient: string): Promise<void> | null {
   if (!a.lembrete_texto) return null;
