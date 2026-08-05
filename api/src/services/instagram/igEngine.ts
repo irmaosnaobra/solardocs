@@ -213,13 +213,21 @@ async function claimGate(igUserId: string, de: GateEtapa, acao: GateAcao): Promi
   return !!(data && data.length);
 }
 
+// Card com botão só cabe em 80+80 caracteres (limite do Instagram). Copy maior
+// que isso vira texto puro em vez de sair cortada no meio da frase.
+const CARD_MAX = 160;
+
 function welcomePayload(a: Automation): any {
-  // Primeira mensagem (resposta privada a comentário / DM inicial) = TEXTO PURO
-  // com o link embutido. Botão/template costuma dar erro genérico no 1º contato
-  // do Instagram; texto é universalmente aceito.
-  let text = a.dm_boas_vindas || 'Oi! Aqui está o que você pediu 👇';
-  if (a.link_url) text += '\n\n' + (a.botao_rotulo ? a.botao_rotulo + ': ' : '') + a.link_url;
-  return { text };
+  const text = a.dm_boas_vindas || 'Oi! Aqui está o que você pediu:';
+  // Automação com rótulo de botão preenchido no painel entrega um CARD: a
+  // pessoa toca e vai direto pro link, sem copiar URL. É o caso da bike, onde
+  // a negociação é na hora e cada toque a menos conta.
+  if (a.link_url && a.botao_rotulo && text.length <= CARD_MAX) {
+    return { text, button: { url: a.link_url, title: a.botao_rotulo } };
+  }
+  // Sem rótulo (ou copy longa): texto puro com o link embutido — o Instagram
+  // deixa o link clicável do mesmo jeito.
+  return { text: a.link_url ? text + '\n\n' + a.link_url : text };
 }
 function enqueueReminderIfAny(a: Automation, recipient: string): Promise<void> | null {
   if (!a.lembrete_texto) return null;
@@ -283,7 +291,7 @@ export async function handleComment(value: any, ownIgId?: string): Promise<void>
     payload: {
       ...(acao === 'seguir' ? payloadSeguir(a) : welcomePayload(a)),
       pub_ok: pick(a.respostas_publicas || []),
-      pub_fail: username ? `@${username} me chama no direct que eu te mando tudo 👉` : null,
+      pub_fail: username ? `@${username} me chama no direct que eu te mando tudo` : null,
       // O relógio do lembrete de 1h começa quando ESTA DM sair (a fila enfileira
       // o lembrete depois do envio confirmado, não agora).
       l1h: lembrete1h(a, fromId),
@@ -450,6 +458,11 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
           // NÃO reenvia: o 500/code 1 da Meta já entregou mensagem antes, e o
           // reenvio é que colocou a mesma DM duas vezes no celular do lead.
           incerto = msg;
+        } else if (payload?.button?.url) {
+          // Card recusado de vez (falha real, então nada saiu — não duplica).
+          // A pessoa não pode ficar sem o link só porque o card não passou.
+          logger.error('ig', 'card com botão recusado, reenviando texto com o link', err);
+          resp = await enviar({ text: (payload.text || '') + '\n\n' + payload.button.url });
         } else {
           throw err;
         }

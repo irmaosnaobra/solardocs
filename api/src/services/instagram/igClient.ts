@@ -137,9 +137,30 @@ export async function getMedia(igUserId: string, token: string): Promise<any[]> 
 type QuickReply = { title: string; payload?: string };
 type MsgPayload = { text?: string; button?: { url: string; title: string }; quick_replies?: QuickReply[] };
 
-function buildMessage(p: MsgPayload): any {
+/** Monta o corpo `message` da Meta. Exportada pra teste — é aqui que o card
+ *  errado (template do Messenger) derrubava o envio. */
+export function buildMessage(p: MsgPayload): any {
   if (p.button) {
-    return { attachment: { type: 'template', payload: { template_type: 'button', text: p.text || '', buttons: [{ type: 'web_url', url: p.button.url, title: p.button.title }] } } };
+    // Card com botão que ABRE LINK. Tem que ser o template `generic`: o
+    // `button` é do Messenger e o Instagram devolve erro genérico nele — foi o
+    // que fez a gente achar, em julho, que "template não funciona aqui".
+    // Limites do IG: título 80, subtítulo 80, rótulo do botão 20, até 3 botões.
+    const [titulo, ...resto] = (p.text || '').split('\n').filter(Boolean);
+    return {
+      attachment: {
+        type: 'template',
+        payload: {
+          template_type: 'generic',
+          elements: [{
+            title: (titulo || '').slice(0, 80),
+            ...(resto.length ? { subtitle: resto.join(' ').slice(0, 80) } : {}),
+            // Tocar no card inteiro abre o mesmo link do botão.
+            default_action: { type: 'web_url', url: p.button.url },
+            buttons: [{ type: 'web_url', url: p.button.url, title: p.button.title.slice(0, 20) }],
+          }],
+        },
+      },
+    };
   }
   const msg: any = { text: p.text || '' };
   // Quick reply (e não botão de template/postback): o toque volta como mensagem

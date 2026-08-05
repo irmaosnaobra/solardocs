@@ -62,9 +62,9 @@ export const GATE_VALIDADE_MS = 72 * 3600 * 1000;
 // não é enfeite: é o caminho de quem não vê o botão.
 // Este é o PRIMEIRO toque desde 05/08 — abre falando com quem acabou de
 // comentar, então não pode começar com "quase lá".
-const SEGUIR_TEXTO = 'Opa, e aí, beleza? 👋\n\nEsse link é especial pra quem me segue ✨ Me segue aqui e toca no botão abaixo (ou responde SEGUINDO) que eu mando na hora 🎉';
+const SEGUIR_TEXTO = 'Opa, e aí, beleza?\n\nEsse link é especial pra quem me segue. Me segue aqui e toca no botão abaixo (ou responde SEGUINDO) que eu mando na hora.';
 const SEGUIR_BOTAO = 'Seguindo';
-const NUDGE = 'Faltou só um passo pro seu link 👀\n\nMe segue aqui e responde SEGUINDO que eu mando na hora ✨';
+const NUDGE = 'Faltou só um passo pro seu link.\n\nMe segue aqui e responde SEGUINDO que eu mando na hora.';
 
 const txt = (v: string | null | undefined, padrao: string): string => (v && v.trim() ? v.trim() : padrao);
 // Quick reply da Meta corta em 20 caracteres — melhor cortar aqui do que ver o
@@ -150,8 +150,8 @@ export function nudgeGate(_a: GateAuto): string { return NUDGE; }
 // (vai o "conseguiu abrir?").
 export const L1H_ATRASO_MS = 3600_000;
 
-const L1H_COM_LINK = 'Passei só pra saber: conseguiu abrir o link? 👀\n\nSe quiser, é por aqui:';
-const L1H_SEM_LINK = 'Passei só pra saber se você viu o que eu te mandei 👀\n\nQualquer dúvida, me chama por aqui!';
+const L1H_COM_LINK = 'Passei só pra saber: conseguiu abrir o link?\n\nSe quiser, é por aqui:';
+const L1H_SEM_LINK = 'Passei só pra saber se você viu o que eu te mandei.\n\nQualquer dúvida, me chama por aqui!';
 
 export interface Lembrete1h {
   to: string;                 // ig_user_id (a fila do private_reply guarda o comment_id)
