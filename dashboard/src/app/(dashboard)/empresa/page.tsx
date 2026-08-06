@@ -469,7 +469,7 @@ export default function EmpresaPage() {
           }}>✓</div>
           <div style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
             <strong style={{ color: 'var(--color-text)', fontSize: 15.5, display: 'block', marginBottom: 2 }}>
-              Plano {welcomePlan === 'ilimitado' ? 'VIP' : welcomePlan === 'pro' ? 'PRO' : ''} ativado! Seus 7 dias grátis começaram.
+              Plano {welcomePlan === 'ilimitado' ? 'VIP' : welcomePlan === 'pro' ? 'PRO' : ''} ativado! Seu acesso já está liberado.
             </strong>
             Pra emitir seu primeiro documento, preencha os dados da empresa abaixo. Leva 2 minutinhos.
           </div>

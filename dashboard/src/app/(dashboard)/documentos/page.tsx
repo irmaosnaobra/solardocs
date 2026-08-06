@@ -224,7 +224,7 @@ function WelcomeBanner({ plan }: { plan: string | null }) {
         }}>✓</div>
         <div style={{ flex: '1 1 280px', lineHeight: 1.5 }}>
           <div style={{ fontWeight: 800, fontSize: 15.5, color: 'var(--color-text)', marginBottom: 2 }}>
-            Plano {planLabel} ativado! Seus 7 dias grátis começaram.
+            Plano {planLabel} ativado! Seu acesso já está liberado.
           </div>
           <div style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
             Dá uma olhada nos modelos abaixo. Quando quiser emitir, é só cadastrar sua empresa pra documentos saírem com sua marca.

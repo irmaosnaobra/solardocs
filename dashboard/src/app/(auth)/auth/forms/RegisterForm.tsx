@@ -314,12 +314,15 @@ function RegisterContent() {
           (() => {
             const shownPlan = planFromStripe ?? urlPlanFromCheckout;
             const planTxt = shownPlan ? (PLAN_LABEL[shownPlan] ?? shownPlan) : null;
+            // Plano único (06/08/2026): a compra é cobrada na hora, não existe
+            // mais trial — falar em "7 dias grátis" aqui contradizia a fatura
+            // que o cliente acabou de receber.
             return (
-              <>Seus <strong style={{ color: '#0f172a' }}>7 dias grátis</strong>{planTxt ? <> do plano <strong style={{ color: '#0f172a' }}>{planTxt}</strong></> : null} já estão ativos. Defina sua senha pra entrar na plataforma.</>
+              <>Seu acesso{planTxt ? <> ao plano <strong style={{ color: '#0f172a' }}>{planTxt}</strong></> : null} já está <strong style={{ color: '#0f172a' }}>liberado</strong>. Defina sua senha pra entrar na plataforma.</>
             );
           })()
         ) : targetPlan ? (
-          <>Próximo passo: passar o cartão pra liberar o plano <strong style={{ color: '#0f172a' }}>{targetPlan.toUpperCase()}</strong>. <strong style={{ color: '#0f172a' }}>7 dias grátis</strong> · nada é cobrado agora.</>
+          <>Próximo passo: passar o cartão pra liberar o plano <strong style={{ color: '#0f172a' }}>{targetPlan.toUpperCase()}</strong>. <strong style={{ color: '#0f172a' }}>Acesso na hora</strong> · cancele quando quiser.</>
         ) : (
           <><strong style={{ color: '#0f172a' }}>10 propostas grátis</strong> pra começar — sem cartão, sem cobrança.</>
         )}

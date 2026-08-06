@@ -39,19 +39,21 @@ function useReveal() {
   }, []);
 }
 
-// Preços mensais (R$).
-const PRICES = {
-  pro: 27,
-  vip: 67,
-  vipPromo: 49, // downsell: VIP com desconto oferecido no popup ao clicar no Pro
-} as const;
+// PLANO ÚNICO (06/08/2026). A LP vendia Pro R$27 + VIP R$67 com 7 dias grátis e
+// ainda um downsell de R$49 no popup — três preços na mesma página. Agora é um
+// só: R$ 67/mês com COBRANÇA IMEDIATA (PLAN_MAP.ilimitado.trialDias = 0 na API).
+// Os planos antigos continuam existindo no backend (planByPrice resolve quem já
+// assinou por 27/49) — só sumiram da vitrine.
+const PRICE = 67;
+const PRICE_DIA = (PRICE / 30).toFixed(2).replace('.', ','); // "por dia" da oferta
+const WHATSAPP = 'https://wa.me/5534998165040';
 
 export default function Landing() {
   const router = useRouter();
   useReveal();
   const { trackEvent } = useLpTracking();
 
-  // Tracking de seção: dispara 'section' { section: 'precos' } quando o bloco de planos
+  // Tracking de seção: dispara 'section' { section: 'precos' } quando o bloco da oferta
   // entra na viewport. Usado pelo /admin (LP SolarDoc) pra calcular "Viu Seção Preços".
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -73,42 +75,30 @@ export default function Landing() {
     return () => obs.disconnect();
   }, [trackEvent]);
 
-  function scrollToPlans() {
-    trackEvent('cta_click', { label: 'grátis' });
+  function scrollToPlans(label: string) {
+    trackEvent('cta_click', { label });
     if (typeof window !== 'undefined' && window.fbq) {
       window.fbq('track', 'ViewContent', { content_name: 'plans_section' });
     }
     document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  const [checkoutLoading, setCheckoutLoading] = useState<'pro' | 'vip' | 'vip_promo' | null>(null);
-  const [showDownsell, setShowDownsell] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
-  // Popup de downsell (clicou no Pro → oferta do VIP com desconto): fecha no Esc
-  // e trava o scroll do fundo enquanto está aberto.
-  useEffect(() => {
-    if (!showDownsell) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowDownsell(false); };
-    document.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
-  }, [showDownsell]);
-
-  // Fluxo LP → Stripe → Cadastro: clica no plano e vai DIRETO pro checkout
-  // público do Stripe (email + cartão, 7 dias grátis). Só depois de aprovar
-  // o cartão a pessoa cria a conta. Sem free.
-  async function goToRegister(plano: 'pro' | 'vip' | 'vip_promo') {
-    trackEvent('cta_click', { label: plano });
+  // Fluxo LP → Stripe → Cadastro: clica e vai DIRETO pro checkout público do
+  // Stripe (email + cartão, cobrado na hora). Só depois de aprovar o cartão a
+  // pessoa cria a conta. Sem free, sem trial.
+  async function goToCheckout(label: string) {
+    trackEvent('cta_click', { label });
     if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'InitiateCheckout', { content_name: plano });
+      window.fbq('track', 'InitiateCheckout', { content_name: 'vip', value: PRICE, currency: 'BRL' });
     }
-    setCheckoutLoading(plano);
+    setCheckoutLoading(true);
     try {
       // Atribuição: manda o session_id da LP + UTMs (de sessionStorage) junto.
       // O backend grava no metadata do Stripe → receita atribuída à campanha.
       const { data } = await api.post('/payments/public-checkout', {
-        plan: plano,
+        plan: 'vip',
         ...getCheckoutAttribution(),
       });
       if (data?.url) {
@@ -121,35 +111,42 @@ export default function Landing() {
     }
     // Fallback: se o checkout falhar, cai no cadastro com o plano (fluxo antigo).
     // Preserva os UTMs na URL pra atribuição não evaporar se o público falhar.
-    setCheckoutLoading(null);
+    setCheckoutLoading(false);
     const attr = getCheckoutAttribution();
-    const qs = new URLSearchParams({ mode: 'register', plano: plano === 'vip_promo' ? 'vip' : plano });
-    for (const k of ['utm_source','utm_medium','utm_campaign','utm_content','utm_term']) {
+    const qs = new URLSearchParams({ mode: 'register', plano: 'vip' });
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
       if (attr[k]) qs.set(k, attr[k]);
     }
     router.push(`/auth?${qs.toString()}`);
   }
 
-  // Data de hoje em pt-BR (fuso de SP) pra barra de urgência. Calculada NO CLIENTE
-  // (useEffect) pra sempre refletir o dia ATUAL de quem abre. Se computasse no
-  // render, o Next executa no servidor/build e a página cacheia (SSG/ISR) →
-  // a data congelava no dia do build (ex.: mostrava 05/07 no dia 06/07).
-  const [hojeBR, setHojeBR] = useState('');
+  // Barra fixa de compra no mobile: só aparece depois que a pessoa passou do
+  // hero (senão cobre a dobra logo na entrada).
+  //
+  // ATENÇÃO ao jeito de ler a rolagem: o globals.css põe `overflow-x: hidden`
+  // no html E no body, o que faz do BODY o container de rolagem — window.scrollY
+  // fica travado em 0 na página inteira e o evento 'scroll' nem chega no window
+  // (scroll não borbulha). Por isso o listener é em fase de CAPTURA e a posição
+  // sai do body. Com o listener normal a barra nunca aparecia.
+  const [showBar, setShowBar] = useState(false);
   useEffect(() => {
-    const calcHoje = () => new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' });
-    setHojeBR(calcHoje());
-    // Vira a data à meia-noite de São Paulo mesmo com a página aberta: recomputa
-    // no fuso de SP a cada 30s e só re-renderiza quando o dia efetivamente troca.
-    const id = setInterval(() => setHojeBR(prev => { const d = calcHoje(); return d !== prev ? d : prev; }), 30000);
-    return () => clearInterval(id);
+    if (typeof window === 'undefined') return;
+    const posicao = () =>
+      document.body.scrollTop || document.documentElement.scrollTop || window.scrollY || 0;
+    const onScroll = () => setShowBar(posicao() > 640);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    return () => window.removeEventListener('scroll', onScroll, true);
   }, []);
+
+  const ctaLabel = checkoutLoading ? 'Abrindo checkout...' : `Assinar agora — R$ ${PRICE}/mês`;
 
   return (
     <div className={styles.page}>
-      {/* BARRA DE URGÊNCIA — desconto exclusivo do dia (clica → rola pros planos) */}
-      <button type="button" className={styles.promoBar} onClick={scrollToPlans} aria-label="Desconto exclusivo somente hoje — ver planos">
+      {/* BARRA DO TOPO — plano único (clica → rola pra oferta) */}
+      <button type="button" className={styles.promoBar} onClick={() => scrollToPlans('promobar')} aria-label="Plano único de R$ 67 por mês — ver a oferta">
         <span className={styles.promoDot} aria-hidden="true" />
-        Desconto exclusivo • Somente hoje, <u>{hojeBR}</u>
+        Plano único • R$ {PRICE}/mês • acesso liberado na hora
       </button>
 
       {/* NAV */}
@@ -159,7 +156,8 @@ export default function Landing() {
             <span>SolarDoc<span className={styles.brandAccent}>.App</span></span>
           </div>
           <div className={styles.navRight}>
-            <button onClick={scrollToPlans} className={styles.navCta}>Testar 7 dias grátis</button>
+            <a href="/auth" className={styles.navLink}>Entrar</a>
+            <button onClick={() => scrollToPlans('nav')} className={styles.navCta}>Assinar — R$ {PRICE}</button>
           </div>
         </div>
       </nav>
@@ -183,24 +181,44 @@ export default function Landing() {
               O melhor Gerador de Proposta do Brasil — <strong>com a sua marca</strong>.
             </h1>
 
-            <p className={styles.lead} style={{ margin: '0 auto 32px' }}>
+            <p className={styles.lead} style={{ margin: '0 auto 26px' }}>
               Proposta solar e todos os contratos que o integrador precisa, prontos em minutos: seu nome,
               sua logo, sua cor e os números certos — pra fechar mais rápido no WhatsApp do cliente.
             </p>
 
-            <button className={styles.finalCtaBtn} onClick={scrollToPlans}>
-              Testar 7 dias grátis →
+            <button className={styles.finalCtaBtn} onClick={() => scrollToPlans('hero')}>
+              Quero acesso agora →
             </button>
 
-            <div className={styles.trustRow} style={{ justifyContent: 'center', marginTop: 24 }}>
+            <div className={styles.pricePill}>
+              <b>R$ {PRICE}/mês</b>
+              <span className={styles.pricePillSep} aria-hidden />
+              acesso liberado na hora
+            </div>
+
+            <div className={styles.trustRow} style={{ justifyContent: 'center', marginTop: 20 }}>
               <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> <b>7 dias grátis</b>
+                {/* uma frase por item: .trustItem é flex com gap, então texto solto
+                    ao lado do <b> abre um buraco no meio da frase */}
+                <span className={styles.trustCheck}>✓</span> <b>Tudo liberado, sem plano capado</b>
+              </span>
+              <span className={styles.trustItem}>
+                <span className={styles.trustCheck}>✓</span> Garantia de 7 dias
               </span>
               <span className={styles.trustItem}>
                 <span className={styles.trustCheck}>✓</span> Cancele quando quiser
               </span>
-              <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> Sem fidelidade
+            </div>
+
+            {/* Quem está por trás — prova de gente de verdade, já na dobra */}
+            <div className={styles.heroFounders} data-reveal>
+              <span className={styles.heroFoundersPics} aria-hidden>
+                <img src="/founder-thiago.webp" width={44} height={44} alt="" loading="lazy" />
+                <img src="/founder-diego.webp" width={44} height={44} alt="" loading="lazy" />
+              </span>
+              <span>
+                Feito por <b>Thiago e Diego</b>, integradores solares —
+                {' '}quem responde no suporte é um de nós dois.
               </span>
             </div>
           </div>
@@ -236,7 +254,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* DIFERENCIAIS — feature grid (padrão gdpro.app, com a marca SolarDoc) */}
+      {/* DIFERENCIAIS — feature grid */}
       <section className={styles.diffs}>
         <div className={styles.diffsInner}>
           <div className={styles.sectionLabelWrap}>
@@ -315,7 +333,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* COMO FUNCIONA — 3 passos (padrão gdpro.app) */}
+      {/* COMO FUNCIONA — 3 passos */}
       <section className={styles.how}>
         <div className={styles.howInner}>
           <div className={styles.sectionLabelWrap}>
@@ -402,7 +420,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* COMPARATIVO — com/sem SolarDoc (padrão gdpro.app) */}
+      {/* COMPARATIVO — com/sem SolarDoc */}
       <section className={styles.compare}>
         <div className={styles.compareInner}>
           <div className={styles.sectionLabelWrap}>
@@ -449,6 +467,65 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* QUEM FEZ — foto dos dois donos */}
+      <section className={styles.founders}>
+        <div className={styles.foundersInner}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Quem fez</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
+            Não é software de escritório. <strong>É de quem vende solar.</strong>
+          </h2>
+
+          <div className={styles.foundersCard} data-reveal>
+            <div className={styles.foundersPeople}>
+              <figure className={styles.founder}>
+                <img src="/founder-thiago.webp" width={128} height={128} alt="Thiago, sócio-fundador do SolarDoc" loading="lazy" />
+                <figcaption>
+                  <span className={styles.founderName}>Thiago</span>
+                  <span className={styles.founderRole}>Sócio-fundador</span>
+                </figcaption>
+              </figure>
+              <figure className={styles.founder}>
+                <img src="/founder-diego.webp" width={128} height={128} alt="Diego, sócio-fundador do SolarDoc" loading="lazy" />
+                <figcaption>
+                  <span className={styles.founderName}>Diego</span>
+                  <span className={styles.founderRole}>Sócio-fundador</span>
+                </figcaption>
+              </figure>
+            </div>
+
+            <div className={styles.foundersText}>
+              <p>
+                A gente é o <b>Thiago e o Diego</b>, irmãos, do Triângulo Mineiro. Trabalhamos com
+                energia solar — e o SolarDoc nasceu de um problema que era nosso: <b>a venda esfriava
+                esperando papel</b>. Proposta no Word, contrato remendado, procuração recusada na
+                concessionária, tarde inteira perdida.
+              </p>
+              <p>
+                Montamos a ferramenta pra usar no nosso dia a dia e depois abrimos pros outros
+                integradores. Por isso ela não tem nada sobrando: <b>tem o que a gente usa pra
+                fechar venda</b>.
+              </p>
+              <p className={styles.foundersKicker}>
+                Quando você chama o suporte no WhatsApp, quem responde é um de nós dois. Não é robô,
+                não é central.
+              </p>
+              <a
+                href={WHATSAPP}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.foundersWa}
+                onClick={() => trackEvent('cta_click', { label: 'whatsapp_founders' })}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.17h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.11.82.83-3.04-.2-.31a8.22 8.22 0 0 1-1.26-4.4c0-4.54 3.7-8.23 8.24-8.23 2.2 0 4.27.86 5.83 2.41a8.19 8.19 0 0 1 2.41 5.83c0 4.54-3.7 8.25-8.24 8.25zm4.52-6.17c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.78.97-.14.16-.29.18-.53.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.43.12-.15.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.48c-.16 0-.43.06-.65.31-.22.25-.86.84-.86 2.05s.88 2.38 1 2.54c.12.16 1.73 2.64 4.2 3.71.59.25 1.04.4 1.4.52.59.19 1.12.16 1.54.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.11-.22-.17-.47-.29z"/></svg>
+                Falar com a gente no WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* PROVA SOCIAL */}
       <section className={styles.social}>
         <div className={styles.socialInner}>
@@ -476,79 +553,88 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PLANS — PRO + VIP (7 dias grátis) */}
+      {/* OFERTA — plano único */}
       <section id="planos" className={styles.plans} style={{ scrollMarginTop: 80 }}>
         <div className={styles.plansInner}>
           <div className={styles.sectionLabelWrap}>
-            <span className={styles.sectionLabel} data-reveal>Planos</span>
+            <span className={styles.sectionLabel} data-reveal>A oferta</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            Escolha seu plano. <strong>7 dias grátis nos dois.</strong>
+            Um preço só. <strong>Tudo liberado.</strong>
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            Teste a plataforma completa por 7 dias. Só é cobrado se continuar — cancele quando quiser, sem fidelidade.
+            Sem versão capada, sem escolher entre plano A e B, sem esperar liberação.
+            Você assina e entra na plataforma completa na hora.
           </p>
 
-          {/* CARDS — 3 colunas (auto-fit) */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: 22,
-              marginTop: 40,
-              maxWidth: 760,
-              marginLeft: 'auto',
-              marginRight: 'auto',
-              alignItems: 'stretch',
-            }}
-          >
-            <div className={styles.plan} data-reveal style={{ transitionDelay: '0.05s', opacity: 0.9 }}>
-              <div className={styles.planName}>Pro</div>
-              <div className={styles.planPrice}>R$ {PRICES.pro}<small>/mês</small></div>
-              <div className={styles.planSub}>
-                7 dias grátis · cancela quando quiser<br />
-                <span style={{ opacity: 0.7 }}>Pra quem tá começando — 90 documentos por mês</span>
+          <div className={styles.offer} data-reveal>
+            <div className={styles.offerTag}>Acesso imediato</div>
+
+            <div className={styles.offerHead}>
+              <div>
+                <div className={styles.offerName}>SolarDoc Pro — completo</div>
+                <div className={styles.offerPrice}>
+                  <span>R$</span>{PRICE}<small>/mês</small>
+                </div>
+                <div className={styles.offerPerDay}>
+                  dá <b>R$ {PRICE_DIA} por dia</b> — menos que o combustível de uma visita
+                </div>
+
+                {/* Garantia de 7 dias — mesma política que a Sol (suporte) já informa
+                    aos clientes: devolução total sem perguntas. É o que substitui o
+                    risco que o trial cobria, agora que a cobrança é imediata. */}
+                <div className={styles.guarantee}>
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                  <div>
+                    <b>Garantia de 7 dias.</b> Não serviu? Chama no WhatsApp dentro dos 7 dias
+                    que a gente devolve o valor integral, sem perguntas.
+                  </div>
+                </div>
               </div>
-              <ul className={styles.planList}>
-                <li>Os 8 tipos de documento com a sua marca</li>
-                <li>Cláusulas prontas pro setor solar</li>
-                <li>Cancela quando quiser, sem multa</li>
-                <li className={styles.off}>Documentos ilimitados</li>
-                <li className={styles.off}>Histórico salvo pra sempre</li>
-                <li className={styles.off}>Cadastro de prestadores parceiros</li>
-                <li className={styles.off}>Voz no roadmap: peça novos recursos</li>
+
+              <ul className={styles.offerList}>
+                <li><b>Documentos ilimitados</b> — sem teto no mês</li>
+                <li>Os <b>8 tipos de documento</b> com a sua logo e a sua cor</li>
+                <li>Proposta solar completa pronta pra enviar no WhatsApp</li>
+                <li>Procurações aceitas nas principais concessionárias</li>
+                <li>Calculadora de precificação e controle de inventário</li>
+                <li>Cadastro de clientes e de prestadores parceiros</li>
+                <li>Escaneia a conta de luz e preenche o cliente sozinho</li>
+                <li><b>Histórico salvo pra sempre</b> — acha qualquer contrato depois</li>
+                <li>Atualizações e recursos novos inclusos, sem pagar mais</li>
+                <li>Suporte no WhatsApp direto com quem fez a plataforma</li>
               </ul>
-              <button onClick={() => { trackEvent('cta_click', { label: 'pro_downsell_open' }); setShowDownsell(true); }} className={styles.planBtn} disabled={checkoutLoading !== null}>
-                Testar 7 dias grátis
-              </button>
             </div>
 
-            <div className={`${styles.plan} ${styles.planFeatured}`} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.planTag}>Mais escolhido</div>
-              <div className={styles.planName}>VIP</div>
-              <div className={styles.planPrice}>R$ {PRICES.vip}<small>/mês</small></div>
-              <div className={styles.planSub}>
-                7 dias grátis · cancela quando quiser<br />
-                <span style={{ opacity: 0.7 }}>Pra empresa solar que vende todo dia — sem limite nenhum</span>
-              </div>
-              <ul className={styles.planList}>
-                <li>Os 8 tipos de documento com a sua marca</li>
-                <li>Cláusulas prontas pro setor solar</li>
-                <li>Cancela quando quiser, sem multa</li>
-                <li><b>Documentos ilimitados</b> — sem teto mensal</li>
-                <li><b>Histórico salvo pra sempre</b></li>
-                <li>Cadastro de prestadores parceiros</li>
-                <li>Voz no roadmap: peça novos recursos</li>
-              </ul>
-              <button onClick={() => goToRegister('vip')} className={`${styles.planBtn} ${styles.planBtnPrimary}`} disabled={checkoutLoading !== null}>
-                {checkoutLoading === 'vip' ? 'Abrindo checkout...' : 'Testar 7 dias grátis'}
-              </button>
+            <button
+              onClick={() => goToCheckout('oferta')}
+              className={styles.offerBtn}
+              disabled={checkoutLoading}
+            >
+              {ctaLabel}
+            </button>
+
+            <div className={styles.offerFoot}>
+              Cobrança na hora, no cartão. Liberou o pagamento, você já cria a senha e entra.
+              <br />
+              Sem fidelidade — cancela sozinho em <b>Minha conta → Gerenciar assinatura</b>.
             </div>
           </div>
 
-          <p data-reveal style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: '#94a3b8' }}>
-            Os 7 dias grátis valem pros dois planos. A primeira cobrança só acontece no 8º dia — cancelou antes? Não paga nada.
-          </p>
+          <div className={styles.offerBadges} data-reveal>
+            <span className={styles.offerBadge}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Pagamento seguro pela Stripe
+            </span>
+            <span className={styles.offerBadge}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+              Cancela quando quiser, sem multa
+            </span>
+            <span className={styles.offerBadge}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M21 11.5a8 8 0 0 1-11.5 7.2L4 20l1.3-5.5A8 8 0 1 1 21 11.5z"/></svg>
+              Suporte com o dono, no WhatsApp
+            </span>
+          </div>
         </div>
       </section>
 
@@ -559,23 +645,42 @@ export default function Landing() {
             <span className={styles.sectionLabel} data-reveal>Perguntas frequentes</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            Tira a dúvida. Depois cadastra.
+            Tira a dúvida. Depois assina.
           </h2>
 
           <div className={styles.faqList}>
             <details className={styles.faqItem} data-reveal>
-              <summary>Como funcionam os 7 dias grátis?</summary>
+              <summary>Quando eu sou cobrado e quando libera?</summary>
               <div className={styles.faqAnswer}>
-                Você escolhe Pro ou VIP, cadastra o cartão e usa a plataforma completa por 7 dias sem pagar nada.
-                A <b>primeira cobrança só acontece no 8º dia</b>. Cancelou antes? Não é cobrado. Sem letra miúda.
+                A cobrança é <b>na hora</b>: você passa o cartão no checkout da Stripe e o acesso já é
+                liberado. Na sequência você define a senha e entra na plataforma. Depois disso,
+                renova uma vez por mês, no mesmo dia.
               </div>
             </details>
 
             <details className={styles.faqItem} data-reveal>
-              <summary>Qual a diferença entre Pro e VIP?</summary>
+              <summary>E se eu pagar e não gostar?</summary>
               <div className={styles.faqAnswer}>
-                O <b>Pro (R$ {PRICES.pro}/mês)</b> dá 90 documentos por mês — ideal pra quem fecha de 5 a 15 vendas.
-                O <b>VIP (R$ {PRICES.vip}/mês)</b> é ilimitado, com mentoria e suporte prioritário, pra empresa com volume alto.
+                Você tem <b>7 dias de garantia</b>: se não servir pra você, devolvemos o valor
+                integral, sem perguntas. É só chamar no WhatsApp dentro dos 7 dias.
+              </div>
+            </details>
+
+            <details className={styles.faqItem} data-reveal>
+              <summary>Tem plano mais barato?</summary>
+              <div className={styles.faqAnswer}>
+                Não tem plano capado. É <b>um preço só, R$ {PRICE} por mês</b>, com tudo liberado —
+                documentos ilimitados, histórico permanente e todos os recursos. A gente cortou os
+                planos menores justamente pra ninguém entrar e descobrir que o que precisa está no
+                plano de cima.
+              </div>
+            </details>
+
+            <details className={styles.faqItem} data-reveal>
+              <summary>Posso cancelar depois?</summary>
+              <div className={styles.faqAnswer}>
+                Pode, a qualquer momento e sem multa: <b>Minha conta → Gerenciar assinatura</b>. Você
+                mesmo cancela, sem precisar pedir pra ninguém, e não é cobrado no mês seguinte.
               </div>
             </details>
 
@@ -612,6 +717,14 @@ export default function Landing() {
                 <b> Sai perfeito.</b>
               </div>
             </details>
+
+            <details className={styles.faqItem} data-reveal>
+              <summary>Já assino um plano antigo. Muda alguma coisa?</summary>
+              <div className={styles.faqAnswer}>
+                Nada muda: sua assinatura continua valendo pelo mesmo valor de sempre. Se quiser subir
+                pro acesso completo, é pelo próprio painel — e a diferença é cobrada proporcional.
+              </div>
+            </details>
           </div>
         </div>
       </section>
@@ -624,14 +737,14 @@ export default function Landing() {
             <strong>proposta e contrato prontos em 2 minutos.</strong>
           </h2>
           <p className={styles.finalCtaSub} data-reveal>
-            Teste o melhor gerador de proposta do Brasil por 7 dias grátis.
+            Um plano só, R$ {PRICE} por mês, tudo liberado — e você entra hoje mesmo.
           </p>
           <div data-reveal>
-            <button className={styles.finalCtaBtn} onClick={scrollToPlans}>
-              Testar 7 dias grátis →
+            <button className={styles.finalCtaBtn} onClick={() => goToCheckout('final')} disabled={checkoutLoading}>
+              {checkoutLoading ? 'Abrindo checkout...' : 'Assinar agora →'}
             </button>
             <div className={styles.finalCtaFoot}>
-              Pro R$ {PRICES.pro}/mês ou VIP R$ {PRICES.vip}/mês · cancele quando quiser, sem fidelidade.
+              R$ {PRICE}/mês · acesso na hora · garantia de 7 dias · cancele quando quiser.
             </div>
           </div>
         </div>
@@ -644,96 +757,21 @@ export default function Landing() {
             <strong>SolarDoc Pro</strong> · Documentação solar com IA · {new Date().getFullYear()}
           </div>
           <div className={styles.footerLinks}>
-            <a href="https://wa.me/5534998165040" target="_blank" rel="noopener noreferrer">Suporte WhatsApp</a>
+            <a href={WHATSAPP} target="_blank" rel="noopener noreferrer">Suporte WhatsApp</a>
           </div>
         </div>
       </footer>
 
-      {/* ===== POPUP DOWNSELL — clicou no Pro, oferece o VIP com desconto (R$ 49/mês) ===== */}
-      {showDownsell && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="downsellTitle"
-          onClick={() => setShowDownsell(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 1000,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 16, background: 'rgba(15,23,42,0.72)', backdropFilter: 'blur(3px)',
-          }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              position: 'relative', width: '100%', maxWidth: 440,
-              background: '#fff', color: '#0f172a', borderRadius: 20,
-              padding: '30px 26px 26px', boxShadow: '0 24px 70px rgba(2,6,23,0.45)',
-              border: '1px solid rgba(148,163,184,0.25)',
-            }}
-          >
-            <button
-              type="button" aria-label="Fechar" onClick={() => setShowDownsell(false)}
-              style={{
-                position: 'absolute', top: 12, right: 14, width: 32, height: 32,
-                border: 'none', background: 'transparent', color: '#94a3b8',
-                fontSize: 26, lineHeight: 1, cursor: 'pointer',
-              }}
-            >×</button>
-
-            <div style={{
-              display: 'inline-block', fontSize: 12, fontWeight: 700, letterSpacing: 0.3,
-              textTransform: 'uppercase', color: '#16a34a', background: 'rgba(22,163,74,0.10)',
-              padding: '5px 11px', borderRadius: 999, marginBottom: 14,
-            }}>
-              Espere! Oferta exclusiva pra você
-            </div>
-
-            <h3 id="downsellTitle" style={{ fontSize: 22, lineHeight: 1.25, margin: '0 0 14px', fontWeight: 800 }}>
-              Leve o <span style={{ color: '#16a34a' }}>VIP</span> com tudo ilimitado
-            </h3>
-
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
-              <span style={{ fontSize: 17, color: '#94a3b8', textDecoration: 'line-through' }}>R$ {PRICES.vip}</span>
-              <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1 }}>
-                <span style={{ fontSize: 20, fontWeight: 700, verticalAlign: '6px' }}>R$ </span>{PRICES.vipPromo}
-                <small style={{ fontSize: 15, fontWeight: 600, color: '#64748b' }}>/mês</small>
-              </span>
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a', marginBottom: 16 }}>
-              Você economiza R$ {PRICES.vip - PRICES.vipPromo} todo mês
-            </div>
-
-            <p style={{ fontSize: 14, lineHeight: 1.6, color: '#475569', margin: '0 0 20px' }}>
-              No Pro você tem <b>90 documentos por mês</b>. No VIP é <b>tudo ilimitado</b> — documentos,
-              histórico salvo pra sempre e cadastro de prestadores parceiros. Os mesmos <b>7 dias grátis</b>:
-              a primeira cobrança só acontece no 8º dia.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => goToRegister('vip_promo')}
-              disabled={checkoutLoading !== null}
-              className={`${styles.planBtn} ${styles.planBtnPrimary}`}
-              style={{ width: '100%' }}
-            >
-              {checkoutLoading === 'vip_promo' ? 'Abrindo checkout...' : `Quero o VIP por R$ ${PRICES.vipPromo}/mês →`}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => goToRegister('pro')}
-              disabled={checkoutLoading !== null}
-              style={{
-                display: 'block', width: '100%', marginTop: 12, padding: 8,
-                border: 'none', background: 'transparent', color: '#94a3b8',
-                fontSize: 13, cursor: 'pointer', textDecoration: 'underline',
-              }}
-            >
-              {checkoutLoading === 'pro' ? 'Abrindo checkout...' : `Não, seguir com o Pro (R$ ${PRICES.pro}/mês)`}
-            </button>
-          </div>
+      {/* BARRA DE COMPRA FIXA — mobile */}
+      <div className={`${styles.buyBar} ${showBar ? styles.buyBarOn : ''}`}>
+        <div className={styles.buyBarInfo}>
+          <b>R$ {PRICE}/mês</b>
+          <span>tudo liberado · na hora</span>
         </div>
-      )}
+        <button onClick={() => goToCheckout('barra_fixa')} className={styles.buyBarBtn} disabled={checkoutLoading}>
+          {checkoutLoading ? 'Abrindo...' : 'Assinar agora'}
+        </button>
+      </div>
     </div>
   );
 }

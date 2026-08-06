@@ -50,11 +50,11 @@ const TONS_SEM_CNPJ: Record<number, { tom: string; objetivo: string }> = {
   },
   2: {
     tom: 'Consultora que entende o negócio. Conecta a dor dele a UM ganho concreto (proposta com payback na frente do cliente, contrato com a marca dele).',
-    objetivo: 'Mostrar o valor de virar assinante e conduzir pro trial: "põe o cartão, testa 7 dias sem pagar, cancela quando quiser". Preços PRO 27 / VIP 67.',
+    objetivo: 'Mostrar o valor de virar assinante e conduzir pro checkout: "põe o cartão, entra na hora; se em 7 dias não servir, devolvo o dinheiro". Plano único R$67/mês, cobrança imediata — NÃO prometer 7 dias grátis.',
   },
   3: {
     tom: 'Direta e calorosa, encerra com classe. Sem pressão.',
-    objetivo: 'Última pergunta clara: faz sentido testar 7 dias grátis pra ver funcionando, ou prefere que eu não te incomode mais? O cliente decide.',
+    objetivo: 'Última pergunta clara: faz sentido entrar agora (tem garantia de 7 dias, se não servir devolve), ou prefere que eu não te incomode mais? O cliente decide.',
   },
 };
 
@@ -75,19 +75,19 @@ const TONS_INATIVO: Record<number, { tom: string; objetivo: string }> = {
   },
   2: {
     tom: 'Valor concreto. "Quem opera com a própria marca e proposta com payback fecha mais rápido."',
-    objetivo: 'Conectar a dor a um ganho e conduzir pro trial pago (7 dias grátis no cartão). Convidar pra testar com 1 venda desta semana.',
+    objetivo: 'Conectar a dor a um ganho e conduzir pro checkout (R$67/mês, cobra na hora, garantia de 7 dias). Convidar pra usar já numa venda desta semana.',
   },
   3: {
     tom: 'Pergunta dor — qual ferramenta tá usando hoje pros docs/propostas?',
-    objetivo: 'Entender o gargalo. Se usa Word/manual, mostra o ganho de assinar e oferece o trial pra ele sentir.',
+    objetivo: 'Entender o gargalo. Se usa Word/manual, mostra o ganho de assinar e lembra que a garantia de 7 dias tira o risco.',
   },
   4: {
     tom: 'Prova social leve + valor. Integradores que assinam saem na frente do concorrente.',
-    objetivo: 'Acender pertencimento sem inventar nomes. Conduzir pro trial de 7 dias (PRO 27 / VIP 67).',
+    objetivo: 'Acender pertencimento sem inventar nomes. Conduzir pro plano único (R$67/mês, garantia de 7 dias).',
   },
   5: {
     tom: 'Última pergunta direta e calorosa, sem rodeio. Encerra com classe se for o caso.',
-    objetivo: 'O cliente decide: testa 7 dias grátis pra ver funcionando, ou encerro? Deixa porta aberta.',
+    objetivo: 'O cliente decide: entra agora (com garantia de 7 dias) pra ver funcionando, ou encerro? Deixa porta aberta.',
   },
 };
 
@@ -129,8 +129,8 @@ function carlaSystem(args: {
   linhas.push(``);
   linhas.push(`SUA MISSÃO (converter em ASSINANTE — NÃO existe mais plano grátis pra oferecer):`);
   linhas.push(`- Você está reabrindo a conversa pra CONVERTER este usuário num assinante pago (PRO R$27 ou VIP R$67).`);
-  linhas.push(`- A entrada é o TRIAL: escolhe o plano, põe o cartão, 7 dias grátis, só cobra no 8º dia, cancela quando quiser.`);
-  linhas.push(`- NUNCA ofereça "plano grátis", "10 docs grátis" ou "sem cartão" — isso ACABOU. Se citar valor, é PRO 27 / VIP 67 com 7 dias grátis.`);
+  linhas.push(`- A entrada é PAGANDO: põe o cartão, cobra na hora e o acesso libera na hora. NÃO existe mais trial de 7 dias — o que tira o risco é a GARANTIA de 7 dias (devolução integral). Cancela quando quiser.`);
+  linhas.push(`- NUNCA ofereça "plano grátis", "10 docs grátis", "sem cartão" ou "7 dias grátis" — isso ACABOU. Se citar valor, é PLANO ÚNICO R$67/mês com garantia de 7 dias.`);
   linhas.push(`- Venda a transformação (parecer/operar mais profissional, fechar mais rápido), não a ferramenta. Uma tacada certeira por mensagem.`);
   linhas.push(`- ATENDIMENTO em 1º lugar: aja como quem genuinamente quer AJUDAR a resolver o gargalo dele, não como quem só quer vender. O produto é de qualidade — venda com a confiança de quem não precisa dar desconto nem pressionar. Nunca ofereça desconto/cupom.`);
   linhas.push(`- ARGUMENTOS DE VALOR (use com convicção — UM forte por mensagem): proposta com PAYBACK na frente do cliente + contrato com a MARCA dele = fecha mais rápido e passa muito mais profissional; documento pronto em ~2min (vs. horas no Word/manual). Você acredita: isso agrega demais pro integrador.`);
@@ -145,7 +145,7 @@ function carlaSystem(args: {
   linhas.push(`- Termine de um jeito que gere resposta natural — uma pergunta curta direta.`);
   linhas.push(`- NÃO use markdown.`);
   linhas.push(`- Se ele já gerou ${args.totalDocs ?? 0} docs antes, reconhece sem bajular.`);
-  linhas.push(`- O link ${APP_URL} leva ao checkout do plano (7 dias grátis no cartão). Mande no máximo UMA vez na cadência, quando ele mostrar interesse.`);
+  linhas.push(`- O link ${APP_URL} leva ao checkout do plano (R$67 cobrado na hora). Mande no máximo UMA vez na cadência, quando ele mostrar interesse.`);
   linhas.push(`- Saída: APENAS o texto da mensagem (com || pra separar bolhas se for o caso). Sem aspas, sem prefixo.`);
   return linhas.join('\n');
 }
@@ -166,14 +166,14 @@ async function gerarMsgCarla(args: Parameters<typeof carlaSystem>[0]): Promise<s
     const fb: Record<string, Record<number, string>> = {
       sem_cnpj: {
         1: `${args.nome}, vi que você cadastrou e parou no começo. || Como tu monta proposta e contrato pro cliente hoje?`,
-        2: `${args.nome}, voltei aqui. A plataforma gera proposta com payback e contrato com a tua marca em 2min. || Testa 7 dias grátis, só põe o cartão e cancela quando quiser: ${APP_URL}`,
-        3: `${args.nome}, posso te perguntar direto? Faz sentido testar 7 dias grátis pra ver funcionando, ou prefere que eu encerre por aqui?`,
+        2: `${args.nome}, voltei aqui. A plataforma gera proposta com payback e contrato com a tua marca em 2min. || R$67/mês, entra na hora — e se em 7 dias não servir, devolvo: ${APP_URL}`,
+        3: `${args.nome}, posso te perguntar direto? Faz sentido entrar agora pra ver funcionando (com garantia de 7 dias), ou prefere que eu encerre por aqui?`,
       },
       inativo: {
         1: `${args.nome}, tudo certo por aí? Faz uns dias que não te vejo na plataforma.`,
         2: `${args.nome}, quem roda a proposta com a própria marca e payback fecha mais rápido. Tem alguma venda essa semana pra testar?`,
         3: `${args.nome}, qual ferramenta você tá usando pros docs hoje? Tô curiosa.`,
-        4: `${args.nome}, integrador que assina sai na frente do concorrente. || Testa 7 dias grátis (só cobra no 8º dia): ${APP_URL}`,
+        4: `${args.nome}, integrador que assina sai na frente do concorrente. || R$67/mês com garantia de 7 dias: ${APP_URL}`,
         5: `${args.nome}, vou encerrar pra não te incomodar. Quando quiser testar, ${APP_URL} tá aí. Abs.`,
       },
     };

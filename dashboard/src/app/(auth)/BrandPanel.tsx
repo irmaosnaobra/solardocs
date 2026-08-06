@@ -7,8 +7,8 @@ type Plano = 'pro' | 'vip' | null;
 
 const BENEFITS: Record<'pro' | 'vip', { headline: string; sub: string; items: string[] }> = {
   pro: {
-    headline: 'Plano Pro · 7 dias grátis',
-    sub: 'Pro integrador que fecha 5–15 vendas/mês. Cobrado só após os 7 dias.',
+    headline: 'Plano Pro · acesso imediato',
+    sub: 'Pro integrador que fecha 5–15 vendas/mês. Cancele quando quiser, sem fidelidade.',
     items: [
       '90 documentos por mês',
       'Gerador de Proposta com sua marca',
@@ -19,8 +19,9 @@ const BENEFITS: Record<'pro' | 'vip', { headline: string; sub: string; items: st
     ],
   },
   vip: {
-    headline: 'Plano VIP · 7 dias grátis',
-    sub: 'Pra empresa solar consolidada. Cobrado só após os 7 dias.',
+    // Plano único desde 06/08/2026: cobrança na hora, sem os 7 dias grátis.
+    headline: 'Plano VIP · acesso imediato',
+    sub: 'Tudo liberado por R$ 67/mês. Cancele quando quiser, sem fidelidade.',
     items: [
       'Documentos ilimitados',
       'Gerador de Proposta com sua marca',

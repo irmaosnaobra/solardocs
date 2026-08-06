@@ -76,7 +76,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
       </div>`,
   },
   2: {
-    subject: 'R$ 200/mês em gerador de proposta? Aqui vem incluso a partir de R$ 27',
+    subject: 'R$ 200/mês em gerador de proposta? Aqui vem incluso no plano de R$ 67',
     html: `
       <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
         <div style="background:#f59e0b;padding:28px 36px;">
@@ -85,7 +85,7 @@ const followupEmails: Record<number, { subject: string; html: string }> = {
         </div>
         <div style="padding:36px;">
           <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 20px;">Os geradores especializados do mercado cobram entre <strong style="color:#f59e0b;">R$ 100 e R$ 300 por mês</strong> — e te entregam um template engessado, igual ao do concorrente.</p>
-          <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 22px;">No SolarDoc, o Gerador de Proposta vem <strong style="color:#fbbf24;">incluso no plano a partir de R$ 27/mês</strong> — e ainda vem com:</p>
+          <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 22px;">No SolarDoc, o Gerador de Proposta vem <strong style="color:#fbbf24;">incluso no plano de R$ 67/mês</strong> — e ainda vem com:</p>
           <div style="margin:0 0 28px;">
             <p style="color:#e2e8f0;font-size:14px;line-height:2;margin:0;">
               ✓ Contratos de compra e venda solar<br>
@@ -286,9 +286,9 @@ export async function sendUpgradeNudgeEmail(email: string, userId: string, toque
 }
 
 // Email pra quem cadastrou mas não passou cartão (abandonou o checkout do Stripe).
-// Diferente do followup CNPJ — copy é cirúrgico no plano VIP + trial.
+// Diferente do followup CNPJ — copy é cirúrgico no plano VIP (cobrança imediata + garantia de 7 dias).
 export async function sendCheckoutRecoveryEmail(email: string, userId: string): Promise<void> {
-  const subject = 'Faltou só o cartão — seus 7 dias grátis estão te esperando';
+  const subject = 'Faltou só o cartão — seu acesso está te esperando';
   const html = `
 <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
   <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:32px 36px;">
@@ -302,7 +302,7 @@ export async function sendCheckoutRecoveryEmail(email: string, userId: string): 
       Vi aqui que você começou a ativar o <strong style="color:#fbbf24;">Plano VIP</strong> mas parou na hora do cartão.
     </p>
     <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 18px;">
-      <strong style="color:#f8fafc;">Lembrando o que você ganha nos 7 dias grátis:</strong>
+      <strong style="color:#f8fafc;">Lembrando o que entra no plano:</strong>
     </p>
     <ul style="color:#cbd5e1;font-size:14.5px;line-height:1.9;margin:0 0 24px;padding-left:22px;">
       <li>Documentos <strong style="color:#f8fafc;">ilimitados</strong></li>
@@ -580,7 +580,7 @@ export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId:
   </div>
   <div style="padding:32px 36px;">
     <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">
-      <strong style="color:#fbbf24;">Pagamento aprovado!</strong> Seus <strong style="color:#fbbf24;">7 dias grátis</strong>${planoLabel ? ` no plano <strong style="color:#fbbf24;">${planoLabel}</strong>` : ''} já estão ativos.
+      <strong style="color:#fbbf24;">Pagamento aprovado!</strong> Seu acesso${planoLabel ? ` ao plano <strong style="color:#fbbf24;">${planoLabel}</strong>` : ''} já está <strong style="color:#fbbf24;">liberado</strong>.
     </p>
     <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">
       Falta só <strong style="color:#f8fafc;">definir sua senha</strong> pra entrar na plataforma — seu e-mail e plano já estão garantidos. É 1 passo, leva 10 segundos:
@@ -723,7 +723,7 @@ export async function sendAbandonedCartEmail(opts: { to: string; produto: string
   </div>
   <div style="padding:30px 34px;">
     <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 16px;">${ola} vi que você começou a assinar o <strong style="color:#fbbf24;">SolarDoc ${opts.produto}</strong> mas o pagamento não foi concluído.</p>
-    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">Sem stress — retomar leva 1 minuto e você já começa a gerar contratos, propostas e documentos com a sua marca. Os 7 dias grátis continuam de pé.</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">Sem stress — retomar leva 1 minuto e você já começa a gerar contratos, propostas e documentos com a sua marca. E tem garantia de 7 dias: não serviu, devolvemos.</p>
     <div style="text-align:center;margin:26px 0 8px;">
       <a href="${opts.recoverUrl}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:17px 40px;border-radius:12px;text-decoration:none;">Retomar pelo cartão →</a>
     </div>

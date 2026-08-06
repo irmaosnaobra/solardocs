@@ -51,8 +51,13 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
+// Imagem estática NUNCA passa pelo proxy. Era lista de nome de arquivo (só o
+// hero-produto.webp estava lá) e por isso as fotos novas da LP (founder-*.webp)
+// levaram 307 pro /auth e apareceram quebradas pro visitante deslogado — o
+// arquivo existia em /public, quem barrava era este matcher. Regra por extensão
+// mata a classe do bug: toda imagem nova entra sozinha.
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|icon-192.png|icon-512.png|icon-maskable-512.png|manifest.webmanifest|manifest.json|sw.js|hero-produto.webp).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|manifest.json|sw.js|.*\\.(?:webp|png|jpg|jpeg|gif|svg|ico)$).*)',
   ],
 };

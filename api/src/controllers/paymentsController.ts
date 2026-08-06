@@ -34,8 +34,13 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
     priceId: envPrice('STRIPE_PRICE_VIP', 'price_1TUh2yCkkgzQ4IHeZqy52Zu2'),
     plano: 'ilimitado',
     limite: 999999,
-    valor: 67, // preço mensal real (R$) — espelha PRICES.vip da Landing. Usado no value do Purchase (Meta CAPI).
-    descricao: '📄 Documentos ilimitados  •  Indicado para +20 vendas mensais  •  Dashboard completo  •  Acesso a toda expansão da plataforma  •  Suporte prioritário',
+    valor: 67, // preço mensal real (R$) — espelha PRICE da Landing. Usado no value do Purchase (Meta CAPI).
+    // PLANO ÚNICO (06/08/2026): a LP virou uma oferta só, R$ 67 com PAGAMENTO
+    // IMEDIATO — o trial de 7 dias saiu. É este 0 que faz o Stripe cobrar no
+    // ato (o checkout volta payment_status='paid', a sub nasce 'active' e o
+    // webhook já grava a venda como paga em vez de 'trialing').
+    trialDias: 0,
+    descricao: '📄 Documentos ilimitados  •  Todos os 8 documentos com a sua marca  •  Histórico permanente  •  Calculadora e inventário  •  Suporte no WhatsApp com o dono',
   },
   // Removido em 30/07/2026: 'vip_curso' era o VIP da campanha "o curso entra
   // junto", com cobrança imediata como contrapartida. Assinatura não libera mais

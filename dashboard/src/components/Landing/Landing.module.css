@@ -2108,3 +2108,385 @@
   .heroProduct img { border-radius: 12px; }
 }
 
+/* ============================================================
+   PLANO ÚNICO (06/08/2026) — hero com preço, bloco dos donos,
+   card da oferta e barra de compra fixa no mobile.
+   ============================================================ */
+
+/* ---------- HERO: selo de preço abaixo do CTA ---------- */
+.pricePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.09);
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.pricePill b {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: -0.01em;
+}
+.pricePillSep {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.6);
+}
+
+/* ---------- HERO: quem fez, com as fotos ---------- */
+.heroFounders {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 26px;
+  padding: 8px 16px 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(30, 41, 59, 0.55);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+  text-align: left;
+  max-width: 100%;
+}
+.heroFounders b { color: var(--color-text); font-weight: 700; }
+.heroFoundersPics {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.heroFoundersPics img {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 2px solid #0F172A;
+  box-shadow: 0 2px 10px rgba(2, 6, 23, 0.5);
+}
+.heroFoundersPics img + img { margin-left: -14px; }
+
+/* ---------- SEÇÃO: QUEM FEZ ---------- */
+.founders {
+  padding: 80px 20px;
+  background: linear-gradient(180deg, transparent, rgba(30, 41, 59, 0.35));
+}
+.foundersInner { max-width: 1000px; margin: 0 auto; }
+.foundersCard {
+  margin-top: 40px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  align-items: center;
+  padding: 34px 30px;
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(245, 158, 11, 0.09), transparent 60%),
+    var(--color-surface);
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
+}
+@media (min-width: 820px) {
+  .foundersCard { grid-template-columns: 260px 1fr; gap: 38px; padding: 40px 38px; }
+}
+.foundersPeople {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+.founder {
+  margin: 0;
+  text-align: center;
+}
+.founder img {
+  width: 112px;
+  height: 112px;
+  border-radius: 999px;
+  object-fit: cover;
+  display: block;
+  border: 2px solid rgba(245, 158, 11, 0.5);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.55);
+}
+.founder figcaption {
+  display: block;
+  margin-top: 12px;
+}
+.founderName {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+.founderRole {
+  display: block;
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.foundersText p {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--color-text-muted);
+  margin: 0 0 14px;
+}
+.foundersText b { color: var(--color-text); font-weight: 700; }
+.foundersKicker {
+  padding-left: 14px;
+  border-left: 3px solid var(--color-primary);
+}
+.foundersWa {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 6px;
+  padding: 11px 18px;
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 0.15s, transform 0.15s;
+}
+.foundersWa:hover { background: rgba(34, 197, 94, 0.2); transform: translateY(-1px); }
+
+/* ---------- OFERTA — card único ---------- */
+.offer {
+  position: relative;
+  max-width: 860px;
+  margin: 44px auto 0;
+  padding: 40px 36px 32px;
+  border-radius: 24px;
+  border: 2px solid rgba(245, 158, 11, 0.55);
+  background:
+    radial-gradient(90% 80% at 50% 0%, rgba(245, 158, 11, 0.14), transparent 62%),
+    linear-gradient(180deg, #1b2437, #16203100);
+  background-color: var(--color-surface);
+  box-shadow: 0 30px 80px rgba(2, 6, 23, 0.55), 0 0 0 6px rgba(245, 158, 11, 0.05);
+}
+.offerTag {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #0f172a;
+  font-size: 11.5px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 8px 22px rgba(245, 158, 11, 0.4);
+}
+.offerHead {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 26px;
+  align-items: start;
+}
+@media (min-width: 820px) {
+  .offerHead { grid-template-columns: 275px 1fr; gap: 38px; }
+}
+.offerName {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 10px;
+}
+.offerPrice {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 64px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #fff;
+}
+.offerPrice span { font-size: 26px; font-weight: 800; color: var(--color-text-muted); }
+.offerPrice small { font-size: 17px; font-weight: 700; color: var(--color-text-muted); }
+.offerPerDay {
+  margin-top: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+.offerPerDay b { color: #fbbf24; font-weight: 800; }
+.offerList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 11px;
+}
+.offerList li {
+  position: relative;
+  padding-left: 28px;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+.offerList li b { color: var(--color-text); font-weight: 700; }
+.offerList li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 19px;
+  height: 19px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: #0f172a;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+}
+.offerBtn {
+  display: block;
+  width: 100%;
+  margin-top: 30px;
+  padding: 19px 24px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s, filter 0.15s;
+  box-shadow: 0 16px 44px rgba(245, 158, 11, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.offerBtn:hover { transform: translateY(-2px); box-shadow: 0 24px 56px rgba(245, 158, 11, 0.55); }
+.offerBtn:disabled { opacity: 0.75; cursor: not-allowed; transform: none; }
+.offerFoot {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+.offerFoot b { color: var(--color-text-muted); font-weight: 700; }
+.guarantee {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px dashed rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.07);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+.guarantee svg { color: #4ade80; flex: 0 0 auto; }
+.guarantee b { color: #4ade80; font-weight: 800; }
+
+.offerBadges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 14px;
+  margin-top: 26px;
+}
+.offerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(30, 41, 59, 0.5);
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+.offerBadge svg { color: var(--color-primary); flex: 0 0 auto; }
+
+/* ---------- BARRA DE COMPRA FIXA (mobile) ---------- */
+.buyBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 120;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 -8px 30px rgba(2, 6, 23, 0.6);
+  transform: translateY(110%);
+  transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.buyBarOn { transform: translateY(0); }
+.buyBarInfo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  flex: 1 1 auto;
+}
+.buyBarInfo b { font-size: 17px; font-weight: 900; color: #fbbf24; letter-spacing: -0.02em; }
+.buyBarInfo span { font-size: 11.5px; color: #94a3b8; }
+.buyBarBtn {
+  flex: 0 0 auto;
+  padding: 13px 20px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);
+}
+.buyBarBtn:disabled { opacity: 0.75; cursor: not-allowed; }
+@media (max-width: 860px) {
+  .buyBar { display: flex; }
+  /* a barra fixa não pode cobrir o fim da página */
+  .footer { padding-bottom: 92px; }
+}
+
+/* ---------- AJUSTES MOBILE DO BLOCO NOVO ---------- */
+@media (max-width: 640px) {
+  .pricePill { font-size: 12.5px; padding: 8px 14px; gap: 8px; }
+  .pricePill b { font-size: 14px; }
+  .heroFounders { font-size: 12px; margin-top: 22px; padding: 8px 14px 8px 8px; gap: 10px; }
+  .heroFoundersPics img { width: 34px; height: 34px; }
+  .heroFoundersPics img + img { margin-left: -12px; }
+
+  .founders { padding: 56px 16px; }
+  .foundersCard { padding: 26px 20px; gap: 22px; border-radius: 18px; margin-top: 30px; }
+  .foundersPeople { gap: 16px; }
+  .founder img { width: 92px; height: 92px; }
+  .foundersText p { font-size: 14px; line-height: 1.6; }
+  .foundersWa { width: 100%; justify-content: center; font-size: 13.5px; }
+
+  .offer { padding: 32px 20px 26px; border-radius: 18px; margin-top: 34px; }
+  .offerTag { font-size: 10.5px; padding: 5px 13px; top: -12px; }
+  .offerPrice { font-size: 52px; }
+  .offerPrice span { font-size: 22px; }
+  .offerList li { font-size: 13.5px; padding-left: 26px; }
+  .offerBtn { font-size: 15.5px; padding: 16px 18px; margin-top: 24px; }
+  .offerFoot { font-size: 11.5px; }
+  .guarantee { font-size: 12.5px; padding: 14px; gap: 11px; }
+  .offerBadge { font-size: 11.5px; padding: 8px 12px; }
+}
+
