@@ -58,38 +58,45 @@ const CONCESSIONARIAS = [
   { slug: 'light',      nome: 'Light',      img: '/conc/light.png',      altura: 27 },
 ];
 
-// Telas do carrossel. São prints REAIS do app (public/tela/*.webp), tirados da
-// própria plataforma rodando com dados de demonstração — não são mockups.
+// Carrossel: o RESULTADO, não o formulário — é o documento pronto que o
+// integrador quer ver antes de assinar.
+//
+// De onde vem cada imagem (nenhuma é maquete):
+//  - as propostas saem de generateFromTemplate (api/scripts/lp-docs.ts), a MESMA
+//    função que o app chama quando o cliente clica em Gerar. Os números são
+//    calculados pelo próprio sistema com os dados de exemplo;
+//  - o contrato é a tela de preview do app renderizando esse mesmo conteúdo;
+//  - precificação e inventário são as telas de verdade, com os cálculos feitos.
 const TELAS = [
   {
-    img: '/tela/proposta.webp',
-    imgMobile: '/tela/proposta-mobile.webp',
-    titulo: 'Gerador de Proposta',
-    texto: 'Preenche cliente e consumo — sai a proposta com a sua marca, pronta pro WhatsApp.',
+    img: '/tela/doc-proposta.webp',
+    imgMobile: '/tela/doc-proposta-mobile.webp',
+    titulo: 'A proposta que o cliente recebe',
+    texto: 'Economia em 25 anos, conta antes e depois, geração mês a mês — com a sua marca no topo.',
   },
   {
-    img: '/tela/contrato.webp',
-    imgMobile: '/tela/contrato-mobile.webp',
-    titulo: 'Contrato Solar',
-    texto: 'Potência, módulos, inversor e valor. As cláusulas do setor já vêm escritas.',
+    img: '/tela/doc-proposta-a4.webp',
+    imgMobile: '/tela/doc-proposta-a4-mobile.webp',
+    titulo: 'Orçamento de 1 página',
+    texto: 'Investimento, economia mensal e tempo de retorno numa folha só, pronta pro WhatsApp.',
+  },
+  {
+    img: '/tela/doc-contrato.webp',
+    imgMobile: '/tela/doc-contrato-mobile.webp',
+    titulo: 'Contrato pronto pra assinar',
+    texto: 'Partes, equipamentos, prazos e garantias já escritos. Você só confere e envia.',
   },
   {
     img: '/tela/precificacao.webp',
     imgMobile: '/tela/precificacao-mobile.webp',
-    titulo: 'Calculadora de Precificação',
-    texto: 'Custo do kit, mão de obra e margem: o preço de venda certo antes de mandar o orçamento.',
+    titulo: 'O preço certo, antes de mandar',
+    texto: 'Custo do kit, mão de obra e margem entram — o preço de venda e o lucro saem calculados.',
   },
   {
     img: '/tela/inventario.webp',
     imgMobile: '/tela/inventario-mobile.webp',
-    titulo: 'Inventário',
-    texto: 'Painel, inversor e material com quantidade, valor e patrimônio total da empresa.',
-  },
-  {
-    img: '/tela/clientes.webp',
-    imgMobile: '/tela/clientes-mobile.webp',
-    titulo: 'Clientes',
-    texto: 'Cadastra uma vez e todo documento puxa os dados. Ou escaneia a conta de luz.',
+    titulo: 'Estoque e patrimônio da empresa',
+    texto: 'Painel, inversor e material com quantidade, valor e o total que a empresa tem em mãos.',
   },
 ];
 
@@ -566,13 +573,14 @@ export default function Landing() {
       <section className={styles.telas}>
         <div className={styles.telasInner}>
           <div className={styles.sectionLabelWrap}>
-            <span className={styles.sectionLabel} data-reveal>Por dentro</span>
+            <span className={styles.sectionLabel} data-reveal>O resultado</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            É <strong>essa tela</strong> que você abre depois de assinar.
+            É <strong>isso que sai</strong> quando você clica em gerar.
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            Sem maquete de designer: são as telas do sistema, com dados de exemplo.
+            Documento pronto, não formulário em branco: proposta, contrato, preço e estoque
+            — gerados pelo próprio sistema com dados de exemplo.
           </p>
 
           <div
