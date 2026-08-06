@@ -92,6 +92,11 @@ function planByPrice(priceId: string) {
 // ícone do app, nome e uma linha. Trocar o NOME do arquivo é de propósito —
 // é o que faz o sync abaixo detectar diferença e recarimbar o produto.
 const CHECKOUT_IMG = `${(process.env.DASHBOARD_URL || 'https://solardoc.app').trim()}/checkout-solardoc-2.jpg`;
+// O nome do produto é o título do checkout ("Assinar ___"). Era "SolarDoc VIP",
+// nome da época dos dois planos — hoje a página vende plano único. Decisão do
+// Thiago (06/08/2026). Vale também na fatura de quem já assina, na próxima
+// cobrança.
+const CHECKOUT_NOME = 'SolarDoc.APP';
 const vitrineFeita = new Set<string>();
 
 async function garantirVitrineStripe(priceId: string, descricao: string): Promise<void> {
@@ -99,10 +104,17 @@ async function garantirVitrineStripe(priceId: string, descricao: string): Promis
   vitrineFeita.add(priceId); // marca antes: uma tentativa por price/instância, sem repique
   try {
     const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
-    const product = price.product as { id?: string; images?: string[] } | null;
+    const product = price.product as { id?: string; images?: string[]; name?: string } | null;
     if (!product?.id) return;
-    if (product.images?.[0] === CHECKOUT_IMG) return; // já está na arte nova
-    await stripe.products.update(product.id, { description: descricao, images: [CHECKOUT_IMG] });
+    // Sai fora só quando TUDO já está no lugar. Checar apenas a imagem deixaria
+    // o nome velho pra sempre — a imagem já tinha sido carimbada antes dele.
+    const jaOk = product.images?.[0] === CHECKOUT_IMG && product.name === CHECKOUT_NOME;
+    if (jaOk) return;
+    await stripe.products.update(product.id, {
+      name: CHECKOUT_NOME,
+      description: descricao,
+      images: [CHECKOUT_IMG],
+    });
     console.log('[stripe] vitrine do produto atualizada:', product.id);
   } catch (err) {
     console.error('[stripe] sync da vitrine falhou (checkout intacto):', err);

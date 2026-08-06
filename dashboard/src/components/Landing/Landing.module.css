@@ -46,7 +46,9 @@
      cliente sai da LP e entra no dashboard. (O fundo dark da LP é proposital.) */
   --color-primary: #F26513;
   --color-primary-hover: #E0560A;
-  --promobar-h: 40px; /* altura da barra de urgência — usada pra empilhar o nav abaixo dela */
+  /* A tarja verde do topo saiu em 06/08/2026 (pedido do Thiago). A variável
+     fica em 0 porque o nav ainda a usa no `top` — assim ele gruda no topo. */
+  --promobar-h: 0px;
 
   min-height: 100vh;
   background: #0F172A;
@@ -123,9 +125,9 @@
   background: var(--color-primary);
   color: #0f172a;
   font-weight: 800;
-  font-size: 12px;
-  padding: 9px 16px;
-  border-radius: 9px;
+  font-size: 14.5px;
+  padding: 13px 24px;
+  border-radius: 11px;
   white-space: nowrap;
   transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
   border: none;
@@ -135,7 +137,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px; /* tap target confortável no mobile (era ~31px) */
+  min-height: 46px; /* tap target confortável no mobile */
 }
 .navCta:hover {
   background: var(--color-primary-hover);
@@ -147,7 +149,7 @@
   .navInner { padding: 12px 14px; gap: 6px; }
   .brand { font-size: 15px; }
   .navLink { font-size: 12.5px; padding: 7px 8px; }
-  .navCta { font-size: 11px; padding: 8px 12px; }
+  .navCta { font-size: 13px; padding: 11px 16px; }
 }
 @media (max-width: 380px) {
   .brand { font-size: 14px; gap: 6px; }
@@ -1690,9 +1692,9 @@
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
   color: #0f172a;
   font-weight: 800;
-  font-size: 17px;
-  padding: 18px 32px;
-  border-radius: 14px;
+  font-size: 21px;
+  padding: 24px 46px;
+  border-radius: 16px;
   border: none;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.2s;
@@ -1893,7 +1895,7 @@
   .finalCtaTitle { font-size: clamp(24px, 6vw, 32px); }
   .finalCtaTitle br { display: none; }
   .finalCtaSub { font-size: 14px; margin-bottom: 22px; }
-  .finalCtaBtn { font-size: 15px; padding: 15px 24px; border-radius: 12px; }
+  .finalCtaBtn { font-size: 18px; padding: 20px 28px; border-radius: 14px; width: 100%; justify-content: center; }
   .finalCtaFoot { font-size: 11px; }
 
   /* FOOTER */
@@ -2084,10 +2086,7 @@
   70%  { box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); }
   100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
 }
-@media (max-width: 480px) {
-  .page { --promobar-h: 36px; }
-  .promoBar { font-size: 11.5px; letter-spacing: 0.2px; }
-}
+
 
 /* ===== Hero: mockup do produto (proposta no laptop + celular) ===== */
 .heroProduct {
@@ -2365,13 +2364,13 @@
   display: block;
   width: 100%;
   margin-top: 30px;
-  padding: 19px 24px;
+  padding: 26px 24px;
   border: none;
-  border-radius: 14px;
+  border-radius: 16px;
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
   color: #0f172a;
   font-family: inherit;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 900;
   letter-spacing: -0.01em;
   cursor: pointer;
@@ -2760,7 +2759,7 @@
   .offerPrice { font-size: 52px; }
   .offerPrice span { font-size: 22px; }
   .offerList li { font-size: 13.5px; padding-left: 26px; }
-  .offerBtn { font-size: 15.5px; padding: 16px 18px; margin-top: 24px; }
+  .offerBtn { font-size: 18px; padding: 22px 18px; margin-top: 24px; }
   .offerFoot { font-size: 11.5px; }
   .guarantee { font-size: 12.5px; padding: 14px; gap: 11px; }
   .offerBadge { font-size: 11.5px; padding: 8px 12px; }

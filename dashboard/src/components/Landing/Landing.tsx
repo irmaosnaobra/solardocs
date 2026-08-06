@@ -87,6 +87,24 @@ const TELAS = [
     texto: 'Partes, equipamentos, prazos e garantias já escritos. Você só confere e envia.',
   },
   {
+    img: '/tela/doc-procuracao.webp',
+    imgMobile: '/tela/doc-procuracao-mobile.webp',
+    titulo: 'Procuração pra concessionária',
+    texto: 'Com UC, concessionária e os poderes certos — no padrão que passa de primeira.',
+  },
+  {
+    img: '/tela/doc-recibo.webp',
+    imgMobile: '/tela/doc-recibo-mobile.webp',
+    titulo: 'Recibo com saldo em aberto',
+    texto: 'Lança as parcelas e ele calcula sozinho quanto o cliente já pagou e quanto falta.',
+  },
+  {
+    img: '/tela/doc-banco.webp',
+    imgMobile: '/tela/doc-banco-mobile.webp',
+    titulo: 'Proposta pro banco financiar',
+    texto: 'No formato que a financeira pede: equipamento, mão de obra e valor total separados.',
+  },
+  {
     img: '/tela/precificacao.webp',
     imgMobile: '/tela/precificacao-mobile.webp',
     titulo: 'O preço certo, antes de mandar',
@@ -172,50 +190,25 @@ export default function Landing() {
     router.push(`/auth?${qs.toString()}`);
   }
 
-  // Barra fixa de compra no mobile: só aparece depois que a pessoa passou do
-  // hero (senão cobre a dobra logo na entrada).
-  //
-  // ATENÇÃO ao jeito de ler a rolagem: o globals.css põe `overflow-x: hidden`
-  // no html E no body, o que faz do BODY o container de rolagem — window.scrollY
-  // fica travado em 0 na página inteira e o evento 'scroll' nem chega no window
-  // (scroll não borbulha). Por isso o listener é em fase de CAPTURA e a posição
-  // sai do body. Com o listener normal a barra nunca aparecia.
-  const [showBar, setShowBar] = useState(false);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const posicao = () =>
-      document.body.scrollTop || document.documentElement.scrollTop || window.scrollY || 0;
-    const onScroll = () => setShowBar(posicao() > 640);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true, capture: true });
-    return () => window.removeEventListener('scroll', onScroll, true);
-  }, []);
-
   const ctaLabel = checkoutLoading ? 'Abrindo checkout...' : `Assinar agora — R$ ${PRICE}/mês`;
 
   // ---- Carrossel das telas (prints REAIS do app, capturados com dados de
   // demonstração). É webp e não GIF de propósito: um GIF de tela cheia dá 2 a
   // 5 MB cada e mata o carregamento no 4G — aqui cada print tem ~70 KB e o
-  // movimento vem da troca automática. Pausa no hover/toque e respeita quem
-  // pediu menos animação no sistema.
+  // movimento vem da troca automática (3s, como o Thiago pediu). Pausa no
+  // hover/toque e respeita quem pediu menos animação no sistema.
   const [slide, setSlide] = useState(0);
   const [pausado, setPausado] = useState(false);
   useEffect(() => {
     if (pausado) return;
     if (typeof window !== 'undefined'
       && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const id = setInterval(() => setSlide(s => (s + 1) % TELAS.length), 4500);
+    const id = setInterval(() => setSlide(s => (s + 1) % TELAS.length), 3000);
     return () => clearInterval(id);
   }, [pausado]);
 
   return (
     <div className={styles.page}>
-      {/* BARRA DO TOPO — plano único (clica → rola pra oferta) */}
-      <button type="button" className={styles.promoBar} onClick={() => scrollToPlans('promobar')} aria-label="Plano único de R$ 67 por mês — ver a oferta">
-        <span className={styles.promoDot} aria-hidden="true" />
-        Plano único • R$ {PRICE}/mês • acesso liberado na hora
-      </button>
-
       {/* NAV */}
       <nav className={styles.nav}>
         <div className={styles.navInner}>
@@ -1009,16 +1002,6 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* BARRA DE COMPRA FIXA — mobile */}
-      <div className={`${styles.buyBar} ${showBar ? styles.buyBarOn : ''}`}>
-        <div className={styles.buyBarInfo}>
-          <b>R$ {PRICE}/mês</b>
-          <span>tudo liberado · na hora</span>
-        </div>
-        <button onClick={() => goToCheckout('barra_fixa')} className={styles.buyBarBtn} disabled={checkoutLoading}>
-          {checkoutLoading ? 'Abrindo...' : 'Assinar agora'}
-        </button>
-      </div>
     </div>
   );
 }
