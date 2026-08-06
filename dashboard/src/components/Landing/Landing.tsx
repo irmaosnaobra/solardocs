@@ -187,12 +187,27 @@ export default function Landing() {
   // hover/toque e respeita quem pediu menos animação no sistema.
   const [slide, setSlide] = useState(0);
   const [pausado, setPausado] = useState(false);
+
+  // Duas coisas travavam o giro e as duas sumiam do meu teste:
+  //  1. no CELULAR, onTouchStart marcava pausado e NADA desmarcava — bastava
+  //     encostar o dedo (ou rolar a página por cima do carrossel) pra ele
+  //     parar de vez;
+  //  2. quem tem "reduzir animação" ligado no sistema (Windows e iPhone têm
+  //     isso, e muita gente liga sem saber) caía num `return` e não via
+  //     troca nenhuma.
+  // Agora o toque pausa só por 6s e o reduced-motion tira a transição, não o
+  // giro: o carrossel roda pra todo mundo.
   useEffect(() => {
     if (pausado) return;
-    if (typeof window !== 'undefined'
-      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     const id = setInterval(() => setSlide(s => (s + 1) % TELAS.length), 3000);
     return () => clearInterval(id);
+  }, [pausado]);
+
+  // volta a girar sozinho depois de um toque
+  useEffect(() => {
+    if (!pausado) return;
+    const id = setTimeout(() => setPausado(false), 6000);
+    return () => clearTimeout(id);
   }, [pausado]);
 
   return (
@@ -233,6 +248,18 @@ export default function Landing() {
               sua logo, sua cor e os números certos — pra fechar mais rápido no WhatsApp do cliente.
             </p>
 
+            {/* Mockup logo abaixo da subheadline (pedido do Thiago): a pessoa
+                lê a promessa e vê o produto antes de decidir clicar. */}
+            <div className={styles.heroProduct} data-reveal>
+              <img
+                src="/hero-orcamento.webp"
+                width={1400}
+                height={760}
+                alt="Orçamento de 1 página gerado no SolarDoc, com a sua marca — no notebook e no celular"
+                loading="eager"
+              />
+            </div>
+
             <button className={styles.finalCtaBtn} onClick={() => scrollToPlans('hero')}>
               Quero acesso agora →
             </button>
@@ -272,15 +299,6 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className={styles.heroProduct} data-reveal>
-            <img
-              src="/hero-produto.webp"
-              width={1120}
-              height={702}
-              alt="Proposta solar gerada no SolarDoc, com a sua logo — no computador e no celular"
-              loading="eager"
-            />
-          </div>
         </div>
       </section>
 
