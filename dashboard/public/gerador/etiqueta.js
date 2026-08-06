@@ -54,6 +54,24 @@ function etiquetaCor(etiqueta) {
   return '';
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CLASSE DE OCUPAÇÃO DA AGENDA — quem divide quadro com quem.
+//
+// Ordem do Thiago (06/08/2026): "quando solar cair no mesmo horário não tem
+// problema dividir quadro". Um horário do consultor comporta DUAS reuniões: uma
+// de solar (ligação curta) e uma de qualquer outra coisa (o vídeo do
+// eletroposto, por exemplo). Duas do MESMO tipo continuam proibidas.
+//
+// ESPELHO do banco: os índices agendamentos_vq_solar_uniq e
+// agendamentos_vq_naosolar_uniq (MIGRATION_agenda_quadro_dividido.sql) usam
+// exatamente esta lista. Mudou aqui → muda lá, senão a tela oferece um horário
+// que o banco recusa. Origem desconhecida cai em "não-solar", que é o lado
+// seguro (não divide, recusa a segunda).
+var ETIQUETA_ORIGENS_SOLAR = ['lead-meta', 'leads-meta', 'lp_solar', 'manychat', 'prosp_solar'];
+function origemEhSolar(createdBy) {
+  return ETIQUETA_ORIGENS_SOLAR.indexOf(String(createdBy == null ? '' : createdBy).trim()) >= 0;
+}
+
 function etiquetaDeLead(createdBy, src) {
   const cb = String(createdBy == null ? '' : createdBy).trim().toLowerCase();
   const s  = String(src == null ? '' : src).trim().toLowerCase();

@@ -181,6 +181,19 @@
     cursor: pointer;
   }
   .slot.ocupado:hover { filter: brightness(1.12); }
+  /* Quadro dividido: duas reuniões no mesmo horário (uma de solar + uma do outro
+     produto). Cada metade é clicável e abre o próprio detalhe. */
+  .slot.dividido { padding: 0; display: flex; gap: 1px; background: #e5e7eb; }
+  .slot.dividido .meia {
+    flex: 1 1 0; min-width: 0; padding: 4px 5px; overflow: hidden;
+    background: #0d2d5e; color: #fff; font-weight: 600; cursor: pointer;
+  }
+  .slot.dividido .meia:hover { filter: brightness(1.12); }
+  .slot.dividido .nome {
+    font-size: 11px; font-weight: 700; line-height: 1.15;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .slot.dividido .cidade { font-size: 9px; margin-top: 2px; opacity: .9; }
   .slot.ocupado .nome {
     font-size: 12px;
     font-weight: 700;
@@ -235,6 +248,19 @@
   .slot.status-proposta_apresentada { background: #0ea5e9; color: #fff; }
   .slot.status-fechou_concorrente{ background: #92400e; color: #fff; }
   .slot.status-perdido           { background: #475569; color: #fff; }
+  /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
+     não o slot. Sem isto as duas ficariam azuis, mentindo o status de uma delas. */
+  .slot.dividido .meia.status-agendado          { background: #0d2d5e; color: #fff; }
+  .slot.dividido .meia.status-nao_atendeu       { background: #dc2626; color: #fff; }
+  .slot.dividido .meia.status-falando_whatsapp  { background: #14b8a6; color: #fff; }
+  .slot.dividido .meia.status-sem_interesse     { background: #64748b; color: #fff; }
+  .slot.dividido .meia.status-sem_orcamento     { background: #ea580c; color: #fff; }
+  .slot.dividido .meia.status-fez_orcamento     { background: #fef3c7; color: #1f2937; }
+  .slot.dividido .meia.status-fechou            { background: #16a34a; color: #fff; }
+  .slot.dividido .meia.status-em_atendimento    { background: #7c3aed; color: #fff; }
+  .slot.dividido .meia.status-proposta_apresentada { background: #0ea5e9; color: #fff; }
+  .slot.dividido .meia.status-fechou_concorrente{ background: #92400e; color: #fff; }
+  .slot.dividido .meia.status-perdido           { background: #475569; color: #fff; }
   .slot.passado { opacity: .55; cursor: not-allowed; }
 
   /* Slot bloqueado pelo consultor */
@@ -1307,15 +1333,32 @@ function renderGrid() {
         const passou = dt.getTime() < Date.now();
         const foraPrio = h >= HORA_PRIORIDADE_LIMITE;
 
-        const ag = agendamentosCache.find(a => {
+        // filter, não find: desde 06/08 um horário comporta DUAS reuniões — uma de
+        // solar e uma do resto (índices agendamentos_vq_*_uniq). Com find(), a
+        // segunda sumia da tela que é dona do calendário.
+        const doSlot = agendamentosCache.filter(a => {
           if (a.vendedor_nome !== vendedorAtivo) return false;
-          const ad = new Date(a.quando);
-          return ad.getTime() === dt.getTime();
+          return new Date(a.quando).getTime() === dt.getTime();
         });
+        const ag = doSlot[0] || null;
 
         const bloq = ag ? null : bloqueioNoSlot(vendedorAtivo, dt);
 
-        if (ag) {
+        if (doSlot.length > 1) {
+          // Quadro dividido: solar de um lado, o outro produto do outro. Cada
+          // metade abre o SEU detalhe — senão só a primeira seria clicável.
+          const ordenado = [...doSlot].sort((x, y) =>
+            (origemEhSolar(x.created_by) ? 0 : 1) - (origemEhSolar(y.created_by) ? 0 : 1));
+          html += `<div class="slot dividido">` + ordenado.map(a => {
+            const etq = etqDeLead(a.created_by, a.src);
+            const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
+            return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}"
+              data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
+              <div class="nome">${escapeHtml(a.cliente_nome)}</div>
+              ${etq ? `<div class="cidade"><span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span></div>` : ''}
+            </div>`;
+          }).join('') + `</div>`;
+        } else if (ag) {
           const stCls = `status-${(ag.status || 'agendado')}`;
           const tempCls = ag.temperatura ? ` temp-${ag.temperatura}` : '';
           const tempLabel = ag.temperatura === 'frio'   ? 'FRIO'

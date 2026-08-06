@@ -217,6 +217,11 @@ tbody tr:hover{background:#233047}
 .agc.ocupado{background:#152238;border-color:#233047;color:var(--faint);cursor:not-allowed;
   text-decoration:line-through}
 .agc.ocupado:hover{border-color:#233047;color:var(--faint)}
+/* Metade do quadro livre: o consultor tem reunião do outro tipo aqui e as duas
+   convivem. Dá pra marcar, mas não pode parecer um horário vazio qualquer. */
+.agc.dividir{border-style:dashed;border-color:#B45309;color:#FDE68A}
+.agc.dividir:hover{border-color:var(--warn);color:#FEF3C7}
+.agc.dividir.on{background:#78350F;border-color:var(--warn);border-style:solid;color:#fff}
 .agc.tarde{opacity:.6}
 .agd-vazio{font-size:12px;color:var(--faint);line-height:1.5}
 
@@ -339,8 +344,11 @@ tbody tr:hover{background:#233047}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="fld"><label>Consultor que vai atender</label>
         <select id="ag-consultor" onchange="carregarSlots(this.value)"></select></div>
+      <!-- A etiqueta decide com QUEM esta reunião disputa o horário: Prosp Solar
+           briga com solar, Prosp EP briga com o resto. Trocar aqui redesenha a
+           lista de horários (não refaz a consulta — o dado é o mesmo). -->
       <div class="fld"><label>Etiqueta de origem</label>
-        <select id="ag-origem">
+        <select id="ag-origem" onchange="renderSlots()">
           <option value="prosp_eletroposto">Prosp EP</option>
           <option value="prosp_solar">Prosp Solar</option>
         </select></div>
@@ -1054,6 +1062,13 @@ let agManual = false;
  *  múltiplo de 15 min, então o balde bate com o slot local sem converter nada. */
 const bucket15 = t => Math.floor(t / MS15) * MS15;
 
+/** Solar divide quadro com o resto (ordem do Thiago, 06/08). A classificação sai
+ *  do etiqueta.js — mesmo arquivo do CRM e da Agenda, espelho dos índices do
+ *  banco. Se o script não carregar, cai no lado seguro: tudo "não-solar", que é
+ *  o comportamento antigo (ninguém divide). */
+const ehSolarOrigem = cb => (typeof origemEhSolar === 'function' ? origemEhSolar(cb) : false);
+const origemSelecionada = () => (document.getElementById('ag-origem') || {}).value || ORIGEM_EP;
+
 /** Os próximos N dias úteis (seg–sex, igual à grade da Agenda). Hoje entra
  *  enquanto ainda couber um horário à frente. */
 function diasUteisDaJanela(){
@@ -1093,7 +1108,7 @@ async function carregarSlots(consultor){
     const [ags, bloqs] = await Promise.all([
       // status=neq.cancelado e não a lista de "perdido": é EXATAMENTE o filtro da
       // Agenda. O slot segue ocupado depois da call — quem faltou não libera horário.
-      supaGet(`agendamentos?select=cliente_nome,quando,status&vendedor_nome=eq.${q(consultor)}` +
+      supaGet(`agendamentos?select=cliente_nome,quando,status,created_by&vendedor_nome=eq.${q(consultor)}` +
               `&status=neq.cancelado&quando=gte.${q(toLocalIso(de))}&quando=lt.${q(toLocalIso(ate))}&order=quando.asc`),
       supaGet(`agenda_bloqueios?select=inicio,fim,motivo&vendedor_nome=eq.${q(consultor)}` +
               `&inicio=lt.${q(toLocalIso(ate))}&fim=gt.${q(toLocalIso(de))}`),
@@ -1122,43 +1137,81 @@ function renderSlots(){
   if (agSlots.erro){ el.innerHTML = `<div class="agd-vazio" style="color:var(--warn)">${esc(agSlots.erro)}</div>`; return; }
 
   const agora = Date.now();
+  // Cada balde de 15 min guarda até DUAS reuniões: a de solar e a de "qualquer
+  // outra coisa". É a mesma divisão dos índices do banco — ver o cabeçalho de
+  // MIGRATION_agenda_quadro_dividido.sql.
   const ocupados = new Map();
   for (const a of agSlots.ags){
     const b = bucket15(new Date(a.quando).getTime());
-    if (!ocupados.has(b)) ocupados.set(b, a);
+    const lado = ehSolarOrigem(a.created_by) ? 'solar' : 'outro';
+    const cel = ocupados.get(b) || {};
+    if (!cel[lado]) cel[lado] = a;
+    ocupados.set(b, cel);
   }
   const bloqEm = t => agSlots.bloqs.find(b =>
     new Date(b.inicio).getTime() <= t && new Date(b.fim).getTime() > t) || null;
 
+  // Qual metade do quadro ESTA reunião vai ocupar. Prosp Solar disputa com solar;
+  // Prosp EP disputa com eletroposto/import/manual. Por isso o mesmo horário muda
+  // de estado quando a etiqueta muda — e a lista se redesenha junto.
+  const euSolar = ehSolarOrigem(origemSelecionada());
+  const meuLado = euSolar ? 'solar' : 'outro';
+  const outroLado = euSolar ? 'outro' : 'solar';
+  const rotuloLado = l => (l === 'solar' ? 'Solar' : 'Eletroposto');
+  const ladoDe = (b, l) => (ocupados.get(b) || {})[l] || null;
+
+  let selValido = false;
   let html = '';
   for (const dia of diasUteisDaJanela()){
     const chips = [];
-    let livres = 0;
+    let livres = 0, dividindo = 0;
     for (let h = AG_HORA_INI; h < AG_HORA_FIM; h++){
       for (let m = 0; m < 60; m += AG_PASSO_MIN){
         const dt = new Date(dia); dt.setHours(h, m, 0, 0);
         const t = dt.getTime();
         if (t < agora) continue;                        // horário que já passou não é opção
         const b0 = bucket15(t), b1 = b0 + MS15;         // os 30 min cobrem dois baldes
-        const ag = ocupados.get(b0) || ocupados.get(b1);
+        const meu   = ladoDe(b0, meuLado)   || ladoDe(b1, meuLado);     // impede
+        const dela  = ladoDe(b0, outroLado) || ladoDe(b1, outroLado);   // divide
         const bq = bloqEm(b0) || bloqEm(b1);
         const rot = `${pad2(h)}:${pad2(m)}`;
         const tarde = h >= AG_PRIO_LIMITE ? ' tarde' : '';   // ≥18h é fora de prioridade, igual à Agenda
-        if (ag) {
-          chips.push(`<span class="agc ocupado${tarde}" title="${esc(ag.cliente_nome || 'ocupado')}">${rot}</span>`);
-        } else if (bq) {
+        const sel = agSlots.sel === t ? ' on' : '';
+        if (bq) {
           chips.push(`<span class="agc ocupado${tarde}" title="Bloqueado: ${esc(bq.motivo || '—')}">${rot}</span>`);
+        } else if (meu) {
+          chips.push(`<span class="agc ocupado${tarde}" title="${esc(meu.cliente_nome || 'ocupado')} — mesma metade do quadro">${rot}</span>`);
+        } else if (dela) {
+          // Metade livre: o consultor já tem uma reunião do OUTRO tipo nesta meia
+          // hora, e esta entra ao lado. Amarelo pra ninguém marcar sem ver — e o
+          // title diz a HORA da outra, que pode ser o mesmo minuto (quadro
+          // dividido de verdade) ou 15 min depois (uma emendada na outra).
+          const dq = new Date(dela.quando);
+          const hOutra = `${pad2(dq.getHours())}:${pad2(dq.getMinutes())}`;
+          dividindo++; selValido = selValido || agSlots.sel === t;
+          chips.push(`<button type="button" class="agc dividir${tarde}${sel}" onclick="escolherSlot(${t})"` +
+            ` title="${esc(rotuloLado(outroLado))}: ${esc(dela.cliente_nome || '—')} às ${hOutra}` +
+            ` — ${hOutra === rot ? 'vocês dividem o horário' : 'cai na mesma meia hora'}">${rot}</button>`);
         } else {
-          livres++;
-          chips.push(`<button type="button" class="agc${tarde}${agSlots.sel === t ? ' on' : ''}" onclick="escolherSlot(${t})">${rot}</button>`);
+          livres++; selValido = selValido || agSlots.sel === t;
+          chips.push(`<button type="button" class="agc${tarde}${sel}" onclick="escolherSlot(${t})">${rot}</button>`);
         }
       }
     }
+    const conta = livres ? `${livres} livre${livres === 1 ? '' : 's'}` : 'lotado';
     html += `<div class="agd"><div class="agd-h">${esc(rotuloDia(dia))}` +
-      `<span class="livre">${livres ? livres + (livres === 1 ? ' livre' : ' livres') : 'lotado'}</span></div>` +
+      `<span class="livre">${conta}${dividindo ? ` · ${dividindo} dividindo` : ''}</span></div>` +
       `<div class="agd-chips">${chips.length ? chips.join('') : '<span class="agd-vazio">Dia já passou do último horário.</span>'}</div></div>`;
   }
-  el.innerHTML = html;
+
+  // Trocou a etiqueta e o horário que estava escolhido virou ocupado? Solta a
+  // escolha em vez de deixar um botão marcado que o salvar vai recusar.
+  if (agSlots.sel && !selValido){ agSlots.sel = null; renderSlots(); return; }
+
+  el.innerHTML = html + (
+    `<div class="agd-vazio" style="margin-top:2px">Amarelo = dá pra marcar, mas tem uma reunião de ` +
+    `${esc(rotuloLado(outroLado).toLowerCase())} nessa meia hora — passa o mouse pra ver quem e que horas. ` +
+    `Riscado = a metade de ${esc(rotuloLado(meuLado).toLowerCase())} já está tomada.</div>`);
 }
 
 function escolherSlot(t){
@@ -1188,19 +1241,24 @@ function alternarManual(){
  *  Existe porque a lista pode ter minutos de idade — e porque o horário digitado
  *  no modo manual nunca passou por lista nenhuma.
  *  Devolve '' (livre), a razão do conflito, ou null quando não deu pra conferir. */
-async function conflitoNoHorario(consultor, dt){
+async function conflitoNoHorario(consultor, dt, origem){
   const b0 = bucket15(dt.getTime());
   const de = new Date(b0), ate = new Date(b0 + 2 * MS15);
   const q = encodeURIComponent;
   try {
     const [ags, bloqs] = await Promise.all([
-      supaGet(`agendamentos?select=cliente_nome,quando&vendedor_nome=eq.${q(consultor)}&status=neq.cancelado` +
-              `&quando=gte.${q(toLocalIso(de))}&quando=lt.${q(toLocalIso(ate))}&limit=1`),
+      supaGet(`agendamentos?select=cliente_nome,quando,created_by&vendedor_nome=eq.${q(consultor)}&status=neq.cancelado` +
+              `&quando=gte.${q(toLocalIso(de))}&quando=lt.${q(toLocalIso(ate))}`),
       supaGet(`agenda_bloqueios?select=motivo&vendedor_nome=eq.${q(consultor)}` +
               `&inicio=lte.${q(toLocalIso(dt))}&fim=gt.${q(toLocalIso(dt))}&limit=1`),
     ]);
-    if (ags && ags.length) return `${ags[0].cliente_nome || 'outra reunião'} já está com ${consultor} nesse horário.`;
     if (bloqs && bloqs.length) return `${consultor} bloqueou esse horário (${bloqs[0].motivo || 'sem motivo'}).`;
+    // Só briga com quem ocupa a MESMA metade do quadro: solar convive com o resto.
+    // Mesma regra dos índices do banco — se as duas discordarem, quem ganha é o
+    // banco e a pessoa leva um erro sem explicação.
+    const euSolar = ehSolarOrigem(origem);
+    const bate = (ags || []).find(a => ehSolarOrigem(a.created_by) === euSolar);
+    if (bate) return `${bate.cliente_nome || 'outra reunião'} já está com ${consultor} nesse horário.`;
     return '';
   } catch(e){ return null; }
 }
@@ -1354,7 +1412,7 @@ async function confirmarAgenda(){
     // A lista de horários tem minutos de idade e o dono pode ter acabado de mudar.
     // Confere no servidor ANTES de gravar: é isto que cumpre o "não marcar em cima
     // de outra" mesmo com duas pessoas marcando ao mesmo tempo.
-    const conflito = await conflitoNoHorario(consultor, quando);
+    const conflito = await conflitoNoHorario(consultor, quando, origem);
     if (conflito){
       err.textContent = conflito + ' Escolhe outro horário.';
       agSlots.sel = null;
