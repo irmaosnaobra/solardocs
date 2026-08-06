@@ -473,24 +473,27 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc-cli-banner b{color:#eaf2ff}
 .orc-link{background:none;border:none;color:#60A5FA;font-weight:700;font-family:inherit;font-size:12.5px;cursor:pointer;padding:0;text-decoration:underline}
 .orc-link:hover{color:#93C5FD}
-/* kit travado do eletroposto: marca o item, ajusta o preço se precisar negociar.
-   O cliente nunca vê estes valores — no documento cada item vira "INCLUÍDO". */
+/* kit travado do eletroposto: marca só O QUE ENTRA. Item não tem preço — o valor
+   do projeto é um número só, que vem do Simulador. No documento vira "INCLUÍDO". */
 .orc-kit{display:flex;flex-direction:column;gap:8px}
-.orc-kit-row{display:grid;grid-template-columns:22px 1fr 118px 132px;gap:10px;align-items:center;background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:9px 12px}
+.orc-kit-row{display:grid;grid-template-columns:22px 1fr 118px;gap:10px;align-items:center;background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:9px 12px}
 .orc-kit-row.on{border-color:#3B82F6}
 .orc-kit-row.off{opacity:.5}
 .orc-kit-row input[type="checkbox"]{accent-color:#3B82F6;width:17px;height:17px;cursor:pointer}
 .orc-kit-nome{font-size:13.5px;font-weight:700;color:#CBD5E1}
 .orc-kit-row.on .orc-kit-nome{color:#fff}
-.orc-kit-opt,.orc-kit-preco{width:100%;box-sizing:border-box;padding:8px 10px;background:#0b1524;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;font-family:inherit;font-weight:700}
-.orc-kit-preco{text-align:right;font-variant-numeric:tabular-nums}
-.orc-kit-opt:focus,.orc-kit-preco:focus{border-color:#3B82F6}
+/* potência do carregador: espelho do Simulador, não é campo */
+.orc-kit-eq{text-align:right;font-size:12.5px;font-weight:700;color:#93C5FD;font-variant-numeric:tabular-nums}
+.orc-kit-eq.vazio{color:#64748B;font-weight:600;font-style:italic}
 .orc-kit-vazio{grid-column:3/4}
 @media(max-width:640px){
-  .orc-kit-row{grid-template-columns:22px 1fr;grid-auto-rows:auto;row-gap:8px}
-  .orc-kit-opt,.orc-kit-preco{grid-column:2/3}
+  .orc-kit-row{grid-template-columns:22px 1fr;grid-auto-rows:auto;row-gap:6px}
+  .orc-kit-eq{grid-column:2/3;text-align:left}
   .orc-kit-vazio{display:none}
 }
+/* faixa que mostra de onde veio o valor (mesmo desenho do banner do cliente) */
+.orc-valor-banner{margin-top:16px;background:rgba(59,130,246,.10);border:1px solid rgba(59,130,246,.28);border-radius:10px;padding:10px 12px;font-size:12.5px;color:#CBD5E1;line-height:1.5}
+.orc-valor-dica{display:block;margin-top:6px;color:#94A3B8;font-size:11.5px}
 .orc-tot{margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px;display:flex;flex-direction:column;gap:6px}
 .orc-tot-row{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;color:#CBD5E1}
 .orc-tot-row .v{font-variant-numeric:tabular-nums;font-weight:700;color:#E5E7EB}
@@ -2474,11 +2477,16 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-cli-email" placeholder="cliente@email.com" autocomplete="off"></div></div>
       </div>
 
-      <!-- ITENS — kit travado: marca o que entra, o cliente só vê o preço final -->
+      <!-- ITENS — kit travado: marca o que entra. Preço de item não existe:
+           o valor do projeto é um número só e vem do Simulador. -->
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Itens do orçamento</div>
-        <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">Marque o que entra no projeto. No orçamento do cliente cada item sai como <b>INCLUÍDO</b> — os preços por item ficam só aqui.</div>
+        <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">Marque o que entra no projeto — <b>sem preço por item</b>. No orçamento do cliente cada um sai como <b>INCLUÍDO</b>, e o valor é um só. Potência do carregador e valor vêm do <b>Simulador</b>.</div>
         <div class="orc-kit" id="orc-kit"></div>
+
+        <div class="orc-valor-banner" id="orc-valor-banner"></div>
+        <div class="eletro-field" style="margin-top:12px"><label>Valor do projeto</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-valor" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="orcValorEditado(this)"></div></div>
 
         <div class="eletro-field" style="margin-top:16px"><label>Frete</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-frete" inputmode="decimal" value="0" step="0.01" oninput="orcCalc()"></div></div>
@@ -2486,7 +2494,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-desc" inputmode="decimal" value="0" step="0.01" oninput="orcCalc()"></div></div>
 
         <div class="orc-tot">
-          <div class="orc-tot-row"><span>Subtotal</span><span class="v" id="orc-t-sub">R$ 0,00</span></div>
+          <div class="orc-tot-row"><span>Valor do projeto</span><span class="v" id="orc-t-sub">R$ 0,00</span></div>
           <div class="orc-tot-row"><span>Frete</span><span class="v" id="orc-t-frete">R$ 0,00</span></div>
           <div class="orc-tot-row"><span>Desconto</span><span class="v" id="orc-t-desc">R$ 0,00</span></div>
           <div class="orc-tot-row big"><span>Total</span><span class="v" id="orc-t-total">R$ 0,00</span></div>
@@ -6516,75 +6524,65 @@ function orcHojeISO() {
 }
 
 // ═══ KIT TRAVADO DO ELETROPOSTO ═══
-// A lista é fixa: o consultor marca o que entra e, se precisar negociar, mexe no
-// preço. O cliente não vê preço de item nenhum — o documento lista tudo como
-// "INCLUÍDO" e mostra um preço final só (foi assim que o Thiago pediu, 30/07/2026).
-// O carregador é o único com variação de potência; trocar a potência repuxa o
-// preço de tabela, a não ser que o consultor já tenha digitado outro valor.
-//
-// Tabela vigente desde 05/08/2026 (a anterior, de 30/07, está no final do bloco).
-// Com o carregador em 80 kW e a cobertura fora, o kit fecha em R$ 144.595,00 —
-// que é o padrão que o Thiago mandou guardar.
+// A lista é fixa e o consultor só MARCA o que entra. Item não tem preço: o valor
+// do projeto é um número só, definido no Simulador (é a planilha que fecha a
+// conta) — foi assim que o Thiago pediu, 06/08/2026. O documento lista tudo como
+// "INCLUÍDO" e mostra um valor final só.
+// A potência do carregador também não se escolhe aqui: ela já foi definida no
+// Simulador ("Potência Carregador") e vale pro orçamento inteiro. Ter o mesmo
+// equipamento em dois campos era o jeito de o estudo e o orçamento saírem com
+// potências diferentes na mão do mesmo cliente.
 const EP_KIT = [
-  { id: 'proj',   nome: 'Projeto de engenharia especializada', preco: 10000 },
-  { id: 'mao',    nome: 'Mão de obra especializada',           preco: 24096 },
-  { id: 'padrao', nome: 'Padrão de entrada 200A',              preco: 19000 },
-  { id: 'carreg', nome: 'Carregador',                          preco: 0, opcoes: [] },  // ← calculado logo abaixo
-  { id: 'trafo',  nome: 'Transformador 220/380',               preco: 12999 },
-  { id: 'cabo',   nome: 'Cabeamento',                          preco: 6000 },
-  { id: 'civil',  nome: 'Obra civil',                          preco: 5000 },
-  // `extra` = fora do padrão: não entra na conta de equalização e nasce DESMARCADO.
-  // É a cobertura que faz o total bater com o deck — com ela ligada, soma por cima.
-  { id: 'cobert', nome: 'Cobertura',                           preco: 10000, extra: true },
+  { id: 'proj',   nome: 'Projeto de engenharia especializada' },
+  { id: 'mao',    nome: 'Mão de obra especializada' },
+  { id: 'padrao', nome: 'Padrão de entrada 200A' },
+  { id: 'carreg', nome: 'Carregador' },   // potência vem do Simulador (el-equip)
+  { id: 'trafo',  nome: 'Transformador 220/380' },
+  { id: 'cabo',   nome: 'Cabeamento' },
+  { id: 'civil',  nome: 'Obra civil' },
+  // `extra` = fora do padrão: nasce DESMARCADO, o consultor liga se for vender.
+  { id: 'cobert', nome: 'Cobertura', extra: true },
 ];
 
-// ═══ EQUALIZAÇÃO PELO DECK ═══
+// ═══ PREÇO CHAVE NA MÃO DO DECK ═══
 // Quem manda no preço é a APRESENTAÇÃO, slide 22 ("estação completa: equipamento
 // + projeto + instalação"), em Desktop/EletroPosto/Apresentacao-IrmaosNaObra.
-// Trocar a potência tem que largar o kit no MESMO valor que o cliente leu lá.
 //
-// Como o cliente nunca vê preço de item (o documento lista tudo como "INCLUÍDO" e
-// mostra um preço final só), a linha do carregador pode ser a que fecha a conta:
-// ela vale preço do deck − padrão. ⚠ Ou seja, NÃO é o preço do equipamento — o
-// preço de venda do equipamento sozinho está no slide 23 e é outro número.
-//
-// A conta é feita aqui em vez de escrita à mão pra não haver deriva: mexeu num
-// preço do padrão acima, as cinco potências se reajustam e o total continua no deck.
+// ⚠ Esta tabela NÃO preenche mais nada sozinha. Desde 06/08/2026 o valor do
+// projeto vem do "Valor do investimento" do Simulador, e ponto — duas fontes de
+// preço na mesma tela era exatamente o que o Thiago mandou acabar. Ela fica aqui
+// só como referência: vira a dica embaixo do campo quando a potência escrita no
+// Simulador bate com uma da lista.
 //
 // Só a linha DC entra. O wallbox AC do deck (7,3 / 11 / 22 kW, de R$ 11.847 a
-// R$ 17.447 instalado) custa MENOS que o padrão sozinho — ele não leva padrão de
-// entrada 200A, transformador nem obra civil. É outra composição, não um
-// carregador mais barato; forçar na mesma lista daria preço negativo.
+// R$ 17.447 instalado) é outra composição — não leva padrão de entrada 200A,
+// transformador nem obra civil.
 const EP_DECK_CHAVE_NA_MAO = {
   '40 kW': 109685, '60 kW': 141673, '80 kW': 144595, '120 kW': 203548, '160 kW': 229436,
 };
-(function epEqualizarCarregador() {
-  const carreg = EP_KIT.find(k => k.id === 'carreg');
-  const padrao = EP_KIT.reduce((s, k) => s + (k.id === 'carreg' || k.extra ? 0 : k.preco), 0);
-  carreg.opcoes = Object.keys(EP_DECK_CHAVE_NA_MAO)
-    .map(rot => ({ rot, preco: Math.max(0, EP_DECK_CHAVE_NA_MAO[rot] - padrao) }));
-  carreg.preco = carreg.opcoes[0].preco;
-})();
-// Tabela de 30/07/2026, aposentada em 05/08 — fica escrita porque orçamento
-// gerado até 05/08 saiu com ela, e vai ser preciso pra explicar diferença de
-// preço se um cliente antigo voltar com o PDF na mão:
-// projeto 8.000 · mão de obra 20.000 · padrão 12.000 · carregador 35/55/80.000
-// · transformador 10.000 · cabeamento 10.000 · obra civil 10.000 · cobertura 10.000
+// "DC 80 kW", "80kW", "80 KW carregador" → 144595. Escreveu outra potência, sem dica.
+function epDeckPorTexto(txt) {
+  const m = String(txt || '').replace(',', '.').match(/(\d+(?:\.\d+)?)\s*k\s*w/i);
+  return m ? EP_DECK_CHAVE_NA_MAO[Math.round(parseFloat(m[1])) + ' kW'] : undefined;
+}
+// Preços por item usados até 05/08/2026, quando cada linha ainda tinha valor
+// próprio na tela — ficam escritos porque orçamento gerado até lá saiu com eles,
+// e vai ser preciso pra explicar diferença se um cliente antigo voltar com o PDF:
+// projeto 10.000 · mão de obra 24.096 · padrão 19.000 · transformador 12.999
+// · cabeamento 6.000 · obra civil 5.000 · cobertura 10.000, e o carregador
+// fechando a conta pra bater o deck (80 kW sem cobertura = R$ 144.595,00).
+// Antes disso, até 30/07: projeto 8.000 · mão de obra 20.000 · padrão 12.000
+// · carregador 35/55/80.000 · transformador 10.000 · cabeamento 10.000
+// · obra civil 10.000 · cobertura 10.000.
 
 function orcKitRender() {
   const box = document.getElementById('orc-kit');
   if (!box || box.children.length) return;   // só monta uma vez (preserva o que foi marcado)
-  box.innerHTML = EP_KIT.map(it => {
-    const opt = it.opcoes
-      ? `<select class="orc-kit-opt" data-id="${it.id}" onchange="orcKitOpcao(this)">${it.opcoes.map((o, i) => `<option value="${i}">${o.rot}</option>`).join('')}</select>`
-      : '<span class="orc-kit-vazio"></span>';
-    return `<label class="orc-kit-row ${it.extra ? 'off' : 'on'}" data-id="${it.id}">
+  box.innerHTML = EP_KIT.map(it => `<label class="orc-kit-row ${it.extra ? 'off' : 'on'}" data-id="${it.id}">
         <input type="checkbox"${it.extra ? '' : ' checked'} onchange="orcKitToggle(this)">
         <span class="orc-kit-nome">${orcEsc(it.nome)}</span>
-        ${opt}
-        <input type="number" class="orc-kit-preco" inputmode="decimal" min="0" step="100" value="${it.preco}" oninput="orcKitPrecoEditado(this)">
-      </label>`;
-  }).join('');
+        ${it.id === 'carreg' ? '<span class="orc-kit-eq" id="orc-kit-eq"></span>' : '<span class="orc-kit-vazio"></span>'}
+      </label>`).join('');
 }
 
 function orcKitToggle(chk) {
@@ -6593,38 +6591,79 @@ function orcKitToggle(chk) {
   orcCalc();
 }
 
-// Trocar a potência do carregador repuxa o preço — a menos que o consultor já
-// tenha digitado um valor próprio (aí manda o dele, senão a negociação se perde).
-function orcKitOpcao(sel) {
-  const row = sel.closest('.orc-kit-row');
-  const it = EP_KIT.find(k => k.id === sel.dataset.id);
-  const campo = row && row.querySelector('.orc-kit-preco');
-  if (it && it.opcoes && campo && campo.dataset.tocado !== '1') {
-    campo.value = it.opcoes[Number(sel.value) || 0].preco;
-  }
-  orcCalc();
+// A potência do carregador é a do Simulador, só espelhada aqui pro consultor ver
+// o que vai sair no documento. Não é campo: mudar potência é lá.
+function orcKitEquipSync() {
+  const el = document.getElementById('orc-kit-eq');
+  if (!el) return;
+  const eq = orcVal('el-equip').trim();
+  el.textContent = eq || 'definir no Simulador';
+  el.classList.toggle('vazio', !eq);
 }
 
-function orcKitPrecoEditado(inp) { inp.dataset.tocado = '1'; orcCalc(); }
+// ═══ VALOR DO PROJETO ═══
+// Fonte única: "Valor do investimento" do Simulador (campo em milhares — usar
+// elMilhar, NUNCA elNum: parseFloat('200.000') devolve 200 sem erro nenhum).
+// O campo do Orçamento acompanha o Simulador até o consultor digitar outro
+// número; a partir daí manda o dele (é onde mora a negociação), até clicar em
+// "voltar ao valor do Simulador". Mesma regra do valor à vista.
+function orcValorSimulador() { return elMilhar('el-invest'); }
+function orcValorEditado(inp) { inp.dataset.tocado = '1'; orcValorBanner(); orcCalc(); }
+function orcValorSync() {
+  const el = document.getElementById('orc-valor');
+  if (!el) return;
+  if (el.dataset.tocado !== '1') {
+    const v = orcValorSimulador();
+    el.value = v > 0 ? v : '';
+  }
+  orcKitEquipSync();
+  orcValorBanner();
+}
+function orcValorReset() {
+  const el = document.getElementById('orc-valor');
+  if (!el) return;
+  delete el.dataset.tocado;
+  orcValorSync();
+  orcCalc();
+}
+function orcValorBanner() {
+  const box = document.getElementById('orc-valor-banner');
+  if (!box) return;
+  const sim = orcValorSimulador();
+  const el = document.getElementById('orc-valor');
+  const tocado = el && el.dataset.tocado === '1';
+  // Quanto o deck cobra na potência do Simulador — só referência, nunca preenche.
+  const eq = orcVal('el-equip').trim();
+  const deck = epDeckPorTexto(eq);
+  const dica = deck ? `<span class="orc-valor-dica">Referência: na apresentação, ${orcEsc(eq)} chave na mão sai por <b>${ORC_MONEY(deck)}</b>.</span>` : '';
+  const ajustar = `<button type="button" class="orc-link" onclick="eletroSubaba('simulador')">Ajustar no Simulador →</button>`;
+  box.innerHTML = tocado
+    ? `Valor <b>digitado à mão</b>${sim > 0 ? ` — no Simulador está ${ORC_MONEY(sim)}` : ''}. ` +
+      `<button type="button" class="orc-link" onclick="orcValorReset()">Voltar ao valor do Simulador</button>${dica}`
+    : sim > 0
+      ? `Valor do <b>Simulador</b> (Valor do investimento). Digite outro aqui para negociar. ${ajustar}${dica}`
+      : `Defina o <b>Valor do investimento</b> no Simulador — é ele que fecha o orçamento. ${ajustar}${dica}`;
+}
 
-// Lê o kit → [{desc, total}] + agregados. Mesma assinatura que o documento espera.
+// Lê o kit → [{desc, variante, qtd}] + os agregados de dinheiro. Item não carrega
+// preço: o valor do projeto é um só, do campo acima.
 function orcLerItens() {
   const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; };
   const itens = [];
+  // Potência do carregador: a do Simulador ("Potência Carregador"). Uma fonte só,
+  // pra ficha técnica e composição do documento nunca discordarem.
+  const equip = orcVal('el-equip').trim();
   document.querySelectorAll('#orc-kit .orc-kit-row').forEach(row => {
     if (!row.querySelector('input[type="checkbox"]').checked) return;
     const it = EP_KIT.find(k => k.id === row.dataset.id);
-    const sel = row.querySelector('.orc-kit-opt');
-    const rot = sel && it && it.opcoes ? it.opcoes[Number(sel.value) || 0].rot : '';
     itens.push({
-      desc: it ? it.nome : '', variante: rot,
+      desc: it ? it.nome : '', variante: row.dataset.id === 'carreg' ? equip : '',
       // Só o carregador tem quantidade (1 ponto de recarga costuma ter 2). Sai no
-      // documento como "Incluído · N un" pra não parecer que o preço é de um só.
+      // documento como "Incluído · N un" pra não parecer que é um só.
       qtd: row.dataset.id === 'carreg' ? orcEpQtdCarregadores() : 1,
-      total: num(row.querySelector('.orc-kit-preco').value),
     });
   });
-  const subtotal = itens.reduce((s, i) => s + i.total, 0);
+  const subtotal = num(document.getElementById('orc-valor')?.value);
   const frete = num(document.getElementById('orc-frete')?.value);
   const desconto = num(document.getElementById('orc-desc')?.value);
   const total = Math.max(0, subtotal + frete - desconto);
@@ -6697,7 +6736,7 @@ function orcPgSync(total) {
   const prev = document.getElementById('orc-ent-preview');
   const prevF = document.getElementById('orc-fin-preview');
   if (!(total > 0)) {
-    const aviso = '<span class="alerta">Marque os itens do kit para calcular a parcela.</span>';
+    const aviso = '<span class="alerta">Defina o valor do projeto (vem do Simulador) para calcular a parcela.</span>';
     if (prev) prev.innerHTML = aviso;
     if (prevF) prevF.innerHTML = aviso;
     return;
@@ -6802,13 +6841,16 @@ function orcCliBanner() {
 }
 function orcInit() {
   orcCliBanner();   // sempre reflete o cliente atual do Simulador
-  if (orcIniciado) { orcCalc(); return; }
+  // Toda vez que o pane abre, o valor volta a puxar o Simulador (a não ser que o
+  // consultor tenha digitado o dele). Mexeu no investimento lá, chega aqui.
+  if (orcIniciado) { orcValorSync(); orcCalc(); return; }
   orcIniciado = true;
   orcEmitCarregar();
   const dEmis = document.getElementById('orc-data'); if (dEmis && !dEmis.value) dEmis.value = orcHojeISO();
   const dVenc = document.getElementById('orc-parc-data'); if (dVenc && !dVenc.value) dVenc.value = orcHojeISO();
   const obs = document.getElementById('orc-obs'); if (obs && !obs.value.trim()) obs.value = ORC_OBS_PADRAO;
   orcKitRender();
+  orcValorSync();
   orcPgToggle();
   orcCalc();
 }
@@ -7204,6 +7246,7 @@ const orcEpArquivo = d => {
 function orcImprimir() {
   const d = orcEpPayload();
   if (!d) { alert('Marque ao menos um item do kit para gerar o orçamento.'); return; }
+  if (!(d.total > 0)) { alert('Sem valor. Defina o "Valor do investimento" no Simulador — é ele que fecha o orçamento.'); return; }
   if (d.nome) epHistOrcSave({ id: epId(), tipo: 'Completo', cliente: d.nome, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() });
   orc1Imprimir(orcEpDocHTML(d), orcEpArquivo(d), { umaPagina: true, piso: 0.74 });
 }
@@ -7214,6 +7257,7 @@ function orcImprimir() {
 async function orcEpLink() {
   const d = orcEpPayload();
   if (!d) { alert('Marque ao menos um item do kit para gerar o orçamento.'); return; }
+  if (!(d.total > 0)) { alert('Sem valor. Defina o "Valor do investimento" no Simulador — é ele que fecha o orçamento.'); return; }
   if (!d.nome) { alert('Informe o cliente no Simulador antes de gerar o link.'); return; }
   showToast('⏳ Gerando link...');
   try {
@@ -7403,7 +7447,7 @@ function epWhatsTextoOrcamento(total) {
   return L.join('\n');
 }
 function epWhatsOrcamento(total) {
-  if (!(total > 0)) { alert('Sem valor para enviar. Defina o investimento no Simulador ou os itens no Orçamento.'); return; }
+  if (!(total > 0)) { alert('Sem valor para enviar. Defina o "Valor do investimento" no Simulador.'); return; }
   window.open('https://wa.me/?text=' + encodeURIComponent(epWhatsTextoOrcamento(total)), '_blank', 'noopener');
 }
 
@@ -7588,18 +7632,17 @@ function orcSnapTake() {
   const ck = id => !!document.getElementById(id)?.checked;
   const kit = [];
   document.querySelectorAll('#orc-kit .orc-kit-row').forEach(row => {
-    const sel = row.querySelector('.orc-kit-opt');
-    kit.push({
-      id: row.dataset.id,
-      on: row.querySelector('input[type="checkbox"]').checked,
-      preco: row.querySelector('.orc-kit-preco').value,
-      opt: sel ? sel.value : null,
-      tocado: row.querySelector('.orc-kit-preco').dataset.tocado === '1',
-    });
+    kit.push({ id: row.dataset.id, on: row.querySelector('input[type="checkbox"]').checked });
   });
   return {
     num: v('orc-num'), data: v('orc-data'), validade: v('orc-validade'), validadeModo: v('orc-validade-modo'),
     doc: v('orc-cli-doc'), ie: v('orc-cli-ie'), end: v('orc-cli-end'), cep: v('orc-cli-cep'), tel: v('orc-cli-tel'), email: v('orc-cli-email'),
+    // Valor do projeto: guarda sempre o número que saiu no documento. `valorTocado`
+    // diz se era digitado à mão — reabrir não pode trocar o preço por baixo.
+    valor: v('orc-valor'), valorTocado: document.getElementById('orc-valor')?.dataset.tocado === '1',
+    // Potência do carregador é do Simulador. Guarda aqui pra reabrir um orçamento
+    // antigo com o Simulador vazio e ainda mostrar o equipamento que foi vendido.
+    equip: v('el-equip'),
     frete: v('orc-frete'), desc: v('orc-desc'), obs: v('orc-obs'), parcData: v('orc-parc-data'),
     pgA: ck('orc-pg-ck-avista'), pgF: ck('orc-pg-ck-fin'), kit,
     // à vista com valor próprio + entrada/cartão + entrada/financiamento
@@ -7635,7 +7678,7 @@ function orcSnapApply(s) {
     if (s.vistaTocado) { vistaEl.dataset.tocado = '1'; if (s.vistaValor != null) vistaEl.value = s.vistaValor; }
     else delete vistaEl.dataset.tocado;   // volta a acompanhar o total
   }
-  // Kit: reaplica marcação, potência do carregador e preços negociados.
+  // Kit: reaplica a marcação.
   // Orçamento salvo antes do kit travado (s.items) não tem o que restaurar aqui —
   // o kit fica no padrão e o consultor remarca; melhor isso do que quebrar o histórico.
   (s.kit || []).forEach(k => {
@@ -7645,12 +7688,34 @@ function orcSnapApply(s) {
     chk.checked = !!k.on;
     row.classList.toggle('on', chk.checked);
     row.classList.toggle('off', !chk.checked);
-    const sel = row.querySelector('.orc-kit-opt');
-    if (sel && k.opt != null) sel.value = k.opt;
-    const preco = row.querySelector('.orc-kit-preco');
-    if (k.preco != null) preco.value = k.preco;
-    if (k.tocado) preco.dataset.tocado = '1'; else delete preco.dataset.tocado;
   });
+  // Potência: só preenche o Simulador se ele estiver vazio — reabrir um orçamento
+  // do histórico não pode trocar o equipamento da simulação que está aberta.
+  // `s.equip` não existe até 06/08/2026; ali a potência era um índice (s.kit[].opt)
+  // na lista fixa 40/60/80/120/160 kW, e é dela que o legado é remontado.
+  const eqEl = document.getElementById('el-equip');
+  if (eqEl && !eqEl.value.trim()) {
+    const legadoOpt = (s.kit || []).find(k => k.id === 'carreg');
+    const legadoEq = legadoOpt && legadoOpt.opt != null
+      ? Object.keys(EP_DECK_CHAVE_NA_MAO)[Number(legadoOpt.opt) || 0] : '';
+    eqEl.value = s.equip || legadoEq || '';
+  }
+  // Valor do projeto. Orçamento salvo até 05/08/2026 não tem `valor`: o dinheiro
+  // dele morava nos preços por item. Reconstrói somando as linhas marcadas e
+  // trava como digitado — senão o PDF que o cliente tem na mão reabriria em R$ 0
+  // ou no investimento de hoje, que é outro número.
+  const valorEl = document.getElementById('orc-valor');
+  if (valorEl) {
+    if (s.valor != null && s.valor !== '') {
+      valorEl.value = s.valor;
+      if (s.valorTocado) valorEl.dataset.tocado = '1'; else delete valorEl.dataset.tocado;
+    } else {
+      const legado = (s.kit || []).reduce((t, k) => t + (k.on ? (parseFloat(String(k.preco == null ? '' : k.preco).replace(',', '.')) || 0) : 0), 0);
+      if (legado > 0) { valorEl.value = legado; valorEl.dataset.tocado = '1'; }
+      else { delete valorEl.dataset.tocado; orcValorSync(); }
+    }
+  }
+  orcKitEquipSync(); orcValorBanner();
   orcPgToggle(); orcCalc();
 }
 
