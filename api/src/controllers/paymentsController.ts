@@ -27,7 +27,13 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
     priceId: envPrice('STRIPE_PRICE_PRO', 'price_1TKNtbCkkgzQ4IHeCr0mYSXn'),
     plano: 'pro',
     limite: 90,
-    valor: 27, // preço mensal real (R$) — espelha PRICES.pro da Landing. Usado no value do Purchase (Meta CAPI).
+    valor: 27, // preço mensal real (R$). Usado no value do Purchase (Meta CAPI).
+    // Saiu da vitrine em 06/08/2026 (a LP vende só o plano único). Ainda é
+    // comprável pelo UpgradeModal de quem está no free — e por isso também
+    // cobra na hora: com o trial aqui, a tela de cadastro ("Plano Pro · acesso
+    // imediato") e o roteiro das agentes estariam mentindo pra esse comprador.
+    // Assinatura já criada não é afetada: trial só vale na criação do checkout.
+    trialDias: 0,
     descricao: '📄 90 documentos por mês  •  Indicado para até 20 vendas mensais  •  Tudo do Iniciante  •  Histórico completo de documentos  •  Suporte prioritário',
   },
   ilimitado: {
