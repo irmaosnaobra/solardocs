@@ -71,8 +71,8 @@ const TELAS = [
   {
     img: '/tela/doc-proposta.webp',
     imgMobile: '/tela/doc-proposta-mobile.webp',
-    titulo: 'A proposta que o cliente recebe',
-    texto: 'Economia em 25 anos, conta antes e depois, geração mês a mês — com a sua marca no topo.',
+    titulo: 'Proposta comercial',
+    texto: 'Economia em 25 anos, conta antes e depois e geração mês a mês — com a sua marca no topo.',
   },
   {
     img: '/tela/doc-proposta-a4.webp',
@@ -83,7 +83,7 @@ const TELAS = [
   {
     img: '/tela/doc-contrato.webp',
     imgMobile: '/tela/doc-contrato-mobile.webp',
-    titulo: 'Contrato pronto pra assinar',
+    titulo: 'Contrato de compra e venda',
     texto: 'Partes, equipamentos, prazos e garantias já escritos. Você só confere e envia.',
   },
   {
@@ -95,7 +95,7 @@ const TELAS = [
   {
     img: '/tela/doc-recibo.webp',
     imgMobile: '/tela/doc-recibo-mobile.webp',
-    titulo: 'Recibo com saldo em aberto',
+    titulo: 'Recibo de pagamento',
     texto: 'Lança as parcelas e ele calcula sozinho quanto o cliente já pagou e quanto falta.',
   },
   {
@@ -103,18 +103,6 @@ const TELAS = [
     imgMobile: '/tela/doc-banco-mobile.webp',
     titulo: 'Proposta pro banco financiar',
     texto: 'No formato que a financeira pede: equipamento, mão de obra e valor total separados.',
-  },
-  {
-    img: '/tela/precificacao.webp',
-    imgMobile: '/tela/precificacao-mobile.webp',
-    titulo: 'O preço certo, antes de mandar',
-    texto: 'Custo do kit, mão de obra e margem entram — o preço de venda e o lucro saem calculados.',
-  },
-  {
-    img: '/tela/inventario.webp',
-    imgMobile: '/tela/inventario-mobile.webp',
-    titulo: 'Estoque e patrimônio da empresa',
-    texto: 'Painel, inversor e material com quantidade, valor e o total que a empresa tem em mãos.',
   },
 ];
 
@@ -217,7 +205,6 @@ export default function Landing() {
           </div>
           <div className={styles.navRight}>
             <a href="/auth" className={styles.navLink}>Entrar</a>
-            <button onClick={() => scrollToPlans('nav')} className={styles.navCta}>Assinar — R$ {PRICE}</button>
           </div>
         </div>
       </nav>
@@ -572,8 +559,8 @@ export default function Landing() {
             É <strong>isso que sai</strong> quando você clica em gerar.
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            Documento pronto, não formulário em branco: proposta, contrato, preço e estoque
-            — gerados pelo próprio sistema com dados de exemplo.
+            Seis documentos, do orçamento à procuração — gerados pelo próprio sistema
+            com dados de exemplo. É o PDF que chega no cliente.
           </p>
 
           <div
@@ -583,12 +570,9 @@ export default function Landing() {
             onMouseLeave={() => setPausado(false)}
             onTouchStart={() => setPausado(true)}
           >
+            {/* sem barra de navegador em volta: o que roda aqui é o DOCUMENTO
+                pronto, não um print de tela do sistema */}
             <div className={styles.janela}>
-              <div className={styles.janelaBarra} aria-hidden>
-                <span /><span /><span />
-                <div className={styles.janelaUrl}>solardoc.app</div>
-              </div>
-
               <div className={styles.slides}>
                 {TELAS.map((t, i) => (
                   <picture key={t.img} className={`${styles.slideImg} ${i === slide ? styles.slideOn : ''}`}>
