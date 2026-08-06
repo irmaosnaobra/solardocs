@@ -1014,19 +1014,21 @@ function calc(){
 }
 
 // ===== AGENDA =====
-// Regras: SEG, TER e QUA — manhã 09:00–11:30 e tarde 13:00–16:30, slots de 30 min.
-// Thiago e Diego apresentam JUNTOS: concentrar a semana em 3 manhãs vale mais
-// que espalhar reunião por 5 dias — os dois turnos rodam nesses mesmos 3 dias. QUI e SEX são transbordo, não grade fixa:
-// quinta só abre quando a segunda da mesma semana lota, sexta quando a terça lota.
-// A vitrine mostra 3 dias rolantes — o dia que lota sai e o próximo entra.
-// Fecha o que já passou, o que está a menos de 2h daqui e o que já está ocupado
-// na agenda do Thiago/Diego.
+// Regras: SEG, TER e QUA — só TARDE, 13:30 às 17:30, slots de 30 min (9 horários).
+// QUI e SEX são transbordo, não grade fixa: quinta só abre quando a segunda da
+// mesma semana lota, sexta quando a terça lota.
+// A vitrine mostra 2 dias rolantes — o dia que lota sai e o próximo entra.
+// Fecha o que já passou, o que está a menos de 2h daqui e o horário em que os DOIS
+// consultores já estão ocupados.
 let slotSel = null;
-let ocupados = new Set();   // ISO dos horários já tomados
+let ocupados = new Set();          // ISO dos horários com os dois consultores tomados
+let ocupadosPorDono = new Map();   // ISO → Set de consultores já ocupados nele
 
-// Enquanto Thiago e Diego apresentam JUNTOS, 1 reunião por horário: se qualquer um
-// estiver ocupado, o slot fecha. Quando separarem as agendas, vire para 2.
-const REUNIOES_POR_HORARIO = 1;
+// 06/08: Thiago e Diego DESMEMBRARAM a agenda — cada horário recebe 2 reuniões, uma
+// com cada um, em paralelo. Antes era 1 (eles apresentavam juntos). Isso dobra a
+// capacidade da tarde: 9 horários × 2 = 18 reuniões por dia. Se um dia voltarem a
+// apresentar juntos, volte para 1 — o resto da régua não muda.
+const REUNIOES_POR_HORARIO = 2;
 
 // Feriados nacionais (data BR). Ponto facultativo não entra — só o que fecha mesmo.
 const FERIADOS = new Set([
@@ -1046,14 +1048,22 @@ function partesBR(d = new Date()){
 }
 const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 
-// Manhã 09:00–11:30 e tarde 13:00–16:30 — 14 horários por dia, slots de 30 min.
-// A tarde voltou em 01/08: com a agenda só de manhã, os horários que vagavam à tarde
-// não voltavam pra venda — ficavam livres num turno que a LP nem anunciava.
-const FAIXAS = [[9,12],[13,17]];
+// Tarde 13:30–17:30 — 9 horários por dia, slots de 30 min. Os limites são horários
+// de INÍCIO e são inclusivos nas duas pontas: a última reunião começa 17:30.
+//
+// Histórico das duas viradas, porque a segunda é o espelho da primeira:
+//   01/08 — a tarde VOLTOU. Com a agenda só de manhã, o horário que vagava à tarde
+//           não voltava pra venda: ficava livre num turno que a LP nem anunciava.
+//   06/08 — a manhã SAIU. Com manhã + tarde espalhadas em 3 dias, a vitrine ficava
+//           larga e vazia (ninguém marcado pro dia seguinte). Concentrar tudo num
+//           turno só, com os dois consultores em paralelo, faz o dia lotar antes de
+//           o próximo abrir — que é o que a régua sempre quis.
+const FAIXAS = [['13:30','17:30']];
+const emMin = hhmm => Number(hhmm.slice(0,2)) * 60 + Number(hhmm.slice(3,5));
 function horariosDoDia(){
   const out = [];
   for(const [ini,fim] of FAIXAS)
-    for(let m = ini*60; m < fim*60; m += 30)
+    for(let m = emMin(ini); m <= emMin(fim); m += 30)
       out.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
   return out;
 }
@@ -1090,6 +1100,9 @@ function gradeDoDia(ymd){
 }
 
 // Busca o que já está ocupado na agenda do Thiago/Diego na janela exibida.
+// Guarda QUEM está ocupado em cada horário, não só quantos: com a agenda desmembrada
+// o slot só fecha quando os DOIS estão tomados, e na hora de gravar é essa lista que
+// diz qual consultor ainda cabe ali.
 async function carregarOcupados(deYmd, ateYmd){
   try{
     const de  = isoDe(deYmd, '00:00');
@@ -1099,14 +1112,23 @@ async function carregarOcupados(deYmd, ateYmd){
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
       { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
     const rows = await r.json();
-    const cont = {};
+    const porDono = new Map();
     (Array.isArray(rows)?rows:[]).forEach(a=>{
       if(!a.quando) return;
       const k = new Date(a.quando).toISOString();
-      cont[k] = (cont[k]||0) + 1;
+      if(!porDono.has(k)) porDono.set(k, new Set());
+      porDono.get(k).add(String(a.vendedor_nome));
     });
-    ocupados = new Set(Object.keys(cont).filter(k => cont[k] >= REUNIOES_POR_HORARIO));
-  }catch(e){ ocupados = new Set(); }   // falhou: não trava a agenda, valida no envio
+    ocupadosPorDono = porDono;
+    ocupados = new Set([...porDono.entries()]
+      .filter(([, donos]) => donos.size >= REUNIOES_POR_HORARIO).map(([k]) => k));
+  }catch(e){ ocupados = new Set(); ocupadosPorDono = new Map(); }   // falhou: não trava a agenda, valida no envio
+}
+
+/** Consultores que ainda cabem neste horário (na ordem do rodízio). */
+function donosLivres(iso){
+  const tomados = ocupadosPorDono.get(iso) || new Set();
+  return DONOS.filter(d => !tomados.has(d));
 }
 
 // Rodízio Thiago/Diego: alterna pelo nº de reuniões da LP já marcadas.
@@ -1204,15 +1226,20 @@ function perfilTexto(sel){
   const t = document.getElementById('f-outro').value.trim();
   return t ? `Outro: ${t}` : 'Outro';
 }
-// Os 3 próximos dias COM atendimento, a partir de hoje (pula fim de semana, feriado,
+// Os 2 próximos dias COM atendimento, a partir de hoje (pula fim de semana, feriado,
 // qui/sex fora do transbordo e o dia que já não tem horário livre). É isto que faz o
 // "lotou a segunda, abre a quinta": a segunda cheia some da vitrine e o próximo dia
-// aberto entra no lugar dela. Ex: numa quinta → seg, ter, qua da semana que vem.
+// aberto entra no lugar dela. Ex: numa quinta → seg e ter da semana que vem.
+//
+// Eram 3 dias até 06/08. Virou 2 porque a escolha larga espalhava: o lead pegava o
+// terceiro dia e os dois primeiros ficavam vazios. A meta agora é lotar o dia e o
+// seguinte — o terceiro só aparece depois que o primeiro fecha.
+const DIAS_NA_VITRINE = 2;
 function proximosDias(){
   const hoje = partesBR().ymd;
   const dias = [];
   let d = new Date(`${hoje}T12:00:00-03:00`);
-  for(let i=0; i<21 && dias.length<3; i++){
+  for(let i=0; i<21 && dias.length<DIAS_NA_VITRINE; i++){
     const ymd = partesBR(d).ymd;
     if(gradeDoDia(ymd).length && livresDoDia(ymd).length) dias.push(ymd);
     d = new Date(d.getTime() + 86400000);
@@ -1241,7 +1268,7 @@ async function montarSlots(){
   const el = document.getElementById('slots');
   el.innerHTML = '<div class="agLoad">Carregando horários…</div>';
   // Janela ampla p/ buscar ocupados de uma vez. Tem que cobrir os mesmos 21 dias que
-  // o proximosDias() varre: só seg/ter/qua abrem, então numa quinta os 3 dias já caem
+  // o proximosDias() varre: só seg/ter/qua abrem, então numa quinta os 2 dias já caem
   // na semana seguinte — e com feriado no meio, na outra. Janela curta = dia sem
   // ocupação carregada = horário já vendido aparecendo livre.
   const hoje = partesBR().ymd;
@@ -1532,7 +1559,25 @@ async function gravarAgendamento(){
       return erro(passou ? 'Esse horário já passou. Escolha outro acima — a agenda foi atualizada.'
                          : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
     }
-    const dono = (await donoDoTelefone(tel)) || (await proximoDono());
+    // Quem atende: dono antigo do telefone manda (1 telefone = 1 consultor). Cliente
+    // novo entra no rodízio — mas só pode cair em quem AINDA cabe neste horário,
+    // senão os dois vão pro mesmo e o slot grava reunião sobreposta.
+    const livres = donosLivres(slotSel);
+    const preferido = await donoDoTelefone(tel);
+    if(preferido && DONOS.includes(preferido) && !livres.includes(preferido)){
+      // Cliente que já é do Thiago não pode ser jogado pro Diego só porque o horário
+      // apertou — o dono é fixo; quem muda é o horário.
+      slotSel = null; pendente = null;
+      await montarSlots();
+      btn.disabled = false; btn.textContent = 'Confirmar agendamento →';
+      document.getElementById('slots').scrollIntoView({behavior:'smooth', block:'center'});
+      return erro('Seu consultor já tem reunião nesse horário. Escolha outro acima — a agenda foi atualizada.');
+    }
+    let dono = preferido;
+    if(!dono){
+      const rodizio = await proximoDono();   // alterna Thiago/Diego pelo total já marcado
+      dono = livres.includes(rodizio) ? rodizio : (livres[0] || rodizio);
+    }
     const novo = await supaInsert('agendamentos', {
       vendedor_nome:    dono,               // NOT NULL + FK consultores → dono existente ou rodízio Thiago/Diego
       quando:           slotSel,
