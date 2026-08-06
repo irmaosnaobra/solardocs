@@ -372,49 +372,117 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* DOCS */}
+      {/* MÓDULOS — o acesso inteiro, item por item.
+          A dinâmica veio da LP de pack de materiais que o Thiago mandou: ela
+          NOMEIA os 100 arquivos em 5 módulos, e é isso que faz a oferta parecer
+          grande. A nossa listava "8 documentos" e escondia metade da plataforma
+          (precificação, inventário, vistoria de campo, escanear conta, terceiros,
+          histórico). Aqui está tudo o que o plano de fato libera — nada do que
+          não libera: o Kit de Fechamento (curso) é compra à parte e NÃO entra. */}
       <section className={styles.docs}>
         <div className={styles.docsInner}>
           <div className={styles.sectionLabelWrap}>
-            <span className={styles.sectionLabel} data-reveal>8 documentos prontos</span>
+            <span className={styles.sectionLabel} data-reveal>O que você leva</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            Tudo o que sua empresa solar <strong>precisa pra fechar</strong>.{' '}<br />
-            Nada do que não precisa.
+            <strong>8 documentos + 7 ferramentas</strong>{' '}<br />
+            no mesmo acesso.
           </h2>
+          <p className={styles.sectionSub} data-reveal>
+            Não é um gerador de contrato. É a papelada e a operação da venda solar inteira,
+            do orçamento à entrega da obra — item por item, é isto aqui:
+          </p>
 
-          <div className={styles.docsGrid}>
-            <div className={styles.docCard} data-reveal>
-              <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Proposta Solar</span>
-            </div>
-            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.05s' }}>
-              <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Contrato de Compra e Venda Solar</span>
-            </div>
-            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Procuração para Concessionária</span>
-            </div>
-            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.15s' }}>
-              <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Prestação de Serviço</span>
-            </div>
-            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Contrato Vendedor</span>
-            </div>
-            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.25s' }}>
-              <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Proposta para Financiamento Bancário</span>
-            </div>
-            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.3s' }}>
-              <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Recibo</span>
-            </div>
-            <div className={styles.docCard} data-reveal style={{ transitionDelay: '0.35s' }}>
-              <span className={styles.docCheck}>✓</span>
-              <span className={styles.docName}>Vistoria Técnica</span>
+          <div className={styles.mods}>
+            <article className={styles.mod} data-reveal>
+              <div className={styles.modTag}>Módulo 1</div>
+              <h3 className={styles.modH}>A proposta que fecha</h3>
+              <p className={styles.modP}>
+                O documento que o cliente abre no WhatsApp e responde &ldquo;fechado&rdquo;.
+              </p>
+              <ul className={styles.modList}>
+                <li>Gerador de Proposta Solar com a sua marca</li>
+                <li>Economia na conta e retorno do investimento</li>
+                <li>Proposta de Banco pra aprovar financiamento</li>
+                <li>PDF pronto pra mandar do celular ou do PC</li>
+              </ul>
+            </article>
+
+            <article className={styles.mod} data-reveal style={{ transitionDelay: '0.05s' }}>
+              <div className={styles.modTag}>Módulo 2</div>
+              <h3 className={styles.modH}>A papelada toda</h3>
+              <p className={styles.modP}>
+                Os 8 tipos de documento, com cláusulas revisadas pro setor solar.
+              </p>
+              <ul className={styles.modList}>
+                <li>Contrato de Compra e Venda Solar</li>
+                <li>Procuração pra concessionária</li>
+                <li>Recibo e Prestação de Serviço</li>
+                <li>Contrato Vendedor (parceiro comissionado)</li>
+                <li>Vistoria Técnica</li>
+              </ul>
+            </article>
+
+            <article className={styles.mod} data-reveal style={{ transitionDelay: '0.1s' }}>
+              <div className={styles.modTag}>Módulo 3</div>
+              <h3 className={styles.modH}>O preço certo da venda</h3>
+              <p className={styles.modP}>
+                Pra parar de chutar valor e descobrir a margem depois da obra.
+              </p>
+              <ul className={styles.modList}>
+                <li>Calculadora de Precificação</li>
+                <li>Custo do kit, margem e comissão na mesma tela</li>
+                <li>O preço sai pronto pra virar proposta</li>
+              </ul>
+            </article>
+
+            <article className={styles.mod} data-reveal style={{ transitionDelay: '0.15s' }}>
+              <div className={styles.modTag}>Módulo 4</div>
+              <h3 className={styles.modH}>A obra sob controle</h3>
+              <p className={styles.modP}>
+                O que você hoje resolve em planilha paralela e grupo de WhatsApp.
+              </p>
+              <ul className={styles.modList}>
+                <li>Inventário de painel, inversor e material</li>
+                <li>Vistoria Solar de campo, com foto por item</li>
+                <li>Entrada e saída conforme você vende</li>
+              </ul>
+            </article>
+
+            <article className={styles.mod} data-reveal style={{ transitionDelay: '0.2s' }}>
+              <div className={styles.modTag}>Módulo 5</div>
+              <h3 className={styles.modH}>Cliente e histórico</h3>
+              <p className={styles.modP}>
+                Cadastrou uma vez, nunca mais digita os mesmos dados.
+              </p>
+              <ul className={styles.modList}>
+                <li>Cadastro de clientes e de prestadores parceiros</li>
+                <li>Escanear a conta de luz: a foto vira o cliente</li>
+                <li>Documentos salvos pra sempre, buscáveis</li>
+              </ul>
+            </article>
+
+            <article className={styles.mod} data-reveal style={{ transitionDelay: '0.25s' }}>
+              <div className={styles.modTag}>Em tudo</div>
+              <h3 className={styles.modH}>A sua empresa, não a minha</h3>
+              <p className={styles.modP}>
+                O cliente nunca vê o nome SolarDoc em documento nenhum.
+              </p>
+              <ul className={styles.modList}>
+                <li>Logo, cor e CNPJ em todo documento</li>
+                <li>App instalável no celular, funciona na obra</li>
+                <li>Recursos novos entram sem custo a mais</li>
+              </ul>
+            </article>
+          </div>
+
+          {/* CTA no meio da página — a pessoa acabou de ver o tamanho da coisa. */}
+          <div className={styles.modsCta} data-reveal>
+            <button onClick={() => goToCheckout('modulos')} className={styles.offerBtn} disabled={checkoutLoading}>
+              {checkoutLoading ? 'Abrindo checkout...' : `Quero tudo isso — R$ ${PRICE}/mês`}
+            </button>
+            <div className={styles.modsCtaFoot}>
+              Acesso na hora · garantia de 7 dias · cancele quando quiser
             </div>
           </div>
         </div>
