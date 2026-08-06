@@ -48,6 +48,41 @@ const PRICE = 67;
 const PRICE_DIA = (PRICE / 30).toFixed(2).replace('.', ','); // "por dia" da oferta
 const WHATSAPP = 'https://wa.me/5534998165040';
 
+// Telas do carrossel. São prints REAIS do app (public/tela/*.webp), tirados da
+// própria plataforma rodando com dados de demonstração — não são mockups.
+const TELAS = [
+  {
+    img: '/tela/proposta.webp',
+    imgMobile: '/tela/proposta-mobile.webp',
+    titulo: 'Gerador de Proposta',
+    texto: 'Preenche cliente e consumo — sai a proposta com a sua marca, pronta pro WhatsApp.',
+  },
+  {
+    img: '/tela/contrato.webp',
+    imgMobile: '/tela/contrato-mobile.webp',
+    titulo: 'Contrato Solar',
+    texto: 'Potência, módulos, inversor e valor. As cláusulas do setor já vêm escritas.',
+  },
+  {
+    img: '/tela/precificacao.webp',
+    imgMobile: '/tela/precificacao-mobile.webp',
+    titulo: 'Calculadora de Precificação',
+    texto: 'Custo do kit, mão de obra e margem: o preço de venda certo antes de mandar o orçamento.',
+  },
+  {
+    img: '/tela/inventario.webp',
+    imgMobile: '/tela/inventario-mobile.webp',
+    titulo: 'Inventário',
+    texto: 'Painel, inversor e material com quantidade, valor e patrimônio total da empresa.',
+  },
+  {
+    img: '/tela/clientes.webp',
+    imgMobile: '/tela/clientes-mobile.webp',
+    titulo: 'Clientes',
+    texto: 'Cadastra uma vez e todo documento puxa os dados. Ou escaneia a conta de luz.',
+  },
+];
+
 export default function Landing() {
   const router = useRouter();
   useReveal();
@@ -141,6 +176,21 @@ export default function Landing() {
 
   const ctaLabel = checkoutLoading ? 'Abrindo checkout...' : `Assinar agora — R$ ${PRICE}/mês`;
 
+  // ---- Carrossel das telas (prints REAIS do app, capturados com dados de
+  // demonstração). É webp e não GIF de propósito: um GIF de tela cheia dá 2 a
+  // 5 MB cada e mata o carregamento no 4G — aqui cada print tem ~70 KB e o
+  // movimento vem da troca automática. Pausa no hover/toque e respeita quem
+  // pediu menos animação no sistema.
+  const [slide, setSlide] = useState(0);
+  const [pausado, setPausado] = useState(false);
+  useEffect(() => {
+    if (pausado) return;
+    if (typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const id = setInterval(() => setSlide(s => (s + 1) % TELAS.length), 4500);
+    return () => clearInterval(id);
+  }, [pausado]);
+
   return (
     <div className={styles.page}>
       {/* BARRA DO TOPO — plano único (clica → rola pra oferta) */}
@@ -216,9 +266,11 @@ export default function Landing() {
                 <img src="/founder-thiago.webp" width={44} height={44} alt="" loading="lazy" />
                 <img src="/founder-diego.webp" width={44} height={44} alt="" loading="lazy" />
               </span>
+              {/* NÃO prometer que o dono responde o suporte: quem atende no
+                  WhatsApp é o time/agente, não o Thiago e o Diego. */}
               <span>
                 Feito por <b>Thiago e Diego</b>, integradores solares —
-                {' '}quem responde no suporte é um de nós dois.
+                {' '}nasceu dentro da operação deles, não numa startup de software.
               </span>
             </div>
           </div>
@@ -488,6 +540,70 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* CARROSSEL — a plataforma por dentro (prints reais, troca sozinho) */}
+      <section className={styles.telas}>
+        <div className={styles.telasInner}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Por dentro</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
+            É <strong>essa tela</strong> que você abre depois de assinar.
+          </h2>
+          <p className={styles.sectionSub} data-reveal>
+            Sem maquete de designer: são as telas do sistema, com dados de exemplo.
+          </p>
+
+          <div
+            className={styles.carrossel}
+            data-reveal
+            onMouseEnter={() => setPausado(true)}
+            onMouseLeave={() => setPausado(false)}
+            onTouchStart={() => setPausado(true)}
+          >
+            <div className={styles.janela}>
+              <div className={styles.janelaBarra} aria-hidden>
+                <span /><span /><span />
+                <div className={styles.janelaUrl}>solardoc.app</div>
+              </div>
+
+              <div className={styles.slides}>
+                {TELAS.map((t, i) => (
+                  <picture key={t.img} className={`${styles.slideImg} ${i === slide ? styles.slideOn : ''}`}>
+                    <source media="(max-width: 760px)" srcSet={t.imgMobile} />
+                    <img
+                      src={t.img}
+                      alt={`${t.titulo} — tela do SolarDoc`}
+                      width={1400}
+                      height={880}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                    />
+                  </picture>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.slideLegenda} aria-live="polite">
+              <b>{TELAS[slide].titulo}</b>
+              <span>{TELAS[slide].texto}</span>
+            </div>
+
+            <div className={styles.dots} role="tablist" aria-label="Telas da plataforma">
+              {TELAS.map((t, i) => (
+                <button
+                  key={t.img}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === slide}
+                  aria-label={t.titulo}
+                  className={`${styles.dot} ${i === slide ? styles.dotOn : ''}`}
+                  onClick={() => { setSlide(i); trackEvent('cta_click', { label: `tela_${i}` }); }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* COMPARATIVO — com/sem SolarDoc */}
       <section className={styles.compare}>
         <div className={styles.compareInner}>
@@ -576,8 +692,9 @@ export default function Landing() {
                 fechar venda</b>.
               </p>
               <p className={styles.foundersKicker}>
-                Quando você chama o suporte no WhatsApp, quem responde é um de nós dois. Não é robô,
-                não é central.
+                Cada tela dessa plataforma passou por uma venda nossa antes de virar produto. Se
+                tem alguma coisa aqui, é porque fez falta em obra — não porque ficou bonito no
+                projeto.
               </p>
               <a
                 href={WHATSAPP}
@@ -673,7 +790,7 @@ export default function Landing() {
                 <li>Escaneia a conta de luz e preenche o cliente sozinho</li>
                 <li><b>Histórico salvo pra sempre</b> — acha qualquer contrato depois</li>
                 <li>Atualizações e recursos novos inclusos, sem pagar mais</li>
-                <li>Suporte no WhatsApp direto com quem fez a plataforma</li>
+                <li>Suporte no WhatsApp e no chat de dentro da plataforma</li>
               </ul>
             </div>
 
@@ -703,7 +820,7 @@ export default function Landing() {
             </span>
             <span className={styles.offerBadge}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M21 11.5a8 8 0 0 1-11.5 7.2L4 20l1.3-5.5A8 8 0 1 1 21 11.5z"/></svg>
-              Suporte com o dono, no WhatsApp
+              Suporte no WhatsApp e no chat
             </span>
           </div>
 
