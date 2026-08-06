@@ -86,7 +86,12 @@ function planByPrice(priceId: string) {
 // instância fria da função — o primeiro checkout depois do deploy conserta o
 // produto e os seguintes nem tocam na Stripe. Se falhar, o checkout continua
 // normal (só a vitrine fica velha).
-const CHECKOUT_IMG = `${(process.env.DASHBOARD_URL || 'https://solardoc.app').trim()}/checkout-solardoc.jpg`;
+// v2 (06/08/2026): a arte v1 tinha marca + selo + headline + parágrafo +
+// mockup + 2 chips. No desktop lia; no CELULAR a Stripe reduz isso a uma
+// miniatura de ~110px e virou borrão. A v2 tem só o que sobrevive a 110px:
+// ícone do app, nome e uma linha. Trocar o NOME do arquivo é de propósito —
+// é o que faz o sync abaixo detectar diferença e recarimbar o produto.
+const CHECKOUT_IMG = `${(process.env.DASHBOARD_URL || 'https://solardoc.app').trim()}/checkout-solardoc-2.jpg`;
 const vitrineFeita = new Set<string>();
 
 async function garantirVitrineStripe(priceId: string, descricao: string): Promise<void> {
