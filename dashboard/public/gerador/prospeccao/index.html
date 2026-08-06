@@ -200,6 +200,26 @@ tbody tr:hover{background:#233047}
   cursor:pointer}
 .prodrow.on{background:#233047}
 
+/* ===== AGENDA LIBERADA (dentro da marcação de reunião) =====
+   Só este modal e mais largo: os outros quatro dividem a classe .mo. */
+#ov-agenda .mo{max-width:700px}
+.agd{margin-bottom:11px}
+.agd-h{font-size:10.5px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;
+  margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.agd-h .livre{margin-left:auto;color:var(--ok);font-weight:700;text-transform:none;letter-spacing:0;
+  font-size:11px}
+.agd-chips{display:flex;flex-wrap:wrap;gap:5px}
+.agc{font-family:inherit;font-size:12px;font-weight:700;padding:5px 8px;border-radius:7px;
+  border:1.5px solid var(--line-s);background:#0B1220;color:var(--txt);cursor:pointer;
+  font-variant-numeric:tabular-nums;line-height:1.25}
+.agc:hover{border-color:var(--blue);color:#93C5FD}
+.agc.on{background:var(--navy);border-color:#60A5FA;color:#fff}
+.agc.ocupado{background:#152238;border-color:#233047;color:var(--faint);cursor:not-allowed;
+  text-decoration:line-through}
+.agc.ocupado:hover{border-color:#233047;color:var(--faint)}
+.agc.tarde{opacity:.6}
+.agd-vazio{font-size:12px;color:var(--faint);line-height:1.5}
+
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0B1220;color:#fff;
   padding:11px 15px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:80;
   border:1px solid var(--line-s);box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;
@@ -315,17 +335,30 @@ tbody tr:hover{background:#233047}
       <input type="text" id="ag-nome" placeholder="Jorge — Posto Sol"></div>
     <div class="fld"><label>WhatsApp</label>
       <input type="tel" id="ag-tel" inputmode="numeric" placeholder="(34) 99999-9999"></div>
+    <!-- O consultor vem ANTES da agenda: e ele que decide quais horarios aparecem. -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="fld"><label>Dia da reunião</label><input type="date" id="ag-data"></div>
-      <div class="fld"><label>Hora</label><input type="time" id="ag-hora" step="900"></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="fld"><label>Consultor que vai atender</label><select id="ag-consultor"></select></div>
+      <div class="fld"><label>Consultor que vai atender</label>
+        <select id="ag-consultor" onchange="carregarSlots(this.value)"></select></div>
       <div class="fld"><label>Etiqueta de origem</label>
         <select id="ag-origem">
           <option value="prosp_eletroposto">Prosp EP</option>
           <option value="prosp_solar">Prosp Solar</option>
         </select></div>
+    </div>
+    <!-- Agenda de verdade do consultor nos proximos 4 dias uteis: horario ocupado
+         aparece riscado (com o nome no title), livre e botao. Sem isso a marcacao
+         era um campo de hora vazio - e cair em cima de outra reuniao era so digitar. -->
+    <div class="fld">
+      <label>Horário livre <span id="ag-slots-quem" style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--faint)"></span></label>
+      <div id="ag-slots"><div class="agd-vazio">Escolha o consultor.</div></div>
+    </div>
+    <button type="button" class="btn sm" id="ag-manual-btn" onclick="alternarManual()"
+      style="margin-bottom:11px">Outro horário (fora dos 4 dias)</button>
+    <div id="ag-manual" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fld"><label>Dia da reunião</label><input type="date" id="ag-data"></div>
+        <div class="fld"><label>Hora</label><input type="time" id="ag-hora" step="900"></div>
+      </div>
     </div>
     <div class="fld"><label>Observação pro consultor</label>
       <textarea id="ag-obs" style="min-height:70px"></textarea></div>
@@ -996,6 +1029,182 @@ async function gravarToque(c, pid, desf, valor, obs){
 // ============= JOGAR NA AGENDA DO CONSULTOR =============
 // O contato converteu na conversa: daqui ele sai da lista fria e entra no funil
 // normal do gerador (CRM + Agenda), com a etiqueta que diz de onde veio.
+// ============= AGENDA LIBERADA (próximos 4 dias úteis) =============
+// ESPELHO da tela /gerador/agenda — mesma grade (08h–20h, seg a sex), mesmo
+// conceito de ocupado (agendamento não-cancelado do consultor + agenda_bloqueios).
+// Duas definições de "livre" entre as duas telas seria a pior coisa que esta
+// funcionalidade poderia ter.
+//
+// Duas diferenças, as duas de propósito:
+//  · o passo aqui é de 30 min (é assim que a casa marca: 288 das 400 reuniões
+//    caem em :00 ou :30), e um horário só é OFERECIDO se os DOIS baldes de 15
+//    min dentro dele estiverem livres. É mais apertado que a grade, nunca mais
+//    frouxo — então nunca oferece o que a Agenda considera ocupado;
+//  · a Agenda casa o slot por igualdade exata de horário, o que ESCONDE dela as
+//    reuniões marcadas em minuto quebrado (11 no banco: :05, :10, :20…). Aqui o
+//    horário é arredondado pro balde de 15 min, então essas aparecem ocupadas.
+const AG_HORA_INI = 8, AG_HORA_FIM = 20, AG_PASSO_MIN = 30, AG_PRIO_LIMITE = 18;
+const AG_DIAS_UTEIS = 4;
+const MS15 = 15 * 60 * 1000;
+
+let agSlots = { consultor:'', ags:[], bloqs:[], sel:null, carregando:false, req:0, erro:'' };
+let agManual = false;
+
+/** Balde de 15 min do horário. Divide o epoch direto: todo fuso do mundo é
+ *  múltiplo de 15 min, então o balde bate com o slot local sem converter nada. */
+const bucket15 = t => Math.floor(t / MS15) * MS15;
+
+/** Os próximos N dias úteis (seg–sex, igual à grade da Agenda). Hoje entra
+ *  enquanto ainda couber um horário à frente. */
+function diasUteisDaJanela(){
+  const out = [];
+  const d = new Date(); d.setHours(0,0,0,0);
+  while (out.length < AG_DIAS_UTEIS){
+    const dow = d.getDay();
+    if (dow >= 1 && dow <= 5){
+      const ultimoInicio = new Date(d);
+      ultimoInicio.setHours(AG_HORA_FIM - 1, 60 - AG_PASSO_MIN, 0, 0);
+      if (ultimoInicio.getTime() > Date.now()) out.push(new Date(d));
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+function rotuloDia(d){
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const dif = Math.round((d - hoje) / 86400000);
+  const sem = ['dom','seg','ter','qua','qui','sex','sáb'][d.getDay()];
+  const data = `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
+  return dif === 0 ? `hoje · ${data}` : dif === 1 ? `amanhã · ${data}` : `${sem} · ${data}`;
+}
+
+async function carregarSlots(consultor){
+  const meuReq = ++agSlots.req;          // resposta de consultor antigo chega e é descartada
+  agSlots.consultor = consultor || '';
+  agSlots.sel = null; agSlots.erro = ''; agSlots.carregando = true;
+  renderSlots();
+  if (!consultor){ agSlots.carregando = false; renderSlots(); return; }
+
+  const dias = diasUteisDaJanela();
+  const de  = new Date(dias[0]);                de.setHours(AG_HORA_INI, 0, 0, 0);
+  const ate = new Date(dias[dias.length - 1]);  ate.setHours(AG_HORA_FIM, 0, 0, 0);
+  const q = encodeURIComponent;
+  try {
+    const [ags, bloqs] = await Promise.all([
+      // status=neq.cancelado e não a lista de "perdido": é EXATAMENTE o filtro da
+      // Agenda. O slot segue ocupado depois da call — quem faltou não libera horário.
+      supaGet(`agendamentos?select=cliente_nome,quando,status&vendedor_nome=eq.${q(consultor)}` +
+              `&status=neq.cancelado&quando=gte.${q(toLocalIso(de))}&quando=lt.${q(toLocalIso(ate))}&order=quando.asc`),
+      supaGet(`agenda_bloqueios?select=inicio,fim,motivo&vendedor_nome=eq.${q(consultor)}` +
+              `&inicio=lt.${q(toLocalIso(ate))}&fim=gt.${q(toLocalIso(de))}`),
+    ]);
+    if (meuReq !== agSlots.req) return;
+    agSlots.ags = ags || []; agSlots.bloqs = bloqs || [];
+  } catch(e){
+    if (meuReq !== agSlots.req) return;
+    // Falhou a leitura: não inventa "tudo livre" — manda usar o horário manual,
+    // que confere o conflito no servidor antes de gravar.
+    agSlots.ags = []; agSlots.bloqs = [];
+    agSlots.erro = 'Não deu pra ler a agenda agora. Use "Outro horário" — o conflito é conferido ao salvar.';
+  } finally {
+    if (meuReq === agSlots.req){ agSlots.carregando = false; renderSlots(); }
+  }
+}
+
+function renderSlots(){
+  const el = document.getElementById('ag-slots');
+  if (!el) return;
+  const quem = document.getElementById('ag-slots-quem');
+  if (quem) quem.textContent = agSlots.consultor ? `— agenda do ${agSlots.consultor}, 4 dias úteis` : '';
+  if (agManual){ el.innerHTML = '<div class="agd-vazio">Marcando por data digitada — confiro o conflito na hora de salvar.</div>'; return; }
+  if (agSlots.carregando){ el.innerHTML = '<div class="agd-vazio">Lendo a agenda…</div>'; return; }
+  if (!agSlots.consultor){ el.innerHTML = '<div class="agd-vazio">Escolha o consultor.</div>'; return; }
+  if (agSlots.erro){ el.innerHTML = `<div class="agd-vazio" style="color:var(--warn)">${esc(agSlots.erro)}</div>`; return; }
+
+  const agora = Date.now();
+  const ocupados = new Map();
+  for (const a of agSlots.ags){
+    const b = bucket15(new Date(a.quando).getTime());
+    if (!ocupados.has(b)) ocupados.set(b, a);
+  }
+  const bloqEm = t => agSlots.bloqs.find(b =>
+    new Date(b.inicio).getTime() <= t && new Date(b.fim).getTime() > t) || null;
+
+  let html = '';
+  for (const dia of diasUteisDaJanela()){
+    const chips = [];
+    let livres = 0;
+    for (let h = AG_HORA_INI; h < AG_HORA_FIM; h++){
+      for (let m = 0; m < 60; m += AG_PASSO_MIN){
+        const dt = new Date(dia); dt.setHours(h, m, 0, 0);
+        const t = dt.getTime();
+        if (t < agora) continue;                        // horário que já passou não é opção
+        const b0 = bucket15(t), b1 = b0 + MS15;         // os 30 min cobrem dois baldes
+        const ag = ocupados.get(b0) || ocupados.get(b1);
+        const bq = bloqEm(b0) || bloqEm(b1);
+        const rot = `${pad2(h)}:${pad2(m)}`;
+        const tarde = h >= AG_PRIO_LIMITE ? ' tarde' : '';   // ≥18h é fora de prioridade, igual à Agenda
+        if (ag) {
+          chips.push(`<span class="agc ocupado${tarde}" title="${esc(ag.cliente_nome || 'ocupado')}">${rot}</span>`);
+        } else if (bq) {
+          chips.push(`<span class="agc ocupado${tarde}" title="Bloqueado: ${esc(bq.motivo || '—')}">${rot}</span>`);
+        } else {
+          livres++;
+          chips.push(`<button type="button" class="agc${tarde}${agSlots.sel === t ? ' on' : ''}" onclick="escolherSlot(${t})">${rot}</button>`);
+        }
+      }
+    }
+    html += `<div class="agd"><div class="agd-h">${esc(rotuloDia(dia))}` +
+      `<span class="livre">${livres ? livres + (livres === 1 ? ' livre' : ' livres') : 'lotado'}</span></div>` +
+      `<div class="agd-chips">${chips.length ? chips.join('') : '<span class="agd-vazio">Dia já passou do último horário.</span>'}</div></div>`;
+  }
+  el.innerHTML = html;
+}
+
+function escolherSlot(t){
+  agSlots.sel = t;
+  const err = document.getElementById('ag-erro');
+  if (err) err.textContent = '';
+  renderSlots();
+}
+
+/** Escape pros 4 dias: reunião marcada pra semana que vem não pode ficar de fora
+ *  só porque a vitrine é curta. O conflito continua sendo conferido ao salvar. */
+function alternarManual(){
+  agManual = !agManual;
+  const box = document.getElementById('ag-manual');
+  const btn = document.getElementById('ag-manual-btn');
+  box.style.display = agManual ? '' : 'none';
+  btn.textContent = agManual ? 'Voltar pros horários livres' : 'Outro horário (fora dos 4 dias)';
+  if (agManual && !document.getElementById('ag-data').value){
+    const base = agSlots.sel ? new Date(agSlots.sel) : (() => { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(10,0,0,0); return d; })();
+    document.getElementById('ag-data').value = `${base.getFullYear()}-${pad2(base.getMonth()+1)}-${pad2(base.getDate())}`;
+    document.getElementById('ag-hora').value = `${pad2(base.getHours())}:${pad2(base.getMinutes())}`;
+  }
+  renderSlots();
+}
+
+/** Confere no SERVIDOR se o horário está livre pra aquele consultor, agora.
+ *  Existe porque a lista pode ter minutos de idade — e porque o horário digitado
+ *  no modo manual nunca passou por lista nenhuma.
+ *  Devolve '' (livre), a razão do conflito, ou null quando não deu pra conferir. */
+async function conflitoNoHorario(consultor, dt){
+  const b0 = bucket15(dt.getTime());
+  const de = new Date(b0), ate = new Date(b0 + 2 * MS15);
+  const q = encodeURIComponent;
+  try {
+    const [ags, bloqs] = await Promise.all([
+      supaGet(`agendamentos?select=cliente_nome,quando&vendedor_nome=eq.${q(consultor)}&status=neq.cancelado` +
+              `&quando=gte.${q(toLocalIso(de))}&quando=lt.${q(toLocalIso(ate))}&limit=1`),
+      supaGet(`agenda_bloqueios?select=motivo&vendedor_nome=eq.${q(consultor)}` +
+              `&inicio=lte.${q(toLocalIso(dt))}&fim=gt.${q(toLocalIso(dt))}&limit=1`),
+    ]);
+    if (ags && ags.length) return `${ags[0].cliente_nome || 'outra reunião'} já está com ${consultor} nesse horário.`;
+    if (bloqs && bloqs.length) return `${consultor} bloqueou esse horário (${bloqs[0].motivo || 'sem motivo'}).`;
+    return '';
+  } catch(e){ return null; }
+}
+
 // REGRA DO GERADOR: 1 telefone = 1 consultor. Se esse número já é cliente de
 // alguém no CRM (qualquer origem, card não-cancelado), a reunião TEM que ficar
 // com ele — senão a prospecção cria um segundo dono pro mesmo cliente, que é
@@ -1019,6 +1228,8 @@ async function donoDoTelefone(tel){
 function fecharAgenda(){
   const avancar = !!(agendaPendente && agendaPendente.avancar);
   agendaPendente = null;
+  agSlots.req++;                 // invalida leitura de agenda em voo
+  agSlots.sel = null; agSlots.ags = []; agSlots.bloqs = []; agSlots.consultor = '';
   fecharModal('ov-agenda');
   if (avancar) proximo(); else renderTudo();
 }
@@ -1041,17 +1252,20 @@ function abrirAgenda(contatoId, produtoId, autoConversao){
   document.getElementById('ag-tel').value  = formatTelBR(c.telefone);
   document.getElementById('ag-erro').textContent = '';
 
-  // Amanhã às 10h: o consultor troca em dois toques, mas nunca abre o modal vazio.
-  const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
-  document.getElementById('ag-data').value =
-    `${amanha.getFullYear()}-${pad2(amanha.getMonth()+1)}-${pad2(amanha.getDate())}`;
-  document.getElementById('ag-hora').value = '10:00';
+  // O horário sai da agenda de verdade, não de um campo em branco. Os campos
+  // manuais nascem vazios e escondidos — só aparecem em "Outro horário".
+  agManual = false;
+  document.getElementById('ag-manual').style.display = 'none';
+  document.getElementById('ag-manual-btn').textContent = 'Outro horário (fora dos 4 dias)';
+  document.getElementById('ag-data').value = '';
+  document.getElementById('ag-hora').value = '';
 
   // Dono do card = quem vai atender. Cai no consultor da lista (a distribuição já
   // decidiu isso) e, sem ele, em quem está trabalhando a fila agora.
   const dono = consultores.includes(c.consultor) ? c.consultor : consultorAtivo;
   document.getElementById('ag-consultor').innerHTML = consultores
     .map(n => `<option value="${esc(n)}"${n === dono ? ' selected' : ''}>${esc(n)}</option>`).join('');
+  carregarSlots(dono);
 
   document.getElementById('ag-origem').value = origemDoProduto(agendaPendente.produtoId);
 
@@ -1071,6 +1285,9 @@ function abrirAgenda(contatoId, produtoId, autoConversao){
     aviso.textContent = `Esse WhatsApp já é cliente do ${donoCrm} no CRM. No gerador um telefone tem um dono só, ` +
       `então a reunião fica com ele. Pra passar pra outro consultor, transfira o card na Agenda.`;
     aviso.style.display = '';
+    // A agenda na tela era a do outro consultor — recarrega, senão ela escolhe um
+    // horário livre do Thiago pra uma reunião que vai cair na agenda do Diego.
+    if (agSlots.consultor !== donoCrm) carregarSlots(donoCrm);
   });
 
   // A observação é o que o consultor lê antes de ligar: de onde veio e o que foi
@@ -1097,21 +1314,29 @@ async function confirmarAgenda(){
 
   const nome = document.getElementById('ag-nome').value.trim();
   const tel  = normalizeTelBR(document.getElementById('ag-tel').value);
-  const data = document.getElementById('ag-data').value;
-  const hora = document.getElementById('ag-hora').value;
   let   consultor = document.getElementById('ag-consultor').value;
   const origem = document.getElementById('ag-origem').value;
   const obs = document.getElementById('ag-obs').value.trim();
 
   if (!nome){ err.textContent = 'Diz o nome que vai aparecer no card.'; return; }
   if (tel.replace(/^55/,'').length < 10){ err.textContent = 'WhatsApp inválido. Confere o DDD.'; return; }
-  if (!data || !hora){ err.textContent = 'Escolhe o dia e a hora da reunião.'; return; }
-  const quando = new Date(`${data}T${hora}`);
-  if (isNaN(quando.getTime())){ err.textContent = 'Data ou hora inválida.'; return; }
+  if (!consultor){ err.textContent = 'Escolhe o consultor que vai atender.'; return; }
+
+  // O horário vem da agenda (clique num livre) ou do campo manual do "Outro horário".
+  let quando;
+  if (agManual){
+    const data = document.getElementById('ag-data').value;
+    const hora = document.getElementById('ag-hora').value;
+    if (!data || !hora){ err.textContent = 'Escolhe o dia e a hora da reunião.'; return; }
+    quando = new Date(`${data}T${hora}`);
+    if (isNaN(quando.getTime())){ err.textContent = 'Data ou hora inválida.'; return; }
+  } else {
+    if (!agSlots.sel){ err.textContent = 'Toca num horário livre da agenda (ou usa "Outro horário").'; return; }
+    quando = new Date(agSlots.sel);
+  }
   // Marcar pra trás não é erro de digitação inofensivo: o card nasce vencido e o
   // consultor nunca é avisado. Melhor barrar e deixar ele corrigir.
   if (quando.getTime() < Date.now() - 5*60*1000){ err.textContent = 'Esse horário já passou. Escolhe um horário à frente.'; return; }
-  if (!consultor){ err.textContent = 'Escolhe o consultor que vai atender.'; return; }
 
   btn.disabled = true;
   const txt = btn.textContent; btn.textContent = 'Marcando…';
@@ -1125,6 +1350,18 @@ async function confirmarAgenda(){
       aviso.textContent = `Esse WhatsApp já é cliente do ${donoCrm} — a reunião foi pra agenda dele.`;
       aviso.style.display = '';
     }
+
+    // A lista de horários tem minutos de idade e o dono pode ter acabado de mudar.
+    // Confere no servidor ANTES de gravar: é isto que cumpre o "não marcar em cima
+    // de outra" mesmo com duas pessoas marcando ao mesmo tempo.
+    const conflito = await conflitoNoHorario(consultor, quando);
+    if (conflito){
+      err.textContent = conflito + ' Escolhe outro horário.';
+      agSlots.sel = null;
+      await carregarSlots(consultor);
+      return;
+    }
+
     const [novo] = await supaInsert('agendamentos', {
       vendedor_nome:    consultor,
       quando:           toLocalIso(quando),
@@ -1141,10 +1378,19 @@ async function confirmarAgenda(){
     fecharAgenda();      // fechou = fila anda (quando o modal abriu pela conversão)
   } catch(e){
     const msg = String((e && e.message) || e);
-    // vendedor_nome tem FK pra `consultores`: nome fora do cadastro estoura aqui.
-    err.textContent = /foreign key|consultores|fkey/i.test(msg)
-      ? `"${consultor}" não está cadastrado como consultor no gerador.`
-      : 'Não deu pra marcar. Tenta de novo.';
+    // Última linha de defesa contra reunião em cima de reunião: o banco tem índice
+    // único (vendedor_nome, quando). Se duas pessoas marcarem no mesmo segundo,
+    // uma passa e a outra cai aqui.
+    if (/duplicate|unique|23505/i.test(msg)){
+      err.textContent = 'Esse horário acabou de ser ocupado. Escolhe outro.';
+      agSlots.sel = null;
+      carregarSlots(consultor);
+    } else {
+      // vendedor_nome tem FK pra `consultores`: nome fora do cadastro estoura aqui.
+      err.textContent = /foreign key|consultores|fkey/i.test(msg)
+        ? `"${consultor}" não está cadastrado como consultor no gerador.`
+        : 'Não deu pra marcar. Tenta de novo.';
+    }
   } finally {
     btn.disabled = false; btn.textContent = txt;
   }
