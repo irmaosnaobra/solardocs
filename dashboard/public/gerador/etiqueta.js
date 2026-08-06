@@ -27,8 +27,8 @@ const ETIQUETA_MAPA = {
   // anúncio nem automação: o consultor foi atrás. O created_by carrega a palavra
   // "eletroposto" de propósito — crmEhEletroposto() casa por ela, então o card
   // ganha o fluxo de EP sem precisar de lista nova em lugar nenhum.
-  'prosp_eletroposto': 'Prosp EP',
-  'prosp_solar': 'Prosp Solar',
+  'prosp_eletroposto': 'EP Prospec',
+  'prosp_solar': 'Solar Prospec',
   'crm-bulk': 'Import',
   'import': 'Import',
   'indicacao': 'Indicado',
@@ -42,16 +42,30 @@ const ETIQUETA_SRC_ORGANIC = ['ig', 'instagram', 'organico', 'organic', 'dm'];
 // aqui é a mesma lista que as duas telas já usam pra montar seus filtros.
 const ETIQUETA_CONSULTORES = ['diego', 'giovanna', 'nilce', 'thiago'];
 
-// Cor da etiqueta: eletroposto = verde fluorescente, solar = laranja
-// fluorescente, o resto (Import/Manual/Indicado) = pill neutra. Casa pelo TEXTO
-// da etiqueta, não por uma lista de fontes — assim uma fonte nova que nasça
-// "EP Alguma Coisa" ou "Solar Alguma Coisa" já sai colorida sozinha.
+// Cor da etiqueta: eletroposto = família VERDE, solar = família LARANJA, o resto
+// (Import/Manual/Indicado) = pill neutra. Casa pelo TEXTO da etiqueta, não por
+// uma lista de fontes — assim uma fonte nova que nasça "EP Alguma Coisa" ou
+// "Solar Alguma Coisa" já sai colorida sozinha.
+//
+// Dentro da família, cada CANAL tem o seu tom (ordem do Thiago, 06/08/2026):
+// EP Tráfego, EP Organic e EP Prospec são três verdes diferentes; o mesmo vale
+// pro laranja do solar. Bater o olho no quadro e saber de onde o lead veio é o
+// ponto — antes os três verdes eram o mesmo verde.
+//
+// Devolve o sufixo da classe: 'ep-trafego', 'solar-prospec'… Canal novo que a
+// família reconheça mas o mapa abaixo não cai no tom BASE ('ep' / 'solar'):
+// sai colorido do jeito certo, só sem tom próprio até alguém dar um.
 function etiquetaCor(etiqueta) {
   const e = String(etiqueta == null ? '' : etiqueta).toLowerCase();
   if (!e) return '';
-  if (/eletroposto/.test(e) || /(^|\s)ep(\s|$)/.test(e)) return 'ep';
-  if (/solar/.test(e)) return 'solar';
-  return '';
+  const familia = (/eletroposto/.test(e) || /(^|\s)ep(\s|$)/.test(e)) ? 'ep'
+                : /solar/.test(e) ? 'solar'
+                : '';
+  if (!familia) return '';
+  if (/tr[áa]fego/.test(e)) return familia + '-trafego';
+  if (/organic/.test(e))    return familia + '-organic';
+  if (/prosp/.test(e))      return familia + '-prospec';
+  return familia;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

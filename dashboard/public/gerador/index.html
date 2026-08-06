@@ -742,11 +742,21 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-card-meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:#94A3B8}
 .crm-card-cons{color:#cbd5e1;font-weight:600}
 .crm-card-cid,.crm-card-ag{color:#94A3B8}
-/* etiqueta de origem: eletroposto = verde fluorescente, solar = laranja
-   fluorescente; fontes sem produto (Import/Manual/Indicado) ficam neutras */
+/* Etiqueta de origem. Duas FAMÍLIAS de cor: eletroposto = verde, solar = laranja.
+   Fonte sem produto (Import/Manual/Indicado) fica neutra.
+   Dentro da família, cada CANAL tem o seu tom — tráfego é o neon puro, organic
+   puxa pro água/ouro e prospecção pro limão/coral. A classe sai de etiquetaCor()
+   em /gerador/etiqueta.js; tag-ep e tag-solar sozinhos são o tom BASE, que pega
+   canal novo que ainda não ganhou o próprio. */
 .crm-card-tag{background:rgba(148,163,184,.16);color:#CBD5E1;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:800;white-space:nowrap}
-.crm-card-tag.tag-ep{background:#39FF14;color:#06210A;box-shadow:0 0 8px rgba(57,255,20,.5)}
-.crm-card-tag.tag-solar{background:#FF9100;color:#2A1200;box-shadow:0 0 8px rgba(255,145,0,.5)}
+.crm-card-tag.tag-ep,
+.crm-card-tag.tag-ep-trafego{background:#39FF14;color:#06210A;box-shadow:0 0 8px rgba(57,255,20,.5)}
+.crm-card-tag.tag-ep-organic{background:#00E5A0;color:#00241A;box-shadow:0 0 8px rgba(0,229,160,.5)}
+.crm-card-tag.tag-ep-prospec{background:#C6FF00;color:#1E2600;box-shadow:0 0 8px rgba(198,255,0,.5)}
+.crm-card-tag.tag-solar,
+.crm-card-tag.tag-solar-trafego{background:#FF9100;color:#2A1200;box-shadow:0 0 8px rgba(255,145,0,.5)}
+.crm-card-tag.tag-solar-organic{background:#FFD000;color:#2A2200;box-shadow:0 0 8px rgba(255,208,0,.5)}
+.crm-card-tag.tag-solar-prospec{background:#FF5E3A;color:#2A0C00;box-shadow:0 0 8px rgba(255,94,58,.5)}
 .crm-card-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:1px}
 .crm-card-val{font-size:14px;font-weight:800;color:#6EE7B7}
 .crm-card-acoes{display:flex;gap:5px;margin-left:auto}
@@ -3095,8 +3105,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <label>Etiqueta de origem</label>
       <select id="nc-etiqueta">
         <option value="" selected>Manual (cadastro na mão)</option>
-        <option value="prosp_eletroposto">Prosp EP — prospecção de eletroposto</option>
-        <option value="prosp_solar">Prosp Solar — prospecção de solar</option>
+        <option value="prosp_eletroposto">EP Prospec — prospecção de eletroposto</option>
+        <option value="prosp_solar">Solar Prospec — prospecção de solar</option>
         <option value="indicacao">Indicado — veio por indicação</option>
       </select>
     </div>
@@ -9183,7 +9193,7 @@ async function salvarNovoContato() {
   const criador = crmConsultorLogado() || getConsultorAtual() || dono;
 
   // ETIQUETA escolhida no modal. Ela não tem coluna própria: é derivada do
-  // created_by (etiqueta.js). Então "Prosp EP" = created_by 'prosp_eletroposto'.
+  // created_by (etiqueta.js). Então "EP Prospec" = created_by 'prosp_eletroposto'.
   // Como isso ocupa o campo que guardava o nome de quem digitou, o rastro do
   // criador vai pra observação — some do created_by, não do banco.
   const etiqueta = (document.getElementById('nc-etiqueta')?.value || '').trim();

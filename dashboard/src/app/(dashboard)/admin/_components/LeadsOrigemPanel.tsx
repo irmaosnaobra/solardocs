@@ -26,11 +26,17 @@ interface Resp {
 }
 
 // Cor semântica: Solar = âmbar, EP = azul/ciano, Indicado = verde, Import/Manual = neutros.
+// Cada produto é uma família e cada CANAL dentro dela tem o seu tom — a mesma
+// leitura das pills do Gerador (lá as famílias são verde/laranja; aqui, azul/âmbar,
+// que é a paleta deste gráfico). Etiqueta fora desta lista continua ganhando cor
+// sozinha pela PALETA_EXTRA — nenhuma fonte nova depende deste arquivo.
 const CORES: Record<string, string> = {
   'Solar Tráfego': '#F59E0B',
   'Solar Organic': '#FCD34D',
+  'Solar Prospec': '#B45309',
   'EP Tráfego': '#0EA5E9',
   'EP Organic': '#67E8F9',
+  'EP Prospec': '#1D4ED8',
   'Indicado': '#10B981',
   'Import': '#94A3B8',
   'Manual': '#C4B5A2',

@@ -169,6 +169,16 @@ tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:#233047}
 .pill{display:inline-flex;align-items:center;gap:5px;padding:2.5px 9px;border-radius:20px;font-size:11px;
   font-weight:700;white-space:nowrap}
+/* Etiqueta de origem — MESMAS cores do CRM e da Agenda: família pelo produto
+   (eletroposto verde, solar laranja), tom pelo canal. Classe de etiquetaCor(). */
+.pill.tag-ep,
+.pill.tag-ep-trafego   {background:#39FF14;color:#06210A}
+.pill.tag-ep-organic   {background:#00E5A0;color:#00241A}
+.pill.tag-ep-prospec   {background:#C6FF00;color:#1E2600}
+.pill.tag-solar,
+.pill.tag-solar-trafego{background:#FF9100;color:#2A1200}
+.pill.tag-solar-organic{background:#FFD000;color:#2A2200}
+.pill.tag-solar-prospec{background:#FF5E3A;color:#2A0C00}
 .dot{width:6px;height:6px;border-radius:50%}
 .prog{height:6px;background:#0B1220;border-radius:3px;overflow:hidden;display:flex;min-width:92px}
 .prog i{display:block;height:100%}
@@ -330,8 +340,8 @@ tbody tr:hover{background:#233047}
 
 <!-- ===== MODAL JOGAR NA AGENDA DO CONSULTOR =====
      Ponte entre a prospecção (lista fria) e o CRM/Agenda do gerador: grava em
-     `agendamentos` com created_by prosp_* — é isso que dá a etiqueta Prosp EP /
-     Prosp Solar no card. A partir daí o cliente é do funil normal. -->
+     `agendamentos` com created_by prosp_* — é isso que dá a etiqueta EP Prospec /
+     Solar Prospec no card. A partir daí o cliente é do funil normal. -->
 <div class="ov" id="ov-agenda">
   <div class="mo">
     <h3>Jogar na agenda do consultor</h3>
@@ -344,13 +354,13 @@ tbody tr:hover{background:#233047}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="fld"><label>Consultor que vai atender</label>
         <select id="ag-consultor" onchange="carregarSlots(this.value)"></select></div>
-      <!-- A etiqueta decide com QUEM esta reunião disputa o horário: Prosp Solar
-           briga com solar, Prosp EP briga com o resto. Trocar aqui redesenha a
+      <!-- A etiqueta decide com QUEM esta reunião disputa o horário: Solar Prospec
+           briga com solar, EP Prospec briga com o resto. Trocar aqui redesenha a
            lista de horários (não refaz a consulta — o dado é o mesmo). -->
       <div class="fld"><label>Etiqueta de origem</label>
         <select id="ag-origem" onchange="renderSlots()">
-          <option value="prosp_eletroposto">Prosp EP</option>
-          <option value="prosp_solar">Prosp Solar</option>
+          <option value="prosp_eletroposto">EP Prospec</option>
+          <option value="prosp_solar">Solar Prospec</option>
         </select></div>
     </div>
     <!-- Agenda de verdade do consultor nos proximos 4 dias uteis: horario ocupado
@@ -608,7 +618,7 @@ const CONVERTEU = ['interessado','vendeu'];
 // ── ORIGEM DA FICHA NA AGENDA ────────────────────────────────────────────────
 // A etiqueta do CRM não é uma coluna: é DERIVADA do `created_by` do agendamento
 // (/gerador/etiqueta.js). Então mandar um contato pra agenda com created_by
-// 'prosp_eletroposto' é o que faz o card nascer etiquetado "Prosp EP".
+// 'prosp_eletroposto' é o que faz o card nascer etiquetado "EP Prospec".
 // A palavra "eletroposto" no meio do slug não é enfeite: crmEhEletroposto() no
 // /gerador casa por ela e libera o fluxo de EP (botão "Proposta apresentada").
 const ORIGEM_EP    = 'prosp_eletroposto';
@@ -808,15 +818,15 @@ function reuniaoDe(c){
   return agendaDe(c).find(a => !AG_MORTO.has(a.status) &&
     new Date(a.quando).getTime() >= Date.now() - 60*60*1000) || null;   // 1h de tolerância: reunião em curso ainda conta
 }
-/** Produto de eletroposto → etiqueta Prosp EP; qualquer outro → Prosp Solar.
+/** Produto de eletroposto → etiqueta EP Prospec; qualquer outro → Solar Prospec.
  *  Todo o resto do catálogo (curso, SolarDoc, kit, site) é venda pro mundo solar. */
 const origemDoProduto = pid => (String(pid||'') === 'eletroposto' ? ORIGEM_EP : ORIGEM_SOLAR);
 /** O rótulo sai do etiqueta.js — arquivo compartilhado com o CRM e a Agenda. Não
- *  escrever "Prosp EP" à mão aqui: renomear a etiqueta lá tem que valer nas 3 telas.
+ *  escrever "EP Prospec" à mão aqui: renomear a etiqueta lá tem que valer nas 3 telas.
  *  O fallback só existe pro caso do script não carregar (a tela não pode quebrar). */
 const rotuloOrigem = o => (typeof etiquetaDeLead === 'function'
   ? etiquetaDeLead(o, null)
-  : (o === ORIGEM_EP ? 'Prosp EP' : 'Prosp Solar'));
+  : (o === ORIGEM_EP ? 'EP Prospec' : 'Solar Prospec'));
 /** Nome que vai virar o card do CRM: dono na frente, empresa como contexto.
  *  Card chamado só pelo nome da empresa faz o consultor abrir a conversa sem saber
  *  com quem fala. */
@@ -1151,8 +1161,8 @@ function renderSlots(){
   const bloqEm = t => agSlots.bloqs.find(b =>
     new Date(b.inicio).getTime() <= t && new Date(b.fim).getTime() > t) || null;
 
-  // Qual metade do quadro ESTA reunião vai ocupar. Prosp Solar disputa com solar;
-  // Prosp EP disputa com eletroposto/import/manual. Por isso o mesmo horário muda
+  // Qual metade do quadro ESTA reunião vai ocupar. Solar Prospec disputa com solar;
+  // EP Prospec disputa com eletroposto/import/manual. Por isso o mesmo horário muda
   // de estado quando a etiqueta muda — e a lista se redesenha junto.
   const euSolar = ehSolarOrigem(origemSelecionada());
   const meuLado = euSolar ? 'solar' : 'outro';
@@ -1428,7 +1438,7 @@ async function confirmarAgenda(){
       cidade:           c.cidade || null,
       observacao:       obs || null,
       status:           'agendado',
-      created_by:       origem,       // vira a etiqueta Prosp EP / Prosp Solar no CRM
+      created_by:       origem,       // vira a etiqueta EP Prospec / Solar Prospec no CRM
     });
     agendados.unshift(novo);
     indexarAgendados();
@@ -1930,12 +1940,14 @@ function htmlAgenda(){
   passou.sort((x,y) => new Date(y.quando) - new Date(x.quando));
 
   const linha = a => {
-    const ep = a.created_by === ORIGEM_EP;
+    // A cor da etiqueta sai do etiqueta.js, igual ao CRM e à Agenda — a mesma
+    // etiqueta não pode ter uma cor aqui e outra lá.
+    const et = rotuloOrigem(a.created_by);
+    const cls = (typeof etiquetaCor === 'function' ? etiquetaCor(et) : '');
     return `<tr>
       <td><div style="font-weight:700">${esc(a.cliente_nome || '—')}</div>
         <div style="font-size:11px;color:var(--dim)">${esc(a.cidade || '—')}</div></td>
-      <td><span class="pill" style="background:${ep?'rgba(14,165,233,.16)':'rgba(245,158,11,.16)'};
-        color:${ep?'#38BDF8':'#FBBF24'}">${rotuloOrigem(a.created_by)}</span></td>
+      <td><span class="pill${cls ? ' tag-' + cls : ''}">${esc(et)}</span></td>
       <td>${esc(a.vendedor_nome || '—')}</td>
       <td class="mono">${esc(fmtQuando(a.quando))}</td>
       <td><span style="color:var(--dim);font-size:11.5px">${esc(String(a.status || '—').replace(/_/g,' '))}</span></td>
@@ -1955,7 +1967,7 @@ function htmlAgenda(){
     return `<div class="vazio"><div class="big">📅</div>
       <div style="font-size:17px;font-weight:700;color:var(--txt);margin-bottom:6px">Ninguém marcado ainda</div>
       Quando um contato disser sim na fila, a tela já abre a marcação da reunião.<br>
-      Daí ele vira card no CRM do consultor, com a etiqueta Prosp EP ou Prosp Solar.<br><br>
+      Daí ele vira card no CRM do consultor, com a etiqueta EP Prospec ou Solar Prospec.<br><br>
       <button class="btn primary" onclick="irAba('fila')">Voltar pra fila</button></div>`;
   }
   return `<div class="page">

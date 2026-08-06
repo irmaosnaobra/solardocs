@@ -30,8 +30,8 @@ const MAPA: Record<string, string> = {
   // Terceiro canal, ao lado de Tráfego e Organic: ninguém levantou a mão, o
   // consultor foi atrás. `prosp_eletroposto` guarda a palavra "eletroposto" de
   // propósito: o CRM casa card de EP por ela.
-  'prosp_eletroposto': 'Prosp EP',
-  'prosp_solar': 'Prosp Solar',
+  'prosp_eletroposto': 'EP Prospec',
+  'prosp_solar': 'Solar Prospec',
   'crm-bulk': 'Import',
   'import': 'Import',
   'indicacao': 'Indicado',
@@ -88,12 +88,14 @@ export function etiquetaDeLead(
 // Ordem estável das etiquetas base (define ordem de empilhamento e cor no gráfico).
 // Etiquetas desconhecidas/novas entram depois destas, em ordem alfabética.
 export const ETIQUETAS_ORDEM: string[] = [
+  // Agrupado por PRODUTO e, dentro dele, por canal (tráfego → organic → prospecção).
+  // É a mesma leitura das cores: cada produto é uma família, cada canal um tom.
   'Solar Tráfego',
   'Solar Organic',
+  'Solar Prospec',
   'EP Tráfego',
   'EP Organic',
-  'Prosp EP',
-  'Prosp Solar',
+  'EP Prospec',
   'Indicado',
   'Import',
   'Manual',

@@ -229,12 +229,27 @@
     background: rgba(255,255,255,.22);
     color: #fff;
   }
-  .tag-pill.tag-ep    { background: #39FF14; color: #06210A; box-shadow: 0 0 6px rgba(57,255,20,.55); }
-  .tag-pill.tag-solar { background: #FF9100; color: #2A1200; box-shadow: 0 0 6px rgba(255,145,0,.55); }
+  /* Família da cor = PRODUTO (eletroposto verde, solar laranja); o tom dentro
+     dela = CANAL. tag-ep / tag-solar sem sufixo são o tom base, que atende canal
+     novo até ele ganhar o próprio. A classe sai de etiquetaCor() no etiqueta.js. */
+  .tag-pill.tag-ep,
+  .tag-pill.tag-ep-trafego    { background: #39FF14; color: #06210A; box-shadow: 0 0 6px rgba(57,255,20,.55); }
+  .tag-pill.tag-ep-organic    { background: #00E5A0; color: #00241A; box-shadow: 0 0 6px rgba(0,229,160,.55); }
+  .tag-pill.tag-ep-prospec    { background: #C6FF00; color: #1E2600; box-shadow: 0 0 6px rgba(198,255,0,.55); }
+  .tag-pill.tag-solar,
+  .tag-pill.tag-solar-trafego { background: #FF9100; color: #2A1200; box-shadow: 0 0 6px rgba(255,145,0,.55); }
+  .tag-pill.tag-solar-organic { background: #FFD000; color: #2A2200; box-shadow: 0 0 6px rgba(255,208,0,.55); }
+  .tag-pill.tag-solar-prospec { background: #FF5E3A; color: #2A0C00; box-shadow: 0 0 6px rgba(255,94,58,.55); }
   /* No modal (fundo claro) a pill neutra precisa de contraste próprio */
   .detalhe-box .tag-pill { font-size: 11px; padding: 1px 8px; background: #e5e7eb; color: #374151; }
-  .detalhe-box .tag-pill.tag-ep    { background: #39FF14; color: #06210A; }
-  .detalhe-box .tag-pill.tag-solar { background: #FF9100; color: #2A1200; }
+  .detalhe-box .tag-pill.tag-ep,
+  .detalhe-box .tag-pill.tag-ep-trafego    { background: #39FF14; color: #06210A; }
+  .detalhe-box .tag-pill.tag-ep-organic    { background: #00E5A0; color: #00241A; }
+  .detalhe-box .tag-pill.tag-ep-prospec    { background: #C6FF00; color: #1E2600; }
+  .detalhe-box .tag-pill.tag-solar,
+  .detalhe-box .tag-pill.tag-solar-trafego { background: #FF9100; color: #2A1200; }
+  .detalhe-box .tag-pill.tag-solar-organic { background: #FFD000; color: #2A2200; }
+  .detalhe-box .tag-pill.tag-solar-prospec { background: #FF5E3A; color: #2A0C00; }
 
   /* Status coloridos */
   .slot.status-agendado          { background: #0d2d5e; color: #fff; }
