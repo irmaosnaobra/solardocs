@@ -271,7 +271,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, solarBvResult, solarRespResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -301,6 +301,16 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
       runSolarBoasVindasTick(),        // solar: quem acabou de se cadastrar recebe o consultor, o contato e a pergunta do consumo (SOLAR_BOASVINDAS_OFF desliga)
       runSolarRespostasTick(),         // solar: cliente respondeu as boas-vindas → recado pro consultor dono da ficha
+      // [06/08] As três cadências da linha B2B passam a drenar AQUI também, não só no
+      // master de hora em hora. Motivo: com a margem de 5 min entre envios elas mandariam
+      // 1 por ciclo — no master isso viraria 1/h, um quarto do que o teto (4/h) permite.
+      // No tick de 5 min a margem vira o RITMO e o teto volta a ser o limite: até 4/h,
+      // uma a cada 5 min, em vez das 4 em 37 segundos desta madrugada. As três já são
+      // idempotentes e gated (campanha/janela/teto/espaçamento) — rodar mais vezes não
+      // manda MAIS, manda melhor distribuído.
+      runCursoEntradaBroadcast(),      // curso R$19: 3 toques (exige CAMPANHA_CURSO19_ON)
+      runCarlaSemCnpjFollowup(),       // Giovanna: 3 toques em 30d
+      runCarlaInativoFollowup(),       // Giovanna: 5 toques em 60d
     ]);
     res.json({
       ok: true,
@@ -328,6 +338,9 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ep_respostas:   epRespostasResult.status === 'fulfilled' ? epRespostasResult.value : { error: String((epRespostasResult as any).reason) },
       solar_boas_vindas: solarBvResult.status === 'fulfilled' ? solarBvResult.value : { error: String((solarBvResult as any).reason) },
       solar_respostas:   solarRespResult.status === 'fulfilled' ? solarRespResult.value : { error: String((solarRespResult as any).reason) },
+      curso19:        curso19Result.status === 'fulfilled' ? curso19Result.value : { error: String((curso19Result as any).reason) },
+      carla_sem_cnpj: carlaCnpjResult.status === 'fulfilled' ? carlaCnpjResult.value : { error: String((carlaCnpjResult as any).reason) },
+      carla_inativo:  carlaInativoResult.status === 'fulfilled' ? carlaInativoResult.value : { error: String((carlaInativoResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {

@@ -95,3 +95,36 @@ export function dentroDaJanelaDiurna(now: Date = new Date()): boolean {
   const h = brt.getUTCHours();
   return h >= JANELA_INICIO_H && h < JANELA_FIM_H;
 }
+
+// ─── ESPAÇAMENTO MÍNIMO — nada sai a menos de 5 min do envio anterior ────────
+// Ordem do Thiago (06/ago/2026): "manda nada sem margem de 5 minutos".
+//
+// O teto de 12/h autoriza as 12 no MESMO minuto — e é assim que a rajada nasce.
+// Provas: 04/ago 08h, a fila do eletroposto soltou 8 pessoas / 37 mensagens numa
+// hora só; 06/ago 01h13, curso19 + Carla mandaram 4 em 37 SEGUNDOS (o loop tinha
+// gap de 4s). Pro WhatsApp, 4 mensagens em 37s pra 4 desconhecidos é assinatura de
+// robô; 4 espaçadas em 20 min é gente trabalhando.
+//
+// A régua é o marcador de envio mais recente da linha — mesma fonte de verdade do
+// teto, sem escrita nova. 5 min também casa com o teto: 12/h é exatamente 1 a cada
+// 5 min, então o espaçamento vira a forma NATURAL de gastar o orçamento da hora.
+//
+// Todo gate é PRÉ-claim: quem não passa espera o próximo tick (o /process-messages
+// roda de 5 em 5 min, então a fila anda no mesmo ritmo). Kill: ESPACAMENTO_OFF=1.
+export const ESPACAMENTO_MIN_MS = 5 * 60 * 1000;
+
+/**
+ * Passaram-se ≥5 min desde o último envio automático desta linha?
+ * Pergunta na forma "houve QUALQUER envio nos últimos 5 min?" — mesma forma do teto
+ * horário (janela + limit), sem depender de ordenação.
+ */
+export async function respeitaEspacamentoLinha(prefixos = prefixosDaLinha()): Promise<boolean> {
+  if (process.env.ESPACAMENTO_OFF === '1') return true;
+  const desde = new Date(Date.now() - ESPACAMENTO_MIN_MS).toISOString();
+  const { data } = await supabase
+    .from('system_state').select('key')
+    .or(prefixos.map(p => `key.like.${p}%`).join(','))
+    .gte('updated_at', desde)
+    .limit(1);
+  return (data?.length ?? 0) === 0;               // nada nos últimos 5 min → pode ir
+}

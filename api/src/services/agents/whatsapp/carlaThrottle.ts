@@ -19,7 +19,7 @@
 
 import { supabase } from '../../../utils/supabase';
 import { solardocViaIo } from '../zapiClient';
-import { dentroDoTetoHorarioLinha } from './lineThrottle';
+import { dentroDoTetoHorarioLinha, respeitaEspacamentoLinha } from './lineThrottle';
 
 // Cap anti-ban por hora na linha solardoc, COMPARTILHADO pelas 2 cadências da
 // Carla. Conservador de propósito (religando um canal que estava pausado por ban).
@@ -37,6 +37,12 @@ export async function dentroDoTetoCarla(): Promise<boolean> {
   // já tem Bia e followup do gerador dentro do MESMO número. Os 4/h da Carla
   // passam a caber DENTRO dos 12/h da linha — não a somar por cima deles.
   if (solardocViaIo() && !(await dentroDoTetoHorarioLinha())) return false;
+
+  // Margem de 5 min entre envios (ordem do Thiago, 06/ago). O cap de 4/h autorizava
+  // as 4 no mesmo minuto — e autorizou: 01h13 de 06/ago saíram 4 em 37 segundos, com
+  // o gap interno de 4s. Com o desvio ligado a régua é a linha inteira (inclui a Bia);
+  // sem ele, só os envios da própria Carla.
+  if (!(await respeitaEspacamentoLinha(solardocViaIo() ? undefined : [SENT_PREFIX]))) return false;
 
   const desde = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { data } = await supabase
