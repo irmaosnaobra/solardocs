@@ -940,6 +940,20 @@
 
       <label>Observação</label>
       <textarea id="m-obs" maxlength="300" placeholder="Anotações sobre o cliente, contexto, etc."></textarea>
+
+      <!-- Etiqueta de origem. Mesma lista do "Novo contato" do CRM. A etiqueta não
+           é coluna: é DERIVADA do created_by (etiqueta.js), então escolher aqui é
+           escolher com que carimbo o card nasce. Sem isso TODA reunião marcada na
+           mão nascia "Manual" — e a de eletroposto perdia o fluxo de EP junto
+           (botão "Proposta apresentada" e o repasse Thiago↔Diego casam por
+           created_by like '%eletroposto%'). -->
+      <label>Etiqueta de origem</label>
+      <select id="m-etiqueta">
+        <option value="" selected>Manual (marcada na mão)</option>
+        <option value="prosp_eletroposto">EP Prospec — prospecção de eletroposto</option>
+        <option value="prosp_solar">Solar Prospec — prospecção de solar</option>
+        <option value="indicacao">Indicado — veio por indicação</option>
+      </select>
     </div>
 
     <!-- ABA BLOQUEAR -->
@@ -1440,6 +1454,9 @@ function abrirNovo(isoStr) {
   document.getElementById('m-tel').value = '';
   document.getElementById('m-cidade').value = '';
   document.getElementById('m-obs').value = '';
+  // A etiqueta volta pro padrão a cada abertura. Select que guarda a escolha
+  // anterior faria a PRÓXIMA reunião nascer com a origem da anterior, calada.
+  document.getElementById('m-etiqueta').value = '';
   document.getElementById('m-erro').textContent = '';
 
   // Reset aba bloquear
@@ -1611,6 +1628,14 @@ async function salvarAgendamento() {
   const tel = normalizeTelBR(telRaw);
   if (tel.length < 12 || tel.length > 13) { err.textContent = 'WhatsApp inválido.'; return; }
 
+  // ETIQUETA escolhida no modal. `created_by` guarda DUAS coisas: a origem do
+  // lead (quando existe uma) ou o rastro de quem marcou na mão. Escolheu origem
+  // → o nome de quem marcou vai pra observação, pra não sumir do banco.
+  const etiqueta = (document.getElementById('m-etiqueta').value || '').trim();
+  const meu = consultorLogado();
+  const rastro = etiqueta && meu ? `Marcada na mão por ${meu}.` : '';
+  const observacao = [obs, rastro].filter(Boolean).join(' · ') || null;
+
   btn.disabled = true;
   btn.textContent = 'Salvando…';
   try {
@@ -1620,11 +1645,12 @@ async function salvarAgendamento() {
       cliente_nome:     nome,
       cliente_telefone: tel,
       cidade:           cidade || null,
-      observacao:       obs || null,
-      created_by:       consultorLogado() || null,
+      observacao,
+      created_by:       etiqueta || meu || null,
     });
     fecharModal();
-    showToast('✅ Agendamento criado');
+    const lblEtq = etiqueta ? etqDeLead(etiqueta, null) : '';
+    showToast('✅ Agendamento criado' + (lblEtq ? ' · ' + lblEtq : ''));
     await renderTudo();
   } catch (e) {
     const msg = String(e.message || e);
@@ -1661,7 +1687,12 @@ function abrirDetalhes(id) {
   document.getElementById('d-etiqueta').innerHTML = dEtq
     ? `<span class="tag-pill${dEtqCls ? ' tag-' + dEtqCls : ''}">${escapeHtml(dEtq)}</span>`
     : '—';
-  document.getElementById('d-criador').textContent = ag.created_by || '—';
+  // "Marcado por" só mostra GENTE. Quando created_by guarda a ORIGEM
+  // (prosp_eletroposto, lp_eletroposto…), imprimir o slug aqui seria mentir no
+  // rótulo — a origem já está na linha de cima. Quem decide o que é gente é o
+  // mesmo etiqueta.js: created_by de consultor é justamente o que vira "Manual".
+  const criador = etqDeLead(ag.created_by, ag.src) === 'Manual' ? (ag.created_by || '') : '';
+  document.getElementById('d-criador').textContent = criador || '—';
   document.getElementById('d-btn-wpp').href = `https://wa.me/${formatTelDigits(ag.cliente_telefone)}`;
   document.getElementById('d-erro').textContent = '';
   document.getElementById('d-hist').textContent = ag.historico || '';
