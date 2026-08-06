@@ -48,6 +48,16 @@ const PRICE = 67;
 const PRICE_DIA = (PRICE / 30).toFixed(2).replace('.', ','); // "por dia" da oferta
 const WHATSAPP = 'https://wa.me/5534998165040';
 
+// Concessionárias da faixa de confiança (logo oficial em /public/conc).
+const CONCESSIONARIAS = [
+  { slug: 'cemig',      nome: 'CEMIG',      img: '/conc/cemig.svg',      altura: 26 },
+  { slug: 'enel',       nome: 'Enel',       img: '/conc/enel.png',       altura: 36 },
+  { slug: 'cpfl',       nome: 'CPFL',       img: '/conc/cpfl.png',       altura: 36 },
+  { slug: 'equatorial', nome: 'Equatorial', img: '/conc/equatorial.png', altura: 21 },
+  { slug: 'energisa',   nome: 'Energisa',   img: '/conc/energisa.png',   altura: 27 },
+  { slug: 'light',      nome: 'Light',      img: '/conc/light.png',      altura: 27 },
+];
+
 // Telas do carrossel. São prints REAIS do app (public/tela/*.webp), tirados da
 // própria plataforma rodando com dados de demonstração — não são mockups.
 const TELAS = [
@@ -293,15 +303,26 @@ export default function Landing() {
           <div className={styles.trustStripLabel} data-reveal>
             Procurações <b>aceitas nas principais concessionárias do Brasil</b>
           </div>
-          <div className={styles.trustStripList} data-reveal>
-            <span className={styles.trustChip}><span className={styles.trustChipDot} /> CEMIG</span>
-            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Enel</span>
-            <span className={styles.trustChip}><span className={styles.trustChipDot} /> CPFL</span>
-            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Equatorial</span>
-            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Energisa</span>
-            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Light</span>
-            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Cosern</span>
-            <span className={styles.trustChip}><span className={styles.trustChipDot} /> Coelba</span>
+          {/* Logo de cada concessionária, baixada do site oficial dela e
+              exibida em MONOCROMÁTICO (filtro no CSS, não é arquivo editado).
+              O branco uniforme é de propósito: seis logos coloridas viram
+              carnaval e, pior, dão ar de "somos parceiros deles" — o que a
+              frase acima não diz. Marcas são de seus donos; aqui elas indicam
+              compatibilidade da procuração, nada além. Cosern e Coelba saíram
+              da lista: são do grupo Neoenergia e o site não entrega o arquivo
+              da logo. */}
+          <div className={styles.logos} data-reveal>
+            {CONCESSIONARIAS.map(c => (
+              <img
+                key={c.slug}
+                src={c.img}
+                alt={c.nome}
+                className={styles.logoConc}
+                style={{ '--h': `${c.altura}px` } as React.CSSProperties}
+                loading="lazy"
+              />
+            ))}
+            <span className={styles.logoMais}>e outras</span>
           </div>
         </div>
       </section>
@@ -437,7 +458,7 @@ export default function Landing() {
             <span className={styles.sectionLabel} data-reveal>O que você leva</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            <strong>8 documentos + 7 ferramentas</strong>{' '}<br />
+            <strong>8 documentos + 8 ferramentas</strong>{' '}<br />
             no mesmo acesso.
           </h2>
           <p className={styles.sectionSub} data-reveal>
@@ -447,7 +468,7 @@ export default function Landing() {
 
           <div className={styles.mods}>
             <article className={styles.mod} data-reveal>
-              <div className={styles.modTag}>Módulo 1</div>
+              <div className={styles.modTag}>Venda</div>
               <h3 className={styles.modH}>A proposta que fecha</h3>
               <p className={styles.modP}>
                 O documento que o cliente abre no WhatsApp e responde &ldquo;fechado&rdquo;.
@@ -461,7 +482,7 @@ export default function Landing() {
             </article>
 
             <article className={styles.mod} data-reveal style={{ transitionDelay: '0.05s' }}>
-              <div className={styles.modTag}>Módulo 2</div>
+              <div className={styles.modTag}>Papelada</div>
               <h3 className={styles.modH}>A papelada toda</h3>
               <p className={styles.modP}>
                 Os 8 tipos de documento, com cláusulas revisadas pro setor solar.
@@ -476,7 +497,7 @@ export default function Landing() {
             </article>
 
             <article className={styles.mod} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.modTag}>Módulo 3</div>
+              <div className={styles.modTag}>Dinheiro</div>
               <h3 className={styles.modH}>O preço certo da venda</h3>
               <p className={styles.modP}>
                 Pra parar de chutar valor e descobrir a margem depois da obra.
@@ -489,7 +510,7 @@ export default function Landing() {
             </article>
 
             <article className={styles.mod} data-reveal style={{ transitionDelay: '0.15s' }}>
-              <div className={styles.modTag}>Módulo 4</div>
+              <div className={styles.modTag}>Obra</div>
               <h3 className={styles.modH}>A obra sob controle</h3>
               <p className={styles.modP}>
                 O que você hoje resolve em planilha paralela e grupo de WhatsApp.
@@ -502,20 +523,21 @@ export default function Landing() {
             </article>
 
             <article className={styles.mod} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.modTag}>Módulo 5</div>
+              <div className={styles.modTag}>Cadastro</div>
               <h3 className={styles.modH}>Cliente e histórico</h3>
               <p className={styles.modP}>
                 Cadastrou uma vez, nunca mais digita os mesmos dados.
               </p>
               <ul className={styles.modList}>
-                <li>Cadastro de clientes e de prestadores parceiros</li>
-                <li>Escanear a conta de luz: a foto vira o cliente</li>
-                <li>Documentos salvos pra sempre, buscáveis</li>
+                <li><b>Clientes:</b> cadastra uma vez, todo documento puxa</li>
+                <li><b>Terceiros:</b> prestadores e vendedores parceiros</li>
+                <li><b>Escanear conta de luz:</b> a foto vira o cliente</li>
+                <li><b>Documentos salvos</b> pra sempre, buscáveis</li>
               </ul>
             </article>
 
             <article className={styles.mod} data-reveal style={{ transitionDelay: '0.25s' }}>
-              <div className={styles.modTag}>Em tudo</div>
+              <div className={styles.modTag}>Em todo documento</div>
               <h3 className={styles.modH}>A sua empresa, não a minha</h3>
               <p className={styles.modP}>
                 O cliente nunca vê o nome SolarDoc em documento nenhum.

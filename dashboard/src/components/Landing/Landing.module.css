@@ -2424,6 +2424,38 @@
 }
 .offerBadge svg { color: var(--color-primary); flex: 0 0 auto; }
 
+/* ---------- LOGOS DAS CONCESSIONÁRIAS ---------- */
+.logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 26px 42px;
+}
+/* brightness(0) invert(1) achata QUALQUER logo (colorida, escura ou branca)
+   em branco puro, mantendo a transparência. Assim as seis convivem sem virar
+   carnaval e sem precisar editar arquivo por arquivo. */
+.logoConc {
+  height: var(--h, 28px);
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  opacity: 0.62;
+  transition: opacity 0.2s;
+}
+.logoConc:hover { opacity: 0.95; }
+.logoMais {
+  font-size: 13px;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+@media (max-width: 640px) {
+  .logos { gap: 20px 26px; }
+  .logoConc { height: calc(var(--h, 28px) * 0.78); max-width: 110px; }
+  .logoMais { font-size: 11.5px; }
+}
+
 /* ---------- CARROSSEL DAS TELAS ---------- */
 .telas {
   padding: 80px 20px;
