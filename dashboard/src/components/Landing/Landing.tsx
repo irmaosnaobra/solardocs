@@ -573,6 +573,9 @@ export default function Landing() {
             <div className={styles.offerHead}>
               <div>
                 <div className={styles.offerName}>SolarDoc Pro — completo</div>
+                <div className={styles.offerAnchor}>
+                  Software de proposta solar no mercado: <b>R$ 100 a R$ 300/mês</b>
+                </div>
                 <div className={styles.offerPrice}>
                   <span>R$</span>{PRICE}<small>/mês</small>
                 </div>
@@ -634,6 +637,35 @@ export default function Landing() {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M21 11.5a8 8 0 0 1-11.5 7.2L4 20l1.3-5.5A8 8 0 1 1 21 11.5z"/></svg>
               Suporte com o dono, no WhatsApp
             </span>
+          </div>
+
+          {/* O QUE ACONTECE DEPOIS DE PAGAR — com a cobrança imediata, a dúvida
+              "paguei, e agora?" virou objeção de compra. Os 3 passos são o fluxo
+              real: Stripe → /auth?session= (define senha) → empresa → documento. */}
+          <div className={styles.after} data-reveal>
+            <div className={styles.afterTitle}>Depois que você assina</div>
+            <ol className={styles.afterSteps}>
+              <li>
+                <span className={styles.afterNum}>1</span>
+                <div>
+                  <b>Passa o cartão</b> — checkout da Stripe, cobrança na hora. Leva 1 minuto.
+                </div>
+              </li>
+              <li>
+                <span className={styles.afterNum}>2</span>
+                <div>
+                  <b>Cria sua senha</b> — a tela já abre pra isso. Se fechar a aba antes, o link
+                  chega no seu e-mail e no seu WhatsApp: a conta é criada paga do mesmo jeito.
+                </div>
+              </li>
+              <li>
+                <span className={styles.afterNum}>3</span>
+                <div>
+                  <b>Sobe a logo e gera</b> — cadastra a empresa uma vez e o primeiro documento
+                  sai com a sua marca em 2 minutos.
+                </div>
+              </li>
+            </ol>
           </div>
         </div>
       </section>

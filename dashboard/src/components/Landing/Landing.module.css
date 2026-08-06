@@ -2303,6 +2303,14 @@
   color: var(--color-primary);
   margin-bottom: 10px;
 }
+.offerAnchor {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #94a3b8;
+  margin-bottom: 10px;
+}
+.offerAnchor b { color: var(--color-text-muted); font-weight: 700; }
+
 .offerPrice {
   display: flex;
   align-items: baseline;
@@ -2416,6 +2424,57 @@
 }
 .offerBadge svg { color: var(--color-primary); flex: 0 0 auto; }
 
+/* ---------- DEPOIS QUE VOCÊ ASSINA (3 passos pós-pagamento) ---------- */
+.after {
+  max-width: 860px;
+  margin: 34px auto 0;
+  padding: 26px 28px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(30, 41, 59, 0.5);
+}
+.afterTitle {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 18px;
+  text-align: center;
+}
+.afterSteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 820px) {
+  .afterSteps { grid-template-columns: repeat(3, 1fr); gap: 22px; }
+}
+.afterSteps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+.afterSteps li b { color: var(--color-text); font-weight: 700; }
+.afterNum {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  color: #0f172a;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+}
+
 /* ---------- BARRA DE COMPRA FIXA (mobile) ---------- */
 .buyBar {
   position: fixed;
@@ -2488,5 +2547,8 @@
   .offerFoot { font-size: 11.5px; }
   .guarantee { font-size: 12.5px; padding: 14px; gap: 11px; }
   .offerBadge { font-size: 11.5px; padding: 8px 12px; }
+  .offerAnchor { font-size: 11.5px; }
+  .after { padding: 22px 18px; border-radius: 14px; margin-top: 26px; }
+  .afterSteps li { font-size: 13px; }
 }
 
