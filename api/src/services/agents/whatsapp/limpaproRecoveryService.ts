@@ -35,7 +35,7 @@
 import { supabase } from '../../../utils/supabase';
 import { sendHuman, fmtPhone } from '../zapiClient';
 import { logger } from '../../../utils/logger';
-import { dentroDoTetoHorarioLinha } from './lineThrottle';
+import { dentroDoTetoHorarioLinha, dentroDaJanelaDiurna } from './lineThrottle';
 
 // A recuperação SAI pela MESMA linha física IO (34998165040) — decisão do Thiago:
 // uma só linha, a IA de recuperação convive com o atendimento humano de energia solar.
@@ -937,6 +937,9 @@ export async function runLimpaproRecoveryConsumer(opts: { dry?: boolean } = {}):
 
     // ── GATES PRÉ-CLAIM (break → marcador sobrevive pro próximo tick) ──
     if (enviadosTick >= MAX_ENVIOS_POR_TICK) { out.mantidos++; bump('cap_tick'); break; }
+    // Madrugada: os 4 toques da Bia são mensagem de venda fria — segura pra manhã.
+    // break (não continue) porque a janela vale pra fila inteira, não pro lead.
+    if (!opts.dry && !dentroDaJanelaDiurna()) { out.mantidos++; bump('fora_da_janela_diurna'); break; }
     if (!opts.dry && !(await dentroDoTetoHorario())) { out.mantidos++; bump('teto_horario'); break; }
     // Toque desligado mas há marcador pendente: deixa quieto pro próximo tick (não claima).
     if (ehCupom && !cupomHabilitado()) { out.mantidos++; bump('cupom_desabilitado'); continue; }

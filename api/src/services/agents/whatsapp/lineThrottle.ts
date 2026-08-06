@@ -74,3 +74,24 @@ export async function dentroDoTetoHorarioLinha(): Promise<boolean> {
     .limit(MAX_POR_HORA + 1);
   return (data?.length ?? 0) < MAX_POR_HORA;
 }
+
+// ─── JANELA DIURNA — mensagem fria não sai de madrugada ──────────────────────
+// O teto de 12/h sozinho não impede o pior padrão de ban: mensagem de VENDA, fria,
+// caindo às 2 da manhã. Quem acorda com isso não responde — bloqueia e denuncia, e
+// denúncia é o que derruba a linha (o teto só evita a rajada). O log de 03–05/ago
+// tem envio automático às 01h, 02h, 04h, 06h e 07h; foram madrugadas assim entre os
+// dois bloqueios. Uma janela só, no MESMO módulo do teto, pra todo bot que compartilha
+// o número — quem entrar depois herda os dois.
+//
+// Fora da janela nada é perdido: os gates são PRÉ-claim, então o marcador sobrevive e
+// a fila drena de manhã. Kill-switch: JANELA_DIURNA_OFF=1 (volta ao 24/7 sem deploy).
+const JANELA_INICIO_H = 8;   // 08:00 BRT — primeira hora aceitável pra mensagem comercial
+const JANELA_FIM_H    = 21;  // 21:00 BRT — última (envio às 20h59 vale, às 21h00 não)
+
+/** É horário civil pra mensagem fria AGORA (08h–21h BRT)? Vale pra linha inteira. */
+export function dentroDaJanelaDiurna(now: Date = new Date()): boolean {
+  if (process.env.JANELA_DIURNA_OFF === '1') return true;
+  const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000); // BRT = UTC-3 (sem horário de verão)
+  const h = brt.getUTCHours();
+  return h >= JANELA_INICIO_H && h < JANELA_FIM_H;
+}

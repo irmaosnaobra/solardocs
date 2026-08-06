@@ -39,7 +39,7 @@ import { supabase } from '../../../utils/supabase';            // MAIN: estado, 
 import { supabaseGerador } from '../../../utils/supabaseGerador'; // gerador: leads (read-only)
 import { sendHuman, fmtPhone } from '../zapiClient';
 import { logger } from '../../../utils/logger';
-import { dentroDoTetoHorarioLinha } from './lineThrottle';
+import { dentroDoTetoHorarioLinha, dentroDaJanelaDiurna } from './lineThrottle';
 
 const INSTANCE = 'io' as const;
 
@@ -346,6 +346,8 @@ export async function runGeradorFollowupConsumer(opts: { dry?: boolean } = {}): 
 
     // ── PRÉ-CLAIM (break → marcador sobrevive) ──
     if (enviadosTick >= MAX_ENVIOS_POR_TICK) { out.mantidos++; bump('cap_tick'); break; }
+    // Madrugada: followup também é toque frio na mesma linha — segura pra manhã.
+    if (!opts.dry && !dentroDaJanelaDiurna()) { out.mantidos++; bump('fora_da_janela_diurna'); break; }
     if (!opts.dry && !(await dentroDoTetoHorarioLinha())) { out.mantidos++; bump('teto_horario'); break; }
 
     if (opts.dry) { // simula sem claimar/enviar/deletar
