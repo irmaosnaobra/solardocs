@@ -162,6 +162,15 @@ const p = {
   taxaDesc: N('taxadesc', 14.25) / 100,
 };
 const t = { cliente: S('cliente'), cidade: S('cidade'), equip: S('equip', 'Carregador DC 80 kW'), autor: S('autor'), contato: S('contato') };
+// A ficha técnica (slide 5, tela e PPTX) tinha "80 kW" CRAVADO logo abaixo de um
+// título que já era dinâmico ("${t.equip} em detalhes"). Enquanto a potência era
+// texto livre digitado o erro passava; desde 06/08/2026 ela é uma lista no
+// Simulador (40/60/80/120/160 kW), então escolher 120 imprimia "DC 120 kW em
+// detalhes" sobre um card dizendo 80 kW. Sai daqui, do mesmo t.equip.
+const POTENCIA_FICHA = (() => {
+  const m = String(t.equip || '').replace(',', '.').match(/(\d+(?:\.\d+)?)\s*k\s*w/i);
+  return m ? Math.round(parseFloat(m[1])) + ' kW' : '80 kW';
+})();
 
 function computa(px) {
   const DIAS = 30, ANOS = 10;
@@ -357,7 +366,7 @@ document.getElementById('deck').innerHTML = `
   <div class="kicker rv">Ficha técnica</div>
   <h2 class="rv">${t.equip} em detalhes</h2>
   <div class="grid g3 rv">
-    <div class="cardx">${ico('zap','lar')}<b>80 kW</b><p>Potência de recarga em corrente contínua</p></div>
+    <div class="cardx">${ico('zap','lar')}<b>${POTENCIA_FICHA}</b><p>Potência de recarga em corrente contínua</p></div>
     <div class="cardx">${ico('bat','verde')}<b>2 conectores</b><p>Atendimento simultâneo · padrão CCS2</p></div>
     <div class="cardx">${ico('clock','lar')}<b>Recarga rápida</b><p>Minutos para recuperar autonomia</p></div>
     <div class="cardx">${ico('phone','verde')}<b>Plataforma + App</b><p>Gestão, cobrança e monitoramento remoto</p></div>
@@ -745,7 +754,7 @@ async function baixarPPTX() {
     s = baseSlide(5);
     kick(s, 'Ficha técnica'); h2p(s, t.equip + ' em detalhes');
     const c5 = [
-      ['80 kW', 'Potência de recarga em corrente contínua', PAL.GOLD], ['2 conectores', 'Atendimento simultâneo · padrão CCS2', PAL.GREEN],
+      [POTENCIA_FICHA, 'Potência de recarga em corrente contínua', PAL.GOLD], ['2 conectores', 'Atendimento simultâneo · padrão CCS2', PAL.GREEN],
       ['Recarga rápida', 'Minutos para recuperar autonomia', PAL.GOLD], ['Plataforma + App', 'Gestão, cobrança e monitoramento remoto', PAL.GREEN],
       ['Integração solar', 'Pronto para consumir a energia própria', PAL.GOLD], ['Operação 24/7', 'Robustez para uso intenso e ao ar livre', PAL.GREEN],
     ];

@@ -243,9 +243,11 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .eletro-inp.has-pre input{padding-left:30px}
 .eletro-inp.has-suf input{padding-right:44px;text-align:right}
 .eletro-inp input:focus{border-color:#3B82F6}
-/* <select> do campo Potência: mesmo desenho do input, alinhado à esquerda como
-   os outros campos largos, com seta própria (a nativa some com appearance:none) */
-.eletro-inp select{width:100%;box-sizing:border-box;padding:9px 30px 9px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:14px;font-family:inherit;font-weight:700;text-align:left;outline:none;transition:border-color .2s;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;background-size:14px}
+/* <select> do campo Potência: mesmo desenho e mesmo alinhamento à direita dos
+   inputs do card (a regra .eletro-inp input vem depois da .eletro-inp-wide input
+   e ganha, então na prática todos são à direita), com seta própria — a nativa
+   some junto com appearance:none */
+.eletro-inp select{width:100%;box-sizing:border-box;padding:9px 30px 9px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:14px;font-family:inherit;font-weight:700;text-align:right;outline:none;transition:border-color .2s;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;background-size:14px}
 .eletro-inp select:focus{border-color:#3B82F6}
 /* campo derivado (seguro): mostra o valor da conta, não aceita digitação */
 .eletro-inp-lock input{background:rgba(255,255,255,.04);color:#CBD5E1;cursor:default;border-style:dashed}
@@ -3367,6 +3369,11 @@ async function carregarConsultoresFotos() {
   } catch (e) {
     console.error('Falha ao carregar consultores:', e);
   }
+  // Ninguém dá await nesta função (só o histórico do solar). Quando o consultor
+  // abre o Eletroposto antes de ela responder, whatsDoConsultor devolve vazio e o
+  // "Contato do vendedor" fica em branco — e aí o QR do documento cai no número
+  // da EMPRESA em vez do de quem vendeu. Completar aqui fecha essa janela.
+  if (typeof eletroVendedorAuto === 'function') eletroVendedorAuto();
 }
 
 // Telefone do consultor pro documento. Sem cadastro (nome novo, cache ainda não
