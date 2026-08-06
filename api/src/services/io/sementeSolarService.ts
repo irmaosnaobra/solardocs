@@ -166,7 +166,14 @@ export async function publicoSemente(): Promise<CandidatoSemente[]> {
     if (temFuturo.has(chave)) continue;                       // tem conversa marcada
     // Lead de ELETROPOSTO não pode ouvir "a gente conversou sobre energia solar":
     // é outro produto e outra conversa. Esses têm o convite do grupo, não a semente.
-    if (String(f.created_by || '') === 'lp_eletroposto') continue;
+    //
+    // E lead de PROSPECÇÃO ATIVA (prosp_*) também fica de fora — dos DOIS produtos.
+    // Aqui a lista é de EXCLUSÃO (entra todo mundo que não foi barrado), então cada
+    // origem nova de agendamento cai na semente por padrão. A semente diz "a gente
+    // conversou sobre energia solar": quem foi prospectado é EMPRESA (posto de
+    // combustível, integrador) e nunca pediu contato — a frase é falsa nos dois casos.
+    const cb = String(f.created_by || '');
+    if (cb.includes('eletroposto') || cb.startsWith('prosp_')) continue;
 
     const idade = agora - new Date(f.created_at).getTime();
     if (idade < IDADE_MINIMA_MS || idade > IDADE_MAXIMA_MS) continue;

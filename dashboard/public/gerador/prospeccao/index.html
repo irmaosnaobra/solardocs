@@ -303,6 +303,42 @@ tbody tr:hover{background:#233047}
   </div>
 </div>
 
+<!-- ===== MODAL JOGAR NA AGENDA DO CONSULTOR =====
+     Ponte entre a prospecção (lista fria) e o CRM/Agenda do gerador: grava em
+     `agendamentos` com created_by prosp_* — é isso que dá a etiqueta Prosp EP /
+     Prosp Solar no card. A partir daí o cliente é do funil normal. -->
+<div class="ov" id="ov-agenda">
+  <div class="mo">
+    <h3>Jogar na agenda do consultor</h3>
+    <p class="sub" id="ag-sub">—</p>
+    <div class="fld"><label>Nome que vai aparecer no CRM</label>
+      <input type="text" id="ag-nome" placeholder="Jorge — Posto Sol"></div>
+    <div class="fld"><label>WhatsApp</label>
+      <input type="tel" id="ag-tel" inputmode="numeric" placeholder="(34) 99999-9999"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fld"><label>Dia da reunião</label><input type="date" id="ag-data"></div>
+      <div class="fld"><label>Hora</label><input type="time" id="ag-hora" step="900"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fld"><label>Consultor que vai atender</label><select id="ag-consultor"></select></div>
+      <div class="fld"><label>Etiqueta de origem</label>
+        <select id="ag-origem">
+          <option value="prosp_eletroposto">Prosp EP</option>
+          <option value="prosp_solar">Prosp Solar</option>
+        </select></div>
+    </div>
+    <div class="fld"><label>Observação pro consultor</label>
+      <textarea id="ag-obs" style="min-height:70px"></textarea></div>
+    <div id="ag-aviso" style="display:none;font-size:12px;line-height:1.55;color:#FDE68A;
+      background:rgba(245,158,11,.13);border:1px solid #B45309;border-radius:9px;padding:9px 11px;margin-bottom:9px"></div>
+    <div id="ag-erro" style="color:var(--bad);font-size:12.5px;min-height:17px"></div>
+    <div class="mo-acts">
+      <button class="btn" onclick="fecharAgenda()">Agora não</button>
+      <button class="btn primary" id="ag-btn" onclick="confirmarAgenda()">Marcar reunião</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== MODAL IMPORTAR LISTA ===== -->
 <div class="ov" id="ov-import">
   <div class="mo">
@@ -499,6 +535,9 @@ tbody tr:hover{background:#233047}
 
 <div id="toast"></div>
 
+<!-- Regra de etiqueta de origem — o MESMO arquivo que o CRM e a Agenda carregam.
+     A cópia da regra no front é uma só de propósito (ver o cabeçalho do arquivo). -->
+<script src="/gerador/etiqueta.js"></script>
 <script>
 // ============= CONFIG =============
 const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
@@ -521,6 +560,20 @@ const DESFECHOS = [
   { k:'6', id:'nao_perturbar', label:'Não perturbar', cor:'#F87171' },
 ];
 const RESP_POSITIVA = ['respondeu','interessado','vendeu'];
+// Desfechos que significam "esse converteu" — é neles que a tela oferece jogar o
+// contato na agenda do consultor, no calor da conversa.
+const CONVERTEU = ['interessado','vendeu'];
+
+// ── ORIGEM DA FICHA NA AGENDA ────────────────────────────────────────────────
+// A etiqueta do CRM não é uma coluna: é DERIVADA do `created_by` do agendamento
+// (/gerador/etiqueta.js). Então mandar um contato pra agenda com created_by
+// 'prosp_eletroposto' é o que faz o card nascer etiquetado "Prosp EP".
+// A palavra "eletroposto" no meio do slug não é enfeite: crmEhEletroposto() no
+// /gerador casa por ela e libera o fluxo de EP (botão "Proposta apresentada").
+const ORIGEM_EP    = 'prosp_eletroposto';
+const ORIGEM_SOLAR = 'prosp_solar';
+// Status de agendamento que contam como morto (espelha CRM_STATUS_PERDIDO no /gerador).
+const AG_MORTO = new Set(['cancelado','sem_interesse','perdido','fechou_concorrente']);
 
 // ============= ESTADO =============
 let produtos = [], scripts = {}, listas = [], contatos = [], toques = [], buscas = [], respostas = [];
@@ -531,6 +584,10 @@ let filaIds = [], filaLimite = 20, idx = 0, soMeus = true, busca = '';
 let produtoEscolhido = null, variacao = 0;
 let vendaPendente = null, prodEditando = null, truncado = null;
 let fHist = { lista:'', consultor:'', produto:'', resultado:'', q:'' };
+// Fichas que a prospecção já jogou na agenda. Vivem em `agendamentos` (mesmo banco
+// do gerador) — NÃO viram coluna em prospeccao_contatos de propósito: se o consultor
+// cancelar ou remarcar na Agenda, esta tela acompanha sozinha em vez de mentir.
+let agendados = [], agendPorTel = new Map(), agendaPendente = null;
 
 // ============= UTILS =============
 const supaHeaders = () => ({
@@ -612,6 +669,22 @@ function formatTelBR(raw){
   if (s.length === 10) return `(${s.slice(0,2)}) ${s.slice(2,6)}-${s.slice(6)}`;
   return raw || '';
 }
+// Chave de merge de telefone — MESMA regra do CRM (crmTelKey no /gerador): DDD +
+// últimos 8. Ignora o 9º dígito, que o Google Maps traz e o CRM às vezes não.
+function telKeyCrm(raw){
+  const d = String(raw||'').replace(/\D/g,'').replace(/^55/,'');
+  if (d.length < 10) return null;
+  return d.slice(0,2) + d.slice(-8);
+}
+const pad2 = n => String(n).padStart(2,'0');
+// "2026-08-12T15:00:00-03:00" — com o fuso do aparelho, igual à Agenda faz.
+// Mandar sem fuso deixaria o Postgres interpretar como UTC e a reunião andaria 3h.
+function toLocalIso(d){
+  const off = -d.getTimezoneOffset();
+  const sinal = off >= 0 ? '+' : '-';
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:` +
+         `${pad2(d.getMinutes())}:00${sinal}${pad2(Math.floor(Math.abs(off)/60))}:${pad2(Math.abs(off)%60)}`;
+}
 let toastUndo = null;
 function showToast(msg, undo){
   const t = document.getElementById('toast');
@@ -673,6 +746,48 @@ function ultimoToqueEm(id){
   return ts.length ? new Date(ts[ts.length-1].criado_em).getTime() : 0;
 }
 const produtosAtivos = () => produtos.filter(p => p.ativo).sort((a,b)=>a.ordem-b.ordem);
+
+// ── AGENDA (fichas que esta tela mandou pro consultor) ───────────────────────
+function indexarAgendados(){
+  agendPorTel = new Map();
+  for (const a of agendados){
+    const k = telKeyCrm(a.cliente_telefone);
+    if (!k) continue;
+    if (!agendPorTel.has(k)) agendPorTel.set(k, []);
+    agendPorTel.get(k).push(a);
+  }
+  // mais recente primeiro dentro de cada telefone
+  for (const lista of agendPorTel.values()){
+    lista.sort((x,y) => new Date(y.quando).getTime() - new Date(x.quando).getTime());
+  }
+}
+const agendaDe = c => (c && agendPorTel.get(telKeyCrm(c.telefone))) || [];
+/** A reunião que ainda vai acontecer (não cancelada). É ela que trava o botão. */
+function reuniaoDe(c){
+  return agendaDe(c).find(a => !AG_MORTO.has(a.status) &&
+    new Date(a.quando).getTime() >= Date.now() - 60*60*1000) || null;   // 1h de tolerância: reunião em curso ainda conta
+}
+/** Produto de eletroposto → etiqueta Prosp EP; qualquer outro → Prosp Solar.
+ *  Todo o resto do catálogo (curso, SolarDoc, kit, site) é venda pro mundo solar. */
+const origemDoProduto = pid => (String(pid||'') === 'eletroposto' ? ORIGEM_EP : ORIGEM_SOLAR);
+/** O rótulo sai do etiqueta.js — arquivo compartilhado com o CRM e a Agenda. Não
+ *  escrever "Prosp EP" à mão aqui: renomear a etiqueta lá tem que valer nas 3 telas.
+ *  O fallback só existe pro caso do script não carregar (a tela não pode quebrar). */
+const rotuloOrigem = o => (typeof etiquetaDeLead === 'function'
+  ? etiquetaDeLead(o, null)
+  : (o === ORIGEM_EP ? 'Prosp EP' : 'Prosp Solar'));
+/** Nome que vai virar o card do CRM: dono na frente, empresa como contexto.
+ *  Card chamado só pelo nome da empresa faz o consultor abrir a conversa sem saber
+ *  com quem fala. */
+function nomeParaAgenda(c){
+  const dono = (c.socio || '').trim();
+  return dono ? `${capitalizar(dono)} — ${c.empresa}` : c.empresa;
+}
+function fmtQuando(iso){
+  const d = new Date(iso);
+  const sem = ['dom','seg','ter','qua','qui','sex','sáb'][d.getDay()];
+  return `${sem} ${pad2(d.getDate())}/${pad2(d.getMonth()+1)} às ${pad2(d.getHours())}h${pad2(d.getMinutes())}`;
+}
 function precoLabel(p){
   // Produto consultivo (eletroposto) não tem preço de tabela: o que se vende no
   // WhatsApp é a reunião. Mostrar "R$ 0" faria a tela parecer quebrada.
@@ -683,7 +798,7 @@ function precoLabel(p){
 
 // ============= CARGA =============
 async function carregar(){
-  const [pr, sc, li, co, to, cs, bu] = await Promise.all([
+  const [pr, sc, li, co, to, cs, bu, ag] = await Promise.all([
     supaGet('prospeccao_produtos?select=*&order=ordem.asc'),
     supaGet('prospeccao_scripts?select=*&order=produto_id.asc,ordem.asc'),
     supaGet('prospeccao_listas?select=*&order=criada_em.desc'),
@@ -691,8 +806,13 @@ async function carregar(){
     supaGetContado(`prospeccao_toques?select=*&order=criado_em.desc&limit=${LIMITE_CARGA}`),
     supaGet('consultores?select=nome&order=nome.asc').catch(()=>[]),
     supaGet('prospeccao_buscas?select=*&order=criada_em.desc&limit=30').catch(()=>[]),
+    // Só as fichas que NASCERAM aqui. Puxar a agenda inteira seria trazer o CRM
+    // de solar/eletroposto pra dentro de uma tela que não é dele.
+    supaGet('agendamentos?select=id,vendedor_nome,quando,cliente_nome,cliente_telefone,cidade,status,created_by' +
+            `&created_by=in.(${ORIGEM_EP},${ORIGEM_SOLAR})&order=quando.desc&limit=2000`).catch(()=>[]),
   ]);
   produtos = pr; listas = li; contatos = co.rows; toques = to.rows; buscas = bu || [];
+  agendados = ag || []; indexarAgendados();
   truncado = (co.total > co.rows.length || to.total > to.rows.length)
     ? { contatos: co.total, toques: to.total } : null;
   // aberturas ficam no rodízio da caixa de mensagem; o resto vira resposta pronta
@@ -859,11 +979,177 @@ async function gravarToque(c, pid, desf, valor, obs){
     const p = prodById(pid);
     showToast(`${c.empresa} → ${desf.label}${valor ? ' · ' + brl(valor) : ''} (${p ? p.nome : ''})`,
       () => desfazerToque(novo.id, c, bloqueou));
-    proximo();
+    // CONVERTEU → abre na hora a marcação da reunião. É o único momento em que o
+    // consultor tem o "sim" na mão; empurrar isso pra depois é como o horário se
+    // perde. Quem não quiser agora fecha em "Agora não" — o toque já está gravado.
+    //
+    // ANTES do proximo(): senão a fila já avançou e o modal fica em cima da ficha
+    // do PRÓXIMO contato — o consultor lê o nome errado atrás do modal e marca a
+    // reunião da empresa errada. Quando abre, quem avança a fila é o fechar.
+    const marcar = CONVERTEU.includes(desf.id) && !reuniaoDe(c);
+    if (marcar) abrirAgenda(c.id, pid, true);
+    else proximo();
   } catch(e){
     showToast('Não gravou: ' + e.message);
   }
 }
+// ============= JOGAR NA AGENDA DO CONSULTOR =============
+// O contato converteu na conversa: daqui ele sai da lista fria e entra no funil
+// normal do gerador (CRM + Agenda), com a etiqueta que diz de onde veio.
+// REGRA DO GERADOR: 1 telefone = 1 consultor. Se esse número já é cliente de
+// alguém no CRM (qualquer origem, card não-cancelado), a reunião TEM que ficar
+// com ele — senão a prospecção cria um segundo dono pro mesmo cliente, que é
+// exatamente a duplicata que já teve de ser consolidada à mão uma vez.
+// Busca pelos últimos 8 dígitos (o 9º e o 55 variam de fonte pra fonte) e
+// confere o DDD no cliente, do mesmo jeito que a chave de merge do CRM faz.
+async function donoDoTelefone(tel){
+  const k = telKeyCrm(tel);
+  if (!k) return null;
+  const rows = await supaGet('agendamentos?select=vendedor_nome,status,created_at,cliente_telefone' +
+    `&cliente_telefone=like.*${k.slice(-8)}&order=created_at.desc&limit=30`).catch(()=>null);
+  if (!rows) return null;                       // busca falhou: não inventa dono
+  const viva = rows.find(a => telKeyCrm(a.cliente_telefone) === k &&
+    !AG_MORTO.has(a.status) && a.vendedor_nome);
+  return viva ? viva.vendedor_nome : null;
+}
+
+// Fecha a marcação. Quando ela abriu SOZINHA por um desfecho de conversão, é o
+// fechar que avança a fila — o proximo() foi adiado de propósito, pra ficha certa
+// continuar visível atrás do modal enquanto o consultor combina o horário.
+function fecharAgenda(){
+  const avancar = !!(agendaPendente && agendaPendente.avancar);
+  agendaPendente = null;
+  fecharModal('ov-agenda');
+  if (avancar) proximo(); else renderTudo();
+}
+
+function abrirAgenda(contatoId, produtoId, autoConversao){
+  const c = contatoById(contatoId);
+  if (!c) return;
+  // alvoAtual() só vale pro contato EM FOCO. Chamado da Carteira (outro contato),
+  // o produto sai da escada dele — senão a etiqueta sairia a do card errado.
+  const emFoco = focoAtual();
+  const p = prodById(produtoId || (emFoco && emFoco.id === c.id ? alvoAtual() : sugeridoPara(c)));
+  agendaPendente = { contatoId: c.id, produtoId: p ? p.id : null, avancar: !!autoConversao };
+
+  const jaMarcada = reuniaoDe(c);
+  document.getElementById('ag-sub').textContent = jaMarcada
+    ? `${c.empresa} já tem reunião com ${jaMarcada.vendedor_nome} em ${fmtQuando(jaMarcada.quando)}. Marcar de novo cria um segundo horário.`
+    : `${c.empresa}${c.cidade ? ' · ' + c.cidade : ''} — ele vira card no CRM do consultor na hora.`;
+
+  document.getElementById('ag-nome').value = nomeParaAgenda(c);
+  document.getElementById('ag-tel').value  = formatTelBR(c.telefone);
+  document.getElementById('ag-erro').textContent = '';
+
+  // Amanhã às 10h: o consultor troca em dois toques, mas nunca abre o modal vazio.
+  const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+  document.getElementById('ag-data').value =
+    `${amanha.getFullYear()}-${pad2(amanha.getMonth()+1)}-${pad2(amanha.getDate())}`;
+  document.getElementById('ag-hora').value = '10:00';
+
+  // Dono do card = quem vai atender. Cai no consultor da lista (a distribuição já
+  // decidiu isso) e, sem ele, em quem está trabalhando a fila agora.
+  const dono = consultores.includes(c.consultor) ? c.consultor : consultorAtivo;
+  document.getElementById('ag-consultor').innerHTML = consultores
+    .map(n => `<option value="${esc(n)}"${n === dono ? ' selected' : ''}>${esc(n)}</option>`).join('');
+
+  document.getElementById('ag-origem').value = origemDoProduto(agendaPendente.produtoId);
+
+  // Já é cliente de alguém? A resposta vem do banco, então chega depois do modal
+  // abrir — por isso o select trava só quando ela chega, e o confirmarAgenda()
+  // confere de novo antes de gravar (quem clicar rápido não escapa da regra).
+  const aviso = document.getElementById('ag-aviso');
+  aviso.style.display = 'none'; aviso.textContent = '';
+  document.getElementById('ag-consultor').disabled = false;
+  donoDoTelefone(c.telefone).then(donoCrm => {
+    if (!donoCrm || !agendaPendente || agendaPendente.contatoId !== c.id) return;
+    const sel = document.getElementById('ag-consultor');
+    if (!consultores.includes(donoCrm)){
+      sel.insertAdjacentHTML('beforeend', `<option value="${esc(donoCrm)}">${esc(donoCrm)}</option>`);
+    }
+    sel.value = donoCrm; sel.disabled = true;
+    aviso.textContent = `Esse WhatsApp já é cliente do ${donoCrm} no CRM. No gerador um telefone tem um dono só, ` +
+      `então a reunião fica com ele. Pra passar pra outro consultor, transfira o card na Agenda.`;
+    aviso.style.display = '';
+  });
+
+  // A observação é o que o consultor lê antes de ligar: de onde veio e o que foi
+  // ofertado. Sem isso ele abre um card frio sem saber de onde caiu.
+  const lista = listaById(c.lista_id);
+  document.getElementById('ag-obs').value = [
+    `Prospecção ativa por ${consultorAtivo}.`,
+    p ? `Ofertado: ${p.nome}.` : '',
+    lista ? `Lista: ${lista.nome}.` : '',
+    c.categoria ? `Categoria: ${c.categoria}.` : '',
+  ].filter(Boolean).join(' ');
+
+  abrirModal('ov-agenda');
+  setTimeout(() => document.getElementById('ag-data').focus(), 60);
+}
+
+async function confirmarAgenda(){
+  if (!agendaPendente) return;
+  const c = contatoById(agendaPendente.contatoId);
+  const err = document.getElementById('ag-erro');
+  const btn = document.getElementById('ag-btn');
+  err.textContent = '';
+  if (!c){ err.textContent = 'Contato sumiu da carga. Atualize a tela.'; return; }
+
+  const nome = document.getElementById('ag-nome').value.trim();
+  const tel  = normalizeTelBR(document.getElementById('ag-tel').value);
+  const data = document.getElementById('ag-data').value;
+  const hora = document.getElementById('ag-hora').value;
+  let   consultor = document.getElementById('ag-consultor').value;
+  const origem = document.getElementById('ag-origem').value;
+  const obs = document.getElementById('ag-obs').value.trim();
+
+  if (!nome){ err.textContent = 'Diz o nome que vai aparecer no card.'; return; }
+  if (tel.replace(/^55/,'').length < 10){ err.textContent = 'WhatsApp inválido. Confere o DDD.'; return; }
+  if (!data || !hora){ err.textContent = 'Escolhe o dia e a hora da reunião.'; return; }
+  const quando = new Date(`${data}T${hora}`);
+  if (isNaN(quando.getTime())){ err.textContent = 'Data ou hora inválida.'; return; }
+  // Marcar pra trás não é erro de digitação inofensivo: o card nasce vencido e o
+  // consultor nunca é avisado. Melhor barrar e deixar ele corrigir.
+  if (quando.getTime() < Date.now() - 5*60*1000){ err.textContent = 'Esse horário já passou. Escolhe um horário à frente.'; return; }
+  if (!consultor){ err.textContent = 'Escolhe o consultor que vai atender.'; return; }
+
+  btn.disabled = true;
+  const txt = btn.textContent; btn.textContent = 'Marcando…';
+  try {
+    // Última palavra sobre o dono é do banco, não do select: entre abrir o modal e
+    // clicar aqui o cliente pode ter virado de outro consultor. 1 telefone, 1 dono.
+    const donoCrm = await donoDoTelefone(tel);
+    if (donoCrm && donoCrm !== consultor){
+      consultor = donoCrm;
+      const aviso = document.getElementById('ag-aviso');
+      aviso.textContent = `Esse WhatsApp já é cliente do ${donoCrm} — a reunião foi pra agenda dele.`;
+      aviso.style.display = '';
+    }
+    const [novo] = await supaInsert('agendamentos', {
+      vendedor_nome:    consultor,
+      quando:           toLocalIso(quando),
+      cliente_nome:     nome,
+      cliente_telefone: tel,
+      cidade:           c.cidade || null,
+      observacao:       obs || null,
+      status:           'agendado',
+      created_by:       origem,       // vira a etiqueta Prosp EP / Prosp Solar no CRM
+    });
+    agendados.unshift(novo);
+    indexarAgendados();
+    showToast(`${c.empresa} na agenda de ${consultor} — ${fmtQuando(novo.quando)}`);
+    fecharAgenda();      // fechou = fila anda (quando o modal abriu pela conversão)
+  } catch(e){
+    const msg = String((e && e.message) || e);
+    // vendedor_nome tem FK pra `consultores`: nome fora do cadastro estoura aqui.
+    err.textContent = /foreign key|consultores|fkey/i.test(msg)
+      ? `"${consultor}" não está cadastrado como consultor no gerador.`
+      : 'Não deu pra marcar. Tenta de novo.';
+  } finally {
+    btn.disabled = false; btn.textContent = txt;
+  }
+}
+
 async function desfazerToque(toqueId, c, desbloquear){
   try {
     await supaDelete(`prospeccao_toques?id=eq.${toqueId}`);
@@ -1006,8 +1292,13 @@ function renderStrip(){
 function renderTabs(){
   const naFila = filaIds.filter(id => !tocadoHoje(id)).length;
   const carteira = contatos.filter(c => toquesDe(c.id).some(t => t.resultado === 'vendeu')).length;
+  // "Na agenda" conta só reunião DE PÉ (futura e não cancelada) — é o número que
+  // interessa: quantas conversas a prospecção colocou na frente de um consultor.
+  const naAgenda = agendados.filter(a => !AG_MORTO.has(a.status) &&
+    new Date(a.quando).getTime() >= Date.now() - 60*60*1000).length;
   const abas = [
     ['fila','Fila de hoje', naFila],
+    ['agenda','Na agenda', naAgenda],
     ['listas','Listas', listas.length],
     ['historico','Histórico', toques.length],
     ['carteira','Carteira', carteira],
@@ -1033,6 +1324,7 @@ function renderConteudo(){
   const el = document.getElementById('conteudo');
   const b = bannerTruncado();
   if (aba === 'fila')       el.innerHTML = b + htmlFila();
+  else if (aba === 'agenda')     el.innerHTML = b + htmlAgenda();
   else if (aba === 'listas')     el.innerHTML = b + htmlListas();
   else if (aba === 'historico')  el.innerHTML = b + htmlHistorico();
   else if (aba === 'carteira')   el.innerHTML = b + htmlCarteira();
@@ -1153,6 +1445,8 @@ function htmlFila(){
           }).join('') : '<div class="virgin">Primeiro contato. Nunca foi abordado por ninguém da equipe.</div>'}
         </div>
 
+        ${htmlAgendaDoContato(c)}
+
         <div class="sect sect-desf">
           <div class="st">Resultado do contato<span class="hint">— tecla 1 a 6, avança sozinho</span></div>
           <div class="desf">
@@ -1211,6 +1505,29 @@ function htmlFila(){
   </div>`;
 }
 function registrarPorId(id){ registrar(DESFECHOS.find(d=>d.id===id)); }
+
+// Bloco "Reunião com o consultor" dentro do contato em foco. Fica ACIMA dos
+// desfechos de propósito: é a ação que vale mais do que registrar o toque quando
+// o cara disse sim. Depois de marcada, mostra a reunião em vez de esconder.
+function htmlAgendaDoContato(c){
+  const marcada = reuniaoDe(c);
+  const passadas = agendaDe(c).filter(a => a !== marcada);
+  return `<div class="sect">
+    <div class="st">Reunião com o consultor<span class="spacer"></span>
+      ${marcada ? `<button class="btn sm" onclick="abrirAgenda('${c.id}')">Outro horário</button>` : ''}</div>
+    ${marcada
+      ? `<div class="hl"><span class="d">${esc(fmtQuando(marcada.quando))}</span>
+           <i class="b" style="background:var(--ok)"></i>
+           <span>com <b>${esc(marcada.vendedor_nome || '—')}</b> · ${esc(rotuloOrigem(marcada.created_by))}
+           <span style="color:var(--faint)"> · ${esc(String(marcada.status||'').replace(/_/g,' '))}</span></span></div>`
+      : `<button class="btn primary full" onclick="abrirAgenda('${c.id}')">Jogar na agenda do consultor</button>
+         <div style="font-size:11.5px;color:var(--faint);margin-top:7px;line-height:1.55">
+           Vira card no CRM do gerador com a etiqueta ${esc(rotuloOrigem(origemDoProduto(alvoAtual())))} — daí em diante ele é lead, não mais lista fria.</div>`}
+    ${passadas.map(a => `<div class="hl"><span class="d">${esc(fmtQuando(a.quando))}</span>
+      <i class="b" style="background:${AG_MORTO.has(a.status)?'#F87171':'#94A3B8'}"></i>
+      <span style="color:var(--dim)">${esc(a.vendedor_nome||'—')} · ${esc(String(a.status||'').replace(/_/g,' '))}</span></div>`).join('')}
+  </div>`;
+}
 
 // Ficha do Google: só aparece o que EXISTE naquele contato. Lista de planilha
 // mostra pouco; lista da Apify mostra endereço, categoria, horário e e-mail.
@@ -1295,6 +1612,58 @@ function porQue(c, pid){
   }
   return `já comprou ${comprados.map(x=>x.nome).join(', ')} (LTV ${brl(ltvDe(c.id))}). ` +
     `Quem já passou o cartão responde o WhatsApp e confia — é o dinheiro mais barato da operação.`;
+}
+
+// ---------- NA AGENDA ----------
+// A ponte com o resto da operação: quem a lista fria colocou na frente de um
+// consultor. Lê `agendamentos` direto — cancelou ou remarcou na Agenda, muda aqui.
+function htmlAgenda(){
+  const agora = Date.now();
+  const dePe   = agendados.filter(a => !AG_MORTO.has(a.status) && new Date(a.quando).getTime() >= agora - 60*60*1000);
+  const passou = agendados.filter(a => !AG_MORTO.has(a.status) && new Date(a.quando).getTime() <  agora - 60*60*1000);
+  const mortas = agendados.filter(a => AG_MORTO.has(a.status));
+  dePe.sort((x,y) => new Date(x.quando) - new Date(y.quando));       // a próxima primeiro
+  passou.sort((x,y) => new Date(y.quando) - new Date(x.quando));
+
+  const linha = a => {
+    const ep = a.created_by === ORIGEM_EP;
+    return `<tr>
+      <td><div style="font-weight:700">${esc(a.cliente_nome || '—')}</div>
+        <div style="font-size:11px;color:var(--dim)">${esc(a.cidade || '—')}</div></td>
+      <td><span class="pill" style="background:${ep?'rgba(14,165,233,.16)':'rgba(245,158,11,.16)'};
+        color:${ep?'#38BDF8':'#FBBF24'}">${rotuloOrigem(a.created_by)}</span></td>
+      <td>${esc(a.vendedor_nome || '—')}</td>
+      <td class="mono">${esc(fmtQuando(a.quando))}</td>
+      <td><span style="color:var(--dim);font-size:11.5px">${esc(String(a.status || '—').replace(/_/g,' '))}</span></td>
+      <td><a class="btn sm" href="https://wa.me/${formatTelDigits(a.cliente_telefone)}"
+        target="_blank" rel="noopener" style="text-decoration:none">WhatsApp</a></td>
+    </tr>`;
+  };
+  const tabela = (titulo, rows, vazio) => `
+    <div class="st" style="margin:18px 0 8px">${titulo}<span class="cnt"
+      style="margin-left:7px;background:#0B1220;color:var(--dim);padding:1px 7px;border-radius:10px">${rows.length}</span></div>
+    ${rows.length ? `<div class="tw"><table><thead><tr>
+        <th style="width:30%">Cliente</th><th>Etiqueta</th><th>Consultor</th><th>Quando</th><th>Status</th><th></th>
+      </tr></thead><tbody>${rows.map(linha).join('')}</tbody></table></div>`
+      : `<div style="color:var(--faint);font-size:12.5px;padding:4px 2px">${vazio}</div>`}`;
+
+  if (!agendados.length){
+    return `<div class="vazio"><div class="big">📅</div>
+      <div style="font-size:17px;font-weight:700;color:var(--txt);margin-bottom:6px">Ninguém marcado ainda</div>
+      Quando um contato disser sim na fila, a tela já abre a marcação da reunião.<br>
+      Daí ele vira card no CRM do consultor, com a etiqueta Prosp EP ou Prosp Solar.<br><br>
+      <button class="btn primary" onclick="irAba('fila')">Voltar pra fila</button></div>`;
+  }
+  return `<div class="page">
+    ${tabela('Reuniões de pé', dePe, 'Nenhuma reunião marcada à frente.')}
+    ${tabela('Já aconteceram', passou, 'Nada no passado ainda.')}
+    ${mortas.length ? tabela('Canceladas / sem interesse', mortas, '') : ''}
+    <div class="note">
+      <b>Daqui pra frente quem manda é o CRM.</b> Estes clientes saíram da lista fria e viraram
+      card no /gerador, com a etiqueta de onde vieram — status, proposta e venda passam a ser
+      marcados lá. Esta aba é só o espelho: cancelou ou remarcou na Agenda, muda aqui sozinho.
+    </div>
+  </div>`;
 }
 
 // ---------- LISTAS ----------
@@ -1479,7 +1848,7 @@ function htmlCarteira(){
     ${cs.length ? `<div class="tw"><table>
       <thead><tr><th style="width:32%">Contato</th>
         ${ativos.map(p=>`<th style="color:${p.cor};text-align:center">${esc(p.nome)}</th>`).join('')}
-        <th>LTV</th><th>Próxima oferta</th></tr></thead>
+        <th>LTV</th><th>Próxima oferta</th><th>Reunião</th></tr></thead>
       <tbody>${cs.map(c => {
         const gapId = sugeridoPara(c), gap = gapId ? prodById(gapId) : null;
         return `<tr>
@@ -1495,6 +1864,13 @@ function htmlCarteira(){
           <td class="mono" style="color:var(--ok);font-weight:800">${brl(ltvDe(c.id))}</td>
           <td style="font-size:12px">${gap?`<span style="color:${gap.cor};font-weight:700">${esc(gap.nome)}</span>`
             :'<span style="color:var(--ok);font-weight:700">carteira completa</span>'}</td>
+          ${(() => {
+            const r = reuniaoDe(c);
+            return `<td style="font-size:11.5px;white-space:nowrap">${r
+              ? `<span style="color:var(--ok);font-weight:700">${esc(fmtQuando(r.quando))}</span>
+                 <div style="color:var(--dim)">${esc(r.vendedor_nome||'—')}</div>`
+              : `<button class="btn sm" onclick="abrirAgenda('${c.id}')">Marcar</button>`}</td>`;
+          })()}
         </tr>`;
       }).join('')}</tbody></table></div>` :
       `<div class="vazio"><div class="big">💼</div>
@@ -2164,7 +2540,13 @@ window.addEventListener('keydown', ev => {
   }
 });
 document.querySelectorAll('.ov').forEach(ov => {
-  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('on'); });
+  ov.addEventListener('click', e => {
+    if (e.target !== ov) return;
+    // A marcação de reunião fecha pela própria função: é ela que decide se a fila
+    // anda. Clicar fora não pode ser um jeito de escapar disso.
+    if (ov.id === 'ov-agenda') { fecharAgenda(); return; }
+    ov.classList.remove('on');
+  });
 });
 
 // ============= BOOT =============

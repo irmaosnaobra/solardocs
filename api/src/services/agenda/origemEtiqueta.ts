@@ -26,6 +26,12 @@ const MAPA: Record<string, string> = {
   'ep-trafego': 'EP Tráfego',
   'manychat_eletroposto': 'EP Organic',
   'ep-organic': 'EP Organic',
+  // Prospecção ATIVA — lista fria trabalhada 1 a 1 na tela /gerador/prospeccao.
+  // Terceiro canal, ao lado de Tráfego e Organic: ninguém levantou a mão, o
+  // consultor foi atrás. `prosp_eletroposto` guarda a palavra "eletroposto" de
+  // propósito: o CRM casa card de EP por ela.
+  'prosp_eletroposto': 'Prosp EP',
+  'prosp_solar': 'Prosp Solar',
   'crm-bulk': 'Import',
   'import': 'Import',
   'indicacao': 'Indicado',
@@ -86,6 +92,8 @@ export const ETIQUETAS_ORDEM: string[] = [
   'Solar Organic',
   'EP Tráfego',
   'EP Organic',
+  'Prosp EP',
+  'Prosp Solar',
   'Indicado',
   'Import',
   'Manual',

@@ -197,8 +197,8 @@ router.get('/hub-config', (req: Request, res: Response): void => {
 // created_by que compõem cada PRODUTO (mesmo agrupamento do "Leads por Origem"):
 // Solar = Meta Lead Ads + LP solar + organic; Eletroposto = LP EP + tráfego + organic.
 const HUB_GERADOR_CB: Record<string, string[]> = {
-  solar:       ['lead-meta', 'leads-meta', 'lp_solar', 'manychat'],
-  eletroposto: ['lp_eletroposto', 'ep-trafego', 'manychat_eletroposto'],
+  solar:       ['lead-meta', 'leads-meta', 'lp_solar', 'manychat', 'prosp_solar'],
+  eletroposto: ['lp_eletroposto', 'ep-trafego', 'manychat_eletroposto', 'prosp_eletroposto'],
 };
 router.get('/hub-gerador', async (req: Request, res: Response): Promise<void> => {
   try {

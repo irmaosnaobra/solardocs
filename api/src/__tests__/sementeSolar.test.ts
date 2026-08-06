@@ -92,6 +92,20 @@ describe('semente — quem entra', () => {
     expect(await publico()).toHaveLength(0);
   });
 
+  // A lista daqui é de EXCLUSÃO: origem nova de agendamento entra na semente por
+  // padrão. Quem foi PROSPECTADO (lista fria trabalhada no /gerador/prospeccao) é
+  // empresa e nunca pediu contato — ouvir "a gente conversou sobre energia solar"
+  // é o mesmo erro do lead #584, que respondeu "não solicitei nenhum serviço".
+  it('lead de eletroposto e de prospecção ativa nunca entram na semente', async () => {
+    fichas = [
+      ficha({ cliente_telefone: '5534991110011', created_by: 'lp_eletroposto' }),
+      ficha({ cliente_telefone: '5534991110012', created_by: 'manychat_eletroposto' }),
+      ficha({ cliente_telefone: '5534991110013', created_by: 'prosp_eletroposto' }),
+      ficha({ cliente_telefone: '5534991110014', created_by: 'prosp_solar' }),
+    ];
+    expect(await publico()).toHaveLength(0);
+  });
+
   it('"sem interesse" fica fora por padrão e só entra se o dono ligar', async () => {
     fichas = [ficha({ status: 'sem_interesse' })];
     expect(await publico()).toHaveLength(0);

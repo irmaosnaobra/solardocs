@@ -23,6 +23,12 @@ const ETIQUETA_MAPA = {
   'ep-trafego': 'EP Tráfego',
   'manychat_eletroposto': 'EP Organic',
   'ep-organic': 'EP Organic',
+  // Prospecção ATIVA (lista fria trabalhada 1 a 1 no /gerador/prospeccao). Não é
+  // anúncio nem automação: o consultor foi atrás. O created_by carrega a palavra
+  // "eletroposto" de propósito — crmEhEletroposto() casa por ela, então o card
+  // ganha o fluxo de EP sem precisar de lista nova em lugar nenhum.
+  'prosp_eletroposto': 'Prosp EP',
+  'prosp_solar': 'Prosp Solar',
   'crm-bulk': 'Import',
   'import': 'Import',
   'indicacao': 'Indicado',

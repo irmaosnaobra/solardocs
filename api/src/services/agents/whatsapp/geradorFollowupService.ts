@@ -96,6 +96,7 @@ type Agendamento = {
   cidade: string | null;
   status: string;
   temperatura: string | null;
+  created_by: string | null;
 };
 type Proposta = { vendido: boolean | null; dados: any };
 
@@ -108,7 +109,7 @@ export async function calcularAlvos(): Promise<AlvoFollowup[]> {
   const [{ data: ags, error: e1 }, { data: props, error: e2 }] = await Promise.all([
     supabaseGerador
       .from('agendamentos')
-      .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, cidade, status, temperatura')
+      .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, cidade, status, temperatura, created_by')
       .order('quando', { ascending: false }),
     supabaseGerador.from('propostas').select('vendido, dados'),
   ]);
@@ -126,6 +127,12 @@ export async function calcularAlvos(): Promise<AlvoFollowup[]> {
   // Agrupa por telefone pra avaliar o cliente como um todo (igual ao digest).
   const porTel = new Map<string, Agendamento[]>();
   for (const ag of agendamentos) {
+    // Lead de PROSPECÇÃO ATIVA (prosp_*) não entra: a copy deste bot é "você pediu
+    // contato sobre energia solar" e essas fichas nascem de lista fria, marcadas pelo
+    // consultor na tela /gerador/prospeccao — ninguém pediu nada.
+    // (Ficha de eletroposto continua entrando aqui, como sempre entrou. É buraco
+    //  ANTERIOR a esta mudança — quem ligar GERADOR_FOLLOWUP_ENABLED tem que resolver.)
+    if (String(ag.created_by || '').startsWith('prosp_')) continue;
     const k = telKey(ag.cliente_telefone);
     if (!k) continue;                         // sem telefone normalizável → fora (digest cobre)
     if (!porTel.has(k)) porTel.set(k, []);

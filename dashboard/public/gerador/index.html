@@ -3086,6 +3086,20 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <label>Consultor que vai atender *</label>
       <select id="nc-consultor"></select>
     </div>
+    <!-- Etiqueta de origem. A etiqueta é DERIVADA do created_by (ver etiqueta.js),
+         então escolher aqui é escolher com que carimbo a ficha nasce. "Manual" é o
+         padrão de sempre: grava o nome de quem cadastrou. As opções de prospecção
+         gravam a origem e jogam o nome do consultor pra observação, pro rastro de
+         quem digitou não se perder. -->
+    <div class="field">
+      <label>Etiqueta de origem</label>
+      <select id="nc-etiqueta">
+        <option value="" selected>Manual (cadastro na mão)</option>
+        <option value="prosp_eletroposto">Prosp EP — prospecção de eletroposto</option>
+        <option value="prosp_solar">Prosp Solar — prospecção de solar</option>
+        <option value="indicacao">Indicado — veio por indicação</option>
+      </select>
+    </div>
     <div id="nc-erro" style="color:#F87171;font-size:13px;min-height:18px;margin-top:4px;"></div>
     <div class="modal-acoes">
       <button class="secondary" onclick="fecharNovoContato()">Cancelar</button>
@@ -9114,6 +9128,8 @@ function abrirNovoContato() {
   document.getElementById('nc-tel').value = '';
   document.getElementById('nc-cidade').value = '';
   document.getElementById('nc-erro').textContent = '';
+  const selEt = document.getElementById('nc-etiqueta');
+  if (selEt) selEt.value = '';                 // volta pro padrão "Manual" a cada abertura
   // Dono do card = quem VAI ATENDER, não necessariamente quem está cadastrando:
   // indicação que chega pra um consultor costuma ser cliente de outro. Vem
   // pré-marcado no logado (caso comum) e é trocável no ato.
@@ -9166,6 +9182,13 @@ async function salvarNovoContato() {
   if (!dono) { erro.textContent = 'Escolha o consultor que vai atender.'; return; }
   const criador = crmConsultorLogado() || getConsultorAtual() || dono;
 
+  // ETIQUETA escolhida no modal. Ela não tem coluna própria: é derivada do
+  // created_by (etiqueta.js). Então "Prosp EP" = created_by 'prosp_eletroposto'.
+  // Como isso ocupa o campo que guardava o nome de quem digitou, o rastro do
+  // criador vai pra observação — some do created_by, não do banco.
+  const etiqueta = (document.getElementById('nc-etiqueta')?.value || '').trim();
+  const observacao = etiqueta ? `Cadastrado por ${criador} no CRM.` : null;
+
   btn.disabled = true;
   const txtOrig = btn.textContent;
   btn.textContent = 'Criando…';
@@ -9176,8 +9199,9 @@ async function salvarNovoContato() {
       cliente_nome:     nome,
       cliente_telefone: crmTelBonito(telDigits), // 55 + DDD + número
       cidade:           cidade || null,
+      observacao,
       status:           'falando_whatsapp',   // cai na coluna Falando WhatsApp
-      created_by:       criador,              // rastro de quem cadastrou (vira etiqueta "Manual")
+      created_by:       etiqueta || criador,  // origem escolhida, ou o rastro de quem cadastrou ("Manual")
     });
     fecharNovoContato();
     // O board abre filtrado pela carteira de UM consultor (navCRM) e ainda filtra
@@ -9189,7 +9213,8 @@ async function salvarNovoContato() {
     }
     const inBusca = document.getElementById('crm-busca');
     if (inBusca) inBusca.value = '';
-    showToast(`✅ Contato criado na carteira de ${dono}`);
+    const lblEt = etiqueta && typeof etiquetaDeLead === 'function' ? etiquetaDeLead(etiqueta, null) : '';
+    showToast(`✅ Contato criado na carteira de ${dono}${lblEt ? ' · ' + lblEt : ''}`);
     await carregarCRM(true);
     crmScrollToCol('whatsapp');   // rola até a coluna onde ele caiu e pisca
   } catch (e) {
