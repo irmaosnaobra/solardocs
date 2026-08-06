@@ -2327,7 +2327,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Custos e taxas</div>
           <div class="eletro-field"><label>Gateway<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento que fica com a plataforma de pagamento e o aplicativo que controla as recargas. Sai de cada venda, como a taxa da maquininha do cartão.">?</span></label>
-            <div class="eletro-inp has-suf"><input type="number" id="el-gateway" inputmode="decimal" value="14" oninput="eletroCalc()"><span class="suf">%</span></div></div>
+            <!-- 12% é o padrão da casa desde 06/08/2026 (era 14%). A LP /io/eletroposto
+                 ainda abre em 14% — as duas contas precisam abrir iguais, então mexer
+                 numa exige mexer na outra e refazer a conferência que está lá. -->
+            <div class="eletro-inp has-suf"><input type="number" id="el-gateway" inputmode="decimal" value="12" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Arrendamento do ponto<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento pago ao dono do local (posto, mercado, shopping) pela cessão do espaço. Como é percentual, ele só ganha quando você fatura.">?</span></label>
             <!-- Abre em 0: o caso comum é o cliente instalar no espaço DELE, e cobrar
                  arrendamento de quem paga a si mesmo afunda margem e payback. Local de
@@ -2336,13 +2339,16 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-field"><label>Manutenção<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento reservado para manter o equipamento funcionando: limpeza, reparos e assistência técnica.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-manut" inputmode="decimal" value="0.1" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Assinatura mensal<span class="el-tip" tabindex="0" data-tip="Mensalidade fixa de algum serviço ou plano, se houver. Diferente das taxas em %, ela é cobrada mesmo em um mês parado.">?</span></label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-assinatura" inputmode="decimal" value="0" oninput="eletroCalc()"></div></div>
+            <!-- Os R$ 300 do software/4G nascem AQUI (antes nasciam em "Outros custos
+                 fixos"). A conta não muda um centavo — fixos/mês = assinatura + seguro +
+                 outros —, mudou só onde a linha aparece, que é o que o consultor lê. -->
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-assinatura" inputmode="decimal" value="300" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Seguro | Ano<span class="el-tip" tabindex="0" data-tip="Seguro do equipamento, calculado sozinho como 1% ao ano do investimento e diluído nos meses. Este campo é só demonstrativo: mexer no investimento já atualiza o valor.">?</span></label>
             <div class="eletro-inp has-pre eletro-inp-lock"><span class="pre">R$</span><input type="text" id="el-seguro" value="2.000" readonly tabindex="-1"></div></div>
           <div class="eletro-field"><label>Imposto — Simples Nacional<span class="el-tip" tabindex="0" data-tip="Alíquota de imposto sobre o faturamento, no regime do Simples Nacional. Confirme a faixa com o contador do cliente, porque ela varia conforme o faturamento da empresa.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-imposto" inputmode="decimal" value="6" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Outros custos fixos/mês<span class="el-tip" tabindex="0" data-tip="Contas que chegam todo mês independentemente do movimento: software de gestão, internet 4G do carregador e demanda contratada de energia.">?</span></label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-fixos" inputmode="decimal" value="300" oninput="eletroCalc()"></div></div>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-fixos" inputmode="decimal" value="0" oninput="eletroCalc()"></div></div>
         </div>
 
         <div class="card">
@@ -2350,7 +2356,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-field"><label>Ocupação inicial<span class="el-tip" tabindex="0" data-tip="Quanto do movimento o posto já tem no primeiro mês. Um posto novo não abre cheio: 50% significa que ele começa com metade dos carros previstos e vai crescendo.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-ocup" inputmode="decimal" min="0" max="100" value="50" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Meses até ocupação plena<span class="el-tip" tabindex="0" data-tip="Em quantos meses o posto sai da ocupação inicial e chega ao movimento normal. É o que torna a projeção honesta: as contas fixas correm desde o dia 1, mesmo com o posto ainda enchendo.">?</span></label>
-            <div class="eletro-inp"><input type="number" id="el-rampa" inputmode="decimal" min="1" value="24" oninput="eletroCalc()"></div></div>
+            <!-- 6 meses é o padrão da casa desde 06/08/2026 (era 24). É a premissa que
+                 mais mexe no payback: rampa curta = posto enchendo rápido = retorno
+                 melhor. A LP /io/eletroposto ainda projeta em 24 meses e diz isso na
+                 letra miúda ("conservadora") — as duas só voltam a bater se a de lá for
+                 mudada junto, com a conferência refeita. -->
+            <div class="eletro-inp"><input type="number" id="el-rampa" inputmode="decimal" min="1" value="6" oninput="eletroCalc()"></div></div>
         </div>
       </div>
 
