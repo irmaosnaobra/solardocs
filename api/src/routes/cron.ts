@@ -12,6 +12,7 @@ import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGer
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
 import { runLimpaproRecoveryConsumer, runLimpaproRecoverySeeds, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, seedLimpaproGrupoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundService';
+import { pollLimpaproAtendimento } from '../services/agents/whatsapp/limpaproAtendimentoService';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
@@ -289,6 +290,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runLimpaproRecoverySeeds(),      // recuperação LimpaPro (Bia): põe gente na esteira (1x/h, auto-gated)
       runLimpaproRecoveryConsumer(),   // recuperação LimpaPro (Bia): drena marcadores prontos
       pollBiaRecuperacao(),            // inbound da Bia (poll IO; webhook IO não entrega texto)
+      pollLimpaproAtendimento(),       // trilha 1x1 do LimpaPro: aluno que escreve na linha (LIMPAPRO_ATENDIMENTO_ENABLED)
       runGeradorSequenciasConsumer(),  // Central de Automação: drip de sequências (gated por kill-switch)
       drainIgQueue(),                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
       varrerComentariosFacebook(),     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)

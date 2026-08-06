@@ -9,6 +9,7 @@ import { transcribeAudio, downloadImageAsAnthropicSource } from '../utils/mediaP
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { kiwifyWebhook } from '../controllers/limpaproController';
 import { handleBiaInbound, ehLeadRecuperacao, marcarTakeoverBia } from '../services/agents/whatsapp/biaInboundService';
+import { ehAlunoLimpapro, handleLimpaproAtendimento, marcarTakeoverLimpapro } from '../services/agents/whatsapp/limpaproAtendimentoService';
 
 // Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
 // primeiro disponível pra dedup atômico contra redelivery e race com polling.
@@ -294,6 +295,9 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
       const myPhone = String(body.phone || body.senderPhone || '').replace(/\D/g, '');
       if (myPhone && await ehLeadRecuperacao(myPhone)) {
         await marcarTakeoverBia(myPhone).catch(e => console.error('[webhook:io] takeover bia falhou', e));
+      } else if (myPhone && await ehAlunoLimpapro(myPhone)) {
+        // Humano respondeu um aluno do LimpaPro pelo celular → a trilha 1x1 cala nessa conversa.
+        await marcarTakeoverLimpapro(myPhone).catch(e => console.error('[webhook:io] takeover limpapro falhou', e));
       }
     }
     return;
@@ -357,6 +361,19 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
     handleBiaInbound(String(phone), textoRecup, body.senderName || body.pushname)
       .catch(err => console.error('[webhook:io] handleBiaInbound falhou:', err));
     return;
+  }
+
+  // ── TRILHA DE ATENDIMENTO 1x1 DO LIMPAPRO (aluno que já comprou) ──
+  // Depois da Bia (quem ela abordou é dela) e ANTES do fluxo de energia — que pra linha
+  // IO é `return` puro (handleSdrLead), ou seja, aluno do curso ficava sem resposta.
+  // Casa por telefone em `limpapro_membros`; cliente de energia nunca casa.
+  if (textoRecup) {
+    const aluno = await ehAlunoLimpapro(String(phone));
+    if (aluno) {
+      handleLimpaproAtendimento(String(phone), textoRecup, body.senderName || body.pushname, aluno)
+        .catch(err => console.error('[webhook:io] handleLimpaproAtendimento falhou:', err));
+      return;
+    }
   }
 
   // Processa em background — chama Luma direto na linha 'io'.

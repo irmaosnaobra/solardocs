@@ -243,6 +243,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .eletro-inp.has-pre input{padding-left:30px}
 .eletro-inp.has-suf input{padding-right:44px;text-align:right}
 .eletro-inp input:focus{border-color:#3B82F6}
+/* <select> do campo Potência: mesmo desenho do input, alinhado à esquerda como
+   os outros campos largos, com seta própria (a nativa some com appearance:none) */
+.eletro-inp select{width:100%;box-sizing:border-box;padding:9px 30px 9px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:14px;font-family:inherit;font-weight:700;text-align:left;outline:none;transition:border-color .2s;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;background-size:14px}
+.eletro-inp select:focus{border-color:#3B82F6}
 /* campo derivado (seguro): mostra o valor da conta, não aceita digitação */
 .eletro-inp-lock input{background:rgba(255,255,255,.04);color:#CBD5E1;cursor:default;border-style:dashed}
 .eletro-inp-lock input:focus{border-color:rgba(255,255,255,.14)}
@@ -2285,15 +2289,17 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-cliente" placeholder="Ex: Grupo Andrade" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
           <div class="eletro-field"><label>Cidade / local</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-cidade" placeholder="Ex: Uberlândia-MG" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
+          <!-- Lista fechada: são as potências DC que a casa vende (as mesmas da
+               apresentação). Abre em 80 kW, que é o carro-chefe. As opções são
+               montadas em eletroEquipRender() a partir de EP_DECK_CHAVE_NA_MAO,
+               pra não existirem duas listas de potência que possam divergir. -->
           <div class="eletro-field"><label>Potência Carregador</label>
-            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-equip" placeholder="Ex: DC 80 kW" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
+            <div class="eletro-inp eletro-inp-wide"><select id="el-equip" onchange="eletroEquipMudou()"></select></div></div>
           <div class="eletro-field"><label>Vendedor</label>
-            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-autor" placeholder="Ex: João Silva" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
+            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-autor" placeholder="Ex: João Silva" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore oninput="eletroVendedorEditado(this)"></div></div>
           <div class="eletro-field"><label>Contato do vendedor</label>
-            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-contato" placeholder="Ex: (34) 99999-0000" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
-          <div class="eletro-field"><label>E-mail do vendedor</label>
-            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-email" placeholder="Ex: joao@irmaosnaobra.com.br" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore></div></div>
-          <div class="orc-note" style="margin-top:6px">Cliente e vendedor valem para os <b>3 documentos</b> (Estudo, Orçamento básico e completo). Digite uma vez só aqui.</div>
+            <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-contato" placeholder="Ex: (34) 99999-0000" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore oninput="eletroVendedorEditado(this)"></div></div>
+          <div class="orc-note" id="el-vendedor-nota" style="margin-top:6px">Cliente vale para os <b>3 documentos</b> (Estudo, Orçamento básico e completo). Vendedor e contato caem sozinhos de quem está logado.</div>
         </div>
 
         <div class="card">
@@ -5842,6 +5848,11 @@ function navEletroposto() {
 // Sub-abas dentro do Eletroposto: Simulador | Histórico | Pesquisa | Mercado | Postos | Mapa
 function eletroSubaba(qual) {
   const abas = ['simulador', 'orcamento', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
+  // vendedor. Fica aqui, e não só no load, porque o cadastro de consultores
+  // carrega assíncrono — na primeira abertura o telefone ainda pode não existir.
+  eletroEquipRender();
+  eletroVendedorAuto();
   if (qual === 'historico') { epHistOrcRender(); eletroHistCarregar(); }
   if (qual === 'orcamento') orcInit();
   abas.forEach(a => {
@@ -5971,10 +5982,15 @@ function eletroParams() {
   };
 }
 // Textos do documento (não entram no cálculo)
+// SEM e-mail do vendedor desde 06/08/2026: o campo saiu da tela por decisão do
+// Thiago. O contato do vendedor no documento é o WhatsApp, que já tem QR. Quem
+// renderiza (cardL / epFooterBlockHTML) omite a linha quando o valor é vazio,
+// então o card do Vendedor fecha sem buraco — e documento GERADO ANTES continua
+// mostrando o e-mail dele, porque aquele valor ficou congelado no payload salvo.
 function eletroTextos() {
   const g = id => (document.getElementById(id)?.value || '').trim();
   return { cliente: g('el-cliente'), cidade: g('el-cidade'), equip: g('el-equip'),
-           autor: g('el-autor'), contato: g('el-contato'), email: g('el-email') };
+           autor: g('el-autor'), contato: g('el-contato') };
 }
 // Formatadores dos indicadores
 const elPct1  = v => v == null ? '—' : (v * 100).toFixed(1).replace('.', ',') + '%';
@@ -6253,8 +6269,12 @@ function eletroHistAbrir(id) {
     if (el) el.value = v;
   });
   const t = row.textos || {};
-  [['el-cliente', t.cliente], ['el-cidade', t.cidade], ['el-equip', t.equip], ['el-autor', t.autor], ['el-contato', t.contato]]
-    .forEach(([id2, v]) => { const el = document.getElementById(id2); if (el) el.value = v || ''; });
+  // el-equip é <select> e sai por eletroEquipSet: potência gravada como texto
+  // livre (todo orçamento até 06/08/2026) tem que virar opção da lista antes de
+  // entrar, senão a seleção zera e o documento reabre sem equipamento.
+  [['el-cliente', t.cliente], ['el-cidade', t.cidade], ['el-autor', t.autor], ['el-contato', t.contato]]
+    .forEach(([id2, v]) => { const el = document.getElementById(id2); if (el) { el.value = v || ''; el.dataset.tocado = '1'; } });
+  eletroEquipSet(t.equip);
   eletroSubaba('simulador');
   eletroCalc();
   if (typeof showToast === 'function') showToast('Orçamento carregado no simulador');
@@ -6498,7 +6518,7 @@ function eletroImprimir() {
         </ol>
       </div>
 
-      ${epFooterBlockHTML({ nome: t.autor, email: t.email, contato: t.contato })}
+      ${epFooterBlockHTML({ nome: t.autor, contato: t.contato })}
       <div class="ep-foot">Dados de mercado: ${m.fonte} · Projeção financeira: elaborada a partir das premissas declaradas na seção "Premissas e metodologia" — valores estimados, não constituem garantia de resultado.</div>
       ${pageFoot(4)}
       </div><!-- /página 4 -->
@@ -6575,6 +6595,74 @@ const EP_DECK_CHAVE_NA_MAO = {
 function epDeckPorTexto(txt) {
   const m = String(txt || '').replace(',', '.').match(/(\d+(?:\.\d+)?)\s*k\s*w/i);
   return m ? EP_DECK_CHAVE_NA_MAO[Math.round(parseFloat(m[1])) + ' kW'] : undefined;
+}
+
+// ═══ POTÊNCIA DO CARREGADOR — lista fechada, uma só no sistema ═══
+// O campo "Potência Carregador" do Simulador é um <select> montado daqui, e é
+// dele que saem a ficha técnica do estudo, a composição do orçamento e o deck.
+// Vem da MESMA constante do preço de referência: potência que a casa vende é
+// potência que tem preço na apresentação, e o contrário também.
+const EP_EQUIP_PADRAO = 'DC 80 kW';   // carro-chefe: é onde o campo abre
+function epEquipOpcoes() { return Object.keys(EP_DECK_CHAVE_NA_MAO).map(r => 'DC ' + r); }
+// Aceita o que veio de fora e devolve a opção da lista, ou '' se não for nenhuma.
+// Precisa existir porque histórico e orçamento salvos até 06/08/2026 gravaram a
+// potência como texto livre ("80 kW", "Carregador DC 80 kW", "dc80kw") — jogar
+// isso cru num <select> zera a seleção em silêncio.
+function epEquipNormalizar(txt) {
+  const m = String(txt || '').replace(',', '.').match(/(\d+(?:\.\d+)?)\s*k\s*w/i);
+  if (!m) return '';
+  const rot = 'DC ' + Math.round(parseFloat(m[1])) + ' kW';
+  return epEquipOpcoes().includes(rot) ? rot : '';
+}
+function eletroEquipRender() {
+  const sel = document.getElementById('el-equip');
+  if (!sel || sel.options.length) return;   // monta uma vez só
+  sel.innerHTML = epEquipOpcoes()
+    .map(r => `<option value="${r}"${r === EP_EQUIP_PADRAO ? ' selected' : ''}>${r}</option>`).join('');
+}
+// Escrever a potência de fora (reabrir do histórico, restaurar orçamento salvo).
+// Potência antiga que não existe mais na lista NÃO troca o campo — melhor manter
+// a que está na tela do que zerar o select e o documento sair sem equipamento.
+function eletroEquipSet(txt) {
+  const sel = document.getElementById('el-equip');
+  if (!sel) return;
+  eletroEquipRender();
+  const alvo = epEquipNormalizar(txt);
+  if (alvo) { sel.value = alvo; sel.dataset.tocado = '1'; }
+}
+// Trocar a potência não mexe em conta nenhuma (ela não entra em computeEletro),
+// só repinta o espelho do orçamento se aquele pane já estiver montado.
+function eletroEquipMudou() {
+  const sel = document.getElementById('el-equip');
+  if (sel) sel.dataset.tocado = '1';
+  if (typeof orcKitEquipSync === 'function') orcKitEquipSync();
+  if (typeof orcValorBanner === 'function') orcValorBanner();
+}
+
+// ═══ VENDEDOR AUTOMÁTICO ═══
+// Quem gera o documento é quem está logado — digitar o próprio nome toda vez era
+// trabalho à toa e, esquecido, mandava o cliente pro contato de outra pessoa.
+// Nome sai de crmConsultorLogado(); o telefone, do cadastro `consultores` (que
+// carrega assíncrono, então isto roda de novo a cada abertura da aba).
+// Só preenche campo VAZIO e nunca por cima do que foi digitado: o consultor pode
+// estar montando o orçamento para outro vendedor. Apagar o campo conta como
+// digitar — quem limpou de propósito não vê o valor voltar sozinho.
+function eletroVendedorEditado(inp) { if (inp) inp.dataset.tocado = '1'; }
+function eletroVendedorAuto() {
+  const nomeEl = document.getElementById('el-autor');
+  const telEl = document.getElementById('el-contato');
+  if (!nomeEl || !telEl) return;
+  const logado = typeof crmConsultorLogado === 'function' ? crmConsultorLogado() : '';
+  if (logado && nomeEl.dataset.tocado !== '1' && !nomeEl.value.trim()) nomeEl.value = logado;
+  const nome = nomeEl.value.trim();
+  if (nome && telEl.dataset.tocado !== '1' && !telEl.value.trim()) {
+    // O cadastro guarda o número cru (5534999999999) e o rodapé do Estudo imprime
+    // o contato do vendedor SEM formatar — cru ali sai um paredão de dígitos no
+    // documento do cliente. crmTelDisplay é idempotente e o QR/wa.me tira os
+    // não-dígitos de qualquer jeito, então formatar aqui é seguro.
+    const w = typeof whatsDoConsultor === 'function' ? whatsDoConsultor(nome) : '';
+    if (w) telEl.value = typeof crmTelDisplay === 'function' ? crmTelDisplay(w) : w;
+  }
 }
 // Preços por item usados até 05/08/2026, quando cada linha ainda tinha valor
 // próprio na tela — ficam escritos porque orçamento gerado até lá saiu com eles,
@@ -6821,7 +6909,8 @@ function orcPgToggle() {
   show('orc-pg-fin', on('orc-pg-ck-fin'));
 }
 
-// (Vendedor agora vem do Simulador — el-autor / el-email / el-contato. Sem card próprio no Orçamento.)
+// (Vendedor agora vem do Simulador — el-autor / el-contato, preenchidos sozinhos
+//  pelo consultor logado. Sem card próprio no Orçamento e sem e-mail.)
 
 // Emitente (sua empresa) — persistência no navegador
 function orcEmitCampos() { return ['nome', 'end', 'cidade', 'tel', 'email']; }
@@ -7214,7 +7303,7 @@ function orcEpPayload() {
     linhas: orc1EpLinhas(),
     fin: orc1EpFinanceiro(r.total),
     pag: pg,
-    vendedor: { nome: vendNome, email: orcVal('el-email'), contato: vendTel },
+    vendedor: { nome: vendNome, contato: vendTel },
     empresa: orc1EpEmpresa(),
   };
 }
@@ -7513,11 +7602,17 @@ function eletroTelaA4() {
       return;
     }
     if (o.tagName === 'SELECT') {
+      // selectedIndex -1 = nenhuma opção casa com o valor (acontece se alguém
+      // escrever no select um valor fora da lista). Sem este guard, NENHUMA
+      // option recebia `selected` e o clone imprimia a PRIMEIRA — a foto A4 saía
+      // com uma potência que o consultor não escolheu. Melhor sair em branco.
+      const idx = o.selectedIndex;
       Array.from(c.options).forEach((op, j) => {
-        const sel = j === o.selectedIndex;
+        const sel = idx >= 0 && j === idx;
         op.selected = sel;
         if (sel) op.setAttribute('selected', ''); else op.removeAttribute('selected');
       });
+      if (idx < 0) c.selectedIndex = -1;
       return;
     }
     c.setAttribute('value', o.value);
@@ -7600,7 +7695,7 @@ function epBasicoImprimir() {
     // O básico sai do Simulador, sem card de pagamento: usa a condição padrão da
     // casa (18x com 22,5%) pra não quotar cartão diferente do orçamento completo.
     pagHTML: orc1PagChips({ total, vista: true, entrada: { valor: 0, parcelas: ORC_ENTRADA_PARC, juros: ORC_ENTRADA_JUROS }, fin: true }),
-    vendedor: { nome: t.autor, email: t.email, contato: t.contato },
+    vendedor: { nome: t.autor, contato: t.contato },
     empresa: orc1EpEmpresa(),
   });
 
@@ -7700,16 +7795,18 @@ function orcSnapApply(s) {
     row.classList.toggle('on', chk.checked);
     row.classList.toggle('off', !chk.checked);
   });
-  // Potência: só preenche o Simulador se ele estiver vazio — reabrir um orçamento
-  // do histórico não pode trocar o equipamento da simulação que está aberta.
+  // Potência: reabrir um orçamento do histórico devolve a potência com que ele
+  // foi vendido, mas NÃO passa por cima de uma potência que o consultor acabou
+  // de escolher na simulação aberta — só sobrescreve enquanto o campo estiver no
+  // padrão que ninguém tocou.
   // `s.equip` não existe até 06/08/2026; ali a potência era um índice (s.kit[].opt)
   // na lista fixa 40/60/80/120/160 kW, e é dela que o legado é remontado.
   const eqEl = document.getElementById('el-equip');
-  if (eqEl && !eqEl.value.trim()) {
+  if (eqEl && eqEl.dataset.tocado !== '1') {
     const legadoOpt = (s.kit || []).find(k => k.id === 'carreg');
     const legadoEq = legadoOpt && legadoOpt.opt != null
       ? Object.keys(EP_DECK_CHAVE_NA_MAO)[Number(legadoOpt.opt) || 0] : '';
-    eqEl.value = s.equip || legadoEq || '';
+    eletroEquipSet(s.equip || legadoEq || '');
   }
   // Valor do projeto. Orçamento salvo até 05/08/2026 não tem `valor`: o dinheiro
   // dele morava nos preços por item. Reconstrói somando as linhas marcadas e

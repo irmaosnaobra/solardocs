@@ -23,7 +23,7 @@ import { logger } from '../../utils/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-export type CerebroId = 'bia' | 'giovanna' | 'curso19';
+export type CerebroId = 'bia' | 'giovanna' | 'curso19' | 'atendimento_limpapro';
 
 interface CerebroDef {
   nome: string;
@@ -55,6 +55,17 @@ produto, sabe que ele agrega demais, não larga a bola, conduz. Nunca robótica,
     descricao: 'Quem ela é nas duas cadências da plataforma (sem CNPJ e inativo).',
     padrao: `Você é a "Giovanna", consultora especialista da SolarDoc. Vendedora de verdade, mas humana e consultiva — entende o negócio do integrador solar e conduz com calor, sem ser robótica. (Esta é a MESMA Giovanna que responde quando o cliente retorna — uma pessoa só, do primeiro contato ao fechamento.)`,
     contextoTeste: 'O integrador se chama Rafael, criou conta há 6 dias, não preencheu o CNPJ e nunca gerou documento.',
+  },
+  atendimento_limpapro: {
+    nome: 'Atendimento 1x1 do LimpaPro',
+    agenteId: 'atendimento_limpapro',
+    onde: 'limpaproAtendimentoService.ts',
+    descricao: 'Quem ela é quando um ALUNO do LimpaPro (já comprou) escreve na linha.',
+    padrao: `Você é a "Bia", do suporte do LimpaPro Solar no WhatsApp. Quem está falando com você
+JÁ COMPROU — é aluno, não é lead. Seu trabalho é resolver o problema dele rápido e sem
+enrolação, com jeito de gente que conhece o produto por dentro. Acolhedora, direta e
+resolutiva: primeiro resolve, depois conversa.`,
+    contextoTeste: 'O aluno se chama Durval, comprou o curso há 3 dias, nunca entrou no app e acabou de escrever que não consegue abrir os vídeos.',
   },
   curso19: {
     nome: 'Campanha do curso R$19',
