@@ -46,7 +46,7 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
     // ato (o checkout volta payment_status='paid', a sub nasce 'active' e o
     // webhook já grava a venda como paga em vez de 'trialing').
     trialDias: 0,
-    descricao: '📄 Documentos ilimitados  •  Todos os 8 documentos com a sua marca  •  Histórico permanente  •  Calculadora e inventário  •  Suporte no WhatsApp com o dono',
+    descricao: '📄 Documentos ilimitados  •  Todos os 8 documentos com a sua marca  •  Histórico permanente  •  Calculadora e inventário  •  Garantia de 7 dias',
   },
   // Removido em 30/07/2026: 'vip_curso' era o VIP da campanha "o curso entra
   // junto", com cobrança imediata como contrapartida. Assinatura não libera mais
@@ -73,6 +73,35 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
 // mapa invertido price_id → plano (para o webhook)
 function planByPrice(priceId: string) {
   return Object.values(PLAN_MAP).find(p => p.priceId === priceId);
+}
+
+// ── Vitrine do checkout (imagem + descrição do produto na Stripe) ────────────
+// A imagem do produto é o card grande que o cliente vê no checkout hosted. A
+// antiga trazia o selo "7 DIAS GRÁTIS" — que deixou de existir em 06/08/2026 e
+// virava promessa quebrada na hora de pagar. A arte nova mora em /public do
+// dashboard, então a URL só existe depois do deploy.
+//
+// Por que carimbar daqui e não pelo painel: não há acesso à conta da Stripe por
+// script (a chave é só do ambiente da Vercel). Este sync roda UMA vez por
+// instância fria da função — o primeiro checkout depois do deploy conserta o
+// produto e os seguintes nem tocam na Stripe. Se falhar, o checkout continua
+// normal (só a vitrine fica velha).
+const CHECKOUT_IMG = `${(process.env.DASHBOARD_URL || 'https://solardoc.app').trim()}/checkout-solardoc.jpg`;
+const vitrineFeita = new Set<string>();
+
+async function garantirVitrineStripe(priceId: string, descricao: string): Promise<void> {
+  if (vitrineFeita.has(priceId)) return;
+  vitrineFeita.add(priceId); // marca antes: uma tentativa por price/instância, sem repique
+  try {
+    const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
+    const product = price.product as { id?: string; images?: string[] } | null;
+    if (!product?.id) return;
+    if (product.images?.[0] === CHECKOUT_IMG) return; // já está na arte nova
+    await stripe.products.update(product.id, { description: descricao, images: [CHECKOUT_IMG] });
+    console.log('[stripe] vitrine do produto atualizada:', product.id);
+  } catch (err) {
+    console.error('[stripe] sync da vitrine falhou (checkout intacto):', err);
+  }
 }
 
 // Campos de atribuição que viajam da LP → Stripe metadata → users.
@@ -152,14 +181,9 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     return;
   }
 
-  // Atualiza a descrição do produto no Stripe para refletir os valores corretos
-  try {
-    const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
-    const product = price.product as any;
-    if (product?.id) {
-      await stripe.products.update(product.id, { description: planInfo.descricao });
-    }
-  } catch { /* silencioso — não bloqueia o checkout */ }
+  // Vitrine do produto (descrição + imagem do checkout). Era só a descrição
+  // aqui, e por isso a imagem com "7 DIAS GRÁTIS" sobreviveu ao fim do trial.
+  await garantirVitrineStripe(priceId, planInfo.descricao);
 
   // Tem subscription ativa? Faz upgrade in-place com proração — cobra a diferença
   // imediatamente no cartão já cadastrado, sem novo checkout.
@@ -258,6 +282,9 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
 
   try {
     const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+
+    // Imagem e descrição do produto no checkout — uma vez por instância fria.
+    await garantirVitrineStripe(planInfo.priceId, planInfo.descricao);
 
     // Atribuição: a LP manda os UTMs + o session_id (sd_lp_session) no body.
     // Só entram no metadata se vierem preenchidos (campos ausentes = checkout
