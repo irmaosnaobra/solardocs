@@ -1014,10 +1014,9 @@ function calc(){
 }
 
 // ===== AGENDA =====
-// Regras: SEG, TER e QUA — só TARDE, 13:30 às 17:30, slots de 30 min (9 horários).
-// QUI e SEX são transbordo, não grade fixa: quinta só abre quando a segunda da
-// mesma semana lota, sexta quando a terça lota.
-// A vitrine mostra 2 dias rolantes — o dia que lota sai e o próximo entra.
+// Regras: SEG a SEX — só TARDE, 13:30 às 17:30, slots de 30 min (9 horários).
+// A vitrine mostra 2 dias rolantes: hoje (D0) e amanhã (D+1). O dia que lota — ou
+// que acaba — sai, e o próximo dia útil entra no lugar.
 // Fecha o que já passou, o que está a menos de 2h daqui e o horário em que os DOIS
 // consultores já estão ocupados.
 let slotSel = null;
@@ -1068,35 +1067,24 @@ function horariosDoDia(){
   return out;
 }
 
-// Dias que a agenda abre (0=dom … 6=sáb). Seg/ter/qua são fixos; qui e sex são
-// transbordo e ficam fechados até o dia-gatilho da MESMA semana lotar.
-const DIAS_FIXOS  = new Set([1, 2, 3]);          // seg, ter, qua
-const TRANSBORDO  = { 4: 1, 5: 2 };              // qui ← seg lotada · sex ← ter lotada
+// Dias que a agenda abre (0=dom … 6=sáb): SEG a SEX, todos, sempre.
+//
+// 06/08: caiu a régua de seg/ter/qua fixos + qui/sex "de transbordo" (quinta só
+// abria se a segunda da mesma semana lotasse; sexta, se a terça lotasse). Ela
+// concentrava a semana, mas empurrava o lead pra longe: numa quinta-feira o
+// primeiro horário ofertado era a SEGUNDA seguinte — 4 dias de espera pra quem
+// acabou de sair do anúncio, e a agenda de hoje e de amanhã vazia. Pior, o
+// transbordo quase nunca abria na prática: ele ignorava dia passado, então uma vez
+// que a segunda virava ontem, a quinta daquela semana já não tinha como destravar.
+// A régua agora é D0 + D+1 — o lead marca pra hoje ou pra amanhã, e a concentração
+// vem da vitrine curta (2 dias) e do turno único, não de fechar dia da semana.
+// Sábado, domingo e feriado seguem fechados.
+const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 
-// O ymd do dia-alvo dentro da MESMA semana (segunda a sexta). Só é chamado com
-// alvo ANTERIOR ao dia em questão (qui→seg, sex→ter), então nunca pula de semana.
-function mesmaSemana(ymd, alvoDow){
-  const d = new Date(`${ymd}T12:00:00-03:00`);
-  return partesBR(new Date(d.getTime() + (alvoDow - d.getUTCDay()) * 86400000)).ymd;
-}
-
-// "Lotado" = dia que ainda vai acontecer e não tem mais nenhum horário pra marcar.
-// Dia que JÁ PASSOU não conta: senão a quinta e a sexta da semana corrente abririam
-// sozinhas assim que a segunda virasse passado — o oposto de concentrar a semana.
-function diaLotado(ymd){
-  if(ymd < partesBR().ymd) return false;
-  return livresDoDia(ymd).length === 0;
-}
-
-// Grade do dia. Sem recursão: só qui/sex consultam outro dia, e consultam seg/ter,
-// que são fixos e nunca voltam a perguntar.
 function gradeDoDia(ymd){
-  const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
-  if(DIAS_FIXOS.has(dow)) return horariosDoDia();         // seg/ter/qua: sempre
-  const gatilho = TRANSBORDO[dow];                          // qui/sex: só no transbordo
-  if(gatilho === undefined) return [];                      // sáb/dom: fechado
-  return diaLotado(mesmaSemana(ymd, gatilho)) ? horariosDoDia() : [];
+  const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
+  return DIAS_UTEIS.has(dow) ? horariosDoDia() : [];        // sáb/dom: fechado
 }
 
 // Busca o que já está ocupado na agenda do Thiago/Diego na janela exibida.
@@ -1226,13 +1214,14 @@ function perfilTexto(sel){
   const t = document.getElementById('f-outro').value.trim();
   return t ? `Outro: ${t}` : 'Outro';
 }
-// Os 2 próximos dias COM atendimento, a partir de hoje (pula fim de semana, feriado,
-// qui/sex fora do transbordo e o dia que já não tem horário livre). É isto que faz o
-// "lotou a segunda, abre a quinta": a segunda cheia some da vitrine e o próximo dia
-// aberto entra no lugar dela. Ex: numa quinta → seg e ter da semana que vem.
+// Os 2 próximos dias COM atendimento, a partir de hoje: na prática HOJE e AMANHÃ,
+// que é a régua pedida (D0 + D+1). Só pula o que não tem como vender — fim de
+// semana, feriado e o dia que já não tem nenhum horário livre (lotado, ou o de hoje
+// depois que a tarde acabou). É isso que faz a vitrine rolar sozinha: numa sexta às
+// 18h ela já mostra segunda e terça.
 //
 // Eram 3 dias até 06/08. Virou 2 porque a escolha larga espalhava: o lead pegava o
-// terceiro dia e os dois primeiros ficavam vazios. A meta agora é lotar o dia e o
+// terceiro dia e os dois primeiros ficavam vazios. A meta é lotar o dia e o
 // seguinte — o terceiro só aparece depois que o primeiro fecha.
 const DIAS_NA_VITRINE = 2;
 function proximosDias(){
@@ -1268,9 +1257,10 @@ async function montarSlots(){
   const el = document.getElementById('slots');
   el.innerHTML = '<div class="agLoad">Carregando horários…</div>';
   // Janela ampla p/ buscar ocupados de uma vez. Tem que cobrir os mesmos 21 dias que
-  // o proximosDias() varre: só seg/ter/qua abrem, então numa quinta os 2 dias já caem
-  // na semana seguinte — e com feriado no meio, na outra. Janela curta = dia sem
-  // ocupação carregada = horário já vendido aparecendo livre.
+  // o proximosDias() varre: com seg–sex abertos os 2 dias quase sempre estão aqui na
+  // porta, mas basta um feriado emendado ou dois dias lotados pra empurrar a vitrine
+  // pra semana seguinte. Janela curta = dia sem ocupação carregada = horário já
+  // vendido aparecendo livre.
   const hoje = partesBR().ymd;
   const ate  = partesBR(new Date(Date.now() + 21*86400000)).ymd;
   await carregarOcupados(hoje, ate);
