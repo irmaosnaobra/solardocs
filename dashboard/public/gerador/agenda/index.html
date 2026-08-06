@@ -194,6 +194,12 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .slot.dividido .cidade { font-size: 9px; margin-top: 2px; opacity: .9; }
+  /* 3+ reuniões no mesmo balde de 15 min (a Nilce tem 18:00, 18:05 e 18:10 no
+     mesmo dia). Lado a lado sobraria uma tira de 50px por reunião e o nome
+     viraria "Hel…". Empilhado cada uma fica com a largura toda e a linha cresce. */
+  .slot.dividido.empilhado { flex-direction: column; }
+  .slot.dividido.empilhado .meia { padding: 3px 5px; }
+  .slot.dividido.empilhado .nome { font-size: 10px; }
   .slot.ocupado .nome {
     font-size: 12px;
     font-weight: 700;
@@ -206,6 +212,14 @@
     font-size: 10px;
     opacity: .85;
     margin-top: 2px;
+  }
+  /* Hora real da reunião que não começa no minuto do slot (18h05 dentro da linha
+     das 18:00). Fundo próprio porque ela precisa competir com o nome — é a
+     informação que decide se o consultor entra na call na hora certa. */
+  .hora-exata {
+    display: inline-block; padding: 0 4px; border-radius: 4px;
+    background: rgba(255,255,255,.22); font-size: 10px; font-weight: 800;
+    letter-spacing: .2px; vertical-align: 1px;
   }
   .slot.ocupado .cidade {
     font-size: 10px;
@@ -1333,6 +1347,16 @@ function renderPeriodo() {
   document.getElementById('periodo-txt').textContent = txt;
 }
 
+// Reunião que não começa no minuto do slot carrega a hora REAL no card. O rótulo
+// da linha diz 18:00 e a reunião é 18:05 — sem isto o consultor lê o horário
+// errado justamente nas fichas que antes nem apareciam.
+function horaDoSlot(ag, iniSlot) {
+  if (!ag || !ag.quando) return '';
+  const t = new Date(ag.quando);
+  if (t.getTime() === iniSlot) return '';
+  return `<span class="hora-exata">${pad(t.getHours())}h${pad(t.getMinutes())}</span> `;
+}
+
 function renderGrid() {
   const cont = document.getElementById('grid-container');
   cont.classList.remove('loading');
@@ -1365,9 +1389,19 @@ function renderGrid() {
         // filter, não find: desde 06/08 um horário comporta DUAS reuniões — uma de
         // solar e uma do resto (índices agendamentos_vq_*_uniq). Com find(), a
         // segunda sumia da tela que é dona do calendário.
+        //
+        // E o slot é BALDE de 15 min, não igualdade de horário. O intake do Meta
+        // marca em minuto quebrado (18:05, 18:10, 21:20…): nenhuma dessas batia
+        // com um horário da grade e a reunião SUMIA da agenda — o consultor não
+        // via o compromisso e a tela ainda oferecia o horário como livre pra
+        // marcar por cima. A LP e a tela de prospecção já contam por faixa; esta
+        // era a única que exigia o horário cravado.
+        const iniSlot = dt.getTime();
+        const fimSlot = iniSlot + SLOT_MIN * 60_000;
         const doSlot = agendamentosCache.filter(a => {
-          if (a.vendedor_nome !== vendedorAtivo) return false;
-          return new Date(a.quando).getTime() === dt.getTime();
+          if (a.vendedor_nome !== vendedorAtivo || !a.quando) return false;
+          const t = new Date(a.quando).getTime();
+          return t >= iniSlot && t < fimSlot;
         });
         const ag = doSlot[0] || null;
 
@@ -1378,12 +1412,12 @@ function renderGrid() {
           // metade abre o SEU detalhe — senão só a primeira seria clicável.
           const ordenado = [...doSlot].sort((x, y) =>
             (origemEhSolar(x.created_by) ? 0 : 1) - (origemEhSolar(y.created_by) ? 0 : 1));
-          html += `<div class="slot dividido">` + ordenado.map(a => {
+          html += `<div class="slot dividido${doSlot.length > 2 ? ' empilhado' : ''}">` + ordenado.map(a => {
             const etq = etqDeLead(a.created_by, a.src);
             const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
             return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
-              <div class="nome">${escapeHtml(a.cliente_nome)}</div>
+              <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
               ${etq ? `<div class="cidade"><span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span></div>` : ''}
             </div>`;
           }).join('') + `</div>`;
@@ -1403,7 +1437,7 @@ function renderGrid() {
           ].filter(Boolean).join(' ');
           html += `<div class="slot ocupado ${stCls}${tempCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
             ${tempLabel ? `<div class="temp-mark">${tempLabel}</div>` : ''}
-            <div class="nome">${escapeHtml(ag.cliente_nome)}</div>
+            <div class="nome">${horaDoSlot(ag, iniSlot)}${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}</div>
             ${rodape ? `<div class="cidade">${rodape}</div>` : ''}
           </div>`;
