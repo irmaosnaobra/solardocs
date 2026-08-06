@@ -77,6 +77,7 @@ vi.mock('../services/agents/zapiClient', () => ({
 import {
   validarComprovante,
   liberarAcessoPix,
+  ehCartaoAtivo,
   PLANO_POR_VALOR,
   VALOR_ENTRADA_CURSO,
 } from '../services/agents/whatsapp/pixComprovanteService';
@@ -131,6 +132,36 @@ describe('trava da entrada de R$19', () => {
     const r = await validarComprovante(comprovante({ valor: 67 }), TELEFONE);
     expect(r.passou).toBe(true);
     expect(r.valor).toBe(67);
+  });
+});
+
+// ── Quem o gate deixa entrar ────────────────────────────────────────────────
+// O comprovante só é LIDO se a conta não parece assinante de cartão. Em 06/08/2026
+// esse gate barrou um pagante de verdade: conta cancelada fica billing_status
+// 'active' com plano 'free', e isso era lido como cartão vivo. Como a oferta de
+// R$19 é justamente pra quem está no free, a auto-liberação nunca rodava.
+describe('gate do comprovante (ehCartaoAtivo)', () => {
+  it('conta que cancelou (free + active, sem vencimento) NÃO é cartão — o comprovante entra', () => {
+    expect(ehCartaoAtivo({ plano: 'free', billing_status: 'active', plano_expira_em: null })).toBe(false);
+  });
+
+  it('assinante de cartão continua protegido', () => {
+    expect(ehCartaoAtivo({ plano: 'pro', billing_status: 'active', plano_expira_em: null })).toBe(true);
+    expect(ehCartaoAtivo({ plano: 'ilimitado', billing_status: 'trialing', plano_expira_em: null })).toBe(true);
+  });
+
+  it('assinante de PIX passa — é ele quem renova todo mês pelo comprovante', () => {
+    expect(ehCartaoAtivo({
+      plano: 'ilimitado', billing_status: 'active', plano_expira_em: '2099-01-01T00:00:00Z',
+    })).toBe(false);
+  });
+
+  it('quem está em dunning passa (é o caso do Pix que resgata a cobrança falhada)', () => {
+    expect(ehCartaoAtivo({ plano: 'pro', billing_status: 'past_due', plano_expira_em: null })).toBe(false);
+  });
+
+  it('leitura falhou (linha nula) não vira cartão ativo — não trava o pagante', () => {
+    expect(ehCartaoAtivo(null)).toBe(false);
   });
 });
 

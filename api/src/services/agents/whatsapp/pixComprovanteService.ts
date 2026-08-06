@@ -49,6 +49,24 @@ export const PLANO_POR_VALOR: Record<number, { plano: string; limite: number }> 
 /** Chave que marca que este telefone JÁ usou a entrada de R$19 (é de primeira vez). */
 const chaveEntrada = (identity: string) => `pix19_entrada:${identity.replace(/\D/g, '')}`;
 
+// Assinante de CARTÃO — o único que o Pix não pode tocar (mexer no plano dele
+// faria o guard de pix do stripeSync parar de reconciliar com a Stripe).
+// Assinante de PIX também fica billing_status='active': a diferença é ter
+// plano_expira_em setado, e por isso a renovação mensal por Pix segue passando.
+//
+// `plano !== 'free'` NÃO é detalhe: conta que cancelou continua com
+// billing_status='active' e cai pro plano 'free'. Sem esta condição ela era lida
+// como assinante de cartão e o comprovante nem chegava a ser lido — em 06/08/2026
+// o Luiz pagou os R$19, ouviu "vou acionar o time" e ficou 5h sem acesso (liberado
+// na mão). São 115 contas nesse estado: a base inteira que a oferta de R$19 chama
+// de volta, ou seja, a auto-liberação nunca tinha rodado uma vez sequer.
+export function ehCartaoAtivo(
+  u: { plano?: string | null; billing_status?: string | null; plano_expira_em?: string | null } | null | undefined,
+): boolean {
+  if (!u || !u.plano || u.plano === 'free') return false;
+  return (u.billing_status === 'active' || u.billing_status === 'trialing') && !u.plano_expira_em;
+}
+
 const brl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
 type ImgSrc = { type: 'base64'; media_type: any; data: string };
@@ -234,15 +252,10 @@ export async function tryProcessPixComprovante(
   // GATE: só cliente que NÃO é cartão ativo/trial é candidato a Pix.
   const { data: uRow } = await supabase
     .from('users')
-    .select('billing_status, plano_expira_em, password_hash, reset_token')
+    .select('plano, billing_status, plano_expira_em, password_hash, reset_token')
     .eq('id', user.id)
     .single();
-  // Pula quem é CARTÃO ativo/trial (não mexer no billing do Stripe). Mas o assinante
-  // de PIX também fica billing_status='active' — a diferença é que ele tem
-  // plano_expira_em setado. Então "cartão" = active/trial SEM plano_expira_em; assim a
-  // RENOVAÇÃO mensal por Pix (cliente ainda 'active' quando paga) continua sendo processada.
-  const cartaoAtivo = (uRow?.billing_status === 'active' || uRow?.billing_status === 'trialing') && !uRow?.plano_expira_em;
-  if (cartaoAtivo) return false;
+  if (ehCartaoAtivo(uRow)) return false;
 
   const c = await lerComprovante(img);
   if (!c || !c.is_comprovante) return false; // não é comprovante → fluxo normal
@@ -363,9 +376,9 @@ async function findAbandonoByPhone(cleanPhone: string) {
 // link "defina sua senha". Idempotente (email é UNIQUE; trata corrida 23505).
 type PixUser = {
   id: string; email: string; password_hash: string | null; reset_token: string | null;
-  billing_status: string | null; plano_expira_em: string | null;
+  plano: string | null; billing_status: string | null; plano_expira_em: string | null;
 };
-const PIX_USER_COLS = 'id, email, password_hash, reset_token, billing_status, plano_expira_em';
+const PIX_USER_COLS = 'id, email, password_hash, reset_token, plano, billing_status, plano_expira_em';
 
 async function getOrCreatePixUser(
   email: string, nome: string | null, phone: string,
@@ -432,8 +445,7 @@ export async function tryProcessAbandonedPixComprovante(
     }
 
     // 2) Não mexer em conta que já é CARTÃO ativo (billing do Stripe). Pix tem plano_expira_em.
-    const cartaoAtivo = (u.billing_status === 'active' || u.billing_status === 'trialing') && !u.plano_expira_em;
-    if (cartaoAtivo) {
+    if (ehCartaoAtivo(u)) {
       await notificarThiago(
         { email: ab.email, phone: cleanPhone, valor, comprovante: c }, img,
         '⚠️ Comprovante Pix de conta com CARTÃO ATIVO — NÃO liberei (evita corromper o billing do Stripe). Confere.',
