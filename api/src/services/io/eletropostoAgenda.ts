@@ -56,12 +56,17 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
+import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 /** Marcador de envio efetivado, pro teto anti-ban da linha enxergar este agente. */
 export const EP_AGENDA_PREFIX = 'ep_agenda_sent:';
 
-/** As duas origens de eletroposto que caem na tabela `agendamentos`. */
-export const EP_ORIGENS = ['lp_eletroposto', 'manychat_eletroposto'];
+/** As origens de eletroposto que caem na tabela `agendamentos`. É lista de
+ *  CONTAGEM (a Central das Agentes conta com `.in`), não de decisão: quem decide
+ *  se a ficha é de EP é `ehOrigemEletroposto()`, que casa pela palavra. Origem
+ *  nova de EP entra sozinha lá; aqui alguém precisa lembrar — e por isso aqui
+ *  não pode mandar mensagem nenhuma. */
+export const EP_ORIGENS = ['lp_eletroposto', 'manychat_eletroposto', 'prosp_eletroposto'];
 
 /** Dia em que este agente entrou no ar. As MESMAS colunas de flag foram usadas
  *  pelo módulo solar até 28/07 — 16 fichas de eletroposto já têm lembrete_5min_at
@@ -220,6 +225,7 @@ interface Ficha {
   cliente_nome: string | null;
   cliente_telefone: string | null;
   created_at: string;
+  created_by: string | null;
   confirmacao_at: string | null;
   lembrete_1h_at: string | null;
   lembrete_5min_at: string | null;
@@ -268,21 +274,28 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   const piso = new Date(agora - 5 * 60_000).toISOString();
   const teto = new Date(agora + 30 * 24 * 3600_000).toISOString();
 
+  // O filtro de produto NÃO vai na consulta: vem depois, por família
+  // (ehOrigemEletroposto). Com `.in` numa lista fixa, toda origem de EP que
+  // alguém esquecesse de cadastrar aqui virava reunião sem confirmação nenhuma —
+  // foi o que aconteceu com a prospecção (EP Prospec ficou de fora até 06/08).
+  // O limite subiu porque a consulta agora traz solar junto e ele é o volume.
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, created_at, confirmacao_at, lembrete_1h_at, lembrete_5min_at')
-    .in('created_by', EP_ORIGENS)
+    .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, created_at, created_by, confirmacao_at, lembrete_1h_at, lembrete_5min_at')
     .eq('status', 'agendado')      // cancelado/sem_interesse não recebe nada
     .gte('quando', piso)
     .lte('quando', teto)
     .order('quando', { ascending: true })
-    .limit(200);
+    .limit(600);
 
   if (error) {
     logger.error('ep-agenda', 'ler agendamentos falhou', error);
     return { ...zero('erro_leitura'), erros: 1 };
   }
-  if (!data?.length) return zero('nenhuma_reuniao');
+  // Aqui é que entra o produto. Ficha de solar não passa: a copy é de
+  // eletroposto e o solar tem módulo próprio (desligado desde 28/07).
+  const fichas = ((data ?? []) as Ficha[]).filter(f => ehOrigemEletroposto(f.created_by));
+  if (!fichas.length) return zero('nenhuma_reuniao');
 
   // Telefone do consultor: fonte é a tabela `consultores` (a mesma que o CRM usa),
   // não uma lista fixa aqui — número trocado no cadastro tem que valer na mensagem
@@ -311,7 +324,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     await supabaseGerador.from('agendamentos').update({ [campo]: agoraIso }).eq('id', ag.id);
   };
 
-  for (const ag of data as Ficha[]) {
+  for (const ag of fichas) {
     if (toques >= MAX_TOQUES_POR_TICK) break;
     const tel = String(ag.cliente_telefone || '').replace(/\D/g, '');
     if (!tel || !ag.quando) continue;

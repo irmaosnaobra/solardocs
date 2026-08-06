@@ -27,13 +27,15 @@ vi.mock('../utils/supabaseGerador', () => ({
         update(patch: any) { q._update = patch; return q; },
         limit() {
           if (tabela === 'consultores') return Promise.resolve({ data: consultores, error: null });
-          const origens: string[] = q._filtros['created_by'] ?? [];
+          // A consulta NÃO filtra mais por created_by: o produto é decidido no
+          // código, por família (ehOrigemEletroposto). O mock devolve solar junto
+          // de propósito — é assim que o teste prova que solar não recebe.
           const status = q._filtros['status'];
           const piso = new Date(q._filtros['gte_quando']).getTime();
           const teto = new Date(q._filtros['lte_quando']).getTime();
           return Promise.resolve({
             data: fichas.filter(f =>
-              origens.includes(f.created_by) && f.status === status &&
+              f.status === status &&
               new Date(f.quando).getTime() >= piso && new Date(f.quando).getTime() <= teto),
             error: null,
           });
@@ -126,6 +128,21 @@ describe('quem recebe, e quando', () => {
   it('ficha de solar não entra — a copy aqui é de eletroposto', async () => {
     fichas = [ficha({ created_by: 'lead-meta' })];
     expect((await tick()).motivo).toBe('nenhuma_reuniao');
+  });
+
+  // Reunião de eletroposto marcada pela PROSPECÇÃO ficou sem confirmação nenhuma
+  // até 06/08: o slug existia, a etiqueta aparecia no card, e o agente filtrava
+  // por uma lista fixa de duas origens. Quem casa agora é a palavra "eletroposto".
+  it('prospecção de eletroposto recebe igual à LP — o filtro é por família', async () => {
+    fichas = [ficha({ created_by: 'prosp_eletroposto' })];
+    const r = await tick();
+    expect(r.lembretes_1h).toBe(1);
+    expect(enviadas[0].bolhas.join(' ')).toContain('1 hora');
+  });
+
+  it('origem de EP que ninguém cadastrou em lugar nenhum também recebe', async () => {
+    fichas = [ficha({ created_by: 'lp_eletroposto_v2' })];
+    expect((await tick()).lembretes_1h).toBe(1);
   });
 
   it('ficha sem telefone é pulada sem quebrar o tick', async () => {

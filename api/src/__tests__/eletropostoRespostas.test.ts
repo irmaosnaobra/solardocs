@@ -65,6 +65,7 @@ function ficha(over: Partial<any> = {}) {
   return {
     id: 1, cliente_nome: 'Irineu de Almeida', cliente_telefone: '5569984488158',
     quando: '2026-08-05T16:30:00.000Z', vendedor_nome: 'Diego',
+    created_by: 'lp_eletroposto',
     confirmacao_at: TOQUE, lembrete_1h_at: null, lembrete_5min_at: null, ...over,
   };
 }

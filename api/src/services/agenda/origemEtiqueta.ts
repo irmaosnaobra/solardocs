@@ -15,6 +15,22 @@
 
 const norm = (v: unknown): string => (v ?? '').toString().trim().toLowerCase();
 
+/**
+ * O lead é de ELETROPOSTO? Casa pela palavra no `created_by`, não por lista —
+ * é a mesma regra do repasse no banco (processar_repasses: `like '%eletroposto%'`)
+ * e do CRM/Agenda no front (crmEhEletroposto / ehCardEletroposto).
+ *
+ * Por que família e não lista: as origens de EP já são três (lp_eletroposto,
+ * manychat_eletroposto, prosp_eletroposto) e uma quarta nasce a cada canal novo.
+ * Toda lista fixa que alguém esquecer de atualizar vira o mesmo buraco: a ficha
+ * aparece na agenda com a etiqueta certa e fica FORA do fluxo do produto. Foi
+ * exatamente o que aconteceu com a prospecção — reunião de eletroposto marcada,
+ * e nenhum aviso de confirmação saiu porque o slug não estava na lista.
+ */
+export function ehOrigemEletroposto(createdBy: unknown): boolean {
+  return norm(createdBy).includes('eletroposto');
+}
+
 // created_by que já sabemos mapear. Os dois intakes de solar pago (Meta Lead Ads
 // = `lead-meta`, e a LP com pixel = `lp_solar`) contam como Solar Tráfego.
 const MAPA: Record<string, string> = {

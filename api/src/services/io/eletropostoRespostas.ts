@@ -41,7 +41,8 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { EQUIPE } from '../../routes/ioEletroposto';
-import { EP_ORIGENS, quandoPorExtenso } from './eletropostoAgenda';
+import { quandoPorExtenso } from './eletropostoAgenda';
+import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
 
@@ -157,6 +158,7 @@ interface Ficha {
   cliente_telefone: string | null;
   quando: string | null;
   vendedor_nome: string | null;
+  created_by: string | null;
   confirmacao_at: string | null;
   lembrete_1h_at: string | null;
   lembrete_5min_at: string | null;
@@ -180,8 +182,7 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
   //    e conversa que o humano já estava tendo não é assunto deste agente.
   const { data: fichas, error: eFichas } = await supabaseGerador
     .from('agendamentos')
-    .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, confirmacao_at, lembrete_1h_at, lembrete_5min_at')
-    .in('created_by', EP_ORIGENS)
+    .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, created_by, confirmacao_at, lembrete_1h_at, lembrete_5min_at')
     .eq('status', 'agendado')
     .gte('quando', new Date(agora - PASSADO_MAX_MS).toISOString())
     .or('confirmacao_at.not.is.null,lembrete_1h_at.not.is.null,lembrete_5min_at.not.is.null')
@@ -194,6 +195,10 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
   // piso de 3 dias e viraria alerta em cima de conversa que o humano já tinha.
   const porChave = new Map<string, Ficha>();
   for (const f of fichas as Ficha[]) {
+    // Produto por FAMÍLIA, não por lista fixa — tem que cobrir exatamente quem o
+    // agente de agenda toca (eletropostoAgenda usa o mesmo teste). Se os dois
+    // discordarem, o lead recebe a confirmação, responde "SIM" e ninguém é avisado.
+    if (!ehOrigemEletroposto(f.created_by)) continue;
     if (!f.confirmacao_at && !f.lembrete_1h_at && !f.lembrete_5min_at) continue;
     const k = telKey(f.cliente_telefone);
     if (k) porChave.set(k, f);
