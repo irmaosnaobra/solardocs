@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// FUNDAMENTOS · AULA 7 — "A carga disponível: a pergunta que derruba a maioria"
+// FUNDAMENTOS · AULA 5 — "A carga disponível: a pergunta que derruba a maioria"
 //
 // Primeira aula ilustrada do PlugCash, e é a prova do formato: se página com
 // diagrama funciona aqui, funciona em qualquer lugar. Foi escolhida por ser a
@@ -14,8 +14,8 @@
 // gerado por IA fica plausível e ERRADO — e num curso que ensina a ler um
 // painel de verdade, isso é pior que não ter imagem.
 //
-// Rodar:  node plugcash/aulas/aula-07-carga.js         (gera a prova visual)
-//         node plugcash/aulas/aula-07-carga.js --sql   (imprime o SQL)
+// Rodar:  node plugcash/aulas/aula-05-carga.js         (gera a prova visual)
+//         node plugcash/aulas/aula-05-carga.js --sql   (imprime o SQL)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const T = '#0A0A0A';      // traço principal
@@ -246,8 +246,8 @@ const PAGINAS = [
 if (process.argv.includes('--sql')) {
   const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
   console.log(
-    `update public.pc_aulas set paginas = ${q(JSON.stringify(PAGINAS))}::jsonb, duracao_seg = 26*60
-     where ordem = 7 and curso_id = (select id from public.pc_cursos where slug = 'fundamentos');`
+    `update public.pc_aulas set paginas = ${q(JSON.stringify(PAGINAS))}::jsonb, duracao_seg = 28*60
+     where ordem = 5 and curso_id = (select id from public.pc_cursos where slug = 'fundamentos');`
   );
 } else {
   // Prova visual: renderiza os diagramas pra conferir antes de gravar.
@@ -269,7 +269,7 @@ if (process.argv.includes('--sql')) {
     const pg = await b.newPage();
     await pg.setViewport({ width: 840, height: 1200 });
     await pg.setContent(html, { waitUntil: 'domcontentloaded' });
-    const saida = path.join(__dirname, 'prova-aula-07.png');
+    const saida = path.join(__dirname, 'prova-aula-05.png');
     await pg.screenshot({ path: saida, fullPage: true });
     await b.close();
     console.log(`${svgs.length} diagramas → ${saida}`);
