@@ -28,6 +28,19 @@ export interface HubConversaoBloco {
   medida: string;
 }
 
+// /admin/hub-followup-historico — conversão mês a mês. Denominador vem do marcador de
+// abordagem (datado), não das sessões: por isso pode divergir do funil do topo.
+export interface HubMesConversao { mes: string; abordados: number; converteram: number; taxa_pct: number | null; }
+export interface HubHistoricoBloco {
+  rotulo: string;
+  base: string;
+  medida: string;
+  meses: HubMesConversao[];
+  total: HubMesConversao | null;
+  nao_medivel: string | null;
+}
+export interface HubHistorico { produto: string; blocos: HubHistoricoBloco[] | null; }
+
 export interface HubFollowup {
   produto: string;
   tipos: string[];

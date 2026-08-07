@@ -8,7 +8,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '@/services/api';
 import styles from '../../admin.module.css';
-import type { HubFollowup, HubConversaoBloco } from './hubFollowup.types';
+import type { HubFollowup, HubConversaoBloco, HubHistorico, HubHistoricoBloco } from './hubFollowup.types';
+
+const MESES_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const fmtMes = (m: string) => {
+  const [a, mm] = m.split('-');
+  return `${MESES_PT[Number(mm) - 1] ?? m}/${a?.slice(2) ?? ''}`;
+};
+const pct = (v: number | null) => (v === null ? '—' : `${v.toString().replace('.', ',')}%`);
 
 const fmtWhen = (iso: string | null) => {
   if (!iso) return '—';
@@ -35,8 +42,10 @@ function FunilConversao({ b }: { b: HubConversaoBloco }) {
   ];
   return (
     <div style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: '12px 14px', marginBottom: 10 }}>
-      <div style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 2 }}>{b.rotulo}</div>
-      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 10 }}>Converteu = {b.medida}.</div>
+      <div style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 2 }}>{b.rotulo} · agora</div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 10 }}>
+        Base: sessões vivas do agente. Converteu = {b.medida}. (O histórico abaixo usa outra base — os números não batem de propósito.)
+      </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 22 }}>
         {passos.map((p, i) => (
           <div key={i}>
@@ -54,13 +63,76 @@ function FunilConversao({ b }: { b: HubConversaoBloco }) {
   );
 }
 
+// Balão do histórico: taxa mês a mês. A barra é relativa ao melhor mês do próprio bloco
+// (é comparação interna — "melhorou ou piorou?", não uma escala absoluta).
+function BalaoHistorico({ b }: { b: HubHistoricoBloco }) {
+  const topo = Math.max(1, ...b.meses.map((m) => m.taxa_pct ?? 0));
+  return (
+    <div style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: '12px 14px', marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ fontWeight: 600, fontSize: 13.5 }}>{b.rotulo} · histórico</div>
+        {b.total && (
+          <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+            Desde o começo: <strong style={{ color: 'var(--color-text)' }}>{b.total.converteram} de {b.total.abordados}</strong> ({pct(b.total.taxa_pct)})
+          </div>
+        )}
+      </div>
+
+      {b.nao_medivel ? (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-text-muted)' }}>—</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{b.nao_medivel}</div>
+        </div>
+      ) : b.meses.length === 0 ? (
+        <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--color-text-muted)' }}>Nenhuma abordagem registrada ainda.</div>
+      ) : (
+        <>
+          <table className={styles.table} style={{ marginTop: 10 }}>
+            <thead>
+              <tr>
+                <th>Mês</th><th style={{ textAlign: 'right' }}>Abordados</th>
+                <th style={{ textAlign: 'right' }}>Converteram</th><th style={{ width: '46%' }}>Taxa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {b.meses.map((m) => (
+                <tr key={m.mes}>
+                  <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{fmtMes(m.mes)}</td>
+                  <td style={{ textAlign: 'right' }}>{m.abordados}</td>
+                  <td style={{ textAlign: 'right', color: m.converteram > 0 ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>{m.converteram}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--color-border)', overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.round(((m.taxa_pct ?? 0) / topo) * 100)}%`, height: '100%', background: 'var(--color-primary)' }} />
+                      </div>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, minWidth: 48, textAlign: 'right' }}>{pct(m.taxa_pct)}</span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--color-text-muted)' }}>
+            Base: {b.base}. Converteu = {b.medida}.
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function FollowupPanel({ produto }: { produto: string }) {
   const [data, setData] = useState<HubFollowup | null>(null);
+  const [hist, setHist] = useState<HubHistorico | null>(null);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
-    api.get(`/admin/hub-followup?produto=${encodeURIComponent(produto)}`)
+    const p = encodeURIComponent(produto);
+    // Histórico em request própria: é varredura pesada e não pode segurar o funil do topo.
+    api.get(`/admin/hub-followup-historico?produto=${p}`)
+      .then((r) => setHist(r.data as HubHistorico)).catch(() => setHist(null));
+    api.get(`/admin/hub-followup?produto=${p}`)
       .then((r) => setData(r.data as HubFollowup)).catch(() => {}).finally(() => setLoading(false));
   }, [produto]);
   useEffect(() => { load(); }, [load]);
@@ -91,6 +163,8 @@ export default function FollowupPanel({ produto }: { produto: string }) {
             </div>
           </div>
         )}
+
+      {hist?.blocos?.map((b, i) => <BalaoHistorico key={i} b={b} />)}
 
       <div className={styles.cards}>
         {cards.map((c, i) => (

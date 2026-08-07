@@ -293,6 +293,162 @@ router.get('/hub-followup', async (req: Request, res: Response): Promise<void> =
   }
 });
 
+// ── Followup: conversão HISTÓRICA por mês (Hubs) — READ-ONLY ──────────────────
+// Endpoint separado de propósito: /hub-followup também alimenta Conversas e Visão
+// Geral, e essa varredura de marcadores/cross-db é cara demais pra pendurar nelas.
+//
+// Por que NÃO sai de whatsapp_sessions: a sessão não tem created_at e o updated_at é
+// sobrescrito a cada toque — não guarda quando a pessoa foi abordada. O denominador
+// datado vem de onde o bot carimbou a abordagem:
+//   LimpaPro → system_state 'limpapro_recovery:<email>' .contacted_at
+//   SolarDoc → abandoned_checkouts.created_at (+ recovery_attempts > 0)
+//   Solar    → system_state 'gerador_followup:<telKey>' .contacted_at
+// RESSALVA que vai escrita na tela: os marcadores são estado de cooldown (upsert por
+// chave), então guardam a ÚLTIMA abordagem, não a primeira. Só o bloco do SolarDoc tem
+// coorte imutável (a data do abandono não muda).
+interface MesConversao { mes: string; abordados: number; converteram: number; taxa_pct: number | null; }
+interface HistoricoBloco {
+  rotulo: string;
+  base: string;      // de onde sai o denominador (pra explicar divergência com o funil de cima)
+  medida: string;    // o que conta como converteu
+  meses: MesConversao[];
+  total: MesConversao | null;
+  nao_medivel: string | null;   // motivo, quando não dá pra montar série
+}
+// Mês no fuso de São Paulo (mesmo padrão do gráfico de leads por origem).
+const fmtMesSP = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' });
+function mesSP(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return null;
+  return fmtMesSP.format(new Date(t)).slice(0, 7);   // 'YYYY-MM'
+}
+function montarMeses(linhas: { mes: string; converteu: boolean }[]): { meses: MesConversao[]; total: MesConversao | null } {
+  const por = new Map<string, { a: number; c: number }>();
+  for (const l of linhas) {
+    const cur = por.get(l.mes) ?? { a: 0, c: 0 };
+    cur.a++; if (l.converteu) cur.c++;
+    por.set(l.mes, cur);
+  }
+  const taxa = (c: number, a: number) => (a === 0 ? null : Math.round((c / a) * 1000) / 10);
+  const meses = Array.from(por.entries())
+    .sort((x, y) => (x[0] < y[0] ? 1 : -1))          // mais recente primeiro
+    .map(([mes, v]) => ({ mes, abordados: v.a, converteram: v.c, taxa_pct: taxa(v.c, v.a) }));
+  const a = linhas.length, c = linhas.filter((l) => l.converteu).length;
+  return { meses, total: a ? { mes: 'total', abordados: a, converteram: c, taxa_pct: taxa(c, a) } : null };
+}
+const LIMITE_HIST = 5000;   // teto explícito: o corte mudo de 1000 do PostgREST apagaria os meses antigos
+
+router.get('/hub-followup-historico', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const produto = String(req.query.produto || '').toLowerCase();
+    if (!HUB_FOLLOWUP_TIPOS[produto]) { res.status(400).json({ error: 'produto inválido' }); return; }
+    const blocos: HistoricoBloco[] = [];
+
+    if (produto === 'limpapro') {
+      const { data: marks, error: e1 } = await supabase
+        .from('system_state').select('key, value')
+        .like('key', 'limpapro_recovery:%').limit(LIMITE_HIST);
+      if (e1) throw e1;
+      // Filtro do JSON em JS de propósito: operador-seta em .filter() é sintaxe não
+      // exercitada no repo e falha calada (mesma razão do consumidor da Bia).
+      const abordagens = ((marks ?? []) as { key: string; value: Record<string, unknown> | null }[])
+        .map((r) => ({
+          email: r.key.slice('limpapro_recovery:'.length).toLowerCase().trim(),
+          em: String(r.value?.contacted_at ?? ''),
+        }))
+        .filter((x) => x.email && x.em);
+
+      const compras = new Map<string, number>();   // email → 1ª compra paga (ms)
+      const emails = Array.from(new Set(abordagens.map((x) => x.email)));
+      for (let i = 0; i < emails.length; i += 300) {          // lotes: in-list gigante estoura a URL
+        const { data: pagos, error } = await supabase
+          .from('limpapro_events').select('buyer_email, created_at')
+          .eq('event_type', 'purchase').eq('status', 'paid')
+          .in('buyer_email', emails.slice(i, i + 300));
+        if (error) throw error;
+        for (const p of (pagos ?? []) as { buyer_email: string | null; created_at: string | null }[]) {
+          const k = (p.buyer_email ?? '').toLowerCase().trim();
+          const t = p.created_at ? new Date(p.created_at).getTime() : NaN;
+          if (!k || !Number.isFinite(t)) continue;
+          if (!compras.has(k) || t < compras.get(k)!) compras.set(k, t);
+        }
+      }
+      const linhas = abordagens.flatMap((x) => {
+        const mes = mesSP(x.em); if (!mes) return [];
+        const compra = compras.get(x.email);
+        // Compra ANTERIOR ao toque não é conversão do followup — é venda que já existia.
+        return [{ mes, converteu: Boolean(compra && compra >= new Date(x.em).getTime()) }];
+      });
+      blocos.push({
+        rotulo: 'Recuperação (Bia)',
+        base: 'marcador de abordagem da Bia (guarda a ÚLTIMA abordagem de cada e-mail, não a primeira)',
+        medida: 'comprou o curso DEPOIS do toque (mesmo e-mail)',
+        nao_medivel: null, ...montarMeses(linhas),
+      });
+    } else if (produto === 'solardoc') {
+      // Coorte imutável: o mês é o do ABANDONO, que nunca muda (ao contrário de
+      // recovery_sent_at, reescrito a cada toque). Uma tabela, uma query.
+      const { data: ab, error } = await supabase
+        .from('abandoned_checkouts').select('created_at, status, recovery_attempts')
+        .gt('recovery_attempts', 0)
+        .order('created_at', { ascending: false }).limit(LIMITE_HIST);
+      if (error) throw error;
+      const linhas = ((ab ?? []) as { created_at: string | null; status: string | null }[])
+        .flatMap((r) => { const mes = mesSP(r.created_at); return mes ? [{ mes, converteu: r.status === 'recovered' }] : []; });
+      blocos.push({
+        rotulo: 'Abandono de checkout (Giovanna)',
+        base: 'checkouts abandonados que receberam pelo menos um toque (mês do abandono)',
+        medida: 'checkout marcado como recuperado',
+        nao_medivel: null, ...montarMeses(linhas),
+      });
+      blocos.push({
+        rotulo: 'Plataforma (Giovanna)',
+        base: '—', medida: 'conta voltou/segue pagante',
+        meses: [], total: null,
+        nao_medivel: 'A conversa da plataforma não carimba data de abordagem em lugar nenhum — só dá pra ver o agora, no funil acima.',
+      });
+    } else if (produto === 'solar') {
+      const { data: marks, error: e1 } = await supabase
+        .from('system_state').select('key, value')
+        .like('key', 'gerador_followup:%').limit(LIMITE_HIST);
+      if (e1) throw e1;
+      const abordagens = ((marks ?? []) as { key: string; value: Record<string, unknown> | null }[])
+        .map((r) => ({ tk: r.key.slice('gerador_followup:'.length), em: String(r.value?.contacted_at ?? '') }))
+        .filter((x) => x.tk && x.em && !x.tk.startsWith('pending:'));
+
+      // Só VENDA entra no histórico: temperatura e 'falando_whatsapp' não têm data, então
+      // não dá pra saber se vieram depois do toque. O funil de cima conta mais que isto.
+      const { data: props, error: e2 } = await supabaseGerador
+        .from('propostas').select('dados, created_at').eq('vendido', true).limit(LIMITE_HIST);
+      if (e2) throw e2;
+      const vendas = new Map<string, number>();
+      for (const p of (props ?? []) as { dados: Record<string, unknown> | null; created_at: string | null }[]) {
+        const k = hubTelKey(String((p.dados ?? {}).telefoneDigitos ?? (p.dados ?? {}).telefone ?? ''));
+        const t = p.created_at ? new Date(p.created_at).getTime() : NaN;
+        if (!k || !Number.isFinite(t)) continue;
+        if (!vendas.has(k) || t > vendas.get(k)!) vendas.set(k, t);
+      }
+      const linhas = abordagens.flatMap((x) => {
+        const mes = mesSP(x.em); if (!mes) return [];
+        const v = vendas.get(x.tk);
+        return [{ mes, converteu: Boolean(v && v >= new Date(x.em).getTime()) }];
+      });
+      blocos.push({
+        rotulo: 'Reengajamento de leads (Luma)',
+        base: 'marcador de abordagem do bot (guarda a ÚLTIMA abordagem de cada telefone)',
+        medida: 'proposta vendida DEPOIS do toque (só a venda tem data — o funil acima conta mais)',
+        nao_medivel: null, ...montarMeses(linhas),
+      });
+    }
+
+    res.json({ produto, blocos: blocos.length ? blocos : null });
+  } catch (err) {
+    console.error('hub-followup-historico:', (err as Error)?.message || err);
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 // ── Config & Alertas por produto (Hubs) — READ-ONLY ────────────────────────────
 // Mostra o ESTADO dos kill-switches (liga/desliga por env) + saúde básica. NÃO
 // escreve flag nenhuma (togglar pagamento ao vivo é mudança manual de env, de
