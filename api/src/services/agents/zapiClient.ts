@@ -186,7 +186,11 @@ export async function sendHuman(
   const minMs = opts?.slow ? 8000  : 800;
   const maxMs = opts?.slow ? 15000 : 2500;
   const perChar = opts?.slow ? 80   : 40;
-  const gapMs = opts?.slow ? 1200 : 300;
+  // [07/08] Gap entre bolhas: 300ms/1200ms → 2–5s. Duas mensagens com 0,3s de intervalo
+  // não são "frase por frase", são duas mensagens no mesmo instante — o padrão que o
+  // WhatsApp lê como robô. Humano leva alguns segundos entre um envio e outro, e o
+  // sorteio evita o intervalo constante.
+  const gapMs = () => (opts?.slow ? 2500 : 2000) + Math.floor(Math.random() * 3000);
 
   // Ninguém escreve parágrafo pra outro humano no WhatsApp. Aqui é o ÚLTIMO
   // ponto antes da linha, e o ÚNICO que fatia — vale mesmo quando a IA ignora o
@@ -196,12 +200,35 @@ export async function sendHuman(
   // copia-e-cola e URL saem inteiros.
   const bolhas = emBolhas(parts.join('||'), { max: opts?.max, maxBolhas: opts?.maxBolhas });
 
-  for (const part of bolhas) {
+  for (let i = 0; i < bolhas.length; i++) {
+    const part = bolhas[i]!;
     const typingMs = Math.min(Math.max(part.length * perChar, minMs), maxMs);
     await showTyping(phone, typingMs, instance);
     await sendWhatsApp(phone, part, instance);
-    await sleep(gapMs);
+    if (i < bolhas.length - 1) await sleep(gapMs());
   }
+}
+
+/**
+ * Envio FRIO: uma mensagem só, sempre. Pra todo toque que a pessoa NÃO pediu
+ * (recuperação, followup, repescagem, semente, convite de grupo).
+ *
+ * Frase por frase é bom DENTRO de uma conversa viva — quem está respondendo espera
+ * ver a digitação e as bolhas chegando ([[ia-msg-frase-por-frase]] segue valendo pro
+ * inbound). Num primeiro contato é o contrário: 3 a 5 mensagens seguidas de um número
+ * desconhecido é o gesto que faz a pessoa bloquear e denunciar — e denúncia é o que
+ * derruba a linha. O teto anti-ban também conta 1 marcador por toque, então cada toque
+ * precisa valer 1 mensagem de verdade pra conta bater.
+ *
+ * `emBolhas` com maxBolhas=1 junta tudo de volta sem NUNCA truncar (a válvula do
+ * módulo garante), então nenhum link ou Pix se perde.
+ */
+export async function sendFrio(
+  phone: string,
+  parts: string[],
+  instance: ZapiInstance = 'io',
+): Promise<void> {
+  await sendHuman(phone, parts, instance, { maxBolhas: 1, max: 900 });
 }
 
 export async function sendZAPI(phone: string, message: string, instance: ZapiInstance = 'solardoc'): Promise<void> {

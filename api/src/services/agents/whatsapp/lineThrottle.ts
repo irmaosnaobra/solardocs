@@ -21,7 +21,40 @@ import { supabase } from '../../../utils/supabase';
 import { solardocViaIo } from '../zapiClient';
 
 // Cap de segurança por hora na linha física (anti-ban). Compartilhado por todos os bots.
-export const MAX_POR_HORA = 12;
+//
+// [07/08] Baixado de 12 → 6 e passou a ser env-tunável (LINHA_MAX_HORA), junto com um
+// TETO DIÁRIO novo (LINHA_MAX_DIA). O teto horário sozinho autorizava 12×24 = 288
+// contatos frios num dia — número que nenhuma linha de empresa sustenta. Motivo do
+// corte: a linha caiu/bloqueou 3× em 7 dias e o telefone é o da empresa.
+export const MAX_POR_HORA = Number(process.env.LINHA_MAX_HORA || 6);
+export const MAX_POR_DIA  = Number(process.env.LINHA_MAX_DIA  || 40);
+
+// ─── AQUECIMENTO PÓS-RECONEXÃO ───────────────────────────────────────────────
+// Linha que acabou de voltar (QR novo / reconexão) é a mais frágil que existe: o
+// WhatsApp trata volume alto logo após reconectar como sinal forte de automação.
+// Defina LINHA_RECONECTADA_EM=YYYY-MM-DD no dia em que reconectar; por 72h os tetos
+// sobem em rampa em vez de já valerem cheios. Passados 3 dias a rampa some sozinha
+// (não precisa lembrar de tirar a env).
+function rampaAquecimento(now: Date): { hora: number; dia: number } | null {
+  const raw = process.env.LINHA_RECONECTADA_EM?.trim();
+  if (!raw) return null;
+  const t0 = Date.parse(raw.length <= 10 ? `${raw}T00:00:00-03:00` : raw);
+  if (!Number.isFinite(t0)) return null;
+  const dias = (now.getTime() - t0) / (24 * 60 * 60 * 1000);
+  if (dias < 0) return { hora: 2, dia: 10 };   // env no futuro → trata como dia 0
+  if (dias < 1) return { hora: 2, dia: 10 };
+  if (dias < 2) return { hora: 3, dia: 20 };
+  if (dias < 3) return { hora: 4, dia: 30 };
+  return null;                                  // aquecida: tetos cheios
+}
+
+/** Tetos que valem AGORA (já com a rampa de aquecimento aplicada). */
+export function tetosVigentes(now: Date = new Date()): { hora: number; dia: number } {
+  const r = rampaAquecimento(now);
+  return r
+    ? { hora: Math.min(MAX_POR_HORA, r.hora), dia: Math.min(MAX_POR_DIA, r.dia) }
+    : { hora: MAX_POR_HORA, dia: MAX_POR_DIA };
+}
 
 // Prefixos de "envio efetivado" (1 chave = 1 mensagem que SAIU). NÃO inclui os `_pending`
 // (esses são fila, não envio). O `:` literal no fim casa só o sufixo de enviado:
@@ -48,6 +81,11 @@ const BOT_SENT_PREFIXES = [
   // é a DRENAGEM de fila, que é o que vira rajada.
   'ep_agenda_sent:',         // agente de agendamento do eletroposto
   'solar_boasvindas_sent:',  // boas-vindas do cadastro de solar
+  // [07/08] Estavam FORA do orçamento e gastavam a linha sem aparecer na conta
+  // (documentado na queda de 04–06/ago). Cada um tinha janela própria, então não
+  // fazia rajada sozinho — mas somado ao resto subcontava o dia inteiro.
+  'semente:',                // semente solar (toques da lista fria de solar)
+  'ep_grupo_frio:',          // convite de grupo pros frios do eletroposto
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
@@ -65,14 +103,22 @@ function prefixosDaLinha(): string[] {
  * `true` = pode enviar; `false` = estourou, segura pro próximo tick.
  */
 export async function dentroDoTetoHorarioLinha(): Promise<boolean> {
-  const desde = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const tetos = tetosVigentes();
   const orFilter = prefixosDaLinha().map(p => `key.like.${p}%`).join(',');
-  const { data } = await supabase
-    .from('system_state').select('key')
-    .or(orFilter)
-    .gte('updated_at', desde)
-    .limit(MAX_POR_HORA + 1);
-  return (data?.length ?? 0) < MAX_POR_HORA;
+
+  const contar = async (janelaMs: number, teto: number): Promise<number> => {
+    const desde = new Date(Date.now() - janelaMs).toISOString();
+    const { data } = await supabase
+      .from('system_state').select('key')
+      .or(orFilter)
+      .gte('updated_at', desde)
+      .limit(teto + 1);
+    return data?.length ?? 0;
+  };
+
+  if (await contar(60 * 60 * 1000, tetos.hora) >= tetos.hora) return false;
+  // Teto do DIA (24h corridas). Sem ele, 6/h autorizava 144 contatos frios num dia.
+  return (await contar(24 * 60 * 60 * 1000, tetos.dia)) < tetos.dia;
 }
 
 // ─── JANELA DIURNA — mensagem fria não sai de madrugada ──────────────────────
@@ -85,13 +131,18 @@ export async function dentroDoTetoHorarioLinha(): Promise<boolean> {
 //
 // Fora da janela nada é perdido: os gates são PRÉ-claim, então o marcador sobrevive e
 // a fila drena de manhã. Kill-switch: JANELA_DIURNA_OFF=1 (volta ao 24/7 sem deploy).
-const JANELA_INICIO_H = 8;   // 08:00 BRT — primeira hora aceitável pra mensagem comercial
-const JANELA_FIM_H    = 21;  // 21:00 BRT — última (envio às 20h59 vale, às 21h00 não)
+// [07/08] Fechada de 08–21h pra 09–20h: 8h da manhã e 20h30 ainda pegam gente dormindo
+// ou jantando, e é bloqueio/denúncia que derruba a linha, não o volume em si.
+const JANELA_INICIO_H = Number(process.env.JANELA_INICIO_H || 9);
+const JANELA_FIM_H    = Number(process.env.JANELA_FIM_H    || 20);
 
 /** É horário civil pra mensagem fria AGORA (08h–21h BRT)? Vale pra linha inteira. */
 export function dentroDaJanelaDiurna(now: Date = new Date()): boolean {
   if (process.env.JANELA_DIURNA_OFF === '1') return true;
   const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000); // BRT = UTC-3 (sem horário de verão)
+  // Domingo é o dia com maior taxa de denúncia pra mensagem comercial não pedida —
+  // ninguém espera vendedor no domingo. Liberar: JANELA_DOMINGO_ON=1.
+  if (brt.getUTCDay() === 0 && process.env.JANELA_DOMINGO_ON !== '1') return false;
   const h = brt.getUTCHours();
   return h >= JANELA_INICIO_H && h < JANELA_FIM_H;
 }
@@ -111,7 +162,12 @@ export function dentroDaJanelaDiurna(now: Date = new Date()): boolean {
 //
 // Todo gate é PRÉ-claim: quem não passa espera o próximo tick (o /process-messages
 // roda de 5 em 5 min, então a fila anda no mesmo ritmo). Kill: ESPACAMENTO_OFF=1.
-export const ESPACAMENTO_MIN_MS = 5 * 60 * 1000;
+// [07/08] 5 → 10 min de base, MAIS um jitter de até 5 min sorteado a cada checagem.
+// Régua fixa é padrão detectável: um envio a cada 5:00 min, hora após hora, é assinatura
+// de robô tão clara quanto a rajada. Com jitter os intervalos ficam 10–15 min, irregulares,
+// e o dia inteiro cabe no teto diário sem precisar de fila parada.
+export const ESPACAMENTO_MIN_MS = Number(process.env.ESPACAMENTO_MIN_MS || 10 * 60 * 1000);
+const ESPACAMENTO_JITTER_MS     = Number(process.env.ESPACAMENTO_JITTER_MS || 5 * 60 * 1000);
 
 /**
  * Passaram-se ≥5 min desde o último envio automático desta linha?
@@ -120,7 +176,8 @@ export const ESPACAMENTO_MIN_MS = 5 * 60 * 1000;
  */
 export async function respeitaEspacamentoLinha(prefixos = prefixosDaLinha()): Promise<boolean> {
   if (process.env.ESPACAMENTO_OFF === '1') return true;
-  const desde = new Date(Date.now() - ESPACAMENTO_MIN_MS).toISOString();
+  const alvo = ESPACAMENTO_MIN_MS + Math.floor(Math.random() * ESPACAMENTO_JITTER_MS);
+  const desde = new Date(Date.now() - alvo).toISOString();
   const { data } = await supabase
     .from('system_state').select('key')
     .or(prefixos.map(p => `key.like.${p}%`).join(','))

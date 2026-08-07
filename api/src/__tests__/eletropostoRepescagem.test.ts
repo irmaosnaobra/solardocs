@@ -43,7 +43,7 @@ vi.mock('../utils/supabase', () => ({
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: () => ({}) } }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock('../services/agents/zapiClient', () => ({
-  sendHuman: vi.fn(async (phone: string, bolhas: string[]) => {
+  sendFrio: vi.fn(async (phone: string, bolhas: string[]) => {
     if (falharEnvio) throw new Error('[zapi:io] HTTP 400 — whatsapp is disconnected');
     enviadas.push({ phone, bolhas });
   }),

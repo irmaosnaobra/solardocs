@@ -32,7 +32,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { sendHuman } from '../agents/zapiClient';
+import { sendFrio } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { carregarSupressao } from './ioSend';
 
@@ -237,7 +237,7 @@ export async function runSementeTick(opts: { dry?: boolean } = {}): Promise<Resu
   );
 
   try {
-    await sendHuman(alvo.telefone, bolhasSemente(alvo.proximo_toque, alvo.nome), 'io');
+    await sendFrio(alvo.telefone, bolhasSemente(alvo.proximo_toque, alvo.nome), 'io');
     logger.info('semente', `toque ${alvo.proximo_toque}/${MAX_TOQUES} enviado (${alvo.status}, ficha de ${alvo.ficha_em.slice(0, 10)})`);
     return { enviados: 1, publico: publico.length - 1 };
   } catch (err) {

@@ -82,7 +82,7 @@ vi.mock('../utils/supabase', () => ({ supabase: fakeMain() }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: fakeGerador() }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock('../services/agents/zapiClient', () => ({
-  sendHuman: vi.fn(async (phone: string) => {
+  sendFrio: vi.fn(async (phone: string) => {
     if (falharEnvio) throw new Error('[zapi:io] HTTP 400 — disconnected');
     enviadas.push(phone);
   }),

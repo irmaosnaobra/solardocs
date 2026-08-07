@@ -37,7 +37,7 @@
 
 import { supabase } from '../../../utils/supabase';            // MAIN: estado, sessão, teto
 import { supabaseGerador } from '../../../utils/supabaseGerador'; // gerador: leads (read-only)
-import { sendHuman, fmtPhone } from '../zapiClient';
+import { sendFrio, fmtPhone } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { dentroDoTetoHorarioLinha, dentroDaJanelaDiurna, respeitaEspacamentoLinha } from './lineThrottle';
 
@@ -53,9 +53,9 @@ export function followupHabilitado(): boolean {
 // Cooldown: 1 toque por lead a cada 30 dias (não re-perturbar quem já foi puxado).
 const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 // Stagger do seed: 6 min entre leads (cadência conservadora — base finita, sem pressa).
-const SEED_STAGGER_MS = 6 * 60 * 1000;
+const SEED_STAGGER_MS = Number(process.env.GERADOR_SEED_STAGGER_MIN || 15) * 60 * 1000;
 // Anti-rajada intra-tick: no máximo N envios por execução do consumidor.
-const MAX_ENVIOS_POR_TICK = 2;
+const MAX_ENVIOS_POR_TICK = Number(process.env.GERADOR_MAX_POR_TICK || 1);
 
 // Prefixos de estado no MAIN. `:` = enviado (conta no teto via lineThrottle);
 // `_pending` = fila (NÃO conta no teto). Ver lineThrottle.BOT_SENT_PREFIXES.
@@ -259,7 +259,7 @@ async function enviarParaAlvo(alvo: AlvoFollowup): Promise<void> {
     updated_at: new Date().toISOString(),
   }, { onConflict: 'phone,tipo' });
 
-  await sendHuman(alvo.telefone, montarMensagem(alvo), INSTANCE);  // 3. SEND
+  await sendFrio(alvo.telefone, montarMensagem(alvo), INSTANCE);  // 3. SEND
   logger.info('gerador-followup', `puxado ${alvo.nome} (${alvo.status}) consultor=${alvo.consultor} via ${alvo.telefone}`);
 }
 

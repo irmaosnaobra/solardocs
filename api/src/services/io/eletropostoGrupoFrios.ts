@@ -25,7 +25,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { sendHuman } from '../agents/zapiClient';
+import { sendFrio } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { carregarSupressao } from './ioSend';
 
@@ -175,7 +175,7 @@ export async function runGrupoFriosTick(opts: { dry?: boolean } = {}): Promise<R
   );
 
   try {
-    await sendHuman(alvo.telefone, bolhasGrupoFrio(alvo.status, alvo.nome), 'io');
+    await sendFrio(alvo.telefone, bolhasGrupoFrio(alvo.status, alvo.nome), 'io');
     logger.info('ep-grupo-frio', `convite enviado (${alvo.status}, ficha de ${alvo.ficha_em.slice(0, 10)})`);
     return { enviados: 1, publico: publico.length - 1 };
   } catch (err) {

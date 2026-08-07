@@ -33,7 +33,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../../utils/supabase';
-import { sendHuman, fmtPhone } from '../zapiClient';
+import { sendFrio, fmtPhone } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { dentroDoTetoHorarioLinha, dentroDaJanelaDiurna, respeitaEspacamentoLinha } from './lineThrottle';
 
@@ -69,7 +69,7 @@ const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
 // Somado ao tick de ~5min do /process-messages, o 1º contato cai em 5–10 min.
 export const DEBOUNCE_MS = 5 * 60 * 1000; // 5 min
 // Escalonamento do backlog: 5 min entre leads (cadência pedida pelo Thiago).
-const SEED_STAGGER_MS = 5 * 60 * 1000;
+const SEED_STAGGER_MS = Number(process.env.RECUP_SEED_STAGGER_MIN || 15) * 60 * 1000;
 // Anti-rajada intra-tick: no máximo N envios por execução do consumidor.
 const MAX_ENVIOS_POR_TICK = 2;
 
@@ -81,7 +81,9 @@ const CUPOM_SENT_PREFIX = 'limpapro_cupom_sent:';
 // Quanto tempo após o OPENER (não o abandono) esperar antes do cupom. O Thiago pediu
 // "2h sem responder"; medimos desde o opener porque é o relógio coerente (não dá pra
 // "não responder" uma msg que ainda não chegou) e o opener sai ~8min após o abandono.
-const CUPOM_DELAY_MS = 2 * 60 * 60 * 1000; // 2h
+// [07/08] 2h -> 24h. 2h depois do opener a pessoa muitas vezes nem abriu a primeira;
+// segundo toque no mesmo turno le como cobranca e e o que faz bloquear.
+const CUPOM_DELAY_MS = Number(process.env.RECUP_CUPOM_DELAY_H || 24) * 60 * 60 * 1000; // 24h
 
 // 3º e ÚLTIMO toque (fechamento): quem tomou opener+cupom e continua em silêncio total.
 // Fila e marcador próprios (mesma razão dos independentes do cupom). É a última mensagem
@@ -89,7 +91,9 @@ const CUPOM_DELAY_MS = 2 * 60 * 60 * 1000; // 2h
 const FECHAMENTO_PENDING_PREFIX = 'limpapro_fechamento_pending:';
 const FECHAMENTO_SENT_PREFIX = 'limpapro_fechamento_sent:';
 // Espera após o CUPOM antes do toque de fechamento (dá tempo do cupom fazer efeito).
-const FECHAMENTO_DELAY_MS = 20 * 60 * 60 * 1000; // 20h (≈ dia seguinte, sem virar madrugada)
+// [07/08] 20h -> 72h. A janela diurna ja segura a madrugada, entao o delay pode ser
+// medido em dias sem risco de cair de noite.
+const FECHAMENTO_DELAY_MS = Number(process.env.RECUP_FECHAMENTO_DELAY_H || 72) * 60 * 60 * 1000; // 3 dias
 
 // 4º toque (GRUPO PAGO) — quem tomou os 3 toques do CURSO e nunca respondeu. Não insiste
 // no mesmo produto: troca a OFERTA. Convida pra Comunidade +Sol (grupo de WhatsApp pago,
@@ -98,7 +102,9 @@ const GRUPO_PENDING_PREFIX = 'limpapro_grupo_pending:';
 const GRUPO_SENT_PREFIX = 'limpapro_grupo_sent:';
 // Espera após o FECHAMENTO. Longa de propósito: o 3º toque termina com "não vou te encher
 // mais", então o convite do grupo só faz sentido depois de um respiro — e como assunto novo.
-const GRUPO_DELAY_MS = 48 * 60 * 60 * 1000; // 2 dias
+// [07/08] 2 -> 7 dias. E oferta NOVA pra quem ignorou tres mensagens: uma semana de
+// silencio e o minimo pra isso nao ser insistencia.
+const GRUPO_DELAY_MS = Number(process.env.RECUP_GRUPO_DELAY_H || 168) * 60 * 60 * 1000; // 7 dias
 
 // 2º toque (SEM desconto — decisão do Thiago: produto de qualidade recupera com bom
 // atendimento + reforço de valor, não com cupom). Usa o checkout normal. DARK até
@@ -470,7 +476,7 @@ async function enviarParaLead(lead: LeadAberto): Promise<void> {
     updated_at: new Date().toISOString(),
   }, { onConflict: 'phone,tipo' });
 
-  await sendHuman(lead.telefone!, montarMensagem(lead), INSTANCE);  // 3. SEND
+  await sendFrio(lead.telefone!, montarMensagem(lead), INSTANCE);  // 3. SEND
   logger.info('limpapro-recovery', `contatado ${lead.email} (${lead.status}) via ${lead.telefone}`);
 
   // 4. AGENDA o 2º toque (cupom) pra +2h. Só semeia se o cupom estiver habilitado E
@@ -506,7 +512,7 @@ async function enviarCupom(lead: LeadAberto): Promise<void> {
     updated_at: new Date().toISOString(),
   }, { onConflict: 'phone,tipo' });
 
-  await sendHuman(lead.telefone!, montarMensagemCupom(lead), INSTANCE);  // 2. SEND
+  await sendFrio(lead.telefone!, montarMensagemCupom(lead), INSTANCE);  // 2. SEND
   logger.info('limpapro-recovery', `cupom enviado ${lead.email} via ${lead.telefone}`);
 
   // 3. AGENDA o 3º toque (fechamento) pra +FECHAMENTO_DELAY. Só se habilitado e ainda não enviado.
@@ -535,7 +541,7 @@ async function enviarFechamento(lead: LeadAberto): Promise<void> {
     updated_at: new Date().toISOString(),
   }, { onConflict: 'phone,tipo' });
 
-  await sendHuman(lead.telefone!, montarMensagemFechamento(lead), INSTANCE);  // 2. SEND
+  await sendFrio(lead.telefone!, montarMensagemFechamento(lead), INSTANCE);  // 2. SEND
   logger.info('limpapro-recovery', `fechamento enviado ${lead.email} via ${lead.telefone}`);
 
   // 3. AGENDA o 4º toque (grupo pago) pra +GRUPO_DELAY. Só se habilitado e ainda não enviado.
@@ -574,7 +580,7 @@ async function enviarGrupo(lead: LeadAberto): Promise<void> {
     updated_at: new Date().toISOString(),
   }, { onConflict: 'phone,tipo' });
 
-  await sendHuman(lead.telefone!, msg, INSTANCE);           // 2. SEND
+  await sendFrio(lead.telefone!, msg, INSTANCE);           // 2. SEND
   logger.info('limpapro-recovery', `grupo enviado ${lead.email} via ${lead.telefone}${primeiroContato ? ' (1o contato)' : ''}`);
 }
 

@@ -27,7 +27,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { sendHuman } from '../agents/zapiClient';
+import { sendFrio } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 
 const PENDING_PREFIX = 'ep_repescagem_pending:';
@@ -357,7 +357,7 @@ export async function runRepescagemTick(): Promise<TickResult> {
     : bolhasConsultor(marcador.nome, marcador.dono, marcador.ficha_em);
 
   try {
-    await sendHuman(telefone, bolhas, 'io');
+    await sendFrio(telefone, bolhas, 'io');
     await supabase.from('system_state').upsert(
       {
         key: `${EP_REPESCAGEM_SENT_PREFIX}${telefone}`,

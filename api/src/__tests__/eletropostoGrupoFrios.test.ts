@@ -45,7 +45,7 @@ vi.mock('../utils/supabaseGerador', () => ({
 }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock('../services/agents/zapiClient', () => ({
-  sendHuman: vi.fn(async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); }),
+  sendFrio: vi.fn(async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); }),
 }));
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   dentroDoTetoHorarioLinha: vi.fn(async () => tetoOk),

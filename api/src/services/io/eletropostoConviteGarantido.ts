@@ -32,7 +32,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { sendHuman } from '../agents/zapiClient';
+import { sendFrio } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { bolhasConviteParaFicha } from './eletropostoRepescagem';
 import { ofertaDeEntradaVendavel } from '../plugcashService';
@@ -148,7 +148,7 @@ export async function runConviteNota1Garantido(): Promise<Resultado> {
   );
 
   try {
-    await sendHuman(alvo.telefone, bolhasConviteParaFicha(alvo.nome ?? '', alvo.created_at), 'io');
+    await sendFrio(alvo.telefone, bolhasConviteParaFicha(alvo.nome ?? '', alvo.created_at), 'io');
 
     await supabaseGerador.from('eletroposto_nota1')
       .update({ convite_enviado_at: new Date().toISOString() })
