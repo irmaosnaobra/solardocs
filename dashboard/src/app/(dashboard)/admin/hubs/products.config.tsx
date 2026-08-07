@@ -97,7 +97,7 @@ export const PRODUCTS: Product[] = [
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: () => <GeradorFunilPanel produto="eletroposto" /> },
       { key: 'membros',   label: 'Leads',            status: 'pronto',    Comp: () => <GeradorLeadsPanel produto="eletroposto" /> },
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: () => <IoLpPanel match="/io/eletroposto" /> },
-      { key: 'followup',  label: 'Followup',         status: 'construir', nota: 'Só alerta à equipe hoje.' },
+      { key: 'followup',  label: 'Followup',         status: 'construir', nota: 'Só alerta à equipe hoje.', Comp: () => <FollowupPanel produto="eletroposto" /> },
       { key: 'agente',    label: 'Agente',           status: 'parcial',   Comp: () => <AgentePanel agent="none" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="eletroposto" /> },
     ],

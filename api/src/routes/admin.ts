@@ -87,17 +87,37 @@ const HUB_FOLLOWUP_TIPOS: Record<string, string[]> = {
   solar:       ['gerador_followup'],     // follow-up de leads solar (Luma/gerador)
   eletroposto: [],                       // sem agente ainda
 };
+// Bloco de conversão da aba Followup: abordados → responderam → converteram.
+// Cada produto tem um elo diferente pro "converteu" (e o SolarDoc tem DOIS tipos de
+// sessão que significam coisas diferentes — por isso é uma LISTA de blocos, nunca uma
+// taxa única misturando denominadores). Nada medível vira null (a tela mostra "—").
+interface ConversaoBloco {
+  rotulo: string;
+  abordados: number;
+  responderam: number;
+  converteram: number | null;
+  taxa_pct: number | null;
+  medida: string;          // o que exatamente conta como "converteu" aqui
+}
+// telKey: mesma chave do CRM/gerador (tira 55, DDD + últimos 8, ignora 9º dígito).
+function hubTelKey(raw: string | null | undefined): string | null {
+  const d = String(raw || '').replace(/\D/g, '').replace(/^55/, '');
+  if (d.length < 10) return null;
+  return d.slice(0, 2) + d.slice(-8);
+}
+const last8 = (raw: string | null | undefined) => String(raw || '').replace(/\D/g, '').slice(-8);
+
 router.get('/hub-followup', async (req: Request, res: Response): Promise<void> => {
   try {
     const produto = String(req.query.produto || '').toLowerCase();
     const tipos = HUB_FOLLOWUP_TIPOS[produto];
     if (!tipos) { res.status(400).json({ error: 'produto inválido' }); return; }
     const emptySummary = { total: 0, em_conversa: 0, handoff: 0, opt_out: 0, ultimas24h: 0, ultimos7d: 0 };
-    if (tipos.length === 0) { res.json({ produto, tipos, summary: emptySummary, sessions: [] }); return; }
+    if (tipos.length === 0) { res.json({ produto, tipos, summary: emptySummary, conversao: null, sessions: [] }); return; }
 
     const { data, error } = await supabase
       .from('whatsapp_sessions')
-      .select('phone, nome, tipo, messages, lead_data, updated_at')
+      .select('phone, nome, tipo, user_id, messages, lead_data, updated_at')
       .in('tipo', tipos)
       .order('updated_at', { ascending: false })
       .limit(200);
@@ -108,7 +128,7 @@ router.get('/hub-followup', async (req: Request, res: Response): Promise<void> =
     let em_conversa = 0, handoff = 0, opt_out = 0, ultimas24h = 0, ultimos7d = 0;
 
     const sessions = (data ?? []).map((s: {
-      phone: string; nome: string | null; tipo: string;
+      phone: string; nome: string | null; tipo: string; user_id: string | null;
       messages: unknown; lead_data: Record<string, unknown> | null; updated_at: string | null;
     }) => {
       const ld = (s.lead_data ?? {}) as Record<string, unknown>;
@@ -131,16 +151,142 @@ router.get('/hub-followup', async (req: Request, res: Response): Promise<void> =
         phone: s.phone, nome: s.nome ?? null, tipo: s.tipo, updated_at: s.updated_at,
         handed_off: handed, opt_out: optout, status: status || null,
         msgs_count: msgs.length,
+        // preenchidos abaixo pelo bloco de conversão (null = não dá pra medir)
+        respondeu: temUser,
+        converteu: null as boolean | null,
+        _uid: s.user_id ?? null,
+        _email: String(ld.email ?? '').toLowerCase().trim(),
+        _telkey: String(ld.tel_key ?? '') || hubTelKey(s.phone),
+        _teste: s.phone === '5534991360223' || /(^|\W)teste\b/i.test(s.nome ?? ''),
         last_role: last?.role ?? null,
         last_msg: last?.content ? String(last.content).slice(0, 160) : null,
         messages: msgs.slice(-24).map((m) => ({ role: m?.role ?? '?', content: String(m?.content ?? '').slice(0, 800) })),
       };
     });
 
+    // ── CONVERSÃO ────────────────────────────────────────────────────────────
+    // Só conta convertido quem ESTÁ nas sessões carregadas acima (o mesmo recorte do
+    // denominador), senão a taxa passa de 100%. Uma query em lote por bloco, sem N+1.
+    const bloco = (rotulo: string, medida: string, alvo: typeof sessions, converteram: number | null): ConversaoBloco => ({
+      rotulo, medida,
+      abordados: alvo.length,
+      responderam: alvo.filter((x) => x.respondeu).length,
+      converteram,
+      taxa_pct: converteram === null || alvo.length === 0 ? null : Math.round((converteram / alvo.length) * 1000) / 10,
+    });
+    let conversao: ConversaoBloco[] | null = null;
+    try {
+      if (produto === 'limpapro') {
+        // Espelha getLimpaproConversas (aba Funil): mesmo elo lead_data.email →
+        // limpapro_events pago, mesma exclusão de teste. Os dois números têm que bater.
+        const alvo = sessions.filter((x) => !x._teste);
+        const emails = Array.from(new Set(alvo.map((x) => x._email).filter(Boolean)));
+        const compradores = new Set<string>();
+        if (emails.length) {
+          // O client do PostgREST NÃO lança em falha: devolve { data:null, error }. Sem o
+          // throw, a query quebrada viraria "0 conversões" — mentira pior que "—".
+          const { data: pagos, error: e } = await supabase
+            .from('limpapro_events').select('buyer_email')
+            .eq('event_type', 'purchase').eq('status', 'paid').in('buyer_email', emails);
+          if (e) throw e;
+          for (const p of (pagos ?? []) as { buyer_email: string | null }[]) {
+            if (p.buyer_email) compradores.add(p.buyer_email.toLowerCase().trim());
+          }
+        }
+        for (const x of alvo) x.converteu = Boolean(x._email && compradores.has(x._email));
+        conversao = [bloco('Recuperação (Bia)', 'comprou o curso depois do toque (compra paga no mesmo e-mail)',
+          alvo, alvo.filter((x) => x.converteu).length)];
+      } else if (produto === 'solardoc') {
+        // DOIS blocos: abandono de checkout e plataforma medem coisas diferentes,
+        // com denominadores diferentes. Misturar num % só dá um número inútil.
+        const recovery = sessions.filter((x) => x.tipo === 'recovery');
+        const platform = sessions.filter((x) => x.tipo === 'platform');
+        const out: ConversaoBloco[] = [];
+
+        // recovery: sessão não guarda e-mail; o elo é o telefone (últimos 8), igual ao
+        // findAbandonoByPhone. Puxa uma janela recente e casa em memória.
+        let recRecuperados: number | null = null;
+        if (recovery.length) {
+          // Filtra recovered no BANCO: a janela de 1000 é de recuperações, não de
+          // abandonos (senão as recuperações antigas caem fora e a conta fica baixa).
+          const { data: abandonos, error: e } = await supabase
+            .from('abandoned_checkouts').select('phone')
+            .eq('status', 'recovered')
+            .order('created_at', { ascending: false }).limit(1000);
+          if (e) throw e;
+          const recuperados = new Set(
+            ((abandonos ?? []) as { phone: string | null }[])
+              .map((a) => last8(a.phone)).filter((k) => k.length === 8),
+          );
+          for (const x of recovery) x.converteu = recuperados.has(last8(x.phone));
+          recRecuperados = recovery.filter((x) => x.converteu).length;
+        }
+        out.push(bloco('Abandono de checkout (Giovanna)', 'checkout marcado como recuperado (pagou depois do toque)', recovery, recRecuperados));
+
+        // platform: aqui o elo limpo é user_id (o phone do Z-API diverge de users.whatsapp).
+        let platAtivos: number | null = null;
+        const uids = Array.from(new Set(platform.map((x) => x._uid).filter(Boolean))) as string[];
+        if (uids.length) {
+          const { data: us, error: e } = await supabase
+            .from('users').select('id, plano, billing_status, plano_expira_em').in('id', uids);
+          if (e) throw e;
+          const pagantes = new Set<string>();
+          for (const u of (us ?? []) as { id: string; plano: string | null; billing_status: string | null; plano_expira_em: string | null }[]) {
+            const pixVivo = Boolean(u.plano_expira_em && new Date(u.plano_expira_em).getTime() > now);
+            if ((u.plano && u.plano !== 'free' && u.billing_status === 'active') || pixVivo) pagantes.add(u.id);
+          }
+          for (const x of platform) x.converteu = Boolean(x._uid && pagantes.has(x._uid));
+          platAtivos = platform.filter((x) => x.converteu).length;
+        }
+        out.push(bloco('Plataforma (Giovanna)', 'conta voltou/segue pagante (plano ativo ou Pix na validade)', platform, platAtivos));
+        conversao = out;
+      } else if (produto === 'solar') {
+        // Banco separado (supabaseGerador) — casa por tel_key. "Sucesso" = o mesmo que o
+        // bot já considera resgate: proposta vendida, ou o lead esquentou/reagendou.
+        const alvo = sessions;
+        let convertidos: number | null = null;
+        const chaves = new Set(alvo.map((x) => x._telkey).filter(Boolean) as string[]);
+        if (chaves.size) {
+          // Teto explícito (o PostgREST corta em 1000 calado — aqui um corte silencioso
+          // viraria conversão errada exibida como fato).
+          const [{ data: props, error: e1 }, { data: ags, error: e2 }] = await Promise.all([
+            supabaseGerador.from('propostas').select('vendido, dados').eq('vendido', true).limit(5000),
+            supabaseGerador.from('agendamentos').select('cliente_telefone, status, temperatura, quando')
+              .order('quando', { ascending: false }).limit(5000),
+          ]);
+          if (e1) throw e1;
+          if (e2) throw e2;
+          const ok = new Set<string>();
+          for (const p of (props ?? []) as { vendido: boolean | null; dados: Record<string, unknown> | null }[]) {
+            if (!p.vendido) continue;
+            const d = (p.dados ?? {}) as Record<string, unknown>;
+            const k = hubTelKey(String(d.telefoneDigitos ?? d.telefone ?? ''));
+            if (k && chaves.has(k)) ok.add(k);
+          }
+          for (const a of (ags ?? []) as { cliente_telefone: string | null; status: string | null; temperatura: string | null; quando: string | null }[]) {
+            const k = hubTelKey(a.cliente_telefone);
+            if (!k || !chaves.has(k)) continue;
+            const futuro = a.quando ? new Date(a.quando).getTime() >= now : false;
+            if (a.temperatura || a.status === 'falando_whatsapp' || futuro) ok.add(k);
+          }
+          for (const x of alvo) x.converteu = Boolean(x._telkey && ok.has(x._telkey));
+          convertidos = alvo.filter((x) => x.converteu).length;
+        }
+        conversao = [bloco('Reengajamento de leads (Luma)', 'venda fechada, ou o lead esquentou/reagendou depois do toque', alvo, convertidos)];
+      }
+    } catch (e) {
+      conversao = null;   // não dá pra medir agora → a tela mostra "—", nunca 0
+      console.error('hub-followup conversao:', (e as Error)?.message || e);
+    }
+
     res.json({
       produto, tipos,
       summary: { total: sessions.length, em_conversa, handoff, opt_out, ultimas24h, ultimos7d },
-      sessions: sessions.slice(0, 60),
+      conversao,
+      sessions: sessions.slice(0, 60).map(({ _uid, _email, _telkey, _teste, ...s }) => {
+        void _uid; void _email; void _telkey; void _teste;
+        return s;
+      }),
     });
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
