@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // 4 mensagens em 37 segundos. A régua de 5 min é o que transforma "cabe na hora" em
 // "sai espaçado", e a janela é o que impede venda fria às 2 da manhã.
 
-const db: { state: Array<{ key: string; updated_at: string }> } = { state: [] };
+const db: { state: Array<{ key: string; updated_at: string }>; single: unknown } = { state: [], single: null };
 
 vi.mock('../utils/supabase', () => ({
   supabase: {
@@ -21,6 +21,8 @@ vi.mock('../utils/supabase', () => ({
           return q;
         },
         gte(col: string, val: string) { q._filtros.push((r: any) => String(r[col]) >= val); return q; },
+        eq() { return q; },
+        maybeSingle() { return Promise.resolve({ data: db.single ? { value: db.single } : null, error: null }); },
         limit(n: number) {
           const linhas = db.state.filter(r => q._filtros.every((f: any) => f(r))).slice(0, n);
           return Promise.resolve({ data: linhas, error: null });
@@ -32,7 +34,7 @@ vi.mock('../utils/supabase', () => ({
 }));
 
 const envOriginal = { ...process.env };
-beforeEach(() => { db.state = []; vi.resetModules(); });
+beforeEach(() => { db.state = []; db.single = null; vi.resetModules(); });
 afterEach(() => { process.env = { ...envOriginal }; });
 
 const haMinutos = (m: number) => new Date(Date.now() - m * 60 * 1000).toISOString();
@@ -123,7 +125,7 @@ describe('janela diurna (09h-20h BRT, sem domingo)', () => {
   });
 });
 
-describe('rampa de aquecimento pós-reconexão', () => {
+describe('rampa de aquecimento pós-reconexão (env manual)', () => {
   const dia = (n: number) => new Date(Date.UTC(2026, 7, 10, 12, 0, 0) + n * 24 * 3600 * 1000);
 
   it('sem a env, valem os tetos cheios', async () => {
@@ -147,5 +149,37 @@ describe('rampa de aquecimento pós-reconexão', () => {
     process.env.LINHA_RECONECTADA_EM = '2026-08-10';
     const { tetosVigentes, maxPorHora } = await carregar();
     expect(tetosVigentes(dia(4)).hora).toBe(maxPorHora());
+  });
+});
+
+describe('aquecimento armado sozinho pelo monitor de saúde', () => {
+  // A linha cai de dias em dias: se a rampa dependesse de alguém setar a env a cada
+  // queda, ela nunca estaria armada na hora que importa. O zapiHealthMonitor carimba
+  // `reconectadoEm` quando a IO volta, e o teto lê esse carimbo.
+  const agora = new Date(Date.UTC(2026, 7, 10, 12, 0, 0));
+
+  it('reconectou há 3h: teto na rampa, sem env nenhuma', async () => {
+    db.single = { reconectadoEm: new Date(agora.getTime() - 3 * 3600 * 1000).toISOString() };
+    const { tetosVigentesLinha } = await carregar();
+    expect(await tetosVigentesLinha(agora)).toEqual({ hora: 2, dia: 10 });
+  });
+
+  it('reconectou há 5 dias: tetos cheios de novo', async () => {
+    db.single = { reconectadoEm: new Date(agora.getTime() - 5 * 24 * 3600 * 1000).toISOString() };
+    const { tetosVigentesLinha, maxPorHora } = await carregar();
+    expect((await tetosVigentesLinha(agora)).hora).toBe(maxPorHora());
+  });
+
+  it('sem carimbo e sem env: tetos cheios (fail-open)', async () => {
+    db.single = null;
+    const { tetosVigentesLinha, maxPorHora } = await carregar();
+    expect((await tetosVigentesLinha(agora)).hora).toBe(maxPorHora());
+  });
+
+  it('vale a reconexão MAIS RECENTE entre o carimbo e a env manual', async () => {
+    db.single = { reconectadoEm: '2026-08-01T00:00:00.000Z' };  // velha
+    process.env.LINHA_RECONECTADA_EM = '2026-08-10';            // hoje → manda ela
+    const { tetosVigentesLinha } = await carregar();
+    expect((await tetosVigentesLinha(agora)).hora).toBe(2);
   });
 });

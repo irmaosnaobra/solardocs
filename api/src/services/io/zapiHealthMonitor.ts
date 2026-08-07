@@ -25,6 +25,12 @@ interface HealthState {
   downStreak?: number;
   alertadoEm?: string | null;   // ISO do último alerta de queda (dedup)
   ultimaConexao?: string | null;
+  // ISO do momento em que a linha VOLTOU depois de estar caída. Não é apagado na
+  // próxima checagem (ao contrário de downStreak/alertadoEm, que zeram): é ele que
+  // arma a rampa de aquecimento do lineThrottle. A linha cai de dias em dias, então
+  // depender de alguém lembrar de setar LINHA_RECONECTADA_EM à mão é depender do
+  // esquecimento. O monitor já sabe a hora exata — passa a registrar.
+  reconectadoEm?: string | null;
 }
 
 function ioCreds(): { id: string; token: string; client: string } | null {
@@ -76,12 +82,18 @@ export async function runZapiHealthCheck(): Promise<{ status: string; alertou?: 
   const st = await loadState();
 
   if (conexao === 'up') {
-    const voltou = !!st.alertadoEm; // estava em alerta de queda → reconectou
-    await saveState({ downStreak: 0, alertadoEm: null, ultimaConexao: new Date().toISOString() });
+    // `voltou` = tinha QUALQUER sinal de queda (não só alerta já enviado): uma queda
+    // curta, de uma checagem só, também deixa a linha frágil e merece aquecimento.
+    const voltou = !!st.alertadoEm || (st.downStreak ?? 0) > 0;
+    await saveState({
+      downStreak: 0, alertadoEm: null, ultimaConexao: new Date().toISOString(),
+      reconectadoEm: voltou ? new Date().toISOString() : (st.reconectadoEm ?? null),
+    });
     if (voltou) {
       await sendOpsAlert(
         '✅ Linha WhatsApp (IO) reconectou',
-        `<p>A instância Z-API da linha IO <strong>voltou a conectar</strong>. Os envios (confirmações, lembretes, sequências, dunning, Bia) estão fluindo de novo.</p>`,
+        `<p>A instância Z-API da linha IO <strong>voltou a conectar</strong>. Os envios (confirmações, lembretes, sequências, dunning, Bia) estão fluindo de novo.</p>
+         <p><strong>Aquecimento armado automaticamente</strong>: nas próximas 72h a linha manda menos (2/h no 1º dia, 3/h no 2º, 4/h no 3º) e depois volta ao normal sozinha. Linha recém-reconectada é a mais frágil que existe.</p>`,
       ).catch((err) => logger.error('zapi-health', 'email "voltou" falhou', err));
       return { status: 'up', alertou: 'reconectou' };
     }
@@ -100,10 +112,10 @@ export async function runZapiHealthCheck(): Promise<{ status: string; alertou?: 
        <p>Enquanto estiver assim, <strong>nenhuma mensagem sai</strong>: confirmações de agendamento, lembretes, sequências, dunning, Bia e avisos de rodízio ficam parados.</p>
        <p>Reconecte o WhatsApp da linha: confira se o celular está ligado, online e com bateria — e, se precisar, leia o QR code de novo no painel da Z-API.</p>`,
     ).catch((err) => logger.error('zapi-health', 'email de alerta falhou', err));
-    await saveState({ downStreak: streak, alertadoEm: new Date().toISOString(), ultimaConexao: st.ultimaConexao ?? null });
+    await saveState({ downStreak: streak, alertadoEm: new Date().toISOString(), ultimaConexao: st.ultimaConexao ?? null, reconectadoEm: st.reconectadoEm ?? null });
     return { status: 'down', alertou: 'sim' };
   }
 
-  await saveState({ downStreak: streak, alertadoEm: st.alertadoEm ?? null, ultimaConexao: st.ultimaConexao ?? null });
+  await saveState({ downStreak: streak, alertadoEm: st.alertadoEm ?? null, ultimaConexao: st.ultimaConexao ?? null, reconectadoEm: st.reconectadoEm ?? null });
   return { status: 'down' };
 }

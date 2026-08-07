@@ -47,11 +47,8 @@ export const MAX_POR_HORA = maxPorHora();
 // Defina LINHA_RECONECTADA_EM=YYYY-MM-DD no dia em que reconectar; por 72h os tetos
 // sobem em rampa em vez de já valerem cheios. Passados 3 dias a rampa some sozinha
 // (não precisa lembrar de tirar a env).
-function rampaAquecimento(now: Date): { hora: number; dia: number } | null {
-  const raw = process.env.LINHA_RECONECTADA_EM?.trim();
-  if (!raw) return null;
-  const t0 = Date.parse(raw.length <= 10 ? `${raw}T00:00:00-03:00` : raw);
-  if (!Number.isFinite(t0)) return null;
+function rampaDesde(t0: number | null, now: Date): { hora: number; dia: number } | null {
+  if (t0 === null || !Number.isFinite(t0)) return null;
   const dias = (now.getTime() - t0) / (24 * 60 * 60 * 1000);
   if (dias < 0) return { hora: 2, dia: 10 };   // env no futuro → trata como dia 0
   if (dias < 1) return { hora: 2, dia: 10 };
@@ -60,9 +57,46 @@ function rampaAquecimento(now: Date): { hora: number; dia: number } | null {
   return null;                                  // aquecida: tetos cheios
 }
 
-/** Tetos que valem AGORA (já com a rampa de aquecimento aplicada). */
+function envReconexao(): number | null {
+  const raw = process.env.LINHA_RECONECTADA_EM?.trim();
+  if (!raw) return null;
+  const t = Date.parse(raw.length <= 10 ? `${raw}T00:00:00-03:00` : raw);
+  return Number.isFinite(t) ? t : null;
+}
+
+/**
+ * Momento da última reconexão da linha, do jeito AUTOMÁTICO: o `zapiHealthMonitor`
+ * carimba `reconectadoEm` toda vez que a IO volta de uma queda. É o que faz a rampa
+ * se armar sozinha — a linha cai de dias em dias, e depender de alguém setar uma env
+ * à mão a cada queda é depender do esquecimento.
+ *
+ * Vale o marcador MAIS RECENTE entre o do monitor e a env manual (a env continua
+ * servindo pra forçar aquecimento em situação que o monitor não viu, tipo QR novo).
+ * Fail-open: erro de leitura → sem rampa (os tetos normais já protegem).
+ */
+async function inicioDoAquecimento(): Promise<number | null> {
+  const env = envReconexao();
+  try {
+    const { data } = await supabase
+      .from('system_state').select('value').eq('key', 'zapi_io_health').maybeSingle();
+    const raw = (data?.value as { reconectadoEm?: string | null } | null)?.reconectadoEm;
+    const auto = raw ? Date.parse(raw) : NaN;
+    if (Number.isFinite(auto)) return env === null ? auto : Math.max(auto, env);
+  } catch { /* fail-open */ }
+  return env;
+}
+
+/** Tetos que valem AGORA, com o aquecimento armado pelo monitor (ou pela env). */
+export async function tetosVigentesLinha(now: Date = new Date()): Promise<{ hora: number; dia: number }> {
+  const r = rampaDesde(await inicioDoAquecimento(), now);
+  return r
+    ? { hora: Math.min(maxPorHora(), r.hora), dia: Math.min(maxPorDia(), r.dia) }
+    : { hora: maxPorHora(), dia: maxPorDia() };
+}
+
+/** Versão só-env (sem I/O). Usada onde não dá pra esperar leitura de banco. */
 export function tetosVigentes(now: Date = new Date()): { hora: number; dia: number } {
-  const r = rampaAquecimento(now);
+  const r = rampaDesde(envReconexao(), now);
   return r
     ? { hora: Math.min(maxPorHora(), r.hora), dia: Math.min(maxPorDia(), r.dia) }
     : { hora: maxPorHora(), dia: maxPorDia() };
@@ -117,7 +151,7 @@ function prefixosDaLinha(): string[] {
 export async function dentroDoTetoHorarioLinha(
   opts: { transacional?: boolean } = {},
 ): Promise<boolean> {
-  const tetos = tetosVigentes();
+  const tetos = await tetosVigentesLinha();
   // Frio não encosta na reserva; transacional usa o dia inteiro.
   const tetoDia = opts.transacional
     ? tetos.dia

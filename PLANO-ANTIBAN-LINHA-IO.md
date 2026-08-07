@@ -48,14 +48,16 @@ O jitter importa: um envio a cada 5:00 min cravado, hora após hora, é assinatu
 ### 1.3 Agentes que gastavam a linha sem aparecer na conta
 `semente:` e `ep_grupo_frio:` entraram em `BOT_SENT_PREFIXES`. Estavam fora do orçamento desde sempre.
 
-### 1.4 Rampa de aquecimento pós-reconexão — **usar amanhã ao reconectar**
-Linha que acabou de voltar é a mais frágil que existe. Ao reconectar, defina na Vercel:
+### 1.4 Rampa de aquecimento pós-reconexão — **automática**
+Linha que acabou de voltar é a mais frágil que existe. Como a IO cai de dias em dias, a rampa **se arma sozinha**: o `zapiHealthMonitor` já sabe a hora exata em que a linha volta e passou a carimbar `reconectadoEm` no `zapi_io_health`; o teto lê esse carimbo. Toda queda futura aquece sozinha, sem ninguém lembrar de nada, e o e-mail de "✅ reconectou" avisa que o aquecimento entrou.
+
+Só a reconexão de **hoje (07/08)** precisa da env manual, porque o monitor registrou a volta antes deste código existir:
 
 ```
-LINHA_RECONECTADA_EM=2026-08-08     # a data do dia em que você reconectar
+LINHA_RECONECTADA_EM=2026-08-07
 ```
 
-Por 72h os tetos sobem em rampa e depois **somem sozinhos** (não precisa lembrar de tirar a env):
+Pode apagar essa env depois de 3 dias (ou deixar — ela expira sozinha). Por 72h os tetos sobem em rampa:
 
 | Desde a reconexão | Por hora | Por dia |
 |---|---|---|
