@@ -15,6 +15,11 @@ const MAX_HISTORY = 30;
 // Worker → decide a linha de RESPOSTA (responder pelo mesmo número que o cliente contatou).
 const INSTANCE_ID_IO = '3F26F6ECE67D72BB7FCA6244BF24326C';
 
+// Por quanto tempo uma mensagem que falhou volta pra fila (ver o catch em
+// processMessageQueue). Curto de propósito: dentro disso a resposta ainda chega
+// como conversa; depois disso ela chega como fantasma e o certo é o humano assumir.
+const JANELA_RETRY_FILA_MIN = 45;
+
 // ─── system prompt ───────────────────────────────────────────────
 
 export function buildSystemPrompt(user: {
@@ -364,6 +369,31 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       errors.push(errMsg.slice(0, 100));
+
+      // A mensagem foi marcada como processada ANTES do handler (claim anti-corrida
+      // logo acima). Se o handler explode — IA sem crédito, Z-API fora, timeout —
+      // o cliente fica no vácuo PARA SEMPRE: sem retry, sem log e sem alerta.
+      // Aconteceu em 07/08/2026: o crédito da Anthropic zerou e três "sim" de
+      // campanha (um deles fechando R$19) morreram calados. Ninguém soube.
+      //
+      // Devolve pra fila enquanto a mensagem for RECENTE: o próximo tick tenta de
+      // novo e, quando a causa passa, a resposta sai sozinha. Passada a janela,
+      // desiste e AVISA — responder horas depois é pior que o silêncio, mas o
+      // silêncio sem ninguém saber é o pior dos dois.
+      const idadeMin = (Date.now() - new Date(msg.created_at).getTime()) / 60000;
+      const voltaPraFila = idadeMin <= JANELA_RETRY_FILA_MIN;
+      if (voltaPraFila) {
+        await supabase.from('message_queue').update({ processed: false }).eq('id', msg.id);
+      } else {
+        await sendWhatsApp('34991360223',
+          `⚠️ *Mensagem de cliente sem resposta*\n\nDe: ${msg.sender_name || msg.phone} (${msg.phone})\nDisse: "${String(msg.text || '').slice(0, 200)}"\n\nA IA falhou ${Math.round(idadeMin)}min seguidos e desisti de tentar. Motivo: ${errMsg.slice(0, 180)}\n\nResponde na mão: wa.me/${String(msg.phone).replace(/\D/g, '')}`,
+          'solardoc').catch(() => {});
+      }
+      logger.error(
+        'whatsapp-fila',
+        `resposta a ${msg.phone} falhou (${Math.round(idadeMin)}min de vida — ${voltaPraFila ? 'volta pra fila' : 'DESISTINDO, Thiago avisado'})`,
+        err,
+      );
     }
   }
   return { processed, debug: errors.length ? errors : undefined } as any;
