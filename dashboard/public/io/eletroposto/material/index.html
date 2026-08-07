@@ -374,18 +374,60 @@ function money(cent){
 
 function pintarCta(){
   var usarBump = document.getElementById('bump-check') && document.getElementById('bump-check').checked;
-  var url = (usarBump && checkoutBump) ? checkoutBump : checkoutSimples;
+  var linkFixo = (usarBump && checkoutBump) ? checkoutBump : checkoutSimples;
   [document.getElementById('cta'), document.getElementById('cta2')].forEach(function(b){
-    if (!url) {
-      b.className = 'cta off';
-      b.removeAttribute('href');
-      b.textContent = 'Checkout ainda não configurado';
-      return;
-    }
     b.className = 'cta';
-    b.href = url;
     b.textContent = 'Quero o material — ' + document.getElementById('preco').dataset.label;
+    // Link do gateway cadastrado vira <a> normal; sem ele, o clique pede a
+    // sessao. O visitante nao percebe diferença nenhuma entre os dois.
+    if (linkFixo) b.href = linkFixo; else b.removeAttribute('href');
   });
+}
+
+// Abre o checkout. O comprador ainda NAO tem conta — ela nasce do webhook,
+// depois do pagamento. Pedir cadastro aqui inverteria a ordem e mataria a venda.
+var abrindo = false;
+function abrirCheckout(botao){
+  if (abrindo) return;
+  var comBump = document.getElementById('bump-check') && document.getElementById('bump-check').checked;
+  evento('checkout_start', { slug:'fundamentos', motivo: motivo || 'neutro', bump: !!comBump });
+
+  if (botao.getAttribute('href')) return;   // link do gateway: deixa o <a> agir
+
+  abrindo = true;
+  var textoOriginal = botao.textContent;
+  botao.textContent = 'Abrindo o pagamento…';
+
+  fetch(API + '/plugcash/checkout', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      slug:'fundamentos', bump: !!comBump, session_id: sid,
+      origem: 'material:' + (motivo || 'neutro'), utm: utmDaSessao(),
+    }),
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (d && d.url) { location.href = d.url; return; }
+    throw new Error(d && d.error);
+  })
+  .catch(function(){
+    abrindo = false;
+    botao.textContent = textoOriginal;
+    // Falhar calado aqui é perder a venda sem ninguém saber. O WhatsApp é o
+    // caminho de sempre e resolve na hora.
+    var m = document.createElement('p');
+    m.className = 'parcela';
+    m.style.color = '#a32727';
+    m.innerHTML = 'Não consegui abrir o pagamento agora. ' +
+      '<a href="https://wa.me/5534991360223?text=Quero%20comprar%20o%20material%20do%20eletroposto" style="color:#009B40;font-weight:700">' +
+      'Chame no WhatsApp que a gente resolve na hora.</a>';
+    if (!botao.parentNode.querySelector('.erroCheckout')) { m.classList.add('erroCheckout'); botao.parentNode.appendChild(m); }
+  });
+}
+
+// UTM de primeiro toque, mesma regra da LP: sem ela a venda chega sem origem.
+function utmDaSessao(){
+  try { return JSON.parse(sessionStorage.getItem('ep_utm') || '{}'); } catch(_) { return {}; }
 }
 
 // Oferta indisponível (curso em rascunho, ou publicado sem link de checkout):
@@ -406,7 +448,10 @@ function comOferta(){
 fetch(API + '/plugcash/curso/fundamentos')
   .then(function(r){ return r.ok ? r.json() : null; })
   .then(function(d){
-    if (!d || !d.curso || !d.curso.checkout_url) { semOferta(); return; }
+    // Publicado basta. O link do gateway e opcional: sem ele, o botao abre uma
+    // sessao de checkout na hora. Antes a pagina exigia checkout_url e caia no
+    // grupo — ou seja, dependia de alguem colar um link pra existir venda.
+    if (!d || !d.curso) { semOferta(); return; }
     comOferta();
     var k = d.curso;
     var el = document.getElementById('preco');
@@ -484,10 +529,10 @@ document.getElementById('voltar').addEventListener('click', function(){
 });
 
 ['cta','cta2'].forEach(function(id){
-  document.getElementById(id).addEventListener('click', function(){
+  document.getElementById(id).addEventListener('click', function(e){
     if (this.classList.contains('off')) return;
-    var comBump = document.getElementById('bump-check') && document.getElementById('bump-check').checked;
-    evento('checkout_start', { slug:'fundamentos', motivo: motivo || 'neutro', bump: !!comBump });
+    if (!this.getAttribute('href')) e.preventDefault();
+    abrirCheckout(this);
   });
 });
 

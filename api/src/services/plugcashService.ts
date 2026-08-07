@@ -40,6 +40,12 @@ export type EventoPlugcash = {
   checkoutLink: string | null;
   utm: Record<string, string | null>;
   payload: unknown;
+  /**
+   * Atalho do Stripe: lá o item vendido vai no metadata da sessão, então não há
+   * nome de produto pra casar. Quando vem preenchido, pula
+   * `classificarProdutoPlugcash` — que só conhece a Kiwify.
+   */
+  itemDireto?: { item_tipo: string; item_slug: string; concede_nivel?: string | null; gera_credito?: boolean };
 };
 
 export type ResultadoPlugcash = {
@@ -168,7 +174,11 @@ async function garantirConta(opts: {
   }
 
   const token = crypto.randomBytes(32).toString('hex');
-  const expira = new Date(Date.now() + 7 * 86400_000).toISOString();
+  // 90 dias, nao 7. O comprador que abre o e-mail duas semanas depois — e ele
+  // existe — ficaria com link morto e sem caminho de entrada nenhum. O token so
+  // define senha de conta que nasceu SEM senha, entao esticar o prazo nao abre
+  // porta em conta existente.
+  const expira = new Date(Date.now() + 90 * 86400_000).toISOString();
   const attr: Record<string, string> = {};
   for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
     const v = opts.utm[k];
@@ -248,7 +258,9 @@ export async function processarEventoPlugcash(evt: EventoPlugcash): Promise<Resu
   const email = (evt.email || '').toLowerCase().trim();
   if (!email) return { ok: false, acao: 'ignorado', detalhe: 'sem email' };
 
-  const item = await classificarProdutoPlugcash(evt.produtoNome, evt.produtoId);
+  const item = evt.itemDireto
+    ? { concede_nivel: null, gera_credito: true, ...evt.itemDireto }
+    : await classificarProdutoPlugcash(evt.produtoNome, evt.produtoId);
   if (!item) return { ok: true, acao: 'ignorado', detalhe: 'produto nao e do plugcash' };
 
   // Abandono de carrinho não é pedido. Gravá-lo cria venda fantasma: a Kiwify
@@ -258,7 +270,8 @@ export async function processarEventoPlugcash(evt: EventoPlugcash): Promise<Resu
   }
 
   const pago = evt.status === 'paid';
-  const gatewayRef = evt.orderId ? `kiwify:${evt.orderId}:${item.item_slug}` : null;
+  const gateway = evt.itemDireto ? 'stripe' : 'kiwify';
+  const gatewayRef = evt.orderId ? `${gateway}:${evt.orderId}:${item.item_slug}` : null;
 
   // Idempotência por pedido+item: o bump vem no MESMO order_id do produto
   // principal, então a chave não pode ser só o pedido.
@@ -295,7 +308,7 @@ export async function processarEventoPlugcash(evt: EventoPlugcash): Promise<Resu
   const { data: compra, error: upErr } = await supabase
     .from('pc_compras')
     .upsert({
-      gateway: 'kiwify',
+      gateway,
       gateway_ref: gatewayRef || `sem-order-${crypto.randomUUID()}`,
       email,
       nome: evt.nome,

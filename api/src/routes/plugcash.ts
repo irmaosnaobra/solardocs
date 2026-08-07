@@ -4,6 +4,7 @@ import { supabaseGerador } from '../utils/supabaseGerador';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
 import { logger } from '../utils/logger';
+import { criarSessaoPlugcash } from '../services/plugcashCheckout';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PLUGCASH — API do app de conteúdo do mercado de eletroposto.
@@ -160,6 +161,36 @@ router.get('/curso/:slug', async (req: Request, res: Response): Promise<void> =>
     logger.error('plugcash', `falha no curso ${req.params.slug}`, err);
     res.status(500).json({ error: 'falha ao carregar curso' });
   }
+});
+
+// Abre o checkout. Público de propósito: o comprador ainda NÃO tem conta — ela
+// nasce do webhook, depois do pagamento. Exigir login aqui inverteria a ordem e
+// mataria a venda na porta.
+//
+// Se o curso tiver `checkout_url` cadastrado, é ele que volta. Só quando não
+// tem é que uma sessão do Stripe é criada. Assim o dia em que a Kiwify existir
+// não precisa de deploy.
+router.post('/checkout', async (req: Request, res: Response): Promise<void> => {
+  const slug = String(req.body?.slug || '').trim();
+  if (!slug) { res.status(400).json({ error: 'slug obrigatorio' }); return; }
+
+  const r = await criarSessaoPlugcash({
+    slug,
+    bump: req.body?.bump === true,
+    email: String(req.body?.email || '').trim().toLowerCase() || null,
+    origem: String(req.body?.origem || '').slice(0, 80) || null,
+    utm: req.body?.utm || {},
+  });
+
+  if (!r.ok) { res.status(400).json({ error: r.erro }); return; }
+
+  await supabase.from('pc_eventos').insert({
+    tipo: 'checkout_aberto',
+    session_id: String(req.body?.session_id || '').slice(0, 80) || null,
+    payload: { slug, bump: req.body?.bump === true, origem: req.body?.origem || null },
+  }).then(() => {}, () => {});
+
+  res.json({ url: r.url });
 });
 
 // Funil do nota 1: desqualificacao_view → material_view → checkout_start →

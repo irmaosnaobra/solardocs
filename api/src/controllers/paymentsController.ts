@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
+import { processarEventoPlugcash } from '../services/plugcashService';
 import { sendDunningDay0, sendDunningRecovered } from '../services/dunningService';
 import { sendCheckoutCompletionEmail } from '../utils/mailer';
 import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
@@ -451,6 +452,62 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
   // Evento assinado é o que mantém o resto do arquivo vivo — confere na 1ª
   // chamada de cada instância. Não bloqueia nada: falhou, segue o evento.
   await garantirEventosWebhook();
+
+  // ── DESVIO: compra do PlugCash ──
+  // A conta do Stripe é compartilhada entre produtos, e o isolamento aqui é o
+  // carimbo `pc_item_slug` que a sessão do PlugCash grava em metadata. Sem ele,
+  // uma venda de curso cairia no bloco de assinatura do SolarDoc — que a
+  // ignoraria por não ter priceId, e o comprador ficaria sem acesso e sem aviso.
+  if (event.type === 'checkout.session.completed' && event.data.object?.metadata?.pc_item_slug) {
+    const s = event.data.object as any;
+    const md = s.metadata || {};
+    const email = s.customer_email || s.customer_details?.email || '';
+    const utm = Object.fromEntries(
+      ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']
+        .map((k) => [k, md[k] || null]),
+    );
+
+    try {
+      // O item principal e o bump são compras SEPARADAS, com gateway_ref
+      // próprio — mesma regra da Kiwify. Chave única por pedido+item é o que
+      // impede o bump de sobrescrever o curso.
+      const itens: Array<[string, string, number]> = [['curso', md.pc_item_slug, 0]];
+      if (md.pc_bump_slug) itens.push(['servico', md.pc_bump_slug, 0]);
+
+      // O valor total da sessão não serve por item. Busca o preço de cada um no
+      // catálogo, que é a fonte da verdade do que foi cobrado.
+      for (const item of itens) {
+        const tabela = item[0] === 'curso' ? 'pc_cursos' : 'pc_servicos';
+        const { data } = await supabase.from(tabela)
+          .select('preco_centavos').eq('slug', item[1]).maybeSingle();
+        item[2] = (data as any)?.preco_centavos ?? 0;
+      }
+
+      for (const [tipo, slug, valor] of itens) {
+        await processarEventoPlugcash({
+          orderId: s.id,
+          email,
+          nome: s.customer_details?.name || null,
+          telefone: s.customer_details?.phone || null,
+          status: 'paid',
+          produtoId: `stripe:${slug}`,
+          produtoNome: null,
+          valorCentavos: valor,
+          checkoutLink: md.pc_origem || null,
+          utm,
+          payload: s,
+          // Stripe carrega o item no metadata, então não precisa passar pelo
+          // mapeamento de produto da Kiwify — o que foi vendido já é explícito.
+          itemDireto: { item_tipo: tipo, item_slug: slug, gera_credito: tipo === 'curso' },
+        } as any);
+      }
+      console.info(`[stripe:plugcash] ${md.pc_item_slug} · ${email}`);
+    } catch (e) {
+      console.error('[stripe:plugcash] processamento falhou:', e);
+    }
+    res.json({ received: true, plugcash: true });
+    return;
+  }
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as any;
