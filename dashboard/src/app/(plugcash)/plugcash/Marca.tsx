@@ -33,6 +33,21 @@ export function Cadeado() {
   );
 }
 
+// Faixa de pré-visualização. Fica no topo, ocupa a largura toda e diz o que está
+// vendo — sem ela, dá pra confundir rascunho com o que o cliente vê, e alguém
+// aprova uma página achando que já está no ar.
+export function FaixaPreview() {
+  return (
+    <div style={{
+      background: '#141414', color: '#fff', padding: '10px 20px', textAlign: 'center',
+      fontSize: 13.5, lineHeight: 1.5, borderBottom: '2px solid #00C853',
+    }}>
+      <strong style={{ color: '#00C853' }}>PRÉ-VISUALIZAÇÃO</strong>
+      {' · '}você está vendo conteúdo em rascunho porque é admin. O cliente ainda não vê nada disto.
+    </div>
+  );
+}
+
 export function Check() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C853"

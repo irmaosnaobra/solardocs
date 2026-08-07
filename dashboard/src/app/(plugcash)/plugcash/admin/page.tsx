@@ -118,6 +118,25 @@ function AbaCursos({ onNegado }: { onNegado: () => void }) {
         aparece pra ninguém.
       </p>
 
+      {/* Ver o rascunho SEM publicar. A regra continua valendo pro mundo — o que
+          muda é que quem é admin consegue revisar antes de decidir. Sem isto, a
+          única forma de ver como ficou seria publicando, que é justamente o que
+          a regra existe pra impedir. */}
+      <div className={styles.topoAcoes} style={{ marginBottom: 16, flexWrap: 'wrap' }}>
+        <a href="/plugcash/app?preview=1" target="_blank" rel="noopener"
+           className={`${styles.btn} ${styles.btnPrimario}`} style={{ padding: '9px 16px', fontSize: 14 }}>
+          Ver o painel do aluno
+        </a>
+        <a href="/plugcash/app/servicos?preview=1" target="_blank" rel="noopener"
+           className={`${styles.btn} ${styles.btnFantasma}`} style={{ padding: '9px 16px', fontSize: 14 }}>
+          Ver a esteira
+        </a>
+        <a href="/plugcash/curso/fundamentos?preview=1" target="_blank" rel="noopener"
+           className={`${styles.btn} ${styles.btnFantasma}`} style={{ padding: '9px 16px', fontSize: 14 }}>
+          Ver uma página de venda
+        </a>
+      </div>
+
       {erro && <div className={styles.aviso} style={{ marginBottom: 16 }}>{erro}</div>}
 
       <div className={styles.card} style={{ padding: 0, overflowX: 'auto' }}>

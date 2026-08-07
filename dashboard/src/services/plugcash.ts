@@ -68,6 +68,7 @@ export type Membro = {
 };
 
 export type MeResposta = {
+  preview?: boolean;
   membro: Membro;
   catalogo: Curso[];
   proximo_passo: { curso: Curso; porque: 'motivo_descarte' | 'objetivo' | 'ordem' } | null;
@@ -143,11 +144,17 @@ export type Elegivel = {
   usuario: { id: string; email: string; nome: string | null; whatsapp: string | null } | null;
 };
 
+// `?preview=1` faz o rascunho aparecer — mas quem decide é o servidor, que
+// confere o token e lê `is_admin` do banco. O parâmetro aqui é só o pedido.
+const pv = (preview?: boolean) => (preview ? '?preview=1' : '');
+
 export const plugcashApi = {
-  catalogo: () => api.get<{ cursos: Curso[] }>('/plugcash/catalogo'),
-  curso: (slug: string) =>
-    api.get<{ curso: Curso; servico: Servico | null }>(`/plugcash/curso/${slug}`),
-  me: () => api.get<MeResposta>('/plugcash/me'),
+  catalogo: (preview?: boolean) =>
+    api.get<{ cursos: Curso[]; preview: boolean }>(`/plugcash/catalogo${pv(preview)}`),
+  curso: (slug: string, preview?: boolean) =>
+    api.get<{ curso: Curso; servico: Servico | null; preview: boolean }>(
+      `/plugcash/curso/${slug}${pv(preview)}`),
+  me: (preview?: boolean) => api.get<MeResposta>(`/plugcash/me${pv(preview)}`),
   onboarding: (objetivo: string) => api.post('/plugcash/onboarding', { objetivo }),
   aula: (id: string) => api.get<{ aula: Aula }>(`/plugcash/aula/${id}`),
   progresso: (aula_id: string, pct: number) => api.post('/plugcash/progresso', { aula_id, pct }),
@@ -156,7 +163,8 @@ export const plugcashApi = {
   evento: (tipo: string, payload?: unknown) =>
     api.post('/plugcash/evento', { tipo, payload }).catch(() => {}),
 
-  servicos: () => api.get<{ servicos: Servico[] }>('/plugcash/servicos'),
+  servicos: (preview?: boolean) =>
+    api.get<{ servicos: Servico[]; preview: boolean }>(`/plugcash/servicos${pv(preview)}`),
   conta: () => api.get<ContaResposta>('/plugcash/conta'),
   obrigado: (slug: string) => api.get<{ curso: Curso | null }>(`/plugcash/obrigado/${slug}`),
 

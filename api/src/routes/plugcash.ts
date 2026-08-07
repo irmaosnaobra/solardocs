@@ -55,28 +55,59 @@ const OBJETIVO_CURSO: Record<string, string> = {
   monetizar: 'operacao',
 };
 
+// ── Pré-visualização ────────────────────────────────────────────────────────
+// Curso em rascunho não existe pro mundo — essa é a regra que impede um curso
+// sem aula gravada de ser vendido. Mas alguém precisa VER como a página ficou
+// antes de publicar, senão a única forma de revisar é publicando, que é
+// exatamente o que a regra proíbe.
+//
+// Então: `?preview=1` mostra rascunho, e SÓ para quem é admin de verdade. O
+// token é conferido no servidor e o `is_admin` é lido do banco a cada chamada —
+// nada de confiar num parâmetro de querystring, que qualquer um digita.
+async function ehAdminComPreview(req: Request): Promise<boolean> {
+  if (req.query.preview !== '1') return false;
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return false;
+  try {
+    const { verifyToken } = await import('../utils/jwt');
+    const { userId } = verifyToken(auth.split(' ')[1]);
+    const { data } = await supabase
+      .from('users').select('is_admin').eq('id', userId).maybeSingle();
+    return !!(data as any)?.is_admin;
+  } catch {
+    return false;
+  }
+}
+
+// Em pré-visualização o filtro de status some; fora dela, ele é o guardrail.
+const statusVisiveis = (preview: boolean) => preview ? ['rascunho', 'publicado'] : ['publicado'];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PÚBLICO
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Catálogo: tudo que está publicado, travado ou não. É o mesmo payload que
 // alimenta o card travado no app e a vitrine pública.
-router.get('/catalogo', async (_req: Request, res: Response): Promise<void> => {
+router.get('/catalogo', async (req: Request, res: Response): Promise<void> => {
   try {
+    const preview = await ehAdminComPreview(req);
+    const status = statusVisiveis(preview);
+
     const { data: cursos, error } = await supabase
       .from('pc_cursos')
       .select(CURSO_PUBLICO)
-      .eq('status', 'publicado')
+      .in('status', status)
       .order('ordem');
     if (error) throw error;
 
     const ids = (cursos || []).map((c: any) => c.id);
     const { data: aulas } = ids.length
       ? await supabase.from('pc_aulas').select(AULA_PUBLICA)
-          .in('curso_id', ids).eq('status', 'publicado').order('ordem')
+          .in('curso_id', ids).in('status', status).order('ordem')
       : { data: [] as any[] };
 
     res.json({
+      preview,
       cursos: (cursos || []).map((c: any) => ({
         ...c,
         aulas: (aulas || []).filter((a: any) => a.curso_id === c.id),
@@ -91,20 +122,23 @@ router.get('/catalogo', async (_req: Request, res: Response): Promise<void> => {
 // Página de venda de um curso — a tela que o cadeado abre.
 router.get('/curso/:slug', async (req: Request, res: Response): Promise<void> => {
   try {
+    const preview = await ehAdminComPreview(req);
+    const status = statusVisiveis(preview);
+
     const { data: curso, error } = await supabase
       .from('pc_cursos')
       // checkout_url entra aqui de propósito: é o destino do botão de compra.
       // Continua fora do código — quem o define é o /admin.
-      .select(`${CURSO_PUBLICO},checkout_url,indexavel`)
+      .select(`${CURSO_PUBLICO},checkout_url,indexavel,status`)
       .eq('slug', String(req.params.slug))
-      .eq('status', 'publicado')
+      .in('status', status)
       .maybeSingle();
     if (error) throw error;
     if (!curso) { res.status(404).json({ error: 'curso nao encontrado' }); return; }
 
     const { data: aulas } = await supabase
       .from('pc_aulas').select(AULA_PUBLICA)
-      .eq('curso_id', (curso as any).id).eq('status', 'publicado').order('ordem');
+      .eq('curso_id', (curso as any).id).in('status', status).order('ordem');
 
     // O serviço que resolve a MESMA dor que o curso ensina a resolver sozinho.
     // O documento do projeto é explícito: a oferta tem que aparecer no fim do
@@ -117,11 +151,11 @@ router.get('/curso/:slug', async (req: Request, res: Response): Promise<void> =>
       const { data } = await supabase
         .from('pc_servicos')
         .select('slug,titulo,descricao,preco_centavos,checkout_url,entrega,prazo_dias')
-        .eq('slug', servicoSlug).eq('status', 'publicado').maybeSingle();
+        .eq('slug', servicoSlug).in('status', status).maybeSingle();
       servico = data || null;
     }
 
-    res.json({ curso: { ...curso, aulas: aulas || [] }, servico });
+    res.json({ preview, curso: { ...curso, aulas: aulas || [] }, servico });
   } catch (err) {
     logger.error('plugcash', `falha no curso ${req.params.slug}`, err);
     res.status(500).json({ error: 'falha ao carregar curso' });
@@ -257,9 +291,11 @@ function proximoPasso(membro: any, cursos: any[], liberados: Set<string>) {
 router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const membro = await garantirMembro(req.userId);
+    const preview = await ehAdminComPreview(req);
+    const status = statusVisiveis(preview);
 
     const [{ data: cursos }, { data: acessos }, { data: progresso }] = await Promise.all([
-      supabase.from('pc_cursos').select(CURSO_PUBLICO).eq('status', 'publicado').order('ordem'),
+      supabase.from('pc_cursos').select(CURSO_PUBLICO).in('status', status).order('ordem'),
       supabase.from('pc_acessos').select('curso_id,expira_em').eq('user_id', req.userId),
       supabase.from('pc_progresso').select('aula_id,pct,concluida').eq('user_id', req.userId),
     ]);
@@ -282,7 +318,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
     const ids = (cursos || []).map((c: any) => c.id);
     const { data: aulas } = ids.length
       ? await supabase.from('pc_aulas').select(AULA_PUBLICA)
-          .in('curso_id', ids).eq('status', 'publicado').order('ordem')
+          .in('curso_id', ids).in('status', status).order('ordem')
       : { data: [] as any[] };
 
     const feitas = new Map((progresso || []).map((p: any) => [p.aula_id, p]));
@@ -301,6 +337,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
     });
 
     res.json({
+      preview,
       membro: {
         nivel: membro?.nivel || 'base',
         objetivo: membro?.objetivo || null,
@@ -410,10 +447,11 @@ router.post('/resolvi', authMiddleware, async (req: Request, res: Response): Pro
 // de R$ 160 mil, então o teto é proteção, não gatilho.
 router.get('/servicos', async (req: Request, res: Response): Promise<void> => {
   try {
+    const preview = await ehAdminComPreview(req);
     const [{ data: servicos }, { data: capacidade }] = await Promise.all([
       supabase.from('pc_servicos')
         .select('id,slug,titulo,descricao,preco_centavos,checkout_url,capacidade_mensal,resolve_motivo,nivel_exigido,ordem,copy,entrega,prazo_dias')
-        .eq('status', 'publicado').order('ordem'),
+        .in('status', statusVisiveis(preview)).order('ordem'),
       supabase.from('pc_servicos_capacidade').select('*'),
     ]);
 
@@ -452,7 +490,7 @@ router.get('/servicos', async (req: Request, res: Response): Promise<void> => {
 
     // Serviço que resolve a falta DELE vem primeiro. Ordem do admin desempata.
     lista.sort((a: any, b: any) => Number(b.prioritario) - Number(a.prioritario) || a.ordem - b.ordem);
-    res.json({ servicos: lista });
+    res.json({ preview, servicos: lista });
   } catch (err) {
     logger.error('plugcash', 'falha na esteira', err);
     res.status(500).json({ error: 'falha ao carregar servicos' });

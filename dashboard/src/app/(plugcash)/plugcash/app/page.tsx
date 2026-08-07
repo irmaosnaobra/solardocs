@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { isAuthenticated, removeToken } from '@/services/auth';
 import {
   plugcashApi, money, duracao, MOTIVO_LABEL,
   type MeResposta, type Curso,
 } from '@/services/plugcash';
-import { Marca, Cadeado, Check } from '../Marca';
+import { Marca, Cadeado, Check, FaixaPreview } from '../Marca';
 import styles from '../pc.module.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -37,19 +38,30 @@ const NIVEL_LABEL: Record<string, string> = {
 };
 
 export default function PlugcashApp() {
+  return (
+    <Suspense fallback={<div className={styles.pc} />}>
+      <Painel />
+    </Suspense>
+  );
+}
+
+function Painel() {
   const router = useRouter();
+  // Admin pode abrir com ?preview=1 pra ver o catálogo em rascunho. Quem decide
+  // se o rascunho aparece é o servidor — aqui é só o pedido.
+  const preview = useSearchParams().get('preview') === '1';
   const [dados, setDados] = useState<MeResposta | null>(null);
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
 
   const carregar = useCallback(async () => {
     try {
-      const { data } = await plugcashApi.me();
+      const { data } = await plugcashApi.me(preview);
       setDados(data);
     } catch {
       setErro('Não consegui carregar o seu painel. Recarregue a página.');
     }
-  }, []);
+  }, [preview]);
 
   useEffect(() => {
     if (!isAuthenticated()) { router.replace('/plugcash/entrar?proximo=/plugcash/app'); return; }
@@ -117,12 +129,13 @@ export default function PlugcashApp() {
 
   return (
     <div className={styles.pc}>
+      {dados.preview && <FaixaPreview />}
       <div className={styles.wrap}>
         <header className={styles.topo}>
           <Marca />
           <div className={styles.topoAcoes}>
             <span className={styles.nivel}>{NIVEL_LABEL[membro.nivel] || membro.nivel}</span>
-            <Link href="/plugcash/app/servicos" className={`${styles.btn} ${styles.btnFantasma}`}>Serviços</Link>
+            <Link href={`/plugcash/app/servicos${preview ? "?preview=1" : ""}`} className={`${styles.btn} ${styles.btnFantasma}`}>Serviços</Link>
             <Link href="/plugcash/app/conta" className={`${styles.btn} ${styles.btnFantasma}`}>Conta</Link>
             <button className={`${styles.btn} ${styles.btnFantasma}`} onClick={sair}>Sair</button>
           </div>
@@ -137,7 +150,7 @@ export default function PlugcashApp() {
                 <p className={styles.passoPorque}>{textoDoPorque(proximo_passo, membro.motivo_descarte)}</p>
               </div>
               <Link
-                href={`/plugcash/curso/${proximo_passo.curso.slug}`}
+                href={`/plugcash/curso/${proximo_passo.curso.slug}${preview ? "?preview=1" : ""}`}
                 className={`${styles.btn} ${styles.btnPrimario}`}
                 onClick={() => plugcashApi.evento('proximo_passo_click', { slug: proximo_passo.curso.slug })}
               >
@@ -152,7 +165,7 @@ export default function PlugcashApp() {
             <h2 className={styles.secaoTitulo}>Continue de onde parou</h2>
             <p className={styles.secaoSub}>O que já é seu.</p>
             <div className={styles.grade}>
-              {liberados.map((c) => <CardCurso key={c.id} curso={c} />)}
+              {liberados.map((c) => <CardCurso key={c.id} curso={c} preview={preview} />)}
             </div>
           </section>
         )}
@@ -168,7 +181,7 @@ export default function PlugcashApp() {
             </div>
           ) : (
             <div className={styles.grade}>
-              {travados.map((c) => <CardCurso key={c.id} curso={c} />)}
+              {travados.map((c) => <CardCurso key={c.id} curso={c} preview={preview} />)}
             </div>
           )}
         </section>
@@ -196,9 +209,10 @@ function textoDoPorque(
   return 'É por onde a maioria começa.';
 }
 
-function CardCurso({ curso }: { curso: Curso }) {
+function CardCurso({ curso, preview }: { curso: Curso; preview?: boolean }) {
   const travado = !curso.liberado;
-  const destino = travado ? `/plugcash/curso/${curso.slug}` : `/plugcash/app/curso/${curso.slug}`;
+  const q = preview ? '?preview=1' : '';
+  const destino = travado ? `/plugcash/curso/${curso.slug}${q}` : `/plugcash/app/curso/${curso.slug}`;
 
   return (
     <article className={`${styles.curso} ${travado ? styles.travado : ''}`}>

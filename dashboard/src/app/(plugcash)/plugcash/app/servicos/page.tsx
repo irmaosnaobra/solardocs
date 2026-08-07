@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { plugcashApi, money, MOTIVO_LABEL, type Servico } from '@/services/plugcash';
-import { Marca } from '../../Marca';
+import { Marca, FaixaPreview } from '../../Marca';
 import styles from '../../pc.module.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,22 +24,32 @@ import styles from '../../pc.module.css';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Esteira() {
+  return (
+    <Suspense fallback={<div className={styles.pc} />}>
+      <Lista />
+    </Suspense>
+  );
+}
+
+function Lista() {
+  const preview = useSearchParams().get('preview') === '1';
   const [servicos, setServicos] = useState<Servico[] | null>(null);
   const [erro, setErro] = useState('');
 
   const carregar = useCallback(async () => {
     try {
-      const { data } = await plugcashApi.servicos();
+      const { data } = await plugcashApi.servicos(preview);
       setServicos(data.servicos);
     } catch {
       setErro('Não consegui carregar os serviços. Recarregue a página.');
     }
-  }, []);
+  }, [preview]);
 
   useEffect(() => { carregar(); plugcashApi.evento('esteira_view'); }, [carregar]);
 
   return (
     <div className={styles.pc}>
+      {preview && <FaixaPreview />}
       <div className={styles.wrap}>
         <header className={styles.topo}>
           <Marca />

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { plugcashApi, money, duracao, type Curso, type Servico } from '@/services/plugcash';
-import { Marca, Cadeado, Check } from '../../Marca';
+import { Marca, Cadeado, Check, FaixaPreview } from '../../Marca';
 import styles from '../../pc.module.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,13 +25,22 @@ import styles from '../../pc.module.css';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function PaginaDeVenda() {
+  return (
+    <Suspense fallback={<div className={styles.pc} />}>
+      <Venda />
+    </Suspense>
+  );
+}
+
+function Venda() {
   const { slug } = useParams<{ slug: string }>();
+  const preview = useSearchParams().get('preview') === '1';
   const [curso, setCurso] = useState<Curso | null>(null);
   const [servico, setServico] = useState<Servico | null>(null);
   const [estado, setEstado] = useState<'carregando' | 'ok' | 'nao_encontrado'>('carregando');
 
   useEffect(() => {
-    plugcashApi.curso(slug)
+    plugcashApi.curso(slug, preview)
       .then(({ data }) => {
         setCurso(data.curso);
         setServico(data.servico);
@@ -39,7 +48,7 @@ export default function PaginaDeVenda() {
         plugcashApi.evento('curso_venda_view', { slug });
       })
       .catch(() => setEstado('nao_encontrado'));
-  }, [slug]);
+  }, [slug, preview]);
 
   if (estado === 'carregando') return <div className={styles.pc} />;
 
@@ -64,6 +73,7 @@ export default function PaginaDeVenda() {
 
   return (
     <div className={styles.pc}>
+      {preview && <FaixaPreview />}
       {/* 1 · Hero — fundo preto */}
       <section className={styles.vendaHero}>
         <div className={styles.wrap}>
