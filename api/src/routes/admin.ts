@@ -411,12 +411,32 @@ router.get('/hub-followup-historico', async (req: Request, res: Response): Promi
       if (e1) throw e1;
       // Filtro do JSON em JS de propósito: operador-seta em .filter() é sintaxe não
       // exercitada no repo e falha calada (mesma razão do consumidor da Bia).
-      const abordagens = ((marks ?? []) as { key: string; value: Record<string, unknown> | null }[])
+      const brutas = ((marks ?? []) as { key: string; value: Record<string, unknown> | null }[])
         .map((r) => ({
           email: r.key.slice('limpapro_recovery:'.length).toLowerCase().trim(),
           em: String(r.value?.contacted_at ?? ''),
         }))
         .filter((x) => x.email && x.em);
+
+      // O fluxo ANTIGO de recuperação (jun→08/jul) vive noutra tabela e nunca teve
+      // marcador. Sem ele o balão esconde junho inteiro. Entra pelo mesmo funil.
+      const { data: velhos, error: eV } = await supabase
+        .from('limpapro_abandonos').select('email, abandonado_em, created_at, msgs_enviadas')
+        .gt('msgs_enviadas', 0).limit(LIMITE_HIST);
+      if (eV) throw eV;
+      for (const v of (velhos ?? []) as { email: string | null; abandonado_em: string | null; created_at: string | null }[]) {
+        const email = (v.email ?? '').toLowerCase().trim();
+        const em = v.abandonado_em ?? v.created_at ?? '';
+        if (email && em) brutas.push({ email, em });
+      }
+
+      // Uma pessoa tocada nas duas eras é UMA pessoa: fica o toque mais antigo.
+      const porPessoa = new Map<string, string>();
+      for (const x of brutas) {
+        const atual = porPessoa.get(x.email);
+        if (!atual || new Date(x.em).getTime() < new Date(atual).getTime()) porPessoa.set(x.email, x.em);
+      }
+      const abordagens = Array.from(porPessoa, ([email, em]) => ({ email, em }));
 
       const compras = new Map<string, { t: number; reais: number }[]>();   // email → compras pagas
       const emails = Array.from(new Set(abordagens.map((x) => x.email)));
@@ -444,7 +464,7 @@ router.get('/hub-followup-historico', async (req: Request, res: Response): Promi
       });
       blocos.push({
         rotulo: 'Recuperação (Bia)',
-        base: 'marcador de abordagem da Bia (guarda a ÚLTIMA abordagem de cada e-mail, não a primeira)',
+        base: 'todo mundo que a recuperação tocou — Bia (marcador) + fluxo antigo de jun/jul, uma linha por pessoa',
         medida: 'comprou o curso DEPOIS do toque (mesmo e-mail)',
         nao_medivel: null, ...montarMeses(linhas),
       });
