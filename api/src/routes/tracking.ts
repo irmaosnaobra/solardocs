@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { trackVisit, trackEvent } from '../controllers/trackingController';
 import { trackLimpapro } from '../controllers/limpaproController';
+import { jornadaLimpapro } from '../controllers/limpaproJornadaController';
 
 const router = Router();
 
@@ -31,5 +32,7 @@ router.post('/visit',    trackVisit);
 router.post('/event',    trackEvent);
 // Funil LimpaPro (curso de limpeza) — isolado de page_visits
 router.post('/limpapro', trackLimpapro);
+// Painel da jornada do lead na landing — leitura, protegida por chave em JORNADA_KEY
+router.get('/limpapro/jornada', jornadaLimpapro);
 
 export default router;
