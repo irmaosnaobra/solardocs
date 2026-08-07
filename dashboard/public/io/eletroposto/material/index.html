@@ -204,7 +204,9 @@ details p{margin:10px 0 0;color:var(--g600);line-height:1.65}
   <section class="bloco">
     <h2>Garantia</h2>
     <p class="garantia" id="garantia">
-      Sete dias. Não serviu, você pede o reembolso integral e fica com o material que já baixou.
+      Sete dias, contados do acesso. Não serviu, você pede e o valor volta integral —
+      inclusive o da planilha, se tiver levado. O que já baixou continua seu. Sem
+      formulário de motivo, sem conversa de retenção e sem contraproposta.
     </p>
   </section>
 
@@ -246,42 +248,51 @@ var ORDEM = ['sem_ponto','fluxo_baixo','nao_decisor','sem_capital'];
 var motivo = null;
 for (var i=0;i<ORDEM.length;i++) if (motivos.indexOf(ORDEM[i]) >= 0) { motivo = ORDEM[i]; break; }
 
+// A regra que segura toda esta copy: a PONTE só pode prometer o que o produto de
+// entrada realmente entrega. Prometer o que está em outro curso (o dossiê, o de
+// capital) é o caminho mais curto para o reembolso — e reembolso aqui queima a
+// base do SolarDoc junto, porque é a mesma.
 var COPY = {
   sem_ponto: {
     selo: 'Você respondeu que ainda não tem o ponto',
     headline: 'Sem o local definido, não existe o que orçar.',
     abertura: [
-      'Você respondeu que ainda não sabe onde instalar. Foi por isso que a agenda não abriu — e não é um julgamento sobre você.',
-      'A reunião é com o especialista que dimensiona a potência, calcula a demanda e monta o orçamento. As três coisas dependem de um endereço: a carga disponível é daquele padrão de entrada, o movimento é daquela esquina, o retorno é daquele fluxo. Sem local, a conversa vira suposição — e suposição em investimento de seis dígitos não ajuda ninguém.'
+      'Das perguntas do formulário, essa é a única que fecha a agenda por conta própria: sem endereço, nada no resto compensa. Não é uma leitura sobre você. É o que a reunião precisa para existir.',
+      'A reunião é com o especialista que dimensiona potência, calcula demanda e fecha orçamento. As três coisas moram num endereço: a carga disponível é a daquele padrão de entrada, o movimento é o daquela esquina, o retorno é o daquele fluxo. Sem local, a hora inteira vira suposição — e suposição num investimento de seis dígitos não ajuda você nem a gente.'
     ],
-    ponte: 'Achar e avaliar o ponto é uma etapa com método, não sorte. É por onde você começa.'
+    ponte: 'Escolher um ponto é procedimento, não faro: fluxo, carga disponível no padrão de entrada, concorrência de raio e contrato. É exatamente isso que este material coloca na sua mão.'
   },
   fluxo_baixo: {
     selo: 'Você respondeu que investe, mas não tem o local',
     headline: 'Você tem o dinheiro. Falta a esquina certa.',
     abertura: [
-      'Pelo seu perfil, você quer investir — não tem um comércio com movimento próprio na porta. Esse é o caso mais comum de quem chega aqui, e é o mais fácil de resolver: falta o ativo, não a capacidade.',
-      'Só que o especialista não escolhe o ponto por você numa reunião de uma hora. Escolher local é levantamento: fluxo, carga disponível, concorrência de raio, contrato de arrendamento. Quem chega com o local mapeado sai da reunião com orçamento; quem chega sem, sai com a mesma dúvida que entrou.'
+      'Foi por isso que apareceu para você uma pergunta que quase ninguém vê: a da rota de passagem. Posto, mercado, hotel e estacionamento já têm carro parando na porta por outro motivo — o eletroposto pega carona num fluxo que existe. Investidor, e segmento fora dessa lista, não têm esse fluxo embutido: quem responde pelo movimento é a rua.',
+      'E a rua precisa ser medida antes. O especialista dimensiona a partir do fluxo esperado; sem uma leitura do movimento daquele endereço — rodovia, corredor, comércio de destino, tempo de permanência do carro — a potência vira chute e o orçamento vira chute com nota fiscal.'
     ],
-    ponte: 'Antes de sentar com o especialista, você precisa saber avaliar um ponto sozinho. É o que este material ensina.'
+    // Não diz "é a parte central do material": medir movimento é UMA aula das 14.
+    // Exagero aqui é caro — este leitor foi selecionado justamente por farejar exagero.
+    ponte: 'Medir o movimento de um endereço, sem contratar pesquisa, é uma das aulas daqui. E é a que muda a sua resposta.'
   },
   nao_decisor: {
     selo: 'Você respondeu que a decisão não é só sua',
     headline: 'Quem decide precisa ver o mesmo que você viu.',
     abertura: [
-      'Você respondeu que a decisão passa por outra pessoa — sócio, cônjuge, conselho. A agenda não abriu por um motivo prático: reunião sem quem assina vira uma segunda reunião, e a segunda quase nunca acontece.',
-      'O que costuma travar não é o dinheiro, é a explicação. Você viu a conta e entendeu. A outra pessoa vai ouvir um resumo de dois minutos e decidir com base nele.'
+      'Não é desconfiança. É que uma reunião de dimensionamento termina em decisão: potência, layout, prazo, valor. Quando quem assina não está na sala, ela termina em "vou levar para o meu sócio" — e a segunda reunião, a que decide de verdade, quase nunca acontece.',
+      'O que costuma travar nesses casos não é o dinheiro, é a tradução. Você assistiu, mexeu no simulador e entendeu. A pessoa que decide com você vai receber um resumo de dois minutos, no corredor, e vai responder com base nele.'
     ],
-    ponte: 'Antes de marcar, monte o argumento. É disso que este material trata.'
+    // NÃO promete "os riscos e as objeções que o outro lado vai levantar" — isso é
+    // o Dossiê do Sócio, outro curso. Aqui só o que o material de entrada tem: a
+    // conta aberta, a carga, o prazo e de onde sai cada número.
+    ponte: 'O que a outra pessoa vai querer conferir é a conta, o prazo e de onde sai cada número. É isso que este material coloca na sua mão para você levar.'
   },
   sem_capital: {
     selo: 'Você respondeu que o capital ainda não está disponível',
     headline: 'O orçamento não muda o que falta hoje.',
     abertura: [
-      'Você respondeu que ainda não sabe como vai pagar. A agenda não abriu porque a reunião entrega um orçamento — e orçamento na mão de quem ainda não tem como financiar não move o projeto, só marca uma data para a frustração.',
-      'Viabilizar capital para eletroposto tem caminhos concretos: linha de financiamento com o equipamento em garantia, empresa com CNPJ e faturamento, sociedade com quem tem o ponto. Cada um exige um preparo diferente.'
+      'A reunião entrega uma coisa só: dimensionamento e orçamento. Orçamento na mão de quem ainda não sabe como paga não move projeto — vira PDF guardado e uma cobrança nossa três semanas depois, que constrange os dois lados.',
+      'Dinheiro para eletroposto não é problema de sorte, é problema de formato: recurso próprio, linha de crédito com o equipamento em garantia, empresa com CNPJ e faturamento, ou sociedade com quem tem o ponto e não tem o capital. Cada formato pede um preparo diferente, e todos pedem a mesma coisa antes: que você saiba defender a conta.'
     ],
-    ponte: 'Entender a conta antes de procurar o dinheiro é o que faz o banco dizer sim.'
+    ponte: 'Banco, sócio ou investidor cobram a mesma coisa antes do dinheiro — a conta explicada por você, sem gaguejar. É o que este material treina.'
   },
   neutro: {
     selo: 'Sobre a sua resposta',
@@ -306,23 +317,38 @@ document.getElementById('ponte').innerHTML = '<strong>' + c.ponte + '</strong>';
 
 // ── 2 · Conteúdo comum ─────────────────────────────────────────────────────
 var LEVA = [
-  'Como o mercado de recarga funciona no Brasil e onde ele já dá lucro hoje',
-  'Como avaliar um ponto: fluxo, carga disponível no padrão de entrada e concorrência de raio',
-  'A conta completa: custo da energia, revenda por kWh, taxa de gateway, ocupação e rampa de maturação',
-  'Os caminhos de financiamento e o que cada um exige de você',
-  'O que a distribuidora pede e o que faz um projeto ser reprovado',
-  'Como escolher equipamento sem ficar com um carregador órfão de assistência'
+  'Como o mercado de recarga funciona no Brasil e em qual elo da cadeia você está entrando.',
+  'O método de avaliar um ponto: fluxo, rota, permanência, concorrência de raio — e o que reprova um local.',
+  'Carga disponível e padrão de entrada: o que o local aguenta hoje e quando é preciso aumentar.',
+  'O caminho até a distribuidora: o que é exigido, quem assina e por que um projeto é reprovado.',
+  'Escolha de equipamento: AC e DC, conectores e como não ficar com um carregador sem assistência.',
+  'A conta aberta: energia, revenda por kWh, taxa, ocupação e rampa — de onde sai o número do simulador.',
+  'Os formatos de viabilizar capital — próprio, financiamento, sociedade — e o que cada um exige.',
+  'Operação e preço: como se define a tarifa do seu ponto e o que fazer quando abre um concorrente perto.'
 ];
 var ul = document.getElementById('o-que-leva');
 LEVA.forEach(function(t){ var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
 
+// A resposta do "isso me devolve pra agenda?" tem que ser IDÊNTICA aqui e nas
+// nove páginas de curso, e tem que descrever o mecanismo real — que é: você
+// marca no painel, isso te põe numa lista que gente revisa, e o contato sai pelo
+// WhatsApp. Cinco redações diferentes viram cinco promessas diferentes, e a mais
+// generosa é a que vai ser cobrada.
+var VOLTA_PRA_AGENDA =
+  'Comprar não devolve. O que devolve é resolver a falta. Quando você definir o ponto, ' +
+  'viabilizar o capital ou trazer quem decide, marca isso no seu painel — e você entra na ' +
+  'lista que a equipe revisa, com o contato saindo pelo WhatsApp que você cadastrou. ' +
+  'A régua tem quatro critérios, então resolver um pode não ser suficiente sozinho: ' +
+  'quem confere é gente, não robô.';
+
 var FAQ = [
-  ['Comprando isso, a reunião abre?', 'Não automaticamente, e prometer isso seria mentira. O que abre a agenda é o critério: quando você tiver o ponto definido, o capital viabilizado ou o aval de quem decide, você marca isso dentro do app, a sua pontuação é recalculada e a agenda abre. O material é o caminho mais curto até lá — não um atalho por fora da régua.'],
-  ['Dá para fazer isso sozinho, sem curso?', 'Dá. A informação existe espalhada em norma técnica, manual de distribuidora e conversa de fornecedor. O que você compra aqui é o tempo de juntar tudo e a ordem em que as decisões precisam ser tomadas.'],
-  ['Serve para cidade pequena?', 'Serve para avaliar se serve. Boa parte do material é justamente o método de dizer não a um ponto ruim — e cidade pequena com rodovia costuma ser melhor que cidade grande sem fluxo na porta.'],
-  ['Por que R$ 197 e não de graça?', 'Porque conteúdo grátis não é assistido. E porque quem paga R$ 197 para entender um investimento de seis dígitos está no jogo — é com essa pessoa que a nossa equipe quer sentar depois.'],
-  ['Quanto tempo leva?', 'O material é feito para ser consumido em poucos dias, no celular. Não há prazo de acesso.'],
-  ['E se não servir?', 'Sete dias, reembolso integral, e o que você já baixou continua seu. Sem formulário e sem conversa de retenção.']
+  ['Comprando isso, a reunião abre?', VOLTA_PRA_AGENDA],
+  ['Dá para fazer isso sozinho, sem curso?', 'Dá. A norma da distribuidora é pública, o pedido de acesso não custa nada e a sua conta de luz está aí. O que custa é a ordem: saber qual pergunta vem antes de qual, e não descobrir que uma delas era importante depois de já ter comprado o equipamento.'],
+  ['Serve para cidade pequena?', 'Serve para avaliar se serve. Boa parte do material é o método de dizer não a um ponto ruim — e cidade pequena com rodovia costuma ser melhor que cidade grande sem fluxo na porta. Concluir "este ponto não presta" é uma resposta válida, e custa R$ 197. Descobrir depois custa o equipamento e a obra iniciada.'],
+  ['Vocês têm um eletroposto entregue para mostrar?', 'Ainda não temos obra entregue e documentada para mostrar, e é por isso que esta página não tem depoimento nem case. O material não se apoia em vitrine: ele se apoia em como a conta, a norma e a distribuidora funcionam — coisas que você confere em fonte pública e na sua própria conta de luz. Se você precisa ver obra pronta para decidir, não compre agora.'],
+  ['Vocês vendem eletroposto. Isso não é só isca para me vender depois?', 'Vendemos e executamos eletroposto turnkey, e é de lá que vem o nosso dinheiro — o material existe por causa disso. O que você tem que julgar é se ele se sustenta sozinho: ele te ensina a abrir qualquer proposta e achar o que ficou de fora, inclusive a nossa.'],
+  ['Por que R$ 197 e não de graça?', 'Conteúdo grátis não é assistido: vira aba aberta e morre ali. Quem paga R$ 197 para entender um investimento de seis dígitos abre o material no mesmo dia. Não existe preço cheio riscado do lado porque nunca existiu outro preço.'],
+  ['E se não servir?', 'Sete dias, contados do acesso. Você pede e o valor volta integral — inclusive o da planilha, se tiver levado. O que já baixou continua seu. Sem formulário de motivo, sem conversa de retenção e sem contraproposta.']
 ];
 var faqBox = document.getElementById('faq');
 FAQ.forEach(function(par){
@@ -333,7 +359,8 @@ FAQ.forEach(function(par){
 });
 
 document.getElementById('por-que').textContent =
-  'O valor pago aqui abate no upgrade para Credenciamento Integrador ou Mentoria Investidor. Fica como crédito na sua conta.';
+  'R$ 197 é o preço de um filtro, e é mais honesto dizer isso do que riscar um valor inventado ao lado. '
+  + 'O valor pago aqui vira crédito na sua conta e abate no upgrade para Credenciamento Integrador ou Mentoria Investidor.';
 
 // ── 3 · Preço e checkout vêm da API, nunca do HTML ─────────────────────────
 // `pc_cursos` é a fonte: preço, parcelamento, link de checkout e a grade de

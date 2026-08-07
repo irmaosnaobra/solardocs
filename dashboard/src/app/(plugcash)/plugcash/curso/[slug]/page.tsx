@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { plugcashApi, money, duracao, type Curso } from '@/services/plugcash';
+import { plugcashApi, money, duracao, type Curso, type Servico } from '@/services/plugcash';
 import { Marca, Cadeado, Check } from '../../Marca';
 import styles from '../../pc.module.css';
 
@@ -27,11 +27,17 @@ import styles from '../../pc.module.css';
 export default function PaginaDeVenda() {
   const { slug } = useParams<{ slug: string }>();
   const [curso, setCurso] = useState<Curso | null>(null);
+  const [servico, setServico] = useState<Servico | null>(null);
   const [estado, setEstado] = useState<'carregando' | 'ok' | 'nao_encontrado'>('carregando');
 
   useEffect(() => {
     plugcashApi.curso(slug)
-      .then(({ data }) => { setCurso(data.curso); setEstado('ok'); plugcashApi.evento('curso_venda_view', { slug }); })
+      .then(({ data }) => {
+        setCurso(data.curso);
+        setServico(data.servico);
+        setEstado('ok');
+        plugcashApi.evento('curso_venda_view', { slug });
+      })
       .catch(() => setEstado('nao_encontrado'));
   }, [slug]);
 
@@ -174,6 +180,47 @@ export default function PaginaDeVenda() {
               || '7 dias. Não serviu, você pede o reembolso integral e fica com o material que já baixou.'}
           </p>
         </section>
+
+        {/* 7b · O serviço que resolve a mesma dor.
+            Vem DEPOIS do preço e da garantia de propósito: quem já decidiu
+            comprar o curso não é interrompido, e quem chegou aqui achando que
+            não quer aprender a fazer descobre que existe a opção de contratar.
+            Sem este bloco, os dois produtos se canibalizam em silêncio — foi
+            exatamente o caso do Dossiê (R$ 297) e do Estudo de Viabilidade
+            (R$ 3.900), que são o mesmo documento com 13× de diferença. */}
+        {servico && (
+          <section className={styles.vendaBloco}>
+            <h2 className={styles.secaoTitulo}>Ou a gente faz por você</h2>
+            <div className={styles.card}>
+              <h3 className={styles.secaoTitulo} style={{ fontSize: 18 }}>{servico.titulo}</h3>
+              {servico.descricao && <p className={styles.secaoSub}>{servico.descricao}</p>}
+              {copy.servico_nota && (
+                <p className={styles.secaoSub} style={{ fontStyle: 'italic' }}>{copy.servico_nota}</p>
+              )}
+              {servico.entrega && (
+                <p className={styles.cursoLinha}>
+                  <strong>Você recebe:</strong> {servico.entrega}
+                  {servico.prazo_dias ? ` · em até ${servico.prazo_dias} dias úteis` : ''}
+                </p>
+              )}
+              <p className={styles.precoNota} style={{ marginTop: 14 }}>
+                <span className={styles.badgePreco}>{money(servico.preco_centavos)}</span>
+              </p>
+              {servico.checkout_url && (
+                <a
+                  href={servico.checkout_url}
+                  className={`${styles.btn} ${styles.btnFantasma}`}
+                  style={{ marginTop: 12 }}
+                  onClick={() => plugcashApi.evento('checkout_start', {
+                    slug: servico.slug, tipo: 'servico', origem: `curso:${curso.slug}`,
+                  })}
+                >
+                  Contratar o serviço
+                </a>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* 8 · FAQ */}
         {!!copy.faq?.length && (

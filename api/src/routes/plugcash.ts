@@ -106,7 +106,22 @@ router.get('/curso/:slug', async (req: Request, res: Response): Promise<void> =>
       .from('pc_aulas').select(AULA_PUBLICA)
       .eq('curso_id', (curso as any).id).eq('status', 'publicado').order('ordem');
 
-    res.json({ curso: { ...curso, aulas: aulas || [] } });
+    // O serviço que resolve a MESMA dor que o curso ensina a resolver sozinho.
+    // O documento do projeto é explícito: a oferta tem que aparecer no fim do
+    // conteúdo que cria a dor, porque "ninguém abre menu de serviços". O preço
+    // vem daqui, não da copy — preço duplicado é o jeito mais rápido de a página
+    // anunciar um valor que o checkout não cobra mais.
+    const servicoSlug = (curso as any).copy?.servico_slug;
+    let servico = null;
+    if (servicoSlug) {
+      const { data } = await supabase
+        .from('pc_servicos')
+        .select('slug,titulo,descricao,preco_centavos,checkout_url,entrega,prazo_dias')
+        .eq('slug', servicoSlug).eq('status', 'publicado').maybeSingle();
+      servico = data || null;
+    }
+
+    res.json({ curso: { ...curso, aulas: aulas || [] }, servico });
   } catch (err) {
     logger.error('plugcash', `falha no curso ${req.params.slug}`, err);
     res.status(500).json({ error: 'falha ao carregar curso' });

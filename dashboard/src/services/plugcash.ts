@@ -42,6 +42,13 @@ export type Curso = {
     faq?: { p: string; r: string }[];
     garantia?: string;
     video_url?: string;
+    checkout_bump_url?: string;
+    bump_texto?: string;
+    // Slug do serviço que resolve a mesma dor. O preço vem de pc_servicos, não
+    // daqui — preço duplicado desatualiza e a página anuncia valor que o
+    // checkout não cobra mais.
+    servico_slug?: string;
+    servico_nota?: string;
   };
   aulas: Aula[];
   // só vêm do /me (visão do aluno)
@@ -136,7 +143,8 @@ export type Elegivel = {
 
 export const plugcashApi = {
   catalogo: () => api.get<{ cursos: Curso[] }>('/plugcash/catalogo'),
-  curso: (slug: string) => api.get<{ curso: Curso }>(`/plugcash/curso/${slug}`),
+  curso: (slug: string) =>
+    api.get<{ curso: Curso; servico: Servico | null }>(`/plugcash/curso/${slug}`),
   me: () => api.get<MeResposta>('/plugcash/me'),
   onboarding: (objetivo: string) => api.post('/plugcash/onboarding', { objetivo }),
   aula: (id: string) => api.get<{ aula: Aula }>(`/plugcash/aula/${id}`),
