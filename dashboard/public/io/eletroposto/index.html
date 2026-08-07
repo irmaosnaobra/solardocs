@@ -868,6 +868,27 @@ src="https://www.facebook.com/tr?id=26788759654130722&ev=PageView&noscript=1"
 // ===== Supabase (mesmo projeto do /gerador) =====
 const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
+// ===== UTM de primeiro toque =====
+// Guardadas na 1ª visita e reusadas até o fim da sessão: o lead abre a página pelo
+// anúncio, some, volta pelo link direto e só então agenda — sem isto, a ficha que
+// chega ao CRM é "orgânica" e o criativo que pagou pelo lead fica sem crédito.
+// A ficha é o único lugar onde a UTM encontra a NOTA; o beacon de page_visits não
+// sabe a nota, e o CRM não sabe a origem.
+const UTM_KEY = 'ep_utm';
+function utmPrimeiroToque(){
+  const CAMPOS = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'];
+  try {
+    const salvo = JSON.parse(sessionStorage.getItem(UTM_KEY) || 'null');
+    if (salvo) return salvo;
+  } catch(_){}
+  const p = new URLSearchParams(location.search), u = {};
+  CAMPOS.forEach(k => { const v = (p.get(k) || '').trim(); if (v) u[k] = v.slice(0, 200); });
+  // Só persiste se veio alguma: sessão sem UTM não pode gravar {} e impedir que a
+  // próxima navegação com ?utm_source=... seja capturada.
+  if (Object.keys(u).length) { try { sessionStorage.setItem(UTM_KEY, JSON.stringify(u)); } catch(_){} }
+  return u;
+}
+
 async function supaInsert(table, body){
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
     method:'POST',
@@ -1427,6 +1448,7 @@ async function agendar(){
           perfil: perfilTexto(perfil), ponto: txt(ponto), invest: txt(invest),
           decisor: txt(decisor), rota: PERFIL_SEM_FLUXO.has(perfil.value) ? txt(rota) : '',
           trifasica: txt(trif), pts: q.pts,
+          ...utmPrimeiroToque(),
           ficha: [
             `LP ELETROPOSTO — ${perfilTexto(perfil)}`,
             `NOTA 1 · ${q.pts}/11 pts (sem local definido)`,
@@ -1618,6 +1640,11 @@ async function gravarAgendamento(){
       observacao:       obs,
       created_by:       'lp_eletroposto',
       src:              leadSrc(),   // ?src=ig (automação do IG) → EP Organic; sem src = EP Tráfego
+      // As colunas de qualificação (nota, tem_ponto, capital_faixa, motivo_descarte…)
+      // NÃO vão aqui: o trigger trg_eletroposto_estruturar as deriva da observação.
+      // Assim uma versão velha desta página em cache continua gravando ficha completa.
+      // UTM é a exceção — não existe na observação, só na URL.
+      ...utmPrimeiroToque(),
     });
 
     // Evento de conversão — é ESTE que a campanha otimiza

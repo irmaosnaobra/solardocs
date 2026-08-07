@@ -171,6 +171,15 @@ function cabeNoTeto(): boolean {
 // casamento com quem tem ponto e não tem dinheiro. Ganha selo no alerta.
 const INVEST_COM_CAPITAL = new Set(['Recurso próprio', 'Recurso próprio + financiamento', 'Financiamento já aprovado']);
 
+// UTM de primeiro toque que a LP guarda em sessionStorage. Chega como texto livre
+// de querystring pública: corta tamanho e descarta vazio pra não gravar ''.
+const UTM_CAMPOS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
+function utm(b: Record<string, unknown>): Record<string, string | null> {
+  const out: Record<string, string | null> = {};
+  for (const k of UTM_CAMPOS) out[k] = String(b[k] || '').trim().slice(0, 200) || null;
+  return out;
+}
+
 router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
   const b = req.body || {};
   const nome = String(b.nome || '').trim();
@@ -193,6 +202,11 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
     trifasica: String(b.trifasica || '').trim().slice(0, 40)  || null,
     pts:       Number.isFinite(Number(b.pts)) ? Number(b.pts) : null,
     ficha:     String(b.ficha     || '').trim().slice(0, 4000) || null,
+    // Sem UTM não dá pra saber qual criativo trouxe o NOTA 1 — e é justamente o
+    // NOTA 1 que vira comprador do PlugCash. As colunas slug (tem_ponto,
+    // capital_faixa, motivo_descarte…) não vêm daqui: o trigger do banco as
+    // deriva dos rótulos acima, então LP velha em cache continua entrando certa.
+    ...utm(b),
   };
 
   let id: number | null = null;
