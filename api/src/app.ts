@@ -38,6 +38,7 @@ import ioLinksRoutes from './routes/ioLinks';
 import ioIndicacoesRoutes from './routes/ioIndicacoes';
 import ioEletropostoRoutes from './routes/ioEletroposto';
 import ioSolarRoutes from './routes/ioSolar';
+import plugcashRoutes from './routes/plugcash';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
 const app = express();
@@ -129,6 +130,9 @@ app.use('/io-links', ioLinksRoutes);
 app.use('/io-indicacoes', ioIndicacoesRoutes);
 app.use('/io/eletroposto', ioEletropostoRoutes);
 app.use('/io/solar', ioSolarRoutes);
+// PlugCash — app de conteudo do eletroposto. Publico (catalogo/pagina de venda),
+// logado (JWT do proprio solardoc.app) e /admin, tudo no mesmo prefixo.
+app.use('/plugcash', plugcashRoutes);
 
 // Sentry entra DEPOIS das rotas e ANTES do nosso handler: ele só observa e passa
 // o erro adiante, quem responde ao cliente continua sendo o handler abaixo.

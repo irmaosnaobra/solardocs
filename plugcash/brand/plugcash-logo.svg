@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 268 80" width="268" height="80" role="img" aria-label="PlugCash">
+  <title>PlugCash</title>
+  <rect x="8" y="8" width="64" height="64" rx="17" fill="#00C853"/>
+  <rect x="38.5" y="15" width="3.2" height="50" rx="1.6" fill="#FFFFFF"/>
+  <path d="M44 22 L28 48 L39 48 L36 66 L54 38 L42 38 Z" fill="#FFFFFF"/>
+  <text x="88" y="52" font-family="Inter, Poppins, Montserrat, 'Helvetica Neue', Arial, sans-serif" font-size="34" font-weight="700" letter-spacing="-0.8">
+    <tspan fill="#0A0A0A">Plug</tspan><tspan fill="#00C853">Cash</tspan>
+  </text>
+</svg>

@@ -1,0 +1,376 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   PLUGCASH — tokens e componentes.
+
+   Regras da marca que estão codificadas aqui:
+   · Verde é ACENTO, nunca fundo de bloco grande. Ele aparece em botão primário,
+     badge de preço, barra de progresso e no símbolo. Fundo verde em bloco largo
+     deixa o produto com cara de infoproduto barato.
+   · Página de venda e hero = fundo preto. Interior do app = fundo claro.
+   · Sem gradiente, sem glassmorphism, sem sombra pesada. Borda de 1px e raio
+     consistente — o público veio de uma peça técnica de 7 minutos.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.pc {
+  --pc-green: #00c853;
+  --pc-green-deep: #009b40;
+  --pc-green-soft: #e6f9ee;
+  --pc-black: #0a0a0a;
+  --pc-white: #fff;
+  --pc-gray-900: #141414;
+  --pc-gray-800: #262626;
+  --pc-gray-600: #6b6b6b;
+  --pc-gray-300: #d9d9d9;
+  --pc-gray-100: #f5f5f5;
+  --pc-radius: 12px;
+  --pc-radius-lg: 20px;
+
+  min-height: 100vh;
+  color: var(--pc-black);
+  background: var(--pc-gray-100);
+  -webkit-font-smoothing: antialiased;
+}
+
+.pcDark {
+  background: var(--pc-black);
+  color: var(--pc-white);
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ── Marca ─────────────────────────────────────────────────────────────────
+   O lockup é símbolo (SVG) + texto renderizado pela fonte da página. Assim não
+   depende de fonte instalada nem de converter texto em vetor — o problema que o
+   documento de marca aponta no SVG original. */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  color: inherit;
+}
+.logoMark { width: 34px; height: 34px; flex: none; }
+.logoCash { color: var(--pc-green); }
+
+/* ── Cabeçalho ─────────────────────────────────────────────────────────────*/
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--pc-gray-300);
+}
+.pcDark .topo { border-bottom-color: var(--pc-gray-800); }
+.topoAcoes { display: flex; align-items: center; gap: 12px; }
+
+.nivel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--pc-green-soft);
+  color: var(--pc-green-deep);
+}
+
+/* ── Botões ────────────────────────────────────────────────────────────────*/
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 22px;
+  border: 0;
+  border-radius: var(--pc-radius);
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.btnPrimario { background: var(--pc-green); color: #fff; }
+.btnPrimario:hover { background: var(--pc-green-deep); }
+.btnPrimario:disabled { background: var(--pc-gray-300); color: var(--pc-gray-600); cursor: default; }
+
+.btnFantasma {
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--pc-gray-300);
+}
+.pcDark .btnFantasma { border-color: var(--pc-gray-800); }
+.btnFantasma:hover { border-color: var(--pc-green); color: var(--pc-green-deep); }
+
+.btnBloco { width: 100%; }
+
+/* ── Hero (fundo preto) ────────────────────────────────────────────────────*/
+.hero { background: var(--pc-black); color: var(--pc-white); padding: 64px 0 72px; }
+.heroTitulo {
+  font-size: clamp(30px, 5vw, 46px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+  max-width: 22ch;
+}
+.heroSub {
+  font-size: 18px;
+  line-height: 1.55;
+  color: #cfcfcf;
+  margin: 0 0 28px;
+  max-width: 52ch;
+}
+.heroAcoes { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+/* ── Cartões ───────────────────────────────────────────────────────────────*/
+.card {
+  background: #fff;
+  border: 1px solid var(--pc-gray-300);
+  border-radius: var(--pc-radius-lg);
+  padding: 22px;
+}
+
+.secao { padding: 40px 0; }
+.secaoTitulo {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0 0 4px;
+}
+.secaoSub { color: var(--pc-gray-600); font-size: 15px; margin: 0 0 20px; }
+
+/* ── Próximo passo ─────────────────────────────────────────────────────────
+   UMA recomendação, com o porquê visível. Recomendação sem motivo parece
+   anúncio; com o motivo, parece que alguém leu o que ele respondeu. */
+.passo {
+  border: 1px solid var(--pc-green);
+  border-radius: var(--pc-radius-lg);
+  background: var(--pc-green-soft);
+  padding: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+}
+.passoRotulo {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pc-green-deep);
+  margin: 0 0 6px;
+}
+.passoTitulo { font-size: 21px; font-weight: 800; margin: 0 0 6px; }
+.passoPorque { color: #2f5c41; font-size: 15px; margin: 0; max-width: 56ch; }
+
+/* ── Grade de cursos ───────────────────────────────────────────────────────*/
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+  gap: 18px;
+}
+
+.curso {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--pc-gray-300);
+  border-radius: var(--pc-radius-lg);
+  overflow: hidden;
+}
+
+/* Travado: thumbnail dessaturada, MAS título e descrição continuam legíveis e a
+   grade de aulas aparece inteira. Não borrar o conteúdo pra criar curiosidade —
+   saber exatamente o que está perdendo converte melhor que mistério. */
+.cursoThumb {
+  aspect-ratio: 16 / 9;
+  background: var(--pc-gray-100);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--pc-gray-300);
+}
+.cursoThumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.travado .cursoThumb img { filter: grayscale(1); opacity: 0.55; }
+.travado .cursoThumb { background: var(--pc-gray-300); }
+
+.cadeado {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.82);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cursoCorpo { padding: 18px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.cursoTitulo { font-size: 17px; font-weight: 700; margin: 0; line-height: 1.3; }
+.cursoLinha { font-size: 14px; color: var(--pc-gray-600); margin: 0; line-height: 1.45; }
+
+.badgePreco {
+  align-self: flex-start;
+  background: var(--pc-green-soft);
+  color: var(--pc-green-deep);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+.badgeNivel {
+  align-self: flex-start;
+  background: var(--pc-gray-100);
+  color: var(--pc-gray-600);
+  border: 1px solid var(--pc-gray-300);
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.cursoRodape { margin-top: auto; padding-top: 6px; }
+
+.barra { height: 6px; background: var(--pc-gray-100); border-radius: 999px; overflow: hidden; }
+.barraFill { height: 100%; background: var(--pc-green); }
+.barraTexto { font-size: 12px; color: var(--pc-gray-600); margin: 6px 0 0; }
+
+/* Grade de aulas dentro do card: aberta mesmo travada. */
+.aulas { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.aula {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--pc-gray-600);
+}
+.aulaDuracao { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* ── Login ─────────────────────────────────────────────────────────────────
+   Fundo preto, logo centralizado, card branco. Sem ilustração e sem carrossel
+   de depoimento — é uma porta, não uma página de venda. */
+.loginTela {
+  min-height: 100vh;
+  background: var(--pc-black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+}
+.loginCard {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border-radius: var(--pc-radius-lg);
+  padding: 32px;
+}
+.loginTopo { text-align: center; margin-bottom: 26px; }
+.campo { display: block; margin-bottom: 16px; }
+.campoRotulo { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.campoInput {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--pc-gray-300);
+  border-radius: var(--pc-radius);
+  font: inherit;
+  font-size: 15px;
+  background: #fff;
+  color: var(--pc-black);
+}
+.campoInput:focus { outline: 2px solid var(--pc-green); outline-offset: -1px; border-color: var(--pc-green); }
+.erro {
+  background: #fdecec;
+  border: 1px solid #f5c2c2;
+  color: #a32727;
+  font-size: 14px;
+  border-radius: var(--pc-radius);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+.ajuda { text-align: center; font-size: 14px; color: var(--pc-gray-600); margin: 18px 0 0; }
+.ajuda a { color: var(--pc-green-deep); font-weight: 700; }
+
+/* ── Onboarding ────────────────────────────────────────────────────────────*/
+.opcoes { display: grid; gap: 10px; margin-top: 18px; }
+.opcao {
+  text-align: left;
+  padding: 16px 18px;
+  border: 1px solid var(--pc-gray-300);
+  border-radius: var(--pc-radius);
+  background: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.opcao:hover { border-color: var(--pc-green); color: var(--pc-green-deep); }
+
+/* ── Página de venda do curso ──────────────────────────────────────────────*/
+.vendaHero { background: var(--pc-black); color: #fff; padding: 56px 0 60px; }
+.vendaGrid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; }
+.vendaBloco { padding: 44px 0; border-bottom: 1px solid var(--pc-gray-300); }
+.vendaBloco:last-child { border-bottom: 0; }
+.lista { margin: 0; padding-left: 20px; display: grid; gap: 10px; font-size: 16px; line-height: 1.5; }
+.duasColunas { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.faq { border-top: 1px solid var(--pc-gray-300); padding: 16px 0; }
+.faq summary { font-weight: 700; cursor: pointer; font-size: 16px; }
+.faq p { margin: 10px 0 0; color: var(--pc-gray-600); line-height: 1.55; }
+.precoGrande { font-size: 38px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+.precoNota { color: var(--pc-gray-600); font-size: 14px; margin: 6px 0 0; }
+
+/* ── Admin ─────────────────────────────────────────────────────────────────*/
+.tabela { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabela th, .tabela td { text-align: left; padding: 11px 10px; border-bottom: 1px solid var(--pc-gray-300); }
+.tabela th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--pc-gray-600); }
+.tabela input, .tabela select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--pc-gray-300);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  background: #fff;
+}
+.selo { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+.seloRascunho { background: var(--pc-gray-100); color: var(--pc-gray-600); border: 1px solid var(--pc-gray-300); }
+.seloPublicado { background: var(--pc-green-soft); color: var(--pc-green-deep); }
+
+.aviso {
+  background: #fff8e1;
+  border: 1px solid #f2dfa0;
+  color: #6b5400;
+  border-radius: var(--pc-radius);
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.vazio {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--pc-gray-600);
+  border: 1px dashed var(--pc-gray-300);
+  border-radius: var(--pc-radius-lg);
+}
+
+@media (max-width: 760px) {
+  .vendaGrid, .duasColunas { grid-template-columns: 1fr; }
+  .passo { flex-direction: column; align-items: flex-start; }
+}
