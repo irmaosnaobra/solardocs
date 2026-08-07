@@ -6,6 +6,7 @@ import { isAuthenticated } from '@/services/auth';
 import { plugcashApi, duracao, money, type Curso, type Aula, type Oferta } from '@/services/plugcash';
 import { Check } from '../../../Marca';
 import { Chrome } from '../../../Chrome';
+import { Leitor } from './Leitor';
 import styles from '../../../pc.module.css';
 
 function OfertaDaAula({ oferta, aula }: { oferta: Oferta; aula: Aula }) {
@@ -105,7 +106,17 @@ export default function Player() {
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', gap: 24 }}>
             <div>
               {semAcesso && <div className={styles.aviso}>Esta aula ainda não está liberada pra você.</div>}
-              {aula?.video_url ? (
+              {/* Duas formas de aula, um progresso só. Quem manda é o que
+                  existe: tendo vídeo, é vídeo; tendo páginas, é leitura. Sem
+                  enum de tipo — o dado já responde. */}
+              {aula && !aula.video_url && aula.paginas?.length ? (
+                <Leitor
+                  paginas={aula.paginas}
+                  aulaId={aula.id}
+                  onPct={(pct) => plugcashApi.progresso(aula.id, pct).catch(() => {})}
+                  ofertaFinal={oferta ? <OfertaDaAula oferta={oferta} aula={aula} /> : undefined}
+                />
+              ) : aula?.video_url ? (
                 <video
                   key={aula.id}
                   src={aula.video_url}
@@ -126,7 +137,7 @@ export default function Player() {
               ) : (
                 !semAcesso && (
                   <div className={styles.vazio}>
-                    Esta aula ainda não tem vídeo publicado.
+                    Esta aula ainda não tem conteúdo publicado.
                   </div>
                 )
               )}
@@ -145,7 +156,9 @@ export default function Player() {
                       descobrir que não sabe medir carga e vê que existe quem
                       meça por ela. A mesma oferta num menu seria ruído; aqui
                       ela é a resposta óbvia da pergunta que a aula abriu. */}
-                  {oferta && <OfertaDaAula oferta={oferta} aula={aula} />}
+                  {oferta && !(aula.paginas?.length && !aula.video_url) && (
+                    <OfertaDaAula oferta={oferta} aula={aula} />
+                  )}
                 </>
               )}
             </div>

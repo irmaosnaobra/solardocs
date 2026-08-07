@@ -562,3 +562,110 @@
   .topbarMarca { min-width: 0; }
   .appContent { padding: 16px 16px 32px; }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   AULA EM PÁGINAS
+
+   O formato que não depende de câmera: a pessoa avança página por página, com
+   diagrama no lugar de parágrafo. Para conteúdo técnico — padrão de entrada,
+   as quatro saídas quando a carga não dá, o vaivém do protocolo — um esquema
+   ensina mais que vinte minutos de alguém falando.
+
+   A página é um palco: fundo claro, diagrama grande, uma ideia por vez. O que
+   ela NÃO faz é empilhar texto — se precisou de três parágrafos, virou duas
+   páginas.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.leitor {
+  background: #fff;
+  border: 1px solid var(--pc-gray-300);
+  border-radius: var(--pc-radius-lg);
+  overflow: hidden;
+}
+
+.leitorPalco {
+  padding: 40px 44px 34px;
+  min-height: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.leitorNum {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pc-green-deep);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+.leitorTitulo {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0;
+  text-wrap: balance;
+  max-width: 26ch;
+}
+.leitorTexto { font-size: 17px; line-height: 1.65; margin: 0; max-width: 64ch; color: #262626; }
+.leitorLista { margin: 0; padding-left: 20px; display: grid; gap: 9px; font-size: 16.5px; line-height: 1.55; max-width: 62ch; }
+.leitorLista li::marker { color: var(--pc-green); }
+
+/* O diagrama é o centro da página, não um adorno ao lado do texto. */
+.leitorDiagrama {
+  background: var(--pc-gray-100);
+  border: 1px solid var(--pc-gray-300);
+  border-radius: var(--pc-radius);
+  padding: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.leitorDiagrama svg { width: 100%; height: auto; max-height: 380px; display: block; }
+.leitorLegenda { font-size: 13.5px; color: var(--pc-gray-600); margin: -12px 0 0; line-height: 1.5; }
+
+/* Uma frase por página, e ela é o que a pessoa leva embora. */
+.leitorDestaque {
+  border-left: 3px solid var(--pc-green);
+  background: var(--pc-green-soft);
+  border-radius: 0 var(--pc-radius) var(--pc-radius) 0;
+  padding: 15px 18px;
+  font-size: 16.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin: auto 0 0;
+  color: #14532d;
+}
+
+/* ── Navegação ─────────────────────────────────────────────────────────────*/
+.leitorBarra { height: 4px; background: var(--pc-gray-100); }
+.leitorBarraFill { height: 100%; background: var(--pc-green); transition: width .25s ease; }
+
+.leitorPe {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--pc-gray-300);
+  background: #fff;
+}
+.leitorContagem { font-size: 13.5px; color: var(--pc-gray-600); font-variant-numeric: tabular-nums; }
+
+/* Pontinhos: dão a noção do tamanho da aula sem precisar contar. */
+.leitorPontos { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; flex: 1; }
+.leitorPonto {
+  width: 7px; height: 7px; border-radius: 999px;
+  background: var(--pc-gray-300); border: 0; padding: 0; cursor: pointer;
+}
+.leitorPontoAtivo { background: var(--pc-green); }
+.leitorPontoVisto { background: var(--pc-green-deep); opacity: .45; }
+.leitorPonto:focus-visible { outline: 2px solid var(--pc-green); outline-offset: 2px; }
+
+@media (max-width: 760px) {
+  .leitorPalco { padding: 26px 20px 24px; min-height: 0; }
+  .leitorTitulo { font-size: 22px; }
+  .leitorPontos { display: none; }
+}

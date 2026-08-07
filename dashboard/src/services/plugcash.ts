@@ -4,6 +4,20 @@ import api from './api';
 // produção) e o mesmo Bearer do cookie `solardoc_token` — quem já está logado no
 // SolarDoc já chega logado aqui, que é a regra do projeto.
 
+// Uma página da aula ilustrada. `svg` é o diagrama inline — é o que substitui
+// o parágrafo, não o que decora. Tudo é opcional menos título: a página se monta
+// com o que tiver.
+export type Pagina = {
+  ordem: number;
+  titulo: string;
+  texto?: string;
+  lista?: string[];
+  svg?: string;
+  legenda?: string;
+  /** A frase que a pessoa leva da página. Uma por página, no máximo. */
+  destaque?: string;
+};
+
 export type Aula = {
   id: string;
   curso_id: string;
@@ -14,6 +28,8 @@ export type Aula = {
   gratuita: boolean;
   video_url?: string | null;
   material_url?: string | null;
+  // CONTEÚDO PAGO: só vem de GET /aula/:id, depois da checagem de acesso.
+  paginas?: Pagina[];
   status?: string;
   progresso?: { pct: number; concluida: boolean } | null;
 };

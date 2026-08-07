@@ -381,7 +381,7 @@ router.get('/aula/:id', authMiddleware, async (req: Request, res: Response): Pro
   try {
     const { data: aula } = await supabase
       .from('pc_aulas')
-      .select('id,curso_id,ordem,titulo,descricao,duracao_seg,video_url,material_url,gratuita,oferta_servico_slug,oferta_curso_slug')
+      .select('id,curso_id,ordem,titulo,descricao,duracao_seg,video_url,material_url,gratuita,paginas,oferta_servico_slug,oferta_curso_slug')
       .eq('id', String(req.params.id))
       .eq('status', 'publicado')
       .maybeSingle();
@@ -644,12 +644,36 @@ router.post('/admin/cursos', ...admin, async (req: Request, res: Response): Prom
 });
 
 const CAMPOS_AULA = ['curso_id', 'ordem', 'titulo', 'descricao', 'duracao_seg', 'video_url',
-  'material_url', 'gratuita', 'status'];
+  'material_url', 'gratuita', 'status', 'paginas'];
+
+// O diagrama de cada página é SVG inline, escrito pelo admin e renderizado como
+// HTML no player. Admin é confiável, mas SVG carrega script — e uma conta de
+// admin comprometida não pode virar execução de código na sessão de todo aluno.
+// A validação é na GRAVAÇÃO, não na leitura: barra na porta em vez de confiar
+// que toda tela lembre de limpar.
+const SVG_PROIBIDO = /<\s*script|<\s*foreignObject|\son\w+\s*=|javascript:/i;
+
+function paginasSeguras(paginas: unknown): { ok: true } | { ok: false; erro: string } {
+  if (!Array.isArray(paginas)) return { ok: false, erro: 'paginas precisa ser uma lista' };
+  for (const [i, p] of paginas.entries()) {
+    const svg = (p as any)?.svg;
+    if (typeof svg === 'string' && SVG_PROIBIDO.test(svg)) {
+      return { ok: false, erro: `o diagrama da pagina ${i + 1} tem script ou evento — recusado` };
+    }
+  }
+  return { ok: true };
+}
 
 router.post('/admin/aulas', ...admin, async (req: Request, res: Response): Promise<void> => {
   const body = req.body || {};
   const patch: Record<string, unknown> = {};
   for (const k of CAMPOS_AULA) if (k in body) patch[k] = body[k];
+
+  if ('paginas' in patch) {
+    const v = paginasSeguras(patch.paginas);
+    if (!v.ok) { res.status(400).json({ error: v.erro }); return; }
+  }
+
   try {
     const q = body.id
       ? supabase.from('pc_aulas').update(patch).eq('id', String(body.id)).select('*').single()

@@ -316,7 +316,9 @@ interface HistoricoBloco {
   nao_medivel: string | null;   // motivo, quando não dá pra montar série
 }
 // Mês no fuso de São Paulo (mesmo padrão do gráfico de leads por origem).
-const fmtMesSP = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' });
+// Pede a data COMPLETA e corta: só o padrão y-m-d do en-CA é garantido. Pedir ano+mês
+// sozinhos deixa o ICU escolher o formato (pode vir '08/2026' em outro runtime).
+const fmtMesSP = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
 function mesSP(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const t = new Date(iso).getTime();
