@@ -6,7 +6,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // impede a rede de virar um novo problema: janela de horário, intervalo entre
 // convites, não repetir quem a repescagem já vai chamar e desistir depois de 3.
 
-const state = new Map<string, { key: string; value: any; updated_at: string }>();
+// O mesmo fake atende duas tabelas: `system_state` (chave/valor, o uso original)
+// e `pc_cursos`, que o gate da oferta consulta por slug. Daí os campos opcionais.
+const state = new Map<string, {
+  key: string; value?: any; updated_at?: string;
+  status?: string; checkout_url?: string | null;
+}>();
 let nota1: any[] = [];
 let tetoOk = true;
 let falharEnvio = false;
@@ -177,5 +182,47 @@ describe('todo nota 1 entra no grupo', () => {
     vi.setSystemTime(DENTRO);
     process.env.EP_CONVITE_GARANTIDO_OFF = '1';
     expect((await tick()).motivo).toBe('desligado');
+  });
+  // ── O gate que a oferta paga adicionou ─────────────────────────────────────
+  // Depois que o NOTA 1 passou a ir pra pagina de venda, TODO lead novo fica com
+  // `convite_enviado_at` nulo — que e exatamente o que esta varredura procura.
+  // Sem o gate, ela mandaria o grupo de graca no WhatsApp de quem acabou de ver
+  // uma oferta de R$ 197. Este teste e o que impede a rede de virar o furo.
+  it('para sozinho quando a oferta de entrada esta vendavel', async () => {
+    vi.setSystemTime(DENTRO);
+    state.set('fundamentos', { key: 'fundamentos', status: 'publicado', checkout_url: 'https://pay.kiwify.com.br/abc' });
+    const r = await tick();
+    expect(r.motivo).toBe('oferta_no_ar');
+    expect(enviadas).toHaveLength(0);
+    expect(marcados).toHaveLength(0);
+  });
+
+  it('continua convidando enquanto o curso estiver publicado SEM link de checkout', async () => {
+    vi.setSystemTime(DENTRO);
+    // Meio caminho e o pior caso: a pagina abriria com um botao que nao compra
+    // nada. Enquanto isso, o grupo e melhor que nada.
+    state.set('fundamentos', { key: 'fundamentos', status: 'publicado', checkout_url: null });
+    const r = await tick();
+    expect(r.enviados).toBe(1);
+  });
+
+  it('convida quando o curso ainda esta em rascunho', async () => {
+    vi.setSystemTime(DENTRO);
+    state.set('fundamentos', { key: 'fundamentos', status: 'rascunho', checkout_url: 'https://pay.kiwify.com.br/abc' });
+    expect((await tick()).enviados).toBe(1);
+  });
+
+  it('EP_NOTA1_CONVITE_GRUPO=1 segura o grupo mesmo com a oferta no ar', async () => {
+    vi.setSystemTime(DENTRO);
+    state.set('fundamentos', { key: 'fundamentos', status: 'publicado', checkout_url: 'https://pay.kiwify.com.br/abc' });
+    process.env.EP_NOTA1_CONVITE_GRUPO = '1';
+    expect((await tick()).enviados).toBe(1);
+  });
+
+  it('EP_NOTA1_CONVITE_GRUPO=0 desliga o grupo mesmo sem oferta cadastrada', async () => {
+    vi.setSystemTime(DENTRO);
+    process.env.EP_NOTA1_CONVITE_GRUPO = '0';
+    expect((await tick()).motivo).toBe('oferta_no_ar');
+    expect(enviadas).toHaveLength(0);
   });
 });

@@ -295,6 +295,25 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
       ).catch(() => {});
     }
 
+    // ── MESMA REDE, PRO PLUGCASH ──
+    // Uma venda de curso do eletroposto que não casou com `pc_gateway_produtos`
+    // cairia aqui embaixo virando linha em limpapro_events — funil errado, e o
+    // comprador sem acesso nenhum. Diferente do kit, o conserto não é env var:
+    // é cadastrar o produto na aba Gateway do /admin do PlugCash.
+    // Só em pedido PAGO: waiting_payment e abandono não acordam ninguém.
+    if (status === 'paid' && /eletroposto|plugcash|ponto zero|integrador|recarga/i.test(nomeProduto || '')) {
+      console.error(`[kiwify] PAGO e não mapeado no PlugCash: "${nomeProduto}" (${idProduto}) · ${emailComprador}`);
+      sendOpsAlert(
+        'PlugCash: venda paga que o sistema não reconheceu',
+        `Pedido ${orderId} de ${emailComprador || '(sem email)'} foi PAGO e o produto ` +
+        `"${nomeProduto}" (product_id ${idProduto}) não está mapeado em pc_gateway_produtos.\n\n` +
+        `O comprador NÃO recebeu acesso e a venda foi parar no funil do LimpaPro.\n\n` +
+        `Conserto: solardoc.app/plugcash/admin → aba Gateway → cadastre o produto com o ` +
+        `product_id acima (o ID não muda quando alguém renomeia o produto na Kiwify) e ` +
+        `aponte pro slug do curso. Depois libere o acesso desta pessoa na mão.`,
+      ).catch(() => {});
+    }
+
     const row = {
       event_type:   'purchase',
       order_id:     orderId,

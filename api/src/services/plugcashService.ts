@@ -62,6 +62,37 @@ export function telNorm(t?: string | null): string | null {
   return null;
 }
 
+// ── A oferta de entrada já está vendável? ───────────────────────────────────
+// FONTE ÚNICA da decisão "grupo de WhatsApp ou página de venda". Três caminhos
+// perguntam isso e precisam responder igual:
+//   · POST /io/eletroposto/nota1        — o envio imediato do convite
+//   · runConviteNota1Garantido()        — o tick que varre quem ficou sem convite
+//   · /io/eletroposto/material          — a própria página, via /plugcash/curso
+//
+// Se divergirem, o pior caso é silencioso e caro: a página cobra R$ 197 e o tick
+// entrega o mesmo conteúdo de graça no WhatsApp dez minutos depois.
+//
+// Vendável = curso publicado E com link de checkout. Publicar sem link é meio
+// caminho, e meio caminho aqui é um botão que não compra nada.
+export async function ofertaDeEntradaVendavel(): Promise<boolean> {
+  // Sobrescrita manual, se um dia for preciso passar por cima do catálogo:
+  //   EP_NOTA1_CONVITE_GRUPO=1 → grupo LIGADO  (finge que não há oferta)
+  //   EP_NOTA1_CONVITE_GRUPO=0 → grupo DESLIGADO (finge que há)
+  const forcado = (process.env.EP_NOTA1_CONVITE_GRUPO || '').trim();
+  if (forcado === '1') return false;
+  if (forcado === '0') return true;
+  try {
+    const { data } = await supabase
+      .from('pc_cursos').select('status,checkout_url').eq('slug', 'fundamentos').maybeSingle();
+    return (data as any)?.status === 'publicado' && !!(data as any)?.checkout_url;
+  } catch (err) {
+    // Banco fora do ar: responde "não vendável" → o grupo continua. O erro caro é
+    // mandar o lead pra uma página muda, não é mandar um convite a mais.
+    logger.error('plugcash', 'nao consegui checar a oferta de entrada', err);
+    return false;
+  }
+}
+
 // ── De que item do PlugCash é este pedido? ──────────────────────────────────
 // Casa primeiro por ID (estável) e só depois por nome (que o operador pode
 // renomear). Produto que não está cadastrado devolve null — e null aqui

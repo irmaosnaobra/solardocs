@@ -1,5 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// TODO NOTA 1 ENTRA NO GRUPO. SEMPRE.
+// TODO NOTA 1 ENTRA NO GRUPO — ENQUANTO O GRUPO FOR O DESTINO DELE.
+//
+// ATUALIZADO EM 07/08/2026: o destino do NOTA 1 passou a ser a página de venda
+// do material (/io/eletroposto/material). Assim que essa oferta estiver vendável
+// (curso publicado + link de checkout), este tick para sozinho — ver o gate
+// `ofertaDeEntradaVendavel()` logo no começo de runConviteNota1Garantido().
+// Até lá, tudo abaixo continua valendo como sempre valeu.
 //
 // Regra do dono: quem cai como NOTA 1 na LP do eletroposto tem que ser convidado
 // pro grupo — sem exceção. Hoje o convite sai na hora, dentro do POST /nota1, e
@@ -29,6 +35,7 @@ import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { bolhasConviteParaFicha } from './eletropostoRepescagem';
+import { ofertaDeEntradaVendavel } from '../plugcashService';
 
 const ULTIMO_KEY = 'ep_convite_garantido_ultimo';
 const TENTATIVA_PREFIX = 'ep_convite_tentativa:';
@@ -61,6 +68,21 @@ type Resultado = { enviados: number; motivo?: string; pendentes?: number };
 export async function runConviteNota1Garantido(): Promise<Resultado> {
   if (desligado()) return { enviados: 0, motivo: 'desligado' };
   if (foraDaJanela()) return { enviados: 0, motivo: 'fora_da_janela' };
+
+  // ── A rede vira armadilha quando a oferta entra no ar ──
+  // Desde 07/08/2026 o NOTA 1 é levado pra página de venda do material em vez do
+  // grupo, e o POST /nota1 para de enviar o convite. Consequência direta: TODO
+  // lead novo passa a ter `convite_enviado_at` nulo — que é exatamente o que esta
+  // varredura procura. Sem este gate, ela mandaria o grupo de graça no WhatsApp
+  // de quem acabou de ver uma oferta de R$ 197, minutos depois. A rede embaixo do
+  // trapézio viraria o furo.
+  //
+  // A pergunta é a MESMA função que o POST /nota1 usa. Duplicar a regra aqui era
+  // garantir que um dia os dois discordassem — e a discordância só apareceria na
+  // conversão caindo, sem erro nenhum no log.
+  if (await ofertaDeEntradaVendavel()) {
+    return { enviados: 0, motivo: 'oferta_no_ar' };
+  }
 
   const agora = Date.now();
   const { data: pendentes, error } = await supabaseGerador

@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { supabaseGerador } from '../utils/supabaseGerador';
-// O catálogo do PlugCash vive no OUTRO projeto Supabase (solardoc-pro): é ele
-// que diz se a oferta de entrada já está vendável, e é isso que decide entre
-// mandar o lead pro grupo ou pra página de venda.
-import { supabase } from '../utils/supabase';
+// Quem decide entre o grupo de WhatsApp e a página de venda é o estado do
+// catálogo do PlugCash. A pergunta mora numa função só — este endpoint e o tick
+// do convite garantido precisam responder igual, senão a página cobra e o tick
+// entrega de graça dez minutos depois.
+import { ofertaDeEntradaVendavel } from '../services/plugcashService';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 // A copy do convite mora no serviço de repescagem (é a MESMA mensagem nos dois
@@ -238,28 +239,14 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
   // Publicou o curso e colou o link no /admin? O grupo para sozinho. Despublicou?
   // O grupo volta sozinho. A gravação da ficha acontece nos dois casos — é ela
   // que fecha o vazamento do NOTA 1.
-  let convidar = true;
-  if (process.env.EP_NOTA1_CONVITE_GRUPO === '0') {
-    convidar = false;   // desligamento manual, se um dia for preciso
-  } else {
-    try {
-      const { data: oferta } = await supabase
-        .from('pc_cursos')
-        .select('status,checkout_url')
-        .eq('slug', 'fundamentos')
-        .maybeSingle();
-      const vendavel = (oferta as any)?.status === 'publicado' && !!(oferta as any)?.checkout_url;
-      if (vendavel) convidar = false;
-    } catch (err) {
-      // Banco fora do ar: convida. O erro é mandar o lead pra uma página muda.
-      logger.error('io-eletroposto-nota1', 'nao consegui checar a oferta — mantendo o grupo', err);
-    }
-  }
+  let convidar = !(await ofertaDeEntradaVendavel());
   if (!convidar) {
     res.json({ ok: true, id, convite: false, motivo: 'oferta no ar — lead vai para /material' });
     return;
   }
 
+  // Já convidado nas últimas 24h? Não repete. Vale pro caso de o lead preencher
+  // o formulário duas vezes (acontece: ele volta pra corrigir o ponto).
   try {
     const desde = new Date(Date.now() - 24 * 3600_000).toISOString();
     const { data: repetido } = await supabaseGerador
