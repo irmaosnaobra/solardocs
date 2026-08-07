@@ -46,10 +46,18 @@ interface Perfil {
 }
 
 export async function jornadaLimpapro(req: Request, res: Response): Promise<void> {
-  const esperada = process.env.JORNADA_KEY;
-  if (!esperada || String(req.query.k || '') !== esperada) {
-    res.status(401).json({ error: 'sem_acesso' });
-    return;
+  // Duas portas para o mesmo dado:
+  //  · /admin/jornada-limpapro  → já passou pelo auth de admin, não pede chave
+  //    (é assim que a aba "Página de Venda" do hub consome: nada de chave no frontend);
+  //  · /_t/limpapro/jornada?k=  → painel avulso em limpapro.solardoc.app/jornada.html,
+  //    que não tem sessão de admin nenhuma.
+  const viaAdmin = req.baseUrl.startsWith('/admin');
+  if (!viaAdmin) {
+    const esperada = process.env.JORNADA_KEY;
+    if (!esperada || String(req.query.k || '') !== esperada) {
+      res.status(401).json({ error: 'sem_acesso' });
+      return;
+    }
   }
 
   const dias = Math.min(90, Math.max(1, parseInt(String(req.query.dias || '7'), 10) || 7));

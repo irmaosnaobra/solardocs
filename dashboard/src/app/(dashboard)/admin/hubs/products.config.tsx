@@ -14,6 +14,8 @@ import MembrosPanel from '../_components/MembrosPanel';
 import AgentePanel from './_panels/AgentePanel';
 import ReceitaPanel from './_panels/ReceitaPanel';
 import LpVendaPanel from './_panels/LpVendaPanel';
+// LP do LimpaPro: jornada real do lead (secao `raw` dos eventos 'sessao')
+import LpLimpaproPanel from './_panels/LpLimpaproPanel';
 // Fase 2 — Followup + Conversas (endpoint /admin/hub-followup)
 import FollowupPanel from './_panels/FollowupPanel';
 import ConversasPanel from './_panels/ConversasPanel';
@@ -55,7 +57,7 @@ export const PRODUCTS: Product[] = [
       { key: 'visao',     label: 'Visão Geral',      status: 'pronto',    Comp: () => <VisaoGeralPanel produto="limpapro" /> },
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: FunilLimpaproPanel },
       { key: 'membros',   label: 'Membros',          status: 'pronto',    Comp: MembrosLimpaproPanel },
-      { key: 'lp',        label: 'Página de Venda',   status: 'parcial',  nota: 'limpapro_events já captura; consolidar visão visita→checkout.' },
+      { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: LpLimpaproPanel },
       { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="limpapro" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="bia" /> },
       { key: 'conversas', label: 'Conversas',        status: 'pronto',    Comp: () => <ConversasPanel produto="limpapro" /> },
