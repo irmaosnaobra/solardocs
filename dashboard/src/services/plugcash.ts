@@ -49,6 +49,8 @@ export type Curso = {
     // checkout não cobra mais.
     servico_slug?: string;
     servico_nota?: string;
+    // Política de crédito de abatimento — uma frase só, igual em todos os cursos.
+    credito?: string;
   };
   aulas: Aula[];
   // só vêm do /me (visão do aluno)

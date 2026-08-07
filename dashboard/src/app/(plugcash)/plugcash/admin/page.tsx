@@ -79,6 +79,7 @@ export default function PlugcashAdmin() {
 function AbaCursos({ onNegado }: { onNegado: () => void }) {
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [aberto, setAberto] = useState<string | null>(null);
+  const [pagina, setPagina] = useState<string | null>(null);
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState<string | null>(null);
 
@@ -129,6 +130,7 @@ function AbaCursos({ onNegado }: { onNegado: () => void }) {
               <th style={{ width: 150 }}>Resolve</th>
               <th style={{ width: 110 }}>Status</th>
               <th style={{ width: 90 }}>Aulas</th>
+              <th style={{ width: 90 }}>Venda</th>
             </tr>
           </thead>
           <tbody>
@@ -171,6 +173,13 @@ function AbaCursos({ onNegado }: { onNegado: () => void }) {
                     {c.aulas?.length || 0}
                   </button>
                 </td>
+                <td>
+                  <button className={`${styles.btn} ${styles.btnFantasma}`}
+                          style={{ padding: '6px 12px', fontSize: 13 }}
+                          onClick={() => setPagina(pagina === c.id ? null : c.id)}>
+                    Página
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -178,7 +187,133 @@ function AbaCursos({ onNegado }: { onNegado: () => void }) {
       </div>
 
       {aberto && <Aulas curso={cursos.find((c) => c.id === aberto)!} aoMudar={carregar} />}
+      {pagina && <PaginaDeVenda curso={cursos.find((c) => c.id === pagina)!} aoMudar={carregar} />}
     </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Editor da página de venda.
+//
+// Existe por um motivo prático: sem ele, o link do order bump, a URL do vídeo de
+// vendas e a thumbnail só dariam pra mudar por SQL — ou seja, o lançamento
+// dependeria de alguém com acesso ao banco. Os quatro campos de cima são os que
+// travam a publicação; o JSON embaixo abre o resto (dor, entregas, para quem,
+// não é para, FAQ, garantia) sem precisar de uma tela por campo.
+// ─────────────────────────────────────────────────────────────────────────────
+function PaginaDeVenda({ curso, aoMudar }: { curso: Curso; aoMudar: () => void }) {
+  const [json, setJson] = useState(() => JSON.stringify(curso.copy || {}, null, 2));
+  const [erro, setErro] = useState('');
+  const [salvo, setSalvo] = useState(false);
+
+  // Trocou de curso? recarrega o editor. Comparado por id durante o render, não
+  // por efeito: efeito aqui apagaria o que a pessoa acabou de digitar num
+  // re-render qualquer da lista.
+  const [ultimoId, setUltimoId] = useState(curso.id);
+  if (curso.id !== ultimoId) {
+    setUltimoId(curso.id);
+    setJson(JSON.stringify(curso.copy || {}, null, 2));
+    setSalvo(false);
+  }
+
+  // Campo do copy que tem input próprio. Editar aqui reescreve só a chave, o
+  // resto do JSON fica intacto.
+  async function campoCopy(chave: string, valor: string) {
+    const novo = { ...(curso.copy || {}), [chave]: valor || undefined };
+    if (!valor) delete (novo as Record<string, unknown>)[chave];
+    await plugcashApi.adminSalvarCurso({ id: curso.id, copy: novo as Curso['copy'] }).catch(() => {});
+    aoMudar();
+  }
+
+  async function salvarJson() {
+    setErro(''); setSalvo(false);
+    let parsed: unknown;
+    try { parsed = JSON.parse(json); }
+    catch { setErro('JSON inválido — confira vírgula e aspas. Nada foi salvo.'); return; }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      setErro('O conteúdo tem que ser um objeto { }. Nada foi salvo.'); return;
+    }
+    try {
+      await plugcashApi.adminSalvarCurso({ id: curso.id, copy: parsed as Curso['copy'] });
+      setSalvo(true);
+      aoMudar();
+    } catch { setErro('Não consegui salvar. Tente de novo.'); }
+  }
+
+  return (
+    <div className={styles.card} style={{ marginTop: 18 }}>
+      <h2 className={styles.secaoTitulo} style={{ fontSize: 18 }}>Página de venda de {curso.titulo}</h2>
+      <p className={styles.secaoSub}>
+        É o que a pessoa vê quando clica no cadeado. Veja como ficou em{' '}
+        <a href={`/plugcash/curso/${curso.slug}`} target="_blank" rel="noopener"
+           style={{ color: '#009B40', fontWeight: 700 }}>/plugcash/curso/{curso.slug}</a>
+        {curso.status !== 'publicado' && ' (só abre depois de publicar o curso)'}.
+      </p>
+
+      <div style={{ display: 'grid', gap: 14, marginBottom: 18 }}>
+        <Campo rotulo="Subtítulo — a linha embaixo do título"
+               valor={curso.subtitulo || ''}
+               onSalvar={(v) => plugcashApi.adminSalvarCurso({ id: curso.id, subtitulo: v || null })
+                                  .then(aoMudar).catch(() => {})} />
+        <Campo rotulo="Thumbnail (URL da imagem do card)"
+               valor={curso.thumb_url || ''}
+               onSalvar={(v) => plugcashApi.adminSalvarCurso({ id: curso.id, thumb_url: v || null })
+                                  .then(aoMudar).catch(() => {})} />
+        <Campo rotulo="Vídeo de vendas (URL) — sem isto, o espaço fica vazio em vez de mostrar player quebrado"
+               valor={curso.copy?.video_url || ''}
+               onSalvar={(v) => campoCopy('video_url', v)} />
+        {curso.slug === 'fundamentos' && (
+          <>
+            <Campo rotulo="Checkout COM o order bump (link da Kiwify com a planilha de R$ 47)"
+                   valor={curso.copy?.checkout_bump_url || ''}
+                   onSalvar={(v) => campoCopy('checkout_bump_url', v)} />
+            <Campo rotulo="Texto do order bump — UMA linha ao lado do checkbox, nunca um parágrafo"
+                   valor={curso.copy?.bump_texto || ''}
+                   onSalvar={(v) => campoCopy('bump_texto', v)} />
+          </>
+        )}
+      </div>
+
+      <p className={styles.secaoSub} style={{ marginBottom: 6 }}>
+        O resto da página (dor, entregas, para quem é, para quem não é, FAQ, garantia):
+      </p>
+      <textarea
+        value={json}
+        onChange={(e) => setJson(e.target.value)}
+        spellCheck={false}
+        style={{ width: '100%', minHeight: 320, fontFamily: 'ui-monospace,Menlo,Consolas,monospace',
+                 fontSize: 12.5, lineHeight: 1.55, padding: 12, borderRadius: 12,
+                 border: '1px solid #D9D9D9', background: '#fff', color: '#0A0A0A' }}
+      />
+      {erro && <div className={styles.aviso} style={{ marginTop: 10 }}>{erro}</div>}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12 }}>
+        <button className={`${styles.btn} ${styles.btnPrimario}`} onClick={salvarJson}>
+          Salvar a página
+        </button>
+        <button className={`${styles.btn} ${styles.btnFantasma}`}
+                onClick={() => { setJson(JSON.stringify(curso.copy || {}, null, 2)); setErro(''); setSalvo(false); }}>
+          Desfazer
+        </button>
+        {salvo && <span style={{ color: '#009B40', fontWeight: 700, fontSize: 14 }}>Salvo.</span>}
+      </div>
+    </div>
+  );
+}
+
+// Campo de texto que salva ao sair (mesma mecânica da tabela, com rótulo).
+function Campo({ rotulo, valor, onSalvar }: {
+  rotulo: string; valor: string; onSalvar: (v: string) => void;
+}) {
+  const [txt, setTxt] = useState(valor);
+  const [ultimo, setUltimo] = useState(valor);
+  if (valor !== ultimo) { setUltimo(valor); setTxt(valor); }
+  return (
+    <label style={{ display: 'block' }}>
+      <span style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 5 }}>{rotulo}</span>
+      <input className={styles.campoInput} value={txt}
+             onChange={(e) => setTxt(e.target.value)}
+             onBlur={() => { if (txt.trim() !== valor) onSalvar(txt.trim()); }} />
+    </label>
   );
 }
 
@@ -516,7 +651,11 @@ function CampoPreco({ valor, onSalvar, travado }: {
   valor: number; onSalvar: (centavos: number) => void; travado: boolean;
 }) {
   const [txt, setTxt] = useState((valor / 100).toFixed(2));
-  useEffect(() => { setTxt((valor / 100).toFixed(2)); }, [valor]);
+  // Ajuste de estado durante o render — o padrão que o React documenta para
+  // "prop mudou, sincroniza o campo". Dentro de um efeito isso custa uma
+  // renderização extra a cada salvamento e é o que o lint reclama.
+  const [ultimo, setUltimo] = useState(valor);
+  if (valor !== ultimo) { setUltimo(valor); setTxt((valor / 100).toFixed(2)); }
   return (
     <input value={txt} disabled={travado}
       onChange={(e) => setTxt(e.target.value)}
@@ -532,7 +671,8 @@ function CampoNumero({ valor, onSalvar, travado }: {
   valor: number | null; onSalvar: (v: number | null) => void; travado: boolean;
 }) {
   const [txt, setTxt] = useState(valor == null ? '' : String(valor));
-  useEffect(() => { setTxt(valor == null ? '' : String(valor)); }, [valor]);
+  const [ultimo, setUltimo] = useState(valor);
+  if (valor !== ultimo) { setUltimo(valor); setTxt(valor == null ? '' : String(valor)); }
   return (
     <input value={txt} disabled={travado} placeholder="sem teto"
       onChange={(e) => setTxt(e.target.value)}
@@ -549,7 +689,8 @@ function CampoTexto({ valor, placeholder, onSalvar, travado }: {
   valor: string; placeholder?: string; onSalvar: (v: string) => void; travado: boolean;
 }) {
   const [txt, setTxt] = useState(valor);
-  useEffect(() => { setTxt(valor); }, [valor]);
+  const [ultimo, setUltimo] = useState(valor);
+  if (valor !== ultimo) { setUltimo(valor); setTxt(valor); }
   return (
     <input value={txt} placeholder={placeholder} disabled={travado}
       onChange={(e) => setTxt(e.target.value)}

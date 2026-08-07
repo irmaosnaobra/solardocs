@@ -166,9 +166,11 @@ export default function PaginaDeVenda() {
               ou {curso.parcelas}× de {money(Math.round(parcela))} no cartão
             </p>
           )}
-          <p className={styles.precoNota}>
-            O valor pago aqui abate no upgrade para Credenciamento Integrador ou Mentoria Investidor.
-          </p>
+          {/* A política de crédito vem do banco e é a MESMA frase nos oito cursos
+              que a têm — antes eram seis redações diferentes e só duas falavam
+              de prazo. Prazo sem número é prazo que o cliente descobre quando
+              tenta usar. A Mentoria não tem a chave e por isso não mostra nada. */}
+          {copy.credito && <p className={styles.precoNota}>{copy.credito}</p>}
           <div style={{ marginTop: 20 }}><BotaoComprar curso={curso} /></div>
         </section>
 
