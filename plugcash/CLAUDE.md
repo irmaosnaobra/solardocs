@@ -177,6 +177,45 @@ Login, schema `pc_*`, admin, catálogo, páginas de conversão, dashboard, estei
 
 ---
 
+## PARA LIGAR A VENDA (a ordem importa)
+
+O funil inteiro está construído e no ar, mas **nada muda para os leads** até estes
+passos. A troca grupo→página é automática: ela olha o estado real do catálogo a
+cada lead, então não há chave para alguém lembrar de virar.
+
+1. **Gravar as aulas.** Enquanto não houver vídeo, o curso não pode ser publicado
+   — a API recusa. As 122 aulas já estão cadastradas com título e duração.
+2. **Criar os produtos na Kiwify.** Os nomes já estão pré-mapeados em
+   `pc_gateway_produtos` com o título de cada curso/serviço; se o nome na Kiwify
+   for outro, corrija em `/plugcash/admin` → aba **Gateway**. Melhor ainda:
+   cadastre o `product_id`, que não quebra quando alguém renomeia.
+3. **Colar o link de checkout** em cada curso (aba Cursos).
+4. **Publicar a aula, depois o curso** (aba Cursos → botão do número de aulas).
+5. No `fundamentos`, aba **Página**: colar o link do checkout **com** o order
+   bump e o texto de uma linha do bump.
+
+No instante em que o `fundamentos` ficar publicado E com `checkout_url`, o convite
+do grupo de WhatsApp para no automático e o nota 1 passa a ver a oferta.
+
+**O entregável do bump (planilha de R$ 47) não existe dentro do app** — quem
+entrega é a Kiwify, pelo arquivo anexado ao produto lá. O `item_tipo='bump'`
+registra a compra e conscientemente não libera nada aqui.
+
+## DECISÕES COMERCIAIS EM ABERTO (uma revisão adversarial apontou)
+
+1. A **mensalidade de R$ 97** do Integrador não tem nada recorrente por trás:
+   nenhum serviço exige o nível. Ou amarra, ou vira pacote único.
+2. A **Mentoria** não tem preço, teto de sessões nem data de encerramento — e tem
+   garantia de 7 dias sobre um acompanhamento de 6 a 12 meses.
+3. A **capacidade somada** dos serviços dá 21 entregas/mês numa mesa de engenharia
+   só. Sugerido: teto combinado de 6 a 8.
+4. O **projeto elétrico "até 80 kW"** bate de frente com a aula que ensina o
+   limiar de 75 kW para média tensão — o eletroposto de 80 kW do turnkey cairia
+   fora do escopo do serviço mais caro do catálogo.
+5. **Preços dos serviços são sugestão da IA**, nenhum validado em mercado.
+6. Conferir na norma vigente: limiar de 75 kW, NBR 5410/14039/17019/IEC 61851 e
+   "CCS2 é dominante no Brasil".
+
 ## ESTADO ATUAL
 
 - **Fase 1 item 1 (persistência da pontuação) — FEITO em 07/08/2026.**
@@ -187,13 +226,23 @@ Login, schema `pc_*`, admin, catálogo, páginas de conversão, dashboard, estei
   Backfill: 25 fichas recuperadas com resposta completa (11 nota 2 + 14 nota 3);
   as 83 anteriores a 01/08 ficam sem nota — inventar nota ali contaminaria a
   comparação de criativo.
-- **Base do app — FEITA em 07/08/2026.** Schema `pc_*` em *solardoc-pro*, rotas
+- **App e funil — FEITOS em 07/08/2026.** Schema `pc_*` em *solardoc-pro*, rotas
   `/plugcash/*` na API e as telas em `dashboard/src/app/(plugcash)/`:
   `/plugcash`, `/plugcash/entrar`, `/plugcash/app` (onboarding + próximo passo +
   catálogo com card travado), `/plugcash/app/curso/[slug]` (player),
-  `/plugcash/curso/[slug]` (página de venda que o cadeado abre) e
-  `/plugcash/admin` (CRUD de curso e aula, preço e link de checkout).
-  Os 9 cursos estão semeados em **rascunho** — nenhum aparece pra ninguém.
+  `/plugcash/app/servicos` (esteira com capacidade), `/plugcash/app/conta`
+  (créditos + o botão "já resolvi"), `/plugcash/curso/[slug]` (página de venda
+  que o cadeado abre), `/plugcash/obrigado/[slug]` e `/plugcash/admin` em 5 abas
+  (Cursos, Serviços, Gateway, Reagendar, Métricas).
+- **Página de desqualificação** em `/io/eletroposto/material`, com 4 aberturas
+  por motivo. O motivo viaja por `sessionStorage`, nunca por querystring.
+- **Webhook de compra** no mesmo endpoint da Kiwify que já atende LimpaPro e Kit
+  (`plugcashService.ts`): cria conta pendente, libera o curso, copia a
+  qualificação da régua, gera o crédito e manda o e-mail — com 16 testes,
+  conferidos por mutação.
+- **Painel de métricas** em `/gerador/eletroposto/metricas`.
+- Conteúdo: **9 cursos com copy completa e 122 aulas** (~40h30) e **11 serviços**.
+  Tudo em **rascunho** — nada aparece pra ninguém.
 - Página `/io/eletroposto` no ar, com régua de qualificação implementada e mais de 30
   reuniões agendadas na primeira semana de agosto de 2026
 - Grupo de WhatsApp em uso para o nota 1 — **será substituído** pela página de R$ 197
