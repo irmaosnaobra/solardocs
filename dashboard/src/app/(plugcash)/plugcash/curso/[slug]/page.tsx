@@ -94,14 +94,23 @@ function Venda() {
               </div>
             </div>
 
-            {/* Vídeo de vendas (3–4 min). Sem URL cadastrada, o espaço não vira
-                player quebrado nem "em breve": simplesmente não aparece. */}
-            {copy.video_url && (
+            {/* Vídeo de vendas (3–4 min). Sem vídeo gravado, entra a capa do
+                curso — antes essa coluna ficava vazia e o hero parecia meio
+                montado. O que NÃO entra é um player desligado ou um "em breve":
+                os dois anunciam que falta coisa. */}
+            {copy.video_url ? (
               <div>
                 <video src={copy.video_url} controls playsInline
                        style={{ width: '100%', borderRadius: 20, background: '#000' }} />
               </div>
-            )}
+            ) : curso.thumb_url ? (
+              <div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={curso.thumb_url} alt=""
+                     style={{ width: '100%', borderRadius: 20, display: 'block',
+                              border: '1px solid #262626' }} />
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
