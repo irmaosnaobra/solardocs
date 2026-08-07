@@ -7,7 +7,7 @@ import {
   plugcashApi, money, MOTIVO_LABEL,
   type Curso, type Aula, type Servico, type GatewayProduto, type Elegivel,
 } from '@/services/plugcash';
-import { Marca } from '../Marca';
+import { Chrome } from '../Chrome';
 import styles from '../pc.module.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,42 +36,41 @@ export default function PlugcashAdmin() {
     if (!isAuthenticated()) { router.replace('/plugcash/entrar?proximo=/plugcash/admin'); }
   }, [router]);
 
+  const abas = (
+    <>
+      {ABAS.map((a) => (
+        <button
+          key={a}
+          className={`${styles.btn} ${aba === a ? styles.btnPrimario : styles.btnFantasma}`}
+          style={{ padding: '9px 16px', fontSize: 14 }}
+          onClick={() => setAba(a)}
+        >
+          {a}
+        </button>
+      ))}
+    </>
+  );
+
   return (
-    <div className={styles.pc}>
-      <div className={styles.wrap}>
-        <header className={styles.topo}>
-          <Marca />
-          <span className={styles.nivel}>Admin</span>
-        </header>
-
-        {negado ? (
-          <div className={styles.secao}>
-            <div className={styles.aviso}>Acesso restrito a administradores.</div>
-          </div>
-        ) : (
-          <>
-            <div className={styles.topoAcoes} style={{ padding: '18px 0', flexWrap: 'wrap' }}>
-              {ABAS.map((a) => (
-                <button
-                  key={a}
-                  className={`${styles.btn} ${aba === a ? styles.btnPrimario : styles.btnFantasma}`}
-                  style={{ padding: '9px 16px', fontSize: 14 }}
-                  onClick={() => setAba(a)}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
-
-            {aba === 'Cursos'    && <AbaCursos onNegado={() => setNegado(true)} />}
-            {aba === 'Serviços'  && <AbaServicos />}
-            {aba === 'Gateway'   && <AbaGateway />}
-            {aba === 'Reagendar' && <AbaReagendar />}
-            {aba === 'Métricas'  && <AbaMetricas />}
-          </>
-        )}
-      </div>
-    </div>
+    <Chrome
+      titulo="Administração"
+      subtitulo="Preço, link de checkout, capacidade de entrega e publicação — nada disso vive no código."
+      nivel="Admin"
+      admin
+      acoes={negado ? undefined : abas}
+    >
+      {negado ? (
+        <div className={styles.aviso}>Acesso restrito a administradores.</div>
+      ) : (
+        <>
+          {aba === 'Cursos'    && <AbaCursos onNegado={() => setNegado(true)} />}
+          {aba === 'Serviços'  && <AbaServicos />}
+          {aba === 'Gateway'   && <AbaGateway />}
+          {aba === 'Reagendar' && <AbaReagendar />}
+          {aba === 'Métricas'  && <AbaMetricas />}
+        </>
+      )}
+    </Chrome>
   );
 }
 
@@ -111,8 +110,8 @@ function AbaCursos({ onNegado }: { onNegado: () => void }) {
   }
 
   return (
-    <section className={styles.secao} style={{ paddingTop: 0 }}>
-      <h1 className={styles.secaoTitulo}>Cursos</h1>
+    <section>
+      <h2 className={styles.secaoTitulo}>Cursos</h2>
       <p className={styles.secaoSub}>
         Preço e link de checkout moram aqui, nunca no código. Curso em rascunho não
         aparece pra ninguém.
@@ -355,8 +354,8 @@ function AbaServicos() {
   }
 
   return (
-    <section className={styles.secao} style={{ paddingTop: 0 }}>
-      <h1 className={styles.secaoTitulo}>Serviços da esteira</h1>
+    <section>
+      <h2 className={styles.secaoTitulo}>Serviços da esteira</h2>
       <p className={styles.secaoSub}>
         A capacidade mensal é o número de entregas que a engenharia aguenta sem atrasar
         quem já contratou. Atingido o teto, o item vira lista de espera sozinho.
@@ -447,8 +446,8 @@ function AbaGateway() {
   }
 
   return (
-    <section className={styles.secao} style={{ paddingTop: 0 }}>
-      <h1 className={styles.secaoTitulo}>Produtos do gateway</h1>
+    <section>
+      <h2 className={styles.secaoTitulo}>Produtos do gateway</h2>
       <p className={styles.secaoSub}>
         De que curso é cada produto da Kiwify. Sem este mapeamento a venda entra, o
         dinheiro cai e o comprador não recebe nada — o webhook não sabe o que liberar.
@@ -524,8 +523,8 @@ function AbaReagendar() {
   }, []);
 
   return (
-    <section className={styles.secao} style={{ paddingTop: 0 }}>
-      <h1 className={styles.secaoTitulo}>Prontos para voltar à agenda</h1>
+    <section>
+      <h2 className={styles.secaoTitulo}>Prontos para voltar à agenda</h2>
       <p className={styles.secaoSub}>
         Quem declarou que resolveu o que travava o projeto. É o ciclo que transforma
         lead de R$ 197 em cliente de R$ 160 mil — cada linha aqui é uma reunião que
@@ -598,8 +597,8 @@ function AbaMetricas() {
   const receita = Object.values(m.por_curso).reduce((s, c) => s + c.receita, 0);
 
   return (
-    <section className={styles.secao} style={{ paddingTop: 0 }}>
-      <h1 className={styles.secaoTitulo}>Métricas</h1>
+    <section>
+      <h2 className={styles.secaoTitulo}>Métricas</h2>
       <p className={styles.secaoSub}>Só o que já é medível. Métrica sem dado aparece como “—”, nunca como zero.</p>
 
       <div className={styles.grade} style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))' }}>

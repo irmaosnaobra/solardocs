@@ -69,6 +69,7 @@ export type Membro = {
 
 export type MeResposta = {
   preview?: boolean;
+  admin?: boolean;
   membro: Membro;
   catalogo: Curso[];
   proximo_passo: { curso: Curso; porque: 'motivo_descarte' | 'objetivo' | 'ordem' } | null;

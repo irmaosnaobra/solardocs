@@ -4,12 +4,13 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-import { isAuthenticated, removeToken } from '@/services/auth';
+import { isAuthenticated } from '@/services/auth';
 import {
   plugcashApi, money, duracao, MOTIVO_LABEL,
   type MeResposta, type Curso,
 } from '@/services/plugcash';
-import { Marca, Cadeado, Check, FaixaPreview } from '../Marca';
+import { Marca, Cadeado, Check } from '../Marca';
+import { Chrome } from '../Chrome';
 import styles from '../pc.module.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,11 +77,6 @@ function Painel() {
     setSalvando(false);
   }
 
-  function sair() {
-    removeToken();
-    router.replace('/plugcash/entrar');
-  }
-
   if (erro) {
     return (
       <div className={styles.pc}>
@@ -101,15 +97,14 @@ function Painel() {
   // cinco perguntas na porta de entrada de quem acabou de pagar.
   if (membro.onboarding_pendente) {
     return (
-      <div className={styles.pc}>
-        <div className={styles.wrap}>
-          <header className={styles.topo}><Marca /></header>
-          <div className={styles.secao}>
-            <h1 className={styles.secaoTitulo}>O que você quer fazer com eletroposto?</h1>
-            <p className={styles.secaoSub}>
-              É a única pergunta. A resposta define o que aparece primeiro pra você.
-            </p>
-            <div className={styles.opcoes}>
+      <Chrome
+        titulo="O que você quer fazer com eletroposto?"
+        subtitulo="É a única pergunta. A resposta define o que aparece primeiro pra você."
+        preview={dados.preview}
+        admin={dados.admin}
+      >
+        <div style={{ maxWidth: 620 }}>
+          <div className={styles.opcoes}>
               {OBJETIVOS.map((o) => (
                 <button
                   key={o.id}
@@ -119,74 +114,64 @@ function Painel() {
                 >
                   {o.texto}
                 </button>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
-      </div>
+      </Chrome>
     );
   }
 
   return (
-    <div className={styles.pc}>
-      {dados.preview && <FaixaPreview />}
-      <div className={styles.wrap}>
-        <header className={styles.topo}>
-          <Marca />
-          <div className={styles.topoAcoes}>
-            <span className={styles.nivel}>{NIVEL_LABEL[membro.nivel] || membro.nivel}</span>
-            <Link href={`/plugcash/app/servicos${preview ? "?preview=1" : ""}`} className={`${styles.btn} ${styles.btnFantasma}`}>Serviços</Link>
-            <Link href="/plugcash/app/conta" className={`${styles.btn} ${styles.btnFantasma}`}>Conta</Link>
-            <button className={`${styles.btn} ${styles.btnFantasma}`} onClick={sair}>Sair</button>
+    <Chrome
+      titulo="Meu painel"
+      subtitulo="O que fazer agora, o que já é seu e o que ainda está travado."
+      nivel={NIVEL_LABEL[membro.nivel] || membro.nivel}
+      preview={dados.preview}
+      admin={dados.admin}
+    >
+      {proximo_passo && (
+        <div className={styles.passo} style={{ marginBottom: 30 }}>
+          <div>
+            <p className={styles.passoRotulo}>Seu próximo passo</p>
+            <h2 className={styles.passoTitulo}>{proximo_passo.curso.titulo}</h2>
+            <p className={styles.passoPorque}>{textoDoPorque(proximo_passo, membro.motivo_descarte)}</p>
           </div>
-        </header>
+          <Link
+            href={`/plugcash/curso/${proximo_passo.curso.slug}${preview ? '?preview=1' : ''}`}
+            className={`${styles.btn} ${styles.btnPrimario}`}
+            onClick={() => plugcashApi.evento('proximo_passo_click', { slug: proximo_passo.curso.slug })}
+          >
+            Ver o que tem dentro
+          </Link>
+        </div>
+      )}
 
-        {proximo_passo && (
-          <div className={styles.secao}>
-            <div className={styles.passo}>
-              <div>
-                <p className={styles.passoRotulo}>Seu próximo passo</p>
-                <h2 className={styles.passoTitulo}>{proximo_passo.curso.titulo}</h2>
-                <p className={styles.passoPorque}>{textoDoPorque(proximo_passo, membro.motivo_descarte)}</p>
-              </div>
-              <Link
-                href={`/plugcash/curso/${proximo_passo.curso.slug}${preview ? "?preview=1" : ""}`}
-                className={`${styles.btn} ${styles.btnPrimario}`}
-                onClick={() => plugcashApi.evento('proximo_passo_click', { slug: proximo_passo.curso.slug })}
-              >
-                Ver o que tem dentro
-              </Link>
-            </div>
+      {liberados.length > 0 && (
+        <section style={{ marginBottom: 34 }}>
+          <h2 className={styles.secaoTitulo}>Continue de onde parou</h2>
+          <p className={styles.secaoSub}>O que já é seu.</p>
+          <div className={styles.grade}>
+            {liberados.map((c) => <CardCurso key={c.id} curso={c} preview={preview} />)}
           </div>
-        )}
-
-        {liberados.length > 0 && (
-          <section className={styles.secao}>
-            <h2 className={styles.secaoTitulo}>Continue de onde parou</h2>
-            <p className={styles.secaoSub}>O que já é seu.</p>
-            <div className={styles.grade}>
-              {liberados.map((c) => <CardCurso key={c.id} curso={c} preview={preview} />)}
-            </div>
-          </section>
-        )}
-
-        <section className={styles.secao}>
-          <h2 className={styles.secaoTitulo}>Catálogo</h2>
-          <p className={styles.secaoSub}>
-            Clique no cadeado pra ver a grade completa, o preço e o que o curso resolve.
-          </p>
-          {catalogo.length === 0 ? (
-            <div className={styles.vazio}>
-              Nenhum curso publicado ainda. Assim que a primeira trilha for gravada, ela aparece aqui.
-            </div>
-          ) : (
-            <div className={styles.grade}>
-              {travados.map((c) => <CardCurso key={c.id} curso={c} preview={preview} />)}
-            </div>
-          )}
         </section>
-      </div>
-    </div>
+      )}
+
+      <section>
+        <h2 className={styles.secaoTitulo}>Catálogo</h2>
+        <p className={styles.secaoSub}>
+          Clique no cadeado pra ver a grade completa, o preço e o que o curso resolve.
+        </p>
+        {catalogo.length === 0 ? (
+          <div className={styles.vazio}>
+            Nenhum curso publicado ainda. Assim que a primeira trilha for gravada, ela aparece aqui.
+          </div>
+        ) : (
+          <div className={styles.grade}>
+            {travados.map((c) => <CardCurso key={c.id} curso={c} preview={preview} />)}
+          </div>
+        )}
+      </section>
+    </Chrome>
   );
 }
 

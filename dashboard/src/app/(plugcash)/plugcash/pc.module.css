@@ -374,3 +374,191 @@
   .vendaGrid, .duasColunas { grid-template-columns: 1fr; }
   .passo { flex-direction: column; align-items: flex-start; }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   CHROME DE APLICAÇÃO — mesma estrutura do solardoc.app
+
+   A primeira versão desta tela era uma página centralizada de 1080px com um
+   cabeçalho simples. Do lado do SolarDoc — sidebar fixa de 240px, topbar escura
+   de 52px, canvas de 1520px — ela parecia um site, não um produto. Mesmo
+   esqueleto, marca própria: o chrome escuro é idêntico, o acento é verde no
+   lugar do laranja.
+
+   Vale só nas telas LOGADAS. Página de venda continua sem sidebar: vitrine com
+   menu lateral é erro de gênero, e o documento de marca manda hero e página de
+   venda em fundo preto.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.app {
+  --pc-green: #00C853;
+  --pc-green-deep: #009B40;
+  --pc-green-soft: #E6F9EE;
+  --pc-black: #0A0A0A;
+  --pc-gray-900: #141414;
+  --pc-gray-800: #262626;
+  --pc-gray-600: #6B6B6B;
+  --pc-gray-300: #D9D9D9;
+  --pc-gray-100: #F5F5F5;
+  --pc-radius: 12px;
+  --pc-radius-lg: 20px;
+
+  /* Chrome escuro — os mesmos valores do solardoc.app, de propósito: os dois
+     produtos vivem no mesmo login e trocar de tom faria parecer outro sistema. */
+  --chrome-bg: #1B2129;
+  --chrome-bg-2: #232B35;
+  --chrome-text-dim: #7E8794;
+  --topbar-h: 52px;
+  --sidebar-w: 240px;
+
+  min-height: 100vh;
+  background: var(--pc-gray-100);
+  color: var(--pc-black);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Topbar ────────────────────────────────────────────────────────────────*/
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: var(--topbar-h);
+  padding: 0 20px;
+  background: var(--chrome-bg);
+}
+/* A marca ocupa a faixa da sidebar pra alinhar com o menu de baixo. */
+.topbarMarca { min-width: 220px; padding-left: 4px; display: flex; align-items: center; }
+.topbarSpacer { flex: 1; }
+.topbarAcoes { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+.chip {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--pc-green);
+  border: 1px solid #2E3742;
+  border-radius: 999px;
+  padding: 5px 11px;
+  white-space: nowrap;
+}
+
+.iconBtn {
+  background: none;
+  border: 0;
+  color: #E8EAED;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13.5px;
+  text-decoration: none;
+  transition: color .12s, background .12s;
+}
+.iconBtn:hover { color: #fff; background: var(--chrome-bg-2); }
+
+/* ── Sidebar ───────────────────────────────────────────────────────────────*/
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: var(--topbar-h);
+  width: var(--sidebar-w);
+  height: calc(100vh - var(--topbar-h));
+  background: var(--chrome-bg);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  overflow-y: auto;
+  padding: 14px 12px 20px;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: #2E3742; border-radius: 4px; }
+
+.navSecao {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6B7280;
+  padding: 16px 14px 7px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #E8EAED;
+  text-decoration: none;
+  position: relative;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s, color .12s;
+}
+.navItem:hover { background: var(--chrome-bg-2); color: #fff; }
+.navItemAtivo { background: var(--chrome-bg-2); color: #fff; }
+/* Faixa verde à esquerda no item ativo — mesma mecânica da laranja do SolarDoc. */
+.navItemAtivo::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 22px;
+  border-radius: 0 3px 3px 0;
+  background: var(--pc-green);
+}
+.navIcone { flex: none; display: grid; place-items: center; width: 18px; }
+
+.navRodape {
+  margin-top: auto;
+  padding: 14px 14px 0;
+  border-top: 1px solid #2E3742;
+  color: var(--chrome-text-dim);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ── Área de conteúdo ──────────────────────────────────────────────────────*/
+.appMain {
+  margin-left: var(--sidebar-w);
+  margin-top: var(--topbar-h);
+  min-height: calc(100vh - var(--topbar-h));
+  min-width: 0;
+}
+/* Canvas ÚNICO, como no solardoc.app: toda tela preenche a mesma largura em vez
+   de cada uma escolher um max-width próprio e estreito. */
+.appContent {
+  max-width: 1520px;
+  margin: 0 auto;
+  padding: 24px 32px 48px;
+}
+
+/* Cabeçalho de página dentro do canvas */
+.pageTopo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.pageTitulo { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+.pageSub { color: var(--pc-gray-600); font-size: 15px; margin: 6px 0 0; max-width: 72ch; }
+
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .appMain { margin-left: 0; }
+  .topbarMarca { min-width: 0; }
+  .appContent { padding: 16px 16px 32px; }
+}

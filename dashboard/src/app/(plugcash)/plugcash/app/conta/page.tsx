@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/services/auth';
 import { plugcashApi, money, MOTIVO_LABEL, type ContaResposta } from '@/services/plugcash';
-import { Marca, Check } from '../../Marca';
+import { Check } from '../../Marca';
+import { Chrome } from '../../Chrome';
 import styles from '../../pc.module.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,12 +69,7 @@ export default function Conta() {
   }
 
   if (erro && !dados) {
-    return (
-      <div className={styles.pc}><div className={styles.wrap}>
-        <header className={styles.topo}><Marca /></header>
-        <div className={styles.secao}><div className={styles.aviso}>{erro}</div></div>
-      </div></div>
-    );
+    return <Chrome titulo="Minha conta"><div className={styles.aviso}>{erro}</div></Chrome>;
   }
   if (!dados) return <div className={styles.pc} />;
 
@@ -87,23 +82,13 @@ export default function Conta() {
     : Object.keys(RESOLVEU_LABEL);
 
   return (
-    <div className={styles.pc}>
-      <div className={styles.wrap}>
-        <header className={styles.topo}>
-          <Marca />
-          <div className={styles.topoAcoes}>
-            <span className={styles.nivel}>{NIVEL_LABEL[membro.nivel] || membro.nivel}</span>
-            <Link href="/plugcash/app" className={`${styles.btn} ${styles.btnFantasma}`}>Meu painel</Link>
-          </div>
-        </header>
-
-        <section className={styles.secao}>
-          <h1 className={styles.secaoTitulo}>Minha conta</h1>
-          <p className={styles.secaoSub}>{usuario?.email}</p>
-        </section>
-
+    <Chrome
+      titulo="Minha conta"
+      subtitulo={usuario?.email || undefined}
+      nivel={NIVEL_LABEL[membro.nivel] || membro.nivel}
+    >
         {/* O ciclo de volta pra agenda */}
-        <section className={styles.secao} style={{ paddingTop: 0 }}>
+        <section style={{ marginBottom: 30 }}>
           <div className={styles.passo} style={{ display: 'block' }}>
             <p className={styles.passoRotulo}>Voltar para a agenda</p>
             {membro.resolveu_em ? (
@@ -156,7 +141,7 @@ export default function Conta() {
         </section>
 
         {credito_centavos > 0 && (
-          <section className={styles.secao} style={{ paddingTop: 0 }}>
+          <section style={{ marginBottom: 30 }}>
             <div className={styles.card}>
               <h2 className={styles.secaoTitulo} style={{ fontSize: 18 }}>
                 Crédito de {money(credito_centavos)}
@@ -170,7 +155,7 @@ export default function Conta() {
           </section>
         )}
 
-        <section className={styles.secao} style={{ paddingTop: 0 }}>
+        <section style={{ marginBottom: 30 }}>
           <h2 className={styles.secaoTitulo}>Compras</h2>
           {compras.length === 0 ? (
             <div className={styles.vazio}>Nenhuma compra registrada nesta conta.</div>
@@ -200,7 +185,7 @@ export default function Conta() {
         </section>
 
         {membro.motivo_descarte?.length > 0 && (
-          <section className={styles.secao} style={{ paddingTop: 0 }}>
+          <section>
             <p className={styles.secaoSub}>
               No formulário do eletroposto você respondeu que{' '}
               {membro.motivo_descarte.map((m) => MOTIVO_LABEL[m] || m).join(', ')}. É por isso
@@ -208,7 +193,6 @@ export default function Conta() {
             </p>
           </section>
         )}
-      </div>
-    </div>
+    </Chrome>
   );
 }

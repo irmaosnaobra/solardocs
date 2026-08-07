@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { isAuthenticated } from '@/services/auth';
 import { plugcashApi, duracao, type Curso, type Aula } from '@/services/plugcash';
-import { Marca, Check } from '../../../Marca';
+import { Check } from '../../../Marca';
+import { Chrome } from '../../../Chrome';
 import styles from '../../../pc.module.css';
 
 function Pendente() {
@@ -62,18 +62,9 @@ export default function Player() {
   if (!curso) return <div className={styles.pc} />;
 
   return (
-    <div className={styles.pc}>
-      <div className={styles.wrap}>
-        <header className={styles.topo}>
-          <Marca />
-          <Link href="/plugcash/app" className={`${styles.btn} ${styles.btnFantasma}`}>Meu painel</Link>
-        </header>
-
-        <section className={styles.secao}>
-          <h1 className={styles.secaoTitulo}>{curso.titulo}</h1>
-          <p className={styles.secaoSub}>{curso.progresso_pct || 0}% concluído</p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 24 }}>
+    <Chrome titulo={curso.titulo} subtitulo={`${curso.progresso_pct || 0}% concluído`}>
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', gap: 24 }}>
             <div>
               {semAcesso && <div className={styles.aviso}>Esta aula ainda não está liberada pra você.</div>}
               {aula?.video_url ? (
@@ -139,8 +130,7 @@ export default function Player() {
               </ul>
             </aside>
           </div>
-        </section>
-      </div>
-    </div>
+        </div>
+    </Chrome>
   );
 }

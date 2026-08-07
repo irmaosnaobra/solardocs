@@ -294,6 +294,9 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
     const preview = await ehAdminComPreview(req);
     const status = statusVisiveis(preview);
 
+    const { data: u } = await supabase
+      .from('users').select('is_admin').eq('id', req.userId).maybeSingle();
+
     const [{ data: cursos }, { data: acessos }, { data: progresso }] = await Promise.all([
       supabase.from('pc_cursos').select(CURSO_PUBLICO).in('status', status).order('ordem'),
       supabase.from('pc_acessos').select('curso_id,expira_em').eq('user_id', req.userId),
@@ -338,6 +341,10 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
 
     res.json({
       preview,
+      // Só pra decidir se o menu mostra a seção interna. O acesso de verdade é
+      // conferido no servidor a cada rota de /admin — esconder item de menu
+      // nunca foi controle de acesso.
+      admin: !!(u as any)?.is_admin,
       membro: {
         nivel: membro?.nivel || 'base',
         objetivo: membro?.objetivo || null,

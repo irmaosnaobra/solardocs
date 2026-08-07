@@ -2,9 +2,8 @@
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { plugcashApi, money, MOTIVO_LABEL, type Servico } from '@/services/plugcash';
-import { Marca, FaixaPreview } from '../../Marca';
+import { Chrome } from '../../Chrome';
 import styles from '../../pc.module.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -48,37 +47,23 @@ function Lista() {
   useEffect(() => { carregar(); plugcashApi.evento('esteira_view'); }, [carregar]);
 
   return (
-    <div className={styles.pc}>
-      {preview && <FaixaPreview />}
-      <div className={styles.wrap}>
-        <header className={styles.topo}>
-          <Marca />
-          <Link href="/plugcash/app" className={`${styles.btn} ${styles.btnFantasma}`}>Meu painel</Link>
-        </header>
+    <Chrome
+      titulo="Serviços"
+      subtitulo="Quando você não quer aprender a fazer — quer que seja feito. Preço fechado, prazo declarado, executado pela nossa engenharia."
+      preview={preview}
+    >
+      {erro && <div className={styles.aviso}>{erro}</div>}
 
-        <section className={styles.secao}>
-          <h1 className={styles.secaoTitulo}>Serviços</h1>
-          <p className={styles.secaoSub}>
-            Quando você não quer aprender a fazer — quer que seja feito. Preço fechado,
-            prazo declarado, executado pela nossa engenharia.
-          </p>
+      {servicos && servicos.length === 0 && (
+        <div className={styles.vazio}>Nenhum serviço publicado ainda.</div>
+      )}
 
-          {erro && <div className={styles.aviso}>{erro}</div>}
-
-          {servicos && servicos.length === 0 && (
-            <div className={styles.vazio}>
-              Nenhum serviço publicado ainda.
-            </div>
-          )}
-
-          {servicos && servicos.length > 0 && (
-            <div className={styles.grade}>
-              {servicos.map((s) => <CardServico key={s.id} servico={s} />)}
-            </div>
-          )}
-        </section>
-      </div>
-    </div>
+      {servicos && servicos.length > 0 && (
+        <div className={styles.grade}>
+          {servicos.map((s) => <CardServico key={s.id} servico={s} />)}
+        </div>
+      )}
+    </Chrome>
   );
 }
 
