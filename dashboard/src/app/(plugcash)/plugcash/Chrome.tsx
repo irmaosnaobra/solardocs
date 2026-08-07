@@ -132,6 +132,25 @@ export function Chrome({
         </div>
       </aside>
 
+      {/* Navegação do celular. A sidebar some abaixo de 900px e até aqui nada
+          entrava no lugar — dava pra abrir uma aula e não ter como voltar. */}
+      <nav className={styles.tabbar} aria-label="Navegação">
+        {NAV[0].itens.map((item) => {
+          const Icone = item.icone;
+          return (
+            <Link
+              key={item.href}
+              href={`${item.href}${q}`}
+              className={`${styles.tabItem} ${ativo(item) ? styles.tabItemAtivo : ''}`}
+              aria-current={ativo(item) ? 'page' : undefined}
+            >
+              <Icone size={19} strokeWidth={1.9} />
+              <span>{item.label.replace('Minha ', '').replace('Meu ', '')}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
       <main className={styles.appMain}>
         {preview && <FaixaPreview />}
         <div className={styles.appContent}>

@@ -134,8 +134,71 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 .heroSelo{display:flex;align-items:center;gap:10px;margin-top:16px;font-size:13.5px;color:#8f8f8f}
 .heroSelo b{color:#fff;font-weight:700}
 
-@media(max-width:860px){ .heroGrid{grid-template-columns:1fr;gap:30px} .heroArte{max-width:420px} }
-@media(max-width:640px){ .assina{display:none} section{padding:52px 18px} }
+/* ── Celular ───────────────────────────────────────────────────────────────
+   A referência é lida quase toda no telefone. O que muda aqui não é só largura:
+   o alvo de toque, o tamanho do texto que decide, e o CTA que não pode exigir
+   que a pessoa role de volta pra achar. */
+@media(max-width:860px){
+  .heroGrid{grid-template-columns:1fr;gap:26px}
+  .heroArte{max-width:100%}
+}
+@media(max-width:700px){
+  /* O mockup do celular já vem com a moldura do telefone: esticar até a borda
+     faria a moldura brigar com a borda da tela. */
+  .mockup{max-width:340px;margin-left:auto;margin-right:auto;border:0;border-radius:0}
+}
+@media(max-width:640px){
+  .assina{display:none}
+  section{padding:48px 18px}
+  h1{font-size:31px;line-height:1.14;max-width:none}
+  h2{font-size:25px;max-width:none}
+  .lead{font-size:16.5px}
+  .sub{font-size:15.5px}
+  ul.lista{font-size:16px;gap:11px}
+  /* Alvo de toque: 56px de altura e largura cheia. Botão de 20px de padding no
+     desktop vira alvo apertado no dedo. */
+  .cta{max-width:none;padding:19px 22px;font-size:16.5px;min-height:56px}
+  .amostras{grid-template-columns:1fr;gap:14px}
+  .amostraDiag svg{max-height:none}
+  .aulas li{flex-wrap:wrap;gap:6px 12px;font-size:15.5px;padding:13px 0}
+  .aulas .dur{margin-left:0;width:100%;padding-left:36px}
+  .card{padding:20px}
+  .preco{font-size:44px}
+  details summary{font-size:16px}
+  .bump{padding:14px 15px}
+  .passo span{font-size:14.5px}
+}
+
+/* ── Alvo de toque ────────────────────────────────────────────────────────
+   A regra é DEDO, não largura de tela: um tablet de 768px tem o mesmo dedo que
+   um celular de 375px, e a media query por largura deixava o tablet de fora.
+   `pointer:coarse` é o sinal certo — quem navega com mouse não precisa de 44px.
+
+   A pergunta do FAQ tinha 26px de altura e o WhatsApp do rodapé, 17. Dava pra
+   errar os dois. */
+@media (pointer: coarse) {
+  details summary{padding:11px 0;min-height:44px;display:flex;align-items:center;gap:10px}
+  details summary::after{margin-left:auto;float:none}
+  .rodape a{display:inline-block;padding:12px 8px;min-height:44px;line-height:1.7}
+  .cta{min-height:56px}
+  #voltar{display:inline-block;padding:10px 0;min-height:44px}
+  .bump{padding:16px 18px}
+}
+
+/* Barra fixa com o preço e o botão — só no celular, e só depois que a pessoa
+   passou do primeiro terço. Antes disso ela ainda está lendo por que foi
+   recusada, e um botão de compra ali soa como venda oportunista. */
+.barraFixa{
+  position:fixed;left:0;right:0;bottom:0;z-index:60;display:none;
+  align-items:center;gap:12px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));
+  background:rgba(10,10,10,.97);border-top:1px solid var(--g800);
+  transform:translateY(110%);transition:transform .28s ease;
+}
+.barraFixa.on{transform:none}
+.barraFixa .bfPreco{color:#fff;font-weight:800;font-size:17px;line-height:1.15;white-space:nowrap}
+.barraFixa .bfPreco small{display:block;font-size:11.5px;font-weight:500;color:#8f8f8f}
+.barraFixa .cta{margin:0;flex:1;padding:15px 16px;font-size:15.5px;min-height:52px}
+@media (pointer: coarse) and (max-width: 900px) { .barraFixa{display:flex} }
 </style>
 </head>
 <body>
@@ -188,8 +251,16 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
   <div class="faixa">
     <p class="olho">Veja o que você recebe</p>
     <h2>Não é um PDF. É uma plataforma, e ela já está de pé.</h2>
-    <p class="sub">Acesso pelo celular ou pelo computador, no seu ritmo, sem prazo para terminar. O que está aí embaixo é a tela de verdade.</p>
-    <img class="mockup" src="/plugcash/img/mockup-app.png" alt="A plataforma do PlugCash com uma aula aberta" loading="lazy" width="2040" height="1290">
+    <p class="sub">No seu ritmo, sem prazo para terminar. As duas telas abaixo são de verdade — não são maquete.</p>
+    <!-- No celular, o print do desktop apareceria a 26% da escala e o texto da
+         interface viraria 4px. Troca de imagem, não de tamanho: cada tela ganha
+         o mockup que foi feito pra ela. -->
+    <picture>
+      <source media="(max-width: 700px)" srcset="/plugcash/img/mockup-celular.png">
+      <img class="mockup" src="/plugcash/img/mockup-app.png"
+           alt="A plataforma do PlugCash com uma aula aberta" loading="lazy"
+           width="2040" height="1290">
+    </picture>
   </div>
 </section>
 
@@ -500,6 +571,14 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
   </div>
 </section>
 
+<!-- Barra fixa do celular. Aparece depois do primeiro terço: antes disso a
+     pessoa ainda está lendo por que foi recusada, e botão de compra ali soa
+     como venda oportunista em cima de quem acabou de levar um não. -->
+<div class="barraFixa" id="barra-fixa">
+  <span class="bfPreco" id="bf-preco">—<small>à vista</small></span>
+  <a class="cta" id="cta3" href="#">Quero o material</a>
+</div>
+
 <footer class="rodape">
   PlugCash · Irmãos na Obra — Mobilidade Elétrica<br>
   Dúvidas? <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a>
@@ -654,7 +733,7 @@ function money(cent){
 function pintarCta(){
   var usarBump = document.getElementById('bump-check') && document.getElementById('bump-check').checked;
   var linkFixo = (usarBump && checkoutBump) ? checkoutBump : checkoutSimples;
-  [document.getElementById('cta'), document.getElementById('cta2')].forEach(function(b){
+  [document.getElementById('cta'), document.getElementById('cta2'), document.getElementById('cta3')].forEach(function(b){
     b.className = 'cta';
     b.textContent = 'Quero o material — ' + document.getElementById('preco').dataset.label;
     // Link do gateway cadastrado vira <a> normal; sem ele, o clique pede a
@@ -719,7 +798,9 @@ function semOferta(){
   SECOES_DE_VENDA.forEach(function(id){ document.getElementById(id).style.display = 'none'; });
   evento('material_sem_oferta');
 }
+var temOferta = false;
 function comOferta(){
+  temOferta = true;
   document.getElementById('fallback').style.display = 'none';
   SECOES_DE_VENDA.forEach(function(id){ document.getElementById(id).style.display = ''; });
 }
@@ -736,6 +817,10 @@ fetch(API + '/plugcash/curso/fundamentos')
     var el = document.getElementById('preco');
     el.textContent = money(k.preco_centavos);
     el.dataset.label = money(k.preco_centavos);
+    document.getElementById('bf-preco').innerHTML =
+      money(k.preco_centavos) + '<small>' +
+      (k.parcelas > 1 ? 'ou ' + k.parcelas + '× de ' + money(Math.round(k.preco_centavos / k.parcelas)) : 'à vista') +
+      '</small>';
     if (k.parcelas > 1) {
       document.getElementById('parcela').textContent =
         'ou ' + k.parcelas + '× de ' + money(Math.round(k.preco_centavos / k.parcelas)) + ' no cartão';
@@ -811,13 +896,24 @@ document.getElementById('voltar').addEventListener('click', function(){
   evento('material_voltar_form', { motivo: motivo || 'neutro' });
 });
 
-['cta','cta2'].forEach(function(id){
+['cta','cta2','cta3'].forEach(function(id){
   document.getElementById(id).addEventListener('click', function(e){
     if (this.classList.contains('off')) return;
     if (!this.getAttribute('href')) e.preventDefault();
     abrirCheckout(this);
   });
 });
+
+// A barra fixa do celular sobe depois do primeiro terço. Antes disso a pessoa
+// ainda está lendo por que foi recusada, e um botão de compra grudado na tela
+// nesse momento soa como venda oportunista em cima de quem levou um não.
+window.addEventListener('scroll', function(){
+  if (!temOferta) return;
+  var h = document.documentElement, alt = h.scrollHeight - window.innerHeight;
+  if (alt <= 0) return;
+  var pct = ((window.scrollY || h.scrollTop) / alt) * 100;
+  document.getElementById('barra-fixa').classList.toggle('on', pct > 33);
+}, { passive: true });
 
 // Profundidade de leitura: se todo mundo para antes do preço, o problema é a
 // abertura; se param depois, é o preço.

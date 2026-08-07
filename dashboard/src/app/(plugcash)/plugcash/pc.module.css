@@ -669,3 +669,45 @@
   .leitorTitulo { font-size: 22px; }
   .leitorPontos { display: none; }
 }
+
+/* ── Navegação inferior (só no celular) ────────────────────────────────────
+   A sidebar some abaixo de 900px, e até aqui NADA entrava no lugar: no celular
+   o app ficava sem navegação — dava pra entrar numa aula e não ter como voltar
+   pro painel a não ser pelo botão do navegador.
+
+   Barra fixa no rodapé é o padrão que o dedo espera no celular, e ela também
+   resolve a área segura do iPhone (env(safe-area-inset-bottom)), que sem
+   tratamento esconde o último item atrás da barra do sistema. */
+.tabbar { display: none; }
+
+@media (max-width: 900px) {
+  .tabbar {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 50;
+    background: var(--chrome-bg);
+    border-top: 1px solid #2E3742;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .tabItem {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    /* 56px de alvo: dedo não erra e não briga com a barra do sistema. */
+    min-height: 56px;
+    padding: 8px 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--chrome-text-dim);
+    text-decoration: none;
+  }
+  .tabItemAtivo { color: var(--pc-green); }
+
+  /* O conteúdo precisa terminar acima da barra, senão o último botão da tela
+     fica embaixo dela e não dá pra clicar. */
+  .appContent { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+}
