@@ -5,38 +5,30 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Fundamentos do Eletroposto — PlugCash</title>
 <meta name="description" content="O caminho de quem ainda não tem o ponto, o capital ou o aval para montar um eletroposto.">
-<!-- noindex: esta página carrega a oferta de R$ 197, e ela existe SÓ depois da
-     desqualificação. Se o lead nota 3 achar isto no Google antes da reunião,
-     troca-se uma venda de R$ 160 mil por uma de R$ 197. Mesmo guardrail que a
-     rota /plugcash já aplica pelo metadata do Next. -->
 <meta name="robots" content="noindex,nofollow">
 <!--
   ─────────────────────────────────────────────────────────────────────────────
   PÁGINA DE DESQUALIFICAÇÃO — a tela que o NOTA 1 (0–4 pts) vê no lugar do
   horário da reunião.
 
-  Ela é a peça mais delicada do funil. A pessoa preencheu um formulário
-  esperando escolher um horário e recebeu um "não". Está frustrada. Se a página
-  soar como consolo ou como venda oportunista, ela fecha.
+  Reconstruída no ritmo da landing do LimpaPro: seções de largura cheia
+  alternando fundo, revelação no scroll, e uma galeria mostrando o produto de
+  verdade. Lá são 38 fotos dos materiais; aqui é o app renderizado a partir da
+  marcação que está no ar, mais os diagramas reais de uma aula.
 
-  O que faz funcionar: tratar a recusa como CRITÉRIO, não como julgamento. A
-  reunião é com quem dimensiona e orça um investimento de seis dígitos — sem
-  local definido não há o que orçar. Isso é verdade e é defensável.
+  UMA SEÇÃO DA REFERÊNCIA NÃO FOI COPIADA: "resultados de quem aplicou". A
+  empresa não tem eletroposto entregue e documentado, então depoimento aqui
+  seria inventado. No lugar dela entra a seção que EXPLICA a ausência — com este
+  leitor, que acabou de ser reprovado por um formulário e está desconfiado,
+  admitir converte mais que fingir.
 
-  QUATRO DECISÕES QUE ESTÃO NO CÓDIGO:
+  O que continua sendo o coração da página: a abertura muda conforme o que
+  travou o lead (sem ponto, sem capital, não é decisor, fluxo baixo). O motivo
+  chega por sessionStorage, nunca por querystring — pontuação é dado do lead e
+  URL vira print.
 
-  1. O motivo vem por sessionStorage, não por querystring. A pontuação bruta não
-     pode aparecer na URL: é dado do lead e vira print no grupo do WhatsApp.
-     Sem sessionStorage (link direto, aba nova), cai na variação neutra — nunca
-     numa tela quebrada.
-  2. O LINK DE CHECKOUT NÃO ESTÁ AQUI. Vem da API (/plugcash/curso/fundamentos),
-     que lê de `pc_cursos`, editável pelo /admin. Trocar de oferta não pode
-     exigir deploy de landing.
-  3. NÃO tem contador, vaga fictícia, depoimento nem "de R$ X por R$ Y". O
-     público veio de sete minutos de conteúdo técnico; artifício aqui contamina a
-     marca principal, que é onde mora a venda de R$ 160 mil.
-  4. ZERO IMAGEM EXTERNA. Só SVG inline — a lander do /io já pesou 2,58 MB uma
-     vez por causa de um favicon de 468 KB baixado três vezes.
+  Uma imagem externa só (o mockup do app). O resto é SVG inline: a lander do /io
+  já pesou 2,58 MB uma vez por causa de um favicon baixado três vezes.
   ─────────────────────────────────────────────────────────────────────────────
 -->
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><rect width='80' height='80' rx='21' fill='%2300C853'/><rect x='38.5' y='11' width='3.6' height='58' rx='1.8' fill='%23fff'/><path d='M45 19 L27 51 L39 51 L36 69 L55 39 L42 39 Z' fill='%23fff'/></svg>">
@@ -44,81 +36,113 @@
 :root{
   --green:#00C853; --green-deep:#009B40; --green-soft:#E6F9EE;
   --black:#0A0A0A; --g900:#141414; --g800:#262626; --g600:#6B6B6B;
-  --g300:#D9D9D9; --g100:#F5F5F5; --r:12px; --rl:20px;
+  --g300:#D9D9D9; --g100:#F5F5F5; --papel:#F6F8F6; --r:12px; --rl:20px;
+  --largura:1120px;
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0}
-body{
-  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
-  background:var(--g100); color:var(--black); -webkit-font-smoothing:antialiased;
-  line-height:1.55;
-}
-.wrap{width:100%;max-width:760px;margin:0 auto;padding:0 20px}
-.dark{background:var(--black);color:#fff}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+     background:var(--papel);color:var(--black);line-height:1.6;-webkit-font-smoothing:antialiased}
 
-/* Marca */
+/* Seções de largura cheia alternando fundo — é o ritmo da referência: cada
+   assunto ocupa a tela e a troca de fundo avisa que virou de assunto. */
+section{padding:72px 20px}
+.faixa{max-width:var(--largura);margin:0 auto}
+.claro{background:var(--papel)}
+.branco{background:#fff}
+.escuro{background:var(--black);color:#fff}
+.verde{background:var(--green-soft)}
+
+.rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+.rv.on{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){ .rv{opacity:1;transform:none;transition:none} }
+
 .topo{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
 .logo{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.02em}
 .logo svg{width:32px;height:32px;flex:none}
-.logo .cash{color:var(--green)}
+.cash{color:var(--green)}
 .assina{font-size:12px;color:#8f8f8f;text-align:right;line-height:1.4}
 
-/* Hero */
-.hero{padding:16px 0 56px}
-.selo{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
-      color:var(--green);border:1px solid var(--g800);border-radius:999px;padding:6px 14px;margin-bottom:22px}
-h1{font-size:clamp(27px,4.6vw,40px);font-weight:800;line-height:1.16;letter-spacing:-.02em;margin:0 0 18px;max-width:20ch}
-.lead{font-size:17px;line-height:1.7;color:#cfcfcf;margin:0 0 16px;max-width:56ch}
-.lead strong{color:#fff}
+h1{font-size:clamp(29px,5vw,46px);font-weight:800;line-height:1.12;letter-spacing:-.025em;margin:0 0 20px;max-width:19ch;text-wrap:balance}
+h2{font-size:clamp(23px,3.4vw,33px);font-weight:800;line-height:1.18;letter-spacing:-.02em;margin:0 0 12px;max-width:24ch;text-wrap:balance}
+h3{font-size:19px;font-weight:800;margin:0 0 6px;letter-spacing:-.01em}
+.olho{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--green);margin:0 0 14px}
+.lead{font-size:17.5px;line-height:1.7;margin:0 0 16px;max-width:58ch}
+.escuro .lead{color:#cfcfcf}
+.escuro .lead strong{color:#fff}
+.sub{color:var(--g600);font-size:16px;margin:0 0 26px;max-width:60ch}
+.escuro .sub{color:#9a9a9a}
 
-/* Blocos claros */
-.bloco{padding:44px 0;border-bottom:1px solid var(--g300)}
-.bloco:last-of-type{border-bottom:0}
-h2{font-size:22px;font-weight:800;letter-spacing:-.01em;margin:0 0 6px}
-.sub{color:var(--g600);font-size:15px;margin:0 0 20px}
-ul.lista{margin:0;padding-left:20px;display:grid;gap:11px;font-size:16px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.card{background:#fff;border:1px solid var(--g300);border-radius:var(--rl);padding:24px}
+.escuro .card{background:var(--g900);border-color:var(--g800)}
+.card p{margin:0;color:var(--g600);font-size:15px;line-height:1.6}
+
+ul.lista{margin:0;padding-left:20px;display:grid;gap:12px;font-size:16.5px;max-width:62ch}
 ul.lista li::marker{color:var(--green)}
 
-.card{background:#fff;border:1px solid var(--g300);border-radius:var(--rl);padding:24px}
+.mockup{width:100%;height:auto;border-radius:var(--rl);border:1px solid var(--g300);display:block;margin-top:8px}
+.amostras{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:26px}
+.amostra{margin:0;background:#fff;border:1px solid var(--g300);border-radius:var(--rl);padding:18px;overflow:hidden}
+.amostraDiag{background:var(--g100);border-radius:var(--r);padding:14px}
+.amostraDiag svg{width:100%;height:auto;max-height:180px;display:block}
+.amostra figcaption{font-size:13.5px;color:var(--g600);margin-top:12px;line-height:1.45}
 
-/* Preço */
-.preco{font-size:40px;font-weight:800;letter-spacing:-.02em;margin:0}
-.preco small{font-size:16px;font-weight:600;color:var(--g600);letter-spacing:0}
-.parcela{color:var(--g600);font-size:15px;margin:8px 0 0}
+.aulas{list-style:none;margin:0;padding:0;counter-reset:a}
+.aulas li{display:flex;align-items:baseline;gap:14px;padding:14px 0;border-bottom:1px solid var(--g300);font-size:16px}
+.aulas li:before{counter-increment:a;content:counter(a,decimal-leading-zero);font-size:12.5px;font-weight:700;color:var(--green-deep);font-variant-numeric:tabular-nums;min-width:22px}
+.aulas .dur{margin-left:auto;font-size:13.5px;color:var(--g600);font-variant-numeric:tabular-nums;white-space:nowrap}
 
-/* Bump: UMA linha com checkbox. Nunca card com copy longa. */
-.bump{display:flex;align-items:flex-start;gap:12px;margin:22px 0 0;padding:14px 16px;
-      border:1px dashed var(--g300);border-radius:var(--r);background:#fff;cursor:pointer}
-.bump input{margin-top:3px;width:18px;height:18px;accent-color:var(--green);flex:none}
+.preco{font-size:clamp(40px,6vw,58px);font-weight:800;letter-spacing:-.03em;margin:0;line-height:1}
+.parcela{color:var(--g600);font-size:16px;margin:10px 0 0}
+.escuro .parcela{color:#9a9a9a}
+
+.bump{display:flex;align-items:flex-start;gap:12px;margin:24px 0 0;padding:16px 18px;
+      border:1px dashed var(--g300);border-radius:var(--r);background:#fff;color:var(--black);cursor:pointer;max-width:560px}
+.bump input{margin-top:3px;width:19px;height:19px;accent-color:var(--green);flex:none}
 .bump span{font-size:15px;line-height:1.5}
-.bump b{font-weight:700}
 
-/* Botão */
-.cta{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
-     padding:18px 26px;border:0;border-radius:var(--r);background:var(--green);color:#fff;
-     font:inherit;font-weight:800;font-size:17px;line-height:1;text-decoration:none;cursor:pointer;
-     margin-top:20px;transition:background .15s}
+.cta{display:inline-flex;align-items:center;justify-content:center;width:100%;max-width:460px;
+     padding:20px 26px;border:0;border-radius:var(--r);background:var(--green);color:#fff;
+     font:inherit;font-weight:800;font-size:17.5px;line-height:1;text-decoration:none;cursor:pointer;
+     margin-top:22px;transition:background .15s}
 .cta:hover{background:var(--green-deep)}
-.cta[disabled],.cta.off{background:var(--g300);color:var(--g600);cursor:default}
+.cta.off{background:var(--g300);color:var(--g600);cursor:default}
 
-/* Garantia / FAQ */
-.garantia{border-left:3px solid var(--green);padding-left:16px;font-size:16px;color:#333}
-details{border-top:1px solid var(--g300);padding:15px 0}
-details summary{font-weight:700;cursor:pointer;font-size:16px;list-style:none}
+.garantia{border-left:3px solid var(--green);padding-left:18px;font-size:17px;max-width:60ch}
+details{border-top:1px solid var(--g300);padding:17px 0}
+details summary{font-weight:700;cursor:pointer;font-size:16.5px;list-style:none}
 details summary::-webkit-details-marker{display:none}
 details summary::after{content:'+';float:right;color:var(--green);font-weight:800}
-details[open] summary::after{content:'–'}
-details p{margin:10px 0 0;color:var(--g600);line-height:1.65}
+details[open] summary::after{content:'\2013'}
+details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 
-.rodape{background:var(--black);color:#8f8f8f;font-size:13px;padding:30px 0;text-align:center;line-height:1.7}
+.passos{counter-reset:p;display:grid;gap:18px;max-width:62ch}
+.passo{display:flex;gap:16px;align-items:flex-start}
+.passo:before{counter-increment:p;content:counter(p);flex:none;width:30px;height:30px;border-radius:99px;
+              background:var(--green);color:#fff;font-weight:800;font-size:14px;display:grid;place-items:center}
+.passo b{display:block;font-size:16.5px;margin-bottom:2px}
+.passo span{color:var(--g600);font-size:15px;line-height:1.55}
+
+.rodape{background:var(--black);color:#8f8f8f;font-size:13px;padding:34px 20px;text-align:center;line-height:1.8}
 .rodape a{color:#cfcfcf}
-@media(max-width:640px){ .assina{display:none} }
+/* Hero em duas colunas — a referência tem imagem ao lado do texto e sem ela
+   metade da tela fica vazia. A capa do curso é o ativo certo aqui: é a mesma
+   que ele vai ver dentro da plataforma depois de comprar. */
+.heroGrid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:48px;align-items:center;padding:34px 0 20px}
+.heroArte{border-radius:var(--rl);border:1px solid var(--g800);overflow:hidden;display:block;width:100%;height:auto}
+.heroSelo{display:flex;align-items:center;gap:10px;margin-top:16px;font-size:13.5px;color:#8f8f8f}
+.heroSelo b{color:#fff;font-weight:700}
+
+@media(max-width:860px){ .heroGrid{grid-template-columns:1fr;gap:30px} .heroArte{max-width:420px} }
+@media(max-width:640px){ .assina{display:none} section{padding:52px 18px} }
 </style>
 </head>
 <body>
 
-<div class="dark">
-  <div class="wrap">
+<!-- 1 · HERO — a abertura muda conforme o que travou o lead -->
+<section class="escuro" style="padding-top:0">
+  <div class="faixa">
     <header class="topo">
       <span class="logo">
         <svg viewBox="0 0 80 80" aria-hidden="true">
@@ -131,66 +155,297 @@ details p{margin:10px 0 0;color:var(--g600);line-height:1.65}
       <span class="assina">Irmãos na Obra<br>Mobilidade Elétrica</span>
     </header>
 
-    <section class="hero">
-      <span class="selo" id="selo">Sobre a sua resposta</span>
-      <h1 id="headline">A reunião não vai acontecer agora — e o motivo é objetivo.</h1>
-      <div id="abertura"></div>
-      <p class="lead" id="ponte"></p>
-
-      <!-- Player: só aparece se houver vídeo cadastrado. Espaço vazio é melhor
-           que player quebrado ou que um "em breve" que ninguém volta pra ver. -->
-      <div id="video-slot"></div>
-
-      <!-- Saída de emergência. Ela existia na LP ("já tenho um ponto definido —
-           quero agendar") e resgatava quem clicou errado na pergunta do ponto,
-           que é a que decide a nota na esmagadora maioria dos casos. Sem isto,
-           um lead qualificado que errou um clique fica preso numa página de
-           venda de R$ 197 — troca de R$ 160 mil por R$ 197 pelo motivo errado. -->
-      <p style="margin:28px 0 0">
-        <a href="/io/eletroposto#agendar" id="voltar"
-           style="color:#8f8f8f;font-size:14px;text-decoration:underline;text-underline-offset:3px">
-          Respondi errado: já sei onde vou instalar — quero agendar
-        </a>
-      </p>
-    </section>
+    <div class="heroGrid">
+      <div>
+        <p class="olho" id="selo">Sobre a sua resposta</p>
+        <h1 id="headline">A reunião não vai acontecer agora — e o motivo é objetivo.</h1>
+        <div id="abertura"></div>
+        <p class="lead" id="ponte"></p>
+        <div id="video-slot"></div>
+        <p style="margin:28px 0 0">
+          <a href="/io/eletroposto#agendar" id="voltar"
+             style="color:#8f8f8f;font-size:14px;text-decoration:underline;text-underline-offset:3px">
+            Respondi errado: já sei onde vou instalar — quero agendar
+          </a>
+        </p>
+      </div>
+      <div>
+        <img class="heroArte" src="/plugcash/img/fundamentos.png"
+             alt="Fundamentos do Eletroposto" width="800" height="450">
+        <p class="heroSelo">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#00C853" stroke-width="2.4"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <span><b id="hero-aulas">Acesso vitalício</b> · no celular ou no computador</span>
+        </p>
+      </div>
+    </div>
   </div>
-</div>
+</section>
 
-<div class="wrap">
+<!-- 2 · O PRODUTO DE VERDADE. Na referência são 38 fotos dos materiais; aqui é
+     o app renderizado da marcação que está no ar. Nada de maquete inventada. -->
+<section class="branco rv">
+  <div class="faixa">
+    <p class="olho">Veja o que você recebe</p>
+    <h2>Não é um PDF. É uma plataforma, e ela já está de pé.</h2>
+    <p class="sub">Acesso pelo celular ou pelo computador, no seu ritmo, sem prazo para terminar. O que está aí embaixo é a tela de verdade.</p>
+    <img class="mockup" src="/plugcash/img/mockup-app.png" alt="A plataforma do PlugCash com uma aula aberta" loading="lazy" width="2040" height="1290">
+  </div>
+</section>
 
-  <section class="bloco">
-    <h2>O que está no Fundamentos do Eletroposto</h2>
-    <p class="sub">O curso de entrada — o mesmo material que a nossa equipe usa para decidir se um ponto vale ou não vale.</p>
-    <ul class="lista" id="o-que-leva"></ul>
-  </section>
+<!-- 3 · COMO AS AULAS SÃO — a diferença que justifica o formato -->
+<section class="claro rv">
+  <div class="faixa">
+    <p class="olho">Como as aulas são</p>
+    <h2>Página por página, com o desenho que explica.</h2>
+    <p class="sub">Carga disponível, padrão de entrada, o vaivém do protocolo na distribuidora: são coisas que um esquema resolve em segundos e um vídeo leva meia hora tentando. Os diagramas abaixo são de uma aula de verdade.</p>
+    <div class="amostras">
+      <figure class="amostra">
+        <div class="amostraDiag"><svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif">
+  <rect x="40" y="24" width="330" height="332" rx="8" fill="#fff" stroke="#0A0A0A" stroke-width="2"/>
+  <text x="62" y="58" font-size="15" font-weight="700" fill="#0A0A0A">CONTA DE ENERGIA</text>
+  <line x1="62" y1="70" x2="348" y2="70" stroke="#6B6B6B" stroke-width="1"/>
 
-  <section class="bloco" id="grade-bloco" style="display:none">
-    <h2>A grade completa</h2>
-    <p class="sub">Todas as aulas, com a duração de cada uma. Sem surpresa depois da compra.</p>
-    <ul class="lista" id="grade"></ul>
-  </section>
+  <text x="62" y="98" font-size="12" fill="#6B6B6B">Classe / Subclasse</text>
+  <text x="62" y="116" font-size="14" fill="#0A0A0A">Comercial — Trifásico</text>
 
-  <!-- Enquanto o curso não estiver publicado COM link de checkout, esta página
-       não pode terminar num botão morto. Ela cai no grupo — que é o que existe
-       hoje e é melhor que nada. Some sozinha no instante em que o /admin
-       publicar a oferta: nenhuma chave pra alguém lembrar de virar. -->
-  <section class="bloco" id="fallback" style="display:none">
-    <h2>Enquanto isso, entre no grupo</h2>
-    <p class="sub">
-      O material completo está sendo finalizado. Enquanto ele não sai, o grupo é
-      onde publicamos os pontos que instalamos, como avaliar um local e o caminho
-      do financiamento. Quem tem local e quem tem capital se encontram por lá.
-    </p>
-    <a class="cta" href="https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M"
-       target="_blank" rel="noopener" id="cta-grupo">Entrar no grupo</a>
-    <p class="parcela" style="margin-top:12px">Entrada gratuita. Também mandamos o convite no seu WhatsApp.</p>
-  </section>
+  <text x="62" y="148" font-size="12" fill="#6B6B6B">Tipo de fornecimento</text>
+  <text x="62" y="166" font-size="14" fill="#0A0A0A">Baixa tensão · Grupo B</text>
 
-  <section class="bloco" id="oferta" style="display:none">
-    <h2>Preço</h2>
+  <rect x="52" y="186" width="306" height="58" rx="6" fill="none" stroke="#00C853" stroke-width="2.5"/>
+  <text x="62" y="208" font-size="12" fill="#00C853" font-weight="700">DEMANDA CONTRATADA</text>
+  <text x="62" y="232" font-size="20" font-weight="800" fill="#0A0A0A">75 kW</text>
+
+  <text x="62" y="272" font-size="12" fill="#6B6B6B">Consumo do mês</text>
+  <text x="62" y="290" font-size="14" fill="#0A0A0A">4.820 kWh</text>
+  <line x1="62" y1="308" x2="348" y2="308" stroke="#6B6B6B" stroke-width="1" stroke-dasharray="3 3"/>
+  <text x="62" y="332" font-size="13" fill="#6B6B6B">Total a pagar</text>
+  <text x="270" y="332" font-size="13" font-weight="700" fill="#0A0A0A">R$ 3.914,20</text>
+
+  <path d="M368 215 L440 215" stroke="#00C853" stroke-width="2.5"/>
+  <path d="M432 208 L440 215 L432 222" fill="none" stroke="#00C853" stroke-width="2.5"/>
+
+  <text x="456" y="196" font-size="15" font-weight="800" fill="#0A0A0A">É este número.</text>
+  <text x="456" y="222" font-size="13.5" fill="#6B6B6B">É o teto que a distribuidora</text>
+  <text x="456" y="242" font-size="13.5" fill="#6B6B6B">já contratou com você — e</text>
+  <text x="456" y="262" font-size="13.5" fill="#6B6B6B">o ponto de partida da conta.</text>
+</svg></div>
+        <figcaption>A resposta já está na sua conta de luz</figcaption>
+      </figure>
+      <figure class="amostra">
+        <div class="amostraDiag"><svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif">
+  <line x1="86" y1="40" x2="86" y2="330" stroke="#0A0A0A" stroke-width="4"/>
+  <text x="60" y="352" font-size="12" fill="#6B6B6B">Poste</text>
+  <path d="M86 78 C 150 78, 160 96, 196 96" fill="none" stroke="#0A0A0A" stroke-width="2.5"/>
+
+  <rect x="196" y="70" width="92" height="76" rx="6" fill="#fff" stroke="#0A0A0A" stroke-width="2.5"/>
+  <circle cx="242" cy="102" r="17" fill="none" stroke="#0A0A0A" stroke-width="2"/>
+  <text x="242" y="107" font-size="12" text-anchor="middle" fill="#0A0A0A">kWh</text>
+  <text x="242" y="166" font-size="12.5" text-anchor="middle" fill="#6B6B6B">Medidor</text>
+
+  <line x1="288" y1="108" x2="352" y2="108" stroke="#0A0A0A" stroke-width="2.5"/>
+
+  <rect x="352" y="70" width="92" height="76" rx="6" fill="#fff" stroke="#00C853" stroke-width="3"/>
+  <path d="M382 88 L382 128 M398 88 L398 128 M414 88 L414 128" stroke="#00C853" stroke-width="3" stroke-linecap="round"/>
+  <text x="398" y="166" font-size="12.5" text-anchor="middle" fill="#00C853" font-weight="700">Disjuntor geral</text>
+
+  <line x1="444" y1="108" x2="512" y2="108" stroke="#0A0A0A" stroke-width="2.5"/>
+  <rect x="512" y="62" width="112" height="92" rx="6" fill="#fff" stroke="#0A0A0A" stroke-width="2.5"/>
+  <line x1="530" y1="82" x2="606" y2="82" stroke="#6B6B6B" stroke-width="2"/>
+  <line x1="530" y1="102" x2="606" y2="102" stroke="#6B6B6B" stroke-width="2"/>
+  <line x1="530" y1="122" x2="606" y2="122" stroke="#6B6B6B" stroke-width="2"/>
+  <text x="568" y="174" font-size="12.5" text-anchor="middle" fill="#6B6B6B">Quadro geral</text>
+
+  <rect x="196" y="228" width="428" height="80" rx="8" fill="none" stroke="#00C853" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="216" y="256" font-size="14" font-weight="800" fill="#0A0A0A">O disjuntor geral é o teto físico.</text>
+  <text x="216" y="280" font-size="13.5" fill="#6B6B6B">A demanda contratada é o teto comercial. Os dois existem,</text>
+  <text x="216" y="298" font-size="13.5" fill="#6B6B6B">e o menor dos dois é o que vale para você.</text>
+</svg></div>
+        <figcaption>Existem dois tetos, e o menor manda</figcaption>
+      </figure>
+      <figure class="amostra">
+        <div class="amostraDiag"><svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif">
+  <text x="40" y="46" font-size="13" font-weight="700" fill="#6B6B6B">CAPACIDADE CONTRATADA — 75 kW</text>
+
+  <rect x="40" y="62" width="640" height="54" rx="6" fill="#F5F5F5" stroke="#6B6B6B" stroke-width="1.5"/>
+  <rect x="40" y="62" width="290" height="54" rx="6" fill="#0A0A0A"/>
+  <text x="60" y="95" font-size="14" font-weight="700" fill="#fff">Carga já usada · 34 kW</text>
+  <text x="350" y="95" font-size="14" fill="#6B6B6B">Folga: 41 kW</text>
+
+  <text x="40" y="168" font-size="13" font-weight="700" fill="#6B6B6B">O QUE O CARREGADOR PEDE</text>
+
+  <rect x="40" y="184" width="640" height="54" rx="6" fill="#F5F5F5" stroke="#6B6B6B" stroke-width="1.5"/>
+  <rect x="40" y="184" width="512" height="54" rx="6" fill="#C2410C" opacity="0.9"/>
+  <text x="60" y="217" font-size="14" font-weight="700" fill="#fff">Estação de 60 kW</text>
+
+  <line x1="352" y1="56" x2="352" y2="250" stroke="#00C853" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="362" y="270" font-size="12.5" fill="#00C853" font-weight="700">limite da folga</text>
+
+  <rect x="40" y="296" width="640" height="60" rx="8" fill="#FDF0E9" stroke="#C2410C" stroke-width="1.5"/>
+  <text x="60" y="322" font-size="14.5" font-weight="800" fill="#C2410C">Não cabe. Faltam 19 kW.</text>
+  <text x="60" y="344" font-size="13.5" fill="#0A0A0A">E isto é uma conta de subtração, não uma opinião do fornecedor.</text>
+</svg></div>
+        <figcaption>Agora a conta: quanto sobra de verdade</figcaption>
+      </figure>
+      <figure class="amostra">
+        <div class="amostraDiag"><svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif">
+  <rect x="40" y="150" width="150" height="76" rx="8" fill="#fff" stroke="#0A0A0A" stroke-width="2.5"/>
+  <text x="115" y="182" font-size="13" text-anchor="middle" fill="#6B6B6B">Carga total</text>
+  <text x="115" y="206" font-size="16" font-weight="800" text-anchor="middle" fill="#0A0A0A">do seu ponto</text>
+
+  <path d="M190 172 L268 96" fill="none" stroke="#00C853" stroke-width="2.5"/>
+  <path d="M262 100 L268 96 L270 104" fill="none" stroke="#00C853" stroke-width="2.5"/>
+  <path d="M190 204 L268 280" fill="none" stroke="#C2410C" stroke-width="2.5"/>
+  <path d="M262 276 L268 280 L270 272" fill="none" stroke="#C2410C" stroke-width="2.5"/>
+
+  <rect x="278" y="52" width="402" height="92" rx="8" fill="#fff" stroke="#00C853" stroke-width="2.5"/>
+  <text x="300" y="82" font-size="15" font-weight="800" fill="#00C853">Abaixo do limiar → baixa tensão</text>
+  <text x="300" y="106" font-size="13.5" fill="#0A0A0A">Ligação mais simples, prazo menor, sem subestação.</text>
+  <text x="300" y="126" font-size="13.5" fill="#6B6B6B">É o caminho que a maioria dos pontos consegue.</text>
+
+  <rect x="278" y="236" width="402" height="112" rx="8" fill="#fff" stroke="#C2410C" stroke-width="2.5"/>
+  <text x="300" y="266" font-size="15" font-weight="800" fill="#C2410C">Acima do limiar → média tensão</text>
+  <text x="300" y="290" font-size="13.5" fill="#0A0A0A">Entra subestação própria, projeto maior, prazo maior</text>
+  <text x="300" y="310" font-size="13.5" fill="#0A0A0A">e um custo que muda a conta do investimento inteiro.</text>
+  <text x="300" y="334" font-size="13" fill="#6B6B6B">O limiar exato é da norma da SUA distribuidora.</text>
+</svg></div>
+        <figcaption>O limiar que decide o tamanho do seu projeto</figcaption>
+      </figure>
+      <figure class="amostra">
+        <div class="amostraDiag"><svg viewBox="0 0 720 364" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif">
+  
+      <rect x="40" y="96" width="140" height="128" rx="8" fill="#fff"
+            stroke="#0A0A0A" stroke-width="2"/>
+      <circle cx="66" cy="124" r="14" fill="#0A0A0A"/>
+      <text x="66" y="129" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">1</text>
+      <text x="56" y="166" font-size="14.5" font-weight="800" fill="#0A0A0A">Você pede</text>
+      <text x="56" y="190" font-size="12.5" fill="#6B6B6B">Solicitação de</text><text x="56" y="208" font-size="12.5" fill="#6B6B6B">informação de carga</text>
+      <path d="M186 160 L206 160" stroke="#6B6B6B" stroke-width="2"/>
+                 <path d="M200 154 L206 160 L200 166" fill="none" stroke="#6B6B6B" stroke-width="2"/>
+    
+      <rect x="212" y="96" width="140" height="128" rx="8" fill="#fff"
+            stroke="#0A0A0A" stroke-width="2"/>
+      <circle cx="238" cy="124" r="14" fill="#0A0A0A"/>
+      <text x="238" y="129" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">2</text>
+      <text x="228" y="166" font-size="14.5" font-weight="800" fill="#0A0A0A">Ela analisa</text>
+      <text x="228" y="190" font-size="12.5" fill="#6B6B6B">Prazo é dela,</text><text x="228" y="208" font-size="12.5" fill="#6B6B6B">não seu</text>
+      <path d="M358 160 L378 160" stroke="#6B6B6B" stroke-width="2"/>
+                 <path d="M372 154 L378 160 L372 166" fill="none" stroke="#6B6B6B" stroke-width="2"/>
+    
+      <rect x="384" y="96" width="140" height="128" rx="8" fill="#fff"
+            stroke="#0A0A0A" stroke-width="2"/>
+      <circle cx="410" cy="124" r="14" fill="#0A0A0A"/>
+      <text x="410" y="129" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">3</text>
+      <text x="400" y="166" font-size="14.5" font-weight="800" fill="#0A0A0A">Ela responde</text>
+      <text x="400" y="190" font-size="12.5" fill="#6B6B6B">Por escrito,</text><text x="400" y="208" font-size="12.5" fill="#6B6B6B">com número</text>
+      <path d="M530 160 L550 160" stroke="#6B6B6B" stroke-width="2"/>
+                 <path d="M544 154 L550 160 L544 166" fill="none" stroke="#6B6B6B" stroke-width="2"/>
+    
+      <rect x="556" y="96" width="140" height="128" rx="8" fill="#fff"
+            stroke="#00C853" stroke-width="3"/>
+      <circle cx="582" cy="124" r="14" fill="#00C853"/>
+      <text x="582" y="129" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">4</text>
+      <text x="572" y="166" font-size="14.5" font-weight="800" fill="#0A0A0A">Você decide</text>
+      <text x="572" y="190" font-size="12.5" fill="#6B6B6B">Com dado, não</text><text x="572" y="208" font-size="12.5" fill="#6B6B6B">com estimativa</text>
+      
+    
+  <rect x="40" y="272" width="640" height="72" rx="8" fill="#F5F5F5" stroke="#6B6B6B" stroke-width="1.5"/>
+  <text x="60" y="300" font-size="14.5" font-weight="800" fill="#0A0A0A">O pedido é gratuito. A estimativa errada, não.</text>
+  <text x="60" y="324" font-size="13.5" fill="#6B6B6B">Esta é a única resposta que vale em contrato, projeto e financiamento.</text>
+</svg></div>
+        <figcaption>O pedido formal, em quatro passos</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- 4 · A GRADE INTEIRA, sem mistério -->
+<section class="branco rv">
+  <div class="faixa">
+    <p class="olho">A trilha completa</p>
+    <h2>Todas as aulas, com a duração de cada uma.</h2>
+    <p class="sub">Sem borrão e sem "e muito mais". Saber exatamente o que está comprando é o que separa uma compra de um arrependimento.</p>
+    <ul class="aulas" id="grade"></ul>
+    <p class="sub" id="grade-vazia" style="display:none;margin-top:20px">A grade aparece aqui assim que as aulas entram no ar.</p>
+  </div>
+</section>
+
+<!-- 5 · O MERCADO — dado público e afirmação contida. Nunca case da casa. -->
+<section class="escuro rv">
+  <div class="faixa">
+    <p class="olho">Por que agora</p>
+    <h2>A frota elétrica cresce mais rápido que a malha de recarga.</h2>
+    <p class="lead">Carro elétrico e híbrido plug-in entram no país todo mês. Ponto de recarga público, não na mesma velocidade. É essa distância que abre a janela.</p>
+    <p class="lead"><strong>O que este material não faz é prometer que a janela é sua.</strong> Ela depende do seu endereço, do movimento daquela rua e da energia disponível naquele padrão de entrada — e as três coisas você aprende a medir aqui.</p>
+  </div>
+</section>
+
+<!-- 6 · PARA QUEM É — os quatro casos são os quatro motivos da régua -->
+<section class="claro rv">
+  <div class="faixa">
+    <p class="olho">Para quem é</p>
+    <h2>Você se reconhece em pelo menos uma destas quatro.</h2>
+    <div class="grid2" style="margin-top:26px">
+      <div class="card"><h3>Não tem o ponto</h3><p>Quer entender o que faz um local prestar antes de sair procurando — e antes de assinar arrendamento de anos.</p></div>
+      <div class="card"><h3>Tem imóvel, não tem certeza</h3><p>Posto, mercado, hotel, estacionamento, restaurante de beira de estrada. Não sabe se o movimento serve nem se a energia aguenta.</p></div>
+      <div class="card"><h3>Tem capital, não tem local</h3><p>Quer investir e precisa aprender a medir o movimento de um endereço antes de decidir qualquer coisa.</p></div>
+      <div class="card"><h3>Decide com outra pessoa</h3><p>Precisa chegar no sócio com carga, prazo e composição de preço — não com entusiasmo.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · O QUE VEM JUNTO -->
+<section class="branco rv">
+  <div class="faixa">
+    <p class="olho">O que você leva</p>
+    <h2>O mesmo material que a nossa equipe usa para decidir se um ponto vale.</h2>
+    <ul class="lista" id="o-que-leva" style="margin-top:24px"></ul>
+  </div>
+</section>
+
+<!-- 8 · A SEÇÃO QUE SUBSTITUI O DEPOIMENTO.
+     Na referência, aqui ficam os "resultados de quem aplicou". A empresa não tem
+     eletroposto entregue e documentado, então depoimento seria inventado — e
+     este leitor acabou de ser reprovado por um formulário. Admitir converte
+     mais que fingir, e é a única coisa que ele não espera ler. -->
+<section class="verde rv">
+  <div class="faixa">
+    <p class="olho" style="color:var(--green-deep)">Uma coisa dita na cara</p>
+    <h2>Esta página não tem depoimento. E não vai ter tão cedo.</h2>
+    <p class="sub" style="font-size:17px">Nós vendemos e executamos eletroposto turnkey — é de lá que vem o nosso dinheiro, e é por isso que este material existe. Mas ainda não temos obra entregue e documentada para mostrar, e inventar case é o tipo de coisa que se descobre depois.</p>
+    <p class="sub" style="font-size:17px;margin-bottom:0">O que dá para conferir antes de pagar está todo nesta página: a grade inteira com a duração de cada aula, os diagramas de verdade e sete dias de garantia. Se você precisa ver obra pronta para decidir, não compre agora — e essa é uma resposta legítima.</p>
+  </div>
+</section>
+
+<!-- 9 · QUEM ENSINA — com o conflito de interesse declarado -->
+<section class="claro rv">
+  <div class="faixa">
+    <p class="olho">Quem está do outro lado</p>
+    <h2>Quem te ensina é quem executa.</h2>
+    <p class="sub" style="font-size:17px">Irmãos na Obra — Mobilidade Elétrica. A mesma equipe que dimensiona, projeta, homologa na distribuidora e entrega eletroposto turnkey. O material é o que a gente confere antes de dizer sim ou não para um ponto.</p>
+    <p class="sub" style="font-size:17px;margin-bottom:0">Isso é conflito de interesse, e fica dito: aqui você aprende a abrir qualquer proposta de eletroposto e achar o que ficou de fora — inclusive a nossa. Se no fim você contratar outro executor com o nosso checklist na mão, o material fez o trabalho dele.</p>
+  </div>
+</section>
+
+<!-- 10 · O GRUPO — só enquanto a oferta ainda não está vendável -->
+<section class="branco rv" id="fallback" style="display:none">
+  <div class="faixa">
+    <p class="olho">Enquanto isso</p>
+    <h2>O material está sendo finalizado. Entre no grupo.</h2>
+    <p class="sub">É onde publicamos os pontos que instalamos, como avaliar um local e o caminho do financiamento. Quem tem local e quem tem capital se encontram por lá.</p>
+    <a class="cta" href="https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M" target="_blank" rel="noopener" id="cta-grupo">Entrar no grupo</a>
+    <p class="parcela">Entrada gratuita. Também mandamos o convite no seu WhatsApp.</p>
+  </div>
+</section>
+
+<!-- 11 · PREÇO -->
+<section class="escuro rv" id="oferta" style="display:none">
+  <div class="faixa">
+    <p class="olho">O investimento</p>
+    <h2>Fundamentos do Eletroposto</h2>
     <p class="preco" id="preco">—</p>
     <p class="parcela" id="parcela"></p>
-    <p class="sub" id="por-que" style="margin-top:14px"></p>
+    <p class="parcela" id="por-que" style="max-width:56ch"></p>
 
     <label class="bump" id="bump-linha" style="display:none">
       <input type="checkbox" id="bump-check">
@@ -198,36 +453,60 @@ details p{margin:10px 0 0;color:var(--g600);line-height:1.65}
     </label>
 
     <a class="cta off" id="cta" href="#">Carregando…</a>
-    <p class="parcela" style="margin-top:12px">Pagamento processado pela Kiwify. Acesso liberado por e-mail assim que o pagamento é aprovado.</p>
-  </section>
+    <p class="parcela">Acesso liberado por e-mail assim que o pagamento é aprovado.</p>
+  </div>
+</section>
 
-  <section class="bloco">
-    <h2>Garantia</h2>
+<!-- 12 · COMO É O ACESSO — a referência tem essa seção e ela remove atrito real -->
+<section class="claro rv" id="acesso" style="display:none">
+  <div class="faixa">
+    <p class="olho">Depois de pagar</p>
+    <h2>Três passos, e você está dentro.</h2>
+    <div class="passos" style="margin-top:26px">
+      <div class="passo"><div><b>Conclua a compra</b><span>No checkout, cartão ou Pix.</span></div></div>
+      <div class="passo"><div><b>Abra o e-mail</b><span>Chega em alguns instantes com o link para definir a sua senha. Se você já tem conta no SolarDoc, é a mesma — não precisa de cadastro novo.</span></div></div>
+      <div class="passo"><div><b>Comece pela primeira aula</b><span>O curso já está liberado. Sem prazo para terminar e sem prazo de acesso.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 · GARANTIA -->
+<section class="branco rv">
+  <div class="faixa">
+    <p class="olho">Sem risco</p>
+    <h2>Sete dias. E o material que você baixou continua seu.</h2>
     <p class="garantia" id="garantia">
-      Sete dias, contados do acesso. Não serviu, você pede e o valor volta integral —
-      inclusive o da planilha, se tiver levado. O que já baixou continua seu. Sem
-      formulário de motivo, sem conversa de retenção e sem contraproposta.
+      Contados do acesso. Não serviu, você pede e o valor volta integral — inclusive o da planilha, se tiver levado.
+      Sem formulário de motivo, sem conversa de retenção e sem contraproposta.
     </p>
-  </section>
+  </div>
+</section>
 
-  <section class="bloco">
-    <h2>Perguntas</h2>
-    <div id="faq"></div>
-  </section>
+<!-- 14 · FAQ -->
+<section class="claro rv">
+  <div class="faixa">
+    <p class="olho">Antes de decidir</p>
+    <h2>As perguntas que a gente ouve.</h2>
+    <div id="faq" style="margin-top:24px"></div>
+  </div>
+</section>
 
-  <section class="bloco" id="cta-final" style="display:none;text-align:center">
-    <a class="cta off" id="cta2" href="#">Carregando…</a>
-  </section>
-</div>
+<!-- 15 · CTA FINAL -->
+<section class="escuro rv" id="cta-final" style="display:none">
+  <div class="faixa" style="text-align:center">
+    <h2 style="margin-left:auto;margin-right:auto">O próximo passo é seu.</h2>
+    <p class="lead" style="margin-left:auto;margin-right:auto">Você já sabe o que travou a reunião. Isto é o caminho mais curto até destravar.</p>
+    <div style="display:flex;justify-content:center"><a class="cta off" id="cta2" href="#">Carregando…</a></div>
+  </div>
+</section>
 
 <footer class="rodape">
-  <div class="wrap">
-    PlugCash · Irmãos na Obra — Mobilidade Elétrica<br>
-    Dúvidas? <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a>
-  </div>
+  PlugCash · Irmãos na Obra — Mobilidade Elétrica<br>
+  Dúvidas? <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a>
 </footer>
 
 <script>
+
 (function(){
 'use strict';
 
@@ -433,16 +712,16 @@ function utmDaSessao(){
 // Oferta indisponível (curso em rascunho, ou publicado sem link de checkout):
 // a página mostra o grupo em vez de um botão que não compra nada. Uma página de
 // venda que termina em botão morto custa mais caro que não ter página.
+var SECOES_DE_VENDA = ['oferta', 'cta-final', 'acesso'];
 function semOferta(){
+  document.getElementById('grade-vazia').style.display = '';
   document.getElementById('fallback').style.display = '';
-  document.getElementById('oferta').style.display = 'none';
-  document.getElementById('cta-final').style.display = 'none';
+  SECOES_DE_VENDA.forEach(function(id){ document.getElementById(id).style.display = 'none'; });
   evento('material_sem_oferta');
 }
 function comOferta(){
   document.getElementById('fallback').style.display = 'none';
-  document.getElementById('oferta').style.display = '';
-  document.getElementById('cta-final').style.display = '';
+  SECOES_DE_VENDA.forEach(function(id){ document.getElementById(id).style.display = ''; });
 }
 
 fetch(API + '/plugcash/curso/fundamentos')
@@ -464,9 +743,13 @@ fetch(API + '/plugcash/curso/fundamentos')
     if (k.copy && k.copy.garantia) document.getElementById('garantia').textContent = k.copy.garantia;
 
     // Grade real, quando já houver aula cadastrada.
+    document.getElementById('grade-vazia').style.display = (k.aulas && k.aulas.length) ? 'none' : '';
     if (k.aulas && k.aulas.length) {
-      document.getElementById('grade-bloco').style.display = '';
       var g = document.getElementById('grade');
+      var totalMin = k.aulas.reduce(function(t,a){ return t + Math.round((a.duracao_seg||0)/60); }, 0);
+      document.getElementById('hero-aulas').textContent =
+        k.aulas.length + (k.aulas.length === 1 ? ' aula' : ' aulas') +
+        (totalMin ? ' · ' + Math.floor(totalMin/60) + 'h' + String(totalMin%60).padStart(2,'0') : '');
       k.aulas.forEach(function(a){
         var li = document.createElement('li');
         var m = a.duracao_seg ? Math.round(a.duracao_seg/60) + ' min' : '';
@@ -548,6 +831,24 @@ window.addEventListener('scroll', function(){
   });
 }, { passive:true });
 })();
+
+// Revelação no scroll, igual à referência. IntersectionObserver em vez de
+// listener de scroll: não roda a cada rolagem, e quem pediu menos movimento no
+// sistema já recebe tudo visível pelo CSS.
+(function(){
+  var alvos = document.querySelectorAll('.rv');
+  if (!('IntersectionObserver' in window)) {
+    for (var i = 0; i < alvos.length; i++) alvos[i].classList.add('on');
+    return;
+  }
+  var obs = new IntersectionObserver(function(entradas){
+    entradas.forEach(function(e){
+      if (e.isIntersecting) { e.target.classList.add('on'); obs.unobserve(e.target); }
+    });
+  }, { rootMargin: '0px 0px -80px 0px' });
+  for (var j = 0; j < alvos.length; j++) obs.observe(alvos[j]);
+})();
+
 </script>
 </body>
 </html>
