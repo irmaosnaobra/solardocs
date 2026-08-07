@@ -23,14 +23,16 @@ export interface HubConversaoBloco {
   rotulo: string;
   abordados: number;
   responderam: number;
-  converteram: number | null;   // null = não dá pra medir → tela mostra "—"
+  converteram: number | null;
   taxa_pct: number | null;
+  receita: number | null;
   medida: string;
+  rotulo_conv: string;
 }
 
 // /admin/hub-followup-historico — conversão mês a mês. Denominador vem do marcador de
 // abordagem (datado), não das sessões: por isso pode divergir do funil do topo.
-export interface HubMesConversao { mes: string; abordados: number; converteram: number; taxa_pct: number | null; }
+export interface HubMesConversao { mes: string; abordados: number; converteram: number; taxa_pct: number | null; receita: number; }
 export interface HubHistoricoBloco {
   rotulo: string;
   base: string;

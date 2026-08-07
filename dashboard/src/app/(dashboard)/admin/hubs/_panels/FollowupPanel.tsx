@@ -16,6 +16,10 @@ const fmtMes = (m: string) => {
   return `${MESES_PT[Number(mm) - 1] ?? m}/${a?.slice(2) ?? ''}`;
 };
 const pct = (v: number | null) => (v === null ? '—' : `${v.toString().replace('.', ',')}%`);
+const brl = (v: number | null) =>
+  // minimumFractionDigits explícito: BRL assume 2 e o máximo não pode ser menor que o
+  // mínimo — passar só o máximo=0 pode virar RangeError e derrubar a aba inteira.
+  v === null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 const fmtWhen = (iso: string | null) => {
   if (!iso) return '—';
@@ -37,8 +41,9 @@ function FunilConversao({ b }: { b: HubConversaoBloco }) {
   const passos = [
     { label: 'Abordados', value: String(b.abordados), color: 'var(--color-text)' },
     { label: 'Responderam', value: String(b.responderam), color: '#2C9C67' },
-    { label: 'Converteram', value: medivel ? String(b.converteram) : '—', color: medivel ? 'var(--color-primary)' : 'var(--color-text-muted)' },
-    { label: 'Taxa de sucesso', value: b.taxa_pct !== null ? `${b.taxa_pct.toString().replace('.', ',')}%` : '—', color: b.taxa_pct !== null ? 'var(--color-primary)' : 'var(--color-text-muted)' },
+    { label: b.rotulo_conv || 'Converteram', value: medivel ? String(b.converteram) : '—', color: medivel ? 'var(--color-primary)' : 'var(--color-text-muted)' },
+    { label: 'Taxa de sucesso', value: pct(b.taxa_pct), color: b.taxa_pct !== null ? 'var(--color-primary)' : 'var(--color-text-muted)' },
+    { label: 'Entrou de grana', value: brl(b.receita), color: b.receita ? '#2C9C67' : 'var(--color-text-muted)' },
   ];
   return (
     <div style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: '12px 14px', marginBottom: 10 }}>
@@ -73,7 +78,8 @@ function BalaoHistorico({ b }: { b: HubHistoricoBloco }) {
         <div style={{ fontWeight: 600, fontSize: 13.5 }}>{b.rotulo} · histórico</div>
         {b.total && (
           <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
-            Desde o começo: <strong style={{ color: 'var(--color-text)' }}>{b.total.converteram} de {b.total.abordados}</strong> ({pct(b.total.taxa_pct)})
+            Desde o começo: <strong style={{ color: 'var(--color-text)' }}>{b.total.converteram} clientes de {b.total.abordados}</strong> ({pct(b.total.taxa_pct)}) ·{' '}
+            <strong style={{ color: '#2C9C67' }}>{brl(b.total.receita)}</strong>
           </div>
         )}
       </div>
@@ -91,7 +97,8 @@ function BalaoHistorico({ b }: { b: HubHistoricoBloco }) {
             <thead>
               <tr>
                 <th>Mês</th><th style={{ textAlign: 'right' }}>Abordados</th>
-                <th style={{ textAlign: 'right' }}>Converteram</th><th style={{ width: '46%' }}>Taxa</th>
+                <th style={{ textAlign: 'right' }}>Clientes</th>
+                <th style={{ textAlign: 'right' }}>Grana</th><th style={{ width: '38%' }}>Taxa</th>
               </tr>
             </thead>
             <tbody>
@@ -100,6 +107,7 @@ function BalaoHistorico({ b }: { b: HubHistoricoBloco }) {
                   <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{fmtMes(m.mes)}</td>
                   <td style={{ textAlign: 'right' }}>{m.abordados}</td>
                   <td style={{ textAlign: 'right', color: m.converteram > 0 ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>{m.converteram}</td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600, color: m.receita > 0 ? '#2C9C67' : 'var(--color-text-muted)' }}>{m.receita > 0 ? brl(m.receita) : '—'}</td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--color-border)', overflow: 'hidden' }}>

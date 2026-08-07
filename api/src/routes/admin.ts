@@ -97,7 +97,9 @@ interface ConversaoBloco {
   responderam: number;
   converteram: number | null;
   taxa_pct: number | null;
+  receita: number | null;  // R$ que entrou por essas conversões (null = não dá pra somar)
   medida: string;          // o que exatamente conta como "converteu" aqui
+  rotulo_conv: string;     // como chamar o convertido (nem todo bloco é "cliente")
 }
 // telKey: mesma chave do CRM/gerador (tira 55, DDD + últimos 8, ignora 9º dígito).
 function hubTelKey(raw: string | null | undefined): string | null {
@@ -167,12 +169,13 @@ router.get('/hub-followup', async (req: Request, res: Response): Promise<void> =
     // ── CONVERSÃO ────────────────────────────────────────────────────────────
     // Só conta convertido quem ESTÁ nas sessões carregadas acima (o mesmo recorte do
     // denominador), senão a taxa passa de 100%. Uma query em lote por bloco, sem N+1.
-    const bloco = (rotulo: string, medida: string, alvo: typeof sessions, converteram: number | null): ConversaoBloco => ({
-      rotulo, medida,
+    const bloco = (rotulo: string, medida: string, alvo: typeof sessions, converteram: number | null, receita: number | null = null, rotulo_conv = 'Clientes que vieram'): ConversaoBloco => ({
+      rotulo, medida, rotulo_conv,
       abordados: alvo.length,
       responderam: alvo.filter((x) => x.respondeu).length,
       converteram,
       taxa_pct: converteram === null || alvo.length === 0 ? null : Math.round((converteram / alvo.length) * 1000) / 10,
+      receita: receita === null ? null : Math.round(receita * 100) / 100,
     });
     let conversao: ConversaoBloco[] | null = null;
     try {
@@ -182,20 +185,32 @@ router.get('/hub-followup', async (req: Request, res: Response): Promise<void> =
         const alvo = sessions.filter((x) => !x._teste);
         const emails = Array.from(new Set(alvo.map((x) => x._email).filter(Boolean)));
         const compradores = new Set<string>();
+        const porEmail = new Map<string, { t: number; reais: number }>();   // e-mail → 1ª compra
         if (emails.length) {
           // O client do PostgREST NÃO lança em falha: devolve { data:null, error }. Sem o
           // throw, a query quebrada viraria "0 conversões" — mentira pior que "—".
           const { data: pagos, error: e } = await supabase
-            .from('limpapro_events').select('buyer_email')
+            .from('limpapro_events').select('buyer_email, created_at, amount_cents')
             .eq('event_type', 'purchase').eq('status', 'paid').in('buyer_email', emails);
           if (e) throw e;
-          for (const p of (pagos ?? []) as { buyer_email: string | null }[]) {
-            if (p.buyer_email) compradores.add(p.buyer_email.toLowerCase().trim());
+          for (const p of (pagos ?? []) as { buyer_email: string | null; created_at: string | null; amount_cents: number | null }[]) {
+            if (!p.buyer_email) continue;
+            const k = p.buyer_email.toLowerCase().trim();
+            compradores.add(k);
+            // amount_cents é CENTAVOS e pode vir null (abandono puro não traz valor).
+            // Guarda só a PRIMEIRA compra do e-mail: somar tudo colaria a escada de
+            // mentoria (297/497/997) na conta da Bia. Aqui não há data de toque na
+            // sessão, então é "a compra dessa pessoa", não "recuperado no mês".
+            const t = p.created_at ? new Date(p.created_at).getTime() : Number.MAX_SAFE_INTEGER;
+            const atual = porEmail.get(k);
+            if (!atual || t < atual.t) porEmail.set(k, { t, reais: (Number(p.amount_cents) || 0) / 100 });
           }
         }
         for (const x of alvo) x.converteu = Boolean(x._email && compradores.has(x._email));
-        conversao = [bloco('Recuperação (Bia)', 'comprou o curso depois do toque (compra paga no mesmo e-mail)',
-          alvo, alvo.filter((x) => x.converteu).length)];
+        const receita = alvo.filter((x) => x.converteu).reduce((s, x) => s + (porEmail.get(x._email)?.reais ?? 0), 0);
+        conversao = [bloco('Recuperação (Bia)',
+          'comprou o curso depois do toque (compra paga no mesmo e-mail). O R$ é a 1ª compra de cada cliente — a sessão não guarda a data do toque, então aqui não dá pra separar o que veio antes',
+          alvo, alvo.filter((x) => x.converteu).length, receita)];
       } else if (produto === 'solardoc') {
         // DOIS blocos: abandono de checkout e plataforma medem coisas diferentes,
         // com denominadores diferentes. Misturar num % só dá um número inútil.
@@ -206,22 +221,50 @@ router.get('/hub-followup', async (req: Request, res: Response): Promise<void> =
         // recovery: sessão não guarda e-mail; o elo é o telefone (últimos 8), igual ao
         // findAbandonoByPhone. Puxa uma janela recente e casa em memória.
         let recRecuperados: number | null = null;
+        let recReceita: number | null = null;
         if (recovery.length) {
           // Filtra recovered no BANCO: a janela de 1000 é de recuperações, não de
           // abandonos (senão as recuperações antigas caem fora e a conta fica baixa).
           const { data: abandonos, error: e } = await supabase
-            .from('abandoned_checkouts').select('phone')
+            .from('abandoned_checkouts').select('phone, email, created_at')
             .eq('status', 'recovered')
             .order('created_at', { ascending: false }).limit(1000);
           if (e) throw e;
-          const recuperados = new Set(
-            ((abandonos ?? []) as { phone: string | null }[])
-              .map((a) => last8(a.phone)).filter((k) => k.length === 8),
-          );
+          const recuperados = new Map<string, { email: string; em: number }>();  // últimos 8 → e-mail + abandono
+          for (const a of (abandonos ?? []) as { phone: string | null; email: string | null; created_at: string | null }[]) {
+            const k = last8(a.phone);
+            if (k.length !== 8) continue;
+            recuperados.set(k, { email: (a.email ?? '').toLowerCase().trim(), em: a.created_at ? new Date(a.created_at).getTime() : 0 });
+          }
           for (const x of recovery) x.converteu = recuperados.has(last8(x.phone));
           recRecuperados = recovery.filter((x) => x.converteu).length;
+
+          // abandoned_checkouts não guarda valor: o R$ vem da venda de fato (sales.valor,
+          // REAIS), casada pelo e-mail. UMA recuperação = UMA venda — pega a primeira
+          // depois do abandono, nunca a soma: o checkout cria Customer novo a cada clique
+          // e o mesmo e-mail tem 2-3 linhas em sales (o caso das assinaturas duplicadas).
+          const alvos = recovery.filter((x) => x.converteu).map((x) => recuperados.get(last8(x.phone))!);
+          const mails = Array.from(new Set(alvos.map((a) => a.email).filter(Boolean)));
+          recReceita = 0;
+          if (mails.length) {
+            const { data: vendas, error: e2 } = await supabase
+              .from('sales').select('email, valor, card_passed_at').in('email', mails).not('card_passed_at', 'is', null);
+            if (e2) throw e2;
+            const porMail = new Map<string, { t: number; v: number }[]>();
+            for (const v of (vendas ?? []) as { email: string | null; valor: number | null; card_passed_at: string | null }[]) {
+              const k = (v.email ?? '').toLowerCase().trim();
+              const t = v.card_passed_at ? new Date(v.card_passed_at).getTime() : NaN;
+              if (!k || !Number.isFinite(t)) continue;
+              if (!porMail.has(k)) porMail.set(k, []);
+              porMail.get(k)!.push({ t, v: Number(v.valor) || 0 });
+            }
+            for (const a of alvos) {
+              const cand = (porMail.get(a.email) ?? []).filter((s) => s.t >= a.em).sort((p, q) => p.t - q.t)[0];
+              recReceita += cand?.v ?? 0;
+            }
+          }
         }
-        out.push(bloco('Abandono de checkout (Giovanna)', 'checkout marcado como recuperado (pagou depois do toque)', recovery, recRecuperados));
+        out.push(bloco('Abandono de checkout (Giovanna)', 'checkout marcado como recuperado (pagou depois do toque)', recovery, recRecuperados, recReceita));
 
         // platform: aqui o elo limpo é user_id (o phone do Z-API diverge de users.whatsapp).
         let platAtivos: number | null = null;
@@ -238,30 +281,36 @@ router.get('/hub-followup', async (req: Request, res: Response): Promise<void> =
           for (const x of platform) x.converteu = Boolean(x._uid && pagantes.has(x._uid));
           platAtivos = platform.filter((x) => x.converteu).length;
         }
-        out.push(bloco('Plataforma (Giovanna)', 'conta voltou/segue pagante (plano ativo ou Pix na validade)', platform, platAtivos));
+        out.push(bloco('Plataforma (Giovanna)', 'conta voltou/segue pagante (plano ativo ou Pix na validade)', platform, platAtivos, null, 'Contas ativas'));
         conversao = out;
       } else if (produto === 'solar') {
         // Banco separado (supabaseGerador) — casa por tel_key. "Sucesso" = o mesmo que o
         // bot já considera resgate: proposta vendida, ou o lead esquentou/reagendou.
         const alvo = sessions;
         let convertidos: number | null = null;
+        let receitaSolar: number | null = null;
         const chaves = new Set(alvo.map((x) => x._telkey).filter(Boolean) as string[]);
         if (chaves.size) {
           // Teto explícito (o PostgREST corta em 1000 calado — aqui um corte silencioso
           // viraria conversão errada exibida como fato).
           const [{ data: props, error: e1 }, { data: ags, error: e2 }] = await Promise.all([
-            supabaseGerador.from('propostas').select('vendido, dados').eq('vendido', true).limit(5000),
+            supabaseGerador.from('propostas').select('vendido, dados, valor_vendido').eq('vendido', true).limit(5000),
             supabaseGerador.from('agendamentos').select('cliente_telefone, status, temperatura, quando')
               .order('quando', { ascending: false }).limit(5000),
           ]);
           if (e1) throw e1;
           if (e2) throw e2;
           const ok = new Set<string>();
-          for (const p of (props ?? []) as { vendido: boolean | null; dados: Record<string, unknown> | null }[]) {
+          const vendaPorTel = new Map<string, number>();   // telKey → R$ vendido
+          for (const p of (props ?? []) as { vendido: boolean | null; dados: Record<string, unknown> | null; valor_vendido: number | null }[]) {
             if (!p.vendido) continue;
             const d = (p.dados ?? {}) as Record<string, unknown>;
             const k = hubTelKey(String(d.telefoneDigitos ?? d.telefone ?? ''));
-            if (k && chaves.has(k)) ok.add(k);
+            if (!k || !chaves.has(k)) continue;
+            ok.add(k);
+            // Padrão do /gerador: valor_vendido manda; sem ele, cai no preço à vista.
+            const v = Number(p.valor_vendido != null ? p.valor_vendido : (d.precoVista ?? 0)) || 0;
+            vendaPorTel.set(k, (vendaPorTel.get(k) ?? 0) + v);
           }
           for (const a of (ags ?? []) as { cliente_telefone: string | null; status: string | null; temperatura: string | null; quando: string | null }[]) {
             const k = hubTelKey(a.cliente_telefone);
@@ -271,8 +320,13 @@ router.get('/hub-followup', async (req: Request, res: Response): Promise<void> =
           }
           for (const x of alvo) x.converteu = Boolean(x._telkey && ok.has(x._telkey));
           convertidos = alvo.filter((x) => x.converteu).length;
+          // Só a VENDA tem valor: quem só esquentou/reagendou conta como conversão mas
+          // ainda não é dinheiro — por isso o R$ costuma vir de menos gente que o contador.
+          receitaSolar = alvo.filter((x) => x.converteu).reduce((s, x) => s + (vendaPorTel.get(x._telkey ?? '') ?? 0), 0);
         }
-        conversao = [bloco('Reengajamento de leads (Luma)', 'venda fechada, ou o lead esquentou/reagendou depois do toque', alvo, convertidos)];
+        conversao = [bloco('Reengajamento de leads (Luma)',
+          'venda fechada, ou o lead esquentou/reagendou depois do toque — só a VENDA tem valor, então a grana vem de menos gente que o contador',
+          alvo, convertidos, receitaSolar, 'Leads resgatados')];
       }
     } catch (e) {
       conversao = null;   // não dá pra medir agora → a tela mostra "—", nunca 0
@@ -306,7 +360,7 @@ router.get('/hub-followup', async (req: Request, res: Response): Promise<void> =
 // RESSALVA que vai escrita na tela: os marcadores são estado de cooldown (upsert por
 // chave), então guardam a ÚLTIMA abordagem, não a primeira. Só o bloco do SolarDoc tem
 // coorte imutável (a data do abandono não muda).
-interface MesConversao { mes: string; abordados: number; converteram: number; taxa_pct: number | null; }
+interface MesConversao { mes: string; abordados: number; converteram: number; taxa_pct: number | null; receita: number; }
 interface HistoricoBloco {
   rotulo: string;
   base: string;      // de onde sai o denominador (pra explicar divergência com o funil de cima)
@@ -325,19 +379,22 @@ function mesSP(iso: string | null | undefined): string | null {
   if (!Number.isFinite(t)) return null;
   return fmtMesSP.format(new Date(t)).slice(0, 7);   // 'YYYY-MM'
 }
-function montarMeses(linhas: { mes: string; converteu: boolean }[]): { meses: MesConversao[]; total: MesConversao | null } {
-  const por = new Map<string, { a: number; c: number }>();
+function montarMeses(linhas: { mes: string; converteu: boolean; valor?: number }[]): { meses: MesConversao[]; total: MesConversao | null } {
+  const por = new Map<string, { a: number; c: number; r: number }>();
   for (const l of linhas) {
-    const cur = por.get(l.mes) ?? { a: 0, c: 0 };
-    cur.a++; if (l.converteu) cur.c++;
+    const cur = por.get(l.mes) ?? { a: 0, c: 0, r: 0 };
+    cur.a++; if (l.converteu) { cur.c++; cur.r += l.valor ?? 0; }
     por.set(l.mes, cur);
   }
   const taxa = (c: number, a: number) => (a === 0 ? null : Math.round((c / a) * 1000) / 10);
+  const cent = (v: number) => Math.round(v * 100) / 100;
   const meses = Array.from(por.entries())
     .sort((x, y) => (x[0] < y[0] ? 1 : -1))          // mais recente primeiro
-    .map(([mes, v]) => ({ mes, abordados: v.a, converteram: v.c, taxa_pct: taxa(v.c, v.a) }));
-  const a = linhas.length, c = linhas.filter((l) => l.converteu).length;
-  return { meses, total: a ? { mes: 'total', abordados: a, converteram: c, taxa_pct: taxa(c, a) } : null };
+    .map(([mes, v]) => ({ mes, abordados: v.a, converteram: v.c, taxa_pct: taxa(v.c, v.a), receita: cent(v.r) }));
+  const a = linhas.length;
+  const conv = linhas.filter((l) => l.converteu);
+  const r = conv.reduce((s, l) => s + (l.valor ?? 0), 0);
+  return { meses, total: a ? { mes: 'total', abordados: a, converteram: conv.length, taxa_pct: taxa(conv.length, a), receita: cent(r) } : null };
 }
 const LIMITE_HIST = 5000;   // teto explícito: o corte mudo de 1000 do PostgREST apagaria os meses antigos
 
@@ -361,26 +418,29 @@ router.get('/hub-followup-historico', async (req: Request, res: Response): Promi
         }))
         .filter((x) => x.email && x.em);
 
-      const compras = new Map<string, number>();   // email → 1ª compra paga (ms)
+      const compras = new Map<string, { t: number; reais: number }[]>();   // email → compras pagas
       const emails = Array.from(new Set(abordagens.map((x) => x.email)));
       for (let i = 0; i < emails.length; i += 300) {          // lotes: in-list gigante estoura a URL
         const { data: pagos, error } = await supabase
-          .from('limpapro_events').select('buyer_email, created_at')
+          .from('limpapro_events').select('buyer_email, created_at, amount_cents')
           .eq('event_type', 'purchase').eq('status', 'paid')
           .in('buyer_email', emails.slice(i, i + 300));
         if (error) throw error;
-        for (const p of (pagos ?? []) as { buyer_email: string | null; created_at: string | null }[]) {
+        for (const p of (pagos ?? []) as { buyer_email: string | null; created_at: string | null; amount_cents: number | null }[]) {
           const k = (p.buyer_email ?? '').toLowerCase().trim();
           const t = p.created_at ? new Date(p.created_at).getTime() : NaN;
           if (!k || !Number.isFinite(t)) continue;
-          if (!compras.has(k) || t < compras.get(k)!) compras.set(k, t);
+          if (!compras.has(k)) compras.set(k, []);
+          compras.get(k)!.push({ t, reais: (Number(p.amount_cents) || 0) / 100 });
         }
       }
       const linhas = abordagens.flatMap((x) => {
         const mes = mesSP(x.em); if (!mes) return [];
-        const compra = compras.get(x.email);
         // Compra ANTERIOR ao toque não é conversão do followup — é venda que já existia.
-        return [{ mes, converteu: Boolean(compra && compra >= new Date(x.em).getTime()) }];
+        // Só a PRIMEIRA compra depois do toque é a recuperação: mentoria (297/497/997) e
+        // grupo comprados depois são outra história, não crédito da Bia.
+        const depois = (compras.get(x.email) ?? []).filter((c) => c.t >= new Date(x.em).getTime()).sort((p, q) => p.t - q.t);
+        return [{ mes, converteu: depois.length > 0, valor: depois[0]?.reais ?? 0 }];
       });
       blocos.push({
         rotulo: 'Recuperação (Bia)',
@@ -392,16 +452,43 @@ router.get('/hub-followup-historico', async (req: Request, res: Response): Promi
       // Coorte imutável: o mês é o do ABANDONO, que nunca muda (ao contrário de
       // recovery_sent_at, reescrito a cada toque). Uma tabela, uma query.
       const { data: ab, error } = await supabase
-        .from('abandoned_checkouts').select('created_at, status, recovery_attempts')
+        .from('abandoned_checkouts').select('created_at, status, email')
         .gt('recovery_attempts', 0)
         .order('created_at', { ascending: false }).limit(LIMITE_HIST);
       if (error) throw error;
-      const linhas = ((ab ?? []) as { created_at: string | null; status: string | null }[])
-        .flatMap((r) => { const mes = mesSP(r.created_at); return mes ? [{ mes, converteu: r.status === 'recovered' }] : []; });
+      const linhasAb = (ab ?? []) as { created_at: string | null; status: string | null; email: string | null }[];
+
+      // O R$ não está em abandoned_checkouts: vem da venda de fato (sales.valor, REAIS),
+      // casada pelo e-mail, só com cartão aprovado.
+      // UMA recuperação = UMA venda: pega a 1ª venda depois do abandono, nunca a soma
+      // (o mesmo e-mail tem várias linhas em sales — assinaturas duplicadas por clique).
+      const vendaPorEmail = new Map<string, { t: number; v: number }[]>();
+      const mails = Array.from(new Set(linhasAb.filter((r) => r.status === 'recovered')
+        .map((r) => (r.email ?? '').toLowerCase().trim()).filter(Boolean)));
+      for (let i = 0; i < mails.length; i += 300) {
+        const { data: vendas, error: e2 } = await supabase
+          .from('sales').select('email, valor, card_passed_at').in('email', mails.slice(i, i + 300)).not('card_passed_at', 'is', null);
+        if (e2) throw e2;
+        for (const v of (vendas ?? []) as { email: string | null; valor: number | null; card_passed_at: string | null }[]) {
+          const k = (v.email ?? '').toLowerCase().trim();
+          const t = v.card_passed_at ? new Date(v.card_passed_at).getTime() : NaN;
+          if (!k || !Number.isFinite(t)) continue;
+          if (!vendaPorEmail.has(k)) vendaPorEmail.set(k, []);
+          vendaPorEmail.get(k)!.push({ t, v: Number(v.valor) || 0 });
+        }
+      }
+      const linhas = linhasAb.flatMap((r) => {
+        const mes = mesSP(r.created_at); if (!mes) return [];
+        if (r.status !== 'recovered') return [{ mes, converteu: false, valor: 0 }];
+        const em = r.created_at ? new Date(r.created_at).getTime() : 0;
+        const k = (r.email ?? '').toLowerCase().trim();
+        const cand = (vendaPorEmail.get(k) ?? []).filter((s) => s.t >= em).sort((p, q) => p.t - q.t)[0];
+        return [{ mes, converteu: true, valor: cand?.v ?? 0 }];
+      });
       blocos.push({
         rotulo: 'Abandono de checkout (Giovanna)',
-        base: 'checkouts abandonados que receberam pelo menos um toque (mês do abandono)',
-        medida: 'checkout marcado como recuperado',
+        base: 'checkouts abandonados que receberam pelo menos um toque (mês do abandono; inclui a cadência de e-mail, não só a Giovanna)',
+        medida: 'checkout marcado como recuperado — R$ da venda de fato (sales)',
         nao_medivel: null, ...montarMeses(linhas),
       });
       blocos.push({
@@ -422,19 +509,21 @@ router.get('/hub-followup-historico', async (req: Request, res: Response): Promi
       // Só VENDA entra no histórico: temperatura e 'falando_whatsapp' não têm data, então
       // não dá pra saber se vieram depois do toque. O funil de cima conta mais que isto.
       const { data: props, error: e2 } = await supabaseGerador
-        .from('propostas').select('dados, created_at').eq('vendido', true).limit(LIMITE_HIST);
+        .from('propostas').select('dados, created_at, valor_vendido').eq('vendido', true).limit(LIMITE_HIST);
       if (e2) throw e2;
-      const vendas = new Map<string, number>();
-      for (const p of (props ?? []) as { dados: Record<string, unknown> | null; created_at: string | null }[]) {
-        const k = hubTelKey(String((p.dados ?? {}).telefoneDigitos ?? (p.dados ?? {}).telefone ?? ''));
+      const vendas = new Map<string, { t: number; reais: number }[]>();
+      for (const p of (props ?? []) as { dados: Record<string, unknown> | null; created_at: string | null; valor_vendido: number | null }[]) {
+        const d = (p.dados ?? {}) as Record<string, unknown>;
+        const k = hubTelKey(String(d.telefoneDigitos ?? d.telefone ?? ''));
         const t = p.created_at ? new Date(p.created_at).getTime() : NaN;
         if (!k || !Number.isFinite(t)) continue;
-        if (!vendas.has(k) || t > vendas.get(k)!) vendas.set(k, t);
+        if (!vendas.has(k)) vendas.set(k, []);
+        vendas.get(k)!.push({ t, reais: Number(p.valor_vendido != null ? p.valor_vendido : (d.precoVista ?? 0)) || 0 });
       }
       const linhas = abordagens.flatMap((x) => {
         const mes = mesSP(x.em); if (!mes) return [];
-        const v = vendas.get(x.tk);
-        return [{ mes, converteu: Boolean(v && v >= new Date(x.em).getTime()) }];
+        const depois = (vendas.get(x.tk) ?? []).filter((v) => v.t >= new Date(x.em).getTime()).sort((p, q) => p.t - q.t);
+        return [{ mes, converteu: depois.length > 0, valor: depois[0]?.reais ?? 0 }];
       });
       blocos.push({
         rotulo: 'Reengajamento de leads (Luma)',
