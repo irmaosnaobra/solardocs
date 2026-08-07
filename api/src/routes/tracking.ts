@@ -4,9 +4,15 @@ import { trackLimpapro } from '../controllers/limpaproController';
 
 const router = Router();
 
-// CORS aberto — endpoints públicos de analytics (só escrita, sem dados sensíveis)
-router.use((_req: Request, res: Response, next: NextFunction) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+// CORS aberto — endpoints públicos de analytics (só escrita, sem dados sensíveis).
+// Devolve a origem que chamou, e não '*': o navegador recusa '*' junto de
+// Access-Control-Allow-Credentials, e o navigator.sendBeacon SEMPRE manda credencial.
+// Com o curinga, toda visita derrubava um erro de CORS no console (o dado até entrava,
+// porque o beacon não lê a resposta — mas o console ficava sujo e mascarava erro de verdade).
+router.use((req: Request, res: Response, next: NextFunction) => {
+  const origem = req.headers.origin;
+  res.setHeader('Access-Control-Allow-Origin', origem || '*');
+  if (origem) res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   next();

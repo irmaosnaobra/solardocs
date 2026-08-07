@@ -45,30 +45,44 @@ function sinceFromPeriod(period: string): Date {
 // POST /_t/limpapro  { event_type, session_id, utm_*, referrer, landing_url }
 export async function trackLimpapro(req: Request, res: Response): Promise<void> {
   try {
-    const b = req.body as Record<string, string>;
-    // Aceita 'checkout_click' E variantes com plano ('checkout_click_full', '_downsell',
-    // '_basic') — a LP manda o CTA clicado no sufixo. Guardamos o tipo completo (capado)
-    // pra o funil saber QUAL card foi clicado; qualquer outra coisa vira pageview.
+    const b = req.body as Record<string, unknown>;
+    // Tipos aceitos como vieram (capados em 40 chars). Antes só 'checkout_click*' passava e TODO
+    // o resto virava 'pageview' em silêncio — os cliques de CTA e as aberturas do popup que a
+    // landing mandava há semanas foram gravados como visita, inflando a contagem em ~58%.
+    // Qualquer coisa fora desta lista continua virando pageview, pra não abrir a porta a lixo.
     const rawType = String(b.event_type || '');
-    const eventType = /^checkout_click/.test(rawType) ? rawType.slice(0, 40) : 'pageview';
+    const ACEITOS = /^(pageview|checkout_click|cta_|downsell_|sessao)/;
+    const eventType = ACEITOS.test(rawType) ? rawType.slice(0, 40) : 'pageview';
+
+    // Perfil de comportamento da sessão (profundidade, tempo por seção, FAQ aberto, CTA clicado).
+    // Vai no jsonb que já existe — sem coluna nova. Capado pra não virar porta de entrada de
+    // payload gigante num endpoint público sem autenticação.
+    let detalhe: unknown = null;
+    if (b.raw && typeof b.raw === 'object') {
+      const texto = JSON.stringify(b.raw);
+      if (texto.length <= 8000) detalhe = b.raw;
+    }
 
     const ip =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
       req.socket.remoteAddress ||
       null;
 
+    const texto = (v: unknown) => (v == null || v === '' ? null : String(v).slice(0, 500));
+
     await supabase.from('limpapro_events').insert({
       event_type:   eventType,
-      session_id:   b.session_id   || null,
-      utm_source:   b.utm_source   || null,
-      utm_medium:   b.utm_medium   || null,
-      utm_campaign: b.utm_campaign || null,
-      utm_content:  b.utm_content  || null,
-      utm_term:     b.utm_term     || null,
-      referrer:     b.referrer     || null,
-      landing_url:  b.landing_url  || null,
+      session_id:   texto(b.session_id),
+      utm_source:   texto(b.utm_source),
+      utm_medium:   texto(b.utm_medium),
+      utm_campaign: texto(b.utm_campaign),
+      utm_content:  texto(b.utm_content),
+      utm_term:     texto(b.utm_term),
+      referrer:     texto(b.referrer),
+      landing_url:  texto(b.landing_url),
       user_agent:   (req.headers['user-agent'] as string) || null,
       ip,
+      raw:          detalhe,
     });
 
     res.json({ ok: true });
