@@ -187,35 +187,19 @@ export default function Landing() {
 
   const ctaLabel = checkoutLoading ? 'Abrindo checkout...' : `Assinar agora — R$ ${PRICE}/mês`;
 
-  // ---- Carrossel das telas (prints REAIS do app, capturados com dados de
-  // demonstração). É webp e não GIF de propósito: um GIF de tela cheia dá 2 a
-  // 5 MB cada e mata o carregamento no 4G — aqui cada print tem ~70 KB e o
-  // movimento vem da troca automática (3s, como o Thiago pediu). Pausa no
-  // hover/toque e respeita quem pediu menos animação no sistema.
+  // ---- Carrossel das folhas. É webp e não GIF de propósito: um GIF de tela
+  // cheia dá 2 a 5 MB cada e mata o carregamento no 4G — aqui cada folha tem
+  // ~70 KB e o movimento vem da troca automática.
+  //
+  // GIRA SEM PARAR, 1,5s (07/08/2026). Antes pausava no hover e no toque — e
+  // era isso que parecia bug: bastava levar o mouse até ele pra olhar, e ele
+  // congelava na hora. Pausa nenhuma agora; quem quiser fixar uma folha clica
+  // no pontinho, que troca o slide e o giro segue dali.
   const [slide, setSlide] = useState(0);
-  const [pausado, setPausado] = useState(false);
-
-  // Duas coisas travavam o giro e as duas sumiam do meu teste:
-  //  1. no CELULAR, onTouchStart marcava pausado e NADA desmarcava — bastava
-  //     encostar o dedo (ou rolar a página por cima do carrossel) pra ele
-  //     parar de vez;
-  //  2. quem tem "reduzir animação" ligado no sistema (Windows e iPhone têm
-  //     isso, e muita gente liga sem saber) caía num `return` e não via
-  //     troca nenhuma.
-  // Agora o toque pausa só por 6s e o reduced-motion tira a transição, não o
-  // giro: o carrossel roda pra todo mundo.
   useEffect(() => {
-    if (pausado) return;
-    const id = setInterval(() => setSlide(s => (s + 1) % TELAS.length), 3000);
+    const id = setInterval(() => setSlide(s => (s + 1) % TELAS.length), 1500);
     return () => clearInterval(id);
-  }, [pausado]);
-
-  // volta a girar sozinho depois de um toque
-  useEffect(() => {
-    if (!pausado) return;
-    const id = setTimeout(() => setPausado(false), 6000);
-    return () => clearTimeout(id);
-  }, [pausado]);
+  }, []);
 
   return (
     <div className={styles.page}>
@@ -591,9 +575,6 @@ export default function Landing() {
           <div
             className={styles.carrossel}
             data-reveal
-            onMouseEnter={() => setPausado(true)}
-            onMouseLeave={() => setPausado(false)}
-            onTouchStart={() => setPausado(true)}
           >
             {/* sem barra de navegador em volta: o que roda aqui é o DOCUMENTO
                 pronto, não um print de tela do sistema */}
