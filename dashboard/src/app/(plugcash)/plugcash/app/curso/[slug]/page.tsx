@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { isAuthenticated } from '@/services/auth';
 import { plugcashApi, duracao, money, type Curso, type Aula, type Oferta } from '@/services/plugcash';
 import { Check } from '../../../Marca';
@@ -57,12 +57,25 @@ function Pendente() {
 // que a API confirma o acesso (é ela quem guarda `video_url` — nenhuma URL de
 // vídeo trafega no catálogo).
 export default function Player() {
+  return (
+    <Suspense fallback={<div className={styles.pc} />}>
+      <Tela />
+    </Suspense>
+  );
+}
+
+function Tela() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
+  // O player era a única tela que não recebia a pré-visualização. Sem ela, o
+  // admin abria um curso em rascunho, o /me não devolvia nada e a tela ficava
+  // literalmente em branco — sem erro, sem aviso, sem nada.
+  const preview = useSearchParams().get('preview') === '1';
   const [curso, setCurso] = useState<Curso | null>(null);
   const [aula, setAula] = useState<Aula | null>(null);
   const [oferta, setOferta] = useState<Oferta | null>(null);
   const [semAcesso, setSemAcesso] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   // Última faixa de 10% já reportada. `timeupdate` dispara ~4×/s: sem esta trava
   // o player mandaria um POST por disparo durante o segundo inteiro em que a
   // porcentagem fica parada em 30, 40, 50…
@@ -73,7 +86,7 @@ export default function Player() {
   const abrir = useCallback(async (id: string) => {
     setSemAcesso(false);
     try {
-      const { data } = await plugcashApi.aula(id);
+      const { data } = await plugcashApi.aula(id, preview);
       setAula(data.aula);
       setOferta(data.oferta);
     } catch {
@@ -81,24 +94,37 @@ export default function Player() {
       setAula(null);
       setOferta(null);
     }
-  }, []);
+  }, [preview]);
 
   const carregar = useCallback(async () => {
-    const { data } = await plugcashApi.me();
+    const { data } = await plugcashApi.me(preview);
     const c = data.catalogo.find((x) => x.slug === slug) || null;
     setCurso(c);
     // Curso travado não tem player: manda pra página de venda dele.
-    if (c && !c.liberado) { router.replace(`/plugcash/curso/${slug}`); return; }
+    if (c && !c.liberado) { router.replace(`/plugcash/curso/${slug}${preview ? '?preview=1' : ''}`); return; }
     const primeira = c?.aulas.find((a) => !a.progresso?.concluida) || c?.aulas[0];
     if (primeira) abrir(primeira.id);
-  }, [slug, router, abrir]);
+    setCarregando(false);
+  }, [slug, router, abrir, preview]);
 
   useEffect(() => {
     if (!isAuthenticated()) { router.replace(`/plugcash/entrar?proximo=/plugcash/app/curso/${slug}`); return; }
-    carregar();
+    carregar().catch(() => setCarregando(false));
   }, [router, slug, carregar]);
 
-  if (!curso) return <div className={styles.pc} />;
+  // Nada de tela em branco: ou tem conteúdo, ou tem explicação. Curso em
+  // rascunho sem ?preview=1 é o caso mais comum e o mais confuso — parecia bug.
+  if (!curso) {
+    return (
+      <Chrome titulo="Curso">
+        <div className={styles.vazio}>
+          {carregando
+            ? 'Carregando…'
+            : 'Este curso ainda não está publicado. Se você é admin e quer conferir antes de publicar, abra com ?preview=1 no fim do endereço.'}
+        </div>
+      </Chrome>
+    );
+  }
 
   return (
     <Chrome titulo={curso.titulo} subtitulo={`${curso.progresso_pct || 0}% concluído`}>

@@ -187,7 +187,8 @@ export const plugcashApi = {
       `/plugcash/curso/${slug}${pv(preview)}`),
   me: (preview?: boolean) => api.get<MeResposta>(`/plugcash/me${pv(preview)}`),
   onboarding: (objetivo: string) => api.post('/plugcash/onboarding', { objetivo }),
-  aula: (id: string) => api.get<{ aula: Aula; oferta: Oferta | null }>(`/plugcash/aula/${id}`),
+  aula: (id: string, preview?: boolean) =>
+    api.get<{ aula: Aula; oferta: Oferta | null }>(`/plugcash/aula/${id}${pv(preview)}`),
   progresso: (aula_id: string, pct: number) => api.post('/plugcash/progresso', { aula_id, pct }),
   resolvi: (motivos: string[]) => api.post('/plugcash/resolvi', { motivos }),
   // telemetria do funil — nunca deve derrubar navegação, por isso engole o erro

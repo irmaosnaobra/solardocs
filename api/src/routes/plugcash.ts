@@ -379,15 +379,20 @@ router.post('/onboarding', authMiddleware, async (req: Request, res: Response): 
 // A única porta por onde `video_url` sai. Confere acesso ANTES de ler a aula.
 router.get('/aula/:id', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
+    // Admin com ?preview=1 abre aula em rascunho — é a única forma de conferir
+    // o conteúdo antes de publicar, que é exatamente o que a regra do rascunho
+    // impede de outro jeito.
+    const preview = await ehAdminComPreview(req);
+
     const { data: aula } = await supabase
       .from('pc_aulas')
       .select('id,curso_id,ordem,titulo,descricao,duracao_seg,video_url,material_url,gratuita,paginas,oferta_servico_slug,oferta_curso_slug')
       .eq('id', String(req.params.id))
-      .eq('status', 'publicado')
+      .in('status', statusVisiveis(preview))
       .maybeSingle();
     if (!aula) { res.status(404).json({ error: 'aula nao encontrada' }); return; }
 
-    if (!(aula as any).gratuita) {
+    if (!(aula as any).gratuita && !preview) {
       const membro = await garantirMembro(req.userId);
       const { data: curso } = await supabase
         .from('pc_cursos').select('nivel_exigido').eq('id', (aula as any).curso_id).single();
@@ -417,7 +422,7 @@ router.get('/aula/:id', authMiddleware, async (req: Request, res: Response): Pro
       const { data } = await supabase
         .from('pc_servicos')
         .select('slug,titulo,descricao,preco_centavos,checkout_url,entrega,prazo_dias')
-        .eq('slug', a.oferta_servico_slug).eq('status', 'publicado').maybeSingle();
+        .eq('slug', a.oferta_servico_slug).in('status', statusVisiveis(preview)).maybeSingle();
       if (data) oferta = { tipo: 'servico', ...(data as any) };
     }
 
@@ -425,7 +430,7 @@ router.get('/aula/:id', authMiddleware, async (req: Request, res: Response): Pro
       const { data: cursoOfertado } = await supabase
         .from('pc_cursos')
         .select('id,slug,titulo,subtitulo,preco_centavos,checkout_url,nivel_exigido')
-        .eq('slug', a.oferta_curso_slug).eq('status', 'publicado').maybeSingle();
+        .eq('slug', a.oferta_curso_slug).in('status', statusVisiveis(preview)).maybeSingle();
 
       if (cursoOfertado) {
         const { data: jaTem } = await supabase
