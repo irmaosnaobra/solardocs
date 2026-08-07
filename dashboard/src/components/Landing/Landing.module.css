@@ -2236,21 +2236,8 @@
   padding-left: 14px;
   border-left: 3px solid var(--color-primary);
 }
-.foundersWa {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  margin-top: 6px;
-  padding: 11px 18px;
-  border-radius: 12px;
-  background: rgba(34, 197, 94, 0.12);
-  border: 1px solid rgba(34, 197, 94, 0.4);
-  color: #4ade80;
-  font-size: 14px;
-  font-weight: 700;
-  transition: background 0.15s, transform 0.15s;
-}
-.foundersWa:hover { background: rgba(34, 197, 94, 0.2); transform: translateY(-1px); }
+/* .foundersWa saiu em 07/08/2026: o botao de WhatsApp foi removido da
+   pagina a pedido do Thiago. */
 
 /* ---------- OFERTA — card único ---------- */
 .offer {
@@ -2752,7 +2739,6 @@
   .foundersPeople { gap: 16px; }
   .founder img { width: 92px; height: 92px; }
   .foundersText p { font-size: 14px; line-height: 1.6; }
-  .foundersWa { width: 100%; justify-content: center; font-size: 13.5px; }
 
   .offer { padding: 32px 20px 26px; border-radius: 18px; margin-top: 34px; }
   .offerTag { font-size: 10.5px; padding: 5px 13px; top: -12px; }
