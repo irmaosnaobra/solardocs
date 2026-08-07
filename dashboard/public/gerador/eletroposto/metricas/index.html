@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Métricas do Eletroposto — Irmãos na Obra</title>
+<meta name="theme-color" content="#0d2d5e">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
+<!--
+  ─────────────────────────────────────────────────────────────────────────────
+  MÉTRICAS DA RÉGUA DO ELETROPOSTO
+
+  Responde a pergunta que o projeto não conseguia responder: de cada 10 leads
+  que a campanha traz, quantos são NOTA 3 (reunião que vira orçamento), quantos
+  são NOTA 2 e quantos são NOTA 1 (não agenda). E, principalmente, QUAL falta
+  está desqualificando — porque é ela que decide qual curso e qual serviço do
+  PlugCash valem ser construídos primeiro.
+
+  Até 07/08/2026 essa contagem era impossível: a nota vivia como texto dentro de
+  `observacao`. Agora é coluna (nota, pontuacao_total, motivo_descarte, utm_*).
+
+  DE ONDE VEM CADA NÚMERO:
+  · NOTA 2 e 3 → `agendamentos` (quem chegou a marcar horário)
+  · NOTA 1     → `eletroposto_nota1` (não marca; é gravado à parte)
+  · funil da página de venda → /_api/io/eletroposto/funil (pc_eventos vive em
+    outro projeto Supabase, com RLS fechado — por isso passa pela API)
+
+  HONESTIDADE DOS NÚMEROS: ficha anterior a 01/08/2026 não tem nota (a régua não
+  existia). Elas aparecem como "sem nota" em vez de serem empurradas pra alguma
+  faixa — inventar nota ali contaminaria a comparação entre criativos, que é
+  justamente pra isso que este painel existe.
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+<script>
+  // Mesma auth do /gerador. Sem sessão → manda pra tela de login.
+  (function(){
+    var AUTH_KEY = 'irmaos-na-obra-auth-v1';
+    var authed = false;
+    try { authed = !!localStorage.getItem(AUTH_KEY); } catch(e){}
+    if (!authed) location.replace('/gerador');
+  })();
+</script>
+<style>
+* { box-sizing: border-box; }
+body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:#f5f7fa; color:#1f2937; }
+.topbar { background:#0d2d5e; color:#fff; padding:14px 22px; display:flex;
+          justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+.topbar h1 { margin:0; font-size:17px; font-weight:700; }
+.topbar a { color:#cfe0ff; font-size:14px; text-decoration:none; }
+.wrap { max-width:1180px; margin:0 auto; padding:22px; }
+
+.filtros { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:20px; }
+.filtros button { border:1px solid #d1d5db; background:#fff; color:#374151; border-radius:8px;
+                  padding:8px 14px; font:inherit; font-size:14px; cursor:pointer; }
+.filtros button.on { background:#0d2d5e; color:#fff; border-color:#0d2d5e; }
+.filtros input[type=date] { border:1px solid #d1d5db; border-radius:8px; padding:7px 10px; font:inherit; font-size:14px; }
+.filtros .dir { margin-left:auto; display:flex; gap:8px; }
+
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:12px; margin-bottom:22px; }
+.card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px 18px; }
+.card .rot { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#6b7280; margin:0; }
+.card .num { font-size:27px; font-weight:800; margin:6px 0 0; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.card .pct { font-size:13px; color:#6b7280; margin:2px 0 0; }
+.card.n3 { border-left:4px solid #16a34a; }
+.card.n2 { border-left:4px solid #ca8a04; }
+.card.n1 { border-left:4px solid #dc2626; }
+
+h2 { font-size:16px; margin:26px 0 10px; }
+.sub { color:#6b7280; font-size:13px; margin:0 0 12px; }
+
+table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #e5e7eb;
+        border-radius:12px; overflow:hidden; font-size:14px; }
+th, td { padding:10px 12px; text-align:left; border-bottom:1px solid #f0f2f5; }
+th { background:#fafbfc; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+tr:last-child td { border-bottom:0; }
+
+.barra { background:#eef1f5; border-radius:5px; height:22px; position:relative; min-width:70px; }
+.barra > i { display:block; height:100%; background:#0d2d5e; border-radius:5px; }
+.barra > span { position:absolute; left:8px; top:0; line-height:22px; font-size:12px; color:#fff; font-weight:700; }
+
+.vazio { background:#fff; border:1px dashed #d1d5db; border-radius:12px; padding:28px;
+         text-align:center; color:#6b7280; font-size:14px; }
+.aviso { background:#fff8e1; border:1px solid #f2dfa0; color:#6b5400; border-radius:10px;
+         padding:12px 14px; font-size:13px; line-height:1.55; margin-bottom:16px; }
+.funil { display:grid; gap:8px; max-width:640px; }
+.funil .etapa { display:flex; align-items:center; gap:12px; }
+.funil .etapa .nome { width:190px; font-size:14px; }
+.funil .etapa .barra { flex:1; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Métricas do Eletroposto</h1>
+  <a href="/gerador">← voltar ao gerador</a>
+</div>
+
+<div class="wrap">
+  <div class="filtros">
+    <button data-dias="0">Hoje</button>
+    <button data-dias="7" class="on">7 dias</button>
+    <button data-dias="30">30 dias</button>
+    <button data-dias="9999">Tudo</button>
+    <input type="date" id="de"> <input type="date" id="ate">
+    <button id="aplicar">Aplicar</button>
+    <span class="dir"><button id="csv">Exportar CSV</button></span>
+  </div>
+
+  <div id="aviso-legado" class="aviso" style="display:none"></div>
+
+  <div class="cards" id="cards"></div>
+
+  <h2>Por dia</h2>
+  <div id="por-dia"></div>
+
+  <h2>O que desqualificou</h2>
+  <p class="sub">Critérios que zeraram na régua, entre os NOTA 1. Um lead pode contar em mais de um — é essa distribuição que diz qual curso e qual serviço priorizar.</p>
+  <div id="motivos"></div>
+
+  <h2>Por criativo</h2>
+  <p class="sub">Agrupado por utm_content. Ficha sem UTM aparece como “sem rastreio” — foi o caso de tudo que entrou antes de 07/08/2026, quando a LP passou a mandar a UTM junto com a ficha.</p>
+  <div id="criativos"></div>
+
+  <h2>Funil do NOTA 1</h2>
+  <p class="sub">O que acontece depois da desqualificação: viu a página de venda → clicou no checkout → comprou.</p>
+  <div id="funil"></div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
+const API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
+
+const MOTIVO_LABEL = {
+  sem_ponto:   'Sem ponto definido',
+  sem_capital: 'Sem capital',
+  nao_decisor: 'Não é quem decide',
+  fluxo_baixo: 'Local sem fluxo próprio',
+};
+
+let periodo = { dias: 7, de: null, ate: null };
+let dados = { fichas: [], nota1: [] };
+
+async function supa(path){
+  const r = await fetch(SUPABASE_URL + '/rest/v1/' + path,
+    { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function janela(){
+  if (periodo.de && periodo.ate) {
+    return { de: periodo.de + 'T00:00:00', ate: periodo.ate + 'T23:59:59' };
+  }
+  if (periodo.dias >= 9999) return { de: '2020-01-01T00:00:00', ate: null };
+  const agora = new Date();
+  if (periodo.dias === 0) {
+    const d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    return { de: d.toISOString(), ate: null };
+  }
+  return { de: new Date(Date.now() - periodo.dias * 86400000).toISOString(), ate: null };
+}
+
+async function carregar(){
+  const j = janela();
+  let filtro = 'created_at=gte.' + j.de + (j.ate ? '&created_at=lte.' + j.ate : '');
+
+  // NOTA 2 e 3 vivem em `agendamentos`. O LIKE em created_by casa lp_eletroposto,
+  // manychat_eletroposto e prosp_eletroposto — a MESMA regra que o repasse no
+  // banco e o agente de agendamento usam. Origem nova de EP entra sozinha.
+  const [fichas, nota1] = await Promise.all([
+    supa('agendamentos?select=created_at,nota,pontuacao_total,motivo_descarte,utm_content,created_by,status'
+         + '&created_by=like.*eletroposto*&' + filtro + '&limit=5000'),
+    supa('eletroposto_nota1?select=created_at,nota,pts,motivo_descarte,utm_content&' + filtro + '&limit=5000'),
+  ]);
+  dados = { fichas, nota1 };
+  desenhar();
+
+  // Funil: agregado, vindo da API (pc_eventos tem RLS fechado).
+  const dias = periodo.dias >= 9999 ? 365 : Math.max(1, periodo.dias || 1);
+  fetch(API + '/io/eletroposto/funil?dias=' + dias)
+    .then(r => r.ok ? r.json() : null).then(desenharFunil).catch(()=>desenharFunil(null));
+}
+
+function desenhar(){
+  const f = dados.fichas, n1 = dados.nota1;
+  const n3 = f.filter(x => x.nota === 3).length;
+  const n2 = f.filter(x => x.nota === 2).length;
+  const n1c = n1.length;
+  const semNota = f.filter(x => x.nota == null).length;
+  const total = n3 + n2 + n1c;
+
+  const pct = v => total ? (v / total * 100).toFixed(1).replace('.', ',') + '%' : '—';
+  document.getElementById('cards').innerHTML = [
+    card('', 'Leads no período', total, total ? '' : 'nenhuma ficha'),
+    card('n3', 'Nota 3 — prioridade', n3, pct(n3)),
+    card('n2', 'Nota 2 — definir ponto', n2, pct(n2)),
+    card('n1', 'Nota 1 — não agenda', n1c, pct(n1c)),
+    card('', 'Taxa de qualificação', total ? ((n3+n2)/total*100).toFixed(1).replace('.',',') + '%' : '—',
+         'nota 2 + nota 3'),
+  ].join('');
+
+  // Ficha sem nota é anterior à régua (01/08/2026). Dizer isso é melhor que
+  // deixar o consultor achar que o total está errado.
+  const av = document.getElementById('aviso-legado');
+  if (semNota) {
+    av.style.display = '';
+    av.textContent = semNota + (semNota === 1
+      ? ' ficha do período não tem nota: é anterior à régua de qualificação (01/08/2026) e ficou de fora das contas acima.'
+      : ' fichas do período não têm nota: são anteriores à régua de qualificação (01/08/2026) e ficaram de fora das contas acima.');
+  } else { av.style.display = 'none'; }
+
+  // ── Por dia ──
+  const dias = {};
+  const add = (iso, campo) => {
+    const d = String(iso).slice(0, 10);
+    dias[d] = dias[d] || { n1:0, n2:0, n3:0 };
+    dias[d][campo]++;
+  };
+  f.forEach(x => { if (x.nota === 3) add(x.created_at,'n3'); else if (x.nota === 2) add(x.created_at,'n2'); });
+  n1.forEach(x => add(x.created_at,'n1'));
+
+  const linhas = Object.keys(dias).sort().reverse();
+  document.getElementById('por-dia').innerHTML = linhas.length ? tabela(
+    ['Data','Total','Nota 1','Nota 2','Nota 3','% qualificação'],
+    linhas.map(d => {
+      const v = dias[d], t = v.n1 + v.n2 + v.n3;
+      return [ d.split('-').reverse().join('/'), t, v.n1, v.n2, v.n3,
+               t ? ((v.n2+v.n3)/t*100).toFixed(0) + '%' : '—' ];
+    })
+  ) : vazio('Nenhuma ficha no período.');
+
+  // ── Motivos (só NOTA 1, como manda o documento do projeto) ──
+  const cont = {};
+  n1.forEach(l => (l.motivo_descarte || []).forEach(m => { cont[m] = (cont[m]||0)+1; }));
+  const chaves = Object.keys(cont).sort((a,b)=>cont[b]-cont[a]);
+  const maior = chaves.length ? cont[chaves[0]] : 0;
+  document.getElementById('motivos').innerHTML = chaves.length ? tabela(
+    ['Motivo','Leads',''],
+    chaves.map(m => [ MOTIVO_LABEL[m] || m, cont[m], barra(cont[m], maior) ]),
+    [false,true,false]
+  ) : vazio('Nenhum NOTA 1 com motivo registrado no período.');
+
+  // ── Criativos ──
+  const cri = {};
+  const bota = (x, faixa) => {
+    const k = x.utm_content || '(sem rastreio)';
+    cri[k] = cri[k] || { n1:0, n2:0, n3:0 };
+    cri[k][faixa]++;
+  };
+  f.forEach(x => { if (x.nota === 3) bota(x,'n3'); else if (x.nota === 2) bota(x,'n2'); });
+  n1.forEach(x => bota(x,'n1'));
+  const ck = Object.keys(cri).sort((a,b)=>{
+    const A=cri[a], B=cri[b];
+    return (B.n1+B.n2+B.n3) - (A.n1+A.n2+A.n3);
+  });
+  document.getElementById('criativos').innerHTML = ck.length ? tabela(
+    ['Criativo (utm_content)','Total','Nota 1','Nota 2','Nota 3','% qualificação','Custo/lead qualificado'],
+    ck.map(k => {
+      const v = cri[k], t = v.n1+v.n2+v.n3;
+      // A coluna de custo fica preparada e VAZIA: o gasto por criativo vive na
+      // conta de anúncios, não neste banco. Preenchê-la com chute seria pior
+      // que deixá-la vazia — decisão de mídia não se toma com número inventado.
+      return [ k, t, v.n1, v.n2, v.n3, t ? ((v.n2+v.n3)/t*100).toFixed(0)+'%' : '—', '—' ];
+    })
+  ) : vazio('Nenhum criativo no período.');
+}
+
+function desenharFunil(d){
+  const el = document.getElementById('funil');
+  if (!d || !d.total) { el.innerHTML = vazio('Não consegui ler os eventos do funil agora.'); return; }
+  const t = d.total;
+  const etapas = [
+    ['Viu a página de venda', t.material_view || 0],
+    ['Clicou no checkout',    t.checkout_start || 0],
+    ['Comprou',               t.purchase || 0],
+  ];
+  const topo = etapas[0][1];
+  if (!topo) { el.innerHTML = vazio('Ninguém chegou à página de venda no período ainda.'); return; }
+  el.innerHTML = '<div class="funil">' + etapas.map(([nome, v]) =>
+    '<div class="etapa"><span class="nome">' + nome + '</span>' + barra(v, topo) +
+    '<span style="font-size:13px;color:#6b7280;width:64px;text-align:right">' +
+    (topo ? (v/topo*100).toFixed(0) + '%' : '—') + '</span></div>'
+  ).join('') + '</div>';
+}
+
+// ── helpers de render ──
+function card(cls, rot, num, pct){
+  return '<div class="card ' + cls + '"><p class="rot">' + rot + '</p>' +
+         '<p class="num">' + num + '</p><p class="pct">' + (pct||'') + '</p></div>';
+}
+function tabela(cabec, linhas, alinhaNum){
+  const num = alinhaNum || cabec.map((_,i)=> i>0);
+  return '<table><thead><tr>' + cabec.map((c,i)=>'<th' + (num[i]?' class="num"':'') + '>'+c+'</th>').join('') +
+    '</tr></thead><tbody>' + linhas.map(l =>
+      '<tr>' + l.map((c,i)=>'<td' + (num[i] && typeof c !== 'string' ? ' class="num"' : (num[i]&&!/^</.test(String(c))?' class="num"':'')) + '>'+c+'</td>').join('') + '</tr>'
+    ).join('') + '</tbody></table>';
+}
+function barra(v, max){
+  const p = max ? Math.max(4, v/max*100) : 0;
+  return '<div class="barra"><i style="width:' + p + '%"></i><span>' + v + '</span></div>';
+}
+function vazio(t){ return '<div class="vazio">' + t + '</div>'; }
+
+// ── filtros ──
+document.querySelectorAll('.filtros button[data-dias]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.filtros button[data-dias]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById('de').value = ''; document.getElementById('ate').value = '';
+    periodo = { dias: Number(b.dataset.dias), de: null, ate: null };
+    carregar();
+  });
+});
+document.getElementById('aplicar').addEventListener('click', () => {
+  const de = document.getElementById('de').value, ate = document.getElementById('ate').value;
+  if (!de || !ate) return;
+  document.querySelectorAll('.filtros button[data-dias]').forEach(x=>x.classList.remove('on'));
+  periodo = { dias: null, de, ate };
+  carregar();
+});
+
+// ── CSV: todos os campos, respeitando o período ──
+document.getElementById('csv').addEventListener('click', () => {
+  const cols = ['origem','created_at','nota','pontuacao_total','motivo_descarte','utm_content','status'];
+  const linhas = [cols.join(';')];
+  dados.fichas.forEach(x => linhas.push([
+    'agendamento', x.created_at, x.nota ?? '', x.pontuacao_total ?? '',
+    (x.motivo_descarte||[]).join('|'), x.utm_content ?? '', x.status ?? ''
+  ].join(';')));
+  dados.nota1.forEach(x => linhas.push([
+    'nota1', x.created_at, x.nota ?? 1, x.pts ?? '',
+    (x.motivo_descarte||[]).join('|'), x.utm_content ?? '', ''
+  ].join(';')));
+  // BOM: sem ele o Excel em pt-BR abre "Salvador-BA" como "Salvador-BA" quebrado.
+  const blob = new Blob(['﻿' + linhas.join('\n')], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'eletroposto-metricas.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+carregar();
+})();
+</script>
+</body>
+</html>

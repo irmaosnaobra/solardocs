@@ -5,6 +5,8 @@ import { supabaseGerador } from '../utils/supabaseGerador';
 // do convite garantido precisam responder igual, senão a página cobra e o tick
 // entrega de graça dez minutos depois.
 import { ofertaDeEntradaVendavel } from '../services/plugcashService';
+// Os eventos do funil vivem em pc_eventos, no projeto solardoc-pro.
+import { supabase as supabasePc } from '../utils/supabase';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 // A copy do convite mora no serviço de repescagem (é a MESMA mensagem nos dois
@@ -184,6 +186,52 @@ function utm(b: Record<string, unknown>): Record<string, string | null> {
   for (const k of UTM_CAMPOS) out[k] = String(b[k] || '').trim().slice(0, 200) || null;
   return out;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Funil do NOTA 1, agregado — alimenta /gerador/eletroposto/metricas.
+//
+// Público, e de propósito: devolve SÓ contagem, nenhum nome, telefone ou e-mail.
+// O painel do CRM já lê `agendamentos` inteiro com a chave publicável (é assim
+// que o /gerador sempre funcionou), então uma contagem agregada aqui expõe
+// estritamente menos do que já está exposto — e sem ela o painel mostraria "—"
+// justamente na etapa que decide se a página de venda funciona.
+//
+// Os eventos moram em `pc_eventos`, no OUTRO projeto Supabase (solardoc-pro),
+// que tem RLS fechado. Por isso a leitura passa pela API em vez de ir direto do
+// navegador, como o resto do painel faz.
+// ─────────────────────────────────────────────────────────────────────────────
+const FUNIL_TIPOS = ['material_view', 'checkout_start', 'purchase'] as const;
+
+router.get('/funil', async (req: Request, res: Response): Promise<void> => {
+  const dias = Math.min(365, Math.max(1, Number(req.query.dias) || 30));
+  const desde = new Date(Date.now() - dias * 86400_000).toISOString();
+  try {
+    const { data, error } = await supabasePc
+      .from('pc_eventos')
+      .select('tipo,payload,created_at')
+      .in('tipo', FUNIL_TIPOS as unknown as string[])
+      .gte('created_at', desde)
+      .limit(20000);
+    if (error) throw error;
+
+    const total: Record<string, number> = {};
+    const porMotivo: Record<string, Record<string, number>> = {};
+    for (const e of (data || []) as any[]) {
+      total[e.tipo] = (total[e.tipo] || 0) + 1;
+      const motivo = e.payload?.motivo;
+      if (motivo) {
+        porMotivo[motivo] = porMotivo[motivo] || {};
+        porMotivo[motivo][e.tipo] = (porMotivo[motivo][e.tipo] || 0) + 1;
+      }
+    }
+    res.json({ dias, total, por_motivo: porMotivo });
+  } catch (err) {
+    logger.error('io-eletroposto-funil', 'falha lendo pc_eventos', err);
+    // Contagem indisponível vira null, nunca zero: zero é uma afirmação ("nada
+    // aconteceu") e aqui a verdade é "não consegui contar".
+    res.json({ dias, total: null, por_motivo: null });
+  }
+});
 
 router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
   const b = req.body || {};
