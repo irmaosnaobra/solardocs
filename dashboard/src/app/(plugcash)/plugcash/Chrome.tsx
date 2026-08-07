@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutGrid, GraduationCap, Wrench, UserRound, Settings2, LogOut, ExternalLink,
+  LayoutGrid, GraduationCap, Wrench, UserRound, Settings2, LogOut, ExternalLink, Library,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
 import { FaixaPreview } from './Marca';
@@ -38,6 +38,7 @@ const NAV: Array<{ secao?: string; itens: ItemNav[] }> = [
   {
     itens: [
       { href: '/plugcash/app', label: 'Meu painel', icone: LayoutGrid, exato: true },
+      { href: '/plugcash/app/catalogo', label: 'A trilha', icone: Library },
       { href: '/plugcash/app/servicos', label: 'Serviços', icone: Wrench },
       { href: '/plugcash/app/conta', label: 'Minha conta', icone: UserRound },
     ],

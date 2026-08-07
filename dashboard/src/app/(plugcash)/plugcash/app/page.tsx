@@ -146,31 +146,34 @@ function Painel() {
         </div>
       )}
 
-      {liberados.length > 0 && (
-        <section style={{ marginBottom: 34 }}>
-          <h2 className={styles.secaoTitulo}>Continue de onde parou</h2>
-          <p className={styles.secaoSub}>O que já é seu.</p>
+      {/* O que ele JÁ TEM. É isso que o painel é: a mesa de trabalho de quem já
+          comprou, não a vitrine de quem ainda não comprou. Os travados saíram
+          daqui — nove cadeados na cara de quem acabou de pagar transforma a
+          compra num aviso do que ele ainda não tem. */}
+      {liberados.length > 0 ? (
+        <section>
+          <h2 className={styles.secaoTitulo}>
+            {liberados.length === 1 ? 'Seu curso' : 'Seus cursos'}
+          </h2>
+          <p className={styles.secaoSub}>Continue de onde parou.</p>
           <div className={styles.grade}>
             {liberados.map((c) => <CardCurso key={c.id} curso={c} preview={preview} />)}
           </div>
         </section>
+      ) : (
+        <div className={styles.vazio}>
+          Assim que a sua compra for confirmada, o curso aparece aqui.
+        </div>
       )}
 
-      <section>
-        <h2 className={styles.secaoTitulo}>Catálogo</h2>
-        <p className={styles.secaoSub}>
-          Clique no cadeado pra ver a grade completa, o preço e o que o curso resolve.
+      {travados.length > 0 && (
+        <p className={styles.secaoSub} style={{ marginTop: 28 }}>
+          Existem outros {travados.length} cursos na trilha. Eles vão aparecer no
+          momento certo — ou você pode ver todos agora no{' '}
+          <Link href={`/plugcash/app/catalogo${preview ? '?preview=1' : ''}`}
+                style={{ color: '#009B40', fontWeight: 700 }}>catálogo</Link>.
         </p>
-        {catalogo.length === 0 ? (
-          <div className={styles.vazio}>
-            Nenhum curso publicado ainda. Assim que a primeira trilha for gravada, ela aparece aqui.
-          </div>
-        ) : (
-          <div className={styles.grade}>
-            {travados.map((c) => <CardCurso key={c.id} curso={c} preview={preview} />)}
-          </div>
-        )}
-      </section>
+      )}
     </Chrome>
   );
 }
@@ -212,21 +215,11 @@ function CardCurso({ curso, preview }: { curso: Curso; preview?: boolean }) {
         <h3 className={styles.cursoTitulo}>{curso.titulo}</h3>
         {curso.subtitulo && <p className={styles.cursoLinha}>{curso.subtitulo}</p>}
 
-        {/* Grade completa, com cadeado em cada aula quando travado. */}
-        {curso.aulas.length > 0 && (
-          <ul className={styles.aulas}>
-            {curso.aulas.slice(0, 4).map((a) => (
-              <li key={a.id} className={styles.aula}>
-                {travado && !a.gratuita ? <Cadeado /> : <Check />}
-                <span>{a.titulo}</span>
-                <span className={styles.aulaDuracao}>{duracao(a.duracao_seg)}</span>
-              </li>
-            ))}
-            {curso.aulas.length > 4 && (
-              <li className={styles.aula}><span>+ {curso.aulas.length - 4} aulas</span></li>
-            )}
-          </ul>
-        )}
+        {/* A grade de aulas NÃO entra aqui. Ela estava com quatro títulos por
+            card; a 272px de largura, nove cards viravam uma parede de texto —
+            e o lead que acabou de comprar não precisa escolher entre nove
+            coisas. A grade inteira vive na página de venda, que é onde ela
+            ajuda: lá a pessoa clicou de propósito pra saber o que tem dentro. */}
 
         <div className={styles.cursoRodape}>
           {travado ? (

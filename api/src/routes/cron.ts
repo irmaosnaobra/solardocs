@@ -47,6 +47,7 @@ import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda
 import { syncSocialWindsor } from '../services/agenda/socialWindsorService';
 import { gerarProdutosVirais } from '../services/agenda/produtosViraisService';
 import { runDunning } from '../services/dunningService';
+import { runDisputeWatch } from '../services/disputeWatcher';
 import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
 import { runAuxiliarTrafego } from '../services/agenda/auxiliarTrafegoService';
@@ -909,6 +910,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['solar-boas-vindas',           () => runSolarBoasVindasTick()],     // solar: recibo do cadastro pro cliente (SOLAR_BOASVINDAS_OFF desliga)
     ['solar-respostas',             () => runSolarRespostasTick()],      // solar: resposta do cliente vira recado pro consultor dono
     ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free
+    ['dispute-watch',                () => runDisputeWatch()],       // contestação aberta / aviso antecipado de fraude → email pro Thiago com o dossiê. Nada escutava disputa antes disso.
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)
     ['meta-purchase-redrive',       () => reDrivePendingPurchases()], // reenvia Purchase que não confirmou entrega (garante Meta = card-pass)
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados

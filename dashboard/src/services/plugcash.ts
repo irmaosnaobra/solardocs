@@ -98,6 +98,20 @@ export type Servico = {
   prioritario?: boolean;
 };
 
+// A oferta que uma aula específica justifica. Uma só, e só quando a pessoa
+// ainda não tem o item — quem comprou o Ponto Zero não vê "compre o Ponto Zero".
+export type Oferta = {
+  tipo: 'servico' | 'curso';
+  slug: string;
+  titulo: string;
+  subtitulo?: string | null;
+  descricao?: string | null;
+  preco_centavos: number;
+  checkout_url: string | null;
+  entrega?: string | null;
+  prazo_dias?: number | null;
+};
+
 export type Compra = {
   id: string;
   item_tipo: string;
@@ -157,7 +171,7 @@ export const plugcashApi = {
       `/plugcash/curso/${slug}${pv(preview)}`),
   me: (preview?: boolean) => api.get<MeResposta>(`/plugcash/me${pv(preview)}`),
   onboarding: (objetivo: string) => api.post('/plugcash/onboarding', { objetivo }),
-  aula: (id: string) => api.get<{ aula: Aula }>(`/plugcash/aula/${id}`),
+  aula: (id: string) => api.get<{ aula: Aula; oferta: Oferta | null }>(`/plugcash/aula/${id}`),
   progresso: (aula_id: string, pct: number) => api.post('/plugcash/progresso', { aula_id, pct }),
   resolvi: (motivos: string[]) => api.post('/plugcash/resolvi', { motivos }),
   // telemetria do funil — nunca deve derrubar navegação, por isso engole o erro

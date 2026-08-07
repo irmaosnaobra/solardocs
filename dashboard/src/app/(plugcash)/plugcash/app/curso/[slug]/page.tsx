@@ -3,10 +3,45 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/services/auth';
-import { plugcashApi, duracao, type Curso, type Aula } from '@/services/plugcash';
+import { plugcashApi, duracao, money, type Curso, type Aula, type Oferta } from '@/services/plugcash';
 import { Check } from '../../../Marca';
 import { Chrome } from '../../../Chrome';
 import styles from '../../../pc.module.css';
+
+function OfertaDaAula({ oferta, aula }: { oferta: Oferta; aula: Aula }) {
+  return (
+    <div className={styles.passo} style={{ display: 'block', marginTop: 26 }}>
+      <p className={styles.passoRotulo}>
+        {oferta.tipo === 'servico' ? 'Ou a gente faz por você' : 'O passo seguinte'}
+      </p>
+      <h3 className={styles.passoTitulo}>{oferta.titulo}</h3>
+      <p className={styles.passoPorque}>{oferta.descricao || oferta.subtitulo}</p>
+      {oferta.entrega && (
+        <p className={styles.passoPorque} style={{ marginTop: 8 }}>
+          <strong>Você recebe:</strong> {oferta.entrega}
+          {oferta.prazo_dias ? ` · em até ${oferta.prazo_dias} dias úteis` : ''}
+        </p>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16, flexWrap: 'wrap' }}>
+        {oferta.checkout_url ? (
+          <a
+            href={oferta.tipo === 'curso' ? `/plugcash/curso/${oferta.slug}` : oferta.checkout_url}
+            className={`${styles.btn} ${styles.btnPrimario}`}
+            onClick={() => plugcashApi.evento('oferta_aula_click', {
+              slug: oferta.slug, tipo: oferta.tipo, aula: aula.id,
+            })}
+          >
+            {oferta.tipo === 'servico'
+              ? `Contratar — ${money(oferta.preco_centavos)}`
+              : `Ver o curso — ${money(oferta.preco_centavos)}`}
+          </a>
+        ) : (
+          <span className={styles.badgePreco}>{money(oferta.preco_centavos)}</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function Pendente() {
   return (
@@ -25,6 +60,7 @@ export default function Player() {
   const router = useRouter();
   const [curso, setCurso] = useState<Curso | null>(null);
   const [aula, setAula] = useState<Aula | null>(null);
+  const [oferta, setOferta] = useState<Oferta | null>(null);
   const [semAcesso, setSemAcesso] = useState(false);
   // Última faixa de 10% já reportada. `timeupdate` dispara ~4×/s: sem esta trava
   // o player mandaria um POST por disparo durante o segundo inteiro em que a
@@ -38,9 +74,11 @@ export default function Player() {
     try {
       const { data } = await plugcashApi.aula(id);
       setAula(data.aula);
+      setOferta(data.oferta);
     } catch {
       setSemAcesso(true);
       setAula(null);
+      setOferta(null);
     }
   }, []);
 
@@ -101,6 +139,13 @@ export default function Player() {
                       Baixar o material
                     </a>
                   )}
+
+                  {/* A oferta que ESTA aula acabou de justificar. Uma só, e no
+                      minuto em que a falta está fresca — a pessoa acabou de
+                      descobrir que não sabe medir carga e vê que existe quem
+                      meça por ela. A mesma oferta num menu seria ruído; aqui
+                      ela é a resposta óbvia da pergunta que a aula abriu. */}
+                  {oferta && <OfertaDaAula oferta={oferta} aula={aula} />}
                 </>
               )}
             </div>

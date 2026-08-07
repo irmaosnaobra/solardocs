@@ -381,7 +381,7 @@ router.get('/aula/:id', authMiddleware, async (req: Request, res: Response): Pro
   try {
     const { data: aula } = await supabase
       .from('pc_aulas')
-      .select('id,curso_id,ordem,titulo,descricao,duracao_seg,video_url,material_url,gratuita')
+      .select('id,curso_id,ordem,titulo,descricao,duracao_seg,video_url,material_url,gratuita,oferta_servico_slug,oferta_curso_slug')
       .eq('id', String(req.params.id))
       .eq('status', 'publicado')
       .maybeSingle();
@@ -402,7 +402,42 @@ router.get('/aula/:id', authMiddleware, async (req: Request, res: Response): Pro
       if (!valeAgora && !porNivel) { res.status(403).json({ error: 'sem acesso' }); return; }
     }
 
-    res.json({ aula });
+    // ── A oferta que esta aula acabou de justificar ──
+    // O documento é explícito: a oferta aparece no fim da aula que cria a dor,
+    // porque "ninguém abre menu de serviços". Fora desse minuto, a mesma oferta
+    // é ruído — e ruído no meio de um curso técnico queima a confiança que o
+    // curso acabou de construir.
+    //
+    // Uma só, nunca duas. E nada é oferecido para quem já tem: quem comprou o
+    // Ponto Zero não pode ver "compre o Ponto Zero" no fim da aula 3.
+    let oferta: Record<string, unknown> | null = null;
+    const a = aula as any;
+
+    if (a.oferta_servico_slug) {
+      const { data } = await supabase
+        .from('pc_servicos')
+        .select('slug,titulo,descricao,preco_centavos,checkout_url,entrega,prazo_dias')
+        .eq('slug', a.oferta_servico_slug).eq('status', 'publicado').maybeSingle();
+      if (data) oferta = { tipo: 'servico', ...(data as any) };
+    }
+
+    if (!oferta && a.oferta_curso_slug) {
+      const { data: cursoOfertado } = await supabase
+        .from('pc_cursos')
+        .select('id,slug,titulo,subtitulo,preco_centavos,checkout_url,nivel_exigido')
+        .eq('slug', a.oferta_curso_slug).eq('status', 'publicado').maybeSingle();
+
+      if (cursoOfertado) {
+        const { data: jaTem } = await supabase
+          .from('pc_acessos').select('id')
+          .eq('user_id', req.userId).eq('curso_id', (cursoOfertado as any).id).maybeSingle();
+        const membro = await garantirMembro(req.userId);
+        const porNivel = alcanca(membro?.nivel, (cursoOfertado as any).nivel_exigido);
+        if (!jaTem && !porNivel) oferta = { tipo: 'curso', ...(cursoOfertado as any) };
+      }
+    }
+
+    res.json({ aula, oferta });
   } catch (err) {
     logger.error('plugcash', `falha na aula ${req.params.id}`, err);
     res.status(500).json({ error: 'falha ao carregar aula' });
