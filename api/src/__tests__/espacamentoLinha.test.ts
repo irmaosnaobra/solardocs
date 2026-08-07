@@ -127,8 +127,8 @@ describe('rampa de aquecimento pós-reconexão', () => {
   const dia = (n: number) => new Date(Date.UTC(2026, 7, 10, 12, 0, 0) + n * 24 * 3600 * 1000);
 
   it('sem a env, valem os tetos cheios', async () => {
-    const { tetosVigentes, MAX_POR_HORA, MAX_POR_DIA } = await carregar();
-    expect(tetosVigentes(dia(0))).toEqual({ hora: MAX_POR_HORA, dia: MAX_POR_DIA });
+    const { tetosVigentes, maxPorHora, maxPorDia } = await carregar();
+    expect(tetosVigentes(dia(0))).toEqual({ hora: maxPorHora(), dia: maxPorDia() });
   });
 
   it('dia 0 da reconexão: 2/h e 10/dia', async () => {
@@ -145,7 +145,7 @@ describe('rampa de aquecimento pós-reconexão', () => {
 
   it('depois de 3 dias a rampa some sozinha (não precisa tirar a env)', async () => {
     process.env.LINHA_RECONECTADA_EM = '2026-08-10';
-    const { tetosVigentes, MAX_POR_HORA } = await carregar();
-    expect(tetosVigentes(dia(4)).hora).toBe(MAX_POR_HORA);
+    const { tetosVigentes, maxPorHora } = await carregar();
+    expect(tetosVigentes(dia(4)).hora).toBe(maxPorHora());
   });
 });

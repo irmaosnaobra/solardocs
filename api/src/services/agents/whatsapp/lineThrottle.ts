@@ -26,8 +26,20 @@ import { solardocViaIo } from '../zapiClient';
 // TETO DIÁRIO novo (LINHA_MAX_DIA). O teto horário sozinho autorizava 12×24 = 288
 // contatos frios num dia — número que nenhuma linha de empresa sustenta. Motivo do
 // corte: a linha caiu/bloqueou 3× em 7 dias e o telefone é o da empresa.
-export const MAX_POR_HORA = Number(process.env.LINHA_MAX_HORA || 6);
-export const MAX_POR_DIA  = Number(process.env.LINHA_MAX_DIA  || 40);
+// Lidos a cada chamada de propósito (mesma razão de prefixosDaLinha): instância quente
+// não recarrega módulo, e afrouxar o teto sem redeploy é o que salva um dia ruim.
+export const maxPorHora = (): number => Number(process.env.LINHA_MAX_HORA || 6);
+export const maxPorDia  = (): number => Number(process.env.LINHA_MAX_DIA  || 40);
+
+// RESERVA PRO TRANSACIONAL. O teto do DIA não pode calar uma confirmação de agenda ou
+// um boas-vindas de quem acabou de preencher ficha: quem pediu está esperando, e o
+// custo de não responder é maior que o risco de ban (a decisão de 04/08 no comentário
+// dos prefixos). Frio gasta no máximo 30 dos 40; os 10 últimos ficam guardados pra
+// quem levantou a mão. O teto POR HORA vale igual pros dois — é ele que impede rajada.
+const RESERVA_TRANSACIONAL = () => Number(process.env.LINHA_RESERVA_TRANSACIONAL || 10);
+
+// Compat: código antigo (painel) importava a constante. Vale o teto base da hora.
+export const MAX_POR_HORA = maxPorHora();
 
 // ─── AQUECIMENTO PÓS-RECONEXÃO ───────────────────────────────────────────────
 // Linha que acabou de voltar (QR novo / reconexão) é a mais frágil que existe: o
@@ -52,8 +64,8 @@ function rampaAquecimento(now: Date): { hora: number; dia: number } | null {
 export function tetosVigentes(now: Date = new Date()): { hora: number; dia: number } {
   const r = rampaAquecimento(now);
   return r
-    ? { hora: Math.min(MAX_POR_HORA, r.hora), dia: Math.min(MAX_POR_DIA, r.dia) }
-    : { hora: MAX_POR_HORA, dia: MAX_POR_DIA };
+    ? { hora: Math.min(maxPorHora(), r.hora), dia: Math.min(maxPorDia(), r.dia) }
+    : { hora: maxPorHora(), dia: maxPorDia() };
 }
 
 // Prefixos de "envio efetivado" (1 chave = 1 mensagem que SAIU). NÃO inclui os `_pending`
@@ -102,8 +114,14 @@ function prefixosDaLinha(): string[] {
  * Há folga no teto anti-ban da linha na última hora? Conta os envios de TODOS os bots.
  * `true` = pode enviar; `false` = estourou, segura pro próximo tick.
  */
-export async function dentroDoTetoHorarioLinha(): Promise<boolean> {
+export async function dentroDoTetoHorarioLinha(
+  opts: { transacional?: boolean } = {},
+): Promise<boolean> {
   const tetos = tetosVigentes();
+  // Frio não encosta na reserva; transacional usa o dia inteiro.
+  const tetoDia = opts.transacional
+    ? tetos.dia
+    : Math.max(1, tetos.dia - Math.min(RESERVA_TRANSACIONAL(), tetos.dia - 1));
   const orFilter = prefixosDaLinha().map(p => `key.like.${p}%`).join(',');
 
   const contar = async (janelaMs: number, teto: number): Promise<number> => {
@@ -118,7 +136,7 @@ export async function dentroDoTetoHorarioLinha(): Promise<boolean> {
 
   if (await contar(60 * 60 * 1000, tetos.hora) >= tetos.hora) return false;
   // Teto do DIA (24h corridas). Sem ele, 6/h autorizava 144 contatos frios num dia.
-  return (await contar(24 * 60 * 60 * 1000, tetos.dia)) < tetos.dia;
+  return (await contar(24 * 60 * 60 * 1000, tetoDia)) < tetoDia;
 }
 
 // ─── JANELA DIURNA — mensagem fria não sai de madrugada ──────────────────────

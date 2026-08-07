@@ -367,7 +367,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       // pessoas na mesma hora — 37 mensagens, teto de 12, linha bloqueada pela
       // 2ª vez. Ficha FRESCA e os avisos de 1h/5min seguem furando o teto de
       // propósito: são de reunião acontecendo agora. Backlog não é urgente.
-      if (!opts.dry && !(await dentroDoTetoHorarioLinha())) {
+      if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: true })  /* confirmação de agenda: quem marcou está esperando */)) {
         logger.info('ep-agenda', 'teto da linha estourado — fila de atraso espera o próximo tick');
         continue;
       }

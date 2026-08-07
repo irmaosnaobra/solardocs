@@ -266,7 +266,7 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     // Este agente ficava FORA dele ("é transacional") — mesma decisão que, no
     // agente do eletroposto, bloqueou o 5040 pela 2ª vez em 04/08. Uma pessoa
     // aqui custa 6 mensagens; estourar o teto é barato e sai caro.
-    if (!opts.dry && !(await dentroDoTetoHorarioLinha())) {
+    if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: true })  /* boas-vindas de quem acabou de se cadastrar */)) {
       logger.info('solar-boas-vindas', 'teto da linha estourado — fica pro próximo tick', { esperando: candidatos - enviadas });
       break;
     }

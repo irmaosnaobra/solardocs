@@ -102,7 +102,7 @@ export async function runConviteNota1Garantido(): Promise<Resultado> {
   const ultimoMs = new Date(((ult?.value ?? {}) as { at?: string }).at ?? 0).getTime();
   if (agora - ultimoMs < INTERVALO_MS) return { enviados: 0, motivo: 'intervalo', pendentes: pendentes.length };
 
-  if (!(await dentroDoTetoHorarioLinha())) return { enviados: 0, motivo: 'teto_linha', pendentes: pendentes.length };
+  if (!(await dentroDoTetoHorarioLinha({ transacional: true })  /* convite prometido na ficha (nota 1) */)) return { enviados: 0, motivo: 'teto_linha', pendentes: pendentes.length };
 
   // Quem a repescagem já vai chamar não pode ouvir a mesma coisa duas vezes.
   const { data: marcadores } = await supabase

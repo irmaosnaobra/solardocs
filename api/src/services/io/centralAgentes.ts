@@ -19,7 +19,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { MAX_POR_HORA } from '../agents/whatsapp/lineThrottle';
+import { tetosVigentes } from '../agents/whatsapp/lineThrottle';
 import { MAX_CARLA_POR_HORA } from '../agents/whatsapp/carlaThrottle';
 import { solardocViaIo } from '../agents/zapiClient';
 import { EP_ORIGENS, EP_AGENDA_INICIO } from './eletropostoAgenda';
@@ -267,7 +267,9 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       detalhe: linhaIoCaida
         ? `Z-API reportou desconectada (${saude?.downStreak} checagens seguidas)`
         : saude?.ultimaConexao ? `última conexão confirmada ${saude.ultimaConexao}` : 'sem leitura do monitor ainda',
-      teto_hora: MAX_POR_HORA, usados_na_hora: usadosNaHora,
+      // tetosVigentes, nao a constante: durante as 72h de aquecimento o teto real
+      // e menor que o base, e e justamente quando o painel e mais olhado.
+      teto_hora: tetosVigentes().hora, usados_na_hora: usadosNaHora,
     },
     {
       id: 'solardoc', nome: 'Linha SolarDoc — B2B (Giovanna)', numero: null,

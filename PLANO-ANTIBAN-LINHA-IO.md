@@ -43,6 +43,8 @@ Todo toque frio passava por `sendHuman`, que fatiava em até **5 mensagens** com
 
 O jitter importa: um envio a cada 5:00 min cravado, hora após hora, é assinatura de robô tão clara quanto a rajada.
 
+**Reserva pro transacional:** o frio gasta no máximo **30** dos 40 do dia. Os 10 últimos ficam guardados pra confirmação de agenda, boas-vindas de cadastro e convite prometido na ficha — quem levantou a mão não pode ficar esperando um dia porque a recuperação esvaziou o orçamento de manhã. (`LINHA_RESERVA_TRANSACIONAL`)
+
 ### 1.3 Agentes que gastavam a linha sem aparecer na conta
 `semente:` e `ep_grupo_frio:` entraram em `BOT_SENT_PREFIXES`. Estavam fora do orçamento desde sempre.
 
@@ -86,6 +88,12 @@ Nada é perdido: todos os gates são pré-claim — quem não passa espera o pr�
 - **Teto de "números novos por dia"** (o preditor mais forte de ban): os marcadores atuais são por e-mail/chave, não guardam se o número já respondeu alguma vez. Dá pra fazer, mas exige tabela nova — o teto diário de 40 cobre 90% do risco por enquanto.
 - **Blast do admin** (`runIoBroadcastTick`) continua **isento** dos tetos por decisão antiga: é operador-iniciado, você aperta o botão. Se a linha cair de novo com o blast rodando, esse é o primeiro suspeito e o próximo a entrar no orçamento.
 
-## 4. Kill-switches (afrouxar sem redeploy)
+## 4. Efeito colateral esperado (não é bug)
 
-`JANELA_DIURNA_OFF=1` · `ESPACAMENTO_OFF=1` · `JANELA_DOMINGO_ON=1` · `LINHA_MAX_HORA` · `LINHA_MAX_DIA` · `ESPACAMENTO_MIN_MS` · `JANELA_INICIO_H` / `JANELA_FIM_H`
+Com domingo desligado, teto diário e followup mais longo, **a fila drena em dias, não em horas**. Um domingo de abandonos sai ao longo de segunda e terça. É o preço combinado de "não pode bloquear de jeito algum".
+
+## 5. Kill-switches (lidos a cada envio, afrouxam sem redeploy)
+
+`JANELA_DIURNA_OFF=1` · `ESPACAMENTO_OFF=1` · `JANELA_DOMINGO_ON=1` · `LINHA_MAX_HORA` · `LINHA_MAX_DIA` · `LINHA_RESERVA_TRANSACIONAL` · `ESPACAMENTO_MIN_MS` · `ESPACAMENTO_JITTER_MS` · `JANELA_INICIO_H` / `JANELA_FIM_H` · `LINHA_RECONECTADA_EM`
+
+Os delays do followup (`RECUP_CUPOM_DELAY_H`, `RECUP_FECHAMENTO_DELAY_H`, `RECUP_GRUPO_DELAY_H`, `GERADOR_SEED_STAGGER_MIN`, `GERADOR_MAX_POR_TICK`) são lidos na carga do módulo — mudança neles só vale no próximo deploy.
