@@ -20,8 +20,8 @@ const empresa: any = {
   email: 'contato@solmineira.com.br',
   socio_adm: 'Ricardo Alves Pereira',
   socio_cpf: '111.222.333-44',
-  cor_primaria: '#F26513',
-  cor_destaque: '#FBBF24',
+  cor_marca: '#1D4ED8',        // azul da empresa de demonstração
+  cor_secundaria: '#FACC15',   // amarelo (acento)
   logo_base64: null,
 };
 
@@ -102,6 +102,23 @@ const camposVistoria = {
   conclusao: 'Imóvel apto para instalação de 8,25 kWp com 15 módulos.',
 };
 
+const camposPrestacao = {
+  cliente_final_nome: 'João Batista Moreira',
+  cliente_final_telefone: '(34) 98888-7777',
+  cliente_final_endereco_instalacao: 'Rua das Acácias, 245 — Santa Mônica, Uberlândia/MG',
+  cliente_final_padrao: 'Trifásico 380V', cliente_final_tipo_telhado: 'Cerâmico',
+  qtd_modulos: 15, modelo_modulo: 'Trina Vertex 550W',
+  qtd_inversores: 1, modelo_inversor: 'Growatt 8kW',
+  valor_servico: 4800, prazo: 10,
+  forma_pagamento: '50% na chegada do material e 50% na conclusão da obra',
+  foro_cidade: 'Uberlândia',
+};
+
+const camposVendedor = {
+  percentual_comissao: 4, meta_semanal: 2,
+  adiantamento_quinzenal: 500, foro_cidade: 'Uberlândia',
+};
+
 const DOCS: Array<{ nome: string; tipo: string; campos: any; modelo?: 1 | 2 | 3 }> = [
   { nome: 'proposta-1pagina', tipo: 'propostaSolar', campos: camposProposta, modelo: 1 },
   { nome: 'proposta-moderna', tipo: 'propostaSolar', campos: camposProposta, modelo: 2 },
@@ -109,7 +126,9 @@ const DOCS: Array<{ nome: string; tipo: string; campos: any; modelo?: 1 | 2 | 3 
   { nome: 'procuracao',       tipo: 'procuracao',    campos: camposProcuracao },
   { nome: 'recibo',           tipo: 'recibo',        campos: camposRecibo },
   { nome: 'proposta-banco',   tipo: 'propostaBanco', campos: camposBanco },
-  { nome: 'vistoria',         tipo: 'vistoria',      campos: camposVistoria },
+  { nome: 'vistoria',         tipo: 'vistoria',       campos: camposVistoria },
+  { nome: 'prestacao',        tipo: 'prestacaoServico', campos: camposPrestacao },
+  { nome: 'vendedor',         tipo: 'contratoPJ',     campos: camposVendedor },
 ];
 
 for (const d of DOCS) {

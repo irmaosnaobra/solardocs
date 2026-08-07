@@ -68,42 +68,49 @@ const CONCESSIONARIAS = [
 //  - o contrato é a tela de preview do app renderizando esse mesmo conteúdo;
 //  - precificação e inventário são as telas de verdade, com os cálculos feitos.
 const TELAS = [
-  {
-    img: '/tela/doc-proposta.webp',
-    imgMobile: '/tela/doc-proposta-mobile.webp',
+  { img: '/tela/doc-proposta.webp',      imgMobile: '/tela/doc-proposta-mobile.webp',
     titulo: 'Proposta comercial',
-    texto: 'Economia em 25 anos, conta antes e depois e geração mês a mês — com a sua marca no topo.',
-  },
-  {
-    img: '/tela/doc-proposta-a4.webp',
-    imgMobile: '/tela/doc-proposta-a4-mobile.webp',
+    texto: 'Economia em 25 anos, conta antes e depois e geração mês a mês — na marca da empresa.' },
+
+  { img: '/tela/doc-proposta-a4.webp',   imgMobile: '/tela/doc-proposta-a4-mobile.webp',
     titulo: 'Orçamento de 1 página',
-    texto: 'Investimento, economia mensal e tempo de retorno numa folha só, pronta pro WhatsApp.',
-  },
-  {
-    img: '/tela/doc-contrato.webp',
-    imgMobile: '/tela/doc-contrato-mobile.webp',
+    texto: 'Investimento, economia mensal e tempo de retorno numa folha só, pronta pro WhatsApp.' },
+
+  { img: '/tela/doc-contrato.webp',      imgMobile: '/tela/doc-contrato-mobile.webp',
     titulo: 'Contrato de compra e venda',
-    texto: 'Partes, equipamentos, prazos e garantias já escritos. Você só confere e envia.',
-  },
-  {
-    img: '/tela/doc-procuracao.webp',
-    imgMobile: '/tela/doc-procuracao-mobile.webp',
+    texto: 'Partes, equipamentos, prazos e garantias já escritos. Você só confere e envia.' },
+
+  { img: '/tela/doc-procuracao.webp',    imgMobile: '/tela/doc-procuracao-mobile.webp',
     titulo: 'Procuração pra concessionária',
-    texto: 'Com UC, concessionária e os poderes certos — no padrão que passa de primeira.',
-  },
-  {
-    img: '/tela/doc-recibo.webp',
-    imgMobile: '/tela/doc-recibo-mobile.webp',
+    texto: 'Com UC, concessionária e os poderes certos — no padrão que passa de primeira.' },
+
+  { img: '/tela/doc-recibo.webp',        imgMobile: '/tela/doc-recibo-mobile.webp',
     titulo: 'Recibo de pagamento',
-    texto: 'Lança as parcelas e ele calcula sozinho quanto o cliente já pagou e quanto falta.',
-  },
-  {
-    img: '/tela/doc-banco.webp',
-    imgMobile: '/tela/doc-banco-mobile.webp',
+    texto: 'Lança as parcelas e ele calcula sozinho o que o cliente já pagou e o que falta.' },
+
+  { img: '/tela/doc-banco.webp',         imgMobile: '/tela/doc-banco-mobile.webp',
     titulo: 'Proposta pro banco financiar',
-    texto: 'No formato que a financeira pede: equipamento, mão de obra e valor total separados.',
-  },
+    texto: 'No formato que a financeira pede: equipamento, mão de obra e valor total separados.' },
+
+  { img: '/tela/doc-servico.webp',       imgMobile: '/tela/doc-servico-mobile.webp',
+    titulo: 'Prestação de serviço',
+    texto: 'O contrato com o instalador terceirizado: escopo, prazo, valor e forma de pagamento.' },
+
+  { img: '/tela/doc-vendedor.webp',      imgMobile: '/tela/doc-vendedor-mobile.webp',
+    titulo: 'Contrato de vendedor',
+    texto: 'Representação comercial autônoma: comissão, meta e adiantamento, sem vínculo.' },
+
+  { img: '/tela/doc-vistoria.webp',      imgMobile: '/tela/doc-vistoria-mobile.webp',
+    titulo: 'Checklist de vistoria',
+    texto: 'A folha que vai pra obra: consumo, padrão, telhado, fotos e conclusão da visita.' },
+
+  { img: '/tela/doc-precificacao.webp',  imgMobile: '/tela/doc-precificacao-mobile.webp',
+    titulo: 'Fechamento de preço',
+    texto: 'Custo do kit, mão de obra e margem entram — preço de venda e lucro saem calculados.' },
+
+  { img: '/tela/doc-inventario.webp',    imgMobile: '/tela/doc-inventario-mobile.webp',
+    titulo: 'Inventário da empresa',
+    texto: 'Material, quantidade, valor unitário e o patrimônio total — pronto pra imprimir.' },
 ];
 
 export default function Landing() {
@@ -577,8 +584,8 @@ export default function Landing() {
             É <strong>isso que sai</strong> quando você clica em gerar.
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            Seis documentos, do orçamento à procuração — gerados pelo próprio sistema
-            com dados de exemplo. É o PDF que chega no cliente.
+            Onze páginas em A4, do orçamento ao inventário — geradas pelo próprio sistema.
+            Repare na cor: o documento sai com a marca <b>da sua empresa</b>, não com a nossa.
           </p>
 
           <div
