@@ -68,13 +68,13 @@ const CONCESSIONARIAS = [
 //  - o contrato é a tela de preview do app renderizando esse mesmo conteúdo;
 //  - precificação e inventário são as telas de verdade, com os cálculos feitos.
 const TELAS = [
-  { img: '/tela/doc-proposta.webp',      imgMobile: '/tela/doc-proposta-mobile.webp',
-    titulo: 'Proposta comercial',
-    texto: 'Economia em 25 anos, conta antes e depois e geração mês a mês — na marca da empresa.' },
-
   { img: '/tela/doc-proposta-a4.webp',   imgMobile: '/tela/doc-proposta-a4-mobile.webp',
     titulo: 'Orçamento de 1 página',
     texto: 'Investimento, economia mensal e tempo de retorno numa folha só, pronta pro WhatsApp.' },
+
+  { img: '/tela/doc-proposta.webp',      imgMobile: '/tela/doc-proposta-mobile.webp',
+    titulo: 'Proposta comercial',
+    texto: 'Economia em 25 anos, conta antes e depois e geração mês a mês — na marca da empresa.' },
 
   { img: '/tela/doc-contrato.webp',      imgMobile: '/tela/doc-contrato-mobile.webp',
     titulo: 'Contrato de compra e venda',
