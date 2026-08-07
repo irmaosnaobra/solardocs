@@ -122,6 +122,67 @@ async function garantirVitrineStripe(priceId: string, descricao: string): Promis
   }
 }
 
+// ── Assinatura dos eventos no endpoint da Stripe (auto-conserto) ────────────
+// Bloco de webhook só roda se a Stripe ASSINAR aquele evento no endpoint — e
+// isso é um checkbox no painel, não código. Foi assim que a recuperação de
+// checkout abandonado nasceu morta: `checkout.session.expired` não estava na
+// lista, `abandoned_checkouts` ficou 29 dias (08/07→06/08) com ZERO linhas e a
+// cadência de 6 toques da Giovanna nunca teve semente. Um evento que falta não
+// dá erro em lugar nenhum: o handler simplesmente nunca é chamado.
+//
+// Aqui, mesmo padrão do garantirVitrineStripe: uma conferida por instância fria,
+// SOMA o que falta e nunca remove nada (a conta da Stripe é compartilhada com o
+// Pack Solar — mexer na lista dos outros seria desligar o webhook alheio). Por
+// isso também só toca endpoint cuja URL é a NOSSA rota.
+const EVENTOS_NECESSARIOS = [
+  'checkout.session.completed',
+  'checkout.session.expired',
+  'invoice.payment_failed',
+  'invoice.payment_succeeded',
+  'customer.subscription.deleted',
+];
+let eventosConferidos = false;
+
+type EndpointStripe = { id?: string; url?: string | null; status?: string | null; enabled_events?: string[] | null };
+
+/** É um endpoint NOSSO e vivo? (a conta é compartilhada — não tocar em endpoint alheio) */
+export function ehNossoEndpoint(ep: EndpointStripe): boolean {
+  return (ep.url || '').includes('/payments/webhook') && ep.status === 'enabled';
+}
+
+/** O que falta assinar neste endpoint. `[]` = não mexer (já ok, ou escuta '*'). */
+export function eventosFaltando(ep: EndpointStripe): string[] {
+  const atuais = ep.enabled_events ?? [];
+  if (atuais.includes('*')) return [];
+  return EVENTOS_NECESSARIOS.filter((e) => !atuais.includes(e));
+}
+
+async function garantirEventosWebhook(): Promise<void> {
+  if (eventosConferidos) return;
+  eventosConferidos = true; // uma tentativa por instância fria, sem repique
+  try {
+    const lista = await stripe.webhookEndpoints.list({ limit: 100 });
+    const nossos = lista.data.filter(ehNossoEndpoint);
+    if (!nossos.length) {
+      console.error('[stripe] nenhum endpoint de webhook casou com /payments/webhook — confere a URL no painel');
+      return;
+    }
+    for (const ep of nossos) {
+      const atuais = ep.enabled_events ?? [];
+      const faltando = eventosFaltando(ep);
+      console.log(`[stripe] webhook ${ep.id} (${ep.url}) assina [${atuais.join(', ')}] · faltando [${faltando.join(', ') || 'nada'}]`);
+      if (!faltando.length) continue;
+      // SOMA. Nunca substitui: o que já estava lá pode ser de outro produto.
+      await stripe.webhookEndpoints.update(ep.id, {
+        enabled_events: [...atuais, ...faltando] as any,
+      });
+      console.log(`[stripe] webhook ${ep.id}: ADICIONADOS ${faltando.join(', ')}`);
+    }
+  } catch (err) {
+    console.error('[stripe] conferência dos eventos do webhook falhou (nada foi alterado):', err);
+  }
+}
+
 // Campos de atribuição que viajam da LP → Stripe metadata → users.
 // lp_session = sd_lp_session (session_id da landing, casa com page_visits).
 // fbc/fbp = identificadores de clique do Meta (o que casa a venda com o anúncio).
@@ -303,6 +364,10 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
 
     // Imagem e descrição do produto no checkout — uma vez por instância fria.
     await garantirVitrineStripe(planInfo.priceId, planInfo.descricao);
+    // Mesma janela: confere se o endpoint assina os eventos que o código trata.
+    // Aqui é o gatilho que mais roda — a Stripe só nos chama quando há evento, e
+    // um evento que falta é justamente o que não chega pra disparar a conferência.
+    await garantirEventosWebhook();
 
     // Atribuição: a LP manda os UTMs + o session_id (sd_lp_session) no body.
     // Só entram no metadata se vierem preenchidos (campos ausentes = checkout
@@ -382,6 +447,10 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     res.status(400).send('Webhook signature inválida');
     return;
   }
+
+  // Evento assinado é o que mantém o resto do arquivo vivo — confere na 1ª
+  // chamada de cada instância. Não bloqueia nada: falhou, segue o evento.
+  await garantirEventosWebhook();
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as any;
@@ -632,12 +701,21 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
   // A sessão expirou SEM concluir (a pessoa fechou a aba, ou o cartão foi recusado e
   // ela desistiu). O email/telefone que a Stripe já coletou são salvos em
   // abandoned_checkouts pra uma cadência de recuperação (email + WhatsApp da Giovanna).
-  // Só checkouts públicos do SolarDoc (metadata.source), e só se temos como falar com
-  // a pessoa (email OU telefone) — bounce puro é irrecuperável. Idempotente por session.
-  // NOTA: só chega aqui se o webhook na Stripe ASSINAR checkout.session.expired.
+  // Só checkout DO SOLARDOC, e só se temos como falar com a pessoa (email OU
+  // telefone) — bounce puro é irrecuperável. Idempotente por session.
+  //
+  // "Nosso" = carimbo que só os NOSSOS dois checkouts põem: `source` (o público da
+  // LP) ou `userId` (o logado, de quem já tem conta no free e desistiu de assinar).
+  // Era só o `source`, e isso jogava fora todo abandono de quem já era usuário — o
+  // caminho do UpgradeModal. A conta da Stripe é compartilhada com o Pack Solar, que
+  // não põe nenhum dos dois: por isso o filtro continua existindo em vez de aceitar
+  // qualquer sessão expirada.
+  // NOTA: só chega aqui se o webhook na Stripe ASSINAR checkout.session.expired —
+  // garantirEventosWebhook() agora repõe essa assinatura sozinho.
   if (event.type === 'checkout.session.expired') {
     const session = event.data.object as any;
-    if (session.metadata?.source === 'public_checkout') {
+    const nosso = session.metadata?.source === 'public_checkout' || !!session.metadata?.userId;
+    if (nosso) {
       const cd = session.customer_details as { email?: string | null; name?: string | null; phone?: string | null } | null;
       const email = session.customer_email ?? cd?.email ?? null;
       if (email || cd?.phone) {
