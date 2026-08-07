@@ -1069,3 +1069,68 @@ export async function sendPurchaseEmail(opts: { to: string; userId: string; nome
   });
 }
 
+
+// ── PlugCash: acesso liberado ───────────────────────────────────────────────
+// Identidade própria (preto/branco/verde), sem emoji e sem euforia: o comprador
+// veio de uma peça técnica de 7 minutos e acabou de ser recusado numa agenda.
+// Tom de confirmação, não de festa.
+export async function sendPlugcashAcessoEmail(opts: {
+  to: string;
+  nome?: string | null;
+  acessoUrl: string;
+  contaCriada: boolean;
+  curso: string;
+}): Promise<void> {
+  const primeiro = (opts.nome || '').trim().split(/\s+/)[0];
+  const ola = primeiro ? `${primeiro}, ` : '';
+  const acao = opts.contaCriada ? 'Definir minha senha e entrar' : 'Entrar no PlugCash';
+  const explica = opts.contaCriada
+    ? 'Sua conta foi criada. Falta definir a senha — leva dez segundos e é o mesmo login do SolarDoc.'
+    : 'Você já tem conta no SolarDoc: use o mesmo e-mail e senha de sempre. Não precisa de cadastro novo.';
+
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0A0A0A;border-radius:20px;overflow:hidden;">
+  <div style="padding:34px 36px 26px;border-bottom:1px solid #262626;">
+    <p style="margin:0 0 10px;color:#00C853;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">PlugCash</p>
+    <h1 style="margin:0;color:#fff;font-size:25px;font-weight:800;line-height:1.25;letter-spacing:-0.5px;">
+      ${opts.curso} está liberado
+    </h1>
+  </div>
+  <div style="padding:28px 36px;">
+    <p style="color:#d9d9d9;font-size:16px;line-height:1.7;margin:0 0 22px;">
+      ${ola}${explica}
+    </p>
+    <div style="margin:26px 0 6px;">
+      <a href="${opts.acessoUrl}" style="display:inline-block;background:#00C853;color:#fff;font-weight:800;font-size:16px;padding:16px 32px;border-radius:12px;text-decoration:none;">
+        ${acao}
+      </a>
+    </div>
+    <p style="color:#6B6B6B;font-size:13px;line-height:1.7;margin:20px 0 0;">
+      Se o botão não abrir, copie este endereço no navegador:<br/>
+      <span style="color:#8f8f8f;word-break:break-all;">${opts.acessoUrl}</span>
+    </p>
+  </div>
+  <div style="padding:0 36px;"><div style="border-top:1px solid #262626;"></div></div>
+  <div style="padding:24px 36px 30px;">
+    <p style="margin:0 0 8px;color:#00C853;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">Sobre a reunião</p>
+    <p style="margin:0;color:#a8a8a8;font-size:14px;line-height:1.75;">
+      Quando o que travou o seu projeto estiver resolvido — o ponto definido, o capital
+      viabilizado ou o sócio de acordo — marque isso dentro do app. A sua pontuação é
+      recalculada e a agenda do especialista abre de novo.
+    </p>
+    <p style="margin:18px 0 0;color:#6B6B6B;font-size:13px;line-height:1.7;">
+      Garantia de 7 dias: não serviu, devolvemos o valor integral e o material que você
+      já baixou continua seu.
+    </p>
+  </div>
+</div>`;
+
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: opts.to,
+    replyTo: REPLY_TO,
+    subject: `Acesso liberado: ${opts.curso}`,
+    html,
+  });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}

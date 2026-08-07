@@ -272,3 +272,64 @@ alter table public.pc_creditos        enable row level security;
 alter table public.pc_servicos        enable row level security;
 alter table public.pc_servico_pedidos enable row level security;
 alter table public.pc_eventos         enable row level security;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- PARTE 2 — GATEWAY E ESTEIRA (aplicada em 07/08/2026)
+--
+-- De qual produto do gateway veio a venda. Sem esta tabela, o webhook teria que
+-- casar o nome do produto por string no código — foi assim que o LimpaPro ficou
+-- dependendo de ninguém renomear o produto na Kiwify. Aqui o /admin cadastra o
+-- mapeamento, e renomear o produto vira um UPDATE.
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists public.pc_gateway_produtos (
+  id             uuid primary key default gen_random_uuid(),
+  gateway        text not null default 'kiwify' check (gateway in ('kiwify','stripe')),
+  produto_id     text,
+  produto_nome   text,
+  item_tipo      text not null check (item_tipo in ('curso','servico','nivel','bump')),
+  item_slug      text not null,
+  concede_nivel  text check (concede_nivel in ('base','integrador','investidor','projeto')),
+  gera_credito   boolean not null default true,
+  ativo          boolean not null default true,
+  created_at     timestamptz not null default now()
+);
+
+create unique index if not exists idx_pc_gw_produto_id
+  on public.pc_gateway_produtos (gateway, produto_id) where produto_id is not null;
+create index if not exists idx_pc_gw_produto_nome
+  on public.pc_gateway_produtos (gateway, lower(produto_nome));
+
+alter table public.pc_gateway_produtos enable row level security;
+
+-- `acesso_email_em` é o gate do e-mail de acesso. Sem ele, a reentrega do
+-- webhook (o Pix manda dois eventos) mandaria o e-mail duas vezes.
+alter table public.pc_compras
+  add column if not exists acesso_email_em timestamptz,
+  add column if not exists nome            text,
+  add column if not exists payload         jsonb,
+  add column if not exists checkout_link   text;
+
+alter table public.pc_servicos
+  add column if not exists copy       jsonb not null default '{}'::jsonb,
+  add column if not exists entrega    text,
+  add column if not exists prazo_dias integer;
+
+-- A esteira aparece no fim da AULA que cria a dor que o serviço resolve.
+-- Menu de "serviços" não basta: ninguém abre menu.
+alter table public.pc_aulas
+  add column if not exists oferta_servico_slug text,
+  add column if not exists oferta_curso_slug   text;
+
+-- Quanto da capacidade do mês já foi usada — uma consulta só, em vez de o app
+-- contar pedido a pedido a cada abertura da esteira.
+create or replace view public.pc_servicos_capacidade as
+select s.id                                as servico_id,
+       s.slug,
+       s.capacidade_mensal,
+       count(p.id) filter (
+         where p.status <> 'cancelado'
+           and p.competencia = date_trunc('month', now())::date
+       )                                   as usados_no_mes
+from public.pc_servicos s
+left join public.pc_servico_pedidos p on p.servico_id = s.id
+group by s.id, s.slug, s.capacidade_mensal;

@@ -1,5 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { supabaseGerador } from '../utils/supabaseGerador';
+// O catálogo do PlugCash vive no OUTRO projeto Supabase (solardoc-pro): é ele
+// que diz se a oferta de entrada já está vendável, e é isso que decide entre
+// mandar o lead pro grupo ou pra página de venda.
+import { supabase } from '../utils/supabase';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 // A copy do convite mora no serviço de repescagem (é a MESMA mensagem nos dois
@@ -221,9 +225,41 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
     logger.error('io-eletroposto-nota1', `falha gravando ${telefone}`, err);
   }
 
-  // Já convidado nas últimas 24h? Não repete. Vale pro caso de o lead preencher
-  // o formulário duas vezes (acontece: ele volta pra corrigir o ponto).
+  // ── Grupo × oferta: quem decide é a oferta estar VENDÁVEL ──
+  // Desde 07/08/2026 o NOTA 1 cai na página de venda do material em vez do grupo
+  // de WhatsApp. Mandar o convite do grupo junto entregaria de graça, no mesmo
+  // minuto, o conteúdo que a página está cobrando.
+  //
+  // Mas isso só vale quando a oferta EXISTE. Enquanto o curso de entrada estiver
+  // em rascunho ou sem link de checkout, o lead cairia numa página sem preço e
+  // sem botão — pior que o grupo. Então a troca não depende de alguém lembrar de
+  // virar uma chave: ela olha o estado real do catálogo a cada lead.
+  //
+  // Publicou o curso e colou o link no /admin? O grupo para sozinho. Despublicou?
+  // O grupo volta sozinho. A gravação da ficha acontece nos dois casos — é ela
+  // que fecha o vazamento do NOTA 1.
   let convidar = true;
+  if (process.env.EP_NOTA1_CONVITE_GRUPO === '0') {
+    convidar = false;   // desligamento manual, se um dia for preciso
+  } else {
+    try {
+      const { data: oferta } = await supabase
+        .from('pc_cursos')
+        .select('status,checkout_url')
+        .eq('slug', 'fundamentos')
+        .maybeSingle();
+      const vendavel = (oferta as any)?.status === 'publicado' && !!(oferta as any)?.checkout_url;
+      if (vendavel) convidar = false;
+    } catch (err) {
+      // Banco fora do ar: convida. O erro é mandar o lead pra uma página muda.
+      logger.error('io-eletroposto-nota1', 'nao consegui checar a oferta — mantendo o grupo', err);
+    }
+  }
+  if (!convidar) {
+    res.json({ ok: true, id, convite: false, motivo: 'oferta no ar — lead vai para /material' });
+    return;
+  }
+
   try {
     const desde = new Date(Date.now() - 24 * 3600_000).toISOString();
     const { data: repetido } = await supabaseGerador

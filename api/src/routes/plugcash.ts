@@ -387,6 +387,112 @@ router.post('/resolvi', authMiddleware, async (req: Request, res: Response): Pro
   }
 });
 
+// ── Esteira de serviços ─────────────────────────────────────────────────────
+// O que o aluno compra além dos cursos — e é onde o negócio ganha margem.
+// Cada item tem CAPACIDADE MENSAL: atingido o teto, vira lista de espera. Isso
+// não é escassez de marketing, é o número de entregas que a engenharia aguenta
+// sem estourar prazo. Estourar prazo aqui queima a marca que vende eletroposto
+// de R$ 160 mil, então o teto é proteção, não gatilho.
+router.get('/servicos', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const [{ data: servicos }, { data: capacidade }] = await Promise.all([
+      supabase.from('pc_servicos')
+        .select('id,slug,titulo,descricao,preco_centavos,checkout_url,capacidade_mensal,resolve_motivo,nivel_exigido,ordem,copy,entrega,prazo_dias')
+        .eq('status', 'publicado').order('ordem'),
+      supabase.from('pc_servicos_capacidade').select('*'),
+    ]);
+
+    const usados = new Map((capacidade || []).map((c: any) => [c.servico_id, c.usados_no_mes]));
+
+    // Sem token a lista sai igual, só sem a ordenação por motivo. A esteira é
+    // pública de propósito: ela também é argumento de venda do produto de entrada.
+    let motivos: string[] = [];
+    let nivel = 'base';
+    const auth = req.headers.authorization;
+    if (auth?.startsWith('Bearer ')) {
+      try {
+        const { verifyToken } = await import('../utils/jwt');
+        const { userId } = verifyToken(auth.split(' ')[1]);
+        const { data: m } = await supabase
+          .from('pc_membros').select('motivo_descarte,nivel').eq('user_id', userId).maybeSingle();
+        motivos = (m as any)?.motivo_descarte || [];
+        nivel = (m as any)?.nivel || 'base';
+      } catch { /* token inválido: segue como visitante */ }
+    }
+
+    const lista = (servicos || []).map((s: any) => {
+      const usado = Number(usados.get(s.id) || 0);
+      const teto = s.capacidade_mensal;
+      return {
+        ...s,
+        capacidade_usada: usado,
+        // null = sem teto configurado. Nunca devolver "disponível" por omissão
+        // seria pior: um serviço sem teto é decisão do admin, não descuido.
+        disponivel: teto == null ? true : usado < teto,
+        vagas_restantes: teto == null ? null : Math.max(0, teto - usado),
+        liberado_pelo_nivel: alcanca(nivel, s.nivel_exigido),
+        prioritario: (s.resolve_motivo || []).some((m: string) => motivos.includes(m)),
+      };
+    });
+
+    // Serviço que resolve a falta DELE vem primeiro. Ordem do admin desempata.
+    lista.sort((a: any, b: any) => Number(b.prioritario) - Number(a.prioritario) || a.ordem - b.ordem);
+    res.json({ servicos: lista });
+  } catch (err) {
+    logger.error('plugcash', 'falha na esteira', err);
+    res.status(500).json({ error: 'falha ao carregar servicos' });
+  }
+});
+
+// ── Conta ───────────────────────────────────────────────────────────────────
+router.get('/conta', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const membro = await garantirMembro(req.userId);
+    const [{ data: compras }, { data: creditos }, { data: user }] = await Promise.all([
+      supabase.from('pc_compras')
+        .select('id,item_tipo,item_slug,valor_centavos,status,created_at')
+        .eq('user_id', req.userId).order('created_at', { ascending: false }),
+      supabase.from('pc_creditos')
+        .select('id,valor_centavos,validade,usado_em').eq('user_id', req.userId),
+      supabase.from('users').select('email,nome,whatsapp').eq('id', req.userId).maybeSingle(),
+    ]);
+
+    const agora = Date.now();
+    const validos = (creditos || []).filter((c: any) =>
+      !c.usado_em && (!c.validade || new Date(c.validade).getTime() > agora));
+
+    res.json({
+      usuario: user || null,
+      membro: {
+        nivel: membro?.nivel || 'base',
+        objetivo: membro?.objetivo || null,
+        motivo_descarte: membro?.motivo_descarte || [],
+        resolveu_em: membro?.resolveu_em || null,
+        resolveu_o_que: membro?.resolveu_o_que || [],
+      },
+      compras: compras || [],
+      // O que ele pagou em curso abate no upgrade pra Integrador ou Mentoria.
+      credito_centavos: validos.reduce((s: number, c: any) => s + (c.valor_centavos || 0), 0),
+      creditos: validos,
+    });
+  } catch (err) {
+    logger.error('plugcash', 'falha na conta', err);
+    res.status(500).json({ error: 'falha ao carregar conta' });
+  }
+});
+
+// Pós-compra: a tela de obrigado precisa saber o que foi liberado e como entrar,
+// sem exigir que a pessoa já esteja logada (ela acabou de sair do gateway).
+router.get('/obrigado/:slug', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { data: curso } = await supabase
+      .from('pc_cursos').select('titulo,subtitulo,slug').eq('slug', String(req.params.slug)).maybeSingle();
+    res.json({ curso: curso || null });
+  } catch {
+    res.json({ curso: null });
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — é aqui que preço, link de checkout e publicação são definidos.
 // Sem esta parte no ar, popular o catálogo exigiria um deploy por curso.
@@ -469,6 +575,100 @@ router.delete('/admin/aulas/:id', ...admin, async (req: Request, res: Response):
   } catch (err) {
     logger.error('plugcash', 'falha removendo aula', err);
     res.status(500).json({ error: 'falha ao remover' });
+  }
+});
+
+// ── Serviços da esteira ─────────────────────────────────────────────────────
+const CAMPOS_SERVICO = ['slug', 'titulo', 'descricao', 'preco_centavos', 'checkout_url',
+  'capacidade_mensal', 'resolve_motivo', 'nivel_exigido', 'ordem', 'status', 'copy',
+  'entrega', 'prazo_dias'];
+
+router.get('/admin/servicos', ...admin, async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [{ data: servicos }, { data: capacidade }] = await Promise.all([
+      supabase.from('pc_servicos').select('*').order('ordem'),
+      supabase.from('pc_servicos_capacidade').select('*'),
+    ]);
+    const usados = new Map((capacidade || []).map((c: any) => [c.servico_id, c.usados_no_mes]));
+    res.json({
+      servicos: (servicos || []).map((s: any) => ({ ...s, capacidade_usada: Number(usados.get(s.id) || 0) })),
+    });
+  } catch (err) {
+    logger.error('plugcash', 'falha listando servicos', err);
+    res.status(500).json({ error: 'falha ao listar servicos' });
+  }
+});
+
+router.post('/admin/servicos', ...admin, async (req: Request, res: Response): Promise<void> => {
+  const body = req.body || {};
+  const patch: Record<string, unknown> = {};
+  for (const k of CAMPOS_SERVICO) if (k in body) patch[k] = body[k];
+  try {
+    const q = body.id
+      ? supabase.from('pc_servicos').update(patch).eq('id', String(body.id)).select('*').single()
+      : supabase.from('pc_servicos').insert(patch).select('*').single();
+    const { data, error } = await q;
+    if (error) throw error;
+    res.json({ servico: data });
+  } catch (err) {
+    logger.error('plugcash', 'falha salvando servico', err);
+    res.status(500).json({ error: 'falha ao salvar servico' });
+  }
+});
+
+// ── Mapeamento produto do gateway → item do PlugCash ────────────────────────
+// Sem isto cadastrado, a venda entra na Kiwify e o comprador não recebe nada:
+// o webhook não sabe a que curso o produto corresponde.
+router.get('/admin/gateway', ...admin, async (_req: Request, res: Response): Promise<void> => {
+  const { data } = await supabase.from('pc_gateway_produtos').select('*').order('item_slug');
+  res.json({ produtos: data || [] });
+});
+
+router.post('/admin/gateway', ...admin, async (req: Request, res: Response): Promise<void> => {
+  const b = req.body || {};
+  const patch: Record<string, unknown> = {};
+  for (const k of ['gateway', 'produto_id', 'produto_nome', 'item_tipo', 'item_slug',
+                   'concede_nivel', 'gera_credito', 'ativo']) if (k in b) patch[k] = b[k];
+  try {
+    const q = b.id
+      ? supabase.from('pc_gateway_produtos').update(patch).eq('id', String(b.id)).select('*').single()
+      : supabase.from('pc_gateway_produtos').insert(patch).select('*').single();
+    const { data, error } = await q;
+    if (error) throw error;
+    res.json({ produto: data });
+  } catch (err) {
+    logger.error('plugcash', 'falha salvando mapeamento de gateway', err);
+    res.status(500).json({ error: 'falha ao salvar' });
+  }
+});
+
+router.delete('/admin/gateway/:id', ...admin, async (req: Request, res: Response): Promise<void> => {
+  await supabase.from('pc_gateway_produtos').delete().eq('id', String(req.params.id));
+  res.json({ ok: true });
+});
+
+// Quem declarou que resolveu a falta e pode voltar pra agenda como nota 3.
+// É o ciclo que fecha o modelo: lead fraco vira cliente de R$ 160 mil.
+router.get('/admin/reagendar', ...admin, async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { data } = await supabase
+      .from('pc_membros')
+      .select('user_id,telefone,nivel,nota,motivo_descarte,resolveu_o_que,resolveu_em,cidade')
+      .not('resolveu_em', 'is', null)
+      .order('resolveu_em', { ascending: false });
+
+    const ids = (data || []).map((m: any) => m.user_id);
+    const { data: users } = ids.length
+      ? await supabase.from('users').select('id,email,nome,whatsapp').in('id', ids)
+      : { data: [] as any[] };
+    const porId = new Map((users || []).map((u: any) => [u.id, u]));
+
+    res.json({
+      elegiveis: (data || []).map((m: any) => ({ ...m, usuario: porId.get(m.user_id) || null })),
+    });
+  } catch (err) {
+    logger.error('plugcash', 'falha listando elegiveis', err);
+    res.status(500).json({ error: 'falha ao listar' });
   }
 });
 

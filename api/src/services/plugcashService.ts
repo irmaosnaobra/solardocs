@@ -1,0 +1,405 @@
+import crypto from 'crypto';
+import { supabase } from '../utils/supabase';
+import { supabaseGerador } from '../utils/supabaseGerador';
+import { sendOpsAlert, sendPlugcashAcessoEmail } from '../utils/mailer';
+import { logger } from '../utils/logger';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLUGCASH — provisionamento a partir da venda.
+//
+// O caminho inteiro: lead NOTA 1 é recusado na agenda → compra o produto de
+// entrada → este arquivo cria a conta, libera o curso, copia a qualificação que
+// veio da régua do eletroposto e manda o e-mail de acesso. É a única porta entre
+// "pagou" e "está dentro".
+//
+// Três coisas que este arquivo se recusa a fazer, e o motivo:
+//
+// 1. NÃO decide por nome de produto escrito no código. O mapeamento
+//    produto-do-gateway → item do PlugCash mora em `pc_gateway_produtos`,
+//    editável pelo /admin. Renomear o produto na Kiwify não pode arrancar o
+//    acesso de quem paga.
+// 2. NÃO libera acesso em pedido que não está pago. Pix aguardando é registro.
+// 3. NÃO manda o e-mail de acesso duas vezes. O gate é o carimbo
+//    `acesso_email_em`, não "o pedido é novo" — no Pix a Kiwify entrega dois
+//    webhooks e, quando o pago chega, o pedido já existe.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DASHBOARD_URL = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+
+export type EventoPlugcash = {
+  orderId: string | null;
+  email: string;
+  nome: string | null;
+  telefone: string | null;
+  // 'paid' | 'refunded' | 'chargeback' | 'waiting_payment' | ... e null quando a
+  // Kiwify manda um evento sem status reconhecível — que NÃO pode virar 'paid'.
+  status: string | null;
+  produtoId: string | null;
+  produtoNome: string | null;
+  valorCentavos: number | null;
+  checkoutLink: string | null;
+  utm: Record<string, string | null>;
+  payload: unknown;
+};
+
+export type ResultadoPlugcash = {
+  ok: boolean;
+  acao: 'liberado' | 'registrado' | 'revogado' | 'ignorado';
+  detalhe: string;
+};
+
+// ── Telefone na forma canônica ──────────────────────────────────────────────
+// DDD (2) + os 8 últimos dígitos. Espelha public.ep_tel_norm() no banco do
+// gerador. Ver comentário em routes/plugcash.ts: casar pelos últimos 10 comeria
+// o primeiro dígito do DDD.
+export function telNorm(t?: string | null): string | null {
+  const d = String(t || '').replace(/\D/g, '');
+  if ((d.length === 12 || d.length === 13) && d.startsWith('55')) {
+    const local = d.slice(2);
+    return local.slice(0, 2) + local.slice(-8);
+  }
+  if (d.length === 10 || d.length === 11) return d.slice(0, 2) + d.slice(-8);
+  return null;
+}
+
+// ── De que item do PlugCash é este pedido? ──────────────────────────────────
+// Casa primeiro por ID (estável) e só depois por nome (que o operador pode
+// renomear). Produto que não está cadastrado devolve null — e null aqui
+// significa "não é nosso", não "erro": o mesmo webhook da Kiwify recebe venda
+// do LimpaPro e do Kit, e cada um só trata o que é seu.
+export async function classificarProdutoPlugcash(
+  produtoNome: string | null,
+  produtoId: string | null,
+) {
+  const { data } = await supabase
+    .from('pc_gateway_produtos')
+    .select('*')
+    .eq('gateway', 'kiwify')
+    .eq('ativo', true);
+
+  const lista = (data || []) as any[];
+  if (produtoId) {
+    const porId = lista.find((p) => p.produto_id && p.produto_id === produtoId);
+    if (porId) return porId;
+  }
+  if (produtoNome) {
+    const alvo = produtoNome.trim().toLowerCase();
+    const porNome = lista.find((p) => (p.produto_nome || '').trim().toLowerCase() === alvo);
+    if (porNome) return porNome;
+  }
+  return null;
+}
+
+// ── Conta ───────────────────────────────────────────────────────────────────
+// Mesmo padrão do Kit de Fechamento: conta PENDENTE (sem senha) com token de
+// definição, ou vínculo com a conta que já existe. Nunca mexe em plano nem em
+// senha de quem já é usuário do SolarDoc — é a mesma tabela `users`.
+async function garantirConta(opts: {
+  email: string;
+  nome: string | null;
+  telefone: string | null;
+  utm: Record<string, string | null>;
+}): Promise<{ userId: string | null; contaCriada: boolean; acessoUrl: string }> {
+  const email = opts.email.toLowerCase().trim();
+
+  const { data: existente } = await supabase
+    .from('users').select('id').eq('email', email).maybeSingle();
+
+  if ((existente as any)?.id) {
+    return { userId: (existente as any).id, contaCriada: false, acessoUrl: `${DASHBOARD_URL}/plugcash/entrar` };
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expira = new Date(Date.now() + 7 * 86400_000).toISOString();
+  const attr: Record<string, string> = {};
+  for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
+    const v = opts.utm[k];
+    if (typeof v === 'string' && v.trim()) attr[k] = v.trim();
+  }
+
+  const { data: criado, error } = await supabase
+    .from('users')
+    .insert({
+      email,
+      password_hash: null,          // conta PENDENTE — ativa quando definir a senha
+      nome: opts.nome,
+      plano: 'free',
+      limite_documentos: 10,
+      documentos_usados: 0,
+      whatsapp: (opts.telefone || '').replace(/\D/g, '') || null,
+      billing_status: 'active',
+      reset_token: token,
+      reset_token_expires: expira,
+      utm_source: attr.utm_source || 'kiwify',
+      utm_medium: attr.utm_medium || 'plugcash',
+      ...attr,
+      // Marcador durável: utm_source acima é sobrescrito quando a pessoa vem de
+      // anúncio, e aí sumiria justo o rastro de quem entrou pelo PlugCash.
+      origem_aquisicao: 'plugcash',
+    })
+    .select('id')
+    .single();
+
+  if (error || !criado) {
+    // Corrida com outro webhook do mesmo comprador (bump e produto principal
+    // chegam quase juntos): a conta pode ter nascido no meio do caminho.
+    const { data: agora } = await supabase
+      .from('users').select('id').eq('email', email).maybeSingle();
+    if (!(agora as any)?.id) {
+      logger.error('plugcash', `nao consegui criar conta de ${email}`, error);
+      return { userId: null, contaCriada: false, acessoUrl: `${DASHBOARD_URL}/plugcash/entrar` };
+    }
+    return { userId: (agora as any).id, contaCriada: false, acessoUrl: `${DASHBOARD_URL}/plugcash/entrar` };
+  }
+
+  return {
+    userId: (criado as any).id,
+    contaCriada: true,
+    acessoUrl: `${DASHBOARD_URL}/auth?mode=redefinir&token=${token}`,
+  };
+}
+
+// ── Snapshot da qualificação ────────────────────────────────────────────────
+// Copia a régua do eletroposto pro membro. É a única travessia entre os dois
+// projetos Supabase, e ela acontece uma vez — sem isto o bloco "seu próximo
+// passo" nunca sai do texto genérico, porque é `motivo_descarte` que o decide.
+export async function snapshotQualificacao(telefone: string | null) {
+  const norm = telNorm(telefone);
+  if (!norm) return null;
+  const campos = 'nota,motivo_descarte,tem_ponto,capital_faixa,e_decisor,perfil_slug,cidade,utm_source,utm_medium,utm_campaign,utm_content,utm_term';
+  try {
+    // NOTA 1 primeiro: é o público do PlugCash. Quem agendou só cai no
+    // `agendamentos` como plano B.
+    const { data: n1 } = await supabaseGerador
+      .from('eletroposto_nota1').select(`id,pontuacao_total:pts,${campos}`)
+      .eq('telefone_norm', norm).order('id', { ascending: false }).limit(1).maybeSingle();
+    if (n1) return { ...(n1 as any), origem_tabela: 'eletroposto_nota1', origem_id: (n1 as any).id };
+
+    const { data: ag } = await supabaseGerador
+      .from('agendamentos').select(`id,pontuacao_total,${campos}`)
+      .eq('telefone_norm', norm).order('id', { ascending: false }).limit(1).maybeSingle();
+    if (ag) return { ...(ag as any), origem_tabela: 'agendamentos', origem_id: (ag as any).id };
+  } catch (err) {
+    logger.error('plugcash', `falha buscando qualificacao de ${norm}`, err);
+  }
+  return null;
+}
+
+// ── Processamento da venda ──────────────────────────────────────────────────
+export async function processarEventoPlugcash(evt: EventoPlugcash): Promise<ResultadoPlugcash> {
+  const email = (evt.email || '').toLowerCase().trim();
+  if (!email) return { ok: false, acao: 'ignorado', detalhe: 'sem email' };
+
+  const item = await classificarProdutoPlugcash(evt.produtoNome, evt.produtoId);
+  if (!item) return { ok: true, acao: 'ignorado', detalhe: 'produto nao e do plugcash' };
+
+  // Abandono de carrinho não é pedido. Gravá-lo cria venda fantasma: a Kiwify
+  // manda esse evento com `id` sendo a SESSÃO de checkout, não o pedido.
+  if (/abandon/i.test(String(evt.status || ''))) {
+    return { ok: true, acao: 'ignorado', detalhe: 'abandono de carrinho' };
+  }
+
+  const pago = evt.status === 'paid';
+  const gatewayRef = evt.orderId ? `kiwify:${evt.orderId}:${item.item_slug}` : null;
+
+  // Idempotência por pedido+item: o bump vem no MESMO order_id do produto
+  // principal, então a chave não pode ser só o pedido.
+  let existente: any = null;
+  if (gatewayRef) {
+    const { data } = await supabase
+      .from('pc_compras')
+      .select('id,status,acesso_email_em,user_id')
+      .eq('gateway_ref', gatewayRef).maybeSingle();
+    existente = data;
+  }
+
+  // Nunca REBAIXA compra já aprovada: a Kiwify pode reentregar o
+  // 'waiting_payment' do Pix depois do 'paid'. Reembolso e chargeback passam —
+  // são estados finais de verdade e precisam revogar o acesso.
+  const statusMap: Record<string, string> = {
+    paid: 'aprovada', refunded: 'reembolsada', chargeback: 'estornada',
+    waiting_payment: 'pendente',
+  };
+  const statusEntrada = statusMap[evt.status || ''] || 'pendente';
+  const status =
+    existente?.status === 'aprovada' && !['aprovada', 'reembolsada', 'estornada'].includes(statusEntrada)
+      ? 'aprovada'
+      : statusEntrada;
+
+  const utmCols = evt.utm.utm_campaign ? {
+    utm_source: evt.utm.utm_source || null,
+    utm_medium: evt.utm.utm_medium || null,
+    utm_campaign: evt.utm.utm_campaign,
+    utm_content: evt.utm.utm_content || null,
+    utm_term: evt.utm.utm_term || null,
+  } : {};
+
+  const { data: compra, error: upErr } = await supabase
+    .from('pc_compras')
+    .upsert({
+      gateway: 'kiwify',
+      gateway_ref: gatewayRef || `sem-order-${crypto.randomUUID()}`,
+      email,
+      nome: evt.nome,
+      telefone: (evt.telefone || '').replace(/\D/g, '') || null,
+      item_tipo: item.item_tipo,
+      item_slug: item.item_slug,
+      valor_centavos: evt.valorCentavos ?? 0,
+      status,
+      // Dedup do pixel/CAPI: derivado do pedido, então reentrega do webhook não
+      // conta a mesma conversão duas vezes lá na Meta.
+      event_id: gatewayRef ? `pc_${gatewayRef}` : null,
+      checkout_link: evt.checkoutLink,
+      payload: evt.payload as any,
+      ...utmCols,
+    }, { onConflict: 'gateway_ref' })
+    .select('id,user_id,acesso_email_em')
+    .single();
+
+  if (upErr) {
+    logger.error('plugcash', 'upsert pc_compras falhou', upErr);
+    return { ok: false, acao: 'ignorado', detalhe: 'falha ao gravar compra' };
+  }
+
+  if (!pago) {
+    if (status === 'reembolsada' || status === 'estornada') {
+      await revogarAcesso((compra as any).id, item);
+      return { ok: true, acao: 'revogado', detalhe: `status ${evt.status}` };
+    }
+    return { ok: true, acao: 'registrado', detalhe: `status ${evt.status}` };
+  }
+
+  // ── Pagou: conta, acesso, snapshot, crédito, e-mail ──
+  const { userId, contaCriada, acessoUrl } = await garantirConta({
+    email, nome: evt.nome, telefone: evt.telefone, utm: evt.utm,
+  });
+  if (!userId) return { ok: false, acao: 'registrado', detalhe: 'nao consegui criar a conta' };
+
+  await supabase.from('pc_compras').update({ user_id: userId }).eq('id', (compra as any).id);
+
+  // Membro + snapshot. O telefone da compra é melhor que o do cadastro: é o que
+  // a pessoa acabou de digitar no checkout.
+  const telefone = (evt.telefone || '').replace(/\D/g, '') || null;
+  const { data: membroExistente } = await supabase
+    .from('pc_membros').select('user_id,motivo_descarte').eq('user_id', userId).maybeSingle();
+
+  if (!membroExistente) {
+    const qualificacao = await snapshotQualificacao(telefone);
+    const { id: _ignora, ...snap } = (qualificacao || {}) as Record<string, unknown>;
+    await supabase.from('pc_membros').upsert(
+      { user_id: userId, telefone, ...snap },
+      { onConflict: 'user_id' },
+    );
+  } else if (!(membroExistente as any).motivo_descarte && telefone) {
+    // Membro criado antes da compra (entrou pelo SolarDoc) e ainda sem
+    // qualificação: agora temos o telefone do checkout, que pode casar.
+    const qualificacao = await snapshotQualificacao(telefone);
+    if (qualificacao) {
+      const { id: _i, ...snap } = qualificacao as Record<string, unknown>;
+      await supabase.from('pc_membros').update({ telefone, ...snap }).eq('user_id', userId);
+    }
+  }
+
+  // Nível (Integrador, Investidor) sobe o membro; curso vira linha de acesso.
+  if (item.concede_nivel) {
+    await supabase.from('pc_membros').update({ nivel: item.concede_nivel }).eq('user_id', userId);
+  }
+
+  if (item.item_tipo === 'curso') {
+    const { data: curso } = await supabase
+      .from('pc_cursos').select('id').eq('slug', item.item_slug).maybeSingle();
+    if (curso) {
+      await supabase.from('pc_acessos').upsert(
+        { user_id: userId, curso_id: (curso as any).id, origem: 'compra', compra_id: (compra as any).id },
+        { onConflict: 'user_id,curso_id', ignoreDuplicates: true },
+      );
+    } else {
+      // Produto vendido sem curso correspondente no catálogo: o cliente pagou e
+      // não tem o que abrir. Silêncio aqui vira reclamação amanhã.
+      sendOpsAlert(
+        'PlugCash: venda sem curso no catalogo',
+        `A venda de "${item.item_slug}" (${email}) foi aprovada, mas nao existe curso com esse slug em pc_cursos.\n` +
+        `O comprador esta sem acesso. Cadastre o curso ou corrija o mapeamento em pc_gateway_produtos.`,
+      ).catch(() => {});
+    }
+  }
+
+  if (item.item_tipo === 'servico') {
+    const { data: servico } = await supabase
+      .from('pc_servicos').select('id').eq('slug', item.item_slug).maybeSingle();
+    if (servico) {
+      await supabase.from('pc_servico_pedidos').insert({
+        servico_id: (servico as any).id,
+        user_id: userId,
+        compra_id: (compra as any).id,
+        competencia: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+          .toISOString().slice(0, 10),
+        status: 'fila',
+      });
+    }
+  }
+
+  // Crédito de abatimento: o que ele pagou em curso abate no upgrade pra
+  // Integrador ou Mentoria. Só uma vez por compra.
+  if (item.gera_credito && item.item_tipo === 'curso' && (evt.valorCentavos || 0) > 0) {
+    const { data: jaTem } = await supabase
+      .from('pc_creditos').select('id').eq('origem_compra', (compra as any).id).maybeSingle();
+    if (!jaTem) {
+      await supabase.from('pc_creditos').insert({
+        user_id: userId,
+        valor_centavos: evt.valorCentavos,
+        origem_compra: (compra as any).id,
+        validade: new Date(Date.now() + 365 * 86400_000).toISOString(),
+      });
+    }
+  }
+
+  // E-mail: o gate é o CARIMBO. Bump não manda e-mail próprio — o produto
+  // principal já mandou, e dois e-mails por uma compra parece cobrança dupla.
+  const jaMandou = !!(compra as any).acesso_email_em || !!existente?.acesso_email_em;
+  if (!jaMandou && item.item_tipo !== 'bump') {
+    try {
+      const { data: curso } = await supabase
+        .from('pc_cursos').select('titulo').eq('slug', item.item_slug).maybeSingle();
+      await sendPlugcashAcessoEmail({
+        to: email,
+        nome: evt.nome,
+        acessoUrl,
+        contaCriada,
+        curso: (curso as any)?.titulo || item.item_slug,
+      });
+      await supabase.from('pc_compras')
+        .update({ acesso_email_em: new Date().toISOString() })
+        .eq('id', (compra as any).id);
+    } catch (err) {
+      // Não carimba: a próxima reentrega da Kiwify tenta de novo. O acesso já
+      // está liberado — o e-mail é o aviso, não a chave.
+      logger.error('plugcash', `e-mail de acesso falhou para ${email}`, err);
+    }
+  }
+
+  await supabase.from('pc_eventos').insert({
+    user_id: userId, tipo: 'purchase', payload: { slug: item.item_slug, valor: evt.valorCentavos },
+  });
+
+  return { ok: true, acao: 'liberado', detalhe: `${item.item_tipo}:${item.item_slug}` };
+}
+
+// Reembolso e chargeback trancam o que a compra tinha aberto. Nível não é
+// rebaixado automaticamente: quem tem Integrador pode ter subido por outra via,
+// e derrubar sozinho arriscaria tirar acesso de quem paga. Vira aviso.
+async function revogarAcesso(compraId: string, item: any) {
+  await supabase.from('pc_acessos').delete().eq('compra_id', compraId);
+  await supabase.from('pc_creditos').delete().eq('origem_compra', compraId).is('usado_em', null);
+  await supabase.from('pc_servico_pedidos')
+    .update({ status: 'cancelado' }).eq('compra_id', compraId);
+
+  if (item?.concede_nivel) {
+    sendOpsAlert(
+      'PlugCash: reembolso de item que concede nivel',
+      `Uma compra de "${item.item_slug}" (nivel ${item.concede_nivel}) foi reembolsada/estornada.\n` +
+      `O acesso por curso foi revogado, mas o NIVEL do membro nao foi rebaixado automaticamente —\n` +
+      `ele pode ter subido por outra via. Confira em pc_membros antes de mexer.`,
+    ).catch(() => {});
+  }
+}

@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fundamentos do Eletroposto — PlugCash</title>
+<meta name="description" content="O caminho de quem ainda não tem o ponto, o capital ou o aval para montar um eletroposto.">
+<!--
+  ─────────────────────────────────────────────────────────────────────────────
+  PÁGINA DE DESQUALIFICAÇÃO — a tela que o NOTA 1 (0–4 pts) vê no lugar do
+  horário da reunião.
+
+  Ela é a peça mais delicada do funil. A pessoa preencheu um formulário
+  esperando escolher um horário e recebeu um "não". Está frustrada. Se a página
+  soar como consolo ou como venda oportunista, ela fecha.
+
+  O que faz funcionar: tratar a recusa como CRITÉRIO, não como julgamento. A
+  reunião é com quem dimensiona e orça um investimento de seis dígitos — sem
+  local definido não há o que orçar. Isso é verdade e é defensável.
+
+  QUATRO DECISÕES QUE ESTÃO NO CÓDIGO:
+
+  1. O motivo vem por sessionStorage, não por querystring. A pontuação bruta não
+     pode aparecer na URL: é dado do lead e vira print no grupo do WhatsApp.
+     Sem sessionStorage (link direto, aba nova), cai na variação neutra — nunca
+     numa tela quebrada.
+  2. O LINK DE CHECKOUT NÃO ESTÁ AQUI. Vem da API (/plugcash/curso/fundamentos),
+     que lê de `pc_cursos`, editável pelo /admin. Trocar de oferta não pode
+     exigir deploy de landing.
+  3. NÃO tem contador, vaga fictícia, depoimento nem "de R$ X por R$ Y". O
+     público veio de sete minutos de conteúdo técnico; artifício aqui contamina a
+     marca principal, que é onde mora a venda de R$ 160 mil.
+  4. ZERO IMAGEM EXTERNA. Só SVG inline — a lander do /io já pesou 2,58 MB uma
+     vez por causa de um favicon de 468 KB baixado três vezes.
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><rect width='80' height='80' rx='21' fill='%2300C853'/><rect x='38.5' y='11' width='3.6' height='58' rx='1.8' fill='%23fff'/><path d='M45 19 L27 51 L39 51 L36 69 L55 39 L42 39 Z' fill='%23fff'/></svg>">
+<style>
+:root{
+  --green:#00C853; --green-deep:#009B40; --green-soft:#E6F9EE;
+  --black:#0A0A0A; --g900:#141414; --g800:#262626; --g600:#6B6B6B;
+  --g300:#D9D9D9; --g100:#F5F5F5; --r:12px; --rl:20px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  background:var(--g100); color:var(--black); -webkit-font-smoothing:antialiased;
+  line-height:1.55;
+}
+.wrap{width:100%;max-width:760px;margin:0 auto;padding:0 20px}
+.dark{background:var(--black);color:#fff}
+
+/* Marca */
+.topo{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+.logo{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.02em}
+.logo svg{width:32px;height:32px;flex:none}
+.logo .cash{color:var(--green)}
+.assina{font-size:12px;color:#8f8f8f;text-align:right;line-height:1.4}
+
+/* Hero */
+.hero{padding:16px 0 56px}
+.selo{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+      color:var(--green);border:1px solid var(--g800);border-radius:999px;padding:6px 14px;margin-bottom:22px}
+h1{font-size:clamp(27px,4.6vw,40px);font-weight:800;line-height:1.16;letter-spacing:-.02em;margin:0 0 18px;max-width:20ch}
+.lead{font-size:17px;line-height:1.7;color:#cfcfcf;margin:0 0 16px;max-width:56ch}
+.lead strong{color:#fff}
+
+/* Blocos claros */
+.bloco{padding:44px 0;border-bottom:1px solid var(--g300)}
+.bloco:last-of-type{border-bottom:0}
+h2{font-size:22px;font-weight:800;letter-spacing:-.01em;margin:0 0 6px}
+.sub{color:var(--g600);font-size:15px;margin:0 0 20px}
+ul.lista{margin:0;padding-left:20px;display:grid;gap:11px;font-size:16px}
+ul.lista li::marker{color:var(--green)}
+
+.card{background:#fff;border:1px solid var(--g300);border-radius:var(--rl);padding:24px}
+
+/* Preço */
+.preco{font-size:40px;font-weight:800;letter-spacing:-.02em;margin:0}
+.preco small{font-size:16px;font-weight:600;color:var(--g600);letter-spacing:0}
+.parcela{color:var(--g600);font-size:15px;margin:8px 0 0}
+
+/* Bump: UMA linha com checkbox. Nunca card com copy longa. */
+.bump{display:flex;align-items:flex-start;gap:12px;margin:22px 0 0;padding:14px 16px;
+      border:1px dashed var(--g300);border-radius:var(--r);background:#fff;cursor:pointer}
+.bump input{margin-top:3px;width:18px;height:18px;accent-color:var(--green);flex:none}
+.bump span{font-size:15px;line-height:1.5}
+.bump b{font-weight:700}
+
+/* Botão */
+.cta{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+     padding:18px 26px;border:0;border-radius:var(--r);background:var(--green);color:#fff;
+     font:inherit;font-weight:800;font-size:17px;line-height:1;text-decoration:none;cursor:pointer;
+     margin-top:20px;transition:background .15s}
+.cta:hover{background:var(--green-deep)}
+.cta[disabled],.cta.off{background:var(--g300);color:var(--g600);cursor:default}
+
+/* Garantia / FAQ */
+.garantia{border-left:3px solid var(--green);padding-left:16px;font-size:16px;color:#333}
+details{border-top:1px solid var(--g300);padding:15px 0}
+details summary{font-weight:700;cursor:pointer;font-size:16px;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:'+';float:right;color:var(--green);font-weight:800}
+details[open] summary::after{content:'–'}
+details p{margin:10px 0 0;color:var(--g600);line-height:1.65}
+
+.rodape{background:var(--black);color:#8f8f8f;font-size:13px;padding:30px 0;text-align:center;line-height:1.7}
+.rodape a{color:#cfcfcf}
+@media(max-width:640px){ .assina{display:none} }
+</style>
+</head>
+<body>
+
+<div class="dark">
+  <div class="wrap">
+    <header class="topo">
+      <span class="logo">
+        <svg viewBox="0 0 80 80" aria-hidden="true">
+          <rect width="80" height="80" rx="21" fill="#00C853"/>
+          <rect x="38.5" y="11" width="3.6" height="58" rx="1.8" fill="#fff"/>
+          <path d="M45 19 L27 51 L39 51 L36 69 L55 39 L42 39 Z" fill="#fff"/>
+        </svg>
+        <span><span style="color:#fff">Plug</span><span class="cash">Cash</span></span>
+      </span>
+      <span class="assina">Irmãos na Obra<br>Mobilidade Elétrica</span>
+    </header>
+
+    <section class="hero">
+      <span class="selo" id="selo">Sobre a sua resposta</span>
+      <h1 id="headline">A reunião não vai acontecer agora — e o motivo é objetivo.</h1>
+      <div id="abertura"></div>
+      <p class="lead" id="ponte"></p>
+
+      <!-- Player: só aparece se houver vídeo cadastrado. Espaço vazio é melhor
+           que player quebrado ou que um "em breve" que ninguém volta pra ver. -->
+      <div id="video-slot"></div>
+
+      <!-- Saída de emergência. Ela existia na LP ("já tenho um ponto definido —
+           quero agendar") e resgatava quem clicou errado na pergunta do ponto,
+           que é a que decide a nota na esmagadora maioria dos casos. Sem isto,
+           um lead qualificado que errou um clique fica preso numa página de
+           venda de R$ 197 — troca de R$ 160 mil por R$ 197 pelo motivo errado. -->
+      <p style="margin:28px 0 0">
+        <a href="/io/eletroposto#agendar" id="voltar"
+           style="color:#8f8f8f;font-size:14px;text-decoration:underline;text-underline-offset:3px">
+          Respondi errado: já sei onde vou instalar — quero agendar
+        </a>
+      </p>
+    </section>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section class="bloco">
+    <h2>O que está no Fundamentos do Eletroposto</h2>
+    <p class="sub">O curso de entrada — o mesmo material que a nossa equipe usa para decidir se um ponto vale ou não vale.</p>
+    <ul class="lista" id="o-que-leva"></ul>
+  </section>
+
+  <section class="bloco" id="grade-bloco" style="display:none">
+    <h2>A grade completa</h2>
+    <p class="sub">Todas as aulas, com a duração de cada uma. Sem surpresa depois da compra.</p>
+    <ul class="lista" id="grade"></ul>
+  </section>
+
+  <!-- Enquanto o curso não estiver publicado COM link de checkout, esta página
+       não pode terminar num botão morto. Ela cai no grupo — que é o que existe
+       hoje e é melhor que nada. Some sozinha no instante em que o /admin
+       publicar a oferta: nenhuma chave pra alguém lembrar de virar. -->
+  <section class="bloco" id="fallback" style="display:none">
+    <h2>Enquanto isso, entre no grupo</h2>
+    <p class="sub">
+      O material completo está sendo finalizado. Enquanto ele não sai, o grupo é
+      onde publicamos os pontos que instalamos, como avaliar um local e o caminho
+      do financiamento. Quem tem local e quem tem capital se encontram por lá.
+    </p>
+    <a class="cta" href="https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M"
+       target="_blank" rel="noopener" id="cta-grupo">Entrar no grupo</a>
+    <p class="parcela" style="margin-top:12px">Entrada gratuita. Também mandamos o convite no seu WhatsApp.</p>
+  </section>
+
+  <section class="bloco" id="oferta" style="display:none">
+    <h2>Preço</h2>
+    <p class="preco" id="preco">—</p>
+    <p class="parcela" id="parcela"></p>
+    <p class="sub" id="por-que" style="margin-top:14px"></p>
+
+    <label class="bump" id="bump-linha" style="display:none">
+      <input type="checkbox" id="bump-check">
+      <span id="bump-texto"></span>
+    </label>
+
+    <a class="cta off" id="cta" href="#">Carregando…</a>
+    <p class="parcela" style="margin-top:12px">Pagamento processado pela Kiwify. Acesso liberado por e-mail assim que o pagamento é aprovado.</p>
+  </section>
+
+  <section class="bloco">
+    <h2>Garantia</h2>
+    <p class="garantia" id="garantia">
+      Sete dias. Não serviu, você pede o reembolso integral e fica com o material que já baixou.
+    </p>
+  </section>
+
+  <section class="bloco">
+    <h2>Perguntas</h2>
+    <div id="faq"></div>
+  </section>
+
+  <section class="bloco" id="cta-final" style="display:none;text-align:center">
+    <a class="cta off" id="cta2" href="#">Carregando…</a>
+  </section>
+</div>
+
+<footer class="rodape">
+  <div class="wrap">
+    PlugCash · Irmãos na Obra — Mobilidade Elétrica<br>
+    Dúvidas? <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a>
+  </div>
+</footer>
+
+<script>
+(function(){
+'use strict';
+
+// ── 1 · Qual bloqueio trouxe a pessoa até aqui ──────────────────────────────
+// Vem por sessionStorage, escrito pela LP no momento da desqualificação. Não vai
+// por querystring de propósito: pontuação é dado do lead, e URL vira print.
+// Sem o dado (link direto, aba nova, sessão expirada) cai na variação neutra.
+var motivos = [], nome = '';
+try {
+  var raw = sessionStorage.getItem('ep_desq');
+  if (raw) { var d = JSON.parse(raw); motivos = d.motivos || []; nome = d.nome || ''; }
+} catch(_) {}
+
+// Ordem de prioridade quando a pessoa tem mais de um bloqueio: fala do que ela
+// consegue resolver primeiro. Capital sem ponto não resolve nada — ponto sem
+// capital, sim (vira parceria com investidor).
+var ORDEM = ['sem_ponto','fluxo_baixo','nao_decisor','sem_capital'];
+var motivo = null;
+for (var i=0;i<ORDEM.length;i++) if (motivos.indexOf(ORDEM[i]) >= 0) { motivo = ORDEM[i]; break; }
+
+var COPY = {
+  sem_ponto: {
+    selo: 'Você respondeu que ainda não tem o ponto',
+    headline: 'Sem o local definido, não existe o que orçar.',
+    abertura: [
+      'Você respondeu que ainda não sabe onde instalar. Foi por isso que a agenda não abriu — e não é um julgamento sobre você.',
+      'A reunião é com o especialista que dimensiona a potência, calcula a demanda e monta o orçamento. As três coisas dependem de um endereço: a carga disponível é daquele padrão de entrada, o movimento é daquela esquina, o retorno é daquele fluxo. Sem local, a conversa vira suposição — e suposição em investimento de seis dígitos não ajuda ninguém.'
+    ],
+    ponte: 'Achar e avaliar o ponto é uma etapa com método, não sorte. É por onde você começa.'
+  },
+  fluxo_baixo: {
+    selo: 'Você respondeu que investe, mas não tem o local',
+    headline: 'Você tem o dinheiro. Falta a esquina certa.',
+    abertura: [
+      'Pelo seu perfil, você quer investir — não tem um comércio com movimento próprio na porta. Esse é o caso mais comum de quem chega aqui, e é o mais fácil de resolver: falta o ativo, não a capacidade.',
+      'Só que o especialista não escolhe o ponto por você numa reunião de uma hora. Escolher local é levantamento: fluxo, carga disponível, concorrência de raio, contrato de arrendamento. Quem chega com o local mapeado sai da reunião com orçamento; quem chega sem, sai com a mesma dúvida que entrou.'
+    ],
+    ponte: 'Antes de sentar com o especialista, você precisa saber avaliar um ponto sozinho. É o que este material ensina.'
+  },
+  nao_decisor: {
+    selo: 'Você respondeu que a decisão não é só sua',
+    headline: 'Quem decide precisa ver o mesmo que você viu.',
+    abertura: [
+      'Você respondeu que a decisão passa por outra pessoa — sócio, cônjuge, conselho. A agenda não abriu por um motivo prático: reunião sem quem assina vira uma segunda reunião, e a segunda quase nunca acontece.',
+      'O que costuma travar não é o dinheiro, é a explicação. Você viu a conta e entendeu. A outra pessoa vai ouvir um resumo de dois minutos e decidir com base nele.'
+    ],
+    ponte: 'Antes de marcar, monte o argumento. É disso que este material trata.'
+  },
+  sem_capital: {
+    selo: 'Você respondeu que o capital ainda não está disponível',
+    headline: 'O orçamento não muda o que falta hoje.',
+    abertura: [
+      'Você respondeu que ainda não sabe como vai pagar. A agenda não abriu porque a reunião entrega um orçamento — e orçamento na mão de quem ainda não tem como financiar não move o projeto, só marca uma data para a frustração.',
+      'Viabilizar capital para eletroposto tem caminhos concretos: linha de financiamento com o equipamento em garantia, empresa com CNPJ e faturamento, sociedade com quem tem o ponto. Cada um exige um preparo diferente.'
+    ],
+    ponte: 'Entender a conta antes de procurar o dinheiro é o que faz o banco dizer sim.'
+  },
+  neutro: {
+    selo: 'Sobre a sua resposta',
+    headline: 'A reunião não abriu agora — e o motivo é objetivo.',
+    abertura: [
+      'A agenda do especialista é reservada para projetos que já têm as três pernas de pé: um local definido, uma forma de pagar e a decisão na mão de quem está na conversa. Faltando uma delas, a reunião entrega um orçamento que não vira obra.',
+      'Isso não é um não definitivo. É a ordem certa das coisas.'
+    ],
+    ponte: 'O caminho de volta começa por entender o negócio inteiro antes de sentar para orçar.'
+  }
+};
+
+var c = COPY[motivo] || COPY.neutro;
+document.getElementById('selo').textContent = c.selo;
+document.getElementById('headline').textContent =
+  (nome ? nome.split(' ')[0] + ', ' : '') + c.headline.charAt(0).toLowerCase() + c.headline.slice(1);
+var box = document.getElementById('abertura');
+c.abertura.forEach(function(p){
+  var el = document.createElement('p'); el.className = 'lead'; el.textContent = p; box.appendChild(el);
+});
+document.getElementById('ponte').innerHTML = '<strong>' + c.ponte + '</strong>';
+
+// ── 2 · Conteúdo comum ─────────────────────────────────────────────────────
+var LEVA = [
+  'Como o mercado de recarga funciona no Brasil e onde ele já dá lucro hoje',
+  'Como avaliar um ponto: fluxo, carga disponível no padrão de entrada e concorrência de raio',
+  'A conta completa: custo da energia, revenda por kWh, taxa de gateway, ocupação e rampa de maturação',
+  'Os caminhos de financiamento e o que cada um exige de você',
+  'O que a distribuidora pede e o que faz um projeto ser reprovado',
+  'Como escolher equipamento sem ficar com um carregador órfão de assistência'
+];
+var ul = document.getElementById('o-que-leva');
+LEVA.forEach(function(t){ var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+
+var FAQ = [
+  ['Comprando isso, a reunião abre?', 'Não automaticamente, e prometer isso seria mentira. O que abre a agenda é o critério: quando você tiver o ponto definido, o capital viabilizado ou o aval de quem decide, você marca isso dentro do app, a sua pontuação é recalculada e a agenda abre. O material é o caminho mais curto até lá — não um atalho por fora da régua.'],
+  ['Dá para fazer isso sozinho, sem curso?', 'Dá. A informação existe espalhada em norma técnica, manual de distribuidora e conversa de fornecedor. O que você compra aqui é o tempo de juntar tudo e a ordem em que as decisões precisam ser tomadas.'],
+  ['Serve para cidade pequena?', 'Serve para avaliar se serve. Boa parte do material é justamente o método de dizer não a um ponto ruim — e cidade pequena com rodovia costuma ser melhor que cidade grande sem fluxo na porta.'],
+  ['Por que R$ 197 e não de graça?', 'Porque conteúdo grátis não é assistido. E porque quem paga R$ 197 para entender um investimento de seis dígitos está no jogo — é com essa pessoa que a nossa equipe quer sentar depois.'],
+  ['Quanto tempo leva?', 'O material é feito para ser consumido em poucos dias, no celular. Não há prazo de acesso.'],
+  ['E se não servir?', 'Sete dias, reembolso integral, e o que você já baixou continua seu. Sem formulário e sem conversa de retenção.']
+];
+var faqBox = document.getElementById('faq');
+FAQ.forEach(function(par){
+  var d = document.createElement('details');
+  var s = document.createElement('summary'); s.textContent = par[0];
+  var p = document.createElement('p'); p.textContent = par[1];
+  d.appendChild(s); d.appendChild(p); faqBox.appendChild(d);
+});
+
+document.getElementById('por-que').textContent =
+  'O valor pago aqui abate no upgrade para Credenciamento Integrador ou Mentoria Investidor. Fica como crédito na sua conta.';
+
+// ── 3 · Preço e checkout vêm da API, nunca do HTML ─────────────────────────
+// `pc_cursos` é a fonte: preço, parcelamento, link de checkout e a grade de
+// aulas. Trocar de oferta é um UPDATE no /admin, não um deploy desta página.
+var API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
+var checkoutSimples = null, checkoutBump = null;
+
+function money(cent){
+  return 'R$ ' + (cent/100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function pintarCta(){
+  var usarBump = document.getElementById('bump-check') && document.getElementById('bump-check').checked;
+  var url = (usarBump && checkoutBump) ? checkoutBump : checkoutSimples;
+  [document.getElementById('cta'), document.getElementById('cta2')].forEach(function(b){
+    if (!url) {
+      b.className = 'cta off';
+      b.removeAttribute('href');
+      b.textContent = 'Checkout ainda não configurado';
+      return;
+    }
+    b.className = 'cta';
+    b.href = url;
+    b.textContent = 'Quero o material — ' + document.getElementById('preco').dataset.label;
+  });
+}
+
+// Oferta indisponível (curso em rascunho, ou publicado sem link de checkout):
+// a página mostra o grupo em vez de um botão que não compra nada. Uma página de
+// venda que termina em botão morto custa mais caro que não ter página.
+function semOferta(){
+  document.getElementById('fallback').style.display = '';
+  document.getElementById('oferta').style.display = 'none';
+  document.getElementById('cta-final').style.display = 'none';
+  evento('material_sem_oferta');
+}
+function comOferta(){
+  document.getElementById('fallback').style.display = 'none';
+  document.getElementById('oferta').style.display = '';
+  document.getElementById('cta-final').style.display = '';
+}
+
+fetch(API + '/plugcash/curso/fundamentos')
+  .then(function(r){ return r.ok ? r.json() : null; })
+  .then(function(d){
+    if (!d || !d.curso || !d.curso.checkout_url) { semOferta(); return; }
+    comOferta();
+    var k = d.curso;
+    var el = document.getElementById('preco');
+    el.textContent = money(k.preco_centavos);
+    el.dataset.label = money(k.preco_centavos);
+    if (k.parcelas > 1) {
+      document.getElementById('parcela').textContent =
+        'ou ' + k.parcelas + '× de ' + money(Math.round(k.preco_centavos / k.parcelas)) + ' no cartão';
+    }
+    if (k.copy && k.copy.garantia) document.getElementById('garantia').textContent = k.copy.garantia;
+
+    // Grade real, quando já houver aula cadastrada.
+    if (k.aulas && k.aulas.length) {
+      document.getElementById('grade-bloco').style.display = '';
+      var g = document.getElementById('grade');
+      k.aulas.forEach(function(a){
+        var li = document.createElement('li');
+        var m = a.duracao_seg ? Math.round(a.duracao_seg/60) + ' min' : '';
+        li.textContent = a.titulo + (m ? ' · ' + m : '');
+        g.appendChild(li);
+      });
+    }
+
+    // Vídeo de vendas, se houver.
+    if (k.copy && k.copy.video_url) {
+      var v = document.createElement('video');
+      v.src = k.copy.video_url; v.controls = true; v.playsInline = true;
+      v.style.cssText = 'width:100%;border-radius:20px;background:#000;margin-top:26px';
+      document.getElementById('video-slot').appendChild(v);
+    }
+
+    checkoutSimples = k.checkout_url || null;
+    checkoutBump = (k.copy && k.copy.checkout_bump_url) || null;
+
+    // Order bump: UMA linha com checkbox. Só aparece se o link com bump existir —
+    // oferecer um adicional que o checkout não sabe cobrar é pior que não oferecer.
+    if (checkoutBump && k.copy && k.copy.bump_texto) {
+      document.getElementById('bump-linha').style.display = '';
+      document.getElementById('bump-texto').innerHTML = k.copy.bump_texto;
+      document.getElementById('bump-check').addEventListener('change', function(){
+        pintarCta();
+        evento('bump_toggle', { marcado: this.checked });
+      });
+    }
+    pintarCta();
+  })
+  .catch(function(){ semOferta(); });
+
+// ── 4 · Eventos do funil ───────────────────────────────────────────────────
+// Sem isto não dá pra saber se a página converte ou se o lead some entre a tela
+// e o checkout — e essa diferença decide se o problema é a copy ou o preço.
+var sid = '';
+try {
+  sid = sessionStorage.getItem('io_sd_session') || '';
+  if (!sid) { sid = 'pc-' + Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem('io_sd_session', sid); }
+} catch(_) {}
+
+function evento(tipo, payload){
+  try {
+    fetch(API + '/plugcash/evento', {
+      method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
+      body: JSON.stringify({ tipo: tipo, session_id: sid, payload: payload || null })
+    }).catch(function(){});
+  } catch(_) {}
+  try { if (window.fbq) fbq('trackCustom', 'PC_' + tipo); } catch(_) {}
+}
+
+evento('material_view', { motivo: motivo || 'neutro' });
+
+// Quem volta pra corrigir a resposta é sinal, não ruído: se muita gente clica
+// aqui, a pergunta do ponto está confundindo e a régua está reprovando lead bom.
+document.getElementById('voltar').addEventListener('click', function(){
+  try { sessionStorage.removeItem('ep_desq'); } catch(_) {}
+  evento('material_voltar_form', { motivo: motivo || 'neutro' });
+});
+
+['cta','cta2'].forEach(function(id){
+  document.getElementById(id).addEventListener('click', function(){
+    if (this.classList.contains('off')) return;
+    var comBump = document.getElementById('bump-check') && document.getElementById('bump-check').checked;
+    evento('checkout_start', { slug:'fundamentos', motivo: motivo || 'neutro', bump: !!comBump });
+  });
+});
+
+// Profundidade de leitura: se todo mundo para antes do preço, o problema é a
+// abertura; se param depois, é o preço.
+var maxScroll = 0;
+window.addEventListener('scroll', function(){
+  var h = document.documentElement, alt = h.scrollHeight - window.innerHeight;
+  if (alt <= 0) return;
+  var pct = Math.round(((window.scrollY || h.scrollTop) / alt) * 100);
+  [25,50,75,100].forEach(function(m){
+    if (pct >= m && maxScroll < m) { maxScroll = m; evento('material_scroll', { depth: m }); }
+  });
+}, { passive:true });
+})();
+</script>
+</body>
+</html>

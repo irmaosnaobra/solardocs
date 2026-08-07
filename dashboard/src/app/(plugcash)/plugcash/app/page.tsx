@@ -122,6 +122,8 @@ export default function PlugcashApp() {
           <Marca />
           <div className={styles.topoAcoes}>
             <span className={styles.nivel}>{NIVEL_LABEL[membro.nivel] || membro.nivel}</span>
+            <Link href="/plugcash/app/servicos" className={`${styles.btn} ${styles.btnFantasma}`}>Serviços</Link>
+            <Link href="/plugcash/app/conta" className={`${styles.btn} ${styles.btnFantasma}`}>Conta</Link>
             <button className={`${styles.btn} ${styles.btnFantasma}`} onClick={sair}>Sair</button>
           </div>
         </header>

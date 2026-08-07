@@ -20,7 +20,14 @@ import type { NextRequest } from 'next/server';
 // '/lib' = scripts compartilhados das páginas estáticas (telemetria.js). Toda LP
 // pública pede esse arquivo deslogada; fora daqui o proxy responde 307 pro /auth
 // e o <script> quebra calado em TODA página pública ao mesmo tempo.
-const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/lib', '/robots.txt', '/sitemap.xml'];
+// '/plugcash' = app do mercado de eletroposto. A landing e a página de venda de
+// cada curso (/plugcash/curso/[slug]) são PÚBLICAS de propósito: o lead que foi
+// desqualificado na LP compra sem ter conta ainda, e é o cadeado dentro do app
+// que leva pra elas. As telas logadas (/plugcash/app, /plugcash/admin) não ficam
+// desprotegidas por isso — cada uma confere o token e, principalmente, a API só
+// devolve dado com Bearer válido. Sem esta linha, quem clica no cadeado toma 307
+// pro login do SolarDoc e a venda morre na porta.
+const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/plugcash', '/lib', '/robots.txt', '/sitemap.xml'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;

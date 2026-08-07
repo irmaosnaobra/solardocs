@@ -64,6 +64,76 @@ export type MeResposta = {
   proximo_passo: { curso: Curso; porque: 'motivo_descarte' | 'objetivo' | 'ordem' } | null;
 };
 
+export type Servico = {
+  id: string;
+  slug: string;
+  titulo: string;
+  descricao: string | null;
+  preco_centavos: number;
+  checkout_url: string | null;
+  capacidade_mensal: number | null;
+  resolve_motivo: string[];
+  nivel_exigido: string | null;
+  ordem: number;
+  status?: string;
+  entrega: string | null;
+  prazo_dias: number | null;
+  copy?: { inclui?: string[]; nao_inclui?: string[] };
+  // calculados pela API
+  capacidade_usada?: number;
+  disponivel?: boolean;
+  vagas_restantes?: number | null;
+  liberado_pelo_nivel?: boolean;
+  prioritario?: boolean;
+};
+
+export type Compra = {
+  id: string;
+  item_tipo: string;
+  item_slug: string;
+  valor_centavos: number;
+  status: string;
+  created_at: string;
+};
+
+export type ContaResposta = {
+  usuario: { email: string; nome: string | null; whatsapp: string | null } | null;
+  membro: {
+    nivel: string;
+    objetivo: string | null;
+    motivo_descarte: string[];
+    resolveu_em: string | null;
+    resolveu_o_que: string[];
+  };
+  compras: Compra[];
+  credito_centavos: number;
+  creditos: { id: string; valor_centavos: number; validade: string | null }[];
+};
+
+export type GatewayProduto = {
+  id: string;
+  gateway: string;
+  produto_id: string | null;
+  produto_nome: string | null;
+  item_tipo: string;
+  item_slug: string;
+  concede_nivel: string | null;
+  gera_credito: boolean;
+  ativo: boolean;
+};
+
+export type Elegivel = {
+  user_id: string;
+  telefone: string | null;
+  nivel: string;
+  nota: number | null;
+  motivo_descarte: string[] | null;
+  resolveu_o_que: string[] | null;
+  resolveu_em: string;
+  cidade: string | null;
+  usuario: { id: string; email: string; nome: string | null; whatsapp: string | null } | null;
+};
+
 export const plugcashApi = {
   catalogo: () => api.get<{ cursos: Curso[] }>('/plugcash/catalogo'),
   curso: (slug: string) => api.get<{ curso: Curso }>(`/plugcash/curso/${slug}`),
@@ -76,7 +146,19 @@ export const plugcashApi = {
   evento: (tipo: string, payload?: unknown) =>
     api.post('/plugcash/evento', { tipo, payload }).catch(() => {}),
 
+  servicos: () => api.get<{ servicos: Servico[] }>('/plugcash/servicos'),
+  conta: () => api.get<ContaResposta>('/plugcash/conta'),
+  obrigado: (slug: string) => api.get<{ curso: Curso | null }>(`/plugcash/obrigado/${slug}`),
+
   adminCursos: () => api.get<{ cursos: Curso[] }>('/plugcash/admin/cursos'),
+  adminServicos: () => api.get<{ servicos: Servico[] }>('/plugcash/admin/servicos'),
+  adminSalvarServico: (s: Partial<Servico> & { id?: string }) =>
+    api.post<{ servico: Servico }>('/plugcash/admin/servicos', s),
+  adminGateway: () => api.get<{ produtos: GatewayProduto[] }>('/plugcash/admin/gateway'),
+  adminSalvarGateway: (p: Partial<GatewayProduto> & { id?: string }) =>
+    api.post<{ produto: GatewayProduto }>('/plugcash/admin/gateway', p),
+  adminRemoverGateway: (id: string) => api.delete(`/plugcash/admin/gateway/${id}`),
+  adminReagendar: () => api.get<{ elegiveis: Elegivel[] }>('/plugcash/admin/reagendar'),
   adminSalvarCurso: (curso: Partial<Curso> & { id?: string }) =>
     api.post<{ curso: Curso }>('/plugcash/admin/cursos', curso),
   adminSalvarAula: (aula: Partial<Aula> & { id?: string }) =>

@@ -265,17 +265,8 @@
   /* ===== convite do grupo (NOTA 1) =====
      Não é tela de recusa: é a etapa ANTERIOR. Herda o bloco .ok (mesma moldura da
      confirmação) pra não parecer prêmio de consolação em layout de segunda classe. */
-  .grpTxt{max-width:560px;margin:14px auto 0;text-align:left}
-  .grpTxt p{color:var(--mut);font-size:15px;font-weight:600;line-height:1.6;margin-top:12px}
-  .grpTxt p b{color:var(--cream);font-weight:800}
-  .grpFree{display:inline-block;margin-top:20px;background:rgba(125,209,23,.14);border:1px solid rgba(125,209,23,.45);
-    color:var(--neon-b);font-size:12.5px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;padding:10px 18px;border-radius:999px}
-  #ag-grupo .btn{margin-top:22px}
   /* saída discreta de propósito: quem tem ponto definido volta e corrige a resposta,
      mas o caminho principal continua sendo o grupo */
-  .grpBack{display:block;margin:14px auto 0;background:none;border:none;color:var(--mut);font-family:inherit;
-    font-size:13.5px;font-weight:700;text-decoration:underline;cursor:pointer;padding:10px;min-height:44px}
-  .grpBack:hover{color:var(--cream)}
 
   /* ===== rodapé ===== */
   footer{border-top:1px solid var(--line);padding:34px 0;margin-top:20px}
@@ -786,28 +777,12 @@
         <p class="okObs">Obrigado pela confiança. A gente se vê <span id="ok-dia">na reunião</span>!</p>
       </div>
 
-      <!-- NOTA 1: não vê horário e não agenda. Não é recusa — é a etapa anterior.
-           Sem produto pago aqui: cobrar de quem ainda não sabe onde instalar é
-           vender estudo pra um endereço que não existe. -->
-      <div class="ok" id="ag-grupo">
-        <div class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-        <h3>Antes do orçamento, vem o ponto</h3>
-
-        <div class="grpTxt">
-          <p>Pelo que você respondeu, o próximo passo ainda não é o orçamento — é definir onde. Em um carregador de 80 kW, a infraestrutura elétrica e o fluxo do local mudam o resultado em <b>dezenas de milhares de reais</b>. Qualquer número que a gente te passasse agora seria chute.</p>
-          <p>Criamos um grupo para quem está nessa fase. Lá a gente publica os pontos que instalamos, o faturamento real de cada um, como avaliar um local e o caminho do financiamento. Quem tem local e quem tem capital também se encontram por lá.</p>
-        </div>
-
-        <div class="grpFree">Entrada gratuita</div>
-
-        <!-- Link do grupo, não wa.me: um clique e ele já está dentro. O wa.me obrigava
-             mandar mensagem e esperar alguém responder — os dois primeiros esperaram 3h
-             e 6h. O convite também sai no WhatsApp dele automaticamente (endpoint
-             /io/eletroposto/nota1), então quem fechar a página sem clicar não se perde. -->
-        <div><a class="btn" href="https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M" target="_blank" rel="noopener" data-source="grupo_eletroposto" onclick="track('grupo_entrar')">Entrar no grupo agora →</a></div>
-        <p class="grpTxt" style="margin-top:10px;font-size:14px;opacity:.85">Também acabamos de te mandar o convite no WhatsApp.</p>
-        <button type="button" class="grpBack" onclick="voltarAoForm()">Já tenho um ponto definido — quero agendar</button>
-      </div>
+      <!-- O NOTA 1 não vê tela nenhuma aqui: desde 07/08/2026 ele é redirecionado
+           para /io/eletroposto/material, a página de venda do produto de entrada.
+           O bloco do grupo de WhatsApp que ficava aqui foi removido — conteúdo de
+           graça na mesma tela mataria a oferta paga. A saída de emergência de quem
+           marcou o ponto errado mudou de lugar: agora é um link na própria página
+           de destino, que traz de volta pro formulário. -->
     </div>
   </section>
 
@@ -1228,6 +1203,20 @@ const PESO_ROTA    = { rodovia:2, comercial:1, naosei:0 };
 // Perfis sem fluxo próprio: são estes que abrem a pergunta da rota de passagem.
 const PERFIL_SEM_FLUXO = new Set(['investidor', 'outro']);
 
+// Quais critérios ZERARAM na régua. É a mesma regra da função ep_motivos() no
+// banco (MIGRATION_eletroposto_qualificacao.sql) — os dois lados precisam
+// concordar, senão a página de destino fala de um bloqueio e a ficha registra
+// outro. Aqui serve só pra escolher a abertura da próxima tela; quem grava no
+// banco é o trigger, a partir da ficha.
+function motivosDoDescarte(f){
+  var m = [];
+  if (f.ponto   === 'sem_ideia') m.push('sem_ponto');
+  if (f.invest  === 'naosei')    m.push('sem_capital');
+  if (f.decisor === 'terceiros') m.push('nao_decisor');
+  if (PERFIL_SEM_FLUXO.has(f.perfil)) m.push('fluxo_baixo');
+  return m;
+}
+
 function pontuar(f){
   let pts = (PESO_PERFIL[f.perfil] || 0) + (PESO_PONTO[f.ponto] || 0)
           + (PESO_INVEST[f.invest] || 0) + (PESO_DECISOR[f.decisor] || 0);
@@ -1460,7 +1449,25 @@ async function agendar(){
         }),
       }).catch(()=>{});
     } catch(_){}
-    mostrarGrupo(); return;
+
+    // Destino do NOTA 1 a partir de 07/08/2026: a página de venda do material,
+    // no lugar do convite pro grupo de WhatsApp. O grupo entregava conteúdo de
+    // graça pra quem acabou de ser recusado — e conteúdo de graça na mesma tela
+    // mata a oferta paga que deveria ocupar esse espaço.
+    //
+    // O motivo do descarte viaja por sessionStorage, NÃO por querystring: é a
+    // resposta do lead, e URL vira print. Mesma origem, mesma aba — a página de
+    // destino lê e escolhe qual das quatro aberturas mostrar.
+    try {
+      sessionStorage.setItem('ep_desq', JSON.stringify({
+        motivos: motivosDoDescarte({ perfil: perfil.value, ponto: ponto.value,
+                                     invest: invest.value, decisor: decisor.value }),
+        nome: nome,
+      }));
+    } catch(_){}
+    track('nota1_material');
+    location.href = '/io/eletroposto/material';
+    return;
   }
 
   if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');
@@ -1503,25 +1510,6 @@ async function agendar(){
   abrirConfirma();
 }
 
-// ── Convite do grupo (NOTA 1) ────────────────────────────────────────────────
-function mostrarGrupo(){
-  document.getElementById('ag-msg').className = 'agMsg';
-  document.getElementById('ag-form').style.display = 'none';
-  const g = document.getElementById('ag-grupo');
-  g.style.display = 'block';
-  g.scrollIntoView({behavior:'smooth', block:'center'});
-  track('nota1_grupo');
-}
-// Saída de emergência: quem marcou errado volta e corrige a resposta do ponto —
-// é ela que decide a nota na esmagadora maioria dos casos.
-function voltarAoForm(){
-  document.getElementById('ag-grupo').style.display = 'none';
-  document.getElementById('ag-form').style.display = '';
-  track('grupo_voltar');
-  const f = document.getElementById('f-ponto');
-  f.scrollIntoView({behavior:'smooth', block:'center'});
-  f.focus();
-}
 
 // ── Portão de presença ───────────────────────────────────────────────────────
 // Marcar é barato pro curioso e caro pra agenda: cada horário bloqueia um

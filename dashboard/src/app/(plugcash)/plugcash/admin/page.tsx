@@ -3,26 +3,80 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/services/auth';
-import { plugcashApi, type Curso, type Aula } from '@/services/plugcash';
+import {
+  plugcashApi, money, MOTIVO_LABEL,
+  type Curso, type Aula, type Servico, type GatewayProduto, type Elegivel,
+} from '@/services/plugcash';
 import { Marca } from '../Marca';
 import styles from '../pc.module.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Admin do PlugCash.
 //
-// É aqui que preço, link de checkout, ordem e publicação são definidos. Existe
-// justamente pra que nenhuma dessas coisas viva no código: mudar um preço não
-// pode custar um deploy, e um link de checkout hardcoded é o tipo de coisa que
-// continua apontando pro produto errado meses depois.
+// Existe pra que preço, link de checkout, capacidade de entrega e publicação NÃO
+// vivam no código. Mudar um preço não pode custar um deploy, e link de checkout
+// hardcoded é o tipo de coisa que continua apontando pro produto errado meses
+// depois de a oferta mudar.
 //
-// A regra de publicação é do servidor, não daqui: curso sem aula publicada é
-// recusado pela API. O front só explica por que o botão falhou.
+// A aba "Gateway" é a menos óbvia e a mais crítica: é ela que diz ao webhook a
+// que curso corresponde cada produto da Kiwify. Sem esse mapeamento a venda
+// entra, o dinheiro cai, e o comprador não recebe nada.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MOTIVOS = ['sem_ponto', 'sem_capital', 'nao_decisor', 'fluxo_baixo'];
+const ABAS = ['Cursos', 'Serviços', 'Gateway', 'Reagendar', 'Métricas'] as const;
+type Aba = (typeof ABAS)[number];
 
 export default function PlugcashAdmin() {
   const router = useRouter();
+  const [aba, setAba] = useState<Aba>('Cursos');
+  const [negado, setNegado] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated()) { router.replace('/plugcash/entrar?proximo=/plugcash/admin'); }
+  }, [router]);
+
+  return (
+    <div className={styles.pc}>
+      <div className={styles.wrap}>
+        <header className={styles.topo}>
+          <Marca />
+          <span className={styles.nivel}>Admin</span>
+        </header>
+
+        {negado ? (
+          <div className={styles.secao}>
+            <div className={styles.aviso}>Acesso restrito a administradores.</div>
+          </div>
+        ) : (
+          <>
+            <div className={styles.topoAcoes} style={{ padding: '18px 0', flexWrap: 'wrap' }}>
+              {ABAS.map((a) => (
+                <button
+                  key={a}
+                  className={`${styles.btn} ${aba === a ? styles.btnPrimario : styles.btnFantasma}`}
+                  style={{ padding: '9px 16px', fontSize: 14 }}
+                  onClick={() => setAba(a)}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+
+            {aba === 'Cursos'    && <AbaCursos onNegado={() => setNegado(true)} />}
+            {aba === 'Serviços'  && <AbaServicos />}
+            {aba === 'Gateway'   && <AbaGateway />}
+            {aba === 'Reagendar' && <AbaReagendar />}
+            {aba === 'Métricas'  && <AbaMetricas />}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Cursos ──────────────────────────────────────────────────────────────────
+function AbaCursos({ onNegado }: { onNegado: () => void }) {
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [aberto, setAberto] = useState<string | null>(null);
   const [erro, setErro] = useState('');
@@ -34,18 +88,15 @@ export default function PlugcashAdmin() {
       setCursos(data.cursos);
     } catch (e: unknown) {
       const st = (e as { response?: { status?: number } }).response?.status;
-      setErro(st === 403 ? 'Acesso restrito a administradores.' : 'Falha ao carregar os cursos.');
+      if (st === 403) onNegado();
+      else setErro('Falha ao carregar os cursos.');
     }
-  }, []);
+  }, [onNegado]);
 
-  useEffect(() => {
-    if (!isAuthenticated()) { router.replace('/plugcash/entrar?proximo=/plugcash/admin'); return; }
-    carregar();
-  }, [router, carregar]);
+  useEffect(() => { carregar(); }, [carregar]);
 
   async function salvar(curso: Curso, patch: Partial<Curso>) {
-    setSalvando(curso.id);
-    setErro('');
+    setSalvando(curso.id); setErro('');
     try {
       await plugcashApi.adminSalvarCurso({ id: curso.id, ...patch });
       await carregar();
@@ -58,113 +109,407 @@ export default function PlugcashAdmin() {
     setSalvando(null);
   }
 
-  if (erro && !cursos.length) {
-    return (
-      <div className={styles.pc}><div className={styles.wrap}>
-        <header className={styles.topo}><Marca /></header>
-        <div className={styles.secao}><div className={styles.aviso}>{erro}</div></div>
-      </div></div>
-    );
+  return (
+    <section className={styles.secao} style={{ paddingTop: 0 }}>
+      <h1 className={styles.secaoTitulo}>Cursos</h1>
+      <p className={styles.secaoSub}>
+        Preço e link de checkout moram aqui, nunca no código. Curso em rascunho não
+        aparece pra ninguém.
+      </p>
+
+      {erro && <div className={styles.aviso} style={{ marginBottom: 16 }}>{erro}</div>}
+
+      <div className={styles.card} style={{ padding: 0, overflowX: 'auto' }}>
+        <table className={styles.tabela}>
+          <thead>
+            <tr>
+              <th style={{ minWidth: 200 }}>Curso</th>
+              <th style={{ width: 120 }}>Preço</th>
+              <th style={{ minWidth: 220 }}>Link de checkout</th>
+              <th style={{ width: 150 }}>Resolve</th>
+              <th style={{ width: 110 }}>Status</th>
+              <th style={{ width: 90 }}>Aulas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cursos.map((c) => (
+              <tr key={c.id}>
+                <td>
+                  <strong>{c.titulo}</strong>
+                  <div style={{ fontSize: 12, color: '#6b6b6b' }}>/{c.slug}</div>
+                </td>
+                <td>
+                  <CampoPreco valor={c.preco_centavos} travado={salvando === c.id}
+                              onSalvar={(v) => salvar(c, { preco_centavos: v })} />
+                </td>
+                <td>
+                  <CampoTexto valor={c.checkout_url || ''} placeholder="cole o link do gateway"
+                              travado={salvando === c.id}
+                              onSalvar={(v) => salvar(c, { checkout_url: v || null })} />
+                </td>
+                <td>
+                  <select value={c.resolve_motivo?.[0] || ''} disabled={salvando === c.id}
+                          onChange={(e) => salvar(c, { resolve_motivo: e.target.value ? [e.target.value] : [] })}>
+                    <option value="">—</option>
+                    {MOTIVOS.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </td>
+                <td>
+                  <button
+                    className={`${styles.selo} ${c.status === 'publicado' ? styles.seloPublicado : styles.seloRascunho}`}
+                    style={{ border: 0, cursor: 'pointer' }}
+                    disabled={salvando === c.id}
+                    onClick={() => salvar(c, { status: c.status === 'publicado' ? 'rascunho' : 'publicado' })}
+                  >
+                    {c.status === 'publicado' ? 'publicado' : 'rascunho'}
+                  </button>
+                </td>
+                <td>
+                  <button className={`${styles.btn} ${styles.btnFantasma}`}
+                          style={{ padding: '6px 12px', fontSize: 13 }}
+                          onClick={() => setAberto(aberto === c.id ? null : c.id)}>
+                    {c.aulas?.length || 0}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {aberto && <Aulas curso={cursos.find((c) => c.id === aberto)!} aoMudar={carregar} />}
+    </section>
+  );
+}
+
+// ── Serviços ────────────────────────────────────────────────────────────────
+function AbaServicos() {
+  const [servicos, setServicos] = useState<Servico[]>([]);
+  const [salvando, setSalvando] = useState<string | null>(null);
+
+  const carregar = useCallback(async () => {
+    const { data } = await plugcashApi.adminServicos();
+    setServicos(data.servicos);
+  }, []);
+  useEffect(() => { carregar().catch(() => {}); }, [carregar]);
+
+  async function salvar(s: Servico, patch: Partial<Servico>) {
+    setSalvando(s.id);
+    await plugcashApi.adminSalvarServico({ id: s.id, ...patch }).catch(() => {});
+    await carregar().catch(() => {});
+    setSalvando(null);
   }
 
   return (
-    <div className={styles.pc}>
-      <div className={styles.wrap}>
-        <header className={styles.topo}>
-          <Marca />
-          <span className={styles.nivel}>Admin</span>
-        </header>
+    <section className={styles.secao} style={{ paddingTop: 0 }}>
+      <h1 className={styles.secaoTitulo}>Serviços da esteira</h1>
+      <p className={styles.secaoSub}>
+        A capacidade mensal é o número de entregas que a engenharia aguenta sem atrasar
+        quem já contratou. Atingido o teto, o item vira lista de espera sozinho.
+      </p>
 
-        <section className={styles.secao}>
-          <h1 className={styles.secaoTitulo}>Cursos</h1>
-          <p className={styles.secaoSub}>
-            Preço e link de checkout moram aqui — nunca no código. Curso em rascunho não
-            aparece pra ninguém.
-          </p>
-
-          {erro && <div className={styles.aviso} style={{ marginBottom: 16 }}>{erro}</div>}
-
-          <div className={styles.card} style={{ padding: 0, overflowX: 'auto' }}>
-            <table className={styles.tabela}>
-              <thead>
-                <tr>
-                  <th style={{ minWidth: 200 }}>Curso</th>
-                  <th style={{ width: 120 }}>Preço</th>
-                  <th style={{ minWidth: 220 }}>Link de checkout</th>
-                  <th style={{ width: 150 }}>Resolve</th>
-                  <th style={{ width: 110 }}>Status</th>
-                  <th style={{ width: 90 }}>Aulas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cursos.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <strong>{c.titulo}</strong>
-                      <div style={{ fontSize: 12, color: '#6b6b6b' }}>/{c.slug}</div>
-                    </td>
-                    <td>
-                      <CampoPreco
-                        valor={c.preco_centavos}
-                        onSalvar={(v) => salvar(c, { preco_centavos: v })}
-                        travado={salvando === c.id}
-                      />
-                    </td>
-                    <td>
-                      <CampoTexto
-                        valor={c.checkout_url || ''}
-                        placeholder="cole o link do gateway"
-                        onSalvar={(v) => salvar(c, { checkout_url: v || null })}
-                        travado={salvando === c.id}
-                      />
-                    </td>
-                    <td>
-                      <select
-                        value={c.resolve_motivo?.[0] || ''}
-                        disabled={salvando === c.id}
-                        onChange={(e) => salvar(c, { resolve_motivo: e.target.value ? [e.target.value] : [] })}
-                      >
-                        <option value="">—</option>
-                        {MOTIVOS.map((m) => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                    </td>
-                    <td>
-                      <button
-                        className={`${styles.selo} ${c.status === 'publicado' ? styles.seloPublicado : styles.seloRascunho}`}
-                        style={{ border: 0, cursor: 'pointer' }}
-                        disabled={salvando === c.id}
-                        onClick={() => salvar(c, { status: c.status === 'publicado' ? 'rascunho' : 'publicado' })}
-                      >
-                        {c.status === 'publicado' ? 'publicado' : 'rascunho'}
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        className={`${styles.btn} ${styles.btnFantasma}`}
-                        style={{ padding: '6px 12px', fontSize: 13 }}
-                        onClick={() => setAberto(aberto === c.id ? null : c.id)}
-                      >
-                        {c.aulas?.length || 0}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {aberto && (
-            <Aulas
-              curso={cursos.find((c) => c.id === aberto)!}
-              aoMudar={carregar}
-            />
-          )}
-        </section>
+      <div className={styles.card} style={{ padding: 0, overflowX: 'auto' }}>
+        <table className={styles.tabela}>
+          <thead>
+            <tr>
+              <th style={{ minWidth: 210 }}>Serviço</th>
+              <th style={{ width: 120 }}>Preço</th>
+              <th style={{ minWidth: 200 }}>Link de checkout</th>
+              <th style={{ width: 130 }}>Capacidade/mês</th>
+              <th style={{ width: 100 }}>Usado</th>
+              <th style={{ width: 110 }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {servicos.map((s) => (
+              <tr key={s.id}>
+                <td>
+                  <strong>{s.titulo}</strong>
+                  <div style={{ fontSize: 12, color: '#6b6b6b' }}>/{s.slug}</div>
+                </td>
+                <td>
+                  <CampoPreco valor={s.preco_centavos} travado={salvando === s.id}
+                              onSalvar={(v) => salvar(s, { preco_centavos: v })} />
+                </td>
+                <td>
+                  <CampoTexto valor={s.checkout_url || ''} placeholder="link do gateway"
+                              travado={salvando === s.id}
+                              onSalvar={(v) => salvar(s, { checkout_url: v || null })} />
+                </td>
+                <td>
+                  <CampoNumero valor={s.capacidade_mensal} travado={salvando === s.id}
+                               onSalvar={(v) => salvar(s, { capacidade_mensal: v })} />
+                </td>
+                <td style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {s.capacidade_usada ?? 0}
+                  {s.capacidade_mensal ? ` / ${s.capacidade_mensal}` : ''}
+                </td>
+                <td>
+                  <button
+                    className={`${styles.selo} ${s.status === 'publicado' ? styles.seloPublicado : styles.seloRascunho}`}
+                    style={{ border: 0, cursor: 'pointer' }}
+                    disabled={salvando === s.id}
+                    onClick={() => salvar(s, { status: s.status === 'publicado' ? 'rascunho' : 'publicado' })}
+                  >
+                    {s.status === 'publicado' ? 'publicado' : 'rascunho'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      {servicos.length === 0 && (
+        <div className={styles.vazio} style={{ marginTop: 16 }}>Nenhum serviço cadastrado.</div>
+      )}
+    </section>
+  );
+}
+
+// ── Gateway ─────────────────────────────────────────────────────────────────
+function AbaGateway() {
+  const [produtos, setProdutos] = useState<GatewayProduto[]>([]);
+  const [novo, setNovo] = useState({ produto_nome: '', produto_id: '', item_tipo: 'curso', item_slug: '', concede_nivel: '' });
+
+  const carregar = useCallback(async () => {
+    const { data } = await plugcashApi.adminGateway();
+    setProdutos(data.produtos);
+  }, []);
+  useEffect(() => { carregar().catch(() => {}); }, [carregar]);
+
+  async function adicionar() {
+    if (!novo.item_slug.trim() || (!novo.produto_nome.trim() && !novo.produto_id.trim())) return;
+    await plugcashApi.adminSalvarGateway({
+      gateway: 'kiwify',
+      produto_nome: novo.produto_nome.trim() || null,
+      produto_id: novo.produto_id.trim() || null,
+      item_tipo: novo.item_tipo,
+      item_slug: novo.item_slug.trim(),
+      concede_nivel: novo.concede_nivel || null,
+    }).catch(() => {});
+    setNovo({ produto_nome: '', produto_id: '', item_tipo: 'curso', item_slug: '', concede_nivel: '' });
+    carregar().catch(() => {});
+  }
+
+  return (
+    <section className={styles.secao} style={{ paddingTop: 0 }}>
+      <h1 className={styles.secaoTitulo}>Produtos do gateway</h1>
+      <p className={styles.secaoSub}>
+        De que curso é cada produto da Kiwify. Sem este mapeamento a venda entra, o
+        dinheiro cai e o comprador não recebe nada — o webhook não sabe o que liberar.
+      </p>
+
+      <div className={styles.aviso} style={{ marginBottom: 16 }}>
+        O <strong>ID do produto</strong> é mais seguro que o nome: renomear o produto na
+        Kiwify não quebra o mapeamento. Cadastre o nome só quando não tiver o ID à mão.
+      </div>
+
+      <div className={styles.card} style={{ padding: 0, overflowX: 'auto' }}>
+        <table className={styles.tabela}>
+          <thead>
+            <tr>
+              <th>Produto na Kiwify</th><th style={{ width: 170 }}>ID</th>
+              <th style={{ width: 110 }}>Tipo</th><th style={{ width: 150 }}>Item</th>
+              <th style={{ width: 120 }}>Concede nível</th><th style={{ width: 80 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {produtos.map((p) => (
+              <tr key={p.id}>
+                <td>{p.produto_nome || '—'}</td>
+                <td style={{ fontSize: 12, color: '#6b6b6b' }}>{p.produto_id || '—'}</td>
+                <td>{p.item_tipo}</td>
+                <td>{p.item_slug}</td>
+                <td>{p.concede_nivel || '—'}</td>
+                <td>
+                  <button className={`${styles.btn} ${styles.btnFantasma}`}
+                          style={{ padding: '5px 10px', fontSize: 13 }}
+                          onClick={async () => { await plugcashApi.adminRemoverGateway(p.id); carregar().catch(() => {}); }}>
+                    Remover
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1fr 1.2fr 1fr auto', gap: 10, marginTop: 14 }}>
+        <input className={styles.campoInput} placeholder="Nome exato na Kiwify"
+               value={novo.produto_nome} onChange={(e) => setNovo({ ...novo, produto_nome: e.target.value })} />
+        <input className={styles.campoInput} placeholder="ID do produto"
+               value={novo.produto_id} onChange={(e) => setNovo({ ...novo, produto_id: e.target.value })} />
+        <select className={styles.campoInput} value={novo.item_tipo}
+                onChange={(e) => setNovo({ ...novo, item_tipo: e.target.value })}>
+          <option value="curso">curso</option>
+          <option value="servico">serviço</option>
+          <option value="bump">bump</option>
+          <option value="nivel">nível</option>
+        </select>
+        <input className={styles.campoInput} placeholder="slug do item"
+               value={novo.item_slug} onChange={(e) => setNovo({ ...novo, item_slug: e.target.value })} />
+        <select className={styles.campoInput} value={novo.concede_nivel}
+                onChange={(e) => setNovo({ ...novo, concede_nivel: e.target.value })}>
+          <option value="">sem nível</option>
+          <option value="integrador">integrador</option>
+          <option value="investidor">investidor</option>
+          <option value="projeto">projeto</option>
+        </select>
+        <button className={`${styles.btn} ${styles.btnPrimario}`} onClick={adicionar}>Adicionar</button>
+      </div>
+    </section>
+  );
+}
+
+// ── Reagendar ───────────────────────────────────────────────────────────────
+function AbaReagendar() {
+  const [elegiveis, setElegiveis] = useState<Elegivel[]>([]);
+  useEffect(() => {
+    plugcashApi.adminReagendar().then(({ data }) => setElegiveis(data.elegiveis)).catch(() => {});
+  }, []);
+
+  return (
+    <section className={styles.secao} style={{ paddingTop: 0 }}>
+      <h1 className={styles.secaoTitulo}>Prontos para voltar à agenda</h1>
+      <p className={styles.secaoSub}>
+        Quem declarou que resolveu o que travava o projeto. É o ciclo que transforma
+        lead de R$ 197 em cliente de R$ 160 mil — cada linha aqui é uma reunião que
+        vale a pena abrir.
+      </p>
+
+      {elegiveis.length === 0 ? (
+        <div className={styles.vazio}>Ninguém sinalizou ainda.</div>
+      ) : (
+        <div className={styles.card} style={{ padding: 0, overflowX: 'auto' }}>
+          <table className={styles.tabela}>
+            <thead>
+              <tr>
+                <th>Pessoa</th><th style={{ width: 150 }}>Cidade</th>
+                <th>Travava</th><th>Resolveu</th>
+                <th style={{ width: 110 }}>Quando</th><th style={{ width: 110 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {elegiveis.map((e) => (
+                <tr key={e.user_id}>
+                  <td>
+                    <strong>{e.usuario?.nome || e.usuario?.email || '—'}</strong>
+                    <div style={{ fontSize: 12, color: '#6b6b6b' }}>{e.usuario?.email}</div>
+                  </td>
+                  <td>{e.cidade || '—'}</td>
+                  <td style={{ fontSize: 13 }}>
+                    {(e.motivo_descarte || []).map((m) => MOTIVO_LABEL[m] || m).join('; ') || '—'}
+                  </td>
+                  <td style={{ fontSize: 13 }}>
+                    {(e.resolveu_o_que || []).map((m) => MOTIVO_LABEL[m] || m).join('; ') || '—'}
+                  </td>
+                  <td>{new Date(e.resolveu_em).toLocaleDateString('pt-BR')}</td>
+                  <td>
+                    {(e.telefone || e.usuario?.whatsapp) && (
+                      <a className={`${styles.btn} ${styles.btnPrimario}`}
+                         style={{ padding: '6px 12px', fontSize: 13 }}
+                         href={`https://wa.me/55${(e.telefone || e.usuario?.whatsapp || '').replace(/\D/g, '').slice(-11)}`}>
+                        WhatsApp
+                      </a>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ── Métricas ────────────────────────────────────────────────────────────────
+type Metricas = {
+  membros: number;
+  por_nivel: Record<string, number>;
+  por_motivo: Record<string, number>;
+  por_curso: Record<string, { vendas: number; receita: number }>;
+  elegiveis_reagendar: number;
+};
+
+function AbaMetricas() {
+  const [m, setM] = useState<Metricas | null>(null);
+  useEffect(() => {
+    plugcashApi.adminMetricas().then(({ data }) => setM(data as Metricas)).catch(() => {});
+  }, []);
+
+  if (!m) return <section className={styles.secao} />;
+
+  const receita = Object.values(m.por_curso).reduce((s, c) => s + c.receita, 0);
+
+  return (
+    <section className={styles.secao} style={{ paddingTop: 0 }}>
+      <h1 className={styles.secaoTitulo}>Métricas</h1>
+      <p className={styles.secaoSub}>Só o que já é medível. Métrica sem dado aparece como “—”, nunca como zero.</p>
+
+      <div className={styles.grade} style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))' }}>
+        <Tile rotulo="Membros" valor={String(m.membros)} />
+        <Tile rotulo="Receita aprovada" valor={receita ? money(receita) : '—'} />
+        <Tile rotulo="Prontos p/ reagendar" valor={String(m.elegiveis_reagendar)} />
+        <Tile rotulo="Integradores" valor={String(m.por_nivel.integrador || 0)} />
+      </div>
+
+      <h2 className={styles.secaoTitulo} style={{ fontSize: 18, marginTop: 32 }}>Vendas por item</h2>
+      {Object.keys(m.por_curso).length === 0 ? (
+        <div className={styles.vazio}>Nenhuma venda aprovada ainda.</div>
+      ) : (
+        <div className={styles.card} style={{ padding: 0, overflowX: 'auto' }}>
+          <table className={styles.tabela}>
+            <thead><tr><th>Item</th><th>Vendas</th><th>Receita</th></tr></thead>
+            <tbody>
+              {Object.entries(m.por_curso).map(([slug, v]) => (
+                <tr key={slug}>
+                  <td>{slug}</td><td>{v.vendas}</td><td>{money(v.receita)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <h2 className={styles.secaoTitulo} style={{ fontSize: 18, marginTop: 32 }}>
+        O que travou os membros
+      </h2>
+      <p className={styles.secaoSub}>
+        É esta distribuição que diz qual curso e qual serviço priorizar.
+      </p>
+      {Object.keys(m.por_motivo).length === 0 ? (
+        <div className={styles.vazio}>Nenhum membro com qualificação da régua ainda.</div>
+      ) : (
+        <div className={styles.card} style={{ padding: 0, overflowX: 'auto' }}>
+          <table className={styles.tabela}>
+            <thead><tr><th>Bloqueio</th><th>Membros</th></tr></thead>
+            <tbody>
+              {Object.entries(m.por_motivo)
+                .sort((a, b) => b[1] - a[1])
+                .map(([mo, n]) => (
+                  <tr key={mo}><td>{MOTIVO_LABEL[mo] || mo}</td><td>{n}</td></tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Tile({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <div className={styles.card}>
+      <p style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', color: '#6b6b6b' }}>{rotulo}</p>
+      <p style={{ margin: '8px 0 0', fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em' }}>{valor}</p>
     </div>
   );
 }
 
+// ── Campos ──────────────────────────────────────────────────────────────────
 // Preço em reais na tela, centavos no banco. A conversão acontece só aqui: em
 // nenhum outro ponto do app um número de preço é calculado.
 function CampoPreco({ valor, onSalvar, travado }: {
@@ -173,16 +518,30 @@ function CampoPreco({ valor, onSalvar, travado }: {
   const [txt, setTxt] = useState((valor / 100).toFixed(2));
   useEffect(() => { setTxt((valor / 100).toFixed(2)); }, [valor]);
   return (
-    <input
-      value={txt}
-      disabled={travado}
+    <input value={txt} disabled={travado}
       onChange={(e) => setTxt(e.target.value)}
       onBlur={() => {
         const n = Math.round(parseFloat(txt.replace(',', '.')) * 100);
         if (Number.isFinite(n) && n !== valor) onSalvar(n);
         else setTxt((valor / 100).toFixed(2));
-      }}
-    />
+      }} />
+  );
+}
+
+function CampoNumero({ valor, onSalvar, travado }: {
+  valor: number | null; onSalvar: (v: number | null) => void; travado: boolean;
+}) {
+  const [txt, setTxt] = useState(valor == null ? '' : String(valor));
+  useEffect(() => { setTxt(valor == null ? '' : String(valor)); }, [valor]);
+  return (
+    <input value={txt} disabled={travado} placeholder="sem teto"
+      onChange={(e) => setTxt(e.target.value)}
+      onBlur={() => {
+        const t = txt.trim();
+        const n = t === '' ? null : Math.max(0, Math.round(Number(t)));
+        if (n !== valor && (n === null || Number.isFinite(n))) onSalvar(n);
+        else setTxt(valor == null ? '' : String(valor));
+      }} />
   );
 }
 
@@ -192,13 +551,9 @@ function CampoTexto({ valor, placeholder, onSalvar, travado }: {
   const [txt, setTxt] = useState(valor);
   useEffect(() => { setTxt(valor); }, [valor]);
   return (
-    <input
-      value={txt}
-      placeholder={placeholder}
-      disabled={travado}
+    <input value={txt} placeholder={placeholder} disabled={travado}
       onChange={(e) => setTxt(e.target.value)}
-      onBlur={() => { if (txt !== valor) onSalvar(txt.trim()); }}
-    />
+      onBlur={() => { if (txt !== valor) onSalvar(txt.trim()); }} />
   );
 }
 
@@ -227,7 +582,8 @@ function Aulas({ curso, aoMudar }: { curso: Curso; aoMudar: () => void }) {
     <div className={styles.card} style={{ marginTop: 18 }}>
       <h2 className={styles.secaoTitulo} style={{ fontSize: 18 }}>Aulas de {curso.titulo}</h2>
       <p className={styles.secaoSub}>
-        Título e duração são públicos (aparecem no card travado). O vídeo só sai pra quem tem acesso.
+        Título e duração são públicos (aparecem no card travado e na página de venda).
+        O vídeo só sai pra quem tem acesso.
       </p>
 
       <table className={styles.tabela}>
@@ -237,10 +593,11 @@ function Aulas({ curso, aoMudar }: { curso: Curso; aoMudar: () => void }) {
               <td style={{ width: 40, color: '#6b6b6b' }}>{a.ordem}</td>
               <td>{a.titulo}</td>
               <td style={{ width: 90 }}>{a.duracao_seg ? `${Math.round(a.duracao_seg / 60)} min` : '—'}</td>
-              <td style={{ width: 110 }}>
+              <td style={{ width: 120 }}>
                 <button
                   className={`${styles.selo} ${a.status === 'publicado' ? styles.seloPublicado : styles.seloRascunho}`}
                   style={{ border: 0, cursor: 'pointer' }}
+                  title={a.video_url ? '' : 'sem vídeo cadastrado'}
                   onClick={async () => {
                     await plugcashApi.adminSalvarAula({
                       id: a.id, status: a.status === 'publicado' ? 'rascunho' : 'publicado',
@@ -252,11 +609,9 @@ function Aulas({ curso, aoMudar }: { curso: Curso; aoMudar: () => void }) {
                 </button>
               </td>
               <td style={{ width: 60 }}>
-                <button
-                  className={`${styles.btn} ${styles.btnFantasma}`}
-                  style={{ padding: '5px 10px', fontSize: 13 }}
-                  onClick={async () => { await plugcashApi.adminRemoverAula(a.id); aoMudar(); }}
-                >
+                <button className={`${styles.btn} ${styles.btnFantasma}`}
+                        style={{ padding: '5px 10px', fontSize: 13 }}
+                        onClick={async () => { await plugcashApi.adminRemoverAula(a.id); aoMudar(); }}>
                   Remover
                 </button>
               </td>

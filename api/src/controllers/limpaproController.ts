@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
 import { agendarRecuperacaoRealtime } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { classificarProdutoKit, processarEventoKit } from '../services/kitIntegradorService';
+import { classificarProdutoPlugcash, processarEventoPlugcash } from '../services/plugcashService';
 import { sendOpsAlert } from '../utils/mailer';
 
 // ── Funil do produto LimpaPro (curso de limpeza de placas, vendido na Kiwify) ──
@@ -226,6 +227,50 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
       }
       res.status(200).json({ ok: true, kit: true });
       return;
+    }
+
+    // ── DESVIO: PlugCash (cursos e servicos do mercado de eletroposto) ──
+    // Mesmo webhook, terceiro negócio. Quem trata é o plugcashService: cria a
+    // conta, libera o curso, copia a qualificação que veio da régua do
+    // eletroposto e manda o e-mail de acesso.
+    //
+    // A classificação é ASSÍNCRONA e vem do banco (`pc_gateway_produtos`), ao
+    // contrário do kit, que casa por regex no código. É de propósito: o PlugCash
+    // tem nove cursos e uma esteira de serviços, e cadastrar produto novo não
+    // pode exigir deploy. Produto que não está mapeado devolve null e o fluxo
+    // segue — não é erro, é "não é nosso".
+    if (emailComprador) {
+      const itemPc = await classificarProdutoPlugcash(nomeProduto, idProduto);
+      if (itemPc) {
+        try {
+          const r = await processarEventoPlugcash({
+            orderId,
+            email: emailComprador,
+            nome: buyer.full_name || buyer.name || null,
+            telefone: (buyer as { mobile?: string; phone?: string }).mobile
+              || (buyer as { mobile?: string; phone?: string }).phone
+              || null,
+            status,
+            produtoId: idProduto,
+            produtoNome: nomeProduto,
+            valorCentavos: amountCents,
+            checkoutLink: (evt as { checkout_link?: string }).checkout_link || null,
+            utm: {
+              utm_source:   tp.utm_source   || null,
+              utm_medium:   tp.utm_medium   || null,
+              utm_campaign: tp.utm_campaign || null,
+              utm_content:  limpaContent(tp.utm_content),
+              utm_term:     tp.utm_term     || null,
+            },
+            payload: evt as unknown as Record<string, unknown>,
+          });
+          console.info(`[kiwify:plugcash] ${itemPc.item_slug} · ${emailComprador} · ${r.acao}`);
+        } catch (e) {
+          console.error('[kiwify:plugcash] processamento falhou (payload auditado):', e);
+        }
+        res.status(200).json({ ok: true, plugcash: true });
+        return;
+      }
     }
 
     // ── REDE DE SEGURANÇA: produto do SolarDoc que não foi reconhecido ──
