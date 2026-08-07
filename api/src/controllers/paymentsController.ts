@@ -6,6 +6,7 @@ import { sendDunningDay0, sendDunningRecovered } from '../services/dunningServic
 import { sendCheckoutCompletionEmail } from '../utils/mailer';
 import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { upsertSale, sendPurchaseForSale } from '../services/salesLedger';
+import { avisarVendaAoDono } from '../services/vendaAviso';
 import { sendUtmifyOrder } from '../services/utmifyOrders';
 import { concederCursoPorAssinatura } from '../services/kitIntegradorService';
 
@@ -580,6 +581,22 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           fbp: meta.fbp ?? null,
           card_passed_at: cardPassedAt,
         });
+        // AVISO DO DONO — antes do Meta/UTMify de propósito: dos três, é o único
+        // que uma PESSOA lê. Isolado com .catch: aviso que falha nunca pode
+        // derrubar o Purchase nem o espelho da venda.
+        // Não cobre o upgrade in-place (PRO→VIP de quem já assina): aquele caminho
+        // atualiza a assinatura direto e a Stripe não emite checkout.session.completed.
+        await avisarVendaAoDono(saleId, {
+          produto, valor,
+          cobrouAgora,
+          email: email ?? null,
+          nome: cd?.name ?? null,
+          phone: cd?.phone ? String(cd.phone).replace(/\D/g, '') : null,
+          utmSource: meta.utm_source ?? null,
+          utmCampaign: meta.utm_campaign ?? null,
+          utmContent: meta.utm_content ?? null,
+        }).catch((err) => console.error('[venda] aviso do dono falhou (venda intacta):', err));
+
         if (saleId) await sendPurchaseForSale(saleId);
 
         // Espelha a venda na UTMify como 'waiting_payment' (trial começou, ainda sem
