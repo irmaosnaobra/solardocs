@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
 import { agendarRecuperacaoRealtime } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { classificarProdutoKit, processarEventoKit } from '../services/kitIntegradorService';
-import { classificarProdutoPlugcash, processarEventoPlugcash } from '../services/plugcashService';
+import { classificarProdutoPlugcash, processarEventoPlugcash, pareceProdutoDoPlugcash } from '../services/plugcashService';
 import { sendOpsAlert } from '../utils/mailer';
 
 // ── Funil do produto LimpaPro (curso de limpeza de placas, vendido na Kiwify) ──
@@ -301,7 +301,7 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
     // comprador sem acesso nenhum. Diferente do kit, o conserto não é env var:
     // é cadastrar o produto na aba Gateway do /admin do PlugCash.
     // Só em pedido PAGO: waiting_payment e abandono não acordam ninguém.
-    if (status === 'paid' && /eletroposto|plugcash|ponto zero|integrador|recarga/i.test(nomeProduto || '')) {
+    if (status === 'paid' && await pareceProdutoDoPlugcash(nomeProduto)) {
       console.error(`[kiwify] PAGO e não mapeado no PlugCash: "${nomeProduto}" (${idProduto}) · ${emailComprador}`);
       sendOpsAlert(
         'PlugCash: venda paga que o sistema não reconheceu',

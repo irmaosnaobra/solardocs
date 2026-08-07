@@ -121,6 +121,33 @@ export async function classificarProdutoPlugcash(
   return null;
 }
 
+// ── Isto parece ser nosso, mas não está mapeado? ────────────────────────────
+// A rede de segurança do webhook. Se um pedido PAGO tem nome de produto igual ao
+// de um curso ou serviço do catálogo e mesmo assim `classificarProdutoPlugcash`
+// devolveu null, o mapeamento está quebrado: o dinheiro entrou e o comprador vai
+// ficar sem acesso.
+//
+// Antes isso era uma regex de palavras (eletroposto|plugcash|ponto zero|…) e ela
+// pegava 3 dos 20 títulos. "Capital", "Equipamento", "Dossiê do Sócio" e
+// "Operação e precificação" passavam batido — justamente os nomes genéricos, que
+// são os mais fáceis de alguém digitar diferente na Kiwify. Comparar com o
+// catálogo cobre renomeação e produto novo sem ninguém manter lista de palavras.
+export async function pareceProdutoDoPlugcash(produtoNome: string | null): Promise<boolean> {
+  const alvo = (produtoNome || '').trim().toLowerCase();
+  if (!alvo) return false;
+  try {
+    const [{ data: cursos }, { data: servicos }] = await Promise.all([
+      supabase.from('pc_cursos').select('titulo'),
+      supabase.from('pc_servicos').select('titulo'),
+    ]);
+    return [...(cursos || []), ...(servicos || [])]
+      .some((r: any) => (r.titulo || '').trim().toLowerCase() === alvo);
+  } catch {
+    // Na dúvida não grita: alerta falso toda hora ensina a ignorar alerta.
+    return false;
+  }
+}
+
 // ── Conta ───────────────────────────────────────────────────────────────────
 // Mesmo padrão do Kit de Fechamento: conta PENDENTE (sem senha) com token de
 // definição, ou vínculo com a conta que já existe. Nunca mexe em plano nem em
@@ -409,8 +436,19 @@ export async function processarEventoPlugcash(evt: EventoPlugcash): Promise<Resu
     }
   }
 
+  // `motivo` vai junto porque o painel do funil quebra as etapas por bloqueio
+  // (material_view e checkout_start já mandam). Sem ele aqui, a linha "comprou"
+  // some da quebra — e é justamente ela que responde qual bloqueio converte.
+  const { data: membroAgora } = await supabase
+    .from('pc_membros').select('motivo_descarte').eq('user_id', userId).maybeSingle();
   await supabase.from('pc_eventos').insert({
-    user_id: userId, tipo: 'purchase', payload: { slug: item.item_slug, valor: evt.valorCentavos },
+    user_id: userId,
+    tipo: 'purchase',
+    payload: {
+      slug: item.item_slug,
+      valor: evt.valorCentavos,
+      motivo: (membroAgora as any)?.motivo_descarte?.[0] ?? null,
+    },
   });
 
   return { ok: true, acao: 'liberado', detalhe: `${item.item_tipo}:${item.item_slug}` };
