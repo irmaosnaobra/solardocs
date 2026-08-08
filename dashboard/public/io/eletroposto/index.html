@@ -193,12 +193,14 @@
   .fld label{display:block;font-size:13px;font-weight:700;color:var(--cream);margin-bottom:7px}
   .fld .hint{color:var(--mut);font-weight:600;font-size:11.5px}
   .inp{position:relative}
-  .inp input,.inp select{width:100%;padding:13px 14px;background:#0a1604;border:1px solid rgba(255,255,255,.16);border-radius:11px;color:#fff;font-size:16px;font-family:inherit;font-weight:700;outline:none;transition:border-color .2s}
+  /* Fundo do campo em grafite, não em verde-escuro. Somados, dez campos verdes
+     pintavam o cartão inteiro e o verde parava de significar alguma coisa. */
+  .inp input,.inp select{width:100%;padding:13px 14px;background:#0b0e09;border:1px solid rgba(255,255,255,.16);border-radius:11px;color:#fff;font-size:16px;font-family:inherit;font-weight:700;outline:none;transition:border-color .2s}
   .inp.has-pre input{padding-left:38px}
   .inp .pre{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:14px;font-weight:700;pointer-events:none}
   .inp input:focus,.inp select:focus{border-color:var(--neon)}
   /* a lista aberta do select é pintada pelo SO — força claro-no-escuro */
-  .inp select option{background:#0a1604;color:var(--cream)}
+  .inp select option{background:#0b0e09;color:var(--cream)}
   .inp input::placeholder{color:rgba(247,251,242,.42)}
   .inp input::-webkit-outer-spin-button,.inp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   /* slider: o padrão tem 16px de altura — impossível de pegar no dedo. Thumb grande
@@ -235,7 +237,17 @@
   .bl{font-size:9.5px;color:var(--mut);margin-top:5px;font-weight:700}
 
   /* ===== agendamento ===== */
-  .agBox{background:var(--card);border:1.5px solid rgba(125,209,23,.45);border-radius:20px;padding:28px}
+  /* ===== o cartão do agendamento é NEUTRO ==================================
+     Regra: dentro dele o verde tem UM trabalho — dizer onde se clica. Sobraram
+     verdes só o botão que confirma e o horário escolhido. A moldura brilhando
+     em verde, os rótulos de dia, a borda dos horários e o fundo dos campos
+     disputavam com o botão; com tudo verde, nada aponta pra nada. */
+  .agBox{background:rgba(10,13,9,.78);border:1.5px solid rgba(255,255,255,.12);border-radius:20px;padding:28px}
+  /* etiqueta "AGENDE" e a linha da seção: cinza aqui, sem competir com o CTA */
+  #agendar .sh .tt{color:rgba(247,251,242,.55)}
+  #agendar .sh .ln{background:rgba(255,255,255,.10)}
+  /* o brilho do botão era um halo verde do tamanho do próprio botão */
+  #agendar #ag-btn{box-shadow:0 10px 26px rgba(125,209,23,.24)}
   /* par de campos: 2 colunas no desktop, empilha no celular (era style inline, que
      vencia a media query e espremia os campos no mobile) */
   .f2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -248,12 +260,13 @@
   .step{margin-bottom:18px}
   .slots{margin-top:10px;display:flex;flex-direction:column;gap:14px}
   .agLoad{color:var(--mut);font-size:13.5px;font-weight:700;padding:14px 0}
-  .dia .diaH{color:var(--neon-b);font-size:12px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px}
+  .dia .diaH{color:rgba(247,251,242,.5);font-size:12px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px}
   .diaS{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
   @media(max-width:520px){.diaS{grid-template-columns:repeat(4,1fr)}}
   /* botão NÃO herda color — sem isto o texto sai preto no fundo escuro (ilegível) */
-  .slot{background:#0a1604;border:1.5px solid var(--line);border-radius:10px;padding:11px 6px;text-align:center;
+  .slot{background:#0b0e09;border:1.5px solid rgba(255,255,255,.14);border-radius:10px;padding:11px 6px;text-align:center;
     cursor:pointer;transition:.15s;font-family:inherit;color:var(--cream);font-size:15px;font-weight:800;min-height:46px}
+  /* o verde volta no toque e fica no escolhido: é a resposta ao clique */
   .slot:hover{border-color:var(--neon);background:#0f2206}
   .slot.on{background:var(--neon);border-color:var(--neon);color:var(--dk)}
   .agMsg{margin-top:14px;padding:13px 16px;border-radius:11px;font-size:13.5px;font-weight:700;display:none}
@@ -265,7 +278,9 @@
   .cfBg{position:fixed;inset:0;z-index:200;background:rgba(3,8,1,.84);backdrop-filter:blur(6px);
     display:none;align-items:center;justify-content:center;padding:20px}
   .cfBg.on{display:flex}
-  .cf{background:linear-gradient(180deg,#0d2405 0%,#081a03 100%);border:1.5px solid rgba(125,209,23,.5);
+  /* mesma língua do cartão de agendamento: moldura neutra, verde só no ícone
+     (a confirmação) e no botão */
+  .cf{background:linear-gradient(180deg,#101410 0%,#090c08 100%);border:1.5px solid rgba(255,255,255,.13);
     border-radius:20px;padding:30px 26px;max-width:460px;width:100%;text-align:center;
     box-shadow:0 30px 80px rgba(0,0,0,.6);max-height:92vh;overflow-y:auto}
   .cf .ic{width:52px;height:52px;border-radius:14px;margin:0 auto 16px;background:rgba(125,209,23,.14);
