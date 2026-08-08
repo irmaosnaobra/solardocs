@@ -1,4 +1,10 @@
-SOLTE AS 9 FOTOS AQUI — com estes nomes exatos, em .jpg
+Esta pasta tem DOIS grupos de foto, e eles não se misturam.
+
+
+GRUPO 1 — AS 9 DE ILUSTRAÇÃO (geradas)
+
+Servem de ambiente e de capa de curso. Elas NÃO provam serviço prestado, e
+nenhuma legenda pode dizer que provam.
 
   lp-hero.jpg            eletroposto na beira da rodovia, carro conectado
   lp-mercado.jpg         vista aérea da avenida comercial no entardecer
@@ -10,11 +16,39 @@ SOLTE AS 9 FOTOS AQUI — com estes nomes exatos, em .jpg
   padrao-entrada.jpg     medidor e caixa de disjuntor na parede externa
   obra.jpg               instalação em andamento, eletroduto e base de concreto
 
+
+GRUPO 2 — OBRA REAL (celular da equipe, 08/08/2026)
+
+Foto tirada na obra. É o que sustenta a seção "Antes do carregador, tem obra"
+da landing. Nome começa com `obra-` e um número: o número é a ORDEM da execução
+e é ela que a seção conta.
+
+  obra-1-furos.jpg       escavação, furos abertos, eletroduto posicionado
+  obra-2-forma.jpg       forma montada e ferragem amarrada sobre os furos
+  obra-3-concreto.jpg    concreto lançado com o eletroduto passando
+  obra-4-trafo.jpg       transformador instalado no nicho de concreto
+  obra-5-quadro.jpg      quadro aberto, cabeado: barramento, fusíveis, comando
+
+REGRA DA LEGENDA: descreva o que está no quadro e pare. Sem cliente, sem
+cidade, sem prazo, sem "obra concluída". Não existe eletroposto entregue e
+documentado ainda; a foto prova execução de infraestrutura, e é só isso que ela
+pode dizer.
+
+Foto nova de obra entra como `obra-6-…`, com a etapa no nome.
+
+
+COMO PROCESSAR
+
 Pode soltar o arquivo grande do jeito que saiu — o script corta e comprime.
+Na raiz do repo:
 
-Depois, na raiz do repo:
+  node plugcash/fotos/processar.js            tudo (as 9 + as de obra + og + extras)
+  node plugcash/fotos/processar.js obra-      só as de obra
+  node plugcash/capas/gerar.js                redesenha as 9 capas de curso
 
-  node plugcash/fotos/processar.js     converte e mede o peso
-  node plugcash/capas/gerar.js         redesenha as 9 capas de curso
+O filtro existe pra não reprocessar o que está no ar quando você só quer
+publicar uma foto nova. Se faltar alguma do grupo 1, o primeiro comando diz
+qual e não quebra as outras.
 
-Se faltar alguma, o primeiro comando diz qual e não quebra as outras.
+E DEPOIS: o `.webp` gerado tem que entrar no commit. A página aponta pro
+arquivo, não pro original — original versionado com webp de fora é 404 no ar.

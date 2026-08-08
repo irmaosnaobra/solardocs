@@ -38,7 +38,34 @@ const FOTOS = [
   { nome: 'campo',             larguras: [1100, 700], q: 70, onde: 'faixa "o que você leva"' },
   { nome: 'padrao-entrada',    larguras: [1100, 700], q: 68, onde: 'faixa "como as aulas são"' },
   { nome: 'obra',              larguras: [1100, 700], q: 70, onde: 'só capa do curso Integrador' },
+
+  // ── FOTOS DE OBRA REAL (08/08/2026) ────────────────────────────────────────
+  // As nove de cima são ilustração de mercado: geradas, valem como ambiente e
+  // NÃO provam serviço prestado. Estas cinco são o oposto — saíram do celular
+  // da equipe, na obra, e é isso que a landing não tinha. Elas entram na seção
+  // logo depois do manifesto ("não vendemos carregador, entregamos ligado"),
+  // que era exatamente a frase sem lastro na página.
+  //
+  // O que elas provam é EXECUÇÃO DE INFRAESTRUTURA (base, transformador,
+  // quadro) — não um eletroposto entregue. A legenda de cada uma descreve o
+  // que está no quadro e nada além: não existe case documentado ainda, e
+  // inventar um aqui contamina a marca inteira (regra do plugcash/CLAUDE.md).
+  //
+  // Larguras menores que as de cima de propósito: aparecem em card de grade,
+  // nunca full-bleed. O original é foto de WhatsApp (720–1280px) — pedir 1600
+  // só ampliaria borrão.
+  { nome: 'obra-1-furos',    larguras: [760, 480], q: 58, semCapa: true, onde: 'obra real · escavação' },
+  { nome: 'obra-2-forma',    larguras: [760, 480], q: 72, semCapa: true, onde: 'obra real · forma e ferragem' },
+  { nome: 'obra-3-concreto', larguras: [760, 480], q: 64, semCapa: true, onde: 'obra real · concretagem' },
+  { nome: 'obra-4-trafo',    larguras: [760, 480], q: 74, semCapa: true, onde: 'obra real · transformador' },
+  { nome: 'obra-5-quadro',   larguras: [760, 480], q: 76, semCapa: true, onde: 'obra real · quadro cabeado' },
 ];
+
+// Filtro de linha de comando: `node plugcash/fotos/processar.js obra-` processa
+// só o que casa com o texto. Existe porque uma rodada cega reprocessa as nove
+// antigas e o og.jpg, e havia trabalho de outra frente sem commit nessas pastas
+// — rodar tudo pra publicar cinco fotos novas atropelaria o que estava em curso.
+const FILTRO = process.argv[2] || '';
 
 // A foto REAL do carregador que a empresa vende. Estava só no deck; a vitrine da
 // landing mostrava um render de IA no lugar do produto que existe.
@@ -164,7 +191,10 @@ const kb = (p) => (fs.statSync(p).size / 1024).toFixed(1);
   let total = 0;
 
   const fila = FOTOS.map((f) => ({ ...f, origem: achar(f.nome) }))
-    .concat([{ ...DO_DECK, origem: fs.existsSync(DO_DECK.origem) ? DO_DECK.origem : null }]);
+    .concat([{ ...DO_DECK, origem: fs.existsSync(DO_DECK.origem) ? DO_DECK.origem : null }])
+    .filter((f) => f.nome.includes(FILTRO));
+
+  if (FILTRO) console.log(`filtro "${FILTRO}" — ${fila.length} foto(s); og.jpg e extras ficam de fora\n`);
 
   for (const f of fila) {
     if (!f.origem) { faltando.push(f.nome); continue; }
@@ -179,6 +209,11 @@ const kb = (p) => (fs.statSync(p).size / 1024).toFixed(1);
       console.log(`  ${f.nome}-${w}.webp  ${kb(saida)} KB`);
     }
 
+    // Foto de obra não vira capa de curso: capa é ilustração do assunto, e o
+    // gerador busca por nome fixo (não varre a pasta). Gerar aqui só produziria
+    // arquivo que ninguém lê.
+    if (f.semCapa) continue;
+
     // versão da capa — recorte central 16:9
     const capa = path.join(CAPAS, `${f.nome}.jpg`);
     await sharp(f.origem)
@@ -189,8 +224,10 @@ const kb = (p) => (fs.statSync(p).size / 1024).toFixed(1);
 
   console.log(`\ntotal na web: ${(total / 1024).toFixed(0)} KB em ${fila.length - faltando.length} fotos`);
 
-  await converterExtras();
-  await gerarOg();
+  if (!FILTRO) {
+    await converterExtras();
+    await gerarOg();
+  }
 
   if (faltando.length) {
     console.log(`\nFALTAM em plugcash/fotos/_originais/ (nome exato + .jpg):`);

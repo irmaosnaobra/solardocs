@@ -347,6 +347,34 @@
     .inp.has-pre input{padding-left:40px}
   }
 
+  /* ===== obra real =====
+     Cinco fotos da equipe, em sequência. Card pequeno de propósito: o original é
+     foto de celular e ampliar só mostraria o borrão. A última (o quadro) ocupa a
+     linha inteira no celular porque é a que tem detalhe pra ler. */
+  .obraG{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:24px}
+  .obraC{background:rgba(10,13,9,.55);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    display:flex;flex-direction:column}
+  /* `height:auto` é obrigatório: os atributos width/height do <img> (que existem
+     pra reservar o espaço e não pular o layout) valem como altura fixa e fariam
+     o aspect-ratio ser ignorado — o card saía com a altura do arquivo. */
+  /* Caixa em pé (3/4), não deitada: três das cinco fotos vieram na vertical e o
+     assunto delas é vertical também — o transformador dentro do nicho, o quadro
+     aberto. Num recorte 4/3 a foto virava faixa e cortava justo o equipamento. */
+  .obraC img{width:100%;height:auto;aspect-ratio:3/4;object-fit:cover;display:block;background:#0b0e09}
+  .obraC .cap{padding:11px 12px 13px;font-size:12.5px;font-weight:700;line-height:1.42;color:var(--mut)}
+  .obraC .num{display:block;font-size:10.5px;font-weight:900;letter-spacing:1.6px;
+    color:rgba(247,251,242,.45);margin-bottom:5px}
+  /* Duas colunas no celular, NÃO uma. Empilhada, a sequência ganhava 2.800px de
+     rolagem no meio da página — quem está lendo uma oferta não desce cinco fotos
+     inteiras pra chegar no preço. Em par elas leem como tira, e a última (o
+     quadro, a que tem detalhe) ocupa a linha inteira. */
+  @media(max-width:900px){
+    .obraG{grid-template-columns:repeat(2,1fr);gap:10px}
+    .obraC .cap{padding:9px 10px 11px;font-size:12px}
+    .obraC:last-child{grid-column:1/-1}
+    .obraC:last-child img{aspect-ratio:4/3}
+  }
+
   /* ===== manifesto / filtro forte (chave na mão) ===== */
   .manifesto{background:linear-gradient(135deg,rgba(125,209,23,.18),rgba(125,209,23,.03));border:1.5px solid rgba(125,209,23,.55);border-radius:22px;padding:34px}
   .manifesto .mk2{display:inline-flex;align-items:center;gap:9px;background:rgba(5,13,2,.45);border:1px solid rgba(125,209,23,.42);color:var(--neon-b);font-size:11.5px;font-weight:900;letter-spacing:1.8px;text-transform:uppercase;padding:8px 15px;border-radius:999px}
@@ -426,6 +454,61 @@
         <svg viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
         <p><b>Não atendemos quem quer só o preço do carregador para montar por conta.</b> Se o seu plano é comprar o equipamento e se virar com projeto, obra, concessionária e software, não somos para você. Atendemos quem quer um ativo pronto, funcionando e sem dor de cabeça.</p>
       </div>
+    </div>
+  </section>
+
+  <!-- OBRA REAL ─────────────────────────────────────────────────────────────
+       Vem logo depois do manifesto de propósito: a frase "entregamos ligado e
+       homologado" estava sem lastro nenhum na página. Todas as outras imagens
+       daqui são ilustração de mercado; estas cinco saíram do celular da equipe.
+
+       CADA LEGENDA DESCREVE O QUADRO E NADA ALÉM. Não existe eletroposto
+       entregue e documentado ainda (plugcash/CLAUDE.md), então nada aqui diz
+       cliente, cidade, prazo ou "obra concluída" — o que as fotos provam é
+       execução de infraestrutura, que é justamente a parte que o comprador tem
+       medo de tocar. Quando houver um ponto entregue, ele vira outra seção,
+       com outra promessa. -->
+  <section style="padding-top:0">
+    <div class="sh"><span class="tt">Obra</span><span class="ln"></span></div>
+    <h2>Antes do carregador, tem <span class="n">obra</span>.</h2>
+    <div class="sub">A parte demorada de um eletroposto não é pendurar o equipamento — é a infraestrutura que segura ele. Base, entrada de energia e quadro são nossos, na ordem em que acontecem.</div>
+
+    <div class="obraG">
+      <figure class="obraC">
+        <img src="/io/eletroposto/img/fotos/obra-1-furos-480.webp" width="480" height="360"
+             loading="lazy" decoding="async"
+             alt="Escavação da base com três furos abertos e eletroduto posicionado">
+        <figcaption class="cap"><span class="num">Etapa 01</span>Escavação da base, com os furos abertos e o eletroduto já posicionado.</figcaption>
+      </figure>
+      <figure class="obraC">
+        <img src="/io/eletroposto/img/fotos/obra-2-forma-480.webp" width="480" height="360"
+             loading="lazy" decoding="async"
+             alt="Forma de madeira e ferragem amarrada sobre os furos da base">
+        <figcaption class="cap"><span class="num">Etapa 02</span>Forma montada e ferragem amarrada sobre os furos.</figcaption>
+      </figure>
+      <figure class="obraC">
+        <img src="/io/eletroposto/img/fotos/obra-3-concreto-480.webp" width="480" height="360"
+             loading="lazy" decoding="async"
+             alt="Concreto lançado na forma com o eletroduto passando por dentro">
+        <figcaption class="cap"><span class="num">Etapa 03</span>Concreto lançado, com o eletroduto passando por dentro.</figcaption>
+      </figure>
+      <figure class="obraC">
+        <img src="/io/eletroposto/img/fotos/obra-4-trafo-480.webp" width="480" height="360"
+             loading="lazy" decoding="async"
+             alt="Transformador instalado dentro de um nicho de concreto">
+        <figcaption class="cap"><span class="num">Etapa 04</span>Transformador instalado no nicho de concreto.</figcaption>
+      </figure>
+      <!-- a única com srcset: no celular ela ocupa a linha inteira, e aí 480px
+           de largura em tela 2x apareceria mole -->
+      <figure class="obraC">
+        <img src="/io/eletroposto/img/fotos/obra-5-quadro-480.webp"
+             srcset="/io/eletroposto/img/fotos/obra-5-quadro-480.webp 480w,
+                     /io/eletroposto/img/fotos/obra-5-quadro-760.webp 760w"
+             sizes="(max-width:900px) 92vw, 200px" width="480" height="360"
+             loading="lazy" decoding="async"
+             alt="Quadro elétrico aberto, com barramento de cobre, fusíveis, disjuntores e placa de comando cabeados">
+        <figcaption class="cap"><span class="num">Etapa 05</span>Quadro montado e cabeado — barramento, fusíveis DC, medição e comando.</figcaption>
+      </figure>
     </div>
   </section>
 
