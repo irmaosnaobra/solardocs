@@ -964,7 +964,7 @@ for (var i=0;i<ORDEM.length;i++) if (motivos.indexOf(ORDEM[i]) >= 0) { motivo = 
 var COPY = {
   sem_ponto: {
     selo: 'Você respondeu que ainda não tem o ponto',
-    headline: 'Sem o local definido, não existe o que orçar.',
+    headline: 'Achar um ponto que presta é procedimento. Ninguém nunca te mostrou o procedimento.',
     abertura: [
       'Das perguntas do formulário, essa é a única que fecha a agenda por conta própria: sem endereço, nada no resto compensa. Não é uma leitura sobre você. É o que a reunião precisa para existir.',
       'A reunião é com o especialista que dimensiona potência, calcula demanda e fecha orçamento. As três coisas moram num endereço: a carga disponível é a daquele padrão de entrada, o movimento é o daquela esquina, o retorno é o daquele fluxo. Sem local, a hora inteira vira suposição — e suposição num investimento de seis dígitos não ajuda você nem a gente.'
@@ -973,7 +973,7 @@ var COPY = {
   },
   fluxo_baixo: {
     selo: 'Você respondeu que investe, mas não tem o local',
-    headline: 'Você tem o dinheiro. Falta a esquina certa.',
+    headline: 'Você tem o dinheiro. O que falta é saber medir a esquina.',
     abertura: [
       'Foi por isso que apareceu para você uma pergunta que quase ninguém vê: a da rota de passagem. Posto, mercado, hotel e estacionamento já têm carro parando na porta por outro motivo — o eletroposto pega carona num fluxo que existe. Investidor, e segmento fora dessa lista, não têm esse fluxo embutido: quem responde pelo movimento é a rua.',
       'E a rua precisa ser medida antes. O especialista dimensiona a partir do fluxo esperado; sem uma leitura do movimento daquele endereço — rodovia, corredor, comércio de destino, tempo de permanência do carro — a potência vira chute e o orçamento vira chute com nota fiscal.'
@@ -984,7 +984,7 @@ var COPY = {
   },
   nao_decisor: {
     selo: 'Você respondeu que a decisão não é só sua',
-    headline: 'Quem decide precisa ver o mesmo que você viu.',
+    headline: 'Quem decide com você vai pedir números. Eles não estão no Google.',
     abertura: [
       'Não é desconfiança. É que uma reunião de dimensionamento termina em decisão: potência, layout, prazo, valor. Quando quem assina não está na sala, ela termina em "vou levar para o meu sócio" — e a segunda reunião, a que decide de verdade, quase nunca acontece.',
       'O que costuma travar nesses casos não é o dinheiro, é a tradução. Você assistiu, mexeu no simulador e entendeu. A pessoa que decide com você vai receber um resumo de dois minutos, no corredor, e vai responder com base nele.'
@@ -996,7 +996,7 @@ var COPY = {
   },
   sem_capital: {
     selo: 'Você respondeu que o capital ainda não está disponível',
-    headline: 'O orçamento não muda o que falta hoje.',
+    headline: 'Antes do dinheiro vem a conta. E ela não existe pronta em lugar nenhum.',
     abertura: [
       'A reunião entrega uma coisa só: dimensionamento e orçamento. Orçamento na mão de quem ainda não sabe como paga não move projeto — vira PDF guardado e uma cobrança nossa três semanas depois, que constrange os dois lados.',
       'Dinheiro para eletroposto não é problema de sorte, é problema de formato: recurso próprio, linha de crédito com o equipamento em garantia, empresa com CNPJ e faturamento, ou sociedade com quem tem o ponto e não tem o capital. Cada formato pede um preparo diferente, e todos pedem a mesma coisa antes: que você saiba defender a conta.'
@@ -1005,10 +1005,10 @@ var COPY = {
   },
   neutro: {
     selo: 'Sobre a sua resposta',
-    headline: 'A reunião não abriu agora — e o motivo é objetivo.',
+    headline: 'Entender eletroposto inteiro leva uma tarde. Descobrir sozinho leva meses.',
     abertura: [
-      'A agenda do especialista é reservada para projetos que já têm as três pernas de pé: um local definido, uma forma de pagar e a decisão na mão de quem está na conversa. Faltando uma delas, a reunião entrega um orçamento que não vira obra.',
-      'Isso não é um não definitivo. É a ordem certa das coisas.'
+      'A agenda não abriu porque falta uma das três pernas: o local, a forma de pagar ou a decisão na mão de quem está na conversa. Sem uma delas, a reunião entrega um orçamento que não vira obra — e isso não é um não definitivo, é a ordem certa das coisas.',
+      'A parte difícil de resolver isso nunca foi o dinheiro. É que ninguém nunca reuniu, num lugar só e na ordem certa, o que você precisa saber pra decidir. Cada pedaço está solto por aí, e quase todo escrito por quem quer te vender um carregador.'
     ],
     ponte: 'O caminho de volta começa por entender o negócio inteiro antes de sentar pra orçar — e entender inteiro é justamente o que a internet não entrega, porque lá a informação chega picada e vendida.'
   }
@@ -1016,8 +1016,12 @@ var COPY = {
 
 var c = COPY[motivo] || COPY.neutro;
 document.getElementById('selo').textContent = c.selo;
-document.getElementById('headline').textContent =
-  (nome ? nome.split(' ')[0] + ', ' : '') + c.headline.charAt(0).toLowerCase() + c.headline.slice(1);
+// Só minuscula quando existe nome na frente. Sem nome, a frase começa com
+// maiúscula como qualquer frase — antes ela abria em minúscula pra todo mundo e
+// parecia defeito de renderização.
+document.getElementById('headline').textContent = nome
+  ? nome.split(' ')[0] + ', ' + c.headline.charAt(0).toLowerCase() + c.headline.slice(1)
+  : c.headline;
 var box = document.getElementById('abertura');
 c.abertura.forEach(function(p){
   var el = document.createElement('p'); el.className = 'lead'; el.textContent = p; box.appendChild(el);
