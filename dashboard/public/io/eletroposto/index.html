@@ -351,7 +351,7 @@
      Cinco fotos da equipe, em sequência. Card pequeno de propósito: o original é
      foto de celular e ampliar só mostraria o borrão. A última (o quadro) ocupa a
      linha inteira no celular porque é a que tem detalhe pra ler. */
-  .obraG{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:24px}
+  .obraG{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}
   .obraC{background:rgba(10,13,9,.55);border:1px solid var(--line);border-radius:14px;overflow:hidden;
     display:flex;flex-direction:column}
   /* `height:auto` é obrigatório: os atributos width/height do <img> (que existem
@@ -364,15 +364,12 @@
   .obraC .cap{padding:11px 12px 13px;font-size:12.5px;font-weight:700;line-height:1.42;color:var(--mut)}
   .obraC .num{display:block;font-size:10.5px;font-weight:900;letter-spacing:1.6px;
     color:rgba(247,251,242,.45);margin-bottom:5px}
-  /* Duas colunas no celular, NÃO uma. Empilhada, a sequência ganhava 2.800px de
-     rolagem no meio da página — quem está lendo uma oferta não desce cinco fotos
-     inteiras pra chegar no preço. Em par elas leem como tira, e a última (o
-     quadro, a que tem detalhe) ocupa a linha inteira. */
+  /* Duas colunas no celular, NÃO uma. Empilhada, a sequência ganhava metros de
+     rolagem no meio da página — quem está lendo uma oferta não desce quatro
+     fotos inteiras pra chegar no preço. Em 2x2 elas leem como tira. */
   @media(max-width:900px){
     .obraG{grid-template-columns:repeat(2,1fr);gap:10px}
     .obraC .cap{padding:9px 10px 11px;font-size:12px}
-    .obraC:last-child{grid-column:1/-1}
-    .obraC:last-child img{aspect-ratio:4/3}
   }
 
   /* ===== manifesto / filtro forte (chave na mão) ===== */
@@ -492,22 +489,19 @@
              alt="Concreto lançado na forma com o eletroduto passando por dentro">
         <figcaption class="cap"><span class="num">Etapa 03</span>Concreto lançado, com o eletroduto passando por dentro.</figcaption>
       </figure>
-      <figure class="obraC">
-        <img src="/io/eletroposto/img/fotos/obra-4-trafo-480.webp" width="480" height="360"
-             loading="lazy" decoding="async"
-             alt="Transformador instalado dentro de um nicho de concreto">
-        <figcaption class="cap"><span class="num">Etapa 04</span>Transformador instalado no nicho de concreto.</figcaption>
-      </figure>
       <!-- a única com srcset: no celular ela ocupa a linha inteira, e aí 480px
-           de largura em tela 2x apareceria mole -->
+           de largura em tela 2x apareceria mole.
+           O transformador NÃO está aqui de propósito: ele virou a faixa da seção
+           "A entrega", que é onde a conversa é entrada de energia. Mesma foto em
+           duas seções faria parecer que só existe uma. -->
       <figure class="obraC">
         <img src="/io/eletroposto/img/fotos/obra-5-quadro-480.webp"
              srcset="/io/eletroposto/img/fotos/obra-5-quadro-480.webp 480w,
                      /io/eletroposto/img/fotos/obra-5-quadro-760.webp 760w"
-             sizes="(max-width:900px) 92vw, 200px" width="480" height="360"
+             sizes="(max-width:900px) 46vw, 250px" width="480" height="360"
              loading="lazy" decoding="async"
              alt="Quadro elétrico aberto, com barramento de cobre, fusíveis, disjuntores e placa de comando cabeados">
-        <figcaption class="cap"><span class="num">Etapa 05</span>Quadro montado e cabeado — barramento, fusíveis DC, medição e comando.</figcaption>
+        <figcaption class="cap"><span class="num">Etapa 04</span>Quadro montado e cabeado — barramento, fusíveis DC, medição e comando.</figcaption>
       </figure>
     </div>
   </section>
@@ -569,15 +563,19 @@
     <div class="sh"><span class="tt">A entrega</span><span class="ln"></span></div>
     <h2>Tudo o que entra na sua <span class="n">chave na mão</span></h2>
     <div class="sub" style="margin-bottom:26px">Comprar o carregador é só 20% do trabalho. Os outros 80% — onde a maioria trava — a gente entrega pronto. São 26 frentes, do estudo do ponto à primeira recarga.</div>
+    <!-- Era uma ilustração de medidor de parede aqui. Trocada em 08/08/2026 pela
+         foto real: quando o padrão de entrada não aguenta a carga, a saída é
+         entrada própria — e é isso que a foto mostra, feito por nós. A legenda
+         descreve o que está no quadro; não diz cliente, cidade nem prazo. -->
     <figure class="fotoFx" style="margin:0 0 26px">
-      <img src="/io/eletroposto/img/fotos/padrao-entrada-1100.webp"
-           srcset="/io/eletroposto/img/fotos/padrao-entrada-700.webp 700w,
-                   /io/eletroposto/img/fotos/padrao-entrada-1100.webp 1100w"
+      <img src="/io/eletroposto/img/fotos/obra-4-trafo-larga-1100.webp"
+           srcset="/io/eletroposto/img/fotos/obra-4-trafo-larga-700.webp 700w,
+                   /io/eletroposto/img/fotos/obra-4-trafo-larga-1100.webp 1100w"
            sizes="(max-width:1120px) 100vw, 1080px"
            width="1100" height="619" loading="lazy" decoding="async"
            onerror="this.parentElement.remove()"
-           alt="Padrão de entrada de energia de um imóvel comercial: medidor ao lado da caixa de disjuntores, na parede externa">
-      <figcaption>É aqui que a maioria dos projetos trava: o padrão de entrada não aguenta a carga do carregador, e ninguém descobriu isso antes de comprar o equipamento. A fase 2 abaixo existe por causa deste quadro.</figcaption>
+           alt="Transformador instalado em nicho de concreto construído para ele, junto à parede de um imóvel comercial">
+      <figcaption>É aqui que a maioria dos projetos trava: o padrão de entrada do imóvel não aguenta a carga do carregador, e ninguém descobriu isso antes de comprar o equipamento. Quando é esse o caso, a saída é entrada de energia própria — transformador e nicho, como neste. A fase 2 abaixo existe por causa disso.</figcaption>
     </figure>
 
     <div class="entrega">

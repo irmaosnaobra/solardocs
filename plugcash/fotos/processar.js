@@ -59,6 +59,13 @@ const FOTOS = [
   { nome: 'obra-3-concreto', larguras: [760, 480], q: 64, semCapa: true, onde: 'obra real · concretagem' },
   { nome: 'obra-4-trafo',    larguras: [760, 480], q: 74, semCapa: true, onde: 'obra real · transformador' },
   { nome: 'obra-5-quadro',   larguras: [760, 480], q: 76, semCapa: true, onde: 'obra real · quadro cabeado' },
+
+  // A mesma foto do transformador, recortada em faixa: ela substituiu a
+  // ilustração de padrão de entrada na seção "A entrega". O recorte é feito
+  // AQUI e não no CSS porque a origem é vertical — `object-fit:cover` numa
+  // caixa 16/9 cortaria justo o transformador e sobraria chão.
+  { nome: 'obra-4-trafo', saida: 'obra-4-trafo-larga', larguras: [1100, 700], q: 74,
+    recorte: 16 / 9, semCapa: true, onde: 'faixa "a entrega" · entrada de energia' },
 ];
 
 // Filtro de linha de comando: `node plugcash/fotos/processar.js obra-` processa
@@ -199,14 +206,21 @@ const kb = (p) => (fs.statSync(p).size / 1024).toFixed(1);
   for (const f of fila) {
     if (!f.origem) { faltando.push(f.nome); continue; }
 
+    // `saida` existe pra mesma origem render dois arquivos diferentes (a foto do
+    // transformador é card em pé numa seção e faixa deitada em outra).
+    const base = f.saida || f.nome;
+
     for (const w of f.larguras) {
-      const saida = path.join(WEB, `${f.nome}-${w}.webp`);
-      await sharp(f.origem)
-        .resize({ width: w, withoutEnlargement: true })
-        .webp({ quality: f.q, effort: 6 })
-        .toFile(saida);
+      const saida = path.join(WEB, `${base}-${w}.webp`);
+      const img = sharp(f.origem);
+      // `recorte` = proporção fixa. `position:'attention'` deixa o sharp escolher
+      // a faixa com mais informação em vez do centro geométrico — numa foto em pé
+      // o centro costuma ser chão.
+      if (f.recorte) img.resize({ width: w, height: Math.round(w / f.recorte), fit: 'cover', position: 'attention' });
+      else img.resize({ width: w, withoutEnlargement: true });
+      await img.webp({ quality: f.q, effort: 6 }).toFile(saida);
       total += fs.statSync(saida).size;
-      console.log(`  ${f.nome}-${w}.webp  ${kb(saida)} KB`);
+      console.log(`  ${base}-${w}.webp  ${kb(saida)} KB`);
     }
 
     // Foto de obra não vira capa de curso: capa é ilustração do assunto, e o
