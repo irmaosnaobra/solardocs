@@ -27,7 +27,12 @@ import type { NextRequest } from 'next/server';
 // desprotegidas por isso — cada uma confere o token e, principalmente, a API só
 // devolve dado com Bearer válido. Sem esta linha, quem clica no cadeado toma 307
 // pro login do SolarDoc e a venda morre na porta.
-const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/plugcash', '/lib', '/robots.txt', '/sitemap.xml'];
+// '/assinar' = a página do link que a Giovanna manda com o cupom
+// (solardoc.app/assinar?cupom=ACESSO19). Quem recebe NÃO tem conta — é isso que
+// ela está indo criar. Sem esta linha o lead que clica no link cai no /auth, vê
+// uma tela de login de um produto que ele ainda não assinou, e a venda morre na
+// porta. Conferido em produção: sem ela, 307 pro /auth?mode=login.
+const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/plugcash', '/assinar', '/lib', '/robots.txt', '/sitemap.xml'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;
