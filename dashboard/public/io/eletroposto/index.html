@@ -405,6 +405,106 @@
   .entregaEnd{margin-top:20px;text-align:center;background:linear-gradient(90deg,rgba(125,209,23,.14),rgba(125,209,23,.03));border:1px solid rgba(125,209,23,.45);border-radius:16px;padding:24px 22px}
   .entregaEnd p{font-size:clamp(16px,2.2vw,20px);font-weight:800;letter-spacing:-.4px;line-height:1.35;max-width:640px;margin:0 auto}
   .entregaEnd .n{color:var(--neon-b)}
+
+  /* ===== tempo de recarga por veículo =====
+     O comprador não faz ideia de quanto tempo um carro fica plugado, e esse é o
+     número que decide a potência que ele compra. A lista é dos dez elétricos mais
+     vendidos do Brasil em 2025 e traz só bateria e carga DC máxima — os dois dados
+     de fábrica que não mudam de padrão de medição. AUTONOMIA FICOU DE FORA de
+     propósito: cada montadora publica num ciclo diferente (Inmetro, PBEV, WLTP) e
+     não entra em conta nenhuma daqui. No lugar dela entrou o que a parada deixa no
+     caixa, que é o dado que interessa a quem está comprando a máquina. */
+  .carBox{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px}
+  .carBox > label{display:block;font-size:13px;font-weight:800;margin-bottom:8px}
+  @media(max-width:640px){.carBox{padding:18px 15px}.carBox > label{font-size:14.5px}}
+  .carRank{color:var(--neon-b);font-size:12.5px;font-weight:800;margin-top:11px;line-height:1.4}
+  .carStats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+  @media(max-width:760px){.carStats{grid-template-columns:repeat(2,1fr)}}
+  .carSt{background:#0b0e09;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:14px 12px;text-align:center}
+  .carSt .l{color:var(--mut);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;line-height:1.3}
+  .carSt .v{font-size:clamp(17px,2.4vw,22px);font-weight:900;letter-spacing:-.8px;margin-top:6px;
+    color:var(--cream);font-variant-numeric:tabular-nums}
+  .carSt.cash{border-color:rgba(125,209,23,.45);background:linear-gradient(180deg,rgba(125,209,23,.12),rgba(125,209,23,.02))}
+  .carSt.cash .v{color:var(--neon-b)}
+  @media(max-width:640px){.carSt .l{font-size:11.5px}}
+
+  .tempoG{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+  @media(max-width:760px){.tempoG{grid-template-columns:repeat(2,1fr)}}
+  .tp{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 14px;text-align:center;
+    display:flex;flex-direction:column}
+  .tp.rec{border-color:rgba(125,209,23,.55);background:linear-gradient(180deg,rgba(125,209,23,.13),rgba(125,209,23,.02))}
+  .tp .kw{font-size:14.5px;font-weight:800;color:var(--cream);line-height:1.2}
+  .tp .kw .rc{display:block;font-size:9.5px;font-weight:900;letter-spacing:1.2px;color:var(--neon);
+    text-transform:uppercase;margin-top:4px}
+  .tp .mn{font-size:clamp(25px,3.6vw,33px);font-weight:900;letter-spacing:-1.5px;color:var(--neon-b);
+    margin-top:13px;line-height:1;font-variant-numeric:tabular-nums}
+  .tp .fx{color:var(--mut);font-size:11px;font-weight:700;margin-top:7px}
+  /* quando o carro aceita menos que a máquina entrega, quem manda é ele — e aí a
+     potência a mais não encurta nada. O número perde o verde justamente para isso
+     ficar óbvio sem ninguém precisar ler a legenda. */
+  .tp.lim .mn{color:var(--cream)}
+  .tp .av{color:rgba(247,251,242,.5);font-size:10.5px;font-weight:700;margin-top:auto;padding-top:9px;line-height:1.3}
+  .tempoNota{color:rgba(247,251,242,.45);font-size:11.5px;font-weight:600;margin-top:14px;line-height:1.5}
+  .tempoNota b{color:rgba(247,251,242,.6)}
+
+  /* ===== rotatividade (de onde sai o teto de carros/dia) =====
+     Ideia emprestada da tabela "quanto tempo para carregar" do concorrente, mas
+     virada pro comprador daqui: ele não quer saber quanto o carro DEMORA, quer
+     saber quantos carros cabem no dia. Nenhum número aqui é digitado — todos
+     saem do CONFIGS e do `carga` do simulador (ver pintarRotatividade). Tabela de
+     bateria/potência por modelo de carro ficou de fora de propósito: seria a
+     única informação da página sem fonte impressa. */
+  .rotG{display:grid;grid-template-columns:repeat(5,1fr);gap:11px}
+  /* em 2 colunas o 5º card ficaria órfão numa linha pela metade — e ele é justamente
+     a conclusão da seção, então ocupa a linha inteira em vez de sobrar */
+  @media(max-width:900px){.rotG{grid-template-columns:repeat(2,1fr)}.rotC.hl{grid-column:1/-1}}
+  .rotC{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 15px;text-align:center}
+  .rotC.hl{background:linear-gradient(180deg,rgba(125,209,23,.16),rgba(125,209,23,.03));border-color:rgba(125,209,23,.55)}
+  .rotC .v{color:var(--neon-b);font-size:clamp(21px,3.1vw,28px);font-weight:900;letter-spacing:-1.1px;line-height:1;font-variant-numeric:tabular-nums}
+  .rotC .v.w{color:var(--cream)}
+  .rotC .l{color:var(--mut);font-size:11.5px;font-weight:700;line-height:1.3;margin-top:8px}
+  @media(max-width:640px){.rotC .l{font-size:12px}}
+  /* a tabela é larga por natureza (5 colunas de número): no celular ela rola
+     dentro da própria caixa em vez de espremer a coluna ou estourar a página */
+  .rotWrap{margin-top:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    border:1px solid var(--line);border-radius:16px;background:rgba(10,13,9,.55)}
+  .rotTab{width:100%;min-width:580px;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  .rotTab th,.rotTab td{padding:13px 14px;text-align:right;font-size:13.5px;font-weight:700;
+    border-bottom:1px solid rgba(255,255,255,.07)}
+  .rotTab th{color:rgba(247,251,242,.5);font-size:11px;font-weight:900;letter-spacing:1.1px;
+    text-transform:uppercase;line-height:1.3;white-space:nowrap}
+  .rotTab th:first-child,.rotTab td:first-child{text-align:left;white-space:nowrap}
+  .rotTab tr:last-child td{border-bottom:0}
+  .rotTab td{color:var(--mut)}
+  .rotTab td:first-child{color:var(--cream);font-weight:800}
+  .rotTab tr.on td{background:rgba(125,209,23,.10);color:var(--cream)}
+  .rotTab tr.on td:first-child{box-shadow:inset 3px 0 0 var(--neon)}
+  .rotTab td .teto{color:var(--neon-b);font-weight:900}
+  /* o corte da tabela já sugere que ela anda, mas o público daqui é mais velho e a
+     dica escrita custa uma linha. Some no desktop, onde não há rolagem nenhuma. */
+  .rotDica{display:none}
+  @media(max-width:760px){.rotDica{display:block;color:rgba(247,251,242,.45);font-size:12px;
+    font-weight:700;margin-top:9px}}
+  .rotObs{color:rgba(247,251,242,.45);font-size:11.5px;font-weight:600;margin-top:14px;line-height:1.5}
+  .rotObs b{color:rgba(247,251,242,.6)}
+
+  /* ===== dúvidas (accordion) =====
+     Fica ANTES do agendamento: cada uma destas é uma objeção que hoje só é
+     respondida na reunião — e quem não a tem respondida antes simplesmente não
+     marca. Toda resposta é lastreada em algo que já está impresso nesta página. */
+  .faqG{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media(max-width:760px){.faqG{grid-template-columns:1fr}}
+  .q{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .q summary{list-style:none;cursor:pointer;padding:16px 46px 16px 19px;font-size:15.5px;font-weight:800;
+    letter-spacing:-.2px;line-height:1.3;position:relative;min-height:56px;display:flex;align-items:center}
+  .q summary::-webkit-details-marker{display:none}
+  .q summary::after{content:'';position:absolute;right:20px;top:50%;width:9px;height:9px;
+    border-right:2.4px solid var(--neon-b);border-bottom:2.4px solid var(--neon-b);
+    transform:translateY(-70%) rotate(45deg);transition:transform .18s}
+  .q[open] summary::after{transform:translateY(-20%) rotate(-135deg)}
+  .q[open]{border-color:rgba(125,209,23,.5)}
+  .q .a{padding:0 19px 17px;color:var(--mut);font-size:14px;font-weight:600;line-height:1.55}
+  .q .a b{color:var(--cream);font-weight:800}
 </style>
 </head>
 <body>
@@ -724,6 +824,98 @@
     </div>
   </section>
 
+  <!-- TEMPO DE RECARGA POR VEÍCULO ───────────────────────────────────────────
+       Vem colada no simulador porque responde a pergunta que ele deixa no ar:
+       "quanto tempo cada carro fica ali?". Sem isso, a escolha da potência é um
+       chute do lead — e potência é a variável que mais mexe no investimento.
+
+       A grade mostra as QUATRO configurações que a gente instala (do CONFIGS), não
+       uma tabela genérica de carregadores. E o cartão do dinheiro usa o preço de
+       revenda que o próprio lead acabou de mexer no simulador: o número muda com
+       ele, senão viraria mais um valor solto na tela. -->
+  <section id="recarga">
+    <div class="sh"><span class="tt">Tempo de recarga</span><span class="ln"></span></div>
+    <h2>Quanto tempo o carro do seu cliente <span class="n">fica no bico</span></h2>
+    <div class="sub" style="margin-bottom:24px">Escolha um dos dez elétricos mais vendidos do Brasil em 2026 e veja a recarga de 20% a 80% em cada configuração que a gente instala — e quanto essa parada deixa no seu caixa.</div>
+
+    <div class="carBox">
+      <label for="s-carro">Selecione o veículo</label>
+      <div class="inp"><select id="s-carro" onchange="pintarCarro()"></select></div>
+      <div class="carRank" id="car-rank">—</div>
+      <div class="carStats">
+        <div class="carSt"><div class="l">Bateria</div><div class="v" id="car-bat">—</div></div>
+        <div class="carSt"><div class="l">Carga DC máx.</div><div class="v" id="car-dc">—</div></div>
+        <div class="carSt"><div class="l">Energia de 20% a 80%</div><div class="v" id="car-kwh">—</div></div>
+        <div class="carSt cash"><div class="l">Essa parada no seu caixa</div><div class="v" id="car-cash">—</div></div>
+      </div>
+    </div>
+
+    <div class="tempoG" id="tempo-g"></div>
+
+    <div class="tempoNota">
+      Recarga de <b>20% a 80%</b> — a faixa útil da recarga rápida: acima de 80% a bateria desacelera
+      sozinha e ninguém espera. Conta feita sobre a bateria do veículo com <b>fator de eficiência de
+      95%</b>, respeitando a <b>potência máxima que o próprio carro aceita</b> — por isso um carregador
+      maior nem sempre carrega mais rápido: quando o carro é o gargalo, a potência a mais não encurta
+      nada, mas atende <b>outro carro no segundo bico</b> ao mesmo tempo. O valor no caixa usa o preço de
+      revenda que você definiu no simulador mais R$&nbsp;1,20 de ativação, as mesmas premissas de lá.
+      Tempo real varia com temperatura, estado da bateria e curva de recarga do veículo.
+      Bateria e carga DC máxima são dados de fábrica de cada montadora; o ranking é o de
+      emplacamentos de 100% elétricos no 1º semestre de 2026 — os mesmos 90.626 da seção
+      <b>O mercado</b>, aqui embaixo.
+    </div>
+  </section>
+
+  <!-- ROTATIVIDADE ───────────────────────────────────────────────────────────
+       Responde a pergunta que o slider do simulador levanta e nunca respondia:
+       "por que 30 carros por dia e não 50?". Sem isto, o teto de cada
+       configuração era um número que o lead tinha que aceitar no escuro — e é
+       justamente o número que multiplica todo o faturamento da simulação.
+
+       Todos os valores são calculados a partir do CONFIGS e do `carga` (kWh por
+       recarga) usado no compute(). Nenhum é digitado no HTML: se a linha de
+       equipamento mudar, esta seção muda junto. -->
+  <section id="rotatividade">
+    <div class="sh"><span class="tt">Rotatividade</span><span class="ln"></span></div>
+    <h2>De onde sai o teto de <span class="n">carros por dia</span></h2>
+    <div class="sub" style="margin-bottom:26px">O limite do slider ali em cima não é chute nosso. É o tempo que cada carro ocupa o bico — e o teto que usamos na simulação fica sempre abaixo do que a máquina aguenta.</div>
+
+    <div class="rotG">
+      <div class="rotC"><div class="v w" id="r-kwh">—</div><div class="l">kWh por recarga<br>(a régua do simulador)</div></div>
+      <div class="rotC"><div class="v" id="r-t1">—</div><div class="l">por carro com<br>um bico ocupado</div></div>
+      <div class="rotC"><div class="v" id="r-t2">—</div><div class="l">por carro com os<br>dois bicos ocupados</div></div>
+      <div class="rotC"><div class="v w" id="r-cap">—</div><div class="l">carros/dia que o<br>equipamento aguenta</div></div>
+      <div class="rotC hl"><div class="v" id="r-teto">—</div><div class="l">teto usado no<br>simulador</div></div>
+    </div>
+
+    <div class="rotWrap">
+      <table class="rotTab">
+        <thead><tr>
+          <th>Configuração</th>
+          <th>1 bico<br>ocupado</th>
+          <th>2 bicos<br>ocupados</th>
+          <th>Capacidade<br>em 12 h</th>
+          <th>Teto no<br>simulador</th>
+        </tr></thead>
+        <tbody id="rot-tbody"></tbody>
+      </table>
+    </div>
+    <div class="rotDica">Arraste a tabela para o lado para ver o resto das colunas.</div>
+
+    <div class="rotObs">
+      A conta: <b>20 kWh por recarga</b>, a mesma régua que o simulador usa para faturar. Ela é de
+      propósito <b>menor do que a tabela de veículos acima</b> — o elétrico mais vendido do país leva
+      22,8 kWh numa carga de 20% a 80% — porque nem todo motorista chega com a bateria em 20%. Esses
+      20 kWh são divididos pela potência nominal do
+      carregador, com os <b>dois bicos dividindo a potência</b> quando estão ocupados ao mesmo tempo,
+      dentro de uma <b>janela de 12 horas de movimento por dia</b>. É o pior caso do equipamento: se o
+      carro do seu cliente aceitar menos potência que a máquina entrega, quem manda no ritmo é ele.
+      Capacidade não é previsão de movimento — <b>quem estima quantos carros param no seu ponto é você,
+      no slider</b>. O teto de cada configuração fica abaixo da capacidade justamente para a simulação
+      não prometer um dia perfeito.
+    </div>
+  </section>
+
   <!-- JANELA DE MERCADO -->
   <section>
     <div class="sh"><span class="tt">O mercado</span><span class="ln"></span></div>
@@ -747,7 +939,10 @@
            alt="Vista aérea de uma avenida comercial brasileira no fim da tarde, com trânsito e estacionamentos dos dois lados">
       <figcaption>Uma avenida comercial brasileira no fim da tarde. Nenhum ponto de recarga à vista — é essa distância entre a frota e a rede que os números acima medem.</figcaption>
     </figure>
-    <div class="mkFato">Pela primeira vez na história, <b>três carros 100% elétricos entraram juntos no top 10 de vendas do Brasil</b> — BYD Song, BYD Dolphin Mini e Geely EX2.</div>
+    <!-- Corrigido em 08/08/2026: dizia "BYD Song", que é híbrido plug-in e não estava no
+         trio. Em julho de 2026 os três primeiros do varejo do país inteiro foram elétricos
+         puros — Dolphin, EX2 e Dolphin Mini. O fato ficou mais forte do que a versão errada. -->
+    <div class="mkFato">Em julho de 2026, pela primeira vez na história, <b>os três carros mais vendidos no varejo do Brasil foram 100% elétricos</b> — BYD Dolphin, Geely EX2 e BYD Dolphin Mini.</div>
     <div class="mkFonte">A frota que recarrega em ponto público (100% elétricos + híbridos plug-in) cresce em ritmo acima da infraestrutura instalada. No 1º semestre de 2026 foram 90.626 elétricos + 76.400 híbridos plug-in — quase todo o volume de 2025 em metade do tempo. O percentual é da 1ª quinzena de julho de 2026 e considera só quem pluga na tomada: híbrido comum fica de fora da conta. Fonte: ABVE (Associação Brasileira do Veículo Elétrico) e Tupi Mobilidade — dados de fev. a jul. de 2026.</div>
 
     <div class="showcase">
@@ -757,6 +952,68 @@
         <p>Conector <b>CCS2</b>, o padrão do mercado brasileiro. Display com o status da recarga, pagamento pelo app e monitoramento remoto — você acompanha tudo pelo celular, de onde estiver.</p>
         <a href="#agendar" class="btn ghost" onclick="track('cta_showcase')">Ver a configuração ideal pro meu ponto →</a>
       </div>
+    </div>
+  </section>
+
+  <!-- DÚVIDAS ────────────────────────────────────────────────────────────────
+       Antes do formulário, nunca depois: quem chega no agendamento com a dúvida
+       de pé não marca — fecha a aba. As respostas ficam dentro do que a página
+       já sustenta em outro lugar (manifesto, as 8 fases da entrega, a faixa de
+       investimento, as fotos de obra).
+
+       Duas perguntas que existem na página institucional NÃO estão aqui de
+       propósito: "preciso investir?" (a resposta lá é a locação de espaço, que
+       contradiz o filtro desta página) e "quanto custa?" (a faixa declarada já
+       responde, e repetir "depende" logo abaixo dela a enfraquece). -->
+  <section id="duvidas">
+    <div class="sh"><span class="tt">Antes de marcar</span><span class="ln"></span></div>
+    <h2>As perguntas que <span class="n">todo mundo faz</span></h2>
+    <div class="sub" style="margin-bottom:26px">Se a sua não estiver aqui, ela cabe na reunião — é para isso que ela existe.</div>
+
+    <div class="faqG">
+      <details class="q"><summary>Isso é franquia?</summary>
+        <div class="a">Não. Não tem taxa de entrada, royalties sobre o seu faturamento nem exclusividade de
+        território. <b>O ponto é seu, o CNPJ é seu e a tarifa por kWh quem define é você.</b> O que existe
+        é o custo de operação que o simulador já desconta do lucro: gateway de pagamento, plataforma e 4G.</div></details>
+
+      <details class="q"><summary>Quem faz a obra?</summary>
+        <div class="a">Nós. Base, entrada de energia, quadro, montagem e comissionamento são da nossa
+        equipe — as fotos da seção <b>Obra</b>, lá em cima, são dela. O projeto elétrico sai com
+        <b>ART de engenheiro habilitado</b>, e a responsabilidade técnica não é terceirizada.</div></details>
+
+      <details class="q"><summary>Vou precisar de funcionário no ponto?</summary>
+        <div class="a">Não. O motorista chega, libera a recarga pelo app e paga por ali. Você acompanha
+        faturamento e status <b>pelo celular</b>, de onde estiver. A operação roda sem ninguém no local.</div></details>
+
+      <details class="q"><summary>Tem financiamento?</summary>
+        <div class="a">Tem. <b>Cartão em até 24x, financiamento em até 72x e carência de 90 dias</b> — a
+        faixa de investimento está declarada nesta página, antes da reunião. Na conversa a gente monta a
+        condição que fecha para o seu caso.</div></details>
+
+      <details class="q"><summary>O software é de vocês ou de terceiro?</summary>
+        <div class="a">A plataforma é <b>OCPP</b>, com pagamento pelo app, conciliação financeira,
+        monitoramento remoto 24h e cadastro nos apps e mapas de recarga. Ela entra na entrega — você não
+        precisa contratar, integrar nem configurar nada por fora.</div></details>
+
+      <details class="q"><summary>E se a concessionária travar o projeto?</summary>
+        <div class="a">É o ponto onde a maioria dos projetos morre, e é nosso: <b>parecer de acesso e
+        homologação na concessionária</b> são feitos por nós. Quando o padrão de entrada do imóvel não
+        aguenta a carga, a saída é entrada de energia própria — transformador e nicho, como o da foto da
+        seção <b>A entrega</b>.</div></details>
+
+      <details class="q"><summary>E se o equipamento der defeito?</summary>
+        <div class="a">O carregador é <b>CCS2 homologado, de pronta entrega e com garantia</b>, e a
+        reposição de peças faz parte do pós-entrega. Suporte técnico e manutenção continuam com a gente
+        depois que a estação liga — não acaba na primeira recarga.</div></details>
+
+      <details class="q"><summary>Ainda não tenho o ponto. Dá para começar?</summary>
+        <div class="a">Dá — é a fase 1 da entrega. A gente faz o <b>estudo de região</b> (frota elétrica,
+        rotas e concorrência) e ajuda a achar e negociar o local. Nesse caso a primeira conversa é sobre
+        <b>onde</b>, não sobre orçamento: o número vem depois que existe endereço.</div></details>
+
+      <details class="q"><summary>Vocês atendem fora de Minas?</summary>
+        <div class="a">Sim. A base fica no <b>Triângulo Mineiro</b> e atendemos projetos em todo o
+        Brasil. A reunião é por vídeo, e a visita técnica ao ponto é agendada depois dela.</div></details>
     </div>
   </section>
 
@@ -1073,7 +1330,7 @@ function params(){
   const carros = +document.getElementById('s-carros').value;
   const cfg = CONFIGS[document.getElementById('s-config').value];
   return {
-    carros, carga:20,
+    carros, carga:CARGA_KWH,
     precoKwh:+document.getElementById('s-revenda').value || 0,
     custoKwh:+document.getElementById('s-custo').value || 0,
     // Premissas idênticas às do Estudo de Viabilidade que o consultor abre na reunião:
@@ -1091,7 +1348,7 @@ function params(){
     //     ↑ é o que a LP mostra desde 02/08, quando o preço passou a seguir a apresentação.
     // O estudo em PDF continua feito sobre R$ 160.000: quem comparar os dois vê payback
     // diferente. Refazer o estudo antes de mandar junto com o deck novo.
-    ativacao:1.20, invest:cfg.invest,
+    ativacao:ATIVACAO, invest:cfg.invest,
     gateway:.14, arrend:0, manut:.001, imposto:.06,
     assinat:0, fixos:300, ocupIni:.5, mesesRampa:24,
   };
@@ -1114,6 +1371,88 @@ function params(){
 // o lead que simulava e depois recebia o PDF via a diferença. Mexeu num, mexe no outro.
 // Efeito colateral conhecido: 60 e 80 kW ficaram a R$ 3.000 um do outro (a escada veio assim
 // da tabela de origem), então o 60 kW praticamente não tem mais razão de ser escolhido.
+// kWh que um carro leva por recarga. Era um `20` solto dentro do params() e agora
+// tem nome porque a seção "Rotatividade" mostra esse número na tela e divide a
+// potência por ele: se a régua mudar, o simulador e a tabela mudam pelo mesmo lugar.
+// Ele é DELIBERADAMENTE conservador: uma carga de 20% a 80% nos carros da lista
+// abaixo entrega de 16 a 50 kWh (o mais vendido do país, 22,8). O simulador conta
+// menos porque nem todo motorista chega com 20% de bateria.
+const CARGA_KWH = 20;
+const ATIVACAO  = 1.20;   // taxa por sessão, mesma do simulador e do Estudo de Viabilidade
+
+// ===== TEMPO DE RECARGA POR VEÍCULO ==========================================
+// Os dez 100% elétricos mais vendidos do Brasil no 1º SEMESTRE DE 2026.
+// `kwh` = bateria nominal · `dc` = potência máxima de recarga em corrente contínua
+// que o VEÍCULO aceita (não a do carregador) · `v` = unidades emplacadas no período.
+//
+// O ranking é do mesmo período que a seção "O mercado" desta página já cita, e fecha
+// com ela: os 90.626 elétricos do 1º semestre de 2026. Ranking de ano fechado ficaria
+// desalinhado do resto da LP — e o mercado virou rápido demais para isso: o Kwid
+// E-Tech e o Seal saíram do top 10, e entraram Geely EX5, GAC Aion V e Captiva EV,
+// que aceitam de 100 a 180 kW. É essa mudança que justifica as configurações maiores.
+//
+// Só entram dados de fábrica que não dependem de ciclo de medição. Autonomia ficou
+// fora justamente por isso: a mesma tabela do concorrente publica o EX30 com bateria
+// de 69 kWh e os 250 km da versão Core, que é a de 51 kWh. Número errado numa página
+// que vende R$ 144 mil custa mais caro do que a informação vale.
+const CARROS = [
+  { m:'BYD',       n:'Dolphin Mini', kwh:38,   dc:40,  v:35680 },
+  { m:'BYD',       n:'Dolphin',      kwh:44.9, dc:60,  v:18054 },
+  { m:'Geely',     n:'EX2',          kwh:39.4, dc:70,  v:14780 },
+  { m:'Chevrolet', n:'Spark EUV',    kwh:42,   dc:50,  v:3847  },
+  { m:'BYD',       n:'Yuan Pro',     kwh:45.1, dc:60,  v:2668  },
+  { m:'GWM',       n:'Ora 03',       kwh:48,   dc:64,  v:1837  },
+  { m:'Volvo',     n:'EX30',         kwh:69,   dc:150, v:1346  },
+  { m:'Geely',     n:'EX5',          kwh:60.2, dc:100, v:1343  },
+  { m:'GAC',       n:'Aion V',       kwh:75.3, dc:180, v:969   },
+  { m:'Chevrolet', n:'Captiva EV',   kwh:60,   dc:120, v:928   },
+];
+const SOC_JANELA = 0.60;  // 20% → 80%: a faixa em que a recarga rápida realmente é rápida
+const EFIC_DC    = 0.95;  // perdas de conversão e de curva de carga
+const numBR = (n,d=0) => n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+// O carro nunca puxa mais do que aceita: quem limita é o menor dos dois.
+const minsRecarga = (c,kwCarregador) =>
+  (c.kwh * SOC_JANELA) / (Math.min(kwCarregador, c.dc) * EFIC_DC) * 60;
+
+function montarSelectCarros(){
+  // Rótulo curto de propósito: no celular o select corta o texto, e "até ... DC" por
+  // extenso era o primeiro a sumir. Bateria e potência voltam inteiras nos cartões
+  // logo abaixo, então aqui o que importa é caber.
+  document.getElementById('s-carro').innerHTML = CARROS.map((c,i) =>
+    `<option value="${i}">${c.m} ${c.n} · ${numBR(c.kwh,c.kwh%1?1:0)} kWh · ${c.dc} kW DC</option>`
+  ).join('');
+}
+function pintarCarro(){
+  const i = +document.getElementById('s-carro').value || 0;
+  const c = CARROS[i];
+  const entregue = c.kwh * SOC_JANELA;
+  // preço de revenda vem do simulador: o lead mexeu lá, o caixa daqui acompanha
+  const revenda = +document.getElementById('s-revenda').value || 0;
+  document.getElementById('car-rank').textContent =
+    `${i+1}º elétrico mais vendido do Brasil no 1º semestre de 2026 — ${numBR(c.v)} emplacamentos`;
+  document.getElementById('car-bat').textContent  = numBR(c.kwh, c.kwh%1?1:0) + ' kWh';
+  document.getElementById('car-dc').textContent   = c.dc + ' kW';
+  document.getElementById('car-kwh').textContent  = numBR(entregue,1) + ' kWh';
+  document.getElementById('car-cash').textContent = moneyC(entregue*revenda + ATIVACAO);
+
+  const REC = '80';   // a configuração que a página recomenda
+  document.getElementById('tempo-g').innerHTML = Object.keys(CONFIGS).map(kw => {
+    const lim = c.dc < +kw;
+    return `<div class="tp${kw===REC?' rec':''}${lim?' lim':''}">`
+      + `<div class="kw">${kw} kW${kw===REC?'<span class="rc">Recomendado</span>':''}</div>`
+      + `<div class="mn">${Math.round(minsRecarga(c,+kw))} min</div>`
+      + `<div class="fx">de 20% a 80%</div>`
+      // Não dizer "os outros X kW vão pro 2º bico": o segundo carro também tem teto,
+      // e num 160 kW com dois Dolphin Mini sobra potência ociosa. O que é sempre
+      // verdade é que, passado o limite do veículo, o tempo dele não cai mais.
+      + `<div class="av">${lim ? `Limitado a ${c.dc} kW pelo veículo — acima disso o tempo não cai`
+                               : 'O carro usa a potência inteira do bico'}</div>`
+      + `</div>`;
+  }).join('');
+}
+// Janela de movimento considerada na capacidade do equipamento. É premissa, não medição —
+// e por isso está impressa na letra miúda da seção, do lado do resultado.
+const JANELA_H = 12;
 const CONFIGS = {
   60:  { invest:141673, bicos:2, max:20, base:8,  nota:'Dois bicos, até 20 carros/dia.' },
   80:  { invest:144595, bicos:2, max:30, base:10, nota:'Recarga rápida e 2 bicos, até 30 carros/dia — é a que indicamos na maioria dos pontos.' },
@@ -1128,6 +1467,37 @@ function pintarAncora(){
   document.getElementById('anc-max').textContent = moneyC(Math.max(...vals));
   document.getElementById('anc-rec').textContent = moneyC(CONFIGS[80].invest);
 }
+// ===== ROTATIVIDADE — capacidade do bico =====
+// Uma recarga de CARGA_KWH kWh dividida pela potência da máquina dá o tempo por carro.
+// Com os dois bicos ocupados a potência se reparte entre eles, então o tempo dobra — é
+// o pior caso, e é sobre ele que a capacidade é anunciada. O resultado sempre fica ACIMA
+// do `max` do CONFIGS: o teto do simulador é de propósito mais conservador que a máquina.
+function rotativ(kw){
+  const c = CONFIGS[kw];
+  const min1 = CARGA_KWH / kw * 60;          // um bico ocupado: potência inteira no carro
+  const min2 = min1 * c.bicos;               // dois ocupados: cada um leva 1/bicos da potência
+  const cap  = Math.floor(c.bicos * (JANELA_H * 60) / min2);
+  return { min1, min2, cap, teto:c.max };
+}
+const minTxt = m => (Number.isInteger(m) ? m : m.toFixed(1).replace('.',',')) + ' min';
+function montarTabelaRot(){
+  document.getElementById('rot-tbody').innerHTML = Object.keys(CONFIGS).map(kw => {
+    const r = rotativ(kw);
+    return `<tr data-kw="${kw}"><td>${kw} kW · ${CONFIGS[kw].bicos} bicos</td>`
+         + `<td>${minTxt(r.min1)}</td><td>${minTxt(r.min2)}</td>`
+         + `<td>${r.cap} carros</td><td><span class="teto">${r.teto} carros</span></td></tr>`;
+  }).join('');
+}
+function pintarRotatividade(kw){
+  const r = rotativ(kw);
+  document.getElementById('r-kwh').textContent  = CARGA_KWH + ' kWh';
+  document.getElementById('r-t1').textContent   = minTxt(r.min1);
+  document.getElementById('r-t2').textContent   = minTxt(r.min2);
+  document.getElementById('r-cap').textContent  = r.cap;
+  document.getElementById('r-teto').textContent = r.teto;
+  document.querySelectorAll('#rot-tbody tr').forEach(tr =>
+    tr.classList.toggle('on', tr.dataset.kw === String(kw)));
+}
 function setConfig(){
   const kw = document.getElementById('s-config').value;
   const c  = CONFIGS[kw];
@@ -1136,6 +1506,7 @@ function setConfig(){
   sl.value = c.base;                    // ancora no cenário realista, não no teto
   document.getElementById('s-carros-max').textContent = c.max;
   document.getElementById('cfg-nota').textContent = c.nota;
+  pintarRotatividade(kw);               // a tabela de baixo segue a configuração escolhida
   calc();
 }
 function calc(){
@@ -1149,6 +1520,9 @@ function calc(){
   document.getElementById('h-pb').textContent  = r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : '—';
   document.getElementById('h-mg').textContent  = (r.margem*100).toFixed(0)+'%';
   document.getElementById('h-roi').textContent = (r.roi10*100).toFixed(0)+'%';
+  // o cartão "essa parada no seu caixa" usa o preço de revenda daqui: mexeu no
+  // simulador, o valor lá em baixo acompanha em vez de virar número congelado
+  pintarCarro();
   // gráfico waterfall
   const span = Math.max(1, ...r.fluxo.map(v=>Math.abs(v)));
   document.getElementById('chart').innerHTML = r.fluxo.map((v,i)=>{
@@ -1755,6 +2129,8 @@ async function gravarAgendamento(){
 }
 
 montarSlots();
+montarTabelaRot();     // antes do setConfig: é ele quem marca a linha da config escolhida
+montarSelectCarros();  // idem — o calc() do setConfig já pinta o cartão do veículo
 setConfig();      // aplica a config default (80 kW) e calcula
 pintarAncora();   // faixa de investimento da seção de cima = min/max do CONFIGS
 onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bfcache)
