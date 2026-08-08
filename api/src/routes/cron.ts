@@ -920,7 +920,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
     ['zapi-health',                 () => runZapiHealthCheck()],   // monitor: linha IO caída → 1 email pro Thiago (2 checagens seguidas). Toda a mensageria depende dela.
     ['alerta-lead-quente',          () => runAlertaLeadQuenteSemProposta()], // DARK (ALERTA_LEAD_QUENTE_ENABLED): lead quente sem proposta +48h → avisa o consultor dono 1×
-    ['grupo-eletroposto-diario',    () => runGrupoEletropostoDiario()], // 1 publicação/dia no grupo (fila io_grupo_pauta); fila vazia avisa a equipe
+    // ['grupo-eletroposto-diario',    () => runGrupoEletropostoDiario()], // [PAUTA-GRUPO-OFF 08/08] Thiago mandou cancelar: nem a publicação no grupo nem o aviso de fila vazia pra equipe. No-op também dentro do módulo. Não religar.
     ['entrada-io-digest',           () => runEntradaIoDigest()],       // 12h e 18h: quem escreveu no 5040 hoje (ninguém responde por robô nessa linha)
 
     // ['inventory-low-stock',         () => runInventoryLowStockAlert()], // [GATED] digest de estoque baixo — ligar após adoção do Inventário

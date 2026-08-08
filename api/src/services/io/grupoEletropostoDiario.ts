@@ -15,7 +15,16 @@ import { logger } from '../../utils/logger';
 // IA num grupo de investidor destrói a confiança que o grupo existe pra criar.
 // Fila vazia NÃO é silêncio — a equipe é avisada, senão o grupo morre sem que
 // ninguém perceba.
+//
+// [PAUTA-GRUPO-OFF 08/08/2026] DESLIGADO por ordem do Thiago: nem publicação no
+// grupo, nem o aviso de fila vazia pra equipe (era ele e todo mundo, 1×/dia).
+// O no-op fica AQUI e não só no cron porque o aviso era o incômodo — chamada
+// manual não pode ressuscitar o disparo. A fila `io_grupo_pauta` continua no
+// banco intacta (nada é consumido), então religar é só tirar este return e
+// descomentar a task no cron. Não religar sem ele pedir.
 // ─────────────────────────────────────────────────────────────────────────────
+
+const DESLIGADO = true;   // [PAUTA-GRUPO-OFF 08/08/2026]
 
 const GRUPO_ID = process.env.IO_GRUPO_ELETROPOSTO_ID?.trim() || '120363410228854732-group';
 
@@ -28,6 +37,8 @@ interface ItemPauta {
 }
 
 export async function runGrupoEletropostoDiario(): Promise<{ publicado: number; fila: number }> {
+  if (DESLIGADO) return { publicado: 0, fila: 0 };
+
   const { data: pendentes, error } = await supabaseGerador
     .from('io_grupo_pauta')
     .select('id, tipo, texto, midia_url, midia_tipo')
