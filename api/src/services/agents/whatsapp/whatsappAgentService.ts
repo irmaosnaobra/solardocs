@@ -6,6 +6,7 @@ import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import { pixBlocoWhatsApp } from '../../../utils/pixInfo';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
+import { flushAvisoFila, registrarAbandono } from './filaAlerta';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
@@ -330,6 +331,16 @@ export async function registrarMsgProativa(args: {
 // ─── boas-vindas ─────────────────────────────────────────────────
 
 export async function processMessageQueue(): Promise<{ processed: number; debug?: any }> {
+  // Aviso de quem ficou sem resposta vem PRIMEIRO, antes de qualquer saída
+  // antecipada: se a fila esvaziar (ou o apagão parar de gerar falha nova), a
+  // última leva ainda precisa ser avisada. Roda a cada tick e é uma leitura só.
+  // Consequência PROPOSITAL de estar no topo: quem é abandonado neste tick só é
+  // avisado no PRÓXIMO (≤5 min depois) — a mensagem já tem 45 min de vida aqui,
+  // 5 min não mudam nada, e é isso que garante que a última leva não fique órfã.
+  // Não mova pro fim da função: aí a saída antecipada do `messages.length === 0`
+  // engole o aviso da última leva justamente quando o apagão para.
+  await flushAvisoFila().catch(() => {});
+
   const { data: messages, error: qErr } = await supabase
     .from('message_queue')
     .select('*')
@@ -385,9 +396,17 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
       if (voltaPraFila) {
         await supabase.from('message_queue').update({ processed: false }).eq('id', msg.id);
       } else {
-        await sendWhatsApp('34991360223',
-          `⚠️ *Mensagem de cliente sem resposta*\n\nDe: ${msg.sender_name || msg.phone} (${msg.phone})\nDisse: "${String(msg.text || '').slice(0, 200)}"\n\nA IA falhou ${Math.round(idadeMin)}min seguidos e desisti de tentar. Motivo: ${errMsg.slice(0, 180)}\n\nResponde na mão: wa.me/${String(msg.phone).replace(/\D/g, '')}`,
-          'solardoc').catch(() => {});
+        // Só ANOTA quem ficou sem resposta. O aviso sai uma vez por tick, juntando
+        // todo mundo da mesma causa (ver filaAlerta) — quando o crédito zera, as 10
+        // mensagens do lote desistem no mesmo minuto e o aviso por cliente virava
+        // uma parede de mensagens idênticas no WhatsApp do Thiago (08/08/2026).
+        await registrarAbandono({
+          id: String(msg.id),
+          phone: msg.phone,
+          nome: msg.sender_name,
+          texto: msg.text,
+          erro: errMsg,
+        }).catch(() => {});
       }
       logger.error(
         'whatsapp-fila',
