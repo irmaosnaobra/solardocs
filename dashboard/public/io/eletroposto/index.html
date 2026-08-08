@@ -241,7 +241,10 @@
   .f2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   /* empilhado o gap vira 0 e o `.fld:last-child{margin-bottom:0}` colava o 2º campo
      do par no bloco de baixo — devolve o respiro só no mobile */
-  @media(max-width:640px){.f2{grid-template-columns:1fr;gap:0}.f2 .fld:last-child{margin-bottom:16px}.agBox{padding:20px 16px}}
+  /* O cartão do agendamento SAI 8px de dentro do respiro do `.wrap` e afina o
+     próprio padding: no celular cada pixel de largura é dedo a mais em cima do
+     campo. Vale só pra ele — o resto da página mantém os 20px de respiro. */
+  @media(max-width:640px){.f2{grid-template-columns:1fr;gap:0}.f2 .fld:last-child{margin-bottom:16px}.agBox{padding:20px 10px;margin:0 -8px}}
   .step{margin-bottom:18px}
   .slots{margin-top:10px;display:flex;flex-direction:column;gap:14px}
   .agLoad{color:var(--mut);font-size:13.5px;font-weight:700;padding:14px 0}
