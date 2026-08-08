@@ -347,7 +347,10 @@ export async function sendDunningRecovered(userId: string): Promise<void> {
 export async function cancelStripeSubsForEmail(email: string): Promise<number> {
   let canceled = 0;
   try {
-    const customers = await stripe.customers.list({ email, limit: 5 });
+    // limit alto de propósito: o checkout cria um Customer NOVO a cada clique
+    // (é a origem de todos os chargebacks do SolarDoc — 111 assinaturas para 85
+    // e-mails). Varrer só os 5 primeiros deixava assinatura viva pra trás.
+    const customers = await stripe.customers.list({ email, limit: 100 });
     for (const cust of customers.data) {
       const subs = await stripe.subscriptions.list({ customer: cust.id, status: 'all', limit: 20 });
       for (const s of subs.data) {

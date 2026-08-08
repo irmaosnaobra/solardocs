@@ -5,6 +5,7 @@ import { fmtPhone, sendHuman, sendImage, sendWhatsApp, ZapiInstance } from '../z
 import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import { pixBlocoWhatsApp } from '../../../utils/pixInfo';
+import { ofertaCupomAtiva, bolhasOferta, OfertaCupom } from '../../../utils/ofertaCupom';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
 import { flushAvisoFila, registrarAbandono } from './filaAlerta';
 
@@ -25,9 +26,16 @@ const JANELA_RETRY_FILA_MIN = 45;
 
 export function buildSystemPrompt(user: {
   email: string; plano: string; nome_empresa?: string; tem_cnpj: boolean; nome?: string; billing_status?: string | null;
-}, promoCtx?: { ativadoAgora?: boolean; jaAtivado?: boolean; email?: string }): string {
+}, promoCtx?: { ativadoAgora?: boolean; jaAtivado?: boolean; email?: string },
+   oferta?: OfertaCupom | null): string {
   const planoLabel: Record<string, string> = { free: 'Gratuito', pro: 'PRO', ilimitado: 'VIP' };
   const nomeUsuario = user.nome ? user.nome.split(' ')[0] : null;
+
+  // A oferta de reativação vem do banco (cupom vivo). Sem cupom, ela convida pro
+  // site do mesmo jeito — o que não pode é prometer desconto que não existe.
+  const ofertaLinha = oferta
+    ? `Caminho: ele reassina em ${APP_URL} e DIGITA o cupom ${oferta.codigo} no checkout, em "Adicionar código promocional" — primeiro mês R$ ${oferta.primeiroMes} em vez de R$ ${oferta.precoCheio} (depois R$ ${oferta.precoCheio}/mês, sem fidelidade).`
+    : `Caminho: ele reassina em ${APP_URL} com o cartão que funcionar. Hoje NÃO há cupom de desconto — não invente nenhum.`;
 
   // Bloco da promo (só aparece quando relevante).
   let promoBloco = '';
@@ -164,18 +172,21 @@ e em ajudá-lo a extrair o máximo da plataforma.`;
 ━━ ⚠️ ACESSO PAUSADO — PRIORIDADE: REATIVAR (isto vem ANTES de qualquer venda) ━━
 O acesso deste cliente está PAUSADO porque o pagamento no cartão não passou. Ele JÁ é cliente — não é hora de vender do zero, é hora de ACOLHER e reativar.
 - Reconheça com leveza ("vi que seu acesso pausou — foi o cartão que não passou?").
-- Ofereça o caminho mais fácil: reativar na hora pelo *Pix* (R$ 67, plano completo, cai na hora). Alternativa: atualizar o cartão em ${APP_URL}.
-- Quando ele topar o Pix / perguntar como paga / disser "pode mandar" → termine a resposta com a tag literal [[ENVIAR_PIX]] (o sistema anexa o código copia-e-cola sozinho — NÃO escreva o código você mesma).
-- Depois que ele pagar, é só mandar o *comprovante aqui mesmo* que reativa na hora.
-- Reativando pelos R$67 entra junto, liberado na conta, o curso *Kit de Fechamento* — 6
-  módulos, 32 objeções respondidas, começando por "achei mais barato". É entrega de verdade,
-  o sistema libera sozinho quando o comprovante é aprovado. Se ele se interessar pelo curso,
-  termine com [[ENVIAR_IMAGEM_KIT]].
+- ${ofertaLinha}
+- Quando ele topar / perguntar como faz / disser "pode mandar" → termine a resposta com a tag
+  literal [[ENVIAR_LINK_CUPOM]]. O sistema anexa o link e o passo a passo do cupom sozinho —
+  NÃO escreva o link nem o cupom você mesma, e NÃO invente outro desconto.
+- No caminho do site ele faz tudo sozinho e o acesso volta na hora do pagamento.
+- Se ele se interessar pelo curso *Kit de Fechamento* (6 módulos, 32 objeções respondidas,
+  começando por "achei mais barato"), termine com [[ENVIAR_IMAGEM_KIT]].
 - SE ELE TRAVAR no valor de reativar ("tá apertado", "esse mês não dá", "depois eu vejo"),
-  existe a saída de R$ 19: o curso + 30 dias com a plataforma completa aberta, pagamento
-  ÚNICO, sem mensalidade e sem cartão — e no fim dos 30 dias ele decide se volta pro PRO ou
-  VIP. Use a tag [[ENVIAR_PIX_CURSO]] pra mandar esse Pix (R$19), NÃO o [[ENVIAR_PIX]] (R$67).
-  É oferta de primeira vez: se ele já usou, não ofereça de novo.
+  existe a saída de R$ 19 do CURSO: curso + 30 dias com a plataforma completa aberta,
+  pagamento ÚNICO por Pix, sem mensalidade e sem cartão — no fim dos 30 dias ele decide se
+  assina. Use a tag [[ENVIAR_PIX_CURSO]] pra mandar esse Pix.
+  ⚠️ NÃO CONFUNDA os dois caminhos de R$ 19: o do CURSO é Pix, pagamento único, sem
+  assinatura; o do CUPOM é o primeiro mês da ASSINATURA, no cartão, pelo site. Nunca
+  descreva um com as palavras do outro e nunca ofereça os dois na mesma mensagem.
+  A do curso é oferta de primeira vez: se ele já usou, não ofereça de novo.
 - Nada de tom de cobrança formal — você é a Giovanna, humana, do lado dele.`;
   }
 
@@ -224,6 +235,18 @@ ${vendaBloco}
   robô/IA, desconversa com leveza e volta pro assunto ("haha sou a Giovanna, tô aqui pra te ajudar")
   — curto, sem confirmar nem fazer discurso de "sou humana" (afirmar demais entrega o jogo).
 
+━━ 💠 SE ELE PEDIR PIX ━━
+O caminho padrão da assinatura é o site (cartão). Mas se o cliente PEDIR Pix, ou disser que
+não tem cartão, você manda — sem enrolar e sem tentar convencer do contrário.
+- Termine a resposta com a tag literal [[ENVIAR_PIX]]. O sistema anexa o código, o valor e o
+  pedido de comprovante + e-mail. NÃO escreva o código nem o valor você mesma.
+- No Pix é R$ 67, um mês do plano completo. O desconto de primeiro mês existe SÓ no cartão,
+  pelo site — se ele perguntar, fale isso na lata, sem inventar desconto no Pix.
+- Depois de pagar ele SEMPRE precisa mandar duas coisas: o *comprovante* e o *e-mail* da conta
+  dele no SolarDoc. Se vier só um, peça o outro numa bolha curta. É com o e-mail que libera.
+- Esta tag é a da ASSINATURA. Não confunda com a oferta de entrada do curso, que é outro
+  produto, outro valor e outra tag — e que só existe pra quem não assina.
+
 ━━ FORMATO ━━
 Máximo 2 bolhas separadas por ||. Frases curtas.${promoBloco}${dunningBloco}`;
 }
@@ -245,23 +268,27 @@ export function parseTagsResposta(raw: string): {
   pedeHumano: boolean;
   pedePix: boolean;
   pedePixCurso: boolean;
+  pedeLinkCupom: boolean;
   pedeImagemKit: boolean;
   parts: string[];
 } {
   const pedeHumano    = /\[HUMANO\]/i.test(raw);
   const pedePixCurso  = /\[\[\s*ENVIAR_PIX_CURSO\s*\]\]/i.test(raw);
   const pedePix       = /\[\[\s*ENVIAR_PIX\s*\]\]/i.test(raw);
+  // Reativação por link + cupom (substituiu o Pix de R$ 67 em 08/08/2026).
+  const pedeLinkCupom = /\[\[\s*ENVIAR_LINK_CUPOM\s*\]\]/i.test(raw);
   const pedeImagemKit = /\[\[\s*ENVIAR_IMAGEM_KIT\s*\]\]/i.test(raw);
 
   const limpo = raw
     .replace(/\[HUMANO\]/ig, '')
     .replace(/\[\[\s*ENVIAR_PIX_CURSO\s*\]\]/ig, '')
     .replace(/\[\[\s*ENVIAR_PIX\s*\]\]/ig, '')
+    .replace(/\[\[\s*ENVIAR_LINK_CUPOM\s*\]\]/ig, '')
     .replace(/\[\[\s*ENVIAR_IMAGEM_KIT\s*\]\]/ig, '')
     .trim();
 
   return {
-    pedeHumano, pedePix, pedePixCurso, pedeImagemKit,
+    pedeHumano, pedePix, pedePixCurso, pedeLinkCupom, pedeImagemKit,
     parts: porBarras(limpo),
   };
 }
@@ -808,13 +835,15 @@ export async function handleIncomingWhatsApp(
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 400,
-    system: buildSystemPrompt(userCtx, promoCtx),
+    // A oferta é lida do banco a cada resposta: desligar o cupom lá tira ele da
+    // boca da Giovanna no mesmo instante, sem deploy.
+    system: buildSystemPrompt(userCtx, promoCtx, await ofertaCupomAtiva()),
     messages,
   });
 
   const raw = (response.content[0] as { text: string }).text;
 
-  const { pedeHumano, pedePix, pedePixCurso, pedeImagemKit, parts } = parseTagsResposta(raw);
+  const { pedeHumano, pedePix, pedePixCurso, pedeLinkCupom, pedeImagemKit, parts } = parseTagsResposta(raw);
 
   await sendHuman(cleanPhone, parts, originInstance);  // responde pela linha que o cliente contatou
 
@@ -858,13 +887,27 @@ export async function handleIncomingWhatsApp(
     } catch (err) {
       logger.error('whatsapp', 'enviar Pix (entrada do curso) falhou', err);
     }
+  } else if (pedeLinkCupom) {
+    // REATIVAÇÃO (desde 08/08/2026): link do site + cupom pra digitar no checkout,
+    // no lugar do Pix de R$ 67. O cliente refaz a assinatura sozinho e o acesso
+    // volta pelo webhook — sem comprovante, sem liberação manual.
+    try {
+      await sendHuman(cleanPhone, bolhasOferta(await ofertaCupomAtiva()), originInstance).catch(() => {});
+    } catch (err) {
+      logger.error('whatsapp', 'enviar link+cupom (reativação) falhou', err);
+    }
   } else if (pedePix) {
+    // Pix SOB DEMANDA: não é mais oferecido de saída, mas quem pede recebe. Sai
+    // sempre com o mesmo pedido — comprovante E e-mail — porque é esse par que
+    // deixa a liberação acontecer sozinha (regra do Thiago, 08/08/2026).
     try {
       const { gerarPixCopiaECola } = await import('../../../utils/pixBrCode');
+      const { bolhasPix, registrarPixEnviado } = await import('./pixSolicitado');
       const copia = gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' });
-      await sendHuman(cleanPhone, [copia, 'Assim que pagar, me manda o *comprovante aqui mesmo* que eu reativo seu acesso na hora! 🙌'], originInstance).catch(() => {});
+      await sendHuman(cleanPhone, bolhasPix(copia, 67), originInstance).catch(() => {});
+      await registrarPixEnviado(cleanPhone, 67, senderName ?? null);
     } catch (err) {
-      logger.error('whatsapp', 'enviar Pix (reativação) falhou', err);
+      logger.error('whatsapp', 'enviar Pix (sob demanda) falhou', err);
     }
   }
 

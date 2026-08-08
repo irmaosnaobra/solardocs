@@ -1,0 +1,58 @@
+.tela {
+  min-height: 100vh;
+  background: radial-gradient(1200px 600px at 50% -10%, #12233f 0%, #0b1120 55%, #080d18 100%);
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 20px;
+}
+
+.card {
+  width: 100%; max-width: 440px;
+  background: linear-gradient(145deg, #0f172a 0%, #0d1f3c 55%, #0a1628 100%);
+  border: 1px solid rgba(99,179,237,0.25);
+  border-radius: 22px;
+  padding: 34px 30px 30px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+}
+
+.marca { font-size: 0.72rem; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: #63b3ed; }
+.titulo { font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin: 10px 0 6px; line-height: 1.25; }
+.linhaFina { font-size: 0.92rem; color: #94a3b8; line-height: 1.6; margin: 0; }
+
+.selo {
+  display: inline-block; margin-top: 18px;
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+  color: #0f172a; background: linear-gradient(90deg,#f59e0b,#fbbf24);
+  padding: 5px 14px; border-radius: 99px;
+}
+
+.preco { display: flex; align-items: baseline; gap: 6px; margin: 14px 0 2px; }
+.precoMoeda { font-size: 1.2rem; font-weight: 700; color: #e2e8f0; }
+.precoValor { font-size: 3.2rem; font-weight: 900; letter-spacing: -2px; color: #fff; line-height: 1; }
+.precoPeriodo { font-size: 0.9rem; color: #94a3b8; }
+.precoRiscado { font-size: 1rem; color: #64748b; text-decoration: line-through; margin-left: 6px; }
+.depois { font-size: 0.88rem; color: #94a3b8; margin: 0 0 18px; }
+
+.itens { list-style: none; padding: 0; margin: 18px 0 24px; display: flex; flex-direction: column; gap: 9px; }
+.itens li { font-size: 0.9rem; color: #cbd5e1; padding-left: 18px; position: relative; line-height: 1.45; }
+.itens li::before { content: '·'; position: absolute; left: 4px; color: #63b3ed; font-weight: 900; }
+
+.btn {
+  width: 100%; padding: 15px;
+  border: none; border-radius: 12px;
+  background: linear-gradient(135deg,#f59e0b,#fbbf24);
+  color: #0f172a; font-size: 1rem; font-weight: 900; letter-spacing: 0.3px;
+  cursor: pointer; box-shadow: 0 4px 18px rgba(245,158,11,0.45);
+}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btnPix {
+  width: 100%; margin-top: 10px; padding: 13px;
+  border: 1px solid #334155; border-radius: 12px;
+  background: transparent; color: #cbd5e1;
+  font-size: 0.94rem; font-weight: 700; cursor: pointer;
+  display: block; text-align: center; text-decoration: none;
+}
+.btnPix:hover { background: rgba(255,255,255,0.04); }
+
+.rodape { font-size: 0.76rem; color: #64748b; text-align: center; margin: 18px 0 0; line-height: 1.6; }
+.erro { font-size: 0.85rem; color: #f87171; font-weight: 600; margin-top: 14px; text-align: center; }

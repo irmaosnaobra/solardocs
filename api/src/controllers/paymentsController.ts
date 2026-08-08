@@ -10,6 +10,10 @@ import { upsertSale, sendPurchaseForSale } from '../services/salesLedger';
 import { avisarVendaAoDono } from '../services/vendaAviso';
 import { sendUtmifyOrder } from '../services/utmifyOrders';
 import { concederCursoPorAssinatura } from '../services/kitIntegradorService';
+import {
+  buscarCupomValido, aplicarCupom, garantirCupomStripe, garantirPromotionCode, cupomAtivoParaPlano,
+  registrarUsoCupom, resumoPublicoCupom, normalizarCodigo, CupomAplicado,
+} from '../services/cuponsService';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -75,6 +79,48 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
 // mapa invertido price_id → plano (para o webhook)
 function planByPrice(priceId: string) {
   return Object.values(PLAN_MAP).find(p => p.priceId === priceId);
+}
+
+// ── CUPOM DIGITADO NO CHECKOUT ───────────────────────────────────────────────
+// A Giovanna manda o cliente pra solardoc.app e pede pra ele DIGITAR o código.
+// Pra esse caminho existir, o cupom e o promotion_code precisam já estar criados
+// na Stripe QUANDO ele chega na tela — por isso a garantia acontece aqui, na
+// criação do checkout, e não na primeira venda. Sem isto, o primeiro cliente
+// digita o código e ouve "cupom inválido".
+// Devolve true se o campo de digitar deve aparecer.
+async function prepararCodigoDigitado(plano: string, precoCheio: number): Promise<boolean> {
+  const vivo = aplicarCupom(await cupomAtivoParaPlano(plano), precoCheio);
+  if (!vivo) return false;
+  const couponId = await garantirCupomStripe(stripe, vivo, plano);
+  return !!(await garantirPromotionCode(stripe, vivo, couponId));
+}
+
+// Descobre QUAL cupom foi usado quando ele foi digitado no checkout (aí não
+// passa pelo nosso metadata). Só é chamado quando a sessão teve desconto.
+// Ordem: o código do promotion_code (o texto que ele digitou) → o id do cupom,
+// que é determinístico (`SD-<CODIGO>-<PLANO>-<CENTAVOS>`).
+async function codigoDoDescontoDigitado(sessionId: string): Promise<string> {
+  try {
+    const full = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['total_details.breakdown.discounts'],
+    });
+    const d = (full.total_details as any)?.breakdown?.discounts?.[0]?.discount;
+    if (!d) return '';
+
+    const promoId = typeof d.promotion_code === 'string' ? d.promotion_code : d.promotion_code?.id;
+    if (promoId) {
+      const promo = await stripe.promotionCodes.retrieve(promoId);
+      if (promo?.code) return normalizarCodigo(promo.code);
+    }
+    const couponId: string | undefined = typeof d.coupon === 'string' ? d.coupon : d.coupon?.id;
+    const m = couponId ? /^SD-(.+)-(?:PRO|ILIMITADO)-\d+$/i.exec(couponId) : null;
+    return m ? normalizarCodigo(m[1]) : '';
+  } catch (err) {
+    // Desconto existiu, mas não descobrimos o código. O valor cobrado (que é o
+    // que importa pro caixa) continua certo; só a contagem de uso fica sem dono.
+    console.error('[cupons] não consegui identificar o cupom digitado:', err);
+    return '';
+  }
 }
 
 // ── Vitrine do checkout (imagem + descrição do produto na Stripe) ────────────
@@ -232,7 +278,7 @@ function attributionPatchFromMetadata(
 }
 
 export async function createCheckout(req: Request, res: Response): Promise<void> {
-  const { plan } = req.body as { plan: string };
+  const { plan, cupom } = req.body as { plan: string; cupom?: string };
   // Aceita 'vip' (alias do landing) → 'ilimitado'
   const planKey = plan === 'vip' ? 'ilimitado' : plan;
   const planInfo = PLAN_MAP[planKey];
@@ -318,19 +364,51 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
   // Fluxo normal: usuário sem subscription ativa (FREE) → cria checkout
   // Com trial de 7 dias: cartão capturado, primeira cobrança só no 8º dia.
   const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+
+  // Mesmo cupom de primeiro mês do fluxo público, com o mesmo isolamento: se
+  // qualquer parte falhar, a pessoa compra pelo preço cheio em vez de não
+  // conseguir comprar (ver createPublicCheckout). O upgrade in-place lá em cima
+  // NÃO passa por aqui — quem já tem assinatura viva troca de plano com
+  // proração e não ganha desconto de adesão.
+  let aplicado = null as CupomAplicado | null;
+  let discounts: Array<{ coupon: string }> | undefined;
+  let permitirCodigoDigitado = false;
+  try {
+    aplicado = aplicarCupom(await buscarCupomValido(cupom, planInfo.plano), planInfo.valor);
+    if (aplicado) {
+      discounts = [{ coupon: await garantirCupomStripe(stripe, aplicado, planInfo.plano) }];
+    } else {
+      permitirCodigoDigitado = await prepararCodigoDigitado(planInfo.plano, planInfo.valor);
+    }
+  } catch (err) {
+    console.error(`[cupons] ${cupom} não aplicado — seguindo no preço cheio:`, err);
+    aplicado = null;
+    discounts = undefined;
+    permitirCodigoDigitado = false;
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
     line_items: [{ price: priceId, quantity: 1 }],
+    ...(discounts ? { discounts } : permitirCodigoDigitado ? { allow_promotion_codes: true } : {}),
     customer_email: user.email,
     // `oferta` é o que separa vip_curso de um VIP comum no webhook. Os dois usam
     // o MESMO price (STRIPE_PRICE_VIP), então planByPrice() não distingue — sem
     // este carimbo, ou ninguém recebe o curso, ou todo VIP recebe.
-    metadata: { userId: req.userId!, ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : {}) },
+    metadata: {
+      userId: req.userId!,
+      ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : {}),
+      ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
+    },
     subscription_data: {
       // trialDias: 0 = cobra agora (oferta sem trial). undefined = os 7 de sempre.
       ...(trialDias > 0 ? { trial_period_days: trialDias } : {}),
-      metadata: { userId: req.userId!, ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : {}) },
+      metadata: {
+        userId: req.userId!,
+        ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : {}),
+        ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
+      },
     },
     // Pós-pagamento: cai em /documentos pra ele ver os tipos de doc, conhecer
     // a plataforma. Banner sugere (não obriga) cadastrar empresa. CompanyRequiredGate
@@ -338,11 +416,15 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     success_url: `${dashboardUrl}/documentos?welcome=1&plan=${encodeURIComponent(planInfo.plano)}`,
     cancel_url:  `${dashboardUrl}/?cancelado=1`,
     custom_text: {
-      submit: { message: planInfo.descricao },
+      submit: {
+        message: aplicado
+          ? `Primeiro mês por R$ ${aplicado.primeiroMes} (cupom ${aplicado.cupom.codigo}). Depois R$ ${aplicado.precoCheio}/mês, cancele quando quiser.`
+          : planInfo.descricao,
+      },
     },
   });
 
-  res.json({ url: session.url });
+  res.json({ url: session.url, cupom: aplicado?.cupom.codigo ?? null, primeiroMes: aplicado?.primeiroMes ?? null });
 }
 
 // Checkout PÚBLICO (sem login) — fluxo LP → Stripe → Cadastro.
@@ -350,7 +432,7 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
 // 7 dias grátis). Só depois de aprovar o cartão ela cria a conta no cadastro
 // (com o email do session_id). Sem free: quem não passa daqui não tem conta.
 export async function createPublicCheckout(req: Request, res: Response): Promise<void> {
-  const { plan } = req.body as { plan: string };
+  const { plan, cupom } = req.body as { plan: string; cupom?: string };
   const planKey = plan === 'vip' ? 'ilimitado' : plan;
   const planInfo = PLAN_MAP[planKey];
   const trialDias = planInfo?.trialDias ?? TRIAL_PADRAO_DIAS;
@@ -374,12 +456,47 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
     // Só entram no metadata se vierem preenchidos (campos ausentes = checkout
     // normal de hoje). Stripe exige valores string; truncamos por segurança.
     const attribution = extractAttribution(req.body);
-    const baseMeta = { plan: planInfo.plano, source: 'public_checkout', ...attribution };
+
+    // CUPOM DE PRIMEIRO MÊS. Vale só na 1ª fatura (`duration: once` na Stripe);
+    // da segunda em diante a assinatura cobra o preço cheio sozinha.
+    //
+    // TUDO isolado num try: cupom inválido, vencido, esgotado, de outro plano —
+    // ou falha ao criar o cupom na Stripe — cai no preço cheio. Deixar a exceção
+    // subir transformaria "não consegui aplicar o desconto" em "ninguém compra",
+    // e quem descobriria seria o primeiro cliente que recebesse o link.
+    let aplicado = null as CupomAplicado | null;
+    let discounts: Array<{ coupon: string }> | undefined;
+    let permitirCodigoDigitado = false;
+    try {
+      aplicado = aplicarCupom(await buscarCupomValido(cupom, planInfo.plano), planInfo.valor);
+      if (aplicado) {
+        discounts = [{ coupon: await garantirCupomStripe(stripe, aplicado, planInfo.plano) }];
+      } else {
+        // Sem cupom no link: libera o campo "adicionar código promocional" pra
+        // quem a Giovanna mandou digitar. Só quando EXISTE cupom vivo pro plano
+        // — campo que recusa tudo o que for digitado é pior que campo nenhum.
+        permitirCodigoDigitado = await prepararCodigoDigitado(planInfo.plano, planInfo.valor);
+      }
+    } catch (err) {
+      console.error(`[cupons] ${cupom} não aplicado — seguindo no preço cheio:`, err);
+      aplicado = null;       // metadata e texto do botão não podem prometer o desconto
+      discounts = undefined;
+      permitirCodigoDigitado = false;
+    }
+
+    // O código vai no metadata porque é o webhook — não a criação da sessão —
+    // que contabiliza o uso. Checkout aberto e abandonado não queima cupom.
+    const baseMeta = {
+      plan: planInfo.plano, source: 'public_checkout', ...attribution,
+      ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
+    };
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: planInfo.priceId, quantity: 1 }],
+      // Um ou outro: a Stripe não aceita desconto pronto E campo de digitar juntos.
+      ...(discounts ? { discounts } : permitirCodigoDigitado ? { allow_promotion_codes: true } : {}),
       // Stripe coleta o email no próprio checkout (não temos user ainda).
       billing_address_collection: 'auto',
       // Coleta o WhatsApp no checkout → o webhook manda a boas-vindas da Giovanna
@@ -396,13 +513,38 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       // sabe o plano e não mostra a tela enganosa de "criar conta grátis".
       success_url: `${dashboardUrl}/auth?mode=register&session={CHECKOUT_SESSION_ID}&plano=${encodeURIComponent(planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}`,
       cancel_url:  `${dashboardUrl}/?cancelado=1`,
-      custom_text: { submit: { message: planInfo.descricao } },
+      // Com cupom, o texto do botão diz o que acontece no mês 2 — é o que evita
+      // a pessoa achar que R$ 19 é o preço da assinatura e contestar depois.
+      custom_text: {
+        submit: {
+          message: aplicado
+            ? `Primeiro mês por R$ ${aplicado.primeiroMes} (cupom ${aplicado.cupom.codigo}). Depois R$ ${aplicado.precoCheio}/mês, cancele quando quiser.`
+            : planInfo.descricao,
+        },
+      },
     });
 
-    res.json({ url: session.url });
+    res.json({ url: session.url, cupom: aplicado?.cupom.codigo ?? null, primeiroMes: aplicado?.primeiroMes ?? null });
   } catch (err) {
     console.error('createPublicCheckout error:', err);
     res.status(500).json({ error: 'Falha ao iniciar o checkout' });
+  }
+}
+
+// GET /payments/cupom/:codigo?plano=vip — consulta pública que a tela /assinar
+// usa pra mostrar "primeiro mês R$ X" antes de mandar o cliente pro pagamento.
+export async function getCupomInfo(req: Request, res: Response): Promise<void> {
+  try {
+    const planKey = String(req.query.plano || 'vip') === 'vip' ? 'ilimitado' : String(req.query.plano);
+    const planInfo = PLAN_MAP[planKey];
+    if (!planInfo) {
+      res.status(400).json({ error: 'Plano inválido' });
+      return;
+    }
+    res.json(await resumoPublicoCupom(String(req.params.codigo || ''), planInfo.plano, planInfo.valor));
+  } catch (err) {
+    console.error('getCupomInfo error:', err);
+    res.status(500).json({ error: 'Falha ao consultar o cupom' });
   }
 }
 
@@ -526,7 +668,37 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     // planByPrice undefined → bloco pulado. Conta Stripe é compartilhada, então
     // o isolamento aqui é justamente o `if (planInfo)`.
     if (planInfo) {
-      const { plano, limite, valor } = planInfo;
+      const { plano, limite } = planInfo;
+
+      // ── CUPOM DE PRIMEIRO MÊS ──────────────────────────────────────────────
+      // Dois caminhos chegam aqui: o do LINK (?cupom=…, que carimba o metadata) e
+      // o DIGITADO no checkout (que não carimba nada — quem aplicou foi a Stripe).
+      // O sinal que cobre os dois é o desconto na própria sessão.
+      const descontou = Number(session.total_details?.amount_discount ?? 0) > 0;
+      let codigoCupom = normalizarCodigo(session.metadata?.cupom);
+      if (!codigoCupom && descontou) codigoCupom = await codigoDoDescontoDigitado(session.id);
+
+      // Com cupom, o que entrou no caixa foi o valor com desconto (R$ 19), não o
+      // preço de tabela. O ledger, o aviso ao dono, o Purchase da Meta e a UTMify
+      // passam a usar o valor REAL só neste caso — sem desconto, tudo segue byte
+      // a byte como antes (o `valor` de tabela do PLAN_MAP).
+      const totalPago = typeof session.amount_total === 'number' ? session.amount_total / 100 : null;
+      const valor = ((codigoCupom || descontou) && totalPago && totalPago > 0) ? totalPago : planInfo.valor;
+
+      // Contabiliza o uso AQUI, no pagamento confirmado — não na criação da
+      // sessão. `referencia` = session.id, que é único: reentrega do webhook
+      // (at-least-once) não conta duas vezes. Cupom com teto pode estourar em
+      // uma unidade se dois pagarem no mesmo segundo; é o trade-off aceito —
+      // o dinheiro já entrou, recusar depois seria pior.
+      if (codigoCupom) {
+        await registrarUsoCupom({
+          codigo: codigoCupom,
+          email: email ?? null,
+          origem: 'stripe',
+          referencia: session.id,
+          valor,
+        });
+      }
 
       // Com trial, o Stripe devolve 'no_payment_required' (nada foi cobrado) e a
       // assinatura nasce 'trialing'. Sem trial, vem 'paid' e o dinheiro já entrou.

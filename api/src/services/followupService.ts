@@ -378,11 +378,11 @@ export async function recoverOrphanCheckouts(): Promise<{ sent: number; skipped:
 // Fácil de afrouxar/apertar: é só mexer nos números (Thiago pediu "sem medo de ban").
 const ABANDON_INTERVALS_MIN = [
   60,      // T1: ~1h após o abandono — se apresenta, "foi o cartão?"   (~dia 0)
-  1440,    // T2: +1 dia  — oferece o Pix                                (~dia 1)
+  1440,    // T2: +1 dia  — manda o caminho (site + cupom)              (~dia 1)
   2880,    // T3: +2 dias — contorna hesitação                          (~dia 3)
   4320,    // T4: +3 dias — valor/uso real                              (~dia 6)
   5760,    // T5: +4 dias — "o que travou?"                             (~dia 10)
-  5760,    // T6: +4 dias — despedida (Pix fica disponível)             (~dia 14)
+  5760,    // T6: +4 dias — despedida (o link fica de porta aberta)     (~dia 14)
 ];
 const ABANDON_MAX_TOUCHES = ABANDON_INTERVALS_MIN.length;
 const ABANDON_GRACE_MS    = 60 * 60 * 1000;            // 1h de carência (T1 só após isso)

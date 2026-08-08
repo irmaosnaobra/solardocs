@@ -82,20 +82,49 @@ describe('assinante ativo — a entrada NÃO pode aparecer', () => {
 describe('inadimplente — R$19 só como saída, nunca como primeira oferta', () => {
   const p = prompt({ plano: 'pro', billing_status: 'past_due' });
 
-  it('a prioridade continua sendo reativar pelos R$67', () => {
+  // Desde 08/08/2026 a reativação OFERECIDA é LINK + CUPOM (o cliente reassina
+  // sozinho no site). O Pix não sumiu: ele existe sob demanda, pra quem pedir.
+  it('a oferta de reativação é o site, com o link+cupom', () => {
     expect(p).toMatch(/ACESSO PAUSADO/);
-    expect(p).toContain('[[ENVIAR_PIX]]');
-    expect(p).toMatch(/R\$67/);
+    expect(p).toContain('[[ENVIAR_LINK_CUPOM]]');
   });
 
-  it('os R$19 aparecem condicionados a ele travar no valor', () => {
+  it('o Pix só aparece condicionado a ELE pedir', () => {
+    expect(p).toMatch(/SE ELE PEDIR PIX/);
+    expect(p).toContain('[[ENVIAR_PIX]]');
+  });
+
+  // O e-mail é o que casa o pagamento com a conta: sem ele o cliente paga e fica
+  // esperando alguém liberar na mão — exatamente o que este fluxo veio matar.
+  it('quando manda Pix, exige comprovante E e-mail', () => {
+    expect(p).toMatch(/\*comprovante\* e o \*e-?mail\*/i);
+  });
+
+  it('sem cupom vivo, não inventa desconto', () => {
+    expect(p).toMatch(/N[ÃA]O h[áa] cupom de desconto — n[ãa]o invente nenhum/i);
+  });
+
+  it('com cupom vivo, manda digitar o código no checkout', () => {
+    const comCupom = buildSystemPrompt(
+      { ...base, plano: 'pro', billing_status: 'past_due' } as any,
+      undefined,
+      { codigo: 'ACESSO19', primeiroMes: 19, precoCheio: 67 },
+    );
+    expect(comCupom).toMatch(/digita.*ACESSO19|ACESSO19.*checkout/i);
+    expect(comCupom).toMatch(/primeiro m[êe]s R\$ ?19/i);
+  });
+
+  it('os R$19 do curso aparecem condicionados a ele travar no valor', () => {
     expect(p).toMatch(/SE ELE TRAVAR/i);
     expect(p).toMatch(/R\$ ?19/);
     expect(p).toContain('[[ENVIAR_PIX_CURSO]]');
   });
 
-  it('avisa explicitamente para não trocar as tags de Pix', () => {
-    expect(p).toMatch(/N[ÃA]O o \[\[ENVIAR_PIX\]\]/);
+  // Dois R$19 convivem agora: o do CURSO (Pix, pagamento único) e o do CUPOM
+  // (primeiro mês da assinatura, no cartão). Trocar um pelo outro na conversa é
+  // vender a coisa errada — o prompt tem que dizer isso com todas as letras.
+  it('avisa explicitamente para não confundir os dois R$19', () => {
+    expect(p).toMatch(/N[ÃA]O CONFUNDA os dois caminhos de R\$ ?19/i);
   });
 
   it('suspenso recebe o mesmo tratamento de past_due', () => {

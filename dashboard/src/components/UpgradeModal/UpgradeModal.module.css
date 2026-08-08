@@ -238,3 +238,17 @@
   .plans    { grid-template-columns: 1fr; gap: 16px; }
   .planAmount { font-size: 2.6rem; }
 }
+
+/* Saída pra quem não tem cartão (Pix recorrente). Discreto de propósito: é
+   alternativa, não concorrente do botão principal. */
+.pixLink {
+  display: block;
+  margin: 20px auto 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #cbd5e1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.pixLink:hover { color: #f8fafc; }

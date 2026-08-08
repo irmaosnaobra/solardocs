@@ -7,6 +7,7 @@ import TopBar from '@/components/TopBar/TopBar';
 import UpgradeModal from '@/components/UpgradeModal/UpgradeModal';
 import InstallBanner from '@/components/InstallBanner/InstallBanner';
 import WhatsAppFab from '@/components/WhatsAppFab/WhatsAppFab';
+import LinkPagarPix, { pixRecorrenteLigado } from '@/components/LinkPagarPix/LinkPagarPix';
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
 import { isAuthenticated, removeToken } from '@/services/auth';
 import api from '@/services/api';
@@ -118,6 +119,17 @@ function BillingSuspendedPage({ email }: { email: string }) {
         >
           {loading ? 'Aguarde...' : 'Atualizar forma de pagamento'}
         </button>
+
+        {/* Conta suspensa é, quase sempre, cartão que não passa mais. Mandar essa
+            pessoa só pro portal da Stripe é pedir de novo o que já falhou. */}
+        <LinkPagarPix
+          texto={pixRecorrenteLigado ? 'Sem cartão? Reative pagando por Pix' : 'Sem cartão? Reative por Pix no WhatsApp'}
+          style={{
+            display: 'block', textAlign: 'center', marginBottom: 12,
+            color: '#cbd5e1', fontSize: '0.9rem', fontWeight: 600,
+            textDecoration: 'underline', textUnderlineOffset: 3,
+          }}
+        />
 
         <button
           onClick={sair}
@@ -281,7 +293,17 @@ function UpgradePage({ email }: { email: string }) {
         ))}
       </div>
 
-      <p style={{ color: '#475569', fontSize: '0.78rem', marginTop: 28 }}>
+      {/* Esta é a tela de quem esgotou o free — o momento exato em que a pessoa
+          decide pagar. Quem não tem cartão precisa de um caminho aqui, não de um
+          "fale conosco". */}
+      <LinkPagarPix
+        style={{
+          color: '#cbd5e1', fontSize: '0.92rem', fontWeight: 600, marginTop: 26,
+          textDecoration: 'underline', textUnderlineOffset: 3,
+        }}
+      />
+
+      <p style={{ color: '#475569', fontSize: '0.78rem', marginTop: 16 }}>
         Já assinou?{' '}
         <a href="/auth?mode=login" style={{ color: '#63b3ed', textDecoration: 'underline' }}>
           Entre novamente com o e-mail da compra
@@ -371,7 +393,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // o convite pra cadastrar a empresa como banner (logo abaixo), não como portão
   // — o CNPJ volta a ser obrigatório na hora de gerar documento, onde faz sentido.
   const compradorKit = !!user.tem_kit;
-  if (isFree && !isAdminUser && !compradorKit) {
+  // A tela de pagamento por Pix fica FORA de todos os portões abaixo (CNPJ,
+  // suspensão, free esgotado). Bloquear quem está tentando pagar é o único erro
+  // caro aqui — as três telas que seguem levam pra cá.
+  const naTelaPix = pathname === '/pix-recorrente';
+  if (isFree && !isAdminUser && !compradorKit && !naTelaPix) {
     if (!hasCompany && pathname !== '/empresa') {
       router.replace('/empresa?welcome=1&plan=free');
       return null;
@@ -382,6 +408,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // exceto atualização de cartão via Stripe billing portal. Stripe Smart Retries
   // continua tentando em paralelo; se o pagamento cair, o webhook reabre.
   if (user.billing_status === 'suspended') {
+    // Exceção pra tela de pagar por Pix — e SEM o resto do app em volta. A pessoa
+    // suspensa precisa poder pagar; não precisa voltar a navegar no produto.
+    if (naTelaPix) return <div style={{ minHeight: '100vh', background: 'var(--color-bg, #0b1120)', padding: '32px 20px' }}>{children}</div>;
     return <BillingSuspendedPage email={user.email} />;
   }
 
@@ -390,6 +419,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   // Créditos esgotados → tela cheia de upgrade (sem sidebar, sem distrações)
   if (limitReached) {
+    // Mesma exceção da suspensão: a tela de pagar por Pix abre sozinha.
+    if (naTelaPix) return <div style={{ minHeight: '100vh', background: 'var(--color-bg, #0b1120)', padding: '32px 20px' }}>{children}</div>;
     return <UpgradePage email={user.email} />;
   }
 

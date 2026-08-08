@@ -104,3 +104,29 @@ describe('bolhas', () => {
     expect(r.parts).toEqual(['É esse aqui ó', 'bora?']);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENVIAR_LINK_CUPOM — a reativação por link + cupom (08/08/2026) no lugar do
+// Pix de R$67. Mesmo risco das outras tags: detectar sem limpar entrega o jogo
+// (o cliente vê "[[ENVIAR_LINK_CUPOM]]" na tela), e limpar sem detectar manda a
+// conversa sem o caminho — a pessoa engajada fica sem saber onde assinar.
+// ═══════════════════════════════════════════════════════════════════════════
+describe('tag de link + cupom', () => {
+  it('detecta e limpa', () => {
+    const r = parseTagsResposta('Te mando o caminho 👇 [[ENVIAR_LINK_CUPOM]]');
+    expect(r.pedeLinkCupom).toBe(true);
+    expect(r.parts).toEqual(['Te mando o caminho 👇']);
+  });
+
+  it('não se confunde com as tags de Pix', () => {
+    const r = parseTagsResposta('vai lá [[ENVIAR_LINK_CUPOM]]');
+    expect(r.pedePix).toBe(false);
+    expect(r.pedePixCurso).toBe(false);
+  });
+
+  it('o Pix do curso (R$19, pagamento único) continua sendo outra tag', () => {
+    const r = parseTagsResposta('essa é a saída [[ENVIAR_PIX_CURSO]]');
+    expect(r.pedePixCurso).toBe(true);
+    expect(r.pedeLinkCupom).toBe(false);
+  });
+});

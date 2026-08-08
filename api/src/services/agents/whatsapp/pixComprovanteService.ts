@@ -4,6 +4,9 @@ import { supabase } from '../../../utils/supabase';
 import { sendWhatsApp, sendHuman, sendImage, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { concederCursoPorAssinatura } from '../../kitIntegradorService';
+import {
+  lerPixSolicitado, guardarComprovantePendente, limparComprovantePendente,
+} from './pixSolicitado';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Confirmação de Pix por COMPROVANTE (cliente SolarDoc).
@@ -414,15 +417,113 @@ async function getOrCreatePixUser(
   return created as PixUser;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// O e-mail chegou DEPOIS do comprovante (ordem mais comum: manda a foto, depois
+// o e-mail). Libera com o comprovante que ficou guardado. Chamado pela Giovanna
+// assim que ela captura um e-mail de quem tem Pix pendente.
+// Retorna a data de vencimento quando liberou; null quando não havia o que fazer.
+// ─────────────────────────────────────────────────────────────────────────────
+export async function liberarComprovantePendente(
+  cleanPhone: string, email: string, nome: string | null, originInstance: ZapiInstance = 'solardoc',
+): Promise<Date | null> {
+  const reg = await lerPixSolicitado(cleanPhone);
+  const pend = reg?.comprovante;
+  if (!pend) return null;
+
+  // Não passou nas travas → quem decide é o Thiago (mesma regra do fluxo normal).
+  if (!pend.passou || !AUTO_LIBERAR) {
+    await sendWhatsApp(THIAGO_PHONE,
+      `*Pix pendente com e-mail agora* — ${email} (${cleanPhone}) · ${brl(pend.valor)}. O comprovante não passou nas travas automáticas: confere e libera no /admin ("+ Pix").`,
+      'solardoc').catch(() => {});
+    await limparComprovantePendente(cleanPhone);
+    return null;
+  }
+
+  const u = await getOrCreatePixUser(email, nome ?? reg?.nome ?? null, cleanPhone);
+  if (!u) {
+    await sendWhatsApp(THIAGO_PHONE,
+      `⚠️ *Pix pendente*: ${email} mandou o e-mail mas FALHEI ao criar a conta. Libera no /admin ("+ Pix").`,
+      'solardoc').catch(() => {});
+    return null;
+  }
+  if (ehCartaoAtivo(u)) {
+    await sendWhatsApp(THIAGO_PHONE,
+      `⚠️ *Pix pendente*: ${email} tem CARTÃO ATIVO — não liberei (evita corromper o billing). Confere.`,
+      'solardoc').catch(() => {});
+    await limparComprovantePendente(cleanPhone);
+    return null;
+  }
+
+  // Mesma trava atômica do fluxo normal: dedupKey do comprovante, insert → 23505
+  // significa que já foi liberado (reenvio, ou o e-mail chegou duas vezes).
+  const { error: dedupErr } = await supabase.from('system_state')
+    .insert({ key: pend.dedupKey, value: { user_id: u.id, valor: pend.valor, at: new Date().toISOString(), via: 'email-depois' } });
+  if (dedupErr && (dedupErr as { code?: string }).code === '23505') {
+    await limparComprovantePendente(cleanPhone);
+    logger.info('pix-comprovante', `pendente já liberado antes (${email})`);
+    return null;
+  }
+
+  const alvo = PLANO_POR_VALOR[Math.round(pend.valor)] ?? { plano: 'ilimitado', limite: 999999 };
+  const venc = await liberarAcessoPix(u.id, u.plano_expira_em ?? null, alvo.plano, alvo.limite);
+  await encerrarDunningPix(u.id, email, u.billing_status);
+  await limparComprovantePendente(cleanPhone);
+
+  const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+  const linhas = ['Perfeito, achei aqui! ✅ Seu acesso ao SolarDoc está *liberado* 🌞'];
+  linhas.push(!u.password_hash && u.reset_token
+    ? `Pra entrar, é só definir sua senha aqui: ${dashboardUrl}/auth?mode=redefinir&token=${u.reset_token}`
+    : `É só entrar em ${dashboardUrl} com o seu e-mail (${email}). Qualquer dúvida me chama! 🙌`);
+  await sendHuman(cleanPhone, linhas, originInstance).catch(() => {});
+
+  await sendWhatsApp(THIAGO_PHONE,
+    `✅ *AUTO-LIBERADO (Pix + e-mail depois)* — ${email} · ${brl(pend.valor)} · vence ${venc.toLocaleDateString('pt-BR')}.`,
+    'solardoc').catch(() => {});
+  logger.info('pix-comprovante', `AUTO-liberado (e-mail depois) ${email} ${brl(pend.valor)}`);
+  return venc;
+}
+
 // Chamado no inbound de número DESCONHECIDO com imagem. Retorna true se tratou.
 export async function tryProcessAbandonedPixComprovante(
   cleanPhone: string, img: ImgSrc, originInstance: ZapiInstance = 'solardoc',
 ): Promise<boolean> {
-  const ab = await findAbandonoByPhone(cleanPhone);
-  if (!ab || !ab.email) return false; // não é lead de abandono conhecido → segue roteamento SDR
+  const abRow = await findAbandonoByPhone(cleanPhone);
+  // Segunda fonte de e-mail: o Pix que a Giovanna mandou a pedido do cliente,
+  // com o e-mail que ELE informou na conversa. Sem isto, quem não veio de
+  // checkout abandonado (anúncio, indicação, Instagram) pagava e ficava no limbo
+  // — era o buraco que o "sempre peça o e-mail" veio tapar.
+  const solicitado = await lerPixSolicitado(cleanPhone);
+  const email = abRow?.email ?? solicitado?.email ?? null;
+
+  // Nem abandono nem Pix pendente → não é assunto nosso, segue o roteamento SDR.
+  if (!abRow && !solicitado) return false;
 
   const c = await lerComprovante(img);
   if (!c || !c.is_comprovante) return false; // não é comprovante → segue fluxo
+
+  // Pagou, mas ainda não sabemos o e-mail: NÃO adivinha conta. Guarda o
+  // comprovante já validado, pede o e-mail (é uma bolha) e avisa o Thiago. Quando
+  // o e-mail chegar, liberarComprovantePendente() solta o acesso sozinho.
+  if (!email) {
+    const v = await validarComprovante(c, cleanPhone);
+    await guardarComprovantePendente(cleanPhone, {
+      valor: v.valor, dedupKey: v.dedupKey, passou: v.passou, em: new Date().toISOString(),
+    });
+    await sendHuman(cleanPhone, [
+      'Recebi seu comprovante, obrigada! 🙌',
+      'Me manda só o *e-mail* que você usa (ou vai usar) no SolarDoc? É com ele que eu libero seu acesso.',
+    ], originInstance).catch(() => {});
+    await notificarThiago(
+      { email: '(aguardando o e-mail do cliente)', phone: cleanPhone, valor: v.valor, comprovante: c }, img,
+      `⚠️ Comprovante Pix SEM E-MAIL (${brl(v.valor)}) — pedi o e-mail; libero sozinho quando ele mandar. Se ele sumir, libera no /admin ("+ Pix").`,
+    );
+    logger.info('pix-comprovante', `comprovante sem e-mail (${cleanPhone}) — e-mail solicitado`);
+    return true;
+  }
+
+  // Daqui pra baixo o fluxo é o mesmo dos dois caminhos: existe um e-mail e ele
+  // manda na liberação. `ab` mantém a forma que o resto da função já esperava.
+  const ab = abRow ?? { id: null as string | null, email, nome: solicitado?.nome ?? null };
 
   const { passou, motivo, valor, dedupKey } = await validarComprovante(c, cleanPhone);
   const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
@@ -471,9 +572,12 @@ export async function tryProcessAbandonedPixComprovante(
     // Se essa conta (por email) estava em dunning, cancela o cartão falhando no Stripe.
     await encerrarDunningPix(u.id, ab.email, u.billing_status);
 
-    await supabase.from('abandoned_checkouts')
-      .update({ status: 'recovered', recovered_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq('id', ab.id);
+    // Só quem veio de abandono tem linha pra marcar como recuperada.
+    if (ab.id) {
+      await supabase.from('abandoned_checkouts')
+        .update({ status: 'recovered', recovered_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', ab.id);
+    }
 
     const linhas = ['Pagamento confirmado! ✅ Seu acesso ao SolarDoc (plano completo) está *liberado* 🌞'];
     if (!u.password_hash && u.reset_token) {

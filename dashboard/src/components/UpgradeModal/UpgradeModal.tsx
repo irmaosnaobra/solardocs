@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import api from '@/services/api';
+import LinkPagarPix from '@/components/LinkPagarPix/LinkPagarPix';
 import styles from './UpgradeModal.module.css';
 
 interface UpgradeModalProps {
@@ -113,6 +114,10 @@ export default function UpgradeModal({ onClose, plano }: UpgradeModalProps) {
             </div>
           ))}
         </div>
+
+        {/* Saída pra quem não tem cartão — é a objeção nº 1 de quem pede Pix.
+            Sem este link a pessoa fecha o modal e some. */}
+        <LinkPagarPix className={styles.pixLink} />
       </div>
     </div>
   );
