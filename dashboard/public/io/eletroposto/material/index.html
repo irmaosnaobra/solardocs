@@ -27,10 +27,23 @@
   chega por sessionStorage, nunca por querystring — pontuação é dado do lead e
   URL vira print.
 
-  Uma imagem externa só (o mockup do app). O resto é SVG inline: a lander do /io
-  já pesou 2,58 MB uma vez por causa de um favicon baixado três vezes.
+  FOTO É ILUSTRAÇÃO DE MERCADO, NUNCA PROVA. A seção verde admite que não há obra
+  entregue pra mostrar; por isso nenhuma foto encosta nela nem no bloco de quem
+  ensina, nenhuma legenda diz "nosso", e a foto de instalação em andamento ficou
+  de fora desta página inteira — ali ela leria como obra da casa.
+
+  Peso: cada arquivo é gerado na largura da CAIXA onde aparece (veja
+  `plugcash/fotos/processar.js`), o hero é fundo em CSS com preload por media
+  query e todo o resto é `loading=lazy`. Os diagramas continuam SVG inline. A
+  lander do /io já pesou 2,58 MB uma vez por causa de um favicon baixado três
+  vezes — o caminho de volta pra lá é exatamente uma foto sem tamanho.
   ─────────────────────────────────────────────────────────────────────────────
 -->
+<!-- A foto do hero é fundo em CSS, então o navegador só descobre ela depois de
+     ler a folha de estilo. Estes dois preloads adiantam a descoberta — e são
+     mutuamente exclusivos por media, pra nunca baixar as duas. -->
+<link rel="preload" as="image" href="/io/eletroposto/img/fotos/lp-hero-900.webp" media="(max-width:900px)">
+<link rel="preload" as="image" href="/io/eletroposto/img/fotos/lp-hero-1600.webp" media="(min-width:901px)">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><rect width='80' height='80' rx='21' fill='%2300C853'/><rect x='38.5' y='11' width='3.6' height='58' rx='1.8' fill='%23fff'/><path d='M45 19 L27 51 L39 51 L36 69 L55 39 L42 39 Z' fill='%23fff'/></svg>">
 <style>
 :root{
@@ -74,12 +87,39 @@ h3{font-size:19px;font-weight:800;margin:0 0 6px;letter-spacing:-.01em}
 .escuro .sub{color:#9a9a9a}
 
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+/* Os quatro perfis são os quatro motivos da régua, e `auto-fit` os quebrava em
+   3+1 — o quarto sobrava sozinho numa linha, o que num bloco de "escolha a sua"
+   lê como erro. Dois por dois: quatro quadrantes, que é o que eles são. */
+.grid2.quatro{grid-template-columns:repeat(2,1fr)}
+@media(max-width:720px){ .grid2.quatro{grid-template-columns:1fr} }
 .card{background:#fff;border:1px solid var(--g300);border-radius:var(--rl);padding:24px}
 .escuro .card{background:var(--g900);border-color:var(--g800)}
 .card p{margin:0;color:var(--g600);font-size:15px;line-height:1.6}
 
 ul.lista{margin:0;padding-left:20px;display:grid;gap:12px;font-size:16.5px;max-width:62ch}
 ul.lista li::marker{color:var(--green)}
+
+/* ── Fotos ────────────────────────────────────────────────────────────────
+   Foto aqui é ILUSTRAÇÃO DE MERCADO, nunca prova de obra entregue: a seção
+   verde desta mesma página diz em voz alta que não existe projeto documentado
+   pra mostrar. Por isso nenhuma foto encosta nela nem no bloco de quem ensina,
+   e nenhuma legenda diz "nosso". Duas ficaram de fora de propósito: instalação
+   em andamento (leria como obra da casa) e qualquer coisa que pareça retrato
+   dos sócios.
+
+   Largura de arquivo = largura da CAIXA, não a que saiu do gerador. É a mesma
+   regra que tirou a lander do /io de 2,58 MB. */
+.foto{margin:30px 0 0}
+.foto img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;
+          border-radius:var(--rl);border:1px solid var(--g300);background:var(--g100)}
+.escuro .foto img{border-color:var(--g800);background:var(--g900)}
+.foto figcaption{font-size:13.5px;color:var(--g600);margin-top:12px;line-height:1.5;max-width:62ch}
+.escuro .foto figcaption{color:#8f8f8f}
+
+.card.comFoto{padding:0;overflow:hidden}
+.card.comFoto img{display:block;width:100%;height:158px;object-fit:cover;
+                  border-bottom:1px solid var(--g300);background:var(--g100)}
+.card.comFoto .cardTxt{padding:22px 24px}
 
 .mockup{width:100%;height:auto;border-radius:var(--rl);border:1px solid var(--g300);display:block;margin-top:8px}
 .amostras{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:26px}
@@ -129,6 +169,29 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 /* Hero em duas colunas — a referência tem imagem ao lado do texto e sem ela
    metade da tela fica vazia. A capa do curso é o ativo certo aqui: é a mesma
    que ele vai ver dentro da plataforma depois de comprar. */
+/* Foto atrás do hero: atmosfera, não informação. Ela apaga descendo, pra que a
+   leitura nunca dispute contraste com o céu do fim de tarde. O arquivo pequeno
+   é o padrão e o grande só entra acima de 900px — assim o celular, que é onde a
+   página é lida, nunca baixa 1600px pra desenhar 390. */
+.heroSec{position:relative;overflow:hidden}
+.heroFundo{position:absolute;inset:0;z-index:0;opacity:.26;
+  background:center 42%/cover no-repeat;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.42) 58%,transparent 96%);
+          mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.42) 58%,transparent 96%)}
+/* As duas faixas são EXCLUSIVAS, não regra-base mais exceção: com a versão
+   pequena declarada fora da media query, o desktop baixava as duas. */
+@media(max-width:900px){ .heroFundo{background-image:url('/io/eletroposto/img/fotos/lp-hero-900.webp')} }
+@media(min-width:901px){
+  .heroFundo{background-image:url('/io/eletroposto/img/fotos/lp-hero-1600.webp');opacity:.5}
+  /* No desktop a foto pode aparecer mais, DESDE QUE não apareça atrás da
+     manchete: este véu escurece a coluna da esquerda e libera a direita, onde
+     só existe a capa do curso. Sem ele, a máscara vertical deixava a foto mais
+     forte exatamente onde o texto começa. */
+  .heroSec::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:linear-gradient(93deg,rgba(10,10,10,.94) 0%,rgba(10,10,10,.86) 34%,rgba(10,10,10,.4) 62%,rgba(10,10,10,.12) 100%)}
+}
+.heroSec > .faixa{position:relative;z-index:1}
+
 .heroGrid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:48px;align-items:center;padding:34px 0 20px}
 .heroArte{border-radius:var(--rl);border:1px solid var(--g800);overflow:hidden;display:block;width:100%;height:auto}
 .heroSelo{display:flex;align-items:center;gap:10px;margin-top:16px;font-size:13.5px;color:#8f8f8f}
@@ -204,7 +267,8 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 <body>
 
 <!-- 1 · HERO — a abertura muda conforme o que travou o lead -->
-<section class="escuro" style="padding-top:0">
+<section class="escuro heroSec" style="padding-top:0">
+  <div class="heroFundo" aria-hidden="true"></div>
   <div class="faixa">
     <header class="topo">
       <span class="logo">
@@ -233,8 +297,8 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
         </p>
       </div>
       <div>
-        <img class="heroArte" src="/plugcash/img/fundamentos.png"
-             alt="Fundamentos do Eletroposto" width="800" height="450">
+        <img class="heroArte" src="/plugcash/img/fundamentos.webp"
+             alt="Capa do curso Fundamentos do Eletroposto" width="800" height="450">
         <p class="heroSelo">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#00C853" stroke-width="2.4"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
@@ -256,8 +320,8 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
          interface viraria 4px. Troca de imagem, não de tamanho: cada tela ganha
          o mockup que foi feito pra ela. -->
     <picture>
-      <source media="(max-width: 700px)" srcset="/plugcash/img/mockup-celular.png">
-      <img class="mockup" src="/plugcash/img/mockup-app.png"
+      <source media="(max-width: 700px)" srcset="/plugcash/img/mockup-celular.webp">
+      <img class="mockup" src="/plugcash/img/mockup-app.webp"
            alt="A plataforma do PlugCash com uma aula aberta" loading="lazy"
            width="2040" height="1290">
     </picture>
@@ -270,6 +334,18 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <p class="olho">Como as aulas são</p>
     <h2>Página por página, com o desenho que explica.</h2>
     <p class="sub">Carga disponível, padrão de entrada, o vaivém do protocolo na distribuidora: são coisas que um esquema resolve em segundos e um vídeo leva meia hora tentando. Os diagramas abaixo são de uma aula de verdade.</p>
+    <!-- A foto existe pra ancorar o desenho no objeto: quem nunca abriu um
+         padrão de entrada não sabe o que o esquema está representando. -->
+    <figure class="foto">
+      <img src="/io/eletroposto/img/fotos/padrao-entrada-1100.webp"
+           srcset="/io/eletroposto/img/fotos/padrao-entrada-700.webp 700w,
+                   /io/eletroposto/img/fotos/padrao-entrada-1100.webp 1100w"
+           sizes="(max-width:1160px) 100vw, 1120px"
+           width="1100" height="619" loading="lazy" decoding="async"
+           onerror="this.parentElement.remove()"
+           alt="Padrão de entrada de energia de um imóvel comercial: medidor ao lado da caixa de disjuntores, na parede externa">
+      <figcaption>É neste quadro que a resposta está. A aula abre ele em desenho e mostra qual número olhar — e o que fazer quando o número não fecha.</figcaption>
+    </figure>
     <div class="amostras">
       <figure class="amostra">
         <div class="amostraDiag"><svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif">
@@ -448,6 +524,16 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <h2>A frota elétrica cresce mais rápido que a malha de recarga.</h2>
     <p class="lead">Carro elétrico e híbrido plug-in entram no país todo mês. Ponto de recarga público, não na mesma velocidade. É essa distância que abre a janela.</p>
     <p class="lead"><strong>O que este material não faz é prometer que a janela é sua.</strong> Ela depende do seu endereço, do movimento daquela rua e da energia disponível naquele padrão de entrada — e as três coisas você aprende a medir aqui.</p>
+    <figure class="foto">
+      <img src="/io/eletroposto/img/fotos/lp-mercado-1440.webp"
+           srcset="/io/eletroposto/img/fotos/lp-mercado-820.webp 820w,
+                   /io/eletroposto/img/fotos/lp-mercado-1440.webp 1440w"
+           sizes="(max-width:1160px) 100vw, 1120px"
+           width="1440" height="810" loading="lazy" decoding="async"
+           onerror="this.parentElement.remove()"
+           alt="Vista aérea de uma avenida comercial brasileira no fim da tarde, com trânsito e estacionamentos dos dois lados">
+      <figcaption>Uma avenida comercial qualquer, num fim de tarde qualquer. Nenhum ponto de recarga à vista — e é exatamente essa ausência que o material ensina a ler como oportunidade ou como armadilha.</figcaption>
+    </figure>
   </div>
 </section>
 
@@ -456,11 +542,50 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
   <div class="faixa">
     <p class="olho">Para quem é</p>
     <h2>Você se reconhece em pelo menos uma destas quatro.</h2>
-    <div class="grid2" style="margin-top:26px">
-      <div class="card"><h3>Não tem o ponto</h3><p>Quer entender o que faz um local prestar antes de sair procurando — e antes de assinar arrendamento de anos.</p></div>
-      <div class="card"><h3>Tem imóvel, não tem certeza</h3><p>Posto, mercado, hotel, estacionamento, restaurante de beira de estrada. Não sabe se o movimento serve nem se a energia aguenta.</p></div>
-      <div class="card"><h3>Tem capital, não tem local</h3><p>Quer investir e precisa aprender a medir o movimento de um endereço antes de decidir qualquer coisa.</p></div>
-      <div class="card"><h3>Decide com outra pessoa</h3><p>Precisa chegar no sócio com carga, prazo e composição de preço — não com entusiasmo.</p></div>
+    <!-- Uma foto por card, na ordem dos quatro motivos da régua. São cenas
+         genéricas de propósito: a pessoa precisa se reconhecer na situação, não
+         achar que está vendo o cliente de alguém. -->
+    <div class="grid2 quatro" style="margin-top:26px">
+      <div class="card comFoto">
+        <img src="/io/eletroposto/img/fotos/perfil-investidor-760.webp"
+             srcset="/io/eletroposto/img/fotos/perfil-investidor-480.webp 480w,
+                     /io/eletroposto/img/fotos/perfil-investidor-760.webp 760w"
+             sizes="(max-width:640px) 100vw, 550px"
+             width="760" height="428" loading="lazy" decoding="async"
+             onerror="this.remove()"
+             alt="Pessoa de costas na calçada, com uma prancheta na mão, observando o trânsito de uma avenida">
+        <div class="cardTxt"><h3>Não tem o ponto</h3><p>Quer entender o que faz um local prestar antes de sair procurando — e antes de assinar arrendamento de anos.</p></div>
+      </div>
+      <div class="card comFoto">
+        <img src="/io/eletroposto/img/fotos/perfil-posto-760.webp"
+             srcset="/io/eletroposto/img/fotos/perfil-posto-480.webp 480w,
+                     /io/eletroposto/img/fotos/perfil-posto-760.webp 760w"
+             sizes="(max-width:640px) 100vw, 550px"
+             width="760" height="428" loading="lazy" decoding="async"
+             onerror="this.remove()"
+             alt="Posto de combustível de porte médio no fim da tarde, com espaço livre na lateral">
+        <div class="cardTxt"><h3>Tem imóvel, não tem certeza</h3><p>Posto, mercado, hotel, estacionamento, restaurante de beira de estrada. Não sabe se o movimento serve nem se a energia aguenta.</p></div>
+      </div>
+      <div class="card comFoto">
+        <img src="/io/eletroposto/img/fotos/perfil-mercado-760.webp"
+             srcset="/io/eletroposto/img/fotos/perfil-mercado-480.webp 480w,
+                     /io/eletroposto/img/fotos/perfil-mercado-760.webp 760w"
+             sizes="(max-width:640px) 100vw, 550px"
+             width="760" height="428" loading="lazy" decoding="async"
+             onerror="this.remove()"
+             alt="Estacionamento coberto de supermercado, com vagas demarcadas e espaço livre na extremidade">
+        <div class="cardTxt"><h3>Tem capital, não tem local</h3><p>Quer investir e precisa aprender a medir o movimento de um endereço antes de decidir qualquer coisa.</p></div>
+      </div>
+      <div class="card comFoto">
+        <img src="/io/eletroposto/img/fotos/perfil-socios-760.webp"
+             srcset="/io/eletroposto/img/fotos/perfil-socios-480.webp 480w,
+                     /io/eletroposto/img/fotos/perfil-socios-760.webp 760w"
+             sizes="(max-width:640px) 100vw, 550px"
+             width="760" height="428" loading="lazy" decoding="async"
+             onerror="this.remove()"
+             alt="Duas pessoas sentadas à mesa de um escritório, analisando papéis e uma calculadora">
+        <div class="cardTxt"><h3>Decide com outra pessoa</h3><p>Precisa chegar no sócio com carga, prazo e composição de preço — não com entusiasmo.</p></div>
+      </div>
     </div>
   </div>
 </section>
@@ -471,6 +596,16 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <p class="olho">O que você leva</p>
     <h2>O mesmo material que a nossa equipe usa para decidir se um ponto vale.</h2>
     <ul class="lista" id="o-que-leva" style="margin-top:24px"></ul>
+    <figure class="foto">
+      <img src="/io/eletroposto/img/fotos/campo-1100.webp"
+           srcset="/io/eletroposto/img/fotos/campo-700.webp 700w,
+                   /io/eletroposto/img/fotos/campo-1100.webp 1100w"
+           sizes="(max-width:1160px) 100vw, 1120px"
+           width="1100" height="619" loading="lazy" decoding="async"
+           onerror="this.parentElement.remove()"
+           alt="Mãos segurando uma prancheta apoiada no capô de um carro, com uma avenida desfocada ao fundo">
+      <figcaption>A avaliação de um ponto acontece na calçada, com prancheta e conta de luz na mão. O material é o que vai escrito nela.</figcaption>
+    </figure>
   </div>
 </section>
 

@@ -1,0 +1,20 @@
+SOLTE AS 9 FOTOS AQUI — com estes nomes exatos, em .jpg
+
+  lp-hero.jpg            eletroposto na beira da rodovia, carro conectado
+  lp-mercado.jpg         vista aérea da avenida comercial no entardecer
+  perfil-investidor.jpg  pessoa de costas na calçada, com prancheta
+  perfil-posto.jpg       posto de combustível com vaga livre na lateral
+  perfil-mercado.jpg     estacionamento coberto de supermercado
+  perfil-socios.jpg      duas pessoas à mesa, analisando papéis
+  campo.jpg              mãos com prancheta apoiada no capô
+  padrao-entrada.jpg     medidor e caixa de disjuntor na parede externa
+  obra.jpg               instalação em andamento, eletroduto e base de concreto
+
+Pode soltar o arquivo grande do jeito que saiu — o script corta e comprime.
+
+Depois, na raiz do repo:
+
+  node plugcash/fotos/processar.js     converte e mede o peso
+  node plugcash/capas/gerar.js         redesenha as 9 capas de curso
+
+Se faltar alguma, o primeiro comando diz qual e não quebra as outras.

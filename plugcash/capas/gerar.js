@@ -1,14 +1,26 @@
 const puppeteer = require('puppeteer');
+const sharp = require('C:/Users/55349/Desktop/CLAUDE/dashboard/node_modules/sharp');
 const fs = require('fs');
 const path = require('path');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CAPAS DOS CURSOS DO PLUGCASH
 //
-// Por que desenhadas e não geradas por IA: uma foto de eletroposto instalado
-// seria a imagem de uma obra que a empresa ainda não entregou. O projeto proíbe
-// prova inventada, e capa de curso é prova visual — a primeira que o comprador
-// vê. Ilustração geométrica não promete nada que não existe.
+// FOTO ENTROU EM 08/08, MAS COMO FUNDO — não como assunto.
+//
+// A versão anterior era só geometria, e o motivo escrito aqui era que foto de
+// eletroposto instalado viraria prova de obra que a empresa ainda não entregou.
+// O motivo continua valendo; o que mudou é o papel da foto. Ela fica a 20% de
+// opacidade, sob um véu preto, atrás do ícone e do número — dá matéria e clima
+// a nove retângulos pretos que na grade viravam nove borrões iguais, sem
+// nenhuma delas afirmar "isto é nosso". O ícone continua sendo o assunto.
+//
+// É por isso, também, que a foto de instalação em andamento aparece SÓ aqui, na
+// capa do curso de execução, e em nenhuma página de venda: numa landing ela
+// leria como portfólio, e não há obra documentada pra sustentar essa leitura.
+//
+// As fotos saem de `plugcash/fotos/processar.js` (pasta `_capas/`). Se faltar
+// alguma, aquela capa volta sozinha pro fundo preto liso — nada quebra.
 //
 // Regras da marca aplicadas aqui:
 //   · fundo preto #0A0A0A, verde #00C853 como ACENTO (nunca como fundo);
@@ -52,24 +64,46 @@ const ICONES = {
 // A tarja de cima diz em que etapa do caminho o curso entra. Ela é o único
 // texto da capa, e existe pra que nove capas pretas não virem nove borrões
 // iguais na grade.
+// `foto` é o arquivo em plugcash/fotos/_capas/. Cada uma responde ao assunto do
+// curso, não ao acaso: quem homologa olha padrão de entrada, quem compra
+// equipamento olha o carregador, quem convence sócio olha uma mesa com papel.
 const CURSOS = [
-  { slug: 'fundamentos', n: '01', etapa: 'Comece por aqui' },
-  { slug: 'ponto-zero',  n: '02', etapa: 'Achar o ponto' },
-  { slug: 'capital',     n: '03', etapa: 'Viabilizar o dinheiro' },
-  { slug: 'dossie',      n: '04', etapa: 'Convencer quem decide' },
-  { slug: 'homologacao', n: '05', etapa: 'Aprovar na distribuidora' },
-  { slug: 'equipamento', n: '06', etapa: 'Comprar certo' },
-  { slug: 'operacao',    n: '07', etapa: 'Operar e precificar' },
-  { slug: 'integrador',  n: '08', etapa: 'Executar para terceiros' },
-  { slug: 'mentoria',    n: '09', etapa: 'Acompanhamento' },
+  { slug: 'fundamentos', n: '01', etapa: 'Comece por aqui',           foto: 'lp-hero' },
+  { slug: 'ponto-zero',  n: '02', etapa: 'Achar o ponto',              foto: 'lp-mercado' },
+  { slug: 'capital',     n: '03', etapa: 'Viabilizar o dinheiro',     foto: 'perfil-mercado' },
+  { slug: 'dossie',      n: '04', etapa: 'Convencer quem decide',     foto: 'perfil-socios' },
+  { slug: 'homologacao', n: '05', etapa: 'Aprovar na distribuidora',  foto: 'padrao-entrada' },
+  { slug: 'equipamento', n: '06', etapa: 'Comprar certo',             foto: 'produto-dc' },
+  { slug: 'operacao',    n: '07', etapa: 'Operar e precificar',       foto: 'perfil-posto' },
+  { slug: 'integrador',  n: '08', etapa: 'Executar para terceiros',   foto: 'obra' },
+  { slug: 'mentoria',    n: '09', etapa: 'Acompanhamento',            foto: 'campo' },
 ];
 
+// A foto entra embutida: o puppeteer roda com setContent, sem servidor, então
+// caminho relativo não resolve.
+const PASTA_FOTOS = path.join(__dirname, '..', 'fotos', '_capas');
+function fotoEmbutida(curso) {
+  const p = path.join(PASTA_FOTOS, `${curso.foto}.jpg`);
+  if (!fs.existsSync(p)) return null;
+  return `data:image/jpeg;base64,${fs.readFileSync(p).toString('base64')}`;
+}
+
 function html(curso) {
+  const foto = fotoEmbutida(curso);
   return `<!doctype html><html><head><meta charset="utf-8"><style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{width:${LARGURA}px;height:${ALTURA}px;background:#0A0A0A;overflow:hidden;
        font-family:'Inter','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
        color:#fff;position:relative}
+
+  /* Foto: matéria, não assunto. 20% já dá textura e mantém o ícone branco
+     legível a 272px de largura, que é o tamanho real do card. O véu escurece o
+     lado esquerdo, onde ficam a tarja da etapa e o ícone. */
+  .foto{position:absolute;inset:0;background:center/cover no-repeat;opacity:.38;filter:grayscale(.2) contrast(1.05)}
+  /* O véu é assimétrico de propósito: escuro onde mora o texto (esquerda),
+     aberto onde a foto pode respirar (direita, atrás do número em contorno). */
+  .veu{position:absolute;inset:0;
+       background:linear-gradient(100deg,rgba(10,10,10,.95) 30%,rgba(10,10,10,.6) 68%,rgba(10,10,10,.34) 100%)}
 
   /* Malha de linhas finíssimas: dá textura sem virar gradiente nem ruído.
      4% de opacidade — some no card pequeno e aparece no tamanho cheio. */
@@ -105,6 +139,7 @@ function html(curso) {
   /* Régua verde na base: o mesmo acento da faixa do item ativo no menu. */
   .regua{position:absolute;left:0;right:0;bottom:0;height:7px;background:#00C853}
 </style></head><body>
+  ${foto ? `<div class="foto" style="background-image:url('${foto}')"></div><div class="veu"></div>` : ''}
   <div class="malha"></div>
   <div class="numero">${curso.n}</div>
   <div class="conteudo">
@@ -138,10 +173,21 @@ function html(curso) {
     // `domcontentloaded` e não `networkidle0`: a página não busca NADA na rede —
     // fonte é de sistema, ícone e logo são SVG inline. Esperar a rede ficar ociosa
     // trava no segundo arquivo, porque nunca houve requisição pra ficar ociosa.
+    const temFoto = !!fotoEmbutida(curso);
     await page.setContent(html(curso), { waitUntil: 'domcontentloaded' });
     const arquivo = path.join(destino, `${curso.slug}.png`);
     await page.screenshot({ path: arquivo, type: 'png' });
-    console.log(`${curso.slug}.png — ${(fs.statSync(arquivo).size / 1024).toFixed(1)} KB`);
+
+    // O catálogo mostra as nove capas de uma vez. Em PNG, uma capa com foto
+    // passa de 110 KB e a grade sozinha baixa mais de 1 MB — o mesmo erro que
+    // levou a lander do /io a 2,58 MB. O WebP é o que o `thumb_url` aponta; o
+    // PNG fica pra qualquer lugar que ainda peça a extensão antiga.
+    const webp = path.join(destino, `${curso.slug}.webp`);
+    await sharp(arquivo).webp({ quality: 82, effort: 6 }).toFile(webp);
+
+    const kb = (p) => (fs.statSync(p).size / 1024).toFixed(1);
+    console.log(`${curso.slug} — webp ${kb(webp)} KB (png ${kb(arquivo)})` +
+                (temFoto ? '' : `   · sem foto: falta ${curso.foto}.jpg`));
   }
 
   await browser.close();
