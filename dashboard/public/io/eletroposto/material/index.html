@@ -148,6 +148,11 @@ ul.lista li::marker{color:var(--g600)}
   .calcSaida{order:-1;padding:22px 20px}
 }
 
+/* Diagrama inline nas seções de argumento — mesma caixa das amostras de aula,
+   pra que o desenho da página e o desenho do curso sejam a mesma linguagem. */
+.diagInline{background:var(--g100);border:1px solid var(--g300);border-radius:var(--rl);padding:20px;overflow-x:auto}
+.diagInline svg{width:100%;min-width:440px;height:auto;display:block}
+
 /* ── Fotos ────────────────────────────────────────────────────────────────
    Foto aqui é ILUSTRAÇÃO DE MERCADO, nunca prova de obra entregue: a seção
    verde desta mesma página diz em voz alta que não existe projeto documentado
@@ -367,12 +372,116 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
   </div>
 </section>
 
+
+<!-- 2 · O INIMIGO — o que acontece quando ele vai procurar sozinho.
+     Este leitor NAO esta cetico sobre o mercado: ele quer entender como
+     funciona. O concorrente da pagina nao e outro curso, e a barra de busca.
+     Entao a secao nomeia o que ele vai encontrar la e por que nada daquilo
+     responde a pergunta dele. Tudo verificavel — e ele vai verificar. -->
+<section class="branco rv">
+  <div class="faixa">
+    <p class="olho">Antes de você procurar por conta</p>
+    <h2>Você vai pesquisar isso na internet. E vai voltar mais confuso.</h2>
+    <p class="sub">Não porque falta informação. Porque tem informação demais, espalhada, desatualizada — e quase toda escrita por quem ganha dinheiro com a sua próxima decisão.</p>
+    <figure class="foto"><div class="diagInline"><svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif">
+<rect x="150" y="24" width="420" height="46" rx="23" fill="#fff" stroke="#0A0A0A" stroke-width="2"/>
+<text x="176" y="53" font-size="15" fill="#6B6B6B">como montar um eletroposto</text>
+<circle cx="536" cy="47" r="9" fill="none" stroke="#6B6B6B" stroke-width="2"/><path d="M543 54 L552 63" stroke="#6B6B6B" stroke-width="2"/>
+
+<rect x="24" y="104" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
+<text x="44" y="130" font-size="13.5" font-weight="700" fill="#0A0A0A">Blog de fabricante de carregador</text>
+<text x="44" y="150" font-size="12.5" fill="#C2410C">quer te vender um carregador</text>
+
+<rect x="371" y="104" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
+<text x="391" y="130" font-size="13.5" font-weight="700" fill="#0A0A0A">Notícia sobre o mercado crescendo</text>
+<text x="391" y="150" font-size="12.5" fill="#C2410C">nenhum passo prático</text>
+
+<rect x="24" y="176" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
+<text x="44" y="202" font-size="13.5" font-weight="700" fill="#0A0A0A">Vídeo de 40 minutos</text>
+<text x="44" y="222" font-size="12.5" fill="#C2410C">é anúncio com jaleco de aula</text>
+
+<rect x="371" y="176" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
+<text x="391" y="202" font-size="13.5" font-weight="700" fill="#0A0A0A">Fórum de 2019</text>
+<text x="391" y="222" font-size="12.5" fill="#C2410C">norma e preço já mudaram</text>
+
+<rect x="24" y="248" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
+<text x="44" y="274" font-size="13.5" font-weight="700" fill="#0A0A0A">PDF de 200 páginas da norma</text>
+<text x="44" y="294" font-size="12.5" fill="#C2410C">certo, e ilegível pra decidir</text>
+
+<rect x="371" y="248" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
+<text x="391" y="274" font-size="13.5" font-weight="700" fill="#0A0A0A">Grupo de mensagens do setor</text>
+<text x="391" y="294" font-size="12.5" fill="#C2410C">três respostas pra mesma pergunta</text>
+
+<rect x="24" y="326" width="672" height="58" rx="8" fill="#FDF0E9" stroke="#C2410C" stroke-width="2"/>
+<text x="360" y="352" font-size="14.5" font-weight="800" text-anchor="middle" fill="#C2410C">Nenhum deles responde sobre o SEU ponto.</text>
+<text x="360" y="374" font-size="13" text-anchor="middle" fill="#0A0A0A">E quase todos são escritos por quem ganha dinheiro com a sua próxima decisão.</text>
+</svg></div></figure>
+    <p class="calcAviso" style="margin-top:22px">
+      <b>Faça o teste antes de comprar qualquer coisa:</b> procure agora e tente responder três perguntas —
+      quanta energia o seu ponto tem sobrando, que potência isso permite, e em quanto tempo o dinheiro volta.
+      Se você achar as três em menos de uma tarde, não precisa deste material.
+    </p>
+  </div>
+</section>
+
+<!-- 3 · A VIRADA — a mesma informacao, em ordem. E a promessa central da
+     pagina agora: nao e conteudo inedito, e conteudo REUNIDO e na sequencia em
+     que as decisoes acontecem. Cada etapa aponta a aula, entao a promessa e
+     conferivel linha a linha na grade logo abaixo. -->
+<section class="claro rv">
+  <div class="faixa">
+    <p class="olho">O que a gente fez</p>
+    <h2>Reunimos tudo. E colocamos na ordem em que você precisa decidir.</h2>
+    <p class="sub">Nada aqui é segredo de mercado — está espalhado em norma, em planilha de engenheiro e na cabeça de quem já montou. O trabalho foi juntar, tirar o que é propaganda e organizar numa sequência que termina numa decisão sua.</p>
+    <figure class="foto"><div class="diagInline"><svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif">
+<text x="40" y="36" font-size="13" font-weight="700" fill="#6B6B6B">A MESMA INFORMAÇÃO, NA ORDEM EM QUE AS DECISÕES ACONTECEM</text>
+<line x1="64" y1="92" x2="64" y2="352" stroke="#D9D9D9" stroke-width="3"/>
+<circle cx="64" cy="96" r="11" fill="#0A0A0A"/>
+<text x="64" y="101" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">1</text>
+<text x="94" y="93" font-size="15" font-weight="800" fill="#0A0A0A">O endereço presta?</text>
+<text x="94" y="113" font-size="12.5" fill="#6B6B6B">movimento medido, não sentido</text>
+<text x="688" y="101" font-size="11" font-weight="700" text-anchor="end" fill="#00C853">AULAS 3 e 4</text>
+<circle cx="64" cy="141" r="11" fill="#0A0A0A"/>
+<text x="64" y="146" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">2</text>
+<text x="94" y="138" font-size="15" font-weight="800" fill="#0A0A0A">A energia aguenta?</text>
+<text x="94" y="158" font-size="12.5" fill="#6B6B6B">conta de luz e padrão de entrada</text>
+<text x="688" y="146" font-size="11" font-weight="700" text-anchor="end" fill="#00C853">AULA 5</text>
+<circle cx="64" cy="186" r="11" fill="#0A0A0A"/>
+<text x="64" y="191" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">3</text>
+<text x="94" y="183" font-size="15" font-weight="800" fill="#0A0A0A">Qual potência cabe?</text>
+<text x="94" y="203" font-size="12.5" fill="#6B6B6B">permanência do carro, não catálogo</text>
+<text x="688" y="191" font-size="11" font-weight="700" text-anchor="end" fill="#00C853">AULA 7</text>
+<circle cx="64" cy="231" r="11" fill="#0A0A0A"/>
+<text x="64" y="236" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">4</text>
+<text x="94" y="228" font-size="15" font-weight="800" fill="#0A0A0A">Quanto custa de verdade?</text>
+<text x="94" y="248" font-size="12.5" fill="#6B6B6B">a lista inteira, não só o carregador</text>
+<text x="688" y="236" font-size="11" font-weight="700" text-anchor="end" fill="#00C853">AULAS 8 e 9</text>
+<circle cx="64" cy="276" r="11" fill="#0A0A0A"/>
+<text x="64" y="281" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">5</text>
+<text x="94" y="273" font-size="15" font-weight="800" fill="#0A0A0A">Quanto tempo até ligar?</text>
+<text x="94" y="293" font-size="12.5" fill="#6B6B6B">o protocolo da distribuidora</text>
+<text x="688" y="281" font-size="11" font-weight="700" text-anchor="end" fill="#00C853">AULA 10</text>
+<circle cx="64" cy="321" r="11" fill="#00C853"/>
+<text x="64" y="326" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">6</text>
+<text x="94" y="318" font-size="15" font-weight="800" fill="#0A0A0A">Vale a pena?</text>
+<text x="94" y="338" font-size="12.5" fill="#6B6B6B">payback, TIR e três cenários</text>
+<text x="688" y="326" font-size="11" font-weight="700" text-anchor="end" fill="#00C853">AULA 13</text>
+<rect x="40" y="360" width="656" height="0" fill="none"/>
+</svg></div></figure>
+    <p class="calcAviso" style="margin-top:22px">
+      <b>É por isso que o mercado muda de cara depois.</b> Ele para de ser "uma
+      oportunidade que dizem que é boa" e vira seis perguntas com resposta numérica —
+      todas sobre o seu endereço, não sobre o Brasil.
+    </p>
+  </div>
+</section>
+
 <!-- 4 · A GRADE INTEIRA, sem mistério -->
 <section class="branco rv">
   <div class="faixa">
     <p class="olho">A trilha completa</p>
     <h2>Todas as aulas, com a duração de cada uma.</h2>
-    <p class="sub">Sem borrão e sem "e muito mais". Saber exatamente o que está comprando é o que separa uma compra de um arrependimento.</p>
+    <p class="sub">Sem borrão e sem "e muito mais". Cada linha abaixo é uma das perguntas do diagrama anterior, respondida com número — e você confere a lista inteira antes de pagar, o que separa uma compra de um arrependimento.</p>
     <ul class="aulas" id="grade"></ul>
     <p class="gradeStatus" id="grade-status" style="display:none"></p>
     <p class="sub" id="grade-vazia" style="display:none;margin-top:20px">A grade aparece aqui assim que as aulas entram no ar.</p>
@@ -737,14 +846,17 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
   </div>
 </section>
 
-<!-- 10 · O GRUPO — só enquanto a oferta ainda não está vendável -->
+<!-- 10 · SEM OFERTA — o estado em que nao ha o que vender.
+     Era a secao do grupo de WhatsApp. Saiu por pedido do Thiago, e o timing
+     ajuda: ela so aparecia enquanto o curso nao estava vendavel, e ele esta.
+     O bloco continua existindo porque a logica ainda o esconde/mostra, mas
+     agora ele nao manda ninguem pra lugar nenhum: avisa e devolve pra agenda. -->
 <section class="branco rv" id="fallback" style="display:none">
   <div class="faixa">
     <p class="olho">Enquanto isso</p>
-    <h2>O material está sendo finalizado. Entre no grupo.</h2>
-    <p class="sub">É onde publicamos os pontos que instalamos, como avaliar um local e o caminho do financiamento. Quem tem local e quem tem capital se encontram por lá.</p>
-    <a class="cta" href="https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M" target="_blank" rel="noopener" id="cta-grupo">Entrar no grupo</a>
-    <p class="parcela">Entrada gratuita. Também mandamos o convite no seu WhatsApp.</p>
+    <h2>O material está sendo finalizado.</h2>
+    <p class="sub">Ele entra no ar em poucos dias. Se você já resolveu o que travou o seu projeto — o local, o capital ou quem decide — volte para a agenda e conte: a régua roda de novo com as respostas novas.</p>
+    <a class="cta" href="/io/eletroposto#agendar" id="cta-grupo">Voltar para a agenda</a>
   </div>
 </section>
 
@@ -804,7 +916,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 <!-- 15 · CTA FINAL -->
 <section class="escuro rv" id="cta-final" style="display:none">
   <div class="faixa" style="text-align:center">
-    <h2 style="margin-left:auto;margin-right:auto">O próximo passo é seu.</h2>
+    <h2 style="margin-left:auto;margin-right:auto">Tudo reunido, na ordem, num lugar só.</h2>
     <p class="lead" style="margin-left:auto;margin-right:auto">Você já sabe o que travou a reunião. Isto é o caminho mais curto até destravar.</p>
     <div style="display:flex;justify-content:center"><a class="cta off" id="cta2" href="#">Carregando…</a></div>
   </div>
@@ -820,7 +932,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 
 <footer class="rodape">
   PlugCash · Irmãos na Obra — Mobilidade Elétrica<br>
-  Dúvidas? <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a>
+  Dúvidas? <a href="mailto:contato@solardoc.app">contato@solardoc.app</a>
 </footer>
 
 <script>
@@ -857,7 +969,7 @@ var COPY = {
       'Das perguntas do formulário, essa é a única que fecha a agenda por conta própria: sem endereço, nada no resto compensa. Não é uma leitura sobre você. É o que a reunião precisa para existir.',
       'A reunião é com o especialista que dimensiona potência, calcula demanda e fecha orçamento. As três coisas moram num endereço: a carga disponível é a daquele padrão de entrada, o movimento é o daquela esquina, o retorno é o daquele fluxo. Sem local, a hora inteira vira suposição — e suposição num investimento de seis dígitos não ajuda você nem a gente.'
     ],
-    ponte: 'Escolher um ponto é procedimento, não faro: fluxo, carga disponível no padrão de entrada, concorrência de raio e contrato. É exatamente isso que este material coloca na sua mão.'
+    ponte: 'Escolher ponto é procedimento, não faro: fluxo, carga no padrão de entrada, concorrência de raio, contrato. Você vai achar cada um desses assuntos solto na internet, escrito por quem quer te vender alguma coisa. Aqui eles estão reunidos, na ordem, e terminam numa resposta sobre o SEU endereço.'
   },
   fluxo_baixo: {
     selo: 'Você respondeu que investe, mas não tem o local',
@@ -868,7 +980,7 @@ var COPY = {
     ],
     // Não diz "é a parte central do material": medir movimento é UMA aula das 14.
     // Exagero aqui é caro — este leitor foi selecionado justamente por farejar exagero.
-    ponte: 'Medir o movimento de um endereço, sem contratar pesquisa, é uma das aulas daqui. E é a que muda a sua resposta.'
+    ponte: 'Medir o movimento de um endereço sem contratar pesquisa é uma das aulas daqui — e nenhuma busca no Google te dá esse método, porque ninguém ganha nada te ensinando a reprovar um ponto. É o que muda a sua resposta.'
   },
   nao_decisor: {
     selo: 'Você respondeu que a decisão não é só sua',
@@ -880,7 +992,7 @@ var COPY = {
     // NÃO promete "os riscos e as objeções que o outro lado vai levantar" — isso é
     // o Dossiê do Sócio, outro curso. Aqui só o que o material de entrada tem: a
     // conta aberta, a carga, o prazo e de onde sai cada número.
-    ponte: 'O que a outra pessoa vai querer conferir é a conta, o prazo e de onde sai cada número. É isso que este material coloca na sua mão para você levar.'
+    ponte: 'Quem decide com você vai querer conferir a conta, o prazo e de onde sai cada número. Não dá pra montar isso com print de blog: precisa estar reunido, com a origem de cada linha. É exatamente o que você leva daqui.'
   },
   sem_capital: {
     selo: 'Você respondeu que o capital ainda não está disponível',
@@ -889,7 +1001,7 @@ var COPY = {
       'A reunião entrega uma coisa só: dimensionamento e orçamento. Orçamento na mão de quem ainda não sabe como paga não move projeto — vira PDF guardado e uma cobrança nossa três semanas depois, que constrange os dois lados.',
       'Dinheiro para eletroposto não é problema de sorte, é problema de formato: recurso próprio, linha de crédito com o equipamento em garantia, empresa com CNPJ e faturamento, ou sociedade com quem tem o ponto e não tem o capital. Cada formato pede um preparo diferente, e todos pedem a mesma coisa antes: que você saiba defender a conta.'
     ],
-    ponte: 'Banco, sócio ou investidor cobram a mesma coisa antes do dinheiro — a conta explicada por você, sem gaguejar. É o que este material treina.'
+    ponte: 'Banco, sócio e investidor cobram a mesma coisa antes do dinheiro: a conta explicada por você, sem gaguejar. Ela não existe pronta em lugar nenhum da internet — ela se monta, na ordem, e é isso que este material treina.'
   },
   neutro: {
     selo: 'Sobre a sua resposta',
@@ -898,7 +1010,7 @@ var COPY = {
       'A agenda do especialista é reservada para projetos que já têm as três pernas de pé: um local definido, uma forma de pagar e a decisão na mão de quem está na conversa. Faltando uma delas, a reunião entrega um orçamento que não vira obra.',
       'Isso não é um não definitivo. É a ordem certa das coisas.'
     ],
-    ponte: 'O caminho de volta começa por entender o negócio inteiro antes de sentar para orçar.'
+    ponte: 'O caminho de volta começa por entender o negócio inteiro antes de sentar pra orçar — e entender inteiro é justamente o que a internet não entrega, porque lá a informação chega picada e vendida.'
   }
 };
 
@@ -928,13 +1040,14 @@ LEVA.forEach(function(t){ var li = document.createElement('li'); li.textContent 
 
 // A resposta do "isso me devolve pra agenda?" tem que ser IDÊNTICA aqui e nas
 // nove páginas de curso, e tem que descrever o mecanismo real — que é: você
-// marca no painel, isso te põe numa lista que gente revisa, e o contato sai pelo
-// WhatsApp. Cinco redações diferentes viram cinco promessas diferentes, e a mais
-// generosa é a que vai ser cobrada.
+// marca no painel, isso te põe numa lista que gente revisa, e alguém entra em
+// contato. Cinco redações diferentes viram cinco promessas diferentes, e a mais
+// generosa é a que vai ser cobrada. O CANAL saiu do texto de propósito: prometer
+// canal é prometer prazo, e a página não tem como garantir nenhum dos dois.
 var VOLTA_PRA_AGENDA =
   'Comprar não devolve. O que devolve é resolver a falta. Quando você definir o ponto, ' +
   'viabilizar o capital ou trazer quem decide, marca isso no seu painel — e você entra na ' +
-  'lista que a equipe revisa, com o contato saindo pelo WhatsApp que você cadastrou. ' +
+  'lista que a equipe revisa, e alguém entra em contato com você. ' +
   'A régua tem quatro critérios, então resolver um pode não ser suficiente sozinho: ' +
   'quem confere é gente, não robô.';
 
@@ -1010,14 +1123,16 @@ function abrirCheckout(botao){
   .catch(function(){
     abrindo = false;
     botao.textContent = textoOriginal;
-    // Falhar calado aqui é perder a venda sem ninguém saber. O WhatsApp é o
-    // caminho de sempre e resolve na hora.
+    // Falhar calado aqui é perder a venda sem ninguém saber. O caminho deixou
+    // de ser o WhatsApp: manda direto pro checkout, que o cliente compra na
+    // hora em vez de esperar alguém responder.
     var m = document.createElement('p');
     m.className = 'parcela';
     m.style.color = '#a32727';
-    m.innerHTML = 'Não consegui abrir o pagamento agora. ' +
-      '<a href="https://wa.me/5534991360223?text=Quero%20comprar%20o%20material%20do%20eletroposto" style="color:#009B40;font-weight:700">' +
-      'Chame no WhatsApp que a gente resolve na hora.</a>';
+    var direto = (window.__CHECKOUT_URL || '');
+    m.innerHTML = 'Não consegui abrir o pagamento agora. ' + (direto
+      ? '<a href="' + direto + '" style="color:#009B40;font-weight:700">Abrir o checkout direto.</a>'
+      : 'Recarregue a página e tente de novo.');
     if (!botao.parentNode.querySelector('.erroCheckout')) { m.classList.add('erroCheckout'); botao.parentNode.appendChild(m); }
   });
 }
@@ -1134,6 +1249,10 @@ fetch(API + '/plugcash/curso/fundamentos')
 
     checkoutSimples = k.checkout_url || null;
     checkoutBump = (k.copy && k.copy.checkout_bump_url) || null;
+    // Guardado no window porque o tratamento de erro do botão roda fora deste
+    // escopo. É o caminho de saída quando a chamada de checkout falha — antes
+    // era um link de WhatsApp, agora é o próprio checkout.
+    window.__CHECKOUT_URL = checkoutSimples;
 
     // Order bump: UMA linha com checkbox. Só aparece se o link com bump existir —
     // oferecer um adicional que o checkout não sabe cobrar é pior que não oferecer.
