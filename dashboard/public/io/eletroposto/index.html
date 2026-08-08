@@ -316,6 +316,17 @@
     .kpi .k{font-size:11.5px}
     .eletro-bar-lbl,.bl{font-size:10.5px}
     .mkc .l{font-size:12px}
+    /* alvo de toque: os campos ficavam em ~47px e o público é mais velho — erra a
+       mira num select apertado. Cresce por PADDING (min-height deixa o texto do
+       select colado no topo em alguns navegadores) e o texto vai a 17px: abaixo
+       de 16px o iOS dá zoom na página ao focar e piora justamente pra eles. */
+    .fld label{font-size:14.5px;margin-bottom:9px}
+    .fld .hint{font-size:12.5px}
+    .inp input,.inp select{padding:23px 14px;font-size:17px;line-height:1.2;border-radius:12px}
+    /* o select ganha ~4px internos do navegador: sem descontar, ele fica mais alto
+       que o input logo acima e o formulário vira degrau */
+    .inp select{padding-top:21px;padding-bottom:21px}
+    .inp.has-pre input{padding-left:40px}
   }
 
   /* ===== manifesto / filtro forte (chave na mão) ===== */
@@ -664,27 +675,18 @@
         </div>
 
         <div class="f2">
-          <div class="fld"><label>Seu nome</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
-          <div class="fld"><label>WhatsApp</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this)"></div></div>
+          <div class="fld"><label for="f-nome">Seu nome</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
+          <div class="fld"><label for="f-tel">WhatsApp</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this)"></div></div>
         </div>
-        <!-- Endereço completo e OBRIGATÓRIO: a equipe leva o estudo de viabilidade
-             pronto pra reunião e ele depende do local (concessionária, fluxo da via,
-             distância da entrada de energia). Quem ainda não tem o ponto informa o
-             próprio endereço — é a partir dele que a equipe garimpa local na região. -->
-        <div class="fld" style="margin-bottom:0">
-          <label>Endereço completo <span class="hint">(onde pretende instalar — se ainda não tem o ponto, o seu)</span></label>
-        </div>
-        <div class="f2">
-          <div class="fld"><label>CEP <span class="hint" id="cep-st">(opcional — completa o endereço)</span></label><div class="inp"><input type="text" id="f-cep" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" oninput="maskCep(this)"></div></div>
-          <div class="fld"><label>Cidade / UF</label><div class="inp"><input type="text" id="f-cidade" placeholder="Ex: Uberlândia-MG"></div></div>
-        </div>
-        <div class="f2">
-          <div class="fld"><label>Rua / Avenida</label><div class="inp"><input type="text" id="f-rua" placeholder="Ex: Av. João Naves de Ávila"></div></div>
-          <div class="fld"><label>Número</label><div class="inp"><input type="text" id="f-numero" placeholder="Ex: 1200" inputmode="numeric"></div></div>
-        </div>
-        <div class="f2">
-          <div class="fld"><label>Bairro</label><div class="inp"><input type="text" id="f-bairro" placeholder="Ex: Santa Mônica"></div></div>
-          <div class="fld"><label>Complemento / referência <span class="hint">(opcional)</span></label><div class="inp"><input type="text" id="f-compl" placeholder="Loja, galpão, ponto de referência"></div></div>
+        <!-- Só a CIDADE desde 08/08/2026. Antes eram 6 campos (CEP, rua, número,
+             bairro, complemento) com busca no ViaCEP: o formulário no celular ficava
+             longo e o público daqui é mais velho — cada campo a mais é gente que
+             desiste no meio. A cidade já entrega o que o estudo de viabilidade precisa
+             pra começar (concessionária e região); o endereço exato a equipe pega na
+             própria reunião, que é quando alguém confere o local de verdade. -->
+        <div class="fld">
+          <label for="f-cidade">Cidade / UF <span class="hint">(onde pretende instalar — se ainda não tem o ponto, a sua)</span></label>
+          <div class="inp"><input type="text" id="f-cidade" placeholder="Ex: Uberlândia-MG" autocomplete="address-level2"></div>
         </div>
 
         <!-- ── Qualificação ──────────────────────────────────────────────────────
@@ -696,7 +698,7 @@
              consultoria ali contradizia o filtro e canibalizava o ticket. Todo lead
              daqui em diante é tratado como chave na mão. -->
         <div class="fld">
-          <label>Seu perfil</label>
+          <label for="f-perfil">Seu perfil</label>
           <div class="inp"><select id="f-perfil" onchange="onPerfil()">
             <option value="">Selecione…</option>
             <option value="posto">Dono de posto de combustível</option>
@@ -716,7 +718,7 @@
              a equipe não ficava sabendo que segmento estava entrando. Agora ele
              digita, e o que vier vai inteiro pra ficha e pro alerta no WhatsApp. -->
         <div class="fld" id="box-outro" style="display:none">
-          <label>Qual é o seu segmento?</label>
+          <label for="f-outro">Qual é o seu segmento?</label>
           <div class="inp"><input type="text" id="f-outro" maxlength="60"
             placeholder="Ex: oficina mecânica, lava-jato, loja de conveniência"></div>
         </div>
@@ -725,7 +727,7 @@
              tem carro parando na porta). Pra esses dois, quem responde pelo movimento
              é a rota — por isso a pergunta só aparece aqui. -->
         <div class="fld" id="box-rota" style="display:none">
-          <label>O local que você tem em vista fica em rota de passagem?</label>
+          <label for="f-rota">O local que você tem em vista fica em rota de passagem?</label>
           <div class="inp"><select id="f-rota">
             <option value="">Selecione…</option>
             <option value="rodovia">Sim, fica em rodovia ou corredor de tráfego</option>
@@ -738,7 +740,7 @@
              entre "já tenho" e "não tenho" existiam três estágios diferentes de venda,
              e o binário jogava todos no mesmo balde. -->
         <div class="fld">
-          <label>Como está o seu ponto hoje?</label>
+          <label for="f-ponto">Como está o seu ponto hoje?</label>
           <div class="inp"><select id="f-ponto">
             <option value="">Selecione…</option>
             <option value="definido">Já tenho o ponto definido</option>
@@ -749,7 +751,7 @@
         </div>
 
         <div class="fld">
-          <label>Como pretende investir</label>
+          <label for="f-invest">Como pretende investir</label>
           <div class="inp"><select id="f-invest">
             <option value="">Selecione…</option>
             <option value="proprio">Recurso próprio</option>
@@ -762,7 +764,7 @@
         </div>
 
         <div class="fld">
-          <label>Quem decide o investimento?</label>
+          <label for="f-decisor">Quem decide o investimento?</label>
           <div class="inp"><select id="f-decisor">
             <option value="">Selecione…</option>
             <option value="eu">Eu decido</option>
@@ -774,7 +776,7 @@
         <!-- Não pontua: serve pro especialista chegar na reunião sabendo o tamanho do
              risco de adequação elétrica (padrão de entrada, transformador dedicado). -->
         <div class="fld">
-          <label>A entrada de energia do local é trifásica? <span class="hint">(ajuda a equipe a preparar o estudo)</span></label>
+          <label for="f-trifasica">A entrada de energia do local é trifásica? <span class="hint">(ajuda a equipe a preparar o estudo)</span></label>
           <div class="inp"><select id="f-trifasica">
             <option value="">Selecione…</option>
             <option value="sim">Sim</option>
@@ -1375,57 +1377,9 @@ function maskTel(i){
   else if(v.length>2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
   i.value = v;
 }
-// ViaCEP: com o CEP completo, rua/bairro/cidade se preenchem sozinhos — são 3 dos 4
-// campos obrigatórios de endereço que o lead não precisa digitar. É CONVENIÊNCIA, não
-// dependência: se a API cair, expirar ou o CEP não existir, o lead preenche na mão e o
-// agendamento segue igual (o CEP em si continua opcional e nada aqui bloqueia o envio).
-const CEP_HINT = '(opcional — completa o endereço)';
-let cepSeq = 0;
-function cepStatus(txt, bad){
-  const s = document.getElementById('cep-st');
-  s.textContent = txt;
-  s.style.color = bad ? '#fda4af' : '';
-}
-async function buscaCep(digitos){
-  const seq = ++cepSeq;
-  cepStatus('buscando…', false);
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 6000);   // sem isto, rede ruim trava o "buscando…" pra sempre
-  try{
-    const r = await fetch(`https://viacep.com.br/ws/${digitos}/json/`, {signal: ctrl.signal});
-    // digitou outro CEP enquanto esta resposta vinha: ela é velha, não pode pintar o form
-    if(seq !== cepSeq) return;
-    if(!r.ok) return cepStatus('CEP não encontrado — preencha abaixo', true);
-    const d = await r.json();
-    if(seq !== cepSeq) return;
-    if(d.erro)  return cepStatus('CEP não encontrado — preencha abaixo', true);
-
-    // busca que deu certo SUBSTITUI o bloco inteiro, inclusive com vazio. Preencher só
-    // o que veio misturava endereços: quem corrige 38408-100 (Uberlândia) por 38660-000
-    // (Buritis, que não tem logradouro) ficaria com a rua da cidade antiga sob a cidade
-    // nova — os 4 campos preenchidos, validação passando e a equipe indo no lugar errado.
-    const set = (id, v) => { document.getElementById(id).value = v || ''; };
-    set('f-rua',    d.logradouro);
-    set('f-bairro', d.bairro);
-    set('f-cidade', d.localidade && d.uf ? `${d.localidade}-${d.uf}` : '');
-    cepStatus(CEP_HINT, false);
-    // CEP de cidade inteira não traz logradouro — joga o foco no campo que ficou faltando
-    document.getElementById(d.logradouro ? 'f-numero' : 'f-rua').focus();
-  }catch(e){
-    // rede fora ou timeout: volta ao normal sem alarme — os campos continuam editáveis
-    if(seq === cepSeq) cepStatus(CEP_HINT, false);
-  }finally{
-    clearTimeout(t);
-  }
-}
-function maskCep(i){
-  let v = i.value.replace(/\D/g,'').slice(0,8);
-  if(v.length>5) v = `${v.slice(0,5)}-${v.slice(5)}`;
-  i.value = v;
-  const dig = v.replace(/\D/g,'');
-  if(dig.length === 8) buscaCep(dig);
-  else { cepSeq++; cepStatus(CEP_HINT, false); }   // apagou/editou: invalida a busca em voo
-}
+// A busca no ViaCEP saiu junto com os campos de endereço (08/08/2026): ela existia
+// só pra preencher rua/bairro/cidade sozinha, e agora o único campo é a cidade —
+// que o lead digita mais rápido do que os 8 dígitos do CEP.
 function erro(txt){
   const m = document.getElementById('ag-msg');
   m.textContent = txt; m.className = 'agMsg err';
@@ -1436,12 +1390,7 @@ function erro(txt){
 async function agendar(){
   const nome    = document.getElementById('f-nome').value.trim();
   const telRaw  = document.getElementById('f-tel').value.replace(/\D/g,'');
-  const cep     = document.getElementById('f-cep').value.trim();
   const cidade  = document.getElementById('f-cidade').value.trim();
-  const rua     = document.getElementById('f-rua').value.trim();
-  const numero  = document.getElementById('f-numero').value.trim();
-  const bairro  = document.getElementById('f-bairro').value.trim();
-  const compl   = document.getElementById('f-compl').value.trim();
   const btn     = document.getElementById('ag-btn');
 
   const perfil  = document.getElementById('f-perfil');
@@ -1457,9 +1406,6 @@ async function agendar(){
   if(nome.length < 3)     return erro('Informe seu nome completo.');
   if(telRaw.length < 10)  return erro('Informe um WhatsApp válido com DDD.');
   if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
-  if(rua.length < 3)      return erro('Informe a rua ou avenida do endereço.');
-  if(!numero)             return erro('Informe o número do endereço.');
-  if(bairro.length < 2)   return erro('Informe o bairro.');
   if(!perfil.value)       return erro('Selecione seu perfil.');
   if(perfil.value === 'outro' && document.getElementById('f-outro').value.trim().length < 3)
                           return erro('Escreva qual é o seu segmento.');
@@ -1483,8 +1429,6 @@ async function agendar(){
         method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
         body: JSON.stringify({
           nome, telefone:'55'+telRaw, cidade,
-          endereco: [`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '', compl ? `ref.: ${compl}` : '']
-            .filter(Boolean).join(' — '),
           perfil: perfilTexto(perfil), ponto: txt(ponto), invest: txt(invest),
           decisor: txt(decisor), rota: PERFIL_SEM_FLUXO.has(perfil.value) ? txt(rota) : '',
           trifasica: txt(trif), pts: q.pts,
@@ -1531,9 +1475,6 @@ async function agendar(){
   // Vale em QUALQUER nota — "não sei como pagar" vale 0, então esse lead quase nunca
   // chega aos 9 pts da NOTA 3; se a marcação só valesse lá, nunca apareceria.
   const pontoParaInvestidor = invest.value === 'naosei' && pontoDefinido;
-  // endereço completo montado a partir dos campos (a ficha vai na observação)
-  const endereco = [`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '', compl ? `ref.: ${compl}` : '']
-    .filter(Boolean).join(' — ');
   // Formato lido pelo alerta da equipe (api/src/routes/ioEletroposto.ts): cada rótulo
   // aqui vira uma linha da mensagem no WhatsApp. Renomear rótulo = mexer lá também.
   // A marcação do investidor vai sem acento de propósito, pra casar entre os arquivos.
@@ -1541,7 +1482,9 @@ async function agendar(){
     `LP ELETROPOSTO — ${perfilTexto(perfil)}`,
     `NOTA ${q.nota} · ${q.pts}/11 pts${q.corte ? ' (corte: sem ponto e sem capital)' : ''}`,
     pontoParaInvestidor ? 'PONTO DISPONIVEL PARA INVESTIDOR' : '',
-    `Endereço: ${endereco}${pontoDefinido ? '' : ' (endereço do lead — ponto ainda não definido)'}`,
+    // A linha "Endereço:" saiu com os campos de endereço. A cidade viaja na coluna
+    // própria do agendamento (é ela que o alerta imprime) e o "ponto ainda não
+    // definido" continua visível na linha `Ponto:` logo abaixo.
     `Ponto: ${txt(ponto)}`,
     PERFIL_SEM_FLUXO.has(perfil.value) ? `Rota de passagem: ${txt(rota)}` : '',
     `Como pretende investir: ${txt(invest)}`,
