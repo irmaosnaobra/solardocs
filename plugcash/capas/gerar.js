@@ -108,15 +108,36 @@ function html(curso) {
   body{width:${LARGURA}px;height:${ALTURA}px;background:#0A0A0A;overflow:hidden;
        font-family:'Inter','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
        color:#fff;position:relative}
+  /* Com foto o conteúdo respeita a placa: o rótulo fica no alto da imagem e o
+     lockup, dentro da faixa preta de baixo. */
+  body.comFoto .conteudo{padding:40px 46px 34px;z-index:3}
 
-  /* Foto: matéria, não assunto. 20% já dá textura e mantém o ícone branco
-     legível a 272px de largura, que é o tamanho real do card. O véu escurece o
-     lado esquerdo, onde ficam a tarja da etapa e o ícone. */
-  .foto{position:absolute;inset:0;background:center/cover no-repeat;opacity:.38;filter:grayscale(.2) contrast(1.05)}
-  /* O véu é assimétrico de propósito: escuro onde mora o texto (esquerda),
-     aberto onde a foto pode respirar (direita, atrás do número em contorno). */
+  /* A FOTO É O ASSUNTO, não textura de fundo. A primeira versão punha ela a 38%
+     atrás do ícone e virava borrão no card de 272px — parecia defeito, não
+     design. Agora ela ocupa a capa inteira e o sistema gráfico (tarja da etapa,
+     ícone, marca) sobe pra cima dela.
+
+     Dessaturação leve: são nove fotos de origens diferentes e a grade precisa
+     parecer uma coleção, não nove imagens avulsas. */
+  .foto{position:absolute;inset:0;background:center/cover no-repeat;filter:saturate(.82) contrast(1.04)}
+  /* Véu vertical: o topo fica quase limpo (é onde a foto aparece) e a base
+     escurece de verdade, porque é onde moram o ícone e a marca. Sem isso, uma
+     foto clara come o branco do lockup. */
+     GRADIENTE NÃO BASTA. As nove fotos têm brilho diferente e uma delas sempre
+     vai ser a clara: sobre o padrão de entrada branco e sobre o carregador
+     branco, o verde do rótulo e o lockup branco sumiam mesmo com véu forte.
+
+     Por isso cada elemento tem fundo PRÓPRIO, não emprestado da foto: a base é
+     uma faixa preta sólida e o ícone mora dentro de um selo escuro. O véu ficou
+     só pra assentar a imagem — não é mais ele que garante leitura. */
   .veu{position:absolute;inset:0;
-       background:linear-gradient(100deg,rgba(10,10,10,.95) 30%,rgba(10,10,10,.6) 68%,rgba(10,10,10,.34) 100%)}
+       background:linear-gradient(180deg,rgba(10,10,10,.34) 0%,rgba(10,10,10,.06) 30%,
+                                         rgba(10,10,10,.34) 100%)}
+  /* Faixa da marca: 30% da altura, preta de verdade. É a placa de legenda do
+     pôster — o lugar onde o texto sempre pode ser lido. */
+  .placa{position:absolute;left:0;right:0;bottom:0;height:30%;background:#0A0A0A;
+    border-top:1px solid rgba(255,255,255,.1);
+    display:flex;align-items:center;justify-content:space-between;padding:0 46px}
 
   /* Malha de linhas finíssimas: dá textura sem virar gradiente nem ruído.
      4% de opacidade — some no card pequeno e aparece no tamanho cheio. */
@@ -145,19 +166,38 @@ function html(curso) {
   .icone{width:200px;height:200px;stroke:#fff;stroke-width:2.4;fill:none;
     stroke-linecap:round;stroke-linejoin:round;margin-left:-6px}
 
+  /* Com foto, o ícone deixa de ser o assunto e vira selo, no canto de cima da
+     imagem. Continua sendo o mesmo desenho — é o que amarra as nove — mas com
+     fundo escuro proprio, então nunca depende do que tem atrás dele. */
+  .selo{position:absolute;right:44px;top:40px;width:104px;height:104px;
+    border:2px solid rgba(255,255,255,.3);border-radius:22px;background:rgba(10,10,10,.72);
+    display:grid;place-items:center}
+  .selo svg{width:60px;height:60px;stroke:#fff;stroke-width:2.6;fill:none;
+    stroke-linecap:round;stroke-linejoin:round}
+  /* O rótulo da etapa também sobe a imagem, então leva a própria pílula. */
+  .comFoto .topo{display:inline-flex;background:rgba(10,10,10,.78);
+    padding:14px 22px;border-radius:999px;align-self:flex-start}
+  .comFoto .meio{flex:1}
+  .comFoto .malha{opacity:.02}
+  /* O número saiu: o card já diz "PASSO 6" logo abaixo da capa, e o contorno
+     gigante sobre foto virava sujeira. */
+  .comFoto .numero{display:none}
+
   .rodape{display:flex;align-items:center;justify-content:space-between}
   .marca{display:flex;align-items:center;gap:12px;font-size:30px;font-weight:800;letter-spacing:-.02em}
   .marca svg{width:38px;height:38px}
   .cash{color:#00C853}
   /* Régua verde na base: o mesmo acento da faixa do item ativo no menu. */
   .regua{position:absolute;left:0;right:0;bottom:0;height:7px;background:#00C853}
-</style></head><body>
-  ${foto ? `<div class="foto" style="background-image:url('${foto}')"></div><div class="veu"></div>` : ''}
+</style></head><body class="${foto ? 'comFoto' : ''}">
+  ${foto ? `<div class="foto" style="background-image:url('${foto}')"></div><div class="veu"></div>
+            <div class="placa"></div>
+            <div class="selo"><svg viewBox="0 0 48 48">${ICONES[curso.slug]}</svg></div>` : ''}
   <div class="malha"></div>
   <div class="numero">${curso.n}</div>
   <div class="conteudo">
     <div class="topo"><span class="barra"></span><span class="etapa">${curso.etapa}</span></div>
-    <svg class="icone" viewBox="0 0 48 48">${ICONES[curso.slug]}</svg>
+    ${foto ? '<div class="meio"></div>' : `<svg class="icone" viewBox="0 0 48 48">${ICONES[curso.slug]}</svg>`}
     <div class="rodape">
       <span class="marca">
         <svg viewBox="0 0 80 80">
