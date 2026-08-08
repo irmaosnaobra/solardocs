@@ -81,7 +81,7 @@ A tela de Pix também ficou de fora dos portões do layout (CNPJ obrigatório, s
    links das telas de bloqueio saírem do WhatsApp e passarem a apontar pra tela de
    assinatura. Deixe por último, depois do teste no sandbox.
 4. **Cadastrar o webhook no Asaas** apontando para
-   `https://solardocs-api-irmaosnaobra-aioros.vercel.app/payments/asaas/webhook`,
+   `https://api.solardoc.app/payments/asaas/webhook`,
    com o mesmo `authToken` do passo 3, `sendType: SEQUENTIALLY`, e os eventos:
    `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`,
    `PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED`, `..._CANCELLED`, `..._EXPIRED`, `..._REFUSED`,
