@@ -1744,6 +1744,31 @@ function pEsc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] || c);
 }
 
+// Telefone só pra LEITURA: "5517996243536" → "(17) 99624-3536". O link do
+// WhatsApp e o QR continuam usando os dígitos crus — formatar a variável em si
+// quebraria os dois.
+function pTel(s: string): string {
+  const d = String(s || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return String(s || '');
+}
+
+// CNPJ: pontua se vierem os 14 dígitos; qualquer outra coisa sai como foi digitada.
+function pCnpj(s: string): string {
+  const d = String(s || '').replace(/\D/g, '');
+  if (d.length !== 14) return String(s || '').trim();
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
+
+// Checkbox do form: ausente = LIGADO (é o padrão de todos os campos do rodapé).
+// String("false") porque o valor volta do dados_json/kit com o tipo trocado —
+// aqui isso importa mais que nos pag_*: um desmarcado que não pega vira PDF
+// errado na mão do cliente.
+function pFlagOn(v: unknown): boolean {
+  return v !== false && String(v) !== 'false';
+}
+
 // PMT Price com carência: juros capitalizam no saldo durante a carência, depois Price padrão
 function pmtPriceCarencia(pv: number, i: number, n: number, carenciaMeses: number): number {
   if (!pv || pv <= 0) return 0;
@@ -1826,10 +1851,18 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const garPaineis = parseInt(String(f.garantia_paineis || '25'), 10) || 25;
   const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
 
+  // Rodapé: nome do vendedor, contato e CNPJ vêm fixos do cadastro, mas o form
+  // manda o que o consultor editou — e cada linha tem um desmarcar próprio.
+  const mostraVendNome = pFlagOn(f.mostrar_vendedor_nome);
+  const mostraVendTel = pFlagOn(f.mostrar_vendedor_contato);
   const vendedorForm = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome).trim();
-  const vendedor = vendedorForm || String(company.socio_adm || company.nome || '').trim();
-  const vendWhats = ((str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '') || String((company as { whatsapp?: string }).whatsapp || '').replace(/\D/g, ''));
+  const vendedor = mostraVendNome ? (vendedorForm || String(company.socio_adm || company.nome || '').trim()) : '';
+  const vendWhats = mostraVendTel
+    ? ((str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '') || String((company as { whatsapp?: string }).whatsapp || '').replace(/\D/g, ''))
+    : '';
   const vendEmail = String(f.vendedor_email || '').trim() || String((company as { email?: string }).email || '').trim();
+  const cnpjForm = str(f.empresa_cnpj) === '___' ? '' : String(f.empresa_cnpj).trim();
+  const cnpjDoc = pFlagOn(f.mostrar_cnpj) ? (cnpjForm || String(company.cnpj || '').trim()) : '';
   const logo = String((company as { logo_base64?: string }).logo_base64 || '').trim();
   // Nome exibido = nome fantasia (marca) se houver; senão a razão social.
   const displayNome = String((company as { nome_fantasia?: string }).nome_fantasia || company.nome || '').trim();
@@ -1901,6 +1934,19 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
 
   const linhaMk = (label: string, marca: string, right: string) =>
     `<div class="r"><span class="lab">${pEsc(label)}${marca ? ` <em class="mkq">${pEsc(marca)}</em>` : ''}</span><span class="inc">${pEsc(right)}</span></div>`;
+
+  // Desmarcar nome E contato tira o card inteiro — um card só com o título
+  // "Vendedor" e nada dentro parece documento quebrado. Aí a Empresa ocupa a
+  // largura toda em vez de deixar meio rodapé vazio.
+  const cardVendedor = (mostraVendNome || vendWhats || vendEmail)
+    ? `<div class="card">
+        <h4>Vendedor</h4>
+        ${mostraVendNome ? `<div class="l"><span>Nome</span><span>${pEsc(vendedor || '—')}</span></div>` : ''}
+        ${vendEmail ? `<div class="l"><span>E-mail</span><span>${pEsc(vendEmail)}</span></div>` : ''}
+        ${vendWhats ? `<div class="l"><span>Contato</span><span class="num">${pEsc(pTel(vendWhats))}</span></div>` : ''}
+        ${vendWhats ? `<div class="qr"><div class="qrbox">${qrSvg('https://wa.me/' + (vendWhats.startsWith('55') ? vendWhats : '55' + vendWhats))}</div><span>Aponte a câmera<br/>e fale no WhatsApp</span></div>` : ''}
+      </div>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head>
@@ -2031,19 +2077,14 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 
   <div class="foot">
     <div class="pg">Forma de pagamento &amp; contato</div>
-    <div class="cols">
-      <div class="card">
-        <h4>Vendedor</h4>
-        <div class="l"><span>Nome</span><span>${pEsc(vendedor || '—')}</span></div>
-        ${vendEmail ? `<div class="l"><span>E-mail</span><span>${pEsc(vendEmail)}</span></div>` : ''}
-        ${vendWhats ? `<div class="l"><span>Contato</span><span class="num">${pEsc(vendWhats)}</span></div>` : ''}
-        ${vendWhats ? `<div class="qr"><div class="qrbox">${qrSvg('https://wa.me/' + (vendWhats.startsWith('55') ? vendWhats : '55' + vendWhats))}</div><span>Aponte a câmera<br/>e fale no WhatsApp</span></div>` : ''}
-      </div>
+    <div class="cols"${cardVendedor ? '' : ' style="grid-template-columns:1fr"'}>
+      ${cardVendedor}
       <div class="card">
         <h4>Empresa</h4>
         <div class="l"><span>Nome</span><span>${pEsc(displayNome || '—')}</span></div>
+        ${cnpjDoc ? `<div class="l"><span>CNPJ</span><span class="num">${pEsc(pCnpj(cnpjDoc))}</span></div>` : ''}
         ${company.endereco ? `<div class="l"><span>Endereço</span><span>${pEsc(company.endereco)}</span></div>` : ''}
-        ${(company as { whatsapp?: string }).whatsapp ? `<div class="l"><span>Contato</span><span class="num">${pEsc(String((company as { whatsapp?: string }).whatsapp))}</span></div>` : ''}
+        ${(company as { whatsapp?: string }).whatsapp ? `<div class="l"><span>Contato</span><span class="num">${pEsc(pTel(String((company as { whatsapp?: string }).whatsapp)))}</span></div>` : ''}
         ${(company as { email?: string }).email ? `<div class="l"><span>E-mail</span><span>${pEsc(String((company as { email?: string }).email))}</span></div>` : ''}
       </div>
     </div>
@@ -2057,12 +2098,20 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   // Paleta: SEMPRE a cor de marca da empresa (sem escolha de cor na proposta).
   const palette: Palette = derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa');
   const codigoProposta = str(f.codigo) === '___' ? '' : String(f.codigo);
-  // Vendedor caiu do form — usa contato da empresa cadastrada (sócio admin / razão social + WhatsApp da empresa).
-  // Se o form ainda mandar (proposta antiga ou white-label custom), prioriza o do form.
+  // Vendedor vem fixo do cadastro (sócio admin / razão social + WhatsApp da empresa),
+  // e o form manda o que o consultor editou ou desmarcou — o mesmo formulário
+  // gera os dois modelos, então desmarcar o contato aqui também tem que apagar
+  // o CTA do WhatsApp lá embaixo, senão o checkbox mente.
+  const mostraVendNome = pFlagOn(f.mostrar_vendedor_nome);
+  const mostraVendTel = pFlagOn(f.mostrar_vendedor_contato);
   const vendedorForm = str(f.vendedor_nome) === '___' ? '' : String(f.vendedor_nome).trim();
-  const vendedor = vendedorForm || String(company.socio_adm || company.nome || '').trim();
+  const vendedor = mostraVendNome ? (vendedorForm || String(company.socio_adm || company.nome || '').trim()) : '';
   const vendedorWhatsAppForm = (str(f.vendedor_whatsapp) === '___' ? '' : String(f.vendedor_whatsapp)).replace(/\D/g, '');
-  const vendedorWhatsApp = vendedorWhatsAppForm || String((company as { whatsapp?: string }).whatsapp || '').replace(/\D/g, '');
+  const vendedorWhatsApp = mostraVendTel
+    ? (vendedorWhatsAppForm || String((company as { whatsapp?: string }).whatsapp || '').replace(/\D/g, ''))
+    : '';
+  const cnpjForm = str(f.empresa_cnpj) === '___' ? '' : String(f.empresa_cnpj).trim();
+  const cnpjDoc = pFlagOn(f.mostrar_cnpj) ? (cnpjForm || String(company.cnpj || '').trim()) : '';
   const fotoTelhado = str(f.foto_telhado_b64) === '___' ? '' : String(f.foto_telhado_b64);
   const tipoTelhado = str(f.tipo_telhado) === '___' ? (client.tipo_telhado || '') : String(f.tipo_telhado);
   const cidade = (str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade)).trim();
@@ -2864,6 +2913,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   })() : ''}
 
   <div class="footer">
+    ${cnpjDoc ? `<div class="empresa-info" style="margin-top:0">${pEsc(displayNomeM)} · CNPJ ${pEsc(pCnpj(cnpjDoc))}</div>` : ''}
     <div class="gerado">Proposta gerada por SolarDoc Pro · solardoc.app</div>
   </div>
 </div>

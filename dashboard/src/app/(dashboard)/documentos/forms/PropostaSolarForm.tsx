@@ -50,6 +50,16 @@ const TIPOS_TELHADO = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laj
 const initialFields = {
   paleta: 'solar' as string, // 'solar'|'oceano'|... | 'custom' | 'empresa'
   paleta_c1: '', // cor escolhida no color picker (hex) quando paleta==='custom'
+  // Rodapé da proposta. Os três vêm FIXOS do cadastro da empresa (preenchidos
+  // ao abrir o form) e o consultor pode editar por proposta ou desmarcar pra a
+  // linha não sair no documento. Não entram em CLIENTE_ONLY no backend, então
+  // seguem no kit do vendedor: o que ele ajustou volta na próxima proposta.
+  mostrar_vendedor_nome: true,
+  mostrar_vendedor_contato: true,
+  mostrar_cnpj: true,
+  vendedor_nome: '',
+  vendedor_whatsapp: '',
+  empresa_cnpj: '',
   cidade: '',
   uf: '',
   consumo_kwh: '',
@@ -203,6 +213,26 @@ function maskMilhar(raw: string): string {
 function parseBRL(v: string): number {
   return parseFloat(String(v ?? '').replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
 }
+// Telefone BR enquanto digita: 17996243536 → "(17) 99624-3536". O DDI só cai
+// fora quando o número já está completo (senão apagaria o "55" de quem digita
+// devagar). O backend limpa pra dígitos de novo — isso aqui é só leitura.
+function maskTel(raw: string): string {
+  const d = soDigitos(raw).replace(/^55(?=\d{10,11}$)/, '').slice(0, 11);
+  if (!d) return '';
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+// CNPJ: 12345678000190 → "12.345.678/0001-90".
+function maskCnpj(raw: string): string {
+  const d = soDigitos(raw).slice(0, 14);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
 
 export default function PropostaSolarPage() {
   const [clienteNome, setClienteNome] = useState('');
@@ -240,10 +270,31 @@ export default function PropostaSolarPage() {
   // company.cor_marca direto no backend.
   const [corEmpresa, setCorEmpresa] = useState('');   // cor principal (cor_marca)
   const [corSec, setCorSec] = useState('');           // cor de destaque (cor_secundaria)
+  // O que o cadastro diz — vira o valor fixo dos três campos do rodapé e fica
+  // guardado pro botão "usar o do cadastro" de cada um.
+  const [padraoEmpresa, setPadraoEmpresa] = useState({ vendedor: '', whatsapp: '', cnpj: '' });
   useEffect(() => {
     api.get('/company').then(({ data }) => {
-      setCorEmpresa(String(data?.company?.cor_marca || ''));
-      setCorSec(String(data?.company?.cor_secundaria || ''));
+      const c = (data?.company || {}) as Record<string, string>;
+      setCorEmpresa(String(c.cor_marca || ''));
+      setCorSec(String(c.cor_secundaria || ''));
+      const pad = {
+        vendedor: String(c.socio_adm || c.nome_fantasia || c.nome || '').trim(),
+        whatsapp: maskTel(String(c.whatsapp || '')),
+        cnpj: maskCnpj(String(c.cnpj || '')),
+      };
+      setPadraoEmpresa(pad);
+      // Só preenche o que está VAZIO. Vale nas duas ordens de chegada: se a
+      // proposta salva (?doc=) carregar depois, o spread dela sobrescreve; se
+      // carregar antes, o `||` respeita o que ela gravou. Proposta antiga não
+      // tem esses campos — aí o form mostra o mesmo que o PDF já imprime, em
+      // vez de três caixas vazias.
+      setFields(f => ({
+        ...f,
+        vendedor_nome:     f.vendedor_nome     || pad.vendedor,
+        vendedor_whatsapp: f.vendedor_whatsapp || pad.whatsapp,
+        empresa_cnpj:      f.empresa_cnpj      || pad.cnpj,
+      }));
     }).catch(() => {});
   }, []);
   // Edita a cor aqui mesmo e salva direto no cadastro da empresa (PUT parcial).
@@ -924,9 +975,6 @@ export default function PropostaSolarPage() {
         {/* CLIENTE */}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Cliente</h2>
-          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: -4, marginBottom: 10 }}>
-            Seu nome e WhatsApp já vêm do cadastro da empresa.
-          </p>
 
           {/* Histórico por cliente: recarrega tudo que foi usado na última proposta dele */}
           {clientesHist.length > 0 && (
@@ -974,6 +1022,44 @@ export default function PropostaSolarPage() {
               <input type="text" inputMode="numeric" value={fields.consumo_kwh} onChange={e => setField('consumo_kwh', maskMilhar(e.target.value))} placeholder="Ex: 450" className="input-field" required />
             </div>
           </div>
+        </div>
+
+        {/* RODAPÉ — vendedor e CNPJ que saem no documento */}
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Contato no rodapé da proposta</h2>
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: -4, marginBottom: 12 }}>
+            Já vem preenchido com o cadastro da sua empresa. Edite pra esta proposta — ou desmarque pra a linha não sair no documento.
+          </p>
+          <RodapeCampo
+            checked={fields.mostrar_vendedor_nome}
+            onToggle={v => setField('mostrar_vendedor_nome', v)}
+            titulo="Nome do vendedor"
+            value={fields.vendedor_nome}
+            onChange={v => setField('vendedor_nome', v)}
+            placeholder={padraoEmpresa.vendedor || 'Ex: Jair'}
+            padrao={padraoEmpresa.vendedor}
+          />
+          <RodapeCampo
+            checked={fields.mostrar_vendedor_contato}
+            onToggle={v => setField('mostrar_vendedor_contato', v)}
+            titulo="Telefone / WhatsApp"
+            subtitulo="é ele que vai no QR Code"
+            value={fields.vendedor_whatsapp}
+            onChange={v => setField('vendedor_whatsapp', maskTel(v))}
+            placeholder="(17) 99624-3536"
+            padrao={padraoEmpresa.whatsapp}
+            inputMode="tel"
+          />
+          <RodapeCampo
+            checked={fields.mostrar_cnpj}
+            onToggle={v => setField('mostrar_cnpj', v)}
+            titulo="CNPJ da empresa"
+            value={fields.empresa_cnpj}
+            onChange={v => setField('empresa_cnpj', maskCnpj(v))}
+            placeholder="00.000.000/0001-00"
+            padrao={padraoEmpresa.cnpj}
+            inputMode="numeric"
+          />
         </div>
 
         {/* SISTEMA */}
@@ -1404,6 +1490,70 @@ export default function PropostaSolarPage() {
             : (generating ? 'Gerando...' : 'Gerar Proposta')}
         </button>
       </form>
+    </div>
+  );
+}
+
+// Linha do rodapé: checkbox (sai ou não sai no documento) + o texto editável.
+// Desmarcado não apaga o que está escrito — remarcar devolve o valor de antes.
+function RodapeCampo({
+  checked, onToggle, titulo, subtitulo, value, onChange, placeholder, padrao, inputMode,
+}: {
+  checked: boolean;
+  onToggle: (v: boolean) => void;
+  titulo: string;
+  subtitulo?: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  padrao?: string;
+  inputMode?: 'text' | 'tel' | 'numeric';
+}) {
+  // Telefone e CNPJ comparam por dígito: pontuação diferente não é edição.
+  const norm = (s: string) => (inputMode === 'text' || !inputMode ? s.trim() : s.replace(/\D/g, ''));
+  const alterado = Boolean(padrao) && norm(value) !== norm(padrao as string);
+  return (
+    <div style={{
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 8,
+      padding: '10px 12px',
+      marginBottom: 8,
+      opacity: checked ? 1 : 0.55,
+    }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onToggle(e.target.checked)}
+          style={{ width: 17, height: 17, accentColor: 'var(--color-primary)', cursor: 'pointer', margin: 0 }}
+        />
+        <span style={{ flex: 1, fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>
+          {titulo}{subtitulo && <span style={{ fontWeight: 500, color: 'var(--color-text-muted)', fontSize: 11 }}> · {subtitulo}</span>}
+        </span>
+        {!checked && <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>não sai na proposta</span>}
+      </label>
+      <div style={{ marginTop: 8, paddingLeft: 27 }}>
+        <input
+          type="text"
+          inputMode={inputMode || 'text'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={!checked}
+          className="input-field"
+          style={{ width: '100%' }}
+        />
+        {alterado && checked && (
+          <button
+            type="button"
+            onClick={() => onChange(padrao as string)}
+            style={{ ...btn('ghost'), padding: '4px 0', fontSize: 11, marginTop: 4 }}
+          >
+            ↺ voltar pro cadastro ({padrao})
+          </button>
+        )}
+      </div>
     </div>
   );
 }
