@@ -82,9 +82,22 @@ const CURSOS = [
 // A foto entra embutida: o puppeteer roda com setContent, sem servidor, então
 // caminho relativo não resolve.
 const PASTA_FOTOS = path.join(__dirname, '..', 'fotos', '_capas');
+
+// AS NOVE SÃO UM CONJUNTO. Enquanto faltar uma, NENHUMA leva foto.
+//
+// A grade do catálogo mostra as nove lado a lado. Com oito chapadas e uma com
+// foto, a que tem foto não parece a melhor — parece a quebrada. Um estado
+// intermediário aqui é pior que os dois estados finais, e ele não some sozinho:
+// fica no ar até alguém reparar.
+//
+// Assim que o nono arquivo entrar em plugcash/fotos/_originais/, as nove passam
+// a ter foto no mesmo `node plugcash/capas/gerar.js`. Sem chave pra virar.
+const faltando = CURSOS.filter((c) => !fs.existsSync(path.join(PASTA_FOTOS, `${c.foto}.jpg`)));
+const COM_FOTO = faltando.length === 0;
+
 function fotoEmbutida(curso) {
+  if (!COM_FOTO) return null;
   const p = path.join(PASTA_FOTOS, `${curso.foto}.jpg`);
-  if (!fs.existsSync(p)) return null;
   return `data:image/jpeg;base64,${fs.readFileSync(p).toString('base64')}`;
 }
 
@@ -164,6 +177,14 @@ function html(curso) {
   const destino = path.join(__dirname, '..', '..', 'dashboard', 'public', 'plugcash', 'img');
   fs.mkdirSync(destino, { recursive: true });
 
+  if (COM_FOTO) {
+    console.log('as nove com foto ao fundo\n');
+  } else {
+    console.log(`as nove SEM foto — faltam ${faltando.length} em plugcash/fotos/_originais/:`);
+    for (const c of faltando) console.log(`  · ${c.foto}.jpg  (capa ${c.n} ${c.slug})`);
+    console.log('');
+  }
+
   const browser = await puppeteer.launch({ headless: 'new' });
   const page = await browser.newPage();
   await page.setViewport({ width: LARGURA, height: ALTURA, deviceScaleFactor: 1 });
@@ -173,7 +194,6 @@ function html(curso) {
     // `domcontentloaded` e não `networkidle0`: a página não busca NADA na rede —
     // fonte é de sistema, ícone e logo são SVG inline. Esperar a rede ficar ociosa
     // trava no segundo arquivo, porque nunca houve requisição pra ficar ociosa.
-    const temFoto = !!fotoEmbutida(curso);
     await page.setContent(html(curso), { waitUntil: 'domcontentloaded' });
     const arquivo = path.join(destino, `${curso.slug}.png`);
     await page.screenshot({ path: arquivo, type: 'png' });
@@ -186,8 +206,7 @@ function html(curso) {
     await sharp(arquivo).webp({ quality: 82, effort: 6 }).toFile(webp);
 
     const kb = (p) => (fs.statSync(p).size / 1024).toFixed(1);
-    console.log(`${curso.slug} — webp ${kb(webp)} KB (png ${kb(arquivo)})` +
-                (temFoto ? '' : `   · sem foto: falta ${curso.foto}.jpg`));
+    console.log(`${curso.slug} — webp ${kb(webp)} KB (png ${kb(arquivo)})`);
   }
 
   await browser.close();
