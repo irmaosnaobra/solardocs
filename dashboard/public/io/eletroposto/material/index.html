@@ -237,7 +237,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
    é o padrão e o grande só entra acima de 900px — assim o celular, que é onde a
    página é lida, nunca baixa 1600px pra desenhar 390. */
 .heroSec{position:relative;overflow:hidden}
-.heroFundo{position:absolute;inset:0;z-index:0;opacity:.26;
+.heroFundo{position:absolute;inset:0;z-index:0;opacity:.4;
   background:center 42%/cover no-repeat;
   -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.42) 58%,transparent 96%);
           mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.42) 58%,transparent 96%)}
@@ -245,13 +245,13 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
    pequena declarada fora da media query, o desktop baixava as duas. */
 @media(max-width:900px){ .heroFundo{background-image:url('/io/eletroposto/img/fotos/lp-hero-900.webp')} }
 @media(min-width:901px){
-  .heroFundo{background-image:url('/io/eletroposto/img/fotos/lp-hero-1600.webp');opacity:.5}
+  .heroFundo{background-image:url('/io/eletroposto/img/fotos/lp-hero-1600.webp');opacity:.62}
   /* No desktop a foto pode aparecer mais, DESDE QUE não apareça atrás da
      manchete: este véu escurece a coluna da esquerda e libera a direita, onde
      só existe a capa do curso. Sem ele, a máscara vertical deixava a foto mais
      forte exatamente onde o texto começa. */
   .heroSec::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
-    background:linear-gradient(93deg,rgba(10,10,10,.94) 0%,rgba(10,10,10,.86) 34%,rgba(10,10,10,.4) 62%,rgba(10,10,10,.12) 100%)}
+    background:linear-gradient(93deg,rgba(10,10,10,.93) 0%,rgba(10,10,10,.8) 32%,rgba(10,10,10,.28) 60%,rgba(10,10,10,.04) 100%)}
 }
 .heroSec > .faixa{position:relative;z-index:1}
 
