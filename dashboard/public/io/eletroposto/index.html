@@ -76,9 +76,18 @@
   }
   .hero{padding:52px 0 44px;position:relative;z-index:2}
   /* Exclusivas de propósito: com a pequena declarada fora da media query, o
-     desktop baixava as duas versões do hero. */
-  @media(max-width:900px){ .heroImg{background-image:url('/io/eletroposto/img/fotos/lp-hero-900.webp')} }
-  @media(min-width:901px){ .heroImg{background-image:url('/io/eletroposto/img/fotos/lp-hero-1600.webp')} }
+     desktop baixava as duas versões do hero.
+
+     A SEGUNDA CAMADA É TEMPORÁRIA. Enquanto lp-hero.jpg não estiver em
+     plugcash/fotos/_originais/, a primeira camada não existe e o navegador
+     desenha a de baixo — a foto antiga, que é ruim mas é melhor que hero vazio
+     numa página que está recebendo lead agora. Assim que a nova entrar, ela
+     cobre a antiga. TIRAR a `foto-rua.webp` daqui no mesmo commit em que as
+     fotos chegarem. */
+  @media(max-width:900px){ .heroImg{background-image:url('/io/eletroposto/img/fotos/lp-hero-900.webp'),
+                                                     url('/io/eletroposto/img/foto-rua.webp')} }
+  @media(min-width:901px){ .heroImg{background-image:url('/io/eletroposto/img/fotos/lp-hero-1600.webp'),
+                                                     url('/io/eletroposto/img/foto-rua.webp')} }
   @media(max-width:880px){
     .heroImg{position:relative;width:100%;height:220px;
       -webkit-mask-image:linear-gradient(180deg, #000 55%, transparent 100%);mask-composite:add;opacity:.75}
