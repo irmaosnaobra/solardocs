@@ -464,7 +464,74 @@ export async function processarEventoPlugcash(evt: EventoPlugcash): Promise<Resu
     },
   });
 
+  await avisarVendaPlugcash({
+    email,
+    nome: evt.nome ?? null,
+    slug: item.item_slug,
+    tipo: item.item_tipo,
+    valorCentavos: evt.valorCentavos ?? null,
+    motivo: (membroAgora as any)?.motivo_descarte?.[0] ?? null,
+  }).catch(() => {});
+
   return { ok: true, acao: 'liberado', detalhe: `${item.item_tipo}:${item.item_slug}` };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AVISO DE VENDA — e o gatilho da PRIMEIRA
+//
+// Até aqui uma venda do PlugCash não avisava ninguém: o cliente recebia e-mail,
+// o acesso era liberado, e a equipe só ficava sabendo abrindo o painel. Os
+// únicos `sendOpsAlert` do arquivo são de FALHA — o sucesso era silencioso.
+//
+// Isso deixou de ser um detalhe em 08/08: o Thiago decidiu que as 8 aulas que
+// faltam só entram na fila quando o primeiro cliente pagante aparecer. Gatilho
+// que ninguém observa é gatilho que não dispara.
+//
+// A PRIMEIRA VENDA TEM TEXTO PRÓPRIO. Ela não é só mais uma: é a que prova que
+// o webhook funciona contra cobrança real (nunca tinha rodado) e é a que
+// autoriza escrever o resto do curso. Da segunda em diante, aviso normal.
+//
+// Vai por e-mail e não por WhatsApp: o `avisarVendaAoDono` existe e é bom, mas
+// depende de `sales` (tabela do SolarDoc) pra travar duplicata, e a compra do
+// PlugCash vive em `pc_compras`. Reaproveitar ali exigiria afrouxar a trava —
+// e trava de aviso duplicado é o que impede o dono de receber a mesma venda
+// cinco vezes numa reentrega da Kiwify.
+async function avisarVendaPlugcash(v: {
+  email: string; nome: string | null; slug: string; tipo: string;
+  valorCentavos: number | null; motivo: string | null;
+}): Promise<void> {
+  // Conta ANTES de decidir o texto. `pc_compras` só tem linha de compra paga,
+  // então 1 aqui é literalmente a primeira.
+  const { count } = await supabase
+    .from('pc_compras').select('id', { count: 'exact', head: true });
+  const primeira = (count ?? 0) <= 1;
+
+  const valor = v.valorCentavos != null
+    ? `R$ ${(v.valorCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+    : 'valor não informado';
+  const quem = [v.nome, v.email].filter(Boolean).join(' · ');
+
+  if (primeira) {
+    await sendOpsAlert(
+      'PlugCash: PRIMEIRA VENDA — o funil fechou o ciclo',
+      `${quem}\n${v.tipo}: ${v.slug} — ${valor}\n` +
+      `${v.motivo ? `bloqueio na régua: ${v.motivo}\n` : ''}` +
+      `\nO que isto prova: o webhook criou a conta e liberou o acesso contra uma\n` +
+      `cobrança real. Até agora isso só tinha 16 testes automatizados.\n` +
+      `\nCONFIRA ANTES DE COMEMORAR: entre em /plugcash/admin e veja se o acesso\n` +
+      `apareceu para este e-mail. Se não apareceu, o cliente pagou e está trancado.\n` +
+      `\nE é o gatilho combinado: com o primeiro pagante, as 8 aulas que faltam\n` +
+      `entram na fila de produção (hoje o curso abre 6 de 14).`,
+    );
+    return;
+  }
+
+  await sendOpsAlert(
+    `PlugCash: venda — ${v.slug}`,
+    `${quem}\n${v.tipo}: ${v.slug} — ${valor}\n` +
+    `${v.motivo ? `bloqueio na régua: ${v.motivo}\n` : ''}` +
+    `\nCompras registradas até agora: ${count ?? '?'}.`,
+  );
 }
 
 // Reembolso e chargeback trancam o que a compra tinha aberto. Nível não é
