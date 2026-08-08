@@ -64,7 +64,9 @@ section{padding:72px 20px}
 .claro{background:var(--papel)}
 .branco{background:#fff}
 .escuro{background:var(--black);color:#fff}
-.verde{background:var(--green-soft)}
+.verde{background:var(--g900);color:#fff}
+.verde .sub{color:#b4b4b4}
+.verde h2{color:#fff}
 
 .rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
 .rv.on{opacity:1;transform:none}
@@ -79,7 +81,14 @@ section{padding:72px 20px}
 h1{font-size:clamp(29px,5vw,46px);font-weight:800;line-height:1.12;letter-spacing:-.025em;margin:0 0 20px;max-width:19ch;text-wrap:balance}
 h2{font-size:clamp(23px,3.4vw,33px);font-weight:800;line-height:1.18;letter-spacing:-.02em;margin:0 0 12px;max-width:24ch;text-wrap:balance}
 h3{font-size:19px;font-weight:800;margin:0 0 6px;letter-spacing:-.01em}
-.olho{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--green);margin:0 0 14px}
+/* Rótulo de seção em cinza, não em verde. O verde desta página tem UM trabalho:
+   dizer onde se clica. Repetido em doze rótulos, ele vira decoração e para de
+   apontar. A regra da marca já dizia isso — verde é acento. */
+.olho{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--g600);margin:0 0 14px;
+      display:flex;align-items:center;gap:9px}
+.olho:before{content:'';width:22px;height:2px;background:var(--g300);flex:none}
+.escuro .olho{color:#8f8f8f}
+.escuro .olho:before{background:var(--g800)}
 .lead{font-size:17.5px;line-height:1.7;margin:0 0 16px;max-width:58ch}
 .escuro .lead{color:#cfcfcf}
 .escuro .lead strong{color:#fff}
@@ -97,7 +106,7 @@ h3{font-size:19px;font-weight:800;margin:0 0 6px;letter-spacing:-.01em}
 .card p{margin:0;color:var(--g600);font-size:15px;line-height:1.6}
 
 ul.lista{margin:0;padding-left:20px;display:grid;gap:12px;font-size:16.5px;max-width:62ch}
-ul.lista li::marker{color:var(--green)}
+ul.lista li::marker{color:var(--g600)}
 
 /* ── Fotos ────────────────────────────────────────────────────────────────
    Foto aqui é ILUSTRAÇÃO DE MERCADO, nunca prova de obra entregue: a seção
@@ -130,7 +139,16 @@ ul.lista li::marker{color:var(--green)}
 
 .aulas{list-style:none;margin:0;padding:0;counter-reset:a}
 .aulas li{display:flex;align-items:baseline;gap:14px;padding:14px 0;border-bottom:1px solid var(--g300);font-size:16px}
-.aulas li:before{counter-increment:a;content:counter(a,decimal-leading-zero);font-size:12.5px;font-weight:700;color:var(--green-deep);font-variant-numeric:tabular-nums;min-width:22px}
+.aulas li{gap:14px}
+.aulas li:before{counter-increment:a;content:counter(a,decimal-leading-zero);font-size:12.5px;font-weight:700;
+  color:var(--g600);font-variant-numeric:tabular-nums;min-width:22px;flex:none}
+/* Aula ainda em produção: mesma linha, mesmo peso de leitura, só mais apagada.
+   Esconder seria mentir; destacar em vermelho seria vender medo. */
+.aulas li.vem{color:var(--g600)}
+.aulas li.vem .dur{font-style:italic}
+.gradeStatus{margin:22px 0 0;padding:16px 18px;border-left:3px solid var(--green);background:var(--g100);
+  border-radius:0 var(--r) var(--r) 0;font-size:15.5px;line-height:1.55;max-width:64ch;color:var(--black)}
+.gradeStatus b{font-weight:800}
 .aulas .dur{margin-left:auto;font-size:13.5px;color:var(--g600);font-variant-numeric:tabular-nums;white-space:nowrap}
 
 .preco{font-size:clamp(40px,6vw,58px);font-weight:800;letter-spacing:-.03em;margin:0;line-height:1}
@@ -153,7 +171,7 @@ ul.lista li::marker{color:var(--green)}
 details{border-top:1px solid var(--g300);padding:17px 0}
 details summary{font-weight:700;cursor:pointer;font-size:16.5px;list-style:none}
 details summary::-webkit-details-marker{display:none}
-details summary::after{content:'+';float:right;color:var(--green);font-weight:800}
+details summary::after{content:'+';float:right;color:var(--g600);font-weight:800}
 details[open] summary::after{content:'\2013'}
 details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 
@@ -513,6 +531,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <h2>Todas as aulas, com a duração de cada uma.</h2>
     <p class="sub">Sem borrão e sem "e muito mais". Saber exatamente o que está comprando é o que separa uma compra de um arrependimento.</p>
     <ul class="aulas" id="grade"></ul>
+    <p class="gradeStatus" id="grade-status" style="display:none"></p>
     <p class="sub" id="grade-vazia" style="display:none;margin-top:20px">A grade aparece aqui assim que as aulas entram no ar.</p>
   </div>
 </section>
@@ -616,7 +635,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
      mais que fingir, e é a única coisa que ele não espera ler. -->
 <section class="verde rv">
   <div class="faixa">
-    <p class="olho" style="color:var(--green-deep)">Uma coisa dita na cara</p>
+    <p class="olho">Uma coisa dita na cara</p>
     <h2>Esta página não tem depoimento. E não vai ter tão cedo.</h2>
     <p class="sub" style="font-size:17px">Nós vendemos e executamos eletroposto turnkey — é de lá que vem o nosso dinheiro, e é por isso que este material existe. Mas ainda não temos obra entregue e documentada para mostrar, e inventar case é o tipo de coisa que se descobre depois.</p>
     <p class="sub" style="font-size:17px;margin-bottom:0">O que dá para conferir antes de pagar está todo nesta página: a grade inteira com a duração de cada aula, os diagramas de verdade e sete dias de garantia. Se você precisa ver obra pronta para decidir, não compre agora — e essa é uma resposta legítima.</p>
@@ -962,20 +981,62 @@ fetch(API + '/plugcash/curso/fundamentos')
     }
     if (k.copy && k.copy.garantia) document.getElementById('garantia').textContent = k.copy.garantia;
 
-    // Grade real, quando já houver aula cadastrada.
-    document.getElementById('grade-vazia').style.display = (k.aulas && k.aulas.length) ? 'none' : '';
-    if (k.aulas && k.aulas.length) {
+    // A TRILHA INTEIRA, com o que está no ar marcado linha a linha.
+    //
+    // Antes esta seção listava só as aulas publicadas — ou seja, com o curso em
+    // produção ela ficava VAZIA, logo abaixo de um título que promete "todas as
+    // aulas, com a duração de cada uma". Lista vazia no bloco que mais decide a
+    // compra é o pior estado que esta página podia ter.
+    //
+    // Agora mostra as 14 e diz quais já abrem. O sinal vem do status real de
+    // cada aula (campo `disponivel` da API), então a página não consegue dizer
+    // que algo está pronto antes de estar — e se corrige sozinha a cada aula
+    // que sobe, sem ninguém editar copy.
+    var grade = (k.grade && k.grade.length) ? k.grade : (k.aulas || []);
+    document.getElementById('grade-vazia').style.display = grade.length ? 'none' : '';
+    if (grade.length) {
       var g = document.getElementById('grade');
-      var totalMin = k.aulas.reduce(function(t,a){ return t + Math.round((a.duracao_seg||0)/60); }, 0);
+      var totalMin = grade.reduce(function(t,a){ return t + Math.round((a.duracao_seg||0)/60); }, 0);
+      var noAr = grade.filter(function(a){ return a.disponivel; }).length;
+      // `disponivel` só existe na `grade`; caindo no fallback antigo, tudo o que
+      // veio já era publicado.
+      if (!k.grade) noAr = grade.length;
+
       document.getElementById('hero-aulas').textContent =
-        k.aulas.length + (k.aulas.length === 1 ? ' aula' : ' aulas') +
+        grade.length + (grade.length === 1 ? ' aula' : ' aulas') +
         (totalMin ? ' · ' + Math.floor(totalMin/60) + 'h' + String(totalMin%60).padStart(2,'0') : '');
-      k.aulas.forEach(function(a){
+
+      grade.forEach(function(a){
         var li = document.createElement('li');
+        var t = document.createElement('span');
+        t.textContent = a.titulo;
+        li.appendChild(t);
+        var d = document.createElement('span');
+        d.className = 'dur';
         var m = a.duracao_seg ? Math.round(a.duracao_seg/60) + ' min' : '';
-        li.textContent = a.titulo + (m ? ' · ' + m : '');
+        if (k.grade && !a.disponivel) {
+          li.classList.add('vem');
+          d.textContent = m ? m + ' · em produção' : 'em produção';
+        } else {
+          d.textContent = m;
+        }
+        li.appendChild(d);
         g.appendChild(li);
       });
+
+      // A frase abaixo da grade é gerada do dado, nunca escrita à mão: é ela que
+      // impede a página de vender uma trilha inteira que ainda não existe.
+      var av = document.getElementById('grade-status');
+      if (av && k.grade) {
+        if (noAr >= grade.length) {
+          av.textContent = 'As ' + grade.length + ' aulas estão no ar. Acesso vitalício, sem prazo para terminar.';
+        } else {
+          av.innerHTML = '<b>' + noAr + ' de ' + grade.length + ' aulas já abrem hoje.</b> ' +
+            'As outras entram no seu acesso conforme ficam prontas, sem custo nenhum a mais — ' +
+            'e a garantia vale a partir do dia da compra, não do dia em que a última subir.';
+          av.style.display = '';
+        }
+      }
     }
 
     // Vídeo de vendas, se houver.

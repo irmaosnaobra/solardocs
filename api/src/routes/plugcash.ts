@@ -156,7 +156,29 @@ router.get('/curso/:slug', async (req: Request, res: Response): Promise<void> =>
       servico = data || null;
     }
 
-    res.json({ preview, curso: { ...curso, aulas: aulas || [] }, servico });
+    // GRADE ≠ AULAS. `aulas` é o que o aluno pode ABRIR (só publicadas); `grade`
+    // é o que a página de venda MOSTRA — a trilha inteira, com um sinal de
+    // disponibilidade em cada linha.
+    //
+    // A página promete em voz alta "sem borrão e sem 'e muito mais'", e com o
+    // curso ainda em produção ela entregava uma lista vazia: o pior estado
+    // possível justo no bloco que mais decide a compra. Título e duração já são
+    // públicos (é o que vende o curso); o CORPO da aula continua fora daqui.
+    //
+    // `disponivel` sai do status real, então a lista se corrige sozinha à medida
+    // que as aulas sobem — não existe copy pra alguém esquecer de atualizar, e
+    // não existe como a página dizer que uma aula está pronta antes de estar.
+    const { data: gradeRaw } = await supabase
+      .from('pc_aulas').select('ordem,titulo,duracao_seg,status')
+      .eq('curso_id', (curso as any).id).order('ordem');
+    const grade = (gradeRaw || []).map((a: any) => ({
+      ordem: a.ordem,
+      titulo: a.titulo,
+      duracao_seg: a.duracao_seg,
+      disponivel: a.status === 'publicado',
+    }));
+
+    res.json({ preview, curso: { ...curso, aulas: aulas || [], grade }, servico });
   } catch (err) {
     logger.error('plugcash', `falha no curso ${req.params.slug}`, err);
     res.status(500).json({ error: 'falha ao carregar curso' });
