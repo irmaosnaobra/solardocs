@@ -1772,26 +1772,35 @@ function perfilTexto(sel){
   const t = document.getElementById('f-outro').value.trim();
   return t ? `Outro: ${t}` : 'Outro';
 }
-// Os 2 próximos dias COM atendimento, a partir de hoje: na prática HOJE e AMANHÃ,
-// que é a régua pedida (D0 + D+1). Só pula o que não tem como vender — fim de
-// semana, feriado e o dia que já não tem nenhum horário livre (lotado, ou o de hoje
-// depois que a tarde acabou). É isso que faz a vitrine rolar sozinha: numa sexta às
-// 18h ela já mostra segunda e terça.
+// A VITRINE É ANCORADA EM HOJE. Regra (10/08/2026, pedido do Thiago):
+//
+//   hoje ainda tem horário  →  HOJE + o próximo dia aberto
+//   hoje acabou             →  SÓ o próximo dia aberto, até a meia-noite
+//
+// Antes eram "os 2 próximos dias COM vaga", o que é diferente: quando a tarde de
+// hoje fechava, a vitrine deslizava inteira e passava a mostrar AMANHÃ E DEPOIS DE
+// AMANHÃ. Quem caía no anúncio no fim da tarde via a reunião mais próxima a dois
+// dias de distância — e some. A régua é o contrário: quanto mais perto, melhor, e
+// dia distante ao lado de dia próximo só serve pra empurrar o lead pro distante.
 //
 // Eram 3 dias até 06/08. Virou 2 porque a escolha larga espalhava: o lead pegava o
 // terceiro dia e os dois primeiros ficavam vazios. A meta é lotar o dia e o
 // seguinte — o terceiro só aparece depois que o primeiro fecha.
+//
+// Fim de semana e feriado caem sozinhos no caso "hoje acabou": no sábado nem hoje
+// nem amanhã abrem, então aparece segunda sozinha. Nunca dá lista vazia — a busca
+// varre 21 dias — e nunca mostra dois dias longe um do outro.
 const DIAS_NA_VITRINE = 2;
 function proximosDias(){
   const hoje = partesBR().ymd;
-  const dias = [];
-  let d = new Date(`${hoje}T12:00:00-03:00`);
-  for(let i=0; i<21 && dias.length<DIAS_NA_VITRINE; i++){
-    const ymd = partesBR(d).ymd;
-    if(gradeDoDia(ymd).length && livresDoDia(ymd).length) dias.push(ymd);
-    d = new Date(d.getTime() + 86400000);
+  const base = new Date(`${hoje}T12:00:00-03:00`);
+  const abertos = [];
+  for(let i=0; i<21 && abertos.length<DIAS_NA_VITRINE; i++){
+    const ymd = partesBR(new Date(base.getTime() + i*86400000)).ymd;
+    if(gradeDoDia(ymd).length && livresDoDia(ymd).length) abertos.push(ymd);
   }
-  return dias;
+  // O corte é este: o segundo dia só entra se o primeiro for HOJE.
+  return abertos[0] === hoje ? abertos : abertos.slice(0, 1);
 }
 // Horários do dia que ainda dá pra marcar: tira o que já passou, o que está dentro
 // da antecedência mínima e o que está ocupado.
@@ -2136,6 +2145,12 @@ pintarAncora();   // faixa de investimento da seção de cima = min/max do CONFI
 onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bfcache)
 // a aba pode ficar aberta horas: ao voltar pra ela, refaz a agenda (horário que passou some)
 document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
+// A aba tambem fica ABERTA por horas sem trocar de foco — e a vitrine muda sozinha
+// duas vezes por dia: quando o ultimo horario de hoje sai pela antecedencia (e sobra
+// so o proximo dia) e na virada da meia-noite (quando hoje volta a ter tarde). Sem
+// isto o lead que deixou a pagina aberta continua vendo uma grade que ja envelheceu.
+// Nunca remonta com horario escolhido: apagaria a escolha dele no meio do formulario.
+setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000);
 </script>
   <!-- Tracking page_visits (mesmo beacon do /io) — visita + scroll + tempo → aba LP em /admin/hubs -->
   <script>
