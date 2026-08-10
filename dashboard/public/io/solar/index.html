@@ -527,7 +527,7 @@
     <div class="agBox">
       <div id="ag-form">
         <div class="step">
-          <label style="display:block;font-size:13px;font-weight:800;color:var(--navy);margin-bottom:8px">Horários disponíveis</label>
+          <label style="display:block;font-size:13px;font-weight:800;color:var(--navy);margin-bottom:8px">Horários disponíveis <span style="color:var(--soft);font-weight:600;font-size:11.5px">(vistorias pela manhã)</span></label>
           <div class="slots" id="slots"></div>
         </div>
 
@@ -779,8 +779,15 @@ function medirTemperatura(conta, urgencia, pagamento, decisor, posse){
 
 // ===== AGENDA (vistoria presencial) =====
 // 3 dias rolantes a partir de HOJE, pulando fim de semana e feriado.
-// Seg–Sex 08:00–11:00 e 13:00–17:00; slots de 1 hora. Rodízio solar = Nilce/Thiago/Diego;
+// Seg–Sex SÓ DE MANHÃ; slots de 1 hora. Rodízio solar = Nilce/Thiago/Diego;
 // agenda do time (1 atendimento por horário) — booking de qualquer um fecha o slot.
+//
+// 10/08: a TARDE SAIU. Thiago e Diego têm a tarde inteira presa no eletroposto
+// (a LP de lá só oferece 13:30–17:30), então vistoria solar marcada às 14h punha a
+// mesma pessoa em dois lugares. O horário aqui é do TIME e a grade é desenhada no
+// load da página, ANTES de o lead digitar o telefone — a LP não tem como saber se
+// aquele slot cairia na Nilce, que não tem eletroposto. Sem esse dado, abrir a
+// tarde "só pra ela" seria chute: a manhã virou a regra pra todo mundo.
 let slotSel = null;
 let ocupados = new Set();
 const REUNIOES_POR_HORARIO = 1;
@@ -800,16 +807,16 @@ function partesBR(d = new Date()){
 }
 const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 
+// Manhã 08:00–11:30. A lista é de horários de INÍCIO, e a vistoria leva ~1 hora
+// (é o que a própria página promete ao lead), então a última sai às 11:00 e fecha
+// perto do meio-dia — com visita de 1 hora não existe início que termine em 11:30
+// cravado. Se um dia a vistoria encolher, é aqui que entra o 11:30.
+const HORARIOS = ['08:00','09:00','10:00','11:00'];
 function gradeDoDia(ymd){
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   if(dow === 0 || dow === 6) return [];        // fim de semana: fechado
   if(FERIADOS.has(ymd)) return [];             // feriado: fechado
-  const faixas = [[8,11],[13,17]];             // seg–sex: manhã e tarde
-  const out = [];
-  for(const [ini,fim] of faixas)
-    for(let m = ini*60; m < fim*60; m += 60)   // vistoria = 1 hora por slot
-      out.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
-  return out;
+  return HORARIOS.slice();
 }
 async function carregarOcupados(deYmd, ateYmd){
   try{
