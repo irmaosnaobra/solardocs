@@ -269,11 +269,33 @@ function slotDisponivel(t: number, agoraMs: number, occ: { ocupados: Set<number>
   return true;
 }
 
+// Até que horas cada consultor recebe card de lead SOLAR (minuto do dia do último
+// slot que pode COMEÇAR).
+//
+// 10/08: Thiago e Diego têm a tarde inteira presa no eletroposto (13:30–17:30). O
+// card daqui é agendamento de verdade na mesma tabela que a LP do eletroposto lê
+// pra fechar horário — um lead que respondeu "prefiro à tarde" virava um 14h no
+// Thiago e comia capacidade de apresentação. Solar deles agora é só de manhã, até
+// 11:30. Nilce não tem eletroposto: segue o expediente inteiro.
+const SO_DE_MANHA = new Set(['thiago', 'diego']);
+const FIM_MANHA_MIN = 11 * 60 + 30;   // 11:30 — último começo possível
+function ultimoInicioDoDia(consultor: string): number {
+  return SO_DE_MANHA.has(String(consultor || '').trim().toLowerCase())
+    ? FIM_MANHA_MIN
+    : HORA_FIM * 60 - 15;             // grade de 15 min: o último é 19:45
+}
+
 // Slot livre pra um consultor FIXO. Respeita bloqueios/ocupação dele,
 // achando outro horário livre se o pedido estiver indisponível.
+//
+// Quando a faixa pedida pelo lead cai fora da janela do consultor (ex: "prefiro
+// 15h às 18h" com o Thiago), o dia não tem slot nenhum e a busca escorrega pro
+// próximo dia útil, que começa às 08:00 — o lead é chamado na manhã seguinte, não
+// numa hora em que o consultor está apresentando eletroposto.
 export async function slotLivreConsultor(consultor: string, base: { y: number; m: number; d: number; h: number }): Promise<Date> {
   const agora = new Date();
   const occ = await carregarOcupacao(consultor, agora.toISOString());
+  const ultimoMin = ultimoInicioDoDia(consultor);
   let { y, m, d } = base;
   for (let i = 0; i < 14; i++) {
     const dow = dowSP(y, m, d);
@@ -281,6 +303,7 @@ export async function slotLivreConsultor(consultor: string, base: { y: number; m
       const horaIni = i === 0 ? Math.max(HORA_INI, base.h) : HORA_INI;
       for (let h = horaIni; h < HORA_FIM; h++) {
         for (let min = 0; min < 60; min += 15) {
+          if (h * 60 + min > ultimoMin) break;   // fim da janela desse consultor
           const slot = spDate(y, m, d, h, min);
           if (slotDisponivel(slot.getTime(), agora.getTime(), occ)) return slot;
         }
