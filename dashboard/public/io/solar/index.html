@@ -527,7 +527,7 @@
     <div class="agBox">
       <div id="ag-form">
         <div class="step">
-          <label style="display:block;font-size:13px;font-weight:800;color:var(--navy);margin-bottom:8px">Horários disponíveis <span style="color:var(--soft);font-weight:600;font-size:11.5px">(vistorias pela manhã)</span></label>
+          <label style="display:block;font-size:13px;font-weight:800;color:var(--navy);margin-bottom:8px">Horários disponíveis</label>
           <div class="slots" id="slots"></div>
         </div>
 
@@ -779,17 +779,20 @@ function medirTemperatura(conta, urgencia, pagamento, decisor, posse){
 
 // ===== AGENDA (vistoria presencial) =====
 // 3 dias rolantes a partir de HOJE, pulando fim de semana e feriado.
-// Seg–Sex SÓ DE MANHÃ; slots de 1 hora. Rodízio solar = Nilce/Thiago/Diego;
-// agenda do time (1 atendimento por horário) — booking de qualquer um fecha o slot.
+// Seg–Sex, slots de 1 hora, 1 atendimento por horário.
 //
-// 10/08: a TARDE SAIU. Thiago e Diego têm a tarde inteira presa no eletroposto
-// (a LP de lá só oferece 13:30–17:30), então vistoria solar marcada às 14h punha a
-// mesma pessoa em dois lugares. O horário aqui é do TIME e a grade é desenhada no
-// load da página, ANTES de o lead digitar o telefone — a LP não tem como saber se
-// aquele slot cairia na Nilce, que não tem eletroposto. Sem esse dado, abrir a
-// tarde "só pra ela" seria chute: a manhã virou a regra pra todo mundo.
+// 10/08: o TURNO passou a dizer quem atende. A tarde do Thiago e do Diego é do
+// eletroposto (a LP de lá só oferece 13:30–17:30), então vistoria solar às 14h
+// punha a mesma pessoa em dois endereços. A regra agora é:
+//   • MANHÃ (08:00–11:00) — rodízio normal: Nilce, Thiago e Diego.
+//   • TARDE (13:00–16:00) — só a Nilce, que não tem eletroposto. A tarde não
+//     fechou: ela só deixou de ser dos dois.
+// Quem já tem dono continua com ele (1 telefone = 1 consultor): se o dono for o
+// Thiago ou o Diego e o lead escolher a tarde, a página pede um horário de manhã
+// em vez de trocar o consultor por baixo do pano.
 let slotSel = null;
-let ocupados = new Set();
+let ocupados = new Set();        // manhã: agendamento de QUALQUER um dos três fecha
+let ocupadosNilce = new Set();   // tarde: só a agenda da Nilce importa
 const REUNIOES_POR_HORARIO = 1;
 
 const FERIADOS = new Set([
@@ -807,16 +810,18 @@ function partesBR(d = new Date()){
 }
 const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 
-// Manhã 08:00–11:30. A lista é de horários de INÍCIO, e a vistoria leva ~1 hora
-// (é o que a própria página promete ao lead), então a última sai às 11:00 e fecha
-// perto do meio-dia — com visita de 1 hora não existe início que termine em 11:30
-// cravado. Se um dia a vistoria encolher, é aqui que entra o 11:30.
-const HORARIOS = ['08:00','09:00','10:00','11:00'];
+// Horários de INÍCIO. A vistoria leva ~1 hora (é o que a página promete ao lead),
+// então a manhã acaba às 11:00 e fecha perto do meio-dia — com visita de 1 hora
+// não existe começo que termine 11:30 cravado. Se um dia a visita encolher, é
+// aqui que entra o 11:30.
+const MANHA = ['08:00','09:00','10:00','11:00'];
+const TARDE = ['13:00','14:00','15:00','16:00'];
+const ehTarde = hhmm => hhmm >= '12:00';
 function gradeDoDia(ymd){
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   if(dow === 0 || dow === 6) return [];        // fim de semana: fechado
   if(FERIADOS.has(ymd)) return [];             // feriado: fechado
-  return HORARIOS.slice();
+  return MANHA.concat(TARDE);
 }
 async function carregarOcupados(deYmd, ateYmd){
   try{
@@ -828,14 +833,20 @@ async function carregarOcupados(deYmd, ateYmd){
       { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
     const rows = await r.json();
     const cont = {};
+    const nilce = new Set();
     (Array.isArray(rows)?rows:[]).forEach(a=>{
       if(!a.quando) return;
       const k = new Date(a.quando).toISOString();
       cont[k] = (cont[k]||0) + 1;
+      if(a.vendedor_nome === 'Nilce') nilce.add(k);
     });
     ocupados = new Set(Object.keys(cont).filter(k => cont[k] >= REUNIOES_POR_HORARIO));
-  }catch(e){ ocupados = new Set(); }
+    ocupadosNilce = nilce;
+  }catch(e){ ocupados = new Set(); ocupadosNilce = new Set(); }
 }
+// Rodízio da MANHÃ (a tarde vai direto pra Nilce, sem passar por aqui). O contador
+// é o total de fichas da LP, tarde inclusive — não é rodízio exato, é "o próximo da
+// vez"; quem já tem dono nem chega a chamar isto.
 const DONOS = ['Nilce', 'Thiago', 'Diego'];
 async function proximoDono(){
   try{
@@ -883,7 +894,9 @@ function livresDoDia(ymd){
   const agora = partesBR();
   return gradeDoDia(ymd).filter(h=>{
     if(ymd === agora.ymd && h <= agora.hhmm) return false;
-    return !ocupados.has(isoDe(ymd, h));
+    const iso = isoDe(ymd, h);
+    // tarde é da Nilce: fecha quando ELA está ocupada, não quando o time está
+    return ehTarde(h) ? !ocupadosNilce.has(iso) : !ocupados.has(iso);
   });
 }
 const rotuloDia = ymd => new Date(`${ymd}T12:00:00-03:00`)
@@ -1092,8 +1105,10 @@ async function gravarAgendamento(){
 
   try{
     await carregarOcupados(partesBR().ymd, partesBR(new Date(Date.now()+12*86400000)).ymd);
+    const tarde  = ehTarde(partesBR(new Date(slotSel)).hhmm);
+    const cheio  = tarde ? ocupadosNilce.has(slotSel) : ocupados.has(slotSel);
     const passou = new Date(slotSel).getTime() < Date.now();
-    if(ocupados.has(slotSel) || passou){
+    if(cheio || passou){
       // zera a ficha junto com o horário: ela é de um slot que não existe mais, e
       // ficha velha esperando é exatamente o jeito de gravar o dado errado depois
       slotSel = null; pendente = null;
@@ -1103,7 +1118,18 @@ async function gravarAgendamento(){
       return erro(passou ? 'Esse horário já passou. Escolha outro acima — a agenda foi atualizada.'
                          : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
     }
-    const dono = (await donoDoTelefone(tel)) || (await proximoDono());
+    // Tarde é da Nilce. Cliente que já é do Thiago ou do Diego NÃO troca de
+    // consultor por causa do turno (1 telefone = 1 consultor): ele volta pra
+    // manhã, que é o turno solar dos dois.
+    const donoAtual = await donoDoTelefone(tel);
+    if(tarde && donoAtual && donoAtual !== 'Nilce'){
+      slotSel = null; pendente = null;
+      await montarSlots();
+      btn.disabled = false; btn.textContent = 'Confirmar minha vistoria →';
+      document.getElementById('slots').scrollIntoView({behavior:'smooth', block:'center'});
+      return erro(`Quem já te atende (${donoAtual}) faz vistoria de manhã. Escolha um horário até as 11h acima — ou chame no WhatsApp que a gente encaixa.`);
+    }
+    const dono = tarde ? 'Nilce' : (donoAtual || (await proximoDono()));
     const novo = await supaInsert('agendamentos', {
       vendedor_nome:    dono,
       quando:           slotSel,
