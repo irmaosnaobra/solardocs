@@ -290,10 +290,12 @@ function ultimoInicioDoDia(consultor: string, produto: 'solar' | 'eletroposto'):
 // Slot livre pra um consultor FIXO. Respeita bloqueios/ocupação dele,
 // achando outro horário livre se o pedido estiver indisponível.
 //
-// Quando a faixa pedida pelo lead cai fora da janela do consultor (ex: "prefiro
-// 15h às 18h" com o Thiago), o dia não tem slot nenhum e a busca escorrega pro
-// próximo dia útil, que começa às 08:00 — o lead é chamado na manhã seguinte, não
-// numa hora em que o consultor está apresentando eletroposto.
+// Quem é da manhã IGNORA a faixa que o lead pediu (decisão do Thiago, 10/08:
+// "mesmo que o cliente da minha vez e do Diego queira tarde ou noite, agenda de
+// manhã"). Então a busca começa às 08:00 do próprio dia, não na hora pedida: lead
+// que chega 09h querendo "após as 18h" é chamado hoje às 09h15, e não amanhã.
+// Slot que já passou é descartado pelo slotDisponivel, então começar às 08:00
+// nunca marca pra trás.
 export async function slotLivreConsultor(
   consultor: string,
   base: { y: number; m: number; d: number; h: number },
@@ -302,11 +304,12 @@ export async function slotLivreConsultor(
   const agora = new Date();
   const occ = await carregarOcupacao(consultor, agora.toISOString());
   const ultimoMin = ultimoInicioDoDia(consultor, produto);
+  const soDeManha = ultimoMin === FIM_MANHA_MIN;
   let { y, m, d } = base;
   for (let i = 0; i < 14; i++) {
     const dow = dowSP(y, m, d);
     if (dow !== 0 && dow !== 6) {
-      const horaIni = i === 0 ? Math.max(HORA_INI, base.h) : HORA_INI;
+      const horaIni = i === 0 && !soDeManha ? Math.max(HORA_INI, base.h) : HORA_INI;
       for (let h = horaIni; h < HORA_FIM; h++) {
         for (let min = 0; min < 60; min += 15) {
           if (h * 60 + min > ultimoMin) break;   // fim da janela desse consultor

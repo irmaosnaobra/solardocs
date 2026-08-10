@@ -533,7 +533,7 @@
 
         <div class="f2">
           <div class="fld2"><label>Seu nome</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
-          <div class="fld2"><label>WhatsApp</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this)"></div></div>
+          <div class="fld2"><label>WhatsApp</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this); checarDono(this)"></div></div>
         </div>
         <div class="f2">
           <div class="fld2"><label>CEP <span class="hint" id="cep-st">(opcional — completa o endereço)</span></label><div class="inp"><input type="text" id="f-cep" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" oninput="maskCep(this)"></div></div>
@@ -787,10 +787,12 @@ function medirTemperatura(conta, urgencia, pagamento, decisor, posse){
 //   • MANHÃ (08:00–11:00) — rodízio normal: Nilce, Thiago e Diego.
 //   • TARDE (13:00–16:00) — só a Nilce, que não tem eletroposto. A tarde não
 //     fechou: ela só deixou de ser dos dois.
-// Quem já tem dono continua com ele (1 telefone = 1 consultor): se o dono for o
-// Thiago ou o Diego e o lead escolher a tarde, a página pede um horário de manhã
-// em vez de trocar o consultor por baixo do pano.
+// Quem já tem dono continua com ele (1 telefone = 1 consultor): assim que o lead
+// digita o WhatsApp, a página descobre o consultor dele e, se for o Thiago ou o
+// Diego, a tarde some da lista — ele escolhe entre as manhãs, sem pedir um horário
+// que a gente ia recusar depois.
 let slotSel = null;
+let donoLead = null;             // consultor que JÁ atende o telefone digitado (null = novo/não sei)
 let ocupados = new Set();        // manhã: agendamento de QUALQUER um dos três fecha
 let ocupadosNilce = new Set();   // tarde: só a agenda da Nilce importa
 const REUNIOES_POR_HORARIO = 1;
@@ -890,10 +892,16 @@ function proximosDias(){
   }
   return dias;
 }
+// Cliente que já é do Thiago ou do Diego não enxerga a tarde: ele fica com o dono
+// dele (1 telefone = 1 consultor) e o dono só faz solar de manhã. Some com o
+// horário em vez de deixar escolher e recusar depois — quem escolhe uma hora pra
+// receber técnico em casa não pode ser realocado por baixo do pano.
+const soManhaPraEsteLead = () => !!donoLead && donoLead !== 'Nilce';
 function livresDoDia(ymd){
   const agora = partesBR();
   return gradeDoDia(ymd).filter(h=>{
     if(ymd === agora.ymd && h <= agora.hhmm) return false;
+    if(ehTarde(h) && soManhaPraEsteLead()) return false;
     const iso = isoDe(ymd, h);
     // tarde é da Nilce: fecha quando ELA está ocupada, não quando o time está
     return ehTarde(h) ? !ocupadosNilce.has(iso) : !ocupados.has(iso);
@@ -923,6 +931,14 @@ async function montarSlots(){
       }).join('')}</div>
     </div>`;
   }).join('');
+  if(soManhaPraEsteLead())
+    el.insertAdjacentHTML('beforeend',
+      `<div class="agLoad">${donoLead} já é o seu consultor e faz as vistorias de manhã — por isso a lista para às 11h.</div>`);
+  // re-render não pode perder a escolha do lead (o telefone dele redesenha a grade)
+  if(slotSel){
+    const b = el.querySelector(`.slot[data-iso="${slotSel}"]`);
+    if(b) b.classList.add('on'); else slotSel = null;
+  }
 }
 function pick(b){
   document.querySelectorAll('.slot').forEach(s=>s.classList.remove('on'));
@@ -934,6 +950,18 @@ function maskTel(i){
   if(v.length>6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
   else if(v.length>2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
   i.value = v;
+}
+// Com o WhatsApp completo dá pra saber se o lead JÁ tem consultor — e é isso que
+// decide se a tarde aparece pra ele. Roda enquanto digita, com guarda de ordem:
+// resposta velha chegando depois da nova não pode repintar a grade errada.
+let donoSeq = 0;
+async function checarDono(input){
+  const dd = String(input.value||'').replace(/\D/g,'');
+  const seq = ++donoSeq;
+  const dono = dd.length >= 10 ? await donoDoTelefone('55' + dd) : null;
+  if(seq !== donoSeq || dono === donoLead) return;
+  donoLead = dono;
+  await montarSlots();   // já derruba a seleção se o horário escolhido sumiu da lista
 }
 // ViaCEP: com o CEP completo, rua/bairro/cidade se preenchem sozinhos. É CONVENIÊNCIA,
 // não dependência: se a API cair, expirar ou o CEP não existir, o lead preenche na mão e
@@ -1042,13 +1070,15 @@ async function agendar(){
       + (extras.length ? ` · vai aumentar: ${extras.join(', ')}` : ''),
   ].join('\n');
 
-  // 1 telefone = 1 consultor: quem já tem dono é atendido por ele. Como a tarde é
-  // da Nilce (Thiago e Diego ficam no eletroposto), cliente que já é dos dois não
-  // pode ficar com horário de tarde — e ele descobre isso AQUI, antes do portão de
-  // presença, não depois de dizer "sim" e achar que estava agendado.
+  // Rede de segurança: a tarde já nem aparece pra cliente do Thiago/Diego (o
+  // checarDono redesenha a grade quando o telefone fica completo). Isto aqui só
+  // pega o caso da consulta ter falhado antes — em vez de gravar a vistoria numa
+  // hora em que o consultor está no eletroposto, devolve o lead pras manhãs.
   const donoAtual = await donoDoTelefone(tel);
   if(ehTarde(partesBR(new Date(slotSel)).hhmm) && donoAtual && donoAtual !== 'Nilce'){
-    return erro(`Quem já te atende (${donoAtual}) faz as vistorias de manhã. Escolha um horário até as 11h ali em cima — ou chame no WhatsApp que a gente encaixa.`);
+    donoLead = donoAtual; slotSel = null;
+    await montarSlots();
+    return erro(`${donoAtual} já é o seu consultor e faz as vistorias de manhã. Escolha um dos horários ali em cima.`);
   }
 
   // Ficha pronta, mas NÃO gravada: quem grava é o "Sim" do portão de presença.

@@ -2,25 +2,31 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Thiago e Diego apresentam eletroposto das 13:30 às 17:30. Card de lead SOLAR
 // deles não pode cair nesse pedaço do dia — some com a capacidade de apresentação
-// e põe a mesma pessoa em dois compromissos. Nilce não tem eletroposto: segue o
-// expediente inteiro. O risco de regressão aqui é silencioso (ninguém "vê" um
-// card marcado pras 15h), então ele é travado por teste.
+// e põe a mesma pessoa em dois compromissos. Regra do Thiago (10/08): mesmo que o
+// cliente peça tarde ou noite, o card vai pra manhã. Nilce não tem eletroposto e
+// segue o expediente inteiro. O risco de regressão aqui é silencioso (ninguém
+// "vê" um card marcado pras 15h), então ele é travado por teste.
+
+let ocupados: string[] = [];   // ISO dos horários já tomados na agenda do consultor
 
 vi.mock('../utils/supabaseGerador', () => {
-  const vazio = (data: any[]) => {
+  const resposta = (tabela: string) => {
     const q: any = {
       select: () => q, eq: () => q, neq: () => q, gte: () => q, lte: () => q,
-      then: (ok: any) => Promise.resolve({ data, error: null }).then(ok),
+      then: (ok: any) => Promise.resolve({
+        data: tabela === 'agendamentos' ? ocupados.map(iso => ({ quando: iso })) : [],
+        error: null,
+      }).then(ok),
     };
     return q;
   };
-  return { supabaseGerador: { from: () => vazio([]) } };   // agenda e bloqueios vazios
+  return { supabaseGerador: { from: (t: string) => resposta(t) } };
 });
 vi.mock('../services/agents/zapiClient', () => ({ sendWhatsApp: vi.fn() }));
 
 import { slotLivreConsultor } from '../services/agenda/leadsMetaService';
 
-// "agora" fixo: terça, 11/08/2026, meio-dia em Brasília.
+// "agora" fixo: terça, 11/08/2026, meio-dia em Brasília (manhã já vencida).
 const AGORA = new Date('2026-08-11T12:00:00-03:00');
 const emSP = (d: Date) => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -29,22 +35,53 @@ const emSP = (d: Date) => new Intl.DateTimeFormat('en-CA', {
 
 // lead pediu "15h às 18h" na terça
 const TARDE_DE_TERCA = { y: 2026, m: 8, d: 11, h: 15 };
-const MANHA_DE_QUARTA = { y: 2026, m: 8, d: 12, h: 8 };
+
+// Preenche a agenda de um dia de 08:00 até `ate` (inclusive), de 15 em 15 min.
+const lotarManha = (ymd: string, ate: string) => {
+  const fim = Number(ate.slice(0, 2)) * 60 + Number(ate.slice(3));
+  ocupados = [];
+  for (let m = 8 * 60; m <= fim; m += 15) {
+    const hh = String(Math.floor(m / 60)).padStart(2, '0');
+    const mm = String(m % 60).padStart(2, '0');
+    ocupados.push(`${ymd}T${hh}:${mm}:00-03:00`);
+  }
+};
 
 describe('card de lead solar do Thiago e do Diego', () => {
-  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(AGORA); });
+  beforeEach(() => { ocupados = []; vi.useFakeTimers(); vi.setSystemTime(AGORA); });
   afterEach(() => { vi.useRealTimers(); });
 
-  it('faixa da tarde escorrega pra manhã do próximo dia útil', async () => {
+  it('faixa da tarde com a manhã já vencida vai pro próximo dia útil às 08:00', async () => {
     for (const consultor of ['Thiago', 'Diego']) {
       const slot = await slotLivreConsultor(consultor, TARDE_DE_TERCA);
       expect(emSP(slot)).toBe('2026-08-12 08:00');
     }
   });
 
-  it('faixa da manhã continua no mesmo dia, na hora pedida', async () => {
-    const slot = await slotLivreConsultor('Thiago', MANHA_DE_QUARTA);
+  it('pediu tarde mas ainda é de manhã: fica HOJE, não amanhã', async () => {
+    // "mesmo que o cliente queira tarde ou noite, agenda de manhã" — e a manhã
+    // mais próxima é a de hoje.
+    vi.setSystemTime(new Date('2026-08-11T09:00:00-03:00'));
+    const slot = await slotLivreConsultor('Thiago', TARDE_DE_TERCA);
+    expect(emSP(slot)).toBe('2026-08-11 09:00');
+  });
+
+  it('a hora que o lead pediu não empurra o card pra frente', async () => {
+    // base às 11h: a busca ignora e começa às 08:00, que é o primeiro livre.
+    const slot = await slotLivreConsultor('Diego', { y: 2026, m: 8, d: 12, h: 11 });
     expect(emSP(slot)).toBe('2026-08-12 08:00');
+  });
+
+  it('11:30 é o último começo possível da manhã', async () => {
+    lotarManha('2026-08-12', '11:15');
+    const slot = await slotLivreConsultor('Diego', { y: 2026, m: 8, d: 12, h: 8 });
+    expect(emSP(slot)).toBe('2026-08-12 11:30');
+  });
+
+  it('manhã lotada até 11:30 pula o dia inteiro — nada cai à tarde', async () => {
+    lotarManha('2026-08-12', '11:30');
+    const slot = await slotLivreConsultor('Thiago', { y: 2026, m: 8, d: 12, h: 8 });
+    expect(emSP(slot)).toBe('2026-08-13 08:00');
   });
 
   it('Nilce não tem eletroposto — a tarde dela continua de pé', async () => {
@@ -55,12 +92,5 @@ describe('card de lead solar do Thiago e do Diego', () => {
   it('lead de ELETROPOSTO pode ser à tarde — é o turno deles', async () => {
     const slot = await slotLivreConsultor('Thiago', TARDE_DE_TERCA, 'eletroposto');
     expect(emSP(slot)).toBe('2026-08-11 15:00');
-  });
-
-  it('11:30 é o último começo possível: 11:45 já é do dia seguinte', async () => {
-    // base às 11h com a agenda vazia devolve 11:00; o corte real é o 11:45 que
-    // não existe — a grade de 15 min para em 11:30.
-    const slot = await slotLivreConsultor('Diego', { y: 2026, m: 8, d: 12, h: 11 });
-    expect(emSP(slot)).toBe('2026-08-12 11:00');
   });
 });
