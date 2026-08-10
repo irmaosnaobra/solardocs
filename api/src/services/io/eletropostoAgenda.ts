@@ -308,7 +308,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
 
   // Envia e grava a flag. Em `dry` só registra o que sairia — mesma decisão, zero
   // mensagem. É assim que se confere a régua em produção sem tocar em ninguém.
-  const entregar = async (ag: Ficha, toque: ToquePrevisto['toque'], tel: string, bolhas: string[], campo: string) => {
+  const entregar = async (ag: Ficha, toque: ToquePrevisto['toque'], tel: string, bolhas: string[], campo: string | string[]) => {
     if (opts.dry) {
       previa.push({ id: ag.id, cliente: String(ag.cliente_nome || '—'), toque, quando: String(ag.quando), bolhas });
       return;
@@ -321,7 +321,11 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     await supabase.from('system_state')
       .upsert({ key: `${EP_AGENDA_PREFIX}${ag.id}:${toque}`, value: { em: agoraIso }, updated_at: agoraIso }, { onConflict: 'key' })
       .then(undefined, (e: unknown) => logger.error('ep-agenda', 'carimbo do teto da linha falhou', { id: ag.id, erro: String(e) }));
-    await supabaseGerador.from('agendamentos').update({ [campo]: agoraIso }).eq('id', ag.id);
+    // Pode carimbar MAIS DE UMA flag no mesmo envio: a confirmação de uma reunião
+    // que já está dentro da janela de 1h também mata o toque de 1h (ver abaixo).
+    const campos = Array.isArray(campo) ? campo : [campo];
+    await supabaseGerador.from('agendamentos')
+      .update(Object.fromEntries(campos.map(c => [c, agoraIso]))).eq('id', ag.id);
   };
 
   for (const ag of fichas) {
@@ -331,6 +335,8 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
 
     const minutos = (new Date(ag.quando).getTime() - agora) / 60_000;
     const telDoConsultor = telPorConsultor.get(String(ag.vendedor_nome || '')) ?? null;
+    /** Marcada agora há pouco: a confirmação dela sai NESTE tick, sem fila nem janela. */
+    const fresca = agora - new Date(ag.created_at).getTime() <= FRESCA_MS;
 
     // ── 5 minutos antes ──
     if (!ag.lembrete_5min_at && minutos <= MIN_5MIN.ate && minutos >= MIN_5MIN.de) {
@@ -345,7 +351,19 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     }
 
     // ── 1 hora antes ──
-    if (!ag.lembrete_1h_at && minutos <= MIN_1H.ate && minutos >= MIN_1H.de) {
+    // Quem ACABOU de marcar e ainda não foi confirmado não pode receber "Falta 1 hora
+    // pra sua reunião" como PRIMEIRA mensagem da empresa — ele cai no bloco de baixo e
+    // recebe a confirmação primeiro. Isso virou alcançável em 10/08/2026, quando a
+    // folga mínima da LP caiu de 2h pra 30 min: antes o horário vendável mais próximo
+    // ficava a 120 min e nunca caía nesta janela; agora o lead pega o slot mais próximo
+    // e cai em 45–60 min em metade dos minutos da hora.
+    //
+    // A guarda é `fresca &&`, não `!ag.confirmacao_at` sozinho: ficha ANTIGA sem
+    // confirmação (agente desligado, backlog represado) tem que continuar recebendo o
+    // aviso de 1h, porque a confirmação dela não sai — o backlog exige 2h de distância
+    // e ela já está a 60 min. Sem o `fresca`, esse lead não receberia nada.
+    if (!(fresca && !ag.confirmacao_at)
+        && !ag.lembrete_1h_at && minutos <= MIN_1H.ate && minutos >= MIN_1H.de) {
       try {
         await entregar(ag, '1h', tel, bolhas1h(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), 'lembrete_1h_at');
         l1h++; toques++;
@@ -358,7 +376,6 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
 
     // ── Confirmação ──
     if (ag.confirmacao_at) continue;
-    const fresca = agora - new Date(ag.created_at).getTime() <= FRESCA_MS;
     if (!fresca) {
       // Backlog: fila lenta, horário civilizado e só se a reunião ainda está longe.
       if (foraDeHorario || backlog >= BACKLOG_POR_TICK || minutos < BACKLOG_ANTECEDENCIA_MIN) continue;
@@ -373,8 +390,13 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       }
       backlog++;
     }
+    // Reunião marcada já DENTRO da janela de 1h: a confirmação carimba o toque de 1h
+    // junto e o mata. Ela acabou de dizer o horário, o consultor e que o link vem
+    // neste chat — mandar "falta 1 hora" logo atrás é a mesma informação duas vezes
+    // em minutos. O de 5 min continua valendo: esse é o "entra agora".
+    const campos = minutos <= MIN_1H.ate ? ['confirmacao_at', 'lembrete_1h_at'] : 'confirmacao_at';
     try {
-      await entregar(ag, 'confirmacao', tel, bolhasConfirmacao(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), 'confirmacao_at');
+      await entregar(ag, 'confirmacao', tel, bolhasConfirmacao(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), campos);
       confirmacoes++; toques++;
     } catch (e) {
       logger.error('ep-agenda', 'falha na confirmação', { id: ag.id, erro: String(e) });

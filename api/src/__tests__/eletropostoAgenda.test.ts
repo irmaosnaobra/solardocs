@@ -18,7 +18,9 @@ vi.mock('../utils/supabaseGerador', () => ({
         select() { return q; },
         in(col: string, vals: any[]) { q._filtros[col] = vals; return q; },
         eq(col: string, v: any) {
-          if (q._update) { updates.push({ id: v, campo: Object.keys(q._update)[0] }); return Promise.resolve({ error: null }); }
+          // Junta as chaves: um envio pode carimbar MAIS DE UMA flag (a confirmação
+          // de reunião marcada dentro da janela de 1h mata o toque de 1h junto).
+          if (q._update) { updates.push({ id: v, campo: Object.keys(q._update).join('+') }); return Promise.resolve({ error: null }); }
           q._filtros[col] = v; return q;
         },
         gte(col: string, v: any) { q._filtros[`gte_${col}`] = v; return q; },
@@ -157,6 +159,40 @@ describe('confirmação ao marcar', () => {
     const r = await tick();
     expect(r.confirmacoes).toBe(1);
     expect(updates).toEqual([{ id: 1, campo: 'confirmacao_at' }]);
+  });
+
+  // 10/08/2026: a folga mínima da LP caiu de 2h pra 30 min, e aí o lead passou a
+  // conseguir marcar o slot mais próximo dentro da janela de 1h do agente. A ordem
+  // dos toques (5min → 1h → confirmação, cada um com `continue`) fazia a PRIMEIRA
+  // mensagem que ele recebia da empresa ser "Falta 1 hora pra sua reunião" — de uma
+  // reunião que ele nunca viu confirmada.
+  it('marcou pra daqui a 50 min: recebe a CONFIRMAÇÃO, não o aviso de 1h', async () => {
+    fichas = [ficha({ quando: emMinutos(50), created_at: new Date(AGORA.getTime() - 60_000).toISOString() })];
+    const r = await tick();
+    expect(r).toMatchObject({ confirmacoes: 1, lembretes_1h: 0 });
+    expect(enviadas[0].bolhas.join(' ')).toContain('está confirmada');
+    expect(enviadas[0].bolhas.join(' ')).not.toContain('Falta *1 hora*');
+  });
+
+  it('e essa confirmação mata o aviso de 1h junto — senão ele viria logo atrás', async () => {
+    fichas = [ficha({ quando: emMinutos(50), created_at: new Date(AGORA.getTime() - 60_000).toISOString() })];
+    await tick();
+    expect(updates).toEqual([{ id: 1, campo: 'confirmacao_at+lembrete_1h_at' }]);
+  });
+
+  it('reunião longe carimba só a confirmação — o aviso de 1h ainda tem que sair', async () => {
+    fichas = [ficha({ quando: emMinutos(200), created_at: new Date(AGORA.getTime() - 60_000).toISOString() })];
+    await tick();
+    expect(updates).toEqual([{ id: 1, campo: 'confirmacao_at' }]);
+  });
+
+  // A guarda é "ficha FRESCA sem confirmação", não "sem confirmação". Ficha velha
+  // represada (agente desligado, backlog) está a 60 min da reunião e a confirmação
+  // dela não sai — o backlog exige 2h de distância. Sem o recorte, ela ficaria muda.
+  it('ficha antiga sem confirmação continua recebendo o aviso de 1h', async () => {
+    fichas = [ficha({ quando: emMinutos(60) })];   // created_at padrão = 31/07, backlog
+    expect((await tick()).lembretes_1h).toBe(1);
+    expect(enviadas[0].bolhas.join(' ')).toContain('1 hora');
   });
 
   it('backlog antigo entra em fila lenta: 1 por rodada', async () => {
