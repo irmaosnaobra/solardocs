@@ -57,6 +57,9 @@
 <style>
 :root{
   --green:#00C853; --green-deep:#009B40; --green-soft:#E6F9EE;
+  /* Verde para TEXTO pequeno. O --green-deep passa em titulo e falha em 12px
+     (3,4 contra os 4,5 que a norma pede) — este passa em ambos. */
+  --green-txt:#00702E;
   --black:#0A0A0A; --g900:#141414; --g800:#262626; --g600:#6B6B6B;
   --g300:#D9D9D9; --g100:#F5F5F5; --papel:#F6F8F6; --r:12px; --rl:20px;
   --largura:1120px;
@@ -74,6 +77,8 @@ section{padding:72px 20px}
 .branco{background:#fff}
 .escuro{background:var(--black);color:#fff}
 .verde{background:var(--g900);color:#fff}
+.verde .olho{color:#9a9a9a}
+.verde .olho:before{background:#3a3a3a}
 .verde .sub{color:#b4b4b4}
 .verde h2{color:#fff}
 
@@ -139,11 +144,11 @@ ul.lista li::marker{color:var(--g600)}
 .metodo li:nth-child(even){background:var(--papel)}
 .mNum{width:26px;height:26px;border-radius:99px;background:var(--black);color:#fff;
       font-size:12.5px;font-weight:800;display:grid;place-items:center}
-.metodo li.fim .mNum{background:var(--green)}
+.metodo li.fim .mNum{background:var(--green);color:var(--black)}
 .mQ{font-size:15.5px;font-weight:800;line-height:1.25}
 .mQ em{display:block;font-style:normal;font-weight:500;font-size:12.5px;color:var(--g600);margin-top:3px}
 .mSe{font-size:13.5px;color:var(--laranja,#C2410C);line-height:1.4;border-left:1px solid var(--g300);padding-left:16px}
-.mA{font-size:11.5px;font-weight:800;color:var(--green-deep);white-space:nowrap}
+.mA{font-size:11.5px;font-weight:800;color:var(--green-txt);white-space:nowrap}
 
 /* O ciclo: quatro passos e o núcleo. 2×2 no desktop, coluna no celular. */
 .ciclo{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:26px}
@@ -193,7 +198,7 @@ ul.lista li::marker{color:var(--g600)}
 .cartao .cta{margin-top:22px;max-width:none;font-size:18px;padding:21px 26px}
 .cartaoSelo{display:flex;gap:11px;align-items:flex-start;margin:18px 0 0;
             font-size:14.5px;line-height:1.55;color:var(--black)}
-.cartaoSelo svg{width:19px;height:19px;flex:none;margin-top:2px;color:var(--green-deep)}
+.cartaoSelo svg{width:19px;height:19px;flex:none;margin-top:2px;color:var(--green-txt)}
 .cartaoPe{margin:14px 0 0;font-size:13.5px;color:var(--g600)}
 @media(max-width:640px){
   .cartao{padding:28px 22px 26px;border-radius:18px}
@@ -293,11 +298,11 @@ ul.lista li::marker{color:var(--g600)}
 .bump span{font-size:15px;line-height:1.5}
 
 .cta{display:inline-flex;align-items:center;justify-content:center;width:100%;max-width:460px;
-     padding:20px 26px;border:0;border-radius:var(--r);background:var(--green);color:#fff;
+     padding:20px 26px;border:0;border-radius:var(--r);background:var(--green);color:var(--black);
      font:inherit;font-weight:800;font-size:17.5px;line-height:1;text-decoration:none;cursor:pointer;
      margin-top:22px;transition:background .15s}
-.cta:hover{background:var(--green-deep)}
-.cta.off{background:var(--g300);color:var(--g600);cursor:default}
+.cta:hover{background:var(--green-deep);color:#fff}
+.cta.off{background:var(--g300);color:#4a4a4a;cursor:default}
 
 .garantia{border-left:3px solid var(--green);padding-left:18px;font-size:17px;max-width:60ch}
 details{border-top:1px solid var(--g300);padding:17px 0}
@@ -868,18 +873,6 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
   </div>
 </section>
 
-<!-- 13 · GARANTIA -->
-<section class="branco rv">
-  <div class="faixa">
-    <p class="olho">Sem risco</p>
-    <h2>Sete dias. E o material que você baixou continua seu.</h2>
-    <p class="garantia" id="garantia">
-      Contados do acesso. Não serviu, você pede e o valor volta integral — inclusive o da planilha, se tiver levado.
-      Sem formulário de motivo, sem conversa de retenção e sem contraproposta.
-    </p>
-  </div>
-</section>
-
 <!-- 12 · COMO É O ACESSO — a referência tem essa seção e ela remove atrito real -->
 <section class="claro rv" id="acesso" style="display:none">
   <div class="faixa">
@@ -1160,7 +1153,6 @@ fetch(API + '/plugcash/curso/fundamentos')
       document.getElementById('parcela').textContent =
         'ou ' + k.parcelas + '× de ' + money(Math.round(k.preco_centavos / k.parcelas)) + ' no cartão';
     }
-    if (k.copy && k.copy.garantia) document.getElementById('garantia').textContent = k.copy.garantia;
 
     // A seção que listava as 14 aulas saiu da página. O que ela alimentava e
     // continua vivo: a contagem no hero e o aviso de quantas abrem hoje, que
