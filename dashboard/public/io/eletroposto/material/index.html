@@ -118,6 +118,36 @@ ul.lista{margin:0;padding-left:20px;display:grid;gap:12px;font-size:16.5px;max-w
 ul.lista li::marker{color:var(--g600)}
 
 
+
+/* ── O cartão da oferta ────────────────────────────────────────────────────
+   Era texto empilhado no fundo preto: o preço disputava atenção com o parágrafo
+   ao lado e só o botão saltava. Um cartão BRANCO sobre o preto é o maior
+   contraste que esta página tem — e ele é gasto de uma vez só, no único bloco
+   que decide a compra.
+
+   Largura travada em 620px de propósito: a decisão é uma coluna, não uma
+   página. Linha lida a 100 caracteres não fecha venda. */
+.cartao{background:#fff;color:var(--black);border-radius:22px;padding:38px 40px 32px;
+        max-width:620px;box-shadow:0 24px 60px rgba(0,0,0,.45);position:relative;overflow:hidden}
+.cartao:before{content:'';position:absolute;left:0;right:0;top:0;height:5px;background:var(--green)}
+.cartaoOlho{font-size:11.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+            color:var(--g600);margin:0 0 10px}
+.cartaoTit{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0 0 18px;max-width:none;color:var(--black)}
+.cartao .preco{font-size:clamp(46px,7vw,62px);color:var(--black);margin:0}
+.cartaoParc{margin:8px 0 0;font-size:16px;color:var(--g600);font-variant-numeric:tabular-nums}
+.cartaoPorque{margin:18px 0 0;font-size:15.5px;line-height:1.6;color:var(--g600);max-width:52ch}
+.cartao .gradeStatus{margin-top:18px;background:var(--g100)}
+.cartao .bump{margin-top:20px;background:var(--g100);border-color:var(--g300)}
+.cartao .cta{margin-top:22px;max-width:none;font-size:18px;padding:21px 26px}
+.cartaoSelo{display:flex;gap:11px;align-items:flex-start;margin:18px 0 0;
+            font-size:14.5px;line-height:1.55;color:var(--black)}
+.cartaoSelo svg{width:19px;height:19px;flex:none;margin-top:2px;color:var(--green-deep)}
+.cartaoPe{margin:14px 0 0;font-size:13.5px;color:var(--g600)}
+@media(max-width:640px){
+  .cartao{padding:28px 22px 26px;border-radius:18px}
+  .cartaoTit{font-size:21px}
+}
+
 /* ── Calculadora "quanto rende" ────────────────────────────────────────────
    O bloco equivalente ao "quantos telhados da sua cidade" da referência. Lá o
    visitante digita a cidade; aqui ele digita o movimento do próprio ponto.
@@ -504,18 +534,6 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
   </div>
 </section>
 
-<!-- 4 · A GRADE INTEIRA, sem mistério -->
-<section class="branco rv">
-  <div class="faixa">
-    <p class="olho">A trilha completa</p>
-    <h2>Todas as aulas, com a duração de cada uma.</h2>
-    <p class="sub">Sem borrão e sem "e muito mais". Cada linha abaixo é uma das perguntas do diagrama anterior, respondida com número — e você confere a lista inteira antes de pagar, o que separa uma compra de um arrependimento.</p>
-    <ul class="aulas" id="grade"></ul>
-    <p class="gradeStatus" id="grade-status" style="display:none"></p>
-    <p class="sub" id="grade-vazia" style="display:none;margin-top:20px">A grade aparece aqui assim que as aulas entram no ar.</p>
-  </div>
-</section>
-
 <!-- 3 · COMO AS AULAS SÃO — a diferença que justifica o formato -->
 <section class="claro rv">
   <div class="faixa">
@@ -780,22 +798,38 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
   </div>
 </section>
 
-<!-- 11 · PREÇO -->
+<!-- 11 · PREÇO — um cartão, não texto empilhado.
+     Antes era tudo alinhado à esquerda no fundo preto: só o botão saltava, e o
+     preço competia com a explicação. Agora é um cartão BRANCO sobre o preto —
+     o maior contraste da página inteira, gasto no único lugar que decide. A
+     garantia entrou pra dentro dele: no fim da página ela chegava tarde, e é
+     ela que tira o risco de clicar. -->
 <section class="escuro rv" id="oferta" style="display:none">
   <div class="faixa">
-    <p class="olho">O investimento</p>
-    <h2>Fundamentos do Eletroposto</h2>
-    <p class="preco" id="preco">—</p>
-    <p class="parcela" id="parcela"></p>
-    <p class="parcela" id="por-que" style="max-width:56ch"></p>
+    <div class="cartao">
+      <p class="cartaoOlho">O investimento</p>
+      <h2 class="cartaoTit">Fundamentos do Eletroposto</h2>
 
-    <label class="bump" id="bump-linha" style="display:none">
-      <input type="checkbox" id="bump-check">
-      <span id="bump-texto"></span>
-    </label>
+      <p class="preco" id="preco">—</p>
+      <p class="cartaoParc" id="parcela"></p>
 
-    <a class="cta off" id="cta" href="#">Carregando…</a>
-    <p class="parcela">Acesso liberado por e-mail assim que o pagamento é aprovado.</p>
+      <p class="cartaoPorque" id="por-que"></p>
+      <p class="gradeStatus" id="grade-status" style="display:none"></p>
+
+      <label class="bump" id="bump-linha" style="display:none">
+        <input type="checkbox" id="bump-check">
+        <span id="bump-texto"></span>
+      </label>
+
+      <a class="cta off" id="cta" href="#">Carregando…</a>
+
+      <p class="cartaoSelo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <span>Sete dias de garantia. Não gostou, devolvemos o valor integral — e o material que você já baixou continua seu.</span>
+      </p>
+      <p class="cartaoPe">Acesso liberado por e-mail assim que o pagamento é aprovado.</p>
+    </div>
   </div>
 </section>
 
@@ -1060,7 +1094,6 @@ function utmDaSessao(){
 // venda que termina em botão morto custa mais caro que não ter página.
 var SECOES_DE_VENDA = ['oferta', 'cta-final', 'acesso'];
 function semOferta(){
-  document.getElementById('grade-vazia').style.display = '';
   document.getElementById('fallback').style.display = '';
   SECOES_DE_VENDA.forEach(function(id){ document.getElementById(id).style.display = 'none'; });
   evento('material_sem_oferta');
@@ -1094,61 +1127,27 @@ fetch(API + '/plugcash/curso/fundamentos')
     }
     if (k.copy && k.copy.garantia) document.getElementById('garantia').textContent = k.copy.garantia;
 
-    // A TRILHA INTEIRA, com o que está no ar marcado linha a linha.
-    //
-    // Antes esta seção listava só as aulas publicadas — ou seja, com o curso em
-    // produção ela ficava VAZIA, logo abaixo de um título que promete "todas as
-    // aulas, com a duração de cada uma". Lista vazia no bloco que mais decide a
-    // compra é o pior estado que esta página podia ter.
-    //
-    // Agora mostra as 14 e diz quais já abrem. O sinal vem do status real de
-    // cada aula (campo `disponivel` da API), então a página não consegue dizer
-    // que algo está pronto antes de estar — e se corrige sozinha a cada aula
-    // que sobe, sem ninguém editar copy.
+    // A seção que listava as 14 aulas saiu da página. O que ela alimentava e
+    // continua vivo: a contagem no hero e o aviso de quantas abrem hoje, que
+    // desceu pro bloco do preço — é a última coisa lida antes do clique, e sem
+    // ela o comprador descobre a contagem depois de pagar.
     var grade = (k.grade && k.grade.length) ? k.grade : (k.aulas || []);
-    document.getElementById('grade-vazia').style.display = grade.length ? 'none' : '';
     if (grade.length) {
-      var g = document.getElementById('grade');
       var totalMin = grade.reduce(function(t,a){ return t + Math.round((a.duracao_seg||0)/60); }, 0);
-      var noAr = grade.filter(function(a){ return a.disponivel; }).length;
-      // `disponivel` só existe na `grade`; caindo no fallback antigo, tudo o que
-      // veio já era publicado.
-      if (!k.grade) noAr = grade.length;
+      var noAr = k.grade ? grade.filter(function(a){ return a.disponivel; }).length : grade.length;
 
       document.getElementById('hero-aulas').textContent =
         grade.length + (grade.length === 1 ? ' aula' : ' aulas') +
         (totalMin ? ' · ' + Math.floor(totalMin/60) + 'h' + String(totalMin%60).padStart(2,'0') : '');
 
-      grade.forEach(function(a){
-        var li = document.createElement('li');
-        var t = document.createElement('span');
-        t.textContent = a.titulo;
-        li.appendChild(t);
-        var d = document.createElement('span');
-        d.className = 'dur';
-        var m = a.duracao_seg ? Math.round(a.duracao_seg/60) + ' min' : '';
-        if (k.grade && !a.disponivel) {
-          li.classList.add('vem');
-          d.textContent = m ? m + ' · em produção' : 'em produção';
-        } else {
-          d.textContent = m;
-        }
-        li.appendChild(d);
-        g.appendChild(li);
-      });
-
-      // A frase abaixo da grade é gerada do dado, nunca escrita à mão: é ela que
-      // impede a página de vender uma trilha inteira que ainda não existe.
       var av = document.getElementById('grade-status');
       if (av && k.grade) {
-        if (noAr >= grade.length) {
-          av.textContent = 'As ' + grade.length + ' aulas estão no ar. Acesso vitalício, sem prazo para terminar.';
-        } else {
-          av.innerHTML = '<b>' + noAr + ' de ' + grade.length + ' aulas já abrem hoje.</b> ' +
-            'As outras entram no seu acesso conforme ficam prontas, sem custo nenhum a mais — ' +
-            'e a garantia vale a partir do dia da compra, não do dia em que a última subir.';
-          av.style.display = '';
-        }
+        av.innerHTML = noAr >= grade.length
+          ? 'As ' + grade.length + ' aulas estão no ar. Acesso vitalício, sem prazo para terminar.'
+          : '<b>' + noAr + ' de ' + grade.length + ' aulas já abrem hoje.</b> As outras entram no seu ' +
+            'acesso conforme ficam prontas, sem custo nenhum a mais — e a garantia vale a partir do dia ' +
+            'da compra, não do dia em que a última subir.';
+        av.style.display = '';
       }
     }
 
