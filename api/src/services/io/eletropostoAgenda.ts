@@ -83,8 +83,8 @@ const MIN_1H = { de: 45, ate: 75 };
 
 /** Ficha nova demais pra ser backlog: confirma na hora, sem fila e sem janela. */
 const FRESCA_MS = 30 * 60 * 1000;
-/** Backlog só recebe confirmação se ainda dá tempo de ela servir pra alguma coisa. */
-const BACKLOG_ANTECEDENCIA_MIN = 120;
+// BACKLOG_ANTECEDENCIA_MIN (120) saiu em 10/08/2026: era ele que fazia ficha
+// represada a menos de 2h da reunião nunca receber confirmação nenhuma.
 const BACKLOG_POR_TICK = 1;
 const MAX_TOQUES_POR_TICK = 6;
 const JANELA_INICIO_H = 8;
@@ -338,6 +338,53 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     /** Marcada agora há pouco: a confirmação dela sai NESTE tick, sem fila nem janela. */
     const fresca = agora - new Date(ag.created_at).getTime() <= FRESCA_MS;
 
+    // ── Confirmação — SEMPRE a primeira mensagem que o lead recebe ──────────
+    // Ordem invertida em 10/08/2026 (ordem do Thiago: "tem que receber confirmação
+    // sempre"). Antes a régua era 5min → 1h → confirmação, cada ramo com `continue`,
+    // e isso produzia dois furos:
+    //
+    //   · lead que marcava dentro da janela de 1h recebia "Falta 1 hora pra sua
+    //     reunião" como PRIMEIRA mensagem da empresa, sem nunca ter visto a
+    //     confirmação. Virou alcançável quando a folga mínima da LP caiu de 2h pra
+    //     30 min — o horário mais próximo passou a cair em 45–60 min.
+    //   · ficha que perdia a janela de confirmação (envio falhou, agente desligado)
+    //     e chegava a menos de 2h da reunião NUNCA era confirmada: o gate de
+    //     `BACKLOG_ANTECEDENCIA_MIN` a barrava pra sempre. Esse gate saiu.
+    //
+    // Agora quem ainda não foi confirmado é confirmado, ponto — e só depois entra na
+    // fila dos lembretes. A consulta já recorta reunião futura (`quando >= agora-5min`),
+    // então nunca se confirma reunião que já passou.
+    if (!ag.confirmacao_at) {
+      if (!fresca) {
+        // Backlog: fila lenta e horário civilizado. Continua valendo — o que saiu foi
+        // só a distância mínima da reunião.
+        if (foraDeHorario || backlog >= BACKLOG_POR_TICK) continue;
+        // E dentro do teto anti-ban da linha. Faltava isto: em 04/08, às 08h BRT,
+        // a janela abriu com fila acumulada da noite e ESTA drenagem soltou 8
+        // pessoas na mesma hora — 37 mensagens, teto de 12, linha bloqueada pela
+        // 2ª vez. Ficha FRESCA e os avisos de 1h/5min seguem furando o teto de
+        // propósito: são de reunião acontecendo agora. Backlog não é urgente.
+        if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: true })  /* confirmação de agenda: quem marcou está esperando */)) {
+          logger.info('ep-agenda', 'teto da linha estourado — fila de atraso espera o próximo tick');
+          continue;
+        }
+        backlog++;
+      }
+      // Reunião já DENTRO da janela de 1h: a confirmação carimba o toque de 1h junto
+      // e o mata. Ela acabou de dizer o horário, o consultor e que o link vem neste
+      // chat — mandar "falta 1 hora" logo atrás é a mesma informação duas vezes em
+      // minutos. O de 5 min continua valendo: esse é o "entra agora".
+      const campos = minutos <= MIN_1H.ate ? ['confirmacao_at', 'lembrete_1h_at'] : 'confirmacao_at';
+      try {
+        await entregar(ag, 'confirmacao', tel, bolhasConfirmacao(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), campos);
+        confirmacoes++; toques++;
+      } catch (e) {
+        logger.error('ep-agenda', 'falha na confirmação', { id: ag.id, erro: String(e) });
+        erros++;
+      }
+      continue;
+    }
+
     // ── 5 minutos antes ──
     if (!ag.lembrete_5min_at && minutos <= MIN_5MIN.ate && minutos >= MIN_5MIN.de) {
       try {
@@ -351,19 +398,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     }
 
     // ── 1 hora antes ──
-    // Quem ACABOU de marcar e ainda não foi confirmado não pode receber "Falta 1 hora
-    // pra sua reunião" como PRIMEIRA mensagem da empresa — ele cai no bloco de baixo e
-    // recebe a confirmação primeiro. Isso virou alcançável em 10/08/2026, quando a
-    // folga mínima da LP caiu de 2h pra 30 min: antes o horário vendável mais próximo
-    // ficava a 120 min e nunca caía nesta janela; agora o lead pega o slot mais próximo
-    // e cai em 45–60 min em metade dos minutos da hora.
-    //
-    // A guarda é `fresca &&`, não `!ag.confirmacao_at` sozinho: ficha ANTIGA sem
-    // confirmação (agente desligado, backlog represado) tem que continuar recebendo o
-    // aviso de 1h, porque a confirmação dela não sai — o backlog exige 2h de distância
-    // e ela já está a 60 min. Sem o `fresca`, esse lead não receberia nada.
-    if (!(fresca && !ag.confirmacao_at)
-        && !ag.lembrete_1h_at && minutos <= MIN_1H.ate && minutos >= MIN_1H.de) {
+    if (!ag.lembrete_1h_at && minutos <= MIN_1H.ate && minutos >= MIN_1H.de) {
       try {
         await entregar(ag, '1h', tel, bolhas1h(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), 'lembrete_1h_at');
         l1h++; toques++;
@@ -372,35 +407,6 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
         erros++;
       }
       continue;
-    }
-
-    // ── Confirmação ──
-    if (ag.confirmacao_at) continue;
-    if (!fresca) {
-      // Backlog: fila lenta, horário civilizado e só se a reunião ainda está longe.
-      if (foraDeHorario || backlog >= BACKLOG_POR_TICK || minutos < BACKLOG_ANTECEDENCIA_MIN) continue;
-      // E dentro do teto anti-ban da linha. Faltava isto: em 04/08, às 08h BRT,
-      // a janela abriu com fila acumulada da noite e ESTA drenagem soltou 8
-      // pessoas na mesma hora — 37 mensagens, teto de 12, linha bloqueada pela
-      // 2ª vez. Ficha FRESCA e os avisos de 1h/5min seguem furando o teto de
-      // propósito: são de reunião acontecendo agora. Backlog não é urgente.
-      if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: true })  /* confirmação de agenda: quem marcou está esperando */)) {
-        logger.info('ep-agenda', 'teto da linha estourado — fila de atraso espera o próximo tick');
-        continue;
-      }
-      backlog++;
-    }
-    // Reunião marcada já DENTRO da janela de 1h: a confirmação carimba o toque de 1h
-    // junto e o mata. Ela acabou de dizer o horário, o consultor e que o link vem
-    // neste chat — mandar "falta 1 hora" logo atrás é a mesma informação duas vezes
-    // em minutos. O de 5 min continua valendo: esse é o "entra agora".
-    const campos = minutos <= MIN_1H.ate ? ['confirmacao_at', 'lembrete_1h_at'] : 'confirmacao_at';
-    try {
-      await entregar(ag, 'confirmacao', tel, bolhasConfirmacao(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), campos);
-      confirmacoes++; toques++;
-    } catch (e) {
-      logger.error('ep-agenda', 'falha na confirmação', { id: ag.id, erro: String(e) });
-      erros++;
     }
   }
 

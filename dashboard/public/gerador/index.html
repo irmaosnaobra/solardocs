@@ -781,6 +781,8 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-status-selo.selo-em{background:rgba(124,58,237,.2);color:#C4B5FD}
 .crm-status-selo.selo-pe{background:rgba(71,85,105,.28);color:#CBD5E1}
 .crm-status-selo.selo-pa{background:rgba(14,165,233,.2);color:#7DD3FC}
+/* presenca confirmada: esmeralda, o mesmo par de cores do card da agenda */
+.crm-status-selo.selo-ok{background:rgba(52,211,153,.2);color:#6EE7B7}
 .crm-act{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;font-size:14px;cursor:pointer;text-decoration:none;font-family:inherit}
 .crm-act:hover{background:rgba(255,255,255,.16);color:#fff}
 .crm-act-wpp:hover{background:rgba(37,211,102,.22);border-color:rgba(37,211,102,.5)}
@@ -9494,7 +9496,7 @@ async function carregarCRM(forcar) {
       // um card de eletroposto órfão, porque coluna do kanban, temperatura e
       // follow-up saem todos do agendamento, e agendamento não tem produto.
       supaGet('propostas?select=codigo,tipo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
-      supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at,created_by,src,proposta_por,proposta_em&order=quando.desc&limit=1000'),
+      supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at,created_by,src,proposta_por,proposta_em,presenca_confirmada_at&order=quando.desc&limit=1000'),
       supaGet('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc&limit=1000')
     ]);
   } catch (e) {
@@ -9624,6 +9626,9 @@ function crmDerivar(c) {
   c.agId = agRecente ? agRecente.id : null;
   // status do agendamento mais recente — vira o selo de status no card.
   c.statusAg = statusAg;
+  // Presenca confirmada sai da reuniao FUTURA, nao da mais recente: "ele confirmou"
+  // so diz alguma coisa sobre uma reuniao que ainda vai acontecer.
+  c.presencaOk = !!(agFuturo && agFuturo.presenca_confirmada_at);
   c.temperatura = (agOrd.find(a => a.temperatura) || {}).temperatura || null;
 
   // Etiqueta de origem do lead (Solar Tráfego, EP Organic, Import…). Sai da
@@ -9804,6 +9809,11 @@ function renderCRM() {
   };
   // Quem apresentou a proposta fica no card com NOME — é a pergunta que o selo
   // genérico não responde ("apresentada", mas por quem?) depois de um repasse.
+  // Mesma informacao do card da agenda, na outra tela: quem confirmou presenca na
+  // proxima reuniao. Sem isto o dado aparecia num lugar e sumia no outro.
+  const presencaBadge = (c) => c.presencaOk
+    ? `<span class="crm-status-selo selo-ok" title="O cliente confirmou presenca">✓ Reuniao confirmada</span>`
+    : '';
   const propBadge = (c) => c.propPor
     ? `<span class="crm-status-selo selo-pa" title="Proposta apresentada por ${escapeHtml(c.propPor)}">📑 Proposta: ${escapeHtml(c.propPor)}</span>`
     : '';
@@ -9847,7 +9857,7 @@ function renderCRM() {
       </div>
       ${telLinha}
       <div class="crm-card-meta">${cons}${tag}${linhaCidade}${linhaAg}</div>
-      ${propBadge(c)}${(c.statusAg === 'proposta_apresentada' && c.propPor) ? '' : statusBadge(c.statusAg)}
+      ${presencaBadge(c)}${propBadge(c)}${(c.statusAg === 'proposta_apresentada' && c.propPor) ? '' : statusBadge(c.statusAg)}
       <div class="crm-card-foot">
         ${valorTxt}
         <span class="crm-card-acoes">${reagBtn}${wpp}${verProp}</span>

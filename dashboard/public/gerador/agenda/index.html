@@ -292,6 +292,44 @@
   .slot.dividido .meia.status-perdido           { background: #475569; color: #fff; }
   .slot.passado { opacity: .55; cursor: not-allowed; }
 
+  /* ── PRESENÇA CONFIRMADA PELO LEAD ───────────────────────────────────────────
+     `presenca_confirmada_at` é uma SEGUNDA dimensão, não mais um valor de status:
+     ela responde "ele vem?", enquanto `status` responde "o que deu na ligação".
+     Empilhar as duas no mesmo campo apagaria uma delas.
+
+     A cor de fundo só troca quando o status é `agendado` — o estado neutro de
+     antes da reunião, e o único momento em que "confirmou" é a informação que
+     importa. Depois que o consultor marca resultado (fechou, não atendeu…), o
+     resultado manda na cor e a confirmação continua visível no anel e no botão.
+
+     Verde-esmeralda ESCURO de propósito: o #16a34a de `fechou` é mais claro e mais
+     amarelado, e `fechou` só aparece depois da reunião. O anel claro em volta e o
+     botão "✓ Reunião confirmada" desempatam à distância de um relance. */
+  .slot.status-agendado.confirmado,
+  .slot.dividido .meia.status-agendado.confirmado { background: #047857; color: #fff; }
+  .slot.confirmado,
+  .slot.dividido .meia.confirmado { box-shadow: inset 0 0 0 2px #34d399; }
+  /* a metade do quadro dividido precisa ser âncora do próprio ✓ */
+  .slot.dividido .meia { position: relative; }
+
+  /* Botão no card. Fica no fluxo (não é absoluto) pra nunca cobrir a cidade nem o
+     telefone — o card cresce alguns pixels e ninguém perde informação. */
+  .slot .ok-btn {
+    display: block; width: 100%; margin-top: 4px;
+    padding: 3px 5px; border: 0; border-radius: 5px;
+    font-family: inherit; font-size: 9px; font-weight: 800; letter-spacing: .3px;
+    line-height: 1.25; text-align: center; cursor: pointer;
+    background: rgba(255,255,255,.15); color: rgba(255,255,255,.85);
+    transition: background .12s;
+  }
+  .slot .ok-btn:hover { background: rgba(255,255,255,.32); color: #fff; }
+  .slot.confirmado .ok-btn { background: #34d399; color: #052e1f; }
+  .slot.confirmado .ok-btn:hover { background: #6ee7b7; }
+  /* fundo claro (fez_orcamento) — o branco translúcido some nele */
+  .slot.status-fez_orcamento .ok-btn { background: rgba(31,41,55,.14); color: #1f2937; }
+  /* No quadro dividido não cabe frase: vira só o ✓ */
+  .slot.dividido .ok-btn { font-size: 9px; padding: 2px 4px; margin-top: 3px; }
+
   /* Slot bloqueado pelo consultor */
   .slot.bloqueado {
     background: repeating-linear-gradient(
@@ -690,6 +728,21 @@
     gap: 8px;
     margin-top: 8px;
   }
+  /* Presença confirmada, no modal. Mesma família dos botões de temperatura:
+     neutro quando não confirmado, esmeralda quando confirmado — o mesmo par de
+     cores do card na grade, pra ser a mesma informação nos dois lugares. */
+  .btn-confirmada {
+    width: 100%; padding: 11px 10px; margin-bottom: 6px;
+    border-radius: 9px; border: 2px solid #e5e7eb; background: #fff;
+    font-family: inherit; font-weight: 800; font-size: 13px; color: #374151;
+    cursor: pointer; transition: border-color .12s, background .12s, color .12s;
+  }
+  .btn-confirmada:hover { background: #f3f4f6; }
+  .btn-confirmada.on { border-color: #34d399; background: #ecfdf5; color: #065f46; }
+  html[data-theme="dark"] .btn-confirmada { background: #0F172A; border-color: #334155; color: #CBD5E1; }
+  html[data-theme="dark"] .btn-confirmada:hover { background: #182238; }
+  html[data-theme="dark"] .btn-confirmada.on { border-color: #34d399; background: #06281d; color: #6ee7b7; }
+
   .btn-temp {
     padding: 11px 6px;
     border-radius: 9px;
@@ -815,6 +868,10 @@
   /* Cards de status mantêm o padrão de cores do light (especificidade ≥ dark .slot) */
   html[data-theme="dark"] .slot.ocupado                  { background: #0d2d5e; color: #fff; }
   html[data-theme="dark"] .slot.status-agendado          { background: #0d2d5e; color: #fff; }
+  /* Precisa existir no dark também: a regra de tema tem seletor mais específico que
+     `.slot.status-agendado.confirmado` e apagaria o esmeralda no tema escuro. */
+  html[data-theme="dark"] .slot.status-agendado.confirmado,
+  html[data-theme="dark"] .slot.dividido .meia.status-agendado.confirmado { background: #047857; color: #fff; }
   html[data-theme="dark"] .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.status-falando_whatsapp  { background: #14b8a6; color: #fff; }
   html[data-theme="dark"] .slot.status-sem_interesse     { background: #64748b; color: #fff; }
@@ -1066,6 +1123,13 @@
       <button type="button" class="btn-temp bt-morno"  data-temp="morno"  onclick="atualizarTemperatura('morno')"><span class="emoji">🌤️</span>Morno</button>
       <button type="button" class="btn-temp bt-quente" data-temp="quente" onclick="atualizarTemperatura('quente')"><span class="emoji">🔥</span>Quente</button>
     </div>
+
+    <!-- Presença: pergunta diferente de "resultado da ligação". O agente já marca
+         sozinho quando o lead responde SIM no WhatsApp; este botão é pra quando o
+         cliente confirma por telefone, ou pra desfazer. -->
+    <div class="status-label">Presença do cliente</div>
+    <button type="button" class="btn-confirmada" id="d-btn-confirmada"
+            onclick="toggleConfirmada(detalheAtual && detalheAtual.id)">Confirmar reunião</button>
 
     <div class="status-label">Resultado da ligação</div>
     <div class="status-grid">
@@ -1357,6 +1421,50 @@ function horaDoSlot(ag, iniSlot) {
   return `<span class="hora-exata">${pad(t.getHours())}h${pad(t.getMinutes())}</span> `;
 }
 
+// ── PRESENÇA CONFIRMADA ──────────────────────────────────────────────────────
+// A coluna `presenca_confirmada_at` existe desde 04/08 e o agente de WhatsApp já a
+// preenche sozinho quando o lead responde SIM (api/src/services/io/eletropostoRespostas.ts
+// — pedir remarcar LIMPA de volta). O dado já vinha no `select=*` da grade e ninguém
+// o olhava: o card ignorava, e quem confirmava por telefone não tinha como registrar.
+// O botão fecha os dois buracos — mostra o que o robô marcou e deixa marcar na mão.
+function btnConfirmada(ag, compacto) {
+  const ok = !!ag.presenca_confirmada_at;
+  const rotulo = ok ? '✓ Reunião confirmada' : 'Confirmar reunião';
+  const titulo = ok
+    ? 'Presença confirmada. Clique para desmarcar.'
+    : 'Marcar que o cliente confirmou presença';
+  return `<button type="button" class="ok-btn" title="${titulo}"
+    onclick="event.stopPropagation(); toggleConfirmada(${ag.id})">${compacto ? (ok ? '✓' : '○') : rotulo}</button>`;
+}
+
+// `event.stopPropagation()` no onclick é obrigatório: o card inteiro tem
+// onclick="abrirDetalhes(id)", e sem isso marcar a presença abriria o modal por cima.
+async function toggleConfirmada(id) {
+  const idx = agendamentosCache.findIndex(a => a.id === id);
+  if (idx < 0) return;
+  const valor = agendamentosCache[idx].presenca_confirmada_at ? null : new Date().toISOString();
+  try {
+    await supaPatch(`agendamentos?id=eq.${id}`, { presenca_confirmada_at: valor });
+    agendamentosCache[idx].presenca_confirmada_at = valor;
+    if (detalheAtual && detalheAtual.id === id) {
+      detalheAtual.presenca_confirmada_at = valor;
+      pintarBotaoConfirmada(valor);
+    }
+    showToast(valor ? '✅ Reunião confirmada' : 'Confirmação removida');
+    renderGrid();
+  } catch (e) {
+    showToast('Erro ao marcar a confirmação');
+    console.error(e);
+  }
+}
+
+function pintarBotaoConfirmada(valor) {
+  const b = document.getElementById('d-btn-confirmada');
+  if (!b) return;
+  b.classList.toggle('on', !!valor);
+  b.textContent = valor ? '✓ Reunião confirmada' : 'Confirmar reunião';
+}
+
 function renderGrid() {
   const cont = document.getElementById('grid-container');
   cont.classList.remove('loading');
@@ -1415,10 +1523,12 @@ function renderGrid() {
           html += `<div class="slot dividido${doSlot.length > 2 ? ' empilhado' : ''}">` + ordenado.map(a => {
             const etq = etqDeLead(a.created_by, a.src);
             const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
-            return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}"
+            const okA = !!a.presenca_confirmada_at;
+            return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${okA ? ' confirmado' : ''}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
               <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
               ${etq ? `<div class="cidade"><span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span></div>` : ''}
+              ${btnConfirmada(a, true)}
             </div>`;
           }).join('') + `</div>`;
         } else if (ag) {
@@ -1435,11 +1545,13 @@ function renderGrid() {
             ag.cidade ? `📍 ${escapeHtml(ag.cidade)}` : '',
             etq ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : '',
           ].filter(Boolean).join(' ');
-          html += `<div class="slot ocupado ${stCls}${tempCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
+          const okCls = ag.presenca_confirmada_at ? ' confirmado' : '';
+          html += `<div class="slot ocupado ${stCls}${tempCls}${okCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
             ${tempLabel ? `<div class="temp-mark">${tempLabel}</div>` : ''}
             <div class="nome">${horaDoSlot(ag, iniSlot)}${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}</div>
             ${rodape ? `<div class="cidade">${rodape}</div>` : ''}
+            ${btnConfirmada(ag, false)}
           </div>`;
         } else if (bloq) {
           // Mostra texto do motivo só no primeiro slot do bloqueio (pro slot inicial casar exato)
@@ -1710,6 +1822,7 @@ function abrirDetalhes(id) {
     `${ag.vendedor_nome} · ${diaSemanaLabel(dt)} ${fmtData(dt)} · ${pad(dt.getHours())}h${pad(dt.getMinutes())}`;
   document.getElementById('d-nome').textContent = ag.cliente_nome;
   document.getElementById('d-tel').textContent  = formatTelBR(ag.cliente_telefone);
+  pintarBotaoConfirmada(ag.presenca_confirmada_at);
   if (ag.observacao) {
     document.getElementById('d-obs-row').style.display = '';
     document.getElementById('d-obs').textContent = ag.observacao;

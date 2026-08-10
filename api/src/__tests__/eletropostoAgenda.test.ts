@@ -75,6 +75,16 @@ function ficha(over: Partial<any> = {}) {
   };
 }
 
+/** Ficha que JÁ recebeu a confirmação — é o estado normal de quem está na fila de
+ *  lembrete. Desde 10/08/2026 a confirmação é o PRIMEIRO toque sempre (ordem do
+ *  Thiago), então reunião sem `confirmacao_at` é confirmada antes de qualquer
+ *  lembrete e nunca chega nos ramos de 1h/5min. Teste de lembrete que monta ficha
+ *  sem confirmação estaria testando um estado que não existe na vida real: reunião
+ *  a 1 hora de distância foi marcada — e confirmada — muito antes disso. */
+function fichaConfirmada(over: Partial<any> = {}) {
+  return ficha({ confirmacao_at: '2026-08-01T12:00:00.000Z', ...over });
+}
+
 const envOriginal = { ...process.env };
 beforeEach(() => {
   enviadas.length = 0; updates.length = 0;
@@ -90,6 +100,7 @@ async function tick(opts: any = {}) { return (await mod()).runEletropostoAgendaT
 
 describe('quem recebe, e quando', () => {
   it('reunião daqui a 1h recebe o aviso de 1h', async () => {
+    fichas = [fichaConfirmada()];
     const r = await tick();
     expect(r.lembretes_1h).toBe(1);
     expect(updates).toEqual([{ id: 1, campo: 'lembrete_1h_at' }]);
@@ -97,26 +108,26 @@ describe('quem recebe, e quando', () => {
   });
 
   it('reunião daqui a 5 min recebe o chamado final', async () => {
-    fichas = [ficha({ quando: emMinutos(5), lembrete_1h_at: '2026-08-04T15:00:00.000Z' })];
+    fichas = [fichaConfirmada({ quando: emMinutos(5), lembrete_1h_at: '2026-08-04T15:00:00.000Z' })];
     const r = await tick();
     expect(r.lembretes_5min).toBe(1);
     expect(enviadas[0].bolhas.join(' ')).toContain('te esperando');
   });
 
   it('80 minutos antes ainda não é hora do aviso de 1h', async () => {
-    fichas = [ficha({ quando: emMinutos(80) })];
+    fichas = [fichaConfirmada({ quando: emMinutos(80) })];
     expect(await tick()).toMatchObject({ lembretes_1h: 0, confirmacoes: 0 });
     expect(enviadas).toHaveLength(0);
   });
 
   it('20 minutos antes ainda não é o chamado de 5 min', async () => {
-    fichas = [ficha({ quando: emMinutos(20), lembrete_1h_at: '2026-08-04T15:00:00.000Z' })];
+    fichas = [fichaConfirmada({ quando: emMinutos(20), lembrete_1h_at: '2026-08-04T15:00:00.000Z' })];
     expect(await tick()).toMatchObject({ lembretes_5min: 0 });
     expect(enviadas).toHaveLength(0);
   });
 
   it('cada aviso sai UMA vez — com a flag gravada, o tick seguinte não repete', async () => {
-    fichas = [ficha({ lembrete_1h_at: '2026-08-04T15:00:00.000Z' })];
+    fichas = [fichaConfirmada({ lembrete_1h_at: '2026-08-04T15:00:00.000Z' })];
     expect(await tick()).toMatchObject({ lembretes_1h: 0, lembretes_5min: 0 });
     expect(enviadas).toHaveLength(0);
   });
@@ -136,14 +147,14 @@ describe('quem recebe, e quando', () => {
   // até 06/08: o slug existia, a etiqueta aparecia no card, e o agente filtrava
   // por uma lista fixa de duas origens. Quem casa agora é a palavra "eletroposto".
   it('prospecção de eletroposto recebe igual à LP — o filtro é por família', async () => {
-    fichas = [ficha({ created_by: 'prosp_eletroposto' })];
+    fichas = [fichaConfirmada({ created_by: 'prosp_eletroposto' })];
     const r = await tick();
     expect(r.lembretes_1h).toBe(1);
     expect(enviadas[0].bolhas.join(' ')).toContain('1 hora');
   });
 
   it('origem de EP que ninguém cadastrou em lugar nenhum também recebe', async () => {
-    fichas = [ficha({ created_by: 'lp_eletroposto_v2' })];
+    fichas = [fichaConfirmada({ created_by: 'lp_eletroposto_v2' })];
     expect((await tick()).lembretes_1h).toBe(1);
   });
 
@@ -186,13 +197,23 @@ describe('confirmação ao marcar', () => {
     expect(updates).toEqual([{ id: 1, campo: 'confirmacao_at' }]);
   });
 
-  // A guarda é "ficha FRESCA sem confirmação", não "sem confirmação". Ficha velha
-  // represada (agente desligado, backlog) está a 60 min da reunião e a confirmação
-  // dela não sai — o backlog exige 2h de distância. Sem o recorte, ela ficaria muda.
-  it('ficha antiga sem confirmação continua recebendo o aviso de 1h', async () => {
+  // "Tem que receber confirmação sempre" (Thiago, 10/08). Ficha velha represada
+  // (envio falhou, agente desligado, fila de backlog) a 60 min da reunião: até
+  // 10/08 ela recebia o aviso de 1h e NUNCA a confirmação, porque o gate de 2h de
+  // antecedência barrava o backlog pra sempre. Agora a confirmação vem primeiro.
+  it('ficha antiga sem confirmação recebe a CONFIRMAÇÃO, não o aviso de 1h', async () => {
     fichas = [ficha({ quando: emMinutos(60) })];   // created_at padrão = 31/07, backlog
-    expect((await tick()).lembretes_1h).toBe(1);
-    expect(enviadas[0].bolhas.join(' ')).toContain('1 hora');
+    expect(await tick()).toMatchObject({ confirmacoes: 1, lembretes_1h: 0 });
+    expect(enviadas[0].bolhas.join(' ')).toContain('está confirmada');
+  });
+
+  // A promessa inteira em uma linha: NENHUM lembrete passa na frente da confirmação.
+  // O de 5 min é o mais urgente que existe e mesmo ele espera — quem nunca recebeu
+  // "sua reunião está confirmada" não pode ser saudado com "é agora, entra".
+  it('nem o chamado de 5 min passa na frente da confirmação', async () => {
+    fichas = [ficha({ quando: emMinutos(5) })];
+    expect(await tick()).toMatchObject({ confirmacoes: 1, lembretes_5min: 0 });
+    expect(enviadas[0].bolhas.join(' ')).toContain('está confirmada');
   });
 
   it('backlog antigo entra em fila lenta: 1 por rodada', async () => {
@@ -214,11 +235,12 @@ describe('confirmação ao marcar', () => {
   // Segurar o "é agora, o consultor está te esperando" por teto é perder a reunião.
   it('mas o chamado de 5 minutos fura o teto', async () => {
     tetoLivre = false;
-    fichas = [ficha({ quando: emMinutos(5), lembrete_1h_at: '2026-08-04T15:00:00.000Z' })];
+    fichas = [fichaConfirmada({ quando: emMinutos(5), lembrete_1h_at: '2026-08-04T15:00:00.000Z' })];
     expect((await tick()).lembretes_5min).toBe(1);
   });
 
   it('todo envio deixa carimbo pro teto enxergar', async () => {
+    fichas = [fichaConfirmada()];
     await tick();
     expect(carimbos).toEqual(['ep_agenda_sent:1:1h']);
   });
@@ -229,9 +251,16 @@ describe('confirmação ao marcar', () => {
     expect((await tick()).confirmacoes).toBe(0);
   });
 
-  it('backlog com reunião em cima da hora não recebe confirmação atrasada', async () => {
+  // INVERTIDO em 10/08/2026. Era "backlog com reunião em cima da hora NÃO recebe
+  // confirmação atrasada" — e era esse gate (BACKLOG_ANTECEDENCIA_MIN = 120 min) que
+  // deixava lead marcado ficar sem confirmação nenhuma pra sempre. Confirmação
+  // atrasada ainda diz o horário, o consultor e que o link vem no chat; silêncio não
+  // diz nada. As outras travas do backlog (1 por rodada, janela 08–20h, teto da
+  // linha) continuam valendo — o que saiu foi só a distância mínima da reunião.
+  it('backlog com reunião em cima da hora recebe a confirmação assim mesmo', async () => {
     fichas = [ficha({ quando: emMinutos(90), lembrete_1h_at: '2026-08-04T15:00:00.000Z' })];
-    expect((await tick()).confirmacoes).toBe(0);
+    expect((await tick()).confirmacoes).toBe(1);
+    expect(enviadas[0].bolhas.join(' ')).toContain('está confirmada');
   });
 
   it('já confirmado não confirma de novo', async () => {
@@ -321,13 +350,14 @@ describe('telefone do consultor', () => {
   });
 
   it('o número sai do cadastro `consultores`, casando pelo nome do vendedor', async () => {
-    fichas = [ficha({ vendedor_nome: 'Thiago' })];
+    fichas = [fichaConfirmada({ vendedor_nome: 'Thiago' })];
     await tick();
     expect(enviadas[0].bolhas.join(' ')).toContain('(34) 99136-0223');
   });
 
   it('consultor sem WhatsApp cadastrado: a frase some, não vira número quebrado', async () => {
     consultores = [{ nome: 'Diego', whatsapp: null }];
+    fichas = [fichaConfirmada()];
     await tick();
     const txt = enviadas[0].bolhas.join(' ');
     expect(txt).toContain('1 hora');
@@ -353,6 +383,7 @@ describe('travas', () => {
   });
 
   it('dry mostra o que sairia e não envia nem marca flag', async () => {
+    fichas = [fichaConfirmada()];
     const r = await tick({ dry: true });
     expect(r.motivo).toBe('dry');
     expect(r.previa?.[0]).toMatchObject({ id: 1, toque: '1h' });
@@ -361,7 +392,7 @@ describe('travas', () => {
   });
 
   it('teto de toques por rodada segura a rajada na linha', async () => {
-    fichas = Array.from({ length: 10 }, (_, i) => ficha({
+    fichas = Array.from({ length: 10 }, (_, i) => fichaConfirmada({
       id: i + 1, quando: emMinutos(60), cliente_telefone: `55349911100${String(i).padStart(2, '0')}`,
     }));
     expect((await tick()).lembretes_1h).toBe(6);
