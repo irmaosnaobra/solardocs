@@ -277,10 +277,12 @@ function slotDisponivel(t: number, agoraMs: number, occ: { ocupados: Set<number>
 // pra fechar horário — um lead que respondeu "prefiro à tarde" virava um 14h no
 // Thiago e comia capacidade de apresentação. Solar deles agora é só de manhã, até
 // 11:30. Nilce não tem eletroposto: segue o expediente inteiro.
+// Vale só pra card de lead SOLAR: a tarde deles é do eletroposto, então card de
+// eletroposto pode (e deve) cair lá — é o trabalho do turno.
 const SO_DE_MANHA = new Set(['thiago', 'diego']);
 const FIM_MANHA_MIN = 11 * 60 + 30;   // 11:30 — último começo possível
-function ultimoInicioDoDia(consultor: string): number {
-  return SO_DE_MANHA.has(String(consultor || '').trim().toLowerCase())
+function ultimoInicioDoDia(consultor: string, produto: 'solar' | 'eletroposto'): number {
+  return produto === 'solar' && SO_DE_MANHA.has(String(consultor || '').trim().toLowerCase())
     ? FIM_MANHA_MIN
     : HORA_FIM * 60 - 15;             // grade de 15 min: o último é 19:45
 }
@@ -292,10 +294,14 @@ function ultimoInicioDoDia(consultor: string): number {
 // 15h às 18h" com o Thiago), o dia não tem slot nenhum e a busca escorrega pro
 // próximo dia útil, que começa às 08:00 — o lead é chamado na manhã seguinte, não
 // numa hora em que o consultor está apresentando eletroposto.
-export async function slotLivreConsultor(consultor: string, base: { y: number; m: number; d: number; h: number }): Promise<Date> {
+export async function slotLivreConsultor(
+  consultor: string,
+  base: { y: number; m: number; d: number; h: number },
+  produto: 'solar' | 'eletroposto' = 'solar',
+): Promise<Date> {
   const agora = new Date();
   const occ = await carregarOcupacao(consultor, agora.toISOString());
-  const ultimoMin = ultimoInicioDoDia(consultor);
+  const ultimoMin = ultimoInicioDoDia(consultor, produto);
   let { y, m, d } = base;
   for (let i = 0; i < 14; i++) {
     const dow = dowSP(y, m, d);

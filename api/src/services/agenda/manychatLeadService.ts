@@ -317,7 +317,9 @@ async function ingestEletroposto(p: ManychatLeadPayload, nome: string, whatsapp:
   }
 
   const base = dataBaseDaFaixa('');
-  const quando = await slotLivreConsultor(dono, base);
+  // lead de ELETROPOSTO: pode cair à tarde, que é justamente o turno de eletroposto
+  // do Thiago e do Diego. Só o card de solar deles é que foi pra manhã.
+  const quando = await slotLivreConsultor(dono, base, 'eletroposto');
 
   const obs = [
     `INSTAGRAM ELETROPOSTO — ${perfil || '—'}`,

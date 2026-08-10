@@ -1042,8 +1042,17 @@ async function agendar(){
       + (extras.length ? ` · vai aumentar: ${extras.join(', ')}` : ''),
   ].join('\n');
 
+  // 1 telefone = 1 consultor: quem já tem dono é atendido por ele. Como a tarde é
+  // da Nilce (Thiago e Diego ficam no eletroposto), cliente que já é dos dois não
+  // pode ficar com horário de tarde — e ele descobre isso AQUI, antes do portão de
+  // presença, não depois de dizer "sim" e achar que estava agendado.
+  const donoAtual = await donoDoTelefone(tel);
+  if(ehTarde(partesBR(new Date(slotSel)).hhmm) && donoAtual && donoAtual !== 'Nilce'){
+    return erro(`Quem já te atende (${donoAtual}) faz as vistorias de manhã. Escolha um horário até as 11h ali em cima — ou chame no WhatsApp que a gente encaixa.`);
+  }
+
   // Ficha pronta, mas NÃO gravada: quem grava é o "Sim" do portão de presença.
-  pendente = { nome, tel, cidade, temperatura: medirTemperatura(r.conta, urgencia, pagamento, decisor, posse), obs };
+  pendente = { nome, tel, cidade, temperatura: medirTemperatura(r.conta, urgencia, pagamento, decisor, posse), obs, donoAtual };
   document.getElementById('ag-msg').className = 'agMsg';   // limpa aviso de tentativa anterior
   abrirConfirma();
 }
@@ -1099,7 +1108,7 @@ document.addEventListener('keydown', e => {
 
 async function gravarAgendamento(){
   if(!pendente || !slotSel) return;
-  const { nome, tel, cidade, temperatura, obs } = pendente;
+  const { nome, tel, cidade, temperatura, obs, donoAtual } = pendente;
   const btn = document.getElementById('ag-btn');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
@@ -1118,17 +1127,8 @@ async function gravarAgendamento(){
       return erro(passou ? 'Esse horário já passou. Escolha outro acima — a agenda foi atualizada.'
                          : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
     }
-    // Tarde é da Nilce. Cliente que já é do Thiago ou do Diego NÃO troca de
-    // consultor por causa do turno (1 telefone = 1 consultor): ele volta pra
-    // manhã, que é o turno solar dos dois.
-    const donoAtual = await donoDoTelefone(tel);
-    if(tarde && donoAtual && donoAtual !== 'Nilce'){
-      slotSel = null; pendente = null;
-      await montarSlots();
-      btn.disabled = false; btn.textContent = 'Confirmar minha vistoria →';
-      document.getElementById('slots').scrollIntoView({behavior:'smooth', block:'center'});
-      return erro(`Quem já te atende (${donoAtual}) faz vistoria de manhã. Escolha um horário até as 11h acima — ou chame no WhatsApp que a gente encaixa.`);
-    }
+    // Tarde é da Nilce; a manhã segue o rodízio. O dono de quem já é cliente veio
+    // pronto na ficha (agendar() já barrou o caso "dono é Thiago/Diego + tarde").
     const dono = tarde ? 'Nilce' : (donoAtual || (await proximoDono()));
     const novo = await supaInsert('agendamentos', {
       vendedor_nome:    dono,
