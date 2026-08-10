@@ -119,6 +119,58 @@ ul.lista li::marker{color:var(--g600)}
 
 
 
+
+/* ── Blocos de argumento — HTML, não SVG ───────────────────────────────────
+   Estes três eram desenho em SVG com 440px travados. Num celular de 320 a caixa
+   tem 284: dava pra ler só rolando PARA O LADO dentro do diagrama, e um deles é
+   o método, que é o centro da página.
+
+   A causa era de origem: eu desenhei em SVG três coisas que são LAYOUT DE TEXTO.
+   SVG não reflui — HTML sim, e ainda deixa o texto selecionável e obediente ao
+   tamanho de fonte do sistema. Desenho de verdade (os diagramas das aulas)
+   continua em SVG, que é onde ele ganha. */
+
+/* O método: tabela de três colunas que vira cartão empilhado no celular. */
+.metodo{list-style:none;margin:26px 0 0;padding:0;border:1px solid var(--g300);
+        border-radius:var(--rl);overflow:hidden;background:#fff}
+.metodo li{display:grid;grid-template-columns:38px minmax(0,1fr) minmax(0,1fr) auto;
+           gap:0 16px;align-items:center;padding:16px 20px;border-bottom:1px solid var(--g300)}
+.metodo li:last-child{border-bottom:0}
+.metodo li:nth-child(even){background:var(--papel)}
+.mNum{width:26px;height:26px;border-radius:99px;background:var(--black);color:#fff;
+      font-size:12.5px;font-weight:800;display:grid;place-items:center}
+.metodo li.fim .mNum{background:var(--green)}
+.mQ{font-size:15.5px;font-weight:800;line-height:1.25}
+.mQ em{display:block;font-style:normal;font-weight:500;font-size:12.5px;color:var(--g600);margin-top:3px}
+.mSe{font-size:13.5px;color:var(--laranja,#C2410C);line-height:1.4;border-left:1px solid var(--g300);padding-left:16px}
+.mA{font-size:11.5px;font-weight:800;color:var(--green-deep);white-space:nowrap}
+
+/* O ciclo: quatro passos e o núcleo. 2×2 no desktop, coluna no celular. */
+.ciclo{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:26px}
+.cPasso{background:#fff;border:1px solid var(--g300);border-radius:var(--r);padding:18px 20px}
+.cPasso b{display:block;font-size:15.5px}
+.cPasso span{display:block;font-size:13.5px;color:var(--g600);margin-top:4px}
+.cNucleo{grid-column:1/-1;margin:2px 0 0;background:#FDF0E9;border:1px solid #C2410C;
+         border-radius:var(--r);padding:16px 20px;font-size:15px;line-height:1.5}
+.cNucleo b{font-weight:800;color:#C2410C}
+
+/* As fontes da internet: mesma grade, e a nota fecha a seção. */
+.fontes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:26px}
+.fontes > div{background:#fff;border:1px solid var(--g300);border-radius:var(--r);padding:16px 18px}
+.fontes b{display:block;font-size:14.5px}
+.fontes span{display:block;font-size:13px;color:#C2410C;margin-top:4px}
+.fNota{grid-column:1/-1;margin:2px 0 0;background:#FDF0E9;border:1px solid #C2410C;
+       border-radius:var(--r);padding:16px 20px;font-size:15px;line-height:1.5}
+.fNota b{font-weight:800;color:#C2410C}
+
+@media(max-width:720px){
+  .metodo li{grid-template-columns:26px minmax(0,1fr);gap:4px 12px;padding:16px 16px}
+  .mSe{grid-column:2;border-left:0;padding-left:0;margin-top:6px;font-size:13px}
+  .mSe:before{content:'se pular: ';font-weight:700}
+  .mA{grid-column:2;margin-top:6px}
+  .ciclo,.fontes{grid-template-columns:1fr}
+}
+
 /* ── O cartão da oferta ────────────────────────────────────────────────────
    Era texto empilhado no fundo preto: o preço disputava atenção com o parágrafo
    ao lado e só o botão saltava. Um cartão BRANCO sobre o preto é o maior
@@ -187,10 +239,6 @@ ul.lista li::marker{color:var(--g600)}
   .calcSaida{order:-1;padding:22px 20px}
 }
 
-/* Diagrama inline nas seções de argumento — mesma caixa das amostras de aula,
-   pra que o desenho da página e o desenho do curso sejam a mesma linguagem. */
-.diagInline{background:var(--g100);border:1px solid var(--g300);border-radius:var(--rl);padding:20px;overflow-x:auto}
-.diagInline svg{width:100%;min-width:440px;height:auto;display:block}
 
 /* ── Fotos ────────────────────────────────────────────────────────────────
    Foto aqui é ILUSTRAÇÃO DE MERCADO, nunca prova de obra entregue: a seção
@@ -423,39 +471,13 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <p class="olho">Se isso soa familiar</p>
     <h2>Você já viu uns cinco lugares. E não decidiu nenhum.</h2>
     <p class="sub">Não é indecisão. É que nenhuma das voltas terminou num número — e sem número não tem o que decidir.</p>
-    <figure class="foto"><div class="diagInline"><svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif">
-<text x="40" y="34" font-size="13" font-weight="700" fill="#6B6B6B">O CICLO QUE COME O SEU MÊS</text>
-<circle cx="360" cy="212" r="128" fill="none" stroke="#D9D9D9" stroke-width="2" stroke-dasharray="6 6"/>
-
-<rect x="252" y="58" width="216" height="52" rx="8" fill="#fff" stroke="#0A0A0A" stroke-width="2"/>
-<text x="360" y="82" font-size="13.5" font-weight="700" text-anchor="middle" fill="#0A0A0A">você vê um lugar</text>
-<text x="360" y="100" font-size="12" text-anchor="middle" fill="#6B6B6B">e acha que pode ser bom</text>
-
-<rect x="500" y="184" width="204" height="56" rx="8" fill="#fff" stroke="#0A0A0A" stroke-width="2"/>
-<text x="602" y="208" font-size="13.5" font-weight="700" text-anchor="middle" fill="#0A0A0A">pergunta pra alguém</text>
-<text x="602" y="226" font-size="12" text-anchor="middle" fill="#6B6B6B">e recebe três opiniões</text>
-
-<rect x="252" y="314" width="216" height="52" rx="8" fill="#fff" stroke="#0A0A0A" stroke-width="2"/>
-<text x="360" y="338" font-size="13.5" font-weight="700" text-anchor="middle" fill="#0A0A0A">esfria</text>
-<text x="360" y="356" font-size="12" text-anchor="middle" fill="#6B6B6B">porque nada ficou decidido</text>
-
-<rect x="16" y="184" width="204" height="56" rx="8" fill="#fff" stroke="#0A0A0A" stroke-width="2"/>
-<text x="118" y="208" font-size="13.5" font-weight="700" text-anchor="middle" fill="#0A0A0A">vê outro lugar</text>
-<text x="118" y="226" font-size="12" text-anchor="middle" fill="#6B6B6B">e recomeça do zero</text>
-
-<path d="M470 96 C 512 108, 540 140, 552 180" fill="none" stroke="#6B6B6B" stroke-width="2"/>
-<path d="M547 172 L553 182 L542 182" fill="#6B6B6B"/>
-<path d="M576 244 C 546 292, 490 318, 470 324" fill="none" stroke="#6B6B6B" stroke-width="2"/>
-<path d="M480 318 L468 325 L477 332" fill="#6B6B6B"/>
-<path d="M250 330 C 206 318, 160 290, 140 246" fill="none" stroke="#6B6B6B" stroke-width="2"/>
-<path d="M146 254 L139 244 L150 243" fill="#6B6B6B"/>
-<path d="M146 180 C 166 140, 208 108, 250 94" fill="none" stroke="#6B6B6B" stroke-width="2"/>
-<path d="M242 100 L252 93 L254 104" fill="#6B6B6B"/>
-
-<rect x="268" y="180" width="184" height="64" rx="10" fill="#FDF0E9" stroke="#C2410C" stroke-width="2"/>
-<text x="360" y="206" font-size="14" font-weight="800" text-anchor="middle" fill="#C2410C">nada foi medido</text>
-<text x="360" y="228" font-size="12.5" text-anchor="middle" fill="#0A0A0A">então nada fecha</text>
-</svg></div></figure>
+    <div class="ciclo">
+      <div class="cPasso"><b>Você vê um lugar</b><span>e acha que pode ser bom</span></div>
+      <div class="cPasso"><b>Pergunta pra alguém</b><span>e recebe três opiniões</span></div>
+      <div class="cPasso"><b>Esfria</b><span>porque nada ficou decidido</span></div>
+      <div class="cPasso"><b>Vê outro lugar</b><span>e recomeça do zero</span></div>
+      <p class="cNucleo"><b>Nada foi medido.</b> Então nada fecha — e o mês passa.</p>
+    </div>
   </div>
 </section>
 
@@ -470,39 +492,15 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <p class="olho">Antes de você procurar por conta</p>
     <h2>Você vai pesquisar isso na internet. E vai voltar mais confuso.</h2>
     <p class="sub">Não porque falta informação. Porque tem informação demais, espalhada, desatualizada — e quase toda escrita por quem ganha dinheiro com a sua próxima decisão.</p>
-    <figure class="foto"><div class="diagInline"><svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif">
-<rect x="150" y="24" width="420" height="46" rx="23" fill="#fff" stroke="#0A0A0A" stroke-width="2"/>
-<text x="176" y="53" font-size="15" fill="#6B6B6B">como montar um eletroposto</text>
-<circle cx="536" cy="47" r="9" fill="none" stroke="#6B6B6B" stroke-width="2"/><path d="M543 54 L552 63" stroke="#6B6B6B" stroke-width="2"/>
-
-<rect x="24" y="104" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
-<text x="44" y="130" font-size="13.5" font-weight="700" fill="#0A0A0A">Blog de fabricante de carregador</text>
-<text x="44" y="150" font-size="12.5" fill="#C2410C">quer te vender um carregador</text>
-
-<rect x="371" y="104" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
-<text x="391" y="130" font-size="13.5" font-weight="700" fill="#0A0A0A">Notícia sobre o mercado crescendo</text>
-<text x="391" y="150" font-size="12.5" fill="#C2410C">nenhum passo prático</text>
-
-<rect x="24" y="176" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
-<text x="44" y="202" font-size="13.5" font-weight="700" fill="#0A0A0A">Vídeo de 40 minutos</text>
-<text x="44" y="222" font-size="12.5" fill="#C2410C">é anúncio com jaleco de aula</text>
-
-<rect x="371" y="176" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
-<text x="391" y="202" font-size="13.5" font-weight="700" fill="#0A0A0A">Fórum de 2019</text>
-<text x="391" y="222" font-size="12.5" fill="#C2410C">norma e preço já mudaram</text>
-
-<rect x="24" y="248" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
-<text x="44" y="274" font-size="13.5" font-weight="700" fill="#0A0A0A">PDF de 200 páginas da norma</text>
-<text x="44" y="294" font-size="12.5" fill="#C2410C">certo, e ilegível pra decidir</text>
-
-<rect x="371" y="248" width="325" height="60" rx="8" fill="#fff" stroke="#D9D9D9" stroke-width="1.5"/>
-<text x="391" y="274" font-size="13.5" font-weight="700" fill="#0A0A0A">Grupo de mensagens do setor</text>
-<text x="391" y="294" font-size="12.5" fill="#C2410C">três respostas pra mesma pergunta</text>
-
-<rect x="24" y="326" width="672" height="58" rx="8" fill="#FDF0E9" stroke="#C2410C" stroke-width="2"/>
-<text x="360" y="352" font-size="14.5" font-weight="800" text-anchor="middle" fill="#C2410C">Nenhum deles responde sobre o SEU ponto.</text>
-<text x="360" y="374" font-size="13" text-anchor="middle" fill="#0A0A0A">E quase todos são escritos por quem ganha dinheiro com a sua próxima decisão.</text>
-</svg></div></figure>
+    <div class="fontes">
+      <div><b>Blog de fabricante</b><span>quer te vender um carregador</span></div>
+      <div><b>Notícia do mercado crescendo</b><span>nenhum passo prático</span></div>
+      <div><b>Vídeo de 40 minutos</b><span>é anúncio com jaleco de aula</span></div>
+      <div><b>Fórum de 2019</b><span>norma e preço já mudaram</span></div>
+      <div><b>PDF de 200 páginas da norma</b><span>certo, e ilegível pra decidir</span></div>
+      <div><b>Grupo de mensagens do setor</b><span>três respostas pra mesma pergunta</span></div>
+      <p class="fNota"><b>Nenhum deles responde sobre o SEU ponto</b> — e quase todos são escritos por quem ganha com a sua próxima decisão.</p>
+    </div>
     <p class="calcAviso" style="margin-top:22px">
       <b>Faça o teste antes de comprar:</b> procure agora e responda três coisas sobre o SEU ponto — quanta energia sobra, que potência isso permite, em quanto tempo o dinheiro volta. Achou em uma tarde? Não precisa deste material.
     </p>
@@ -525,7 +523,44 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <p class="olho">O método</p>
     <h2>Seis perguntas. Nesta ordem. Sem elas, não tem ponto conquistado.</h2>
     <p class="sub">Cada uma só faz sentido depois da anterior — e cada uma que você pula cobra o preço da direita.</p>
-    <figure class="foto"><div class="diagInline"><svg viewBox="0 0 720 394" xmlns="http://www.w3.org/2000/svg" font-family="Inter,Segoe UI,Arial,sans-serif"><rect x="0" y="0" width="720" height="34" fill="#0A0A0A"/><text x="16" y="23" font-size="11.5" font-weight="700" fill="#fff">NA ORDEM</text><text x="392" y="23" font-size="11.5" font-weight="700" fill="#C2410C">SE VOCÊ PULAR</text><text x="704" y="23" font-size="11.5" font-weight="700" text-anchor="end" fill="#00C853">AULA</text><rect x="0" y="34" width="720" height="54" fill="#fff" stroke="#D9D9D9" stroke-width="1"/><circle cx="26" cy="61" r="11" fill="#0A0A0A"/><text x="26" y="66" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">1</text><text x="48" y="57" font-size="14" font-weight="800" fill="#0A0A0A">O endereço presta?</text><text x="48" y="76" font-size="11.5" fill="#6B6B6B">movimento medido, não sentido</text><line x1="380" y1="44" x2="380" y2="78" stroke="#D9D9D9"/><text x="392" y="67" font-size="12.5" fill="#C2410C">arrenda um ponto que não tem fluxo</text><text x="704" y="67" font-size="11.5" font-weight="700" text-anchor="end" fill="#00C853">3 e 4</text><rect x="0" y="88" width="720" height="54" fill="#FAFAFA" stroke="#D9D9D9" stroke-width="1"/><circle cx="26" cy="115" r="11" fill="#0A0A0A"/><text x="26" y="120" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">2</text><text x="48" y="111" font-size="14" font-weight="800" fill="#0A0A0A">A energia aguenta?</text><text x="48" y="130" font-size="11.5" fill="#6B6B6B">conta de luz e padrão de entrada</text><line x1="380" y1="98" x2="380" y2="132" stroke="#D9D9D9"/><text x="392" y="121" font-size="12.5" fill="#C2410C">descobre a carga depois de assinar</text><text x="704" y="121" font-size="11.5" font-weight="700" text-anchor="end" fill="#00C853">5 e 6</text><rect x="0" y="142" width="720" height="54" fill="#fff" stroke="#D9D9D9" stroke-width="1"/><circle cx="26" cy="169" r="11" fill="#0A0A0A"/><text x="26" y="174" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">3</text><text x="48" y="165" font-size="14" font-weight="800" fill="#0A0A0A">Que potência cabe?</text><text x="48" y="184" font-size="11.5" fill="#6B6B6B">permanência do carro, não catálogo</text><line x1="380" y1="152" x2="380" y2="186" stroke="#D9D9D9"/><text x="392" y="175" font-size="12.5" fill="#C2410C">paga kW que o carro não aceita</text><text x="704" y="175" font-size="11.5" font-weight="700" text-anchor="end" fill="#00C853">7</text><rect x="0" y="196" width="720" height="54" fill="#FAFAFA" stroke="#D9D9D9" stroke-width="1"/><circle cx="26" cy="223" r="11" fill="#0A0A0A"/><text x="26" y="228" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">4</text><text x="48" y="219" font-size="14" font-weight="800" fill="#0A0A0A">Quanto custa mesmo?</text><text x="48" y="238" font-size="11.5" fill="#6B6B6B">a lista inteira, não só o carregador</text><line x1="380" y1="206" x2="380" y2="240" stroke="#D9D9D9"/><text x="392" y="229" font-size="12.5" fill="#C2410C">orça o equipamento e esquece metade</text><text x="704" y="229" font-size="11.5" font-weight="700" text-anchor="end" fill="#00C853">8 e 9</text><rect x="0" y="250" width="720" height="54" fill="#fff" stroke="#D9D9D9" stroke-width="1"/><circle cx="26" cy="277" r="11" fill="#0A0A0A"/><text x="26" y="282" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">5</text><text x="48" y="273" font-size="14" font-weight="800" fill="#0A0A0A">Quanto tempo até ligar?</text><text x="48" y="292" font-size="11.5" fill="#6B6B6B">o protocolo da distribuidora</text><line x1="380" y1="260" x2="380" y2="294" stroke="#D9D9D9"/><text x="392" y="283" font-size="12.5" fill="#C2410C">promete data que não é sua pra prometer</text><text x="704" y="283" font-size="11.5" font-weight="700" text-anchor="end" fill="#00C853">10</text><rect x="0" y="304" width="720" height="54" fill="#FAFAFA" stroke="#D9D9D9" stroke-width="1"/><circle cx="26" cy="331" r="11" fill="#00C853"/><text x="26" y="336" font-size="11.5" font-weight="800" text-anchor="middle" fill="#fff">6</text><text x="48" y="327" font-size="14" font-weight="800" fill="#0A0A0A">Vale a pena?</text><text x="48" y="346" font-size="11.5" fill="#6B6B6B">payback, TIR e três cenários</text><line x1="380" y1="314" x2="380" y2="348" stroke="#D9D9D9"/><text x="392" y="337" font-size="12.5" fill="#C2410C">descobre o retorno com a obra pronta</text><text x="704" y="337" font-size="11.5" font-weight="700" text-anchor="end" fill="#00C853">13</text></svg></div></figure>
+    <ol class="metodo">
+      <li>
+        <span class="mNum">1</span>
+        <span class="mQ">O endereço presta?<em>movimento medido, não sentido</em></span>
+        <span class="mSe">arrenda um ponto que não tem fluxo</span>
+        <span class="mA">aulas 3 e 4</span>
+      </li>
+      <li>
+        <span class="mNum">2</span>
+        <span class="mQ">A energia aguenta?<em>conta de luz e padrão de entrada</em></span>
+        <span class="mSe">descobre a carga depois de assinar</span>
+        <span class="mA">aulas 5 e 6</span>
+      </li>
+      <li>
+        <span class="mNum">3</span>
+        <span class="mQ">Que potência cabe?<em>permanência do carro, não catálogo</em></span>
+        <span class="mSe">paga kW que o carro não aceita</span>
+        <span class="mA">aula 7</span>
+      </li>
+      <li>
+        <span class="mNum">4</span>
+        <span class="mQ">Quanto custa mesmo?<em>a lista inteira, não só o carregador</em></span>
+        <span class="mSe">orça o equipamento e esquece metade</span>
+        <span class="mA">aulas 8 e 9</span>
+      </li>
+      <li>
+        <span class="mNum">5</span>
+        <span class="mQ">Quanto tempo até ligar?<em>o protocolo da distribuidora</em></span>
+        <span class="mSe">promete data que não é sua pra prometer</span>
+        <span class="mA">aula 10</span>
+      </li>
+      <li class="fim">
+        <span class="mNum">6</span>
+        <span class="mQ">Vale a pena?<em>payback, TIR e três cenários</em></span>
+        <span class="mSe">descobre o retorno com a obra pronta</span>
+        <span class="mA">aula 13</span>
+      </li>
+    </ol>
     <p class="calcAviso" style="margin-top:22px">
       <b>Você não vai achar essa sequência em lugar nenhum.</b> Cada assunto existe
       solto por aí — a norma, o cálculo, o protocolo. O que não existe é a ordem, e é
