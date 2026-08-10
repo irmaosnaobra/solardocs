@@ -1772,43 +1772,63 @@ function perfilTexto(sel){
   const t = document.getElementById('f-outro').value.trim();
   return t ? `Outro: ${t}` : 'Outro';
 }
-// A VITRINE É ANCORADA EM HOJE. Regra (10/08/2026, pedido do Thiago):
+// A VITRINE MOSTRA UM DIA SÓ NA MAIOR PARTE DO TEMPO. Régua do Thiago (10/08/2026):
 //
-//   hoje ainda tem horário  →  HOJE + o próximo dia aberto
-//   hoje acabou             →  SÓ o próximo dia aberto, até a meia-noite
+//   00h → 15h    só HOJE
+//   15h → 17h    HOJE + AMANHÃ   (amanhã abre como transbordo do fim da tarde)
+//   17h → 00h    só AMANHÃ       (hoje acabou; segura até a virada)
 //
-// Antes eram "os 2 próximos dias COM vaga", o que é diferente: quando a tarde de
-// hoje fechava, a vitrine deslizava inteira e passava a mostrar AMANHÃ E DEPOIS DE
-// AMANHÃ. Quem caía no anúncio no fim da tarde via a reunião mais próxima a dois
-// dias de distância — e some. A régua é o contrário: quanto mais perto, melhor, e
-// dia distante ao lado de dia próximo só serve pra empurrar o lead pro distante.
+// O PORQUÊ: dia ao lado de dia espalha. Enquanto hoje tem horário pra vender, ele é
+// a única opção — quem entra de manhã marca pra HOJE, não pra amanhã. Amanhã só
+// aparece quando hoje está no fim e vira transbordo de verdade. A meta é reunião o
+// mais perto possível, senão o lead esfria antes da conversa.
 //
-// Eram 3 dias até 06/08. Virou 2 porque a escolha larga espalhava: o lead pegava o
-// terceiro dia e os dois primeiros ficavam vazios. A meta é lotar o dia e o
-// seguinte — o terceiro só aparece depois que o primeiro fecha.
+// Histórico: eram 3 dias até 06/08 (larga e vazia), 2 dias até 10/08 de manhã. O
+// problema dos 2 fixos era o mesmo dos 3, só menor — o lead pegava amanhã e a tarde
+// de hoje ficava sem ninguém.
+//
+// As 17h NÃO estão escritas aqui, e é de propósito: hoje sai da vitrine quando não
+// tem mais horário vendável, o que a folga mínima (ANTECEDENCIA_MIN_MS, 30 min)
+// coloca justamente às 17h — último horário 17:30. Mexeu na grade ou na folga, a
+// virada anda junto sozinha, em vez de mentir num número cravado.
 //
 // Fim de semana e feriado caem sozinhos no caso "hoje acabou": no sábado nem hoje
 // nem amanhã abrem, então aparece segunda sozinha. Nunca dá lista vazia — a busca
 // varre 21 dias — e nunca mostra dois dias longe um do outro.
 const DIAS_NA_VITRINE = 2;
+const HORA_ABRE_AMANHA = 15;   // antes disso, hoje é a única opção na tela
 function proximosDias(){
-  const hoje = partesBR().ymd;
-  const base = new Date(`${hoje}T12:00:00-03:00`);
+  const agora = partesBR();
+  const hoje  = agora.ymd;
+  const base  = new Date(`${hoje}T12:00:00-03:00`);
   const abertos = [];
   for(let i=0; i<21 && abertos.length<DIAS_NA_VITRINE; i++){
     const ymd = partesBR(new Date(base.getTime() + i*86400000)).ymd;
     if(gradeDoDia(ymd).length && livresDoDia(ymd).length) abertos.push(ymd);
   }
-  // O corte é este: o segundo dia só entra se o primeiro for HOJE.
-  return abertos[0] === hoje ? abertos : abertos.slice(0, 1);
+  if(!abertos.length) return [];
+  // Hoje já não vende (passou das 17h, lotou, fim de semana ou feriado): só o próximo.
+  if(abertos[0] !== hoje) return abertos.slice(0, 1);
+  // Hoje ainda vende: amanhã só entra junto depois das 15h.
+  return +agora.hhmm.slice(0,2) >= HORA_ABRE_AMANHA ? abertos : abertos.slice(0, 1);
 }
 // Horários do dia que ainda dá pra marcar: tira o que já passou, o que está dentro
 // da antecedência mínima e o que está ocupado.
 // A reunião não é conversa: o especialista monta o estudo de viabilidade do ponto
-// ANTES de entrar na chamada. Sem folga, o lead que cai na LP às 8h55 marca 9h e o
-// consultor entra sem estudo — que é justamente o que a LP promete.
+// ANTES de entrar na chamada. Sem folga nenhuma, o lead que cai na LP às 8h55 marca
+// 9h e o consultor entra sem estudo — que é justamente o que a LP promete.
 // Compara em timestamp (não em texto "HH:MM") porque a folga atravessa a virada do dia.
-const ANTECEDENCIA_MIN_MS = 2 * 60 * 60 * 1000;   // 2h
+//
+// CAIU DE 2h PRA 30 MIN EM 10/08/2026, e a razão é a régua da vitrine logo abaixo.
+// Com 2h o último horário (17:30) parava de ser vendável às 15h30 — ou seja, a tarde
+// de hoje MORRIA meia hora depois de amanhã abrir, e a faixa "15h→17h com os dois
+// dias" que o Thiago pediu durava 30 minutos em vez de 2 horas. Com 30 min, 17:30
+// segue à venda até as 17h e a régua fecha: hoje acaba às 17h, como ele descreveu.
+//
+// O QUE ISSO CUSTA: uma reunião das 17:30 pode ser marcada às 17h, e aí o consultor
+// tem 30 min pra montar o estudo. É a troca que a régua pede — mais horário vendável
+// no dia contra menos tempo de preparo no pior caso.
+const ANTECEDENCIA_MIN_MS = 30 * 60 * 1000;   // 30 min
 function livresDoDia(ymd){
   const limite = Date.now() + ANTECEDENCIA_MIN_MS;
   return gradeDoDia(ymd).filter(h=>{
