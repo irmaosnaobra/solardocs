@@ -926,6 +926,34 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 // Vem por sessionStorage, escrito pela LP no momento da desqualificação. Não vai
 // por querystring de propósito: pontuação é dado do lead, e URL vira print.
 // Sem o dado (link direto, aba nova, sessão expirada) cai na variação neutra.
+// ── 0 · A VISITA, ANTES DE QUALQUER OUTRA COISA ─────────────────────────────
+// Grava primeiro e personaliza depois. O beacon vivia no fim do script, atrás
+// de 23 getElementById e de toda a escolha de copy: uma exceção em qualquer um
+// deles derrubava a gravação junto com a página, e a visita — que é um fato
+// consumado no instante em que o navegador abriu — sumia do relatório.
+//
+// É o candidato mais forte pro buraco entre 28 pessoas roteadas e 13 medidas.
+function evento(tipo, payload){
+  try {
+    fetch(API + '/plugcash/evento', {
+      method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
+      body: JSON.stringify({ tipo: tipo, session_id: (typeof sid !== 'undefined' ? sid : sidCedo), payload: payload || null })
+    }).catch(function(){});
+  } catch(_) {}
+  try { if (window.fbq) fbq('trackCustom', 'PC_' + tipo); } catch(_) {}
+}
+
+var sidCedo = (function(){
+  try { var k='pc_sid', v=sessionStorage.getItem(k);
+        if(!v){ v = String(Date.now()) + Math.random().toString(36).slice(2,10); sessionStorage.setItem(k,v); }
+        return v; } catch(_) { return String(Date.now()); }
+})();
+var motivoCedo = 'neutro';
+try { var rawCedo = sessionStorage.getItem('ep_desq');
+      if (rawCedo) { var dc = JSON.parse(rawCedo); if (dc.motivos && dc.motivos[0]) motivoCedo = dc.motivos[0]; }
+} catch(_) {}
+evento('material_view', { motivo: motivoCedo });
+
 var motivos = [], nome = '';
 try {
   var raw = sessionStorage.getItem('ep_desq');
@@ -1216,17 +1244,6 @@ try {
   if (!sid) { sid = 'pc-' + Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem('io_sd_session', sid); }
 } catch(_) {}
 
-function evento(tipo, payload){
-  try {
-    fetch(API + '/plugcash/evento', {
-      method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
-      body: JSON.stringify({ tipo: tipo, session_id: sid, payload: payload || null })
-    }).catch(function(){});
-  } catch(_) {}
-  try { if (window.fbq) fbq('trackCustom', 'PC_' + tipo); } catch(_) {}
-}
-
-evento('material_view', { motivo: motivo || 'neutro' });
 
 // Quem volta pra corrigir a resposta é sinal, não ruído: se muita gente clica
 // aqui, a pergunta do ponto está confundindo e a régua está reprovando lead bom.
