@@ -262,7 +262,9 @@
   .agLoad{color:var(--mut);font-size:13.5px;font-weight:700;padding:14px 0}
   .dia .diaH{color:rgba(247,251,242,.5);font-size:12px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px}
   .diaS{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
-  @media(max-width:520px){.diaS{grid-template-columns:repeat(4,1fr)}}
+  /* 3 por linha no celular: com a grade de hora em hora são 5 horários por dia, e
+     em 4 colunas o quinto virava um órfão sozinho na segunda linha. 3+2 fecha. */
+  @media(max-width:520px){.diaS{grid-template-columns:repeat(3,1fr)}}
   /* botão NÃO herda color — sem isto o texto sai preto no fundo escuro (ilegível) */
   .slot{background:#0b0e09;border:1.5px solid rgba(255,255,255,.14);border-radius:10px;padding:11px 6px;text-align:center;
     cursor:pointer;transition:.15s;font-family:inherit;color:var(--cream);font-size:15px;font-weight:800;min-height:46px}
@@ -1536,7 +1538,7 @@ function calc(){
 }
 
 // ===== AGENDA =====
-// Regras: SEG a SEX — só TARDE, 13:30 às 17:30, slots de 30 min (9 horários).
+// Regras: SEG a SEX — só TARDE, 13:00 às 17:00, de hora em hora (5 horários).
 // A vitrine mostra 2 dias rolantes: hoje (D0) e amanhã (D+1). O dia que lota — ou
 // que acaba — sai, e o próximo dia útil entra no lugar.
 // Fecha o que já passou, o que está a menos de 2h daqui e o horário em que os DOIS
@@ -1547,8 +1549,10 @@ let compromissos = [];             // [{ts, dono}] — TUDO que já está na age
 
 // 06/08: Thiago e Diego DESMEMBRARAM a agenda — cada horário recebe 2 reuniões, uma
 // com cada um, em paralelo. Antes era 1 (eles apresentavam juntos). Isso dobra a
-// capacidade da tarde: 9 horários × 2 = 18 reuniões por dia. Se um dia voltarem a
+// capacidade da tarde: 5 horários × 2 = 10 reuniões por dia. Se um dia voltarem a
 // apresentar juntos, volte para 1 — o resto da régua não muda.
+// (Quem CONTA a vaga é o `donosLivres`/`DONOS`; esta constante é o registro da
+//  decisão, não o número que a grade lê.)
 const REUNIOES_POR_HORARIO = 2;
 
 // Feriados nacionais (data BR). Ponto facultativo não entra — só o que fecha mesmo.
@@ -1569,8 +1573,13 @@ function partesBR(d = new Date()){
 }
 const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 
-// Tarde 13:30–17:30 — 9 horários por dia, slots de 30 min. Os limites são horários
-// de INÍCIO e são inclusivos nas duas pontas: a última reunião começa 17:30.
+// Tarde 13:00–17:00 — 5 horários por dia, de hora em hora. Os limites são horários
+// de INÍCIO e são inclusivos nas duas pontas: a última reunião começa 17:00.
+//
+// A reunião continua sendo de 30 min (é o que a página promete). O passo de 1 hora
+// é ESPAÇO entre uma e outra: o consultor sai de uma apresentação, respira, e entra
+// na próxima com o estudo do ponto na mão. Slot colado no slot fazia a reunião das
+// 14:00 atrasar a das 14:30 e a tarde inteira escorregar atrás.
 //
 // Histórico das duas viradas, porque a segunda é o espelho da primeira:
 //   01/08 — a tarde VOLTOU. Com a agenda só de manhã, o horário que vagava à tarde
@@ -1579,12 +1588,13 @@ const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 //           larga e vazia (ninguém marcado pro dia seguinte). Concentrar tudo num
 //           turno só, com os dois consultores em paralelo, faz o dia lotar antes de
 //           o próximo abrir — que é o que a régua sempre quis.
-const FAIXAS = [['13:30','17:30']];
+const FAIXAS = [['13:00','17:00']];
+const PASSO_MIN = 60;               // 12/08: era 30 — a grade passou a ser de hora em hora
 const emMin = hhmm => Number(hhmm.slice(0,2)) * 60 + Number(hhmm.slice(3,5));
 function horariosDoDia(){
   const out = [];
   for(const [ini,fim] of FAIXAS)
-    for(let m = emMin(ini); m <= emMin(fim); m += 30)
+    for(let m = emMin(ini); m <= emMin(fim); m += PASSO_MIN)
       out.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
   return out;
 }
@@ -1635,7 +1645,11 @@ async function carregarOcupados(deYmd, ateYmd){
  *  18:05. Enquanto isto batia timestamp exato, o slot das 14:00 aparecia livre com
  *  o consultor em reunião às 14:15: a LP vendia por cima do compromisso dele.
  *  Reunião ocupa a meia hora inteira dos dois lados, então qualquer coisa a menos
- *  de 30 min de distância fecha o horário para aquele consultor. */
+ *  de 30 min de distância fecha o horário para aquele consultor.
+ *
+ *  Isto é a DURAÇÃO da reunião (30 min), não o tamanho do slot — a grade passou a
+ *  ser de hora em hora em 12/08 e este número ficou onde estava de propósito: com
+ *  60 aqui, um compromisso quebrado às 14:15 mataria também as 15:00, sem motivo. */
 const DURACAO_MS = 30 * 60 * 1000;
 function donosLivres(iso){
   const t = new Date(iso).getTime();
@@ -1774,9 +1788,13 @@ function perfilTexto(sel){
 }
 // A VITRINE MOSTRA UM DIA SÓ NA MAIOR PARTE DO TEMPO. Régua do Thiago (10/08/2026):
 //
-//   00h → 15h    só HOJE
-//   15h → 17h    HOJE + AMANHÃ   (amanhã abre como transbordo do fim da tarde)
-//   17h → 00h    só AMANHÃ       (hoje acabou; segura até a virada)
+//   00h → 15h      só HOJE
+//   15h → 16h30    HOJE + AMANHÃ   (amanhã abre como transbordo do fim da tarde)
+//   16h30 → 00h    só AMANHÃ       (hoje acabou; segura até a virada)
+//
+// A janela dos dois dias encolheu de 2h pra 1h30 em 12/08, quando a grade virou de
+// hora em hora: o último horário passou a ser 17:00 e não 17:30. Quem quiser as 2h
+// de volta, o botão é o HORA_ABRE_AMANHA (15 → 14).
 //
 // O PORQUÊ: dia ao lado de dia espalha. Enquanto hoje tem horário pra vender, ele é
 // a única opção — quem entra de manhã marca pra HOJE, não pra amanhã. Amanhã só
@@ -1787,9 +1805,9 @@ function perfilTexto(sel){
 // problema dos 2 fixos era o mesmo dos 3, só menor — o lead pegava amanhã e a tarde
 // de hoje ficava sem ninguém.
 //
-// As 17h NÃO estão escritas aqui, e é de propósito: hoje sai da vitrine quando não
+// As 16h30 NÃO estão escritas aqui, e é de propósito: hoje sai da vitrine quando não
 // tem mais horário vendável, o que a folga mínima (ANTECEDENCIA_MIN_MS, 30 min)
-// coloca justamente às 17h — último horário 17:30. Mexeu na grade ou na folga, a
+// coloca justamente às 16h30 — último horário 17:00. Mexeu na grade ou na folga, a
 // virada anda junto sozinha, em vez de mentir num número cravado.
 //
 // Fim de semana e feriado caem sozinhos no caso "hoje acabou": no sábado nem hoje
@@ -1807,7 +1825,7 @@ function proximosDias(){
     if(gradeDoDia(ymd).length && livresDoDia(ymd).length) abertos.push(ymd);
   }
   if(!abertos.length) return [];
-  // Hoje já não vende (passou das 17h, lotou, fim de semana ou feriado): só o próximo.
+  // Hoje já não vende (passou das 16h30, lotou, fim de semana ou feriado): só o próximo.
   if(abertos[0] !== hoje) return abertos.slice(0, 1);
   // Hoje ainda vende: amanhã só entra junto depois das 15h.
   return +agora.hhmm.slice(0,2) >= HORA_ABRE_AMANHA ? abertos : abertos.slice(0, 1);
@@ -1820,12 +1838,14 @@ function proximosDias(){
 // Compara em timestamp (não em texto "HH:MM") porque a folga atravessa a virada do dia.
 //
 // CAIU DE 2h PRA 30 MIN EM 10/08/2026, e a razão é a régua da vitrine logo abaixo.
-// Com 2h o último horário (17:30) parava de ser vendável às 15h30 — ou seja, a tarde
-// de hoje MORRIA meia hora depois de amanhã abrir, e a faixa "15h→17h com os dois
-// dias" que o Thiago pediu durava 30 minutos em vez de 2 horas. Com 30 min, 17:30
-// segue à venda até as 17h e a régua fecha: hoje acaba às 17h, como ele descreveu.
+// Com 2h o último horário parava de ser vendável 2 horas antes — ou seja, a tarde de
+// hoje MORRIA meia hora depois de amanhã abrir, e a faixa "os dois dias juntos" que o
+// Thiago pediu durava 30 minutos em vez de 2 horas.
 //
-// O QUE ISSO CUSTA: uma reunião das 17:30 pode ser marcada às 17h, e aí o consultor
+// Com a grade de hora em hora (12/08), o último horário é 17:00 e essa folga de 30 min
+// o mantém à venda até as 16h30 — é aí que hoje acaba.
+//
+// O QUE ISSO CUSTA: uma reunião das 17:00 pode ser marcada às 16h30, e aí o consultor
 // tem 30 min pra montar o estudo. É a troca que a régua pede — mais horário vendável
 // no dia contra menos tempo de preparo no pior caso.
 const ANTECEDENCIA_MIN_MS = 30 * 60 * 1000;   // 30 min

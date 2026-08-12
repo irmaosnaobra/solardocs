@@ -481,7 +481,7 @@ function isAvailableDay(d: Date, kind: 'vistoria' | 'remoto'): boolean {
 // Janela de horário: vistoria SÓ DE MANHÃ (8h-11h), ligação/vídeo 9h-20h.
 //
 // 10/08: a vistoria perdeu a tarde. Quem vai na casa do lead é o Thiago (Araguari)
-// ou o Diego (Uberlândia), e a tarde dos dois é do eletroposto (13:30–17:30) — o
+// ou o Diego (Uberlândia), e a tarde dos dois é do eletroposto (13:00–17:00) — o
 // "amanhã às 14h" que a Luma oferecia colidia com apresentação já marcada. Ligação
 // e meet não mudam: quem atende ali não precisa sair da cadeira.
 //

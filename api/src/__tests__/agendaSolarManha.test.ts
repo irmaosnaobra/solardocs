@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Thiago e Diego apresentam eletroposto das 13:30 às 17:30. Card de lead SOLAR
+// Thiago e Diego apresentam eletroposto das 13:00 às 17:00. Card de lead SOLAR
 // deles não pode cair nesse pedaço do dia — some com a capacidade de apresentação
 // e põe a mesma pessoa em dois compromissos. Regra do Thiago (10/08): mesmo que o
 // cliente peça tarde ou noite, o card vai pra manhã, e a FILA não se perde — cada
