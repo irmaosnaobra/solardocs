@@ -61,16 +61,27 @@ export default function RootLayout({
                         // no clique). NÃO usamos controllerchange: o sw.js já faz skipWaiting
                         // +claim, então um handler de controllerchange recarregaria todo
                         // mundo na hora do deploy = a recarga silenciosa que evitamos.
+                        // O aviso precisa DEIXAR MARCA, nao so' disparar. Evento nao
+                        // tem memoria: este script roda no 'load' e a faixa so'
+                        // monta o listener quando o React hidrata — medido, 1563ms
+                        // contra 1618ms. Nessa janela o caminho reg.waiting (o do
+                        // cliente que volta com update ja' baixado, que e' o caso
+                        // que esta feature existe pra cobrir) disparava no vazio e
+                        // a pessoa seguia na versao velha sem saber.
+                        function avisa(){
+                          window.__sdUpdateReady = true;
+                          window.dispatchEvent(new CustomEvent('sw-update-ready'));
+                        }
                         function watch(worker){
                           if (!worker) return;
                           worker.addEventListener('statechange', function(){
                             if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-                              window.dispatchEvent(new CustomEvent('sw-update-ready'));
+                              avisa();
                             }
                           });
                         }
                         if (reg.waiting && navigator.serviceWorker.controller) {
-                          window.dispatchEvent(new CustomEvent('sw-update-ready'));
+                          avisa();
                         }
                         reg.addEventListener('updatefound', function(){ watch(reg.installing); });
                         // Tab PARADO aberto: o browser só checa update SW ao navegar ou

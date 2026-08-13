@@ -13,6 +13,11 @@ export default function UpdateBanner() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
+    // O evento pode ter disparado ANTES desta faixa existir: o registro do SW
+    // roda no 'load' e o React hidrata depois (medido, 1563ms contra 1618ms).
+    // Quem volta ao app com um update já baixado cai exatamente nessa janela —
+    // por isso o registro também deixa a marca, e aqui lemos a marca primeiro.
+    if ((window as unknown as { __sdUpdateReady?: boolean }).__sdUpdateReady) setShow(true);
     function onUpdate() { setShow(true); }
     window.addEventListener('sw-update-ready', onUpdate);
     return () => window.removeEventListener('sw-update-ready', onUpdate);
@@ -48,13 +53,17 @@ export default function UpdateBanner() {
         onClick={() => window.location.reload()}
         style={{
           border: 'none',
-          borderRadius: 8,
-          padding: '6px 14px',
+          borderRadius: 10,
+          // 31px de altura era o menor alvo da plataforma inteira — no botao
+          // que TIRA o cliente da versao velha. Errar aqui e' seguir preso.
+          minHeight: 40,
+          padding: '10px 18px',
           background: '#F26513',
           color: '#fff',
           fontWeight: 700,
           fontSize: 14,
           cursor: 'pointer',
+          WebkitTapHighlightColor: 'transparent',
         }}
       >
         Atualizar
@@ -64,13 +73,18 @@ export default function UpdateBanner() {
         aria-label="Dispensar"
         onClick={() => setShow(false)}
         style={{
+          display: 'grid',
+          placeItems: 'center',
           border: 'none',
           background: 'transparent',
           color: '#94a3b8',
-          fontSize: 18,
+          fontSize: 20,
           lineHeight: 1,
           cursor: 'pointer',
+          width: 40,
+          height: 40,
           padding: 0,
+          WebkitTapHighlightColor: 'transparent',
         }}
       >
         ×
