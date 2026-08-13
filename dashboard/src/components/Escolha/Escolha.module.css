@@ -1,0 +1,134 @@
+/* ESCOLHA — card de opção padrão da plataforma.
+   Módulo (não global) de propósito: as telas usam CSS module e um `og-*` solto
+   brigaria por especificidade com a folha do off-grid, que já está no ar. */
+
+.grade {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+}
+/* Duas opções ficam lado a lado sempre — inclusive no celular. */
+.c2 { grid-template-columns: 1fr 1fr; }
+.c3 { grid-template-columns: repeat(3, 1fr); }
+.c4 { grid-template-columns: repeat(4, 1fr); }
+.c5 { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 560px) {
+  .c3 { grid-template-columns: 1fr 1fr; }
+  .c4 { grid-template-columns: 1fr 1fr; }
+  /* 5 vira 3 e não 2: cinco em duas colunas deixa um órfão sozinho embaixo. */
+  .c5 { grid-template-columns: repeat(3, 1fr); }
+}
+
+.opt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  min-height: 72px;
+  padding: 12px 13px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  color: var(--color-text);
+  /* Transição curta é o que dá sensação de app: responde antes de o dedo sair. */
+  transition: border-color 0.12s, background 0.12s, transform 0.08s;
+  -webkit-tap-highlight-color: transparent;
+}
+.opt:hover:not(:disabled) { border-color: var(--color-border-strong); }
+/* Afunda no toque — o "clique" que o dedo espera sentir. */
+.opt:active:not(:disabled) { transform: scale(0.97); }
+.opt:disabled { opacity: 0.45; cursor: not-allowed; }
+.opt:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.icone {
+  color: var(--color-text-dim);
+  margin-bottom: 1px;
+  transition: color 0.12s;
+}
+.opt strong {
+  font-size: 14.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.opt span {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-dim);
+  line-height: 1.3;
+}
+
+/* ── Selecionado ── */
+.on {
+  border-color: var(--color-primary);
+  border-width: 2px;
+  padding: 11.5px 12.5px; /* compensa a borda pra o card não pular */
+  background: var(--color-accent-soft);
+}
+.on .icone { color: var(--color-primary); }
+.on strong { color: var(--ink-amber); }
+.on span { color: var(--ink-amber); opacity: 0.85; }
+
+.check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 50%;
+}
+
+/* Número em destaque (dias, quantidade) */
+.num {
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  gap: 4px;
+}
+.num strong { font-size: 21px; line-height: 1; }
+.num span { text-align: center; }
+
+/* ── Segmented control ── */
+.seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-surface-2);
+  border-radius: 14px;
+}
+.segBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 46px;
+  padding: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.08s;
+  -webkit-tap-highlight-color: transparent;
+}
+.segBtn:active { transform: scale(0.98); }
+.segOn {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 2px 8px rgba(11, 18, 32, 0.1);
+}

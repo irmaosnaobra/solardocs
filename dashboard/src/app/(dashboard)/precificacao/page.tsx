@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import api from '@/services/api';
 import './precificacao.css';
 import Cadeado from '@/components/Cadeado/Cadeado';
+import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
+import { Ban, Wrench, ReceiptText } from 'lucide-react';
 
 // Analytics de uso (NÃO abate crédito). Fail-silent: nunca trava a UX.
 function logUso(event_type: string) {
@@ -225,35 +227,16 @@ function PrecificacaoPageInterna() {
             </div>
             <div className="prec-field">
               <label>Nota fiscal</label>
-              <div className="prec-nf-opts">
-                <label className="prec-nf-opt">
-                  <input
-                    type="radio"
-                    name="prec-nf"
-                    checked={nf === 'nenhuma'}
-                    onChange={() => setNf('nenhuma')}
-                  />
-                  Sem NF
-                </label>
-                <label className="prec-nf-opt">
-                  <input
-                    type="radio"
-                    name="prec-nf"
-                    checked={nf === 'serv'}
-                    onChange={() => setNf('serv')}
-                  />
-                  NF de serviço <span className="hint">(% sobre total − kit)</span>
-                </label>
-                <label className="prec-nf-opt">
-                  <input
-                    type="radio"
-                    name="prec-nf"
-                    checked={nf === 'total'}
-                    onChange={() => setNf('total')}
-                  />
-                  NF total <span className="hint">(% sobre o total)</span>
-                </label>
-              </div>
+              {/* Radio nativo virou card: alvo de dedo e, principalmente, a
+                  BASE de cálculo escrita em cada opção — que é o que decide. */}
+              <Escolhas colunas={3}>
+                <Escolha on={nf === 'nenhuma'} icone={Ban} onClick={() => setNf('nenhuma')}
+                  titulo="Sem NF" desc="não desconta imposto" />
+                <Escolha on={nf === 'serv'} icone={Wrench} onClick={() => setNf('serv')}
+                  titulo="NF de serviço" desc="% sobre o total menos o kit" />
+                <Escolha on={nf === 'total'} icone={ReceiptText} onClick={() => setNf('total')}
+                  titulo="NF total" desc="% sobre o valor cheio" />
+              </Escolhas>
 
               {nf !== 'nenhuma' && (
                 <div className="prec-nf-pct">

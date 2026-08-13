@@ -22,6 +22,7 @@ import {
   type ResultadoComparativo,
 } from '@/lib/offgrid/comparativo';
 import { CONST, CARGAS_BLOQUEADAS, ALTERNATIVAS } from '@/lib/offgrid/constantes';
+import { Escolha, Escolhas, Abas, Aba } from '@/components/Escolha/Escolha';
 import './offgrid.css';
 import { useRouter } from 'next/navigation';
 
@@ -61,30 +62,6 @@ const num = (v: string) => {
  */
 const LINK_CHECKOUT_ADDON =
   process.env.NEXT_PUBLIC_OFFGRID_CHECKOUT_URL || 'https://pay.kiwify.com.br/Je9pKBV';
-
-/**
- * Escolha em CARD. Alvo de toque de verdade, ícone, e uma linha dizendo o que a
- * opção significa - porque a decisao mora na consequência, não no rótulo.
- */
-function Opcao({
-  on, onClick, icone: Icone, titulo, desc, numero,
-}: {
-  on: boolean;
-  onClick: () => void;
-  icone?: React.ComponentType<{ size?: number; className?: string }>;
-  titulo: string;
-  desc?: string;
-  numero?: boolean;
-}) {
-  return (
-    <button className={`og-opt ${numero ? 'og-opt-num' : ''} ${on ? 'on' : ''}`} onClick={onClick}>
-      {on && <span className="og-opt-check"><Check size={11} strokeWidth={3.5} /></span>}
-      {Icone && !numero && <Icone size={19} className="og-opt-icone" />}
-      <strong>{titulo}</strong>
-      {desc && <span>{desc}</span>}
-    </button>
-  );
-}
 
 /** Grupos que têm pelo menos um aparelho marcado — usado pra abrir a lista. */
 function gruposDe(qtds: Record<string, number>): Set<GrupoCarga> {
@@ -520,15 +497,15 @@ export default function OffGridPage() {
           {/* 2. CONSUMO */}
           <div className="og-card">
             <div className="og-card-title"><span className="og-num">2</span> O que vai ligar</div>
-            <div className="og-seg">
-              <button className={e.modoConsumo === 'cargas' ? 'on' : ''}
-                onClick={() => set('modoConsumo', 'cargas')}>
-                <ListChecks size={17} /> Marcar aparelhos
-              </button>
-              <button className={e.modoConsumo === 'conta' ? 'on' : ''}
-                onClick={() => set('modoConsumo', 'conta')}>
-                <Gauge size={17} /> Sei o kWh
-              </button>
+            <div style={{ marginBottom: 16 }}>
+              <Abas>
+                <Aba on={e.modoConsumo === 'cargas'} onClick={() => set('modoConsumo', 'cargas')} icone={ListChecks}>
+                  Marcar aparelhos
+                </Aba>
+                <Aba on={e.modoConsumo === 'conta'} onClick={() => set('modoConsumo', 'conta')} icone={Gauge}>
+                  Sei o kWh
+                </Aba>
+              </Abas>
             </div>
 
             {e.modoConsumo === 'conta' ? (
@@ -746,24 +723,24 @@ export default function OffGridPage() {
           <div className="og-card">
             <div className="og-card-title"><span className="og-num">3</span> Quanto tempo sem sol</div>
             <label className="og-label">Dias que o banco precisa segurar</label>
-            <div className="og-opts og-opts-5">
+            <Escolhas colunas={5}>
               {([[1, 'o mais barato'], [2, 'o equilibrado'], [3, 'bem tranquilo'],
                  [4, 'sítio isolado'], [5, 'sem socorro perto']] as const).map(([d, desc]) => (
-                <Opcao key={d} numero on={e.diasAutonomia === d}
+                <Escolha key={d} numero on={e.diasAutonomia === d}
                   onClick={() => set('diasAutonomia', d)}
                   titulo={String(d)} desc={`${d === 1 ? 'dia' : 'dias'} · ${desc}`} />
               ))}
-            </div>
+            </Escolhas>
 
             <label className="og-label" style={{ marginTop: 16 }}>Segurando o quê</label>
-            <div className="og-opts og-opts-2">
-              <Opcao on={e.autonomiaSobre === 'essencial'} icone={Lightbulb}
+            <Escolhas colunas={2}>
+              <Escolha on={e.autonomiaSobre === 'essencial'} icone={Lightbulb}
                 onClick={() => set('autonomiaSobre', 'essencial')}
                 titulo="Só o essencial" desc="geladeira, luz, água e internet" />
-              <Opcao on={e.autonomiaSobre === 'tudo'} icone={Home}
+              <Escolha on={e.autonomiaSobre === 'tudo'} icone={Home}
                 onClick={() => set('autonomiaSobre', 'tudo')}
                 titulo="A casa inteira" desc="tudo que está marcado" />
-            </div>
+            </Escolhas>
             <p className="og-hint">
               Essa é a escolha que mais mexe no preço. Segurar <strong>a casa inteira</strong> por 3 dias
               pode dobrar o kit; segurar <strong>o essencial</strong>{' '}
@@ -772,14 +749,14 @@ export default function OffGridPage() {
             </p>
 
             <label className="og-label" style={{ marginTop: 16 }}>Sombra no telhado</label>
-            <div className="og-opts og-opts-3">
+            <Escolhas colunas={3}>
               {([['nenhuma', 'Sem sombra', 'telhado limpo o dia todo', Sun],
                  ['leve', 'Sombra leve', 'perde 8% da geração', CloudSun],
                  ['media', 'Sombra média', 'perde 18%, kit maior', Cloud]] as const).map(([id, t, d, Ic]) => (
-                <Opcao key={id} on={e.sombra === id} icone={Ic}
+                <Escolha key={id} on={e.sombra === id} icone={Ic}
                   onClick={() => set('sombra', id)} titulo={t} desc={d} />
               ))}
-            </div>
+            </Escolhas>
             <p className="og-hint">
               Árvore, morro, caixa d&apos;água ou o telhado do vizinho. Sombra leve tira 8% da geração;
               média tira 18% e engorda o kit inteiro. <strong>Na dúvida, escolha o nível de cima</strong> —
@@ -787,14 +764,14 @@ export default function OffGridPage() {
             </p>
 
             <label className="og-label" style={{ marginTop: 16 }}>Quanto do consumo roda de dia</label>
-            <div className="og-opts og-opts-3">
+            <Escolhas colunas={3}>
               {([[0.2, 'Quase à noite', 'banco trabalha mais', Moon],
                  [0.4, 'Metade a metade', 'o mais comum', CloudSun],
                  [0.65, 'Mais de dia', 'bomba e ar com sol', Sun]] as const).map(([v, t, d, Ic]) => (
-                <Opcao key={v} on={Math.abs(e.fracaoDiurna - v) < 0.01} icone={Ic}
+                <Escolha key={v} on={Math.abs(e.fracaoDiurna - v) < 0.01} icone={Ic}
                   onClick={() => set('fracaoDiurna', v)} titulo={t} desc={d} />
               ))}
-            </div>
+            </Escolhas>
             <p className="og-hint">
               Bomba e ar ligados com sol na telha não passam pela bateria. Isso <strong>não muda o tamanho
               do banco</strong> (num dia sem sol tudo cai nele), mas muda o desgaste: hoje o banco gira{' '}
@@ -802,14 +779,14 @@ export default function OffGridPage() {
             </p>
 
             <label className="og-label" style={{ marginTop: 16 }}>Critério do arranjo</label>
-            <div className="og-opts og-opts-2">
-              <Opcao on={e.criterioHsp === 'pior'} icone={ShieldCheck}
+            <Escolhas colunas={2}>
+              <Escolha on={e.criterioHsp === 'pior'} icone={ShieldCheck}
                 onClick={() => set('criterioHsp', 'pior')}
                 titulo="Mês pior" desc="fecha a conta em junho também" />
-              <Opcao on={e.criterioHsp === 'media'} icone={Wallet}
+              <Escolha on={e.criterioHsp === 'media'} icone={Wallet}
                 onClick={() => set('criterioHsp', 'media')}
                 titulo="Média do ano" desc="mais barato, falta no inverno" />
-            </div>
+            </Escolhas>
             <p className="og-hint">
               Pelo <strong>mês pior</strong> o sistema fecha a conta em junho também. Pela{' '}
               <strong>média</strong> o kit sai mais barato — é o que o kit de prateleira faz — mas no
@@ -898,14 +875,14 @@ export default function OffGridPage() {
                   onChange={(ev) => setComp({ ...comp, tarifaKwh: num(ev.target.value) })} />
               </div>
             </div>
-            <div className="og-opts og-opts-2" style={{ marginTop: 10 }}>
-              <Opcao on={!comp.precisaTransformador} icone={Check}
+            <div style={{ marginTop: 10 }}><Escolhas colunas={2}>
+              <Escolha on={!comp.precisaTransformador} icone={Check}
                 onClick={() => setComp({ ...comp, precisaTransformador: false })}
                 titulo="Sem transformador" desc="o ramal existente atende" />
-              <Opcao on={comp.precisaTransformador} icone={Wallet}
+              <Escolha on={comp.precisaTransformador} icone={Wallet}
                 onClick={() => setComp({ ...comp, precisaTransformador: true })}
                 titulo="Com transformador" desc="soma na obra da rede" />
-            </div>
+            </Escolhas></div>
             <p className="og-hint">
               Orçamentos reais de extensão rural ficaram entre <strong>R$ 118 e R$ 367 o metro</strong> — a
               diferença é o transformador e o terreno. O número oficial só a concessionária dá; este aqui é
