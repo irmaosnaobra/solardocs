@@ -643,7 +643,6 @@ export default function OffGridPage() {
                             if ((ev.target as HTMLElement).closest('button, input, .og-stepper')) return;
                             mudaQtd(c.id, +1);
                           }}
-                          title="Toque para somar um"
                         >
                           {/* O desenho vem ANTES do nome porque a lista tem 70
                               itens: quem procura a geladeira acha pela forma,
