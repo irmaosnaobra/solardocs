@@ -9,6 +9,7 @@ import { transcribeAudio, downloadImageAsAnthropicSource } from '../utils/mediaP
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { kiwifyWebhook } from '../controllers/limpaproController';
 import { handleBiaInbound, ehLeadRecuperacao, marcarTakeoverBia } from '../services/agents/whatsapp/biaInboundService';
+import { encaminharMidiaAoConsultor, MidiaLead } from '../services/io/encaminharMidiaConsultor';
 import { ehAlunoLimpapro, handleLimpaproAtendimento, marcarTakeoverLimpapro } from '../services/agents/whatsapp/limpaproAtendimentoService';
 
 // Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
@@ -49,18 +50,30 @@ function extractText(body: any): string {
 
 // Detecta mídia no payload Z-API: audio, imagem, video ou documento.
 // Z-API usa campos diferentes pra cada tipo (audio.audioUrl, image.imageUrl, etc).
-function extractMedia(body: any): { url: string; type: 'audio' | 'image' | 'video' | 'document'; mime: string } | null {
+// A legenda (`caption`) vem DENTRO do bloco da mídia — não em `extractText` —, e
+// sem ela o consultor recebe uma foto sem saber o que o cliente escreveu junto.
+function extractMedia(body: any): MidiaLead | null {
   if (body.audio?.audioUrl) {
     return { url: body.audio.audioUrl, type: 'audio', mime: body.audio.mimeType || 'audio/ogg' };
   }
   if (body.image?.imageUrl) {
-    return { url: body.image.imageUrl, type: 'image', mime: body.image.mimeType || 'image/jpeg' };
+    return {
+      url: body.image.imageUrl, type: 'image', mime: body.image.mimeType || 'image/jpeg',
+      caption: body.image.caption || null,
+    };
   }
   if (body.video?.videoUrl) {
-    return { url: body.video.videoUrl, type: 'video', mime: body.video.mimeType || 'video/mp4' };
+    return {
+      url: body.video.videoUrl, type: 'video', mime: body.video.mimeType || 'video/mp4',
+      caption: body.video.caption || null,
+    };
   }
   if (body.document?.documentUrl) {
-    return { url: body.document.documentUrl, type: 'document', mime: body.document.mimeType || 'application/pdf' };
+    return {
+      url: body.document.documentUrl, type: 'document', mime: body.document.mimeType || 'application/pdf',
+      caption: body.document.caption || null,
+      fileName: body.document.fileName || body.document.title || null,
+    };
   }
   return null;
 }
@@ -94,7 +107,11 @@ async function handleWebhook(body: any, route: '/whatsapp' | '/zapi', res: Respo
   //    fica salva em webhook_debug (passo 1) e pode ser reprocessada via cron ou manual.
   const phone = body.phone || body.senderPhone;
   const text = extractText(body);
-  if (phone && text && !isFromMe(body) && !isFromGroup(body)) {
+  // Mídia entra na condição junto com o texto: nesta linha, mensagem SÓ com
+  // áudio/foto passava direto e ninguém ficava sabendo. O agente daqui continua
+  // sendo texto-only — o que a mídia dispara é o encaminhamento pro humano.
+  const media = extractMedia(body);
+  if (phone && (text || media) && !isFromMe(body) && !isFromGroup(body)) {
     // Dedup atômico contra redelivery do Z-API
     const messageId = extractMessageId(body);
     if (messageId) {
@@ -105,8 +122,19 @@ async function handleWebhook(body: any, route: '/whatsapp' | '/zapi', res: Respo
         return;
       }
     }
-    handleIncomingWhatsApp(String(phone), String(text), body.senderName || body.pushname, tracking)
-      .catch(err => console.error('[webhook] handleIncomingWhatsApp falhou:', err));
+    if (media) {
+      encaminharMidiaAoConsultor({
+        phone: String(phone),
+        nome: body.senderName || body.pushname,
+        media,
+        messageId: extractMessageId(body),
+        linha: 'solardoc',
+      }).catch(err => console.error('[webhook] encaminhar mídia falhou:', err));
+    }
+    if (text) {
+      handleIncomingWhatsApp(String(phone), String(text), body.senderName || body.pushname, tracking)
+        .catch(err => console.error('[webhook] handleIncomingWhatsApp falhou:', err));
+    }
   }
 }
 
@@ -319,6 +347,20 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
       console.info(`[webhook:io] mensagem ${messageId} já processada — pulando`);
       return;
     }
+  }
+
+  // ── MÍDIA DO LEAD → CONSULTOR DONO ──
+  // Fica AQUI, logo depois do dedup e antes de qualquer roteamento: os fluxos
+  // abaixo (convite do grupo, Bia, LimpaPro) dão `return`, e o bloco da Luma no
+  // fim também retorna cedo quando o Whisper falha — justo o áudio que o humano
+  // mais precisa ouvir. Fire-and-forget: nunca segura o atendimento.
+  if (media) {
+    encaminharMidiaAoConsultor({
+      phone: String(phone),
+      nome: body.senderName || body.pushname,
+      media,
+      messageId,
+    }).catch(err => console.error('[webhook:io] encaminhar mídia falhou:', err));
   }
 
   // ── CONVITE DO GRUPO DO ELETROPOSTO ──
