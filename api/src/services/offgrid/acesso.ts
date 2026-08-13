@@ -16,8 +16,25 @@ import { acessos, concederAcesso } from '../produtos/acessos';
 /** Preço do add-on, em reais. Também usado na tela de oferta. */
 export const OFFGRID_ADDON_PRECO = 97;
 
-/** Nome do produto na Kiwify (fallback quando o ID não está no env). */
-export const OFFGRID_PRODUTO_REGEX = /(kit\s*off[\s-]*grid|off[\s-]*grid.*(gerador|calculadora|ferramenta))/i;
+/**
+ * Nome do produto na Kiwify (fallback quando o ID não está no env).
+ *
+ * A versão anterior exigia "off-grid" SEGUIDO de gerador/calculadora/ferramenta,
+ * ou o literal "kit off-grid". Só que o produto se chama **Dimensionamento
+ * Off-Grid** — em toda a plataforma, na loja e na mini LP — e nesse nome a
+ * palavra vem ANTES. Resultado: o classificador devolvia null, o webhook não
+ * reconhecia a venda e a pessoa pagava sem liberar nada.
+ *
+ * Agora basta conter "off-grid", em qualquer posição e com espaço, hífen ou
+ * nada no meio. É largo de propósito: no catálogo inteiro (LimpaPro, Kit do
+ * Integrador, PlugCash, ferramentas) não existe outro produto com "off grid"
+ * no nome, então largo aqui erra pra o lado de LIBERAR — que é o lado certo
+ * quando alguém já pagou.
+ *
+ * O caminho confiável continua sendo o ID: preencha OFFGRID_KIWIFY_PRODUCT_IDS
+ * e o nome deixa de importar.
+ */
+export const OFFGRID_PRODUTO_REGEX = /off[\s-]*grid/i;
 
 export interface AcessoOffGrid {
   liberado: boolean;

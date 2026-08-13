@@ -49,7 +49,9 @@ export const PRODUTOS: Produto[] = [
     naAssinatura: false,
     rota: '/off-grid',
     envIds: 'OFFGRID_KIWIFY_PRODUCT_IDS',
-    regexNome: /(kit\s*off[\s-]*grid|off[\s-]*grid.*(gerador|calculadora|ferramenta|dimensionamento))/i,
+    // Mesmo motivo do OFFGRID_PRODUTO_REGEX: o produto se chama "Dimensionamento
+    // Off-Grid" e a palavra vinha ANTES do "off-grid", entao a regra nao casava.
+    regexNome: /off[\s-]*grid/i,
   },
   {
     id: 'precificacao',
