@@ -19,6 +19,7 @@
   border: 1px solid var(--color-border, #334155);
   border-radius: 16px; padding: 18px; margin-top: 16px;
   max-width: 560px; /* formulário legível, centralizado (padrão escanear-conta) */
+  box-shadow: var(--sombra-card);
 }
 .vst-label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 8px; color: var(--color-text-muted, #94a3b8); }
 .vst-select, .vst-input {

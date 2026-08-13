@@ -55,6 +55,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 18px;
+  box-shadow: var(--sombra-card);
 }
 .prec-card-title {
   font-size: 12px;

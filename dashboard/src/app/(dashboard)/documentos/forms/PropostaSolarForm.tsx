@@ -8,7 +8,7 @@ import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
 import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
-import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3 } from 'lucide-react';
+import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart } from 'lucide-react';
 import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
@@ -314,14 +314,6 @@ export default function PropostaSolarPage() {
       }));
     }).catch(() => {});
   }, []);
-  // Edita a cor aqui mesmo e salva direto no cadastro da empresa (PUT parcial).
-  const corTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  function salvarCor(campo: 'cor_marca' | 'cor_secundaria', valor: string) {
-    if (campo === 'cor_marca') setCorEmpresa(valor); else setCorSec(valor);
-    clearTimeout(corTimer.current);
-    corTimer.current = setTimeout(() => { api.put('/company', { [campo]: valor }).catch(() => {}); }, 500);
-  }
-
   // ── Autosave (item 1): rascunho em localStorage, debounce 600ms. Um erro de
   // rede/timeout não apaga mais os ~40 campos. Restaura ao montar, limpa no sucesso.
   const DRAFT_KEY = 'proposta-solar-draft-v1';
@@ -1008,52 +1000,39 @@ export default function PropostaSolarPage() {
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Visual</h2>
 
-          {/* Modelo da proposta: 1 Página (padrão) ou Moderno (completo) */}
+          {/* Modelo da proposta. Os botoes eram feitos a mao, com "●/○" no texto
+              e style inline; agora usam o card padrao da plataforma, o mesmo do
+              Kit Off-Grid e da Precificacao. */}
           <label className={styles.label}>Modelo da proposta</label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 6, marginBottom: 16 }}>
-            {([
-              { m: 1 as const, nome: '1 Página', desc: 'Orçamento A4 compacto, tudo numa página' },
-              { m: 2 as const, nome: 'Moderno', desc: 'Completo, com gráfico de 25 anos' },
-            ]).map((opt) => (
-              <button
-                key={opt.m}
-                type="button"
-                onClick={() => setModelo(opt.m)}
-                style={{
-                  textAlign: 'left', padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
-                  border: modelo === opt.m ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-                  background: modelo === opt.m ? 'var(--color-surface-2, #1e293b)' : 'transparent',
-                  color: 'inherit', transition: 'all 0.15s',
-                }}
-              >
-                <div style={{ fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {modelo === opt.m ? '●' : '○'} {opt.nome}
-                  {opt.m === 1 && <span style={{ fontSize: 10, fontWeight: 700, color: '#0f172a', background: '#fbbf24', padding: '1px 7px', borderRadius: 999 }}>PADRÃO</span>}
-                </div>
-                <div style={{ fontSize: 11.5, color: 'var(--color-text-muted)', marginTop: 3 }}>{opt.desc}</div>
-              </button>
-            ))}
+          <div style={{ marginTop: 6 }}>
+            <Escolhas colunas={2}>
+              <Escolha
+                on={modelo === 1}
+                icone={FileText}
+                onClick={() => setModelo(1)}
+                titulo="1 Página"
+                desc="A4 compacto — padrão"
+              />
+              <Escolha
+                on={modelo === 2}
+                icone={LineChart}
+                onClick={() => setModelo(2)}
+                titulo="Moderno"
+                desc="completo, com gráfico de 25 anos"
+              />
+            </Escolhas>
           </div>
 
-          <label className={styles.label} style={{ marginTop: 4 }}>Suas cores<InfoHint>O toque de marca na proposta: principal nos títulos, destaque nos realces. Edita aqui que já salva na sua empresa. Cor clara é escurecida pra manter a legibilidade.</InfoHint></label>
-          <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 6 }}>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Principal</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="color" value={corEmpresa || '#F26513'} onChange={e => salvarCor('cor_marca', e.target.value)}
-                  style={{ width: 54, height: 42, border: '1px solid var(--color-border)', borderRadius: 9, padding: 2, cursor: 'pointer', background: 'none' }} />
-                <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{(corEmpresa || '').toUpperCase() || '—'}</span>
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Destaque</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="color" value={corSec || '#F7B500'} onChange={e => salvarCor('cor_secundaria', e.target.value)}
-                  style={{ width: 54, height: 42, border: '1px solid var(--color-border)', borderRadius: 9, padding: 2, cursor: 'pointer', background: 'none' }} />
-                <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{(corSec || '').toUpperCase() || '—'}</span>
-              </div>
-            </div>
-          </div>
+          {/* A COR MORA NA EMPRESA, e num lugar só. Editar a mesma coisa em duas
+              telas faz a pessoa não saber qual vale — e aqui era pior: o campo
+              dizia "sua proposta" mas salvava no cadastro da empresa, mudando
+              todos os documentos futuros sem avisar. */}
+          <p style={{ fontSize: 12.5, color: 'var(--color-text-dim)', margin: '14px 0 0', lineHeight: 1.5 }}>
+            As cores da proposta vêm do cadastro da sua empresa.{' '}
+            <Link href="/empresa" style={{ color: 'var(--color-primary)', fontWeight: 700, textDecoration: 'underline' }}>
+              Trocar as cores
+            </Link>
+          </p>
         </div>
 
         {/* CLIENTE */}

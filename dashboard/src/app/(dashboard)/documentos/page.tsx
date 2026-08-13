@@ -180,7 +180,7 @@ function CompanyRequiredGate({ tipo, children }: { tipo: string | null; children
   return <>{children}</>;
 }
 
-function WelcomeBanner({ plan }: { plan: string | null }) {
+function WelcomeBanner() {
   const router = useRouter();
   const [hasCompany, setHasCompany] = useState<boolean | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -192,8 +192,6 @@ function WelcomeBanner({ plan }: { plan: string | null }) {
   }, []);
 
   if (dismissed || hasCompany === null || hasCompany === true) return null;
-
-  const planLabel = plan === 'ilimitado' ? 'VIP' : plan === 'pro' ? 'PRO' : '';
 
   return (
     <div style={{
@@ -224,7 +222,7 @@ function WelcomeBanner({ plan }: { plan: string | null }) {
         }}>✓</div>
         <div style={{ flex: '1 1 280px', lineHeight: 1.5 }}>
           <div style={{ fontWeight: 800, fontSize: 15.5, color: 'var(--color-text)', marginBottom: 2 }}>
-            Plano {planLabel} ativado! Seu acesso já está liberado.
+            Assinatura ativada! Seu acesso já está liberado.
           </div>
           <div style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
             Dá uma olhada nos modelos abaixo. Quando quiser emitir, é só cadastrar sua empresa pra documentos saírem com sua marca.
@@ -250,7 +248,6 @@ function DocumentosContent() {
   const searchParams = useSearchParams();
   const tipo = searchParams.get('tipo');
   const isWelcome = searchParams.get('welcome') === '1';
-  const planFromUrl = searchParams.get('plan');
 
   const formByType = (() => {
     switch (tipo) {
@@ -269,7 +266,7 @@ function DocumentosContent() {
   if (!formByType) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
-        {isWelcome && <WelcomeBanner plan={planFromUrl} />}
+        {isWelcome && <WelcomeBanner />}
         <h2 style={{ marginBottom: '2rem', fontSize: '1.4rem' }}>O que deseja gerar agora?</h2>
         <div style={{
           display: 'grid',

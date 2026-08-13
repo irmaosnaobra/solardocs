@@ -80,6 +80,7 @@
   border-radius: 12px;
   padding: 16px 20px;
   gap: 16px;
+  box-shadow: var(--sombra-card);
 }
 
 .cardInfo {

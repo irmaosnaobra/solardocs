@@ -32,6 +32,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-shadow: var(--sombra-card);
 }
 
 .sectionTitle {
@@ -43,7 +44,22 @@
   border-bottom: 1px solid var(--color-border);
   padding-bottom: 10px;
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }
+/* DESTAQUE DA SEÇÃO — risco âmbar curto na frente do título. É o par da sombra:
+   a sombra separa o card do fundo, o risco diz onde a seção começa. Vem de
+   `--destaque-secao`, em globals.css, pra ser o mesmo em toda ferramenta. */
+.sectionTitle::before {
+  content: '';
+  flex-shrink: 0;
+  width: 3px;
+  height: 1em;
+  border-radius: 2px;
+  background: var(--color-primary);
+}
+
 
 .grid2 {
   display: grid;
