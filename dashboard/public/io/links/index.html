@@ -263,11 +263,13 @@
       users: S + '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>',
       plug:  S + '<path d="M9 2v6M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-12 0V8z"/><path d="M12 17v5"/></svg>',
       up:    S + '<path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>',
+      cal:   S + '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>',
       gift:  S + '<path d="M20 12v10H4V12"/><rect x="2" y="7" width="20" height="5" rx="1"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>',
       drop:  S + '<path d="M12 2.7l5.7 5.6a8 8 0 1 1-11.4 0z"/></svg>',
       deck:  S + '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
       globe: S + '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>',
       box:   S + '<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg>',
+      bike:  S + '<circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>',
       link:  S + '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
     };
 
@@ -276,11 +278,12 @@
     function iconFor(url, custom) {
       if (custom) return esc(custom);
       const u = String(url || '').toLowerCase();
+      if (/bike|bicicleta/.test(u))      return ICONS.bike;
       if (/wa\.me|whatsapp/.test(u))     return ICONS.whats;
       if (/\/simular/.test(u))           return ICONS.calc;
       if (/\/io\/solar/.test(u))         return ICONS.sol;
       if (/\/io\/indicacao/.test(u))     return ICONS.gift;
-      if (/\/io\/eletroposto/.test(u))   return ICONS.up;
+      if (/\/io\/eletroposto/.test(u))   return ICONS.cal;
       if (/eletroposto/.test(u))         return ICONS.plug;
       if (/limpapro/.test(u))            return ICONS.drop;
       if (/\/apresentacao/.test(u))      return ICONS.deck;
