@@ -23,6 +23,7 @@ import {
 } from '@/lib/offgrid/comparativo';
 import { CONST, CARGAS_BLOQUEADAS, ALTERNATIVAS } from '@/lib/offgrid/constantes';
 import { Escolha, Escolhas, Abas, Aba } from '@/components/Escolha/Escolha';
+import InfoHint from '@/components/InfoHint/InfoHint';
 import './offgrid.css';
 import { useRouter } from 'next/navigation';
 
@@ -487,10 +488,15 @@ export default function OffGridPage() {
               </p>
             )}
             <p className="og-hint">
-              Sol em {hsp.porCidade ? e.cidade : e.uf}: <strong>{nb(hsp.anual)} h/dia</strong> na média do ano
+              Sol em {hsp.porCidade ? e.cidade : e.uf}: <strong>{nb(hsp.anual)} h/dia</strong> na média
               e <strong>{nb(hsp.pior)} h/dia</strong> no mês pior
-              {hsp.porCidade ? ' (medição da cidade)' : ' (média do estado — digite a cidade pra afinar)'}.
-              Off-grid não tem rede pra compensar o inverno, por isso o mês pior manda no tamanho do arranjo.
+              <InfoHint>
+                {hsp.porCidade
+                  ? 'Medição da própria cidade.'
+                  : 'Média do estado — digite a cidade pra afinar o número.'}{' '}
+                Off-grid não tem rede pra compensar o inverno, por isso é o mês pior que manda no tamanho
+                do arranjo.
+              </InfoHint>
             </p>
           </div>
 
@@ -517,7 +523,13 @@ export default function OffGridPage() {
                       onChange={(ev) => set('consumoMensalKwh', num(ev.target.value))} />
                   </div>
                   <div className="og-field">
-                    <label className="og-label">Quanto disso é essencial</label>
+                    <label className="og-label">
+                      Quanto disso é essencial
+                      <InfoHint>
+                        O essencial é o que não pode faltar nos dias sem sol. É ele que define o tamanho
+                        da bateria — e é o que responde a pergunta que o cliente sempre faz.
+                      </InfoHint>
+                    </label>
                     <select className="og-select" value={String(e.fracaoEssencial)}
                       onChange={(ev) => set('fracaoEssencial', parseFloat(ev.target.value))}>
                       <option value="0.3">30% — só geladeira e luz</option>
@@ -528,7 +540,14 @@ export default function OffGridPage() {
                   </div>
                 </div>
                 <div className="og-field" style={{ marginTop: 12 }}>
-                  <label className="og-label">Maior motor da instalação</label>
+                  <label className="og-label">
+                    Maior motor da instalação
+                    <InfoHint>
+                      Motor puxa de 3 a 5× a potência na partida. Sem esse dado o inversor sai pela
+                      média e desarma quando a bomba liga — o defeito mais comum em off-grid mal
+                      especificado.
+                    </InfoHint>
+                  </label>
                   <select className="og-select" value={String(e.maiorMotorW)}
                     onChange={(ev) => set('maiorMotorW', parseFloat(ev.target.value))}>
                     <option value="150">Só geladeira</option>
@@ -539,14 +558,7 @@ export default function OffGridPage() {
                   </select>
                 </div>
                 <p className="og-hint">
-                  Motor puxa de 3 a 5× a potência na partida. Sem esse dado o inversor sai pela média e{' '}
-                  <strong>desarma quando a bomba liga</strong> — o defeito mais comum em off-grid mal
-                  especificado.
-                </p>
-                <p className="og-hint">
-                  O essencial é o que <strong>não pode faltar</strong> nos dias sem sol. É ele que define o
-                  tamanho da bateria — e é o que responde a pergunta que o cliente sempre faz. Marcando os
-                  aparelhos um a um o número fica bem mais preciso.
+                  Marcando os aparelhos um a um o número fica bem mais preciso.
                 </p>
               </>
             ) : (
@@ -711,8 +723,11 @@ export default function OffGridPage() {
                     ))}
                   </ul>
                   <p className="og-hint" style={{ color: '#7F1D1D', marginTop: 8 }}>
-                    Um banho de 15 minutos no chuveiro elétrico come 1,4 kWh — um terço de uma bateria
-                    inteira. Quem vende isso entrega uma obra que falha na primeira semana.
+                    Um banho de 15 min come 1,4 kWh — um terço de uma bateria.
+                    <InfoHint>
+                      Quem vende off-grid com chuveiro elétrico entrega uma obra que falha na primeira
+                      semana. A saída é aquecimento a gás ou solar, combinado antes de fechar.
+                    </InfoHint>
                   </p>
                 </div>
               </>
@@ -732,7 +747,14 @@ export default function OffGridPage() {
               ))}
             </Escolhas>
 
-            <label className="og-label" style={{ marginTop: 16 }}>Segurando o quê</label>
+            <label className="og-label" style={{ marginTop: 16 }}>
+              Segurando o quê
+              <InfoHint>
+                Essa é a escolha que mais mexe no preço. Segurar a casa inteira por 3 dias pode dobrar o
+                kit; segurar o essencial (geladeira, luz, água, internet) atende o que o cliente quer
+                dizer com &ldquo;não quero ficar no escuro&rdquo;.
+              </InfoHint>
+            </label>
             <Escolhas colunas={2}>
               <Escolha on={e.autonomiaSobre === 'essencial'} icone={Lightbulb}
                 onClick={() => set('autonomiaSobre', 'essencial')}
@@ -741,14 +763,13 @@ export default function OffGridPage() {
                 onClick={() => set('autonomiaSobre', 'tudo')}
                 titulo="A casa inteira" desc="tudo que está marcado" />
             </Escolhas>
-            <p className="og-hint">
-              Essa é a escolha que mais mexe no preço. Segurar <strong>a casa inteira</strong> por 3 dias
-              pode dobrar o kit; segurar <strong>o essencial</strong>{' '}
-              (geladeira, luz, água, internet) atende o que o cliente realmente quer dizer com{' '}
-              &ldquo;não quero ficar no escuro&rdquo;.
-            </p>
-
-            <label className="og-label" style={{ marginTop: 16 }}>Sombra no telhado</label>
+            <label className="og-label" style={{ marginTop: 16 }}>
+              Sombra no telhado
+              <InfoHint>
+                Árvore, morro, caixa d&apos;água ou o telhado do vizinho. Na dúvida escolha o nível de
+                cima — a árvore que hoje é pequena vai crescer.
+              </InfoHint>
+            </label>
             <Escolhas colunas={3}>
               {([['nenhuma', 'Sem sombra', 'telhado limpo o dia todo', Sun],
                  ['leve', 'Sombra leve', 'perde 8% da geração', CloudSun],
@@ -757,13 +778,14 @@ export default function OffGridPage() {
                   onClick={() => set('sombra', id)} titulo={t} desc={d} />
               ))}
             </Escolhas>
-            <p className="og-hint">
-              Árvore, morro, caixa d&apos;água ou o telhado do vizinho. Sombra leve tira 8% da geração;
-              média tira 18% e engorda o kit inteiro. <strong>Na dúvida, escolha o nível de cima</strong> —
-              a árvore que hoje é pequena vai crescer.
-            </p>
-
-            <label className="og-label" style={{ marginTop: 16 }}>Quanto do consumo roda de dia</label>
+            <label className="og-label" style={{ marginTop: 16 }}>
+              Quanto do consumo roda de dia
+              <InfoHint>
+                Bomba e ar ligados com sol na telha não passam pela bateria. Isso não muda o tamanho do
+                banco (num dia sem sol tudo cai nele), mas muda o desgaste: quanto menos ciclo por dia,
+                mais anos ele dura.
+              </InfoHint>
+            </label>
             <Escolhas colunas={3}>
               {([[0.2, 'Quase à noite', 'banco trabalha mais', Moon],
                  [0.4, 'Metade a metade', 'o mais comum', CloudSun],
@@ -773,12 +795,16 @@ export default function OffGridPage() {
               ))}
             </Escolhas>
             <p className="og-hint">
-              Bomba e ar ligados com sol na telha não passam pela bateria. Isso <strong>não muda o tamanho
-              do banco</strong> (num dia sem sol tudo cai nele), mas muda o desgaste: hoje o banco gira{' '}
-              <strong>{Math.round(r.ciclosDia * 100)}% de um ciclo por dia</strong> — quanto menor, mais anos ele dura.
+              Hoje o banco gira <strong>{Math.round(r.ciclosDia * 100)}% de um ciclo por dia</strong>.
             </p>
 
-            <label className="og-label" style={{ marginTop: 16 }}>Critério do arranjo</label>
+            <label className="og-label" style={{ marginTop: 16 }}>
+              Critério do arranjo
+              <InfoHint>
+                Pelo mês pior o sistema fecha a conta em junho também. Pela média o kit sai mais barato —
+                é o que o kit de prateleira faz — mas no inverno o banco não recompõe e o cliente sente.
+              </InfoHint>
+            </label>
             <Escolhas colunas={2}>
               <Escolha on={e.criterioHsp === 'pior'} icone={ShieldCheck}
                 onClick={() => set('criterioHsp', 'pior')}
@@ -787,11 +813,7 @@ export default function OffGridPage() {
                 onClick={() => set('criterioHsp', 'media')}
                 titulo="Média do ano" desc="mais barato, falta no inverno" />
             </Escolhas>
-            <p className="og-hint">
-              Pelo <strong>mês pior</strong> o sistema fecha a conta em junho também. Pela{' '}
-              <strong>média</strong> o kit sai mais barato — é o que o kit de prateleira faz — mas no
-              inverno o banco não recompõe e o cliente sente.
-            </p>
+
           </div>
 
           {/* 4. PREÇO */}
@@ -799,7 +821,13 @@ export default function OffGridPage() {
             <div className="og-card-title"><span className="og-num">4</span> O seu preço</div>
             <div className="og-row">
               <div className="og-field">
-                <label className="og-label">Sua margem (%)</label>
+                <label className="og-label">
+                  Sua margem (%)
+                  <InfoHint>
+                    Incide sobre fornecimento + frete + serviço. O cliente vê um preço só na proposta —
+                    custo e margem ficam nesta tela, nunca no PDF.
+                  </InfoHint>
+                </label>
                 <input className="og-input" inputMode="decimal" value={e.margemPct || ''}
                   onChange={(ev) => set('margemPct', num(ev.target.value))} />
               </div>
@@ -814,11 +842,6 @@ export default function OffGridPage() {
                   onChange={(ev) => set('extras', num(ev.target.value))} placeholder="obra civil, guindaste" />
               </div>
             </div>
-            <p className="og-hint">
-              A margem incide sobre fornecimento + frete + serviço. O cliente vê{' '}
-              <strong>um preço só</strong> na proposta — custo e margem ficam nesta tela, nunca no PDF.
-            </p>
-
             <label className="og-label" style={{ marginTop: 16 }}>Parcelamento que vai na proposta</label>
             <div className="og-row">
               <div className="og-field">
@@ -864,7 +887,14 @@ export default function OffGridPage() {
                   onChange={(ev) => setComp({ ...comp, distanciaRedeM: num(ev.target.value) })} placeholder="0 = já tem rede" />
               </div>
               <div className="og-field">
-                <label className="og-label">R$ por metro de rede</label>
+                <label className="og-label">
+                  R$ por metro de rede
+                  <InfoHint>
+                    Orçamentos reais de extensão rural ficaram entre R$ 118 e R$ 367 o metro — a diferença
+                    é o transformador e o terreno. O número oficial só a concessionária dá; este aqui é
+                    estimativa, e a proposta diz isso com todas as letras.
+                  </InfoHint>
+                </label>
                 <input className="og-input" inputMode="decimal" value={comp.precoMetroRede || ''}
                   onChange={(ev) => setComp({ ...comp, precoMetroRede: num(ev.target.value) })} />
               </div>
@@ -883,11 +913,7 @@ export default function OffGridPage() {
                 onClick={() => setComp({ ...comp, precisaTransformador: true })}
                 titulo="Com transformador" desc="soma na obra da rede" />
             </Escolhas></div>
-            <p className="og-hint">
-              Orçamentos reais de extensão rural ficaram entre <strong>R$ 118 e R$ 367 o metro</strong> — a
-              diferença é o transformador e o terreno. O número oficial só a concessionária dá; este aqui é
-              estimativa e a proposta diz isso com todas as letras.
-            </p>
+
           </div>
         </div>
 

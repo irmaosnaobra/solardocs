@@ -7,6 +7,8 @@ import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine, Pencil 
 import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
+import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
+import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3 } from 'lucide-react';
 import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
@@ -44,6 +46,17 @@ const PALETAS = [
   { id: 'royal',    nome: 'Royal',    c1: '#8B5CF6', c2: '#A78BFA' },
   { id: 'carbono',  nome: 'Carbono',  c1: '#1F2937', c2: '#F59E0B' },
 ] as const;
+
+/** Ícone por tipo de telhado — a escolha entra pelos olhos antes da palavra. */
+const ICONE_TELHADO: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  'Cerâmico': Home,
+  'Fibrocimento': Building2,
+  'Metálico': Factory,
+  'Cimento': Layers,
+  'Laje': Grid3x3,
+  'Solo': Mountain,
+  'Carport': Car,
+};
 
 const TIPOS_TELHADO = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport'] as const;
 
@@ -1183,30 +1196,20 @@ export default function PropostaSolarPage() {
 
           <div style={{ marginTop: 16 }}>
             <label className={styles.label}>Tipo de instalação</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-              {TIPOS_TELHADO.map((t) => {
-                const selected = fields.tipo_telhado === t;
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setField('tipo_telhado', selected ? '' : t)}
-                    style={{
-                      padding: '8px 14px',
-                      borderRadius: 8,
-                      border: selected ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-                      background: selected ? 'var(--color-text)' : 'var(--color-surface)',
-                      color: selected ? 'var(--color-bg)' : 'var(--color-text)',
-                      fontSize: 13,
-                      fontWeight: selected ? 700 : 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {t}
-                  </button>
-                );
-              })}
+            {/* Cada telhado tem um icone porque a escolha e' visual na cabeca de
+                quem instala — ele "ve" o telhado antes de ler a palavra. */}
+            <div style={{ marginTop: 6 }}>
+              <Escolhas colunas={4}>
+                {TIPOS_TELHADO.map((t) => {
+                  const Ic = ICONE_TELHADO[t] ?? Home;
+                  const selected = fields.tipo_telhado === t;
+                  return (
+                    <Escolha key={t} on={selected} icone={Ic}
+                      onClick={() => setField('tipo_telhado', selected ? '' : t)}
+                      titulo={t} />
+                  );
+                })}
+              </Escolhas>
             </div>
           </div>
         </div>

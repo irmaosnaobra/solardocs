@@ -8,6 +8,8 @@ import {
 import api from '@/services/api';
 import ClientModal from '@/components/ClientModal/ClientModal';
 import './vistoria.css';
+import { Abas, Aba } from '@/components/Escolha/Escolha';
+import { UserPlus, Users, Type } from 'lucide-react';
 
 // Telemetria de uso (não abate crédito — vistoria é ferramenta de campo).
 function logUso(event_type: string) {
@@ -302,11 +304,11 @@ export default function VistoriaPage() {
 
         <div className="vst-card">
           <label className="vst-label">Cliente</label>
-          <div className="vst-seg">
-            <button className={`vst-segBtn ${modo === 'novo' ? 'on' : ''}`} onClick={() => setModo('novo')}>Cadastrar Cliente</button>
-            <button className={`vst-segBtn ${modo === 'cadastrado' ? 'on' : ''}`} onClick={() => setModo('cadastrado')}>Cliente Cadastrado</button>
-            <button className={`vst-segBtn ${modo === 'nome' ? 'on' : ''}`} onClick={() => setModo('nome')}>Apenas Nome</button>
-          </div>
+          <Abas>
+            <Aba on={modo === 'novo'} onClick={() => setModo('novo')} icone={UserPlus}>Cadastrar</Aba>
+            <Aba on={modo === 'cadastrado'} onClick={() => setModo('cadastrado')} icone={Users}>Já é cliente</Aba>
+            <Aba on={modo === 'nome'} onClick={() => setModo('nome')} icone={Type}>Só o nome</Aba>
+          </Abas>
 
           {modo === 'cadastrado' && (
             grupos.some((g) => g.clientes.length > 0) ? (
@@ -332,7 +334,7 @@ export default function VistoriaPage() {
                 })()}
               </>
             ) : (
-              <p className="vst-heroSub" style={{ marginBottom: 14 }}>Nenhum cliente cadastrado ainda. Use “Cadastrar Cliente” ou “Apenas Nome”.</p>
+              <p className="vst-heroSub" style={{ marginBottom: 14 }}>Nenhum cliente cadastrado ainda. Use “Cadastrar” ou “Só o nome”.</p>
             )
           )}
           {modo === 'nome' && (
