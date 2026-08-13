@@ -77,6 +77,7 @@ const initialFields = {
   uf: '',
   consumo_kwh: '',
   qtd_modulos: '',
+  area_m2: '',
   marca_modulo: '',
   potencia_modulo: '',
   qtd_inversores: '1',
@@ -331,6 +332,9 @@ export default function PropostaSolarPage() {
   // automática cala a boca. Sem esta distinção, o "já tem valor" incluía o valor
   // que a própria sugestão acabou de escrever — ver o useEffect lá embaixo.
   const qtdModulosManual = useRef(false);
+  // Mesma ideia pra metragem do telhado: 2,5 m² por módulo é chute de catálogo,
+  // e quem subiu no telhado tem o número de verdade. Escreveu, é dele.
+  const areaManual = useRef(false);
   // Campos que a PESSOA mexeu nesta sessão do formulário. Preenchimento
   // automático que chega depois (kit do vendedor, que vem por rede) não escreve
   // por cima deles. Regra da casa: o que o cliente coloca, fica.
@@ -353,6 +357,7 @@ export default function PropostaSolarPage() {
       if (d.fields) setFields(f => ({ ...f, ...d.fields }));
       // Rascunho já tinha quantidade: era escolha da pessoa, a sugestão não mexe.
       if (d.fields?.qtd_modulos) qtdModulosManual.current = true;
+      if (d.fields?.area_m2) areaManual.current = true;
     } catch { /* rascunho corrompido — ignora */ }
     // Roda de novo quando o ?doc= sai da URL ("Nova proposta" depois de uma edição):
     // é o que religa o autosave, que fica desligado durante a edição.
@@ -433,6 +438,7 @@ export default function PropostaSolarPage() {
       setFields(f => ({ ...f, ...dados }));
       // Proposta já emitida: a quantidade dela é decisão tomada, não palpite.
       if (dados.qtd_modulos) qtdModulosManual.current = true;
+      if (dados.area_m2) areaManual.current = true;
       setClienteNome(String(d.cliente_nome || ''));
       const cid = String(dados.cidade || '').trim(), uf = String(dados.uf || '').trim();
       if (cid || uf) setCidadeUf([cid, uf].filter(Boolean).join(' - '));
@@ -467,6 +473,8 @@ export default function PropostaSolarPage() {
         setFields(f => ({ ...f, ...c }));
         // Veio a quantidade da última proposta dele: é dado real, não sugestão.
         if (c.qtd_modulos) qtdModulosManual.current = true;
+        // A metragem do telhado dele não muda de uma proposta pra outra.
+        if (c.area_m2) areaManual.current = true;
         setClienteNome(nome);
         const cid = String(c.cidade || '').trim(), uf = String(c.uf || '').trim();
         if (cid || uf) setCidadeUf([cid, uf].filter(Boolean).join(' - '));
@@ -513,6 +521,21 @@ export default function PropostaSolarPage() {
     const qtd = String(Math.ceil((kwh / 115 * 1000) / potMod));
     setFields(f => (f.qtd_modulos === qtd ? f : { ...f, qtd_modulos: qtd }));
   }, [fields.consumo_kwh, fields.potencia_modulo]);
+
+  // Área que os módulos ocupam: 2,5 m² cada (módulo de 60/72 células com a folga
+  // de fixação). É o mesmo número que o PDF calculava sozinho — a diferença é que
+  // agora ele aparece na tela e dá pra trocar pela metragem medida no telhado.
+  const areaSugerida = (() => {
+    const qtd = parseInt(fields.qtd_modulos, 10);
+    return qtd > 0 ? Math.round(qtd * 2.5 * 10) / 10 : 0;
+  })();
+
+  // Acompanha a quantidade de módulos até alguém escrever a metragem na mão.
+  useEffect(() => {
+    if (areaManual.current) return;
+    const valor = areaSugerida > 0 ? String(areaSugerida).replace('.', ',') : '';
+    setFields(f => (f.area_m2 === valor ? f : { ...f, area_m2: valor }));
+  }, [areaSugerida]);
 
   // Parcelas no cartão — taxa total Elo padrão (editável por proposta).
   // Fórmula: valor parcela = (investimento × (1 + taxa%)) / N
@@ -587,11 +610,12 @@ export default function PropostaSolarPage() {
     setCidadeUf('');
     // Documento novo: a sugestão de módulos volta a valer e nada está "tocado".
     qtdModulosManual.current = false;
+    areaManual.current = false;
     camposTocados.current.clear();
     setFields(f => ({
       ...f,
       // específicos do cliente/venda — zerados:
-      consumo_kwh: '', qtd_modulos: '', potencia_modulo: '',
+      consumo_kwh: '', qtd_modulos: '', area_m2: '', potencia_modulo: '',
       qtd_inversores: initialFields.qtd_inversores, potencia_inversor: '',
       // bateria: capacidade/potência/ciclos são específicos da venda; marca e
       // garantia ficam (template do integrador, igual marca_inversor).
@@ -1171,6 +1195,18 @@ export default function PropostaSolarPage() {
                 value={fields.geracao_media_kwh}
                 onChange={e => setField('geracao_media_kwh', maskMilhar(e.target.value))}
                 placeholder={geracaoMediaSugerida > 0 ? `Estimado: ${geracaoMediaSugerida.toLocaleString('pt-BR')} kWh/mês (deixe vazio pra usar)` : 'Preencha kWp e cidade pra ver estimativa'}
+                className="input-field"
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Área do telhado (m²)<InfoHint>Sai na proposta como a área que o sistema ocupa. Vem preenchida por 2,5 m² por módulo — se você foi no telhado e mediu, escreve a sua metragem que ela manda.</InfoHint></label>
+              {/* Preenchida sozinha enquanto ninguém mexeu; escreveu, é dele. */}
+              <input
+                type="text"
+                inputMode="decimal"
+                value={fields.area_m2}
+                onChange={e => { areaManual.current = e.target.value.trim() !== ''; setField('area_m2', e.target.value); }}
+                placeholder={areaSugerida > 0 ? `Ex: ${areaSugerida.toLocaleString('pt-BR')}` : 'Preencha a quantidade de módulos'}
                 className="input-field"
               />
             </div>

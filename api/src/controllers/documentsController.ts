@@ -804,7 +804,7 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
 //  - clientes: nomes recentes com histórico de proposta (pro seletor).
 //  - cliente: a proposta mais recente de um cliente (por nome) → tudo dele volta.
 const CLIENTE_ONLY = new Set<string>([
-  'cliente_nome', 'codigo', 'cidade', 'uf', 'endereco', 'consumo_kwh', 'qtd_modulos',
+  'cliente_nome', 'codigo', 'cidade', 'uf', 'endereco', 'consumo_kwh', 'qtd_modulos', 'area_m2',
   'geracao_media_kwh', 'geracao_media', 'hsp', 'tarifa_kwh', 'investimento', 'preco_avista',
   'entrada_valor', 'entrada_modo', 'entrada_dias', 'pag_custom', 'tipo_telhado',
   'bateria_capacidade_kwh', 'bateria_potencia_kw', 'bateria_ciclos', 'bateria_marca', 'bateria_garantia', 'bateria_tem',

@@ -1882,7 +1882,13 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const geracaoAnual = mensal.reduce((a, b) => a + b, 0);
   const mediaMensalGerada = Math.round(geracaoAnual / 12);
   const autonomia = consumoKwh > 0 ? Math.min(130, Math.round((mediaMensalGerada / consumoKwh) * 100)) : 100;
-  const areaM2 = qtdModulos > 0 ? Math.round(qtdModulos * 2.5 * 10) / 10 : 0;
+  // Área do telhado. O padrão é 2,5 m² por módulo, mas telhado real tem recuo,
+  // caimento, chaminé e sombra — quem foi lá medir manda mais que a conta, então
+  // o campo é editável no formulário e o que vier dele vence.
+  const areaInformada = parseBRL(f.area_m2);
+  const areaM2 = areaInformada > 0
+    ? areaInformada
+    : (qtdModulos > 0 ? Math.round(qtdModulos * 2.5 * 10) / 10 : 0);
 
   const inflacao = (parseFloat(String(f.inflacao_aa || '6').replace(',', '.')) || 6) / 100;
   const inflacaoMin = (parseFloat(String(f.taxa_minima_inflacao_aa || '6').replace(',', '.')) || 6) / 100;
