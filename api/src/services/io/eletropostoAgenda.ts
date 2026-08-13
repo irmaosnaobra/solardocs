@@ -8,11 +8,14 @@
 // recuperar quem esqueceu.
 //
 // Três toques, todos pro CLIENTE, todos na linha IO:
-//   1. AO MARCAR      — confirma dia/hora, diz que é por vídeo, que o link cai
-//                       neste chat, e PEDE UM "SIM" (o compromisso explícito é o
-//                       que separa quem vai de quem só clicou).
+//   1. AO MARCAR      — confirma dia/hora, diz que é por vídeo, que o link chega
+//                       pelo WhatsApp DO CONSULTOR, e PEDE UM "SIM" (o compromisso
+//                       explícito é o que separa quem vai de quem só clicou).
 //   2. 1 HORA ANTES   — avisa que o link está vindo e abre a porta do remarcar.
-//   3. 5 MINUTOS ANTES— "estamos na espera, o link cai aqui a qualquer momento".
+//   3. 5 MINUTOS ANTES— "ele já está te esperando, o link cai a qualquer momento".
+//
+// Os três avisam que pode atrasar uns minutos: a reunião de antes estica quando
+// vai pra fechamento, e lead esperando sem aviso acha que furaram com ele.
 //
 // ── O que ele NÃO faz (de propósito) ──
 //   • Não manda o link. Quem manda é gente — o robô só avisa que ele vem. Prometer
@@ -155,13 +158,27 @@ export function telefoneBonito(raw: string | null | undefined): string {
   return `(${ddd}) ${resto.slice(0, resto.length - 4)}-${resto.slice(-4)}`;
 }
 
-/** A bolha do telefone só existe se o número existir. Consultor sem WhatsApp
- *  cadastrado faz a frase sumir inteira — nunca sai "(  ) -" nem "—". */
-const seTelefone = (tel: string, frase: (t: string) => string): string[] => (tel ? [frase(tel)] : []);
+/**
+ * "pelo WhatsApp do *Diego*, o *(34) 99136-0172*" — e sem número cadastrado,
+ * "pelo WhatsApp do *Diego*", nunca "(  ) -" nem "o **".
+ *
+ * Quem manda o link da chamada é o CONSULTOR, do número dele — não este chat.
+ * A copy antiga dizia "o link cai aqui neste chat" nos três toques e mandava o
+ * lead vigiar a janela errada.
+ */
+const deOnde = (quem: string, tel: string) => `pelo WhatsApp do *${quem}*${tel ? `, o *${tel}*` : ''}`;
+
+// O aviso de atraso é pedido do dono: a reunião anterior estica quando vai pra
+// fechamento, e sem essa linha o lead que espera 10 minutos acha que furaram.
+const PODE_ATRASAR = 'a reunião de antes costuma esticar quando o cliente fecha';
 
 // ── 1. AO MARCAR ────────────────────────────────────────────────────────────
 // Serve pra ficha nova E pra backlog: nada aqui diz "acabei de receber", então a
 // mesma copy funciona 30 segundos ou 3 dias depois do agendamento.
+//
+// Cinco bolhas, uma ideia cada — e é de propósito: o teto do `sendHuman` é 5, e
+// as 8 bolhas da versão anterior eram reagrupadas na saída, colando o pedido de
+// SIM no meio de um parágrafo. Bolha nova aqui custa uma linha embolada lá.
 export function bolhasConfirmacao(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
   telVendedor?: string | null,
@@ -170,17 +187,23 @@ export function bolhasConfirmacao(
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   const tel = telefoneBonito(telVendedor);
   return [
-    `Oi${comNome(n)}! Aqui é da *Irmãos na Obra* — sou eu que cuido da agenda das reuniões de eletroposto. ⚡`,
-    `Sua reunião com o *${quem}* está confirmada: *${quandoPorExtenso(quandoIso)}* (horário de Brasília).`,
-    ...seTelefone(tel, t => `O WhatsApp do ${quem} é *${t}* — salva esse contato, é de lá que ele fala com você.`),
-    'É por vídeo, pelo celular mesmo ou pelo computador. O link cai aqui neste chat pouco antes do horário — você não precisa instalar nada.',
-    'O horário fica reservado só pra você, e até lá a gente monta o estudo do seu ponto. Então me confirma: responde *SIM* que eu travo no seu nome. 👍',
+    // A marca fica na PRIMEIRA frase de propósito: esta é a estreia da linha IO
+    // na conversa, de um número que o lead nunca viu. Foi mensagem sem remetente
+    // que fez um lead de solar responder "não solicitei nenhum serviço".
+    `Oi${comNome(n)}! Aqui é da *Irmãos na Obra* — sua reunião de eletroposto com o *${quem}* está confirmada: *${quandoPorExtenso(quandoIso)}* (Brasília).`,
+    // "salva o contato" só existe quando há número pra salvar: sem ele a frase
+    // mandava o lead guardar um contato que a mensagem não mostra.
+    `É por vídeo. O link chega ${deOnde(quem, tel)}${tel ? ' — salva o contato' : ''}. Não precisa instalar nada.`,
+    // O pedido de antecedência anda COLADO no motivo: "avisa antes" sozinho é
+    // regra de empresa, e o lead ignora. Com "a procura está alta e o horário
+    // fica bloqueado" vira favor a alguém — é o mesmo argumento do portão de
+    // presença da LP, que já derruba quem não vai antes de gravar a ficha.
+    'Me responde *SIM* que eu travo o horário. Se precisar desmarcar, me avisa antes que eu remarco — a procura está alta e o horário fica bloqueado.',
     // O pedido de material é o que transforma a primeira reunião: sem isso o
     // consultor descobre na call que não tem ponto, não tem conta de luz e não
     // sabe o consumo — e a hora vira entrevista em vez de proposta.
-    'E já me conta o que você tem sobre o seu eletroposto: onde é (ou onde está pensando), foto ou localização do ponto, conta de luz, e o que você já pesquisou ou orçou. Pode mandar tudo aqui, por texto, foto ou áudio.',
-    'Quanto mais eu souber antes, mais a reunião rende — a gente já entra falando de número em vez de gastar a hora perguntando.',
-    'E se o dia ou a hora não der mais, me fala aqui que eu remarco na hora — sem problema nenhum.',
+    'E já me manda o que tiver do ponto: onde é, foto ou localização, conta de luz, e o que já pesquisou ou orçou. Texto, foto ou áudio.',
+    `Se ele atrasar uns minutos no dia, me espera aí — ${PODE_ATRASAR}.`,
   ];
 }
 
@@ -193,11 +216,11 @@ export function bolhas1h(
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   const tel = telefoneBonito(telVendedor);
   return [
-    `Oi${comNome(n)}! Falta *1 hora* pra sua reunião com o *${quem}*, às ${horaCurta(quandoIso)}. ⏰`,
-    'Daqui a pouco eu te mando o link aqui neste chat — é só clicar na hora.',
-    ...seTelefone(tel, t => `O ${quem} também pode te chamar do *${t}* — é o WhatsApp dele.`),
-    'Deixa separado um cantinho com internet e sinal, que a conversa é por vídeo.',
-    'Se aconteceu algum imprevisto, me avisa agora que eu remarco pra outro dia. Se está de pé, me responde *SIM*. 👍',
+    `Oi${comNome(n)}! Falta *1 hora* pra sua reunião com o *${quem}*, às ${horaCurta(quandoIso)}.`,
+    `O link da chamada chega ${deOnde(quem, tel)} — fica de olho lá.`,
+    'Separa um canto com internet, que é por vídeo.',
+    `Se ele atrasar uns minutos, segura aí: ${PODE_ATRASAR}.`,
+    'Se aconteceu um imprevisto, me avisa que eu remarco. Se está de pé, responde *SIM*.',
   ];
 }
 
@@ -210,11 +233,9 @@ export function bolhas5min(
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   const tel = telefoneBonito(telVendedor);
   return [
-    `${n ? n + ', é' : 'É'} agora! Sua reunião começa às ${horaCurta(quandoIso)}. 📹`,
-    `O *${quem}* já está aqui te esperando.`,
-    'Fica de olho neste chat: o link da chamada cai aqui a qualquer momento — é só clicar e entrar.',
-    ...seTelefone(tel, t => `Qualquer coisa, chama ele direto no *${t}*.`),
-    'Até já! ⚡',
+    `${n ? n + ', é' : 'É'} agora! Sua reunião começa às ${horaCurta(quandoIso)}.`,
+    `O *${quem}* já está te esperando${tel ? ` — o WhatsApp dele é *${tel}*` : ''}. O link cai lá a qualquer momento, é só clicar e entrar.`,
+    `Se demorar uns minutos, não desiste: ${PODE_ATRASAR}.`,
   ];
 }
 

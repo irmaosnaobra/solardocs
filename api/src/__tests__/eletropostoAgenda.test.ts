@@ -280,6 +280,16 @@ describe('o que ele fala', () => {
     expect(txt).toContain('remarco');
   });
 
+  // Pedido do dono: horário desmarcado em cima da hora não volta pra agenda, e a
+  // procura é alta. O "avisa antes" só cola se vier com o motivo.
+  it('a confirmação pede antecedência pra desmarcar, com o motivo junto', async () => {
+    const { bolhasConfirmacao } = await mod();
+    const txt = bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego').join(' ');
+    expect(txt).toContain('desmarcar');
+    expect(txt).toContain('avisa antes');
+    expect(txt).toContain('procura está alta');
+  });
+
   it('nenhum toque afirma que o link JÁ foi enviado — quem manda é gente', async () => {
     const { bolhasConfirmacao, bolhas1h, bolhas5min } = await mod();
     for (const bolhas of [
@@ -293,7 +303,7 @@ describe('o que ele fala', () => {
     }
   });
 
-  // O pedido de SIM é a única alavanca real contra o no-show. Ele é a 5ª de 6
+  // O pedido de SIM é a única alavanca real contra o no-show. Ele é a 3ª de 5
   // partes da confirmação, e o sendHuman re-fatia tudo com teto de 5 bolhas — se
   // um dia esse reagrupamento passar a cortar, é ESTA linha que se perde primeiro.
   it('o pedido de SIM sobrevive ao fatiamento em bolhas do envio', async () => {
@@ -306,6 +316,71 @@ describe('o que ele fala', () => {
     // por um parágrafo de 400 caracteres, ninguém responde e a alavanca some.
     const bolhaDoSim = saida.find(b => b.includes('*SIM*'))!;
     expect(bolhaDoSim.length).toBeLessThan(260);
+  });
+
+  // A confirmação sai como foi escrita: 5 bolhas, uma ideia cada. Se alguém
+  // acrescentar uma 6ª, o teto do sendHuman reagrupa e a mensagem volta a ser
+  // parágrafo — foi por isso que a versão de 8 bolhas chegava embolada.
+  it('a confirmação cabe no teto de bolhas sem ser reagrupada', async () => {
+    const { emBolhas } = await import('../services/agents/bolhas');
+    const { bolhasConfirmacao } = await mod();
+    // O pior caso mora na 1ª bolha e é o mais longo que a régua consegue montar:
+    // nome grande + o fallback "nosso consultor" + "segunda-feira" (o dia de nome
+    // mais comprido). Ela fecha em 156 de 160 — margem curta de propósito, e é
+    // exatamente por isso que este teste existe.
+    for (const partes of [
+      bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego', '5534991360172'),
+      bolhasConfirmacao('Wanderleia', '2026-08-17T20:30:00.000Z', null, '5534991360172'),
+      bolhasConfirmacao('Wanderleia', '2026-08-17T20:30:00.000Z', null),
+    ]) {
+      expect(emBolhas(partes.join('||'))).toEqual(partes);
+    }
+  });
+
+  // Primeira mensagem que o lead recebe da linha IO, de um número que ele nunca
+  // viu. Sem remetente é o cenário do "não solicitei nenhum serviço".
+  it('a confirmação se apresenta pela marca', async () => {
+    const { bolhasConfirmacao } = await mod();
+    expect(bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego')[0]).toContain('Irmãos na Obra');
+  });
+
+  // Sem número cadastrado não dá pra mandar salvar contato nenhum — a frase
+  // inteira some, não vira "salva o contato" sem contato à vista.
+  it('sem WhatsApp do consultor, a confirmação não manda salvar contato', async () => {
+    const { bolhasConfirmacao } = await mod();
+    const txt = bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego').join(' ');
+    expect(txt).toContain('link');
+    expect(txt).not.toContain('salva o contato');
+  });
+
+  // Quem manda o link é o consultor, do WhatsApp dele. A copy antiga mandava o
+  // lead esperar "neste chat" e ele ficava olhando a janela errada.
+  it('o link vem do número do consultor, não deste chat', async () => {
+    const { bolhasConfirmacao, bolhas1h, bolhas5min } = await mod();
+    const q = '2026-08-05T18:30:00.000Z';
+    for (const b of [
+      bolhasConfirmacao('Irineu', q, 'Diego', '5534991360172'),
+      bolhas1h('Irineu', q, 'Diego', '5534991360172'),
+      bolhas5min('Irineu', q, 'Diego', '5534991360172'),
+    ]) {
+      const txt = b.join(' ');
+      expect(txt).toContain('(34) 99136-0172');
+      expect(txt).not.toMatch(/neste chat|aqui neste/i);
+    }
+  });
+
+  // Pedido do dono: a reunião de antes estica quando vai pra fechamento. Sem o
+  // aviso, o lead que espera 10 minutos acha que furaram com ele.
+  it('os três toques avisam que pode atrasar um pouco', async () => {
+    const { bolhasConfirmacao, bolhas1h, bolhas5min } = await mod();
+    const q = '2026-08-05T18:30:00.000Z';
+    for (const b of [
+      bolhasConfirmacao('Irineu', q, 'Diego'),
+      bolhas1h('Irineu', q, 'Diego'),
+      bolhas5min('Irineu', q, 'Diego'),
+    ]) {
+      expect(b.join(' ')).toContain('a reunião de antes costuma esticar quando o cliente fecha');
+    }
   });
 
   // Pedido do dono: a primeira reunião rende muito mais se o lead já mandar o
