@@ -882,7 +882,13 @@ router.get('/master', async (req: Request, res: Response) => {
     // e 25 pessoas com até 16 documentos gerados nunca receberam um e-mail.
     // É e-mail (sem risco de ban), 3 toques com folga de 0/3/4 dias, contador próprio.
     ['upgrade-nudge',               () => runUpgradeNudge()],            // 3 emails — free engajado (3+ docs) → assinatura
-    // ['no-contracts-reminder',       () => runNoContractsEmailReminder()], // [PAUSED-FOLLOWUP] lembrete inativos por email
+    // Religado 12/08/2026: é E-MAIL, e o motivo da pausa de mai/2026 foi o ban da
+    // linha Z-API — que não tem nada a ver com esta cadência. Pega quem tem empresa
+    // cadastrada e está 7+ dias sem gerar documento, em cadência decrescente
+    // (7→14→30→60→90 dias, para no 5º). Inclui PAGANTE de propósito: a cópia é
+    // "sua conta está parada, é só abrir e gerar" — nada de "ative sua conta
+    // grátis" — e assinante inativo é justamente quem cancela em 12 dias.
+    ['no-contracts-reminder',       () => runNoContractsEmailReminder()], // lembrete de inativo por email
     // 2026-06-30: WhatsApp Carla RELIGADO já como UMA persona (Giovanna) que leva
     //   o follow-up até a venda. Conserto feito: (1) o opener é salvo na sessão por
     //   user_id (registrarMsgProativa) → quando o cliente responde, a Giovanna lê o
@@ -901,7 +907,12 @@ router.get('/master', async (req: Request, res: Response) => {
     ['curso-entrada-19',            () => runCursoEntradaBroadcast()],    // 3 toques; para quando o lead responde
     ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // follow-up Giovanna — 3 toques 30d
     ['carla-inativo',               () => runCarlaInativoFollowup()],     // follow-up Giovanna — 5 toques 60d
-    // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [PAUSED-FOLLOWUP] broadcast matinal
+    // FICA DESLIGADO. Conferido em 12/08/2026: sdrB2bMorningHook chama `sendZAPI`
+    // CRU — fora do teto da linha, fora da margem de 5 min e fora da janela 08–21h.
+    // É exatamente o caminho que bloqueou a linha de 01 a 03/ago (57 msgs em 5h).
+    // Broadcast matinal disparando de madrugada, sem espaçamento, é denúncia certa.
+    // Religar exige antes passar pelo sendHuman/lineThrottle, como a Bia e a Giovanna.
+    // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [BLOQUEIA A LINHA] broadcast matinal sem throttle
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
     ['sync-social-windsor',         () => syncSocialWindsor()],      // métricas IG+TikTok → aba Redes do gerador

@@ -11,6 +11,42 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Idempotência: só envia se o último email foi há ≥ 23h
 const MIN_GAP_MS = 23 * 60 * 60 * 1000;
 
+// ─── ANTI-BLOQUEIO DE E-MAIL ─────────────────────────────────────────────────
+// A linha do WhatsApp tem teto anti-ban; a caixa de entrada também tem, e ele é
+// invisível até o domínio cair no spam. Este remetente manda ~13 e-mails por MÊS.
+// Com o upgrade-nudge (25 pessoas) e o lembrete de inativo (104) ligados, uma
+// rodada do /master dispararia 129 e-mails no MESMO minuto — pico de 10× o
+// volume mensal, que é a assinatura clássica de lista comprada.
+//
+// O /master roda de hora em hora, então o teto por rodada vira rampa sozinho:
+// 10 por cadência escoa a fila em ~13 horas em vez de um minuto. Quem não coube
+// não é perdido, é o primeiro da próxima rodada.
+const EMAIL_TETO_POR_RODADA = 10;
+
+/** Timestamp do Postgres → ms. Aceita timestamptz ("...+00") e timestamp seco. */
+function tsMs(v: unknown): number {
+  if (!v) return 0;
+  const s = String(v);
+  const iso = /[zZ]|[+-]\d{2}:?\d{2}$/.test(s) ? s.replace(' ', 'T') : s.replace(' ', 'T') + 'Z';
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? 0 : t;
+}
+
+/**
+ * Já levou e-mail de marketing nas últimas 23h? Cada cadência tem carimbo
+ * próprio, e 24 pessoas se qualificam pro upgrade-nudge E pro lembrete de
+ * inativo ao mesmo tempo — sem esta trava elas receberiam DOIS e-mails
+ * nossos no mesmo minuto, que é o jeito mais rápido de virar spam.
+ */
+function recebeuEmailRecente(u: Record<string, unknown>): boolean {
+  const agora = Date.now();
+  return ['followup_email_last_sent_at', 'upgrade_nudge_last_sent_at', 'contract_reminder_last_sent_at']
+    .some(col => {
+      const t = tsMs(u[col]);
+      return t > 0 && agora - t < MIN_GAP_MS;
+    });
+}
+
 // Cadência CNPJ (refatorada 2026-05-21): 13 emails ao longo de 365 dias.
 // Foco no Gerador de Proposta Personalizado. Disparada às 8h30 BRT.
 // Audiência: usuários sem CNPJ (não-ativos na plataforma).
@@ -172,7 +208,7 @@ export async function runNoContractsEmailReminder(): Promise<{ sent: number; ski
 
   const { data: candidates } = await supabase
     .from('users')
-    .select('id, email, nome, created_at, contract_reminder_last_sent_at, contract_reminder_count, email_opt_out')
+    .select('id, email, nome, created_at, contract_reminder_last_sent_at, contract_reminder_count, email_opt_out, followup_email_last_sent_at, upgrade_nudge_last_sent_at')
     .in('id', companyUserIds);
 
   if (!candidates || candidates.length === 0) return { sent: 0, skipped: 0 };
@@ -194,8 +230,10 @@ export async function runNoContractsEmailReminder(): Promise<{ sent: number; ski
   let skipped = 0;
 
   for (const u of candidates) {
+    if (sent >= EMAIL_TETO_POR_RODADA) { skipped++; continue; } // resto vai na próxima rodada (de hora em hora)
     if (!u.email) { skipped++; continue; }
     if (u.email_opt_out) { skipped++; continue; }
+    if (recebeuEmailRecente(u)) { skipped++; continue; }        // já levou outro e-mail nosso hoje
 
     const count = (u.contract_reminder_count as number | null) ?? 0;
     if (count >= MAX_REMINDERS) { skipped++; continue; }
@@ -482,7 +520,7 @@ export async function runUpgradeNudge(): Promise<{ sent: number; skipped: number
 
   const { data: users } = await supabase
     .from('users')
-    .select('id, email, nome, plano, email_opt_out, followup_abandoned, upgrade_nudge_count, upgrade_nudge_last_sent_at')
+    .select('id, email, nome, plano, email_opt_out, followup_abandoned, upgrade_nudge_count, upgrade_nudge_last_sent_at, followup_email_last_sent_at, contract_reminder_last_sent_at')
     .eq('plano', 'free');
   if (!users || users.length === 0) return { sent: 0, skipped: 0, eligiveis: 0 };
 
@@ -510,7 +548,10 @@ export async function runUpgradeNudge(): Promise<{ sent: number; skipped: number
     if (u.email_opt_out) { skipped++; continue; }
     if (u.followup_abandoned) { skipped++; continue; }
 
-    eligiveis++;
+    eligiveis++; // conta o público REAL — teto e trava de 24h não encolhem a fila, só adiam
+
+    if (sent >= EMAIL_TETO_POR_RODADA) { skipped++; continue; } // resto vai na próxima rodada
+    if (recebeuEmailRecente(u)) { skipped++; continue; }         // já levou outro e-mail nosso hoje
 
     const count = (u.upgrade_nudge_count as number | null) ?? 0;
     if (count >= UPGRADE_NUDGE_MAX) { skipped++; continue; } // já recebeu os 3 toques
