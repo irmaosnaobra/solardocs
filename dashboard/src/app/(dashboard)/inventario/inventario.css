@@ -107,12 +107,12 @@
 .inv-table { overflow-x: auto; }
 .inv-tr {
   display: grid;
-  grid-template-columns: minmax(130px, 1.7fr) minmax(96px, 1fr) 120px minmax(92px, 0.9fr) minmax(84px, 0.85fr) 66px 96px;
+  grid-template-columns: minmax(130px, 1.7fr) minmax(96px, 1fr) 132px minmax(96px, 0.9fr) minmax(84px, 0.85fr) 74px 148px;
   align-items: center;
   gap: 8px;
-  padding: 7px 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--color-border);
-  min-width: 640px;
+  min-width: 700px;
 }
 .inv-th {
   font-size: 10.5px; font-weight: 800;
@@ -139,12 +139,15 @@
 /* inputs inline */
 .inv-in {
   width: 100%;
-  padding: 8px 10px;
+  /* 42px de altura: um input de 35px é menor que a ponta do dedo e obriga
+     mirar. Em tela de obra, com a mão suja, isso é erro de digitação. */
+  min-height: 42px;
+  padding: 10px 12px;
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm, 8px);
+  border-radius: 10px;
   color: var(--color-text);
-  font-size: 13.5px;
+  font-size: 14px;
   font-family: var(--font-sans);
   font-weight: 600;
   outline: none;
@@ -168,19 +171,26 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm, 8px);
   color: var(--color-text-muted);
-  font-size: 12px; font-weight: 700;
-  padding: 8px 4px;
+  font-size: 12.5px; font-weight: 700;
+  min-height: 42px;
+  padding: 8px 6px;
+  border-radius: 10px;
   cursor: pointer;
   outline: none;
 }
 
 /* ações da linha */
-.inv-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.inv-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.inv-actions .mv:active { transform: scale(0.9); }
 .inv-actions .mv {
   display: grid; place-items: center;
-  width: 28px; height: 28px;
-  border: none; background: transparent;
-  border-radius: 7px; cursor: pointer;
+  /* Era 28px — abaixo de qualquer recomendação de alvo de toque, e são os três
+     botões que MEXEM NO ESTOQUE (entrada, saída, excluir). Errar o alvo aqui
+     custa um lançamento errado. */
+  width: 40px; height: 40px;
+  border: none; background: var(--color-surface-2);
+  border-radius: 11px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   color: var(--color-text-muted);
   transition: background 0.15s, color 0.15s;
 }
@@ -197,9 +207,10 @@
 .inv-add-select {
   flex: 1;
   max-width: 320px;
-  padding: 9px 12px;
+  min-height: 46px;
+  padding: 11px 14px;
   background: var(--color-surface-2);
-  border: 1px dashed var(--color-border-strong);
+  border: 1.5px dashed var(--color-border-strong);
   border-radius: var(--radius-md);
   color: var(--color-text);
   font-size: 13.5px; font-weight: 600;
@@ -318,4 +329,89 @@
   .inv-print-sec td { font-size: 12px; padding: 5px 6px; border-bottom: 1px solid #f1f5f9; }
   .inv-print-sec .r { text-align: right; }
   .inv-print-foot { margin-top: 22px; font-size: 10px; color: #94a3b8; text-align: center; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CELULAR — a linha de tabela vira CARTÃO
+   ════════════════════════════════════════════════════════════════════════════
+   A tabela tem 7 colunas e 700px de largura mínima. Num telefone de 414px isso
+   virava rolagem PARA O LADO: pra preencher o valor de um material, o instalador
+   arrastava o dedo horizontalmente e perdia de vista o nome do item. Em tela de
+   obra, isso é o que faz a pessoa desistir de lançar.
+   Aqui cada linha vira um cartão empilhado, com o nome em cima e os campos
+   rotulados em duas colunas — sem rolagem lateral nenhuma.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 780px) {
+  .inv-table { overflow-x: visible; }
+
+  /* O cabeçalho não faz sentido sem colunas. Precisa de `.inv-tr.inv-th`: o
+     elemento carrega as DUAS classes, e um `.inv-th` sozinho perderia pro
+     `.inv-tr { display: grid }` que vem logo abaixo — mesma especificidade,
+     ganha o último. */
+  .inv-tr.inv-th { display: none; }
+
+  .inv-tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    min-width: 0;
+    padding: 14px;
+    margin-bottom: 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+  }
+  .inv-tr.baixo { border-color: #FECACA; background: rgba(220, 38, 38, 0.04); }
+
+  /* Nome do material ocupa a linha inteira e vira o título do cartão. */
+  .inv-tr > .inv-nome {
+    grid-column: 1 / -1;
+    font-size: 15px;
+    padding-bottom: 2px;
+  }
+
+  /* Cada campo mostra o rótulo que sumiu junto com o cabeçalho. */
+  .inv-tr > span[data-lb] { position: relative; padding-top: 16px; }
+  .inv-tr > span[data-lb]::before {
+    content: attr(data-lb);
+    position: absolute;
+    top: 0; left: 0;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-dim);
+  }
+  .inv-tr > span[data-lb].r { text-align: left; }
+
+  /* O total é resultado, não campo: linha inteira, em destaque, e DEPOIS dos
+     campos. No DOM ele vem antes do estoque mínimo (faz sentido na tabela, onde
+     é coluna); no cartão ficaria no meio do preenchimento. `order` reposiciona
+     sem mexer no HTML, que a tabela do desktop continua usando. */
+  .inv-tr > .inv-nome { order: 1; }
+  .inv-tr > span[data-lb="Marca"] { order: 2; }
+  .inv-tr > span[data-lb="Quantidade"] { order: 3; }
+  .inv-tr > span[data-lb="Valor unitário"] { order: 4; }
+  .inv-tr > span[data-lb="Estoque mínimo"] { order: 5; }
+  .inv-tr > .inv-line-total { order: 6; }
+  .inv-tr > .inv-actions { order: 7; }
+
+  .inv-tr > .inv-line-total {
+    grid-column: 1 / -1;
+    font-size: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--color-border);
+  }
+
+  /* Entrada, saída e excluir na largura toda, bem separados. */
+  .inv-tr > .inv-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    gap: 8px;
+    padding-top: 2px;
+  }
+  .inv-actions .mv { width: 46px; height: 46px; }
+
+  .inv-add-select, .inv-add-outro .inv-in { max-width: none; }
 }

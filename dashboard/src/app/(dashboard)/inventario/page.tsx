@@ -267,7 +267,7 @@ function InventarioPageInterna() {
                             {isBaixo(i) && <AlertTriangle size={13} className="inv-warn-ic" />}
                             {i.nome}
                           </span>
-                          <span>
+                          <span data-lb="Marca">
                             <input
                               className="inv-in inv-marca"
                               list="inv-marcas"
@@ -277,7 +277,7 @@ function InventarioPageInterna() {
                               onBlur={(e) => patchItem(i.id, { marca: e.target.value || null })}
                             />
                           </span>
-                          <span className="r inv-qtd-cell">
+                          <span className="r inv-qtd-cell" data-lb="Quantidade">
                             <input
                               className="inv-in num"
                               type="number"
@@ -296,7 +296,7 @@ function InventarioPageInterna() {
                               ))}
                             </select>
                           </span>
-                          <span className="r">
+                          <span className="r" data-lb="Valor unitário">
                             <input
                               className="inv-in num money"
                               type="number"
@@ -307,10 +307,10 @@ function InventarioPageInterna() {
                               onBlur={(e) => patchItem(i.id, { valor_unitario: num(e.target.value) })}
                             />
                           </span>
-                          <span className="r inv-line-total">
+                          <span className="r inv-line-total" data-lb="Total">
                             {fmt(num(i.quantidade) * num(i.valor_unitario))}
                           </span>
-                          <span className="r">
+                          <span className="r" data-lb="Estoque mínimo">
                             <input
                               className="inv-in num min"
                               type="number"
