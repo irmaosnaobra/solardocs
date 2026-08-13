@@ -206,3 +206,21 @@
     align-self: flex-end;
   }
 }
+
+/* Aviso ao lado de um campo: chama atenção sem impedir nada. O valor digitado
+   continua valendo — quem decide é a pessoa, isto aqui só cutuca. Usado no
+   consumo médio, onde vinha gente digitando o consumo do ANO ou o valor em
+   reais no campo de kWh/mês e a proposta saía dimensionada em cima disso. */
+.avisoCampo {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-primary);
+}
+
+.avisoCampo svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}

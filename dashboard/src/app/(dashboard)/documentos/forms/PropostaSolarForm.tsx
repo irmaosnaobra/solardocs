@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine, Pencil } from 'lucide-react';
+import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine, Pencil, AlertTriangle } from 'lucide-react';
 import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
@@ -481,6 +481,13 @@ export default function PropostaSolarPage() {
     if (qtd > 0 && pot > 0) return ((qtd * pot) / 1000);
     return 0;
   })();
+
+  // Consumo alto demais pra ser mensal. 10.000 kWh/mês é ~R$ 10 mil de conta:
+  // existe, mas é raro, e ali em cima quase sempre é o consumo do ANO ou o valor
+  // da conta em reais digitado no campo errado. Encontrados 6 casos na base
+  // (49.801, 84.000, 150.000 kWh/mês) — o formulário aceitava calado e a
+  // proposta saía dimensionada em cima do número errado.
+  const consumoForaDaEscala = parseBRL(fields.consumo_kwh) > 10000;
 
   // Estimativa de geração média mensal (kWh) — só pra placeholder do input.
   // Usa HSP médio do Brasil (5.2) com eficiência 80%. O backend tem a tabela
@@ -1073,6 +1080,16 @@ export default function PropostaSolarPage() {
             <div className={styles.field}>
               <label className={styles.label}>Consumo médio (kWh/mês) *</label>
               <input type="text" inputMode="numeric" value={fields.consumo_kwh} onChange={e => setField('consumo_kwh', maskMilhar(e.target.value))} placeholder="Ex: 450" className="input-field" required />
+              {/* Só cutuca — não corrige, não bloqueia, não some com o que foi digitado. */}
+              {consumoForaDaEscala && (
+                <p className={styles.avisoCampo}>
+                  <AlertTriangle size={14} aria-hidden />
+                  <span>
+                    {parseBRL(fields.consumo_kwh).toLocaleString('pt-BR')} kWh <strong>por mês</strong> é consumo de indústria.
+                    Confere se não é o consumo do ano, ou o valor da conta em reais — o sistema é dimensionado em cima desse número.
+                  </span>
+                </p>
+              )}
             </div>
           </div>
         </div>
