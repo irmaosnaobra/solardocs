@@ -182,8 +182,16 @@ export async function runWinback(): Promise<{
 
     const daysSince = Math.floor((now - canceledAt.getTime()) / 86_400_000);
 
+    // O carimbo só vale pra ESTE cancelamento. Quem cancelou, voltou e cancelou de
+    // novo carregava um winback_d7_sent_at da vez anterior — o `!carimbo` dava falso
+    // e a pessoa era pulada PARA SEMPRE (nem D+7 nem D+30). Casos reais em 12/08/2026:
+    // fgsatclimatizacao@ (cancelou 03/08, carimbo de 01/07) e elvispereiradecarvalho@
+    // (cancelou 02/08, carimbo de 09/07). Carimbo anterior ao cancelamento = não enviado.
+    const jaMandouD7  = Boolean(u.winback_d7_sent_at)  && new Date(u.winback_d7_sent_at).getTime()  > canceledAt.getTime();
+    const jaMandouD30 = Boolean(u.winback_d30_sent_at) && new Date(u.winback_d30_sent_at).getTime() > canceledAt.getTime();
+
     // D+7: janela 7-29 dias, ainda não enviado.
-    if (daysSince >= 7 && daysSince < 30 && !u.winback_d7_sent_at) {
+    if (daysSince >= 7 && daysSince < 30 && !jaMandouD7) {
       const tpl = tplD7(u.nome);
       try {
         await sendEmail(u.email, tpl.subject, tpl.html);
@@ -201,7 +209,7 @@ export async function runWinback(): Promise<{
     }
 
     // D+30: a partir de 30d, ainda não enviado.
-    if (daysSince >= 30 && !u.winback_d30_sent_at) {
+    if (daysSince >= 30 && !jaMandouD30) {
       const tpl = tplD30(u.nome);
       try {
         await sendEmail(u.email, tpl.subject, tpl.html);

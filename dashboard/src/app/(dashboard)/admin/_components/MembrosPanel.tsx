@@ -58,6 +58,11 @@ interface BillingResponse {
   trial_upside: number;
   assinaturas_ativas: number;
   trials: number;
+  // base em PESSOAS (dedup por email) — assinaturas_ativas conta linha da Stripe
+  assinantes_ativos?: number;
+  assinantes_atraso?: number;
+  assinantes_pix?: number;
+  assinantes_cancelados_30d?: number;
   moeda: 'BRL';
   atualizado_em: string;
 }
@@ -179,11 +184,22 @@ export default function MembrosPanel() {
     const pro     = all.filter(u => u.plano === 'pro').length;
     const vip     = all.filter(u => u.plano === 'ilimitado').length;
     const free    = all.filter(u => u.plano === 'free').length;
-    const trial   = all.filter(u => u.stripe_status === 'trialing').length;
-    const ativos  = all.filter(u => u.stripe_status === 'active').length;
-    const churn   = all.filter(u => ['canceled', 'unpaid', 'past_due'].includes(u.stripe_status || '')).length;
-    return { total, pro, vip, free, trial, ativos, churn };
+    return { total, pro, vip, free };
   }, [all]);
+
+  // Assinantes ativos vem do /admin/billing, NÃO da lista de membros: a lista é
+  // um retrato do banco, e contar "quem tem stripe_status=active" nela já mostrou
+  // 30 de 46 (o lookup tinha janela de 60 dias e quem assinou antes sumia).
+  // O billing varre a Stripe inteira e conta PESSOA, não assinatura.
+  const assinantes = useMemo(() => {
+    const stripe      = billing?.assinantes_ativos ?? 0;
+    const pix         = billing?.assinantes_pix ?? 0;
+    const atraso      = billing?.assinantes_atraso ?? 0;
+    const cancelou30d = billing?.assinantes_cancelados_30d ?? 0;
+    // Em atraso ainda tem acesso (dunning preserva), mas não é receita firme —
+    // fica fora do número grande e aparece do lado como atrito.
+    return { stripe, pix, atraso, cancelou30d, total: stripe + pix };
+  }, [billing]);
 
   // Filtro + busca
   const rows = useMemo(() => {
@@ -370,13 +386,16 @@ export default function MembrosPanel() {
               <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{kpis.free}</div>
             </div>
             <div className={styles.card}>
-              <div className={styles.cardLabel}>Stripe: trial · ativo · churn</div>
-              <div className={styles.cardValue} style={{ fontSize: 20 }}>
-                <span style={{ color: 'var(--color-text)' }}>{kpis.trial}</span>
-                <span style={{ color: 'var(--color-text-muted)' }}> · </span>
-                <span style={{ color: 'var(--color-text)' }}>{kpis.ativos}</span>
-                <span style={{ color: 'var(--color-text-muted)' }}> · </span>
-                <span style={{ color: 'var(--color-text-muted)' }}>{kpis.churn}</span>
+              <div className={styles.cardLabel}>Assinantes ativos</div>
+              <div className={styles.cardValue} style={{ color: 'var(--color-primary)' }}>
+                {billing ? assinantes.total : '—'}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                {billing
+                  ? <>Stripe {assinantes.stripe} · Pix {assinantes.pix}
+                      {assinantes.atraso > 0 && <> · {assinantes.atraso} em atraso</>}
+                      {assinantes.cancelou30d > 0 && <> · {assinantes.cancelou30d} saíram em 30d</>}</>
+                  : 'carregando da Stripe…'}
               </div>
             </div>
             <div className={styles.card}>

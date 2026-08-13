@@ -19,6 +19,16 @@ const PRICE_TO_PLAN: Record<string, string> = {
   'price_1TKPoSCkkgzQ4IHesK6wi3Qq': 'pro',  // PRO antigo (R$47)
 };
 
+// Peso do status pra escolher QUAL assinatura representa a pessoa quando ela tem
+// mais de uma na Stripe (compra duplicada, recompra depois de cancelar). Viva
+// ganha de morta: quem paga não pode aparecer como "Cancelado" só porque a
+// duplicata dele foi cancelada ontem.
+const PESO_STATUS_STRIPE: Record<string, number> = {
+  active: 3, trialing: 3,
+  past_due: 2,
+};
+const pesoStatusStripe = (status: string): number => PESO_STATUS_STRIPE[status] ?? 1;
+
 // Rótulo de PRODUTO por price — os 3 produtos SolarDoc (PRO, VIP, VIP PROMO).
 // Distinto de PRICE_TO_PLAN (que agrupa VIP+VIP_PROMO em 'ilimitado' pro ACESSO):
 // aqui a VENDA é contada por PRODUTO vendido, como o dono pediu (3 produtos).
@@ -96,15 +106,16 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
     const companyMap = new Map(companies?.map(c => [c.user_id, c]) ?? []);
 
     // Stripe status por email: detecta quem passou cartão e quem ficou FREE
-    // sem chegar no checkout. Lookup nos últimos 60 dias cobre todos os trials
-    // ativos + churn recente sem custo excessivo de API.
+    // sem chegar no checkout. Varre TODAS as assinaturas, SEM janela de data.
+    // Havia um recorte de 60 dias aqui: quem assinou antes do corte não tinha
+    // stripe_status nenhum e o painel o contava como FREE — 11 pagantes (R$637/mês)
+    // sumiam do card "ativos", que mostrava 30 num universo de 46. Teto de páginas
+    // igual ao do stripeSyncService pra que as duas varreduras se comportem igual.
     const stripeByEmail = new Map<string, { status: string; plan: string | null }>();
     try {
-      const sinceUnix = Math.floor(Date.now() / 1000) - 60 * 86400;
       let cursor: string | undefined;
-      for (let page = 0; page < 5; page++) {
+      for (let page = 0; page < 50; page++) {
         const subs = await stripe.subscriptions.list({
-          created: { gte: sinceUnix },
           status: 'all',
           limit: 100,
           starting_after: cursor,
@@ -115,10 +126,15 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
           const email = typeof cust === 'string' ? null : (cust.email ?? null);
           if (!email) continue;
           const key = email.toLowerCase();
-          // Stripe lista por created desc — primeira sub que aparecer pra esse email
-          // é a vigente. Sem esse guard, uma past_due velha (jonoilson tinha sub
-          // de abril que sobrescrevia a trial nova de maio) ganha do trial vigente.
-          if (stripeByEmail.has(key)) continue;
+          // Sem a janela, a sub MAIS RECENTE de alguém pode ser um cancelamento
+          // por cima de uma assinatura viva (caso real: quem comprou 2x e teve a
+          // duplicata cancelada continuaria pagando, mas apareceria "Cancelado").
+          // Então a VIVA sempre ganha da morta; entre duas do mesmo peso vale a
+          // primeira que chegar — a Stripe lista por created desc, ou seja, a mais
+          // recente. Isso também preserva o caso antigo (past_due velha de abril
+          // não pode sobrescrever o trial novo de maio).
+          const atual = stripeByEmail.get(key);
+          if (atual && pesoStatusStripe(atual.status) >= pesoStatusStripe(s.status)) continue;
           const priceId = s.items.data[0]?.price?.id ?? '';
           stripeByEmail.set(key, {
             status: s.status,
@@ -854,6 +870,14 @@ type BillingPayload = {
   trial_upside: number;         // MRR potencial dos trials (SE converterem) — não somado
   assinaturas_ativas: number;
   trials: number;
+  // ── BASE (PESSOAS, não assinaturas) ──────────────────────────────────────
+  // assinaturas_ativas conta linha da Stripe; quem comprou 2x aparece 2x nela.
+  // Os campos abaixo contam GENTE (dedup por email), que é o que o painel mostra
+  // como "assinantes ativos". Varredura completa, sem janela de data.
+  assinantes_ativos: number;          // pessoas com sub active ou trialing
+  assinantes_atraso: number;          // pessoas SÓ em past_due (dunning, ainda com acesso)
+  assinantes_pix: number;             // pagam por Pix (sem sub de cartão) — plano_expira_em no futuro
+  assinantes_cancelados_30d: number;  // cancelaram nos últimos 30d e não voltaram
   moeda: 'BRL';
   atualizado_em: string;
 };
@@ -955,6 +979,12 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
     // proximas_cobrancas NÃO é deduplicado de propósito: se há 3 subs, 3 cobranças
     // vão cair de verdade (sinal pra cancelar as duplicadas na Stripe).
     const seenVendaCliente = new Set<string>();
+    // Base em PESSOAS (mesma chave de dedup das vendas): é o número que o painel
+    // mostra como "assinantes ativos". Sem isso o card contaria as duplicatas.
+    const pessoasAtivas    = new Set<string>();
+    const pessoasAtraso    = new Set<string>();
+    const pessoasCancel30d = new Set<string>();
+    const trintaDiasUnix   = Math.floor(Date.now() / 1000) - 30 * 86400;
     let subCursor: string | undefined;
     for (let page = 0; page < 20; page++) {
       const subs = await stripe.subscriptions.list({
@@ -990,6 +1020,13 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
           }
         }
 
+        // Base em pessoas — a mesma chave do dedup de venda, pra não inventar
+        // um segundo critério de "quem é essa pessoa".
+        const pessoaKey = (custEmail || cliente || s.id).toLowerCase();
+        if (s.status === 'active' || s.status === 'trialing') pessoasAtivas.add(pessoaKey);
+        else if (s.status === 'past_due') pessoasAtraso.add(pessoaKey);
+        else if (s.status === 'canceled' && (s.canceled_at ?? 0) >= trintaDiasUnix) pessoasCancel30d.add(pessoaKey);
+
         if (s.status === 'active') {
           mrrAtivoCents += valorCents;
           nAtivas++;
@@ -1012,6 +1049,23 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
 
     // "O que cai por dia" ordenado por data (as atrasadas — no passado — vêm primeiro).
     proximas.sort((a, b) => a.data.localeCompare(b.data));
+
+    // Assinante que paga por Pix não tem sub viva na Stripe (a de cartão é
+    // cancelada de propósito, pra não cobrar duas vezes) — a verdade dele é
+    // plano_expira_em no futuro. Sem isso ele não aparece em contagem nenhuma.
+    let assinantesPix = 0;
+    try {
+      const { count } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .gt('plano_expira_em', new Date().toISOString());
+      assinantesPix = count ?? 0;
+    } catch { /* best-effort: Pix zerado não pode derrubar o painel inteiro */ }
+
+    // Quem está em dunning já foi contado se tiver OUTRA sub viva (caso real:
+    // duplicata em atraso ao lado da assinatura boa). Aqui só quem está SÓ em atraso.
+    const soEmAtraso   = [...pessoasAtraso].filter(e => !pessoasAtivas.has(e)).length;
+    const soCancelados = [...pessoasCancel30d].filter(e => !pessoasAtivas.has(e) && !pessoasAtraso.has(e)).length;
 
     // Recuperação de venda: quem começou e não passou cartão (em recuperação) e
     // quem abandonou e depois comprou (recuperados). Fonte: abandoned_checkouts.
@@ -1039,6 +1093,10 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
       trial_upside:         toReais(trialUpsideCents),
       assinaturas_ativas:   nAtivas,
       trials:               nTrials,
+      assinantes_ativos:         pessoasAtivas.size,
+      assinantes_atraso:         soEmAtraso,
+      assinantes_pix:            assinantesPix,
+      assinantes_cancelados_30d: soCancelados,
       moeda:                'BRL',
       atualizado_em:        new Date().toISOString(),
     };

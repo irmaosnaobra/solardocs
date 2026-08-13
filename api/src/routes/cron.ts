@@ -875,6 +875,13 @@ router.get('/master', async (req: Request, res: Response) => {
     ['orphan-checkout-recovery',    () => recoverOrphanCheckouts()],     // PAGOU e NÃO cadastrou: link de conclusão (carência 30min, até 6d). Template aprovado 02/06.
     ['abandoned-checkout-recovery', () => recoverAbandonedCheckouts()],  // COMEÇOU e NÃO passou cartão (checkout.session.expired): email + WhatsApp p/ retomar
     ['followup-email-cnpj',         () => runFollowupCnpj()],            // 5 emails/30d — gerador de proposta
+    // Free que JÁ cadastrou CNPJ e usa a plataforma (3+ docs): a cadência de CNPJ
+    // exclui ele de propósito ("ative sua conta grátis" não faz sentido pra quem
+    // ativou), e a Giovanna só alcança quem tem WhatsApp — 26 desses membros não
+    // têm. Resultado: existia, tinha rota manual e teste, mas NUNCA rodou sozinho,
+    // e 25 pessoas com até 16 documentos gerados nunca receberam um e-mail.
+    // É e-mail (sem risco de ban), 3 toques com folga de 0/3/4 dias, contador próprio.
+    ['upgrade-nudge',               () => runUpgradeNudge()],            // 3 emails — free engajado (3+ docs) → assinatura
     // ['no-contracts-reminder',       () => runNoContractsEmailReminder()], // [PAUSED-FOLLOWUP] lembrete inativos por email
     // 2026-06-30: WhatsApp Carla RELIGADO já como UMA persona (Giovanna) que leva
     //   o follow-up até a venda. Conserto feito: (1) o opener é salvo na sessão por
