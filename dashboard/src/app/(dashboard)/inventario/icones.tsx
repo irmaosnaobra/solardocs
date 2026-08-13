@@ -246,6 +246,10 @@ export const ICONE_LOCAL: Record<string, IconeDesenho> = {
   'Montagem': Furadeira,
   'Depósito': StringBox,
   'Veículos / Frota': Caminhonete,
+  // Não estão no catálogo, mas são os dois nomes que o integrador mais cria à
+  // mão — e são depósito com outro nome.
+  'Galpão': StringBox,
+  'Almoxarifado': StringBox,
 };
 
 /** Material → desenho. Um glifo serve vários quando a forma é a mesma. */
@@ -289,11 +293,37 @@ const POR_NOME_SOLTO: Record<string, IconeDesenho> = Object.fromEntries(
 );
 
 /**
- * Chaves do catálogo ordenadas da MAIS LONGA pra mais curta. A ordem importa:
- * "Cabo solar 6mm" precisa ganhar de "Cabo" quando os dois cabem no nome.
+ * Termos genéricos que NÃO existem no catálogo mas aparecem o tempo todo num
+ * inventário de verdade. O catálogo tem "Cabo solar 6mm" e "Cabo CA" — não tem
+ * a palavra "cabo" sozinha. Sem esta lista, "Cabo do inversor" não casava com
+ * nenhum começo e caía no `inversor` do meio da frase.
  */
-const CHAVES_POR_TAMANHO = Object.keys(POR_NOME_SOLTO)
-  .sort((a, b) => b.length - a.length);
+const APELIDOS: Record<string, IconeDesenho> = {
+  cabo: Cabo, fio: Cabo, chicote: Cabo,
+  painel: PainelSolar, modulo: PainelSolar, placa: PainelSolar,
+  conector: ConectorMc4, plug: ConectorMc4,
+  alicate: Alicate, chave: ChaveInglesa, martelo: Martelo,
+  parafuso: Parafuso, porca: Parafuso, arruela: Parafuso, bucha: Parafuso,
+  broca: Furadeira, furadeira: Furadeira, parafusadeira: Parafusadeira,
+  fita: FitaIsolante, abracadeira: Abracadeira, terminal: Terminal,
+  luva: Luva, capacete: Capacete, cinto: Cinto, epi: Capacete,
+  escada: Escada, trena: Trena, nivel: NivelLaser, multimetro: Multimetro,
+  estrutura: Estrutura, perfil: Estrutura, trilho: Estrutura, suporte: Estrutura,
+  eletroduto: Eletroduto, conduite: Eletroduto,
+  disjuntor: Disjuntor, dps: Dps, inversor: Inversor, nobreak: Nobreak,
+  mesa: Mesa, cadeira: Cadeira, armario: Armario, monitor: Monitor,
+  computador: Desktop, notebook: Notebook, impressora: Impressora,
+  caminhonete: Caminhonete, caminhao: Caminhonete, carro: Caminhonete,
+  veiculo: Caminhonete, van: Van, moto: Moto, carrinho: CarrinhoCarga,
+};
+
+const BUSCA: Record<string, IconeDesenho> = { ...APELIDOS, ...POR_NOME_SOLTO };
+
+/**
+ * Ordenado da chave MAIS LONGA pra mais curta: "cabo solar 6mm" precisa ganhar
+ * de "cabo" quando os dois cabem no nome.
+ */
+const CHAVES_POR_TAMANHO = Object.keys(BUSCA).sort((a, b) => b.length - a.length);
 
 export function iconeDoMaterial(nome: string, local?: string): IconeDesenho {
   const cru = nome || '';
@@ -304,11 +334,18 @@ export function iconeDoMaterial(nome: string, local?: string): IconeDesenho {
   // O nome guardado no banco quase nunca é o do catálogo: o consultor escolhe
   // "Cabo solar 6mm" e depois edita pra "Cabo solar 6mm² preto". Casar só por
   // igualdade fazia a lista inteira de um inventário REAL cair no ícone padrão
-  // — funcionava na demonstração e falhava no cliente. Aqui vale conter, e a
-  // chave mais longa ganha.
+  // — funcionava na demonstração e falhava no cliente.
+  //
+  // O COMEÇO GANHA DO MEIO, e não a chave mais longa. Só por tamanho,
+  // "Cabo do inversor" casava com `inversor` (8 letras) em vez de `cabo` (4) e
+  // saía com o desenho de um inversor — pior que o ícone padrão, porque erra
+  // com confiança. Em português o substantivo principal vem primeiro: o que o
+  // item É está no início do nome, o resto qualifica.
   if (limpo) {
-    const achou = CHAVES_POR_TAMANHO.find((k) => limpo.includes(k));
-    if (achou) return POR_NOME_SOLTO[achou];
+    const comeca = CHAVES_POR_TAMANHO.find((k) => limpo.startsWith(k));
+    if (comeca) return BUSCA[comeca];
+    const contem = CHAVES_POR_TAMANHO.find((k) => limpo.includes(k));
+    if (contem) return BUSCA[contem];
   }
 
   return (local ? ICONE_LOCAL[local] : undefined) ?? Tomada;
