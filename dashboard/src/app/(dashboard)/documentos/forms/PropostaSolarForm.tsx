@@ -326,6 +326,15 @@ export default function PropostaSolarPage() {
   const DRAFT_KEY = 'proposta-solar-draft-v1';
   const draftLoaded = useRef(false);
   const temRascunho = useRef(false);           // havia rascunho neste aparelho?
+  // A quantidade de módulos foi escrita por uma PESSOA (digitada, restaurada de
+  // rascunho, do histórico do cliente ou de um doc em edição)? Só então a sugestão
+  // automática cala a boca. Sem esta distinção, o "já tem valor" incluía o valor
+  // que a própria sugestão acabou de escrever — ver o useEffect lá embaixo.
+  const qtdModulosManual = useRef(false);
+  // Campos que a PESSOA mexeu nesta sessão do formulário. Preenchimento
+  // automático que chega depois (kit do vendedor, que vem por rede) não escreve
+  // por cima deles. Regra da casa: o que o cliente coloca, fica.
+  const camposTocados = useRef(new Set<string>());
   const [clientesHist, setClientesHist] = useState<string[]>([]); // clientes com histórico
 
   // Restaura rascunho ao montar (1x). Abrindo pra editar um doc salvo (?doc=), o
@@ -342,6 +351,8 @@ export default function PropostaSolarPage() {
       if (d.clienteNome) setClienteNome(d.clienteNome);
       if (d.cidadeUf) setCidadeUf(d.cidadeUf);
       if (d.fields) setFields(f => ({ ...f, ...d.fields }));
+      // Rascunho já tinha quantidade: era escolha da pessoa, a sugestão não mexe.
+      if (d.fields?.qtd_modulos) qtdModulosManual.current = true;
     } catch { /* rascunho corrompido — ignora */ }
     // Roda de novo quando o ?doc= sai da URL ("Nova proposta" depois de uma edição):
     // é o que religa o autosave, que fica desligado durante a edição.
@@ -393,7 +404,16 @@ export default function PropostaSolarPage() {
       // Editando um doc salvo, o kit não entra: os dois chegam por rede e o kit
       // poderia aterrissar depois, trocando as marcas/taxas daquela proposta.
       if (!docParam && !temRascunho.current && data?.kit && Object.keys(data.kit).length) {
-        setFields(f => ({ ...f, ...data.kit }));
+        // O kit chega pela REDE, então corre contra os dedos de quem já começou a
+        // preencher. Campo que a pessoa tocou não é sobrescrito — ela veria o
+        // próprio texto sumir sozinho meio segundo depois de escrever.
+        setFields(f => {
+          const merged: Record<string, unknown> = { ...f };
+          for (const [k, v] of Object.entries(data.kit as Record<string, unknown>)) {
+            if (!camposTocados.current.has(k)) merged[k] = v;
+          }
+          return merged as typeof f;
+        });
       }
     }).catch(() => { /* sem histórico ainda — ignora */ });
   }, [docParam]);
@@ -411,6 +431,8 @@ export default function PropostaSolarPage() {
       // por cima escreveria um formulário em branco em cima de uma proposta boa.
       if (!Object.keys(dados).length) throw new Error('sem dados do formulário');
       setFields(f => ({ ...f, ...dados }));
+      // Proposta já emitida: a quantidade dela é decisão tomada, não palpite.
+      if (dados.qtd_modulos) qtdModulosManual.current = true;
       setClienteNome(String(d.cliente_nome || ''));
       const cid = String(dados.cidade || '').trim(), uf = String(dados.uf || '').trim();
       if (cid || uf) setCidadeUf([cid, uf].filter(Boolean).join(' - '));
@@ -443,6 +465,8 @@ export default function PropostaSolarPage() {
       const c = data?.cliente;
       if (c && Object.keys(c).length) {
         setFields(f => ({ ...f, ...c }));
+        // Veio a quantidade da última proposta dele: é dado real, não sugestão.
+        if (c.qtd_modulos) qtdModulosManual.current = true;
         setClienteNome(nome);
         const cid = String(c.cidade || '').trim(), uf = String(c.uf || '').trim();
         if (cid || uf) setCidadeUf([cid, uf].filter(Boolean).join(' - '));
@@ -466,15 +490,22 @@ export default function PropostaSolarPage() {
   // Sugere qtd_modulos baseado no consumo (estimativa: kWh/mês ÷ 115 = kWp).
   // Divisor 115 gera ~10% de oversize pra cobrir degradação dos painéis (~0,5% a.a.)
   // — sem isso, no ano 2-3 o sistema já fica deficitário.
+  //
+  // A sugestão ACOMPANHA o que está sendo digitado, e para de vez assim que a
+  // pessoa escreve a quantidade na mão. A versão anterior travava no primeiro
+  // dígito do consumo: o kit do vendedor já traz `potencia_modulo` da proposta
+  // anterior, então o "1" de 1.250 virava 1 kWh → 1 módulo, e a guarda
+  // `!fields.qtd_modulos` (que não separava valor da pessoa de valor da própria
+  // sugestão) impedia qualquer recálculo. O integrador pedia 1.250 kWh e levava
+  // 0,63 kWp pro cliente. Relatado em 13/08/2026.
   useEffect(() => {
+    if (qtdModulosManual.current) return;
     const kwh = parseBRL(fields.consumo_kwh);
     const potMod = parseInt(fields.potencia_modulo, 10);
-    if (kwh && potMod && !fields.qtd_modulos) {
-      const kwpEst = kwh / 115;
-      const qtd = Math.ceil((kwpEst * 1000) / potMod);
-      setFields(f => ({ ...f, qtd_modulos: String(qtd) }));
-    }
-  }, [fields.consumo_kwh, fields.potencia_modulo, fields.qtd_modulos]);
+    if (!kwh || !potMod) return;
+    const qtd = String(Math.ceil((kwh / 115 * 1000) / potMod));
+    setFields(f => (f.qtd_modulos === qtd ? f : { ...f, qtd_modulos: qtd }));
+  }, [fields.consumo_kwh, fields.potencia_modulo]);
 
   // Parcelas no cartão — taxa total Elo padrão (editável por proposta).
   // Fórmula: valor parcela = (investimento × (1 + taxa%)) / N
@@ -517,6 +548,9 @@ export default function PropostaSolarPage() {
   }, [fields.validade_dias]);
 
   function setField<K extends keyof typeof fields>(k: K, v: (typeof fields)[K]) {
+    // O que a pessoa digita é sagrado: fica marcado aqui pra nenhum
+    // preenchimento automático escrever por cima depois (ver o kit do vendedor).
+    camposTocados.current.add(String(k));
     setFields(f => ({ ...f, [k]: v }));
   }
 
@@ -544,6 +578,9 @@ export default function PropostaSolarPage() {
     setFaltando(new Set());
     setClienteNome('');
     setCidadeUf('');
+    // Documento novo: a sugestão de módulos volta a valer e nada está "tocado".
+    qtdModulosManual.current = false;
+    camposTocados.current.clear();
     setFields(f => ({
       ...f,
       // específicos do cliente/venda — zerados:
@@ -1084,7 +1121,8 @@ export default function PropostaSolarPage() {
           <div className={styles.grid2}>
             <div className={styles.field}>
               <label className={styles.label}>Quantidade de módulos *</label>
-              <input type="text" inputMode="numeric" value={fields.qtd_modulos} onChange={e => { setField('qtd_modulos', e.target.value); clearFaltando('qtd_modulos'); }} placeholder="Ex: 10" className="input-field" required {...invalidProps('qtd_modulos')} />
+              {/* Digitou aqui? a sugestão automática se cala. Apagou o campo? ela volta. */}
+              <input type="text" inputMode="numeric" value={fields.qtd_modulos} onChange={e => { qtdModulosManual.current = e.target.value.trim() !== ''; setField('qtd_modulos', e.target.value); clearFaltando('qtd_modulos'); }} placeholder="Ex: 10" className="input-field" required {...invalidProps('qtd_modulos')} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Potência por módulo (W) *</label>
