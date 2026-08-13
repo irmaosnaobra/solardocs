@@ -175,6 +175,17 @@ export async function sendImage(phone: string, image: string, caption = '', inst
   await zapiPost('send-image', { phone: fmtPhone(phone), image, caption }, 2, instance);
 }
 
+// Envia documento (PDF). `document` = URL pública OU data URI base64.
+// O endpoint da Z-API carrega a extensão no path: send-document/pdf.
+// Usado pra ENCAMINHAR ao dono o comprovante de Pix que veio como PDF do banco —
+// sem isto o comprovante em PDF chegava pra ele só como texto, sem o arquivo.
+export async function sendDocument(
+  phone: string, document: string, fileName = 'documento.pdf', caption = '',
+  instance: ZapiInstance = 'solardoc',
+): Promise<void> {
+  await zapiPost('send-document/pdf', { phone: fmtPhone(phone), document, fileName, caption }, 2, instance);
+}
+
 export async function sendHuman(
   phone: string,
   parts: string[],

@@ -640,8 +640,13 @@ export async function handleIncomingWhatsApp(
 
   // Pre-processa midia: transcreve audio, prepara imagem pra Anthropic
   let imageSource: { type: 'base64'; media_type: any; data: string } | null = null;
+  // Comprovante de pagamento: print/foto OU o PDF que o banco gera. `imageSource`
+  // segue sendo só imagem (é o que o LLM de atendimento recebe); `comprovanteSource`
+  // é o que vai pro leitor de comprovante e aceita os dois.
+  let comprovanteSource: { type: 'base64'; media_type: any; data: string } | null = null;
   if (media) {
-    const { transcribeAudio, downloadImageAsAnthropicSource } = await import('../../../utils/mediaProcessor');
+    const { transcribeAudio, downloadImageAsAnthropicSource, downloadPdfAsAnthropicSource } =
+      await import('../../../utils/mediaProcessor');
     if (media.type === 'audio') {
       const transcription = await transcribeAudio(media.url, media.mime);
       if (transcription) {
@@ -651,7 +656,20 @@ export async function handleIncomingWhatsApp(
       }
     } else if (media.type === 'image') {
       imageSource = await downloadImageAsAnthropicSource(media.url, media.mime);
+      comprovanteSource = imageSource;
       if (!text || text === '[imagem]') text = 'O cliente enviou esta imagem.';
+    } else if (media.type === 'document' && String(media.mime).includes('pdf')) {
+      // PDF é o formato nativo de comprovante de banco. Ele NÃO vai pro LLM de
+      // atendimento (que é texto+imagem) — vai só pro leitor de comprovante. Se
+      // não for comprovante, o fluxo cai no texto de "não analiso" logo abaixo.
+      comprovanteSource = await downloadPdfAsAnthropicSource(media.url);
+      if (!comprovanteSource) {
+        text = text + ' [cliente enviou um PDF que nao consegui abrir — peca pra ele mandar um print da tela]';
+      } else if (!text || !text.trim()) {
+        // Z-API manda documento sem caption: sem isto o texto ficaria vazio e o
+        // atendimento responderia no vácuo caso o PDF não seja um comprovante.
+        text = 'O cliente enviou um arquivo PDF.';
+      }
     } else if (media.type === 'video' || media.type === 'document') {
       text = text + ` [cliente enviou ${media.type} — diga que voce nao analisa esse formato e peca pra ele descrever o problema por texto ou audio]`;
     }
@@ -680,10 +698,10 @@ export async function handleIncomingWhatsApp(
     // Comprovante de Pix de um lead que ABANDONOU o checkout (ainda sem conta):
     // cruza o telefone com abandoned_checkouts, valida o comprovante e cria/ativa
     // a conta na hora. Se não for comprovante/lead conhecido, segue o roteamento SDR.
-    if (imageSource) {
+    if (comprovanteSource) {
       try {
         const { tryProcessAbandonedPixComprovante } = await import('./pixComprovanteService');
-        if (await tryProcessAbandonedPixComprovante(cleanPhone, imageSource, originInstance)) return;
+        if (await tryProcessAbandonedPixComprovante(cleanPhone, comprovanteSource, originInstance)) return;
       } catch (err) {
         logger.error('whatsapp', 'pix-abandono-comprovante falhou (segue fluxo)', err);
       }
@@ -788,15 +806,15 @@ export async function handleIncomingWhatsApp(
     return;
   }
 
-  // Cliente SolarDoc mandou IMAGEM → pode ser COMPROVANTE de Pix (pagamento manual
+  // Cliente SolarDoc mandou IMAGEM ou PDF → pode ser COMPROVANTE de Pix (pagamento manual
   // após o cartão falhar). A IA lê, valida (recebedor=Aioros + valor + data + dedup)
   // e libera +1 mês SOZINHA se passar em tudo; na menor dúvida NÃO libera e avisa o
   // Thiago pra conferir. Fail-safe: nunca libera sem as travas. Se não for
   // comprovante (retorna false), segue o fluxo normal de atendimento.
-  if (imageSource) {
+  if (comprovanteSource) {
     try {
       const { tryProcessPixComprovante } = await import('./pixComprovanteService');
-      if (await tryProcessPixComprovante(user, imageSource, cleanPhone, originInstance)) return;
+      if (await tryProcessPixComprovante(user, comprovanteSource, cleanPhone, originInstance)) return;
     } catch (err) {
       logger.error('whatsapp', 'pix-comprovante falhou (segue fluxo normal)', err);
     }

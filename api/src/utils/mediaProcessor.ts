@@ -99,3 +99,53 @@ export async function downloadImageAsAnthropicSource(imageUrl: string, mimeType:
     return null;
   }
 }
+
+/**
+ * Baixa PDF e retorna no formato de bloco `document` da Anthropic (o modelo lê a
+ * página como imagem + texto, sem precisar de conversão nossa).
+ *
+ * Existe por causa do comprovante de Pix: banco (Sicoob, Itaú, Nubank…) exporta
+ * comprovante em PDF, e o cliente manda esse PDF no WhatsApp. Enquanto só imagem
+ * era lida, quem pagava e mandava a prova em PDF ouvia "não analiso esse formato"
+ * e ficava sem acesso — foi o que segurou o Junior Moraes 2 dias em 11/08/2026.
+ *
+ * Retorna null se falhar (o chamador segue no fluxo normal).
+ */
+export async function downloadPdfAsAnthropicSource(pdfUrl: string): Promise<{
+  type: 'base64';
+  media_type: 'application/pdf';
+  data: string;
+} | null> {
+  try {
+    const res = await fetch(pdfUrl);
+    if (!res.ok) {
+      console.error(`[mediaProcessor] Falha ao baixar PDF: HTTP ${res.status}`);
+      return null;
+    }
+    const buffer = await res.arrayBuffer();
+
+    // Teto conservador: comprovante é 1 página (~100KB). Acima disso é catálogo,
+    // projeto, datasheet — não vale o custo de visão nem o risco de timeout.
+    if (buffer.byteLength > 5 * 1024 * 1024) {
+      console.warn('[mediaProcessor] PDF acima de 5MB, ignorando');
+      return null;
+    }
+
+    // Confere a assinatura %PDF- antes de mandar pra IA: a Z-API entrega qualquer
+    // anexo com mime 'application/pdf' e um arquivo corrompido viraria erro 400.
+    const head = Buffer.from(buffer.slice(0, 5)).toString('latin1');
+    if (!head.startsWith('%PDF-')) {
+      console.warn('[mediaProcessor] arquivo não é PDF de verdade (sem %PDF-), ignorando');
+      return null;
+    }
+
+    return {
+      type: 'base64',
+      media_type: 'application/pdf',
+      data: Buffer.from(buffer).toString('base64'),
+    };
+  } catch (err) {
+    console.error('[mediaProcessor] downloadPdfAsAnthropicSource:', err);
+    return null;
+  }
+}

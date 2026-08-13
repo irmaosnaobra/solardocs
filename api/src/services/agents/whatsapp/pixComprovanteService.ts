@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
-import { sendWhatsApp, sendHuman, sendImage, ZapiInstance } from '../zapiClient';
+import { sendWhatsApp, sendHuman, sendImage, sendDocument, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { concederCursoPorAssinatura } from '../../kitIntegradorService';
 import {
@@ -13,8 +13,12 @@ import {
 // Fluxo: cartão falhou → oferecemos Pix (copia-e-cola R$67) → cliente paga e MANDA
 // O COMPROVANTE no WhatsApp → a IA (visão) lê, valida (recebedor=Aioros + valor +
 // data + dedup) e LIBERA na hora, orientando o cliente. O Thiago recebe no WhatsApp
-// (34991360223) a confirmação + a IMAGEM do comprovante encaminhada pra ele conferir
+// (34991360223) a confirmação + o ARQUIVO do comprovante encaminhado pra ele conferir
 // depois e arquivar.
+//
+// Aceita PRINT/FOTO e PDF. O PDF entrou em 13/08/2026: é o formato que o banco
+// exporta (Sicoob, Itaú, Nubank) e, enquanto só imagem era lida, quem pagava e
+// mandava a prova em PDF ouvia "não analiso esse formato" e ficava sem acesso.
 //
 // AUTO ligado (decisão Thiago 25/jul/2026). Kill-switch: PIX_AUTO_LIBERAR=false.
 // Risco residual: o CNPJ Aioros (63636043000188) é o MESMO dos 3 produtos
@@ -72,7 +76,13 @@ export function ehCartaoAtivo(
 
 const brl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
+// Comprovante chega como IMAGEM (print/foto) ou como PDF (o que o banco exporta:
+// Sicoob, Itaú, Nubank…). Os dois entram aqui — o formato só muda o tipo do bloco
+// que vai pra IA e o endpoint que encaminha pro Thiago.
 type ImgSrc = { type: 'base64'; media_type: any; data: string };
+export type ComprovanteSrc = ImgSrc;
+
+const ehPdf = (m: ImgSrc) => String(m.media_type) === 'application/pdf';
 
 interface Comprovante {
   is_comprovante: boolean;
@@ -85,15 +95,20 @@ interface Comprovante {
 
 async function lerComprovante(img: ImgSrc): Promise<Comprovante | null> {
   try {
+    // PDF vai como bloco `document` (a Anthropic renderiza a página e lê texto +
+    // imagem); print/foto vai como `image`. Mesmo prompt nos dois.
+    const anexo: any = ehPdf(img)
+      ? { type: 'document', source: img }
+      : { type: 'image', source: img };
     const r = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 500,
       messages: [{
         role: 'user',
         content: [
-          { type: 'image', source: img },
+          anexo,
           { type: 'text', text: [
-            'Esta imagem é um COMPROVANTE de pagamento Pix ou transferência bancária?',
+            'Este arquivo é um COMPROVANTE de pagamento Pix ou transferência bancária?',
             'Extraia os dados de QUEM RECEBEU (recebedor / beneficiário / destino).',
             'Responda SOMENTE um JSON válido, sem texto antes ou depois:',
             '{"is_comprovante": true|false, "valor": number|null, "recebedor_nome": string|null, "recebedor_documento": string|null, "data": string|null, "id_transacao": string|null}',
@@ -236,9 +251,15 @@ async function notificarThiago(
     statusLinha,
   ].join('\n');
   await sendWhatsApp(THIAGO_PHONE, texto, 'solardoc').catch(() => {});
-  // Encaminha a imagem (data URI base64) pra ele arquivar/conferir.
+  // Encaminha o arquivo (data URI base64) pra ele arquivar/conferir. PDF do banco
+  // vai por send-document; print/foto por send-image.
   try {
-    await sendImage(THIAGO_PHONE, `data:${img.media_type};base64,${img.data}`, `Comprovante de ${email}`, 'solardoc');
+    const dataUri = `data:${img.media_type};base64,${img.data}`;
+    if (ehPdf(img)) {
+      await sendDocument(THIAGO_PHONE, dataUri, `comprovante-${email}.pdf`, `Comprovante de ${email}`, 'solardoc');
+    } else {
+      await sendImage(THIAGO_PHONE, dataUri, `Comprovante de ${email}`, 'solardoc');
+    }
   } catch (err) {
     logger.error('pix-comprovante', 'encaminhar comprovante pro Thiago falhou', err);
   }
