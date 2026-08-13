@@ -406,7 +406,7 @@ router.get('/eletroposto-grupo-frios', async (req: Request, res: Response) => {
   }
 });
 
-// ── Agente de agendamento do eletroposto (confirmação + 1h + 5min) ───────────
+// ── Agente de agendamento do eletroposto (confirmação + bom dia + 1h + 5min) ─
 // ?dry=1 devolve exatamente quem receberia e o texto de cada bolha, sem enviar.
 // O tick normal roda no /process-messages a cada 5 min.
 router.get('/eletroposto-agenda', async (req: Request, res: Response) => {
