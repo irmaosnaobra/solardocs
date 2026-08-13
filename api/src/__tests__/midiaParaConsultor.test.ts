@@ -175,7 +175,8 @@ describe('mídia do lead → consultor dono', () => {
   it('teto por lead: passou de 12 numa hora, para de reenviar e avisa UMA vez', async () => {
     dono = 'thiago';
     for (let i = 0; i < 13; i++) {
-      await encaminharMidiaAoConsultor({ phone: LEAD, media: foto, messageId: `m${i}` });
+      // Fotos DIFERENTES: mídia repetida é barrada pela idempotência, não pelo teto.
+      await encaminharMidiaAoConsultor({ phone: LEAD, media: { ...foto, url: `https://zapi/f${i}.jpg` } });
     }
     // 12 encaminhamentos (2 envios cada) + 1 aviso de teto.
     expect(enviados.length).toBe(12 * 2 + 1);
@@ -183,7 +184,7 @@ describe('mídia do lead → consultor dono', () => {
 
     // Mais mídia depois do teto não gera aviso novo — um por hora.
     const antes = enviados.length;
-    await encaminharMidiaAoConsultor({ phone: LEAD, media: foto, messageId: 'm99' });
+    await encaminharMidiaAoConsultor({ phone: LEAD, media: { ...foto, url: 'https://zapi/f99.jpg' } });
     expect(enviados.length).toBe(antes);
   });
 
@@ -217,11 +218,25 @@ describe('mídia do lead → consultor dono', () => {
     expect(enviados.length).toBe(0);
   });
 
-  it('mesma mensagem duas vezes (retry da fila) encaminha uma só', async () => {
+  // A mesma foto chega pela fila do Worker E pela rota de webhook, com ids
+  // diferentes. Se a chave fosse o id, o consultor receberia duas vezes.
+  it('a mesma mídia por caminhos diferentes encaminha uma só vez', async () => {
     dono = 'thiago';
-    await encaminharMidiaAoConsultor({ phone: LEAD, media: foto, messageId: 'fila-123' });
+    await encaminharMidiaAoConsultor({ phone: LEAD, media: foto, messageId: 'fila-uuid' });
     expect(enviados.length).toBe(2);
-    await encaminharMidiaAoConsultor({ phone: LEAD, media: foto, messageId: 'fila-123' });
+    await encaminharMidiaAoConsultor({ phone: LEAD, media: foto, messageId: 'zapi-msgid' });
+    expect(enviados.length).toBe(2);
+  });
+
+  // Um `return false` a mais aqui é lead cuja mídia não chega em ninguém.
+  it.each([
+    ['5534988887777', 'celular com 55'],
+    ['34988887777', 'celular sem 55'],
+    ['559185046868', 'outro DDD'],
+    ['3432223333', 'telefone fixo'],
+  ])('aceita %s (%s)', async (remetente) => {
+    dono = 'thiago';
+    await encaminharMidiaAoConsultor({ phone: remetente, media: foto });
     expect(enviados.length).toBe(2);
   });
 

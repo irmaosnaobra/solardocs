@@ -25,6 +25,7 @@
 // Kill-switch: MIDIA_FWD_OFF=1 (desliga sem deploy).
 // ─────────────────────────────────────────────────────────────────────────────
 
+import crypto from 'crypto';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { zapiPost, fmtPhone, ZapiInstance } from '../agents/zapiClient';
@@ -244,6 +245,7 @@ export async function encaminharMidiaAoConsultor(p: {
   phone: string;
   nome?: string | null;
   media: MidiaLead;
+  /** Só pra log — a idempotência é pelo hash da URL da mídia (ver abaixo). */
   messageId?: string | null;
   /** Linha em que a mídia chegou — é por ela que o reenvio sai. Default: IO. */
   linha?: ZapiInstance;
@@ -257,9 +259,13 @@ export async function encaminharMidiaAoConsultor(p: {
     const tel = soDigitos(p.phone);
     const chave = `${linha}:${telkey(tel)}`;
 
-    // Mesma mensagem duas vezes (retry da fila, redelivery do Z-API) → sai uma só.
-    const marcaMsg = p.messageId ? `midia_fwd:${chave}:${p.messageId}` : null;
-    if (marcaMsg && await jaEncaminhada(marcaMsg)) return;
+    // Mesma mídia duas vezes → sai uma só. A marca é o HASH DA URL, não o id da
+    // mensagem: a mesma foto chega por dois caminhos (fila do Worker e rota de
+    // webhook) com ids diferentes, e cada um com sua chave mandaria duas vezes
+    // pro consultor. A URL é a única coisa igual nos dois. Cobre de quebra o
+    // retry da fila e o redelivery do Z-API.
+    const marcaMsg = `midia_fwd:${chave}:${crypto.createHash('sha1').update(p.media.url).digest('hex').slice(0, 16)}`;
+    if (await jaEncaminhada(marcaMsg)) return;
 
     // Teto por lead. Estourado → um aviso por hora e para por aqui.
     if (await contarNaHora(`midia_fwd:${chave}:`) >= MAX_POR_LEAD_HORA()) {
@@ -288,7 +294,7 @@ export async function encaminharMidiaAoConsultor(p: {
     ].join('\n');
 
     await zapiPost('send-text', { phone: destino.alvo, message: cartao }, 2, linha);
-    await marcar(marcaMsg || `midia_fwd:${chave}:${Date.now()}`).catch(() => {});
+    await marcar(marcaMsg).catch(() => {});
 
     const ok = await enviarMidia(destino.alvo, p.media, legendaLead, linha);
     if (!ok) {
