@@ -102,9 +102,15 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
     // (top 2 / bottom 2.5), deixando o conteúdo apertado e desbalanceado. Usa um
     // conjunto mais enxuto e simétrico (espelha o da proposta solar, equilibrada).
     // Demais documentos mantêm o padrão 2/2.5/2/2 que já estava bom.
-    // Proposta solar é desenhada full-bleed (faixas coloridas até a borda) — o
-    // próprio HTML controla o espaçamento interno, então margem 0.
-    const margin = tipoSlug === 'propostasolar'
+    // Proposta solar e proposta off-grid são desenhadas full-bleed (faixas
+    // coloridas até a borda, folha de 794×1123px com o padding por dentro) — o
+    // próprio HTML controla o espaçamento, então margem 0.
+    //
+    // A off-grid caía no `else` de 2cm/2.5cm e o resultado era grave: o
+    // Puppeteer somava 4cm de margem a uma folha que já tinha 210mm, e cada
+    // página lógica transbordava pra seguinte. Um PDF de 3 páginas saía com 6,
+    // com o valor do investimento cortado ao meio.
+    const margin = tipoSlug === 'propostasolar' || tipoSlug === 'propostaoffgrid'
       ? { top: '0', bottom: '0', left: '0', right: '0' }
       : tipoSlug === 'propostabanco'
       ? { top: '1.5cm', bottom: '1.5cm', left: '1.5cm', right: '1.5cm' }
