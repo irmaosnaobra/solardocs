@@ -75,6 +75,7 @@ const PREFIXOS = [
   'limpapro_recovery:', 'limpapro_cupom_sent:', 'limpapro_fechamento_sent:', 'limpapro_grupo_sent:',
   'limpapro_recovery_pending:', 'limpapro_cupom_pending:', 'limpapro_fechamento_pending:', 'limpapro_grupo_pending:',
   'gerador_followup:', 'gerador_seq:', 'carla_sent:', 'curso19:', 'ig_sent',
+  'ep_remarcar_sent:',       // remarcação automática do eletroposto (oferta + confirmação)
   'ep_repescagem_sent:', 'ep_repescagem_pending:', 'ep_repescagem_resposta:',
   'ep_resposta:',
   'solar_resposta:',
@@ -120,6 +121,11 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   const curso = resumo(chaves, 'curso19:');
   const ig = resumo(chaves, 'ig_sent');
   const epResp = resumo(chaves, 'ep_resposta:');
+  // Remarcação automática: o que importa é quantas reuniões foram SALVAS, não
+  // quantas ofertas saíram — por isso só o carimbo `:remarcado` conta. A oferta
+  // entra separada, porque oferta ≫ remarcação significa lead ignorando a lista.
+  const epRemarcado = resumo(chaves.filter(k => k.key.endsWith(':remarcado')), 'ep_remarcar_sent:');
+  const epOfertas = resumo(chaves.filter(k => k.key.endsWith(':oferta')), 'ep_remarcar_sent:');
   const solarResp = resumo(chaves, 'solar_resposta:');
   const atendLimpa = resumo(chaves, 'limpapro_atendimento:');
   // Escalada é o número que importa nesta trilha: é quanto ela NÃO resolveu sozinha.
@@ -494,6 +500,10 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Avisadas por ele', valor: epFuturasConfirmadas, sub: 'mensagem de confirmação entregue' },
         { label: 'Responderam', valor: epResp.total, sub: `${epResp.h24} nas últimas 24h · recado vai pro Thiago e pro Diego na hora` },
         {
+          label: 'Remarcadas pelo robô', valor: epRemarcado.total,
+          sub: `${epOfertas.total} oferta(s) de horário · o robô nunca cancela e nunca troca de consultor. Kill-switch EP_REMARCAR_OFF`,
+        },
+        {
           label: 'Confirmaram presença', valor: epPresencaConfirmada,
           sub: 'disse que vem, em mensagem. Pediu pra remarcar depois? Sai da conta.',
         },
@@ -505,6 +515,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { titulo: '3º · 1 hora antes', quando: '45 a 75 min antes da reunião', copy: 'Avisa que o link está vindo pelo WhatsApp do consultor, pede internet e sinal, e abre a porta do remarcar de novo.' },
         { titulo: '4º · 5 minutos antes', quando: 'nos 12 min que antecedem o horário', copy: '"É agora, o consultor já está te esperando" — o link cai no WhatsApp dele a qualquer momento.' },
         { titulo: '↩ resposta do lead', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro lead: é o recado que vai pro Thiago e pro Diego com o que a pessoa escreveu, a hora da reunião e de quem ela é. Kill-switch EP_RESPOSTAS_OFF.' },
+        { titulo: '🔄 remarca sozinho', quando: 'quando o lead diz que não vai dar', copy: 'Oferece os 3 próximos horários livres DO MESMO consultor, espera a pessoa escolher o número e troca na hora — liberando o horário antigo pra agenda. Nunca cancela, nunca muda de consultor e nunca move sem escolha explícita. Quem pede pra CANCELAR (e não remarcar) continua indo pro humano. Kill-switch EP_REMARCAR_OFF.' },
       ],
       alerta: (epReunioesFuturas ?? 0) > 0 && (epFuturasConfirmadas ?? 0) < (epReunioesFuturas ?? 0)
         ? `${(epReunioesFuturas ?? 0) - (epFuturasConfirmadas ?? 0)} reunião(ões) futura(s) ainda sem a mensagem de confirmação — a fila de atraso sai 1 por rodada, das 08h às 20h.`

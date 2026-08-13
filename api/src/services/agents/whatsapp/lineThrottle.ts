@@ -126,6 +126,7 @@ const BOT_SENT_PREFIXES = [
   // Transacional continua saindo na hora; o que passa a ser contado (e barrado)
   // é a DRENAGEM de fila, que é o que vira rajada.
   'ep_agenda_sent:',         // agente de agendamento do eletroposto
+  'ep_remarcar_sent:',       // conversa de remarcação do eletroposto (oferta + confirmação)
   'solar_boasvindas_sent:',  // boas-vindas do cadastro de solar
   // [07/08] Estavam FORA do orçamento e gastavam a linha sem aparecer na conta
   // (documentado na queda de 04–06/ago). Cada um tinha janela própria, então não

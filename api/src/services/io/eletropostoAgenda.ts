@@ -354,7 +354,7 @@ async function jaRecebeuManha(ids: number[]): Promise<Set<number> | null> {
 }
 
 /** nome do consultor → WhatsApp dele, direto do cadastro do CRM. */
-async function carregarConsultores(): Promise<Map<string, string>> {
+export async function carregarConsultores(): Promise<Map<string, string>> {
   const mapa = new Map<string, string>();
   try {
     const { data, error } = await supabaseGerador.from('consultores').select('nome, whatsapp').limit(100);
@@ -426,6 +426,12 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   // Reunião é HOJE, foi marcada num dia ANTERIOR (quem marcou hoje pra hoje já
   // teve a confirmação há pouco — repetir seria a mesma informação duas vezes em
   // horas) e ainda está longe o bastante pra não pisar no toque de 1h.
+  //
+  // A comparação é `created_at < quando`, e não "a ficha é de ontem", DE PROPÓSITO:
+  // quem marcou hoje pra hoje e depois REMARCOU pra semana que vem (o robô de
+  // eletropostoRemarcar move o `quando` e não toca no `created_at`) passa a
+  // qualificar — e tem que passar, porque agora ele é exatamente o caso que o bom
+  // dia existe pra cobrir: combinou num dia, aparece em outro.
   const horaAgora = horaBrasilia();
   const naJanelaDaManha = horaAgora >= MANHA.de && horaAgora < MANHA.ate;
   const hojeBRT = diaBRT(agora);

@@ -41,7 +41,8 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { EQUIPE } from '../../routes/ioEletroposto';
-import { quandoPorExtenso } from './eletropostoAgenda';
+import { quandoPorExtenso, carregarConsultores } from './eletropostoAgenda';
+import { passoDeRemarcacao, linhaDoAviso } from './eletropostoRemarcar';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
@@ -100,8 +101,12 @@ export function pediuRemarcar(textos: string[]): boolean {
 }
 
 /** O selo é uma LEITURA pro humano — o texto da pessoa vai inteiro logo abaixo.
- *  O que ele NÃO faz é inventar presença: só sobe pra ✅ quem confirmou mesmo. */
-export function selo(textos: string[]): { icone: string; titulo: string } {
+ *  O que ele NÃO faz é inventar presença: só sobe pra ✅ quem confirmou mesmo.
+ *
+ *  `jaResolvido` é o robô de remarcação avisando que já trocou o horário: sem
+ *  isso o recado abre com um alerta sobre um problema que ele mesmo fechou. */
+export function selo(textos: string[], jaResolvido = false): { icone: string; titulo: string } {
+  if (jaResolvido) return { icone: '🔄', titulo: 'REMARCADO PELO ROBÔ' };
   if (pediuRemarcar(textos)) return { icone: '⚠️', titulo: 'PODE QUERER REMARCAR' };
   if (confirmouMesmo(textos)) return { icone: '✅', titulo: 'CONFIRMOU PRESENÇA' };
   return { icone: '💬', titulo: 'RESPONDEU' };
@@ -113,9 +118,10 @@ interface Msg { texto: string; tipo: string; momment: string }
 export function montarAviso(
   ficha: { cliente_nome: string | null; cliente_telefone: string | null; quando: string | null; vendedor_nome: string | null },
   msgs: Msg[],
+  jaResolvido = false,
 ): string {
   const textos = msgs.map(m => m.texto).filter(Boolean);
-  const s = selo(textos);
+  const s = selo(textos, jaResolvido);
   const tel = String(ficha.cliente_telefone || '').replace(/\D/g, '');
 
   // Mídia conta separado: áudio sobre o ponto é o recado mais rico que chega, e
@@ -166,12 +172,15 @@ interface Ficha {
 
 export type ResultadoRespostas = {
   avisados: number;
+  /** Reuniões que o robô moveu sozinho nesta rodada (ver eletropostoRemarcar). */
+  remarcadas: number;
   erros: number;
   motivo?: string;
   previa?: Array<{ id: number; cliente: string; mensagens: number; aviso: string }>;
 };
 
-const zero = (motivo?: string): ResultadoRespostas => ({ avisados: 0, erros: 0, ...(motivo ? { motivo } : {}) });
+const zero = (motivo?: string): ResultadoRespostas =>
+  ({ avisados: 0, remarcadas: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
 export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}): Promise<ResultadoRespostas> {
   if (desligado()) return zero('desligado');
@@ -260,16 +269,31 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
   if (porFicha.size === 0) return zero('ninguem_respondeu');
 
   // 4) Avisa.
-  let avisados = 0, erros = 0;
+  let avisados = 0, erros = 0, remarcadas = 0;
   const previa: NonNullable<ResultadoRespostas['previa']> = [];
+  // WhatsApp do consultor, pra confirmação de remarcação lembrar de onde vem o link.
+  const telPorConsultor = await carregarConsultores();
 
   for (const [id, lista] of porFicha) {
     if (avisados >= MAX_AVISOS_POR_TICK) break;
     const ficha = [...porChave.values()].find(f => f.id === id)!;
-    const aviso = montarAviso(ficha, lista);
 
     if (opts.dry) {
-      previa.push({ id, cliente: String(ficha.cliente_nome || '—'), mensagens: lista.length, aviso });
+      // `dry` também simula a remarcação: ele decide igual e não envia nem grava,
+      // então o ?dry=1 mostra a conversa que o robô teria — que é o que se quer
+      // conferir antes de deixar um robô mexer na agenda.
+      const seco = await passoDeRemarcacao(
+        ficha, lista.map(m => m.texto).filter(Boolean),
+        telPorConsultor.get(String(ficha.vendedor_nome || '')) ?? null, { dry: true },
+      ).catch(() => ({ acao: 'nada' as const }));
+      const aviso = montarAviso(
+        seco.acao === 'remarcou' ? { ...ficha, quando: seco.para } : ficha,
+        lista, seco.acao === 'remarcou');
+      const extra = linhaDoAviso(seco);
+      previa.push({
+        id, cliente: String(ficha.cliente_nome || '—'), mensagens: lista.length,
+        aviso: extra ? `${aviso}\n\n${extra}` : aviso,
+      });
       avisados++;
       continue;
     }
@@ -296,8 +320,31 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
         .then(undefined, (e: unknown) => logger.error('ep-respostas', 'gravar presença falhou', { id, erro: String(e) }));
     }
 
+    // Remarcação automática. Roda ANTES do aviso pra que o Thiago e o Diego já
+    // recebam o recado com o desfecho ("remarcado pro dia X") em vez de um alerta
+    // sobre um problema que o robô resolveu no mesmo minuto. Ele nunca cancela e
+    // nunca troca de consultor — o pior caso é não fazer nada e o alerta sair
+    // igual ao de antes. Falha aqui não pode engolir o aviso: por isso o try.
+    let posRemarcacao: string | null = null;
+    let novoQuando: string | null = null;
     try {
-      const envios = await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
+      const r = await passoDeRemarcacao(
+        ficha, textosDaVez, telPorConsultor.get(String(ficha.vendedor_nome || '')) ?? null);
+      posRemarcacao = linhaDoAviso(r);
+      if (r.acao === 'remarcou') { remarcadas++; novoQuando = r.para; }
+    } catch (e) {
+      logger.error('ep-respostas', 'passo de remarcação falhou', { id, erro: String(e) });
+    }
+    // O aviso é montado DEPOIS do robô agir, por dois motivos: o selo é a
+    // primeira linha que o Thiago lê (um "⚠️ PODE QUERER REMARCAR" no topo de um
+    // recado que termina em "já remarquei" o faz abrir o CRM à toa), e o horário
+    // do cabeçalho tem que ser o NOVO — a ficha em memória ainda tem o velho.
+    const aviso = montarAviso(
+      novoQuando ? { ...ficha, quando: novoQuando } : ficha, lista, !!novoQuando);
+    const avisoFinal = posRemarcacao ? `${aviso}\n\n${posRemarcacao}` : aviso;
+
+    try {
+      const envios = await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, avisoFinal, 'io')));
       const ok = envios.filter(e => e.status === 'fulfilled').length;
       if (ok === 0) throw new Error('nenhum destinatário recebeu');
       avisados++;
@@ -308,5 +355,5 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     }
   }
 
-  return { avisados, erros, ...(opts.dry ? { motivo: 'dry', previa } : {}) };
+  return { avisados, remarcadas, erros, ...(opts.dry ? { motivo: 'dry', previa } : {}) };
 }

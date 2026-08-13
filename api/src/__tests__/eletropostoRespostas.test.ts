@@ -15,12 +15,22 @@ vi.mock('../utils/supabase', () => ({
     from: (tabela: string) => {
       const q: any = {
         _filtros: {} as Record<string, any>,
+        _del: false,
         select() { return q; },
-        eq(col: string, v: any) { q._filtros[col] = v; return q; },
+        eq(col: string, v: any) {
+          q._filtros[col] = v;
+          if (q._del) { state.delete(String(v)); return Promise.resolve({ error: null }); }
+          return q;
+        },
         gte(col: string, v: any) { q._filtros[`gte_${col}`] = v; return q; },
         lte(col: string, v: any) { q._filtros[`lte_${col}`] = v; return q; },
         like() { return q; },
         order() { return q; },
+        // O robô de remarcação lê/apaga chave a chave (oferta em aberto e carimbo
+        // do bom dia). Sem estes três, o passo de remarcação estourava e o
+        // try/catch do tick engolia — a ligação passava nos testes sem existir.
+        maybeSingle() { return Promise.resolve({ data: state.get(String(q._filtros['key'])) ?? null, error: null }); },
+        delete() { q._del = true; return q; },
         upsert(p: any) { for (const r of (Array.isArray(p) ? p : [p])) state.set(r.key, r); return Promise.resolve({ error: null }); },
         limit() {
           if (tabela === 'system_state') return Promise.resolve({ data: [...state.values()], error: null });
@@ -34,26 +44,51 @@ vi.mock('../utils/supabase', () => ({
     },
   },
 }));
+/** Agenda de Thiago/Diego que a régua de vagas enxerga (vazia = tarde toda livre). */
+let compromissos: any[] = [];
+const remarcacoes: Array<{ id: number; patch: any }> = [];
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
-    from: () => {
+    from: (tabela: string) => {
       const q: any = {
         _update: null as any,
         select() { return q; }, in() { return q; }, gte() { return q; }, or() { return q; },
+        // `lte` e `not` são da consulta de vagas do robô de remarcação.
+        lte() { return q; }, not() { return q; },
         update(patch: any) { q._update = patch; return q; },
         eq(_c: string, v: any) {
-          if (q._update) { presencas.push({ id: v, valor: q._update.presenca_confirmada_at }); return Promise.resolve({ error: null }); }
+          if (q._update) {
+            // Presença e remarcação escrevem na MESMA tabela: separa pelo patch.
+            if ('quando' in q._update) remarcacoes.push({ id: Number(v), patch: q._update });
+            else presencas.push({ id: v, valor: q._update.presenca_confirmada_at });
+            return Promise.resolve({ error: null });
+          }
           return q;
         },
-        limit() { return Promise.resolve({ data: fichas, error: null }); },
+        limit() {
+          if (tabela === 'consultores') return Promise.resolve({ data: [{ nome: 'Diego', whatsapp: '5534991360172' }], error: null });
+          // A régua de vagas pergunta por `quando`+`vendedor_nome`; o tick de
+          // respostas pergunta pelas fichas. O `select` distingue os dois.
+          if (q._vagas) return Promise.resolve({ data: compromissos, error: null });
+          return Promise.resolve({ data: fichas, error: null });
+        },
       };
+      // A consulta de vagas é a única que pede exatamente estas duas colunas.
+      const select = q.select;
+      q.select = (cols?: string) => { q._vagas = cols === 'quando, vendedor_nome'; return select(); };
       return q;
     },
   },
 }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
+/** O que o robô de remarcação fala com o LEAD (o `avisos` é o que vai pra equipe). */
+const aoLead: Array<{ phone: string; bolhas: string[] }> = [];
 vi.mock('../services/agents/zapiClient', () => ({
   sendWhatsApp: vi.fn(async (phone: string, texto: string) => { avisos.push({ phone, texto }); }),
+  sendHuman: vi.fn(async (phone: string, bolhas: string[]) => { aoLead.push({ phone, bolhas }); }),
+}));
+vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
+  dentroDoTetoHorarioLinha: vi.fn(async () => true),
 }));
 vi.mock('../routes/ioEletroposto', () => ({ EQUIPE: { thiago: '34991360223', diego: '34991360172' } }));
 
@@ -77,6 +112,7 @@ function msg(over: Partial<any> = {}) {
 const envOriginal = { ...process.env };
 beforeEach(() => {
   state.clear(); avisos.length = 0; presencas.length = 0;
+  aoLead.length = 0; remarcacoes.length = 0; compromissos = [];
   fichas = [ficha()]; inbound = [msg()];
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
@@ -239,5 +275,84 @@ describe('travas', () => {
     expect(r.previa?.[0]).toMatchObject({ id: 1, mensagens: 1 });
     expect(avisos).toHaveLength(0);
     expect(state.size).toBe(0);
+  });
+});
+
+// A remarcação automática mora no eletropostoRemarcar (testado à parte). O que
+// estes provam é a LIGAÇÃO: que o tick de respostas chama o robô de verdade, e
+// que a equipe recebe o desfecho junto do recado em vez de um alerta órfão.
+describe('remarcação automática, pela ponta do tick', () => {
+  const pedido = (t: string, min = 5) => msg({ texto: t, momment: antes(min) });
+
+  it('pedido de remarcar vira oferta pro lead e desfecho no recado da equipe', async () => {
+    inbound = [pedido('não vai dar, pode ser outro dia?')];
+    const r = await tick();
+    expect(r.avisados).toBe(1);
+    expect(aoLead).toHaveLength(1);
+    expect(aoLead[0].bolhas.join(' ')).toContain('1)');
+    expect(avisos[0].texto).toContain('O robô já ofereceu');
+    expect(remarcacoes).toEqual([]);            // nada muda antes de a pessoa escolher
+  });
+
+  it('a escolha move a reunião e a equipe é avisada do novo horário', async () => {
+    inbound = [pedido('preciso remarcar')];
+    await tick();
+    const ofertadas = state.get('ep_remarcar:1')!.value.ofertas as string[];
+    avisos.length = 0; aoLead.length = 0;
+
+    inbound = [pedido('2', 1)];
+    const r = await tick();
+    expect(r.remarcadas).toBe(1);
+    expect(remarcacoes).toHaveLength(1);
+    expect(remarcacoes[0]!.patch.quando).toBe(ofertadas[1]);
+    expect(avisos[0]!.texto).toContain('REMARCADO PELO ROBÔ');
+    // O selo do topo também vira "resolvido", e o cabeçalho já mostra o horário
+    // NOVO: recado que abre em ⚠️ manda o Thiago resolver o que não existe mais.
+    expect(avisos[0]!.texto).not.toContain('PODE QUERER REMARCAR');
+    expect(avisos[0]!.texto).toContain('🔄');
+  });
+
+  it('quem pede pra CANCELAR não recebe horário nenhum — segue como alerta', async () => {
+    inbound = [pedido('quero cancelar por favor')];
+    const r = await tick();
+    expect(r.avisados).toBe(1);
+    expect(r.remarcadas).toBe(0);
+    expect(aoLead).toHaveLength(0);
+    expect(avisos[0].texto).toContain('PODE QUERER REMARCAR');   // o selo antigo, pro humano
+  });
+
+  it('kill-switch do remarcar não derruba o recado da equipe', async () => {
+    process.env.EP_REMARCAR_OFF = '1';
+    vi.resetModules();
+    inbound = [pedido('não vai dar, pode ser outro dia?')];
+    expect((await tick()).avisados).toBe(1);
+    expect(aoLead).toHaveLength(0);
+    expect(avisos).toHaveLength(2);
+  });
+
+  it('dry mostra o que o robô faria e não envia nem grava', async () => {
+    inbound = [pedido('preciso remarcar')];
+    const r = await tick({ dry: true });
+    expect(r.previa?.[0]?.aviso).toContain('O robô já ofereceu');
+    expect(aoLead).toHaveLength(0);
+    expect(remarcacoes).toEqual([]);
+    expect(state.has('ep_remarcar:1')).toBe(false);
+  });
+
+  // O caminho perigoso do dry não é a oferta, é a ESCOLHA: com uma oferta viva no
+  // system_state, um "2" no inbound leva o passo até a beira do UPDATE. Uma prévia
+  // que move reunião de verdade seria o pior tipo de bug — o endpoint existe
+  // justamente pra olhar sem tocar.
+  it('dry com oferta em aberto e escolha no inbound NÃO move a agenda', async () => {
+    inbound = [pedido('preciso remarcar')];
+    await tick();                                    // deixa uma oferta viva
+    remarcacoes.length = 0; aoLead.length = 0;
+
+    inbound = [pedido('2', 1)];
+    const r = await tick({ dry: true });
+    expect(remarcacoes).toEqual([]);
+    expect(aoLead).toHaveLength(0);
+    expect(r.previa?.[0]?.aviso).toContain('REMARCADO PELO ROBÔ');   // decide igual, só não faz
+    expect(state.has('ep_remarcar:1')).toBe(true);                   // a oferta continua de pé
   });
 });
