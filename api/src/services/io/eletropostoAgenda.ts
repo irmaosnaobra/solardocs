@@ -7,12 +7,15 @@
 // primeiro contato real acontecia na hora da reunião, quando já não dá pra
 // recuperar quem esqueceu.
 //
-// Três toques, todos pro CLIENTE, todos na linha IO:
+// Quatro toques, todos pro CLIENTE, todos na linha IO:
 //   1. AO MARCAR      — confirma dia/hora, diz que é por vídeo, que o link chega
 //                       pelo WhatsApp DO CONSULTOR, e PEDE UM "SIM" (o compromisso
 //                       explícito é o que separa quem vai de quem só clicou).
-//   2. 1 HORA ANTES   — avisa que o link está vindo e abre a porta do remarcar.
-//   3. 5 MINUTOS ANTES— "ele já está te esperando, o link cai a qualquer momento".
+//   2. MANHÃ DO DIA   — só pra quem marcou num dia ANTERIOR: às 8h, "hoje é o dia".
+//                       Quem marcou com dias de antecedência viu a confirmação sumir
+//                       da conversa e chega no dia sem nada.
+//   3. 1 HORA ANTES   — avisa que o link está vindo e abre a porta do remarcar.
+//   4. 5 MINUTOS ANTES— "ele já está te esperando, o link cai a qualquer momento".
 //
 // Os três avisam que pode atrasar uns minutos: a reunião de antes estica quando
 // vai pra fechamento, e lead esperando sem aviso acha que furaram com ele.
@@ -84,6 +87,32 @@ const BRT_TZ = 'America/Sao_Paulo';
 const MIN_5MIN = { de: -3, ate: 12 };
 const MIN_1H = { de: 45, ate: 75 };
 
+// ── LEMBRETE DA MANHÃ (quem marcou em outro dia) ─────────────────────────────
+// Quem marca hoje pra hoje recebe a confirmação e a reunião acontece na mesma
+// leva de mensagens. Quem marcou ONTEM (ou semana passada) confirmou num dia e
+// aparece em outro: a confirmação já rolou pra fora da conversa, e o dia da
+// reunião começa sem nada. Às 8h a pessoa ainda está montando o dia — é a última
+// hora em que dá pra remarcar sem furar o horário do consultor.
+//
+// Janela larga, não um horário cravado, por DOIS motivos: o tick é de 5 min mas o
+// GitHub Actions atrasa, e o teto anti-ban da linha é de 6/h COMPARTILHADO com todo
+// o resto (backlog de confirmação, Bia, semente, followup do gerador). Uma grade
+// cheia são 10 reuniões: com 6/h disputados, elas não cabem em 3 horas se a manhã
+// estiver movimentada. As 4 horas dão folga, e não custam nada — a partir das 11h
+// quem tem reunião às 13h já é barrado pelo MANHA_ANTECEDENCIA_MIN, então a hora
+// extra só serve pros horários de 14h em diante.
+const MANHA = { de: 8, ate: 12 };
+/** Nunca a menos de 2h da reunião: abaixo disso quem fala é o toque de 1h, e um
+ *  "hoje é o dia" 40 minutos antes é ruído. A grade da LP é 13h–17h, então na
+ *  prática sobra folga — mas prospecção e ManyChat marcam em qualquer hora. */
+const MANHA_ANTECEDENCIA_MIN = 120;
+/** 2 por tick. Com o tick de 5 min, a grade cheia (10 reuniões/dia) drena em 25
+ *  minutos, sobrando muito da janela de 3h. Sem esse freio, um tick soltaria os 6
+ *  do MAX_TOQUES — 6 pessoas × 4 bolhas em ~2 minutos é exatamente a rajada que
+ *  bloqueou a linha IO em 04/08. O teto anti-ban é checado ANTES de cada envio,
+ *  então quem não couber espera o próximo tick em vez de furar. */
+const MANHA_POR_TICK = 2;
+
 /** Ficha nova demais pra ser backlog: confirma na hora, sem fila e sem janela. */
 const FRESCA_MS = 30 * 60 * 1000;
 // BACKLOG_ANTECEDENCIA_MIN (120) saiu em 10/08/2026: era ele que fazia ficha
@@ -101,6 +130,15 @@ function horaBrasilia(): number {
 function foraDaJanela(): boolean {
   const h = horaBrasilia();
   return h < JANELA_INICIO_H || h >= JANELA_FIM_H;
+}
+
+/** "2026-08-13" no fuso de Brasília. `en-CA` já sai nesse formato, e ele ordena
+ *  como texto — é o que deixa "marcou num dia anterior" virar uma comparação
+ *  direta, sem aritmética de fuso (o `-3h` na mão erra o dia na virada). */
+function diaBRT(iso: string | number | Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: BRT_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date(iso));
 }
 
 function primeiroNome(nome: string | null | undefined): string {
@@ -207,7 +245,31 @@ export function bolhasConfirmacao(
   ];
 }
 
-// ── 2. 1 HORA ANTES ─────────────────────────────────────────────────────────
+// ── 2. NA MANHÃ DO DIA (só pra quem marcou num dia anterior) ────────────────
+// Não repete o que a confirmação já disse (é por vídeo, salva o contato, o que
+// mandar): quem recebe isto já leu tudo aquilo. O trabalho aqui é outro — trazer
+// a reunião de volta pra cabeça de quem marcou dias atrás, e abrir a porta do
+// remarcar enquanto ainda dá pra encaixar outra pessoa no horário.
+export function bolhasManha(
+  nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
+  telVendedor?: string | null,
+): string[] {
+  const n = primeiroNome(nome);
+  const quem = String(vendedor || '').trim() || 'nosso consultor';
+  const tel = telefoneBonito(telVendedor);
+  return [
+    // Hora, consultor e origem do link numa bolha só. Em duas, o nome do consultor
+    // saía repetido em mensagens seguidas ("com o Diego" / "do Diego") — que é
+    // exatamente o jeito que um robô escreve e uma pessoa não.
+    `Bom dia${comNome(n)}! Hoje é o dia: sua reunião de eletroposto é *${horaCurta(quandoIso)}*, com o *${quem}* — o link chega no WhatsApp dele${tel ? `, *${tel}*` : ''}.`,
+    // "Se ainda não mandou" e não "me manda": metade já mandou na confirmação, e
+    // pedir de novo a quem já atendeu passa a impressão de que ninguém leu.
+    'Se ainda não me mandou a conta de luz e a localização do ponto, dá tempo até lá — é o que faz a reunião render.',
+    'E se não der mais, me fala agora que eu remarco — a procura está alta e o horário fica bloqueado.',
+  ];
+}
+
+// ── 3. 1 HORA ANTES ─────────────────────────────────────────────────────────
 export function bolhas1h(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
   telVendedor?: string | null,
@@ -224,7 +286,7 @@ export function bolhas1h(
   ];
 }
 
-// ── 3. 5 MINUTOS ANTES ──────────────────────────────────────────────────────
+// ── 4. 5 MINUTOS ANTES ──────────────────────────────────────────────────────
 export function bolhas5min(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
   telVendedor?: string | null,
@@ -252,16 +314,44 @@ interface Ficha {
   lembrete_5min_at: string | null;
 }
 
-export type ToquePrevisto = { id: number; cliente: string; toque: '5min' | '1h' | 'confirmacao'; quando: string; bolhas: string[] };
+export type ToquePrevisto = { id: number; cliente: string; toque: '5min' | '1h' | 'manha' | 'confirmacao'; quando: string; bolhas: string[] };
 
 export type ResultadoAgendaEp = {
   confirmacoes: number;
+  lembretes_manha: number;
   lembretes_1h: number;
   lembretes_5min: number;
   erros: number;
   motivo?: string;
   previa?: ToquePrevisto[];
 };
+
+/**
+ * Quem, desta lista, JÁ recebeu o bom dia. O carimbo lido é o MESMO que o
+ * `entregar` grava pro teto anti-ban (`ep_agenda_sent:<id>:manha`) — ledger que
+ * já existe, sem coluna nova em `agendamentos`.
+ *
+ * Coluna nova seria pior aqui: o `select` da consulta lista as colunas na mão,
+ * então entre o deploy do código e a migração rodar a consulta INTEIRA falha e
+ * os quatro toques param — inclusive a confirmação de quem acabou de marcar.
+ *
+ * Leitura falhou? Devolve `null`, e quem chama trata como "todo mundo já
+ * recebeu". Fail-closed de propósito: mandar bom dia duas vezes é pior que não
+ * mandar — o toque de 1h ainda pega a pessoa no mesmo dia.
+ */
+async function jaRecebeuManha(ids: number[]): Promise<Set<number> | null> {
+  if (!ids.length) return new Set();
+  try {
+    const { data, error } = await supabase
+      .from('system_state').select('key')
+      .in('key', ids.map(id => `${EP_AGENDA_PREFIX}${id}:manha`));
+    if (error) throw error;
+    return new Set((data ?? []).map(r => Number(String(r.key).split(':')[1])));
+  } catch (err) {
+    logger.error('ep-agenda', 'ler carimbo do bom dia falhou — ninguém recebe nesta rodada', err);
+    return null;
+  }
+}
 
 /** nome do consultor → WhatsApp dele, direto do cadastro do CRM. */
 async function carregarConsultores(): Promise<Map<string, string>> {
@@ -279,7 +369,7 @@ async function carregarConsultores(): Promise<Map<string, string>> {
 }
 
 const zero = (motivo?: string): ResultadoAgendaEp =>
-  ({ confirmacoes: 0, lembretes_1h: 0, lembretes_5min: 0, erros: 0, ...(motivo ? { motivo } : {}) });
+  ({ confirmacoes: 0, lembretes_manha: 0, lembretes_1h: 0, lembretes_5min: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
 /**
  * Roda a cada ~5 min dentro do /cron/process-messages.
@@ -324,12 +414,40 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   const telPorConsultor = await carregarConsultores();
 
   const foraDeHorario = foraDaJanela();
-  let confirmacoes = 0, l1h = 0, l5min = 0, erros = 0, backlog = 0, toques = 0;
+  let confirmacoes = 0, lManha = 0, l1h = 0, l5min = 0, erros = 0, backlog = 0, toques = 0;
+  /** Quem qualificou pro bom dia e ficou de fora pelo teto da linha. Contado e
+   *  logado porque, sem isso, "a manhã inteira barrada no teto" e "ninguém tinha
+   *  reunião hoje" são o MESMO silêncio no log — e o primeiro é um bom dia que
+   *  nunca sai, já que a janela fecha ao meio-dia. */
+  let manhaSegurados = 0;
   const previa: ToquePrevisto[] = [];
+
+  // ── Quem entra no bom dia de hoje ──────────────────────────────────────────
+  // Reunião é HOJE, foi marcada num dia ANTERIOR (quem marcou hoje pra hoje já
+  // teve a confirmação há pouco — repetir seria a mesma informação duas vezes em
+  // horas) e ainda está longe o bastante pra não pisar no toque de 1h.
+  const horaAgora = horaBrasilia();
+  const naJanelaDaManha = horaAgora >= MANHA.de && horaAgora < MANHA.ate;
+  const hojeBRT = diaBRT(agora);
+  const ehDaManha = (f: Ficha): boolean =>
+    naJanelaDaManha && !!f.quando &&
+    diaBRT(f.quando) === hojeBRT &&
+    diaBRT(f.created_at) < diaBRT(f.quando) &&
+    (new Date(f.quando).getTime() - agora) / 60_000 >= MANHA_ANTECEDENCIA_MIN;
+
+  // Uma leitura por rodada, só na janela da manhã e só dos candidatos — não é
+  // varredura do system_state inteiro.
+  const candidatosManha = naJanelaDaManha ? fichas.filter(ehDaManha) : [];
+  const manhaFeita = await jaRecebeuManha(candidatosManha.map(f => f.id));
+  /** Leitura do carimbo falhou: ninguém recebe bom dia nesta rodada (ver `jaRecebeuManha`). */
+  const manhaCega = manhaFeita === null;
 
   // Envia e grava a flag. Em `dry` só registra o que sairia — mesma decisão, zero
   // mensagem. É assim que se confere a régua em produção sem tocar em ninguém.
-  const entregar = async (ag: Ficha, toque: ToquePrevisto['toque'], tel: string, bolhas: string[], campo: string | string[]) => {
+  // `campo` null = toque que não tem coluna de flag em `agendamentos` (o bom dia,
+  // que se controla pelo carimbo do system_state). O envio e o carimbo do teto
+  // acontecem igual; só o UPDATE é pulado.
+  const entregar = async (ag: Ficha, toque: ToquePrevisto['toque'], tel: string, bolhas: string[], campo: string | string[] | null) => {
     if (opts.dry) {
       previa.push({ id: ag.id, cliente: String(ag.cliente_nome || '—'), toque, quando: String(ag.quando), bolhas });
       return;
@@ -344,6 +462,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       .then(undefined, (e: unknown) => logger.error('ep-agenda', 'carimbo do teto da linha falhou', { id: ag.id, erro: String(e) }));
     // Pode carimbar MAIS DE UMA flag no mesmo envio: a confirmação de uma reunião
     // que já está dentro da janela de 1h também mata o toque de 1h (ver abaixo).
+    if (campo === null) return;
     const campos = Array.isArray(campo) ? campo : [campo];
     await supabaseGerador.from('agendamentos')
       .update(Object.fromEntries(campos.map(c => [c, agoraIso]))).eq('id', ag.id);
@@ -429,13 +548,43 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       }
       continue;
     }
+
+    // ── Bom dia, hoje é o dia (quem marcou em outro dia) ────────────────────
+    // Último da fila de propósito: é o toque menos urgente dos quatro, e a janela
+    // dele tem 3 horas de folga. Se um lead tem reunião hoje E acabou de marcar
+    // outra coisa, a confirmação passa na frente.
+    if (!manhaCega && lManha < MANHA_POR_TICK && !manhaFeita!.has(ag.id) && ehDaManha(ag)) {
+      // Este é o único toque que sai em LOTE (todo mundo do dia, na mesma faixa
+      // de horário), então é o único que consegue fazer rajada sozinho. Fica
+      // atrás do teto anti-ban — como transacional, que é o que ele é: mensagem
+      // sobre a reunião que a própria pessoa marcou.
+      if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: true }))) {
+        manhaSegurados++;
+        continue;
+      }
+      try {
+        await entregar(ag, 'manha', tel, bolhasManha(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), null);
+        lManha++; toques++;
+      } catch (e) {
+        logger.error('ep-agenda', 'falha no bom dia', { id: ag.id, erro: String(e) });
+        erros++;
+      }
+      continue;
+    }
   }
 
   if (toques > 0 && !opts.dry) {
-    logger.info('ep-agenda', `${toques} toque(s)`, { confirmacoes, l1h, l5min, erros });
+    logger.info('ep-agenda', `${toques} toque(s)`, { confirmacoes, lManha, l1h, l5min, erros });
+  }
+  // Fora do `if` de propósito: uma rodada que só segurou bom dia não tem toque
+  // nenhum, e é justamente ela que precisa aparecer.
+  if (manhaSegurados > 0 && !opts.dry) {
+    logger.info('ep-agenda', `${manhaSegurados} bom dia segurado(s) pelo teto da linha`, {
+      candidatos: candidatosManha.length, enviados: lManha,
+    });
   }
   return {
-    confirmacoes, lembretes_1h: l1h, lembretes_5min: l5min, erros,
+    confirmacoes, lembretes_manha: lManha, lembretes_1h: l1h, lembretes_5min: l5min, erros,
     ...(opts.dry ? { motivo: 'dry', previa } : {}),
   };
 }

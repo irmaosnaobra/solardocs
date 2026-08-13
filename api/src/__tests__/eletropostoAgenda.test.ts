@@ -55,8 +55,23 @@ const carimbos: string[] = [];
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   dentroDoTetoHorarioLinha: vi.fn(async () => tetoLivre),
 }));
+// O system_state guarda DUAS coisas aqui: o carimbo do teto anti-ban e — pro bom
+// dia, que não tem coluna em `agendamentos` — a própria prova de que já saiu. Por
+// isso a leitura responde a partir de `carimbos`, o mesmo array que a escrita
+// alimenta: um mock com fixture separada deixaria "não manda duas vezes" passar
+// sem nunca poder falhar.
+let leituraCarimboFalha = false;
 vi.mock('../utils/supabase', () => ({
-  supabase: { from: () => ({ upsert: async (r: any) => { carimbos.push(String(r.key)); return { error: null }; } }) },
+  supabase: {
+    from: () => ({
+      upsert: async (r: any) => { carimbos.push(String(r.key)); return { error: null }; },
+      select: () => ({
+        in: async (_col: string, chaves: string[]) => (leituraCarimboFalha
+          ? { data: null, error: new Error('banco fora') }
+          : { data: chaves.filter(k => carimbos.includes(k)).map(key => ({ key })), error: null }),
+      }),
+    }),
+  },
 }));
 vi.mock('../services/agents/zapiClient', () => ({
   sendHuman: vi.fn(async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); }),
@@ -88,7 +103,7 @@ function fichaConfirmada(over: Partial<any> = {}) {
 const envOriginal = { ...process.env };
 beforeEach(() => {
   enviadas.length = 0; updates.length = 0;
-  carimbos.length = 0; tetoLivre = true;
+  carimbos.length = 0; tetoLivre = true; leituraCarimboFalha = false;
   fichas = [ficha()];
   consultores = [{ nome: 'Diego', whatsapp: '5534991360172' }, { nome: 'Thiago', whatsapp: '5534991360223' }];
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
@@ -446,6 +461,104 @@ describe('telefone do consultor', () => {
     expect(telefoneBonito('3499136017')).toBe('(34) 9913-6017');
     expect(telefoneBonito('123')).toBe('');
     expect(telefoneBonito(null)).toBe('');
+  });
+});
+
+// Quem marca hoje pra hoje é resolvido pela confirmação. Quem marcou ONTEM, ou
+// semana passada, viu a confirmação rolar pra fora da conversa e chega no dia da
+// reunião sem nada — é esse buraco que o bom dia das 8h fecha.
+describe('bom dia de quem marcou em outro dia', () => {
+  // 04/08/2026, 08h30 BRT (11h30 UTC). Dentro da janela do bom dia (08h–11h).
+  const MANHA = new Date('2026-08-04T11:30:00.000Z');
+  /** Reunião HOJE às 14h BRT (5h30 de distância), marcada 3 dias atrás. */
+  const fichaDeHoje = (over: Partial<any> = {}) => fichaConfirmada({
+    quando: '2026-08-04T17:00:00.000Z', created_at: '2026-08-01T12:00:00.000Z', ...over,
+  });
+
+  beforeEach(() => { vi.setSystemTime(MANHA); fichas = [fichaDeHoje()]; });
+
+  it('recebe o bom dia, com hora, consultor e o WhatsApp dele', async () => {
+    const r = await tick();
+    expect(r.lembretes_manha).toBe(1);
+    const txt = enviadas[0].bolhas.join(' ');
+    expect(txt).toContain('Bom dia');
+    expect(txt).toContain('14h00');
+    expect(txt).toContain('Diego');
+    expect(txt).toContain('(34) 99136-0172');
+    expect(txt).toContain('remarco');
+  });
+
+  // O bom dia não tem coluna em `agendamentos`: quem segura o envio dobrado é o
+  // carimbo do system_state, o mesmo que o teto anti-ban já grava.
+  it('não grava flag na ficha — o controle é o carimbo', async () => {
+    await tick();
+    expect(updates).toEqual([]);
+    expect(carimbos).toContain('ep_agenda_sent:1:manha');
+  });
+
+  it('não manda duas vezes', async () => {
+    expect((await tick()).lembretes_manha).toBe(1);
+    enviadas.length = 0;
+    expect((await tick()).lembretes_manha).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('quem marcou HOJE pra hoje não recebe — a confirmação acabou de sair', async () => {
+    fichas = [fichaDeHoje({ created_at: '2026-08-04T11:00:00.000Z' })];
+    expect((await tick()).lembretes_manha).toBe(0);
+  });
+
+  // A janela vai até o meio-dia (não 11h) porque o teto da linha é 6/h e é
+  // COMPARTILHADO — numa manhã movimentada a grade cheia não drena em 3 horas.
+  it('vale até as 11h59, e nem um minuto depois', async () => {
+    vi.setSystemTime(new Date('2026-08-04T14:50:00.000Z')); // 11h50 BRT
+    expect((await tick()).lembretes_manha).toBe(1);
+
+    carimbos.length = 0;
+    vi.setSystemTime(new Date('2026-08-04T15:10:00.000Z')); // 12h10 BRT
+    expect((await tick()).lembretes_manha).toBe(0);
+  });
+
+  it('fora da janela da manhã não sai', async () => {
+    vi.setSystemTime(new Date('2026-08-04T16:00:00.000Z')); // 13h BRT
+    expect((await tick()).lembretes_manha).toBe(0);
+  });
+
+  // A menos de 2h quem fala é o toque de 1h. "Hoje é o dia" 40 minutos antes é
+  // a mesma informação duas vezes, e o bom dia ainda pediria material.
+  it('reunião perto demais fica pro toque de 1h', async () => {
+    fichas = [fichaDeHoje({ quando: '2026-08-04T13:00:00.000Z' })]; // 1h30 de distância
+    expect((await tick()).lembretes_manha).toBe(0);
+  });
+
+  it('reunião de amanhã espera a manhã dela', async () => {
+    fichas = [fichaDeHoje({ quando: '2026-08-05T17:00:00.000Z' })];
+    expect((await tick()).lembretes_manha).toBe(0);
+  });
+
+  // Este é o único toque que sai em LOTE — todo mundo do dia na mesma faixa de
+  // horário. É o único que consegue fazer rajada sozinho, e rajada bloqueou a
+  // linha IO duas vezes.
+  it('no máximo 2 por rodada, e nenhum com o teto da linha estourado', async () => {
+    fichas = [1, 2, 3, 4, 5].map(id => fichaDeHoje({ id, cliente_telefone: `553499111000${id}` }));
+    expect((await tick()).lembretes_manha).toBe(2);
+
+    carimbos.length = 0; enviadas.length = 0; tetoLivre = false;
+    expect((await tick()).lembretes_manha).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  // Sem conseguir ler o carimbo não dá pra saber quem já recebeu. Repetir o bom
+  // dia é pior que pular: o toque de 1h ainda pega a pessoa no mesmo dia.
+  it('carimbo ilegível segura o toque em vez de arriscar mandar de novo', async () => {
+    leituraCarimboFalha = true;
+    expect((await tick()).lembretes_manha).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('ficha de solar não recebe bom dia de eletroposto', async () => {
+    fichas = [fichaDeHoje({ created_by: 'lead-meta' })];
+    expect((await tick()).lembretes_manha).toBe(0);
   });
 });
 

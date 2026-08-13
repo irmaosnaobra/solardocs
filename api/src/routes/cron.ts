@@ -300,7 +300,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runConviteNota1Garantido(),      // eletroposto: TODO nota 1 entra no grupo — rede embaixo do envio da LP
       runSementeTick(),                // semente: nutrição de quem pediu orçamento de solar e não fechou
       runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
-      runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + lembrete 1h + 5min (anti no-show)
+      runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)
       runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
       runSolarBoasVindasTick(),        // solar: quem acabou de se cadastrar recebe o consultor, o contato e a pergunta do consumo (SOLAR_BOASVINDAS_OFF desliga)
       runSolarRespostasTick(),         // solar: cliente respondeu as boas-vindas → recado pro consultor dono da ficha
@@ -923,7 +923,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],
     ['lembretes-agenda',            () => processarLembretesAgenda()], // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
-    ['eletroposto-agenda',          () => runEletropostoAgendaTick()], // eletroposto: confirma ao marcar, avisa 1h e 5min antes (anti no-show)
+    ['eletroposto-agenda',          () => runEletropostoAgendaTick()], // eletroposto: confirma ao marcar, bom dia no dia, avisa 1h e 5min antes (anti no-show)
     ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
     ['solar-boas-vindas',           () => runSolarBoasVindasTick()],     // solar: recibo do cadastro pro cliente (SOLAR_BOASVINDAS_OFF desliga)
     ['solar-respostas',             () => runSolarRespostasTick()],      // solar: resposta do cliente vira recado pro consultor dono

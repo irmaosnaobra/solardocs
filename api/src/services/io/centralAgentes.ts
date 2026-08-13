@@ -22,7 +22,7 @@ import { logger } from '../../utils/logger';
 import { tetosVigentesLinha } from '../agents/whatsapp/lineThrottle';
 import { MAX_CARLA_POR_HORA } from '../agents/whatsapp/carlaThrottle';
 import { solardocViaIo } from '../agents/zapiClient';
-import { EP_ORIGENS, EP_AGENDA_INICIO } from './eletropostoAgenda';
+import { EP_ORIGENS, EP_AGENDA_INICIO, EP_AGENDA_PREFIX } from './eletropostoAgenda';
 import { SOLAR_ORIGENS, SOLAR_BOASVINDAS_INICIO } from './solarBoasVindas';
 
 type Estado = 'ativo' | 'desligado' | 'dark' | 'sem_agente';
@@ -229,12 +229,25 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       .gte('lembrete_5min_at', epDesde)),
     (async (): Promise<string | null> => {
       try {
-        const { data } = await supabaseGerador
-          .from('agendamentos').select('confirmacao_at, lembrete_1h_at, lembrete_5min_at')
-          .in('created_by', EP_ORIGENS).gte('quando', new Date(agora - 30 * D).toISOString()).limit(500);
-        const todos = (data ?? [])
+        // O bom dia das 8h NÃO tem coluna de flag (ele se controla pelo carimbo do
+        // system_state), então as três colunas sozinhas diriam "parado desde
+        // ontem" num dia em que ele só mandou bom dia — e "última atividade"
+        // velha é como esta tela grita que um agente morreu. O carimbo cobre os
+        // QUATRO toques e não precisa do piso de EP_AGENDA_INICIO: ele só existe
+        // desde que este agente existe (o módulo solar não carimbava nada).
+        const [ficha, carimbo] = await Promise.all([
+          supabaseGerador
+            .from('agendamentos').select('confirmacao_at, lembrete_1h_at, lembrete_5min_at')
+            .in('created_by', EP_ORIGENS).gte('quando', new Date(agora - 30 * D).toISOString()).limit(500),
+          supabase
+            .from('system_state').select('updated_at')
+            .like('key', `${EP_AGENDA_PREFIX}%`).order('updated_at', { ascending: false }).limit(1),
+        ]);
+        const todos = (ficha.data ?? [])
           .flatMap(r => [r.confirmacao_at, r.lembrete_1h_at, r.lembrete_5min_at])
           .filter(v => !!v && String(v) >= EP_AGENDA_INICIO) as string[];
+        const ultimoCarimbo = (carimbo.data ?? [])[0]?.updated_at;
+        if (ultimoCarimbo) todos.push(String(ultimoCarimbo));
         return todos.sort().pop() ?? null;
       } catch (err) { logger.error('central-agentes', 'último toque da agenda EP falhou', err); return null; }
     })(),
@@ -469,7 +482,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     {
       id: 'agenda_eletroposto',
       nome: 'Agendamento do eletroposto — confirmação e presença',
-      papel: 'Agente de agendamento: assim que alguém marca na LP, ele confirma o horário no WhatsApp, avisa 1 hora antes que o link está vindo e chama de novo 5 minutos antes. Existe por causa de quem marca e some.',
+      papel: 'Agente de agendamento: assim que alguém marca na LP, ele confirma o horário no WhatsApp. Quem marcou com dias de antecedência recebe um "bom dia, hoje é o dia" às 8h. Depois avisa 1 hora antes que o link está vindo e chama de novo 5 minutos antes. Existe por causa de quem marca e some.',
       canal: 'whatsapp', linha: 'io',
       estado: envLigado('EP_LEMBRETES_OFF') ? 'desligado' : 'ativo',
       chave: 'EP_LEMBRETES_OFF',
@@ -487,9 +500,10 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Chamados de 5 min (30d)', valor: epLembretes5min30d },
       ],
       toques: [
-        { titulo: '1º · ao marcar', quando: 'segundos depois de escolher o horário na LP', copy: 'Confirma dia e hora com o nome e o WhatsApp do consultor, explica que é por vídeo. Pede um "SIM" e pede o material do ponto — foto, localização, conta de luz, o que já orçou.' },
-        { titulo: '2º · 1 hora antes', quando: '45 a 75 min antes da reunião', copy: 'Avisa que o link está vindo, pede internet e sinal, e abre a porta do remarcar de novo.' },
-        { titulo: '3º · 5 minutos antes', quando: 'nos 12 min que antecedem o horário', copy: '"É agora, o consultor já está te esperando" — manda ficar de olho no chat porque o link cai a qualquer momento.' },
+        { titulo: '1º · ao marcar', quando: 'segundos depois de escolher o horário na LP', copy: 'Confirma dia e hora com o nome e o WhatsApp do consultor, explica que é por vídeo. Pede um "SIM", pede antecedência pra desmarcar e pede o material do ponto — foto, localização, conta de luz, o que já orçou.' },
+        { titulo: '2º · bom dia, hoje é o dia', quando: 'entre 8h e 11h, SÓ pra quem marcou num dia anterior', copy: 'Quem marcou dias antes viu a confirmação sumir da conversa. Relembra a hora e o consultor, lembra do material se ainda não veio, e abre a porta do remarcar enquanto ainda dá pra encaixar outra pessoa. Quem marcou hoje pra hoje não recebe.' },
+        { titulo: '3º · 1 hora antes', quando: '45 a 75 min antes da reunião', copy: 'Avisa que o link está vindo pelo WhatsApp do consultor, pede internet e sinal, e abre a porta do remarcar de novo.' },
+        { titulo: '4º · 5 minutos antes', quando: 'nos 12 min que antecedem o horário', copy: '"É agora, o consultor já está te esperando" — o link cai no WhatsApp dele a qualquer momento.' },
         { titulo: '↩ resposta do lead', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro lead: é o recado que vai pro Thiago e pro Diego com o que a pessoa escreveu, a hora da reunião e de quem ela é. Kill-switch EP_RESPOSTAS_OFF.' },
       ],
       alerta: (epReunioesFuturas ?? 0) > 0 && (epFuturasConfirmadas ?? 0) < (epReunioesFuturas ?? 0)
