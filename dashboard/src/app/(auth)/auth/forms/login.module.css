@@ -101,8 +101,10 @@
 .inputToggle {
   position: absolute;
   right: 6px;
-  width: 36px;
-  height: 36px;
+  /* Mostrar/esconder a senha e' o botao que salva quem digitou errado — 36px
+     no celular e' mira. */
+  width: 44px;
+  height: 44px;
   border: none;
   background: transparent;
   color: #64748b;
@@ -113,7 +115,7 @@
   transition: background 0.15s, color 0.15s;
 }
 .inputToggle:hover { background: #f1f5f9; color: #0f172a; }
-.inputGroup:has(.inputToggle) .input { padding-right: 44px; }
+.inputGroup:has(.inputToggle) .input { padding-right: 52px; }
 
 /* Helper / hint text abaixo do input */
 .hint {
@@ -149,6 +151,11 @@
   margin-top: -4px;
 }
 .actionLink {
+  /* "Esqueci minha senha" tinha 21px de altura. E' o link de quem NAO esta'
+     conseguindo entrar — errar o toque aqui perde o usuario na porta. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
   font-size: 13px;
   color: #c2540f;
   font-weight: 600;
@@ -227,6 +234,9 @@
 }
 
 .link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
   color: #c2540f;
   font-weight: 700;
   text-decoration: none;
@@ -310,19 +320,27 @@
 .checkbox {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
+  /* Sem marcar isto ninguem se cadastra, e a linha tinha 20px de altura com uma
+     caixinha de 16px. O padding vertical faz o alvo, e o texto nao muda. */
+  min-height: 44px;
+  padding: 6px 0;
   font-size: 13.5px;
   color: #334155;
   line-height: 1.5;
   cursor: pointer;
 }
 .checkbox input {
-  margin-top: 2px;
-  width: 16px;
-  height: 16px;
+  margin-top: 1px;
+  width: 20px;
+  height: 20px;
   accent-color: #F26513;
   flex-shrink: 0;
+  cursor: pointer;
 }
+/* Os dois links moram DENTRO do rótulo, e crescer a área de toque em volta
+   deles não os quebra: por especificação, o rótulo não repassa o clique quando
+   o alvo é um descendente interativo. Verificado no navegador. */
 .checkbox a {
   color: #b45309;
   font-weight: 600;

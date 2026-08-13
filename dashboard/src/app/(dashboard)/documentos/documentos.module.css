@@ -122,23 +122,35 @@
 }
 
 .removeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: var(--color-error);
   cursor: pointer;
   font-size: 18px;
-  padding: 4px 8px;
+  /* Apaga um item da proposta bancária com 26px de altura — errar aqui apaga
+     a linha errada e o integrador só descobre no PDF. */
+  min-height: 44px;
+  padding: 4px 10px;
   line-height: 1;
+  -webkit-tap-highlight-color: transparent;
 }
+.removeBtn:active { transform: scale(0.9); }
 
 .addItemBtn {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: 1px dashed var(--color-border);
   color: var(--color-text-muted);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 13px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 13.5px;
   cursor: pointer;
   transition: border-color 0.2s, color 0.2s;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine, Pencil } from 'lucide-react';
@@ -143,27 +143,30 @@ const initialFields = {
   pag_cartao_19: false,
   pag_cartao_20: false,
   pag_cartao_21: true,
-  taxa_cartao_1: '3.99',
-  taxa_cartao_2: '5.30',
-  taxa_cartao_3: '5.99',
-  taxa_cartao_4: '6.68',
-  taxa_cartao_5: '7.35',
-  taxa_cartao_6: '8.02',
-  taxa_cartao_7: '9.47',
-  taxa_cartao_8: '10.13',
-  taxa_cartao_9: '10.78',
-  taxa_cartao_10: '11.43',
-  taxa_cartao_11: '12.06',
-  taxa_cartao_12: '12.70',
-  taxa_cartao_13: '13.32',
-  taxa_cartao_14: '13.94',
-  taxa_cartao_15: '14.56',
-  taxa_cartao_16: '15.17',
-  taxa_cartao_17: '15.77',
-  taxa_cartao_18: '16.37',
-  taxa_cartao_19: '16.97',
-  taxa_cartao_20: '17.57',
-  taxa_cartao_21: '18.17',
+  // Vírgula, não ponto: quem lê a tela é brasileiro, e "10.13" numa linha de
+  // taxa se lê como dez mil. Os dois leitores da API (templateService) já
+  // normalizam vírgula antes do parseFloat, e o parseTaxa daqui também.
+  taxa_cartao_1: '3,99',
+  taxa_cartao_2: '5,30',
+  taxa_cartao_3: '5,99',
+  taxa_cartao_4: '6,68',
+  taxa_cartao_5: '7,35',
+  taxa_cartao_6: '8,02',
+  taxa_cartao_7: '9,47',
+  taxa_cartao_8: '10,13',
+  taxa_cartao_9: '10,78',
+  taxa_cartao_10: '11,43',
+  taxa_cartao_11: '12,06',
+  taxa_cartao_12: '12,70',
+  taxa_cartao_13: '13,32',
+  taxa_cartao_14: '13,94',
+  taxa_cartao_15: '14,56',
+  taxa_cartao_16: '15,17',
+  taxa_cartao_17: '15,77',
+  taxa_cartao_18: '16,37',
+  taxa_cartao_19: '16,97',
+  taxa_cartao_20: '17,57',
+  taxa_cartao_21: '18,17',
   pag_fin: true,
   // Financiamento: 36x/48x/60x/84x. Default marcados: 36x e 48x.
   // Taxa mensal editável (default 2,2% a.m. — Price com 120 dias de carência).
@@ -171,10 +174,10 @@ const initialFields = {
   pag_fin_48: true,
   pag_fin_60: false,
   pag_fin_84: false,
-  taxa_fin_36: '2.20',
-  taxa_fin_48: '2.20',
-  taxa_fin_60: '2.20',
-  taxa_fin_84: '2.20',
+  taxa_fin_36: '2,20',
+  taxa_fin_48: '2,20',
+  taxa_fin_60: '2,20',
+  taxa_fin_84: '2,20',
   pag_entrada: false,
   entrada_valor: '',
   entrada_modo: 'dias' as 'dias' | 'entrega' | 'montagem' | 'liberacao',
@@ -970,7 +973,7 @@ export default function PropostaSolarPage() {
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Principal</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="color" value={corEmpresa || '#F26513'} onChange={e => salvarCor('cor_marca', e.target.value)}
-                  style={{ width: 44, height: 36, border: '1px solid var(--color-border)', borderRadius: 8, padding: 2, cursor: 'pointer', background: 'none' }} />
+                  style={{ width: 54, height: 42, border: '1px solid var(--color-border)', borderRadius: 9, padding: 2, cursor: 'pointer', background: 'none' }} />
                 <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{(corEmpresa || '').toUpperCase() || '—'}</span>
               </div>
             </div>
@@ -978,7 +981,7 @@ export default function PropostaSolarPage() {
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Destaque</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="color" value={corSec || '#F7B500'} onChange={e => salvarCor('cor_secundaria', e.target.value)}
-                  style={{ width: 44, height: 36, border: '1px solid var(--color-border)', borderRadius: 8, padding: 2, cursor: 'pointer', background: 'none' }} />
+                  style={{ width: 54, height: 42, border: '1px solid var(--color-border)', borderRadius: 9, padding: 2, cursor: 'pointer', background: 'none' }} />
                 <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{(corSec || '').toUpperCase() || '—'}</span>
               </div>
             </div>
@@ -1524,7 +1527,9 @@ function RodapeCampo({
       marginBottom: 8,
       opacity: checked ? 1 : 0.55,
     }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+      {/* 21px de altura era menor que o dedo. O texto nao muda de lugar: o
+          minHeight so' abre respiro em volta. */}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, cursor: 'pointer', userSelect: 'none' }}>
         <input
           type="checkbox"
           checked={checked}
@@ -1580,7 +1585,9 @@ function PagGrupo({
       marginBottom: 8,
       opacity: checked ? 1 : 0.55,
     }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+      {/* 21px de altura era menor que o dedo. O texto nao muda de lugar: o
+          minHeight so' abre respiro em volta. */}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, cursor: 'pointer', userSelect: 'none' }}>
         <input
           type="checkbox"
           checked={checked}
@@ -1611,7 +1618,7 @@ function PagSubItem({
   valor: string;
 }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none', padding: '4px 6px', borderRadius: 6 }}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, cursor: 'pointer', userSelect: 'none', padding: '4px 8px', borderRadius: 6 }}>
       <input
         type="checkbox"
         checked={checked}
@@ -1636,23 +1643,32 @@ function PagSubItemTaxa({
   onTaxaChange: (v: string) => void;
   valor: string;
 }) {
+  const idCx = useId();
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '18px 56px 110px 1fr',
+      gridTemplateColumns: '92px 110px 1fr',
       alignItems: 'center',
       gap: 10,
       padding: '4px 6px',
       borderRadius: 6,
       opacity: checked ? 1 : 0.6,
     }}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onToggle(e.target.checked)}
-        style={{ width: 15, height: 15, accentColor: 'var(--color-primary)', cursor: 'pointer', margin: 0 }}
-      />
-      <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--color-text)' }}>{label}</span>
+      {/* Esta linha e' um DIV, nao um label — entao a caixinha de 15px era o
+          unico ponto clicavel de uma linha de 54px. A linha nao pode virar
+          label inteira porque tem o campo da taxa dentro (clicar pra digitar
+          desmarcaria a parcela). A saida e' um rotulo cobrindo a caixa E o
+          "1x" numa coluna so': 92x40 de alvo, e o campo da taxa fica de fora. */}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, cursor: 'pointer', userSelect: 'none' }}>
+        <input
+          id={idCx}
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onToggle(e.target.checked)}
+          style={{ width: 18, height: 18, accentColor: 'var(--color-primary)', cursor: 'pointer', margin: 0 }}
+        />
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--color-text)' }}>{label}</span>
+      </label>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <input
           type="text"
@@ -1660,7 +1676,7 @@ function PagSubItemTaxa({
           value={taxa}
           onChange={(e) => onTaxaChange(e.target.value)}
           className="input-field"
-          style={{ width: 70, padding: '4px 6px', fontSize: 12, textAlign: 'right' }}
+          style={{ width: 76, minHeight: 40, padding: '8px 8px', fontSize: 13, textAlign: 'right' }}
           placeholder="0,00"
         />
         <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>%</span>
