@@ -89,7 +89,6 @@
   display: flex; align-items: center; gap: 9px;
   font-size: 16px; font-weight: 800;
 }
-.inv-loc-ic { font-size: 19px; }
 .inv-count {
   font-size: 11px; font-weight: 800;
   background: var(--color-surface-2);
@@ -107,7 +106,7 @@
 .inv-table { overflow-x: auto; }
 .inv-tr {
   display: grid;
-  grid-template-columns: minmax(130px, 1.7fr) minmax(96px, 1fr) 132px minmax(96px, 0.9fr) minmax(84px, 0.85fr) 74px 148px;
+  grid-template-columns: minmax(152px, 1.8fr) minmax(96px, 1fr) 132px minmax(96px, 0.9fr) minmax(84px, 0.85fr) 74px 148px;
   align-items: center;
   gap: 8px;
   padding: 8px 0;
@@ -124,6 +123,12 @@
 .inv-th .r, .inv-tr .r { text-align: right; }
 .inv-th span.r { justify-self: end; }
 .inv-tr.baixo { background: rgba(220, 38, 38, 0.05); }
+/* O desenho é pista, não enfeite: acende no âmbar quando o item está abaixo do
+   estoque mínimo, junto com o resto da linha. */
+.inv-mat-ic { color: var(--color-text-dim); flex-shrink: 0; }
+.inv-tr.baixo .inv-mat-ic { color: var(--color-error); }
+.inv-loc-ic { color: var(--color-primary); flex-shrink: 0; }
+
 .inv-nome {
   display: flex; align-items: center; gap: 6px;
   font-size: 13.5px; font-weight: 700;

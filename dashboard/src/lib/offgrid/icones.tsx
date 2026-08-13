@@ -19,23 +19,15 @@
  *    sem ícone cai numa tomada. Item novo no catálogo entra desenhado.
  */
 import type { GrupoCarga } from './catalogo';
+// A moldura e os glifos que o Inventário também usa moram em lib/desenhos:
+// desenhar o mesmo ar-condicionado duas vezes daria dois ar-condicionados
+// ligeiramente diferentes, que é pior do que não ter desenho.
+import {
+  svg, ArCondicionado, Notebook, Desktop, Impressora, Roteador, Bebedouro,
+  Furadeira, Tomada, type IconeDesenho,
+} from '@/lib/desenhos';
 
-type P = { size?: number; className?: string };
-
-/** Moldura comum: todo desenho nasce com o mesmo traço e o mesmo viewBox. */
-function svg(d: React.ReactNode) {
-  const C = ({ size = 20, className }: P) => (
-    <svg
-      width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth={1.6}
-      strokeLinecap="round" strokeLinejoin="round"
-      className={className} aria-hidden="true" focusable="false"
-    >{d}</svg>
-  );
-  return C;
-}
-
-export type IconeDesenho = ReturnType<typeof svg>;
+export type { IconeDesenho };
 
 // ─────────────────────────────────────────────────────────────── ILUMINAÇÃO ──
 const Lampada = svg(<>
@@ -108,11 +100,6 @@ const Coifa = svg(<>
   <path d="M3.5 10h17v3.5h-17Z" />
   <path d="M8 13.5v3.5M12 13.5v5M16 13.5v3.5" />
 </>);
-const Bebedouro = svg(<>
-  <path d="M9 2.5h6v4.2a3 3 0 0 1-6 0Z" />
-  <rect x="7" y="8.5" width="10" height="13" rx="2.5" />
-  <path d="M10 14.5h4" />
-</>);
 
 // ───────────────────────────────────────────────── SALA E ELETRÔNICOS ──
 const Tv = svg(<>
@@ -129,12 +116,6 @@ const Videogame = svg(<>
   <path d="M6.5 11.5v2.2M5.4 12.6h2.2" />
   <circle cx="16.8" cy="12.3" r=".9" />
 </>);
-const Roteador = svg(<>
-  <rect x="3" y="13.5" width="18" height="6" rx="2.5" />
-  <path d="M6.5 16.5h.01M9.5 16.5h.01" />
-  <path d="M16 16.5h2.5" />
-  <path d="M8 10.5a5.5 5.5 0 0 1 8 0M10.4 7.6a9 9 0 0 1 3.2 0" />
-</>);
 const Antena = svg(<>
   <path d="M5 18.5c-2.6-4.5-1.2-10.3 3.3-12.9s10.3-1.2 12.9 3.3Z" />
   <path d="M13.5 11.6 16 7.4" />
@@ -145,22 +126,6 @@ const Celular = svg(<>
   <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
   <path d="M10.5 5.2h3" />
   <path d="M12.8 9.5 11 13h2.2l-1.8 3.5" />
-</>);
-const Notebook = svg(<>
-  <path d="M5 5h14v9.5H5Z" />
-  <path d="M2.5 17.5h19l-1.4 2.8H3.9Z" />
-</>);
-const Desktop = svg(<>
-  <rect x="2" y="4" width="12.5" height="9.5" rx="2" />
-  <path d="M8.2 13.5v4M5.5 17.5h5.5" />
-  <rect x="17" y="4" width="5" height="14" rx="2" />
-  <path d="M19.5 7v.01" />
-</>);
-const Impressora = svg(<>
-  <path d="M7 8.5V3h10v5.5" />
-  <rect x="3" y="8.5" width="18" height="7" rx="2.5" />
-  <path d="M7 13.5h10V21H7Z" />
-  <path d="M18 11.2h.01" />
 </>);
 
 // ─────────────────────────────────────────────────────── CONFORTO TÉRMICO ──
@@ -176,12 +141,6 @@ const VentTeto = svg(<>
   <path d="M10 8H4.5a1.6 1.6 0 0 0 0 4.4H9" />
   <path d="M14 8h5.5a1.6 1.6 0 0 1 0 4.4H15" />
   <path d="M12.6 10c1.4 2 1.4 4.6 0 8.5-1.4-3.9-1.4-6.5 0-8.5Z" />
-</>);
-const ArCondicionado = svg(<>
-  <rect x="2" y="4.5" width="20" height="8" rx="2.5" />
-  <path d="M5 9.8h14" />
-  <path d="M6.5 16c1-1.1 2.2-1.1 3.2 0M14 16c1-1.1 2.2-1.1 3.2 0" />
-  <path d="M6.5 19.5c1-1.1 2.2-1.1 3.2 0M14 19.5c1-1.1 2.2-1.1 3.2 0" />
 </>);
 
 // ──────────────────────────────────────────────── LAVANDERIA E LIMPEZA ──
@@ -274,12 +233,6 @@ const Escudo = svg(<>
 </>);
 
 // ──────────────────────────────────────────────────── TRABALHO / OFICINA ──
-const Furadeira = svg(<>
-  <path d="M2.5 6.5h9a1.6 1.6 0 0 1 1.6 1.6v4a1.6 1.6 0 0 1-1.6 1.6h-9Z" />
-  <path d="M15.2 8.3h2v3.4h-2Z" />
-  <path d="M13.1 10h2.1M17.2 10h4.8" />
-  <path d="M4.2 13.7 3 21h4.2l1.3-7.3" />
-</>);
 const Compressor = svg(<>
   <rect x="2" y="10" width="16" height="7.5" rx="3.7" />
   <path d="M6 10V7a2.5 2.5 0 0 1 2.5-2.5h2.5A2.5 2.5 0 0 1 13.5 7v3" />
@@ -339,12 +292,6 @@ const Planta = svg(<>
 </>);
 
 // ────────────────────────────────────────────────────── PADRÃO / RESERVA ──
-/** Última linha de defesa: item novo no catálogo aparece como tomada, nunca vazio. */
-const Tomada = svg(<>
-  <rect x="3.5" y="3.5" width="17" height="17" rx="4" />
-  <circle cx="9.5" cy="10" r="1.2" /><circle cx="14.5" cy="10" r="1.2" />
-  <path d="M9 15h6" />
-</>);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAPA

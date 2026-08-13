@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Boxes, Plus, Trash2, Printer, ArrowDownCircle, ArrowUpCircle, X, AlertTriangle } from 'lucide-react';
 import api from '@/services/api';
-import { CATALOGO, UNIDADES, MARCAS_COMUNS, ICONE_LOCAL_CUSTOM } from './catalogo';
+import { CATALOGO, UNIDADES, MARCAS_COMUNS } from './catalogo';
+import { ICONE_LOCAL, iconeDoMaterial, Tomada } from './icones';
 import './inventario.css';
 import Cadeado from '@/components/Cadeado/Cadeado';
 
@@ -43,9 +44,9 @@ interface Company {
   whatsapp?: string;
 }
 
-const ICONE_LOCAL: Record<string, string> = Object.fromEntries(
-  CATALOGO.map((l) => [l.local, l.icone]),
-);
+// O campo `icone` do catálogo era string e vinha VAZIO nos quatro locais: a
+// tela reservava o espaço e não desenhava nada. Agora vem de `./icones`, e
+// local criado à mão (que não está no catálogo) cai na tomada.
 
 function InventarioPageInterna() {
   const [items, setItems] = useState<Item[]>([]);
@@ -243,7 +244,7 @@ function InventarioPageInterna() {
                 <section className="inv-card" key={local}>
                   <div className="inv-card-head">
                     <div className="inv-card-title">
-                      <span className="inv-loc-ic">{ICONE_LOCAL[local] || ICONE_LOCAL_CUSTOM}</span>
+                      {(() => { const IL = ICONE_LOCAL[local] ?? Tomada; return <IL size={19} className="inv-loc-ic" />; })()}
                       {local}
                       <span className="inv-count">{lista.length}</span>
                     </div>
@@ -265,6 +266,10 @@ function InventarioPageInterna() {
                         <div className={`inv-tr${isBaixo(i) ? ' baixo' : ''}`} key={i.id}>
                           <span className="inv-nome" title={i.nome}>
                             {isBaixo(i) && <AlertTriangle size={13} className="inv-warn-ic" />}
+                            {/* O desenho vem antes do nome: numa lista de 46
+                                materiais, quem procura o crimpador acha pela
+                                forma antes de ler. */}
+                            {(() => { const IM = iconeDoMaterial(i.nome, local); return <IM size={19} className="inv-mat-ic" />; })()}
                             {i.nome}
                           </span>
                           <span data-lb="Marca">
@@ -416,7 +421,8 @@ function InventarioPageInterna() {
 
         {locais.filter((l) => (porLocal[l] || []).length > 0).map((local) => (
           <div className="inv-print-sec" key={local}>
-            <h3>{ICONE_LOCAL[local] || ''} {local} <span>{fmt(subtotal(local))}</span></h3>
+            {/* Na impressão o desenho não entra: papel é denso e o nome basta. */}
+            <h3>{local} <span>{fmt(subtotal(local))}</span></h3>
             <table>
               <thead>
                 <tr>
