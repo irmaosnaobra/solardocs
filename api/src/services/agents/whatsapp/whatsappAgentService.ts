@@ -8,6 +8,7 @@ import { pixBlocoWhatsApp } from '../../../utils/pixInfo';
 import { ofertaCupomAtiva, bolhasOferta, OfertaCupom } from '../../../utils/ofertaCupom';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
 import { flushAvisoFila, registrarAbandono } from './filaAlerta';
+import { encaminharMidiaAoConsultor, TipoMidia } from '../../io/encaminharMidiaConsultor';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
@@ -28,7 +29,14 @@ export function buildSystemPrompt(user: {
   email: string; plano: string; nome_empresa?: string; tem_cnpj: boolean; nome?: string; billing_status?: string | null;
 }, promoCtx?: { ativadoAgora?: boolean; jaAtivado?: boolean; email?: string },
    oferta?: OfertaCupom | null): string {
-  const planoLabel: Record<string, string> = { free: 'Gratuito', pro: 'PRO', ilimitado: 'VIP' };
+  // PREÇO ÚNICO: a Giovanna não nomeia degrau pro cliente. 'pro' é contrato
+  // antigo (R$27, teto de 90 docs) — ela precisa SABER do teto pra não prometer
+  // ilimitado a quem não tem, mas nunca chama isso de "plano PRO" na conversa.
+  const planoLabel: Record<string, string> = {
+    free: 'Gratuito',
+    pro: 'Assinante (contrato antigo — teto de 90 documentos/mês)',
+    ilimitado: 'Assinante (documentos ilimitados)',
+  };
   const nomeUsuario = user.nome ? user.nome.split(' ')[0] : null;
 
   // A oferta de reativação vem do banco (cupom vivo). Sem cupom, ela convida pro
@@ -60,14 +68,16 @@ Se ele perguntar de novo sobre créditos, confirme que já estão liberados
 e mande pra ${APP_URL}. Nada de duplicar.`;
   }
 
-  // Gate de venda por plano: o que a Giovanna deve oferecer pra ESTE usuário.
-  // FREE → assinar PRO/VIP · PRO → subir pra VIP · VIP → já tem tudo (só suporte).
+  // Gate de venda: preço único, então só existem dois casos de verdade —
+  // FREE → converter em assinante · assinante → suporte (sem empurrar nada).
+  // O contrato antigo ('pro') fica no meio: ela só cita a assinatura de hoje se
+  // ELE reclamar do teto, nunca de forma proativa.
   let vendaBloco = '';
   if (user.plano === 'free') {
     vendaBloco = `
 ━━ 🎯 SUA MISSÃO: CONVERTER ESTE FREE EM ASSINANTE ━━
 Este usuário JÁ está na base no plano GRATUITO — ele conhece a plataforma. Seu objetivo é
-CONVENCÊ-LO a virar pago (PRO ou VIP). Você vende com classe: ou ele fecha, ou te dá um
+CONVENCÊ-LO a virar assinante. Você vende com classe: ou ele fecha, ou te dá um
 não claro — os dois são resultado. NÃO fique de suporte gratuito eterno; conduza pra venda.
 - Reconheça que ele já usa ("vi que você já tá com a gente"), entenda a dor real (quantas
   vendas/mês, como monta proposta/contrato hoje, o que trava).
@@ -79,11 +89,12 @@ não claro — os dois são resultado. NÃO fique de suporte gratuito eterno; co
 - Se ele disser um NÃO claro ("não quero", "não vou assinar", "tô bem no grátis"), respeite:
   acolhe com classe, deixa a porta aberta e ENCERRA — não insista nem vire chato.
 
-━━ PLANOS (preços REAIS — nunca invente outro valor) ━━
-- PLANO ÚNICO — R$ 67/mês: documentos ILIMITADOS + dashboard completo + toda expansão da plataforma.
+━━ A ASSINATURA (preço REAL — nunca invente outro valor) ━━
+- PREÇO ÚNICO — R$ 67/mês: documentos ILIMITADOS + dashboard completo + toda expansão da plataforma.
+- NÃO existe escolha de plano. Não há "básico e avançado", não há degrau, não há comparação. É uma assinatura só — e você NUNCA usa os nomes "PRO" ou "VIP" com o cliente.
 - Cobrança IMEDIATA: põe o cartão, cobra na hora, acesso na hora, cancela quando quiser. NÃO existe mais "7 dias grátis / cobra no 8º dia" — não prometa isso.
 - GARANTIA DE 7 DIAS: não serviu, devolve o valor integral. É esse o argumento que tira o risco.
-- Quem já assina no PRO de R$27 (plano antigo) continua nele — só não é mais vendido pra cliente novo.
+- Quem assinou por um preço antigo (R$27 ou R$49) continua pagando o dele — esses preços não são mais vendidos e você não os oferece a ninguém.
 
 ━━ 🎓 A OFERTA DE ENTRADA: curso Kit de Fechamento por R$ 19 ━━
 O QUE ELE COMPRA: o curso *Kit de Fechamento* — 6 módulos + bônus, 32 objeções respondidas
@@ -92,7 +103,7 @@ mensagens prontas de prospecção e follow-up. É o produto. Pagamento ÚNICO de
 O QUE VEM JUNTO: 30 dias com a plataforma COMPLETA aberta (documentos ilimitados, proposta
 com payback, contrato e procuração com a marca dele, CRM) — pra ele usar tudo, incluindo as
 novidades, sem pagar mensalidade nenhuma nesse período.
-DEPOIS DOS 30 DIAS: se ele gostar, aí sim escolhe PRO (R$27) ou VIP (R$67). Se não gostar,
+DEPOIS DOS 30 DIAS: se ele gostar, aí sim ele assina — R$ 67/mês, preço único. Se não gostar,
 não paga mais nada e fica com o curso. Não há cobrança automática, não há cartão, não há
 contrato agora — e você diz isso com todas as letras, porque é justamente o que derruba a
 objeção.
@@ -147,19 +158,20 @@ Os 3 pilares do diferencial:
      opera melhor, ela RECEBE lead qualificado. É o que de fato separa quem domina a região de quem espera indicação.
    - Esse é um serviço à parte (a partir de R$ 997/mês + verba). NÃO tente fechar isso você mesma nem force —
      desperte o interesse ("a plataforma ainda te traz cliente") e, se ele quiser, diga que um especialista do time
-     fala com ele sobre tráfego. O seu foco de fechamento é a ASSINATURA (PRO/VIP).`;
+     fala com ele sobre tráfego. O seu foco de fechamento é a ASSINATURA (R$ 67/mês).`;
   } else if (user.plano === 'pro') {
     vendaBloco = `
-━━ 🎯 OPORTUNIDADE: SUBIR PRA VIP ━━
-Este usuário é PRO (R$ 27/mês, 90 docs). Se ele bater no limite, gerar muito volume,
-ou pedir mais, ofereça o upgrade pro VIP (R$ 67/mês) com naturalidade:
-documentos ILIMITADOS + dashboard completo + toda a expansão da plataforma.
-Se quiser assinar/subir, mande pra ${APP_URL}. Fora isso, atenda como suporte — sem empurrar.`;
+━━ CONTEXTO: ASSINANTE DE CONTRATO ANTIGO ━━
+Este usuário JÁ PAGA (R$ 27/mês, contrato antigo com teto de 90 documentos/mês).
+NÃO ofereça nada de forma proativa e NUNCA compare planos — não existe mais escada.
+Atenda como suporte. SÓ SE ELE reclamar do teto, disser que bateu no limite ou pedir
+mais volume, você conta com naturalidade que a assinatura de hoje é R$ 67/mês e não tem
+teto — e manda pra ${APP_URL}. Fora esse caso, nem toque no assunto de preço.`;
   } else {
     vendaBloco = `
 ━━ CONTEXTO ━━
-Este usuário já é VIP (plano máximo). NÃO ofereça upgrade. Foque em suporte
-e em ajudá-lo a extrair o máximo da plataforma.`;
+Este usuário JÁ PAGA e tem acesso completo. NÃO ofereça upgrade — não existe upgrade,
+o preço é único. Foque em suporte e em ajudá-lo a extrair o máximo da plataforma.`;
   }
 
   // Reativação por Pix: acesso pausado por falha de pagamento (past_due/suspended) →
@@ -219,9 +231,9 @@ ${vendaBloco}
 - AUTORESPONDER: se a resposta do cliente for claramente uma mensagem AUTOMÁTICA de empresa ("X agradece seu
   contato", "como podemos ajudar?", "seja bem-vindo à empresa Y") e não uma pessoa falando com você, NÃO trate
   como conversa real — mande UMA saudação simples se apresentando e PARE; não fique respondendo o robô dela.
-- O fechamento que você busca é SEMPRE a assinatura (PRO/VIP no ${APP_URL}). O tráfego pago você só desperta como visão; quem fecha tráfego é um humano do time.
+- O fechamento que você busca é SEMPRE a assinatura (R$ 67/mês no ${APP_URL}). O tráfego pago você só desperta como visão; quem fecha tráfego é um humano do time.
 - SAÍDA PRA HUMANO: se travar de verdade (cliente confuso, irritado, pergunta que você não sabe, ou pedindo algo fora do seu alcance), pare de insistir e diga que vai chamar uma pessoa do time pra ajudar — não invente nem fique repetindo.
-- Nunca prometa o que a plataforma não faz. Nunca invente preço (PRO 27 / VIP 67, só esses).
+- Nunca prometa o que a plataforma não faz. Nunca invente preço: a assinatura é R$ 67/mês, ponto — não existe plano mais barato nem plano mais caro.
 - LINK: o ÚNICO endereço da plataforma é ${APP_URL}. NUNCA mande outra URL (nada de .vercel.app, /login antigo, etc) — sempre ${APP_URL}.
 
 ━━ SUPORTE — RESPOSTAS CORRETAS (NÃO improvise; se não souber, escale com [HUMANO]) ━━
@@ -402,6 +414,23 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
       // (mesmo número que o cliente contatou); qualquer outra/null → 'solardoc' (default
       // retrocompatível). É o que evita o lead do anúncio receber resposta de outro número.
       const originInstance: ZapiInstance = msg.instance_id === INSTANCE_ID_IO ? 'io' : 'solardoc';
+
+      // MÍDIA → CONSULTOR DONO. Este é o caminho VIVO do inbound (o Worker da
+      // Cloudflare enfileira aqui; as rotas de webhook quase não recebem), então
+      // é aqui que a foto da conta de luz e o áudio do cliente saem pro humano.
+      // Fora do try do handler de propósito: se a IA estiver sem crédito, o
+      // consultor recebe a mídia mesmo assim. Idempotente pelo id da fila — a
+      // mensagem que volta pra fila num erro não encaminha duas vezes.
+      if (media && ['audio', 'image', 'video', 'document'].includes(media.type)) {
+        await encaminharMidiaAoConsultor({
+          phone: String(msg.phone),
+          nome: msg.sender_name,
+          media: { url: media.url, type: media.type as TipoMidia, mime: media.mime },
+          messageId: String(msg.id),
+          linha: originInstance,
+        }).catch(err => logger.error('whatsapp-fila', 'encaminhar mídia falhou', err));
+      }
+
       await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name, undefined, media, originInstance);
       processed++;
     } catch (err) {
@@ -470,11 +499,12 @@ export async function sendPurchaseWhatsApp(phone: string, plano: string, nome?: 
   const cleanPhone = phone.replace(/\D/g, '');
   const firstName = (nome || '').trim().split(/\s+/)[0];
   const greeting = firstName ? `Oi ${firstName}!` : 'Oi!';
-  const planoLabel = plano === 'ilimitado' ? 'VIP (documentos ilimitados)' : 'PRO';
+  // Preço único: a mensagem confirma a ASSINATURA, sem nome de degrau.
+  const planoLabel = plano === 'ilimitado' ? 'documentos ilimitados' : '90 documentos/mês';
 
   const parts = [
     `${greeting} 🌞 Sou a Giovanna, assistente da SolarDoc Pro. Sua compra foi confirmada — muito obrigada e seja bem-vindo(a)! 🎉`,
-    `Seu plano *${planoLabel}* já tá ativo. Aqui é seu acesso, salva esse link:\n\n🔗 solardoc.app/auth\n\nÉ só entrar com o e-mail e a senha que você cadastrou.`,
+    `Sua assinatura já tá ativa (*${planoLabel}*). Aqui é seu acesso, salva esse link:\n\n🔗 solardoc.app/auth\n\nÉ só entrar com o e-mail e a senha que você cadastrou.`,
     `Pra deixar tudo redondo, faça isso já no primeiro acesso:\n\n1️⃣ Cadastre o *CNPJ da sua empresa* em *Empresa*\n2️⃣ Suba sua *logo, cor e fotos* — todo documento e proposta já sai com a sua marca\n3️⃣ Pronto pra gerar contratos, procurações e propostas solares ✅`,
     `Quer instalar como app no celular? Em 1 toque vira ícone na tela:\n\n📱 *iPhone*: Safari → *Compartilhar* → *"Adicionar à Tela de Início"*\n📱 *Android*: Chrome → *3 pontinhos* → *"Instalar app"*\n💻 *PC*: ícone *"+"* na barra do navegador`,
     `Qualquer dúvida — de verdade, qualquer uma — me chama *aqui mesmo neste número*. Eu te respondo. Bom uso e boas vendas! 🚀`,
@@ -495,10 +525,11 @@ export async function sendActivationWhatsApp(phone: string, resetUrl: string, pl
   const cleanPhone = phone.replace(/\D/g, '');
   const firstName = (nome || '').trim().split(/\s+/)[0];
   const greeting = firstName ? `Oi ${firstName}!` : 'Oi!';
-  const planoLabel = plano === 'ilimitado' ? 'VIP (documentos ilimitados)' : 'PRO';
+  // Preço único: a mensagem confirma a ASSINATURA, sem nome de degrau.
+  const planoLabel = plano === 'ilimitado' ? 'documentos ilimitados' : '90 documentos/mês';
 
   const parts = [
-    `${greeting} 🌞 Sou a Giovanna, da SolarDoc Pro. Sua compra foi confirmada e seu plano *${planoLabel}* já tá ativo — muito obrigada e seja bem-vindo(a)! 🎉`,
+    `${greeting} 🌞 Sou a Giovanna, da SolarDoc Pro. Sua compra foi confirmada e sua assinatura já tá ativa (*${planoLabel}*) — muito obrigada e seja bem-vindo(a)! 🎉`,
     `Sua conta já tá criada. Falta *1 passo* pra entrar: definir sua senha. Leva 10 segundos:\n\n🔑 ${resetUrl}`,
     `Assim que entrar, faça isso pra deixar tudo com a sua cara:\n\n1️⃣ Cadastre o *CNPJ da sua empresa*\n2️⃣ Suba sua *logo e cor* — todo documento e proposta já sai com a sua marca ✅`,
     `Qualquer dúvida — de verdade, qualquer uma — me chama *aqui mesmo neste número*. Eu te respondo. Bom uso e boas vendas! 🚀`,
@@ -847,7 +878,7 @@ export async function handleIncomingWhatsApp(
 
   await sendHuman(cleanPhone, parts, originInstance);  // responde pela linha que o cliente contatou
 
-  // Giovanna decidiu MOSTRAR o curso (oferta "o curso entra junto no VIP") → anexa a
+  // Giovanna decidiu MOSTRAR o curso (oferta "o curso entra junto na assinatura") → anexa a
   // imagem do produto DEPOIS das bolhas, como um vendedor que fala primeiro e só então
   // mostra. Nunca é o primeiro contato: a tag só existe no prompt atrás de um gatilho de
   // dor de fechamento, e este handler roda em resposta a mensagem DELE — imagem em toque
@@ -862,7 +893,7 @@ export async function handleIncomingWhatsApp(
       await sendImage(
         cleanPhone,
         url,
-        'Kit de Fechamento — 6 módulos + bônus, liberado junto com o VIP.',
+        'Kit de Fechamento — 6 módulos + bônus, liberado junto com a assinatura.',
         originInstance,
       ).catch(() => {});
     } catch (err) {

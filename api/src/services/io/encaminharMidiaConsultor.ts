@@ -57,6 +57,23 @@ const MAX_POR_LEAD_HORA = () => Number(process.env.MIDIA_FWD_MAX_HORA || 12);
 
 const soDigitos = (s: string): string => (s || '').replace(/\D/g, '');
 
+/**
+ * Nem tudo que chega com mídia é lead falando com a gente. Em 14 dias a fila
+ * teve 40 STORIES (`status@broadcast`) contra 54 mídias de lead — encaminhar
+ * story faria o consultor receber o dia inteiro dos contatos dele e desligar a
+ * coisa no primeiro dia. Fora: grupo, newsletter e a própria equipe.
+ */
+function ehRemetenteValido(phoneRaw: string): boolean {
+  const bruto = String(phoneRaw || '').toLowerCase();
+  if (!bruto) return false;
+  if (bruto.includes('status@broadcast') || bruto.includes('broadcast')) return false;
+  if (bruto.includes('-group') || bruto.includes('@g.us') || bruto.includes('newsletter')) return false;
+  const chave = telkey(bruto);
+  if (!chave || chave.length < 10) return false;
+  // Mídia mandada por quem é da casa não vira recado pra ele mesmo.
+  return !Object.values(EQUIPE_IO).some(n => telkey(n) === chave);
+}
+
 /** Chave estável do lead: DDD + últimos 8 (tolera o 9º dígito e o 55), igual ao CRM. */
 function telkey(raw: string): string {
   const dd = soDigitos(raw).replace(/^55/, '');
@@ -117,27 +134,41 @@ async function destinoDoLead(phone: string, linha: ZapiInstance): Promise<Destin
 }
 
 /**
- * Nome do lead pelo CRM; cai no pushname do WhatsApp quando não está cadastrado.
- * `sdr_leads.phone` é texto livre e no banco convivem as duas formas (com e sem
- * o 55), então casa pela cauda de 8 dígitos e confere o DDD — mesma régua do
- * `donoDoTelefone`. Com `.eq` puro, meio CRM viraria "sem nome".
+ * Nome de quem mandou. Na linha IO o cadastro é o CRM de energia (`sdr_leads`);
+ * na B2B é o cliente da plataforma (`users.whatsapp`) — procurar um no lugar do
+ * outro daria "sem nome" em 100% dos casos daquela linha.
+ * Telefone é texto livre nas duas tabelas e convivem as formas com e sem o 55,
+ * então casa pela cauda de 8 e confere o DDD — mesma régua do `donoDoTelefone`.
  */
-async function nomeDoLead(telLimpo: string, fallback?: string | null): Promise<string> {
+async function nomeDoLead(telLimpo: string, linha: ZapiInstance, fallback?: string | null): Promise<string> {
+  const alvo = telkey(telLimpo);
+  const tabela = linha === 'solardoc'
+    ? { nome: 'users', coluna: 'whatsapp' }
+    : { nome: 'sdr_leads', coluna: 'phone' };
   try {
-    const alvo = telkey(telLimpo);
     const { data } = await supabase
-      .from('sdr_leads').select('nome, phone').ilike('phone', `%${alvo.slice(-8)}`).limit(5);
-    for (const l of (data ?? []) as Array<{ nome: string | null; phone: string | null }>) {
-      if (l.nome && telkey(l.phone || '') === alvo) return String(l.nome);
+      .from(tabela.nome).select(`nome, ${tabela.coluna}`)
+      .ilike(tabela.coluna, `%${alvo.slice(-8)}`).limit(5);
+    for (const l of (data ?? []) as Array<Record<string, any>>) {
+      if (l.nome && telkey(String(l[tabela.coluna] || '')) === alvo) return String(l.nome);
     }
   } catch { /* fail-open: o nome é enfeite, o link do WhatsApp é o que importa */ }
-  return (fallback || '').trim() || 'sem nome no CRM';
+  return (fallback || '').trim() || 'sem nome no cadastro';
 }
 
 // ── Teto por lead: 12 mídias/hora ────────────────────────────────────────────
 // Cada encaminhamento carimba `midia_fwd:<telkey>:<messageId>` em system_state.
 // Estourou? Para de reenviar e manda UM aviso por hora, pra o consultor saber
 // que tem mais coisa esperando na conversa em vez de achar que acabou.
+/** Essa mensagem já foi encaminhada? A fila devolve a mensagem em caso de erro
+ *  (`processed: false`) e o Z-API redispara webhook — sem isto, o consultor
+ *  recebe a mesma foto duas e três vezes. */
+async function jaEncaminhada(key: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('system_state').select('key').eq('key', key).limit(1);
+  return (data?.length ?? 0) > 0;
+}
+
 async function contarNaHora(prefixo: string): Promise<number> {
   const desde = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { data } = await supabase
@@ -221,15 +252,20 @@ export async function encaminharMidiaAoConsultor(p: {
     if (process.env.MIDIA_FWD_OFF === '1') return;
 
     const linha: ZapiInstance = p.linha || 'io';
+    // Story, grupo, newsletter e gente da casa não são lead mandando recado.
+    if (!ehRemetenteValido(p.phone)) return;
     const tel = soDigitos(p.phone);
-    if (!tel || tel.length < 10) return;
-    const chave = telkey(tel);
+    const chave = `${linha}:${telkey(tel)}`;
+
+    // Mesma mensagem duas vezes (retry da fila, redelivery do Z-API) → sai uma só.
+    const marcaMsg = p.messageId ? `midia_fwd:${chave}:${p.messageId}` : null;
+    if (marcaMsg && await jaEncaminhada(marcaMsg)) return;
 
     // Teto por lead. Estourado → um aviso por hora e para por aqui.
     if (await contarNaHora(`midia_fwd:${chave}:`) >= MAX_POR_LEAD_HORA()) {
       if (await contarNaHora(`midia_fwd_cap:${chave}`) === 0) {
         const destinoCap = await destinoDoLead(p.phone, linha);
-        const nomeCap = await nomeDoLead(tel, p.nome);
+        const nomeCap = await nomeDoLead(tel, linha, p.nome);
         await zapiPost('send-text', {
           phone: destinoCap.alvo,
           message: `*${nomeCap}* mandou mais mídias (acima de ${MAX_POR_LEAD_HORA()} na última hora). Parei de encaminhar pra não lotar seu WhatsApp — abra a conversa: https://wa.me/${fmtPhone(tel)}`,
@@ -240,7 +276,7 @@ export async function encaminharMidiaAoConsultor(p: {
     }
 
     const destino = await destinoDoLead(p.phone, linha);
-    const nome = await nomeDoLead(tel, p.nome);
+    const nome = await nomeDoLead(tel, linha, p.nome);
     const legendaLead = (p.media.caption || '').trim();
 
     const cartao = [
@@ -252,7 +288,7 @@ export async function encaminharMidiaAoConsultor(p: {
     ].join('\n');
 
     await zapiPost('send-text', { phone: destino.alvo, message: cartao }, 2, linha);
-    await marcar(`midia_fwd:${chave}:${p.messageId || Date.now()}`).catch(() => {});
+    await marcar(marcaMsg || `midia_fwd:${chave}:${Date.now()}`).catch(() => {});
 
     const ok = await enviarMidia(destino.alvo, p.media, legendaLead, linha);
     if (!ok) {

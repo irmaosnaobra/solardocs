@@ -11,6 +11,8 @@ const state = new Map<string, { key: string; value?: any; updated_at?: string }>
 // "34...", e o nome tem que aparecer nos dois casos.
 let leadPhone = '5534988887777';
 let leadNome: string | null = 'Fulano da Silva';
+// Cadastro da linha B2B: cliente da plataforma mora em `users`, não no CRM solar.
+let userNome: string | null = null;
 let dono: string | null = null;
 let imagemBaixa = true;
 let falharMidia = false;
@@ -26,15 +28,20 @@ function fakeMain() {
         like(_c: string, p: string) { q._like = p.replace(/%$/, ''); return q; },
         ilike(_c: string, p: string) { q._ilike = p.replace(/^%/, ''); return q; },
         gte() { return q; },
-        eq() { return q; },
+        eq(_c: string, v: string) { q._eq = v; return q; },
         limit() {
-          if (tabela === 'sdr_leads') {
+          if (tabela === 'sdr_leads' || tabela === 'users') {
             const casa = q._ilike && leadPhone.endsWith(q._ilike);
+            const nome = tabela === 'users' ? userNome : leadNome;
+            if (!casa || !nome) return Promise.resolve({ data: [], error: null });
             return Promise.resolve({
-              data: casa && leadNome ? [{ nome: leadNome, phone: leadPhone }] : [], error: null,
+              data: [tabela === 'users' ? { nome, whatsapp: leadPhone } : { nome, phone: leadPhone }],
+              error: null,
             });
           }
-          const linhas = [...state.values()].filter(r => !q._like || r.key.startsWith(q._like));
+          const linhas = [...state.values()].filter(r => q._eq
+            ? r.key === q._eq
+            : (!q._like || r.key.startsWith(q._like)));
           return Promise.resolve({ data: linhas, error: null });
         },
         upsert(p: any) {
@@ -77,6 +84,7 @@ beforeEach(() => {
   state.clear();
   enviados.length = 0;
   leadNome = 'Fulano da Silva';
+  userNome = null;
   leadPhone = '5534988887777';
   dono = null;
   imagemBaixa = true;
@@ -186,6 +194,35 @@ describe('mídia do lead → consultor dono', () => {
     expect(enviados[0].body.phone).toBe('5534991360223');
     // Sai pela MESMA linha em que chegou — senão o consultor responde do número errado.
     expect(enviados.every(e => e.linha === 'solardoc')).toBe(true);
+  });
+
+  it('na linha B2B o nome vem de `users`, não do CRM de energia', async () => {
+    dono = null;
+    leadNome = 'Homônimo do CRM solar';
+    userNome = 'Cliente da Plataforma';
+    await encaminharMidiaAoConsultor({ phone: LEAD, media: foto, linha: 'solardoc' });
+    expect(enviados[0].body.message).toContain('Cliente da Plataforma');
+    expect(enviados[0].body.message).not.toContain('Homônimo do CRM solar');
+  });
+
+  // Em 14 dias a fila teve 40 stories contra 54 mídias de lead. Encaminhar story
+  // entrega o dia inteiro dos contatos no celular do consultor.
+  it.each([
+    ['status@broadcast', 'story do WhatsApp'],
+    ['120363424419098566-group', 'grupo'],
+    ['5534991360223', 'número da própria equipe'],
+  ])('não encaminha %s (%s)', async (remetente) => {
+    dono = 'thiago';
+    await encaminharMidiaAoConsultor({ phone: remetente, media: foto });
+    expect(enviados.length).toBe(0);
+  });
+
+  it('mesma mensagem duas vezes (retry da fila) encaminha uma só', async () => {
+    dono = 'thiago';
+    await encaminharMidiaAoConsultor({ phone: LEAD, media: foto, messageId: 'fila-123' });
+    expect(enviados.length).toBe(2);
+    await encaminharMidiaAoConsultor({ phone: LEAD, media: foto, messageId: 'fila-123' });
+    expect(enviados.length).toBe(2);
   });
 
   it('mídia da linha IO sai pela linha IO', async () => {
