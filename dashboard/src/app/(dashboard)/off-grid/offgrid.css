@@ -80,7 +80,8 @@
 }
 .og-input, .og-select {
   width: 100%;
-  padding: 9px 11px;
+  min-height: 44px;
+  padding: 11px 13px;
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text);
@@ -110,7 +111,10 @@
 
 .og-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .og-chip {
-  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px 16px;
   font-size: 13px;
   font-weight: 700;
   color: var(--color-text-muted);
@@ -135,11 +139,43 @@
 }
 .og-chip-limpar { color: var(--ink-red); border-color: #FECACA; background: #FEF2F2; }
 
+/* PERFIL PRONTO — a classe existia no HTML e NAO existia aqui (renomearam o
+   .og-chip e o estilo ficou pra tras): os quatro botoes saiam com o desenho
+   padrao do navegador, quadrados e cinzas, no meio de uma tela arredondada. */
+.og-perfil {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 10px 15px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.12s, color 0.12s, transform 0.08s;
+  -webkit-tap-highlight-color: transparent;
+}
+.og-perfil:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.og-perfil:active { transform: scale(0.97); }
+.og-perfil svg { color: var(--color-text-dim); flex-shrink: 0; }
+.og-perfil:hover svg { color: var(--color-primary); }
+.og-perfil-limpar { color: var(--ink-red); border-color: #FECACA; background: #FEF2F2; }
+.og-perfil-limpar:hover { color: var(--ink-red); border-color: var(--ink-red); }
+
 .og-buscabar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 11px;
+  /* A barra inteira e' o alvo; o input dentro dela precisa ter a altura toda,
+     senao o toque so' pega no texto (19px) e nao no espaco em volta. */
+  min-height: 48px;
+  /* padding vertical ZERO: com folga em cima e embaixo, tocar na sobra da
+     barra nao focava o campo — so' o texto respondia. */
+  padding: 0 13px;
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -149,6 +185,7 @@
 .og-buscainput {
   flex: 1;
   min-width: 0;
+  align-self: stretch;
   border: none;
   background: transparent;
   outline: none;
@@ -167,7 +204,10 @@
   align-items: center;
   gap: 7px;
   width: 100%;
-  padding: 7px 4px;
+  /* Abre e fecha o grupo inteiro; com 30px de altura o dedo erra e a lista
+     nao mexe. */
+  min-height: 44px;
+  padding: 10px 4px;
   font-size: 11px;
   font-weight: 800;
   color: var(--ink-slate);
@@ -230,21 +270,30 @@
 .og-resumo-cargas strong { font-size: 15px; font-weight: 900; color: var(--ink-amber); }
 .og-carga {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  /* minmax(0, 1fr), nao 1fr: por padrao a coluna nao encolhe abaixo do conteudo
+     dela, entao um texto comprido ("h/dia de motor") empurrava o stepper pra
+     FORA do card e o "+" ficava cortado na beirada. */
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
 }
+.og-carga > :first-child { min-width: 0; overflow: hidden; }
+.og-carga .og-stepper { flex-shrink: 0; }
 .og-carga:nth-child(even) { background: var(--color-surface-2); }
 .og-carga.ativa { border-color: var(--color-accent-border); background: var(--color-accent-soft); }
 .og-carga-nome { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
 .og-carga-meta { font-size: 11.5px; color: var(--color-text-dim); margin-top: 2px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .og-horas {
-  width: 54px;
-  padding: 3px 6px;
-  font-size: 11.5px;
+  /* E' onde se digita quantas horas o aparelho roda por dia — o numero que
+     mais mexe no tamanho da bateria. Tinha 24px de altura. */
+  width: 62px;
+  min-height: 40px;
+  padding: 8px 8px;
+  text-align: center;
+  font-size: 13px;
   font-weight: 700;
   color: var(--color-text);
   background: var(--color-surface);
@@ -252,10 +301,23 @@
   border-radius: 5px;
   font-family: inherit;
 }
+.og-horas-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* Sem nowrap: "h/dia de motor" e' comprido e, travado numa linha so', passava
+     POR CIMA do botao ESSENCIAL na coluna do lado. Podendo quebrar, ele desce
+     dentro do proprio bloco — continua colado no campo, que era o objetivo. */
+  max-width: 100%;
+  min-width: 0;
+}
 .og-ess {
-  font-size: 10.5px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-size: 11px;
   font-weight: 800;
-  padding: 2px 7px;
+  padding: 7px 12px;
   border-radius: 999px;
   border: 1px solid var(--color-border-strong);
   background: var(--color-surface);
@@ -326,7 +388,10 @@
 .og-aut-toggle {
   margin-top: 12px;
   width: 100%;
-  padding: 9px;
+  /* Abre a resposta da pergunta que o cliente sempre faz ("quanto tempo a
+     bateria segura sem sol") — não pode ser o botão mais fino da tela. */
+  min-height: 44px;
+  padding: 11px;
   font-size: 12.5px;
   font-weight: 700;
   color: #E5E9EF;
@@ -385,6 +450,7 @@
 /* ── BOTÕES ── */
 .og-btn {
   width: 100%;
+  min-height: 46px;
   padding: 13px 16px;
   font-size: 14px;
   font-weight: 800;
@@ -537,3 +603,19 @@
 .og-stepper span { width: 32px; font-size: 15px; }
 .og-carga { padding: 10px; gap: 8px; }
 .og-carga.ativa { border-width: 1.5px; }
+/* Card MARCADO no CELULAR vira DUAS LINHAS: nome e detalhes em cima com a
+   largura toda, ESSENCIAL e o +/- embaixo. Em tres colunas num telefone de
+   414px nao cabe — "h/dia de motor" quebrava em tres pedacos e o "+" saia pela
+   beirada do card. Flex, e nao grid, porque o card do aparelho personalizado
+   tem um botao a mais.
+   No PC continua em tres colunas: la' sobra largura e a linha unica le' melhor. */
+@media (max-width: 620px) {
+  .og-carga.ativa {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .og-carga.ativa > :first-child { flex: 1 0 100%; }
+  .og-carga.ativa > .og-stepper { margin-left: auto; }
+}

@@ -177,7 +177,16 @@ export default function OffGridPage() {
         .then(({ data }) => {
           if (cancelado) return;
           setTrancado(false);
-          setOrc({ ...data, creditoPedido: data.credito_pedido ?? 0 });
+          // `itens` chega normalizado AQUI, na entrada, e não em cada uso lá na
+          // frente. Uma resposta 200 sem a lista (deploy desencontrado, proxy
+          // devolvendo {}, resposta parcial) fazia o .find estourar e a tela
+          // INTEIRA cair no "Algo deu errado" — o dimensionamento não depende
+          // de preço nenhum e não tem por que morrer junto.
+          setOrc({
+            ...data,
+            itens: Array.isArray(data?.itens) ? data.itens : [],
+            creditoPedido: data?.credito_pedido ?? 0,
+          });
         })
         .catch((err: unknown) => {
           if (cancelado) return;
@@ -621,11 +630,17 @@ export default function OffGridPage() {
                               {c.momentanea && <span className="og-tag" title="Uso rápido: pesa no pico, quase nada no consumo">uso rápido</span>}
                               {q > 0 && (
                                 <>
-                                  <span>·</span>
-                                  <input className="og-horas" value={String(h).replace('.', ',')}
-                                    onChange={(ev) => mudaHoras(c.id, ev.target.value)} />
-                                  <span>{c.continuo ? 'h/dia de motor' : 'h/dia'}</span>
-                                  <span>·</span>
+                                  {/* Campo e unidade grudados: no celular a linha
+                                      quebrava entre os dois e sobrava um "h/dia"
+                                      orfao embaixo, longe do numero que explica.
+                                      Os "·" que separavam sairam: quando a linha
+                                      quebra eles caem sozinhos numa linha so' deles.
+                                      O espaco entre os itens ja' separa. */}
+                                  <span className="og-horas-wrap">
+                                    <input className="og-horas" value={String(h).replace('.', ',')}
+                                      onChange={(ev) => mudaHoras(c.id, ev.target.value)} />
+                                    <span>{c.continuo ? 'h/dia de motor' : 'h/dia'}</span>
+                                  </span>
                                   <span>{((c.w * q * h) / 1000).toFixed(2).replace('.', ',')} kWh/dia</span>
                                 </>
                               )}
