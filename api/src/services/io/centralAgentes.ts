@@ -535,13 +535,19 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Responderam', valor: solarResp.total, sub: `${solarResp.h24} nas últimas 24h · recado vai pro consultor dono da ficha` },
       ],
       toques: [
-        { titulo: 'único · no cadastro', quando: 'até 5 min depois de a ficha entrar', copy: 'Seis bolhas: quem é o consultor + o WhatsApp dele, "nós entramos em contato", "pode escrever agora que estamos aguardando", e uma pergunta só — qual o consumo atual (aceita foto da conta de luz). Só ficha com até 1 hora de vida — o backlog nunca é tocado.' },
-        { titulo: '↩ resposta do cliente', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro cliente: é o recado com o que a pessoa escreveu, indo pro consultor DONO da ficha (e cópia pro Thiago). Kill-switch SOLAR_RESPOSTAS_OFF.' },
+        { titulo: 'único · no cadastro', quando: 'até 24h depois de a ficha entrar', copy: 'Cinco bolhas: "este é o seu pré-atendimento", quem é o consultor (especialista) + o WhatsApp dele, "nós entramos em contato", o que o estudo entrega, e uma pergunta só — qual o consumo hoje (aceita foto da conta de luz). Não recebe quem cancelou, quem disse sem interesse e quem já viu proposta. Backlog anterior a 13/08 nunca é tocado.' },
+        { titulo: '↩ resposta do cliente', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro cliente: é o recado com o que a pessoa escreveu, indo pro consultor DONO da ficha (e cópia pro Thiago). A foto da conta de luz, o áudio e o vídeo são ENCAMINHADOS pro WhatsApp dele, não só contados. Kill-switch SOLAR_RESPOSTAS_OFF.' },
       ],
-      alerta: !envLigado('SOLAR_BOASVINDAS_OFF')
-        && (solarCadastros30 ?? 0) > 0 && (solarBoasVindas30 ?? 0) === 0
-        ? 'Nenhum cadastro de solar recebeu boas-vindas nos últimos 30 dias, com o agente ligado — confira o cron e a linha IO.'
-        : undefined,
+      // O alerta disparava só com ZERO — e por 30 dias o número foi 12 de 99, que
+      // não é zero e não é entrega. "Alguns receberam" parecia funcionando; era
+      // 87 pessoas no escuro. Agora ele mede COBERTURA.
+      alerta: (() => {
+        if (envLigado('SOLAR_BOASVINDAS_OFF')) return undefined;
+        const total = solarCadastros30 ?? 0;
+        const ok = solarBoasVindas30 ?? 0;
+        if (total < 5 || ok / total >= 0.8) return undefined;
+        return `Só ${ok} de ${total} cadastros de solar receberam as boas-vindas em 30 dias — ${total - ok} pessoa(s) no escuro. Confira o cron, o teto da linha IO e o filtro de status.`;
+      })(),
     },
     {
       id: 'indicacao',

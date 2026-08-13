@@ -28,12 +28,12 @@
 //     cumpre é pior que nenhum prazo.
 //
 // ── Travas (a linha IO foi bloqueada em 01–03/ago; ela não aguenta rajada) ──
-//   • JANELA DE IDADE: só ficha criada nas últimas 6 horas. Quem cadastrou
-//     ontem não recebe recibo de cadastro — e, mais importante, ligar o
-//     kill-switch NÃO dispara pro backlog inteiro de uma vez. (Por que 6h e não
-//     1h: o cron real roda de ~2 em ~2 horas, ver JANELA_MS.)
-//   • PISO DE DATA: nada anterior a SOLAR_BOASVINDAS_INICIO, aconteça o que
-//     acontecer com a janela.
+//   • JANELA DE IDADE: só ficha criada nas últimas 24 horas (era 6h até 13/08 —
+//     ver JANELA_MS pra medição). Quem cadastrou anteontem não recebe recibo de
+//     cadastro, e ligar o kill-switch NÃO dispara pro backlog inteiro de uma vez.
+//   • PISO DE DATA: nada anterior a SOLAR_BOASVINDAS_INICIO, nem a
+//     SOLAR_ENTREGA_AMPLA_INICIO — este último é a garantia de "daqui pra frente"
+//     pedida pelo dono quando a janela e o filtro de status foram afrouxados.
 //   • TETO POR RODADA: o sync do Meta insere várias fichas de uma vez; o tick é
 //     de 5 min e a fila drena sozinha em vez de estourar na linha.
 //   • A flag só é gravada DEPOIS de o envio dar certo → falha vira retry, não
@@ -87,8 +87,48 @@ export const SOLAR_BOASVINDAS_INICIO = '2026-08-04T00:00:00.000Z';
  * verdade 4 horas depois. O que segura o volume não é esta janela — é o teto
  * por rodada + a flag no banco.
  */
-const JANELA_MS = 6 * 60 * 60 * 1000;
+// [13/08/2026] 6h → 24h. Medição de 30 dias: das 99 fichas do Meta, 12 receberam.
+// A janela era o SEGUNDO furo (o primeiro é o status, ver STATUS_QUE_NAO_RECEBEM),
+// mas era furo: o tempo médio até o envio nas que deram certo é de 59 minutos —
+// o teto da linha é de 6/h COMPARTILHADO, então ficha que cai numa hora cheia
+// espera horas, e com 6h de janela algumas caíam da beirada.
+//
+// 24h é o limite do que a copy aguenta: ela não diz "agora", mas chamar de
+// "pré-atendimento" dois dias depois, com o consultor já tendo ligado, é pior que
+// não mandar. Como a fila é varrida a cada 5 min, a janela larga JÁ É o retry —
+// quem o teto barrou volta a ser candidato no tick seguinte, por 24 horas.
+const JANELA_MS = 24 * 60 * 60 * 1000;
 const MAX_POR_TICK = 5;
+
+/**
+ * PISO DE "DAQUI PRA FRENTE" (ordem do dono, 13/08/2026: "vamos fazer daqui pra
+ * frente"). Alargar a janela e afrouxar o status faria 87 pessoas que se
+ * cadastraram em julho receberem hoje um "seu pré-atendimento" — gente que já foi
+ * atendida, já disse não, ou já esqueceu que preencheu. Este piso é a garantia de
+ * que a mudança só vale pra quem entrar a partir dela.
+ *
+ * NÃO REMOVER pra "recuperar o histórico": recuperar backlog é outra decisão, com
+ * outra copy ("faz um tempo que você se cadastrou..."), e precisa do dono.
+ */
+export const SOLAR_ENTREGA_AMPLA_INICIO = '2026-08-13T22:00:00.000Z';
+
+/**
+ * Quem NÃO recebe o recibo do cadastro.
+ *
+ * O filtro era `status = 'agendado'`, e essa é a causa nº 1 de 87 pessoas não
+ * terem recebido nada em 30 dias: a ficha sai de "agendado" em MINUTOS (a triagem
+ * é rápida) e some da fila pra sempre. Das 99 do Meta, 71 já não eram elegíveis
+ * quando o tick olhou — 40 delas em `sem_interesse`.
+ *
+ * Invertido: em vez de listar quem pode, lista quem não pode.
+ *   · cancelado / sem_interesse — a pessoa disse não. Recibo aqui é insistência.
+ *   · fez_orcamento — já recebeu proposta. "Antes de te chamar, a gente monta o
+ *     estudo" viraria mentira na cara de quem já viu o estudo.
+ * O resto (agendado, em_atendimento, nao_atendeu) RECEBE: são justamente os casos
+ * em que a conversa ainda não aconteceu — e `nao_atendeu` é literalmente quem o
+ * consultor tentou ligar e não alcançou.
+ */
+const STATUS_QUE_NAO_RECEBEM = ['cancelado', 'sem_interesse', 'fez_orcamento'];
 
 /** Bolha maior que o padrão (160) de propósito: sem isso as frases longas se
  *  quebram no meio, viram 8+ mensagens seguidas, e o teto de 5 do `emBolhas`
@@ -189,6 +229,7 @@ interface Ficha {
   cliente_telefone: string | null;
   created_at: string;
   created_by: string | null;
+  status: string | null;
   boas_vindas_at: string | null;
 }
 
@@ -202,12 +243,15 @@ export type PreviaBoasVindas = {
 
 export type ResultadoBoasVindas = {
   enviadas: number;
+  /** Cadastros que envelheceram além da janela sem receber — falha, não decisão. */
+  perdidos: number;
   erros: number;
   motivo?: string;
   previa?: PreviaBoasVindas[];
 };
 
-const zero = (motivo?: string): ResultadoBoasVindas => ({ enviadas: 0, erros: 0, ...(motivo ? { motivo } : {}) });
+const zero = (motivo?: string): ResultadoBoasVindas =>
+  ({ enviadas: 0, perdidos: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
 /** nome do consultor → WhatsApp dele, direto do cadastro do CRM (não lista fixa:
  *  número trocado no cadastro tem que valer na mensagem seguinte). */
@@ -237,13 +281,16 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
 
   const agora = Date.now();
   const janela = new Date(agora - JANELA_MS).toISOString();
-  const piso = janela > SOLAR_BOASVINDAS_INICIO ? janela : SOLAR_BOASVINDAS_INICIO;
+  // O piso é o MAIOR dos três: a janela móvel, o dia em que o agente nasceu e o
+  // piso de "daqui pra frente". O último é o que impede a janela de 24h de acordar
+  // o backlog de julho no primeiro tick depois do deploy.
+  const piso = [janela, SOLAR_BOASVINDAS_INICIO, SOLAR_ENTREGA_AMPLA_INICIO].sort().pop()!;
 
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, vendedor_nome, cliente_nome, cliente_telefone, created_at, created_by, boas_vindas_at')
+    .select('id, vendedor_nome, cliente_nome, cliente_telefone, created_at, created_by, status, boas_vindas_at')
     .in('created_by', SOLAR_ORIGENS)
-    .eq('status', 'agendado')          // cancelado/sem_interesse não recebe nada
+    .not('status', 'in', `(${STATUS_QUE_NAO_RECEBEM.join(',')})`)
     .is('boas_vindas_at', null)
     .gte('created_at', piso)
     .order('created_at', { ascending: true })
@@ -269,6 +316,7 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     // dias depois — e uma já tocada viraria mensagem repetida.
     if (ficha.boas_vindas_at) continue;
     if (String(ficha.created_at) < piso) continue;
+    if (STATUS_QUE_NAO_RECEBEM.includes(String(ficha.status || ''))) continue;
     if (jaTocadas.has(ficha.id)) continue;
 
     candidatos++;
@@ -343,5 +391,40 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
   if (enviadas > 0 && !opts.dry) {
     logger.info('solar-boas-vindas', `${enviadas} cadastro(s) de solar receberam as boas-vindas`, { erros });
   }
-  return { enviadas, erros, ...(opts.dry ? { motivo: 'dry', previa } : {}) };
+  const perdidos = await contarPerdidos(piso);
+  return { enviadas, perdidos, erros, ...(opts.dry ? { motivo: 'dry', previa } : {}) };
+}
+
+/**
+ * Quem envelheceu ALÉM da janela sem receber nada — e não por decisão (status),
+ * mas por falha de entrega.
+ *
+ * Existe porque foi assim que 87 pessoas passaram em branco por 30 dias: nada no
+ * log dizia "não entreguei", só "entreguei 1". Silêncio parecia sucesso. Agora
+ * cada rodada devolve o número, e ele aparece na Central das Agentes.
+ *
+ * Conta só a partir do piso de "daqui pra frente": o backlog de julho não é
+ * perda deste agente, é decisão do dono.
+ */
+async function contarPerdidos(pisoDaJanela: string): Promise<number> {
+  try {
+    const { data, error } = await supabaseGerador
+      .from('agendamentos').select('id')
+      .in('created_by', SOLAR_ORIGENS)
+      .not('status', 'in', `(${STATUS_QUE_NAO_RECEBEM.join(',')})`)
+      .is('boas_vindas_at', null)
+      .gte('created_at', SOLAR_ENTREGA_AMPLA_INICIO)
+      .lt('created_at', pisoDaJanela)
+      .limit(200);
+    if (error) throw error;
+    const n = (data ?? []).length;
+    if (n > 0) {
+      logger.error('solar-boas-vindas',
+        `${n} cadastro(s) passaram da janela de ${JANELA_MS / 3600_000}h SEM receber as boas-vindas`);
+    }
+    return n;
+  } catch (err) {
+    logger.error('solar-boas-vindas', 'contar perdidos falhou', err);
+    return 0;
+  }
 }

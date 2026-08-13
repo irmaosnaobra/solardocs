@@ -19,6 +19,13 @@ vi.mock('../utils/supabaseGerador', () => ({
         select() { return q; },
         in(col: string, vals: any[]) { q._filtros[col] = vals; return q; },
         is(col: string, v: any) { q._filtros[`is_${col}`] = v; return q; },
+        // O filtro de status virou "não está nesta lista" (era `= agendado`, e
+        // era ele que descartava 71 de 99 fichas). `lt` é do contarPerdidos.
+        not(col: string, _op: string, lista: string) {
+          q._filtros[`not_${col}`] = lista.replace(/[()]/g, '').split(',');
+          return q;
+        },
+        lt(col: string, v: any) { q._filtros[`lt_${col}`] = v; return q; },
         eq(col: string, v: any) {
           if (q._update) {
             updates.push({ id: v, campo: Object.keys(q._update)[0] });
@@ -32,12 +39,14 @@ vi.mock('../utils/supabaseGerador', () => ({
         limit() {
           if (tabela === 'consultores') return Promise.resolve({ data: consultores, error: null });
           const origens: string[] = q._filtros['created_by'] ?? [];
-          const status = q._filtros['status'];
+          const barrados: string[] = q._filtros['not_status'] ?? [];
           const piso = q._filtros['gte_created_at'];
+          const teto = q._filtros['lt_created_at'];
           return Promise.resolve({
             data: fichas.filter(f =>
-              origens.includes(f.created_by) && f.status === status
-              && f.boas_vindas_at === null && String(f.created_at) >= piso),
+              origens.includes(f.created_by) && !barrados.includes(f.status)
+              && f.boas_vindas_at === null && String(f.created_at) >= piso
+              && (!teto || String(f.created_at) < teto)),
             error: null,
           });
         },
@@ -61,7 +70,7 @@ vi.mock('../services/agents/zapiClient', () => ({
   sendHuman: vi.fn(async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); }),
 }));
 
-const AGORA = new Date('2026-08-10T16:00:00.000Z');
+const AGORA = new Date('2026-08-14T16:00:00.000Z');
 const minutosAtras = (m: number) => new Date(AGORA.getTime() - m * 60_000).toISOString();
 
 function ficha(over: Partial<any> = {}) {
@@ -128,9 +137,12 @@ describe('o backlog não vira rajada', () => {
     expect((await tick()).enviadas).toBe(1);
   });
 
-  it('mas 7 horas já é tarde demais', async () => {
+  // [13/08] A janela foi de 6h pra 24h: 12 de 99 receberam em 30 dias, e o tempo
+  // médio até o envio (59 min, por causa do teto de 6/h da linha) fazia gente cair
+  // da beirada. 7 horas agora ainda é dentro; 26 continua fora.
+  it('cadastro de 7 horas atrás ainda recebe', async () => {
     fichas = [ficha({ created_at: minutosAtras(420) })];
-    expect((await tick()).enviadas).toBe(0);
+    expect((await tick()).enviadas).toBe(1);
   });
 
   it('ficha anterior ao dia em que o agente existiu nunca recebe', async () => {
@@ -150,9 +162,33 @@ describe('o backlog não vira rajada', () => {
     expect((await tick()).enviadas).toBe(0);
   });
 
-  it('ficha cancelada não recebe', async () => {
-    fichas = [ficha({ status: 'cancelado' })];
+  // Quem disse não, e quem já viu proposta, não recebe recibo de cadastro.
+  it('cancelado, sem_interesse e fez_orcamento não recebem', async () => {
+    for (const status of ['cancelado', 'sem_interesse', 'fez_orcamento']) {
+      fichas = [ficha({ status })];
+      expect((await tick()).enviadas).toBe(0);
+    }
+  });
+
+  // A causa nº 1 de 87 pessoas não terem recebido nada em 30 dias: o filtro era
+  // `status = 'agendado'` e a ficha sai desse status em minutos. Quem ainda não
+  // teve conversa RECEBE, esteja em que status estiver.
+  it('em_atendimento e nao_atendeu RECEBEM — a conversa ainda não aconteceu', async () => {
+    // Id diferente por status: a rede em memória (`jaTocadas`) é por id e vive
+    // enquanto o módulo estiver carregado — repetir o id daria 0 por engano.
+    fichas = ['em_atendimento', 'nao_atendeu'].map((status, i) =>
+      ficha({ id: i + 1, status, cliente_telefone: `553499111000${i}` }));
+    expect((await tick()).enviadas).toBe(2);
+  });
+
+  // Ordem do dono: "vamos fazer daqui pra frente". Alargar a janela e o status não
+  // pode acordar o backlog de julho — 87 pessoas que já foram atendidas, já
+  // disseram não, ou já esqueceram que preencheram.
+  it('o piso de "daqui pra frente" segura o backlog antigo', async () => {
+    fichas = [ficha({ created_at: '2026-08-13T21:00:00.000Z' })];   // 1h antes do piso
     expect((await tick()).enviadas).toBe(0);
+    fichas = [ficha({ created_at: '2026-08-13T23:00:00.000Z' })];   // 1h depois
+    expect((await tick()).enviadas).toBe(1);
   });
 
   // O supabase-js NÃO lança quando a escrita falha: devolve { error }. Sem
