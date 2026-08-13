@@ -144,29 +144,41 @@ export function bolhasBoasVindas(
   // o rodízio é Thiago→Diego→Nilce e a frase tem que servir pros três sem errar
   // o gênero de ninguém. Ficha sem consultor cai numa frase inteira diferente —
   // encaixar "um consultor nosso" no lugar do nome produzia "é o *um consultor*".
+  // "Especialista" também é epiceno, e é justamente a palavra que o dono quer
+  // aqui: o lead precisa entender que quem vai atender entende do assunto. Cargo
+  // com gênero ("consultor especializado") erraria com a Nilce, que hoje recebe a
+  // maior parte do volume.
+  // A promessa "nós entramos em contato com você" fica, e fica INTEIRA: é
+  // compromisso com o cliente (ele não precisa correr atrás), não enfeite de copy.
   const apresentacao = quem
-    ? `Quem vai cuidar do seu projeto aqui é *${quem}* — e *nós entramos em contato com você*, não precisa fazer nada, é só deixar o WhatsApp por perto.`
-    : 'Seu projeto já está com um consultor nosso — e *nós entramos em contato com você*, não precisa fazer nada, é só deixar o WhatsApp por perto.';
+    ? `Seu projeto fica com *${quem}*, especialista em energia solar — atendimento com gente, do estudo à instalação. *Nós entramos em contato com você*.`
+    : 'Seu projeto já está com um dos nossos especialistas em energia solar — atendimento com gente, do estudo à instalação. *Nós entramos em contato com você*.';
 
   // Sem telefone cadastrado o contato NÃO some — a promessa do dono é "sempre
   // passar nosso contato". O que muda é qual contato: cai na própria linha, que
   // é onde esta mensagem já está e onde alguém lê de verdade.
   const contato = tel
-    ? `O WhatsApp direto é *${tel}* — salva esse contato, é desse número que a gente fala com você.`
-    : 'E salva este número aqui, ó — é a nossa central, dá pra falar com a gente por aqui a hora que precisar.';
+    ? `O WhatsApp direto é *${tel}* — salva esse contato, é desse número que a conversa continua.`
+    : 'E salva este número aqui — é a nossa central, dá pra falar com a gente por aqui a hora que precisar.';
 
   return [
-    `Oi${comNome(n)}! Aqui é da *Irmãos na Obra* — seu cadastro de energia solar chegou pra mim. ☀️`,
+    // "Pré-atendimento" na PRIMEIRA frase é o pedido do dono e responde uma dúvida
+    // real de quem acabou de se cadastrar: não sei se estou falando com quem vai
+    // me atender. Dizer isso na abertura ainda compra o resto da mensagem — a
+    // pergunta do consumo deixa de parecer interrogatório e vira preparação.
+    `Oi${comNome(n)}! Aqui é da *Irmãos na Obra*. Este é o seu pré-atendimento: eu organizo o seu caso pra quem vai te atender já chegar preparado.`,
     apresentacao,
     contato,
-    'E você não precisa esperar a gente: se quiser, já me escreve aqui agora. Estamos prontos, te aguardando. 👊',
+    // O que o pré-atendimento entrega, em coisa concreta. Sem número inventado
+    // (anos de mercado, projetos entregues): promessa que a empresa não pode
+    // provar na conversa seguinte queima o consultor que atende depois.
+    'Antes de te chamar, a gente monta o estudo do seu caso — consumo, telhado e retorno. Você recebe projeto calculado, não estimativa de tabela.',
     // UMA pergunta só (decisão do dono). Formulário no WhatsApp não é
     // conversa: cada pergunta a mais derruba a chance de vir qualquer resposta,
     // e o consumo é a única que o estudo não consegue estimar sozinho. O resto
     // ("por que ainda não tem", "o que fez procurar") o consultor pergunta na
     // conversa, que é onde essas duas rendem de verdade.
-    'Pra eu já adiantar o seu estudo, me conta uma coisa só: qual o seu consumo atual? ⚡',
-    'Pode mandar o valor da sua conta de luz, ou uma foto dela — por texto, áudio ou foto, do jeito que for mais fácil. Com esse número na mão a gente já chega falando de conta, não de pergunta.',
+    'Pra isso preciso de uma coisa só: qual o seu consumo hoje? Manda o valor da conta de luz ou uma foto dela — texto, áudio ou foto, como for mais fácil.',
   ];
 }
 

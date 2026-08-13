@@ -233,14 +233,28 @@ describe('a mensagem', () => {
     expect(await texto()).toContain('entramos em contato com você');
   });
 
-  it('diz que o cliente já pode escrever e que estamos aguardando', async () => {
+  // Pedido do dono (13/08): a mensagem tem que deixar claro que isto é um
+  // PRÉ-atendimento e que quem atende de verdade é gente que entende do assunto —
+  // senão o lead lê o robô e acha que a empresa inteira é robô.
+  it('se apresenta como pré-atendimento e promete atendimento humano especializado', async () => {
     const t = await texto();
-    expect(t).toContain('já me escreve aqui agora');
-    expect(t).toContain('te aguardando');
+    expect(t).toContain('pré-atendimento');
+    expect(t).toContain('especialista em energia solar');
+    expect(t).toContain('atendimento com gente');
   });
 
-  it('pergunta o consumo atual', async () => {
-    expect(await texto()).toContain('qual o seu consumo atual?');
+  // "Consultor especializado" erraria o gênero da Nilce, que hoje recebe a maior
+  // parte do volume. O rodízio é Thiago→Diego→Nilce e a frase serve pros três.
+  it('não usa cargo com gênero', async () => {
+    const t = (await texto()).toLowerCase();
+    // Só o CARGO. "uma foto dela" fala da conta de luz, não de quem atende — a
+    // primeira versão deste teste proibia " dela " e reprovava a própria pergunta.
+    for (const proibido of ['o consultor', 'a consultora', 'consultor especializado', 'especialista dele', 'especialista dela'])
+      expect(t).not.toContain(proibido);
+  });
+
+  it('pergunta o consumo', async () => {
+    expect(await texto()).toContain('qual o seu consumo hoje?');
   });
 
   // Decisão do dono: UMA pergunta. Questionário no primeiro contato é o jeito

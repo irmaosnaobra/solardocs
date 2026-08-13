@@ -186,6 +186,19 @@ export async function sendDocument(
   await zapiPost('send-document/pdf', { phone: fmtPhone(phone), document, fileName, caption }, 2, instance);
 }
 
+// Áudio e vídeo. `audio`/`video` = URL pública OU data URI base64. Usados pra
+// ENCAMINHAR ao consultor o que o cliente mandou — o áudio em que ele conta o
+// consumo e o vídeo do telhado são o recado mais rico que chega, e até 13/08 o
+// consultor recebia só a contagem ("1 áudio"), nunca o arquivo.
+export async function sendAudio(phone: string, audio: string, instance: ZapiInstance = 'solardoc'): Promise<void> {
+  await zapiPost('send-audio', { phone: fmtPhone(phone), audio }, 2, instance);
+}
+export async function sendVideo(
+  phone: string, video: string, caption = '', instance: ZapiInstance = 'solardoc',
+): Promise<void> {
+  await zapiPost('send-video', { phone: fmtPhone(phone), video, caption }, 2, instance);
+}
+
 export async function sendHuman(
   phone: string,
   parts: string[],

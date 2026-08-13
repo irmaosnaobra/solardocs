@@ -42,7 +42,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { sendWhatsApp } from '../agents/zapiClient';
+import { sendWhatsApp, sendImage, sendDocument, sendAudio, sendVideo } from '../agents/zapiClient';
 import { EQUIPE } from '../../routes/ioSolar';
 import { SOLAR_ORIGENS, desligado as boasVindasDesligado } from './solarBoasVindas';
 
@@ -66,7 +66,58 @@ function telKey(raw: string | null | undefined): string | null {
   return d.slice(0, 2) + d.slice(-8);
 }
 
-interface Msg { texto: string; tipo: string; momment: string }
+interface Msg { texto: string; tipo: string; momment: string; media_url?: string | null }
+
+/** Teto de arquivos encaminhados por rodada e por destinatário. Cliente que manda
+ *  12 fotos do telhado não pode virar 24 mensagens na linha (2 destinatários). O
+ *  que passar do teto continua ACESSÍVEL: o link de cada arquivo vai no texto. */
+const MAX_MIDIAS_ENCAMINHADAS = 6;
+
+/** Tipos que o webhook guarda com `media_url` — os que dá pra reenviar. */
+const TIPOS_COM_ARQUIVO = new Set(['imagem', 'audio', 'video', 'documento', 'figurinha']);
+
+/**
+ * Encaminha ao consultor os ARQUIVOS que o cliente mandou — a foto da conta de
+ * luz, o áudio contando o consumo, o vídeo do telhado.
+ *
+ * Até 13/08/2026 o recado dizia "📎 1 imagem" e o arquivo ficava no 5040: o
+ * consultor sabia que existia uma foto da conta e não tinha como vê-la sem pedir
+ * pra alguém abrir a linha. Pedir a conta de luz e não entregar a conta de luz é
+ * o mesmo erro de pedir resposta e não ler a resposta.
+ *
+ * Best-effort de propósito: falha de um arquivo não derruba o recado (que já foi)
+ * nem os outros arquivos. E o link de cada um vai no texto de qualquer jeito —
+ * é a rede embaixo deste encaminhamento.
+ */
+export async function encaminharMidias(
+  para: string[], msgs: Msg[], nomeCliente: string,
+): Promise<{ enviados: number; falhas: number }> {
+  const comArquivo = msgs.filter(m => m.media_url && TIPOS_COM_ARQUIVO.has(m.tipo));
+  if (!comArquivo.length) return { enviados: 0, falhas: 0 };
+
+  let enviados = 0, falhas = 0;
+  for (const m of comArquivo.slice(0, MAX_MIDIAS_ENCAMINHADAS)) {
+    const url = String(m.media_url);
+    // A legenda diz de quem é: o consultor recebe arquivo de vários clientes no
+    // mesmo dia, e foto de conta de luz sem nome não serve pra nada.
+    const legenda = `${nomeCliente}${m.texto ? ` — "${m.texto.slice(0, 120)}"` : ''}`;
+    for (const num of para) {
+      try {
+        if (m.tipo === 'audio') await sendAudio(num, url, 'io');
+        else if (m.tipo === 'video') await sendVideo(num, url, legenda, 'io');
+        else if (m.tipo === 'documento') await sendDocument(num, url, 'documento.pdf', legenda, 'io');
+        else await sendImage(num, url, legenda, 'io');   // imagem e figurinha
+        enviados++;
+      } catch (e) {
+        falhas++;
+        logger.error('solar-respostas', 'encaminhar mídia falhou — o link segue no texto', {
+          tipo: m.tipo, para: num, erro: String(e),
+        });
+      }
+    }
+  }
+  return { enviados, falhas };
+}
 
 /** O recado que cai no WhatsApp do consultor. O texto do cliente vai INTEIRO —
  *  robô nenhum resume aqui: o consumo é a matéria-prima do estudo. */
@@ -93,6 +144,13 @@ export function montarRecado(
   const linhaMidia = [...midias.entries()]
     .map(([tipo, n]) => `${n} ${(rotuloMidia[tipo] ?? [tipo, tipo])[n > 1 ? 1 : 0]}`).join(' · ');
 
+  // O LINK de cada arquivo entra no texto, além de o arquivo ser encaminhado à
+  // parte. É a rede embaixo do encaminhamento: se o reenvio falhar (ou se o
+  // cliente mandar mais arquivos que o teto), o consultor ainda alcança tudo.
+  const links = msgs
+    .filter(m => m.media_url)
+    .map(m => `• ${(rotuloMidia[m.tipo] ?? [m.tipo, m.tipo])[0]}: ${m.media_url}`);
+
   return [
     '💬 *CLIENTE DE SOLAR RESPONDEU* — ☀️',
     '',
@@ -102,8 +160,8 @@ export function montarRecado(
     `WhatsApp: wa.me/${tel}`,
     '',
     '_Escreveu:_',
-    ...(textos.length ? textos.slice(0, 8).map(t => `• ${t.slice(0, 400)}`) : ['• (só mídia, sem texto)']),
-    ...(linhaMidia ? ['', `📎 ${linhaMidia}`] : []),
+    ...(textos.length ? textos.slice(0, 20).map(t => `• ${t.slice(0, 900)}`) : ['• (só mídia, sem texto)']),
+    ...(linhaMidia ? ['', `📎 ${linhaMidia} — chegando aqui em seguida:`, ...links] : []),
     '',
     '_Respondeu às boas-vindas do cadastro. Nessa linha ninguém responde por robô — a bola está com você._',
   ].join('\n');
@@ -120,12 +178,15 @@ interface Ficha {
 
 export type ResultadoSolarRespostas = {
   avisados: number;
+  /** Arquivos do cliente reenviados ao consultor (foto da conta, áudio, vídeo). */
+  encaminhadas: number;
   erros: number;
   motivo?: string;
   previa?: Array<{ id: number; cliente: string; para: string[]; mensagens: number; recado: string }>;
 };
 
-const zero = (motivo?: string): ResultadoSolarRespostas => ({ avisados: 0, erros: 0, ...(motivo ? { motivo } : {}) });
+const zero = (motivo?: string): ResultadoSolarRespostas =>
+  ({ avisados: 0, encaminhadas: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
 /** nome do consultor → WhatsApp dele. */
 async function carregarConsultores(): Promise<Map<string, string>> {
@@ -210,7 +271,7 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
   const teto = new Date(agora - ESPERA_MS).toISOString();
   const { data: msgs, error: eMsgs } = await supabase
     .from('wa_mensagens')
-    .select('telefone, texto, tipo, momment')
+    .select('telefone, texto, tipo, momment, media_url')
     .eq('from_me', false)
     .eq('is_group', false)
     .eq('instancia', INSTANCE_ID_IO)
@@ -230,7 +291,10 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
     const momment = String(m.momment);
     if (momment <= (corteDaFicha.get(f.id) ?? pisoGlobal)) continue;
     const lista = porFicha.get(f.id) ?? [];
-    lista.push({ texto: String(m.texto || '').trim(), tipo: String(m.tipo || 'texto'), momment });
+    lista.push({
+      texto: String(m.texto || '').trim(), tipo: String(m.tipo || 'texto'), momment,
+      media_url: m.media_url ? String(m.media_url) : null,
+    });
     porFicha.set(f.id, lista);
   }
   if (porFicha.size === 0) return zero('ninguem_respondeu');
@@ -238,7 +302,7 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
   const telPorConsultor = await carregarConsultores();
 
   // 4) Avisa.
-  let avisados = 0, erros = 0;
+  let avisados = 0, encaminhadas = 0, erros = 0;
   const previa: NonNullable<ResultadoSolarRespostas['previa']> = [];
 
   for (const [id, lista] of porFicha) {
@@ -267,12 +331,20 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
       const ok = envios.filter(e => e.status === 'fulfilled').length;
       if (ok === 0) throw new Error('nenhum destinatário recebeu');
       avisados++;
-      logger.info('solar-respostas', `resposta da ficha #${id} avisada a ${ok}/${envios.length}`);
+      // Os arquivos vão DEPOIS do recado e só pra quem recebeu o recado: chegar
+      // uma foto solta, sem o texto dizendo de quem é, é pior que não chegar.
+      // Falha aqui não invalida o aviso — por isso fora do throw.
+      const alcancados = para.filter((_, i) => envios[i]?.status === 'fulfilled');
+      const midia = await encaminharMidias(alcancados, lista, String(ficha.cliente_nome || 'Cliente de solar'));
+      encaminhadas += midia.enviados;
+      logger.info('solar-respostas', `resposta da ficha #${id} avisada a ${ok}/${envios.length}`, {
+        midias: midia.enviados, falhas_midia: midia.falhas,
+      });
     } catch (e) {
       logger.error('solar-respostas', 'falha ao avisar', { id, erro: String(e) });
       erros++;
     }
   }
 
-  return { avisados, erros, ...(opts.dry ? { motivo: 'dry', previa } : {}) };
+  return { avisados, encaminhadas, erros, ...(opts.dry ? { motivo: 'dry', previa } : {}) };
 }
