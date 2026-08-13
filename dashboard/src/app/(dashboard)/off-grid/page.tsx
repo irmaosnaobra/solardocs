@@ -24,6 +24,7 @@ import {
 import { CONST, CARGAS_BLOQUEADAS, ALTERNATIVAS } from '@/lib/offgrid/constantes';
 import { Escolha, Escolhas, Abas, Aba } from '@/components/Escolha/Escolha';
 import InfoHint from '@/components/InfoHint/InfoHint';
+import { iconeDaCarga, ICONE_GRUPO, ICONE_PERFIL, Tomada } from '@/lib/offgrid/icones';
 import './offgrid.css';
 import { useRouter } from 'next/navigation';
 
@@ -452,7 +453,10 @@ export default function OffGridPage() {
   return (
     <div className="og-wrap">
       <div className="og-hero">
-        <div className="og-selo"><BatteryCharging size={13} /> Kit off-grid{orc ? ` · tabela ${orc.tabelaVersao}` : ''}</div>
+        {/* `orc &&` nao basta: resposta 200 sem a versao imprimia "tabela
+            undefined" no selo. Mesmo cuidado do `itens` — o que vem da rede so'
+            aparece na tela depois de existir. */}
+        <div className="og-selo"><BatteryCharging size={13} /> Kit off-grid{orc?.tabelaVersao ? ` · tabela ${orc.tabelaVersao}` : ''}</div>
         <h1>Orçamento de sistema off-grid na hora</h1>
         <p>
           Marque o que o cliente vai ligar, diga quantos dias precisa aguentar sem sol e o kit sai
@@ -466,7 +470,10 @@ export default function OffGridPage() {
         <div className="og-col">
           {/* 1. LOCAL */}
           <div className="og-card">
-            <div className="og-card-title"><span className="og-num">1</span> Onde vai instalar</div>
+            <div className="og-card-title">
+              <span className="og-num">1</span>
+              <span className="og-card-tit"><strong>Onde vai instalar</strong><em>o sol do lugar é o que dimensiona o arranjo</em></span>
+            </div>
             <div className="og-row">
               <div className="og-field" style={{ flex: '0 0 150px' }}>
                 <label className="og-label">CEP da obra</label>
@@ -511,7 +518,10 @@ export default function OffGridPage() {
 
           {/* 2. CONSUMO */}
           <div className="og-card">
-            <div className="og-card-title"><span className="og-num">2</span> O que vai ligar</div>
+            <div className="og-card-title">
+              <span className="og-num">2</span>
+              <span className="og-card-tit"><strong>O que vai ligar</strong><em>marque os aparelhos ou informe o kWh da conta</em></span>
+            </div>
             <div style={{ marginBottom: 16 }}>
               <Abas>
                 <Aba on={e.modoConsumo === 'cargas'} onClick={() => set('modoConsumo', 'cargas')} icone={ListChecks}>
@@ -578,7 +588,8 @@ export default function OffGridPage() {
                     {PERFIS.map((p) => (
                       <button key={p.id} className="og-perfil" title={p.desc}
                         onClick={() => aplicarPerfil(p.qtds)}>
-                        <Home size={15} /> {p.nome}
+                        {(() => { const IP = ICONE_PERFIL[p.id] ?? Tomada; return <IP size={17} />; })()}
+                        {p.nome}
                       </button>
                     ))}
                     {totalMarcados > 0 && (
@@ -606,9 +617,10 @@ export default function OffGridPage() {
                   // Busca ativa força tudo aberto; fora dela vale o clique.
                   const aberto = !!termo || abertos.has(g);
                   return (
-                  <div className="og-grupo" key={g}>
+                  <div className={`og-grupo ${marcados.length ? 'tem' : ''}`} key={g}>
                     <button className="og-grupo-nome" onClick={() => toggleGrupo(g)}>
                       <ChevronDown size={14} className={aberto ? 'og-chev og-chev-on' : 'og-chev'} />
+                      {(() => { const IG = ICONE_GRUPO[g]; return <IG size={17} className="og-grupo-icone" />; })()}
                       {GRUPOS_CARGA[g]}
                       {marcados.length > 0 && (
                         <span className="og-grupo-tag">
@@ -621,8 +633,23 @@ export default function OffGridPage() {
                       const h = typeof e.horas[c.id] === 'number' ? e.horas[c.id] : c.h;
                       const ess = typeof e.essenciais[c.id] === 'boolean' ? e.essenciais[c.id] : !!c.essencial;
                       return (
-                        <div className={`og-carga ${q > 0 ? 'ativa' : ''}`} key={c.id}>
-                          <div>
+                        <div
+                          className={`og-carga og-carga-clique ${q > 0 ? 'ativa' : ''}`}
+                          key={c.id}
+                          onClick={(ev) => {
+                            // Tocar no +/-, no campo de horas ou no ESSENCIAL NAO
+                            // pode somar tambem: sao controles proprios dentro da
+                            // mesma linha. Somar so' acontece no espaco "vazio".
+                            if ((ev.target as HTMLElement).closest('button, input, .og-stepper')) return;
+                            mudaQtd(c.id, +1);
+                          }}
+                          title="Toque para somar um"
+                        >
+                          {/* O desenho vem ANTES do nome porque a lista tem 70
+                              itens: quem procura a geladeira acha pela forma,
+                              nao lendo setenta linhas de texto. */}
+                          {(() => { const IC = iconeDaCarga(c.id, c.grupo); return <IC size={22} className="og-carga-icone" />; })()}
+                          <div className="og-carga-txt">
                             <div className="og-carga-nome">{c.nome}</div>
                             <div className="og-carga-meta">
                               <span>{c.w} W</span>
@@ -670,7 +697,8 @@ export default function OffGridPage() {
                   <div className="og-grupo-nome" style={{ cursor: 'default' }}>Não achou o aparelho?</div>
                   {e.personalizados.map((p) => (
                     <div className="og-carga ativa" key={p.id}>
-                      <div>
+                      <Tomada size={22} className="og-carga-icone" />
+                      <div className="og-carga-txt">
                         <div className="og-carga-nome">{p.nome || 'Aparelho sem nome'}</div>
                         <div className="og-carga-meta">
                           <span>{p.w} W</span><span>·</span>
@@ -751,7 +779,10 @@ export default function OffGridPage() {
 
           {/* 3. AUTONOMIA */}
           <div className="og-card">
-            <div className="og-card-title"><span className="og-num">3</span> Quanto tempo sem sol</div>
+            <div className="og-card-title">
+              <span className="og-num">3</span>
+              <span className="og-card-tit"><strong>Quanto tempo sem sol</strong><em>aqui é onde o preço do kit sobe ou desce</em></span>
+            </div>
             <label className="og-label">Dias que o banco precisa segurar</label>
             <Escolhas colunas={5}>
               {([[1, 'o mais barato'], [2, 'o equilibrado'], [3, 'bem tranquilo'],
@@ -833,7 +864,10 @@ export default function OffGridPage() {
 
           {/* 4. PREÇO */}
           <div className="og-card">
-            <div className="og-card-title"><span className="og-num">4</span> O seu preço</div>
+            <div className="og-card-title">
+              <span className="og-num">4</span>
+              <span className="og-card-tit"><strong>O seu preço</strong><em>custo e margem ficam nesta tela, nunca no PDF</em></span>
+            </div>
             <div className="og-row">
               <div className="og-field">
                 <label className="og-label">
@@ -890,7 +924,10 @@ export default function OffGridPage() {
 
           {/* 5. COMPARATIVO */}
           <div className="og-card">
-            <div className="og-card-title"><span className="og-num">5</span> Contra o que você está competindo</div>
+            <div className="og-card-title">
+              <span className="og-num">5</span>
+              <span className="og-card-tit"><strong>Contra o que você está competindo</strong><em>puxar poste ou gerador a diesel</em></span>
+            </div>
             <p className="og-hint" style={{ marginTop: 0, marginBottom: 12 }}>
               Ninguém compara off-grid com o telhado do vizinho. Compara com <strong>puxar poste</strong> ou
               com <strong>queimar diesel</strong>. Preencha e a proposta sai com essa conta na mesa.
@@ -1131,7 +1168,7 @@ export default function OffGridPage() {
                     </p>
                   )}
                   <p className="og-hint">
-                    Prazo de entrega {orc.fretePrazo}. Preços da tabela {orc.tabelaVersao} — o pedido trava o
+                    Prazo de entrega {orc.fretePrazo}. Preços da tabela {orc.tabelaVersao || 'vigente'} — o pedido trava o
                     valor do dia em que é enviado.
                   </p>
                 </>

@@ -49,7 +49,7 @@
 .og-card-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 12px;
   font-weight: 800;
   color: var(--color-text-muted);
@@ -57,14 +57,47 @@
   letter-spacing: 0.05em;
   margin-bottom: 14px;
 }
+/* Os cinco passos eram cinco linhinhas cinzas iguais em caixa alta: a tela lia
+   como UM formulário comprido, não como cinco decisões em sequência. Agora o
+   número é grande, o título é frase e embaixo dele vai o que aquele passo
+   decide — quem chega no card 3 sabe por que está ali. */
 .og-card-title .og-num {
-  width: 20px; height: 20px;
+  flex-shrink: 0;
+  width: 30px; height: 30px;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 50%;
+  border-radius: 10px;
   background: var(--color-primary);
   color: #fff;
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 800;
+  box-shadow: 0 3px 10px rgba(242, 101, 19, 0.28);
+}
+.og-card-tit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.og-card-tit strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.og-card-tit em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-dim);
+  line-height: 1.3;
+}
+/* O card do passo ganha um risco âmbar no topo: separa um passo do outro sem
+   precisar de mais uma linha de texto. */
+.og-card:has(.og-num) {
+  border-top: 3px solid var(--color-accent-border);
 }
 .og-hint { font-size: 12px; color: var(--color-text-dim); line-height: 1.5; margin: 8px 0 0; }
 
@@ -222,6 +255,10 @@
   text-align: left;
 }
 .og-grupo-nome:hover { color: var(--color-primary); }
+.og-grupo-icone { color: var(--color-text-dim); flex-shrink: 0; transition: color 0.15s; }
+.og-grupo-nome:hover .og-grupo-icone { color: var(--color-primary); }
+/* Grupo com aparelho marcado acende: da' pra ver de longe onde ja' mexeram. */
+.og-grupo.tem .og-grupo-icone, .og-grupo.tem .og-grupo-nome { color: var(--color-primary); }
 .og-chev { transition: transform 0.15s; flex-shrink: 0; }
 .og-chev-on { transform: rotate(180deg); }
 .og-grupo-tag {
@@ -272,19 +309,42 @@
   display: grid;
   /* minmax(0, 1fr), nao 1fr: por padrao a coluna nao encolhe abaixo do conteudo
      dela, entao um texto comprido ("h/dia de motor") empurrava o stepper pra
-     FORA do card e o "+" ficava cortado na beirada. */
-  grid-template-columns: minmax(0, 1fr) auto auto;
+     FORA do card e o "+" ficava cortado na beirada.
+     A primeira coluna e' o desenho do aparelho. */
+  grid-template-columns: 24px minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
 }
-.og-carga > :first-child { min-width: 0; overflow: hidden; }
+.og-carga > .og-carga-txt { min-width: 0; overflow: hidden; }
 .og-carga .og-stepper { flex-shrink: 0; }
 .og-carga:nth-child(even) { background: var(--color-surface-2); }
 .og-carga.ativa { border-color: var(--color-accent-border); background: var(--color-accent-soft); }
+.og-carga-icone {
+  /* O desenho e' pista, nao decoracao: fica no cinza do texto quando o aparelho
+     esta desligado e ACENDE no ambar quando entra na conta. Assim da' pra varrer
+     a lista de 70 itens e ver o que esta marcado sem ler nada. */
+  color: var(--color-text-dim);
+  flex-shrink: 0;
+  align-self: center;
+  transition: color 0.15s, transform 0.15s;
+}
+/* No card marcado o texto tem duas ou tres linhas: o desenho sobe pra ficar na
+   altura do NOME, que e' o que ele ilustra. */
+.og-carga.ativa .og-carga-icone { align-self: flex-start; margin-top: 1px; }
+.og-carga.ativa .og-carga-icone { color: var(--color-primary); transform: scale(1.08); }
 .og-carga-nome { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+/* A linha inteira soma um. Sem isso, num catálogo de 70 itens, o único alvo era
+   o "+" — e o dedo passa a maior parte do tempo em cima do NOME. */
+.og-carga-clique { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.og-carga-clique:hover { background: var(--color-surface-2); }
+.og-carga-clique.ativa:hover { background: var(--color-accent-soft); }
+.og-carga-clique:active { transform: scale(0.995); }
+/* Os controles de dentro seguem com o cursor deles: quem passa por cima do +/-
+   ou do campo de horas precisa ver que ali a regra é outra. */
+.og-carga-clique .og-stepper, .og-carga-clique .og-ess, .og-carga-clique .og-horas { cursor: auto; }
 .og-carga-meta { font-size: 11.5px; color: var(--color-text-dim); margin-top: 2px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .og-horas {
   /* E' onde se digita quantas horas o aparelho roda por dia — o numero que
@@ -616,6 +676,10 @@
     align-items: center;
     gap: 10px;
   }
-  .og-carga.ativa > :first-child { flex: 1 0 100%; }
-  .og-carga.ativa > .og-stepper { margin-left: auto; }
+  .og-carga.ativa > .og-carga-icone { order: 1; }
+  /* O texto ocupa o resto da PRIMEIRA linha (a largura toda menos o desenho e o
+     espaco), o que empurra ESSENCIAL e o +/- pra segunda. */
+  .og-carga.ativa > .og-carga-txt { order: 2; flex: 1 1 calc(100% - 34px); min-width: 0; }
+  .og-carga.ativa > .og-ess { order: 3; }
+  .og-carga.ativa > .og-stepper { order: 4; margin-left: auto; }
 }
