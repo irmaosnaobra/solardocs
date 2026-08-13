@@ -32,8 +32,17 @@ export default function LimparCachePage() {
           await Promise.all(keys.map(k => caches.delete(k)));
         }
 
-        // 3. Limpa storages (preserva auth)
-        try { sessionStorage.clear(); } catch {}
+        // 3. Limpa storages (preserva auth E a trava do airbag)
+        //    A trava `sd-chunk-reload` PRECISA sobreviver a esta limpeza: e' ela
+        //    que impede o vaivem. Sem isso o airbag manda pra ca', esta pagina
+        //    apaga a trava, a proxima carga acha que e' a primeira e manda de
+        //    novo — medido no navegador, tres idas e voltas em 7 segundos, que
+        //    e' pior que a pagina crua.
+        const trava = (() => { try { return sessionStorage.getItem('sd-chunk-reload'); } catch { return null; } })();
+        try {
+          sessionStorage.clear();
+          if (trava) sessionStorage.setItem('sd-chunk-reload', trava);
+        } catch {}
         try {
           localStorage.clear();
           if (token) localStorage.setItem('solardoc_token', token);

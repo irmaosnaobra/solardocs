@@ -96,8 +96,26 @@ export default function RootLayout({
                   //    Antes era só location.reload() — não era suficiente em casos
                   //    onde o browser tinha HTML cacheado apontando pra chunk inexistente.
                   var SK = 'sd-chunk-reload';
+                  // Cinto E suspensorio. A /limpar-cache preserva a trava do
+                  // sessionStorage, mas window.name e' o unico lugar que NENHUMA
+                  // limpeza alcanca — e' o que garante, no pior caso, que o
+                  // cliente veja a pagina crua uma vez em vez de ficar batendo
+                  // de um lado pro outro pra sempre.
+                  function tentouAgora(){
+                    try {
+                      var m = /sd-bust:(\d+)/.exec(window.name || '');
+                      return !!m && (Date.now() - Number(m[1])) < 60000;
+                    } catch(_) { return false; }
+                  }
+                  function marcaTentativa(){
+                    try {
+                      window.name = String(window.name || '').replace(/\s*sd-bust:\d+/, '') + ' sd-bust:' + Date.now();
+                    } catch(_) {}
+                  }
                   function bust(){
                     if (sessionStorage.getItem(SK)) return;
+                    if (tentouAgora()) return;
+                    marcaTentativa();
                     sessionStorage.setItem(SK, '1');
                     if (location.pathname !== '/limpar-cache') {
                       location.replace('/limpar-cache');
@@ -123,6 +141,34 @@ export default function RootLayout({
                       bust();
                     }
                   });
+                  // 4. AIRBAG DO CSS. O de cima so' pega JS: ChunkLoadError e' erro de
+                  //    script. Folha de estilo que some depois de um deploy NAO lanca
+                  //    erro nenhum — o navegador simplesmente desenha a pagina crua, com
+                  //    fonte serifada e sem cor, e o cliente ve um site quebrado com o
+                  //    JS funcionando normal. Foi exatamente o que aconteceu: HTML velho
+                  //    em cache apontando pra .css que nao existe mais.
+                  //
+                  //    Dois gatilhos, porque um so' nao cobre:
+                  //    a) o <link> que falha dispara 'error' — mas erro de RECURSO nao
+                  //       borbulha, entao so' aparece na fase de captura (o 3o argumento).
+                  window.addEventListener('error', function(e){
+                    var t = e && e.target;
+                    if (!t || !t.tagName) return;
+                    if (t.tagName === 'LINK' && t.rel === 'stylesheet') bust();
+                  }, true);
+                  //    b) rede de seguranca: passado o load, confere se o CSS REALMENTE
+                  //       valeu, lendo um token que so' existe no globals.css. Pega
+                  //       tambem o caso em que o link nem chegou a disparar erro.
+                  window.addEventListener('load', function(){
+                    setTimeout(function(){
+                      try {
+                        var v = getComputedStyle(document.documentElement)
+                          .getPropertyValue('--color-primary');
+                        if (!v || !v.trim()) bust();
+                      } catch(_) {}
+                    }, 1200);
+                  });
+
                   // Reseta flag se a página carregou ok depois de N segundos
                   setTimeout(function(){ sessionStorage.removeItem(SK); }, 8000);
                 } catch(e) {}
