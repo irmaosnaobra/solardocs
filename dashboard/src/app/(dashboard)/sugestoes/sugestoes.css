@@ -23,13 +23,18 @@
 }
 
 .sug-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: linear-gradient(135deg, #6E56CF, #8b6fdc);
   color: #fff;
   border: none;
   font-size: 14px;
   font-weight: 800;
-  padding: 10px 22px;
-  border-radius: 8px;
+  min-height: 44px;
+  padding: 11px 22px;
+  border-radius: 10px;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(110,86,207,0.3);
   transition: transform 0.15s;

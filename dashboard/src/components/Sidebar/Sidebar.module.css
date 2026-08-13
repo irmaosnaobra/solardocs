@@ -361,11 +361,22 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
+  /* Media 30x24 e e' o botao MAIS tocado do app: abre o menu em toda tela, no
+     celular, o dia inteiro. Vira 44x44 de alvo; as tres barrinhas continuam com
+     22px, entao o desenho na tela nao muda. A margem negativa devolve os 7px
+     que a caixa maior empurraria, pro icone ficar onde sempre esteve. */
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin-left: -7px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 5px;
+  -webkit-tap-highlight-color: transparent;
 }
+.hamburger:active { opacity: 0.6; }
 
 .hamburger span {
   display: block;

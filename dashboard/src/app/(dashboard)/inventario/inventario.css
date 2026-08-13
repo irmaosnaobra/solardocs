@@ -222,15 +222,20 @@
 .inv-add-outro { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .inv-add-outro .inv-in { flex: 1; max-width: 320px; }
 .inv-add-ok {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--color-primary); color: #fff; border: none;
-  font-size: 13px; font-weight: 700; padding: 9px 16px;
-  border-radius: var(--radius-md); cursor: pointer;
+  font-size: 13.5px; font-weight: 700; padding: 11px 18px;
+  /* Fica colado no campo de 46px; com 36 ele saía menor que o proprio input. */
+  min-height: 46px;
+  border-radius: 10px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
+.inv-add-ok:active { transform: scale(0.98); }
 .inv-add-ok:disabled { opacity: 0.5; cursor: not-allowed; }
 .inv-add-cancel {
   background: transparent; border: none; cursor: pointer;
-  color: var(--color-text-muted); font-size: 13px; font-weight: 600;
+  min-height: 46px; padding: 0 12px;
+  color: var(--color-text-muted); font-size: 13.5px; font-weight: 600;
 }
 
 .inv-novo-local {

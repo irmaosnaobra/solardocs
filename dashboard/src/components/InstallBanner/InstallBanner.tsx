@@ -136,14 +136,18 @@ export default function InstallBanner() {
                 : 'Um toque e ele abre igual app: sem navegador, sem digitar senha toda vez.'}
           </p>
 
-          <div style={{ display: 'flex', gap: 14, marginTop: 11, alignItems: 'center' }}>
+          {/* O "Agora não" tinha 18px de altura (padding zero). Este banner cobre
+              TODAS as telas: quem não quer instalar precisa conseguir fechar de
+              primeira, senão erra o toque e cai na instalação que recusou. */}
+          <div style={{ display: 'flex', gap: 6, marginTop: 7, alignItems: 'center', marginLeft: -14 }}>
             {!mostrarPasso && (
               <button
                 type="button"
                 onClick={aoClicar}
                 style={{
-                  border: 'none', borderRadius: 9, padding: '9px 16px', cursor: 'pointer',
+                  border: 'none', borderRadius: 10, padding: '13px 18px', cursor: 'pointer',
                   background: '#F26513', color: '#fff', fontWeight: 700, fontSize: 13.5, fontFamily: 'inherit',
+                  marginLeft: 14,
                 }}
               >
                 {podeInstalarDireto ? 'Instalar agora' : 'Como instalar'}
@@ -153,7 +157,7 @@ export default function InstallBanner() {
               type="button"
               onClick={dispensar}
               style={{
-                border: 'none', background: 'none', cursor: 'pointer', padding: 0,
+                border: 'none', background: 'none', cursor: 'pointer', padding: '13px 14px',
                 color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'inherit',
               }}
             >

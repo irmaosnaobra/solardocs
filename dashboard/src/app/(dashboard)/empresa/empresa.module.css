@@ -282,6 +282,11 @@
 }
 
 .logoHintLink {
+  /* Link de texto vira alvo: leva pra ferramenta que resolve a logo grande
+     demais, que e' o tropeco mais comum desta tela. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
   color: var(--color-primary);
   text-decoration: underline;
   font-weight: 500;

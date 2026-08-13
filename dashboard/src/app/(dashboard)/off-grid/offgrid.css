@@ -524,10 +524,10 @@
    components/Escolha/Escolha.tsx. O que sobra aqui embaixo é o que ainda é
    específico desta tela. */
 
-/* ── Stepper de quantidade: alvo de 40px, do tamanho do dedo ── */
+/* ── Stepper de quantidade: alvo do tamanho do dedo ── */
 .og-stepper button {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   border-radius: 11px;
   font-size: 19px;
   transition: transform 0.08s, border-color 0.12s, background 0.12s;

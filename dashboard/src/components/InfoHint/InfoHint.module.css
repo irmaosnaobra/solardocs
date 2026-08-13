@@ -6,6 +6,7 @@
 }
 
 .btn {
+  position: relative;
   width: 15px;
   height: 15px;
   border-radius: 50%;
@@ -23,6 +24,21 @@
   transition: color 0.12s, border-color 0.12s;
 }
 .btn:hover, .btn:focus-visible { color: var(--color-primary, #f59e0b); border-color: var(--color-primary, #f59e0b); outline: none; }
+
+/* A bolinha do "?" tem 15px porque mora dentro da linha do rótulo — crescer o
+   desenho empurraria o texto. O que cresce é o ALVO: uma área invisível de
+   ~40px em volta. Sem isso a explicação existe mas ninguém alcança no celular,
+   que é justamente onde ela mais importa.
+   O avanço pra esquerda é menor de propósito: ali fica o texto do rótulo, e
+   uma área simétrica roubaria o toque que deveria focar o campo. */
+.btn::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  bottom: -12px;
+  left: -7px;
+  right: -12px;
+}
 
 .pop {
   position: absolute;

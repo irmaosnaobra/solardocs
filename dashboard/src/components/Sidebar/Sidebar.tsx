@@ -406,10 +406,14 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
         <button className={styles.hamburger} onClick={() => setOpen(true)} aria-label="Abrir menu">
           <span /><span /><span />
         </button>
+        {/* O padding (não o tamanho da logo) é o que dá alvo de dedo aos três
+            controles deste header — a logo continua com os mesmos 28px. */}
         {(isVip || isAdmin) ? (
-          <Link href="/dashboard"><Logo className={styles.mobileLogoImg} /></Link>
+          <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', padding: '10px 12px' }}>
+            <Logo className={styles.mobileLogoImg} />
+          </Link>
         ) : (
-          <button onClick={onUpgradeClick} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} title="Disponível para assinantes">
+          <button onClick={onUpgradeClick} style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', padding: '10px 12px', cursor: 'pointer' }} title="Disponível para assinantes">
             <Logo className={styles.mobileLogoImg} />
           </button>
         )}
@@ -417,11 +421,11 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
             Sem empresa, um espaçador mantém o logo centralizado. */}
         {hasCompany ? (
           <Link href="/inicio" aria-label="Tela de atalho"
-            style={{ display: 'flex', alignItems: 'center', padding: 4, color: '#fbbf24' }}>
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, marginRight: -7, color: '#fbbf24' }}>
             <LayoutGrid size={22} strokeWidth={2} />
           </Link>
         ) : (
-          <span style={{ width: 30 }} />
+          <span style={{ width: 37 }} />
         )}
       </div>
 

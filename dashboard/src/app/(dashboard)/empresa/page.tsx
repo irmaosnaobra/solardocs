@@ -469,7 +469,7 @@ export default function EmpresaPage() {
           }}>✓</div>
           <div style={{ fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
             <strong style={{ color: 'var(--color-text)', fontSize: 15.5, display: 'block', marginBottom: 2 }}>
-              Plano {welcomePlan === 'ilimitado' ? 'VIP' : welcomePlan === 'pro' ? 'PRO' : ''} ativado! Seu acesso já está liberado.
+              Assinatura ativada! Seu acesso já está liberado.
             </strong>
             Pra emitir seu primeiro documento, preencha os dados da empresa abaixo. Leva 2 minutinhos.
           </div>
@@ -562,7 +562,7 @@ export default function EmpresaPage() {
                   { nome: 'Azul + Âmbar', c1: '#14235B', c2: '#F7B500' },
                 ].map((p) => (
                   <button key={p.nome} type="button" onClick={() => { set('cor_marca', p.c1); set('cor_secundaria', p.c2); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 999, border: '1px solid var(--color-border)', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: 12.5, fontWeight: 600 }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 7, minHeight: 42, padding: '10px 16px', borderRadius: 999, border: '1px solid var(--color-border)', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
                     <span style={{ width: 14, height: 14, borderRadius: '50%', background: p.c1 }} />
                     <span style={{ width: 14, height: 14, borderRadius: '50%', background: p.c2 }} />
                     {p.nome}
@@ -574,7 +574,7 @@ export default function EmpresaPage() {
                   <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Principal</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <input type="color" value={form.cor_marca || '#F26513'} onChange={(e) => set('cor_marca', e.target.value)}
-                      style={{ width: 48, height: 38, border: '1px solid var(--color-border)', borderRadius: 8, padding: 2, cursor: 'pointer', background: 'none' }} />
+                      style={{ width: 58, height: 44, border: '1px solid var(--color-border)', borderRadius: 9, padding: 2, cursor: 'pointer', background: 'none' }} />
                     <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{(form.cor_marca || '').toUpperCase() || '—'}</span>
                   </div>
                 </div>
@@ -582,7 +582,7 @@ export default function EmpresaPage() {
                   <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Destaque</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <input type="color" value={form.cor_secundaria || '#F7B500'} onChange={(e) => set('cor_secundaria', e.target.value)}
-                      style={{ width: 48, height: 38, border: '1px solid var(--color-border)', borderRadius: 8, padding: 2, cursor: 'pointer', background: 'none' }} />
+                      style={{ width: 58, height: 44, border: '1px solid var(--color-border)', borderRadius: 9, padding: 2, cursor: 'pointer', background: 'none' }} />
                     <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{(form.cor_secundaria || '').toUpperCase() || '—'}</span>
                   </div>
                 </div>

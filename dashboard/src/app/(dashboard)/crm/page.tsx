@@ -856,25 +856,28 @@ export default function CrmPage() {
           </span>
           <ClockBadge now={now} />
         </div>
+        {/* Busca e ações tinham 28px de altura — a tira de filtros abaixo é
+            compacta de propósito, mas estes três são de uso constante e valem o
+            alvo de dedo. A densidade da tabela não muda. */}
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
           <input type="text" placeholder="Nome, telefone, cidade..." value={busca}
             onChange={e => setBusca(e.target.value)}
             style={{
-              padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)',
+              padding: '8px 12px', borderRadius: 9, border: '1px solid var(--color-border)',
               background: 'var(--color-bg)', color: 'var(--color-text)',
-              fontSize: 12, width: 220, height: 28,
+              fontSize: 13, width: 220, height: 40,
             }} />
           {tab === 'solar' && (
             <button onClick={() => setImportOpen(true)} title="Importar lista de leads pra reativação" style={{
-              padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(168,85,247,0.4)',
+              padding: '8px 14px', borderRadius: 9, border: '1px solid rgba(168,85,247,0.4)',
               background: 'rgba(168,85,247,0.12)', color: 'var(--ink-purple)',
-              cursor: 'pointer', fontSize: 12, fontWeight: 700, height: 28,
+              cursor: 'pointer', fontSize: 12.5, fontWeight: 700, height: 40,
             }}>Importar</button>
           )}
           <button onClick={fetchAll} title="Atualizar agora" style={{
-            padding: '5px 10px', borderRadius: 6, border: '1px solid var(--color-border)',
+            padding: '8px 14px', borderRadius: 9, border: '1px solid var(--color-border)',
             background: 'transparent', color: 'var(--color-text-muted)',
-            cursor: 'pointer', fontSize: 12, height: 28,
+            cursor: 'pointer', fontSize: 12.5, height: 40,
           }}>Atualizar</button>
         </div>
       </div>

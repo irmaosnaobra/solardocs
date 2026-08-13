@@ -84,12 +84,15 @@
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   color: var(--color-text);
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 13px;
+  border-radius: 9px;
+  /* 36px era mira, não toque — este formulário é preenchido no celular. */
+  min-height: 44px;
+  padding: 11px 12px;
+  font-size: 14px;
   font-family: inherit;
   font-weight: 400;
 }
+.mob-form textarea { min-height: 88px; }
 .mob-form textarea { resize: vertical; }
 .mob-form input:focus,
 .mob-form select:focus,
@@ -124,26 +127,31 @@
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   color: var(--color-text);
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 13px;
+  border-radius: 9px;
+  min-height: 44px;
+  padding: 11px 12px;
+  font-size: 14px;
 }
 .mob-regiao-add select {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   color: var(--color-text);
-  border-radius: 6px;
-  padding: 8px 6px;
-  font-size: 13px;
-  width: 64px;
+  border-radius: 9px;
+  min-height: 44px;
+  padding: 11px 6px;
+  font-size: 14px;
+  /* 64px era estreito demais pra sigla + setinha; a UF é o campo que mais
+     erra de toque porque fica encostado no de cidade. */
+  width: 78px;
 }
 .mob-regiao-add button {
   background: rgba(110,86,207,0.15);
   border: 1px solid rgba(110,86,207,0.4);
   color: #6E56CF;
-  border-radius: 6px;
-  padding: 8px 14px;
-  font-size: 12px;
+  border-radius: 9px;
+  min-height: 44px;
+  padding: 11px 16px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -164,22 +172,27 @@
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  padding: 4px 4px 4px 10px;
-  font-size: 12px;
+  padding: 5px 5px 5px 13px;
+  font-size: 13px;
   color: var(--color-text);
 }
 .mob-regioes-list li button {
-  width: 20px;
-  height: 20px;
+  display: grid;
+  place-items: center;
+  /* Apagar uma região com um alvo de 20px é errar e apagar a região errada. */
+  width: 30px;
+  height: 30px;
   background: rgba(239,68,68,0.15);
   border: none;
   color: #ef4444;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
   line-height: 1;
+  -webkit-tap-highlight-color: transparent;
 }
+.mob-regioes-list li button:active { transform: scale(0.9); }
 .mob-regioes-list li button:hover { background: rgba(239,68,68,0.3); }
 
 .mob-btn-primary {
