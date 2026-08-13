@@ -115,62 +115,66 @@
     .brand-name span { color: var(--solar); }
     .bio { font-size: 15px; color: var(--muted); line-height: 1.5; font-weight: 500; }
 
-    .links-list { display: flex; flex-direction: column; gap: 16px; }
+    /* Grade de atalhos: 3 colunas de ícone + nome curto */
+    .links-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    @media (max-width: 360px) { .links-list { grid-template-columns: repeat(2, 1fr); } }
 
     .section-title {
+      grid-column: 1 / -1;
       font-size: 11px; font-weight: 800; color: var(--muted);
       text-transform: uppercase; letter-spacing: 2px;
-      margin: 32px 0 12px;
+      margin: 26px 0 2px;
       display: flex; align-items: center; gap: 12px;
     }
     .section-title:first-child { margin-top: 0; }
     .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
+    .state { grid-column: 1 / -1; }
+
+    /* Mesmo atalho do painel da SolarDoc (quickCard): superfície + borda fina,
+       ícone monocromático em cima, nome curto embaixo. Aqui na paleta da IO. */
     .link-item {
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 20px;
+      border-radius: 12px;
+      padding: 16px 10px;
       text-decoration: none;
-      color: var(--text);
-      font-weight: 700;
-      font-size: 16px;
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      display: flex; align-items: center; justify-content: center; gap: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 12px;
+      line-height: 1.3;
+      text-align: center;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px;
       position: relative; overflow: hidden;
     }
 
+    /* Ícone: SVG de traço, herda a cor do botão. Nada de emoji. */
+    .icon { display: inline-flex; align-items: center; justify-content: center; color: var(--solar); }
+    .icon svg { width: 22px; height: 22px; }
+
+    /* Sem lift no hover: a animação de entrada roda com fill forwards e ganha de
+       qualquer transform declarado aqui. O toque fica na borda e no fundo. */
     .link-item:hover {
-      transform: translateY(-4px);
-      border-color: rgba(245, 158, 11, 0.3);
-      background: rgba(245, 158, 11, 0.05);
-      box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+      border-color: var(--solar);
+      background: rgba(245, 158, 11, 0.06);
     }
 
+    /* Destaque (o WhatsApp): ocupa a linha inteira, ícone e nome lado a lado. */
     .link-item.featured {
+      grid-column: 1 / -1;
+      flex-direction: row; justify-content: center; gap: 10px;
       background: linear-gradient(135deg, var(--solar), #d97706);
-      color: #000; border: none;
-      box-shadow: 0 10px 25px rgba(245, 158, 11, 0.2);
+      color: #000; border-color: transparent;
+      font-size: 15px; font-weight: 700; padding: 16px;
+      box-shadow: 0 10px 25px rgba(245, 158, 11, 0.18);
     }
-    .link-item.featured:hover { box-shadow: 0 15px 35px rgba(245, 158, 11, 0.4); }
+    .link-item.featured .icon { color: #000; }
+    .link-item.featured:hover { box-shadow: 0 14px 30px rgba(245, 158, 11, 0.32); background: linear-gradient(135deg, #fbbf24, #d97706); }
 
-    /* Verde pra links de WhatsApp (detecção por URL) */
-    .link-item.whats { border-color: rgba(34, 197, 94, 0.25); }
-    .link-item.whats:hover { border-color: rgba(34, 197, 94, 0.5); background: rgba(34, 197, 94, 0.06); }
-
-    .link-item::after {
-      content: '';
-      position: absolute;
-      top: -100%; left: -100%; width: 50%; height: 300%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-      transform: rotate(35deg);
-      animation: scan 4s infinite;
-    }
-    @keyframes scan { 0% { left: -100%; } 50% { left: 150%; } 100% { left: 150%; } }
-
-    .icon { font-size: 20px; }
+    /* Verde pra links de WhatsApp que NÃO são o destaque (detecção por URL) */
+    .link-item.whats:not(.featured) .icon { color: #22c55e; }
+    .link-item.whats:not(.featured):hover { border-color: #22c55e; background: rgba(34, 197, 94, 0.06); }
 
     .social-icons { display: flex; justify-content: center; gap: 24px; margin: 40px 0 24px; }
     .social-link { color: var(--muted); transition: all 0.3s; }
@@ -223,6 +227,43 @@
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
+    // Ícones de traço (estilo Lucide, como os atalhos do painel da SolarDoc).
+    // Monocromáticos: herdam a cor do botão via currentColor — nada de emoji colorido.
+    const S = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">';
+    const ICONS = {
+      whats: S + '<path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.4 8.4 0 0 1-4-1L3 21l2-5.5a8.4 8.4 0 0 1-1-4A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>',
+      calc:  S + '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15v3"/></svg>',
+      sol:   S + '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+      users: S + '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>',
+      plug:  S + '<path d="M9 2v6M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-12 0V8z"/><path d="M12 17v5"/></svg>',
+      up:    S + '<path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>',
+      gift:  S + '<path d="M20 12v10H4V12"/><rect x="2" y="7" width="20" height="5" rx="1"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>',
+      drop:  S + '<path d="M12 2.7l5.7 5.6a8 8 0 1 1-11.4 0z"/></svg>',
+      deck:  S + '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+      globe: S + '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>',
+      box:   S + '<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg>',
+      link:  S + '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
+    };
+
+    // Escolhe o ícone pelo destino do link. Um ícone gravado no editor (campo
+    // `icon`) continua mandando — é a saída manual pra um link novo.
+    function iconFor(url, custom) {
+      if (custom) return esc(custom);
+      const u = String(url || '').toLowerCase();
+      if (/wa\.me|whatsapp/.test(u))     return ICONS.whats;
+      if (/\/simular/.test(u))           return ICONS.calc;
+      if (/\/io\/solar/.test(u))         return ICONS.sol;
+      if (/\/io\/indicacao/.test(u))     return ICONS.gift;
+      if (/\/io\/eletroposto/.test(u))   return ICONS.up;
+      if (/eletroposto/.test(u))         return ICONS.plug;
+      if (/limpapro/.test(u))            return ICONS.drop;
+      if (/\/apresentacao/.test(u))      return ICONS.deck;
+      if (/\/kit/.test(u))               return ICONS.box;
+      if (/\/io\/?$/.test(u))            return ICONS.users;
+      if (/solardoc\.app\/?$/.test(u))   return ICONS.globe;
+      return ICONS.link;
+    }
+
     // Conta o clique server-side (best-effort) e dispara o pixel, sem segurar a navegação.
     function trackClick(id, label) {
       try { fbq('trackCustom', 'ClickLinkBio', { name: label }); } catch (e) {}
@@ -259,8 +300,8 @@
           '<a href="' + esc(l.url) + '" class="' + cls + '"' + target +
           ' data-id="' + esc(l.id) + '" data-label="' + esc(l.label) + '"' +
           ' style="animation-delay:' + delay.toFixed(2) + 's">' +
-          (l.icon ? '<span class="icon">' + esc(l.icon) + '</span> ' : '') +
-          esc(l.label) +
+          '<span class="icon">' + iconFor(l.url, l.icon) + '</span>' +
+          '<span class="lbl">' + esc(l.label) + '</span>' +
           '</a>';
       }
       wrap.innerHTML = html;
