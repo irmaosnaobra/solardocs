@@ -30,6 +30,7 @@
   padding: 16px 18px;
   text-decoration: none;
   color: inherit;
+  box-shadow: var(--sombra-card);
 }
 .card:hover { border-color: var(--cor, var(--color-primary)); box-shadow: 0 4px 16px rgba(11, 18, 32, 0.07); }
 .cardTopo { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 7px; }
@@ -47,8 +48,9 @@
 .lp { max-width: 100%; padding: 8px 0 60px; }
 .voltar {
   display: inline-flex; align-items: center; gap: 6px;
+  min-height: 40px;
   font-size: 12.5px; font-weight: 700; color: var(--color-text-muted);
-  text-decoration: none; margin-bottom: 18px;
+  text-decoration: none; margin-bottom: 10px;
 }
 .voltar:hover { color: var(--color-primary); }
 
@@ -68,6 +70,7 @@
   font-size: 13.5px; line-height: 1.65; color: var(--color-text-muted);
   background: var(--color-surface-2); border-left: 3px solid var(--cor, var(--color-primary));
   border-radius: 0 8px 8px 0; padding: 13px 16px; margin-bottom: 22px;
+  box-shadow: var(--sombra-card);
 }
 .lpH2 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--color-text-muted); margin: 0 0 10px; }
 .lpLista { list-style: none; padding: 0; margin: 0 0 24px; }
@@ -77,19 +80,29 @@
 .lpCaixa {
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: var(--radius-lg); padding: 20px;
+  box-shadow: var(--sombra-card);
 }
 .lpPreco { display: flex; align-items: baseline; gap: 9px; margin-bottom: 14px; flex-wrap: wrap; }
 .lpPreco strong { font-size: 31px; font-weight: 900; letter-spacing: -0.02em; color: var(--cor, var(--color-primary)); }
 .lpPreco span { font-size: 12px; font-weight: 700; color: var(--color-text-dim); }
 .lpBtn, .lpBtnGhost {
   display: flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 50px;
   padding: 14px 18px; font-size: 14.5px; font-weight: 800;
   border-radius: var(--radius-md); text-decoration: none; margin-bottom: 8px;
+  -webkit-tap-highlight-color: transparent;
 }
-.lpBtn { background: var(--cor, var(--color-primary)); color: #fff; }
+.lpBtn:active, .lpBtnGhost:active { transform: scale(0.99); }
+/* A COR DA ACAO E' UMA SO'. Cada produto tem a sua cor de identidade e ela
+   continua no selo, no risco lateral e no preco — ali ela ajuda a distinguir
+   um do outro na loja. Mas o botao que COMPRA voltou pro laranja da
+   plataforma: cor de acao e' linguagem, e trocar a cada pagina obriga a pessoa
+   a reaprender onde clicar. Era verde-azulado no off-grid, azul no inventario,
+   roxo no Kit Fecha Vendas — cinco apps diferentes. */
+.lpBtn { background: var(--color-primary); color: #fff; }
 .lpBtn:hover { filter: brightness(1.08); }
 .lpBtnGhost { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border-strong); }
-.lpBtnGhost:hover { border-color: var(--cor, var(--color-primary)); color: var(--cor, var(--color-primary)); }
+.lpBtnGhost:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .lpJaTem {
   display: flex; align-items: center; gap: 7px;
   font-size: 14px; font-weight: 800; color: var(--ink-green); margin-bottom: 12px;
@@ -146,7 +159,9 @@
 .mockAutSub b { color: #fff; }
 .mockChips { display: flex; gap: 6px; }
 .mockChip, .mockChipOn {
-  flex: 1; padding: 9px; font-size: 12.5px; font-weight: 700;
+  /* Sao o chamariz da pagina: e' aqui que a pessoa MEXE e entende o que a
+     ferramenta faz. Tinham 37px. */
+  flex: 1; min-height: 42px; padding: 11px 9px; font-size: 12.5px; font-weight: 700;
   border-radius: 999px; cursor: pointer; font-family: inherit;
   background: #232B35; border: 1px solid #2E3742; color: #C7CDD6;
 }
