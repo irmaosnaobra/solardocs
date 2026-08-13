@@ -10,62 +10,79 @@
  * que a gente QUER que todo mundo veja, porque é ela que vende. O que fica
  * atrás do cadeado é o dinheiro.
  *
- * Base: pesquisa de varejo ago/2026 (NeoSolar, Minha Casa Solar, MeuGerador,
- * Braspower) com desconto de distribuidor. Mexeu em preço? Sobe TABELA_VERSAO —
- * tabela sem data é tabela que envelhece calada.
+ * ── COMO O PREÇO É FORMADO ──────────────────────────────────────────────────
+ * CUSTO = o que a gente paga no distribuidor onde somos cadastrados (print de
+ * 13/08/2026, com código do item pra conferência).
+ * FORNECIMENTO = custo ÷ (1 - MARGEM_LIQUIDA). É o que o integrador paga pra
+ * nós, e deixa 20% líquidos sobre essa venda.
+ * Depois disso o integrador ainda põe a margem dele, que é outra conta e mora
+ * na tela dele.
+ *
+ * Mudou preço no distribuidor? Mexe só no CUSTO e sobe TABELA_VERSAO. O markup
+ * fica separado justamente pra não ter que recalcular item por item na mão.
  */
 
-export const TABELA_VERSAO = '2026-08';
+export const TABELA_VERSAO = '2026-08-13';
 
-/** id do catálogo → custo unitário de fornecimento (R$). */
-export const PRECOS: Record<string, number> = {
-  // Módulo
-  'mod-585': 638,
+/**
+ * Nossa margem: 20% LÍQUIDOS sobre o preço de venda — não 20% em cima do custo.
+ *
+ * A diferença não é detalhe. Custo 100 com "+20%" vende a 120, e desses 120 a
+ * margem é 16,7%. Pra sobrar 20% de verdade, o divisor é (1 - 0,20): vende a
+ * 125. Em cima de um kit de R$25 mil isso é mais de R$1.000 por venda que some
+ * sem ninguém ver.
+ */
+export const MARGEM_LIQUIDA = 0.20;
+export const MARKUP_FORNECEDOR = 1 / (1 - MARGEM_LIQUIDA); // 1,25
 
-  // Baterias de lítio
-  'bat-12-100': 1780,
-  'bat-24-100': 3290,
-  'bat-48-100': 5390,
-  'bat-48-200': 9890,
+export interface ItemPrecario {
+  /** O que pagamos no distribuidor (R$). */
+  custo: number;
+  /** Código do item no distribuidor — pra conferir na hora de comprar. */
+  codigo?: string;
+  nome: string;
+}
 
-  // Inversores
-  'inv-1500-12': 1690,
-  'inv-3000-24': 3180,
-  'inv-3600-48': 4390,
-  'inv-5000-48': 5690,
-  'inv-8000-48': 9250,
-  'inv-12000-48': 14400,
+/**
+ * Custo no distribuidor. Preços de 13/08/2026.
+ * O preço de FORNECIMENTO sai de `precoFornecimento()`, nunca daqui direto.
+ *
+ * ⚠ MUDOU PREÇO AQUI? Atualize também o `custoRel` do item em
+ * dashboard/src/lib/offgrid/catalogo.ts. É um índice relativo (bateria = 1,000)
+ * que o motor usa pra escolher a combinação mais barata de banco + inversor sem
+ * publicar a tabela no navegador. Se ele ficar velho, o kit continua sendo
+ * montado pela proporção ANTIGA e ninguém percebe — o orçamento fecha, só que
+ * com o inversor errado.
+ *   custoRel = custo do item ÷ custo da bateria
+ */
+export const CUSTOS: Record<string, ItemPrecario> = {
+  // ── Geração ──
+  'mod-620': { custo: 496.00, codigo: '658183', nome: 'Módulo 620W N-Plus bifacial 30mm' },
 
-  // Balanço do sistema
-  'bos-estrutura': 96,
-  'bos-cabo': 68,
-  'bos-stringbox': 490,
-  'bos-quadro': 540,
-  'bos-banco': 395,
-  'bos-aterramento': 330,
-  'bos-rack': 460,
+  // ── Inversores híbridos SAJ H2, bateria de baixa tensão (48V) ──
+  'inv-5000-48':  { custo: 3999.29, codigo: '322525', nome: 'Inversor SAJ H2 5kW mono 220V 2MPPT' },
+  'inv-10000-48': { custo: 5999.48, codigo: '322541', nome: 'Inversor SAJ H2 10kW mono 220V 2MPPT' },
+
+  // ── Armazenamento ──
+  'bat-48-100': { custo: 4450.00, codigo: '383670', nome: 'Bateria SAJ B3 5,0 kWh 48V LFP' },
+
+  // ── Balanço do sistema (BOS) ──
+  // Não vêm do mesmo distribuidor: são compras de material elétrico e estrutura.
+  // Ficam com o mesmo markup pra conta fechar num lugar só.
+  'bos-estrutura':   { custo: 96,  nome: 'Estrutura de fixação (por módulo)' },
+  'bos-cabo':        { custo: 68,  nome: 'Cabo solar 6mm² + conectores MC4 (por módulo)' },
+  'bos-stringbox':   { custo: 490, nome: 'String box CC com DPS e fusíveis' },
+  'bos-quadro':      { custo: 540, nome: 'Quadro CA com disjuntores e DPS' },
+  'bos-banco':       { custo: 395, nome: 'Cabos de banco, barramento e disjuntor CC' },
+  'bos-aterramento': { custo: 330, nome: 'Kit de aterramento (haste, cordoalha, TAP)' },
+  'bos-rack':        { custo: 460, nome: 'Rack de acomodação do banco' },
 };
 
-/** Frete por região, R$/kg com piso. Bateria de lítio é carga restrita
- *  (ONU 3480): não vai em qualquer transportadora, e isso está no preço. */
-export const FRETE: Record<string, { nome: string; porKg: number; piso: number; prazo: string }> = {
-  SE: { nome: 'Sudeste',      porKg: 1.25, piso: 380, prazo: '5 a 8 dias úteis' },
-  S:  { nome: 'Sul',          porKg: 1.45, piso: 420, prazo: '6 a 10 dias úteis' },
-  CO: { nome: 'Centro-Oeste', porKg: 1.85, piso: 480, prazo: '7 a 12 dias úteis' },
-  NE: { nome: 'Nordeste',     porKg: 2.15, piso: 560, prazo: '8 a 14 dias úteis' },
-  N:  { nome: 'Norte',        porKg: 3.20, piso: 780, prazo: '12 a 20 dias úteis' },
-};
-
-const UF_REGIAO: Record<string, keyof typeof FRETE> = {
-  SP: 'SE', RJ: 'SE', MG: 'SE', ES: 'SE',
-  PR: 'S', SC: 'S', RS: 'S',
-  GO: 'CO', MT: 'CO', MS: 'CO', DF: 'CO',
-  BA: 'NE', SE: 'NE', AL: 'NE', PE: 'NE', PB: 'NE', RN: 'NE', CE: 'NE', PI: 'NE', MA: 'NE',
-  PA: 'N', AM: 'N', AC: 'N', RO: 'N', RR: 'N', AP: 'N', TO: 'N',
-};
-
-export function regiaoDaUf(uf: string): keyof typeof FRETE {
-  return UF_REGIAO[(uf || '').trim().toUpperCase()] || 'SE';
+/** Preço de fornecimento de um item: custo do distribuidor + nossa margem. */
+export function precoFornecimento(id: string): number | null {
+  const item = CUSTOS[id];
+  if (!item) return null;
+  return Math.round(item.custo * MARKUP_FORNECEDOR * 100) / 100;
 }
 
 /** Vida do banco pra conta de R$/kWh armazenado. Espelha CONST no front. */
@@ -81,6 +98,7 @@ export interface OrcamentoCalculado {
   frete: number;
   freteRegiao: string;
   fretePrazo: string;
+  freteDetalhe?: string;
   custoFornecimento: number;
   maoDeObra: number;
   extras: number;
@@ -89,6 +107,7 @@ export interface OrcamentoCalculado {
   precoCliente: number;
   custoKwhArmazenado: number;
   tabelaVersao: string;
+  pesoKg: number;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -100,24 +119,22 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
  */
 export function orcar(entrada: {
   itens: ItemPedido[];
-  uf: string;
   pesoKg: number;
   margemPct: number;
   maoDeObra: number;
   extras: number;
   bancoKwh: number;
+  frete: { valor: number; regiao: string; prazo: string; detalhe?: string };
 }): OrcamentoCalculado {
   const itens = entrada.itens
-    .filter((i) => PRECOS[i.id] !== undefined && i.qtd > 0)
+    .filter((i) => CUSTOS[i.id] !== undefined && i.qtd > 0)
     .map((i) => {
-      const unitario = PRECOS[i.id];
+      const unitario = precoFornecimento(i.id)!;
       return { id: i.id, nome: i.nome, qtd: i.qtd, unitario, total: r2(unitario * i.qtd) };
     });
 
   const custoEquipamentos = r2(itens.reduce((s, i) => s + i.total, 0));
-  const reg = FRETE[regiaoDaUf(entrada.uf)];
-  const peso = Math.max(0, entrada.pesoKg || 0);
-  const frete = Math.max(reg.piso, Math.round(peso * reg.porKg));
+  const frete = entrada.frete.valor;
   const custoFornecimento = r2(custoEquipamentos + frete);
 
   const maoDeObra = Math.max(0, entrada.maoDeObra || 0);
@@ -137,8 +154,9 @@ export function orcar(entrada: {
     itens,
     custoEquipamentos,
     frete,
-    freteRegiao: reg.nome,
-    fretePrazo: reg.prazo,
+    freteRegiao: entrada.frete.regiao,
+    fretePrazo: entrada.frete.prazo,
+    freteDetalhe: entrada.frete.detalhe,
     custoFornecimento,
     maoDeObra,
     extras,
@@ -147,5 +165,6 @@ export function orcar(entrada: {
     precoCliente,
     custoKwhArmazenado,
     tabelaVersao: TABELA_VERSAO,
+    pesoKg: entrada.pesoKg,
   };
 }

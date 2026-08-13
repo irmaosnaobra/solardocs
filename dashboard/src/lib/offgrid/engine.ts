@@ -520,6 +520,16 @@ export function dimensionar(e: EntradaOffGrid): ResultadoOffGrid {
       texto: `${arranjo.paralelo} strings em ${inversor.mppts} entrada${inversor.mppts > 1 ? 's' : ''} de MPPT exige string box com fusível por string e cabo tronco reforçado (${nb(arranjo.correnteA, 1)} A no total).`,
     });
   }
+  // Piso do catálogo: a menor bateria é de 5 kWh e o menor inversor de 5 kW.
+  // Carga pequena leva kit grande porque não existe menor — e sem dizer isso o
+  // integrador acha que a conta quebrou.
+  if (bancoNominal > bancoNecessario * 2 || demandaPico < inversor.w * 0.15) {
+    avisos.push({
+      nivel: 'info',
+      titulo: 'O kit ficou maior que a necessidade',
+      texto: `A conta pedia ${nb(bancoNecessario)} kWh de banco e ${Math.round(demandaPico)} W de inversor. O menor kit que a gente fornece é ${BATERIAS[0].kwh} kWh + ${INVERSORES[0].w / 1000} kW — pra carga pequena sobra bastante, e sobra a favor do cliente (mais autonomia, banco trabalhando folgado, vida mais longa).`,
+    });
+  }
   if (e.sombra === 'media') {
     avisos.push({
       nivel: 'atencao',

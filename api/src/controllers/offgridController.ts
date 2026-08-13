@@ -5,6 +5,7 @@ import { ApiError } from '../utils/apiError';
 import { sendOpsAlert } from '../utils/mailer';
 import { logger } from '../utils/logger';
 import { orcar, TABELA_VERSAO } from '../services/offgrid/precario';
+import { calcularFrete, cidadeDoCep, CIDADE_ORIGEM } from '../services/offgrid/frete';
 import {
   acessoOffGrid, consumirCreditoOffGrid, OFFGRID_ADDON_PRECO,
 } from '../services/offgrid/acesso';
@@ -27,7 +28,9 @@ const itemSchema = z.object({
 
 const orcarSchema = z.object({
   itens: z.array(z.object({ id: z.string().min(1), nome: z.string().min(1), qtd: z.number() })).max(40),
-  uf: z.string().max(2),
+  /** CEP da OBRA. O frete sai daqui, de Uberlândia até lá. */
+  cep: z.string().max(12).optional(),
+  uf: z.string().max(2).optional(),
   peso_kg: z.number(),
   margem_pct: z.number(),
   mao_de_obra: z.number(),
@@ -57,16 +60,48 @@ export async function orcarOffGrid(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // Frete pelo CEP da obra. Sem CEP não tem frete — e o orçamento diz isso em
+    // vez de inventar um número que vira prejuízo na hora de despachar.
+    const temLitio = body.itens.some((i) => i.id.startsWith('bat-'));
+    let frete = { valor: 0, regiao: '', prazo: '', detalhe: '' };
+    let freteInfo: ReturnType<typeof calcularFrete> | null = null;
+
+    if (body.cep) {
+      const local = await cidadeDoCep(body.cep);
+      freteInfo = calcularFrete({
+        cep: body.cep,
+        pesoKg: body.peso_kg,
+        temLitio,
+        cidade: local?.cidade,
+      });
+      if (freteInfo.ok) {
+        frete = {
+          valor: freteInfo.valor,
+          regiao: freteInfo.cidade ? `${freteInfo.cidade}/${freteInfo.uf}` : freteInfo.ufNome,
+          prazo: freteInfo.prazo,
+          detalhe: freteInfo.detalhe,
+        };
+      }
+    }
+
     const orc = orcar({
       itens: body.itens,
-      uf: body.uf,
       pesoKg: body.peso_kg,
       margemPct: body.margem_pct,
       maoDeObra: body.mao_de_obra,
       extras: body.extras,
       bancoKwh: body.banco_kwh,
+      frete,
     });
-    res.json({ trancado: false, credito_pedido: acesso.creditoPedido, ...orc });
+    res.json({
+      trancado: false,
+      credito_pedido: acesso.creditoPedido,
+      origem_frete: CIDADE_ORIGEM,
+      frete_ok: !!freteInfo?.ok,
+      frete_erro: freteInfo && !freteInfo.ok ? freteInfo.erro : null,
+      frete_km: freteInfo?.km ?? 0,
+      ...orc,
+    });
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: 'Dados do kit inválidos' }); return; }
     logger.error('offgrid', 'erro ao orçar', err);

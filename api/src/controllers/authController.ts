@@ -670,7 +670,16 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
     // de "acabaram seus documentos" — ele pagou por uma ferramenta específica, e
     // esbarrar num portão de outro produto logo depois de pagar é o jeito mais
     // rápido de virar reembolso.
-    const temAvulso = await comprouAlgumProduto(user.id);
+    // try/catch obrigatório: este endpoint é o que o layout chama pra montar o
+    // app. Uma exceção aqui não deixa o campo vazio — derruba TODOS os usuários
+    // pra tela de login. Falhou? Segue como `false`, que é o comportamento de
+    // antes desta feature existir.
+    let temAvulso = false;
+    try {
+      temAvulso = await comprouAlgumProduto(user.id);
+    } catch (e) {
+      console.error('[auth/me] comprouAlgumProduto falhou:', e);
+    }
     res.json({
       user: {
         ...user,
@@ -720,7 +729,16 @@ export async function getMe(req: Request, res: Response): Promise<void> {
     // de "acabaram seus documentos" — ele pagou por uma ferramenta específica, e
     // esbarrar num portão de outro produto logo depois de pagar é o jeito mais
     // rápido de virar reembolso.
-    const temAvulso = await comprouAlgumProduto(user.id);
+    // try/catch obrigatório: este endpoint é o que o layout chama pra montar o
+    // app. Uma exceção aqui não deixa o campo vazio — derruba TODOS os usuários
+    // pra tela de login. Falhou? Segue como `false`, que é o comportamento de
+    // antes desta feature existir.
+    let temAvulso = false;
+    try {
+      temAvulso = await comprouAlgumProduto(user.id);
+    } catch (e) {
+      console.error('[auth/me] comprouAlgumProduto falhou:', e);
+    }
     res.json({
       user: {
         ...user,

@@ -79,6 +79,8 @@ interface Orcamento {
   frete: number;
   freteRegiao: string;
   fretePrazo: string;
+  /** Uberlândia → destino, km, peso e R$/kg — a conta na cara do integrador. */
+  freteDetalhe?: string;
   custoFornecimento: number;
   maoDeObra: number;
   extras: number;
@@ -134,6 +136,12 @@ export default function OffGridPage() {
     tarifaKwh: 1.05,
   });
   const [pag, setPag] = useState({ cartaoN: 12, finN: 48, finJuros: '2,2' });
+  // CEP da OBRA: define o frete (sai de Uberlândia) e preenche estado/cidade,
+  // que são o que manda na irradiação. Um campo só pra duas coisas que o
+  // integrador teria que digitar de qualquer jeito.
+  const [cep, setCep] = useState('');
+  const [cepInfo, setCepInfo] = useState<{ cidade: string; uf: string } | null>(null);
+  const [buscandoCep, setBuscandoCep] = useState(false);
   // A página do comparativo é opcional de propósito: quando a rede ganha a conta
   // (cliente já tem poste na porta e tarifa baixa), imprimir isso mata a venda —
   // e o motivo de comprar ali é independência, não economia. Some a página, o
@@ -149,7 +157,7 @@ export default function OffGridPage() {
   const [orcando, setOrcando] = useState(false);
 
   const chaveOrc = JSON.stringify({
-    i: r.itens.map((x) => [x.id, x.qtd]), uf: e.uf, p: r.pesoTotal,
+    i: r.itens.map((x) => [x.id, x.qtd]), uf: e.uf, p: r.pesoTotal, cep: cep.replace(/\D/g, ''),
     m: e.margemPct, mo: e.maoDeObra, ex: e.extras, b: r.bancoNominal,
   });
   useEffect(() => {
@@ -159,6 +167,7 @@ export default function OffGridPage() {
     const t = setTimeout(() => {
       api.post('/offgrid/orcar', {
         itens: r.itens.map((x) => ({ id: x.id, nome: x.nome, qtd: x.qtd })),
+        cep: cep.replace(/\D/g, ''),
         uf: e.uf, peso_kg: r.pesoTotal, margem_pct: e.margemPct,
         mao_de_obra: e.maoDeObra, extras: e.extras, banco_kwh: r.bancoNominal,
       })
@@ -237,6 +246,25 @@ export default function OffGridPage() {
       .catch(() => { if (!cancelado) setPdfAsset(null); });
     return () => { cancelado = true; };
   }, [doc?.doc_id]);
+
+  // CEP completo → ViaCEP preenche estado e cidade. O frete o servidor
+  // recalcula por conta própria; isto aqui é só pra tela responder na hora.
+  useEffect(() => {
+    const d = cep.replace(/\D/g, '');
+    if (d.length !== 8) { setCepInfo(null); return; }
+    let cancelado = false;
+    setBuscandoCep(true);
+    fetch(`https://viacep.com.br/ws/${d}/json/`)
+      .then((r) => r.json())
+      .then((j: { localidade?: string; uf?: string; erro?: boolean }) => {
+        if (cancelado || j.erro || !j.localidade) { setCepInfo(null); return; }
+        setCepInfo({ cidade: j.localidade, uf: j.uf || '' });
+        setE((prev) => ({ ...prev, uf: j.uf || prev.uf, cidade: j.localidade }));
+      })
+      .catch(() => { if (!cancelado) setCepInfo(null); })
+      .finally(() => { if (!cancelado) setBuscandoCep(false); });
+    return () => { cancelado = true; };
+  }, [cep]);
 
   const qtdDe = (id: string) => e.qtds[id] || 0;
   const mudaQtd = (id: string, delta: number) => {
@@ -428,6 +456,15 @@ export default function OffGridPage() {
           <div className="og-card">
             <div className="og-card-title"><span className="og-num">1</span> Onde vai instalar</div>
             <div className="og-row">
+              <div className="og-field" style={{ flex: '0 0 150px' }}>
+                <label className="og-label">CEP da obra</label>
+                <input className="og-input" inputMode="numeric" value={cep} placeholder="38400-000"
+                  maxLength={9}
+                  onChange={(ev) => {
+                    const d = ev.target.value.replace(/\D/g, '').slice(0, 8);
+                    setCep(d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d);
+                  }} />
+              </div>
               <div className="og-field" style={{ flex: '0 0 110px' }}>
                 <label className="og-label">Estado</label>
                 <select className="og-select" value={e.uf} onChange={(ev) => set('uf', ev.target.value)}>
@@ -440,6 +477,13 @@ export default function OffGridPage() {
                   onChange={(ev) => set('cidade', ev.target.value)} />
               </div>
             </div>
+            {cep.replace(/\D/g, '').length === 8 && (
+              <p className="og-hint">
+                {buscandoCep ? 'Buscando o CEP...'
+                  : cepInfo ? <>Entrega em <strong>{cepInfo.cidade}/{cepInfo.uf}</strong> — o frete sai de Uberlândia e entra no orçamento.</>
+                  : 'CEP não encontrado. Confira o número ou preencha estado e cidade na mão.'}
+              </p>
+            )}
             <p className="og-hint">
               Sol em {hsp.porCidade ? e.cidade : e.uf}: <strong>{nb(hsp.anual)} h/dia</strong> na média do ano
               e <strong>{nb(hsp.pior)} h/dia</strong> no mês pior
@@ -1005,8 +1049,14 @@ export default function OffGridPage() {
                 <>
                   <div className="og-linha"><span>Equipamentos (fornecimento)</span><strong>{brl(orc.custoEquipamentos)}</strong></div>
                   <div className="og-linha">
-                    <span>Frete {orc.freteRegiao} · {nb(r.pesoTotal, 0)} kg</span><strong>{brl(orc.frete)}</strong>
+                    <span>{orc.frete > 0 ? `Frete ${orc.freteRegiao}` : 'Frete'} · {nb(r.pesoTotal, 0)} kg</span>
+                    <strong>{orc.frete > 0 ? brl(orc.frete) : '—'}</strong>
                   </div>
+                  {orc.frete > 0
+                    ? <p className="og-hint" style={{ margin: '2px 0 6px' }}>{orc.freteDetalhe}</p>
+                    : <p className="og-hint" style={{ margin: '2px 0 6px', color: 'var(--ink-red)' }}>
+                        Informe o CEP da obra pra somar o frete — sem ele o orçamento sai incompleto.
+                      </p>}
                   <div className="og-sep" />
                   <div className="og-linha"><span>Você paga pra nós</span><strong>{brl(orc.custoFornecimento)}</strong></div>
                   {orc.maoDeObra > 0 && <div className="og-linha"><span>Sua instalação</span><strong>{brl(orc.maoDeObra)}</strong></div>}

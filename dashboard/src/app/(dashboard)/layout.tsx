@@ -381,9 +381,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   const docsRestantes = isFree ? Math.max(0, user.limite_documentos - (user.documentos_usados ?? 0)) : null;
-  // Quem comprou uma ferramenta avulsa NÃO cai na tela de "acabaram seus
-  // documentos": o teto de documentos é do gerador, e ele não comprou o gerador.
-  const limitReached = isFree && docsRestantes === 0 && !compradorKit;
+  // Quem comprou uma FERRAMENTA avulsa não cai na tela de "acabaram seus
+  // documentos": o teto é do gerador, e ele não comprou o gerador.
+  //
+  // Repare que aqui é `tem_produto_avulso`, NÃO `compradorKit`. O comprador da
+  // isca de R$27 continua vendo essa tela quando esgota os documentos — ele é
+  // exatamente quem o funil quer converter em assinante, e tirá-lo daí apagaria
+  // uma alavanca que já está funcionando hoje.
+  const limitReached = isFree && docsRestantes === 0 && !user.tem_produto_avulso;
 
   // Créditos esgotados → tela cheia de upgrade (sem sidebar, sem distrações)
   if (limitReached) {

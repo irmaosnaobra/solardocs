@@ -229,11 +229,13 @@ export interface Bateria extends ItemFornecimento {
 }
 
 /** Bancos de lítio. Módulos de 48V são empilháveis: 2 unidades = 10,24 kWh. */
+/**
+ * Banco: SAJ B3 5,0 kWh 48V, empilhável (o fabricante permite paralelo até
+ * 76,8 kWh). Só existe UMA bateria no catálogo porque só existe uma no nosso
+ * fornecedor — inventar opção que não dá pra comprar é orçamento que não fecha.
+ */
 export const BATERIAS: Bateria[] = [
-  { id: 'bat-12-100', nome: 'Bateria LiFePO4 12,8V 100Ah — 1,28 kWh',  kwh: 1.28,  volts: 12, ah: 100, custoRel: 0.330,  kg: 13,  garantia: 5 },
-  { id: 'bat-24-100', nome: 'Bateria LiFePO4 25,6V 100Ah — 2,56 kWh',  kwh: 2.56,  volts: 24, ah: 100, custoRel: 0.610,  kg: 26,  garantia: 5 },
-  { id: 'bat-48-100', nome: 'Bateria LiFePO4 51,2V 100Ah — 5,12 kWh',  kwh: 5.12,  volts: 48, ah: 100, custoRel: 1.000,  kg: 46,  garantia: 7 },
-  { id: 'bat-48-200', nome: 'Bateria LiFePO4 51,2V 200Ah — 10,24 kWh', kwh: 10.24, volts: 48, ah: 200, custoRel: 1.835,  kg: 88,  garantia: 7 },
+  { id: 'bat-48-100', nome: 'Bateria SAJ B3 5,0 kWh 51,2V LiFePO4', kwh: 5.0, volts: 48, ah: 100, custoRel: 1.000, kg: 50, garantia: 10 },
 ];
 
 export interface Inversor extends ItemFornecimento {
@@ -255,13 +257,22 @@ export interface Inversor extends ItemFornecimento {
   mppts: number;
 }
 
+/**
+ * Inversores SAJ H2 monofásicos 220V de BAIXA tensão (banco 40-60V), que é o
+ * que casa com a bateria acima. Janela de MPPT 90-480V e 2 MPPTs são do
+ * datasheet do fabricante.
+ *
+ * `vocMax` está travado em 480 V de propósito: o Voc máximo absoluto não estava
+ * no datasheet que consultei, e o topo da janela de MPPT é um número que EU SEI.
+ * Como o Voc absoluto de qualquer inversor é sempre ≥ o topo da janela, usar 480
+ * garante que a string nunca passa do que o equipamento aceita rastrear — e
+ * jamais chega perto de queimar. Custa um módulo a menos por string; queimar
+ * inversor em campo custa a obra inteira. Se o manual confirmar um Voc maior, é
+ * só subir aqui.
+ */
 export const INVERSORES: Inversor[] = [
-  { id: 'inv-1500-12', nome: 'Inversor/carregador off-grid 1,5 kW 12V com MPPT',   w: 1500,  volts: 12, saida: '127V',      mpptEmbutido: true, cargaA: 50,  mpptMin: 30,  mpptMax: 100, vocMax: 145,  mppts: 1, custoRel: 0.314,  kg: 8,  garantia: 2 },
-  { id: 'inv-3000-24', nome: 'Inversor/carregador off-grid 3 kW 24V com MPPT',     w: 3000,  volts: 24, saida: '220V',      mpptEmbutido: true, cargaA: 80,  mpptMin: 60,  mpptMax: 380, vocMax: 450,  mppts: 1, custoRel: 0.590,  kg: 12, garantia: 2 },
-  { id: 'inv-3600-48', nome: 'Inversor híbrido 3,6 kW 48V — 2 MPPT',               w: 3600,  volts: 48, saida: '220V',      mpptEmbutido: true, cargaA: 100, mpptMin: 120, mpptMax: 425, vocMax: 500,  mppts: 2, custoRel: 0.814,  kg: 17, garantia: 5 },
-  { id: 'inv-5000-48', nome: 'Inversor híbrido 5 kW 48V — 2 MPPT',                 w: 5000,  volts: 48, saida: '127/220V',  mpptEmbutido: true, cargaA: 120, mpptMin: 125, mpptMax: 425, vocMax: 500,  mppts: 2, custoRel: 1.056,  kg: 21, garantia: 5 },
-  { id: 'inv-8000-48', nome: 'Inversor híbrido 8 kW 48V — 2 MPPT',                 w: 8000,  volts: 48, saida: '127/220V',  mpptEmbutido: true, cargaA: 190, mpptMin: 150, mpptMax: 425, vocMax: 550,  mppts: 2, custoRel: 1.716,  kg: 29, garantia: 5 },
-  { id: 'inv-12000-48', nome: 'Inversor híbrido 12 kW 48V trifásico — 2 MPPT',     w: 12000, volts: 48, saida: '220/380V',  mpptEmbutido: true, cargaA: 250, mpptMin: 200, mpptMax: 650, vocMax: 1000, mppts: 2, custoRel: 2.672, kg: 42, garantia: 5 },
+  { id: 'inv-5000-48',  nome: 'Inversor SAJ H2 5 kW mono 220V — 2 MPPT',  w: 5000,  volts: 48, saida: '220V', mpptEmbutido: true, cargaA: 110, mpptMin: 90, mpptMax: 480, vocMax: 480, mppts: 2, custoRel: 0.899, kg: 22, garantia: 5 },
+  { id: 'inv-10000-48', nome: 'Inversor SAJ H2 10 kW mono 220V — 2 MPPT', w: 10000, volts: 48, saida: '220V', mpptEmbutido: true, cargaA: 190, mpptMin: 90, mpptMax: 480, vocMax: 480, mppts: 2, custoRel: 1.348, kg: 30, garantia: 5 },
 ];
 
 /**
@@ -273,16 +284,24 @@ export const INVERSORES: Inversor[] = [
 export const MODULO: ItemFornecimento & {
   wp: number; m2: number; voc: number; vmp: number; isc: number; imp: number;
 } = {
-  id: 'mod-585',
-  nome: 'Módulo fotovoltaico 585 Wp monocristalino',
-  wp: 585,
-  m2: 2.6,
-  voc: 52.0,
-  vmp: 43.5,
-  isc: 14.2,
-  imp: 13.45,
-  custoRel: 0.118,
-  kg: 27,
+  id: 'mod-620',
+  nome: 'Módulo 620 Wp N-Plus bifacial (30mm)',
+  wp: 620,
+  m2: 2.7,
+  // Elétricos de painel N-type TOPCon 620W de 144 meias-células — o formato que
+  // bate com o do fornecedor (2382×1134×30mm, 23,0%). São eles que definem
+  // quantos módulos entram em série.
+  //
+  // O Voc está no valor ALTO da faixa que o mercado pratica (55,7 contra ~53,5
+  // de alguns fabricantes) de propósito: Voc maior = string mais curta = mais
+  // longe do limite do inversor. Errar pra menos aqui é a única forma de estourar
+  // a entrada CC numa manhã fria. Conferir na etiqueta do lote e ajustar.
+  voc: 55.7,
+  vmp: 46.1,
+  isc: 14.3,
+  imp: 13.6,
+  custoRel: 0.111,
+  kg: 30,
   garantia: 25,
 };
 
