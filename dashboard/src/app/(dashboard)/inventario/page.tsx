@@ -60,6 +60,10 @@ function InventarioPageInterna() {
   const [mov, setMov] = useState<{ item: Item; tipo: 'entrada' | 'saida'; qtd: string; obs: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [semeando, setSemeando] = useState(false);
+  // O kit e' de uma vez so'. Sem esta marca havia caminho pra duplicar: semeia
+  // os 14, apaga os 14 na lixeira, reabre o "Como usar" e o convite volta —
+  // porque ele so' olhava `items.length === 0`.
+  const [kitSemeado, setKitSemeado] = useState(false);
   // O tutorial abre sozinho pra quem tem inventario VAZIO (e' quem precisa) e
   // fica fechado pra quem ja' usa. Depois de fechado uma vez, nao volta.
   const [tutorialAberto, setTutorialAberto] = useState(false);
@@ -117,9 +121,12 @@ function InventarioPageInterna() {
   useEffect(() => {
     if (loading || tutorialDecidido.current) return;
     tutorialDecidido.current = true;
-    if (items.length === 0 && localStorage.getItem('inv-tutorial-visto') !== '1') {
-      setTutorialAberto(true);
-    }
+    try {
+      if (localStorage.getItem('inv-kit-semeado') === '1') setKitSemeado(true);
+      if (items.length === 0 && localStorage.getItem('inv-tutorial-visto') !== '1') {
+        setTutorialAberto(true);
+      }
+    } catch { /* modo anônimo: guia abre, e tudo bem */ }
   }, [loading, items.length]);
 
   const fechaTutorial = () => {
@@ -141,6 +148,11 @@ function InventarioPageInterna() {
       } catch { /* segue: um item que falha nao derruba o kit inteiro */ }
     }
     if (criados.length) setItems((prev) => [...prev, ...criados]);
+    // A marca vale mesmo se NENHUM item entrou (rede caiu, sessão expirou): o
+    // convite some, o erro aparece na lista vazia e a pessoa cadastra à mão.
+    // Repetir o kit automaticamente é o único desfecho que não dá pra desfazer.
+    setKitSemeado(true);
+    try { localStorage.setItem('inv-kit-semeado', '1'); } catch { /* modo anônimo */ }
     logUso('kit_inicial');
     setSemeando(false);
     fechaTutorial();
@@ -297,7 +309,7 @@ function InventarioPageInterna() {
                   ))}
                 </ol>
 
-                {items.length === 0 && (
+                {items.length === 0 && !kitSemeado && (
                   <div className="inv-semente">
                     <div>
                       <strong>Comece com um inventário de exemplo</strong>

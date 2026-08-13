@@ -125,6 +125,29 @@ input, textarea, select {
   border-radius: 3px;
 }
 
+/* ════════════════════════════════════════════════════════════════════════════
+   UM TRAÇO SÓ NOS ÍCONES
+   ════════════════════════════════════════════════════════════════════════════
+   A plataforma desenha ícone de dois lugares: o lucide (24 arquivos) e o jogo
+   próprio de `lib/desenhos` (Kit Off-Grid e Inventário). O lucide sai com traço
+   de 2px e o nosso com 1,6 — lado a lado, na mesma tela, isso lê como "dois
+   estilos", que é exatamente o que não pode acontecer.
+
+   Uma regra resolve os dois: o traço passa a ser 1,6 em qualquer SVG que pinte
+   em `currentColor`. O seletor é essa condição de propósito — logo e ilustração
+   usam `fill` com cor fixa e ficam intocados (conferido no components/Logo,
+   que é todo `fill`, sem um `stroke` sequer).
+
+   Em CSS a propriedade ganha do atributo `stroke-width="2"` que o lucide
+   escreve inline, então não precisa mexer em nenhum dos 24 arquivos.
+   ═══════════════════════════════════════════════════════════════════════════ */
+svg[stroke="currentColor"] {
+  stroke-width: 1.6;
+}
+/* Escape pra quando um ícone específico precisar de mais peso (um símbolo que
+   fica fraco demais em tamanho grande, por exemplo). */
+svg[stroke="currentColor"][data-traco="forte"] { stroke-width: 2; }
+
 /* Utility classes */
 .btn-primary {
   display: inline-flex;
