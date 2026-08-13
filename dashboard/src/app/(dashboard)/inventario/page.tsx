@@ -64,6 +64,16 @@ function InventarioPageInterna() {
   // os 14, apaga os 14 na lixeira, reabre o "Como usar" e o convite volta —
   // porque ele so' olhava `items.length === 0`.
   const [kitSemeado, setKitSemeado] = useState(false);
+  /**
+   * "Praticamente vazio", não "exatamente vazio".
+   *
+   * A primeira versão só oferecia o exemplo com ZERO itens — e quem pediu a
+   * funcionalidade tinha UMA linha de teste ("Mesa", de julho, tudo zerado) e
+   * por isso não via o convite. Quem tem uma sobra de teste é justamente quem
+   * ainda precisa ver como se preenche. Acima de 5 itens já é inventário de
+   * verdade e o exemplo vira ruído.
+   */
+  const quaseVazio = items.length < 5;
   // O tutorial abre sozinho pra quem tem inventario VAZIO (e' quem precisa) e
   // fica fechado pra quem ja' usa. Depois de fechado uma vez, nao volta.
   const [tutorialAberto, setTutorialAberto] = useState(false);
@@ -123,7 +133,7 @@ function InventarioPageInterna() {
     tutorialDecidido.current = true;
     try {
       if (localStorage.getItem('inv-kit-semeado') === '1') setKitSemeado(true);
-      if (items.length === 0 && localStorage.getItem('inv-tutorial-visto') !== '1') {
+      if (items.length < 3 && localStorage.getItem('inv-tutorial-visto') !== '1') {
         setTutorialAberto(true);
       }
     } catch { /* modo anônimo: guia abre, e tudo bem */ }
@@ -290,7 +300,7 @@ function InventarioPageInterna() {
               <GraduationCap size={18} />
               <span className="inv-guia-tit">
                 Como usar o Inventário
-                <em>{items.length === 0 ? 'cinco passos — dá pra começar em um minuto' : 'os cinco passos, se precisar relembrar'}</em>
+                <em>{quaseVazio ? 'cinco passos — dá pra começar em um minuto' : 'os cinco passos, se precisar relembrar'}</em>
               </span>
               <ChevronDown size={17} className={tutorialAberto ? 'inv-guia-chev on' : 'inv-guia-chev'} />
             </button>
@@ -309,7 +319,7 @@ function InventarioPageInterna() {
                   ))}
                 </ol>
 
-                {items.length === 0 && !kitSemeado && (
+                {quaseVazio && !kitSemeado && (
                   <div className="inv-semente">
                     <div>
                       <strong>Comece com um inventário de exemplo</strong>
@@ -317,6 +327,7 @@ function InventarioPageInterna() {
                         Entram 14 itens que toda equipe tem — ferramenta, EPI, consumível de obra —
                         já com marca, quantidade, valor e estoque mínimo preenchidos. São valores de
                         partida: troque pelos seus, e o que não usa você apaga na lixeira da linha.
+                        {items.length > 0 && ' Eles entram junto com o que você já tem, sem apagar nada.'}
                       </em>
                     </div>
                     <button className="inv-semente-btn" onClick={semearKit} disabled={semeando}>
