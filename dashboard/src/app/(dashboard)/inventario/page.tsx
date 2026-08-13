@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Boxes, Plus, Trash2, Printer, ArrowDownCircle, ArrowUpCircle, X, AlertTriangle } from 'lucide-react';
+import { Boxes, Plus, Trash2, Printer, ArrowDownCircle, ArrowUpCircle, X, AlertTriangle, Sparkles, ChevronDown, GraduationCap } from 'lucide-react';
 import api from '@/services/api';
 import { CATALOGO, UNIDADES, MARCAS_COMUNS } from './catalogo';
 import { ICONE_LOCAL, iconeDoMaterial, Tomada } from './icones';
+import { KIT_INICIAL, PASSOS_USO } from './kitInicial';
 import './inventario.css';
 import Cadeado from '@/components/Cadeado/Cadeado';
 
@@ -58,6 +59,11 @@ function InventarioPageInterna() {
   const [outroNome, setOutroNome] = useState('');
   const [mov, setMov] = useState<{ item: Item; tipo: 'entrada' | 'saida'; qtd: string; obs: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [semeando, setSemeando] = useState(false);
+  // O tutorial abre sozinho pra quem tem inventario VAZIO (e' quem precisa) e
+  // fica fechado pra quem ja' usa. Depois de fechado uma vez, nao volta.
+  const [tutorialAberto, setTutorialAberto] = useState(false);
+  const tutorialDecidido = useRef(false);
   const openLogged = useRef(false);
 
   useEffect(() => {
@@ -104,6 +110,41 @@ function InventarioPageInterna() {
   );
   const subtotal = (local: string) =>
     (porLocal[local] || []).reduce((s, i) => s + num(i.quantidade) * num(i.valor_unitario), 0);
+
+  // Abre o tutorial na primeira carga se a tela estiver vazia. `tutorialDecidido`
+  // impede que ele reabra a cada re-render (e que feche na cara de quem acabou
+  // de cadastrar o primeiro item).
+  useEffect(() => {
+    if (loading || tutorialDecidido.current) return;
+    tutorialDecidido.current = true;
+    if (items.length === 0 && localStorage.getItem('inv-tutorial-visto') !== '1') {
+      setTutorialAberto(true);
+    }
+  }, [loading, items.length]);
+
+  const fechaTutorial = () => {
+    setTutorialAberto(false);
+    try { localStorage.setItem('inv-tutorial-visto', '1'); } catch { /* modo anonimo */ }
+  };
+
+  /** Cria o inventario de exemplo. Um POST por item — o endpoint ja aceita
+   *  marca, quantidade, valor e minimo, entao cada linha nasce PREENCHIDA, que
+   *  e' o ponto: a pessoa precisa ver como se preenche, nao so' o que existe. */
+  const semearKit = async () => {
+    if (semeando) return;
+    setSemeando(true);
+    const criados: Item[] = [];
+    for (const k of KIT_INICIAL) {
+      try {
+        const { data } = await api.post('/inventory', k);
+        if (data?.item) criados.push(data.item);
+      } catch { /* segue: um item que falha nao derruba o kit inteiro */ }
+    }
+    if (criados.length) setItems((prev) => [...prev, ...criados]);
+    logUso('kit_inicial');
+    setSemeando(false);
+    fechaTutorial();
+  };
 
   const isBaixo = (i: Item) => num(i.estoque_minimo) > 0 && num(i.quantidade) <= num(i.estoque_minimo);
   const baixos = useMemo(() => items.filter(isBaixo), [items]);
@@ -223,6 +264,61 @@ function InventarioPageInterna() {
             </button>
           </div>
         </header>
+
+        {/* COMO USAR — abre sozinho pra quem chega na tela vazia, e fica atrás de
+            um botão discreto pra quem já usa. Passo curto, não parágrafo: tela
+            de trabalho não é manual. */}
+        {!loading && (
+          <div className={`inv-guia ${tutorialAberto ? 'aberto' : ''}`}>
+            <button
+              className="inv-guia-topo"
+              onClick={() => (tutorialAberto ? fechaTutorial() : setTutorialAberto(true))}
+              aria-expanded={tutorialAberto}
+            >
+              <GraduationCap size={18} />
+              <span className="inv-guia-tit">
+                Como usar o Inventário
+                <em>{items.length === 0 ? 'cinco passos — dá pra começar em um minuto' : 'os cinco passos, se precisar relembrar'}</em>
+              </span>
+              <ChevronDown size={17} className={tutorialAberto ? 'inv-guia-chev on' : 'inv-guia-chev'} />
+            </button>
+
+            {tutorialAberto && (
+              <div className="inv-guia-corpo">
+                <ol className="inv-passos">
+                  {PASSOS_USO.map((p, i) => (
+                    <li key={p.titulo}>
+                      <span className="inv-passo-n">{i + 1}</span>
+                      <span>
+                        <strong>{p.titulo}</strong>
+                        <em>{p.texto}</em>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+
+                {items.length === 0 && (
+                  <div className="inv-semente">
+                    <div>
+                      <strong>Comece com um inventário de exemplo</strong>
+                      <em>
+                        Entram 14 itens que toda equipe tem — ferramenta, EPI, consumível de obra —
+                        já com marca, quantidade, valor e estoque mínimo preenchidos. São valores de
+                        partida: troque pelos seus, e o que não usa você apaga na lixeira da linha.
+                      </em>
+                    </div>
+                    <button className="inv-semente-btn" onClick={semearKit} disabled={semeando}>
+                      <Sparkles size={17} />
+                      {semeando ? 'Montando…' : 'Preencher com o básico'}
+                    </button>
+                  </div>
+                )}
+
+                <button className="inv-guia-fechar" onClick={fechaTutorial}>Entendi, fechar</button>
+              </div>
+            )}
+          </div>
+        )}
 
         {baixos.length > 0 && (
           <div className="inv-alert">
