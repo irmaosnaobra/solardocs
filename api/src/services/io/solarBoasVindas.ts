@@ -300,7 +300,13 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     logger.error('solar-boas-vindas', 'ler agendamentos falhou', error);
     return { ...zero('erro_leitura'), erros: 1 };
   }
-  if (!data?.length) return zero('nenhum_cadastro_novo');
+  // A contagem de perdidos vem ANTES da saída por "não tem ninguém novo" — e é aí
+  // que ela mais importa. A rodada em que TODO mundo envelheceu além da janela é
+  // exatamente a rodada sem candidato: sair antes de contar faria o agente relatar
+  // "nada a fazer" no momento em que mais gente ficou no escuro. Foi esse tipo de
+  // silêncio que deixou 87 pessoas passarem em branco por 30 dias.
+  const perdidos = await contarPerdidos(piso);
+  if (!data?.length) return { ...zero('nenhum_cadastro_novo'), perdidos };
 
   const telPorConsultor = await carregarConsultores();
 
@@ -391,7 +397,6 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
   if (enviadas > 0 && !opts.dry) {
     logger.info('solar-boas-vindas', `${enviadas} cadastro(s) de solar receberam as boas-vindas`, { erros });
   }
-  const perdidos = await contarPerdidos(piso);
   return { enviadas, perdidos, erros, ...(opts.dry ? { motivo: 'dry', previa } : {}) };
 }
 

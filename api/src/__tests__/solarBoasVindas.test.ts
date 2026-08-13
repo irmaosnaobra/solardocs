@@ -70,7 +70,7 @@ vi.mock('../services/agents/zapiClient', () => ({
   sendHuman: vi.fn(async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); }),
 }));
 
-const AGORA = new Date('2026-08-14T16:00:00.000Z');
+const AGORA = new Date('2026-08-20T16:00:00.000Z');
 const minutosAtras = (m: number) => new Date(AGORA.getTime() - m * 60_000).toISOString();
 
 function ficha(over: Partial<any> = {}) {
@@ -145,6 +145,27 @@ describe('o backlog não vira rajada', () => {
     expect((await tick()).enviadas).toBe(1);
   });
 
+  // Quem envelheceu além da janela sem receber vira NÚMERO, não silêncio. E a
+  // contagem roda na rodada SEM candidato — que é justamente a rodada em que todo
+  // mundo caiu da janela. Contar depois da saída por "nada novo" faria o agente
+  // relatar "nada a fazer" no momento em que mais gente ficou no escuro: foi esse
+  // tipo de silêncio que deixou 87 pessoas passarem em branco por 30 dias.
+  it('quem passou da janela sem receber é contado como perdido', async () => {
+    fichas = [ficha({ created_at: minutosAtras(60 * 30) })];   // 30h: fora da janela, depois do piso
+    const r = await tick();
+    expect(r.enviadas).toBe(0);
+    expect(r.motivo ?? 'nenhum_cadastro_novo').toBe('nenhum_cadastro_novo');
+    expect(r.perdidos).toBe(1);
+  });
+
+  it('quem recebeu, ou disse não, não entra na conta de perdidos', async () => {
+    fichas = [
+      ficha({ id: 1, created_at: minutosAtras(60 * 30), boas_vindas_at: minutosAtras(60 * 29) }),
+      ficha({ id: 2, created_at: minutosAtras(60 * 30), status: 'sem_interesse' }),
+    ];
+    expect((await tick()).perdidos).toBe(0);
+  });
+
   it('ficha anterior ao dia em que o agente existiu nunca recebe', async () => {
     vi.setSystemTime(new Date('2026-08-04T00:20:00.000Z'));   // piso ainda manda
     fichas = [ficha({ created_at: '2026-08-03T23:50:00.000Z' })];
@@ -185,9 +206,10 @@ describe('o backlog não vira rajada', () => {
   // pode acordar o backlog de julho — 87 pessoas que já foram atendidas, já
   // disseram não, ou já esqueceram que preencheram.
   it('o piso de "daqui pra frente" segura o backlog antigo', async () => {
-    fichas = [ficha({ created_at: '2026-08-13T21:00:00.000Z' })];   // 1h antes do piso
+    vi.setSystemTime(new Date('2026-08-14T02:00:00.000Z'));        // dentro das 24h do piso
+    fichas = [ficha({ id: 1, created_at: '2026-08-13T21:00:00.000Z' })];   // 1h ANTES do piso
     expect((await tick()).enviadas).toBe(0);
-    fichas = [ficha({ created_at: '2026-08-13T23:00:00.000Z' })];   // 1h depois
+    fichas = [ficha({ id: 2, created_at: '2026-08-13T23:00:00.000Z' })];   // 1h depois
     expect((await tick()).enviadas).toBe(1);
   });
 

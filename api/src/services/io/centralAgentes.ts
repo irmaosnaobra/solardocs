@@ -23,7 +23,7 @@ import { tetosVigentesLinha } from '../agents/whatsapp/lineThrottle';
 import { MAX_CARLA_POR_HORA } from '../agents/whatsapp/carlaThrottle';
 import { solardocViaIo } from '../agents/zapiClient';
 import { EP_ORIGENS, EP_AGENDA_INICIO, EP_AGENDA_PREFIX } from './eletropostoAgenda';
-import { SOLAR_ORIGENS, SOLAR_BOASVINDAS_INICIO } from './solarBoasVindas';
+import { SOLAR_ORIGENS, SOLAR_BOASVINDAS_INICIO, SOLAR_ENTREGA_AMPLA_INICIO } from './solarBoasVindas';
 
 type Estado = 'ativo' | 'desligado' | 'dark' | 'sem_agente';
 type Canal = 'whatsapp' | 'instagram' | 'email' | 'painel';
@@ -148,6 +148,13 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
 
   // ── 2. Conversões (cada uma com fonte declarada) ───────────────────────────
   const desde30 = new Date(agora - 30 * D).toISOString();
+  // A cobertura das boas-vindas do solar conta a partir do piso de "daqui pra
+  // frente", igual ao agente. Sem isso o card mediria 30 dias de HISTÓRICO que a
+  // mudança nunca prometeu cobrir: o alerta acenderia por um mês inteiro mesmo
+  // com 100% dos leads novos atendidos, e depois apagaria porque as fichas velhas
+  // saíram da janela — não porque a entrega melhorou. Alerta errado por 30 dias é
+  // alerta que ninguém lê no dia 31.
+  const desdeSolar = desde30 > SOLAR_ENTREGA_AMPLA_INICIO ? desde30 : SOLAR_ENTREGA_AMPLA_INICIO;
 
   const emailsBia = new Set(bia1.chaves.map(k => k.key.slice('limpapro_recovery:'.length).toLowerCase()));
   const usersCurso = new Set(curso.chaves.map(k => k.key.slice('curso19:'.length)));
@@ -260,9 +267,9 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     // Boas-vindas do solar: cadastros que entraram × cadastros que receberam o
     // recibo. A diferença entre os dois números É o alerta — cliente que se
     // cadastrou e ficou no escuro.
-    contarGerador('agendamentos', (q: any) => q.in('created_by', SOLAR_ORIGENS).gte('created_at', desde30)),
+    contarGerador('agendamentos', (q: any) => q.in('created_by', SOLAR_ORIGENS).gte('created_at', desdeSolar)),
     contarGerador('agendamentos', (q: any) => q.in('created_by', SOLAR_ORIGENS)
-      .gte('created_at', desde30).not('boas_vindas_at', 'is', null)),
+      .gte('created_at', desdeSolar).not('boas_vindas_at', 'is', null)),
     (async (): Promise<string | null> => {
       try {
         const { data } = await supabaseGerador
@@ -530,7 +537,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       chave: 'SOLAR_BOASVINDAS_OFF',
       ultima_atividade: solarUltimoToque,
       metricas: [
-        { label: 'Cadastros de solar (30d)', valor: solarCadastros30, sub: 'LP solar + /simular + Lead Ads' },
+        { label: 'Cadastros de solar', valor: solarCadastros30, sub: 'LP solar + /simular + Lead Ads · desde 13/08, quando a entrega foi corrigida' },
         { label: 'Receberam as boas-vindas', valor: solarBoasVindas30, sub: 'só conta ficha criada depois de o agente existir' },
         { label: 'Responderam', valor: solarResp.total, sub: `${solarResp.h24} nas últimas 24h · recado vai pro consultor dono da ficha` },
       ],
