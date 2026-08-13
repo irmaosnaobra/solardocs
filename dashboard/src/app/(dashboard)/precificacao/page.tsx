@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import api from '@/services/api';
 import './precificacao.css';
+import Cadeado from '@/components/Cadeado/Cadeado';
 
 // Analytics de uso (NÃO abate crédito). Fail-silent: nunca trava a UX.
 function logUso(event_type: string) {
@@ -41,7 +42,7 @@ const NF_PCT_PADRAO = '6';
 
 type NfModo = 'nenhuma' | 'serv' | 'total';
 
-export default function PrecificacaoPage() {
+function PrecificacaoPageInterna() {
   const [valores, setValores] = useState<Record<string, string>>({});
   const [kit, setKit] = useState('');
   const [ca, setCa] = useState('');
@@ -351,5 +352,18 @@ export default function PrecificacaoPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * A ferramenta virou produto: quem não comprou (nem tem pela assinatura) vê o
+ * convite, não uma tela vazia. Quem já usava antes de virar paga tem cortesia
+ * vitalícia — ver o backfill em MIGRATION_entitlements.sql.
+ */
+export default function PrecificacaoPage() {
+  return (
+    <Cadeado produto="precificacao">
+      <PrecificacaoPageInterna />
+    </Cadeado>
   );
 }

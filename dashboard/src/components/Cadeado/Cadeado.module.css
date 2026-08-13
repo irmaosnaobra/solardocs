@@ -1,0 +1,90 @@
+.esperando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 340px;
+}
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: girar 0.8s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+.wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 0 60px;
+}
+.card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--cor, var(--color-primary));
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  text-align: center;
+}
+.selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cor, var(--color-primary));
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+.card h1 {
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+.promessa {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  margin: 0 0 20px;
+}
+.acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+.btnPrimary, .btnGhost {
+  display: block;
+  padding: 13px 18px;
+  font-size: 14px;
+  font-weight: 800;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  text-align: center;
+}
+.btnPrimary { background: var(--cor, var(--color-primary)); color: #fff; }
+.btnPrimary:hover { filter: brightness(1.08); }
+.btnGhost {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+}
+.btnGhost:hover { border-color: var(--cor, var(--color-primary)); color: var(--cor, var(--color-primary)); }
+.nota {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  line-height: 1.55;
+  margin: 16px auto 0;
+  max-width: 400px;
+}

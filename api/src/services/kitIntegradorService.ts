@@ -17,7 +17,9 @@
 
 import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
-import { sendKitAcessoEmail, sendOpsAlert } from '../utils/mailer';
+import { sendKitAcessoEmail, sendFerramentaAcessoEmail, sendOpsAlert } from '../utils/mailer';
+import { liberarOffGrid, OFFGRID_PRODUTO_REGEX, OFFGRID_ADDON_PRECO } from './offgrid/acesso';
+import { concederAcesso } from './produtos/acessos';
 
 /** Dias de VIP concedidos por quem leva o order bump. */
 export const KIT_BUMP_TRIAL_DIAS = 30;
@@ -30,7 +32,7 @@ export const KIT_BUMP_TRIAL_DIAS = 30;
  *  - `bump_vip`    — trial de 30 dias (legado). Carimba pack_trial_until.
  *  - `entrada_30d` — "SolarDoc - 30 dias", R$19 PAGO. Acesso completo comprado,
  *                    não trial. Carimba plano_expira_em (ver concederEntrada30Dias). */
-export type ItemKit = 'kit' | 'bump_vip' | 'entrada_30d';
+export type ItemKit = 'kit' | 'bump_vip' | 'entrada_30d' | 'offgrid' | 'precificacao' | 'inventario';
 
 // ── Identificação do produto ────────────────────────────────────────────────
 // Preferência: IDs de produto da Kiwify via env (exato, à prova de renomeação).
@@ -65,6 +67,9 @@ export function classificarProdutoKit(
     if (idsDoEnv('KIT_KIWIFY_PRODUCT_IDS').includes(id)) return 'kit';
     if (idsDoEnv('KIT_KIWIFY_BUMP_VIP_IDS').includes(id)) return 'bump_vip';
     if (idsDoEnv('KIT_KIWIFY_ENTRADA_30D_IDS').includes(id)) return 'entrada_30d';
+    if (idsDoEnv('OFFGRID_KIWIFY_PRODUCT_IDS').includes(id)) return 'offgrid';
+    if (idsDoEnv('PRECIFICACAO_KIWIFY_PRODUCT_IDS').includes(id)) return 'precificacao';
+    if (idsDoEnv('INVENTARIO_KIWIFY_PRODUCT_IDS').includes(id)) return 'inventario';
   }
   const nome = (productName || '').trim();
   if (!nome) return null;
@@ -72,6 +77,11 @@ export function classificarProdutoKit(
   // entrada (que é compra paga, com colunas diferentes).
   if (RE_BUMP_VIP.test(nome)) return 'bump_vip';
   if (RE_ENTRADA_30D.test(nome)) return 'entrada_30d';
+  // Ferramentas antes do kit: "Kit Off-Grid" casaria com a RE_KIT e o comprador
+  // receberia o material do curso em vez da ferramenta que pagou.
+  if (OFFGRID_PRODUTO_REGEX.test(nome)) return 'offgrid';
+  if (/precifica[çc][aã]o\s*(profissional|pro)/i.test(nome)) return 'precificacao';
+  if (/invent[áa]rio\s*(da\s*)?empresa/i.test(nome)) return 'inventario';
   if (RE_KIT.test(nome)) return 'kit';
   return null;
 }
@@ -239,6 +249,56 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
 
   if (!userId) {
     return { ok: false, acao: 'registrado', detalhe: 'não consegui criar/achar a conta' };
+  }
+
+  // 3a) FERRAMENTA AVULSA: acesso vitalício, independente de plano. Não mexe em
+  // assinatura — é compra separada, e por isso o assinante que compra também
+  // recebe (ao contrário do bump de VIP, que colide com plano pago).
+  const FERRAMENTAS: Record<string, string> = {
+    offgrid: 'Dimensionamento Off-Grid',
+    precificacao: 'Precificação Profissional',
+    inventario: 'Inventário da Empresa',
+  };
+  if (FERRAMENTAS[evt.item]) {
+    // Off-grid tem uma regra a mais (o crédito do primeiro pedido de kit), então
+    // continua com a função dele; o resto é entitlement puro.
+    const aplicou = evt.item === 'offgrid'
+      ? await liberarOffGrid(userId, OFFGRID_ADDON_PRECO)
+      : await concederAcesso({ userId, produto: evt.item, origem: 'compra', orderId: evt.orderId });
+    if (!aplicou) {
+      console.warn(`[kit] ${evt.item} já estava liberado pra ${email} (pedido ${evt.orderId})`);
+    }
+
+    // O E-MAIL É A COMPRA. Sem ele a pessoa pagou e não sabe onde entrar — o
+    // caminho mais curto entre uma venda e um reembolso. Conta nova cai no link
+    // de definir senha; quem já era da casa vai direto pro login, e os dois
+    // aterrissam na loja, onde o que ele comprou está esperando.
+    if (contaCriada || !jaEraMembro || resetUrl) {
+      await sendFerramentaAcessoEmail({
+        to: email,
+        nome: evt.nome,
+        produtoNome: FERRAMENTAS[evt.item],
+        acessoUrl: resetUrl.includes('?') ? `${resetUrl}&next=/produtos` : `${resetUrl}?next=/produtos`,
+        contaNova: contaCriada,
+      }).catch((e) => {
+        // Falha de e-mail não pode derrubar uma concessão que já foi gravada:
+        // vira alerta pra operação mandar o acesso na mão.
+        console.error('[kit] falha no e-mail de acesso da ferramenta', e);
+        sendOpsAlert(
+          `Compra de ${FERRAMENTAS[evt.item]} sem e-mail de acesso`,
+          `<p>${email} comprou <strong>${FERRAMENTAS[evt.item]}</strong> (pedido ${evt.orderId}) e o acesso foi liberado, mas o e-mail não saiu.</p>
+           <p>Mande o link na mão: <a href="${resetUrl}">${resetUrl}</a></p>`,
+        ).catch(() => {});
+      });
+    }
+
+    return {
+      ok: true,
+      acao: aplicou ? 'acesso_liberado' : 'ja_processado',
+      userId,
+      contaCriada,
+      detalhe: `${FERRAMENTAS[evt.item]} ${aplicou ? 'liberado' : 'já estava liberado'}`,
+    };
   }
 
   // 3) Bump do VIP: 30 dias de acesso ilimitado. Só concede uma vez por pedido.

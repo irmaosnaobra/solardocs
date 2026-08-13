@@ -230,11 +230,11 @@ const UPGRADE_NUDGE: Record<number, (firstName: string, docsFeitos: number) => {
     <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${nome}, você já gerou <strong style="color:#fbbf24;">${docs} propostas</strong> com a sua marca. 👏</p>
     <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 22px;">Mas toda vez que você tenta gerar um <strong style="color:#f8fafc;">contrato</strong>, uma <strong style="color:#f8fafc;">procuração</strong> ou um <strong style="color:#f8fafc;">recibo</strong>, esbarra no aviso de upgrade. No plano grátis, só a proposta é liberada.</p>
     <div style="background:#1e293b;border-left:4px solid #f59e0b;border-radius:0 10px 10px 0;padding:18px 22px;margin:0 0 24px;">
-      <p style="color:#fbbf24;font-weight:800;font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px;">No PRO você destrava</p>
+      <p style="color:#fbbf24;font-weight:800;font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px;">Assinando você destrava</p>
       <p style="color:#e2e8f0;font-size:14.5px;line-height:1.7;margin:0;">📄 Contrato solar · Procuração · Recibo · Vistoria · Prestação de serviço · Proposta bancária<br/>📈 E sai do teto de 10 documentos/mês.</p>
     </div>
     <div style="text-align:center;margin:8px 0;">
-      <a href="${APP_URL}/planos" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:16px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">Quero destravar tudo →</a>
+      <a href="${APP_URL}/assinar" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:16px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">Quero destravar tudo →</a>
     </div>
   </div>
 </div>`,
@@ -250,15 +250,15 @@ const UPGRADE_NUDGE: Record<number, (firstName: string, docsFeitos: number) => {
   <div style="padding:32px 36px;">
     <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${nome}, suas <strong style="color:#fbbf24;">${docs} propostas</strong> já saem prontas e bonitas no SolarDoc.</p>
     <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 22px;">Mas aí pra fechar você ainda abre o Word pra montar o contrato na mão, ajusta a procuração, digita o recibo… O cliente esfria nesse vai-e-vem.</p>
-    <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 24px;">No <strong style="color:#fbbf24;">PRO</strong>, contrato, procuração e recibo saem com os mesmos dados da proposta — em segundos, já com a sua marca. Fecha na hora.</p>
+    <p style="color:#e2e8f0;font-size:15px;line-height:1.7;margin:0 0 24px;">Na <strong style="color:#fbbf24;">assinatura</strong>, contrato, procuração e recibo saem com os mesmos dados da proposta — em segundos, já com a sua marca. Fecha na hora.</p>
     <div style="text-align:center;margin:8px 0;">
-      <a href="${APP_URL}/planos" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:16px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">Virar PRO e fechar mais rápido →</a>
+      <a href="${APP_URL}/assinar" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:16px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">Assinar e fechar mais rápido →</a>
     </div>
   </div>
 </div>`,
   }),
   3: (nome, docs) => ({
-    subject: `${nome}, última chamada — destrave os documentos do PRO`,
+    subject: `${nome}, última chamada — destrave os documentos que faltam`,
     html: `
 <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
   <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:30px 36px;">
@@ -269,9 +269,9 @@ const UPGRADE_NUDGE: Record<number, (firstName: string, docsFeitos: number) => {
     <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">${nome}, com <strong style="color:#fbbf24;">${docs} propostas geradas</strong>, você está entre os integradores que mais aproveitam a plataforma — ainda no plano grátis.</p>
     <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">Quem usa desse jeito fecha mais quando tem o kit completo de documentos na mão. É o último empurrão: destrava contrato, procuração, recibo e o resto — e tira o limite de 10/mês.</p>
     <div style="text-align:center;margin:8px 0;">
-      <a href="${APP_URL}/planos" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:16px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">Fazer upgrade agora →</a>
+      <a href="${APP_URL}/assinar" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:16px 40px;border-radius:12px;text-decoration:none;box-shadow:0 4px 14px rgba(245,158,11,0.4);">Assinar agora →</a>
     </div>
-    <p style="color:#64748b;font-size:13px;margin:20px 0 0;line-height:1.6;text-align:center;">Dúvida sobre qual plano? Chama a Giovanna no WhatsApp (34) 99816-5040.</p>
+    <p style="color:#64748b;font-size:13px;margin:20px 0 0;line-height:1.6;text-align:center;">Ficou com dúvida? Chama a Giovanna no WhatsApp (34) 99816-5040.</p>
   </div>
 </div>`,
   }),
@@ -286,7 +286,7 @@ export async function sendUpgradeNudgeEmail(email: string, userId: string, toque
 }
 
 // Email pra quem cadastrou mas não passou cartão (abandonou o checkout do Stripe).
-// Diferente do followup CNPJ — copy é cirúrgico no plano VIP (cobrança imediata + garantia de 7 dias).
+// Diferente do followup CNPJ — copy é cirúrgico na assinatura (cobrança imediata + garantia de 7 dias).
 export async function sendCheckoutRecoveryEmail(email: string, userId: string): Promise<void> {
   const subject = 'Faltou só o cartão — seu acesso está te esperando';
   const html = `
@@ -299,19 +299,19 @@ export async function sendCheckoutRecoveryEmail(email: string, userId: string): 
   </div>
   <div style="padding:32px 36px;">
     <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">
-      Vi aqui que você começou a ativar o <strong style="color:#fbbf24;">Plano VIP</strong> mas parou na hora do cartão.
+      Vi aqui que você começou a ativar a <strong style="color:#fbbf24;">sua assinatura</strong> mas parou na hora do cartão.
     </p>
     <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 18px;">
-      <strong style="color:#f8fafc;">Lembrando o que entra no plano:</strong>
+      <strong style="color:#f8fafc;">Lembrando o que entra — é tudo, num preço só:</strong>
     </p>
     <ul style="color:#cbd5e1;font-size:14.5px;line-height:1.9;margin:0 0 24px;padding-left:22px;">
       <li>Documentos <strong style="color:#f8fafc;">ilimitados</strong></li>
       <li>Procuração, Vistoria Técnica, Contrato PJ, Contrato Vendedor</li>
       <li>Gerador de Proposta com sua marca</li>
-      <li>Suporte VIP por WhatsApp</li>
+      <li>Suporte prioritário por WhatsApp</li>
     </ul>
     <p style="color:#94a3b8;font-size:14px;line-height:1.7;margin:0 0 24px;">
-      <strong style="color:#fbbf24;">Nada é cobrado nos 7 primeiros dias.</strong> Se não gostar, cancela em 1 clique e zero cobrança.
+      <strong style="color:#fbbf24;">Garantia de 7 dias.</strong> Não serviu, devolvemos o valor integral — sem perguntas.
     </p>
     <div style="text-align:center;margin:28px 0 8px;">
       <a href="${APP_URL}/auth?mode=login" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:18px 40px;border-radius:12px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(245,158,11,0.4);">
@@ -558,7 +558,7 @@ export async function sendCnpjOngoingEmail(email: string, userId: string, varian
 // então é transacional 1-a-1 (sem footer de unsub, igual ao reset de senha).
 // Disparado pelo webhook em checkout.session.completed quando o órfão é detectado.
 export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId: string; plano?: string | null; resetUrl?: string }): Promise<void> {
-  const planoLabel = opts.plano === 'ilimitado' ? 'VIP' : opts.plano === 'pro' ? 'PRO' : null;
+  // Preço único: a compra confirma "a assinatura", nunca um degrau nomeado.
   // Conta já criada no pagamento (fluxo 100% cadastro): o CTA é o link de DEFINIR
   // SENHA (reset token) — 1 clique e entra. Fallback (resetUrl ausente): fluxo
   // antigo de cadastro-com-session, mantido por retrocompatibilidade.
@@ -575,12 +575,12 @@ export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId:
   <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:32px 36px;">
     <p style="margin:0;color:#0f172a;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro</p>
     <h1 style="margin:8px 0 0;color:#0f172a;font-size:26px;font-weight:900;line-height:1.2;letter-spacing:-0.5px;">
-      Pagamento aprovado${planoLabel ? ` — acesso ${planoLabel} liberado` : ''} ✅
+      Pagamento aprovado — acesso liberado ✅
     </h1>
   </div>
   <div style="padding:32px 36px;">
     <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">
-      <strong style="color:#fbbf24;">Pagamento aprovado!</strong> Seu acesso${planoLabel ? ` ao plano <strong style="color:#fbbf24;">${planoLabel}</strong>` : ''} já está <strong style="color:#fbbf24;">liberado</strong>.
+      <strong style="color:#fbbf24;">Pagamento aprovado!</strong> Sua <strong style="color:#fbbf24;">assinatura</strong> já está <strong style="color:#fbbf24;">liberada</strong>.
     </p>
     <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">
       Falta só <strong style="color:#f8fafc;">definir sua senha</strong> pra entrar na plataforma — seu e-mail e plano já estão garantidos. É 1 passo, leva 10 segundos:
@@ -622,7 +622,7 @@ export async function sendCheckoutCompletionEmail(opts: { to: string; sessionId:
     from: FROM_EMAIL,
     to: opts.to,
     replyTo: REPLY_TO,
-    subject: `✅ Pagamento aprovado — falta 1 passo pra entrar no SolarDoc${planoLabel ? ` ${planoLabel}` : ''}`,
+    subject: '✅ Pagamento aprovado — falta 1 passo pra entrar no SolarDoc',
     html,
   });
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
@@ -663,7 +663,7 @@ export async function sendKitAcessoEmail(opts: {
     ${
       opts.comVip
         ? `<p style="color:#fbbf24;font-size:15px;line-height:1.7;margin:24px 0 0;text-align:center;">
-             Você levou o acesso VIP: <strong>${dias} dias de documentos ilimitados</strong> já estão ativos na sua conta.
+             Você levou o acesso completo: <strong>${dias} dias de documentos ilimitados</strong> já estão ativos na sua conta.
            </p>`
         : ''
     }
@@ -972,12 +972,15 @@ export async function sendWelcomeEmail(opts: { to: string; userId: string; nome:
   });
 }
 
-// Email de boas-vindas para quem COMPROU (PRO/VIP). Transacional: confirma a
-// compra, o plano, e dá as instruções de início. NÃO usa o copy de "10 grátis"
-// (esse é do cadastro FREE). Suporte direto = Giovanna / (34) 99816-5040.
+// Email de boas-vindas para quem COMPROU. Transacional: confirma a compra e dá
+// as instruções de início. NÃO usa o copy de "10 grátis" (esse é do cadastro
+// FREE). Suporte direto = Giovanna / (34) 99816-5040.
+//
+// Preço único: nada de nomear degrau. O que varia é só a DESCRIÇÃO do que a
+// pessoa tem — quem assinou por um preço antigo ('pro') tem teto de 90/mês e a
+// mensagem precisa dizer a verdade, sem chamar isso de "plano PRO".
 export async function sendPurchaseEmail(opts: { to: string; userId: string; nome: string | null; plano: string }): Promise<void> {
   const firstName = (opts.nome || '').trim().split(/\s+/)[0] || 'Olá';
-  const planoLabel = opts.plano === 'ilimitado' ? 'VIP' : 'PRO';
   const planoDesc = opts.plano === 'ilimitado'
     ? 'Documentos <strong style="color:#fbbf24;">ilimitados</strong> + Gerador de Proposta com a sua marca'
     : '90 documentos/mês + Gerador de Proposta com a sua marca';
@@ -985,9 +988,9 @@ export async function sendPurchaseEmail(opts: { to: string; userId: string; nome
 <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
 
   <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:32px 36px;">
-    <p style="margin:0;color:#0f172a;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro · Plano ${planoLabel}</p>
+    <p style="margin:0;color:#0f172a;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc Pro · Assinatura</p>
     <h1 style="margin:8px 0 0;color:#0f172a;font-size:28px;font-weight:900;line-height:1.15;letter-spacing:-0.5px;">Compra confirmada, ${firstName}! 🎉</h1>
-    <p style="margin:8px 0 0;color:#0f172a;font-size:15px;font-weight:600;opacity:0.85;">Obrigada pela confiança. Seu plano ${planoLabel} já tá ativo.</p>
+    <p style="margin:8px 0 0;color:#0f172a;font-size:15px;font-weight:600;opacity:0.85;">Obrigada pela confiança. Sua assinatura já tá ativa.</p>
   </div>
 
   <div style="padding:32px 36px 24px;text-align:center;">
@@ -1001,7 +1004,7 @@ export async function sendPurchaseEmail(opts: { to: string; userId: string; nome
   <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;"></div></div>
 
   <div style="padding:28px 36px 8px;">
-    <p style="margin:0 0 4px;color:#fbbf24;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Seu plano ${planoLabel}</p>
+    <p style="margin:0 0 4px;color:#fbbf24;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Sua assinatura</p>
     <h2 style="margin:0 0 18px;color:#f8fafc;font-size:20px;font-weight:800;line-height:1.3;">${planoDesc}</h2>
     <div style="background:#1e293b;border-left:4px solid #f59e0b;border-radius:0 10px 10px 0;padding:18px 22px;margin:0 0 8px;">
       <p style="margin:0 0 6px;color:#f59e0b;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">Primeiro passo — faça agora</p>
@@ -1064,7 +1067,7 @@ export async function sendPurchaseEmail(opts: { to: string; userId: string; nome
   await sendMarketingEmail({
     to: opts.to,
     userId: opts.userId,
-    subject: `🎉 Compra confirmada, ${firstName} — seu plano ${planoLabel} no SolarDoc Pro já tá ativo`,
+    subject: `🎉 Compra confirmada, ${firstName} — sua assinatura do SolarDoc Pro já tá ativa`,
     html,
   });
 }
@@ -1130,6 +1133,64 @@ export async function sendPlugcashAcessoEmail(opts: {
     to: opts.to,
     replyTo: REPLY_TO,
     subject: `Acesso liberado: ${opts.curso}`,
+    html,
+  });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}
+
+/**
+ * Acesso a uma FERRAMENTA comprada avulsa (fora da assinatura).
+ *
+ * O e-mail do Kit é hardcoded no curso ("Kit de Fechamento" no cabeçalho e no
+ * botão) e não serve pra quem comprou o Off-Grid ou a Precificação. Quem paga e
+ * não recebe como entrar vira reembolso no mesmo dia — por isso este aqui nasce
+ * genérico, com o nome do produto vindo de fora.
+ */
+export async function sendFerramentaAcessoEmail(opts: {
+  to: string;
+  nome?: string | null;
+  produtoNome: string;
+  /** Link pra definir a senha (conta nova) ou entrar (conta que já existia). */
+  acessoUrl: string;
+  /** Conta nova precisa criar senha; quem já era da casa só entra. */
+  contaNova: boolean;
+}): Promise<void> {
+  const primeiro = (opts.nome || '').trim().split(/\s+/)[0];
+  const ola = primeiro ? `${primeiro}, ` : '';
+  const cta = opts.contaNova ? 'Definir senha e acessar →' : 'Entrar e usar agora →';
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#F26513 0%,#f59e0b 100%);padding:32px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:26px;font-weight:900;line-height:1.2;letter-spacing:-0.5px;">
+      ${opts.produtoNome} liberado
+    </h1>
+  </div>
+  <div style="padding:32px 36px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">
+      ${ola}sua compra do <strong style="color:#fbbf24;">${opts.produtoNome}</strong> está confirmada e o acesso já está na sua conta.
+      ${opts.contaNova ? 'Falta só <strong style="color:#fbbf24;">definir sua senha</strong> — leva 10 segundos:' : 'É só entrar:'}
+    </p>
+    <div style="text-align:center;margin:28px 0 8px;">
+      <a href="${opts.acessoUrl}" style="display:inline-block;background:#F26513;color:#fff;font-weight:900;font-size:16px;padding:18px 40px;border-radius:12px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(242,101,19,0.4);">
+        ${cta}
+      </a>
+    </div>
+    <p style="color:#94a3b8;font-size:14px;line-height:1.7;margin:24px 0 0;">
+      O acesso é seu enquanto sua conta existir — sem mensalidade nessa compra.
+      Dentro da plataforma você ainda encontra as outras ferramentas e cursos, cada uma
+      funcionando sozinha, e a assinatura do SolarDoc, que libera o pacote inteiro.
+    </p>
+    <p style="color:#64748b;font-size:13px;line-height:1.7;margin:18px 0 0;">
+      Qualquer dúvida é só responder este e-mail.
+    </p>
+  </div>
+</div>`;
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: opts.to,
+    replyTo: REPLY_TO,
+    subject: `${opts.produtoNome} liberado — seu acesso está aqui`,
     html,
   });
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);

@@ -13,41 +13,25 @@ import { isAuthenticated, removeToken } from '@/services/auth';
 import api from '@/services/api';
 import styles from './dashboard.module.css';
 
-const PLANOS_DATA = [
-  {
-    key: 'pro',
-    name: 'PRO',
-    amount: '27',
-    indicado: 'Indicado para até 20 vendas/mês',
-    features: [
-      '90 documentos por mês',
-      'Os 8 tipos: Proposta, Contrato Solar, Procuração, Recibo, Vistoria, Prestação de Serviço, Contrato Vendedor e Proposta Bancária',
-      'Modelos prontos pro setor solar',
-      'Contratos com a logomarca da sua empresa',
-      'Histórico dos últimos 30 dias',
-    ],
-    featured: false,
-  },
-  {
-    key: 'ilimitado',
-    name: 'VIP',
-    amount: '67',
-    indicado: 'Indicado para +20 vendas/mês',
-    features: [
-      'Documentos ilimitados — sem teto mensal',
-      'Todos os 8 tipos de documento',
-      'Modelos prontos pro setor solar',
-      'Contratos com a logomarca da sua empresa',
-      'Histórico completo e permanente',
-      'Dashboard com gráficos e analytics de uso',
-      'Clientes e terceiros ilimitados',
-      'Acesso antecipado a todo novo recurso',
-      'Participa das decisões da plataforma',
-      'Suporte prioritário direto no WhatsApp',
-    ],
-    featured: true,
-  },
-];
+// PREÇO ÚNICO — a mesma oferta do UpgradeModal, aqui em tela cheia (é a tela de
+// quem esgotou os 10 docs grátis). Antes eram dois cards comparando PRO × VIP.
+const OFERTA = {
+  key: 'ilimitado',
+  amount: '67',
+  chamada: 'Tudo liberado, sem teto mensal',
+  features: [
+    'Documentos ilimitados — sem teto mensal',
+    'Os 8 tipos: Proposta, Contrato Solar, Procuração, Recibo, Vistoria, Prestação de Serviço, Contrato Vendedor e Proposta Bancária',
+    'Modelos prontos pro setor solar',
+    'Contratos com a logomarca da sua empresa',
+    'Histórico completo e permanente',
+    'Dashboard com gráficos e analytics de uso',
+    'Clientes e terceiros ilimitados',
+    'Acesso antecipado a todo novo recurso',
+    'Participa das decisões da plataforma',
+    'Suporte prioritário direto no WhatsApp',
+  ],
+};
 
 function BillingSuspendedPage({ email }: { email: string }) {
   const [loading, setLoading] = useState(false);
@@ -189,108 +173,80 @@ function UpgradePage({ email }: { email: string }) {
       padding: '40px 20px',
     }}>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        
+
         <h1 style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 8px' }}>
           Seus 10 documentos gratuitos acabaram
         </h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: '1rem', margin: 0 }}>
-          Escolha um plano e continue gerando documentos profissionais agora
+          Uma assinatura só, tudo incluso — continue gerando documentos profissionais agora
         </p>
         <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: 6 }}>{email}</p>
       </div>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: 24,
-        width: '100%',
-        maxWidth: 860,
-      }}>
-        {PLANOS_DATA.map((p) => (
-          <div key={p.key} style={{
-            background: p.featured
-              ? 'linear-gradient(145deg, #1a1200 0%, #2d1f00 45%, #1a1200 100%)'
-              : 'linear-gradient(145deg, #0f172a 0%, #0d1f3c 50%, #0a1628 100%)',
-            border: p.featured
-              ? '1.5px solid rgba(251,191,36,0.45)'
-              : '1px solid rgba(99,179,237,0.25)',
-            borderRadius: 22,
-            padding: '32px 28px 28px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-            position: 'relative',
-            boxShadow: p.featured
-              ? '0 4px 28px rgba(251,191,36,0.15)'
-              : '0 4px 20px rgba(99,179,237,0.07)',
-          }}>
-            {p.featured && (
-              <div style={{
-                position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
-                background: 'linear-gradient(90deg,#f59e0b,#fbbf24)',
-                color: '#0f172a', fontSize: '0.72rem', fontWeight: 800,
-                padding: '4px 18px', borderRadius: 99, textTransform: 'uppercase',
-                letterSpacing: '1.2px', whiteSpace: 'nowrap',
-              }}>Mais Popular</div>
-            )}
-
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '2.5px', textTransform: 'uppercase', color: p.featured ? '#fbbf24' : '#63b3ed' }}>
-              {p.name}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-              <span style={{ fontSize: '1.3rem', fontWeight: 600, color: '#e2e8f0' }}>R$</span>
-              <span style={{ fontSize: '3.4rem', fontWeight: 900, letterSpacing: -2, color: '#fff', lineHeight: 1 }}>{p.amount}</span>
-              <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>/mês</span>
-            </div>
-
-            <div style={{
-              fontSize: '0.83rem', fontWeight: 700, textAlign: 'center', padding: '8px 12px',
-              borderRadius: 8, marginBottom: 4,
-              color: p.featured ? '#fbbf24' : '#63b3ed',
-              background: p.featured ? 'rgba(251,191,36,0.1)' : 'rgba(99,179,237,0.1)',
-              border: `1px solid ${p.featured ? 'rgba(251,191,36,0.3)' : 'rgba(99,179,237,0.25)'}`,
-            }}>{p.indicado}</div>
-
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 8px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-              {p.features.map((f) => (
-                <li key={f} style={{ fontSize: '0.88rem', color: '#cbd5e1', paddingLeft: 18, position: 'relative', lineHeight: 1.4 }}>
-                  <span style={{ position: 'absolute', left: 0, color: 'var(--color-text-muted)', fontWeight: 700 }}>✓</span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-
-            <button
-              onClick={() => assinar(p.key)}
-              disabled={loading === p.key}
-              style={{
-                marginTop: 8,
-                padding: '14px',
-                borderRadius: 12,
-                fontWeight: p.featured ? 900 : 800,
-                fontSize: '0.97rem',
-                cursor: loading === p.key ? 'not-allowed' : 'pointer',
-                opacity: loading === p.key ? 0.6 : 1,
-                width: '100%',
-                letterSpacing: '0.3px',
-                transition: 'all 0.2s',
-                ...(p.featured ? {
-                  background: 'linear-gradient(135deg,#f59e0b,#fbbf24)',
-                  color: '#0f172a',
-                  border: 'none',
-                  boxShadow: '0 4px 18px rgba(245,158,11,0.45)',
-                } : {
-                  background: 'transparent',
-                  color: '#63b3ed',
-                  border: '2px solid #63b3ed',
-                }),
-              }}
-            >
-              {loading === p.key ? 'Aguarde...' : `Assinar ${p.name} →`}
-            </button>
+      {/* Um card só: a largura acompanha a oferta única (nos 860px do
+          comparativo antigo o card sozinho esticava e quebrava o layout). */}
+      <div style={{ width: '100%', maxWidth: 460 }}>
+        <div style={{
+          background: 'linear-gradient(145deg, #1a1200 0%, #2d1f00 45%, #1a1200 100%)',
+          border: '1.5px solid rgba(251,191,36,0.45)',
+          borderRadius: 22,
+          padding: '32px 28px 28px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          position: 'relative',
+          boxShadow: '0 4px 28px rgba(251,191,36,0.15)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 3 }}>
+            <span style={{ fontSize: '1.3rem', fontWeight: 600, color: '#e2e8f0' }}>R$</span>
+            <span style={{ fontSize: '3.4rem', fontWeight: 900, letterSpacing: -2, color: '#fff', lineHeight: 1 }}>{OFERTA.amount}</span>
+            <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>/mês</span>
           </div>
-        ))}
+
+          <div style={{
+            fontSize: '0.83rem', fontWeight: 700, textAlign: 'center', padding: '8px 12px',
+            borderRadius: 8, marginBottom: 4,
+            color: '#fbbf24',
+            background: 'rgba(251,191,36,0.1)',
+            border: '1px solid rgba(251,191,36,0.3)',
+          }}>{OFERTA.chamada}</div>
+
+          <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 8px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+            {OFERTA.features.map((f) => (
+              <li key={f} style={{ fontSize: '0.88rem', color: '#cbd5e1', paddingLeft: 18, position: 'relative', lineHeight: 1.4 }}>
+                <span style={{ position: 'absolute', left: 0, color: 'var(--color-text-muted)', fontWeight: 700 }}>✓</span>
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          <button
+            onClick={() => assinar(OFERTA.key)}
+            disabled={loading === OFERTA.key}
+            style={{
+              marginTop: 8,
+              padding: '14px',
+              borderRadius: 12,
+              fontWeight: 900,
+              fontSize: '0.97rem',
+              cursor: loading === OFERTA.key ? 'not-allowed' : 'pointer',
+              opacity: loading === OFERTA.key ? 0.6 : 1,
+              width: '100%',
+              letterSpacing: '0.3px',
+              transition: 'all 0.2s',
+              background: 'linear-gradient(135deg,#f59e0b,#fbbf24)',
+              color: '#0f172a',
+              border: 'none',
+              boxShadow: '0 4px 18px rgba(245,158,11,0.45)',
+            }}
+          >
+            {loading === OFERTA.key ? 'Aguarde...' : 'Assinar agora →'}
+          </button>
+
+          <p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#94a3b8', margin: '10px 0 0' }}>
+            Cancele quando quiser · sem fidelidade
+          </p>
+        </div>
       </div>
 
       {/* Esta é a tela de quem esgotou o free — o momento exato em que a pessoa
@@ -392,12 +348,22 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // mais rápido de perder alguém que acabou de comprar. Ele navega livre e recebe
   // o convite pra cadastrar a empresa como banner (logo abaixo), não como portão
   // — o CNPJ volta a ser obrigatório na hora de gerar documento, onde faz sentido.
-  const compradorKit = !!user.tem_kit;
+  // Comprador AVULSO em geral (kit, curso ou qualquer ferramenta) fica fora dos
+  // portões abaixo. Ele pagou por uma coisa específica; esbarrar no paywall de
+  // OUTRO produto minutos depois de pagar é o caminho mais curto pro reembolso.
+  // O campo vem do /auth/me (uma fonte só, sem segunda chamada async aqui).
+  const compradorKit = !!user.tem_kit || !!user.tem_produto_avulso;
   // A tela de pagamento por Pix fica FORA de todos os portões abaixo (CNPJ,
   // suspensão, free esgotado). Bloquear quem está tentando pagar é o único erro
   // caro aqui — as três telas que seguem levam pra cá.
   const naTelaPix = pathname === '/pix-recorrente';
-  if (isFree && !isAdminUser && !compradorKit && !naTelaPix) {
+  // A LOJA e as mini LPs seguem a mesma lógica da tela de Pix: são onde a pessoa
+  // COMPRA. Interceptar quem está indo pagar é o único erro caro aqui — e eram
+  // justamente os travados (free sem CNPJ, free sem documento, suspenso) que
+  // nunca chegavam na página de compra da ferramenta avulsa.
+  const naLoja = pathname === '/produtos' || pathname.startsWith('/produtos/');
+  const deixaPassar = naTelaPix || naLoja;
+  if (isFree && !isAdminUser && !compradorKit && !deixaPassar) {
     if (!hasCompany && pathname !== '/empresa') {
       router.replace('/empresa?welcome=1&plan=free');
       return null;
@@ -410,17 +376,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   if (user.billing_status === 'suspended') {
     // Exceção pra tela de pagar por Pix — e SEM o resto do app em volta. A pessoa
     // suspensa precisa poder pagar; não precisa voltar a navegar no produto.
-    if (naTelaPix) return <div style={{ minHeight: '100vh', background: 'var(--color-bg, #0b1120)', padding: '32px 20px' }}>{children}</div>;
+    if (deixaPassar) return <div style={{ minHeight: '100vh', background: 'var(--color-bg)', padding: '32px 20px' }}>{children}</div>;
     return <BillingSuspendedPage email={user.email} />;
   }
 
   const docsRestantes = isFree ? Math.max(0, user.limite_documentos - (user.documentos_usados ?? 0)) : null;
-  const limitReached = isFree && docsRestantes === 0;
+  // Quem comprou uma ferramenta avulsa NÃO cai na tela de "acabaram seus
+  // documentos": o teto de documentos é do gerador, e ele não comprou o gerador.
+  const limitReached = isFree && docsRestantes === 0 && !compradorKit;
 
   // Créditos esgotados → tela cheia de upgrade (sem sidebar, sem distrações)
   if (limitReached) {
     // Mesma exceção da suspensão: a tela de pagar por Pix abre sozinha.
-    if (naTelaPix) return <div style={{ minHeight: '100vh', background: 'var(--color-bg, #0b1120)', padding: '32px 20px' }}>{children}</div>;
+    if (deixaPassar) return <div style={{ minHeight: '100vh', background: 'var(--color-bg)', padding: '32px 20px' }}>{children}</div>;
     return <UpgradePage email={user.email} />;
   }
 
@@ -472,14 +440,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             }}>
               <span style={{ fontSize: 13, color: docsRestantes <= 2 ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
                 {docsRestantes <= 2
-                  ? <>Plano Gratuito — <strong>{docsRestantes} documento{docsRestantes !== 1 ? 's' : ''}</strong> restante{docsRestantes !== 1 ? 's' : ''} de 10.</>
-                  : <>No plano grátis você só gera <strong>propostas</strong>. Destrave <strong>contratos, procurações e recibos</strong> no PRO.</>}
+                  ? <>Conta grátis — <strong>{docsRestantes} documento{docsRestantes !== 1 ? 's' : ''}</strong> restante{docsRestantes !== 1 ? 's' : ''} de 10.</>
+                  : <>Na conta grátis você só gera <strong>propostas</strong>. Assinando, destrava <strong>contratos, procurações e recibos</strong>.</>}
               </span>
               <button
                 onClick={() => setShowUpgrade(true)}
                 style={{ fontSize: 12, fontWeight: 700, color: docsRestantes <= 2 ? '#ef4444' : '#f59e0b', textDecoration: 'underline', whiteSpace: 'nowrap', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
               >
-                {docsRestantes <= 2 ? 'Ver planos →' : 'Quero destravar →'}
+                {docsRestantes <= 2 ? 'Ver assinatura →' : 'Quero destravar →'}
               </button>
             </div>
           )}

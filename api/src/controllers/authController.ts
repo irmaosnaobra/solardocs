@@ -11,6 +11,7 @@ import { sendWelcomeWhatsApp, sendPurchaseWhatsApp } from '../services/agents/wh
 import { sendWelcomeEmail, sendPurchaseEmail } from '../utils/mailer';
 import { FREE_LIMIT } from '../services/planService';
 import { acessoDoUsuario } from '../services/kitIntegradorService';
+import { comprouAlgumProduto } from '../services/produtos/acessos';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -664,7 +665,20 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
     // parar de oferecer. Sem isso o banner reaparecia pra quem instalou e um dia
     // abriu pelo navegador — standalone diz "estou rodando como app AGORA", não
     // "esta pessoa já instalou".
-    res.json({ user: { ...user, tem_kit: temKit, app_instalado: !!user.app_instalado_em } });
+    // tem_produto_avulso: comprou QUALQUER ferramenta/curso fora da assinatura.
+    // O layout usa pra não empurrar esse comprador pro muro de CNPJ nem pra tela
+    // de "acabaram seus documentos" — ele pagou por uma ferramenta específica, e
+    // esbarrar num portão de outro produto logo depois de pagar é o jeito mais
+    // rápido de virar reembolso.
+    const temAvulso = await comprouAlgumProduto(user.id);
+    res.json({
+      user: {
+        ...user,
+        tem_kit: temKit,
+        tem_produto_avulso: temAvulso,
+        app_instalado: !!user.app_instalado_em,
+      },
+    });
   } catch (err) {
     console.error('UpdateProfile error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
@@ -701,7 +715,20 @@ export async function getMe(req: Request, res: Response): Promise<void> {
     // parar de oferecer. Sem isso o banner reaparecia pra quem instalou e um dia
     // abriu pelo navegador — standalone diz "estou rodando como app AGORA", não
     // "esta pessoa já instalou".
-    res.json({ user: { ...user, tem_kit: temKit, app_instalado: !!user.app_instalado_em } });
+    // tem_produto_avulso: comprou QUALQUER ferramenta/curso fora da assinatura.
+    // O layout usa pra não empurrar esse comprador pro muro de CNPJ nem pra tela
+    // de "acabaram seus documentos" — ele pagou por uma ferramenta específica, e
+    // esbarrar num portão de outro produto logo depois de pagar é o jeito mais
+    // rápido de virar reembolso.
+    const temAvulso = await comprouAlgumProduto(user.id);
+    res.json({
+      user: {
+        ...user,
+        tem_kit: temKit,
+        tem_produto_avulso: temAvulso,
+        app_instalado: !!user.app_instalado_em,
+      },
+    });
   } catch (err) {
     console.error('GetMe error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });

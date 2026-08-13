@@ -56,7 +56,11 @@ function RedefinirSenhaContent() {
       if (data.token) {
         setToken(data.token);
         if (data.user) setUser(data.user);
-        router.push('/empresa?reset=ok');
+        // Comprador de ferramenta avulsa chega com ?next= no link do e-mail e
+        // aterrissa no que ele comprou. Sem isso ele cairia na tela de CNPJ, que
+        // é do gerador — produto que ele não comprou.
+        const proximo = new URLSearchParams(window.location.search).get('next');
+        router.push(proximo && proximo.startsWith('/') ? proximo : '/empresa?reset=ok');
       } else {
         router.push('/auth?mode=login&reset=ok');
       }

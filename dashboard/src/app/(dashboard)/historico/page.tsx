@@ -27,6 +27,7 @@ const TIPO_LABEL: Record<string, string> = {
   propostaBanco:    'Proposta Bancária',
   vistoria:         'Vistoria CheckList',
   propostaSolar:    'Proposta Solar',
+  propostaOffGrid:  'Proposta Off-Grid',
 };
 
 export default function HistoricoPage() {
@@ -65,12 +66,12 @@ export default function HistoricoPage() {
         <div className={styles.header}><h1 className={styles.title}>Meus Documentos</h1></div>
         <div className={styles.locked}>
           <div className={styles.lockedIcon}><Lock size={40} /></div>
-          <h2 className={styles.lockedTitle}>Disponível a partir do plano PRO</h2>
+          <h2 className={styles.lockedTitle}>Disponível para assinantes</h2>
           <p className={styles.lockedDesc}>
-            Acesse e baixe todos os documentos gerados nos últimos 30 dias.<br/>
-            No VIP, o histórico é ilimitado.
+            Todo documento que você gera fica salvo na nuvem.<br/>
+            Acesse, baixe e reenvie de qualquer lugar, a qualquer momento.
           </p>
-          <Link href="/#planos" className={styles.upgradeBtn}>Ver planos →</Link>
+          <Link href="/conta/documentos" className={styles.upgradeBtn}>Liberar meus documentos →</Link>
         </div>
       </div>
     );
@@ -81,6 +82,9 @@ export default function HistoricoPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>Meus Documentos</h1>
         <p className={styles.subtitle}>
+          {/* 'pro' é assinatura legada: o backend ainda entrega só 30 dias pra
+              esse slug (documentsController), então o rótulo tem que dizer a
+              verdade — mas sem nomear degrau de plano. */}
           {plano === 'pro' ? 'Últimos 30 dias' : plano === 'free' ? 'Período de teste' : 'Histórico completo'}
         </p>
       </div>

@@ -4,15 +4,17 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-  Settings, Zap, FileText,
+  Settings, Zap, FileText, Lock,
   LayoutDashboard, Building2, Users, User, Handshake,
   Banknote, ScrollText, FileSignature, Receipt,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
-  Boxes, Save, GraduationCap, Smartphone,
+  Boxes, Save, GraduationCap, Smartphone, BatteryCharging,
   Send, LogOut, TrendingUp, LayoutGrid, Tags,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
+import { useAcessos } from '@/hooks/useAcessos';
+import { produtoPorId } from '@/lib/produtos';
 import PlanBadge from '../PlanBadge/PlanBadge';
 import Logo from '../Logo/Logo';
 import styles from './Sidebar.module.css';
@@ -42,6 +44,11 @@ interface NavItem {
   requireCompany?: boolean;
   vipOnly?: boolean;
   paidOnly?: boolean; // free vê locked → clique abre upgrade modal
+  /**
+   * id do produto no catálogo. Quem não tem vê cadeado e o clique leva pra mini
+   * LP — nunca pra um beco. Quem tem vê o item normal, sem nada em volta.
+   */
+  produto?: string;
 }
 
 // ── Configuração das 5 seções ─────────────────────────────────────
@@ -64,25 +71,28 @@ const baseAdminItems: NavItem[] = [
 // Mascote e Baixe o App foram pra topbar (ícones). Sidebar só com o Gerador.
 const topoItems: NavItem[] = [
   { href: '/documentos?tipo=proposta', icon: Sparkles,    label: 'Gerador de Proposta', requireCompany: true },
-  // Vistoria Solar: ferramenta de campo (foto por item do checklist). Liberada
-  // pra todos os planos, sem exigir empresa — igual Precificação/Inventário.
-  { href: '/vistoria',                 icon: ClipboardCheck, label: 'Vistoria Solar' },
-  // Escanear Conta NÃO fica no menu — só dentro da aba Clientes (botão no header),
-  // que é o contexto natural (é lá que se cadastra cliente). Rota /escanear-conta viva.
-  // Precificação: ferramenta grátis (isca de retenção) — sem requireCompany, free também vê.
-  { href: '/precificacao',             icon: Calculator,  label: 'Precificação' },
-  // Inventário: ferramenta grátis (isca de retenção) — controle de patrimônio/estoque.
-  { href: '/inventario',               icon: Boxes,       label: 'Inventário' },
 ];
 
-// ── Cursos ──────────────────────────────────────────────────────────────────
-// Seção própria ACIMA do Menu: o treinamento não é uma ferramenta a mais, é o
-// lugar pra onde o comprador da isca volta todo dia. Fica visível pra todos de
-// propósito — quem não tem vê a oferta, o comprador vê a trilha, o assinante vê
-// como bônus do plano.
-const cursosItems: NavItem[] = [
-  { href: '/cursos/kit-fechamento', icon: GraduationCap, label: 'Kit de Fechamento' },
+// ── FERRAMENTAS ─────────────────────────────────────────────────────────────
+// O que se usa no dia de trabalho. As pagas trazem `produto`: quem não comprou
+// vê cadeado e cai na mini LP em vez de bater numa tela vazia.
+const ferramentasItems: NavItem[] = [
+  { href: '/vistoria',     icon: ClipboardCheck, label: 'Vistoria Solar' },
+  { href: '/precificacao', icon: Calculator,     label: 'Precificação',   produto: 'precificacao' },
+  { href: '/inventario',   icon: Boxes,          label: 'Inventário',     produto: 'inventario' },
+  // Off-grid NÃO leva `produto`: a tela é aberta de propósito (dimensionar e ver
+  // a autonomia é grátis) e o cadeado dela cai só sobre o preço, lá dentro.
+  { href: '/off-grid',     icon: BatteryCharging, label: 'Kit Off-Grid' },
 ];
+
+// ── CURSOS ──────────────────────────────────────────────────────────────────
+const cursosItems: NavItem[] = [
+  { href: '/cursos/kit-fechamento', icon: GraduationCap, label: 'Kit Fecha Vendas', produto: 'curso-fechamento' },
+  { href: '/produtos/limpapro',     icon: Sparkles,      label: 'LimpaPro',         produto: 'curso-limpapro' },
+];
+
+// A loja: onde tudo que existe aparece junto, com o estado de cada um.
+const lojaItem: NavItem = { href: '/produtos', icon: LayoutGrid, label: 'Ferramentas e cursos' };
 
 // Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.
 // Telas navegáveis pra free (sem paidOnly aqui), MAS o backend
@@ -135,10 +145,16 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
   // que diferem só pela query (/documentos?tipo=proposta vs ?tipo=recibo).
   const currentTipo = searchParams.get('tipo');
   const router = useRouter();
-  const isVip = user.plano === 'ilimitado';
+  // PREÇO ÚNICO: só existem dois estados — grátis e assinante. Os slugs legados
+  // ('pro', 'iniciante') são de quem assinou por 27/47/49 e continua pagando;
+  // eles não veem mais botão de upgrade permanente. Se o teto de documentos do
+  // contrato antigo estourar, o modal ainda abre sozinho pelo 'limit-reached'.
+  const isVip = user.plano !== 'free';
   const isFree = user.plano === 'free';
   const isAdmin = !!user.is_admin;
   const [open, setOpen] = useState(false);
+  // Quem decide o cadeado é o servidor (uma chamada, cacheada no módulo).
+  const { carregando: acessosCarregando, tem, bastidor } = useAcessos();
 
   useEffect(() => { setOpen(false); }, [pathname]);
 
@@ -170,6 +186,13 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
     const lockedByVip = !!item.vipOnly && !isVip && !isAdmin;
     const lockedByFree = !!item.paidOnly && isFree && !isAdmin;
     const lockedByPlan = lockedByVip || lockedByFree;
+    // Produto não comprado: cadeado que LEVA A ALGUM LUGAR (a mini LP). Enquanto
+    // a resposta do servidor não chega, o item fica normal — piscar cadeado na
+    // cara de quem pagou gera chamado no suporte na hora.
+    const prod = item.produto ? produtoPorId(item.produto) : null;
+    // Fora do bastidor, ferramenta que já era grátis segue SEM cadeado: pra base
+    // a novidade ainda não existe.
+    const lockedByProduto = !!prod && bastidor && !acessosCarregando && !isAdmin && !tem(item.produto!);
 
     // Bloqueado por falta de empresa → cinza, sem badge
     if (lockedByCompany) {
@@ -181,9 +204,20 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
       );
     }
 
+    // Produto não comprado → vai pra mini LP, com cadeado no lugar do ícone.
+    if (lockedByProduto && prod) {
+      return (
+        <Link key={item.href} href={`/produtos/${prod.slug}`}
+              className={styles.navItemLocked} title={`${prod.nome} — ver o que tem dentro`}>
+          <Lock className={styles.navIcon} size={15} strokeWidth={1.75} />
+          <span className={styles.navLabel}>{item.label}</span>
+        </Link>
+      );
+    }
+
     // Bloqueado por plano → clique abre o modal contextual (sem badge no menu)
     if (lockedByPlan) {
-      const title = lockedByVip ? 'Disponível no plano VIP' : 'Faça upgrade para liberar';
+      const title = lockedByVip ? 'Disponível para assinantes' : 'Assine para liberar';
       return (
         <button key={item.href} className={styles.navItemLocked} onClick={onUpgradeClick} title={title}>
           <item.icon className={styles.navIcon} size={16} strokeWidth={1.75} />
@@ -226,7 +260,7 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
             <Logo className={styles.logoImg} />
           </Link>
         ) : (
-          <button className={styles.logo} onClick={onUpgradeClick} title="Disponível no plano VIP">
+          <button className={styles.logo} onClick={onUpgradeClick} title="Disponível para assinantes">
             <Logo className={styles.logoImg} />
           </button>
         )}
@@ -251,21 +285,34 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
           </>
         )}
 
-        {/* ── Cursos: fica ACIMA do Menu de propósito (treinamento em primeiro) ── */}
+        {/* ── Ferramentas: o que se usa no dia de trabalho ── */}
+        <div className={styles.navDivider}>
+          <span className={styles.navDividerLabel}>Ferramentas</span>
+        </div>
+        <div className={styles.navSection}>
+          {topoItems.map(renderItem)}
+          {/* Kit Off-Grid só aparece no lançamento restrito; o resto é de sempre. */}
+          {ferramentasItems
+            .filter((i) => bastidor || i.href !== '/off-grid')
+            .map(renderItem)}
+        </div>
+
+        {/* ── Cursos ── */}
         <div className={styles.navDivider}>
           <span className={styles.navDividerLabel}>Cursos</span>
         </div>
         <div className={styles.navSection}>
-          {cursosItems.map(renderItem)}
+          {cursosItems
+            .filter((i) => bastidor || i.href !== '/produtos/limpapro')
+            .map(renderItem)}
         </div>
 
-        {/* ── Menu: Dashboard, Gerador (destaque), Baixe o App ── */}
-        <div className={styles.navDivider}>
-          <span className={styles.navDividerLabel}>Menu</span>
-        </div>
-        <div className={styles.navSection}>
-          {topoItems.map(renderItem)}
-        </div>
+        {/* ── A loja: só entra no menu quando o lançamento abrir ── */}
+        {bastidor && (
+          <div className={styles.navSection}>
+            {renderItem(lojaItem)}
+          </div>
+        )}
 
         {/* ── Seção 2: Cadastro ── */}
         <div className={styles.navDivider}>
@@ -362,7 +409,7 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
         {(isVip || isAdmin) ? (
           <Link href="/dashboard"><Logo className={styles.mobileLogoImg} /></Link>
         ) : (
-          <button onClick={onUpgradeClick} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} title="Disponível no plano VIP">
+          <button onClick={onUpgradeClick} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} title="Disponível para assinantes">
             <Logo className={styles.mobileLogoImg} />
           </button>
         )}

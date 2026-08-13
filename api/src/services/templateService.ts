@@ -1,4 +1,5 @@
 import { getRef, geracaoMensal, MESES_ABREV } from './propostaSolarData';
+import { propostaOffGrid } from './templates/propostaOffGrid';
 import qrcode from 'qrcode-generator';
 
 // QR (SVG) de um link — usado no rodapé da proposta (WhatsApp do vendedor).
@@ -90,6 +91,10 @@ export function generateFromTemplate(
         : prestacaoServicoM2(company, client, fields);
     case 'vistoria':
       return vistoriaM1(company, client, fields);
+    case 'propostaOffGrid':
+      // Sistema isolado. Os números vêm PRONTOS do motor do front — o template
+      // não recalcula nada (senão a autonomia impressa diverge da tela).
+      return propostaOffGrid(company, client, fields, out);
     case 'propostaSolar':
       // Modelo 1 (padrão) = "1 Página"; Modelo 2 = "Moderno" (o completo).
       return modelo === 2

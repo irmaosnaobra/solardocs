@@ -1,0 +1,224 @@
+/* Loja e mini LPs — tema light SolarZ */
+
+/* ── LOJA ── */
+.loja { max-width: 100%; padding: 8px 0 60px; }
+.lojaHero { margin-bottom: 26px; }
+.lojaHero h1 { font-size: 25px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+.lojaHero p { font-size: 14px; color: var(--color-text-muted); line-height: 1.55; margin: 0; max-width: 640px; }
+
+.lojaSecao { margin-bottom: 28px; }
+.lojaSecaoTopo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-primary);
+}
+.lojaSecaoTopo h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text); margin: 0; }
+.lojaSecaoTopo span { font-size: 12.5px; color: var(--color-text-dim); line-height: 1.5; }
+
+.lojaGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+
+.card {
+  display: block;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--cor, var(--color-primary));
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+}
+.card:hover { border-color: var(--cor, var(--color-primary)); box-shadow: 0 4px 16px rgba(11, 18, 32, 0.07); }
+.cardTopo { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 7px; }
+.cardNome { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+.cardOk, .cardLock {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+}
+.cardOk { background: #ECFDF5; color: var(--ink-green); border: 1px solid #A7F3D0; }
+.cardLock { background: var(--color-surface-2); color: var(--color-text-dim); border: 1px solid var(--color-border-strong); }
+.cardPromessa { font-size: 12.5px; line-height: 1.55; color: var(--color-text-muted); margin: 0 0 10px; }
+.cardRodape { font-size: 11px; font-weight: 700; color: var(--color-text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ── MINI LP ── */
+.lp { max-width: 100%; padding: 8px 0 60px; }
+.voltar {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700; color: var(--color-text-muted);
+  text-decoration: none; margin-bottom: 18px;
+}
+.voltar:hover { color: var(--color-primary); }
+
+.lpGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 28px; align-items: start; }
+@media (max-width: 1000px) { .lpGrid { grid-template-columns: 1fr; } }
+
+.lpSelo {
+  display: inline-block;
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--cor, var(--color-primary));
+  background: var(--color-surface-2); border: 1px solid var(--color-border);
+  padding: 5px 12px; border-radius: 999px; margin-bottom: 12px;
+}
+.lpTitulo { font-size: 30px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.15; margin: 0 0 10px; }
+.lpPromessa { font-size: 16px; line-height: 1.6; color: var(--color-text-muted); margin: 0 0 18px; }
+.lpDor {
+  font-size: 13.5px; line-height: 1.65; color: var(--color-text-muted);
+  background: var(--color-surface-2); border-left: 3px solid var(--cor, var(--color-primary));
+  border-radius: 0 8px 8px 0; padding: 13px 16px; margin-bottom: 22px;
+}
+.lpH2 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--color-text-muted); margin: 0 0 10px; }
+.lpLista { list-style: none; padding: 0; margin: 0 0 24px; }
+.lpLista li { display: flex; gap: 9px; align-items: flex-start; font-size: 13.5px; line-height: 1.55; padding: 6px 0; }
+.lpLista li svg { color: var(--cor, var(--color-primary)); flex-shrink: 0; margin-top: 2px; }
+
+.lpCaixa {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); padding: 20px;
+}
+.lpPreco { display: flex; align-items: baseline; gap: 9px; margin-bottom: 14px; flex-wrap: wrap; }
+.lpPreco strong { font-size: 31px; font-weight: 900; letter-spacing: -0.02em; color: var(--cor, var(--color-primary)); }
+.lpPreco span { font-size: 12px; font-weight: 700; color: var(--color-text-dim); }
+.lpBtn, .lpBtnGhost {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 14px 18px; font-size: 14.5px; font-weight: 800;
+  border-radius: var(--radius-md); text-decoration: none; margin-bottom: 8px;
+}
+.lpBtn { background: var(--cor, var(--color-primary)); color: #fff; }
+.lpBtn:hover { filter: brightness(1.08); }
+.lpBtnGhost { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border-strong); }
+.lpBtnGhost:hover { border-color: var(--cor, var(--color-primary)); color: var(--cor, var(--color-primary)); }
+.lpJaTem {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 14px; font-weight: 800; color: var(--ink-green); margin-bottom: 12px;
+}
+.lpAssinatura { font-size: 12.5px; color: var(--color-text-muted); line-height: 1.55; margin: 12px 0 0; }
+.lpAssinatura a { color: var(--color-primary); font-weight: 700; }
+.lpDepois { font-size: 11.5px; color: var(--color-text-dim); text-align: center; margin: 10px 0 0; }
+.lpSpinner {
+  width: 24px; height: 24px; margin: 8px auto;
+  border: 2.5px solid var(--color-border); border-top-color: var(--color-primary);
+  border-radius: 50%; animation: girar 0.8s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+.lpMock { position: sticky; top: 12px; }
+.lpMockNota {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  font-size: 11px; font-weight: 700; color: var(--color-text-dim); margin-top: 10px;
+}
+
+/* ── MOCKUPS ── */
+.mock {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: 0 8px 30px rgba(11, 18, 32, 0.08);
+}
+.mockEscuro { background: #161A22; border-color: #2E3742; }
+.mockTopo, .mockTopoEscuro {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--color-text-dim); margin-bottom: 14px;
+}
+.mockTopoEscuro { color: #7E8794; }
+
+.mockLinhas div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 5px 0; color: var(--color-text-muted); }
+.mockLinhas b { font-weight: 700; color: var(--color-text); }
+.mockSep { height: 1px; background: var(--color-border); margin: 6px 0; padding: 0 !important; }
+.mockLabel { display: block; font-size: 12px; font-weight: 700; color: var(--color-text-muted); margin: 16px 0 6px; }
+.mockLabel strong { color: var(--color-primary); }
+.mockRange { width: 100%; accent-color: var(--color-primary); }
+.mockResultado { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.mockResultado > div { background: var(--color-surface-2); border-radius: var(--radius-md); padding: 11px 13px; }
+.mockResultado span { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-dim); }
+.mockResultado strong { font-size: 19px; font-weight: 900; letter-spacing: -0.02em; }
+.mockLucro { background: #ECFDF5 !important; }
+.mockLucro strong { color: var(--ink-green); }
+.mockNota { font-size: 11px; color: var(--color-text-dim); text-align: center; margin: 12px 0 0; }
+
+.mockAut { display: flex; align-items: baseline; gap: 9px; }
+.mockAut strong { font-size: 42px; font-weight: 900; color: var(--color-primary); line-height: 1; letter-spacing: -0.03em; }
+.mockAut span { font-size: 13px; font-weight: 700; color: #C7CDD6; }
+.mockAutSub { font-size: 12px; line-height: 1.55; color: #A8B1BD; margin: 10px 0 14px; }
+.mockAutSub b { color: #fff; }
+.mockChips { display: flex; gap: 6px; }
+.mockChip, .mockChipOn {
+  flex: 1; padding: 9px; font-size: 12.5px; font-weight: 700;
+  border-radius: 999px; cursor: pointer; font-family: inherit;
+  background: #232B35; border: 1px solid #2E3742; color: #C7CDD6;
+}
+.mockChipOn { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+
+.mockPatrimonio {
+  background: var(--color-accent-soft); border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 12px;
+}
+.mockPatrimonio span { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-amber); }
+.mockPatrimonio strong { font-size: 24px; font-weight: 900; color: var(--ink-amber); letter-spacing: -0.02em; }
+.mockItens > div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--color-border); }
+.mockItens > div:last-child { border-bottom: none; }
+.mockItens b { display: block; font-size: 12.5px; font-weight: 600; }
+.mockItens em { font-size: 11px; font-style: normal; color: var(--color-text-dim); }
+.mockItens span { font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+
+.mockBarra { height: 6px; background: var(--color-surface-2); border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
+.mockBarra div { height: 100%; border-radius: 999px; }
+.mockModulos > div { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13px; color: var(--color-text-muted); }
+.mockModFeito { color: var(--color-text) !important; }
+.mockModNum {
+  width: 22px; height: 22px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--color-surface-2);
+  font-size: 11px; font-weight: 800; color: var(--color-text-dim);
+}
+
+/* ── CARD DE PRODUTO QUE JÁ É DELE ── */
+.cardMeu { border-color: var(--cor, var(--color-primary)); }
+.cardAbrir {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12.5px; font-weight: 800; color: var(--cor, var(--color-primary));
+  margin-bottom: 8px;
+}
+
+/* ── A PLATAFORMA INTEIRA (assinatura) ── */
+.assinatura {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 24px;
+  align-items: center;
+  margin-top: 30px;
+  padding: 24px;
+  background: linear-gradient(135deg, #1B2129 0%, #232B35 100%);
+  border-radius: var(--radius-lg);
+  color: #fff;
+}
+@media (max-width: 820px) { .assinatura { grid-template-columns: 1fr; } }
+.assinaturaSelo {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #FBBF24; background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  padding: 4px 11px; border-radius: 999px; margin-bottom: 12px;
+}
+.assinatura h2 { font-size: 21px; font-weight: 900; letter-spacing: -0.02em; margin: 0 0 8px; }
+.assinatura > div > p { font-size: 13.5px; line-height: 1.6; color: #A8B1BD; margin: 0 0 14px; }
+.assinatura > div > p strong { color: #fff; }
+.assinatura ul { list-style: none; padding: 0; margin: 0; }
+.assinatura li { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; color: #C7CDD6; padding: 4px 0; }
+.assinatura li svg { color: #22C55E; flex-shrink: 0; margin-top: 2px; }
+
+.assinaturaCta { text-align: center; }
+.assinaturaPreco { margin-bottom: 12px; }
+.assinaturaPreco strong { display: block; font-size: 34px; font-weight: 900; letter-spacing: -0.03em; line-height: 1; }
+.assinaturaPreco span { font-size: 12px; font-weight: 700; color: #7E8794; }
+.assinaturaBtn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 13px 18px; font-size: 14px; font-weight: 800;
+  background: var(--color-primary); color: #fff;
+  border-radius: var(--radius-md); text-decoration: none;
+}
+.assinaturaBtn:hover { filter: brightness(1.08); }
+.assinaturaCta p { font-size: 11px; color: #7E8794; line-height: 1.5; margin: 10px 0 0; }

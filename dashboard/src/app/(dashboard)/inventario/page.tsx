@@ -5,6 +5,7 @@ import { Boxes, Plus, Trash2, Printer, ArrowDownCircle, ArrowUpCircle, X, AlertT
 import api from '@/services/api';
 import { CATALOGO, UNIDADES, MARCAS_COMUNS, ICONE_LOCAL_CUSTOM } from './catalogo';
 import './inventario.css';
+import Cadeado from '@/components/Cadeado/Cadeado';
 
 // Analytics de uso (mesma telemetria da calculadora — NÃO abate crédito).
 function logUso(event_type: string) {
@@ -46,7 +47,7 @@ const ICONE_LOCAL: Record<string, string> = Object.fromEntries(
   CATALOGO.map((l) => [l.local, l.icone]),
 );
 
-export default function InventarioPage() {
+function InventarioPageInterna() {
   const [items, setItems] = useState<Item[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
@@ -480,5 +481,18 @@ export default function InventarioPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * A ferramenta virou produto: quem não comprou (nem tem pela assinatura) vê o
+ * convite, não uma tela vazia. Quem já usava antes de virar paga tem cortesia
+ * vitalícia — ver o backfill em MIGRATION_entitlements.sql.
+ */
+export default function InventarioPage() {
+  return (
+    <Cadeado produto="inventario">
+      <InventarioPageInterna />
+    </Cadeado>
   );
 }

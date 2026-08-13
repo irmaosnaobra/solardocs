@@ -10,7 +10,8 @@ const router = Router();
 //  - Código humano YYYYUUUUNNNN (12 dígitos, ex: 202600010001) — legado
 //  - UUID — legado / fallback
 // Pega o HTML do Storage e devolve com Content-Type correto.
-// Só funciona pra docs do tipo 'propostaSolar' — outros tipos ignorados.
+// Só funciona pra proposta ('propostaSolar' e 'propostaOffGrid') — os outros
+// tipos são contrato/procuração e não têm por que ficar num link público.
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id || '');
@@ -46,7 +47,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       doc = (d ?? null) as DocRow | null;
     }
 
-    if (!doc || doc.tipo !== 'propostaSolar') {
+    if (!doc || (doc.tipo !== 'propostaSolar' && doc.tipo !== 'propostaOffGrid')) {
       res.status(404).type('text/html').send(`<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Proposta não encontrada</title>

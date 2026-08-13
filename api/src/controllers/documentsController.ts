@@ -5,6 +5,7 @@ import { ApiError } from '../utils/apiError';
 import { generateDocumentWithAI } from '../services/aiService';
 import { generateFromTemplate, propostaDiasValidade, type Client } from '../services/templateService';
 import { checkLimit, incrementUsed } from '../services/planService';
+import { acessoOffGrid } from '../services/offgrid/acesso';
 import { injectPrint } from '../utils/printHtml';
 import { logger } from '../utils/logger';
 
@@ -20,7 +21,9 @@ const generateSchema = z.object({
 });
 
 // Tipos que aceitam modo rapido (so nome do cliente, sem cadastro)
-const TIPOS_MODO_RAPIDO = ['vistoria', 'propostaSolar'];
+// propostaOffGrid entra aqui pelo mesmo motivo da propostaSolar: o integrador
+// orça na frente do cliente, antes de existir cadastro.
+const TIPOS_MODO_RAPIDO = ['vistoria', 'propostaSolar', 'propostaOffGrid'];
 
 // Reemissão de um doc que já existe (botão "Editar proposta"). Mesmo formato do
 // generate menos o tipo/cliente — esses vêm da linha salva, não do cliente HTTP.
@@ -73,7 +76,16 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     const { data: planUser } = await supabase
       .from('users').select('plano, is_admin').eq('id', req.userId).single();
     if (planUser && !planUser.is_admin && planUser.plano === 'free' && body.tipo !== 'propostaSolar') {
-      throw new ApiError(402, 'Faça upgrade pra gerar esse tipo de documento. O plano gratuito libera só o Gerador de Proposta.');
+      // A proposta off-grid não é degrau de plano: é add-on comprado à parte.
+      // Quem pagou por ela gera, seja free ou assinante — cobrar duas vezes pela
+      // mesma coisa é o jeito mais rápido de virar reembolso.
+      const liberadoPorAddon = body.tipo === 'propostaOffGrid'
+        && (await acessoOffGrid(req.userId)).liberado;
+      if (!liberadoPorAddon) {
+        throw new ApiError(402, body.tipo === 'propostaOffGrid'
+          ? 'A proposta off-grid faz parte do acesso ao Kit Off-Grid.'
+          : 'Faça upgrade pra gerar esse tipo de documento. O plano gratuito libera só o Gerador de Proposta.');
+      }
     }
 
     // Fetch client or terceiro and map to unified entity
@@ -143,12 +155,18 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     let codigo: string | null = null;
     let codigoCurto: string | null = null;
     let empresaSlug: string | null = null;
-    if (body.tipo === 'propostaSolar' && req.userId) {
-      try {
-        codigo = await generateCodigoProposta(req.userId);
-        body.fields = { ...body.fields, codigo };
-      } catch (err) {
-        logger.error('documents', 'falha gerando codigo proposta — segue sem codigo', err);
+    if ((body.tipo === 'propostaSolar' || body.tipo === 'propostaOffGrid') && req.userId) {
+      // O código legacy de 12 dígitos conta SÓ propostaSolar. Emiti-lo pra
+      // off-grid entregaria o mesmo número pra duas propostas diferentes — e o
+      // template off-grid nem imprime esse campo. Ele fica com o codigo_curto,
+      // que é MAX+1 sobre TODOS os tipos e por isso não colide.
+      if (body.tipo === 'propostaSolar') {
+        try {
+          codigo = await generateCodigoProposta(req.userId);
+          body.fields = { ...body.fields, codigo };
+        } catch (err) {
+          logger.error('documents', 'falha gerando codigo proposta — segue sem codigo', err);
+        }
       }
       try {
         const slugAndCurto = await ensureEmpresaSlugAndCodigoCurto(req.userId, company.id);
@@ -314,7 +332,9 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     // Mesmo portão do generate: free só mexe em proposta.
     const { data: planUser } = await supabase
       .from('users').select('plano, is_admin').eq('id', req.userId).single();
-    if (planUser && !planUser.is_admin && planUser.plano === 'free' && doc.tipo !== 'propostaSolar') {
+    const offgridLiberado = doc.tipo === 'propostaOffGrid'
+      && (await acessoOffGrid(req.userId)).liberado;
+    if (planUser && !planUser.is_admin && planUser.plano === 'free' && doc.tipo !== 'propostaSolar' && !offgridLiberado) {
       throw new ApiError(402, 'Faça upgrade pra editar esse tipo de documento. O plano gratuito libera só o Gerador de Proposta.');
     }
 

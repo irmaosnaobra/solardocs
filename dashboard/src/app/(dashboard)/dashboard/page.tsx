@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import {
   FileText, CalendarDays, Users, Handshake, CalendarClock, Sun,
-  Wrench, ScrollText, Briefcase, Banknote, FileSignature, ClipboardCheck, Sparkles,
+  Wrench, ScrollText, Briefcase, Banknote, FileSignature, ClipboardCheck, Sparkles, BatteryCharging,
   type LucideIcon,
 } from 'lucide-react';
 import api from '@/services/api';
@@ -43,6 +43,7 @@ const TIPO_LABEL: Record<string, string> = {
   propostaBanco:    'Proposta Bancária',
   vistoria:         'Vistoria CheckList',
   propostaSolar:    'Proposta Solar',
+  propostaOffGrid:  'Proposta Off-Grid',
 };
 
 const TIPO_ICON: Record<string, LucideIcon> = {
@@ -53,6 +54,7 @@ const TIPO_ICON: Record<string, LucideIcon> = {
   propostaBanco:    Banknote,
   vistoria:         ClipboardCheck,
   propostaSolar:    Sparkles,
+  propostaOffGrid:  BatteryCharging,
 };
 
 const TIPO_HREF: Record<string, string> = {
@@ -63,6 +65,7 @@ const TIPO_HREF: Record<string, string> = {
   propostaBanco:    '/documentos?tipo=proposta-bancaria',
   vistoria:         '/documentos?tipo=vistoria',
   propostaSolar:    '/documentos?tipo=proposta',
+  propostaOffGrid:  '/off-grid',
 };
 
 const PIE_COLORS = ['#F59E0B', '#FBBF24', '#FCD34D', '#FDE68A', '#FEF3C7'];
