@@ -36,14 +36,97 @@ export type VendaAviso = {
   utmSource?: string | null;
   utmCampaign?: string | null;
   utmContent?: string | null;
+  // ausente = quem chamou não conseguiu apurar (nenhuma linha é escrita);
+  // null = apurou e falhou (a mensagem DIZ que não deu pra conferir).
+  historico?: HistoricoCliente | null;
+};
+
+// Quem já comprou antes com este e-mail. Três estados, porque os três pedem
+// coisas diferentes do dono: 'novo' é aquisição, 'assinante' é cobrança
+// dobrada em formação e 'retorno' é uma reativação (vitória, não problema).
+export type HistoricoCliente = {
+  tipo: 'novo' | 'assinante' | 'retorno';
+  primeiraCompra: string | null;   // ISO da compra mais antiga deste e-mail
+  comprasAnteriores: number;
 };
 
 const brl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
+// Devolve '' em data impossível de ler: textoAvisoVenda roda DEPOIS de a trava
+// `aviso_dono_em` ser tomada, então um throw aqui apagaria o aviso pra sempre —
+// sem WhatsApp e sem o e-mail de resgate.
+const dataBR = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo',
+  }).format(d);
+};
+
+// O Thiago pediu o número de MESES. Abaixo de 30 dias, mês vira "0 meses" e
+// mente — então esse trecho fala em dias, que é o que a pessoa quer saber.
+export function tempoDeCasa(iso: string | null): string {
+  if (!iso) return '';
+  const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (!Number.isFinite(dias) || dias < 0) return '';
+  if (dias === 0) return 'hoje';
+  if (dias === 1) return 'ontem';
+  if (dias < 30) return `há ${dias} dias`;
+  const meses = Math.floor(dias / 30.44);
+  return meses === 1 ? 'há 1 mês' : `há ${meses} meses`;
+}
+
+// UM EMOJI POR TIPO, e ele abre a mensagem.
+//
+// A prévia da notificação do WhatsApp mostra só a PRIMEIRA LINHA — se o sinal
+// morasse no meio do texto, o Thiago teria que abrir a conversa pra saber se a
+// venda foi aquisição ou recompra de quem já paga. Por isso o emoji manda no
+// cabeçalho, e se repete na linha *Cliente* pra quem já está lendo por dentro.
+//
+// Os três são visualmente distintos de longe (novo / risco / repetição) —
+// dois emojis parecidos aqui valeriam o mesmo que nenhum.
+const EMOJI: Record<HistoricoCliente['tipo'], string> = {
+  novo:      '🆕',
+  assinante: '⚠️',
+  retorno:   '🔄',
+};
+
+const TITULO: Record<HistoricoCliente['tipo'], string> = {
+  novo:      '🆕 *VENDA SolarDoc — CLIENTE NOVO*',
+  assinante: '⚠️ *VENDA SolarDoc — JÁ É ASSINANTE*',
+  retorno:   '🔄 *VENDA SolarDoc — CLIENTE QUE VOLTOU*',
+};
+
+export function tituloAvisoVenda(h: HistoricoCliente | null | undefined): string {
+  // Sem histórico apurado o título não inventa tipo — segue o de sempre.
+  return h ? TITULO[h.tipo] : '💰 *VENDA — SolarDoc*';
+}
+
+function linhaCliente(h: HistoricoCliente | null | undefined): string[] {
+  if (h === undefined) return [];
+  if (h === null) return ['❔ *Cliente:* _não deu pra conferir o histórico_'];
+  if (h.tipo === 'novo') return [`${EMOJI.novo} *Cliente:* NOVO — primeira compra`];
+
+  const tempo = tempoDeCasa(h.primeiraCompra);
+  const dia = h.primeiraCompra ? dataBR(h.primeiraCompra) : '';
+  const nEsima = `${h.comprasAnteriores + 1}ª compra neste e-mail`;
+
+  if (h.tipo === 'assinante') {
+    return [
+      `${EMOJI.assinante} *Cliente:* JÁ ASSINA${tempo ? ` ${tempo}` : ''}${dia ? ` (desde ${dia})` : ''} — ${nEsima}`,
+      '🚨 *ATENÇÃO:* a assinatura anterior continua ATIVA — pode virar cobrança dobrada',
+    ];
+  }
+  const quando = dia
+    ? `já tinha comprado em ${dia}${tempo ? ` (${tempo})` : ''} e cancelou`
+    : 'já tinha comprado antes e cancelou';
+  return [`${EMOJI.retorno} *Cliente:* VOLTOU — ${quando} · ${nEsima}`];
+}
+
 export function textoAvisoVenda(v: VendaAviso): string {
   const origem = [v.utmSource, v.utmCampaign, v.utmContent].filter(Boolean).join(' · ');
   return [
-    '💰 *VENDA — SolarDoc*',
+    tituloAvisoVenda(v.historico),
     '',
     `*Plano:* ${v.produto} · ${brl(v.valor)}/mês`,
     // A distinção que o Thiago perguntou em 06/08: cobrança imediata virou o
@@ -51,11 +134,94 @@ export function textoAvisoVenda(v: VendaAviso): string {
     v.cobrouAgora
       ? '*Dinheiro:* entrou agora (cartão cobrado)'
       : '*Dinheiro:* ainda NÃO entrou — começou em teste grátis',
+    ...linhaCliente(v.historico),
     `*Nome:* ${v.nome || '_não informado_'}`,
     `*E-mail:* ${v.email || '_não informado_'}`,
     ...(v.phone ? [`*WhatsApp:* wa.me/${v.phone}`] : []),
     `*Origem:* ${origem || '_sem UTM (direto, orgânico ou order bump)_'}`,
   ].join('\n');
+}
+
+// Status da Stripe que significam "esta assinatura ainda cobra". Mesmo conjunto
+// do stripeSyncService (past_due dentro: dunning ainda vai tentar o cartão).
+const STATUS_VIVO = new Set(['active', 'trialing', 'past_due', 'paid']);
+
+/**
+ * Este e-mail já comprou antes? E, se comprou, a assinatura velha ainda está de pé?
+ *
+ * DUAS FONTES, nessa ordem:
+ *  1) a Stripe, quando a linha antiga tem subscription_id — é a verdade do minuto;
+ *  2) o ledger `sales`, que o syncStripePlans reconcilia de hora em hora — cobre
+ *     as 48 linhas do backfill, que não têm subscription_id nenhum.
+ * O ledger sozinho erraria justamente no caso de quem cancela e recompra dentro
+ * da mesma hora: ele ainda diria "ativa" e o aviso gritaria duplicidade à toa.
+ *
+ * A venda ATUAL é excluída por checkout_session_id (o upsertSale já gravou a
+ * linha dela antes daqui) — exclusão explícita, não dependente de ordem: numa
+ * reentrega do webhook a linha já existe e continua sendo excluída.
+ *
+ * Nunca joga: falha de banco/Stripe devolve `null`, e o aviso diz que não deu
+ * pra conferir em vez de chutar "cliente novo".
+ */
+export async function historicoDoCliente(args: {
+  email: string | null;
+  checkoutSessionIdAtual: string;
+  subscriptionIdAtual?: string | null;
+  /** confirma na Stripe se a assinatura antiga está viva (opcional) */
+  assinaturaViva?: (subscriptionId: string) => Promise<boolean>;
+}): Promise<HistoricoCliente | null> {
+  const email = (args.email || '').toLowerCase().trim();
+  if (!email) return null;
+
+  let linhas: Array<Record<string, any>>;
+  try {
+    const { data, error } = await supabase
+      .from('sales')
+      .select('checkout_session_id, subscription_id, status, card_passed_at, created_at')
+      .eq('email', email);
+    if (error) throw error;
+    linhas = data ?? [];
+  } catch (err) {
+    logger.error('venda-aviso', 'não deu pra ler o histórico do cliente no ledger', err);
+    return null;
+  }
+
+  // Filtro em JS de propósito: `.neq()` no Postgres descarta linha com a coluna
+  // NULL (NULL <> 'x' é NULL), o que esconderia compras antigas em silêncio.
+  const anteriores = linhas.filter((r) =>
+    r.checkout_session_id !== args.checkoutSessionIdAtual
+    && !(args.subscriptionIdAtual && r.subscription_id === args.subscriptionIdAtual));
+
+  if (!anteriores.length) return { tipo: 'novo', primeiraCompra: null, comprasAnteriores: 0 };
+
+  const quando = (r: Record<string, any>) => (r.card_passed_at || r.created_at) as string | null;
+  const datas = anteriores.map(quando).filter((d): d is string => !!d).sort();
+
+  // DA MAIS NOVA PRA MAIS VELHA antes de cortar em 3: o Postgres devolve sem
+  // ordem, e quem tem 4 assinaturas antigas (já existe um caso, 3 subs no mesmo
+  // e-mail) poderia ter justo a VIVA fora do corte — e o aviso diria "voltou"
+  // exatamente no comprador repetido que a linha de ATENÇÃO existe pra pegar.
+  let viva: boolean | null = null;
+  const subs = [...new Set(
+    [...anteriores]
+      .sort((a, b) => String(quando(b) ?? '').localeCompare(String(quando(a) ?? '')))
+      .map((r) => r.subscription_id)
+      .filter(Boolean) as string[],
+  )].slice(0, 3);
+  if (args.assinaturaViva && subs.length) {
+    try {
+      viva = (await Promise.all(subs.map((s) => args.assinaturaViva!(s)))).some(Boolean);
+    } catch (err) {
+      logger.error('venda-aviso', 'Stripe não respondeu sobre a assinatura antiga — usando o ledger', err);
+    }
+  }
+  if (viva === null) viva = anteriores.some((r) => STATUS_VIVO.has(String(r.status)));
+
+  return {
+    tipo: viva ? 'assinante' : 'retorno',
+    primeiraCompra: datas[0] ?? null,
+    comprasAnteriores: anteriores.length,
+  };
 }
 
 /**
@@ -91,7 +257,10 @@ export async function avisarVendaAoDono(
   } catch (err) {
     logger.error('venda-aviso', 'WhatsApp da venda não passou — caindo pro e-mail', err);
     await sendOpsAlert(
-      `💰 Venda nova (${v.produto} · ${brl(v.valor)}) — o WhatsApp não passou`,
+      // O e-mail de resgate carrega o MESMO sinal do WhatsApp: quando a linha
+      // cai, é ele que vira o aviso — e a distinção não pode cair junto.
+      `${v.historico ? `${EMOJI[v.historico.tipo]} ` : '💰 '}Venda nova ` +
+      `(${v.produto} · ${brl(v.valor)}) — o WhatsApp não passou`,
       `<p>Uma venda entrou e o aviso pelo WhatsApp <strong>falhou</strong> (linha fora, cooldown ou token). ` +
       `Segue o conteúdo:</p><pre style="white-space:pre-wrap;font-family:inherit">${texto.replace(/\*/g, '')}</pre>` +
       `<p style="color:#64748b;font-size:13px;">Se este e-mail virou rotina, a linha B2B está caída — é ela que leva os avisos de venda.</p>`,

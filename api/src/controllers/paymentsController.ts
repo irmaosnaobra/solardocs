@@ -7,7 +7,7 @@ import { sendDunningDay0, sendDunningRecovered } from '../services/dunningServic
 import { sendCheckoutCompletionEmail } from '../utils/mailer';
 import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { upsertSale, sendPurchaseForSale } from '../services/salesLedger';
-import { avisarVendaAoDono } from '../services/vendaAviso';
+import { avisarVendaAoDono, historicoDoCliente } from '../services/vendaAviso';
 import { sendUtmifyOrder } from '../services/utmifyOrders';
 import { concederCursoPorAssinatura } from '../services/kitIntegradorService';
 import {
@@ -884,9 +884,27 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         // derrubar o Purchase nem o espelho da venda.
         // Não cobre o upgrade in-place (PRO→VIP de quem já assina): aquele caminho
         // atualiza a assinatura direto e a Stripe não emite checkout.session.completed.
+        // CLIENTE NOVO vs QUEM JÁ ASSINA (14/08/2026): o aviso tratava toda venda
+        // como aquisição. Nos dois casos que o Thiago mostrou, isso era mentira em
+        // um deles — o mesmo e-mail já tinha comprado em 22/05, cancelado e voltado
+        // pelo cupom de R$19. E o caso pior é o inverso: recompra de quem JÁ paga é
+        // o começo das 111 assinaturas pra 85 e-mails (a raiz dos chargebacks).
+        // Fica FORA do try/catch de dentro? Não: mora aqui, isolado por .catch, e
+        // devolve null quando não dá pra apurar — aviso sem histórico ainda é aviso.
+        const historico = await historicoDoCliente({
+          email: email ?? null,
+          checkoutSessionIdAtual: session.id,
+          subscriptionIdAtual: (session.subscription as string) ?? null,
+          assinaturaViva: async (subId) => {
+            const s = await stripe.subscriptions.retrieve(subId);
+            return ['active', 'trialing', 'past_due'].includes(String(s.status));
+          },
+        }).catch(() => null);
+
         await avisarVendaAoDono(saleId, {
           produto, valor,
           cobrouAgora,
+          historico,
           email: email ?? null,
           nome: cd?.name ?? null,
           phone: cd?.phone ? String(cd.phone).replace(/\D/g, '') : null,
