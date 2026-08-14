@@ -34,10 +34,6 @@ vi.mock('../utils/supabaseGerador', () => ({
           }
           q._filtros[col] = v; return q;
         },
-        // A consulta pede `.in('status', ['agendado','nao_atendeu'])` desde
-        // 14/08: o toque de 5 min continua saindo pra quem o robô marcou de
-        // NÃO ATENDIDO sozinho.
-        in(col: string, v: any[]) { q._filtros[`in_${col}`] = v; return q; },
         gte(col: string, v: any) { q._filtros[`gte_${col}`] = v; return q; },
         lte(col: string, v: any) { q._filtros[`lte_${col}`] = v; return q; },
         order() { return q; },
